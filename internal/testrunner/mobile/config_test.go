@@ -47,8 +47,10 @@ import {DEFAULT_CONFIGS} from `+js(fileURL(filepath.Join(modules, "@wdio/config/
 import {DEFAULTS} from `+js(fileURL(filepath.Join(modules, "webdriver/build/index.js")))+`;
 function sanitizeCaps(capabilities,filterOut){const caps='alwaysMatch' in capabilities?capabilities.alwaysMatch:capabilities;const keys=[...Object.keys(DEFAULT_CONFIGS()),...Object.keys(DEFAULTS)];return Object.keys(caps).filter(k=>!keys.includes(k)===!filterOut).reduce((o,k)=>(o[k]=caps[k],o),{});}
 const c=config.capabilities[0],effective={...config,...sanitizeCaps(c,true),capabilities:sanitizeCaps(c)};
-mkdirSync(`+js(r.ReportDir)+`);config.before([],[],{sessionId:'0f1e2d3c-4b5a-4968-8776-655443322110'});const recorded=readFileSync(`+js(filepath.Join(r.ReportDir, sessionFile))+`,'utf8');
+mkdirSync(`+js(r.ReportDir)+`);config.before([],[],{sessionId:'0f1e2d3c-4b5a-4968-8776-655443322110'});
 const parser=new ConfigParser(`+js(filepath.Join(root, "generated.mjs"))+`);await parser.initialize({spec:[`+js(filepath.Join(root, "test.cjs"))+`]});
+const reload=parser.getConfig().onReload;await Promise.all(reload.map(hook=>hook('0f1e2d3c-4b5a-4968-8776-655443322110','1a2b3c4d-5e6f-4a0b-9c1d-2e3f4a5b6c7d')));
+const recorded=readFileSync(`+js(filepath.Join(r.ReportDir, sessionFile))+`,'utf8');
 console.log(JSON.stringify({host:effective.hostname,port:effective.port,device:effective.capabilities['appium:udid'],specs:parser.getSpecs(),hooks:String(config.before??'').includes('unqualified hook'),suite:!!config.suite,retries:config.specFileRetries,mochaRetries:config.mochaOpts.retries,repeat:config.repeat??0,session:effective.sessionId??'',recorded}));`)
 	b, e := exec.Command(node, filepath.Join(root, "probe.mjs")).CombinedOutput()
 	if e != nil {
@@ -66,7 +68,7 @@ console.log(JSON.stringify({host:effective.hostname,port:effective.port,device:e
 	if e = json.Unmarshal(b, &got); e != nil {
 		t.Fatalf("%v: %s", e, b)
 	}
-	if got.Host != "127.0.0.1" || got.Port != 4723 || got.Device != "emulator-5580" || len(got.Specs) != 1 || got.Specs[0] != fileURL(filepath.Join(root, "test.cjs")) || got.Hooks || got.Suite || got.Retries != 0 || got.MochaRetries != 0 || got.Repeat != 0 || got.Session != "" || got.Recorded != "0f1e2d3c-4b5a-4968-8776-655443322110" {
+	if got.Host != "127.0.0.1" || got.Port != 4723 || got.Device != "emulator-5580" || len(got.Specs) != 1 || got.Specs[0] != fileURL(filepath.Join(root, "test.cjs")) || got.Hooks || got.Suite || got.Retries != 0 || got.MochaRetries != 0 || got.Repeat != 0 || got.Session != "" || got.Recorded != "0f1e2d3c-4b5a-4968-8776-655443322110\n1a2b3c4d-5e6f-4a0b-9c1d-2e3f4a5b6c7d\n" {
 		t.Fatalf("native isolation failed: %s", b)
 	}
 	t.Logf("native schedule and session config: %s", b)

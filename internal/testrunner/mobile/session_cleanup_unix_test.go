@@ -15,25 +15,31 @@ import (
 	tr "github.com/Beamfall/corvint/internal/testrunner"
 )
 
-const fakeSession = "0f1e2d3c-4b5a-4968-8776-655443322110"
+const (
+	fakeSession     = "0f1e2d3c-4b5a-4968-8776-655443322110"
+	reloadedSession = "1a2b3c4d-5e6f-4a0b-9c1d-2e3f4a5b6c7d"
+)
 
 // TestTimeoutDeletesAppiumSession binds TRE-V0-087 for the Appium profile
 // (V1-1553): a timed-out run deletes the WebDriver session its fixed hook
-// recorded, and records an incomplete cleanup when the server refuses the
-// delete or the session identity was never recorded.
+// recorded, and each session a reload replaced it with, and records an
+// incomplete cleanup when the server refuses the delete or the session
+// identity was never recorded.
 func TestTimeoutDeletesAppiumSession(t *testing.T) {
 	for _, c := range []struct {
 		name          string
 		status        int
 		body          string
-		record        bool
+		record        []string
 		outcome, step string
 	}{
-		{"deleted", 200, `{"value":null}`, true, tr.CleanupClean, "ok"},
-		{"already-absent", 404, `{"value":{"error":"invalid session id"}}`, true, tr.CleanupClean, "ok"},
-		{"refused", 500, `{"value":{"error":"unknown error"}}`, true, tr.CleanupIncomplete, "failed"},
-		{"unknown-route", 404, `{"value":{"error":"unknown command"}}`, true, tr.CleanupIncomplete, "failed"},
-		{"unrecorded", 200, `{"value":null}`, false, tr.CleanupIncomplete, "unobserved"},
+		{"deleted", 200, `{"value":null}`, []string{fakeSession}, tr.CleanupClean, "ok"},
+		// browser.reloadSession() replaced the first session; both are deleted.
+		{"reloaded", 200, `{"value":null}`, []string{fakeSession, reloadedSession}, tr.CleanupClean, "ok"},
+		{"already-absent", 404, `{"value":{"error":"invalid session id"}}`, []string{fakeSession}, tr.CleanupClean, "ok"},
+		{"refused", 500, `{"value":{"error":"unknown error"}}`, []string{fakeSession}, tr.CleanupIncomplete, "failed"},
+		{"unknown-route", 404, `{"value":{"error":"unknown command"}}`, []string{fakeSession}, tr.CleanupIncomplete, "failed"},
+		{"unrecorded", 200, `{"value":null}`, nil, tr.CleanupIncomplete, "unobserved"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			var mu sync.Mutex
@@ -49,8 +55,8 @@ func TestTimeoutDeletesAppiumSession(t *testing.T) {
 			defer srv.Close()
 			root, _ := filepath.EvalSymlinks(t.TempDir())
 			record := ""
-			if c.record {
-				record = `printf '%s' ` + fakeSession + ` > "${2%/*}/.appium-session"; `
+			for _, id := range c.record {
+				record += `printf '%s\n' ` + id + ` >> "${2%/*}/.appium-session"; `
 			}
 			wdio := "#!/bin/sh\n" + record + "exec /bin/sleep 30\n"
 			files := map[string]string{"bin/wdio": wdio, "config.mjs": "export const config={};\n", "reporter.js": "export default class {}\n", "test.cjs": "it('x',()=>{});\n"}
@@ -81,10 +87,11 @@ func TestTimeoutDeletesAppiumSession(t *testing.T) {
 			mu.Lock()
 			got := strings.Join(calls, ",")
 			mu.Unlock()
-			want := ""
-			if c.record {
-				want = "DELETE /session/" + fakeSession
+			deletes := []string{}
+			for _, id := range c.record {
+				deletes = append(deletes, "DELETE /session/"+id)
 			}
+			want := strings.Join(deletes, ",")
 			if got != want {
 				t.Fatalf("WebDriver calls %q, want %q", got, want)
 			}

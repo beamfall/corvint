@@ -4,9 +4,13 @@ package testrunner
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -141,5 +145,86 @@ func TestDeviceCleanupOnlyAfterTimeoutOrInterrupt(t *testing.T) {
 	}
 	if b, err := os.ReadFile(r.Executable + ".log"); err != nil || string(b) != "stop\n" {
 		t.Fatalf("device cleanup invocation not recorded once: %q %v", b, err)
+	}
+}
+
+// TestWebDriverSessionDeletionProvesAbsence binds TRE-V0-087's session
+// deletion: the record is read without blocking and only when it is a regular
+// file of newline-terminated session ids, every recorded session (the first
+// and each reload replacement) is deleted, and only a whole W3C null-value
+// success or "invalid session id" answer, read before the deadline, is ok.
+func TestWebDriverSessionDeletionProvesAbsence(t *testing.T) {
+	const a, b = "0f1e2d3c-4b5a-4968-8776-655443322110", "1a2b3c4d-5e6f-4a0b-9c1d-2e3f4a5b6c7d"
+	for _, c := range []struct {
+		name, body, status string
+		record             func(path string) error
+		stall              bool
+		deleted            []string
+	}{
+		{name: "reloaded", body: `{"value":null}`, status: "ok", deleted: []string{a, b}, record: lines(a, b)},
+		{name: "repeated", body: `{"value":null}`, status: "ok", deleted: []string{a}, record: lines(a, a)},
+		{name: "not-envelope", body: `ok`, status: "failed", deleted: []string{a}, record: lines(a)},
+		{name: "value-not-null", body: `{"value":{}}`, status: "failed", deleted: []string{a}, record: lines(a)},
+		{name: "stalled-body", stall: true, status: "timed-out", deleted: []string{a}, record: lines(a)},
+		{name: "unterminated", body: `{"value":null}`, status: "unobserved", record: func(p string) error { return os.WriteFile(p, []byte(a), 0600) }},
+		{name: "too-many", body: `{"value":null}`, status: "unobserved", record: lines(a, b, a, b, a, b, a, b, a)},
+		{name: "fifo", body: `{"value":null}`, status: "unobserved", record: func(p string) error { return syscall.Mkfifo(p, 0600) }},
+		{name: "symlink", body: `{"value":null}`, status: "unobserved", record: func(p string) error {
+			if err := lines(a)(p + ".target"); err != nil {
+				return err
+			}
+			return os.Symlink(filepath.Base(p)+".target", p)
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			release := make(chan struct{})
+			var mu sync.Mutex
+			var deleted []string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, q *http.Request) {
+				mu.Lock()
+				deleted = append(deleted, strings.TrimPrefix(q.URL.Path, "/session/"))
+				mu.Unlock()
+				w.WriteHeader(http.StatusOK)
+				if c.stall {
+					_, _ = w.Write([]byte(`{"value":`))
+					w.(http.Flusher).Flush()
+					select {
+					case <-release:
+					case <-q.Context().Done():
+					}
+					return
+				}
+				_, _ = w.Write([]byte(c.body))
+			}))
+			defer srv.Close()
+			defer close(release)
+			dir := t.TempDir()
+			if err := c.record(filepath.Join(dir, ".appium-session")); err != nil {
+				t.Fatal(err)
+			}
+			root, err := os.OpenRoot(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer root.Close()
+			ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+			defer cancel()
+			started := time.Now()
+			res := deleteWebDriverSession(ctx, CleanupStep{Name: "delete-session", WebDriver: srv.URL + "/", SessionFile: ".appium-session"}, root)
+			if res.Status != c.status || time.Since(started) > 5*time.Second {
+				t.Fatalf("result %+v after %s, want %s", res, time.Since(started), c.status)
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			if strings.Join(deleted, ",") != strings.Join(c.deleted, ",") {
+				t.Fatalf("deleted %q, want %q", deleted, c.deleted)
+			}
+		})
+	}
+}
+
+func lines(ids ...string) func(string) error {
+	return func(path string) error {
+		return os.WriteFile(path, []byte(strings.Join(ids, "\n")+"\n"), 0600)
 	}
 }

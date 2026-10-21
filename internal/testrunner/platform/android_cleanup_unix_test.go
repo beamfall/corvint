@@ -5,6 +5,7 @@ package platform
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -21,7 +22,7 @@ d=${0%/*}
 printf '%s\n' "$*" >> "$d/adb.log"
 [ "$1" = -s ] && [ "$2" = emulator-5554 ] && [ "$3" = shell ] || exit 64
 shift 3
-PATH="$d/device:/usr/bin:/bin" /bin/sh -c "$*"
+PATH="$d/device" /bin/sh -c "$*"
 rc=$?
 [ -f "$d/drop-status" ] && exit 0
 exit $rc
@@ -44,11 +45,15 @@ echo "instrumentation:other.test/androidx.test.runner.AndroidJUnitRunner (target
 `,
 	"dumpsys": `#!/bin/sh
 s=${0%/*}/..
+[ -f "$s/dumpsys-fails" ] && { echo "Can't find service: activity"; exit 1; }
+[ -f "$s/dumpsys-headless" ] && exit 0
+echo "ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)"
 [ -f "$s/stopped" ] || echo "      mClass=ComponentInfo{local.proof.test/androidx.test.runner.AndroidJUnitRunner} mFinished=false"
 echo "      mClass=ComponentInfo{other.test/androidx.test.runner.AndroidJUnitRunner} mFinished=false"
 `,
 	"pidof": `#!/bin/sh
 s=${0%/*}/..
+[ -f "$s/pidof-broken" ] && exit 2
 [ "$1" = local.proof ] && [ ! -f "$s/stopped" ] && { echo 1234; exit 0; }
 exit 1
 `,
@@ -62,14 +67,20 @@ exit 1
 // the transport drops the remote exit status.
 func TestAndroidTimeoutStopsDeviceProcesses(t *testing.T) {
 	for _, c := range []struct {
-		name, marker, outcome string
-		status                []string
+		name, marker, outcome, verify string
+		status                        []string
 	}{
-		{"clean", "", tr.CleanupClean, []string{"ok", "ok"}},
-		{"stuck", "stuck", tr.CleanupIncomplete, []string{"ok", "failed"}},
-		{"uninstalled", "uninstalled", tr.CleanupIncomplete, []string{"failed", "failed"}},
-		{"exit-status-dropped", "drop-status,stuck", tr.CleanupIncomplete, []string{"ok", "failed"}},
-		{"completed", "instrument-completes", tr.CleanupNotRequired, nil},
+		{"clean", "", tr.CleanupClean, "verified", []string{"ok", "ok"}},
+		{"stuck", "stuck", tr.CleanupIncomplete, "instrumentation-still-active", []string{"ok", "failed"}},
+		{"uninstalled", "uninstalled", tr.CleanupIncomplete, "instrumentation-target-unresolved", []string{"failed", "failed"}},
+		{"exit-status-dropped", "drop-status,stuck", tr.CleanupIncomplete, "instrumentation-still-active", []string{"ok", "failed"}},
+		// A failed probe is not an absent process: a failing or headerless
+		// dumpsys, and a pidof that errors or is missing, never verify.
+		{"dumpsys-fails", "dumpsys-fails,stuck,pidof-broken", tr.CleanupIncomplete, "instrumentation-probe-failed", []string{"ok", "failed"}},
+		{"dumpsys-headless", "dumpsys-headless,stuck", tr.CleanupIncomplete, "instrumentation-probe-failed", []string{"ok", "failed"}},
+		{"pidof-broken", "pidof-broken", tr.CleanupIncomplete, "process-probe-failed", []string{"ok", "failed"}},
+		{"pidof-missing", "pidof-missing", tr.CleanupIncomplete, "process-probe-failed", []string{"ok", "failed"}},
+		{"completed", "instrument-completes", tr.CleanupNotRequired, "", nil},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			root, _ := filepath.EvalSymlinks(t.TempDir())
@@ -85,7 +96,19 @@ func TestAndroidTimeoutStopsDeviceProcesses(t *testing.T) {
 			}
 			write("adb", fakeAdb, 0700)
 			for name, body := range fakeDevice {
+				if name == "pidof" && c.marker == "pidof-missing" {
+					continue
+				}
 				write(filepath.Join("device", name), body, 0700)
+			}
+			// The device PATH is only the fakes and grep, so a missing pidof
+			// is missing on every host.
+			grep, err := exec.LookPath("grep")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(grep, filepath.Join(bin, "device", "grep")); err != nil {
+				t.Fatal(err)
 			}
 			for _, m := range strings.Split(c.marker, ",") {
 				if m != "" {
@@ -112,6 +135,9 @@ func TestAndroidTimeoutStopsDeviceProcesses(t *testing.T) {
 				if d.Steps[i].Status != s {
 					t.Fatalf("step %+v, want %s", d.Steps[i], s)
 				}
+			}
+			if c.verify != "" && !strings.Contains(d.Steps[1].Detail, c.verify) {
+				t.Fatalf("verify step %+v, want %s", d.Steps[1], c.verify)
 			}
 			calls, _ := os.ReadFile(filepath.Join(bin, "adb.log"))
 			lines := strings.Split(strings.TrimSuffix(string(calls), "\n"), "\n")

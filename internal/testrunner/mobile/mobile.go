@@ -62,7 +62,8 @@ func Build(r tr.Request) (tr.Invocation, error) {
 	if filepath.Clean(config) != config || !digest.MatchString(r.ConfigSha256) || !filepath.IsAbs(r.Reporter) || filepath.Clean(r.Reporter) != r.Reporter || !digest.MatchString(r.ReporterSha256) || len(r.ReportFiles) != 0 {
 		return v, fmt.Errorf("Appium requires pinned configuration and native WDIO JSON reporter; report path is fixed")
 	}
-	wrapper := `import {writeFileSync} from "node:fs";
+	session := js(filepath.Join(r.ReportDir, sessionFile))
+	wrapper := `import {appendFileSync,writeFileSync} from "node:fs";
 import * as imported from ` + js(fileURL(config)) + `;
 import JSONReporter from ` + js(fileURL(r.Reporter)) + `;
 const supplied=imported.config??imported.default?.config;
@@ -77,13 +78,15 @@ for(const key of ["appium:noReset","appium:skipUnlock","appium:skipDeviceInitial
 for(const key of ["appium:newCommandTimeout","appium:uiautomator2ServerLaunchTimeout"]){if(key in input){if(!Number.isSafeInteger(input[key])||input[key]<1||input[key]>120000)throw new Error("invalid Appium timeout");capability[key]=input[key];}}
 const timeout=supplied.mochaOpts?.timeout??15000;if(!Number.isSafeInteger(timeout)||timeout<1||timeout>120000)throw new Error("invalid Mocha timeout");
 export const config={runner:"local",protocol:"http",hostname:"127.0.0.1",port:` + strconv.Itoa(port) + `,path:"/",maxInstances:1,logLevel:"error",framework:"mocha",services:[],specFileRetries:0,connectionRetryCount:0,mochaOpts:{timeout,retries:0},capabilities:[capability],specs:[` + js(filepath.Join(r.Root, r.Selectors[0])) + `],reporters:[[JSONReporter,{outputDir:` + js(r.ReportDir) + `,outputFileFormat:()=>` + js(reportName) + `}]],
-before:(_capabilities,_specs,session)=>{writeFileSync(` + js(filepath.Join(r.ReportDir, sessionFile)) + `,String(session.sessionId),{flag:"wx",mode:0o600});}};
+before:(_capabilities,_specs,session)=>{writeFileSync(` + session + `,String(session.sessionId)+"\n",{flag:"wx",mode:0o600});},
+onReload:(_previous,next)=>{appendFileSync(` + session + `,String(next)+"\n");}};
 `
 	v.Files["appium.config.mjs"] = []byte(wrapper)
 	v.Argv = []string{"run", filepath.Join(r.ReportDir, "appium.config.mjs"), "--spec", filepath.Join(r.Root, r.Selectors[0])}
 	v.ReportPaths = []string{reportName}
-	// The fixed hook above records the session identity, so a timed-out or
-	// interrupted run can delete the session it left open (TRE-V0-087).
+	// The fixed hooks above record the session identity and each replacement
+	// browser.reloadSession() creates, so a timed-out or interrupted run can
+	// delete every session it may have left open (TRE-V0-087).
 	v.DeviceCleanup = []tr.CleanupStep{{Name: "delete-session", WebDriver: r.Project, SessionFile: sessionFile}}
 	return v, nil
 }

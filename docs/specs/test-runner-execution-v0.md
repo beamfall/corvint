@@ -1588,12 +1588,18 @@ identity itself.
   the executor MUST run them, and only them, after the TEST phase timed out or was interrupted.
   (1) The Android instrumentation profiles MUST resolve the instrumentation's target package on
   the device from `pm list instrumentation`, force-stop it and then the test package, and then
-  verify that the instrumentation is no longer active and the target process is gone. Each step
-  MUST print a fixed last line (`stopped`, `verified`), so an adb build that drops the remote
-  exit status cannot pass a step silently. (2) The Appium profile's fixed configuration hook
-  MUST record the WebDriver session id beneath the fresh report directory, and cleanup MUST
-  send `DELETE /session/<id>` to the plan's canonical loopback endpoint. A 404 `invalid session
-  id` counts as already absent. (3) Every step MUST run under its own bound (10 s, process
+  verify that the instrumentation is no longer active and the target process is gone. A probe
+  that fails MUST fail the verify step, never count as an absence: `dumpsys` must succeed and
+  print its `ACTIVITY MANAGER RUNNING PROCESSES` header, and `pidof` must answer status 1 with
+  no output. Each step MUST print a fixed last line (`stopped`, `verified`), so an adb build that
+  drops the remote exit status cannot pass a step silently. (2) The Appium profile's fixed
+  configuration hooks MUST record the WebDriver session id, and the id of each replacement
+  session `browser.reloadSession()` creates (the WDIO `onReload` hook), one newline-terminated
+  id per line beneath the fresh report directory; cleanup MUST send `DELETE /session/<id>` for
+  every recorded id (at most eight) to the plan's canonical loopback endpoint. The record MUST
+  be a regular file, opened without blocking. Only a whole HTTP 200 body read before the step
+  deadline that is the W3C envelope `{"value":null}` counts as deleted, and a 404 `invalid
+  session id` counts as already absent. (3) Every step MUST run under its own bound (10 s, process
   group contained) even when the run's context was cancelled, and later steps MUST still run
   after an earlier failure. (4) The execution MUST record `deviceCleanup` with outcome
   `not-required`, `clean` or `incomplete` and each step's status (`ok`, `failed`, `timed-out`,
@@ -1610,19 +1616,29 @@ identity itself.
 
 Failure modes. An instrumentation not listed by `pm` (uninstalled, or a mistyped component) is
 reported `failed` with `instrumentation-target-unresolved`, never as stopped. A force-stop that
-does not take effect fails the verify step. A transport that swallows the remote exit status
+does not take effect fails the verify step. A failing or headerless `dumpsys` fails it with
+`instrumentation-probe-failed`, and a `pidof` that is missing or errors with
+`process-probe-failed`. A transport that swallows the remote exit status
 fails on the missing fixed line. A session id that was never recorded (the run timed out before
 the WebDriver session started) is `unobserved`, so cleanup is incomplete even when no session
-existed. A refused or unreachable delete is `failed`.
+existed. A record that is not a regular file (a FIFO never blocks the open), is not
+newline-terminated, or holds more than eight ids is `unobserved`. A refused or unreachable
+delete, or a 200 whose body is not the null-value envelope, is `failed`; a response body that
+stalls past the step deadline is `timed-out`.
 
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
-| TRE-V0-087 | `testrunner/types.go` `CleanupStep`; `execution.go` `DeviceCleanup`; `device_cleanup_unix.go` `checkDeviceCleanup`, `cleanDevice`; `platform/android.go` `androidCleanup`; `mobile/mobile.go` `Build`; `cmd/corvint-test-runner/main.go` `admittedInvocation`; `TestDeviceCleanupAdmission`, `TestDeviceCleanupIsBoundedAndRecorded`, `TestDeviceCleanupOnlyAfterTimeoutOrInterrupt`, `TestHistoricalPlanByteIdentity`, `platform` `TestAndroidTimeoutStopsDeviceProcesses`, `mobile` `TestTimeoutDeletesAppiumSession`, `TestNativeConfigIsolation`, `cmd/corvint-test-runner` `TestPreCleanupDevicePlanRefusedForExecution` | A recording fake `adb` with a stateful fake device shell, and an `httptest` WebDriver endpoint; the installed WDIO 9.32 ConfigParser loaded the wrapper and Node 22.23.3 ran its hook, which recorded the session id; focused unit tests, 2026-10-20 |
+| TRE-V0-087 | `testrunner/types.go` `CleanupStep`; `execution.go` `DeviceCleanup`; `device_cleanup_unix.go` `checkDeviceCleanup`, `cleanDevice`; `platform/android.go` `androidCleanup`; `mobile/mobile.go` `Build`; `cmd/corvint-test-runner/main.go` `admittedInvocation`; `TestDeviceCleanupAdmission`, `TestDeviceCleanupIsBoundedAndRecorded`, `TestDeviceCleanupOnlyAfterTimeoutOrInterrupt`, `TestWebDriverSessionDeletionProvesAbsence`, `TestHistoricalPlanByteIdentity`, `platform` `TestAndroidTimeoutStopsDeviceProcesses`, `mobile` `TestTimeoutDeletesAppiumSession`, `TestNativeConfigIsolation`, `cmd/corvint-test-runner` `TestPreCleanupDevicePlanRefusedForExecution` | A recording fake `adb` with a stateful fake device shell, and an `httptest` WebDriver endpoint; the installed WDIO 9.32 ConfigParser loaded the wrapper and Node 22.23.3 ran its `before` hook and the ConfigParser-normalized `onReload` hook, which recorded both session ids; focused unit tests, 2026-10-20 |
 
 Recorded limits.
 - Live qualification is NOT_RUN: no device, emulator or Appium server ran. The ticket's live
   witnesses for the four profiles remain outstanding.
 - `pidof` checks only the target's main process; `:remote` process names are not verified.
+- The `dumpsys` section header is taken from AOSP source, not from the 2026-10-17 captures. If
+  a device omits it, every verify step fails closed as `instrumentation-probe-failed`.
+- A run killed after Appium created a session but before the `before` or `onReload` hook
+  recorded it leaves that session unrecorded; cleanup then deletes only the recorded ids. A
+  session the test creates itself (a second `remote()` client) is not tracked.
 - Whether `dumpsys activity processes` lists the active instrumentation on every API level is
   inferred from the 2026-10-17 API 35 evidence, not observed across versions.
 - Cleanup runs only after timeout or interrupt. A run that completes but leaves a process is

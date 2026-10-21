@@ -30,4 +30,13 @@ that drops the exit status; and an `httptest` WebDriver endpoint covering 200, 4
 session, 404 unknown command, 500 and an unrecorded session. Live device and Appium witnesses
 are NOT_RUN, so the ticket's second acceptance criterion remains open.
 
-Rollback: revert the commit. Plans written with `deviceCleanup` then fail closed decoding.
+Independent review (Codex, one round) found four P2 gaps, all fixed: a failing `dumpsys` or a
+missing `pidof` verified the stop (probes now fail as `instrumentation-probe-failed` /
+`process-probe-failed`); a `browser.reloadSession()` replacement was never recorded (the
+`onReload` hook appends it and cleanup deletes every recorded id); a FIFO session record blocked
+the open (it is now `Lstat`-checked and opened nonblocking); and any 200 counted as deleted even
+when its body stalled (the body must be read whole before the deadline and be `{"value":null}`).
+Retained limits: the `dumpsys` header comes from AOSP source, not a capture, and a session
+created but killed before its hook ran stays unrecorded.
+
+Rollback: revert the commits. Plans written with `deviceCleanup` then fail closed decoding.

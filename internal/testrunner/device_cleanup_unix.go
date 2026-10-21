@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/groupreap"
@@ -161,60 +162,114 @@ func lastLine(b []byte) string {
 	return last
 }
 
-// deleteWebDriverSession deletes the session the test phase recorded. A
-// missing or malformed record is unobserved, never clean: a created session
-// cannot be ruled out. Only a W3C "invalid session id" answer proves absence.
+// maxRecordedSessions bounds the session identity record: the session the
+// run started plus each replacement browser.reloadSession() reported.
+const maxRecordedSessions = 8
+
+// deleteWebDriverSession deletes every session the test phase recorded: the
+// first, and each replacement a reload recorded. A missing, non-regular or
+// malformed record is unobserved, never clean: a created session cannot be
+// ruled out. Only a W3C {"value":null} success, read whole before the
+// deadline, or a W3C "invalid session id" answer proves a session gone.
 func deleteWebDriverSession(ctx context.Context, s CleanupStep, reportRoot *os.Root) CleanupStepResult {
 	res := CleanupStepResult{Status: "unobserved", ExitCode: -1}
-	f, err := reportRoot.Open(s.SessionFile)
-	if err != nil {
-		res.Detail = "session identity not recorded; a created session cannot be ruled out"
-		return res
-	}
-	info, err := f.Stat()
-	var b []byte
-	if err == nil && info.Mode().IsRegular() {
-		b, err = io.ReadAll(io.LimitReader(f, 129))
-	}
-	f.Close()
-	id := string(b)
-	if err != nil || !webDriverSessionID.MatchString(id) {
-		res.Detail = "session identity record is not one WebDriver session id"
-		return res
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, s.WebDriver+"session/"+id, nil)
-	if err != nil {
-		res.Status, res.Detail = "failed", err.Error()
+	ids, detail := recordedWebDriverSessions(reportRoot, s.SessionFile)
+	if ids == nil {
+		res.Detail = detail
 		return res
 	}
 	client := &http.Client{
 		Transport:     &http.Transport{Proxy: nil, DisableKeepAlives: true},
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
+	res.Status = "ok"
+	details := []string{}
+	for _, id := range ids {
+		status, detail := deleteOneWebDriverSession(ctx, client, s.WebDriver, id)
+		if status != "ok" && res.Status != "timed-out" {
+			res.Status = status
+		}
+		details = append(details, "session "+id+" "+detail)
+	}
+	res.Detail = boundDetail(strings.Join(details, "; "))
+	return res
+}
+
+// recordedWebDriverSessions reads the session identity record without
+// blocking on a FIFO: it must be a regular file, the same one when opened
+// nonblocking, of one to maxRecordedSessions newline-terminated session ids.
+func recordedWebDriverSessions(reportRoot *os.Root, name string) ([]string, string) {
+	const malformed = "session identity record is not newline-terminated WebDriver session ids"
+	info, err := reportRoot.Lstat(name)
+	if err != nil {
+		return nil, "session identity not recorded; a created session cannot be ruled out"
+	}
+	if !info.Mode().IsRegular() {
+		return nil, malformed
+	}
+	f, err := reportRoot.OpenFile(name, os.O_RDONLY|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return nil, malformed
+	}
+	defer f.Close()
+	opened, err := f.Stat()
+	if err != nil || !opened.Mode().IsRegular() || !os.SameFile(info, opened) {
+		return nil, malformed
+	}
+	b, err := io.ReadAll(io.LimitReader(f, maxRecordedSessions*37+1))
+	if err != nil || len(b) == 0 || b[len(b)-1] != '\n' {
+		return nil, malformed
+	}
+	ids := []string{}
+	seen := map[string]bool{}
+	for _, id := range strings.Split(string(b[:len(b)-1]), "\n") {
+		if !webDriverSessionID.MatchString(id) || len(ids) == maxRecordedSessions {
+			return nil, malformed
+		}
+		if !seen[id] {
+			seen[id] = true
+			ids = append(ids, id)
+		}
+	}
+	return ids, ""
+}
+
+func deleteOneWebDriverSession(ctx context.Context, client *http.Client, webDriver, id string) (string, string) {
+	failed := func(detail string) (string, string) {
+		if ctx.Err() != nil {
+			return "timed-out", boundDetail(detail)
+		}
+		return "failed", boundDetail(detail)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, webDriver+"session/"+id, nil)
+	if err != nil {
+		return "failed", err.Error()
+	}
 	resp, err := client.Do(req)
 	if err != nil {
-		res.Status, res.Detail = "failed", "session "+id+": "+boundDetail(err.Error())
-		if ctx.Err() == context.DeadlineExceeded {
-			res.Status = "timed-out"
-		}
-		return res
+		return failed(err.Error())
 	}
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
 	resp.Body.Close()
+	if err != nil || ctx.Err() != nil {
+		return failed(fmt.Sprintf("HTTP %d response body not read whole: %v", resp.StatusCode, err))
+	}
+	var envelope map[string]json.RawMessage
 	var answer struct {
 		Value struct {
 			Error string `json:"error"`
 		} `json:"value"`
 	}
 	switch {
-	case resp.StatusCode == http.StatusOK:
-		res.Status, res.Detail = "ok", "session "+id+" deleted"
+	case resp.StatusCode == http.StatusOK && json.Unmarshal(body, &envelope) == nil && string(envelope["value"]) == "null":
+		return "ok", "deleted"
 	case resp.StatusCode == http.StatusNotFound && json.Unmarshal(body, &answer) == nil && answer.Value.Error == "invalid session id":
-		res.Status, res.Detail = "ok", "session "+id+" already absent"
+		return "ok", "already absent"
+	case resp.StatusCode == http.StatusOK:
+		return "failed", "HTTP 200 without a W3C null-value envelope"
 	default:
-		res.Status, res.Detail = "failed", fmt.Sprintf("session %s: HTTP %d", id, resp.StatusCode)
+		return "failed", fmt.Sprintf("HTTP %d", resp.StatusCode)
 	}
-	return res
 }
 
 func boundDetail(s string) string {
