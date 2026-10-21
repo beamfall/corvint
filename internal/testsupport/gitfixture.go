@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/procgroup"
 )
 
 // gitFixtureTimeout bounds one fixture git command. A fixture command touches
@@ -20,12 +23,13 @@ var gitFixtureTimeout = 2 * time.Minute
 // environment) or read the host's configuration.
 var gitFixturePassthrough = []string{"PATH", "SystemRoot", "TMPDIR", "TEMP", "TMP", "HOME", "USERPROFILE"}
 
-// RunGit runs git in the fixture repository root and returns its combined
-// output, failing t on error (V1-0730). It is the shared hardened helper for
+// RunGit runs git in the fixture repository root and returns its
+// standard output, failing t on error (V1-0730). It is the shared hardened helper for
 // test fixtures: the host's Git environment and configuration are hidden,
 // automatic maintenance is off so no detached `git maintenance` outlives the
 // command and races the TempDir cleanup (V1-0662), the identity is fixed, and
-// the command is killed after gitFixtureTimeout with its pipes released.
+// the command's whole process group is stopped after gitFixtureTimeout. On
+// success it returns standard output only.
 func RunGit(t testing.TB, git, root string, arguments ...string) string {
 	t.Helper()
 	output, err := runGitFixture(gitFixtureTimeout, git, root, arguments...)
@@ -36,16 +40,33 @@ func RunGit(t testing.TB, git, root string, arguments ...string) string {
 }
 
 func runGitFixture(timeout time.Duration, git, root string, arguments ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-	command := exec.CommandContext(ctx, git, append([]string{"-C", root, "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
-	command.Env = gitFixtureEnvironment()
-	command.WaitDelay = 5 * time.Second
-	output, err := command.CombinedOutput()
-	if ctx.Err() == context.DeadlineExceeded {
-		err = fmt.Errorf("timed out after %s: %w", timeout, ctx.Err())
+	// procgroup runs git as the leader of its own process group and stops the
+	// whole group at the timeout, so a hook or other descendant cannot outlive
+	// the command and touch the fixture after cleanup. procgroup needs an
+	// absolute clean executable, and callers may pass the bare name "git".
+	git, err := exec.LookPath(git)
+	if err == nil {
+		git, err = filepath.Abs(git)
 	}
-	return string(output), err
+	if err != nil {
+		return "", err
+	}
+	run := procgroup.Run(context.Background(), procgroup.Spec{
+		Argv:        append([]string{git, "-C", root, "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...),
+		Dir:         root,
+		Env:         gitFixtureEnvironment(),
+		Timeout:     timeout,
+		OutputLimit: 16 << 20,
+	})
+	switch {
+	case run.TimedOut:
+		return string(run.Stdout) + string(run.Stderr), fmt.Errorf("timed out after %s", timeout)
+	case run.Err != nil:
+		return string(run.Stdout) + string(run.Stderr), run.Err
+	case run.ExitStatus != 0:
+		return string(run.Stdout) + string(run.Stderr), fmt.Errorf("exit status %d", run.ExitStatus)
+	}
+	return string(run.Stdout), nil
 }
 
 func gitFixtureEnvironment() []string {

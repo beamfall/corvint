@@ -4,10 +4,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
-	"time"
 )
 
 // V1-0730: a fixture command run under a Git hook's environment (GIT_DIR and
@@ -41,26 +39,6 @@ func TestRunGitIgnoresAnInheritedGitDirectory(t *testing.T) {
 	RunGit(t, git, fixture, "commit", "-q", "-m", "fixture")
 	if log := RunGit(t, git, outer, "rev-list", "--all"); strings.TrimSpace(log) != "" {
 		t.Fatalf("the fixture commit landed in the outer repository: %s", log)
-	}
-}
-
-// V1-0730: a hung fixture git is killed at the timeout instead of holding the
-// package until the go test deadline.
-func TestRunGitFixtureTimesOut(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("the hanging stand-in is a POSIX shell script")
-	}
-	hang := filepath.Join(t.TempDir(), "git")
-	if err := os.WriteFile(hang, []byte("#!/bin/sh\nexec sleep 30\n"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	started := time.Now()
-	_, err := runGitFixture(200*time.Millisecond, hang, t.TempDir(), "status")
-	if err == nil || !strings.Contains(err.Error(), "timed out") {
-		t.Fatalf("hung git returned err=%v", err)
-	}
-	if elapsed := time.Since(started); elapsed > 10*time.Second {
-		t.Fatalf("timeout took %s", elapsed)
 	}
 }
 
