@@ -227,12 +227,13 @@ the private Git directory:
 ```console
 $ corvint_git_dir=$(git rev-parse --absolute-git-dir)
 $ mkdir -p "$corvint_git_dir/corvint"
-$ corvint index
+$ corvint index --if-stale
 $ corvint query --task "THE CHANGE" --limit 1 > "$corvint_git_dir/corvint/prechange-query.json"
 $ corvint impact PATH... --limit 10 > "$corvint_git_dir/corvint/prechange-impact.json"
 ```
 
-Run `corvint index` once per fresh clone or worktree before the first context, query or impact read
+Run `corvint index --if-stale` once per fresh clone or worktree (or after a rebuilt binary, whose
+engine digest misses the old snapshot) before the first context, query or impact read
 (V1-1640, `IDX-SNAP-V0-102`): without a snapshot of the current tree every read pays a full in-memory
 build (measured 22.8 s and 813 MB per `context` call versus 5.8 s with a snapshot), and a read whose
 build takes a second or more says so on stderr. `index` is the one verb that writes the snapshot
