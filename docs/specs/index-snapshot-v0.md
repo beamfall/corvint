@@ -751,6 +751,40 @@ snapshots refreshed automatically without a manual warmup.
   A leader-only SIGKILL test retains the descendant-cleanup residual and explicitly retires its
   surviving group. Tests own and reap every child. Cross-platform/live-host qualification remains separately named.
 
+### Accepted (2026-10-21, V1-2130, V1-1732, owner's standing auto-accept 2026-10-11): analyzer schema maintenance
+
+- `IDX-SNAP-V0-060`: accepted under the owner's standing auto-accept (2026-10-11) (V1-2130). The
+  `IDX-SNAP-V0-017` schema rule keeps its scope: every edit to an audited analyzer input still
+  bumps `analyzerSchemaID` and both pins of `TestAnalyzerSchemaInputs`. `script/analyzer-schema.sh
+  bump [--base REF]` performs that bump as one command: it recomputes the audit digest exactly as
+  the test does (reading the audited directory list from the test file, so the two cannot audit
+  different inputs), and when the digest drifted or the number collides under `IDX-SNAP-V0-061`
+  it sets the number to REF's number plus one, or keeps this branch's number when it is already
+  above REF's, rewrites the schema constant and both test pins, then runs
+  `script/repin-use-case-receipts.sh`. REF defaults to `origin/main`; an unresolvable REF refuses,
+  writing nothing, so a bump never guesses its number. Repeated bumps on one branch keep one
+  number. The test remains the authority: a digest the script computed wrongly fails it.
+- `IDX-SNAP-V0-061`: accepted under the owner's standing auto-accept (2026-10-11) (V1-1732).
+  `script/analyzer-schema.sh check [--base REF]` (`make analyzer-schema-check`, which
+  `make decision-numbers-check` and therefore CI's documentation step run) MUST refuse a tree whose
+  audit digest differs from its pin, and a branch whose pins differ from both its merge base with
+  REF and REF itself while its schema number is not greater than REF's: two pull requests that
+  bump to the same number with different digests merge without a textual conflict on the number,
+  and a reused number would let one pack name two analyzer contents. The refusal names REF's
+  number and digest and the recovery, a rebump to REF's number plus one with `bump`. A branch
+  whose pins equal its merge base's (it changed no analyzer input) is never refused for being
+  behind REF. When REF does not resolve or shares no merge base, the collision comparison is
+  reported `NOT_RUN` on stderr and only the digest check decides. Rollback: remove the
+  `decision-numbers-check` prerequisite and the script; the in-tree pin test is unchanged.
+
+Traceability: `script/analyzer-schema_test.sh` (`make analyzer-schema-test`) covers the drift
+refusal, a first bump, a kept number on a second edit, a base that took the same number (refused,
+then rebumped past it), a branch with unchanged pins behind a newer base, and an unresolvable base
+(`NOT_RUN`, `bump` refuses); `TestAnalyzerSchemaInputs` passing on the script's pins proves the two
+digests agree. Measured on a sample comment-only edit to `internal/contextindex/taskcontext.go`:
+one command, 0.54 s wall, rewrote three lines in two files and left 18 receipts current, and the
+pin test passed (`docs/build-log/2026-10-21-analyzer-schema-maintenance.md`).
+
 ## Non-goals and authority
 
 Accepted, decision 0517 (V1-1128): the adapter-only writer/lock exception in

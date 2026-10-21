@@ -51,7 +51,7 @@ func TestAnalyzerSchemaInputs(t *testing.T) {
 		}
 		got := fmt.Sprintf("%x", digest.Sum(nil))
 		if analyzerSchemaID != auditedSchema || got != auditedSHA256 {
-			t.Fatalf("analyzer inputs drift: schema=%s SHA256=%s; review extraction/encoding changes, bump analyzerSchemaID and update both audit pins", analyzerSchemaID, got)
+			t.Fatalf("analyzer inputs drift: schema=%s SHA256=%s; review extraction/encoding changes, then run script/analyzer-schema.sh bump, which sets the schema number past origin/main's, rewrites both audit pins and repins use-case receipts (IDX-SNAP-V0-060)", analyzerSchemaID, got)
 		}
 	})
 }
