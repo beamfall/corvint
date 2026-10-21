@@ -712,6 +712,17 @@ Each row cites the first emitting site and states only the condition checked the
   other oversized or unencodable result stays the sanitized `-32603` of `MCPV0-004`. Falsifier: an
   over-bound tool result answered `-32603`, or a refusal frame that itself exceeds the bound.
   Rollback: restore the `-32603` branch in `writeResultContext`.
+- `MCPV0-090`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1004) A
+  `corvint.context` call MUST release the Index it read before it returns, so a long-lived bridge
+  never pins a mapped pack or sectioned snapshot after the retention ring evicts it
+  (`IDX-SNAP-V0-028`). Before the release, the packet is copied onto the heap through its canonical
+  bytes, with numbers kept as their literals, and the copy MUST encode to the same bytes; a copy
+  that differs refuses with `internal-error` rather than change the wire result. The bridge
+  binding strings are cloned too. A deferred read that is refused and retried through the eager
+  loader releases the first Index. Falsifier: a live mapping after every context call returned and
+  the ring was evicted; a result whose bytes change after the mapping is unmapped; a fault under
+  concurrent context calls. Rollback: remove the deferred `Release` and `detachedContext` from
+  `callContext`; the mapping is then pinned until process exit, as before.
 
 ## Acceptance matrix
 
@@ -809,6 +820,7 @@ cleanup remain outside that receipt.
 | `MCPV0-039` | `extractFollowRef`, `newFollowRef`, `followRef.run`, `followRef.bound`, `followRef.sync`, `refreshIndex`, `Registry.SameRoot` | `TestMCPV0039InheritedGitEnvironmentCannotRedirectMove`, `TestMCPV0039FollowRefPinnedToCanonicalRootIdentity`, `TestMCPV0039AnswerHoldsTheFollowLock`: inherited Git variables, a retargeted root path, a replaced root (`ROOT_CHANGED`) and a concurrent call never move another checkout or move under an answer; `TestMCPV0039FollowRefRefreshesTreeAndIndexBeforeAnswer`: a moved branch is checked out on the detached linked worktree and its index snapshot is fresh before the next status answer, which reports the moved commit; startup refusals for a main checkout, an attached worktree, a missing ref, an aliased root, a duplicate or option-like ref and `--version` |
 | `MCPV0-040` | `followRef.sync` dirty and attached guards | `TestMCPV0040DirtyTreeNeverModifiedAndFlaggedStale`: untracked and tracked edits survive, head unchanged, `DIRTY` and `stale`; a checked-out branch is `NOT_DETACHED`; an injected index failure is `INDEX_FAILED`; `TestMCPV0040ChecksRunWhenHeadAlreadyCurrent`: dirty and attached at the current head are stale with no index write; `TestMCPV0040MoveNeverOverwritesIgnoredFiles`: an ignored file the new commit tracks survives as `CHECKOUT_FAILED` |
 | `MCPV0-041` | `withFollowRef`, `followState.block`, `toolFailure` | `TestMCPV0041MissingRefIsTypedErrorAndCommitEchoed`: the commit is echoed; a deleted ref is tool error `follow-ref-missing` with `reasonClass` `unclassified`, `state` `MISSING` and the worktree unchanged |
+| `MCPV0-090` | `callContext` (deferred `Index.Release`), `detachedContext`, `compileContext` retry release | `internal/contextindex/bridge_release_test.go`'s `TestMCPV0090ContextCallReleasesItsSnapshotMapping`: one task-review bridge answers 1 sequential and 24 concurrent (6x4) `corvint.context` calls from a mapped pack; the ring holds exactly 1 mapping, 0 stay live after it is evicted, and every result encodes to the first result's bytes after the unmap; fails with 1 live mapping when the release is removed; passes under `-race` |
 | `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |
 
 ## Unresolved decisions and promotion/kill criteria

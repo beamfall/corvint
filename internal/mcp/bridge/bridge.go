@@ -104,6 +104,9 @@ func productionRepositoryOperations() repositoryOperations {
 func compileContext(ctx context.Context, root string, input contextInput) (*contextindex.Index, map[string]any, error) {
 	index, packet, err := compileContextWith(ctx, root, input, contextindex.LoadContextSnapshotDeferred)
 	if errors.Is(err, contextindex.ErrSnapshotRefused) {
+		if index != nil {
+			index.Release()
+		}
 		return compileContextWith(ctx, root, input, contextindex.LoadContextSnapshot)
 	}
 	return index, packet, err
@@ -627,6 +630,13 @@ func (registry *Registry) callContext(ctx context.Context, arguments []byte) (Re
 		return abstained(ToolContext, "UNSUPPORTED_PLATFORM", nil), nil
 	}
 	index, packet, err := registry.operations.context(ctx, registry.root, input)
+	if index != nil {
+		// A mapped snapshot read leases its mapping until released; the
+		// result is detached from it below, so the lease ends with the call
+		// and a long-lived bridge does not pin every mapping it read
+		// (MCPV0-090, V1-1004).
+		defer index.Release()
+	}
 	if err != nil && index == nil {
 		if repositoryDrift(err) {
 			return abstained(ToolContext, "REPOSITORY_STATE_UNSTABLE", nil), nil
@@ -654,7 +664,39 @@ func (registry *Registry) callContext(ctx context.Context, arguments []byte) (Re
 			return Result{}, normalizeFailure(ctx, err)
 		}
 	}
-	return boundedObserved(ToolContext, snapshot.binding, packet)
+	receipt, binding, detachErr := detachedContext(packet, snapshot.binding)
+	if detachErr != nil {
+		return Result{}, failure("internal-error")
+	}
+	return boundedObserved(ToolContext, binding, receipt)
+}
+
+// detachedContext copies a context packet and its binding onto the heap so
+// nothing the result returns aliases the snapshot mapping its Index leased
+// (MCPV0-090, V1-1004). The packet is copied through its canonical bytes,
+// decoding numbers as their literals, and the copy must encode to the same
+// bytes; any difference refuses rather than changing the wire result.
+func detachedContext(packet map[string]any, binding RepositoryBinding) (map[string]any, RepositoryBinding, error) {
+	encoded, err := gokernel.CanonicalJSON(packet)
+	if err != nil {
+		return nil, RepositoryBinding{}, err
+	}
+	decoder := jsonv1.NewDecoder(bytes.NewReader(encoded))
+	decoder.UseNumber()
+	var copied map[string]any
+	if err := decoder.Decode(&copied); err != nil {
+		return nil, RepositoryBinding{}, err
+	}
+	again, err := gokernel.CanonicalJSON(copied)
+	if err != nil {
+		return nil, RepositoryBinding{}, err
+	}
+	if !bytes.Equal(again, encoded) {
+		return nil, RepositoryBinding{}, errors.New("context packet does not survive its canonical copy")
+	}
+	binding.CommitRevision, binding.TreeRevision = strings.Clone(binding.CommitRevision), strings.Clone(binding.TreeRevision)
+	binding.ObjectFormat, binding.ProfileID = strings.Clone(binding.ObjectFormat), strings.Clone(binding.ProfileID)
+	return copied, binding, nil
 }
 
 type cemReportInput struct {
