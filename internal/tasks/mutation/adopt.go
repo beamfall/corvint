@@ -237,6 +237,15 @@ func composeAdopt(canonical, file *ticket.Record, diff map[string]bool) ([]Paylo
 			refine.Supersedes = copyTicket(file.Supersedes)
 		case "executionPrerequisites":
 			refine.ExecutionPrerequisites = copyPrerequisites(file.ExecutionPrerequisites)
+		case "requiresPool":
+			// An absent key composes the REFINE clear (null), so a file
+			// that drops the key removes it (CTS-V0-011).
+			if file.RequiresPool != "" {
+				pool := file.RequiresPool
+				refine.RequiresPool = &pool
+			}
+		case "requiredRoles":
+			refine.RequiredRoles = copyStageRoles(file.RequiredRoles)
 		}
 	}
 	if len(refine.Present) > 0 {

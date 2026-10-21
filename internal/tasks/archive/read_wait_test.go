@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -36,12 +37,18 @@ func TestCTSV0006_ArchiveExportUnderConcurrentWriter(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("quiet export: %s", time.Since(started).Round(time.Millisecond))
-	const commits = 8
+	// The writer commits at least 8 receipts and keeps committing until
+	// minExports exports have finished while it ran, so the overlap does
+	// not depend on host speed (V1-1532); the cap bounds a stalled host.
+	const commits, minExports, maxCommits = 8, 5, 400
+	var finished atomic.Int32
 	writerErr := make(chan error, 1)
 	stop := make(chan struct{})
 	go func() {
 		defer close(stop)
-		writerErr <- commitWithWindow(repo.StateDir, commits, 10*time.Millisecond, 150*time.Millisecond)
+		writerErr <- commitWithWindow(repo.StateDir, commits, 10*time.Millisecond, 150*time.Millisecond, func(i int) bool {
+			return i < maxCommits && finished.Load() < minExports
+		})
 	}()
 	var failures []string
 	exports := 0
@@ -54,6 +61,7 @@ func TestCTSV0006_ArchiveExportUnderConcurrentWriter(t *testing.T) {
 			if err := export(); err != nil {
 				failures = append(failures, err.Error())
 			}
+			finished.Add(1)
 		}
 	}
 	if err := <-writerErr; err != nil {
@@ -62,7 +70,7 @@ func TestCTSV0006_ArchiveExportUnderConcurrentWriter(t *testing.T) {
 	if len(failures) != 0 {
 		t.Fatalf("%d of %d exports failed under a concurrent writer:\n%s", len(failures), exports, strings.Join(failures, "\n"))
 	}
-	if exports < 5 {
+	if exports < minExports {
 		t.Errorf("only %d exports ran; the writer finished before they exercised it", exports)
 	}
 }
@@ -115,8 +123,9 @@ func TestCTSV0006_ArchiveAttemptsShareOnePatience(t *testing.T) {
 
 // commitWithWindow commits n receipts as the §5.2 writer appears to a
 // reader: receipt linked in (REDO_PENDING for window), head renamed into
-// place, then a gap. Files land by rename; it is safe in a goroutine.
-func commitWithWindow(stateDir string, n int, window, gap time.Duration) error {
+// place, then a gap. Files land by rename; it is safe in a goroutine. After n
+// receipts it keeps committing while more(i), when set, reports true.
+func commitWithWindow(stateDir string, n int, window, gap time.Duration, more func(i int) bool) error {
 	place := func(path string, data []byte) error {
 		tmp := filepath.Join(filepath.Dir(stateDir), filepath.Base(path)+".writer")
 		if err := os.WriteFile(tmp, data, 0o644); err != nil {
@@ -124,7 +133,7 @@ func commitWithWindow(stateDir string, n int, window, gap time.Duration) error {
 		}
 		return os.Rename(tmp, path)
 	}
-	for i := 0; i < n; i++ {
+	for i := 0; i < n || (more != nil && more(i)); i++ {
 		hraw, err := os.ReadFile(filepath.Join(stateDir, "head.json"))
 		if err != nil {
 			return err

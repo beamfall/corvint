@@ -327,9 +327,7 @@ func (r *gateLoadRun) call(verb string, req transaction.LeaseRequest) *Report {
 	})
 	var timing LeaseTiming
 	ctx = WithLeaseTiming(ctx, &timing)
-	leaseAudits.Lock()
-	leaseAudits.proof = nil
-	leaseAudits.Unlock()
+	forgetLeaseAudits()
 	started := time.Now()
 	report, err := Lease(ctx, r.repo, historyActor, LeaseChoice{QueueID: fixture.QueueID, RequestID: fmt.Sprintf("gate-load-%d-%d-%d", r.worker, r.calls, started.UnixNano()), Root: r.root, Lease: req}, WallClock())
 	s.WallMS = ms(time.Since(started))

@@ -19,7 +19,6 @@ var up = "." + "./"
 // declared fixtures/f tests name a tracked file without reaching the root.
 func repository(t *testing.T, entries, literals string) string {
 	t.Helper()
-	root := t.TempDir()
 	files := map[string]string{
 		"go.mod":                                "module example.test/m\n\ngo 1.27\n",
 		"Makefile":                              "gate:\n",
@@ -38,6 +37,18 @@ func repository(t *testing.T, entries, literals string) string {
 	if literals != "" {
 		files[literalsPath] = literals
 	}
+	return writeRepository(t, files)
+}
+
+// writeRepository writes files into a new Git repository and stages them.
+func writeRepository(t *testing.T, files map[string]string) string {
+	t.Helper()
+	return writeRepositoryAt(t, t.TempDir(), files)
+}
+
+// writeRepositoryAt writes files into a new Git repository at root.
+func writeRepositoryAt(t *testing.T, root string, files map[string]string) string {
+	t.Helper()
 	for name, content := range files {
 		file := filepath.Join(root, filepath.FromSlash(name))
 		if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
@@ -92,6 +103,84 @@ func TestUndeclaredRepositoryLiteralFailsNamingPackageAndPath_V1_1351(t *testing
 		for _, never := range []string{"package fixtures/f", "names internal/cem,", "names Makefile", "names .corvint/change.cem.json"} {
 			if strings.Contains(output, never) {
 				t.Errorf("%s: output %q reports %q", name, output, never)
+			}
+		}
+	}
+}
+
+// V1-2117: a test that builds a tracked path from adjacent filepath.Join string
+// segments, as cmd/corvint-cem-candidate/next_action_test.go did at d114cc62e,
+// is reported when the path is outside its scope; the same segments joined onto
+// a fixture root are not resolved from the repository root.
+func TestJoinedSegmentsOutsideScopeFail_V1_2117(t *testing.T) {
+	const recipe = "protocol/cem-1.0/stable/neutral-criterion/repository.recipe.json"
+	test := "package main\n\nimport (\n\t\"path/filepath\"\n\t\"runtime\"\n)\n\n" +
+		"func fixtureDirectory() string {\n\t_, file, _, _ := runtime.Caller(0)\n" +
+		"\treturn filepath.Join(filepath.Dir(file), \"..\", \"..\", \"protocol\", \"cem-1.0\", \"stable\", \"neutral-criterion\")\n}\n\n" +
+		"func fixtureRoot(root string) string { return filepath.Join(root, \"internal\", \"tasks\") }\n"
+	for name, c := range map[string]struct {
+		entries string
+		code    int
+		want    string
+	}{
+		"undeclared": {"", 1, "package cmd/corvint-cem-candidate: cmd/corvint-cem-candidate/next_action_test.go names protocol/cem-1.0/stable/neutral-criterion, outside its entries"},
+		"declared":   {`"protocol/cem-1.0/stable/neutral-criterion/"`, 0, "test-read-scopes-check: ok"},
+	} {
+		root := writeRepository(t, map[string]string{
+			"go.mod":                            "module example.test/m\n\ngo 1.27\n",
+			recipe:                              "{}\n",
+			"internal/tasks/t.go":               "package tasks\n",
+			"cmd/corvint-cem-candidate/main.go": "package main\n\nfunc main() {}\n",
+			"cmd/corvint-cem-candidate/next_action_test.go": test,
+			".corvint/test-read-scopes.json":                `{"profile":"corvint-test-read-scopes/0","packages":{"cmd/corvint-cem-candidate":[` + c.entries + `]}}`,
+		})
+		var stdout, stderr bytes.Buffer
+		code := run(root, &stdout, &stderr)
+		output := stdout.String() + stderr.String()
+		if code != c.code || !strings.Contains(output, c.want) {
+			t.Errorf("%s: code=%d want %d; output %q lacks %q", name, code, c.code, output, c.want)
+		}
+		if strings.Contains(output, "names internal/tasks") {
+			t.Errorf("%s: a run joined onto a fixture root resolved from the repository root: %q", name, output)
+		}
+	}
+}
+
+// V1-2037: a declared package whose test runs go list -deps fails the check
+// when a module package it transitively imports lies outside its scope, the
+// #1288 shape (internal/gitnotes -> internal/cem/verify -> internal/cem/sim).
+func TestGoListDependencyOutsideScopeFails_V1_2037(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go tool unavailable")
+	}
+	test := "package gitnotes\n\nimport (\n\t\"os/exec\"\n\t\"testing\"\n)\n\n" +
+		"func TestFetchesNothing(t *testing.T) {\n\tgoTool, _ := exec.LookPath(\"go\")\n" +
+		"\t_, _ = exec.Command(goTool, \"list\", \"-deps\", \".\").Output()\n}\n"
+	for name, c := range map[string]struct {
+		entries string
+		code    int
+		want    string
+	}{
+		"transitive omitted": {`"go.mod","internal/cem/verify/"`, 1, "package internal/gitnotes: internal/gitnotes/gitnotes_test.go runs go list -deps, which loads internal/cem/sim, outside its entries"},
+		"parent entry only":  {`"go.mod","internal/cem/sim/x.json","internal/cem/verify/"`, 1, "loads internal/cem/sim, outside"},
+		"declared":           {`"go.mod","internal/cem/sim/","internal/cem/verify/"`, 0, "test-read-scopes-check: ok"},
+	} {
+		// A root with a space must not split go list's directory lines.
+		for _, root := range []string{t.TempDir(), filepath.Join(t.TempDir(), "review work", "repo")} {
+			root = writeRepositoryAt(t, root, map[string]string{
+				"go.mod":                             "module example.test/m\n\ngo 1.27\n",
+				"internal/cem/sim/s.go":              "package sim\n",
+				"internal/cem/sim/x.json":            "{}\n",
+				"internal/cem/verify/v.go":           "package verify\n\nimport _ \"example.test/m/internal/cem/sim\"\n",
+				"internal/gitnotes/g.go":             "package gitnotes\n\nimport _ \"example.test/m/internal/cem/verify\"\n",
+				"internal/gitnotes/gitnotes_test.go": test,
+				".corvint/test-read-scopes.json":     `{"profile":"corvint-test-read-scopes/0","packages":{"internal/gitnotes":[` + c.entries + `]}}`,
+			})
+			var stdout, stderr bytes.Buffer
+			code := run(root, &stdout, &stderr)
+			output := stdout.String() + stderr.String()
+			if code != c.code || !strings.Contains(output, c.want) {
+				t.Errorf("%s under %q: code=%d want %d; output %q lacks %q", name, root, code, c.code, output, c.want)
 			}
 		}
 	}

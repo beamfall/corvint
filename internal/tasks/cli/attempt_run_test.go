@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -432,6 +433,38 @@ func TestATRV0004_UnrecordedOutcomeExits127(t *testing.T) {
 	if field(item, "class").Str != transaction.RunExit || field(item, "childExit").Str != "3" || field(item, "outcomeReceipt").Kind != wire.KindNull || field(item, "exitStatus").Str != "127" {
 		t.Fatalf("unrecorded item %+v", item)
 	}
+}
+
+// TestATRV0160_UnrecordedOutcomeIsNeverMalformed: after launch an uncoded
+// outcome-write failure (a filesystem error, a receipt refused without a
+// code) exits 127 with UNCERTAIN_EFFECT, never MALFORMED, and keeps the
+// original text in the warning (V1-2123).
+func TestATRV0160_UnrecordedOutcomeIsNeverMalformed(t *testing.T) {
+	root, a := attemptStore(t)
+	check := func(name string, r run, text string) {
+		t.Helper()
+		if r.code != 127 || r.res.Outcome != wire.OutcomeError || !hasCode(r.res, wire.CodeUncertainEffect) || hasCode(r.res, wire.CodeMalformed) {
+			t.Fatalf("%s: code %d %+v", name, r.code, r.res)
+		}
+		if field(r.res.Items[0], "exitStatus").Str != "127" || field(r.res.Items[0], "outcomeReceipt").Kind != wire.KindNull {
+			t.Fatalf("%s item %+v", name, r.res.Items[0])
+		}
+		if !slices.ContainsFunc(r.res.Warnings, func(w string) bool { return strings.Contains(w, text) }) {
+			t.Fatalf("%s warnings %q", name, r.res.Warnings)
+		}
+	}
+	restore := cli.SetAttemptWriteFault(func(verb string) error {
+		if verb == transaction.LeaseRunOutcome {
+			return &fs.PathError{Op: "open", Path: "outcome.json", Err: syscall.EIO}
+		}
+		return nil
+	})
+	check("uncoded filesystem error", runAttempt(t, root, a, gen(a), []string{"--timeout", "30"}, "/bin/sh", "-c", "exit 0"), "outcome.json")
+	restore()
+	defer cli.SetAttemptOutcomeReportFault(func(report *store.Report) {
+		report.Outcome.Outcome, report.Outcome.Codes, report.Detail = mutation.OutcomeUnauthorized, nil, "injected uncoded refusal"
+	})()
+	check("uncoded receipt refusal", runAttempt(t, root, a, gen(a), []string{"--timeout", "30"}, "/bin/sh", "-c", "exit 0"), "injected uncoded refusal")
 }
 
 // TestATRV0003_CleanupHoldOutranksStatus: a group whose retirement cannot be

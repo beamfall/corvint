@@ -158,6 +158,16 @@ func WithoutRetry(err error) error {
 	return &marked
 }
 
+// Annotatef is Errorf with the code of cause, for a caller that restates cause
+// with its own location and message. The WithoutRetry mark of cause survives,
+// so an annotated error from a call that already ran stays not retryable
+// (CAL-V0-078, V1-0908).
+func Annotatef(cause error, where, format string, args ...interface{}) *Error {
+	e := Errorf(CodeOf(cause), where, format, args...)
+	e.NotRetryable = RetryForbidden(cause)
+	return e
+}
+
 type retryForbiddenError struct{ error }
 
 func (e *retryForbiddenError) Unwrap() error { return e.error }

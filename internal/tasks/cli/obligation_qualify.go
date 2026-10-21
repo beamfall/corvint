@@ -63,7 +63,7 @@ func obligationsQualifyVersion(env Env, cmd []string, args []string) *wire.Resul
 		return errorResult(cmd, err)
 	}
 	if err := obligation.WriteAllowList(p, a); err != nil {
-		return errorResult(cmd, wire.Errorf(wire.CodeOf(err), obligation.AllowListFile, "cannot write the qualification allow-list: %v", err))
+		return errorResult(cmd, wire.Annotatef(err, obligation.AllowListFile, "cannot write the qualification allow-list: %v", err))
 	}
 	o := wire.NewObject().Set("version", wire.String(q.Version)).Set("replaced", wire.Bool(replaced)).
 		Set("reportSha256", wire.String(string(q.ReportSha256))).Set("fixtureSha256", wire.String(string(q.FixtureSha256))).

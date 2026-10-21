@@ -177,6 +177,8 @@ func (c leaseContext) poolPosts(a *snapshot.Attempt, posts map[string][]byte) er
 			state.Entries[i].State = "ALLOCATED"
 			state.Entries[i].AttemptID = a.AttemptID
 			state.Entries[i].Generation = a.Generation
+			// A state change advances the member's changedSeq (PSR-V0-013, V1-0895).
+			state.Entries[i].ChangedSeq = c.seq
 			state.Entries[i].RunnerPID = "0"
 			state.Entries[i].RunnerStarted = ""
 			d := wire.Sum(c.in.LeaseFacts.Pool.Observation)

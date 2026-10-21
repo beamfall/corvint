@@ -278,52 +278,70 @@ func (s *nativeRead) dirStat(p string, dir *os.File) (os.FileInfo, error) {
 	return info, nil
 }
 
-func (s *nativeRead) Read(p string, max int) (raw []byte, err error) {
+func (s *nativeRead) Read(p string, max int) ([]byte, error) {
+	raw, cleanup, err := s.readHeld(p, max)
+	return s.settle(p, raw, cleanup, err)
+}
+
+// settle is the bookkeeping of one readHeld result, made when the walk
+// reaches that read: the file's close error joins the read lifetime, and a
+// successful read is witnessed. A read made ahead of the walk (V1-1701) is
+// settled only if the walk reaches it, so a speculative read can neither
+// replace the refusal the walk reports first nor add a cleanup diagnostic the
+// sequential walk would not have.
+func (s *nativeRead) settle(p string, raw []byte, cleanup, err error) ([]byte, error) {
+	if cleanup != nil {
+		err = s.closed(err, cleanup)
+	}
+	if err == nil && s.physical != nil {
+		err = s.physical.add(p, raw)
+	}
+	if err == nil && afterNativeRead != nil {
+		afterNativeRead(p)
+	}
+	return raw, err
+}
+
+// readHeld is Read without its bookkeeping: the file's close error is
+// returned as cleanup, not recorded, until settle.
+func (s *nativeRead) readHeld(p string, max int) (raw []byte, cleanup, err error) {
 	if _, e := s.native.path(p); e != nil {
-		return nil, e
+		return nil, nil, e
 	}
 	dir := filepath.ToSlash(filepath.Dir(p))
 	root, e := s.parent(dir)
 	if e != nil {
-		return nil, e
+		return nil, nil, e
 	}
 	f, e := s.open(dir, root, filepath.Base(p))
 	if os.IsNotExist(e) && s.listed[p] != nil {
-		return nil, moved(p)
+		return nil, nil, moved(p)
 	}
 	if e != nil {
-		return nil, e
+		return nil, nil, e
 	}
-	defer func() {
-		err = s.closed(err, closeReadFile(f))
-		if err == nil && s.physical != nil {
-			err = s.physical.add(p, raw)
-		}
-		if err == nil && afterNativeRead != nil {
-			afterNativeRead(p)
-		}
-	}()
+	defer func() { cleanup = closeReadFile(f) }()
 	st, e := f.Stat()
 	if e != nil {
-		return nil, e
+		return nil, nil, e
 	}
 	if !st.Mode().IsRegular() {
-		return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, p, "not a regular file")
+		return nil, nil, wire.Errorf(wire.CodeUnsupportedFilesystem, p, "not a regular file")
 	}
 	if old := s.listed[p]; old != nil && !os.SameFile(old, st) {
-		return nil, moved(p)
+		return nil, nil, moved(p)
 	}
 	if max < 0 || st.Size() > int64(max) {
-		return nil, wire.Errorf(wire.CodeLimitExceeded, p, "file exceeds bound")
+		return nil, nil, wire.Errorf(wire.CodeLimitExceeded, p, "file exceeds bound")
 	}
 	raw, e = readAllSized(io.LimitReader(f, int64(max)+1), st.Size())
 	if e != nil {
-		return nil, e
+		return nil, nil, e
 	}
 	if len(raw) > max {
-		return nil, wire.Errorf(wire.CodeLimitExceeded, p, "consumed bytes exceed bound")
+		return nil, nil, wire.Errorf(wire.CodeLimitExceeded, p, "consumed bytes exceed bound")
 	}
-	return raw, nil
+	return raw, nil, nil
 }
 
 // open is InRoot(root, name, O_RDONLY, 0, false) through the parent's pinned

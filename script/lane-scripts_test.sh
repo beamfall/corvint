@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Tests for the lane procedure scripts (docs/LANE-ORCHESTRATION.md): heavy.sh (ASD-V0-014),
-# the dogfood-finish missing-input refusal (ASD-V0-015), lane-idle-check.sh (ASD-V0-017) and
-# lane-clean.sh (ASD-V0-018). No Go build runs.
+# the dogfood-finish missing-input refusal (ASD-V0-015), lane-idle-check.sh (ASD-V0-017),
+# lane-clean.sh (ASD-V0-018), lane-guard.sh (ASD-V0-024),
+# install-local-bin.sh (ASD-V0-025). No Go build runs.
 set -uo pipefail
 export LC_ALL=C
 
@@ -193,6 +194,74 @@ clean --apply > "$tmp/out" || fail "lane-clean apply failed"
 for n in unmerged dirty active stash host; do [[ -d $tmp/lanes2/$n ]] || fail "lane-clean removed $n"; done
 [[ -z $(git -C "$tmp/seed" worktree list --porcelain | grep "lanes2/wt") ]] || fail "lane-clean left a worktree entry"
 [[ -d $tmp/elsewhere/hostwt ]] || fail "lane-clean removed a clone's linked worktree"
+ok
+
+# ASD-V0-024 (V1-1953): lane-guard.sh refuses real polling loops and unwrapped go test, but never
+# matches heredoc bodies, which are file content. Inputs are built as JSON by perl so the cases
+# carry real newlines.
+guard() { # guard CWD COMMAND -> prints the decision (empty when allowed)
+  perl -MJSON::PP -e 'print JSON::PP->new->encode({cwd => $ARGV[0], tool_input => {command => $ARGV[1]}})' "$1" "$2" |
+    "$script/lane-guard.sh"
+}
+denied() { [[ $(guard "$tmp" "$1") == *'"permissionDecision":"deny"'* ]]; }
+loop_body=$'while true; do\n  sleep 5\ndone'
+for cmd in \
+  "until gh pr view 1 --json state | grep -q MERGED; do sleep 30; done" \
+  "cd x && while ! test -f done; do sleep 1; done" \
+  "for i in \$(seq 1 20); do gh run view 1; sleep 30; done" \
+  "tail -f log | grep -m1 PASS" \
+  "go test ./internal/x" \
+  "cd lane && GOTOOLCHAIN=local go test -run TestA ./internal/x" \
+  "make build && env GOFLAGS=-p=4 go test ./cmd/corvint"; do
+  denied "$cmd" || fail "lane-guard allowed: $cmd"
+done
+for cmd in \
+  "cat > notes.sh <<'EOF'"$'\n'"$loop_body"$'\nEOF' \
+  "cat > t.sh <<EOF"$'\n'"$loop_body"$'\ngo test ./x\nEOF\nchmod +x t.sh' \
+  "cat <<-\"END\" > t.sh"$'\n\t'"until false; do sleep 1; done"$'\n\tEND' \
+  "script/heavy.sh env GOTOOLCHAIN=local go test -run TestA ./internal/x" \
+  "/private/tmp/cem10-build/heavy.sh env GOTOOLCHAIN=local go test -p 4 -run TestA ./internal/x" \
+  "git log --oneline -3" \
+  "grep -n 'while' script/x.sh"; do
+  out=$(guard "$tmp" "$cmd")
+  [[ -z $out ]] || fail "lane-guard refused file content or a wrapped command: $cmd -> $out"
+done
+# A command after the heredoc terminator is a command again.
+denied "cat > a.txt <<EOF"$'\nplain\nEOF\n'"until false; do sleep 2; done" || fail "lane-guard missed a loop after a heredoc"
+# A here-string is not a heredoc: its line stays a command.
+denied "until grep -q x <<< \"\$v\"; do sleep 1; done" || fail "lane-guard treated <<< as a heredoc"
+# LANE_GUARD_ROOTS scopes the guard; outside every root nothing is checked.
+[[ -z $(LANE_GUARD_ROOTS=/nonexistent-root guard "$tmp" "go test ./x") ]] || fail "lane-guard checked outside LANE_GUARD_ROOTS"
+LANE_GUARD_ROOTS=/nonexistent-root:$tmp denied "go test ./x" || fail "lane-guard skipped a cwd inside LANE_GUARD_ROOTS"
+[[ $(LANE_GUARD_HEAVY=/opt/heavy.sh guard "$tmp" "go test ./x") == *'through /opt/heavy.sh'* ]] || fail "lane-guard ignored LANE_GUARD_HEAVY"
+[[ -z $(printf 'not json' | "$script/lane-guard.sh") ]] || fail "lane-guard refused unparseable input"
+ok
+
+# ASD-V0-025 (V1-1979): install-local-bin.sh keeps a bounded rollback set and never prunes
+# backups it did not create.
+bin=$tmp/bin
+mkdir -p "$bin"
+printf 'v0\n' > "$tmp/v0"; printf 'v1\n' > "$tmp/v1"; printf 'v2\n' > "$tmp/v2"; printf 'v3\n' > "$tmp/v3"
+printf 'old\n' > "$bin/tool.bak-foreign"
+"$script/install-local-bin.sh" "$tmp/v0" "$bin/tool" > /dev/null || fail "install-local-bin first install failed"
+for v in v1 v2 v3; do
+  "$script/install-local-bin.sh" "$tmp/$v" "$bin/tool" > "$tmp/install.out" || fail "install-local-bin install $v failed"
+done
+[[ $(cat "$bin/tool") == v3 && -x $bin/tool ]] || fail "install-local-bin did not install v3"
+backups=$(cd "$bin" && /bin/ls tool.corvint-prev-* | tr '\n' ' ')
+[[ $backups == 'tool.corvint-prev-3 ' && $(cat "$bin/tool.corvint-prev-3") == v2 ]] || fail "install-local-bin kept unbounded backups: $backups"
+[[ -f $bin/tool.bak-foreign ]] || fail "install-local-bin pruned a foreign backup"
+grep -q '^REMOVED .*tool.corvint-prev-2$' "$tmp/install.out" || fail "install-local-bin did not report the pruned backup"
+"$script/install-local-bin.sh" --rollback "$bin/tool" > /dev/null || fail "install-local-bin rollback failed"
+[[ $(cat "$bin/tool") == v2 && $(cat "$bin/tool.corvint-prev-4") == v3 ]] || fail "install-local-bin rollback did not swap"
+"$script/install-local-bin.sh" --rollback "$bin/tool" > /dev/null || fail "install-local-bin second rollback failed"
+[[ $(cat "$bin/tool") == v3 ]] || fail "install-local-bin second rollback did not return"
+"$script/install-local-bin.sh" --keep 2 "$tmp/v1" "$bin/tool" > /dev/null || fail "install-local-bin --keep 2 failed"
+[[ $(cd "$bin" && /bin/ls tool.corvint-prev-* | wc -l | tr -d ' ') == 2 ]] || fail "install-local-bin ignored --keep 2"
+"$script/install-local-bin.sh" "$tmp/missing" "$bin/tool" 2> "$tmp/install.err" && fail "install-local-bin accepted a missing source"
+grep -q 'REFUSE source-unreadable' "$tmp/install.err" || fail "install-local-bin did not name the missing source"
+"$script/install-local-bin.sh" --keep 0 "$tmp/v1" "$bin/tool" 2> /dev/null && fail "install-local-bin accepted --keep 0"
+"$script/install-local-bin.sh" --rollback "$bin/none" 2> /dev/null && fail "install-local-bin rolled back without a backup"
 ok
 
 printf 'lane-scripts_test: %d groups passed\n' "$passed"

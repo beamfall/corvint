@@ -186,6 +186,8 @@ func gateReviewCommand(env Env, verb string, args []string) *wire.Result {
 			return errorResult(cmd, err)
 		}
 	}
+	f.reasons = canonicalReviewList(f.reasons, reasonKey)
+	f.evidence = canonicalReviewList(f.evidence, evidenceKey)
 	if f.requestID == "" || f.gate == "" || f.subject == "" || f.expectedGeneration == "" || f.expectedRevision == "" {
 		return usage(cmd, "--request-id, --gate, --subject-receipt, --expected-generation and --expected-revision are required")
 	}
@@ -260,6 +262,55 @@ func artifactArg(flag, arg string) (wire.Digest, wire.Size, error) {
 		return "", "", err
 	}
 	return d, size, nil
+}
+
+// canonicalReviewList puts repeated --reason or --evidence flags in the
+// request's set order (ERG-V0-023): both request arrays are canonical-byte
+// sorted sets, so the CLI sorts the flags by the canonical bytes of the
+// element each one composes and drops exact repeats of a flag string,
+// instead of refusing input order. Only an identical flag is dropped, so
+// every distinct flag, malformed or not, reaches composition and its
+// validation; a malformed flag sorts first under its own key and refuses
+// MALFORMED.
+func canonicalReviewList(flags []string, key func(string) string) []string {
+	if len(flags) < 2 {
+		return flags
+	}
+	out := append([]string(nil), flags...)
+	sort.SliceStable(out, func(i, j int) bool { return key(out[i]) < key(out[j]) })
+	kept := out[:1]
+	for _, x := range out[1:] {
+		if x != kept[len(kept)-1] {
+			kept = append(kept, x)
+		}
+	}
+	return kept
+}
+
+// malformedReviewKey keys a flag that does not have the element's syntax.
+// Its NUL prefix can never begin canonical element bytes, so a malformed
+// flag whose raw text equals a well-formed flag's element bytes never shares
+// its key, and the sorted order does not depend on input order.
+func malformedReviewKey(raw string) string { return "\x00" + raw }
+
+// reasonKey is the canonical bytes of the reasons element CODE:TEXT composes.
+func reasonKey(r string) string {
+	code, text, ok := strings.Cut(r, ":")
+	if !ok {
+		return malformedReviewKey(r)
+	}
+	return string(wire.Encode(wire.ObjectValue(wire.NewObject().Set("code", wire.String(code)).Set("text", wire.String(text)))))
+}
+
+// evidenceKey is the canonical bytes of the evidence element
+// LABEL=SHA256:BYTES composes.
+func evidenceKey(e string) string {
+	label, artifact, ok := strings.Cut(e, "=")
+	sha, n, ok2 := strings.Cut(artifact, ":")
+	if !ok || !ok2 {
+		return malformedReviewKey(e)
+	}
+	return string(wire.Encode(wire.ObjectValue(wire.NewObject().Set("label", wire.String(label)).Set("sha256", wire.String(sha)).Set("bytes", wire.String(n)))))
 }
 
 // retainedReviewRequest makes a retry reproducible (ERG-V0-009): when the

@@ -5,6 +5,7 @@ package dispatch
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,7 +31,16 @@ func noteWith(t *testing.T, d *Dispatcher, w *Worker, now time.Time, class strin
 	if err := os.WriteFile(filepath.Join(d.workerDir(w.ID), "stdout.log"), []byte(text+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	if w.Fingerprint == "" {
+		w.Fingerprint = testFP(d, w.Key)
+	}
 	d.noteCarryOver(w, now, class, class == SessionProgress, false)
+}
+
+// testFP is key's work fingerprint on the fake queue's observation, the
+// one a launch on it sees (ATR-V0-168).
+func testFP(d *Dispatcher, key string) string {
+	return Fingerprint(&d.Queue.(*fakeQueue).obs, key)
 }
 
 func launchedOf(t *testing.T, d *Dispatcher, kind, worker string) Event {
@@ -335,10 +345,10 @@ func TestATRV0113_NoCarryOverForOtherTicket(t *testing.T) {
 	d, now := openCtx(t, &fakeQueue{}, c)
 	t1, t2 := "ticket:a:q:t1", "ticket:a:q:t2"
 	noteWith(t, d, &Worker{ID: "w1", Role: "impl", Key: t1, Ticket: t1}, *now, SessionNoProgress, "t1 words")
-	if block, _ := d.carryOverFor(c.Roles[0].CarryOver, t1); !strings.Contains(block, "t1 words") {
+	if block, _ := d.carryOverFor(c.Roles[0].CarryOver, t1, testFP(d, t1)); !strings.Contains(block, "t1 words") {
 		t.Fatalf("t1 block %q", block)
 	}
-	if block, _ := d.carryOverFor(c.Roles[0].CarryOver, t2); block != "" {
+	if block, _ := d.carryOverFor(c.Roles[0].CarryOver, t2, testFP(d, t2)); block != "" {
 		t.Fatalf("another ticket was offered %q", block)
 	}
 	// t1's record copied to t2's path names t1, so it is not offered.
@@ -346,12 +356,12 @@ func TestATRV0113_NoCarryOverForOtherTicket(t *testing.T) {
 	if err := os.WriteFile(CarryOverPath(d.dir, t2), raw, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if block, _ := d.carryOverFor(c.Roles[0].CarryOver, t2); block != "" {
+	if block, _ := d.carryOverFor(c.Roles[0].CarryOver, t2, testFP(d, t2)); block != "" {
 		t.Fatalf("a record naming another ticket was offered %q", block)
 	}
 	// A removal that fails stops the offer until a write succeeds.
 	d.carryStale = map[string]bool{t1: true}
-	if block, _ := d.carryOverFor(c.Roles[0].CarryOver, t1); block != "" {
+	if block, _ := d.carryOverFor(c.Roles[0].CarryOver, t1, testFP(d, t1)); block != "" {
 		t.Fatal("a record whose removal failed was offered")
 	}
 	d.noteCarryOver(&Worker{ID: "w2", Role: "impl", Key: t1, Ticket: t1}, *now, SessionProgress, true, false)
@@ -386,7 +396,7 @@ func TestATRV0112_RecordVersions(t *testing.T) {
 	if got, _ := os.ReadFile(path); string(got) != newer {
 		t.Fatal("a newer-version record was overwritten")
 	}
-	if block, _ := d.carryOverFor(c.Roles[0].CarryOver, key); block != "" {
+	if block, _ := d.carryOverFor(c.Roles[0].CarryOver, key, testFP(d, key)); block != "" {
 		t.Fatal("a newer-version record was offered")
 	}
 	alerts := 0
@@ -401,7 +411,7 @@ func TestATRV0112_RecordVersions(t *testing.T) {
 	if err := os.WriteFile(path, []byte("{"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if block, _ := d.carryOverFor(c.Roles[0].CarryOver, key); block != "" {
+	if block, _ := d.carryOverFor(c.Roles[0].CarryOver, key, testFP(d, key)); block != "" {
 		t.Fatal("a damaged record was offered")
 	}
 	noteWith(t, d, &Worker{ID: "w4", Role: "impl", Key: key, Ticket: key}, *now, SessionNoProgress, "fresh")
@@ -458,7 +468,7 @@ func TestATRV0114_EventsMarkCarryOverSessions(t *testing.T) {
 	for _, id := range []string{"w1", "w2", "w3"} {
 		noteWith(t, d, &Worker{ID: id, Role: "impl", Key: key, Ticket: key}, *now, SessionNoProgress, id+" words")
 	}
-	block, entries := d.carryOverFor(c.Roles[0].CarryOver, key)
+	block, entries := d.carryOverFor(c.Roles[0].CarryOver, key, testFP(d, key))
 	if len(entries) != 2 || entries[0].Worker != "w2" || entries[1].Worker != "w3" || strings.Contains(block, "w1 words") {
 		t.Fatalf("offered %+v:\n%s", entries, block)
 	}
@@ -508,7 +518,7 @@ func TestATRV0111_PlainOutputScreenedBeforeCut(t *testing.T) {
 	if e := rec.Entries[0]; strings.Contains(e.Text, "AAAA") || e.RedactedLines < 1 {
 		t.Fatalf("credential stored: redacted %d, text %q", e.RedactedLines, e.Text)
 	}
-	block, _ := d.carryOverFor(c.Roles[0].CarryOver, key)
+	block, _ := d.carryOverFor(c.Roles[0].CarryOver, key, testFP(d, key))
 	if strings.Contains(block, "AAAA") {
 		t.Fatalf("credential injected:\n%s", block)
 	}
@@ -536,8 +546,68 @@ func TestATRV0111_AppendAfterFailedRemovalDropsOlderEntries(t *testing.T) {
 		t.Fatal(err)
 	}
 	noteWith(t, d, &Worker{ID: "w3", Role: "impl", Key: key, Ticket: key}, *now, SessionNoProgress, "after progress")
-	block, entries := d.carryOverFor(c.Roles[0].CarryOver, key)
+	block, entries := d.carryOverFor(c.Roles[0].CarryOver, key, testFP(d, key))
 	if len(entries) != 1 || entries[0].Worker != "w3" || strings.Contains(block, "before progress") {
 		t.Fatalf("offered %+v:\n%s", entries, block)
+	}
+}
+
+// TestATRV0168_ProgressInvalidatesCarryOverAcrossRestart injects a failed
+// record removal after a progress session, restarts the dispatcher, which
+// loses the in-memory stale mark, and shows that no entry from before the
+// progress is offered or extended (V1-1793). An entry without a
+// fingerprint, from before ATR-V0-168, is never offered.
+func TestATRV0168_ProgressInvalidatesCarryOverAcrossRestart(t *testing.T) {
+	c := testConfig(t, "exit 0")
+	c.Roles[0].CarryOver = &CarryOver{}
+	q := &fakeQueue{}
+	d, now := openCtx(t, q, c)
+	key := "ticket:a:q:t1"
+	before := testFP(d, key)
+	noteWith(t, d, &Worker{ID: "w1", Role: "impl", Key: key, Ticket: key}, *now, SessionNoProgress, "before progress")
+	path := CarryOverPath(d.dir, key)
+	if err := os.Chmod(filepath.Dir(path), 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(filepath.Dir(path), 0o700) })
+	q.obs.Tickets[0].Revision = "2" // the next session records progress
+	d.noteCarryOver(&Worker{ID: "w2", Role: "impl", Key: key, Ticket: key, Fingerprint: before}, *now, SessionProgress, true, false)
+	if err := os.Chmod(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatal("the injected removal failure did not leave the record")
+	}
+	if err := d.Close(); err != nil {
+		t.Fatal(err)
+	}
+	r, err := Open("ctx", c, q, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { r.Close() })
+	r.Now = d.Now
+	after := testFP(r, key)
+	if after == before {
+		t.Fatal("fixture: progress did not move the fingerprint")
+	}
+	if block, entries := r.carryOverFor(c.Roles[0].CarryOver, key, after); block != "" || len(entries) != 0 {
+		t.Fatalf("after a restart the pre-progress record was offered: %+v", entries)
+	}
+	noteWith(t, r, &Worker{ID: "w3", Role: "impl", Key: key, Ticket: key}, *now, SessionNoProgress, "after progress")
+	rec, err := ReadCarryOver(path)
+	if err != nil || len(rec.Entries) != 1 || rec.Entries[0].Worker != "w3" || rec.Entries[0].Fingerprint != after {
+		t.Fatalf("the append extended the pre-progress record: %+v %v", rec, err)
+	}
+	block, entries := r.carryOverFor(c.Roles[0].CarryOver, key, after)
+	if len(entries) != 1 || strings.Contains(block, "before progress") {
+		t.Fatalf("offered %+v", entries)
+	}
+	rec.Entries[0].Fingerprint = ""
+	if err := writeAtomic(path, rec.encode()); err != nil {
+		t.Fatal(err)
+	}
+	if block, _ := r.carryOverFor(c.Roles[0].CarryOver, key, after); block != "" {
+		t.Fatal("an entry without a fingerprint was offered")
 	}
 }

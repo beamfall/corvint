@@ -7,6 +7,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/supervisor"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"time"
 )
 
@@ -68,17 +69,17 @@ func RequestProgramControl(ctx context.Context, repo *intent.Repository, actor m
 				}
 				found = true
 				if now.Assignment != p.Assignment || now.CurrentAttempt != p.CurrentAttempt || now.CurrentGeneration != p.CurrentGeneration || now.Epoch != p.Epoch {
-					return fmt.Errorf("control target assignment/epoch changed")
+					return wire.Errorf(wire.CodeFenced, "program control", "control target assignment/epoch changed")
 				}
 				if now.Control != control {
-					return fmt.Errorf("control superseded")
+					return wire.Errorf(wire.CodeFenced, "program control", "control superseded")
 				}
 				if now.OwnerReleased && now.Quiescence == "PROVED" && now.Phase == "FINISHED" {
 					return nil
 				}
 			}
 			if !found {
-				return fmt.Errorf("control target disappeared")
+				return wire.Errorf(wire.CodeFenced, "program control", "control target disappeared")
 			}
 			identity, e := supervisor.ProcessIdentity(p.OwnerPID)
 			if e != nil {
@@ -91,12 +92,12 @@ func RequestProgramControl(ctx context.Context, repo *intent.Repository, actor m
 			case <-ctx.Done():
 				return ctx.Err()
 			case <-until.C:
-				return fmt.Errorf("control retained; original owner has not retired")
+				return wire.Errorf(wire.CodeQuiescenceUnproved, "program control", "control retained; original owner has not retired")
 			case <-tick.C:
 			}
 		}
 	}
-	return fmt.Errorf("program absent")
+	return wire.Errorf(wire.CodeMalformed, "program control", "program %s absent", id)
 }
 
 func ProgramAttempts(ctx context.Context, repo *intent.Repository) (map[string]*snapshot.Attempt, error) {

@@ -28,6 +28,11 @@ import (
 
 const schema = "corvint-pr-tests/0"
 
+// pinnedGoVersion is the one Go version a frozen identity admits: toolIdentity refuses any other
+// host toolchain, and containerRunResult refuses a container result that recorded any other
+// (V1-1520).
+const pinnedGoVersion = "go1.27.2"
+
 var testArgs = []string{"test", "-json", "-p", "1", "-count=1", "-race", "-timeout", "50m"}
 var oid = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
 var packageName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._~/-]*$`)
@@ -410,6 +415,40 @@ func capture(ctx context.Context, o options, name string, args ...string) (strin
 func git(ctx context.Context, o options, args ...string) (string, error) {
 	return capture(ctx, o, "git", append([]string{"-c", "safe.directory=" + o.root, "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false"}, args...)...)
 }
+
+// darwinGitShim is the Git that Apple installs as an xcrun shim: its digest is the shim's, the
+// same on hosts that run different Git versions.
+const darwinGitShim = "/usr/bin/git"
+
+// gitIdentity is the AFP-V0-053 Git field: the resolved path, SHA-256 and version of the Git that
+// tests run. On Darwin, when that path is the xcrun shim, it also binds the developer-directory
+// Git the shim executes, as resolve (`xcrun --find git` under the closed environment) names it,
+// and refuses when that Git cannot be identified (V1-1521).
+func gitIdentity(goos, gitPath, gitHash, gitVersion string, resolve func() (string, error)) (string, error) {
+	field := gitPath + "\n" + gitHash + "\n" + gitVersion
+	if goos != "darwin" || gitPath != darwinGitShim {
+		return field, nil
+	}
+	target, err := resolve()
+	if err != nil {
+		return "", fmt.Errorf("cannot resolve the Git behind the %s xcrun shim: %w", darwinGitShim, err)
+	}
+	if !filepath.IsAbs(target) {
+		return "", fmt.Errorf("xcrun resolved Git to a relative path: %q", target)
+	}
+	if target, err = filepath.EvalSymlinks(target); err != nil {
+		return "", err
+	}
+	if target == darwinGitShim {
+		return "", errors.New("xcrun resolved Git to its own shim")
+	}
+	targetHash, err := digestFile(target)
+	if err != nil {
+		return "", err
+	}
+	return field + "\nxcrun " + target + "\n" + targetHash, nil
+}
+
 func digestFile(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -509,7 +548,12 @@ func toolIdentity(ctx context.Context, o options) (identity, error) {
 	if err != nil {
 		return id, err
 	}
-	id.Git = gitPath + "\n" + gitHash + "\n" + gitVersion
+	id.Git, err = gitIdentity(runtime.GOOS, gitPath, gitHash, gitVersion, func() (string, error) {
+		return capture(ctx, o, "/usr/bin/xcrun", "--find", "git")
+	})
+	if err != nil {
+		return id, err
+	}
 	if runtime.GOOS == "linux" {
 		b, err := os.ReadFile("/etc/os-release")
 		if err != nil {
@@ -554,7 +598,7 @@ func toolIdentity(ctx context.Context, o options) (identity, error) {
 	if id.Container != nil && (id.Container.Source != id.Source || id.Container.Tools["corvint"] != id.Planner || id.Container.Tools["gate-affected-select"] != id.Selector || id.Container.Tools["corvint-pr-tests"] != id.Driver || runtime.GOOS != "linux" || runtime.GOARCH != "amd64") {
 		return id, errors.New("container trusted tool identity mismatch")
 	}
-	if id.GoVersion != "go1.27.2" {
+	if id.GoVersion != pinnedGoVersion {
 		return id, errors.New("unsupported Go version")
 	}
 	return id, nil

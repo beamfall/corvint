@@ -23,6 +23,12 @@ import (
 	"github.com/Beamfall/corvint/internal/testvaliditydoc"
 )
 
+// executionLimit derives the context that bounds an execution by its declared timeout; a phase
+// reports TimedOut when that context ends with context.DeadlineExceeded. Process-lifecycle tests
+// replace it so the bound expires at a readiness sync point rather than on a wall clock that a
+// loaded host can overrun before the fixture starts (V1-1545, V1-1434).
+var executionLimit = context.WithTimeout
+
 // Execute runs an already re-derived profile invocation. Caller must bind its
 // admitted request and exact invocation digest before calling; parsers never
 // call Execute. The declared input inventory is not full dependency attestation.
@@ -195,7 +201,7 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 			retErr = fmt.Errorf("fixed template changed: %w", e)
 		}
 	}()
-	limited, cancel := context.WithTimeout(ctx, time.Duration(r.TimeoutSeconds)*time.Second)
+	limited, cancel := executionLimit(ctx, time.Duration(r.TimeoutSeconds)*time.Second)
 	defer cancel()
 	// A timed-out or interrupted phase leaves device-side processes that the
 	// host group kill cannot reach. Stop them on every later return path and

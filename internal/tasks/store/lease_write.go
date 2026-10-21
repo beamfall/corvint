@@ -26,11 +26,43 @@ type leaseAuditKey struct {
 
 // Only a successful in-process audit can populate this bounded cache. Every
 // reuse compares all physical bytes outside the lock under a fresh guard;
-// head and intent alone cannot detect private projection corruption.
+// head and intent alone cannot detect private projection corruption. It keeps
+// one audit per store root, so audits of independent stores in one process do
+// not evict each other (V1-1108); at most leaseAuditRoots roots are kept.
 var leaseAudits struct {
 	sync.Mutex
+	entries map[string]leaseAuditEntry
+}
+
+type leaseAuditEntry struct {
 	key   leaseAuditKey
 	proof *journal.Result
+}
+
+const leaseAuditRoots = 8
+
+// cachedLeaseAudit is the audit retained for root, if any.
+func cachedLeaseAudit(root string) leaseAuditEntry {
+	leaseAudits.Lock()
+	defer leaseAudits.Unlock()
+	return leaseAudits.entries[root]
+}
+
+// retainLeaseAudit keeps proof as its root's audit. A new root beyond the
+// bound evicts another root's entry, which costs that root one complete audit.
+func retainLeaseAudit(key leaseAuditKey, proof *journal.Result) {
+	leaseAudits.Lock()
+	defer leaseAudits.Unlock()
+	if leaseAudits.entries == nil {
+		leaseAudits.entries = map[string]leaseAuditEntry{}
+	}
+	if _, ok := leaseAudits.entries[key.root]; !ok && len(leaseAudits.entries) >= leaseAuditRoots {
+		for root := range leaseAudits.entries {
+			delete(leaseAudits.entries, root)
+			break
+		}
+	}
+	leaseAudits.entries[key.root] = leaseAuditEntry{key, proof}
 }
 
 type preparedLease struct {
@@ -106,9 +138,8 @@ func leaseKey(repo *intent.Repository, guard *authority.ChangeGuard, inv *transa
 // A possible hit selects the conservative inventory-first path. This hint
 // grants nothing: leaseAuditObserved still compares the complete physical key.
 func possibleLeaseAudit(repo *intent.Repository, headRaw []byte) bool {
-	leaseAudits.Lock()
-	defer leaseAudits.Unlock()
-	return leaseAudits.proof != nil && leaseAudits.key.root == repo.StateDir && leaseAudits.key.head == wire.Sum(headRaw)
+	cached := cachedLeaseAudit(repo.StateDir)
+	return cached.proof != nil && cached.key.head == wire.Sum(headRaw)
 }
 
 func leaseAudit(repo *intent.Repository, guard *authority.ChangeGuard, inv *transaction.Inventory, headRaw []byte) (*journal.Result, error) {
@@ -128,12 +159,8 @@ func leaseAuditObserved(repo *intent.Repository, guard *authority.ChangeGuard, i
 	}
 	proof := supplied
 	if proof == nil {
-		leaseAudits.Lock()
-		cached := leaseAudits.proof
-		hit := cached != nil && leaseAudits.key == key
-		leaseAudits.Unlock()
-		if hit {
-			return cached, nil, nil
+		if cached := cachedLeaseAudit(key.root); cached.proof != nil && cached.key == key {
+			return cached.proof, nil, nil
 		}
 		head, err := snapshot.DecodeHead(headRaw)
 		if err != nil {
@@ -152,9 +179,7 @@ func leaseAuditObserved(repo *intent.Repository, guard *authority.ChangeGuard, i
 		return nil, err, nil
 	}
 	if !proof.StagingPresent && !proof.Pending {
-		leaseAudits.Lock()
-		leaseAudits.key, leaseAudits.proof = key, proof
-		leaseAudits.Unlock()
+		retainLeaseAudit(key, proof)
 	}
 	return proof, nil, nil
 }
@@ -216,6 +241,11 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 		timing.walked(observation.Walks)
 		return proof, observation, auditErr
 	}
+	// refused is a refusal the preparation audit derived in one complete,
+	// unmoved walk of this head. The guarded audit below would walk the same
+	// head again only to derive it once more, so it reuses this one
+	// (V1-1703).
+	var refused func(journal.Reader) (*journal.Result, journal.PhysicalObservation, error)
 	if !possibleLeaseAudit(repo, head) {
 		// The writer checkpoint this audit derives is bound to the
 		// invalidation token read before it (CAL-V0-117, proposed).
@@ -276,6 +306,11 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 		}
 		// Partial, divergent or failed audits supply no inventory metadata.
 		// Preserve the ordinary inventory-first replay/recovery path below.
+		if w := observation.Walks; auditErr != nil && wire.CodeOf(auditErr) != wire.CodeRedoPending && !errors.Is(auditErr, journal.ErrPrefixDeclined) && w.Complete == 1 && w.CompleteMoved == 0 && w.Prefix == 0 && w.Resumed == 0 {
+			refused = func(journal.Reader) (*journal.Result, journal.PhysicalObservation, error) {
+				return proof, journal.PhysicalObservation{}, auditErr
+			}
+		}
 	}
 	if inv == nil {
 		inv, err, p.fatalCleanup = guardedLeaseInventory(repo, g, hooks)
@@ -284,7 +319,11 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 		}
 	}
 	var cleanup error
-	p.proof, err, cleanup = leaseAuditObserved(repo, g, inv, head, supplied, observe)
+	audit := observe
+	if refused != nil {
+		audit = refused
+	}
+	p.proof, err, cleanup = leaseAuditObserved(repo, g, inv, head, supplied, audit)
 	readEnd = time.Now()
 	if cleanup != nil {
 		p.recordCleanup("journal audit close", cleanup)

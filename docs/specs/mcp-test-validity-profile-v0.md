@@ -110,6 +110,18 @@ freshness to the worktree's current digests, exactly as `corvint test-validity -
   `discover`, or `discover: true` together with a `receipt`, MUST be the tool error
   `invalid-arguments`. The root re-identification of `MTV-V0-003` and every `MTV-V0-006` and
   `MTV-V0-007` bound and prohibition apply unchanged.
+- `MTV-V0-010`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1781) The
+  `MTV-V0-007` import check stays scoped to the tool path's own production sources. Separately, every
+  module package in the transitive import closure of `internal/mcp/testvaliditybridge` that directly
+  imports a connection-making network package (`net`, `net/http`, `net/http/*`, `net/rpc`,
+  `net/smtp`) MUST appear in a reviewed allowlist that records why the tool cannot reach it. The
+  allowlist MUST be exact for each explicitly listed build configuration (at least `darwin/arm64`,
+  `linux/amd64` and `windows/amd64`, independent of the host): a new importer, or an expected entry
+  that has left that configuration's closure, fails the guard.
+  Parsing-only packages (`net/url`, `net/netip`, `net/mail`, `net/textproto`) are not network access.
+  Transitive `os/exec` edges, such as the Git object reads of the shared index packages, are not part
+  of this guard; the tool's no-process rule stays the `MTV-V0-007` source check plus the read-only
+  vectors.
 
 ## Non-goals and failure modes
 
@@ -174,6 +186,7 @@ persisted state, schema or client configuration needs migration.
 | `MTV-V0-007` | `internal/mcp/testvaliditybridge`, `internal/testvaliditydoc` | `TestToolPathImportsNoNetworkOrProcessPackage`; tree digest in `TestVectorsAndReadOnly`; `cmd/corvint`: `TestCLIReadVerbsLeaveTheRepositoryByteIdentical` (CLI-level `test-validity` verb sharing the same write-nothing `internal/testvaliditydoc` path) |
 | `MTV-V0-008` | `conformance/mcp-test-validity-v0/cases.json` | `TestVectorsAndReadOnly` |
 | `MTV-V0-009` | `testvaliditybridge.Registry.discover`, `decodeArguments`; `testvaliditydoc.Discover` | `TestTestValidityDiscoveryMatchesMCPDocument` (`cmd/corvint`, CLI and MCP documents canonically byte-equal); `TestToolCatalogueIsExactlyOneReadOnlyTool` (two schema members); vectors `discover-retained-evidence` and `discover-with-receipt-refused` in `TestVectorsAndReadOnly` |
+| `MTV-V0-010` | `testValidityToolNetworkImporters` in `cmd/corvint/core_network_boundary_test.go` | `TestTestValidityToolNetworkImportersAreAllowlisted` (`cmd/corvint`; `go list -deps`, mutation-checked); `docs/build-log/2026-10-21-network-closure-guards.md` |
 
 ## Discovery guidance amendment (V1-1140)
 

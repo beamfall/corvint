@@ -36,6 +36,14 @@ func SetAttemptWriteFault(fault func(verb string) error) func() {
 	return func() { attemptWriteFault = was }
 }
 
+// SetAttemptOutcomeReportFault lets fault rewrite the outcome write's report
+// before the runner reads it; it returns the restore function.
+func SetAttemptOutcomeReportFault(fault func(*store.Report)) func() {
+	was := attemptOutcomeReportFault
+	attemptOutcomeReportFault = fault
+	return func() { attemptOutcomeReportFault = was }
+}
+
 // SetAttemptGroupSignalFault makes the owned group's SIGKILL fail without
 // being sent, so retirement cannot be proved and cleanup HOLDs; it returns
 // the restore function. Use it only with a command that exits by itself.

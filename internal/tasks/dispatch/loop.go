@@ -101,16 +101,16 @@ type Dispatcher struct {
 	// throttled event in this run; the zero value is calm and observed.
 	pressureEmitted PressureState
 	// pressureGap is set by a tick that deferred its pressure sample and
-	// launched nothing (CAL-V0-351): the next sample has no CPU baseline,
+	// launched nothing (ATR-V0-181): the next sample has no CPU baseline,
 	// as after Open, so utilization is never averaged across the gap.
 	pressureGap bool
 	// pressureHold keeps the budget at a raised pending level from the
 	// first sample after a gap until that transition resolves, because the
-	// skipped ticks never advanced the dwell (CAL-V0-351).
+	// skipped ticks never advanced the dwell (ATR-V0-181).
 	pressureHold bool
 	// pressureBaseline is set when the first sample after a gap had no CPU
 	// interval with cpu selected: that tick admits no non-exempt launch and
-	// the next tick samples rather than deferring (CAL-V0-351).
+	// the next tick samples rather than deferring (ATR-V0-181).
 	pressureBaseline bool
 	// poolWaitEmitted is the PSR-V0-143 pool-wait signature last reported
 	// for each held ticket key, in memory only.
@@ -152,6 +152,11 @@ type Dispatcher struct {
 	// not be removed after progress; carryForeign the newer-version records
 	// already alerted. Neither is persisted.
 	carryStale, carryForeign map[string]bool
+	// carryUnsafe names the tickets already alerted for an unsafe rendered
+	// argv under the applied configuration carryUnsafeConfig (ATR-V0-165);
+	// a configuration change clears it. It is not persisted.
+	carryUnsafe       map[string]bool
+	carryUnsafeConfig string
 	// idle is armed by a full tick that changed nothing, and idleLease is
 	// the earliest future lease expiry the current tick observed
 	// (CAL-V0-139).
@@ -161,7 +166,7 @@ type Dispatcher struct {
 	// is due while worker directories hold retirement marks; zero when none
 	// is pending, so ticks without marks do no retirement work.
 	retireConfirm time.Time
-	// retireScan is the open workers directory stream a CAL-V0-352 pass
+	// retireScan is the open workers directory stream a ATR-V0-182 pass
 	// reads its next window from, nil between sweeps; retireWindow is the
 	// window held while its marks settle, retireHeld the passes it has had,
 	// and retireCarry the retained directories carried to the next window.
@@ -675,6 +680,19 @@ func (d *Dispatcher) admitProgress(ctx context.Context, obs *Observation, ended 
 			unparked = append(unparked, key)
 			changed = true
 		}
+	}
+	// ATR-V0-167: the progress accounting of a granted worker or an
+	// unparked key is applied in this same save, before the worker leaves
+	// the ledger, so an interrupt before finish cannot lose it. finish and
+	// the unparked loop apply it again, which changes nothing.
+	for _, w := range ended {
+		if granted[w.ID] {
+			d.accountOn(&staged, w.Key, true)
+			infraEndedOn(&staged, w.Key, w.ID, true)
+		}
+	}
+	for _, key := range unparked {
+		d.accountOn(&staged, key, true)
 	}
 	if changed {
 		if err := staged.validateProgress(); err != nil {
@@ -1380,18 +1398,21 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 // account updates the CAL-V0-057 ladder of a ticket after one finished
 // session: no progress extends its streak; progress resets it and returns
 // every deescalating role to its base model.
-func (d *Dispatcher) account(key string, progress bool) {
+func (d *Dispatcher) account(key string, progress bool) { d.accountOn(d.ledger, key, progress) }
+
+// accountOn is account on the given ledger.
+func (d *Dispatcher) accountOn(l *Ledger, key string, progress bool) {
 	if !d.Config.Escalates() || strings.HasPrefix(key, "lane:") {
 		return
 	}
-	e := d.ledger.Escalation[key]
+	e := l.Escalation[key]
 	if !progress {
 		if e == nil {
 			e = &EscalationState{}
-			if d.ledger.Escalation == nil {
-				d.ledger.Escalation = map[string]*EscalationState{}
+			if l.Escalation == nil {
+				l.Escalation = map[string]*EscalationState{}
 			}
-			d.ledger.Escalation[key] = e
+			l.Escalation[key] = e
 		}
 		e.Streak++
 		return
@@ -1406,7 +1427,7 @@ func (d *Dispatcher) account(key string, progress bool) {
 		}
 	}
 	if len(e.Tiers) == 0 {
-		delete(d.ledger.Escalation, key)
+		delete(l.Escalation, key)
 	}
 }
 
@@ -1576,7 +1597,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		room = newPoolRoom(obs, d.ledger.Workers)
 		launches, held = roster(d.Config, obs, busy, skip, tierOf, budget, prefer, spend, room, adm)
 	}
-	// CAL-V0-351: with no worker running and a recorded calm level, the
+	// ATR-V0-181: with no worker running and a recorded calm level, the
 	// sample waits until a candidate passes every static fence. Calm is
 	// the most permissive label, so a roster that consults no budget at
 	// calm launches nothing whatever the host reads, and the tick samples
@@ -1714,11 +1735,17 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		var carryText string
 		var carried []CarryEntry
 		if a.Ticket != "" && !strings.HasPrefix(a.Key, "lane:") && role.CarryOver.on() {
-			carryText, carried = d.carryOverFor(role.CarryOver, a.Ticket)
+			carryText, carried = d.carryOverFor(role.CarryOver, a.Ticket, Fingerprint(obs, a.Key))
 			// ATR-V0-133: a store-derived argv value must not turn the
 			// launched argv into one that runs the block as code.
 			if err := renderedArgvSafe(host.Argv, values); carryText != "" && err != nil {
-				d.emit(Event{Kind: "alert", Ticket: a.Ticket, Worker: id, Message: fmt.Sprintf("carry-over not offered: host %q %v", role.Host, err)})
+				if d.carryUnsafe == nil || d.carryUnsafeConfig != d.configSha256 {
+					d.carryUnsafe, d.carryUnsafeConfig = map[string]bool{}, d.configSha256
+				}
+				if !d.carryUnsafe[a.Ticket] {
+					d.carryUnsafe[a.Ticket] = true
+					d.emit(Event{Kind: "alert", Ticket: a.Ticket, Worker: id, Message: fmt.Sprintf("carry-over not offered: host %q %v", role.Host, err)})
+				}
 				carryText, carried = "", nil
 			}
 			if carryText != "" {
@@ -2189,7 +2216,7 @@ func (d *Dispatcher) pressureBudget(ctx context.Context, obs *Observation) (*Pre
 		}
 		running = append(running, a)
 	}
-	// CAL-V0-351: the samples skipped during a gap never advanced the
+	// ATR-V0-181: the samples skipped during a gap never advanced the
 	// dwell, so from the first sample after one until the pending
 	// transition resolves the budget uses a raised pending level rather
 	// than launching while it dwells. The recorded state keeps the ordinary

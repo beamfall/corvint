@@ -80,20 +80,29 @@ func TestVerificationCancellationCleansDescendant(t *testing.T) {
 	defer cancel()
 	done := make(chan error, 1)
 	go func() { _, err := Verify(ctx, root, key, "test"); done <- err }()
+	// V1-0749: the shell's redirection creates the pid file before echo
+	// writes it, so an empty or partial read means "not yet", never "absent".
+	// Wait for a parsed nonzero pid, or for Verify to end first; the bound
+	// below is only a hang detector, not a start budget.
+	pidFile := filepath.Join(root, ".git/descendant.pid")
 	var pid int
-	deadline := time.Now().Add(3 * time.Second)
-	for time.Now().Before(deadline) {
-		raw, err := os.ReadFile(filepath.Join(root, ".git/descendant.pid"))
-		if err == nil {
-			pid, _ = strconv.Atoi(strings.TrimSpace(string(raw)))
-			break
+	hang := time.After(2 * time.Minute)
+	for pid == 0 {
+		if raw, err := os.ReadFile(pidFile); err == nil {
+			if parsed, parseErr := strconv.Atoi(strings.TrimSpace(string(raw))); parseErr == nil && parsed > 0 {
+				pid = parsed
+				break
+			}
 		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	if pid == 0 {
-		cancel()
-		<-done
-		t.Fatal("descendant did not start")
+		select {
+		case err := <-done:
+			t.Fatalf("verification ended before the descendant pid was written: %v", err)
+		case <-hang:
+			cancel()
+			<-done
+			t.Fatal("descendant did not start")
+		case <-time.After(10 * time.Millisecond):
+		}
 	}
 	t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
 	cancel()

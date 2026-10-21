@@ -406,7 +406,7 @@ func TestCALV0074_NoExecCancelBeforeRelease(t *testing.T) {
 	if phases["cancel"] != "WAITING" || phases["release"] != "CANCELLED" {
 		t.Fatalf("attempt phases by window: %v", phases)
 	}
-	if competing == nil || !strings.Contains(competing.Error(), "live owner") {
+	if competing == nil || !strings.Contains(competing.Error(), "live owner") || wire.CodeOf(competing) != wire.CodeAttemptLive {
 		t.Fatalf("competing owner not refused as live-owned: %v", competing)
 	}
 	if p := f.program(t, "program"); !p.OwnerReleased || p.Phase != "FINISHED" {
@@ -515,7 +515,7 @@ func TestCALV0074_NoExecCrashTakeover(t *testing.T) {
 			if !stopped {
 				// Retained refusal: the dispatched worker's stop is not
 				// proved and no leader boot record exists to recover it.
-				if err == nil || !strings.Contains(err.Error(), "recovery boot unavailable") {
+				if err == nil || !strings.Contains(err.Error(), "recovery boot unavailable") || wire.CodeOf(err) != wire.CodeQuiescenceUnproved {
 					t.Fatalf("takeover of an unproved SPAWNING program: %v", err)
 				}
 				if q := f.program(t, "program"); q.Phase != "SPAWNING" || q.OwnerPID != p.OwnerPID || q.Epoch != p.Epoch {

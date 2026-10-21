@@ -9,6 +9,7 @@ import (
 	"runtime/pprof"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -213,9 +214,12 @@ func runTaskContext(ctx context.Context, options taskContextOptions, stdout, std
 			profile.Close()
 		}()
 	}
-	packet, hit, err := compileTaskContext(ctx, options, loadContextSnapshot)
+	packet, hit, built, err := compileTaskContext(ctx, options, loadContextSnapshot)
 	if errors.Is(err, contextindex.ErrSnapshotRefused) {
-		packet, hit, err = compileTaskContext(ctx, options, contextindex.LoadContextSnapshot)
+		packet, hit, built, err = compileTaskContext(ctx, options, contextindex.LoadContextSnapshot)
+	}
+	if err == nil && !hit {
+		noteSnapshotMissBuild(stderr, "context", options.root, built)
 	}
 	if runtimeenv.Value("BENCH_SNAPSHOT_TRACE") == "1" {
 		fmt.Fprintf(stderr, "corvint-bench-snapshot: hit=%t\n", hit)
@@ -326,21 +330,24 @@ ambiguous handle refuses and never substitutes current content.
 var loadContextSnapshot = contextindex.LoadContextSnapshotDeferred
 
 // compileTaskContext reads the snapshot through load, builds on a miss, and
-// compiles the packet.
-func compileTaskContext(ctx context.Context, options taskContextOptions, load func(context.Context, string) (*contextindex.Index, bool, *contextindex.LoaderObservation, error)) (map[string]any, bool, error) {
+// compiles the packet. It also returns how long a miss's build took.
+func compileTaskContext(ctx context.Context, options taskContextOptions, load func(context.Context, string) (*contextindex.Index, bool, *contextindex.LoaderObservation, error)) (map[string]any, bool, time.Duration, error) {
 	index, hit, opening, err := load(ctx, options.root)
 	if err != nil {
-		return nil, hit, err
+		return nil, hit, 0, err
 	}
+	var built time.Duration
 	if !hit {
+		started := time.Now()
 		index, err = contextindex.BuildContextObserved(ctx, options.root, options.subject, opening)
+		built = time.Since(started)
 	}
 	if err != nil {
-		return nil, hit, err
+		return nil, hit, built, err
 	}
 	admitted, err := contextindex.LoadAdmittedSlotWeights(options.root)
 	if err != nil {
-		return nil, hit, err
+		return nil, hit, built, err
 	}
 	packet, err := contextindex.TaskContextWeighted(ctx, index, options.task, options.subject, options.limit, admitted)
 	if err == nil {
@@ -355,5 +362,5 @@ func compileTaskContext(ctx context.Context, options taskContextOptions, load fu
 			packet["instruction_load_set"] = loadSet
 		}
 	}
-	return packet, hit, err
+	return packet, hit, built, err
 }

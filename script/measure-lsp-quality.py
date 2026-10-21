@@ -15,27 +15,24 @@ import time
 import sys
 from urllib.parse import unquote, urlparse
 
+# The keeper-pinned group owner shared by the qualification scripts (V1-1387).
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import process_group  # noqa: E402
+
 ACTIVE = None
 
 
-def kill_group(process, sig):
-    try:
-        os.killpg(process.pid, sig)
-    except ProcessLookupError:
-        pass
-
-
-def retire(process):
-    if process.poll() is None:
-        kill_group(process, signal.SIGTERM)
-    try:
-        output = process.communicate(timeout=30)
-    except subprocess.TimeoutExpired:
-        kill_group(process, signal.SIGKILL)
-        output = process.communicate()
-    # Catch any same-group descendants after the leader exits.
-    kill_group(process, signal.SIGKILL)
-    return output
+def retire(owned):
+    """SIGTERM to a running group, 30 s grace, then the bounded SIGKILL
+    retirement, which also catches same-group descendants of an exited
+    command. Every signal precedes the keeper reap (V1-1387)."""
+    if owned.process.poll() is None:
+        owned.signal(signal.SIGTERM)
+        try:
+            owned.communicate(timeout=30)
+        except subprocess.TimeoutExpired:
+            pass
+    return owned.retire()
 
 
 def digest(data):
@@ -46,23 +43,22 @@ def command(argv, root, env, timeout=90):
     global ACTIVE
     started = time.monotonic()
     try:
-        process = subprocess.Popen(argv, cwd=root, env=env, stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE, start_new_session=True)
+        owned = process_group.OwnedGroup(argv, cwd=root, env=env, stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE)
     except OSError as exc:
         return {'exit': None, 'seconds': round(time.monotonic()-started, 4), 'bytes': 0,
                 'sha256': digest(b''), 'stdout': b'', 'stderrBytes': 0,
                 'stderrSha256': digest(b''), 'timedOut': False,
                 'startError': type(exc).__name__}
-    ACTIVE = process
+    ACTIVE = owned
     try:
         timed_out = False
         try:
-            stdout, stderr = process.communicate(timeout=timeout)
+            owned.communicate(timeout=timeout)
         except subprocess.TimeoutExpired:
             timed_out = True
-            stdout, stderr = retire(process)
-        kill_group(process, signal.SIGKILL)
-        return {'exit': process.returncode, 'seconds': round(time.monotonic()-started, 4),
+        stdout, stderr = retire(owned)
+        return {'exit': owned.process.returncode, 'seconds': round(time.monotonic()-started, 4),
                 'bytes': len(stdout), 'sha256': digest(stdout),
                 'stdout': stdout, 'stderrBytes': len(stderr), 'stderrSha256': digest(stderr),
                 'timedOut': timed_out}
@@ -71,7 +67,7 @@ def command(argv, root, env, timeout=90):
 
 
 def interrupt(signum, frame):
-    if ACTIVE:
+    if ACTIVE and not ACTIVE.retired:
         retire(ACTIVE)
     raise KeyboardInterrupt()
 

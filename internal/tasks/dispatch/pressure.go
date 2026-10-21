@@ -312,7 +312,7 @@ func stepPressure(c PressureConfig, goos string, state PressureState, sample Pre
 // PressureBudget counts only non-exempt concurrency. Roster integration must
 // call Accept before consuming static slots or reserving a candidate's key.
 type PressureBudget struct {
-	// deferred stands in before this tick's sample (CAL-V0-351): its first
+	// deferred stands in before this tick's sample (ATR-V0-181): its first
 	// Accept records the consultation and refuses, so nothing launches
 	// before the host is sampled.
 	deferred, consulted bool

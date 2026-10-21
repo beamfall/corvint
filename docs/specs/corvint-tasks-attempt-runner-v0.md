@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04 (first drafted 2026-10-02 as a private Gate A proposal; detached runs added 2026-10-06)
-Intent status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 and ATR-V0-066 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600); ATR-V0-060..062 accepted (standing auto-accept 2026-10-11; V1-1595); ATR-V0-063..065 accepted (standing auto-accept 2026-10-11; V1-1597); ATR-V0-080..084 accepted (standing auto-accept 2026-10-11; V1-1608, V1-1673); ATR-V0-085..089 accepted (standing auto-accept 2026-10-11; V1-1647); ATR-V0-095 accepted (standing auto-accept 2026-10-11; V1-1671); ATR-V0-101..107 accepted (standing auto-accept 2026-10-11; V1-1763, issue 1109); ATR-V0-110..114 accepted (standing auto-accept 2026-10-11; V1-1782, issue 1122); ATR-V0-120..124 accepted (standing auto-accept 2026-10-11; V1-1833, issue 1147); ATR-V0-125..127 accepted (standing auto-accept 2026-10-11; V1-1834, issue 1148); ATR-V0-133..135 accepted (standing auto-accept 2026-10-11; V1-1852, issue 1157); ATR-V0-150..152 accepted (standing auto-accept 2026-10-11; V1-1914 and V1-1916, issues 1181 and 1183); ATR-V0-153 accepted (standing auto-accept 2026-10-11; V1-2103, issue 1116); ATR-V0-154 accepted (standing auto-accept 2026-10-11; V1-0934)
+Intent status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 and ATR-V0-066 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600); ATR-V0-060..062 accepted (standing auto-accept 2026-10-11; V1-1595); ATR-V0-063..065 accepted (standing auto-accept 2026-10-11; V1-1597); ATR-V0-080..084 accepted (standing auto-accept 2026-10-11; V1-1608, V1-1673); ATR-V0-085..089 accepted (standing auto-accept 2026-10-11; V1-1647); ATR-V0-095 accepted (standing auto-accept 2026-10-11; V1-1671); ATR-V0-101..107 accepted (standing auto-accept 2026-10-11; V1-1763, issue 1109); ATR-V0-110..114 accepted (standing auto-accept 2026-10-11; V1-1782, issue 1122); ATR-V0-120..124 accepted (standing auto-accept 2026-10-11; V1-1833, issue 1147); ATR-V0-125..127 accepted (standing auto-accept 2026-10-11; V1-1834, issue 1148); ATR-V0-133..135 accepted (standing auto-accept 2026-10-11; V1-1852, issue 1157); ATR-V0-150..152 accepted (standing auto-accept 2026-10-11; V1-1914 and V1-1916, issues 1181 and 1183); ATR-V0-153 accepted (standing auto-accept 2026-10-11; V1-2103, issue 1116); ATR-V0-154 accepted (standing auto-accept 2026-10-11; V1-0934); ATR-V0-160..162 accepted (standing auto-accept 2026-10-11; V1-2123, V1-0951, V1-1767); ATR-V0-163..166 accepted (standing auto-accept 2026-10-11; V1-1857, V1-1853, V1-1854, V1-0748); ATR-V0-167..169 accepted (standing auto-accept 2026-10-11; V1-0769, V1-1793, V1-1792); ATR-V0-170 accepted (standing auto-accept 2026-10-11; V1-0832); ATR-V0-171 accepted (standing auto-accept 2026-10-11; V1-0933); ATR-V0-180..183 accepted (standing auto-accept 2026-10-11; V1-0925, V1-0924, V1-0934, V1-0948; re-homed from the agent leases spec, owner-approved 2026-10-17)
 Delivery status: experimental
 Authoritative inputs: owner request [issue 481](https://github.com/beamfall/corvint/issues/481); native ticket V1-0677;
 owner request [issue 627](https://github.com/beamfall/corvint/issues/627) and native ticket V1-0856 (detached runs);
@@ -23,6 +23,12 @@ native ticket V1-1852 (ATR-V0-133..135, issue 1157);
 native tickets V1-1914 and V1-1916 (ATR-V0-150..152, issues 1181 and 1183);
 native ticket V1-2103 (ATR-V0-153, issue 1116);
 native ticket V1-0934 (ATR-V0-154);
+native tickets V1-2123, V1-0951 and V1-1767 (ATR-V0-160..162);
+native tickets V1-1857, V1-1853, V1-1854 and V1-0748 (ATR-V0-163..166);
+native tickets V1-0769, V1-1793 and V1-1792 (ATR-V0-167..169);
+native ticket V1-0832 (ATR-V0-170);
+native ticket V1-0933 (ATR-V0-171);
+native tickets V1-0925, V1-0924, V1-0934 and V1-0948 (ATR-V0-180..183, re-homed from CAL-V0-350..353);
 `docs/specs/corvint-tasks-agent-leases-v0.md` (external leases, heartbeat and renewal); the creation-owned
 process-group API in `internal/groupreap/owner.go`; the process start identity in
 `internal/tasks/supervisor` (`ProcessIdentity`); the in-tree sources under `internal/tasks/transaction`,
@@ -30,7 +36,7 @@ process-group API in `internal/groupreap/owner.go`; the process start identity i
 
 ## Agent digest
 - Claim: An experimental attempt runner keeps an externally leased attempt's heartbeat current, retires its owned process group and records an observational outcome.
-- Status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 and ATR-V0-066 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600); ATR-V0-060..062 accepted (standing auto-accept 2026-10-11; V1-1595); ATR-V0-063..065 accepted (standing auto-accept 2026-10-11; V1-1597); ATR-V0-080..084 accepted (standing auto-accept 2026-10-11; V1-1608, V1-1673); ATR-V0-085..089 accepted (standing auto-accept 2026-10-11; V1-1647); ATR-V0-095 accepted (standing auto-accept 2026-10-11; V1-1671); ATR-V0-101..107 accepted (standing auto-accept 2026-10-11; V1-1763, issue 1109); ATR-V0-110..114 accepted (standing auto-accept 2026-10-11; V1-1782, issue 1122); ATR-V0-120..124 accepted (standing auto-accept 2026-10-11; V1-1833, issue 1147); ATR-V0-125..127 accepted (standing auto-accept 2026-10-11; V1-1834, issue 1148); ATR-V0-133..135 accepted (standing auto-accept 2026-10-11; V1-1852, issue 1157); ATR-V0-150..152 accepted (standing auto-accept 2026-10-11; V1-1914 and V1-1916, issues 1181 and 1183); ATR-V0-153 accepted (standing auto-accept 2026-10-11; V1-2103, issue 1116); ATR-V0-154 accepted (standing auto-accept 2026-10-11; V1-0934); experimental. ATR-V0-001..007 are implemented with focused tests on Darwin; ATR-V0-008..013 (detached runs) are implemented with focused tests on Darwin; ATR-V0-014 is implemented without a test; ATR-V0-015 (retirement of ended runs of terminal attempts, V1-0931) is accepted by decision 0440 and implemented with a focused test on Darwin. Dispatcher integration of detached runs (V1-0936, V1-0858) is proposed as CAL-V0-145..154 in the agent leases spec and implemented with focused tests on Darwin; the run side is unchanged. V1-1549 ATR-V0-030..039 (dispatch context thresholds: per-role warn, hand-off and hard token thresholds over recognised host usage events, a per-worker context record and notice, and a hard-stop hand-off, issue 1007) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests, live host qualification NOT_RUN; V1-1547 ATR-V0-020..029 (detached `claim` and `pool acquire` under the request id with attach, verbatim kept result and a 600-second ceiling, issue 1005) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests on Darwin, Linux NOT_RUN (re-homed from the agent leases spec, owner-approved 2026-10-17). V1-1558 ATR-V0-050..053 and ATR-V0-066 (contended or interrupted store writes report retryable `LOCK_TIMEOUT`, never `MALFORMED`; outcome-write retry; one run item once started; a kept detached `LOCK_TIMEOUT` is retried by a same-id `--detach`, issue 1026) accepted under the owner's standing auto-accept, implemented with focused writer-contention tests on Darwin, Linux NOT_RUN. V1-1575 ATR-V0-054..055 (a context record of another profile version is preserved, never overwritten, and shows `UNKNOWN`; a damaged record alerts once and is replaced) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1562 ATR-V0-056..057 (`dispatch status --worker ID` shows a worker's context notice from its record; the detached-run marker, now `taskman-dispatch-detached-run/1`, carries the `CONTEXT` hand-off detail across a restart) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1600 ATR-V0-058..059 (a controlled dispatcher writes a drain-pending signal, named to every worker as `CORVINT_DISPATCH_DRAIN_FILE`, while its service control is `DRAINING`, and removes it when the drain lifts; a claim result carries the drain notice while the signal is present, issue 1043) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1595 ATR-V0-060..062 (opt-in `shortSessions` holds a ticket's next launch after repeated short dispatcher sessions, kept in a session-churn record, shown in events and `dispatch status`, and a doctor SESSION_CHURN finding, issue 1038) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1597 ATR-V0-063..065 (host suspend gaps detected from wall-over-monotonic jumps, recorded once with an alert, excluded from wall and idle caps, the lease keeper's idle check and the expired-lease grace, and shown in `dispatch status`, issue 1040) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; keep-awake and a doctor finding are residuals. V1-1608 and V1-1673 ATR-V0-080..084 (an opt-in policy `progressSignal` `HANDOFF_EVIDENCE`: a changed hand-off `--evidence` reference is progress for loop detection, the dispatcher's no-progress backoff and the doctor, recorded as loop evidence and named in holds, issues 1050 and 1068) and V1-1647 ATR-V0-085..089 (`ticketBudget.overrides` per ticket, label or kind with precedence and the effective limit and selector in `dispatch status`, issue 1066) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live qualification NOT_RUN. V1-1671 ATR-V0-095 (a repeat `--detach` after a kept `LOCK_TIMEOUT` waits out the finishing child and relaunches even while its exiting process is still visible) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin, Linux NOT_RUN. V1-1763 ATR-V0-101..107 (warn and hand-off notices delivered into a claude-code session through a dispatcher-written PostToolUse hook, delivery mode in `dispatch status` with UNSUPPORTED for opencode, a bounded secret-screened hand-off note salvaged at the hard stop and offered to the next launch on the ticket, and a CONTEXT_EXHAUSTED state with one alert after `exhaustedAfter` consecutive hard stops, issue 1109) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live host qualification NOT_RUN (V1-1563). V1-1782 ATR-V0-110..114 (per-role `carryOver`: a no-progress session's screened final-message tail and end reason recorded per ticket, removed on progress, and appended to the next launch's prompt on the ticket as a bounded block labelled untrusted prior-session output, with `carryOver` members in the `launched` and `finished` events, issue 1122) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live host qualification NOT_RUN. V1-1833 ATR-V0-120..124 (opt-in `holdPool`: the dispatcher claims a pool ticket with its member before launch, names the hold record to the session, returns the allocation when the worker ends or a launch fails, sweeps orphaned claims and shows `poolHold` in `dispatch status`, issue 1147) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live qualification NOT_RUN. V1-1834 ATR-V0-125..127 (a host-neutral polled context-notice file for any host that declares `contextNotices: "file"`, reported as delivery `FILE`; `dispatch salvage --attempt A` writes the secret-screened hand-off note of a running or externally stopped session; `launched` and `finished` events record the delivery mode, the levels delivered, the offered note and the salvage, issue 1148) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live host qualification NOT_RUN. V1-1852 ATR-V0-133..135 (a carryOver host argv may hold any argv placeholder after argv[0], store-derived ones included, rechecked as rendered at each launch; `dispatch status` exits 1 on an INVALID config file; a restart on an invalid file refuses and runs no dispatcher, issue 1157) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live host qualification NOT_RUN. V1-1914 and V1-1916 ATR-V0-150..152 (a per-tick queue observation `admission.json` naming each run-only hold's fence and each role's queue depth; opt-in `runOnly`/`bypassFocus` and `capMax` at calm pressure, issues 1181 and 1183) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live dispatcher qualification NOT_RUN. V1-2103 ATR-V0-153 (the runner's owned group repeats its SIGKILL while a member forked alongside the stop stays live, issue 1116) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; Linux NOT_RUN.
+- Status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 and ATR-V0-066 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600); ATR-V0-060..062 accepted (standing auto-accept 2026-10-11; V1-1595); ATR-V0-063..065 accepted (standing auto-accept 2026-10-11; V1-1597); ATR-V0-080..084 accepted (standing auto-accept 2026-10-11; V1-1608, V1-1673); ATR-V0-085..089 accepted (standing auto-accept 2026-10-11; V1-1647); ATR-V0-095 accepted (standing auto-accept 2026-10-11; V1-1671); ATR-V0-101..107 accepted (standing auto-accept 2026-10-11; V1-1763, issue 1109); ATR-V0-110..114 accepted (standing auto-accept 2026-10-11; V1-1782, issue 1122); ATR-V0-120..124 accepted (standing auto-accept 2026-10-11; V1-1833, issue 1147); ATR-V0-125..127 accepted (standing auto-accept 2026-10-11; V1-1834, issue 1148); ATR-V0-133..135 accepted (standing auto-accept 2026-10-11; V1-1852, issue 1157); ATR-V0-150..152 accepted (standing auto-accept 2026-10-11; V1-1914 and V1-1916, issues 1181 and 1183); ATR-V0-153 accepted (standing auto-accept 2026-10-11; V1-2103, issue 1116); ATR-V0-154 accepted (standing auto-accept 2026-10-11; V1-0934); ATR-V0-160..162 accepted (standing auto-accept 2026-10-11; V1-2123, V1-0951, V1-1767); ATR-V0-163..166 accepted (standing auto-accept 2026-10-11; V1-1857, V1-1853, V1-1854, V1-0748); ATR-V0-167..169 accepted (standing auto-accept 2026-10-11; V1-0769, V1-1793, V1-1792); ATR-V0-170 accepted (standing auto-accept 2026-10-11; V1-0832); ATR-V0-171 accepted (standing auto-accept 2026-10-11; V1-0933); ATR-V0-180..183 accepted (standing auto-accept 2026-10-11; V1-0925, V1-0924, V1-0934, V1-0948; re-homed from the agent leases spec, owner-approved 2026-10-17); experimental. ATR-V0-001..007 are implemented with focused tests on Darwin; ATR-V0-008..013 (detached runs) are implemented with focused tests on Darwin; ATR-V0-014 is implemented without a test; ATR-V0-015 (retirement of ended runs of terminal attempts, V1-0931) is accepted by decision 0440 and implemented with a focused test on Darwin. Dispatcher integration of detached runs (V1-0936, V1-0858) is proposed as CAL-V0-145..154 in the agent leases spec and implemented with focused tests on Darwin; the run side is unchanged. V1-1549 ATR-V0-030..039 (dispatch context thresholds: per-role warn, hand-off and hard token thresholds over recognised host usage events, a per-worker context record and notice, and a hard-stop hand-off, issue 1007) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests, live host qualification NOT_RUN; V1-1547 ATR-V0-020..029 (detached `claim` and `pool acquire` under the request id with attach, verbatim kept result and a 600-second ceiling, issue 1005) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests on Darwin, Linux NOT_RUN (re-homed from the agent leases spec, owner-approved 2026-10-17). V1-1558 ATR-V0-050..053 and ATR-V0-066 (contended or interrupted store writes report retryable `LOCK_TIMEOUT`, never `MALFORMED`; outcome-write retry; one run item once started; a kept detached `LOCK_TIMEOUT` is retried by a same-id `--detach`, issue 1026) accepted under the owner's standing auto-accept, implemented with focused writer-contention tests on Darwin, Linux NOT_RUN. V1-1575 ATR-V0-054..055 (a context record of another profile version is preserved, never overwritten, and shows `UNKNOWN`; a damaged record alerts once and is replaced) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1562 ATR-V0-056..057 (`dispatch status --worker ID` shows a worker's context notice from its record; the detached-run marker, now `taskman-dispatch-detached-run/1`, carries the `CONTEXT` hand-off detail across a restart) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1600 ATR-V0-058..059 (a controlled dispatcher writes a drain-pending signal, named to every worker as `CORVINT_DISPATCH_DRAIN_FILE`, while its service control is `DRAINING`, and removes it when the drain lifts; a claim result carries the drain notice while the signal is present, issue 1043) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1595 ATR-V0-060..062 (opt-in `shortSessions` holds a ticket's next launch after repeated short dispatcher sessions, kept in a session-churn record, shown in events and `dispatch status`, and a doctor SESSION_CHURN finding, issue 1038) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1597 ATR-V0-063..065 (host suspend gaps detected from wall-over-monotonic jumps, recorded once with an alert, excluded from wall and idle caps, the lease keeper's idle check and the expired-lease grace, and shown in `dispatch status`, issue 1040) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; keep-awake and a doctor finding are residuals. V1-1608 and V1-1673 ATR-V0-080..084 (an opt-in policy `progressSignal` `HANDOFF_EVIDENCE`: a changed hand-off `--evidence` reference is progress for loop detection, the dispatcher's no-progress backoff and the doctor, recorded as loop evidence and named in holds, issues 1050 and 1068) and V1-1647 ATR-V0-085..089 (`ticketBudget.overrides` per ticket, label or kind with precedence and the effective limit and selector in `dispatch status`, issue 1066) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live qualification NOT_RUN. V1-1671 ATR-V0-095 (a repeat `--detach` after a kept `LOCK_TIMEOUT` waits out the finishing child and relaunches even while its exiting process is still visible) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin, Linux NOT_RUN. V1-1763 ATR-V0-101..107 (warn and hand-off notices delivered into a claude-code session through a dispatcher-written PostToolUse hook, delivery mode in `dispatch status` with UNSUPPORTED for opencode, a bounded secret-screened hand-off note salvaged at the hard stop and offered to the next launch on the ticket, and a CONTEXT_EXHAUSTED state with one alert after `exhaustedAfter` consecutive hard stops, issue 1109) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live host qualification NOT_RUN (V1-1563). V1-1782 ATR-V0-110..114 (per-role `carryOver`: a no-progress session's screened final-message tail and end reason recorded per ticket, removed on progress, and appended to the next launch's prompt on the ticket as a bounded block labelled untrusted prior-session output, with `carryOver` members in the `launched` and `finished` events, issue 1122) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live host qualification NOT_RUN. V1-1833 ATR-V0-120..124 (opt-in `holdPool`: the dispatcher claims a pool ticket with its member before launch, names the hold record to the session, returns the allocation when the worker ends or a launch fails, sweeps orphaned claims and shows `poolHold` in `dispatch status`, issue 1147) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live qualification NOT_RUN. V1-1834 ATR-V0-125..127 (a host-neutral polled context-notice file for any host that declares `contextNotices: "file"`, reported as delivery `FILE`; `dispatch salvage --attempt A` writes the secret-screened hand-off note of a running or externally stopped session; `launched` and `finished` events record the delivery mode, the levels delivered, the offered note and the salvage, issue 1148) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live host qualification NOT_RUN. V1-1852 ATR-V0-133..135 (a carryOver host argv may hold any argv placeholder after argv[0], store-derived ones included, rechecked as rendered at each launch; `dispatch status` exits 1 on an INVALID config file; a restart on an invalid file refuses and runs no dispatcher, issue 1157) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live host qualification NOT_RUN. V1-1914 and V1-1916 ATR-V0-150..152 (a per-tick queue observation `admission.json` naming each run-only hold's fence and each role's queue depth; opt-in `runOnly`/`bypassFocus` and `capMax` at calm pressure, issues 1181 and 1183) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live dispatcher qualification NOT_RUN. V1-2103 ATR-V0-153 (the runner's owned group repeats its SIGKILL while a member forked alongside the stop stays live, issue 1116) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; Linux NOT_RUN.
 - Exists: `corvint-tasks run --attempt ID --generation G --timeout SECONDS [--detach] -- COMMAND...` (detached: survives the launching session), `corvint-tasks run --attach --attempt ID [--run RUN] [--wait SECONDS]`, the `RUN_OUTCOME` lease verb and its closed outcome document, the private run record of a detached run, and CLI, store and transaction tests.
 - Blocked on: owner acceptance of this technical profile, Linux and composed native qualification, required CI, integration and native completion of V1-0677 and V1-0856; owner acceptance of the dispatcher integration CAL-V0-145..154 (V1-0936, see "Detached runs").
 - Read next: Requirements; Exit status and envelope; Failure modes; Traceability.
@@ -852,8 +858,8 @@ candidate hand-off, which records no evidence reference.
 Failure modes: the marker is created before the notice is written, so a hook that dies in between
 loses that level's notice, and it is never repeated. A worker directory retired by the
 worker-directory retention (CAL-V0-144) loses its note, and the next launch then gets no
-`CORVINT_DISPATCH_HANDOFF_NOTE`. The secret screen is line-based, so a secret split across lines is
-not caught. The streak counts only dispatcher sessions, and a dispatcher restart keeps it through
+`CORVINT_DISPATCH_HANDOFF_NOTE`. The secret screen also replaces the lines of a secret wrapped
+across lines (ATR-V0-169), within its stated bound. The streak counts only dispatcher sessions, and a dispatcher restart keeps it through
 the record.
 
 Acceptance evidence: `TestATRV0101_WorkerWithoutDispatcherVerbReceivesNoticesThroughHook`,
@@ -882,7 +888,7 @@ can be compared. ATR-V0-104's hand-off note covers only the hard stop and is pas
 carry-over covers every no-progress ending and is written into the prompt.
 
 - `ATR-V0-110`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1782) A ticket role MAY set `carryOver` with `enabled` (default `true`), `maxBytes` (512..16384, default 4096) and `sessions` (1..5, default 1). A role without `carryOver`, or with `enabled` false, neither records nor receives carry-over. A configuration MUST be refused when a value is out of range, an explicit `0` included (an absent member takes its default), when a lane role sets `carryOver`, or when an enabled role's host does not pass `{prompt}` as one whole argv element, splices `{prompt}` into another argv element or an activity path, or runs an interpreter or takes a code-string option, as `noteSafeHost` refuses for `{operatorNote}`. Other placeholders in the host argv are allowed as ATR-V0-133 bounds them.
-- `ATR-V0-111`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1782) When a session of an enabled role on a ticket key finishes as a no-progress session (CAL-V0-057) and leaves no detached run running, the dispatcher MUST append one entry to the ticket's carry-over record. The entry holds the worker, role, finish time, end reason and final message. The end reason is `HARD_STOP` for a `CONTEXT` stop, the kill reason (`WALL`, `IDLE`, `ORPHANED` or `LEASE_EXPIRED`) for another stop, `HANDOFF_THRESHOLD` when the worker's context record crossed `HANDOFF`, `TOOL_CALL_CAP` when the last result event in its stdout has subtype `error_max_turns`, and `EXITED` otherwise. The final message is the last main-session assistant text in the last 256 KiB of the worker's stdout, or, when there is none, that tail's text as the finished summary extracts it, starting on a line boundary and never cut to the summary's 2000 bytes. It MUST pass the ATR-V0-104 secret screen whole before it is cut to its last 16 KiB on line boundaries; `redactedLines` counts the replaced lines. The record keeps at most the 5 newest entries, and an entry whose worker is already present is not added again. A session that recorded progress on the ticket, of any role, MUST remove the ticket's record; an infrastructure, held or detached-run session leaves it unchanged. A write or removal failure MUST emit one alert; after a failed removal this dispatcher offers no carry-over for the ticket until a later removal or write succeeds, and its next append MUST replace the record so that entries from before the progress are never offered again.
+- `ATR-V0-111`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1782) When a session of an enabled role on a ticket key finishes as a no-progress session (CAL-V0-057) and leaves no detached run running, the dispatcher MUST append one entry to the ticket's carry-over record. The entry holds the worker, role, finish time, end reason and final message. The end reason is `HARD_STOP` for a `CONTEXT` stop, the kill reason (`WALL`, `IDLE`, `ORPHANED` or `LEASE_EXPIRED`) for another stop, `HANDOFF_THRESHOLD` when the worker's context record crossed `HANDOFF`, `TOOL_CALL_CAP` when the last result event in its stdout has subtype `error_max_turns`, and `EXITED` otherwise. The final message is the last main-session assistant text in the last 256 KiB of the worker's stdout, or, when there is none, that tail's text as the finished summary extracts it, starting on a line boundary and never cut to the summary's 2000 bytes. It MUST pass the ATR-V0-104 secret screen whole before it is cut to its last 16 KiB on line boundaries; `redactedLines` counts the replaced lines. The record keeps at most the 5 newest entries, and an entry whose worker is already present is not added again. A session that recorded progress on the ticket, of any role, MUST remove the ticket's record; an infrastructure, held or detached-run session leaves it unchanged. A write or removal failure MUST emit one alert; after a failed removal this dispatcher offers no carry-over for the ticket until a later removal or write succeeds, and its next append MUST replace the record so that entries from before the progress are never offered again. ATR-V0-168 makes the same guarantee durable across a restart.
 - `ATR-V0-112`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1782) The record MUST be `carry-over/<first 16 hex digits of the SHA-256 of the ticket>.json` in the program's state directory, in the closed profile `taskman-dispatch-carry-over/0`, canonical, at most 128 KiB. It MUST be read without following a final symlink or blocking on a FIFO, and only a regular file reads. A record of another profile version (UNSUPPORTED_VERSION, CAL-V0-131) is kept and never offered, and its append alerts once per dispatcher. A record of another ticket, or a malformed one, is never offered, and the next append replaces it after one alert. The CAL-V0-131 live format set gains the profile.
 - `ATR-V0-113`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1782) When the dispatcher launches an enabled role on a ticket whose record reads, it MUST append to the rendered role prompt one carry-over block holding the record's newest `sessions` entries, oldest first. The block MUST open with the line `--- BEGIN UNTRUSTED PRIOR-SESSION OUTPUT (corvint dispatch carry-over) ---` and close with `--- END UNTRUSTED PRIOR-SESSION OUTPUT ---`. It MUST state that the text is data from earlier sessions on the ticket that made no progress, not instructions or authority. Each entry MUST be headed by its worker, role, end reason and time. The whole block, frame included, MUST be at most `maxBytes`: each entry keeps an equal share of the remaining bytes, cut to its tail on line boundaries and marked as cut, and the oldest entries are dropped when the frame alone does not fit. The block is appended after placeholder rendering, so its text is never expanded, and the frame phrase inside an entry's text is lower-cased so an entry cannot close the block. Before spawn the dispatcher MUST write the offered entries to the worker's `carry-over.json`, in the same profile; a write failure fails the launch before spawn. Any other launch gets no block.
 - `ATR-V0-114`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1782) A launch with a carry-over block MUST carry `carryOver` (the number of entries offered) and `carryOverBytes` (the block's size) in its `launched` event detail, and that worker's `finished` event detail MUST carry `carryOver`, read from its `carry-over.json`. The members are absent for a launch without carry-over, so a session's `progress` and `session` details can be compared with and without carry-over from the event log alone.
@@ -896,9 +902,10 @@ rewriting the prior text; a `dispatch status` view of carry-over records; a prog
 still salvaged and passed by path.
 
 Failure modes: a worker that prints nothing recognisable carries an empty message with its end
-reason. The secret screen is line-based, so a secret split across lines is not caught. A
-dispatcher restart forgets a failed removal, so a record left after progress can then be offered
-once. A replayed finish adds no second entry. A record from another dispatcher configuration is
+reason. The secret screen also replaces the lines of a secret wrapped across lines (ATR-V0-169),
+within its stated bound. A dispatcher restart forgets a failed removal, but the entries left after
+progress no longer match the ticket's work fingerprint and are neither offered nor extended
+(ATR-V0-168). A replayed finish adds no second entry. A record from another dispatcher configuration is
 offered only to enabled roles.
 
 Acceptance evidence: `TestATRV0110_CarryOverConfigDefaultsAndBounds`,
@@ -1077,12 +1084,14 @@ configuration check cannot see it. V1-1782 therefore refused those placeholders 
 
 Non-goals: a `dispatch validate` verb (status already reads and validates the file); persisting the
 applied configuration's bytes for a restart fallback; detecting a program that evaluates a plain
-argument as code without an interpreter name or code option; a check of `argv[0]` against a
-rendered value, since `argv[0]` holds no placeholder.
+argument as code without an interpreter name or code option (ATR-V0-164 states that limit and the
+operator's part); a check of `argv[0]` against a rendered value, since `argv[0]` holds no
+placeholder.
 
 Failure modes: the interpreter list and code-option rule are per element and name-based, so a host
-program that itself evaluates an argument is not detected, as before. While a ticket's rendered argv
-stays unsafe, every launch on it repeats the alert and offers no block. A status exit of 1 also
+program that itself evaluates an argument is not detected, as before (ATR-V0-164). While a ticket's
+rendered argv stays unsafe, every launch on it offers no block; it alerts once per applied
+configuration (ATR-V0-165). A status exit of 1 also
 fails a script that only wanted the view; the item is still returned.
 
 Acceptance evidence: `TestATRV0133_CarryOverHostArgvPlaceholders` (accepted title, bare and
@@ -1297,7 +1306,7 @@ ended), every pass read them again and the backlog behind them was never reached
   own temporary file in `taskman-runs/` before the rename.
 
 Bound: a pass examines at most 1,024 attempt directories and makes one terminal-record read, as
-before. Listing up to 65,536 names reads directory entries only and stats none of them. A backlog
+before, and a second only when it removes runs (ATR-V0-171). Listing up to 65,536 names reads directory entries only and stats none of them. A backlog
 of n attempt directories is swept within ceil(n / (1,024 - 16)) passes, one per finished detached
 run.
 
@@ -1312,8 +1321,8 @@ offset.
 
 Acceptance evidence: `TestATRV0154_RetirementSweepsABacklogBeyondOneWindow` (`internal/tasks/cli`)
 lowers the window to 6 and the retention to 2. It plants 30 attempts with one quiet finished run
-each, and 10 empty attempt directories. Every pass examines at most 6 attempts and makes at most one
-terminal lookup. Within 11 passes, which is ceil(40 / (6 - 2)) + 1, only the newest 2 runs of all
+each, and 10 empty attempt directories. Every pass examines at most 6 attempts and makes at most two
+terminal lookups (the second is ATR-V0-171's). Within 11 passes, which is ceil(40 / (6 - 2)) + 1, only the newest 2 runs of all
 remain, and the empty directories are kept. A malformed cursor reads as a fresh start.
 `TestATRV0154_DuplicateCarryIsMalformed` refuses a cursor that carries a name twice.
 `TestATRV0154_CursorWriteUsesItsOwnTemporaryFile` shows a writer holding the old fixed temporary
@@ -1325,6 +1334,380 @@ newest attempt's run remains.
 
 Rollback: revert the commit. A left cursor file is an ordinary non-directory entry that the
 ATR-V0-015 pass skips.
+
+### Typed post-launch write failures, exact dispatch configuration and nil-safe status (ATR-V0-160..162)
+
+Owner context: V1-2123, V1-0951 and V1-1767. ATR-V0-051 says a started run never reports
+`MALFORMED` for a store write, but `finish` coded the outcome write's failure with `wire.CodeOf`, which
+gives an uncoded error (a filesystem error) `MALFORMED`, and `refusal` gives a receipt refused without
+a code `MALFORMED` too. `DecodeConfig` decoded with `encoding/json`, which keeps the last of a repeated
+member, so a dispatch configuration could run differently from how it reads. `dispatchStatusValueFor`
+dereferenced its configuration, so a nil one panicked.
+
+- `ATR-V0-160`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2123) After the
+  command has started, an outcome write that fails without a closed code other than `MALFORMED` (an
+  uncoded error such as a filesystem error, or a receipt refused without a code) MUST be reported as
+  `UNCERTAIN_EFFECT`, not retryable: the command ran and whether its outcome is recorded is not
+  proved. The exit status stays 127 (2 under `HOLD`), the run item and `outcomeReceipt` `null` stay
+  as ATR-V0-052 says, and the warning keeps the original error text. A coded write failure keeps its
+  own code. Before launch nothing changes.
+- `ATR-V0-161`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0951)
+  `DecodeConfig` MUST refuse a dispatch configuration in which any object, at any depth, repeats a
+  member name, even with the same value. The match is exact after JSON unescaping, so `"tick\u0053econds"`
+  repeats `"tickSeconds"`. The error names the repeated member's JSON pointer, for example
+  `repeated member "/roles/0/usageFormat"`. Two spellings that differ only by case stay the strict
+  decoder's concern. The check runs after the strict decode, so a member whose own decoder refuses a
+  repeat, such as a budget override or a prompt part, keeps that decoder's error.
+- `ATR-V0-162`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1767) The dispatch
+  status view MUST render a nil configuration as the configuration-less fallback
+  `&dispatch.Config{StateDir: dir}` that `dispatchAuxConfig` already gives production callers, never
+  panic.
+
+Bound: ATR-V0-161 adds one token pass over the configuration, which is at most `MaxConfig` bytes.
+
+Non-goals: ATR-V0-160 adds no new code; `UNCERTAIN_EFFECT` is already in the closed set and in use.
+It does not change how the outcome write retries (ATR-V0-051). ATR-V0-161 does not refuse case-folded
+aliases of one field; a lone alias stays the strict decoder's concern.
+
+Failure modes: an outcome that was in fact recorded but whose report was lost reads as
+`UNCERTAIN_EFFECT`; the journal remains the authority. A configuration with a syntax error is reported
+by the strict decoder, as before.
+
+Acceptance evidence: `TestATRV0160_UnrecordedOutcomeIsNeverMalformed` (`internal/tasks/cli`)
+injects an uncoded `*fs.PathError` into the outcome write and, through
+`SetAttemptOutcomeReportFault`, a receipt refused without a code. Both exit 127 with
+`UNCERTAIN_EFFECT`, carry no `MALFORMED`, keep the run item with a null receipt, and keep the original
+text. `TestATRV0161_RepeatedConfigMemberRefuses` (`internal/tasks/dispatch`) refuses a repeated
+top-level member, a repeated member inside a role, and an escaped spelling of a member, each naming its
+path. `TestATRV0162_DispatchStatusRendersForNilConfig` (`internal/tasks/cli`) renders a nil
+configuration as the empty one. Each new test fails with its fix reverted: no refusal, a nil-pointer
+panic, `MALFORMED`. `TestATRV0004_UnrecordedOutcomeExits127` and `TestATRV0003_CleanupHoldOutranksStatus`
+keep their coded `LOCK_TIMEOUT`.
+
+Rollback: revert the commit. No record, receipt or stored format changes. A reverted runner reports
+`MALFORMED` again on those paths, and a reverted decoder keeps the last repeated member again.
+
+### Host check precision, its stated limit, alert repetition and the stdin contract (ATR-V0-163..166)
+
+Owner context: V1-1857, V1-1853, V1-1854 and V1-0748. The ATR-V0-133 load check matched the
+interpreter list against an element's literal text with its placeholders removed, so
+`{ticketLocal}sh` was refused as the interpreter `sh` although a ticket local of `t1` renders `t1sh`.
+The check is name-based, which ATR-V0-133 lists as a non-goal without saying who covers the gap. A
+ticket whose rendered argv stayed unsafe alerted on every launch. Under a cleanup `HOLD` the leader is
+left unreaped, so the `os/exec` goroutine copying a non-file stdin is never joined, and the output-gate
+sentence said copying "stops" where later writes are in fact refused.
+
+- `ATR-V0-163`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1857) At load,
+  the interpreter list MUST be matched only when an argv element's last path segment (the text after
+  its last `/`) holds no placeholder. The literal text of that element, with its placeholders removed,
+  is then matched as before, so `{workRoot}/bin/python3` and `{ticketLocal}/sh` stay refused. An
+  element whose last segment holds a placeholder, such as `{ticketLocal}sh`, is left to the
+  ATR-V0-133 launch recheck of its rendered value. The code-string option rule still applies to every
+  element's literal text, so `-c{ticketLocal}` and `-{model}e` stay refused.
+- `ATR-V0-164`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1853) The
+  `{operatorNote}` (ON-V0-011) and carry-over (ATR-V0-133) host checks are name-based and per
+  element. They refuse a listed interpreter anywhere in argv, including after `env` (itself listed)
+  and through a path, and a code-string option. They cannot see a program that evaluates a plain
+  argument without a listed name or a code-string option: a wrapper script, a renamed interpreter, or
+  an agent that runs its prompt as a command. The operator who configures a host for those roles is
+  responsible for naming a program that treats `{prompt}` as data. The check does not inspect the
+  program file.
+- `ATR-V0-165`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1854) When the
+  ATR-V0-133 launch recheck withholds a carry-over block, the dispatcher MUST emit the `alert` at most
+  once per ticket under one applied configuration digest. Another ticket, or a newly applied
+  configuration, alerts again. Every such launch still proceeds without the block, and its `launched`
+  event carries no `carryOver`. The record is held in memory only, so a dispatcher restart may
+  alert once more.
+- `ATR-V0-166`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0748) When the
+  caller's stdin is not an `*os.File`, `os/exec` copies it to the command through a goroutine that
+  only the reap joins. After a run that ends in `HOLD` (exit 2, `SURVIVORS`) that goroutine may still
+  read the caller's reader after `run` returns, so a caller MUST NOT reuse a non-file stdin after
+  such a run. The CLI's own entry point passes an empty reader, which reaches EOF at once. When the
+  caller's stderr is not a file, later command writes are refused once `run` returns, so group
+  survivors that keep writing may see `EPIPE` or `SIGPIPE`.
+
+Bound: ATR-V0-165 keeps one in-memory flag per alerted ticket, cleared when the applied
+configuration changes.
+
+Non-goals: gating a non-file stdin. A gate cannot interrupt a read already blocked in the caller's
+reader, so ATR-V0-166 states the contract instead. Inspecting a host program's contents. Persisting
+the ATR-V0-165 record.
+
+Failure modes: a configuration that was refused only because of a `{ticketLocal}sh`-shaped element
+now loads, and a launch whose value renders an interpreter withholds the block and alerts
+(ATR-V0-133, ATR-V0-165). A misconfigured evaluating wrapper is not detected (ATR-V0-164).
+
+Acceptance evidence (`internal/tasks/dispatch`):
+- `TestATRV0163_LoadMatchesOnlyALiteralProgramName` accepts `{ticketLocal}sh` and refuses
+  `{workRoot}/bin/python3`, `{ticketLocal}/sh`, `-c{ticketLocal}` and `-{model}e`. The launch recheck
+  still refuses `{ticketLocal}sh` that renders `sh`, and accepts it rendering `t1sh`.
+- `TestATRV0164_HostCheckIsNameBased` records, for both checks, that `/usr/bin/env python3` and an
+  `env` argument are refused, while a wrapper and a renamed program are accepted.
+- `TestATRV0165_UnsafeArgvAlertsOncePerTicketAndConfig` relaunches ticket `sh` twice with one alert.
+  Ticket `bash` alerts again, and so does `bash` under a new applied digest. No launch carries the
+  block.
+- Each of `TestATRV0163_LoadMatchesOnlyALiteralProgramName` and
+  `TestATRV0165_UnsafeArgvAlertsOncePerTicketAndConfig` fails with its fix reverted.
+- `TestATRV0133_*` and `TestATRV0110_*` pass unchanged.
+- ATR-V0-166 is a stated contract and has no maintained test.
+
+Rollback: revert the commit. The load check refuses `{ticketLocal}sh` again, the alert repeats per
+launch, and no stored format changes.
+
+### Interrupted progress accounting, durable carry-over invalidation and wrapped secrets (ATR-V0-167..169)
+
+Owner context: V1-0769, V1-1793 and V1-1792. The declared-progress save removed a granted worker
+from the ledger and the unparked key's backoff, but the CAL-V0-057 escalation reset and the
+infrastructure-retry settlement of that progress were applied later, by `finish` and the unparked
+loop, and saved only at the tick's end. A dispatcher interrupted between the two saves lost them, so
+the ladder kept escalating a ticket that had progressed. A carry-over record whose removal failed
+after progress was guarded only by an in-memory mark, so a restart offered its stale entries once.
+The ATR-V0-104 secret screen matched one line at a time, so a PEM block's body or a token a model
+broke across lines survived in the salvage note and the carry-over record.
+
+- `ATR-V0-167`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0769) The ledger
+  save that admits declared progress MUST also apply, in the same write, the CAL-V0-057 escalation
+  reset and the infrastructure-retry progress settlement of every granted worker it removes and the
+  escalation reset of every key it unparks. `finish` and the unparked loop apply them again, which
+  changes nothing. An interrupt after that save and before `finish` MUST NOT leave an escalation
+  entry or a running infrastructure episode for a key whose progress was admitted.
+- `ATR-V0-168`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1793) Each
+  carry-over entry MUST record the CAL-V0-057 work fingerprint the session launched on, as
+  `fingerprint`. A launch MUST offer only the entries whose fingerprint equals the ticket's current
+  work fingerprint, and an append MUST first drop the entries recorded at another fingerprint. An
+  entry without a fingerprint, written before this requirement, is never offered. The guarantee holds
+  across a dispatcher restart that loses the ATR-V0-111 in-memory mark after a failed removal.
+- `ATR-V0-169`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1792) Besides
+  every line the secret screen matches alone, the ATR-V0-104 screen MUST replace every non-empty line
+  that a match spanning more than one line touches in either of two passes. The first pass screens
+  the whole text with its line breaks. The second screens each run of two or more consecutive lines
+  that do not match alone, joined after removing their surrounding blanks, tabs and carriage returns.
+  `redactedLines` counts each replaced line once.
+
+Non-goals: a secret that the screen does not recognise when whole. A token whose wrapped pieces are
+interleaved with lines that match alone. Rewriting the stored records of an earlier format.
+
+Failure modes: the second pass can replace a benign line that continues a wrapped token's
+characters, or prose lines whose concatenation is secret-shaped; the screen fails closed. A secret
+split across a line that matches alone keeps its pieces on the other lines. A carry-over entry
+written before ATR-V0-168 is dropped rather than offered. An interrupt before the progress save
+leaves the progress unadmitted, and the next tick admits it as before.
+
+Acceptance evidence (`internal/tasks/dispatch`):
+- `TestATRV0167_InterruptAfterProgressSaveKeepsAccounting` cancels the tick inside the progress save
+  for a granted worker and for an unparked key. The saved ledger holds no escalation entry and, for
+  the worker, a recovered infrastructure episode, with no `finished` or `unparked` event. Both
+  subtests fail with the fix reverted (the ladder survives).
+- `TestATRV0168_ProgressInvalidatesCarryOverAcrossRestart` fails a removal after progress, reopens
+  the dispatcher and shows that no earlier entry is offered or extended, and that an entry without a
+  fingerprint is not offered. It fails with the fix reverted.
+- `TestATRV0169_ScreenRedactsSecretsWrappedAcrossLines` uses a synthetic PEM block and a token broken
+  by a newline. It shows that the screen, the salvage note and the carry-over record replace exactly
+  the six lines holding them, keep the lines around them, and keep none of the fragments. It fails
+  with the fix reverted.
+- `TestATRV0104_*`, `TestATRV011*`, `TestCALV0057*`, `TestCALV0064*` and `TestCALV0194*` pass.
+
+Rollback: revert the commit. The progress accounting is applied only by `finish` again, the record
+loses its `fingerprint` member (the reverted reader treats a record holding it as unreadable and
+offers no carry-over until the next write replaces it), and the screen returns to single lines.
+
+### A read-only stage that edits the candidate (ATR-V0-170)
+
+Owner context: V1-0832. A review or integrate stage runs over the bound candidate and must not change
+it. When such a stage exited cleanly after editing the candidate worktree, the supervised role
+returned a retryable `MALFORMED` "read-only stage changed candidate" before journaling the stop. The
+attempt stayed `STOPPING` with `worker=true`, the program kept its owner, and a rerun of the role was
+refused `RESOURCE_COLLISION`.
+
+- `ATR-V0-170`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0832) When a
+  review or integrate stage stops with proved quiescence and its worktree is dirty, unreadable, or
+  fails the composite candidate check, the role MUST still journal the stop. The stop MUST NOT be
+  accepted and MUST carry no claims. It MUST carry an operator question that names the change and asks
+  for the worktree to be restored to the bound candidate, so the attempt reaches `WAITING` with no
+  worker and the program is `FINISHED` with its owner released. The role MUST then return a
+  non-retryable `DIRTY_WORKTREE` that keeps any stage error's text. After the operator restores the
+  worktree and answers, the role runs again. A stop without proved quiescence keeps its earlier
+  `SURVIVORS` classification (CAL-V0-086), which takes precedence.
+
+Non-goals: restoring the candidate automatically, or keeping the stage's edits as a new candidate.
+An implement stage, which may change the worktree, is unchanged.
+
+Failure modes: if the operator answers without restoring the worktree, the rerun's stop meets the
+same check again and waits again. A journal failure while recording the stop returns that error, as
+before.
+
+Acceptance evidence (`internal/tasks/store`):
+- `TestATRV0170_ReadOnlyStageEditIsTypedAndRecoverable` implements to `BUILT`, then runs a review stage
+  that edits the candidate and exits cleanly. It shows a non-retryable `DIRTY_WORKTREE`, an attempt
+  `WAITING` with no worker and a question, and the program `FINISHED` with its owner released. After
+  the worktree is restored and the question answered, the review reaches `READY_FOR_INTEGRATION`. It
+  fails with the fix reverted (`MALFORMED`).
+- `TestCALV0086_UnprovedStopIsNotFinished` (including its review case) and the program workflow tests
+  pass.
+
+Rollback: revert the commit. The role returns the retryable `MALFORMED` again and the attempt is left
+`STOPPING`; no stored format changes.
+
+### A retry racing run retirement (ATR-V0-171)
+
+Owner context: V1-0933. An ATR-V0-015 pass read the attempts' terminal records without the store
+lock and then removed runs. A retry that revived an attempt between the read and the removal lost
+that attempt's earlier-generation runs, though a live attempt's runs are never to be pruned.
+
+- `ATR-V0-171`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0933) A pass MUST
+  first move each run it would remove out of its attempt directory, in one rename, to
+  `taskman-runs/.retiring-<attempt directory>-<run ID>`. It MUST then read the terminal records of
+  those attempts again (`store.AttemptRecords`), and that read begins after every move. A run is
+  removed only when this second read finds its attempt terminal at the run's generation or a later
+  one. Every other moved run, including all of them when the read fails, MUST be moved back into its
+  attempt directory. A removed run is first renamed to its `.retired-` name, as before. A pass that
+  finds a `.retiring-` entry in its window MUST move it back, and no pass removes one. Ordering
+  guarantee: a retry whose generation opens before the second read keeps every run of its attempt.
+  A retry that opens after it finds the runs already gone from the attempt directory, as after a
+  completed pass.
+
+Non-goals: holding the store lock across retirement. Retirement of a live attempt's runs, which
+ATR-V0-015 already excludes.
+
+Failure modes: while a run is hidden, an attach or listing finds no run and refuses
+`MISSING_EVIDENCE`, as for a retired run, even when the run is then moved back. A concurrent pass
+can move a hidden run back during the check, and the owning pass then keeps it. A `.retiring-` name
+that does not parse, or a run that cannot be moved back, is left in place. A moved-back run may look
+recently changed and wait another hour.
+
+Acceptance evidence (`internal/tasks/cli`):
+- `TestATRV0171_RetryDuringRetirementKeepsItsRuns` keeps 1 run and plants three terminal attempts.
+  Inside the second read it shows that the runs being removed have left their attempt directories.
+  That read reports one attempt live (the retry) and one terminal at a later generation. The revived
+  attempt's run is moved back, the terminal one is removed, and no `.retiring-` or `.retired-` entry
+  remains. A failed second read keeps every run, and a hidden run left by a stopped pass is restored.
+  With the second read replaced by the first, the revived run is removed and the test fails.
+- `TestATRV0154_*` (now allowing two lookups) and `TestATRV0015_*` pass.
+
+Rollback: revert the commit. A left `.retiring-` entry is a non-attempt name that the reverted window
+passes over, so its run stays hidden until restored by hand
+(`mv taskman-runs/.retiring-A-R taskman-runs/A/R`).
+
+### V1-0925, V1-0924 and V1-0934 dispatcher idle and retirement cost
+
+Re-homed (owner-approved, 2026-10-17): these requirements were first numbered CAL-V0-350..353 in the
+agent leases spec; they moved here as ATR-V0-180..183 with the same text so that spec stays within
+the 256-obligation bound. Their test names keep the old numbers.
+
+Owner context: three costs the dispatcher paid on every tick, or failed to pay, without need. A
+full tick read and hashed the configuration bytes even when the file's identity had not changed
+since the last read (V1-0925). A pressure configuration disabled the CAL-V0-139 idle gate, so a
+dispatcher with nothing to launch still read the store and sampled the host every tick (V1-0924).
+A worker-directory retirement pass read the first 4,096 entries of `workers/` every time, so a
+backlog behind entries it could not retire was never reached (V1-0934).
+
+- `ATR-V0-180`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0925) A full tick
+  MUST reuse the digest of the configuration bytes it last read, without reading them, only when
+  all of these hold: the file's identity (the same file, size, mode and modification time, as
+  CAL-V0-127 compares it) is unchanged since that read; the stat succeeds; and the read is less
+  than the CAL-V0-139 safety-net interval (15 minutes) old by a clock that has not gone backwards.
+  Otherwise it MUST read the bytes, as before. A reused digest that equals a refused configuration
+  is not reported again; one that equals the applied configuration keeps it. Any identity change
+  reads the bytes, so a replacement or restoration is handled exactly as CAL-V0-127 says. The same
+  cache age bounds a pending reload check, which reuses the digest under the same conditions, and
+  the idle gate's next full tick, which is due no later than 15 minutes after that read.
+- `ATR-V0-181`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0924) Amends
+  CAL-V0-139 and CAL-V0-068. A pressure configuration MUST NOT by itself disable the idle gate.
+  While the dispatcher supervises no worker and its recorded pressure state is calm (level 0, no
+  pending level, a known sample), a tick MUST plan its launches against a deferred pressure budget
+  before it samples the host. The deferred budget refuses its first candidate and records that it
+  was consulted. A plan that never consults it can launch nothing at any level, since calm is the
+  most permissive. That tick then takes no sample and leaves the pressure record unchanged, so the
+  idle gate can arm. A consulted plan MUST sample the host, step the hysteresis and plan again
+  against the real budget, so no launch ever precedes a sample. Any other recorded state, or a
+  running worker, samples every tick as before. The first sample after a deferred tick has no CPU
+  baseline, as after `Open`. From that sample until the pending transition resolves, admission
+  uses the pending level whenever it is higher than the recorded level, because the deferred
+  ticks never advanced the dwell. When CPU is a selected signal and that first sample has no CPU
+  interval, it admits no launch that the budget would cap, and the next tick samples a fresh
+  interval; an UNKNOWN CPU reading never admits. The recorded state keeps the ordinary hysteresis.
+- `ATR-V0-182`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0934) Amends the
+  retirement scan of CAL-V0-144. A retirement pass MUST examine one window of names: the directories retained by
+  earlier windows, at most 32, carried forward, plus at most 4,096 less those read from the
+  `workers/` directory stream where the previous window's read ended. The stream stays open
+  between passes, and a short read ends it, so the window after it starts over. The window is held
+  until its marks settle, or for at most 4 passes, so CAL-V0-144's two-pass confirmation is
+  unchanged within it. A window that settles while the stream continues schedules the next pass
+  for the next tick, which the idle gate treats as a deadline. Retention counts the window and the
+  carried directories together. The newest 32 of all are in the newest 32 of any window that holds
+  them, so they are never removed. One sweep leaves only the newest 32 retirable directories of
+  all. `Close` closes the stream.
+
+Non-goals: no change to what is retired, retained or protected, to the mark format or to the
+ledger; no persisted retirement cursor for the dispatcher (a restart starts a new sweep); no reuse
+of a pressure sample across ticks while work is eligible.
+
+Failure modes: a configuration rewritten within the filesystem's timestamp granularity with the
+same size and mode is not seen until the safety-net read, at most 15 minutes later (CAL-V0-127
+already relied on that identity for pending reloads). A pressure spike that rises and falls while
+the dispatcher is idle is not recorded. Its admission effect is nil, because nothing launches,
+but the `throttled` event history no longer shows it. A window that cannot settle within 4 passes,
+for example under an unreadable process table, moves on and leaves its marks to be cleared, so
+confirmation starts over on the next sweep. Directory entries added or removed while the stream is
+open may or may not be returned, as POSIX allows; an unreturned one waits for the next sweep.
+
+Acceptance evidence (`internal/tasks/dispatch`):
+- `TestCALV0350_FullTickReusesAnUnchangedConfigRead` forces every tick to be full. It counts five
+  reads where every tick would otherwise read: one on the first tick, none over five unchanged
+  ticks, one after the safety-net interval, one for an invalid replacement (refused and not
+  reported again), one for a valid change, then reuse again, and one after a stat error.
+  `TestCALV0350_IdleSkipEndsWhenTheCachedConfigExpires` rewrites the file with the same size and
+  preserved timestamps while idle: minute 14 reuses the digest, and by minute 16 the bytes are read
+  and the new prompt applies. With both the idle bound and the pending-check age removed it fails.
+- `TestCALV0351_IdlePressureConfigSkipsTheSample` takes one sample in 24 idle ticks and makes no
+  store observation in the last 20; the idle gate is armed. Eligible work under a critical first
+  sample (dwell 2) is held at the pending level. The next calm sample launches the worker after
+  its sample. A mutation that removes the pending-level budget fails the test.
+  `TestCALV0351_PostIdleHoldLastsUntilThePendingLevelSettles` uses dwell 3 and critical cap 0:
+  two critical samples after idle still hold, and the hold clears once calm settles.
+  `TestCALV0351_PostIdleCPUSampleWaitsForAFreshInterval` selects CPU only: the first sample after
+  idle has no interval and launches nothing, the next is critical and holds, a calm one launches.
+  A mutation that holds for one gap sample only, or drops the CPU baseline hold, fails these.
+  `TestCALV0351_DeferredBudgetRefuses` covers the budget itself. The CAL-V0-068, CAL-V0-125 and
+  CAL-V0-139 tests pass; `TestCALV0125_UnselectedCPULeavesLedgerUnchanged` now counts one sample
+  in its two idle ticks.
+- `TestCALV0352_RetirementSweepsABacklogBeyondOneWindow` lowers the scan to 10 and the retention
+  to 3. It plants 40 quiet directories and 20 inside the quiet window. Every held window is at
+  most 10 names, and every pass that leaves a backlog schedules another. Within 2 x 9 + 1 = 19
+  passes, only the newest 3 and the 20 quiet directories remain (18 on macOS). Every CAL-V0-144
+  test passes unchanged.
+
+Rollback: revert the commit. The dispatcher again reads the configuration on every full tick,
+samples pressure every tick and disables the idle gate under a pressure configuration, and scans
+the first 4,096 worker directories. No ledger, mark or event format changed.
+
+### V1-0948 dispatch test process hygiene
+
+Orphaned worker trees from dispatch tests (`host.sh` from `TestCALV0143_*`, `TestCALV0272_*` and the
+`TestCALV0127_Reload*` `sleep 300` children) outlived the test binary for days and fed host load.
+
+- `ATR-V0-183`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0948) Every
+  worker process group a dispatch test launches MUST be stopped with SIGKILL to its process group
+  and found empty, within a bounded wait, by a cleanup the test registers before it launches, so
+  the cleanup also runs after `t.Fatal`. A group is signalled only when its leader still carries
+  the recorded start identity; an absent leader or an identity read error is not ownership. A
+  group that is still present without that match is reported as a possible leak that cannot be
+  verified, and is not signalled. After all tests, the package MUST fail when any launched group
+  that it could verify was still alive. The production hook is a nil function variable that `launch`
+  calls with each started leader; it has no effect outside tests.
+
+Non-goals: processes a worker moves out of its process group, and processes started by other test
+packages. Failure mode: a group that survives SIGKILL fails the test that launched it.
+
+Acceptance evidence (`internal/tasks/dispatch`): `TestCALV0353_CleanupReapsTheWholeWorkerGroup`
+launches a shell with two `sleep` descendants and proves the reap empties the group and the leak
+check sees it before and not after. With the `testConfig` cleanup removed, a run of the
+`TestCALV0127_Reload*`, `TestCALV0143_*` and `TestCALV0272_*` tests fails with four leaked groups;
+with it, the full package passes and no test-launched `host.sh` remains.
+`TestCALV0353_UnmatchedLeaderIsReportedNotSignalled` lets a leader exit while its child keeps the
+group: the group is reported unverified and the child is not signalled.
+
+Rollback: revert the commit; tests again leave worker trees to the caller.
 
 ## Outcome document
 
@@ -1353,8 +1736,10 @@ is not earlier than `startedAt`. A released group was reaped, so exactly one of 
 
 The command's stdout and stderr go to the caller's stderr; the one `taskman-command-result/0`
 envelope goes to stdout, as for every other verb except `archive export`.
-When the caller's stderr is not a file, the runner stops copying command output when it returns,
-so output after a `HOLD`, which leaves the leader unreaped, never reaches the caller's writer.
+When the caller's stderr is not a file, the runner refuses later command writes once it returns,
+so output after a `HOLD`, which leaves the leader unreaped, never reaches the caller's writer. Group
+survivors that keep writing may see `EPIPE` or `SIGPIPE`. A non-file stdin must not be reused after a
+`HOLD` (ATR-V0-166).
 
 | Case | Exit status | Envelope |
 | --- | --- | --- |
@@ -1365,7 +1750,7 @@ so output after a `HOLD`, which leaves the leader unreaped, never reaches the ca
 | Spawn failure | 126 | `ERROR`, `NOEXEC` |
 | Runner interrupted by SIGINT, SIGTERM, SIGHUP or SIGQUIT | 128 + the runner's signal | `REFUSED`; `childSignal` is the child's own (usually 9, the group SIGKILL) |
 | Cleanup `HOLD` | 2 (outranks every other status) | `ERROR`, `SURVIVORS` |
-| Outcome not recorded after a released run (after ATR-V0-051 retries) | 127 | `ERROR` plus the write's code; one run item (ATR-V0-052) |
+| Outcome not recorded after a released run (after ATR-V0-051 retries) | 127 | `ERROR` plus the write's code, `UNCERTAIN_EFFECT` when the failure has no closed code (ATR-V0-160); one run item (ATR-V0-052) |
 | Usage, other pre-launch refusal, unsupported platform | 1 | `REFUSED`/`ERROR`; a contended pre-launch write is retryable `LOCK_TIMEOUT` (ATR-V0-050) |
 | Detached launch: command running | 0 | `OK`, one run item with `state` `RUNNING` |
 | Detached launch or attach: run finished | the run's own status | the kept envelope, byte for byte |
@@ -1450,7 +1835,7 @@ output; queue status of detached runs outside the dispatcher.
 | Run-state filesystem stalls | The `RUNNING` write runs beside the runner and never delays its timeout, beats or fence; the launcher then exits 75 at its readiness bound. A stalled `FINISHED` write delays only the supervisor's exit; attach waits or reports `SUPERVISOR_LOST` if the supervisor is killed (ATR-V0-009, ATR-V0-013). |
 | Supervisor dies just after its `RUNNING` record | The launcher does not report `OK`: it rereads the record and replays a finished run or reports `SUPERVISOR_LOST` (ATR-V0-008, ATR-V0-012). |
 | Retired run attached or listed | A retired run is gone: attach refuses `MISSING_EVIDENCE` as for any absent run, and its `RUN_OUTCOME` stays in the journal. Retirement waits for an hour of quiet and a terminal attempt, and runs only when some supervisor finishes, so a host with no further detached runs keeps its old runs (ATR-V0-015). |
-| A retry claims a terminal attempt between the store read and the removal | The store read takes no lock. A retry that revives the attempt can therefore lose some runs. They are only that attempt's earlier-generation runs, ended and quiet for an hour. No run of the new generation is removed, because removal requires the run's generation to be no newer than the terminal record that was read (ATR-V0-015). |
+| A retry claims a terminal attempt between the store read and the removal | The store read takes no lock, so the pass hides the runs it would remove and reads the terminal records again. A retry that revives the attempt before that second read keeps every run; one after it finds them already gone, as after a completed pass (ATR-V0-015, ATR-V0-171). |
 | More than 1,024 attempt directories | A pass examines one window that resumes after the previous pass's, plus the attempts of the retained runs (ATR-V0-154), so a window full of live or absent attempts no longer stalls the attempts behind it. Names beyond the first 65,536 listed are not reached. |
 | Output volume or an output write error | Older output is dropped and counted; the command is never failed by its output (ATR-V0-010). |
 | Run record or kept result altered or malformed | `MALFORMED`; nothing is replayed (ATR-V0-010, ATR-V0-011). |
@@ -1468,6 +1853,8 @@ output; queue status of detached runs outside the dispatcher.
 | Review packet cannot be built or the rendered argv fails the recheck | The session launches without the packet and one alert names the reason (ATR-V0-141). |
 | Queue observation not writable | The tick proceeds; one alert until a write succeeds; the doctor reports the previous file as stale after three ticks (ATR-V0-150). |
 | Pressure missing or unknown with `capMax` set | The role keeps `cap` and no deep-queue streak is counted (ATR-V0-150, ATR-V0-152). |
+| Outcome write fails without a closed code after launch | Exit 127 with `UNCERTAIN_EFFECT`, never `MALFORMED`; the warning keeps the error text (ATR-V0-160). |
+| Dispatch configuration repeats a member | Refused, naming the member's JSON pointer (ATR-V0-161). |
 
 ## Acceptance and rollback
 
@@ -1592,3 +1979,19 @@ receipt or wire shape changes.
 | ATR-V0-152 | `internal/tasks/dispatch/config.go` (`Role`, `validate`), `internal/tasks/dispatch/admission.go` (`effectiveCap`, `depths`) | `TestATRV0152_CapMaxScalesAtCalmPressure`, `TestATRV0151_ConfigValidation` (`internal/tasks/dispatch`) |
 | ATR-V0-153 | `internal/tasks/cli/attempt_run.go` (`execute`), `internal/groupreap/owner.go` (`Primitives.RepeatKillWhileLive`, `waitPreReapQuiet`) | `TestOwnerRepeatKillWhileLiveSignalsOnlyBeforeReap`, `TestOwnerRepeatKillFailureHoldsWithoutReaping`, `TestOwnerRepeatKillRetiresMemberForkedDuringStop` (`internal/groupreap`), `TestATRV0004_InterruptStopsTheRun` (`internal/tasks/cli`) |
 | ATR-V0-154 | `internal/tasks/cli/attempt_runs_retire.go` (`retireEndedRunsIn`, `runRetireWindow`, `readRunRetireCursor`, `writeRunRetireCursor`, `runWindowName`) | `TestATRV0154_RetirementSweepsABacklogBeyondOneWindow`, `TestATRV0154_DuplicateCarryIsMalformed`, `TestATRV0154_CursorWriteUsesItsOwnTemporaryFile`, `TestATRV0154_RetiredBacklogAdvancesTheCursor`, `TestATRV0015_SupervisorRetiresEndedRunsOfTerminalAttempts` (`internal/tasks/cli`) |
+| ATR-V0-160 | `internal/tasks/cli/attempt_run.go` (`finish`), `internal/tasks/cli/export_test.go` (`SetAttemptOutcomeReportFault`) | `TestATRV0160_UnrecordedOutcomeIsNeverMalformed`, `TestATRV0004_UnrecordedOutcomeExits127`; accepted under the owner's standing auto-accept (2026-10-11); Darwin focused run passes; fails with the fix reverted (`MALFORMED`) |
+| ATR-V0-161 | `internal/tasks/dispatch/config.go` (`DecodeConfig`, `refuseRepeatedMembers`) | `TestATRV0161_RepeatedConfigMemberRefuses`; accepted under the owner's standing auto-accept (2026-10-11); Darwin focused run passes; fails with the fix reverted (no refusal) |
+| ATR-V0-162 | `internal/tasks/cli/dispatch.go` (`dispatchStatusValueFor`) | `TestATRV0162_DispatchStatusRendersForNilConfig`; accepted under the owner's standing auto-accept (2026-10-11); Darwin focused run passes; fails with the fix reverted (nil-pointer panic) |
+| ATR-V0-163 | `internal/tasks/dispatch/config.go` (`promptSafeHost`) | `TestATRV0163_LoadMatchesOnlyALiteralProgramName`; accepted under the owner's standing auto-accept (2026-10-11); Darwin focused run passes; fails with the fix reverted |
+| ATR-V0-164 | `internal/tasks/dispatch/config.go` (`noteSafeHost`, `promptSafeHost`, `argvCodeRisk`) | `TestATRV0164_HostCheckIsNameBased` (records the stated limit); accepted under the owner's standing auto-accept (2026-10-11); Darwin focused run passes |
+| ATR-V0-165 | `internal/tasks/dispatch/loop.go` (`carryUnsafe`, `carryUnsafeConfig`) | `TestATRV0165_UnsafeArgvAlertsOncePerTicketAndConfig`; accepted under the owner's standing auto-accept (2026-10-11); Darwin focused run passes; fails with the fix reverted |
+| ATR-V0-166 | `internal/tasks/cli/attempt_run.go` (`execute` stdin, `gatedWriter`) | stated contract, no maintained test (prose); accepted under the owner's standing auto-accept (2026-10-11) |
+| ATR-V0-167 | `internal/tasks/dispatch/loop.go` (`admitProgress`, `accountOn`), `internal/tasks/dispatch/infraretry.go` (`infraEndedOn`) | `TestATRV0167_InterruptAfterProgressSaveKeepsAccounting`; accepted under the owner's standing auto-accept (2026-10-11); Darwin focused run passes; fails with the fix reverted |
+| ATR-V0-168 | `internal/tasks/dispatch/carry_over.go` (`CarryEntry.Fingerprint`, `noteCarryOver`, `carryOverFor`) | `TestATRV0168_ProgressInvalidatesCarryOverAcrossRestart`; accepted under the owner's standing auto-accept (2026-10-11); Darwin focused run passes; fails with the fix reverted |
+| ATR-V0-169 | `internal/tasks/dispatch/handoff_note.go` (`screen`, `markWrapped`), `internal/tasks/obligation/expected_fail.go` (`SecretScreenSpans`), `internal/secretscreen/secretscreen.go` (`MatchIndexes`) | `TestATRV0169_ScreenRedactsSecretsWrappedAcrossLines`; accepted under the owner's standing auto-accept (2026-10-11); Darwin focused run passes; fails with the fix reverted |
+| ATR-V0-170 | `internal/tasks/store/workflow.go` (`stage` read-only candidate check) | `TestATRV0170_ReadOnlyStageEditIsTypedAndRecoverable`; accepted under the owner's standing auto-accept (2026-10-11); Darwin focused run passes; fails with the fix reverted |
+| ATR-V0-171 | `internal/tasks/cli/attempt_runs_retire.go` (`retireEndedRunsIn` recheck, `retiringRunName`, `restoreRetiringRun`, `runWindowName`) | `TestATRV0171_RetryDuringRetirementKeepsItsRuns`; accepted under the owner's standing auto-accept (2026-10-11); Darwin focused run passes; fails with the fix reverted |
+| ATR-V0-180 | `internal/tasks/dispatch/reload.go`, `internal/tasks/dispatch/idle.go` | `TestCALV0350_FullTickReusesAnUnchangedConfigRead`, `TestCALV0350_IdleSkipEndsWhenTheCachedConfigExpires`, `TestCALV0127_ConfigReloadAppliesAndRefuses` (`internal/tasks/dispatch`) |
+| ATR-V0-181 | `internal/tasks/dispatch/loop.go`, `internal/tasks/dispatch/pressure.go`, `internal/tasks/dispatch/idle.go` | `TestCALV0351_IdlePressureConfigSkipsTheSample`, `TestCALV0351_DeferredBudgetRefuses`, `TestCALV0351_PostIdleHoldLastsUntilThePendingLevelSettles`, `TestCALV0351_PostIdleCPUSampleWaitsForAFreshInterval`, `TestCALV0125_UnselectedCPULeavesLedgerUnchanged`, `TestCALV0068_DispatcherThrottlesNewLaunchesOnly` (`internal/tasks/dispatch`) |
+| ATR-V0-182 | `internal/tasks/dispatch/worklogs.go`, `internal/tasks/dispatch/loop.go` | `TestCALV0352_RetirementSweepsABacklogBeyondOneWindow`, `TestCALV0144_ActivityDuringTheConfirmingPassKeepsDir`, `TestCALV0144_FailedConfirmingPassIsRetried`, `TestCALV0144_FinishedWorkerDirsAreRetired`, `TestCALV0144_IncompleteSessionReadIsRetaken`, `TestCALV0144_LiveMemberOnConfirmingPassKeepsDir`, `TestCALV0144_MarksAreBounded`, `TestCALV0144_ProtectedDirsTakeNoRetentionSlot`, `TestCALV0144_RemovalNeedsAConfirmingPass`, `TestCALV0144_RestartConfirmsLeftMarks`, `TestCALV0144_StaleMarkStartsOver`, `TestCALV0144_TicksConfirmMarksWithoutAnotherFinish` (`internal/tasks/dispatch`) |
+| ATR-V0-183 | `internal/tasks/dispatch/reap_test.go` (`TestMain` leak check) | `TestCALV0353_CleanupReapsTheWholeWorkerGroup`, `TestCALV0353_UnmatchedLeaderIsReportedNotSignalled` and the package `TestMain` leak check (`internal/tasks/dispatch`) |

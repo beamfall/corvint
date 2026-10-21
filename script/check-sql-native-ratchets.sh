@@ -5,13 +5,18 @@ set -eu
 # docs/specs/sql-native-ratchet-gate-v0.md. The toolchain root is discovered, but its identity is
 # pinned by content (SNR-V0-003/SNR-V0-004, decision 0104): the go binary digest and the whole-root
 # receipt below, never the path or the version string alone.
+#
+# SNR-V0-030: one pin row per installation measured on a version the Makefile `go-version` target
+# admits (decision 0547). A row is
+#   version go_binary_sha256 receipt_tool_sha256 goroot_entries goroot_sha256
+# and a toolchain that matches no row refuses with reason=TOOLCHAIN_MISMATCH before any build.
+toolchain_pins='
+go1.27.3 60fa7fbaac037e24462915e8c19a1c73b02f548df0098b323823d6fbcdd0c764 53863afb7d3b9004aa68543d4ae5e91f0361bc99a59e42d74daff10d11268c18 17299 4b77ec3a600150c33036ecae172fcaa5edccf3ddcbcff339a8690505c8a47367
+'
 
 causal_parent=a7db6200685c1ea7d4afc1798fb376ccc724acd1
 go_root=$(GOTOOLCHAIN=local go env GOROOT)
 go_bin="$go_root/bin/go"
-go_sha=71c4991041d8e44975c882e4f72005719c958013d3340dc665a3808b72ddf702
-receipt_sha=f8337b642a5ffaf4ee44e29fec2b8053450a46c549e7d61187a7897487eb3da6
-tree='{"Entries":17277,"SHA256":"94b2c0ed86c9f62518348cc7fc3e4442e4e40a0194d10cfc8f6bc1be98447c33"}'
 lock="$(git rev-parse --git-dir)/sql-native-ratchets.lock"
 if ! mkdir "$lock" 2>/dev/null; then
 	printf '%s\n' 'sql-native-ratchets status=REJECTED reason=CONCURRENT_RUN' >&2
@@ -29,10 +34,20 @@ spin) while :; do :; done ;;
 *) printf '%s\n' 'sql-native-ratchets status=REJECTED reason=INVALID_LOCK_TEST' >&2; exit 64 ;;
 esac
 
-test -n "$go_root"
-test -x "$go_bin"
-test "$(shasum -a 256 "$go_bin" | awk '{print $1}')" = "$go_sha"
-test "$(GOTOOLCHAIN=local "$go_bin" env GOVERSION)" = go1.27.0
+reject_toolchain() {
+	printf 'sql-native-ratchets status=REJECTED reason=TOOLCHAIN_MISMATCH detail=%s\n' "$1" >&2
+	exit 78
+}
+test -n "$go_root" || reject_toolchain goroot-unset
+test -x "$go_bin" || reject_toolchain go-binary-missing
+go_version=$(GOTOOLCHAIN=local "$go_bin" env GOVERSION) || reject_toolchain goversion-unreadable
+go_sha=$(shasum -a 256 "$go_bin" | awk '{print $1}')
+pin=$(printf '%s\n' "$toolchain_pins" | awk -v v="$go_version" -v d="$go_sha" '$1==v&&$2==d{print;exit}')
+test -n "$pin" || reject_toolchain "unpinned-$go_version-$go_sha"
+# shellcheck disable=SC2086
+set -- $pin
+receipt_sha=$3 goroot_entries=$4 goroot_sha=$5
+tree="{\"Entries\":$goroot_entries,\"SHA256\":\"$goroot_sha\"}"
 source_bytes=$(find experimental/analyzers/sqlnative cmd/corvint-analyzer-sql-native -name '*.go' ! -name '*_test.go' -type f -exec wc -c {} \; | awk '{total+=$1}END{print total}')
 test "$source_bytes" -le 65536
 
@@ -59,8 +74,8 @@ if git cat-file -e "$causal_parent^{commit}" 2>/dev/null; then
 	tar -x -C "$ratchet_root/causal-parent" < "$ratchet_root/causal-parent.tar"
 fi
 run_go "$current_dir" "$ratchet_root/receipt-build" build -trimpath -buildvcs=false -ldflags='-s -w -buildid=' -o "$ratchet_root/toolchain-receipt" ./cmd/corvint-go-toolchain-receipt
-test "$(shasum -a 256 "$ratchet_root/toolchain-receipt" | awk '{print $1}')" = "$receipt_sha"
-check_toolchain() { test "$("$ratchet_root/toolchain-receipt" "$go_root")" = "$tree"; }
+test "$(shasum -a 256 "$ratchet_root/toolchain-receipt" | awk '{print $1}')" = "$receipt_sha" || reject_toolchain receipt-tool-digest
+check_toolchain() { test "$("$ratchet_root/toolchain-receipt" "$go_root")" = "$tree" || reject_toolchain goroot-content; }
 check_toolchain
 
 build() {
@@ -140,4 +155,4 @@ if $causal_available; then
 	causal=identical-workload-lifecycle-parent-fails-alloc-cap
 fi
 
-printf 'sql-native-ratchets core_base=%s causal_parent=%s fixture_sha256=%s source_bytes=%s binary_bytes=%s goroot_entries=17277 goroot_sha256=94b2c0ed86c9f62518348cc7fc3e4442e4e40a0194d10cfc8f6bc1be98447c33 core_binary=identical core_deps=identical complexity=delimiter-pairs-linear-old-parenAt-model-fails candidate_max_b_op=%s candidate_max_allocs_op=%s causal_candidate_max_b_op=%s causal_candidate_max_allocs_op=%s causal_parent_min_b_op=%s causal_parent_min_allocs_op=%s causal=%s latency=NOT_RUN\n' "$core_base" "$causal_parent" "$fixture_sha" "$source_bytes" "$binary_bytes" "$candidate_max_bytes" "$candidate_max_allocs" "$causal_candidate_max_bytes" "$causal_candidate_max_allocs" "$causal_parent_min_bytes" "$causal_parent_min_allocs" "$causal"
+printf 'sql-native-ratchets core_base=%s causal_parent=%s fixture_sha256=%s source_bytes=%s binary_bytes=%s go_version=%s goroot_entries=%s goroot_sha256=%s core_binary=identical core_deps=identical complexity=delimiter-pairs-linear-old-parenAt-model-fails candidate_max_b_op=%s candidate_max_allocs_op=%s causal_candidate_max_b_op=%s causal_candidate_max_allocs_op=%s causal_parent_min_b_op=%s causal_parent_min_allocs_op=%s causal=%s latency=NOT_RUN\n' "$core_base" "$causal_parent" "$fixture_sha" "$source_bytes" "$binary_bytes" "$go_version" "$goroot_entries" "$goroot_sha" "$candidate_max_bytes" "$candidate_max_allocs" "$causal_candidate_max_bytes" "$causal_candidate_max_allocs" "$causal_parent_min_bytes" "$causal_parent_min_allocs" "$causal"

@@ -997,3 +997,40 @@ func TestTOLV0031_PriorSummaryReadIsBoundToItsDescriptor(t *testing.T) {
 		})
 	}
 }
+
+// TOL-V0-063 (V1-1747): run-batch admits a report version that only the
+// store-local allow-list qualifies. With the version absent from the shipped
+// list the job has no admissible report, so it refuses GATE_FAILED
+// (TOL-V0-029) carrying the TOL-V0-009 UNSUPPORTED_VERSION detail and
+// writes nothing; after qualify-version records the version for this store
+// the same batch credits the ledger.
+func TestTOLV0063_RunBatchAdmitsStoreLocalQualifiedVersion(t *testing.T) {
+	defer cli.SetObligationQualifiedVersions([]string{"0.0.0-shipped"})()
+	r, id := obligationBatchRepo(t)
+	test, counter := rbTools(t)
+	out := filepath.Join(t.TempDir(), "out")
+
+	before := fixture.TreeSnapshot(t, r.StateDir)
+	x := atm(t, r.Root, nil, runBatchArgs(id, rbConfig(t, test, nil), out, "unqualified")...)
+	if x.res.Outcome != wire.OutcomeRefused || !hasCode(x.res, wire.CodeGateFailed) ||
+		!strings.Contains(string(x.stdout), "OBLIGATION_REPORT_VERSION_UNQUALIFIED:") || !strings.Contains(string(x.stdout), "UNSUPPORTED_VERSION") {
+		t.Fatalf("unqualified version: %s", x.stdout)
+	}
+	if !fixture.SameTree(before, fixture.TreeSnapshot(t, r.StateDir)) || rbRuns(t, counter) != 1 {
+		t.Fatal("an unqualified batch wrote store state or did not run once")
+	}
+	if got := entryStates(obligationsShow(t, r.Root, id)); got["AC-1"] != "OPEN" {
+		t.Fatalf("ledger after the unqualified batch: %v", got)
+	}
+
+	if q := qualifyVersion(t, r.Root, fixtureRun(t, pwVersion, nil)); q.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("qualify-version: %s", q.stdout)
+	}
+	x = atm(t, r.Root, nil, runBatchArgs(id, rbConfig(t, test, nil), out, "qualified")...)
+	if x.res.Outcome != wire.OutcomeOK || !field(x.res.Items[0], "written").Bool {
+		t.Fatalf("store-local qualified version: %s", x.stdout)
+	}
+	if got := entryStates(obligationsShow(t, r.Root, id)); got["AC-1"] != "WITNESSED" {
+		t.Fatalf("ledger after the qualified batch: %v", got)
+	}
+}
