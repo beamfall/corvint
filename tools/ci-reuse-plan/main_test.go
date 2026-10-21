@@ -2,8 +2,11 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -27,62 +30,132 @@ func passedQueueRun(id int64) run {
 	return r
 }
 
-func record(runID int64, tree string, shard, shards int) artifact {
-	a := artifact{Name: RecordName(tree, shard, shards)}
-	a.WorkflowRun.ID, a.WorkflowRun.HeadSHA = runID, testHead
-	return a
+// prMerge is the merge commit a pull-request run tested; only a queue run's target is checked.
+const prMerge = "5555555555555555555555555555555555555555"
+
+// evidence is the retained jobs listings (by run id) and job logs (by job id) Decide reads.
+type evidence struct {
+	jobs map[int64][]job
+	logs map[int64]string
 }
 
-func fullRecords(runID int64, tree string, shards int) []artifact {
-	var out []artifact
+func (e evidence) listJobs(id int64) ([]job, bool) { j, ok := e.jobs[id]; return j, ok }
+
+func (e evidence) readLog(id int64) ([]byte, bool) { l, ok := e.logs[id]; return []byte(l), ok }
+
+func decide(event string, shards int, runs []run, e evidence) decision {
+	return Decide(testRepo, event, testTree, testHead, testTarget, shards, runs, e.listJobs, e.readLog)
+}
+
+// recordLog is a hosted record-job log: checkout chatter, the echoed script and one record line.
+func recordLog(tree, target, head string, shards int) string {
+	return "2026-10-21T16:40:00.1000000Z ##[group]Run actions/checkout@v7\r\n" +
+		"2026-10-21T16:40:01.2000000Z HEAD is now at 5555555 Merge 2222222 into 4444444\r\n" +
+		"2026-10-21T16:40:02.3000000Z \x1b[36;1mprintf 'corvint-ci-tested-tree/1 tree=%s target=%s head=%s shards=%s\\n' \"$tree\" \"$GITHUB_SHA\" \"$head\" \"$SHARDS\"\x1b[0m\r\n" +
+		"2026-10-21T16:40:03.4000000Z corvint-ci-tested-tree/1 tree=" + tree + " target=" + target + " head=" + head + " shards=" + strconv.Itoa(shards) + "\r\n" +
+		"2026-10-21T16:40:04.5000000Z Cleaning up orphan processes\r\n"
+}
+
+// shardJobs are the go-product shards of run runID; they run repository code.
+func shardJobs(runID int64, head string, shards int) []job {
+	var out []job
 	for shard := 0; shard < shards; shard++ {
-		out = append(out, record(runID, tree, shard, shards))
+		out = append(out, job{ID: runID*100 + int64(shard) + 1, RunID: runID, Name: fmt.Sprintf("go-product-shard (%d)", shard), HeadSHA: head, Status: "completed", Conclusion: "success"})
 	}
 	return out
 }
 
-// queueRecords are full records retained by a merge-queue run, whose head is the queue commit.
-func queueRecords(runID int64, tree string, shards int) []artifact {
-	out := fullRecords(runID, tree, shards)
-	for i := range out {
-		out[i].WorkflowRun.HeadSHA = testTarget
+// withRecord is the evidence of run runID (head head) whose record job jobID logged log.
+func withRecord(e evidence, runID, jobID int64, head, log string) evidence {
+	if e.jobs == nil {
+		e = evidence{jobs: map[int64][]job{}, logs: map[int64]string{}}
 	}
-	return out
+	e.jobs[runID] = append(shardJobs(runID, head, 4), job{ID: jobID, RunID: runID, Name: RecordJob, HeadSHA: head, Status: "completed", Conclusion: "success"})
+	e.logs[jobID] = log
+	return e
 }
 
-func listing(by map[int64][]artifact) func(int64) ([]artifact, bool) {
-	return func(id int64) ([]artifact, bool) { a, ok := by[id]; return a, ok }
+// prEvidence is a pull-request run's record of tree over shards.
+func prEvidence(e evidence, runID int64, tree string, shards int) evidence {
+	return withRecord(e, runID, runID*10, testHead, recordLog(tree, prMerge, testHead, shards))
+}
+
+// queueEvidence is a merge-queue run's record: its head and target are the queue commit.
+func queueEvidence(e evidence, runID int64, tree string, shards int) evidence {
+	return withRecord(e, runID, runID*10, testTarget, recordLog(tree, testTarget, testHead, shards))
 }
 
 func TestAFPV0024ReusesOnlyAnExactTreeRecordedByEveryShard(t *testing.T) {
 	for _, event := range []string{"push", "merge_group"} {
-		d := Decide(testRepo, event, testTree, testHead, testTarget, 4, []run{passedRun(7)}, listing(map[int64][]artifact{7: fullRecords(7, testTree, 4)}))
-		if d.Mode != "REUSE" || d.RunID == nil || *d.RunID != 7 || len(d.Records) != 4 || d.Tree != testTree || d.Head != testHead || d.Profile != profile {
+		d := decide(event, 4, []run{passedRun(7)}, prEvidence(evidence{}, 7, testTree, 4))
+		if d.Mode != "REUSE" || d.RunID == nil || *d.RunID != 7 || d.RecordJobID == nil || *d.RecordJobID != 70 || len(d.Records) != 4 || d.Records[3] != RecordName(testTree, 3, 4) ||
+			d.Tree != testTree || d.Head != testHead || d.Profile != profile {
 			t.Fatalf("%s: decision = %+v", event, d)
 		}
 		// An earlier run of the same head against an older base recorded another tree; the
 		// later run against the merged base is the one reused.
 		other := "3333333333333333333333333333333333333333"
-		d = Decide(testRepo, event, testTree, testHead, testTarget, 4, []run{passedRun(5), passedRun(9)},
-			listing(map[int64][]artifact{5: fullRecords(5, other, 4), 9: fullRecords(9, testTree, 4)}))
-		if d.Mode != "REUSE" || *d.RunID != 9 {
+		d = decide(event, 4, []run{passedRun(5), passedRun(9)}, prEvidence(prEvidence(evidence{}, 5, other, 4), 9, testTree, 4))
+		if d.Mode != "REUSE" || *d.RunID != 9 || *d.RecordJobID != 90 {
 			t.Fatalf("%s: decision = %+v", event, d)
+		}
+	}
+}
+
+// AFP-V0-170 (V1-2271): the shard jobs run repository code, so anything they can write (an
+// artifact name, a line in their own log) is never evidence. Only the record job's own log is.
+func TestAFPV0170OnlyTheRecordJobLogVouchesForTheTree(t *testing.T) {
+	forged := recordLog(testTree, prMerge, testHead, 4)
+	// A shard job printed a perfect record line, but the run has no record job.
+	noRecordJob := evidence{jobs: map[int64][]job{7: shardJobs(7, testHead, 4)}, logs: map[int64]string{701: forged, 70: forged}}
+	alterJob := func(f func(*job)) evidence {
+		e := prEvidence(evidence{}, 7, testTree, 4)
+		jobs := e.jobs[7]
+		f(&jobs[len(jobs)-1])
+		return e
+	}
+	twoRecordJobs := prEvidence(evidence{}, 7, testTree, 4)
+	twoRecordJobs.jobs[7] = append(twoRecordJobs.jobs[7], job{ID: 71, RunID: 7, Name: RecordJob, HeadSHA: testHead, Status: "completed", Conclusion: "success"})
+	twoRecordJobs.logs[71] = forged
+	withLog := func(log string) evidence { return withRecord(evidence{}, 7, 70, testHead, log) }
+	line := "2026-10-21T16:40:03.4000000Z corvint-ci-tested-tree/1 tree=" + testTree + " target=" + prMerge + " head=" + testHead + " shards=4"
+	for name, e := range map[string]evidence{
+		"no record job, forged shard log": noRecordJob,
+		"jobs listing unavailable":        {logs: map[int64]string{70: forged}},
+		"record log unavailable":          {jobs: prEvidence(evidence{}, 7, testTree, 4).jobs, logs: map[int64]string{}},
+		"two record jobs":                 twoRecordJobs,
+		"record job failed":               alterJob(func(j *job) { j.Conclusion = "failure" }),
+		"record job skipped":              alterJob(func(j *job) { j.Conclusion = "skipped" }),
+		"record job in progress":          alterJob(func(j *job) { j.Status, j.Conclusion = "in_progress", "" }),
+		"record job of another run":       alterJob(func(j *job) { j.RunID = 8 }),
+		"record job of another head":      alterJob(func(j *job) { j.HeadSHA = testTarget }),
+		"record job without id":           alterJob(func(j *job) { j.ID = 0 }),
+		"record job renamed":              alterJob(func(j *job) { j.Name = RecordJob + " (0)" }),
+		"no record line":                  withLog("2026-10-21T16:40:00Z HEAD is now at 5555555\n"),
+		"two record lines":                withLog(line + "\n" + line + "\n"),
+		"record line after other text":    withLog("HEAD is now at 5555555 " + strings.TrimPrefix(line, "2026-10-21T16:40:03.4000000Z ") + "\n"),
+		"record line with a suffix":       withLog(line + " shard=0\n"),
+		"other tree":                      withLog(recordLog(testHead, prMerge, testTree, 4)),
+		"other head":                      withLog(recordLog(testTree, prMerge, testTarget, 4)),
+		"other shard count":               withLog(recordLog(testTree, prMerge, testHead, 8)),
+		"short tree":                      withLog(strings.Replace(forged, "tree="+testTree, "tree="+testTree[:39], 1)),
+		"older record profile":            withLog(strings.ReplaceAll(forged, "corvint-ci-tested-tree/1 ", "corvint-ci-tested-tree/0 ")),
+	} {
+		for _, event := range []string{"push", "merge_group"} {
+			if d := decide(event, 4, []run{passedRun(7)}, e); d.Mode != "FULL" || d.RunID != nil || d.RecordJobID != nil || len(d.Records) != 0 || d.Reason == "" {
+				t.Errorf("%s, %s: decision = %+v", event, name, d)
+			}
 		}
 	}
 }
 
 func TestAFPV0024AnythingElseRunsInFull(t *testing.T) {
 	alter := func(f func(*run)) []run { r := passedRun(7); f(&r); return []run{r} }
-	good := map[int64][]artifact{7: fullRecords(7, testTree, 4)}
-	foreign := fullRecords(8, testTree, 4)
-	wrongHead := fullRecords(7, testTree, 4)
-	for i := range wrongHead {
-		wrongHead[i].WorkflowRun.HeadSHA = testTree
-	}
+	good := prEvidence(evidence{}, 7, testTree, 4)
 	cases := map[string]struct {
-		runs      []run
-		artifacts map[int64][]artifact
-		shards    int
+		runs     []run
+		evidence evidence
+		shards   int
 	}{
 		"no runs":                    {nil, good, 4},
 		"failed run":                 {alter(func(r *run) { r.Conclusion = "failure" }), good, 4},
@@ -94,17 +167,13 @@ func TestAFPV0024AnythingElseRunsInFull(t *testing.T) {
 		"other head":                 {alter(func(r *run) { r.HeadSHA = testTree }), good, 4},
 		"pull request of the target": {alter(func(r *run) { r.HeadSHA = testTarget }), good, 4},
 		"no run id":                  {alter(func(r *run) { r.ID = 0 }), good, 4},
-		"artifacts unavailable":      {[]run{passedRun(7)}, nil, 4},
-		"other tree":                 {[]run{passedRun(7)}, map[int64][]artifact{7: fullRecords(7, testHead, 4)}, 4},
-		"missing shard":              {[]run{passedRun(7)}, map[int64][]artifact{7: fullRecords(7, testTree, 4)[:3]}, 4},
-		"other shard count":          {[]run{passedRun(7)}, map[int64][]artifact{7: fullRecords(7, testTree, 2)}, 4},
-		"records of another run":     {[]run{passedRun(7)}, map[int64][]artifact{7: foreign}, 4},
-		"records of another head":    {[]run{passedRun(7)}, map[int64][]artifact{7: wrongHead}, 4},
-		"documentation-only run":     {[]run{passedRun(7)}, map[int64][]artifact{7: {{Name: "docs-ci-plan"}}}, 4},
+		"evidence unavailable":       {[]run{passedRun(7)}, evidence{}, 4},
+		"evidence of another run":    {[]run{passedRun(7)}, prEvidence(evidence{}, 8, testTree, 4), 4},
+		"other shard count":          {[]run{passedRun(7)}, good, 8},
 	}
 	for _, event := range []string{"push", "merge_group"} {
 		for name, c := range cases {
-			d := Decide(testRepo, event, testTree, testHead, testTarget, c.shards, c.runs, listing(c.artifacts))
+			d := decide(event, c.shards, c.runs, c.evidence)
 			if d.Mode != "FULL" || d.RunID != nil || len(d.Records) != 0 || d.Reason == "" {
 				t.Errorf("%s, %s: decision = %+v", event, name, d)
 			}
@@ -114,13 +183,13 @@ func TestAFPV0024AnythingElseRunsInFull(t *testing.T) {
 
 // V1-0760: a main push reuses the merge-queue run of the pushed commit itself.
 func TestAFPV0024PushReusesTheQueueRunOfThePushedCommit(t *testing.T) {
-	d := Decide(testRepo, "push", testTree, testHead, testTarget, 4, []run{passedQueueRun(11)}, listing(map[int64][]artifact{11: queueRecords(11, testTree, 4)}))
-	if d.Mode != "REUSE" || d.RunID == nil || *d.RunID != 11 || len(d.Records) != 4 || d.Head != testHead || d.Tree != testTree {
+	d := decide("push", 4, []run{passedQueueRun(11)}, queueEvidence(evidence{}, 11, testTree, 4))
+	if d.Mode != "REUSE" || d.RunID == nil || *d.RunID != 11 || *d.RecordJobID != 110 || len(d.Records) != 4 || d.Head != testHead || d.Tree != testTree {
 		t.Fatalf("decision = %+v", d)
 	}
-	// A pull-request run without matching records listed first does not hide the queue run.
-	d = Decide(testRepo, "push", testTree, testHead, testTarget, 4, []run{passedRun(7), passedQueueRun(11)},
-		listing(map[int64][]artifact{7: fullRecords(7, "3333333333333333333333333333333333333333", 4), 11: queueRecords(11, testTree, 4)}))
+	// A pull-request run without a matching record listed first does not hide the queue run.
+	d = decide("push", 4, []run{passedRun(7), passedQueueRun(11)},
+		queueEvidence(prEvidence(evidence{}, 7, "3333333333333333333333333333333333333333", 4), 11, testTree, 4))
 	if d.Mode != "REUSE" || *d.RunID != 11 {
 		t.Fatalf("decision = %+v", d)
 	}
@@ -128,11 +197,10 @@ func TestAFPV0024PushReusesTheQueueRunOfThePushedCommit(t *testing.T) {
 
 func TestAFPV0024QueueRunRefusalsRunInFull(t *testing.T) {
 	alter := func(f func(*run)) run { r := passedQueueRun(11); f(&r); return r }
-	good := map[int64][]artifact{11: queueRecords(11, testTree, 4)}
-	prHeadRecords := fullRecords(11, testTree, 4) // records naming the PR head, not the queue commit
+	good := queueEvidence(evidence{}, 11, testTree, 4)
 	cases := map[string]struct {
-		run       run
-		artifacts map[int64][]artifact
+		run      run
+		evidence evidence
 	}{
 		"failed":                   {alter(func(r *run) { r.Conclusion = "failure" }), good},
 		"cancelled":                {alter(func(r *run) { r.Conclusion = "cancelled" }), good},
@@ -141,14 +209,15 @@ func TestAFPV0024QueueRunRefusalsRunInFull(t *testing.T) {
 		"other repository":         {alter(func(r *run) { r.Repository.FullName = "fork/corvint" }), good},
 		"wrong head":               {alter(func(r *run) { r.HeadSHA = testTree }), good},
 		"merged pull-request head": {alter(func(r *run) { r.HeadSHA = testHead }), good},
-		"partial records":          {passedQueueRun(11), map[int64][]artifact{11: queueRecords(11, testTree, 4)[1:]}},
-		"different shard count":    {passedQueueRun(11), map[int64][]artifact{11: queueRecords(11, testTree, 8)}},
-		"records of another head":  {passedQueueRun(11), map[int64][]artifact{11: prHeadRecords}},
-		"other tree":               {passedQueueRun(11), map[int64][]artifact{11: queueRecords(11, testHead, 4)}},
-		"artifacts unavailable":    {passedQueueRun(11), nil},
+		"different shard count":    {passedQueueRun(11), queueEvidence(evidence{}, 11, testTree, 8)},
+		// The record names another queue commit as the target.
+		"record of another target":  {passedQueueRun(11), withRecord(evidence{}, 11, 110, testTarget, recordLog(testTree, prMerge, testHead, 4))},
+		"record job of the PR head": {passedQueueRun(11), withRecord(evidence{}, 11, 110, testHead, recordLog(testTree, testTarget, testHead, 4))},
+		"other tree":                {passedQueueRun(11), queueEvidence(evidence{}, 11, testHead, 4)},
+		"evidence unavailable":      {passedQueueRun(11), evidence{}},
 	}
 	for name, c := range cases {
-		d := Decide(testRepo, "push", testTree, testHead, testTarget, 4, []run{c.run}, listing(c.artifacts))
+		d := decide("push", 4, []run{c.run}, c.evidence)
 		if d.Mode != "FULL" || d.RunID != nil || len(d.Records) != 0 || d.Reason == "" {
 			t.Errorf("%s: decision = %+v", name, d)
 		}
@@ -158,18 +227,19 @@ func TestAFPV0024QueueRunRefusalsRunInFull(t *testing.T) {
 // AFP-V0-046: a merge-queue decision admits only a pull-request run of the queue commit's
 // second parent; a merge-queue run, even of the queue commit itself, is never reused there.
 func TestAFPV0046QueueDecisionAdmitsOnlyThePullRequestRun(t *testing.T) {
-	d := Decide(testRepo, "merge_group", testTree, testHead, testTarget, 4, []run{passedQueueRun(11)}, listing(map[int64][]artifact{11: queueRecords(11, testTree, 4)}))
+	queue := queueEvidence(evidence{}, 11, testTree, 4)
+	d := decide("merge_group", 4, []run{passedQueueRun(11)}, queue)
 	if d.Mode != "FULL" || d.RunID != nil {
 		t.Fatalf("queue run admitted on merge_group: %+v", d)
 	}
 	wrong := passedRun(7)
 	wrong.HeadSHA = testTarget
-	d = Decide(testRepo, "merge_group", testTree, testHead, testTarget, 4, []run{wrong}, listing(map[int64][]artifact{7: queueRecords(7, testTree, 4)}))
+	d = decide("merge_group", 4, []run{wrong}, queueEvidence(evidence{}, 7, testTree, 4))
 	if d.Mode != "FULL" || d.RunID != nil {
 		t.Fatalf("pull-request run of the wrong head admitted: %+v", d)
 	}
 	for _, event := range []string{"", "pull_request", "release"} {
-		if d := Decide(testRepo, event, testTree, testHead, testTarget, 4, []run{passedQueueRun(11)}, listing(map[int64][]artifact{11: queueRecords(11, testTree, 4)})); d.Mode != "FULL" {
+		if d := decide(event, 4, []run{passedQueueRun(11)}, queue); d.Mode != "FULL" {
 			t.Fatalf("event %q admitted a queue run: %+v", event, d)
 		}
 	}
