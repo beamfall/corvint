@@ -158,6 +158,15 @@ or Cucumber scenarios.
   `until`; when that scan cannot balance the file, or the file holds `=begin`, `__END__` or a
   slash-delimited span holding a block keyword (a possible regex literal such as `/end/`), it MUST
   fall back to every namespace the file opens (V1-1832).
+- `RUBY-AFFECTED-V0-044`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2158)
+  The literal mask of `RUBY-AFFECTED-V0-009` MUST mask a `/.../` regex literal that opens in an
+  operand position (at the start of its line, after an operator, comma or opening bracket, or after
+  one of the keywords `and`, `elsif`, `if`, `in`, `not`, `or`, `return`, `unless`, `until`, `when`,
+  `while`, `yield`) and closes on the same line, with `\` escapes and `[...]` classes honoured, so
+  a quote inside it neither opens a string nor hides the constants after it; `%r{...}`, `%r(...)`
+  and the other `%r` delimiters are masked as percent literals. A slash after an identifier, a
+  number, a method call or a closing bracket is division and masks nothing; a candidate that does
+  not close on its line masks nothing.
 
 ### Autoload edge failure modes
 
@@ -165,8 +174,8 @@ or Cucumber scenarios.
   `ruby:rails-autoload` (`UNKNOWN_SCOPE`) rather than guessing an edge.
 - Lexical nesting falls back to the namespaces a file opens, and an ambiguous, evaluated or
   unterminated heredoc stays unmasked: both can add false advisory edges, which only widen
-  selection (RUBY-AFFECTED-V0-043). A quote inside a regex literal still opens a string in the
-  literal mask, as before this requirement.
+  selection (RUBY-AFFECTED-V0-043). A quote inside a `/.../` regex literal that is not in an operand
+  position (`x.split /'/`) still opens a string in the literal mask (RUBY-AFFECTED-V0-044).
 - A constant defined outside an observed `.rb` file (gem, engine, generated code) has no edge; the
   referencing test still selects on its own file and on boot/support edges, and an unmapped
   association raises the frontier.
@@ -268,6 +277,7 @@ affected tuple.
 | `RUBY-AFFECTED-V0-041` | `goModuleRoot`, `withoutTestdata` in `internal/liveverify/affected/ruby/ruby.go` | `TestGoModuleTestdataRubyFixtureIsNotAUnit_RUBYAFFECTEDV0041` |
 | `RUBY-AFFECTED-V0-042` | `readStockAutoloadLib` in `internal/rubyautoload/rubyautoload.go`; `rails-7-1-autoload-lib` class in `conformance/ruby-profile-v0/rows.json` | `TestStockAutoloadLibIsReadAsLibRoot_RUBYAFFECTEDV0042`, `TestRubyProfileAffectedRows_RUBYAFFECTEDV0014`, `TestRubyProfileImpactRows_RUBYAFFECTEDV0014` |
 | `RUBY-AFFECTED-V0-043` | `maskHeredocBodies`, `scanLexicalScopes` in `internal/liveverify/affected/ruby/nesting.go` | `TestHeredocAndLexicalNestingBoundConstantEdges_RUBYAFFECTEDV0043`, `TestHeredocMaskKeepsEvaluatedAndUnterminatedBodies_RUBYAFFECTEDV0043`, `TestLexicalScopesBalanceModifiersAndFallBack_RUBYAFFECTEDV0043`, `TestHeredocMaskRejectsShiftsAndKeepsInterpolation_RUBYAFFECTEDV0043`, `TestRegexKeywordFallsBack_RUBYAFFECTEDV0043` |
+| `RUBY-AFFECTED-V0-044` | `maskQuotedLiteralsAndInlineComments`, `rubySlashRegex` in `internal/liveverify/affected/ruby/ruby.go` | `TestRegexLiteralMaskHidesQuotesNotDivision_RUBYAFFECTEDV0044` |
 
 ## Unresolved decisions
 

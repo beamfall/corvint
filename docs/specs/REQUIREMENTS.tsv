@@ -2391,6 +2391,7 @@ DCP-V1-157	docs/specs/documentation-corpus-v1.md	(accepted under the owner's sta
 DCP-V1-158	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1240;	standing	2026-10-11; #1240
 DCP-V1-159	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1240;	standing	2026-10-11; #1240
 DCP-V1-216	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1991)) The rea	standing	2026-10-11; V1-1991
+DCP-V1-243	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2151) The	standing	2026-10-11; V1-2151
 DCP-V1-217	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1991)) Legacy	standing	2026-10-11; V1-1991
 DCP-V1-241	docs/specs/documentation-corpus-v1.md	`corvint docs corpus maintain --page` names the flag and the broken rule when it	unrecorded	-
 DCP-V1-054	docs/specs/documentation-corpus-v1.md	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
@@ -4056,6 +4057,7 @@ RUBY-AFFECTED-V0-014	docs/specs/ruby-affected-test-adapter-v0.md	`conformance/ru
 RUBY-AFFECTED-V0-041	docs/specs/ruby-affected-test-adapter-v0.md	In a repository whose root declares a Go module (`go.mod`), a Ruby or	unrecorded	-
 RUBY-AFFECTED-V0-042	docs/specs/ruby-affected-test-adapter-v0.md	Without a committed autoload declaration, the generated Rails 7.1+ line	unrecorded	-
 RUBY-AFFECTED-V0-043	docs/specs/ruby-affected-test-adapter-v0.md	The constant scan of `RUBY-AFFECTED-V0-009` MUST mask each heredoc body	unrecorded	-
+RUBY-AFFECTED-V0-044	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2158)	standing	2026-10-11; V1-2158
 RVN-V0-001	docs/specs/run-verified-navigation-v0.md	`corvint flows appmap screen` and `flow` MUST accept repeatable	unrecorded	-
 RVN-V0-002	docs/specs/run-verified-navigation-v0.md	A step's bound keys MUST be the union of `Step.tests` (compiled into the map fro	unrecorded	-
 RVN-V0-003	docs/specs/run-verified-navigation-v0.md	An outcome MUST count as a pass only when `QualifiedReceiptBindingReady` holds a	unrecorded	-
@@ -4608,6 +4610,7 @@ TRE-V0-111	docs/specs/test-runner-execution-v0.md	(accepted under the owner's 20
 TRE-V0-113	docs/specs/test-runner-execution-v0.md	(accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1537 review	standing	2026-10-11; V1-1537
 TRE-V0-112	docs/specs/test-runner-execution-v0.md	(accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1535) The	standing	2026-10-11; V1-1535
 TRE-V0-114	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0605) A	standing	2026-10-11; V1-0605
+TRE-V0-115	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2156) For	standing	2026-10-11; V1-2156
 TRE-V0-036	docs/specs/test-runner-execution-v0.md	`boost-test-junit` MUST execute the pinned test executable with	unrecorded	-
 TRE-V0-037	docs/specs/test-runner-execution-v0.md	The dedicated parser MUST accept exactly one `boost-junit.xml`	unrecorded	-
 TRE-V0-038	docs/specs/test-runner-execution-v0.md	A row without an outcome is `PASSED`; `skipped` is `SKIPPED`; a	unrecorded	-

@@ -842,6 +842,13 @@ func maskQuotedLiteralsAndInlineComments(body string) string {
 			masked[index] = ' '
 			continue
 		}
+		if end, ok := rubySlashRegex(body, index); ok {
+			for maskIndex := index; maskIndex <= end; maskIndex++ {
+				masked[maskIndex] = ' '
+			}
+			index = end
+			continue
+		}
 		if open, close, delimiterIndex, ok := rubyPercentLiteral(masked, index); ok {
 			for maskIndex := index; maskIndex <= delimiterIndex; maskIndex++ {
 				masked[maskIndex] = ' '
@@ -853,6 +860,70 @@ func maskQuotedLiteralsAndInlineComments(body string) string {
 		}
 	}
 	return string(masked)
+}
+
+// regexOperandKeywords are the keywords after which a slash opens a regex
+// literal rather than dividing.
+var regexOperandKeywords = map[string]bool{
+	"and": true, "elsif": true, "if": true, "in": true, "not": true, "or": true, "return": true,
+	"unless": true, "until": true, "when": true, "while": true, "yield": true,
+}
+
+// rubySlashRegex reports the index of the closing slash of a /.../ regex
+// literal opening at start (RUBY-AFFECTED-V0-044). A slash opens one only in an
+// operand position: at the start of its line, after an operator or opening
+// bracket, or after a keyword such as when or if. Division (`a / b`, `a/b`,
+// `f(x) / 2`) is never an operand position. A literal that does not close on
+// its own line is not masked, so an unusual division only keeps its text.
+func rubySlashRegex(body string, start int) (int, bool) {
+	if body[start] != '/' {
+		return 0, false
+	}
+	before := start - 1
+	for before >= 0 && (body[before] == ' ' || body[before] == '\t') {
+		before--
+	}
+	if before >= 0 && body[before] != '\n' {
+		previous := body[before]
+		switch {
+		case strings.IndexByte("(,=~!|&{[;<>+-*%^:", previous) >= 0:
+		case previous == '?' && before > 0 && (body[before-1] == ' ' || body[before-1] == '\t'):
+		case isWordByte(previous):
+			wordStart := before
+			for wordStart > 0 && isWordByte(body[wordStart-1]) {
+				wordStart--
+			}
+			if wordStart > 0 && (body[wordStart-1] == '.' || body[wordStart-1] == ':') {
+				return 0, false
+			}
+			if !regexOperandKeywords[body[wordStart:before+1]] {
+				return 0, false
+			}
+		default:
+			return 0, false
+		}
+	}
+	class := false
+	for index := start + 1; index < len(body); index++ {
+		switch body[index] {
+		case '\n':
+			return 0, false
+		case '\\':
+			if index+1 < len(body) && body[index+1] == '\n' {
+				return 0, false
+			}
+			index++
+		case '[':
+			class = true
+		case ']':
+			class = false
+		case '/':
+			if !class {
+				return index, true
+			}
+		}
+	}
+	return 0, false
 }
 
 func rubyPercentLiteral(body []byte, start int) (byte, byte, int, bool) {
