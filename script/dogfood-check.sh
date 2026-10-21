@@ -23,18 +23,21 @@ if [[ -z $expected_version ]]; then
   exit 2
 fi
 if [[ -n $corvint_bin_set ]]; then
+  # A PATH-only name resolves once, before the version probe, so every later verifier receives the executable
+  # the probe ran. The result is absolute so a later cd cannot change its meaning.
+  [[ $corvint_bin == */* ]] || corvint_bin=$(type -P -- "$corvint_bin") || {
+    printf 'dogfood-check: REFUSE corvint-bin-unresolved\n' >&2
+    exit 2
+  }
+  [[ $corvint_bin == /* ]] || corvint_bin="$PWD/$corvint_bin"
+fi
+if [[ -n $corvint_bin_set ]]; then
   version_output=$("$corvint_bin" --version 2> /dev/null)
   return_code=$?
   if [[ $return_code -ne 0 || ! $version_output =~ ^"Corvint $expected_version (build "(0|[1-9][0-9]*)")"$ ]]; then
     printf 'dogfood-check: REFUSE corvint-version-mismatch expected=%s\n' "$expected_version" >&2
     exit 2
   fi
-  [[ $corvint_bin != */* || $corvint_bin == /* ]] || corvint_bin="$PWD/$corvint_bin"
-  # A PATH-only name resolves once, here, so every later verifier receives the executable the version check ran.
-  [[ $corvint_bin == */* ]] || corvint_bin=$(type -P -- "$corvint_bin") || {
-    printf 'dogfood-check: REFUSE corvint-bin-unresolved\n' >&2
-    exit 2
-  }
   override=(--override-verifier "$corvint_bin")
 fi
 go_cache=${CORVINT_GOCACHE:-${GOCACHE:-/tmp/corvint-go-build-cache}}

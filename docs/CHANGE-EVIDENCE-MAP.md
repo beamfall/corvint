@@ -69,8 +69,9 @@ Where the decision names a consequence, it follows the criterion:
 
 - K1: fewer than 25% of non-mechanical Go code hunks are `held` across the next 30 dogfood changes
   after P2 lands. The hunk-revert headline is dropped from rc.3 text, and P0 ships alone.
-  Measured outcome (V1-1266): K1 fired, with 0 held of 3,790 hunks over 350 maps after #944, so no
-  hunk could be `held` ([build log](build-log/2026-10-20-V1-1266-hunk-revert-falsifier.md)).
+  Measured outcome (V1-1266): K1 fired. The initial 30-change windows had zero candidate hunks, so no
+  hunk could be `held`; across all 350 maps after #944 the consumer saw 49 candidate hunks among 3,790
+  and held 0 ([build log](build-log/2026-10-20-V1-1266-hunk-revert-falsifier.md)).
 - K2: the rubber-stamp and careful maps of the same patch produce the same `citation` block or the
   same tiers. P0 is not done.
 - K3: more than 5% of 50 audited `held` witnesses are not behavioural test failures.

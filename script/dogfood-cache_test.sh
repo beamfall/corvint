@@ -120,6 +120,18 @@ done
 fake_dir=$(dirname "$TEST_FAKE_CORVINT")
 PATH="$fake_dir:$PATH" CORVINT_BIN=$(basename "$TEST_FAKE_CORVINT") bash script/dogfood-check.sh "$base"
 rg -q -- "--override-verifier $TEST_FAKE_CORVINT $base$" "$TEST_FLOW_LOG" || exit 1
+# A relative PATH entry resolves to an absolute path before the wrapper changes directory.
+: > "$TEST_FLOW_LOG"
+rel_dir=$(python3 -c 'import os,sys; print(os.path.relpath(sys.argv[1]))' "$fake_dir")
+PATH="$rel_dir:$PATH" CORVINT_BIN=$(basename "$TEST_FAKE_CORVINT") bash script/dogfood-check.sh "$base"
+rg -q -F -- "--override-verifier $PWD/$rel_dir/$(basename "$TEST_FAKE_CORVINT") $base" "$TEST_FLOW_LOG" || exit 1
+# An unresolvable name is refused as unresolved, before the version probe.
+for action in change check; do
+  status=0
+  CORVINT_BIN=corvint-no-such-binary bash "script/dogfood-$action.sh" "$base" > "$root/output" 2>&1 || status=$?
+  [[ $status == 2 ]] || exit 1
+  rg -q "^dogfood-$action: REFUSE corvint-bin-unresolved$" "$root/output" || exit 1
+done
 unset CORVINT_BIN
 for action in change check; do
   for source in tree-source base-source; do
