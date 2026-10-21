@@ -341,3 +341,49 @@ func TestDCPV1216ProjectionKeepsPerPathTreeBound(t *testing.T) {
 		t.Fatalf("batched %v, per-path %v", batched, perPath)
 	}
 }
+
+// TestDCPV1243ResolvedInputsKeepPerPathTreeBound pins DCP-V1-243 (V1-2151):
+// the query freshness and batch input walks refuse a path whose parent tree
+// alone passes the 4 MiB per-path lookup bound with the per-path lookup's
+// own refusal, byte for byte, although the walk's 32 MiB bound admits it.
+func TestDCPV1243ResolvedInputsKeepPerPathTreeBound(t *testing.T) {
+	root := t.TempDir()
+	git(t, root, "init", "-q")
+	docBlob := gitStdin(t, root, "# Page\n", "hash-object", "-w", "--stdin")
+	empty := gitStdin(t, root, "", "hash-object", "-w", "--stdin")
+	var big strings.Builder
+	for i := 0; i*(7+240+1+len(empty)/2) < gitauth.MaxTreeBytes+(256<<10); i++ {
+		fmt.Fprintf(&big, "100644 blob %s\t%0240d\n", empty, i)
+	}
+	fmt.Fprintf(&big, "100644 blob %s\tpage.md\n", docBlob)
+	bigTree := gitStdin(t, root, big.String(), "mktree")
+	smallTree := gitStdin(t, root, "100644 blob "+docBlob+"\tpage.md\n", "mktree")
+	docsTree := gitStdin(t, root, "040000 tree "+bigTree+"\tbig\n040000 tree "+smallTree+"\tsmall\n", "mktree")
+	rootTree := gitStdin(t, root, "040000 tree "+docsTree+"\tdocs\n", "mktree")
+	base := gitStdin(t, root, "", "commit-tree", rootTree, "-m", "big tree")
+	auth, err := gitauth.Open(root, gitrun.NewDefaultBudget())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	_, _, perPath := auth.LookupTreeEntry(ctx, base, "docs/big/page.md")
+	if cemcode.CodeOf(perPath) != cemcode.GitOutputExceeded {
+		t.Fatalf("per-path lookup = %v, want the tree bound refusal", perPath)
+	}
+	if _, err := auth.ResolvePaths(ctx, base, []string{"docs/big/page.md"}); err != nil {
+		t.Fatalf("fixture must pass the walk's aggregate bound: %v", err)
+	}
+	_, batched := resolvePathsPerPathBound(ctx, auth, base, []string{"docs/small/page.md", "docs/big/page.md"})
+	if batched == nil || batched.Error() != perPath.Error() || cemcode.CodeOf(batched) != cemcode.CodeOf(perPath) {
+		t.Fatalf("batched %v, per-path %v", batched, perPath)
+	}
+	index := &contextindex.Index{CommitRevision: base}
+	_, staged := stageInputs(ctx, auth, map[string]*contextindex.Index{base: index}, map[string][]string{base: {"docs/big/page.md"}}, MaxBytes)
+	if staged == nil || staged.Error() != perPath.Error() {
+		t.Fatalf("staged inputs %v, per-path %v", staged, perPath)
+	}
+	entries, err := resolvePathsPerPathBound(ctx, auth, base, []string{"docs/small/page.md"})
+	if err != nil || entries["docs/small/page.md"].OID != docBlob {
+		t.Fatalf("small tree path: %v %v", entries, err)
+	}
+}
