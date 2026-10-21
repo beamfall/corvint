@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -1332,6 +1333,106 @@ func TestCEMV1322RemovedSpanRefusalNamesRuleAndNearestStableSpans(t *testing.T) 
 			Lines: lines, Relation: "implementation",
 		}); err != nil {
 			t.Fatalf("named span %s does not cite: %v", lines, err)
+		}
+	}
+}
+
+// TestSpanLinesBoundariesV11436 is V1-1436: spanLines maps a byte span to the
+// one-based inclusive base lines at the first line, the last line, a span
+// ending on a newline, and a last line with no trailing newline.
+func TestSpanLinesBoundariesV11436(t *testing.T) {
+	blob := []byte("a\nbb\nccc\n")
+	unterminated := []byte("a\nb")
+	for _, test := range []struct {
+		blob       []byte
+		span       wire.Span
+		start, end int64
+	}{
+		{blob, wire.Span{Start: 0, End: 1}, 1, 1},
+		{blob, wire.Span{Start: 0, End: 2}, 1, 1},
+		{blob, wire.Span{Start: 2, End: 5}, 2, 2},
+		{blob, wire.Span{Start: 1, End: 3}, 1, 2},
+		{blob, wire.Span{Start: 5, End: 9}, 3, 3},
+		{blob, wire.Span{Start: 0, End: 9}, 1, 3},
+		{unterminated, wire.Span{Start: 2, End: 3}, 2, 2},
+	} {
+		start, end := spanLines(test.blob, test.span)
+		if start != test.start || end != test.end {
+			t.Fatalf("span %d-%d of %q = lines %d:%d, want %d:%d",
+				test.span.Start, test.span.End, test.blob, start, end, test.start, test.end)
+		}
+	}
+}
+
+// TestSpanUneditedByHunksZeroCountHunksV11436 is V1-1436: a zero-count old
+// range names the line before the insertion, so the inserted lines split only
+// spans that straddle that point; a pure deletion edits exactly its lines.
+func TestSpanUneditedByHunksZeroCountHunksV11436(t *testing.T) {
+	insertion := &patch.Group{Hunks: []*patch.Hunk{{
+		OldRange: wire.Range{Start: 2, Count: 0},
+		Body:     []patch.BodyLine{{Prefix: '+'}, {Prefix: '+'}},
+	}}}
+	atStart := &patch.Group{Hunks: []*patch.Hunk{{
+		OldRange: wire.Range{Start: 0, Count: 0},
+		Body:     []patch.BodyLine{{Prefix: '+'}},
+	}}}
+	deletion := &patch.Group{Hunks: []*patch.Hunk{{
+		OldRange: wire.Range{Start: 3, Count: 2},
+		Body:     []patch.BodyLine{{Prefix: '-'}, {Prefix: '-'}},
+	}}}
+	for _, test := range []struct {
+		name       string
+		group      *patch.Group
+		start, end int64
+		want       bool
+	}{
+		{"insertion after 2 splits 2:3", insertion, 2, 3, false},
+		{"insertion after 2 leaves 2:2", insertion, 2, 2, true},
+		{"insertion after 2 leaves 3:3", insertion, 3, 3, true},
+		{"insertion at start leaves 1:1", atStart, 1, 1, true},
+		{"insertion at start leaves 1:2", atStart, 1, 2, true},
+		{"deletion of 3-4 leaves 2:2", deletion, 2, 2, true},
+		{"deletion of 3-4 edits 3:3", deletion, 3, 3, false},
+		{"deletion of 3-4 edits 4:4", deletion, 4, 4, false},
+		{"deletion of 3-4 leaves 5:5", deletion, 5, 5, true},
+	} {
+		if got := spanUneditedByHunks(test.group, test.start, test.end); got != test.want {
+			t.Fatalf("%s: got %v, want %v", test.name, got, test.want)
+		}
+	}
+}
+
+// TestSpanUneditedByHunksNoNewlineHunkV11436 is V1-1436: git's
+// "\ No newline at end of file" marker is not a body line, so it advances no
+// base line; the parsed hunk of a real canonical diff edits only the
+// unterminated last line.
+func TestSpanUneditedByHunksNoNewlineHunkV11436(t *testing.T) {
+	root, base, target := makeCiteSpanRepoFrom(t, "alpha\nbeta\ngamma", "alpha\nbeta\ngamma\ndelta\n")
+	session := openSession(t, root)
+	if _, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := session.repository.CanonicalDiff(ctx(), base, target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(raw, []byte("\\ No newline at end of file")) {
+		t.Fatalf("fixture diff carries no no-newline marker:\n%s", raw)
+	}
+	parsed, err := patch.Parse(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(parsed.Groups) != 1 {
+		t.Fatalf("got %d groups, want 1", len(parsed.Groups))
+	}
+	group := parsed.Groups[0]
+	for _, test := range []struct {
+		start, end int64
+		want       bool
+	}{{1, 1, true}, {2, 2, true}, {1, 2, true}, {3, 3, false}, {2, 3, false}} {
+		if got := spanUneditedByHunks(group, test.start, test.end); got != test.want {
+			t.Fatalf("lines %d:%d unedited=%v, want %v", test.start, test.end, got, test.want)
 		}
 	}
 }
