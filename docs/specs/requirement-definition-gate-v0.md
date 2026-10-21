@@ -69,7 +69,9 @@ row-only id or duplicate definition exists in the corpus.
   `docs/specs/README.md`, and MUST record a definition location for an id on any line where, after
   only leading whitespace, an optional `-`/`*` bullet, and optional surrounding `**` and backtick
   markers are stripped, the id is immediately followed by `:` or `.`. An id appearing later in a line
-  (for example, named in running prose) MUST NOT be recorded as a definition.
+  (for example, named in running prose) MUST NOT be recorded as a definition. An id followed by `..`
+  (a prose range such as `AMAP-V0-024..026 are`) MUST NOT be recorded as a definition (V1-1062); the
+  grammar is documented in the header comment of `script/check-requirement-definitions.sh`.
 - `RDG-V0-005`: The gate MUST fail when the same id is matched as a definition (per RDG-V0-004) at
   more than one location, whether or not that id is checked under RDG-V0-001, and MUST report the id
   together with every location beyond the first.
@@ -80,7 +82,16 @@ row-only id or duplicate definition exists in the corpus.
 - `RDG-V0-007`: The gate MUST NOT write to any file. After RDG-V0-006 has established that the TSV
   is tracked and the scan completes, the gate MUST exit non-zero exactly when RDG-V0-003 or
   RDG-V0-005 found at least one failure, exiting zero otherwise. Operational failures remain
-  non-zero.
+  non-zero. A RDG-V0-021 finding is also a failure.
+- `RDG-V0-021`: In every scanned spec with exactly one unfenced `## Requirements` heading, the gate
+  MUST record each unfenced line after that section (from the next level-two heading on) that the
+  OCM intent reader's definition form would accept (`` - `ID`: ``, `- **ID:** ` or `- **ID.** `),
+  as `<path> <ID>`. It MUST fail, naming each, when a recorded definition is not listed in the
+  index copy of `script/requirement-definitions-outside-section.txt`, and when a listed row is no
+  longer recorded. That file is a frozen baseline (V1-0798, V1-0988, V1-0572): rows are only ever
+  deleted, by moving the definition into its Requirements section, so a later amendment cannot
+  silently fall out of OCM. Lines starting with `#` and blank lines in it are ignored, and an absent
+  file is an empty baseline. The baseline does not make a listed definition count for OCM.
 
 ## Non-goals and simpler baseline
 
@@ -116,9 +127,9 @@ stopping at the first.
 
 ## Acceptance criteria and testing matrix
 
-There is no dedicated test script or Go test for this gate; its evidence is the gate invocation
-itself against the live corpus, plus the historical repair it was written to make mechanically
-checkable.
+`script/check-requirement-definitions_test.sh` exercises the gate on a fixture repository; the
+remaining evidence is the gate invocation itself against the live corpus, plus the historical
+repair it was written to make mechanically checkable.
 
 | Requirement | Evidence |
 |---|---|
@@ -126,7 +137,9 @@ checkable.
 | RDG-V0-002 | `docs/specs/REQUIREMENTS.tsv` carries 51 `CEM-CB-*` rows with no clause-body definition, and the gate still passes at `b7c3dbe` |
 | RDG-V0-005 | historical: the AT-01 wave found twelve ids defined twice and reworded each so the gate would pass (`../BUILD-LOG.md`); the gate passes on the current corpus with zero duplicates |
 | RDG-V0-006 | the initial status branch exits zero for `git ls-files --error-unmatch` status 1; `script/check-requirement-definitions_test.sh` proves an operational status 128 exits non-zero with a diagnostic |
-| RDG-V0-007 | the script contains no write, and its final statement is `exit($failed)` gated on the two failure arrays |
+| RDG-V0-007 | the script contains no write, and its final statement is `exit($failed)` gated on the failure arrays |
+| RDG-V0-004 (`..` range, V1-1062) | `script/check-requirement-definitions_test.sh`: `ALPHA-V0-001..003 are` prose passes, a real `ALPHA-V0-001.` duplicate fails; the live corpus matches 4948 definition lines under both the old and the new pattern |
+| RDG-V0-021 | `script/check-requirement-definitions_test.sh`: an unlisted outside definition fails, a listed one passes, a stale row fails, a fenced `##` line does not end the section; `TestRDGV0021MovedDefinitionsAreEnumerated` shows OCM enumerates CAL-V0-073, CAL-V0-106 and LTPM-V0-001..016 after the move; baseline of 604 rows across 10 specs at this change |
 
 ## Traceability
 
@@ -137,13 +150,15 @@ checkable.
 | RDG-V0-003, RDG-V0-004 | the `%defined` scan of `docs/specs/*.md` and the undefined-id report | `requirement-definitions-check` |
 | RDG-V0-005 | the duplicate-location report over `%defined` | `requirement-definitions-check`; historical repair in `../BUILD-LOG.md` |
 | RDG-V0-007 | the collected `$failed` flag and final `exit($failed)` | `make gate` membership; the script performs no write |
+| RDG-V0-021 | the `@outside` scan and the baseline comparison in `script/check-requirement-definitions.sh`; `script/requirement-definitions-outside-section.txt` | `script/check-requirement-definitions_test.sh`; `TestRDGV0021MovedDefinitionsAreEnumerated` |
 
 ## Rollout, rollback, and drift
 
 The gate is already load-bearing in `make gate` and has no feature flag; rollback is removing the
 `requirement-definitions-check` prerequisite from the `gate` target and reverting
 `script/check-requirement-definitions.sh`, which returns the repository to the state that let
-`dfd02ea` pass silently. Drift rule: `script/gen-spec-requirements.sh`'s definition-matching regex
+`dfd02ea` pass silently. RDG-V0-021 rolls back alone by deleting its scan, its two failure reports
+and the baseline file; the moved CAL and LTPM definitions stay where they are. Drift rule: `script/gen-spec-requirements.sh`'s definition-matching regex
 and this gate's must be read together whenever either changes, because a row the generator would
 promote to "defined" but this gate would not recognize (or vice versa) reopens the gap this spec
 closes — the two scripts are not required to share code today, only to agree on what counts as a

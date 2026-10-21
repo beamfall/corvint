@@ -1,13 +1,14 @@
 #!/bin/sh
 set -eu
 
-# Five cases, on a fixture repository: a clause body plus its table row passes, a row whose clause
+# Cases, on a fixture repository: a clause body plus its table row passes, a row whose clause
 # body was deleted fails and is named, a prose range such as `PUB-V0-011..015`. does not count as a
 # second definition of the first ID in it, a spec deleted from the worktree alone is still read,
 # and an operational `git ls-files` failure refuses. The third case matters for the regex, because
 # the unbalanced-backtick form failed the real corpus on exactly that line. The fourth pins the
 # enumeration to the Git index: `make gate` must measure what a fresh clone contains, not what the
-# dirty worktree happens to hold.
+# dirty worktree happens to hold. V1-1062 adds the unquoted prose range and a real duplicate;
+# RDG-V0-021 adds the outside-Requirements ratchet and its stale-baseline refusal.
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-requirement-definitions-test.XXXXXX")
@@ -54,6 +55,55 @@ printf '# Alpha\n\n- `ALPHA-V0-001`: the clause.\n\n`ALPHA-V0-001..003`. A prose
     > "$test_root/docs/specs/alpha.md"
 stage
 run > /dev/null || fail "a prose range must not count as a second definition"
+
+# V1-1062: a prose line that starts with an unquoted ID range is not a definition.
+# shellcheck disable=SC2016
+printf '# Alpha\n\n- `ALPHA-V0-001`: the clause.\n\nALPHA-V0-001..003 are additive prose.\n' \
+    > "$test_root/docs/specs/alpha.md"
+stage
+run > /dev/null || fail "a prose line starting with an ID range must not count as a definition"
+
+# shellcheck disable=SC2016
+printf '# Alpha\n\n- `ALPHA-V0-001`: the clause.\n\nALPHA-V0-001. A real second definition.\n' \
+    > "$test_root/docs/specs/alpha.md"
+stage
+if out=$(run); then fail "a real duplicate definition should fail"; fi
+case $out in
+    *"duplicate definition: ALPHA-V0-001"*) ;;
+    *) fail "the duplicate should be named, got: $out" ;;
+esac
+
+# RDG-V0-021: an OCM-form definition after the single Requirements section fails unless the
+# frozen baseline lists it, and a baseline row that no longer applies fails too.
+printf 'id\tfile\tline\ttitle\nALPHA-V0-001\tdocs/specs/alpha.md\t5\tthe clause\nALPHA-V0-002\tdocs/specs/alpha.md\t9\tlater\n' \
+    > "$test_root/docs/specs/REQUIREMENTS.tsv"
+# shellcheck disable=SC2016
+printf '# Alpha\n\n## Requirements\n\n- `ALPHA-V0-001`: the clause.\n\n## Amendment\n\n- `ALPHA-V0-002`: later.\n' \
+    > "$test_root/docs/specs/alpha.md"
+stage
+if out=$(run); then fail "a definition outside ## Requirements should fail"; fi
+case $out in
+    *"outside the spec's ## Requirements section"*"docs/specs/alpha.md ALPHA-V0-002"*) ;;
+    *) fail "the outside definition should be named, got: $out" ;;
+esac
+printf '# frozen\ndocs/specs/alpha.md ALPHA-V0-002\n' > "$test_root/script/requirement-definitions-outside-section.txt"
+stage
+run > /dev/null || fail "a baselined outside definition should pass"
+# shellcheck disable=SC2016
+printf '# Alpha\n\n## Requirements\n\n- `ALPHA-V0-001`: the clause.\n\n- `ALPHA-V0-002`: later.\n\n## Amendment\n' \
+    > "$test_root/docs/specs/alpha.md"
+stage
+if out=$(run); then fail "a stale baseline row should fail"; fi
+case $out in
+    *"delete from script/requirement-definitions-outside-section.txt"*"docs/specs/alpha.md ALPHA-V0-002"*) ;;
+    *) fail "the stale baseline row should be named, got: $out" ;;
+esac
+rm "$test_root/script/requirement-definitions-outside-section.txt"
+# shellcheck disable=SC2016
+printf '# Alpha\n\n## Requirements\n\n```text\n## Not a heading\n```\n\n- `ALPHA-V0-001`: the clause.\n\n- `ALPHA-V0-002`: later.\n' \
+    > "$test_root/docs/specs/alpha.md"
+stage
+run > /dev/null || fail "a fenced level-two heading must not end the Requirements section"
 
 rm "$test_root/docs/specs/alpha.md"
 run > /dev/null || fail "a spec deleted from the worktree alone must still be read from the index"
