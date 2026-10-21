@@ -1498,6 +1498,9 @@ ATR-V0-151	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the own
 ATR-V0-152	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1916) A matchi	standing	2026-10-11; V1-1916
 ATR-V0-153	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2103) The runn	standing	2026-10-11; V1-2103
 ATR-V0-154	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0934) An	standing	2026-10-11; V1-0934
+ATR-V0-160	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2123) After th	standing	2026-10-11; V1-2123
+ATR-V0-161	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0951)	standing	2026-10-11; V1-0951
+ATR-V0-162	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1767) The disp	standing	2026-10-11; V1-1767
 TCD-V0-001	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]` is a	unrecorded	-
 TCD-V0-002	docs/specs/corvint-tasks-closeout-debt-v0.md	The verb reads Git only through `git rev-parse --verify`, `git config --get	unrecorded	-
 TCD-V0-003	docs/specs/corvint-tasks-closeout-debt-v0.md	The scan covers every commit reachable from the ref and not from `--since`, newe	unrecorded	-

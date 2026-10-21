@@ -7,6 +7,8 @@ package dispatch
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/json/jsontext"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -669,6 +671,27 @@ var (
 // labels are built from them and must stay inside a 64-byte label.
 func ValidName(s string) bool { return namePattern.MatchString(s) }
 
+// refuseRepeatedMembers refuses a member repeated in any object at any depth
+// (ATR-V0-161): encoding/json keeps the last of a repeated member, so an
+// operator could run a configuration that differs from the one they read.
+// The match is exact after unescaping; two spellings that only case-fold to
+// one field stay the strict decoder's concern. Other syntax errors are left
+// to the strict decoder, which reports them.
+func refuseRepeatedMembers(raw []byte) error {
+	d := jsontext.NewDecoder(bytes.NewReader(raw))
+	for {
+		_, err := d.ReadToken()
+		if err == nil {
+			continue
+		}
+		var syntax *jsontext.SyntacticError
+		if errors.Is(err, jsontext.ErrDuplicateName) && errors.As(err, &syntax) {
+			return fmt.Errorf("dispatch config: repeated member %q", string(syntax.JSONPointer))
+		}
+		return nil
+	}
+}
+
 // DecodeConfig parses and validates closed configuration bytes.
 func DecodeConfig(raw []byte) (*Config, error) {
 	if len(raw) > MaxConfig {
@@ -679,6 +702,9 @@ func DecodeConfig(raw []byte) (*Config, error) {
 	}
 	if !strictSweepConfig(raw) {
 		return nil, fmt.Errorf("dispatch config: malformed poolSweep JSON")
+	}
+	if err := refuseRepeatedMembers(raw); err != nil {
+		return nil, err
 	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
