@@ -530,6 +530,70 @@ No live qualification on a real suite was run (NOT_RUN). Rollback removes
 section. `BLOCK-NOT-CALLED` alone rolls back by removing `internal/testsource/validity_rspec_block.go`,
 its test, the helper capture in `validity_rspec.go`, the rule ID and reason, and TSA-V0-053..056. Nothing is persisted, and no existing projection, report or wire contract changes.
 
+### RSpec denial examples without a no-effect assertion (V1-2124)
+
+A request or controller example that asserts only a refusal status (`have_http_status(:forbidden)`,
+`be_unauthorized`, `expect(response.status).to eq 403`) proves the caller saw a refusal, not that
+the refused operation had no effect: a handler that writes, mails or enqueues before it denies
+stays green. GitHub #1366 asks for an advisory reading of that shape.
+
+- `TSA-V0-564`: (standing auto-accept, 2026-10-11; V1-2124 / GitHub #1366) An RSpec example whose
+  own body positively asserts a built-in 401/403 refusal status (`have_http_status` with
+  `:forbidden`, `:unauthorized`, `401` or `403`, quoted or not; `be_forbidden`;
+  `be_unauthorized`; or `expect(response.status|code).to eq|eql|be 401|403`), whose body holds no
+  no-effect assertion, and whose observed request is a literal `post`, `put`, `patch` or `delete`
+  call MUST get an `advisory` `RB-DENIAL-WITHOUT-NO-EFFECT` finding located at the refusal
+  assertion and caused by the first mutating call. The observed request is read in the example
+  body, in the bodies of the subject and lets that the example or a group hook calls by name (or
+  `subject` through `is_expected`), and in the before(:each), let! and subject! hooks of the
+  example's group chain. A no-effect assertion is a `change` matcher, an expectation over
+  `.count`, `.size`, `.length`, `.reload`, `exists?`, `find_by`, `where`, `pluck`, `first` or
+  `last`, a negated `have_received`/`receive`/`have_been_made`/`have_requested`, enqueue, mail,
+  broadcast or `exist` matcher, or an `assert_no_*` assertion. A denial whose only observed
+  requests are `get` or `head` MUST NOT be flagged. The finding MUST NOT change any projection
+  axis.
+- `TSA-V0-565`: (standing auto-accept, 2026-10-11; V1-2124 / GitHub #1366) A refusal example
+  without a no-effect assertion whose request the reader cannot name MUST abstain with an
+  `advisory` `RB-DENIAL-VERB-UNRESOLVED` finding located at the refusal and caused by the example
+  line: when no literal request call is read on the paths of TSA-V0-564, or when a let or subject
+  on the group chain shadows the request helper name. An example whose refusal matcher is not a
+  built-in one (a positive matcher whose name reads as a refusal, such as `render_forbidden`), or
+  that holds a negated block matcher the reader does not know, MUST abstain with an `advisory`
+  `RB-DENIAL-MATCHER-CUSTOM` finding caused by that matcher, unless its only observed requests are
+  `get` or `head`. Neither finding changes any projection axis.
+
+Non-goals: no reading of a refusal asserted through a shared example, a custom helper method or a
+response body; no Rails routing, so a `post` to an action that does not mutate is still flagged
+(advisory); no Minitest, request-spec framework other than RSpec, or other language; no INVALID
+severity and no ABSTAINED axis, since the shape is a weak test, not a broken one.
+
+Failure modes: a no-effect assertion the reader does not recognise (a project matcher outside a
+negated block expectation, an assertion in a shared example or an `after` hook) leaves a false
+advisory finding, which changes no axis; a request issued through a project helper (`make_request`)
+abstains instead of flagging; a status compared through a variable is not read as a refusal and
+the example is not flagged (a missed advisory, never a wrong axis).
+
+Acceptance evidence: `TestRSpecDenialWithoutNoEffect` in
+`internal/testsource/validity_rspec_denial_test.go` flags the status-only `patch` and the quoted
+`"403"` `post`, keeps the `change`, `reload`, `not_to have_received`, `get`, `head`, non-refusal and
+negated-refusal examples clean, abstains on `render_forbidden` and on `make_request`, and asserts
+that `ApplyExampleSource` keeps an ELIGIBLE hygiene axis ELIGIBLE for each finding;
+`TestRSpecDenialRequestOnChain` flags a request in a before hook and in a named subject the example
+calls, and abstains when `let(:post)` shadows the request helper. Both tests fail when the reading
+is not wired into the example findings.
+
+Rollback: remove `internal/testsource/validity_rspec_denial.go`, its test, the `denialFindings`
+call in `exampleFindings`, the three rule constants in
+`internal/testvalidity/source_rules_rspec.go`, the help-text sentence in `cmd/corvint/tests.go` and
+this section. Nothing is persisted.
+
+#### Traceability (V1-2124)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-564 | `internal/testsource/validity_rspec_denial.go`, `internal/testsource/validity_rspec_examples.go` | `TestRSpecDenialWithoutNoEffect`, `TestRSpecDenialRequestOnChain` | experimental |
+| TSA-V0-565 | `internal/testsource/validity_rspec_denial.go` | `TestRSpecDenialWithoutNoEffect`, `TestRSpecDenialRequestOnChain` | experimental |
+
 ## Teardown dependents (V1-1884)
 
 V1-1884 (GitHub #1168) flags an E2E test whose teardown deletes a parent resource while a dependent
@@ -3563,67 +3627,3 @@ beyond the derived index, which the schema bump rebuilds.
 | TSA-V0-461 | `internal/contextindex/analyzer_bounds.go`, `internal/contextindex/setup_select.go`, `internal/contextindex/setup_shared.go`, `internal/contextindex/registry_dialect.go`, `internal/contextindex/ruby_autoload.go`, `internal/contextindex/ruby_verification.go` | `TestAnalyzerBoundsFailClosed`, `TestRubyNestingOverflowIsBounded`, `TestOversizedRegistryManifestFailsClosed`, `TestSharedExhaustedBranchOutranksLaterFind`, `TestSharedLookupBoundAtProductionValue`, `TestNGIV0052RSpecNeedsDeclaredGem` | experimental |
 | TSA-V0-462 | `internal/contextindex/setup_shared.go` | `TestSharedResolutionCacheSkipsCycleMarkers`, `TestSharedExhaustedBranchOutranksLaterFind` | experimental |
 | TSA-V0-463 | `internal/contextindex/analyzer_bounds_test.go` | `TestAnalyzerBoundsFailClosed` | experimental |
-
-## RSpec denial examples without a no-effect assertion (V1-2124)
-
-A request or controller example that asserts only a refusal status (`have_http_status(:forbidden)`,
-`be_unauthorized`, `expect(response.status).to eq 403`) proves the caller saw a refusal, not that
-the refused operation had no effect: a handler that writes, mails or enqueues before it denies
-stays green. GitHub #1366 asks for an advisory reading of that shape.
-
-- `TSA-V0-564`: (standing auto-accept, 2026-10-11; V1-2124 / GitHub #1366) An RSpec example whose
-  own body positively asserts a built-in 401/403 refusal status (`have_http_status` with
-  `:forbidden`, `:unauthorized`, `401` or `403`, quoted or not; `be_forbidden`;
-  `be_unauthorized`; or `expect(response.status|code).to eq|eql|be 401|403`), whose body holds no
-  no-effect assertion, and whose observed request is a literal `post`, `put`, `patch` or `delete`
-  call MUST get an `advisory` `RB-DENIAL-WITHOUT-NO-EFFECT` finding located at the refusal
-  assertion and caused by the first mutating call. The observed request is read in the example
-  body, in the bodies of the subject and lets that the example or a group hook calls by name (or
-  `subject` through `is_expected`), and in the before(:each), let! and subject! hooks of the
-  example's group chain. A no-effect assertion is a `change` matcher, an expectation over
-  `.count`, `.size`, `.length`, `.reload`, `exists?`, `find_by`, `where`, `pluck`, `first` or
-  `last`, a negated `have_received`/`receive`/`have_been_made`/`have_requested`, enqueue, mail,
-  broadcast or `exist` matcher, or an `assert_no_*` assertion. A denial whose only observed
-  requests are `get` or `head` MUST NOT be flagged. The finding MUST NOT change any projection
-  axis.
-- `TSA-V0-565`: (standing auto-accept, 2026-10-11; V1-2124 / GitHub #1366) A refusal example
-  without a no-effect assertion whose request the reader cannot name MUST abstain with an
-  `advisory` `RB-DENIAL-VERB-UNRESOLVED` finding located at the refusal and caused by the example
-  line: when no literal request call is read on the paths of TSA-V0-564, or when a let or subject
-  on the group chain shadows the request helper name. An example whose refusal matcher is not a
-  built-in one (a positive matcher whose name reads as a refusal, such as `render_forbidden`), or
-  that holds a negated block matcher the reader does not know, MUST abstain with an `advisory`
-  `RB-DENIAL-MATCHER-CUSTOM` finding caused by that matcher, unless its only observed requests are
-  `get` or `head`. Neither finding changes any projection axis.
-
-Non-goals: no reading of a refusal asserted through a shared example, a custom helper method or a
-response body; no Rails routing, so a `post` to an action that does not mutate is still flagged
-(advisory); no Minitest, request-spec framework other than RSpec, or other language; no INVALID
-severity and no ABSTAINED axis, since the shape is a weak test, not a broken one.
-
-Failure modes: a no-effect assertion the reader does not recognise (a project matcher outside a
-negated block expectation, an assertion in a shared example or an `after` hook) leaves a false
-advisory finding, which changes no axis; a request issued through a project helper (`make_request`)
-abstains instead of flagging; a status compared through a variable is not read as a refusal and
-the example is not flagged (a missed advisory, never a wrong axis).
-
-Acceptance evidence: `TestRSpecDenialWithoutNoEffect` in
-`internal/testsource/validity_rspec_denial_test.go` flags the status-only `patch` and the quoted
-`"403"` `post`, keeps the `change`, `reload`, `not_to have_received`, `get`, `head`, non-refusal and
-negated-refusal examples clean, abstains on `render_forbidden` and on `make_request`, and asserts
-that `ApplyExampleSource` keeps an ELIGIBLE hygiene axis ELIGIBLE for each finding;
-`TestRSpecDenialRequestOnChain` flags a request in a before hook and in a named subject the example
-calls, and abstains when `let(:post)` shadows the request helper. Both tests fail when the reading
-is not wired into the example findings.
-
-Rollback: remove `internal/testsource/validity_rspec_denial.go`, its test, the `denialFindings`
-call in `exampleFindings`, the three rule constants in
-`internal/testvalidity/source_rules_rspec.go`, the help-text sentence in `cmd/corvint/tests.go` and
-this section. Nothing is persisted.
-
-### Traceability (V1-2124)
-
-| Requirement | Code | Evidence | Status |
-|---|---|---|---|
-| TSA-V0-564 | `internal/testsource/validity_rspec_denial.go`, `internal/testsource/validity_rspec_examples.go` | `TestRSpecDenialWithoutNoEffect`, `TestRSpecDenialRequestOnChain` | experimental |
-| TSA-V0-565 | `internal/testsource/validity_rspec_denial.go` | `TestRSpecDenialWithoutNoEffect`, `TestRSpecDenialRequestOnChain` | experimental |
