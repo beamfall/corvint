@@ -305,6 +305,12 @@ func (index *repositoryIndex) attributeStructure(dirty string) []attribution {
 		directory := parentDirectory(dirty)
 		if index.packages[directory] != nil {
 			rules = append(rules, attribution{"frontier", []string{directory}})
+			// Go compiles a _test.go file only into its own package's test
+			// binary, so no importer can see it, added, changed or deleted
+			// (AFP-V0-154, the AFP-V0-036 rule; V1-0996).
+			if strings.HasSuffix(dirty, "_test.go") {
+				return rules
+			}
 		}
 		rules = append(rules, attribution{"frontier", index.dependents(directory)})
 	} else {

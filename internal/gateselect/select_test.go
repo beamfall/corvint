@@ -55,6 +55,9 @@ func TestSelectPackagesAttributesEveryDirtyPath(t *testing.T) {
 		verdict  string
 	}{
 		{"a deleted package source widens to its importers", nil, "core/gone.go", "run example.com/fixture/core example.com/fixture/leaf example.com/fixture/mid example.com/fixture/walker"},
+		{"a changed test file selects only its own package (AFP-V0-154)", nil, "core/core_test.go", "run example.com/fixture/core example.com/fixture/walker"},
+		{"a deleted test file selects only its own package (AFP-V0-154)", nil, "core/gone_test.go", "run example.com/fixture/core example.com/fixture/walker"},
+		{"a test file outside any indexed package still widens", nil, "fresh/fresh_test.go", "run example.com/fixture/walker"},
 		{"a Go file read as data selects its reader", []string{"example.com/fixture/core", "example.com/fixture/leaf", "example.com/fixture/mid"}, "core/core.go", "run example.com/fixture/core example.com/fixture/leaf example.com/fixture/mid example.com/fixture/solo example.com/fixture/walker"},
 		{"a document selects the packages that name it", nil, "docs/specs/x.md", "run example.com/fixture/spec example.com/fixture/walker"},
 		{"a testdata fixture selects its enclosing package", nil, "core/testdata/x.txt", "run example.com/fixture/core example.com/fixture/walker"},
