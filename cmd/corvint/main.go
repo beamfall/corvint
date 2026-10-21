@@ -1254,7 +1254,7 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			if options.command == "feature" {
 				return contextindex.FeatureBudget(index, options.featureID, options.featureLimit, options.featureBudget)
 			}
-			if options.requireClean && len(index.DirtyPaths) != 0 {
+			if options.requireClean && index.SourceDirty() {
 				return contextindex.ImpactCleanAbstention(index, options.impactPaths, options.impactLimit, impactBudget(options.impactPaths, options.impactBudget))
 			}
 			if options.impactWorktree {

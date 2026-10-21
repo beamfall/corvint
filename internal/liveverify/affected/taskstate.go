@@ -1,6 +1,10 @@
 package affected
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/Beamfall/corvint/internal/taskprojection"
+)
 
 // Non-source path classes (AFP-V0-088). A dirty path of one of these classes
 // is task state, not source: it names no unit and widens no plan unless a
@@ -9,12 +13,12 @@ const (
 	// ClassTaskStoreProjection is a file of a Corvint Tasks store projection
 	// (TaskStoreProjectionDir): the policy, the queue, or one ticket or
 	// release record that corvint-tasks writes.
-	ClassTaskStoreProjection = "TASK_STORE_PROJECTION"
+	ClassTaskStoreProjection = taskprojection.Class
 )
 
 // TaskStoreProjectionDir is the repository-relative directory a Corvint Tasks
 // store projects its intent into (AFP-V0-088).
-const TaskStoreProjectionDir = ".taskman"
+const TaskStoreProjectionDir = taskprojection.Dir
 
 // taskStoreProjectionReason is the stated reason of every
 // ClassTaskStoreProjection entry.
@@ -36,20 +40,7 @@ type NonSource struct {
 // `.taskman/tickets/<name>.json` or `.taskman/releases/<name>.json` record.
 // Any other path under `.taskman/` is not recognised and stays unowned.
 func IsTaskStoreProjectionPath(path string) bool {
-	rest, inside := strings.CutPrefix(path, TaskStoreProjectionDir+"/")
-	if !inside {
-		return false
-	}
-	if rest == "policy.json" || rest == "queue.json" {
-		return true
-	}
-	for _, records := range []string{"tickets/", "releases/"} {
-		name, record := strings.CutPrefix(rest, records)
-		if record && strings.HasSuffix(name, ".json") && len(name) > len(".json") && !strings.Contains(name, "/") {
-			return true
-		}
-	}
-	return false
+	return taskprojection.IsPath(path)
 }
 
 // taskState removes, from the unknown entries seed raised, each

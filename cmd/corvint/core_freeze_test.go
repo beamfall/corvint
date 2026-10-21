@@ -724,30 +724,27 @@ func TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching(t *testing.T) {
 	}
 }
 
-var maturityLabel = regexp.MustCompile(`([a-z][a-z-]*) \(([A-Z][A-Z0-9-]*)\)`)
+// maturityLabel matches one Experimental line of the root-help Commands list: the verb, its
+// gloss, and the owning spec prefix in trailing parentheses.
+var maturityLabel = regexp.MustCompile(`^    ([a-z][a-z-]*) .* \(([A-Z][A-Z0-9-]*)\)$`)
 
-// TestRootHelpLabelsEveryVerbWithMaturityAndOwner pins CCF-V1-008: root help names exactly the
-// frozen Core verbs, and labels every other dispatched verb experimental with an owning spec
-// prefix that docs/specs/INDEX.json indexes, so no companion or research verb is frozen by omission.
+// TestRootHelpLabelsEveryVerbWithMaturityAndOwner pins CCF-V1-008: the root-help Commands list
+// names each dispatched verb once, under either the Core group, which holds exactly the frozen
+// Core verbs, or the Experimental group, where every verb carries an owning spec prefix that
+// docs/specs/INDEX.json indexes, so no companion or research verb is frozen by omission.
 func TestRootHelpLabelsEveryVerbWithMaturityAndOwner(t *testing.T) {
 	t.Parallel()
-	section, found := strings.CutPrefix(rootHelp[strings.Index(rootHelp, "\nCommand maturity:\n")+1:], "Command maturity:\n")
-	if !found {
-		t.Fatal("root help has no Command maturity section")
-	}
-	section, _, _ = strings.Cut(section, "\n\n")
-	core, experimental, found := strings.Cut(section, "  Experimental, no stability promise;")
-	if !found {
-		t.Fatalf("maturity section has no experimental block:\n%s", section)
+	commands, _, _ := strings.Cut(strings.SplitN(rootHelp, "\nCommands:\n", 2)[1], "\nGlobal options:")
+	core, experimental, found := strings.Cut(commands, "\n  Experimental, no stability promise; owning spec in parentheses:\n")
+	if !found || !strings.HasPrefix(core, "  Core (decision 0332;") {
+		t.Fatalf("Commands has no Core and Experimental groups:\n%s", commands)
 	}
 	coreVerbs := []string{}
-	for _, line := range strings.Split(core, "\n") {
-		if strings.HasPrefix(line, "    ") {
-			coreVerbs = append(coreVerbs, strings.TrimSpace(line))
-		}
+	for _, line := range strings.Split(core, "\n")[1:] {
+		coreVerbs = append(coreVerbs, strings.Fields(line)[0])
 	}
-	if got := strings.Split(strings.Join(coreVerbs, " "), ", "); !slices.Equal(got, frozenCoreVerbs) {
-		t.Fatalf("Core verbs = %q, want %q", got, frozenCoreVerbs)
+	if !slices.Equal(coreVerbs, frozenCoreVerbs) {
+		t.Fatalf("Core verbs = %q, want %q", coreVerbs, frozenCoreVerbs)
 	}
 
 	raw, err := os.ReadFile(filepath.Join(moduleRoot(t), "docs", "specs", "INDEX.json"))
@@ -769,7 +766,12 @@ func TestRootHelpLabelsEveryVerbWithMaturityAndOwner(t *testing.T) {
 	}
 
 	labelled := map[string]string{}
-	for _, match := range maturityLabel.FindAllStringSubmatch(experimental, -1) {
+	for _, line := range strings.Split(strings.TrimSuffix(experimental, "\n"), "\n") {
+		match := maturityLabel.FindStringSubmatch(line)
+		if match == nil {
+			t.Errorf("experimental line %q carries no owning spec prefix", line)
+			continue
+		}
 		if _, repeated := labelled[match[1]]; repeated {
 			t.Errorf("verb %q is labelled twice", match[1])
 		}

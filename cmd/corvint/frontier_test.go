@@ -326,7 +326,7 @@ func TestParseFrontierOptions(t *testing.T) {
 // names every flag plus the CF-V0-004 exit law.
 func TestFrontierHelpIsDiscoverable(t *testing.T) {
 	t.Parallel()
-	for _, required := range []string{"\n  frontier  ", "corvint help COMMAND"} {
+	for _, required := range []string{"\n    frontier  ", "corvint help COMMAND"} {
 		if !strings.Contains(rootHelp, required) {
 			t.Errorf("root help omits %q", required)
 		}

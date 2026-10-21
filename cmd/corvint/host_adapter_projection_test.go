@@ -134,3 +134,20 @@ func TestAHI046CodexPromptSilenceAndProjection(t *testing.T) {
 		}
 	}
 }
+
+// DIRTY-CACHE-017: an emitted hook projection carries the task-state member
+// without a non-clean freshness when only Tasks projection files are dirty.
+func TestHookProjectionCarriesTaskState(t *testing.T) {
+	result := map[string]any{"context": map[string]any{
+		"freshness": "clean", "task_state": map[string]any{"class": "TASK_STORE_PROJECTION", "path_count": 2, "paths": []string{".taskman/queue.json", ".taskman/policy.json"}},
+		"coverage": map[string]any{"critical_missing": []any{}},
+	}}
+	projection := hookContextProjection("session-start", result, true)
+	if _, present := projection["freshness"]; present {
+		t.Fatalf("clean freshness projected: %v", projection)
+	}
+	want := map[string]any{"class": "TASK_STORE_PROJECTION", "path_count": 2}
+	if !reflect.DeepEqual(projection["task_state"], want) {
+		t.Fatalf("task_state=%v", projection["task_state"])
+	}
+}

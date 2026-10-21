@@ -342,7 +342,7 @@ func TestRootHelpListsReleaseAuditCommands(t *testing.T) {
 	commands := strings.SplitN(rootHelp, "\nCommands:\n", 2)[1]
 	commands, _, _ = strings.Cut(commands, "\nGlobal options:")
 	for _, command := range []string{"adapter", "dogfood-ocm", "witness"} {
-		if !strings.Contains("\n"+commands, "\n  "+command+" ") {
+		if !strings.Contains("\n"+commands, "\n    "+command+" ") {
 			t.Errorf("root help command list omits %q", command)
 		}
 	}
@@ -351,8 +351,8 @@ func TestRootHelpListsReleaseAuditCommands(t *testing.T) {
 func TestRootHelpListsContextAndWorkCommands(t *testing.T) {
 	t.Parallel()
 	for _, required := range []string{
-		"\n  context  task-context packet",
-		"\n  work  queue observation",
+		"\n    context  task-context packet",
+		"\n    work  queue observation",
 		"corvint COMMAND --help | corvint help COMMAND",
 	} {
 		if !strings.Contains(rootHelp, required) {
@@ -367,7 +367,8 @@ func TestRootHelpListsContextAndWorkCommands(t *testing.T) {
 }
 
 // TestRootHelpIsACompactVerbIndex pins CCF-V1-009: root help is a verb index with one line per
-// verb, carries no per-verb usage line, and stays within its byte bound; the detail is per verb.
+// verb under its Core or Experimental group header (CCF-V1-008), names each verb once, carries no
+// per-verb usage line, and stays within its byte bound; the detail is per verb.
 func TestRootHelpIsACompactVerbIndex(t *testing.T) {
 	t.Parallel()
 	if len(rootHelp) > rootHelpMaxBytes {
@@ -378,8 +379,16 @@ func TestRootHelpIsACompactVerbIndex(t *testing.T) {
 		t.Fatalf("root usage has %d lines, want 3:\n%s", lines, usage)
 	}
 	commands, _, _ := strings.Cut(strings.SplitN(rootHelp, "\nCommands:\n", 2)[1], "\nGlobal options:")
-	if lines := strings.Count(commands, "\n"); lines != len(topLevelCommands) {
-		t.Fatalf("Commands has %d lines, want one per verb (%d)", lines, len(topLevelCommands))
+	if lines := strings.Count(commands, "\n"); lines != len(topLevelCommands)+2 {
+		t.Fatalf("Commands has %d lines, want two group headers and one per verb (%d)", lines, len(topLevelCommands))
+	}
+	if strings.Contains(rootHelp, "\nCommand maturity:\n") {
+		t.Error("root help repeats every verb in a separate Command maturity section")
+	}
+	for _, command := range topLevelCommands {
+		if count := strings.Count(rootHelp, "\n    "+command+" "); count != 1 {
+			t.Errorf("root help lists verb %q %d times, want once", command, count)
+		}
 	}
 	for _, flag := range []string{"--task", "--base", "--cem", "--limit"} {
 		if strings.Contains(rootHelp, flag) {

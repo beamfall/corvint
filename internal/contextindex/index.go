@@ -19,6 +19,7 @@ import (
 	"unsafe"
 
 	"github.com/Beamfall/corvint/internal/projectprofile"
+	"github.com/Beamfall/corvint/internal/taskprojection"
 )
 
 const (
@@ -1323,6 +1324,11 @@ func forbiddenPath(value string) string {
 	}
 	if generatedPath.MatchString(value) {
 		return "generated path"
+	}
+	if taskprojection.IsPath(value) {
+		// DIRTY-CACHE-017: Tasks store projection files are task state, never
+		// indexed source or evidence.
+		return "task store projection"
 	}
 	return ""
 }

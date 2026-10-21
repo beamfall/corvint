@@ -73,7 +73,7 @@ func runCLI(t *testing.T, args ...string) (int, string, string) {
 func TestCEMHelpSurfaces(t *testing.T) {
 	t.Parallel()
 	code, out, _ := runCLI(t, "--help")
-	if code != 0 || !strings.Contains(out, "\n  cem  ") {
+	if code != 0 || !strings.Contains(out, "\n    cem  ") {
 		t.Fatalf("root help omits cem: %d", code)
 	}
 	for _, invocation := range [][]string{{"help", "cem"}, {"cem", "--help"}} {
