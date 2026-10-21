@@ -152,6 +152,48 @@ func TestXcodeNativeCountsSkipAndDestination(t *testing.T) {
 	}
 }
 
+// TestXcodeBuildFailureAndZeroTests covers V1-2182 (TRE-V0-117) with the
+// retained Xcode 27.0 build-error and zero-test xcresult views: a build
+// failure is BUILD_FAILURE and an empty plan is NO_TESTS, neither an invalid
+// native report; any other destination-less shape stays invalid.
+func TestXcodeBuildFailureAndZeroTests(t *testing.T) {
+	codes := func(o tr.Observation) map[string]bool {
+		m := map[string]bool{}
+		for _, p := range o.Problems {
+			m[p.Code] = true
+		}
+		return m
+	}
+	build := tr.Input{Runner: "xcode-xctest", ExitCode: 65, Stderr: fixture(t, "xcode-build-error-stderr.txt"), Reports: map[string][]byte{"xcode-tests.json": fixture(t, "xcode-build-error-tests.json"), "xcode-summary.json": fixture(t, "xcode-build-error-summary.json")}}
+	o, err := Parse(build)
+	if c := codes(o); err != nil || o.Complete || len(o.Tests) != 0 || !c["BUILD_FAILURE"] || c["INVALID_NATIVE_REPORT"] {
+		t.Fatalf("build failure: %+v %v", o, err)
+	}
+	zero := tr.Input{Runner: "xcode-xctest", ExitCode: 0, Reports: map[string][]byte{"xcode-tests.json": fixture(t, "xcode-zero-tests.json"), "xcode-summary.json": fixture(t, "xcode-zero-summary.json")}}
+	o, err = Parse(zero)
+	if c := codes(o); err != nil || o.Complete || len(o.Tests) != 0 || !c["NO_TESTS"] || c["BUILD_FAILURE"] || c["INVALID_NATIVE_REPORT"] {
+		t.Fatalf("zero tests: %+v %v", o, err)
+	}
+	for name, mutate := range map[string]func(*tr.Input){
+		"build exit 0":         func(in *tr.Input) { in.ExitCode = 0 },
+		"build without report": func(in *tr.Input) { in.Stderr = nil },
+		"build with summary run": func(in *tr.Input) {
+			in.Reports["xcode-summary.json"] = bytes.Replace(in.Reports["xcode-summary.json"], []byte(`"result":"unknown"`), []byte(`"result":"Failed"`), 1)
+		},
+		"zero exit 65": func(in *tr.Input) {
+			in.ExitCode = 65
+			in.Reports["xcode-tests.json"] = fixture(t, "xcode-zero-tests.json")
+		},
+	} {
+		in := build
+		in.Reports = map[string][]byte{"xcode-tests.json": build.Reports["xcode-tests.json"], "xcode-summary.json": build.Reports["xcode-summary.json"]}
+		mutate(&in)
+		if o, err := Parse(in); err == nil || o.Complete || !codes(o)["INVALID_NATIVE_REPORT"] {
+			t.Fatalf("%s admitted: %+v %v", name, o, err)
+		}
+	}
+}
+
 func TestInvalidPartialReportNeverRetainsPassingRows(t *testing.T) {
 	for _, interrupted := range []bool{false, true} {
 		in := tr.Input{Runner: "bats", ExitCode: 0, Stdout: []byte("1..2\nok 1 first\nmalformed\n"), Interrupted: interrupted}
