@@ -740,7 +740,6 @@ docs/specs/pulse-snapshot-lease-v0.md	cmd/corvint-pulse/protocol.go:438
 docs/specs/pulse-snapshot-lease-v0.md	cmd/corvint-pulse/protocol.go:447
 docs/specs/pulse-snapshot-lease-v0.md	cmd/corvint-pulse/protocol.go:458
 docs/specs/pulse-snapshot-lease-v0.md	cmd/corvint-pulse/protocol.go:527
-docs/specs/qualified-lifecycle-v0.md	cmd/corvint/local_completion_event.go:295
 docs/specs/qualified-lifecycle-v0.md	cmd/corvint/qualified_lifecycle.go:108
 docs/specs/qualified-lifecycle-v0.md	cmd/corvint/qualified_lifecycle.go:188
 docs/specs/qualified-lifecycle-v0.md	cmd/corvint/qualified_lifecycle.go:205
