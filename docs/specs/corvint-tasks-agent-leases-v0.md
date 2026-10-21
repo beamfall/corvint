@@ -1919,6 +1919,23 @@ resuming the same host session in the same preserved worktree a policy-bounded n
   composite from the recorded candidates and refuse any mismatch, so `READY_FOR_INTEGRATION` binds
   every repository's exact commit. CAL-V0-087 governs gates over, and integration of, that
   composite candidate.
+- `CAL-V0-073`: `corvint-tasks ticket create --template` MUST return, in one
+  `taskman-command-result/0` item, a byte-canonical CREATE `payload` for the current queue (also
+  as the exact string `payloadCanonical`) whose `source` is `NATIVE` with `sourceQueueId` read
+  from `queue.json`, and which `ticket create` accepts once `title`, `body` and
+  `acceptanceCriteria` (named in `fill`) are filled in. The template title is empty, so an
+  unedited template refuses. A separate `fields` object MUST document every CREATE key, the
+  optional `localToken`, `requiredRoles` and `requiresPool`, and the nested `effects`, `source`,
+  `effects.resources[]` and `dependencies[]` members by dotted path, each with its type and
+  `nullable` flag. `values` MUST mean only the closed enum of that key's own scalar value, taken
+  from the vocabularies the decoder enforces (gate and pool values from the current policy);
+  `elementValues` is the closed set each array element is drawn from (`requiredGates`, and the
+  roles inside `requiredRoles`); `current` is this queue's value of an open field
+  (`source.sourceQueueId`, an Identifier). `nullableKeys` lists the paths marked nullable;
+  `dependencies[].gateId` is nullable only with obligation `COMPLETED`, as its note says.
+  The command reads only the intent store: it MUST NOT read stdin or the journal, take the lock,
+  or write any file, works before `init`, refuses `--template` on other verbs and when any other
+  flag is passed (by presence, whatever its value), and `ticket create --help` names it.
 - `CAL-V0-087`: A config `repositories` entry MAY carry `integrationBranch`, a label naming the
   branch of that checkout that receives the repository's candidate. When the config also sets
   `ownIntegrationCheckout`, admission MUST record each such entry's `integrationBranch` and the
@@ -3215,6 +3232,40 @@ derived and needs no new store state.
   the snapshot and the work-state observation. `WORK_STATE_HELD` is derived dispatcher output only:
   it appears in the dispatcher's ticket plan and `state` events. It is never a wire code, a stored
   value, a plan-preview reason or a claim refusal.
+
+- `CAL-V0-106`: `corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payload
+  JSON) [--issued-at TS] [--role ROLE]` MUST read a non-empty JSON array of at most 1000 entries,
+  and at most 8 MiB, each a closed object `{target, expectedRevision, payload}`. `target` is a
+  ticket ID or local ID, `expectedRevision` a Count string and `payload` the REFINE payload
+  canonicalized as the single form canonicalizes it. Before taking the writer lock, the command
+  MUST validate every entry: the entry's shape, its payload, that its target exists in the
+  current queue, that no target is named twice, and that the entry's derived envelope decodes. It
+  MUST also check that the actor is admitted. Any failure refuses the whole batch with the failing
+  entry's path and writes nothing. Entry `i` is the ordinary §3.3 REFINE envelope with request ID
+  `ID/i` (the derived IDs must fit `wire.MaxRequestIDBytes`) and the batch's one `issuedAt`. The
+  command MUST apply the entries in index order, in chunks. Each chunk acquires the writer lock
+  once, runs the writer guards and §5.2 redo once, and starts no entry after 8 entries
+  (`store.BatchChunkEntries`) or once it has held the lock for 2 s (`store.BatchChunkHold`). Its
+  first entry always runs. Between chunks the command MUST release the lock and wait
+  `store.BatchYield` (5 lock polls) before acquiring it again, so a polling claim, renew or
+  heartbeat can commit between chunks. Within a chunk, each entry MUST be committed exactly as the
+  single form commits it: its own request lookup and replay (TM-V0-006), CAS on
+  `expectedRevision`, recorded time sampled again from the command's clock, and receipt.
+  A refused entry, such as a stale `expectedRevision` (`REVISION_CONFLICT`) or a request ID
+  conflict, MUST write nothing for that entry, and the batch continues. An error, including a
+  writer-guard refusal while a chunk opens, MUST stop the batch at that entry and report every
+  later entry as `NOT_ATTEMPTED`. The command MUST return one `taskman-command-result/0` item with
+  `batchRequestId`, `issuedAt`, `chunkEntries`, `chunks`, the counts `completed`, `replayed`,
+  `failed` and `notAttempted`, and an `entries` array index-aligned with the input. Each entry
+  gives `index`, `requestId`, `ticketId`, `chunk`, `outcome`, `codes`, `replayed`, `receipt`,
+  `resultingRevision` and `detail`. The envelope is `OK` only when every entry completed. It is
+  `ERROR` when an entry erred, and otherwise `REFUSED`, with the union of the entry codes. Repeating
+  the command with the same `--request-id`, `--issued-at` and input MUST replay every completed
+  entry without a second receipt. The same request ID with a different `issuedAt` or entry is
+  refused per entry as `REQUEST_ID_CONFLICT`. `--batch` refuses `--target`, `--expected-revision`
+  and `--template`, is recognized only in a flag position (never as another flag's value), works only
+  on `ticket refine`, and `ticket refine --help` documents it. The 8 MiB bound applies to
+  `--payload` and `--payload-stdin` alike.
 
 Non-goals: a native, revisionless program hold (the issue's alternative), counting held tickets for
 plan preview or `claim-next`, which have no work-state observation and keep today's window, a
@@ -7944,23 +7995,7 @@ shapes, null-able keys and the `order` string were discoverable only by refusal,
 `source.sourceQueueId` had to be guessed from `queue.json`. This amendment adds one read-only
 command. It changes no wire profile, payload key, validation rule or writer.
 
-- `CAL-V0-073`: `corvint-tasks ticket create --template` MUST return, in one
-  `taskman-command-result/0` item, a byte-canonical CREATE `payload` for the current queue (also
-  as the exact string `payloadCanonical`) whose `source` is `NATIVE` with `sourceQueueId` read
-  from `queue.json`, and which `ticket create` accepts once `title`, `body` and
-  `acceptanceCriteria` (named in `fill`) are filled in. The template title is empty, so an
-  unedited template refuses. A separate `fields` object MUST document every CREATE key, the
-  optional `localToken`, `requiredRoles` and `requiresPool`, and the nested `effects`, `source`,
-  `effects.resources[]` and `dependencies[]` members by dotted path, each with its type and
-  `nullable` flag. `values` MUST mean only the closed enum of that key's own scalar value, taken
-  from the vocabularies the decoder enforces (gate and pool values from the current policy);
-  `elementValues` is the closed set each array element is drawn from (`requiredGates`, and the
-  roles inside `requiredRoles`); `current` is this queue's value of an open field
-  (`source.sourceQueueId`, an Identifier). `nullableKeys` lists the paths marked nullable;
-  `dependencies[].gateId` is nullable only with obligation `COMPLETED`, as its note says.
-  The command reads only the intent store: it MUST NOT read stdin or the journal, take the lock,
-  or write any file, works before `init`, refuses `--template` on other verbs and when any other
-  flag is passed (by presence, whatever its value), and `ticket create --help` names it.
+- `CAL-V0-073` is defined under `## Requirements`; it moved there unchanged (V1-0798) so the OCM parser enumerates it.
 
 Non-goals: templates for other verbs, interactive prompting, defaults inferred from history, and
 any change to CREATE validation or canonicalization. Failure modes, as the tests enforce them: the
@@ -8129,39 +8164,7 @@ lock for the whole run instead. This amendment adds a chunked batch form of `tic
 changes no wire profile, envelope, payload rule, receipt or replay rule, and it leaves the
 single-ticket `ticket refine` unchanged.
 
-- `CAL-V0-106`: `corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payload
-  JSON) [--issued-at TS] [--role ROLE]` MUST read a non-empty JSON array of at most 1000 entries,
-  and at most 8 MiB, each a closed object `{target, expectedRevision, payload}`. `target` is a
-  ticket ID or local ID, `expectedRevision` a Count string and `payload` the REFINE payload
-  canonicalized as the single form canonicalizes it. Before taking the writer lock, the command
-  MUST validate every entry: the entry's shape, its payload, that its target exists in the
-  current queue, that no target is named twice, and that the entry's derived envelope decodes. It
-  MUST also check that the actor is admitted. Any failure refuses the whole batch with the failing
-  entry's path and writes nothing. Entry `i` is the ordinary §3.3 REFINE envelope with request ID
-  `ID/i` (the derived IDs must fit `wire.MaxRequestIDBytes`) and the batch's one `issuedAt`. The
-  command MUST apply the entries in index order, in chunks. Each chunk acquires the writer lock
-  once, runs the writer guards and §5.2 redo once, and starts no entry after 8 entries
-  (`store.BatchChunkEntries`) or once it has held the lock for 2 s (`store.BatchChunkHold`). Its
-  first entry always runs. Between chunks the command MUST release the lock and wait
-  `store.BatchYield` (5 lock polls) before acquiring it again, so a polling claim, renew or
-  heartbeat can commit between chunks. Within a chunk, each entry MUST be committed exactly as the
-  single form commits it: its own request lookup and replay (TM-V0-006), CAS on
-  `expectedRevision`, recorded time sampled again from the command's clock, and receipt.
-  A refused entry, such as a stale `expectedRevision` (`REVISION_CONFLICT`) or a request ID
-  conflict, MUST write nothing for that entry, and the batch continues. An error, including a
-  writer-guard refusal while a chunk opens, MUST stop the batch at that entry and report every
-  later entry as `NOT_ATTEMPTED`. The command MUST return one `taskman-command-result/0` item with
-  `batchRequestId`, `issuedAt`, `chunkEntries`, `chunks`, the counts `completed`, `replayed`,
-  `failed` and `notAttempted`, and an `entries` array index-aligned with the input. Each entry
-  gives `index`, `requestId`, `ticketId`, `chunk`, `outcome`, `codes`, `replayed`, `receipt`,
-  `resultingRevision` and `detail`. The envelope is `OK` only when every entry completed. It is
-  `ERROR` when an entry erred, and otherwise `REFUSED`, with the union of the entry codes. Repeating
-  the command with the same `--request-id`, `--issued-at` and input MUST replay every completed
-  entry without a second receipt. The same request ID with a different `issuedAt` or entry is
-  refused per entry as `REQUEST_ID_CONFLICT`. `--batch` refuses `--target`, `--expected-revision`
-  and `--template`, is recognized only in a flag position (never as another flag's value), works only
-  on `ticket refine`, and `ticket refine --help` documents it. The 8 MiB bound applies to
-  `--payload` and `--payload-stdin` alike.
+- `CAL-V0-106` is defined under `## Requirements`; it moved there unchanged (V1-0988) so the OCM parser enumerates it.
 
 Non-goals: batch forms of other verbs; one atomic all-or-nothing batch; fairness for the polling
 writer lock beyond the yield; any change to per-entry audit cost (each entry still audits the store,

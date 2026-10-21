@@ -1201,6 +1201,20 @@ Options:
   --max-unknown N     Optional non-negative unknown-obligation ceiling.
   --expected-base REV Independent expected base; required for the cem/1.0 map.
   --target REV        Independent target; required for the cem/1.0 map.
+  --replace           prepare only: replace an existing map that binds a
+                      different target, intent or CEM (otherwise refused
+                      with map-outdated) or that no longer verifies. The
+                      replaced map's links, marks and assessments are
+                      discarded, not carried over; copy the map aside first
+                      to keep that review.
+
+report writes by default to .git/corvint/ocm-review.md, private Git metadata
+that never dirties the worktree. An explicit --output must be a normalized,
+repository-relative path inside the repository root that names no .git
+segment; an absolute path such as /tmp/report.md is refused with
+unsupported-ocm-output-path. A report written inside the worktree is a visible
+untracked file, which blocks clean-worktree admission (for example frozen
+selected-check verification) until it is moved or removed.
 
 The bound CEM must be a cem/1.0 map; a retired cem/0.x map refuses with
 unsupported-spec and its recovery line.

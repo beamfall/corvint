@@ -82,6 +82,34 @@ chmod 600 "$tmp/locked.txt"
 [[ $out == *'REFUSE missing-inputs INTENTS:unreadable VERIFY:unreadable'$'\n''fix: '* ]] || fail "finish accepted a file it cannot read: $out"
 ok
 
+# DCW-V0-090: a committed spec edit without regenerated indexes is refused before any build;
+# regenerating and committing clears it. The fixture has no build helper, so a passing check
+# stops at the missing dogfood-build-corvint.sh instead.
+fx=$tmp/specfix
+mkdir -p "$fx/script" "$fx/docs/specs"
+cp "$script/dogfood-finish.sh" "$script/gen-spec-requirements.sh" "$fx/script/"
+git -C "$fx" init -q -b main
+printf '# One spec\n\nIntent status: proposed\nDelivery status: not-started\n\n## Agent digest\n- Claim: One does the first thing.\n\n- ONE-V0-001: The first clause.\n' > "$fx/docs/specs/one.md"
+printf '[]\n' > "$fx/docs/specs/INDEX.json"
+printf '# Specs\n\n| Scope | Contract | Intent | Delivery | Binding evidence or next gate |\n| --- | --- | --- | --- | --- |\n' > "$fx/docs/specs/README.md"
+fxgit() { git -C "$fx" -c user.name=t -c user.email=t@example.invalid "$@"; }
+fxregen() { (cd "$fx" && git add -A && d=$(mktemp -d) && script/gen-spec-requirements.sh --all "$d" &&
+  cp "$d/REQUIREMENTS.tsv" "$d/INDEX.json" "$d/README.md" docs/specs/ && /bin/rm -rf "$d" && git add -A); }
+fxregen || fail "spec fixture generation"
+fxgit commit -qm base
+fxbase=$(fxgit rev-parse HEAD)
+printf -- '- ONE-V0-002: The second clause.\n' >> "$fx/docs/specs/one.md"
+fxgit commit -qam 'spec edit only'
+: > "$fx/plan.tsv"
+out=$(cd "$fx" && env -u CORVINT_BIN script/dogfood-finish.sh "$fxbase" plan.tsv 2>&1)
+[[ $? == 2 && $out == *'REFUSE spec-requirements-stale docs/specs/REQUIREMENTS.tsv'*'fix: '*'make spec-requirements'* ]] ||
+  fail "finish accepted a stale requirements index: $out"
+fxregen || fail "spec fixture regeneration"
+fxgit commit -qm regenerate
+out=$(cd "$fx" && env -u CORVINT_BIN script/dogfood-finish.sh "$fxbase" plan.tsv 2>&1)
+[[ $out != *spec-requirements-stale* && $out == *dogfood-build-corvint.sh* ]] || fail "finish refused regenerated indexes: $out"
+ok
+
 # ASD-V0-017: last activity from transcript timestamps or mtime; replay flags gaps.
 now=$(perl -MTime::Local -e 'print timegm(0, 0, 12, 18, 9, 2026)')
 mkdir -p "$tmp/lanes/busy" "$tmp/lanes/parked"

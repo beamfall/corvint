@@ -57,6 +57,38 @@ analyzer families need explicit runtime/domain disposition; their presence is no
   acceptance, generation and candidate identities. FAILED alone MUST NOT establish a killed control;
   exact reviewed assertion/control relevance remains a separate experiment obligation. Default Core,
   frozen CEM0.x and Tasks policy remain unchanged until their own versioned migration is delivered.
+- `TRE-V0-110`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1541) For
+  `minitest` and `rails-test`, a test whose native result carries a `Minitest::UnexpectedError`
+  MUST be `FAILED` with failure kind `UNKNOWN` (the cause is an exception, not an assertion) and a
+  message naming only the exception class (`UnexpectedError: <Class>`, at most 1024 bytes; the
+  exception text is not retained). Other cases keep their native outcomes and the run stays
+  complete. A skipped or passed result is never reclassified.
+- `TRE-V0-111`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1537) The
+  `ctest` profile MUST run CTest with `--test-dir` set to a run-owned `ctest-run/` directory in the
+  report directory, whose generated `CTestTestfile.cmake` only includes the caller's build tree
+  (`subdirs("<Root>")`). CTest's own bookkeeping (`Testing/`, including `Testing/Temporary/`
+  `LastTest.log`, `LastTestsFailed.log` and `CTestCostData.txt`) is not written into the build
+  tree and stays in the report directory evidence (`ctest-run/Testing/Temporary/`). Tests still run
+  from their own build directories, so files a test itself writes there are outside this
+  requirement. A `Root` that is not absolute or holds a character CMake would
+  re-parse inside a quoted argument (`"`, `\`, `$`, `;`, NUL, CR, LF) is refused, never quoted.
+- `TRE-V0-113`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1537 review)
+  The run-owned test directory MUST keep the top-level configuration CTest reads from its test
+  directory. Its `CTestCustom.cmake` includes the build tree's `CTestCustom.cmake`, or else its
+  `CTestCustom.ctest` (CTest's precedence), so pre- and post-test hooks still run and a failing hook
+  still fails the run. The build tree's `DartConfiguration.tcl` (default test `TimeOut` and other
+  test settings) is copied with only its `BuildDirectory` entry pointed at the run directory, which
+  keeps CTest's bookkeeping out of the build tree. A `DartConfiguration.tcl` that cannot be read, or
+  that has other than exactly one `BuildDirectory` entry, is refused rather than dropped. Paths reach
+  CMake with forward slashes, so a Windows `Root` such as `C:\build` is admitted, and the
+  metacharacter refusal applies to the converted path.
+- `TRE-V0-112`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1535) The
+  `swift-testing` profile MUST refuse, before execution, a package directory (`Root`, or `Root`
+  joined with `Project`) whose symlink-resolved base name is case-insensitively a reserved
+  toolchain package identity, because SwiftPM derives the identity from the resolved directory.
+  A package directory that cannot be resolved is refused. The reserved set holds only the observed
+  collision, `swift-testing`. Other names, including `Testing` and a symlink named `swift-testing`
+  that resolves elsewhere, are admitted.
 
 ## Runner inventory
 
@@ -1663,13 +1695,6 @@ V1-1541: the profile-owned Minitest reporter mapped a test that raises (`Minites
 to `UNKNOWN`, so the shared normalizer voided every case of the run, although Minitest attributes
 the error to one named test and counts it as an error, never as a pass.
 
-- `TRE-V0-110`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1541) For
-  `minitest` and `rails-test`, a test whose native result carries a `Minitest::UnexpectedError`
-  MUST be `FAILED` with failure kind `UNKNOWN` (the cause is an exception, not an assertion) and a
-  message naming only the exception class (`UnexpectedError: <Class>`, at most 1024 bytes; the
-  exception text is not retained). Other cases keep their native outcomes and the run stays
-  complete. A skipped or passed result is never reclassified.
-
 Decision: FAILED-with-cause rather than UNKNOWN. The native runner names the case and never counts
 it as passed, so FAILED invents no certainty; UNKNOWN discarded the other cases' outcomes. The
 Python `unittest` and Ruby `test-unit` profiles still map native errors to UNKNOWN; aligning them is
@@ -1688,27 +1713,6 @@ V1-1537: CTest always writes `Testing/Temporary` (`LastTest.log`, `LastTestsFail
 `CTestCostData.txt`) into the directory it runs from, so the `ctest` profile left residue in the
 caller's build tree.
 
-- `TRE-V0-111`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1537) The
-  `ctest` profile MUST run CTest with `--test-dir` set to a run-owned `ctest-run/` directory in the
-  report directory, whose generated `CTestTestfile.cmake` only includes the caller's build tree
-  (`subdirs("<Root>")`). CTest's own bookkeeping (`Testing/`, including `Testing/Temporary/`
-  `LastTest.log`, `LastTestsFailed.log` and `CTestCostData.txt`) is not written into the build
-  tree and stays in the report directory evidence (`ctest-run/Testing/Temporary/`). Tests still run
-  from their own build directories, so files a test itself writes there are outside this
-  requirement. A `Root` that is not absolute or holds a character CMake would
-  re-parse inside a quoted argument (`"`, `\`, `$`, `;`, NUL, CR, LF) is refused, never quoted.
-
-- `TRE-V0-113`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1537 review)
-  The run-owned test directory MUST keep the top-level configuration CTest reads from its test
-  directory. Its `CTestCustom.cmake` includes the build tree's `CTestCustom.cmake`, or else its
-  `CTestCustom.ctest` (CTest's precedence), so pre- and post-test hooks still run and a failing hook
-  still fails the run. The build tree's `DartConfiguration.tcl` (default test `TimeOut` and other
-  test settings) is copied with only its `BuildDirectory` entry pointed at the run directory, which
-  keeps CTest's bookkeeping out of the build tree. A `DartConfiguration.tcl` that cannot be read, or
-  that has other than exactly one `BuildDirectory` entry, is refused rather than dropped. Paths reach
-  CMake with forward slashes, so a Windows `Root` such as `C:\build` is admitted, and the
-  metacharacter refusal applies to the converted path.
-
 Decision: the log is retained as report-directory evidence but is not a parsed report, so a large
 test log cannot exceed the report byte bound and turn a complete run incomplete; the JUnit report
 stays the only parsed input.
@@ -1726,14 +1730,6 @@ V1-1535: SwiftPM derives a package's identity from its directory name. A fixture
 directory named `swift-testing` is compiled with `-package-name swift_testing`, which collides with
 the toolchain swift-testing package; Swift 6.4 then fails the build with `error: fatalError` and the
 run reports a build failure that is the fixture's fault, not the code under test.
-
-- `TRE-V0-112`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1535) The
-  `swift-testing` profile MUST refuse, before execution, a package directory (`Root`, or `Root`
-  joined with `Project`) whose symlink-resolved base name is case-insensitively a reserved
-  toolchain package identity, because SwiftPM derives the identity from the resolved directory.
-  A package directory that cannot be resolved is refused. The reserved set holds only the observed
-  collision, `swift-testing`. Other names, including `Testing` and a symlink named `swift-testing`
-  that resolves elsewhere, are admitted.
 
 Decision: reserve only the identity a live run showed to fail; a directory named `Testing` built and
 passed on the same toolchain, so it is not reserved. A newly observed collision is added to the set

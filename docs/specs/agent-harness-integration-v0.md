@@ -174,7 +174,7 @@ separate exact extension tuple remains governed by AHI-024.
   binary, never from worktree-readable runtime discovery. The table MUST preserve the
   `subset-of-recognised`/`refuse` degradation rule. `harness event` refuses a host outside that
   table with `unsupported-harness-host` and an event outside the `EVENT` set with
-  `unsupported-harness-event` (`internal/gokernel/harness.go:384,387`). A host API change MUST NOT
+  `unsupported-harness-event` (`internal/gokernel/harness.go:384,387@2b8bd0c3`). A host API change MUST NOT
   alter Corvint Core, receipt identity, CEM semantics, or stored evidence.
 - `AHI-012`: The integration MUST meet a cold query p95 of 500 ms after the Corvint index is available
   and add no more than 250 ms p95 to non-query lifecycle events, excluding an explicitly requested

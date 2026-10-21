@@ -17,8 +17,9 @@ set -eu
 # see the shape that audit found most often: a citation that still lands on a real line but
 # no longer on the line it meant. An anchor makes that mechanical. Anchors are opt-in per
 # citation in the legacy documents frozen in script/line-citation-legacy-documents.txt; every
-# citation in a later document requires one. The committed unpinned count ceiling prevents the
-# legacy debt from growing without requiring a mechanical bulk repin. Write an anchor with --hash:
+# citation in a later document requires one. The committed unpinned count ceiling and the
+# per-citation inventory in script/line-citation-unpinned-inventory.txt prevent the legacy debt
+# from growing or drifting without requiring a mechanical bulk repin. Write an anchor with --hash:
 #
 #   script/check-line-citations.sh --hash internal/contextindex/index.go:473
 #
@@ -181,11 +182,16 @@ sub log_or_backlog_doc {
 
 sub scanned_doc {
     my ($path) = @_;
-    return $path =~ m{^(?:docs/(?:specs|agent-memory|decisions)/[^/]+\.md|README\.md|docs/(?:DOGFOOD|AGENT-ROUTES|SELF-DEVELOPMENT|SPEC-TOOLCHAIN-INTEGRATION|RELEASE-NOTES-[^/]*)\.md|conformance/[^/]+/README\.md)$};
+    return $path =~ m{^(?:docs/(?:specs|agent-memory|decisions)/[^/]+\.md|README\.md|docs/(?:DOGFOOD|AGENT-ROUTES|GLOSSARY|AUTOMATION|SELF-DEVELOPMENT|SPEC-TOOLCHAIN-INTEGRATION|RELEASE-NOTES-[^/]*)\.md|conformance/[^/]+/README\.md)$};
 }
 
 my @failures;
+my @repins;
+# The byte offset of the token being checked in its document line, so --repin rewrites exactly
+# that occurrence and never another identical token on the same line.
+my $token_at;
 my %legacy_document;
+my (%unpinned_inventory, %unpinned_seen);
 my %drift_waiver;
 my $unpinned_count = 0;
 # This is a ratchet, not a target. Lowering it is free; raising it requires an explicit contract diff.
@@ -246,6 +252,23 @@ sub check {
         push @failures, "$doc:$line_number  $token  no such file in the Git index: $path";
         return;
     }
+    my $waived = $drift_waiver{drift_waiver_key($doc, $path, $first, $last)};
+    # DCG-V0-022: a pin whose text moved unchanged is reported as a move before any range or
+    # blank-line finding, since those describe the old position, not the cited text.
+    if (defined $pin && !$waived) {
+        my @numbers = anchored_numbers($first, $last, @extra);
+        my $in_range = !grep { $_ < 1 || $_ > @$lines } @numbers;
+        if (!$in_range || anchor_of($lines, @numbers) !~ /^\Q$pin\E/) {
+            my @shifts = relocations($lines, $pin, @numbers);
+            if (@shifts == 1 && relocatable($lines, $shifts[0], @numbers)) {
+                my $moved = shifted_token($token, $shifts[0]);
+                push @failures, "$doc:$line_number  $token  cited content moved unchanged to $moved "
+                    . "(script/check-line-citations.sh --repin rewrites it)";
+                push @repins, [$doc, $line_number, $token, $moved, $token_at];
+                return;
+            }
+        }
+    }
     for my $number ($first, @extra, (defined $last ? $last : ())) {
         if ($number < 1) {
             push @failures, "$doc:$line_number  $token  line $number is before the start of $path (lines are 1-based)";
@@ -256,23 +279,76 @@ sub check {
             return;
         }
     }
-    my $waived = $drift_waiver{drift_waiver_key($doc, $path, $first, $last)};
     for my $number ($first, @extra) {
         push @failures, "$doc:$line_number  $token  $path:$number is a blank or bracket-only line"
             if trivial($lines->[$number - 1]) && !$waived;
     }
-    return unless defined $pin;
+    if (!defined $pin) {
+        # DCG-V0-041: a legacy unpinned citation passes only while it matches an inventory row; it
+        # is reached only once the citation resolves, so a missing file or line is reported as such.
+        my $span = join(',', $first, @extra) . (defined $last ? "-$last" : '');
+        my $key = "$doc\t$path:$span";
+        if (++$unpinned_seen{$key} > ($unpinned_inventory{$key} // 0)) {
+            push @failures, "$doc:$line_number  $token  unpinned citation is new or edited (not in "
+                . "script/line-citation-unpinned-inventory.txt): read $path:$span and pin it with "
+                . "script/check-line-citations.sh --hash $path:$span";
+        }
+        return;
+    }
     return if $waived;
-    my $actual = anchor_of($lines, anchored_numbers($first, $last, @extra));
-    push @failures, "$doc:$line_number  $token  cited content changed: anchor \@$pin, now \@" . substr($actual, 0, 8) . " (read the lines before repinning)"
-        unless $actual =~ /^\Q$pin\E/;
+    my @numbers = anchored_numbers($first, $last, @extra);
+    my $actual = anchor_of($lines, @numbers);
+    return if $actual =~ /^\Q$pin\E/;
+    my @shifts = relocations($lines, $pin, @numbers);
+    my $why = '';
+    if (@shifts > 1) {
+        $why = '; the anchored text now appears at ' . scalar(@shifts) . ' positions, so it is not relocated';
+    } elsif (@shifts == 1) {
+        $why = '; the anchored text appears once at ' . shifted_token($token, $shifts[0])
+            . ', but a span with fewer than two non-blank lines is not relocated';
+    }
+    push @failures, "$doc:$line_number  $token  cited content changed: anchor \@$pin, now \@" . substr($actual, 0, 8)
+        . $why
+        . " (read the lines before repinning)";
+}
+
+# DCG-V0-022: every whole-span shift under which the cited lines hash to the pin again. A pin
+# shorter than eight hex characters is never relocated: at 16 bits a chance match is likely.
+sub relocations {
+    my ($lines, $pin, @numbers) = @_;
+    return () if length($pin) < 8;
+    my ($low, $high) = (sort { $a <=> $b } @numbers)[0, -1];
+    my @shifts;
+    for my $shift (1 - $low .. @$lines - $high) {
+        next if $shift == 0;
+        push @shifts, $shift if anchor_of($lines, map { $_ + $shift } @numbers) =~ /^\Q$pin\E/;
+    }
+    return @shifts;
+}
+
+# A unique hash match alone does not prove a move: when a cited `return nil` changes, another
+# `return nil` elsewhere becomes the only match. A relocation also needs the matched span to hold
+# at least two lines that are neither blank nor bracket-only, so one common line never qualifies.
+sub relocatable {
+    my ($lines, $shift, @numbers) = @_;
+    my %seen;
+    my $substantive = grep { !$seen{$_}++ && !trivial($lines->[$_ + $shift - 1]) } @numbers;
+    return $substantive >= 2;
+}
+
+# The citation token with every number in its line span moved by $shift; the pin is unchanged.
+sub shifted_token {
+    my ($token, $shift) = @_;
+    $token =~ s{:(\d[\d,-]*)(\@[0-9a-f]+`)\z}{my $span = $1; my $tail = $2; $span =~ s/(\d+)/$1 + $shift/ge; ":$span$tail"}e;
+    return $token;
 }
 
 # --hash prints one citation with its anchor appended, so an author can pin a citation
 # without computing the digest by hand.
-if (@ARGV) {
+my $repin = @ARGV == 1 && $ARGV[0] eq '--repin';
+if (@ARGV && !$repin) {
     my ($flag, @tokens) = @ARGV;
-    die "usage: check-line-citations.sh [--hash <path:line[-line][,line]> ...]\n"
+    die "usage: check-line-citations.sh [--repin | --hash <path:line[-line][,line]> ...]\n"
         unless $flag eq '--hash' && @tokens;
     for my $token (@tokens) {
         my ($path, $first, $extra, $last) = $token =~ /^([^:]+):(\d+)((?:,\d+)*)(?:-(\d+))?$/
@@ -298,6 +374,20 @@ for my $path (@$legacy_rows) {
         unless scanned_doc($path);
     die "script/line-citation-legacy-documents.txt: duplicate path: $path\n"
         if $legacy_document{$path}++;
+}
+
+# DCG-V0-041: every unpinned citation a legacy document may still carry, one row per occurrence,
+# as `<document>\t<path>:<span>`. Rows are only ever deleted: a new or edited unpinned citation
+# has no row and fails, so a legacy table cannot drift silently onto a different non-blank line.
+my $inventory_rows = lines_of('script/line-citation-unpinned-inventory.txt')
+    or die "script/line-citation-unpinned-inventory.txt: not readable from the Git index\n";
+for my $row (@$inventory_rows) {
+    next if $row eq '' || $row =~ /^#/;
+    my ($doc, $citation) = $row =~ /^([^\t]+)\t([^\t]+:\d[\d,-]*)$/
+        or die "script/line-citation-unpinned-inventory.txt: malformed row: $row\n";
+    die "script/line-citation-unpinned-inventory.txt: $doc is not on the legacy allowlist\n"
+        unless $legacy_document{$doc};
+    ++$unpinned_inventory{"$doc\t$citation"};
 }
 
 for my $doc (sort grep { scanned_doc($_) } keys %tracked) {
@@ -326,6 +416,7 @@ for my $doc (sort grep { scanned_doc($_) } keys %tracked) {
         # the path; `exit:1` and the like stay prose.
         while ($line =~ /`(?:(\/?[A-Za-z0-9_][A-Za-z0-9_.\/-]*\/[A-Za-z0-9_.-]+\.[a-z0-9]+):(\d+)((?:,\d+)*)(?:-(\d+))?(?:\@([0-9a-f]{4,64}))?|:(\d+)(?:-(\d+))?(?:\@([0-9a-f]{4,64}))?|([A-Z][A-Z0-9-]*-[0-9]{3})|([A-Za-z0-9_.-]+\.[a-z0-9]+):(\d[\d,-]*)(?:\@([0-9a-f]{4,64}))?|[A-Za-z0-9_][A-Za-z0-9_.\/-]*\/[A-Za-z0-9_.-]+\.[a-z0-9]+|([A-Za-z0-9_][A-Za-z0-9_-]*(?:\/[A-Za-z0-9_-]+)*):(\d+)((?:,\d+)*)(?:-(\d+))?(?:\@([0-9a-f]{4,64}))?)`/g) {
             my $token = $&;
+            $token_at = $-[0];
             my $rest = substr($line, pos($line));
             if (defined $9) {
                 my $spec = $spec_of_id{$9};
@@ -366,8 +457,57 @@ for my $doc (sort grep { scanned_doc($_) } keys %tracked) {
     }
 }
 
+# DCG-V0-041: the inventory only shrinks. A row no citation matches is a failure, not a note, so a
+# retired row cannot later admit a new unpinned citation with the same document, path and span.
+for my $key (sort keys %unpinned_inventory) {
+    my $unused = $unpinned_inventory{$key} - ($unpinned_seen{$key} // 0);
+    next if $unused <= 0;
+    my ($doc, $citation) = split /\t/, $key;
+    push @failures, "script/line-citation-unpinned-inventory.txt  $doc\t$citation  $unused row(s) match no "
+        . "unpinned citation that resolves: delete them (rows are only deleted, never reused)";
+}
+
 push @failures, "unpinned citation count $unpinned_count exceeds committed ceiling $unpinned_ceiling; read and pin citations or lower the ceiling"
     if $unpinned_count > $unpinned_ceiling;
+
+# DCG-V0-022: --repin rewrites the worktree copy of each document whose citations moved
+# unchanged, and only when that copy is byte-identical to the index copy the scan read; it never
+# stages. Every other finding is left for the ordinary check to report.
+if ($repin) {
+    my (%by_doc, $refused);
+    push @{ $by_doc{$_->[0]} }, $_ for @repins;
+    for my $doc (sort keys %by_doc) {
+        my $indexed = index_blob($doc);
+        my $worktree = do { local $/; open my $in, '<', $doc or die "$doc: $!\n"; <$in> } // '';
+        if ($worktree ne $indexed) {
+            print STDERR "line citations: --repin refused $doc: the worktree copy differs from the index; stage or discard that edit first\n";
+            $refused = 1;
+            next;
+        }
+        my @doc_lines = split /^/, $worktree;
+        # Rewrite each reported occurrence at its own offset, right to left within a line, so an
+        # identical token elsewhere on the line (a `:N` continuation resolving to another file)
+        # stays as written.
+        for my $move (sort { $a->[1] <=> $b->[1] || $b->[4] <=> $a->[4] } @{ $by_doc{$doc} }) {
+            my (undef, $line_number, $from, $to, $at) = @$move;
+            die "$doc:$line_number: --repin offset $at no longer holds $from\n"
+                unless substr($doc_lines[$line_number - 1], $at, length $from) eq $from;
+            substr($doc_lines[$line_number - 1], $at, length $from) = $to;
+            print "$doc:$line_number  $from -> $to\n";
+        }
+        my $temporary = "$doc.repin.$$";
+        open my $out, '>', $temporary or die "$temporary: $!\n";
+        print {$out} @doc_lines or die "$temporary: $!\n";
+        close $out or die "$temporary: $!\n";
+        chmod((stat $doc)[2] & 07777, $temporary) or die "$temporary: $!\n";
+        rename $temporary, $doc or die "$doc: $!\n";
+    }
+    close_index();
+    print STDERR "line citations: --repin rewrote " . scalar(@repins) . " citation(s); git add the documents and rerun the check\n"
+        if @repins && !$refused;
+    print STDERR "line citations: --repin found no citation whose content moved unchanged\n" unless @repins;
+    exit($refused ? 1 : 0);
+}
 
 close_index();
 

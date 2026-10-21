@@ -240,6 +240,10 @@ No requirement below diverges from the implementation.
   never one synchronous request per file. A path the batch cannot frame or serve as a blob falls
   back to the one-shot `git cat-file blob` read, which fails as the per-file read did. SRG-V0-001
   is unchanged: the input is still the Git index alone.
+- `SRG-V0-040`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2141) Every
+  generator mode MUST refuse an Agent digest Claim longer than 160 characters, the bound the
+  `internal/specindex` INDEX test enforces, naming the spec path and the claim's character length, so
+  `make spec-requirements` fails at the first spec step rather than at `spec-requirements-check`.
 
 ## Non-goals and simpler baseline
 
@@ -335,6 +339,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-016 | `script/spec-requirements-conflict_test.sh`: lanes on two sections of one spec, a prose-only lane against each, and a lane on another spec merge in both orders with every generated file equal to its regeneration. Against the base generator three of those four pairs conflicted in `REQUIREMENTS.tsv`. A title-changing reflow against a row inserted after it conflicts in `REQUIREMENTS.tsv` only, in both orders, and regenerates to both rows (the recorded limit) |
 | SRG-V0-017 | `TestSRGV0017DefinitionLineLocatesEveryRow` (every committed row), `TestSRGV0017DefinitionLineFollowsGeneratorRanks`, `TestSRGV0017ParseIndexReadsBothLayouts`, `TestSRGV0017SpecLookupLocatesCommittedLayout`, `TestSRGV0017KernelLocatesCommittedLayoutLines`, `TestSRGV0017RoadmapLocatesCommittedLayoutLines`, `TestSRGV0017LoadRequirementsReadsBothLayouts`; `script/spec-acceptance-audit.sh` output byte-identical before and after for all three modes; `script/gen-spec-requirements_test.sh` case 8: a row naming another file than its staged definition makes the audit exit 1 |
 | SRG-V0-018 | `script/gen-spec-requirements_test.sh` case 10: `--all` output equals each mode's output byte for byte, a refused projection leaves DIR empty, a missing or absent DIR exits 2, and a newline path and a gitlink entry take the one-shot fallback beside the batch. On the live corpus at `f3ca7224` the `--all` files were byte-identical to the three-pass output and the committed files; the V1-1641 build-log entry holds the before and after timings |
+| SRG-V0-040 | `script/gen-spec-requirements_test.sh`: a 165-character claim fails `--all` with `<path>: the Agent digest Claim is 165 characters; the limit is 160` and leaves DIR empty, and the TSV, `--lines`, `--index` and `--readme` modes refuse it with the same message (the TSV mode now reads spec headers too) |
 
 ## Traceability
 
@@ -358,6 +363,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-016 | `script/spec-requirements-conflict_test.sh` | `spec-requirements-test` |
 | SRG-V0-017 | `internal/specindex/requirements.go`; `internal/console/spec.go`; `internal/compactionkernel/kernel.go`; `internal/dashboard/roadmap/requirements.go`; `script/spec-coverage-audit/main.go`; `script/spec-acceptance-audit.sh` | `TestSRGV0017DefinitionLineLocatesEveryRow`; `TestSRGV0017ParseIndexReadsBothLayouts`; `TestSRGV0017DefinitionLineFollowsGeneratorRanks`; `TestSRGV0017SpecLookupLocatesCommittedLayout`; `TestSRGV0017KernelLocatesCommittedLayoutLines`; `TestSRGV0017RoadmapLocatesCommittedLayoutLines`; `TestSRGV0017LoadRequirementsReadsBothLayouts`; `spec-requirements-test` |
 | SRG-V0-018 | `index_blobs`, the `--all` mode in `script/gen-spec-requirements.sh` and `SPEC_GENERATE` in the `Makefile` | `spec-requirements-test`; `spec-requirements-check` |
+| SRG-V0-040 | the claim-length loop before the TSV and `--lines` exits in `script/gen-spec-requirements.sh` | `spec-requirements-test` |
 
 ## Rollout, rollback, and drift
 
