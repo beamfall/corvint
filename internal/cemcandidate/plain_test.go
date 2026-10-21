@@ -288,3 +288,28 @@ func opaqueLabelled(t *testing.T, raw []byte) []byte {
 	}
 	return bytes.Replace(raw, legacy, []byte(`"profile":"`+cw.StableOpaqueReceiptProfile+`"`), 1)
 }
+
+// CEM-V1-347 (V1-1471): a write, sync or close failure in writeNew leaves no
+// partial file behind, so a failed plain assembly never leaves a stable.json
+// a consumer could read.
+func TestCEMV1347WriteNewFailureRemovesThePartialFile(t *testing.T) {
+	root, err := os.OpenRoot(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	previous := syncNew
+	t.Cleanup(func() { syncNew = previous })
+	injected := fmt.Errorf("injected sync failure")
+	syncNew = func(*os.File) error { return injected }
+	if err := writeNew(root, "stable.json", []byte("{}")); err != injected {
+		t.Fatalf("writeNew returned %v, want the injected failure", err)
+	}
+	if _, err := root.Stat("stable.json"); !os.IsNotExist(err) {
+		t.Fatalf("a failed write left stable.json behind: %v", err)
+	}
+	syncNew = previous
+	if err := writeNew(root, "stable.json", []byte("{}")); err != nil {
+		t.Fatalf("the name is not reusable after cleanup: %v", err)
+	}
+}

@@ -3873,3 +3873,41 @@ stored ledger, note or map depends on it.
 | --- | --- | --- |
 | CEM-V1-345 | `TestCEMV1345RewoundVerdictTipReadsRollback` (`internal/gitnotes`); `TestCEMV1345VerdictsTipThroughTheCLI` (`cmd/corvint`); `ProvenanceWithVerdictsTip`, `refTipState` in `internal/gitnotes/provenance.go` | Equal and ancestor pins read `current` with the verified record; a ref reset to an older commit and a deleted ref read `rollback` with no records; the two argument refusals; repository state unchanged across every read |
 | CEM-V1-346 | `TestCEMV1346TwoProcessAnchorsOneWins` (`internal/gitnotes`), which re-executes the test binary as two anchor processes; `publishNotes` in `internal/gitnotes/anchor.go` | The held process validates and stages, the free process wins, the held process is refused `verdict-ledger-conflict`, and the ledger holds only the winner's line with no staging ref |
+
+## Plain assembly write-failure cleanup and bundle-parent limit (V1-1471, 2026-10-20)
+
+Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-1471.
+
+- `CEM-V1-347`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1471) When the
+  write, sync or close of a file the plain assembly creates (`CEM-V1-240`) fails, the assembly
+  MUST remove that file before returning the failure, so no partial `stable.json` or artifact
+  remains in the bundle.
+- `CEM-V1-348`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1471) Named
+  limit, bundle-parent check/open window: both the plain (`cem-stable-plain-assembly/1`) and the
+  Tasks-bound (`cem-stable-assembly/1`) assembly check the bundle parent by pathname
+  (`EvalSymlinks`, outside the repository) and then open it. A process that can write an ancestor
+  of the bundle directory can swap a component between the check and the open, or rename the
+  bundle after verification, so the files land somewhere other than the named path. Threat model:
+  the caller owns the bundle parent; a hostile writer to that parent is out of scope. The bundle's
+  identity is carried by the map's own digests, not its path, so a consumer verifying the bundle
+  is not misled about its content. Closing the window (descriptor-relative opens of every
+  component) is not done.
+
+Non-goals: a temporary sibling with an atomic rename; any change to the bundle layout, the
+refusals or the Tasks-bound producer.
+
+Failure modes:
+- A process killed between create and cleanup can still leave a partial file; the next assembly
+  into a new directory is unaffected, because the bundle directory must be new.
+
+Acceptance evidence: `TestCEMV1347WriteNewFailureRemovesThePartialFile` (`internal/cemcandidate`)
+injects a sync failure through the `syncNew` seam and passes. Dropping the cleanup `Remove` makes
+it fail.
+
+Rollback: revert the change commit. The seam is a test-only package variable and no stored
+artifact depends on it.
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-347 | `TestCEMV1347WriteNewFailureRemovesThePartialFile` (`internal/cemcandidate`); `writeNew`, `syncNew` in `internal/cemcandidate/plain.go` | The injected failure is returned, no `stable.json` remains, and the name is reusable |
+| CEM-V1-348 | Recorded limit; `newBundle` in `internal/cemcandidate/plain.go`; finding 2 in `docs/build-log/2026-10-15-cem-plain-criterion-producer.md` | Not closed; the threat model above |
