@@ -28,10 +28,16 @@ import (
 // tree after executing elsewhere); the record is already retained, so that
 // receipt need not post it, and it is checked again in full. A named result
 // that does not decode but claims a reusedFrom is refused, never skipped.
+// A source at another tree is accepted only when Descent, the caller's git
+// observation, reports that a commit carrying the attempt's candidate tree is
+// an ancestor of a commit carrying the source's tree on the intent branch the
+// history had posted (TCD-V0-153); without Descent such a reuse is refused.
 type GateReuseReceiptAudit struct {
+	Descent   func(seal, pass, branch string) (string, error)
 	attempts  map[string]*snapshot.Attempt
 	policy    *intent.Policy
 	policyErr string
+	branch    string
 	accepted  map[string]bool
 }
 
@@ -75,6 +81,8 @@ func (a *GateReuseReceiptAudit) Step(rc *snapshot.Receipt, _ wire.Digest, blob E
 			if at := next[id]; at != nil {
 				a.attempts[id] = at
 			}
+		case p.Path == "intent/queue.json":
+			a.branch = postedBranch(p, blob)
 		case p.Path == "intent/policy.json":
 			a.policy, a.policyErr = nil, "the retained policy was removed"
 			if p.Sha256 == nil {
@@ -151,8 +159,14 @@ func (a *GateReuseReceiptAudit) reuse(rc *snapshot.Receipt, at *snapshot.Attempt
 		return a.fail(rc, "reused source %s is not an executed PASSED result of gate %s", from, g.GateID)
 	case owner == nil || !slices.Contains(owner.GateResults, from):
 		return a.fail(rc, "reused source %s is not named by its attempt %s", from, src.AttemptID)
-	case at.CandidateTreeOid == nil || src.CandidateTreeOid != *at.CandidateTreeOid:
+	case at.CandidateTreeOid == nil:
 		return a.fail(rc, "reused source %s is not at the attempt's candidate tree", from)
+	case src.CandidateTreeOid != *at.CandidateTreeOid:
+		if err := a.descends(rc, from, *at.CandidateTreeOid, src.CandidateTreeOid); err != nil {
+			return err
+		}
+	}
+	switch {
 	case a.policy == nil:
 		return a.fail(rc, "the gate definition cannot be recovered: %s", a.policyErr)
 	}
@@ -165,6 +179,40 @@ func (a *GateReuseReceiptAudit) reuse(rc *snapshot.Receipt, at *snapshot.Attempt
 		return a.fail(rc, "reused gate result %s is not its source rebound to attempt %s", d, at.AttemptID)
 	}
 	return nil
+}
+
+// descends accepts a source at another tree only as a descendant of the
+// candidate on the posted intent branch (TCD-V0-153). An unobservable answer
+// is returned as is, so a missing git never reads as a forked journal.
+func (a *GateReuseReceiptAudit) descends(rc *snapshot.Receipt, from, seal, pass string) error {
+	if a.Descent == nil || a.branch == "" {
+		return a.fail(rc, "reused source %s is not at the attempt's candidate tree and its ancestry cannot be verified", from)
+	}
+	why, err := a.Descent(seal, pass, a.branch)
+	if err != nil {
+		return err
+	}
+	if why != "" {
+		return a.fail(rc, "reused source %s: %s", from, why)
+	}
+	return nil
+}
+
+// postedBranch is the intent branch a queue post names, "" when it is
+// removed or unreadable.
+func postedBranch(p snapshot.PostEntry, blob ExternalReviewBlob) string {
+	if p.Sha256 == nil {
+		return ""
+	}
+	raw, err := externalPostBytes(p, blob)
+	if err != nil {
+		return ""
+	}
+	q, err := intent.DecodeQueue(raw)
+	if err != nil {
+		return ""
+	}
+	return q.IntentBranch
 }
 
 // claimsReuse reports whether undecodable gate result bytes still carry a
