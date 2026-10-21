@@ -43,7 +43,7 @@ semaphore):
 | subtests parallel only | 15 | 158.2 s | 101 tests pass |
 | after (this change) | 15 to 56 | 96.3 s | 101 tests pass |
 
-The after run had the higher load and was still 49 % faster. The sequential phase is now about 8 s.
+The after run had the higher load and was still 49 % faster. After the merge with origin/main, the package passed again in 274.0 s at load average 266 to 290. Even at that load it is well under the 544 to 655 s the ticket recorded under load. The sequential phase is now about 8 s.
 The parallel phase is bound by `check` syscalls. A `-race` run of the parallelized fault, recovery,
 native-read and CALV0111 tests passed (36 s).
 
