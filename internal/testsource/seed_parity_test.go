@@ -331,7 +331,7 @@ func TestTSAV0107SeedNotAnalysed(t *testing.T) {
 		{"spec/a_spec.rb", "RSpec.describe A do\n  it 'a' do\n    create_list(:order, n)\n  end\nend\n", "seed-count-not-literal", "spec/a_spec.rb:3"},
 		{"spec/a_spec.rb", "RSpec.describe A do\n  it 'a' do\n    create(kind)\n  end\nend\n", "seed-kind-not-literal", "spec/a_spec.rb:3"},
 		{"spec/a_spec.rb", "RSpec.describe A do\n  it 'a' do\n    create(:order) do |o|\n      o.x = 1\n    end\n  end\nend\n", "seed-form-unsupported", "spec/a_spec.rb:3"},
-		{"spec/a_spec.rb", "RSpec.describe A do\n  it 'a' do\n    prepare_orders\n  end\nend\n", "seed-form-unsupported", "spec/a_spec.rb:3"},
+		{"spec/a_spec.rb", "RSpec.describe A do\n  it 'a' do\n    seed_orders\n  end\nend\n", "seed-form-unsupported", "spec/a_spec.rb:3"},
 		{"spec/a_spec.rb", "RSpec.describe A do\n  it 'a' do\n    expect(1).to eq(1)\n  end\n  end\nend\n", "seed-source-uncertain", "spec/a_spec.rb:2"},
 		{"a.test.ts", "test('a', () => {\n  createList('order', n);\n});\n", "seed-count-not-literal", "a.test.ts:2"},
 		{"a.test.ts", "test('a', () => {\n  create('order', { ...base });\n});\n", "seed-attributes-not-literal", "a.test.ts:2"},
