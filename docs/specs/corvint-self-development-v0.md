@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-09-08
-Intent status: accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08); ASD-V0-013..021 accepted under the owner's standing auto-accept (2026-10-11) (V1-1627..V1-1632, V1-1755, V1-1910, V1-0360)
+Intent status: accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08); ASD-V0-013..022 accepted under the owner's standing auto-accept (2026-10-11) (V1-1627..V1-1632, V1-1755, V1-1910, V1-0360, V1-1978)
 Delivery status: experimental
 Authoritative inputs: `AGENTS.md`, `docs/DOGFOOD.md`, `docs/LANE-ORCHESTRATION.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/local-completion-policy-v0.md`, `docs/specs/go-production-kernel-migration-v0.md`
 
 ## Agent digest
 - Claim: Corvint development selects applicable existing feature routes, preserves real use evidence, and finishes through the existing local completion policy.
-- Status: accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08); ASD-V0-013..021 accepted under the owner's standing auto-accept (2026-10-11) (V1-1627..V1-1632, V1-1755, V1-1910, V1-0360)/experimental
+- Status: accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08); ASD-V0-013..022 accepted under the owner's standing auto-accept (2026-10-11) (V1-1627..V1-1632, V1-1755, V1-1910, V1-0360, V1-1978)/experimental
 - Exists: `docs/SELF-DEVELOPMENT.md`, thin Codex/Claude skill routes and native feature/eval help.
 - Blocked on: final exact-target checks, independent review and enrolled strict finish; formal FULL and protected-runner authority remain separate.
 - Read next: Requirements; Acceptance and evidence; Failure and rollback.
@@ -52,6 +52,7 @@ profile, execution or closing-authority semantics. Compatibility remains FALLBAC
 - `ASD-V0-019`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1755) The dogfood make targets (`dogfood-change`, `dogfood-check`, `dogfood-seal`, `dogfood-finish`, `dogfood-batch-check`, `dogfood-bind-range`) never use the Makefile's file default `BASE ?= main`: a BASE that does not come from the command line or the environment is treated as missing, and the target refuses with exit 2 and a message naming BASE before any script runs (`dogfood-finish` names it in its one-line missing-input refusal). Non-dogfood targets keep the default.
 - `ASD-V0-020`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1910) `script/check-goos-filenames.sh` (`make goos-filenames-check`, a `make gate` step) fails, naming each file and a rename such as `_jsts.go`, when a tracked Go file (test or not) under `cmd/` or `internal/` has a filename suffix that Go reads as a GOOS/GOARCH build constraint (Go's known lists; the first name element is ignored, as Go does) for a platform other than darwin, linux, windows, amd64 or arm64, unless the path is listed in `script/goos-filename-allowlist.txt`.
 - `ASD-V0-021`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0360) `script/go-cache-trim.sh` (`make go-cache-trim`) bounds Go build caches and removes stale `go-build*` work directories, as a dry run unless `--apply` is given. It trims only directories that hold Go's cache README marker (by default `go env GOCACHE`, `/tmp/corvint-go-build-cache` and `/tmp/corvint-work-queue-gocache-<uid>`), deleting entry files in the two-hex-digit subdirectories oldest first, never one younger than `--min-age-hours` (default 2), until the entry bytes are at most `--max-gib` (default 20). It removes a `go-build*` directory directly under a temp root (default `$TMPDIR` and `/tmp`) only when it is older than `--work-age-hours` (default 24) and no running process names it; an unreadable process list keeps them all. Every candidate is reported (`KEEP`, `WOULD-TRIM`/`TRIMMED`, `WOULD-REMOVE`/`REMOVED`) with a `SUMMARY` of bytes, counts and free disk before and after.
+- `ASD-V0-022`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1978) `script/scratch-sweep.sh` (`make scratch-sweep`), a dry run unless `--apply`, prunes each `--repo`'s worktree registrations whose directory is gone and removes an immediate subdirectory of a `--root` only when it is not on the `--keep` list, no running process names it, nothing outside `.git` (nor `.git/logs/HEAD`) changed within `--age-hours` (default 24), it does not hold a nested checkout, and, for a clone, it has no registered linked worktree. A checkout with uncommitted, untracked, stashed or unpushed work is kept unless `--archive DIR` is given, in which case `status.txt`, `changes.patch`, `untracked.tgz` and a `repo.bundle` of the commits not on a remote are written first and any failed step keeps it. Status reads take no optional locks. It reports each decision and a `SUMMARY` of counts and free disk before and after.
 
 ## Non-goals and trust boundary
 
@@ -74,6 +75,7 @@ inputs to ranking, evidence or authority.
 | ASD-V0-019 | `Makefile` `DOGFOOD_BASE`; `script/dogfood-cache_test.sh` (on a copied Makefile): each dogfood target refuses without BASE, passes an explicit or environment BASE to its script, and `dogfood-finish LANE=1` lists BASE among the missing inputs. |
 | ASD-V0-020 | `script/check-goos-filenames.sh`; `make goos-filenames-test` (`script/check-goos-filenames_test.sh`): on a temporary Git fixture `_js.go`, `_wasm_test.go`, `_js_wasm.go` and `_plan9_386.go` are refused with the file and a suggested name, while darwin/linux/windows/arm64 suffixes, `validity_js_flow.go`, a bare `js.go`, files outside `cmd/` and `internal/` and allowlisted paths pass. |
 | ASD-V0-021 | `script/go-cache-trim.sh`; `make go-cache-trim-test` (`script/go-cache-trim_test.sh`, temporary fixtures only): the default dry run plans the oldest entries past the bound and deletes nothing; a directory without the Go cache README marker, entries younger than `--min-age-hours`, a fresh work directory, a non-`go-build*` directory and a stale work directory named by a running process are kept; `--apply` removes exactly the planned files and directories; invalid arguments exit 2. Host dry run on 2026-10-20 (44 s): would trim 18.1 GB of `~/Library/Caches/go-build` and 8.6 GB of `/tmp/corvint-go-build-cache` to 20 GiB each and remove 309 stale work directories; the applied before/after free disk is NOT_PRODUCED (the orchestrator runs `--apply`, section 6). |
+| ASD-V0-022 | `script/scratch-sweep.sh`; `make scratch-sweep-test` (`script/scratch-sweep_test.sh`, temporary Git fixtures): the dry run changes nothing; recent, keep-listed, in-use and nested-checkout directories and unarchived dirty or unpushed clones are kept; `--apply` removes old plain directories, clean pushed clones and a linked worktree, prunes a registration whose directory is gone, and archives a dirty clone (patch, untracked tarball, status) and an unpushed clone (a bundle restored by fetching into a clone) before removing them; invalid arguments exit 2. Host dry run on 2026-10-20 over this project's session scratch root (3.7 s): 63 entries, 38 would be removed (157.5 MiB), 19 recent, 5 holding checkouts, 1 keep-listed; the applied run is NOT_PRODUCED (orchestrator, section 6). |
 | ASD-V0-013, ASD-V0-016 | `docs/LANE-ORCHESTRATION.md` sections 1 and 4. The before/after batch measurements (median load per CPU and focused-test time with the cap; polling time and tool-timeout counts) are NOT_PRODUCED until the next batch; the procedure is in section 7. |
 | ASD-V0-014, ASD-V0-015, ASD-V0-017, ASD-V0-018 | `script/heavy.sh`, `script/dogfood-finish.sh`, `script/lane-idle-check.sh`, `script/lane-clean.sh`; `make lane-scripts-test` (`script/lane-scripts_test.sh`): two concurrent `HEAVY_SLOTS=1` commands never overlap, status and `-p` pass through, a killed owner frees its slot; the finish refusal names every missing input before any build; idle and gap detection on fixed timestamps; only merged, clean, inactive clones and worktrees are removed and only with `--apply`. The 5-lane timing, dogfood-run counts and one-off cleanup counts are NOT_PRODUCED here (section 7). |
 
@@ -103,10 +105,12 @@ no readable activity as `UNKNOWN` (flagged); `lane-clean.sh` refuses an unavaila
 and keeps any checkout it cannot read, with the reason. A stale shared repository makes merged
 checkouts look unmerged (kept), never the reverse. `go-cache-trim.sh` refuses invalid arguments
 (exit 2), never touches a directory without Go's cache marker, and keeps every work directory when
-the process list is unreadable; a trimmed entry is only a later cache miss.
+the process list is unreadable; a trimmed entry is only a later cache miss. `scratch-sweep.sh` keeps
+anything it cannot inspect or archive, with the reason, and never removes unfinished Git work
+without an archive.
 
-Roll back `ASD-V0-013..021` by reverting `docs/LANE-ORCHESTRATION.md`, the three lane scripts, the
-`DOGFOOD_BASE` Makefile refusal, the GOOS filename check, `script/go-cache-trim.sh`, the
+Roll back `ASD-V0-013..022` by reverting `docs/LANE-ORCHESTRATION.md`, the three lane scripts, the
+`DOGFOOD_BASE` Makefile refusal, the GOOS filename check, `script/go-cache-trim.sh`, `script/scratch-sweep.sh`, the
 `dogfood-finish` input refusal and `lane-scripts-test` together; lanes then return to charter-only
 procedure. Rollback the guide, links, skill routing and help fixes together; retain existing local completion,
 old outcomes and failed evidence. Future feature changes update their guide route and relevant

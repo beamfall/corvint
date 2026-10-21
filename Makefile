@@ -18,7 +18,7 @@ GO_TEST_TIMEOUT ?= 30m
 GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)
 GO_TEST_COMMAND = GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) -count=1
 
-.PHONY: build gate instruction-conflicts gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet windows-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-check spec-requirements-test spec-acceptance-audit requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check capabilities-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-finish dogfood-batch-check dogfood-bind-range dogfood-bind-range-test lane-scripts-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test host-package-versions-check host-package-versions-test diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test goos-filenames-check goos-filenames-test go-cache-trim go-cache-trim-test cem-stable-regen cem-stable-regen-capture cem-stable-regen-replace cem-stable-regen-check spec-toolchain-conformance spec-toolchain-latest-test
+.PHONY: build gate instruction-conflicts gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet windows-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-check spec-requirements-test spec-acceptance-audit requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check capabilities-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-finish dogfood-batch-check dogfood-bind-range dogfood-bind-range-test lane-scripts-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test host-package-versions-check host-package-versions-test diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test goos-filenames-check goos-filenames-test go-cache-trim go-cache-trim-test scratch-sweep scratch-sweep-test cem-stable-regen cem-stable-regen-capture cem-stable-regen-replace cem-stable-regen-check spec-toolchain-conformance spec-toolchain-latest-test
 
 build: go-version
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_BIN) ./cmd/corvint
@@ -388,6 +388,15 @@ go-cache-trim:
 go-cache-trim-test:
 	@script/go-cache-trim_test.sh
 
+# scratch-sweep prunes worktree registrations whose directory is gone and removes closed-session
+# scratch older than 24 h, archiving unfinished Git work first; dry run unless APPLY=1 (ASD-V0-022,
+# V1-1978). Pass --root/--repo/--keep/--archive in SCRATCH_SWEEP_ARGS.
+scratch-sweep:
+	@script/scratch-sweep.sh $(if $(filter 1,$(APPLY)),--apply) $(SCRATCH_SWEEP_ARGS)
+
+scratch-sweep-test:
+	@script/scratch-sweep_test.sh
+
 # diagnostic-coverage-check fails when a diagnostic.Refusal literal lacks a subject, a registered
 # fix list or terminal reason, when Go that imports internal/diagnostic parses a refusal message,
 # or when the covered-site count differs from script/diagnostic-coverage.count (DRC-V0-011/012).
@@ -505,7 +514,7 @@ tasks-test: go-version
 # make gate runs and no others. TestSTRV0004ShellTestIsTheGateShellSteps
 # (tools/test-commands-check) keeps the two lists equal.
 .PHONY: shell-test
-shell-test: go-format-test go-archive-gate-test spec-requirements-test traceability-tests-test decision-numbers-test instruction-conflicts-test eol-policy-test license-headers-test line-citations-test ci-least-privilege-test release-checklist-test gate-receipt-test error-code-ownership-test host-package-versions-test no-python-runtime-dependency-test goos-filenames-test go-cache-trim-test
+shell-test: go-format-test go-archive-gate-test spec-requirements-test traceability-tests-test decision-numbers-test instruction-conflicts-test eol-policy-test license-headers-test line-citations-test ci-least-privilege-test release-checklist-test gate-receipt-test error-code-ownership-test host-package-versions-test no-python-runtime-dependency-test goos-filenames-test go-cache-trim-test scratch-sweep-test
 
 # windows-vet is the local twin of the go-static step "Windows vet including test files
 # (AFP-V0-042)" in .github/workflows/ci.yml: the same GOOS, GOARCH, CGO_ENABLED, empty GOFLAGS (no

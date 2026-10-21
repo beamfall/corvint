@@ -161,6 +161,13 @@ the checkout, and a root that does not resolve (or is `/`) is refused. Worktrees
   then `make go-cache-trim APPLY=1`. It trims each Go cache to 20 GiB, oldest entries first and
   never one used in the last 2 hours, and removes `go-build*` work directories older than 24 hours
   that no running process names. A trimmed entry is only a later cache miss.
+- Closed-session scratch (ASD-V0-022, V1-1978): after each batch merge, run
+  `make scratch-sweep SCRATCH_SWEEP_ARGS='--root <session-scratch-root> --root <lanes-root>
+  --repo <shared> --keep <active-lane-or-session>... --archive <archive-dir>'` (dry run), review
+  it, then rerun with `APPLY=1`. It prunes stale worktree registrations and removes directories idle
+  for 24 hours; unfinished Git work is archived (patch, untracked tarball, status, bundle) before
+  removal and kept when no archive directory is given. Owner-approved toolchain directories go on
+  the `--keep` list.
 
 ## 7. Measuring the procedure
 
