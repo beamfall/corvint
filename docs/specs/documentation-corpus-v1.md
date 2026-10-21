@@ -14,7 +14,7 @@ owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
 
 ## Agent digest
 - Claim: A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.
-- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-080..082 (behavior annotation contract, producer and missing annotations, GitHub #835; V1-1222) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-083..084 (valueless state matchers, GitHub #845; V1-1318) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-085 (encoder-pool-independent allocation, V1-1380) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-086..092 (test-knowledge records, GitHub #1162; V1-1868) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-093..099 (flow-level relations, GitHub #1225; V1-1973) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-140..142 (symbol-anchor re-resolution, GitHub #1223; V1-1971) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-143..145 (lazy corpus MCP load, reused freshness and path batches, GitHub #1236 and #1237; V1-1982) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-146 (verbatim oversized paragraphs, over-bound line gaps and located refusals, GitHub #1242; V1-1983) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-150..152 (asserting E2E gap conditions and unauthenticated review, GitHub #1245; V1-1988) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-165..169 (case search by ID and ranked any-word match, GitHub #1246; V1-1989) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-160..163 (multi-scope /2 manifest inventory, GitHub #1241; V1-1985) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-170..174 (flow section and record-kind filters, GitHub #1247; V1-1990) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-155..159 (constant-cost Git reads and typed capacity refusals, GitHub #1240; V1-1984) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-185..192 (typed homes for supplied gaps, readiness status and manual case links, GitHub #1244; V1-1987) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-175..179 (additional repository anchors, GitHub #1243; V1-1986) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-205..207 (absolute corpus MCP `--artifact` paths, GitHub #1256; V1-1997) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-200..203 (single-call MCP output bound pages or refuses, never -32603, GitHub #1255; V1-1996) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-193..197 (scaled query-index bounds, per-artifact index memo and build-time index refusal, GitHub #1254; V1-1995) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-210..215 (supplied test-run receipts, legacy case links, and supplied gaps in capabilities and the query index, GitHub #1244; V1-1993) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-216..217 (batched symbol-anchor, CEM projection and discovery path reads, V1-1991) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-175..179 (additional repository anchors, GitHub #1243; V1-1986) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-240 (bounded behavior-adapter reconciliation frontier; V1-1089) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-241 (`maintain --page` refusals name the flag and rule; V1-1227) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-242 (corpus MCP `--artifact` path refusals name the argument and rule; V1-1228) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-243 (per-path tree bound for query freshness and batch input walks; V1-2151) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
+- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-080..082 (behavior annotation contract, producer and missing annotations, GitHub #835; V1-1222) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-083..084 (valueless state matchers, GitHub #845; V1-1318) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-085 (encoder-pool-independent allocation, V1-1380) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-086..092 (test-knowledge records, GitHub #1162; V1-1868) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-093..099 (flow-level relations, GitHub #1225; V1-1973) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-140..142 (symbol-anchor re-resolution, GitHub #1223; V1-1971) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-143..145 (lazy corpus MCP load, reused freshness and path batches, GitHub #1236 and #1237; V1-1982) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-146 (verbatim oversized paragraphs, over-bound line gaps and located refusals, GitHub #1242; V1-1983) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-150..152 (asserting E2E gap conditions and unauthenticated review, GitHub #1245; V1-1988) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-165..169 (case search by ID and ranked any-word match, GitHub #1246; V1-1989) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-160..163 (multi-scope /2 manifest inventory, GitHub #1241; V1-1985) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-170..174 (flow section and record-kind filters, GitHub #1247; V1-1990) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-155..159 (constant-cost Git reads and typed capacity refusals, GitHub #1240; V1-1984) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-185..192 (typed homes for supplied gaps, readiness status and manual case links, GitHub #1244; V1-1987) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-175..179 (additional repository anchors, GitHub #1243; V1-1986) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-205..207 (absolute corpus MCP `--artifact` paths, GitHub #1256; V1-1997) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-200..203 (single-call MCP output bound pages or refuses, never -32603, GitHub #1255; V1-1996) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-193..197 (scaled query-index bounds, per-artifact index memo and build-time index refusal, GitHub #1254; V1-1995) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-210..215 (supplied test-run receipts, legacy case links, and supplied gaps in capabilities and the query index, GitHub #1244; V1-1993) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-216..217 (batched symbol-anchor, CEM projection and discovery path reads, V1-1991) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-175..179 (additional repository anchors, GitHub #1243; V1-1986) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-240 (bounded behavior-adapter reconciliation frontier; V1-1089) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-241 (`maintain --page` refusals name the flag and rule; V1-1227) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-242 (corpus MCP `--artifact` path refusals name the argument and rule; V1-1228) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-243 (per-path tree bound for query freshness and batch input walks; V1-2151) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-300..311 (widened supplied status, test-run ledger fields, claim-targeted gaps, migration mappings and multi-revision additional repositories; GitHub #1488, #1489, #1490, #1491; V1-2331..V1-2334) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
 - Exists: native compiler/reader, explicit integrations, separate MCP, renderer, independent adapter and labelled evaluation.
 - Blocked on: owner acceptance and independent external utility qualification; local completion requires the gates below.
 - Read next: Requirements; Input and authority boundary; Acceptance and rollback.
@@ -1309,6 +1309,78 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   parent tree records past the per-path `MaxTreeBytes` bound is refused with that lookup's own
   `git-output-exceeded` refusal, byte for byte, although the walk's larger aggregate bound would
   admit it. Acceptance: `TestDCPV1243ResolvedInputsKeepPerPathTreeBound`.
+- `DCP-V1-300`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1488; V1-2331) A supplied
+  `status` detail's `state` is one of the closed set `blocked`, `ready`, `proven`, `partial`,
+  `not-demonstrable`, `disputed`, `obsolete`, `not-established` or `unknown`, and it may carry an
+  optional `qualifier`, one of `provisional` or `classification-only`. Any other state or qualifier
+  is refused (`corpus-refused`, invalid supplied status). The widened states and the qualifier are
+  supplied, not derived: they grant no trust and change no computed gap, journey state or coverage
+  metric. This amends the three-state set of `DCP-V1-187`.
+- `DCP-V1-301`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1488; V1-2331) `docs_coverage` counts a
+  qualified status under `supplied_status:STATE:QUALIFIER`, never under `supplied_status:STATE`, so
+  a provisional or classification-only `proven` is never counted as plain `proven`.
+- `DCP-V1-302`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1488; V1-2331) A supplied `unknown` status
+  is a recorded state: it is counted under `supplied_status:unknown` and returned with its detail,
+  while a subject without a status claim has no status and adds to no status row.
+- `DCP-V1-303`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1489; V1-2332) A supplied `test_run`
+  detail may carry optional run-ledger fields, each from a closed set: `retries`, an integer from 0
+  to 1,048,576; `flake_verdict`, one of `stable`, `flaky`, `unqualified` or `unknown`; `cleanup`,
+  one of `passed`, `failed`, `partial`, `not-run` or `unknown`; `control_outcome`, one of the
+  `DCP-V1-210` outcomes; and `validity`, a non-empty list of `{axis, status}` with each axis
+  (`revision`, `environment`, `isolation`, `oracle` or `determinism`) at most once and a status of
+  `passed`, `failed`, `unknown` or `not-applicable`. Any other value, a negative or oversized
+  `retries`, a repeated axis or an empty `validity` list is refused (`corpus-refused`, invalid
+  supplied test run ledger field). Absent fields are omitted, so existing receipts keep their
+  bytes. The fields are supplied, never executed or verified, and grant no trust.
+- `DCP-V1-304`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1489; V1-2332) A supplied gap's `subject`
+  may name a claim as well as a subject, such as the claim that carries a run's `test_run` detail;
+  a gap naming neither is refused (supplied gap subject missing). A bare run identifier is not a
+  corpus record ID and is refused as a target, because run identifiers need not be unique.
+  `docs_gaps` on a subject also returns the supplied gaps that target that subject's claims. This
+  amends the subject rule of `DCP-V1-185` and the selection of `DCP-V1-186`.
+- `DCP-V1-305`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1489; V1-2332) `docs_coverage` adds one row
+  per supplied flake verdict, `supplied_test_run_flake:VERDICT`, and one per supplied cleanup
+  outcome, `supplied_test_run_cleanup:OUTCOME`, each counting the test-run receipts with that value
+  over the test-run receipts that carry the field, labelled `origin: supplied`. A corpus without
+  either field adds no such row.
+- `DCP-V1-306`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1491; V1-2334) An adoption provider may
+  declare `migration_mapping` relations between two `inventory` subjects (units of a
+  code-migration ledger). Each requires a typed `migration_mapping` detail with an `outcome` from
+  `unchanged`, `modified`, `moved`, `renamed`, `copied`, `added`, `removed`, `ambiguous` or
+  `unresolved`, a `basis` from `stable_id`, `region_hash`, `content_hash`, `path`, `symbol`,
+  `declared` or `unknown`, and an optional `run` identifier of at most 1,024 bytes. The one-sided
+  outcomes `added`, `removed` and `unresolved` name the same unit at both ends; every other
+  outcome joins two distinct units. A missing detail, a value outside its set, a one-sided shape
+  mismatch, or an end that is not an `inventory` subject is refused (`corpus-refused`). A unit's
+  readiness is a `DCP-V1-300` status claim on that unit. Mappings are supplied, not derived, and
+  grant no trust.
+- `DCP-V1-307`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1491; V1-2334) `docs_get` (and `docs_trace`)
+  on an inventory unit returns, after the unit's records, every `migration_mapping` relation
+  reachable from it through mappings in either direction, in artifact order and without repeating
+  a returned relation, citing their evidence. A corpus without migration mappings returns what it
+  returned before.
+- `DCP-V1-308`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1490; V1-2333) An additional repository may
+  carry `revisions`, a non-empty, sorted list of further pinned commits of the same repository,
+  read and identity-checked in the same declared checkout. Each must be a full Git object ID
+  distinct from the repository's `revision` and from every other repository's revisions; every
+  pinned revision counts toward the eight-revision bound, and exceeding it is a typed capacity
+  refusal naming the pinned repository revision count. An anchor at a further revision names that
+  repository and reports that revision in citations. The member is omitted when absent, so
+  existing manifests keep their bytes. This amends the one-revision rule of `DCP-V1-175`.
+- `DCP-V1-309`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1490; V1-2333) Freshness compares only an
+  additional repository's declared `revision` with its live checkout; inputs at its further
+  pinned revisions are immutable Git content and are never reported stale because the checkout
+  moved on.
+- `DCP-V1-310`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1490; V1-2333) `locate` and
+  `recommend-tests` (`corvint.docs_locate`, `corvint.docs_recommend_tests`) accept an optional
+  `repository`, the root-commit identity of the primary or a declared additional repository, and
+  then return or select only records anchored at the path in that repository. A repository
+  qualifier on any other operation, an undeclared repository (`corpus-refused`) or an empty MCP
+  value (`invalid-arguments`) is refused.
+- `DCP-V1-311`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1490; V1-2333) When the artifact declares
+  additional repositories, a `locate` or `recommend-tests` receipt carries `result_repositories`,
+  naming for each visible result the repository of its anchor at the path (else of its first
+  anchor, else the primary). A single-repository receipt omits the member and keeps its bytes.
 - `DCP-V1-217`: (accepted under the owner's standing auto-accept (2026-10-11) (V1-1991)) Legacy and
   Playwright discovery still enumerate the revision through the verified revision filesystem walk,
   which costs one Git operation per directory it lists (`DLT-V0-003`); `DCP-V1-216` bounds the
@@ -1763,6 +1835,10 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-241 | `internal/doccorpus/apply.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1241CorpusMaintainPageRefusalNamesFlag` |
 | DCP-V1-242 | `cmd/corvint-corpus-mcp/main.go` | `TestDCPV1242RelativeArtifactRefusalNamesArgumentAndRule` |
 | DCP-V1-243 | `internal/doccorpus/batch_input.go`, `internal/doccorpus/query.go` | `TestDCPV1243ResolvedInputsKeepPerPathTreeBound` |
+| DCP-V1-300..302 | `internal/doccorpus/adoption.go`, `query.go` | `TestDCPV1300WidenedStatusVocabulary`, `TestDCPV1300StatusOutsideVocabularyRefused` |
+| DCP-V1-303..305 | `internal/doccorpus/adoption.go`, `providers.go`, `query.go` | `TestDCPV1303TestRunLedgerFieldsRoundTrip`, `TestDCPV1303TestRunLedgerUnknownValuesRefused`, `TestDCPV1304SuppliedGapTargetsRunClaim` |
+| DCP-V1-306..307 | `internal/doccorpus/adoption.go`, `query.go` | `TestDCPV1306MigrationMappingLedger`, `TestDCPV1306MigrationMappingRefusals` |
+| DCP-V1-308..311 | `internal/doccorpus/types.go`, `compile.go`, `query.go`, `typed_query.go`, `pagination.go`, `internal/mcp/corpusbridge/corpusbridge.go` | `TestDCPV1308AdditionalRepositoryAtTwoRevisions`, `TestDCPV1308AdditionalRevisionRefusals`, `TestDCPV1310LocateRepositoryQualifier`, `TestDCPV1310DocsLocateRepositoryArgument`, `TestDCPV1311SingleRepositoryLocateUnchanged` |
 | DCP-V1-056 | `cmd/corvint/docs_corpus_help.go`, `cmd/corvint/docs_corpus.go`, `cmd/corvint/help.go` | `TestDocsCorpusHelpListsOperations`, `TestDocsCorpusOperationHelpPrintsFlags`, `TestDocsCorpusOperationFlagMatrix` |
 | DCP-V1-057 | `cmd/corvint/help.go` | `TestUnknownHelpTopicListsValidTopics`, `TestUnknownHelpTopicIsConventionalError` |
 | DCP-V1-060..061 | `internal/doccorpus/behavior_legacy_discovery.go`, `behavior_legacy_lex.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-060 DCP-V1-061`) |
