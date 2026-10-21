@@ -169,3 +169,19 @@ func TestEvalLinkedSymbolsDropsTheFrontierOnlyForAMultiPartNamedRoot(t *testing.
 		})
 	}
 }
+
+// TestWebImportBindingsReadsEveryStatementOnALine: GPK-V0-087 (V1-2128). Two
+// static named imports on one line, joined by `;`, both bind; the first-only
+// oracle reading is known-divergent DR-0044.
+func TestWebImportBindingsReadsEveryStatementOnALine(t *testing.T) {
+	got := webImportBindings("import { a } from './a'; import { b as c } from './b';\nimport { d } from './d'\n")
+	want := []webBinding{{"a", "./a", "a", 1}, {"c", "./b", "b", 1}, {"d", "./d", "d", 2}}
+	if len(got) != len(want) {
+		t.Fatalf("bindings = %+v, want %+v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("bindings = %+v, want %+v", got, want)
+		}
+	}
+}

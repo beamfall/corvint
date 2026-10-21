@@ -44,11 +44,14 @@ type webRelation struct {
 
 type webSymbolKey struct{ path, name string }
 
-// webImportStatement is the oracle's static named-import pattern. RE2 has no
-// lookahead, so the oracle's `(?!['"])` guard on the clause's first character
-// is spelled as consuming one non-quote character: the two agree except on an
-// import whose clause is empty, which is not a valid statement.
-var webImportStatement = regexp.MustCompile(`(?ms)^[ \t]*import[ \t]+([^'"].*?)[ \t]+from[ \t]*['"]([^'"]+)['"]`)
+// webImportStatement is the oracle's static named-import pattern, except that
+// a statement may also start after a `;`, so every import of a line such as
+// `import { a } from './a'; import { b } from './b'` binds where the oracle
+// read only the first (GPK-V0-087, V1-2128; known-divergent DR-0044). RE2 has
+// no lookahead, so the oracle's `(?!['"])` guard on the clause's first
+// character is spelled as consuming one non-quote character: the two agree
+// except on an import whose clause is empty, which is not a valid statement.
+var webImportStatement = regexp.MustCompile(`(?ms)(?:^|;)[ \t]*import[ \t]+([^'"].*?)[ \t]+from[ \t]*['"]([^'"]+)['"]`)
 
 var (
 	webNamedClause = regexp.MustCompile(`(?s)\{(.*?)\}`)

@@ -2989,6 +2989,27 @@ the identity rename, the runner applies it outside the `packet_bytes` reconcilia
 stop receipt in which the declared opening does not occur exactly once. The `SUMMARY` line moves
 from `known-divergences=30` to `known-divergences=31`.
 
+### DR-0044 — `query`: a second static named import on one line binds
+
+- **Status:** ADJUDICATED 2026-10-20 — `python-defect` / known-divergent under `GPK-V0-087`
+  (`docs/specs/go-production-kernel-migration-v0.md`, ticket V1-2128). The focused Go regression is
+  present; a `cli-parity-v0` discriminating row is **NOT_YET_AUTHORED**, so this latent divergence
+  cannot contribute to promotion (`GPK-V0-034`). No oracle was reconstructed (`GOC-V0-002`); `src/`
+  is absent and unrepaired.
+- **Command:** `query`, `eval`, and `harness event --event user-prompt`, through the
+  `GPK-V0-047` dependency-link stage of their shared `EvalQuery` ranking. **Discovered:**
+  2026-10-20 (V1-2128).
+
+**Divergence.** The oracle's static named-import pattern matches `import` only at the start of a
+line, so in `import { a } from './a'; import { b } from './b'` it binds `a` and drops `b` without
+an unknown. Under `GPK-V0-087` the candidate also starts a statement after `;` and binds both, so a
+call through `b` can add a dependency link the oracle does not.
+
+**Adjudication: python-defect (known-divergent, no repair).** The oracle contradicts
+`GPK-V0-087` and product invariant 2; the candidate satisfies them. No committed `conformance/`
+fixture places two imports on one line (a `git grep` finds none), so no expectation is rewritten;
+the external `zod`/`execa` evaluation repositories were not checked (NOT_RUN).
+
 ## Typed verification extension (issue 408, accepted 2026-09-30)
 
 `LTPM-V0-013`/`LTPM-V0-014` add repeatable `record --verify-argv-json` and a closed schema-2

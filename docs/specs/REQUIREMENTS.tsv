@@ -2686,6 +2686,7 @@ GPK-V0-083	docs/specs/go-production-kernel-migration-v0.md	(accepted, decision 0
 GPK-V0-084	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2047) `corvint impact	standing	2026-10-20; V1-2047
 GPK-V0-085	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2047) The listing MUST be derived	standing	2026-10-20; V1-2047
 GPK-V0-086	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2047) `--capabilities` MUST be th	standing	2026-10-20; V1-2047
+GPK-V0-087	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2128) A static named import MUST	standing	2026-10-20; V1-2128
 GCS-V0-001	docs/specs/gopls-client-session-v0.md	Startup MUST require an absolute explicitly configured executable and canonical	unrecorded	-
 GCS-V0-002	docs/specs/gopls-client-session-v0.md	The session MUST own its process group through `procgroup`, join cleanup on shut	unrecorded	-
 GCS-V0-003	docs/specs/gopls-client-session-v0.md	Open/change/close MUST use caller text and monotonically increasing versions. De	unrecorded	-
