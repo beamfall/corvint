@@ -183,13 +183,18 @@ func typedQuery(ctx context.Context, a *Artifact, q Request, r *Receipt) error {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
+			// DCP-V1-310: a repository qualifier selects only records anchored at the path there.
 			switch ref.Kind {
 			case "subject":
 				s := a.Subjects[ref.Offset]
-				selected[s.ID] = true
-				addRecord(r, s)
+				if pathInRepository(s.Evidence.Anchors, q.Path, q.Repository) {
+					selected[s.ID] = true
+					addRecord(r, s)
+				}
 			case "claim":
-				selected[a.Claims[ref.Offset].Subject] = true
+				if c := a.Claims[ref.Offset]; pathInRepository(c.Evidence.Anchors, q.Path, q.Repository) {
+					selected[c.Subject] = true
+				}
 			}
 		}
 		for id := range selected {
@@ -210,7 +215,12 @@ func typedQuery(ctx context.Context, a *Artifact, q Request, r *Receipt) error {
 		if r.Freshness != "fresh" {
 			missing = append(missing, "fresh corpus evidence NOT_OBSERVED")
 		}
-		knowledge, blocked := testKnowledgeOnPath(a, q.Path), []string{}
+		knowledge, blocked := []TestKnowledgeJoin{}, []string{}
+		for _, j := range testKnowledgeOnPath(a, q.Path) {
+			if pathInRepository(recordAnchors(j), q.Path, q.Repository) {
+				knowledge = append(knowledge, j)
+			}
+		}
 		for _, j := range knowledge {
 			if j.Selection == "blocks" {
 				blocked = append(blocked, j.ID)

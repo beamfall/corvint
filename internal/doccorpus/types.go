@@ -23,10 +23,14 @@ type Repository struct {
 // root-commit identity, its one pinned revision and the local checkout holding its objects, as a
 // clean path relative to the primary repository root. The locator grants no identity; the build
 // verifies both against the checkout and never fetches or discovers a repository.
+//
+// Revisions optionally pins further, older commits of the same repository, read from the same
+// checkout (DCP-V1-308); Revision stays the declared current one that freshness compares.
 type AdditionalRepository struct {
-	ID       string `json:"id"`
-	Revision string `json:"revision"`
-	Root     string `json:"root"`
+	ID        string   `json:"id"`
+	Revision  string   `json:"revision"`
+	Revisions []string `json:"revisions,omitempty"`
+	Root      string   `json:"root"`
 }
 type Profile struct {
 	ID       string   `json:"id"`
@@ -260,6 +264,9 @@ type Request struct {
 	// nil means absent.
 	Sections []string `json:"sections,omitempty"`
 	Include  []string `json:"include,omitempty"`
+	// Repository optionally restricts locate and recommend-tests to one declared repository's
+	// root-commit identity (DCP-V1-310).
+	Repository string `json:"repository,omitempty"`
 }
 type Receipt struct {
 	Envelope  *TrustEnvelope      `json:"trust_envelope,omitempty"`
@@ -287,6 +294,9 @@ type Receipt struct {
 	// SymbolAnchors is the live re-resolution of each cited symbol anchor,
 	// present only from a live reader (DCP-V1-141).
 	SymbolAnchors []SymbolAnchorCheck `json:"symbol_anchors,omitempty"`
+	// ResultRepositories names the repository of each locate or recommend-tests result when the
+	// artifact spans more than one repository (DCP-V1-311); absent otherwise.
+	ResultRepositories map[string]string `json:"result_repositories,omitempty"`
 }
 type Error struct {
 	Code    string

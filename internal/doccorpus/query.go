@@ -260,6 +260,9 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	if capability == "" {
 		return Receipt{}, fail("unknown corpus operation")
 	}
+	if request.Repository != "" && (request.Operation != "locate" && request.Operation != "recommend-tests" || !a.Manifest.declaresRepository(request.Repository)) {
+		return Receipt{}, fail("repository qualifier applies only to locate and recommend-tests and must name a declared repository")
+	}
 	r := Receipt{Envelope: envelope, Schema: ReceiptSchema, Operation: request.Operation, ArtifactSHA256: a.SHA256, Repository: a.Manifest.Repository, Tree: a.Tree, Trust: "generated", Freshness: freshness, State: "ready", Results: []any{}, Citations: []Anchor{}, Capabilities: a.Capabilities, Limitations: append([]string{}, limitations...)}
 	if a.Schema == SchemaV2 {
 		r.Capabilities = boundedCapabilities(a.Capabilities)
@@ -320,19 +323,22 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 			r.Results = append(r.Results, TraceFlows(a, []string{request.ID}, request.Depth))
 		}
 	case "locate":
+		// DCP-V1-310: a repository qualifier keeps only records anchored at the path there.
 		for _, j := range testKnowledgeOnPath(a, request.Path) {
-			addRecord(&r, j)
+			if pathInRepository(recordAnchors(j), request.Path, request.Repository) {
+				addRecord(&r, j)
+			}
 		}
 		if a.RuntimeIndex != nil {
 			for _, ref := range a.RuntimeIndex.Paths[request.Path] {
-				if ref.Kind == "subject" {
+				if ref.Kind == "subject" && pathInRepository(a.Subjects[ref.Offset].Evidence.Anchors, request.Path, request.Repository) {
 					addRecord(&r, a.indexedRecord(ref))
 				}
 			}
 			break
 		}
 		for _, s := range a.Subjects {
-			if subjectPath(s, request.Path) {
+			if subjectPath(s, request.Path) && pathInRepository(s.Evidence.Anchors, request.Path, request.Repository) {
 				r.Results = append(r.Results, s)
 				r.Citations = append(r.Citations, s.Evidence.Anchors...)
 			}
@@ -465,11 +471,72 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	if err := attachSymbolAnchors(ctx, &r, symbols); err != nil {
 		return Receipt{}, err
 	}
+	nameResultRepositories(a, request, &r)
 	finalizeEnvelope(&r)
 	if _, err := Encode(r); err != nil {
 		return Receipt{}, err
 	}
 	return r, nil
+}
+
+// declaresRepository reports whether id is the primary or a declared additional repository.
+func (m Manifest) declaresRepository(id string) bool {
+	if id == m.Repository.ID {
+		return true
+	}
+	for _, r := range m.AdditionalRepositories {
+		if r.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+// pathInRepository reports whether an anchor at path (or symbol) belongs to repository; an empty
+// repository admits every record (DCP-V1-310).
+func pathInRepository(anchors []Anchor, path, repository string) bool {
+	if repository == "" {
+		return true
+	}
+	for _, a := range anchors {
+		if (a.Path == path || a.Symbol == path) && a.Repository == repository {
+			return true
+		}
+	}
+	return false
+}
+
+// resultRepository is the repository of the record's anchor at path, else of its first anchor,
+// else the primary repository.
+func resultRepository(a *Artifact, anchors []Anchor, path string) string {
+	for _, x := range anchors {
+		if x.Path == path || x.Symbol == path {
+			return x.Repository
+		}
+	}
+	if len(anchors) > 0 {
+		return anchors[0].Repository
+	}
+	return a.Manifest.Repository.ID
+}
+
+// nameResultRepositories names each visible locate or recommend-tests result's repository when
+// the artifact spans more than one repository (DCP-V1-311); single-repository receipts are
+// unchanged.
+func nameResultRepositories(a *Artifact, request Request, r *Receipt) {
+	if len(a.Manifest.AdditionalRepositories) == 0 || request.Operation != "locate" && request.Operation != "recommend-tests" {
+		return
+	}
+	for _, v := range r.Results {
+		id := recordID(v)
+		if id == "" {
+			continue
+		}
+		if r.ResultRepositories == nil {
+			r.ResultRepositories = map[string]string{}
+		}
+		r.ResultRepositories[id] = resultRepository(a, recordAnchors(v), request.Path)
+	}
 }
 func anchorKey(a Anchor) string { return a.Revision + ":" + a.Path + ":" + a.SpanSHA256 }
 func subjectPath(s Subject, p string) bool {
