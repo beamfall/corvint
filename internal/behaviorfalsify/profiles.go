@@ -258,7 +258,7 @@ func validateProvider(request Request) error {
 		return errors.New("provider perturbation environment keys invalid")
 	}
 	for _, key := range append(slices.Clone(provider.PerturbationEnvKeys), request.DeclaredEnvKeys...) {
-		if _, forced := forcedEnvironment(provider.Name)[key]; forced || reservedEnvironmentKeys[key] {
+		if _, forced := forcedEnvironment(provider.Name)[key]; forced || reservedEnvironmentKeys[key] || (provider.Name == ProviderGoTest && key == "GOROOT") {
 			return errors.New("environment key overrides the provider boundary")
 		}
 	}
@@ -438,11 +438,25 @@ func runProvider(ctx context.Context, plan Plan, perturbation map[string]string,
 	for key, value := range providerForcedEnvironment {
 		values[key] = value
 	}
-	argv := []string{provider.Toolchain.Path, "test", "-json", "-count=1", "-run", "^(" + strings.Join(provider.Examples, "|") + ")$", pattern}
-	// The toolchain runs in place after its digest check, since Go resolves GOROOT from its own
-	// executable path; staging it like a hook would detach it from its standard library.
+	// The verified driver bytes run from a private copy, with GOROOT pinned to the directory the
+	// in-place driver would resolve, so a swap after the digest check cannot run (BBF-V0-214).
+	goroot := filepath.Dir(filepath.Dir(provider.Toolchain.Path))
+	if info, err := os.Stat(filepath.Join(goroot, "pkg", "tool")); err != nil || !info.IsDir() {
+		return nil, ProcessEvidence{Error: "provider toolchain GOROOT unavailable"}
+	}
+	staged, cleanup, err := stageVerified(provider.Toolchain)
+	if err != nil {
+		return nil, ProcessEvidence{Error: err.Error()}
+	}
+	defer cleanup()
+	afterToolchainStaged(provider.Toolchain)
+	values["GOROOT"] = goroot
+	argv := []string{staged, "test", "-json", "-count=1", "-run", "^(" + strings.Join(provider.Examples, "|") + ")$", pattern}
 	return observeProcess(ctx, argv, checkout, environmentList(values), nil, timeout, providerOutputLimit)
 }
+
+// afterToolchainStaged is a test seam between staging and execution (BBF-V0-214).
+var afterToolchainStaged = func(Command) {}
 
 // runRSpecProvider runs the pinned RSpec command in the staged project directory with RSpec's
 // stock JSON formatter writing to a fixed project-relative report, so a container wrapper that

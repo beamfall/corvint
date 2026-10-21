@@ -509,6 +509,7 @@ BBF-V0-030	docs/specs/browser-behavior-falsification-v0.md	(accepted under the o
 BBF-V0-031	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027) The runn	standing	2026-10-11; V1-2027
 BBF-V0-032	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027)	standing	2026-10-11; V1-2027
 BBF-V0-033	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027) A live t	standing	2026-10-11; V1-2027
+BBF-V0-214	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2029) The go-t	standing	2026-10-11; V1-2029
 CAP-V0-001	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008)	standing	2026-10-11; V1-2008
 CAP-V0-002	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008) The	standing	2026-10-11; V1-2008
 CAP-V0-003	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008)	standing	2026-10-11; V1-2008
@@ -4581,6 +4582,8 @@ TSA-V0-053	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-054	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140) Rule `BLOCK-NOT-CALLE	standing	2026-10-11; V1-1824; #1140
 TSA-V0-055	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140) `BLOCK-NOT-CALLED` MU	standing	2026-10-11; V1-1824; #1140
 TSA-V0-056	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140)	standing	2026-10-11; V1-1824; #1140
+TSA-V0-644	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1908) A side MUST NOT report seed shapes	standing	2026-10-11; V1-1908
+TSA-V0-645	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1925) A JS/TS runner configuration MUST be	standing	2026-10-11; V1-1925
 TSA-V0-110	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) `corvint tests teardo	standing	2026-10-11; V1-1884; #1168
 TSA-V0-111	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) The declaration MUST	standing	2026-10-11; V1-1884; #1168
 TSA-V0-112	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) The reading MUST plac	standing	2026-10-11; V1-1884; #1168
