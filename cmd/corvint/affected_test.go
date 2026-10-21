@@ -406,6 +406,11 @@ func TestAffectedHelpTopicsAreWired(t *testing.T) {
 	if !strings.Contains(rootHelp, "affected") || !strings.Contains(helpText("affected"), "affected-plan/0") {
 		t.Fatal("affected help is not registered")
 	}
+	// V1-2073 (AFP-V0-010): plan.dirty is the committed range plus the
+	// worktree set, so the help must say a clean worktree still lists them.
+	if !strings.Contains(helpText("affected"), "a clean\nworktree still lists its committed range paths there") {
+		t.Fatal("affected help does not explain committed range paths in plan.dirty")
+	}
 }
 
 // affectedChecks returns the advice checks of a receipt.

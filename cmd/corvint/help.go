@@ -715,6 +715,9 @@ in this bounded snapshot profile; existing profiles are unchanged.
 both paths) to the worktree dirty set, so a branch is selected as a whole; the
 receipt's range member records the base and exactly the committed paths that
 joined. The base must be a full commit id present in the repository.
+plan.dirty and the UNOWNED_DIRTY_PATH reason then name every path of that
+union, committed or not: "dirty" means changed since the base, so a clean
+worktree still lists its committed range paths there (range.paths names them).
 When a committed range path is not in the worktree dirty set and the worktree
 is dirty, the receipt carries a top-level warning naming HEAD and the dirty
 count: the plan mixes that commit with mutable worktree content.
