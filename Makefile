@@ -217,9 +217,11 @@ decision-numbers-test:
 # are not Git-pinned, so its findings are local and uncertain. instruction-conflicts-test runs its
 # fixtures, which reproduce the two 2026-10-04 contradictions, and is a gate step.
 # INSTRUCTION_HOST_FILES splits on spaces; call the script directly for a path containing one.
+# Without it the target gives the repository-layer verdict and reports the host layer NOT_OBSERVED
+# (--repository-only, V1-1756).
 INSTRUCTION_HOST_FILES ?=
 instruction-conflicts:
-	@script/check-instruction-conflicts.sh $(addprefix --host ,$(INSTRUCTION_HOST_FILES))
+	@script/check-instruction-conflicts.sh $(if $(strip $(INSTRUCTION_HOST_FILES)),$(addprefix --host ,$(INSTRUCTION_HOST_FILES)),--repository-only)
 
 instruction-conflicts-test:
 	@script/check-instruction-conflicts_test.sh
