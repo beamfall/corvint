@@ -24,13 +24,9 @@ import (
 // RegistryDialect is the one admitted registry dialect name.
 const RegistryDialect = "string-key-registry/0"
 
-const (
-	registryManifestSchema   = "application-map-manifest/0"
-	maxRegistryManifestBytes = 256 << 10
-	maxRegistryDeclarations  = 64
-	maxRegistryAccessors     = 16
-	maxRegistryKeyBytes      = 256
-)
+// Its bounds are registryManifestBound, registryDeclarationBound,
+// registryAccessorBound and registryKeyBound (analyzer_bounds.go, TSA-V0-460).
+const registryManifestSchema = "application-map-manifest/0"
 
 var registryIdentifier = regexp.MustCompile(`^[A-Za-z_$][A-Za-z0-9_$]{0,63}$`)
 
@@ -47,8 +43,8 @@ type RegistryDeclaration struct {
 // ValidateRegistryDeclarations is the closed check the application map's
 // manifest decoder and impact's discovery share (NGI-V0-007).
 func ValidateRegistryDeclarations(declarations []RegistryDeclaration) error {
-	if len(declarations) > maxRegistryDeclarations {
-		return fmt.Errorf("registries must list at most %d entries", maxRegistryDeclarations)
+	if !registryDeclarationBound.admits(len(declarations)) {
+		return fmt.Errorf("registries must list at most %d entries", registryDeclarationBound.limit)
 	}
 	seen := map[string]bool{}
 	for _, declaration := range declarations {
@@ -68,8 +64,8 @@ func ValidateRegistryDeclarations(declarations []RegistryDeclaration) error {
 			return fmt.Errorf("registry %s export %s is repeated", declaration.Path, declaration.Export)
 		}
 		seen[declaration.Path+"\x00"+declaration.Export] = true
-		if len(declaration.Accessors) == 0 || len(declaration.Accessors) > maxRegistryAccessors {
-			return fmt.Errorf("registry %s: accessors must list 1 to %d names", declaration.Path, maxRegistryAccessors)
+		if len(declaration.Accessors) == 0 || !registryAccessorBound.admits(len(declaration.Accessors)) {
+			return fmt.Errorf("registry %s: accessors must list 1 to %d names", declaration.Path, registryAccessorBound.limit)
 		}
 		names := map[string]bool{}
 		for _, accessor := range declaration.Accessors {
@@ -103,7 +99,7 @@ func declaredRegistries(index *Index) ([]RegistryDeclaration, int) {
 		if !valid || !loaded || !strings.Contains(text, "application-map-manifest") {
 			continue
 		}
-		if len(text) > maxRegistryManifestBytes || !strictJSON(text) {
+		if !registryManifestBound.admits(len(text)) || !strictJSON(text) {
 			if strings.Contains(text, "registries") {
 				invalid++
 			}
@@ -164,7 +160,7 @@ func isRegistryWord(token registryToken, text string) bool {
 // registryLiteral admits a closed quoted string or a substitution-free
 // template with a printable body and no escape: the only key it compares.
 func registryLiteral(token registryToken) (string, bool) {
-	if token.kind != webString || !(token.quoted || token.template) || token.text == "" || len(token.text) > maxRegistryKeyBytes {
+	if token.kind != webString || !(token.quoted || token.template) || token.text == "" || !registryKeyBound.admits(len(token.text)) {
 		return "", false
 	}
 	for _, character := range token.text {
@@ -426,7 +422,7 @@ func registryEntryOf(property []registryToken, bindings map[string]registryBindi
 		key, ok = registryLiteral(first)
 		value = property[1:]
 	case first.kind == webWord:
-		key, ok = first.text, len(first.text) <= maxRegistryKeyBytes
+		key, ok = first.text, registryKeyBound.admits(len(first.text))
 		value = property[1:]
 		if len(value) == 0 {
 			value = property[:1]

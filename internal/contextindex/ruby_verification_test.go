@@ -228,7 +228,7 @@ func TestNGIV0052RSpecNeedsDeclaredGem(t *testing.T) {
 			"Gemfile":      "gemspec\n",
 			"Gemfile.lock": "GEM\n  specs:\n    foo (1.0)\n      rspec (>= 3)\n"}, unknownCommands},
 		{"oversized Gemfile is not read", map[string]string{
-			"Gemfile": "gem \"rspec\"\n" + strings.Repeat("# padding\n", maxRubyManifestBytes/10+1)}, unknownCommands},
+			"Gemfile": "gem \"rspec\"\n" + strings.Repeat("# padding\n", rubyManifestBound.limit/10+1)}, unknownCommands},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			commands, uncertainty := impactVerificationOf(t, rubyVerificationFiles(test.extra), "app/api_clients/foo_client.rb")

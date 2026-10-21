@@ -6,10 +6,10 @@ import (
 	"strings"
 )
 
-// maxRubyManifestBytes bounds each committed Gemfile, Gemfile.lock or Rakefile
-// read for the Ruby verification command. A larger blob is treated as
-// unreadable, so it proves no suite and the command is withheld (NGI-V0-052).
-const maxRubyManifestBytes = 256 << 10
+// rubyManifestBound (analyzer_bounds.go) bounds each committed Gemfile,
+// Gemfile.lock or Rakefile read for the Ruby verification command. A larger
+// blob is treated as unreadable, so it proves no suite and the command is
+// withheld (NGI-V0-052, TSA-V0-460).
 
 var (
 	gemfileGemPattern = regexp.MustCompile(`(?m)^[ \t]*gem[ \t(]+['"]([A-Za-z0-9_][A-Za-z0-9_.-]*)['"]`)
@@ -68,12 +68,12 @@ func rakefileDeclaresTestTask(index *Index) bool {
 
 // committedRootText reads a tracked repository-root file's committed bytes at
 // the index revision: an admitted source's pinned bytes, else one read-only
-// `git cat-file` of the immutable tree entry bounded by maxRubyManifestBytes.
+// `git cat-file` of the immutable tree entry bounded by rubyManifestBound.
 // It reports false for an untracked, oversized or unreadable file.
 func committedRootText(index *Index, name string) (string, bool) {
 	if source, ok := index.Sources[name]; ok {
 		text, valid, loaded := source.Text()
-		return text, valid && loaded && len(text) <= maxRubyManifestBytes
+		return text, valid && loaded && rubyManifestBound.admits(len(text))
 	}
 	if _, ok := index.Tracked[name]; !ok || index.Root == "" || index.Revision == "" {
 		return "", false
@@ -81,7 +81,7 @@ func committedRootText(index *Index, name string) (string, bool) {
 	if _, skipped := index.Skipped[name]; skipped {
 		return "", false
 	}
-	raw, err := git(context.Background(), index.Root, maxRubyManifestBytes, nil, "cat-file", "blob", index.Revision+":"+name)
+	raw, err := git(context.Background(), index.Root, rubyManifestBound.limit, nil, "cat-file", "blob", index.Revision+":"+name)
 	if err != nil {
 		return "", false
 	}

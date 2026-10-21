@@ -3435,3 +3435,75 @@ Nothing is persisted.
 | TSA-V0-361 | `internal/testsource/env_contract.go` | `TestEnvContractBranchDependent`, `TestEnvContractReaderEdges` | experimental |
 | TSA-V0-362 | `internal/testsource/role_locators.go` | `TestRoleLocatorPerTestMounts` | experimental |
 | TSA-V0-363 | `internal/testsource/validity_env.go`, `cmd/corvint/tests.go` | `TestSourceValidityEnv`, `TestTestsRoleLocatorsAndEnvCLI` | experimental |
+
+## Fail-closed analyzer bounds (V1-1720)
+
+V1-1720 makes one contract of the work bounds in the `internal/contextindex` analyzers whose answer
+can be complete: setup-select's `selected` mode (TSA-V0-001 to TSA-V0-007), the web import resolver
+it reads, the string-key registry dialect, the Ruby autoload reference index (NGI-V0-040) and the
+Ruby verification command (NGI-V0-052). It is agent-drafted and accepted under the owner's standing
+auto-accept (2026-10-11). Hitting a bound is never a negative answer (product invariant 2).
+
+- `TSA-V0-460`: (standing auto-accept, 2026-10-11; V1-1720) Every analyzer bound that can stop
+  work toward a complete answer MUST be declared once in `internal/contextindex/analyzer_bounds.go`
+  with a name, a limit, a unit and a typed outcome, and every check of it MUST go through that
+  declaration. The declared bounds are setup-closure (10,000 files, `bound-exceeded`),
+  shared-reexport (8 hops), shared-lookup (4,096 lookups) and shared-template (8 nested
+  substitutions; all three `shared-constant-key-unresolved`), web-config-bytes (1 MiB),
+  web-config-depth (16 links) and web-config-visits (64 configs; all three `import-unresolved`),
+  registry-manifest (256 KiB), registry-declarations (64), registry-accessors (16) and registry-key
+  (256 bytes; all four `registry-unresolved`), ruby-nesting (256 blocks), ruby-resolutions (64
+  namespaces) and ruby-reference-sites (1,048,576; all three `ruby-reference-index-bounded`),
+  ruby-manifest (256 KiB; the verification command is withheld as unknown) and source-bytes (the
+  index's 1,000,000-byte admission, `source-unreadable`). Caps that only shorten a ranked or shown
+  list, the symbol-extraction caps that record an extraction note, and input caps that refuse the
+  whole request with a typed error are not analyzer bounds.
+- `TSA-V0-461`: (standing auto-accept, 2026-10-11; V1-1720) An analyzer that exhausts a declared
+  bound MUST stop and report that bound's outcome, which its caller turns into ALL or a counted
+  unknown; it MUST NOT return `selected`, a receipt without the matching unknown, or a verification
+  command. A Ruby source nesting past the ruby-nesting bound MUST count every reference it makes
+  in `ruby-reference-index-bounded`, because the namespaces opened past the bound are not tracked.
+- `TSA-V0-462`: (standing auto-accept, 2026-10-11; V1-1720) A result shaped by an exhausted bound
+  or by an in-progress recursion marker (an `export *` cycle) depends on the path that reached it
+  and MUST NOT be stored as a permanent answer; a resolution cache keeps only results whose
+  computation met neither.
+- `TSA-V0-463`: (standing auto-accept, 2026-10-11; V1-1720) One table-driven test MUST drive each
+  declared bound one past its limit and assert its outcome and no complete answer, and MUST fail
+  when a declared bound has no case.
+
+Non-goals: no bound value changes, no new reason or unknown code, no new CLI flag, and no change to
+ranking caps (graph hops and pushes, evidence rows, the dependency-link walk, the ALL reason list).
+Python and Go analyzers outside `internal/contextindex` are not covered.
+
+Failure modes: a bound added without a declaration escapes the table test (review is the
+backstop); a lowered limit in a test is restored by `t.Cleanup`, and the tests that lower one are
+not parallel; source-bytes is the index's admission, so its case uses the real 1,000,001-byte
+form; a registry call-site key past registry-key is read as a computed lookup (`computed-lookup`,
+also ALL); counting every reference of an over-nested Ruby source over-reports the unknown for
+references before the overflow (conservative, never a dropped reference).
+
+Acceptance evidence: `TestAnalyzerBoundsFailClosed` in
+`internal/contextindex/analyzer_bounds_test.go` runs one case per declared bound and fails for a
+bound with no case; `TestRubyNestingOverflowIsBounded` failed before the fix (an `Outer::Mid::Deep`
+reference nested past 256 blocks gave neither the row nor the unknown) and passes after it;
+`TestSharedResolutionCacheSkipsCycleMarkers` resolves `SHARED` through an `export *` cycle, asserts
+the cache holds no miss and resolves the other cycle member, and fails when inexact results are
+cached. The existing bound tests (`TestSelectSetupSharedConstantReviewForms`,
+`TestSelectSetupSharedConstantOpenSetups`, `TestWebImportResolverFailsClosed`,
+`TestRegistryDialectUnresolvedRegistryWidens`, `TestRubyAutoloadResolutionBound`,
+`TestRubyAutoloadSiteBound`) pass unchanged apart from naming the declared bounds.
+
+Rollback: restore the per-file constants in `setup_select.go`, `setup_shared.go`,
+`webresolve.go`, `registry_dialect.go`, `ruby_autoload.go` and `ruby_verification.go`, remove
+`analyzer_bounds.go` and its test, drop the `overflowed` field, return the analyzer schema to
+`corvint-analyzer/131`, and remove this section and the NGI-V0-040 sentence. Nothing is persisted
+beyond the derived index, which the schema bump rebuilds.
+
+### Traceability (V1-1720)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-460 | `internal/contextindex/analyzer_bounds.go` | `TestAnalyzerBoundsFailClosed` | experimental |
+| TSA-V0-461 | `internal/contextindex/analyzer_bounds.go`, `internal/contextindex/setup_select.go`, `internal/contextindex/ruby_autoload.go` | `TestAnalyzerBoundsFailClosed`, `TestRubyNestingOverflowIsBounded` | experimental |
+| TSA-V0-462 | `internal/contextindex/setup_shared.go` | `TestSharedResolutionCacheSkipsCycleMarkers` | experimental |
+| TSA-V0-463 | `internal/contextindex/analyzer_bounds_test.go` | `TestAnalyzerBoundsFailClosed` | experimental |
