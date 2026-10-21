@@ -239,8 +239,6 @@ docs/specs/cem-stable-v1.md CEM-V1-PSR-001
 docs/specs/cem-stable-v1.md CEM-V1-PSR-002
 docs/specs/cem-stable-v1.md CEM-V1-PSR-003
 docs/specs/cem-stable-v1.md CEM-V1-PSR-004
-docs/specs/corvint-tasks-agent-leases-v0.md CAL-V0-073
-docs/specs/corvint-tasks-agent-leases-v0.md CAL-V0-106
 docs/specs/corvint-tasks-agent-leases-v0.md CAL-V0-188
 docs/specs/corvint-tasks-agent-leases-v0.md CAL-V0-300
 docs/specs/corvint-tasks-agent-leases-v0.md CAL-V0-301
