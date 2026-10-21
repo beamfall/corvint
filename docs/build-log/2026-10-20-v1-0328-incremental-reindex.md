@@ -75,3 +75,11 @@ Tests: `TestSnapshotReuseMatchesColdBuild`, `TestSnapshotReuseRefusesUnverifiedP
 The symbol-order change alters the facts in an opt-in analyzer pack, so `analyzerSchemaID` moves to
 `corvint-analyzer/132`. The `IDX-SNAP-V0-017` audit pin is updated to match. `origin/main` already
 uses 131, so a merge must recompute the pin.
+
+## Review round (Codex, one round)
+
+The review found three issues; all are fixed in a follow-up commit.
+
+1. **Blob ids on reused rows were not checked.** Reused symbol, marker and refusal rows carried their prior blob id forward without a check. Every such row must now carry its source's blob id. The one exception is an import refusal: the extractor writes those with no blob id, so the prior must match that exactly. Any mismatch refuses the whole prior, which gives the cold build. Covered by `TestSnapshotReuseRefusesRowsBoundToOtherBlobs`.
+2. **The identifier-graph check was vacuous.** The fixture's names were under the four-character minimum, so the graph had no edges to compare. `TestSnapshotReuseRecomputesIdentGraphForUnchangedReferrers` now moves a definition while the referring file is reused unchanged. It asserts the baseline edges, the changed edges and cold identity.
+3. **Wrong acceptance marker.** `IDX-SNAP-V0-037` now carries the standing auto-accept marker instead of an owner marker.

@@ -180,3 +180,149 @@ func TestMergeReusedPostingsEqualsFullInversion(t *testing.T) {
 		}
 	}
 }
+
+// TestSnapshotReuseRefusesRowsBoundToOtherBlobs: a prior whose checksum is
+// valid but whose symbol, marker or refusal row carries a blob id other than
+// its source's is refused whole, so no row cites bytes it was not derived
+// from, and the served index is the cold one.
+func TestSnapshotReuseRefusesRowsBoundToOtherBlobs(t *testing.T) {
+	qualifyDefaultPath(t)
+	source := impactRepositoryWithFiles(t, reuseFixtureFiles())
+	target := testGit(t, source, "rev-parse", "HEAD")
+	cold := cloneAtRevision(t, source, target)
+	t.Setenv("CORVINT_INDEX_REUSE", "0")
+	writeTreeSnapshot(t, cold)
+	t.Setenv("CORVINT_INDEX_REUSE", "")
+	coldBytes := canonicalSnapshotBytes(t, cold)
+	for _, corrupt := range []struct {
+		name  string
+		apply func(*Index, string) bool
+	}{
+		{"symbol", func(index *Index, other string) bool {
+			for position, symbol := range index.Symbols {
+				if symbol.Path == "app/app.go" {
+					index.Symbols[position].BlobHash = other
+					return true
+				}
+			}
+			return false
+		}},
+		{"marker", func(index *Index, other string) bool {
+			for _, markers := range index.Markers {
+				for position, marker := range markers {
+					if marker.Path == "app/app.go" {
+						markers[position].BlobHash = other
+						return true
+					}
+				}
+			}
+			return false
+		}},
+		{"refusal", func(index *Index, other string) bool {
+			for position, refusal := range index.Unparsed {
+				if refusal.Path == "app/broken.go" {
+					index.Unparsed[position].BlobHash = other
+					return true
+				}
+			}
+			return false
+		}},
+		{"import refusal", func(index *Index, other string) bool {
+			for position, refusal := range index.Unparsed {
+				if refusal.Path == "web/open.ts" && refusal.Facts == "imports" {
+					index.Unparsed[position].BlobHash = other
+					return true
+				}
+			}
+			return false
+		}},
+	} {
+		t.Run(corrupt.name, func(t *testing.T) {
+			root := cloneAtRevision(t, source, target)
+			built, err := BuildForSnapshot(context.Background(), root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !corrupt.apply(built, built.Sources["lib/good.py"].BlobHash) {
+				t.Fatalf("fixture has no %s row to corrupt", corrupt.name)
+			}
+			if _, err := WriteSnapshot(built); err != nil {
+				t.Fatal(err)
+			}
+			again, _ := writeTreeSnapshot(t, root)
+			if again.reusedSources != 0 {
+				t.Fatalf("IDX-SNAP-V0-037: reused %d sources from a prior with a %s row bound to another blob", again.reusedSources, corrupt.name)
+			}
+			if !bytes.Equal(coldBytes, canonicalSnapshotBytes(t, root)) {
+				t.Fatalf("IDX-SNAP-V0-037: a %s row bound to another blob reached the served index", corrupt.name)
+			}
+		})
+	}
+}
+
+// identGraphEdges names each undirected identifier-graph edge by its two
+// source paths.
+func identGraphEdges(t *testing.T, index *Index) map[[2]string]struct{} {
+	t.Helper()
+	graph := index.Vocabulary.IdentGraph
+	if graph == nil || graph.Bounded {
+		t.Fatal("identifier graph missing or bounded")
+	}
+	edges := map[[2]string]struct{}{}
+	for node := uint32(0); node < graph.Nodes; node++ {
+		for _, target := range graph.Targets[graph.Offsets[node]:graph.Offsets[node+1]] {
+			left, right := index.Vocabulary.Paths[node], index.Vocabulary.Paths[target]
+			if left > right {
+				left, right = right, left
+			}
+			edges[[2]string{left, right}] = struct{}{}
+		}
+	}
+	return edges
+}
+
+// TestSnapshotReuseRecomputesIdentGraphForUnchangedReferrers: a reused,
+// unchanged file that names an identifier loses its edge when the definition
+// moves to another file and gains one to the new definer, as a cold build
+// derives it.
+func TestSnapshotReuseRecomputesIdentGraphForUnchangedReferrers(t *testing.T) {
+	qualifyDefaultPath(t)
+	source := impactRepositoryWithFiles(t, map[string]string{
+		"go.mod":          "module example.test/graph\n\ngo 1.27.0\n",
+		"graph/def.go":    "package graph\n\nfunc ComputeTotal() int { return 1 }\n",
+		"graph/helper.go": "package graph\n\nfunc HelperValue() int { return 2 }\n",
+		"graph/use.go":    "package graph\n\nfunc Caller() int { return ComputeTotal() + HelperValue() }\n",
+	})
+	prior := testGit(t, source, "rev-parse", "HEAD")
+	baseline, err := Build(context.Background(), cloneAtRevision(t, source, prior))
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := identGraphEdges(t, baseline)
+	useDef, useHelper, useMoved := [2]string{"graph/def.go", "graph/use.go"}, [2]string{"graph/helper.go", "graph/use.go"}, [2]string{"graph/moved.go", "graph/use.go"}
+	if _, ok := before[useDef]; !ok {
+		t.Fatalf("baseline graph lacks the use/def edge: %v", before)
+	}
+	if _, ok := before[useHelper]; !ok {
+		t.Fatalf("baseline graph lacks the use/helper edge: %v", before)
+	}
+	writeTestFile(t, source, "graph/def.go", "package graph\n\nfunc ComputeSum() int { return 1 }\n")
+	writeTestFile(t, source, "graph/moved.go", "package graph\n\nfunc ComputeTotal() int { return 3 }\n")
+	testGit(t, source, "add", ".")
+	testGit(t, source, "commit", "-qm", "move the definition")
+	target := testGit(t, source, "rev-parse", "HEAD")
+	reindexed := qualifyColdAndIncremental(t, source, prior, target)
+	if want := len(reindexed.Sources) - 2; reindexed.reusedSources != want {
+		t.Fatalf("IDX-SNAP-V0-037: reused %d of %d sources, want %d", reindexed.reusedSources, len(reindexed.Sources), want)
+	}
+	after := identGraphEdges(t, reindexed)
+	if _, ok := after[useDef]; ok {
+		t.Fatalf("IDX-SNAP-V0-037: the reused referrer kept its edge to the removed definition: %v", after)
+	}
+	if _, ok := after[useMoved]; !ok {
+		t.Fatalf("IDX-SNAP-V0-037: the reused referrer has no edge to the new definer: %v", after)
+	}
+	if _, ok := after[useHelper]; !ok {
+		t.Fatalf("IDX-SNAP-V0-037: the unchanged use/helper edge is gone: %v", after)
+	}
+}

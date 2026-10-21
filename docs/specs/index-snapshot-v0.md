@@ -531,9 +531,9 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   Falsifier: a panic, an error return, or any other outcome in one of the five states. Rollback:
   delete the test; nothing else depends on this clause.
 
-### Accepted (2026-10-20, V1-0328, lane auto-accept 2026-10-11): verified prior-snapshot reuse
+### Accepted under standing auto-accept (2026-10-11; V1-0328, 2026-10-20): verified prior-snapshot reuse
 
-- `IDX-SNAP-V0-037`: (accepted 2026-10-20, V1-0328) when blob shards are off, `BuildForSnapshot`
+- `IDX-SNAP-V0-037`: (accepted under the owner's standing auto-accept (2026-10-11); 2026-10-20; V1-0328) when blob shards are off, `BuildForSnapshot`
   MAY reuse per-source facts from the newest prior snapshot of the same object format and engine in
   the shared store, and the served index MUST stay identical under `IDX-SNAP-V0-022`'s canonical
   encoding to a cold build of the same tree. Reuse is fail-closed at three boundaries:
@@ -543,8 +543,9 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   reuses nothing;
   (b) the prior's facts are regrouped per source only when the vocabulary paths equal the sorted
   sources, every postings table is canonical, every source is checked and named by its key, every
-  symbol, marker, unparsed row and extraction note names a prior source, unparsed rows are unique
-  per (path, facts), import sets are non-empty, and the per-source approximate-import flags sum to
+  symbol, marker, unparsed row and extraction note names a prior source, every symbol, marker and
+  unparsed row carries that source's blob id (an import refusal carries none, as the extractor
+  writes it), unparsed rows are unique per (path, facts), import sets are non-empty, and the per-source approximate-import flags sum to
   the prior's `ApproximateImports`; any failure reuses nothing;
   (c) a source is reused only when its prior blob id equals the new tree entry's id and its prior
   bytes have that entry's size and hash to that id under the object format (invariant 1); a reused
@@ -911,7 +912,9 @@ harness events); `TestPackQueryAndEventLoadsVerifyABodyOnlyWhenItIsRead`
 (`internal/contextindex/lifecycle_qualification_test.go`) for `IDX-SNAP-V0-022` and
 `IDX-SNAP-V0-023`; the corpus subtest runs only when `CORVINT_LIFECYCLE_CORPUS` names a clone
 (`docs/BUILD-LOG.md`, 2026-09-22 V1-0008).
-`TestSnapshotReuseMatchesColdBuild`, `TestSnapshotReuseRefusesUnverifiedPrior` and
+`TestSnapshotReuseMatchesColdBuild`, `TestSnapshotReuseRefusesUnverifiedPrior`,
+`TestSnapshotReuseRefusesRowsBoundToOtherBlobs`,
+`TestSnapshotReuseRecomputesIdentGraphForUnchangedReferrers` and
 `TestMergeReusedPostingsEqualsFullInversion` (`internal/contextindex/snapshot_reuse_test.go`), with
 the reuse counts asserted in `TestColdAndIncrementalSnapshotsAreByteIdentical`, cover
 `IDX-SNAP-V0-037` (`docs/build-log/2026-10-20-v1-0328-incremental-reindex.md`).
@@ -1000,4 +1003,4 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-034 (accepted, decision 0517) | `runIndex`, `WriteSnapshot` | `TestSnapshotRefreshInterrupted`, `TestEvictSnapshotsRemovesStaleTemporaries` |
 | IDX-SNAP-V0-035 (accepted, decision 0517) | `snapshotRemediation` | `TestSnapshotRefreshDisabledAndFailures` |
 | IDX-SNAP-V0-036 (accepted, decision 0517) | refresh regression matrix | `TestSnapshotRefreshCommitThenEvent`, `TestSnapshotRefreshSingleFlight`, `TestSnapshotRefreshInterrupted` |
-| IDX-SNAP-V0-037 (accepted, V1-0328) | `BuildForSnapshot`, `snapshotReuseEnabled`, `loadReusePrior`, `priorFacts`, `takeUnchanged`, `attach`, `buildReusedVocabulary`, `mergeReusedPostings` | `TestSnapshotReuseMatchesColdBuild`, `TestSnapshotReuseRefusesUnverifiedPrior`, `TestMergeReusedPostingsEqualsFullInversion`, `TestColdAndIncrementalSnapshotsAreByteIdentical` |
+| IDX-SNAP-V0-037 (standing auto-accept, V1-0328) | `BuildForSnapshot`, `snapshotReuseEnabled`, `loadReusePrior`, `priorFacts`, `takeUnchanged`, `attach`, `buildReusedVocabulary`, `mergeReusedPostings` | `TestSnapshotReuseMatchesColdBuild`, `TestSnapshotReuseRefusesUnverifiedPrior`, `TestSnapshotReuseRefusesRowsBoundToOtherBlobs`, `TestSnapshotReuseRecomputesIdentGraphForUnchangedReferrers`, `TestMergeReusedPostingsEqualsFullInversion`, `TestColdAndIncrementalSnapshotsAreByteIdentical` |

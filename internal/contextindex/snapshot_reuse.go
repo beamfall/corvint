@@ -128,7 +128,8 @@ func loadReusePrior(root, objectFormat string) (*reusePrior, error) {
 }
 
 // priorFacts regroups a snapshot's per-source rows by path and proves the
-// regrouping complete: every row names a prior source, every source's
+// regrouping complete: every row names a prior source and, where it carries
+// one, that source's blob id; every source's
 // approximate-import flag is re-derived by the rule recordImports applies, and
 // their sum is the snapshot's own count. A vocabulary whose paths are not the
 // sorted sources, or whose postings are not canonical, refuses the prior.
@@ -158,10 +159,16 @@ func priorFacts(index *Index) (map[string]*blobFacts, error) {
 		facts[sourcePath] = &blobFacts{Source: source}
 	}
 	missing := errors.New("prior row names no prior source")
+	// unbound: a row whose blob id is not its source's would carry a citation
+	// to other bytes forward under the re-verified source (invariant 1).
+	unbound := errors.New("prior row blob id is not its source's blob id")
 	for _, symbol := range index.Symbols {
 		fact := facts[symbol.Path]
 		if fact == nil {
 			return nil, missing
+		}
+		if symbol.BlobHash != fact.Source.BlobHash {
+			return nil, unbound
 		}
 		fact.Symbols = append(fact.Symbols, symbol)
 	}
@@ -170,6 +177,9 @@ func priorFacts(index *Index) (map[string]*blobFacts, error) {
 			fact := facts[marker.Path]
 			if fact == nil {
 				return nil, missing
+			}
+			if marker.BlobHash != fact.Source.BlobHash {
+				return nil, unbound
 			}
 			if fact.Markers == nil {
 				fact.Markers = make(map[string][]Marker)
@@ -181,6 +191,15 @@ func priorFacts(index *Index) (map[string]*blobFacts, error) {
 		fact := facts[refusal.Path]
 		if fact == nil {
 			return nil, missing
+		}
+		// The extractors bind every refusal to its blob except an import
+		// refusal, which carries none; the prior must match that rule exactly.
+		bound := fact.Source.BlobHash
+		if refusal.Facts == "imports" {
+			bound = ""
+		}
+		if refusal.BlobHash != bound {
+			return nil, unbound
 		}
 		for _, held := range fact.Unparsed {
 			if held.Facts == refusal.Facts {
