@@ -65,7 +65,7 @@ func TestContextInALinkedWorktreeAnswersForItsOwnHead(t *testing.T) {
 	contextAt := func(at string, wantHit bool) map[string]any {
 		t.Helper()
 		// The CLI path does not expose the loader outcome; the same compile does.
-		if _, hit, err := compileTaskContext(context.Background(), taskContextOptions{root: at, task: task, limit: 5, lsp: "off", lspSet: true}, loadContextSnapshot); err != nil || hit != wantHit {
+		if _, hit, _, err := compileTaskContext(context.Background(), taskContextOptions{root: at, task: task, limit: 5, lsp: "off", lspSet: true}, loadContextSnapshot); err != nil || hit != wantHit {
 			t.Fatalf("V1-0998: context --root %s snapshot hit=%t err=%v, want hit=%t", at, hit, err, wantHit)
 		}
 		before, primaryStatus, linkedStatus := snapshots(), gitFixture(t, root, "status", "--porcelain"), gitFixture(t, linked, "status", "--porcelain")

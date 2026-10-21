@@ -691,7 +691,12 @@ func sourceImports(sourcePath, text string) importExtraction {
 		// this necessary condition (a 25 MB JSON blob, say) cannot match, so
 		// skipping the NFA for them loses no match the regex would have
 		// found.
-		if strings.ContainsAny(text, `"'`) && (strings.Contains(text, "from") || strings.Contains(text, "import")) {
+		//
+		// mayHoldGenericImport is the sharper exact form of the same gate
+		// (V1-1640): it walks each keyword occurrence through the regex's
+		// own opening shape, so a prose body whose "from" and "import" are
+		// never followed by a quoted string skips the NFA as well.
+		if mayHoldGenericImport(text) {
 			for _, match := range genericImport.FindAllStringSubmatchIndex(text, -1) {
 				if match[0] != 0 {
 					previous, _ := utf8.DecodeLastRuneInString(text[:match[0]])
@@ -704,6 +709,55 @@ func sourceImports(sourcePath, text string) importExtraction {
 		}
 		return importExtraction{imports: result, approximate: len(result) != 0}
 	}
+}
+
+// mayHoldGenericImport reports whether genericImport can match anywhere in
+// text. A match must begin at a "from" followed by at least one regex space
+// and a quote, or at an "import" followed by optional regex spaces, an
+// optional "(" with optional spaces, and a quote; the regex's space class is
+// greedy and excludes both quotes and "(", so checking each keyword occurrence
+// this way decides exactly whether a match can start there. A false result
+// therefore loses no match the regex would have found (V1-1640).
+func mayHoldGenericImport(text string) bool {
+	for _, keyword := range [...]string{"from", "import"} {
+		for offset := 0; ; {
+			found := strings.Index(text[offset:], keyword)
+			if found < 0 {
+				break
+			}
+			start := offset + found + len(keyword)
+			offset = offset + found + 1
+			next, spaces := skipGenericImportSpaces(text, start)
+			if keyword == "from" {
+				if spaces == 0 {
+					continue
+				}
+			} else if next < len(text) && text[next] == '(' {
+				next, _ = skipGenericImportSpaces(text, next+1)
+			}
+			if next < len(text) && (text[next] == '"' || text[next] == '\'') {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// skipGenericImportSpaces advances past the runes genericImport's space class
+// [\t-\r \x1c-\x1f\x{0085}\p{Z}] matches, returning the next byte offset and
+// how many runes it skipped. An invalid byte decodes as U+FFFD, which the
+// class does not match, exactly as the regexp engine reads it.
+func skipGenericImportSpaces(text string, offset int) (int, int) {
+	count := 0
+	for offset < len(text) {
+		r, size := utf8.DecodeRuneInString(text[offset:])
+		if !(r >= '\t' && r <= '\r' || r == ' ' || r >= 0x1c && r <= 0x1f || r == 0x85 || unicode.Is(unicode.Z, r)) {
+			break
+		}
+		offset += size
+		count++
+	}
+	return offset, count
 }
 
 func stringsField(value any) []string {

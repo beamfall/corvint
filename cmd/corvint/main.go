@@ -14,6 +14,7 @@ import (
 	"runtime/pprof"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -1235,8 +1236,10 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 	if options.command == "impact" || options.command == "feature" {
 		buildFailed := false
 		build := func() (*contextindex.Index, error) {
+			started := time.Now()
 			index, err := contextindex.Build(ctx, options.root)
 			if err == nil {
+				noteSnapshotMissBuild(stderr, options.command, options.root, time.Since(started))
 				return index, nil
 			}
 			buildFailed = true
