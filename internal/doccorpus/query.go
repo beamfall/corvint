@@ -380,8 +380,11 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 			}
 		}
 		// DCP-V1-186: supplied gaps follow the computed ones, labelled by origin.
+		// DCP-V1-304: a gap that targets a claim is also selected by the
+		// claim's subject.
+		targets := suppliedGapClaimSubjects(a, request.ID)
 		for _, g := range a.SuppliedGaps {
-			if request.ID == "" || g.Subject == request.ID || g.ID == request.ID {
+			if request.ID == "" || g.Subject == request.ID || g.ID == request.ID || targets[g.Subject] {
 				r.Results = append(r.Results, g)
 				r.Citations = append(r.Citations, g.Evidence.Anchors...)
 			}
@@ -482,6 +485,70 @@ func get(a *Artifact, id string, r *Receipt) {
 	getRecords(a, id, r)
 	if len(r.Results) == before {
 		getLegacyCase(a, id, r)
+		return
+	}
+	getMigrationChain(a, id, r)
+}
+
+// getMigrationChain appends, in artifact order, every migration_mapping
+// relation reachable from an inventory unit through migration mappings in
+// either direction (DCP-V1-307): the unit's own mapping and the chain across
+// earlier and later migrations. Relations the receipt already holds are not
+// repeated. A corpus without migration mappings reads nothing more.
+func getMigrationChain(a *Artifact, id string, r *Receipt) {
+	var edges func(node string) []int
+	if x := a.RuntimeIndex; x != nil {
+		if ref, ok := x.IDs[id]; !ok || ref.Kind != "subject" || a.Subjects[ref.Offset].Kind != "inventory" {
+			return
+		}
+		edges = func(node string) []int { return x.Edges[node] }
+	} else {
+		adjacent := map[string][]int{}
+		for i, rel := range a.Relations {
+			if rel.Type == "migration_mapping" {
+				adjacent[rel.From] = append(adjacent[rel.From], i)
+				if rel.To != rel.From {
+					adjacent[rel.To] = append(adjacent[rel.To], i)
+				}
+			}
+		}
+		if len(adjacent[id]) == 0 {
+			return
+		}
+		edges = func(node string) []int { return adjacent[node] }
+	}
+	held := map[string]bool{}
+	for _, v := range r.Results {
+		if rel, ok := v.(Relation); ok {
+			held[rel.ID] = true
+		}
+	}
+	seen := map[string]bool{id: true}
+	chain := map[int]bool{}
+	for queue := []string{id}; len(queue) > 0; queue = queue[1:] {
+		for _, i := range edges(queue[0]) {
+			rel := a.Relations[i]
+			if rel.Type != "migration_mapping" || chain[i] {
+				continue
+			}
+			chain[i] = true
+			for _, next := range []string{rel.From, rel.To} {
+				if !seen[next] {
+					seen[next] = true
+					queue = append(queue, next)
+				}
+			}
+		}
+	}
+	offsets := make([]int, 0, len(chain))
+	for i := range chain {
+		offsets = append(offsets, i)
+	}
+	sort.Ints(offsets)
+	for _, i := range offsets {
+		if !held[a.Relations[i].ID] {
+			addRecord(r, a.Relations[i])
+		}
 	}
 }
 
@@ -744,24 +811,74 @@ func coverageMetrics(a *Artifact) []any {
 	return append(rows, behaviorCoverage(a)...)
 }
 
+// suppliedGapClaimSubjects returns the claims on subject id that a supplied
+// gap targets (DCP-V1-304). It reads nothing when no supplied gap exists, so
+// a corpus without supplied gaps does no extra work.
+func suppliedGapClaimSubjects(a *Artifact, id string) map[string]bool {
+	if id == "" || len(a.SuppliedGaps) == 0 {
+		return nil
+	}
+	targeted := map[string]bool{}
+	for _, g := range a.SuppliedGaps {
+		targeted[g.Subject] = true
+	}
+	claims := map[string]bool{}
+	if x := a.RuntimeIndex; x != nil {
+		for _, i := range x.Claims[id] {
+			if c := a.Claims[i]; c.Subject == id && targeted[c.ID] {
+				claims[c.ID] = true
+			}
+		}
+		return claims
+	}
+	for _, c := range a.Claims {
+		if c.Subject == id && targeted[c.ID] {
+			claims[c.ID] = true
+		}
+	}
+	return claims
+}
+
 // suppliedStatusCoverage counts producer-supplied statuses per state
-// (DCP-V1-188) and supplied test-run receipts per outcome (DCP-V1-211). Each
-// family yields no row when nothing was supplied, so existing coverage
+// (DCP-V1-188) and supplied test-run receipts per outcome (DCP-V1-211). A
+// qualified state counts under STATE:QUALIFIER, never under the plain state
+// (DCP-V1-301), and test-run receipts that carry a flake verdict or cleanup
+// outcome are counted per value over the receipts that carry it (DCP-V1-305).
+// Each family yields no row when nothing was supplied, so existing coverage
 // receipts keep their bytes.
 func suppliedStatusCoverage(a *Artifact) []any {
 	rows := suppliedClaimCoverage(a, "supplied_status:", "supplied status claims in this state / all supplied status claims",
 		"producer-supplied status; not derived or verified by the compiler and grants no trust",
 		func(d RecordDetails) string {
-			if d.Status != nil {
-				return d.Status.State
+			if d.Status == nil {
+				return ""
 			}
-			return ""
+			if d.Status.Qualifier != "" {
+				return d.Status.State + ":" + d.Status.Qualifier
+			}
+			return d.Status.State
 		})
-	return append(rows, suppliedClaimCoverage(a, "supplied_test_run:", "supplied test-run receipts with this outcome / all supplied test-run receipts",
+	rows = append(rows, suppliedClaimCoverage(a, "supplied_test_run:", "supplied test-run receipts with this outcome / all supplied test-run receipts",
 		"producer-supplied test-run receipt; not executed, derived or verified by the compiler and grants no trust",
 		func(d RecordDetails) string {
 			if d.TestRun != nil {
 				return d.TestRun.Outcome
+			}
+			return ""
+		})...)
+	rows = append(rows, suppliedClaimCoverage(a, "supplied_test_run_flake:", "supplied test-run receipts with this flake verdict / supplied test-run receipts that carry a flake verdict",
+		"producer-supplied flake verdict; not re-run, derived or verified by the compiler and grants no trust",
+		func(d RecordDetails) string {
+			if d.TestRun != nil {
+				return d.TestRun.FlakeVerdict
+			}
+			return ""
+		})...)
+	return append(rows, suppliedClaimCoverage(a, "supplied_test_run_cleanup:", "supplied test-run receipts with this cleanup outcome / supplied test-run receipts that carry a cleanup outcome",
+		"producer-supplied cleanup outcome; not observed, derived or verified by the compiler and grants no trust",
+		func(d RecordDetails) string {
+			if d.TestRun != nil {
+				return d.TestRun.Cleanup
 			}
 			return ""
 		})...)

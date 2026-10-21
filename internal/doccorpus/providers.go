@@ -391,10 +391,12 @@ func (c *compiler) validateRecords() error {
 		}
 		subjects[s.ID] = s
 	}
+	claims := map[string]bool{}
 	for _, claim := range a.Claims {
 		if err := admit(claim.ID); err != nil {
 			return err
 		}
+		claims[claim.ID] = true
 		if _, ok := subjects[claim.Subject]; !ok {
 			return fail("claim subject missing")
 		}
@@ -431,7 +433,9 @@ func (c *compiler) validateRecords() error {
 		if err := admit(g.ID); err != nil {
 			return err
 		}
-		if _, ok := subjects[g.Subject]; !ok {
+		// DCP-V1-304: a supplied gap targets a subject or a claim, such as the
+		// claim that carries a test run.
+		if _, ok := subjects[g.Subject]; !ok && !claims[g.Subject] {
 			return fail("supplied gap subject missing")
 		}
 	}
