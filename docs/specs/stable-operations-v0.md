@@ -181,7 +181,7 @@ Lifecycle steps are `install-a`, `first-index`, `upgrade-b`, `rollback-a`, `unin
 | SOP-V0-002 | step `first-index` in cases 1 and 2; snapshot miss/hit semantics `internal/contextindex/snapshot_test.go:47@9ea4ec57` |
 | SOP-V0-003 | case 1 asserts `upgrade-b` ran `(build 2)`, `packet=identical` and no `same-bytes`; case 2 asserts `same-bytes`; case 5 (stubbed wire change passes with `packet=changed`, an unreproducible packet and an empty packet each fail at `upgrade-b` with exit 1); installer coexistence `internal/releasecandidate/install_test.go:16@90e57d5e`, `internal/releasecandidate/operations_test.go:44@5dca69d1` |
 | SOP-V0-004 | step `uninstall` in cases 1 and 2 |
-| SOP-V0-005 | step `backup-restore` in cases 1 and 2; round trip `internal/contextindex/snapshot_test.go:213@4e378161` |
+| SOP-V0-005 | step `backup-restore` in cases 1 and 2; round trip `internal/contextindex/snapshot_test.go:214@4e378161` |
 | SOP-V0-006 | steps `corrupt-truncate` and `corrupt-overwrite`; unit-level miss `internal/contextindex/pack_test.go:206@b2b8420d` |
 | SOP-V0-007 | hostile wrapper case 2 (exact delegated argv, one `go` per row), case 3 (skipped test NOT_RUN, run passes), case 4 (row NOT_RUN), case 5 (`--- FAIL` names the test, exit 1) |
 | SOP-V0-008 | hostile wrapper case 1 (`git grep` of every listed `func Test...(` in tracked `_test.go`; every category listed) |
@@ -201,7 +201,7 @@ Hostile-regression matrix (`script/check-hostile-regressions.sh --list` prints t
 | paths | `internal/companionrelease` | `internal/companionrelease/companionrelease_test.go:692@5ef76c7b` |
 | paths | `internal/trace` | `internal/trace/migration_test.go:80@77e27ccc` |
 | paths | `internal/doccompiler` | `internal/doccompiler/compiler_test.go:211@b9d5a61d` |
-| symlinks | `internal/contextindex` | `internal/contextindex/index_test.go:235@6bb9aead`, `internal/contextindex/index_test.go:475@22de943f`, `internal/contextindex/blob_shards_open_test.go:91@9e01d46f`, `internal/contextindex/blob_shards_open_test.go:52@137ff6a7`, `internal/contextindex/snapshot_test.go:595@22f1c7f2`, `internal/contextindex/snapshot_test.go:644@ee7924d9` |
+| symlinks | `internal/contextindex` | `internal/contextindex/index_test.go:236@6bb9aead`, `internal/contextindex/index_test.go:477@22de943f`, `internal/contextindex/blob_shards_open_test.go:91@9e01d46f`, `internal/contextindex/blob_shards_open_test.go:52@137ff6a7`, `internal/contextindex/snapshot_test.go:599@22f1c7f2`, `internal/contextindex/snapshot_test.go:649@ee7924d9` |
 | symlinks | `internal/trace` | `internal/trace/store_test.go:223@ee958993`, `internal/trace/store_test.go:938@69176005` |
 | symlinks | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:105@141529a4` |
 | symlinks | `internal/worktreeimpact` | `internal/worktreeimpact/hostile_unix_test.go:12@0eab7357` |
@@ -209,11 +209,11 @@ Hostile-regression matrix (`script/check-hostile-regressions.sh --list` prints t
 | case-folds | `internal/mcp/testvaliditybridge` | `internal/mcp/testvaliditybridge/testvaliditybridge_test.go:162@e7747668` |
 | case-folds | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:105@141529a4` (`case-alias` subcase) |
 | bounded-output | `internal/procgroup` | `internal/procgroup/process_overflow_test.go:13@8b1b8267`, `internal/procgroup/process_overflow_test.go:93@e6067a5b` |
-| bounded-output | `internal/contextindex` | `internal/contextindex/git_execution_unix_test.go:151@b46f5300`, `internal/contextindex/extractionnote_test.go:63@d2c61a7e` |
+| bounded-output | `internal/contextindex` | `internal/contextindex/git_execution_unix_test.go:153@b46f5300`, `internal/contextindex/extractionnote_test.go:63@d2c61a7e` |
 | bounded-output | `internal/trace` | `internal/trace/record_test.go:391@cc18800d` |
 | bounded-output | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:189@0595c93c` |
 | time | `internal/procgroup` | `internal/procgroup/process_test.go:52@028e61d3`, `internal/procgroup/process_test.go:62@704c3abb` |
-| time | `internal/contextindex` | `internal/contextindex/local_completion_context_test.go:193@1bcaa713` |
+| time | `internal/contextindex` | `internal/contextindex/local_completion_context_test.go:194@1bcaa713` |
 | interruption-cleanup | `internal/procgroup` | `internal/procgroup/process_test.go:460@9aa96910`, `internal/procgroup/process_test.go:95@0a8f0be2`, `internal/procgroup/process_hook_test.go:13@f0458815` |
 | interruption-cleanup | `internal/releasecandidate` | `internal/releasecandidate/operations_posix_test.go:18@d8182271`, `internal/releasecandidate/operations_test.go:238@eab69ef3` |
 | interruption-cleanup | `internal/contextindex` | `internal/contextindex/fifo_unix_test.go:36@5098dd43` |
