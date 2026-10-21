@@ -1127,6 +1127,36 @@ and `internal/cem/workflow/self_modified.go`. The `cem status` report is `CEM-V1
   Projection files never rank as results because the index never reads them. Rollback: restore
   the single path-then-reason order. Test:
   `TestTaskContextKeepsTaskStoreProjectionsOutOfRankingAndBehindRealGaps`.
+- `TCP-V0-150`: accepted under the owner's standing auto-accept (2026-10-11) (V1-2127). The
+  task packet's and the `context defs|refs|grep` envelope's `revision` stays the indexed tree
+  object id (the tree of the HEAD commit, also on a dirty worktree); consumers keep reading it
+  as a tree. Each also carries an optional top-level `commit` member, the full object id of the
+  HEAD commit the index observed, present whenever that commit is known (absent on an unborn
+  HEAD). `commit` is what `git show <rev>:<path>` and commit-ish consumers need; it changes no
+  ranking, row or other member. Rollback removes the member. Test:
+  `TestTaskContextCarriesHeadCommitBesideTreeRevision` and the regenerated
+  `context-recipe-default-golden.json` and core-freeze context goldens (additive under CCF-V1-006).
+- `TCP-V0-151`: accepted under the owner's standing auto-accept (2026-10-11) (V1-1285, V1-2127).
+  When the worktree is source-dirty (`Index.SourceDirty`: a dirty path other than a Tasks store
+  projection), the task packet carries a top-level `worktree` member `{"state": "MIXED",
+  "dirty_path_count", "dirty_paths", "binding"}`: the count of dirty paths, at most ten of them in
+  path order, and a fixed sentence that the evidence is the tree at `revision` and uncommitted
+  content is not read. A clean worktree's packet has no such member, so its bytes are unchanged.
+  The packet never answers from the commit tree silently while the working tree differs. Rollback
+  removes the member. Test: `TestTaskContextCarriesHeadCommitBesideTreeRevision`.
+- `TCP-V0-152`: accepted under the owner's standing auto-accept (2026-10-11) (V1-1010, V1-1015,
+  V1-1285). A task anchor no evidence resolves is disclosed as uncertainty in
+  `coverage.unresolved_anchors` `{"count", "samples": [{"anchor", "reason"}]}` (at most ten samples
+  in anchor order), present only when there is one: (a) a requirement id the task or subject names
+  for which no tracked spec has a defining clause (TCP-V0-009); (b) a ticket-shaped id, an id
+  token ending in four or more digits such as `V1-0523`, which no pass can resolve because the
+  index holds no Tasks ticket state (TCP-V0-121); (c) a code-shaped identifier the task names
+  (`definitionEligible`, at least four bytes, a lower-case letter, and an inner upper-case letter
+  or underscore) that no indexed declaration defines, such as a struct field. The member changes
+  no ranking, row, limit or answerability verdict; resolving ticket anchors through ticket state
+  or indexing struct fields would each need its own requirement and frozen evaluation. Rollback
+  removes the member and the two compiler fields that feed it. Test:
+  `TestTaskContextDisclosesUnresolvedIDAnchors`.
 
 ## Non-goals and authority
 
@@ -1611,3 +1641,6 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-064 | `taskContext` (final guard, `join`), `stopped` (compile boundaries, `lexicalHits` per term, `lexicalRows`) | `TestTaskContextCancellationNeverReturnsAPacket`, `TestTaskContextPreCancelledRequestReturnsCancellation` |
 | TCP-V0-006 amendment / TCP-V0-065 (accepted, decision 0516 (V1-0315)) | `taskContextCompiler.packet`, `taskContextExclusions` | `TestTaskContextDisclosesNonUTF8Exclusions`, `TestTaskContextExclusionsAreBoundedAndAdditive`, `TestTaskContextExclusionsAbsentKeepsFrozenBytes`, `TestTaskContextExclusionsCountUnsupportedSuffixes` |
 | TCP-V0-121 (accepted, standing auto-accept, V1-2131) | `taskContextExclusions` | `TestTaskContextKeepsTaskStoreProjectionsOutOfRankingAndBehindRealGaps` |
+| TCP-V0-150 (accepted, standing auto-accept, V1-2127) | `taskContextCompiler.packet`, `lookupEnvelope` | `TestTaskContextCarriesHeadCommitBesideTreeRevision`, `TestTaskContextExclusionsAbsentKeepsFrozenBytes` (regenerated golden), `TestCoreVerbsEmitTheFrozenProfiles` (context goldens) |
+| TCP-V0-151 (accepted, standing auto-accept, V1-1285) | `taskContextWorktree` | `TestTaskContextCarriesHeadCommitBesideTreeRevision` |
+| TCP-V0-152 (accepted, standing auto-accept, V1-1010/V1-1015/V1-1285) | `unresolvedAnchors`, `undeclaredAnchor` (`internal/contextindex/taskcontext_anchors.go`), `specMentionedRows`, `symbolRows` | `TestTaskContextDisclosesUnresolvedIDAnchors` |

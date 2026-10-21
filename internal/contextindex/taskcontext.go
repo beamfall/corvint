@@ -177,6 +177,12 @@ type taskContextCompiler struct {
 	roles bool
 	// graphRanking is TCP-V0-034's opt-in, set by `CORVINT_CONTEXT_GRAPH=on`.
 	graphRanking bool
+	// undefinedIDs are the requirement ids the spec-mentioned pass found no
+	// defining clause for (TCP-V0-152).
+	undefinedIDs []string
+	// undeclared are the code-shaped identifiers the task names that no
+	// indexed declaration defines (TCP-V0-152).
+	undeclared []string
 }
 
 // startHistory reads the co-change history beside the slots that do not need
@@ -815,6 +821,9 @@ func (compiler *taskContextCompiler) symbolRows() []contextRow {
 			continue
 		}
 		symbols := definers[identifier.name]
+		if len(symbols) == 0 && undeclaredAnchor(identifier.name) {
+			compiler.undeclared = append(compiler.undeclared, identifier.name) // TCP-V0-152
+		}
 		if len(symbols) == 0 || len(symbols) > contextMaxDefiners {
 			continue
 		}
@@ -2177,6 +2186,7 @@ func (compiler *taskContextCompiler) specMentionedRows(taken []contextRow) []con
 	for _, id := range ids {
 		owners := definers[id]
 		if len(owners) == 0 {
+			compiler.undefinedIDs = append(compiler.undefinedIDs, id)
 			continue
 		}
 		reason := "defines " + id
@@ -2581,12 +2591,35 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 		},
 		"results": results,
 	}
+	if compiler.index.CommitRevision != "" { // TCP-V0-150: the HEAD commit beside the tree `revision`
+		packet["commit"] = compiler.index.CommitRevision
+	}
+	if worktree := taskContextWorktree(compiler.index); worktree != nil {
+		packet["worktree"] = worktree
+	}
 	if exclusions := taskContextExclusions(compiler.index); exclusions != nil {
 		packet["exclusions"] = exclusions
 	}
+	compiler.unresolvedAnchors(packet["coverage"].(map[string]any))
 	compiler.recencyCoverage(packet["coverage"].(map[string]any), rows)
 	compiler.lexicalCoverage(packet["coverage"].(map[string]any), rows, limit)
 	return packet
+}
+
+// taskContextWorktree is TCP-V0-151: a source-dirty worktree is disclosed, never
+// silently answered from the commit tree. Dirty paths are sorted already.
+func taskContextWorktree(index *Index) map[string]any {
+	if !index.SourceDirty() {
+		return nil
+	}
+	paths := index.DirtyPaths
+	if len(paths) > maxExclusionSamples {
+		paths = paths[:maxExclusionSamples]
+	}
+	return map[string]any{
+		"state": "MIXED", "dirty_path_count": len(index.DirtyPaths), "dirty_paths": append([]string{}, paths...),
+		"binding": "evidence is the tree at `revision`; uncommitted content of the dirty paths is not read",
+	}
 }
 
 // taskStoreProjectionReason marks a Tasks store projection file, which is task
