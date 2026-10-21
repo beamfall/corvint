@@ -90,3 +90,66 @@ func TestProfileOwnedReportersLive(t *testing.T) {
 		})
 	}
 }
+
+// TRE-V0-110 (V1-1541): a Minitest test that raises is FAILED with cause
+// UNKNOWN for that case only; the passing case keeps its outcome and the run
+// stays complete.
+func TestMinitestUnexpectedErrorFailsOnlyThatCaseLive(t *testing.T) {
+	exe, e := exec.LookPath("ruby")
+	if e != nil {
+		t.Skipf("runtime unavailable: %v", e)
+	}
+	if e := exec.Command(exe, "-e", "require 'minitest'").Run(); e != nil {
+		t.Skipf("Ruby profile dependency unavailable: %v", e)
+	}
+	dir := t.TempDir()
+	art := filepath.Join(dir, "reports")
+	if e = os.Mkdir(art, 0700); e != nil {
+		t.Fatal(e)
+	}
+	src := "require 'minitest/autorun'\nclass Sample < Minitest::Test\n def test_pass; assert true; end\n def test_raise; raise ArgumentError, 'secret detail'; end\nend\n"
+	if e = os.WriteFile(filepath.Join(dir, "sample.rb"), []byte(src), 0600); e != nil {
+		t.Fatal(e)
+	}
+	inv, e := Build(tr.Request{Runner: "minitest", Root: dir, Executable: exe, ReportDir: art, Selectors: []string{"sample.rb"}})
+	if e != nil {
+		t.Fatal(e)
+	}
+	for name, body := range inv.Files {
+		if e = os.WriteFile(filepath.Join(art, name), body, 0600); e != nil {
+			t.Fatal(e)
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, exe, inv.Argv...)
+	cmd.Dir = dir
+	out, runErr := cmd.CombinedOutput()
+	ee, ok := runErr.(*exec.ExitError)
+	if ctx.Err() != nil || !ok || ee.ExitCode() != 1 {
+		t.Fatalf("want native exit 1, got %v: %s", runErr, out)
+	}
+	in := tr.Input{Runner: "minitest", ExitCode: 1, Reports: map[string][]byte{}}
+	for _, name := range inv.ReportPaths {
+		b, e := os.ReadFile(filepath.Join(art, name))
+		if e != nil {
+			t.Fatalf("%v output=%s", e, out)
+		}
+		in.Reports[name] = b
+	}
+	obs, e := Parse(in)
+	if e != nil || !obs.Complete || len(obs.Tests) != 2 || len(obs.Problems) != 0 {
+		t.Fatalf("%+v %v output=%s", obs, e, out)
+	}
+	got := map[string]tr.Test{}
+	for _, c := range obs.Tests {
+		got[c.ID] = c
+	}
+	if c := got["Sample#test_pass"]; c.State != tr.Passed {
+		t.Fatalf("passing case: %+v", c)
+	}
+	c := got["Sample#test_raise"]
+	if c.State != tr.Failed || c.FailureKind != tr.Unknown || c.Message != "UnexpectedError: ArgumentError" {
+		t.Fatalf("raising case: %+v", c)
+	}
+}

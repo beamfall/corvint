@@ -3,6 +3,7 @@
 package native
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"os/exec"
@@ -61,5 +62,81 @@ func TestNativeGoBuildExecuteParse(t *testing.T) {
 	}
 	if counts[tr.Passed] != 1 || counts[tr.Failed] != 1 || counts[tr.Skipped] != 1 {
 		t.Fatal(counts)
+	}
+}
+
+// V1-1537 (TRE-V0-111): a ctest run leaves the caller's build directory
+// byte-for-byte unchanged and keeps CTest's own log in the report directory.
+func TestCTestRunLeavesBuildDirectoryUnchanged(t *testing.T) {
+	executable, err := exec.LookPath("ctest")
+	if err != nil {
+		t.Skip("ctest unavailable")
+	}
+	executable, err = filepath.EvalSymlinks(executable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	toolBytes, err := os.ReadFile(executable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	build, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	testfile := []byte("add_test(pass \"/usr/bin/true\")\nadd_test(fail \"/usr/bin/false\")\n")
+	if err = os.WriteFile(filepath.Join(build, "CTestTestfile.cmake"), testfile, 0600); err != nil {
+		t.Fatal(err)
+	}
+	snapshot := func() map[string]string {
+		files := map[string]string{}
+		if err := filepath.WalkDir(build, func(name string, entry os.DirEntry, err error) error {
+			if err != nil || name == build {
+				return err
+			}
+			rel, _ := filepath.Rel(build, name)
+			if entry.IsDir() {
+				files[rel] = "dir"
+				return nil
+			}
+			data, err := os.ReadFile(name)
+			files[rel] = tr.Digest(data)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return files
+	}
+	before := snapshot()
+	reports := filepath.Join(t.TempDir(), "reports")
+	r := tr.Request{Runner: "ctest", Executable: executable, ExecutableSha256: tr.Digest(toolBytes), Root: build, ReportDir: reports, TimeoutSeconds: 120, InputFiles: map[string]string{"CTestTestfile.cmake": tr.Digest(testfile)}, ExpectedTests: []string{"pass", "fail"}}
+	inv, err := Build(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := tr.Execute(context.Background(), r, inv)
+	if err != nil {
+		t.Fatalf("execution: %v; input=%+v", err, result.Input)
+	}
+	observation, err := Parse(result.Input)
+	if err != nil {
+		t.Fatalf("parse: %v; stderr=%s; stdout=%s", err, result.Input.Stderr, result.Input.Stdout)
+	}
+	observation = tr.Normalize(result.Input, observation)
+	if !observation.Complete || len(observation.Tests) != 2 {
+		t.Fatalf("observation=%+v; stderr=%s", observation, result.Input.Stderr)
+	}
+	after := snapshot()
+	if len(after) != len(before) {
+		t.Fatalf("ctest changed the build directory: before %v, after %v", before, after)
+	}
+	for name, digest := range before {
+		if after[name] != digest {
+			t.Fatalf("ctest changed %s in the build directory: before %v, after %v", name, before, after)
+		}
+	}
+	log, err := os.ReadFile(filepath.Join(reports, ctestRunDir, "Testing", "Temporary", "LastTest.log"))
+	if err != nil || !bytes.Contains(log, []byte("fail")) {
+		t.Fatalf("CTest log not retained in the report directory: %v %q", err, log)
 	}
 }
