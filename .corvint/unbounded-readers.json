@@ -42,7 +42,6 @@
     "script/gate-affected-corvint_test.sh",
     "script/gate-affected_test.sh",
     "script/gate-receipt_test.sh",
-    "script/pre-push-windows-vet_test.sh",
     "script/spec-requirements-conflict_test.sh",
     "script/vscode-check-install_test.sh",
     "tools/cem-trial"
@@ -89,7 +88,6 @@
     "script/gate-affected-corvint_test.sh": "runs go build and go test, whose reads are the whole program the toolchain builds; a shell unit has no read-scope declaration, so the shell plugin marks it shell:runs-toolchain (NSA-V0-011, V1-1301)",
     "script/gate-affected_test.sh": "runs go build and go test, whose reads are the whole program the toolchain builds; a shell unit has no read-scope declaration, so the shell plugin marks it shell:runs-toolchain (NSA-V0-011, V1-1301)",
     "script/gate-receipt_test.sh": "runs go run and make gate, whose reads are the whole program the toolchain builds; a shell unit has no read-scope declaration, so the shell plugin marks it shell:runs-toolchain (NSA-V0-011, V1-1301)",
-    "script/pre-push-windows-vet_test.sh": "runs git push through the hook, which runs make and go vet on a temporary module, whose reads are the whole program the toolchain builds; a shell unit has no read-scope declaration, so the shell plugin marks it shell:runs-toolchain (NSA-V0-011, V1-1725)",
     "script/spec-requirements-conflict_test.sh": "runs make -s spec-requirements through the repository Makefile, because SRG-V0-013 requires the real target, and its reads are the whole program the toolchain builds; a shell unit has no read-scope declaration, so the shell plugin marks it shell:runs-toolchain (NSA-V0-011, V1-1346)",
     "script/vscode-check-install_test.sh": "runs npm and make gate, whose reads are the whole program the toolchain builds; a shell unit has no read-scope declaration, so the shell plugin marks it shell:runs-toolchain (NSA-V0-011, V1-1301)",
     "tools/cem-trial": "buildCorvint runs go build of cmd/corvint and skips the test when the build fails, so a confined run passes without the reads it needs; a nested build cannot be declared narrowly (AFP-V0-023 residuals)"
