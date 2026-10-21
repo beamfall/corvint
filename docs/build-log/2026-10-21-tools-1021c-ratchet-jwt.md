@@ -26,7 +26,8 @@ LTA-V0-016) are accepted under the owner's standing auto-accept of lane requirem
   (base64url of `{"` or `{` plus whitespace). A real JWS always starts that way, so detection of
   real tokens is not weakened. `StoredV1Pattern` is unchanged (schema-v1 rows keep their recorded
   classification); the dotted-triple prefilter remains a necessary condition. The parity fixture's
-  synthetic "JWT" became a real header-shaped token.
+  synthetic "JWT" became a real header-shaped token. `internal/secretscreen` is an analyzer input,
+  so `script/analyzer-schema.sh bump` moved the schema to `corvint-analyzer/136`.
 
 ## Evidence
 
