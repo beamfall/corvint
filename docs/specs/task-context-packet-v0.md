@@ -1118,19 +1118,6 @@ and `internal/cem/workflow/self_modified.go`. The `cem status` report is `CEM-V1
   optional member and its assembly only; no index or snapshot migration is needed. Owner
   acceptance remains unresolved regardless of passing local tests.
 
-### Packet revision identity (V1-2127, accepted 2026-10-21 under the owner's standing auto-accept)
-
-- `TCP-V0-120`: accepted under the owner's standing auto-accept (2026-10-11) (V1-2127). The task
-  packet's `revision` is the indexed Git tree, the snapshot key and the tree that context handles,
-  `context --summary` handles, the source hand-off and the MCP bindings compare it with; it keeps
-  that meaning. The packet MUST also carry `commit_revision`, the HEAD commit observed when the
-  index was built or loaded (empty only for an unborn HEAD), so a caller that needs a commit-ish
-  reads it there and never takes the tree for a commit. A dirty worktree keeps both: `revision`
-  is still the committed tree and the dirty set is reported as before. Decision: V1-2127 proposed
-  moving the commit into `revision`; that would silently break every consumer that compares
-  `revision` with the tree, so the commit gets its own documented member instead. Rollback: drop
-  the member. Test: `TestTaskContextNamesTheTreeAndTheCommit`.
-
 ## Non-goals and authority
 
 Forward imports of the subject, cross-directory definition-to-reference edges, and re-export
@@ -1611,4 +1598,3 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-062 | `parseTaskContextInvocation` (`contextPositionalTaskRefusal`); `runCorpusIntegration` query | `TestTaskContextPositionalTaskMatchesTheFlagBytes` (positional form, byte parity with `--task`), `TestTaskContextRefusesAmbiguousPositionalTasks` (both forms, two positionals, neither form unchanged) |
 | TCP-V0-064 | `taskContext` (final guard, `join`), `stopped` (compile boundaries, `lexicalHits` per term, `lexicalRows`) | `TestTaskContextCancellationNeverReturnsAPacket`, `TestTaskContextPreCancelledRequestReturnsCancellation` |
 | TCP-V0-006 amendment / TCP-V0-065 (accepted, decision 0516 (V1-0315)) | `taskContextCompiler.packet`, `taskContextExclusions` | `TestTaskContextDisclosesNonUTF8Exclusions`, `TestTaskContextExclusionsAreBoundedAndAdditive`, `TestTaskContextExclusionsAbsentKeepsFrozenBytes`, `TestTaskContextExclusionsCountUnsupportedSuffixes` |
-| TCP-V0-120 (accepted, standing auto-accept, V1-2127) | `taskContextCompiler.packet` (`commit_revision`) | `TestTaskContextNamesTheTreeAndTheCommit` |

@@ -617,27 +617,3 @@ func TestReceiptCountsUnsupportedSuffixExclusions(t *testing.T) {
 		}
 	}
 }
-
-// TestTaskContextNamesTheTreeAndTheCommit: `revision` is the indexed tree, which handles, source
-// hand-off and the MCP bindings compare with the tree, so it stays; the packet also names the
-// HEAD commit under `commit_revision`, so a caller never reads the tree as a commit (TCP-V0-120,
-// V1-2127).
-func TestTaskContextNamesTheTreeAndTheCommit(t *testing.T) {
-	root := impactRepositoryWithFiles(t, map[string]string{
-		"go.mod":                  "module example.test/rev\n\ngo 1.27.0\n",
-		"internal/token/token.go": "package token\n\nfunc MintToken() string { return \"x\" }\n",
-	})
-	commit := testGit(t, root, "rev-parse", "HEAD")
-	tree := testGit(t, root, "rev-parse", "HEAD^{tree}")
-	built, err := Build(context.Background(), root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	packet, err := TaskContext(context.Background(), built, "Change MintToken in internal/token/token.go", "", 5)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if packet["revision"] != tree || packet["commit_revision"] != commit || commit == tree {
-		t.Fatalf("TCP-V0-120: revision=%v commit_revision=%v, want tree %s and commit %s", packet["revision"], packet["commit_revision"], tree, commit)
-	}
-}
