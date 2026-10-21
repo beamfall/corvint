@@ -70,7 +70,9 @@ func pathDigest(name string) (string, error) {
 	// (STR-V0-060; V1-2129).
 	file, err := openInput(name)
 	if err != nil {
-		if now, lerr := os.Lstat(name); lerr != nil || !os.SameFile(info, now) {
+		// A filesystem can hand a freed inode number straight to the
+		// replacement (ext4 does), so a changed file type also proves a swap.
+		if now, lerr := os.Lstat(name); lerr != nil || !os.SameFile(info, now) || now.Mode().Type() != info.Mode().Type() {
 			return "", fmt.Errorf("%w: %v", errPathChanged, err)
 		}
 		return "", err
