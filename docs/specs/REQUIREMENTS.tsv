@@ -944,6 +944,7 @@ CCE-V0-022	docs/specs/change-compiled-e2e-v0.md	`prove` MUST pass the runner onl
 CCE-V0-023	docs/specs/change-compiled-e2e-v0.md	Every `corvint-test e2e` subcommand MUST exit by this closed table: `0` the	unrecorded	-
 CCE-V0-024	docs/specs/change-compiled-e2e-v0.md	Compile hygiene: emitted golden bytes MUST be pinned to the compiler version, so	unrecorded	-
 CCE-V0-025	docs/specs/change-compiled-e2e-v0.md	Text read from the page or the runner (error messages, DOM snippets, console	unrecorded	-
+CCE-V0-086	docs/specs/change-compiled-e2e-v0.md	A relative `--root`, including the default `.`, MUST resolve against the working	unrecorded	-
 CF-V1-001	docs/specs/change-frontier-profile-1.md	the profile identifier is exactly `frontier/1`; its error profile is exactly	unrecorded	-
 CF-V1-002	docs/specs/change-frontier-profile-1.md	`frontier/0` is untouched in every respect — clause text, item kinds, item IDs,	unrecorded	-
 CF-V1-003	docs/specs/change-frontier-profile-1.md	identity domain separation is deliberate and asymmetric:	unrecorded	-
