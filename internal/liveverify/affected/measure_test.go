@@ -364,6 +364,9 @@ func TestWitnessesResolveUnderTheGoStructuralRules_V1_0564_V1_0739(t *testing.T)
 		{UnitID: app, Witness: affected.Witness{Kind: affected.WitnessDependency, DirtyPath: "core/fixture.txt", Via: []string{core}}},
 		{UnitID: user, Witness: affected.Witness{Kind: affected.WitnessDirectSource, DirtyPath: "gone/gone.go", Via: []string{user}}},
 		{UnitID: core, Witness: affected.Witness{Kind: affected.WitnessDependency, DirtyPath: "core/fixture.txt", Via: []string{core}}},
+		// V1-1491: a valid origin and end joined through a forged hop; user
+		// neither imports core nor is imported by app.
+		{UnitID: app, Witness: affected.Witness{Kind: affected.WitnessDependency, DirtyPath: "core/fixture.txt", Via: []string{core, user, app}}},
 	} {
 		if witnessResolves(graph, forged) {
 			t.Fatalf("%s resolved a witness no rule produced: %+v", forged.UnitID, forged.Witness)
@@ -377,8 +380,9 @@ func TestWitnessesResolveUnderTheGoStructuralRules_V1_0564_V1_0739(t *testing.T)
 // whose scope holds it (AFP-V0-023). Every other witness is a chain ending at
 // the selected unit whose first unit the dirty path reaches by a rule: it owns
 // the path, or a Go structural rule of AFP-V0-012 selects it (V1-0564,
-// V1-0739). An ENCLOSING_PACKAGE witness is selected without traversal, so its
-// chain is the enclosing package alone.
+// V1-0739), and each consecutive pair of which is a traversed edge (V1-1491).
+// An ENCLOSING_PACKAGE witness is selected without traversal, so its chain is
+// the enclosing package alone.
 func witnessResolves(graph *affected.Graph, selection affected.Selection) bool {
 	witness := selection.Witness
 	switch witness.Kind {
@@ -391,7 +395,7 @@ func witnessResolves(graph *affected.Graph, selection affected.Selection) bool {
 		files := append(append([]string(nil), unit.Sources...), unit.Tests...)
 		return found && unit.ReadScoped && len(files) != 0 && affected.InReadScope(path.Dir(files[0]), unit.ReadScope, witness.DirtyPath)
 	}
-	if len(witness.Via) == 0 || witness.Via[len(witness.Via)-1] != selection.UnitID {
+	if len(witness.Via) == 0 || witness.Via[len(witness.Via)-1] != selection.UnitID || !viaEdges(graph, witness.Via) {
 		return false
 	}
 	origin := witness.Via[0]
@@ -413,6 +417,28 @@ func witnessResolves(graph *affected.Graph, selection affected.Selection) bool {
 	// from every enclosing package that embeds; the package itself carries the
 	// ENCLOSING_PACKAGE witness, so a chain from it reaches past it.
 	return len(witness.Via) > 1 && enclosesDataPath(graph, origin, witness.DirtyPath, true)
+}
+
+// viaEdges reports that every consecutive pair of a witness chain is a graph
+// edge the selector traverses (V1-1491): the later unit imports, or
+// advisorily imports, the earlier one; the final hop may also be a test-only
+// import or a built-binary exec, which the selector takes one edge past a
+// reached unit and never expands.
+func viaEdges(graph *affected.Graph, via []string) bool {
+	for index := 1; index < len(via); index++ {
+		unit, found := graph.Unit(via[index])
+		if !found {
+			return false
+		}
+		edges := append(append([]string(nil), unit.Imports...), unit.AdvisoryImports...)
+		if index == len(via)-1 {
+			edges = append(append(edges, unit.TestImports...), unit.Execs...)
+		}
+		if !slices.Contains(edges, via[index-1]) {
+			return false
+		}
+	}
+	return true
 }
 
 // enclosesDataPath reports that id is a Go package whose directory encloses a
