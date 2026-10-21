@@ -12,7 +12,7 @@ var cemHelpActions = map[string]bool{
 	"begin": true, "prepare": true, "cite": true, "mark": true,
 	"status": true, "verify": true, "report": true,
 	"cover": true, "discriminate": true,
-	"anchor": true, "provenance": true, "export": true,
+	"anchor": true, "provenance": true, "export": true, "verify-stable": true, "gate-verdict": true,
 }
 
 // helpSubcommands are the retired oracle's nested argparse choices (GPK-V0-062): a token after the
@@ -52,7 +52,7 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 	if len(rest) == 2 && rest[0] == "help" {
 		directTopic, _ = publicHelpTopic(rest[1])
 	} else if len(rest) == 3 && rest[0] == "help" {
-		directTopic = nestedHelpTopic(rest[1], rest[2])
+		directTopic = cemOrNestedHelpTopic(rest[1], rest[2])
 	}
 	switch {
 	case len(rest) > 0 && (rest[0] == "--help" || rest[0] == "-h"), len(rest) == 1 && rest[0] == "help":

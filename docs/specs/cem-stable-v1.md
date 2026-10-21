@@ -3801,3 +3801,34 @@ Rollback: revert the change commit. The plain result loses `nextActions` and ret
 | --- | --- | --- |
 | CEM-V1-350 | `TestCEMV1350PlainAssemblyNextActionVerifiesBundle`, `TestCEMV1341AssemblyResultCarriesTopLevelOK` (`cmd/corvint-cem-candidate`) | The neutral-case plain result ends with the exact verify-stable argv; with no next action the output keeps the `CEM-V1-341` bytes |
 | CEM-V1-351 | `TestCEMV1350PlainAssemblyNextActionVerifiesBundle` (`cmd/corvint-cem-candidate`) | The emitted action, run through `cli.RunStableInvocation` (the Core `verify-stable` entry), exits 0 with `ACCEPT`, equals the assembly's verification and leaves `git status` unchanged |
+
+## Per-action help for `help cem`, `verify-stable` and `gate-verdict` (V1-2109, 2026-10-20)
+
+Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-2109.
+
+- `CEM-V1-344`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2109)
+  `corvint help cem ACTION` MUST print the `CEM-V1-340` help of that registered action and exit 0.
+  `verify-stable` and `gate-verdict` are registered actions: `corvint cem verify-stable --help` and
+  `corvint cem gate-verdict --help` (or `-h`, after `--root PATH`, and after other options under the
+  argparse scan of `GPK-V0-062`) MUST print that action's help and exit 0 before their closed argv
+  parsers run. `gate-verdict` help is the Tasks gate section of `corvint cem --help`. A `--help`
+  consumed as an option value is not a help request, so the closed parser still refuses it.
+  This amends the `CEM-V1-340` non-goals.
+
+Non-goals: no change to the argv, output or exit codes of a non-help `verify-stable` or
+`gate-verdict` invocation; no change to `corvint cem --help`; no other `help cem` topics.
+
+Failure modes:
+- A script that expected `cem verify-stable --help` to print an `invalid-arguments` result now gets
+  help text and exit 0.
+
+Acceptance evidence: `TestCEMV1340HelpCEMActionAndOwnedArgvActions` and
+`TestCEMV1340CEMActionHelpNamesOnlyThatAction` (`cmd/corvint`) pass; disabling the help check in
+`runCEMInvocation` makes the first fail.
+
+Rollback: revert the change commit. `help cem ACTION` refuses as an unknown topic again and the two
+actions refuse `--help` as an invalid argument.
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-344 | `TestCEMV1340HelpCEMActionAndOwnedArgvActions`, `TestCEMV1340CEMActionHelpNamesOnlyThatAction` (`cmd/corvint`) | Every registered action's `help cem ACTION` output equals its action help; `verify-stable` and `gate-verdict` print theirs on `--help`/`-h` with and without `--root`; `verify-stable --map --help` still refuses with exit 2 |

@@ -544,3 +544,39 @@ func TestCEMV1340CEMActionHelpNamesOnlyThatAction(t *testing.T) {
 		t.Error("an undocumented action has help")
 	}
 }
+
+// TestCEMV1340HelpCEMActionAndOwnedArgvActions covers the per-action help
+// routes V1-2109 adds: `corvint help cem ACTION` for every action, and
+// `--help`/`-h` on verify-stable and gate-verdict, which own their argv and
+// otherwise refuse it. Each prints exactly that action's help and exits 0.
+func TestCEMV1340HelpCEMActionAndOwnedArgvActions(t *testing.T) {
+	t.Parallel()
+	check := func(args []string, action string) {
+		t.Helper()
+		reader := &forbiddenHelpReader{}
+		var stdout, stderr bytes.Buffer
+		code := run(args, reader, &stdout, &stderr)
+		if code != 0 || stderr.Len() != 0 || reader.reads != 0 {
+			t.Fatalf("%q: exit=%d stderr=%q reads=%d", args, code, &stderr, reader.reads)
+		}
+		if stdout.String() != cemActionHelp(action) {
+			t.Fatalf("%q printed %q, want cem %s help", args, stdout.String(), action)
+		}
+	}
+	for action := range cemHelpActions {
+		check([]string{"help", "cem", action}, action)
+		check([]string{"--root", "/definitely/not/a/repository", "help", "cem", action}, action)
+	}
+	for _, action := range []string{"verify-stable", "gate-verdict"} {
+		check([]string{"cem", action, "--help"}, action)
+		check([]string{"--root", "/definitely/not/a/repository", "cem", action, "-h"}, action)
+		check([]string{"cem", action, "--base", "x", "--help"}, action)
+	}
+	// A --help consumed as an option value is not a help request: the closed
+	// parser still owns the argv.
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"cem", "verify-stable", "--map", "--help"}, &forbiddenHelpReader{}, &stdout, &stderr); code != 2 ||
+		!strings.Contains(stdout.String(), `"code":"invalid-arguments"`) {
+		t.Fatalf("verify-stable --map --help: exit=%d stdout=%q", code, &stdout)
+	}
+}
