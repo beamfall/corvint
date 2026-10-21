@@ -158,16 +158,18 @@ func reviewedWitness(env Env, root, commit, ticketID, file, excludeArg string) (
 
 // witnessReviewValue is the TOL-V0-077 read-only view: each reviewed entry's
 // outcome and verdicts, and whether the cited example changed since review
-// at HEAD of the repository the review read it from: the store worktree, or
-// the policy-declared test repository the record names. A test repository
-// that no longer resolves leaves stale unknown and the credit uncounted
-// (TEST_REPOSITORY_UNRESOLVED). ok is false when no entry was reviewed, so
-// show keeps its exact earlier output.
-func witnessReviewValue(env Env, rc *readCtx, l *ticket.ObligationLedger) (wire.Value, bool, error) {
+// in the repository the review read it from: the store worktree, judged at
+// the ticket's candidate branch when one resolves and at HEAD otherwise
+// (TOL-V0-131), or the policy-declared test repository the record names, at
+// its HEAD. Each entry's staleBasis names the revision it was judged at. A
+// test repository that no longer resolves leaves stale unknown and the credit
+// uncounted (TEST_REPOSITORY_UNRESOLVED). ok is false when no entry was
+// reviewed, so show keeps its exact earlier output.
+func witnessReviewValue(env Env, rc *readCtx, l *ticket.ObligationLedger, candidate string) (wire.Value, bool, error) {
 	if l == nil {
 		return wire.Value{}, false, nil
 	}
-	heads, err := reviewHeadStates(env, rc, l)
+	heads, err := reviewHeadStates(env, rc, l, candidate)
 	if err != nil || len(heads) == 0 {
 		return wire.Value{}, false, err
 	}
@@ -203,25 +205,37 @@ func witnessReviewValue(env Env, rc *readCtx, l *ticket.ObligationLedger) (wire.
 		if !resolved {
 			item.Set("stale", wire.Null()).Set("staleUnknown", wire.String(testRepositoryUnresolved))
 		}
+		item.Set("staleBasis", wire.ObjectValue(wire.NewObject().Set("source", wire.String(h.basis)).Set("commit", wire.StringOrNull(h.commit))))
 		items = append(items, wire.ObjectValue(item))
 	}
 	return wire.ObjectValue(wire.NewObject().Set("effectiveWitnessed", wire.String(string(wire.CountOf(witnessed)))).Set("entries", wire.Array(items...))), true, nil
 }
 
 // reviewHeadState is one reviewed entry's TOL-V0-077 read-time judgement:
-// whether its review's repository resolved at HEAD, and whether the cited
-// example there differs from the reviewed bytes.
+// whether its review's repository resolved, whether the cited example there
+// differs from the reviewed bytes, and the basis it was judged at
+// (TOL-V0-131): the source and the commit, nil when unresolved.
 type reviewHeadState struct {
 	resolved bool
 	stale    bool
+	basis    string
+	commit   *string
 }
 
-// reviewHeadStates judges every reviewed entry of l at HEAD of the
-// repository its review read: the store worktree, or the declared test
-// repository. A test repository that is undeclared, unreadable or has an
-// unborn HEAD leaves the entry unresolved (TOL-V0-077, TOL-V0-100); an
-// unreadable store worktree is an error.
-func reviewHeadStates(env Env, rc *readCtx, l *ticket.ObligationLedger) (map[string]reviewHeadState, error) {
+// TOL-V0-131 staleness bases.
+const (
+	staleBasisCandidate = "CANDIDATE_BRANCH"
+	staleBasisHead      = "HEAD"
+	staleBasisTestHead  = "TEST_REPOSITORY_HEAD"
+)
+
+// reviewHeadStates judges every reviewed entry of l in the repository its
+// review read: the store worktree at candidate (the ticket's candidate branch)
+// when it is not empty and resolves, else at HEAD (TOL-V0-131); or the
+// declared test repository at its HEAD. A test repository that is
+// undeclared, unreadable or has an unborn HEAD leaves the entry unresolved
+// (TOL-V0-077, TOL-V0-100); an unreadable store worktree is an error.
+func reviewHeadStates(env Env, rc *readCtx, l *ticket.ObligationLedger, candidate string) (map[string]reviewHeadState, error) {
 	paths := map[string][]string{}
 	for _, e := range l.Entries {
 		if e.Review != nil {
@@ -233,6 +247,8 @@ func reviewHeadStates(env Env, rc *readCtx, l *ticket.ObligationLedger) (map[str
 		return nil, nil
 	}
 	content := map[string]map[string][]byte{}
+	at := map[string]string{}
+	storeBasis := staleBasisHead
 	for repo, ps := range paths {
 		var root string
 		var err error
@@ -244,7 +260,13 @@ func reviewHeadStates(env Env, rc *readCtx, l *ticket.ObligationLedger) (map[str
 		if err != nil {
 			return nil, err
 		}
-		commit, _, files, err := store.FilesAtCommit(root, "HEAD", ps)
+		rev := "HEAD"
+		if repo == "" && candidate != "" {
+			if c, err := store.ResolveCommit(root, candidate); err == nil && c != "" {
+				rev, storeBasis = c, staleBasisCandidate
+			}
+		}
+		commit, _, files, err := store.FilesAtCommit(root, rev, ps)
 		if err != nil {
 			if repo != "" {
 				continue
@@ -256,20 +278,28 @@ func reviewHeadStates(env Env, rc *readCtx, l *ticket.ObligationLedger) (map[str
 			// review cannot be checked there; it is unresolved, never stale.
 			continue
 		}
-		content[repo] = files
+		content[repo], at[repo] = files, commit
 	}
 	out := map[string]reviewHeadState{}
 	for _, e := range l.Entries {
 		if e.Review == nil {
 			continue
 		}
-		files, resolved := content[reviewRepository(e.Review)]
+		repo := reviewRepository(e.Review)
+		files, resolved := content[repo]
 		stale := true
 		if body, ok := files[e.Review.Review.Subject.Path]; ok {
 			sum := sha256.Sum256(body)
 			stale = wire.Digest(hex.EncodeToString(sum[:])) != e.Review.Review.Subject.BlobSha256
 		}
-		out[e.ID] = reviewHeadState{resolved: resolved, stale: stale}
+		h := reviewHeadState{resolved: resolved, stale: stale, basis: storeBasis}
+		if repo != "" {
+			h.basis = staleBasisTestHead
+		}
+		if c := at[repo]; resolved && c != "" {
+			h.commit = &c
+		}
+		out[e.ID] = h
 	}
 	return out, nil
 }
