@@ -302,7 +302,7 @@ var commandUsage = map[string]string{
 	"attempt show":            "corvint-tasks attempt show <attemptId> [--summary | --fields KEY[.SUB],...]",
 	"plan preview":            "corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--selected-only] [--summary | --fields KEY[.SUB],...]",
 	"submit":                  "corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID [--lock-wait SECONDS] [--role ROLE]",
-	"gate run":                "corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE [--worktree DIR] [--role ROLE]",
+	"gate run":                "corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE [--worktree DIR | --ci-run FILE] [--role ROLE]",
 	"complete":                "corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID [--role ROLE]",
 	"health":                  "corvint-tasks health --member ID [--stage STAGE] --request-id ID [--role ROLE]",
 	"pool status":             "corvint-tasks pool status [--pool ID] [--member ID]",
