@@ -1,11 +1,11 @@
 # Decision 0549 — Lease write performance for 1.0: bounded liveness writes and a segmented journal
 
-Date: 2026-10-20. Status: proposed design (tasks-perf lane spike). The targets come from the owner's
-ruling, relayed by the orchestrator on 2026-10-20: performance issues must be resolved for 1.0, so
-the V1-0887 miss and the V1-1512 deferrals are not acceptable. The orchestrator decides the open
-forks (F1 to F3) before slice S1 lands. This decision replaces the "sharded layout escalation"
-that decision 0548 row V1-0887 named. It moves issue 967 proposals 2 (remainder) and 3 into 1.0.
-Proposal 5 stays deferred as operator ergonomics.
+Date: 2026-10-20. Status: accepted. The orchestrator decided forks F1 to F3 and accepted this
+design on 2026-10-20 under decision 0548's delegation for V1-0887 and the owner's ruling that
+performance issues are 1.0 work; the owner can revisit. The targets come from that ruling: the
+V1-0887 miss and the V1-1512 deferrals are not acceptable for 1.0. This decision replaces the
+"sharded layout escalation" that decision 0548 row V1-0887 named. It moves issue 967 proposals 2
+(remainder) and 3 into 1.0. Proposal 5 stays deferred as operator ergonomics.
 
 Related tickets, now in `v1-0`:
 - V1-0850: `retainCheckpoint` under the writer lock.
@@ -89,7 +89,7 @@ obligation bound and gets no new `CAL` IDs.
    - CAL-V0-189 keeps the intent-tree binding for every other verb.
    - The model already reads no ticket (CAL-V0-233), so the outcome cannot depend on intent.
 2. **R2 (liveness result).** The result's `snapshot.intentTreeSha256` for a liveness write is
-   decided by fork F1. The result MUST NOT report an intent digest that this write did not observe.
+   decided by fork F1 (`null`). The result MUST NOT report an intent digest that this write did not observe.
 3. **R3 (incremental capacity).** The writer checkpoint MUST carry the measured manifest encoding
    size and the per-entry sizes the model needs.
    - A write that changes k entries measures only those k (O(k)).
@@ -133,7 +133,7 @@ obligation bound and gets no new `CAL` IDs.
     process (invariant 7). The CAL-V0-117/265 per-caller refresh becomes the seal.
 11. **R11 (resume across processes).** When a sealed base exists, a resumed write rechecks the
     sealed prefix by re-hashing every segment against its manifest digest. This covers widen,
-    reap, the pool verbs and `Mutate`, and is subject to fork F3.
+    reap, the pool verbs and `Mutate` (fork F3, accepted).
     - The gated recheck (`held`) stats the segment files and the at most 512 active files.
     - The CAL-V0-116 and PSR-V0-053 rewritten-prefix detection is kept by bytes, not by stamps.
 12. **R12 (complete audit over segments).** The complete route and `receipt audit` read each
@@ -182,23 +182,28 @@ Widen at 40,000 receipts:
 - Without F3, R12 alone gives an estimated 5 to 7 s: openat is removed, but validation and
   capacity remain.
 
-## Open forks (the orchestrator decides)
+## Forks (decided 2026-10-20 by the orchestrator under decision 0548)
 
-- **F1: the intent digest in liveness results.**
-  - (a) Report `null`, which the wire schema allows. Recommended. The CLI and consumers still need
-    an audit.
-  - (b) Report it from a ctime-keyed stat cache (V1-0910). This costs about 2.8 µs per ticket and
-    so stays ticket-proportional (about 28 ms at 10,000 tickets under load). It also adopts file
-    stamps as evidence, which CAL-V0-116 declines.
-- **F2: fsync coalescing.**
-  - Keep 4 to 5 `F_FULLFSYNC` calls. Recommended: T1 fits by the estimate.
-  - Or order the writes so that 2 full syncs suffice. That saves about 10 ms but needs its own
-    crash-matrix proof.
-- **F3: widen, reap and pool verbs resume across processes (R11).**
-  - The owner earlier declined to extend the writer route to every lease verb, because it dropped
-    rewritten-prefix detection.
-  - R11 keeps that detection by re-hashing segments.
+- **F1: the intent digest in liveness results. Decided: (a) `null`.**
+  - A HEARTBEAT or RENEW result reports `snapshot.intentTreeSha256` as `null`, which the wire
+    schema allows. A consumer that needs the intent digest runs an audit.
+  - Declined: (b) a ctime-keyed stat cache (V1-0910). It stays ticket-proportional (about 2.8 µs
+    per ticket, about 28 ms at 10,000 tickets under load) and adopts file stamps as evidence,
+    which CAL-V0-116 declines.
+- **F2: fsync coalescing. Decided: keep the current 4 to 5 `F_FULLFSYNC` calls; no coalescing.**
+  - T1 fits by the estimate. Ordering the writes so that 2 full syncs suffice would save about
+    10 ms but needs its own crash-matrix proof.
+- **F3: widen, reap and pool verbs resume across processes (R11). Decided: accepted.**
+  - The owner earlier declined to extend the writer route to every lease verb because that route
+    dropped rewritten-prefix detection (PSR-V0-053): a prefix rewritten with restored stamps was
+    no longer observed.
+  - R11 does not rely on stamps for the sealed prefix. A resumed write re-hashes every sealed
+    segment against the manifest digest that `head.json` binds, so any rewritten byte in the
+    prefix fails the digest and the write declines to the complete route, which refuses it. The
+    PSR-V0-053 detection is therefore preserved by bytes, which removes the reason for the earlier
+    decline. The active receipts (at most 512) keep the existing per-file checks.
   - Without F3, T3 is not reachable. T2 is still reachable through the bounded `held` step.
+- **T1, T2 and T3 are all 1.0 targets.**
 
 ## Failure modes
 
@@ -210,8 +215,6 @@ Widen at 40,000 receipts:
 - A forged segment with a matching forged manifest and `head.json` is the internally consistent
   forgery that CAL-V0-116 already leaves to the per-receipt validators. R12 still runs them on
   every complete audit.
-- Under F1 (b), a cache keyed on a restored ctime is impossible without root. A same-tick change
-  needs the 1-second quiescence rule, as in CAL-V0-224.
 - A host whose filesystem has no change time keeps the listing route for every verb. This is as
   today, and those hosts are outside the targets.
 - Migration on a store with a fault refuses and leaves the store unchanged.
@@ -275,12 +278,12 @@ The probe remains the interim liveness route, tightened on 2026-10-20 after the 
 | Slice | Content | Estimated size |
 |---|---|---|
 | S0 | `JSG-V0` spec; re-home R1 to R14 | docs only |
-| S1 | R1, R2 (after F1) | M: about 300 Go + 300 test lines |
+| S1 | R1, R2 (F1 = `null`) | M: about 300 Go + 300 test lines |
 | S2 | R3, R4 base/delta split without segments | M: about 450 + 350 |
 | S3 | R5 to R8: segment format, seal, redo, exact listings, probe retired | L/XL: about 2,000 + 1,500 |
 | S4 | R12, R13: complete audit over segments, seal/unseal migration, prior-binary refusal | L: about 800 + 700 |
 | S5 | R9, R10: incremental coverage, cliff removed | M: about 500 + 400 |
-| S6 | R11 (after F3): cross-process resume for widen, reap, pool and `Mutate` | M: about 500 + 400 |
+| S6 | R11 (F3 accepted): cross-process resume for widen, reap, pool and `Mutate` | M: about 500 + 400 |
 | S7 | B1 to B3 harnesses, format-gate fixtures and qualification runs | M: about 400 + runs |
 
 - Total: about 4,950 Go lines and about 3,650 test lines.
