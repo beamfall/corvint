@@ -2024,30 +2024,46 @@ and container qualification; full fallback remains available.
 
 ### Declared documentation paths and scope-bounded literal readers
 
-- **AFP-V0-163:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2113))
+- **AFP-V0-163:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2113); amended
+  before merge to job-log evidence after an independent review found that artifact names do not
+  authenticate their producer (2026-10-21))
   A merge-queue entry MUST NOT rerun the `artifact-integrity` archive gate on a tree that a
-  successful pull-request run already verified. The `artifact-integrity` job of a
-  `pull_request` run whose `make go-archive-gate` passed MUST retain a record artifact named
-  `ci-tested-tree-<tree>-artifact-integrity` (profile `corvint-ci-integrity-tree/0`: tree,
-  target, run id), where `<tree>` is the tested merge commit's tree. In a `merge_group` run, the
-  job MUST decide REUSE only when the queue commit is a two-parent merge whose tree is `<tree>`,
-  and a successful `pull_request` run of `.github/workflows/ci.yml` in this repository whose head
-  is that commit's second parent retained exactly one unexpired record of that name and has
-  exactly one latest `artifact-integrity` job concluded `success` on that head. On REUSE the job
-  MUST skip `setup-go` and the archive gate, still conclude `success` (so AFP-V0-080 push reuse
-  keeps its three passed jobs), write the decision (profile `corvint-ci-integrity-reuse/0`:
-  mode, tree, head, target, run id, record name) to the step summary and retain it as the
-  `ci-integrity-reuse` artifact. Any other listing, refusal, unreadable response, expired or
-  duplicated record, or a commit that is not a two-parent merge MUST leave the decision empty and
-  run the gate in full. Rationale: the tree holds `ci.yml`, the `Makefile`, `go.mod` and every
+  successful pull-request run already verified. In a `pull_request` run, an
+  `artifact-integrity-record` job MUST run with `needs: artifact-integrity`, only when that job
+  concluded `success`; it MUST check out the tested merge commit without credentials, run no
+  repository code (no `go`, `make` or repository script; shell builtins, `git` and `printf`
+  only), persist no credentials, and print one line to its own log:
+  `corvint-ci-integrity-tree/0 tree=<tree> target=<merge commit> head=<pull-request head>`. In a
+  `merge_group` run, the job MUST decide REUSE only when the queue commit is a two-parent merge
+  whose tree is `<tree>`, and a successful `pull_request` run of `.github/workflows/ci.yml` in
+  this repository whose head is that commit's second parent has exactly one latest
+  `artifact-integrity` job and exactly one latest `artifact-integrity-record` job, both of that
+  run and concluded `success` on that head, and that record job's log, read through the job-log
+  API, holds exactly one record line whose tree and head equal the queue commit's. The decision
+  MUST NOT read or trust any artifact. On REUSE the job MUST skip `setup-go` and the archive gate,
+  still conclude `success` (so AFP-V0-080 push reuse keeps its three passed jobs), write the
+  decision (profile `corvint-ci-integrity-reuse/0`: mode, tree, head, target, run id, record job
+  id) to the step summary and retain it as the diagnostic `ci-integrity-reuse` artifact, which
+  nothing reads back. Any other listing, refusal, unreadable response or log, missing or
+  duplicated job, missing, duplicated or mismatched record line, or a commit that is not a
+  two-parent merge MUST leave the decision empty and run the gate in full. Trust argument: a job
+  log is written only by the runner executing that job, so code in any other job of the run (a
+  test, a build step, or a fork pull request's code) cannot add a line to the record job's log,
+  whereas any job can upload an artifact under any name. The record job runs no repository code,
+  so only its definition in `ci.yml` decides what it prints. A pull-request run takes `ci.yml`
+  from the tested merge commit, whose tree must equal the queue commit's, so any `ci.yml` that
+  could print a false line is itself in the tree being merged, and `.github/` edits are gated by
+  the `ci-control-plane` admin review. The tree holds `ci.yml`, the `Makefile`, `go.mod` and every
   gate input, and the gate runs with `GOPROXY=off`, so an equal tree is an equal verdict; the
-  `needs`/`if` lines of the job are unchanged (AFP-V0-080/081). Measured before: queue run
-  39458994189 spent 11.35 min in `artifact-integrity` while `go-product` reused its pull-request
-  shards and finished at about 4.9 min, so the job was the queue's critical path; the predicted
-  queue wall time after is about 5 min (`go-static`, about 4.8 min, becomes the critical path).
-  Falsifier: a queue run that skips the gate for a tree no passed pull-request run recorded, or
-  that runs the gate when one did and the listings were readable. Rollback: delete the reuse,
-  record and retain steps and the step conditions of `artifact-integrity`.
+  `needs`/`if` lines of `artifact-integrity` are unchanged (AFP-V0-080/081). Measured before:
+  queue run 39458994189 spent 11.35 min in `artifact-integrity` while `go-product` reused its
+  pull-request shards and finished at about 4.9 min, so the job was the queue's critical path;
+  the predicted queue wall time after is about 5 min (`go-static`, about 4.8 min, becomes the
+  critical path). Falsifier: a queue run that skips the gate for a tree no passed record job
+  printed, or that runs the gate when one did and the listings and log were readable. Rollback:
+  delete the `artifact-integrity-record` job, the `permissions` block, reuse and retain steps and
+  the step conditions of `artifact-integrity`, and the `job:artifact-integrity` row of
+  `script/ci-least-privilege-exceptions.tsv`.
 - **AFP-V0-164:** (accepted under the owner's standing auto-accept (2026-10-11; V1-1752))
   `internal/tasks/cli` and `internal/tasks/authority` MUST be listed in
   `.github/cishards/test-split-allow.json`, each with its order-independence review, and split in
@@ -2315,7 +2331,7 @@ rather than selecting nothing at `BOUNDED`. A consumer still cannot read closure
 | AFP-V0-153 | `taskStateOnly` and the `Plan.Scope`/`Plan.NonSource` receipt members in `internal/gateselect/select.go` | `TestSelectPackagesTaskStateOnlyDiffSelectsNothing` (classified task state is `NOTHING`; an unclassified path, an absent `nonSource`, an `UNKNOWN` plan and an out-of-layout path fall back; a package naming `.taskman/queue.json` is still selected) |
 | AFP-V0-154 | the `_test.go` early return in `attributeStructure`, `internal/gateselect/select.go` | `TestSelectPackagesAttributesEveryDirtyPath` (a changed or deleted test file selects only its package; a deleted source still widens to its importers; a test file in an embedding package still selects its importer); both test-file cases fail before the change |
 | AFP-V0-155 | `compactAdviceUnknown` and `affectedPlanUnknownReference` in `cmd/corvint/affected_compact.go` | `TestAFPV0155CompactAdviceDoesNotRepeatPlanUnknown`; `resolveCompactAdvice` resolution against `--full` in `TestAFPV0038CompactAdviceReferencesProviderPackages` and `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan`; the amended `affected-committed-range.json` core-freeze golden |
-| AFP-V0-163 | the `reuse`, `Retain integrity reuse record`, `record` and `Retain integrity tree record` steps, `fetch-depth: 2` and the `steps.reuse.outputs.mode` conditions of `artifact-integrity` in `.github/workflows/ci.yml` | `TestAFPV0163WorkflowWiresIntegrityTreeReuse`, `TestAFPV0163IntegrityReuseDecidesOnlyForAPassedPullRequestRunOfThisTree` (both fail before the change); queue timings in build log 2026-10-21-ci-waste-1021g-integrity-reuse-and-tasks-slices; hosted after-measurement `NOT_OBSERVED` |
+| AFP-V0-163 | the `reuse` and `Retain integrity reuse decision` steps, `permissions`, `fetch-depth: 2` and the `steps.reuse.outputs.mode` conditions of `artifact-integrity`, and the `artifact-integrity-record` job, in `.github/workflows/ci.yml`; the `job:artifact-integrity` row of `script/ci-least-privilege-exceptions.tsv` | `TestAFPV0163WorkflowWiresIntegrityTreeReuse`, `TestAFPV0163RecordJobRunsNoRepositoryCode`, `TestAFPV0163IntegrityReuseDecidesOnlyForAPassedPullRequestRunOfThisTree` (all fail before the change); queue timings in build log 2026-10-21-ci-waste-1021g-integrity-reuse-and-tasks-slices; hosted after-measurement `NOT_OBSERVED` |
 | AFP-V0-164 | the `internal/tasks/cli` and `internal/tasks/authority` entries of `.github/cishards/test-split-allow.json` and their slices in `.github/cishards/test-slices.json` (regenerated from run 39613481398) | `TestAFPV0060CommittedSlicesBoundOversizedPackages` (now requires both packages split, every test selected once, each slice within 400 s); `tools/ci-test-slices replay` before/after in build log 2026-10-21-ci-waste-1021g-integrity-reuse-and-tasks-slices; shuffled package runs; hosted observed max shard `NOT_OBSERVED` |
 | AFP-V0-316 | `scanFiles`, `scanFile` and `record` in `internal/gateselect/readers.go` | `TestAFPV0316ParallelIndexMatchesSerial` (the pooled index deep-equals the `GOMAXPROCS=1` serial index over a 99-file fixture, five times) and `TestAFPV0316ParallelIndexReportsTheFirstErrorInWalkOrder` (two unparsable sources: always the walk-first one; recording in completion order fails it); `BenchmarkIndexRepository` |
 | AFP-V0-296 | `admittedGoVersions` in `tools/corvint-pr-tests/main.go` | `TestToolIdentityRequiresCurrentGoVersion` (go1.27.2 and go1.27.3 admitted, go1.27.1, go1.27.4 and go1.28.2 refused), run green under go1.27.2 and go1.27.3; fails on go1.27.3 without the fix |
