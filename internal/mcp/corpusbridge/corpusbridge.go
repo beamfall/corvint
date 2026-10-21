@@ -20,7 +20,6 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
-	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
@@ -555,13 +554,14 @@ func (r *Registry) indexFor(ctx context.Context, a *doccorpus.Artifact) (*doccor
 // the same key the context snapshot store reuses an index under. The key is
 // read before the build, so a change during the build only forces a rebuild.
 func (r *Registry) freshness(ctx context.Context, a *doccorpus.Artifact, timing *Timing) (doccorpus.FreshnessOverlay, error) {
-	observed, err := contextindex.Observe(ctx, r.root)
+	// Every declared checkout is observed, so an additional repository's
+	// change forces a rebuild and an unchanged set reuses (DCP-V1-280).
+	key, err := doccorpus.CorpusObservation(ctx, r.root, a)
 	if err != nil {
 		return doccorpus.FreshnessOverlay{}, err
 	}
 	// The memo is keyed by the state the overlay was built from, never by an
 	// earlier observation, so a change during the build cannot be reused.
-	key := doccorpus.ObservationKey(observed)
 	r.live.Lock()
 	if r.live.artifact == a && r.live.key == key {
 		overlay := r.live.overlay

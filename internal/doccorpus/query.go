@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/contextindex"
@@ -39,6 +40,53 @@ func ObservationKey(o contextindex.Observation) string {
 	return strings.Join(append([]string{o.ObjectFormat, o.CommitRevision, o.Revision, o.StatusSHA256}, dirty...), "\x00")
 }
 
+// CorpusObservation observes every checkout the artifact's live freshness reads, the primary
+// root and each declared additional repository, concurrently (DCP-V1-280). It equals
+// ObservationKey of the primary observation for a single-repository corpus, and an overlay's
+// Observation is reusable exactly while CorpusObservation still returns it.
+func CorpusObservation(ctx context.Context, root string, a *Artifact) (string, error) {
+	dirs := []string{root}
+	for _, r := range a.Manifest.AdditionalRepositories {
+		dirs = append(dirs, a.Manifest.RevisionRoot(root, r.Revision))
+	}
+	keys, errs := make([]string, len(dirs)), make([]error, len(dirs))
+	var wg sync.WaitGroup
+	for i, dir := range dirs {
+		wg.Go(func() {
+			observed, err := contextindex.Observe(ctx, dir)
+			keys[i], errs[i] = ObservationKey(observed), err
+		})
+	}
+	wg.Wait()
+	for _, err := range errs {
+		if err != nil {
+			return "", err
+		}
+	}
+	return checkoutsKey(a, keys), nil
+}
+
+func indexObservationKey(live *contextindex.Index) string {
+	return ObservationKey(contextindex.Observation{
+		ObjectFormat: live.ObjectFormat, CommitRevision: live.CommitRevision, Revision: live.Revision, StatusSHA256: live.StatusSHA256, DirtyPaths: live.DirtyPaths})
+}
+
+// checkoutsKey joins the primary key and each additional repository's identity and key,
+// length-prefixed so no path byte can make two checkout sets collide.
+func checkoutsKey(a *Artifact, keys []string) string {
+	if len(keys) == 1 {
+		return keys[0]
+	}
+	var b strings.Builder
+	for i, key := range keys {
+		if i > 0 {
+			key = a.Manifest.AdditionalRepositories[i-1].ID + "\x00" + key
+		}
+		fmt.Fprintf(&b, "%d:%s;", len(key), key)
+	}
+	return b.String()
+}
+
 // LiveFreshness is Freshness plus symbol-anchor re-resolution (DCP-V1-141).
 // The overall state is unchanged by the symbol checks.
 func LiveFreshness(ctx context.Context, root string, a *Artifact) (FreshnessOverlay, error) {
@@ -59,21 +107,21 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 	if a.Builder.Revision == "unrecorded" || strings.HasSuffix(a.Builder.Revision, "+dirty") {
 		limits = append(limits, "builder source revision is unrecorded or dirty; no immutable build attestation")
 	}
-	observation := ObservationKey(contextindex.Observation{
-		ObjectFormat: live.ObjectFormat, CommitRevision: live.CommitRevision, Revision: live.Revision, StatusSHA256: live.StatusSHA256, DirtyPaths: live.DirtyPaths})
+	keys := []string{indexObservationKey(live)}
 	// Each additional repository's inputs are checked against its own declared checkout, never
-	// the primary tree (DCP-V1-178). The primary observation alone then no longer identifies the
-	// state, so the overlay carries no reusable observation key.
+	// the primary tree (DCP-V1-178), and that checkout's own observation joins the overlay's
+	// reuse key (DCP-V1-280).
 	for _, r := range a.Manifest.AdditionalRepositories {
 		member := func(revision string) bool { return revision == r.Revision }
-		_, changed, reasons, err := liveRepository(ctx, a.Manifest.RevisionRoot(root, r.Revision), a, member, "additional repository "+r.ID+": ")
+		checkout, changed, reasons, err := liveRepository(ctx, a.Manifest.RevisionRoot(root, r.Revision), a, member, "additional repository "+r.ID+": ")
 		if err != nil {
 			return unknown, err
 		}
 		stale = stale || changed
 		limits = append(limits, reasons...)
-		observation = ""
+		keys = append(keys, indexObservationKey(checkout))
 	}
+	observation := checkoutsKey(a, keys)
 	state := "fresh"
 	if stale {
 		state = "stale"
