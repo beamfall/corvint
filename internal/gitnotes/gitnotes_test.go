@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -293,6 +294,10 @@ func TestGitNotesFetchesNothing(t *testing.T) {
 	}
 	out, err := exec.Command(goTool, "list", "-deps", ".").Output()
 	if err != nil {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) {
+			t.Fatalf("go list -deps: %v: %s", err, exit.Stderr)
+		}
 		t.Fatal(err)
 	}
 	for _, dependency := range strings.Fields(string(out)) {

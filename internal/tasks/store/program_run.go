@@ -115,7 +115,7 @@ func RunProgram(ctx context.Context, repo *intent.Repository, actor mutation.Bin
 			return e
 		}
 		if report.Kind != "Transaction" {
-			return fmt.Errorf("program transition %s: %s %s", phase, report.Kind, report.Detail)
+			return transitionRefusal("program transition "+phase, report)
 		}
 		return nil
 	}

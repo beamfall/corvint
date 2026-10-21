@@ -178,6 +178,15 @@ func TestERGV0002_EvidenceCandidatesNeedAnArtifactLink(t *testing.T) {
 		t.Fatalf("an identical retry did not replay: %s", x.stdout)
 	}
 	refused("a retry with another candidate", wire.CodeRequestIDConflict, record("g2-pass", "2", "2", "--verdict", "PASS", "--evidence", "earlier="+rejectedArtifact, "--issued-at", "2026-10-05T12:00:00Z")...)
+	// V1-1923 review: a malformed --evidence flag spelling the valid flag's
+	// canonical element bytes is never dropped as its duplicate, in either
+	// order: a retry adding it does not replay, and a fresh request refuses.
+	collide := `{"bytes":"` + rejectedArtifact[65:] + `","label":"earlier","sha256":"` + rejectedArtifact[:64] + `"}`
+	for _, order := range [][]string{{"earlier=" + rejectedArtifact, collide}, {collide, "earlier=" + rejectedArtifact}} {
+		flags := []string{"--from-acceptance", accepted, "--evidence", order[0], "--evidence", order[1], "--issued-at", "2026-10-05T12:00:00Z"}
+		refused("a replay carrying a colliding malformed flag", wire.CodeRequestIDConflict, record("g2-pass", "2", "2", flags...)...)
+		refused("a request carrying a colliding malformed flag", wire.CodeMalformed, record("collide-"+order[1][:1], "2", "3", flags...)...)
+	}
 	runOK("receipt", "audit")
 }
 

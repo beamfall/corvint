@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -21,24 +22,135 @@ import (
 
 // fakeGo is a `go` on PATH whose behaviour FAKE_MODE selects: it answers the
 // version and universe probes, and for `test` records its argv, then passes,
-// fails, passes after seven seconds, or starts a grandchild and sleeps.
+// fails, or blocks on the gateFake FIFO: "slow" passes once released, "sleep"
+// first starts a grandchild, and "slowenv" blocks in the version probe.
 const fakeGo = `#!/bin/sh
 case "$1" in env|list) echo "$1" >> "$FAKE_DIR/probes";; esac
 case "$1" in
-env) [ "$FAKE_MODE" = noversion ] && exit 1; [ "$FAKE_MODE" = slowenv ] && exec sleep 60; echo go1.27.1; exit 0;;
+env) [ "$FAKE_MODE" = noversion ] && exit 1; [ "$FAKE_MODE" = slowenv ] && { read gate < "$FAKE_DIR/gate.$(wc -l < "$FAKE_DIR/probes" | tr -d ' ')"; exit 1; }; echo go1.27.1; exit 0;;
 list) echo m/a; [ "$FAKE_MODE" = extra ] && echo m/x; exit 0;;
 esac
 echo "$@" >> "$FAKE_DIR/argv"
+gate="$FAKE_DIR/gate.$(wc -l < "$FAKE_DIR/argv" | tr -d ' ')"
 case "$FAKE_MODE" in
 sleep)
   sleep 60 & echo $! > "$FAKE_DIR/grandchild"
-  touch "$FAKE_DIR/started"
-  sleep 60;;
+  read line < "$gate";;
 fail) echo '{"Action":"fail","Package":"m/a"}'; exit 1;;
-slow) sleep 7; echo '{"Action":"pass","Package":"m/a"}';;
+slow) read line < "$gate" || exit 1; echo '{"Action":"pass","Package":"m/a"}';;
 *) echo '{"Action":"pass","Package":"m/a"}';;
 esac
 `
+
+// shardClock is a virtual shard clock: Runner.now reads it and
+// Runner.deadline binds contexts to it, so a shard budget expires when the
+// test advances the clock, never because a loaded host ran slowly (V1-1445).
+type shardClock struct {
+	mu      sync.Mutex
+	now     time.Time
+	pending []virtualDeadline
+}
+
+type virtualDeadline struct {
+	at     time.Time
+	cancel context.CancelFunc
+}
+
+func useShardClock(r *Runner) *shardClock {
+	c := &shardClock{now: time.Unix(1_700_000_000, 0)}
+	r.now, r.deadline = c.Now, c.WithDeadline
+	return c
+}
+
+func (c *shardClock) Now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.now
+}
+
+func (c *shardClock) WithDeadline(ctx context.Context, at time.Time) (context.Context, context.CancelFunc) {
+	child, cancel := context.WithCancel(ctx)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.now.Before(at) {
+		c.pending = append(c.pending, virtualDeadline{at: at, cancel: cancel})
+	} else {
+		cancel()
+	}
+	return child, cancel
+}
+
+// Advance moves the clock and expires every context whose deadline it reached.
+func (c *shardClock) Advance(d time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.now = c.now.Add(d)
+	kept := c.pending[:0]
+	for _, p := range c.pending {
+		if c.now.Before(p.at) {
+			kept = append(kept, p)
+		} else {
+			p.cancel()
+		}
+	}
+	c.pending = kept
+}
+
+// gateFake makes FAKE_DIR/gate.N, the FIFO the Nth gated fake go run (or
+// probe) blocks on, and runs step N once that fake has opened it. Opening the
+// writer returns only once the fake has opened the reader, so each step runs
+// at a known point of its own fake's run; the rendezvous is the sync point,
+// not elapsed time. One FIFO per run keeps a still-open earlier reader from
+// satisfying a later step. A step returning true releases the fake; false
+// holds the writer open, so the fake stays blocked until the runner kills its
+// process group.
+func gateFake(t *testing.T, dir string, steps ...func() bool) {
+	t.Helper()
+	gates := make([]string, len(steps))
+	for i := range steps {
+		gates[i] = filepath.Join(dir, "gate."+strconv.Itoa(i+1))
+		if err := syscall.Mkfifo(gates[i], 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	stop, finished := make(chan struct{}), make(chan struct{})
+	go func() {
+		defer close(finished)
+		for i, step := range steps {
+			w, err := os.OpenFile(gates[i], os.O_WRONLY, 0)
+			if err != nil {
+				return
+			}
+			select {
+			case <-stop:
+				_ = w.Close()
+				return
+			default:
+			}
+			if step() {
+				_, _ = w.WriteString("go\n")
+			} else {
+				<-stop
+			}
+			_ = w.Close()
+		}
+	}()
+	t.Cleanup(func() {
+		close(stop)
+		// An open reader on each gate lets a writer still blocked in open
+		// return; it then sees stop and ends.
+		var readers []*os.File
+		for _, gate := range gates {
+			if r, err := os.OpenFile(gate, os.O_RDONLY|syscall.O_NONBLOCK, 0); err == nil {
+				readers = append(readers, r)
+			}
+		}
+		<-finished
+		for _, r := range readers {
+			_ = r.Close()
+		}
+	})
+}
 
 func runnerFixture(t *testing.T, mode string) (*Runner, Manifest, string, string) {
 	t.Helper()
@@ -137,36 +249,31 @@ func TestSTRV0017RunnerDrift(t *testing.T) {
 }
 
 // STR-V0-014, STR-V0-015: cancellation and the budget kill the owned group,
-// grandchildren included, and launch nothing further.
+// grandchildren included, and launch nothing further. The fake go has started
+// its grandchild and is blocked on the gate when the test cancels or moves the
+// virtual shard clock past the budget, so host load cannot reorder the two
+// (V1-1439, V1-1445).
 func TestSTRV0014RunnerCancelAndBudgetKillGroup(t *testing.T) {
 	for _, budget := range []bool{false, true} {
 		runner, m, digest, dir := runnerFixture(t, "sleep")
 		m.Units = append(m.Units, Unit{Adapter: AdapterGo, Flag: "-run", Pattern: "^T$", Shard: 0, Slice: "0/2", Unit: "go:m/a"})
 		digest, _ = Digest(m)
 		ctx, cancel := context.WithCancel(context.Background())
-		if budget {
-			// Long enough for the fake go to start its grandchild on a
-			// loaded host; 300ms was racy, and 2s still was (V1-1439).
-			runner.Budget = 10 * time.Second
-		} else {
-			go func() {
-				for deadline := time.Now().Add(20 * time.Second); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
-					if _, err := os.Stat(filepath.Join(dir, "started")); err == nil {
-						cancel()
-						return
-					}
-				}
-			}()
-		}
-		started := time.Now()
+		clock := useShardClock(runner)
+		runner.Budget = time.Hour
+		gateFake(t, dir, func() bool {
+			if budget {
+				clock.Advance(2 * runner.Budget)
+			} else {
+				cancel()
+			}
+			return false
+		})
 		receipt := runner.Execute(ctx, m, digest, 0)
 		cancel()
-		if elapsed := time.Since(started); elapsed > 30*time.Second {
-			t.Fatalf("budget=%v: took %s", budget, elapsed)
-		}
 		want := "cancelled while an adapter ran; its process group was killed"
 		if budget {
-			want = "the shard exceeded its 10s total budget while an adapter ran; its process group was killed"
+			want = "the shard exceeded its 1h0m0s total budget while an adapter ran; its process group was killed"
 		}
 		if receipt.Result != ResultIncomplete || len(receipt.Invocations) != 1 || receipt.Incomplete[0] != want {
 			t.Fatalf("budget=%v: %s %d %v", budget, receipt.Result, len(receipt.Invocations), receipt.Incomplete)
@@ -185,38 +292,53 @@ func TestSTRV0014RunnerCancelAndBudgetKillGroup(t *testing.T) {
 	}
 }
 
-// STR-V0-015: the budget bounds the whole shard, not each invocation. Two
-// invocations of seven seconds each pass a 12s per-invocation bound but not a
-// 12s shard bound: the second is killed at the shard deadline, and once the
-// deadline has passed nothing further launches. The 5s margin absorbs
-// discovery and launch under host load, where 1s runs in a 1.6s budget left
-// 0.6s and failed (V1-1439).
+// STR-V0-015: the budget bounds the whole shard, not each invocation. On the
+// virtual shard clock each invocation spends 40 minutes of a one-hour budget:
+// both pass a one-hour per-invocation bound, but the second crosses the shard
+// deadline and is killed, and once the deadline has passed nothing further
+// launches. The gate releases the second fake after the clock moves, so a
+// per-invocation deadline (virtual or real) lets it pass and fails this test;
+// no real sleep or wall-clock margin decides the outcome (V1-1439, V1-1445).
 func TestSTRV0015BudgetBoundsTheShard(t *testing.T) {
-	runner, m, _, _ := runnerFixture(t, "slow")
+	runner, m, _, dir := runnerFixture(t, "slow")
 	m.Units = append(m.Units, Unit{Adapter: AdapterGo, Flag: "-run", Pattern: "^T$", Shard: 0, Slice: "0/2", Unit: "go:m/a"})
 	digest, _ := Digest(m)
-	runner.Budget = 12 * time.Second
+	clock := useShardClock(runner)
+	runner.Budget = time.Hour
+	spend := func() bool { clock.Advance(40 * time.Minute); return true }
+	gateFake(t, dir, spend, spend)
 	receipt := runner.Execute(context.Background(), m, digest, 0)
-	want := "the shard exceeded its 12s total budget while an adapter ran; its process group was killed"
+	want := "the shard exceeded its 1h0m0s total budget while an adapter ran; its process group was killed"
 	if receipt.Result != ResultIncomplete || len(receipt.Invocations) != 2 || receipt.Invocations[0].Outcomes[0].Outcome != OutcomePass ||
 		receipt.Incomplete[0] != want {
 		t.Fatalf("shard budget: %s %d %v", receipt.Result, len(receipt.Invocations), receipt.Incomplete)
 	}
-	runner.Budget = time.Nanosecond
+	// A clock that moves a whole budget per reading has spent the budget
+	// before the first probe.
+	runner, m, _, _ = runnerFixture(t, "pass")
+	digest, _ = Digest(m)
+	runner.Budget = time.Hour
+	stepping := time.Unix(1_700_000_000, 0)
+	runner.now = func() time.Time { stepping = stepping.Add(runner.Budget); return stepping }
 	spent := runner.Execute(context.Background(), m, digest, 0)
 	if spent.Result != ResultIncomplete || len(spent.Invocations) != 0 ||
-		spent.Incomplete[0] != "the shard's 1ns total budget ran out during runner discovery; nothing launched" {
+		spent.Incomplete[0] != "the shard's 1h0m0s total budget ran out during runner discovery; nothing launched" {
 		t.Fatalf("spent budget: %s %d %v", spent.Result, len(spent.Invocations), spent.Incomplete)
 	}
-	// Discovery spends the same budget: a hung version probe is killed at the
-	// shard deadline, not after its own two-minute bound.
-	runner, m, _, _ = runnerFixture(t, "slowenv")
+	// Discovery spends the same budget: a version probe blocked on the gate is
+	// killed when the virtual clock passes the shard deadline, not after its
+	// own two-minute bound (discoverDeadline). That bound is the only real
+	// time left here, and the passing path never comes near it.
+	runner, m, _, dir = runnerFixture(t, "slowenv")
 	digest, _ = Digest(m)
-	runner.Budget = 500 * time.Millisecond
+	clock = useShardClock(runner)
+	runner.Budget = time.Hour
+	gateFake(t, dir, func() bool { clock.Advance(2 * runner.Budget); return false })
 	started := time.Now()
 	hung := runner.Execute(context.Background(), m, digest, 0)
-	if elapsed := time.Since(started); elapsed > 20*time.Second || hung.Result != ResultIncomplete ||
-		len(hung.Invocations) != 0 || len(hung.Incomplete) == 0 || !strings.HasPrefix(hung.Incomplete[0], "go: ") {
+	wantHung := "go: the shard's 1h0m0s total budget ran out during runner discovery; nothing launched"
+	if elapsed := time.Since(started); elapsed >= discoverDeadline || hung.Result != ResultIncomplete ||
+		len(hung.Invocations) != 0 || len(hung.Incomplete) == 0 || hung.Incomplete[0] != wantHung {
 		t.Fatalf("hung discovery: %s %s %d %v", elapsed, hung.Result, len(hung.Invocations), hung.Incomplete)
 	}
 	if got := (&Runner{}).ShardBudget(Manifest{RunnerProfile: ProfileCI}); got != CIBudget {

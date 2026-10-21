@@ -345,9 +345,9 @@ func leaseCommand(env Env, name string, args []string) (res *wire.Result) {
 		defer stop()
 		report, err = store.PoolOperate(ctx, repo, actor, choice)
 	} else if name == "gate run" {
-		// An interrupt kills the gate's process group; a run that started is
-		// still recorded with its partial output (CAL-V0-319).
-		ctx, stop := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM)
+		// An interrupt or hangup kills the gate's process group; a run that
+		// started is still recorded with its partial output (CAL-V0-319).
+		ctx, stop := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 		defer stop()
 		if hasCIRun {
 			var ciRaw []byte

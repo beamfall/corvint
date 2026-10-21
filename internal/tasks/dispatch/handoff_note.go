@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -80,16 +81,70 @@ func HandoffNotePath(dir, worker string) string {
 }
 
 // screen replaces every line the secret screen matches and counts them.
+// Two passes also replace the lines of a secret wrapped across lines
+// (ATR-V0-169): the whole text, line breaks kept, catches a PEM or PGP block;
+// each run of consecutive lines that do not match alone, joined with their
+// surrounding blanks and line breaks removed, catches a token a model broke
+// across lines. Each pass replaces every non-empty line a match spanning
+// more than one line touches.
 func screen(s string) (string, int) {
-	s = strings.ToValidUTF8(s, "�")
+	s = strings.ToValidUTF8(s, "\ufffd")
 	lines := strings.Split(s, "\n")
-	n := 0
+	alone := make([]bool, len(lines))
 	for i, l := range lines {
-		if obligation.MatchesSecretScreen(l) {
+		alone[i] = obligation.MatchesSecretScreen(l)
+	}
+	hit := slices.Clone(alone)
+	markWrapped(hit, 0, lines, "\n")
+	for i := 0; i < len(lines); {
+		j := i
+		for j < len(lines) && !alone[j] {
+			j++
+		}
+		if j-i > 1 {
+			run := make([]string, j-i)
+			for k := range run {
+				run[k] = strings.Trim(lines[i+k], " \t\r")
+			}
+			markWrapped(hit, i, run, "")
+		}
+		i = j + 1
+	}
+	n := 0
+	for i := range lines {
+		if hit[i] {
 			lines[i], n = redactedLine, n+1
 		}
 	}
 	return strings.Join(lines, "\n"), n
+}
+
+// markWrapped screens pieces joined by sep and sets hit[first+i] for every
+// non-empty piece i that a match touching more than one non-empty piece
+// overlaps.
+func markWrapped(hit []bool, first int, pieces []string, sep string) {
+	starts := make([]int, len(pieces))
+	at := 0
+	for i, p := range pieces {
+		if i > 0 {
+			at += len(sep)
+		}
+		starts[i] = at
+		at += len(p)
+	}
+	for _, span := range obligation.SecretScreenSpans(strings.Join(pieces, sep)) {
+		var touched []int
+		for i, p := range pieces {
+			if p != "" && starts[i] < span[1] && span[0] < starts[i]+len(p) {
+				touched = append(touched, i)
+			}
+		}
+		if len(touched) > 1 {
+			for _, i := range touched {
+				hit[first+i] = true
+			}
+		}
+	}
 }
 
 // boundScreened screens s whole, then keeps at most limit bytes of its tail

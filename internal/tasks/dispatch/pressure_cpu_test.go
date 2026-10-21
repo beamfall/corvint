@@ -371,7 +371,7 @@ func TestCALV0125_UnselectedCPULeavesLedgerUnchanged(t *testing.T) {
 		wants = append(wants, w)
 		return ticks.read(ctx, now, w) // a sampler that ignores the selection
 	}
-	// The second tick defers its sample (CAL-V0-351: idle and calm), so
+	// The second tick defers its sample (ATR-V0-181: idle and calm), so
 	// one sample is taken.
 	for i := 0; i < 2; i++ {
 		if err := d.Tick(context.Background()); err != nil {

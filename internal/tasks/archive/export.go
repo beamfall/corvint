@@ -22,6 +22,10 @@ type ExportOptions struct {
 	Repo    *intent.Repository
 	Staging string    // "" selects the OS temp dir
 	Stdout  io.Writer // receives the verified stream; delivery errors may leave a prefix
+	// FailureSnapshot, when set, receives the partial snapshot the failing
+	// probe observed (nil when none), so a CLI can still report the head it
+	// saw. It is per call, so concurrent exports do not share it.
+	FailureSnapshot **snapshot.Snapshot
 	// afterProbe is a test hook run inside the snapshot after the head and
 	// slot checks and before any file is copied (AS-36 N4d).
 	afterCapture  func()       // finite inventory/body movement seam
@@ -38,12 +42,6 @@ type ExportResult struct {
 	Snapshot *snapshot.Snapshot
 	Bytes    uint64 // sum of files-entry payload bytes; excludes manifest and tar framing
 }
-
-// SnapshotOnFailure is set by Export on the error path to the partial
-// snapshot the failing probe observed (nil when none), so a CLI can still
-// report the head it saw. It is a package-level result of the last call and
-// is meant for the single-threaded command path only.
-var SnapshotOnFailure *snapshot.Snapshot
 
 func resolveReal(p string) (string, error) {
 	abs, err := filepath.Abs(p)
@@ -155,7 +153,6 @@ func Export(opts ExportOptions) (result *ExportResult, retErr error) {
 	}
 	var streamBudget *streamWriter
 	var streamExceeded bool
-	SnapshotOnFailure = nil
 	repo := opts.Repo
 	// journal.RetiredPrefixFile: a store with a retired prefix no longer holds
 	// receipt 1, so its export would not verify (JRT-V0-010).
@@ -231,7 +228,7 @@ func Export(opts ExportOptions) (result *ExportResult, retErr error) {
 					if bodyErr == nil {
 						bodyErr = e
 					} else {
-						bodyErr = wire.Errorf(wire.CodeOf(bodyErr), "body", "%v", errors.Join(bodyErr, e))
+						bodyErr = wire.Annotatef(bodyErr, "body", "%v", errors.Join(bodyErr, e))
 					}
 				}
 			}
@@ -344,7 +341,9 @@ func Export(opts ExportOptions) (result *ExportResult, retErr error) {
 		return nil
 	})
 	if err != nil {
-		SnapshotOnFailure = snap
+		if opts.FailureSnapshot != nil {
+			*opts.FailureSnapshot = snap
+		}
 		if streamExceeded {
 			return nil, streamLimitError(limit)
 		}
@@ -356,7 +355,6 @@ func Export(opts ExportOptions) (result *ExportResult, retErr error) {
 	if cleanupErr != nil {
 		return nil, stagingCleanup(nil, cleanupErr)
 	}
-	SnapshotOnFailure = nil
 	// Verify the staged stream by the same procedure as `archive verify`.
 	if opts.afterStaged != nil {
 		opts.afterStaged(staged)
@@ -452,5 +450,5 @@ func stagingCleanup(primary, cleanup error) error {
 	if primary == nil {
 		return wire.Errorf(wire.CodeUnsupportedFilesystem, "staging", "cleanup failed: %v", cleanup)
 	}
-	return wire.Errorf(wire.CodeOf(primary), "staging", "%v; cleanup failed: %v", primary, cleanup)
+	return wire.Annotatef(primary, "staging", "%v; cleanup failed: %v", primary, cleanup)
 }

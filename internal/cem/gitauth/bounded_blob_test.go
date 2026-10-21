@@ -113,8 +113,12 @@ func testBoundedBlobCancellationRetiresDescendant(t *testing.T) {
 	dir := t.TempDir()
 	pidFile := filepath.Join(dir, "child")
 	quoted := "'" + strings.ReplaceAll(pidFile, "'", "'\\''") + "'"
-	script := "#!/bin/sh\nIFS= read -r oid\nprintf '%s blob 3\\n' \"$oid\"\nsleep 30 &\necho $! >" + quoted + "\nwait\n"
-	os.WriteFile(filepath.Join(dir, "git"), []byte(script), 0700)
+	// The pid is published by rename: the shell creates a redirect target
+	// before writing it, and an empty read is not a started descendant (V1-0582).
+	script := "#!/bin/sh\nIFS= read -r oid\nprintf '%s blob 3\\n' \"$oid\"\nsleep 30 &\necho $! >" + quoted + ".tmp && mv " + quoted + ".tmp " + quoted + "\nwait\n"
+	if err := os.WriteFile(filepath.Join(dir, "git"), []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -122,10 +126,11 @@ func testBoundedBlobCancellationRetiresDescendant(t *testing.T) {
 	go func() { _, err := r.BlobBytesBounded(ctx, entry.OID, 1024); done <- err }()
 	var pid int
 	for i := 0; i < 200; i++ {
-		data, e := os.ReadFile(pidFile)
-		if e == nil {
-			pid, _ = strconv.Atoi(strings.TrimSpace(string(data)))
-			break
+		if data, e := os.ReadFile(pidFile); e == nil {
+			if pid, e = strconv.Atoi(strings.TrimSpace(string(data))); e == nil && pid > 0 {
+				break
+			}
+			pid = 0
 		}
 		time.Sleep(10 * time.Millisecond)
 	}

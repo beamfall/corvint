@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"path/filepath"
 	"strings"
@@ -58,6 +60,24 @@ func parseIndexInvocation(arguments []string) (indexInvocation, bool, error) {
 // before the snapshot existed. It writes nothing (invariant 4).
 func snapshotIndex(ctx context.Context, root string) *contextindex.Index {
 	return snapshotHit(loadSnapshot(ctx, root))
+}
+
+// snapshotMissNoticeAfter is the in-memory build time from which a snapshot
+// reader names its miss on stderr (IDX-SNAP-V0-102, V1-1640). A fixture-sized
+// build stays silent; a real checkout without `corvint index` hears what the
+// miss cost and how to stop paying it.
+var snapshotMissNoticeAfter = time.Second
+
+// noteSnapshotMissBuild writes the one-line stderr notice for a snapshot miss
+// whose in-memory build took at least snapshotMissNoticeAfter. It changes no
+// stdout byte, exit code or repository state: the read stays read-only and the
+// suggested `index` run is the operator's.
+func noteSnapshotMissBuild(stderr io.Writer, verb, root string, built time.Duration) {
+	if built < snapshotMissNoticeAfter {
+		return
+	}
+	argv, _ := json.Marshal([]string{"corvint", "--root", root, "index"})
+	_, _ = fmt.Fprintf(stderr, "corvint %s: no index snapshot matches this tree, so this call built the full index in memory (%d ms); run %s once per checkout to reuse it\n", verb, built.Milliseconds(), argv)
 }
 
 // snapshotHit is the index a hit returned, or nil for a miss or an error.

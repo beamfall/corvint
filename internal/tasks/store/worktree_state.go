@@ -63,14 +63,14 @@ func WorkingTreeState(root string) (head string, digest wire.Digest, err error) 
 		p := filepath.Join(root, filepath.FromSlash(name))
 		st, err := os.Lstat(p)
 		if err != nil {
-			return "", "", wire.Errorf(wire.CodeOf(err), "untracked", "cannot read untracked file: %v", err)
+			return "", "", wire.Annotatef(err, "untracked", "cannot read untracked file: %v", err)
 		}
 		io.WriteString(h, "untracked "+strconv.Quote(name)+" "+st.Mode().Type().String()+"\n")
 		switch {
 		case st.Mode()&os.ModeSymlink != 0:
 			target, err := os.Readlink(p)
 			if err != nil {
-				return "", "", wire.Errorf(wire.CodeOf(err), "untracked", "cannot read untracked link: %v", err)
+				return "", "", wire.Annotatef(err, "untracked", "cannot read untracked link: %v", err)
 			}
 			io.WriteString(h, "link "+strconv.Quote(target)+"\n")
 		case st.Mode().IsRegular():
@@ -80,7 +80,7 @@ func WorkingTreeState(root string) (head string, digest wire.Digest, err error) 
 			}
 			sum, err := fileSha256(p)
 			if err != nil {
-				return "", "", wire.Errorf(wire.CodeOf(err), "untracked", "cannot read untracked file: %v", err)
+				return "", "", wire.Annotatef(err, "untracked", "cannot read untracked file: %v", err)
 			}
 			io.WriteString(h, "content "+sum+" "+strconv.FormatInt(st.Size(), 10)+"\n")
 		}

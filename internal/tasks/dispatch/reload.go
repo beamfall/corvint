@@ -83,7 +83,7 @@ func (d *Dispatcher) readConfig() ([]byte, string, error) {
 
 // cachedConfigSum returns the digest of the bytes last read when the named
 // file's stat still matches the descriptor they were read from and they were
-// read within idleFullEvery (CAL-V0-350, V1-0925). Any stat error, changed
+// read within idleFullEvery (ATR-V0-180, V1-0925). Any stat error, changed
 // identity, size, mode or modification time, a clock behind the read, or an
 // older read returns false, so the caller reads the file.
 func (d *Dispatcher) cachedConfigSum(now time.Time) (string, bool) {
@@ -109,7 +109,7 @@ func sameConfigStat(a, b fs.FileInfo) bool {
 // from the applied bytes and is not the refusal already recorded, or it
 // matches them again after a refusal. An unchanged stat reuses the digest
 // of the bytes last read within idleFullEvery and reads nothing; a changed
-// stat or an older read reads the file (CAL-V0-350). A read error is
+// stat or an older read reads the file (ATR-V0-180). A read error is
 // pending, so the full tick reports it.
 func (d *Dispatcher) configPending() bool {
 	if d.configRead == nil {
@@ -144,7 +144,7 @@ func (d *Dispatcher) reloadConfig() {
 	}
 	now := d.Now().UTC()
 	rec := d.ledger.Config
-	// CAL-V0-350: an unchanged stat stands for the bytes last read when they
+	// ATR-V0-180: an unchanged stat stands for the bytes last read when they
 	// are the applied bytes or the refusal already recorded; anything else
 	// is read, decoded and checked as before.
 	var raw []byte
