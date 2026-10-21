@@ -323,7 +323,7 @@ requirements below have evidence. File existence is not parity.
   tests, `go mod verify` when module files changed, and the repository gate. The existing path and
   working-tree profiles remain unchanged. The range profile is read-only and local-only and claims
   no Python parity. A dirty worktree returns `unsupported-impact-worktree`
-  (`internal/contextindex/range_impact.go:352`) unless `GPK-V0-060` allows every dirty entry, and a
+  (`internal/contextindex/range_impact.go:361`) unless `GPK-V0-060` allows every dirty entry, and a
   changed `.go` path in the repository root package returns `unsupported-impact-path`
   (`internal/contextindex/range_impact.go:154`).
   Proposed experimental extension (2026-09-30, owner-requested issue #390):
@@ -1261,9 +1261,9 @@ is one name, so one matching code line is one pair and one evidence item for `ki
   path followed by NUL. `range.statusSha256` continues to bind the raw status bytes. Failure modes:
   any tracked entry (modified, staged, deleted, renamed, or copied) or malformed status MUST return
   `unsupported-impact-worktree` with "range impact requires a clean worktree"
-  (`internal/contextindex/range_impact.go:352`). The first overlapping untracked path MUST return
+  (`internal/contextindex/range_impact.go:361`). The first overlapping untracked path MUST return
   `unsupported-impact-worktree` with "range impact requires a clean worktree; untracked path
-  overlaps the Go build: <path>" (`internal/contextindex/range_impact.go:369`). Any status change
+  overlaps the Go build: <path>" (`internal/contextindex/range_impact.go:378`). Any status change
   after capture remains `impact-range-drift`. The allowance MUST NOT widen path or working-tree
   impact, which are unchanged. It does not extend to the repository gate the receipt names, which
   keeps refusing listed untracked paths under `ARTIFACT-GO-V0-009`.

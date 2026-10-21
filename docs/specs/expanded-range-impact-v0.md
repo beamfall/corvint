@@ -77,7 +77,7 @@ membership and must retain whole-change authority, marker selection and result a
 - Accepted amendment (decision 0388, V1-0264, DCW-V0-025): the repository coordinator MAY also
   preserve a typed `unsupported-impact-repository` or `unsupported-impact-path` as explicit
   `NOT_PRODUCED` context evidence under the same terms, each under its own code.
-- Accepted (2026-10-21, V1-1881, standing lane auto-accept of 2026-10-11): `ERI-V0-060`: Both
+- `ERI-V0-060`: (accepted 2026-10-21, V1-1881, standing lane auto-accept of 2026-10-11) Both
   range profiles MUST refuse an over-bound range with the exact bound refusal before the
   copy-detecting diff when a rename-free lower bound proves the outcome. The bound reads the
   base-to-captured-HEAD diff without rename or copy detection; detection never adds an entry, so
