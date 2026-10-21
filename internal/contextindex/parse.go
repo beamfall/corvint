@@ -684,26 +684,111 @@ func sourceImports(sourcePath, text string) importExtraction {
 			imports, refusal := webImports(text)
 			return importExtraction{imports: imports, refusal: refusal, reason: UnparsedWebLexical, approximate: len(imports) != 0}
 		}
-		result := make(map[string]struct{})
-		// genericImport can only match where the body holds both a quote and
-		// one of its two keywords -- every alternative ends in a quoted
-		// string opened right after "from" or "import". Bodies that fail
-		// this necessary condition (a 25 MB JSON blob, say) cannot match, so
-		// skipping the NFA for them loses no match the regex would have
-		// found.
-		if strings.ContainsAny(text, `"'`) && (strings.Contains(text, "from") || strings.Contains(text, "import")) {
-			for _, match := range genericImport.FindAllStringSubmatchIndex(text, -1) {
-				if match[0] != 0 {
-					previous, _ := utf8.DecodeLastRuneInString(text[:match[0]])
-					if isPythonWordRune(previous) {
-						continue
-					}
-				}
-				result[text[match[2]:match[3]]] = struct{}{}
-			}
-		}
+		result := genericImports(text)
 		return importExtraction{imports: result, approximate: len(result) != 0}
 	}
+}
+
+// genericImports returns exactly the captures genericImport.FindAllStringSubmatchIndex
+// would yield, minus those preceded by a Python word rune, without running the
+// regular expression (V1-1640). Every genericImport match begins at the ASCII
+// keyword "from" or "import", and from a fixed start the pattern admits at most
+// one match: each repetition is followed by a byte its class excludes (a quote
+// or "(" after the spaces, a quote after the specifier), so nothing ever
+// backtracks. Visiting keyword occurrences left to right, trying the one match
+// each admits, and resuming after a match's end therefore reproduces the
+// regexp package's leftmost-first, non-overlapping order. An ASCII byte is
+// always a rune boundary under Go's UTF-8 decoding, so no keyword the regexp
+// would see is missed. genericImport stays as the differential oracle
+// (TestGenericImportsMatchesRegexpOracle, FuzzGenericImportsMatchesRegexpOracle).
+func genericImports(text string) map[string]struct{} {
+	result := make(map[string]struct{})
+	nextFrom, nextImport := -1, -1
+	for position := 0; position < len(text); {
+		if nextFrom < position && nextFrom != len(text) {
+			nextFrom = keywordAt(text, position, "from")
+		}
+		if nextImport < position && nextImport != len(text) {
+			nextImport = keywordAt(text, position, "import")
+		}
+		start := min(nextFrom, nextImport)
+		if start == len(text) {
+			break
+		}
+		captureStart, captureEnd, end, ok := genericImportAt(text, start)
+		if !ok {
+			position = start + 1
+			continue
+		}
+		previous, _ := utf8.DecodeLastRuneInString(text[:start])
+		if start == 0 || !isPythonWordRune(previous) {
+			result[text[captureStart:captureEnd]] = struct{}{}
+		}
+		position = end
+	}
+	return result
+}
+
+// keywordAt is the offset of the first keyword at or after position, or
+// len(text) when there is none.
+func keywordAt(text string, position int, keyword string) int {
+	offset := strings.Index(text[position:], keyword)
+	if offset < 0 {
+		return len(text)
+	}
+	return position + offset
+}
+
+// genericImportAt is genericImport anchored at start: the specifier's bounds
+// and the match end when the one match the pattern admits there exists.
+func genericImportAt(text string, start int) (captureStart, captureEnd, end int, ok bool) {
+	var cursor int
+	switch {
+	case strings.HasPrefix(text[start:], "from"):
+		cursor = skipImportSpace(text, start+len("from"))
+		if cursor == start+len("from") {
+			return 0, 0, 0, false
+		}
+	case strings.HasPrefix(text[start:], "import"):
+		cursor = skipImportSpace(text, start+len("import"))
+		if cursor < len(text) && text[cursor] == '(' {
+			cursor = skipImportSpace(text, cursor+1)
+		}
+	default:
+		return 0, 0, 0, false
+	}
+	if cursor >= len(text) || !isImportQuote(text[cursor]) {
+		return 0, 0, 0, false
+	}
+	captureStart = cursor + 1
+	captureEnd = captureStart
+	// The specifier class [^\x22\x27] admits every rune but the two quotes,
+	// invalid bytes and newlines included, and a quote byte never occurs inside
+	// a multi-byte sequence, so a byte scan finds the same closing quote.
+	for captureEnd < len(text) && !isImportQuote(text[captureEnd]) {
+		captureEnd++
+	}
+	if captureEnd == captureStart || captureEnd == len(text) {
+		return 0, 0, 0, false
+	}
+	return captureStart, captureEnd, captureEnd + 1, true
+}
+
+func isImportQuote(character byte) bool {
+	return character == '"' || character == '\''
+}
+
+// skipImportSpace skips genericImport's space class
+// [\t-\r \x1c-\x1f\x{0085}\p{Z}] from cursor and returns the first offset past it.
+func skipImportSpace(text string, cursor int) int {
+	for cursor < len(text) {
+		character, width := utf8.DecodeRuneInString(text[cursor:])
+		if !(character >= '\t' && character <= '\r' || character >= 0x1c && character <= 0x1f || character == 0x85 || unicode.Is(unicode.Z, character)) {
+			break
+		}
+		cursor += width
+	}
+	return cursor
 }
 
 func stringsField(value any) []string {

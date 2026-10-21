@@ -227,6 +227,7 @@ the private Git directory:
 ```console
 $ corvint_git_dir=$(git rev-parse --absolute-git-dir)
 $ mkdir -p "$corvint_git_dir/corvint"
+$ corvint index --if-stale
 $ corvint query --task "THE CHANGE" --limit 1 > "$corvint_git_dir/corvint/prechange-query.json"
 $ corvint impact PATH... --limit 10 > "$corvint_git_dir/corvint/prechange-impact.json"
 ```
@@ -238,6 +239,11 @@ that is absent (`NOTE prechange-query NOT_OBSERVED agent-receipt-absent`), carri
 `context.revision`, or names a tree other than BASE's (`NOTE prechange-impact STALE
 agent-receipt-not-base-tree tree=... base-tree=...`), so write both before the first edit
 (`DCW-V0-031`, proposed).
+
+Run `corvint index --if-stale` once per fresh checkout (or after a rebuilt binary, whose engine
+digest misses the old snapshot) before the queries: without a snapshot of the tree each read command
+builds the whole index in memory and never persists it, and `corvint context` says so on stderr
+(`TCP-V0-140`, V1-1640).
 
 Use the native `corvint` runtime. `PATH...` names the tracked files the change intends to touch.
 Range impact (`corvint impact --base BASE_SHA`) is not a pre-change step: before any edit it has

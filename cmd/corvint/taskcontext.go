@@ -9,6 +9,7 @@ import (
 	"runtime/pprof"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -213,16 +214,20 @@ func runTaskContext(ctx context.Context, options taskContextOptions, stdout, std
 			profile.Close()
 		}()
 	}
-	packet, hit, err := compileTaskContext(ctx, options, loadContextSnapshot)
+	packet, build, err := compileTaskContext(ctx, options, loadContextSnapshot)
 	if errors.Is(err, contextindex.ErrSnapshotRefused) {
-		packet, hit, err = compileTaskContext(ctx, options, contextindex.LoadContextSnapshot)
+		packet, build, err = compileTaskContext(ctx, options, contextindex.LoadContextSnapshot)
 	}
-	if runtimeenv.Value("BENCH_SNAPSHOT_TRACE") == "1" {
-		fmt.Fprintf(stderr, "corvint-bench-snapshot: hit=%t\n", hit)
+	benchTrace := runtimeenv.Value("BENCH_SNAPSHOT_TRACE") == "1"
+	if benchTrace {
+		fmt.Fprintf(stderr, "corvint-bench-snapshot: hit=%t\n", build.hit)
 	}
 	if err != nil {
 		emitError(stderr, err)
 		return 2
+	}
+	if !benchTrace {
+		writeFullBuildNotice(stderr, build)
 	}
 	encoded, err := gokernel.CanonicalJSON(packet)
 	if err != nil {
@@ -325,22 +330,52 @@ ambiguous handle refuses and never substitutes current content.
 // LoadContextSnapshot, which refuses the pack whole (IDX-SNAP-V0-015).
 var loadContextSnapshot = contextindex.LoadContextSnapshotDeferred
 
+// fullBuildNoticeTracked is the tracked-path count from which a snapshot miss
+// prints the full-build notice (TCP-V0-140). It is a tree-size bound rather
+// than a time bound so the notice is deterministic: small trees build in
+// well under a second and stay silent, as fixture repositories do.
+const fullBuildNoticeTracked = 1000
+
+// writeFullBuildNotice tells the caller on stderr that a snapshot miss paid a
+// full in-memory index build, how long it took, and how to avoid paying it
+// again (TCP-V0-140, V1-1640). The packet bytes and the read-only contract
+// are unchanged; the command still writes no snapshot.
+func writeFullBuildNotice(stderr io.Writer, build taskContextBuild) {
+	if build.hit || build.tracked < fullBuildNoticeTracked {
+		return
+	}
+	fmt.Fprintf(stderr, "corvint context: no snapshot of this tree; built the index in memory over %d tracked paths in %.1fs. Run `corvint index` once to reuse it.\n", build.tracked, build.elapsed.Seconds())
+}
+
+// taskContextBuild says how compileTaskContext obtained its index: from a
+// snapshot (hit), or by a full in-memory build taking elapsed over tracked
+// paths.
+type taskContextBuild struct {
+	hit     bool
+	elapsed time.Duration
+	tracked int
+}
+
 // compileTaskContext reads the snapshot through load, builds on a miss, and
 // compiles the packet.
-func compileTaskContext(ctx context.Context, options taskContextOptions, load func(context.Context, string) (*contextindex.Index, bool, *contextindex.LoaderObservation, error)) (map[string]any, bool, error) {
+func compileTaskContext(ctx context.Context, options taskContextOptions, load func(context.Context, string) (*contextindex.Index, bool, *contextindex.LoaderObservation, error)) (map[string]any, taskContextBuild, error) {
 	index, hit, opening, err := load(ctx, options.root)
+	build := taskContextBuild{hit: hit}
 	if err != nil {
-		return nil, hit, err
+		return nil, build, err
 	}
 	if !hit {
+		started := time.Now()
 		index, err = contextindex.BuildContextObserved(ctx, options.root, options.subject, opening)
+		build.elapsed = time.Since(started)
 	}
 	if err != nil {
-		return nil, hit, err
+		return nil, build, err
 	}
+	build.tracked = len(index.Tracked)
 	admitted, err := contextindex.LoadAdmittedSlotWeights(options.root)
 	if err != nil {
-		return nil, hit, err
+		return nil, build, err
 	}
 	packet, err := contextindex.TaskContextWeighted(ctx, index, options.task, options.subject, options.limit, admitted)
 	if err == nil {
@@ -355,5 +390,5 @@ func compileTaskContext(ctx context.Context, options taskContextOptions, load fu
 			packet["instruction_load_set"] = loadSet
 		}
 	}
-	return packet, hit, err
+	return packet, build, err
 }
