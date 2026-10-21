@@ -3524,7 +3524,7 @@
     "path": "docs/specs/process-group-owner-v0.md",
     "title": "Process-group Owner V0",
     "reqPrefix": "PGO-V0",
-    "intent": "proposed extraction of existing owner-authorized repair semantics; PGO-V0-011 and PGO-V0-012 accepted under the owner's standing auto-accept (2026-10-11) (V1-0668; cem1-producer-harness-cleanup-20261001); PGO-V0-016 accepted under the owner's standing auto-accept (2026-10-11) (V1-1244); PGO-V0-017 accepted under the owner's standing auto-accept (2026-10-11) (V1-2111)",
+    "intent": "proposed extraction of existing owner-authorized repair semantics; PGO-V0-011 and PGO-V0-012 accepted under the owner's standing auto-accept (2026-10-11) (V1-0668; cem1-producer-harness-cleanup-20261001); PGO-V0-016 accepted under the owner's standing auto-accept (2026-10-11) (V1-1244); PGO-V0-017 accepted under the owner's standing auto-accept (2026-10-11) (V1-2111); PGO-V0-021 accepted under the owner's standing auto-accept (2026-10-11) (V1-0692)",
     "delivery": "experimental",
     "claim": "An optional process-group Owner preserves leader identity through retirement and reports unproved cleanup as HOLD.",
     "dependsOn": [],
