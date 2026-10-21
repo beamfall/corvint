@@ -1120,14 +1120,14 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   Rollback: revert the probe and report lines; the first refusal still fails the step.
 - `DCW-V0-117`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2267) Before any
   cite or mark, `dogfood change` MUST refuse a citation plan as `cem-cite`
-  `citation-plan-recites-cited-hunk` when a row names a hunk the prepared map already records as
-  not `unknown` and either is an unknown row or cites a path, line span and relation that the
+  `citation-plan-recites-cited-hunk` when a row names a hunk the prepared map already cites (a
+  non-empty basis) and either is an unknown row or cites a path, line span and relation that the
   hunk's basis does not already hold (the span resolved to bytes at `BASE` as `cem cite` resolves
   it). The fix line MUST name the row, the hunk and the delete-and-rerun recovery. A rerun of the
-  same plan, and a staged plan naming only `unknown` hunks, MUST still cite. Non-goals: replacing
-  earlier citations in place, changing `cem cite`. Failure modes: a row whose path or span does not
-  resolve at `BASE` is left to `cem cite`, which refuses it; a hunk kept `unknown` with a recorded
-  reason is not cited, so a later plan may still cite it. Evidence:
+  same plan, and a staged plan naming only hunks with an empty basis (`unknown` or `mechanical`),
+  MUST still cite. Non-goals: replacing earlier citations, changing `cem cite`. Failure modes: a
+  row whose path or span does not resolve at `BASE` is left to `cem cite`, which refuses it; an
+  `unknown` hunk with a recorded reason is not cited, so a later plan may cite it. Evidence:
   `TestChangeDCWV0117RefusesARowThatRecitesACitedHunk`,
   `TestDogfoodChangeNamesDeleteWhenACorrectedPlanJoinsEarlierCitations`. Rollback: revert the
   check; a corrected plan then joins the earlier citations again and the `cem-cite` note names

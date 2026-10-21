@@ -796,11 +796,12 @@ func (c *change) uniformPlan(plan []byte) bool {
 
 // recitesCitedHunk reports, before any cite or mark runs, a plan row that
 // would change a hunk the map already cites: a citation the hunk's basis does
-// not already hold, or an unknown row for a supported hunk. cem cite only adds
+// not already hold, or an unknown row for a cited hunk. cem cite only adds
 // evidence, so such a row would join an earlier plan's citations instead of
 // replacing them; a rerun of the same plan, and a staged plan naming only
-// unknown hunks, still apply (DCW-V0-117). The row and hunk are kept for the
-// fix hint. A row whose span this check cannot resolve is left to cem cite.
+// hunks with an empty basis (unknown or mechanical), still apply
+// (DCW-V0-117). The row and hunk are kept for the fix hint. A row whose span
+// this check cannot resolve is left to cem cite.
 func (c *change) recitesCitedHunk(plan []byte) bool {
 	data, err := readPrefix(c.path(".corvint/change.cem.json"), maxPlanBytes)
 	if err != nil {
@@ -816,9 +817,8 @@ func (c *change) recitesCitedHunk(plan []byte) bool {
 			} `json:"span"`
 		} `json:"evidence"`
 		Hunks []struct {
-			Disposition string `json:"disposition"`
-			ID          string `json:"id"`
-			Basis       []struct {
+			ID    string `json:"id"`
+			Basis []struct {
 				EvidenceID string `json:"evidenceId"`
 				Relation   string `json:"relation"`
 			} `json:"basis"`
@@ -844,7 +844,8 @@ func (c *change) recitesCitedHunk(plan []byte) bool {
 				break
 			}
 		}
-		if hunk < 0 || cem.Hunks[hunk].Disposition == "unknown" {
+		// A hunk with no basis carries no earlier citation to join.
+		if hunk < 0 || len(cem.Hunks[hunk].Basis) == 0 {
 			continue
 		}
 		recited := unknownRow(fields)

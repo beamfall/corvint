@@ -13,7 +13,7 @@ import (
 // DCW-V0-117 (V1-2267): a rerun over a map that already cites a hunk refuses,
 // before any cite or mark runs, a row that would add a different citation to
 // that hunk or mark it unknown; replaying the same plan and a staged plan that
-// names only unknown hunks still cite.
+// names only hunks with an empty basis, unknown or mechanical, still cite.
 func TestChangeDCWV0117RefusesARowThatRecitesACitedHunk(t *testing.T) {
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
@@ -29,10 +29,12 @@ func TestChangeDCWV0117RefusesARowThatRecitesACitedHunk(t *testing.T) {
 	testGit(t, root, "add", "b.txt")
 	testGit(t, root, "commit", "-q", "-m", "change")
 	// Hunk 1 cites a.txt lines 1:2 (bytes 0:8) as implementation; hunk 2 is
-	// still unknown, as after a first staged plan.
+	// still unknown, as after a first staged plan; hunk 3 is mechanical, so
+	// the map does not cite it either.
 	prepared := `{"evidence": [{"id": "evidence:a", "path": "a.txt", "span": {"start": 0, "end": 8}}], "hunks": [` +
 		`{"basis": [{"evidenceId": "evidence:a", "relation": "implementation"}], "disposition": "supported", "id": "hunk:a", "path": "b.txt", "reason": "evidence-backed"}, ` +
-		`{"basis": [], "disposition": "unknown", "id": "hunk:b", "path": "b.txt", "reason": "no-evidence"}]}` + "\n"
+		`{"basis": [], "disposition": "unknown", "id": "hunk:b", "path": "b.txt", "reason": "no-evidence"}, ` +
+		`{"basis": [], "disposition": "mechanical", "id": "hunk:c", "path": "b.txt", "reason": "formatting-only"}]}` + "\n"
 	writes := 0
 	steps := Runner{Path: "corvint", Run: func(_ context.Context, _ string, args []string, _, _ io.Writer) int {
 		switch {
@@ -78,6 +80,7 @@ func TestChangeDCWV0117RefusesARowThatRecitesACitedHunk(t *testing.T) {
 		{"replay", "1\ta.txt\t1:2\timplementation\n2\ta.txt\t3:3\tspecification\n", false},
 		{"replay by hunk ID", "hunk:a\ta.txt\t1:2\timplementation\nhunk:b\ta.txt\t3:3\tspecification\n", false},
 		{"staged plan names only the unknown hunk", "2\ta.txt\t3:3\tspecification\n", false},
+		{"citation for a mechanical hunk", "2\ta.txt\t3:3\tspecification\n3\ta.txt\t1:1\tdependency\n", false},
 		{"corrected span", "1\ta.txt\t1:1\timplementation\n2\ta.txt\t3:3\tspecification\n", true},
 		{"corrected relation", "2\ta.txt\t3:3\tspecification\n1\ta.txt\t1:2\tspecification\n", true},
 		{"unknown row for a supported hunk", "1\tunknown\tinsufficient-evidence\tnone fits\n2\ta.txt\t3:3\tspecification\n", true},
