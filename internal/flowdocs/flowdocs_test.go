@@ -2,6 +2,7 @@ package flowdocs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -667,5 +668,30 @@ func TestFlowDocsImportedSymbolAnchorReresolution(t *testing.T) {
 				t.Fatalf("after: %+v", row.After)
 			}
 		})
+	}
+}
+
+// V1-2003: Finalize admits the corpus it builds like `docs corpus build`, so a
+// query index over its bounds is refused with the capacity code (DCP-V1-196).
+func TestFlowDocsFinalizeRefusesOverBoundIndex(t *testing.T) {
+	ctx := context.Background()
+	root, rev := fixture(t, map[string]string{"app/view.ts": "export function View() {\n fetch('/api');\n}\n"})
+	r, e := Generate(ctx, root, Options{Revision: rev, Scope: "app"})
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e = os.WriteFile(filepath.Join(root, "generated.json"), r.Files["provider.json"], 0600); e != nil {
+		t.Fatal(e)
+	}
+	git(t, root, "add", "generated.json")
+	git(t, root, "commit", "-qm", "generated provider")
+	head := git(t, root, "rev-parse", "HEAD")
+	if _, e = Finalize(ctx, root, r, head, "generated.json"); e != nil {
+		t.Fatal(e)
+	}
+	defer doccorpus.SetIndexBoundsForTest(1, doccorpus.MaxIndexKeyBytes)()
+	var coded *doccorpus.Error
+	if _, e = Finalize(ctx, root, r, head, "generated.json"); !errors.As(e, &coded) || coded.Code != doccorpus.CapacityCode {
+		t.Fatalf("over-bound index finalized: %v", e)
 	}
 }

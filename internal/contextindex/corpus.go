@@ -67,6 +67,11 @@ func CorpusRepositoryID(ctx context.Context, root, revision string) (string, err
 // EvidenceTerms exposes the native lexical vocabulary without a second index.
 func EvidenceTerms(text string) map[string]struct{} { return terms(text) }
 
+// CollectEvidenceTerms adds EvidenceTerms(text) to a caller-owned set, so a
+// caller deriving many term sets can reuse one map instead of allocating one
+// per text.
+func CollectEvidenceTerms(text string, into map[string]struct{}) { collectTerms(text, into) }
+
 // ImportAnchorLine returns the original native extractor's statement anchor.
 func ImportAnchorLine(source Source, imported string) (int, bool) {
 	return importEvidenceLine(source, imported)
