@@ -118,6 +118,8 @@ type fixture struct {
 	rawOut map[int]string
 	reuse  doc
 	event  string
+	// nar is the selection run's AFP-V0-099 narrowing records by shard.
+	nar map[int]doc
 }
 
 func queueFixture(t *testing.T) *fixture {
@@ -150,6 +152,9 @@ func (f *fixture) write(t *testing.T, dir string) (selDir, outDir string) {
 	for k, raw := range f.rawOut {
 		writeFile(t, filepath.Join(outDir, fmt.Sprintf("ci-outcomes-%s-%d", f.event, k), "outcomes.json"), []byte(raw))
 	}
+	for k, d := range f.nar {
+		writeDoc(t, filepath.Join(dir, "narrowing", fmt.Sprintf("ci-narrowing-%d", k), "narrowing.json"), d)
+	}
 	return selDir, outDir
 }
 
@@ -161,7 +166,7 @@ func (f *fixture) classify(t *testing.T, override map[string]string) (doc, []byt
 		"ROW_KIND": "queue", "ROW_PR": "868", "ROW_SHA": queueSHA, "ROW_HEAD": prHead,
 		"ROW_RUN": queueRun, "ROW_SELECTION_RUN": prRun, "ROW_OUTCOMES_RUN": queueRun,
 		"ROW_SHARDS": strconv.Itoa(shards), "ROW_EPOCH": "1",
-		"ROW_SELECTION_DIR": selDir, "ROW_OUTCOMES_DIR": outDir,
+		"ROW_SELECTION_DIR": selDir, "ROW_OUTCOMES_DIR": outDir, "ROW_NARROWING_DIR": filepath.Join(dir, "narrowing"),
 	}
 	if f.reuse != nil {
 		env["ROW_REUSE"] = filepath.Join(dir, "decision.json")
@@ -654,7 +659,7 @@ func fakeGH(t *testing.T, dir string) string {
 	bin := filepath.Join(dir, "bin")
 	writeFile(t, filepath.Join(bin, "gh"), []byte(`#!/bin/sh
 set -eu
-d=`+dir+`
+d='`+dir+`'
 if [ "$1" = api ]; then
   case "$2" in
   */commits/*) [ "$3" = --jq ]; jq -r "$4" "$d/commit.json" ;;
@@ -662,7 +667,11 @@ if [ "$1" = api ]; then
   */actions/runs/*/jobs*) id=${2#*/actions/runs/}; id=${id%%/*}; [ "$3" = --jq ]; jq -r "$4" "$d/jobs-$id.json" ;;
   */actions/runs/*/artifacts*) id=${2#*/actions/runs/}; id=${id%%/*}; cat "$d/names-$id" ;;
   */workflows/ci.yml/runs*) cat "$d/selection-run" ;;
-  */actions/artifacts*) [ "$3" = --jq ]; case "$2" in *page=1) jq -r "$4" "$d/all-artifacts.json" ;; esac ;;
+  */actions/runs/*) id=${2#*/actions/runs/}; [ "$3" = --jq ]; jq -r "$4" "$d/run-$id.json" ;;
+  */actions/artifacts\?name=*) [ "$3" = --jq ]; jq -r "$4" "$d/verdict-artifacts.json" ;;
+  */actions/artifacts*) [ "$3" = --jq ]; p=${2##*page=}
+    if [ -f "$d/all-artifacts-$p.json" ]; then jq -r "$4" "$d/all-artifacts-$p.json"
+    else case "$2" in *page=1) jq -r "$4" "$d/all-artifacts.json" ;; *) [ ! -f "$d/every-page" ] || jq -r "$4" "$d/all-artifacts.json" ;; esac; fi ;;
   *) exit 1 ;;
   esac
   exit 0
@@ -724,17 +733,24 @@ func TestAFPV0047CollectorNamesRows(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		entries, _ = os.ReadDir(selDir)
-		for _, e := range entries {
-			if event == "pull_request" {
-				names = append(names, e.Name())
+		// The selection run's shadow plans and AFP-V0-099 narrowing records.
+		var prNames []string
+		for _, src := range []string{selDir, filepath.Join(dir, "src", "narrowing")} {
+			entries, _ = os.ReadDir(src)
+			for _, e := range entries {
+				prNames = append(prNames, e.Name())
+				if err := os.MkdirAll(filepath.Join(dir, "runs", prRun), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Rename(filepath.Join(src, e.Name()), filepath.Join(dir, "runs", prRun, e.Name())); err != nil {
+					t.Fatal(err)
+				}
 			}
-			if err := os.MkdirAll(filepath.Join(dir, "runs", prRun), 0o755); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.Rename(filepath.Join(selDir, e.Name()), filepath.Join(dir, "runs", prRun, e.Name())); err != nil {
-				t.Fatal(err)
-			}
+		}
+		if event == "pull_request" {
+			names = append(names, prNames...)
+		} else {
+			writeFile(t, filepath.Join(dir, "names-"+prRun), lines(prNames...))
 		}
 		writeFile(t, filepath.Join(dir, "names-"+runID), lines(names...))
 		if jobs != nil {
@@ -875,7 +891,9 @@ func TestAFPV0047BarCountsArtifactNames(t *testing.T) {
 	name := func(class string, pr int, epoch, f string) string {
 		return fmt.Sprintf("ci-forward-%s-pr%d-%040x-e%s-f%s", class, pr, pr, epoch, f)
 	}
-	bar := func(t *testing.T, names []string) string {
+	// everyPage serves the same full page of 100 artifacts for every page, so the listing
+	// never ends inside the bar.sh bound; otherwise page 1 is the whole listing.
+	bar := func(t *testing.T, names []string, everyPage bool) string {
 		dir := t.TempDir()
 		gh := fakeGH(t, dir)
 		artifact := func(name string, expired bool, branch string, headRepo int) doc {
@@ -893,6 +911,12 @@ func TestAFPV0047BarCountsArtifactNames(t *testing.T) {
 			artifact(name("MISS", 997, "1", "1"), false, "gh-readonly-queue/main/pr-997-"+prHead, 1),
 			artifact(name("MISS", 996, "1", "1"), false, "main", 2),
 			artifact("ci-shard-costs-0", false, "main", 1))
+		if everyPage {
+			for len(all) < 100 {
+				all = append(all, artifact(fmt.Sprintf("ci-shard-costs-%d", len(all)), false, "main", 1))
+			}
+			writeFile(t, filepath.Join(dir, "every-page"), nil)
+		}
 		writeDoc(t, filepath.Join(dir, "all-artifacts.json"), doc{"artifacts": all})
 		cmd := exec.Command("sh", script(t, "bar.sh"))
 		cmd.Env = []string{"PATH=" + gh + string(os.PathListSeparator) + os.Getenv("PATH"), "HOME=" + dir,
@@ -904,6 +928,15 @@ func TestAFPV0047BarCountsArtifactNames(t *testing.T) {
 		s, _ := os.ReadFile(filepath.Join(dir, "summary"))
 		return string(s)
 	}
+	expect := func(t *testing.T, s string, wants ...string) {
+		t.Helper()
+		for _, want := range wants {
+			if !strings.Contains(s, want) {
+				t.Fatalf("summary lacks %q:\n%s", want, s)
+			}
+		}
+	}
+	const epochLine, windowLine = "Every listed row of the epoch (AFP-V0-029 bar): ", "row(s) of the epoch (AFP-V0-030 window): "
 	var names []string
 	for pr := 1; pr <= 22; pr++ {
 		f := "0"
@@ -913,53 +946,67 @@ func TestAFPV0047BarCountsArtifactNames(t *testing.T) {
 		names = append(names, name("CLEAN", pr, "1", f))
 	}
 	names = append([]string{name("INCOMPLETE", 1, "1", "0"), name("CLEAN", 50, "0", "1")}, names...)
-	s := bar(t, names)
 	// pr1's newer INCOMPLETE row replaces its CLEAN row; the epoch-0 and expired rows never count.
-	for _, want := range []string{"Latest 20 row(s) of the epoch: 19 complete, 4 complete with failing packages, 0 FLAKY, 0 MISS, 1 INCOMPLETE.",
-		"Shadow bar (20 complete rows, at least 5 with failing packages, no non-FLAKY miss): NOT MET (19/20 complete, 4/5 failing).",
-		"Kill switch (AFP-V0-030: 2 MISS or 3 INCOMPLETE in the latest 20): clear.", "Window: 1 page(s)"} {
-		if !strings.Contains(s, want) {
-			t.Fatalf("summary lacks %q:\n%s", want, s)
-		}
-	}
-	if s := bar(t, names[1:]); !strings.Contains(s, ": MET (20/20 complete, 5/5 failing)") {
-		t.Fatalf("summary:\n%s", s)
-	}
+	expect(t, bar(t, names, false),
+		epochLine+"21 complete, 4 complete with failing packages, 0 FLAKY, 0 MISS, 1 INCOMPLETE, 0 INFRA.",
+		"Latest 20 "+windowLine+"19 complete, 4 complete with failing packages, 0 FLAKY, 0 MISS, 1 INCOMPLETE.",
+		"Shadow bar (20 complete rows of the epoch, at least 5 with failing packages, no non-FLAKY miss in the epoch): NOT MET (21/20 complete, 4/5 failing).",
+		"Kill switch (AFP-V0-030: 2 MISS or 3 INCOMPLETE in the latest 20): clear.", "Window: 1 page(s), every repository artifact.")
+	expect(t, bar(t, names[1:], false), ": MET (22/20 complete, 5/5 failing).")
 	// AFP-V0-052: INFRA rows are counted on their own, never trip the INCOMPLETE switch and
-	// take no place in the window, so the 20 complete rows behind them still meet the bar.
+	// take no place in the window, so the complete rows behind them still meet the bar.
 	infra := append([]string{name("INFRA", 40, "1", "0"), name("INFRA", 41, "1", "0"), name("INFRA", 42, "1", "1")}, names[1:]...)
-	s = bar(t, infra)
-	for _, want := range []string{"Latest 20 row(s) of the epoch: 20 complete, 5 complete with failing packages, 0 FLAKY, 0 MISS, 0 INCOMPLETE.",
-		"Hosted infrastructure failures (AFP-V0-052): 3 INFRA row(s)", ": MET (20/20 complete, 5/5 failing)",
-		"3 INCOMPLETE in the latest 20): clear."} {
-		if !strings.Contains(s, want) {
-			t.Fatalf("summary lacks %q:\n%s", want, s)
-		}
-	}
+	expect(t, bar(t, infra, false),
+		epochLine+"22 complete, 5 complete with failing packages, 0 FLAKY, 0 MISS, 0 INCOMPLETE, 3 INFRA.",
+		"Latest 20 "+windowLine+"20 complete, 5 complete with failing packages, 0 FLAKY, 0 MISS, 0 INCOMPLETE.",
+		"Hosted infrastructure failures (AFP-V0-052): 3 INFRA row(s)", ": MET (22/20 complete, 5/5 failing)",
+		"3 INCOMPLETE in the latest 20): clear.")
 	// A newer INFRA row replaces the same pull request's older complete row; an INFRA row between
-	// the window's rows is counted, one beyond the twentieth classified row is not.
+	// the window's rows is counted there, one beyond the twentieth classified row is not.
 	var mixed []string
 	mixed = append(mixed, name("INFRA", 2, "1", "0"))
 	mixed = append(mixed, names[2:12]...)
 	mixed = append(mixed, name("INFRA", 70, "1", "0"))
 	mixed = append(mixed, names[12:]...)
 	mixed = append(mixed, name("INFRA", 71, "1", "0"))
-	s = bar(t, mixed)
-	for _, want := range []string{"Latest 20 row(s) of the epoch: 20 complete, 4 complete with failing packages, 0 FLAKY, 0 MISS, 0 INCOMPLETE.",
-		"Hosted infrastructure failures (AFP-V0-052): 2 INFRA row(s)", ": NOT MET (20/20 complete, 4/5 failing)"} {
-		if !strings.Contains(s, want) {
-			t.Fatalf("summary lacks %q:\n%s", want, s)
-		}
-	}
+	expect(t, bar(t, mixed, false),
+		epochLine+"21 complete, 4 complete with failing packages, 0 FLAKY, 0 MISS, 0 INCOMPLETE, 3 INFRA.",
+		"Latest 20 "+windowLine+"20 complete, 4 complete with failing packages, 0 FLAKY, 0 MISS, 0 INCOMPLETE.",
+		"Hosted infrastructure failures (AFP-V0-052): 2 INFRA row(s)", ": NOT MET (21/20 complete, 4/5 failing)")
 	// A newer complete row replaces the same pull request's older INFRA row.
-	if s := bar(t, append(append([]string{}, names[1:]...), name("INFRA", 2, "1", "0"))); !strings.Contains(s, ": MET (20/20 complete, 5/5 failing)") ||
-		!strings.Contains(s, "(AFP-V0-052): 0 INFRA row(s)") {
-		t.Fatalf("summary:\n%s", s)
-	}
+	expect(t, bar(t, append(append([]string{}, names[1:]...), name("INFRA", 2, "1", "0")), false),
+		": MET (22/20 complete, 5/5 failing)", "(AFP-V0-052): 0 INFRA row(s)")
 	tripped := append([]string{name("MISS", 30, "1", "1"), name("MISS", 31, "1", "1")}, names[1:]...)
-	if s := bar(t, tripped); !strings.Contains(s, "NOT MET") || !strings.Contains(s, "TRIPPED") || !strings.Contains(s, "2 MISS") {
-		t.Fatalf("summary:\n%s", s)
+	expect(t, bar(t, tripped, false), "NOT MET", "): TRIPPED.", windowLine+"20 complete, 7 complete with failing packages, 0 FLAKY, 2 MISS")
+
+	// Owner, 2026-10-20 (V1-0812): the bar counts every row of the epoch, the kill switch only
+	// the latest 20. A MISS older than the window fails the bar but leaves the switch clear.
+	older := append(append([]string{}, names[1:]...), name("MISS", 80, "1", "1"))
+	expect(t, bar(t, older, false),
+		epochLine+"23 complete, 6 complete with failing packages, 0 FLAKY, 1 MISS, 0 INCOMPLETE, 0 INFRA.",
+		"Latest 20 "+windowLine+"20 complete, 5 complete with failing packages, 0 FLAKY, 0 MISS, 0 INCOMPLETE.",
+		": NOT MET (23/20 complete, 6/5 failing).", "): clear.")
+	// Failing rows older than the window count toward the bar.
+	var late []string
+	for pr := 1; pr <= 22; pr++ {
+		f := "0"
+		if pr >= 18 {
+			f = "1"
+		}
+		late = append(late, name("CLEAN", pr, "1", f))
 	}
+	expect(t, bar(t, late, false),
+		"Latest 20 "+windowLine+"20 complete, 3 complete with failing packages",
+		": MET (22/20 complete, 5/5 failing).")
+	// A listing that neither ends nor reaches an earlier epoch cannot exclude an older MISS:
+	// the bar is NOT ESTABLISHED, never MET. A row of an earlier epoch proves the start was read.
+	expect(t, bar(t, late, true),
+		": NOT ESTABLISHED (22/20 complete, 5/5 failing); the listing did not reach the start of epoch 1",
+		"Window: 20 page(s) of the newest repository artifacts")
+	expect(t, bar(t, append(late, name("CLEAN", 50, "0", "0")), true),
+		": MET (22/20 complete, 5/5 failing).", "Window: 20 page(s) of the newest")
+	expect(t, bar(t, append(append([]string{}, names[2:]...), name("MISS", 80, "1", "1")), true),
+		": NOT MET (23/20 complete, 6/5 failing); the listing did not reach")
 }
 
 func TestAFPV0047WorkflowBindings(t *testing.T) {

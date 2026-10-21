@@ -24,6 +24,11 @@ cannot qualify. `go test -json -p 1 -count=1 -race -timeout 50m` is fixed, under
 command bound. No `go run`, `eval`, advice execution, PR secret, persisted credential or
 `pull_request_target` is used. Child process groups are killed on return or interruption.
 
+`--mode plan` (AFP-V0-098) takes the same planner, selector, base, head and target, writes only
+the deciding `selection.json` to `--out` and executes nothing. It needs no qualification: the
+pull-request narrowing gate (`.github/forward-rows/narrow.sh`) compares it with the shadow
+`corvint test --dry-run` selection and narrows only when it is a superset.
+
 Freeze and measure before the full historical campaign:
 
 ```sh
