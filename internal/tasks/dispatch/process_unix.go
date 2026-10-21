@@ -130,6 +130,11 @@ var processIdentity = supervisor.ProcessIdentity
 // launch signals an unidentified worker's group.
 var launchGroupKill = syscall.Kill
 
+// launchObserved, when set, receives each launched worker's group leader
+// and start identity, so tests can stop and reap every tree they start
+// (V1-0948). It is nil outside tests.
+var launchObserved func(pid int, identity string)
+
 // launch starts argv as a new session leader so it outlives the dispatcher,
 // with output appended to the worker's log files.
 func launch(argv, env []string, dir, logDir string) (int, string, <-chan int, error) {
@@ -181,6 +186,9 @@ func launch(argv, env []string, dir, logDir string) (int, string, <-chan int, er
 	}()
 	if err != nil {
 		return 0, "", nil, &startedError{pid: pid, exit: exit, err: fmt.Errorf("worker start identity unreadable: %w", err)}
+	}
+	if launchObserved != nil {
+		launchObserved(pid, id)
 	}
 	// The leader's identity stays beside its logs, so a directory whose
 	// worker the ledger never recorded is not retired while its tree may run

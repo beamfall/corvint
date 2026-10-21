@@ -58,3 +58,18 @@ do not exist at the base. The wall-clock effect on a live dispatcher was not mea
   timeout, which moved them to the background. Pass an explicit timeout of 600000.
 - CAL ID collisions: peer branches hold CAL-V0-320..349 without merged specs. A requirement-ID
   reservation file would avoid scanning every remote branch.
+
+## V1-0948 test process hygiene (CAL-V0-353)
+
+Decision: tests record each launched worker leader through a nil-by-default `launchObserved`
+hook in `launch`, and `testConfig` registers a cleanup that SIGKILLs each recorded process group
+and waits until it is empty. A `TestMain` sweep fails the package if any group is alive after all
+tests. Killing by group follows from `launch` making every worker a session and group leader. A
+recorded pid is signalled only while it is free or still carries its start identity, so pid reuse
+cannot hit an unrelated group.
+
+Evidence: with the cleanup disabled, the `TestCALV0127_Reload*|TestCALV0143_*|TestCALV0272*` run
+fails with 4 leaked groups. The full package passes in 181.7 s with no test-launched `host.sh`
+left. Friction: two foreign orphans were present before the run (a `TestTOLV0021_*` `host.sh` 4 days
+old and a `TestCALV0143_*` one from a peer lane's run on old code). They were left for the
+orchestrator.

@@ -148,6 +148,7 @@ one.
 | V1-0925 | CAL-V0-350 | Accepted (standing auto-accept, 2026-10-20): a full tick reuses the configuration digest it read while the file's identity is unchanged, within the safety-net interval; any identity change, stat error or an expired interval reads the bytes again; focused test |
 | V1-0924 | CAL-V0-351 | Accepted (standing auto-accept, 2026-10-20): an idle, calm dispatcher with pressure configured defers its sample until a candidate passes every static fence, so the CAL-V0-139 idle gate arms; a launch is always preceded by a sample, and the first sample after a deferral budgets at its pending level; focused tests |
 | V1-0934 | CAL-V0-352 | Accepted (standing auto-accept, 2026-10-20): worker-directory retirement reads one window of the directory stream per pass, resumes after it, and carries the retained directories, so a backlog beyond 4,096 is swept within two passes per window; focused test |
+| V1-0948 | CAL-V0-353 | Accepted (standing auto-accept, 2026-10-20): dispatch tests stop and reap every worker process group they launch, and the package fails when one survives; focused test and leak mutation |
 | V1-1321 | none (stopped) | Claim scope union conflicts with the CAL-V0-021 precedence; needs an amendment first; not implemented |
 | V1-1494 | CAL-V0-263, CAL-V0-265 | Proposed (issue 967): no lease write holds the preparation gate for a complete-history audit; the scheduled refresh walks the prefix to its captured head when the journal moves; focused tests, mutation check and an opt-in load harness |
 
@@ -7291,6 +7292,30 @@ Rollback: revert the commit. The dispatcher again reads the configuration on eve
 samples pressure every tick and disables the idle gate under a pressure configuration, and scans
 the first 4,096 worker directories. No ledger, mark or event format changed.
 
+### V1-0948 dispatch test process hygiene
+
+Orphaned worker trees from dispatch tests (`host.sh` from `TestCALV0143_*`, `TestCALV0272_*` and the
+`TestCALV0127_Reload*` `sleep 300` children) outlived the test binary for days and fed host load.
+
+- `CAL-V0-353`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0948) Every
+  worker process group a dispatch test launches MUST be stopped with SIGKILL to its process group
+  and found empty, within a bounded wait, by a cleanup the test registers before it launches, so
+  the cleanup also runs after `t.Fatal`. A group is signalled only while its leader's pid is free or
+  still carries the recorded start identity. After all tests, the package MUST fail when any
+  launched group is still alive. The production hook is a nil function variable that `launch`
+  calls with each started leader; it has no effect outside tests.
+
+Non-goals: processes a worker moves out of its process group, and processes started by other test
+packages. Failure mode: a group that survives SIGKILL fails the test that launched it.
+
+Acceptance evidence (`internal/tasks/dispatch`): `TestCALV0353_CleanupReapsTheWholeWorkerGroup`
+launches a shell with two `sleep` descendants and proves the reap empties the group and the leak
+check sees it before and not after. With the `testConfig` cleanup removed, a run of the
+`TestCALV0127_Reload*`, `TestCALV0143_*` and `TestCALV0272_*` tests fails with four leaked groups;
+with it, the full package passes and no test-launched `host.sh` remains.
+
+Rollback: revert the commit; tests again leave worker trees to the caller.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -8244,3 +8269,4 @@ after this restore.
 | CAL-V0-350 | `TestCALV0350_FullTickReusesAnUnchangedConfigRead`, `TestCALV0127_ConfigReloadAppliesAndRefuses` (`internal/tasks/dispatch`) |
 | CAL-V0-351 | `TestCALV0351_IdlePressureConfigSkipsTheSample`, `TestCALV0351_DeferredBudgetRefuses`, `TestCALV0125_UnselectedCPULeavesLedgerUnchanged`, `TestCALV0068_DispatcherThrottlesNewLaunchesOnly` (`internal/tasks/dispatch`) |
 | CAL-V0-352 | `TestCALV0352_RetirementSweepsABacklogBeyondOneWindow` and the `TestCALV0144_*` tests (`internal/tasks/dispatch`) |
+| CAL-V0-353 | `TestCALV0353_CleanupReapsTheWholeWorkerGroup` and the package `TestMain` leak check (`internal/tasks/dispatch`) |
