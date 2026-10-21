@@ -294,6 +294,7 @@
     "internal/liveverify/godiscovery": [],
     "internal/liveverify/gorunner": [],
     "internal/liveverify/parentverify": [],
+    "internal/liveverify/rbmutate": [],
     "internal/liveverify/session": [],
     "internal/localcompletion": [],
     "internal/lrf": [
