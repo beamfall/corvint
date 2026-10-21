@@ -441,9 +441,10 @@ func (repo *repository) git(ctx context.Context, args ...string) ([]byte, error)
 // requireBaseAncestor distinguishes Git's clean not-ancestor exit from a probe
 // failure, which stays an error rather than a claim about history. A checkout
 // whose ancestry info/grafts or shallow metadata rewrites cannot answer the
-// probe at all, so it refuses before asking (LCP-V0-036, EEP-V0-028).
+// probe at all, so it refuses before asking (LCP-V0-036, EEP-V0-028); the
+// check reads files only, adding no Git process to the bounded Stop path.
 func (repo *repository) requireBaseAncestor(ctx context.Context, base, target string) error {
-	if gitancestry.Rewritten(ctx, repo.git) != "" {
+	if gitancestry.RewrittenAt(repo.auth.CommonDir) != "" {
 		return errors.New("ancestry-rewritten")
 	}
 	_, err := repo.git(ctx, "merge-base", "--is-ancestor", base, target)
