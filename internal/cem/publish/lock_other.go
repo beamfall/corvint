@@ -19,3 +19,5 @@ func unlockFile(*os.File) {}
 
 // syncDirectory is a no-op where directory handles cannot be synced.
 func syncDirectory(string) error { return nil }
+
+func syncHeldDirectory(*os.Root) error { return nil }

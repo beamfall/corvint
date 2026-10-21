@@ -241,7 +241,11 @@ func (s *Session) stableReport(ctx context.Context, action, repository string, r
 	if err != nil {
 		return nil, err
 	}
-	if err := publish.Publish(publish.Output{Root: outputRoot, Relative: outputRelative, Data: []byte(markdown)}); err != nil {
+	publishReport := publish.Publish
+	if filepath.IsAbs(options.Output) {
+		publishReport = publish.PublishMember
+	}
+	if err := publishReport(publish.Output{Root: outputRoot, Relative: outputRelative, Data: []byte(markdown)}); err != nil {
 		return nil, err
 	}
 	envelope["mutates"] = true
