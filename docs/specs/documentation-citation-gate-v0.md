@@ -213,6 +213,17 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   keeping each pin; it MUST refuse, exit 1 and leave unchanged any document whose worktree bytes
   differ from its index blob, MUST NOT stage anything, and MUST NOT touch a changed or ambiguous
   citation. A repinned citation still fails until the author stages the rewrite (V1-1530, V1-2139).
+- `DCG-V0-041`: `script/line-citation-unpinned-inventory.txt`, read from the index, MUST list one
+  `<document><TAB><path>:<span>` row per unpinned citation a legacy document may carry, where
+  `<span>` is the citation's first line, any `,line` extras and any `-last`, and `<path>` is the
+  resolved path (a `:N` continuation is keyed by its anchor path). An unpinned citation in a legacy
+  document that resolves to an existing, in-range line MUST fail with a `--hash` hint once its key
+  occurs more often than the inventory lists it, so a new citation, or one edited onto another
+  non-blank line, fails even though the line exists. The gate MUST fail when the inventory is
+  missing from the index, has a malformed row, or names a document outside the legacy allowlist,
+  and MUST note on stderr, without failing, the count of rows no citation matched. Rows are only
+  deleted: adding one is a contract amendment like raising the unpinned ceiling (decision 0154),
+  which stays as a second bound (V1-1952, V1-2139).
 
 ## Non-goals and simpler baseline
 
@@ -290,6 +301,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-001 (V1-0178 amendment) | test case 22, skipped-basename notes preserve passing and failing results and do not exempt tracked root basenames |
 | DCG-V0-001 (V1-1480 amendment, decision 0534) | test case 23, a pinned citation in a `docs/RELEASE-NOTES-*.md` fixture passing and then failing, naming the release notes, once the cited line changes; a local mutation shifting `docs/CHANGE-EVIDENCE-MAP.md` by one line failed `line-citations-check` on `docs/RELEASE-NOTES-alpha.md:127` and passed with the base checker |
 | DCG-V0-021 | test case 21, an unstaged edit to a cited file passing with a note naming it, an unstaged file the gate never read left unnamed, and the note gone once the edit is staged |
+| DCG-V0-041 | test case 27: an inventoried unpinned citation edited onto another non-blank line fails with a `--hash` hint, the inventoried form passes, a second copy of it fails, and unused rows are noted; the inventory was derived from the base tree's 785 legacy unpinned citations and `line-citations-check` passes with it |
 | DCG-V0-040 | test cases 24-26: a two-line insertion above a pinned line reported as moved to line 5, `--repin` refused on a dirty document and then rewriting it to a passing citation; text that now appears twice reported as changed with the position count and left alone by `--repin`; changed text never reported as a move. This change also repinned its own spec's moved script citations with `--repin` |
 
 ## Traceability
@@ -297,20 +309,21 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | DCG-V0-001, DCG-V0-004, DCG-V0-005, DCG-V0-015 | the citation scanner loop in `script/check-line-citations.sh` | `line-citations-check`; cases 9 and 10 |
-| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:245-249@ac0b3493` and `:277-280@087dfc00` | `line-citations-check`; case 14 |
+| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:247-251@ac0b3493` and `:279-282@087dfc00` | `line-citations-check`; case 14 |
 | DCG-V0-006, DCG-V0-009, DCG-V0-010 | the anchor comparison in `check` | `line-citations_test.sh` cases 1-4, 6 |
-| DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:167-173@ca6f1248` | case 2 |
-| DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:159-165@9a3cc62d` | case 5 |
-| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:315-334@65b6820b` | cases 1 and 14 |
+| DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:168-174@ca6f1248` | case 2 |
+| DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:160-166@9a3cc62d` | case 5 |
+| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:328-347@65b6820b` | cases 1 and 14 |
 | DCG-V0-012 | `make gate` target list | gate run 2026-09-07 |
-| DCG-V0-013 | the tracked set, the `index_blob` batch reader, and `lines_of`, `script/check-line-citations.sh:75-142@c733a5fa` | cases 7, 8, and 13 |
-| DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:175-180@fce1154d` and `:239-244@e5963c48` | case 11 |
+| DCG-V0-013 | the tracked set, the `index_blob` batch reader, and `lines_of`, `script/check-line-citations.sh:76-143@c733a5fa` | cases 7, 8, and 13 |
+| DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:176-181@fce1154d` and `:241-246@e5963c48` | case 11 |
 | DCG-V0-016 | `check_malformed` and the backticked-token pre-scan in `script/check-line-citations.sh` | case 16; `line-citations-check` |
 | DCG-V0-017 | the unpinned counter and committed ceiling in `script/check-line-citations.sh` | case 17; `line-citations-check` |
 | DCG-V0-018 | `script/line-citation-legacy-documents.txt` and the new-document branch in `check` | case 18; decision 0176's manual admission of decision 0158 |
 | DCG-V0-019 | the citation-token regex in the scanner loop (no alternative matches a suffix-less token) | decision 0105's `Makefile@3c41cad3` conversion; `line-citations-check` |
-| DCG-V0-020 | the drift-waiver loading block and `$waived` gating in `check`, `script/check-line-citations.sh:195-213@5e2147f9` and `:250@851bb9b7` | `script/line-citation-drift-waivers.txt`; `line-citations-check` |
+| DCG-V0-020 | the drift-waiver loading block and `$waived` gating in `check`, `script/check-line-citations.sh:197-215@5e2147f9` and `:252@851bb9b7` | `script/line-citation-drift-waivers.txt`; `line-citations-check` |
 | DCG-V0-021 | the unstaged-edit note before `close_index` in `script/check-line-citations.sh` | case 21 |
+| DCG-V0-041 | the inventory loader after the legacy allowlist and the inventory branch in `check`, `script/check-line-citations.sh`; `script/line-citation-unpinned-inventory.txt` | case 27 |
 | DCG-V0-040 | the relocation branch in `check`, `relocations`, `shifted_token` and the `--repin` block before the final `close_index` in `script/check-line-citations.sh` | cases 24-26 |
 
 ## Rollout, rollback, and drift
@@ -336,7 +349,9 @@ lines and was repinned after the digests were confirmed unchanged.
 Decision 0154 adds two monotone drift rules. The committed unpinned ceiling may fall but requires
 an owner-approved contract amendment to rise. The legacy-document allowlist is closed: a later
 document is never added to it. Existing citations are pinned only after their cited lines are read;
-a mechanical bulk repin remains forbidden.
+a mechanical bulk repin remains forbidden. DCG-V0-041 freezes the remaining debt row by row in
+`script/line-citation-unpinned-inventory.txt`, under the same rule: rows may be deleted freely and
+are never added without an owner-approved amendment.
 
 Decision 0176 (2026-09-13) exercises a narrower lever than the one 0154 closed: 0154's allowlist was
 computed once, over the document classes `scanned_doc()` matched that day, which excluded

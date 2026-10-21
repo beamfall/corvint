@@ -2096,6 +2096,7 @@ DCG-V0-019	docs/specs/documentation-citation-gate-v0.md	A citation a citing docu
 DCG-V0-020	docs/specs/documentation-citation-gate-v0.md	`script/line-citation-drift-waivers.txt` MAY name one citation, as	unrecorded	-
 DCG-V0-021	docs/specs/documentation-citation-gate-v0.md	When a file the gate read from the index (a scanned document, a cited file, or o	unrecorded	-
 DCG-V0-040	docs/specs/documentation-citation-gate-v0.md	When a pinned citation's lines no longer hash to its pin, or fall outside the	unrecorded	-
+DCG-V0-041	docs/specs/documentation-citation-gate-v0.md	`script/line-citation-unpinned-inventory.txt`, read from the index, MUST list on	unrecorded	-
 DCP-V1-001	docs/specs/documentation-corpus-v1.md	The explicit manifest, normalized provider and artifact use closed versioned JSO	unrecorded	-
 DCP-V1-002	docs/specs/documentation-corpus-v1.md	Provenance carries builder identity/revision, shared native compiler/schema/tool	unrecorded	-
 DCP-V1-003	docs/specs/documentation-corpus-v1.md	Each literal source/provider scope has a complete immutable Git inventory checke	unrecorded	-

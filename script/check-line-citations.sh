@@ -17,8 +17,9 @@ set -eu
 # see the shape that audit found most often: a citation that still lands on a real line but
 # no longer on the line it meant. An anchor makes that mechanical. Anchors are opt-in per
 # citation in the legacy documents frozen in script/line-citation-legacy-documents.txt; every
-# citation in a later document requires one. The committed unpinned count ceiling prevents the
-# legacy debt from growing without requiring a mechanical bulk repin. Write an anchor with --hash:
+# citation in a later document requires one. The committed unpinned count ceiling and the
+# per-citation inventory in script/line-citation-unpinned-inventory.txt prevent the legacy debt
+# from growing or drifting without requiring a mechanical bulk repin. Write an anchor with --hash:
 #
 #   script/check-line-citations.sh --hash internal/contextindex/index.go:473
 #
@@ -187,6 +188,7 @@ sub scanned_doc {
 my @failures;
 my @repins;
 my %legacy_document;
+my (%unpinned_inventory, %unpinned_seen);
 my %drift_waiver;
 my $unpinned_count = 0;
 # This is a ratchet, not a target. Lowering it is free; raising it requires an explicit contract diff.
@@ -278,7 +280,18 @@ sub check {
         push @failures, "$doc:$line_number  $token  $path:$number is a blank or bracket-only line"
             if trivial($lines->[$number - 1]) && !$waived;
     }
-    return unless defined $pin;
+    if (!defined $pin) {
+        # DCG-V0-041: a legacy unpinned citation passes only while it matches an inventory row; it
+        # is reached only once the citation resolves, so a missing file or line is reported as such.
+        my $span = join(',', $first, @extra) . (defined $last ? "-$last" : '');
+        my $key = "$doc\t$path:$span";
+        if (++$unpinned_seen{$key} > ($unpinned_inventory{$key} // 0)) {
+            push @failures, "$doc:$line_number  $token  unpinned citation is new or edited (not in "
+                . "script/line-citation-unpinned-inventory.txt): read $path:$span and pin it with "
+                . "script/check-line-citations.sh --hash $path:$span";
+        }
+        return;
+    }
     return if $waived;
     my @numbers = anchored_numbers($first, $last, @extra);
     my $actual = anchor_of($lines, @numbers);
@@ -341,6 +354,20 @@ for my $path (@$legacy_rows) {
         unless scanned_doc($path);
     die "script/line-citation-legacy-documents.txt: duplicate path: $path\n"
         if $legacy_document{$path}++;
+}
+
+# DCG-V0-041: every unpinned citation a legacy document may still carry, one row per occurrence,
+# as `<document>\t<path>:<span>`. Rows are only ever deleted: a new or edited unpinned citation
+# has no row and fails, so a legacy table cannot drift silently onto a different non-blank line.
+my $inventory_rows = lines_of('script/line-citation-unpinned-inventory.txt')
+    or die "script/line-citation-unpinned-inventory.txt: not readable from the Git index\n";
+for my $row (@$inventory_rows) {
+    next if $row eq '' || $row =~ /^#/;
+    my ($doc, $citation) = $row =~ /^([^\t]+)\t([^\t]+:\d[\d,-]*)$/
+        or die "script/line-citation-unpinned-inventory.txt: malformed row: $row\n";
+    die "script/line-citation-unpinned-inventory.txt: $doc is not on the legacy allowlist\n"
+        unless $legacy_document{$doc};
+    ++$unpinned_inventory{"$doc\t$citation"};
 }
 
 for my $doc (sort grep { scanned_doc($_) } keys %tracked) {
@@ -408,6 +435,11 @@ for my $doc (sort grep { scanned_doc($_) } keys %tracked) {
         }
     }
 }
+
+my $unused_inventory = 0;
+$unused_inventory += $unpinned_inventory{$_} - ($unpinned_seen{$_} // 0) for keys %unpinned_inventory;
+print STDERR "line citations: note: $unused_inventory script/line-citation-unpinned-inventory.txt row(s) match no citation; delete them\n"
+    if $unused_inventory > 0;
 
 push @failures, "unpinned citation count $unpinned_count exceeds committed ceiling $unpinned_ceiling; read and pin citations or lower the ceiling"
     if $unpinned_count > $unpinned_ceiling;

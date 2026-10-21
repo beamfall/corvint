@@ -26,6 +26,14 @@ stage() { git -C "$test_root" -c user.name=t -c user.email=t@example.invalid add
 printf '%s\n' 'docs/agent-memory/fixture.md' > "$test_root/script/line-citation-legacy-documents.txt"
 stage script/line-citation-legacy-documents.txt
 
+# DCG-V0-041: the unpinned citations the fixture document may carry. Case 27 covers one that is not.
+for citation in internal/demo/demo.go:3 internal/demo/ghost.go:3 Makefile:2 Makefile:3 Makefile:9 \
+  docs/agent-memory/other.md:3 internal/demo/demo.go:4-3 NOTES.md:2 NOTES.md:9 internal/demo/demo.go:0 \
+  internal/demo/demo.go:99 internal/demo/demo.go:999 ROOT.md:999; do
+  printf 'docs/agent-memory/fixture.md\t%s\n' "$citation"
+done > "$test_root/script/line-citation-unpinned-inventory.txt"
+stage script/line-citation-unpinned-inventory.txt
+
 write_source() {
   printf '%s\n' 'package demo' '' "func Cited() int { return $1 }" 'func After() {}' \
     > "$test_root/internal/demo/demo.go"
@@ -410,5 +418,24 @@ case $output in
 *'cited content changed'*) ;;
 *) fail "changed text was not reported: $output" ;;
 esac
+
+# 27. DCG-V0-041 (V1-1952): an unpinned legacy citation edited to another non-blank line has no
+#     inventory row, so it fails with a --hash hint even though the line it now names exists;
+#     the untouched row keeps passing, and a second copy of an inventoried citation fails.
+write_source 1
+cite "internal/demo/demo.go:4"
+rc=0
+output=$(run) || rc=$?
+[ "$rc" = 1 ] || fail "an edited unpinned legacy citation onto a non-blank line exited $rc, not 1: $output"
+case $output in
+*'unpinned citation is new or edited'*'--hash internal/demo/demo.go:4'*) ;;
+*) fail "the edited unpinned citation was not named with a pin hint: $output" ;;
+esac
+cite "internal/demo/demo.go:3"
+run >/dev/null || fail "an inventoried unpinned citation failed"
+cite 'internal/demo/demo.go:3` and `internal/demo/demo.go:3'
+output=$(run) && fail "a second copy of a once-inventoried unpinned citation passed: $output"
+(cd "$test_root" && script/check-line-citations.sh 2>&1 | grep -q 'row(s) match no citation') ||
+  fail "unused inventory rows were not noted"
 
 echo "check-line-citations_test.sh: ok"
