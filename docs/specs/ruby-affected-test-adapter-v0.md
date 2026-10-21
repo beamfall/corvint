@@ -148,18 +148,25 @@ or Cucumber scenarios.
   and terminator line before masking string literals, so a constant-looking word, or a quote, inside
   heredoc text neither adds an edge nor hides the code after it; a body whose opener line passes it
   to an evaluating call (`eval`, `class_eval`, `module_eval`, `instance_eval` or an `_exec` form),
-  or whose terminator never appears, MUST stay unmasked. A reference MUST resolve against the
+  or whose terminator never appears, MUST stay unmasked. A heredoc start MUST open a body only
+  with a quoted or upper-case identifier and not directly after an identifier or closing bracket, so
+  a shift such as `items<<Widget` masks nothing. Code inside `#{...}` in a body that is not
+  single-quoted MUST stay; an interpolation that does not close on its line keeps the rest of the
+  body. A reference MUST resolve against the
   `class` and `module` bodies that lexically enclose it, matched to their `end` through `def`
   (not endless), `begin`, `case`, `do`, `for`, and statement-position `if`, `unless`, `while` and
-  `until`; when that scan cannot balance the file, or the file holds `=begin` or `__END__`, it MUST
+  `until`; when that scan cannot balance the file, or the file holds `=begin`, `__END__` or a
+  slash-delimited span holding a block keyword (a possible regex literal such as `/end/`), it MUST
   fall back to every namespace the file opens (V1-1832).
 
 ### Autoload edge failure modes
 
 - A dynamic constant lookup or unresolvable association hides its target: the slice keeps
   `ruby:rails-autoload` (`UNKNOWN_SCOPE`) rather than guessing an edge.
-- Lexical nesting is approximated by the namespaces a file opens, and heredoc text is not masked:
-  both can add false advisory edges, which only widen selection.
+- Lexical nesting falls back to the namespaces a file opens, and an ambiguous, evaluated or
+  unterminated heredoc stays unmasked: both can add false advisory edges, which only widen
+  selection (RUBY-AFFECTED-V0-043). A quote inside a regex literal still opens a string in the
+  literal mask, as before this requirement.
 - A constant defined outside an observed `.rb` file (gem, engine, generated code) has no edge; the
   referencing test still selects on its own file and on boot/support edges, and an unmapped
   association raises the frontier.
@@ -260,7 +267,7 @@ affected tuple.
 | `RUBY-AFFECTED-V0-014` | `conformance/ruby-profile-v0/` fixture and rows; `internal/rubyprofile` suite | `TestRubyProfileImpactRows_RUBYAFFECTEDV0014`, `TestRubyProfileAffectedRows_RUBYAFFECTEDV0014`, `TestRubyProfileProviderRows_RUBYAFFECTEDV0014`, `TestRubyProfileRowsCoverEveryClass_RUBYAFFECTEDV0014` |
 | `RUBY-AFFECTED-V0-041` | `goModuleRoot`, `withoutTestdata` in `internal/liveverify/affected/ruby/ruby.go` | `TestGoModuleTestdataRubyFixtureIsNotAUnit_RUBYAFFECTEDV0041` |
 | `RUBY-AFFECTED-V0-042` | `readStockAutoloadLib` in `internal/rubyautoload/rubyautoload.go`; `rails-7-1-autoload-lib` class in `conformance/ruby-profile-v0/rows.json` | `TestStockAutoloadLibIsReadAsLibRoot_RUBYAFFECTEDV0042`, `TestRubyProfileAffectedRows_RUBYAFFECTEDV0014`, `TestRubyProfileImpactRows_RUBYAFFECTEDV0014` |
-| `RUBY-AFFECTED-V0-043` | `maskHeredocBodies`, `scanLexicalScopes` in `internal/liveverify/affected/ruby/nesting.go` | `TestHeredocAndLexicalNestingBoundConstantEdges_RUBYAFFECTEDV0043`, `TestHeredocMaskKeepsEvaluatedAndUnterminatedBodies_RUBYAFFECTEDV0043`, `TestLexicalScopesBalanceModifiersAndFallBack_RUBYAFFECTEDV0043` |
+| `RUBY-AFFECTED-V0-043` | `maskHeredocBodies`, `scanLexicalScopes` in `internal/liveverify/affected/ruby/nesting.go` | `TestHeredocAndLexicalNestingBoundConstantEdges_RUBYAFFECTEDV0043`, `TestHeredocMaskKeepsEvaluatedAndUnterminatedBodies_RUBYAFFECTEDV0043`, `TestLexicalScopesBalanceModifiersAndFallBack_RUBYAFFECTEDV0043`, `TestHeredocMaskRejectsShiftsAndKeepsInterpolation_RUBYAFFECTEDV0043`, `TestRegexKeywordFallsBack_RUBYAFFECTEDV0043` |
 
 ## Unresolved decisions
 

@@ -109,3 +109,41 @@ func TestLexicalScopesBalanceModifiersAndFallBack_RUBYAFFECTEDV0043(t *testing.T
 		}
 	}
 }
+
+// TestHeredocMaskRejectsShiftsAndKeepsInterpolation_RUBYAFFECTEDV0043: a
+// shift such as `items<<Widget` opens no heredoc, interpolated code in a
+// heredoc stays, a single-quoted heredoc interpolates nothing, and an
+// interpolation spanning lines keeps the rest of the body.
+func TestHeredocMaskRejectsShiftsAndKeepsInterpolation_RUBYAFFECTEDV0043(t *testing.T) {
+	for source, want := range map[string]map[string]bool{
+		"items<<Widget\nBar.new\nWidget\n":                  {"Bar": true},
+		"items <<Widget\nBar.new\nWidget\n":                 {"Bar": true},
+		"list.push(x)<<Item\nBar.new\nItem\n":               {"Bar": true},
+		"x = <<~SQL\n  #{Widget.table} don't\nSQL\nBar\n":   {"Widget": true, "don't": false, "Bar": true},
+		"x = <<~'SQL'\n  #{Widget.table}\nSQL\nBar\n":       {"Widget": false, "Bar": true},
+		"x = <<~SQL\n  #{Widget.call(\n  Baz)}\nSQL\nBar\n": {"Widget": true, "Baz": true, "Bar": true},
+		"x = <<~SQL\n  Widget\nSQL\nBar\n":                  {"Widget": false, "Bar": true},
+	} {
+		masked := maskHeredocBodies(source)
+		if strings.Count(masked, "\n") != strings.Count(source, "\n") {
+			t.Fatalf("%q: line count changed: %q", source, masked)
+		}
+		for word, kept := range want {
+			if strings.Contains(masked, word) != kept {
+				t.Fatalf("%q: masked=%q, want %q kept=%v", source, masked, word, kept)
+			}
+		}
+	}
+}
+
+// TestRegexKeywordFallsBack_RUBYAFFECTEDV0043: a regex literal holding a block
+// keyword could balance the stack wrongly, so the scan falls back to every
+// namespace the file opens.
+func TestRegexKeywordFallsBack_RUBYAFFECTEDV0043(t *testing.T) {
+	source := "X = /begin/\nmodule Foo\n  Y = /end/\n  Bar\nend\n"
+	masked := maskQuotedLiteralsAndInlineComments(source)
+	scopes := scanLexicalScopes(source, masked)
+	if !equal(scopes.at(strings.Index(source, "Bar")), []string{"Foo"}) {
+		t.Fatalf("want whole-file fallback, got frames=%v fallback=%v", scopes.frames, scopes.fallback)
+	}
+}

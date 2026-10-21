@@ -14,36 +14,124 @@ var (
 	openerKeywords = map[string]bool{"and": true, "or": true, "not": true, "then": true, "else": true, "do": true, "begin": true, "when": true, "in": true}
 )
 
+// heredocOpener matches a candidate heredoc start: an optional `-` or `~`
+// flag, then an identifier, optionally quoted with matching quotes.
+var heredocOpener = regexp.MustCompile(`<<([-~]?)(?:"([A-Za-z_][A-Za-z0-9_]*)"|'([A-Za-z_][A-Za-z0-9_]*)'|` + "`" + `([A-Za-z_][A-Za-z0-9_]*)` + "`" + `|([A-Za-z_][A-Za-z0-9_]*))`)
+
+// regexKeyword finds a slash-delimited span holding a block keyword, which a
+// regex literal such as /end/ could hold; division can match too, which only
+// costs the whole-file fallback.
+var regexKeyword = regexp.MustCompile(`/[^/\n]*\b(?:begin|case|class|def|do|end|for|if|module|unless|until|while)\b[^/\n]*/`)
+
+type heredoc struct {
+	terminator string
+	literal    bool // single-quoted: no interpolation
+}
+
+// heredocOpeners returns the heredocs line opens. A start is accepted only in
+// an expression position, not directly after an identifier or closing bracket
+// (`items<<Widget` is a shift), and only with a quoted or upper-case
+// identifier, so `items <<Widget` is not one either. An ambiguous start opens
+// nothing and its body stays unmasked (RUBY-AFFECTED-V0-043).
+func heredocOpeners(line string) []heredoc {
+	masked := maskQuotedLiteralsAndInlineComments(line)
+	var found []heredoc
+	for _, match := range heredocOpener.FindAllStringSubmatchIndex(line, -1) {
+		if masked[match[0]] != '<' {
+			continue
+		}
+		if match[0] > 0 {
+			if previous := line[match[0]-1]; isWordByte(previous) || previous == ')' || previous == ']' || previous == '}' {
+				continue
+			}
+		}
+		switch {
+		case match[4] >= 0:
+			found = append(found, heredoc{terminator: line[match[4]:match[5]]})
+		case match[6] >= 0:
+			found = append(found, heredoc{terminator: line[match[6]:match[7]], literal: true})
+		case match[8] >= 0:
+			found = append(found, heredoc{terminator: line[match[8]:match[9]]})
+		case strings.ToUpper(line[match[10]:match[11]]) == line[match[10]:match[11]]:
+			found = append(found, heredoc{terminator: line[match[10]:match[11]]})
+		}
+	}
+	return found
+}
+
+// keepInterpolations blanks a heredoc body line except the code inside each
+// `#{...}`, which runs. It reports false when an interpolation does not close
+// on its line.
+func keepInterpolations(line string) (string, bool) {
+	out := []byte(strings.Repeat(" ", len(line)))
+	for index := 0; index+1 < len(line); index++ {
+		if line[index] != '#' || line[index+1] != '{' {
+			continue
+		}
+		depth := 0
+		closed := false
+		for at := index + 1; at < len(line); at++ {
+			switch line[at] {
+			case '{':
+				depth++
+			case '}':
+				depth--
+			}
+			if depth == 0 {
+				copy(out[index+2:at], line[index+2:at])
+				index = at
+				closed = true
+				break
+			}
+		}
+		if !closed {
+			return line, false
+		}
+	}
+	return string(out), true
+}
+
 // maskHeredocBodies blanks each heredoc body and terminator line, keeping the
 // line count, so constant-looking words in heredoc text add no edge
-// (RUBY-AFFECTED-V0-043). It fails toward keeping text: a body whose
-// terminator never appears, or whose opener line passes it to an evaluating
-// call such as class_eval, stays as written.
+// (RUBY-AFFECTED-V0-043). Interpolated code in a heredoc that is not
+// single-quoted stays. It fails toward keeping text: a body whose terminator
+// never appears, whose opener line passes it to an evaluating call such as
+// class_eval, or whose interpolation spans lines stays as written.
 func maskHeredocBodies(text string) string {
 	lines := strings.Split(text, "\n")
 	out := make([]string, len(lines))
 	copy(out, lines)
-	var pending []string
+	var pending []heredoc
 	bodyStart := -1
 	keep := false
 	for index, line := range lines {
 		if len(pending) != 0 {
-			if !keep {
-				out[index] = ""
-			}
-			if strings.TrimSpace(line) == pending[0] {
+			if strings.TrimSpace(line) == pending[0].terminator {
+				if !keep {
+					out[index] = ""
+				}
 				pending = pending[1:]
+				continue
 			}
+			if keep {
+				continue
+			}
+			if pending[0].literal {
+				out[index] = ""
+				continue
+			}
+			kept, ok := keepInterpolations(line)
+			if !ok {
+				keep = true
+				copy(out[index:], lines[index:])
+				continue
+			}
+			out[index] = kept
 			continue
 		}
-		masked := maskQuotedLiteralsAndInlineComments(line)
-		for _, match := range heredocStart.FindAllStringSubmatchIndex(line, -1) {
-			if masked[match[0]] == '<' {
-				pending = append(pending, line[match[2]:match[3]])
-			}
-		}
+		pending = heredocOpeners(line)
 		bodyStart = index + 1
-		keep = evaluatedOpen.MatchString(masked)
+		keep = evaluatedOpen.MatchString(maskQuotedLiteralsAndInlineComments(line))
 	}
 	if len(pending) != 0 && bodyStart >= 0 {
 		copy(out[bodyStart:], lines[bodyStart:])
@@ -109,10 +197,11 @@ func (scopes lexicalScopes) at(offset int) []string {
 // namespaceFrames matches block keywords to their `end` in quote-masked
 // source and returns the named class and module bodies ordered by start. It
 // reports false for a file it cannot balance, or that holds an `=begin`
-// block or `__END__` data the mask does not cover.
+// block, `__END__` data, or a slash-delimited span holding a block keyword (a
+// possible regex literal such as /end/), none of which the mask covers.
 func namespaceFrames(raw, masked string) ([]namespaceFrame, bool) {
 	for _, line := range strings.Split(masked, "\n") {
-		if strings.HasPrefix(line, "=begin") || strings.TrimSpace(line) == "__END__" {
+		if strings.HasPrefix(line, "=begin") || strings.TrimSpace(line) == "__END__" || regexKeyword.MatchString(line) {
 			return nil, false
 		}
 	}
