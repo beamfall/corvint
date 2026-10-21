@@ -3,13 +3,12 @@ package appflows
 import (
 	"context"
 	"errors"
-	"io/fs"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/extevidence"
+	"github.com/Beamfall/corvint/internal/gitancestry"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
@@ -174,22 +173,12 @@ func bindRepository(ctx context.Context, root string, repo SelectionRepository, 
 	return boundRepository{pin: RepositoryPin{Dir: canonical, Revision: in.Base}, changed: qualified}, ""
 }
 
-// ancestryRewritten names why the checkout's commit ancestry cannot be trusted, or returns "". Git
-// honors an info/grafts file even with replace objects disabled, so a foreign checkout could graft
-// its HEAD onto the declared origin; a shallow checkout rewrites parents the same way (AFU-V1-068).
+// ancestryRewritten names why the checkout's commit ancestry cannot be trusted, or returns ""
+// (AFU-V1-068; the shared guard is internal/gitancestry).
 func ancestryRewritten(ctx context.Context, dir string) string {
-	common, err := git(ctx, dir, "rev-parse", "--path-format=absolute", "--git-common-dir")
-	if err != nil {
-		return "checkout Git directory unreadable"
-	}
-	if _, err := os.Lstat(filepath.Join(strings.TrimSpace(string(common)), "info", "grafts")); !errors.Is(err, fs.ErrNotExist) {
-		return "checkout rewrites ancestry with info/grafts"
-	}
-	shallow, err := git(ctx, dir, "rev-parse", "--is-shallow-repository")
-	if err != nil || strings.TrimSpace(string(shallow)) != "false" {
-		return "checkout is shallow"
-	}
-	return ""
+	return gitancestry.Rewritten(ctx, func(ctx context.Context, args ...string) ([]byte, error) {
+		return git(ctx, dir, args...)
+	})
 }
 
 // repositoryChanges reads the tree diff base..HEAD and the worktree status between two status and

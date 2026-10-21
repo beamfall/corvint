@@ -178,6 +178,49 @@ func specMentionFixture(t *testing.T) *Index {
 	return index
 }
 
+// TestTaskContextCountsADefinedRequirementIDAsSpecificTerm_V1_2235: a task
+// naming only a requirement id a spec defines gets that definition as
+// evidence and a supported verdict on a fresh index, not no-specific-terms;
+// an id no spec defines adds no term and no evidence (TCP-V0-016 amendment).
+func TestTaskContextCountsADefinedRequirementIDAsSpecificTerm_V1_2235(t *testing.T) {
+	index := specMentionFixture(t)
+	verdict := func(t *testing.T, task string) (map[string]any, []string) {
+		t.Helper()
+		packet, err := TaskContext(context.Background(), index, task, "", 20)
+		if err != nil {
+			t.Fatal(err)
+		}
+		answer, _ := contextCoverage(t, packet)["answerability"].(map[string]any)
+		return answer, contextPairs(t, packet)
+	}
+	for _, task := range []string{"ALP-001", "`ALP-001`"} {
+		answer, pairs := verdict(t, task)
+		if answer["verdict"] != "supported" || contextIntValue(answer["known"]) != 1 {
+			t.Fatalf("%q: answerability = %v, want supported with one known term", task, answer)
+		}
+		terms := mapsFromAny(answer["specific_terms"])
+		if len(terms) != 1 || terms[0]["term"] != "ALP-001" || contextIntValue(terms[0]["sources"]) != 1 {
+			t.Fatalf("%q: specific_terms = %v, want ALP-001 with its one defining spec", task, terms)
+		}
+		claims := mapsFromAny(answer["nearest_claims"])
+		if len(claims) != 1 || claims[0]["path"] != "docs/specs/alpha-v0.md" {
+			t.Fatalf("%q: nearest_claims = %v, want the defining spec", task, claims)
+		}
+		if !slices.Contains(pairs, "spec-mentioned docs/specs/alpha-v0.md") {
+			t.Fatalf("%q: rows = %v, want the definition as evidence", task, pairs)
+		}
+	}
+	answer, pairs := verdict(t, "ZZZ-404")
+	if answer["verdict"] != "no-specific-terms" || len(mapsFromAny(answer["specific_terms"])) != 0 {
+		t.Fatalf("unknown id: answerability = %v, want no-specific-terms", answer)
+	}
+	for _, pair := range pairs {
+		if strings.HasPrefix(pair, "spec-mentioned ") {
+			t.Fatalf("unknown id admitted %s", pair)
+		}
+	}
+}
+
 // TestTaskContextAdmitsSpecsNamedByIdOrPath covers TCP-V0-009's resolver: an
 // id with a defining clause, an ambiguous id, a named path, and the two
 // negatives -- prose that looks like an id, and the README the pass excludes.

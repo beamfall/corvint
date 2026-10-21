@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -367,7 +368,8 @@ func TestOCMV0019SummaryCountsRequirementsTheChangeCitesOrTraces(t *testing.T) {
 		want                        *changeCoverage
 	}{
 		{"cites two traced IDs", codeOnly, span("continued.", "two."), "", &changeCoverage{requirements: 2, linked: 2}},
-		{"cites an unresolved ID", codeOnly, span("- `FIX-V0-003`", "three."), "", &changeCoverage{requirements: 1}},
+		{"cites an unresolved ID", codeOnly, span("- `FIX-V0-003`", "three."), "", &changeCoverage{requirements: 1, unlinked: "FIX-V0-003"}},
+		{"names each unresolved ID", codeOnly, span("- `FIX-V0-003`", "three.") + "," + span("- `FIX-V0-001`", "continued."), "", &changeCoverage{requirements: 2, linked: 1, unlinked: "FIX-V0-003"}},
 		{"a linked obligation traces it", codeOnly, span("- `FIX-V0-003`", "three."), `{"obligations":[{"disposition":"linked","id":"FIX-V0-003"}]}`, &changeCoverage{requirements: 1, linked: 1}},
 		{"cites none", codeOnly, "", "", &changeCoverage{}},
 		{"cites outside the section", codeOnly, span("# Spec", "# Spec") + "," + span("| FIX-V0-001", "a_test.go |"), "", &changeCoverage{}},
@@ -410,5 +412,27 @@ func TestOCMV0019SummaryCountsRequirementsTheChangeCitesOrTraces(t *testing.T) {
 	write(".corvint/change.cem.json", `{"evidence":[]}`)
 	if got := run.changeCoverage(filepath.Join(root, ".corvint/change.cem.json"), []string{"absent.md"}); got != nil {
 		t.Errorf("absent intent: %+v", got)
+	}
+}
+
+// OCM-V0-025: the check names each unlinked requirement ID on stderr, bounded,
+// and prints nothing when every referenced requirement is linked or the
+// coverage could not be read.
+func TestOCMV0025CheckNamesUnlinkedRequirementIDs(t *testing.T) {
+	if got := (&changeCoverage{requirements: 3, linked: 1, unlinked: "FIX-V0-002,FIX-V0-003"}).unlinkedNote(); got != "dogfood-check: NOTE unlinked-requirements count=2 ids=FIX-V0-002,FIX-V0-003" {
+		t.Fatalf("note %q", got)
+	}
+	for _, coverage := range []*changeCoverage{nil, {}, {requirements: 2, linked: 2}} {
+		if got := coverage.unlinkedNote(); got != "" {
+			t.Fatalf("%+v note %q", coverage, got)
+		}
+	}
+	ids := []string{}
+	for i := 1; i <= maxNamedUnlinked+2; i++ {
+		ids = append(ids, fmt.Sprintf("FIX-V0-%03d", i))
+	}
+	got := (&changeCoverage{requirements: len(ids), unlinked: strings.Join(ids, ",")}).unlinkedNote()
+	if want := fmt.Sprintf("count=%d ids=%s (+2 more)", len(ids), strings.Join(ids[:maxNamedUnlinked], ",")); !strings.HasSuffix(got, want) {
+		t.Fatalf("bounded note %q, want suffix %q", got, want)
 	}
 }

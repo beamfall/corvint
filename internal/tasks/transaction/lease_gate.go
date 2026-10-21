@@ -39,13 +39,17 @@ var gateVerbs = map[string]bool{LeaseSubmit: true, LeaseGateRun: true, LeaseComp
 // ancestor of a commit carrying the source's tree on the protected intent
 // branch, else ReuseDescent is the refusal detail. DescendantResults names
 // the attempt's reused results at another tree that complete may count,
-// rechecked the same way (TCD-V0-151, TCD-V0-152).
+// rechecked the same way (TCD-V0-151, TCD-V0-152). A ReuseSource that is a
+// retained CI run record carries CIHeadTree, the tree the store resolved for
+// the run's head commit, and ReuseDescends is then the commit-level verdict
+// (TCD-V0-155).
 type gateFacts struct {
 	ChangedPaths           []string
 	GateRecord, GateOutput []byte
 	ReuseSource            []byte
 	ReuseDescends          bool
 	ReuseDescent           string
+	CIHeadTree             string
 	DescendantResults      map[wire.Digest]bool
 	CommitTree             string
 	CommitReachable        bool
@@ -265,8 +269,13 @@ func planGateRun(c leaseContext) leaseOutcome {
 	if g.GateID != c.l.Gate || !bound(g, a) || (g.ReusedFrom == nil && !ran) {
 		return c.fail(malformed("gate record does not describe this run"))
 	}
+	var ci *snapshot.CIRun
 	if g.ReusedFrom != nil {
-		if out := c.reuseRefusal(a, g); out != nil {
+		if ci, _ = snapshot.DecodeCIRun(f.ReuseSource); ci != nil && f.GateOutput == nil && wire.Sum(f.ReuseSource) == *g.ReusedFrom {
+			if out := c.ciRefusal(a, g, ci); out != nil {
+				return *out
+			}
+		} else if out := c.reuseRefusal(a, g); out != nil {
 			return *out
 		}
 	}
@@ -312,6 +321,9 @@ func planGateRun(c leaseContext) leaseOutcome {
 	}
 	if g.ReusedFrom == nil {
 		c.postEvidence(out.posts, f.GateOutput)
+	}
+	if ci != nil {
+		c.postEvidence(out.posts, f.ReuseSource)
 	}
 	c.postEvidence(out.posts, f.GateRecord)
 	return out

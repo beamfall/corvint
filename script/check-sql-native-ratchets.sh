@@ -11,6 +11,7 @@ set -eu
 #   version go_binary_sha256 receipt_tool_sha256 goroot_entries goroot_sha256
 # and a toolchain that matches no row refuses with reason=TOOLCHAIN_MISMATCH before any build.
 toolchain_pins='
+go1.27.2 516c1fbb53b5f8f4852f0c3c379d45bcff53a1032e5cd1a9ca1738f03ba07cb1 13b4f3d2a988d41fbf666936889dfbcc38ffb11df20afce7e3b298351de98617 13474 1ea38e7afb120aa7dfc7a60f55dd742517a426fe1174cc3bfff78a062caed647
 go1.27.3 60fa7fbaac037e24462915e8c19a1c73b02f548df0098b323823d6fbcdd0c764 53863afb7d3b9004aa68543d4ae5e91f0361bc99a59e42d74daff10d11268c18 17299 4b77ec3a600150c33036ecae172fcaa5edccf3ddcbcff339a8690505c8a47367
 '
 

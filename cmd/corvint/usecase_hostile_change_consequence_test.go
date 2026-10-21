@@ -84,6 +84,8 @@ func TestUseCaseHostileChangeConsequence(t *testing.T) {
 			root := consequenceRepository(t)
 			cemWrite(t, root, "go.mod", "this is not a go.mod\n")
 			cemGit(t, root, "commit", "-qam", "break go.mod")
+			// A frontier bears on a plan only once a path is dirty (V1-2126).
+			cemWrite(t, root, "core/core.go", "package core\n\nfunc Core() int { return 2 }\n")
 			receipt := consequencePlan(t, root)
 			assertConsequenceUnknown(t, receipt, "LANGUAGE_FRONTIER", "go:module-path-unresolved")
 			if state := receipt["provider"].(map[string]any)["go"].(map[string]any)["state"]; state != "MODULE_PATH_UNRESOLVED" {
@@ -174,6 +176,9 @@ func TestUseCaseHostileChangeConsequence(t *testing.T) {
 		}},
 		{"abstention", "missing-anchors", "no declared gate and no selection are named advice gaps", func(t *testing.T) {
 			root := consequenceRepository(t)
+			// A dirty path no unit reaches: an empty selection over an empty
+			// dirty set is no gap (V1-2126).
+			cemWrite(t, root, "notes.txt", "notes\n")
 			receipt := consequencePlan(t, root)
 			advice := string(mustJSON(t, receipt["advice"].(map[string]any)["unknown"]))
 			for _, gap := range []string{"NO_REPOSITORY_GATE_DECLARED", "NO_ADVISORY_GO_COMMAND"} {

@@ -709,6 +709,7 @@ func (c *check) verifyBinding(report []byte) int {
 		if c.baseIndependence() != "" {
 			fmt.Fprintf(c.stdout, "dogfood-check: NOTE %s\n", c.baseIndependence())
 		}
+		writeLines(c.stderr, belowAnchoredWarnings(cemLine))
 		fmt.Fprintf(c.stdout, "dogfood-check: PASS\n")
 		return 0
 	}
@@ -717,9 +718,13 @@ func (c *check) verifyBinding(report []byte) int {
 		coverage = c.changeCoverage(c.root+"/.corvint/change.cem.json", intents)
 	}
 	fmt.Fprintf(c.stdout, "%s\n", checkSummary(cemLine, ocmLine, noIntent, reasoned, coverage, c.baseIndependence(), detail))
+	if note := coverage.unlinkedNote(); note != "" {
+		c.say("%s\n", note)
+	}
 	if noIntent {
 		_, _ = c.stdout.Write(ocmLine)
 	}
+	writeLines(c.stderr, belowAnchoredWarnings(cemLine))
 	fmt.Fprintf(c.stdout, "dogfood-check: PASS\n")
 	return 0
 }

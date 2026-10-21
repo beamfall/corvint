@@ -10,7 +10,7 @@
     {"name": "AWS access key", "text": "AKIAABCDEFGHIJKLMNOP", "match": true},
     {"name": "Stripe key", "text": "sk-abcdefghijklmnopqrstuvwxyz", "match": true},
     {"name": "bearer token", "text": "Bearer abcdefghijklmnopqrstuvwxyz", "match": true},
-    {"name": "JWT", "text": "abcdefghij.abcdefghij.abcdefghij", "match": true},
+    {"name": "JWT", "text": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzeW50aGV0aWMifQ.abcdefghijklmnopqrstuv", "match": true},
     {"name": "authority vocabulary", "text": "authority: project", "match": false},
     {"name": "benign quoted properties", "text": "{\"authority\":\"project\",\"task\":\"repair config\"}", "match": false},
     {"name": "quoted credential mention", "text": "{\"message\":\"rotate password\"}", "match": false},

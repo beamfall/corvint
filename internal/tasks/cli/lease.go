@@ -68,7 +68,7 @@ var leaseValueFlags = map[string]bool{
 	"--request-id": true, "--role": true, "--holder": true, "--lease-minutes": true, "--branch": true,
 	"--base": true, "--attempt": true, "--generation": true, "--reason": true,
 	"--handoff-to": true, "--handoff-reason": true, "--share-allocation": true,
-	"--tree": true, "--gate": true, "--commit": true, "--worktree": true,
+	"--tree": true, "--gate": true, "--commit": true, "--worktree": true, "--ci-run": true,
 	"--lock-wait": true, "--lease-expires-at": true,
 	"--slots": true, "--count": true, "--class": true, "--source": true,
 	"--ticket": true, "--ttl-seconds": true, "--operation": true,
@@ -266,6 +266,12 @@ func leaseCommand(env Env, name string, args []string) (res *wire.Result) {
 	if hasWorktree && name != "gate run" {
 		return fail(wire.Errorf(wire.CodeMalformed, "argv", "--worktree belongs to gate run"))
 	}
+	// TCD-V0-155: --ci-run records a retained green CI run instead of
+	// executing the gate, so it never takes a worktree.
+	ciRunFile, hasCIRun := parsed.values["--ci-run"]
+	if hasCIRun && (name != "gate run" || hasWorktree || ciRunFile == "") {
+		return fail(wire.Errorf(wire.CodeMalformed, "argv", "--ci-run belongs to gate run, needs a file and excludes --worktree"))
+	}
 	if parsed.timing && !timingVerbs[name] {
 		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--timing belongs to claim, renew, attempt heartbeat and release"))
 	}
@@ -343,7 +349,14 @@ func leaseCommand(env Env, name string, args []string) (res *wire.Result) {
 		// started is still recorded with its partial output (CAL-V0-319).
 		ctx, stop := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 		defer stop()
-		report, err = store.GateRun(ctx, repo, actor, choice, gateWorktree(env.Cwd, worktree), time.Now)
+		if hasCIRun {
+			var ciRaw []byte
+			if ciRaw, err = intent.ReadFile(gateWorktree(env.Cwd, ciRunFile), snapshot.MaxCIRunBytes); err == nil {
+				report, err = store.GateRunCI(ctx, repo, actor, choice, ciRaw, time.Now)
+			}
+		} else {
+			report, err = store.GateRun(ctx, repo, actor, choice, gateWorktree(env.Cwd, worktree), time.Now)
+		}
 	} else {
 		base := writerContext()
 		if env.leaseInterrupted != nil {
@@ -427,7 +440,9 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 	if strings.Join(cmd, " ") == "gate run" {
 		// CAL-V0-240: the earlier result a reuse names, null when the gate ran.
 		reused := wire.Null()
-		if r := report.GateReusedFrom; r != nil {
+		if r := report.GateReusedFrom; r != nil && r.CIRunID != "" {
+			reused = wire.ObjectValue(wire.NewObject().Set("result", wire.String(string(r.Result))).Set("ciRunId", wire.String(r.CIRunID)))
+		} else if r != nil {
 			reused = wire.ObjectValue(wire.NewObject().Set("result", wire.String(string(r.Result))).Set("attemptId", wire.String(r.AttemptID)))
 		}
 		o.Set("reusedFrom", reused)
