@@ -401,6 +401,14 @@ func TestOCMHelpExposesNativeWorkflowAndMutationBoundary(t *testing.T) {
 			"source-body-free 0600 local map atomically",
 			"verifies the OCM and bound CEM before mutation",
 		}},
+		// V1-0706: the implemented --replace recovery and its review loss.
+		{name: "OCM prepare --replace recovery", required: []string{
+			"--replace", "map-outdated", "links, marks and assessments are\n                      discarded",
+		}},
+		// V1-0558: the report output confinement and its worktree visibility.
+		{name: "OCM report output confinement", required: []string{
+			".git/corvint/ocm-review.md", "unsupported-ocm-output-path", "blocks clean-worktree admission",
+		}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			for _, required := range test.required {
