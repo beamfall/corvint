@@ -7207,7 +7207,7 @@ binary before this change: on SIGINT or SIGTERM the gate's process group was kil
 result, and every byte the gate had printed was discarded. Intent: keep what the run produced.
 
 - `CAL-V0-319`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2012) When the
-  run context of a `gate run` ends (SIGINT or SIGTERM to the CLI) after the gate program started,
+  run context of a `gate run` ends (SIGINT, SIGTERM or, since V1-2033, SIGHUP to the CLI) after the gate program started,
   `gate run` still stops the gate's process group and reaps it, and then records that run as an
   ordinary gate result instead of discarding it: its state is set by the existing §7.1 rules (an
   interrupted gate is `FAILED`; a gate that had already exited keeps its own outcome), its outcome
@@ -8322,7 +8322,7 @@ after this restore.
 | CAL-V0-316 | `TestCALV0316_DispatchStatusShowsKeeperPerWorker` (`internal/tasks/cli`) |
 | CAL-V0-317 | `TestCALV0317_UnobservedTreeIsNotKept` (`internal/tasks/dispatch`) |
 | CAL-V0-318 | `TestCALV0318_ReplayedRenewalAfterRestartWritesAgain` (`internal/tasks/dispatch`); `TestCALV0313_NativeKeeperRenewsAndHeartbeatsFenced` (`internal/tasks/cli`) |
-| CAL-V0-319 | `TestCALV0319_InterruptedGateRunRecordsItsResult` (`internal/tasks/store`); `docs/build-log/2026-10-20-V1-2012-gate-interrupt-retention.md` |
+| CAL-V0-319 | `TestCALV0319_InterruptedGateRunRecordsItsResult` (`internal/tasks/store`); `TestCALV0319_HangupInterruptsGateRun` (`internal/tasks/cli`, V1-2033); `docs/build-log/2026-10-20-V1-2012-gate-interrupt-retention.md`; `docs/build-log/2026-10-21-gate-run-hangup.md` |
 | CAL-V0-320 | `TestTasksArchiveCrossTargetIsLinuxAmd64Only`, `TestTasksArchiveCrossManifestStatesTheLimit`, `TestTasksArchiveRefusesOtherTargets` (`internal/companionrelease`); `docs/build-log/2026-10-20-v1-1981-tasks-linux-amd64-archive.md` (cross-build, ELF check, checksum; Linux runtime `NOT_OBSERVED`) |
 | CAL-V0-350 | `TestCALV0350_FullTickReusesAnUnchangedConfigRead`, `TestCALV0350_IdleSkipEndsWhenTheCachedConfigExpires`, `TestCALV0127_ConfigReloadAppliesAndRefuses` (`internal/tasks/dispatch`) |
 | CAL-V0-351 | `TestCALV0351_IdlePressureConfigSkipsTheSample`, `TestCALV0351_DeferredBudgetRefuses`, `TestCALV0351_PostIdleHoldLastsUntilThePendingLevelSettles`, `TestCALV0351_PostIdleCPUSampleWaitsForAFreshInterval`, `TestCALV0125_UnselectedCPULeavesLedgerUnchanged`, `TestCALV0068_DispatcherThrottlesNewLaunchesOnly` (`internal/tasks/dispatch`) |
