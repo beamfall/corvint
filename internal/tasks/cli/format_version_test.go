@@ -164,7 +164,18 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 		journal.ProfileWriterCheckpoint: func(t *testing.T, p string) error {
 			body := []byte(nextVersion(t, p) + "\nzzNewerLayout")
 			sum := sha256.Sum256(body)
-			_, err := journal.DecodeWriterCheckpoint(append(body, sum[:]...))
+			_, err := journal.DecodeWriterCheckpoint(append(body, sum[:]...), nil)
+			return err
+		},
+		journal.ProfileWriterBase: func(t *testing.T, p string) error {
+			// A current delta that binds the newer base, so the base's own
+			// version check is the one that refuses.
+			base := []byte(nextVersion(t, p) + "\nzzNewerLayout")
+			bound := sha256.Sum256(base)
+			body := append([]byte(journal.ProfileWriterCheckpoint+"\n"), bound[:]...)
+			body = append(body, make([]byte, 8+7*8+5*8+8+8+sha256.Size)...)
+			sum := sha256.Sum256(body)
+			_, err := journal.DecodeWriterCheckpoint(append(body, sum[:]...), base)
 			return err
 		},
 		journal.ProfileRetiredPrefix: func(t *testing.T, p string) error {

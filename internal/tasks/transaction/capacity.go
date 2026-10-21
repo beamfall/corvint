@@ -31,8 +31,10 @@ type Inventory struct {
 	dirs   map[string]bool
 	elided *Elided
 	miss   *bool
-	// incremental is set only on an ImportSequence-owned complete inventory
-	// and its capacity forks (CAL-V0-018); see import_cost.go.
+	// incremental is set on an ImportSequence-owned complete inventory and on
+	// a summarized inventory, and on their capacity forks (CAL-V0-018,
+	// JSG-V0-003); see import_cost.go. A fork shares the maps and undoes its
+	// own changes on rollback.
 	incremental       *importCost
 	undoFiles         map[string]*archive.FileEntry
 	undoDirs          map[string]bool
@@ -136,7 +138,39 @@ func NewSummarizedInventory(files []archive.FileEntry, stateDirectories []string
 	summary := elided
 	inv.elided = &summary
 	inv.miss = new(bool)
+	if inv.incremental, e = summarizedCost(inv, elided); e != nil {
+		return nil, e
+	}
+	for shard := 0; shard < 256; shard++ {
+		inv.advanceReserve(shard)
+	}
 	return inv, nil
+}
+
+// summarizedCost is the incremental cost of a summarized inventory: the
+// elided prefix and intent records charged from their summaries, as measure
+// charges them, and each explicit file measured once. A capacity fork then
+// measures only the entries its plan changes (JSG-V0-003).
+func summarizedCost(inv *Inventory, elided Elided) (*importCost, error) {
+	c := &importCost{encoding: elided.Cost}
+	c.cost.Files = uint64(elided.Cost.Files)
+	c.cost.ScannedEntries = uint64(elided.Cost.Files)
+	c.cost.JournalCount = elided.Receipts
+	c.cost.JournalBytes = elided.ReceiptBytes
+	if in := elided.Intent; in != nil {
+		var e error
+		if c.encoding, e = c.encoding.Add(in.Cost); e != nil {
+			return nil, e
+		}
+		c.cost.Files += uint64(in.Cost.Files)
+		c.cost.IntentBytes = in.Cost.PayloadBytes
+	}
+	for _, f := range inv.files {
+		if e := c.replace(f, false, f); e != nil {
+			return nil, e
+		}
+	}
+	return c, nil
 }
 
 // Incomplete reports whether a question needed an elided file's metadata.
@@ -458,9 +492,12 @@ func (i *Inventory) put(f archive.FileEntry, exclusive bool) error {
 		return malformed("non-overwriting publication conflict")
 	}
 	if i.incremental != nil {
+		// An elided path exists without metadata: lookup marked the
+		// inventory incomplete, so the result is void and nothing is charged.
+		_, explicit := i.files[f.Path]
 		if i.undoFiles != nil {
 			if _, saved := i.undoFiles[f.Path]; !saved {
-				if exists {
+				if explicit {
 					copy := old
 					i.undoFiles[f.Path] = &copy
 				} else {
@@ -468,8 +505,10 @@ func (i *Inventory) put(f archive.FileEntry, exclusive bool) error {
 				}
 			}
 		}
-		if err := i.incremental.replace(old, exists, f); err != nil {
-			return err
+		if explicit || !exists {
+			if err := i.incremental.replace(old, explicit, f); err != nil {
+				return err
+			}
 		}
 	}
 	i.files[f.Path] = f
@@ -486,6 +525,28 @@ func (i *Inventory) put(f archive.FileEntry, exclusive bool) error {
 			i.dirs[d] = true
 		}
 	}
+	return nil
+}
+
+// remove deletes explicit file p, recording undo and uncharging it on an
+// incremental inventory.
+func (i *Inventory) remove(p string) error {
+	old, ok := i.files[p]
+	if !ok {
+		return nil
+	}
+	if i.incremental != nil {
+		if i.undoFiles != nil {
+			if _, saved := i.undoFiles[p]; !saved {
+				copy := old
+				i.undoFiles[p] = &copy
+			}
+		}
+		if err := i.incremental.remove(old); err != nil {
+			return err
+		}
+	}
+	delete(i.files, p)
 	return nil
 }
 func entry(a Artifact) archive.FileEntry {
@@ -564,6 +625,7 @@ func measure(i *Inventory, h *snapshot.Head, temporary, promised, stageNames uin
 	}
 	intentHash := sha256.New()
 	files := i.explicitFiles()
+	entryMeasurements.Add(uint64(len(files)))
 	for _, f := range files {
 		n := f.Bytes.Uint64()
 		if strings.HasPrefix(f.Path, "intent/") {
@@ -747,7 +809,9 @@ func checkCapacity(p *Plan, l limits) (Capacity, error) {
 		}
 	}
 	if raw, ok := p.posts["barrier.json"]; ok && raw == nil {
-		delete(working.files, "barrier.json")
+		if e = working.remove("barrier.json"); e != nil {
+			return out, e
+		}
 		if e = record("durable-barrier-unlink", false); e != nil {
 			return out, e
 		}
@@ -774,7 +838,11 @@ func checkCapacity(p *Plan, l limits) (Capacity, error) {
 		}
 		out.Prefixes = append(out.Prefixes, Prefix{Step: "reserved-fresh-UNPAUSE", Cost: u})
 	}
-	out.Final = working
+	if working.elided == nil || working.incremental == nil {
+		out.Final = working
+	}
+	// A summarized fork shares its base's maps and the deferred rollback
+	// restores them, so it has no final inventory to return.
 	return out, nil
 }
 

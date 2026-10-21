@@ -69,7 +69,12 @@ func (res *Result) Checkpoint() *Checkpoint {
 	if !full && !writer {
 		return nil
 	}
-	cp := res.chainCheckpoint()
+	cp, err := res.chainCheckpoint()
+	if err != nil {
+		// An entry the writer checkpoint's base cannot supply: no read
+		// checkpoint is derived from it.
+		return nil
+	}
 	return &cp
 }
 

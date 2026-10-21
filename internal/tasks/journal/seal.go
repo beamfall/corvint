@@ -85,7 +85,10 @@ func (s *RetiredPrefix) Encode() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	anchor := s.Anchor.Encode()
+	anchor, err := encodeAnchor(s.Anchor)
+	if err != nil {
+		return nil, err
+	}
 	paths := make([]string, 0, len(s.Seeds))
 	for p := range s.Seeds {
 		paths = append(paths, p)
@@ -172,7 +175,7 @@ func DecodeRetiredPrefix(raw []byte) (*RetiredPrefix, error) {
 	if n > uint64(len(rest)) {
 		return nil, sealForked("anchor length")
 	}
-	anchor, err := DecodeWriterCheckpoint(rest[:n])
+	anchor, err := decodeAnchor(rest[:n])
 	if err != nil {
 		return nil, sealForked("anchor: %v", err)
 	}

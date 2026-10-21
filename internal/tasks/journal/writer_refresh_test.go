@@ -59,7 +59,7 @@ func TestCALV0265_RefreshPrefixWalk(t *testing.T) {
 	if err != nil || quiet.Mode != ModeFull {
 		t.Fatalf("quiescent refresh: %+v %v", quiet, err)
 	}
-	if got, err := quiet.WriterCheckpoint(quietObs.Files); err != nil || !bytes.Equal(got.Encode(), want.Encode()) {
+	if got, err := quiet.WriterCheckpoint(quietObs.Files); err != nil || !bytes.Equal(encodeWriter(t, got), encodeWriter(t, want)) {
 		t.Fatalf("quiescent refresh checkpoint differs: %v", err)
 	}
 
@@ -70,7 +70,7 @@ func TestCALV0265_RefreshPrefixWalk(t *testing.T) {
 	if err != nil || walked.Mode != ModePrefix || walked.StructuralConsistency != "CONSISTENT" {
 		t.Fatalf("prefix walk: %+v %v", walked, err)
 	}
-	if got, err := walked.WriterCheckpoint(obs.Files); err != nil || !bytes.Equal(got.Encode(), want.Encode()) {
+	if got, err := walked.WriterCheckpoint(obs.Files); err != nil || !bytes.Equal(encodeWriter(t, got), encodeWriter(t, want)) {
 		t.Fatalf("prefix checkpoint differs from the complete audit's: %v", err)
 	}
 

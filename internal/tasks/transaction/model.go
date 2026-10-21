@@ -813,7 +813,7 @@ func model(r Request, in Input, sequence *ImportSequence) Result {
 		sequence.prefixes = capacity.Prefixes
 	}
 	// The capacity check reserves staging; a scanned inventory never holds it.
-	if sequence == nil {
+	if sequence == nil && capacity.Final != nil {
 		delete(capacity.Final.dirs, "staging")
 	}
 	res := Result{Kind: "Transaction", Outcome: out, Coverage: coverage(), Plan: p, Final: capacity.Final, Detail: detail, AuthorExclusion: authors}

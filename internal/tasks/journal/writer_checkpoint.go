@@ -23,10 +23,13 @@ import (
 // posts it, no archive carries it, and a missing, stale, torn or foreign file
 // only sends the next writer through the complete audit.
 //
-// Version 2 adds the per-entry afterimage sizes and the live intent record
+// Version 2 added the per-entry afterimage sizes and the live intent record
 // aggregate a liveness write charges instead of listing the intent tree
-// (JSG-V0-001); a version 1 file is refused as another version.
-const ProfileWriterCheckpoint = "taskman-writer-checkpoint/2"
+// (JSG-V0-001). Version 3 is the delta over a sealed base
+// (ProfileWriterBase) that it binds by SHA-256, so a writer decodes only the
+// entries its walk uses (JSG-V0-004). Earlier versions are refused as
+// another version.
+const ProfileWriterCheckpoint = "taskman-writer-checkpoint/3"
 
 // ModeWriter is Result.Mode for a writer audit that resumed at a writer
 // checkpoint and walked only the receipts after it (CAL-V0-116, proposed).
@@ -49,7 +52,7 @@ const (
 const writerMagic = ProfileWriterCheckpoint + "\n"
 
 // MaxWriterCheckpointBytes bounds the file a writer is willing to consume.
-const MaxWriterCheckpointBytes = len(writerMagic) + 8 + MaxCheckpointBytes + 7*8 + writerIntentFields*8 + 8*maxWriterEntries + writerRequestBytes*wire.MaxArchiveFiles + 8 + writerNoteBytes*wire.MaxTicketsPerQueue + 2*sha256.Size
+const MaxWriterCheckpointBytes = len(writerMagic) + sha256.Size + 8 + MaxCheckpointBytes + 7*8 + writerIntentFields*8 + 8*maxWriterEntries + writerRequestBytes*wire.MaxArchiveFiles + 8 + writerNoteBytes*wire.MaxTicketsPerQueue + 2*sha256.Size
 
 // writerIntentFields is the encoded IntentAggregate: tickets, releases, and
 // the payload, entry and tar bytes of their archive cost.
@@ -99,6 +102,11 @@ type WriterCheckpoint struct {
 	sizes    []uint64 // afterimage size of Entries[i]; 0 for a deletion
 	requests []byte   // writerRequestBytes records, strictly ordered by path digest
 	notes    []writerNote
+	// base, when set, holds every entry, request and note the delta does
+	// not: Entries, sizes, requests and notes are then only the delta's, and
+	// total counts the merged entries (JSG-V0-004).
+	base  *baseTable
+	total int
 }
 
 // IntentAggregate is the count and archive cost of the live canonical
@@ -114,14 +122,216 @@ func intentRecord(p string) bool {
 	return strings.HasPrefix(p, "intent/tickets/") || strings.HasPrefix(p, "intent/releases/")
 }
 
-// entrySize returns the afterimage size Entries carried for p at Seq and
-// whether p is a live entry.
-func (w *WriterCheckpoint) entrySize(p string) (uint64, bool) {
+// search returns the index of p in Entries, or -1.
+func (w *WriterCheckpoint) search(p string) int {
 	e := sort.Search(len(w.Entries), func(i int) bool { return w.Entries[i].Path >= p })
-	if e == len(w.Entries) || w.Entries[e].Path != p || w.Entries[e].Sha256 == nil {
-		return 0, false
+	if e == len(w.Entries) || w.Entries[e].Path != p {
+		return -1
 	}
-	return w.sizes[e], true
+	return e
+}
+
+// deltaLatest is Entries[e] as a latest; its size is -1 when the
+// checkpoint carries no sizes (a retired-prefix anchor).
+func (w *WriterCheckpoint) deltaLatest(e int) latest {
+	size := int64(-1)
+	if len(w.sizes) == len(w.Entries) {
+		size = int64(w.sizes[e])
+	}
+	return latest{seq: w.Entries[e].Seq, digest: w.Entries[e].Sha256, bytes: size}
+}
+
+// lookup returns the latest canonical afterimage of p at Seq: the delta's
+// entry, else the base's, whose path and size are checked here, where a walk
+// first uses them (JSG-V0-004).
+func (w *WriterCheckpoint) lookup(p string) (latest, bool, error) {
+	if e := w.search(p); e >= 0 {
+		return w.deltaLatest(e), true, nil
+	}
+	if w.base != nil {
+		if i := w.base.search(p); i >= 0 {
+			l, err := w.base.entry(i)
+			return l, err == nil, err
+		}
+	}
+	return latest{}, false, nil
+}
+
+// holds reports whether p has a latest entry at Seq, live or deleted.
+func (w *WriterCheckpoint) holds(p string) bool {
+	return w.search(p) >= 0 || (w.base != nil && w.base.search(p) >= 0)
+}
+
+// liveIntent reports whether p is a live ticket or release record at Seq.
+func (w *WriterCheckpoint) liveIntent(p string) bool {
+	if !intentRecord(p) {
+		return false
+	}
+	if e := w.search(p); e >= 0 {
+		return w.Entries[e].Sha256 != nil
+	}
+	if w.base != nil {
+		if i := w.base.search(p); i >= 0 {
+			return w.base.live(i)
+		}
+	}
+	return false
+}
+
+// count is the number of latest entries at Seq, request paths excluded.
+func (w *WriterCheckpoint) count() int {
+	if w.base == nil {
+		return len(w.Entries)
+	}
+	return w.total
+}
+
+// entrySize returns the afterimage size carried for p at Seq and whether p
+// is a live entry.
+func (w *WriterCheckpoint) entrySize(p string) (uint64, bool) {
+	if e := w.search(p); e >= 0 {
+		if w.Entries[e].Sha256 == nil || len(w.sizes) != len(w.Entries) {
+			return 0, false
+		}
+		return w.sizes[e], true
+	}
+	if w.base != nil {
+		if i := w.base.search(p); i >= 0 && w.base.live(i) {
+			return w.base.size(i), true
+		}
+	}
+	return 0, false
+}
+
+// each calls fn for every latest entry at Seq in path order, the delta's
+// entry in place of the base's, skipping every path under a prefix in skip
+// (each ends in '/') without visiting it.
+func (w *WriterCheckpoint) each(skip []string, fn func(string, latest) error) error {
+	nb := 0
+	if w.base != nil {
+		nb = w.base.n
+	}
+	d, b := 0, 0
+	for {
+		for d < len(w.Entries) {
+			pfx := skipped(w.Entries[d].Path, skip)
+			if pfx == "" {
+				break
+			}
+			past := pastPrefix(pfx)
+			d = sort.Search(len(w.Entries), func(i int) bool { return w.Entries[i].Path >= past })
+		}
+		for b < nb {
+			pfx := skipped(w.base.path(b), skip)
+			if pfx == "" {
+				break
+			}
+			b = w.base.seek(pastPrefix(pfx))
+		}
+		if d == len(w.Entries) && b == nb {
+			return nil
+		}
+		var p string
+		var l latest
+		if b == nb || (d < len(w.Entries) && w.Entries[d].Path <= w.base.path(b)) {
+			p, l = w.Entries[d].Path, w.deltaLatest(d)
+			if b < nb && w.base.path(b) == p {
+				b++
+			}
+			d++
+		} else {
+			p = w.base.path(b)
+			var err error
+			if l, err = w.base.entry(b); err != nil {
+				return err
+			}
+			b++
+		}
+		if err := fn(p, l); err != nil {
+			return err
+		}
+	}
+}
+
+// skipped returns the prefix in skip that p falls under, or "".
+func skipped(p string, skip []string) string {
+	for _, pfx := range skip {
+		if strings.HasPrefix(p, pfx) {
+			return pfx
+		}
+	}
+	return ""
+}
+
+// pastPrefix is the least path after every path under pfx, which ends in '/'.
+func pastPrefix(pfx string) string { return pfx[:len(pfx)-1] + "0" }
+
+// full returns w with its base merged in: every entry, size, request and
+// note in one base-free checkpoint. A base-free w is returned as it is.
+func (w *WriterCheckpoint) full() (*WriterCheckpoint, error) {
+	if w.base == nil {
+		return w, nil
+	}
+	f := *w
+	f.base, f.total = nil, 0
+	f.Checkpoint.Entries = make([]CheckpointEntry, 0, w.total)
+	f.sizes = make([]uint64, 0, w.total)
+	f.notes = nil
+	err := w.each(nil, func(p string, l latest) error {
+		f.Entries = append(f.Entries, CheckpointEntry{Path: p, Seq: l.seq, Sha256: l.digest})
+		f.sizes = append(f.sizes, uint64(l.bytes))
+		if d, ok := w.note(p); ok {
+			f.notes = append(f.notes, writerNote{entry: uint32(len(f.Entries) - 1), digest: d})
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	f.requests = mergeRequests(w.base.reqs, w.requests)
+	return &f, nil
+}
+
+// mergeRequests merges two strictly ordered, disjoint request record sets.
+func mergeRequests(a, b []byte) []byte {
+	out := make([]byte, 0, len(a)+len(b))
+	for len(a) > 0 || len(b) > 0 {
+		if len(b) == 0 || (len(a) > 0 && bytes.Compare(a[:sha256.Size], b[:sha256.Size]) < 0) {
+			out, a = append(out, a[:writerRequestBytes]...), a[writerRequestBytes:]
+		} else {
+			out, b = append(out, b[:writerRequestBytes]...), b[writerRequestBytes:]
+		}
+	}
+	return out
+}
+
+// orderedRequests refuses request records that are not strictly ordered by
+// path digest.
+func orderedRequests(reqs []byte) error {
+	for i := writerRequestBytes; i < len(reqs); i += writerRequestBytes {
+		if bytes.Compare(reqs[i-writerRequestBytes:i-sha256.Size], reqs[i:i+sha256.Size]) >= 0 {
+			return errCheckpoint("writer checkpoint", "request digests are not strictly ordered")
+		}
+	}
+	return nil
+}
+
+// decodeNotes parses note records over entries: strictly ordered entry
+// indexes, each a live ticket.
+func decodeNotes(raw []byte, entries []CheckpointEntry) ([]writerNote, error) {
+	notes := make([]writerNote, len(raw)/writerNoteBytes)
+	for i := range notes {
+		n := &notes[i]
+		n.entry = binary.BigEndian.Uint32(raw[i*writerNoteBytes:])
+		copy(n.digest[:], raw[i*writerNoteBytes+4:(i+1)*writerNoteBytes])
+		if (i > 0 && n.entry <= notes[i-1].entry) || n.entry >= uint32(len(entries)) {
+			return nil, errCheckpoint("writer checkpoint", "note entries are not strictly ordered checkpoint entries")
+		}
+		if e := entries[n.entry]; !strings.HasPrefix(e.Path, "intent/tickets/") || e.Sha256 == nil {
+			return nil, errCheckpoint("writer checkpoint", "note entry is not a live ticket")
+		}
+	}
+	return notes, nil
 }
 
 // writerNote is the SHA-256 of the encoded operator-note reference of the
@@ -136,17 +346,22 @@ func noteDigest(ref *ticket.OperatorNoteReference) [sha256.Size]byte {
 }
 
 // note returns the digest of the note reference the ticket at p carried at
-// Seq, if it carried one.
+// Seq, if it carried one: the delta's when the delta holds p, else the
+// base's.
 func (w *WriterCheckpoint) note(p string) ([sha256.Size]byte, bool) {
-	e := sort.Search(len(w.Entries), func(i int) bool { return w.Entries[i].Path >= p })
-	if e == len(w.Entries) || w.Entries[e].Path != p {
-		return [sha256.Size]byte{}, false
+	if e := w.search(p); e >= 0 {
+		i := sort.Search(len(w.notes), func(i int) bool { return w.notes[i].entry >= uint32(e) })
+		if i == len(w.notes) || w.notes[i].entry != uint32(e) {
+			return [sha256.Size]byte{}, false
+		}
+		return w.notes[i].digest, true
 	}
-	i := sort.Search(len(w.notes), func(i int) bool { return w.notes[i].entry >= uint32(e) })
-	if i == len(w.notes) || w.notes[i].entry != uint32(e) {
-		return [sha256.Size]byte{}, false
+	if w.base != nil {
+		if i := w.base.search(p); i >= 0 {
+			return w.base.note(i)
+		}
 	}
-	return w.notes[i].digest, true
+	return [sha256.Size]byte{}, false
 }
 
 // sameNote reports whether ref is the note reference the ticket at p carried
@@ -159,8 +374,24 @@ func (w *WriterCheckpoint) sameNote(p string, ref *ticket.OperatorNoteReference)
 	return ok && d == noteDigest(ref)
 }
 
+// LastPosted returns the receipt that last posted non-request path p at or
+// before Seq, from the delta or its base; zero when none did.
+func (w *WriterCheckpoint) LastPosted(p string) (uint64, error) {
+	l, ok, err := w.lookup(p)
+	if err != nil || !ok {
+		return 0, err
+	}
+	return l.seq.Uint64(), nil
+}
+
 // Requests is the number of request afterimages receipts 1..Seq posted.
-func (w *WriterCheckpoint) Requests() uint64 { return uint64(len(w.requests) / writerRequestBytes) }
+func (w *WriterCheckpoint) Requests() uint64 {
+	n := uint64(len(w.requests) / writerRequestBytes)
+	if w.base != nil {
+		n += w.base.requests()
+	}
+	return n
+}
 
 // HasRequest reports whether p is a request path posted at or before Seq.
 func (w *WriterCheckpoint) HasRequest(p string) bool {
@@ -170,20 +401,20 @@ func (w *WriterCheckpoint) HasRequest(p string) bool {
 
 // RequestAfterimage returns the digest of the latest afterimage of request
 // path p that receipts 1..Seq posted, as the audit deriving the checkpoint
-// read it (CAL-V0-190, proposed).
+// read it (CAL-V0-190, proposed). The base's records are searched in place.
 func (w *WriterCheckpoint) RequestAfterimage(p string) (wire.Digest, bool) {
 	d, ok := requestDigest(p)
 	if !ok {
 		return "", false
 	}
-	n := len(w.requests) / writerRequestBytes
-	i := sort.Search(n, func(i int) bool {
-		return bytes.Compare(w.requests[i*writerRequestBytes:i*writerRequestBytes+sha256.Size], d) >= 0
-	})
-	if i == n || !bytes.Equal(w.requests[i*writerRequestBytes:i*writerRequestBytes+sha256.Size], d) {
+	after, ok := findRequest(w.requests, d)
+	if !ok && w.base != nil {
+		after, ok = w.base.request(d)
+	}
+	if !ok {
 		return "", false
 	}
-	return wire.Digest(hex.EncodeToString(w.requests[i*writerRequestBytes+sha256.Size : (i+1)*writerRequestBytes])), true
+	return wire.Digest(hex.EncodeToString(after)), true
 }
 
 func requestDigest(p string) ([]byte, bool) {
@@ -199,13 +430,34 @@ func requestDigest(p string) ([]byte, bool) {
 	return d, err == nil
 }
 
-// Encode renders the file bytes: a magic line, the read checkpoint encoding,
-// the aggregates, the request records, the note count and notes, the
-// invalidation digest, and a SHA-256 trailer over all of it.
-func (w *WriterCheckpoint) Encode() []byte {
-	cp := w.Checkpoint.Encode()
-	buf := make([]byte, 0, len(writerMagic)+8+len(cp)+7*8+writerIntentFields*8+8*len(w.sizes)+len(w.requests)+8+writerNoteBytes*len(w.notes)+2*sha256.Size)
+// FreshBase reports whether Encode renders a new base: the checkpoint was
+// derived base-free, so its base file must be written before its delta.
+// Otherwise the base is the one the checkpoint was decoded with.
+func (w *WriterCheckpoint) FreshBase() bool { return w.base == nil }
+
+// Encode renders the two files (JSG-V0-004). The base is w's own when w was
+// decoded with one or derived on it; a base-free w renders a new base of all
+// its entries and an empty delta. The delta is a magic line, the base's
+// SHA-256, the read checkpoint encoding of the delta entries, the
+// aggregates over everything, the intent aggregate, the delta sizes, the
+// delta request records, the notes on delta entries, the invalidation
+// digest, and a SHA-256 trailer over all of it.
+func (w *WriterCheckpoint) Encode() (base, delta []byte, err error) {
+	d := w
+	if w.base == nil {
+		if base, err = encodeBase(w); err != nil {
+			return nil, nil, err
+		}
+		d = &WriterCheckpoint{Checkpoint: w.Checkpoint, FullSeq: w.FullSeq, ReceiptBytes: w.ReceiptBytes, Cost: w.Cost, Invalidation: w.Invalidation, Intent: w.Intent}
+		d.Checkpoint.Entries = nil
+	} else {
+		base = w.base.raw
+	}
+	sum := sha256.Sum256(base)
+	cp := d.Checkpoint.Encode()
+	buf := make([]byte, 0, len(writerMagic)+sha256.Size+8+len(cp)+7*8+writerIntentFields*8+8*len(d.sizes)+8+len(d.requests)+8+writerNoteBytes*len(d.notes)+2*sha256.Size)
 	buf = append(buf, writerMagic...)
+	buf = append(buf, sum[:]...)
 	buf = binary.BigEndian.AppendUint64(buf, uint64(len(cp)))
 	buf = append(buf, cp...)
 	for _, v := range []uint64{w.FullSeq, w.ReceiptBytes, uint64(w.Cost.Files), w.Cost.PayloadBytes, w.Cost.EntryBytes, w.Cost.TarBytes, w.Requests()} {
@@ -214,23 +466,27 @@ func (w *WriterCheckpoint) Encode() []byte {
 	for _, v := range []uint64{uint64(w.Intent.Tickets), uint64(w.Intent.Releases), w.Intent.Cost.PayloadBytes, w.Intent.Cost.EntryBytes, w.Intent.Cost.TarBytes} {
 		buf = binary.BigEndian.AppendUint64(buf, v)
 	}
-	for _, v := range w.sizes {
+	for _, v := range d.sizes {
 		buf = binary.BigEndian.AppendUint64(buf, v)
 	}
-	buf = append(buf, w.requests...)
-	buf = binary.BigEndian.AppendUint64(buf, uint64(len(w.notes)))
-	for _, n := range w.notes {
+	buf = binary.BigEndian.AppendUint64(buf, uint64(len(d.requests)/writerRequestBytes))
+	buf = append(buf, d.requests...)
+	buf = binary.BigEndian.AppendUint64(buf, uint64(len(d.notes)))
+	for _, n := range d.notes {
 		buf = binary.BigEndian.AppendUint32(buf, n.entry)
 		buf = append(buf, n.digest[:]...)
 	}
 	buf = append(buf, w.Invalidation[:]...)
-	sum := sha256.Sum256(buf)
-	return append(buf, sum[:]...)
+	trailer := sha256.Sum256(buf)
+	return base, append(buf, trailer[:]...), nil
 }
 
-// DecodeWriterCheckpoint parses writer checkpoint bytes. Any error means only
-// that the checkpoint is unusable; the writer runs the complete audit.
-func DecodeWriterCheckpoint(raw []byte) (*WriterCheckpoint, error) {
+// DecodeWriterCheckpoint parses the delta and the base it binds. Any error
+// means only that the checkpoint is unusable; the writer runs the complete
+// audit. An absent base, or one whose SHA-256 differs from the delta's,
+// declines (JSG-V0-004). The base's entries are not turned into values
+// here: a walk checks each one it uses.
+func DecodeWriterCheckpoint(raw, baseRaw []byte) (*WriterCheckpoint, error) {
 	bad := func(why string) error { return errCheckpoint("writer checkpoint", why) }
 	if len(raw) > MaxWriterCheckpointBytes {
 		return nil, bad("larger than its bound")
@@ -240,7 +496,7 @@ func DecodeWriterCheckpoint(raw []byte) (*WriterCheckpoint, error) {
 	if name, _, _ := strings.Cut(ProfileWriterCheckpoint, "/"); bytes.HasPrefix(raw, []byte(name+"/")) && !bytes.HasPrefix(raw, []byte(writerMagic)) {
 		return nil, wire.Errorf(wire.CodeUnsupportedVersion, "writer checkpoint", "another %s version", name)
 	}
-	if len(raw) < len(writerMagic)+8+7*8+writerIntentFields*8+8+2*sha256.Size {
+	if len(raw) < len(writerMagic)+sha256.Size+8+7*8+writerIntentFields*8+8+8+2*sha256.Size {
 		return nil, bad("truncated")
 	}
 	body, trailer := raw[:len(raw)-sha256.Size], raw[len(raw)-sha256.Size:]
@@ -251,6 +507,17 @@ func DecodeWriterCheckpoint(raw []byte) (*WriterCheckpoint, error) {
 		return nil, bad("profile differs")
 	}
 	rest := body[len(writerMagic):]
+	if baseRaw == nil {
+		return nil, bad("base absent")
+	}
+	if sum := sha256.Sum256(baseRaw); !bytes.Equal(sum[:], rest[:sha256.Size]) {
+		return nil, bad("base differs from the one the delta binds")
+	}
+	rest = rest[sha256.Size:]
+	b, err := decodeBase(baseRaw)
+	if err != nil {
+		return nil, err
+	}
 	n := binary.BigEndian.Uint64(rest)
 	rest = rest[8:]
 	if n > MaxCheckpointBytes || n > uint64(len(rest)) {
@@ -260,18 +527,19 @@ func DecodeWriterCheckpoint(raw []byte) (*WriterCheckpoint, error) {
 	if err != nil {
 		return nil, err
 	}
+	seq := cp.Seq.Uint64()
+	if b.seq > seq {
+		return nil, bad("base is past the delta")
+	}
 	rest = rest[n:]
-	if len(rest) < 7*8 {
-		return nil, bad("truncated aggregates")
+	if uint64(len(rest)) < 7*8+writerIntentFields*8+8*uint64(len(cp.Entries)) {
+		return nil, bad("truncated aggregates or sizes")
 	}
 	v := make([]uint64, 7)
 	for i := range v {
 		v[i] = binary.BigEndian.Uint64(rest[i*8:])
 	}
 	rest = rest[7*8:]
-	if uint64(len(rest)) < writerIntentFields*8+8*uint64(len(cp.Entries)) {
-		return nil, bad("truncated intent aggregate or sizes")
-	}
 	iv := make([]uint64, writerIntentFields)
 	for i := range iv {
 		iv[i] = binary.BigEndian.Uint64(rest[i*8:])
@@ -281,12 +549,28 @@ func DecodeWriterCheckpoint(raw []byte) (*WriterCheckpoint, error) {
 		return nil, bad("intent aggregate bounds")
 	}
 	sizes := make([]uint64, len(cp.Entries))
-	var tickets, releases, payload uint64
+	tickets, releases, payload := b.intent.tickets, b.intent.releases, b.intent.payload
+	added := 0
 	for i := range sizes {
 		e := cp.Entries[i]
 		sizes[i] = binary.BigEndian.Uint64(rest[i*8:])
 		if bound, err := snapshot.PostBound(e.Path); (e.Sha256 == nil && sizes[i] != 0) || (err == nil && sizes[i] > uint64(bound)) {
 			return nil, bad("entry size")
+		}
+		if e.Seq.Uint64() <= b.seq {
+			return nil, bad("delta entry is not after its base")
+		}
+		// The intent aggregate is the base's live intent records, less the
+		// ones the delta replaces, plus the delta's own (JSG-V0-001).
+		if j := b.search(e.Path); j < 0 {
+			added++
+		} else if b.live(j) && intentRecord(e.Path) {
+			if strings.HasPrefix(e.Path, "intent/tickets/") {
+				tickets--
+			} else {
+				releases--
+			}
+			payload -= b.size(j)
 		}
 		if e.Sha256 != nil && intentRecord(e.Path) {
 			if strings.HasPrefix(e.Path, "intent/tickets/") {
@@ -297,30 +581,38 @@ func DecodeWriterCheckpoint(raw []byte) (*WriterCheckpoint, error) {
 			payload += sizes[i]
 		}
 	}
-	// The intent aggregate is the live intent records the sizes describe
-	// (JSG-V0-001): a count or payload that differs is refused.
 	if tickets != iv[0] || releases != iv[1] || payload != iv[2] {
 		return nil, bad("intent aggregate differs from the entries")
 	}
 	rest = rest[8*len(sizes):]
-	w := &WriterCheckpoint{Checkpoint: *cp, FullSeq: v[0], ReceiptBytes: v[1], Cost: archive.FileSetCost{PayloadBytes: v[3], EntryBytes: v[4], TarBytes: v[5]}}
-	requests, seq := v[6], cp.Seq.Uint64()
+	if b.n+added > maxCheckpointEntries() {
+		return nil, bad("entries exceed the checkpoint bound")
+	}
+	w := &WriterCheckpoint{Checkpoint: *cp, FullSeq: v[0], ReceiptBytes: v[1], Cost: archive.FileSetCost{PayloadBytes: v[3], EntryBytes: v[4], TarBytes: v[5]}, sizes: sizes, base: b, total: b.n + added}
+	w.Intent = IntentAggregate{Tickets: int(iv[0]), Releases: int(iv[1]), Cost: archive.FileSetCost{Files: int(iv[0] + iv[1]), PayloadBytes: iv[2], EntryBytes: iv[3], TarBytes: iv[4]}}
+	if len(rest) < 8 {
+		return nil, bad("truncated request count")
+	}
+	requests := binary.BigEndian.Uint64(rest)
+	rest = rest[8:]
 	if v[2] > math.MaxInt || requests > uint64(wire.MaxArchiveFiles) || uint64(len(rest)) < requests*writerRequestBytes+8+sha256.Size {
 		return nil, bad("request digest count")
 	}
 	w.Cost.Files = int(v[2])
-	w.sizes = sizes
-	w.Intent = IntentAggregate{Tickets: int(iv[0]), Releases: int(iv[1]), Cost: archive.FileSetCost{Files: int(iv[0] + iv[1]), PayloadBytes: iv[2], EntryBytes: iv[3], TarBytes: iv[4]}}
-	if seq > uint64(wire.MaxArchiveFiles) || v[2] != seq+requests {
+	if v[6] != b.requests()+requests || seq > uint64(wire.MaxArchiveFiles) || v[2] != seq+v[6] {
 		return nil, bad("file count differs from receipts plus requests")
 	}
 	if w.FullSeq < 1 || w.FullSeq > seq || w.ReceiptBytes > w.Cost.PayloadBytes {
 		return nil, bad("aggregate bounds")
 	}
 	digests, rest := rest[:requests*writerRequestBytes], rest[requests*writerRequestBytes:]
-	for i := writerRequestBytes; i < len(digests); i += writerRequestBytes {
-		if bytes.Compare(digests[i-writerRequestBytes:i-sha256.Size], digests[i:i+sha256.Size]) >= 0 {
-			return nil, bad("request digests are not strictly ordered")
+	if err := orderedRequests(digests); err != nil {
+		return nil, err
+	}
+	// A request the base holds again in the delta would hide a repeat.
+	for i := 0; i < len(digests); i += writerRequestBytes {
+		if _, ok := b.request(digests[i : i+sha256.Size]); ok {
+			return nil, bad("delta request repeats one the base holds")
 		}
 	}
 	w.requests = append([]byte(nil), digests...)
@@ -332,17 +624,8 @@ func DecodeWriterCheckpoint(raw []byte) (*WriterCheckpoint, error) {
 		return nil, bad("note count")
 	}
 	copy(w.Invalidation[:], rest[notes*writerNoteBytes:])
-	w.notes = make([]writerNote, notes)
-	for i := range w.notes {
-		n := &w.notes[i]
-		n.entry = binary.BigEndian.Uint32(rest[i*writerNoteBytes:])
-		copy(n.digest[:], rest[i*writerNoteBytes+4:(i+1)*writerNoteBytes])
-		if (i > 0 && n.entry <= w.notes[i-1].entry) || n.entry >= uint32(len(cp.Entries)) {
-			return nil, bad("note entries are not strictly ordered checkpoint entries")
-		}
-		if e := cp.Entries[n.entry]; !strings.HasPrefix(e.Path, "intent/tickets/") || e.Sha256 == nil {
-			return nil, bad("note entry is not a live ticket")
-		}
+	if w.notes, err = decodeNotes(rest[:notes*writerNoteBytes], cp.Entries); err != nil {
+		return nil, err
 	}
 	return w, nil
 }
@@ -353,6 +636,11 @@ func DecodeWriterCheckpoint(raw []byte) (*WriterCheckpoint, error) {
 // extends the checkpoint it resumed from by the tail it walked and keeps that
 // FullSeq. Every other observation, and any receipt or request afterimage the
 // audit did not read, returns an error: nothing is derived from inference.
+//
+// A writer audit keeps its checkpoint's base while the head is fewer than
+// WriterBaseTail receipts past it, carrying the tail in the delta; otherwise,
+// and for every complete audit, the result has no base and Encode renders a
+// new one from every entry (JSG-V0-004).
 func (res *Result) WriterCheckpoint(physical map[string]PhysicalFile) (*WriterCheckpoint, error) {
 	if res == nil || res.chain == nil || res.Pending || res.StagingPresent || res.Head == nil || res.LastSeq != res.Head.LastSeq || physical == nil {
 		return nil, errCheckpoint("writer checkpoint", "observation is not a settled audited head")
@@ -361,32 +649,40 @@ func (res *Result) WriterCheckpoint(physical map[string]PhysicalFile) (*WriterCh
 		// A sealed store has no checkpoint route (JRT-V0-005).
 		return nil, errCheckpoint(RetiredPrefixFile, "store carries a retired prefix")
 	}
-	var w *WriterCheckpoint
+	var w, old *WriterCheckpoint
 	from := uint64(1)
 	switch {
 	case (res.Mode == ModeFull || res.Mode == ModePrefix) && res.StructuralConsistency == "CONSISTENT":
 		w = &WriterCheckpoint{FullSeq: res.LastSeq.Uint64()}
 	case res.Mode == ModeWriter && res.StructuralConsistency == ModeWriter && res.writerBase != nil:
-		base := res.writerBase
-		w = &WriterCheckpoint{FullSeq: base.FullSeq, ReceiptBytes: base.ReceiptBytes, Cost: base.Cost}
-		from = base.Seq.Uint64() + 1
+		old = res.writerBase
+		w = &WriterCheckpoint{FullSeq: old.FullSeq, ReceiptBytes: old.ReceiptBytes, Cost: old.Cost}
+		from = old.Seq.Uint64() + 1
 	default:
 		return nil, errCheckpoint("writer checkpoint", "observation is not a complete or writer audit")
 	}
-	w.Checkpoint = res.chainCheckpoint()
-	w.sizes = make([]uint64, len(w.Entries))
-	for i, e := range w.Entries {
-		l := res.chain.canonical[e.Path]
-		if l.bytes < 0 {
-			return nil, errCheckpoint(e.Path, "afterimage size was not walked")
-		}
-		w.sizes[i] = uint64(l.bytes)
-	}
+	keep := old != nil && old.base != nil && res.LastSeq.Uint64()-old.base.seq < WriterBaseTail
+	w.Checkpoint = res.chainHead()
 	var err error
+	if keep {
+		err = w.extendDelta(res, old)
+	} else {
+		err = res.chain.each([]string{"requests/"}, func(p string, l latest) error {
+			if l.bytes < 0 {
+				return errCheckpoint(p, "afterimage size was not walked")
+			}
+			w.Entries = append(w.Entries, CheckpointEntry{Path: p, Seq: l.seq, Sha256: l.digest})
+			w.sizes = append(w.sizes, uint64(l.bytes))
+			return nil
+		})
+	}
+	if err != nil {
+		return nil, err
+	}
 	if w.Intent, err = res.intentAggregate(); err != nil {
 		return nil, err
 	}
-	if err := w.deriveNotes(res); err != nil {
+	if err := w.deriveNotes(res, old, keep); err != nil {
 		return nil, err
 	}
 	for seq := from; seq <= res.LastSeq.Uint64(); seq++ {
@@ -417,10 +713,19 @@ func (res *Result) WriterCheckpoint(physical map[string]PhysicalFile) (*WriterCh
 		}
 		digests = append(digests, append(d, after...))
 	}
-	if res.Mode == ModeWriter {
-		for i := 0; i < len(res.writerBase.requests); i += writerRequestBytes {
-			digests = append(digests, res.writerBase.requests[i:i+writerRequestBytes])
-		}
+	// The tail's requests join the old delta's when the base is kept, and
+	// every request the old checkpoint carried when it is not.
+	var carried []byte
+	switch {
+	case keep:
+		carried = old.requests
+	case old != nil && old.base != nil:
+		carried = mergeRequests(old.base.reqs, old.requests)
+	case old != nil:
+		carried = old.requests
+	}
+	for i := 0; i < len(carried); i += writerRequestBytes {
+		digests = append(digests, carried[i:i+writerRequestBytes])
 	}
 	sort.Slice(digests, func(i, j int) bool { return bytes.Compare(digests[i], digests[j]) < 0 })
 	w.requests = make([]byte, 0, len(digests)*writerRequestBytes)
@@ -428,23 +733,65 @@ func (res *Result) WriterCheckpoint(physical map[string]PhysicalFile) (*WriterCh
 		if i > 0 && bytes.Equal(digests[i-1][:sha256.Size], d[:sha256.Size]) {
 			return nil, errCheckpoint("requests", "request path repeats")
 		}
+		if keep {
+			if _, ok := old.base.request(d[:sha256.Size]); ok {
+				return nil, errCheckpoint("requests", "request path repeats")
+			}
+		}
 		w.requests = append(w.requests, d...)
 	}
 	return w, nil
 }
 
-// deriveNotes records the note reference of every live ticket that carries
-// one at Seq: the reference the audit walked, or, for a ticket a writer
-// audit's tail did not post, the one its base checkpoint carries. A ticket
-// the tail posted must have been walked; anything else is not derived.
-func (w *WriterCheckpoint) deriveNotes(res *Result) error {
+// extendDelta sets w's entries to old's delta with every non-request path
+// the tail posted merged in over it, on old's base.
+func (w *WriterCheckpoint) extendDelta(res *Result, old *WriterCheckpoint) error {
+	tail := make([]string, 0, len(res.chain.canonical))
+	for p := range res.chain.canonical {
+		if !strings.HasPrefix(p, "requests/") {
+			tail = append(tail, p)
+		}
+	}
+	sort.Strings(tail)
+	n := len(old.Entries) + len(tail)
+	w.Entries, w.sizes = make([]CheckpointEntry, 0, n), make([]uint64, 0, n)
+	i, j := 0, 0
+	for i < len(old.Entries) || j < len(tail) {
+		if j == len(tail) || (i < len(old.Entries) && old.Entries[i].Path < tail[j]) {
+			w.Entries, w.sizes = append(w.Entries, old.Entries[i]), append(w.sizes, old.sizes[i])
+			i++
+			continue
+		}
+		p := tail[j]
+		if i < len(old.Entries) && old.Entries[i].Path == p {
+			i++
+		}
+		l := res.chain.canonical[p]
+		if l.bytes < 0 {
+			return errCheckpoint(p, "afterimage size was not walked")
+		}
+		w.Entries, w.sizes = append(w.Entries, CheckpointEntry{Path: p, Seq: l.seq, Sha256: l.digest}), append(w.sizes, uint64(l.bytes))
+		j++
+	}
+	w.base, w.total = old.base, old.base.n
+	for _, e := range w.Entries {
+		if old.base.search(e.Path) < 0 {
+			w.total++
+		}
+	}
+	return nil
+}
+
+// deriveNotes records the note reference of every live ticket in w.Entries
+// that carries one at Seq: the reference the audit walked, or, for a ticket
+// a writer audit's tail did not post, the one its old checkpoint carries. A
+// ticket the tail posted must have been walked; anything else is not
+// derived. On a kept base the base's notes stay there; otherwise every note
+// the old checkpoint carried is a candidate.
+func (w *WriterCheckpoint) deriveNotes(res *Result, old *WriterCheckpoint, keep bool) error {
 	var refs map[string]*ticket.OperatorNoteReference
 	if res.chain.notes != nil {
 		refs = res.chain.notes.refs
-	}
-	base := res.writerBase
-	if res.Mode != ModeWriter {
-		base = nil
 	}
 	candidates := make([]string, 0, len(refs))
 	for p, ref := range refs {
@@ -452,20 +799,25 @@ func (w *WriterCheckpoint) deriveNotes(res *Result) error {
 			candidates = append(candidates, p)
 		}
 	}
-	if base != nil {
-		for _, n := range base.notes {
-			candidates = append(candidates, base.Entries[n.entry].Path)
+	if old != nil {
+		for _, n := range old.notes {
+			candidates = append(candidates, old.Entries[n.entry].Path)
+		}
+		if !keep && old.base != nil {
+			for k := 0; k < len(old.base.notes); k += writerNoteBytes {
+				candidates = append(candidates, old.base.path(int(binary.BigEndian.Uint32(old.base.notes[k:]))))
+			}
 		}
 	}
 	var notes []writerNote
 	for _, p := range candidates {
-		e := sort.Search(len(w.Entries), func(i int) bool { return w.Entries[i].Path >= p })
-		if e == len(w.Entries) || w.Entries[e].Path != p || w.Entries[e].Sha256 == nil || !strings.HasPrefix(p, "intent/tickets/") {
+		e := w.search(p)
+		if e < 0 || w.Entries[e].Sha256 == nil || !strings.HasPrefix(p, "intent/tickets/") {
 			continue
 		}
 		var digest [sha256.Size]byte
-		if base != nil && w.Entries[e].Seq.Uint64() <= base.Seq.Uint64() {
-			d, ok := base.note(p)
+		if old != nil && w.Entries[e].Seq.Uint64() <= old.Seq.Uint64() {
+			d, ok := old.note(p)
 			if !ok {
 				return errCheckpoint(p, "note reference was neither walked nor carried")
 			}
@@ -635,24 +987,33 @@ func (res *Result) LivenessIntent() (IntentSummary, error) {
 	if err != nil {
 		return IntentSummary{}, err
 	}
-	canonical := res.chain.canonical
+	st := res.chain
 	return IntentSummary{IntentAggregate: agg, Has: func(p string) bool {
-		l, ok := canonical[p]
-		return ok && l.digest != nil && intentRecord(p)
+		if !intentRecord(p) {
+			return false
+		}
+		if l, ok := st.canonical[p]; ok {
+			return l.digest != nil
+		}
+		return st.elided.liveIntent(p)
 	}}, nil
 }
 
-// chainCheckpoint is the read checkpoint body for this result's chain.
-func (res *Result) chainCheckpoint() Checkpoint {
-	cp := Checkpoint{QueueID: res.Head.QueueID, PrimaryWorktree: res.Head.PrimaryWorktree, Seq: res.LastSeq, ReceiptSha256: res.LastReceiptSha256, Generation: res.Head.Generation, InitSha256: res.Head.InitSha256, SemanticCoverage: res.SemanticCoverage}
-	for p, l := range res.chain.canonical {
-		if strings.HasPrefix(p, "requests/") {
-			continue
-		}
+// chainHead is the read checkpoint body for this result's chain without
+// its entries.
+func (res *Result) chainHead() Checkpoint {
+	return Checkpoint{QueueID: res.Head.QueueID, PrimaryWorktree: res.Head.PrimaryWorktree, Seq: res.LastSeq, ReceiptSha256: res.LastReceiptSha256, Generation: res.Head.Generation, InitSha256: res.Head.InitSha256, SemanticCoverage: res.SemanticCoverage}
+}
+
+// chainCheckpoint is the read checkpoint body for this result's chain: every
+// latest entry, request paths excluded.
+func (res *Result) chainCheckpoint() (Checkpoint, error) {
+	cp := res.chainHead()
+	err := res.chain.each([]string{"requests/"}, func(p string, l latest) error {
 		cp.Entries = append(cp.Entries, CheckpointEntry{Path: p, Seq: l.seq, Sha256: l.digest})
-	}
-	sort.Slice(cp.Entries, func(i, j int) bool { return cp.Entries[i].Path < cp.Entries[j].Path })
-	return cp
+		return nil
+	})
+	return cp, err
 }
 
 // WriterBase is the checkpoint a ModeWriter result resumed from, or nil.
@@ -914,7 +1275,7 @@ func (r Reader) walkWriter(o *observation, wc *WriterCheckpoint, selected map[st
 	if head.VersionSha256 != wire.Sum([]byte(snapshot.VersionBytes)) {
 		return result, errCheckpoint("head.json", "head version differs")
 	}
-	if from > headSeq || wc.Generation.Uint64() > head.Generation.Uint64() || len(wc.Entries) > maxCheckpointEntries() {
+	if from > headSeq || wc.Generation.Uint64() > head.Generation.Uint64() || wc.count() > maxCheckpointEntries() {
 		return result, errCheckpoint("/seq", "checkpoint is not a prefix of head")
 	}
 	if headSeq-from > MaxWriterTail || headSeq-wc.FullSeq >= WriterFullBound {
@@ -967,10 +1328,9 @@ func (r Reader) walkWriter(o *observation, wc *WriterCheckpoint, selected map[st
 	if len(wc.sizes) != len(wc.Entries) {
 		return result, errCheckpoint("writer checkpoint", "entry sizes absent")
 	}
-	st := &chain{canonical: make(map[string]latest, len(wc.Entries)), prev: &wc.ReceiptSha256, generation: wc.Generation.Uint64(), elided: wc, resumed: from, posted: map[string]bool{}}
-	for i, e := range wc.Entries {
-		st.canonical[e.Path] = latest{seq: e.Seq, digest: e.Sha256, bytes: int64(wc.sizes[i])}
-	}
+	// The walk reads the checkpoint's entries where it uses them, never
+	// copying the inventory (JSG-V0-004).
+	st := &chain{canonical: map[string]latest{}, prev: &wc.ReceiptSha256, generation: wc.Generation.Uint64(), elided: wc, resumed: from, posted: map[string]bool{}, view: true}
 	result.SemanticCoverage = wc.SemanticCoverage
 	result.LastSeq, result.LastReceiptSha256 = wc.Seq, wc.ReceiptSha256
 	for seq := from + 1; seq <= headSeq; seq++ {
@@ -983,38 +1343,47 @@ func (r Reader) walkWriter(o *observation, wc *WriterCheckpoint, selected map[st
 		}
 	}
 	result.StructuralConsistency = ModeWriter
-	for _, p := range sortedPaths(st.canonical) {
-		record := st.canonical[p]
+	var skip []string
+	if r.liveness {
+		// Not observed by a liveness write (JSG-V0-001): the ticket and
+		// release records are passed over without being visited.
+		skip = []string{"intent/releases/", "intent/tickets/"}
+	}
+	err = st.each(skip, func(p string, record latest) error {
 		if strings.HasPrefix(p, "evidence/") || strings.HasPrefix(p, "pinned/") {
 			// Content-addressed: the listed name is the digest.
 			info, present := o.files[p]
 			if present != (record.digest != nil) || (present && !info.Mode().IsRegular()) {
-				return result, errCheckpoint(p, "blob presence differs from latest canonical afterimage")
+				return errCheckpoint(p, "blob presence differs from latest canonical afterimage")
 			}
-			continue
+			return nil
 		}
 		if r.liveness && strings.HasPrefix(p, "intent/") && p != "intent/queue.json" && p != "intent/policy.json" {
 			// Not observed by a liveness write (JSG-V0-001).
-			continue
+			return nil
 		}
 		_, have := result.Records[p]
 		need := !have && r.selects(p, selected)
 		digest, raw, err := r.projected(o, p, need)
 		if err != nil {
-			return result, err
+			return err
 		}
 		if !equalDigest(digest, record.digest) {
-			return result, errCheckpoint(p, "projection differs from latest canonical afterimage")
+			return errCheckpoint(p, "projection differs from latest canonical afterimage")
 		}
 		if need {
 			if len(raw) > lim.selected-st.selectedBytes {
-				return result, errCheckpoint(p, "selected canonical bytes exceed the selection budget")
+				return errCheckpoint(p, "selected canonical bytes exceed the selection budget")
 			}
 			st.selectedBytes += len(raw)
 			result.Records[p] = Record{Seq: record.seq, Sha256: record.digest, Raw: raw}
 		}
+		return nil
+	})
+	if err != nil {
+		return result, err
 	}
-	if err := r.strays(o, st.canonical, true); err != nil {
+	if err := r.strays(o, st.has, true); err != nil {
 		return result, err
 	}
 	result.listing = map[string]ListedFile{}

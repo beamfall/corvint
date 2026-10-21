@@ -46,7 +46,7 @@ is added (invariant 7): every seal runs in the writer whose commit makes it due.
 
 - `JSG-V0-001`: (accepted; decision 0549 R1) A HEARTBEAT or RENEW write MUST NOT list, read, stat-digest or hash any intent ticket or release on the writer route. It reads only `intent/queue.json` and `intent/policy.json`, by name. Its pre-effect recheck binds `head.json`, the primary branch, those two files, `reservations.json`, `pools.json`, `programs.json` and each attempt its plan rewrites to the bytes the model read; a change to any of them declines the route before effects. The authority session still pins the intent directories it may publish into, an O(1) open that lists and reads nothing. CAL-V0-189 keeps the intent-tree binding for every other verb. The liveness model reads no ticket (CAL-V0-233), so no liveness outcome depends on intent; a model access to an elided intent path declines the route.
 - `JSG-V0-002`: (accepted; decision 0549 R2, fork F1) A HEARTBEAT or RENEW result reports `snapshot.intentTreeSha256` as `null`, which the wire schema allows; a lease mutation result's `snapshot` is `null` whole. No liveness result reports an intent digest that the write did not observe. A consumer that needs the intent digest runs an audit.
-- `JSG-V0-003`: (accepted; decision 0549 R3) The writer checkpoint carries the measured manifest encoding size and the per-entry sizes the capacity model needs. A write that changes k manifest entries measures only those k. The complete route and `receipt audit` measure every entry and refuse a checkpoint whose carried size differs from the measured one; the refusal removes the checkpoint as any other writer-checkpoint refusal does (CAL-V0-117).
+- `JSG-V0-003`: (accepted; decision 0549 R3) The writer checkpoint carries the measured manifest encoding size and the per-entry sizes the capacity model needs. A write that changes k manifest entries measures only those k. The complete mutation route, the complete lease route and the scheduled refresh compare every carried entry, size, request afterimage and aggregate with their complete audit and invalidate a checkpoint that differs, as any other writer-checkpoint refusal does (CAL-V0-117); only that audit's own checkpoint may then replace it. `receipt audit` stays read-only and never reads the derived checkpoint.
 - `JSG-V0-004`: (accepted; decision 0549 R4) The writer checkpoint is two derived files: a sealed base, rewritten only when the active set seals (or, before a store is segmented, when the active tail reaches 512 receipts), holding the ticket inventory, the request index of every receipt it covers and the sealed segment digests; and an active delta, bounded by the active set, holding the requests and counts after the base (at most 512 receipts once segmented). The delta binds the base by SHA-256; a delta whose base is absent or differs is unusable and the write declines to the complete route. A write decodes the inventory only for the entries its model reads, and looks a request up in the base without decoding it.
 - `JSG-V0-005`: (accepted; decision 0549 R5) A segmented store keeps receipts F..S in sealed segment files `segments/<first>-<last>.seg`, each holding exactly 512 consecutive receipts, where F is the store's first live receipt (1, or the retired-prefix anchor of JRT-V0) and S−F+1 is a multiple of 512; receipts S+1..head stay in `receipts/`. A segment (profile `taskman-segment/0`) holds, in canonical framing, the exact on-disk bytes of its receipts and of the request afterimages they posted, each with its path. Receipt digests, the hash chain and decision 0538 elision stubs are unchanged by sealing.
 - `JSG-V0-006`: (accepted; decision 0549 R6) The segment manifest `segments/manifest-<S>.json` (profile `taskman-segment-manifest/0`) lists each segment's range, SHA-256, byte size, last receipt SHA-256 and request count. `head.json` of a segmented store has profile `taskman-journal-head/1` and binds the manifest's S and SHA-256; an unsegmented store keeps `taskman-journal-head/0`. A segment, manifest or range that `head.json` does not bind is a stray, and the complete audit refuses it. The manifest is versioned by name so that publishing a new one never replaces the bound one before `head.json` moves.
@@ -79,8 +79,8 @@ is added (invariant 7): every seal runs in the writer whose commit makes it due.
 - A forged segment with a matching forged manifest and `head.json` is the internally consistent
   forgery that CAL-V0-116 already leaves to the per-receipt validators; JSG-V0-012 runs them on
   every complete audit.
-- A checkpoint whose carried capacity differs from the measured one is refused and removed
-  (JSG-V0-003).
+- A checkpoint whose carried capacity differs from the measured one is invalidated and removed;
+  the complete audit that found it may retain its own (JSG-V0-003).
 - A filesystem without change times keeps the listing route for every verb, as today; those hosts
   are outside the targets.
 - A migration on a store with a fault refuses and leaves the store unchanged (JSG-V0-013).
@@ -104,10 +104,12 @@ count is recorded and does not qualify.
 
 ## Compatibility and rollback
 
-The writer checkpoint profile is `taskman-writer-checkpoint/2` from slice S1: it adds the per-entry
-canonical sizes and an intent aggregate (ticket and release counts and payload bytes) that the
-decoder checks against the live intent entries. The file is derived: a reader refuses any other
-profile as unsupported and the write declines to the complete route, which retains a new one.
+The writer checkpoint is `taskman-writer-checkpoint/3` from slice S2 (S1 introduced `/2` with the
+per-entry canonical sizes and the intent aggregate): an active delta that binds the derived base
+`taskman-writer-base/0` by SHA-256. Both files are derived: a reader refuses any other profile, an
+absent base or one that differs, and the write declines to the complete route, which retains a new
+pair. A retired-prefix anchor keeps the frozen `/1` layout, because it is journal state an
+operator retains rather than a derived file.
 An unsegmented store keeps `taskman-journal-head/0` and is audited as before, except that its
 writers list `receipts/` exactly (JSG-V0-007). A segmented store is refused by older binaries
 through the newer head profile. Rollback of a store: `corvint-tasks journal unseal`, which restores
@@ -121,8 +123,8 @@ revert by commit.
 | --- | --- |
 | JSG-V0-001 | S1: `TestJSGV0001_LivenessReadsNoIntentRecords`, `TestJSGV0001_LivenessBindDeclinesMovedInputs` (store); `TestJSGV0001_ElidedIntentMeasureParity` (transaction); `TestCALV0115_WriterCheckpointCodecIsClosed` (journal, profile /2 and intent aggregate); `TestCALV0116_WriterRouteParity` (liveness parity) |
 | JSG-V0-002 | S1: `TestJSGV0002_LivenessResultReportsNoIntentDigest` (cli) |
-| JSG-V0-003 | pending (slice S2) |
-| JSG-V0-004 | pending (slice S2) |
+| JSG-V0-003 | S2: `TestJSGV0003_SummarizedCapacityMeasuresOnlyChangedEntries` (transaction, after 4 and 16 pause cycles, summarized at the first and the last receipt); `TestJSGV0003_CompleteAuditVerifiesCarriedValues` (journal, 11 forgeries); `TestJSGV0003_CompleteRouteVerifiesRetainedCheckpoint` (store, mutation route and refresh); `TestCALV0115_ReceiptAuditIgnoresDerivedCheckpoints` |
+| JSG-V0-004 | S2: `TestCALV0115_WriterCheckpointCodecIsClosed` (delta/base codec, absent, foreign and malformed base); `TestCALV0115_WriterCheckpointFallsBackToCompleteAudit` (base-removed, base-corrupt, base-foreign); `TestJSGV0004_RetiredPrefixAnchorIsFrozen`; segment digests in the base: pending (slice S3) |
 | JSG-V0-005 | pending (slice S3) |
 | JSG-V0-006 | pending (slice S3) |
 | JSG-V0-007 | pending (slice S3) |
@@ -132,4 +134,4 @@ revert by commit.
 | JSG-V0-011 | pending (slice S6) |
 | JSG-V0-012 | pending (slice S4) |
 | JSG-V0-013 | pending (slice S4) |
-| JSG-V0-014 | S1 (no intent read at 70 and 210 tickets, 0 and 30 prior heartbeats): `TestJSGV0001_LivenessReadsNoIntentRecords`; slices S2 to S7 pending |
+| JSG-V0-014 | S1 (no intent read at 70 and 210 tickets, 0 and 30 prior heartbeats): `TestJSGV0001_LivenessReadsNoIntentRecords`; S2 (one capacity measurement count at two history and two inventory sizes): `TestJSGV0003_SummarizedCapacityMeasuresOnlyChangedEntries`; slices S3 to S7 pending |

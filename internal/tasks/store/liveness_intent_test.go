@@ -12,7 +12,6 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
-	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -141,20 +140,13 @@ func TestJSGV0001_LivenessReadsNoIntentRecords(t *testing.T) {
 					}
 				}
 				f.sealIntentRecords(t)
-				before, err := os.ReadFile(journal.WriterCheckpointPath(f.repo.StateDir))
-				if err != nil {
-					t.Fatal(err)
-				}
+				before := writerCheckpointFiles(t, f.repo)
 				for _, run := range []writerRun{f.heartbeat(nil), f.renew(nil)} {
 					if !run.completed() || !run.fast() || run.rep.AttemptID != f.attempt || run.rep.Generation != f.generation {
 						t.Fatalf("liveness with unreadable intent records: %v %v, want a fast commit", run.err, run.stages)
 					}
 				}
-				after, err := os.ReadFile(journal.WriterCheckpointPath(f.repo.StateDir))
-				if err != nil {
-					t.Fatal(err)
-				}
-				if string(after) != string(before) {
+				if after := writerCheckpointFiles(t, f.repo); after != before {
 					t.Fatal("a liveness write below the advance tail rewrote the writer checkpoint")
 				}
 				control := f.lease(nil, transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: f.tickets[1], Holder: "agent-2", LeaseMinutes: "60"})
