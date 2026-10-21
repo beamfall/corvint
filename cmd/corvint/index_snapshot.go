@@ -261,3 +261,29 @@ func legacyLeftPayload(left []contextindex.LegacyEntry) []any {
 // loadSnapshotObserved is the dogfood event's zero-spawn hit against its own bracket's
 // opening observation (proposed LCP-V0-016, V1-0881).
 var loadSnapshotObserved = contextindex.LoadSnapshotObserved
+
+// snapshotMissNoticeKey carries a reader's miss notice through a context
+// whose build sits behind a path shared with a silent caller (the harness).
+type snapshotMissNoticeKey struct{}
+
+type snapshotMissNotice struct {
+	stderr     io.Writer
+	verb, root string
+}
+
+// withSnapshotMissNotice arms noteTimedMissBuild for the CLI `query` verb
+// (IDX-SNAP-V0-104, V1-1640); a context without it stays silent.
+func withSnapshotMissNotice(ctx context.Context, stderr io.Writer, verb, root string) context.Context {
+	return context.WithValue(ctx, snapshotMissNoticeKey{}, snapshotMissNotice{stderr: stderr, verb: verb, root: root})
+}
+
+// timedMissBuild runs a snapshot miss's in-memory build and, when ctx carries
+// a notice, names a successful build at least snapshotMissNoticeAfter long.
+func timedMissBuild(ctx context.Context, build func() (*contextindex.Index, error)) (*contextindex.Index, error) {
+	started := time.Now()
+	index, err := build()
+	if notice, ok := ctx.Value(snapshotMissNoticeKey{}).(snapshotMissNotice); ok && err == nil {
+		noteSnapshotMissBuild(notice.stderr, notice.verb, notice.root, time.Since(started))
+	}
+	return index, err
+}

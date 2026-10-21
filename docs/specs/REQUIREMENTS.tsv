@@ -2232,6 +2232,7 @@ DCG-V0-021	docs/specs/documentation-citation-gate-v0.md	When a file the gate rea
 DCG-V0-040	docs/specs/documentation-citation-gate-v0.md	When a pinned citation's lines no longer hash to its pin, or fall outside the	unrecorded	-
 DCG-V0-042	docs/specs/documentation-citation-gate-v0.md	`scanned_doc()` MUST scan `docs/AUTOMATION.md` and `docs/GLOSSARY.md` as	unrecorded	-
 DCG-V0-041	docs/specs/documentation-citation-gate-v0.md	`script/line-citation-unpinned-inventory.txt`, read from the index, MUST list on	unrecorded	-
+DCG-V0-043	docs/specs/documentation-citation-gate-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-2152). Every	unrecorded	-
 DCP-V1-001	docs/specs/documentation-corpus-v1.md	The explicit manifest, normalized provider and artifact use closed versioned JSO	unrecorded	-
 DCP-V1-002	docs/specs/documentation-corpus-v1.md	Provenance carries builder identity/revision, shared native compiler/schema/tool	unrecorded	-
 DCP-V1-003	docs/specs/documentation-corpus-v1.md	Each literal source/provider scope has a complete immutable Git inventory checke	unrecorded	-
@@ -2994,6 +2995,7 @@ IDX-SNAP-V0-060	docs/specs/index-snapshot-v0.md	accepted under the owner's stand
 IDX-SNAP-V0-061	docs/specs/index-snapshot-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-1732).	unrecorded	-
 IDX-SNAP-V0-102	docs/specs/index-snapshot-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-1640). When	unrecorded	-
 IDX-SNAP-V0-103	docs/specs/index-snapshot-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-1640). The	unrecorded	-
+IDX-SNAP-V0-104	docs/specs/index-snapshot-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-1640). The	unrecorded	-
 JAT-V0-001	docs/specs/java-affected-test-v0.md	A plugin with namespace `java` MUST own exactly the names ending `.java`. Build	unrecorded	-
 JAT-V0-002	docs/specs/java-affected-test-v0.md	One unit MUST be one file, identity `java:<path>`. A file is a test, with `Tests	unrecorded	-
 JAT-V0-003	docs/specs/java-affected-test-v0.md	Imports MUST include the declaring file of each type named by: a single-type imp	unrecorded	-
