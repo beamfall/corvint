@@ -40,7 +40,7 @@ code, the tests, and the execution, and no second party is left to witness any o
 
 The proposition is also already a stated non-goal, three times over: **autonomous code editing** and
 **a new specification language** are both listed at `docs/PRODUCT.md:378-380@27e81383`, and
-`docs/specs/live-proof-carrying-verification-v0.md:577-578@38b12d34` forbids "generating tests, weakening
+`docs/specs/live-proof-carrying-verification-v0.md:683-684@38b12d34` forbids "generating tests, weakening
 assertions, rewriting product code … auto-fixing failures, merging, deploying, or publishing".
 
 One apparent counterexample is not one: `internal/liveverify/gorunner/` really does run `go test`.

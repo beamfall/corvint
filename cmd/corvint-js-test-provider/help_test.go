@@ -53,8 +53,8 @@ func TestProviderHelpPrintsEverySubcommandUsage(t *testing.T) {
 			t.Fatalf("%s exited %d: %s", arg, code, stderr)
 		}
 		for _, want := range []string{
-			"unit ", "e2e ", "qualify-keep-reporters ", "negate ",
-			"Usage of unit:", "Usage of e2e:", "Usage of negate:",
+			"unit ", "bun ", "e2e ", "qualify-keep-reporters ", "negate ",
+			"Usage of unit:", "Usage of bun:", "Usage of e2e:", "Usage of negate:", "-preload", "-max-concurrency",
 			"-external-server", "-retain", "-keep-reporters-qualification", "-all-steps", "-runner-version",
 			".corvint/test-evidence", "discover-playwright", "witness-playwright",
 		} {
@@ -171,5 +171,20 @@ func TestSubcommandHelpPrintsUsage(t *testing.T) {
 	}
 	if !isHelpRequest([]string{"--root", "x", "-h"}) || isHelpRequest([]string{"--", "-h"}) || isHelpRequest(nil) {
 		t.Fatal("help detection must stop at --")
+	}
+}
+
+// LPCV-V0-258: a bun refusal exits 3 before running anything, with the typed refusal document on
+// stdout and one stderr line naming its closed code.
+func TestProviderBunRefusalExitsAdmissionRefused(t *testing.T) {
+	dir := t.TempDir()
+	lockb := dir + "/bun.lockb"
+	if err := os.WriteFile(lockb, []byte{0}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr := runProviderMain(t, "bun", "--dir", dir, "--lockfile", lockb, "--test-file", dir+"/a.test.ts")
+	if code != 3 || !strings.HasPrefix(stderr, "refusal: bun-lockfile-unqualified") ||
+		!strings.HasPrefix(stdout, `{"schema":"corvint-bun-test-refusal/0","code":"bun-lockfile-unqualified"`) {
+		t.Fatalf("bun refusal exited %d: stdout %q stderr %q", code, stdout, stderr)
 	}
 }
