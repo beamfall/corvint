@@ -856,6 +856,31 @@ the gate skips 7,099 bodies (was 3,893) with identical extracted imports for eve
 `corvint index` user CPU fell from 6.6 to 7.0 s to 5.8 to 6.0 s
 (`docs/build-log/2026-10-21-lane-ctx-1021-context-index-impact.md`).
 
+### Accepted (2026-10-21, V1-2237, owner's standing auto-accept 2026-10-11): mapped snapshot decode
+
+Human intent: the hook path decoded the 170 to 180 MB gob snapshot through read(2) in 270 to 390 ms;
+the profile put about 22% in read syscalls and 17% in the trailer SHA-256, both serial with the
+decode. The on-disk format stays unchanged (invariant 7), so no format gate applies; the edit to analyzer
+inputs still bumps the schema to `corvint-analyzer/138` under IDX-SNAP-V0-060.
+
+- `IDX-SNAP-V0-105`: accepted under the owner's standing auto-accept (2026-10-11) (V1-2237). On a
+  host where the snapshot file maps read-only, the default gob snapshot decode reads it through
+  that mapping and hashes the payload for the IDX-SNAP-V0-003 trailer check on a second goroutine
+  while the header and value decode, joining both before the mapping is released. It reads the
+  same bytes and makes the same header, value and trailer checks, so every hit returns the value
+  the read(2) decode returns and every mismatch is the same miss; no decoded value aliases the
+  mapping. A memory fault while reading the mapping, such as a file truncated under it, is an
+  error and so the IDX-SNAP-V0-003 miss, never a crash. A file that does not map takes the read(2)
+  decode unchanged.
+
+Failure modes: the remaining decode cost is gob's own message buffering and string copies, which
+only a format change removes (left to the pack/sectioned formats and their gate). Rollback: delete
+the `mapReadOnly` branch in `decodeSnapshotValue` and `snapshot_decode.go`.
+
+Traceability: `TestMappedSnapshotDecodeMatchesStreamedDecode`, `TestMappedSnapshotDecodeFaultIsAMiss`
+and the existing `TestSnapshotSameLengthBodyOverwriteIsAMiss`; measured in
+`docs/build-log/2026-10-21-index-perf-1021i-hot-read-paths.md`.
+
 ## Non-goals and authority
 
 Accepted, decision 0517 (V1-1128): the adapter-only writer/lock exception in
@@ -1074,3 +1099,4 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-037 (standing auto-accept, V1-0328) | `BuildForSnapshot`, `snapshotReuseEnabled`, `loadReusePrior`, `priorFacts`, `takeUnchanged`, `attach`, `buildReusedVocabulary`, `mergeReusedPostings` | `TestSnapshotReuseMatchesColdBuild`, `TestSnapshotReuseRefusesUnverifiedPrior`, `TestSnapshotReuseRefusesRowsBoundToOtherBlobs`, `TestSnapshotReuseRecomputesIdentGraphForUnchangedReferrers`, `TestMergeReusedPostingsEqualsFullInversion`, `TestColdAndIncrementalSnapshotsAreByteIdentical` |
 | IDX-SNAP-V0-102 (standing auto-accept, V1-1640) | `noteSnapshotMissBuild`, `snapshotMissNoticeAfter`, `compileTaskContext` | `TestSnapshotMissNoticeNamesTheBuild` |
 | IDX-SNAP-V0-103 (standing auto-accept, V1-1640) | `mayHoldGenericImport`, `skipGenericImportSpaces`, `sourceImports` | `TestGenericImportPrefilterLosesNoMatch`, `FuzzGenericImportPrefilter` |
+| IDX-SNAP-V0-105 (standing auto-accept, V1-2237) | `decodeSnapshotValue`, `decodeMappedSnapshotValue`, `guardMappedRead` | `TestMappedSnapshotDecodeMatchesStreamedDecode`, `TestMappedSnapshotDecodeFaultIsAMiss` |
