@@ -40,6 +40,16 @@ type ExportResult struct {
 	Bytes    uint64 // sum of files-entry payload bytes; excludes manifest and tar framing
 }
 
+// failureOnly keeps only the partial Snapshot of a result on the error path,
+// so a cleanup failure never hands back a manifest while a probe failure still
+// reports the head it saw.
+func failureOnly(r *ExportResult) *ExportResult {
+	if r == nil || r.Snapshot == nil {
+		return nil
+	}
+	return &ExportResult{Snapshot: r.Snapshot}
+}
+
 func resolveReal(p string) (string, error) {
 	abs, err := filepath.Abs(p)
 	if err != nil {
@@ -163,7 +173,7 @@ func Export(opts ExportOptions) (result *ExportResult, retErr error) {
 	defer func() {
 		retErr = stagingCleanup(retErr, staging.Close())
 		if retErr != nil {
-			result = nil
+			result = failureOnly(result)
 		}
 	}()
 	var staged *os.File
@@ -178,7 +188,7 @@ func Export(opts ExportOptions) (result *ExportResult, retErr error) {
 	defer func() {
 		retErr = stagingCleanup(retErr, cleanup())
 		if retErr != nil {
-			result = nil
+			result = failureOnly(result)
 		}
 	}()
 	var manifest *Manifest
