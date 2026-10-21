@@ -50,3 +50,7 @@ resolved, say so and report the affected plan without `--base`.
 3. Report the selected tests with their witnesses, the excluded summary, the review advice and
    branch-overlap hints, and every unknown verbatim. List the tests the user may choose to run. Do
    not run them.
+
+For other Corvint capabilities, `corvint help` lists every command, and the catalog at
+https://github.com/beamfall/corvint/blob/main/docs/CAPABILITIES.md gives each command, binary and
+MCP tool with its maturity and refusals.

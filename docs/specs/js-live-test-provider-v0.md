@@ -156,7 +156,7 @@ The per-test projection also sets one claim reason, outside `infrastructure.reas
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `flaky-retry` | `internal/jstestprovider/projection.go:199@55c5da26` | the outcome state is `flaky`; the claim keeps association `ASSOCIATED`, hygiene `ELIGIBLE` and report state `PASSED`, and this is its only reason |
+| `flaky-retry` | `internal/jstestprovider/projection.go:199@55c5da26` | `flakyOutcome` (`internal/jstestprovider/projection.go:172-178@1c64ad13`) is true: the outcome state is `flaky`, or the recorded attempt statuses diverge under the shared TCQ-V0-049 rule, whatever the outcome's own state is among `passed`, `failed`, `skipped` and `flaky`; the claim keeps association `ASSOCIATED` and hygiene `ELIGIBLE`, takes the report state of the outcome state (`PASSED` for `passed` and `flaky`, so a flaky outcome reports `PASSED`), and this is its only reason |
 
 ## 4. Non-goals
 

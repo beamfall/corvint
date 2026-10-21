@@ -216,7 +216,7 @@ following evidence supports the prototype, not stable acceptance or automatic ti
 | TRE-V0-011..012 | `sql/sql.go`, `pgtap.go`, `sqllogictest.go`; `TestNativeMatrix`, `TestTAPRefusals`, `TestSQLiteRefusals`, `TestFixedInvocations`, `TestClosedConnection` | `sql/review.json` PASS; ten actual shared-executor receipts, native format provenance and disposable cluster cleanup retained |
 | TRE-V0-015 | `execute_unix.go`; `TestExecuteExplicitPrimaryTestWithoutArguments` (pinned `pwd` with no argv; implicit, ambiguous, BUILD, DISCOVER, DECODE, auxiliary and implicit-primary-name refusals) | `cmocka-independent-review-r2/REVIEW.json` PASS_BOUNDED (F4); root decision `e4de2129…e161` ACCEPTED_WITH_CONDITIONS |
 | TRE-V0-016..017 | `native/cmocka.go`; `TestCMockaActualDualFormatWitnesses`, `TestCMockaBoundaryContradictions`, `TestCMockaClosedBuild`, `TestCMockaRegistryDispatchAndTargetBoundary`, `TestCMockaPlanBindsTargetAndFixedEnvironment`, opt-in `TestCMockaNativeReceiptReadback` | Nine actual macOS arm64 CMocka 2.0.2 receipts in `cmocka-profile-proposal-r1/proof`; review PASS_BOUNDED; fresh requalification on the integration base NOT_RUN |
-| TRE-V0-018..020 | `native/ginkgo.go`; `TestGinkgoNativeProjectionStates`, `TestGinkgoReportCountAndBound`, `TestGinkgoParserRefusals`, `TestGinkgoStrictJSON`, `TestGinkgoBeforeSuiteSkipShape`, `TestGinkgoOrderedFollowOnFailure`, `TestGinkgoClosedBuild`, `TestGinkgoFocusBound`, `TestGinkgoRegistryDispatchAndTargetBoundary`, `TestGinkgoPlanBindsTargetAndFixedArgv` | Synthetic source-derived reports only; Ginkgo v2.33.0 read pins in `native/testdata/ginkgo-provenance.json`; actual runtime qualification NOT_RUN |
+| TRE-V0-018..020 | `native/ginkgo.go`; `TestGinkgoNativeProjectionStates`, `TestGinkgoReportCountAndBound`, `TestGinkgoParserRefusals`, `TestGinkgoStrictJSON`, `TestGinkgoBeforeSuiteSkipShape`, `TestGinkgoOrderedFollowOnFailure`, `TestGinkgoClosedBuild`, `TestGinkgoFocusBound`, `TestGinkgoRegistryDispatchAndTargetBoundary`, `TestGinkgoPlanBindsTargetAndFixedArgv` | Synthetic source-derived reports; Ginkgo v2.33.0 read pins in `native/testdata/ginkgo-provenance.json`; live runtime qualification: 10 actual witnesses on the 2026-10-17 host tuple (2026-10-17, see "Ginkgo v2 live qualification"), other tuples NOT_RUN |
 | TRE-V0-036..039 | `native/boosttest.go`; `TestBoostTestRecordedJUnitWitnesses`, `TestBoostTestBoundaryContradictions`, `TestBoostTestClosedBuild`, `TestBoostTestRegistryDispatch`, opt-in `TestBoostTestLiveExecution` | Actual Boost 1.92.0 (archive SHA-256 verified) JUnit reports from Apple clang 21.0.0 on macOS arm64 in `native/testdata/boosttest-provenance.json`; live shared-executor run PASS on 2026-10-08; other compilers, platforms and library variants NOT_RUN |
 
 Review and live manifests above are under `/private/tmp/cem10-build` for this build; their exact
@@ -506,17 +506,17 @@ the caller-pinned executable digest and strict schema parsing; a
 `debug/buildinfo` module-sum check is NOT_IMPLEMENTED because the verified module
 sum is NOT_OBSERVED.
 
-Acceptance evidence is unit-level only: `TestGinkgoNativeProjectionStates`,
+Acceptance evidence is unit-level plus the 2026-10-17 live qualification: `TestGinkgoNativeProjectionStates`,
 `TestGinkgoReportCountAndBound`, `TestGinkgoParserRefusals`,
 `TestGinkgoStrictJSON`, `TestGinkgoBeforeSuiteSkipShape` (source-derived model of
 the BeforeSuite skip case), `TestGinkgoOrderedFollowOnFailure`,
 `TestGinkgoClosedBuild`, `TestGinkgoFocusBound`,
 `TestGinkgoRegistryDispatchAndTargetBoundary` and
 `TestGinkgoPlanBindsTargetAndFixedArgv`. Their reports are synthetic, shaped from
-the pinned source reading. Actual runner-generated qualification (`TRE-V0-009`)
-is NOT_RUN: no Ginkgo binary or `github.com/onsi/ginkgo` module was present
-locally, so every live pass/fail/skip/zero/lifecycle case remains a release
-blocker for this tuple.
+the pinned source reading. Actual runner-generated qualification (`TRE-V0-009`) for the
+darwin/arm64 tuple with Ginkgo 2.33.0 and Gomega 1.40.0 is recorded by 10 corvint-test-runner
+witnesses in "Ginkgo v2 live qualification" below, which supersedes the earlier NOT_RUN
+statement for that tuple (V1-1540). Other tuples remain unqualified release blockers.
 
 Rollback removes the additive `ginkgo-v2` profile, its tests and provenance file.
 No shared executor, other profile, queue, store or frozen wire changes.

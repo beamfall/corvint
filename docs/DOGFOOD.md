@@ -404,7 +404,7 @@ identical inputs and effective policy, and requires byte-identical stdout, stder
 Disagreement fails `verifier-disagreement`. The report records both binary SHA-256 digests and the
 agreement result. Both verifiers build with `-trimpath`, so a digest depends on the source and
 toolchain rather than on the private extraction directory. An explicit `CORVINT_BIN` override is accepted only when its `--version` output
-is `Corvint VERSION (build N)` with `VERSION` matched exactly (decision 0314); during final checking it is an additional verifier that must agree
+is `Corvint VERSION (build N)` with `VERSION` matched exactly (decision 0314); a PATH-only name (`CORVINT_BIN=corvint`) is resolved to its absolute path before it is passed as the verifier, and an unresolvable name refuses `corvint-bin-unresolved` (V1-0685); during final checking it is an additional verifier that must agree
 and whose digest is also recorded. `corvint dogfood finish` runs its final check in-process with the
 running binary in both verifier roles, so its two digests are equal and prove no base independence
 (`LCP-V0-014`).

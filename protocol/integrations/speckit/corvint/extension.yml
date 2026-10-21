@@ -6,7 +6,7 @@ schema_version: "1.0"
 extension:
   id: corvint
   name: "Corvint context and review"
-  version: "0.1.0"
+  version: "0.1.1"
   description: "Read-only Corvint context before /speckit.implement and Corvint review after it"
   author: "Beamfall"
   repository: https://github.com/beamfall/corvint

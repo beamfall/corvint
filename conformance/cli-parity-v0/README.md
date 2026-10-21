@@ -103,8 +103,9 @@ cleanup-evidence divergence still fails. Replay marks these cases
 
 A case may declare `knownDivergence` only for an adjudicated `python-defect` whose observable is
 bounded process output rather than a repository mutation: the candidate satisfies ratified spec
-text that the retired oracle contradicted, so its frozen expectation differs (`GPK-V0-033`). Nine
-case declarations are admitted across eight distinct divergence classes. This inventory is by class
+text that the retired oracle contradicted, so its frozen expectation differs (`GPK-V0-033`).
+Sixteen case declarations are admitted across thirteen distinct divergence classes (a test,
+`TestREADMEKnownDivergenceCountsMatchManifest`, pins both numbers to the manifest). This inventory is by class
 (the divergence-register entry), and each class names its manifest case count and case IDs:
 
 - `DR-0007` / `CF-V0-031` (1 case: `impact-self-authored-adr`) — three stdout rewrites for the
@@ -130,6 +131,15 @@ case declarations are admitted across eight distinct divergence classes. This in
   ranks one of two admitted results out.
 - `DR-0035` / `GPK-V0-044` (1 case: `query-repository-trace-matching`) — two stdout rewrites that add
   the trace-recording commit to the changed-path and opened-path learned-evidence reasons.
+- `DR-0039` / `CEM-SM-001` (1 case: `cem-mark-invalid-reason`) — one stderr rewrite: both sides
+  refuse `nope`, but the candidate's choice list enumerates the nine reasons cem/0.3 admits where
+  the frozen oracle expectation lists five.
+- `DR-0040` / `TCQ-V0-051` (1 case: `cem-invalid-subcommand`) — one stderr rewrite: both sides
+  refuse `bogus`, but the candidate's action list enumerates twelve actions where the frozen oracle
+  expectation lists seven.
+- `DR-0041` / `CCF-V1-004` (2 cases: `cem-begin-unreadable-patch` and `cem-unreadable-map`) — one
+  stderr rewrite per case that adds the stable `patch-unavailable` or `map-unavailable` code member
+  to an otherwise identical refusal.
 - `DR-0042` / `GPK-V0-075` (2 cases: `impact-python-module` and `impact-python-nomodule`) — two
   stdout rewrites per case that name `tests/test_engine.py`, the importing test carrying the
   `feature:a-first` and `scenario:z-last` markers, where the oracle says the changed path carries them.
