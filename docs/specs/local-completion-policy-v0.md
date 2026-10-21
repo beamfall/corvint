@@ -9,7 +9,7 @@ Authoritative inputs: `docs/DOGFOOD.md`, `docs/decisions/0009-harness-authority-
 ## Agent digest
 - Claim: Explicitly enrolled changes require selected checks, bound evidence and inspected reports before local completion; no execution attestation.
 - Status: accepted direction (owner selected decision 0009 option 2 in the 2026-09-06 Codex dogfood repair task); LCP-V0-008/009 Pi tuple accepted (decision 0452; V1-0506)/implemented
-- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is accepted by decision 0465 (V1-1012). `LCP-V0-018` (plan intent refusals name the rule) is accepted by decision 0472 (V1-1043). `LCP-V0-019` proposes reuse of immutable facts inside one enrolled event while re-reading private inputs and cleanliness (V1-1124; accepted, decision 0508). `LCP-V0-033` (snapshot read overlapping the opening status read) is accepted under the owner's lane auto-acceptance (V1-1524, V1-2144). `LCP-V0-034` (named prompt-bounds refusal code) is accepted under the same auto-acceptance (V1-1976).
+- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is accepted by decision 0465 (V1-1012). `LCP-V0-018` (plan intent refusals name the rule) is accepted by decision 0472 (V1-1043). `LCP-V0-019` proposes reuse of immutable facts inside one enrolled event while re-reading private inputs and cleanliness (V1-1124; accepted, decision 0508). `LCP-V0-033` (snapshot read overlapping the opening status read) is accepted under the owner's lane auto-acceptance (V1-1524, V1-2144). `LCP-V0-034` (named prompt-bounds refusal code) is accepted under the same auto-acceptance (V1-1976). `LCP-V0-036` (base-ancestry probes refuse a grafted or shallow checkout with `ancestry-rewritten`) is accepted under the same auto-acceptance (V1-1757).
 - Blocked on: current-change canonical verification, report acknowledgment, strict outcome qualification and installed-hook validation, recorded separately; complete host-version matrix NOT_RUN.
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
 
@@ -399,6 +399,17 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   `invalid-dogfood-context`. Non-goals: raising the 32-anchor profile or ranking anchors by
   relevance. Failure modes: a long prompt whose most useful anchors sort late loses them; the
   counts say so. Rollback: restore the `failBounds` call in `addAnchors` and drop the two fields.
+- `LCP-V0-036`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1757) Every base-ancestry
+  probe in `LCP-V0-002` (`begin`, evaluate, `finish` and the aggregate finish paths) MUST first apply
+  the shared ancestry guard (`EEP-V0-028`, `internal/gitancestry`): when the checkout's Git common
+  directory holds `info/grafts`, the checkout is shallow, or that metadata cannot be read, the probe
+  refuses with `ancestry-rewritten` instead of asking `git merge-base --is-ancestor`, whose answer
+  such a checkout rewrites. The guard reads those files from the already-resolved common directory
+  (`gitancestry.RewrittenAt`, which names the same reasons as `gitancestry.Rewritten`) rather than
+  spawning Git, so the `LCP-V0-019` Git-process bound on the Stop path is unchanged. The refusal is a hard error at every site, before any local write, so it
+  consumes no enrollment generation and never reaches `satisfied`; it is not reported as the
+  `base-not-ancestor-of-target` unmet condition, because the checkout made no claim about history.
+  Rollback: drop the guard call in `requireBaseAncestor`.
 
 ## Non-goals and simpler baseline
 
@@ -436,6 +447,7 @@ elsewhere are not repeated.
 | Code | First emitting site | Condition at the cited site |
 |---|---|---|
 | `base-not-ancestor-of-target` | `internal/localcompletion/storage.go` (`requireBaseAncestor`) | Git reports the plan base is not an ancestor of the enrollment-time `HEAD` commit (exit 1, empty stderr) |
+| `ancestry-rewritten` | `internal/localcompletion/storage.go` (`requireBaseAncestor`) | the checkout's Git common directory holds `info/grafts`, the checkout is shallow, or that metadata is unreadable, so the base-ancestry probe is not asked (`LCP-V0-036`) |
 | `base-unavailable` | `internal/localcompletion/lifecycle.go` (`Begin`) | the plan base does not resolve, or resolves to a different object |
 | `cem-bindings-required` | `internal/localcompletion/finish.go` (`prepareBindings`) | the public `cem status` run against the plan base and current target returned an error |
 | `check-executable-unavailable` | `internal/localcompletion/storage.go` (`resolveExecutable`) | `exec.LookPath` cannot resolve a check's executable |
@@ -585,6 +597,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-033 | `snapshotPrefetch` and `dogfoodEvent` in `cmd/corvint/local_completion_event.go`, consumed by `localEventContext`; `gokernel.ProbeRepositoryAroundPrefetching` (`internal/gokernel/repository.go`); `adoptObservation` (cmd, so the analyzer-schema inputs are unchanged) | `TestDogfoodEventPrefetchesTheSnapshotFromTheOpeningIdentity`, `TestSnapshotPrefetchServesOnlyItsOwnTree` and `TestAdoptObservationMatchesTheObservedLoader` (`cmd/corvint/dogfood_event_bracket_test.go`: one identity-only load, answer bytes equal to the sequential read, other-tree and unstarted fallback, adoption equal to `contextindex.LoadSnapshotObserved`'s); `TestProbeAroundPrefetchingOverlapsTheOpeningStatusRead` (`internal/gokernel/repository_around_test.go`: the status reply blocks until prefetch receives the identity, four Git calls, no closing prefetch, none after a failed identity read); `TestDogfoodEventSpawnsOneBracket` still counts four spawns; the A/B timings in `docs/build-log/2026-10-21-hooks-1021-snapshot-prefetch.md` |
 | LCP-V0-034 | `dogfoodReadFailureCode` in `cmd/corvint/local_completion_event.go`; `admittedAdapterRejections` in `internal/observations/observations.go` | `TestV11976PromptContractRefusalHasNamedCode` (`cmd/corvint/worktree_churn_test.go`: bounds, wrapped budget and invalid-context refusals report `dogfood-event-prompt-bounds`, another `contextindex` code stays `dogfood-event-unavailable`); `TestAdapterDegradationAdmitsPromptBounds` (`internal/observations/observations_test.go`); both fail without the change |
 | LCP-V0-035 | `keepAnchors` and `resolution` in `internal/contextindex/local_completion_context.go` | `TestDogfoodPromptLCPV0035KeepsFirstAnchorsInOrder` (`internal/contextindex/local_completion_context_test.go`: 2 paths and 35 identifiers keep 32 anchors and drop 5 identifiers, the packet holds no dropped term, a reversed prompt gives the same packet, 33 paths drop one path); `TestDogfoodPromptEarlyResourceBounds` keeps the 128-candidate refusal |
+| LCP-V0-036 | `requireBaseAncestor` in `internal/localcompletion/storage.go` calling `gitancestry.RewrittenAt`; `TestRewrittenAtMatchesRewrittenWithoutGit_LCPV0036` (`internal/gitancestry`: same reason as the Git-asking guard for plain, shallow and grafted checkouts); `TestEvaluateAgainstChangedBase` still counts four Git calls; `TestAncestryRewrittenCheckoutRefusesBaseProbe` (`internal/localcompletion/lifecycle_test.go`: `info/grafts` and `.git/shallow` fixtures; `begin` refuses with no `state.json`, and after a valid enrollment status and finish refuse with the state bytes unchanged) |
 
 ## Rollout, rollback and remaining gates
 
