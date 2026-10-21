@@ -68,7 +68,7 @@ Scope: the table lists the steps that answer a question about one change against
 which is what a CI job, git hook or team automation asks. Other verbs that help also describes as
 read-only (`init`, `adopt`, `query`, `docs`, `harness`, `lrf` at `cmd/corvint/help.go:357-358@a54374e4`, and the
 experimental `batch`, `depsource`, `necessity`, `surprise`, `answerability`, `kernel` and `reads`
-in the command-maturity list at `cmd/corvint/help.go:1400-1412@e77a32b6`) are not classified here. They need a per-session task, packet or
+in the command-maturity list at `cmd/corvint/help.go:1403-1415@e77a32b6`) are not classified here. They need a per-session task, packet or
 request as input, or they are experimental without a stability promise. This page makes no claim
 about their safety as a triggered step.
 
