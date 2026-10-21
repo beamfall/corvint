@@ -177,6 +177,7 @@ func routedPacket(t *testing.T, index *Index, task, subject string) map[string]a
 // TestTaskContextRoutingIsNotApplicableWithoutAGoverningRow is TCP-V0-047:
 // with no governing instructions there is nothing to route from.
 func TestTaskContextRoutingIsNotApplicableWithoutAGoverningRow(t *testing.T) {
+	t.Parallel()
 	index := routedIndex(t, map[string]string{
 		"go.mod":           "module example.test/routed\n\ngo 1.27.0\n",
 		"docs/ROUTES.md":   "# Routes\n\nBacklog ledger questions go here.\n",
@@ -196,6 +197,7 @@ func TestTaskContextRoutingIsNotApplicableWithoutAGoverningRow(t *testing.T) {
 // routing candidate, so the next named path takes its place and nothing is
 // withheld.
 func TestTaskContextRoutingSkipsTheSubject(t *testing.T) {
+	t.Parallel()
 	index := routedFixture(t, "# Rules\n\n- Backlog ledger questions: follow `docs/ROUTES.md` and `docs/archive.md`.\n")
 	packet := routedPacket(t, index, routedTask, "docs/ROUTES.md")
 	if routed := routedPaths(t, packet); !slices.Equal(routed, []string{"docs/archive.md"}) {
@@ -211,6 +213,7 @@ func TestTaskContextRoutingSkipsTheSubject(t *testing.T) {
 // whose shared terms carry more summed body idf routes first, whatever its line.
 // `store` is in three sources and `backlog` in one, so the later passage wins.
 func TestTaskContextOrdersRoutingPassagesByIDF(t *testing.T) {
+	t.Parallel()
 	index := routedIndex(t, map[string]string{
 		"go.mod": "module example.test/routed\n\ngo 1.27.0\n",
 		"AGENTS.md": "# Rules\n\n- Ledger store layout: `docs/archive.md`.\n" +
@@ -232,6 +235,7 @@ func TestTaskContextOrdersRoutingPassagesByIDF(t *testing.T) {
 // would admit anyway is reserved as instruction-routed instead, and the packet
 // carries it once.
 func TestTaskContextRoutingPromotesAnExistingRow(t *testing.T) {
+	t.Parallel()
 	files := func(instructions string) map[string]string {
 		return map[string]string{
 			"go.mod":         "module example.test/routed\n\ngo 1.27.0\n",
@@ -259,6 +263,7 @@ func TestTaskContextRoutingPromotesAnExistingRow(t *testing.T) {
 // TCP-V0-016: an unsupported conjunction withdraws slot rows but keeps the
 // reserved ones, routed rows included.
 func TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld(t *testing.T) {
+	t.Parallel()
 	index := routedFixture(t, "# Rules\n\n- Backlog ledger questions: follow `docs/ROUTES.md`.\n")
 	packet := routedPacket(t, index, routedTask+" with `absentOne` and `absentTwo`", "")
 	answer := contextCoverage(t, packet)["answerability"].(map[string]any)
@@ -282,6 +287,7 @@ func TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld(t *testing.T) {
 // TCP-V0-016: the verdict withdraws no reservation, so a routed row the result
 // limit cut is omitted by the limit, and only the ordinary hits are withheld.
 func TestTaskContextStatesAReservationTheLimitCutAsOmitted(t *testing.T) {
+	t.Parallel()
 	index := routedIndex(t, map[string]string{
 		"go.mod":           "module example.test/routed\n\ngo 1.27.0\n",
 		"AGENTS.md":        "# Rules\n\n- Backlog ledger questions: follow `docs/ROUTES.md`.\n",
@@ -313,6 +319,7 @@ func TestTaskContextStatesAReservationTheLimitCutAsOmitted(t *testing.T) {
 // is in most sources, so a passage sharing it and one rarer task term shares
 // one qualifying term and routes nothing.
 func TestTaskContextRoutingIgnoresCommonTerms(t *testing.T) {
+	t.Parallel()
 	index := routedFixture(t, "# Rules\n\n- Ledger note: follow `docs/STYLE.md`.\n")
 	packet := routedPacket(t, index, "change the ledger note format", "")
 	if routed := routedPaths(t, packet); len(routed) != 0 {
@@ -324,6 +331,7 @@ func TestTaskContextRoutingIgnoresCommonTerms(t *testing.T) {
 // literal text, so a path backticked inside a fence routes nothing, even after
 // a blank line inside the fence.
 func TestTaskContextRoutingSkipsFencedCodeBlocks(t *testing.T) {
+	t.Parallel()
 	index := routedFixture(t, "# Rules\n\nBacklog ledger commands:\n"+
 		"```sh\ncat `docs/ROUTES.md`\n\nbacklog ledger `docs/archive.md`\n```\n\n"+
 		"- Backlog ledger questions: `docs/history.md`.\n")
@@ -338,6 +346,7 @@ func TestTaskContextRoutingSkipsFencedCodeBlocks(t *testing.T) {
 // a block, so a nested fence of the other kind or a shorter one stays literal
 // text and the prose after the real close still routes.
 func TestTaskContextRoutingClosesFencesAsCommonMark(t *testing.T) {
+	t.Parallel()
 	for name, block := range map[string]string{
 		"other character": "~~~md\n```sh\nbacklog ledger `docs/archive.md`\n~~~\n",
 		"shorter fence":   "````\n```\nbacklog ledger `docs/archive.md`\n```\n````\n",
@@ -356,6 +365,7 @@ func TestTaskContextRoutingClosesFencesAsCommonMark(t *testing.T) {
 // document frequency; it must not count at the highest idf, and the parts
 // most sources hold fall below the floor.
 func TestTaskContextRoutingSkipsCompoundsTheTableSplits(t *testing.T) {
+	t.Parallel()
 	index := routedFixture(t, "# Rules\n\n- noteRecord and noteKept: follow `docs/STYLE.md`.\n")
 	packet := routedPacket(t, index, "change noteRecord and noteKept", "")
 	if routed := routedPaths(t, packet); len(routed) != 0 {

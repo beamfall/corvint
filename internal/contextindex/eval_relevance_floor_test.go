@@ -28,6 +28,7 @@ func evalFloorQuery(t *testing.T, index *Index, text string) (string, int, strin
 // repository cannot answer is withdrawn even though ranking produced results
 // for it, and a task it can answer is untouched.
 func TestEvalQueryRelevanceFloor(t *testing.T) {
+	t.Parallel()
 	index, err := Build(context.Background(), evalQueryRepository(t))
 	if err != nil {
 		t.Fatal(err)
@@ -212,6 +213,7 @@ func TestEvalQueryRelevanceFloorPrecedesPacketBudget(t *testing.T) {
 // packet is compiled from the confident symbols instead of being withdrawn.
 // Without that symbol the same query is still withdrawn.
 func TestEvalQueryUnsupportedRecordsYieldToSupportedSymbols(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
 	testGit(t, root, "config", "user.email", "corvint@example.test")
@@ -307,6 +309,7 @@ func TestEvalQueryLimitOmittingCompetingRecordNeedsWidening(t *testing.T) {
 // and the packet is READY. A record at least as wide as every symbol keeps
 // precedence.
 func TestEvalQueryPrecedenceFollowsSupport(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
 	testGit(t, root, "config", "user.email", "corvint@example.test")
@@ -358,6 +361,7 @@ func TestEvalQueryPrecedenceFollowsSupport(t *testing.T) {
 // packet stands on a two-word decision at limit 10, despite five feature records
 // matching just "plugin". Both multi-term code symbols must precede them.
 func TestEvalQueryWiderSymbolsAtLimitTen(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
 	testGit(t, root, "config", "user.email", "corvint@example.test")

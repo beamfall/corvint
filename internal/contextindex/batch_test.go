@@ -302,6 +302,7 @@ func TestInvalidatedSortsByKindIDPath_SBQ010f(t *testing.T) {
 }
 
 func TestPossessionSkippedTreeRoundTrip_SBQ008(t *testing.T) {
+	t.Parallel()
 	root := testRepository(t)
 	writeTestFile(t, root, ".gitignore", ".corvint/\n")
 	writeTestFile(t, root, "script/run", "#!/bin/sh\nexit 0\n")

@@ -60,6 +60,7 @@ func rubySpecMarkerReceipt(t *testing.T, request func(*Index) (map[string]any, e
 // a7ad984c9 (before the Ruby test-path rule), even when an RSpec path shares
 // their feature marker. The golden holds the base commit's canonical bytes.
 func TestRubySpecPathNonRubyRequestBaseBytes(t *testing.T) {
+	t.Parallel()
 	out := map[string]any{}
 	for name, request := range rubySpecMarkerRequests() {
 		out[name] = rubySpecMarkerReceipt(t, request)

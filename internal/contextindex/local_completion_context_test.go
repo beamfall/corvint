@@ -169,6 +169,7 @@ func TestDogfoodPromptCriticalBudgetAndImpossibleEnvelope(t *testing.T) {
 }
 
 func TestDogfoodPromptUnavailableGovernanceAnchorAndDirtyEvidence(t *testing.T) {
+	t.Parallel()
 	t.Run("LCP-V0-010 anchor", func(t *testing.T) {
 		index := localPromptFixture(t)
 		delete(index.Sources, "AGENTS.md")
@@ -373,6 +374,7 @@ func TestDogfoodPromptMentionAnchors(t *testing.T) {
 }
 
 func TestDogfoodPromptMentionIdentityAndRefusals(t *testing.T) {
+	t.Parallel()
 	t.Run("LCP-V0-013 mention", func(t *testing.T) {
 		index := localMentionFixture(t)
 		packet := localPrompt(t, index, "inspect pkg/packet.go:4-6", nil, 20, 8000)

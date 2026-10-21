@@ -11,6 +11,7 @@ import (
 // ones included: the set reads satisfied only when every anchor's evidence is
 // in a selected span's own pinned lines, and every other anchor is named.
 func TestContextSufficiency(t *testing.T) {
+	t.Parallel()
 	t.Run("TCP-V0-028", func(t *testing.T) {
 		files := map[string]string{"assets/logo.png": "\x89PNG\x00\x00\x00\x01binary"}
 		for path, content := range spanFixtureFiles {
