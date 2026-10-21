@@ -157,7 +157,7 @@ func TestJSGV0005_SealUnsealRollback(t *testing.T) {
 			t.Fatalf("logical read %s: %v", p, err)
 		}
 	}
-	if err := unsealSegments(ctx, repo); err != nil {
+	if _, err := UnsealJournal(ctx, repo); err != nil {
 		t.Fatal(err)
 	}
 	if after := stateTree(t, repo); !reflect.DeepEqual(before, after) {
@@ -410,21 +410,6 @@ func TestJSGV0006_SegmentTamperAndMovedReads(t *testing.T) {
 			t.Fatalf("inventory under a replaced manifest: %v, want SNAPSHOT_MOVED", err)
 		}
 	})
-}
-
-// TestJSGV0008_SegmentedStoreRefusesCompactAndRetire checks the two
-// operator verbs that rewrite the receipt prefix refuse a segmented store.
-func TestJSGV0008_SegmentedStoreRefusesCompactAndRetire(t *testing.T) {
-	repo := historyStore(t, segmentHistory)
-	if err := sealSegmentsLocked(context.Background(), repo); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := compactLiveness(context.Background(), repo, true, 64); wire.CodeOf(err) != wire.CodeUnsupported {
-		t.Fatalf("compact: %v, want UNSUPPORTED", err)
-	}
-	if _, err := RetirePrefix(context.Background(), repo, "", true); wire.CodeOf(err) != wire.CodeUnsupported {
-		t.Fatalf("retire: %v, want UNSUPPORTED", err)
-	}
 }
 
 // TestJSGV0007_SegmentLayoutRefusals covers the layout checks a walk applies

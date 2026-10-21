@@ -45,7 +45,9 @@ var compactStage = func(string) {}
 // Each tombstone is proven to restore to the original bytes before it is
 // published by rename. A tombstone and its original are interchangeable to
 // this binary, so an interrupted run leaves a valid journal and a rerun
-// continues. The closing complete audit proves the result.
+// continues. The closing complete audit proves the result. On a segmented
+// store the sealed receipts 1..S are read through the segment view and stay
+// whole; only active receipts are rewritten (JSG-V0-012).
 func CompactLiveness(ctx context.Context, repo *intent.Repository, dryRun bool) (*CompactReport, error) {
 	return compactLiveness(ctx, repo, dryRun, snapshot.MaxElidedRun)
 }
@@ -60,6 +62,9 @@ func compactLiveness(ctx context.Context, repo *intent.Repository, dryRun bool, 
 		return nil, err
 	}
 	defer lock.Close()
+	if err := settleSegmentSeal(repo); err != nil {
+		return nil, err
+	}
 	if on, err := sealed(repo); err != nil || on {
 		if err == nil {
 			err = wire.Errorf(wire.CodeUnsupported, journal.RetiredPrefixFile, "compaction is refused on a store with a retired prefix (JRT-V0-010)")
@@ -69,9 +74,6 @@ func compactLiveness(ctx context.Context, repo *intent.Repository, dryRun bool, 
 	head, err := readHead(repo)
 	if err != nil {
 		return nil, err
-	}
-	if head.Segments != nil {
-		return nil, wire.Errorf(wire.CodeUnsupported, snapshot.SegmentsDir, "compaction is refused on a segmented journal (JSG-V0-008)")
 	}
 	if err := compactAudit(repo, head); err != nil {
 		return nil, err
@@ -91,8 +93,17 @@ func compactLiveness(ctx context.Context, repo *intent.Repository, dryRun bool, 
 	var saved int64
 	files := newReceiptFiles(repo)
 	defer files.close(true)
+	// Sealed receipts 1..S are read once each through the segment view and
+	// stay whole: a segment's bytes are bound by digest (JSG-V0-012).
+	sealedThrough := through(head)
+	logical := journal.Logical(journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.IntentRoot()})
 	for seq := uint64(1); seq <= report.HeadSeq; seq++ {
-		raw, err := files.read(seq)
+		var raw []byte
+		if seq <= sealedThrough {
+			raw, err = logical.Read(receiptPath(seq), wire.MaxReceiptFileBytes)
+		} else {
+			raw, err = files.read(seq)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -135,7 +146,7 @@ func compactLiveness(ctx context.Context, repo *intent.Repository, dryRun bool, 
 			continue
 		}
 		ok := false
-		if path != "" {
+		if path != "" && seq > sealedThrough {
 			var tombstone []byte
 			if tombstone, ok, err = snapshot.ElideLiveness(original, base); err != nil {
 				return nil, err

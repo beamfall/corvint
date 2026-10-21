@@ -77,7 +77,7 @@ type Env struct {
 var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
 	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket export",
-	"queue status", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "reconcile inspect", "reconcile intent",
+	"queue status", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "journal seal", "journal unseal", "reconcile inspect", "reconcile intent",
 	"init", "pause", "unpause", "policy show", "policy update", "import", "cutover",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
 	"ticket set-gates", "ticket set-effects", "ticket hold", "ticket release-hold", "ticket reopen",
@@ -337,6 +337,15 @@ func Run(env Env) int {
 			return emit(env.Stdout, notRun([]string{"receipt", args[1]}))
 		}
 		return emit(env.Stdout, usage([]string{"receipt"}, "unknown receipt verb"))
+	case "journal":
+		if len(args) < 2 {
+			return emit(env.Stdout, usage([]string{"journal"}, "journal needs a verb: seal, unseal"))
+		}
+		switch args[1] {
+		case "seal", "unseal":
+			return emit(env.Stdout, journalSeal(env, args[1], args[2:]))
+		}
+		return emit(env.Stdout, usage([]string{"journal"}, "unknown journal verb"))
 	case "archive":
 		if len(args) < 2 {
 			return emit(env.Stdout, usage([]string{"archive"}, "archive needs a verb: export [--staging DIR], verify [FILE]"))

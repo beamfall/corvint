@@ -344,7 +344,28 @@ func settleSegmentSeal(repo *intent.Repository) error {
 	default:
 		return wire.Errorf(wire.CodeJournalForked, snapshot.SealMarkerPath, "the head is neither the seal's prior nor its next head")
 	}
-	return removeSealMarker(repo)
+	if err := removeSealMarker(repo); err != nil {
+		return err
+	}
+	return dropEmptySegments(repo)
+}
+
+// dropEmptySegments removes segments/ once the head binds no segment, so a
+// settled first seal rolled back, or a last segment unsealed, leaves the
+// unsegmented tree exactly. Anything left in it refuses as it refuses a
+// reader.
+func dropEmptySegments(repo *intent.Repository) error {
+	head, err := readHead(repo)
+	if err != nil || head.Segments != nil {
+		return err
+	}
+	if err := os.Remove(segmentPath(repo, snapshot.SegmentsDir)); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return wire.Errorf(wire.CodeJournalForked, snapshot.SegmentsDir, "segments/ is not empty under a head that binds no segment: %v", err)
+	}
+	return syncState(repo)
 }
 
 func removeSealMarker(repo *intent.Repository) error {
@@ -354,20 +375,124 @@ func removeSealMarker(repo *intent.Repository) error {
 	return syncDir(repo, snapshot.SegmentsDir)
 }
 
-// unsealSegments restores every sealed receipt and request afterimage to
-// its physical path and publishes the head without a segment binding, then
-// removes segments/: the rollback of a seal (JSG-V0-005). It takes the
-// writer lock.
-func unsealSegments(ctx context.Context, repo *intent.Repository) error {
+// JournalSealReport is what `journal seal` and `journal unseal` did: the
+// sealed prefix S before and after, and the bound segment count after.
+type JournalSealReport struct {
+	HeadSeq       uint64
+	ThroughBefore uint64
+	ThroughAfter  uint64
+	SegmentsAfter int
+}
+
+// SealJournal is `journal seal` (JSG-V0-013): under the writer lock and after
+// a complete settled audit it converts an unsegmented store and seals every
+// whole 512-receipt range the trigger admits. A fault the audit or a seal's
+// input checks find refuses before that seal writes anything; each segment
+// is its own marker-guarded transaction, so a stop leaves whole segments
+// bound and the next writer settles the one in flight.
+func SealJournal(ctx context.Context, repo *intent.Repository) (*JournalSealReport, error) {
+	return journalMigrate(ctx, repo, true)
+}
+
+// UnsealJournal is `journal unseal` (JSG-V0-013, the rollback of JSG-V0-005):
+// under the writer lock and after a complete settled audit it unseals the
+// last segment at a time until the head is a taskman-journal-head/0 again,
+// then removes the empty segments/ directory. The restored tree is
+// byte-identical to the tree the seal started from.
+func UnsealJournal(ctx context.Context, repo *intent.Repository) (*JournalSealReport, error) {
+	return journalMigrate(ctx, repo, false)
+}
+
+func journalMigrate(ctx context.Context, repo *intent.Repository, seal bool) (*JournalSealReport, error) {
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})
+	if err != nil {
+		return nil, err
+	}
+	defer lock.Close()
+	operation := "JOURNAL_UNSEAL"
+	if seal {
+		operation = "JOURNAL_SEAL"
+	}
+	// The guards settle a stopped seal first and refuse a restore or
+	// retire in progress and a paused store.
+	head, err := writerGuards(repo, operation)
+	if err != nil {
+		return nil, err
+	}
+	if on, err := sealed(repo); err != nil || on {
+		if err == nil {
+			err = wire.Errorf(wire.CodeUnsupported, journal.RetiredPrefixFile, "journal seal and unseal are refused on a store with a retired prefix (JSG-V0-013)")
+		}
+		return nil, err
+	}
+	report := &JournalSealReport{HeadSeq: head.LastSeq.Uint64(), ThroughBefore: through(head)}
+	if !seal && head.Segments == nil {
+		return report, nil
+	}
+	if err := compactAudit(repo, head); err != nil {
+		return nil, err
+	}
+	session, err := authority.NewSession(repo, lock)
+	if err != nil {
+		return nil, err
+	}
+	defer session.Close()
+	invalidateWriterCheckpoint(ctx, repo)
+	if err := os.Remove(journal.CheckpointPath(repo.StateDir)); err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	for {
+		if seal {
+			err = sealSegment(repo, session, true)
+		} else {
+			err = unsealLast(repo, session)
+		}
+		if err != nil {
+			if !errors.Is(err, errSegmentSealStop) {
+				err = errors.Join(err, settleSegmentSeal(repo))
+			}
+			return nil, err
+		}
+		next, err := readHead(repo)
+		if err != nil {
+			return nil, err
+		}
+		if through(next) == through(head) {
+			break
+		}
+		head = next
+	}
+	report.ThroughAfter = through(head)
+	if head.Segments != nil {
+		report.SegmentsAfter = int(through(head) / snapshot.SegmentReceipts)
+		return report, nil
+	}
+	if err := dropEmptySegments(repo); err != nil {
+		return nil, err
+	}
+	return report, nil
+}
+
+func through(head *snapshot.Head) uint64 {
+	if head.Segments == nil {
+		return 0
+	}
+	return head.Segments.Through.Uint64()
+}
+
+// unsealLast is a seal run backwards under the same marker: it restores the
+// last bound segment's receipts and request afterimages to their physical
+// paths, writes the manifest of the segments before it, and publishes the
+// head that binds that manifest (or no segments). The marker names the
+// unsealed head as PriorHead and the current head as NextHead, so
+// settleSegmentSeal rolls a stopped unseal forward once its head is
+// published and back, unlinking the restored files, before that.
+func unsealLast(repo *intent.Repository, session *authority.Session) error {
+	headRaw, err := intent.ReadFile(statePath(repo, "head.json"), wire.MaxJournalHeadBytes)
 	if err != nil {
 		return err
 	}
-	defer lock.Close()
-	if err := settleSegmentSeal(repo); err != nil {
-		return err
-	}
-	head, err := readHead(repo)
+	head, err := snapshot.DecodeHead(headRaw)
 	if err != nil || head.Segments == nil {
 		return err
 	}
@@ -375,74 +500,123 @@ func unsealSegments(ctx context.Context, repo *intent.Repository) error {
 	if err != nil {
 		return err
 	}
-	session, err := authority.NewSession(repo, lock)
+	e := m.Segments[len(m.Segments)-1]
+	name := snapshot.SegmentName(e.First, e.Last)
+	segRaw, err := intent.ReadFile(segmentPath(repo, name), snapshot.MaxSegmentBytes)
 	if err != nil {
 		return err
 	}
-	defer session.Close()
-	invalidateWriterCheckpoint(ctx, repo)
-	dirs := map[string]bool{"receipts": true}
-	for _, e := range m.Segments {
-		name := snapshot.SegmentName(e.First, e.Last)
-		raw, err := intent.ReadFile(segmentPath(repo, name), snapshot.MaxSegmentBytes)
-		if err != nil {
-			return err
-		}
-		if wire.Sum(raw) != e.Sha256 {
-			return wire.Errorf(wire.CodeJournalForked, name, "segment differs from the digest the manifest binds")
-		}
-		seg, err := snapshot.DecodeSegment(raw, e.First, e.Last)
-		if err != nil {
-			return err
-		}
-		for _, f := range append(seg.Receipts, seg.Requests...) {
-			dir := f.Path[:strings.LastIndexByte(f.Path, '/')]
-			if strings.HasPrefix(dir, "requests/") && !dirs[dir] {
-				if err := os.Mkdir(segmentPath(repo, dir), 0o700); err != nil && !errors.Is(err, fs.ErrExist) {
-					return err
-				}
-				dirs["requests"] = true
-			}
-			dirs[dir] = true
-			if err := writeSynced(sealTemp(repo), f.Raw); err != nil {
-				return err
-			}
-			if err := os.Rename(sealTemp(repo), segmentPath(repo, f.Path)); err != nil {
-				os.Remove(sealTemp(repo))
-				return err
-			}
-		}
+	if wire.Sum(segRaw) != e.Sha256 {
+		return wire.Errorf(wire.CodeJournalForked, name, "segment differs from the digest the manifest binds")
 	}
-	if err := syncDirs(repo, dirs); err != nil {
-		return err
-	}
-	headRaw, err := intent.ReadFile(statePath(repo, "head.json"), wire.MaxJournalHeadBytes)
+	seg, err := snapshot.DecodeSegment(segRaw, e.First, e.Last)
 	if err != nil {
 		return err
 	}
 	prior := *head
 	prior.Segments = nil
-	raw := wire.EncodeFile(prior.Value())
-	if _, err := snapshot.DecodeHead(raw); err != nil {
+	var manifestRaw []byte
+	if len(m.Segments) > 1 {
+		pm := &snapshot.SegmentManifest{QueueID: head.QueueID, Through: e.First - 1, Segments: m.Segments[:len(m.Segments)-1]}
+		manifestRaw = wire.EncodeFile(pm.Value())
+		if _, err := snapshot.DecodeSegmentManifest(manifestRaw, 1); err != nil {
+			return err
+		}
+		prior.Segments = &snapshot.SegmentBinding{Through: wire.SizeOf(e.First - 1), ManifestSha256: wire.Sum(manifestRaw)}
+	}
+	priorRaw := wire.EncodeFile(prior.Value())
+	if _, err := snapshot.DecodeHead(priorRaw); err != nil {
 		return err
 	}
-	stage, err := session.Prepare(authority.Slot("a00"), authority.RoleHead, raw)
+	marker := snapshot.EncodeSealMarker(snapshot.SealMarker{First: e.First, Last: e.Last, SegmentSha256: e.Sha256, PriorHead: wire.Sum(priorRaw), NextHead: wire.Sum(headRaw)})
+	if err := writeExclusive(segmentPath(repo, snapshot.SealMarkerPath), marker); err != nil {
+		return err
+	}
+	if err := syncDir(repo, snapshot.SegmentsDir); err != nil {
+		return err
+	}
+	if err := segmentSealStage("marker"); err != nil {
+		return err
+	}
+	dirs := map[string]bool{"receipts": true, snapshot.SegmentsDir: true}
+	for _, f := range append(append([]snapshot.SegmentFile(nil), seg.Receipts...), seg.Requests...) {
+		dir := f.Path[:strings.LastIndexByte(f.Path, '/')]
+		if strings.HasPrefix(dir, "requests/") && !dirs[dir] {
+			if err := os.Mkdir(segmentPath(repo, dir), 0o700); err != nil && !errors.Is(err, fs.ErrExist) {
+				return err
+			}
+			dirs["requests"] = true
+		}
+		dirs[dir] = true
+		// A sealed file is never linked under the head that binds it; one
+		// that is must hold exactly its sealed bytes.
+		got, err := intent.ReadFile(segmentPath(repo, f.Path), len(f.Raw)+1)
+		if err == nil {
+			if string(got) != string(f.Raw) {
+				return wire.Errorf(wire.CodeJournalForked, f.Path, "a sealed file still linked differs from its sealed bytes")
+			}
+			continue
+		}
+		if !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+		if err := writeSynced(sealTemp(repo), f.Raw); err != nil {
+			return err
+		}
+		if err := os.Rename(sealTemp(repo), segmentPath(repo, f.Path)); err != nil {
+			os.Remove(sealTemp(repo))
+			return err
+		}
+	}
+	if manifestRaw != nil {
+		if err := writeSynced(sealTemp(repo), manifestRaw); err != nil {
+			return err
+		}
+		if err := os.Rename(sealTemp(repo), segmentPath(repo, snapshot.SegmentManifestName(e.First-1))); err != nil {
+			os.Remove(sealTemp(repo))
+			return err
+		}
+	}
+	if err := syncDirs(repo, dirs); err != nil {
+		return err
+	}
+	if err := segmentSealStage("segment"); err != nil {
+		return err
+	}
+	current, err := currentDigest(repo, "head.json")
 	if err != nil {
 		return err
 	}
-	current := wire.Sum(headRaw)
-	if err := session.Replace(stage, authority.Target{Role: authority.RoleHead, Name: "head.json"}, &current); err != nil {
+	if current == nil || *current != wire.Sum(headRaw) {
+		return wire.Errorf(wire.CodeSnapshotMoved, "head.json", "head changed during the unseal")
+	}
+	stage, err := session.Prepare(authority.Slot("a00"), authority.RoleHead, priorRaw)
+	if err != nil {
 		return err
 	}
-	if err := os.RemoveAll(segmentPath(repo, snapshot.SegmentsDir)); err != nil {
+	if err := session.Replace(stage, authority.Target{Role: authority.RoleHead, Name: "head.json"}, current); err != nil {
 		return err
 	}
-	return syncState(repo)
+	if err := segmentSealStage("head"); err != nil {
+		return err
+	}
+	for _, n := range []string{name, snapshot.SegmentManifestName(e.Last)} {
+		if err := os.Remove(segmentPath(repo, n)); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	if err := syncDir(repo, snapshot.SegmentsDir); err != nil {
+		return err
+	}
+	if err := segmentSealStage("dropped"); err != nil {
+		return err
+	}
+	return removeSealMarker(repo)
 }
 
 // sealSegmentsLocked seals every whole segment the trigger admits, converting
-// an unsegmented store, for tests and measurement harnesses that build a
-// history first; slice S4's operator seal (JSG-V0-013) wraps it.
+// an unsegmented store, without the opening audit: for tests and measurement
+// harnesses that build a history first. The operator verb is SealJournal.
 func sealSegmentsLocked(ctx context.Context, repo *intent.Repository) error {
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})
 	if err != nil {
