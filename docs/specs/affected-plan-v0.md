@@ -1868,8 +1868,10 @@ and container qualification; full fallback remains available.
   MUST follow the AFP-V0-036 rule: a dirty Go path ending in `_test.go` whose directory is an
   indexed package of the root module selects that package only and MUST NOT widen to its
   importers, whether the file is changed, added or deleted, because Go compiles a test file only
-  into its own package's test binary. Every other Go path, and a test file whose directory is not
-  an indexed package, keeps the widening to importers; rules (b) to (d), the declared read scopes
+  into its own package's test binary. Every other Go path, a test file whose directory is not
+  an indexed package, and a test file in a package whose non-test files carry any `//go:embed`
+  directive (it may embed the test file as production data its importers' tests read) keep the
+  widening to importers; rules (b) to (d), the declared read scopes
   and the plan's own `provider.go.packages` are unchanged, and the GL-V0-009 `-bounds` listing
   follows the same rule. Before this, a one-test-file change in a package selected every
   importer of that package in the fast tier although `corvint affected` did not. Falsifier: a
@@ -2039,7 +2041,7 @@ rather than selecting nothing at `BOUNDED`. A consumer still cannot read closure
 | AFP-V0-151 | `affected.Build(affectedGraphContext(ctx), ...)` in `compileAffectedGraph`; the `unsupported-affected-graph` refusal; AFU-V1-059 walk cancellation | `TestAFPV0151StandaloneAffectedCancellationRefuses` and `TestAFPV0151ReviewFallbackCancellationRefuses` (over the 4,100-file over-cap fixture: cancellation after ten walk visits, at most two further context checks, typed refusal, no plan or review receipt; the review fallback hands its deadline to the build) |
 | AFP-V0-152 | `resolvedEvidence` in `internal/liveverify/affected/readers.go` (`resolves`) and in `internal/gateselect/select.go` (`attribute`, `packageBounds`) | `TestSealedChangeEvidenceReadersAreNarrowed_AFPV0152` (plan: fixture-root holder dropped, relative, deep parent and root-anchored readers still selected; nested and non-CEM paths unnarrowed) and `TestSelectPackagesNarrowsSealedChangeEvidenceReaders` (gate verdict and `-bounds` agree); both fail before the change |
 | AFP-V0-153 | `taskStateOnly` and the `Plan.Scope`/`Plan.NonSource` receipt members in `internal/gateselect/select.go` | `TestSelectPackagesTaskStateOnlyDiffSelectsNothing` (classified task state is `NOTHING`; an unclassified path, an absent `nonSource`, an `UNKNOWN` plan and an out-of-layout path fall back; a package naming `.taskman/queue.json` is still selected) |
-| AFP-V0-154 | the `_test.go` early return in `attributeStructure`, `internal/gateselect/select.go` | `TestSelectPackagesAttributesEveryDirtyPath` (a changed or deleted test file selects only its package; a deleted source still widens to its importers); both test-file cases fail before the change |
+| AFP-V0-154 | the `_test.go` early return in `attributeStructure`, `internal/gateselect/select.go` | `TestSelectPackagesAttributesEveryDirtyPath` (a changed or deleted test file selects only its package; a deleted source still widens to its importers; a test file in an embedding package still selects its importer); both test-file cases fail before the change |
 | AFP-V0-155 | `compactAdviceUnknown` and `affectedPlanUnknownReference` in `cmd/corvint/affected_compact.go` | `TestAFPV0155CompactAdviceDoesNotRepeatPlanUnknown`; `resolveCompactAdvice` resolution against `--full` in `TestAFPV0038CompactAdviceReferencesProviderPackages` and `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan`; the amended `affected-committed-range.json` core-freeze golden |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if

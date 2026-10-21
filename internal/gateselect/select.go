@@ -307,8 +307,11 @@ func (index *repositoryIndex) attributeStructure(dirty string) []attribution {
 			rules = append(rules, attribution{"frontier", []string{directory}})
 			// Go compiles a _test.go file only into its own package's test
 			// binary, so no importer can see it, added, changed or deleted
-			// (AFP-V0-154, the AFP-V0-036 rule; V1-0996).
-			if strings.HasSuffix(dirty, "_test.go") {
+			// (AFP-V0-154, the AFP-V0-036 rule; V1-0996). A package whose
+			// non-test files embed anything may embed the test file as
+			// production data its importers' tests consume, so it keeps the
+			// widening (fail closed: any //go:embed, not a pattern match).
+			if strings.HasSuffix(dirty, "_test.go") && !index.packages[directory].embeds {
 				return rules
 			}
 		}
