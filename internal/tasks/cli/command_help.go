@@ -204,6 +204,12 @@ func fullCommandHelp(cmd []string) *wire.Result {
 	if name == "ticket closeout-debt" {
 		o.Set("note", wire.String("Pure read, no lock and no writes (TCD-V0): OPEN tickets that commits on the integration ref cite by ticket ID or by a linked issue a commit closes, each a candidate with its pending native closeout step, as taskman-closeout-debt/0. --ref defaults to origin/<intentBranch>, else the local intent branch; --limit (default 1000, max 10000) caps the commit scan and a truncated scan is reported. Exit 0 with no candidates, 1 with candidates, 2 on a refusal or error."))
 	}
+	if name == "ticket delivery-screen" {
+		o.Set("note", wire.String("Pure read, no lock and no writes (TCD-V0-159..162): for each named ticket, whether an open PR, a merged PR or a commit on the integration ref already references it as delivered, as taskman-delivery-screen/0. --prs FILE is the output of gh pr list --state all --json number,state,title,body,labels; a PR-body line delivers a ticket only when it starts with Refs, Closes, Fixes, Delivers or Delivered, or says DELIVERED, and does not say not started, skipped, residual, duplicate, blocked, already or not delivered. Verdicts: IN_FLIGHT, DELIVERED, MENTIONED, CLEAR, or NOT_OBSERVED when no --prs export was given and nothing on the ref delivers it. --ref, --since and --limit are those of ticket closeout-debt. It never queries GitHub. Exit 0 when every ticket is CLEAR, 1 otherwise, 2 on a refusal or error."))
+	}
+	if name == "ticket batch-delivered" {
+		o.Set("note", wire.String("Pure read, no lock and no writes (TCD-V0-163..164): the tickets a merged batch PR delivered, each with its lane PR (a #N the batch title or body names), the batch PR, the main merge commit and the ids of successful CI runs at the merge commit or batch head, as taskman-batch-delivered/0, for a closer to feed to gate run --ci-run and complete. --prs FILE is a gh pr list --json number,state,title,body,headRefOid,mergeCommit,labels export holding the batch and its lanes; --runs FILE a gh run list --json databaseId,headSha,conclusion export, else greenRuns is NOT_OBSERVED. Tickets only mentioned are listed apart under mentioned. It completes nothing and never queries GitHub."))
+	}
 	if name == "plan batches" {
 		o.Set("note", wire.String("Pure read, no lock and no store writes (NTP-V0-020..025): groups the latest submitted or ready candidate of each OPEN or HELD ticket by pairwise-disjoint changed paths against its base, apart from --shared-path paths, and confirms every join with a dry chained git merge-tree whose objects go to a throw-away object directory that is removed afterwards, so the repository gains no object and no ref. A conflict splits the candidate into a later group; an unresolvable candidate is reported in ungrouped. --max-group-size defaults to 8 (1..64)."))
 	}
@@ -267,6 +273,8 @@ var commandUsage = map[string]string{
 	"ticket show":             "corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]   (ticket fields such as body and acceptanceCriteria live under record.: --fields record.body,record.acceptanceCriteria; an unknown key is refused naming the valid keys)",
 	"ticket blockers":         "corvint-tasks ticket blockers <ticketId|local>",
 	"ticket closeout-debt":    "corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]",
+	"ticket delivery-screen":  "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE] [--ref REF] [--since REV] [--limit N]",
+	"ticket batch-delivered":  "corvint-tasks ticket batch-delivered --pr N --prs FILE [--runs FILE]",
 	"ticket export":           "corvint-tasks ticket export [--offset N] [--limit N]",
 	"queue status":            "corvint-tasks queue status [--retries] [--summary | --fields KEY[.SUB],...]",
 	"roadmap":                 "corvint-tasks roadmap [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
