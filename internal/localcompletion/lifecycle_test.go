@@ -798,3 +798,59 @@ func TestScreenedCheckLogKeepsFailureLines(t *testing.T) {
 		}
 	})
 }
+
+func TestAncestryRewrittenCheckoutRefusesBaseProbe(t *testing.T) {
+	rewrites := map[string]func(t *testing.T, root string){
+		"grafts": func(t *testing.T, root string) {
+			head := strings.TrimSpace(localGit(t, root, "rev-parse", "HEAD"))
+			if err := os.MkdirAll(filepath.Join(root, ".git/info"), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(root, ".git/info/grafts"), []byte(head+"\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		},
+		"shallow": func(t *testing.T, root string) {
+			head := strings.TrimSpace(localGit(t, root, "rev-parse", "HEAD"))
+			if err := os.WriteFile(filepath.Join(root, ".git/shallow"), []byte(head+"\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		},
+	}
+	for name, rewrite := range rewrites {
+		t.Run("LCP-V0-036 begin refuses "+name, func(t *testing.T) {
+			root, key, plan := fixture(t, []string{"true"})
+			rewrite(t, root)
+			raw, _ := json.Marshal(plan)
+			if _, err := Begin(context.Background(), root, key, raw); err == nil || err.Error() != "ancestry-rewritten" {
+				t.Fatalf("begin: %v, want ancestry-rewritten", err)
+			}
+			if _, err := os.Stat(filepath.Join(root, ".git/corvint/local-completion", key, "state.json")); !os.IsNotExist(err) {
+				t.Fatalf("refused enrollment recorded state.json: %v", err)
+			}
+		})
+		t.Run("LCP-V0-036 status and finish refuse "+name+" after begin", func(t *testing.T) {
+			root, key, plan := fixture(t, []string{"true"})
+			beginFixture(t, root, key, plan)
+			rewrite(t, root)
+			statePath := filepath.Join(root, ".git/corvint/local-completion", key, "state.json")
+			before, err := os.ReadFile(statePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Evaluate(context.Background(), root, key); err == nil || err.Error() != "ancestry-rewritten" {
+				t.Fatalf("status: %v, want ancestry-rewritten", err)
+			}
+			if result, err := Finish(context.Background(), root, key, nil); err == nil || err.Error() != "ancestry-rewritten" || result.Satisfied {
+				t.Fatalf("finish: %#v %v, want ancestry-rewritten", result, err)
+			}
+			after, err := os.ReadFile(statePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(before) != string(after) {
+				t.Fatal("finish wrote local state in a rewritten-ancestry checkout")
+			}
+		})
+	}
+}
