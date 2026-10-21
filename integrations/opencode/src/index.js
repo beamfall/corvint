@@ -27,8 +27,9 @@ const MAX_SESSIONS = 128
 const MAX_ADDITION_BYTES = 8_000
 const MAX_IN_FLIGHT = 16
 // AHI-022: best-effort file-change impact that does not apply to this path or repository is
-// expected, not a fault the user can act on (decision 0379).
-const EXPECTED_FILE_CHANGE_REFUSALS = new Set(["unsupported-impact-path-suffix", "unsupported-impact-repository"])
+// expected, not a fault the user can act on (decision 0379), and neither is a newly created file
+// that is not yet tracked at the indexed revision (V1-0450).
+const EXPECTED_FILE_CHANGE_REFUSALS = new Set(["unsupported-impact-path-suffix", "unsupported-impact-repository", "untracked-impact-path"])
 
 function betaEnabled(options, environment) {
   if (options?.enableBetaContext === true) return true

@@ -367,7 +367,14 @@ func harnessIndexedBlock(index *contextindex.Index, event string, normalized map
 				return nil, err
 			}
 		}
-		return contextindex.EvalImpact(index, paths, harnessContextLimit, &budgetBytes)
+		block, err := contextindex.EvalImpact(index, paths, harnessContextLimit, &budgetBytes)
+		// V1-0450: a newly created file is routinely untracked when a host
+		// reports it, so the refusal carries a structured code an adapter can
+		// classify as expected; the message bytes are unchanged.
+		if contextindex.IsImpactPathsUntracked(err) {
+			return nil, &contextindex.Error{Code: "untracked-impact-path", Message: err.Error()}
+		}
+		return block, err
 	}
 	return nil, &gokernel.Error{Code: "unsupported-harness-event", Message: "unsupported harness event"}
 }
