@@ -21,7 +21,7 @@ func legacyTreeCommit(t *testing.T, dir string, n int) string {
 	gitRun(t, dir, "read-tree", "--empty")
 	gitRunInput(t, dir, index.String(), "update-index", "--index-info")
 	tree := strings.TrimSpace(gitRun(t, dir, "write-tree"))
-	return strings.TrimSpace(gitRun(t, dir, "commit-tree", tree, "-m", fmt.Sprintf("%d entries", n)))
+	return strings.TrimSpace(gitRunInput(t, dir, "", "commit-tree", tree, "-m", fmt.Sprintf("%d entries", n)))
 }
 
 func gitRunInput(t *testing.T, dir, input string, args ...string) string {
