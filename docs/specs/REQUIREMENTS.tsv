@@ -77,6 +77,7 @@ AFP-V0-152	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-153	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2070))	standing	2026-10-11; V1-2070
 AFP-V0-154	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-0996))	standing	2026-10-11; V1-0996
 AFP-V0-155	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1005))	standing	2026-10-11; V1-1005
+AFP-V0-356	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2053))	standing	2026-10-11; V1-2053
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
 AHI-003	docs/specs/agent-harness-integration-v0.md	On session/task start, the adapter MUST resolve repository identity, exact Git	unrecorded	-
@@ -918,7 +919,8 @@ CEM-V1-363	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto
 CEM-V1-364	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0595) A `commo	standing	2026-10-11; V1-0595
 CEM-V1-365	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0595) Configur	standing	2026-10-11; V1-0595
 CEM-V1-366	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0595) A config	standing	2026-10-11; V1-0595
-CEM-V1-367	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0595) The	standing	2026-10-11; V1-0595
+CEM-V1-367	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0595; closed a	standing	2026-10-11; V1-0595
+CEM-V1-568	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2133) When Git	standing	2026-10-11; V1-2133
 CCE-V0-001	docs/specs/change-compiled-e2e-v0.md	`corvint-test e2e catalog [--root PATH] --rev REV` MUST emit one deterministic	unrecorded	-
 CCE-V0-002	docs/specs/change-compiled-e2e-v0.md	`page-object`, `path` and `outcome` blocks MUST come only from the existing AMAP	unrecorded	-
 CCE-V0-003	docs/specs/change-compiled-e2e-v0.md	`input` and `fixture` blocks MUST come only from a repository-declared, tracked	unrecorded	-

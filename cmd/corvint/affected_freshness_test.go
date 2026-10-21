@@ -6,6 +6,7 @@ import (
 	json "encoding/json/v2"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -176,5 +177,62 @@ func TestAffectedPlaywrightFreshness(t *testing.T) {
 	}
 	if raw, _, code := runPlaywrightFreshnessCLI(t, root, discovery); code != 0 || bytes.Contains(raw, []byte(`"warning"`)) {
 		t.Fatalf("worktree-only Playwright form warned: exit=%d %s", code, raw)
+	}
+}
+
+// AFP-V0-356, V1-2053: a path ignored only by the global excludes file
+// (core.excludesFile) is dirty to affected, which runs Git without global
+// configuration. The --require-clean and --path refusals and the --base MIXED
+// warning name that path and state the cause and the fix. It sets
+// GIT_CONFIG_GLOBAL, so it is not parallel.
+func TestAFPV0356MixedNamesGloballyExcludedPath(t *testing.T) {
+	root := affectedFixtureRepository(t)
+	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	appendAffectedLine(t, root, "core/core.go", "// committed edit")
+	affectedGit(t, root, "commit", "-qam", "edit core")
+	head := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	dir := t.TempDir()
+	excludes := filepath.Join(dir, "ignore")
+	global := filepath.Join(dir, "gitconfig")
+	if err := os.WriteFile(excludes, []byte("scratch.log\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(global, []byte("[core]\n\texcludesFile = "+excludes+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", global)
+	if err := os.WriteFile(filepath.Join(root, "scratch.log"), []byte("local\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if status := affectedGit(t, root, "status", "--porcelain"); strings.TrimSpace(status) != "" {
+		t.Fatalf("host Git with the global excludes still reports %q", status)
+	}
+	named := func(text string) bool {
+		return strings.Contains(text, "scratch.log") && strings.Contains(text, "core.excludesFile") &&
+			strings.Contains(text, ".git/info/exclude") && strings.Contains(text, "tracked .gitignore")
+	}
+	for _, form := range [][]string{{"--require-clean"}, {"--path", "core/core.go"}} {
+		_, raw, stderr, code := runAffectedCLI(t, root, form...)
+		if code != 2 || len(raw) != 0 || !strings.Contains(stderr, "unsupported-affected-mixed-worktree") || !strings.Contains(stderr, head) || !named(stderr) {
+			t.Fatalf("%v: exit=%d stdout=%s stderr=%s", form, code, raw, stderr)
+		}
+	}
+	receipt, raw, stderr, code := runAffectedCLI(t, root, "--base", base)
+	if warning, _ := receipt["warning"].(string); code != 0 || !named(warning) {
+		t.Fatalf("--base: exit=%d stderr=%s receipt=%s", code, stderr, raw)
+	}
+}
+
+// TestAFPV0356DirtyDetailIsBounded: AFP-V0-356. The detail names at most
+// affectedDirtyPathsShown sorted paths and counts the rest.
+func TestAFPV0356DirtyDetailIsBounded(t *testing.T) {
+	t.Parallel()
+	paths := []string{}
+	for i := 9; i >= 0; i-- {
+		paths = append(paths, "p"+strconv.Itoa(i)+".log")
+	}
+	got := affectedDirtyDetail(paths)
+	if !strings.HasPrefix(got, `dirty: "p0.log", "p1.log",`) || !strings.Contains(got, `"p7.log" (+2 more)`) || strings.Contains(got, "p8.log") {
+		t.Fatalf("bounded list: %q", got)
 	}
 }
