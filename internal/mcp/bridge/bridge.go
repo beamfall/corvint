@@ -125,6 +125,9 @@ func compileContextWith(ctx context.Context, root string, input contextInput, lo
 	}
 	admitted, err := contextindex.LoadAdmittedSlotWeights(root)
 	if err != nil {
+		// The caller releases only an index it receives, so a refused
+		// slot-weights file must not keep the mapping leased (MCPV0-090).
+		index.Release()
 		return nil, nil, err
 	}
 	packet, err := contextindex.TaskContextWeighted(ctx, index, input.Task, input.Subject, input.Limit, admitted)

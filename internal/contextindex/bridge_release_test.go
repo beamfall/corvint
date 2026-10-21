@@ -3,6 +3,8 @@ package contextindex_test
 import (
 	"bytes"
 	"context"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 
@@ -70,5 +72,51 @@ func TestMCPV0090ContextCallReleasesItsSnapshotMapping(t *testing.T) {
 		if encodeErr != nil || !bytes.Equal(got, want) {
 			t.Fatalf("result %d encodes differently after the mapping was unmapped (%v)", position, encodeErr)
 		}
+	}
+}
+
+// TestMCPV0090RefusedSlotWeightsReleaseTheSnapshotMapping: a malformed or
+// symlinked .context-corvint/slot-weights.json refuses after the mapped
+// snapshot loaded; the refusal must still release that mapping's lease, so
+// evicting the retention ring leaves nothing mapped (MCPV0-090, V1-1004).
+func TestMCPV0090RefusedSlotWeightsReleaseTheSnapshotMapping(t *testing.T) {
+	for _, form := range []string{"malformed", "symlink"} {
+		t.Run(form, func(t *testing.T) {
+			root := contextindex.PackFixtureRootForTest(t)
+			contextindex.ResetSnapshotRetentionForTest()
+			defer contextindex.ResetSnapshotRetentionForTest()
+			base := contextindex.LiveSnapshotMappingsForTest()
+			weights := filepath.Join(root, filepath.FromSlash(contextindex.SlotWeightsPath))
+			if err := os.MkdirAll(filepath.Dir(weights), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if form == "malformed" {
+				if err := os.WriteFile(weights, []byte("{not json"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				target := filepath.Join(t.TempDir(), "weights.json")
+				if err := os.WriteFile(target, []byte("{}"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(target, weights); err != nil {
+					t.Skipf("symlink unsupported: %v", err)
+				}
+			}
+			registry, err := bridge.NewTaskReview(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for range 3 {
+				result, callErr := registry.Call(context.Background(), bridge.ToolContext, []byte(releaseContextArguments))
+				if callErr == nil && result.State == "READY" {
+					t.Fatalf("context call with a %s slot-weights file answered READY: %+v", form, result)
+				}
+			}
+			contextindex.ResetSnapshotRetentionForTest()
+			if live := contextindex.LiveSnapshotMappingsForTest() - base; live != 0 {
+				t.Fatalf("%d mappings stay mapped after %s slot-weights refusals and ring eviction", live, form)
+			}
+		})
 	}
 }
