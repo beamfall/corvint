@@ -77,6 +77,7 @@ AFP-V0-152	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-153	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2070))	standing	2026-10-11; V1-2070
 AFP-V0-154	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-0996))	standing	2026-10-11; V1-0996
 AFP-V0-155	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1005))	standing	2026-10-11; V1-1005
+AFP-V0-316	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2169))	standing	2026-10-11; V1-2169
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
 AHI-003	docs/specs/agent-harness-integration-v0.md	On session/task start, the adapter MUST resolve repository identity, exact Git	unrecorded	-
