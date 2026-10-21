@@ -2,6 +2,7 @@ package contextindex
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"slices"
 	"strconv"
@@ -264,6 +265,51 @@ func TestSharedExhaustedBranchOutranksLaterFind(t *testing.T) {
 	selection := SelectSetup(index, []string{"tests/x.spec.ts"})
 	if selection.Mode != "all" || !slices.Contains(reasonCodes(selection), sharedReexportBound.outcome) {
 		t.Fatalf("mode=%s reasons=%+v, want ALL with %s", selection.Mode, selection.Reasons, sharedReexportBound.outcome)
+	}
+}
+
+// TestSharedLookupBoundAtProductionValue: TSA-V0-460, TSA-V0-461 (V1-1729).
+// The fail-closed case lowers shared-lookup to 2; this one runs the declared
+// 4,096. Each of n modules does `export *` from the other n-1 and none binds
+// SHARED, so every simple path is a lookup whose cycle-marked miss is not
+// cached: 13,700 lookups for 8 modules, 326 for 6, all within the 8-hop
+// re-export bound. Under the bound the answer is the exact "not a constant";
+// past it the answer is unknown, names the bound and is not cached. Removing
+// the bound turns the 8-module answer into "not a constant" and fails.
+func TestSharedLookupBoundAtProductionValue(t *testing.T) {
+	if sharedLookupBound.limit != 4096 {
+		t.Fatalf("shared-lookup limit = %d, want the declared 4096 (TSA-V0-460)", sharedLookupBound.limit)
+	}
+	for _, tc := range []struct {
+		modules int
+		want    sharedKind
+	}{{6, sharedNone}, {8, sharedUnknown}} {
+		files := map[string]string{}
+		for from := range tc.modules {
+			var body strings.Builder
+			for to := range tc.modules {
+				if to != from {
+					fmt.Fprintf(&body, "export * from './m%d';\n", to)
+				}
+			}
+			files[fmt.Sprintf("lib/m%d.ts", from)] = body.String()
+		}
+		root := impactRepositoryWithFiles(t, files)
+		index, err := BuildRevisionContext(context.Background(), root, strings.TrimSpace(testGit(t, root, "rev-parse", "HEAD")))
+		if err != nil {
+			t.Fatal(err)
+		}
+		s := &setupSelector{index: index, resolver: NewWebImportResolver(index), read: map[string]string{}, shared: newSharedState()}
+		got := s.resolveConst("lib/m0.ts", "SHARED")
+		if got.kind != tc.want {
+			t.Fatalf("%d modules: SHARED = %+v after %d lookups, want kind %d", tc.modules, got, s.shared.steps, tc.want)
+		}
+		if tc.want == sharedUnknown && (s.shared.steps != sharedLookupBound.limit+1 || !strings.Contains(got.why, "shared-lookup bound of 4096 lookups")) {
+			t.Fatalf("%d modules: stopped after %d lookups with %q, want the shared-lookup bound at 4097", tc.modules, s.shared.steps, got.why)
+		}
+		if cached, ok := s.shared.resolved[[2]string{"lib/m0.ts", "SHARED"}]; ok {
+			t.Fatalf("%d modules: cached %+v: a cycle- or bound-shaped result is not a permanent answer", tc.modules, cached)
+		}
 	}
 }
 
