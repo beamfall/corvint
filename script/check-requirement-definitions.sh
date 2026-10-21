@@ -105,17 +105,25 @@ my (%defined, %outside);
 for my $file (tracked_spec_docs()) {
     next if $file eq 'docs/specs/README.md';
     my $line_number = 0;
-    my ($fenced, $in_section, $sections) = (0, 0, 0);
+    # A fence is tracked as OCM's fencedLines does (internal/lrfrepo/ocm.go): a run of at least
+    # three backticks or tildes indented at most three spaces opens one (a backtick fence's info
+    # string holds no backtick), and only a run of the same character at least as long, followed
+    # by nothing but spaces or tabs, closes it.
+    my ($fence, $in_section, $sections) = ('', 0, 0);
     my @outside;
     for my $line (index_lines($file)) {
         ++$line_number;
-        if ($line =~ /^ {0,3}(?:```|~~~)/) {
-            $fenced = !$fenced;
-        } elsif (!$fenced && $line =~ /^## Requirements\r?\n?\z/) {
+        my ($run, $rest) = $line =~ /^ {0,3}(`{3,}|~{3,})(.*?)\r?\n?\z/ ? ($1, $2) : ('', '');
+        if ($fence ne '') {
+            $fence = '' if $run ne '' && substr($run, 0, 1) eq substr($fence, 0, 1)
+                && length($run) >= length($fence) && $rest =~ /\A[ \t]*\z/;
+        } elsif ($run ne '' && !($run =~ /^`/ && $rest =~ /`/)) {
+            $fence = $run;
+        } elsif ($line =~ /^## Requirements\r?\n?\z/) {
             ($in_section, $sections) = (1, $sections + 1);
-        } elsif (!$fenced && $line =~ /^##(?: |\r?\n?\z)/) {
+        } elsif ($line =~ /^##(?: |\r?\n?\z)/) {
             $in_section = 0;
-        } elsif (!$fenced && !$in_section
+        } elsif (!$in_section
             && $line =~ /^- (?:`([A-Z][A-Z0-9-]*-[0-9]{3})`: |\*\*([A-Z][A-Z0-9-]*-[0-9]{3})[:.]\*\* )/) {
             push @outside, "$file " . ($1 // $2);
         }

@@ -104,6 +104,29 @@ printf '# Alpha\n\n## Requirements\n\n```text\n## Not a heading\n```\n\n- `ALPHA
     > "$test_root/docs/specs/alpha.md"
 stage
 run > /dev/null || fail "a fenced level-two heading must not end the Requirements section"
+# A four-backtick block holding a three-backtick line stays open until a run of at least four
+# backticks closes it, as OCM's fence reader does: the `## Amendment` and the definition inside it
+# are code, not a heading that ends the section, and a later tilde run does not close it either.
+# shellcheck disable=SC2016
+printf '# Alpha\n\n## Requirements\n\n````markdown\n```\n## Amendment\n~~~~\n- `ALPHA-V0-009`: example.\n````\n\n- `ALPHA-V0-001`: the clause.\n\n- `ALPHA-V0-002`: later.\n' \
+    > "$test_root/docs/specs/alpha.md"
+stage
+out=$(run) || fail "a three-backtick line inside a four-backtick fence ended the fence, got: $out"
+# The same document with a three-backtick fence closes at the inner ``` line, so the heading after
+# it is real and both later definitions sit outside the section.
+# shellcheck disable=SC2016
+printf '# Alpha\n\n## Requirements\n\n```markdown\n```\n## Amendment\n\n- `ALPHA-V0-001`: the clause.\n\n- `ALPHA-V0-002`: later.\n' \
+    > "$test_root/docs/specs/alpha.md"
+stage
+if out=$(run); then fail "a heading after a closed three-backtick fence should end the section"; fi
+case $out in
+    *"docs/specs/alpha.md ALPHA-V0-001"*) ;;
+    *) fail "the definitions after the closed fence should be named, got: $out" ;;
+esac
+# shellcheck disable=SC2016
+printf '# Alpha\n\n## Requirements\n\n- `ALPHA-V0-001`: the clause.\n\n- `ALPHA-V0-002`: later.\n' \
+    > "$test_root/docs/specs/alpha.md"
+stage
 
 rm "$test_root/docs/specs/alpha.md"
 run > /dev/null || fail "a spec deleted from the worktree alone must still be read from the index"

@@ -92,6 +92,10 @@ row-only id or duplicate definition exists in the corpus.
   deleted, by moving the definition into its Requirements section, so a later amendment cannot
   silently fall out of OCM. Lines starting with `#` and blank lines in it are ignored, and an absent
   file is an empty baseline. The baseline does not make a listed definition count for OCM.
+  "Unfenced" MUST mean what the OCM reader's `fencedLines` means: a run of at least three backticks
+  or tildes indented at most three spaces opens a fence (a backtick fence's info string holds no
+  backtick), and only a run of the same character at least as long, followed by nothing but spaces
+  or tabs, closes it (Codex review of the V1-0798 lane).
 
 ## Non-goals and simpler baseline
 
@@ -139,7 +143,7 @@ repair it was written to make mechanically checkable.
 | RDG-V0-006 | the initial status branch exits zero for `git ls-files --error-unmatch` status 1; `script/check-requirement-definitions_test.sh` proves an operational status 128 exits non-zero with a diagnostic |
 | RDG-V0-007 | the script contains no write, and its final statement is `exit($failed)` gated on the failure arrays |
 | RDG-V0-004 (`..` range, V1-1062) | `script/check-requirement-definitions_test.sh`: `ALPHA-V0-001..003 are` prose passes, a real `ALPHA-V0-001.` duplicate fails; the live corpus matches 4948 definition lines under both the old and the new pattern |
-| RDG-V0-021 | `script/check-requirement-definitions_test.sh`: an unlisted outside definition fails, a listed one passes, a stale row fails, a fenced `##` line does not end the section; `TestRDGV0021MovedDefinitionsAreEnumerated` shows OCM enumerates CAL-V0-073, CAL-V0-106 and LTPM-V0-001..016 after the move; baseline of 604 rows across 10 specs at this change |
+| RDG-V0-021 | `script/check-requirement-definitions_test.sh`: an unlisted outside definition fails, a listed one passes, a stale row fails, a fenced `##` line does not end the section, a three-backtick line inside a four-backtick fence does not close it while a closed three-backtick fence does; `TestRDGV0021MovedDefinitionsAreEnumerated` shows OCM enumerates CAL-V0-073, CAL-V0-106 and LTPM-V0-001..016 after the move; baseline of 604 rows across 10 specs at this change |
 
 ## Traceability
 
