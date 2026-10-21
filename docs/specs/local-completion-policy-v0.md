@@ -9,7 +9,7 @@ Authoritative inputs: `docs/DOGFOOD.md`, `docs/decisions/0009-harness-authority-
 ## Agent digest
 - Claim: Explicitly enrolled changes require selected checks, bound evidence and inspected reports before local completion; no execution attestation.
 - Status: accepted direction (owner selected decision 0009 option 2 in the 2026-09-06 Codex dogfood repair task); LCP-V0-008/009 Pi tuple accepted (decision 0452; V1-0506)/implemented
-- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is accepted by decision 0465 (V1-1012). `LCP-V0-018` (plan intent refusals name the rule) is accepted by decision 0472 (V1-1043). `LCP-V0-019` proposes reuse of immutable facts inside one enrolled event while re-reading private inputs and cleanliness (V1-1124; accepted, decision 0508).
+- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is accepted by decision 0465 (V1-1012). `LCP-V0-018` (plan intent refusals name the rule) is accepted by decision 0472 (V1-1043). `LCP-V0-019` proposes reuse of immutable facts inside one enrolled event while re-reading private inputs and cleanliness (V1-1124; accepted, decision 0508). `LCP-V0-033` (snapshot read overlapping the opening status read) is accepted under the owner's lane auto-acceptance (V1-1524, V1-2144).
 - Blocked on: current-change canonical verification, report acknowledgment, strict outcome qualification and installed-hook validation, recorded separately; complete host-version matrix NOT_RUN.
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
 
@@ -360,6 +360,19 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   and the requested argv count and timeout, so a caller can split an over-long run into several
   checks. The message carries no path or command text, and an id that matches the secret screen is
   shown as `[REDACTED]`. Rollback: drop the message detail.
+- `LCP-V0-033`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1524, V1-2144) A dogfood
+  event that reads a context packet (`user-prompt`, `session-start`) MUST start its snapshot read
+  from the opening observation's identity (object format, `HEAD`, tree) as soon as that identity
+  read returns, while the same observation's status read is still running, and MUST then apply the
+  complete opening observation (root, dirty set, status digest, observed `HEAD`) to the hit exactly
+  as `LCP-V0-016`'s loader does. The overlap MUST NOT add a Git process, change the bracket, read a
+  snapshot for any tree other than the opening one, or change the envelope or packet bytes; a
+  prefetch the bracket did not start, or one for another object format or tree, is not used and
+  the event reads the snapshot sequentially. Measured on a 708-tracked/759-untracked dirty
+  worktree at load 31-40, the `pre-compact` adapter median fell from 0.879 s to 0.678 s (100
+  interleaved runs each, no run over the 1.6 s event deadline; build log
+  `2026-10-21-hooks-1021-snapshot-prefetch`). Rollback: call `gokernel.ProbeRepositoryAround`
+  again and drop the prefetch key.
 
 ## Non-goals and simpler baseline
 
@@ -542,6 +555,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-019 | `EvaluateObserved`, `EvaluateAgainst` and drift-only snapshots in `internal/localcompletion/lifecycle.go` and `internal/localcompletion/storage.go`; matched closing observation in `localEventRead` | `TestEnrolledStopSpawnsBoundedGit`, `TestDogfoodEventObservedMismatchFallsBack`, `TestEvaluateAgainstMatchesFullEvaluation`, `TestEvaluateAgainstReReadsPrivateInputs`, `TestEvaluateAgainstDirtyAndDrift`, `TestEvaluateAgainstChangedBase`; trace and same-host measurement record in `docs/build-log/2026-10-10-v1-1124-stop-git-calls.md` |
 | LCP-V0-031 | `screenedLog` and `failedTestNames` in `internal/localcompletion/screened_log.go`, applied in `Verify`; `TestScreenedCheckLogKeepsFailureLines` (screened FAIL line kept with the token redacted and named in `failedTests`; an unscreened failure names its subtests; a passing check names none; truncated and complete PEM and PGP private-key blocks keep only the marker; the over-bound and name bounds); `TestActualVerificationAndSecretRefusal` (no secret persists) |
 | LCP-V0-032 | `CheckBoundError` in `internal/localcompletion/types.go`, raised by `validatePlan`; `emitLocalCompletionFailureDetail` in `cmd/corvint/local_completion.go`; `TestDogfoodBeginCheckBoundNamesTheLimit` (`cmd/corvint/local_completion_test.go`: a 4000 s timeout and 65 argv elements; a secret-shaped check id is shown as `[REDACTED]`) |
+| LCP-V0-033 | `snapshotPrefetch` and `dogfoodEvent` in `cmd/corvint/local_completion_event.go`, consumed by `localEventContext`; `gokernel.ProbeRepositoryAroundPrefetching` (`internal/gokernel/repository.go`); `contextindex.(*Index).AdoptObservation` | `TestDogfoodEventPrefetchesTheSnapshotFromTheOpeningIdentity` and `TestSnapshotPrefetchServesOnlyItsOwnTree` (`cmd/corvint/dogfood_event_bracket_test.go`: one identity-only load, answer bytes equal to the sequential read, other-tree and unstarted fallback); `TestProbeAroundPrefetchingOverlapsTheOpeningStatusRead` (`internal/gokernel/repository_around_test.go`: the status reply blocks until prefetch receives the identity, four Git calls, no closing prefetch, none after a failed identity read); `TestDogfoodEventSpawnsOneBracket` still counts four spawns; the A/B timings in `docs/build-log/2026-10-21-hooks-1021-snapshot-prefetch.md` |
 
 ## Rollout, rollback and remaining gates
 

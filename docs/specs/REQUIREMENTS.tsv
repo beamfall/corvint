@@ -134,6 +134,7 @@ AHI-049	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0477, a
 AHI-050	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0474; V1-0371) The OpenCode and Gemini adapters MUST send	owner	decision 0474; V1-0371
 AHI-051	docs/specs/agent-harness-integration-v0.md	(proposed; V1-1070, V1-1071) The Claude Code plugin MUST present itself with	unrecorded	-
 AHI-052	docs/specs/agent-harness-integration-v0.md	(accepted, decision 0497; V1-1116; amends `AHI-050` for OpenCode only) When	owner	decision 0497; V1-1116
+AHI-058	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1122; amends `	standing	2026-10-11; V1-1122
 AHI-054	docs/specs/agent-harness-integration-v0.md	(accepted, decision 0519 (V1-1157); GitHub #785) The	owner	decision 0519; V1-1157; #785
 IID-V0-001	docs/specs/agent-instruction-doctor-v0.md	The optional diagnostic MUST require explicit host, version, cwd, default	unrecorded	-
 IID-V0-002	docs/specs/agent-instruction-doctor-v0.md	Only exact compiled, source-bound host/version profiles MAY predict loading.	unrecorded	-
@@ -3146,6 +3147,7 @@ LCP-V0-019	docs/specs/local-completion-policy-v0.md	(accepted, decision 0508) An
 LCP-V0-020	docs/specs/local-completion-policy-v0.md	accepted, decision 0510. Every `dogfood status`	unrecorded	-
 LCP-V0-031	docs/specs/local-completion-policy-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1014) When a `verify` check	owner	2026-10-11; V1-1014
 LCP-V0-032	docs/specs/local-completion-policy-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1011) Each plan check takes	owner	2026-10-11; V1-1011
+LCP-V0-033	docs/specs/local-completion-policy-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1524, V1-2144) A dogfood	owner	2026-10-11; V1-1524; V1-2144
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	Every displayed metric and source-derived value MUST derive through the compiled	unrecorded	-
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained	unrecorded	-
 LOD-V0-003	docs/specs/local-observability-dashboard-v0.md	P0 MUST produce byte-identical CLI snapshots for identical frozen inputs and the	unrecorded	-
