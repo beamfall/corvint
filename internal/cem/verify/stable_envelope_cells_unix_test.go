@@ -364,7 +364,23 @@ func envelopeOrigin(f *envelopeFixture) [][2]string {
 	return nil
 }
 
+// envelopeRelativePaths reports whether the host Git offers `git worktree
+// add --relative-paths` (Git 2.48 or later), read from the command's own
+// usage text in repository dir; CEM-V1-185 alone requires only Git 2.41.
+func envelopeRelativePaths(t *testing.T, dir string) bool {
+	t.Helper()
+	command := exec.Command("git", "worktree", "add", "-h")
+	command.Dir = dir
+	command.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=/nonexistent-cem-envelope-home", "GIT_CONFIG_NOSYSTEM=1",
+		"GIT_CONFIG_GLOBAL=" + os.DevNull, "LC_ALL=C"}
+	usage, _ := command.CombinedOutput()
+	return strings.Contains(string(usage), "relative-paths")
+}
+
 func envelopeRelative(f *envelopeFixture) [][2]string {
+	if !envelopeRelativePaths(f.t, f.repo) {
+		f.t.Skipf("NOT_RUN %s: host Git has no `git worktree add --relative-paths` (Git 2.48 or later); relative worktree cells are unavailable on this host (CEM-V1-361)", f.cell.ID)
+	}
 	f.verified, _ = f.worktree("--relative-paths")
 	marker, err := os.ReadFile(filepath.Join(f.verified, ".git"))
 	if err != nil {
@@ -391,37 +407,34 @@ func (f *envelopeFixture) shallow(depth string) [][2]string {
 // repository-object-unavailable, the V1-0349 / CCF-V1-004 partial-clone
 // contract that TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching pins.
 // Both refuse at stage repository with exit 2; only code and verdictSha256
-// differ. The divergence is retained, not resolved (CEM-V1-367): resolving it
-// either way changes an accepted contract, so this table flips only with that
-// decision.
+// differ. The owner kept the sealed packet (CEM-V1-367): follow-up V1-2133
+// makes native answer git-diff-failed in ordinary repositories and keeps
+// repository-object-unavailable only for promisor/partial-clone repositories,
+// and removes these entries when it lands.
 var envelopeNativeDivergence = map[string]string{
 	"missing-target-blob": "repository-object-unavailable",
 	"corrupt-target-blob": "repository-object-unavailable",
 }
 
 // envelopeDivergentExpectation is the cell's expectation with the retained
-// native code; verdictSha256, the digest over that code, is taken from the
-// result, so every other key is still compared exactly.
-func envelopeDivergentExpectation(t *testing.T, c s0eCase, result StableResult, code string) s0eCase {
+// native code. Its verdictSha256 is recomputed by handVerdictDigest over that
+// expectation, never read from the result, so the result's digest is still
+// checked against every other expected key.
+func envelopeDivergentExpectation(t *testing.T, c s0eCase, code string) s0eCase {
 	t.Helper()
 	if packetCode, _ := c.ExpectedResult["code"].(string); packetCode != "git-diff-failed" {
 		t.Fatalf("divergent cell %s: packet code is %q, want git-diff-failed", c.ID, packetCode)
-	}
-	encoded, err := json.Marshal(result)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var got struct {
-		VerdictSha256 string `json:"verdictSha256"`
-	}
-	if err := json.Unmarshal(encoded, &got); err != nil {
-		t.Fatal(err)
 	}
 	expected := make(map[string]any, len(c.ExpectedResult))
 	for key, value := range c.ExpectedResult {
 		expected[key] = value
 	}
-	expected["code"], expected["verdictSha256"] = code, got.VerdictSha256
+	expected["code"] = code
+	encoded, err := json.Marshal(expected)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected["verdictSha256"] = handVerdictDigest(t, encoded)
 	c.ExpectedResult = expected
 	t.Logf("ENVELOPE-CELL %s native code %s retained against packet git-diff-failed (CEM-V1-367)", c.ID, code)
 	return c
@@ -449,7 +462,7 @@ func TestStableCanonicalEnvelopeCellsNative(t *testing.T) {
 			result, exit := f.run()
 			status := "PASS"
 			if code, divergent := envelopeNativeDivergence[c.ID]; divergent {
-				bound, status = envelopeDivergentExpectation(t, bound, result, code), "DIVERGENT"
+				bound, status = envelopeDivergentExpectation(t, bound, code), "DIVERGENT"
 			}
 			if !requireS0EResult(t, bound, result, exit) {
 				status = "FAIL"
@@ -472,83 +485,109 @@ func envelopeCellByID(t *testing.T, cells []envelopeCell, id string) envelopeCel
 
 // envelopeAdversarial is one shape outside the public cells: a recipe over
 // the named cell's fresh fixture and the frozen answer. An empty code means
-// the full result must equal the cell's own expected result.
+// the full result must equal the cell's own expected result. A recipe calls
+// accepted to prove its fixture is the cell's accepted repository before it
+// introduces the one defect under test.
 type envelopeAdversarial struct {
 	id, cell, code string
-	recipe         func(f *envelopeFixture)
+	recipe         func(f *envelopeFixture, accepted func())
+}
+
+// externalAdmin moves the worktree's real administrative directory to dir,
+// outside the common directory, rebases its relative commondir onto the common
+// directory and keeps its absolute back-pointer, so the metadata stays
+// reciprocal; marker is written into the worktree's .git file.
+func (f *envelopeFixture) externalAdmin(dir, marker string) {
+	f.t.Helper()
+	if err := os.MkdirAll(filepath.Dir(dir), 0o755); err != nil {
+		f.t.Fatal(err)
+	}
+	f.rename(filepath.Join(f.git, "worktrees", "wt"), dir)
+	common, err := filepath.Rel(dir, f.git)
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	f.writeFile(filepath.Join(dir, "commondir"), common+"\n", 0o644)
+	f.writeFile(filepath.Join(f.verified, ".git"), "gitdir: "+marker+"\n", 0o644)
 }
 
 var envelopeAdversarialCases = []envelopeAdversarial{
-	// A marker naming an existing outside directory that has no back-pointer.
-	{"gitdir-outside-no-backpointer", "linked-sha1", "repository-object-unavailable", func(f *envelopeFixture) {
+	// An administrative directory outside the common directory, with a
+	// reciprocal back-pointer and a relative commondir: the envelope does not
+	// require root containment, so this is linked-sha1's repository.
+	{"gitdir-outside-reciprocal", "linked-sha1", "", func(f *envelopeFixture, accepted func()) {
 		outside := filepath.Join(f.base, "outside-admin")
-		for _, name := range []string{"HEAD", "commondir"} {
-			data, err := os.ReadFile(filepath.Join(f.git, "worktrees", "wt", name))
-			if err != nil {
-				f.t.Fatal(err)
-			}
-			f.writeFile(filepath.Join(outside, name), string(data), 0o644)
-		}
-		f.writeFile(filepath.Join(f.verified, ".git"), "gitdir: "+outside+"\n", 0o644)
+		f.externalAdmin(outside, outside)
+	}},
+	// The same accepted outside directory with its back-pointer removed.
+	{"gitdir-outside-no-backpointer", "linked-sha1", "repository-object-unavailable", func(f *envelopeFixture, accepted func()) {
+		outside := filepath.Join(f.base, "outside-admin")
+		f.externalAdmin(outside, outside)
+		accepted()
+		f.remove(filepath.Join(outside, "gitdir"))
 	}},
 	// A marker naming another repository's real worktree administrative
 	// directory, whose back-pointer names that other worktree.
-	{"gitdir-outside-foreign-worktree", "linked-sha1", "repository-object-unavailable", func(f *envelopeFixture) {
+	{"gitdir-outside-foreign-worktree", "linked-sha1", "repository-object-unavailable", func(f *envelopeFixture, accepted func()) {
 		other := filepath.Join(f.base, "other")
 		envelopeRepo(f.t, f.packet, other, "sha1", f.cell.Target)
 		envelopeGit(f.t, other, "worktree", "add", "-q", "--detach", filepath.Join(f.base, "other-wt"), f.cell.Target)
 		f.writeFile(filepath.Join(f.verified, ".git"), "gitdir: "+filepath.Join(other, ".git", "worktrees", "other-wt")+"\n", 0o644)
 	}},
-	// A relative marker that climbs out of the worktree to an outside directory.
-	{"gitdir-relative-escape", "linked-sha1", "repository-object-unavailable", func(f *envelopeFixture) {
-		f.writeFile(filepath.Join(f.verified, ".git"), "gitdir: ../../../../../../../../../../../../tmp\n", 0o644)
+	// A relative marker reaching valid, reciprocal outside metadata, first by
+	// its real path (accepted) and then through a symbolic-link ancestor.
+	{"gitdir-relative-symlinked-ancestor", "linked-sha1", "repository-object-unavailable", func(f *envelopeFixture, accepted func()) {
+		f.externalAdmin(filepath.Join(f.base, "real-outside", "admin"), "../real-outside/admin")
+		accepted()
+		f.symlink("real-outside", filepath.Join(f.base, "link"))
+		f.writeFile(filepath.Join(f.verified, ".git"), "gitdir: ../link/admin\n", 0o644)
 	}},
 	// commondir names a symbolic link that resolves to itself.
-	{"commondir-symlink-loop", "linked-sha1", "repository-object-unavailable", func(f *envelopeFixture) {
+	{"commondir-symlink-loop", "linked-sha1", "repository-object-unavailable", func(f *envelopeFixture, accepted func()) {
 		admin := filepath.Join(f.git, "worktrees", "wt")
 		f.symlink("loop", filepath.Join(admin, "loop"))
 		f.writeFile(filepath.Join(admin, "commondir"), "loop\n", 0o644)
 	}},
 	// commondir names a symbolic link to the real common directory.
-	{"commondir-symlink", "linked-sha1", "repository-object-unavailable", func(f *envelopeFixture) {
+	{"commondir-symlink", "linked-sha1", "repository-object-unavailable", func(f *envelopeFixture, accepted func()) {
 		admin := filepath.Join(f.git, "worktrees", "wt")
 		f.symlink(f.git, filepath.Join(admin, "common-link"))
 		f.writeFile(filepath.Join(admin, "commondir"), "common-link\n", 0o644)
 	}},
 	// commondir is itself a symbolic link to a file holding "../..".
-	{"commondir-file-symlink", "linked-sha1", "repository-object-unavailable", func(f *envelopeFixture) {
+	{"commondir-file-symlink", "linked-sha1", "repository-object-unavailable", func(f *envelopeFixture, accepted func()) {
 		admin := filepath.Join(f.git, "worktrees", "wt")
 		f.writeFile(filepath.Join(f.base, "commondir-target"), "../..\n", 0o644)
 		f.remove(filepath.Join(admin, "commondir"))
 		f.symlink(filepath.Join(f.base, "commondir-target"), filepath.Join(admin, "commondir"))
 	}},
 	// A version 1 repository naming an extension this Git does not know.
-	{"unknown-extension-v1", "ordinary-sha1", "git-read-failed", func(f *envelopeFixture) {
+	{"unknown-extension-v1", "ordinary-sha1", "git-read-failed", func(f *envelopeFixture, accepted func()) {
 		f.config([2]string{"core.repositoryformatversion", "1"}, [2]string{"extensions.corvintUnknownExtension", "true"})
 	}},
 	// A version 0 repository naming an unknown extension: Git ignores the
 	// extensions section below version 1, and so does the envelope.
-	{"unknown-extension-v0", "ordinary-sha1", "", func(f *envelopeFixture) {
+	{"unknown-extension-v0", "ordinary-sha1", "", func(f *envelopeFixture, accepted func()) {
 		f.config([2]string{"extensions.corvintUnknownExtension", "true"})
 	}},
 	// A SHA-256 configuration rewritten with [Extensions] before a mixed-case
 	// [CoRe] section and mixed-case keys; Git section and key names are case
 	// insensitive, so it is the same repository.
-	{"sha256-extensions-first-mixed-case", "ordinary-sha256", "", func(f *envelopeFixture) {
+	{"sha256-extensions-first-mixed-case", "ordinary-sha256", "", func(f *envelopeFixture, accepted func()) {
 		f.writeFile(filepath.Join(f.git, "config"), "[Extensions]\n\tObjectFormat = sha256\n[CoRe]\n\tRepositoryFormatVersion = 1\n\tFileMode = true\n\tBare = false\n", 0o644)
 	}},
 	// A SHA-1 object store whose configuration claims SHA-256.
-	{"sha1-store-claims-sha256", "ordinary-sha1", "git-read-failed", func(f *envelopeFixture) {
+	{"sha1-store-claims-sha256", "ordinary-sha1", "git-read-failed", func(f *envelopeFixture, accepted func()) {
 		f.config([2]string{"core.repositoryformatversion", "1"}, [2]string{"extensions.objectFormat", "sha256"})
 	}},
 	// A SHA-256 object store whose configuration drops the extension.
-	{"sha256-store-claims-sha1", "ordinary-sha256", "git-read-failed", func(f *envelopeFixture) {
+	{"sha256-store-claims-sha1", "ordinary-sha256", "git-read-failed", func(f *envelopeFixture, accepted func()) {
 		f.writeFile(filepath.Join(f.git, "config"), "[core]\n\trepositoryformatversion = 0\n\tbare = false\n", 0o644)
 	}},
 }
 
 // TestStableEnvelopeAdversarialShapes freezes the native answer for shapes the
-// public cells do not name (CEM-V1-363..365): every one is either the same
+// public cells do not name (CEM-V1-363..366): every one is either the same
 // repository as a public positive cell or a typed refusal at stage repository.
 func TestStableEnvelopeAdversarialShapes(t *testing.T) {
 	packet := loadS0EPacket(t)
@@ -562,7 +601,13 @@ func TestStableEnvelopeAdversarialShapes(t *testing.T) {
 			if strings.HasPrefix(a.cell, "linked-") {
 				f.verified, _ = f.worktree()
 			}
-			a.recipe(f)
+			a.recipe(f, func() {
+				t.Helper()
+				result, exit := f.run()
+				if !requireS0EResult(t, bound, result, exit) {
+					t.Fatalf("precondition: %s fixture is not %s's accepted repository before the defect", a.id, a.cell)
+				}
+			})
 			result, exit := f.run()
 			code := ""
 			if result.Code != nil {

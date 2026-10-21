@@ -280,6 +280,17 @@ func s0eGit(t *testing.T, dir string, args ...string) string {
 	return string(out)
 }
 
+// s0eRelativePaths reports whether the host Git offers `git worktree add
+// --relative-paths` (Git 2.48 or later), read from the command's own usage
+// text in repository dir; the consumer itself requires only Git 2.41.
+func s0eRelativePaths(dir string) bool {
+	cmd := exec.Command("git", "worktree", "add", "-h")
+	cmd.Dir = dir
+	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=/nonexistent-cem01-home", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "LC_ALL=C"}
+	usage, _ := cmd.CombinedOutput()
+	return strings.Contains(string(usage), "relative-paths")
+}
+
 func s0eWrite(t *testing.T, p string, b []byte, mode os.FileMode) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
@@ -1202,6 +1213,9 @@ func TestStableCanonicalEnvelopeCells(t *testing.T) {
 			case "linked-sha1", "linked-sha256":
 				repo, _ = worktree()
 			case "relative-sha1", "relative-sha256":
+				if !s0eRelativePaths(R) {
+					t.Skipf("NOT_RUN %s: host Git has no `git worktree add --relative-paths` (Git 2.48 or later); relative worktree cells are unavailable on this host", c.ID)
+				}
 				repo, _ = worktree("--relative-paths")
 				b, _ := os.ReadFile(filepath.Join(repo, ".git"))
 				if filepath.IsAbs(strings.TrimSpace(strings.TrimPrefix(string(b), "gitdir: "))) {

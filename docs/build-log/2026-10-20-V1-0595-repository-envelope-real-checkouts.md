@@ -12,8 +12,8 @@ This change adds tests only. No product code, packet byte or wire byte changed.
     `REPOSITORY-ENVELOPE.cells.json` through `verify.Stable`. Each cell is built with real
     `git init` and `git init --object-format=sha256`, with `git worktree add` (absolute and
     `--relative-paths`) where the cell needs it. Every cell is compared on all 23 keys.
-  - `TestStableEnvelopeAdversarialShapes` runs 11 shapes that the cells do not name.
-- `interop/cem01-go/stable_envelope_adversarial_test.go` is the portable twin. It pins the same 11
+  - `TestStableEnvelopeAdversarialShapes` runs 12 shapes that the cells do not name.
+- `interop/cem01-go/stable_envelope_adversarial_test.go` is the portable twin. It pins the same 12
   shapes and codes through the `verify-stable-canonical` CLI.
 
 ## Observed (Darwin arm64, Go 1.27.3, Apple Git 2.54.0)
@@ -23,9 +23,13 @@ This change adds tests only. No product code, packet byte or wire byte changed.
 - `missing-target-blob` and `corrupt-target-blob` diverge, and only in `code` and `verdictSha256`.
   The native verifier answers `repository-object-unavailable`, while the packet and the portable
   consumer answer `git-diff-failed`. This is retained as `CEM-V1-367`.
-- The 11 adversarial shapes get identical answers natively and portably:
-  - An outside `gitdir` refuses with `repository-object-unavailable`. The three variants are no
-    back-pointer, another repository's real worktree admin, and a relative escape.
+- The 12 adversarial shapes get identical answers natively and portably:
+  - An outside administrative directory with a reciprocal back-pointer and a relative `commondir`
+    (`gitdir-outside-reciprocal`) accepts and equals `linked-sha1`.
+  - Three outside `gitdir` shapes refuse with `repository-object-unavailable`. The first is the
+    same accepted directory with its back-pointer removed. The second is another repository's real
+    worktree admin. The third is valid reciprocal metadata reached through a symlinked ancestor. The
+    first and third prove the fixture is accepted before introducing their defect.
   - A symlinked `commondir` refuses with `repository-object-unavailable`. The three variants are a
     self-loop, a link to the real common directory, and a `commondir` file that is itself a link.
   - Three configurations refuse with `git-read-failed`: an unknown extension at version 1, a SHA-1
@@ -35,7 +39,7 @@ This change adds tests only. No product code, packet byte or wire byte changed.
     - an unknown extension at version 0 equals `ordinary-sha1`, because Git ignores it.
 - The portable `TestStableCanonicalEnvelopeCells` still passes all 29 cells.
 
-## Decision: retain the blob divergence, do not resolve it in this lane
+## Decision: retain the blob divergence; owner resolution V1-2133
 
 Two accepted contracts conflict on a changed blob that is missing or corrupt:
 
@@ -50,9 +54,26 @@ and the stable verifier. It made `cmd/corvint`
 `TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching` fail: `cem status` and `cem verify` then
 answered `git-diff-failed` for a `blob:none` clone. I reverted the change.
 
-Choosing which contract yields belongs to the owner. Until that decision, the divergence is pinned
-explicitly so that neither side can drift silently. Both answers are UNSUPPORTED at stage
+On 2026-10-20 the owner decided to keep the sealed packet. Follow-up V1-2133 (P1, v1-0) will make
+the native verifier answer `git-diff-failed` in ordinary repositories, keeping
+`repository-object-unavailable` only for promisor and partial-clone repositories. Until it lands,
+the divergence is pinned explicitly. Its expected digest is recomputed with `handVerdictDigest` over
+the native expectation rather than read back from the result. Both answers are UNSUPPORTED at stage
 `repository` with exit 2, so the divergence fails closed.
+
+## Review round (Codex, one round)
+
+Five findings were fixed in a follow-up commit:
+
+1. `CEM-V1-363` is narrowed to the malformed cases. The positive outside-admin shape was added.
+2. The `..`-to-`/tmp` escape was replaced: valid reciprocal metadata is now reached through an
+   explicit symlinked ancestor.
+3. The no-back-pointer fixture now rebases `commondir` and proves the fixture is accepted first.
+4. `--relative-paths` (Git 2.48+) is probed from the host Git's usage text, in both the native test
+   and the portable test. On a host without it, only the relative cells skip, as `NOT_RUN`.
+   The first probe looked for `--relative-paths`, but the usage text prints `--[no-]relative-paths`,
+   so the probe skipped the cells on a host that has the option. It now matches `relative-paths`.
+5. The divergent digest is no longer compared with itself.
 
 ## Limits
 
