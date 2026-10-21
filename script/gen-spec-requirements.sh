@@ -296,6 +296,10 @@ for my $file (sort @specs) {
     next unless defined $spec->{claim};
     $spec->{claim} =~ /[.?!]\z/ && $spec->{claim} !~ /[.?!]\s/
         or die "$file: the Agent digest Claim must be one sentence ending in . ? or !\n";
+    # SRG-V0-040: the specindex claim bound (1..160 characters), refused here with the path and
+    # length so it fails at the first spec step instead of at spec-requirements-check.
+    length($spec->{claim}) <= 160
+        or die "$file: the Agent digest Claim is " . length($spec->{claim}) . " characters; the limit is 160\n";
 }
 
 sub default_prefix {
