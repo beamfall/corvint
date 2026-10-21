@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 )
@@ -193,7 +192,6 @@ func TestCALV0127_ReloadRemovedRoleKeepsWorkers(t *testing.T) {
 		t.Fatalf("running %d", f.d.Running())
 	}
 	w := f.d.ledger.Workers[0]
-	t.Cleanup(func() { syscall.Kill(w.PID, syscall.SIGKILL) })
 
 	next := cloneConfig(t, c)
 	next.Roles = []Role{{Name: "other", Host: "sh", Cap: 1, Match: &Match{Labels: []string{"never"}}, Prompt: "p", IdleSeconds: 30, WallSeconds: 60}}
@@ -231,8 +229,6 @@ func TestCALV0127_ReloadKeepsLaunchDeadlines(t *testing.T) {
 	if f.d.Running() != 1 {
 		t.Fatalf("running %d", f.d.Running())
 	}
-	w := f.d.ledger.Workers[0]
-	t.Cleanup(func() { syscall.Kill(w.PID, syscall.SIGKILL) })
 
 	next := cloneConfig(t, c)
 	next.Roles[0].WallSeconds, next.Roles[0].IdleSeconds = 60, 30
@@ -259,7 +255,6 @@ func TestCALV0127_ReloadRemovedRoleKeepsDeadlines(t *testing.T) {
 		t.Fatalf("running %d", f.d.Running())
 	}
 	w := f.d.ledger.Workers[0]
-	t.Cleanup(func() { syscall.Kill(w.PID, syscall.SIGKILL) })
 
 	next := cloneConfig(t, c)
 	next.Roles = []Role{{Name: "other", Host: "sh", Cap: 1, Match: &Match{Labels: []string{"never"}}, Prompt: "p", IdleSeconds: 3600, WallSeconds: 3600}}

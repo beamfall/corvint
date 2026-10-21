@@ -12,7 +12,7 @@ var cemHelpActions = map[string]bool{
 	"begin": true, "prepare": true, "cite": true, "mark": true,
 	"status": true, "verify": true, "report": true,
 	"cover": true, "discriminate": true,
-	"anchor": true, "provenance": true, "export": true,
+	"anchor": true, "provenance": true, "export": true, "verify-stable": true, "gate-verdict": true,
 }
 
 // helpSubcommands are the retired oracle's nested argparse choices (GPK-V0-062): a token after the
@@ -52,7 +52,7 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 	if len(rest) == 2 && rest[0] == "help" {
 		directTopic, _ = publicHelpTopic(rest[1])
 	} else if len(rest) == 3 && rest[0] == "help" {
-		directTopic = nestedHelpTopic(rest[1], rest[2])
+		directTopic = cemOrNestedHelpTopic(rest[1], rest[2])
 	}
 	switch {
 	case len(rest) > 0 && (rest[0] == "--help" || rest[0] == "-h"), len(rest) == 1 && rest[0] == "help":
@@ -293,63 +293,65 @@ Usage:
   corvint --version
 
 Commands:
-  init  first repository inventory
-  adopt  recoverable repository inventory
-  query  repository context or authority receipt
-  feature  bounded feature context
-  eval  evaluate a frozen corpus
-  context  task-context packet: files to read
-  impact  path, untracked or range impact
-  breakage  cross-repository API relations
-  changes  offline upgrade checklist
-  runs  Playwright verdicts
-  test  affected tests
-  tests  setup, lint, duplicates
-  harness event  one agent lifecycle event
-  adapter  one native host adapter
-  dogfood  evidence: change, check, seal, batch-check
-  dogfood-ocm  verify dogfood OCM maps
-  cem  Change Evidence Map tool
-  ocm  Obligation Closure Map tool
-  lrf  lexical relevance floor
-  frontier  Change Frontier review queue
-  record  record one local task outcome
-  migrate-traces  plan or apply trace migration
-  migration-ratchet  compare migration evidence
-  observations  self-observation digest
-  features  inferred feature candidates
-  overview  immutable repository guidance
-  review  range advice and branch overlaps
-  affected  affected-test plan
-  flows  application flows and assertions
-  obligations  CEM external-obligations sidecar
-  prove  packet with falsifier verdicts
-  prove-observe  record prove verdict counts
-  index  write the index snapshot
-  batch  batched query, context, impact
-  work  queue observation or shadow wave
-  docs  source-derived documentation
-  depsource  cite pinned Go module source
-  necessity  label packet file necessity
-  surprise  touched set vs delivered packet
-  answerability  retrieval channel agreement
-  kernel  compaction kernel
-  lease  local scope lease over paths
-  reads  opt-in unplanned-read digest
-  calibrate  packet stances vs outcomes
-  skill-export  learned traces as SKILL.md
-  witness  unwitnessed surface of a range
-  test-validity  project a live-test receipt
-  test-plan  test consolidation plan
-  step  declared authoring scope receipts
-  delta  source-free record of one change
+  Core (decision 0332; only the modes and profiles CCF-V1 lists are frozen):
+    init  first repository inventory
+    adopt  recoverable repository inventory
+    index  write the index snapshot
+    query  repository context or authority receipt
+    context  task-context packet: files to read
+    impact  path, untracked or range impact
+    affected  affected-test plan
+    prove  packet with falsifier verdicts
+    cem  Change Evidence Map tool
+    ocm  Obligation Closure Map tool
+    frontier  Change Frontier review queue
+    dogfood  evidence: change, check, seal, batch-check
+  Experimental, no stability promise; owning spec in parentheses:
+    feature  bounded feature context (GPK-V0)
+    eval  evaluate a frozen corpus (REC-V0)
+    breakage  cross-repository API relations (BKM-V0)
+    changes  offline upgrade checklist (UCL1142-V0)
+    runs  Playwright verdicts (PWR-V0)
+    test  affected tests (STR-V0)
+    tests  setup, lint, duplicates (TSA-V0)
+    harness event  one agent lifecycle event (AHI)
+    adapter  one native host adapter (AHI)
+    dogfood-ocm  verify dogfood OCM maps (OCM-V0)
+    lrf  lexical relevance floor (LRF-V0)
+    record  record one local task outcome (LTPM-V0)
+    migrate-traces  plan or apply trace migration (LTPM-V0)
+    migration-ratchet  compare migration evidence (MER-V0)
+    observations  self-observation digest (SOL-V0)
+    features  inferred feature candidates (RGV-V0)
+    overview  immutable repository guidance (RGV-V0)
+    review  range advice and branch overlaps (RGV-V0)
+    flows  application flows and assertions (AFU-V0)
+    obligations  CEM external-obligations sidecar (EFO-V0)
+    prove-observe  record prove verdict counts (SOL-V0)
+    batch  batched query, context, impact (SBQ-V0)
+    work  queue observation or shadow wave (WQO-V0)
+    docs  source-derived documentation (SDD-V0)
+    depsource  cite pinned Go module source (DSE-V0)
+    necessity  label packet file necessity (NEC-V0)
+    surprise  touched set vs delivered packet (TSS-V0)
+    answerability  retrieval channel agreement (RDS-V0)
+    kernel  compaction kernel (CKN-V0)
+    lease  local scope lease over paths (SCL-V0)
+    reads  opt-in unplanned-read digest (URE-V0)
+    calibrate  packet stances vs outcomes (OCL-V0)
+    skill-export  learned traces as SKILL.md (LTA-V0)
+    witness  unwitnessed surface of a range (AGW-V0)
+    test-validity  project a live-test receipt (MTV-V0)
+    test-plan  test consolidation plan (TCN-V0)
+    step  declared authoring scope receipts (ASS-V0)
+    delta  source-free record of one change (DLT-V0)
 
 Global options:
   --root PATH  Repository root (default: current directory).
   --version    Print the version and build number.
   --help       Print this help on stdout and exit 0.
 
-` + commandMaturityHelp + `Support boundary:
+Support boundary:
   Local-only; no network or telemetry. init, adopt, query, feature and impact are
   qualified on Darwin and Linux only.
   init, adopt, query, impact, docs, harness, and lrf read without mutating
@@ -553,10 +555,15 @@ const activationHelp = `Compile one bounded mechanical repository inventory.
 Usage:
   corvint [--root PATH] (init | adopt) [--authority-id ID] [--revision REV]
     [--exclude-prefix PATH] [--full-receipt]
+  corvint [--root PATH] adopt --setup
 
 --revision defaults to HEAD. --exclude-prefix is repeatable. The default output
 is a bounded sealed summary; --full-receipt emits the complete canonical receipt.
 Both activations are read-only and local-only.
+
+Experimental (ADS-V0): adopt --setup takes no other option and reports the
+repository's Corvint setup gaps (index snapshot, agent instructions, hooks,
+ignored paths), each with its evidence and a suggested fix. It writes nothing.
 `
 
 const recordHelp = `Record one explicit local task outcome.
@@ -611,7 +618,8 @@ When prove-observe has recorded proofs, the digest opens with the
 repository's falsification rate (FALSIFICATION) and one FALSIFIER line per
 falsifier: judged rows are PASS or FAIL, failed rows are FAIL. Host adapter
 degradations are tallied as ADAPTER-DEGRADATION lines by host/event/code,
-counting retained hour windows with the newest window.
+counting retained hour windows with the newest window; an out-of-project
+post-tool target is a correct exclusion and is tallied as ADAPTER-EXCLUSION.
 `
 
 const flowsHelp = `Inspect experimental web-flow assertion candidates and runtime observations.
@@ -880,6 +888,34 @@ a PASS can coexist with survivors. Only changed lines are mutated, with the
 same row and invocation deadlines, sandbox and temporary-copy cleanup. This
 flag requires --base and --mutate and never runs automatically from a hook.
 
+Named Ruby source (experimental):
+  corvint [--root PATH] prove [--base FULL_COMMIT_ID] --mutate
+    --mutate-source PATH.rb[:START-END[,START-END...]]
+    --mutate-example SPEC_spec.rb:LINE[:LINE...] [--mutate-example ...]
+
+Mutate a named .rb source, changed or not, against the cited RSpec examples
+(at most 4 spec files, 16 lines each, 16 spans). Each spec file becomes one
+named-source-test row judged like an RSpec row, but every run passes
+SPEC:LINE:LINE so only the cited examples run. Mutants stay inside the given
+spans, else the whole file under the twelve-mutant cap; the mutation record
+names the basis (line_basis caller-spans or whole-file) and the selector
+(target). In impact mode the source is added to the paths.
+
+Containerised Ruby runner (experimental):
+  corvint [--root PATH] prove ... --mutate --mutate-runner FILE
+
+FILE is a corvint-rbmutate-container/0 declaration: executable and
+executableSha256 (the pinned container CLI), execPrefix (its words up to and
+including the rspec command, naming {run}), container (where {run} is
+mounted) and workspace (an existing host directory the runtime can mount,
+neither inside nor containing the repository).
+Every Ruby mutation run then goes through the corvint-test-runner rspec
+profile instead of the host sandbox: the baseline and each mutant get a fresh
+disposable copy of the export under the workspace, removed afterwards, and
+each receipt carries its own admitted runner_receipt. A run whose report that
+runner does not admit earns no verdict (report_error names why). The container
+is the isolation; Corvint does not pin its image or network beyond the prefix.
+
 test-kills-mutant rows stay NOT_RUN unless --mutate is given (impact and
 change modes only). Every mutation row of one invocation shares a
 thirty-minute budget beside the ten-minute row budget; rows are judged in
@@ -1034,7 +1070,7 @@ Usage:
   corvint [--root PATH] cem discriminate --map MAP --target REV [--max-hunks N]
     [--max-mutants N] [--wall-time DURATION] [--output MAP]
   corvint [--root PATH] cem anchor --map MAP [--commit REV] [--artifacts DIR]
-  corvint [--root PATH] cem provenance --commit REV [--notes-tip OID] [--verdicts]
+  corvint [--root PATH] cem provenance --commit REV [--notes-tip OID] [--verdicts [--verdicts-tip OID]]
   corvint [--root PATH] cem export --map MAP --expected-base REV --target REV
     --artifacts DIR --output DIR
   corvint [--root PATH] cem verify-stable --repository PATH --map MAP
@@ -1074,8 +1110,8 @@ Actions:
            same map and REV is refused, an identical one writes nothing.
   provenance  (experimental, read-only) Report REV's Corvint anchor, Git AI
            note, Assisted-by/Agent-Logs-Url trailers as untrusted rows; with
-           --notes-tip OID, rollback when OID is not an ancestor of the ref;
-           with --verdicts, list REV's verdict ledger records.
+           --notes-tip OID (or --verdicts-tip OID), rollback when OID is not an
+           ancestor of its ref; --verdicts lists REV's verdict ledger records.
   export   (read-only) Verify the cem/1.0 map as cem verify does (with
            --artifacts) and require the target to commit it, then copy the map
            as cem.json and each declared artifact under artifacts/ into the new
@@ -1165,6 +1201,20 @@ Options:
   --max-unknown N     Optional non-negative unknown-obligation ceiling.
   --expected-base REV Independent expected base; required for the cem/1.0 map.
   --target REV        Independent target; required for the cem/1.0 map.
+  --replace           prepare only: replace an existing map that binds a
+                      different target, intent or CEM (otherwise refused
+                      with map-outdated) or that no longer verifies. The
+                      replaced map's links, marks and assessments are
+                      discarded, not carried over; copy the map aside first
+                      to keep that review.
+
+report writes by default to .git/corvint/ocm-review.md, private Git metadata
+that never dirties the worktree. An explicit --output must be a normalized,
+repository-relative path inside the repository root that names no .git
+segment; an absolute path such as /tmp/report.md is refused with
+unsupported-ocm-output-path. A report written inside the worktree is a visible
+untracked file, which blocks clean-worktree admission (for example frozen
+selected-check verification) until it is moved or removed.
 
 The bound CEM must be a cem/1.0 map; a retired cem/0.x map refuses with
 unsupported-spec and its recovery line.
@@ -1339,13 +1389,14 @@ authority. All profiles are read-only, local-only, and emit canonical JSON.
 Mixed-worktree freshness is disclosed where applicable.
 `
 
-// cpuProfileHelpNote documents the CPUPROFILE env knob (V1-0051): it is
+// cpuProfileHelpNote documents the CORVINT_CPUPROFILE env knob (V1-0051,
+// V1-1643: runtimeenv.Value("CPUPROFILE") resolves the CORVINT_ prefix): it is
 // off by default, operator-set only, and applies to this command and to
 // `context` (taskcontext.go, main.go's harness-event dispatch). It writes a
 // local pprof file and never widens what the command reads, returns, or
 // mutates (AGENTS.md invariant 4).
 const cpuProfileHelpNote = `
-CPUPROFILE=PATH (operator env var, off by default): writes a pprof CPU
+CORVINT_CPUPROFILE=PATH (operator env var, off by default): writes a pprof CPU
 profile for this invocation to PATH. Diagnostic only; it does not change
 what is read, returned, or mutated.
 `
@@ -1521,27 +1572,6 @@ Groups non-destructive, state-preserving variations of one input that share app,
 user, org and required facts, so one visit can serve several assertions. Destructive, state-changing
 or anchor-missing variations are listed as blocked, never merged. --check exits 1 when a group or
 blocked variation differs from the --baseline report. Read-only, offline.
-`
-
-// commandMaturityHelp is the root-help section that names the frozen Core verbs and labels every
-// other dispatched verb Experimental with its owning spec prefix (CCF-V1-008).
-const commandMaturityHelp = `Command maturity:
-  Core (decision 0332; only the modes and profiles CCF-V1 lists are frozen):
-    init, adopt, index, query, context, impact, affected, prove, cem, ocm,
-    frontier, dogfood
-  Experimental, no stability promise; owning spec in parentheses:
-    feature (GPK-V0), eval (REC-V0), lrf (LRF-V0), record (LTPM-V0),
-    migrate-traces (LTPM-V0), harness (AHI), work (WQO-V0), adapter (AHI),
-    dogfood-ocm (OCM-V0), observations (SOL-V0), obligations (EFO-V0),
-    prove-observe (SOL-V0), batch (SBQ-V0), docs (SDD-V0),
-    depsource (DSE-V0), necessity (NEC-V0), surprise (TSS-V0),
-    answerability (RDS-V0), kernel (CKN-V0), lease (SCL-V0), reads (URE-V0),
-    calibrate (OCL-V0), witness (AGW-V0), test-validity (MTV-V0),
-    test-plan (TCN-V0), features (RGV-V0), overview (RGV-V0), review (RGV-V0),
-    migration-ratchet (MER-V0), flows (AFU-V0), skill-export (LTA-V0),
-    breakage (BKM-V0), step (ASS-V0), delta (DLT-V0), changes (UCL1142-V0),
-    runs (PWR-V0), test (STR-V0), tests (TSA-V0)
-
 `
 
 const breakageHelp = `Inspect an experimental declared cross-repository API relationship map.

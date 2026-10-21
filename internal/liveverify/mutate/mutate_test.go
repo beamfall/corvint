@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 const fixtureGoMod = "module example.test/mut\n\ngo 1.27.0\n"
@@ -122,16 +124,7 @@ func newFixture(t *testing.T, git string, files map[string]string) (string, stri
 	return root, strings.TrimSpace(runGit(t, git, root, "rev-parse", "HEAD"))
 }
 
-func runGit(t *testing.T, git, root string, arguments ...string) string {
-	t.Helper()
-	command := exec.Command(git, append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", root}, arguments...)...)
-	command.Env = sanitizedGitEnvironment()
-	output, err := command.CombinedOutput()
-	if err != nil {
-		t.Fatalf("git %s: %v: %s", strings.Join(arguments, " "), err, output)
-	}
-	return string(output)
-}
+var runGit = testsupport.RunGit
 
 // treeDigest hashes every file under root except .git, so a run that touched
 // the caller's worktree in any way changes the digest.

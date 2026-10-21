@@ -482,3 +482,27 @@ func TestSanitizedGitEnvironmentRefusesAPromisorFetch(t *testing.T) {
 		t.Fatalf("a blob missing from the partial clone was read: %s", output)
 	}
 }
+
+// AHI-070 (V1-2062): an over-bound user-prompt task keeps the refusal, which names both bounds
+// and the observed counts but never the task text.
+func TestAHI070OverBoundTaskRefusalNamesLimitAndLength(t *testing.T) {
+	task := strings.Repeat("secretword ", 300)
+	_, err := validateInput("user-prompt", map[string]any{"task": task})
+	var refusal *Error
+	if !errors.As(err, &refusal) || refusal.Code != "invalid-harness-input" {
+		t.Fatalf("err=%v", err)
+	}
+	want := "task exceeds the bounded query contract: 3300 characters and 3300 bytes, over the 2000-character/16384-byte bound"
+	if refusal.Message != want || strings.Contains(refusal.Message, "secretword") {
+		t.Fatalf("message=%q", refusal.Message)
+	}
+	if _, err := validateInput("user-prompt", map[string]any{"task": strings.Repeat("x", MaxQueryCharacters)}); err != nil {
+		t.Fatalf("bounded task refused: %v", err)
+	}
+	// The bound applies to the raw input, before trimming: surrounding whitespace counts.
+	padded := " " + strings.Repeat("x", MaxQueryCharacters) + " "
+	_, err = validateInput("user-prompt", map[string]any{"task": padded})
+	if !errors.As(err, &refusal) || !strings.Contains(refusal.Message, ": 2002 characters and 2002 bytes,") {
+		t.Fatalf("padded task at the trimmed bound: err=%v", err)
+	}
+}

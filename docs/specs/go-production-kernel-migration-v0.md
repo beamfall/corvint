@@ -233,7 +233,7 @@ requirements below have evidence. File existence is not parity.
   prefix MUST be read from the project profile and MUST NOT be hardcoded to any one repository's
   source root. Under rule (c) a specifier is read only from a `'`- or `"`-quoted string literal in live code, in exactly three positions: after the `from` that closes an `import`/`export` clause, directly after `import`, or as the literal argument of `import(`; text inside a `//` comment (ended by the first `\n`, `\r`, U+2028, or U+2029, the ECMAScript line terminators) or a `/* */` comment, inside another string literal, anywhere inside a template literal (its `${...}` substitutions included), or inside a regular-expression literal is not a specifier and contributes no edge, a `/` reads as division unless it follows nothing or one of the punctuators `( , = : [ & | ? { ; ~ ^ % *` and closes before a line terminator, when it is one regular-expression token whose quotes and backticks open nothing (the `FPK-V0-018` rule; a regex after any other token, and JSX text, stay unread, amendment 2026-09-13), a substitution body is tokenised as code, so a `}` or backtick inside its string literals or comments does not end it and only its unbalanced `}` punctuation does (decision 0208), `require(...)` is not recognized, and a source that ends inside an unterminated block comment or template literal MUST record `WEB_SOURCE_UNPARSED` for its imports rather than return the shortened edge set silently (decision 0101). An indexed path whose suffix has no rule above MUST receive the ordinary impact packet
   with the missing dimension disclosed in `coverage.uncertainty` as `reverse-import results for N
-  changed paths with no named resolution rule are outside the native Go impact profile`; the `impact`
+  changed paths with no named resolution rule are not computed by the impact profile` (the wording names no language, V1-2072; a Ruby path the autoload mapper resolves is not counted: `NGI-V0-036` names its rule); the `impact`
   context block MUST be byte-identical to `harness event --event file-change` for the same path, tree,
   and dirty set. This disclosure grants no reverse-import rule. A suffix the index does not admit MUST
   receive `unsupported-impact-path-suffix`. Expected bytes for every rule above are captured from the
@@ -245,7 +245,7 @@ requirements below have evidence. File existence is not parity.
   unadmitted-suffix, query, budget, unsupported-platform, and oversized inputs explicitly
   rather than approximate them: a platform other than Darwin or Linux returns
   `unsupported-impact-platform` and `--budget-bytes` with `--base` or `--working-tree-untracked` returns `unsupported-impact-option`
-  (`cmd/corvint/main.go:300,312`). Every evidence array MUST be emitted in a deterministic total order derived
+  (`cmd/corvint/main.go:306,318`). Every evidence array MUST be emitted in a deterministic total order derived
   from stable content — the referenced relation's first-occurrence path, then line, then column, then
   the relation key, then the occurrence's own line and column — so that the `MAX_EVIDENCE` truncation
   retains the same entries on every run and in every runtime. An order derived from index insertion
@@ -323,9 +323,9 @@ requirements below have evidence. File existence is not parity.
   tests, `go mod verify` when module files changed, and the repository gate. The existing path and
   working-tree profiles remain unchanged. The range profile is read-only and local-only and claims
   no Python parity. A dirty worktree returns `unsupported-impact-worktree`
-  (`internal/contextindex/range_impact.go:352`) unless `GPK-V0-060` allows every dirty entry, and a
+  (`internal/contextindex/range_impact.go:361@2ae98deb`) unless `GPK-V0-060` allows every dirty entry, and a
   changed `.go` path in the repository root package returns `unsupported-impact-path`
-  (`internal/contextindex/range_impact.go:154`).
+  (`internal/contextindex/range_impact.go:163@38036e02`).
   Proposed experimental extension (2026-09-30, owner-requested issue #390):
   `non-go-impact-v0.md` proposes Ruby/JS/TS admission in both range capacities.
   Its `NGI-V0-002`/`NGI-V0-004` replace Go-only membership/omission restrictions
@@ -335,7 +335,7 @@ requirements below have evidence. File existence is not parity.
   the new technical contract; original Go qualification is not non-Go qualification.
 - `GPK-V0-031`: Before the complete Phase 2 feature port, `corvint` MAY expose an experimental
   `feature FEATURE_ID` slice on Darwin and Linux; any other platform returns
-  `unsupported-feature-platform` (`cmd/corvint/main.go:463`). It MUST accept the Python-oracle `--limit` range
+  `unsupported-feature-platform` (`cmd/corvint/main.go:559`). It MUST accept the Python-oracle `--limit` range
   1--50 and optional `--budget-bytes` range 1,216--1,000,000, preserve validation precedence and
   canonical bytes, and reuse the bounded immutable context index and shared packet-budget selector.
   A canonical unknown feature id MUST succeed with an exact empty `OUT_OF_SCOPE` receipt, including
@@ -1261,9 +1261,9 @@ is one name, so one matching code line is one pair and one evidence item for `ki
   path followed by NUL. `range.statusSha256` continues to bind the raw status bytes. Failure modes:
   any tracked entry (modified, staged, deleted, renamed, or copied) or malformed status MUST return
   `unsupported-impact-worktree` with "range impact requires a clean worktree"
-  (`internal/contextindex/range_impact.go:352`). The first overlapping untracked path MUST return
+  (`internal/contextindex/range_impact.go:361@2ae98deb`). The first overlapping untracked path MUST return
   `unsupported-impact-worktree` with "range impact requires a clean worktree; untracked path
-  overlaps the Go build: <path>" (`internal/contextindex/range_impact.go:369`). Any status change
+  overlaps the Go build: <path>" (`internal/contextindex/range_impact.go:378@4ddd781e`). Any status change
   after capture remains `impact-range-drift`. The allowance MUST NOT widen path or working-tree
   impact, which are unchanged. It does not extend to the repository gate the receipt names, which
   keeps refusing listed untracked paths under `ARTIFACT-GO-V0-009`.
@@ -1680,8 +1680,9 @@ listing profile, which this contract does not otherwise authorize, and changes n
   spelling, `suffixes.admissionCaseInsensitive` is `true`, and `suffixes.unadmitted` names the
   refusal code every other suffix receives. Each list is sorted bytewise. `limits` states
   `pathsMin` 1, `pathsMax` (default path capacity), `pathCharsMax`, `limitMin` 1, `limitMax` and
-  `limitDefault`. Beyond the existing impact root check it reads no repository content, index,
-  trace or stdin.
+  `limitDefault`. It reads no repository content, index, trace or stdin, and needs no Git root:
+  outside a checkout it still prints the listing, while any other impact there keeps the root
+  refusal (V1-2067).
 - `GPK-V0-085`: (accepted 2026-10-20, standing auto-accept; V1-2047) The listing MUST be derived
   from the tables the admission and rule code read: every suffix is probed through
   `ImpactPathAdmitted` and `ImpactRuleNamed`, and the limits are the same constants the argument
@@ -1708,6 +1709,41 @@ receipt or trace changes.
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| `GPK-V0-084` (accepted 2026-10-20, V1-2047) | `cmd/corvint/main.go` (`emitImpactCapabilities`, impact `--capabilities` parsing), `internal/contextindex/impact_capabilities.go` | `TestGPKV0084ImpactCapabilitiesListing` |
+| `GPK-V0-084` (accepted 2026-10-20, V1-2047) | `cmd/corvint/main.go` (`emitImpactCapabilities`, impact `--capabilities` parsing), `internal/contextindex/impact_capabilities.go` | `TestGPKV0084ImpactCapabilitiesListing`, `TestGPKV0084ImpactCapabilitiesOutsideGitRoot` |
 | `GPK-V0-085` (accepted 2026-10-20, V1-2047) | `internal/contextindex/impact_capabilities.go` (`ImpactCapabilities`) | `TestGPKV0085ImpactCapabilitiesAgreeWithAdmission` |
 | `GPK-V0-086` (accepted 2026-10-20, V1-2047) | `cmd/corvint/main.go` (`parseImpactArgumentsForPlatform`) | `TestGPKV0086ImpactCapabilitiesArgumentsAndRefusalUnchanged` |
+
+## Amendment accepted 2026-10-20 (V1-2128): every static named import on a line binds
+
+The dependency-link promotion of `GPK-V0-047` and the application map's import relation
+(`AMAP-V0-005`) read static named imports with the oracle's pattern, which matches an `import`
+only at the start of a line, so the second statement of `import { a } from './a'; import { b } from
+'./b'` bound nothing and was dropped silently (product invariant 2). The owner's standing auto-accept
+of lane requirements (2026-10-11) accepts this amendment.
+
+- `GPK-V0-087`: (accepted 2026-10-20, standing auto-accept; V1-2128) A static named import MUST be
+  read where a statement can start: at the start of a line or after a `;` the web lexer reads as
+  code, never one inside a string, template literal, regex or comment. Every such statement on one
+  line MUST bind its names with that line's number. A statement found after a `;` MUST only add a
+  local the line-start reading left unbound, never rebind one. The oracle's first-only reading is
+  `python-defect` / known-divergent `DR-0044`.
+
+Failure modes: a `;` inside a string, template literal or comment is not code, so a fake import
+there neither rebinds a real binding nor swallows the real statement that follows it (an
+independent review found both against the first, pattern-only reading). The line-start reading
+keeps the oracle's own exposure inside multi-line template literals unchanged (parity). Because a
+later statement never rebinds a local, a false match after a code `;` can only add a dependency
+link, never remove one; a file the lexer ends inside an unterminated construct reads no `;` past
+it, which can only withhold a binding the oracle also never read. Non-goals: comma-joined
+or multi-line clauses beyond the existing pattern, default and namespace imports, `require()`, and
+type-only imports (still skipped). Acceptance evidence:
+`TestWebImportBindingsReadsEveryStatementOnALine` failed before the change (it bound `a` and `d`
+but not `c`); `TestWebImportBindingsIgnoresSemicolonsOutsideCode` failed against the pattern-only
+reading in every case (string, partial fake import, template, line and block comment, rebinding). A `cli-parity-v0` discriminating row is NOT_YET_AUTHORED and the frozen `zod`/`execa`
+evaluations were NOT_RUN for this change. Rollback: remove `webImportAfterSemicolon`,
+`webCodeSemicolons` and the second pass of `webImportBindings`
+(`internal/contextindex/eval_dependency.go`), the two tests, `DR-0044` and this section.
+
+| Requirement | Implementation | Evidence |
+|---|---|---|
+| `GPK-V0-087` (accepted 2026-10-20, V1-2128) | `webImportBindings`, `webImportAfterSemicolon` and `webCodeSemicolons` in `internal/contextindex/eval_dependency.go` | `TestWebImportBindingsReadsEveryStatementOnALine`, `TestWebImportBindingsIgnoresSemicolonsOutsideCode` |

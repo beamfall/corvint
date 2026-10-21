@@ -202,20 +202,28 @@ but does not read it; only non-Go syntax impact does.
   It borrows that spec's imports only when each is external or resolves to a file in the map, else
   emits it commented `// UNRESOLVED` with an unknown; it imports and calls existing page-object
   methods for steps that reuse them, adding an import under the class's own name when the borrowed
-  imports bind it only under an alias. Every name the scaffold binds (borrowed imports, generated
+  imports bind it only under an alias. A page-object file whose class is declared
+  `export default class` records `class_export: "default"` in the map (omitted for any other
+  class; a loaded map with any other value is refused as `appmap-invalid-map`); when the borrowed imports do not bind such a class under its own name, the scaffold
+  emits `// UNRESOLVED import { Class }`, reports `scaffold-import` / `default-export`, and calls
+  none of its methods (V1-0974). Every name the scaffold binds (borrowed imports, generated
   imports, page-object variables, `page`, `test`, `expect`) is reserved for one file; a reused file
   whose class or variable name is already taken is emitted `// UNRESOLVED` with
   `binding-collision`, and its steps fall back to TODOs. It leaves locator and outcome TODOs
   otherwise. A selector of strength `unknown`, and a step with no selector (whatever a map file
-  claims as its reuse), is never offered as reuse. A reused method whose anchor is `STALE` at the
+  claims as its reuse), is never offered as reuse; a loaded map that lists reuse beside an
+  `unknown` selector gets no call, a note and a TODO, and reports `scaffold-reuse` /
+  `unknown-selector-reuse` (V1-0968). A reused method whose anchor is `STALE` at the
   evaluated revision is not called: the step keeps a commented note and a TODO, its reuse item
   reads `freshness: STALE`, and the unknown `scaffold-reuse` / `stale-reuse` is reported. A reused
   method is called only when it is a public instance method of the page object's class, directly
   in the class body, whose header literally declares no parameters (`callable`: no getter, setter,
   static, private or protected member, no module function, no object-literal method before, after
-  or inside the class); otherwise the step keeps a note and a TODO and reports `scaffold-reuse` /
+  or inside the class, including one in an object literal assigned to a class field); otherwise the step keeps a note and a TODO and reports `scaffold-reuse` /
   `reuse-not-callable`. Borrowed import statements are kept one per statement, each with exactly
-  the names it binds. A statement the map could not read in full (over 8 lines or 512 bytes) is
+  the names it binds, also when two statements share a line; statement boundaries are read
+  lexically, so an `import`, `;` or specifier inside a string or comment never bounds or matches
+  a statement, and a statement with a comment inside is treated as unread (V1-0968). A statement the map could not read in full (over 8 lines or 512 bytes) is
   never copied in part nor guessed as a side-effect import: it is emitted as a commented
   `// UNRESOLVED import { names } from '...'` line, binds nothing, and reports `scaffold-import` /
   `unread-statement`. When no borrowed, resolvable import binds `test`, the scaffold emits
@@ -430,6 +438,20 @@ but does not read it; only non-Go syntax impact does.
   Unresolved parents make descendants UNKNOWN; unsupported syntax never invents a screen.
   Element/Component expressions are opaque presentation references, never executed.
   Status: accepted, decision 0518 (V1-1131).
+- `AMAP-V0-190`: A JSX `<Routes>` tree MUST be read even when the file elsewhere holds hooks,
+  conditionals, logical operators or loops, provided the tree is statically placed: at every
+  enclosing level the statement holding it carries no `?`, `&&`, `||`, `if`/`else`/`switch`/`case`
+  or loop keyword, it is not returned after a condition, and every enclosing bracket is a
+  `return (`, `= (`, arrow-body or JSX-child group or a function block body. A call argument,
+  array element, attribute or object value, class or control-flow block, or any unrecognised
+  enclosure keeps the file-wide `dynamic-route-context` rule. So does any enclosing block that
+  could exit before the tree: a `throw`, a `return` inside a nested control-flow block, an earlier
+  `return` at the block's own level, with or without a semicolon; exits inside nested function
+  bodies do not count. A JSX expression child `{...}`
+  inside the tree MUST record `non-literal-react-children` at its own line and is never harvested,
+  while its literal siblings are still read; a comment-only `{}` child is ignored.
+  `createBrowserRouter` and `createRoutesFromElements` keep the file-wide rule. Status: accepted
+  under the owner's standing lane auto-accept (V1-1712).
 - `AMAP-V0-045`: Optional manifest `router_globs` MUST contain 1..64 unique safe repository-relative
   patterns (segment glob syntax plus whole-segment `**`). At the pinned revision the builder
   MUST compare regular tracked files matched by these patterns against explicit `routers`,
@@ -1077,7 +1099,7 @@ V1-1131 adds `router-not-declared`, `unsupported-rails-syntax`, `unsupported-rai
 `unresolved-react-routes-import` and `ambiguous-react-routes-import` (AMAP-V0-079). Unknown helper
 names also reuse `non-literal-name`; blocked descendants reuse `unresolved-parent`. Unsupported
 Ruby block structure invalidates the file's extracted states. React root conditionals invalidate
-its states, while JSX quote entities/escapes and unrepresentable optional/partial parameter
+its states (except a statically placed JSX `Routes` tree, AMAP-V0-190), while JSX quote entities/escapes and unrepresentable optional/partial parameter
 patterns remain UNKNOWN. This does not evaluate Ruby custom inflections or JavaScript control flow.
 
 V1-1890 (`actions`) abstention reasons: the V1-1131 Rails reasons above, `unresolved-parent`, `no-handler`,
@@ -1180,7 +1202,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-010 | `TestAMAPV0010StaleAnchors`, `TestAMAPV0010SameRevisionVerified`, `TestAMAPV0010AncestorLineageStale`, `TestAMAPV0010ChainFreshness`, `TestAMAPV0010ManifestBindingFreshness` |
 | AMAP-V0-011 | `TestAMAPV0011ProjectionBudgets`, `TestAMAPV0011EveryBudgetFits`, `TestAMAPV0011FlowReportsScreenUnknowns`, `TestAMAPV0FlowsAppmapCLI` |
 | AMAP-V0-012 | `TestAMAPV0012Find`, `TestAMAPV0012FindByID` |
-| AMAP-V0-013 | `TestAMAPV0013Scaffold`, `TestAMAPV0013AliasedImportRebound`, `TestAMAPV0013UnknownSelectorNotReused`, `TestAMAPV0013ReuseWithoutSelector`, `TestAMAPV0013GeneratedBindingCollision`, `TestAMAPV0013StaleReuseNotCalled`, `TestAMAPV0013MethodWithArgumentsNotCalled`, `TestAMAPV0013TestUnbound`, `TestAMAPV0013MethodOutsideClassNotCallable`, `TestAMAPV0013UnreadImportStatement` |
+| AMAP-V0-013 | `TestAMAPV0013Scaffold`, `TestAMAPV0013AliasedImportRebound`, `TestAMAPV0013UnknownSelectorNotReused`, `TestAMAPV0013ReuseWithoutSelector`, `TestAMAPV0013GeneratedBindingCollision`, `TestAMAPV0013StaleReuseNotCalled`, `TestAMAPV0013MethodWithArgumentsNotCalled`, `TestAMAPV0013TestUnbound`, `TestAMAPV0013MethodOutsideClassNotCallable`, `TestAMAPV0013UnreadImportStatement`, `TestAMAPV0013ScaffoldDefaultExportNotNamedImport`, `TestAMAPV0013TwoImportsOnOneLine`, `TestAMAPV0013UnknownSelectorReuseDeclinedInScaffold`, `TestAMAPV0013ParseMapRefusesUnknownClassExport`, `TestAMAPV0013ImportStatementBoundariesAreLexical` |
 | AMAP-V0-014 | `TestAMAPV0014OverlaySeam`, `TestAMAPV0014FactsFollowTrimmedElements` |
 | AMAP-V0-015 | `TestAMAPV0015ReadOnlyAndRefusals`, `TestAMAPV0FlowsAppmapCLI` |
 | AMAP-V0-016 | `TestAMAPV0016ConstantStateNames`, `TestAMAPV0016UnprovableConstantsStayUnknown` |
@@ -1203,8 +1225,21 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-046 | `TestAMAPV0046SharedTemplates` |
 | AMAP-V0-047 | `TestAMAPV0047Bounds` |
 | AMAP-V0-048 | `TestAMAPV0048DialectCLI` |
+| AMAP-V0-060 | `TestAMAPV0060StatsReconcile`, `TestStatsCLI` |
+| AMAP-V0-061 | `TestAMAPV0060StatsReconcile` |
+| AMAP-V0-062 | `TestAMAPV0060StatsReconcile` |
+| AMAP-V0-063 | `TestAMAPV0060StatsReconcile` |
+| AMAP-V0-064 | `TestAMAPV0064StatsSummary`, `TestStatsCLI` |
+| AMAP-V0-065 | boundary statement with no executable evidence: the stats report carries no equivalence claim, and adopter-scale qualification is `NOT_RUN` |
+| AMAP-V0-070 | `TestAMAPV0070DirectoryStarEnum` |
+| AMAP-V0-071 | `TestAMAPV0070DirectoryStarEnum` |
+| AMAP-V0-072 | `TestAMAPV0070DirectoryStarEnum`, `TestAMAPV0072FailedHopDoesNotLeakBetweenLookups` |
+| AMAP-V0-075 | `TestAMAPV0075WholeRepositoryRoot` |
+| AMAP-V0-076 | `TestAMAPV0075WholeRepositoryRoot` |
+| AMAP-V0-077 | `TestAMAPV0018SingleRootUnchanged`, `TestAMAPV0019DirtySecondRoot`, `TestAMAPV0075WholeRepositoryRoot` (a `"."` join equals the narrower-root join) |
 | AMAP-V0-078 | `TestAMAPV0078ReactSameFileRouteArray` |
 | AMAP-V0-079 | `TestAMAPV0079ReactImportedRouteArray` |
+| AMAP-V0-190 | `TestAMAPV0190ReactRoutesInHooksComponent` |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
 `cmd/corvint/flows_appmap.go`, `internal/rootalias` (AMAP-V0-017). Build logs:

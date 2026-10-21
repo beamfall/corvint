@@ -34,7 +34,7 @@ func TestCEMV1250WorkspaceRefusesEverySpellingOfTheRepository(t *testing.T) {
 		}
 	}
 	for _, temp := range refused {
-		t.Setenv("TMPDIR", temp)
+		setTempDir(t, temp)
 		if dir, err := disposableWorkspace(context.Background(), root, "corvint-test-"); err == nil || !strings.Contains(err.Error(), "lies inside the repository") {
 			t.Fatalf("TMPDIR %s: dir %q, err %v; want a refusal", temp, dir, err)
 		}
@@ -47,12 +47,25 @@ func TestCEMV1250WorkspaceRefusesEverySpellingOfTheRepository(t *testing.T) {
 	if err := os.Mkdir(outside, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("TMPDIR", outside)
+	setTempDir(t, outside)
 	dir, err := disposableWorkspace(context.Background(), root, "corvint-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if resolved, _ := filepath.EvalSymlinks(outside); filepath.Dir(dir) != resolved {
 		t.Fatalf("workspace %s is not under %s", dir, resolved)
+	}
+}
+
+// setTempDir points os.TempDir() at dir on every GOOS: TMPDIR on Unix, and
+// TMP and TEMP, which Windows consults first, so the refusal fixture controls
+// the directory the helper reads wherever it runs (V1-1489).
+func setTempDir(t *testing.T, dir string) {
+	t.Helper()
+	for _, name := range []string{"TMPDIR", "TMP", "TEMP"} {
+		t.Setenv(name, dir)
+	}
+	if os.TempDir() != dir {
+		t.Fatalf("os.TempDir() is %q, want %q", os.TempDir(), dir)
 	}
 }

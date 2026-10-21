@@ -958,7 +958,7 @@ func TestAdapterDegradationAdmitsCompactionEventsAndCodes(t *testing.T) {
 	writeIgnore(t, root)
 	now := time.Date(2026, 9, 27, 1, 0, 0, 0, time.UTC)
 	codes := []string{
-		"compaction-block-unavailable", "compaction-pin-not-preserved", "compaction-pin-revision-unavailable",
+		"compaction-block-unavailable", "compaction-pin-not-emitted", "compaction-pin-not-preserved", "compaction-pin-revision-unavailable",
 		"compaction-pin-verification-unavailable", "corvint-degradations-unrecognised", "git-unavailable",
 		"invalid-compaction-trigger",
 	}
@@ -1048,6 +1048,33 @@ func TestRenderTalliesAdapterDegradations(t *testing.T) {
 	want := "SELF-OBSERVATIONS events=0 zero-authoritative-rate=NOT_OBSERVED budget-omission-rate=NOT_OBSERVED latency-p50=0ms latency-p95=0ms\n" +
 		"ADAPTER-DEGRADATION windows=2 key=claude-code/user-prompt/prompt-over-query-bound latest=2026-09-12T12Z\n" +
 		"ADAPTER-DEGRADATION windows=1 key=codex/stop/corvint-event-rejected:dogfood-event-deadline latest=2026-09-12T09Z\n"
+	if output.String() != want {
+		t.Fatalf("digest\n%s\nwant\n%s", output.String(), want)
+	}
+}
+
+// SOL-V0-030 (V1-1975): an out-of-project post-tool target is tallied as an exclusion, while an
+// unresolvable in-project target stays a degradation.
+func TestSOL030OutOfProjectPostToolIsExclusion(t *testing.T) {
+	root := t.TempDir()
+	writeIgnore(t, root)
+	hour := time.Date(2026, 10, 20, 9, 0, 0, 0, time.UTC)
+	for _, row := range []Event{
+		AdapterDegradationEvent("claude-code", "post-tool", "post-tool-path-outside-project", "1.0.0", hour),
+		AdapterDegradationEvent("claude-code", "post-tool", "post-tool-path-outside-project", "1.0.0", hour.Add(time.Hour)),
+		AdapterDegradationEvent("claude-code", "post-tool", "post-tool-path-not-project-relative", "1.0.0", hour),
+	} {
+		if err := Append(root, row); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var output bytes.Buffer
+	if err := Render(root, 120, &output); err != nil {
+		t.Fatal(err)
+	}
+	want := "SELF-OBSERVATIONS events=0 zero-authoritative-rate=NOT_OBSERVED budget-omission-rate=NOT_OBSERVED latency-p50=0ms latency-p95=0ms\n" +
+		"ADAPTER-DEGRADATION windows=1 key=claude-code/post-tool/post-tool-path-not-project-relative latest=2026-10-20T09Z\n" +
+		"ADAPTER-EXCLUSION windows=2 key=claude-code/post-tool/post-tool-path-outside-project latest=2026-10-20T10Z\n"
 	if output.String() != want {
 		t.Fatalf("digest\n%s\nwant\n%s", output.String(), want)
 	}

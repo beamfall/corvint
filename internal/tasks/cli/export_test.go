@@ -416,6 +416,38 @@ func SetDoctorPerReadJournal() func() {
 	return func() { doctorJournalSource = old }
 }
 
+// SetDoctorWalkUnshared makes every elided-record walk read and decode its
+// receipts again, the cost before V1-1193, until the returned function runs.
+func SetDoctorWalkUnshared() func() {
+	old := doctorWalkShared
+	doctorWalkShared = false
+	return func() { doctorWalkShared = old }
+}
+
+// countingSource counts receipt reads by path.
+type countingSource struct {
+	journal.Source
+	reads map[string]int
+}
+
+func (c countingSource) Read(path string, max int) ([]byte, error) {
+	if strings.HasPrefix(path, "receipts/") {
+		c.reads[path]++
+	}
+	return c.Source.Read(path, max)
+}
+
+// CountDoctorReceiptReads counts each receipt file the doctor's journal
+// session reads into reads, until the returned function runs.
+func CountDoctorReceiptReads(reads map[string]int) func() {
+	old := doctorJournalSource
+	doctorJournalSource = func(n journal.Native) (journal.Source, func() error) {
+		src, done := old(n)
+		return countingSource{Source: src, reads: reads}, done
+	}
+	return func() { doctorJournalSource = old }
+}
+
 // LeaseDetachDir is the private record directory of a detached claim or
 // pool acquire (ATR-V0-020).
 func LeaseDetachDir(repo *intent.Repository, requestID string) string {

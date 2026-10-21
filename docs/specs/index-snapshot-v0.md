@@ -131,10 +131,10 @@ what any packet says.
   (`IDX-SNAP-V0-005`). Clarifying amendment (2026-09-12, resolving the open question recorded in
   `docs/agent-memory/fixes.md`): the grant follows the shared build functions, not the invoking
   verb's name. `corvint prove --task`'s project-operations query mode compiles its packet through
-  the identical `standaloneQueryContext` build (`cmd/corvint/prove.go:1025-1027@d473eb95`, reaching
-  `deferredSnapshotIndex` and `snapshotIndex` at `cmd/corvint/main.go:1420-1421@c39315fe` and `cmd/corvint/harness_context.go:69-70@70282d2c`) before
+  the identical `standaloneQueryContext` build (`cmd/corvint/prove.go:1064-1066@d473eb95`, reaching
+  `deferredSnapshotIndex` and `snapshotIndex` at `cmd/corvint/main.go:1426-1427@c39315fe` and `cmd/corvint/harness_context.go:69-70@70282d2c`) before
   `compileProof` applies its own independent revision and dirty-set re-verification
-  (`cmd/corvint/prove.go:546@7ad2b2af`, `cmd/corvint/prove.go:566-567@38c3dce4`, `cmd/corvint/prove.go:588-589@61b1bb0c`) and reads every cited blob at the
+  (`cmd/corvint/prove.go:584@7ad2b2af`, `cmd/corvint/prove.go:605-606@38c3dce4`, `cmd/corvint/prove.go:627-628@61b1bb0c`) and reads every cited blob at the
   re-confirmed revision; a snapshot hit there therefore carries no staleness risk beyond what
   `IDX-SNAP-V0-002` and `IDX-SNAP-V0-006` already bound, and is covered by this clause on the same
   terms as `corvint query`. `corvint prove --checkpoint` is not covered: it never reaches this
@@ -503,9 +503,10 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   commit and then moved to this one. The moved repository MUST probe not fresh before the second
   `index` (`IDX-SNAP-V0-011`). This is identity of the served index, not of the file: the gob bytes
   of two writes of one tree differ (map order, Non-goals), and a byte-deterministic file encoding
-  stays behind the `deployment-neutral-index-platform-v0.md` gate. The default path has no
-  incremental build (`BuildForSnapshot` calls `Build` when blob shards are off), so this identity
-  covers a full rebuild after a move, not the reuse of prior facts. Measured on this repository
+  stays behind the `deployment-neutral-index-platform-v0.md` gate. Since 2026-10-20
+  (`IDX-SNAP-V0-037`, V1-0328) the default path reuses verified per-source facts from the newest
+  prior snapshot, so this identity now covers that reuse; the cold side of the test runs with
+  `CORVINT_INDEX_REUSE=0` and reuses nothing. The reading below predates the reuse. Measured on this repository
   (target `1894b9e5`, prior `7e9b1856`, 3,819 tracked files): canonical index 87,658,954 bytes,
   sha256 `76b96397439184b02f7173942d76dfb87d5d7d35183a4d8b5c6bd0044ffdbfa9`, equal in three runs.
   Falsifier: any byte of the canonical encoding that differs between the cold and the incremental
@@ -529,6 +530,42 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   `IDX-SNAP-V0-022`'s encoding to the one first served for that commit.
   Falsifier: a panic, an error return, or any other outcome in one of the five states. Rollback:
   delete the test; nothing else depends on this clause.
+
+### Accepted under standing auto-accept (2026-10-11; V1-0328, 2026-10-20): verified prior-snapshot reuse
+
+- `IDX-SNAP-V0-037`: (accepted under the owner's standing auto-accept (2026-10-11); 2026-10-20; V1-0328) when blob shards are off, `BuildForSnapshot`
+  MAY reuse per-source facts from the newest prior snapshot of the same object format and engine in
+  the shared store, and the served index MUST stay identical under `IDX-SNAP-V0-022`'s canonical
+  encoding to a cold build of the same tree. Reuse is fail-closed at three boundaries:
+  (a) the prior file is read only through `decodeSnapshot` (header, trailing digest, symbol windows,
+  vocabulary check) under the identity its name states, and its name must round-trip through
+  `snapshotPath`; any refusal, an engine or object-format mismatch, or a missing or symlinked store
+  reuses nothing;
+  (b) the prior's facts are regrouped per source only when the vocabulary paths equal the sorted
+  sources, every postings table is canonical, every source is checked and named by its key, every
+  symbol, marker, unparsed row and extraction note names a prior source, every symbol, marker and
+  unparsed row carries that source's blob id (an import refusal carries none, as the extractor
+  writes it), unparsed rows are unique per (path, facts), import sets are non-empty, and the per-source approximate-import flags sum to
+  the prior's `ApproximateImports`; any failure reuses nothing;
+  (c) a source is reused only when its prior blob id equals the new tree entry's id and its prior
+  bytes have that entry's size and hash to that id under the object format (invariant 1); a reused
+  source takes the new tree's mode. Every other source is pinned and read from Git as before.
+  Whole-index products (document records, the term vocabulary order, symbol windows, the identifier
+  graph) are recomputed; the vocabulary merges the prior postings, renumbered to the new source
+  order with removed sources dropped, with freshly tokenised postings for the non-reused sources.
+  Symbols sort by path, line, name, kind and end line so the order is independent of input order.
+  The file format, bytes written and snapshot file name are unchanged: shrinking per-tree bytes
+  needs a format change behind the `deployment-neutral-index-platform-v0.md` gate. Reuse is
+  per-process derived input only; it never adds an authority, a row, or a confidence the cold build
+  lacks. Measured 2026-10-20 (11,733-file clone of this repository at `a148e3a92`, `corvint index`,
+  median of three, host load 30 to 45 on 12 cores): one-commit move 3.26 s real / 9.25 s CPU cold
+  against 1.67 s / 3.46 s reused; thirty-commit move (1,435 changed files) 2.09 s / 4.34 s; bytes
+  written 187,024,595 in every case (`docs/build-log/2026-10-20-v1-0328-incremental-reindex.md`).
+  Falsifier: any canonical byte that differs from the cold build, a reused source whose bytes do
+  not hash to the new tree's blob id, or any reuse from a prior that fails (a) or (b). Rollback:
+  `CORVINT_INDEX_REUSE=0` restores the cold build per process; reverting
+  `internal/contextindex/snapshot_reuse.go` and its two call sites removes the path; snapshot files
+  are unchanged.
 
 ### Accepted (2026-09-25, decision 0394, panel blocker B9): non-UTF-8 tracked paths
 
@@ -751,6 +788,40 @@ snapshots refreshed automatically without a manual warmup.
   A leader-only SIGKILL test retains the descendant-cleanup residual and explicitly retires its
   surviving group. Tests own and reap every child. Cross-platform/live-host qualification remains separately named.
 
+### Accepted (2026-10-21, V1-2130, V1-1732, owner's standing auto-accept 2026-10-11): analyzer schema maintenance
+
+- `IDX-SNAP-V0-060`: accepted under the owner's standing auto-accept (2026-10-11) (V1-2130). The
+  `IDX-SNAP-V0-017` schema rule keeps its scope: every edit to an audited analyzer input still
+  bumps `analyzerSchemaID` and both pins of `TestAnalyzerSchemaInputs`. `script/analyzer-schema.sh
+  bump [--base REF]` performs that bump as one command: it recomputes the audit digest exactly as
+  the test does (reading the audited directory list from the test file, so the two cannot audit
+  different inputs), and when the digest drifted or the number collides under `IDX-SNAP-V0-061`
+  it sets the number to REF's number plus one, or keeps this branch's number when it is already
+  above REF's, rewrites the schema constant and both test pins, then runs
+  `script/repin-use-case-receipts.sh`. REF defaults to `origin/main`; an unresolvable REF refuses,
+  writing nothing, so a bump never guesses its number. Repeated bumps on one branch keep one
+  number. The test remains the authority: a digest the script computed wrongly fails it.
+- `IDX-SNAP-V0-061`: accepted under the owner's standing auto-accept (2026-10-11) (V1-1732).
+  `script/analyzer-schema.sh check [--base REF]` (`make analyzer-schema-check`, which
+  `make decision-numbers-check` and therefore CI's documentation step run) MUST refuse a tree whose
+  audit digest differs from its pin, and a branch whose pins differ from both its merge base with
+  REF and REF itself while its schema number is not greater than REF's: two pull requests that
+  bump to the same number with different digests merge without a textual conflict on the number,
+  and a reused number would let one pack name two analyzer contents. The refusal names REF's
+  number and digest and the recovery, a rebump to REF's number plus one with `bump`. A branch
+  whose pins equal its merge base's (it changed no analyzer input) is never refused for being
+  behind REF. When REF does not resolve or shares no merge base, the collision comparison is
+  reported `NOT_RUN` on stderr and only the digest check decides. Rollback: remove the
+  `decision-numbers-check` prerequisite and the script; the in-tree pin test is unchanged.
+
+Traceability: `script/analyzer-schema_test.sh` (`make analyzer-schema-test`) covers the drift
+refusal, a first bump, a kept number on a second edit, a base that took the same number (refused,
+then rebumped past it), a branch with unchanged pins behind a newer base, and an unresolvable base
+(`NOT_RUN`, `bump` refuses); `TestAnalyzerSchemaInputs` passing on the script's pins proves the two
+digests agree. Measured on a sample comment-only edit to `internal/contextindex/taskcontext.go`:
+one command, 0.54 s wall, rewrote three lines in two files and left 18 receipts current, and the
+pin test passed (`docs/build-log/2026-10-21-analyzer-schema-maintenance.md`).
+
 ## Non-goals and authority
 
 Accepted, decision 0517 (V1-1128): the adapter-only writer/lock exception in
@@ -875,6 +946,12 @@ harness events); `TestPackQueryAndEventLoadsVerifyABodyOnlyWhenItIsRead`
 (`internal/contextindex/lifecycle_qualification_test.go`) for `IDX-SNAP-V0-022` and
 `IDX-SNAP-V0-023`; the corpus subtest runs only when `CORVINT_LIFECYCLE_CORPUS` names a clone
 (`docs/BUILD-LOG.md`, 2026-09-22 V1-0008).
+`TestSnapshotReuseMatchesColdBuild`, `TestSnapshotReuseRefusesUnverifiedPrior`,
+`TestSnapshotReuseRefusesRowsBoundToOtherBlobs`,
+`TestSnapshotReuseRecomputesIdentGraphForUnchangedReferrers` and
+`TestMergeReusedPostingsEqualsFullInversion` (`internal/contextindex/snapshot_reuse_test.go`), with
+the reuse counts asserted in `TestColdAndIncrementalSnapshotsAreByteIdentical`, cover
+`IDX-SNAP-V0-037` (`docs/build-log/2026-10-20-v1-0328-incremental-reindex.md`).
 `TestProbeSnapshotReadsOnlyTheMatchingHeader` (`internal/contextindex/snapshot_test.go`) probes a
 written snapshot fresh and the same file truncated by one byte as a miss (`IDX-SNAP-V0-011`);
 `TestSnapshotSameLengthBodyOverwriteIsAMiss` (`internal/contextindex/snapshot_test.go`) overwrites
@@ -960,3 +1037,4 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-034 (accepted, decision 0517) | `runIndex`, `WriteSnapshot` | `TestSnapshotRefreshInterrupted`, `TestEvictSnapshotsRemovesStaleTemporaries` |
 | IDX-SNAP-V0-035 (accepted, decision 0517) | `snapshotRemediation` | `TestSnapshotRefreshDisabledAndFailures` |
 | IDX-SNAP-V0-036 (accepted, decision 0517) | refresh regression matrix | `TestSnapshotRefreshCommitThenEvent`, `TestSnapshotRefreshSingleFlight`, `TestSnapshotRefreshInterrupted` |
+| IDX-SNAP-V0-037 (standing auto-accept, V1-0328) | `BuildForSnapshot`, `snapshotReuseEnabled`, `loadReusePrior`, `priorFacts`, `takeUnchanged`, `attach`, `buildReusedVocabulary`, `mergeReusedPostings` | `TestSnapshotReuseMatchesColdBuild`, `TestSnapshotReuseRefusesUnverifiedPrior`, `TestSnapshotReuseRefusesRowsBoundToOtherBlobs`, `TestSnapshotReuseRecomputesIdentGraphForUnchangedReferrers`, `TestMergeReusedPostingsEqualsFullInversion`, `TestColdAndIncrementalSnapshotsAreByteIdentical` |

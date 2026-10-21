@@ -115,20 +115,24 @@ func strictJSON(body []byte) bool {
 // a reference the mapping cannot bound: a dynamic constant lookup or an
 // association whose class is not a mapped constant (RUBY-AFFECTED-V0-010).
 func (autoload *railsAutoload) edges(item observation) (map[string]bool, bool) {
-	masked := maskQuotedLiteralsAndInlineComments(item.text)
+	text := maskHeredocBodies(item.text)
+	masked := maskQuotedLiteralsAndInlineComments(text)
 	targets := map[string]bool{}
 	bounded := !dynamicConstantLookup.MatchString(masked)
-	namespaces := openedNamespaces(masked)
-	for _, reference := range constantReference.FindAllString(masked, -1) {
-		autoload.resolve(reference, namespaces, targets)
+	scopes := scanLexicalScopes(text, masked)
+	for _, at := range constantReference.FindAllStringIndex(masked, -1) {
+		autoload.resolve(masked[at[0]:at[1]], scopes.at(at[0]), targets)
 	}
 	raw := strings.Split(item.text, "\n")
+	offset := 0
 	for index, line := range strings.Split(masked, "\n") {
+		lineStart := offset
+		offset += len(line) + 1
 		match := association.FindStringSubmatch(line)
 		if match == nil || index >= len(raw) {
 			continue
 		}
-		if !autoload.association(match[1], raw[index], namespaces, targets) {
+		if !autoload.association(match[1], raw[index], scopes.at(lineStart), targets) {
 			bounded = false
 		}
 	}
@@ -162,7 +166,8 @@ func (autoload *railsAutoload) association(name, raw string, namespaces []string
 
 // resolve adds the paths defining reference under Ruby's lexical lookup: the
 // name itself with each namespace prefix it loads on the way, and the name
-// below every namespace the file opens. It over-approximates the nesting, so
+// below every namespace lexically enclosing it. It over-approximates the
+// nesting (each enclosing name also stands alone, with its prefixes), so
 // it can add an edge Ruby would not take but never drops one the mapping
 // knows. It reports whether any candidate is itself a mapped constant.
 func (autoload *railsAutoload) resolve(reference string, namespaces []string, targets map[string]bool) bool {
@@ -194,7 +199,9 @@ func (autoload *railsAutoload) resolve(reference string, namespaces []string, ta
 }
 
 // openedNamespaces names every namespace a `class` or `module` line opens,
-// each alone and nested below every earlier one, with their prefixes.
+// each alone and nested below every earlier one, with their prefixes. It is
+// the whole-file fallback when block nesting cannot be scanned
+// (RUBY-AFFECTED-V0-043).
 func openedNamespaces(masked string) []string {
 	set := map[string]bool{}
 	nested := ""

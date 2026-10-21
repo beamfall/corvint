@@ -12,14 +12,10 @@ import (
 // seeds SHARED.scenario_a and a context that reads SHARED.scenario_a. This file reads those property
 // accesses so setup-select can select the seeder, or return ALL when a read cannot be closed.
 
+// Its bounds, sharedReexportBound, sharedLookupBound and sharedTemplateBound, are declared with
+// the other analyzer bounds (analyzer_bounds.go, TSA-V0-460).
+
 const (
-	// maxSharedReexport bounds the `export ... from` chain followed to an exported constant.
-	maxSharedReexport = 8
-	// maxSharedSteps bounds the export-table lookups of one resolution, so an `export *` graph
-	// with cycles, whose partial results are not cached, stays linear in the bound.
-	maxSharedSteps = 4096
-	// maxSharedTemplateDepth bounds template substitutions nested inside substitutions.
-	maxSharedTemplateDepth = 8
 	// sharedDefaultObject is the local name recorded for `export default { ... }`.
 	sharedDefaultObject = "\x00default-object"
 )
@@ -59,7 +55,7 @@ type moduleExports struct {
 	// from maps an exported name to the module and name an `export ... from` forwards.
 	from  map[string]registryBinding
 	stars []string
-	// truncated is the line of the first template substitution nested past maxSharedTemplateDepth.
+	// truncated is the line of the first template substitution nested past sharedTemplateBound.
 	truncated int
 }
 
@@ -86,7 +82,7 @@ type sharedResolution struct {
 type sharedState struct {
 	exports map[string]*moduleExports
 	// resolved caches only path-independent resolutions: never one a cycle marker or the hop or
-	// step bound shaped.
+	// lookup bound shaped (TSA-V0-462).
 	resolved  map[[2]string]sharedResolution
 	active    map[[2]string]bool
 	steps     int
@@ -107,7 +103,7 @@ func newSharedState() *sharedState {
 // sharedTokens lexes text like registryTokens and also lexes the `${...}` substitutions of every
 // template literal, which the web lexer folds into one opaque string token, so a property read
 // inside a template is still seen. Each substitution is wrapped in parentheses. truncated is the
-// line of the first substitution nested past maxSharedTemplateDepth, which is not lexed, and zero
+// line of the first substitution nested past sharedTemplateBound, which is not lexed, and zero
 // when there is none.
 func sharedTokens(text string, depth int) (tokens []registryToken, complete bool, truncated int) {
 	lexer := &webLexer{text: text}
@@ -131,7 +127,7 @@ func sharedTokens(text string, depth int) (tokens []registryToken, complete bool
 		start := sharedTokenStart(text, before)
 		first := line - strings.Count(text[start:end], "\n")
 		bodies := templateSubstitutions(text[start:end])
-		if depth >= maxSharedTemplateDepth {
+		if !sharedTemplateBound.admits(depth + 1) {
 			if len(bodies) != 0 && truncated == 0 {
 				truncated = first
 			}
@@ -315,7 +311,7 @@ func constObject(tokens []registryToken, local string) bool {
 
 // resolveConst follows name exported by module, through `export ... from`, `export *`,
 // `export * as` and local re-exports of imports, to the constant object that declares it or to a
-// module namespace. A chain beyond maxSharedReexport hops, more than maxSharedSteps lookups, an
+// module namespace. A chain beyond sharedReexportBound, more than sharedLookupBound lookups, an
 // unreadable module or an unresolved specifier is sharedUnknown, never sharedNone (TSA-V0-007).
 func (s *setupSelector) resolveConst(module, name string) sharedResolution {
 	s.shared.steps = 0
@@ -334,11 +330,11 @@ func (s *setupSelector) resolveExport(module, name string, depth int) (sharedRes
 		// An `export *` cycle: no binding along this path, which says nothing about other paths.
 		return sharedResolution{}, false
 	}
-	if depth > maxSharedReexport {
-		return sharedResolution{kind: sharedUnknown, why: "a re-export chain longer than the bound of 8 hops"}, false
+	if !sharedReexportBound.admits(depth) {
+		return sharedResolution{kind: sharedUnknown, why: sharedReexportBound.exhausted("a re-export chain")}, false
 	}
-	if s.shared.steps++; s.shared.steps > maxSharedSteps {
-		return sharedResolution{kind: sharedUnknown, why: "a re-export graph larger than the bound of 4096 lookups"}, false
+	if s.shared.steps++; !sharedLookupBound.admits(s.shared.steps) {
+		return sharedResolution{kind: sharedUnknown, why: sharedLookupBound.exhausted("a re-export graph")}, false
 	}
 	table, ok := s.exportsOf(module)
 	if !ok {
@@ -348,9 +344,12 @@ func (s *setupSelector) resolveExport(module, name string, depth int) (sharedRes
 	}
 	s.shared.active[key] = true
 	defer delete(s.shared.active, key)
-	result, exact := sharedResolution{}, true
+	// exhausted is the first branch a bound stopped. It outranks any later branch's answer: the
+	// stopped branch may bind name too, which a found result elsewhere cannot rule out
+	// (TSA-V0-461).
+	result, exact, exhausted := sharedResolution{}, true, sharedResolution{}
 	forward := func(specifier, imported string) {
-		if result.kind == sharedFound || result.kind == sharedNamespace {
+		if result.kind == sharedFound || result.kind == sharedNamespace || exhausted.kind == sharedUnknown {
 			return
 		}
 		resolution := s.resolver.Resolve(module, specifier)
@@ -366,6 +365,9 @@ func (s *setupSelector) resolveExport(module, name string, depth int) (sharedRes
 			var nextExact bool
 			next, nextExact = s.resolveExport(resolution.Target, imported, depth+1)
 			exact = exact && nextExact
+			if next.kind == sharedUnknown && !nextExact {
+				exhausted = next
+			}
 		}
 		if next.kind != sharedNone {
 			result = next
@@ -386,6 +388,9 @@ func (s *setupSelector) resolveExport(module, name string, depth int) (sharedRes
 		for _, specifier := range table.stars {
 			forward(specifier, name)
 		}
+	}
+	if exhausted.kind == sharedUnknown {
+		result = exhausted
 	}
 	if exact {
 		s.shared.resolved[key] = result
@@ -466,7 +471,7 @@ func (s *setupSelector) sharedUses(name string, table *moduleExports) (map[share
 	}
 	if table.truncated != 0 {
 		sites = append(sites, sharedSite{path: name, line: table.truncated, any: true,
-			detail: "template substitutions nested deeper than the bound of 8 are not read"})
+			detail: sharedTemplateBound.exhausted("template substitutions nested") + ", which are not read"})
 	}
 	for at, token := range tokens {
 		if token.kind != webWord || registryMember(tokens, at) {

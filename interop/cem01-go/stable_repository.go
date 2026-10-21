@@ -748,8 +748,7 @@ func runStableCanonicalTrusted(ctx context.Context, repo string, raw []byte, bas
 // runStableCanonicalExternal is runStableCanonicalTrusted with the consumer
 // --external-repository roots by name (CEM-V1-333); nil supplies none.
 func runStableCanonicalExternal(ctx context.Context, repo string, raw []byte, base, target, artifacts string, hooks *stableHooks, trusted map[string]ed25519.PublicKey, externals map[string]string) (stableResult, int) {
-	r := newStableResult(base, target)
-	r.RepositoryEnvelope = stableCanonicalEnvelope
+	r := newStableResult(base, target, stableCanonicalEnvelope)
 	r.MapSHA256 = string03(shaHex(raw))
 	m, e := decodeStable(raw)
 	if e != nil {
@@ -1189,8 +1188,7 @@ func executeStableCanonicalCLIExternal(ctx context.Context, argv []string) (stab
 			flags[argv[i]] = argv[i+1]
 		}
 	}
-	r := newStableResult(flags["--expected-base"], flags["--target"])
-	r.RepositoryEnvelope = stableCanonicalEnvelope
+	r := newStableResult(flags["--expected-base"], flags["--target"], stableCanonicalEnvelope)
 	if bad || flags["--repository"] == "" || flags["--map"] == "" || !filepath.IsAbs(flags["--repository"]) || !filepath.IsAbs(flags["--map"]) {
 		res, status := failStable(&r, "arguments", operational("invalid-arguments"), false)
 		return res, status, nil, externals

@@ -59,8 +59,16 @@ func BuildForSnapshot(ctx context.Context, root string) (*Index, error) {
 			return index, nil
 		}
 	}
-	return Build(ctx, root)
+	if !snapshotReuseEnabled() {
+		return Build(ctx, root)
+	}
+	// A refused or absent prior leaves the reuse empty, which is Build exactly.
+	return buildStableReusing(ctx, root, nil, (*Index).compile, newSnapshotReuse(root))
 }
+
+// snapshotReuseEnabled is the IDX-SNAP-V0-037 rollback switch:
+// CORVINT_INDEX_REUSE=0 restores the cold writer build.
+func snapshotReuseEnabled() bool { return runtimeenv.Value("INDEX_REUSE") != "0" }
 
 func buildWithBlobShards(ctx context.Context, root string, opening *LoaderObservation, compile func(*Index)) (*Index, error) {
 	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
@@ -278,6 +286,9 @@ func shardRegularPath(root, target string) error {
 }
 
 func (index *Index) buildVocabulary() *TermTable {
+	if index.priorVocabulary != nil {
+		return index.buildReusedVocabulary()
+	}
 	if index.blobFacts == nil {
 		return buildTermTable(index.Sources)
 	}

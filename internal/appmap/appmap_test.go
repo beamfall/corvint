@@ -1296,6 +1296,8 @@ func TestAMAPV0013MethodOutsideClassNotCallable(t *testing.T) {
 		"export class HomePage {}\nconst helpers = {\n  async click() {\n    return 1;\n  },\n};\n",
 		"const helpers = {\n  async click() {\n    return 1;\n  },\n};\nexport class HomePage {\n}\n",
 		"export class HomePage {\n  async open() {\n    const o = {\n      async click() {\n        return 1;\n      },\n    };\n  }\n}\n",
+		// V1-0968 (1): an object literal assigned to a class field is not the class body.
+		"export class HomePage {\n  helpers = {\n    async click() {\n      return 1;\n    },\n  };\n}\n",
 	} {
 		for _, m := range readFacts(src).methods {
 			if m.name == "click" && m.callable {
@@ -1371,5 +1373,146 @@ func TestAMAPV0007RegexAfterControlCondition(t *testing.T) {
 func TestAMAPV0002TruncatedStateCall(t *testing.T) {
 	for _, src := range []string{"app.state('home',", "app.state('home', ", "app.state({"} {
 		parseRouter(blobEntry{path: "r.js"}, []byte(src), nil)
+	}
+}
+
+// AMAP-V0-013, V1-0974: a page object that is only a default export, with no FRESH named import
+// of it anywhere in the suite, is reported as an UNRESOLVED import and never called.
+func TestAMAPV0013ScaffoldDefaultExportNotNamedImport(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	for _, p := range []string{"e2e/pages/teesheet.page.ts", "e2e/specs/teesheet-click.spec.ts", "e2e/specs/alias.spec.ts", "e2e/workflows/booking.ts"} {
+		data, err := os.ReadFile(filepath.Join(root, p))
+		if err != nil {
+			t.Fatal(err)
+		}
+		s := strings.Replace(string(data), "export class TeeSheetPage", "export default class TeeSheetPage", 1)
+		writeFile(t, root, p, strings.Replace(s, "import { TeeSheetPage }", "import TeeSheetPage", 1))
+	}
+	rev := commitAll(t, root, "default export")
+	raw, err := ProjectScaffold(context.Background(), build(t, root, rev), "book-tee-time", Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := decode(t, raw)
+	imports, body := fmtJSON(doc["imports"]), fmtJSON(doc["lines"])
+	if strings.Contains(imports, "import { TeeSheetPage } from") || strings.Contains(body, "teeSheetPage.book()") ||
+		!strings.Contains(imports, "UNRESOLVED import { TeeSheetPage }") || !strings.Contains(fmtJSON(doc["unknowns"]), "default-export") {
+		t.Fatalf("default-export page object scaffolded as a named import:\n%s\n%s\n%s", imports, body, fmtJSON(doc["unknowns"]))
+	}
+	// The named export beside it still scaffolds its call unchanged.
+	if !strings.Contains(body, "await homePage.goToTeeSheets();") {
+		t.Fatalf("named export lost its call:\n%s", body)
+	}
+}
+
+// AMAP-V0-013, V1-0968 (2): two import statements on one line are kept one per statement, so the
+// scaffold copies each statement once instead of the whole line.
+func TestAMAPV0013TwoImportsOnOneLine(t *testing.T) {
+	line := "import { test, expect } from '@playwright/test'; import { HomePage } from '../pages/home.page';"
+	if got := statementAt(line, 1, "@playwright/test"); got != "import { test, expect } from '@playwright/test';" {
+		t.Fatalf("first statement = %q", got)
+	}
+	if got := statementAt(line, 1, "../pages/home.page"); got != "import { HomePage } from '../pages/home.page';" {
+		t.Fatalf("second statement = %q", got)
+	}
+	multi := "import {\n  HomePage,\n} from '../pages/home.page';"
+	if got := statementAt(multi, 1, "../pages/home.page"); got != multi {
+		t.Fatalf("multi-line statement = %q", got)
+	}
+	root, _ := fixtureRepo(t)
+	spec := "e2e/specs/teesheet-click.spec.ts"
+	data, _ := os.ReadFile(filepath.Join(root, spec))
+	text := strings.Replace(string(data), "import { test, expect } from '@playwright/test';\nimport { HomePage }", "import { test, expect } from '@playwright/test'; import { HomePage }", 1)
+	if text == string(data) {
+		t.Fatal("fixture edit did not apply")
+	}
+	writeFile(t, root, spec, text)
+	raw, err := ProjectScaffold(context.Background(), build(t, root, commitAll(t, root, "two imports on one line")), "book-tee-time", Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Each borrowed statement is copied alone. The index records no binding for a second import
+	// on a shared line (contextindex anchors import statements to a line start), so HomePage may
+	// still be generated beside it; that gap is outside this check.
+	imports := fmtJSON(decode(t, raw)["imports"])
+	if strings.Count(imports, "expect") != 1 || strings.Contains(imports, "'; import") {
+		t.Fatalf("a borrowed import copied a neighbouring statement: %s", imports)
+	}
+}
+
+// AMAP-V0-013, V1-0968 (3): a loaded map whose step selector is of strength unknown but carries a
+// filled reuse list does not get a method call; the scaffold declines it with a stated reason.
+func TestAMAPV0013UnknownSelectorReuseDeclinedInScaffold(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	m := build(t, root, rev)
+	forged := false
+	for i := range m.Flows {
+		if !strings.HasSuffix(m.Flows[i].ID, "book-tee-time") {
+			continue
+		}
+		for j := range m.Flows[i].Steps {
+			st := &m.Flows[i].Steps[j]
+			if st.Selector != nil && len(st.Reuse) > 0 {
+				st.Selector.Strength = strengthUnknown
+				forged = true
+			}
+		}
+	}
+	if !forged {
+		t.Fatal("fixture has no step with a selector and a reuse list")
+	}
+	raw, err := ProjectScaffold(context.Background(), m, "book-tee-time", Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(raw)
+	if strings.Contains(body, "await teeSheetPage.") || !strings.Contains(body, `"reason":"unknown-selector-reuse"`) {
+		t.Fatalf("scaffold called a method through an unknown-strength selector: %s", body)
+	}
+}
+
+// AMAP-V0-013: a loaded map's class_export is either omitted or "default"; any other value is
+// refused rather than read as a named export.
+func TestAMAPV0013ParseMapRefusesUnknownClassExport(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	m := build(t, root, rev)
+	if len(m.Files) == 0 {
+		t.Fatal("fixture map has no files")
+	}
+	for _, value := range []string{"", ClassExportDefault, "named", "Default"} {
+		c := *m
+		c.Files = append([]TestFile(nil), m.Files...)
+		c.Files[0].ClassExport = value
+		sum, err := mapDigest(&c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		c.Digest = sum
+		raw, err := json.Marshal(&c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = ParseMap(raw)
+		if want := value == "" || value == ClassExportDefault; (err == nil) != want {
+			t.Errorf("class_export %q: ParseMap error %v", value, err)
+		}
+	}
+}
+
+// AMAP-V0-013: statement boundaries are read lexically, so an import keyword, a semicolon or a
+// specifier inside a comment or string never starts or ends a copied statement; a statement with
+// a comment inside is refused (UNRESOLVED) rather than copied.
+func TestAMAPV0013ImportStatementBoundariesAreLexical(t *testing.T) {
+	for _, c := range []struct{ text, specifier, want string }{
+		{"import { test, expect } /* import 'node:fs'; globalThis.injected = true; // */ from '@playwright/test';", "@playwright/test", ""},
+		{"import { test, expect } /* import 'node:fs'; globalThis.injected = true; // */ from '@playwright/test';", "node:fs", ""},
+		{"import { a } from './a'; const s = \"import y from 'z';\";", "z", ""},
+		{"import { a } from './a'; // import { z } from 'z';", "z", ""},
+		{"import { a } from './a'\nimport { b } from './b'", "./b", "import { b } from './b'"},
+		{"import { a } from \"./a\"; import { b } from './b';", "./b", "import { b } from './b';"},
+	} {
+		if got := statementAt(c.text, 1, c.specifier); got != c.want {
+			t.Errorf("statementAt(%q, %q) = %q, want %q", c.text, c.specifier, got, c.want)
+		}
 	}
 }

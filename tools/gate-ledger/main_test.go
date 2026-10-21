@@ -399,12 +399,14 @@ func TestWorktreeDigestImportFailureRunsWithoutRecord(t *testing.T) {
 // repository and returns its root.
 func packageRepository(t *testing.T, files map[string]string) string {
 	t.Helper()
-	for _, name := range []string{"select.go", "readers.go", "readscopes.go"} {
-		data, err := os.ReadFile(filepath.Join("..", "..", "internal", "gateselect", name))
+	// The selector's sources and its one in-module import, the stdlib-only
+	// internal/taskprojection leaf, rebased onto the fixture module.
+	for _, name := range []string{"gateselect/select.go", "gateselect/readers.go", "gateselect/readscopes.go", "taskprojection/taskprojection.go"} {
+		data, err := os.ReadFile(filepath.Join("..", "..", "internal", filepath.FromSlash(name)))
 		if err != nil {
 			t.Fatal(err)
 		}
-		files["internal/gateselect/"+name] = string(data)
+		files["internal/"+name] = strings.ReplaceAll(string(data), "github.com/Beamfall/corvint/internal/", "example.com/fixture/internal/")
 	}
 	wrapper, err := os.ReadFile(filepath.Join("..", "gate-affected-select", "main.go"))
 	if err != nil {
@@ -444,6 +446,42 @@ func TestGoTestRunsUnresolvedAfterResolvedFailure(t *testing.T) {
 	data, _ := os.ReadFile(log)
 	if lines := strings.Split(strings.TrimSpace(string(data)), "\n"); len(lines) != 2 || strings.Contains(lines[0], "-count=1") || lines[1] != "-count=1 example.com/fixture/wd" {
 		t.Fatalf("go test received %q", data)
+	}
+}
+
+// GL-V0-050 (V1-0634): a root-locating package the read-scope declaration
+// bounds is keyed per package over its subtree, its declared entries and the
+// declaration, not the tree: an unrelated edit hits its record, and an edit
+// under a declared entry or to the declaration reruns it.
+func TestGoTestKeysDeclaredPackagesByTheirScope(t *testing.T) {
+	root := packageRepository(t, map[string]string{
+		"go.mod":                         "module example.com/fixture\n\ngo 1.27\n",
+		"walker/walker_test.go":          "package walker\n\nimport (\n\t\"os\"\n\t\"testing\"\n)\n\nfunc TestWalk(t *testing.T) { os.Getwd() }\n",
+		"docs/guide.md":                  "guide\n",
+		"notes/other.md":                 "other\n",
+		".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"walker":["docs/"]}}` + "\n",
+	})
+	log := filepath.Join(t.TempDir(), "ARGS")
+	args := []string{"go-test", "--", "sh", "-c", `echo "$@" >> "$0"; for pkg in "$@"; do case "$pkg" in -*) continue;; esac; printf '{"Action":"start","Package":"%s"}\n{"Action":"pass","Package":"%s"}\n' "$pkg" "$pkg"; done`, log}
+	code, out := ledgerRun(t, args...)
+	if code != 0 || !strings.Contains(out, "RECORD go-test-package example.com/fixture/walker ") || strings.Contains(out, "go-test-unresolved") {
+		t.Fatalf("first run: code %d, %q", code, out)
+	}
+	write(t, root, "notes/other.md", "other, edited\n")
+	if _, out := ledgerRun(t, args...); !strings.Contains(out, "HIT go-test-package example.com/fixture/walker ") {
+		t.Fatalf("edit outside the declared scope: %q", out)
+	}
+	write(t, root, "docs/guide.md", "guide, edited\n")
+	if _, out := ledgerRun(t, args...); !strings.Contains(out, "RUN go-test-package example.com/fixture/walker:") {
+		t.Fatalf("edit under a declared entry: %q", out)
+	}
+	write(t, root, ".corvint/test-read-scopes.json", `{"profile":"corvint-test-read-scopes/0","packages":{"walker":["docs/","notes/"]}}`+"\n")
+	if _, out := ledgerRun(t, args...); !strings.Contains(out, "RUN go-test-package example.com/fixture/walker:") {
+		t.Fatalf("edit to the declaration: %q", out)
+	}
+	write(t, root, ".corvint/test-read-scopes.json", "{}\n")
+	if _, out := ledgerRun(t, args...); !strings.Contains(out, "go-test-unresolved") && !strings.Contains(out, "PARTITION unavailable") {
+		t.Fatalf("an invalid declaration keyed the package by scope: %q", out)
 	}
 }
 
@@ -520,6 +558,7 @@ func testGoTestPartialPassRerun(t *testing.T, bad string) {
 	packageRepository(t, map[string]string{
 		"tools/gate-affected-select/main_test.go": "package main\nimport \"testing\"\nfunc TestSelector(t *testing.T) {}\n",
 		"internal/gateselect/select_test.go":      "package gateselect\nimport \"testing\"\nfunc TestSelect(t *testing.T) {}\n",
+		"internal/taskprojection/leaf_test.go":    "package taskprojection\nimport \"testing\"\nfunc TestLeaf(t *testing.T) {}\n",
 		"go.mod":                                  "module example.com/fixture\n\ngo 1.27\n",
 		"main_test.go":                            "package main\nimport \"testing\"\nfunc TestRoot(t *testing.T) {}\n",
 		"good/good_test.go":                       "package good\nimport \"testing\"\nfunc TestGood(t *testing.T) {}\n",

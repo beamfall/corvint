@@ -53,7 +53,7 @@ func rspecAdviceRepository(t *testing.T, withGemfile bool) string {
 
 // TestAFPV0066AdviceListsSelectedRSpecFiles: AFP-V0-066. A dirty Ruby source
 // whose plan selects an RSpec unit yields one advisory `bundle exec rspec`
-// check over the selected spec files, and the Go advisory line is unchanged.
+// check over the selected spec files.
 func TestAFPV0066AdviceListsSelectedRSpecFiles(t *testing.T) {
 	t.Parallel()
 	root := rspecAdviceRepository(t, true)
@@ -74,9 +74,6 @@ func TestAFPV0066AdviceListsSelectedRSpecFiles(t *testing.T) {
 		t.Fatalf("reason must name the selection and the Gemfile: %v", check)
 	}
 	unknown := affectedAdviceUnknown(t, receipt)
-	if !slices.Contains(unknown, "NO_ADVISORY_GO_COMMAND: provider.go.state is EMPTY_SELECTION") {
-		t.Fatalf("the Go advisory unknown line must stay: %v", unknown)
-	}
 	for _, line := range unknown {
 		if strings.HasPrefix(line, "NO_ADVISORY_RSPEC_COMMAND") {
 			t.Fatalf("a runnable RSpec check must not also report it is missing: %v", unknown)
@@ -107,7 +104,7 @@ func TestAFPV0066NoRSpecCommandWithoutGemfile(t *testing.T) {
 func TestAFPV0066RSpecAdviceOrderBoundAndScope(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "Gemfile"), []byte("source \"https://rubygems.org\"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "Gemfile"), []byte("source \"https://rubygems.org\"\ngem \"rspec\"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	plan := affected.Plan{Selected: []affected.Selection{
@@ -156,7 +153,7 @@ func TestAFPV0066RSpecAdviceOrderBoundAndScope(t *testing.T) {
 func TestAFPV0066DashLeadingSpecFileIsNeverAnOption(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "Gemfile"), []byte("source \"https://rubygems.org\"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "Gemfile"), []byte("source \"https://rubygems.org\"\ngem \"rspec\"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	plan := affected.Plan{Selected: []affected.Selection{
@@ -174,6 +171,88 @@ func TestAFPV0066DashLeadingSpecFileIsNeverAnOption(t *testing.T) {
 	for _, word := range strings.Fields(strings.TrimPrefix(advice.Checks[0].Command, adviceAdvisoryRSpec+" ")) {
 		if !strings.HasPrefix(word, "'./") {
 			t.Fatalf("operand %q could be read as an option", word)
+		}
+	}
+}
+
+// TestAFPV0066RSpecAdviceNeedsDeclaredRSpecGem: AFP-V0-066 (V1-1828). The
+// advisory command needs rspec, rspec-core or rspec-rails declared in the root
+// Gemfile or Gemfile.lock by the NGI-V0-052 check; a Minitest repository with a
+// spec/ directory gets the no-rspec-gem line instead.
+func TestAFPV0066RSpecAdviceNeedsDeclaredRSpecGem(t *testing.T) {
+	t.Parallel()
+	plan := affected.Plan{Selected: []affected.Selection{{UnitID: "ruby:rspec:spec/a_spec", Tests: []string{"spec/a_spec.rb"}}}}
+	cases := []struct {
+		name, gemfile, lock string
+		runnable            bool
+	}{
+		{"minitest with spec dir", "source \"https://rubygems.org\"\ngem \"minitest\"\n", "", false},
+		{"rspec-rails in Gemfile", "gem 'rspec-rails', group: :test\n", "", true},
+		{"rspec-core in lockfile", "gemspec\n", "GEM\n  specs:\n    rspec-core (3.13.0)\n\nDEPENDENCIES\n  minitest\n", true},
+		{"rspec only as a nested requirement", "gemspec\n", "GEM\n  specs:\n    rails (7.1.0)\n      rspec-core (>= 3)\n", false},
+		{"commented gem line", "# gem \"rspec\"\n", "", false},
+		{"oversized Gemfile", "gem \"rspec\"\n" + strings.Repeat("#\n", adviceMaxGemManifestBytes), "", false},
+	}
+	for _, test := range cases {
+		root := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(root, "spec"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "Gemfile"), []byte(test.gemfile), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if test.lock != "" {
+			if err := os.WriteFile(filepath.Join(root, "Gemfile.lock"), []byte(test.lock), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		advice := compileAffectedAdvice(root, plan, affectedGoProvider{State: providerStateEmpty})
+		if runnable := len(advice.Checks) == 1; runnable != test.runnable {
+			t.Fatalf("%s: checks=%v unknown=%v", test.name, advice.Checks, advice.Unknown)
+		}
+		if !test.runnable && !slices.Contains(advice.Unknown, adviceNoRSpecGem) {
+			t.Fatalf("%s: unknown must name the missing rspec gem: %v", test.name, advice.Unknown)
+		}
+	}
+}
+
+// TestAFPV0066SymlinkedGemManifestDeclaresNothing: a Gemfile.lock that is a
+// symlink, even to a manifest declaring rspec, is never read (AFP-V0-066).
+func TestAFPV0066SymlinkedGemManifestDeclaresNothing(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	target := filepath.Join(t.TempDir(), "Gemfile.lock")
+	if err := os.WriteFile(target, []byte("GEM\n  specs:\n    rspec-core (3.13.0)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "Gemfile"), []byte("gemspec\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, filepath.Join(root, "Gemfile.lock")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	if adviceDeclaresRSpecGem(root) {
+		t.Fatal("a symlinked Gemfile.lock must declare nothing")
+	}
+}
+
+// TestAFPV0009NoGoAdviceGapWithoutGoUnits: AFP-V0-009 (V1-2076). A repository
+// whose graph has no Go unit reports no NO_ADVISORY_GO_COMMAND line for its
+// empty Go selection; a Go repository keeps the line (the consequence use case
+// missing-anchors).
+func TestAFPV0009NoGoAdviceGapWithoutGoUnits(t *testing.T) {
+	t.Parallel()
+	root := rspecAdviceRepository(t, true)
+	receipt, _, stderr, code := runAffectedCLI(t, root)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	if state := receipt["provider"].(map[string]any)["go"].(map[string]any)["state"]; state != providerStateEmpty {
+		t.Fatalf("provider.go.state = %v, want %s", state, providerStateEmpty)
+	}
+	for _, line := range affectedAdviceUnknown(t, receipt) {
+		if strings.HasPrefix(line, "NO_ADVISORY_GO_COMMAND") {
+			t.Fatalf("a repository without Go units must not report a Go advice gap: %q", line)
 		}
 	}
 }

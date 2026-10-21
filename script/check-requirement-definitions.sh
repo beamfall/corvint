@@ -8,6 +8,15 @@ set -eu
 #
 # CEM-CB-* is exempt. docs/specs/cem-0.2-canonical-binding.md states that family in
 # tables by design, so those IDs have no definition line and never had one.
+#
+# Definition grammar (RDG-V0-004): after optional leading whitespace, an optional `-`/`*`
+# bullet and optional `**`, the ID (backticks balanced) is followed by `:` or by a single `.`.
+# A `..` is a prose range such as `AMAP-V0-024..026 are`, never a definition.
+#
+# Outside-section ratchet (RDG-V0-021): the OCM intent reader enumerates only the one
+# `## Requirements` section, so an OCM-form definition (- `ID`: , - **ID:** , - **ID.** )
+# placed after that section falls out of every OCM. Such a definition must be listed in
+# script/requirement-definitions-outside-section.txt, a frozen baseline that may only shrink.
 
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
@@ -92,20 +101,53 @@ sub index_lines {
     return split /^/, index_blob($_[0]);
 }
 
-my %defined;
+my (%defined, %outside);
 for my $file (tracked_spec_docs()) {
     next if $file eq 'docs/specs/README.md';
     my $line_number = 0;
+    # A fence is tracked as OCM's fencedLines does (internal/lrfrepo/ocm.go): a run of at least
+    # three backticks or tildes indented at most three spaces opens one (a backtick fence's info
+    # string holds no backtick), and only a run of the same character at least as long, followed
+    # by nothing but spaces or tabs, closes it.
+    my ($fence, $in_section, $sections) = ('', 0, 0);
+    my @outside;
     for my $line (index_lines($file)) {
         ++$line_number;
+        my ($run, $rest) = $line =~ /^ {0,3}(`{3,}|~{3,})(.*?)\r?\n?\z/ ? ($1, $2) : ('', '');
+        if ($fence ne '') {
+            $fence = '' if $run ne '' && substr($run, 0, 1) eq substr($fence, 0, 1)
+                && length($run) >= length($fence) && $rest =~ /\A[ \t]*\z/;
+        } elsif ($run ne '' && !($run =~ /^`/ && $rest =~ /`/)) {
+            $fence = $run;
+        } elsif ($line =~ /^## Requirements\r?\n?\z/) {
+            ($in_section, $sections) = (1, $sections + 1);
+        } elsif ($line =~ /^##(?: |\r?\n?\z)/) {
+            $in_section = 0;
+        } elsif (!$in_section
+            && $line =~ /^- (?:`([A-Z][A-Z0-9-]*-[0-9]{3})`: |\*\*([A-Z][A-Z0-9-]*-[0-9]{3})[:.]\*\* )/) {
+            push @outside, "$file " . ($1 // $2);
+        }
         # The backticks must balance. With both optional and independent, an opening
         # backtick matched while the closing one did not, so a prose range like
         # `PUB-V0-011..015`. read as a second definition of PUB-V0-011. The
         # backreference makes the closing backtick required exactly when one opened.
-        next unless $line =~ /^\s*(?:[-*]\s+)?(?:\*\*)?(`?)([A-Z][A-Z0-9-]*-[0-9]{3})\1(?:\*\*)?\s*[:.]/;
+        next unless $line =~ /^\s*(?:[-*]\s+)?(?:\*\*)?(`?)([A-Z][A-Z0-9-]*-[0-9]{3})\1(?:\*\*)?(?:\s*:|\.(?!\.))/;
         push @{ $defined{$2} }, "$file:$line_number";
     }
+    # Only a spec with exactly one Requirements section is an OCM intent; others refuse anyway.
+    $outside{$_} = 1 for $sections == 1 ? @outside : ();
 }
+
+my %baseline;
+if (system("git cat-file -e :script/requirement-definitions-outside-section.txt 2>/dev/null") == 0) {
+    for my $row (split /^/, index_blob('script/requirement-definitions-outside-section.txt')) {
+        chomp $row;
+        next if $row =~ /^\s*(?:#|\z)/;
+        $baseline{$row} = 1;
+    }
+}
+my @new_outside = grep { !$baseline{$_} } sort keys %outside;
+my @stale_baseline = grep { !$outside{$_} } sort keys %baseline;
 
 my @undefined;
 for my $row (split /^/, index_blob('docs/specs/REQUIREMENTS.tsv')) {
@@ -139,6 +181,16 @@ if (@duplicated) {
             print STDERR "duplicate definition: $id at $locs[0] and $locs[$i]\n";
         }
     }
+}
+if (@new_outside) {
+    $failed = 1;
+    print STDERR "requirement definitions: defined outside the spec's ## Requirements section, so OCM cannot enumerate them; move each into that section:\n";
+    print STDERR "  $_\n" for @new_outside;
+}
+if (@stale_baseline) {
+    $failed = 1;
+    print STDERR "requirement definitions: no longer outside ## Requirements; delete from script/requirement-definitions-outside-section.txt:\n";
+    print STDERR "  $_\n" for @stale_baseline;
 }
 exit($failed);
 PERL

@@ -249,6 +249,20 @@ func TestAMSPV0005UnmappedStepsFailClosed(t *testing.T) {
 	}
 }
 
+// AMSP-V0-006, V1-0973: a step that resolves to no app leaves every session's page unknown, so
+// the next step navigates with goto rather than staying where the step before the gap left it.
+func TestAMSPV0006StepWithNoAppForgetsPosition(t *testing.T) {
+	root, rev, maps := planRepo(t)
+	o := PlanOptions{Options: Options{Root: root, Revision: rev}}
+	st := planSteps(t, planOf(t, maps, SplitRequest("book a tee time; delete the club; check the slot status"), o))
+	if st[1]["status"] != StepUnmapped || st[2]["status"] != StepMapped {
+		t.Fatalf("statuses = %v %v", st[1]["status"], st[2]["status"])
+	}
+	if a := actions(st[2]); a[0]["navigation"] != "goto" {
+		t.Fatalf("step after a step with no app navigated %v, want goto", a[0]["navigation"])
+	}
+}
+
 // AMSP-V0-005: anchors changed after the map was built make the step STALE with a rebuild
 // exploration; a git failure makes it UNKNOWN. Neither is reported as mapped.
 func TestAMSPV0005StaleAndUnknownFreshness(t *testing.T) {
@@ -718,5 +732,37 @@ func TestAMSPV0007ReceiptVerificationOverlay(t *testing.T) {
 	}
 	if _, err := LoadPlanVerification(maps, []string{receipt}, []string{"step:none/x=" + r.Tests[0].ID}); codeOf(err) != "appmap-verify-unknown-step" {
 		t.Fatalf("unknown step bind: %v", err)
+	}
+}
+
+// AMSP-V0-008, V1-0972: a map method name that is not a JavaScript identifier is never emitted as
+// code; the draft comments the reuse out and says why, so a hand-edited or foreign map cannot
+// close the step callback.
+func TestAMSPV0008NonIdentifierMethodNameNotCalled(t *testing.T) {
+	root, rev, maps := planRepo(t)
+	crafted := "buyGiftCard(); }); globalThis.__injected = true; (async () => {"
+	for i := range maps[1].Files {
+		for k := range maps[1].Files[i].Methods {
+			if maps[1].Files[i].Methods[k].Name == "buyGiftCard" {
+				maps[1].Files[i].Methods[k].Name = crafted
+			}
+		}
+	}
+	doc := planOf(t, maps, []string{"buy a gift card"}, PlanOptions{Options: Options{Root: root, Revision: rev}, Draft: true})
+	src := stringOf(doc["draft"].(map[string]any)["lines"])
+	for _, l := range doc["draft"].(map[string]any)["lines"].([]any) {
+		line := l.(string)
+		if i := strings.Index(line, "__injected"); i >= 0 && !strings.Contains(line[:i], "//") {
+			t.Fatalf("crafted method name emitted as code: %q", line)
+		}
+	}
+	if !strings.Contains(src, "is not a JavaScript identifier; not called") || !strings.Contains(src, "getByTestId(") {
+		t.Fatalf("draft: %s", src)
+	}
+	// An identifier name still produces the call unchanged.
+	_, _, maps = planRepo(t)
+	doc = planOf(t, maps, []string{"buy a gift card"}, PlanOptions{Options: Options{Root: root, Revision: rev}, Draft: true})
+	if src := stringOf(doc["draft"].(map[string]any)["lines"]); !strings.Contains(src, ".buyGiftCard(); // reuse ") {
+		t.Fatalf("identifier call missing: %s", src)
 	}
 }

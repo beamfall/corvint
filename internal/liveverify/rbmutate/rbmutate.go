@@ -1,5 +1,5 @@
 // Package rbmutate is the Ruby arm of the test-kills-mutant falsifier
-// (docs/specs/falsifiable-packet-v0.md, FPK-V0-068 to FPK-V0-074). A packet
+// (docs/specs/falsifiable-packet-v0.md, FPK-V0-068 to FPK-V0-081). A packet
 // row claims that an RSpec file covers a changed Ruby file; this package
 // writes line-confined mutants of the changed file onto the same sandboxed
 // export the Go runner (internal/liveverify/mutate) judges on, runs the spec
@@ -34,7 +34,9 @@ type Copy interface {
 }
 
 // Request names one claim to falsify on an export. Root, Git, and Revision
-// are read by Run only, which opens its own export.
+// are read by Run, which opens its own export; Judge reads Root only to
+// refuse a container workspace inside or containing the repository
+// (FPK-V0-078).
 type Request struct {
 	Root        string
 	Git         string
@@ -49,7 +51,31 @@ type Request struct {
 	// RSpec, when set, is the argv prefix that runs RSpec, used verbatim;
 	// otherwise `bundle exec rspec` beside a Gemfile, else rspec on PATH.
 	RSpec []string
+	// Examples, when set, are the 1-based lines of TestPath whose examples
+	// or groups run (RSpec's `PATH:LINE[:LINE...]` selector, FPK-V0-075);
+	// otherwise the whole spec file runs.
+	Examples []int
+	// LineBasis names how Lines were chosen for a named source
+	// (FPK-V0-076): LineBasisCallerSpans or LineBasisWholeFile. Empty is a
+	// changed-lines claim. It is echoed on the report and words a report
+	// with no mutable site.
+	LineBasis string
+	// Container, when set, runs the baseline and every mutant through the
+	// declared containerised RSpec runner profile, each in its own
+	// disposable copy of the export with its own admitted runner receipt
+	// (FPK-V0-078 to FPK-V0-081); RSpec is then ignored. Unset keeps the
+	// host sandbox path unchanged.
+	Container *ContainerProfile
 }
+
+// Line bases of a named-source claim (FPK-V0-076).
+const (
+	LineBasisCallerSpans = "caller-spans"
+	LineBasisWholeFile   = "whole-file"
+)
+
+// maxExamples bounds the example lines one claim may select (FPK-V0-075).
+const maxExamples = 16
 
 // Stage says where an Unsupported or BudgetExceeded report stopped.
 type Stage string
@@ -73,6 +99,9 @@ const (
 	OutcomeSurvived   Outcome = "survived"
 	OutcomeUnloadable Outcome = "unloadable"
 	OutcomeTimedOut   Outcome = "timed-out"
+	// OutcomeUnadmitted is a containerised run whose report the runner did
+	// not admit (FPK-V0-080): never killed or survived.
+	OutcomeUnadmitted Outcome = "unadmitted"
 )
 
 // Receipt is the deterministic record of one RSpec run: the counts RSpec
@@ -87,6 +116,9 @@ type Receipt struct {
 	ErrorsOutsideExamples int      `json:"errors_outside_examples"`
 	FailedExamples        []string `json:"failed_examples,omitempty"`
 	SourceSHA256          string   `json:"source_sha256"`
+	// Runner is the admitted runner receipt of a containerised run
+	// (FPK-V0-080); a host sandbox run omits it.
+	Runner *RunnerReceipt `json:"runner_receipt,omitempty"`
 }
 
 // Result is one mutant: the rewrite and its verdict with the run's receipt.
@@ -114,6 +146,9 @@ type Report struct {
 	Killed     int
 	Survived   int
 	Unloadable int
+	// Unadmitted counts containerised runs whose report the runner did
+	// not admit (FPK-V0-080).
+	Unadmitted int
 	TimedOut   int
 	Skipped    int
 	Operators  []string
@@ -121,6 +156,11 @@ type Report struct {
 	Results    []Result
 	Elapsed    time.Duration
 	Detail     string
+	// Target is what each run named: the spec file, with its selected
+	// example lines when Examples is set.
+	Target string
+	// LineBasis echoes Request.LineBasis.
+	LineBasis string
 }
 
 const (
@@ -139,6 +179,15 @@ type settings struct {
 	budget      time.Duration
 	perRun      time.Duration
 	rspec       []string
+	// target is the spec file each run names, with `:LINE` selectors
+	// when the request selected examples.
+	target    string
+	examples  []int
+	lineBasis string
+	container *ContainerProfile
+	// root is the repository a container workspace may not overlap
+	// (FPK-V0-078); empty when the caller judged a bare copy.
+	root string
 }
 
 // TestFile reports whether a repository-relative path is an RSpec file by
@@ -181,14 +230,19 @@ func Run(ctx context.Context, request Request) (Report, error) {
 }
 
 func judge(ctx context.Context, copy Copy, configuration settings, started time.Time) (Report, error) {
-	if copy.Unsandboxed() != "" {
-		return unsupportedReport(StageRunner, copy.Unsandboxed()), nil
+	// The container is a containerised run's isolation (FPK-V0-079), so only
+	// the host path needs the host sandbox.
+	if configuration.container == nil && copy.Unsandboxed() != "" {
+		report := unsupportedReport(StageRunner, copy.Unsandboxed())
+		report.Target, report.LineBasis = configuration.target, configuration.lineBasis
+		return report, nil
 	}
 	report, err := falsify(ctx, copy, configuration)
 	if err != nil {
 		return Report{}, err
 	}
 	report.Elapsed = time.Since(started)
+	report.Target, report.LineBasis = configuration.target, configuration.lineBasis
 	return report, nil
 }
 
@@ -207,6 +261,18 @@ func normalize(request Request) (settings, error) {
 	for _, span := range request.Lines {
 		if span.Start < 1 || span.End < span.Start {
 			return settings{}, fmt.Errorf("rbmutate: Lines span %d-%d is not a 1-based inclusive range", span.Start, span.End)
+		}
+	}
+	examples, err := exampleLines(request.Examples)
+	if err != nil {
+		return settings{}, err
+	}
+	if request.LineBasis != "" && request.LineBasis != LineBasisCallerSpans && request.LineBasis != LineBasisWholeFile {
+		return settings{}, fmt.Errorf("rbmutate: LineBasis %q is not %s or %s", request.LineBasis, LineBasisCallerSpans, LineBasisWholeFile)
+	}
+	if request.Container != nil {
+		if err := request.Container.validate(); err != nil {
+			return settings{}, err
 		}
 	}
 	if request.MaxMutants < 0 {
@@ -230,7 +296,42 @@ func normalize(request Request) (settings, error) {
 		budget:      budget,
 		perRun:      perRunTimeout(budget, maxMutants),
 		rspec:       append([]string(nil), request.RSpec...),
+		target:      exampleTarget(testPath, examples),
+		examples:    examples,
+		lineBasis:   request.LineBasis,
+		container:   request.Container,
+		root:        request.Root,
 	}, nil
+}
+
+// exampleLines sorts and deduplicates the selected example lines, at most
+// maxExamples, each 1-based.
+func exampleLines(lines []int) ([]int, error) {
+	if len(lines) > maxExamples {
+		return nil, fmt.Errorf("rbmutate: %d example lines exceed the bound of %d", len(lines), maxExamples)
+	}
+	sorted := make([]int, 0, len(lines))
+	seen := map[int]bool{}
+	for _, line := range lines {
+		if line < 1 {
+			return nil, fmt.Errorf("rbmutate: example line %d is not 1-based", line)
+		}
+		if !seen[line] {
+			seen[line] = true
+			sorted = append(sorted, line)
+		}
+	}
+	sort.Ints(sorted)
+	return sorted, nil
+}
+
+// exampleTarget is RSpec's location selector: `PATH:L1:L2`, or the bare path.
+func exampleTarget(testPath string, examples []int) string {
+	target := testPath
+	for _, line := range examples {
+		target += fmt.Sprintf(":%d", line)
+	}
+	return target
 }
 
 func relativeRubyPath(candidate, field string) (string, error) {
@@ -278,7 +379,7 @@ func falsify(ctx context.Context, copy Copy, configuration settings) (Report, er
 	if !ok {
 		return unsupportedReport(StageInput, "changed file does not lex: "+configuration.changedPath), nil
 	}
-	runner, unsupported := findRunner(ctx, copy, configuration)
+	runner, unsupported := findSpecRunner(ctx, copy, configuration)
 	if unsupported != "" {
 		report := unsupportedReport(StageRunner, unsupported)
 		report.Runner = runner.name()
@@ -287,6 +388,11 @@ func falsify(ctx context.Context, copy Copy, configuration settings) (Report, er
 	baseline := runner.runSpec(ctx, source)
 	if baseline.outcome != runPassed && ctx.Err() != nil {
 		report := budgetReport(StageBaseline, "budget exhausted during the baseline run")
+		report.Runner = runner.name()
+		return report, nil
+	}
+	if baseline.outcome == runBroken && configuration.container != nil {
+		report := unsupportedReport(StageRunner, "the declared container runner did not start")
 		report.Runner = runner.name()
 		return report, nil
 	}
@@ -309,6 +415,9 @@ func falsify(ctx context.Context, copy Copy, configuration settings) (Report, er
 }
 
 func noMutantsDetail(configuration settings) string {
+	if configuration.lineBasis == LineBasisCallerSpans {
+		return "no mutable sites inside the named lines of " + configuration.changedPath
+	}
 	if len(configuration.lines) != 0 {
 		return "no mutable sites inside the changed lines of " + configuration.changedPath
 	}
@@ -322,19 +431,29 @@ func regularFile(name string) bool {
 
 // judgeMutants writes each mutant in turn, runs the spec file against it,
 // records its verdict and receipt, and restores the original afterwards.
-func judgeMutants(ctx context.Context, runner rspecRunner, configuration settings, changedFile string, source []byte, sites []site, report Report) (Report, error) {
-	defer func() { _ = os.WriteFile(changedFile, source, 0o644) }()
+func judgeMutants(ctx context.Context, runner specRunner, configuration settings, changedFile string, source []byte, sites []site, report Report) (Report, error) {
+	// The host runner reads the export, so each mutant is written there and
+	// restored; a containerised run writes its mutant into its own
+	// disposable copy and never touches the export (FPK-V0-079).
+	inPlace := configuration.container == nil
+	if inPlace {
+		defer func() { _ = os.WriteFile(changedFile, source, 0o644) }()
+	}
 	for index, candidate := range sites {
 		if ctx.Err() != nil {
 			return budgetPartial(report, index), nil
 		}
 		mutated := render(source, candidate)
-		if err := os.WriteFile(changedFile, mutated, 0o644); err != nil {
-			return Report{}, fmt.Errorf("rbmutate: write mutant: %w", err)
+		if inPlace {
+			if err := os.WriteFile(changedFile, mutated, 0o644); err != nil {
+				return Report{}, fmt.Errorf("rbmutate: write mutant: %w", err)
+			}
 		}
 		run := runner.runSpec(ctx, mutated)
-		if err := os.WriteFile(changedFile, source, 0o644); err != nil {
-			return Report{}, fmt.Errorf("rbmutate: restore %s: %w", configuration.changedPath, err)
+		if inPlace {
+			if err := os.WriteFile(changedFile, source, 0o644); err != nil {
+				return Report{}, fmt.Errorf("rbmutate: restore %s: %w", configuration.changedPath, err)
+			}
 		}
 		if run.outcome != runFailed && ctx.Err() != nil {
 			return budgetPartial(report, index), nil
@@ -360,6 +479,8 @@ func mutantOutcome(outcome runOutcome) Outcome {
 		return OutcomeSurvived
 	case runTimedOut:
 		return OutcomeTimedOut
+	case runUnadmitted:
+		return OutcomeUnadmitted
 	}
 	return OutcomeUnloadable
 }
@@ -372,6 +493,8 @@ func tally(report Report, outcome Outcome) Report {
 		report.Survived++
 	case OutcomeTimedOut:
 		report.TimedOut++
+	case OutcomeUnadmitted:
+		report.Unadmitted++
 	default:
 		report.Unloadable++
 	}
@@ -382,10 +505,10 @@ func finishedReport(report Report, configuration settings) Report {
 	switch {
 	case report.Killed > 0:
 		report.Verdict = mutate.Killed
-		report.Detail = fmt.Sprintf("killed %d of %d mutants; %d survived %s", report.Killed, report.Mutants, report.Survived, configuration.testPath)
+		report.Detail = fmt.Sprintf("killed %d of %d mutants; %d survived %s", report.Killed, report.Mutants, report.Survived, configuration.target)
 	case report.Survived > 0:
 		report.Verdict = mutate.Survived
-		report.Detail = fmt.Sprintf("all %d mutants survived %s", report.Survived, configuration.testPath)
+		report.Detail = fmt.Sprintf("all %d mutants survived %s", report.Survived, configuration.target)
 	default:
 		report.Verdict = mutate.NoMutants
 		report.Detail = fmt.Sprintf("none of %d mutants of %s could be asked", report.Mutants, configuration.changedPath)
@@ -398,6 +521,9 @@ func notAskedSuffix(report Report) string {
 	suffix := ""
 	if report.Unloadable != 0 {
 		suffix += fmt.Sprintf("; %d did not load", report.Unloadable)
+	}
+	if report.Unadmitted != 0 {
+		suffix += fmt.Sprintf("; %d reports not admitted", report.Unadmitted)
 	}
 	if report.TimedOut != 0 {
 		suffix += fmt.Sprintf("; %d timed out", report.TimedOut)

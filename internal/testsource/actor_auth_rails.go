@@ -118,11 +118,12 @@ var (
 	// no block. A setter (`def name=(v)`) and a comparison (`==`) are not one.
 	rubyEndlessDef = regexp.MustCompile(`^def\s+[A-Za-z_]\w*[?!]?(?:\s+|\([^()]*\)\s*)=(?:[^=~]|$)`)
 	// rubyValueOpener is if, unless, case, begin, while or until in value position, where it
-	// opens a block its own `end` closes: after an assignment (`=`, `||=`, `+=`), a hash `=>`, an
-	// opening bracket, a comma, `&&` or `||`, and case or begin after `return`. A modifier
-	// (`foo if bar`, `return if bar`) follows an expression or `return` and opens nothing, and a
-	// keyword argument (`if: x`) is not the keyword (TSA-V0-396).
-	rubyValueOpener = regexp.MustCompile(`(?:(?:=>?|[(\[,]|&&|\|\|)\s*(if|unless|case|begin|while|until)|\breturn\s+(case|begin))(?:\s|[(;]|$)`)
+	// opens a block its own `end` closes: after an assignment (`=`, `||=`, `+=`), a hash `=>`, a
+	// label key (`key: if`), an append (`<< if`), an opening bracket, a comma, `&&` or `||`, a
+	// line-start `else` (`else if`, which nests a block), and case or begin after `return`. A
+	// modifier (`foo if bar`, `return if bar`) follows an expression or `return` and opens
+	// nothing, and a keyword argument (`if: x`) is not the keyword (TSA-V0-396, V1-2078).
+	rubyValueOpener = regexp.MustCompile(`(?:(?:=>?|[(\[,]|&&|\|\||\w:\s|<<\s|^else\s)\s*(if|unless|case|begin|while|until)|\breturn\s+(case|begin))(?:\s|[(;]|$)`)
 	// rubyLineEnd is an `end` word; after a value opener it closes the block on the same line
 	// unless it is a method or symbol (`.end`, `:end`, `end?`, `end:`), see rubyEndKeyword.
 	rubyLineEnd = regexp.MustCompile(`\bend\b`)

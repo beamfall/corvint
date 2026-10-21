@@ -112,7 +112,17 @@ func leaseOnce(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 	request := transaction.Request{Operation: transaction.Lease, QueueID: choice.QueueID, RequestID: choice.RequestID, Actor: actor, Lease: &lease}
 	facts := gateFacts(repo, choice)
 	if strings.HasPrefix(lease.Verb, "POOL_") {
-		facts = poolFacts(ctx, repo, choice)
+		probe := &identityProbe{}
+		facts = poolFactsWith(ctx, repo, choice, probe, false)
+		if lease.Verb == transaction.LeasePoolSafe && choice.pool.Identity == nil {
+			// PSR-V0-168: the writer route observes under the writer lock,
+			// so it gets an observer that never runs the identity command.
+			settleCtx := ctx
+			ctx = withWriterFacts(ctx, &writerFacts{
+				observe: poolFactsWith(ctx, repo, choice, probe, true),
+				settle:  func() bool { return probe.settle(settleCtx, repo, choice) },
+			})
+		}
 	}
 	if lease.Verb == transaction.LeaseClaim || lease.Verb == transaction.LeaseClaimNext {
 		facts = claimFacts(ctx, repo, choice)

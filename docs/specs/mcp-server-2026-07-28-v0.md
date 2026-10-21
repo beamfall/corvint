@@ -2,8 +2,8 @@
 
 Owner: Russell Lewis  
 Date: 2026-08-23  
-Intent status: proposed  
-Delivery status: experimental  
+Intent status: accepted (companion profile; owner's 1.0 feature-cut delegation, 2026-10-20; V1-0191)  
+Delivery status: implemented (stdio companion profile, official-schema receipt 2026-10-20)  
 Authoritative inputs: `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
 `docs/specs/agent-harness-integration-v0.md`, the
 [MCP 2026-07-28 specification](https://modelcontextprotocol.io/specification/2026-07-28), and its
@@ -14,9 +14,9 @@ official JSON Schema pinned at commit
 
 ## Agent digest
 - Claim: A local stdio MCP server exposes bounded read-only Corvint receipts, with 2026-07-28 default and explicit 2025-11-25 compatibility.
-- Status: proposed/experimental
+- Status: accepted (companion profile; owner's 1.0 feature-cut delegation, 2026-10-20; V1-0191)/implemented (stdio companion profile, official-schema receipt 2026-10-20)
 - Exists: `cmd/corvint-mcp`, `internal/mcp`, and independent compiled-process conformance vectors.
-- Blocked on: official MCP conformance and promotion evidence remain `NOT_RUN`; official-schema execution is opt-in and passed on 2026-09-23 (V1-0191). The default V0 tool list stays at three; `corvint.context` and `corvint.cem.report` are advertised only by the opt-in task-review descendant profile (`MCPV0-024..026`, decision 0374). The four read-only `corvint.flows.*` tools are advertised only under `--tool-profile flows` (`MCPV0-026` as amended by `AFU-V1-034`). Tool errors stay `corvint-mcp-tool-error/0` unless the opt-in reason-class profile selects `/1` (`MCPV0-027..028`, decision 0383).
+- Blocked on: nothing for the stdio companion profile; the official-schema receipt passed at `a7870cac3` on 2026-10-20 and `mcp-server-unavailable` is retired (see Companion promotion evidence). The official Streamable HTTP conformance runner has no stdio target and stays `NOT_RUN`; official-schema execution stays opt-in. The default V0 tool list stays at three; `corvint.context` and `corvint.cem.report` are advertised only by the opt-in task-review descendant profile (`MCPV0-024..026`, decision 0374). The five read-only `corvint.flows.*` tools are advertised only under `--tool-profile flows` (`MCPV0-026` as amended by `AFU-V1-034` and `AFU-V1-049`). Tool errors stay `corvint-mcp-tool-error/0` unless the opt-in reason-class profile selects `/1` (`MCPV0-027..028`, decision 0383).
 - Read next: User and measurable job; Explicit 2025-11-25 compatibility; Task-review descendant profile; Flows tool profile; Reason-class tool-error profile; Follow-ref worktree binding (`MCPV0-039..041`, opt-in `--follow-ref`); Traceability.
 
 ## User and measurable job
@@ -215,7 +215,7 @@ ASCII letters, digits, `_`, `-`, or `.`; the dot-separated names below follow th
 - `MCPV0-008`: V0 advertises exactly these three tools, subject to the implementation schemas frozen
 below. Decision 0103 freezes this default list; the opt-in task-review descendant profile
 (`MCPV0-026`) adds the two tools of `MCPV0-024` and `MCPV0-025` only when selected, and the flows
-profile (`AFU-V1-034`) adds the four `corvint.flows.*` tools instead:
+profile (`AFU-V1-034`, `AFU-V1-049`) adds the five `corvint.flows.*` tools instead:
 
 | Tool | Closed arguments | Result and authority |
 |---|---|---|
@@ -507,14 +507,17 @@ With the selector, the two tools below are added under the unchanged `MCPV0-007`
   `cem/0.1`, `cem/0.2` or `cem/0.3` map fails as `cem-map-invalid` before any other judgment
   (`CEM-V1-210`); a malformed map is `cem-map-invalid`; a `maxUnknown` ceiling on a `cem/1.0` map is
   `cem-map-stable-refused` (`MCPV0-037`); a CEM Git read that ran out of its own bound
-  (`GitTimeout`, `GitDiffTimeout`) on a live request is `repository-probe-timeout` (`MCPV0-038`), and
+  (`GitTimeout`, `GitDiffTimeout`) on a live request is `repository-probe-timeout` (`MCPV0-038`), a
+  CEM Git read that exhausted its operation budget or output bound (`GitBudgetExceeded`,
+  `GitOutputExceeded`) is `corpus-capacity-exceeded`, the capacity code `DCP-V1-158` names, because
+  the repository is present and only a bound was reached (amended 2026-10-20, V1-1992), and
   every other Git read failure is `repository-unavailable` (amended 2026-10-16, decision 0533,
   V1-1432). The repository probe brackets the
   read, and a changed probe is `REPOSITORY_STATE_UNSTABLE`. Report Markdown carries repository-authored
   hunk paths, so it travels only inside the `MCPV0-008` envelope, and a report containing the
   terminator is refused with `corvint-envelope-terminator-collision`. The CEM Git runner is pinned to
   the same start-time executable as the other kernels.
-- `MCPV0-036`: proposed (V1-0632 S2). `corvint.cem.report` MUST accept one optional `artifacts`
+- `MCPV0-036`: (V1-0632 S2) `corvint.cem.report` MUST accept one optional `artifacts`
   argument under the same closed repository-relative path rule as `map`, resolved under the root
   exactly as the caller named it at start and passed to the CEM read as its artifact root. A
   `cem/1.0` map is admitted against that caller-named root, never the symlink-resolved root the
@@ -524,7 +527,7 @@ With the selector, the two tools below are added under the unchanged `MCPV0-007`
   artifact root, unchanged, with the `cem/1.0` review Markdown and `recordSetSha256`; it never carries
   or synthesizes the 0.x `verification`, `counts`, `policyIssues` or `worklist`, and it still publishes
   nothing.
-- `MCPV0-037`: proposed (V1-0632 S2). A `cem/1.0` map refused before its stable verifier runs (a
+- `MCPV0-037`: (V1-0632 S2) A `cem/1.0` map refused before its stable verifier runs (a
   policy ceiling, `--patch`, or another 0.x-only input) MUST fail as `cem-map-stable-refused`, not
   `cem-map-invalid`. An unknown spec such as `cem/9` and a retired 0.x map fail as `cem-map-invalid`
   (`CEM-V1-210`).
@@ -594,13 +597,14 @@ Each row cites the first emitting site and states only the condition checked the
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `invalid-registry` | `internal/mcp/bridge/bridge.go:450@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
-| `unsupported-tool` | `internal/mcp/bridge/bridge.go:459@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the `ToolFlows*` tools under `flows` (`MCPV0-026`) |
-| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:720@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
-| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:720@f5156052` | an invalid-arguments refusal that is not a `cem/1.0` stable refusal; since `CEM-V1-210` no retired 0.x map reaches it (a 0.x map is `cem-map-invalid`), so the report preview has no observed route to it |
-| `cem-map-stable-refused` | `internal/mcp/bridge/bridge.go:742@5462a4a2` | a `cem/1.0` map was refused before its stable verifier ran (`MCPV0-037`) |
-| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:721@b2fd0644` | the map fails CEM strict decoding or field validation |
-| `repository-probe-timeout` | `internal/mcp/bridge/bridge.go:1092@8c7cfeb6` | the failure carries gokernel's `repository-probe-timeout` code: the repository probe, a CEM Git read or the context index's Git read outlasted its own bound while the request context was live (`MCPV0-038`, decision 0533) |
+| `invalid-registry` | `internal/mcp/bridge/bridge.go:456@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
+| `unsupported-tool` | `internal/mcp/bridge/bridge.go:465@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the `ToolFlows*` tools under `flows` (`MCPV0-026`) |
+| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:766@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
+| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:766@f5156052` | an invalid-arguments refusal that is not a `cem/1.0` stable refusal; since `CEM-V1-210` no retired 0.x map reaches it (a 0.x map is `cem-map-invalid`), so the report preview has no observed route to it |
+| `cem-map-stable-refused` | `internal/mcp/bridge/bridge.go:788@5462a4a2` | a `cem/1.0` map was refused before its stable verifier ran (`MCPV0-037`) |
+| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:767@b2fd0644` | the map fails CEM strict decoding or field validation |
+| `repository-probe-timeout` | `internal/mcp/bridge/bridge.go:1138@8c7cfeb6` | the failure carries gokernel's `repository-probe-timeout` code: the repository probe, a CEM Git read or the context index's Git read outlasted its own bound while the request context was live (`MCPV0-038`, decision 0533) |
+| `corpus-capacity-exceeded` | `internal/mcp/bridge/bridge.go:774@c8f9bb58` | a CEM Git read exhausted its operation budget or output bound (`MCPV0-025`, V1-1992) |
 | `flows-refused` | `internal/mcp/bridge/flows.go:267@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
 
 ### Explicit Go LSP descendant (V1-0476)
@@ -623,14 +627,14 @@ Each row cites the first emitting site and states only the condition checked the
   prohibited. Gopls telemetry is disabled in the child environment. Required qualification is
   TCP-V0-053, plus real cancellation/descendant cleanup and executable-replacement regressions.
 
-- `MCPV0-031`: proposed (V1-0944; no GitHub issue). Each impact result carries at most four
+- `MCPV0-031`: (V1-0944; no GitHub issue) Each impact result carries at most four
   `evidence` rows and at most four `references`. A result that had more carries
   `evidence_omitted` or `references_omitted` with the count of rows removed, so no cut is silent;
   a result under both caps carries neither key. The cap applies inside the impact receipt itself,
   so CLI impact, MCP `corvint.impact`, and every consumer that embeds the impact packet (for
   example `FPK-V0-010`) see the same rows. Builder-level `MAX_EVIDENCE` truncation before this
   cap is unchanged and is not counted.
-- `MCPV0-032`: proposed (V1-0944; no GitHub issue). Path impact accepts `--budget-bytes N`
+- `MCPV0-032`: (V1-0944; no GitHub issue) Path impact accepts `--budget-bytes N`
   (inline or as the next argument, once, within the `query` packet bounds) and compiles the
   receipt under that byte budget with the same `BUDGETED` / `CRITICAL_EVIDENCE_OVERFLOW` states
   and omission disclosures as `query`. Range (`--base`) and `--working-tree-untracked` impact
@@ -638,7 +642,7 @@ Each row cites the first emitting site and states only the condition checked the
   argument error because the external section is not budgeted. `prove` refuses `--budget-bytes`
   because it embeds the unbudgeted impact packet (`FPK-V0-010`). This amends the
   `GPK-V0` "only `--limit`" impact-option clause for path impact only.
-- `MCPV0-033`: proposed (V1-0944; no GitHub issue). When a successful tool result carries
+- `MCPV0-033`: (V1-0944; no GitHub issue) When a successful tool result carries
   `structuredContent` and its receipt has a `results` list, the text block carries the framed
   canonical summary profile `corvint-mcp-text-summary/0`: the full bridge object with each
   `receipt.results` row projected to its `kind`, `id` and `score` keys and a top-level
@@ -698,6 +702,27 @@ Each row cites the first emitting site and states only the condition checked the
   that still describes the old commit on a clean worktree; a dirty worktree modified; a response
   without the block. Rollback: remove `--follow-ref` and `cmd/corvint-mcp/follow_ref.go`; the
   default server and its bytes never changed.
+- `MCPV0-042`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1999) A
+  `tools/call` result that cannot fit one MCP message on any server built on
+  `internal/mcp/server` (both the `2026-07-28` and the legacy `2025-11-25` path) MUST be answered
+  as a successful `tools/call` response with `isError: true` whose one text block is
+  `output-bound-exceeded: tool result of <bytes> bytes exceeds the <bound>-byte MCP message bound`,
+  never a generic `-32603`. The text carries only the measured size and the bound, no tool output.
+  A tool that bounds its own result first (the corpus bridge, `DCP-V1-200..202`) is unchanged; any
+  other oversized or unencodable result stays the sanitized `-32603` of `MCPV0-004`. Falsifier: an
+  over-bound tool result answered `-32603`, or a refusal frame that itself exceeds the bound.
+  Rollback: restore the `-32603` branch in `writeResultContext`.
+- `MCPV0-090`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1004) A
+  `corvint.context` call MUST release the Index it read before it returns, so a long-lived bridge
+  never pins a mapped pack or sectioned snapshot after the retention ring evicts it
+  (`IDX-SNAP-V0-028`). Before the release, the packet is copied onto the heap through its canonical
+  bytes, with numbers kept as their literals, and the copy MUST encode to the same bytes; a copy
+  that differs refuses with `internal-error` rather than change the wire result. The bridge
+  binding strings are cloned too. A deferred read that is refused and retried through the eager
+  loader releases the first Index. Falsifier: a live mapping after every context call returned and
+  the ring was evicted; a result whose bytes change after the mapping is unmapped; a fault under
+  concurrent context calls. Rollback: remove the deferred `Release` and `detachedContext` from
+  `callContext`; the mapping is then pinned until process exit, as before.
 
 ## Acceptance matrix
 
@@ -707,7 +732,7 @@ The P0 profile is implemented only when all applicable rows pass on Go 1.27.0:
 |---|---|
 | Schema and discovery | Official 2026-07-28 positive vectors; missing metadata; `-32022`; exact capabilities; every result has `resultType` and server info |
 | Framing and JSON-RPC | LF/CRLF, EOF, invalid UTF-8/JSON, duplicate keys at every depth, depth 64/65, exactly-at/over 1 MiB, batches, IDs, notifications, error sanitization, recovery after a bad frame |
-| Tools | Exact closed schemas and annotations; query/impact/status success, abstention, mixed worktree, unsupported query, invalid paths/limits, result budget, and no source bodies; context and CEM report success, `-32602` rejection, map escape and symlink refusal, no writes, terminator refusal, and result budget under the task-review selector; under the flows selector, the four flows tools advertised read-only, receipts equal to the CLI verbs' documents, and repository text only inside the envelope; the default list is exactly three tools and the selector is closed |
+| Tools | Exact closed schemas and annotations; query/impact/status success, abstention, mixed worktree, unsupported query, invalid paths/limits, result budget, and no source bodies; context and CEM report success, `-32602` rejection, map escape and symlink refusal, no writes, terminator refusal, and result budget under the task-review selector; under the flows selector, the five flows tools advertised read-only; byte goldens of every profile's `tools/list` (V1-2021), receipts equal to the CLI verbs' documents, and repository text only inside the envelope; the default list is exactly three tools and the selector is closed |
 | Cancellation/processes | Cancel-before-start, during work, after completion, duplicate/unknown ID, EOF/SIGINT/SIGTERM, direct argv, pinned executable, and zero surviving descendants |
 | Pagination/progress/logging/roots | deterministic tool list, bad cursor, emitted progress with exact token correlation on a truthful long-running operation, no unsolicited logs, no roots switch, and method-not-found for removed legacy methods |
 | Security | planted secrets/control characters/path escapes/symlink swaps/output floods; repository and trace byte snapshots before/after; no listener or network attempt |
@@ -777,6 +802,12 @@ those are `NOT_OBSERVED`. Official MCP conformance is `NOT_RUN` for the retained
 On 2026-09-23 the opt-in official-schema run passed against the pinned digest and the start-time Git
 pin was observed (V1-0191). Fuzz, complete race, and cross-build promotion evidence are not closed by
 that focused run.
+On 2026-10-20 at `2b0cfce94` the compiled-process suite passed again (35 PASS, 0 FAIL) with the
+three official-schema tests skipped for want of a local schema copy, and `cmd/corvint-mcp` and
+`internal/mcp/bridge` passed. Later that day at `a7870cac3` the three official-schema tests passed
+against the pinned digest (V1-0191; see Companion promotion evidence). Fuzz, complete race,
+cross-build, a notification-cancellation-won call, an emitted progress notification and non-Unix
+cleanup remain outside that receipt.
 
 | `MCPV0-029` | `NewTaskReviewLSP`, `callContext`, `extractToolProfile` | `TestContextLSPProfileIsExplicit`, `TestContextLSPToolProfileSelector` |
 | `MCPV0-030` | `lspevidence.Attach`, `lspprovider.rootCommit`, `callContext` | `TestContextLSPPinAndDrift`, `TestContextLSPCancellationRetiresDescendants`; `script/qualify-lsp.py` |
@@ -789,6 +820,7 @@ that focused run.
 | `MCPV0-039` | `extractFollowRef`, `newFollowRef`, `followRef.run`, `followRef.bound`, `followRef.sync`, `refreshIndex`, `Registry.SameRoot` | `TestMCPV0039InheritedGitEnvironmentCannotRedirectMove`, `TestMCPV0039FollowRefPinnedToCanonicalRootIdentity`, `TestMCPV0039AnswerHoldsTheFollowLock`: inherited Git variables, a retargeted root path, a replaced root (`ROOT_CHANGED`) and a concurrent call never move another checkout or move under an answer; `TestMCPV0039FollowRefRefreshesTreeAndIndexBeforeAnswer`: a moved branch is checked out on the detached linked worktree and its index snapshot is fresh before the next status answer, which reports the moved commit; startup refusals for a main checkout, an attached worktree, a missing ref, an aliased root, a duplicate or option-like ref and `--version` |
 | `MCPV0-040` | `followRef.sync` dirty and attached guards | `TestMCPV0040DirtyTreeNeverModifiedAndFlaggedStale`: untracked and tracked edits survive, head unchanged, `DIRTY` and `stale`; a checked-out branch is `NOT_DETACHED`; an injected index failure is `INDEX_FAILED`; `TestMCPV0040ChecksRunWhenHeadAlreadyCurrent`: dirty and attached at the current head are stale with no index write; `TestMCPV0040MoveNeverOverwritesIgnoredFiles`: an ignored file the new commit tracks survives as `CHECKOUT_FAILED` |
 | `MCPV0-041` | `withFollowRef`, `followState.block`, `toolFailure` | `TestMCPV0041MissingRefIsTypedErrorAndCommitEchoed`: the commit is echoed; a deleted ref is tool error `follow-ref-missing` with `reasonClass` `unclassified`, `state` `MISSING` and the worktree unchanged |
+| `MCPV0-090` | `callContext` (deferred `Index.Release`), `detachedContext`, `compileContext` retry release | `internal/contextindex/bridge_release_test.go`'s `TestMCPV0090ContextCallReleasesItsSnapshotMapping`: one task-review bridge answers 1 sequential and 24 concurrent (6x4) `corvint.context` calls from a mapped pack; the ring holds exactly 1 mapping, 0 stay live after it is evicted, and every result encodes to the first result's bytes after the unmap; fails with 1 live mapping when the release is removed; passes under `-race` |
 | `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |
 
 ## Unresolved decisions and promotion/kill criteria
@@ -804,3 +836,32 @@ duplicate-key acceptance, path escape, false revision binding, swallowed `UNKNOW
 or advertised-but-unimplemented capability blocks release. An official conformance failure remains
 visible. If MCP requires a second evidence model or materially changes Corvint receipts, retain the
 direct CLI baseline and remove this server.
+
+### Companion promotion evidence (V1-0191)
+
+The intent is accepted for the companion profile under the owner's 1.0 feature-cut delegation
+(2026-10-20); requirements without their own acceptance marker inherit it. `corvint-mcp` stays the
+required 1.0 companion of the 1.0 release classification table, never a Core surface, and every
+adapter row keeps `FALLBACK` (`Relationship to hosted MCP`, rollout item 2). Delivery moved from
+experimental to implemented for the stdio companion profile once all of the evidence below was
+retained for one code tree (`a7870cac3` changes only documentation over `2b0cfce94`):
+
+1. The compiled-process suite `conformance/mcp-2026-07-28` passes (`/0`, `/1`, `/2` and the flows
+   cases). Observed on 2026-10-20 at `2b0cfce94`: 35 top-level tests pass, 0 fail.
+2. With `CORVINT_MCP_OFFICIAL_SCHEMA` naming a copy whose SHA-256 is
+   `ef70b61f99b6d2e5e3b46863822eab08dff6a45bedc7a08914e0e5b133f40203`,
+   `TestServerTrafficMatchesOfficialSchema`, `TestTaskReviewTrafficMatchesOfficialSchema` and
+   `TestAFUV1034FlowsOfficialSchema` pass rather than skip. Observed on 2026-10-20 at `a7870cac3`
+   against an owner-approved copy outside the repository (the schema is not vendored): all three
+   pass with no skip, and the whole package passes 38 tests with 0 skips
+   (`docs/build-log/2026-10-20-mcp-companion-qualification.md`).
+3. The task-review tools' read-only evidence (`MCPV0-024`, `MCPV0-025`) passes in process and over
+   the compiled process; observed on 2026-10-20 (`docs/build-log/2026-10-20-mcp-companion-qualification.md`).
+
+`mcp-server-unavailable` left `globalDegradations` in `integrations/compatibility.json` and both
+adapter manifests in the change that cites the item-2 receipt, together with
+`integrations/README.md` and `ROADMAP.md`. That receipt covers the stdio server only, so no host
+tuple changed status with it: every row stays `FALLBACK`, the Claude Code manifest keeps
+`surfaces.mcp` `UNAVAILABLE` because it ships no MCP declaration, and the adapter versions moved
+only because their shipped content changed (`AHI-020`). The official Streamable HTTP conformance runner has no stdio target
+and stays `NOT_RUN`; it is not a prerequisite for the companion profile.

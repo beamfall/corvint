@@ -34,7 +34,7 @@ baseline is running every setup project for every spec, reviewing by eye, and gr
   only committed Git content at an explicit revision (`git cat-file`, `ls-tree`, `diff`), never the
   worktree, and MUST tokenize with the application map's JavaScript/TypeScript lexer
   (`appmap.LexJS`) rather than a second lexer. Test files are JS/TS files whose stem ends in `.spec`
-  or `.test`; page-object files are JS/TS files under a `pages`, `page-objects`, `pageobjects` or
+  or `.test`, or that have a `__tests__` directory segment (`TSA-V0-388`); page-object files are JS/TS files under a `pages`, `page-objects`, `pageobjects` or
   `pom` directory or whose stem ends in `.page` or `Page`. Declarations are `test`/`it`/`specify`
   (and `x`/`f` variants) calls with a title and callback, nested in `describe`/`context`/`suite`
   calls, with `only`, `skip`, `fixme`, `fail`, `slow`, `serial` and `parallel` modifiers; a
@@ -412,7 +412,8 @@ command calls it yet.
   one test.
   - Any `invalid` finding makes the hygiene axis `INELIGIBLE`, with reason
     `memoized-block-expectation` for this rule, or the rule ID for any other invalid rule.
-  - Each invalid finding's location and cause are appended to the hygiene anchors.
+  - Each invalid finding's location and cause are appended to the hygiene anchors; an anchor
+    already present is not repeated, so each anchor appears once at its first position (V1-1865).
   - When hygiene was already `INELIGIBLE`, its reason is kept.
   - The other four axes and advisory findings are left unchanged.
   A proof binding that requires `ELIGIBLE` hygiene, such as the test-consolidation witness check
@@ -729,7 +730,7 @@ declared in a shared example group is now flagged. A preflight surface is still 
   - `:skip` or `:pending` symbol metadata, or a `skip:` or `pending:` key whose value is not
     `false` or `nil`, on the declaring line outside string literals and before the block opens;
   - an unconditional `skip` or `pending` statement directly in the example body: not in a nested
-    block and with no trailing `if` or `unless`;
+    block and with no trailing `if` or `unless` (a conditional one abstains under TSA-V0-450);
   - an ancestor group declared with `xdescribe` or `xcontext`, or carrying that metadata.
 - `TSA-V0-064`: (standing auto-accept, 2026-10-11; V1-1798 / GitHub #1128) An example MUST get an
   `invalid` `RSPEC-FOCUSED` finding when it is focused, with its location and cause chosen
@@ -931,8 +932,14 @@ model (`parseSource`); it adds no second parser.
   and an assignment to `global.fetch`, `globalThis.fetch` or `window.fetch` MUST be classified.
   - The subject under test is (a) a module specifier whose base name, without extension (or
     the directory name for `index`), equals the test file's stem without `.spec` or `.test`; or
-    (b) the module that the outermost describe's title or identifier argument is imported from.
-    Identifiers imported from a subject module, and that title, name the subject.
+    (b) the module that the outermost describe's title or identifier argument is imported from,
+    a string title matching either the local name or, for `import { X as Y }` or
+    `const { X: Y } = require(...)`, the exported name `X` (an identifier argument names only its
+    local binding);
+    or (c) a relative module (such as an `index` barrel re-exporting the subject) from which the
+    file imports a name equal to that stem, compared without case and without `-`, `_` or `.`
+    (V1-1862). Identifiers imported from a subject module, and that title, name the subject.
+    A barrel reached through a path alias or a bare package specifier is not resolved.
   - A mock of a subject module, or a spy whose receiver's root identifier names the subject,
     gives an `advisory` `JS-SUBJECT-MOCKED` finding.
   - A boundary is a mock of `axios`, `node-fetch`, `cross-fetch`, `got`, `superagent`, `undici`,
@@ -1027,7 +1034,7 @@ persisted.
 | TSA-V0-076 | `internal/testsource/validity_js_examples.go` | `TestJSExampleRunState` | experimental |
 | TSA-V0-077 | `internal/testsource/validity_js_examples.go` | `TestJSExampleAssertions` | experimental |
 | TSA-V0-078 | `internal/testsource/validity_js_examples.go` | `TestJSExampleAssertions` | experimental |
-| TSA-V0-079 | `internal/testsource/validity_js_examples.go` | `TestJSExampleMocks`, `TestJSExampleNamedCallbackMock` | experimental |
+| TSA-V0-079 | `internal/testsource/validity_js_examples.go` | `TestJSExampleMocks`, `TestJSExampleNamedCallbackMock`, `TestJSExampleBarrelAndAliasSubjects` | experimental |
 | TSA-V0-080 | `internal/testvalidity/source_rules_jsts.go` | `TestApplyJSExampleSource` | experimental |
 | TSA-V0-081 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestSourceValidityJSExamples`, `TestTestsValidityCLI` | experimental |
 | TSA-V0-082 | `internal/testvaliditydoc/js_source.go`, `cmd/corvint/test_validity.go`, `internal/mcp/testvaliditybridge` | `TestDiscoverJSSourceRules`, `TestTestValidityDiscoverJSSourceRules` | experimental |
@@ -1043,13 +1050,13 @@ and no JS rule read an assertion that never runs. It is agent-drafted and accept
 owner's standing auto-accept (2026-10-11). It reuses the TSA-V0-010 lexer and the TSA-V0-073
 reader; it adds no parser.
 
-- `TSA-V0-388`: (standing auto-accept, 2026-10-11; V1-2041 / GitHub #1293)
-  `testsource.IsJSValidityTestFile(name)` MUST hold for an `IsTestFile` name and for any file with
-  a TSA-V0-010 JS/TS extension that has a `__tests__` directory segment, which Jest's default
-  `testMatch` selects. `ValidityFindings`, `JSExampleSources` (and so TSA-V0-082 discovery), the
-  TSA-V0-081 `tests validity` reading and the TSA-V0-241 seed reading MUST use it in place of
-  `IsTestFile`. `IsTestFile` itself, and lint, role-locator, teardown and the other readers that
-  use it, MUST stay unchanged.
+- `TSA-V0-388`: (standing auto-accept, 2026-10-11; V1-2041 / GitHub #1293; amended V1-2058)
+  `testsource.IsTestFile(name)` MUST hold for a JS/TS file whose stem ends in `.spec` or `.test` and
+  for any file with a TSA-V0-010 JS/TS extension that has a `__tests__` directory segment, which
+  Jest's default `testMatch` selects. It is the one JS/TS test-file predicate: `ValidityFindings`,
+  `JSExampleSources` (and so TSA-V0-082 discovery), the TSA-V0-081 `tests validity` reading, the
+  TSA-V0-241 seed reading, lint, role-locator, teardown, seed-parity, actor-authorization and the
+  environment-contract readers all use it.
 - `TSA-V0-389`: (standing auto-accept, 2026-10-11; V1-2041 / GitHub #1293) A located example MUST
   get an `advisory` `JS-ASSERTION-NOT-AWAITED` finding, located at the call and caused by the
   example, for each `.then(`, `.catch(` or `.finally(` call in its body when all of these hold:
@@ -1087,8 +1094,8 @@ Failure modes:
 - A non-test helper module under `__tests__` is read as a test file and lists no examples.
 
 Acceptance evidence: synthetic fixtures only.
-- `IsJSValidityTestFile` over `__tests__` paths, other directories and non-JS files, with
-  `IsTestFile` unchanged.
+- `IsTestFile` over `__tests__` paths, other directories and non-JS files, and lint of a changed
+  `__tests__` file (`TestJestTestsDirectoryFileIsLinted`, V1-2058).
 - A Jest fixture with unawaited `.then` and chained `.catch` assertions beside awaited, returned,
   concise, `done`, later-awaited, nested-executor and passed-on forms.
 - `tests validity` on a `__tests__/cart.ts` Jest file: `xit`, `xtest`, `test.skip` and `xdescribe`
@@ -1416,7 +1423,8 @@ owner's standing auto-accept (2026-10-11). The reader stays the TSA-V0-062 line 
   - `rspec-shared-group-not-found`, `rspec-shared-group-ambiguous` (two or more visible
     definitions, or a support set that could hold another), `rspec-shared-group-nested` (a shared
     group defined in, or including, another shared group) and `rspec-shared-group-unbound` (the
-    support set is unbound);
+    support set is unbound as a whole, or, per TSA-V0-397, one unread support file could define
+    this inclusion's group);
   - `rspec-inclusion-example-not-in-group`: `EXAMPLE_LINE` is not an example of that group;
   - `rspec-example-loop-generated`: the example is generated in a loop.
 - `TSA-V0-092`: (standing auto-accept, 2026-10-11; V1-1867 / GitHub #1164) Receipt discovery MUST
@@ -1480,7 +1488,9 @@ inclusion. It is agent-drafted and accepted under the owner's standing auto-acce
 - `TSA-V0-396`: (standing auto-accept, 2026-10-11; V1-2063 / GitHub #1312) The Ruby line reader
   MUST count `if`, `unless`, `case`, `begin`, `while` and `until` as a block opener in value
   position: after an assignment (`=`, `||=`, `+=` and the other operator assignments), a hash
-  `=>`, an opening `(` or `[`, a comma, `&&` or `||`, and `case` or `begin` after `return`.
+  `=>`, a label hash key (`key: if x`), an append (`<< if x`), an opening `(` or `[`, a comma,
+  `&&` or `||`, a line-start `else` (`else if x`, which nests a block of its own), and `case` or
+  `begin` after `return` (label key, append and `else` added by V1-2078).
   - A modifier (`foo if bar`, `x = 1 unless y`, `return if bar`) and a keyword argument
     (`if: true`) MUST NOT open a block, and neither may a keyword inside a string literal.
   - A value-position block that the same line closes with `end`
@@ -1508,8 +1518,9 @@ inclusion. It is agent-drafted and accepted under the owner's standing auto-acce
     rule.
 
 Non-goals:
-- parsing Ruby beyond the line reader: other value positions (`key: if x`, `<< if x`, ternary
-  branches) and keywords inside regular expression literals are not recognized;
+- parsing Ruby beyond the line reader: other value positions (ternary branches, which a line
+  cannot tell from a modifier after a predicate method such as `empty? if x`) and keywords inside
+  regular expression literals are not recognized;
 - reading a support file that still does not read;
 - defining a shared group through metaprogramming (`define_method`, `send`, a constant naming the
   method) in an unread file. Such a definition is not seen and does not hold the inclusion back.
@@ -2186,7 +2197,11 @@ unchanged; the join is a separate read of a retained receipt and the object stor
   `rspec-scoped-id`). A JS example is its repository-relative file, project name and full title
   (`file > project > full title`, kind `js-title-path`). An example with no such identity, or two
   examples with one identity, MUST abstain (`example-identity-unbound`,
-  `example-identity-ambiguous`) instead of guessing.
+  `example-identity-ambiguous`) instead of guessing. A JS anchor file binds the retained
+  test-file digest key that equals or ends with it; when several keys do, only a key equal to the
+  anchor file binds, and otherwise the example abstains `example-file-ambiguous` (a relative
+  anchor is relative to the reporter root, which the receipt does not retain). An anchor whose one key lies outside the repository root abstains
+  `example-file-outside-repository` (V1-2085).
 - `TSA-V0-412`: (standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) A record MUST carry the
   run outcome as the receipt states it, the hygiene and strength axes the static example rules give
   the example at the revision (`TSA-V0-068`, `TSA-V0-080`), and the source both used: the revision
@@ -2265,7 +2280,7 @@ the `readOneBlob` split in `internal/testsource/git.go`, `RubyDocument` in
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
 | TSA-V0-410 | `internal/testsource/example_join.go`, `cmd/corvint/tests_example_join.go` | `TestExampleJoinRubyShiftedLines`, `TestTestsExampleJoinCLI` | experimental |
-| TSA-V0-411 | `internal/testsource/example_join.go` | `TestExampleJoinRubyShiftedLines`, `TestExampleJoinSharedGroup`, `TestExampleJoinJS` | experimental |
+| TSA-V0-411 | `internal/testsource/example_join.go` | `TestExampleJoinRubyShiftedLines`, `TestExampleJoinSharedGroup`, `TestExampleJoinJS`, `TestExampleJoinJSDigestKeys` | experimental |
 | TSA-V0-412 | `internal/testsource/example_join.go` | `TestExampleJoinRubyShiftedLines`, `TestExampleJoinJS`, `TestExampleJoinSupportFiles` | experimental |
 | TSA-V0-413 | `internal/testsource/example_join.go` | `TestExampleJoinRevisionRefusals`, `TestExampleJoinRubyShiftedLines` | experimental |
 | TSA-V0-414 | `internal/testsource/example_join.go`, `internal/testsource/git.go` | `TestExampleJoinRubyShiftedLines`, `TestExampleJoinSharedGroup`, `TestExampleJoinJS`, `TestExampleJoinSupportFiles` | experimental |
@@ -2518,6 +2533,24 @@ refusing because the code is read statically and not run.
   and hint asserting it (`root.reader?`). Every finding MUST carry a hint to assert the state the
   code writes or to write the accessor on that path, and MUST say the example abstains because the
   code under test is read statically and not run.
+- `TSA-V0-450`: (standing auto-accept, 2026-10-11; V1-1837) An example no TSA-V0-063
+  `RSPEC-SKIPPED` finding covers MUST NOT be left clean when a run may not execute it:
+  - a `skip` or `pending` statement in its body with a trailing `if` or `unless`, or inside a
+    nested block, MUST give an `abstained` `RSPEC-CONDITIONAL-SKIP` finding located at that
+    statement's line, with the example's line as its cause;
+  - metadata on the example's declaring line or an ancestor group's that a bound committed support
+    file (TSA-V0-414) excludes with `config.filter_run_excluding` MUST give an `abstained`
+    `RSPEC-CONFIG-EXCLUDED` finding located at the example's line, with the
+    `filter_run_excluding` line as its cause. Metadata is read from `key: value`, `:key => value`
+    and `:tag` arguments, including inside a hash-literal argument (`{slow: true}`). A filter
+    matches a `:tag` symbol as `tag: true`, a symbol, `true` or number value exactly, and any other
+    value (a lambda, string, constant or call) as unknown, by its key alone; a filter or metadata
+    value of `false` or `nil` excludes nothing, and commented lines are ignored. A shared example
+    read through its inclusion (TSA-V0-089) is matched the same way.
+  The findings follow TSA-V0-051: the hygiene axis abstains with the rule as its reason. Without a
+  bound support set nothing is config-excluded. Non-goals: evaluating the condition or the
+  environment, `filter_run_when_matching`, `filter_run_including`, exclusions set in `.rspec` or
+  the command line, and inclusion filters that drop examples by omission.
 
 Non-goals: running the code under test or a Rails autoloader; expanding spec or support helper
 methods; reopened classes, concerns, modules,
@@ -2582,6 +2615,7 @@ Nothing is persisted.
 | TSA-V0-447 | `internal/testsource/validity_rspec_accessor.go`, `internal/testsource/validity_rspec.go` | `TestAssertTargetUncertain`, `TestAssertTargetWithheld`, `TestSourceValidityAccessorBudget` | experimental |
 | TSA-V0-448 | `internal/testsource/validity_command.go`, `internal/testvalidity/source_rules_accessor.go`, `internal/testvalidity/source_rules_rspec.go` | `TestSourceValidityAccessorNeverWritten`, `TestAssertTargetNeverWritten`, `TestSourceValidityAccessorBudget` | experimental |
 | TSA-V0-449 | `internal/testsource/validity_rspec_accessor.go` | `TestAssertTargetNeverWritten` | experimental |
+| TSA-V0-450 | `internal/testsource/validity_rspec_skip_config.go`, `internal/testsource/validity_rspec_examples.go`, `internal/testsource/validity_rspec_inclusion.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecConditionalAndConfigSkips`, `TestRSpecExampleSkippedAndFocused`, `TestRSpecMetadataForms`, `TestRSpecInclusionConfigExcluded` | experimental |
 
 ## Decision file format
 
@@ -3056,7 +3090,7 @@ No live qualification on a real suite or real Playwright run was performed.
 | TSA-V0-048 | `internal/testsource/validity_rspec.go` | `TestMemoizedBlockExpectationFindings`, `TestMemoizedBlockExpectationNegatives`, `TestMemoizedBlockExpectationOverrides`, `TestMemoizedBlockExpectationPercentStrings` | experimental |
 | TSA-V0-049 | `internal/testsource/validity_rspec.go` | `TestMemoizedBlockExpectationFindings`, `TestMemoizedBlockExpectationNegatives`, `TestMemoizedBlockExpectationOverrides` | experimental |
 | TSA-V0-050 | `internal/testsource/validity_rspec.go`, `internal/testsource/validity.go` | `TestMemoizedBlockExpectationAbstains`, `TestMemoizedBlockExpectationDepthInsideExample` | experimental |
-| TSA-V0-051 | `internal/testvalidity/source_rules.go` | `TestApplySourceFindingsInvalidMakesIneligible`, `TestApplySourceFindingsAdvisoryAndExisting`, `TestValidityFindingsDispatchAndVerdict`, `TestWitnessRefusesMemoizedBlockExpectation` | experimental |
+| TSA-V0-051 | `internal/testvalidity/source_rules.go` | `TestApplySourceFindingsInvalidMakesIneligible`, `TestApplySourceFindingsAdvisoryAndExisting`, `TestApplySourceFindingsAnchorsDeduplicated`, `TestValidityFindingsDispatchAndVerdict`, `TestWitnessRefusesMemoizedBlockExpectation` | experimental |
 | TSA-V0-052 | `internal/testsource/validity.go` | `TestValidityFindingsDispatchAndVerdict` | experimental |
 | TSA-V0-053 | `internal/testsource/validity_rspec_block.go`, `internal/testsource/validity_rspec.go` | `TestBlockNotCalledIssueExample`, `TestBlockNotCalledForms` | experimental |
 | TSA-V0-054 | `internal/testsource/validity_rspec_block.go` | `TestBlockNotCalledIssueExample`, `TestBlockNotCalledForms` | experimental |
@@ -3435,3 +3469,97 @@ Nothing is persisted.
 | TSA-V0-361 | `internal/testsource/env_contract.go` | `TestEnvContractBranchDependent`, `TestEnvContractReaderEdges` | experimental |
 | TSA-V0-362 | `internal/testsource/role_locators.go` | `TestRoleLocatorPerTestMounts` | experimental |
 | TSA-V0-363 | `internal/testsource/validity_env.go`, `cmd/corvint/tests.go` | `TestSourceValidityEnv`, `TestTestsRoleLocatorsAndEnvCLI` | experimental |
+
+## Fail-closed analyzer bounds (V1-1720)
+
+V1-1720 makes one contract of the work bounds in the `internal/contextindex` analyzers whose answer
+can be complete: setup-select's `selected` mode (TSA-V0-001 to TSA-V0-007), the web import resolver
+it reads, the string-key registry dialect, the Ruby autoload reference index (NGI-V0-040) and the
+Ruby verification command (NGI-V0-052). It is agent-drafted and accepted under the owner's standing
+auto-accept (2026-10-11). Hitting a bound is never a negative answer (product invariant 2).
+
+- `TSA-V0-460`: (standing auto-accept, 2026-10-11; V1-1720) Every analyzer bound that can stop
+  work toward a complete answer MUST be declared once in `internal/contextindex/analyzer_bounds.go`
+  with a name, a limit, a unit and a typed outcome, and every check of it MUST go through that
+  declaration. The declared bounds are setup-closure (10,000 files, `bound-exceeded`),
+  shared-reexport (8 hops), shared-lookup (4,096 lookups) and shared-template (8 nested
+  substitutions; all three `shared-constant-key-unresolved`), web-config-bytes (1 MiB),
+  web-config-depth (16 links) and web-config-visits (64 configs; all three `import-unresolved`),
+  registry-manifest (256 KiB), registry-excluded-json (4 MiB, the Git read of a `.json` source
+  the index excluded for size), registry-declarations (64), registry-accessors (16) and
+  registry-key (256 bytes; all five `registry-unresolved`), ruby-nesting (256 blocks), ruby-resolutions (64
+  namespaces) and ruby-reference-sites (1,048,576; all three `ruby-reference-index-bounded`),
+  ruby-manifest (256 KiB; the verification command is withheld as unknown) and source-bytes (the
+  index's 1,000,000-byte admission, `source-unreadable`). Caps that only shorten a ranked or shown
+  list, the symbol-extraction caps that record an extraction note, and input caps that refuse the
+  whole request with a typed error are not analyzer bounds.
+- `TSA-V0-461`: (standing auto-accept, 2026-10-11; V1-1720) An analyzer that exhausts a declared
+  bound MUST stop and report that bound's outcome, which its caller turns into ALL or a counted
+  unknown; it MUST NOT return `selected`, a receipt without the matching unknown, or a
+  verification command that rests on the stopped read. A bound removes only the evidence of the
+  read it stopped: an answer that other, readable evidence proves on its own stands (an oversized
+  Gemfile beside a readable Gemfile.lock that declares an rspec gem still names `bundle exec
+  rspec` under `NGI-V0-052`). A Ruby source nesting past the ruby-nesting bound MUST count every
+  reference it makes in `ruby-reference-index-bounded`, because the namespaces opened past the
+  bound are not tracked. A `.json` source the index excluded past its 1,000,000-byte admission
+  MUST count as an invalid registries declaration when its committed blob, read within
+  registry-excluded-json, names `application-map-manifest` and `registries`, or when it cannot be
+  read within that bound. An `export *` branch a bound stopped MUST keep a shared-constant
+  resolution unresolved even when a later branch finds the name, since the stopped branch may bind
+  it too.
+- `TSA-V0-462`: (standing auto-accept, 2026-10-11; V1-1720) A result shaped by an exhausted bound
+  or by an in-progress recursion marker (an `export *` cycle) depends on the path that reached it
+  and MUST NOT be stored as a permanent answer; a resolution cache keeps only results whose
+  computation met neither.
+- `TSA-V0-463`: (standing auto-accept, 2026-10-11; V1-1720) One table-driven test MUST drive each
+  declared bound one past its limit and assert its outcome and no complete answer, and MUST fail
+  when a declared bound has no case.
+
+Non-goals: no bound value changes (registry-excluded-json is a new bound on a read the analyzer
+did not make before), no new reason or unknown code, no new CLI flag, and no change to
+ranking caps (graph hops and pushes, evidence rows, the dependency-link walk, the ALL reason list).
+Python and Go analyzers outside `internal/contextindex` are not covered.
+
+Failure modes: a bound added without a declaration escapes the table test (review is the
+backstop); a lowered limit in a test is restored by `t.Cleanup`, and the tests that lower one are
+not parallel; source-bytes is the index's admission, so its case uses the real 1,000,001-byte
+form; a registry call-site key past registry-key is read as a computed lookup (`computed-lookup`,
+also ALL); counting every reference of an over-nested Ruby source over-reports the unknown for
+references before the overflow (conservative, never a dropped reference). A tracked `.json`
+past the index admission costs one bounded `git cat-file` per impact or setup-select call; one
+that names the manifest schema and `registries` anywhere, or exceeds 4 MiB, widens setup-select to
+ALL and adds `registry-declaration-invalid` to every non-Go impact receipt (conservative). An
+index without a root or revision cannot read it and counts it too.
+
+Acceptance evidence: `TestAnalyzerBoundsFailClosed` in
+`internal/contextindex/analyzer_bounds_test.go` runs one case per declared bound and fails for a
+bound with no case; `TestRubyNestingOverflowIsBounded` failed before the fix (an `Outer::Mid::Deep`
+reference nested past 256 blocks gave neither the row nor the unknown) and passes after it;
+`TestSharedResolutionCacheSkipsCycleMarkers` resolves `SHARED` through an `export *` cycle, asserts
+the cache holds no miss and resolves the other cycle member, and fails when inexact results are
+cached. The existing bound tests (`TestSelectSetupSharedConstantReviewForms`,
+`TestSelectSetupSharedConstantOpenSetups`, `TestWebImportResolverFailsClosed`,
+`TestRegistryDialectUnresolvedRegistryWidens`, `TestRubyAutoloadResolutionBound`,
+`TestRubyAutoloadSiteBound`) pass unchanged apart from naming the declared bounds. Independent
+review follow-ups each failed before their fix: `TestOversizedRegistryManifestFailsClosed` (a
+manifest past the index admission left the selection `selected`; an oversized non-manifest still
+does) and `TestSharedExhaustedBranchOutranksLaterFind` (a later short `export *` branch's find
+replaced the stopped branch's unknown). The mixed-manifest rows of
+`TestNGIV0052RSpecNeedsDeclaredGem` pin the reworded TSA-V0-461 behaviour, which was already the
+implementation.
+
+Rollback: restore the per-file constants in `setup_select.go`, `setup_shared.go`,
+`webresolve.go`, `registry_dialect.go`, `ruby_autoload.go` and `ruby_verification.go`, remove
+`analyzer_bounds.go` and its test, drop the `overflowed` field, `excludedRegistryManifest`,
+`sourceSizeExclusion` and the `exhausted` latch in `resolveExport`, return the analyzer schema to
+`corvint-analyzer/131`, and remove this section and the NGI-V0-040 sentence. Nothing is persisted
+beyond the derived index, which the schema bump rebuilds.
+
+### Traceability (V1-1720)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-460 | `internal/contextindex/analyzer_bounds.go` | `TestAnalyzerBoundsFailClosed` | experimental |
+| TSA-V0-461 | `internal/contextindex/analyzer_bounds.go`, `internal/contextindex/setup_select.go`, `internal/contextindex/setup_shared.go`, `internal/contextindex/registry_dialect.go`, `internal/contextindex/ruby_autoload.go`, `internal/contextindex/ruby_verification.go` | `TestAnalyzerBoundsFailClosed`, `TestRubyNestingOverflowIsBounded`, `TestOversizedRegistryManifestFailsClosed`, `TestSharedExhaustedBranchOutranksLaterFind`, `TestSharedLookupBoundAtProductionValue`, `TestNGIV0052RSpecNeedsDeclaredGem` | experimental |
+| TSA-V0-462 | `internal/contextindex/setup_shared.go` | `TestSharedResolutionCacheSkipsCycleMarkers`, `TestSharedExhaustedBranchOutranksLaterFind` | experimental |
+| TSA-V0-463 | `internal/contextindex/analyzer_bounds_test.go` | `TestAnalyzerBoundsFailClosed` | experimental |

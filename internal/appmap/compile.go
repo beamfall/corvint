@@ -309,6 +309,9 @@ func (b *builder) tests(ix *contextindex.Index) error {
 		tf := &TestFile{ID: fileID(p), Path: p, Role: b.role(p), Class: facts.class, Join: StatusResolved, Anchor: wholeFile(e, data),
 			Imports: []Import{}, Methods: []Method{}, Gotos: []Goto{}, Tests: append([]string{}, facts.tests...),
 			Assertions: facts.asserts, Selectors: append([]Selector{}, facts.selectors...)}
+		if facts.classDefault {
+			tf.ClassExport = ClassExportDefault
+		}
 		if unparsed[p] {
 			tf.Join = StatusUnknown
 			b.testUnknown(Unknown{Kind: "file", Ref: tf.ID, Reason: "unparsed-imports", Path: p})

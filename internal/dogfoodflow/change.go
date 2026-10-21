@@ -41,15 +41,19 @@ type step struct{ name, status, reason string }
 
 type change struct {
 	flow
-	options              ChangeOptions
-	evidence             string
-	runTmp               string
-	rows                 []step
-	citationStage        string
-	cemPrepared          bool
-	citationStageOwned   bool
-	citationCount        int
-	citationFailedRow    int
+	options            ChangeOptions
+	evidence           string
+	runTmp             string
+	rows               []step
+	citationStage      string
+	cemPrepared        bool
+	citationStageOwned bool
+	citationCount      int
+	citationFailedRow  int
+	// citationFailedValues names the refused row's RELATION and START:END
+	// fields, quoted, so an invalid-arguments hint names the rejected value
+	// (V1-1147).
+	citationFailedValues string
 	citeSpanUnaligned    bool // no hunk edits the refused span (DCW-V0-063)
 	linkObservedRows     int
 	citedOver            bool
@@ -370,12 +374,26 @@ func (c *change) prechangeImpact() {
 		return
 	}
 	status := c.exec(argv[3:], output, errorFile)
+	// DCW-V0-075: a Git deadline overrun under host load gets one bounded
+	// retry; a second overrun is a visible, non-blocking abstention.
+	if impactDeadlineOverrun(status, output, errorFile) {
+		c.say("dogfood-change: NOTE coordination-time-impact deadline overrun; retrying once\n")
+		status = c.exec(argv[3:], output, errorFile)
+		if impactDeadlineOverrun(status, output, errorFile) {
+			c.addStep("coordination-time-impact", "NOT_PRODUCED", impactDeadlineReason)
+			return
+		}
+	}
 	if status == 0 {
 		c.addStep("coordination-time-impact", "PRODUCED", "none")
 		return
 	}
 	stderr := readFile(errorFile)
 	reason := failureReason(stderr, status)
+	if reason == impactDeadlineReason {
+		// Only the two-overrun path above may record the non-blocking reason.
+		reason = "exit-" + strconv.Itoa(status)
+	}
 	code, _ := firstCapture(impactRefusal, stderr)
 	if status != 2 || !impactAbstentions[reason] || code != reason || hasContent(output) || bytes.Count(stderr, []byte("\n")) != 1 {
 		if impactAbstentions[reason] {
@@ -784,6 +802,9 @@ func (c *change) cite(plan []byte, citeOutput string) (string, string) {
 		if status := c.exec(args, part, errorFile); status != 0 {
 			c.citationFailedRow = index + 1
 			c.citationFailedMap = citeMap
+			if len(fields) == 4 && !unknownRow(fields) {
+				c.citationFailedValues = "RELATION " + strconv.Quote(fields[3]) + " and START:END " + strconv.Quote(fields[2])
+			}
 			stderr := readFile(errorFile)
 			c.citeSpanUnaligned = bytes.Contains(stderr, []byte(citeSpanUnedited))
 			return "NOT_PRODUCED", failureReason(stderr, status)
@@ -1348,6 +1369,8 @@ func failing(row step) bool {
 		return false
 	case row.name == "coordination-time-impact" && row.status == "NOT_PRODUCED" && impactAbstentions[row.reason]:
 		return false
+	case row == step{"coordination-time-impact", "NOT_PRODUCED", impactDeadlineReason}:
+		return false
 	case row.reason == "no-intent-declared":
 		return false
 	case row == step{guardingTestsStepName, "NOT_PRODUCED", guardingTestsNotRun}:
@@ -1480,7 +1503,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"cem-cite:citation-plan-map-mismatch", "the plan does not match the map prepared for HEAD: a row names an ordinal past its hunks or is not a canonical ordinal, or an unknown hunk is unnamed (often because a later commit re-prepared the map); or a row's ordinal now names another hunk than when this plan was first cited (a later commit added or removed a hunk before it); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE, by a citation or by an ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE row"},
 	{"cem-cite:citation-plan-uniform", "the plan cites one span for every hunk: hunks={uniformHunks} span={uniformSpan}; cite, per hunk, the BASE lines that hunk depends on or implements (its caller, contract, test or spec section), or keep a hunk unknown with ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE; one span may serve several hunks, never every hunk of a multi-hunk non-chore change (DCW-V0-048)"},
 	{"cem-cite:unknown-reasons-not-recorded", "the unknown rows of DOGFOOD_CITATIONS could not be kept in {evidence}/cem-unknown-reasons.tsv (or its .next file): before citing (an occupied path, or notes over 16 MiB) nothing was cited; after citing the map has changed and earlier notes are kept; remove whatever occupies the path and rerun the same plan, which replays idempotently (DCW-V0-046)"},
-	{"cem-cite:invalid-arguments", "plan row {row}: RELATION must be one of call-site, decision, dependency, implementation, incident, specification or test-claim, and START:END a line span of the cited file; any file present at BASE may be cited, code and tests as well as specs (DCW-V0-041)"},
+	{"cem-cite:invalid-arguments", "plan row {row}{rowValues}: RELATION must be one of call-site, decision, dependency, implementation, incident, specification or test-claim, and START:END a line span of the cited file; any file present at BASE may be cited, code and tests as well as specs (DCW-V0-041)"},
 	{"cem-cite:missing-evidence", "plan row {row} cites a path that is not a regular file at BASE; cite a source, test or spec file that exists at BASE, since a file this change adds cannot be evidence for itself (DCW-V0-041)"},
 	{"cem-cite:cite-span-not-stable", "plan row {row} cites BASE lines that this change edits or deletes; cite a START:END span the change leaves unchanged"},
 	{"cem-cite:cite-self-modified-authority", "plan row {row} cites a governing file (spec, decision or other authority) that this change itself modifies, which cannot govern it; cite a governing source the change leaves unmodified, or keep the hunk unknown with ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE (CEM-V1-114)"},
@@ -1510,6 +1533,32 @@ var fixHints = []struct{ pattern, hint string }{
 
 const uncommittedHint = "the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun corvint dogfood change {base}"
 
+// untrackedHint names the untracked paths the recorder counts as dirty
+// (DCW-V0-091). The recorder ignores core.excludesFile, so git status can
+// hide a path a personal excludes file covers.
+const untrackedHint = "the recorder requires a clean tree and counts these untracked paths as dirty: {paths}; it ignores core.excludesFile, so git status may not show them; move them out of the worktree or list them in the repository .gitignore, then rerun corvint dogfood change {base} (DCW-V0-091)"
+
+// maxNamedUntracked bounds how many untracked paths untrackedHint names.
+const maxNamedUntracked = 8
+
+// untrackedPaths is the sorted untracked paths, outside .corvint/ and the
+// recorder's private artifacts, that the recorder's clean-tree check sees.
+// A failed or over-bound read names none, so the generic hint applies.
+func (c *change) untrackedPaths() []string {
+	output, status, bounded := c.boundedGit("-c", "core.excludesFile=", "ls-files", "--others", "--exclude-standard", "-z")
+	if status != 0 || !bounded {
+		return nil
+	}
+	paths := []string{}
+	for _, path := range strings.Split(output, "\x00") {
+		if path != "" && !strings.HasPrefix(path, ".corvint/") && !trace.IsRecordArtifactPath(path, len(c.base)) {
+			paths = append(paths, path)
+		}
+	}
+	slices.Sort(paths)
+	return paths
+}
+
 // citeSpanUnedited is the cem cite refusal phrase for a span whose base
 // lines no hunk edits but whose text recurs in the changed file.
 const citeSpanUnedited = "are edited by no hunk"
@@ -1530,10 +1579,28 @@ func (c *change) failedMap() string {
 	return ".corvint/change.cem.json"
 }
 
+// rowValues renders the refused row's quoted fields for a hint, or nothing
+// when the row was not a citation row.
+func (c *change) rowValues() string {
+	if c.citationFailedValues == "" {
+		return ""
+	}
+	return " (" + c.citationFailedValues + ")"
+}
+
 func (c *change) fixHint(row step) string {
 	value := row.name + ":" + row.reason
 	if value == "cem-cite:citation-plan-map-mismatch" && c.staleBinding != "" {
 		return strings.NewReplacer("{evidence}", c.evidence, "{staleBinding}", c.staleBinding).Replace(staleBindingHint)
+	}
+	if value == "local-outcome:record-index-failed" {
+		if paths := c.untrackedPaths(); len(paths) > 0 {
+			named := strings.Join(paths[:min(len(paths), maxNamedUntracked)], ", ")
+			if len(paths) > maxNamedUntracked {
+				named += fmt.Sprintf(" (+%d more)", len(paths)-maxNamedUntracked)
+			}
+			return strings.NewReplacer("{paths}", named, "{base}", c.base).Replace(untrackedHint)
+		}
 	}
 	if value == "cem-cite:cite-span-not-stable" && c.citeSpanUnaligned {
 		return strings.ReplaceAll(citeSpanUnalignedHint, "{row}", strconv.Itoa(c.citationFailedRow))
@@ -1545,7 +1612,7 @@ func (c *change) fixHint(row step) string {
 			matched = len(value) >= len(prefix)+len(suffix) && strings.HasPrefix(value, prefix) && strings.HasSuffix(value, suffix)
 		}
 		if matched {
-			return strings.NewReplacer("{evidence}", c.evidence, "{base}", c.base, "{step}", row.name, "{map}", c.path(c.failedMap()), "{row}", strconv.Itoa(c.citationFailedRow), "{citationRows}", strconv.Itoa(c.citationCount), "{linkRows}", strconv.Itoa(c.linkObservedRows), "{uniformHunks}", strconv.Itoa(c.uniformHunks), "{uniformSpan}", c.uniformSpan).Replace(entry.hint)
+			return strings.NewReplacer("{evidence}", c.evidence, "{base}", c.base, "{step}", row.name, "{map}", c.path(c.failedMap()), "{row}", strconv.Itoa(c.citationFailedRow), "{rowValues}", c.rowValues(), "{citationRows}", strconv.Itoa(c.citationCount), "{linkRows}", strconv.Itoa(c.linkObservedRows), "{uniformHunks}", strconv.Itoa(c.uniformHunks), "{uniformSpan}", c.uniformSpan).Replace(entry.hint)
 		}
 	}
 	return ""
@@ -1597,7 +1664,7 @@ func (c *change) noteAgentReceipt(name, baseTree string) {
 // row with its fix and exits 1, or exits 0 when the report is complete.
 func (c *change) reportFailures() int {
 	for _, row := range c.rows {
-		if row.name == "coordination-time-impact" && impactAbstentions[row.reason] {
+		if row.name == "coordination-time-impact" && (impactAbstentions[row.reason] || row.reason == impactDeadlineReason) {
 			c.say("dogfood-change: NOTE coordination-time-impact NOT_PRODUCED %s\n", row.reason)
 		}
 	}

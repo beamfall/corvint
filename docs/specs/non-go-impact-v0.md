@@ -120,7 +120,8 @@ and range impact are unchanged.
   MUST fail closed. A non-literal key at any call site of a registry's accessor adds
   `accessor-key-nonliteral` (count of such calls, with `registry` and `accessor`); an
   unresolved entry adds `registry-key-unresolved` (count, with `registry`); an unresolved export
-  adds `registry-export-unresolved` and applies to every JS/TS changed path. Each of these, and
+  adds `registry-export-unresolved` and applies to every JS/TS changed path, and to no changed
+  path of another language (Ruby included; V1-1479). Each of these, and
   a change to the registry file itself, MUST widen selection to every caller of that registry's
   accessors with `medium` call-site evidence. A source that names an accessor but cannot be
   read or lexed completely adds `registry-caller-unavailable`. These rows sit in structured
@@ -153,7 +154,8 @@ stays counted and widened under NGI-V0-010 (GitHub #945, #946, #947).
   file, to an indexed JS/TS source (directly or as a directory `index`). The `require` forms
   apply only when `require` is unbound in the registry file: the file has no identifier escape
   (`\`), and every occurrence of `require` outside a member access is a call that is not a
-  function declaration. The edge binds a changed path exactly as rule (c) binds an importer to
+  function declaration or the name of a one-line TypeScript ambient `declare const|let|var
+  require:` declaration, which binds no value (V1-1479). The edge binds a changed path exactly as rule (c) binds an importer to
   it. A bare or unresolvable specifier, an arrow with parameters or a block body, a dynamic or
   concatenated S, constructor or callback arguments, any other callback, an expression after
   the assertion, and any other body shape stay unresolved entries.
@@ -207,7 +209,11 @@ path receives it by default, add a bounded second hop, and mark every such row a
   its `)`). Declared entries come first; for each word the first entry read wins. Any other
   `.acronym` or `.inflect(` form, any `.collapse`, and, without a declaration, any
   `autoload_paths`, `eager_load_paths`, `autoload_once_paths`, `autoload_lib`,
-  `autoload_lib_once` or `push_dir` site counts in `ruby-autoload-config-unresolved`.
+  `autoload_lib_once` or `push_dir` site counts in `ruby-autoload-config-unresolved`, except one
+  generated Rails 7.1+ line `config.autoload_lib(ignore: %w[...])`, alone on its line but for a
+  trailing comment, with a literal word list: it adds `lib` as a root and ignores exactly
+  `lib/<word>` for each listed word, replacing the default ignored set (V1-1850,
+  `RUBY-AFFECTED-V0-042`). A second such line still counts.
 - `NGI-V0-018`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1674) For a
   mapped changed path naming constant C, every other indexed Ruby source with a constant
   reference resolving to C or a constant nested in C MUST be one result: kind `reference`
@@ -219,7 +225,11 @@ path receives it by default, add a bounded second hop, and mark every such row a
   are read from the lexically masked source (no comment, string or heredoc text), fully
   qualified (`::A::B`) or relative (`B`, `A::B`), excluding labels and method calls `Name(`.
   A single-segment unrooted `Name = value` (not `==`, `=~` or `=>`) is a local definition of
-  Name in the innermost enclosing namespace, never a reference; every `class`/`module` the
+  Name in the innermost enclosing namespace, never a reference; `Name ||= value` is not a
+  definition but a reference, since it reads and keeps an existing Name; a rooted
+  `::A::Name = value` defines `A::Name` and a qualified `A::Name = value` defines Name in the A
+  that lexical lookup finds (as for a qualified reopen below), and neither is a reference to
+  that constant, though the namespace A it names is one (V1-1714); every `class`/`module` the
   file opens is also a local definition, and each local definition's namespace prefixes exist.
   A relative reference resolves to the innermost enclosing `module`/`class` namespace N for
   which N::first-segment is a mapped constant, a local definition, or a namespace prefix of
@@ -233,7 +243,11 @@ path receives it by default, add a bounded second hop, and mark every such row a
   and `do`) counts toward a nesting bound of 256 open blocks; scanning stays linear in the
   source size. A file whose block openers and `end`s do not balance, or that nests past the
   bound, resolves each relative reference to itself and under every namespace it opens, never
-  fewer.
+  fewer. Failure mode (V1-1714, recorded): a qualified reopen or qualified assignment resolves
+  its first segment against local definitions made earlier in the file only, so a later local
+  definition of that namespace does not redirect it. This matches Ruby's own lookup when the
+  file is loaded top to bottom; code that runs the reopen later (from a method or block) is not
+  modelled.
 - `NGI-V0-019`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1674)
   Metaprogrammed names MUST stay unknown, never become a reference: other Ruby sources'
   `constantize`, `safe_constantize`, `const_get`, `send`, `public_send` and `__send__` words
@@ -285,7 +299,10 @@ path receives it by default, add a bounded second hop, and mark every such row a
   changed path the mapper resolves to a constant MUST NOT carry
   `reverse-import-rule-unavailable`: its named-constant rule is the reverse-reference rule.
   An unmapped Ruby path (including one under an invalid declaration) keeps it, and every Ruby
-  path keeps `dynamic-dispatch-unresolved`. This amends `NGI-V0-019`.
+  path keeps `dynamic-dispatch-unresolved`. This amends `NGI-V0-019`. For the same reason a
+  mapped Ruby path MUST NOT be counted in the `GPK-V0-027` no-named-resolution-rule coverage
+  disclosure, in the default or the budgeted receipt; an unmapped non-test Ruby path still is
+  (V1-1814).
 - `NGI-V0-037`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1794) A
   default or expanded committed range admitting a Ruby path MUST attach, for each admitted
   Ruby path, the same advisory rows (both hops) and Ruby unknown rows as path impact, merged
@@ -308,9 +325,10 @@ path receives it by default, add a bounded second hop, and mark every such row a
 - `NGI-V0-040`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1794) The
   Ruby reference index MUST be bounded: an unbalanced source resolves each reference against
   at most 64 of the namespaces it opens, and the index retains at most 1,048,576 reference
-  sites in total. Every reference whose resolutions or sites a bound cut MUST be counted in a
-  `ruby-reference-index-bounded` unknown row on each mapped changed Ruby path, never dropped
-  silently; below both bounds no row is added.
+  sites in total. Every reference whose resolutions or sites a bound cut, and every reference
+  of a source that nests more than 256 blocks (whose deeper namespaces are not tracked;
+  TSA-V0-461, V1-1720), MUST be counted in a `ruby-reference-index-bounded` unknown row on each
+  mapped changed Ruby path, never dropped silently; below every bound no row is added.
 
 ### Ruby verification command (V1-1796; GitHub #1130 item 4)
 
@@ -438,7 +456,7 @@ for languages not admitted by this new range capability.
 | `bare-import-unresolved` | Bare JS/TS import specifiers resolve to no repository file or declared package, so reverse importers are not closed; `count` is the repository-wide specifier count (`GPK-V0-080`, proposed). |
 | `registry-declaration-invalid` | A manifest `registries` member does not decode or validate; `count` is the number of such manifests (`NGI-V0-007`). |
 | `registry-key-unresolved` | Entries of the declared registry `registry` have no literal key or imported-binding value; selection is widened (`NGI-V0-008`, `NGI-V0-010`) on every JS/TS changed path (`NGI-V0-012`); a lazy entry counts unless `NGI-V0-013` resolves it. |
-| `registry-export-unresolved` | The declared export of `registry` is not a readable object literal, so none of its keys are known; selection is widened (`NGI-V0-008`, `NGI-V0-010`). |
+| `registry-export-unresolved` | The declared export of `registry` is not a readable object literal, so none of its keys are known; selection is widened (`NGI-V0-008`, `NGI-V0-010`) on every JS/TS changed path only. |
 | `accessor-key-nonliteral` | `count` calls of `accessor` pass a key that is not a literal; selection is widened to every caller (`NGI-V0-010`). |
 | `registry-caller-unavailable` | Sources naming a declared accessor could not be read or lexed completely (`NGI-V0-010`). |
 | `ruby-constant-unmapped` | The changed Ruby path is below no autoload root, below an ignored directory, or its path does not camelize to a constant (`NGI-V0-016`). |
@@ -447,7 +465,7 @@ for languages not admitted by this new range capability.
 | `ruby-constant-lookup-dynamic` | `count` dynamic constant lookups or dynamic sends in other Ruby sources may name the constant (`NGI-V0-019`). |
 | `ruby-constant-name-literal` | `count` strings or association symbols in other Ruby sources may name the constant without a resolvable reference (`NGI-V0-019`). |
 | `ruby-constant-source-unavailable` | `count` other Ruby sources could not be read for constant references (`NGI-V0-019`). |
-| `ruby-reference-index-bounded` | `count` Ruby references were indexed incompletely because the resolution or retained-site bound cut them, so the named-constant rows may be incomplete (`NGI-V0-040`). |
+| `ruby-reference-index-bounded` | `count` Ruby references were indexed incompletely because the resolution, retained-site or nesting bound cut them, so the named-constant rows may be incomplete (`NGI-V0-040`). |
 
 These codes are uncertainty, never execution evidence. The versioned receipt
 names `language_profile: non-go-syntax-v0`; line 0 denotes a baseline frontier.
@@ -467,15 +485,15 @@ and a validated declared identifier, never source text.
 | `NGI-V0-007` | `ValidateRegistryDeclarations`, `declaredRegistries` (`internal/contextindex/registry_dialect.go`); `decodeManifest` (`internal/appmap/manifest.go`) | `TestValidateRegistryDeclarations`, `TestRegistryDialectDeclarationFailures`, `TestManifestRegistriesMember` |
 | `NGI-V0-008` | `parseRegistry`, `registryImports`, `registryEntryOf`; template body in `readTemplate` (`webimports.go`) | `TestRegistryDialectSelectsTestsPassingTheKey`, `TestRegistryDialectUnresolvedRegistryWidens`, `TestRegistryDialectReexportedRegistryIsUnresolved` |
 | `NGI-V0-009` | `registryCallSites`, `registryDialect.impact`; wiring in `impact` | `TestRegistryDialectSelectsTestsPassingTheKey`, `TestRegistryDialectAliasedAccessorImport`, `TestRegistryDialectKeyCollisionAcrossRegistries` |
-| `NGI-V0-010` | `registryDialect.impact`; `extra` rows in `nonGoImpactUnknowns` | `TestRegistryDialectNonLiteralKeyWidens`, `TestRegistryDialectChangedRegistrySelectsEveryCaller`, `TestRegistryDialectUnresolvedRegistryWidens`, `TestRegistryDialectReexportedRegistryIsUnresolved` |
+| `NGI-V0-010` | `registryDialect.impact`; `extra` rows in `nonGoImpactUnknowns` | `TestRegistryDialectNonLiteralKeyWidens`, `TestRegistryDialectChangedRegistrySelectsEveryCaller`, `TestRegistryDialectUnresolvedRegistryWidens`, `TestRegistryDialectReexportedRegistryIsUnresolved`, `TestRegistryDialectExportUnresolvedIsWebOnly` |
 | `NGI-V0-011` | `internal/contextindex/registry_dialect_test.go`, `internal/appmap/registries_test.go` | tests above; real CLI output in `../build-log/2026-10-14-v1-1365-string-keyed-registry.md` |
 | `NGI-V0-012` | `registryDialect.impact` (`openEntry`) | `TestRegistryDialectLazyRequireNeverFailsOpen`, `TestRegistryDialectUnresolvedEntryAppliesToEveryPath`; real CLI output in `../build-log/2026-10-15-registry-dialect-lazy-const.md` |
-| `NGI-V0-013` | `registryLazyBinding`, `registryThenCallback`, `registryAssertionTail`, `registryRequireFree`, `registryLazyTarget`, `parseRegistry`; `bound` in `registryDialect.impact` | `TestRegistryDialectLazyEntriesResolve`, `TestRegistryDialectLazyEntriesStayClosed` |
+| `NGI-V0-013` | `registryLazyBinding`, `registryThenCallback`, `registryAssertionTail`, `registryRequireFree`, `registryAmbientDeclaration`, `registryLazyTarget`, `parseRegistry`; `bound` in `registryDialect.impact` | `TestRegistryDialectLazyEntriesResolve`, `TestRegistryDialectLazyEntriesStayClosed`, `TestRegistryDialectAmbientRequireIsLoader` |
 | `NGI-V0-014` | `registryObject`, `registryExportedOtherwise` | `TestRegistryDialectNonExportedRegistry` |
 | `NGI-V0-015` | `registryCallSites`, `registryConstants`, `registryMember` | `TestRegistryDialectConstAccessorKey`, `TestRegistryDialectConstAccessorKeyStaysNonLiteral`, `TestRegistryDialectNonLiteralKeyWidens`; real CLI output in `../build-log/2026-10-15-registry-dialect-lazy-const.md` |
 | `NGI-V0-016` | `Mapper.Constant`, `Mapper.Camelize` (`internal/rubyautoload/rubyautoload.go`) | `TestRubyAutoloadConstantMapping` (`internal/rubyautoload`), `TestRubyAutoloadNamedConstantReverseReference` |
 | `NGI-V0-017` | `loadRubyAutoload`, `rubyAutoloadDeclaration` (`internal/contextindex/ruby_autoload.go`); `New`, `DefaultRoots`, declaration decoding and `readConfiguredInflections` (`internal/rubyautoload`) | `TestRubyAutoloadConstantMapping`, `TestRubyAutoloadMapperDeclaration` (`internal/rubyautoload`), `TestRubyAutoloadInflections`, `TestRubyAutoloadDeclaration` |
-| `NGI-V0-018` | `scanRubyConstantSource`, `rubyDefinedConstant`, `rubyAssignsConstant`, `resolutions`, `rubyAutoload.impact`; wiring in `impact` | `TestRubyAutoloadNamedConstantReverseReference`, `TestRubyAutoloadNamespacedConstant`, `TestRubyAutoloadMetaprogrammingStaysUnknown`, `TestRubyAutoloadNestingBound`, `TestRubyAutoloadQualifiedClassInNamespace`, `TestRubyAutoloadLocalConstantShadows` |
+| `NGI-V0-018` | `scanRubyConstantSource`, `rubyDefinedConstant`, `rubyAssignsConstant`, `resolutions`, `rubyAutoload.impact`; wiring in `impact` | `TestRubyAutoloadNamedConstantReverseReference`, `TestRubyAutoloadNamespacedConstant`, `TestRubyAutoloadMetaprogrammingStaysUnknown`, `TestRubyAutoloadNestingBound`, `TestRubyAutoloadQualifiedClassInNamespace`, `TestRubyAutoloadLocalConstantShadows`, `TestRubyAutoloadQualifiedAndOrAssignmentsDefine` |
 | `NGI-V0-019` | `rubyAutoload.impact` unknown rows | `TestRubyAutoloadMetaprogrammingStaysUnknown`, `TestRubyAutoloadNamedConstantReverseReference` |
 | `NGI-V0-020` | syntax-frontier guard in `impact`; `attachNonGoImpactUnknowns` | `TestRubyAutoloadDefaultOn`, `TestRubyAutoloadNamedConstantReverseReference`; `TestNonGoImpactCLIProfile`, `TestNonGoRangeImpactLegacyGoBytes` |
 | `NGI-V0-021` | `rubyAutoload.report` over `Mapper.Report`, `attachNonGoImpactUnknowns` | `TestRubyAutoloadInflections`, `TestRubyAutoloadDeclaration`; real CLI output in `../build-log/2026-10-18-v1-1674-ruby-autoload-reverse-refs.md` |
@@ -487,11 +505,11 @@ and a validated declared identifier, never source text.
 | `NGI-V0-033` | `rubyImpactRequested` and the syntax-frontier selection in `impact` | `TestRubyAutoloadDefaultOn`, `TestRubyAutoloadIssue1130DefaultTransitive`, `TestNonGoImpactCLIProfile`; Go/JS goldens `conformance/cli-parity-v0`, `TestNonGoRangeImpactLegacyGoBytes` |
 | `NGI-V0-034` | `rubyAutoload.impact` second hop (`traversed`), `referrers`, `result` | `TestRubyAutoloadIssue1130DefaultTransitive`, `TestRubyAutoloadSecondHopOnce`, `TestRubyAutoloadSecondHopConstantOnce` |
 | `NGI-V0-035` | `result` (`advisory`); `setCoverage` (`internal/contextindex/receipt.go`); range coverage in `compileRangeImpact` | `TestRubyAutoloadIssue1130DefaultTransitive`, `TestRubyAutoloadRangeImpact`, `TestRubyAutoloadNamedConstantReverseReference` |
-| `NGI-V0-036` | `rubyAutoload.mapped`; `nonGoImpactUnknowns` | `TestRubyAutoloadIssue1130DefaultTransitive`, `TestRubyAutoloadNamedConstantReverseReference` |
+| `NGI-V0-036` | `rubyAutoload.mapped`; `nonGoImpactUnknowns`; `reverseImportProfileGap` | `TestRubyAutoloadIssue1130DefaultTransitive`, `TestRubyAutoloadNamedConstantReverseReference`, `TestRubyAutoloadMappedPathHasNoProfileGap` |
 | `NGI-V0-037` | `rangeRubyAutoload`, wiring in `compileRangeImpact` | `TestRubyAutoloadRangeImpact`; `TestNonGoRangeImpactLegacyGoBytes` |
 | `NGI-V0-038` | `isRubyTestPath` (`internal/contextindex/ruby_autoload.go`); `isTestPath` unchanged | `TestIsTestPathRSpec`, `TestRubyAutoloadIssue1130DefaultTransitive`, `TestRubySpecPathNonRubyRequestBaseBytes` |
 | `NGI-V0-039` | `internal/rubyautoload` package | `TestRubyAutoloadConstantMapping`, `TestRubyAutoloadMapperDeclaration`; real CLI output in `../build-log/2026-10-18-v1-1794-ruby-constant-impact.md` |
-| `NGI-V0-040` | `resolutions`, `indexSites`, `loadRubyAutoload`; `ruby-reference-index-bounded` in `rubyAutoload.impact` | `TestRubyAutoloadResolutionBound`, `TestRubyAutoloadSiteBound` |
+| `NGI-V0-040` | `resolutions`, `indexSites`, `loadRubyAutoload`; `ruby-reference-index-bounded` in `rubyAutoload.impact` | `TestRubyAutoloadResolutionBound`, `TestRubyAutoloadSiteBound`, `TestRubyNestingOverflowIsBounded` |
 
 Names in this matrix identify evidence rather than implying passing execution.
 Observed execution and independent findings are retained in

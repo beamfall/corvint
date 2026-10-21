@@ -125,6 +125,7 @@ func RSpecInclusionSource(q testvalidity.RSpecInclusion) (testvalidity.ExampleSo
 		return testvalidity.ExampleSource{Read: reason, Findings: []testvalidity.SourceFinding{}}, ref
 	}
 	merged.support = x.support
+	merged.excluded = rspecExclusions(q.Support.Files)
 	// The it_behaves_like head was replaced by its body; it no longer names a group to resolve.
 	merged.includes = slices.DeleteFunc(merged.includes, func(m rspecInclude) bool { return m.index == include.index })
 	for _, e := range merged.examples {

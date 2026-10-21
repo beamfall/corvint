@@ -234,6 +234,7 @@ func missingIdentity(executable, sha string) error {
 // receipts still bind, but it is refused for new execution: running it
 // without retirement could hide a detached-process leak, and running it with
 // retirement would break its receipt's invocation binding. Re-plan instead.
+// A device-bound plan from before TRE-V0-087 is refused the same way.
 func admittedInvocation(p plan) (tr.Invocation, error) {
 	v, e := registry.Build(p.Request)
 	if e != nil {
@@ -246,6 +247,11 @@ func admittedInvocation(p plan) (tr.Invocation, error) {
 	compare.RetireDetachedDescendants = false
 	if v.RetireDetachedDescendants && tr.Identity(compare) == tr.Identity(p.Invocation) {
 		return v, fmt.Errorf("plan predates detached descendant retirement; re-plan it")
+	}
+	preCleanup := v
+	preCleanup.DeviceCleanup = nil
+	if len(v.DeviceCleanup) > 0 && tr.Identity(preCleanup) == tr.Identity(p.Invocation) {
+		return v, fmt.Errorf("plan predates device cleanup; re-plan it")
 	}
 	if p.Request.Runner == "gradle-junit" && tr.Identity(preIsolationGradle(compare)) == tr.Identity(p.Invocation) {
 		return v, fmt.Errorf("plan predates per-run Gradle user home; re-plan it")

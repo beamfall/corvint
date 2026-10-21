@@ -146,16 +146,26 @@ func decodeStrict(name, profile string, v any, profileOf func() string) error {
 }
 
 func decodeStrictBounded(name, profile string, limit int, v any, profileOf func() string) error {
-	file, err := os.Open(name)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	raw, err := io.ReadAll(io.LimitReader(file, int64(limit)+1))
+	raw, err := readRegular(name, limit)
 	if err != nil {
 		return err
 	}
 	return decodeStrictBytes(name, profile, limit, raw, v, profileOf)
+}
+
+// readRegular reads at most limit+1 bytes of a regular file. The open neither
+// follows a final symlink nor blocks on a FIFO, and the descriptor is checked
+// before any read (V1-1635); the caller enforces limit.
+func readRegular(name string, limit int) ([]byte, error) {
+	file, err := openInput(name)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	if info, err := file.Stat(); err != nil || !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("%s is not a regular file", filepath.Base(name))
+	}
+	return io.ReadAll(io.LimitReader(file, int64(limit)+1))
 }
 
 // decodeStrictBytes is decodeStrictBounded over bytes a caller already read

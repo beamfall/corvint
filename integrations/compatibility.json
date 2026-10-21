@@ -4,7 +4,7 @@
   "generatedAt": "2026-09-27",
   "entries": [
     {
-      "adapterVersion": "0.3.2",
+      "adapterVersion": "0.3.4",
       "documentedAgainstHostVersion": "2.1.238",
       "fullSupport": "external-dependent",
       "host": "claude-code",
@@ -24,7 +24,7 @@
       "validation": "installed-lifecycle-plus-adapter-fixtures"
     },
     {
-      "adapterVersion": "0.2.6",
+      "adapterVersion": "0.2.8",
       "documentedAgainstHostVersion": "0.149.0",
       "fullSupport": "external-dependent",
       "host": "codex",
@@ -62,7 +62,7 @@
       "validation": "native-static-plus-adapter-fixtures"
     },
     {
-      "adapterVersion": "0.7.15",
+      "adapterVersion": "0.7.17",
       "documentedAgainstHostVersion": "2.0.18",
       "fullSupport": "external-dependent",
       "host": "opencode",
@@ -104,8 +104,7 @@
   ],
   "globalDegradations": [
     "accepted-frontier-authority-unavailable",
-    "exact-expansion-command-unavailable",
-    "mcp-server-unavailable"
+    "exact-expansion-command-unavailable"
   ],
   "receiptDegradationPolicy": {
     "match": "subset-of-recognised",

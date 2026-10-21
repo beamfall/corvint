@@ -740,3 +740,27 @@ func TestReachedUnitIDsIncludeDeclaredReadScopeReaders(t *testing.T) {
 		t.Fatalf("read-scoped reader missing from %v", reached)
 	}
 }
+
+// TestShortFragmentsDoNotNamePaths_V1_1818: the Go lexicon writes a short
+// outer component its literal delimits as `./s/a/`, which names only a path
+// with `s` and `a` as whole components; an unmarked short fragment, as at a
+// literal's end (`"docs/a" + "lpha.go"`), still matches by suffix or prefix.
+func TestShortFragmentsDoNotNamePaths_V1_1818(t *testing.T) {
+	parts := strings.Split("docs/specs/affected-plan-v0.md", "/")
+	for value, want := range map[string]bool{
+		"./s/a/":   false,
+		"./cs/af/": false,
+		"./s/aff":  false,
+		"pecs/a/":  false,
+		"s/a":      true,
+		"pecs/aff": true,
+		"docs/s":   true,
+	} {
+		if got := namesPath(value, parts); got != want {
+			t.Errorf("namesPath(%q, %v) = %v, want %v", value, parts, got, want)
+		}
+	}
+	if !namesPath("./s/a/", strings.Split("x/s/a/b.txt", "/")) {
+		t.Error("a marked token whose components are whole path components must still name the path")
+	}
+}

@@ -17,7 +17,13 @@ func repositoryTMPDIR(t *testing.T, root string) string {
 	if err := os.Mkdir(inside, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("TMPDIR", inside)
+	// TMP and TEMP control os.TempDir() on Windows, TMPDIR elsewhere (V1-1489).
+	for _, name := range []string{"TMPDIR", "TMP", "TEMP"} {
+		t.Setenv(name, inside)
+	}
+	if os.TempDir() != inside {
+		t.Fatalf("os.TempDir() is %q, want %q", os.TempDir(), inside)
+	}
 	return inside
 }
 

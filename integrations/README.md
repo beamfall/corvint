@@ -12,7 +12,11 @@ silently changes Corvint evidence semantics.
 | OpenCode | [`opencode/`](opencode/) | Native integration: exact AHI-032 qualification; legacy receipts: `FALLBACK` |
 
 `FALLBACK` is deliberate: query and lifecycle adapters exist, but Corvint has no accepted closing
-Frontier authority, exact-handle expansion command, or conformed MCP server yet. The exact tested
+Frontier authority or exact-handle expansion command yet. The stdio `corvint-mcp` companion passed
+its pinned official-schema receipt on 2026-10-20 (V1-0191,
+[`docs/build-log/2026-10-20-mcp-companion-qualification.md`](../docs/build-log/2026-10-20-mcp-companion-qualification.md)),
+so `mcp-server-unavailable` is no longer a global gap; that receipt covers no host tuple, so no row
+changes status with it. The exact tested
 matrix and global gaps are in [`compatibility.json`](compatibility.json). A package may be installed
 or removed independently without migrating Corvint Core or repository evidence.
 

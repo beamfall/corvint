@@ -22,6 +22,9 @@ const (
 	compactionPinProfile     = "corvint-compaction-pin/0"
 	compactionReportProfile  = "corvint-compaction-report/0"
 	compactionPinInstruction = "Corvint compaction pin: preserve the following line verbatim in the summary so Corvint can re-pin its evidence after compaction.\n"
+	// compactionPinUnavailable is what a degraded pre-compact emits in place of a pin, so the
+	// summary can tell post-compact that no pin was emitted rather than dropped (AHI-057).
+	compactionPinUnavailable = "Corvint compaction pin: preserve the following line verbatim in the summary; Corvint could not pin its evidence for this compaction.\n" + compactionPinProfile + " unavailable\n"
 	// A pin names at most this many paths and this many path bytes; the rest count as elided.
 	compactionPinPathLimit = 24
 	compactionPinByteLimit = 1500
@@ -40,6 +43,13 @@ var compactionPinPathPattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._/+@~
 
 // compactionPinPattern recovers a pin line from the untrusted compaction summary.
 var compactionPinPattern = regexp.MustCompile(`corvint-compaction-pin/0\s+revision=([0-9a-f]{40,64})\s+tracked=([0-9]+)\s+untracked=([0-9]+)\s+paths=(\S*)\s+elided=([0-9]+)`)
+
+// compactionPinUnavailablePattern recovers the line a degraded pre-compact emits instead of a pin.
+var compactionPinUnavailablePattern = regexp.MustCompile(`corvint-compaction-pin/0\s+unavailable\b`)
+
+// compactionPinShapePattern finds a pin-shaped line, valid or not: the profile followed by a pin's
+// first field or the unavailable word. The last one decides; it is validated only after it is found.
+var compactionPinShapePattern = regexp.MustCompile(`corvint-compaction-pin/0\s+(?:revision=|unavailable\b)`)
 
 // compactionBlock is the receipt's context.compaction block the compact SessionStart carries.
 type compactionBlock struct {
@@ -82,6 +92,11 @@ func runClaudePostCompact(ctx context.Context, root string, normalized, payload 
 	// verify, and no summary dropped the pin.
 	if summary == "" {
 		return map[string]any{adapterPlainStdoutKey: ""}
+	}
+	// A pre-compact that degraded emitted no pin, only the unavailable line; when that line is the
+	// summary's last pin-shaped line, nothing was dropped and the loss is not the summary's (AHI-057).
+	if compactionPinNotEmitted(summary) {
+		return degradedAdapterOutput("compaction-pin-not-emitted")
 	}
 	pin, ok := parseCompactionPin(summary)
 	if !ok {
@@ -156,14 +171,25 @@ func compactionPinPathAdmitted(path string) bool {
 	return true
 }
 
-// parseCompactionPin takes the last pin line the summary preserved. The summary is untrusted
-// repository-adjacent text: every field is re-validated and a malformed pin counts as absent.
+// lastCompactionPinShape returns the summary from its last pin-shaped line on, or "" when it has none.
+func lastCompactionPinShape(summary string) string {
+	shapes := compactionPinShapePattern.FindAllStringIndex(summary, -1)
+	if len(shapes) == 0 {
+		return ""
+	}
+	return summary[shapes[len(shapes)-1][0]:]
+}
+
+// parseCompactionPin takes the summary's last pin-shaped line, which must be a whole pin: an
+// earlier pin carried forward does not stand in for a later one the summary truncated. The
+// summary is untrusted repository-adjacent text: every field is re-validated and a malformed pin
+// counts as absent.
 func parseCompactionPin(summary string) (compactionPin, bool) {
-	matches := compactionPinPattern.FindAllStringSubmatch(summary, -1)
-	if len(matches) == 0 {
+	last := lastCompactionPinShape(summary)
+	match := compactionPinPattern.FindStringSubmatch(last)
+	if match == nil || !strings.HasPrefix(last, match[0]) {
 		return compactionPin{}, false
 	}
-	match := matches[len(matches)-1]
 	pin := compactionPin{Revision: match[1], Paths: []string{}}
 	counts := []*int{&pin.Tracked, &pin.Untracked, &pin.Elided}
 	for index, field := range []string{match[2], match[3], match[5]} {
@@ -186,6 +212,15 @@ func parseCompactionPin(summary string) (compactionPin, bool) {
 		return compactionPin{}, false
 	}
 	return pin, true
+}
+
+// compactionPinNotEmitted reports whether the summary's last pin-shaped line, found before any
+// validation, is the unavailable line a degraded pre-compact emits. A later compaction's missing
+// pin is then not hidden behind an earlier pin the summary carried forward, and an emitted pin,
+// even one the summary mangled, is not hidden behind an earlier unavailable line.
+func compactionPinNotEmitted(summary string) bool {
+	location := compactionPinUnavailablePattern.FindStringIndex(lastCompactionPinShape(summary))
+	return location != nil && location[0] == 0
 }
 
 // compactionPinMissing verifies the pinned tree and each pinned path against the object store
@@ -251,7 +286,9 @@ func compactSessionDisclosure(event string, normalized map[string]any) string {
 // compactionPlainOutput makes every Claude Code compaction output plain stdout text. The host
 // joins PreCompact stdout into the compactor's instructions and shows PostCompact stdout to the
 // user, reading neither as hook JSON, so a degradation is its systemMessage frame text and any
-// other output without text is empty. The systemMessage field stays for the SOL-V0-010 reason.
+// other output without text is empty. A PreCompact output without text emitted no pin, so its
+// text starts with the unavailable line (AHI-057). The systemMessage field stays for the
+// SOL-V0-010 reason.
 func compactionPlainOutput(arguments []string, output map[string]any) map[string]any {
 	if len(arguments) != 2 || arguments[0] != "claude-code" || (arguments[1] != "pre-compact" && arguments[1] != "post-compact") {
 		return output
@@ -260,6 +297,9 @@ func compactionPlainOutput(arguments []string, output map[string]any) map[string
 		return output
 	}
 	text, _ := output["systemMessage"].(string)
+	if arguments[1] == "pre-compact" {
+		text = compactionPinUnavailable + text
+	}
 	output[adapterPlainStdoutKey] = text
 	return output
 }

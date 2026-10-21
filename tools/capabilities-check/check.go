@@ -106,7 +106,16 @@ func parseDispatched(src []byte) ([]string, error) {
 	return out, nil
 }
 
-// parseCommands reads the root help's Commands: block and its Core maturity list.
+// Root help maturity group headers (CCF-V1-008, V1-0945). The Commands: block may group its
+// verbs under these headers, each indented less than the verbs it heads.
+const (
+	coreGroupPrefix         = "Core ("
+	experimentalGroupPrefix = "Experimental, no stability promise"
+)
+
+// parseCommands reads the root help's Commands: block and its Core maturity list. The block is
+// either flat, with the Core list in a separate section, or grouped under exactly the Core and
+// Experimental headers, in which case the Core group is the Core list.
 func parseCommands(src []byte) ([]string, map[string]bool, error) {
 	text := string(src)
 	start := strings.Index(text, "const rootHelp = `")
@@ -119,24 +128,59 @@ func parseCommands(src []byte) ([]string, map[string]bool, error) {
 		return nil, nil, errors.New("root help Commands: block not found")
 	}
 	var commands []string
+	core := map[string]bool{}
+	seen := map[string]bool{}
+	group, groupIndent := "", -1
 	for _, line := range strings.Split(text[block+len("\nCommands:\n"):], "\n") {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" {
 			break
 		}
+		indent := len(line) - len(strings.TrimLeft(line, " "))
 		name, _, ok := strings.Cut(trimmed, "  ")
+		if !ok && strings.HasSuffix(trimmed, ":") {
+			switch {
+			case strings.HasPrefix(trimmed, coreGroupPrefix):
+				group = "core"
+			case strings.HasPrefix(trimmed, experimentalGroupPrefix):
+				group = "experimental"
+			default:
+				return nil, nil, fmt.Errorf("root help group header is neither Core nor Experimental: %q", line)
+			}
+			switch {
+			case seen[group]:
+				return nil, nil, fmt.Errorf("root help repeats a group header: %q", line)
+			case groupIndent < 0 && len(commands) > 0:
+				return nil, nil, fmt.Errorf("root help group header follows ungrouped commands: %q", line)
+			case groupIndent >= 0 && indent != groupIndent:
+				return nil, nil, fmt.Errorf("root help group header is not aligned with the first header: %q", line)
+			}
+			seen[group], groupIndent = true, indent
+			continue
+		}
 		if !ok {
 			return nil, nil, fmt.Errorf("root help command line has no description: %q", line)
+		}
+		if groupIndent >= 0 && indent <= groupIndent {
+			return nil, nil, fmt.Errorf("root help command line is not indented under its group header: %q", line)
+		}
+		if group == "core" {
+			core[strings.Fields(name)[0]] = true
 		}
 		commands = append(commands, name)
 	}
 	if len(commands) == 0 {
 		return nil, nil, errors.New("root help Commands: block is empty")
 	}
-	core := map[string]bool{}
+	if groupIndent >= 0 {
+		if len(core) == 0 {
+			return nil, nil, errors.New("root help Core group is empty")
+		}
+		return commands, core, nil
+	}
 	whole := string(src)
-	at := strings.Index(whole, "Core (")
-	end := strings.Index(whole, "Experimental, no stability promise")
+	at := strings.Index(whole, coreGroupPrefix)
+	end := strings.Index(whole, experimentalGroupPrefix)
 	if at < 0 || end < at {
 		return nil, nil, errors.New("command maturity Core list not found")
 	}

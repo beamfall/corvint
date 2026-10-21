@@ -83,8 +83,8 @@ type Primitives struct {
 	// the exited leader is held unreaped and never once the reap has begun.
 	// Darwin's group signal can miss a member that a fork running alongside
 	// it adds to the group, which then survives as a live member of the
-	// pinned group (ATR-V0-153). Off by default: every other caller keeps
-	// PGO-V0-001's single group signal.
+	// pinned group (ATR-V0-153). Off by default; PGO-V0-017 names the callers
+	// that set it.
 	RepeatKillWhileLive bool
 }
 

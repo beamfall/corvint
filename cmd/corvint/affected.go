@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -110,6 +111,9 @@ type affectedProvider struct {
 type affectedGoProvider struct {
 	Packages []string `json:"packages"`
 	State    string   `json:"state"`
+	// noGoUnits marks a graph with no go: unit, whose empty selection is not
+	// an advice gap (V1-2076). It is not on the wire.
+	noGoUnits bool
 }
 
 // affectedAdvice is the grounded check list (AFP-V0-009). Checks is ordered
@@ -617,6 +621,16 @@ func compilePlaywrightDiscovery(ctx context.Context, invocation affectedInvocati
 	return raw, nil
 }
 
+// affectedGraphContext is the context the plan path hands affected.Build: the
+// caller's own, so its deadline and cancellation bound the walk (AFP-V0-151);
+// tests wrap it to cancel mid-walk.
+var affectedGraphContext = func(ctx context.Context) context.Context { return ctx }
+
+// affectedPlanSourcesObserved runs after the plan path's last source
+// observation and before its final status and HEAD reads; tests inject a
+// commit there (AFP-V0-150).
+var affectedPlanSourcesObserved = func() {}
+
 // playwrightDiscoverySourcesVerified runs after the producer's last source observation; tests
 // replace it to inject drift at that point.
 var playwrightDiscoverySourcesVerified = func() {}
@@ -703,22 +717,9 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if err != nil {
 		return affectedReceipt{}, nil, err
 	}
-	graph, err := affected.Build(ctx, root, affectedLanguages()...)
+	graph, err := affected.Build(affectedGraphContext(ctx), root, affectedLanguages()...)
 	if err != nil {
 		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-graph", Message: err.Error()}
-	}
-	// The status and the graph are two observations of one mutable worktree.
-	// A dirty set or HEAD that changed while the graph was built would bind a
-	// plan to inputs nobody observed together; refuse rather than publish.
-	recheck, err := affected.DirtyPaths(ctx, gitExecutable, root)
-	if err != nil {
-		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
-	}
-	if !equalStringSlices(dirty, recheck) {
-		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-drift", Message: "worktree changed while the plan was compiled"}
-	}
-	if revisionAfter, err := affectedHeadRevision(ctx, gitExecutable, root); err != nil || revisionAfter != revision {
-		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-drift", Message: "HEAD changed while the plan was compiled"}
 	}
 	changed := affected.NormalizePaths(append(append([]string{}, dirty...), committed...))
 	if len(invocation.PathList) != 0 {
@@ -747,6 +748,23 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	}
 	if err := affectedAppNavigations(invocation, revision, dirty, &advice); err != nil {
 		return affectedReceipt{}, nil, err
+	}
+	affectedPlanSourcesObserved()
+	// The status, the graph and every later source read (prior read scopes,
+	// advice, provider and e2e selection, app navigations) are observations of
+	// one mutable worktree. A dirty set or HEAD that changed while they were
+	// read would bind a plan to inputs nobody observed together, so both are
+	// read again after the last source observation; refuse rather than publish
+	// (AFP-V0-150, V1-1087).
+	recheck, err := affected.DirtyPaths(ctx, gitExecutable, root)
+	if err != nil {
+		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+	}
+	if !equalStringSlices(dirty, recheck) {
+		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-drift", Message: "worktree changed while the plan was compiled"}
+	}
+	if revisionAfter, err := affectedHeadRevision(ctx, gitExecutable, root); err != nil || revisionAfter != revision {
+		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-drift", Message: "HEAD changed while the plan was compiled"}
 	}
 	return affectedReceipt{
 		PathList: invocation.PathList,
@@ -857,7 +875,9 @@ func affectedRangePaths(ctx context.Context, gitExecutable, root, base string) (
 
 // affectedPathListIgnoredCheck refuses a --path plan whose disk graph reads, or
 // whose list names, an ignored file HEAD does not track: such a file is not a
-// dirty path, yet a graph built over it is not HEAD's (AFP-V0-094).
+// dirty path, yet a graph built over it is not HEAD's (AFP-V0-094). A Go
+// unit's graph also reads its testdata, its whole directory when it embeds,
+// and its declared read scope, so an ignored file there refuses too (V1-2086).
 func affectedPathListIgnoredCheck(ctx context.Context, gitExecutable, root, revision string, graph *affected.Graph, listed []string) error {
 	ignored, err := affected.IgnoredPaths(ctx, gitExecutable, root)
 	if err != nil {
@@ -867,9 +887,11 @@ func affectedPathListIgnoredCheck(ctx context.Context, gitExecutable, root, revi
 		return nil
 	}
 	paths := append([]string{}, listed...)
+	areas := []string{}
 	for _, id := range graph.UnitIDs() {
 		if unit, ok := graph.Unit(id); ok {
 			paths = append(append(paths, unit.Sources...), unit.Tests...)
+			areas = append(areas, ignoredCheckAreas(id, unit)...)
 		}
 	}
 	for _, path := range affected.NormalizePaths(paths) {
@@ -879,7 +901,48 @@ func affectedPathListIgnoredCheck(ctx context.Context, gitExecutable, root, revi
 			}
 		}
 	}
+	for _, entry := range ignored {
+		for _, area := range areas {
+			if ignoredEntryOverlaps(entry, area) {
+				return affectedPathListIgnoredRefusal(revision, entry)
+			}
+		}
+	}
 	return nil
+}
+
+// ignoredCheckAreas lists the paths a Go unit reads beyond its own files: its
+// directory's testdata, the directory's subtree when it embeds or declares a
+// read scope (affected.InReadScope admits it even with no entries), and each
+// declared read-scope entry ("/"-suffixed for a subtree).
+func ignoredCheckAreas(id string, unit affected.Unit) []string {
+	files := append(append([]string{}, unit.Sources...), unit.Tests...)
+	if !strings.HasPrefix(id, "go:") || len(files) == 0 {
+		return nil
+	}
+	directory := path.Dir(files[0])
+	prefix := directory + "/"
+	if directory == "." {
+		prefix = ""
+	}
+	areas := []string{prefix + "testdata/"}
+	if unit.Embeds || unit.ReadScoped {
+		areas = append(areas, prefix)
+	}
+	return append(areas, unit.ReadScope...)
+}
+
+// ignoredEntryOverlaps reports whether an ignored entry ("/"-suffixed for a
+// directory) is, lies under, or contains area ("/"-suffixed for a subtree, ""
+// for the repository root).
+func ignoredEntryOverlaps(entry, area string) bool {
+	if area == "" || entry == area || entry == strings.TrimSuffix(area, "/") {
+		return true
+	}
+	if strings.HasSuffix(area, "/") && strings.HasPrefix(entry, area) {
+		return true
+	}
+	return strings.HasSuffix(entry, "/") && strings.HasPrefix(area, entry)
 }
 
 // compileAffectedAdvice joins the repository-declared mandatory gate, the
@@ -1126,8 +1189,12 @@ func declaresMandatoryCheck(checks []affectedCheck) bool {
 }
 
 // advisoryAffectedChecks proposes the Go packages the plan selected. Any state
-// other than RUNNABLE yields no command and one unknown line naming the state.
+// other than RUNNABLE yields no command and one unknown line naming the state,
+// except an empty selection over a graph with no Go unit, which yields neither.
 func advisoryAffectedChecks(plan affected.Plan, provider affectedGoProvider) ([]affectedCheck, []string) {
+	if provider.State == providerStateEmpty && provider.noGoUnits {
+		return nil, nil
+	}
 	if provider.State != providerStateRunnable {
 		return nil, []string{"NO_ADVISORY_GO_COMMAND: provider.go.state is " + provider.State}
 	}
@@ -1162,6 +1229,9 @@ func advisoryRSpecCheck(root string, plan affected.Plan) ([]affectedCheck, []str
 	if info, err := os.Lstat(filepath.Join(root, "Gemfile")); err != nil || !info.Mode().IsRegular() {
 		return nil, []string{adviceNoRSpecGemfile}
 	}
+	if !adviceDeclaresRSpecGem(root) {
+		return nil, []string{adviceNoRSpecGem}
+	}
 	if len(files) > adviceMaxRSpecFiles {
 		return nil, []string{fmt.Sprintf(adviceRSpecBoundUnknown, len(files), adviceMaxRSpecFiles)}
 	}
@@ -1173,7 +1243,7 @@ func advisoryRSpecCheck(root string, plan affected.Plan) ([]affectedCheck, []str
 		operands[index] = "./" + file
 	}
 	command := adviceAdvisoryRSpec + " " + shellQuoteJoin(operands)
-	reason := fmt.Sprintf("the plan selected %d RSpec unit(s) and the repository root has a Gemfile, so these spec files are the plausible first pass", units)
+	reason := fmt.Sprintf("the plan selected %d RSpec unit(s) and the repository root has a Gemfile declaring an rspec gem, so these spec files are the plausible first pass", units)
 	return []affectedCheck{{Command: command, Kind: adviceKindAdvisory, Reason: reason, Source: adviceSourcePlan}}, nil
 }
 
@@ -1338,12 +1408,21 @@ func providerGoProjection(graph *affected.Graph, plan affected.Plan) affectedGoP
 	}
 	packages := providerGoPackages(plan)
 	if len(packages) == 0 {
-		return affectedGoProvider{Packages: []string{}, State: providerStateEmpty}
+		return affectedGoProvider{Packages: []string{}, State: providerStateEmpty, noGoUnits: !graphHasGoUnit(graph)}
 	}
 	if len(packages) > providerMaxPackagePatterns {
 		return affectedGoProvider{Packages: []string{}, State: providerStateBoundExceeded}
 	}
 	return affectedGoProvider{Packages: packages, State: providerStateRunnable}
+}
+
+func graphHasGoUnit(graph *affected.Graph) bool {
+	for _, id := range graph.UnitIDs() {
+		if strings.HasPrefix(id, "go:") {
+			return true
+		}
+	}
+	return false
 }
 
 func providerGoPackages(plan affected.Plan) []string {

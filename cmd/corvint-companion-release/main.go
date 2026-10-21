@@ -29,7 +29,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.SetOutput(stderr)
 	tasksOnly := fs.Bool("tasks-only", false, "build only the standalone Tasks archive; no full bundle qualification")
 	sourceRoot := fs.String("source-root", "", "clean Corvint source checkout (required)")
-	target := fs.String("target", "darwin/arm64", "GOOS/GOARCH pair to build (only darwin/arm64 is supported)")
+	target := fs.String("target", "darwin/arm64", "GOOS/GOARCH pair to build (darwin/arm64; with -tasks-only also cross-built linux/amd64)")
 	scratch := fs.String("scratch", "", "scratch working directory (required)")
 	outputParent := fs.String("output-parent", "", "directory the retained bundle is placed under (required; must be outside -source-root)")
 	bundleName := fs.String("bundle-name", "", "name of the retained bundle directory under -output-parent (required)")

@@ -12,6 +12,7 @@ import (
 	"github.com/Beamfall/corvint/internal/frontier"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 func TestPackagesUnderBuildOutputDirectoryNamesAreSelected(t *testing.T) {
@@ -134,21 +135,7 @@ func TestDeletedGoSourceSelectsItsPackageAndImporters_V1_0340(t *testing.T) {
 	}
 }
 
-func runGit(t *testing.T, gitExecutable, root string, arguments ...string) {
-	t.Helper()
-	// GIT_CONFIG_GLOBAL=/dev/null hides the host's maintenance settings, so disable
-	// auto maintenance here: a detached `git maintenance` outliving a commit races
-	// the TempDir cleanup (V1-0662).
-	command := exec.Command(gitExecutable, append([]string{"-C", root, "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
-	command.Env = append(os.Environ(),
-		"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
-		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.test",
-		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.test",
-	)
-	if output, err := command.CombinedOutput(); err != nil {
-		t.Fatalf("git %v: %v: %s", arguments, err, output)
-	}
-}
+var runGit = testsupport.RunGit
 
 func fixtureRoot(t *testing.T, name string) string {
 	t.Helper()
@@ -550,6 +537,39 @@ func TestChangeEvidenceReadersAreNarrowed_V1_0230(t *testing.T) {
 	}
 }
 
+// AFP-V0-152 (V1-1820): a sealed CEM directly under .corvint/changes/ narrows
+// its Go readers as the sidecar does. A fixture-root token naming the same
+// components is dropped; a reader whose token resolves to the sealed CEM or an
+// ancestor, from its own directory or from the root, is still selected; any
+// other path under .corvint/changes/ keeps the component-run readers.
+func TestSealedChangeEvidenceReadersAreNarrowed_AFPV0152(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                    "module example.test/m\n",
+		"fixture/fixture_test.go":   "package fixture\n\nvar a, b = \".corvint/changes\", \".corvint/changes/\"\n",
+		"exact/exact_test.go":       "package exact\n\nvar sealed = \"../.corvint/changes\"\n",
+		"anchored/anchored.go":      "package anchored\n\nfunc Sealed(root string) string { return root + \"/.corvint/changes/\" }\n",
+		"anchored/anchored_test.go": "package anchored\n",
+		"deep/dir/dir_test.go":      "package dir\n\nvar evidence = \"../../.corvint\"\n",
+	})
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct{ dirty, want string }{
+		{".corvint/changes/0123456789abcdef0123456789abcdef01234567.cem.json", "[anchored/anchored_test.go deep/dir/dir_test.go exact/exact_test.go]"},
+		// Not a sealed CEM: a nested path and another file name keep rule (c).
+		{".corvint/changes/x/y.cem.json", "[anchored/anchored_test.go deep/dir/dir_test.go exact/exact_test.go fixture/fixture_test.go]"},
+		{".corvint/changes/README.md", "[anchored/anchored_test.go deep/dir/dir_test.go exact/exact_test.go fixture/fixture_test.go]"},
+	}
+	for _, tc := range cases {
+		plan := affected.Select(graph, []string{tc.dirty})
+		if got := fmt.Sprint(plan.SelectedTests()); got != tc.want {
+			t.Errorf("%s: selected tests = %s, want %s", tc.dirty, got, tc.want)
+		}
+	}
+}
+
 // AFP-V0-072 (V1-1806): a Go unit that names a dirty path only by an
 // unanchored lone file name, such as a fixture's README.md under t.TempDir(),
 // is a reader only when the path is in its own subtree or every directory
@@ -663,6 +683,58 @@ func TestBuildConstraintIsTheConstrainedPackagesFrontier_V1_0289(t *testing.T) {
 		plan := affected.Select(graph, []string{tc.dirty})
 		if got := fmt.Sprint(plan.Scope, " ", plan.Unknown, " ", plan.SelectedTests()); got != tc.want {
 			t.Errorf("%s: %s, want %s", tc.dirty, got, tc.want)
+		}
+	}
+}
+
+// V1-1818: a literal that may be concatenated keeps its outer fragments of
+// any length, so `"docs/a" + "lpha.go"` still names docs/alpha.go and its
+// root package keeps its build-constraint frontier, while a short outer
+// component the literal itself delimits (the `s/a` of a sed expression) is a
+// whole component and names only a path that has it whole.
+func TestShortFragmentsKeepConcatenatedReaders_V1_1818(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":        "module example.test/m\n",
+		"linux.go":      "//go:build linux\n\npackage m\n",
+		"root_test.go":  "package m\n\nimport \"os\"\n\nvar _, _ = os.ReadFile(\"docs/a\" + \"lpha.go\")\n",
+		"docs/alpha.go": "package docs\n",
+	})
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"docs/alpha.go"})
+	want := "UNKNOWN [{LANGUAGE_FRONTIER go:build-constraint-variants} {NO_SELECTABLE_TEST go:example.test/m/docs}] [root_test.go]"
+	if got := fmt.Sprint(plan.Scope, " ", plan.Unknown, " ", plan.SelectedTests()); got != want {
+		t.Errorf("docs/alpha.go: %s, want %s", got, want)
+	}
+
+	body := "package p\n\nvar _ = []string{\"docs/a\", \"sed 's/a b' x/yy;\", \"%sab/cd e\", \"ab/cd%s\", \"éab/cdé\", \"../a\"}\n"
+	tokens, err := golang.FilePathTokens("p.go", []byte(body), "example.test/m")
+	if want := "[docs/a sed ./s/a/ b ./x/yy/ ab/cd/ e ab/cd ab/cd ../a]"; err != nil || fmt.Sprint(tokens) != want {
+		t.Errorf("tokens = %v (%v), want %s", tokens, err, want)
+	}
+
+	sed := t.TempDir()
+	writeFiles(t, sed, map[string]string{
+		"go.mod":              "module example.test/m\n",
+		"tools/sed.go":        "package tools\n",
+		"tools/sed_test.go":   "package tools\n\nconst script = \"sed 's/a b' file\"\n",
+		"tools/tools_test.go": "package tools\n",
+	})
+	graph, err = affected.Build(context.Background(), sed, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct{ dirty, want string }{
+		{"docs/specs/affected-plan-v0.md", "UNKNOWN []"},
+		{"x/s/a/run.txt", "UNKNOWN [tools/sed_test.go tools/tools_test.go]"},
+	}
+	for _, tc := range cases {
+		plan := affected.Select(graph, []string{tc.dirty})
+		if got := fmt.Sprint(plan.Scope, " ", plan.SelectedTests()); got != tc.want {
+			t.Errorf("%s: %s, want %s (selected %v)", tc.dirty, got, tc.want, plan.Selected)
 		}
 	}
 }

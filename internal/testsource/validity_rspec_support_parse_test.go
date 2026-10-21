@@ -67,6 +67,12 @@ func TestRSpecValueOpenersBalance(t *testing.T) {
 		{"value if with end method", "    b = if (1..2).end == 2\n      1\n    end\n"},
 		{"value if with end symbol", "    b = if options[:end]\n      1\n    end\n"},
 		{"value if with end predicate", "    b = if r.end? || o.end!\n      1\n    end\n"},
+		{"label key if (V1-2078)", "    h = { k: if e\n      1\n    end }\n"},
+		{"append if (V1-2078)", "    a << if e\n      1\n    end\n"},
+		{"else if (V1-2078)", "    if e\n      1\n    else if f\n      2\n    end\n    end\n"},
+		{"else if one line (V1-2078)", "    if e\n      1\n    else if f then 2 end\n    end\n"},
+		{"assign if end predicate (V1-2078)", "    x = if a.end?\n      1\n    end\n"},
+		{"label value then modifier (V1-2078)", "    f(k: v) if e\n    a << b if e\n"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

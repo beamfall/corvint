@@ -70,14 +70,24 @@ func poolConfig(root string, ref *intent.ConfigRef) error {
 	return nil
 }
 func poolFacts(ctx context.Context, repo *intent.Repository, choice LeaseChoice) claimObserver {
-	var probe identityProbe
+	return poolFactsWith(ctx, repo, choice, &identityProbe{}, false)
+}
+
+// poolFactsWith is poolFacts over a shared identity probe. A locked observer
+// is the one the writer route calls under the writer lock: it never runs the
+// identity command (PSR-V0-168).
+func poolFactsWith(ctx context.Context, repo *intent.Repository, choice LeaseChoice, probe *identityProbe, locked bool) claimObserver {
 	return func(proof *journal.Result, in *transaction.Input) (transaction.LeaseFacts, error) {
 		f := transaction.LeaseFacts{Pool: choice.pool}
 		l := choice.Lease
 		if l.Verb == transaction.LeasePoolSafe && choice.pool.Identity == nil {
 			// PSR-V0-083: the guarded member's identity, observed against
 			// the state this transaction decides on.
-			raw, e := probe.facts(ctx, repo, choice, in.Policy, in.Pools)
+			observe := func() ([]byte, error) { return probe.facts(ctx, repo, choice, in.Policy, in.Pools) }
+			if locked {
+				observe = func() ([]byte, error) { return probe.locked(choice, in.Policy, in.Pools) }
+			}
+			raw, e := observe()
 			if e != nil {
 				return f, e
 			}

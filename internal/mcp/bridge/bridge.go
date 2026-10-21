@@ -104,6 +104,9 @@ func productionRepositoryOperations() repositoryOperations {
 func compileContext(ctx context.Context, root string, input contextInput) (*contextindex.Index, map[string]any, error) {
 	index, packet, err := compileContextWith(ctx, root, input, contextindex.LoadContextSnapshotDeferred)
 	if errors.Is(err, contextindex.ErrSnapshotRefused) {
+		if index != nil {
+			index.Release()
+		}
 		return compileContextWith(ctx, root, input, contextindex.LoadContextSnapshot)
 	}
 	return index, packet, err
@@ -122,6 +125,9 @@ func compileContextWith(ctx context.Context, root string, input contextInput, lo
 	}
 	admitted, err := contextindex.LoadAdmittedSlotWeights(root)
 	if err != nil {
+		// The caller releases only an index it receives, so a refused
+		// slot-weights file must not keep the mapping leased (MCPV0-090).
+		index.Release()
 		return nil, nil, err
 	}
 	packet, err := contextindex.TaskContextWeighted(ctx, index, input.Task, input.Subject, input.Limit, admitted)
@@ -411,7 +417,7 @@ func (registry *Registry) allTools() []ToolDescriptor {
 		},
 		{
 			Name:        ToolImpact,
-			Description: "Compile revision-bound impact evidence without source bodies. Capabilities: Go (.go): path, package imports; Ruby (.rb): path, markers, reverse imports unknown; JavaScript (.js/.jsx/.mjs/.cjs) and TypeScript (.ts/.tsx): path, literal relative/profile/tsconfig-alias imports, unresolved bare imports unknown. Non-Go paths name experimental non-go-syntax-v0. Dynamic dispatch and test closure remain unknown. CLI --base also admits these languages; MCP accepts paths only.",
+			Description: "Compile revision-bound impact evidence without source bodies. Capabilities: Go (.go): path, package imports; Ruby (.rb): path, markers, advisory autoload constant references, reverse imports unknown; JavaScript (.js/.jsx/.mjs/.cjs) and TypeScript (.ts/.tsx): path, literal relative/profile/tsconfig-alias imports, unresolved bare imports unknown. Non-Go paths name experimental non-go-syntax-v0. Dynamic dispatch and test closure remain unknown. CLI --base also admits these languages; MCP accepts paths only.",
 			Annotations: readAnnotations(),
 			InputSchema: objectSchema(map[string]any{
 				"snapshot": snapshotSchema(),
@@ -627,6 +633,13 @@ func (registry *Registry) callContext(ctx context.Context, arguments []byte) (Re
 		return abstained(ToolContext, "UNSUPPORTED_PLATFORM", nil), nil
 	}
 	index, packet, err := registry.operations.context(ctx, registry.root, input)
+	if index != nil {
+		// A mapped snapshot read leases its mapping until released; the
+		// result is detached from it below, so the lease ends with the call
+		// and a long-lived bridge does not pin every mapping it read
+		// (MCPV0-090, V1-1004).
+		defer index.Release()
+	}
 	if err != nil && index == nil {
 		if repositoryDrift(err) {
 			return abstained(ToolContext, "REPOSITORY_STATE_UNSTABLE", nil), nil
@@ -654,7 +667,39 @@ func (registry *Registry) callContext(ctx context.Context, arguments []byte) (Re
 			return Result{}, normalizeFailure(ctx, err)
 		}
 	}
-	return boundedObserved(ToolContext, snapshot.binding, packet)
+	receipt, binding, detachErr := detachedContext(packet, snapshot.binding)
+	if detachErr != nil {
+		return Result{}, failure("internal-error")
+	}
+	return boundedObserved(ToolContext, binding, receipt)
+}
+
+// detachedContext copies a context packet and its binding onto the heap so
+// nothing the result returns aliases the snapshot mapping its Index leased
+// (MCPV0-090, V1-1004). The packet is copied through its canonical bytes,
+// decoding numbers as their literals, and the copy must encode to the same
+// bytes; any difference refuses rather than changing the wire result.
+func detachedContext(packet map[string]any, binding RepositoryBinding) (map[string]any, RepositoryBinding, error) {
+	encoded, err := gokernel.CanonicalJSON(packet)
+	if err != nil {
+		return nil, RepositoryBinding{}, err
+	}
+	decoder := jsonv1.NewDecoder(bytes.NewReader(encoded))
+	decoder.UseNumber()
+	var copied map[string]any
+	if err := decoder.Decode(&copied); err != nil {
+		return nil, RepositoryBinding{}, err
+	}
+	again, err := gokernel.CanonicalJSON(copied)
+	if err != nil {
+		return nil, RepositoryBinding{}, err
+	}
+	if !bytes.Equal(again, encoded) {
+		return nil, RepositoryBinding{}, errors.New("context packet does not survive its canonical copy")
+	}
+	binding.CommitRevision, binding.TreeRevision = strings.Clone(binding.CommitRevision), strings.Clone(binding.TreeRevision)
+	binding.ObjectFormat, binding.ProfileID = strings.Clone(binding.ObjectFormat), strings.Clone(binding.ProfileID)
+	return copied, binding, nil
 }
 
 type cemReportInput struct {
@@ -715,7 +760,8 @@ func validCEMPath(path string) bool {
 
 // cemFailures closes CEM's registered codes onto the bridge's sanitized
 // failure set; an unlisted code is internal-error. A Git read that ran out of
-// its own bound is the MCPV0-038 timeout code (decision 0533).
+// its own bound is the MCPV0-038 timeout code (decision 0533); one that
+// exhausted its operation or output bound is the capacity code (V1-1992).
 var cemFailures = map[string]string{
 	cemcode.MapUnavailable: "cem-map-unavailable", cemcode.InvalidArguments: "cem-map-unsupported",
 	cemcode.InvalidJSON: "cem-map-invalid", cemcode.NotAnObject: "cem-map-invalid",
@@ -725,7 +771,7 @@ var cemFailures = map[string]string{
 	cemcode.GitReadFailed: "repository-unavailable", cemcode.GitDiffFailed: "repository-unavailable",
 	cemcode.GitDiffTimeout: "repository-probe-timeout", cemcode.GitStartFailed: "repository-unavailable",
 	cemcode.GitExitFailure: "repository-unavailable", cemcode.GitTimeout: "repository-probe-timeout",
-	cemcode.GitOutputExceeded: "repository-unavailable", cemcode.GitBudgetExceeded: "repository-unavailable",
+	cemcode.GitOutputExceeded: "corpus-capacity-exceeded", cemcode.GitBudgetExceeded: "corpus-capacity-exceeded",
 	cemcode.RepositoryObjectUnavailable:     "repository-unavailable",
 	cemcode.UnsupportedObjectAlternates:     "repository-unavailable",
 	cemcode.UnsupportedRepositoryAttributes: "repository-unavailable",

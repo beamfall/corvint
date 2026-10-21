@@ -444,11 +444,11 @@ func TestStableRepositoryRejectsCreateOverAuthenticatedEmptyBaseTree(t *testing.
 }
 
 // TestCEMV1050StructuralTupleAdmission proves the structural runtime gate
-// admits exactly go1.27.1 and go1.27.2, and that every tuple admitted after
-// the S0E prototype tuple has a sealed packet binding the exact frozen S0E
-// packet bytes (decision 0522, CEM-V1-050).
+// admits exactly go1.27.1, go1.27.2 and go1.27.3, and that every tuple admitted
+// after the S0E prototype tuple has a sealed packet binding the exact frozen
+// S0E packet bytes (decisions 0522 and 0547, CEM-V1-050).
 func TestCEMV1050StructuralTupleAdmission(t *testing.T) {
-	for version, want := range map[string]bool{"go1.27.1": true, "go1.27.2": true, "go1.27.3": false, "go1.27.0": false, "go1.24.13": false, "devel go1.28-abc": false} {
+	for version, want := range map[string]bool{"go1.27.1": true, "go1.27.2": true, "go1.27.3": true, "go1.27.4": false, "go1.27.0": false, "go1.24.13": false, "devel go1.28-abc": false} {
 		if got := structuralRuntimeAdmitted(version); got != want {
 			t.Errorf("structuralRuntimeAdmitted(%q) = %t, want %t", version, got, want)
 		}
@@ -466,7 +466,7 @@ func TestCEMV1050StructuralTupleAdmission(t *testing.T) {
 			t.Errorf("%s: predecessor %s is not admitted", version, tuple.PredecessorTuple)
 		}
 	}
-	if _, reason := s0eStructuralTuple(packet, "go1.27.3"); reason == "" {
+	if _, reason := s0eStructuralTuple(packet, "go1.27.4"); reason == "" {
 		t.Fatal("an unadmitted toolchain bound the S0E packet")
 	}
 }

@@ -54,7 +54,8 @@ type SourceFinding struct {
 // ApplySourceFindings returns p with the hygiene axis made INELIGIBLE when any of the given
 // findings, which the caller has selected for the test p projects, is invalid (TSA-V0-051). The
 // reason is the first invalid finding's rule reason unless hygiene was already INELIGIBLE, and
-// each invalid finding's location and cause are appended to the existing anchors. Advisory findings and
+// each invalid finding's location and cause are appended to the existing anchors, keeping the first
+// occurrence of each anchor in emission order (V1-1865). Advisory findings and
 // the other four axes are left unchanged, so no axis rewrites another. With no invalid finding, the
 // first abstained finding turns an ELIGIBLE hygiene axis ABSTAINED (TSA-V0-088).
 func ApplySourceFindings(p Projection, findings []SourceFinding) Projection {
@@ -72,7 +73,7 @@ func ApplySourceFindings(p Projection, findings []SourceFinding) Projection {
 	if reason == "" {
 		for _, f := range findings {
 			if f.Severity == SeverityAbstained && p.Hygiene.State == HygieneEligible {
-				p.Hygiene = Axis{State: HygieneAbstained, Reason: f.Rule, Anchors: append(append([]string{}, p.Hygiene.Anchors...), f.Location, f.Cause)}
+				p.Hygiene = Axis{State: HygieneAbstained, Reason: f.Rule, Anchors: appendAnchors(p.Hygiene.Anchors, f.Location, f.Cause)}
 				break
 			}
 		}
@@ -81,8 +82,24 @@ func ApplySourceFindings(p Projection, findings []SourceFinding) Projection {
 	if p.Hygiene.State != HygieneIneligible {
 		p.Hygiene.State, p.Hygiene.Reason = HygieneIneligible, reason
 	}
-	p.Hygiene.Anchors = append(append([]string{}, p.Hygiene.Anchors...), anchors...)
+	p.Hygiene.Anchors = appendAnchors(p.Hygiene.Anchors, anchors...)
 	return p
+}
+
+// appendAnchors returns a new slice holding existing then added, keeping only the first occurrence
+// of each anchor, so a location that is also a cause, or a finding repeated across rules, is
+// listed once (V1-1865).
+func appendAnchors(existing []string, added ...string) []string {
+	out := make([]string, 0, len(existing)+len(added))
+	seen := make(map[string]bool, len(existing)+len(added))
+	for _, a := range append(append([]string{}, existing...), added...) {
+		if seen[a] {
+			continue
+		}
+		seen[a] = true
+		out = append(out, a)
+	}
+	return out
 }
 
 // sourceRuleReason maps an invalid rule to its hygiene reason. Any other invalid rule uses its

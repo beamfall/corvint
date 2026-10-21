@@ -1,10 +1,10 @@
-//go:build darwin || linux
-
 package testvaliditydoc
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -15,12 +15,24 @@ import (
 // LPCV-V0-094: discovery binds the retained spec and helper blobs to the
 // worktree: CURRENT only when every blob matches and the run's start and end
 // identities agree; a changed blob is STALE with stale-evidence guidance.
+//
+// The file is unconstrained (V1-1841): the fixture is portable, but retained
+// receipts are read only on darwin and linux (read_unix.go). Elsewhere
+// read_other.go refuses the evidence location, so discovery must fail closed
+// and never project the receipt as CURRENT.
 func TestLPCVV0094DiscoverRubyFreshness(t *testing.T) {
 	root := discoveryRoot(t)
 	writeAt(t, filepath.Join(root, "spec", "user_spec.rb"), rubySpecBody, time.Unix(1, 0))
 	writeAt(t, filepath.Join(root, "spec", "spec_helper.rb"), rubyHelperBody, time.Unix(1, 0))
 	document := rubyDocument(t, "passed")
 	writeAt(t, evidencePath(root, "corvint-ruby-test-provider-1.json"), string(encodeRuby(t, document)), time.Unix(10, 0))
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		var refusal *DiscoveryError
+		if _, err := Discover(root); !errors.As(err, &refusal) || refusal.Code != "invalid-test-evidence-location" {
+			t.Fatalf("unsupported receipt platform must refuse discovery, got %v", err)
+		}
+		return
+	}
 	current := discover(t, root)
 	if current.Source != "corvint-ruby-test-provider" || current.Run.Freshness.State != testvalidity.FreshnessCurrent || current.Tests[0].Projection.Freshness.State != testvalidity.FreshnessCurrent || current.Discovery.Abstention != nil {
 		t.Fatalf("current=%+v abstention=%+v", current.Run.Freshness, current.Discovery.Abstention)

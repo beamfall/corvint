@@ -6,7 +6,6 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
@@ -28,12 +27,29 @@ func RefuseCEMProjection(data []byte) error {
 // binds it to the map's evidence by identity. A stable projection never offers
 // a writer (CEM-V1-076).
 func projectClaims(ctx context.Context, root string, a *Artifact, claimID, base string, evidence []wire.Evidence) ([]any, int, error) {
-	auth, err := gitauth.Open(root, gitrun.NewDefaultBudget())
+	auth, err := gitauth.Open(root, newGitBudget())
 	if err != nil {
 		return nil, 0, err
 	}
 	release := auth.BeginObjectSession()
 	defer release()
+	// The selected anchors are resolved and read in batches (DCP-V1-216); the
+	// loop below keeps its per-anchor refusals and order.
+	paths := []string{}
+	for _, claim := range a.Claims {
+		if claimID == "" || claim.ID == claimID {
+			for _, anchor := range claim.Evidence.Anchors {
+				paths = append(paths, anchor.Path)
+			}
+		}
+	}
+	batched := newPathPrefetch(base)
+	if err := batched.resolve(ctx, auth, paths); err != nil {
+		return nil, 0, err
+	}
+	if err := batched.read(ctx, auth, batched.regularOIDs(paths), gitauth.MaxBlobBytes, maxPinnedInputBytes); err != nil {
+		return nil, 0, err
+	}
 	rows := []any{}
 	omitted, rowBytes := 0, 0
 	for _, claim := range a.Claims {
@@ -41,14 +57,14 @@ func projectClaims(ctx context.Context, root string, a *Artifact, claimID, base 
 			continue
 		}
 		for _, anchor := range claim.Evidence.Anchors {
-			entry, ok, err := auth.LookupTreeEntry(ctx, base, anchor.Path)
+			entry, ok, err := batched.lookup(ctx, auth, base, anchor.Path)
 			if err != nil {
 				return nil, 0, err
 			}
 			if !ok || entry.Type != "blob" || (entry.Mode != "100644" && entry.Mode != "100755") || entry.OID != anchor.Blob {
 				return nil, 0, fail("documentation citation differs at CEM base")
 			}
-			raw, err := auth.BlobBytes(ctx, entry.OID)
+			raw, err := batched.blob(ctx, auth, entry.OID)
 			if err != nil {
 				return nil, 0, err
 			}

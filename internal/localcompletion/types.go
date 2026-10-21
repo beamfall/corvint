@@ -7,8 +7,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"regexp"
+
+	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
 const (
@@ -81,6 +84,7 @@ type CheckObservation struct {
 	Stdout         string   `json:"stdout,omitempty"`
 	Stderr         string   `json:"stderr,omitempty"`
 	ReuseRefused   string   `json:"reuseRefused,omitempty"` // closed sidecar-only reuse refusal (CEM-V1-207)
+	FailedTests    []string `json:"failedTests,omitempty"`  // verify result only: bounded `--- FAIL:` names of the run just observed (LCP-V0-031)
 }
 
 type artifact struct {
@@ -255,4 +259,32 @@ type aggregateCheckCapture struct {
 	StderrSHA256       string  `json:"stderrSha256"`
 	StdoutBytes        int64   `json:"stdoutBytes"`
 	StderrBytes        int64   `json:"stderrBytes"`
+}
+
+// Per-check plan bounds (LCP-V0-032).
+const (
+	maxCheckArgv           = 64
+	maxCheckTimeoutSeconds = 3600
+)
+
+// CheckBoundError is the invalid-check-bound refusal. Its Error is the stable
+// code; Detail names the bounds and the requested values (LCP-V0-032, V1-1011).
+// CheckID has already matched the check id pattern, so Detail carries no path
+// or command text; an id that matches the secret screen is shown as
+// secretscreen.Placeholder.
+type CheckBoundError struct {
+	CheckID        string
+	Argv           int
+	TimeoutSeconds int
+}
+
+func (e *CheckBoundError) Error() string { return "invalid-check-bound" }
+
+// Detail names the per-check bounds and the values the plan requested.
+func (e *CheckBoundError) Detail() string {
+	id := e.CheckID
+	if secretscreen.MatchString(id) {
+		id = secretscreen.Placeholder
+	}
+	return fmt.Sprintf("check %s requested %d argv elements and timeoutSeconds %d (bounds 1-%d and 1-%d)", id, e.Argv, e.TimeoutSeconds, maxCheckArgv, maxCheckTimeoutSeconds)
 }

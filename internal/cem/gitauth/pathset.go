@@ -30,19 +30,41 @@ const batchHeaderBytes = 96
 // git-output-exceeded, past MaxPathSetTreeBytes of tree output in total. A
 // path that is absent, or lies below a non-tree, is absent from the result.
 func (r *Repository) ResolvePaths(ctx context.Context, commit string, paths []string) (map[string]TreeEntry, error) {
+	result, _, err := r.resolvePaths(ctx, commit, paths)
+	return result, err
+}
+
+// ResolvePathLookups is ResolvePaths that also reports, for each path whose
+// every parent directory resolved to a tree, the tree output bytes a
+// LookupTreeEntry of that path streams (its root and parent tree records).
+// A caller answering per-path lookups from the walk admits a path only when
+// that count is within MaxTreeBytes, so the walk's aggregate bound never
+// admits a path the per-path lookup refuses. A path with no count must be
+// looked up per path.
+func (r *Repository) ResolvePathLookups(ctx context.Context, commit string, paths []string) (map[string]TreeEntry, map[string]int, error) {
+	return r.resolvePaths(ctx, commit, paths)
+}
+
+// lookupTreeRecordBytes is one "<oid> tree <size>\n<body>\n" batch record.
+func lookupTreeRecordBytes(oid string, size int) int {
+	return len(oid) + len(" tree ") + len(strconv.Itoa(size)) + 1 + size + 1
+}
+
+func (r *Repository) resolvePaths(ctx context.Context, commit string, paths []string) (map[string]TreeEntry, map[string]int, error) {
 	if !wire.IsGitOid(commit) {
-		return nil, unavailable("path resolution requires a pinned commit")
+		return nil, nil, unavailable("path resolution requires a pinned commit")
 	}
 	result := map[string]TreeEntry{}
+	lookups := map[string]int{}
 	if len(paths) == 0 {
-		return result, nil
+		return result, lookups, nil
 	}
 	// needed holds every directory a requested path passes through, by depth.
 	byDepth := [][]string{}
 	needed := map[string]bool{}
 	for _, path := range paths {
 		if err := wire.ValidatePath(path); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		components := strings.Split(path, "/")
 		for depth := 1; depth < len(components); depth++ {
@@ -58,32 +80,33 @@ func (r *Repository) ResolvePaths(ctx context.Context, commit string, paths []st
 		}
 	}
 	if len(byDepth) >= MaxTreeDepth {
-		return nil, unavailable("tree is nested deeper than %d directory levels", MaxTreeDepth)
+		return nil, nil, unavailable("tree is nested deeper than %d directory levels", MaxTreeDepth)
 	}
 	stream, err := r.streamCommitBatch(ctx, []string{commit + "^{commit}"}, []string{commit + "^{tree}"})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	records, err := exactBatchRecords(stream.tail, 1)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	root := records[0]
 	if root.missing || root.kind != "tree" || (stream.width != 0 && len(root.oid) != stream.width) {
-		return nil, unavailable("revision does not resolve to a tree")
+		return nil, nil, unavailable("revision does not resolve to a tree")
 	}
 	if err := requireCommitTree(stream.objects[0], root.oid); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := requireObjectIdentity(ctx, "tree", root.oid, root.body); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	width := len(root.oid) / 2
 	rootEntries, err := treeEntries(root.body, width)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	trees := map[string]map[string]TreeEntry{"": rootEntries}
+	treeBytes := map[string]int{"": lookupTreeRecordBytes(root.oid, len(root.body))}
 	used := len(root.body)
 	for _, dirs := range byDepth {
 		sort.Strings(dirs)
@@ -103,32 +126,42 @@ func (r *Repository) ResolvePaths(ctx context.Context, commit string, paths []st
 		}
 		limit := MaxPathSetTreeBytes - used
 		if limit <= 0 {
-			return nil, cemcode.New(cemcode.GitOutputExceeded, "path resolution exceeds its %d-byte tree bound", MaxPathSetTreeBytes)
+			return nil, nil, cemcode.New(cemcode.GitOutputExceeded, "path resolution exceeds its %d-byte tree bound", MaxPathSetTreeBytes)
 		}
 		stdin := []byte(strings.Join(requests, "\x00") + "\x00")
 		out, err := r.gitStdin(ctx, limit, stdin, "cat-file", "--batch", "-z")
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		used += len(out)
 		level, err := verifyTreeBatch(ctx, out, requests, want)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		for i, record := range level {
 			entries, err := treeEntries(record.body, width)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			trees[names[i]] = entries
+			treeBytes[names[i]] = lookupTreeRecordBytes(requests[i], len(record.body))
 		}
 	}
 	for _, path := range paths {
 		if entry, ok := lookupChild(trees, path); ok {
 			result[path] = entry
 		}
+		total, complete := treeBytes[""], true
+		components := strings.Split(path, "/")
+		for depth := 1; depth < len(components) && complete; depth++ {
+			size, ok := treeBytes[strings.Join(components[:depth], "/")]
+			total, complete = total+size, ok
+		}
+		if complete {
+			lookups[path] = total
+		}
 	}
-	return result, nil
+	return result, lookups, nil
 }
 
 // lookupChild finds path's entry in its verified parent tree, if that parent

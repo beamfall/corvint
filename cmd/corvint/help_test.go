@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/frontier"
+	"github.com/Beamfall/corvint/internal/runtimeenv"
 )
 
 type forbiddenHelpReader struct{ reads int }
@@ -342,7 +343,7 @@ func TestRootHelpListsReleaseAuditCommands(t *testing.T) {
 	commands := strings.SplitN(rootHelp, "\nCommands:\n", 2)[1]
 	commands, _, _ = strings.Cut(commands, "\nGlobal options:")
 	for _, command := range []string{"adapter", "dogfood-ocm", "witness"} {
-		if !strings.Contains("\n"+commands, "\n  "+command+" ") {
+		if !strings.Contains("\n"+commands, "\n    "+command+" ") {
 			t.Errorf("root help command list omits %q", command)
 		}
 	}
@@ -351,8 +352,8 @@ func TestRootHelpListsReleaseAuditCommands(t *testing.T) {
 func TestRootHelpListsContextAndWorkCommands(t *testing.T) {
 	t.Parallel()
 	for _, required := range []string{
-		"\n  context  task-context packet",
-		"\n  work  queue observation",
+		"\n    context  task-context packet",
+		"\n    work  queue observation",
 		"corvint COMMAND --help | corvint help COMMAND",
 	} {
 		if !strings.Contains(rootHelp, required) {
@@ -367,7 +368,8 @@ func TestRootHelpListsContextAndWorkCommands(t *testing.T) {
 }
 
 // TestRootHelpIsACompactVerbIndex pins CCF-V1-009: root help is a verb index with one line per
-// verb, carries no per-verb usage line, and stays within its byte bound; the detail is per verb.
+// verb under its Core or Experimental group header (CCF-V1-008), names each verb once, carries no
+// per-verb usage line, and stays within its byte bound; the detail is per verb.
 func TestRootHelpIsACompactVerbIndex(t *testing.T) {
 	t.Parallel()
 	if len(rootHelp) > rootHelpMaxBytes {
@@ -378,8 +380,16 @@ func TestRootHelpIsACompactVerbIndex(t *testing.T) {
 		t.Fatalf("root usage has %d lines, want 3:\n%s", lines, usage)
 	}
 	commands, _, _ := strings.Cut(strings.SplitN(rootHelp, "\nCommands:\n", 2)[1], "\nGlobal options:")
-	if lines := strings.Count(commands, "\n"); lines != len(topLevelCommands) {
-		t.Fatalf("Commands has %d lines, want one per verb (%d)", lines, len(topLevelCommands))
+	if lines := strings.Count(commands, "\n"); lines != len(topLevelCommands)+2 {
+		t.Fatalf("Commands has %d lines, want two group headers and one per verb (%d)", lines, len(topLevelCommands))
+	}
+	if strings.Contains(rootHelp, "\nCommand maturity:\n") {
+		t.Error("root help repeats every verb in a separate Command maturity section")
+	}
+	for _, command := range topLevelCommands {
+		if count := strings.Count(rootHelp, "\n    "+command+" "); count != 1 {
+			t.Errorf("root help lists verb %q %d times, want once", command, count)
+		}
 	}
 	for _, flag := range []string{"--task", "--base", "--cem", "--limit"} {
 		if strings.Contains(rootHelp, flag) {
@@ -400,6 +410,14 @@ func TestOCMHelpExposesNativeWorkflowAndMutationBoundary(t *testing.T) {
 		{name: "GPK-V0-008 OCM mutation boundary", required: []string{
 			"source-body-free 0600 local map atomically",
 			"verifies the OCM and bound CEM before mutation",
+		}},
+		// V1-0706: the implemented --replace recovery and its review loss.
+		{name: "OCM prepare --replace recovery", required: []string{
+			"--replace", "map-outdated", "links, marks and assessments are\n                      discarded",
+		}},
+		// V1-0558: the report output confinement and its worktree visibility.
+		{name: "OCM report output confinement", required: []string{
+			".git/corvint/ocm-review.md", "unsupported-ocm-output-path", "blocks clean-worktree admission",
 		}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -542,5 +560,57 @@ func TestCEMV1340CEMActionHelpNamesOnlyThatAction(t *testing.T) {
 	}
 	if cemActionHelp("no-such-action") != "" {
 		t.Error("an undocumented action has help")
+	}
+}
+
+// TestCEMV1340HelpCEMActionAndOwnedArgvActions covers the per-action help
+// routes V1-2109 adds: `corvint help cem ACTION` for every action, and
+// `--help`/`-h` on verify-stable and gate-verdict, which own their argv and
+// otherwise refuse it. Each prints exactly that action's help and exits 0.
+func TestCEMV1340HelpCEMActionAndOwnedArgvActions(t *testing.T) {
+	t.Parallel()
+	check := func(args []string, action string) {
+		t.Helper()
+		reader := &forbiddenHelpReader{}
+		var stdout, stderr bytes.Buffer
+		code := run(args, reader, &stdout, &stderr)
+		if code != 0 || stderr.Len() != 0 || reader.reads != 0 {
+			t.Fatalf("%q: exit=%d stderr=%q reads=%d", args, code, &stderr, reader.reads)
+		}
+		if stdout.String() != cemActionHelp(action) {
+			t.Fatalf("%q printed %q, want cem %s help", args, stdout.String(), action)
+		}
+	}
+	for action := range cemHelpActions {
+		check([]string{"help", "cem", action}, action)
+		check([]string{"--root", "/definitely/not/a/repository", "help", "cem", action}, action)
+	}
+	for _, action := range []string{"verify-stable", "gate-verdict"} {
+		check([]string{"cem", action, "--help"}, action)
+		check([]string{"--root", "/definitely/not/a/repository", "cem", action, "-h"}, action)
+		check([]string{"cem", action, "--base", "x", "--help"}, action)
+	}
+	// A --help consumed as an option value is not a help request: the closed
+	// parser still owns the argv.
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"cem", "verify-stable", "--map", "--help"}, &forbiddenHelpReader{}, &stdout, &stderr); code != 2 ||
+		!strings.Contains(stdout.String(), `"code":"invalid-arguments"`) {
+		t.Fatalf("verify-stable --map --help: exit=%d stdout=%q", code, &stdout)
+	}
+}
+
+// V1-1643: the CPU-profile help note names the variable runtimeenv resolves
+// for the "CPUPROFILE" suffix that main.go and taskcontext.go read.
+func TestCPUProfileHelpNamesResolvedVariable(t *testing.T) {
+	var asked []string
+	runtimeenv.Resolve(func(name string) (string, bool) {
+		asked = append(asked, name)
+		return "", false
+	}, "CPUPROFILE")
+	if len(asked) != 1 {
+		t.Fatalf("runtimeenv looked up %q", asked)
+	}
+	if !strings.Contains(cpuProfileHelpNote, "\n"+asked[0]+"=PATH") {
+		t.Fatalf("cpuProfileHelpNote does not name %s: %q", asked[0], cpuProfileHelpNote)
 	}
 }

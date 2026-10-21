@@ -17,17 +17,19 @@
 # of one paragraph are joined first, so wrapped prose still matches). A paraphrase outside the
 # table is missed, so NO_CONFLICT_FOUND means only that the table found none.
 #
-# usage: script/check-instruction-conflicts.sh [--project FILE]... [--host FILE|DIR]...
+# usage: script/check-instruction-conflicts.sh [--project FILE]... [--host FILE|DIR]... | --repository-only
 #   Without --project, reads AGENTS.md (UNKNOWN if absent) and, if present, CLAUDE.md at the
 #   repository root (working-tree bytes). --host DIR reads DIR/*.md, not recursively.
 # exit: 0 no conflict found and every input read; 1 conflict found; 2 usage error;
 #   3 UNKNOWN: no conflict found, but an input was absent, unreadable or not a regular file, or
-#   no --host was given.
+#   no --host was given. --repository-only (V1-1756) instead scopes the verdict to the project
+#   files: the host layer is printed as NOT_OBSERVED and a clean repository layer exits 0. It takes
+#   no --host, so a host file given to it is a usage error rather than silently ignored.
 set -eu
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 
 usage() {
-	printf 'usage: %s [--project FILE]... [--host FILE|DIR]...\n' "$0" >&2
+	printf 'usage: %s [--project FILE]... [--host FILE|DIR]... | --repository-only\n' "$0" >&2
 	exit 2
 }
 
@@ -48,6 +50,7 @@ add() {
 
 projects=0
 hosts=0
+repository_only=0
 while [ $# -gt 0 ]; do
 	case $1 in
 	--project)
@@ -73,9 +76,14 @@ while [ $# -gt 0 ]; do
 		hosts=$((hosts + 1))
 		shift 2
 		;;
+	--repository-only)
+		repository_only=1
+		shift
+		;;
 	*) usage ;;
 	esac
 done
+if [ "$repository_only" = 1 ] && [ "$hosts" -gt 0 ]; then usage; fi
 if [ "$projects" = 0 ]; then
 	# AGENTS.md is the project contract, so its absence is unknown; CLAUDE.md is optional.
 	add project "$root/AGENTS.md"
@@ -83,7 +91,7 @@ if [ "$projects" = 0 ]; then
 fi
 
 # Paths go through ENVIRON, because awk -v would interpret backslashes in them.
-CORVINT_IC_ROOT="$root/" CORVINT_IC_HOME="${HOME:-}" awk -F '\t' -v hosts="$hosts" '
+CORVINT_IC_ROOT="$root/" CORVINT_IC_HOME="${HOME:-}" awk -F '\t' -v hosts="$hosts" -v repository_only="$repository_only" '
 BEGIN {
 	root = ENVIRON["CORVINT_IC_ROOT"]
 	home = ENVIRON["CORVINT_IC_HOME"]
@@ -212,9 +220,11 @@ END {
 		}
 	}
 	for (k = 1; k <= unknowns; k++) printf "%-17s %s\n", "UNKNOWN", unknown[k]
-	if (hosts == 0) printf "%-17s %s\n", "UNKNOWN", "host layer not observed: no --host given"
+	if (hosts == 0 && repository_only == 1) printf "%-17s %s\n", "NOT_OBSERVED", "host layer: --repository-only; this verdict covers the project files only"
+	else if (hosts == 0) printf "%-17s %s\n", "UNKNOWN", "host layer not observed: no --host given"
 	if (conflicts > 0) { printf "result: CONFLICT (%d)\n", conflicts; exit 1 }
-	if (unknowns > 0 || hosts == 0) { print "result: UNKNOWN"; exit 3 }
+	if (unknowns > 0 || (hosts == 0 && repository_only != 1)) { print "result: UNKNOWN"; exit 3 }
+	if (hosts == 0) { print "result: NO_CONFLICT_FOUND (repository layer; host NOT_OBSERVED)"; exit 0 }
 	print "result: NO_CONFLICT_FOUND"
 }
 ' "$inputs"

@@ -41,6 +41,30 @@ fi
 repo=$(cd "$(dirname "$0")/.." && pwd)
 base=$(git -C "$repo" rev-parse "$base_arg^{commit}") || exit 2
 git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
+# DCW-V0-090: a change that touches docs/specs/ must commit the regenerated spec indexes. The
+# generator reads a private index of HEAD, so staged or worktree edits cannot hide a stale commit.
+if [[ -n $(git -C "$repo" diff --name-only "$base" HEAD -- docs/specs/) ]]; then
+  spec_tmp=$(mktemp -d "${TMPDIR:-/tmp}/corvint-spec-check.XXXXXX") || exit 2
+  trap '/bin/rm -rf "$spec_tmp"' EXIT
+  mkdir "$spec_tmp/out" || exit 2
+  stale=()
+  if GIT_INDEX_FILE="$spec_tmp/index" git -C "$repo" read-tree HEAD &&
+    (cd "$repo" && GIT_INDEX_FILE="$spec_tmp/index" script/gen-spec-requirements.sh --all "$spec_tmp/out"); then
+    for file in REQUIREMENTS.tsv INDEX.json README.md; do
+      git -C "$repo" cat-file blob "HEAD:docs/specs/$file" 2> /dev/null | cmp -s - "$spec_tmp/out/$file" ||
+        stale+=("docs/specs/$file")
+    done
+  else
+    stale+=(generation-failed)
+  fi
+  if ((${#stale[@]} > 0)); then
+    printf 'dogfood-finish-lane: REFUSE spec-requirements-stale %s\n' "${stale[*]}" >&2
+    printf 'fix: stage the changed spec, run make spec-requirements, commit the regenerated files, then rerun\n' >&2
+    exit 2
+  fi
+  /bin/rm -rf "$spec_tmp"
+  trap - EXIT
+fi
 source "$repo/script/dogfood-build-corvint.sh" || exit 2
 evidence="$git_dir/corvint"
 override=()
@@ -50,13 +74,19 @@ if [[ -z $expected_version ]]; then
   exit 2
 fi
 if [[ -n $corvint_bin_set ]]; then
+  # A PATH-only name resolves once, before the version probe, so every later verifier receives the executable
+  # the probe ran. The result is absolute so a later cd cannot change its meaning.
+  [[ $corvint_bin == */* ]] || corvint_bin=$(type -P -- "$corvint_bin") || {
+    printf 'dogfood-finish-lane: REFUSE corvint-bin-unresolved\n' >&2
+    exit 2
+  }
+  [[ $corvint_bin == /* ]] || corvint_bin="$PWD/$corvint_bin"
   version_output=$("$corvint_bin" --version 2> /dev/null)
   return_code=$?
   if [[ $return_code -ne 0 || ! $version_output =~ ^"Corvint $expected_version (build "(0|[1-9][0-9]*)")"$ ]]; then
     printf 'dogfood-finish-lane: REFUSE corvint-version-mismatch expected=%s\n' "$expected_version" >&2
     exit 2
   fi
-  [[ $corvint_bin != */* || $corvint_bin == /* ]] || corvint_bin="$PWD/$corvint_bin"
   override=(--override-verifier "$corvint_bin")
 fi
 # Relative input paths keep meaning the ones the caller named.

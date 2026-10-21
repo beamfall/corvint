@@ -371,14 +371,23 @@ func (r Repo) readOneBlob(rev, name string, limit int) ([]byte, string, bool, er
 var webExtensions = map[string]bool{".js": true, ".jsx": true, ".ts": true, ".tsx": true, ".mjs": true, ".cjs": true, ".mts": true, ".cts": true}
 
 // IsTestFile reports a JavaScript or TypeScript test file: a base name holding `.spec.` or
-// `.test.` before its extension (TSA-V0-010).
+// `.test.` before its extension, or any such file under a `__tests__` directory, which Jest's
+// default testMatch selects (TSA-V0-010, TSA-V0-388). Every JS/TS test-source reader shares it.
 func IsTestFile(name string) bool {
 	extension := path.Ext(name)
 	if !webExtensions[extension] {
 		return false
 	}
 	stem := strings.TrimSuffix(path.Base(name), extension)
-	return strings.HasSuffix(stem, ".spec") || strings.HasSuffix(stem, ".test")
+	if strings.HasSuffix(stem, ".spec") || strings.HasSuffix(stem, ".test") {
+		return true
+	}
+	for _, segment := range strings.Split(path.Dir(name), "/") {
+		if segment == "__tests__" {
+			return true
+		}
+	}
+	return false
 }
 
 // IsPageObjectFile reports a JavaScript or TypeScript page object: a file under a directory named

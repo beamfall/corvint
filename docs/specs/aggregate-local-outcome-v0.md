@@ -291,7 +291,9 @@ If actual aggregate acquisition cannot fit, retain measured refusal and revise t
 One contained native same-binary hidden `dogfood-outcome-worker` verifies its owned group through
 gitstatus.EnableOwnedWorker. Opt-in nested Git inherits that group. Timeout/cancel kills only the
 direct unreaped Git leader, uses at most two-second WaitDelay and fails worker; parent retires the
-whole worker group through the unchanged pinned Owner, including normal-exit descendants. Never
+whole worker group through the unchanged pinned Owner, including normal-exit descendants. The
+parent sets `RepeatKillWhileLive`, so a member forked alongside the group SIGKILL on Darwin is
+signalled again before the reap (`PGO-V0-017`). Never
 signal an inherited-group child PID as a group ID. Legacy nonworker runner behavior stays unchanged.
 Explicit native base/tree verifier runners also require contained cleanup. Arbitrary external
 aggregate producers/validators are unsupported.

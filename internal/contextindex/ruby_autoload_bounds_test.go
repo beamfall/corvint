@@ -38,7 +38,7 @@ func rubyCraftedNamespaces(count int) map[string]string {
 }
 
 // TestRubyAutoloadResolutionBound: NGI-V0-040. An unbalanced file opening
-// more namespaces than maxRubyResolutions resolves each reference against at
+// more namespaces than rubyResolutionBound.limit resolves each reference against at
 // most that many, and every reference the bound cut is counted in the
 // ruby-reference-index-bounded unknown rather than dropped silently.
 func TestRubyAutoloadResolutionBound(t *testing.T) {
@@ -50,7 +50,7 @@ func TestRubyAutoloadResolutionBound(t *testing.T) {
 	}
 	for _, reference := range source.references {
 		resolved, complete := autoload.resolutions(source, reference)
-		if complete || len(resolved) > maxRubyResolutions+2 {
+		if complete || len(resolved) > rubyResolutionBound.limit+2 {
 			t.Fatalf("reference %q: %d candidates, complete=%v", reference.name, len(resolved), complete)
 		}
 	}
@@ -60,7 +60,7 @@ func TestRubyAutoloadResolutionBound(t *testing.T) {
 	if got := rubyUnknownCount(receipt, "ruby-reference-index-bounded"); got != autoload.bounded {
 		t.Fatalf("ruby-reference-index-bounded = %d, want %d: %#v", got, autoload.bounded, receipt["unknowns"])
 	}
-	// The first maxRubyResolutions namespaces still resolve: Ns0::X is
+	// The first rubyResolutionBound.limit namespaces still resolve: Ns0::X is
 	// reached from the crafted file.
 	if rubyResultRows(receipt)["app/models/crafted.rb"] == nil {
 		t.Fatalf("crafted.rb must still reference Ns0::X within the bound: %#v", receipt["results"])
@@ -68,7 +68,7 @@ func TestRubyAutoloadResolutionBound(t *testing.T) {
 }
 
 // TestRubyAutoloadSiteBound: NGI-V0-040. The index retains at most
-// maxRubyReferenceSites sites; every reference whose sites the bound cut is
+// rubySiteBound.limit sites; every reference whose sites the bound cut is
 // counted, and below the bound nothing is counted.
 func TestRubyAutoloadSiteBound(t *testing.T) {
 	files := map[string]string{
@@ -81,18 +81,18 @@ func TestRubyAutoloadSiteBound(t *testing.T) {
 		t.Fatalf("default bound must not cut a small repository: %d %#v", autoload.bounded, receipt["unknowns"])
 	}
 	unbounded := autoload.retained
-	saved := maxRubyReferenceSites
-	maxRubyReferenceSites = 4
-	defer func() { maxRubyReferenceSites = saved }()
+	saved := rubySiteBound.limit
+	rubySiteBound.limit = 4
+	defer func() { rubySiteBound.limit = saved }()
 	autoload, receipt = rubyBoundsImpact(t, files, "app/models/a.rb")
-	if unbounded <= maxRubyReferenceSites || autoload.retained != maxRubyReferenceSites {
-		t.Fatalf("retained = %d of %d, want the bound %d", autoload.retained, unbounded, maxRubyReferenceSites)
+	if unbounded <= rubySiteBound.limit || autoload.retained != rubySiteBound.limit {
+		t.Fatalf("retained = %d of %d, want the bound %d", autoload.retained, unbounded, rubySiteBound.limit)
 	}
 	total := 0
 	for _, sites := range autoload.sites {
 		total += len(sites)
 	}
-	if total != maxRubyReferenceSites || autoload.bounded == 0 {
+	if total != rubySiteBound.limit || autoload.bounded == 0 {
 		t.Fatalf("sites = %d, bounded = %d", total, autoload.bounded)
 	}
 	if got := rubyUnknownCount(receipt, "ruby-reference-index-bounded"); got != autoload.bounded {

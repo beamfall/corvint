@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -47,7 +48,7 @@ func TestTasksArchiveHelpRefusesOldRuntime(t *testing.T) {
 }
 
 func TestTasksArchiveRefusesOtherTargets(t *testing.T) {
-	for _, target := range []string{"", "darwin/amd64", "linux/amd64", "windows/amd64"} {
+	for _, target := range []string{"", "darwin/amd64", "linux/arm64", "windows/amd64"} {
 		if _, err := RunTasksArchive(context.Background(), Options{Target: target}); err == nil {
 			t.Fatalf("admitted %q", target)
 		}
@@ -69,6 +70,67 @@ func TestTasksArchiveRequiresSetupResources(t *testing.T) {
 		}
 		if missing == -1 && (err != nil || len(entries) != 4) {
 			t.Fatalf("complete resources: %v, %v", entries, err)
+		}
+	}
+}
+
+func TestTasksArchiveCrossTargetIsLinuxAmd64Only(t *testing.T) {
+	// CAL-V0-320: linux/amd64 is admitted for the Tasks archive on a darwin host, never for the
+	// full bundle, and the native-host restriction still refuses every other foreign target.
+	native, err := admitTasksTarget("linux/amd64", "darwin/arm64")
+	if err != nil || native {
+		t.Fatalf("linux/amd64 on darwin/arm64: native=%v err=%v", native, err)
+	}
+	if native, err := admitTasksTarget("darwin/arm64", "darwin/arm64"); err != nil || !native {
+		t.Fatalf("native target: %v %v", native, err)
+	}
+	for _, target := range []string{"linux/arm64", "darwin/amd64", "windows/amd64", ""} {
+		if _, err := admitTasksTarget(target, "darwin/arm64"); err == nil {
+			t.Fatalf("admitted %q", target)
+		}
+	}
+	// darwin/arm64 requested on a foreign host keeps the native-host restriction.
+	if _, err := admitTasksTarget("darwin/arm64", "linux/amd64"); err == nil || !strings.Contains(err.Error(), "native target host") {
+		t.Fatalf("foreign-host darwin build: %v", err)
+	}
+	if err := validateTarget("linux/amd64"); err == nil {
+		t.Fatal("full companion bundle admitted linux/amd64")
+	}
+}
+
+func TestTasksArchiveCrossBuildExecutesNothing(t *testing.T) {
+	// The extract directory does not exist: any attempt to run the target binary would fail.
+	version, qual, err := tasksArchiveSmoke(context.Background(), false, t.TempDir()+"/absent", nil)
+	if err != nil || version != nil || qual != tasksCrossQualification {
+		t.Fatalf("cross smoke: %q %q %v", version, qual, err)
+	}
+	if _, _, err := tasksArchiveSmoke(context.Background(), true, t.TempDir()+"/absent", nil); err == nil {
+		t.Fatal("native smoke ran without a binary")
+	}
+	r := TasksArchiveReport{Profile: "corvint-tasks-archive/0", Target: "linux/amd64", Version: json.RawMessage(version), Qualification: qual}
+	entries, err := tasksArchiveEntries(nil, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if e.Path == "MANIFEST.json" && !bytes.Contains(e.Data, []byte(`"qualification": "`+tasksCrossQualification+`"`)) {
+			t.Fatalf("manifest: %s", e.Data)
+		}
+	}
+}
+
+func TestTasksArchiveCrossManifestStatesTheLimit(t *testing.T) {
+	r := TasksArchiveReport{Profile: "corvint-tasks-archive/0", Target: "linux/amd64", Qualification: tasksCrossQualification}
+	entries, err := tasksArchiveEntries([]ArchiveEntry{{Path: "bin/corvint-tasks", Mode: 0o755, Data: []byte("b")}}, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if e.Path == "MANIFEST.json" && (!bytes.Contains(e.Data, []byte(tasksCrossQualification)) || bytes.Contains(e.Data, []byte(`"version"`))) {
+			t.Fatalf("manifest: %s", e.Data)
+		}
+		if e.Path == "README.md" && !bytes.Contains(e.Data, []byte("NOT_OBSERVED")) {
+			t.Fatal("README omits the runtime limit")
 		}
 	}
 }

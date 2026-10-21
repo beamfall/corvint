@@ -50,6 +50,8 @@ type fileFacts struct {
 	methods   []rawMethod
 	news      []rawNew
 	secrets   []int
+	// classDefault is true when the class is declared `export default class` (V1-0974).
+	classDefault bool
 }
 
 type rawGoto struct {
@@ -75,7 +77,7 @@ var (
 	methodLine = regexp.MustCompile(`^\s*(?:(?:public|private|protected|static|readonly|override|async)\s+)*(?:get\s+)?([A-Za-z_$][\w$]*)\s*(?:<[^>]*>)?\s*\([^)]*\)\s*(?::[^{=;]*)?\{\s*$`)
 	arrowLine  = regexp.MustCompile(`^\s*(?:(?:public|private|protected|static|readonly)\s+)*([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?\([^)]*\)\s*(?::[^{=;]*)?=>\s*\{\s*$`)
 	funcLine   = regexp.MustCompile(`^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)\s*(?:<[^>]*>)?\s*\(`)
-	classLine  = regexp.MustCompile(`^\s*(?:export\s+)?(?:default\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)`)
+	classLine  = regexp.MustCompile(`^\s*(?:export\s+)?(default\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)`)
 	notMethod  = map[string]bool{"if": true, "for": true, "while": true, "switch": true, "catch": true, "function": true, "return": true, "constructor": true, "with": true}
 )
 
@@ -168,19 +170,27 @@ func readFacts(text string) fileFacts {
 		}
 	}
 	lines := strings.Split(code, "\n")
+	// depth[n] is the brace depth at the start of line n, counted as blockEnd counts it, so a
+	// member sits in the class body only at one level below the class line (V1-0968).
+	depth := make([]int, len(lines))
+	for n, d := 0, 0; n < len(lines); n++ {
+		depth[n] = d
+		d += strings.Count(lines[n], "{") - strings.Count(lines[n], "}")
+	}
 	classStart, classEnd, lastEnd := -1, -1, -1
 	for n, l := range lines {
 		if f.class == "" {
 			if m := classLine.FindStringSubmatch(l); m != nil {
-				f.class, classStart, classEnd = m[1], n, blockEnd(lines, n)
+				f.class, f.classDefault, classStart, classEnd = m[2], m[1] != "", n, blockEnd(lines, n)
 			}
 		}
 		name, member := "", false
 		for k, re := range []*regexp.Regexp{methodLine, arrowLine, funcLine} {
 			if m := re.FindStringSubmatch(l); m != nil && !notMethod[m[1]] {
 				// A member is callable on the class only when it sits directly in the class body:
-				// not before or after it, and not inside another method (an object literal's method).
-				name, member = m[1], k < 2 && n > classStart && n < classEnd && n > lastEnd
+				// not before or after it, not inside another method, and not in an object literal
+				// assigned to a class field (an object literal's method).
+				name, member = m[1], k < 2 && n > classStart && n < classEnd && n > lastEnd && depth[n] == depth[classStart]+1
 				break
 			}
 		}
@@ -334,7 +344,77 @@ func statementAt(text string, line int, specifier string) string {
 	if !found || len(s) > 512 {
 		return "" // an unfinished or oversized statement is not read
 	}
-	return s
+	return oneStatement(s, specifier)
+}
+
+// oneStatement cuts s to the one import statement whose module string is specifier, reading s
+// lexically: an import keyword, semicolon or specifier inside a string or comment never starts,
+// ends or matches a statement, and another statement sharing a line is not copied with it. A
+// statement with a comment inside, or one whose boundaries cannot be read (an unterminated string
+// or comment, a stray comment end), is refused as "" so the caller emits it UNRESOLVED (V1-0968).
+func oneStatement(s, specifier string) string {
+	start, commented := -1, false
+	for i := 0; i < len(s); {
+		switch c := s[i]; {
+		case strings.HasPrefix(s[i:], "//"):
+			commented = commented || start >= 0
+			if nl := strings.IndexByte(s[i:], '\n'); nl >= 0 {
+				i += nl
+			} else {
+				i = len(s)
+			}
+		case strings.HasPrefix(s[i:], "/*"):
+			e := strings.Index(s[i+2:], "*/")
+			if e < 0 {
+				return ""
+			}
+			commented = commented || start >= 0
+			i += e + 4
+		case strings.HasPrefix(s[i:], "*/"):
+			return "" // s may begin inside a block comment
+		case c == '\'' || c == '"' || c == '`':
+			j := i + 1
+			for ; j < len(s) && s[j] != c; j++ {
+				if s[j] == '\\' {
+					j++
+				} else if s[j] == '\n' && c != '`' {
+					return ""
+				}
+			}
+			if j >= len(s) {
+				return ""
+			}
+			if start >= 0 && s[i+1:j] == specifier {
+				if commented {
+					return ""
+				}
+				end := j + 1
+				if rest := strings.TrimLeft(s[end:], " \t"); strings.HasPrefix(rest, ";") {
+					end = len(s) - len(rest) + 1
+				}
+				return s[start:end]
+			}
+			i = j + 1
+		case c == ';':
+			start, commented = -1, false
+			i++
+		case strings.HasPrefix(s[i:], "import") && !identByte(s, i-1) && !identByte(s, i+len("import")):
+			start, commented = i, false
+			i += len("import")
+		default:
+			i++
+		}
+	}
+	return ""
+}
+
+// identByte reports whether s[i] exists and can be part of a JavaScript identifier.
+func identByte(s string, i int) bool {
+	if i < 0 || i >= len(s) {
+		return false
+	}
+	c := s[i]
+	return c == '_' || c == '$' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= 0x80
 }
 
 func fileID(p string) string          { return "file:" + p }
