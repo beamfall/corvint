@@ -1,12 +1,15 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/tasks/cli"
+	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -209,5 +212,73 @@ func TestERGV0018_NoPassedAncestorFallsBack(t *testing.T) {
 		!strings.Contains(field(base, "note").Str, "no ancestor commit passed review") || field(field(v, "diff"), "scope").Str != "ALL_PATHS" ||
 		strings.Join(packetFiles(v), ",") != "src/a.go,src/a_test.go" || field(v, "returned").Kind != wire.KindNull {
 		t.Fatalf("fallback packet: %s", x.stdout)
+	}
+}
+
+// TestERGV0027_HistoryBoundNamesNextCursor: a gate with more events than the
+// packet reads is named in omitted and in readOnDemand.history as the exact
+// `gate history --cursor` command, and that command returns the events the
+// packet did not read (ERG-V0-027).
+func TestERGV0027_HistoryBoundNamesNextCursor(t *testing.T) {
+	root, id, c1, _ := reviewRounds(t)
+	cli.ShrinkReviewPacketHistory(t, 2, 1)
+	v, x := packetOf(t, root, id, "--commit", "HEAD")
+	if base := field(v, "deltaBase"); field(base, "commit").Str != c1 || field(base, "kind").Str != "PASSED_REVIEW" {
+		t.Fatalf("packet base under the history bound: %s", x.stdout)
+	}
+	more := field(field(v, "readOnDemand"), "history").Arr
+	if len(more) != 1 {
+		t.Fatalf("readOnDemand.history: %s", x.stdout)
+	}
+	cmd := strings.Fields(more[0].Str)
+	if len(cmd) != 7 || strings.Join(cmd[:5], " ") != "gate history "+id+" --gate "+ergGate || cmd[5] != "--cursor" {
+		t.Fatalf("history command %q", more[0].Str)
+	}
+	var named bool
+	for _, o := range field(v, "omitted").Arr {
+		named = named || field(o, "section").Str == "history" && field(o, "path").Str == ergGate && strings.Contains(field(o, "range").Str, cmd[6])
+	}
+	if !named {
+		t.Fatalf("omitted does not name the history cursor: %s", wire.Encode(field(v, "omitted")))
+	}
+	all := atm(t, root, nil, "gate", "history", id, "--gate", ergGate)
+	rest := atm(t, root, nil, cmd...)
+	if all.res.Outcome != wire.OutcomeOK || rest.res.Outcome != wire.OutcomeOK || len(all.res.Items) != 4 || len(rest.res.Items) != 2 {
+		t.Fatalf("history all %s rest %s", all.stdout, rest.stdout)
+	}
+	for i, it := range rest.res.Items {
+		if field(it, "sha256").Str != field(all.res.Items[2+i], "sha256").Str {
+			t.Fatalf("cursor page event %d is not the unread event: %s", i, rest.stdout)
+		}
+	}
+}
+
+// TestERGV0026_CheckpointCommitBinding: a hand-off note naming a commit the
+// packet's repository holds binds the checkpoint OBSERVED with its relation
+// to the reviewed commit; a commit the repository lacks stays NOT_OBSERVED
+// (ERG-V0-026).
+func TestERGV0026_CheckpointCommitBinding(t *testing.T) {
+	root, id, c1, c3 := reviewRounds(t)
+	note := func(name, commit string) string {
+		raw, err := json.Marshal(&dispatch.HandoffNote{Profile: dispatch.HandoffNoteProfile, Worker: "w-1", Ticket: id, Role: "implement",
+			At: "2026-10-21T00:00:00Z", ContextTokens: "0", Messages: []string{"checkpoint"}, Files: []dispatch.NoteFile{}, Commit: commit})
+		if err != nil {
+			t.Fatal(err)
+		}
+		p := filepath.Join(t.TempDir(), name)
+		fixture.Write(t, p, append(raw, '\n'))
+		return p
+	}
+	for _, tc := range []struct{ name, commit, binding, relation string }{
+		{"reviewed", c3, "OBSERVED", cli.CheckpointAtReviewed},
+		{"ancestor", c1, "OBSERVED", cli.CheckpointAncestor},
+		{"absent", strings.Repeat("ab", 20), "NOT_OBSERVED", ""},
+		{"none", "", "NOT_OBSERVED", ""},
+	} {
+		v, x := packetOf(t, root, id, "--commit", "HEAD", "--checkpoint", note(tc.name+".json", tc.commit))
+		cp := field(v, "checkpoint")
+		if field(cp, "commitBinding").Str != tc.binding || field(cp, "commitRelation").Str != tc.relation || field(cp, "commit").Str != tc.commit {
+			t.Fatalf("%s checkpoint: %s", tc.name, x.stdout)
+		}
 	}
 }

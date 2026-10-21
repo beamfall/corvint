@@ -167,6 +167,23 @@ func chainCode(err error) string {
 // ledger whose entries record review sources adds sourceReview, the
 // TOL-V0-042 stale-source listing; --legacy-cases names the
 // corvint-legacy-cases/1 record legacy and manual case refs resolve in.
+// reviewCandidate is the ticket's newest submitted candidate branch, read
+// only when the ledger holds a reviewed entry, so staleness is judged at the
+// revision under review rather than at HEAD (TOL-V0-131); "" when the queue
+// has no journal or the ticket has no candidate branch.
+func reviewCandidate(rc *readCtx, id string, l *ticket.ObligationLedger) (string, error) {
+	if l == nil || rc.journalAbsent || rc.snap == nil {
+		return "", nil
+	}
+	for _, e := range l.Entries {
+		if e.Review != nil {
+			_, branch, _, err := packetAttempts(rc, id)
+			return branch, err
+		}
+	}
+	return "", nil
+}
+
 func obligationsShow(env Env, cmd []string, args []string) *wire.Result {
 	var target, casesFile string
 	if res := pairFlags(cmd, args, map[string]*string{"--target": &target, "--legacy-cases": &casesFile}, nil, nil); res != nil {
@@ -177,8 +194,9 @@ func obligationsShow(env Env, cmd []string, args []string) *wire.Result {
 	}
 	var item *wire.Value
 	var known *ticket.ObligationLedger
+	var candidate string
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
-		item, known = nil, nil
+		item, known, candidate = nil, nil, ""
 		rec, l, ferr := obligationTarget(rc, target)
 		if rec == nil {
 			return ferr
@@ -216,7 +234,9 @@ func obligationsShow(env Env, cmd []string, args []string) *wire.Result {
 		}
 		v := wire.ObjectValue(o)
 		item, known = &v, l
-		return nil
+		var cerr error
+		candidate, cerr = reviewCandidate(rc, rec.TicketID.Raw, l)
+		return cerr
 	})
 	if err != nil {
 		return failure(cmd, rc, err)
@@ -229,7 +249,7 @@ func obligationsShow(env Env, cmd []string, args []string) *wire.Result {
 		if ok {
 			item.Obj.Set("sourceReview", review)
 		}
-		wr, ok, err := witnessReviewValue(env, rc, known)
+		wr, ok, err := witnessReviewValue(env, rc, known, candidate)
 		if err != nil {
 			return errorResult(cmd, err)
 		}

@@ -157,7 +157,7 @@ func planWitnesses(env Env, rc *readCtx, l *ticket.ObligationLedger, findings []
 	if l == nil {
 		return rep, nil
 	}
-	heads, err := reviewHeadStates(env, rc, l)
+	heads, err := reviewHeadStates(env, rc, l, "")
 	if err != nil {
 		return rep, err
 	}

@@ -62,6 +62,10 @@ type HandoffNote struct {
 	Files         []NoteFile `json:"files"`
 	RedactedLines int        `json:"redactedLines"`
 	Truncated     bool       `json:"truncated"`
+	// Commit is the full commit id the checkpoint was taken at, when the
+	// note's writer knows it; absent otherwise, so a note without it keeps
+	// its exact earlier bytes (ERG-V0-026).
+	Commit string `json:"commit,omitempty"`
 }
 
 func (n *HandoffNote) encode() []byte {
@@ -335,6 +339,11 @@ func ReadHandoffNote(path string) (*HandoffNote, error) {
 	}
 	if _, err := time.Parse(time.RFC3339, n.At); err != nil || n.Worker == "" || n.Ticket == "" || n.Messages == nil || n.Files == nil || len(n.Messages) > maxNoteMessages || len(n.Files) > maxNoteFiles || n.RedactedLines < 0 {
 		return nil, errors.New("hand-off note is malformed")
+	}
+	if n.Commit != "" {
+		if _, err := wire.ParseOID("/commit", n.Commit); err != nil {
+			return nil, errors.New("hand-off note commit is not a full commit id")
+		}
 	}
 	if !bytes.Equal(raw, n.encode()) {
 		return nil, errors.New("hand-off note is not in canonical form")

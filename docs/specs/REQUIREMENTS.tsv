@@ -1605,6 +1605,8 @@ ERG-V0-019	docs/specs/corvint-tasks-external-reviews-v0.md	The packet MUST fit `
 ERG-V0-020	docs/specs/corvint-tasks-external-reviews-v0.md	The packet MUST name every item of the newest RETURN event with its touched stat	unrecorded	-
 ERG-V0-021	docs/specs/corvint-tasks-external-reviews-v0.md	A partial checkpoint MAY ride in the packet and MUST be labelled with what it do	unrecorded	-
 ERG-V0-022	docs/specs/corvint-tasks-external-reviews-v0.md	`gate packet <ticket> --source PATH|NAME [--config FILE]`, and a dispatch role w	unrecorded	-
+ERG-V0-026	docs/specs/corvint-tasks-external-reviews-v0.md	A hand-off note that names the commit its checkpoint was taken at MUST bind the	unrecorded	-
+ERG-V0-027	docs/specs/corvint-tasks-external-reviews-v0.md	When a gate's review history is longer than the packet reads, the packet MUST na	unrecorded	-
 CTW-V0-001	docs/specs/corvint-tasks-intent-worktree-v0.md	The intent root is the checkout whose `.taskman/` is the intent projection. Ever	unrecorded	-
 CTW-V0-002	docs/specs/corvint-tasks-intent-worktree-v0.md	When the primary worktree's HEAD does not name the intent branch from	unrecorded	-
 CTW-V0-003	docs/specs/corvint-tasks-intent-worktree-v0.md	The intent branch and queue ID used for routing are read from the primary worktr	unrecorded	-
@@ -1737,6 +1739,7 @@ TOL-V0-075	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the 
 TOL-V0-076	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170)) The	standing	2026-10-11; #1170
 TOL-V0-077	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170); rev	standing	2026-10-11; #1170; 2026-10-19; #1189
 TOL-V0-078	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170)) Eac	standing	2026-10-11; #1170
+TOL-V0-131	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1922)	standing	2026-10-11; V1-1922
 TOL-V0-079	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) An	standing	2026-10-11; #1180
 TOL-V0-080	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) A c	standing	2026-10-11; #1180
 TOL-V0-081	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) `PR	standing	2026-10-11; #1180
