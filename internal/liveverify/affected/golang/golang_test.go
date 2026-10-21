@@ -666,3 +666,55 @@ func TestBuildConstraintIsTheConstrainedPackagesFrontier_V1_0289(t *testing.T) {
 		}
 	}
 }
+
+// V1-1818: a literal that may be concatenated keeps its outer fragments of
+// any length, so `"docs/a" + "lpha.go"` still names docs/alpha.go and its
+// root package keeps its build-constraint frontier, while a short outer
+// component the literal itself delimits (the `s/a` of a sed expression) is a
+// whole component and names only a path that has it whole.
+func TestShortFragmentsKeepConcatenatedReaders_V1_1818(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":        "module example.test/m\n",
+		"linux.go":      "//go:build linux\n\npackage m\n",
+		"root_test.go":  "package m\n\nimport \"os\"\n\nvar _, _ = os.ReadFile(\"docs/a\" + \"lpha.go\")\n",
+		"docs/alpha.go": "package docs\n",
+	})
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"docs/alpha.go"})
+	want := "UNKNOWN [{LANGUAGE_FRONTIER go:build-constraint-variants} {NO_SELECTABLE_TEST go:example.test/m/docs}] [root_test.go]"
+	if got := fmt.Sprint(plan.Scope, " ", plan.Unknown, " ", plan.SelectedTests()); got != want {
+		t.Errorf("docs/alpha.go: %s, want %s", got, want)
+	}
+
+	body := "package p\n\nvar _ = []string{\"docs/a\", \"sed 's/a b' x/yy;\", \"%sab/cd e\", \"ab/cd%s\", \"éab/cdé\", \"../a\"}\n"
+	tokens, err := golang.FilePathTokens("p.go", []byte(body), "example.test/m")
+	if want := "[docs/a sed ./s/a/ b ./x/yy/ ab/cd/ e ab/cd ab/cd ../a]"; err != nil || fmt.Sprint(tokens) != want {
+		t.Errorf("tokens = %v (%v), want %s", tokens, err, want)
+	}
+
+	sed := t.TempDir()
+	writeFiles(t, sed, map[string]string{
+		"go.mod":              "module example.test/m\n",
+		"tools/sed.go":        "package tools\n",
+		"tools/sed_test.go":   "package tools\n\nconst script = \"sed 's/a b' file\"\n",
+		"tools/tools_test.go": "package tools\n",
+	})
+	graph, err = affected.Build(context.Background(), sed, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct{ dirty, want string }{
+		{"docs/specs/affected-plan-v0.md", "UNKNOWN []"},
+		{"x/s/a/run.txt", "UNKNOWN [tools/sed_test.go tools/tools_test.go]"},
+	}
+	for _, tc := range cases {
+		plan := affected.Select(graph, []string{tc.dirty})
+		if got := fmt.Sprint(plan.Scope, " ", plan.SelectedTests()); got != tc.want {
+			t.Errorf("%s: %s, want %s (selected %v)", tc.dirty, got, tc.want, plan.Selected)
+		}
+	}
+}

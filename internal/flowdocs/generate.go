@@ -471,8 +471,9 @@ func Finalize(ctx context.Context, root string, r *Result, revision, providerPat
 	in.Purpose = "provider"
 	m.Inputs = append(m.Inputs, in)
 	m.Scopes = append(m.Scopes, doccorpus.Scope{Path: providerPath, Revision: revision})
-	if _, err = doccorpus.Build(ctx, root, m); err != nil {
+	a, err := doccorpus.Build(ctx, root, m)
+	if err != nil {
 		return m, err
 	}
-	return m, nil
+	return m, doccorpus.AdmitIndex(ctx, a) // DCP-V1-196: refuse an index the reads would refuse
 }

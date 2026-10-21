@@ -1,6 +1,7 @@
 package testsource
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"path/filepath"
@@ -31,6 +32,12 @@ const (
 	joinReasonSourceUnbound     = "example-source-unbound"
 	joinReasonIdentityUnbound   = "example-identity-unbound"
 	joinReasonIdentityAmbiguous = "example-identity-ambiguous"
+	// joinReasonFileAmbiguous: a JS anchor file names more than one retained test-file digest and
+	// none of them is the anchor file itself (V1-2085).
+	joinReasonFileAmbiguous = "example-file-ambiguous"
+	// joinReasonFileOutsideRepository: the one retained digest a JS anchor names lies outside the
+	// repository root, so no committed file can bind it (V1-2085).
+	joinReasonFileOutsideRepository = "example-file-outside-repository"
 )
 
 // ExampleJoinOptions names the revision ("" reads HEAD), exactly one decoded receipt and the
@@ -138,6 +145,8 @@ type joined struct {
 	record   ExampleJoinRecord
 	path     string
 	included []string
+	// unbound is the typed reason a JS example whose anchor resolved no file abstains with.
+	unbound string
 }
 
 // ExampleJoin joins each receipt example to its verdict at the revision (TSA-V0-410..416) and
@@ -359,6 +368,12 @@ func (j *joiner) readSupport(prefix string, helpers map[string]bool, dirty bool,
 		return joinSupport{support: testvalidity.RubySupport{Unbound: helpersUnbound}}, nil
 	}
 	entries, err := j.r.tree(j.commit, RubySupportPaths(prefix), MaxFiles)
+	var refusal *Error
+	if errors.As(err, &refusal) && refusal.Code == "tests-bound-exceeded" {
+		// A support set past the listing budget is past the join's own file bound too, so it
+		// refuses with the join's message (V1-2088).
+		return joinSupport{}, refuse("tests-bound-exceeded", "more than %d source files", MaxJoinFiles)
+	}
 	if err != nil {
 		return joinSupport{}, err
 	}
@@ -413,7 +428,13 @@ func (j *joiner) js(receipt jstestprovider.Receipt) ([]joined, error) {
 			Source: ExampleJoinSource{Revision: j.commit, Files: []ExampleJoinFile{}}}}
 		if test.Anchor != nil {
 			row.record.File, row.record.Line = filepath.ToSlash(test.Anchor.File), test.Anchor.Line
-			if key, ok := anchorKey(receipt.Identity.TestFileDigests, test.Anchor.File); ok && relative[key] != "" {
+			key, unbound := anchorKey(receipt.Identity.TestFileDigests, test.Anchor.File)
+			switch {
+			case unbound != "":
+				row.unbound = unbound
+			case relative[key] == "":
+				row.unbound = joinReasonFileOutsideRepository
+			default:
 				project := ""
 				if test.Project != nil {
 					project = test.Project.Name
@@ -430,6 +451,9 @@ func (j *joiner) js(receipt jstestprovider.Receipt) ([]joined, error) {
 	for index := range rows {
 		record := &rows[index].record
 		switch {
+		case rows[index].unbound != "":
+			abstain(record, rows[index].unbound)
+			continue
 		case record.Example == "":
 			abstain(record, joinReasonIdentityUnbound)
 			continue
@@ -483,17 +507,30 @@ func (j *joiner) underRoot(key string) (string, bool) {
 	return "", false
 }
 
-// anchorKey is the one digest key that equals, or ends with "/" plus, the anchor file.
-func anchorKey(digests map[string]string, file string) (string, bool) {
+// anchorKey is the one digest key that equals, or ends with "/" plus, the anchor file. When
+// several keys match, only a key equal to the anchor file itself binds: a relative anchor is
+// relative to the reporter's root, which the receipt does not retain, so a key whose
+// repository-relative path equals it is no better a match than any other and the example
+// abstains `example-file-ambiguous` (V1-2085). No match returns joinReasonIdentityUnbound.
+func anchorKey(digests map[string]string, file string) (string, string) {
 	file = filepath.ToSlash(file)
 	match, count := "", 0
 	for key := range digests {
 		slashed := filepath.ToSlash(key)
-		if slashed == file || strings.HasSuffix(slashed, "/"+file) {
+		if slashed == file {
+			return key, ""
+		}
+		if strings.HasSuffix(slashed, "/"+file) {
 			match, count = key, count+1
 		}
 	}
-	return match, count == 1
+	switch count {
+	case 0:
+		return "", joinReasonIdentityUnbound
+	case 1:
+		return match, ""
+	}
+	return "", joinReasonFileAmbiguous
 }
 
 // placeExample is the example declared at line, else the innermost example whose lines hold it.

@@ -1988,9 +1988,10 @@ func relation03(s string) bool {
 }
 
 // structuralTuples are the exact Go releases admitted for structural
-// mechanical proof: go1.27.1, the S0E prototype tuple, and go1.27.2, admitted
-// by the sealed protocol/cem-1.0/structural-tuples/go1.27.2 packet.
-var structuralTuples = map[string]bool{"go1.27.1": true, "go1.27.2": true}
+// mechanical proof: go1.27.1, the S0E prototype tuple, and go1.27.2 and
+// go1.27.3, each admitted by its sealed
+// protocol/cem-1.0/structural-tuples/<version> packet (decisions 0522, 0547).
+var structuralTuples = map[string]bool{"go1.27.1": true, "go1.27.2": true, "go1.27.3": true}
 
 func structuralRuntimeAdmitted(version string) bool { return structuralTuples[version] }
 

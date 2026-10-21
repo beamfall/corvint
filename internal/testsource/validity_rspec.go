@@ -107,6 +107,9 @@ type rspecReader struct {
 	// reopened caches, per class and declaring file, whether other application source reopens
 	// or patches the class (TSA-V0-447).
 	reopened map[string]bool
+	// excluded are the filter_run_excluding metadata filters of the bound support files
+	// (TSA-V0-450).
+	excluded []rspecExclusion
 }
 
 // rspecValidity reports every `expect { NAME }` block expectation whose NAME is the subject or a

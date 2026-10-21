@@ -438,6 +438,10 @@ No new public verb, flag, schema profile or journal/attempt member is added.
   Journal absence yields null claimability and `NOT_OBSERVED`; invalid audited inputs retain read
   refusal. Recorded expired reservations remain until an explicit reap. Read projections MUST
   NOT mutate attempts, reservations, retry accounting or queue state.
+  `ticket show` and `ticket blockers` MUST also expose `effectiveRequiredGates`: the sorted,
+  duplicate-free union of the policy gates marked `required` and the ticket's own `requiredGates`,
+  the exact set `complete` checks for MISSING_GATE (V1-2038). The record's `requiredGates` is
+  unchanged.
 
 - `CAL-V0-050`: Read-only `policy show` MUST return effective canonical policy, policyVersion
   and the existing policySha256 content identity from one consistent snapshot, without writing,
@@ -2182,6 +2186,18 @@ later host such as OpenCode (V1-0756) adds one entry; it does not change the lif
   policy's host, so no counter is invented. Lifecycle, process-group ownership, the 16 KiB output
   caps, WAIT and resume, review independence, gates and integration binding are those of S10, S13
   and S21, unchanged.
+
+  The default Codex host's result, session and usage readers apply the same rules to every event line.
+  No line may repeat a member at any depth. No line may alias by case a member the readers take:
+  `type`, `thread_id`, `item` (with its `type` and `text`) or `usage`. A JSON final
+  `agent_message` text must also repeat no member and alias no handoff member. Otherwise the
+  stream is `INVALID_RESULT`. The result, session and usage readers share this one verdict, so the
+  session and usage are also unobserved, and the supervisor journals no session for the turn. A
+  prose final text is not a handoff and keeps them observable. A null `input_tokens` or
+  `output_tokens` also leaves Codex usage `NOT_OBSERVED`, never zero. The threat is a turn that shapes its
+  own stream, for example with a repeated `type` hiding an `error` event or a repeated `kind`
+  replacing a WAIT. The dispatcher's Codex reader already applied these rules, and this keeps the
+  supervisor's reader in parity with it.
 
 Non-goals:
 - Mixed hosts within one policy or program. The transaction layer has one supervised runtime slot,
@@ -7531,7 +7547,7 @@ and removes the new configuration members.
 | CAL-V0-088 | `TestCALV0088_ExtraRepositoryContextRequired`, `TestCALV0087_DesignatedMultiRepositoryIntegration` (`internal/tasks/store`); live Codex NOT_RUN |
 | CAL-V0-089 | `TestCALV0089_PolicyContinuationsBound` (`internal/tasks/intent`); `TestCALV0089_InterruptedSessionCapability` (`internal/tasks/supervisor`); `TestCALV0089_StageRechecksContinuations`, `TestCALV0089_CodexContinuationResumesPreservedSession`, `TestCALV0089_OpenCodeContinuationForksPreservedSession`, `TestCALV0089_ContinuationBoundThenOperatorRestart`, `TestCALV0089_TurnCapsBoundContinuation`, `TestCALV0089_DrainStopsContinuation`, `TestCALV0089_ProgramWallExpiryEndsContinuation`, `TestCALV0089_IntegrateCheckpointRestartKeepsGrant`, `TestCALV0089_UnsupportedContinuationRefusedBeforeMutation` (`internal/tasks/store`); live Codex and OpenCode NOT_RUN |
 | CAL-V0-074 | `TestCALV0074_PolicyHost` (`internal/tasks/intent`); `TestCALV0074_CapsuleHost`, `TestCALV0074_RuntimeReplacedAtAck`, `TestCALV0074_ACLProbe`, `TestCALV0074_PrelaunchErrorOnlyBeforeSpawn` (`internal/tasks/supervisor`); `TestCALV0074_CheckProgramConfigHost`, `TestCALV0074_OpenWorkflowRefusesHostBeforeMutation`, `TestCALV0074_AdmissionRunsLaunchCheck`, `TestCALV0074_SpawnedFailureIsNotNoExec`, `TestCALV0074_NoExecCancelBeforeRelease`, `TestCALV0074_NoExecCrashTakeover`, `TestCALV0074_HostSwitchAndRollback` (`internal/tasks/store`); `TestCALV0074_RunHostFlag` (`internal/tasks/cli`) |
-| CAL-V0-075 | `TestCALV0075_ClaudeResultVocabulary`, `TestCALV0075_ClaudeUsageObservedOrUnknown`, `TestCALV0075_ClaudeDuplicateMembers` (`internal/tasks/supervisor`); `TestCALV0075_ClaudeStageArgv`, `TestCALV0075_ClaudeCodeProgramFakeHost` (`internal/tasks/store`); live Claude Code NOT_RUN |
+| CAL-V0-075 | `TestCALV0075_ClaudeResultVocabulary`, `TestCALV0075_ClaudeUsageObservedOrUnknown`, `TestCALV0075_ClaudeDuplicateMembers`, `TestV10799_CodexStreamRefusesRepeatedAndFoldedMembers`, `TestV10950_CodexUsageNullRepeatedOrFoldedIsUnobserved`, `TestV10799_HandoffRefusalLeavesSessionAndUsageUnobserved`, `TestV10799_RefusedCodexStreamJournalsNoSession` (`internal/tasks/supervisor`); `TestCALV0075_ClaudeStageArgv`, `TestCALV0075_ClaudeCodeProgramFakeHost` (`internal/tasks/store`); live Claude Code NOT_RUN |
 | CAL-V0-076 | `TestCALV0076_PolicyHostOpenCode` (`internal/tasks/intent`); `TestCALV0076_OpenCodeVocabularySelected` (`internal/tasks/supervisor`); `TestCALV0076_CheckOpenCodeConfig`, `TestCALV0076_CheckProgramConfigOpenCodeHost`, `TestCALV0076_OpenCodeHostRollback` (`internal/tasks/store`); `TestCALV0076_ConfigHostFlag` (`internal/tasks/cli`) |
 | CAL-V0-077 | `TestCALV0077_OpenCodeResultVocabulary`, `TestCALV0077_OpenCodeUsageObservedOrUnknown`, `TestCALV0077_OpenCodeDuplicateMembers` (`internal/tasks/supervisor`); `TestCALV0077_OpenCodeUsageIncompleteAccounting`, `TestCALV0077_DetachedHostEnvRequired`, `TestCALV0077_DetachedServerTimeout`, `TestCALV0077_DetachedServerForcedKill`, `TestCALV0077_DetachedServerHostCrash`, `TestCALV0077_DetachedOrphanFailsClosed`, `TestCALV0077_EscapeObservationUncertain`, `TestCALV0077_EscapeGroupReuse`, `TestCALV0077_RecoverDetachedHost`, `TestCALV0077_RecoverDetachedLateEscape` (`internal/tasks/supervisor`); `TestCALV0077_OpenCodeStageArgv`, `TestCALV0077_OpenCodeProgramFakeHost`, `TestCALV0077_OpenCodeResumeRequiresFork`, `TestCALV0077_OpenCodeOutputLimitUsageUnknown` (`internal/tasks/store`); live OpenCode NOT_RUN |
 | CAL-V0-098 | `TestCALV0098_PreimageBindsMode`, `TestCALV0098_RequestShape`, `TestCALV0098_DeriveAuthors` (`internal/tasks/transaction`); `TestCALV0098_ClaimExcludesImplementAuthor`, `TestCALV0098_ClaimNextExcludesAuthors`, `TestCALV0098_HealthSkipsAuthor`, `TestCALV0098_HealthPrepareRederivesAuthors` (`internal/tasks/store`); `TestCALV0098_CLIExcludeAuthors`, `TestCALV0098_ExhaustedPoolParity` (`internal/tasks/cli`); `TestAgentLeasesSpecEnumeratesCALV0098` (`internal/lrfrepo`) |

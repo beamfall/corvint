@@ -880,6 +880,34 @@ a PASS can coexist with survivors. Only changed lines are mutated, with the
 same row and invocation deadlines, sandbox and temporary-copy cleanup. This
 flag requires --base and --mutate and never runs automatically from a hook.
 
+Named Ruby source (experimental):
+  corvint [--root PATH] prove [--base FULL_COMMIT_ID] --mutate
+    --mutate-source PATH.rb[:START-END[,START-END...]]
+    --mutate-example SPEC_spec.rb:LINE[:LINE...] [--mutate-example ...]
+
+Mutate a named .rb source, changed or not, against the cited RSpec examples
+(at most 4 spec files, 16 lines each, 16 spans). Each spec file becomes one
+named-source-test row judged like an RSpec row, but every run passes
+SPEC:LINE:LINE so only the cited examples run. Mutants stay inside the given
+spans, else the whole file under the twelve-mutant cap; the mutation record
+names the basis (line_basis caller-spans or whole-file) and the selector
+(target). In impact mode the source is added to the paths.
+
+Containerised Ruby runner (experimental):
+  corvint [--root PATH] prove ... --mutate --mutate-runner FILE
+
+FILE is a corvint-rbmutate-container/0 declaration: executable and
+executableSha256 (the pinned container CLI), execPrefix (its words up to and
+including the rspec command, naming {run}), container (where {run} is
+mounted) and workspace (an existing host directory the runtime can mount,
+neither inside nor containing the repository).
+Every Ruby mutation run then goes through the corvint-test-runner rspec
+profile instead of the host sandbox: the baseline and each mutant get a fresh
+disposable copy of the export under the workspace, removed afterwards, and
+each receipt carries its own admitted runner_receipt. A run whose report that
+runner does not admit earns no verdict (report_error names why). The container
+is the isolation; Corvint does not pin its image or network beyond the prefix.
+
 test-kills-mutant rows stay NOT_RUN unless --mutate is given (impact and
 change modes only). Every mutation row of one invocation shares a
 thirty-minute budget beside the ten-minute row budget; rows are judged in

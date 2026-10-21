@@ -21,6 +21,7 @@ func TestReadModulePathMatchesGoModEdit(t *testing.T) {
 		"// module fake.example.com/decoy\nmodule example.com/real3\n\ngo 1.27.0\n": "example.com/real3",
 		"module example.com/crlf\r\n\r\ngo 1.27.0\r\n":                              "example.com/crlf",
 		"go 1.27.0\n\nmodule example.com/afterGo\n":                                 "example.com/afterGo",
+		"module \"example.com/esc\\x61ped\"\n":                                      "example.com/escaped",
 	}
 	for content, want := range cases {
 		dir := t.TempDir()
@@ -50,5 +51,19 @@ func TestReadModulePathAbstainsOnBOM(t *testing.T) {
 	}
 	if got, err := readModulePath(dir); err == nil {
 		t.Errorf("readModulePath(BOM) = %q, want an error", got)
+	}
+}
+
+// TestReadModulePathAbstainsOnInvalidQuotedPath: V1-0873. A quoted module
+// path that is not a Go string literal is uncertainty, never its literal text.
+func TestReadModulePathAbstainsOnInvalidQuotedPath(t *testing.T) {
+	for _, content := range []string{"module \"example.com/bad\\q\"\n", "module \"example.com/open\n", "module `example.com/raw`\n"} {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if got, err := readModulePath(dir); err == nil {
+			t.Errorf("readModulePath(%q) = %q, want an error", content, got)
+		}
 	}
 }

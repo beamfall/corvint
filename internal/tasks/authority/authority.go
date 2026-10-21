@@ -157,7 +157,9 @@ func withCleanup(primary, cleanup error) error {
 		return cleanup
 	}
 	if e, ok := primary.(*wire.Error); ok {
-		return &wire.Error{Code: e.Code, Where: e.Where, Msg: e.Msg + "; cleanup also failed: " + cleanup.Error()}
+		out := *e
+		out.Msg = e.Msg + "; cleanup also failed: " + cleanup.Error()
+		return &out
 	}
 	return errors.Join(primary, cleanup)
 }

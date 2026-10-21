@@ -123,9 +123,10 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 		p.element(closest.ID)
 	}
 	type call struct {
-		file *TestFile
-		meth *Method
-		ref  string
+		file    *TestFile
+		meth    *Method
+		ref     string
+		unknown bool // the step's selector is of strength unknown, so its reuse is not trusted
 	}
 	calls := map[string]call{}
 	for _, st := range fl.Steps {
@@ -138,7 +139,7 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 			if me == nil || f.Class == "" || (f.Role != rolePageObject && f.Role != roleWorkflow) {
 				continue
 			}
-			calls[st.ID] = call{f, me, refAt(f.Path, me.Anchor.Start)}
+			calls[st.ID] = call{f, me, refAt(f.Path, me.Anchor.Start), st.Selector.Strength == strengthUnknown}
 			p.cite(me.Anchor)
 			p.element(me.ID)
 			break
@@ -156,6 +157,9 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 	skipped := map[string]skippedCall{}
 	for id, c := range calls {
 		switch {
+		case c.unknown:
+			// A loaded map may list reuse beside an unknown-strength selector; it is never called.
+			skipped[id] = skippedCall{c, "unknown-selector-reuse", "is reused through a selector of strength unknown"}
 		case p.state(c.meth.Anchor) == Stale:
 			skipped[id] = skippedCall{c, "stale-reuse", "is STALE at the evaluated revision"}
 		case !c.meth.Callable:
@@ -264,6 +268,13 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 		}
 		if !imported[f.Path][f.Class] {
 			// Not bound under its own name: absent, aliased (import { X as Y }), default or namespace.
+			// A class that is only a default export cannot be imported by name (V1-0974).
+			if f.ClassExport == ClassExportDefault {
+				blocked[f.Path] = true
+				imports = append(imports, "// UNRESOLVED import { "+f.Class+" }: "+f.Path+" exports it only as its default;")
+				unknowns = append(unknowns, Unknown{Kind: "scaffold-import", Ref: f.ID, Reason: "default-export", Path: f.Path})
+				continue
+			}
 			if dir == "" {
 				imports = append(imports, "// UNRESOLVED import { "+f.Class+" } from <no proposed path>;")
 			} else {

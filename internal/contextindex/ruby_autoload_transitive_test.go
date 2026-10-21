@@ -213,3 +213,43 @@ func TestIsTestPathRSpec(t *testing.T) {
 		}
 	}
 }
+
+// TestRubyAutoloadMappedPathHasNoProfileGap: NGI-V0-036 (V1-1814). A Ruby path
+// the autoload mapper resolves has a named reverse-reference rule, so neither
+// the default receipt nor the budgeted one the CLI compiles carries the
+// unruled-suffix profile-gap line; an unmapped non-test Ruby path still does.
+func TestRubyAutoloadMappedPathHasNoProfileGap(t *testing.T) {
+	files := rubyIssue1130Files(t)
+	files["lib/tasks/unmapped.rb"] = "class Unmapped\nend\n"
+	index, err := Build(context.Background(), impactRepositoryWithFiles(t, files))
+	if err != nil {
+		t.Fatal(err)
+	}
+	budget := 64 * 1024
+	gapLine := func(receipt map[string]any) string {
+		for _, line := range stringsField(receipt["coverage"].(map[string]any)["uncertainty"]) {
+			if strings.Contains(line, "no named resolution rule") {
+				return line
+			}
+		}
+		return ""
+	}
+	for _, test := range []struct {
+		path string
+		gap  bool
+	}{{"app/api_clients/foo_client.rb", false}, {"lib/tasks/unmapped.rb", true}} {
+		plain, err := Impact(index, []string{test.path}, maxLimit)
+		if err != nil {
+			t.Fatal(err)
+		}
+		budgeted, err := EvalImpact(index, []string{test.path}, maxLimit, &budget)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for name, receipt := range map[string]map[string]any{"default": plain, "budgeted": budgeted} {
+			if got := gapLine(receipt) != ""; got != test.gap {
+				t.Fatalf("%s %s: profile gap line present = %v, want %v: %#v", name, test.path, got, test.gap, receipt["coverage"])
+			}
+		}
+	}
+}

@@ -311,7 +311,9 @@ func AfterWait(err error, start time.Time, waits int) error {
 	if !ok || waits == 0 {
 		return err
 	}
-	return &wire.Error{Code: e.Code, Where: e.Where, Msg: fmt.Sprintf("%s; still so after %d pauses totalling %s for a concurrent writer; the read is retryable", e.Msg, waits, time.Since(start).Round(time.Millisecond))}
+	out := *e
+	out.Msg = fmt.Sprintf("%s; still so after %d pauses totalling %s for a concurrent writer; the read is retryable", e.Msg, waits, time.Since(start).Round(time.Millisecond))
+	return &out
 }
 
 // probe is Probe plus the intent tree digest when the reader has one.
@@ -380,5 +382,7 @@ func prefixWhere(err error, file string) error {
 	if e.Where != "" && e.Where != "/" {
 		where = file + e.Where
 	}
-	return &wire.Error{Code: e.Code, Where: where, Msg: e.Msg}
+	out := *e
+	out.Where = where
+	return &out
 }

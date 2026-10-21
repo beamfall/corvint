@@ -52,11 +52,33 @@ func BuildAdmitted(ctx context.Context, root string, m Manifest) (*Artifact, err
 	if err != nil {
 		return nil, err
 	}
-	var coded *Error
-	if _, err := BuildQueryIndex(ctx, a); errors.As(err, &coded) && coded.Code == CapacityCode {
+	if err := AdmitIndex(ctx, a); err != nil {
 		return nil, err
 	}
 	return a, nil
+}
+
+// AdmitIndex is BuildAdmitted's index check for a corpus built by another
+// writer (republish, flow docs): it returns the capacity refusal when the
+// artifact's query index would exceed its bounds, or the context's error when
+// the check was interrupted before it finished, and nil otherwise
+// (DCP-V1-196, V1-2003).
+func AdmitIndex(ctx context.Context, a *Artifact) error {
+	var coded *Error
+	_, err := BuildQueryIndex(ctx, a)
+	if errors.As(err, &coded) && coded.Code == CapacityCode {
+		return err
+	}
+	return ctx.Err()
+}
+
+// SetIndexBoundsForTest lowers the query-index bounds so a test in another
+// package can reach the DCP-V1-196 refusal without a huge fixture; the
+// returned function restores them. Production code never calls it.
+func SetIndexBoundsForTest(postings, keyBytes int) (restore func()) {
+	oldPostings, oldKeyBytes := indexPostingBound, indexKeyByteBound
+	indexPostingBound, indexKeyByteBound = postings, keyBytes
+	return func() { indexPostingBound, indexKeyByteBound = oldPostings, oldKeyBytes }
 }
 
 func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
@@ -130,6 +152,8 @@ func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
 			terms[i][term] = true
 		}
 	}
+	// V1-2001: one reused set holds each claim's terms in turn.
+	claimTerms := map[string]struct{}{}
 	for i, c := range a.Claims {
 		if err := add(c, RecordRef{"claim", i}); err != nil {
 			return nil, err
@@ -141,7 +165,9 @@ func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
 			x.Claims[c.Subject] = append(x.Claims[c.Subject], i)
 		}
 		if j, ok := subjectIDs[c.Subject]; ok {
-			for term := range contextindex.EvidenceTerms(c.Text) {
+			clear(claimTerms)
+			contextindex.CollectEvidenceTerms(c.Text, claimTerms)
+			for term := range claimTerms {
 				if !terms[j][term] {
 					if err := charge(term); err != nil {
 						return nil, err

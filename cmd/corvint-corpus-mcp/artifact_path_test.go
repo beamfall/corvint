@@ -76,3 +76,35 @@ func TestDCPV1207AbsoluteArtifactOutsideRootRefused(t *testing.T) {
 		}
 	}
 }
+
+// corpusMCPMapSession is corpusMCPSession with one --map argument.
+func corpusMCPMapSession(t *testing.T, root, mapPath string) (int, string, string) {
+	t.Helper()
+	input := strings.Join([]string{
+		`{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"conformance","version":"test"}}}`,
+		`{"jsonrpc":"2.0","method":"notifications/initialized"}`,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}`,
+	}, "\n") + "\n"
+	var stdout, stderr bytes.Buffer
+	code := run(context.Background(), []string{"--root", root, "--artifact", "corpus.json", "--map", mapPath, "--protocol-version", "2025-11-25"}, strings.NewReader(input), &stdout, &stderr)
+	return code, stdout.String(), stderr.String()
+}
+
+// V1-1998: an absolute --map below --root behaves like its relative spelling (DCP-V1-205,
+// DCP-V1-206); one not below --root names --map (DCP-V1-207).
+func TestDCPV1205AbsoluteMapInsideRoot(t *testing.T) {
+	root, _ := mapPlanRoot(t)
+	wantCode, want, wantErr := corpusMCPMapSession(t, root, "map-appmap.json")
+	if wantCode != 0 || wantErr != "" || !strings.Contains(want, "corvint.map_plan") {
+		t.Fatalf("relative baseline: code %d stderr %q stdout %q", wantCode, wantErr, want)
+	}
+	code, got, stderr := corpusMCPMapSession(t, root, filepath.Join(root, "map-appmap.json"))
+	if code != 0 || stderr != "" || got != want {
+		t.Fatalf("absolute map: code %d stderr %q, stdout differs from relative: %v", code, stderr, got != want)
+	}
+	outside := filepath.Join(t.TempDir(), "map-appmap.json")
+	code, stdout, stderr := corpusMCPMapSession(t, root, outside)
+	if code != 2 || stdout != "" || stderr != "corvint-corpus-mcp: --map: absolute path is not below --root\n" {
+		t.Fatalf("outside map: code %d stdout %q stderr %q", code, stdout, stderr)
+	}
+}

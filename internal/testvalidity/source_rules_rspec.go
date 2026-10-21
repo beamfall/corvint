@@ -19,6 +19,12 @@ const (
 	RuleRSpecSkipped = "RSPEC-SKIPPED"
 	// RuleRSpecFocused: the example or an ancestor group is focused (TSA-V0-064).
 	RuleRSpecFocused = "RSPEC-FOCUSED"
+	// RuleRSpecConditionalSkip: the example body skips or is pending behind a trailing if or
+	// unless, or inside a nested block, so whether it runs is undecided; it abstains (TSA-V0-450).
+	RuleRSpecConditionalSkip = "RSPEC-CONDITIONAL-SKIP"
+	// RuleRSpecConfigExcluded: the example or an ancestor group carries metadata that a committed
+	// support file's filter_run_excluding removes from a run; it abstains (TSA-V0-450).
+	RuleRSpecConfigExcluded = "RSPEC-CONFIG-EXCLUDED"
 	// RuleSharedExampleOnly: the example is declared inside a shared example group, so its
 	// assertion is reachable only through an including group (TSA-V0-065).
 	RuleSharedExampleOnly = "SHARED-EXAMPLE-ONLY"

@@ -2343,7 +2343,8 @@ index-admitted path to receive the disclosed packet and reserves `unsupported-im
 for a suffix the index does not admit. This grants no Rust reverse-import rule. The oracle
 contradicts the accepted clause, so `src/` remains unchanged under `GPK-V0-033`. The discriminating
 Go witness is `TestImpactDisclosesUnruledAdmittedSuffixAcrossSurfaces_GPKV0027`; its `.rs` fixture
-also asserts the exact `outside the native Go impact profile` disclosure.
+also asserts the exact disclosure, worded `not computed by the impact profile` since V1-2072
+(earlier `outside the native Go impact profile`).
 
 **Clause correction (2026-09-12).** `GPK-V0-027` required the disclosed packet and, in the same
 clause, said expected bytes for every rule "are captured from the Python oracle", which cannot hold

@@ -2455,6 +2455,14 @@ FPK-V0-070	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-2
 FPK-V0-071	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2094; accepted under the 2026-10-11 stand	standing	2026-10-20; V1-2094; 2026-10-11
 FPK-V0-072	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2094; accepted under the 2026-10-11 stand	standing	2026-10-20; V1-2094; 2026-10-11
 FPK-V0-073	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2094; accepted under the 2026-10-11 stand	standing	2026-10-20; V1-2094; 2026-10-11
+FPK-V0-074	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2115 for GitHub #1354; accepted under the	standing	2026-10-20; V1-2115; #1354; 2026-10-11
+FPK-V0-075	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2115 for GitHub #1354; accepted under the	standing	2026-10-20; V1-2115; #1354; 2026-10-11
+FPK-V0-076	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2115 for GitHub #1354; accepted under the	standing	2026-10-20; V1-2115; #1354; 2026-10-11
+FPK-V0-077	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2115 for GitHub #1354; accepted under the	standing	2026-10-20; V1-2115; #1354; 2026-10-11
+FPK-V0-078	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2116 for GitHub #1354; accepted under the	standing	2026-10-20; V1-2116; #1354; 2026-10-11
+FPK-V0-079	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2116 for GitHub #1354; accepted under the	standing	2026-10-20; V1-2116; #1354; 2026-10-11
+FPK-V0-080	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2116 for GitHub #1354; accepted under the	standing	2026-10-20; V1-2116; #1354; 2026-10-11
+FPK-V0-081	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2116 for GitHub #1354; accepted under the	standing	2026-10-20; V1-2116; #1354; 2026-10-11
 FPK-V0-029	docs/specs/falsifiable-packet-v0.md	(accepted 2026-09-07 by decision 0080) A document's `status`, which decides ever	owner	2026-09-07; decision 0080
 FPK-V0-030	docs/specs/falsifiable-packet-v0.md	(experimental prototype, not advertised) A CEM MUST be attestable in the same DS	unrecorded	-
 FPK-V0-031	docs/specs/falsifiable-packet-v0.md	(experimental prototype, not advertised; help labels it experimental) The CLI	unrecorded	-
@@ -3224,6 +3232,7 @@ MCPV0-034	docs/specs/mcp-server-2026-07-28-v0.md	accepted 2026-10-08 (decision 0
 MCPV0-039	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603)	standing	2026-10-11; V1-1603
 MCPV0-040	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603) A	standing	2026-10-11; V1-1603
 MCPV0-041	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603) Every	standing	2026-10-11; V1-1603
+MCPV0-042	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1999) A	standing	2026-10-11; V1-1999
 MTV-V0-001	docs/specs/mcp-test-validity-profile-v0.md	The profile MUST be served by the separate executable `corvint-test-validity-mcp	unrecorded	-
 MTV-V0-002	docs/specs/mcp-test-validity-profile-v0.md	The tool's input schema MUST be a closed JSON Schema 2020-12 object with two	unrecorded	-
 MTV-V0-003	docs/specs/mcp-test-validity-profile-v0.md	Receipt location contract. The only receipt source MUST be the caller's `receipt	unrecorded	-
@@ -4635,6 +4644,7 @@ TSA-V0-446	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-447	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) What the reader canno	standing	2026-10-11; V1-2114; #1339
 TSA-V0-448	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) `corvint tests	standing	2026-10-11; V1-2114; #1339
 TSA-V0-449	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) When the chain define	standing	2026-10-11; V1-2114; #1339
+TSA-V0-450	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1837) An example no TSA-V0-063	standing	2026-10-11; V1-1837
 TSA-V0-100	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) `corvint tests	standing	2026-10-11; V1-1883; #1167
 TSA-V0-101	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Each side's setup MUS	standing	2026-10-11; V1-1883; #1167
 TSA-V0-102	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Each analysed side MU	standing	2026-10-11; V1-1883; #1167

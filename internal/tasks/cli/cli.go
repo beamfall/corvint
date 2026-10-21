@@ -1473,6 +1473,8 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 			val.Obj.Set("operatorNote", operatorNoteShowValue(rc, v.Record))
 		}
 		val.Obj.Set("retries", retryObservation(rc, attempts, v.Record))
+		// V1-2038: the gate set complete enforces, policy-required gates included.
+		val.Obj.Set("effectiveRequiredGates", wire.Strings(transaction.RequiredGates(rc.store.Policy, v.Record)))
 		// CAL-V0-084: null without a journal, since nothing is observed.
 		val.Obj.Set("nextStage", transaction.NextStage(attempts, v.Record))
 		val.Obj.Set("claimabilityScope", wire.String("RECORDED_DEFAULT_EXTERNAL_AGENT_PLAN"))

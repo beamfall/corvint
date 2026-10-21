@@ -715,7 +715,8 @@ func validCEMPath(path string) bool {
 
 // cemFailures closes CEM's registered codes onto the bridge's sanitized
 // failure set; an unlisted code is internal-error. A Git read that ran out of
-// its own bound is the MCPV0-038 timeout code (decision 0533).
+// its own bound is the MCPV0-038 timeout code (decision 0533); one that
+// exhausted its operation or output bound is the capacity code (V1-1992).
 var cemFailures = map[string]string{
 	cemcode.MapUnavailable: "cem-map-unavailable", cemcode.InvalidArguments: "cem-map-unsupported",
 	cemcode.InvalidJSON: "cem-map-invalid", cemcode.NotAnObject: "cem-map-invalid",
@@ -725,7 +726,7 @@ var cemFailures = map[string]string{
 	cemcode.GitReadFailed: "repository-unavailable", cemcode.GitDiffFailed: "repository-unavailable",
 	cemcode.GitDiffTimeout: "repository-probe-timeout", cemcode.GitStartFailed: "repository-unavailable",
 	cemcode.GitExitFailure: "repository-unavailable", cemcode.GitTimeout: "repository-probe-timeout",
-	cemcode.GitOutputExceeded: "repository-unavailable", cemcode.GitBudgetExceeded: "repository-unavailable",
+	cemcode.GitOutputExceeded: "corpus-capacity-exceeded", cemcode.GitBudgetExceeded: "corpus-capacity-exceeded",
 	cemcode.RepositoryObjectUnavailable:     "repository-unavailable",
 	cemcode.UnsupportedObjectAlternates:     "repository-unavailable",
 	cemcode.UnsupportedRepositoryAttributes: "repository-unavailable",

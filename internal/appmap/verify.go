@@ -91,7 +91,7 @@ func readReceipt(filename string) ([]byte, error) {
 // readRegular reads a regular file of at most max bytes without following a final symlink, and
 // reports false unless its identity, size and modification time held while it was read.
 func readRegular(filename string, max int) ([]byte, bool) {
-	before, err := os.Lstat(filename)
+	before, err := lstatInput(filename)
 	if err != nil || !before.Mode().IsRegular() {
 		return nil, false
 	}
@@ -114,6 +114,9 @@ func readRegular(filename string, max int) ([]byte, bool) {
 	}
 	return raw, true
 }
+
+// lstatInput is os.Lstat; a test replaces it to swap a FIFO in after the type check (V1-0971).
+var lstatInput = os.Lstat
 
 // unchanged reports whether two observations of one file agree in size and modification time.
 func unchanged(a, b os.FileInfo) bool {

@@ -173,4 +173,10 @@ func TestDCPV1196BuildAdmittedRefusesOverBoundIndex(t *testing.T) {
 	if _, err := Open(context.Background(), root, left); err != nil {
 		t.Fatal("open must still rederive an artifact written before", err)
 	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	withIndexBounds(t, MaxIndexPostings, MaxIndexKeyBytes)
+	if err := AdmitIndex(ctx, built); !errors.Is(err, context.Canceled) {
+		t.Fatal("an interrupted admission must fail closed", err)
+	}
 }

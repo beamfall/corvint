@@ -233,6 +233,10 @@ type Selector struct {
 	Line     int    `json:"line,omitempty"`
 }
 
+// ClassExportDefault marks a page-object class that is only a default export: no named import of
+// it can bind, so the scaffold never generates one (V1-0974).
+const ClassExportDefault = "default"
+
 // TestFile is one analysed E2E source file.
 type TestFile struct {
 	ID          string     `json:"id"`
@@ -249,6 +253,9 @@ type TestFile struct {
 	Tests       []string   `json:"tests"`
 	Assertions  int        `json:"assertions"`
 	Selectors   []Selector `json:"selectors"`
+	// ClassExport is "default" when Class is declared `export default class`; it is omitted
+	// otherwise, so a named class reads as before (V1-0974).
+	ClassExport string `json:"class_export,omitempty"`
 }
 
 // Import is one static import statement and its resolution against the committed test tree.
