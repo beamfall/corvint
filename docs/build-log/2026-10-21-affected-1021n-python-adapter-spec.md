@@ -1,13 +1,11 @@
-# 2026-10-21: affected-1021n, appmap-only unbounded-reader pin and Python adapter spec
+# 2026-10-21: affected-1021n, Python adapter spec and from-import submodules
 
-Lane `affected-1021n`, base `58d4ed2d309d5dc1afc21c127647d2e22b1bed3f`. Tickets V1-0999 and V1-2050
-were delivered. The rest of the lane's tickets are dispositioned below. AFP-V0-180 to AFP-V0-186 are
+Lane `affected-1021n`, base `58d4ed2d309d5dc1afc21c127647d2e22b1bed3f`. Ticket V1-2050 was
+delivered. The rest of the lane's tickets are dispositioned below. AFP-V0-181 to AFP-V0-186 are
 accepted under the owner's standing auto-accept (2026-10-11).
 
 ## Problem
 
-- **V1-0999.** `corvint affected` selected many `UNBOUNDED_READER` units for a change confined to
-  `internal/appmap`. Nothing tied that set to a reviewed reason, and no test pinned it.
 - **V1-2050.** `affected/python` is registered in `languages.All()` but had no owning
   requirements, non-goals, failure modes or qualification label. While writing them, a soundness gap
   showed up. `from pkg import sub` gave an edge only to `pkg`. A change to `pkg/sub.py` selected no
@@ -16,15 +14,6 @@ accepted under the owner's standing auto-accept (2026-10-11).
 
 ## Decisions
 
-- **AFP-V0-180.** The justification already exists: the AFP-V0-033 ledger
-  `.corvint/unbounded-readers.json` records a reason for every unbounded reader, and
-  `unbounded-readers-check` enforces it.
-  - On 2026-10-21 an appmap-only change selected 56 units. 15 of them were Go `UNBOUNDED_READER`
-    units, and every one has a recorded reason: the filesystem root `/`, `.git`, a whole-repository
-    walk, or a built binary's import closure. None can be narrowed without hiding a real read.
-  - The new live test pins three things: the reader set equals the recorded set not otherwise
-    reached, each reader's witness shape, and that every other witness resolves.
-  - No selection behaviour changed.
 - **AFP-V0-181 to AFP-V0-186.** A new "Python adapter (experimental)" subsection of
   `docs/specs/affected-plan-v0.md` owns the adapter.
   - Existing tests are traced to these requirements.
@@ -36,8 +25,6 @@ accepted under the owner's standing auto-accept (2026-10-11).
 
 ## Evidence
 
-- `TestAFPV0180AppmapOnlyChangeSelectsOnlyRecordedUnboundedReaders` passes. It fails when one
-  ledger reason (`internal/flowdocs`) is blanked.
 - `TestAFPV0183FromImportNamesReachSubmodules`: all four subtests failed before the parser change
   and pass after it.
 - `TestParseImportLineReadsEveryStatementForm` was updated for the added refs. The whole
@@ -45,6 +32,8 @@ accepted under the owner's standing auto-accept (2026-10-11).
 
 ## Not delivered
 
+- **V1-0999: dropped by the orchestrator.** Lane idxbuild-1021k pins the appmap-only selection
+  (commit ae108b044). This lane's own pin was removed before push.
 - **V1-2252: already delivered** by e66a5bf30 (AFP-V0-162 tiers and recipe). The remaining
   criteria (charters citing the subset, and the 10-batch measurement) belong to the orchestrator.
 - **V1-2162: already delivered** by 8bfc7c4e2 (AFP-V0-156) for its code criterion. The measured
@@ -71,5 +60,5 @@ accepted under the owner's standing auto-accept (2026-10-11).
 ## Rollback
 
 - Revert the name loop in `parseImportLine` and the test expectations.
-- Delete the two new tests and the AFP-V0-180 to AFP-V0-186 text and rows, then regenerate the
-  spec index.
+- Delete the new test and the AFP-V0-181 to AFP-V0-186 text and rows, then regenerate the spec
+  index.
