@@ -56,6 +56,15 @@ V1-0595, V1-0752, V1-2053, V1-0798 and V1-1881 only partly delivered, and reject
 - V1-0595 remainder: consumer parity is now closed by V1-2133. Stable LRF evaluation and the
   CLI/MCP route wait on an owner-accepted stable LRF profile (`cem-stable-v1.md`).
 
+## Dogfood intent scope
+
+The dogfood intents are `affected-plan-v0`, `cem-stable-v1`, `expanded-range-impact-v0` and
+`use-case-conformance-v0`. `corvint-tasks-agent-leases-v0` is left out (DOGFOOD.md, choosing
+intents) because it already holds 256 obligations, the aggregate bound on its own. This change
+adds one evidence sentence to it for V1-2038 and no requirement. `CAL-V0-049` still applies and is
+tested by `TestV12038_CompleteRefusesTheGateShowAndBlockersReport`. Leaving the spec out does not
+claim that its obligations hold.
+
 ## NOT_RUN
 
 `make gate` and the exhaustive `go test ./...` were not run, per the lane charter. Only focused
