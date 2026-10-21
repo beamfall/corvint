@@ -153,9 +153,14 @@ test('V1-0448 PPI-V0-006 a retry-shaped agent_end follows the terminal stop reas
 });
 test('V1-0448 PPI-V0-001 image resize resolves null on worker failure, exit, malformed reply or deadline',async()=>{
  const run=(act,timers)=>{const w=new EventEmitter();w.postMessage=()=>queueMicrotask(()=>act(w));return resizeInWorker(w,new Uint8Array([1,2]),'image/png',{},timers)};
- const resized={data:'x',mimeType:'image/png',wasResized:false};
+ const resized={data:'iVBORw==',mimeType:'image/png',originalWidth:4,originalHeight:2,width:4,height:2,wasResized:false};
  assert.deepEqual(await run(w=>w.emit('message',{result:resized})),resized);
+ const scaled={...resized,width:2,height:1,wasResized:true};
+ assert.deepEqual(await run(w=>w.emit('message',{result:{...scaled,extra:'dropped'}})),scaled);
  assert.equal(await run(w=>w.emit('message',{})),null);
+ // Review finding: malformed results resolve null instead of reaching upstream as a resize.
+ for(const result of [{},'bad',[resized],{...resized,data:'not base64!'},{...resized,data:''},{...resized,mimeType:'text/html'},{...resized,width:0},{...resized,height:2.5},{...resized,width:8},{...resized,width:2},{...resized,wasResized:'yes'},{...resized,originalWidth:undefined}])
+  assert.equal(await run(w=>w.emit('message',{result})),null,JSON.stringify(result));
  for(const act of [w=>w.emit('message',{error:'photon'}),w=>w.emit('message',null),w=>w.emit('error',Error('boom')),w=>w.emit('exit',1)])assert.equal(await run(act),null);
  let fire,armed;const timers={setTimeout:(f,ms)=>{fire=f;armed=ms;return 1},clearTimeout(){}};
  const pending=run(()=>{},timers);assert.equal(armed,RESIZE_DEADLINE_MS);fire();assert.equal(await pending,null);

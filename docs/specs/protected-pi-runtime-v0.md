@@ -115,7 +115,7 @@ the ordinary adapter's 2000 ms hard limit: the fallback receives only the remain
 200 ms reserve for its SIGTERM/SIGKILL cleanup, and an exhausted or expired budget reports `deadline`. Only the closed qualified fault set
 (`qualified-lifecycle-unavailable`, `invalid-qualified-response`, `qualified-core-unavailable`) enters
 the fallback's degradations; any other fault is folded as `qualified-lifecycle-unavailable`. The fixed
-image worker resolves null, so upstream omits the image, on any worker error, exit, malformed reply or
+image worker resolves null, so upstream omits the image, on any worker error, exit, reply that is not an exact upstream `ResizedImage` (base64 data, image MIME type, positive integer dimensions no larger than the original), or
 10 s deadline, and never falls back to in-process decoding (V1-0448). Post-tool observations and explicit outcome/record
 tools retain ordinary Pi semantics; explicit outcomes do not enter QLF's empty session-end input.
 No fixture seam, test result, image signature or release manifest admits a root or qualification.
