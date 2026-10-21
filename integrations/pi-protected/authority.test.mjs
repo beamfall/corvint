@@ -5,8 +5,10 @@ import {createHash} from 'node:crypto';
 import {mkdtemp,writeFile,readFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {decodeQualified,createQualifiedRunner,assertProtectedConsumer} from './qualified-runner.mjs';
-import register from './extension.mjs';
+import {EventEmitter} from 'node:events';
+import {decodeQualified,createQualifiedRunner,assertProtectedConsumer,QUALIFIED_FAULTS} from './qualified-runner.mjs';
+import register,{LIFECYCLE_BUDGET_MS} from './extension.mjs';
+import {resizeInWorker,RESIZE_DEADLINE_MS} from './resize-worker.mjs';
 
 const sha='a'.repeat(64),profile='corvint-qualified-lifecycle/2';
 const canonical=v=>Array.isArray(v)?'['+v.map(canonical).join(',')+']':v&&typeof v==='object'?'{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+canonical(v[k])).join(',')+'}':JSON.stringify(v);
@@ -106,4 +108,51 @@ test('PPI-V0-004 unavailable admission makes a separate ordinary request and exp
  t.after(()=>emit('session_shutdown',{}));
  const output=await emit('before_agent_start',{prompt:'question',systemPrompt:'BASE'});
  assert.equal(calls.length,1);assert.equal(output.systemPrompt,'BASE\nORDINARY');assert.match(notices[0],/invalid-qualified-response/);
+});
+
+// V1-0448: the qualified attempt and its ordinary fallback share one 2000 ms
+// budget, and only the closed qualified fault set reaches the degradations.
+function fallback(t,{fault='invalid-qualified-response',elapsed=0,ordinaryResult}={}) {
+ const handlers=new Map(),calls=[],timeouts=[],budgets=[],notices=[];let now=0;
+ const clock={now:()=>now,timeout:ms=>{timeouts.push(ms);const c=new AbortController();budgets.push(c);return c.signal}};
+ const pi={on:(name,f)=>handlers.set(name,[...(handlers.get(name)??[]),f]),registerCommand(){},registerTool(){}};
+ const ordinary={close:async()=>{},run:async request=>{calls.push(request);return ordinaryResult?.(request,budgets)??{context:'ORDINARY',receiptId:'fallback',degradations:[]}}};
+ register(pi,{ordinary,qualified:{close:async()=>{},run:async()=>{now+=elapsed;return {fault}}},installed:true,version:'0.85.1',clock});
+ const ctx={cwd:'/fixture',isProjectTrusted:()=>true,hasUI:true,ui:{notify:text=>notices.push(text)},sessionManager:{getSessionId:()=> 'session'}};
+ const emit=async(name,e)=>{let result;for(const f of handlers.get(name)??[])result=await f(e,ctx);return result};
+ t.after(()=>emit('session_shutdown',{}));
+ return {calls,timeouts,notices,prompt:()=>emit('before_agent_start',{prompt:'question',systemPrompt:'BASE'})};
+}
+test('V1-0448 PPI-V0-004 ordinary fallback receives only the remaining lifecycle budget',async t=>{
+ const f=fallback(t,{elapsed:1500});const output=await f.prompt();
+ assert.equal(LIFECYCLE_BUDGET_MS,2000);assert.deepEqual(f.timeouts,[500]);assert.equal(f.calls.length,1);
+ assert.ok(f.calls[0].signal instanceof AbortSignal);assert.equal(f.calls[0].signal.aborted,false);assert.equal(output.systemPrompt,'BASE\nORDINARY');
+});
+test('V1-0448 PPI-V0-004 an exhausted budget skips the fallback and reports deadline',async t=>{
+ const f=fallback(t,{elapsed:2000});const output=await f.prompt();
+ assert.equal(f.calls.length,0);assert.equal(f.timeouts.length,0);assert.equal(output,undefined);assert.equal(f.notices.length,1);assert.match(f.notices[0],/unavailable: deadline\./);
+});
+test('V1-0448 PPI-V0-004 a fallback cut off by the budget reports deadline, not aborted',async t=>{
+ const f=fallback(t,{elapsed:100,ordinaryResult:(request,budgets)=>{budgets.at(-1).abort();assert.equal(request.signal.aborted,true);return {fault:'aborted'}}});
+ assert.equal(await f.prompt(),undefined);assert.deepEqual(f.timeouts,[1900]);assert.equal(f.notices.length,1);assert.match(f.notices[0],/unavailable: deadline\./);
+});
+test('V1-0448 PPI-V0-004 unlisted qualified faults fold as qualified-lifecycle-unavailable',async t=>{
+ assert.deepEqual([...QUALIFIED_FAULTS].sort(),['invalid-qualified-response','qualified-core-unavailable','qualified-lifecycle-unavailable']);
+ for(const [fault,expected] of [['qualified-core-unavailable','qualified-core-unavailable'],['unavailable','qualified-lifecycle-unavailable'],['Corvint said <b>','qualified-lifecycle-unavailable']]){
+  const f=fallback(t,{fault});await f.prompt();
+  assert.equal(f.notices.length,1);assert.match(f.notices[0],new RegExp(`unavailable: ${expected}\\.`));
+ }
+});
+test('V1-0448 PPI-V0-006 a retry-shaped agent_end follows the terminal stop reason alone',async t=>{
+ const f=extension(t);await f.emit('agent_end',{...ended('error'),willRetry:false});await f.emit('agent_settled');assert.equal(f.messages.length,0);
+ const g=extension(t);await g.emit('agent_end',{...ended('stop'),willRetry:true});await g.emit('agent_settled');assert.equal(g.messages.length,1);
+});
+test('V1-0448 PPI-V0-001 image resize resolves null on worker failure, exit, malformed reply or deadline',async()=>{
+ const run=(act,timers)=>{const w=new EventEmitter();w.postMessage=()=>queueMicrotask(()=>act(w));return resizeInWorker(w,new Uint8Array([1,2]),'image/png',{},timers)};
+ const resized={data:'x',mimeType:'image/png',wasResized:false};
+ assert.deepEqual(await run(w=>w.emit('message',{result:resized})),resized);
+ assert.equal(await run(w=>w.emit('message',{})),null);
+ for(const act of [w=>w.emit('message',{error:'photon'}),w=>w.emit('message',null),w=>w.emit('error',Error('boom')),w=>w.emit('exit',1)])assert.equal(await run(act),null);
+ let fire,armed;const timers={setTimeout:(f,ms)=>{fire=f;armed=ms;return 1},clearTimeout(){}};
+ const pending=run(()=>{},timers);assert.equal(armed,RESIZE_DEADLINE_MS);fire();assert.equal(await pending,null);
 });

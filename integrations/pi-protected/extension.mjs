@@ -1,22 +1,35 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import register from '../pi/extension.js';
+import {QUALIFIED_FAULTS} from './qualified-runner.mjs';
+
+// One lifecycle request, qualified attempt plus ordinary fallback, keeps the
+// ordinary adapter's 2000 ms hard limit (V1-0448).
+export const LIFECYCLE_BUDGET_MS=2000;
+const systemClock={now:()=>performance.now(),timeout:ms=>AbortSignal.timeout(ms)};
 
 // The ordinary adapter owns context recovery, tools and cleanup. Protected Stop
 // runs only after the native SDK declares the turn idle, never on an early token.
-export default function registerProtected(pi,{ordinary,qualified,installed,version}) {
+export default function registerProtected(pi,{ordinary,qualified,installed,version,clock=systemClock}) {
  let stopHandler,pending,lastStop,continued=false,epoch=0;
  const runner={
   tool:request=>ordinary.tool(request),
   async close(){await Promise.all([ordinary.close(),qualified.close()])},
   async run(request){
-   const requestEpoch=epoch;
+   const requestEpoch=epoch,started=clock.now();
    const stop=request.event==='stop';if(stop)lastStop=undefined;
    const eligible=installed&&['session-start','user-prompt','stop','session-end'].includes(request.event)&&!(request.event==='session-end'&&'outcome' in request.input);
    let result=await (eligible?qualified:ordinary).run({...request,input:stop&&eligible?{...request.input,stopHookActive:continued}:request.input});
    if(eligible&&result.fault&&!request.signal?.aborted&&requestEpoch===epoch){
-    const fault=result.fault;
-    result=await ordinary.run(request);
-    if(!result.fault)result={...result,degradations:[...result.degradations,fault]};
+    // An unlisted fault never reaches the host as a degradation code.
+    const fault=QUALIFIED_FAULTS.has(result.fault)?result.fault:'qualified-lifecycle-unavailable';
+    const remaining=Math.floor(LIFECYCLE_BUDGET_MS-(clock.now()-started));
+    if(remaining<=0)result={fault:'deadline'};
+    else{
+     const budget=clock.timeout(remaining);
+     result=await ordinary.run({...request,signal:request.signal?AbortSignal.any([request.signal,budget]):budget});
+     if(result.fault&&budget.aborted&&!request.signal?.aborted)result={fault:'deadline'};
+     else if(!result.fault)result={...result,degradations:[...result.degradations,fault]};
+    }
    }
    if(stop)lastStop={result,epoch:requestEpoch};
    return result;
@@ -25,7 +38,9 @@ export default function registerProtected(pi,{ordinary,qualified,installed,versi
  register({...pi,on(name,handler){if(name==='agent_end')stopHandler=handler;else pi.on(name,handler)}},{runner,version});
  for(const name of ['session_start','session_tree','session_shutdown'])pi.on(name,()=>{epoch++;pending=undefined;lastStop=undefined;continued=false});
  pi.on('input',event=>{if(event.source!=='extension'){epoch++;continued=false}});
- pi.on('agent_end',event=>{const terminal=event.messages.findLast(m=>m.role==='assistant');pending={event,epoch,success:terminal&&['stop','length'].includes(terminal.stopReason)&&!event.willRetry}});
+ // Pi emits the extension agent_end as {type,messages} only (willRetry is a
+ // session-level field); a turn Pi will retry ends with stopReason 'error'.
+ pi.on('agent_end',event=>{const terminal=event.messages.findLast(m=>m.role==='assistant');pending={event,epoch,success:terminal&&['stop','length'].includes(terminal.stopReason)}});
  pi.on('agent_settled',async(_,ctx)=>{
   const work=pending;pending=undefined;if(!work||work.epoch!==epoch)return;
   lastStop=undefined;

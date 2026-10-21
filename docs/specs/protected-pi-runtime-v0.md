@@ -110,7 +110,13 @@ current trusted session, idle host, no queued input and fresh permitted Stop rec
 one follow-up. Abort/error, trust/session/input drift, malformed replies and recursion cannot
 restart a turn. Recursive unresolved state is displayed without triggering a model turn. Missing
 admission uses a separate ordinary FALLBACK request and a visible degradation; malformed qualified
-output is never reinterpreted as authority. Post-tool observations and explicit outcome/record
+output is never reinterpreted as authority. The qualified attempt and its ordinary fallback share
+the ordinary adapter's 2000 ms hard limit: the fallback receives only the remaining budget, and an
+exhausted or expired budget reports `deadline`. Only the closed qualified fault set
+(`qualified-lifecycle-unavailable`, `invalid-qualified-response`, `qualified-core-unavailable`) enters
+the fallback's degradations; any other fault is folded as `qualified-lifecycle-unavailable`. The fixed
+image worker resolves null, so upstream omits the image, on any worker error, exit, malformed reply or
+10 s deadline, and never falls back to in-process decoding (V1-0448). Post-tool observations and explicit outcome/record
 tools retain ordinary Pi semantics; explicit outcomes do not enter QLF's empty session-end input.
 No fixture seam, test result, image signature or release manifest admits a root or qualification.
 
@@ -127,7 +133,7 @@ No fixture seam, test result, image signature or release manifest admits a root 
 | Requirement | Implementation/evidence | Current gap |
 |---|---|---|
 | PPI-V0-001..003 | `integrations/pi-protected/build.mjs`, `runtime.ts`, `settings.mjs`; `runtime.test.mjs`, `startup.test.mjs` | final protected image/consumer freeze, input/license audit and independently admitted closure NOT_PRODUCED |
-| PPI-V0-004 | Ordinary adapter `integrations/pi/host.test.mjs`; protected SDK TUI/RPC/reload/replacement/image; `authority.test.mjs` idle/recursion/cancellation fixtures | actual protected lifecycle and recursion NOT_PRODUCED |
+| PPI-V0-004 | Ordinary adapter `integrations/pi/host.test.mjs`; protected SDK TUI/RPC/reload/replacement/image; `authority.test.mjs` idle/recursion/cancellation fixtures and V1-0448 budget, closed-fault and image-resize fixtures (`extension.mjs`, `resize-worker.mjs`) | actual protected lifecycle and recursion NOT_PRODUCED |
 | PPI-V0-005..007 | `internal/authoritystore/pi*.go`, `cmd/corvint/qualified_pi_test.go`, `integrations/pi-protected/qualified-runner.mjs` and `authority.test.mjs` | actual protected runtime admission, privacy/permissions and currentness evidence NOT_PRODUCED |
 | PPI-V0-008..009 | AHI conformance and this accepted scope | qualification, operator installation and rollback evidence NOT_RUN |
 
