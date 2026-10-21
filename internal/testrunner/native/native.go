@@ -19,6 +19,10 @@ import (
 	tr "github.com/Beamfall/corvint/internal/testrunner"
 )
 
+// ctestRunDir is the report-directory subdirectory CTest runs from, so its
+// Testing/Temporary log lands in the run's own evidence (V1-1537).
+const ctestRunDir = "ctest-run"
+
 func Runners() []string {
 	return []string{"cmocka-xml", "boost-test-junit", "ginkgo-v2", "go-test", "ctest", "googletest", "catch2", "dotnet-vstest-nunit", "dotnet-vstest-mstest", "dotnet-vstest-xunit", "cargo-test", "cargo-doctest", "cargo-integration", "cargo-bin", "nextest", "dotnet-mtp-nunit", "dotnet-mtp-mstest", "dotnet-mtp-xunit"}
 }
@@ -74,7 +78,16 @@ func Build(r tr.Request) (tr.Invocation, error) {
 		}
 		v.Argv = append(v.Argv, r.Project)
 	case "ctest":
-		v.Argv = []string{"--output-junit", report("ctest.xml"), "--no-tests=error"}
+		// CTest writes Testing/Temporary (LastTest.log, cost data) into the
+		// directory it runs from. A run-owned test directory that only
+		// includes the caller's build tree keeps that residue in the report
+		// directory; tests still run from their own build directories
+		// (V1-1537, TRE-V0-111).
+		if !filepath.IsAbs(r.Root) || strings.ContainsAny(r.Root, "\"\\$;\x00\r\n") {
+			return v, errors.New("ctest build directory must be an absolute path without CMake-quoted metacharacters")
+		}
+		v.Files = map[string][]byte{ctestRunDir + "/CTestTestfile.cmake": []byte("subdirs(\"" + r.Root + "\")\n")}
+		v.Argv = []string{"--test-dir", filepath.Join(r.ReportDir, ctestRunDir), "--output-junit", report("ctest.xml"), "--no-tests=error"}
 		if len(r.Selectors) > 0 {
 			v.Argv = append(v.Argv, "-R", exactRegex(r.Selectors))
 		}

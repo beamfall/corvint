@@ -1600,3 +1600,27 @@ and parsers are unchanged in shape.
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
 | TRE-V0-110 | `dynamic/reporters/minitest_reporter.rb` `record`; `TestMinitestUnexpectedErrorFailsOnlyThatCaseLive` | Live Minitest 5.11.3 / Ruby 2.6.10: one raising and one passing test give native exit 1, a complete run, PASSED and FAILED/UNKNOWN; the test fails with the previous reporter |
+
+## CTest run-owned test directory (experimental)
+
+V1-1537: CTest always writes `Testing/Temporary` (`LastTest.log`, `LastTestsFailed.log`,
+`CTestCostData.txt`) into the directory it runs from, so the `ctest` profile left residue in the
+caller's build tree.
+
+- `TRE-V0-111`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1537) The
+  `ctest` profile MUST run CTest with `--test-dir` set to a run-owned `ctest-run/` directory in the
+  report directory, whose generated `CTestTestfile.cmake` only includes the caller's build tree
+  (`subdirs("<Root>")`). After a run the build tree has no new or changed files, and CTest's own
+  log stays in the report directory evidence (`ctest-run/Testing/Temporary/`). Tests still run from
+  their own build directories. A `Root` that is not absolute or holds a character CMake would
+  re-parse inside a quoted argument (`"`, `\`, `$`, `;`, NUL, CR, LF) is refused, never quoted.
+
+Decision: the log is retained as report-directory evidence but is not a parsed report, so a large
+test log cannot exceed the report byte bound and turn a complete run incomplete; the JUnit report
+stays the only parsed input.
+
+Rollback: restore the earlier `ctest` argv without `--test-dir` and drop the generated file.
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-111 | `native/native.go` `Build` (`ctest`); `TestCTestRunsFromRunOwnedTestDirectory`, `TestCTestRunLeavesBuildDirectoryUnchanged` | Live CTest 4.4.4 (macOS arm64): one passing and one failing test give a complete run, the build tree digest set is unchanged and `LastTest.log` sits under the report directory; the live test fails with the previous argv (the build tree gained `Testing/Temporary/*`) |

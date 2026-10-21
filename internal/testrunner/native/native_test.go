@@ -61,7 +61,7 @@ func TestRejectsIncompleteAndContradictoryReports(t *testing.T) {
 }
 func TestBuildExactSelectorsAndFixedProfiles(t *testing.T) {
 	for _, r := range Runners() {
-		q := tr.Request{Runner: r, Executable: "/tool", ReportDir: "/out", Project: "fixture", Selectors: nil, Target: "fixture"}
+		q := tr.Request{Runner: r, Executable: "/tool", Root: "/build", ReportDir: "/out", Project: "fixture", Selectors: nil, Target: "fixture"}
 		if q.Runner == cmockaRunner {
 			q.Project = ""
 			q.ExpectedTests = []string{q.Target + "::test_pass"}
@@ -298,7 +298,7 @@ func TestReviewGoDuplicateFieldsAndTerminals(t *testing.T) {
 
 func TestReviewBuildUsesArgsOnlyAndNativeExitCodes(t *testing.T) {
 	for _, runner := range Runners() {
-		q := tr.Request{Runner: runner, Executable: "/tools/runner", ReportDir: "/report", Project: "project", Target: "target"}
+		q := tr.Request{Runner: runner, Executable: "/tools/runner", Root: "/build", ReportDir: "/report", Project: "project", Target: "target"}
 		if q.Runner == cmockaRunner {
 			q.Project = ""
 			q.ExpectedTests = []string{q.Target + "::test_pass"}
@@ -440,6 +440,27 @@ func TestGoActualBuildFailureStream(t *testing.T) {
 	} {
 		if o, err := Parse(tr.Input{Runner: "go-test", ExitCode: 1, Stdout: []byte(raw)}); err == nil {
 			t.Errorf("%s admitted: %+v", name, o)
+		}
+	}
+}
+
+// V1-1537 (TRE-V0-111): CTest runs from a run-owned test directory that only
+// includes the caller's build tree; a build path CMake would re-parse is
+// refused rather than quoted.
+func TestCTestRunsFromRunOwnedTestDirectory(t *testing.T) {
+	v, err := Build(tr.Request{Runner: "ctest", Executable: "/tool", Root: "/build/tree", ReportDir: "/out"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(v.Files[ctestRunDir+"/CTestTestfile.cmake"]); got != "subdirs(\"/build/tree\")\n" {
+		t.Fatalf("run-owned CTestTestfile %q", got)
+	}
+	if len(v.Argv) < 2 || v.Argv[0] != "--test-dir" || v.Argv[1] != filepath.Join("/out", ctestRunDir) {
+		t.Fatalf("argv %q", v.Argv)
+	}
+	for _, root := range []string{"", "build", `/a"b`, `/a\\b`, "/a$b", "/a;b", "/a\nb"} {
+		if _, err := Build(tr.Request{Runner: "ctest", Executable: "/tool", Root: root, ReportDir: "/out"}); err == nil {
+			t.Fatalf("root %q admitted", root)
 		}
 	}
 }
