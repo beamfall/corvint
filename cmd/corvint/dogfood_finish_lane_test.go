@@ -29,6 +29,18 @@ func finishLaneInputs(t *testing.T, plan, intents string) ([]string, []string) {
 	return env, []string{"--citations", citations, "--intents", manifest, "--outcome", "passed"}
 }
 
+// dropFinishLaneTiming removes the DCW-V0-115 TIMING lines, whose seconds
+// vary per run.
+func dropFinishLaneTiming(stderr string) string {
+	var kept strings.Builder
+	for _, line := range strings.SplitAfter(stderr, "\n") {
+		if !strings.HasPrefix(line, "dogfood-finish-lane: TIMING ") {
+			kept.WriteString(line)
+		}
+	}
+	return kept.String()
+}
+
 func finishLaneSubjects(t *testing.T, root, base string) string {
 	t.Helper()
 	return cemGit(t, root, "log", "--format=%s", base+"..HEAD")
@@ -65,7 +77,7 @@ func TestDogfoodFinishLaneDCWV0060MatchesManualRecipe(t *testing.T) {
 	}
 
 	code, stdout, stderr := run.exec(t, root, append(env[:3:3], finishLaneIdentity...), append([]string{"dogfood", "finish-lane", "--base", base}, args...)...)
-	if code != 0 || dropGuardingNote(stderr) != absentAgentReceipts+"dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-absent\n" {
+	if code != 0 || dropGuardingNote(dropFinishLaneTiming(stderr)) != absentAgentReceipts+"dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-absent\n" {
 		t.Fatalf("finish-lane exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	bind := cemGit(t, root, "rev-parse", "HEAD^")
@@ -81,13 +93,11 @@ func TestDogfoodFinishLaneDCWV0060MatchesManualRecipe(t *testing.T) {
 		// the ones a later pass produced.
 		// DCW-V0-069: the advisory guarding-tests row is listed by each
 		// pass that prints it, though it never blocks completion.
-		"dogfood-finish-lane: NOT_PRODUCED rows=7\n" +
-		"  prepare cem-cite NOT_PRODUCED citation-plan-not-provided\n" +
-		"  prepare guarding-tests NOT_PRODUCED guarding-tests-not-run\n" +
-		"  prepare cem-status NOT_PRODUCED not-ready\n" +
-		"  prepare local-outcome NOT_PRODUCED record-index-failed\n" +
+		// DCW-V0-115: the prepare pass stops after the CEM prepare and the
+		// bind pass leaves the recorder to the rebind, so neither lists the
+		// rows the rebind decides.
+		"dogfood-finish-lane: NOT_PRODUCED rows=2\n" +
 		"  bind guarding-tests NOT_PRODUCED guarding-tests-not-run\n" +
-		"  bind local-outcome NOT_PRODUCED record-index-failed\n" +
 		"  rebind guarding-tests NOT_PRODUCED guarding-tests-not-run\n" +
 		"dogfood-check: SUMMARY cem=accepted hunks=1 supported=1 unknown=0 mechanical=0 unknownShare=0/1 reasonedUnknown=0 ocm=ready-for-review requirements=1 linked=1 unlinked=0 report=.corvint/dogfood-report.json detail=" + detail + "\n" +
 		"dogfood-check: PASS\n" +
@@ -97,6 +107,36 @@ func TestDogfoodFinishLaneDCWV0060MatchesManualRecipe(t *testing.T) {
 	}
 	if got, manualTree := cemGit(t, root, "rev-parse", "HEAD^{tree}"), cemGit(t, manual, "rev-parse", "HEAD^{tree}"); got != manualTree || seal != cemGit(t, manual, "rev-parse", "HEAD") {
 		t.Fatalf("seal tree %s, manual %s", got, manualTree)
+	}
+	// DCW-V0-115: each step's TIMING line and the per-command table, in
+	// which only the rebind runs the coordination query, impact and recorder.
+	for _, step := range []string{"prepare", "bind", "commit", "rebind", "check-seal"} {
+		if !strings.Contains(stderr, "dogfood-finish-lane: TIMING "+step+" seconds=") {
+			t.Fatalf("stderr lacks the %s TIMING line:\n%s", step, stderr)
+		}
+	}
+	timings := cemGit(t, root, "rev-parse", "--absolute-git-dir") + "/corvint/dogfood-finish-lane.timings.tsv"
+	if !strings.Contains(stderr, " detail="+timings+"\n") {
+		t.Fatalf("stderr lacks the total TIMING line naming %s:\n%s", timings, stderr)
+	}
+	table, err := os.ReadFile(timings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ran := map[string]bool{}
+	for _, row := range strings.Split(strings.TrimSuffix(string(table), "\n"), "\n")[1:] {
+		fields := strings.Split(row, "\t")
+		ran[fields[0]+" "+fields[1]] = true
+	}
+	for _, want := range []string{"prepare cem prepare", "bind cem cite", "rebind query", "rebind impact", "rebind dogfood-record", "check-seal cem status"} {
+		if !ran[want] {
+			t.Errorf("timings lack %q:\n%s", want, table)
+		}
+	}
+	for _, unwanted := range []string{"prepare query", "prepare impact", "prepare ocm prepare", "prepare dogfood-record", "bind query", "bind impact", "bind dogfood-record"} {
+		if ran[unwanted] {
+			t.Errorf("timings keep %q:\n%s", unwanted, table)
+		}
 	}
 	if subjects := finishLaneSubjects(t, root, base); subjects != "chore: seal change evidence\nchore: bind change evidence\nchange" {
 		t.Fatalf("subjects %q", subjects)
