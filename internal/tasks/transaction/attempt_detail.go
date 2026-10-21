@@ -80,7 +80,7 @@ func (s AttemptSummary) Detail() string {
 	return "attempt " + s.AttemptID + " (ticket " + s.TicketID + ", generation " + s.Generation + ", phase " + s.Phase + ", holder " + holder + ", leaseExpiresAt " + lease + ", holderStatus " + s.HolderStatus + "); recovery: " + s.Recovery
 }
 
-// Value renders the summary as `ticket show` currentAttempt (ATR-V0-191).
+// Value renders the summary as `ticket show` liveAttempt (ATR-V0-191).
 func (s AttemptSummary) Value() wire.Value {
 	str := func(v string) wire.Value {
 		if v == "" {

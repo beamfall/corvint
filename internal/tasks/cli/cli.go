@@ -1478,11 +1478,11 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 		observed.Now = wire.Timestamp(time.Now().UTC().Format("2006-01-02T15:04:05Z"))
 		switch current := transaction.CurrentAttempt(observed, id); {
 		case rc.journalAbsent:
-			val.Obj.Set("currentAttempt", wire.String("NOT_OBSERVED"))
+			val.Obj.Set("liveAttempt", wire.String("NOT_OBSERVED"))
 		case current == nil:
-			val.Obj.Set("currentAttempt", wire.Null())
+			val.Obj.Set("liveAttempt", wire.Null())
 		default:
-			val.Obj.Set("currentAttempt", current.Value())
+			val.Obj.Set("liveAttempt", current.Value())
 		}
 		// V1-2038: the gate set complete enforces, policy-required gates included.
 		val.Obj.Set("effectiveRequiredGates", wire.Strings(transaction.RequiredGates(rc.store.Policy, v.Record)))

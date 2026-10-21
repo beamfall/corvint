@@ -36,4 +36,4 @@ Tier 2 affected units (batch CI); Linux; `make gate` (not required for scoped la
 
 ## Rollback
 
-Revert the commit. No stored format changes; `ticket show` drops `currentAttempt`.
+Revert the commit. No stored format changes; `ticket show` drops `liveAttempt`.

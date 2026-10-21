@@ -32,16 +32,16 @@ func TestATRV0190_CompleteManualRefusalNamesExpiredAttempt(t *testing.T) {
 		}
 	}
 	show := handoffCLI(t, root, "ticket", "show", c.Ticket)
-	cur := field(show.res.Items[0], "currentAttempt")
+	cur := field(show.res.Items[0], "liveAttempt")
 	if cur.Kind != wire.KindObject || field(cur, "attemptId").Str != c.AttemptID || field(cur, "holder").Str != "holder" || field(cur, "holderStatus").Str != "LEASE_EXPIRED" || !strings.Contains(field(cur, "recovery").Str, "corvint-tasks reap") {
-		t.Fatalf("ticket show currentAttempt: %s", show.stdout)
+		t.Fatalf("ticket show liveAttempt: %s", show.stdout)
 	}
 	expires := field(cur, "leaseExpiresAt").Str
 	if reap := handoffCLI(t, root, "reap", "--attempt", c.AttemptID, "--generation", string(c.Generation), "--lease-expires-at", expires, "--request-id", "reap-1"); reap.code != 0 {
 		t.Fatalf("reap: %s", reap.stdout)
 	}
-	if after := handoffCLI(t, root, "ticket", "show", c.Ticket); field(after.res.Items[0], "currentAttempt").Kind != wire.KindNull {
-		t.Fatalf("reaped attempt still current: %s", after.stdout)
+	if after := handoffCLI(t, root, "ticket", "show", c.Ticket); field(after.res.Items[0], "liveAttempt").Kind != wire.KindNull {
+		t.Fatalf("reaped attempt still live: %s", after.stdout)
 	}
 	if done := complete("manual-2"); done.res.Outcome != wire.OutcomeOK || field(done.res.Items[0], "outcome").Str != "COMPLETED" {
 		t.Fatalf("complete-manual after reap: %s", done.stdout)

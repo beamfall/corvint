@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04 (first drafted 2026-10-02 as a private Gate A proposal; detached runs added 2026-10-06)
-Intent status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-190..192 accepted (standing auto-accept 2026-10-11; V1-2263, V1-1964); ATR-V0-050..053 and ATR-V0-066 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600); ATR-V0-060..062 accepted (standing auto-accept 2026-10-11; V1-1595); ATR-V0-063..065 accepted (standing auto-accept 2026-10-11; V1-1597); ATR-V0-080..084 accepted (standing auto-accept 2026-10-11; V1-1608, V1-1673); ATR-V0-085..089 accepted (standing auto-accept 2026-10-11; V1-1647); ATR-V0-095 accepted (standing auto-accept 2026-10-11; V1-1671); ATR-V0-101..107 accepted (standing auto-accept 2026-10-11; V1-1763, issue 1109); ATR-V0-110..114 accepted (standing auto-accept 2026-10-11; V1-1782, issue 1122); ATR-V0-120..124 accepted (standing auto-accept 2026-10-11; V1-1833, issue 1147); ATR-V0-125..127 accepted (standing auto-accept 2026-10-11; V1-1834, issue 1148); ATR-V0-133..135 accepted (standing auto-accept 2026-10-11; V1-1852, issue 1157); ATR-V0-150..152 accepted (standing auto-accept 2026-10-11; V1-1914 and V1-1916, issues 1181 and 1183); ATR-V0-153 accepted (standing auto-accept 2026-10-11; V1-2103, issue 1116); ATR-V0-154 accepted (standing auto-accept 2026-10-11; V1-0934); ATR-V0-160..162 accepted (standing auto-accept 2026-10-11; V1-2123, V1-0951, V1-1767); ATR-V0-163..166 accepted (standing auto-accept 2026-10-11; V1-1857, V1-1853, V1-1854, V1-0748); ATR-V0-167..169 accepted (standing auto-accept 2026-10-11; V1-0769, V1-1793, V1-1792); ATR-V0-170 accepted (standing auto-accept 2026-10-11; V1-0832); ATR-V0-171 accepted (standing auto-accept 2026-10-11; V1-0933); ATR-V0-180..183 accepted (standing auto-accept 2026-10-11; V1-0925, V1-0924, V1-0934, V1-0948; re-homed from the agent leases spec, owner-approved 2026-10-17)
+Intent status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 and ATR-V0-066 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600); ATR-V0-060..062 accepted (standing auto-accept 2026-10-11; V1-1595); ATR-V0-063..065 accepted (standing auto-accept 2026-10-11; V1-1597); ATR-V0-080..084 accepted (standing auto-accept 2026-10-11; V1-1608, V1-1673); ATR-V0-085..089 accepted (standing auto-accept 2026-10-11; V1-1647); ATR-V0-095 accepted (standing auto-accept 2026-10-11; V1-1671); ATR-V0-101..107 accepted (standing auto-accept 2026-10-11; V1-1763, issue 1109); ATR-V0-110..114 accepted (standing auto-accept 2026-10-11; V1-1782, issue 1122); ATR-V0-120..124 accepted (standing auto-accept 2026-10-11; V1-1833, issue 1147); ATR-V0-125..127 accepted (standing auto-accept 2026-10-11; V1-1834, issue 1148); ATR-V0-133..135 accepted (standing auto-accept 2026-10-11; V1-1852, issue 1157); ATR-V0-150..152 accepted (standing auto-accept 2026-10-11; V1-1914 and V1-1916, issues 1181 and 1183); ATR-V0-153 accepted (standing auto-accept 2026-10-11; V1-2103, issue 1116); ATR-V0-154 accepted (standing auto-accept 2026-10-11; V1-0934); ATR-V0-160..162 accepted (standing auto-accept 2026-10-11; V1-2123, V1-0951, V1-1767); ATR-V0-163..166 accepted (standing auto-accept 2026-10-11; V1-1857, V1-1853, V1-1854, V1-0748); ATR-V0-167..169 accepted (standing auto-accept 2026-10-11; V1-0769, V1-1793, V1-1792); ATR-V0-170 accepted (standing auto-accept 2026-10-11; V1-0832); ATR-V0-171 accepted (standing auto-accept 2026-10-11; V1-0933); ATR-V0-180..183 accepted (standing auto-accept 2026-10-11; V1-0925, V1-0924, V1-0934, V1-0948; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-190..192 accepted (standing auto-accept 2026-10-11; V1-2263, V1-1964)
 Delivery status: experimental
 Authoritative inputs: owner request [issue 481](https://github.com/beamfall/corvint/issues/481); native ticket V1-0677;
 owner request [issue 627](https://github.com/beamfall/corvint/issues/627) and native ticket V1-0856 (detached runs);
@@ -1729,7 +1729,7 @@ refusal named only an attempt ID. Operators read `reservations.json` by hand to 
   contract and no read, refusal or completion reaps implicitly; `reap` is the one-command recovery
   the refusal names.
 - `ATR-V0-191`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2263) `ticket
-  show` MUST carry `currentAttempt`: `null` when the reservation set holds no attempt for the
+  show` MUST carry `liveAttempt` (beside the existing `currentAttempt` satisfaction state, which is unchanged): `null` when the reservation set holds no attempt for the
   ticket, the string `NOT_OBSERVED` when the store has no journal to read, and otherwise an object
   with `attemptId`, `generation`, `phase`, `holder`, `leaseExpiresAt` (both `null` without a work
   lease), `holderStatus` and `recovery`, with the same values as ATR-V0-190.
@@ -1749,13 +1749,13 @@ change before the operator acts; the named command still binds the exact generat
 Acceptance evidence (`internal/tasks/cli`): `TestATRV0190_CompleteManualRefusalNamesExpiredAttempt`
 claims with a lease that expired three hours earlier, proves `complete-manual` is refused
 `ATTEMPT_LIVE` naming the attempt, ticket, generation, holder, `LEASE_EXPIRED` and the exact reap
-command, reads the same summary from `ticket show` `currentAttempt`, reaps with the named values,
-reads `currentAttempt` `null`, and completes. `TestATRV0192_CollisionNamesHoldingAttempt` proves a
+command, reads the same summary from `ticket show` `liveAttempt`, reaps with the named values,
+reads `liveAttempt` `null`, and completes. `TestATRV0192_CollisionNamesHoldingAttempt` proves a
 colliding claim names the holding attempt, its ticket, `FRESH_HOLDER`, `colliding keys: PATH:src/a`
 and the live-lease recovery. Both tests fail without the change.
 
 Rollback: revert the commit; refusals again name only the attempt ID and `ticket show` drops
-`currentAttempt`. No stored format changes.
+`liveAttempt`. No stored format changes.
 
 ## Outcome document
 
