@@ -5,6 +5,7 @@
       "docs/specs/analyzer-candidate-profiles.md": "named inside an expected diagnostic message; the test reads no file"
     },
     "internal/gateselect": {
+      ".corvint/changes": "a sealed-CEM selection fixture path matched against fixture values; nothing is read",
       "docs/specs": "a selection fixture value matched against fixture paths; nothing is read",
       "docs/specs/gate-ledger-v0.md": "a selection fixture path matched against fixture values; nothing is read"
     },

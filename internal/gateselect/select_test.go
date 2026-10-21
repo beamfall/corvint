@@ -106,6 +106,41 @@ func TestSelectPackagesNarrowsChangeEvidenceReaders(t *testing.T) {
 	}
 }
 
+// TestSelectPackagesNarrowsSealedChangeEvidenceReaders covers AFP-V0-152: a
+// sealed CEM directly under .corvint/changes/ selects only the readers whose
+// literal resolves to it or an ancestor, as the sidecar does, and the
+// -bounds attribution agrees; another path there keeps the component-run rule.
+func TestSelectPackagesNarrowsSealedChangeEvidenceReaders(t *testing.T) {
+	root := writeFixture(t, map[string]string{
+		"fixture/fixture_test.go": "package fixture\n\nvar a, b = \".corvint/changes\", \".corvint/changes/\"\n",
+		"exact/exact_test.go":     "package exact\n\nvar sealed = \"../.corvint/changes\"\n",
+		"anchored/anchored.go":    "package anchored\n\nfunc Sealed(root string) string { return root + \"/.corvint/changes/\" }\n",
+		"deep/dir/dir_test.go":    "package dir\n\nvar evidence = \"../../.corvint\"\n",
+	})
+	sealed := ".corvint/changes/0123456789abcdef0123456789abcdef01234567.cem.json"
+	cases := []struct{ name, dirty, verdict string }{
+		{name: "sealed CEM selects only resolving readers", dirty: sealed, verdict: "run example.com/fixture/anchored example.com/fixture/deep/dir example.com/fixture/exact"},
+		{name: "other file keeps component-run readers", dirty: ".corvint/changes/x/y.cem.json", verdict: "run example.com/fixture/anchored example.com/fixture/deep/dir example.com/fixture/exact example.com/fixture/fixture"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var plan Receipt
+			plan.Provider.Go.State = "RUNNABLE"
+			plan.Plan.Dirty = []string{tc.dirty}
+			if got := verdict(plan, root); got != tc.verdict {
+				t.Fatalf("verdict = %q, want %q", got, tc.verdict)
+			}
+		})
+	}
+	lines, err := packageBounds("example.com/fixture", root, []string{sealed})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(lines, ""); strings.Contains(got, "example.com/fixture/fixture ") || !strings.Contains(got, "bound example.com/fixture/exact reader "+sealed) {
+		t.Fatalf("bounds disagree with selection:\n%s", got)
+	}
+}
+
 // TestSelectPackagesFallsBackWhenAttributionFails covers AFP-V0-012's global
 // fallback: a Go file whose imports do not parse leaves its edges unknown.
 func TestSelectPackagesFallsBackWhenAttributionFails(t *testing.T) {

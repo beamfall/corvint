@@ -77,6 +77,19 @@ var rootModuleDefinitions = map[string]bool{"go.mod": true, "go.sum": true, "go.
 // fixture root does not select its holder (AFP-V0-012 (c)).
 const changeEvidence = ".corvint/change.cem.json"
 
+// sealedChanges holds the sealed CEMs a dogfood seal moves the sidecar to.
+const sealedChanges = ".corvint/changes/"
+
+// resolvedEvidence reports whether p is the sidecar or a sealed CEM directly
+// under sealedChanges; both narrow rule (c) to resolvingReaders (AFP-V0-152).
+func resolvedEvidence(p string) bool {
+	if p == changeEvidence {
+		return true
+	}
+	name, sealed := strings.CutPrefix(p, sealedChanges)
+	return sealed && strings.HasSuffix(name, ".cem.json") && len(name) > len(".cem.json") && !strings.Contains(name, "/")
+}
+
 var plainImportPath = regexp.MustCompile(`^[A-Za-z0-9._~/-]+$`)
 
 // MaxPlanBytes bounds a plan, and a path list, read from a file or stream.
@@ -239,7 +252,7 @@ type attribution struct {
 // it, given as readers (index.readers(dirty), or pathReaders for many paths).
 // Rule (d), the unresolved packages, is index.unresolved().
 func (index *repositoryIndex) attribute(dirty string, readers []string) []attribution {
-	if dirty == changeEvidence {
+	if resolvedEvidence(dirty) {
 		readers = index.resolvingReaders(dirty)
 	}
 	return append(index.attributeStructure(dirty), attribution{"reader", readers})
@@ -302,7 +315,7 @@ func packageBounds(module, root string, paths []string) ([]string, error) {
 		for _, rule := range index.attributeStructure(p) {
 			bind(rule.directories, rule.kind, p)
 		}
-		if p == changeEvidence {
+		if resolvedEvidence(p) {
 			bind(index.resolvingReaders(p), "reader", p)
 		}
 	}
@@ -311,7 +324,7 @@ func packageBounds(module, root string, paths []string) ([]string, error) {
 	matcher := newPathMatcher(paths)
 	for value, directories := range index.holders {
 		for _, i := range matcher.named(value) {
-			if paths[i] != changeEvidence {
+			if !resolvedEvidence(paths[i]) {
 				bind(directories, "reader", paths[i])
 			}
 		}

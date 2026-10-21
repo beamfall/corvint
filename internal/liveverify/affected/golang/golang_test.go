@@ -550,6 +550,39 @@ func TestChangeEvidenceReadersAreNarrowed_V1_0230(t *testing.T) {
 	}
 }
 
+// AFP-V0-152 (V1-1820): a sealed CEM directly under .corvint/changes/ narrows
+// its Go readers as the sidecar does. A fixture-root token naming the same
+// components is dropped; a reader whose token resolves to the sealed CEM or an
+// ancestor, from its own directory or from the root, is still selected; any
+// other path under .corvint/changes/ keeps the component-run readers.
+func TestSealedChangeEvidenceReadersAreNarrowed_AFPV0152(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                    "module example.test/m\n",
+		"fixture/fixture_test.go":   "package fixture\n\nvar a, b = \".corvint/changes\", \".corvint/changes/\"\n",
+		"exact/exact_test.go":       "package exact\n\nvar sealed = \"../.corvint/changes\"\n",
+		"anchored/anchored.go":      "package anchored\n\nfunc Sealed(root string) string { return root + \"/.corvint/changes/\" }\n",
+		"anchored/anchored_test.go": "package anchored\n",
+		"deep/dir/dir_test.go":      "package dir\n\nvar evidence = \"../../.corvint\"\n",
+	})
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct{ dirty, want string }{
+		{".corvint/changes/0123456789abcdef0123456789abcdef01234567.cem.json", "[anchored/anchored_test.go deep/dir/dir_test.go exact/exact_test.go]"},
+		// Not a sealed CEM: a nested path and another file name keep rule (c).
+		{".corvint/changes/x/y.cem.json", "[anchored/anchored_test.go deep/dir/dir_test.go exact/exact_test.go fixture/fixture_test.go]"},
+		{".corvint/changes/README.md", "[anchored/anchored_test.go deep/dir/dir_test.go exact/exact_test.go fixture/fixture_test.go]"},
+	}
+	for _, tc := range cases {
+		plan := affected.Select(graph, []string{tc.dirty})
+		if got := fmt.Sprint(plan.SelectedTests()); got != tc.want {
+			t.Errorf("%s: selected tests = %s, want %s", tc.dirty, got, tc.want)
+		}
+	}
+}
+
 // AFP-V0-072 (V1-1806): a Go unit that names a dirty path only by an
 // unanchored lone file name, such as a fixture's README.md under t.TempDir(),
 // is a reader only when the path is in its own subtree or every directory
