@@ -59,6 +59,11 @@ Gitlink identity changes appear separately in `opaque_changes` and make check fa
 
 Supply `--corpus /path/to/validated-corpus.json` to import original evidence context. The artifact must
 pass `doccorpus.Open` against this repository and have the same source repository/revision as generation.
+Supported shape: the documented repository at `--revision` is the corpus's primary repository. It may
+declare further `additional_repositories`, whose roots resolve against `--root`. A corpus whose primary
+is another repository is refused up front as `flowdocs-corpus-repository-mismatch`, which names both
+repositories. This includes a multi-repository corpus that declares the documented repository only as
+an additional repository. Build the corpus with the documented repository as its primary.
 The artifact retains its original manifest, records and anchors in the generation manifest. Finalize
 preserves that manifest and adds missing source inputs and the new provider. A corpus already owning
 a `flowdocs` provider must be regenerated from the caller's original input manifest first.

@@ -1247,3 +1247,29 @@ Failure modes: a whitespace-only reformat would read as a content change; the re
 comments and whitespace outside literals. A same-name symbol in another file would be taken for
 the moved one; only an equal region moves across paths. Rollback: revert this section, the
 `symbol` member and `revalidateImported`; exact-span relocation is unchanged.
+
+## Corpus repository mismatch refusal (issue 1479, V1-2314)
+
+- **AFU-V1-091**: (accepted under the owner's standing auto-accept (2026-10-11)) `docs flows
+  generate --corpus FILE` parses the corpus artifact and compares its primary repository and
+  revision with the generation source before corpus Open rederives it against `--root`. On a
+  mismatch it refuses with the typed `flowdocs-corpus-repository-mismatch` code, whose message names
+  the corpus primary repository and revision and the generation repository and revision. When the
+  corpus declares the generation repository only in `additional_repositories`, the message says so.
+  That form is not accepted: the supported corpus has the documented repository at `--revision` as
+  its primary (AFU-V1-047), and `docs/FLOW-DOCUMENTATION.md` states that shape.
+
+Acceptance: `TestFlowDocsCorpusRepositoryMismatchIsTypedUpFront` (an evidence-primary corpus that
+declares the application as an additional repository, and a corpus of the application at an older
+revision, are both refused with the typed code naming both repositories; the matching corpus is
+accepted).
+
+Non-goals: accepting the generated repository as a declared additional repository with roots
+resolved against an explicit corpus root. That needs a corpus-root input and cross-repository anchor
+rules for generated claims, and stays unbuilt.
+
+Failure modes: before this check, Open joined the corpus's additional roots and primary revisions
+against `--root` and failed with an unrelated checkout or bad-object error, or the corpus-refused
+`invalid additional repository declaration`. Rollback: revert this section, the documentation
+paragraph, `corpusSourceMatches` and its test; the later equality check after Open still refuses a
+mismatch, with the old messages.

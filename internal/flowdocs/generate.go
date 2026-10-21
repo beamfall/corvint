@@ -24,6 +24,10 @@ const Version = "2"
 // StaleGeneratorCode is the typed refusal of a manifest an older generator
 // wrote: it must be regenerated, not compared (AFU-V1-045).
 const StaleGeneratorCode = "flowdocs-generator-stale"
+
+// CorpusRepositoryMismatchCode refuses a --corpus whose primary repository or revision is not the
+// generation source, before the corpus is rederived against --root (AFU-V1-091).
+const CorpusRepositoryMismatchCode = "flowdocs-corpus-repository-mismatch"
 const MaxFlows = 256
 const MaxBytes = 64 << 20
 const MaxManifestBytes = 256 << 20
@@ -162,6 +166,9 @@ func Generate(ctx context.Context, root string, o Options) (*Result, error) {
 		return nil, err
 	}
 	if len(o.Corpus) > 0 {
+		if err = corpusSourceMatches(o.Corpus, m.Source); err != nil {
+			return nil, err
+		}
 		m.Corpus, err = doccorpus.Open(ctx, root, o.Corpus)
 		if err != nil {
 			return nil, err
@@ -517,4 +524,27 @@ func Finalize(ctx context.Context, root string, r *Result, revision, providerPat
 		return m, err
 	}
 	return m, doccorpus.AdmitIndex(ctx, a) // DCP-V1-196: refuse an index the reads would refuse
+}
+
+// corpusSourceMatches refuses a corpus whose primary repository is not the generation source
+// before doccorpus.Open rederives it: Open resolves additional repository roots and primary
+// revisions against --root, so a mismatched corpus otherwise fails with a misleading checkout or
+// object error. A corpus that declares the generated repository only as an additional repository
+// is named as such and refused too (AFU-V1-091).
+func corpusSourceMatches(data []byte, source doccorpus.Repository) error {
+	a, err := doccorpus.ParseArtifact(data)
+	if err != nil {
+		return err
+	}
+	primary := a.Manifest.Repository
+	if primary == source {
+		return nil
+	}
+	message := "corpus primary repository is " + primary.ID + " at " + primary.Revision + "; generation repository is " + source.ID + " at " + source.Revision
+	for _, r := range a.Manifest.AdditionalRepositories {
+		if r.ID == source.ID {
+			message += "; the corpus declares the generation repository only as an additional repository at " + r.Revision + ", which generate does not accept"
+		}
+	}
+	return &doccorpus.Error{Code: CorpusRepositoryMismatchCode, Message: message + "; build the corpus with the generation repository and revision as its primary"}
 }
