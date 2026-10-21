@@ -47,10 +47,15 @@ func receipt(index *Index, mode string, request map[string]any, rawResults []map
 		}
 	}
 	freshnessState := "fresh"
-	if len(index.DirtyPaths) != 0 {
+	sourceDirty := index.DirtyPaths
+	taskState := index.taskStateMember()
+	if taskState != nil {
+		sourceDirty = []string{}
+	}
+	if len(sourceDirty) != 0 {
 		freshnessState = "mixed-worktree"
 	}
-	mixedPaths := index.DirtyPaths
+	mixedPaths := sourceDirty
 	if len(mixedPaths) > maxExclusionSamples {
 		mixedPaths = mixedPaths[:maxExclusionSamples]
 	}
@@ -63,11 +68,14 @@ func receipt(index *Index, mode string, request map[string]any, rawResults []map
 		"revision": index.Revision,
 		"freshness": map[string]any{
 			"state": freshnessState, "scope": "git", "revision": index.Revision,
-			"mixed_paths": mixedPaths, "mixed_path_count": len(index.DirtyPaths),
+			"mixed_paths": mixedPaths, "mixed_path_count": len(sourceDirty),
 		},
 		"results":      results,
 		"exclusions":   map[string]any{"count": len(index.Exclusions) + index.UnsupportedSuffixCount, "samples": exclusionSamples},
 		"verification": verification(index, rawResults),
+	}
+	if taskState != nil {
+		result["freshness"].(map[string]any)["task_state"] = taskState
 	}
 	if mode == "impact" && impactRequestOutsideDirtySet(index, request) {
 		result["warning"] = mixedImpactWarning(index)
@@ -233,6 +241,9 @@ func compactBudgetEnvelope(receipt map[string]any) error {
 	compactFreshness := map[string]any{
 		"state": freshness["state"], "scope": freshness["scope"],
 		"mixed_path_count": freshness["mixed_path_count"],
+	}
+	if taskState, ok := freshness["task_state"].(map[string]any); ok {
+		compactFreshness["task_state"] = map[string]any{"class": taskState["class"], "path_count": taskState["path_count"]}
 	}
 	if mixedPaths != 0 {
 		digest, err := canonicalSHA256(freshness["mixed_paths"])

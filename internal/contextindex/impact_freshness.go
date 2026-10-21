@@ -12,7 +12,7 @@ func mixedImpactWarning(index *Index) string {
 }
 
 func impactRequestOutsideDirtySet(index *Index, request map[string]any) bool {
-	if len(index.DirtyPaths) == 0 {
+	if !index.SourceDirty() {
 		return false
 	}
 	dirty := make(map[string]struct{}, len(index.DirtyPaths))
@@ -29,7 +29,7 @@ func impactRequestOutsideDirtySet(index *Index, request map[string]any) bool {
 }
 
 // ImpactCleanAbstention returns a bounded refusal before ranking or provider reads.
-// The caller must have observed a nonempty DirtyPaths set and validated CLI options.
+// The caller must have observed SourceDirty and validated CLI options.
 func ImpactCleanAbstention(index *Index, paths []string, limit int, budget *int) (map[string]any, error) {
 	cleaned, err := cleanImpactRequest(paths, limit)
 	if err != nil {

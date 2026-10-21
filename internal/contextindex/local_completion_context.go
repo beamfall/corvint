@@ -645,10 +645,10 @@ func (compiler *localPromptCompiler) selectedPacket(included, budget int) map[st
 	}
 	digest := sha256.Sum256([]byte(compiler.task))
 	freshness := "clean"
-	if len(compiler.index.DirtyPaths) != 0 {
+	if compiler.index.SourceDirty() {
 		freshness = "mixed-worktree"
 	}
-	return map[string]any{
+	packet := map[string]any{
 		"profile": "corvint-dogfood-prompt/0", "revision": compiler.index.Revision,
 		"status_sha256": compiler.index.StatusSHA256, "freshness": freshness,
 		"task_sha256": hex.EncodeToString(digest[:]), "resolution": resolution,
@@ -662,4 +662,8 @@ func (compiler *localPromptCompiler) selectedPacket(included, budget int) map[st
 			"budget_bytes": budget, "packet_bytes": 0, "within_budget": true,
 		},
 	}
+	if taskState := compiler.index.taskStateMember(); taskState != nil {
+		packet["task_state"] = taskState
+	}
+	return packet
 }

@@ -67,6 +67,9 @@ func hookContextProjection(event string, result map[string]any, full bool) map[s
 	if freshness, _ := packet["freshness"].(string); freshness != "" && freshness != "clean" {
 		projection["freshness"] = freshness
 	}
+	if taskState, _ := packet["task_state"].(map[string]any); taskState != nil {
+		projection["task_state"] = map[string]any{"class": taskState["class"], "path_count": taskState["path_count"]}
+	}
 	if policy, _ := result["policy"].(map[string]any); policy != nil && policy["lifecycle"] != "inactive" {
 		projection["policy"] = map[string]any{"lifecycle": policy["lifecycle"], "satisfied": policy["satisfied"], "unmet": policy["unmet"]}
 	}

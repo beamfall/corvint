@@ -114,3 +114,36 @@ func TestProveRefusesRequireClean(t *testing.T) {
 		t.Fatalf("exit=%d stdout=%s stderr=%s", exit, &stdout, &stderr)
 	}
 }
+
+// DIRTY-CACHE-017: Tasks store projection dirt alone is source-clean, so
+// impact neither warns nor abstains under --require-clean, and stays read-only.
+func TestImpactTaskStoreProjectionDirtIsSourceCleanCLI(t *testing.T) {
+	root := impactCLIRepository(t)
+	if err := os.MkdirAll(filepath.Join(root, ".taskman", "tickets"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{".taskman/queue.json", ".taskman/tickets/V1-0001.json"} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte("{}\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	before := treeDigest(t, root)
+	for _, args := range [][]string{{"pkg/main.go"}, {"--require-clean", "pkg/main.go"}} {
+		got, raw := runFreshnessImpact(t, root, args...)
+		freshness := got["freshness"].(map[string]any)
+		taskState, _ := freshness["task_state"].(map[string]any)
+		if got["state"] != "READY" || got["warning"] != nil || got["abstention"] != nil || freshness["state"] != "fresh" || taskState["class"] != "TASK_STORE_PROJECTION" || taskState["path_count"] != float64(2) {
+			t.Fatalf("%v: %s", args, raw)
+		}
+	}
+	if treeDigest(t, root) != before {
+		t.Fatal("impact wrote repository state")
+	}
+	if err := os.WriteFile(filepath.Join(root, "notes.txt"), []byte("x\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	got, raw := runFreshnessImpact(t, root, "--require-clean", "pkg/main.go")
+	if got["state"] != "NEEDS_WIDENING" || got["freshness"].(map[string]any)["state"] != "mixed-worktree" || got["freshness"].(map[string]any)["task_state"] != nil {
+		t.Fatalf("source dirt hidden: %s", raw)
+	}
+}
