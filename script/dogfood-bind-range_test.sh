@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# DOGFOOD-011 (DOGFOOD-BIND-001 to -007) and DOGFOOD-012 regressions for
+# DOGFOOD-011 (DOGFOOD-BIND-001 to -008) and DOGFOOD-012 regressions for
 # script/dogfood-bind-range.sh and the retroactive-bound note of `corvint dogfood check`,
 # on a fake corvint.
 set -euo pipefail
@@ -21,6 +21,8 @@ cp "$source_root/script/dogfood-bind-range.sh" "$repo/script/"
 cp "$source_root/script/dogfood-build-corvint.sh" "$repo/script/"
 # The check notes come from the binary itself (DCW-V0-020); the fixture has no cmd/corvint to build.
 (cd "$source_root" && GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local go build -o "$test_root/driver" ./cmd/corvint)
+# DOGFOOD-BIND-008: the guarding-tests count comes from the real Go rule, built once here.
+(cd "$source_root" && GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local go build -o "$test_root/guard-hunks" ./tools/dogfood-guard-hunks)
 printf '0.4.0a4\n' > "$repo/VERSION"
 printf 'one\ntwo\n' > "$repo/doc.md"
 
@@ -28,6 +30,7 @@ printf 'one\ntwo\n' > "$repo/doc.md"
 # its --root, and status accepts only a target whose committed sidecar equals that map. The map
 # has DOGFOOD_TEST_HUNKS unknown hunks (default 1) in the compact cem/1.0 producer layout
 # (CEM-V1-140); DOGFOOD_TEST_LEGACY=1 writes a retired cem/0.2 layout the plan check must refuse.
+# DOGFOOD_TEST_GO_PATH names every hunk's path instead of the default escaped non-Go path.
 cat > "$test_root/bin/corvint" <<'EOF'
 #!/usr/bin/env bash
 set -eu
@@ -46,7 +49,8 @@ case $action in
       printf '{"baseRevision":"%s","hunks":[' "$6"
       for ((hunk = 1; hunk <= ${DOGFOOD_TEST_HUNKS:-1}; hunk++)); do
         [[ $hunk == 1 ]] || printf ','
-        printf '{"basis":[],"disposition":"unknown","id":"hunk:test:%d","path":"a\\\"disposition\\\":\\\"x","reason":"no-evidence"}' "$hunk"
+        printf '{"basis":[],"disposition":"unknown","id":"hunk:test:%d","path":"%s","reason":"no-evidence"}' "$hunk" \
+          "${DOGFOOD_TEST_GO_PATH:-a\\\"disposition\\\":\\\"x}"
       done
       printf '],"spec":"cem/1.0"}\n'
     } > "$root/.corvint/change.cem.json"
@@ -86,6 +90,7 @@ git_commit() {
 work() { printf '%s\n' "$1" >> "$repo/work.txt"; git_commit "$1"; }
 bind() {
   (cd "$repo" && env CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/corvint.log" \
+    CORVINT_GUARD_HUNKS_BIN="$test_root/guard-hunks" \
     GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t \
     GIT_COMMITTER_EMAIL=t@example.invalid "$@")
 }
@@ -168,6 +173,8 @@ rg -q '^artifacts /.*/dogfood-bind-range\.[^/]*/worktree$' "$test_root/corvint.l
 for step in prechange-query prechange-impact local-outcome ocm-aggregate; do
   rg -q "^dogfood-bind-range: NOTE $step NOT_PRODUCED retroactive-binding\$" <<< "$output"
 done
+# DOGFOOD-BIND-008: a map with no hunk the guarding-test search would select prints no guarding NOTE.
+if rg -q 'guarding-tests'; then exit 1; fi <<< "$output"
 test "$(git -C "$repo" rev-parse "$binding^@")" = "$g2"
 test "$(git -C "$repo" diff --name-only "$g2" "$binding")" = .corvint/change.cem.json
 bound_cem=$(git -C "$repo" show "$binding:.corvint/change.cem.json")
@@ -180,6 +187,21 @@ test "$(git -C "$repo" log -1 --format='%(trailers:key=Corvint-Dogfood-Binding,v
 test "$(git -C "$repo" hash-object .corvint/change.cem.json)" = "$sidecar_before"
 test -z "$(git -C "$repo" status --porcelain --untracked-files=all)"
 test "$(git -C "$repo" worktree list | wc -l)" -eq 1
+
+# DOGFOOD-BIND-008 / DCW-V0-069: a bound map holding non-test Go hunks prints the single-shot path's
+# guarding-tests NOTE with the hunk count and the binding to verify; a count that cannot be produced
+# stays a visible NOTE and never fails the binding.
+printf '1\tdoc.md\t1:1\tspecification\n2\tdoc.md\t2:2\tspecification\n' > "$test_root/citations-two.tsv"
+output=$(bind DOGFOOD_TEST_HUNKS=2 DOGFOOD_TEST_GO_PATH=pkg/x.go DOGFOOD_CITATIONS="$test_root/citations-two.tsv" \
+  script/dogfood-bind-range.sh "$s1" "$g2" 2>&1)
+guarded=$(printf '%s\n' "$output" | sed -n 's/^dogfood-bind-range: PASS retroactive binding=\([0-9a-f]\{40\}\) .*/\1/p')
+test -n "$guarded"
+test "$(rg -c '^dogfood-bind-range: NOTE guarding-tests ' <<< "$output")" = 1
+rg -qF "dogfood-bind-range: NOTE guarding-tests NOT_PRODUCED guarding-tests-not-run hunks=2: to cite an observed guarding test, check out the binding with git worktree add --detach DIR $guarded, run corvint --root DIR cem verify --map .corvint/change.cem.json --expected-base $s1 --target $guarded --artifacts DIR --guarding-tests with DIR absolute," <<< "$output"
+output=$(bind CORVINT_GUARD_HUNKS_BIN=false DOGFOOD_TEST_HUNKS=2 DOGFOOD_TEST_GO_PATH=pkg/x.go \
+  DOGFOOD_CITATIONS="$test_root/citations-two.tsv" script/dogfood-bind-range.sh "$s1" "$g2" 2>&1)
+rg -q '^dogfood-bind-range: NOTE guarding-tests NOT_PRODUCED guarding-tests-count-unavailable$' <<< "$output"
+rg -q '^dogfood-bind-range: PASS retroactive binding=' <<< "$output"
 
 # DOGFOOD-BIND-007: an explicit unknown plan marks each hunk, raises the unknown ceiling to exactly
 # its row count, and keeps every NOT_PRODUCED reason in the output and the binding message.

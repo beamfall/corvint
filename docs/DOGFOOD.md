@@ -576,7 +576,7 @@ target already carries an older sidecar that `CEM-CB-009` requires to equal the 
   (`corvint-version-mismatch expected=V`); without it the current tree is built
   (`current-tree-corvint-build-failed`). The 256-commit refusal is not a promise that one piece fits:
   size each piece for both the 256-row citation-plan limit
-  (`script/dogfood-bind-range.sh:106-113@3b3a27f5`) and the verifier's 1,024-logical-Git-operation
+  (`script/dogfood-bind-range.sh:133-140@3b3a27f5`) and the verifier's 1,024-logical-Git-operation
   budget (`internal/cem/gitrun/gitrun.go:32-38@a875e210`). For the current object-identity and
   tree-walk checks, use roughly 5.7 operations per changed path plus 10 per evidence record as a
   planning estimate; path depth, shared objects, and request-memo hits change the exact count, so
@@ -626,6 +626,14 @@ target already carries an older sidecar that `CEM-CB-009` requires to equal the 
   and the byte span is nonempty and inside it, else the plan is malformed. The pin locates the
   removed intent in immutable base content; it is not evidence, and the hunk stays `unknown`.
   Intent with no base content at all keeps an `intent-unfiled-...-no-base-clause` detail.
+- `DOGFOOD-BIND-008`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1487) after
+  a passing `cem status`, the script prints the guarding-tests `NOTE` of `DCW-V0-069` for the
+  bound map, `dogfood-bind-range: NOTE guarding-tests NOT_PRODUCED guarding-tests-not-run hunks=N:`,
+  counting with the same rule through `tools/dogfood-guard-hunks` (`CORVINT_GUARD_HUNKS_BIN` names a
+  built helper; otherwise it is built from the current tree). The command names the binding as
+  `--target`, to run from a worktree checked out at it. A map with no such hunk prints no note; a
+  count the helper cannot produce prints `NOTE guarding-tests NOT_PRODUCED
+  guarding-tests-count-unavailable`. Neither fails the binding, and the search never runs here.
   `DOGFOOD_UNKNOWN` names a plan of distinct
   `HUNK<TAB>REASON<TAB>DETAIL` rows, with the citation plan's limits, a registered `cem mark`
   unknown reason, and a lower-case `[a-z0-9.-]` detail token. After citation each row is marked
