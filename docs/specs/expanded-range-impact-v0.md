@@ -83,7 +83,8 @@ membership and must retain whole-change authority, marker selection and result a
   base-to-captured-HEAD diff without rename or copy detection; detection never adds an entry, so
   the exact count is at least the rename-free count minus the smaller of its additions and
   deletions. It refuses only when that bound exceeds the profile's capacity, every changed path
-  passes the range path validator, the repository is not a partial clone, and no unchanged
+  passes the range path validator, the repository is not a partial clone (no `extensions.partialclone`, no
+  `remote.<name>.partialclonefilter` and no `remote.<name>.promisor` that is not false), and no unchanged
   base-tree path that fails the validator is a copy source for any addition (checked with that
   path as the only copy source). Otherwise, or on any Git failure, the exact diff decides as
   before. Every refusal and receipt that precedes the count is unchanged, including snapshot,
@@ -113,7 +114,7 @@ bounded enumeration does not close those critical misses or the non-Go semantic 
 | `ERI-V0-004` | default wrapper and unchanged positional limit | `TestExpandedRangeImpactPreservesDefaultSemantics`, `TestImpactRejectsInvalidBoundsBeforeCompilation`, `TestExpandedRangeImpactProveRejectsSelector`, existing committed-range tests |
 | `ERI-V0-005` | shared immutable snapshot and Git runner | `TestExpandedRangeImpactPreservesSnapshotRefusal`, `TestExpandedRangeImpactCLIExplicitReadOnly`; existing Git interruption/cleanup regressions |
 | `ERI-V0-006` | `script/dogfood-change.sh` explicit prototype argv | actual final coordinator receipt and independent strict checker; final integrated evidence pending |
-| `ERI-V0-060` | `rangeCertainlyExceeds` in `compileRangeImpact` | `TestRangeImpactRefusesOverBoundBeforeCopyDetection`; measured in `../build-log/2026-10-21-range-bound-before-copy-detection.md` |
+| `ERI-V0-060` | `rangeCertainlyExceeds`, `mayLackObjects` in `compileRangeImpact` | `TestRangeImpactRefusesOverBoundBeforeCopyDetection`, `TestRangeImpactOverBoundKeepsMissingObjectRefusalForPromisorRemotes`; measured in `../build-log/2026-10-21-range-bound-before-copy-detection.md` |
 
 Boundary evidence includes 0, 1, 100, 101, 140, 256 and 257 members; mixed 102-Go/38-non-Go
 coverage; SHA-1/SHA-256 semantic parity; same-change ADR/ledger withholding; unsupported members

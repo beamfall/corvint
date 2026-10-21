@@ -464,8 +464,7 @@ func rangeCertainlyExceeds(ctx context.Context, index *Index, baseTree string, p
 	if total-min(len(additions), deletions) <= pathLimit {
 		return false
 	}
-	partial, err := git(ctx, index.Root, maxIdentityBytes, nil, "config", "--default", "", "--get", "extensions.partialclone")
-	if err != nil || strings.TrimSpace(string(partial)) != "" {
+	if mayLackObjects(ctx, index.Root) {
 		return false
 	}
 	listing, err := git(ctx, index.Root, maxStatusBytes, nil, "ls-tree", "-r", "-z", "--name-only", baseTree)
@@ -503,6 +502,38 @@ func rangeCertainlyExceeds(ctx context.Context, index *Index, baseTree string, p
 		}
 	}
 	return true
+}
+
+// mayLackObjects reports whether the repository may be a partial clone, whose
+// missing blobs the exact diff names as repository-object-unavailable with its
+// recovery. Git treats a remote as a promisor through extensions.partialclone,
+// remote.<name>.promisor or remote.<name>.partialclonefilter, so any of them,
+// and any doubt or Git failure, answers true.
+func mayLackObjects(ctx context.Context, root string) bool {
+	partial, err := git(ctx, root, maxIdentityBytes, nil, "config", "--default", "", "--get", "extensions.partialclone")
+	if err != nil || strings.TrimSpace(string(partial)) != "" {
+		return true
+	}
+	names, err := git(ctx, root, maxStatusBytes, nil, "config", "-z", "--name-only", "--list")
+	if err != nil {
+		return true
+	}
+	for _, name := range bytes.Split(names, []byte{0}) {
+		key := strings.ToLower(string(name))
+		if !strings.HasPrefix(key, "remote.") {
+			continue
+		}
+		if strings.HasSuffix(key, ".partialclonefilter") {
+			return true
+		}
+		if strings.HasSuffix(key, ".promisor") {
+			value, err := git(ctx, root, maxIdentityBytes, nil, "config", "--type=bool", "--default", "false", "--get", string(name))
+			if err != nil || strings.TrimSpace(string(value)) != "false" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func readRangeChanges(ctx context.Context, index *Index, baseTree string) ([]rangeChange, error) {
