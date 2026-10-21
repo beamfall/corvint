@@ -532,7 +532,7 @@ func compilePlaywrightAffected(ctx context.Context, invocation affectedInvocatio
 		return playwrightAffectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
 	}
 	if invocation.RequireClean && len(dirty) != 0 {
-		return playwrightAffectedReceipt{}, affectedMixedWorktreeRefusal(revision, len(dirty))
+		return playwrightAffectedReceipt{}, affectedMixedWorktreeRefusal(revision, dirty)
 	}
 	committed, err := affectedRangePaths(ctx, gitExecutable, root, invocation.Base)
 	if err != nil {
@@ -708,10 +708,10 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
 	}
 	if invocation.RequireClean && len(dirty) != 0 {
-		return affectedReceipt{}, nil, affectedMixedWorktreeRefusal(revision, len(dirty))
+		return affectedReceipt{}, nil, affectedMixedWorktreeRefusal(revision, dirty)
 	}
 	if len(invocation.PathList) != 0 && len(dirty) != 0 {
-		return affectedReceipt{}, nil, affectedPathListMixedRefusal(revision, len(dirty))
+		return affectedReceipt{}, nil, affectedPathListMixedRefusal(revision, dirty)
 	}
 	committed, err := affectedRangePaths(ctx, gitExecutable, root, invocation.Base)
 	if err != nil {
