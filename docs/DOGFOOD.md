@@ -813,6 +813,9 @@ there are already suitable commit boundaries.
    unknown hunks remain until the last plan, and the sidecar is uncommitted. The warning that
    citations were added to earlier citations is expected during staging; its delete-and-rerun
    advice applies to correcting wrong earlier evidence, not to these additive stages.
+   A later plan names only hunks still `unknown`: a row that would add a different citation to,
+   or mark `unknown`, a hunk the map already cites refuses `citation-plan-recites-cited-hunk`
+   before anything is cited (`DCW-V0-117`), while replaying the same rows is admitted.
 4. Inspect `$(git rev-parse --absolute-git-dir)/corvint/cem-status.json` and the CEM: every hunk must be `supported` or kept
    `unknown` with a recorded reason (a bootstrap hunk, or a plan row under `DCW-V0-046`), with no
    other `unknown` hunk and `mechanical=0`. Then `git add .corvint/change.cem.json` and
