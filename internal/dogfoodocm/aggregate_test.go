@@ -162,22 +162,22 @@ func TestOCMV0021BoundRefusalsNameTotalsBoundAndScopes(t *testing.T) {
 		{name: "OCM-V0-021 obligations", setup: func(a, b *verifiedScope) {
 			*a = fixtureScope("docs/specs/a.md", identities("A", 200))
 			*b = fixtureScope("docs/specs/b.md", identities("B", 57))
-		}, code: "too-many-obligations", want: "aggregate OCM obligations exceed the limit: observed 257, bound 256; per scope 1=200, 2=57"},
+		}, code: "too-many-obligations", want: "aggregate OCM obligations exceed the limit: observed 257, bound 256; per scope 1=200, 2=57" + boundNarrowing},
 		{name: "OCM-V0-021 claims", setup: func(a, b *verifiedScope) {
 			a.document.Claims = claims(300)
 			b.document.Claims = claims(213)
-		}, code: "too-many-claims", want: "aggregate OCM claims exceed the limit: observed 513, bound 512; per scope 1=300, 2=213"},
+		}, code: "too-many-claims", want: "aggregate OCM claims exceed the limit: observed 513, bound 512; per scope 1=300, 2=213" + boundNarrowing},
 		{name: "OCM-V0-021 map bytes precede claims and obligations", setup: func(a, b *verifiedScope) {
 			*a = fixtureScope("docs/specs/a.md", identities("A", 200))
 			*b = fixtureScope("docs/specs/b.md", identities("B", 57))
 			a.document.Claims = claims(513)
 			pad(a, 1<<19)
 			pad(b, 1<<19+1)
-		}, code: "map-too-large", want: "aggregate OCM map bytes exceed the limit: observed 1048577, bound 1048576; per scope 1=524288, 2=524289"},
+		}, code: "map-too-large", want: "aggregate OCM map bytes exceed the limit: observed 1048577, bound 1048576; per scope 1=524288, 2=524289" + boundNarrowing},
 		{name: "OCM-V0-021 claims precede obligations", setup: func(a, b *verifiedScope) {
 			*a = fixtureScope("docs/specs/a.md", identities("A", 257))
 			a.document.Claims = claims(513)
-		}, code: "too-many-claims", want: "aggregate OCM claims exceed the limit: observed 513, bound 512; per scope 1=513, 2=0"},
+		}, code: "too-many-claims", want: "aggregate OCM claims exceed the limit: observed 513, bound 512; per scope 1=513, 2=0" + boundNarrowing},
 		{name: "OCM-V0-021 exactly at every bound succeeds", setup: func(a, b *verifiedScope) {
 			*a = fixtureScope("docs/specs/a.md", identities("A", 200))
 			*b = fixtureScope("docs/specs/b.md", identities("B", 56))
@@ -243,5 +243,22 @@ func assertCode(t *testing.T, err error, expected string) {
 	t.Helper()
 	if lrfrepo.CodeOf(err) != expected {
 		t.Fatalf("code = %q, err = %v", lrfrepo.CodeOf(err), err)
+	}
+}
+
+// TestOCMV0024BoundRefusalNamesNarrowingRoute pins the fixed narrowing route
+// (V1-1068) and keeps the worst-case message inside finish's 512-byte detail.
+func TestOCMV0024BoundRefusalNamesNarrowingRoute(t *testing.T) {
+	const want = "; narrow: list fewer intent scopes in the manifest and bind the rest as a separate staged change"
+	if boundNarrowing != want {
+		t.Fatalf("narrowing route = %q, want %q", boundNarrowing, want)
+	}
+	shares := make([]int, maxScopes)
+	for index := range shares {
+		shares[index] = maxMapBytes
+	}
+	message := boundMessage("aggregate OCM map bytes exceed the limit", maxMapBytes*maxScopes, maxMapBytes, shares)
+	if !strings.HasSuffix(message, want) || len(message) > 512 || strings.Contains(message, "/") {
+		t.Fatalf("worst-case message (%d bytes) = %q", len(message), message)
 	}
 }

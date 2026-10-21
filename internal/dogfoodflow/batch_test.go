@@ -809,3 +809,74 @@ func TestBatchCheckDCWV0039ScratchIgnoresSystemAndConfiguredAttributes(t *testin
 		t.Fatalf("repository read applied a configured attributes file: status=%d bounded=%v %q", status, bounded, output)
 	}
 }
+
+// DCW-V0-113: a lane stacked on a sealed predecessor binds against the
+// predecessor's seal commit, so only its own hunks bind and batch-check still
+// verifies both; bound at the shared base instead, an aggregate bound refusal
+// names the merged sealed change and that route.
+func TestChangeDCWV0113StackedPredecessorBindsAgainstItsSeal(t *testing.T) {
+	repo := newBatchRepo(t)
+	bindA, sealA := repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", "")
+	testGit(t, repo.root, "checkout", "-q", "-b", "lane-b", repo.base)
+	testGit(t, repo.root, "merge", "-q", "--no-ff", "--no-edit", sealA)
+	repo.write("b.txt", "b1\nB2\nb3\n")
+	repo.commit("work lane-b")
+
+	newChange := func(base string) (*change, *bytes.Buffer) {
+		var stderr bytes.Buffer
+		c := &change{flow: flow{ctx: context.Background(), prefix: "dogfood-change", root: repo.root, stderr: &stderr}, options: ChangeOptions{Steps: repo.verifier()}}
+		c.base, c.target = base, testGit(t, repo.root, "rev-parse", "HEAD")
+		if _, err := boundary(c.ctx, func() int { c.admitSealedCEMs(c.inheritedCEM()); return 0 }, func() {}); err != nil {
+			t.Fatal(err)
+		}
+		return c, &stderr
+	}
+	bound := step{"ocm-aggregate", "NOT_PRODUCED", "too-many-obligations"}
+
+	// Bound at the shared base, the refusal names the stacked cause.
+	c, stderr := newChange(repo.base)
+	hint := c.fixHint(bound)
+	for _, want := range []string{"stacked-predecessor: BASE " + repo.base + "..HEAD also merges 1 sealed change(s) (bind=" + bindA + " seal=" + sealA + ")", "BASE=<seal>", "batch-check", "DCW-V0-113"} {
+		if !strings.Contains(hint, want) {
+			t.Fatalf("hint %q lacks %q (stderr %q)", hint, want, stderr.String())
+		}
+	}
+	for _, reason := range []string{"map-too-large", "too-many-claims"} {
+		if got := c.fixHint(step{"ocm-aggregate", "NOT_PRODUCED", reason}); !strings.HasPrefix(got, "stacked-predecessor: ") {
+			t.Fatalf("%s hint %q", reason, got)
+		}
+	}
+	if got := c.fixHint(step{"ocm-aggregate", "NOT_PRODUCED", "intent-scope-drift"}); strings.Contains(got, "stacked-predecessor") {
+		t.Fatalf("unrelated reason named the stacked cause: %q", got)
+	}
+
+	// Bound at the predecessor's seal, nothing sealed is in the range, the
+	// verifier is not asked, and only this lane's path changes.
+	repo.args = nil
+	c, stderr = newChange(sealA)
+	if len(c.mergedSeals) != 0 || len(repo.args) != 0 || strings.Contains(stderr.String(), "sealed-cem") {
+		t.Fatalf("stacked bind admitted %v verifier=%v stderr=%q", c.mergedSeals, repo.args, stderr.String())
+	}
+	if got := c.fixHint(bound); strings.Contains(got, "stacked-predecessor") {
+		t.Fatalf("no merged seal but hint %q", got)
+	}
+	if paths := testGit(t, repo.root, "diff", "--name-only", sealA, "HEAD"); paths != "b.txt" {
+		t.Fatalf("stacked range paths %q", paths)
+	}
+
+	// Sealed against the predecessor's seal, the merge batch passes and
+	// verifies each change against its own base.
+	repo.write(".corvint/change.cem.json", `{"spec": "cem/1.0", "baseRevision": "`+sealA+`", "hunks": []}`+"\n")
+	bindB := repo.commit("chore: bind change evidence")
+	testGit(t, repo.root, "mv", ".corvint/change.cem.json", ".corvint/changes/"+bindB+".cem.json")
+	sealB := repo.commit("chore: seal change evidence")
+	repo.batch(sealB)
+	code, stdout, stderrText := repo.check()
+	verified := map[string]string{}
+	for _, args := range repo.args {
+		verified[args[7]] = args[5]
+	}
+	if code != 0 || verified[bindA] != repo.base || verified[bindB] != sealA {
+		t.Fatalf("batch exit=%d verified=%v stdout=%s stderr=%s", code, verified, stdout, stderrText)
+	}
+}

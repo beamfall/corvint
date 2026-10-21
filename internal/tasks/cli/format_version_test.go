@@ -217,6 +217,7 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 		snapshot.ProfileDirectPoolAdmission: inAttempt("directPoolAdmission"),
 		snapshot.ProfileLaneUntouched:       inAttempt("laneUntouchedAttestation"),
 		snapshot.ProfileGateResult:          plain(func(b []byte) error { _, e := snapshot.DecodeGateResult(b); return e }),
+		snapshot.ProfileCIRun:               plain(func(b []byte) error { _, e := snapshot.DecodeCIRun(b); return e }),
 		snapshot.ProfileManifest:            plain(func(b []byte) error { _, e := snapshot.DecodeManifest(b); return e }),
 		snapshot.SupervisedProfile: func(t *testing.T, p string) error {
 			programs := wire.ObjectValue(wire.NewObject().Set("profile", wire.String("taskman-programs/0")).Set("entries", wire.Array(newerRecord(t, p))))

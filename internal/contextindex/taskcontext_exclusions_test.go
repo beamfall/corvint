@@ -117,6 +117,7 @@ func TestTaskContextExclusionsAreBoundedAndAdditive(t *testing.T) {
 		Mutates       json.RawMessage `json:"mutates"`
 		SchemaVersion json.RawMessage `json:"schema_version"`
 		Revision      json.RawMessage `json:"revision"`
+		Commit        json.RawMessage `json:"commit,omitempty"` // TCP-V0-150
 		State         json.RawMessage `json:"state"`
 		Subject       json.RawMessage `json:"subject"`
 		Request       json.RawMessage `json:"request"`

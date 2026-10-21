@@ -76,7 +76,7 @@ type Env struct {
 // `ticket` mutations write: they commit through the §5.2 journal writer.
 var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
-	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket export",
+	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket delivery-screen", "ticket batch-delivered", "ticket export",
 	"queue status", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "journal seal", "journal unseal", "reconcile inspect", "reconcile intent",
 	"init", "pause", "unpause", "policy show", "policy update", "import", "cutover",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
@@ -191,6 +191,10 @@ func Run(env Env) int {
 			return emit(env.Stdout, ticketShow(env, args[2:], false))
 		case "closeout-debt":
 			return emitCloseoutDebt(env, args[2:])
+		case "delivery-screen":
+			return emitDeliveryScreen(env, args[2:])
+		case "batch-delivered":
+			return emit(env.Stdout, batchDeliveredCommand(env, args[2:]))
 		case "export":
 			return emit(env.Stdout, ticketExport(env, args[2:]))
 		}
@@ -473,7 +477,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks claim --next --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate]",
 		"corvint-tasks cutover --execution --decision REF --qualification FILE",
 		"corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID",
-		"corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE [--worktree DIR]",
+		"corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE [--worktree DIR | --ci-run FILE]",
 		"corvint-tasks gate record|resubmit <ticketId|local> --gate GATE --subject-receipt SEQ --expected-generation N --expected-revision N --request-id ID [...]",
 		"corvint-tasks gate history <ticketId|local> --gate GATE [--cursor SHA256] [--limit N]",
 		"corvint-tasks gate packet <ticketId|local> [--commit REV] [--source PATH|NAME [--config FILE]] [--max-bytes 4096..262144] [--checkpoint NOTE]",
@@ -500,7 +504,7 @@ func LiveFormats() []string {
 		intent.ProfileImportMap, intent.ProfileQueue, intent.ProfilePolicy,
 		snapshot.ProfileHead, snapshot.ProfileHeadSegmented, snapshot.ProfileSegment, snapshot.ProfileSegmentManifest, snapshot.ProfileSealMarker, snapshot.ProfileBarrier, snapshot.ProfileReceipt, snapshot.ProfileElidedReceipt, snapshot.ProfileInit,
 		snapshot.ProfileAttempt, snapshot.ProfileReservations, snapshot.ProfileRetryAccounting,
-		snapshot.ProfileGateResult, snapshot.ProfileManifest, snapshot.SupervisedProfile,
+		snapshot.ProfileGateResult, snapshot.ProfileCIRun, snapshot.ProfileManifest, snapshot.SupervisedProfile,
 		snapshot.ProfileExternalReviewRequest, snapshot.ProfileExternalReviewEvent,
 		snapshot.ProfilePools, snapshot.ProfilePoolIdentity, snapshot.ProfilePoolOperation, snapshot.ProfileDirectPoolAdmission, snapshot.ProfileLaneUntouched,
 		"taskman-pool-observation/0", "taskman-pool-sweep-observation/0", "taskman-pool-sweep-result/0",
