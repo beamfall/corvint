@@ -36,6 +36,11 @@ else
     exit 2
   fi
   [[ $corvint_bin != */* || $corvint_bin == /* ]] || corvint_bin="$PWD/$corvint_bin"
+  # A PATH-only name resolves once, here, so every later verifier receives the executable the version check ran.
+  [[ $corvint_bin == */* ]] || corvint_bin=$(type -P -- "$corvint_bin") || {
+    printf 'dogfood-batch-check: REFUSE corvint-bin-unresolved\n' >&2
+    exit 2
+  }
 fi
 cd "$repo" || exit 2
 "$corvint_bin" dogfood batch-check --verifier "$corvint_bin" "$base_arg"

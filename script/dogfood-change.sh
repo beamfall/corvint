@@ -44,6 +44,11 @@ fi
 # relative executable and input paths keep meaning the ones the caller named.
 if [[ $PWD != "$repo" ]]; then
   [[ $corvint_bin != */* || $corvint_bin == /* ]] || corvint_bin="$PWD/$corvint_bin"
+  # A PATH-only name resolves once, here, so every later verifier receives the executable the version check ran.
+  [[ $corvint_bin == */* ]] || corvint_bin=$(type -P -- "$corvint_bin") || {
+    printf 'dogfood-change: REFUSE corvint-bin-unresolved\n' >&2
+    exit 2
+  }
   for name in DOGFOOD_INTENTS_FILE DOGFOOD_CITATIONS DOGFOOD_VERIFY_FILE DOGFOOD_OCM_LINKS; do
     value=${!name-}
     [[ -z $value || $value == /* ]] || export "$name=$PWD/$value"

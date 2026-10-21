@@ -57,6 +57,11 @@ if [[ -n $corvint_bin_set ]]; then
     exit 2
   fi
   [[ $corvint_bin != */* || $corvint_bin == /* ]] || corvint_bin="$PWD/$corvint_bin"
+  # A PATH-only name resolves once, here, so every later verifier receives the executable the version check ran.
+  [[ $corvint_bin == */* ]] || corvint_bin=$(type -P -- "$corvint_bin") || {
+    printf 'dogfood-finish-lane: REFUSE corvint-bin-unresolved\n' >&2
+    exit 2
+  }
   override=(--override-verifier "$corvint_bin")
 fi
 # Relative input paths keep meaning the ones the caller named.

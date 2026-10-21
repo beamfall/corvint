@@ -115,6 +115,11 @@ for action in change check; do
     rg -q -- "--override-verifier $CORVINT_BIN $base$" "$TEST_FLOW_LOG" || exit 1
   fi
 done
+# A PATH-only CORVINT_BIN is resolved to its absolute path before it reaches --override-verifier (V1-0685).
+: > "$TEST_BUILD_LOG"; : > "$TEST_FLOW_LOG"
+fake_dir=$(dirname "$TEST_FAKE_CORVINT")
+PATH="$fake_dir:$PATH" CORVINT_BIN=$(basename "$TEST_FAKE_CORVINT") bash script/dogfood-check.sh "$base"
+rg -q -- "--override-verifier $TEST_FAKE_CORVINT $base$" "$TEST_FLOW_LOG" || exit 1
 unset CORVINT_BIN
 for action in change check; do
   for source in tree-source base-source; do
