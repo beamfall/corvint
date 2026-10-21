@@ -85,7 +85,9 @@ then, after its last edit and commit, exactly one
 `script/heavy.sh make dogfood-finish LANE=1 BASE=.. CITATIONS=.. INTENTS=.. VERIFY=.. OUTCOME=..`
 (prepare, bind, commit, rebind, check and seal, `DCW-V0-060`). `LANE=1` refuses before any build,
 naming every missing or unusable input in one line
-(`dogfood-finish-lane: REFUSE missing-inputs CITATIONS BASE:not-full-sha VERIFY ...`). At most two
+(`dogfood-finish-lane: REFUSE missing-inputs CITATIONS BASE:not-full-sha VERIFY ...`). A change
+that touches `docs/specs/` without committing regenerated spec indexes also refuses before any build
+(`REFUSE spec-requirements-stale`, `DCW-V0-090`): run `make spec-requirements` and commit. At most two
 finish attempts are allowed; a second failure stops the lane with the exact command and output in
 its report. Then one `make dogfood-batch-check BASE=<origin/main tip>` from a clean checkout.
 Rerunning `dogfood-change` to "see where it stands" between edits is not part of the loop.
