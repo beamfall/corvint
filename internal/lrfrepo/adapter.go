@@ -244,14 +244,15 @@ type StableRefusal struct {
 // StableAdmissionRefusal is a refusal after the stable verifier accepted: an
 // inexact sidecar or a failed OCM/LRF admission. It keeps the accepted
 // verifier result as evidence of the step reached; it is never an accept
-// (V1-2034).
+// (V1-2034). Its message is the admission error's, unchanged, so callers that
+// print or trim it see the same text as before.
 type StableAdmissionRefusal struct {
 	Result verify.StableResult
 	Err    error
 }
 
 func (e *StableAdmissionRefusal) Error() string {
-	return "stable admission refused after verifier " + e.Result.Outcome + ": " + e.Err.Error()
+	return e.Err.Error()
 }
 
 // Unwrap exposes the admission refusal's code to CodeOf.
