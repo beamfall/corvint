@@ -14,6 +14,8 @@ import (
 
 type corpusOptions struct {
 	root, op, manifest, artifact, input, previous, revision, scope, timestamp, query, id, path, page, cem, retirement, runner, schema string
+	// cases and baseline are the eval case file and ratchet receipt (DCP-V1-250, DCP-V1-254).
+	cases, baseline string
 	// scopes holds every repeated manifest --scope in argument order (DCP-V1-161).
 	scopes []string
 	// section and include are the flow filters as comma-separated lists (DCP-V1-170, DCP-V1-171).
@@ -28,7 +30,7 @@ type corpusOptions struct {
 
 // stringFlags maps each value-taking corpus option to its field.
 func (o *corpusOptions) stringFlags() map[string]*string {
-	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner, "--schema": &o.schema, "--section": &o.section, "--include": &o.include,
+	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner, "--schema": &o.schema, "--section": &o.section, "--include": &o.include, "--cases": &o.cases, "--baseline": &o.baseline,
 		"--expected-base": &o.stable.ExpectedBase, "--target": &o.stable.Target, "--stable-artifact-root": &o.stable.ArtifactRoot}
 	o.playwright.addFlags(flags)
 	o.legacyCases.addFlags(flags)
@@ -143,8 +145,9 @@ var errCorpusCheckRefused = errors.New("behavior adapter check refused")
 
 func runCorpus(ctx context.Context, o corpusOptions, stdout, stderr io.Writer) int {
 	data, err := compileCorpus(ctx, o)
-	if errors.Is(err, errCorpusCheckRefused) {
-		// DCP-V1-044: a refused check still prints its full report.
+	if errors.Is(err, errCorpusCheckRefused) || errors.Is(err, errCorpusEvalRegressed) {
+		// DCP-V1-044: a refused check still prints its full report; so does a failed eval
+		// ratchet (DCP-V1-254).
 		if _, err := stdout.Write(data); err != nil {
 			emitCorpusError(stderr, err)
 			return 2
@@ -268,6 +271,9 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 			return nil, err
 		}
 		return doccorpus.Encode(result)
+	}
+	if o.op == "eval" {
+		return compileCorpusEval(ctx, o)
 	}
 	raw, err := doccorpus.ReadCorpusFile(o.root, o.artifact)
 	if err != nil {

@@ -14,7 +14,7 @@ owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
 
 ## Agent digest
 - Claim: A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.
-- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-080..082 (behavior annotation contract, producer and missing annotations, GitHub #835; V1-1222) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-083..084 (valueless state matchers, GitHub #845; V1-1318) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-085 (encoder-pool-independent allocation, V1-1380) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-086..092 (test-knowledge records, GitHub #1162; V1-1868) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-093..099 (flow-level relations, GitHub #1225; V1-1973) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-140..142 (symbol-anchor re-resolution, GitHub #1223; V1-1971) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-143..145 (lazy corpus MCP load, reused freshness and path batches, GitHub #1236 and #1237; V1-1982) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-146 (verbatim oversized paragraphs, over-bound line gaps and located refusals, GitHub #1242; V1-1983) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-150..152 (asserting E2E gap conditions and unauthenticated review, GitHub #1245; V1-1988) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-165..169 (case search by ID and ranked any-word match, GitHub #1246; V1-1989) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-160..163 (multi-scope /2 manifest inventory, GitHub #1241; V1-1985) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-170..174 (flow section and record-kind filters, GitHub #1247; V1-1990) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-155..159 (constant-cost Git reads and typed capacity refusals, GitHub #1240; V1-1984) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-185..192 (typed homes for supplied gaps, readiness status and manual case links, GitHub #1244; V1-1987) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-175..179 (additional repository anchors, GitHub #1243; V1-1986) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-205..207 (absolute corpus MCP `--artifact` paths, GitHub #1256; V1-1997) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-200..203 (single-call MCP output bound pages or refuses, never -32603, GitHub #1255; V1-1996) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-193..197 (scaled query-index bounds, per-artifact index memo and build-time index refusal, GitHub #1254; V1-1995) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-210..215 (supplied test-run receipts, legacy case links, and supplied gaps in capabilities and the query index, GitHub #1244; V1-1993) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-216..217 (batched symbol-anchor, CEM projection and discovery path reads, V1-1991) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-175..179 (additional repository anchors, GitHub #1243; V1-1986) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-240 (bounded behavior-adapter reconciliation frontier; V1-1089) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-241 (`maintain --page` refusals name the flag and rule; V1-1227) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-242 (corpus MCP `--artifact` path refusals name the argument and rule; V1-1228) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-243 (per-path tree bound for query freshness and batch input walks; V1-2151) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
+- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-080..082 (behavior annotation contract, producer and missing annotations, GitHub #835; V1-1222) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-083..084 (valueless state matchers, GitHub #845; V1-1318) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-085 (encoder-pool-independent allocation, V1-1380) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-086..092 (test-knowledge records, GitHub #1162; V1-1868) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-093..099 (flow-level relations, GitHub #1225; V1-1973) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-140..142 (symbol-anchor re-resolution, GitHub #1223; V1-1971) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-143..145 (lazy corpus MCP load, reused freshness and path batches, GitHub #1236 and #1237; V1-1982) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-146 (verbatim oversized paragraphs, over-bound line gaps and located refusals, GitHub #1242; V1-1983) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-150..152 (asserting E2E gap conditions and unauthenticated review, GitHub #1245; V1-1988) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-165..169 (case search by ID and ranked any-word match, GitHub #1246; V1-1989) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-160..163 (multi-scope /2 manifest inventory, GitHub #1241; V1-1985) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-170..174 (flow section and record-kind filters, GitHub #1247; V1-1990) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-155..159 (constant-cost Git reads and typed capacity refusals, GitHub #1240; V1-1984) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-185..192 (typed homes for supplied gaps, readiness status and manual case links, GitHub #1244; V1-1987) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-175..179 (additional repository anchors, GitHub #1243; V1-1986) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-205..207 (absolute corpus MCP `--artifact` paths, GitHub #1256; V1-1997) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-200..203 (single-call MCP output bound pages or refuses, never -32603, GitHub #1255; V1-1996) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-193..197 (scaled query-index bounds, per-artifact index memo and build-time index refusal, GitHub #1254; V1-1995) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-210..215 (supplied test-run receipts, legacy case links, and supplied gaps in capabilities and the query index, GitHub #1244; V1-1993) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-216..217 (batched symbol-anchor, CEM projection and discovery path reads, V1-1991) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-175..179 (additional repository anchors, GitHub #1243; V1-1986) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-240 (bounded behavior-adapter reconciliation frontier; V1-1089) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-241 (`maintain --page` refusals name the flag and rule; V1-1227) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-242 (corpus MCP `--artifact` path refusals name the argument and rule; V1-1228) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-243 (per-path tree bound for query freshness and batch input walks; V1-2151) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-250..257 (caller-owned retrieval evaluation `docs corpus eval`, GitHub #1480; V1-2315) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
 - Exists: native compiler/reader, explicit integrations, separate MCP, renderer, independent adapter and labelled evaluation.
 - Blocked on: owner acceptance and independent external utility qualification; local completion requires the gates below.
 - Read next: Requirements; Input and authority boundary; Acceptance and rollback.
@@ -1322,6 +1322,64 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `TestDCPV1241CorpusMaintainPageRefusalNamesFlag`. Status: (accepted under the owner's standing
   auto-accept (2026-10-11); V1-1227).
 
+### Caller-owned retrieval evaluation (`docs corpus eval`)
+
+`corvint docs corpus eval --artifact PATH --cases PATH [--baseline PATH] [--format json|table]`
+scores caller-owned cases against one corpus artifact. It is a read command: it writes only
+standard output, never the artifact, the cases or the baseline. Status for `DCP-V1-250..257`:
+(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1480; V1-2315).
+
+- `DCP-V1-250`: The case file is a closed `corvint-corpus-eval-cases/1` document with a file
+  `origin` of `labelled`, `synthetic` or `generated` and 1 to 1024 cases. Each case has a unique,
+  non-empty ID of at most 256 bytes, an `operation` that a corpus MCP tool serves, an optional
+  object of tool `arguments`, optional `tags` and an optional per-case `origin`, and an `expect`
+  with exactly one of `abstain: true` or answers (`subjects`, `claims`, `paths`), plus optional
+  `must_not` record IDs. An unknown member, duplicate member, unknown operation or origin,
+  non-object arguments, an empty or contradictory expectation, a duplicate or empty list item,
+  or trailing data refuses the whole file with `corpus-refused` (`eval: ...`) before any case
+  runs. Acceptance: `TestDCPV1250EvalRefusesMalformedCaseFiles`.
+- `DCP-V1-251`: Each case runs through `corpusbridge.Registry.CallTimed`, the code path that serves
+  the `corvint.docs_*` MCP tools, with the case's arguments unchanged. Scores derive only from the
+  served structured receipt; `receipt_bytes` is the served text length and `latency_ms` is the
+  call's measured total. A tool failure or transport error makes the case `error` with its code,
+  never a pass. Acceptance: `TestDCPV1251EvalScoresThroughTheMCPToolPath`.
+- `DCP-V1-252`: Each case reports `hit`, the 1-based `rank` of the first relevant row, `k` (the
+  case's `limit`, else 20), `returned`, `precision_at_k` and `recall_at_k` as numerator,
+  denominator and value, `abstained` (zero rows), an `abstention` class, `must_not_violations` and
+  `unresolved`. A row is relevant when its record ID, subject, nested relation record or subject,
+  path or evidence anchor path matches an expected answer. A case passes only with no `must_not`
+  violation, no unresolved expectation, and a hit (answer case) or an abstention (abstain case).
+  Acceptance: `TestDCPV1251EvalScoresThroughTheMCPToolPath`.
+- `DCP-V1-253`: An expected subject, claim, path or `must_not` ID that the artifact does not
+  contain is listed in `unresolved` with its kind. It stays in the recall denominator as a miss and
+  fails the case; it is never dropped or scored as found. Summaries (`overall`, `by_operation`,
+  `by_tag`, `by_origin`) carry every ratio's numerator and denominator and the member case IDs;
+  errored cases stay in the denominators. Acceptance:
+  `TestDCPV1251EvalScoresThroughTheMCPToolPath`.
+- `DCP-V1-254`: The report binds the case file (path, SHA-256, origin, count) and the corpus
+  (artifact SHA-256, repository ID, revision, tree, profile, manifest and builder) and states its
+  limitations. `--baseline` reads a prior report strictly and compares each case by status,
+  rank, recall, precision, `must_not` count and abstention correctness, never by latency or bytes.
+  Every regressed case is listed with its reasons and the command exits 1 with the report; an
+  improvement never offsets a regression. Acceptance:
+  `TestDCPV1254BaselineListsEveryRegression`, `TestDCPV1257CorpusEvalCLI`.
+- `DCP-V1-255`: The comparison identity is the case-file SHA-256, the repository ID, the profile ID
+  and the served receipt schema; a rebuilt artifact of the same repository and profile stays
+  comparable. When any identity member or the case count differs, the baseline is
+  `comparable: false` with the reasons (`case file changed`, `corpus identity changed`, `served
+  receipt schema changed`), no case is compared, and the command exits 1. Acceptance:
+  `TestDCPV1255ChangedIdentityIsNotComparable`.
+- `DCP-V1-256`: A case inherits the file origin unless it names its own; a synthetic or generated
+  file cannot contain a `labelled` case. Each result and `by_origin` group keeps its origin, so a
+  synthetic score is never reported as a labelled one. Acceptance:
+  `TestDCPV1250EvalRefusesMalformedCaseFiles`, `TestDCPV1251EvalScoresThroughTheMCPToolPath`.
+- `DCP-V1-257`: `--format json` (the default) prints the deterministic report; `--format table`
+  prints a per-case and per-group text view of the same report. An unknown format, a missing
+  `--cases` or an unreadable local input is an argument or input error (exit 2); a refused case
+  file or unavailable corpus is `corpus-refused`. `--cases` and `--baseline` follow the
+  `DCP-V1-054` local input path rule. Acceptance: `TestDCPV1257CorpusEvalCLI`,
+  `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags`.
+
 ## Input and authority boundary
 
 ### Experimental behavior contracts (issue 40)
@@ -1686,6 +1744,10 @@ and a query index over its posting or key-byte bound (`DCP-V1-194`).
   `TestDocsCorpusHelpStatesRootRelativeInputs` and `TestLocalInputPathRuleNamesTheBrokenRule`.
   Status: (accepted, decision 0520; V1-1226; GitHub #796).
 `corpus-provider-unavailable` covers undeclared or unsupported provider implementations.
+An eval case file refuses whole with `corpus-refused` (`DCP-V1-250`); an unresolved expected ID
+fails its case and is listed, never dropped (`DCP-V1-253`); a tool failure makes the case `error`
+(`DCP-V1-251`); a baseline with a different comparison identity is reported not comparable and
+exits 1 (`DCP-V1-255`); a regressed case exits 1 with every regression listed (`DCP-V1-254`).
 A test-knowledge record refuses with `corpus-refused` for an unknown member or enum value, a
 broken field rule, a secret-shaped free-text value, a malformed or unpinned anchor, a bound
 breach, use under manifest `/1`, or a forged binding (any anchor mismatch at the corpus
@@ -1763,6 +1825,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-241 | `internal/doccorpus/apply.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1241CorpusMaintainPageRefusalNamesFlag` |
 | DCP-V1-242 | `cmd/corvint-corpus-mcp/main.go` | `TestDCPV1242RelativeArtifactRefusalNamesArgumentAndRule` |
 | DCP-V1-243 | `internal/doccorpus/batch_input.go`, `internal/doccorpus/query.go` | `TestDCPV1243ResolvedInputsKeepPerPathTreeBound` |
+| DCP-V1-250..257 | `internal/mcp/corpusbridge/eval.go`, `cmd/corvint/docs_corpus_eval.go`, `cmd/corvint/docs_corpus.go`, `cmd/corvint/docs_corpus_help.go` | `TestDCPV1250EvalRefusesMalformedCaseFiles`, `TestDCPV1251EvalScoresThroughTheMCPToolPath`, `TestDCPV1254BaselineListsEveryRegression`, `TestDCPV1255ChangedIdentityIsNotComparable`, `TestDCPV1257CorpusEvalCLI`, `TestDocsCorpusOperationFlagMatrix` |
 | DCP-V1-056 | `cmd/corvint/docs_corpus_help.go`, `cmd/corvint/docs_corpus.go`, `cmd/corvint/help.go` | `TestDocsCorpusHelpListsOperations`, `TestDocsCorpusOperationHelpPrintsFlags`, `TestDocsCorpusOperationFlagMatrix` |
 | DCP-V1-057 | `cmd/corvint/help.go` | `TestUnknownHelpTopicListsValidTopics`, `TestUnknownHelpTopicIsConventionalError` |
 | DCP-V1-060..061 | `internal/doccorpus/behavior_legacy_discovery.go`, `behavior_legacy_lex.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-060 DCP-V1-061`) |
