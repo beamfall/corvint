@@ -56,3 +56,31 @@ Legacy and Playwright enumeration still go through the RevisionFS walk, which co
 operation per directory listed (DLT-V0-003). That is why the discovery fixtures keep their
 files in one directory. This cost scales with the number of directories, not the number of
 paths. Making it constant needs a batched tree listing and is left for a follow-up.
+
+## Review round (Codex, one round) and fixes
+
+1. **P2: budget exhaustion in the fallback read as an unavailable blob.** One missing pinned blob
+   fails the header batch. The per-blob fallback can then exhaust the default budget, and
+   `SymbolResolver.file` turned that error into "blob is unavailable", so symbol states were not
+   withheld.
+   - Fix: `file` now returns `git-budget-exceeded` and `git-output-exceeded` errors, so the checker
+     withholds every state with the diagnostic.
+   - This also hardens the per-path route, which had swallowed the same error class at a blob read.
+   - Test: `TestDCPV1216SymbolFallbackBudgetWithholdsStates`, with 600 moved anchors plus one
+     missing blob. It checks that the batched receipt equals the per-path receipt. It fails
+     without the fix.
+2. **P2: cached `ResolvePaths` admitted paths the per-path lookup refuses.** The walk's aggregate
+   bound is 32 MiB. The per-path `LookupTreeEntry` refuses at 4 MiB of root and parent tree
+   records.
+   - Fix: `gitauth.ResolvePathLookups` reports each path's per-path tree record bytes, and
+     `pathPrefetch` answers only paths whose parents all resolved within `MaxTreeBytes`. Every
+     other path keeps its per-path lookup and refusal.
+   - Test: `TestDCPV1216ProjectionKeepsPerPathTreeBound`, an anchor under a parent tree of about
+     4.25 MiB built with `git mktree`. The batched and per-path routes both refuse with
+     `git-output-exceeded` and the same message. It fails without the fix.
+   - Residual: the V1-1984 `ResolvePaths` consumers (`query.go`, `batch_input.go`) still use the
+     aggregate bound alone. This lane did not change them.
+3. **P3 (V1-2129, STR-V0-060): the symlink swap passed without `O_NOFOLLOW`.**
+   - Fix: added a `symlink-to-same-inode` swap that renames the original and links to it.
+   - Check: with `O_NOFOLLOW` removed the test fails, because the digest succeeds. With the flag
+     restored it passes.

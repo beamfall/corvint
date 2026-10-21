@@ -5,9 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/contextindex"
 )
@@ -223,5 +227,117 @@ func TestDCPV1216PlaywrightDiscoveryGitOpsIndependentOfPathCount(t *testing.T) {
 	unboundedPerPathReads(t)
 	if !bytes.Equal(batched, run(t)) {
 		t.Fatal("batched Playwright discovery differs from the per-path reads")
+	}
+}
+
+// symbolAnchorReceipt checks cited symbol anchors once under the current
+// budget and returns the receipt's checks and limitations as JSON.
+func symbolAnchorReceipt(t *testing.T, root, id string, live *contextindex.Index, citations []Anchor) []byte {
+	t.Helper()
+	receipt := Receipt{Citations: citations}
+	checker := &symbolChecker{overlay: &symbolOverlay{root: root, repository: id, live: live, files: &sharedSymbolFiles{files: map[string]sharedSymbolFile{}}}, checks: map[string]SymbolAnchorCheck{}}
+	defer checker.close()
+	if err := attachSymbolAnchors(context.Background(), &receipt, checker); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(struct {
+		Checks      []SymbolAnchorCheck
+		Limitations []string
+	}{receipt.SymbolAnchors, receipt.Limitations})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return raw
+}
+
+// TestDCPV1216SymbolFallbackBudgetWithholdsStates pins DCP-V1-216's
+// fallback: one missing pinned blob fails the header batch, the per-blob
+// reads then exhaust the default operation budget, and that exhaustion
+// withholds every symbol state with its budget diagnostic, as the per-path
+// reads do, instead of reading as an unavailable blob.
+func TestDCPV1216SymbolFallbackBudgetWithholdsStates(t *testing.T) {
+	const n = 600
+	ctx := context.Background()
+	root := t.TempDir()
+	files := map[string]string{}
+	for i := 0; i < n; i++ {
+		path, data := bulkSymbolSource(i)
+		files[path] = data
+	}
+	rev := writeBulkFixture(t, root, files)
+	id, err := contextindex.CorpusRepositoryID(ctx, root, rev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	blobs := treeBlobs(t, root, rev)
+	moved := map[string]string{}
+	citations := []Anchor{}
+	for i := 0; i < n; i++ {
+		path, data := bulkSymbolSource(i)
+		citations = append(citations, Anchor{Repository: id, Revision: rev, Path: path, Blob: blobs[path], SHA256: Digest([]byte(data)), Start: 1, End: 3, SpanSHA256: spanDigest([]byte(data), 1, 3), Symbol: fmt.Sprintf("sym%d", i)})
+		moved[path] = "const padding = 1;\n" + data
+	}
+	missing := citations[0]
+	missing.Blob, missing.Symbol = strings.Repeat("e", len(missing.Blob)), "symMissing"
+	citations = append([]Anchor{missing}, citations...)
+	live, err := contextindex.BuildRevisionContext(ctx, root, commitFiles(t, root, moved))
+	if err != nil {
+		t.Fatal(err)
+	}
+	batched := symbolAnchorReceipt(t, root, id, live, citations)
+	if !strings.Contains(string(batched), string(cemcode.GitBudgetExceeded)) || strings.Contains(string(batched), `"moved"`) {
+		t.Fatalf("batched fallback did not withhold on the budget: %.400s", batched)
+	}
+	pathPrefetchOff = true
+	t.Cleanup(func() { pathPrefetchOff = false })
+	if perPath := symbolAnchorReceipt(t, root, id, live, citations); !bytes.Equal(batched, perPath) {
+		t.Fatalf("batched fallback %.400s\nper-path %.400s", batched, perPath)
+	}
+}
+
+// gitStdin runs one git plumbing command with stdin in root.
+func gitStdin(t *testing.T, root, stdin string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", append([]string{"-C", root}, args...)...)
+	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_AUTHOR_NAME=Corpus test", "GIT_AUTHOR_EMAIL=corpus@example.invalid", "GIT_COMMITTER_NAME=Corpus test", "GIT_COMMITTER_EMAIL=corpus@example.invalid", "GIT_AUTHOR_DATE=2026-10-19T00:00:00Z", "GIT_COMMITTER_DATE=2026-10-19T00:00:00Z")
+	cmd.Stdin = strings.NewReader(stdin)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v: %v %.300s", args, err, out)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// TestDCPV1216ProjectionKeepsPerPathTreeBound pins DCP-V1-216's admission
+// equivalence: an anchor whose parent directory tree alone passes the 4 MiB
+// per-path lookup bound is refused by the batched projection exactly as by
+// the per-path lookup, although the batched walk's 32 MiB bound admits it.
+func TestDCPV1216ProjectionKeepsPerPathTreeBound(t *testing.T) {
+	root := t.TempDir()
+	git(t, root, "init", "-q")
+	doc := "# Page\n\nClaim holds.\n"
+	docBlob := gitStdin(t, root, doc, "hash-object", "-w", "--stdin")
+	empty := gitStdin(t, root, "", "hash-object", "-w", "--stdin")
+	var big strings.Builder
+	// Each entry is "100644 <240-digit name>\x00<binary OID>" in the tree body.
+	for i := 0; i*(7+240+1+len(empty)/2) < gitauth.MaxTreeBytes+(256<<10); i++ {
+		fmt.Fprintf(&big, "100644 blob %s\t%0240d\n", empty, i)
+	}
+	fmt.Fprintf(&big, "100644 blob %s\tpage.md\n", docBlob)
+	bigTree := gitStdin(t, root, big.String(), "mktree")
+	docsTree := gitStdin(t, root, "040000 tree "+bigTree+"\tbig\n", "mktree")
+	rootTree := gitStdin(t, root, "040000 tree "+docsTree+"\tdocs\n", "mktree")
+	base := gitStdin(t, root, "", "commit-tree", rootTree, "-m", "big tree")
+	raw := []byte(doc)
+	a := &Artifact{Schema: SchemaV2, Claims: []Claim{{ID: "claim-0", Evidence: Evidence{Derivation: "extracted", Trust: "documented", Anchors: []Anchor{{Path: "docs/big/page.md", Blob: docBlob, Revision: base, SHA256: Digest(raw), Start: 3, End: 3, SpanSHA256: spanDigest(raw, 3, 3)}}}}}}
+	_, _, batched := projectClaims(context.Background(), root, a, "", base, nil)
+	if cemcode.CodeOf(batched) != cemcode.GitOutputExceeded {
+		t.Fatalf("batched projection = %v, want the per-path tree bound refusal", batched)
+	}
+	pathPrefetchOff = true
+	t.Cleanup(func() { pathPrefetchOff = false })
+	_, _, perPath := projectClaims(context.Background(), root, a, "", base, nil)
+	if perPath == nil || perPath.Error() != batched.Error() {
+		t.Fatalf("batched %v, per-path %v", batched, perPath)
 	}
 }

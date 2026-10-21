@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/contextindex"
 )
@@ -386,6 +387,12 @@ func (r *SymbolResolver) file(ctx context.Context, oid, name string) (*symbolFil
 	if err != nil {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
+		}
+		if code := cemcode.CodeOf(err); code == cemcode.GitBudgetExceeded || code == cemcode.GitOutputExceeded {
+			// A capacity failure is the request's, not the blob's: it
+			// withholds every symbol state with its diagnostic (DCP-V1-216).
+			delete(r.files, key)
+			return nil, err
 		}
 		f.refusal = "blob is unavailable"
 		return f, nil

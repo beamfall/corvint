@@ -34,7 +34,8 @@ func newPathPrefetch(commit string) *pathPrefetch {
 }
 
 // resolve walks every path not yet resolved through one verified batched
-// walk. Only a cancelled context is an error.
+// walk and holds the entries of the paths a per-path lookup would admit.
+// Only a cancelled context is an error.
 func (p *pathPrefetch) resolve(ctx context.Context, auth *gitauth.Repository, paths []string) error {
 	pending := []string{}
 	seen := map[string]bool{}
@@ -48,11 +49,17 @@ func (p *pathPrefetch) resolve(ctx context.Context, auth *gitauth.Repository, pa
 		return nil
 	}
 	sort.Strings(pending)
-	entries, err := auth.ResolvePaths(ctx, p.commit, pending)
+	entries, lookups, err := auth.ResolvePathLookups(ctx, p.commit, pending)
 	if err != nil {
 		return ctx.Err()
 	}
 	for _, path := range pending {
+		// Only a path the per-path lookup would admit is answered from the
+		// walk: one whose parent trees all resolved and stream within
+		// MaxTreeBytes. Any other path keeps its per-path lookup and refusal.
+		if bytes, ok := lookups[path]; !ok || bytes > gitauth.MaxTreeBytes {
+			continue
+		}
 		p.resolved[path] = true
 		if entry, ok := entries[path]; ok {
 			p.entries[path] = entry
