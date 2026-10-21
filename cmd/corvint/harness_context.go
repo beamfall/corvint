@@ -55,7 +55,7 @@ func repositoryQueryContext(ctx context.Context, root, task string, limit int, b
 		}
 		if index == nil {
 			var err error
-			index, err = timedBuildEval(ctx, root)
+			index, err = timedMissBuild(ctx, func() (*contextindex.Index, error) { return contextindex.BuildEval(ctx, root) })
 			if err != nil {
 				return nil, err
 			}
@@ -65,10 +65,11 @@ func repositoryQueryContext(ctx context.Context, root, task string, limit int, b
 	if index := preloadedIndex(loaded); index != nil {
 		return repositoryQueryOver(ctx, root, index, task, limit, budget)
 	}
+	buildEval := func() (*contextindex.Index, error) { return contextindex.BuildEval(ctx, root) }
 	return overSnapshot(
 		func() *contextindex.Index { return deferredSnapshotIndex(ctx, root) },
 		func() *contextindex.Index { return snapshotIndex(ctx, root) },
-		func() (*contextindex.Index, error) { return timedBuildEval(ctx, root) },
+		func() (*contextindex.Index, error) { return timedMissBuild(ctx, buildEval) },
 		func(index *contextindex.Index) (map[string]any, error) {
 			return repositoryQueryOver(ctx, root, index, task, limit, budget)
 		},

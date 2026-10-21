@@ -1431,8 +1431,11 @@ func authorityStartQueryContext(ctx context.Context, options options, loaded ...
 	if index := preloadedIndex(loaded); index != nil {
 		return compute(index)
 	}
+	query := func() (*contextindex.Index, error) {
+		return contextindex.BuildQuery(ctx, options.root, options.queryTask)
+	}
 	build := func() (*contextindex.Index, error) {
-		built, err := timedBuildQuery(ctx, options.root, options.queryTask)
+		built, err := timedMissBuild(ctx, query)
 		return built, mapStandaloneQueryBuildError(err, true)
 	}
 	return overSnapshot(

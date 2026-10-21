@@ -287,13 +287,3 @@ func timedMissBuild(ctx context.Context, build func() (*contextindex.Index, erro
 	}
 	return index, err
 }
-
-// timedBuildEval and timedBuildQuery are the `query` verb's two miss builds
-// under timedMissBuild.
-func timedBuildEval(ctx context.Context, root string) (*contextindex.Index, error) {
-	return timedMissBuild(ctx, func() (*contextindex.Index, error) { return contextindex.BuildEval(ctx, root) })
-}
-
-func timedBuildQuery(ctx context.Context, root, task string) (*contextindex.Index, error) {
-	return timedMissBuild(ctx, func() (*contextindex.Index, error) { return contextindex.BuildQuery(ctx, root, task) })
-}

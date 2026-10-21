@@ -726,22 +726,22 @@ above stands with that substitution.
   unchanged, which `--checkpoint` MUST NOT re-code, so the exact expected code is
   whatever `Build` returns for that repository. A `Build` error can carry no code at all
   (`internal/contextindex/git.go:463-464@bf504d51`), and `emitError` deliberately prints such an error without
-  a `code` member (`cmd/corvint/main.go:1570-1572@a109d3d7`); because this clause requires every checkpoint
+  a `code` member (`cmd/corvint/main.go:1573-1575@a109d3d7`); because this clause requires every checkpoint
   refusal to bear a code, a code-less `Build` error MUST be reported as `unsupported-prove-index`,
   a checkpoint-only mapping that preserves the `Build` message verbatim as the refusal's `error`
   member — for an error carrying no `DRC-V0` diagnostic, which this refusal never does, the only
   members `emitError` writes are `code`, `error`, and `ok`
-  (`cmd/corvint/main.go:1574-1578@b96186e4`), so there is no `reason` member on this wire — and MUST NOT
+  (`cmd/corvint/main.go:1577-1581@b96186e4`), so there is no `reason` member on this wire — and MUST NOT
   change what plain `prove` emits for the same error. The mapping MUST construct a
   fresh `&gokernel.Error{Code: "unsupported-prove-index", Message: buildErr.Error()}` that does
   NOT wrap the `*contextindex.Error`: `emitError` prints without a `code` member for an error
-  that unwraps to a code-less context error (`cmd/corvint/main.go:1555-1566@a9930fba`), so wrapping to preserve the message
+  that unwraps to a code-less context error (`cmd/corvint/main.go:1558-1569@a9930fba`), so wrapping to preserve the message
   would still emit an uncoded refusal, which this clause forbids. That mapping MUST live in the
   checkpoint branch's own compile function — `compileCheckpointProof` (`cmd/corvint/prove.go:657@01d34b22`), the sibling of
   `compileCEMProof` (`cmd/corvint/prove.go:874@e469a50d`) that `compileProof` dispatches to on the
   checkpoint mode (`cmd/corvint/prove.go:565@6d433de3`, `cmd/corvint/prove.go:574-576@acc310b7`) — between its
   index build and its return to `runProve` (`cmd/corvint/prove.go:670-680@5563dd2e`, `cmd/corvint/prove.go:525-533@73e66e84`). It MUST NOT be placed in
-  `emitError` (`cmd/corvint/main.go:1564-1566@4f554a82`), which plain `prove` shares, so plain `prove`'s
+  `emitError` (`cmd/corvint/main.go:1567-1569@4f554a82`), which plain `prove` shares, so plain `prove`'s
   stderr for the same code-less `Build` error stays byte-unchanged, which FPK-V0-026 requires as a
   named test; (11) `repository.object_format` differs from the object format of the index
   built at the current revision (FPK-V0-021) — `object-format-mismatch`, decided after the index
@@ -795,9 +795,9 @@ above stands with that substitution.
   left them `Build` only on a snapshot miss (`cmd/corvint/prove.go:1078@a1c6494d`, `cmd/corvint/index_snapshot.go:105@90129c09`), and MUST NOT read an on-disk index snapshot. `prove --task` is not the model
   for this: its project-operations query profile acquires through `standaloneQueryContext`
   (`cmd/corvint/prove.go:1064-1066@d473eb95`, `cmd/corvint/main.go:1410-1421@4e7cdb10`), which reaches `deferredSnapshotIndex` and `snapshotIndex`
-  (`cmd/corvint/index_snapshot.go:93-94@5959c784`, `cmd/corvint/index_snapshot.go:61-62@123f0830`) at `cmd/corvint/main.go:1439-1440@c39315fe` and
-  `cmd/corvint/harness_context.go:69-70@70282d2c` and only builds (`BuildQuery`, `internal/contextindex/index.go:412-414@9faff3e7`, called at
-  `cmd/corvint/main.go:1435@3dc52f02`; `BuildEval`, `internal/contextindex/index.go:314-315@b1c33c59`, called at `cmd/corvint/harness_context.go:71@eb4f5986`) on a miss — so plain
+  (`cmd/corvint/index_snapshot.go:93-94@5959c784`, `cmd/corvint/index_snapshot.go:61-62@123f0830`) at `cmd/corvint/main.go:1442-1443@c39315fe` and
+  `cmd/corvint/harness_context.go:70-71@70282d2c` and only builds (`BuildQuery`, `internal/contextindex/index.go:412-414@9faff3e7`, called at
+  `cmd/corvint/main.go:1435@33d39726`; `BuildEval`, `internal/contextindex/index.go:314-315@b1c33c59`, called at `cmd/corvint/harness_context.go:68@4dbd8b14`) on a miss — so plain
   `prove --task` does read the snapshot today, which a run of the binary confirms: with a
   populated `.corvint/index/`, the snapshot file's access time advances under `prove --task` and
   did not under `prove PATH...` before `IDX-SNAP-V0-020` (decision 0180) gave impact and change modes the same read. `IDX-SNAP-V0-008` (`docs/specs/index-snapshot-v0.md:79-81`)
@@ -877,7 +877,7 @@ above stands with that substitution.
   refusal, and each other case FPK-V0-024 enumerates yields the exact code that clause names for
   it, an invented code being a failure; a `Build` error carrying its own code yields that code
   unchanged, and a code-less `Build` error yields `unsupported-prove-index` carrying the `Build`
-  message verbatim as its `error` member (`cmd/corvint/main.go:1574-1578@b96186e4`), an uncoded refusal
+  message verbatim as its `error` member (`cmd/corvint/main.go:1577-1581@b96186e4`), an uncoded refusal
   being a failure; and a checkpoint whose
   `repository.object_format` is `sha256` replayed in a sha1 repository refuses
   `object-format-mismatch` before any handle verdict, a confident all-`blob-changed` document being
