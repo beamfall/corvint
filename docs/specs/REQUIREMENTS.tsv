@@ -3267,6 +3267,7 @@ LCP-V0-033	docs/specs/local-completion-policy-v0.md	(accepted, owner lane auto-a
 LCP-V0-034	docs/specs/local-completion-policy-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1976) A dogfood event whose	owner	2026-10-11; V1-1976
 LCP-V0-035	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2276) A prompt	standing	2026-10-11; V1-2276
 LCP-V0-036	docs/specs/local-completion-policy-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1757) Every base-ancestry	owner	2026-10-11; V1-1757
+LCP-V0-037	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0680)	standing	2026-10-11; V1-0680
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	Every displayed metric and source-derived value MUST derive through the compiled	unrecorded	-
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained	unrecorded	-
 LOD-V0-003	docs/specs/local-observability-dashboard-v0.md	P0 MUST produce byte-identical CLI snapshots for identical frozen inputs and the	unrecorded	-
@@ -3777,6 +3778,7 @@ PMC-V0-006	docs/specs/postmerge-connectors-v0.md	The separately qualified client
 PMC-V0-007	docs/specs/postmerge-connectors-v0.md	Publish distinct tracker and forge reference connectors and a conformance kit.	unrecorded	-
 PMC-V0-008	docs/specs/postmerge-connectors-v0.md	Each connector declares minimum scopes; local references require none.	unrecorded	-
 PMC-V0-009	docs/specs/postmerge-connectors-v0.md	Reject unknown JSON fields, duplicate keys, oversized inputs, malformed identiti	unrecorded	-
+PMC-V0-010	docs/specs/postmerge-connectors-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-2259) Before reading the	owner	2026-10-11; V1-2259
 PMM-V0-001	docs/specs/postmerge-metrics-v0.md	Validate closed JSON policy and history envelopes, duplicate keys, trailing valu	unrecorded	-
 PMM-V0-002	docs/specs/postmerge-metrics-v0.md	Retain each stage outcome and duration, follow-up creation latency or explicit n	unrecorded	-
 PMM-V0-003	docs/specs/postmerge-metrics-v0.md	Report per-class window cohort totals, distinct corrected generated-run numerato	unrecorded	-
@@ -3784,6 +3786,7 @@ PMM-V0-004	docs/specs/postmerge-metrics-v0.md	Process full retained eligible run
 PMM-V0-005	docs/specs/postmerge-metrics-v0.md	Validate contiguous per-class sequence inventories starting at 1 and independent	unrecorded	-
 PMM-V0-006	docs/specs/postmerge-metrics-v0.md	Produce byte-identical reports from the same validated policy, records, immutabl	unrecorded	-
 PMM-V0-007	docs/specs/postmerge-metrics-v0.md	Expose `corvint-postmerge-metrics report --policy FILE --records FILE --from UTC	unrecorded	-
+PMM-V0-008	docs/specs/postmerge-metrics-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-2259) Before asking	owner	2026-10-11; V1-2259
 PMR-V0-001	docs/specs/postmerge-replay-v0.md	Decode a bounded closed fixture containing immutable connector identity and	unrecorded	-
 PMR-V0-002	docs/specs/postmerge-replay-v0.md	Use a separate host-owned policy to pin the connector binding, executable bytes,	unrecorded	-
 PMR-V0-003	docs/specs/postmerge-replay-v0.md	Admit human labels only when one separate pinned registry entry matches full imm	unrecorded	-

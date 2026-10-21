@@ -154,7 +154,7 @@ func Inspector(ctx context.Context, c Config) (failure error) {
 		"add.go":      "package inspector\n\n// Add preserves the NATIVE_INSPECTOR_WITNESS contract.\nfunc Add(a, b int) int { return a + b }\n",
 		"multiply.go": multiply, "examples/multiply.go": "package examples\n\n// Multiply uses NATIVE_SECOND_WITNESS.\nfunc Multiply(a, b int) int { return a * b }\n",
 		"multiply_test.go": "package inspector\n\nimport \"testing\"\n\nfunc TestMultiply(t *testing.T) { if Multiply(3, 4) != 12 { t.Fatal(\"wrong product\") }; t.Log(\"COCKPIT_PROOF_WITNESS\") }\n",
-		"AGENTS.md":        "# Inspector fixture\nUse Add in add.go for addition.\n", ".gitignore": "opencode.json\n.corvint/\n.context-corvint/\n.taskman/\n",
+		"AGENTS.md":        "# Inspector fixture\nUse Add in add.go for addition.\n\n## Requirements\n\n- `INSPECT-001`: Add returns the sum.\n", ".gitignore": "opencode.json\n.corvint/\n.context-corvint/\n.taskman/\n",
 	} {
 		if e = os.WriteFile(filepath.Join(repo, name), []byte(text), 0600); e != nil {
 			return e
