@@ -80,8 +80,14 @@ func Build(r tr.Request) (tr.Invocation, error) {
 		if r.Project != "" {
 			pkg = filepath.Join(pkg, r.Project)
 		}
-		if reservedSwiftPackageIdentity(pkg) {
-			return i, fmt.Errorf("Swift package directory %q has a reserved toolchain package identity; SwiftPM names the package swift_testing and its tests cannot import the toolchain Testing module", filepath.Base(pkg))
+		// SwiftPM derives the identity from the symlink-resolved package
+		// directory, so the check reads the same resolved name.
+		resolved, err := filepath.EvalSymlinks(pkg)
+		if err != nil {
+			return i, fmt.Errorf("Swift package directory cannot be resolved: %v", err)
+		}
+		if reservedSwiftPackageIdentity(resolved) {
+			return i, fmt.Errorf("Swift package directory %q resolves to %q, a reserved toolchain package identity; SwiftPM names the package swift_testing and its tests cannot import the toolchain Testing module", filepath.Base(pkg), filepath.Base(resolved))
 		}
 		i.Argv = []string{"test", "--package-path", pkg, "--disable-xctest", "--enable-swift-testing", "--no-parallel", "--event-stream-version", "0", "--event-stream-output-path", filepath.Join(r.ReportDir, "swift-events.jsonl")}
 		for _, s := range r.Selectors {

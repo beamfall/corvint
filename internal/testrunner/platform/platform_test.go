@@ -257,7 +257,7 @@ func TestNativeReportFixtureInventory(t *testing.T) {
 // whose function form ends in "/File.swift:line:column", so the exact
 // selector ends at that "/" or at the end of a suite ID and nowhere else.
 func TestSwiftTestingSelectorMatchesSourceSuffixedID(t *testing.T) {
-	r := tr.Request{Runner: "swift-testing", Root: "/source", Executable: "/tools/swift", ExecutableSha256: strings.Repeat("b", 64), ReportDir: "/fresh", Selectors: []string{"ProofTests.passCriterion()", "ProofTests.Suite"}}
+	r := tr.Request{Runner: "swift-testing", Root: t.TempDir(), Executable: "/tools/swift", ExecutableSha256: strings.Repeat("b", 64), ReportDir: "/fresh", Selectors: []string{"ProofTests.passCriterion()", "ProofTests.Suite"}}
 	v, e := Build(r)
 	if e != nil {
 		t.Fatal(e)
@@ -292,25 +292,44 @@ func TestSwiftTestingSelectorMatchesSourceSuffixedID(t *testing.T) {
 	}
 }
 
-// TRE-V0-112 / V1-1535: a package directory whose SwiftPM identity collides
-// with the toolchain swift-testing package is refused before execution.
+// TRE-V0-112 / V1-1535: a package directory whose symlink-resolved SwiftPM
+// identity collides with the toolchain swift-testing package is refused
+// before execution; an unresolvable package directory is refused too.
 func TestSwiftTestingRefusesReservedPackageIdentity(t *testing.T) {
+	src := t.TempDir()
+	for _, d := range []string{"swift-testing", "Fixtures/Swift-Testing", "Testing", "okpkg", "swift-testing-fixture"} {
+		if err := os.MkdirAll(filepath.Join(src, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	links := map[string]string{"alias-bad": "swift-testing", "swift-testing-link/swift-testing": "../okpkg"}
+	for link, target := range links {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(src, link)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(target, filepath.Join(src, link)); err != nil {
+			t.Skipf("symlinks unavailable: %v", err)
+		}
+	}
 	base := tr.Request{Runner: "swift-testing", Executable: "/tools/swift", ExecutableSha256: strings.Repeat("b", 64), ReportDir: "/fresh"}
 	for _, c := range []struct {
 		root, project string
-		refused       bool
+		refused       string
 	}{
-		{"/src/swift-testing", "", true},
-		{"/src", "Fixtures/Swift-Testing", true},
-		{"/src", "Testing", false},
-		{"/src", "okpkg", false},
-		{"/src/swift-testing-fixture", "", false},
+		{filepath.Join(src, "swift-testing"), "", "reserved toolchain package identity"},
+		{src, "Fixtures/Swift-Testing", "reserved toolchain package identity"},
+		{src, "alias-bad", "reserved toolchain package identity"},
+		{src, "swift-testing-link/swift-testing", ""},
+		{src, "Testing", ""},
+		{src, "okpkg", ""},
+		{filepath.Join(src, "swift-testing-fixture"), "", ""},
+		{src, "missing", "cannot be resolved"},
 	} {
 		r := base
 		r.Root, r.Project = c.root, c.project
 		_, err := Build(r)
-		if c.refused != (err != nil && strings.Contains(err.Error(), "reserved toolchain package identity")) {
-			t.Fatalf("%s/%s: refused=%v err=%v", c.root, c.project, c.refused, err)
+		if c.refused == "" && err != nil || c.refused != "" && (err == nil || !strings.Contains(err.Error(), c.refused)) {
+			t.Fatalf("%s/%s: want refusal %q, err=%v", c.root, c.project, c.refused, err)
 		}
 	}
 }
