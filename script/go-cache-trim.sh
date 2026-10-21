@@ -64,6 +64,7 @@ now=$(date +%s)
 cutoff=$((now - min_age_hours * 3600))
 if stat -f '%m' / > /dev/null 2>&1; then stat_format=(-f '%m %z %N'); else stat_format=(-c '%Y %s %n'); fi
 
+nl=$'\n'
 ncaches=0
 trim_total=0
 seen=" "
@@ -79,7 +80,8 @@ for cache in "${caches[@]}"; do
   ncaches=$((ncaches + 1))
   listing=$(mktemp "${TMPDIR:-/tmp}/corvint-go-cache-trim.XXXXXX") || refuse "temporary-file-unavailable"
   # Entries: oldest first, as "mtime size path".
-  find "$real" -mindepth 2 -maxdepth 2 -type f -path "$real/[0-9a-f][0-9a-f]/*" -exec stat "${stat_format[@]}" {} + 2> /dev/null |
+  # Names holding a newline are never listed, so each "mtime size path" line is one whole file.
+  find "$real" -mindepth 2 -maxdepth 2 -type f -path "$real/[0-9a-f][0-9a-f]/*" ! -name "*$nl*" -exec stat "${stat_format[@]}" {} + 2> /dev/null |
     sort -n -k1,1 > "$listing"
   plan=$(awk -v max="$max_bytes" -v cutoff="$cutoff" '
     { mtime[NR] = $1; size[NR] = $2; total += $2 }
@@ -105,14 +107,23 @@ for cache in "${caches[@]}"; do
 done
 
 nwork=0
-processes=$(ps -axww -o args= 2> /dev/null) && processes+=$'\n' || processes=
+snapshot() { processes=$(ps -axww -o args= 2> /dev/null) && processes+=$'\n' || processes=; }
+# in_use NAME: 0 when a running process names the work directory, or the process list is unreadable.
+in_use() {
+  [[ -z $processes || $processes == *"/$1/"* || $processes == *"/$1 "* || $processes == *"/$1"$'\n'* ]]
+}
+snapshot
 seen=" "
 for temp_root in "${temp_roots[@]}"; do
   [[ -d $temp_root ]] || continue
   root_real=$(cd "$temp_root" 2> /dev/null && pwd -P) || continue
   [[ $root_real != / ]] || continue
-  while IFS= read -r dir; do
+  while IFS= read -r -d '' dir; do
     [[ -n $dir ]] || continue
+    if [[ $dir == *"$nl"* ]]; then
+      printf 'KEEP newline-in-name workdir %q\n' "$dir"
+      continue
+    fi
     [[ $seen == *" $dir "* ]] && continue
     seen+="$dir "
     name=${dir##*/}
@@ -120,17 +131,24 @@ for temp_root in "${temp_roots[@]}"; do
       printf 'KEEP ps-unavailable workdir %s\n' "$dir"
       continue
     fi
-    if [[ $processes == *"/$name/"* || $processes == *"/$name "* || $processes == *"/$name"$'\n'* ]]; then
+    if in_use "$name"; then
       printf 'KEEP in-use workdir %s\n' "$dir"
       continue
     fi
-    nwork=$((nwork + 1))
     if ((apply)); then
+      # Re-read the process list just before removal; a process starting after this check is not seen.
+      snapshot
+      if in_use "$name"; then
+        printf 'KEEP in-use workdir %s\n' "$dir"
+        continue
+      fi
+      nwork=$((nwork + 1))
       if /bin/rm -rf "$dir"; then printf 'REMOVED workdir %s\n' "$dir"; else printf 'REMOVE-FAILED workdir %s\n' "$dir"; fi
     else
+      nwork=$((nwork + 1))
       printf 'WOULD-REMOVE workdir %s\n' "$dir"
     fi
-  done < <(find "$root_real" -mindepth 1 -maxdepth 1 -type d -name 'go-build*' -mmin "+$((work_age_hours * 60))" 2> /dev/null | sort)
+  done < <(find "$root_real" -mindepth 1 -maxdepth 1 -type d -name 'go-build*' -mmin "+$((work_age_hours * 60))" -print0 2> /dev/null)
 done
 
 free_after=-
