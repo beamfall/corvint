@@ -327,7 +327,7 @@ func bindSmokeEvidence(steps []SmokeStep, bundleDigest string, components []Comp
 // which names every subcommand cmd/corvint-js-test-provider dispatches (V1-1113).
 func checkJSProviderUsage(ctx context.Context, binary, name, scratch string) error {
 	_, stderr, err := runExpectedExit(ctx, scratch, minimalRunEnv(scratch), subprocessTimeout, 2, binary)
-	if err == nil && strings.TrimSpace(string(stderr)) != "usage: "+name+" <unit|e2e|negate|qualify-keep-reporters|external-origins> [flags]; "+name+" --help for details" {
+	if err == nil && strings.TrimSpace(string(stderr)) != "usage: "+name+" <unit|bun|e2e|negate|qualify-keep-reporters|external-origins> [flags]; "+name+" --help for details" {
 		err = fmt.Errorf("unexpected help admission: %q", stderr)
 	}
 	return err
