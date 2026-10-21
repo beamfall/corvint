@@ -3,7 +3,7 @@
 Owner: Russell Lewis  
 Date: 2026-08-23  
 Intent status: accepted (companion profile; owner's 1.0 feature-cut delegation, 2026-10-20; V1-0191)  
-Delivery status: experimental  
+Delivery status: implemented (stdio companion profile, official-schema receipt 2026-10-20)  
 Authoritative inputs: `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
 `docs/specs/agent-harness-integration-v0.md`, the
 [MCP 2026-07-28 specification](https://modelcontextprotocol.io/specification/2026-07-28), and its
@@ -14,9 +14,9 @@ official JSON Schema pinned at commit
 
 ## Agent digest
 - Claim: A local stdio MCP server exposes bounded read-only Corvint receipts, with 2026-07-28 default and explicit 2025-11-25 compatibility.
-- Status: accepted (companion profile; owner's 1.0 feature-cut delegation, 2026-10-20; V1-0191)/experimental
+- Status: accepted (companion profile; owner's 1.0 feature-cut delegation, 2026-10-20; V1-0191)/implemented (stdio companion profile, official-schema receipt 2026-10-20)
 - Exists: `cmd/corvint-mcp`, `internal/mcp`, and independent compiled-process conformance vectors.
-- Blocked on: delivery promotion needs a fresh official-schema receipt at the candidate commit; the 2026-10-20 lane run had no local copy of the pinned schema, so that execution is `NOT_RUN` and `mcp-server-unavailable` stays (see Companion promotion evidence). Official MCP conformance remains `NOT_RUN`; official-schema execution is opt-in and last passed on 2026-09-23 (V1-0191). The default V0 tool list stays at three; `corvint.context` and `corvint.cem.report` are advertised only by the opt-in task-review descendant profile (`MCPV0-024..026`, decision 0374). The four read-only `corvint.flows.*` tools are advertised only under `--tool-profile flows` (`MCPV0-026` as amended by `AFU-V1-034`). Tool errors stay `corvint-mcp-tool-error/0` unless the opt-in reason-class profile selects `/1` (`MCPV0-027..028`, decision 0383).
+- Blocked on: nothing for the stdio companion profile; the official-schema receipt passed at `a7870cac3` on 2026-10-20 and `mcp-server-unavailable` is retired (see Companion promotion evidence). The official Streamable HTTP conformance runner has no stdio target and stays `NOT_RUN`; official-schema execution stays opt-in. The default V0 tool list stays at three; `corvint.context` and `corvint.cem.report` are advertised only by the opt-in task-review descendant profile (`MCPV0-024..026`, decision 0374). The four read-only `corvint.flows.*` tools are advertised only under `--tool-profile flows` (`MCPV0-026` as amended by `AFU-V1-034`). Tool errors stay `corvint-mcp-tool-error/0` unless the opt-in reason-class profile selects `/1` (`MCPV0-027..028`, decision 0383).
 - Read next: User and measurable job; Explicit 2025-11-25 compatibility; Task-review descendant profile; Flows tool profile; Reason-class tool-error profile; Follow-ref worktree binding (`MCPV0-039..041`, opt-in `--follow-ref`); Traceability.
 
 ## User and measurable job
@@ -778,8 +778,11 @@ On 2026-09-23 the opt-in official-schema run passed against the pinned digest an
 pin was observed (V1-0191). Fuzz, complete race, and cross-build promotion evidence are not closed by
 that focused run.
 On 2026-10-20 at `2b0cfce94` the compiled-process suite passed again (35 PASS, 0 FAIL) with the
-three official-schema tests skipped for want of a local schema copy (`NOT_RUN`), and
-`cmd/corvint-mcp` and `internal/mcp/bridge` passed (V1-0191; see Companion promotion evidence).
+three official-schema tests skipped for want of a local schema copy, and `cmd/corvint-mcp` and
+`internal/mcp/bridge` passed. Later that day at `a7870cac3` the three official-schema tests passed
+against the pinned digest (V1-0191; see Companion promotion evidence). Fuzz, complete race,
+cross-build, a notification-cancellation-won call, an emitted progress notification and non-Unix
+cleanup remain outside that receipt.
 
 | `MCPV0-029` | `NewTaskReviewLSP`, `callContext`, `extractToolProfile` | `TestContextLSPProfileIsExplicit`, `TestContextLSPToolProfileSelector` |
 | `MCPV0-030` | `lspevidence.Attach`, `lspprovider.rootCommit`, `callContext` | `TestContextLSPPinAndDrift`, `TestContextLSPCancellationRetiresDescendants`; `script/qualify-lsp.py` |
@@ -813,22 +816,26 @@ direct CLI baseline and remove this server.
 The intent is accepted for the companion profile under the owner's 1.0 feature-cut delegation
 (2026-10-20); requirements without their own acceptance marker inherit it. `corvint-mcp` stays the
 required 1.0 companion of the 1.0 release classification table, never a Core surface, and every
-adapter row keeps `FALLBACK` (`Relationship to hosted MCP`, rollout item 2). Delivery stays
-experimental until all of the evidence below is retained for one candidate commit:
+adapter row keeps `FALLBACK` (`Relationship to hosted MCP`, rollout item 2). Delivery moved from
+experimental to implemented for the stdio companion profile once all of the evidence below was
+retained for one code tree (`a7870cac3` changes only documentation over `2b0cfce94`):
 
 1. The compiled-process suite `conformance/mcp-2026-07-28` passes (`/0`, `/1`, `/2` and the flows
    cases). Observed on 2026-10-20 at `2b0cfce94`: 35 top-level tests pass, 0 fail.
 2. With `CORVINT_MCP_OFFICIAL_SCHEMA` naming a copy whose SHA-256 is
    `ef70b61f99b6d2e5e3b46863822eab08dff6a45bedc7a08914e0e5b133f40203`,
    `TestServerTrafficMatchesOfficialSchema`, `TestTaskReviewTrafficMatchesOfficialSchema` and
-   `TestAFUV1034FlowsOfficialSchema` pass rather than skip. They passed on 2026-09-23 against an
-   older server; on 2026-10-20 no local copy existed and the lane was not authorized to fetch one,
-   so this item is `NOT_RUN` at the candidate.
+   `TestAFUV1034FlowsOfficialSchema` pass rather than skip. Observed on 2026-10-20 at `a7870cac3`
+   against an owner-approved copy outside the repository (the schema is not vendored): all three
+   pass with no skip, and the whole package passes 38 tests with 0 skips
+   (`docs/build-log/2026-10-20-mcp-companion-qualification.md`).
 3. The task-review tools' read-only evidence (`MCPV0-024`, `MCPV0-025`) passes in process and over
    the compiled process; observed on 2026-10-20 (`docs/build-log/2026-10-20-mcp-companion-qualification.md`).
 
-`mcp-server-unavailable` leaves `globalDegradations` in `integrations/compatibility.json` and both
-adapter manifests only in the change that cites a build-log receipt for item 2, together with
+`mcp-server-unavailable` left `globalDegradations` in `integrations/compatibility.json` and both
+adapter manifests in the change that cites the item-2 receipt, together with
 `integrations/README.md` and `ROADMAP.md`. That receipt covers the stdio server only, so no host
-tuple changes status with it. The official Streamable HTTP conformance runner has no stdio target
+tuple changed status with it: every row stays `FALLBACK`, the Claude Code manifest keeps
+`surfaces.mcp` `UNAVAILABLE` because it ships no MCP declaration, and the adapter versions moved
+only because their shipped content changed (`AHI-020`). The official Streamable HTTP conformance runner has no stdio target
 and stays `NOT_RUN`; it is not a prerequisite for the companion profile.
