@@ -72,6 +72,7 @@ func requireMalformedTree(t *testing.T, label string, err error) {
 }
 
 func TestRevisionFSRefusesUnsafeTreeEntryNames(t *testing.T) {
+	t.Parallel()
 	t.Run("DLT-V0-002 unsafe tree entry names fail closed regardless of read order", func(t *testing.T) {
 		root, slash, dotdot := malformedTreeRepo(t)
 		ctx := context.Background()

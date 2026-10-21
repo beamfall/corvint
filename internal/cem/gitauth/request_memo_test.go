@@ -221,6 +221,7 @@ func TestRequestMemoScopesReleaseAndIdentity(t *testing.T) {
 }
 
 func TestRequestMemoLogicalBudgetPrecedence(t *testing.T) {
+	t.Parallel()
 	t.Run("PLE-V0-003 cached reads preserve independent budgets and validation order", func(t *testing.T) {
 		memo, reader, _, base, target := memoFixture(t, "sha1")
 		ctx := context.Background()
@@ -375,6 +376,7 @@ func TestRequestMemoFailuresAndEviction(t *testing.T) {
 }
 
 func TestRequestMemoCopyCancellation(t *testing.T) {
+	t.Parallel()
 	t.Run("PLE-V0-003 cached copy honors cancellation and operation timeout", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()

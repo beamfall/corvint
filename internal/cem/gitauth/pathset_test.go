@@ -10,6 +10,7 @@ import (
 )
 
 func TestDCPV1155ResolvePathsMatchesSingleLookupsWithinOneOpPerLevel(t *testing.T) {
+	t.Parallel()
 	for _, format := range []string{"sha1", "sha256"} {
 		t.Run("DCP-V1-155 DCP-V1-156 "+format, func(t *testing.T) {
 			root, commit := pathsRepo(t, format)

@@ -76,6 +76,7 @@ func open(t *testing.T, root string) *Repository {
 }
 
 func TestPrimaryOpenAndResolve(t *testing.T) {
+	t.Parallel()
 	root, base, _ := makeRepo(t)
 	repository := open(t, root)
 	resolved, err := repository.Resolve(context.Background(), base)
@@ -91,6 +92,7 @@ func TestPrimaryOpenAndResolve(t *testing.T) {
 // cannot rewrite a commit's parent: graft files are not replace objects, so
 // GIT_NO_REPLACE_OBJECTS alone would bind a forged ancestor.
 func TestResolveIgnoresRepositoryGrafts(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	writeFile(t, root, "f.go", bodyV1)
 	gitCmd(t, root, "commit", "-qam", "revert")
@@ -106,6 +108,7 @@ func TestResolveIgnoresRepositoryGrafts(t *testing.T) {
 // reaching `diff` or `ls-tree` is refused as a revision: without
 // `--end-of-options`, `diff` honors `--output=` and writes a file.
 func TestRevisionOperandsAreNeverOptions(t *testing.T) {
+	t.Parallel()
 	root, _, target := makeRepo(t)
 	repository := open(t, root)
 	injected := filepath.Join(t.TempDir(), "injected")
@@ -124,6 +127,7 @@ func TestRevisionOperandsAreNeverOptions(t *testing.T) {
 // revision expression length bound is inclusive: exactly 256 bytes is
 // accepted, and 257 is refused.
 func TestValidRevisionTextLengthBoundIsInclusive(t *testing.T) {
+	t.Parallel()
 	if !validRevisionText(strings.Repeat("a", 256)) {
 		t.Error("a 256-byte revision expression was refused")
 	}
@@ -136,6 +140,7 @@ func TestValidRevisionTextLengthBoundIsInclusive(t *testing.T) {
 // entry for the requested directory (a bare "docs", with no trailing
 // separator) is filtered out and only paths below it are returned.
 func TestTreePathsExcludesTheDirectoryEntryItself(t *testing.T) {
+	t.Parallel()
 	root, base, _ := makeRepo(t)
 	repository := open(t, root)
 	paths, err := repository.TreePaths(context.Background(), base, "docs")
@@ -151,6 +156,7 @@ func TestTreePathsExcludesTheDirectoryEntryItself(t *testing.T) {
 // diff configuration, tree diff drivers, and worktree attribute edits do not
 // change canonical bytes: the exact failure class of the rejected build.
 func TestCanonicalBytesIndependentOfHostileConfig(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	control, err := open(t, root).CanonicalDiff(context.Background(), base, target)
 	if err != nil {
@@ -178,6 +184,7 @@ func TestCanonicalBytesIndependentOfHostileConfig(t *testing.T) {
 }
 
 func TestCanonicalDiffExcludesSidecarOnly(t *testing.T) {
+	t.Parallel()
 	root, _, target := makeRepo(t)
 	writeFile(t, root, ".corvint/change.cem.json", "{}\n")
 	writeFile(t, root, "docs/rule.txt", "the amended rule\n")
@@ -199,6 +206,7 @@ func TestCanonicalDiffExcludesSidecarOnly(t *testing.T) {
 // TestLinkedWorktreeByteIdentical proves a primary checkout and a real linked
 // worktree derive byte-identical canonical patches.
 func TestLinkedWorktreeByteIdentical(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	linked := filepath.Join(t.TempDir(), "linked")
 	gitCmd(t, root, "worktree", "add", "-q", "--detach", linked, "main")
@@ -219,6 +227,7 @@ func TestLinkedWorktreeByteIdentical(t *testing.T) {
 // back-pointer relative to its per-worktree Git directory; it opens and derives the primary's
 // canonical patch, while a relative back-pointer naming another worktree is still refused.
 func TestRelativePathsLinkedWorktree(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	parent := filepath.Dir(root)
 	add := exec.Command("git", "worktree", "add", "-q", "--relative-paths", "--detach", filepath.Join(parent, "relwt"), "main")
@@ -257,6 +266,7 @@ func TestRelativePathsLinkedWorktree(t *testing.T) {
 // TestForgedGitfileRejected proves a forged gitfile cannot redirect reads into
 // a sibling repository and that the sibling's canary never surfaces.
 func TestForgedGitfileRejected(t *testing.T) {
+	t.Parallel()
 	siblingRoot, _, _ := makeRepo(t)
 	writeFile(t, siblingRoot, "canary.txt", "CANARY-9d3f\n")
 	gitCmd(t, siblingRoot, "add", ".")
@@ -306,6 +316,7 @@ func TestReciprocalFailureBeforeAlternateDenial(t *testing.T) {
 }
 
 func TestSymlinkedObjectsTopologyRejected(t *testing.T) {
+	t.Parallel()
 	for _, victim := range []string{"info", "pack"} {
 		root, _, _ := makeRepo(t)
 		target := filepath.Join(root, ".git", "objects", victim)
@@ -330,6 +341,7 @@ func TestSymlinkedObjectsTopologyRejected(t *testing.T) {
 }
 
 func TestInfoAttributesFailClosed(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	attributes := filepath.Join(root, ".git", "info", "attributes")
 	if err := os.MkdirAll(filepath.Dir(attributes), 0o755); err != nil {
@@ -352,6 +364,7 @@ func TestInfoAttributesFailClosed(t *testing.T) {
 }
 
 func TestBoundedMetadataRejections(t *testing.T) {
+	t.Parallel()
 	// Oversized gitfile.
 	forged := t.TempDir()
 	writeFile(t, forged, ".git", "gitdir: "+strings.Repeat("x", maxGitfileBytes+1)+"\n")
@@ -374,6 +387,7 @@ func TestBoundedMetadataRejections(t *testing.T) {
 }
 
 func TestSha256Repository(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	command := exec.Command("git", "init", "-q", "-b", "main", "--object-format=sha256")
 	command.Dir = root
@@ -413,6 +427,7 @@ func TestSha256Repository(t *testing.T) {
 // TestShallowCloneLocallyCompleteDerives proves shallow state does not change
 // canonical bytes when every required object resolves locally.
 func TestShallowCloneLocallyCompleteDerives(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	full, err := open(t, root).CanonicalDiff(context.Background(), base, target)
 	if err != nil {
@@ -437,6 +452,7 @@ func TestShallowCloneLocallyCompleteDerives(t *testing.T) {
 }
 
 func TestLookupTreeEntryAndBlob(t *testing.T) {
+	t.Parallel()
 	root, base, _ := makeRepo(t)
 	repository := open(t, root)
 	entry, exists, err := repository.LookupTreeEntry(context.Background(), base, "docs/rule.txt")
@@ -454,6 +470,7 @@ func TestLookupTreeEntryAndBlob(t *testing.T) {
 }
 
 func TestDeterministicAcrossFreshRuns(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	first, err := open(t, root).CanonicalDiff(context.Background(), base, target)
 	if err != nil {
@@ -472,6 +489,7 @@ func TestDeterministicAcrossFreshRuns(t *testing.T) {
 // bytes are Git pathspec magic ("data[1].txt" globs to "data1.txt") must
 // resolve to its own blob, never to a glob match.
 func TestLookupTreeEntryLiteralPath(t *testing.T) {
+	t.Parallel()
 	root, _, _ := makeRepo(t)
 	writeFile(t, root, "data1.txt", "glob decoy\n")
 	writeFile(t, root, "data[1].txt", "literal target\n")
@@ -496,6 +514,7 @@ func TestLookupTreeEntryLiteralPath(t *testing.T) {
 // TestBlobBudgetChargesDistinctOids fixes the cumulative budget semantics:
 // repeated reads of one blob charge its bytes exactly once.
 func TestBlobBudgetChargesDistinctOids(t *testing.T) {
+	t.Parallel()
 	root, base, _ := makeRepo(t)
 	repository := open(t, root)
 	entry, _, err := repository.LookupTreeEntry(context.Background(), base, "docs/rule.txt")
@@ -523,6 +542,7 @@ func TestBlobBudgetChargesDistinctOids(t *testing.T) {
 // GIT_NO_LAZY_FETCH environment pin makes the blob resolve and fails this
 // test.
 func TestPartialClonePromisorLocality(t *testing.T) {
+	t.Parallel()
 	root, base, _ := makeRepo(t)
 	gitCmd(t, root, "config", "uploadpack.allowfilter", "true")
 	partial := filepath.Join(t.TempDir(), "partial")
@@ -559,6 +579,7 @@ func TestPartialClonePromisorLocality(t *testing.T) {
 // exactly saturated, rereading an already-charged OID adds no distinct bytes
 // and must still succeed, while any new OID is refused.
 func TestBlobBudgetExactLimitAllowsChargedReread(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	repository := open(t, root)
 	charged, _, err := repository.LookupTreeEntry(context.Background(), base, "docs/rule.txt")
@@ -587,6 +608,7 @@ func TestBlobBudgetExactLimitAllowsChargedReread(t *testing.T) {
 // Git cannot resolve to a commit, corrupt or of another type, stays
 // git-read-failed.
 func TestResolveMissingPinnedObjectUnavailable(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	blob := gitCmd(t, root, "rev-parse", target+":f.go")
 	loose := func(oid string) string { return filepath.Join(root, ".git", "objects", oid[:2], oid[2:]) }
@@ -622,6 +644,7 @@ func TestResolveMissingPinnedObjectUnavailable(t *testing.T) {
 // repository a 40-hex revision is an abbreviation the probe cannot name, and
 // `cat-file -e` exits 128 rather than 1 (decision 0535, CEM-V1-103).
 func TestResolveProbeOnlyExitOneIsAbsent(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	command := exec.Command("git", "init", "-q", "-b", "main", "--object-format=sha256")
 	command.Dir = root

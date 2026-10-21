@@ -68,6 +68,7 @@ func canonicalCreateRepo(t *testing.T) (root, base, target string) {
 }
 
 func TestCanonicalDiffWithCreateDestinationsProvesBaseEntries(t *testing.T) {
+	t.Parallel()
 	root, base, target := canonicalCreateRepo(t)
 	repo := open(t, root)
 	ctx := context.Background()
@@ -101,6 +102,7 @@ func TestCanonicalDiffWithCreateDestinationsProvesBaseEntries(t *testing.T) {
 }
 
 func TestCanonicalDiffWithCreateDestinationsWithholdsProofOnProvenanceFailure(t *testing.T) {
+	t.Parallel()
 	root, base, target := canonicalCreateRepo(t)
 	raw := gitCmd(t, root, "cat-file", "commit", target)
 	corruptLoose(t, root, target, "commit", append([]byte(raw), "forged\n"...))

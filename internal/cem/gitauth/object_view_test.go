@@ -40,6 +40,7 @@ func objectViewFixture(t *testing.T, format string) (string, string, string, str
 	return root, view, base, target
 }
 func TestObjectViewIsolatesLiveCorruptionAndFinalRawObservation(t *testing.T) {
+	t.Parallel()
 	for _, format := range []string{"sha1", "sha256"} {
 		t.Run(format, func(t *testing.T) {
 			root, view, base, target := objectViewFixture(t, format)
@@ -93,6 +94,7 @@ func TestObjectViewIsolatesLiveCorruptionAndFinalRawObservation(t *testing.T) {
 	}
 }
 func TestObjectViewMissingObjectsNeverFallBackToLive(t *testing.T) {
+	t.Parallel()
 	for _, format := range []string{"sha1", "sha256"} {
 		for _, kind := range []string{"commit", "nested-tree", "new-blob", "old-diff-blob"} {
 			t.Run(format+"/"+kind, func(t *testing.T) {
@@ -135,6 +137,7 @@ func TestObjectViewMissingObjectsNeverFallBackToLive(t *testing.T) {
 	}
 }
 func TestObjectViewKeepsIndexUntrackedAndIgnoreLive(t *testing.T) {
+	t.Parallel()
 	root, view, _, target := objectViewFixture(t, "sha1")
 	repo, immutable := open(t, root), open(t, view)
 	ctx := context.Background()
@@ -165,6 +168,7 @@ func TestObjectViewKeepsIndexUntrackedAndIgnoreLive(t *testing.T) {
 	}
 }
 func TestAuthorityParentEvictionPreservesAllEdges(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	paths := []string{}
 	for i := 0; i < 90; i++ {
@@ -242,6 +246,7 @@ func TestObjectViewScrubsCallerAlternatesAndObjectDirectory(t *testing.T) {
 }
 
 func TestObjectViewFormatMismatchRefuses(t *testing.T) {
+	t.Parallel()
 	root, _, _, _ := objectViewFixture(t, "sha1")
 	_, view, _, _ := objectViewFixture(t, "sha256")
 	if err := open(t, root).UseObjectView(context.Background(), open(t, view)); err == nil {
@@ -250,6 +255,7 @@ func TestObjectViewFormatMismatchRefuses(t *testing.T) {
 }
 
 func TestAuthorityParentWitnessesCanExceedLeafCount(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	const count = 4097
 	for i := 0; i < count; i++ {

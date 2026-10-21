@@ -6,6 +6,7 @@ import "testing"
 // charges the primary repository's distinct-blob budget: it starts from the
 // primary total, shares the charged OID set, and carries its total back.
 func TestCEMV1335ChargeBlobsToSharesTheBudget(t *testing.T) {
+	t.Parallel()
 	primary := &Repository{blobBytes: MaxTotalBlobBytes - 1}
 	external := &Repository{}
 	release := external.ChargeBlobsTo(primary)

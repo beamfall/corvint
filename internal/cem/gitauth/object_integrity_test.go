@@ -136,6 +136,7 @@ func integrityOID(t *testing.T, root, revision string) string {
 }
 
 func TestBlobBytesRejectsMislabeledLooseAndPackedObjects(t *testing.T) {
+	t.Parallel()
 	for _, packed := range []bool{false, true} {
 		for _, earlier := range []bool{false, true} {
 			t.Run(fmt.Sprintf("packed=%t/read-earlier=%t", packed, earlier), func(t *testing.T) {
@@ -163,6 +164,7 @@ func TestBlobBytesRejectsMislabeledLooseAndPackedObjects(t *testing.T) {
 	}
 }
 func TestGitIntegrityCommitAndTreeLinks(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"commit", "root-tree", "nested-tree"} {
 		t.Run(kind, func(t *testing.T) {
 			root, base, target := makeRepo(t)
@@ -208,6 +210,7 @@ func TestGitIntegrityCommitAndTreeLinks(t *testing.T) {
 // The verified walk must report exactly what ls-tree reports for every honest
 // path shape, so callers see no change on an uncorrupted repository.
 func TestLookupTreeEntryVerifiedWalkMatchesLsTree(t *testing.T) {
+	t.Parallel()
 	root, _, target := makeRepo(t)
 	repo := open(t, root)
 	for _, path := range []string{"docs/rule.txt", "docs", "f.go", "docs/missing.txt", "missing/rule.txt", "no dir/rule.txt", "f.go/inner"} {
@@ -229,6 +232,7 @@ func TestLookupTreeEntryVerifiedWalkMatchesLsTree(t *testing.T) {
 // A diff input blob replaced under its original OID must refuse the patch
 // rather than derive a silently different one (an empty patch, here).
 func TestCanonicalDiffRefusesMislabeledInputBlob(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	honest, err := open(t, root).CanonicalDiff(context.Background(), base, target)
 	if err != nil || len(honest) == 0 {
@@ -243,6 +247,7 @@ func TestCanonicalDiffRefusesMislabeledInputBlob(t *testing.T) {
 }
 
 func TestBlobBytesPackedValidAndWrongType(t *testing.T) {
+	t.Parallel()
 	root, _, target := makeRepo(t)
 	oid := integrityOID(t, root, target+":f.go")
 	integrityGit(t, root, "repack", "-ad")
@@ -260,6 +265,7 @@ func TestBlobBytesPackedValidAndWrongType(t *testing.T) {
 }
 
 func TestBlobIdentitySHA256AndCancellation(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	integrityGit(t, root, "init", "-q", "--object-format=sha256")
 	writeFile(t, root, "data", "sha256 fixture\n")
@@ -285,6 +291,7 @@ func TestBlobIdentitySHA256AndCancellation(t *testing.T) {
 // CEM-CB-GIT-007: an old- or new-side blob body replaced under its original
 // OID fails canonical derivation, including after an earlier derivation.
 func TestCanonicalDiffRejectsMislabeledBlobInputs(t *testing.T) {
+	t.Parallel()
 	for _, side := range []string{"old", "new"} {
 		for _, earlier := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/read-earlier=%t", side, earlier), func(t *testing.T) {
@@ -317,6 +324,7 @@ func TestCanonicalDiffRejectsMislabeledBlobInputs(t *testing.T) {
 // at all. The coverage cross-check must refuse those bytes; a check driven
 // only by the blobs the patch names cannot see this case.
 func TestCanonicalDiffRefusesBlobFreeOmission(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	corruptLoose(t, root, integrityOID(t, root, target+":f.go"), "blob", []byte(bodyV1))
 	raw, err := open(t, root).CanonicalDiff(context.Background(), base, target)
@@ -330,6 +338,7 @@ func TestCanonicalDiffRefusesBlobFreeOmission(t *testing.T) {
 // canonical 100644 entry Git lists, so lookup returns it and a mode-only
 // legacy rewrite is no change, as Git's own diff reports.
 func TestLegacyRegularFileModeReadsAsGitCanonical(t *testing.T) {
+	t.Parallel()
 	root, base, _ := makeRepo(t)
 	blob := integrityOID(t, root, base+":f.go")
 	raw, err := hex.DecodeString(blob)
