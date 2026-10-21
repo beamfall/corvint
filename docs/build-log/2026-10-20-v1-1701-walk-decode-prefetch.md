@@ -1,6 +1,10 @@
-## 2026-10-20 V1-1701: complete journal walk decode reuse and bounded read-ahead (CAL-V0-380..381)
+## 2026-10-20 V1-1701: complete journal walk decode reuse and bounded read-ahead (JRT-V0-015..016)
 
 Lane pool-checkpoint, base origin/main 90ab9f33 (build 697), darwin/arm64 (12 cores), go1.27.2.
+
+Re-homed (owner-approved, 2026-10-17): these requirements were first numbered CAL-V0-380..381 in the
+agent leases spec; they moved to JRT-V0-015..016 in `docs/specs/corvint-tasks-journal-retention-v0.md`
+with the same text so the leases spec stays within the 256-obligation bound.
 
 **Finding: the openat profile was misattributed.** The ticket's profile put about two thirds of the
 walk in `syscall.Syscall6` (`openat`). The macOS CPU profiler charges that frame for more than it
@@ -12,10 +16,10 @@ afterimages were parsed two or three times: once in `validateRecord`, once in st
 the walking goroutine.
 
 **Change.**
-- CAL-V0-380: `validateRecord` returns the ticket or request it decoded. The step and the note
+- JRT-V0-015: `validateRecord` returns the ticket or request it decoded. The step and the note
   binding use that value. `snapshot.RequestFromValue` and `ticket.FromValue` keep the size bounds and
   refusal text.
-- CAL-V0-381: within one 512-receipt abort window and a 512 KiB byte budget, the walking goroutine
+- JRT-V0-016: within one 512-receipt abort window and a 512 KiB byte budget, the walking goroutine
   reads receipts sequentially through the same `nativeRead`. Worker goroutines (at most
   min(GOMAXPROCS, 8)) decode each receipt and validate its inline posts. `nativeRead` is not
   goroutine-safe, so reads stay sequential. step still runs every check in order.

@@ -146,11 +146,6 @@ one.
 | V1-1548 | CAL-V0-311..318 | Accepted (standing auto-accept, 2026-10-17): a role's optional `keepLease {intervalSeconds, leaseMinutes, maxIdleSeconds}` has the dispatcher heartbeat, or renew when the lease would not cover two intervals, the attempt each live, active worker holds; it stops once on a fence, a lost or regenerated attempt, and never writes for an exited or idle worker; ledger `taskman-dispatch-state/6`, `lease-keeper` events and the status `keeper` object; a worker whose tree this tick did not observe is not kept (CAL-V0-317) and a replayed write is followed by one fresh write (CAL-V0-318); implemented with focused tests |
 | V1-2012 | CAL-V0-319 | Accepted (standing auto-accept, 2026-10-20): an interrupted `gate run` (SIGINT/SIGTERM after the gate started) stops the gate's process group and records the run as an ordinary `FAILED` gate result with its captured output instead of discarding it; implemented with a focused test and a retained reproduction |
 | V1-1981 | CAL-V0-320 | Accepted (standing auto-accept, 2026-10-20): the standalone Tasks archive builder also cross-builds `linux/amd64` (`CGO_ENABLED=0`, reproducible, `SHA256SUMS`); the Linux runtime is `NOT_OBSERVED` until a Linux host runs the documented commands |
-| V1-0925 | CAL-V0-350 | Accepted (standing auto-accept, 2026-10-20): a full tick reuses the configuration digest it read while the file's identity is unchanged, within the safety-net interval; any identity change, stat error or an expired interval reads the bytes again; focused test |
-| V1-0924 | CAL-V0-351 | Accepted (standing auto-accept, 2026-10-20): an idle, calm dispatcher with pressure configured defers its sample until a candidate passes every static fence, so the CAL-V0-139 idle gate arms; a launch is always preceded by a sample, and the first sample after a deferral budgets at its pending level; focused tests |
-| V1-0934 | CAL-V0-352 | Accepted (standing auto-accept, 2026-10-20): worker-directory retirement reads one window of the directory stream per pass, resumes after it, and carries the retained directories, so a backlog beyond 4,096 is swept within two passes per window; focused test |
-| V1-0948 | CAL-V0-353 | Accepted (standing auto-accept, 2026-10-20): dispatch tests stop and reap every worker process group they launch, and the package fails when one survives; focused test and leak mutation |
-| V1-1701 | CAL-V0-380..381 | Accepted (standing auto-accept, 2026-10-20): the complete journal walk parses each inline afterimage once and decodes and validates receipts ahead of step within one abort window and a 512 KiB budget; same results and refusals; focused equivalence tests and a 47,000-receipt measurement (median 21.2 s to 5.8 s) |
 | V1-1321 | none (stopped) | Claim scope union conflicts with the CAL-V0-021 precedence; needs an amendment first; not implemented |
 | V1-1494 | CAL-V0-263, CAL-V0-265 | Proposed (issue 967): no lease write holds the preparation gate for a complete-history audit; the scheduled refresh walks the prefix to its captured head when the journal moves; focused tests, mutation check and an opt-in load harness |
 
@@ -4149,7 +4144,7 @@ essential. These requirements are accepted by decision 0439.
   (no events, no launches) and while the witness, the configuration and the ledger it settled on
   are unchanged, no operator request is waiting, it supervises no worker, sweep, recovery or
   uncertain launch, and its configuration names no work-state reader (a pressure configuration no
-  longer disables it: CAL-V0-351). The
+  longer disables it: ATR-V0-181). The
   witness MUST cover the journal head, barrier and `VERSION` bytes, the state and receipt
   directories and every top-level intent entry; a witness error reads in full. A skipped tick MUST
   give way to a full tick at the earliest of the safety-net interval after the last full read (15 minutes under CAL-V0-217, accepted by decision 0518; formerly 60 seconds), an observed lease
@@ -4253,7 +4248,7 @@ dispatcher cannot place a pipe or a rename between the worker and its log.
   the ledger, the dispatcher MUST remove finished worker directories beyond the 32 newest that are
 not kept for a reason below; a kept directory takes none of the 32. A
   directory's age is the newest modification time of the directory and its log segments. The pass
-  reads at most 4,096 entries of `workers/`, chosen by CAL-V0-352. It MUST keep every directory in any of these cases:
+  reads at most 4,096 entries of `workers/`, chosen by ATR-V0-182. It MUST keep every directory in any of these cases:
   - the ledger records its worker;
   - its exit is still awaited;
   - an infrastructure retry episode names it as its launch, because its absence proves that
@@ -7265,176 +7260,6 @@ after the change is in `docs/build-log/2026-10-20-V1-2012-gate-interrupt-retenti
 Rollback: revert the change; a recorded interrupted result is an ordinary §7.1 gate result that an
 earlier build reads unchanged, and a later `gate run` replaces it.
 
-### V1-0925, V1-0924 and V1-0934 dispatcher idle and retirement cost
-
-Owner context: three costs the dispatcher paid on every tick, or failed to pay, without need. A
-full tick read and hashed the configuration bytes even when the file's identity had not changed
-since the last read (V1-0925). A pressure configuration disabled the CAL-V0-139 idle gate, so a
-dispatcher with nothing to launch still read the store and sampled the host every tick (V1-0924).
-A worker-directory retirement pass read the first 4,096 entries of `workers/` every time, so a
-backlog behind entries it could not retire was never reached (V1-0934).
-
-- `CAL-V0-350`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0925) A full tick
-  MUST reuse the digest of the configuration bytes it last read, without reading them, only when
-  all of these hold: the file's identity (the same file, size, mode and modification time, as
-  CAL-V0-127 compares it) is unchanged since that read; the stat succeeds; and the read is less
-  than the CAL-V0-139 safety-net interval (15 minutes) old by a clock that has not gone backwards.
-  Otherwise it MUST read the bytes, as before. A reused digest that equals a refused configuration
-  is not reported again; one that equals the applied configuration keeps it. Any identity change
-  reads the bytes, so a replacement or restoration is handled exactly as CAL-V0-127 says. The same
-  cache age bounds a pending reload check, which reuses the digest under the same conditions, and
-  the idle gate's next full tick, which is due no later than 15 minutes after that read.
-- `CAL-V0-351`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0924) Amends
-  CAL-V0-139 and CAL-V0-068. A pressure configuration MUST NOT by itself disable the idle gate.
-  While the dispatcher supervises no worker and its recorded pressure state is calm (level 0, no
-  pending level, a known sample), a tick MUST plan its launches against a deferred pressure budget
-  before it samples the host. The deferred budget refuses its first candidate and records that it
-  was consulted. A plan that never consults it can launch nothing at any level, since calm is the
-  most permissive. That tick then takes no sample and leaves the pressure record unchanged, so the
-  idle gate can arm. A consulted plan MUST sample the host, step the hysteresis and plan again
-  against the real budget, so no launch ever precedes a sample. Any other recorded state, or a
-  running worker, samples every tick as before. The first sample after a deferred tick has no CPU
-  baseline, as after `Open`. From that sample until the pending transition resolves, admission
-  uses the pending level whenever it is higher than the recorded level, because the deferred
-  ticks never advanced the dwell. When CPU is a selected signal and that first sample has no CPU
-  interval, it admits no launch that the budget would cap, and the next tick samples a fresh
-  interval; an UNKNOWN CPU reading never admits. The recorded state keeps the ordinary hysteresis.
-- `CAL-V0-352`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0934) Amends the
-  retirement scan of CAL-V0-144. A retirement pass MUST examine one window of names: the directories retained by
-  earlier windows, at most 32, carried forward, plus at most 4,096 less those read from the
-  `workers/` directory stream where the previous window's read ended. The stream stays open
-  between passes, and a short read ends it, so the window after it starts over. The window is held
-  until its marks settle, or for at most 4 passes, so CAL-V0-144's two-pass confirmation is
-  unchanged within it. A window that settles while the stream continues schedules the next pass
-  for the next tick, which the idle gate treats as a deadline. Retention counts the window and the
-  carried directories together. The newest 32 of all are in the newest 32 of any window that holds
-  them, so they are never removed. One sweep leaves only the newest 32 retirable directories of
-  all. `Close` closes the stream.
-
-Non-goals: no change to what is retired, retained or protected, to the mark format or to the
-ledger; no persisted retirement cursor for the dispatcher (a restart starts a new sweep); no reuse
-of a pressure sample across ticks while work is eligible.
-
-Failure modes: a configuration rewritten within the filesystem's timestamp granularity with the
-same size and mode is not seen until the safety-net read, at most 15 minutes later (CAL-V0-127
-already relied on that identity for pending reloads). A pressure spike that rises and falls while
-the dispatcher is idle is not recorded. Its admission effect is nil, because nothing launches,
-but the `throttled` event history no longer shows it. A window that cannot settle within 4 passes,
-for example under an unreadable process table, moves on and leaves its marks to be cleared, so
-confirmation starts over on the next sweep. Directory entries added or removed while the stream is
-open may or may not be returned, as POSIX allows; an unreturned one waits for the next sweep.
-
-Acceptance evidence (`internal/tasks/dispatch`):
-- `TestCALV0350_FullTickReusesAnUnchangedConfigRead` forces every tick to be full. It counts five
-  reads where every tick would otherwise read: one on the first tick, none over five unchanged
-  ticks, one after the safety-net interval, one for an invalid replacement (refused and not
-  reported again), one for a valid change, then reuse again, and one after a stat error.
-  `TestCALV0350_IdleSkipEndsWhenTheCachedConfigExpires` rewrites the file with the same size and
-  preserved timestamps while idle: minute 14 reuses the digest, and by minute 16 the bytes are read
-  and the new prompt applies. With both the idle bound and the pending-check age removed it fails.
-- `TestCALV0351_IdlePressureConfigSkipsTheSample` takes one sample in 24 idle ticks and makes no
-  store observation in the last 20; the idle gate is armed. Eligible work under a critical first
-  sample (dwell 2) is held at the pending level. The next calm sample launches the worker after
-  its sample. A mutation that removes the pending-level budget fails the test.
-  `TestCALV0351_PostIdleHoldLastsUntilThePendingLevelSettles` uses dwell 3 and critical cap 0:
-  two critical samples after idle still hold, and the hold clears once calm settles.
-  `TestCALV0351_PostIdleCPUSampleWaitsForAFreshInterval` selects CPU only: the first sample after
-  idle has no interval and launches nothing, the next is critical and holds, a calm one launches.
-  A mutation that holds for one gap sample only, or drops the CPU baseline hold, fails these.
-  `TestCALV0351_DeferredBudgetRefuses` covers the budget itself. The CAL-V0-068, CAL-V0-125 and
-  CAL-V0-139 tests pass; `TestCALV0125_UnselectedCPULeavesLedgerUnchanged` now counts one sample
-  in its two idle ticks.
-- `TestCALV0352_RetirementSweepsABacklogBeyondOneWindow` lowers the scan to 10 and the retention
-  to 3. It plants 40 quiet directories and 20 inside the quiet window. Every held window is at
-  most 10 names, and every pass that leaves a backlog schedules another. Within 2 x 9 + 1 = 19
-  passes, only the newest 3 and the 20 quiet directories remain (18 on macOS). Every CAL-V0-144
-  test passes unchanged.
-
-Rollback: revert the commit. The dispatcher again reads the configuration on every full tick,
-samples pressure every tick and disables the idle gate under a pressure configuration, and scans
-the first 4,096 worker directories. No ledger, mark or event format changed.
-
-### V1-0948 dispatch test process hygiene
-
-Orphaned worker trees from dispatch tests (`host.sh` from `TestCALV0143_*`, `TestCALV0272_*` and the
-`TestCALV0127_Reload*` `sleep 300` children) outlived the test binary for days and fed host load.
-
-- `CAL-V0-353`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0948) Every
-  worker process group a dispatch test launches MUST be stopped with SIGKILL to its process group
-  and found empty, within a bounded wait, by a cleanup the test registers before it launches, so
-  the cleanup also runs after `t.Fatal`. A group is signalled only when its leader still carries
-  the recorded start identity; an absent leader or an identity read error is not ownership. A
-  group that is still present without that match is reported as a possible leak that cannot be
-  verified, and is not signalled. After all tests, the package MUST fail when any launched group
-  that it could verify was still alive. The production hook is a nil function variable that `launch`
-  calls with each started leader; it has no effect outside tests.
-
-Non-goals: processes a worker moves out of its process group, and processes started by other test
-packages. Failure mode: a group that survives SIGKILL fails the test that launched it.
-
-Acceptance evidence (`internal/tasks/dispatch`): `TestCALV0353_CleanupReapsTheWholeWorkerGroup`
-launches a shell with two `sleep` descendants and proves the reap empties the group and the leak
-check sees it before and not after. With the `testConfig` cleanup removed, a run of the
-`TestCALV0127_Reload*`, `TestCALV0143_*` and `TestCALV0272_*` tests fails with four leaked groups;
-with it, the full package passes and no test-launched `host.sh` remains.
-`TestCALV0353_UnmatchedLeaderIsReportedNotSignalled` lets a leader exit while its child keeps the
-group: the group is reported unverified and the child is not signalled.
-
-Rollback: revert the commit; tests again leave worker trees to the caller.
-
-### V1-1701 complete journal walk decode reuse and bounded read-ahead
-
-A complete audit at 47,000 receipts took about 21 s. The CPU profile blamed `openat`, but the wall
-time fell once decode work was removed, so the cost was mostly CPU: each receipt's ticket and request
-afterimages were parsed two or three times, all on the walking goroutine.
-
-- `CAL-V0-380`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1701) The complete
-  walk MUST parse each inline ticket or request afterimage once. The record validation that already
-  parses a post hands its decoded ticket or request to the semantic step and to the operator-note
-  binding. It keeps the existing size bounds and refusal text, so no input that was refused before is
-  accepted, and no accepted input is refused.
-- `CAL-V0-381`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1701) The walk MAY
-  decode and validate receipts ahead of the step, in parallel, within one abort window (the 512-receipt
-  head-moved check) and within a 512 KiB budget of held receipt bytes. Receipt bytes are read in
-  sequence on the walking goroutine, each read bounded by the budget left before it buffers, so a
-  window never holds more than 512 KiB of receipt bytes. The decoded receipts and inline afterimages
-  a window retains are in addition to the budget, in proportion to those bytes. A receipt that does
-  not fit ends the window; one larger than the whole budget is read by step under its own bound.
-  A read-ahead records nothing until step reaches that receipt: its close error, physical-read
-  witness and read hook are settled then, in sequence, and a read-ahead that fails for any reason is
-  discarded with its close error and read again in sequence. Every ordering, chain, coverage and
-  authority check still runs in step, in sequence order. Elided receipts and receipts with any
-  blob-backed post (checked before any of its posts is validated, so CAL-V0-380 still holds) are
-  left to step's sequential route, as are receipts whose bytes fail to decode. A walk with read-ahead
-  MUST return the same result or the same refusal as a walk without it.
-
-Non-goals: concurrent file reads, a cache across commands, and changes to the capture and listing
-cost (two captures `lstat` every store file). Failure modes: a read error inside a window is
-discarded and the receipt is read again in sequence, so the refusal names the same receipt and code;
-a receipt read ahead but never reached (the walk refused earlier) contributes no close error or
-witness, so it cannot replace the refusal; held receipt bytes stay within the budget and decoded
-state is proportional to them (TMV0002 AS10 streaming bound still passes). A window that ends on a
-receipt that does not fit opens that receipt once more.
-
-Acceptance evidence: `TestV11701_PrefetchedWalkMatchesSequentialWalk` (`internal/tasks/journal`)
-audits a 601-receipt history with and without read-ahead. It asserts equal verdicts, selected records,
-request digests and canonical latest, one read per receipt in each mode, and the number of receipts
-decoded and post sets validated ahead. `TestV11701_PrefetchedWalkRefusesLikeSequentialWalk` asserts
-the same refusal for an undecodable receipt and a forked `prev` inside a window.
-`TestV11701_ReadAheadCloseFailureSettlesInSequence` injects a close failure on a later receipt of the
-same window and asserts the earlier forked `prev` stays the refusal, and that a reached receipt's
-close failure is the sequential refusal. `TestV11701_ReadAheadHoldsAtMostTheBudget` narrows the
-budget and asserts no window holds more than it, one read per receipt, and that only the receipt
-larger than the whole budget is left to step. `TestV11701_MixedInlineAndBlobPostsValidateOnce`
-asserts equal `validateRecord` call counts with and without read-ahead for receipts mixing an inline
-and a blob-backed post. The opt-in
-`TestV11701_WalkCost` (`internal/tasks/store`) harness measured a 47,000-receipt synthetic store at
-a median of 21.2 s before and 5.8 s after (five runs each); see
-`docs/build-log/2026-10-20-v1-1701-walk-decode-prefetch.md`.
-
-Rollback: revert the commit. Setting `walkPrefetch` to false in a test restores the sequential walk
-with decode reuse.
-
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -8386,9 +8211,3 @@ after this restore.
 | CAL-V0-318 | `TestCALV0318_ReplayedRenewalAfterRestartWritesAgain` (`internal/tasks/dispatch`); `TestCALV0313_NativeKeeperRenewsAndHeartbeatsFenced` (`internal/tasks/cli`) |
 | CAL-V0-319 | `TestCALV0319_InterruptedGateRunRecordsItsResult` (`internal/tasks/store`); `TestCALV0319_HangupInterruptsGateRun` (`internal/tasks/cli`, V1-2033); `docs/build-log/2026-10-20-V1-2012-gate-interrupt-retention.md`; `docs/build-log/2026-10-21-gate-run-hangup.md` |
 | CAL-V0-320 | `TestTasksArchiveCrossTargetIsLinuxAmd64Only`, `TestTasksArchiveCrossManifestStatesTheLimit`, `TestTasksArchiveRefusesOtherTargets` (`internal/companionrelease`); `docs/build-log/2026-10-20-v1-1981-tasks-linux-amd64-archive.md` (cross-build, ELF check, checksum; Linux runtime `NOT_OBSERVED`) |
-| CAL-V0-350 | `TestCALV0350_FullTickReusesAnUnchangedConfigRead`, `TestCALV0350_IdleSkipEndsWhenTheCachedConfigExpires`, `TestCALV0127_ConfigReloadAppliesAndRefuses` (`internal/tasks/dispatch`) |
-| CAL-V0-351 | `TestCALV0351_IdlePressureConfigSkipsTheSample`, `TestCALV0351_DeferredBudgetRefuses`, `TestCALV0351_PostIdleHoldLastsUntilThePendingLevelSettles`, `TestCALV0351_PostIdleCPUSampleWaitsForAFreshInterval`, `TestCALV0125_UnselectedCPULeavesLedgerUnchanged`, `TestCALV0068_DispatcherThrottlesNewLaunchesOnly` (`internal/tasks/dispatch`) |
-| CAL-V0-352 | `TestCALV0352_RetirementSweepsABacklogBeyondOneWindow` and the `TestCALV0144_*` tests (`internal/tasks/dispatch`) |
-| CAL-V0-353 | `TestCALV0353_CleanupReapsTheWholeWorkerGroup`, `TestCALV0353_UnmatchedLeaderIsReportedNotSignalled` and the package `TestMain` leak check (`internal/tasks/dispatch`) |
-| CAL-V0-380 | `TestV11701_PrefetchedWalkMatchesSequentialWalk`, `TestV11701_MixedInlineAndBlobPostsValidateOnce`, `TestTMV0002_AS10_ReceiptBytesAreStreamed` (`internal/tasks/journal`); `docs/build-log/2026-10-20-v1-1701-walk-decode-prefetch.md` |
-| CAL-V0-381 | `TestV11701_PrefetchedWalkMatchesSequentialWalk`, `TestV11701_PrefetchedWalkRefusesLikeSequentialWalk`, `TestV11701_ReadAheadCloseFailureSettlesInSequence`, `TestV11701_ReadAheadHoldsAtMostTheBudget`, `TestTMV0002_AS10_ReceiptBytesAreStreamed` (`internal/tasks/journal`); `TestV11701_WalkCost` (`internal/tasks/store`, opt-in) |

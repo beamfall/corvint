@@ -142,7 +142,7 @@ func sameAudit(t *testing.T, seq, pre *Result, seqErr, preErr error) {
 	}
 }
 
-// V1-1701 (CAL-V0-381): a receipt read ahead but never reached settles
+// V1-1701 (JRT-V0-016): a receipt read ahead but never reached settles
 // nothing, so a later receipt's close failure cannot replace the refusal of
 // an earlier chain fault; a reached receipt's close failure is the
 // sequential walk's refusal.
@@ -188,7 +188,7 @@ func TestV11701_ReadAheadCloseFailureSettlesInSequence(t *testing.T) {
 	}
 }
 
-// V1-1701 (CAL-V0-381): every read-ahead is bounded by the window's remaining
+// V1-1701 (JRT-V0-016): every read-ahead is bounded by the window's remaining
 // byte budget before it buffers, so a window never holds more than the
 // budget; a receipt larger than what is left begins the next window, and one
 // larger than the whole budget is read once, by step, under its own bound.
@@ -231,7 +231,7 @@ func prefetchHistory2(t *testing.T, repo *fixture.Repo, n int) {
 	}
 }
 
-// V1-1701 (CAL-V0-380): a receipt with one inline and one blob-backed post is
+// V1-1701 (JRT-V0-015): a receipt with one inline and one blob-backed post is
 // left whole to step before any post is checked, so each afterimage is
 // validated exactly as often as in the sequential walk.
 func TestV11701_MixedInlineAndBlobPostsValidateOnce(t *testing.T) {

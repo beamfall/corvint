@@ -49,7 +49,7 @@ func (d *Dispatcher) idleEligible() bool {
 	if len(d.ledger.Workers) > 0 || d.sweepJob != nil || len(d.recoveries) > 0 || len(d.uncertain) > 0 || len(d.detached) > 0 {
 		return false
 	}
-	// CAL-V0-351: a pressure configuration no longer blocks the gate: a
+	// ATR-V0-181: a pressure configuration no longer blocks the gate: a
 	// tick that samples changes the saved ledger, so only a tick that
 	// deferred its sample and launched nothing can arm it.
 	if d.Config.WorkState != nil {
@@ -173,7 +173,7 @@ func (d *Dispatcher) idleSettle(m idleMark, err error) {
 		}
 	}
 	early(d.idleLease)
-	// CAL-V0-350: the cached configuration digest is trusted only within
+	// ATR-V0-180: the cached configuration digest is trusted only within
 	// idleFullEvery of its read, so the skip window ends there too.
 	if d.configRead != nil && !d.configSeenAt.IsZero() {
 		early(d.configSeenAt.Add(idleFullEvery))

@@ -152,7 +152,7 @@ func (r Reader) prefetchFrom(pf *receiptPrefetch, names []string, i int) {
 
 // prepare decodes one read-ahead receipt and checks its inline posts. It
 // reads nothing: a receipt with any blob-backed post leaves all its posts to
-// step, before any is checked, so no post is validated twice (CAL-V0-380).
+// step, before any is checked, so no post is validated twice (JRT-V0-015).
 func (r Reader) prepare(p *preparedReceipt) {
 	rc, err := snapshot.WholeReceipt(p.raw)
 	if err != nil || rc == nil {

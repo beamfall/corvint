@@ -1,4 +1,4 @@
-## 2026-10-21 V1-1701: read-ahead review fixes (CAL-V0-380..381)
+## 2026-10-21 V1-1701: read-ahead review fixes (JRT-V0-015..016)
 
 Lane pool-checkpoint, follow-up to `2026-10-20-v1-1701-walk-decode-prefetch.md`. An independent Codex
 review of the read-ahead found three defects. Each is fixed, with a maintained witness that fails on
@@ -14,7 +14,7 @@ the unfixed code (checked by reintroducing each defect).
 - **The byte budget was checked after the read (P2).** A window could hold about 1.4 MiB, and the spec
   did not say that decoded state is retained too. Each read-ahead is now bounded by the budget left
   before it buffers, so held receipt bytes never exceed 512 KiB. A receipt that does not fit ends the
-  window, and one larger than the whole budget is read by step. CAL-V0-381 now states that decoded
+  window, and one larger than the whole budget is read by step. JRT-V0-016 now states that decoded
   receipts and afterimages are in addition to the budget, in proportion to it. Witness:
   `TestV11701_ReadAheadHoldsAtMostTheBudget`, with the budget narrowed to 4 KiB.
 - **Mixed inline and blob posts were validated twice (P3).** `prepare` validated the inline posts and

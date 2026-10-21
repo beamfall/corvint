@@ -109,6 +109,7 @@ func TestPGOV0019ShadowCancelKillsTheGroupBeforeTheReap(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer reader.Close()
+	defer writer.Close()
 	cmd := exec.Command("/bin/sh", "-c", "sleep 300 >/dev/null 2>&1 & echo $!; wait")
 	cmd.Stdout = writer
 	ctx, cancel := context.WithCancel(context.Background())
@@ -128,9 +129,12 @@ func TestPGOV0019ShadowCancelKillsTheGroupBeforeTheReap(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("candidate never reported its member")
 	}
-	writer.Close()
 	cancel()
 	out := <-done
+	// Close the parent's write end only after run returned: os/exec reads the
+	// *os.File in Start on run's goroutine, and the member's line gives no
+	// happens-before edge back to that read.
+	writer.Close()
 	if out.group != "GROUP_EMPTY_OBSERVED" || out.status != "" {
 		t.Fatalf("outcome = %#v, want GROUP_EMPTY_OBSERVED", out)
 	}

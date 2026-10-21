@@ -101,16 +101,16 @@ type Dispatcher struct {
 	// throttled event in this run; the zero value is calm and observed.
 	pressureEmitted PressureState
 	// pressureGap is set by a tick that deferred its pressure sample and
-	// launched nothing (CAL-V0-351): the next sample has no CPU baseline,
+	// launched nothing (ATR-V0-181): the next sample has no CPU baseline,
 	// as after Open, so utilization is never averaged across the gap.
 	pressureGap bool
 	// pressureHold keeps the budget at a raised pending level from the
 	// first sample after a gap until that transition resolves, because the
-	// skipped ticks never advanced the dwell (CAL-V0-351).
+	// skipped ticks never advanced the dwell (ATR-V0-181).
 	pressureHold bool
 	// pressureBaseline is set when the first sample after a gap had no CPU
 	// interval with cpu selected: that tick admits no non-exempt launch and
-	// the next tick samples rather than deferring (CAL-V0-351).
+	// the next tick samples rather than deferring (ATR-V0-181).
 	pressureBaseline bool
 	// poolWaitEmitted is the PSR-V0-143 pool-wait signature last reported
 	// for each held ticket key, in memory only.
@@ -166,7 +166,7 @@ type Dispatcher struct {
 	// is due while worker directories hold retirement marks; zero when none
 	// is pending, so ticks without marks do no retirement work.
 	retireConfirm time.Time
-	// retireScan is the open workers directory stream a CAL-V0-352 pass
+	// retireScan is the open workers directory stream a ATR-V0-182 pass
 	// reads its next window from, nil between sweeps; retireWindow is the
 	// window held while its marks settle, retireHeld the passes it has had,
 	// and retireCarry the retained directories carried to the next window.
@@ -1597,7 +1597,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		room = newPoolRoom(obs, d.ledger.Workers)
 		launches, held = roster(d.Config, obs, busy, skip, tierOf, budget, prefer, spend, room, adm)
 	}
-	// CAL-V0-351: with no worker running and a recorded calm level, the
+	// ATR-V0-181: with no worker running and a recorded calm level, the
 	// sample waits until a candidate passes every static fence. Calm is
 	// the most permissive label, so a roster that consults no budget at
 	// calm launches nothing whatever the host reads, and the tick samples
@@ -2216,7 +2216,7 @@ func (d *Dispatcher) pressureBudget(ctx context.Context, obs *Observation) (*Pre
 		}
 		running = append(running, a)
 	}
-	// CAL-V0-351: the samples skipped during a gap never advanced the
+	// ATR-V0-181: the samples skipped during a gap never advanced the
 	// dwell, so from the first sample after one until the pending
 	// transition resolves the budget uses a raised pending level rather
 	// than launching while it dwells. The recorded state keeps the ordinary
