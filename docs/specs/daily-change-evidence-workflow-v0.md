@@ -1067,6 +1067,18 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   predecessor still binds them from the seal commit, so it merges mainline into the predecessor
   first or binds from the shared base and narrows its intents; a seal commit that cannot be found
   is named `UNKNOWN`.
+- `DCW-V0-114`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1724) When `cem cite` refuses
+  a cite row of the citation plan with a row-caused code (`cite-span-not-stable`,
+  `cite-self-modified-authority`, `missing-evidence`, `invalid-arguments`), `dogfood change` MUST
+  still check every later cite row of the plan in the same pass, each against the map that the
+  refused row was cited against, into a private probe output that it removes at once, and its
+  `cem-cite` failure report MUST list every refused row by plan row number, hunk, path, span and
+  code (at most 32, then a `(+N more)` count). The probes MUST NOT change the prepared map, the
+  staged citations or any tracked file, and MUST NOT probe unknown rows. Non-goals: citing the
+  admitted later rows, changing any `cem cite` refusal. Failure modes: a later row that a correction
+  of an earlier row would change is reported as the probe saw it; a probe the runner cannot start
+  is reported with its exit reason. Evidence: `TestChangeDCWV0114ReportsEveryRefusedCiteRow`.
+  Rollback: revert the probe and report lines; the first refusal still fails the step.
 
 ## Code vocabulary
 
@@ -1298,6 +1310,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-110` (accepted, owner lane auto-acceptance 2026-10-11; V1-1463) | `internal/dogfoodflow/batch.go` `verifyCoverage`, `mergedForward`, `finish`; `TestBatchCheckDCWV0110NamesTheMergedForwardBase` (an unbound mainline carry merged forward fails against the original base with the merged-parent `fix:` line and passes from the merged mainline commit; a lane fix-up fails from either base with no such line) | implemented; the 13e1b26d8 lane reproduced in a fixture only |
 | `DCW-V0-111` (accepted, owner lane auto-acceptance 2026-10-11; V1-1927) | `internal/dogfoodflow/batch.go` `verifySealedCEM`, `verifyConstituent`, `batchCodeRecovery`, `finish`; `TestBatchCheckDCWV0111NamesTheVerifierReasonCode` (stdout and stderr-only refusals; no fix line for another or a malformed code); `TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations` (built binary and real verifier: an alternates-backed clone prints `code=unsupported-object-alternates` and its `fix:` line) | implemented |
 | `DCW-V0-113` (accepted, owner lane auto-acceptance 2026-10-11; V1-2266) | `internal/dogfoodflow/change.go` `admitSealedCEMs`, `fixHint`, `stackedPredecessorHint`; `TestChangeDCWV0113StackedPredecessorBindsAgainstItsSeal` (bound at the shared base, each aggregate bound refusal names the merged seal's bind and seal commits and the route, another reason does not; bound at the seal commit, no sealed CEM is admitted and only the lane's path changes; the sealed stacked lane's merge batch passes with each change verified against its own base) | implemented; the #1442 lane reproduced in a fixture only |
+| `DCW-V0-114` (accepted, owner lane auto-acceptance 2026-10-11; V1-1724) | `internal/dogfoodflow/change.go` `cite`, `probeCitationRows`, `reportFailures`; `TestChangeDCWV0114ReportsEveryRefusedCiteRow` (two refused rows and an admitted row and an unknown row in one plan: both refusals are reported in one pass, the map is unchanged and no probe or stage output remains) | implemented |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 | Requirement | Focused evidence | Status |
