@@ -84,6 +84,8 @@ type change struct {
 	linkPlanRows         int
 	uniformHunks         int
 	uniformSpan          string
+	// recitedHunk names the cited hunk a plan row would change (DCW-V0-117).
+	recitedHunk string
 	// staleBinding names the row whose hunk moved since the citation-plan
 	// binding was recorded against an earlier map (DCW-V0-066).
 	staleBinding string
@@ -672,6 +674,8 @@ func (c *change) citeStep() {
 		status, reason = "NOT_PRODUCED", mismatch
 	case c.uniformPlan(plan):
 		status, reason = "NOT_PRODUCED", "citation-plan-uniform"
+	case c.recitesCitedHunk(plan):
+		status, reason = "NOT_PRODUCED", "citation-plan-recites-cited-hunk"
 	case c.citationCount > 1 && exists(c.path(c.citationStage)):
 		status, reason = "NOT_PRODUCED", "citation-stage-exists"
 	case c.prepareUnknownReasons(plan) != nil:
@@ -788,6 +792,118 @@ func (c *change) uniformPlan(plan []byte) bool {
 	}
 	c.uniformHunks, c.uniformSpan = hunks, span
 	return true
+}
+
+// recitesCitedHunk reports, before any cite or mark runs, a plan row that
+// would change a hunk the map already cites: a citation the hunk's basis does
+// not already hold, or an unknown row for a supported hunk. cem cite only adds
+// evidence, so such a row would join an earlier plan's citations instead of
+// replacing them; a rerun of the same plan, and a staged plan naming only
+// unknown hunks, still apply (DCW-V0-117). The row and hunk are kept for the
+// fix hint. A row whose span this check cannot resolve is left to cem cite.
+func (c *change) recitesCitedHunk(plan []byte) bool {
+	data, err := readPrefix(c.path(".corvint/change.cem.json"), maxPlanBytes)
+	if err != nil {
+		return false
+	}
+	var cem struct {
+		Evidence []struct {
+			ID   string `json:"id"`
+			Path string `json:"path"`
+			Span struct {
+				Start int64 `json:"start"`
+				End   int64 `json:"end"`
+			} `json:"span"`
+		} `json:"evidence"`
+		Hunks []struct {
+			Disposition string `json:"disposition"`
+			ID          string `json:"id"`
+			Basis       []struct {
+				EvidenceID string `json:"evidenceId"`
+				Relation   string `json:"relation"`
+			} `json:"basis"`
+		} `json:"hunks"`
+	}
+	if json.Unmarshal(data, &cem) != nil {
+		return false
+	}
+	evidence := map[string]string{}
+	for _, record := range cem.Evidence {
+		evidence[record.ID] = fmt.Sprintf("%s\x00%d:%d", record.Path, record.Span.Start, record.Span.End)
+	}
+	blobs := map[string][]byte{}
+	for index, line := range readLines(plan) {
+		fields := strings.SplitN(line, "\t", 4)
+		if len(fields) != 4 {
+			continue
+		}
+		hunk := -1
+		for position, candidate := range cem.Hunks {
+			if candidate.ID == fields[0] || strconv.Itoa(position+1) == fields[0] {
+				hunk = position
+				break
+			}
+		}
+		if hunk < 0 || cem.Hunks[hunk].Disposition == "unknown" {
+			continue
+		}
+		recited := unknownRow(fields)
+		if !recited {
+			span, resolved := c.baseLineSpan(blobs, fields[1], fields[2])
+			if !resolved {
+				continue
+			}
+			recited = true
+			for _, basis := range cem.Hunks[hunk].Basis {
+				if basis.Relation == fields[3] && evidence[basis.EvidenceID] == fields[1]+"\x00"+span {
+					recited = false
+					break
+				}
+			}
+		}
+		if recited {
+			c.citationFailedRow, c.recitedHunk = index+1, cem.Hunks[hunk].ID
+			return true
+		}
+	}
+	return false
+}
+
+// baseLineSpan is the byte span START:END that cem cite derives from a
+// one-based, inclusive line span of path at BASE, or false when the blob or
+// span does not resolve (CEM evidenceSpan).
+func (c *change) baseLineSpan(blobs map[string][]byte, path, lines string) (string, bool) {
+	left, right, found := strings.Cut(lines, ":")
+	first, firstErr := strconv.Atoi(left)
+	last, lastErr := strconv.Atoi(right)
+	if !found || firstErr != nil || lastErr != nil || first < 1 || last < first {
+		return "", false
+	}
+	blob, cached := blobs[path]
+	if !cached {
+		output, status, bounded := c.boundedGit("cat-file", "blob", c.base+":"+path)
+		if status != 0 || !bounded {
+			return "", false
+		}
+		blob = []byte(output)
+		blobs[path] = blob
+	}
+	records := bytes.SplitAfter(blob, []byte("\n"))
+	if len(records) > 0 && len(records[len(records)-1]) == 0 {
+		records = records[:len(records)-1]
+	}
+	if last > len(records) {
+		return "", false
+	}
+	start := 0
+	for _, record := range records[:first-1] {
+		start += len(record)
+	}
+	end := start
+	for _, record := range records[first-1 : last] {
+		end += len(record)
+	}
+	return fmt.Sprintf("%d:%d", start, end), true
 }
 
 // declaresStableMap reports a regular map, read at most the native map bound,
@@ -1600,6 +1716,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"cem-cite:invalid-citation-plan", "each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows; a hunk kept unknown takes ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE, REASON being insufficient-evidence or conflicting-evidence and NOTE a one-line reason (DCW-V0-019)"},
 	{"cem-cite:citation-plan-map-mismatch", "the plan does not match the map prepared for HEAD: a row names an ordinal past its hunks or is not a canonical ordinal, or an unknown hunk is unnamed (often because a later commit re-prepared the map); or a row's ordinal now names another hunk than when this plan was first cited (a later commit added or removed a hunk before it); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE, by a citation or by an ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE row"},
 	{"cem-cite:citation-plan-uniform", "the plan cites one span for every hunk: hunks={uniformHunks} span={uniformSpan}; cite, per hunk, the BASE lines that hunk depends on or implements (its caller, contract, test or spec section), or keep a hunk unknown with ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE; one span may serve several hunks, never every hunk of a multi-hunk non-chore change (DCW-V0-048)"},
+	{"cem-cite:citation-plan-recites-cited-hunk", "plan row {row} would change hunk {recitedHunk}, which .corvint/change.cem.json already cites; cem cite only adds evidence, so nothing was cited or marked; to replace the earlier citations, delete .corvint/change.cem.json and rerun corvint dogfood change {base} with the whole corrected plan; a staged plan names only hunks still unknown (DCW-V0-117)"},
 	{"cem-cite:unknown-reasons-not-recorded", "the unknown rows of DOGFOOD_CITATIONS could not be kept in {evidence}/cem-unknown-reasons.tsv (or its .next file): before citing (an occupied path, or notes over 16 MiB) nothing was cited; after citing the map has changed and earlier notes are kept; remove whatever occupies the path and rerun the same plan, which replays idempotently (DCW-V0-046)"},
 	{"cem-cite:invalid-arguments", "plan row {row}{rowValues}: RELATION must be one of call-site, decision, dependency, implementation, incident, specification or test-claim, and START:END a line span of the cited file; any file present at BASE may be cited, code and tests as well as specs (DCW-V0-041)"},
 	{"cem-cite:missing-evidence", "plan row {row} cites a path that is not a regular file at BASE; cite a source, test or spec file that exists at BASE, since a file this change adds cannot be evidence for itself (DCW-V0-041)"},
@@ -1745,7 +1862,7 @@ func (c *change) fixHint(row step) string {
 			matched = len(value) >= len(prefix)+len(suffix) && strings.HasPrefix(value, prefix) && strings.HasSuffix(value, suffix)
 		}
 		if matched {
-			return strings.NewReplacer("{evidence}", c.evidence, "{base}", c.base, "{step}", row.name, "{map}", c.path(c.failedMap()), "{row}", strconv.Itoa(c.citationFailedRow), "{rowValues}", c.rowValues(), "{citationRows}", strconv.Itoa(c.citationCount), "{linkRows}", strconv.Itoa(c.linkObservedRows), "{uniformHunks}", strconv.Itoa(c.uniformHunks), "{uniformSpan}", c.uniformSpan).Replace(entry.hint)
+			return strings.NewReplacer("{evidence}", c.evidence, "{base}", c.base, "{step}", row.name, "{map}", c.path(c.failedMap()), "{row}", strconv.Itoa(c.citationFailedRow), "{rowValues}", c.rowValues(), "{citationRows}", strconv.Itoa(c.citationCount), "{linkRows}", strconv.Itoa(c.linkObservedRows), "{uniformHunks}", strconv.Itoa(c.uniformHunks), "{uniformSpan}", c.uniformSpan, "{recitedHunk}", c.recitedHunk).Replace(entry.hint)
 		}
 	}
 	return ""
