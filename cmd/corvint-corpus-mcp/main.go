@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/mcp/server"
@@ -49,6 +50,12 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 	artifact, artifactErr := rootRelativePath(root, artifact)
 	if artifactErr != "" {
 		_, _ = fmt.Fprintln(stderr, "corvint-corpus-mcp: --artifact: "+artifactErr)
+		return 2
+	}
+	// DCP-V1-242: a relative --artifact that breaks the local input path rule is named with the rule,
+	// not the generic startup refusal; the bounded reader would refuse the same path.
+	if rule := doccorpus.LocalInputPathRule(artifact); rule != "" {
+		_, _ = fmt.Fprintln(stderr, "corvint-corpus-mcp: --artifact: local input paths must be canonical and relative to --root ("+rule+")")
 		return 2
 	}
 	for i, name := range maps { // V1-1998: --map takes the same absolute spellings
