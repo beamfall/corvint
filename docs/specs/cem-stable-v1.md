@@ -3911,3 +3911,41 @@ artifact depends on it.
 | --- | --- | --- |
 | CEM-V1-347 | `TestCEMV1347WriteNewFailureRemovesThePartialFile` (`internal/cemcandidate`); `writeNew`, `syncNew` in `internal/cemcandidate/plain.go` | The injected failure is returned, no `stable.json` remains, and the name is reusable |
 | CEM-V1-348 | Recorded limit; `newBundle` in `internal/cemcandidate/plain.go`; finding 2 in `docs/build-log/2026-10-15-cem-plain-criterion-producer.md` | Not closed; the threat model above |
+
+## Dashboard cem-stable refusal names the verifier step (V1-2034, 2026-10-20)
+
+Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-2034.
+
+- `CEM-V1-349`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2034) Amends the
+  dashboard refusal requirement CEM-V1-293. Every dashboard cem-stable refusal (`corvint-dashboard-cem-stable-refusal/0`)
+  MUST carry `verifierStage`, one of `NOT_RUN`, `refused` or `accepted`. `NOT_RUN` means the
+  refusal happened before the stable verifier ran and MUST carry `verificationReason`
+  `refused-before-verification` with no `verification`. `refused` means the verifier refused and
+  carries its result. `accepted` means the verifier accepted but a later admission step refused
+  (an inexact excluded-artifact sidecar, an OCM/LRF phase failure, or a changed re-verification);
+  the refusal MUST carry the verifier's ACCEPT result, and the refusal code stays the admission
+  code. `lrfrepo.VerifyStableUniverse` reports these as `StableAdmissionRefusal`, which unwraps to
+  the original error so `CodeOf` and every existing caller are unchanged.
+
+Decision (conservative fork): keep the accepted result with an explicit stage instead of dropping
+it, so a reader never mistakes an ACCEPT result for the refusal's verdict; the top-level refusal
+still decides.
+
+Non-goals: no change to refusal codes, to the stable verifier, or to the OCM or frontier callers'
+outputs.
+
+Failure modes:
+- An admission step added later without the wrapper reads `NOT_RUN` although the verifier ran;
+  the stage then under-reports, it never claims a verdict that did not happen.
+
+Acceptance evidence: `TestCEMV1293DashboardCEMStableRefusesStaleOrIncompleteBindings` asserts the
+stage for all seven controls (stale target and unbound OCM read `accepted`; legacy map reads
+`NOT_RUN` with the reason), that the result is ACCEPT exactly when the stage is `accepted`, and
+that the reason is present exactly when the stage is `NOT_RUN`. Returning the bare phase error
+makes the unbound-OCM case fail.
+
+Rollback: revert the change commit; the two fields are additive on a draft (`/0`) refusal.
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-349 | `TestCEMV1293DashboardCEMStableRefusesStaleOrIncompleteBindings` (`cmd/corvint-dashboard-snapshot`); `StableAdmissionRefusal` in `internal/lrfrepo/adapter.go` | Stage, reason and result agree for every control |
