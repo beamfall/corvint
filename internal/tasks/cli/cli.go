@@ -1783,11 +1783,10 @@ func archiveExport(env Env, args []string) *wire.Result {
 		return failure(cmd, nil, err)
 	}
 	rc := &readCtx{repo: repo}
-	out, err := archive.Export(archive.ExportOptions{Repo: repo, Staging: fl["staging"], Stdout: env.Stdout})
+	var failedSnap *snapshot.Snapshot
+	out, err := archive.Export(archive.ExportOptions{Repo: repo, Staging: fl["staging"], Stdout: env.Stdout, FailureSnapshot: &failedSnap})
 	if err != nil {
-		if out != nil {
-			rc.snap = out.Snapshot
-		}
+		rc.snap = failedSnap
 		return failure(cmd, rc, err)
 	}
 	rc.snap = out.Snapshot
