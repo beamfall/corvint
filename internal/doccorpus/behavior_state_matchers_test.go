@@ -46,6 +46,7 @@ func behaviorAdapterUseMatcher(t *testing.T, fixture *behaviorAdapterTestFixture
 // runtime witness; any other non-empty value stays a mismatch, and an empty
 // reviewed outcome or declared check value is refused as an invalid declaration.
 func TestDCPV1084StateMatcherAssertionIsWitnessed(t *testing.T) {
+	t.Parallel()
 	assertionGaps := func(result BehaviorAdapterResult) []string {
 		kinds := []string{}
 		for _, d := range result.Frontier {

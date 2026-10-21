@@ -12,6 +12,7 @@ import (
 )
 
 func TestAccuracyWholeTreePublicReadersAgree(t *testing.T) {
+	t.Parallel()
 	t.Run("CEM-CB-023 complete tree validation refuses before memoization", func(t *testing.T) {
 		testAccuracyWholeTreePublicReadersAgree(t)
 	})

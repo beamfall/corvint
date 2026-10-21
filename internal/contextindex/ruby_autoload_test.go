@@ -45,6 +45,7 @@ func rubyUnknownCount(receipt map[string]any, code string) int {
 
 // TestRubyAutoloadNamedConstantReverseReference: NGI-V0-016, NGI-V0-018.
 func TestRubyAutoloadNamedConstantReverseReference(t *testing.T) {
+	t.Parallel()
 	files := rubyAutoloadIssueFiles()
 	receipt := registryImpact(t, files, "app/models/thing.rb")
 	rows := rubyResultRows(receipt)
@@ -126,6 +127,7 @@ func TestRubyAutoloadNamedConstantReverseReference(t *testing.T) {
 
 // TestRubyAutoloadNamespacedConstant: NGI-V0-016, NGI-V0-018.
 func TestRubyAutoloadNamespacedConstant(t *testing.T) {
+	t.Parallel()
 	files := map[string]string{
 		"app/services/billing/invoice.rb": "module Billing\n  class Invoice\n  end\nend\n",
 		"app/services/billing/charge.rb":  "module Billing\n  class Charge\n    def run\n      if ready?\n        Invoice.new\n      end\n    end\n  end\nend\n",
@@ -166,6 +168,7 @@ func TestRubyAutoloadNamespacedConstant(t *testing.T) {
 
 // TestRubyAutoloadInflections: NGI-V0-017, NGI-V0-021.
 func TestRubyAutoloadInflections(t *testing.T) {
+	t.Parallel()
 	files := map[string]string{
 		"config/initializers/inflections.rb": "ActiveSupport::Inflector.inflections(:en) do |inflect|\n  inflect.acronym \"API\"\nend\n",
 		"config/initializers/zeitwerk.rb":    "Rails.autoloaders.main.inflector.inflect(\n  \"html_parser\" => \"HTMLParser\",\n)\n",
@@ -206,6 +209,7 @@ func TestRubyAutoloadInflections(t *testing.T) {
 
 // TestRubyAutoloadDeclaration: NGI-V0-017.
 func TestRubyAutoloadDeclaration(t *testing.T) {
+	t.Parallel()
 	files := map[string]string{
 		RubyAutoloadDeclarationPath:  `{"schema": "ruby-autoload/0", "roots": ["src", "app/models"], "inflections": {"oauth": "OAuth"}}`,
 		"src/oauth/token.rb":         "module OAuth\n  class Token\n  end\nend\n",
@@ -374,6 +378,7 @@ func TestRubyAutoloadNestingBound(t *testing.T) {
 // `module N` reopens N::A::B only when N::A exists; otherwise it reopens the
 // top-level A::B, and its body resolves in that class and then in N.
 func TestRubyAutoloadQualifiedClassInNamespace(t *testing.T) {
+	t.Parallel()
 	files := map[string]string{
 		"app/services/billing/invoice.rb":      "module Billing\n  class Invoice\n  end\nend\n",
 		"app/services/billing/invoice/line.rb": "module Billing\n  class Invoice\n    class Line\n    end\n  end\nend\n",

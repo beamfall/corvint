@@ -2371,6 +2371,10 @@ for it and for the `/0` pointer text of `falsifiable-packet-v0.md` FPK-V0-037/03
   and an OID that names no commit is refused `repository-object-unavailable`. When
   `refs/notes/corvint` moves between the tip comparison and the end of the read, provenance
   MUST refuse with `provenance-notes-moved` rather than report rows from a different tip.
+  Under `--notes-tip` the anchor note MUST be read from the live tip commit captured for the
+  state, by object ID, never again through the mutable ref, so a ref moved away and back during
+  the read cannot supply other content (amended 2026-10-21 under the owner's standing auto-accept,
+  V1-2157, matching `CEM-V1-345`).
   Provenance stays read-only: it writes no ref, note, object, index, config or worktree file.
 
 Wire and schema: the pointer profile changes from `/0` to `/1` for new notes and the
@@ -2399,7 +2403,7 @@ seal or golden depends on the pointer profile.
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
-| CEM-V1-067 | `TestCEMV1067SiblingCommitIsScopeMismatch`, `TestCEMV1067VerifiedImpliesTheAnchoredPatchIsBaseToREV`, `TestCEMV1067ResetNotesRefIsRollback`, `TestCEMV1067LegacyPointerIsReadableAndUnscoped` (`internal/gitnotes`); `TestCEMAnchorAndProvenanceInteropThroughTheCLI` (`cmd/corvint`); `TestAnchorActionsParseLikeTheirSiblings` (`internal/cem/cli`) | A sibling commit is refused by anchor and every forged `/1` note on it reads `scope-mismatch`; each `verified` row's `patch_sha256` equals the recomputed canonical `base..REV` digest and `target_tree` equals `REV^{tree}`; a reset or deleted notes ref reads `rollback` under `--notes-tip`; a `/0` note reads `unscoped`; no ref moves on any read |
+| CEM-V1-067 | `TestCEMV1067SiblingCommitIsScopeMismatch`, `TestCEMV1067VerifiedImpliesTheAnchoredPatchIsBaseToREV`, `TestCEMV1067ResetNotesRefIsRollback`, `TestCEMV1067LegacyPointerIsReadableAndUnscoped`, `TestCEMV1067PinnedNotesTipReadIgnoresARefMovedAwayAndBack` (`internal/gitnotes`); `TestCEMAnchorAndProvenanceInteropThroughTheCLI` (`cmd/corvint`); `TestAnchorActionsParseLikeTheirSiblings` (`internal/cem/cli`) | A sibling commit is refused by anchor and every forged `/1` note on it reads `scope-mismatch`; each `verified` row's `patch_sha256` equals the recomputed canonical `base..REV` digest and `target_tree` equals `REV^{tree}`; a reset or deleted notes ref reads `rollback` under `--notes-tip`, and a ref moved A->B->A during that read reports only A's note; a `/0` note reads `unscoped`; no ref moves on any read |
 
 ## Portable Linux process containment (V1-1358, 2026-10-14)
 

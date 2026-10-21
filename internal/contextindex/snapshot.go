@@ -1021,6 +1021,15 @@ func decodeSnapshotValue(file *os.File, identity repositoryIdentity, engineID st
 	if payloadBytes <= 0 {
 		return errors.New("snapshot shorter than its digest")
 	}
+	if mapping := mapReadOnly(file, info.Size()); mapping != nil {
+		return decodeMappedSnapshotValue(mapping, identity, engineID, value)
+	}
+	return decodeStreamedSnapshotValue(file, payloadBytes, identity, engineID, value)
+}
+
+// decodeStreamedSnapshotValue is decodeSnapshotValue through read(2), for a
+// host or file that cannot be mapped.
+func decodeStreamedSnapshotValue(file *os.File, payloadBytes int64, identity repositoryIdentity, engineID string, value any) error {
 	digest := sha256.New()
 	payload := io.TeeReader(io.NewSectionReader(file, 0, payloadBytes), digest)
 	decoder := gob.NewDecoder(payload)

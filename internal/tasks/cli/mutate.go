@@ -333,6 +333,9 @@ func submitMutationContext(ctx context.Context, env Env, cmd []string, operation
 		return errorResult(cmd, err)
 	}
 	res := mutateResult(cmd, report)
+	if w := attemptLiveWarning(env, res, store0.Queue.QueueID.Raw, flags.target); w != "" {
+		res.Warnings = append(res.Warnings, w)
+	}
 	if report.Outcome.Outcome == mutation.OutcomeRequestIDConflict && flags.issuedAt == "" {
 		res.Warnings = append(res.Warnings, defaultedIssuedAtConflict(repo, store0, operation, actor, flags, payload, issued))
 	}
@@ -348,6 +351,39 @@ func submitMutationContext(ctx context.Context, env Env, cmd []string, operation
 		res.Warnings = append(res.Warnings, unmetDependencyWarnings(store0.Inventory, report.Ticket)...)
 	}
 	return res
+}
+
+// attemptLiveWarning is the ATR-V0-190 detail for an ATTEMPT_LIVE refusal
+// whose writer route read no attempt record: a read after the refusal names
+// the ticket's live attempt, its holder, holder status and recovery command.
+// It is advisory; "" when the refusal is another code or the read fails.
+func attemptLiveWarning(env Env, res *wire.Result, queueID, target string) string {
+	live := false
+	for _, code := range res.Codes {
+		live = live || code == wire.CodeAttemptLive
+	}
+	if !live || target == "" {
+		return ""
+	}
+	detail := ""
+	_, err := withStore(env, func(rc *readCtx) error {
+		if rc.journalAbsent {
+			return nil
+		}
+		in, _, err := planInput(rc)
+		if err != nil {
+			return err
+		}
+		in.Now = wire.Timestamp(time.Now().UTC().Format("2006-01-02T15:04:05Z"))
+		if cur := transaction.CurrentAttempt(in, qualifyTicket(queueID, target)); cur != nil {
+			detail = "blocking " + cur.Detail()
+		}
+		return nil
+	})
+	if err != nil {
+		return ""
+	}
+	return detail
 }
 
 // WarningEffectsUnbounded prefixes the CAL-V0-192 warning, so a caller can

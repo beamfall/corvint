@@ -167,6 +167,7 @@ func TestImpactDisclosesWorkspacePackageImporters(t *testing.T) {
 // it names the impact profile, and a TypeScript path, which rule (c) names,
 // carries no disclosure at all.
 func TestImpactProfileGapWordingIsLanguageNeutral(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name    string
 		files   map[string]string

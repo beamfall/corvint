@@ -41,6 +41,7 @@ func TestBuildAllocationStaysBoundedOverAnOversizedTrackedSource(t *testing.T) {
 // row: two tracked paths that differ only by case share one file on a case-insensitive worktree,
 // and each indexed source must still carry its own committed bytes, never the other path's.
 func TestBuildPinsEachCaseFoldedTrackedPathToItsOwnBlob(t *testing.T) {
+	t.Parallel()
 	root := testRepository(t)
 	writeTestFile(t, root, "casefold-probe", "probe\n")
 	if _, err := os.Stat(filepath.Join(root, "CASEFOLD-PROBE")); err != nil {

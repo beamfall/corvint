@@ -37,6 +37,7 @@ func revertTestHunk(path string, oldStart, newStart int64, body ...string) *patc
 // and a pure deletion both round-trip, and target bytes that are not the
 // hunk's new side are refused rather than guessed.
 func TestCEMV1088ReverseHunkAppliesExactlyOneHunk(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name, target, want string
 		hunk               *patch.Hunk
@@ -64,6 +65,7 @@ func TestCEMV1088ReverseHunkAppliesExactlyOneHunk(t *testing.T) {
 // named; declaration-shaped text in a comment or a string never is
 // (TCQ-V0-061, Codex review of V1-1266).
 func TestCEMV1088DeclaredTestsAreWhatGoTestRuns(t *testing.T) {
+	t.Parallel()
 	file := "package p\n\nimport \"testing\"\n\n" +
 		"func TestB(t *testing.T) {}\nfunc Test(t *testing.T) {}\nfunc Testing(t *testing.T) {}\n" +
 		"type suite struct{}\n\nfunc (s suite) TestMethod(t *testing.T) {}\nfunc BenchmarkB(b *testing.B) {}\n  func TestIndented(t *testing.T) {}\n" +
@@ -94,6 +96,7 @@ func TestCEMV1088DeclaredTestsAreWhatGoTestRuns(t *testing.T) {
 // build failed, the binary's timeout panic is a timeout, and an unknown action
 // or undecodable stream is an error, never a verdict.
 func TestCEMV1089DecodeGoTestJSON(t *testing.T) {
+	t.Parallel()
 	stream := `{"Action":"start","Package":"m/p"}
 {"Action":"run","Package":"m/p","Test":"TestA"}
 {"Action":"run","Package":"m/p","Test":"TestA/sub"}
@@ -133,6 +136,7 @@ func TestCEMV1089DecodeGoTestJSON(t *testing.T) {
 // failure of a test that passed at the target; every other shape is survived
 // or not-run with its reason.
 func TestCEMV1089ClassifyRevert(t *testing.T) {
+	t.Parallel()
 	eligible := []string{"TestA", "TestB"}
 	states := func(pairs ...string) map[string]string {
 		out := map[string]string{}
@@ -200,6 +204,7 @@ func TestCEMV1089ClassifyRevert(t *testing.T) {
 // the copy is restored afterwards, a per-run timeout is not-run, and only the
 // runner's own observation makes a row held.
 func TestCEMV1088JudgeRevertsOnlyInsideTheCopy(t *testing.T) {
+	t.Parallel()
 	tree := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(tree, "p"), 0o755); err != nil {
 		t.Fatal(err)
@@ -264,6 +269,7 @@ func TestCEMV1088JudgeRevertsOnlyInsideTheCopy(t *testing.T) {
 // symlink out of the copy makes the write fail, and the outside file is never
 // touched (Codex review of V1-1266).
 func TestCEMV1088CopyWritesNeverFollowSymlinks(t *testing.T) {
+	t.Parallel()
 	outside := filepath.Join(t.TempDir(), "caller.go")
 	if err := os.WriteFile(outside, []byte("caller\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -345,6 +351,7 @@ func TestCEMV1088GoTestProfileMatchesNative(t *testing.T) {
 // TestCEMV1088ExportTreeReadsOnlyObjects pins the disposable copy: blobs and
 // modes from the target tree, and a symlink refused rather than dropped.
 func TestCEMV1088ExportTreeReadsOnlyObjects(t *testing.T) {
+	t.Parallel()
 	repository := t.TempDir()
 	git := func(args ...string) string {
 		t.Helper()
@@ -392,6 +399,7 @@ func TestCEMV1088ExportTreeReadsOnlyObjects(t *testing.T) {
 // TestCEMV1088CountMovesOnlyAcceptedTiers pins the beside-result tally: a held
 // row moves its hunk from anchored or cited to held, never from unknown.
 func TestCEMV1088CountMovesOnlyAcceptedTiers(t *testing.T) {
+	t.Parallel()
 	report := &HunkRevert{HunksByClass: CitationClasses{Anchored: 1, Cited: 1, Unknown: 1}}
 	report.count(HunkRevertRow{Result: RevertHeld}, TierAnchored)
 	report.count(HunkRevertRow{Result: RevertHeld}, TierUnknown)

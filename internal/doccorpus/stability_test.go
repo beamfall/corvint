@@ -207,6 +207,7 @@ func stabilityFixtureWithBehavior(t *testing.T, editBehavior func(*BehaviorRegis
 }
 
 func TestBehaviorLegacyAndStabilityIntegration(t *testing.T) {
+	t.Parallel()
 	root, manifest := stabilityFixtureWithBehavior(t, legacyFixture, nil, nil, nil)
 	artifact, err := Build(context.Background(), root, manifest)
 	if err != nil {
@@ -221,6 +222,7 @@ func TestBehaviorLegacyAndStabilityIntegration(t *testing.T) {
 }
 
 func TestPlaywrightStabilityAggregateEndToEnd(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-021 identities DCP-V1-022 distinctions DCP-V1-025 corpus join", func(t *testing.T) {
 		root, manifest := stabilityFixture(t, nil, nil)
 		artifact, err := Build(context.Background(), root, manifest)
@@ -242,6 +244,7 @@ func TestPlaywrightStabilityAggregateEndToEnd(t *testing.T) {
 }
 
 func TestPlaywrightStabilityRejectsDeclaredObservedTopologyMismatch(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-026 six declared nodes reject four observed nodes", func(t *testing.T) {
 		root, manifest := stabilityFixtureWithTopology(t, nil, nil, func(_ *StabilityTopology, observed []StabilityTopology) {
 			for i := range observed {
@@ -256,6 +259,7 @@ func TestPlaywrightStabilityRejectsDeclaredObservedTopologyMismatch(t *testing.T
 }
 
 func TestPlaywrightStabilityTopologyIdentity(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-026 every topology dimension is exact", func(t *testing.T) {
 		mutations := map[string]func(*StabilityTopology){
 			"ci nodes":                    func(v *StabilityTopology) { v.CINodes++ },
@@ -309,6 +313,7 @@ func TestPlaywrightStabilityTopologyIdentity(t *testing.T) {
 }
 
 func TestPlaywrightStabilityRejectsMalformedTopologyIdentity(t *testing.T) {
+	t.Parallel()
 	tests := map[string]func(*StabilityTopology){
 		"zero nodes":        func(v *StabilityTopology) { v.CINodes = 0 },
 		"unknown database":  func(v *StabilityTopology) { v.DatabaseMode = "sometimes-shared" },
@@ -328,6 +333,7 @@ func TestPlaywrightStabilityRejectsMalformedTopologyIdentity(t *testing.T) {
 }
 
 func TestPlaywrightStabilityTopologyBindings(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-026 repository policy binding", func(t *testing.T) {
 		root, manifest := stabilityFixture(t, nil, func(registry *StabilityRegistry) {
 			registry.Policy.Topology.Value.CINodes++
@@ -350,6 +356,7 @@ func TestPlaywrightStabilityTopologyBindings(t *testing.T) {
 }
 
 func TestPlaywrightStabilityNegativeControls(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-022 negative controls DCP-V1-023 cleanup", func(t *testing.T) {
 		tests := map[string]struct {
 			editReceipt  func(int, *jstestprovider.Receipt)
@@ -506,6 +513,7 @@ func TestPlaywrightStabilityNegativeControls(t *testing.T) {
 }
 
 func TestPlaywrightStabilityPreservesEarlierFailureAndPolicyScopes(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-023 failure preservation DCP-V1-024 policy scopes", func(t *testing.T) {
 		for _, scope := range []string{"one-spec", "feature-batch", "suite"} {
 			t.Run(scope, func(t *testing.T) {
@@ -535,6 +543,7 @@ func TestPlaywrightStabilityPreservesEarlierFailureAndPolicyScopes(t *testing.T)
 }
 
 func TestPlaywrightStabilityCountsRetriesWithoutErasingFailure(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-023 flaky retry failure evidence", func(t *testing.T) {
 		root, manifest := stabilityFixture(t, func(i int, receipt *jstestprovider.Receipt) {
 			if i != 2 {
@@ -579,6 +588,7 @@ func TestPlaywrightStabilityCountsEarlierTimeoutWithoutErasingRecovery(t *testin
 }
 
 func TestPlaywrightStabilityCountsEarlierInfrastructureWithoutErasingRecovery(t *testing.T) {
+	t.Parallel()
 	root, manifest := stabilityFixture(t, func(i int, receipt *jstestprovider.Receipt) {
 		if i != 2 {
 			return
@@ -599,6 +609,7 @@ func TestPlaywrightStabilityCountsEarlierInfrastructureWithoutErasingRecovery(t 
 }
 
 func TestStabilityCountsEveryOutcomeDenominator(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-023 outcome denominators", func(t *testing.T) {
 		tests := []struct {
 			state jstestprovider.ExecutionState
@@ -635,6 +646,7 @@ func TestStabilityCountsEveryOutcomeDenominator(t *testing.T) {
 }
 
 func TestStabilityCountsEarlierIncompleteAttemptCategories(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		state jstestprovider.ExecutionState
 		check func(StabilityCounts) bool
@@ -657,6 +669,7 @@ func TestStabilityCountsEarlierIncompleteAttemptCategories(t *testing.T) {
 }
 
 func TestStabilityOutcomeMatchesOrderedAttempts(t *testing.T) {
+	t.Parallel()
 	valid := []jstestprovider.TestOutcome{
 		{State: jstestprovider.StatePassed, Attempts: []jstestprovider.Attempt{{State: jstestprovider.StatePassed}}},
 		{State: jstestprovider.StateFlaky, Attempts: []jstestprovider.Attempt{{State: jstestprovider.StateFailed}, {State: jstestprovider.StatePassed}}},

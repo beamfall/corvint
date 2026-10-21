@@ -40,6 +40,7 @@ func queryResults(t *testing.T, a *Artifact, request Request) Receipt {
 // import_parity, returned by docs_get with its supplied label, counted per
 // outcome by docs_coverage, and changes no computed result or trust.
 func TestDCPV1210SuppliedTestRunReceipt(t *testing.T) {
+	t.Parallel()
 	a := buildAdoption(t, func(p *ProviderRecord) {
 		suppliedTestRun(p)
 		p.Claims[len(p.Claims)-1].Evidence.Trust = "reviewed"
@@ -115,6 +116,7 @@ func TestDCPV1210SuppliedTestRunReceipt(t *testing.T) {
 
 // DCP-V1-210, DCP-V1-212: malformed test-run receipts and legacy case links are refused.
 func TestDCPV1210ResidualRecordRefusals(t *testing.T) {
+	t.Parallel()
 	run := func(edit func(*SuppliedTestRunDetails)) func(*ProviderRecord) {
 		return func(p *ProviderRecord) {
 			suppliedTestRun(p)
@@ -173,6 +175,7 @@ func TestDCPV1210ResidualRecordRefusals(t *testing.T) {
 // case subject that declares it and its links; an undeclared case ID returns a
 // gap naming why it links to no subject.
 func TestDCPV1212LegacyCaseIDLinksToSubject(t *testing.T) {
+	t.Parallel()
 	a := buildAdoption(t, legacyCaseLink)
 	for _, indexed := range []bool{false, true} {
 		b := *a
@@ -214,6 +217,7 @@ func TestDCPV1212LegacyCaseIDLinksToSubject(t *testing.T) {
 // DCP-V1-214: capabilities list supplied gap IDs and the query index admits
 // them, so docs_get by a supplied gap ID returns it with or without the index.
 func TestDCPV1214SuppliedGapsInCapabilitiesAndIndex(t *testing.T) {
+	t.Parallel()
 	a := buildAdoption(t, suppliedHomes)
 	var gaps Capability
 	for _, c := range a.Capabilities {
@@ -260,6 +264,7 @@ func TestDCPV1214SuppliedGapsInCapabilitiesAndIndex(t *testing.T) {
 // DCP-V1-215: a shard carrying status and test-run claims compiles under the
 // incremental path with the same import_parity kinds as a cold build.
 func TestDCPV1215IncrementalCountsSuppliedClaimKinds(t *testing.T) {
+	t.Parallel()
 	root, m := shardAdoptionFixture(t, func(first, last *ProviderRecord) {
 		first.Observations = nil
 		suppliedTestRun(first)

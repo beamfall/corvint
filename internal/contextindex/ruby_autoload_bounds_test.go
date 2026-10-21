@@ -42,6 +42,7 @@ func rubyCraftedNamespaces(count int) map[string]string {
 // most that many, and every reference the bound cut is counted in the
 // ruby-reference-index-bounded unknown rather than dropped silently.
 func TestRubyAutoloadResolutionBound(t *testing.T) {
+	t.Parallel()
 	const count = 80
 	autoload, receipt := rubyBoundsImpact(t, rubyCraftedNamespaces(count), "app/models/ns0/x.rb")
 	source := autoload.sources["app/models/crafted.rb"]

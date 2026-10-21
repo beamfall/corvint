@@ -13,6 +13,7 @@ func legacyFixture(r *BehaviorRegistry) {
 }
 
 func TestBehaviorLegacyParity(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name   string
 		edit   func(*BehaviorRegistry)
@@ -79,6 +80,7 @@ func TestBehaviorLegacyParity(t *testing.T) {
 }
 
 func TestBehaviorLegacyRuntimeIdentity(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name string
 		edit func(*BehaviorLegacyRun)
@@ -111,6 +113,7 @@ func TestBehaviorLegacyRuntimeIdentity(t *testing.T) {
 }
 
 func TestBehaviorLegacyReverseParityCoverage(t *testing.T) {
+	t.Parallel()
 	root, m := behaviorFixtureWithRun(t, func(r *BehaviorRegistry) {
 		legacyFixture(r)
 		criterion := r.Legacy[0].Criteria[0]

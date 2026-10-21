@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
 func lookupFixture(t *testing.T) *Index {
@@ -172,5 +174,35 @@ func TestLookupNeverListsExcludedPathsAndRefusesBadIdentifiers(t *testing.T) {
 	}
 	if _, err := LookupDefinitions(index, "Split", 0); err == nil {
 		t.Fatal("limit 0 accepted")
+	}
+}
+
+// TestTCPV0160LookupGrepRedactsSecretLines: a matching line that a secret
+// screen match touches is quoted as the placeholder and marked redacted,
+// keeping its number and terms; clean matching lines stay verbatim.
+func TestTCPV0160LookupGrepRedactsSecretLines(t *testing.T) {
+	secret := "correct-horse-battery-" + "staple"
+	root := impactRepositoryWithFiles(t, map[string]string{
+		"go.mod":         "module example.test/fixture\n\ngo 1.27.0\n",
+		"auth/client.go": "package auth\n\nvar pass" + "word = \"" + secret + "\"\n\nfunc Password() string { return password }\n",
+	})
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := LookupGrep(index, []string{"password"}, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := result["results"].([]any)[0].(map[string]any)["lines"].([]any)
+	if len(lines) != 2 {
+		t.Fatalf("grep lines = %v", lines)
+	}
+	first, second := lines[0].(map[string]any), lines[1].(map[string]any)
+	if first["line"] != 3 || first["text"] != secretscreen.Placeholder || first["redacted"] != true || first["terms"].([]any)[0] != "password" {
+		t.Fatalf("secret line = %v", first)
+	}
+	if second["line"] != 5 || second["redacted"] != nil || !strings.Contains(second["text"].(string), "return password") {
+		t.Fatalf("clean line = %v", second)
 	}
 }

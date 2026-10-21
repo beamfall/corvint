@@ -12,6 +12,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
 // sourceGitScript writes an executable stand-in for /usr/bin/git.
@@ -128,5 +130,42 @@ exec /usr/bin/git "$@"
 	raw, err := os.ReadFile(commands)
 	if err != nil || got["ok"] != true || strings.Count(string(raw), "\n") > 12 {
 		t.Fatalf("Git commands=%d err=%v output=%v", strings.Count(string(raw), "\n"), err, got)
+	}
+}
+
+// ESV-V0-011: a git cat-file read that fails refuses as git-failed in the source
+// view and in context --expand, and only a read over the blob limit refuses as
+// blob-budget or expand-budget (V1-2258).
+func TestSourceBlobReadFailureIsDistinctFromBudget(t *testing.T) {
+	t.Parallel()
+	root, commit, packet := sourceViewRepository(t)
+	failing := sourceGitScript(t, `case " $* " in *" cat-file blob "*) echo 'fatal: object unreadable' >&2; exit 128;; esac
+exec /usr/bin/git "$@"
+`)
+	oversize := sourceGitScript(t, `case " $* " in *" cat-file blob "*) head -c 1048578 /dev/zero; exit 0;; esac
+exec /usr/bin/git "$@"
+`)
+	for _, test := range []struct{ name, script, want string }{
+		{"failed-read", failing, "git-failed"},
+		{"oversize-read", oversize, "blob-budget"},
+	} {
+		ctx := liftedSourceDeadline(context.WithValue(context.Background(), sourceGitExecutableKey{}, test.script))
+		if got := runSourceViewTestContext(t, ctx, root, commit, packet, "--lines", "3:3"); sourceViewCode(got) != test.want || got["view"] != nil {
+			t.Fatalf("source view %s: %v, want %s", test.name, got, test.want)
+		}
+	}
+	tree := gitOutput(t, root, "rev-parse", "HEAD^{tree}")
+	blob := gitOutput(t, root, "rev-parse", "HEAD:spec.md")
+	handle := "cv1:" + tree + ":" + blob + ":all:spec.md"
+	for _, test := range []struct{ name, script, want string }{
+		{"failed-read", failing, "git-failed"},
+		{"oversize-read", oversize, "expand-budget"},
+	} {
+		ctx := liftedSourceDeadline(context.WithValue(context.Background(), sourceGitExecutableKey{}, test.script))
+		_, err := expandContextHandle(ctx, root, handle, 4096)
+		var failure *gokernel.Error
+		if !errors.As(err, &failure) || failure.Code != test.want {
+			t.Fatalf("context --expand %s: %v, want %s", test.name, err, test.want)
+		}
 	}
 }

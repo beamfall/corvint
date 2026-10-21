@@ -68,6 +68,7 @@ func supported(id, path string, added []string, evidence ...string) supportCase 
 // TestCEMV1081IDAnchorRequiresBoundedTokenAndDefinition falsifies prefix and
 // suffix ID matches and mention-only spans.
 func TestCEMV1081IDAnchorRequiresBoundedTokenAndDefinition(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name  string
 		added string
@@ -106,6 +107,7 @@ func TestCEMV1081IDAnchorRequiresBoundedTokenAndDefinition(t *testing.T) {
 // TestCEMV1081PathAnchorUsesPostImageAndBasenameFloor checks the post-image
 // path, the old path for a pure deletion and the six-byte basename floor.
 func TestCEMV1081PathAnchorUsesPostImageAndBasenameFloor(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name             string
 		oldPath, newPath string
@@ -132,6 +134,7 @@ func TestCEMV1081PathAnchorUsesPostImageAndBasenameFloor(t *testing.T) {
 
 // TestCEMV1081Annotation checks the neutral-token rule.
 func TestCEMV1081Annotation(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name  string
 		added []string
@@ -162,6 +165,7 @@ func TestCEMV1081Annotation(t *testing.T) {
 // hunk:a inherits hunk:c's {a,b}, and evidence:a still names src/a.go, so
 // shifted-anchored is 1 and specificity is 0.
 func TestCEMV1082BlockShapeAndCounts(t *testing.T) {
+	t.Parallel()
 	cases := []supportCase{
 		supported("hunk:c", "src/c.go", []string{"compute()\n"}, "evidence:b", "evidence:a"),
 		{id: "hunk:m", oldPath: "src/m.go", newPath: "src/m.go", added: []string{"  compute()\n"}, disposition: "mechanical"},
@@ -197,6 +201,7 @@ func TestCEMV1082BlockShapeAndCounts(t *testing.T) {
 // TestCEMV1082ShiftNull covers the shift null's edge cases: a single
 // supported hunk, all-equal basis sets and a negative specificity.
 func TestCEMV1082ShiftNull(t *testing.T) {
+	t.Parallel()
 	single, parsed, spans := supportInputs([]supportCase{supported("hunk:a", "src/alpha.go", []string{"compute()\n"}, "evidence:1")},
 		map[string]string{"evidence:1": "docs/x.md"}, map[string]string{"evidence:1": "src/alpha.go"})
 	if c := ComputeCitation(single, parsed, spans); !c.Invariant || c.Specificity != 0 || c.HunksByClass.Anchored != 1 {
@@ -223,6 +228,7 @@ func TestCEMV1082ShiftNull(t *testing.T) {
 // level: permuting map hunks, patch hunks and evidence records, and repeating
 // the computation, yields byte-identical JSON.
 func TestCEMV1082HunkOrderDoesNotChangeTheBlock(t *testing.T) {
+	t.Parallel()
 	cases := []supportCase{
 		supported("hunk:3", "src/gamma.go", []string{"gamma()\n"}, "evidence:g", "evidence:shared"),
 		supported("hunk:1", "src/alpha.go", []string{"alpha() // CEM-XY-101\n"}, "evidence:a"),

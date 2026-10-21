@@ -59,6 +59,7 @@ func hasGapKind(gaps []Gap, kind string) bool {
 // DCP-V1-185, DCP-V1-186, DCP-V1-190: one supplied gap is admitted, counted
 // and returned by docs_gaps labelled supplied, after the computed gaps.
 func TestDCPV1185SuppliedGapAdmittedAndLabelled(t *testing.T) {
+	t.Parallel()
 	a := buildAdoption(t, suppliedHomes)
 	if len(a.SuppliedGaps) != 1 || a.SuppliedGaps[0].Origin != "supplied" {
 		t.Fatalf("supplied gap not retained with its origin: %+v", a.SuppliedGaps)
@@ -101,6 +102,7 @@ func TestDCPV1185SuppliedGapAdmittedAndLabelled(t *testing.T) {
 // DCP-V1-185: supplied gaps and statuses never raise trust; a provider-reported
 // review is kept only as attributed reported trust.
 func TestDCPV1185SuppliedRecordsNeverRaiseTrust(t *testing.T) {
+	t.Parallel()
 	a := buildAdoption(t, func(p *ProviderRecord) {
 		suppliedHomes(p)
 		p.Gaps[0].Evidence.Trust = "reviewed"
@@ -120,6 +122,7 @@ func TestDCPV1185SuppliedRecordsNeverRaiseTrust(t *testing.T) {
 // DCP-V1-187, DCP-V1-188: the supplied status is reachable from its subject
 // through docs_get and counted per state by docs_coverage.
 func TestDCPV1187SuppliedStatusQueryable(t *testing.T) {
+	t.Parallel()
 	a := buildAdoption(t, suppliedHomes)
 	r, err := Query(a, Request{Operation: "get", ID: "adapter:flow", Limit: 100}, "fresh", nil)
 	if err != nil {
@@ -151,6 +154,7 @@ func TestDCPV1187SuppliedStatusQueryable(t *testing.T) {
 
 // DCP-V1-189: a manual case link suppresses missing-manual-cases for its target only.
 func TestDCPV1189ManualCaseLinkSuppressesMissingManualCases(t *testing.T) {
+	t.Parallel()
 	plain := buildAdoption(t, nil)
 	if computed, _ := gapsFor(t, plain, "adapter:flow"); !hasGapKind(computed, "missing-manual-cases") {
 		t.Fatal("fixture flow should lack a manual disposition before the link")
@@ -163,6 +167,7 @@ func TestDCPV1189ManualCaseLinkSuppressesMissingManualCases(t *testing.T) {
 
 // DCP-V1-185, DCP-V1-187, DCP-V1-189, DCP-V1-192: malformed supplied records are refused.
 func TestDCPV1185SuppliedRecordRefusals(t *testing.T) {
+	t.Parallel()
 	cases := map[string]func(*ProviderRecord){
 		"unqualified gap id":    func(p *ProviderRecord) { p.Gaps[0].ID = "other:gap" },
 		"foreign gap owner":     func(p *ProviderRecord) { p.Gaps[0].Provider = "other" },
@@ -209,6 +214,7 @@ func TestDCPV1185SuppliedRecordRefusals(t *testing.T) {
 // DCP-V1-191: a /2 adoption provider admits observations up to the record
 // limit; a /1 provider keeps the 4,096 bound.
 func TestDCPV1191SchemaTwoObservationsUseRecordLimit(t *testing.T) {
+	t.Parallel()
 	many := func(n int) func(*ProviderRecord) {
 		return func(p *ProviderRecord) {
 			base := p.Observations[0]

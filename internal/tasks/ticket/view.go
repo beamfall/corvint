@@ -28,6 +28,13 @@ type AttemptOracle interface {
 	LiveAttempt(ticketID string) Observation
 }
 
+// AttemptDescriber is an optional AttemptOracle extension: it names the
+// ticket's live attempt, its holder, holder status and recovery command for
+// an ATTEMPT_LIVE refusal (ATR-V0-190), or "" when it cannot.
+type AttemptDescriber interface {
+	DescribeLiveAttempt(ticketID string) string
+}
+
 // NoEvidence is the TCP-01 oracle: it observes nothing and therefore never
 // satisfies anything.
 type NoEvidence struct{}

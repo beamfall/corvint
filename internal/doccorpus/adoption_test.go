@@ -40,6 +40,7 @@ func adoptionFixture(t *testing.T, edit func(*ProviderRecord)) (string, Manifest
 	return root, m
 }
 func TestCorpusAdoptionTypedRecords(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-034 typed joins and DCP-V1-035 restricted projections", func(t *testing.T) {
 		root, m := adoptionFixture(t, nil)
 		a, err := Build(context.Background(), root, m)
@@ -109,6 +110,7 @@ func TestCorpusAdoptionTypedRecords(t *testing.T) {
 	})
 }
 func TestCorpusAdoptionRefusals(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-034 closed typed vocabulary and DCP-V1-035 no restricted references", func(t *testing.T) {
 		cases := map[string]func(*ProviderRecord){
 			"missing section": func(p *ProviderRecord) {
@@ -204,6 +206,7 @@ func shardAdoptionFixture(t *testing.T, edit func(*ProviderRecord, *ProviderReco
 	return root, m
 }
 func TestCorpusAdoptionShards(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-033 shard closure and DCP-V1-035 late restricted input", func(t *testing.T) {
 		for _, name := range []string{"valid", "late restricted", "duplicate", "identity drift", "missing shard", "legacy"} {
 			t.Run(name, func(t *testing.T) {
@@ -252,6 +255,7 @@ func TestCorpusAdoptionShards(t *testing.T) {
 }
 
 func TestCorpusAdoptionReviewRegressions(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-035 live restricted path is redacted", func(t *testing.T) {
 		root, m := adoptionFixture(t, func(p *ProviderRecord) { p.RestrictedFindings[0].LocalDetailPath = "src/restricted-canary-report.txt" })
 		a, err := Build(context.Background(), root, m)

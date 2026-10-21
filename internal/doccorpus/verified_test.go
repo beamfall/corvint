@@ -8,6 +8,7 @@ import (
 )
 
 func TestVerifiedCorpusIsolationAndReconstruction(t *testing.T) {
+	t.Parallel()
 	t.Run("RCP-V0-007 DCP-V1-040 opaque immutable result and original source reconstruction", func(t *testing.T) {
 		ctx := context.Background()
 		root, m := shardAdoptionFixture(t, func(first, last *ProviderRecord) { first.Observations = nil })
@@ -75,6 +76,7 @@ func TestVerifiedCorpusIsolationAndReconstruction(t *testing.T) {
 }
 
 func TestIncrementalCompleteSourceCorrespondence(t *testing.T) {
+	t.Parallel()
 	t.Run("RCP-V0-007 complete retained fields and unauthenticated reviewed trust", func(t *testing.T) {
 		ctx := context.Background()
 		root, m := shardAdoptionFixture(t, func(first, last *ProviderRecord) {

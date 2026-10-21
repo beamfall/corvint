@@ -496,4 +496,18 @@ case $output in
 *) fail "the unused inventory row was not named: $output" ;;
 esac
 
+# 30. DCG-V0-043 (V1-2152): --hash on a path with unmerged index entries and no stage 0 exits
+#     non-zero and names the unmerged entry, rather than the bare `git cat-file` failure.
+blob=$(printf 'x\ny\n' | git -C "$test_root" hash-object -w --stdin)
+git -C "$test_root" rm -q --cached internal/demo/demo.go
+printf '100644 %s 1\tinternal/demo/demo.go\n100644 %s 2\tinternal/demo/demo.go\n' "$blob" "$blob" |
+  git -C "$test_root" update-index --index-info
+rc=0
+output=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/demo.go:1 2>&1) || rc=$?
+[ "$rc" != 0 ] || fail "--hash on an unmerged path exited 0: $output"
+case $output in
+*'internal/demo/demo.go is unmerged in the Git index (stages 1,2, no stage 0)'*) ;;
+*) fail "--hash on an unmerged path did not name the unmerged entry: $output" ;;
+esac
+
 echo "check-line-citations_test.sh: ok"

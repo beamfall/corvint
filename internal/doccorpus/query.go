@@ -167,7 +167,7 @@ func liveRepository(ctx context.Context, dir string, a *Artifact, member func(st
 	}
 	resolved := map[string]gitauth.TreeEntry{}
 	if len(lookups) > 0 {
-		if resolved, err = auth.ResolvePaths(ctx, live.CommitRevision, lookups); err != nil {
+		if resolved, err = resolvePathsPerPathBound(ctx, auth, live.CommitRevision, lookups); err != nil {
 			return nil, false, nil, err
 		}
 	}

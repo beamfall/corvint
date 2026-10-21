@@ -16,6 +16,7 @@ import (
 // charges the same budget operations, for present, absent, wrong-type and
 // mislabeled objects.
 func TestObjectSessionMatchesOneShotReads(t *testing.T) {
+	t.Parallel()
 	outcomes := func(scoped bool) []string {
 		root, base, target := makeRepo(t)
 		budget := gitrun.NewDefaultBudget()
