@@ -67,7 +67,7 @@ Corvint at `d35b0ee3`:
   - Any other unfenced level-3 heading in the span fails `invalid-requirement-item`.
 - `STA-V0-003`: `ocm prepare --intent-form openspec-delta` reads one OpenSpec delta file.
   - Requirements come from the `### Requirement:` blocks under every unfenced `## ADDED Requirements` and `## MODIFIED Requirements` heading (case-insensitive, repeatable). They use the `STA-V0-002` statement and ID rules.
-  - Blocks under `## REMOVED Requirements` and the `FROM:`/`TO:` pairs under `## RENAMED Requirements` are not obligations. They are listed in document order in the prepare envelope member `excludedRequirements`, as `{operation, name}` or `{operation, from, to}`.
+  - Blocks under `## REMOVED Requirements` and the `FROM:`/`TO:` pairs under `## RENAMED Requirements` are not obligations. A REMOVED entry is either a `### Requirement: Name` header or upstream's bullet form `` - `### Requirement: Name` `` (backticks optional, V1-1707); any other line under REMOVED names nothing. They are listed in document order in the prepare envelope member `excludedRequirements`, as `{operation, name}` or `{operation, from, to}`.
   - The span is the whole blob.
   - An unpaired RENAMED line, a `FROM:`/`TO:` line that names no requirement, or a requirement block outside the four sections fails `invalid-delta-section`. A blob with no delta section fails `missing-requirements`.
 - `STA-V0-004`: Both OpenSpec forms emit the prepare envelope member `nativeNames`, which maps each obligation ID to its native name. The name is also recoverable from the pinned statement. Matching is byte-exact and case-sensitive, as upstream.
