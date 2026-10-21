@@ -21,7 +21,18 @@ func TestJSGV0003_CompleteRouteVerifiesRetainedCheckpoint(t *testing.T) {
 		for _, forged := range []bool{false, true} {
 			name := fmt.Sprintf("%s forged=%v", route, forged)
 			repo := writerStore(t, 70)
+			// At the base's own sequence the codec itself refuses a forged
+			// aggregate, because the base carries its aggregates (JSG-V0-009);
+			// one advanced writer-route write puts the delta past the base,
+			// where only the complete audit can tell.
+			writerPad(t, repo, journal.WriterAdvanceTail)
+			if run := writerMutate(t, repo, "past-base", nil); !run.completed() || !run.fast() {
+				t.Fatalf("%s: advance: %+v %v %v", name, run.rep, run.err, run.stages)
+			}
 			seed := readWriterCheckpoint(repo)
+			if seed == nil || seed.Seq.Uint64() <= 70 {
+				t.Fatalf("%s: no checkpoint past the base: %+v", name, seed)
+			}
 			honest, seq := seed.Cost, seed.Seq
 			if forged {
 				writerCheckpointRewrite(t, repo, func(wc *journal.WriterCheckpoint) { wc.Cost.PayloadBytes++ })

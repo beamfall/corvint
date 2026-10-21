@@ -47,6 +47,10 @@ const (
 	// WriterFullBound is the most receipts any writer accepts since the last
 	// complete audit the checkpoint descends from.
 	WriterFullBound = 4096
+	// WriterSegmentedBound replaces WriterFullBound on a segmented store,
+	// where each seal re-runs the complete validators over the receipts it
+	// seals and advances FullSeq to them (JSG-V0-010): two segments.
+	WriterSegmentedBound = 2 * snapshot.SegmentReceipts
 )
 
 const writerMagic = ProfileWriterCheckpoint + "\n"
@@ -107,6 +111,12 @@ type WriterCheckpoint struct {
 	// total counts the merged entries (JSG-V0-004).
 	base  *baseTable
 	total int
+	// freshBase marks a base a seal rebuilt at its new sequence: Encode
+	// writes it before the delta although w carries it (JSG-V0-009).
+	freshBase bool
+	// segments is the SHA-256 of every sealed segment at Seq, which a fresh
+	// base records (JSG-V0-009).
+	segments [][sha256.Size]byte
 }
 
 // IntentAggregate is the count and archive cost of the live canonical
@@ -433,7 +443,7 @@ func requestDigest(p string) ([]byte, bool) {
 // FreshBase reports whether Encode renders a new base: the checkpoint was
 // derived base-free, so its base file must be written before its delta.
 // Otherwise the base is the one the checkpoint was decoded with.
-func (w *WriterCheckpoint) FreshBase() bool { return w.base == nil }
+func (w *WriterCheckpoint) FreshBase() bool { return w.base == nil || w.freshBase }
 
 // Encode renders the two files (JSG-V0-004). The base is w's own when w was
 // decoded with one or derived on it; a base-free w renders a new base of all
@@ -585,6 +595,9 @@ func DecodeWriterCheckpoint(raw, baseRaw []byte) (*WriterCheckpoint, error) {
 		return nil, bad("intent aggregate differs from the entries")
 	}
 	rest = rest[8*len(sizes):]
+	if err := b.bindsDelta(cp, v, iv); err != nil {
+		return nil, err
+	}
 	if b.n+added > maxCheckpointEntries() {
 		return nil, bad("entries exceed the checkpoint bound")
 	}
@@ -654,14 +667,29 @@ func (res *Result) WriterCheckpoint(physical map[string]PhysicalFile) (*WriterCh
 	switch {
 	case (res.Mode == ModeFull || res.Mode == ModePrefix) && res.StructuralConsistency == "CONSISTENT":
 		w = &WriterCheckpoint{FullSeq: res.LastSeq.Uint64()}
+		if res.manifest != nil {
+			for _, e := range res.manifest.Segments {
+				d, err := hex.DecodeString(string(e.Sha256))
+				if err != nil || len(d) != sha256.Size {
+					return nil, errCheckpoint("writer checkpoint", "segment digest is not canonical")
+				}
+				w.segments = append(w.segments, [sha256.Size]byte(d))
+			}
+		}
 	case res.Mode == ModeWriter && res.StructuralConsistency == ModeWriter && res.writerBase != nil:
 		old = res.writerBase
 		w = &WriterCheckpoint{FullSeq: old.FullSeq, ReceiptBytes: old.ReceiptBytes, Cost: old.Cost}
+		if old.base != nil {
+			w.segments = old.base.meta.segments
+		}
 		from = old.Seq.Uint64() + 1
 	default:
 		return nil, errCheckpoint("writer checkpoint", "observation is not a complete or writer audit")
 	}
-	keep := old != nil && old.base != nil && res.LastSeq.Uint64()-old.base.seq < WriterBaseTail
+	// A segmented store keeps its base until the next seal rebuilds it at
+	// the sealed sequence, so its delta stays within two segments
+	// (JSG-V0-009); an unsegmented one rebuilds it every WriterBaseTail.
+	keep := old != nil && old.base != nil && !res.sealRebase && (res.Head.Segments != nil || res.LastSeq.Uint64()-old.base.seq < WriterBaseTail)
 	w.Checkpoint = res.chainHead()
 	var err error
 	if keep {
@@ -1281,7 +1309,11 @@ func (r Reader) walkWriter(o *observation, wc *WriterCheckpoint, selected map[st
 	if from > headSeq || wc.Generation.Uint64() > head.Generation.Uint64() || wc.count() > maxCheckpointEntries() {
 		return result, errCheckpoint("/seq", "checkpoint is not a prefix of head")
 	}
-	if headSeq-from > MaxWriterTail || headSeq-wc.FullSeq >= WriterFullBound {
+	bound := uint64(WriterFullBound)
+	if head.Segments != nil {
+		bound = WriterSegmentedBound
+	}
+	if headSeq-from > MaxWriterTail || headSeq-wc.FullSeq >= bound {
 		return result, errCheckpoint("/seq", "tail exceeds the writer bound")
 	}
 	if o.segErr != nil {

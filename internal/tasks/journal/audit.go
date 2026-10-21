@@ -92,6 +92,12 @@ type Result struct {
 	selectErr, intentErr error
 	// writerBase is the writer checkpoint a ModeWriter audit resumed from.
 	writerBase *WriterCheckpoint
+	// manifest is the segment manifest the audited head binds, if any; a
+	// complete audit's writer checkpoint records its segment digests.
+	manifest *snapshot.SegmentManifest
+	// sealRebase marks the result a seal validated its range into: the
+	// writer checkpoint it derives rebuilds the base (JSG-V0-009).
+	sealRebase bool
 	// listing is what a ModeWriter audit listed but did not read.
 	listing map[string]ListedFile
 	// liveness marks an AuditForLiveness result: the intent tree was not
@@ -463,6 +469,9 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 	}
 	if result != nil && r.observedIntent {
 		result.selection = selected
+	}
+	if result != nil {
+		result.manifest = before.manifest
 	}
 	if r.resume != nil && bodyErr == nil {
 		// The walk resumed from a base this command audited from receipt 1;

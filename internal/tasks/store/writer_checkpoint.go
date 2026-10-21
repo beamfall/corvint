@@ -453,12 +453,19 @@ func observedEntry(p string, phys map[string]journal.PhysicalFile) (archive.File
 // audit just walked, under the same lock, once that tail reaches
 // WriterAdvanceTail, and reports whether the next scheduled complete audit
 // is due: the head this write produced is WriterRefreshInterval receipts or
-// more past the complete audit the checkpoint descends from.
+// more past the complete audit the checkpoint descends from, on an
+// unsegmented store.
 func advanceWriterCheckpoint(repo *intent.Repository, w *writerObservation) (refresh bool) {
 	if w.tail() >= journal.WriterAdvanceTail {
 		if next, err := w.proof.WriterCheckpoint(w.phys); err == nil {
 			retainWriterCheckpoint(repo, next, w.token)
 		}
+	}
+	if w.proof.Head.Segments != nil {
+		// On a segmented store each seal re-runs the complete validators
+		// over what it seals and advances FullSeq: the seal is the refresh
+		// (JSG-V0-010).
+		return false
 	}
 	return w.proof.Head.LastSeq.Uint64()+1-w.wc.FullSeq >= journal.WriterRefreshInterval
 }

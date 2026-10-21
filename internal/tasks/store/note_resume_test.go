@@ -291,7 +291,7 @@ func TestONV0014_UnboundNotePreStateDeclinesTheWriter(t *testing.T) {
 			t.Fatalf("second note: %+v %v %v", run.rep, run.err, run.stages)
 		}
 		// The complete route derived the checkpoint with a fresh base, which
-		// carries the one note last: its digest is the base's last 32 bytes.
+		// carries the one note last: its digest ends where the header begins.
 		// The delta binds the base by digest, so it is rebound and resealed.
 		wcPath := journal.WriterCheckpointPath(repo.StateDir)
 		var forged [sha256.Size]byte
@@ -300,7 +300,24 @@ func TestONV0014_UnboundNotePreStateDeclinesTheWriter(t *testing.T) {
 			if binary.BigEndian.Uint64(raw[at:]) != 1 {
 				t.Fatalf("writer checkpoint base does not carry exactly one note: %d", binary.BigEndian.Uint64(raw[at:]))
 			}
-			raw[len(raw)-1] ^= 0xff
+			// Version 1 trails the notes with the checkpoint header
+			// (length-prefixed), ten aggregates and the segment digests;
+			// this store is unsegmented, so the trailer ends in a zero count.
+			if binary.BigEndian.Uint64(raw[len(raw)-8:]) != 0 {
+				t.Fatal("writer checkpoint base carries segments")
+			}
+			end := len(raw) - 8 - 10*8
+			note := -1
+			for n := 0; n <= 16<<10 && end-n-8 >= 0; n++ {
+				if binary.BigEndian.Uint64(raw[end-n-8:]) == uint64(n) {
+					note = end - n - 8
+					break
+				}
+			}
+			if note < 0 {
+				t.Fatal("writer checkpoint base header not found")
+			}
+			raw[note-1] ^= 0xff
 			forged = sha256.Sum256(raw)
 			return raw
 		})

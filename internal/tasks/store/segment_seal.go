@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"io/fs"
 	"os"
@@ -34,9 +35,15 @@ var errSegmentSealStop = errors.New("segment seal stopped by a test")
 // writer seals only a store that is already segmented: converting a
 // taskman-journal-head/0 store is the operator's seal (JSG-V0-013), so no
 // write makes a store unreadable to a prior binary.
+//
+// A seal that fails for any other reason than a test stop also removes the
+// writer checkpoint: the seal read the receipts it would seal and found them
+// wanting, so the next writer takes the complete audit, which classifies the
+// fault (JSG-V0-009).
 func sealAfterCommit(repo *intent.Repository, session *authority.Session) {
 	if err := sealSegment(repo, session, false); err != nil && !errors.Is(err, errSegmentSealStop) {
 		_ = settleSegmentSeal(repo)
+		invalidateWriterCheckpoint(context.Background(), repo)
 	}
 }
 
@@ -103,6 +110,22 @@ func sealSegment(repo *intent.Repository, session *authority.Session, convert bo
 	if _, err := snapshot.DecodeHead(nextHeadRaw); err != nil {
 		return err
 	}
+	// A writer seal whose checkpoint descends from a complete audit inside
+	// the range runs the complete validators over the receipts it seals,
+	// resumed from the checkpoint's base, before anything lands
+	// (JSG-V0-009). A refusal declines the seal; the migration verbs
+	// removed the checkpoint already.
+	var rebased *journal.WriterCheckpoint
+	var token writerToken
+	if !convert {
+		wc, bound := boundWriterCheckpoint(repo)
+		if wc.SealValidates(seg.First, seg.Last, old.Segments) {
+			if rebased, err = journalReader(repo, head).SealCheckpoint(head, wc, seg, next.Segments); err != nil {
+				return err
+			}
+			token = bound
+		}
+	}
 	if err := os.Mkdir(segmentPath(repo, snapshot.SegmentsDir), 0o700); err == nil {
 		if err := syncState(repo); err != nil {
 			return err
@@ -164,7 +187,29 @@ func sealSegment(repo *intent.Repository, session *authority.Session, convert bo
 	if err := segmentSealStage("dropped"); err != nil {
 		return err
 	}
-	return removeSealMarker(repo)
+	if err := removeSealMarker(repo); err != nil {
+		return err
+	}
+	if rebased != nil {
+		publishSealCheckpoint(repo, rebased, token)
+	}
+	return nil
+}
+
+// publishSealCheckpoint retains the checkpoint a seal rebased, once the seal
+// is complete. It first replaces the invalidation token the checkpoint was
+// bound under, so the writer's own advance after the transaction, derived
+// from the checkpoint before the seal, cannot replace it with the older
+// FullSeq. Nothing is retained if the token changed since the seal read the
+// checkpoint or cannot be replaced.
+func publishSealCheckpoint(repo *intent.Repository, wc *journal.WriterCheckpoint, since writerToken) {
+	if !since.ok || writerInvalidation(repo) != since {
+		return
+	}
+	if replaceDerived(writerInvalidationPath(repo), []byte(rand.Text()+"\n")) != nil {
+		return
+	}
+	retainWriterCheckpoint(repo, wc, writerInvalidation(repo))
 }
 
 // collectSegment reads receipts first..last and the request afterimages they

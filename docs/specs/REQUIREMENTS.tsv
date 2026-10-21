@@ -1589,8 +1589,8 @@ JSG-V0-005	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0
 JSG-V0-006	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R6) The segment manifest `segments/manifest-<S>.json` (	owner	decision 0549
 JSG-V0-007	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R7) Every writer audit lists `receipts/` exactly and re	owner	decision 0549
 JSG-V0-008	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R8, amended 2026-10-21 in slice S3) A writer whose comm	owner	decision 0549; 2026-10-21
-JSG-V0-009	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R9) A seal validates its 512 receipts with the complete	owner	decision 0549
-JSG-V0-010	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R10) `WriterFullBound` is removed. While seals succeed,	owner	decision 0549
+JSG-V0-009	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R9, amended 2026-10-21 in slice S5) A seal validates it	owner	decision 0549; 2026-10-21
+JSG-V0-010	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R10, amended 2026-10-21 in slice S5) On a segmented sto	owner	decision 0549; 2026-10-21
 JSG-V0-011	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R11, fork F3) When a sealed base exists, widen, reap, t	owner	decision 0549
 JSG-V0-012	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R12) The complete route and `receipt audit` read each b	owner	decision 0549
 JSG-V0-013	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R13, amended 2026-10-21 in slice S4) `corvint-tasks jou	owner	decision 0549; 2026-10-21
