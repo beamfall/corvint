@@ -1,7 +1,7 @@
 # Pre-1.0 sweep: tickets closed as already delivered or stale
 
 Date: 2026-10-20. During the pre-1.0 sweep of every open bugs, fixes, optimizations and tests ticket
-(decision 0547), each ticket that triage marked delivered, stale or duplicate was verified again,
+(decision 0548), each ticket that triage marked delivered, stale or duplicate was verified again,
 read-only, against origin/main `2b0cfce94ae2cea248c3ccab4b301af99af572d6`.
 A ticket is closed only when every acceptance criterion is met, each with a cited fix commit that
 is an ancestor of that revision. Rows marked KEEP_OPEN stay open, and their gaps are recorded here.

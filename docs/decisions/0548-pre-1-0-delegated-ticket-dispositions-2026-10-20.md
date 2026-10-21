@@ -1,4 +1,4 @@
-# Decision 0547 — dispositions for 21 pre-1.0 decision tickets
+# Decision 0548 — dispositions for 21 pre-1.0 decision tickets
 
 Date: 2026-10-20. Status: accepted by the orchestrator under the owner's delegation. During the
 pre-1.0 sweep of every open bugs, fixes, optimizations and tests ticket, the owner wrote "you can
