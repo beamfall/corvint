@@ -72,3 +72,22 @@ func TestApplySourceFindingsBlockNotCalled(t *testing.T) {
 		t.Fatalf("other axes changed: %+v", got)
 	}
 }
+
+// TestApplySourceFindingsAnchorsDeduplicated: an anchor that is both a location and a cause, or
+// that repeats across findings or the existing anchors, is listed once at its first position, and
+// no anchor is dropped (TSA-V0-051, V1-1865).
+func TestApplySourceFindingsAnchorsDeduplicated(t *testing.T) {
+	p := eligibleProjection()
+	p.Hygiene.Anchors = []string{"spec/a_spec.rb:6"}
+	got := ApplySourceFindings(p, []SourceFinding{
+		{Rule: RuleBlockNotCalled, Severity: SeverityInvalid, Location: "spec/a_spec.rb:6", Cause: "spec/a_spec.rb:6"},
+		{Rule: RuleMemoizedBlockExpectation, Severity: SeverityInvalid, Location: "spec/a_spec.rb:9", Cause: "spec/a_spec.rb:6"},
+	})
+	if want := []string{"spec/a_spec.rb:6", "spec/a_spec.rb:9"}; !reflect.DeepEqual(got.Hygiene.Anchors, want) {
+		t.Fatalf("anchors %+v, want %+v", got.Hygiene.Anchors, want)
+	}
+	abst := ApplySourceFindings(eligibleProjection(), []SourceFinding{{Rule: "R", Severity: SeverityAbstained, Location: "h", Cause: "h"}})
+	if want := []string{"h"}; !reflect.DeepEqual(abst.Hygiene.Anchors, want) {
+		t.Fatalf("abstained anchors %+v, want %+v", abst.Hygiene.Anchors, want)
+	}
+}

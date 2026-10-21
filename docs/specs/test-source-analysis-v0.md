@@ -412,7 +412,8 @@ command calls it yet.
   one test.
   - Any `invalid` finding makes the hygiene axis `INELIGIBLE`, with reason
     `memoized-block-expectation` for this rule, or the rule ID for any other invalid rule.
-  - Each invalid finding's location and cause are appended to the hygiene anchors.
+  - Each invalid finding's location and cause are appended to the hygiene anchors; an anchor
+    already present is not repeated, so each anchor appears once at its first position (V1-1865).
   - When hygiene was already `INELIGIBLE`, its reason is kept.
   - The other four axes and advisory findings are left unchanged.
   A proof binding that requires `ELIGIBLE` hygiene, such as the test-consolidation witness check
@@ -729,7 +730,7 @@ declared in a shared example group is now flagged. A preflight surface is still 
   - `:skip` or `:pending` symbol metadata, or a `skip:` or `pending:` key whose value is not
     `false` or `nil`, on the declaring line outside string literals and before the block opens;
   - an unconditional `skip` or `pending` statement directly in the example body: not in a nested
-    block and with no trailing `if` or `unless`;
+    block and with no trailing `if` or `unless` (a conditional one abstains under TSA-V0-450);
   - an ancestor group declared with `xdescribe` or `xcontext`, or carrying that metadata.
 - `TSA-V0-064`: (standing auto-accept, 2026-10-11; V1-1798 / GitHub #1128) An example MUST get an
   `invalid` `RSPEC-FOCUSED` finding when it is focused, with its location and cause chosen
@@ -931,8 +932,14 @@ model (`parseSource`); it adds no second parser.
   and an assignment to `global.fetch`, `globalThis.fetch` or `window.fetch` MUST be classified.
   - The subject under test is (a) a module specifier whose base name, without extension (or
     the directory name for `index`), equals the test file's stem without `.spec` or `.test`; or
-    (b) the module that the outermost describe's title or identifier argument is imported from.
-    Identifiers imported from a subject module, and that title, name the subject.
+    (b) the module that the outermost describe's title or identifier argument is imported from,
+    a string title matching either the local name or, for `import { X as Y }` or
+    `const { X: Y } = require(...)`, the exported name `X` (an identifier argument names only its
+    local binding);
+    or (c) a relative module (such as an `index` barrel re-exporting the subject) from which the
+    file imports a name equal to that stem, compared without case and without `-`, `_` or `.`
+    (V1-1862). Identifiers imported from a subject module, and that title, name the subject.
+    A barrel reached through a path alias or a bare package specifier is not resolved.
   - A mock of a subject module, or a spy whose receiver's root identifier names the subject,
     gives an `advisory` `JS-SUBJECT-MOCKED` finding.
   - A boundary is a mock of `axios`, `node-fetch`, `cross-fetch`, `got`, `superagent`, `undici`,
@@ -1027,7 +1034,7 @@ persisted.
 | TSA-V0-076 | `internal/testsource/validity_js_examples.go` | `TestJSExampleRunState` | experimental |
 | TSA-V0-077 | `internal/testsource/validity_js_examples.go` | `TestJSExampleAssertions` | experimental |
 | TSA-V0-078 | `internal/testsource/validity_js_examples.go` | `TestJSExampleAssertions` | experimental |
-| TSA-V0-079 | `internal/testsource/validity_js_examples.go` | `TestJSExampleMocks`, `TestJSExampleNamedCallbackMock` | experimental |
+| TSA-V0-079 | `internal/testsource/validity_js_examples.go` | `TestJSExampleMocks`, `TestJSExampleNamedCallbackMock`, `TestJSExampleBarrelAndAliasSubjects` | experimental |
 | TSA-V0-080 | `internal/testvalidity/source_rules_jsts.go` | `TestApplyJSExampleSource` | experimental |
 | TSA-V0-081 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestSourceValidityJSExamples`, `TestTestsValidityCLI` | experimental |
 | TSA-V0-082 | `internal/testvaliditydoc/js_source.go`, `cmd/corvint/test_validity.go`, `internal/mcp/testvaliditybridge` | `TestDiscoverJSSourceRules`, `TestTestValidityDiscoverJSSourceRules` | experimental |
@@ -1480,7 +1487,9 @@ inclusion. It is agent-drafted and accepted under the owner's standing auto-acce
 - `TSA-V0-396`: (standing auto-accept, 2026-10-11; V1-2063 / GitHub #1312) The Ruby line reader
   MUST count `if`, `unless`, `case`, `begin`, `while` and `until` as a block opener in value
   position: after an assignment (`=`, `||=`, `+=` and the other operator assignments), a hash
-  `=>`, an opening `(` or `[`, a comma, `&&` or `||`, and `case` or `begin` after `return`.
+  `=>`, a label hash key (`key: if x`), an append (`<< if x`), an opening `(` or `[`, a comma,
+  `&&` or `||`, a line-start `else` (`else if x`, which nests a block of its own), and `case` or
+  `begin` after `return` (label key, append and `else` added by V1-2078).
   - A modifier (`foo if bar`, `x = 1 unless y`, `return if bar`) and a keyword argument
     (`if: true`) MUST NOT open a block, and neither may a keyword inside a string literal.
   - A value-position block that the same line closes with `end`
@@ -1508,8 +1517,9 @@ inclusion. It is agent-drafted and accepted under the owner's standing auto-acce
     rule.
 
 Non-goals:
-- parsing Ruby beyond the line reader: other value positions (`key: if x`, `<< if x`, ternary
-  branches) and keywords inside regular expression literals are not recognized;
+- parsing Ruby beyond the line reader: other value positions (ternary branches, which a line
+  cannot tell from a modifier after a predicate method such as `empty? if x`) and keywords inside
+  regular expression literals are not recognized;
 - reading a support file that still does not read;
 - defining a shared group through metaprogramming (`define_method`, `send`, a constant naming the
   method) in an unread file. Such a definition is not seen and does not hold the inclusion back.
@@ -2186,7 +2196,11 @@ unchanged; the join is a separate read of a retained receipt and the object stor
   `rspec-scoped-id`). A JS example is its repository-relative file, project name and full title
   (`file > project > full title`, kind `js-title-path`). An example with no such identity, or two
   examples with one identity, MUST abstain (`example-identity-unbound`,
-  `example-identity-ambiguous`) instead of guessing.
+  `example-identity-ambiguous`) instead of guessing. A JS anchor file binds the retained
+  test-file digest key that equals or ends with it; when several keys do, only a key equal to the
+  anchor file binds, and otherwise the example abstains `example-file-ambiguous` (a relative
+  anchor is relative to the reporter root, which the receipt does not retain). An anchor whose one key lies outside the repository root abstains
+  `example-file-outside-repository` (V1-2085).
 - `TSA-V0-412`: (standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) A record MUST carry the
   run outcome as the receipt states it, the hygiene and strength axes the static example rules give
   the example at the revision (`TSA-V0-068`, `TSA-V0-080`), and the source both used: the revision
@@ -2265,7 +2279,7 @@ the `readOneBlob` split in `internal/testsource/git.go`, `RubyDocument` in
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
 | TSA-V0-410 | `internal/testsource/example_join.go`, `cmd/corvint/tests_example_join.go` | `TestExampleJoinRubyShiftedLines`, `TestTestsExampleJoinCLI` | experimental |
-| TSA-V0-411 | `internal/testsource/example_join.go` | `TestExampleJoinRubyShiftedLines`, `TestExampleJoinSharedGroup`, `TestExampleJoinJS` | experimental |
+| TSA-V0-411 | `internal/testsource/example_join.go` | `TestExampleJoinRubyShiftedLines`, `TestExampleJoinSharedGroup`, `TestExampleJoinJS`, `TestExampleJoinJSDigestKeys` | experimental |
 | TSA-V0-412 | `internal/testsource/example_join.go` | `TestExampleJoinRubyShiftedLines`, `TestExampleJoinJS`, `TestExampleJoinSupportFiles` | experimental |
 | TSA-V0-413 | `internal/testsource/example_join.go` | `TestExampleJoinRevisionRefusals`, `TestExampleJoinRubyShiftedLines` | experimental |
 | TSA-V0-414 | `internal/testsource/example_join.go`, `internal/testsource/git.go` | `TestExampleJoinRubyShiftedLines`, `TestExampleJoinSharedGroup`, `TestExampleJoinJS`, `TestExampleJoinSupportFiles` | experimental |
@@ -2518,6 +2532,24 @@ refusing because the code is read statically and not run.
   and hint asserting it (`root.reader?`). Every finding MUST carry a hint to assert the state the
   code writes or to write the accessor on that path, and MUST say the example abstains because the
   code under test is read statically and not run.
+- `TSA-V0-450`: (standing auto-accept, 2026-10-11; V1-1837) An example no TSA-V0-063
+  `RSPEC-SKIPPED` finding covers MUST NOT be left clean when a run may not execute it:
+  - a `skip` or `pending` statement in its body with a trailing `if` or `unless`, or inside a
+    nested block, MUST give an `abstained` `RSPEC-CONDITIONAL-SKIP` finding located at that
+    statement's line, with the example's line as its cause;
+  - metadata on the example's declaring line or an ancestor group's that a bound committed support
+    file (TSA-V0-414) excludes with `config.filter_run_excluding` MUST give an `abstained`
+    `RSPEC-CONFIG-EXCLUDED` finding located at the example's line, with the
+    `filter_run_excluding` line as its cause. Metadata is read from `key: value`, `:key => value`
+    and `:tag` arguments, including inside a hash-literal argument (`{slow: true}`). A filter
+    matches a `:tag` symbol as `tag: true`, a symbol, `true` or number value exactly, and any other
+    value (a lambda, string, constant or call) as unknown, by its key alone; a filter or metadata
+    value of `false` or `nil` excludes nothing, and commented lines are ignored. A shared example
+    read through its inclusion (TSA-V0-089) is matched the same way.
+  The findings follow TSA-V0-051: the hygiene axis abstains with the rule as its reason. Without a
+  bound support set nothing is config-excluded. Non-goals: evaluating the condition or the
+  environment, `filter_run_when_matching`, `filter_run_including`, exclusions set in `.rspec` or
+  the command line, and inclusion filters that drop examples by omission.
 
 Non-goals: running the code under test or a Rails autoloader; expanding spec or support helper
 methods; reopened classes, concerns, modules,
@@ -2582,6 +2614,7 @@ Nothing is persisted.
 | TSA-V0-447 | `internal/testsource/validity_rspec_accessor.go`, `internal/testsource/validity_rspec.go` | `TestAssertTargetUncertain`, `TestAssertTargetWithheld`, `TestSourceValidityAccessorBudget` | experimental |
 | TSA-V0-448 | `internal/testsource/validity_command.go`, `internal/testvalidity/source_rules_accessor.go`, `internal/testvalidity/source_rules_rspec.go` | `TestSourceValidityAccessorNeverWritten`, `TestAssertTargetNeverWritten`, `TestSourceValidityAccessorBudget` | experimental |
 | TSA-V0-449 | `internal/testsource/validity_rspec_accessor.go` | `TestAssertTargetNeverWritten` | experimental |
+| TSA-V0-450 | `internal/testsource/validity_rspec_skip_config.go`, `internal/testsource/validity_rspec_examples.go`, `internal/testsource/validity_rspec_inclusion.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecConditionalAndConfigSkips`, `TestRSpecExampleSkippedAndFocused`, `TestRSpecMetadataForms`, `TestRSpecInclusionConfigExcluded` | experimental |
 
 ## Decision file format
 
@@ -3056,7 +3089,7 @@ No live qualification on a real suite or real Playwright run was performed.
 | TSA-V0-048 | `internal/testsource/validity_rspec.go` | `TestMemoizedBlockExpectationFindings`, `TestMemoizedBlockExpectationNegatives`, `TestMemoizedBlockExpectationOverrides`, `TestMemoizedBlockExpectationPercentStrings` | experimental |
 | TSA-V0-049 | `internal/testsource/validity_rspec.go` | `TestMemoizedBlockExpectationFindings`, `TestMemoizedBlockExpectationNegatives`, `TestMemoizedBlockExpectationOverrides` | experimental |
 | TSA-V0-050 | `internal/testsource/validity_rspec.go`, `internal/testsource/validity.go` | `TestMemoizedBlockExpectationAbstains`, `TestMemoizedBlockExpectationDepthInsideExample` | experimental |
-| TSA-V0-051 | `internal/testvalidity/source_rules.go` | `TestApplySourceFindingsInvalidMakesIneligible`, `TestApplySourceFindingsAdvisoryAndExisting`, `TestValidityFindingsDispatchAndVerdict`, `TestWitnessRefusesMemoizedBlockExpectation` | experimental |
+| TSA-V0-051 | `internal/testvalidity/source_rules.go` | `TestApplySourceFindingsInvalidMakesIneligible`, `TestApplySourceFindingsAdvisoryAndExisting`, `TestApplySourceFindingsAnchorsDeduplicated`, `TestValidityFindingsDispatchAndVerdict`, `TestWitnessRefusesMemoizedBlockExpectation` | experimental |
 | TSA-V0-052 | `internal/testsource/validity.go` | `TestValidityFindingsDispatchAndVerdict` | experimental |
 | TSA-V0-053 | `internal/testsource/validity_rspec_block.go`, `internal/testsource/validity_rspec.go` | `TestBlockNotCalledIssueExample`, `TestBlockNotCalledForms` | experimental |
 | TSA-V0-054 | `internal/testsource/validity_rspec_block.go` | `TestBlockNotCalledIssueExample`, `TestBlockNotCalledForms` | experimental |

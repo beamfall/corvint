@@ -58,6 +58,7 @@ func RSpecExampleSourcesWithSupport(name, text string, support testvalidity.Ruby
 		r.flags = *support.Flags
 	}
 	r.app = support.App
+	r.excluded = rspecExclusions(support.Files)
 	byTest := map[string][]testvalidity.SourceFinding{}
 	for _, f := range base.Findings {
 		byTest[f.Test] = append(byTest[f.Test], f)
@@ -161,6 +162,8 @@ func (r *rspecReader) exampleFindings(test string, e rspecExample) []testvalidit
 	if skipped != "" {
 		out = append(out, finding(testvalidity.RuleRSpecSkipped, testvalidity.SeverityInvalid, at(e.line), skipped,
 			"the example is skipped or pending, so its result proves nothing about the code; remove the skip, pending, x-prefix or skip metadata"))
+	} else {
+		out = append(out, r.skipConfigFindings(test, e)...)
 	}
 	if focused != "" {
 		out = append(out, finding(testvalidity.RuleRSpecFocused, testvalidity.SeverityInvalid, at(e.line), focused,
