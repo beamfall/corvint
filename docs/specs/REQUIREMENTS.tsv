@@ -2448,6 +2448,7 @@ ESV-V0-008	docs/specs/experimental-source-views-v0.md	`context --summary` prints
 ESV-V0-009	docs/specs/experimental-source-views-v0.md	`context --expand HANDLE` returns only the handle's line range, read from Git	unrecorded	-
 ESV-V0-010	docs/specs/experimental-source-views-v0.md	The summary and expansion views stay experimental until the matched complete-tas	unrecorded	-
 ESV-V0-011	docs/specs/experimental-source-views-v0.md	A failed `git cat-file` read of the selected blob refuses as `git-failed` in bot	unrecorded	-
+ESV-V0-012	docs/specs/experimental-source-views-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-0426). Before	unrecorded	-
 EAF-V0-001	docs/specs/expert-audit-followup-v0.md	Current Go/Python secret screening MUST reject ordinary double-quoted credential	unrecorded	-
 EAF-V0-002	docs/specs/expert-audit-followup-v0.md	Go mutation baseline, mutant and isolated grouped-fallback runs MUST use matchin	unrecorded	-
 EAF-V0-003	docs/specs/expert-audit-followup-v0.md	Checkpoint output MUST preserve the caller's obligations array exactly and label	unrecorded	-
@@ -4456,6 +4457,7 @@ TCP-V0-063	docs/specs/task-context-packet-v0.md	(proposed 2026-10-08, V1-0859 an
 TCP-V0-064	docs/specs/task-context-packet-v0.md	(accepted 2026-10-08, decision 0470; V1-0485; experimental) `TaskContext` observ	owner	2026-10-08; decision 0470; V1-0485
 TCP-V0-065	docs/specs/task-context-packet-v0.md	(accepted, decision 0516 (V1-0315); experimental) A task-context	owner	decision 0516; V1-0315
 TCP-V0-121	docs/specs/task-context-packet-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-2131). Tasks	unrecorded	-
+TCP-V0-160	docs/specs/task-context-packet-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-0426). `context	unrecorded	-
 TCP-V0-141	docs/specs/task-context-packet-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-1285). The pack	unrecorded	-
 TCP-V0-150	docs/specs/task-context-packet-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-2127). The	unrecorded	-
 TCP-V0-152	docs/specs/task-context-packet-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-1010, V1-1015;	unrecorded	-

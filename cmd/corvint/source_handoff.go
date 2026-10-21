@@ -517,7 +517,12 @@ func extractSourceView(source []byte, handle map[string]any, linesArg, requireme
 		return nil, sourceRefusal("view-budget")
 	}
 	sum := sha256.Sum256(selected)
-	return map[string]any{"text": string(selected), "byte_start": byteStart, "byte_end": byteStart + len(selected), "line_start": start + 1, "line_end": end, "bytes": len(selected), "sha256": hex.EncodeToString(sum[:]), "boundary_rule": rule}, nil
+	text, redacted := screenSourceLines(source, lines, start+1, end)
+	view := map[string]any{"text": text, "byte_start": byteStart, "byte_end": byteStart + len(selected), "line_start": start + 1, "line_end": end, "bytes": len(selected), "sha256": hex.EncodeToString(sum[:]), "boundary_rule": rule}
+	if redacted != nil {
+		view["redacted_lines"] = redacted
+	}
+	return view, nil
 }
 
 // sourcePlainPrefix reports whether the lines before a requirement clause
