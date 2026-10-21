@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -88,8 +89,17 @@ func TestCALV0026_WriteLockHoldScale(t *testing.T) {
 		}
 		tree = append(tree, time.Since(start))
 	}
+	// CORVINT_TASKS_SCALE_NOCACHE=1 drops the audit cache before each timed
+	// write, so every write takes the full audit on the same fixture.
+	dropCache := func() {
+		if os.Getenv("CORVINT_TASKS_SCALE_NOCACHE") != "" {
+			os.Remove(filepath.Join(repo.CommonDir, store.AuditCacheNameForTest))
+		}
+	}
+	audits := store.FullAuditsForTest()
 	for i := 0; i < writes; i++ {
 		for _, op := range []string{transaction.Pause, transaction.Unpause} {
+			dropCache()
 			start := time.Now()
 			report, err := store.Barrier(ctx, repo, operator(), barrierRequest(op, fmt.Sprintf("%s-%d", strings.ToLower(op), i)), now(t))
 			barrier = append(barrier, time.Since(start))
@@ -100,6 +110,7 @@ func TestCALV0026_WriteLockHoldScale(t *testing.T) {
 	}
 	for i := 0; i < writes; i++ {
 		env := envelope(fmt.Sprintf("prioritize-%d", i), mutation.OpPrioritize, fixture.TicketID("BF-1"), strconv.Itoa(i+1), obj("priority", str("P1"), "order", str(strconv.Itoa(i))))
+		dropCache()
 		start := time.Now()
 		report, err := store.Mutate(ctx, repo, operator(), env, now(t))
 		mutations = append(mutations, time.Since(start))
@@ -110,6 +121,7 @@ func TestCALV0026_WriteLockHoldScale(t *testing.T) {
 			t.Logf("mutation outcome: %s %v %s", report.Outcome.Outcome, report.Outcome.Codes, report.Detail)
 		}
 	}
+	t.Logf("full audits over %d timed writes: %d", 3*writes, store.FullAuditsForTest()-audits)
 	for _, m := range []struct {
 		name string
 		d    []time.Duration
