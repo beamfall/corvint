@@ -879,7 +879,7 @@ Failure modes: as `IDX-SNAP-V0-102`. Rollback: delete `withSnapshotMissNotice` a
 Human intent: the hook path decoded the 170 to 180 MB gob snapshot through read(2) in 270 to 390 ms;
 the profile put about 22% in read syscalls and 17% in the trailer SHA-256, both serial with the
 decode. The on-disk format stays unchanged (invariant 7), so no format gate applies; the edit to analyzer
-inputs still bumps the schema to `corvint-analyzer/138` under IDX-SNAP-V0-060.
+inputs still bumps the schema (to `corvint-analyzer/139` in batch 1021h, with V1-0426) under IDX-SNAP-V0-060.
 - `IDX-SNAP-V0-105`: accepted under the owner's standing auto-accept (2026-10-11) (V1-2237). On a
   host where the snapshot file maps read-only, the default gob snapshot decode reads it through
   that mapping and hashes the payload for the IDX-SNAP-V0-003 trailer check on a second goroutine
