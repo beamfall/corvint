@@ -255,6 +255,11 @@ type Index struct {
 	// resolves (NGI-V0-036). It is set only on the per-request view
 	// withRubyMapped returns, so the shared index is never written.
 	rubyMapped map[string]struct{}
+	// priorVocabulary and reusedSources are set only on a build that reuses a
+	// prior snapshot (snapshot_reuse.go); compile consumes the first, and the
+	// second counts the sources taken from it.
+	priorVocabulary *priorVocabulary
+	reusedSources   int
 	// bodies: a deferred load's pack bodies (SnapshotRefusal); lease: a mapped read's reference, ended by Release.
 	bodies *packSection
 	lease  *snapshotLease
@@ -311,6 +316,13 @@ func BuildEval(ctx context.Context, root string) (*Index, error) {
 }
 
 func buildStableFrom(ctx context.Context, root string, opening *repositoryObservation, compile func(*Index)) (*Index, error) {
+	return buildStableReusing(ctx, root, opening, compile, nil)
+}
+
+// buildStableReusing is buildStableFrom with an optional verified prior
+// snapshot whose unchanged sources and per-source facts the attempt reuses
+// (snapshot_reuse.go, IDX-SNAP-V0-037). A nil reuse is the full build.
+func buildStableReusing(ctx context.Context, root string, opening *repositoryObservation, compile func(*Index), reuse *snapshotReuse) (*Index, error) {
 	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
 	defer cancel()
 	for attempt := 0; attempt < 3; attempt++ {
@@ -318,7 +330,7 @@ func buildStableFrom(ctx context.Context, root string, opening *repositoryObserv
 		if err != nil {
 			return nil, err
 		}
-		candidate, err := buildEvidenceFrom(ctx, root, before.identity, entries, skipped, before.dirty, before.statusSHA256)
+		candidate, err := buildEvidenceReusing(ctx, root, before.identity, entries, skipped, before.dirty, before.statusSHA256, reuse)
 		if err != nil {
 			return nil, err
 		}
@@ -330,6 +342,7 @@ func buildStableFrom(ctx context.Context, root string, opening *repositoryObserv
 		closing := make(chan repositoryObservation, 1)
 		go func() { closing <- observeRepository(ctx, root) }()
 		compile(candidate)
+		candidate.blobFacts, candidate.priorVocabulary = nil, nil
 		after := <-closing
 		if after.statusErr != nil {
 			return nil, after.statusErr
@@ -458,16 +471,25 @@ func buildEvidence(ctx context.Context, root string, identity repositoryIdentity
 // buildEvidenceFrom is buildEvidence after the tree listing: the caller hands
 // in the entries and the non-blob paths readTreeEntries skipped.
 func buildEvidenceFrom(ctx context.Context, root string, identity repositoryIdentity, entries []treeEntry, skipped map[string]struct{}, status []string, statusSHA256 string) (*Index, error) {
+	return buildEvidenceReusing(ctx, root, identity, entries, skipped, status, statusSHA256, nil)
+}
+
+// buildEvidenceReusing is buildEvidenceFrom with an optional prior snapshot:
+// a candidate whose path, blob id and size match a verified prior source takes
+// that source instead of being pinned again, and only the rest are read.
+func buildEvidenceReusing(ctx context.Context, root string, identity repositoryIdentity, entries []treeEntry, skipped map[string]struct{}, status []string, statusSHA256 string, reuse *snapshotReuse) (*Index, error) {
 	exclusions, candidates, unsupported := admittedEntries(entries)
 	dirty := make(map[string]struct{}, len(status))
 	for _, item := range status {
 		dirty[item] = struct{}{}
 	}
+	sources := make(map[string]Source, len(candidates))
+	prior := reuse.priorFor(identity)
+	candidates = prior.takeUnchanged(candidates, identity.objectFormat, sources)
 	pinnedSources, err := pinCandidates(ctx, root, identity, candidates, dirty)
 	if err != nil {
 		return nil, err
 	}
-	sources := make(map[string]Source, len(candidates))
 	for position, pinned := range pinnedSources {
 		entry := candidates[position]
 		if reason := pinned.exclusionReason(); reason != "" {
@@ -490,6 +512,7 @@ func buildEvidenceFrom(ctx context.Context, root string, identity repositoryIden
 		Markers: map[string][]Marker{}, Imports: map[string]map[string]struct{}{},
 		ProfileID: projectprofile.Fallback().ID, UnsupportedSuffixCount: unsupported,
 	}
+	prior.attach(index)
 	return index, nil
 }
 
@@ -1131,7 +1154,16 @@ func (index *Index) compileTables(imports importPolicy) {
 		if a.Line != b.Line {
 			return a.Line < b.Line
 		}
-		return a.Name < b.Name
+		if a.Name != b.Name {
+			return a.Name < b.Name
+		}
+		// Kind and EndLine complete the order (BlobHash is fixed by Path), so
+		// rows that differ in any field have one place whatever order the
+		// extractors or a reused snapshot handed them in (IDX-SNAP-V0-037).
+		if a.Kind != b.Kind {
+			return a.Kind < b.Kind
+		}
+		return a.EndLine < b.EndLine
 	})
 	for key := range index.Markers {
 		sort.Slice(index.Markers[key], func(left, right int) bool {
