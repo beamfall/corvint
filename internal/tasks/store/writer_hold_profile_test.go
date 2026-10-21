@@ -125,9 +125,7 @@ func TestCALV0118_WriterHoldProfile(t *testing.T) {
 				s.Phases["mutate.to."+stage] += ms(now.Sub(last))
 				last = now
 			})
-			leaseAudits.Lock()
-			leaseAudits.proof = nil
-			leaseAudits.Unlock()
+			forgetLeaseAudits()
 			if profile != "" {
 				out, err := os.Create(filepath.Join(profile, fmt.Sprintf("%d-%s.pprof", n, verb)))
 				if err != nil {

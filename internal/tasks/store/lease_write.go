@@ -26,11 +26,43 @@ type leaseAuditKey struct {
 
 // Only a successful in-process audit can populate this bounded cache. Every
 // reuse compares all physical bytes outside the lock under a fresh guard;
-// head and intent alone cannot detect private projection corruption.
+// head and intent alone cannot detect private projection corruption. It keeps
+// one audit per store root, so audits of independent stores in one process do
+// not evict each other (V1-1108); at most leaseAuditRoots roots are kept.
 var leaseAudits struct {
 	sync.Mutex
+	entries map[string]leaseAuditEntry
+}
+
+type leaseAuditEntry struct {
 	key   leaseAuditKey
 	proof *journal.Result
+}
+
+const leaseAuditRoots = 8
+
+// cachedLeaseAudit is the audit retained for root, if any.
+func cachedLeaseAudit(root string) leaseAuditEntry {
+	leaseAudits.Lock()
+	defer leaseAudits.Unlock()
+	return leaseAudits.entries[root]
+}
+
+// retainLeaseAudit keeps proof as its root's audit. A new root beyond the
+// bound evicts another root's entry, which costs that root one complete audit.
+func retainLeaseAudit(key leaseAuditKey, proof *journal.Result) {
+	leaseAudits.Lock()
+	defer leaseAudits.Unlock()
+	if leaseAudits.entries == nil {
+		leaseAudits.entries = map[string]leaseAuditEntry{}
+	}
+	if _, ok := leaseAudits.entries[key.root]; !ok && len(leaseAudits.entries) >= leaseAuditRoots {
+		for root := range leaseAudits.entries {
+			delete(leaseAudits.entries, root)
+			break
+		}
+	}
+	leaseAudits.entries[key.root] = leaseAuditEntry{key, proof}
 }
 
 type preparedLease struct {
@@ -106,9 +138,8 @@ func leaseKey(repo *intent.Repository, guard *authority.ChangeGuard, inv *transa
 // A possible hit selects the conservative inventory-first path. This hint
 // grants nothing: leaseAuditObserved still compares the complete physical key.
 func possibleLeaseAudit(repo *intent.Repository, headRaw []byte) bool {
-	leaseAudits.Lock()
-	defer leaseAudits.Unlock()
-	return leaseAudits.proof != nil && leaseAudits.key.root == repo.StateDir && leaseAudits.key.head == wire.Sum(headRaw)
+	cached := cachedLeaseAudit(repo.StateDir)
+	return cached.proof != nil && cached.key.head == wire.Sum(headRaw)
 }
 
 func leaseAudit(repo *intent.Repository, guard *authority.ChangeGuard, inv *transaction.Inventory, headRaw []byte) (*journal.Result, error) {
@@ -128,12 +159,8 @@ func leaseAuditObserved(repo *intent.Repository, guard *authority.ChangeGuard, i
 	}
 	proof := supplied
 	if proof == nil {
-		leaseAudits.Lock()
-		cached := leaseAudits.proof
-		hit := cached != nil && leaseAudits.key == key
-		leaseAudits.Unlock()
-		if hit {
-			return cached, nil, nil
+		if cached := cachedLeaseAudit(key.root); cached.proof != nil && cached.key == key {
+			return cached.proof, nil, nil
 		}
 		head, err := snapshot.DecodeHead(headRaw)
 		if err != nil {
@@ -152,9 +179,7 @@ func leaseAuditObserved(repo *intent.Repository, guard *authority.ChangeGuard, i
 		return nil, err, nil
 	}
 	if !proof.StagingPresent && !proof.Pending {
-		leaseAudits.Lock()
-		leaseAudits.key, leaseAudits.proof = key, proof
-		leaseAudits.Unlock()
+		retainLeaseAudit(key, proof)
 	}
 	return proof, nil, nil
 }
