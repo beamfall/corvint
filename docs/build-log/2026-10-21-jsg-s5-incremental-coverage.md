@@ -74,10 +74,57 @@ a writer through the complete audit when no refresh succeeded.
   - Before the test fix, `bindsDelta` made `TestJSGV0003_CompleteRouteVerifiesRetainedCheckpoint`
     fail at the base's own sequence, which is why that case now forges past the base.
 
-## NOT_RUN
+## Measurements before and after (V1-0887, V1-1512)
+
+Darwin, 12 CPUs, Go 1.27.3, one host shared with other lanes. Load is the 1-minute average; no
+cell qualifies under decision 0549's load bound (load at or below the core count), so these are
+evidence of shape, not qualification.
+
+T1, `TestCALV0118_WriterHoldProfile` (B1), sealed history, 5 reps, median wall ms, heartbeat / renew:
+
+| tickets x receipts | 0549 baseline (unsegmented) | S3 (load 5-13) | S5 (load 20-35) |
+| --- | --- | --- | --- |
+| 880 x 3,500 | - | 47.2 / 55.1 | 67.8 / 69.1 |
+| 880 x 13,500 | 145 / - | 46.9 / 53.9 | 65.3 / 79.1 |
+| 880 x 40,000 | - | 58.9 / 61.8 | 95.6 / 89.4 |
+| 3,000 x 13,500 | 470 / - | 48.9 / 58.0 | not rerun |
+| 9,500 x 13,500 | 1,042 / - | 48.9 / 64.7 | not rerun |
+
+S5 does not add to the liveness write's per-call work (the seal runs once per 512 receipts, after a
+durable commit), and the S5 row tracks load: at 880 x 40,000 a heartbeat spent 35 ms observing,
+19 ms in fsync and 15 ms writing the journal, against 16, 13 and 22 ms in S3 at load 6.5. Flatness
+from 3,500 to 40,000 receipts is 1.41x under the rising load of this run (1.33x in S3). The 50 ms
+median holds in no cell yet: the floor is the commit (about 30 ms of journal write and fsync) plus
+the observe step (about 16 ms at low load). Residual, with that cause.
+
+T2, `TestCALV0263_LeaseGateLoad` (B2), 40,000 receipts, 15 writers, 10 s think time, 60 s window.
+The harness now seals the store before measuring, as B1 does since S3 (a store that long is
+segmented in use). Load 127 before and 57 after the window (setup 276 s).
+
+| verb | 2026-10-20, unsegmented (load 25-28): p50 / p99 ms | S5, sealed (load 57-127): p50 / p99 ms | gate hold p99, S5 |
+| --- | --- | --- | --- |
+| heartbeat | 113 / 1,138 | 139 / 304 | 197 |
+| renew | 105 / 1,131 | 148 / 406 | 286 |
+| claim | 1,601 / 2,700 | 1,699 / 2,780 | 181 |
+| release | 152 / 309 | 134 / 298 | 163 |
+| widen | 24,564 / 39,468 (0 failed) | 12,941 / 28,911 (6 of 7 SNAPSHOT_MOVED) | 313 |
+| reap | 52,398 (0 failed) | 18,663 / 26,074 (3 of 4 SNAPSHOT_MOVED) | - |
+
+Liveness p99 falls from about 1.13 s to 0.30 to 0.41 s under a much heavier host load, because a
+widen or reap no longer holds the gate for about a second behind the complete audit. It is not yet
+at T2's 250 ms. Widen and reap on a sealed store under sustained appends fail `SNAPSHOT_MOVED`:
+their prefix fallback (`walkPrefix`) and the same-process resume base (`ResumeBase`) both refuse a
+segmented journal and leave that to slice S6 (`JSG-V0-011`, not started in this lane). An
+unsegmented store keeps the 2026-10-20 behaviour (no failures), and a write never converts a store,
+so the regression is confined to stores an operator sealed with `journal seal`. Until S6 lands,
+`journal seal` should not be run on a store with long-running widen or reap traffic. T3 (widen and
+reap at 40,000 within 2 s) also needs S6.
+
 
 - The internal Linux qualification of the targets (no Linux host).
 - `make gate` (owner scope rule).
+- Slice S6 (`JSG-V0-011`) and the B3 harness: not started; T2's widen/reap criterion and T3 wait on them.
+- B1 at 3,000 and 9,500 tickets after S5: not rerun (S5 does not touch the per-call path).
 
 ## Rollback
 
