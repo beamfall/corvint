@@ -343,11 +343,11 @@ func (index *Index) buildReusedVocabulary() *TermTable {
 	}
 	pending.Wait()
 	prior, remap := index.priorVocabulary.table, index.priorVocabulary.remap
+	terms, words, pathTerms := invertSourceTerms(perSource)
 	return &TermTable{Paths: paths,
-		Terms: mergeReusedPostings(prior.Terms, remap, invertCounts(perSource), true),
-		Words: mergeReusedPostings(prior.Words, remap, invertPresence(perSource, func(s sourceTerms) map[string]struct{} { return s.words }), false),
-		PathTerms: mergeReusedPostings(prior.PathTerms, remap, invertPresence(perSource,
-			func(s sourceTerms) map[string]struct{} { return stringSetOf(s.pathTerms) }), false)}
+		Terms:     mergeReusedPostings(prior.Terms, remap, terms, true),
+		Words:     mergeReusedPostings(prior.Words, remap, words, false),
+		PathTerms: mergeReusedPostings(prior.PathTerms, remap, pathTerms, false)}
 }
 
 // mergeReusedPostings merges the prior's postings, renumbered by remap with
