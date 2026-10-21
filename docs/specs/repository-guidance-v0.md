@@ -3,12 +3,12 @@
 Owner: Russell Lewis
 Date: 2026-09-13
 Requirement prefix: `RGV-V0`
-Intent status: accepted (owner first-release instruction, 2026-09-13); RGV-V0-015 proposed (V1-0995)
+Intent status: accepted (owner first-release instruction, 2026-09-13); RGV-V0-015 proposed (V1-0995); RGV-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-2053)
 Delivery status: experimental
 
 ## Agent digest
 - Claim: Three distinct advisory commands discover inferred features, compose a repository overview, and review an immutable range with local branch overlap hints.
-- Status: accepted (owner first-release instruction, 2026-09-13); RGV-V0-015 proposed (V1-0995); experimental.
+- Status: accepted (owner first-release instruction, 2026-09-13); RGV-V0-015 proposed (V1-0995); RGV-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-2053); experimental.
 - Exists: Genesis immutable inventory and affected-plan composition; guidance command implementation in this slice.
 - Blocked on: integrated first-release qualification; no authority or coverage promotion.
 - Read next: Requirements; Acceptance and rollback.
@@ -37,6 +37,7 @@ The existing explicit-ID `feature FEATURE_ID` command retains its grammar and se
 - **RGV-V0-013:** Review MUST NOT plan affected advice over an incomplete guidance inventory. When the inventory cap omits entries or any tracked source is not admitted as snapshot bytes, the embedded `review.affected` MUST be the standalone `affected --base FULL_SHA` receipt for the same root and base, planned over the clean worktree at the captured revision and byte-equal to that command's receipt; a revision other than the captured one refuses as drift, and a receipt-level unknown MUST name the substitution and the equivalent command. A complete inventory keeps the immutable snapshot plan unchanged.
 - **RGV-V0-014:** Review MUST emit `NO_REPOSITORY_GATE_DECLARED` only from a complete read of the repository declarations: either the complete immutable snapshot or the standalone affected path's direct worktree read. An empty selection or a gate-absence claim MUST NOT derive from a capped inventory.
 - **RGV-V0-015:** (proposed (V1-0995)) Review MUST NOT embed the full `affected-plan/0` receipt. `review.affected` MUST be the AFP-V0-035/036 `affected-plan/1` projection of the receipt RGV-V0-007/013 planned, byte-equal to the default `corvint affected --base FULL_SHA` document over the same clean worktree. `review.affectedFull` MUST carry `argv` `["corvint","affected","--base",FULL_SHA,"--full"]` and `digest`, `affected-plan:sha256:` plus the lowercase hex SHA-256 of the canonical planned `affected-plan/0` receipt, which is that command's stdout without its trailing newline at the captured revision; a different digest means the worktree plan differs from the one review composed. Falsifier: a review document that carries `plan.selected[].tests` or the `plan.excluded` array, or whose `affectedFull` digest does not match the stdout of its `argv`. Rollback: embed the `affected-plan/0` receipt again and drop `affectedFull`.
+- **RGV-V0-050:** (accepted under the owner's standing auto-accept, 2026-10-11; V1-2053) The RGV-V0-002 dirty-worktree refusal MUST name the dirty paths: the total count and, in `git status --porcelain=v1` order, the status code and quoted path of at most the first 8 entries, with `(+N more)` for the rest. When any entry is untracked it MUST also state that Corvint runs Git without global configuration (decision 0158), so a path ignored only by a global excludes file (`core.excludesFile` or `~/.config/git/ignore`) is untracked here, and name the fix: a tracked `.gitignore` or `.git/info/exclude`. The refusal code, its trigger and the no-observation rule are unchanged. Non-goal: honouring global excludes, and the `MIXED` worktree state of the MCP binding, whose dirty set lives in the context index. Rollback: restore the fixed refusal text.
 
 ## Bounds and failure modes
 
@@ -66,7 +67,7 @@ is also rechecked, including switches between refs sharing one commit. Overlap s
 
 ## Acceptance and rollback
 
-All guidance tests below live in `cmd/corvint/repository_guidance_test.go`.
+All guidance tests below live in `cmd/corvint/repository_guidance_test.go`, except RGV-V0-050's in `internal/genesis/guidance_test.go`.
 Genesis Git containment retains the existing `TestDescendantCleanupOnCancellation` and
 `TestDescendantCleanupOnTimeout` regressions in `internal/cem/gitrun/gitrun_unix_test.go`.
 
@@ -87,6 +88,7 @@ Genesis Git containment retains the existing `TestDescendantCleanupOnCancellatio
 | RGV-V0-013 | TestRepositoryGuidanceReviewAffectedInventoryCompleteness; TestRepositoryGuidanceReviewBranches |
 | RGV-V0-014 | TestRepositoryGuidanceReviewAffectedInventoryCompleteness |
 | RGV-V0-015 | TestRepositoryGuidanceReviewBranches; TestRepositoryGuidanceReviewAffectedInventoryCompleteness (both through `assertReviewAffectedResolves`, which runs the `affectedFull` argv and checks its digest) |
+| RGV-V0-050 | TestGuidanceDirtyRefusalNamesPathsAndGlobalExcludes (a path ignored only by `~/.config/git/ignore`, a tracked modification without the hint, and the 8-path bound) |
 
 Focused results and independent review are recorded in BUILD-LOG. Root owns final frozen full gate,
 CEM/OCM and first-release integration; focused results alone do not assert promotion.

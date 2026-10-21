@@ -466,10 +466,21 @@ func TestAFUV1034FlowsToolProfile(t *testing.T) {
 		t.Fatal(err)
 	}
 	list := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}` + "\n"
-	for golden, arguments := range map[string][]string{
-		"tools-list-default.golden.jsonl":     {"--root", root},
-		"tools-list-task-review.golden.jsonl": {"--root", root, "--tool-profile", "task-review"},
-	} {
+	// V1-2021: every closed --tool-profile value, the default included, has a
+	// byte golden of its tools/list, so an added or removed tool (or a new
+	// profile without a golden) fails here.
+	goldens := map[string][]string{}
+	for profile := range profileRegistries {
+		name, arguments := "default", []string{"--root", root}
+		if profile != "" {
+			name, arguments = profile, append(arguments, "--tool-profile", profile)
+		}
+		goldens["tools-list-"+name+".golden.jsonl"] = arguments
+	}
+	if len(goldens) != 4 {
+		t.Fatalf("profiles=%d, want the four closed corvint-mcp tool profiles", len(goldens))
+	}
+	for golden, arguments := range goldens {
 		var stdout, stderr bytes.Buffer
 		if exit := run(context.Background(), arguments, strings.NewReader(list), &stdout, &stderr); exit != 0 {
 			t.Fatalf("%q exit=%d stderr=%q", arguments, exit, stderr.String())

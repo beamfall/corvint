@@ -18,7 +18,7 @@ GO_TEST_TIMEOUT ?= 30m
 GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)
 GO_TEST_COMMAND = GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) -count=1
 
-.PHONY: build gate instruction-conflicts gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet windows-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-check spec-requirements-test spec-acceptance-audit requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check capabilities-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-finish dogfood-batch-check dogfood-bind-range dogfood-bind-range-test lane-scripts-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test host-package-versions-check host-package-versions-test diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test cem-stable-regen cem-stable-regen-capture cem-stable-regen-replace cem-stable-regen-check spec-toolchain-conformance spec-toolchain-latest-test
+.PHONY: build gate instruction-conflicts gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet windows-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-check spec-requirements-test spec-acceptance-audit requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test analyzer-schema-check analyzer-schema-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check capabilities-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-finish dogfood-batch-check dogfood-bind-range dogfood-bind-range-test lane-scripts-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test host-package-versions-check host-package-versions-test diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test goos-filenames-check goos-filenames-test go-cache-trim go-cache-trim-test scratch-sweep scratch-sweep-test pre-push-windows-vet-test cem-stable-regen cem-stable-regen-capture cem-stable-regen-replace cem-stable-regen-check spec-toolchain-conformance spec-toolchain-latest-test
 
 build: go-version
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_BIN) ./cmd/corvint
@@ -38,7 +38,7 @@ pi-protected-test: pi-protected-build
 # not a gate prerequisite because it depends on
 # untracked, gitignored .corvint/ artifacts that a clean checkout never has.
 # GATE_STEPS are the gate prerequisites after gate-receipt-clear.
-GATE_STEPS = host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements-check spec-requirements-test requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check release-checklist-test gate-receipt-test error-code-ownership-check error-code-ownership-test host-package-versions-check host-package-versions-test diagnostic-coverage-check no-python-runtime-dependency-test
+GATE_STEPS = host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements-check spec-requirements-test requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test analyzer-schema-check analyzer-schema-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check release-checklist-test gate-receipt-test error-code-ownership-check error-code-ownership-test host-package-versions-check host-package-versions-test diagnostic-coverage-check no-python-runtime-dependency-test goos-filenames-check goos-filenames-test go-cache-trim-test scratch-sweep-test pre-push-windows-vet-test
 gate: gate-receipt-clear $(addprefix ledger/,$(GATE_STEPS))
 	@script/gate-receipt record
 
@@ -205,11 +205,25 @@ traceability-tests-test:
 # decision-numbers-check grandfathers exactly the cross-lineage 0016 pair (decision 0048) and
 # fails on any other collision, and fails when docs/decisions/README.md's index is missing a
 # tracked decision file's row or cites the same file's row twice (V1-0265).
-decision-numbers-check:
+#
+# It also runs analyzer-schema-check, the other numbered identifier concurrent pull requests can
+# collide on: two branches that bump corvint-analyzer to the same number with different audit
+# digests merge without a textual conflict on the number (V1-1732, IDX-SNAP-V0-061). CI's
+# documentation step reaches it through this target until that step names it directly.
+decision-numbers-check: analyzer-schema-check
 	@script/check-decision-numbers.sh
 
 decision-numbers-test:
 	@script/check-decision-numbers_test.sh
+
+# analyzer-schema-check refuses a stale analyzer audit digest and a branch that changed the
+# analyzer pins while keeping a schema number origin/main already uses; `script/analyzer-schema.sh
+# bump` is the one-command recovery for both (V1-2130, V1-1732, IDX-SNAP-V0-060/061).
+analyzer-schema-check:
+	@script/analyzer-schema.sh check
+
+analyzer-schema-test:
+	@script/analyzer-schema_test.sh
 
 # instruction-conflicts is a local, read-only doctor and never a gate step: it compares AGENTS.md and
 # CLAUDE.md with the host files named in INSTRUCTION_HOST_FILES (hook settings, a memory directory,
@@ -217,9 +231,11 @@ decision-numbers-test:
 # are not Git-pinned, so its findings are local and uncertain. instruction-conflicts-test runs its
 # fixtures, which reproduce the two 2026-10-04 contradictions, and is a gate step.
 # INSTRUCTION_HOST_FILES splits on spaces; call the script directly for a path containing one.
+# Without it the target gives the repository-layer verdict and reports the host layer NOT_OBSERVED
+# (--repository-only, V1-1756).
 INSTRUCTION_HOST_FILES ?=
 instruction-conflicts:
-	@script/check-instruction-conflicts.sh $(addprefix --host ,$(INSTRUCTION_HOST_FILES))
+	@script/check-instruction-conflicts.sh $(if $(strip $(INSTRUCTION_HOST_FILES)),$(addprefix --host ,$(INSTRUCTION_HOST_FILES)),--repository-only)
 
 instruction-conflicts-test:
 	@script/check-instruction-conflicts_test.sh
@@ -371,6 +387,37 @@ use-case-receipts-check:
 use-case-receipts-test:
 	@script/repin-use-case-receipts_test.sh
 
+# goos-filenames-check fails when a Go file under cmd/ or internal/ has a GOOS/GOARCH filename
+# suffix outside darwin/linux/windows/amd64/arm64 (`foo_js.go` builds only for GOOS=js) and is
+# not in script/goos-filename-allowlist.txt (ASD-V0-020, V1-1910).
+goos-filenames-check:
+	@script/check-goos-filenames.sh
+
+goos-filenames-test:
+	@script/check-goos-filenames_test.sh
+
+# go-cache-trim bounds the Go build caches and removes stale go-build* work directories; it is a
+# dry run unless APPLY=1 (ASD-V0-021, V1-0360). Extra options go in GO_CACHE_TRIM_ARGS.
+go-cache-trim:
+	@script/go-cache-trim.sh $(if $(filter 1,$(APPLY)),--apply) $(GO_CACHE_TRIM_ARGS)
+
+go-cache-trim-test:
+	@script/go-cache-trim_test.sh
+
+# scratch-sweep prunes worktree registrations whose directory is gone and removes closed-session
+# scratch older than 24 h, archiving unfinished Git work first; dry run unless APPLY=1 (ASD-V0-022,
+# V1-1978). Pass --root/--repo/--keep/--archive in SCRATCH_SWEEP_ARGS.
+scratch-sweep:
+	@script/scratch-sweep.sh $(if $(filter 1,$(APPLY)),--apply) $(SCRATCH_SWEEP_ARGS)
+
+scratch-sweep-test:
+	@script/scratch-sweep_test.sh
+
+# pre-push-windows-vet-test pushes through script/pre-push-windows-vet.sh, the installable Git
+# pre-push hook that runs make windows-vet when Go inputs change (ASD-V0-023, V1-1725).
+pre-push-windows-vet-test:
+	@script/pre-push-windows-vet_test.sh
+
 # diagnostic-coverage-check fails when a diagnostic.Refusal literal lacks a subject, a registered
 # fix list or terminal reason, when Go that imports internal/diagnostic parses a refusal message,
 # or when the covered-site count differs from script/diagnostic-coverage.count (DRC-V0-011/012).
@@ -428,17 +475,23 @@ core-n1-replay:
 	(cd "$$tmp/src" && GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -o "$$tmp/corvint" ./cmd/corvint) && \
 	CORVINT_CORE_N1_BINARY="$$tmp/corvint" $(GO_TEST_COMMAND) -run '^(TestCoreVerbsEmitTheFrozenProfiles|TestCoreRefusalsKeepTheFrozenEnvelope)$$' ./cmd/corvint
 
+# Dogfood targets never use the file default `BASE ?= main` (local main may not be origin/main):
+# BASE must come from the command line or the environment, or the target refuses before any work
+# (ASD-V0-019, V1-1755). dogfood-finish passes the empty value on so its one-line refusal names it.
+DOGFOOD_BASE = $(if $(filter file,$(origin BASE)),,$(BASE))
+DOGFOOD_BASE_REFUSAL = BASE is required: pass BASE=<full origin/main sha>; the Makefile default (main) is not used by dogfood targets
+
 dogfood-change:
-	@test -n "$(BASE)" || { echo "BASE is required" >&2; exit 2; }
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-change.sh "$(BASE)"
+	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-change.sh "$(DOGFOOD_BASE)"
 
 dogfood-check:
-	@test -n "$(BASE)" || { echo "BASE is required" >&2; exit 2; }
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-check.sh "$(BASE)"
+	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-check.sh "$(DOGFOOD_BASE)"
 
 dogfood-seal:
-	@test -n "$(BASE)" || { echo "BASE is required" >&2; exit 2; }
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-seal.sh "$(BASE)"
+	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-seal.sh "$(DOGFOOD_BASE)"
 
 # Each input reaches the wrapper as one single-quoted word, whatever bytes its path holds.
 dogfood_finish_quote = '$(subst ','\'',$(1))'
@@ -446,18 +499,18 @@ dogfood_finish_quote = '$(subst ','\'',$(1))'
 # script/dogfood-finish.sh refuses every missing input at once; LANE=1 also requires INTENTS,
 # VERIFY and OUTCOME (ASD-V0-015).
 dogfood-finish:
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(BASE)) \
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 
 dogfood-batch-check:
-	@test -n "$(BASE)" || { echo "BASE is required" >&2; exit 2; }
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-batch-check.sh "$(BASE)"
+	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-batch-check.sh "$(DOGFOOD_BASE)"
 
 dogfood-bind-range:
-	@test -n "$(BASE)" || { echo "BASE is required" >&2; exit 2; }
+	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
 	@test -n "$(TARGET)" || { echo "TARGET is required" >&2; exit 2; }
-	@script/dogfood-bind-range.sh "$(BASE)" "$(TARGET)"
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-bind-range.sh "$(DOGFOOD_BASE)" "$(TARGET)"
 
 dogfood-bind-range-test:
 	@script/dogfood-bind-range_test.sh
@@ -482,7 +535,7 @@ tasks-test: go-version
 # make gate runs and no others. TestSTRV0004ShellTestIsTheGateShellSteps
 # (tools/test-commands-check) keeps the two lists equal.
 .PHONY: shell-test
-shell-test: go-format-test go-archive-gate-test spec-requirements-test traceability-tests-test decision-numbers-test instruction-conflicts-test eol-policy-test license-headers-test line-citations-test ci-least-privilege-test release-checklist-test gate-receipt-test error-code-ownership-test host-package-versions-test no-python-runtime-dependency-test
+shell-test: go-format-test go-archive-gate-test spec-requirements-test traceability-tests-test decision-numbers-test analyzer-schema-test instruction-conflicts-test eol-policy-test license-headers-test line-citations-test ci-least-privilege-test release-checklist-test gate-receipt-test error-code-ownership-test host-package-versions-test no-python-runtime-dependency-test goos-filenames-test go-cache-trim-test scratch-sweep-test pre-push-windows-vet-test
 
 # windows-vet is the local twin of the go-static step "Windows vet including test files
 # (AFP-V0-042)" in .github/workflows/ci.yml: the same GOOS, GOARCH, CGO_ENABLED, empty GOFLAGS (no

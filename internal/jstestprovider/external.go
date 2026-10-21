@@ -319,12 +319,7 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	if obs.ExitStatus != 0 && report.Status == "passed" && !obs.TimedOut {
 		r.Infrastructure = &InfrastructureFailure{Reason: "exit-status-unexplained", Detail: "runner exited nonzero with a passed report"}
 	}
-	if report.Status == "interrupted" {
-		r.Cancelled = true
-	}
-	if report.Status == "timedout" {
-		r.Infrastructure = &InfrastructureFailure{Reason: "timeout", Detail: "Playwright global timeout"}
-	}
+	applyReportStatus(&r, report.Status, obs.TimedOut)
 	if obs.ExitStatus != 0 && !obs.TimedOut && !explainedPlaywrightFailure(r.Tests) {
 		r.Infrastructure = &InfrastructureFailure{Reason: "exit-status-unexplained", Detail: "runner exited nonzero without a failing test observation"}
 	}
@@ -866,6 +861,26 @@ func qualifiedBundledPlaywrightBrowser(runnerVersion string, headless *bool, con
 // names the Playwright runner and its --timeout value on timeout (PWP-V0-020).
 // externalBoundaryFailure ignores console overflow: external console capture
 // truncates and the report file carries the observation (PWP-V0-028).
+// applyReportStatus maps a run-level Playwright report status onto the receipt.
+// An interrupted report from a run Corvint timed out (the PWP-V0-030 SIGINT)
+// stays a timeout interruption: the boundary already records the timeout
+// infrastructure failure, and only an interruption Corvint did not cause is a
+// cancellation (V1-1812).
+func applyReportStatus(r *Receipt, status string, timedOut bool) {
+	switch status {
+	case "interrupted":
+		if timedOut {
+			if r.Infrastructure == nil {
+				r.Infrastructure = &InfrastructureFailure{Reason: "timeout", Detail: "runner interrupted by the provider timeout"}
+			}
+			return
+		}
+		r.Cancelled = true
+	case "timedout":
+		r.Infrastructure = &InfrastructureFailure{Reason: "timeout", Detail: "Playwright global timeout"}
+	}
+}
+
 func externalBoundaryFailure(obs procgroup.Observation, timeout time.Duration) *InfrastructureFailure {
 	obs.OutputOverflow, obs.StdoutOverflow, obs.StderrOverflow = false, false, false
 	return unitBoundaryFailure(obs, "playwright test", timeout)

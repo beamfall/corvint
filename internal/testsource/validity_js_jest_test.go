@@ -8,8 +8,8 @@ import (
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
-// TestJestValidityTestFile: a JS/TS file under `__tests__` is a test-validity test file whatever
-// its name, and IsTestFile, which lint and the other readers use, is unchanged (TSA-V0-388).
+// TestJestValidityTestFile: a JS/TS file under `__tests__` is a test file whatever its name, for
+// test-validity and for lint and the other readers that share IsTestFile (TSA-V0-388, V1-2058).
 func TestJestValidityTestFile(t *testing.T) {
 	for name, want := range map[string]bool{
 		"src/__tests__/cart.ts":         true,
@@ -21,12 +21,9 @@ func TestJestValidityTestFile(t *testing.T) {
 		"spec/models/cart_spec.rb":      false,
 		"packages/a/__tests__/util.mjs": true,
 	} {
-		if got := IsJSValidityTestFile(name); got != want {
-			t.Errorf("IsJSValidityTestFile(%q) = %v, want %v", name, got, want)
+		if got := IsTestFile(name); got != want {
+			t.Errorf("IsTestFile(%q) = %v, want %v", name, got, want)
 		}
-	}
-	if IsTestFile("src/__tests__/cart.ts") {
-		t.Error("IsTestFile widened; TSA-V0-388 keeps it unchanged")
 	}
 	if _, reason := JSExampleSources("src/__tests__/cart.ts", "it('a', () => { expect(1).toBe(1); });\n"); reason != "" {
 		t.Errorf("a __tests__ file abstained with %q", reason)
@@ -157,5 +154,20 @@ xdescribe('skipped describe', () => {
 	}
 	if !found {
 		t.Errorf("no advisory JS-ASSERTION-NOT-AWAITED for %s8 at line 9: %+v", path, report.Files[0].Findings)
+	}
+}
+
+// TestJestTestsDirectoryFileIsLinted: lint shares IsTestFile, so a Jest file under `__tests__`
+// with no `.test`/`.spec` stem is linted at its changed lines (TSA-V0-010, TSA-V0-388, V1-2058).
+func TestJestTestsDirectoryFileIsLinted(t *testing.T) {
+	root := t.TempDir()
+	base := commitFiles(t, root, map[string]string{"README.md": "x\n"})
+	commitFiles(t, root, map[string]string{"src/__tests__/legacy.ts": oldSpec})
+	report, err := Lint(OpenRepo(context.Background(), root), LintOptions{Base: base, Revision: "HEAD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(report.Files, []string{"src/__tests__/legacy.ts"}) || len(report.Findings) == 0 {
+		t.Fatalf("__tests__ file not linted: files=%v findings=%v", report.Files, report.Findings)
 	}
 }

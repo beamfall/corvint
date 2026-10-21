@@ -1029,7 +1029,44 @@ func resolveCompactAdvice(t *testing.T, compact map[string]any) any {
 		check["command"] = check["command"].(string) + " " + shellQuoteJoin(packages)
 		delete(check, "arguments")
 	}
+	// AFP-V0-155: the PLAN_UNKNOWN count line stands for every plan.unknown
+	// "reason: detail" line, which the default keeps whole in plan.unknown.
+	planUnknown, _ := compact["plan"].(map[string]any)["unknown"].([]any)
+	reference := fmt.Sprintf(affectedPlanUnknownReference, len(planUnknown))
+	if lines, ok := advice["unknown"].([]any); ok && slices.Contains(lines, any(reference)) {
+		resolved := []string{}
+		for _, line := range lines {
+			if line != reference {
+				resolved = append(resolved, line.(string))
+			}
+		}
+		for _, item := range planUnknown {
+			entry := item.(map[string]any)
+			resolved = append(resolved, entry["reason"].(string)+": "+entry["detail"].(string))
+		}
+		values := []any{}
+		for _, line := range sortedUniqueStrings(resolved) {
+			values = append(values, line)
+		}
+		advice["unknown"] = values
+	}
 	return advice
+}
+
+// AFP-V0-155 (V1-1005): the default advice.unknown names the plan.unknown
+// entries by one count line instead of repeating each, keeps every
+// advice-specific line, and resolves to the --full advice.
+func TestAFPV0155CompactAdviceDoesNotRepeatPlanUnknown(t *testing.T) {
+	planUnknown := []affected.Unknown{{Reason: "LANGUAGE_FRONTIER", Detail: "python:dynamic-import"}, {Reason: "UNOWNED_DIRTY_PATH", Detail: "docs/x.md"}}
+	full := []string{"LANGUAGE_FRONTIER: python:dynamic-import", "NO_ADVISORY_GO_COMMAND: provider.go.state is EMPTY_SELECTION", "UNOWNED_DIRTY_PATH: docs/x.md"}
+	got := compactAffectedAdvice(affectedAdvice{Unknown: full}, nil, planUnknown).Unknown
+	want := []string{"NO_ADVISORY_GO_COMMAND: provider.go.state is EMPTY_SELECTION", fmt.Sprintf(affectedPlanUnknownReference, 2)}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("compact advice.unknown = %q, want %q", got, want)
+	}
+	if got := compactAffectedAdvice(affectedAdvice{Unknown: full[1:2]}, nil, nil).Unknown; !reflect.DeepEqual(got, full[1:2]) {
+		t.Fatalf("advice-only unknown changed: %q", got)
+	}
 }
 
 func TestAFPV0038CompactAdviceReferencesProviderPackages(t *testing.T) {
@@ -1073,7 +1110,7 @@ func TestAFPV0038CompactAdviceReferencesProviderPackages(t *testing.T) {
 		{Command: adviceAdvisoryGoTest + " 'other'", Kind: adviceKindAdvisory, Source: adviceSourcePlan},
 		{Command: "make gate", Kind: adviceKindMandatory, Source: adviceMakefileName},
 	}}
-	checks := compactAffectedAdvice(advice, quoted).Checks
+	checks := compactAffectedAdvice(advice, quoted, nil).Checks
 	if checks[0].Command != adviceAdvisoryGoTest || checks[0].Arguments != affectedAdvisoryArguments ||
 		checks[1].Command != advice.Checks[1].Command || checks[1].Arguments != "" || checks[2].Command != "make gate" || checks[2].Arguments != "" {
 		t.Fatalf("compact checks %+v", checks)

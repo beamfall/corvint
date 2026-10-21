@@ -455,6 +455,7 @@
       "internal/gateselect/readers.go",
       "internal/gateselect/readscopes.go",
       "internal/gateselect/select.go",
+      "internal/taskprojection/taskprojection.go",
       "tools/gate-affected-select/main.go"
     ],
     "tools/heading-nav-bench": [],

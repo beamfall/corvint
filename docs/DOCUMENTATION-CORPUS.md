@@ -204,8 +204,8 @@ while `source_revision` keeps naming the described one.
 
 The `corvint-behavior-adapter-result/1` response contains the provider, its normalized normative
 variation projection, canonical test semantic claims, retained migration, discovery, runtime and
-qualified-receipt inputs, separate coverage rows, a reconciliation frontier and an optional
-prior-result delta. Prior results from earlier revisions of the same repository identities are accepted
+qualified-receipt inputs, separate coverage rows, a reconciliation frontier of at most 4096 diagnostics encoding to at most 2 MiB (with
+`frontier_omitted` counting any past either bound, `DCP-V1-240`) and an optional prior-result delta. Prior results from earlier revisions of the same repository identities are accepted
 only after stable lineage, self-consistent historical revisions, artifact and contract digests,
 uniqueness and semantic-link validation. Publish the referenced
 sidecars before the provider and declare all of them in the corpus manifest. The adapter compares

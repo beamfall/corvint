@@ -13,9 +13,7 @@
     "status": "PLAN_ONLY",
     "unknown": [
       "NO_REPOSITORY_GATE_DECLARED: no Makefile gate target or AGENTS.md Verify block",
-      "UNOWNED_DIRTY_PATH: go.mod",
-      "UNOWNED_DIRTY_PATH: testing/features.yaml",
-      "UNOWNED_DIRTY_PATH: testing/scenarios.yaml"
+      "PLAN_UNKNOWN: 3 plan.unknown entries; see plan.unknown"
     ]
   },
   "mutates": false,

@@ -16,7 +16,7 @@ official JSON Schema pinned at commit
 - Claim: A local stdio MCP server exposes bounded read-only Corvint receipts, with 2026-07-28 default and explicit 2025-11-25 compatibility.
 - Status: accepted (companion profile; owner's 1.0 feature-cut delegation, 2026-10-20; V1-0191)/implemented (stdio companion profile, official-schema receipt 2026-10-20)
 - Exists: `cmd/corvint-mcp`, `internal/mcp`, and independent compiled-process conformance vectors.
-- Blocked on: nothing for the stdio companion profile; the official-schema receipt passed at `a7870cac3` on 2026-10-20 and `mcp-server-unavailable` is retired (see Companion promotion evidence). The official Streamable HTTP conformance runner has no stdio target and stays `NOT_RUN`; official-schema execution stays opt-in. The default V0 tool list stays at three; `corvint.context` and `corvint.cem.report` are advertised only by the opt-in task-review descendant profile (`MCPV0-024..026`, decision 0374). The four read-only `corvint.flows.*` tools are advertised only under `--tool-profile flows` (`MCPV0-026` as amended by `AFU-V1-034`). Tool errors stay `corvint-mcp-tool-error/0` unless the opt-in reason-class profile selects `/1` (`MCPV0-027..028`, decision 0383).
+- Blocked on: nothing for the stdio companion profile; the official-schema receipt passed at `a7870cac3` on 2026-10-20 and `mcp-server-unavailable` is retired (see Companion promotion evidence). The official Streamable HTTP conformance runner has no stdio target and stays `NOT_RUN`; official-schema execution stays opt-in. The default V0 tool list stays at three; `corvint.context` and `corvint.cem.report` are advertised only by the opt-in task-review descendant profile (`MCPV0-024..026`, decision 0374). The five read-only `corvint.flows.*` tools are advertised only under `--tool-profile flows` (`MCPV0-026` as amended by `AFU-V1-034` and `AFU-V1-049`). Tool errors stay `corvint-mcp-tool-error/0` unless the opt-in reason-class profile selects `/1` (`MCPV0-027..028`, decision 0383).
 - Read next: User and measurable job; Explicit 2025-11-25 compatibility; Task-review descendant profile; Flows tool profile; Reason-class tool-error profile; Follow-ref worktree binding (`MCPV0-039..041`, opt-in `--follow-ref`); Traceability.
 
 ## User and measurable job
@@ -215,7 +215,7 @@ ASCII letters, digits, `_`, `-`, or `.`; the dot-separated names below follow th
 - `MCPV0-008`: V0 advertises exactly these three tools, subject to the implementation schemas frozen
 below. Decision 0103 freezes this default list; the opt-in task-review descendant profile
 (`MCPV0-026`) adds the two tools of `MCPV0-024` and `MCPV0-025` only when selected, and the flows
-profile (`AFU-V1-034`) adds the four `corvint.flows.*` tools instead:
+profile (`AFU-V1-034`, `AFU-V1-049`) adds the five `corvint.flows.*` tools instead:
 
 | Tool | Closed arguments | Result and authority |
 |---|---|---|
@@ -597,14 +597,14 @@ Each row cites the first emitting site and states only the condition checked the
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `invalid-registry` | `internal/mcp/bridge/bridge.go:450@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
-| `unsupported-tool` | `internal/mcp/bridge/bridge.go:459@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the `ToolFlows*` tools under `flows` (`MCPV0-026`) |
-| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:721@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
-| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:721@f5156052` | an invalid-arguments refusal that is not a `cem/1.0` stable refusal; since `CEM-V1-210` no retired 0.x map reaches it (a 0.x map is `cem-map-invalid`), so the report preview has no observed route to it |
-| `cem-map-stable-refused` | `internal/mcp/bridge/bridge.go:743@5462a4a2` | a `cem/1.0` map was refused before its stable verifier ran (`MCPV0-037`) |
-| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:722@b2fd0644` | the map fails CEM strict decoding or field validation |
-| `repository-probe-timeout` | `internal/mcp/bridge/bridge.go:1093@8c7cfeb6` | the failure carries gokernel's `repository-probe-timeout` code: the repository probe, a CEM Git read or the context index's Git read outlasted its own bound while the request context was live (`MCPV0-038`, decision 0533) |
-| `corpus-capacity-exceeded` | `internal/mcp/bridge/bridge.go:729@c8f9bb58` | a CEM Git read exhausted its operation budget or output bound (`MCPV0-025`, V1-1992) |
+| `invalid-registry` | `internal/mcp/bridge/bridge.go:456@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
+| `unsupported-tool` | `internal/mcp/bridge/bridge.go:465@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the `ToolFlows*` tools under `flows` (`MCPV0-026`) |
+| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:766@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
+| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:766@f5156052` | an invalid-arguments refusal that is not a `cem/1.0` stable refusal; since `CEM-V1-210` no retired 0.x map reaches it (a 0.x map is `cem-map-invalid`), so the report preview has no observed route to it |
+| `cem-map-stable-refused` | `internal/mcp/bridge/bridge.go:788@5462a4a2` | a `cem/1.0` map was refused before its stable verifier ran (`MCPV0-037`) |
+| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:767@b2fd0644` | the map fails CEM strict decoding or field validation |
+| `repository-probe-timeout` | `internal/mcp/bridge/bridge.go:1138@8c7cfeb6` | the failure carries gokernel's `repository-probe-timeout` code: the repository probe, a CEM Git read or the context index's Git read outlasted its own bound while the request context was live (`MCPV0-038`, decision 0533) |
+| `corpus-capacity-exceeded` | `internal/mcp/bridge/bridge.go:774@c8f9bb58` | a CEM Git read exhausted its operation budget or output bound (`MCPV0-025`, V1-1992) |
 | `flows-refused` | `internal/mcp/bridge/flows.go:267@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
 
 ### Explicit Go LSP descendant (V1-0476)
@@ -712,6 +712,17 @@ Each row cites the first emitting site and states only the condition checked the
   other oversized or unencodable result stays the sanitized `-32603` of `MCPV0-004`. Falsifier: an
   over-bound tool result answered `-32603`, or a refusal frame that itself exceeds the bound.
   Rollback: restore the `-32603` branch in `writeResultContext`.
+- `MCPV0-090`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1004) A
+  `corvint.context` call MUST release the Index it read before it returns, so a long-lived bridge
+  never pins a mapped pack or sectioned snapshot after the retention ring evicts it
+  (`IDX-SNAP-V0-028`). Before the release, the packet is copied onto the heap through its canonical
+  bytes, with numbers kept as their literals, and the copy MUST encode to the same bytes; a copy
+  that differs refuses with `internal-error` rather than change the wire result. The bridge
+  binding strings are cloned too. A deferred read that is refused and retried through the eager
+  loader releases the first Index. Falsifier: a live mapping after every context call returned and
+  the ring was evicted; a result whose bytes change after the mapping is unmapped; a fault under
+  concurrent context calls. Rollback: remove the deferred `Release` and `detachedContext` from
+  `callContext`; the mapping is then pinned until process exit, as before.
 
 ## Acceptance matrix
 
@@ -721,7 +732,7 @@ The P0 profile is implemented only when all applicable rows pass on Go 1.27.0:
 |---|---|
 | Schema and discovery | Official 2026-07-28 positive vectors; missing metadata; `-32022`; exact capabilities; every result has `resultType` and server info |
 | Framing and JSON-RPC | LF/CRLF, EOF, invalid UTF-8/JSON, duplicate keys at every depth, depth 64/65, exactly-at/over 1 MiB, batches, IDs, notifications, error sanitization, recovery after a bad frame |
-| Tools | Exact closed schemas and annotations; query/impact/status success, abstention, mixed worktree, unsupported query, invalid paths/limits, result budget, and no source bodies; context and CEM report success, `-32602` rejection, map escape and symlink refusal, no writes, terminator refusal, and result budget under the task-review selector; under the flows selector, the four flows tools advertised read-only, receipts equal to the CLI verbs' documents, and repository text only inside the envelope; the default list is exactly three tools and the selector is closed |
+| Tools | Exact closed schemas and annotations; query/impact/status success, abstention, mixed worktree, unsupported query, invalid paths/limits, result budget, and no source bodies; context and CEM report success, `-32602` rejection, map escape and symlink refusal, no writes, terminator refusal, and result budget under the task-review selector; under the flows selector, the five flows tools advertised read-only; byte goldens of every profile's `tools/list` (V1-2021), receipts equal to the CLI verbs' documents, and repository text only inside the envelope; the default list is exactly three tools and the selector is closed |
 | Cancellation/processes | Cancel-before-start, during work, after completion, duplicate/unknown ID, EOF/SIGINT/SIGTERM, direct argv, pinned executable, and zero surviving descendants |
 | Pagination/progress/logging/roots | deterministic tool list, bad cursor, emitted progress with exact token correlation on a truthful long-running operation, no unsolicited logs, no roots switch, and method-not-found for removed legacy methods |
 | Security | planted secrets/control characters/path escapes/symlink swaps/output floods; repository and trace byte snapshots before/after; no listener or network attempt |
@@ -809,6 +820,7 @@ cleanup remain outside that receipt.
 | `MCPV0-039` | `extractFollowRef`, `newFollowRef`, `followRef.run`, `followRef.bound`, `followRef.sync`, `refreshIndex`, `Registry.SameRoot` | `TestMCPV0039InheritedGitEnvironmentCannotRedirectMove`, `TestMCPV0039FollowRefPinnedToCanonicalRootIdentity`, `TestMCPV0039AnswerHoldsTheFollowLock`: inherited Git variables, a retargeted root path, a replaced root (`ROOT_CHANGED`) and a concurrent call never move another checkout or move under an answer; `TestMCPV0039FollowRefRefreshesTreeAndIndexBeforeAnswer`: a moved branch is checked out on the detached linked worktree and its index snapshot is fresh before the next status answer, which reports the moved commit; startup refusals for a main checkout, an attached worktree, a missing ref, an aliased root, a duplicate or option-like ref and `--version` |
 | `MCPV0-040` | `followRef.sync` dirty and attached guards | `TestMCPV0040DirtyTreeNeverModifiedAndFlaggedStale`: untracked and tracked edits survive, head unchanged, `DIRTY` and `stale`; a checked-out branch is `NOT_DETACHED`; an injected index failure is `INDEX_FAILED`; `TestMCPV0040ChecksRunWhenHeadAlreadyCurrent`: dirty and attached at the current head are stale with no index write; `TestMCPV0040MoveNeverOverwritesIgnoredFiles`: an ignored file the new commit tracks survives as `CHECKOUT_FAILED` |
 | `MCPV0-041` | `withFollowRef`, `followState.block`, `toolFailure` | `TestMCPV0041MissingRefIsTypedErrorAndCommitEchoed`: the commit is echoed; a deleted ref is tool error `follow-ref-missing` with `reasonClass` `unclassified`, `state` `MISSING` and the worktree unchanged |
+| `MCPV0-090` | `callContext` (deferred `Index.Release`), `detachedContext`, `compileContext` retry release | `internal/contextindex/bridge_release_test.go`'s `TestMCPV0090ContextCallReleasesItsSnapshotMapping`: one task-review bridge answers 1 sequential and 24 concurrent (6x4) `corvint.context` calls from a mapped pack; the ring holds exactly 1 mapping, 0 stay live after it is evicted, and every result encodes to the first result's bytes after the unmap; fails with 1 live mapping when the release is removed; passes under `-race` |
 | `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |
 
 ## Unresolved decisions and promotion/kill criteria

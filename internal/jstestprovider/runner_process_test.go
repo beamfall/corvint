@@ -123,6 +123,44 @@ func TestPWPV0030ExternalTimeoutInterruptsRunnerFirst(t *testing.T) {
 	if receipt.Infrastructure == nil || receipt.Infrastructure.Reason != "timeout" {
 		t.Fatalf("interrupted timeout must stay a timeout: %+v", receipt.Infrastructure)
 	}
+	// V1-1812: the provider's own timeout interrupt is not a user cancel.
+	if receipt.Cancelled {
+		t.Fatal("a timed-out SIGINT-interrupted run must not project as cancelled")
+	}
+}
+
+// V1-1812: an interrupted Playwright report is a timeout interruption when the
+// provider timed the runner out, and a cancellation only otherwise.
+func TestReportStatusInterruptedByTimeoutIsNotCancelled(t *testing.T) {
+	timeout := &InfrastructureFailure{Reason: "timeout", Detail: "boundary"}
+	cancelled := ReceiptRunProjection(Receipt{Profile: ExternalProfile, Cancelled: true}).Execution
+	for _, c := range []struct {
+		status    string
+		timedOut  bool
+		prior     *InfrastructureFailure
+		cancelled bool
+		reason    string
+	}{
+		{"interrupted", true, timeout, false, "timeout"},
+		{"interrupted", true, nil, false, "timeout"},
+		{"interrupted", false, nil, true, ""},
+		{"timedout", false, nil, false, "timeout"},
+		{"passed", false, nil, false, ""},
+	} {
+		r := Receipt{Profile: ExternalProfile, Infrastructure: c.prior}
+		applyReportStatus(&r, c.status, c.timedOut)
+		reason := ""
+		if r.Infrastructure != nil {
+			reason = r.Infrastructure.Reason
+		}
+		if r.Cancelled != c.cancelled || reason != c.reason {
+			t.Fatalf("%+v: cancelled=%v infrastructure=%+v", c, r.Cancelled, r.Infrastructure)
+		}
+		got := ReceiptRunProjection(r).Execution
+		if c.timedOut && got.State == cancelled.State && got.Reason == cancelled.Reason {
+			t.Fatalf("%+v projected as a cancellation: %+v", c, got)
+		}
+	}
 }
 
 // PWP-V0-030: with no grace the earlier SIGTERM-first stop is unchanged.

@@ -106,6 +106,98 @@ plan and performs no discovery outside that repository.
   migration. Tests and dogfood MUST use temporary fixtures only; automated verification MUST NOT run
   apply against the repository's real `.context-corvint/traces` store.
 
+- `LTPM-V0-011`: public `record` semantics MUST remain unchanged. `--changed` is required
+  and MUST contain at least one path; every supplied changed path MUST be a normalized member of the
+  producer's exact context-index source set at the stably bound trace revision. A missing, empty,
+  malformed, forbidden, untracked, excluded, or non-source changed path MUST fail closed before
+  trace-store mutation. This clause claims authority for the existing narrower producer admission;
+  it does not make every Git-tracked blob record-admissible.
+
+  Dogfood coordination MAY derive a recordable subset from the exact base-to-target Git changed-path
+  list. It MUST classify every candidate against the same target-revision source admission used by
+  `record`, pass all and only admitted source paths as `--changed`, and preserve the complete Git
+  change set in the CEM and dogfood evidence rather than representing the trace subset as a complete
+  file-change ledger. The classifier MUST be shared with the producer or consume an exact bounded
+  result from it; shell code MUST NOT copy or approximate the suffix, forbidden-path, generated-file,
+  size, mode, or pinned-blob grammar. Repository, target, candidate-set, or classifier drift and any
+  malformed candidate MUST fail closed. Only a successful classification with zero admitted source
+  paths receives the exact coordination state `local-outcome NOT_PRODUCED no-source-paths`.
+
+  `no-source-paths` is an expected terminal coordination state, not a recorded outcome and not
+  evidence that verification passed. The coordinator MUST NOT invoke `record`, create a source-free
+  trace row, or mutate the trace store in that state, and the state alone MUST NOT make the dogfood
+  coordination or final dogfood check fail. Any other failure retains its exact reason and remains a
+  failing `NOT_PRODUCED` state. An implementation commit MUST update `docs/DOGFOOD.md` step 7 and
+  focused dogfood tests together; no policy, conformance, fixture, or manifest bytes change before
+  owner acceptance and implementation.
+
+  Added 2026-09-11: a `recorded` dogfood-record receipt MUST disclose `truncated_ancestry`, the
+  number of ancestry rows the bounded replay probe omitted while binding the producer's revisions.
+  The member is always present in that state and is `0` when the probe read the whole ancestry. It
+  is derived disclosure only: it never changes admission, the recorded row, the bounded-window
+  refusal text, or public `record` output, whose bytes remain unchanged.
+
+  Added 2026-09-12 (decision 0102): the forbidden-path screen applied to supplied opened and changed
+  paths, to stored-row paths on read, and to the dashboard trace path witness is exactly
+  `IDX-SNAP-V0-018`'s screen, read from its one `internal/contextindex` source with no copy. A
+  supplied path it excludes fails closed as `forbidden path`; a stored schema-version-1 row naming
+  one (for example under `.claude/`) fails closed as a forbidden path on read. Row bytes, identity,
+  and the accepted outcomes for paths outside that screen are unchanged.
+
+  Added 2026-09-13 (decision 0235): trace path admission also applies the lexical limits of
+  `corvint-dashboard-trace-path-witness/0` (`docs/specs/local-observability-dashboard-v0.md`), so the
+  recorder writes no row the dashboard trace adapter refuses. A supplied opened or changed path or
+  an `AdmissibleCurrentPaths` candidate that is in the tracked source set, or any stored-row path on
+  read, that is more than 4,096 bytes, is not valid UTF-8 (a surrogate code unit the Python string
+  decoding admits), or contains a Unicode control character, a backslash, or an ASCII letter
+  followed by `:` as its first two bytes fails closed as `malformed-path`. An untracked or non-source
+  candidate is still filtered, so the line-feed path fixture keeps `no-source-paths`. Git can track
+  such paths on Unix; they are not recorded. Row bytes and identity for every other path are
+  unchanged.
+
+  Added 2026-09-13 (decision 0246): the trace task MUST be valid UTF-8 after trimming. A task
+  holding a surrogate code unit the Python string decoding admits fails closed as `trace task must
+  be valid UTF-8` in `record` before trace-store mutation, and a stored row whose task is not valid
+  UTF-8 (for example the escaped `\ud800` the retired Python writer emitted) fails closed on read
+  and on migration (`TestTraceTaskMustBeValidUTF8`). This matches the dashboard trace adapter, so
+  the recorder writes no row it refuses. Row bytes and trace ID for every valid UTF-8 task are
+  unchanged.
+
+  Added 2026-09-13: the writer trims each verification command before it sorts and deduplicates the
+  list, so one `NewRecord` pass seals a row `DecodeStore` accepts (`TestNewRecordWritesAStoreAcceptedRowInOnePass`).
+  Before this, verification such as `[" z","a ","a"]` sealed the unsorted `["z","a","a"]`, which the
+  reader refused as a digest mismatch. `corvint record` never wrote such a row, because its first
+  validation pass already normalized the list, and every row the reader accepted keeps its bytes and
+  trace ID. The only pin of the old single-pass ID was the retired-Python-writer golden in
+  `internal/trace/record_test.go`, now `trim before command sort`. The validation pass stays: it
+  reports a verification refusal before the outcome check and trace-store recovery.
+
+  Added 2026-09-12: a `record` refusal of the verification command carries its bounded reason
+  (`unsupported-verify-syntax`) as a leading `code` member of the stderr envelope,
+  `{"code": ..., "error": ..., "ok": false}`, so `SOL-V0-007` can record it. Every other `record`
+  refusal keeps the code-free `{"error": ..., "ok": false}` envelope, and exit status, stdout, and
+  trace-store bytes are unchanged.
+
+  Trace-consuming query keeps the accepted `GPK-V0-044` semantics. For a mixed diff, only the
+  recorded index-source subset may contribute advisory `learned-path` candidates; filtered
+  non-source paths never rank. For `no-source-paths`, no trace exists, so query MUST NOT increment
+  `local_trace_count` or `matched_local_traces`, add advisory candidates or uncertainty, or otherwise
+  treat the dogfood report row as learning evidence.
+
+- `LTPM-V0-012`: (accepted by the owner 2026-09-27; V1-0144) After an amend or rebase, a trace
+  file named for a commit that is no longer reachable from `HEAD` makes every later dogfood pass
+  refuse (`local trace store contains unreachable revision`), and no command retires it. Rule:
+  dry-run treats a candidate name as stranded when it is an exact object ID, is neither a reachable
+  commit nor a reachable legacy tree, and `git cat-file --batch-check` reports it as a commit
+  object. A stranded file is read, bounded and split into rows under the same store bounds as other
+  candidates, but not decoded. It enters the plan and its digest as kind `stranded` and is listed in
+  `stranded_revisions`. Apply stages its exact bytes as `.context-corvint/legacy-traces/<rev>.jsonl`
+  under `LTPM-V0-007` and `LTPM-V0-008`, verifies both copies, then unlinks the trace. A different
+  quarantine copy is a collision; a failed object probe refuses; a name that is not a commit keeps
+  the `LTPM-V0-004` refusal; `LTPM-V0-009` resume applies. A plan with no stranded file keeps its
+  digest. The owner accepted this retirement path on 2026-09-27 instead of keeping the refusal.
+  Rollback: move the quarantined file back into `.context-corvint/traces/`, and revert the change.
+
 ### Accepted amendment: typed argv verification (2026-09-30, issue 408)
 
 The owner accepted the schema-v2 proposal on 2026-09-30. Its reviewed proposal SHA-256 is
@@ -140,6 +232,82 @@ This additive profile remains experimental; it does not change the v1 contract a
   nor any consumer may execute verification. A reader without schema-2 support MUST refuse an
   unsupported schema. Rollback disables new v2 writes but MUST retain shipped v2 readers; an older
   binary that predates this profile cannot read mixed stores, an explicit release limitation.
+
+- `LTPM-V0-015`: (owner-selected design 2026-10-04, decision 0429; requirement text accepted 2026-10-04, decision 0430)
+  **Writers.** Every new trace row MUST be schema 3 and MUST store a `producer` from the closed
+  set below. Each writer stores its own value:
+
+  | `producer` | Writer |
+  |---|---|
+  | `cli` | `record` |
+  | `dogfood` | dogfood recording and the aggregate-outcome validator row |
+  | `pi-tool` | the pi tool adapter |
+
+  A writer given any other value, including `UNKNOWN`, the empty string or a case variant, MUST
+  refuse before mutation.
+
+  **Row shape.** A schema-3 row has the schema-1 fields plus `producer`. Its `verification` keeps
+  one of two shapes:
+  - the schema-1 sorted command-string array, when no argv entry is present;
+  - the LTPM-V0-013 typed entries, when an argv entry is present.
+
+  **Identity.** `producer` occupies its sorted position in the canonical basis, so the trace ID
+  covers it. The same observation recorded by two producers has two distinct IDs.
+
+  **Decoding.** Schema-3 rows use the strict typed decoder, which refuses duplicate members, and
+  report row-shape and producer failures with the `schema-3 local trace:` prefix; a malformed typed
+  verification entry keeps the existing `unsupported-verify-argv` refusal and message. The decoder
+  MUST refuse:
+  - a schema-3 row whose `producer` is missing, non-string, `UNKNOWN` or outside the set;
+  - a schema-1 or schema-2 row that carries `producer`;
+  - an unknown member;
+  - a typed verification without an argv entry;
+  - a mixed verification array;
+  - a producer that is not covered by the stored ID.
+
+  **Reading legacy rows.** Readers MUST report schema-1 and schema-2 rows as producer `UNKNOWN`,
+  a read-side label that is never stored.
+
+  **Consumers.**
+  - Every consumer that LTPM-V0-014 names MUST admit validated mixed v1/v2/v3 revision files under
+    the unchanged row, file and store bounds.
+  - Query, impact and eval ranking MUST NOT use `producer`.
+  - `record` and batch output MUST include `producer` for schema-3 rows.
+  - The console chain detail and skill export MUST label it.
+  - The dashboard MUST NOT disclose it (`LOD-V0-035`).
+  - Migration and stranded-row recovery MUST preserve it.
+
+  **Older binaries.** A binary that predates this profile, including N-1 0.8.1, MUST refuse a store
+  containing a schema-3 row rather than misread it; a reader without schema-3 support refuses an
+  unsupported schema. This is an explicit release limitation, as LTPM-V0-014 recorded for
+  schema 2.
+
+- `LTPM-V0-016`: (owner-selected design 2026-10-04, decision 0429; requirement text accepted 2026-10-04, decision 0430)
+  `calibrate` and `eval` MUST accept repeatable `--exclude-producer NAME`, where `NAME` is one of
+  `cli`, `dogfood`, `pi-tool` or `UNKNOWN`. Repeats deduplicate. Any other value refuses with the
+  `invalid-arguments` shape and exit code 2. This amends the flag list of `OCL-V0-001`.
+
+  **`calibrate`.**
+  - The report MUST carry `producers`, which counts every record read by producer. All four keys
+    are always present, including zeros.
+  - When any producer is excluded, the report MUST carry `excluded_producers` in the fixed order
+    above.
+  - Exclusion applies before `--since` or `--window` selection.
+  - The table format prints both lines.
+
+  **`eval`.**
+  - The local arm carries the same counts as `trace_producers`, plus `excluded_producers`. It does
+    so only when the store held a trace or an exclusion was requested, so an empty-store evaluation
+    keeps its exact baseline bytes (`LTA-V0-001`).
+  - A fixture's `learned_trace_arm` always carries them.
+  - Exclusion removes those producers' traces from the traces that this read admits: the fixture
+    arm and the live-store passed-trace check. A store whose passed traces all come from excluded
+    producers therefore evaluates instead of refusing. The report names the exclusion, and the
+    unexcluded refusal of `LTA-V0-001` is unchanged.
+  - `--learn-slot-weights` MUST refuse the flag.
+
+  Neither command writes a trace, fixture, index or ledger byte; exclusion never changes stored
+  records.
 
 Screening is owned by `LTA-V0-013`; the dashboard extension is owned by `LOD-V0-035`.
 Arbitrary base64, hex or percent decoding is excluded. The contract is bounded pattern screening,
@@ -253,83 +421,7 @@ private report is not retained as repository evidence. The observed gap is there
 a source-free change: one non-source path rejects an otherwise admissible mixed list. A genuinely
 source-free diff remains the zero-path case after coordination filtering.
 
-- `LTPM-V0-011`: public `record` semantics MUST remain unchanged. `--changed` is required
-  and MUST contain at least one path; every supplied changed path MUST be a normalized member of the
-  producer's exact context-index source set at the stably bound trace revision. A missing, empty,
-  malformed, forbidden, untracked, excluded, or non-source changed path MUST fail closed before
-  trace-store mutation. This clause claims authority for the existing narrower producer admission;
-  it does not make every Git-tracked blob record-admissible.
-
-  Dogfood coordination MAY derive a recordable subset from the exact base-to-target Git changed-path
-  list. It MUST classify every candidate against the same target-revision source admission used by
-  `record`, pass all and only admitted source paths as `--changed`, and preserve the complete Git
-  change set in the CEM and dogfood evidence rather than representing the trace subset as a complete
-  file-change ledger. The classifier MUST be shared with the producer or consume an exact bounded
-  result from it; shell code MUST NOT copy or approximate the suffix, forbidden-path, generated-file,
-  size, mode, or pinned-blob grammar. Repository, target, candidate-set, or classifier drift and any
-  malformed candidate MUST fail closed. Only a successful classification with zero admitted source
-  paths receives the exact coordination state `local-outcome NOT_PRODUCED no-source-paths`.
-
-  `no-source-paths` is an expected terminal coordination state, not a recorded outcome and not
-  evidence that verification passed. The coordinator MUST NOT invoke `record`, create a source-free
-  trace row, or mutate the trace store in that state, and the state alone MUST NOT make the dogfood
-  coordination or final dogfood check fail. Any other failure retains its exact reason and remains a
-  failing `NOT_PRODUCED` state. An implementation commit MUST update `docs/DOGFOOD.md` step 7 and
-  focused dogfood tests together; no policy, conformance, fixture, or manifest bytes change before
-  owner acceptance and implementation.
-
-  Added 2026-09-11: a `recorded` dogfood-record receipt MUST disclose `truncated_ancestry`, the
-  number of ancestry rows the bounded replay probe omitted while binding the producer's revisions.
-  The member is always present in that state and is `0` when the probe read the whole ancestry. It
-  is derived disclosure only: it never changes admission, the recorded row, the bounded-window
-  refusal text, or public `record` output, whose bytes remain unchanged.
-
-  Added 2026-09-12 (decision 0102): the forbidden-path screen applied to supplied opened and changed
-  paths, to stored-row paths on read, and to the dashboard trace path witness is exactly
-  `IDX-SNAP-V0-018`'s screen, read from its one `internal/contextindex` source with no copy. A
-  supplied path it excludes fails closed as `forbidden path`; a stored schema-version-1 row naming
-  one (for example under `.claude/`) fails closed as a forbidden path on read. Row bytes, identity,
-  and the accepted outcomes for paths outside that screen are unchanged.
-
-  Added 2026-09-13 (decision 0235): trace path admission also applies the lexical limits of
-  `corvint-dashboard-trace-path-witness/0` (`docs/specs/local-observability-dashboard-v0.md`), so the
-  recorder writes no row the dashboard trace adapter refuses. A supplied opened or changed path or
-  an `AdmissibleCurrentPaths` candidate that is in the tracked source set, or any stored-row path on
-  read, that is more than 4,096 bytes, is not valid UTF-8 (a surrogate code unit the Python string
-  decoding admits), or contains a Unicode control character, a backslash, or an ASCII letter
-  followed by `:` as its first two bytes fails closed as `malformed-path`. An untracked or non-source
-  candidate is still filtered, so the line-feed path fixture keeps `no-source-paths`. Git can track
-  such paths on Unix; they are not recorded. Row bytes and identity for every other path are
-  unchanged.
-
-  Added 2026-09-13 (decision 0246): the trace task MUST be valid UTF-8 after trimming. A task
-  holding a surrogate code unit the Python string decoding admits fails closed as `trace task must
-  be valid UTF-8` in `record` before trace-store mutation, and a stored row whose task is not valid
-  UTF-8 (for example the escaped `\ud800` the retired Python writer emitted) fails closed on read
-  and on migration (`TestTraceTaskMustBeValidUTF8`). This matches the dashboard trace adapter, so
-  the recorder writes no row it refuses. Row bytes and trace ID for every valid UTF-8 task are
-  unchanged.
-
-  Added 2026-09-13: the writer trims each verification command before it sorts and deduplicates the
-  list, so one `NewRecord` pass seals a row `DecodeStore` accepts (`TestNewRecordWritesAStoreAcceptedRowInOnePass`).
-  Before this, verification such as `[" z","a ","a"]` sealed the unsorted `["z","a","a"]`, which the
-  reader refused as a digest mismatch. `corvint record` never wrote such a row, because its first
-  validation pass already normalized the list, and every row the reader accepted keeps its bytes and
-  trace ID. The only pin of the old single-pass ID was the retired-Python-writer golden in
-  `internal/trace/record_test.go`, now `trim before command sort`. The validation pass stays: it
-  reports a verification refusal before the outcome check and trace-store recovery.
-
-  Added 2026-09-12: a `record` refusal of the verification command carries its bounded reason
-  (`unsupported-verify-syntax`) as a leading `code` member of the stderr envelope,
-  `{"code": ..., "error": ..., "ok": false}`, so `SOL-V0-007` can record it. Every other `record`
-  refusal keeps the code-free `{"error": ..., "ok": false}` envelope, and exit status, stdout, and
-  trace-store bytes are unchanged.
-
-  Trace-consuming query keeps the accepted `GPK-V0-044` semantics. For a mixed diff, only the
-  recorded index-source subset may contribute advisory `learned-path` candidates; filtered
-  non-source paths never rank. For `no-source-paths`, no trace exists, so query MUST NOT increment
-  `local_trace_count` or `matched_local_traces`, add advisory candidates or uncertainty, or otherwise
-  treat the dogfood report row as learning evidence.
+- `LTPM-V0-011` is defined under `## Requirements`; it moved there unchanged (V1-0572) so the OCM parser enumerates it.
 
 This is the primary design, design (b), because it closes the dogfood coordination gap while
 preserving public `record` behavior, schema-version-1 bytes, the current conformance corpus, and
@@ -364,19 +456,7 @@ reconciliation of `docs/DOGFOOD.md` section 7 is authorized. Nothing else is new
 
 ## Amendment: stranded commit traces
 
-- `LTPM-V0-012`: (accepted by the owner 2026-09-27; V1-0144) After an amend or rebase, a trace
-  file named for a commit that is no longer reachable from `HEAD` makes every later dogfood pass
-  refuse (`local trace store contains unreachable revision`), and no command retires it. Rule:
-  dry-run treats a candidate name as stranded when it is an exact object ID, is neither a reachable
-  commit nor a reachable legacy tree, and `git cat-file --batch-check` reports it as a commit
-  object. A stranded file is read, bounded and split into rows under the same store bounds as other
-  candidates, but not decoded. It enters the plan and its digest as kind `stranded` and is listed in
-  `stranded_revisions`. Apply stages its exact bytes as `.context-corvint/legacy-traces/<rev>.jsonl`
-  under `LTPM-V0-007` and `LTPM-V0-008`, verifies both copies, then unlinks the trace. A different
-  quarantine copy is a collision; a failed object probe refuses; a name that is not a commit keeps
-  the `LTPM-V0-004` refusal; `LTPM-V0-009` resume applies. A plan with no stranded file keeps its
-  digest. The owner accepted this retirement path on 2026-09-27 instead of keeping the refusal.
-  Rollback: move the quarantined file back into `.context-corvint/traces/`, and revert the change.
+- `LTPM-V0-012` is defined under `## Requirements`; it moved there unchanged (V1-0572) so the OCM parser enumerates it.
 
 ## Recorder source-cleanliness clarification (V1-0469, 2026-09-29)
 
@@ -404,80 +484,8 @@ additive profile remains experimental. For new writes it supersedes the LTPM-V0-
 the schema follows the presence of argv verification. Schema-1 and schema-2 bytes, IDs,
 screening and acceptance stay unchanged.
 
-- `LTPM-V0-015`: (owner-selected design 2026-10-04, decision 0429; requirement text accepted 2026-10-04, decision 0430)
-  **Writers.** Every new trace row MUST be schema 3 and MUST store a `producer` from the closed
-  set below. Each writer stores its own value:
-
-  | `producer` | Writer |
-  |---|---|
-  | `cli` | `record` |
-  | `dogfood` | dogfood recording and the aggregate-outcome validator row |
-  | `pi-tool` | the pi tool adapter |
-
-  A writer given any other value, including `UNKNOWN`, the empty string or a case variant, MUST
-  refuse before mutation.
-
-  **Row shape.** A schema-3 row has the schema-1 fields plus `producer`. Its `verification` keeps
-  one of two shapes:
-  - the schema-1 sorted command-string array, when no argv entry is present;
-  - the LTPM-V0-013 typed entries, when an argv entry is present.
-
-  **Identity.** `producer` occupies its sorted position in the canonical basis, so the trace ID
-  covers it. The same observation recorded by two producers has two distinct IDs.
-
-  **Decoding.** Schema-3 rows use the strict typed decoder, which refuses duplicate members, and
-  report row-shape and producer failures with the `schema-3 local trace:` prefix; a malformed typed
-  verification entry keeps the existing `unsupported-verify-argv` refusal and message. The decoder
-  MUST refuse:
-  - a schema-3 row whose `producer` is missing, non-string, `UNKNOWN` or outside the set;
-  - a schema-1 or schema-2 row that carries `producer`;
-  - an unknown member;
-  - a typed verification without an argv entry;
-  - a mixed verification array;
-  - a producer that is not covered by the stored ID.
-
-  **Reading legacy rows.** Readers MUST report schema-1 and schema-2 rows as producer `UNKNOWN`,
-  a read-side label that is never stored.
-
-  **Consumers.**
-  - Every consumer that LTPM-V0-014 names MUST admit validated mixed v1/v2/v3 revision files under
-    the unchanged row, file and store bounds.
-  - Query, impact and eval ranking MUST NOT use `producer`.
-  - `record` and batch output MUST include `producer` for schema-3 rows.
-  - The console chain detail and skill export MUST label it.
-  - The dashboard MUST NOT disclose it (`LOD-V0-035`).
-  - Migration and stranded-row recovery MUST preserve it.
-
-  **Older binaries.** A binary that predates this profile, including N-1 0.8.1, MUST refuse a store
-  containing a schema-3 row rather than misread it; a reader without schema-3 support refuses an
-  unsupported schema. This is an explicit release limitation, as LTPM-V0-014 recorded for
-  schema 2.
-- `LTPM-V0-016`: (owner-selected design 2026-10-04, decision 0429; requirement text accepted 2026-10-04, decision 0430)
-  `calibrate` and `eval` MUST accept repeatable `--exclude-producer NAME`, where `NAME` is one of
-  `cli`, `dogfood`, `pi-tool` or `UNKNOWN`. Repeats deduplicate. Any other value refuses with the
-  `invalid-arguments` shape and exit code 2. This amends the flag list of `OCL-V0-001`.
-
-  **`calibrate`.**
-  - The report MUST carry `producers`, which counts every record read by producer. All four keys
-    are always present, including zeros.
-  - When any producer is excluded, the report MUST carry `excluded_producers` in the fixed order
-    above.
-  - Exclusion applies before `--since` or `--window` selection.
-  - The table format prints both lines.
-
-  **`eval`.**
-  - The local arm carries the same counts as `trace_producers`, plus `excluded_producers`. It does
-    so only when the store held a trace or an exclusion was requested, so an empty-store evaluation
-    keeps its exact baseline bytes (`LTA-V0-001`).
-  - A fixture's `learned_trace_arm` always carries them.
-  - Exclusion removes those producers' traces from the traces that this read admits: the fixture
-    arm and the live-store passed-trace check. A store whose passed traces all come from excluded
-    producers therefore evaluates instead of refusing. The report names the exclusion, and the
-    unexcluded refusal of `LTA-V0-001` is unchanged.
-  - `--learn-slot-weights` MUST refuse the flag.
-
-  Neither command writes a trace, fixture, index or ledger byte; exclusion never changes stored
-  records.
+- `LTPM-V0-015` is defined under `## Requirements`; it moved there unchanged (V1-0572) so the OCM parser enumerates it.
+- `LTPM-V0-016` is defined under `## Requirements`; it moved there unchanged (V1-0572) so the OCM parser enumerates it.
 
 Acceptance: `TestLTPMV0015ProducerGoldens` (goldens computed independently over spec-authored
 JSON), `TestLTPMV0015ProducerRefusals`, `TestLTPMV0015LegacyRowsReadAsUnknown`, `TestLTPMV0015MigrationKeepsProducer`,

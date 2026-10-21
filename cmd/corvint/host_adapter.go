@@ -352,12 +352,16 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 		unplannedread.HookPostToolSession(root, normalized["sessionIdSha256"].(string), payload)
 	}
 	if event == "file-change" || event == "post-tool" {
-		silent := event == "post-tool" && postToolChangeOutOfRoot(root, payload)
-		output := invokeLegacyClaudeEvent(ctx, root, event, normalized, silent)
-		if silent && len(output) == 0 {
-			// The out-of-root target stays silent (AHI-019) but is ledgered (SOL-V0-010, V1-0746);
-			// a failed receipt is already recorded as its own degradation.
-			recordAdapterReason(ctx, root, "claude-code", event, "post-tool-path-not-project-relative")
+		abstention := ""
+		if event == "post-tool" {
+			abstention = postToolTargetAbstention(root, payload)
+		}
+		output := invokeLegacyClaudeEvent(ctx, root, event, normalized, abstention != "")
+		if abstention != "" && len(output) == 0 {
+			// The abstaining target stays silent (AHI-019) but is ledgered (SOL-V0-010, V1-0746):
+			// outside the project as an exclusion, unresolvable inside it as a degradation
+			// (SOL-V0-030, V1-1975). A failed receipt is already recorded as its own degradation.
+			recordAdapterReason(ctx, root, "claude-code", event, abstention)
 		}
 		return output
 	}
@@ -876,31 +880,96 @@ func withDeadlineRemediation(root, reason string, output map[string]any) map[str
 	return remediated
 }
 
-// postToolChangeOutOfRoot reports whether a PostToolUse payload names a
+// postToolTargetAbstention classifies a PostToolUse payload naming a
 // file-mutating tool (the hooks.json PostToolUse matcher: Edit|Write|
-// NotebookEdit) whose target path resolves outside the project root. It reads
-// only the raw host payload already trusted by the caller and never widens
-// the corvint-harness-event/0 wire input.
-func postToolChangeOutOfRoot(root string, payload map[string]any) bool {
+// NotebookEdit) whose target is not project-relative: a target lexically
+// outside the project root (or its resolved form) is the exclusion
+// `post-tool-path-outside-project`, and one lexically inside that still does
+// not resolve below the root is the degradation
+// `post-tool-path-not-project-relative` (SOL-V0-030). A project-relative or
+// in-project absolute target returns "". It reads only the raw host payload
+// already trusted by the caller and never widens the corvint-harness-event/0
+// wire input.
+func postToolTargetAbstention(root string, payload map[string]any) string {
 	input, ok := payload["tool_input"].(map[string]any)
 	if !ok {
-		return false
+		return ""
 	}
 	name, ok := payload["tool_name"].(string)
 	if !ok {
-		return false
+		return ""
 	}
 	fields := map[string]string{"Edit": "file_path", "Write": "file_path", "NotebookEdit": "notebook_path"}
 	field, known := fields[name]
 	if !known {
-		return false
+		return ""
 	}
 	path, ok := input[field].(string)
 	if !ok || path == "" {
+		return ""
+	}
+	if _, relative := projectRelativePath(root, path); relative {
+		return ""
+	}
+	if outsideProject(root, path) {
+		return "post-tool-path-outside-project"
+	}
+	return "post-tool-path-not-project-relative"
+}
+
+// outsideProject reports whether path is established to lie outside the
+// project: both its spelling and its symlink-resolved form must fall outside
+// the root and the root's resolved form, compared case-insensitively so a
+// spelling that differs from the root only by case (one directory on a
+// case-insensitive volume) is never excluded. Anything that cannot be resolved
+// (a missing root, a missing parent directory, a `..` through a missing
+// component) stays uncertain, a degradation, never an exclusion (SOL-V0-030).
+func outsideProject(root, path string) bool {
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
 		return false
 	}
-	_, relative := projectRelativePath(root, path)
-	return !relative
+	spelled := path
+	if !filepath.IsAbs(spelled) {
+		// Not filepath.Join: it would clean `missing/..` away before resolution.
+		spelled = root + string(filepath.Separator) + spelled
+	}
+	resolved, ok := resolvePostToolTarget(spelled)
+	if !ok {
+		return false
+	}
+	roots := []string{filepath.Clean(root), filepath.Clean(resolvedRoot)}
+	for _, candidate := range []string{filepath.Clean(spelled), resolved} {
+		for _, base := range roots {
+			if withinFoldingCase(base, candidate) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// resolvePostToolTarget resolves every symlink in target. A target that does
+// not exist yet (a Write creating a file) resolves through its parent
+// directory, which must exist; the split does not clean the path.
+func resolvePostToolTarget(target string) (string, bool) {
+	if resolved, err := filepath.EvalSymlinks(target); err == nil {
+		return resolved, true
+	}
+	dir, base := filepath.Split(target)
+	if base == "" || base == "." || base == ".." || dir == "" {
+		return "", false
+	}
+	resolvedDir, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		return "", false
+	}
+	return filepath.Join(resolvedDir, base), true
+}
+
+func withinFoldingCase(base, candidate string) bool {
+	relative, err := filepath.Rel(strings.ToLower(base), strings.ToLower(candidate))
+	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
 }
 
 // adapterMaxErrorCodeTail bounds how much of a failing invocation's stderr is

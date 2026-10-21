@@ -24,8 +24,11 @@ const (
 	rangeImpactProfile         = "corvint-range-impact/0"
 	expandedRangeImpactProfile = "corvint-range-impact-expanded/experimental"
 	maxExpandedRangePaths      = 256
-	maxRangeHunks              = 10_000
-	maxRangeTargetLines        = 200_000
+	// maxRangeCopyProbePathspecBytes bounds the argument list of the lower
+	// bound's copy-source probe; a larger range defers to the exact diff.
+	maxRangeCopyProbePathspecBytes = 256 << 10
+	maxRangeHunks                  = 10_000
+	maxRangeTargetLines            = 200_000
 )
 
 var (
@@ -97,7 +100,17 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 	if err != nil || strings.TrimSpace(string(mergeBases)) != base {
 		return nil, &Error{Code: "unsupported-impact-range", Message: "--base must be an ancestor of the captured HEAD"}
 	}
-	changes, err := readRangeChanges(ctx, index, baseTree)
+	pathLimit := maxImpactPaths
+	if expanded {
+		pathLimit = maxExpandedRangePaths
+	}
+	// V1-1881: copy detection over every base-tree file dominates an
+	// over-bound refusal, so a sound lower bound refuses first, with the same
+	// error, when the exact diff below could only refuse the same way.
+	if rangeCertainlyExceeds(ctx, index, baseTree, pathLimit) {
+		return nil, rangePathBoundError(pathLimit)
+	}
+	changes, err := readRangeChangesFor(ctx, index, baseTree)
 	if err != nil {
 		return nil, err
 	}
@@ -108,12 +121,8 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 	for _, change := range changes {
 		changeByPath[change.path] = change
 	}
-	pathLimit := maxImpactPaths
-	if expanded {
-		pathLimit = maxExpandedRangePaths
-	}
 	if len(changes) > pathLimit {
-		return nil, &Error{Code: "unsupported-impact-range", Message: fmt.Sprintf("impact range exceeds the %d-path bound", pathLimit)}
+		return nil, rangePathBoundError(pathLimit)
 	}
 	if err := rejectRangeBinary(ctx, index, baseTree); err != nil {
 		return nil, err
@@ -402,6 +411,129 @@ func (change rangeChange) binding() map[string]any {
 		result["sourceBlob"] = change.sourceBlob
 	}
 	return result
+}
+
+func rangePathBoundError(pathLimit int) error {
+	return &Error{Code: "unsupported-impact-range", Message: fmt.Sprintf("impact range exceeds the %d-path bound", pathLimit)}
+}
+
+// readRangeChangesFor is readRangeChanges; a test replaces it to prove the
+// lower-bound refusal never reaches the copy-detecting diff (V1-1881).
+var readRangeChangesFor = readRangeChanges
+
+// rangeCertainlyExceeds reports whether the exact range diff (readRangeChanges)
+// must hold more than pathLimit entries and must parse without an earlier
+// refusal, so refusing on the bound now returns the bytes it would return
+// (ERI-V0-060). Without rename or copy detection the diff reads no blobs.
+// Detection never adds an entry: a copy turns an addition into C and a rename
+// merges one deletion and one addition into R, so the exact count is at least
+// total - min(additions, deletions). The exact parse validates every changed
+// path and every rename or copy source. Every changed path validates here; a
+// copy source may also be any unchanged base-tree path, so each unchanged path
+// that fails validation is offered as the only copy source for the additions,
+// and any copy found defers to the exact diff (a source below the similarity
+// threshold alone cannot pass it among more candidates). A partial clone may
+// lack the blobs detection reads, and the exact diff then reports the missing
+// object instead. Any doubt or Git failure answers false, and the exact path
+// decides as before.
+func rangeCertainlyExceeds(ctx context.Context, index *Index, baseTree string, pathLimit int) bool {
+	raw, err := git(ctx, index.Root, maxStatusBytes, nil, "diff-tree", "--no-commit-id", "--raw", "-r", "-z", "--no-renames", baseTree, index.Revision)
+	if err != nil {
+		return false
+	}
+	fields := bytes.Split(bytes.TrimSuffix(raw, []byte{0}), []byte{0})
+	if len(raw) == 0 || len(fields)%2 != 0 {
+		return false
+	}
+	additions := make([]string, 0)
+	deletions := 0
+	for position := 0; position < len(fields); position += 2 {
+		metadata := strings.Fields(string(fields[position]))
+		changedPath := string(fields[position+1])
+		if len(metadata) != 5 || len(metadata[4]) != 1 || validateRangePath(changedPath) != nil {
+			return false
+		}
+		switch metadata[4] {
+		case "A":
+			additions = append(additions, changedPath)
+		case "D":
+			deletions++
+		}
+	}
+	total := len(fields) / 2
+	if total-min(len(additions), deletions) <= pathLimit {
+		return false
+	}
+	if mayLackObjects(ctx, index.Root) {
+		return false
+	}
+	listing, err := git(ctx, index.Root, maxStatusBytes, nil, "ls-tree", "-r", "-z", "--name-only", baseTree)
+	if err != nil {
+		return false
+	}
+	unsafeSources := make([]string, 0)
+	for _, candidate := range bytes.Split(bytes.TrimSuffix(listing, []byte{0}), []byte{0}) {
+		if len(candidate) != 0 && validateRangePath(string(candidate)) != nil {
+			unsafeSources = append(unsafeSources, string(candidate))
+		}
+	}
+	if len(unsafeSources) == 0 {
+		return true
+	}
+	if len(additions) == 0 {
+		return true
+	}
+	pathspecBytes := 0
+	for _, candidate := range append(additions, unsafeSources...) {
+		pathspecBytes += len(candidate) + 1
+	}
+	if pathspecBytes > maxRangeCopyProbePathspecBytes {
+		return false
+	}
+	arguments := append([]string{"--literal-pathspecs", "-c", "diff.renameLimit=200000",
+		"diff-tree", "--no-commit-id", "--raw", "-r", "-z", "--find-copies-harder", baseTree, index.Revision, "--"}, additions...)
+	copies, err := git(ctx, index.Root, maxStatusBytes, nil, append(arguments, unsafeSources...)...)
+	if err != nil {
+		return false
+	}
+	for _, field := range bytes.Split(copies, []byte{0}) {
+		if metadata := strings.Fields(string(field)); len(metadata) == 5 && strings.HasPrefix(metadata[0], ":") && metadata[4][0] != 'A' {
+			return false
+		}
+	}
+	return true
+}
+
+// mayLackObjects reports whether the repository may be a partial clone, whose
+// missing blobs the exact diff names as repository-object-unavailable with its
+// recovery. Git treats a remote as a promisor through extensions.partialclone,
+// remote.<name>.promisor or remote.<name>.partialclonefilter, so any of them,
+// and any doubt or Git failure, answers true.
+func mayLackObjects(ctx context.Context, root string) bool {
+	partial, err := git(ctx, root, maxIdentityBytes, nil, "config", "--default", "", "--get", "extensions.partialclone")
+	if err != nil || strings.TrimSpace(string(partial)) != "" {
+		return true
+	}
+	names, err := git(ctx, root, maxStatusBytes, nil, "config", "-z", "--name-only", "--list")
+	if err != nil {
+		return true
+	}
+	for _, name := range bytes.Split(names, []byte{0}) {
+		key := strings.ToLower(string(name))
+		if !strings.HasPrefix(key, "remote.") {
+			continue
+		}
+		if strings.HasSuffix(key, ".partialclonefilter") {
+			return true
+		}
+		if strings.HasSuffix(key, ".promisor") {
+			value, err := git(ctx, root, maxIdentityBytes, nil, "config", "--type=bool", "--default", "false", "--get", string(name))
+			if err != nil || strings.TrimSpace(string(value)) != "false" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func readRangeChanges(ctx context.Context, index *Index, baseTree string) ([]rangeChange, error) {

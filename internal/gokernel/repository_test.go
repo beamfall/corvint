@@ -215,6 +215,15 @@ func TestProbePersistentInstabilityStopsAfterThreeAttempts(t *testing.T) {
 	}
 }
 
+// TestGitDeadlineIsTenSeconds pins the fixed probe bound by its literal value: the bound tests
+// below derive their expectation from gitDeadline itself, so they cannot catch a change to it
+// (V1-1414).
+func TestGitDeadlineIsTenSeconds(t *testing.T) {
+	if gitDeadline != 10*time.Second {
+		t.Fatalf("gitDeadline = %s, want the frozen 10s", gitDeadline)
+	}
+}
+
 // TestProbeBoundReplacesGitDeadline pins the V1-1391 seam: every probe entry point bounds its Git
 // reads by WithProbeBound when set, and by the fixed gitDeadline otherwise.
 func TestProbeBoundReplacesGitDeadline(t *testing.T) {

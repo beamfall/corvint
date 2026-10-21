@@ -193,8 +193,8 @@ func TestSuiteHelpersAndSupportSelectEverySpec_RUBYAFFECTEDV0012(t *testing.T) {
 }
 
 // stockApplication is config/application.rb as Rails 7.0 `rails new`
-// generates it. The 7.1 `config.autoload_lib` line is autoload-root
-// configuration, which RUBY-AFFECTED-V0-010 still reports as unresolved.
+// generates it. The 7.1 `config.autoload_lib` line is read under
+// RUBY-AFFECTED-V0-042 and pinned by conformance/ruby-profile-v0.
 const stockApplication = "require_relative \"boot\"\n\nrequire \"rails/all\"\n\n" +
 	"# Require the gems listed in Gemfile, including any gems\n# you've limited to :test, :development, or :production.\n" +
 	"Bundler.require(*Rails.groups)\n\nmodule Fixture\n  class Application < Rails::Application\n" +

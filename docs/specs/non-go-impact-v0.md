@@ -209,7 +209,11 @@ path receives it by default, add a bounded second hop, and mark every such row a
   its `)`). Declared entries come first; for each word the first entry read wins. Any other
   `.acronym` or `.inflect(` form, any `.collapse`, and, without a declaration, any
   `autoload_paths`, `eager_load_paths`, `autoload_once_paths`, `autoload_lib`,
-  `autoload_lib_once` or `push_dir` site counts in `ruby-autoload-config-unresolved`.
+  `autoload_lib_once` or `push_dir` site counts in `ruby-autoload-config-unresolved`, except one
+  generated Rails 7.1+ line `config.autoload_lib(ignore: %w[...])`, alone on its line but for a
+  trailing comment, with a literal word list: it adds `lib` as a root and ignores exactly
+  `lib/<word>` for each listed word, replacing the default ignored set (V1-1850,
+  `RUBY-AFFECTED-V0-042`). A second such line still counts.
 - `NGI-V0-018`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1674) For a
   mapped changed path naming constant C, every other indexed Ruby source with a constant
   reference resolving to C or a constant nested in C MUST be one result: kind `reference`

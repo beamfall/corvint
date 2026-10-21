@@ -344,6 +344,22 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   JSON field MUST surface in the CLI `policy` consistently. Frontier unavailability
   MUST NOT become local satisfaction or imply authority. Rollback: remove the additive
   field and its assignments; persisted state and existing actions are unchanged.
+- `LCP-V0-031`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1014) When a `verify` check log
+  matches the secret screen, the observation MUST stay `secretScreened` and unqualified, and each
+  retained log MUST begin with the line `log-secret-screened` followed by the captured output with
+  every secret-shaped span replaced by `[REDACTED]`, so test names and FAIL lines stay readable. If
+  the redacted text still matches the screen, would exceed the 256 KiB log bound, or the captured
+  output contains a PEM or PGP private-key block header (complete block or not), the log MUST hold
+  only the marker line. The `verify` result for an unqualified run MUST name, in additive
+  `checks[].failedTests`, the distinct test names of `--- FAIL: NAME` lines in its retained logs,
+  at most 16 names of at most 256 bytes each, none matching the screen; status and finish do not
+  re-read logs for it. Rollback: restore the marker-only log and drop the additive field.
+- `LCP-V0-032`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1011) Each plan check takes 1-64
+  argv elements and a `timeoutSeconds` of 1-3600. The `invalid-check-bound` refusal from `dogfood
+  begin` MUST keep that stable code and its message MUST name both bounds, the offending check id
+  and the requested argv count and timeout, so a caller can split an over-long run into several
+  checks. The message carries no path or command text, and an id that matches the secret screen is
+  shown as `[REDACTED]`. Rollback: drop the message detail.
 
 ## Non-goals and simpler baseline
 
@@ -410,7 +426,7 @@ elsewhere are not repeated.
 | `input-bound-exceeded` | `internal/localcompletion/storage.go` (`strictJSON`) | strict JSON input is empty or larger than its bound |
 | `intent-path-not-found` | `internal/localcompletion/lifecycle.go` (`Begin`) | an intent path is absent from the tree of the current target commit |
 | `invalid-check-argv` | `internal/localcompletion/storage.go` (`validatePlan`) | a check's first argv element is empty, or any element exceeds 4096 bytes or contains NUL |
-| `invalid-check-bound` | `internal/localcompletion/storage.go` (`validatePlan`) | a check has fewer than 1 or more than 64 argv elements, or a timeout outside 1..3600 seconds |
+| `invalid-check-bound` | `internal/localcompletion/storage.go` (`validatePlan`) | a check has fewer than 1 or more than 64 argv elements, or a timeout outside 1..3600 seconds; the message names the bounds and the requested values (`LCP-V0-032`) |
 | `invalid-check-id` | `internal/localcompletion/storage.go` (`validatePlan`) | a check id does not match `^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$` or repeats |
 | `invalid-dogfood-context` | `internal/contextindex/local_completion_context.go` (`validateLocalPrompt`) | prompt context was requested without an index at an immutable revision |
 | `invalid-dogfood-event-arguments` | `cmd/corvint/local_completion_event.go` (`runLocalCompletionEvent`) | an event option is repeated |
@@ -524,6 +540,8 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-020 | `TestCompletionNoActionReasons`; `TestLocalCompletionFrontierUnavailableNextActionOrReason`; `TestLocalCompletionUnavailableEvaluationReason`; `TestLocalCompletionRealEvidenceWorkflow` (satisfied status and finish JSON) |
 | LCP-V0-018 | `localCompletionRemedies` in `cmd/corvint/local_completion.go`; `TestDogfoodBeginPlanIntentRefusalNamesTheRule` (`cmd/corvint/local_completion_test.go`) over unsorted, duplicated, empty and 17-path intents arrays |
 | LCP-V0-019 | `EvaluateObserved`, `EvaluateAgainst` and drift-only snapshots in `internal/localcompletion/lifecycle.go` and `internal/localcompletion/storage.go`; matched closing observation in `localEventRead` | `TestEnrolledStopSpawnsBoundedGit`, `TestDogfoodEventObservedMismatchFallsBack`, `TestEvaluateAgainstMatchesFullEvaluation`, `TestEvaluateAgainstReReadsPrivateInputs`, `TestEvaluateAgainstDirtyAndDrift`, `TestEvaluateAgainstChangedBase`; trace and same-host measurement record in `docs/build-log/2026-10-10-v1-1124-stop-git-calls.md` |
+| LCP-V0-031 | `screenedLog` and `failedTestNames` in `internal/localcompletion/screened_log.go`, applied in `Verify`; `TestScreenedCheckLogKeepsFailureLines` (screened FAIL line kept with the token redacted and named in `failedTests`; an unscreened failure names its subtests; a passing check names none; truncated and complete PEM and PGP private-key blocks keep only the marker; the over-bound and name bounds); `TestActualVerificationAndSecretRefusal` (no secret persists) |
+| LCP-V0-032 | `CheckBoundError` in `internal/localcompletion/types.go`, raised by `validatePlan`; `emitLocalCompletionFailureDetail` in `cmd/corvint/local_completion.go`; `TestDogfoodBeginCheckBoundNamesTheLimit` (`cmd/corvint/local_completion_test.go`: a 4000 s timeout and 65 argv elements; a secret-shaped check id is shown as `[REDACTED]`) |
 
 ## Rollout, rollback and remaining gates
 

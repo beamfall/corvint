@@ -253,8 +253,13 @@ func validateInput(event string, input map[string]any) (map[string]any, error) {
 	case "user-prompt":
 		task, ok := input["task"].(string)
 		trimmed := strings.TrimSpace(task)
-		if !ok || trimmed == "" || utf8.RuneCountInString(task) > MaxQueryCharacters || len(task) > MaxTaskBytes {
+		if !ok || trimmed == "" {
 			return nil, newError("invalid-harness-input", "task exceeds the bounded query contract")
+		}
+		if characters := utf8.RuneCountInString(task); characters > MaxQueryCharacters || len(task) > MaxTaskBytes {
+			// AHI-070 (V1-2062): the refusal stays, but names both bounds and the observed
+			// counts (never the text) so a caller can bound its own query or apply AHI-016.
+			return nil, newError("invalid-harness-input", fmt.Sprintf("task exceeds the bounded query contract: %d characters and %d bytes, over the %d-character/%d-byte bound", characters, len(task), MaxQueryCharacters, MaxTaskBytes))
 		}
 		normalized["task"] = trimmed
 	case "file-change":

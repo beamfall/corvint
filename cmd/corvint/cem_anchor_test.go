@@ -134,7 +134,31 @@ func TestCEMAnchorAndProvenanceInteropThroughTheCLI(t *testing.T) {
 		t.Fatalf("anchor help: %d %s", code, out)
 	}
 	code, out, _ = runCLI(t, "cem", "provenance", "--help")
-	if code != 0 || !strings.Contains(out, "cem provenance --commit REV [--notes-tip OID] [--verdicts]") {
+	if code != 0 || !strings.Contains(out, "cem provenance --commit REV [--notes-tip OID] [--verdicts [--verdicts-tip OID]]") {
 		t.Fatalf("provenance help: %d %s", code, out)
+	}
+}
+
+// TestCEMV1345VerdictsTipThroughTheCLI is CEM-V1-345 through the real entry: a
+// pinned ledger tip with no live ledger ref reads rollback with no records,
+// and --verdicts-tip without --verdicts is refused.
+func TestCEMV1345VerdictsTipThroughTheCLI(t *testing.T) {
+	t.Parallel()
+	root, _, target := cemRepo(t)
+	code, out, stderr := runCLI(t, "--root", root, "cem", "provenance", "--commit", "HEAD", "--verdicts", "--verdicts-tip", target)
+	var read struct {
+		Verdicts struct {
+			State   string            `json:"state"`
+			Records []json.RawMessage `json:"records"`
+			Tip     map[string]any    `json:"tip"`
+		} `json:"verdicts"`
+	}
+	if code != 0 || json.Unmarshal([]byte(out), &read) != nil || read.Verdicts.State != "rollback" ||
+		len(read.Verdicts.Records) != 0 || read.Verdicts.Tip["state"] != "rollback" || read.Verdicts.Tip["pinned"] != target {
+		t.Fatalf("pinned tip: %d %s %s", code, out, stderr)
+	}
+	code, _, stderr = runCLI(t, "--root", root, "cem", "provenance", "--commit", "HEAD", "--verdicts-tip", target)
+	if code != 2 || !strings.Contains(stderr, "invalid-arguments") {
+		t.Fatalf("--verdicts-tip without --verdicts: %d %s", code, stderr)
 	}
 }

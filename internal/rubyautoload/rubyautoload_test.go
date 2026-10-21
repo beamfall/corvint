@@ -1,7 +1,9 @@
 package rubyautoload
 
 import (
+	"path"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -124,5 +126,49 @@ func TestRubyAutoloadMapperDeclaration(t *testing.T) {
 	unreadable.DeclarationReadable = false
 	if !New(unreadable).DeclarationInvalid() {
 		t.Fatal("an unreadable declaration is invalid")
+	}
+}
+
+// TestStockAutoloadLibIsReadAsLibRoot_RUBYAFFECTEDV0042: the generated Rails
+// 7.1 `config.autoload_lib(ignore: %w[assets tasks])` line maps lib/ minus the
+// listed subdirectories and leaves no unresolved configuration; any other
+// spelling stays unresolved (V1-1850).
+func TestStockAutoloadLibIsReadAsLibRoot_RUBYAFFECTEDV0042(t *testing.T) {
+	application := func(line string) map[string]string {
+		return map[string]string{
+			"config/application.rb": "module App\n  class Application < Rails::Application\n    config.load_defaults 7.1\n" + line + "\n  end\nend\n",
+			"app/models/user.rb":    "", "lib/tasks/seed.rb": "", "lib/assets/a.rb": "", "lib/generators/g.rb": "", "lib/billing/rate.rb": "",
+		}
+	}
+	for line, ignored := range map[string][]string{
+		"    config.autoload_lib(ignore: %w[assets tasks])":                    {"lib/assets", "lib/tasks"},
+		"    config.autoload_lib(ignore: %w(tasks assets generators)) # stock": {"lib/assets", "lib/generators", "lib/tasks"},
+		"    config.autoload_lib(ignore: %w[assets])":                          {"lib/assets"},
+	} {
+		mapper := New(repository(application(line)))
+		report := mapper.Report()
+		if mapper.ConfigUnresolved() != 0 || !reflect.DeepEqual(report.Ignored, ignored) || !reflect.DeepEqual(report.Roots, []string{"app/models", "lib"}) {
+			t.Fatalf("%q: unresolved=%d report=%#v", line, mapper.ConfigUnresolved(), report)
+		}
+		if got, ok := mapper.Constant("lib/billing/rate.rb"); !ok || got != "Billing::Rate" {
+			t.Fatalf("%q: lib/billing/rate.rb -> %q %v", line, got, ok)
+		}
+		for _, name := range []string{"lib/tasks/seed.rb", "lib/assets/a.rb", "lib/generators/g.rb"} {
+			_, ok := mapper.Constant(name)
+			if ok == slices.Contains(ignored, path.Dir(name)) {
+				t.Fatalf("%q: %s mapped=%v with ignored %v", line, name, ok, ignored)
+			}
+		}
+	}
+	for _, line := range []string{
+		"    config.autoload_lib(ignore: IGNORED)",
+		"    config.autoload_lib(ignore: %w[assets tasks]); config.x = 1",
+		"    config.autoload_lib_once(ignore: %w[assets tasks])",
+		"    config.autoload_lib(ignore: %w[assets tasks])\n    config.autoload_lib(ignore: %w[assets tasks])",
+		"    config.autoload_paths << Rails.root.join(\"extras\")",
+	} {
+		if mapper := New(repository(application(line))); mapper.ConfigUnresolved() == 0 {
+			t.Fatalf("%q was read as stock autoload_lib: %#v", line, mapper.Report())
+		}
 	}
 }

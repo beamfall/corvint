@@ -75,7 +75,8 @@ const openSpecDeltaFixture = "## ADDED Requirements\n### Requirement: Idle Warni
 	"## REMOVED Requirements\n### Requirement: Remember Me\n**Reason**: gone.\n\n" +
 	"## RENAMED Requirements\n- FROM: `### Requirement: User Login`\n- TO: `### Requirement: Credential Sign-In`\n\n" +
 	"## ADDED Requirements\n### Requirement: Second Added\nThe system SHALL add.\n\n" +
-	"## Removed Requirements\n### Requirement: Old Export\n"
+	"## Removed Requirements\n### Requirement: Old Export\n\n" +
+	"## REMOVED Requirements\n- `### Requirement: Bullet Ticked`\n- ### Requirement: Bullet Plain\n- not a requirement\n"
 
 func TestSTAV0003_OpenSpecDeltaSections(t *testing.T) {
 	data := []byte(openSpecDeltaFixture)
@@ -98,6 +99,8 @@ func TestSTAV0003_OpenSpecDeltaSections(t *testing.T) {
 		{"operation": "REMOVED", "name": "Remember Me"},
 		{"operation": "RENAMED", "from": "User Login", "to": "Credential Sign-In"},
 		{"operation": "REMOVED", "name": "Old Export"},
+		{"operation": "REMOVED", "name": "Bullet Ticked"},
+		{"operation": "REMOVED", "name": "Bullet Plain"},
 	}
 	if !reflect.DeepEqual(derived.excludedRequirements, excluded) {
 		t.Fatalf("excludedRequirements=%v want=%v", derived.excludedRequirements, excluded)

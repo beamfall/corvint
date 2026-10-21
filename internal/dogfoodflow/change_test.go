@@ -504,6 +504,12 @@ func TestChangeDCWV0041NamesCitationRowFix(t *testing.T) {
 			t.Fatalf("%s hint %q", reason, hint)
 		}
 	}
+	// V1-1147: a refused row names the rejected RELATION and span values.
+	c.citationFailedValues = `RELATION "test" and START:END "1:2"`
+	want := `plan row 3 (RELATION "test" and START:END "1:2"): RELATION must be one of call-site, decision, dependency, implementation, incident, specification or test-claim`
+	if hint := c.fixHint(step{name: "cem-cite", reason: "invalid-arguments"}); !strings.Contains(hint, want) {
+		t.Fatalf("invalid-arguments hint %q", hint)
+	}
 }
 
 // DCW-V0-036: the public recorder code retains the internal aggregate fallback classification.

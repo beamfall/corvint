@@ -76,7 +76,7 @@ func TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations(t *testing.T) {
 		t.Fatal(err)
 	}
 	for plan, fix := range map[string]string{
-		"1\tfixture/fixture.go\t1:1\timplements\n": "  cem-cite: invalid-arguments\n    fix: plan row 1: RELATION must be one of call-site, decision, dependency, implementation, incident, specification or test-claim",
+		"1\tfixture/fixture.go\t1:1\timplements\n": "  cem-cite: invalid-arguments\n    fix: plan row 1 (RELATION \"implements\" and START:END \"1:1\"): RELATION must be one of call-site, decision, dependency, implementation, incident, specification or test-claim",
 		"1\tfixture/extra.go\t1:1\tdependency\n":   "  cem-cite: missing-evidence\n    fix: plan row 1 cites a path that is not a regular file at BASE",
 	} {
 		citations := filepath.Join(inputsDir, "bad.tsv")
@@ -103,6 +103,22 @@ func TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations(t *testing.T) {
 		t.Fatalf("batch-check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	merged := cemGit(t, root, "rev-parse", "HEAD")
+
+	// DCW-V0-111 (V1-1927): in an alternates-backed clone the real verifier
+	// refuses every constituent, and batch-check repeats its reason code and
+	// names the clone-layout fix.
+	alternates := filepath.Join(root, ".git/objects/info/alternates")
+	if err := os.WriteFile(alternates, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr = run.exec(t, root, nil, "dogfood", "batch-check", base)
+	if code != 1 || !strings.Contains(stdout, "CONSTITUENT bind="+bindA) || !strings.Contains(stderr, "  bind="+bindA+" state=unsupported code=unsupported-object-alternates\n") ||
+		!strings.Contains(stderr, "  fix: unsupported-object-alternates: the clone borrows objects through .git/objects/info/alternates") {
+		t.Fatalf("alternates batch-check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	if err := os.Remove(alternates); err != nil {
+		t.Fatal(err)
+	}
 	cemWrite(t, root, "AGENTS.md", "# Fixture authority\nUse intent.md.\n")
 	cemGit(t, root, "commit", "-qam", "unbound fix-up")
 	fixup := cemGit(t, root, "rev-parse", "HEAD")

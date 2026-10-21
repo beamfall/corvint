@@ -189,9 +189,10 @@ func AnalyzeActorAuthorization(files map[string]string, routesPath, abilityPath 
 		}
 	}
 	fixtures := map[string]*fixtureInfo{}
+	roles := factoryDefaultRoles(sources, names)
 	for _, name := range names {
 		if s := sources[name]; s != nil && !IsTestFile(name) {
-			s.collectFixtures(fixtures, sources, names)
+			s.collectFixtures(fixtures, roles)
 		}
 	}
 	for _, name := range sortedKeys(fixtures) {
@@ -297,10 +298,10 @@ func (s *source) refs(start, end int) map[string]bool {
 
 // collectFixtures records every exported fixture builder in s whose body seeds users
 // (TSA-V0-033).
-func (s *source) collectFixtures(fixtures map[string]*fixtureInfo, sources map[string]*source, names []string) {
+func (s *source) collectFixtures(fixtures map[string]*fixtureInfo, roles map[string]*factoryRole) {
 	for _, f := range s.exportedFunctions() {
 		body := [2]int{f.open + 1, s.match[f.open]}
-		users := s.seededUsers(body, f.name, sources, names)
+		users := s.seededUsers(body, f.name, roles)
 		if len(users) == 0 {
 			continue
 		}
@@ -372,7 +373,7 @@ func (s *source) collectFixtures(fixtures map[string]*fixtureInfo, sources map[s
 
 // seededUsers finds the user-factory calls in a fixture body: a call whose callee chain names a
 // user, or whose arguments carry a `role:` key (TSA-V0-033).
-func (s *source) seededUsers(body [2]int, fixture string, sources map[string]*source, names []string) []seededUser {
+func (s *source) seededUsers(body [2]int, fixture string, roles map[string]*factoryRole) []seededUser {
 	users := []seededUser{}
 	for i := body[0]; i < body[1]; i++ {
 		if !s.ident(i, "") || !s.punct(i+1, "(") || s.match[i+1] < 0 || s.ident(i-1, "function") {
@@ -421,9 +422,8 @@ func (s *source) seededUsers(body [2]int, fixture string, sources map[string]*so
 			at := s.roleOverride(open, close)
 			u.actor.Reason, u.actor.Detail = "role-not-literal", locate(s.path, s.tokens[at].Line)+" a spread or computed property can set role"
 		default:
-			role, at, ok := factoryDefaultRole(s.tokens[i].Text, sources, names)
-			if ok {
-				u.actor.Role, u.actor.RoleFrom, u.actor.Detail = role, "factory-default", at
+			if r := roles[s.tokens[i].Text]; r != nil && r.found == 1 && !r.other {
+				u.actor.Role, u.actor.RoleFrom, u.actor.Detail = r.role, "factory-default", r.at
 			} else {
 				u.actor.Reason, u.actor.Detail = "role-default-unresolved", locate(s.path, s.tokens[i].Line)+" "+s.tokens[i].Text+" has no role and no single literal default"
 			}
@@ -448,18 +448,28 @@ func (s *source) roleOverride(from, close int) int {
 	return -1
 }
 
-// factoryDefaultRole finds the one definition of factory whose parameters give `role` a default
-// that is a single string literal ending at a `,`, `}` or `)` (`role = 'x'`, also inside a
-// destructured parameter). Any other default makes the role unresolved (TSA-V0-033).
-func factoryDefaultRole(factory string, sources map[string]*source, names []string) (string, string, bool) {
-	found, role, at, other := 0, "", "", false
+// factoryRole aggregates every definition of one factory name whose parameters give `role` a
+// default: found counts single string-literal defaults and other records any other default.
+type factoryRole struct {
+	found    int
+	role, at string
+	other    bool
+}
+
+// factoryDefaultRoles indexes, in one pass over the sources, every factory definition whose
+// parameters give `role` a default. A factory resolves only when it has exactly one default that is
+// a single string literal ending at a `,`, `}` or `)` (`role = 'x'`, also inside a destructured
+// parameter) and no other default (TSA-V0-033). Computing it once per analysis keeps each fixture's
+// lookup independent of the number of source files (V1-1777).
+func factoryDefaultRoles(sources map[string]*source, names []string) map[string]*factoryRole {
+	out := map[string]*factoryRole{}
 	for _, name := range names {
 		s := sources[name]
 		if s == nil {
 			continue
 		}
 		for i := range s.tokens {
-			if !s.ident(i, factory) || s.memberAccess(i) {
+			if !s.ident(i, "") || s.memberAccess(i) {
 				continue
 			}
 			open := -1
@@ -485,18 +495,23 @@ func factoryDefaultRole(factory string, sources map[string]*source, names []stri
 				if !s.ident(j, "role") || !s.punct(j+1, "=") || s.punct(j+2, "=") || s.punct(j+2, ">") {
 					continue
 				}
+				r := out[s.tokens[i].Text]
+				if r == nil {
+					r = &factoryRole{}
+					out[s.tokens[i].Text] = r
+				}
 				t := s.tokens[min(j+2, len(s.tokens)-1)]
 				if (t.Kind == appmap.JSString || t.Kind == appmap.JSTemplate) && t.Literal &&
 					(s.punct(j+3, ",") || s.punct(j+3, "}") || s.punct(j+3, ")")) {
-					found++
-					role, at = t.Text, locate(s.path, t.Line)
+					r.found++
+					r.role, r.at = t.Text, locate(s.path, t.Line)
 				} else {
-					other = true
+					r.other = true
 				}
 			}
 		}
 	}
-	return role, at, found == 1 && !other
+	return out
 }
 
 // substitution is the lexer's marker for one template substitution in a template's Text.

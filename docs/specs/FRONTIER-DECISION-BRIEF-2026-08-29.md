@@ -97,9 +97,9 @@ internal to the drafts rather than to the code:
   (`change-frontier-v0.md:340-344`) is consulted at all.
 - What the relation needs is a **definition span**, "the exact `(path, blobOid, startLine, endLine)`"
   (`change-witness-relation-v0.md:95-96`). *Cost evidence, not authority:* the index's `Symbol` record
-  is `{Kind, Name, Path, BlobHash, Line}` (`internal/contextindex/index.go:188-190`) — a definition
+  is `{Kind, Name, Path, BlobHash, Line}` (`internal/contextindex/index.go:188-190@2e10e9b5`) — a definition
   line, no end line — and no exported build entry point accepts a revision (`Build(ctx, root)`,
-  `BuildEval(ctx, root)`, `BuildQuery(ctx, root, text)` at `internal/contextindex/index.go:288,314,412`;
+  `BuildEval(ctx, root)`, `BuildQuery(ctx, root, text)` at `internal/contextindex/index.go:288,314,412@f678a4bd`;
   the tree comes from `ls-tree ... identity.treeRevision`, `internal/contextindex/git.go:450@33f5b343`). So
   "reuse the index" would not shorten the work much even if permitted.
 
@@ -242,7 +242,7 @@ supplies them, and how?
 *Cost evidence, not authority:* a `stop` event admits exactly `{stopHookActive, changedPaths}` plus
 session binding (`internal/gokernel/harness.go:186-187`); the frontier surface requires
 `--cem MAP --ocm MAP --expected-base REV --target REV`, with base and target "never inferred"
-(`cmd/corvint/help.go:1014-1023@887cf5a8`); and `AHI-014` restricts wrappers to "the minimum event fields
+(`cmd/corvint/help.go:1015-1024@887cf5a8`); and `AHI-014` restricts wrappers to "the minimum event fields
 admitted by `corvint-harness-event/0`" (`agent-harness-integration-v0.md:140-142`).
 
 One option that looks available is not: the harness cannot recover the session's own start revision,
@@ -254,7 +254,7 @@ carries an outcome (`internal/gokernel/harness.go:398-401`). Every receipt binds
 
 1. **Read a committed CEM/OCM pair from a declared repository path.** The convention exists
    (`.corvint/change.cem.json`, `.corvint/change.ocm.json` — `cmd/corvint/ocm.go:249`,
-   `cmd/corvint/help.go:1196@e432ec24`, workflow at `README.md:236-246@3297e31e`). Cost: this supplies two of four inputs.
+   `cmd/corvint/help.go:1197@e432ec24`, workflow at `README.md:236-246@3297e31e`). Cost: this supplies two of four inputs.
    Taking base and target *from the artifact* is what `CF-V0-001` calls inferred revision authority and
    fails `unsupported-frontier-context` (`change-frontier-v0.md:82-87`), so this option is incomplete
    on its own and must be paired with option 2 for the revisions.
@@ -480,4 +480,4 @@ D7 combined — all six of which, answered as recommended above, leave every rec
   records it as not locatable here; D3's recommendation assumes that still holds.
 - Any claim about `src/`. It was not read and not touched; `git status --short src/` is 0.
 - The exact build cost of end-line derivation per grammar (D1 option 1). The gap is verified
-  (`internal/contextindex/index.go:188-190`); the effort to close it is not estimated.
+  (`internal/contextindex/index.go:188-190@2e10e9b5`); the effort to close it is not estimated.

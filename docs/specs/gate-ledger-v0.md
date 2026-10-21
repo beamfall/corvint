@@ -5,7 +5,7 @@ Date: 2026-09-21
 Requirement prefix: `GL-V0`
 Intent status: accepted (owner instruction 2026-09-21)
 Delivery status: implemented
-Amendment status: GL-V0-002 and GL-V0-009 amendments accepted, decision 0511
+Amendment status: GL-V0-002 and GL-V0-009 amendments accepted, decision 0511; GL-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-0634)
 Authoritative inputs: `../../AGENTS.md` invariants 4 and 8 and its Verify block, the owner
 instruction of 2026-09-21 that Corvint manage which gate work is already proven so parallel agents
 stop repeating a full gate each, `go-only-cutover-v0.md` GOC-V0-010 for the receipt the gate
@@ -17,7 +17,7 @@ per-package key (GL-V0-009).
 - Claim: `make gate` skips a step, or one resolved package, only when this user recorded a pass for byte-identical inputs, from any worktree, never narrowing a step.
 - Status: accepted (owner instruction 2026-09-21; GL-V0-009 decision 0352) / implemented
 - Exists: `tools/gate-ledger` (`run`, `go-test`, `plan`), the `ledger/STEP` targets in `Makefile`, `gate-affected-select -unresolved` and `-bounds`, `tools/gate-ledger/main_test.go`, the ledger-off branch of `script/gate-receipt_test.sh`.
-- Blocked on: nothing (V1-0245 amendments accepted, decision 0511). The unresolved packages (`cmd/corvint` among them) rerun on any tree change; narrowing them is the affected tier's job, not this ledger's. Resolved packages key per package across worktrees (GL-V0-009).
+- Blocked on: nothing (V1-0245 amendments accepted, decision 0511). The unresolved packages (`cmd/corvint` among them) rerun on any tree change; narrowing them is the affected tier's job, not this ledger's. Resolved packages key per package across worktrees (GL-V0-009), and a package the read-scope declaration bounds keys by its scope (GL-V0-050).
 - Read next: Requirements; Non-goals; Trust boundary, limits, and failure modes; Unresolved.
 
 ## Human intent and scope
@@ -136,6 +136,21 @@ therefore come from something keyed on content, not from Go's cache.
   An identical-input rerun MUST run only packages without a recorded pass and the unresolved set
   unless its whole-tree pass already exists. The record format MUST stay additive: `bound` is an optional
   field, and records without it keep matching.
+- `GL-V0-050`: (accepted under the owner's standing auto-accept, 2026-10-11; V1-0634) A package
+  that `.corvint/test-read-scopes.json` declares (`affected-plan-v0.md` AFP-V0-023) MUST NOT be
+  listed by `gate-affected-select -unresolved` and MUST be a resolved package under GL-V0-009,
+  exactly as the affected selector leaves it off rule (d). Its `-bounds` listing MUST add, as
+  rule `declared`, every input path the declaration admits for it under the selector's
+  `inReadScope`: the declaration file itself, any path in the package's subtree, and any path
+  equal to or under a declared entry; the rules (a) to (c) bounds stay. Its key therefore covers
+  its subtree, its declared entries and the declaration, and an unrelated tree change hits its
+  record. The record's proof MUST name the declared path count. A declaration the selector
+  cannot read exactly is an error in both listings, so the partition or the bounds are
+  unavailable and every package runs as GL-V0-004 and GL-V0-009 already state; it never keys a
+  package by a scope. Failure mode: a declared package whose tests read outside the declaration
+  is the AFP-V0-023 hazard, enforced only by the full-CI Landlock wrapper, so the ledger shares
+  that trust; it adds none. Rollback: drop `undeclaredUnresolved` and the declared bind in
+  `internal/gateselect/select.go`; declared packages return to the tree key.
 
 ## Non-goals and simpler baseline
 
@@ -215,6 +230,7 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 | GL-V0-007 | the same test: `CORVINT_GATE_LEDGER=off` runs silently; `TestRunStepSkipsOnlyRecordedIdenticalInputs`: `plan` leaves the run count unchanged; `script/gate-receipt_test.sh` ordering probe through the `ledger/` targets |
 | GL-V0-008 | `lock` in `tools/gate-ledger/main.go`, flock per key with a second lookup after acquisition; inspection |
 | GL-V0-009 | `TestGoTestKeysResolvedPackagesPerPackage`: three resolved packages record with a `bound` proof, hit from a `git worktree add` checkout, an edit to a package's source reruns it and its dependent while a reader package hits, an edit to a path a test literal names reruns only that reader, an edit outside every nested bound hits; `TestPackageBoundsAttributesResolvedPackages`: the `-bounds` listing per rule and the unresolved reason; `TestPathMatcherAgreesWithNamesPath`: the batched rule (c) matcher equals `namesPath`; measured cross-worktree hit in `../BUILD-LOG.md` (2026-09-22) |
+| GL-V0-050 | `TestGoTestKeysDeclaredPackagesByTheirScope`: a declared `os.Getwd` package records per package, hits after an edit outside its scope, reruns after an edit under a declared entry or to the declaration, and an invalid declaration keys nothing by scope; `TestDeclaredPackagesAreBoundByTheirScope`: `-unresolved` omits the declared locator and keeps the undeclared one, `-bounds` lists its `declared` paths, and an invalid declaration is an error in both; both fail before the change |
 
 ## Traceability
 
@@ -229,6 +245,7 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 | GL-V0-007 | `open`, `plan`; the `ledger/%` targets and their `off` branch in `Makefile` | `TestRunStepRefusesWhatItCannotDigest`; `script/gate-receipt_test.sh` |
 | GL-V0-008 | `lock`; `lockExclusive` in `tools/gate-ledger/platform_unix.go` (`platform_other.go` fails the lock on non-Unix hosts) | inspection |
 | GL-V0-009 | `packageKeys`, `packageKey`, `selectorBounds`, `listedFiles`, `runPackages`, `digestKey` in `tools/gate-ledger/main.go`; `packageBounds`, `attribute`, `attributeStructure` in `internal/gateselect/select.go` and `pathMatcher` in `internal/gateselect/readers.go` | `TestGoTestKeysResolvedPackagesPerPackage`; `TestPackageBoundsAttributesResolvedPackages`; `TestPathMatcherAgreesWithNamesPath` |
+| GL-V0-050 | `undeclaredUnresolved`, `packageBounds`, `unresolvedPackages` in `internal/gateselect/select.go`; the declared proof count in `packageKey`, `tools/gate-ledger/main.go` | `TestGoTestKeysDeclaredPackagesByTheirScope`; `TestDeclaredPackagesAreBoundByTheirScope` |
 
 ## Rollout, rollback, and drift
 

@@ -555,3 +555,38 @@ func TestHelperDeclaringOnlyATestBaseClassStaysSource(t *testing.T) {
 		t.Fatalf("helper with declarative tests was not runnable: scope=%s selected=%v", plan.Scope, plan.SelectedTests())
 	}
 }
+
+// TestGoModuleTestdataRubyFixtureIsNotAUnit_RUBYAFFECTEDV0041: a Ruby fixture
+// under testdata of a Go-module repository is fixture data, not an RSpec unit
+// of the host, and its Rails layout does not make host selection UNKNOWN
+// (V1-1816). Without go.mod the same tree stays a unit: RSpec's default
+// pattern can run a spec under a testdata directory.
+func TestGoModuleTestdataRubyFixtureIsNotAUnit_RUBYAFFECTEDV0041(t *testing.T) {
+	fixture := func(root string) {
+		write(t, root, "internal/x/testdata/app/Gemfile", "gem \"rspec-rails\"\n")
+		write(t, root, "internal/x/testdata/app/config/application.rb", "class Application < Rails::Application\n  config.autoload_paths << \"#{root}/extras\"\nend\n")
+		write(t, root, "internal/x/testdata/app/app/models/widget.rb", "class Widget\nend\n")
+		write(t, root, "internal/x/testdata/app/spec/models/widget_spec.rb", "RSpec.describe Widget do\n  it { true }\nend\n")
+		write(t, root, "internal/x/testdata/app/features/a.feature", "Feature: a\n")
+	}
+	root := t.TempDir()
+	write(t, root, "go.mod", "module example.com/host\n")
+	fixture(root)
+	result, err := New().Units(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Units) != 0 || len(result.Frontier) != 0 {
+		t.Fatalf("testdata fixture leaked into host units: units=%+v frontier=%v", result.Units, result.Frontier)
+	}
+
+	plain := t.TempDir()
+	fixture(plain)
+	result, err = New().Units(context.Background(), plain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(unitByID(t, result, "ruby:rspec:internal/x/testdata/app/spec/models/widget_spec").Tests) != 1 {
+		t.Fatalf("non-Go repository lost its testdata spec unit: %+v", result.Units)
+	}
+}

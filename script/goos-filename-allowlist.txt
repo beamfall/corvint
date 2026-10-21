@@ -1,0 +1,3 @@
+# Tracked Go files under cmd/ or internal/ that intentionally build only for a GOOS/GOARCH other
+# than darwin, linux, windows, amd64 or arm64 (script/check-goos-filenames.sh, V1-1910).
+# One repository-relative path per line.

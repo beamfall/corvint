@@ -153,6 +153,15 @@ Git read failure keeps `repository-unavailable` (`TestSDD011IndexDeadlineHasDist
 Rollback: remove the branch in `transportOrToolFailure`; the overrun reads as
 `repository-unavailable` again and no state is retained.
 
+- `SDD-V0-012`: In the `SDD-V0-009` receipt, a block's `applied` member means its refresh is
+included in the session's proposed page and counts toward `--max-writes`, in a `--preview` as in
+an `--apply`; an ineligible or bounded block reports `applied: false` with its `skipped` reason.
+Whether bytes were written is stated only by the page-level members: a preview reports
+`applied: false`, `preview_only: true` and `page_digest_after` equal to `page_digest_before`,
+and an apply that wrote reports `applied: true` and `preview_only: false`. The wire members are
+unchanged (`TestSDDV0012PreviewBlockAppliedMeansIncluded`). Status: accepted under the owner's
+standing auto-accept (2026-10-11); V1-2135.
+
 ## CLI contract
 
 ```
@@ -222,21 +231,21 @@ returned under its own draft code (`unsupported-documentation-source` or
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `apply-not-authorized` | `internal/docmaintain/docmaintain.go:222` | `Apply` was called with `policy.Apply` false |
-| `internal-error` | `internal/docmaintain/docmaintain.go:286` | a `DraftSources` failure is not a `doccompiler.Error` |
+| `apply-not-authorized` | `internal/docmaintain/docmaintain.go:222@9451df78` | `Apply` was called with `policy.Apply` false |
+| `internal-error` | `internal/docmaintain/docmaintain.go:286@fd6f8ddc` | a `DraftSources` failure is not a `doccompiler.Error` |
 | `invalid-page-path` | `internal/docmaintain/docmaintain.go:124` | the joined page path is not contained in the root, crosses a symlink, has a component naming `.git` in any letter case, or does not end in `.md` (`Preview` and `Apply`; `TestGitMetadataPageIsRefused`, `TestNonMarkdownPageIsRefused`) |
 | `invalid-root` | `internal/docmaintain/docmaintain.go:120` | the root cannot be made absolute (`Preview` and `Apply`) |
 | `invalid-selector` | `internal/docmaintain/docmaintain.go:153` | a selector source or package contains `-->` or any character Go `%q` escapes (a double quote, backslash, or non-printable rune), since the marker records the escaped value and the block could never be re-found (`TestSelectorCommentBreakoutRefused`, `TestSelectorThatQuotingChangesIsRefused`) |
 | `maintenance-conflict` | `internal/docmaintain/docmaintain.go:256` | at `Apply`, the page existence or SHA256 differs from what `Preview` started from; the result is returned with `Conflict` set and nothing is written |
 | `maintenance-session-disabled` | `internal/docmaintain/docmaintain.go:107` | `Preview` was called with `policy.Enabled` false |
 | `marker-in-content` | `internal/docmaintain/docmaintain.go:161` | the new draft Markdown, or the body of the existing block for that selector, contains the begin-marker prefix or the end marker |
-| `duplicate-block` | `internal/docmaintain/render.go:150` | two generated blocks outside fenced code name the same selector; replacing only one would leave the other stale while later sessions report `unchanged`, so the whole page is validated before any splice and nothing is written (V1-0461, `TestDuplicateAndOrphanMarkersAreRefused`) |
-| `malformed-block` | `internal/docmaintain/render.go:121` | outside fenced code, a marker line is not part of exactly one well-formed block: a begin without its end, an end without a begin, a begin nested in a block, or a marker line that does not parse. Appending or splicing would wedge every later session, so nothing is written (V1-0461, `TestMalformedSelectorBlockIsRefused`, `TestDuplicateAndOrphanMarkersAreRefused`). A begin marker followed directly by its end marker is an empty block and is replaced in place (`TestEmptySeededBlockIsReplacedInPlace`). Markers and the insertion point inside ``` or ~~~ fences (CommonMark length and closing rules) are prose (`TestMarkersInsideFencedCodeAreProse`) |
+| `duplicate-block` | `internal/docmaintain/render.go:150@0b71614d` | two generated blocks outside fenced code name the same selector; replacing only one would leave the other stale while later sessions report `unchanged`, so the whole page is validated before any splice and nothing is written (V1-0461, `TestDuplicateAndOrphanMarkersAreRefused`) |
+| `malformed-block` | `internal/docmaintain/render.go:121@2b42622e` | outside fenced code, a marker line is not part of exactly one well-formed block: a begin without its end, an end without a begin, a begin nested in a block, or a marker line that does not parse. Appending or splicing would wedge every later session, so nothing is written (V1-0461, `TestMalformedSelectorBlockIsRefused`, `TestDuplicateAndOrphanMarkersAreRefused`). A begin marker followed directly by its end marker is an empty block and is replaced in place (`TestEmptySeededBlockIsReplacedInPlace`). Markers and the insertion point inside ``` or ~~~ fences (CommonMark length and closing rules) are prose (`TestMarkersInsideFencedCodeAreProse`) |
 | `no-preview` | `internal/docmaintain/docmaintain.go:219` | `Apply` was called with a nil preview |
 | `no-selectors` | `internal/docmaintain/docmaintain.go:110` | `Preview` was called with no selectors |
 | `page-unreadable` | `internal/docmaintain/docmaintain.go:130` | reading the page failed for a reason other than absence (`Preview`, and `Apply` before its conflict check) |
 | `repository-unavailable` | `internal/docmaintain/docmaintain.go:136` | `contextindex.BuildContext` cannot index the root, including a root that is not a Git work tree (`TestNonRepositoryRootIsRefused`) |
-| `write-failed` | `internal/docmaintain/docmaintain.go:259` | the atomic write of the proposed page failed |
+| `write-failed` | `internal/docmaintain/docmaintain.go:259@45c612cd` | the atomic write of the proposed page failed |
 
 ## Acceptance and rollback
 
