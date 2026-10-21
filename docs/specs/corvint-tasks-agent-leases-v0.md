@@ -146,7 +146,7 @@ one.
 | V1-1548 | CAL-V0-311..318 | Accepted (standing auto-accept, 2026-10-17): a role's optional `keepLease {intervalSeconds, leaseMinutes, maxIdleSeconds}` has the dispatcher heartbeat, or renew when the lease would not cover two intervals, the attempt each live, active worker holds; it stops once on a fence, a lost or regenerated attempt, and never writes for an exited or idle worker; ledger `taskman-dispatch-state/6`, `lease-keeper` events and the status `keeper` object; a worker whose tree this tick did not observe is not kept (CAL-V0-317) and a replayed write is followed by one fresh write (CAL-V0-318); implemented with focused tests |
 | V1-2012 | CAL-V0-319 | Accepted (standing auto-accept, 2026-10-20): an interrupted `gate run` (SIGINT/SIGTERM after the gate started) stops the gate's process group and records the run as an ordinary `FAILED` gate result with its captured output instead of discarding it; implemented with a focused test and a retained reproduction |
 | V1-1981 | CAL-V0-320 | Accepted (standing auto-accept, 2026-10-20): the standalone Tasks archive builder also cross-builds `linux/amd64` (`CGO_ENABLED=0`, reproducible, `SHA256SUMS`); the Linux runtime is `NOT_OBSERVED` until a Linux host runs the documented commands |
-| V1-1321 | none (stopped) | Claim scope union conflicts with the CAL-V0-021 precedence; needs an amendment first; not implemented |
+| V1-1321 | ATR-V0-210, ATR-V0-211 | Delivered as a refusal naming uncovered requested paths plus the reported scope (attempt runner spec); CAL-V0-021 unamended |
 | V1-1494 | CAL-V0-263, CAL-V0-265 | Proposed (issue 967): no lease write holds the preparation gate for a complete-history audit; the scheduled refresh walks the prefix to its captured head when the journal moves; focused tests, mutation check and an opt-in load harness |
 | V1-1512 | none (evidence; PSR-V0-052) | Accepted (standing auto-accept, 2026-10-20): issue 967 remainder; at 40,000 receipts and 15 writers heartbeat/renew p99 1,138/1,131 ms (residual: gate wait behind about 1 s widen and reap commits), no `SNAPSHOT_MOVED`; reap and pool release resume tests; proposals 2 remainder and 3 are 1.0 work per decision 0549, proposal 5 deferred past 1.0 |
 
@@ -6509,7 +6509,8 @@ not a union: the scope is the ticket's declared paths when coverage is `QUALIFIE
 `--scope` is dropped whenever the ticket declares paths, on a first claim as well as on a
 re-claim. The decision needs an amendment to CAL-V0-021 first; a union kept as `DECLARED` plus the
 requested paths (the CAL-V0-025 widen shape at admission) is one compatible form. Nothing here
-changes claim scope.
+changes claim scope. Delivered later (2026-10-21) through the decision's refusal branch, which needs no
+amendment: ATR-V0-210 and ATR-V0-211 in `corvint-tasks-attempt-runner-v0.md`.
 
 Non-goals: changing claim scope or its precedence (V1-1321 above); refusing or warning on a
 same-request replay; making `attempt heartbeat` extend the lease; changing the heartbeat TTL,

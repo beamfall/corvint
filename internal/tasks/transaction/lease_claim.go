@@ -341,11 +341,33 @@ func planClaim(c leaseContext) leaseOutcome {
 	if c.l.Pool != "" && c.st.policy.Pool(c.l.Pool) == nil {
 		return c.fail(malformed("unknown pool"))
 	}
+	if bad := requestedOutsideDeclared(rec, c.l.Scope); len(bad) > 0 {
+		return c.refuse(mutation.OutcomeBlocked, wire.CodeOutOfScope, "requested --scope paths outside the ticket's declared scope: "+strings.Join(bad, " ")+"; the declared scope takes precedence (CAL-V0-021), so claim without them and add them with widen (CAL-V0-025, ATR-V0-210)")
+	}
 	sc, e := c.claimScope(rec)
 	if e != nil {
 		return c.fail(e)
 	}
 	return c.admit(rec, sc)
+}
+
+// requestedOutsideDeclared lists each requested --scope path that the
+// ticket's DECLARED scope does not cover under the CAL-V0-021 key rule. The
+// declared scope takes precedence, so such a path would be silently left
+// out of the reservation; the claim refuses naming it instead (ATR-V0-210,
+// V1-1321). Without a declared scope the requested paths are the scope.
+func requestedOutsideDeclared(rec *ticket.Record, requested []string) []string {
+	declared := Declared(rec)
+	if len(declared) == 0 {
+		return nil
+	}
+	out := []string{}
+	for _, p := range requested {
+		if !covered(pathResources(declared), p) {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // planClaimNext claims the first SELECTED entry of the plan computed in this

@@ -135,6 +135,9 @@ func Run(env Env) int {
 	if result := commandHelp(args); result != nil {
 		return emit(env.Stdout, result)
 	}
+	if result := readOnlyRefusal(args); result != nil {
+		return emit(env.Stdout, result)
+	}
 	switch args[0] {
 	case "criterion-binding":
 		return emit(env.Stdout, criterionBindingCommand(env, args[1:]))
