@@ -29,8 +29,9 @@ without selecting it as the installed version or changing the new cache or hook 
 the affected tasks end; source/cache equality alone does not verify active hook paths.
 
 The package provides the Corvint skill plus bounded `SessionStart`, `UserPromptSubmit`, `Stop`, and
-`SessionEnd` hooks. It intentionally omits an MCP declaration until Corvint ships and conforms a real
-MCP server. Current status is `FALLBACK`: supported context works when the local `corvint`
+`SessionEnd` hooks. It intentionally omits an MCP declaration: the stdio `corvint-mcp` companion
+passed its official-schema receipt on 2026-10-20 (V1-0191), but no Codex tuple has been qualified
+with it. Current status is `FALLBACK`: supported context works when the local `corvint`
 executable is available. A separately enrolled local completion policy can request one bounded
 Stop remediation; formal closing Frontier authority remains unavailable.
 

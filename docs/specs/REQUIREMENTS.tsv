@@ -3218,16 +3218,16 @@ MCPV0-023	docs/specs/mcp-server-2026-07-28-v0.md	Legacy calls MUST reuse each ex
 MCPV0-026	docs/specs/mcp-server-2026-07-28-v0.md	`corvint-mcp` MUST accept at most one `--tool-profile` selector, following the	unrecorded	-
 MCPV0-024	docs/specs/mcp-server-2026-07-28-v0.md	`corvint.context` MUST compile the same packet as `corvint context` in process,	unrecorded	-
 MCPV0-025	docs/specs/mcp-server-2026-07-28-v0.md	`corvint.cem.report` MUST render the `corvint cem report` Markdown and the stabl	unrecorded	-
-MCPV0-036	docs/specs/mcp-server-2026-07-28-v0.md	proposed (V1-0632 S2). `corvint.cem.report` MUST accept one optional `artifacts`	unrecorded	-
-MCPV0-037	docs/specs/mcp-server-2026-07-28-v0.md	proposed (V1-0632 S2). A `cem/1.0` map refused before its stable verifier runs (	unrecorded	-
+MCPV0-036	docs/specs/mcp-server-2026-07-28-v0.md	(V1-0632 S2) `corvint.cem.report` MUST accept one optional `artifacts`	unrecorded	-
+MCPV0-037	docs/specs/mcp-server-2026-07-28-v0.md	(V1-0632 S2) A `cem/1.0` map refused before its stable verifier runs (a	unrecorded	-
 MCPV0-027	docs/specs/mcp-server-2026-07-28-v0.md	`corvint-mcp` MUST accept at most one `--error-profile reason-class` selector,	unrecorded	-
 MCPV0-028	docs/specs/mcp-server-2026-07-28-v0.md	`reasonClass` MUST be one of the closed values `git-filter`, `config-include`,	unrecorded	-
 MCPV0-038	docs/specs/mcp-server-2026-07-28-v0.md	A tool call whose Go repository probe exceeded its own bound while the request	unrecorded	-
 MCPV0-029	docs/specs/mcp-server-2026-07-28-v0.md	The opt-in `--tool-profile task-review-lsp` descendant exposes the task-review	unrecorded	-
 MCPV0-030	docs/specs/mcp-server-2026-07-28-v0.md	An explicitly requested gopls call uses TCP-V0-052's shared evidence and drift	unrecorded	-
-MCPV0-031	docs/specs/mcp-server-2026-07-28-v0.md	proposed (V1-0944; no GitHub issue). Each impact result carries at most four	unrecorded	-
-MCPV0-032	docs/specs/mcp-server-2026-07-28-v0.md	proposed (V1-0944; no GitHub issue). Path impact accepts `--budget-bytes N`	unrecorded	-
-MCPV0-033	docs/specs/mcp-server-2026-07-28-v0.md	proposed (V1-0944; no GitHub issue). When a successful tool result carries	unrecorded	-
+MCPV0-031	docs/specs/mcp-server-2026-07-28-v0.md	(V1-0944; no GitHub issue) Each impact result carries at most four	unrecorded	-
+MCPV0-032	docs/specs/mcp-server-2026-07-28-v0.md	(V1-0944; no GitHub issue) Path impact accepts `--budget-bytes N`	unrecorded	-
+MCPV0-033	docs/specs/mcp-server-2026-07-28-v0.md	(V1-0944; no GitHub issue) When a successful tool result carries	unrecorded	-
 MCPV0-034	docs/specs/mcp-server-2026-07-28-v0.md	accepted 2026-10-08 (decision 0470; V1-0485; no GitHub issue). `Registry.Call` c	unrecorded	-
 MCPV0-039	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603)	standing	2026-10-11; V1-1603
 MCPV0-040	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603) A	standing	2026-10-11; V1-1603

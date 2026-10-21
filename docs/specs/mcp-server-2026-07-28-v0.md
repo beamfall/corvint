@@ -2,8 +2,8 @@
 
 Owner: Russell Lewis  
 Date: 2026-08-23  
-Intent status: proposed  
-Delivery status: experimental  
+Intent status: accepted (companion profile; owner's 1.0 feature-cut delegation, 2026-10-20; V1-0191)  
+Delivery status: implemented (stdio companion profile, official-schema receipt 2026-10-20)  
 Authoritative inputs: `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
 `docs/specs/agent-harness-integration-v0.md`, the
 [MCP 2026-07-28 specification](https://modelcontextprotocol.io/specification/2026-07-28), and its
@@ -14,9 +14,9 @@ official JSON Schema pinned at commit
 
 ## Agent digest
 - Claim: A local stdio MCP server exposes bounded read-only Corvint receipts, with 2026-07-28 default and explicit 2025-11-25 compatibility.
-- Status: proposed/experimental
+- Status: accepted (companion profile; owner's 1.0 feature-cut delegation, 2026-10-20; V1-0191)/implemented (stdio companion profile, official-schema receipt 2026-10-20)
 - Exists: `cmd/corvint-mcp`, `internal/mcp`, and independent compiled-process conformance vectors.
-- Blocked on: official MCP conformance and promotion evidence remain `NOT_RUN`; official-schema execution is opt-in and passed on 2026-09-23 (V1-0191). The default V0 tool list stays at three; `corvint.context` and `corvint.cem.report` are advertised only by the opt-in task-review descendant profile (`MCPV0-024..026`, decision 0374). The four read-only `corvint.flows.*` tools are advertised only under `--tool-profile flows` (`MCPV0-026` as amended by `AFU-V1-034`). Tool errors stay `corvint-mcp-tool-error/0` unless the opt-in reason-class profile selects `/1` (`MCPV0-027..028`, decision 0383).
+- Blocked on: nothing for the stdio companion profile; the official-schema receipt passed at `a7870cac3` on 2026-10-20 and `mcp-server-unavailable` is retired (see Companion promotion evidence). The official Streamable HTTP conformance runner has no stdio target and stays `NOT_RUN`; official-schema execution stays opt-in. The default V0 tool list stays at three; `corvint.context` and `corvint.cem.report` are advertised only by the opt-in task-review descendant profile (`MCPV0-024..026`, decision 0374). The four read-only `corvint.flows.*` tools are advertised only under `--tool-profile flows` (`MCPV0-026` as amended by `AFU-V1-034`). Tool errors stay `corvint-mcp-tool-error/0` unless the opt-in reason-class profile selects `/1` (`MCPV0-027..028`, decision 0383).
 - Read next: User and measurable job; Explicit 2025-11-25 compatibility; Task-review descendant profile; Flows tool profile; Reason-class tool-error profile; Follow-ref worktree binding (`MCPV0-039..041`, opt-in `--follow-ref`); Traceability.
 
 ## User and measurable job
@@ -517,7 +517,7 @@ With the selector, the two tools below are added under the unchanged `MCPV0-007`
   hunk paths, so it travels only inside the `MCPV0-008` envelope, and a report containing the
   terminator is refused with `corvint-envelope-terminator-collision`. The CEM Git runner is pinned to
   the same start-time executable as the other kernels.
-- `MCPV0-036`: proposed (V1-0632 S2). `corvint.cem.report` MUST accept one optional `artifacts`
+- `MCPV0-036`: (V1-0632 S2) `corvint.cem.report` MUST accept one optional `artifacts`
   argument under the same closed repository-relative path rule as `map`, resolved under the root
   exactly as the caller named it at start and passed to the CEM read as its artifact root. A
   `cem/1.0` map is admitted against that caller-named root, never the symlink-resolved root the
@@ -527,7 +527,7 @@ With the selector, the two tools below are added under the unchanged `MCPV0-007`
   artifact root, unchanged, with the `cem/1.0` review Markdown and `recordSetSha256`; it never carries
   or synthesizes the 0.x `verification`, `counts`, `policyIssues` or `worklist`, and it still publishes
   nothing.
-- `MCPV0-037`: proposed (V1-0632 S2). A `cem/1.0` map refused before its stable verifier runs (a
+- `MCPV0-037`: (V1-0632 S2) A `cem/1.0` map refused before its stable verifier runs (a
   policy ceiling, `--patch`, or another 0.x-only input) MUST fail as `cem-map-stable-refused`, not
   `cem-map-invalid`. An unknown spec such as `cem/9` and a retired 0.x map fail as `cem-map-invalid`
   (`CEM-V1-210`).
@@ -627,14 +627,14 @@ Each row cites the first emitting site and states only the condition checked the
   prohibited. Gopls telemetry is disabled in the child environment. Required qualification is
   TCP-V0-053, plus real cancellation/descendant cleanup and executable-replacement regressions.
 
-- `MCPV0-031`: proposed (V1-0944; no GitHub issue). Each impact result carries at most four
+- `MCPV0-031`: (V1-0944; no GitHub issue) Each impact result carries at most four
   `evidence` rows and at most four `references`. A result that had more carries
   `evidence_omitted` or `references_omitted` with the count of rows removed, so no cut is silent;
   a result under both caps carries neither key. The cap applies inside the impact receipt itself,
   so CLI impact, MCP `corvint.impact`, and every consumer that embeds the impact packet (for
   example `FPK-V0-010`) see the same rows. Builder-level `MAX_EVIDENCE` truncation before this
   cap is unchanged and is not counted.
-- `MCPV0-032`: proposed (V1-0944; no GitHub issue). Path impact accepts `--budget-bytes N`
+- `MCPV0-032`: (V1-0944; no GitHub issue) Path impact accepts `--budget-bytes N`
   (inline or as the next argument, once, within the `query` packet bounds) and compiles the
   receipt under that byte budget with the same `BUDGETED` / `CRITICAL_EVIDENCE_OVERFLOW` states
   and omission disclosures as `query`. Range (`--base`) and `--working-tree-untracked` impact
@@ -642,7 +642,7 @@ Each row cites the first emitting site and states only the condition checked the
   argument error because the external section is not budgeted. `prove` refuses `--budget-bytes`
   because it embeds the unbudgeted impact packet (`FPK-V0-010`). This amends the
   `GPK-V0` "only `--limit`" impact-option clause for path impact only.
-- `MCPV0-033`: proposed (V1-0944; no GitHub issue). When a successful tool result carries
+- `MCPV0-033`: (V1-0944; no GitHub issue) When a successful tool result carries
   `structuredContent` and its receipt has a `results` list, the text block carries the framed
   canonical summary profile `corvint-mcp-text-summary/0`: the full bridge object with each
   `receipt.results` row projected to its `kind`, `id` and `score` keys and a top-level
@@ -791,6 +791,12 @@ those are `NOT_OBSERVED`. Official MCP conformance is `NOT_RUN` for the retained
 On 2026-09-23 the opt-in official-schema run passed against the pinned digest and the start-time Git
 pin was observed (V1-0191). Fuzz, complete race, and cross-build promotion evidence are not closed by
 that focused run.
+On 2026-10-20 at `2b0cfce94` the compiled-process suite passed again (35 PASS, 0 FAIL) with the
+three official-schema tests skipped for want of a local schema copy, and `cmd/corvint-mcp` and
+`internal/mcp/bridge` passed. Later that day at `a7870cac3` the three official-schema tests passed
+against the pinned digest (V1-0191; see Companion promotion evidence). Fuzz, complete race,
+cross-build, a notification-cancellation-won call, an emitted progress notification and non-Unix
+cleanup remain outside that receipt.
 
 | `MCPV0-029` | `NewTaskReviewLSP`, `callContext`, `extractToolProfile` | `TestContextLSPProfileIsExplicit`, `TestContextLSPToolProfileSelector` |
 | `MCPV0-030` | `lspevidence.Attach`, `lspprovider.rootCommit`, `callContext` | `TestContextLSPPinAndDrift`, `TestContextLSPCancellationRetiresDescendants`; `script/qualify-lsp.py` |
@@ -818,3 +824,32 @@ duplicate-key acceptance, path escape, false revision binding, swallowed `UNKNOW
 or advertised-but-unimplemented capability blocks release. An official conformance failure remains
 visible. If MCP requires a second evidence model or materially changes Corvint receipts, retain the
 direct CLI baseline and remove this server.
+
+### Companion promotion evidence (V1-0191)
+
+The intent is accepted for the companion profile under the owner's 1.0 feature-cut delegation
+(2026-10-20); requirements without their own acceptance marker inherit it. `corvint-mcp` stays the
+required 1.0 companion of the 1.0 release classification table, never a Core surface, and every
+adapter row keeps `FALLBACK` (`Relationship to hosted MCP`, rollout item 2). Delivery moved from
+experimental to implemented for the stdio companion profile once all of the evidence below was
+retained for one code tree (`a7870cac3` changes only documentation over `2b0cfce94`):
+
+1. The compiled-process suite `conformance/mcp-2026-07-28` passes (`/0`, `/1`, `/2` and the flows
+   cases). Observed on 2026-10-20 at `2b0cfce94`: 35 top-level tests pass, 0 fail.
+2. With `CORVINT_MCP_OFFICIAL_SCHEMA` naming a copy whose SHA-256 is
+   `ef70b61f99b6d2e5e3b46863822eab08dff6a45bedc7a08914e0e5b133f40203`,
+   `TestServerTrafficMatchesOfficialSchema`, `TestTaskReviewTrafficMatchesOfficialSchema` and
+   `TestAFUV1034FlowsOfficialSchema` pass rather than skip. Observed on 2026-10-20 at `a7870cac3`
+   against an owner-approved copy outside the repository (the schema is not vendored): all three
+   pass with no skip, and the whole package passes 38 tests with 0 skips
+   (`docs/build-log/2026-10-20-mcp-companion-qualification.md`).
+3. The task-review tools' read-only evidence (`MCPV0-024`, `MCPV0-025`) passes in process and over
+   the compiled process; observed on 2026-10-20 (`docs/build-log/2026-10-20-mcp-companion-qualification.md`).
+
+`mcp-server-unavailable` left `globalDegradations` in `integrations/compatibility.json` and both
+adapter manifests in the change that cites the item-2 receipt, together with
+`integrations/README.md` and `ROADMAP.md`. That receipt covers the stdio server only, so no host
+tuple changed status with it: every row stays `FALLBACK`, the Claude Code manifest keeps
+`surfaces.mcp` `UNAVAILABLE` because it ships no MCP declaration, and the adapter versions moved
+only because their shipped content changed (`AHI-020`). The official Streamable HTTP conformance runner has no stdio target
+and stays `NOT_RUN`; it is not a prerequisite for the companion profile.

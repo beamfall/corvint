@@ -1,9 +1,10 @@
 # Corvint for Gemini CLI
 
 Status: **FALLBACK**. This package is documented against Gemini CLI 0.55.1. No Gemini CLI release has
-yet passed the Corvint black-box conformance matrix. Corvint ships an experimental local stdio MCP
-server (`corvint-mcp`), but this extension intentionally omits `mcpServers`; official-schema execution
-and official MCP conformance remain `NOT_RUN`, and no accepted frontier-authority capability is
+yet passed the Corvint black-box conformance matrix. Corvint ships a local stdio MCP companion
+(`corvint-mcp`) whose pinned official-schema run passed on 2026-10-20 (V1-0191), but this extension
+intentionally omits `mcpServers` and no Gemini CLI tuple has been qualified with it; the official
+Streamable HTTP conformance runner remains `NOT_RUN`, and no accepted frontier-authority capability is
 available. `compatibility.json` is the machine-readable claim.
 
 ## Native lifecycle
