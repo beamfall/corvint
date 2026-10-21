@@ -377,6 +377,19 @@ and the plan cites each sealed file's hunk like any other. A modified, deleted, 
 unverifiable sealed CEM still refuses `sealed-cem-in-change`, naming each path and its reason
 (`DCW-V0-042`, proposed).
 
+#### Stacking on a sealed predecessor
+
+Binding from the shared `BASE_SHA` counts every merged sealed change's hunks, and the specs they
+govern, toward this change's OCM aggregate bound. A lane built on one sealed, still unmerged
+predecessor (a branch from the shared base that merged the predecessor's seal commit) binds against
+that seal commit instead: run `dogfood-change`, `dogfood-check` and `dogfood-seal` with
+`BASE=<predecessor seal commit>` and list only the lane's own specs in `DOGFOOD_INTENTS_FILE`. The
+range then holds only the lane's hunks, and `corvint dogfood batch-check` verifies each sealed
+change of the merged batch against its own base. Merge mainline into the predecessor, not into the
+stacked lane, or the seal-commit range also carries the newer mainline commits. When a shared-base
+bind refuses an aggregate bound while merged sealed changes are in the range, the `fix:` line names
+each such change by bind and seal commit and this route (`DCW-V0-113`).
+
 Run `make gate` before the first `dogfood-change` or after the sidecar commit, not between them. Its
 archive step requires a clean worktree (`conformance/release-artifact-v0/archive_run.go:422-424`),
 and the prepared but uncommitted `.corvint/change.cem.json` is the one tracked path this loop leaves
