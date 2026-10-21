@@ -68,6 +68,7 @@ func ftUnchanged(t *testing.T, h *ftHarness, f func() error) {
 }
 
 func TestTMV0007_AS35_FixtureFoundationSeedRefusals(t *testing.T) {
+	t.Parallel()
 	for _, broken := range []string{"blob-missing", "blob-corrupt", "request-missing", "request-corrupt", "ledger-malformed", "ledger-gap", "naked-ticket"} {
 		t.Run(broken, func(t *testing.T) {
 			h := ftNew(t, broken != "naked-ticket")
@@ -99,6 +100,7 @@ func TestTMV0007_AS35_FixtureFoundationSeedRefusals(t *testing.T) {
 }
 
 func TestTMV0006_AS03_FixtureFoundationNoArtifacts(t *testing.T) {
+	t.Parallel()
 	for _, mode := range []string{"unpause-nochange", "pause-nochange", "keep-nochange", "wrong-actor", "protected-adopt", "adopt-empty-composition", "keep-malformed", "keep-valid-divergent", "stale-keep-choice"} {
 		t.Run(mode, func(t *testing.T) {
 			h := ftNew(t, true)
@@ -171,8 +173,10 @@ func TestTMV0006_AS03_FixtureFoundationNoArtifacts(t *testing.T) {
 // Enumerate the common table's actual finite boundaries, including every slot,
 // evidence link, post, barrier deletion, head and descriptor cleanup.
 func TestTMV0009_AS11_FixtureFoundationEveryPublicationPrefix(t *testing.T) {
+	t.Parallel()
 	for _, op := range []string{transaction.Init, transaction.Pause, transaction.Unpause, transaction.KeepJournal, transaction.AdoptFile} {
 		t.Run(op, func(t *testing.T) {
+			t.Parallel()
 			steps := []string{}
 			t.Run("enumerate", func(t *testing.T) {
 				h, p := ftFlow(t, op)
@@ -188,6 +192,7 @@ func TestTMV0009_AS11_FixtureFoundationEveryPublicationPrefix(t *testing.T) {
 					name = "durable-post:pinned"
 				}
 				t.Run(name, func(t *testing.T) {
+					t.Parallel()
 					h, p := ftFlow(t, op)
 					base, err := h.capture()
 					fixtureMust(t, err)
@@ -211,6 +216,7 @@ func TestTMV0009_AS11_FixtureFoundationEveryPublicationPrefix(t *testing.T) {
 }
 
 func TestTMV0009_AS11_FixtureFoundationCommittedSyncFailure(t *testing.T) {
+	t.Parallel()
 	for _, op := range []string{transaction.Init, transaction.Pause, transaction.Unpause, transaction.KeepJournal, transaction.AdoptFile} {
 		t.Run(op, func(t *testing.T) {
 			h, p := ftFlow(t, op)
@@ -242,6 +248,7 @@ func TestTMV0009_AS11_FixtureFoundationCommittedSyncFailure(t *testing.T) {
 }
 
 func TestTMV0009_AS11_FixtureFoundationPendingRefusals(t *testing.T) {
+	t.Parallel()
 	for _, mode := range []string{"blob-missing", "blob-corrupt", "ledger-malformed", "unaffected-private", "affected-private", "third-intent", "foreign-descriptor", "wrong-slot", "extra-receipt", "completed-post-mismatch"} {
 		t.Run(mode, func(t *testing.T) {
 			op := transaction.Pause
@@ -288,6 +295,7 @@ func TestTMV0009_AS11_FixtureFoundationPendingRefusals(t *testing.T) {
 }
 
 func TestTMV0009_AS27_FixtureFoundationPartialAndForeignStage(t *testing.T) {
+	t.Parallel()
 	for _, mode := range []string{"partial-slot", "truncated-temp", "malformed-active", "unknown", "symlink", "fifo", "directory", "wrong-complete-temp"} {
 		t.Run(mode, func(t *testing.T) {
 			h, p := ftFlow(t, transaction.Pause)
@@ -361,6 +369,7 @@ func TestTMV0009_AS27_FixtureFoundationPartialAndForeignStage(t *testing.T) {
 }
 
 func TestTMV0009_AS27_FixtureFoundationOrphansAndMissingSlots(t *testing.T) {
+	t.Parallel()
 	t.Run("abort-to-unpause", func(t *testing.T) {
 		h := ftNew(t, true)
 		_, err := h.publish(h.plan(h.request(transaction.Pause, "paused")), nil)
@@ -439,6 +448,7 @@ func ftFinal(t *testing.T, h *ftHarness, p *transaction.Plan) {
 }
 
 func TestTMV0014_AS10_FixtureFoundationHeadDigitGrowth(t *testing.T) {
+	t.Parallel()
 	h := ftNew(t, true)
 	var nine []byte
 	for i := 3; i <= 10; i++ {
@@ -460,6 +470,7 @@ func TestTMV0014_AS10_FixtureFoundationHeadDigitGrowth(t *testing.T) {
 }
 
 func TestTMV0001_AS10_FixtureFoundationSourceLifetime(t *testing.T) {
+	t.Parallel()
 	for _, mode := range []string{"released-lock", "old-token", "source-replaced", "parent-replaced"} {
 		t.Run(mode, func(t *testing.T) {
 			h, p := ftFlow(t, transaction.KeepJournal)
@@ -527,8 +538,10 @@ func TestTMV0001_AS10_FixtureFoundationSourceLifetime(t *testing.T) {
 // Returned syscall errors run Go defers. The finite matrix does not assert the
 // disk layout is the one a killed process or physical power loss would leave.
 func TestTMV0009_AS11_FixtureFoundationReturnedFaults(t *testing.T) {
+	t.Parallel()
 	for _, op := range []string{transaction.Init, transaction.Pause, transaction.Unpause, transaction.KeepJournal, transaction.AdoptFile} {
 		t.Run(op, func(t *testing.T) {
+			t.Parallel()
 			boundaries := map[string]bool{}
 			t.Run("enumerate", func(t *testing.T) {
 				h, p := ftFlow(t, op)
@@ -543,6 +556,7 @@ func TestTMV0009_AS11_FixtureFoundationReturnedFaults(t *testing.T) {
 			sort.Strings(names)
 			for _, boundary := range names {
 				t.Run(boundary, func(t *testing.T) {
+					t.Parallel()
 					h, p := ftFlow(t, op)
 					fired := false
 					h.s.before = func(b string) error {
@@ -571,6 +585,7 @@ func TestTMV0009_AS11_FixtureFoundationReturnedFaults(t *testing.T) {
 }
 
 func TestTMV0014_AS10_FixtureFoundationCapacityAndCleanupDebt(t *testing.T) {
+	t.Parallel()
 	h, p := ftFlow(t, transaction.KeepJournal)
 	cap, err := transaction.CheckCapacity(p)
 	fixtureMust(t, err)
@@ -640,6 +655,7 @@ func TestTMV0014_AS10_FixtureFoundationCapacityAndCleanupDebt(t *testing.T) {
 
 // Replay preserves the complete original outcome, not a new no-change result.
 func TestTMV0006_AS03_FixtureFoundationReplayOutcome(t *testing.T) {
+	t.Parallel()
 	h, p := ftFlow(t, transaction.KeepJournal)
 	r := h.request(transaction.KeepJournal, "fault-flow")
 	_, err := h.publish(p, nil)
@@ -671,8 +687,10 @@ func TestTMV0006_AS03_FixtureFoundationReplayOutcome(t *testing.T) {
 }
 
 func TestTMV0009_AS27_FixtureFoundationCleanupBoundaries(t *testing.T) {
+	t.Parallel()
 	for _, op := range []string{transaction.Init, transaction.Pause, transaction.Unpause, transaction.KeepJournal, transaction.AdoptFile} {
 		t.Run(op, func(t *testing.T) {
+			t.Parallel()
 			// Count the actual retained names, since rename consumes some slots.
 			var count int
 			t.Run("inventory", func(t *testing.T) {
@@ -684,6 +702,7 @@ func TestTMV0009_AS27_FixtureFoundationCleanupBoundaries(t *testing.T) {
 			})
 			for cut := 1; cut <= count+1; cut++ {
 				t.Run(fmt.Sprint(cut), func(t *testing.T) {
+					t.Parallel()
 					h, p := ftFlow(t, op)
 					ftStopAt(h, p, "durable-head")
 					calls := 0
@@ -720,6 +739,7 @@ func TestTMV0009_AS27_FixtureFoundationCleanupBoundaries(t *testing.T) {
 }
 
 func TestTMV0009_AS11_FixtureFoundationStalePlan(t *testing.T) {
+	t.Parallel()
 	h, p := ftFlow(t, transaction.KeepJournal)
 	h.edit([]byte("new D after Model"))
 	ftUnchanged(t, h, func() error { _, err := h.publish(p, nil); return err })
@@ -788,6 +808,7 @@ func ftRecoveryCostWitness(t *testing.T, h *ftHarness, p *transaction.Plan) func
 }
 
 func TestTMV0009_AS11_FixtureFoundationRenameSyncAndRelease(t *testing.T) {
+	t.Parallel()
 	for _, op := range []string{transaction.Pause, transaction.Unpause, transaction.KeepJournal, transaction.AdoptFile} {
 		for _, sync := range []string{"destination", "source"} {
 			t.Run(op+"/"+sync, func(t *testing.T) {
@@ -843,6 +864,7 @@ func TestTMV0009_AS11_FixtureFoundationRenameSyncAndRelease(t *testing.T) {
 }
 
 func TestTMV0009_AS11_FixtureFoundationStaleInventory(t *testing.T) {
+	t.Parallel()
 	h := ftNew(t, true)
 	orphan := []byte("orphan observed before Model")
 	name := filepath.Join(h.r.StateDir, "evidence", string(wire.Sum(orphan)))
