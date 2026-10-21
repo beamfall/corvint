@@ -44,3 +44,35 @@ func TestCALV0056_ReapedDuringIdentityReadIsGone(t *testing.T) {
 		t.Fatalf("identity of a process reaped mid-read = %q, %v (read error %v)", id, err, readErr)
 	}
 }
+
+// V1-1091: /proc/stat btime can differ by one second between reads. A live
+// process's identity must not, so the first btime read is reused.
+func TestV11091IdentityStableAcrossBtimeJitter(t *testing.T) {
+	bootTime.Lock()
+	saved := bootTime.value
+	bootTime.value = ""
+	bootTime.Unlock()
+	reads := 0
+	readBootStat = func(string) ([]byte, error) {
+		reads++
+		return []byte("cpu 1 2 3\nbtime " + []string{"1789760570", "1789760571"}[reads%2] + "\nprocesses 9\n"), nil
+	}
+	t.Cleanup(func() {
+		readBootStat = os.ReadFile
+		bootTime.Lock()
+		bootTime.value = saved
+		bootTime.Unlock()
+	})
+	first, err := ProcessIdentity(os.Getpid())
+	if err != nil || first == "" {
+		t.Fatalf("identity %q %v", first, err)
+	}
+	for i := 0; i < 10; i++ {
+		if again, err := ProcessIdentity(os.Getpid()); err != nil || again != first {
+			t.Fatalf("identity changed under btime jitter: %q then %q (%v)", first, again, err)
+		}
+	}
+	if reads != 1 {
+		t.Fatalf("btime read %d times, want once", reads)
+	}
+}

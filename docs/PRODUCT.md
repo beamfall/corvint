@@ -318,6 +318,11 @@ and cost. A model-everything baseline is required before claiming token or cost 
 
 ## Current evidence, not aspiration
 
+The numbers in this section are dated 2026-08 to 2026-09 retrieval-development evidence and are not
+1.0 qualification evidence. For the 1.0 scope, gates and current status read decision 0373 and
+[`specs/corvint-1.0-product-and-release-v1.md`](specs/corvint-1.0-product-and-release-v1.md); the
+Agent digest there names the published prerelease and its known issues.
+
 Corvint is an extraction alpha, not a finished context oracle and not yet evidence of a 100,000-star
 product. On 2026-08-22 the 31-case, five-repository **development** corpus passed its configured V4
 thresholds: zero critical misses, 1.0 recall, 1.0 top-five success, 1.0 abstention and epistemic-state
@@ -343,6 +348,13 @@ broader ranker will become a product oracle. Ship and test CEM interoperability 
 obligations first; improve retrieval behind that stable, honest boundary.
 
 ## V4 release gates
+
+These are the original V4 retrieval gates, kept as the historical retrieval-quality bar. They are
+not the 1.0 release gates: the Core 1.0 scope, gates and evidence are ratified in
+[`decisions/0373-corvint-1.0-scope-ratified-2026-09-23.md`](decisions/0373-corvint-1.0-scope-ratified-2026-09-23.md)
+and specified in [`specs/corvint-1.0-product-and-release-v1.md`](specs/corvint-1.0-product-and-release-v1.md)
+(Externally dependent gates and Requirements). Gate 1's Python wording describes the staged
+migration overlap; the shipped local profile is the native Go binary.
 
 1. During the staged migration overlap, a clean install takes less than 60 seconds on a supported
    Python environment. The promoted native local profile must meet the same bound without Python.

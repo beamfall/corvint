@@ -54,24 +54,31 @@ func cloneAtRevision(t *testing.T, source, revision string) string {
 
 // qualifyColdAndIncremental indexes target in a fresh clone (cold) and in a
 // clone that first indexed prior and then moved to target (incremental), and
-// requires the two served indexes to be byte-identical.
-func qualifyColdAndIncremental(t *testing.T, source, prior, target string) {
+// requires the two served indexes to be byte-identical. The cold side runs
+// with reuse switched off; the incremental side's re-index reuses the prior
+// snapshot (IDX-SNAP-V0-037) and is returned so callers can count the reuse.
+func qualifyColdAndIncremental(t *testing.T, source, prior, target string) *Index {
 	t.Helper()
 	cold := cloneAtRevision(t, source, target)
-	writeTreeSnapshot(t, cold)
+	t.Setenv("CORVINT_INDEX_REUSE", "0")
+	if built, _ := writeTreeSnapshot(t, cold); built.reusedSources != 0 {
+		t.Fatalf("IDX-SNAP-V0-037: cold build reused %d sources with reuse off", built.reusedSources)
+	}
+	t.Setenv("CORVINT_INDEX_REUSE", "")
 	incremental := cloneAtRevision(t, source, prior)
 	writeTreeSnapshot(t, incremental)
 	testGit(t, incremental, "checkout", "-q", "--detach", target)
 	if _, fresh, err := ProbeSnapshot(context.Background(), incremental); err != nil || fresh {
 		t.Fatalf("IDX-SNAP-V0-011: moved-ahead repository probed fresh=%v err=%v", fresh, err)
 	}
-	writeTreeSnapshot(t, incremental)
+	reindexed, _ := writeTreeSnapshot(t, incremental)
 	coldBytes := canonicalSnapshotBytes(t, cold)
 	incrementalBytes := canonicalSnapshotBytes(t, incremental)
 	if !bytes.Equal(coldBytes, incrementalBytes) {
 		t.Fatalf("IDX-SNAP-V0-022: cold %x and incremental %x indexes of %s differ", sha256.Sum256(coldBytes), sha256.Sum256(incrementalBytes), target)
 	}
-	t.Logf("IDX-SNAP-V0-022: %s after %s: canonical index %d bytes sha256 %x", target, prior, len(coldBytes), sha256.Sum256(coldBytes))
+	t.Logf("IDX-SNAP-V0-022: %s after %s: canonical index %d bytes sha256 %x, %d of %d sources reused", target, prior, len(coldBytes), sha256.Sum256(coldBytes), reindexed.reusedSources, len(reindexed.Sources))
+	return reindexed
 }
 
 // qualifyDefaultPath clears the opt-in writer settings so an exported shard or
@@ -100,14 +107,20 @@ func TestColdAndIncrementalSnapshotsAreByteIdentical(t *testing.T) {
 		testGit(t, source, "mv", "lib/renamed.py", "lib/moved.py")
 		testGit(t, source, "add", ".")
 		testGit(t, source, "commit", "-qm", "move ahead")
-		qualifyColdAndIncremental(t, source, prior, testGit(t, source, "rev-parse", "HEAD"))
+		reindexed := qualifyColdAndIncremental(t, source, prior, testGit(t, source, "rev-parse", "HEAD"))
+		// app/app_test.go, go.mod, docs/guide.md and testing/scenes.txt are unchanged.
+		if reindexed.reusedSources != 4 {
+			t.Fatalf("IDX-SNAP-V0-037: re-index reused %d sources, want the 4 unchanged ones", reindexed.reusedSources)
+		}
 	})
 	t.Run("IDX-SNAP-V0-022 corpus", func(t *testing.T) {
 		source := os.Getenv("CORVINT_LIFECYCLE_CORPUS")
 		if source == "" {
 			t.Skip("CORVINT_LIFECYCLE_CORPUS names no qualified corpus repository")
 		}
-		qualifyColdAndIncremental(t, source, testGit(t, source, "rev-parse", "HEAD~1"), testGit(t, source, "rev-parse", "HEAD"))
+		if reindexed := qualifyColdAndIncremental(t, source, testGit(t, source, "rev-parse", "HEAD~1"), testGit(t, source, "rev-parse", "HEAD")); reindexed.reusedSources == 0 {
+			t.Fatal("IDX-SNAP-V0-037: corpus re-index reused no source")
+		}
 	})
 }
 

@@ -162,6 +162,9 @@ func Preview(ctx context.Context, root, page string, selectors []Selector, polic
 		}
 		block := renderBlock(selector, draft.Commit, draft.Tree, newDigest, draft.Markdown)
 
+		if _, code := scanPage(current); code != "" {
+			return nil, refuse(code)
+		}
 		existingBody, oldDigest, foundStart, foundEnd, hasBlock := findBlock(current, selector)
 		if hasBlock && containsMarker(existingBody) {
 			return nil, refuse("marker-in-content")

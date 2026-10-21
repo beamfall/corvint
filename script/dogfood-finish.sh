@@ -50,13 +50,19 @@ if [[ -z $expected_version ]]; then
   exit 2
 fi
 if [[ -n $corvint_bin_set ]]; then
+  # A PATH-only name resolves once, before the version probe, so every later verifier receives the executable
+  # the probe ran. The result is absolute so a later cd cannot change its meaning.
+  [[ $corvint_bin == */* ]] || corvint_bin=$(type -P -- "$corvint_bin") || {
+    printf 'dogfood-finish-lane: REFUSE corvint-bin-unresolved\n' >&2
+    exit 2
+  }
+  [[ $corvint_bin == /* ]] || corvint_bin="$PWD/$corvint_bin"
   version_output=$("$corvint_bin" --version 2> /dev/null)
   return_code=$?
   if [[ $return_code -ne 0 || ! $version_output =~ ^"Corvint $expected_version (build "(0|[1-9][0-9]*)")"$ ]]; then
     printf 'dogfood-finish-lane: REFUSE corvint-version-mismatch expected=%s\n' "$expected_version" >&2
     exit 2
   fi
-  [[ $corvint_bin != */* || $corvint_bin == /* ]] || corvint_bin="$PWD/$corvint_bin"
   override=(--override-verifier "$corvint_bin")
 fi
 # Relative input paths keep meaning the ones the caller named.

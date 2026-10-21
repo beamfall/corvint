@@ -99,7 +99,7 @@ internal to the drafts rather than to the code:
   (`change-witness-relation-v0.md:95-96`). *Cost evidence, not authority:* the index's `Symbol` record
   is `{Kind, Name, Path, BlobHash, Line}` (`internal/contextindex/index.go:188-190`) — a definition
   line, no end line — and no exported build entry point accepts a revision (`Build(ctx, root)`,
-  `BuildEval(ctx, root)`, `BuildQuery(ctx, root, text)` at `internal/contextindex/index.go:270,296,389`;
+  `BuildEval(ctx, root)`, `BuildQuery(ctx, root, text)` at `internal/contextindex/index.go:288,314,412`;
   the tree comes from `ls-tree ... identity.treeRevision`, `internal/contextindex/git.go:450@33f5b343`). So
   "reuse the index" would not shorten the work much even if permitted.
 

@@ -165,6 +165,7 @@ incomplete. AdditionalFailures are emitted only in verbose mode, so their
 absence is not proof. Failure causes remain UNKNOWN; no retry is scheduled.
 
 Fixtures are synthetic and shaped from the Ginkgo v2.33.0 source reading pinned
-in `testdata/ginkgo-provenance.json`. Actual runner execution is NOT_RUN because
-no Ginkgo binary or module was available locally; the buildinfo module-sum check
-is NOT_IMPLEMENTED. See TRE-V0-018..020.
+in `testdata/ginkgo-provenance.json`. Actual runner execution for the 2026-10-17 host
+tuple (Ginkgo 2.33.0, Gomega 1.40.0) is recorded by the 2026-10-17 live qualification
+in the execution spec (10 witnesses); other tuples are NOT_RUN. The buildinfo
+module-sum check is NOT_IMPLEMENTED. See TRE-V0-018..020.

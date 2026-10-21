@@ -110,8 +110,8 @@ var admittedAdapterEvents = codeSet("file-change", "post-compact", "post-tool", 
 // return after resolving the project root, of the silent abstentions they record without changing
 // hook output (V1-0746), and of the OpenCode abstentions `harness event` records (V1-0767).
 var admittedAdapterCodes = codeSet(
-	"adapter-host-kill-deadline", "adapter-internal-error", "changed-paths-truncated", "compaction-block-unavailable", "compaction-pin-not-preserved",
-	"compaction-pin-revision-unavailable", "compaction-pin-verification-unavailable",
+	"adapter-host-kill-deadline", "adapter-internal-error", "changed-paths-truncated", "compaction-block-unavailable", "compaction-pin-not-emitted",
+	"compaction-pin-not-preserved", "compaction-pin-revision-unavailable", "compaction-pin-verification-unavailable",
 	"corvint-degradations-unrecognised", "corvint-envelope-terminator-collision", "corvint-event-rejected",
 	"file-change-path-not-project-relative", "git-unavailable", "invalid-compaction-trigger", "invalid-input",
 	"invalid-session-identity", "invalid-start-source", "invalid-stop-hook-active", "malformed-corvint-output",

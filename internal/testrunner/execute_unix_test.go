@@ -715,6 +715,16 @@ func TestHistoricalPlanByteIdentity(t *testing.T) {
 		if bytes.Equal(before, encoded) || !bytes.Contains(encoded, []byte(`"retireDetachedDescendants":true`)) {
 			t.Fatal("detached retirement not bound into plan identity")
 		}
+		plan.Invocation.RetireDetachedDescendants = false
+		plan.Invocation.DeviceCleanup = []CleanupStep{}
+		if encoded, _ = json.Marshal(plan); !bytes.Equal(before, encoded) {
+			t.Fatal("empty device cleanup changed old identity")
+		}
+		plan.Invocation.DeviceCleanup = []CleanupStep{{Name: "stop", Tool: "primary", Argv: []string{"stop"}}}
+		encoded, _ = json.Marshal(plan)
+		if bytes.Equal(before, encoded) || !bytes.Contains(encoded, []byte(`"deviceCleanup":[{"name":"stop","tool":"primary","argv":["stop"]}]`)) {
+			t.Fatal("device cleanup not bound into plan identity")
+		}
 	}
 }
 

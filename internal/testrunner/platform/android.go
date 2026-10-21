@@ -35,7 +35,28 @@ func buildAndroid(r tr.Request, i *tr.Invocation) error {
 	i.SuccessExitCodes = nil
 	i.FailureExitCodes = nil
 	i.OutcomeNeutralExitCodes = []int{0}
+	i.DeviceCleanup = androidCleanup(r.Target, r.Project)
 	return nil
+}
+
+// androidCleanup stops a timed-out or interrupted instrumentation on the
+// device (TRE-V0-087). Killing the host adb client leaves it running, and
+// only force-stopping the instrumentation's target package ends it, so the
+// target is resolved from the installed instrumentation. A second step
+// verifies that the instrumentation finished and the target process is gone,
+// and reports a failed probe as a failure, never as an absence.
+// The component and serial are regex-bounded, so the scripts need no quoting.
+func androidCleanup(serial, component string) []tr.CleanupStep {
+	testPackage, _, _ := strings.Cut(component, "/")
+	resolve := `c=` + component + `; l=$(pm list instrumentation | grep -F "instrumentation:$c "); t=${l##*target=}; t=${t%?}; if [ -z "$l" ] || [ -z "$t" ]; then echo instrumentation-target-unresolved; exit 3; fi; `
+	stop := resolve + `am force-stop "$t" || { echo target-force-stop-failed; exit 4; }; am force-stop ` + testPackage + ` || { echo test-package-force-stop-failed; exit 5; }; echo stopped`
+	// A probe that fails is not an absence: dumpsys must succeed and print its
+	// section header, and pidof must answer "none" (status 1, no output).
+	verify := resolve + `d=$(dumpsys activity processes) || { echo instrumentation-probe-failed; exit 8; }; case "$d" in *"ACTIVITY MANAGER RUNNING PROCESSES"*) ;; *) echo instrumentation-probe-failed; exit 8;; esac; case "$d" in *"{$c} mFinished=false"*) echo instrumentation-still-active; exit 6;; esac; p=$(pidof "$t"); s=$?; if [ $s -eq 0 ]; then echo target-process-alive; exit 7; fi; if [ $s -ne 1 ] || [ -n "$p" ]; then echo process-probe-failed; exit 9; fi; echo verified`
+	return []tr.CleanupStep{
+		{Name: "force-stop", Tool: "primary", Argv: []string{"-s", serial, "shell", stop}, Expect: "stopped"},
+		{Name: "verify-stopped", Tool: "primary", Argv: []string{"-s", serial, "shell", verify}, Expect: "verified"},
+	}
 }
 
 func parseAndroid(in tr.Input, o *tr.Observation) error {

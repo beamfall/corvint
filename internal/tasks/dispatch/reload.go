@@ -76,9 +76,25 @@ func (d *Dispatcher) readConfig() ([]byte, string, error) {
 	digest := sha256.Sum256(raw)
 	sum := hex.EncodeToString(digest[:])
 	if seen != nil && d.configStat != nil {
-		d.configSeen, d.configSeenSha256 = seen, sum
+		d.configSeen, d.configSeenSha256, d.configSeenAt = seen, sum, d.Now()
 	}
 	return raw, sum, nil
+}
+
+// cachedConfigSum returns the digest of the bytes last read when the named
+// file's stat still matches the descriptor they were read from and they were
+// read within idleFullEvery (CAL-V0-350, V1-0925). Any stat error, changed
+// identity, size, mode or modification time, a clock behind the read, or an
+// older read returns false, so the caller reads the file.
+func (d *Dispatcher) cachedConfigSum(now time.Time) (string, bool) {
+	if d.configStat == nil || d.configSeen == nil || now.Before(d.configSeenAt) || !now.Before(d.configSeenAt.Add(idleFullEvery)) {
+		return "", false
+	}
+	st, err := d.configStat()
+	if err != nil || !sameConfigStat(d.configSeen, st) {
+		return "", false
+	}
+	return d.configSeenSha256, true
 }
 
 // sameConfigStat reports an unchanged file: same identity, size, mode and
@@ -92,20 +108,14 @@ func sameConfigStat(a, b fs.FileInfo) bool {
 // idle skip (CAL-V0-139) cannot delay a CAL-V0-127 reload: the file differs
 // from the applied bytes and is not the refusal already recorded, or it
 // matches them again after a refusal. An unchanged stat reuses the digest
-// of the bytes last read and reads nothing; a changed stat reads the file.
-// A stat or read error is pending, so the full tick reports it.
+// of the bytes last read within idleFullEvery and reads nothing; a changed
+// stat or an older read reads the file (CAL-V0-350). A read error is
+// pending, so the full tick reports it.
 func (d *Dispatcher) configPending() bool {
 	if d.configRead == nil {
 		return false
 	}
-	sum, same := d.configSeenSha256, false
-	if d.configStat != nil && d.configSeen != nil {
-		now, err := d.configStat()
-		if err != nil {
-			return true
-		}
-		same = sameConfigStat(d.configSeen, now)
-	}
+	sum, same := d.cachedConfigSum(d.Now().UTC())
 	if !same {
 		var err error
 		if _, sum, err = d.readConfig(); err != nil {
@@ -133,8 +143,20 @@ func (d *Dispatcher) reloadConfig() {
 		return
 	}
 	now := d.Now().UTC()
-	raw, sum, err := d.readConfig()
 	rec := d.ledger.Config
+	// CAL-V0-350: an unchanged stat stands for the bytes last read when they
+	// are the applied bytes or the refusal already recorded; anything else
+	// is read, decoded and checked as before.
+	var raw []byte
+	sum, cached := d.cachedConfigSum(now)
+	refused := rec != nil && rec.Refused != nil && rec.Refused.Sha256 != "" && rec.Refused.Sha256 == sum
+	var err error
+	switch {
+	case cached && refused:
+		return // already refused and reported
+	case !cached || sum != d.configSha256:
+		raw, sum, err = d.readConfig()
+	}
 	if err == nil && sum == d.configSha256 {
 		if rec != nil && rec.Refused != nil {
 			rec.Refused = nil

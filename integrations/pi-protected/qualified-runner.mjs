@@ -63,6 +63,10 @@ export async function assertProtectedConsumer(binary,sha,signal) {
  if(createHash('sha256').update(readFileSync(binary)).digest('hex')!==sha)throw Error('protected-consumer-drift');
 }
 
+// The closed set of faults this runner returns (V1-0448). The protected
+// extension folds only these into the ordinary result's degradations.
+export const QUALIFIED_FAULTS=new Set(['qualified-lifecycle-unavailable','invalid-qualified-response','qualified-core-unavailable']);
+
 export function createQualifiedRunner({binary,consumerSHA256,spawnImpl=spawn,admit=assertProtectedConsumer,env=process.env}) {
  const pending=new Set();
  async function run({cwd,event,input,signal}) {

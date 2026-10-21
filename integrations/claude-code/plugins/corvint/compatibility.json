@@ -4,7 +4,7 @@
   "adapter": {
     "host": "claude-code",
     "surface": "plugin",
-    "version": "0.3.3"
+    "version": "0.3.4"
   },
   "host": {
     "minimumTestedVersion": "2.1.238",
@@ -19,7 +19,7 @@
   "lastValidation": {
     "date": "2026-10-09",
     "level": "STATIC_ONLY",
-    "adapterVersion": "0.3.3",
+    "adapterVersion": "0.3.4",
     "operatingSystem": "macOS"
   },
   "lastConformance": {
@@ -62,6 +62,7 @@
     "olderHosts": "a host that lacks these events ignores the registration silently; the compact SessionStart context then states that no pin verification ran",
     "degradations": [
       "invalid-compaction-trigger",
+      "compaction-pin-not-emitted",
       "compaction-pin-not-preserved",
       "compaction-pin-revision-unavailable",
       "compaction-pin-verification-unavailable",

@@ -6,9 +6,10 @@ SPDX-License-Identifier: Apache-2.0
 digests are shape fixtures, not claims that those objects exist or that Core produced those bindings.
 The executable immutable merge fixture is `internal/delta/compile_test.go`; its two actual runs must
 be byte-identical and preserve refs/index/state. `regression_test.go` retains independent-review
-counterexamples. `cmd/corvint/delta_test.go` includes entrypoint, public dispatcher and help tests.
-Their source presence does not qualify the current native binary; terminal native replay remains
-pending. No benchmark, execution attestation or runtime coverage is claimed by these vectors.
+counterexamples. `cmd/corvint/delta_test.go` includes entrypoint, public dispatcher and help tests; `corvint delta`
+is dispatched by `cmd/corvint/main.go` as an experimental command. The vectors are shape fixtures,
+the Go tests are source-level witnesses and native argv replay is separate evidence; none of them
+qualifies the current native binary, and terminal native replay remains pending. No benchmark, execution attestation or runtime coverage is claimed by these vectors.
 
 The schema is `protocol/delta/schema.json`. All fields are closed; unknowns and gaps determine
 `findings` before suite obligations determine `tests-needed`. `docs-only` requires exclusively
