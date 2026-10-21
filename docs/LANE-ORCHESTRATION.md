@@ -155,7 +155,12 @@ every gap above the threshold with the time the watchdog would have flagged it.
   active, and, for a clone, with no registered linked worktree; any failing Git inspection keeps
 the checkout, and a root that does not resolve (or is `/`) is refused. Worktrees are removed with
 `git worktree remove`. Its `SUMMARY` line carries the counts
-  and free disk before and after. Go build-cache trimming is separate (V1-0360).
+  and free disk before and after.
+- Go build caches (ASD-V0-021, V1-0360): after each batch merge, and whenever free disk falls below
+  about 15%, run `make go-cache-trim` (dry run), review the `WOULD-TRIM` and `WOULD-REMOVE` lines,
+  then `make go-cache-trim APPLY=1`. It trims each Go cache to 20 GiB, oldest entries first and
+  never one used in the last 2 hours, and removes `go-build*` work directories older than 24 hours
+  that no running process names. A trimmed entry is only a later cache miss.
 
 ## 7. Measuring the procedure
 
