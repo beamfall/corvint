@@ -71,8 +71,9 @@ so the allowlist stayed empty.
   and line number, every index line under the scanned sources that contains a quoted kebab-case
   literal, with every other line empty. It MUST then find exactly the sites and line numbers that the
   same search over the index finds, because every site ends in such a literal on one line. The
-  scratch tree MUST be built only from index content, and its `git grep` exit status falls under
-  `ECO-V0-005`. (V1-2210, accepted under the owner's standing auto-accept of 2026-10-11.)
+  scratch tree MUST be built only from index content, and the exit status of its `git grep` falls
+  under the `ECO-V0-005` rule. (V1-2210, accepted under the owner's standing auto-accept of
+  2026-10-11.)
 
 ## Non-goals and simpler baseline
 
