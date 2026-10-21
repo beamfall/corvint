@@ -819,7 +819,9 @@ func (r Reader) scanReceiptNames(o *observation, remaining *int) error {
 		return errCheckpoint("receipts", "writer checkpoint needs a native source")
 	}
 	if r.probeReceipts {
-		return r.probeReceiptsDir(native, o)
+		if probed, err := r.probeReceiptsDir(native, o); probed || err != nil {
+			return err
+		}
 	}
 	if first := r.writerBefore; first != nil && first.receiptsQuiescent {
 		info, err := native.DirInfo("receipts")
@@ -857,29 +859,44 @@ func (r Reader) scanReceiptNames(o *observation, remaining *int) error {
 }
 
 // probeReceiptsDir is scanReceiptNames for a liveness write
-// (AuditForLiveness, CAL-V0-224): receipts/ is stat'ed from its own
-// no-follow handle, never listed, and its stamps stay in the inventory. The
-// walk reads the checkpoint's receipt and the tail by name and probes that
-// the name after head is absent. The second capture moves the attempt unless
-// the directory is still the same file with the same mode, size,
-// modification time and change time, so a name added, renamed or removed
-// during the walk, even under a restored modification time, is never
-// committed over. Names below the tail are not observed here: the next
-// writer that lists exactly, or the scheduled refresh, classifies them.
-func (r Reader) probeReceiptsDir(native *nativeRead, o *observation) error {
+// (AuditForLiveness, CAL-V0-224): when receipts/ is quiescent at the first
+// capture (quiescentDir), it is stat'ed from its own no-follow handle, never
+// listed, and its stamps stay in the inventory. The walk reads the
+// checkpoint's receipt and the tail by name and probes that the name after
+// head is absent. The second capture moves the attempt unless the directory
+// is still the same file with the same mode, size, modification time and
+// change time. Because the change time was at least receiptsQuiescence
+// before the first stat, any name added, renamed or removed after it lands
+// in a strictly later change time even on whole-second stamps, so a rename
+// within one timestamp tick at an unchanged size is never committed over
+// (decision 0549). A directory that is not quiescent is listed exactly by
+// both captures, as AuditForWriter lists it: probed is false and the caller
+// takes the listing path. Names below the tail are not observed by a probe:
+// the next writer that lists exactly, or the scheduled refresh, classifies
+// them.
+func (r Reader) probeReceiptsDir(native *nativeRead, o *observation) (probed bool, err error) {
+	first := r.writerBefore
+	if first != nil && !first.receiptsProbed {
+		return false, nil
+	}
+	statAt := time.Now()
 	info, err := native.DirInfo("receipts")
 	if err != nil {
-		return err
+		return true, err
 	}
 	if info == nil || !info.IsDir() {
-		return wire.Errorf(wire.CodeMalformed, "receipts", "missing listed directory metadata")
+		return true, wire.Errorf(wire.CodeMalformed, "receipts", "missing listed directory metadata")
 	}
-	if first := r.writerBefore; first != nil && !sameDirStamp(first.files["receipts"], info) {
-		return moved("receipts")
+	if first != nil {
+		if !sameDirStamp(first.files["receipts"], info) {
+			return true, moved("receipts")
+		}
+	} else if !quiescentDir(info, statAt) {
+		return false, nil
 	}
 	o.files["receipts"] = info
 	o.receiptsProbed = true
-	return nil
+	return true, nil
 }
 
 // quiescentDir says the listed directory's modification time and change

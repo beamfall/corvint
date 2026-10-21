@@ -222,7 +222,7 @@ func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID 
 		proof, obs, err = reader.AuditForResume(resume.base, requestID)
 	case liveness:
 		// HEARTBEAT and RENEW probe the next receipt name instead of
-		// listing receipts/ (CAL-V0-224, decision 0547).
+		// listing receipts/ (CAL-V0-224, decision 0549).
 		proof, obs, err = reader.AuditForLiveness(wc, requestID)
 	default:
 		proof, obs, err = reader.AuditForWriter(wc, requestID, forMutation)

@@ -505,7 +505,7 @@ func (r Reader) AuditForWriter(wc *WriterCheckpoint, requestID string, forMutati
 }
 
 // AuditForLiveness is AuditForWriter (forMutation false) for a HEARTBEAT or
-// RENEW (CAL-V0-224, amended for V1-0887 by decision 0547): neither capture
+// RENEW (CAL-V0-224, amended for V1-0887 by decision 0549): neither capture
 // lists receipts/. Each stats the directory, the second requires its stamps
 // unchanged, and the walk probes that no receipt follows head, so the work
 // no longer grows with the number of receipts. A platform without a change
@@ -568,6 +568,14 @@ func (r Reader) walkPrefix(o *observation, lim limits) (*Result, error) {
 	}
 	if o.head == nil {
 		return result, errCheckpoint("head.json", "no settled head")
+	}
+	if o.stageErr != nil || o.staging || len(o.stageDigests) > 0 {
+		// A temporary or staged name is classified only by a complete audit
+		// of a held journal. The prefix walk runs only after the complete
+		// attempt moved, so it retains nothing: FullSeq does not advance and
+		// WriterFullBound still sends every writer, liveness writes included,
+		// to the complete route (decision 0549).
+		return result, moved("staging")
 	}
 	if o.head.QueueID != r.QueueID || o.head.PrimaryWorktree != r.PrimaryWorktree {
 		return result, wire.Errorf(wire.CodeJournalForked, "head.json", "selected queue/primary differs from head; relocation unsupported")
