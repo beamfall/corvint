@@ -34,10 +34,19 @@ var gateVerbs = map[string]bool{LeaseSubmit: true, LeaseGateRun: true, LeaseComp
 // keyed by digest; each must match its evidence/ file. ReuseSource is the
 // earlier PASSED result a reused GateRecord names, which must match its
 // evidence/ file; a reuse carries no GateOutput (CAL-V0-240).
+// ReuseDescends is the store's verdict on a reuse whose source is at another
+// tree: true only when a commit carrying the attempt's candidate tree is an
+// ancestor of a commit carrying the source's tree on the protected intent
+// branch, else ReuseDescent is the refusal detail. DescendantResults names
+// the attempt's reused results at another tree that complete may count,
+// rechecked the same way (TCD-V0-151, TCD-V0-152).
 type gateFacts struct {
 	ChangedPaths           []string
 	GateRecord, GateOutput []byte
 	ReuseSource            []byte
+	ReuseDescends          bool
+	ReuseDescent           string
+	DescendantResults      map[wire.Digest]bool
 	CommitTree             string
 	CommitReachable        bool
 	CommitUpstream         string
@@ -57,6 +66,22 @@ func GateFacts(changed []string, record, output []byte, commitTree string, reach
 func GateReuseFacts(record, source []byte, results map[wire.Digest][]byte) LeaseFacts {
 	f := GateFacts(nil, record, nil, "", false, results)
 	f.ReuseSource = source
+	return f
+}
+
+// GateDescendantReuseFacts is GateReuseFacts for a source at another tree,
+// with the store's ancestry verdict on it: descent is "" when it descends,
+// else the refusal detail (TCD-V0-151, TCD-V0-152).
+func GateDescendantReuseFacts(record, source []byte, descent string, results map[wire.Digest][]byte) LeaseFacts {
+	f := GateReuseFacts(record, source, results)
+	f.ReuseDescends, f.ReuseDescent = descent == "", descent
+	return f
+}
+
+// WithDescendantResults adds the attempt's reused results at another tree
+// whose ancestry the store verified to complete's facts (TCD-V0-151).
+func (f LeaseFacts) WithDescendantResults(ok map[wire.Digest]bool) LeaseFacts {
+	f.DescendantResults = ok
 	return f
 }
 
@@ -246,7 +271,18 @@ func planGateRun(c leaseContext) leaseOutcome {
 		}
 	}
 	if g.CandidateTreeOid != *a.CandidateTreeOid {
-		return c.refuse(mutation.OutcomeBlocked, wire.CodeStaleTree, "the gate ran at "+g.CandidateTreeOid+", not the candidate "+*a.CandidateTreeOid)
+		switch {
+		case g.ReusedFrom == nil:
+			return c.refuse(mutation.OutcomeBlocked, wire.CodeStaleTree, "the gate ran at "+g.CandidateTreeOid+", not the candidate "+*a.CandidateTreeOid)
+		case !f.ReuseDescends:
+			// TCD-V0-152: a source at another tree covers the candidate only
+			// on the protected branch and only as its descendant.
+			detail := f.ReuseDescent
+			if detail == "" {
+				detail = "the reused result ran at " + g.CandidateTreeOid + ", not the candidate " + *a.CandidateTreeOid + ", and its ancestry was not observed"
+			}
+			return c.refuse(mutation.OutcomeBlocked, wire.CodeStaleTree, detail)
+		}
 	}
 	if g.DefinitionSha256 != c.st.policy.GateDefinitionSha256(g.GateID) {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeGateStale, "gate "+g.GateID+" is not the current policy definition")
@@ -369,8 +405,9 @@ func (c leaseContext) gateVerdict(a *snapshot.Attempt, results map[string]*snaps
 		if g.GateID != gateID {
 			continue
 		}
+		elsewhere := g.CandidateTreeOid != *a.CandidateTreeOid && (g.ReusedFrom == nil || !c.in.LeaseFacts.DescendantResults[wire.Digest(d)])
 		switch {
-		case g.CandidateTreeOid != *a.CandidateTreeOid || g.DefinitionSha256 != c.st.policy.GateDefinitionSha256(gateID) || !bound(g, a):
+		case elsewhere || g.DefinitionSha256 != c.st.policy.GateDefinitionSha256(gateID) || !bound(g, a):
 			return "", wire.CodeGateStale, "gate " + gateID + " last ran at another tree, definition or binding"
 		case g.State != "PASSED":
 			return "", wire.CodeGateFailed, "gate " + gateID + " is " + g.State

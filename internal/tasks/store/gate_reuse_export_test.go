@@ -15,3 +15,9 @@ func GateReuseForTest(ctx context.Context, repo *intent.Repository, actor mutati
 	choice.gate = &gateRun{record: record, source: source}
 	return Lease(ctx, repo, actor, choice, now)
 }
+
+// SetDescentRootForTest points the receipt audit's ancestry reads for repo
+// at root, the test's separate checkout (TCD-V0-153).
+func SetDescentRootForTest(repo *intent.Repository, root string) {
+	descentRoots.Store(repo.StateDir, root)
+}
