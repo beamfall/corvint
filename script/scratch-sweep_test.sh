@@ -6,8 +6,10 @@ tool="$here/scratch-sweep.sh"
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/scratch-sweep-test.XXXXXX")
 tmp=$(cd "$tmp" && pwd -P)
 holder=
+holder2=
 cleanup() {
   [[ -n $holder ]] && kill "$holder" 2> /dev/null || true
+  [[ -n $holder2 ]] && kill "$holder2" 2> /dev/null || true
   /bin/rm -rf "$tmp"
 }
 trap cleanup EXIT INT TERM
@@ -37,14 +39,24 @@ mkdir -p "$root/nest/a" && q clone "$origin" "$root/nest/a/repo"
 q clone "$origin" "$root/clean"
 q clone "$origin" "$root/dirty" && echo changed > "$root/dirty/a.txt" && echo new > "$root/dirty/untracked.txt"
 q clone "$origin" "$root/unpushed" && echo two > "$root/unpushed/b.txt" && q -C "$root/unpushed" add b.txt && q -C "$root/unpushed" commit -m two
+# Deeper than the old 4-level search; a file named by a relative --keep; staged B over a worktree
+# back at HEAD's A; two stash entries; a process whose working directory (not argv) is inside.
+mkdir -p "$root/deep/a/b/c" && q clone "$origin" "$root/deep/a/b/c/repo"
+mkdir -p "$root/filekeep" && echo x > "$root/filekeep/f"
+q clone "$origin" "$root/staged" && echo staged-b > "$root/staged/a.txt" && q -C "$root/staged" add a.txt && echo one > "$root/staged/a.txt"
+q clone "$origin" "$root/stashes"
+for n in 1 2; do echo "s$n" > "$root/stashes/a.txt" && q -C "$root/stashes" stash; done
+mkdir -p "$root/cwdbusy" && echo x > "$root/cwdbusy/f"
 q -C "$seed" worktree add -b lane "$root/linked"
 q -C "$seed" worktree add -b gone "$tmp/gone-wt" && /bin/rm -rf "$tmp/gone-wt"
-for d in plain-old kept busy nest clean dirty unpushed linked; do age "$root/$d"; done
+for d in plain-old kept busy nest clean dirty unpushed linked deep filekeep staged stashes cwdbusy; do age "$root/$d"; done
 sh -c 'sleep 60; :' "$root/busy/f" &
 holder=$!
+(cd "$root/cwdbusy" && exec sleep 60) &
+holder2=$!
 
 # 1. Dry run: plans everything, changes nothing.
-"$tool" --root "$root" --repo "$seed" --keep "$root/kept" > "$tmp/dry" 2>&1 || fail "dry run exited $?"
+(cd "$root" && "$tool" --root "$root" --repo "$seed" --keep "$root/kept" --keep filekeep/f) > "$tmp/dry" 2>&1 || fail "dry run exited $?"
 expect "WOULD-REMOVE $root/plain-old" "$tmp/dry"
 expect "KEEP recent $root/plain-new" "$tmp/dry"
 expect "KEEP keep-list $root/kept" "$tmp/dry"
@@ -55,7 +67,12 @@ expect "KEEP needs-archive $root/dirty" "$tmp/dry"
 expect "KEEP needs-archive $root/unpushed" "$tmp/dry"
 expect "WOULD-REMOVE $root/linked" "$tmp/dry"
 expect "WOULD-PRUNE $seed" "$tmp/dry"
-expect "SUMMARY entries=9 keep=6 remove=3 archive=0 prune=1 applied=no" "$tmp/dry"
+expect "KEEP contains-checkout $root/deep" "$tmp/dry"
+expect "KEEP keep-list $root/filekeep" "$tmp/dry"
+expect "KEEP needs-archive $root/staged" "$tmp/dry"
+expect "KEEP multiple-stashes $root/stashes" "$tmp/dry"
+expect "KEEP in-use $root/cwdbusy" "$tmp/dry"
+expect "SUMMARY entries=14 keep=11 remove=3 archive=0 prune=1 applied=no" "$tmp/dry"
 [[ -d $root/plain-old && -d $root/clean && -d $root/linked && -f $root/dirty/untracked.txt ]] || fail "dry run removed something"
 [[ $(git -C "$seed" worktree list | wc -l | tr -d ' ') == 3 ]] || fail "dry run pruned a registration"
 
@@ -63,10 +80,10 @@ expect "SUMMARY entries=9 keep=6 remove=3 archive=0 prune=1 applied=no" "$tmp/dr
 "$tool" --root "$root" --archive "$tmp/archive" > "$tmp/dry2" 2>&1
 expect "WOULD-ARCHIVE-REMOVE $root/dirty" "$tmp/dry2"
 expect "WOULD-ARCHIVE-REMOVE $root/unpushed" "$tmp/dry2"
-[[ -z $(/bin/ls -A "$tmp/archive") ]] || fail "dry run wrote an archive"
+[[ ! -e $tmp/archive ]] || fail "dry run created the archive directory"
 
 # 3. --apply archives, removes and prunes.
-"$tool" --root "$root" --repo "$seed" --keep "$root/kept" --archive "$tmp/archive" --apply > "$tmp/apply" 2>&1 || fail "apply exited $?"
+(cd "$root" && "$tool" --root "$root" --repo "$seed" --keep "$root/kept" --keep filekeep/f --archive "$tmp/archive" --apply) > "$tmp/apply" 2>&1 || fail "apply exited $?"
 expect "REMOVED $root/plain-old" "$tmp/apply"
 expect "REMOVED $root/clean" "$tmp/apply"
 expect "REMOVED $root/linked" "$tmp/apply"
@@ -74,11 +91,15 @@ expect "ARCHIVED $root/dirty $tmp/archive/dirty-" "$tmp/apply"
 expect "ARCHIVED $root/unpushed $tmp/archive/unpushed-" "$tmp/apply"
 expect "PRUNED $seed" "$tmp/apply"
 expect "applied=yes" "$tmp/apply"
-for d in plain-old clean linked dirty unpushed; do [[ ! -e $root/$d ]] || fail "$d survived --apply"; done
-for d in plain-new kept busy nest; do [[ -d $root/$d ]] || fail "$d removed"; done
+expect "ARCHIVED $root/staged $tmp/archive/staged-" "$tmp/apply"
+for d in plain-old clean linked dirty unpushed staged; do [[ ! -e $root/$d ]] || fail "$d survived --apply"; done
+for d in plain-new kept busy nest deep filekeep stashes cwdbusy; do [[ -d $root/$d ]] || fail "$d removed"; done
+st=$(echo "$tmp"/archive/staged-*)
+grep -q '^+staged-b' "$st/staged.patch" || fail "staged change not archived"
+grep -q '^-staged-b' "$st/worktree.patch" || fail "worktree change not archived"
 [[ $(git -C "$seed" worktree list | wc -l | tr -d ' ') == 1 ]] || fail "registrations not pruned"
 a=$(echo "$tmp"/archive/dirty-*)
-grep -q 'changed' "$a/changes.patch" || fail "dirty patch missing"
+grep -q 'changed' "$a/worktree.patch" || fail "dirty patch missing"
 tar -tzf "$a/untracked.tgz" | grep -qx 'untracked.txt' || fail "untracked file not archived"
 grep -q '^ M a.txt' "$a/status.txt" || fail "status not archived"
 u=$(echo "$tmp"/archive/unpushed-*)
@@ -87,7 +108,27 @@ git -C "$seed" bundle verify "$u/repo.bundle" > /dev/null 2>&1 || fail "bundle d
 q -C "$seed" fetch "$u/repo.bundle" 'refs/heads/*:refs/restored/*' || fail "bundle fetch failed"
 [[ $(git -C "$seed" show refs/restored/main:b.txt) == two ]] || fail "unpushed commit not recoverable"
 
-# 4. Refusals.
+# 4. An --archive destination inside a candidate keeps that candidate, dry run and --apply.
+root2="$tmp/root2"
+mkdir -p "$root2" && q clone "$origin" "$root2/dirty2" && echo changed > "$root2/dirty2/a.txt" && age "$root2/dirty2"
+"$tool" --root "$root2" --archive "$root2/dirty2/.git/archive" > "$tmp/inside" 2>&1
+expect "KEEP archive-dest $root2/dirty2" "$tmp/inside"
+"$tool" --root "$root2" --archive "$root2/dirty2/.git/archive" --apply > "$tmp/inside2" 2>&1
+expect "KEEP archive-dest $root2/dirty2" "$tmp/inside2"
+[[ -f $root2/dirty2/a.txt ]] || fail "candidate holding the archive was removed"
+
+# 5. A failing archive step (git ls-files) keeps the checkout.
+mkdir -p "$tmp/shim"
+real_git=$(command -v git)
+printf '#!/bin/sh\ncase " $* " in *" ls-files "*) exit 1 ;; esac\nexec "%s" "$@"\n' "$real_git" > "$tmp/shim/git"
+chmod +x "$tmp/shim/git"
+root3="$tmp/root3"
+mkdir -p "$root3" && q clone "$origin" "$root3/dirty3" && echo changed > "$root3/dirty3/a.txt" && age "$root3/dirty3"
+PATH="$tmp/shim:$PATH" "$tool" --root "$root3" --archive "$tmp/archive3" --apply > "$tmp/lsfail" 2>&1
+expect "ARCHIVE-FAILED $root3/dirty3" "$tmp/lsfail"
+[[ -f $root3/dirty3/a.txt ]] || fail "checkout removed after a failed archive step"
+
+# 6. Refusals.
 set +e
 "$tool" > /dev/null 2>&1; rc1=$?
 "$tool" --root / > /dev/null 2>&1; rc2=$?
