@@ -231,6 +231,13 @@ func DecodeRequest(raw []byte) (*Request, error) {
 	if err != nil {
 		return nil, err
 	}
+	return RequestFromValue(v)
+}
+
+// RequestFromValue validates an already parsed request-index entry: the
+// DecodeRequest checks after its size bound and parse, so a journal walk
+// that has parsed the afterimage once does not parse it again (V1-1701).
+func RequestFromValue(v wire.Value) (*Request, error) {
 	r := wire.NewReader(v, "/")
 	r.Closed("requestId", "seq", "mutationSha256", "outcome")
 	req := &Request{}

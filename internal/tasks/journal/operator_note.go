@@ -45,6 +45,8 @@ type notePost struct {
 	index int
 	prior latest
 	raw   []byte
+	// rec is raw as validateRecord decoded it, when it did (V1-1701).
+	rec *ticket.Record
 }
 
 func (r Reader) noteAudit(st *chain, rc *snapshot.Receipt) *noteAudit {
@@ -73,6 +75,18 @@ func (n *noteAudit) observe(j int, p snapshot.PostEntry, prior latest, raw []byt
 	case strings.HasPrefix(p.Path, "requests/"):
 	default:
 		n.others++
+	}
+}
+
+// decoded records validateRecord's decoding of post j's ticket bytes.
+func (n *noteAudit) decoded(j int, rec *ticket.Record) {
+	if rec == nil {
+		return
+	}
+	for i := range n.tickets {
+		if n.tickets[i].index == j {
+			n.tickets[i].rec = rec
+		}
 	}
 }
 
@@ -106,7 +120,10 @@ func (n *noteAudit) bind(req *snapshot.Request, target *ticket.Record) error {
 		if t.raw == nil {
 			continue
 		}
-		rec := target
+		rec := t.rec
+		if rec == nil {
+			rec = target
+		}
 		if rec == nil || t.path != "intent/tickets/"+rec.TicketID.Local+".json" {
 			decoded, err := ticket.Decode(t.raw)
 			if err != nil {
