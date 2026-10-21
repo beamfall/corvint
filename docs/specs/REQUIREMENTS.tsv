@@ -2147,6 +2147,7 @@ DCP-V1-041	docs/specs/documentation-corpus-v1.md	A companion switch-over harness
 DCP-V1-042	docs/specs/documentation-corpus-v1.md	The separately started experimental hosted companion serves only embedded digest	unrecorded	-
 DCP-V1-043	docs/specs/documentation-corpus-v1.md	The `corvint-corpus-parity` companion is qualified through its own command bound	unrecorded	-
 DCP-V1-044	docs/specs/documentation-corpus-v1.md	`corvint docs corpus behavior-adapter --input REQUEST.json [--previous RESULT.js	unrecorded	-
+DCP-V1-240	docs/specs/documentation-corpus-v1.md	A behavior-adapter build retains at most 4096 reconciliation frontier diagnostic	unrecorded	-
 DCP-V1-045	docs/specs/documentation-corpus-v1.md	The behavior-adapter guide (`docs/DOCUMENTATION-CORPUS.md`) states the input-anc	unrecorded	-
 DCP-V1-046	docs/specs/documentation-corpus-v1.md	`corvint docs corpus discover-playwright --migration MIGRATION.json --config PAT	unrecorded	-
 DCP-V1-047	docs/specs/documentation-corpus-v1.md	An execution's identity is `playwright:` plus Playwright's own per-project test	unrecorded	-
