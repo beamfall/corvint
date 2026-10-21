@@ -119,7 +119,7 @@ AHI-028	docs/specs/agent-harness-integration-v0.md	`post-compact` MUST re-read t
 AHI-029	docs/specs/agent-harness-integration-v0.md	Neither compaction event writes repository, index, trace, or store state; the on	unrecorded	-
 AHI-030	docs/specs/agent-harness-integration-v0.md	Every compact `SessionStart` context MUST begin with a fixed trusted disclosure	unrecorded	-
 AHI-057	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1974) Amendmen	standing	2026-10-11; V1-1974
-AHI-053	docs/specs/agent-harness-integration-v0.md	accepted, decision 0517 (V1-1128). Amendment to `AHI-031`	unrecorded	-
+AHI-053	docs/specs/agent-harness-integration-v0.md	(accepted, decision 0517 (V1-1128)) Amendment to `AHI-031`	owner	decision 0517; V1-1128
 AHI-031	docs/specs/agent-harness-integration-v0.md	(accepted 2026-09-25, decision 0400; panel blocker B8) When no index snapshot	owner	2026-09-25; decision 0400
 AHI-055	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1280) A Claude	standing	2026-10-11; V1-1280
 AHI-032	docs/specs/agent-harness-integration-v0.md	At the owner’s request (2026-09-28), stock OpenCode native integration qualifica	unrecorded	-
@@ -282,7 +282,7 @@ AFU-V1-030	docs/specs/application-flow-understanding-v1.md	`corvint flows docs` 
 AFU-V1-031	docs/specs/application-flow-understanding-v1.md	A claim is `PROVEN` only when its variation is verified at the evaluated revisio	unrecorded	-
 AFU-V1-032	docs/specs/application-flow-understanding-v1.md	`corvint flows docs --check` MUST fail when a committed claim that was `PROVEN`	unrecorded	-
 AFU-V1-033	docs/specs/application-flow-understanding-v1.md	Hand-written Markdown under the declared docs root MAY opt in with a claim ancho	unrecorded	-
-AFU-V1-059	docs/specs/application-flow-understanding-v1.md	accepted, decision 0512. Impact graph construction MUST	unrecorded	-
+AFU-V1-059	docs/specs/application-flow-understanding-v1.md	(accepted, decision 0512) Impact graph construction MUST	owner	decision 0512
 AFU-V1-034	docs/specs/application-flow-understanding-v1.md	`corvint-mcp --tool-profile flows` MUST advertise read-only `corvint.flows.map`,	unrecorded	-
 AFU-V1-035	docs/specs/application-flow-understanding-v1.md	Repository-authored text in any flows response is returned inside the untrusted-	unrecorded	-
 AFU-V1-036	docs/specs/application-flow-understanding-v1.md	Every write MUST resolve under the repository root without following a symlink.	unrecorded	-
@@ -502,7 +502,7 @@ BBF-V0-010	docs/specs/browser-behavior-falsification-v0.md	Plans are bounded by 
 BBF-V0-011	docs/specs/browser-behavior-falsification-v0.md	Synthetic conformance covers a tautological assertion, hidden duplicate element,	unrecorded	-
 BBF-V0-012	docs/specs/browser-behavior-falsification-v0.md	Receipts are observations, not authenticated caller honesty, browser-behavior	unrecorded	-
 BBF-V0-013	docs/specs/browser-behavior-falsification-v0.md	The opt-in `execute-receipt` operation emits `corvint-browser-behavior-evidence/	unrecorded	-
-BBF-V0-014	docs/specs/browser-behavior-falsification-v0.md	accepted, decision 0507. In a sanitized acceptance	unrecorded	-
+BBF-V0-014	docs/specs/browser-behavior-falsification-v0.md	(accepted, decision 0507) In a sanitized acceptance	owner	decision 0507
 BBF-V0-015	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1366) A	standing	2026-10-11; V1-1366
 BBF-V0-016	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1366) The	standing	2026-10-11; V1-1366
 BBF-V0-017	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1366) An	standing	2026-10-11; V1-1366
@@ -1297,27 +1297,27 @@ CAL-V0-116	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 043
 CAL-V0-117	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439) Counts, advance and scheduled refresh.	owner	decision 0439
 CAL-V0-118	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439) Writer cost measurement. The opt-in profile	owner	decision 0439
 CAL-V0-119	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439) Read checkpoint from a writer audit.	owner	decision 0439
-CAL-V0-122	docs/specs/corvint-tasks-agent-leases-v0.md	Accepted by decision 0439 (V1-0888; GitHub #643). The issue 482 projection MUST,	unrecorded	-
-CAL-V0-123	docs/specs/corvint-tasks-agent-leases-v0.md	Accepted by decision 0439 (V1-0882; GitHub #643). A change limited to the option	unrecorded	-
-CAL-V0-124	docs/specs/corvint-tasks-agent-leases-v0.md	Accepted by decision 0439 (V1-0888; GitHub #643). A COMPLETED `policy update` MU	unrecorded	-
-CAL-V0-125	docs/specs/corvint-tasks-agent-leases-v0.md	accepted by decision 0439 (V1-0891; GitHub #646). The Linux pressure sample MUST	unrecorded	-
-CAL-V0-126	docs/specs/corvint-tasks-agent-leases-v0.md	accepted by decision 0439 (V1-0891; GitHub #646). The `pressure` object MAY carr	unrecorded	-
-CAL-V0-127	docs/specs/corvint-tasks-agent-leases-v0.md	accepted by decision 0439 (V1-0890; GitHub #645). A running `dispatch` MUST re-r	unrecorded	-
-CAL-V0-128	docs/specs/corvint-tasks-agent-leases-v0.md	accepted by decision 0439 (V1-0890; GitHub #645). A role `cap` MAY be 0. A role	unrecorded	-
-CAL-V0-129	docs/specs/corvint-tasks-agent-leases-v0.md	accepted by decision 0439 (V1-0890; GitHub #645). A lane MAY carry `minAgeSecond	unrecorded	-
-CAL-V0-130	docs/specs/corvint-tasks-agent-leases-v0.md	accepted by decision 0439 (V1-0889; GitHub #644). Replacing build N with build N	unrecorded	-
-CAL-V0-131	docs/specs/corvint-tasks-agent-leases-v0.md	accepted by decision 0439 (V1-0889; GitHub #644). `version` MUST report `formats	unrecorded	-
-CAL-V0-132	docs/specs/corvint-tasks-agent-leases-v0.md	accepted by decision 0439 (V1-0889; GitHub #644). A dispatcher ledger whose prof	unrecorded	-
-CAL-V0-133	docs/specs/corvint-tasks-agent-leases-v0.md	accepted by decision 0439 (V1-0889; GitHub #644). Build N processes that outlive	unrecorded	-
-CAL-V0-134	docs/specs/corvint-tasks-agent-leases-v0.md	accepted by decision 0439 (V1-0889; GitHub #644). Supervised Codex, Claude Code	unrecorded	-
-CAL-V0-135	docs/specs/corvint-tasks-agent-leases-v0.md	accepted by decision 0439 (V1-0893; GitHub #641). A whole-history receipt bindin	unrecorded	-
-CAL-V0-136	docs/specs/corvint-tasks-agent-leases-v0.md	accepted by decision 0439 (V1-0894; GitHub #641). On Darwin arm64 and amd64 the	unrecorded	-
-CAL-V0-137	docs/specs/corvint-tasks-agent-leases-v0.md	accepted by decision 0439 (V1-0894; GitHub #641). The supervisor's host exit cap	unrecorded	-
-CAL-V0-138	docs/specs/corvint-tasks-agent-leases-v0.md	accepted by decision 0439 (V1-0894; GitHub #641). A long-running dispatcher (`di	unrecorded	-
-CAL-V0-139	docs/specs/corvint-tasks-agent-leases-v0.md	accepted by decision 0439 (V1-0894; GitHub #641). A long-running dispatcher whos	unrecorded	-
-CAL-V0-140	docs/specs/corvint-tasks-agent-leases-v0.md	accepted by decision 0439 (V1-0893; GitHub #641). Within one snapshot-pinned rea	unrecorded	-
-CAL-V0-141	docs/specs/corvint-tasks-agent-leases-v0.md	accepted by decision 0439 (V1-0893; GitHub #641). The full `plan preview` result	unrecorded	-
-CAL-V0-142	docs/specs/corvint-tasks-agent-leases-v0.md	accepted by decision 0439 (V1-0894; GitHub #641). `service run` MUST build its d	unrecorded	-
+CAL-V0-122	docs/specs/corvint-tasks-agent-leases-v0.md	(Accepted by decision 0439 (V1-0888; GitHub #643)) The issue 482 projection MUST	owner	decision 0439; V1-0888; #643
+CAL-V0-123	docs/specs/corvint-tasks-agent-leases-v0.md	(Accepted by decision 0439 (V1-0882; GitHub #643)) A change limited to the optio	owner	decision 0439; V1-0882; #643
+CAL-V0-124	docs/specs/corvint-tasks-agent-leases-v0.md	(Accepted by decision 0439 (V1-0888; GitHub #643)) A COMPLETED `policy update` M	owner	decision 0439; V1-0888; #643
+CAL-V0-125	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439 (V1-0891; GitHub #646)) The Linux pressure sample MUS	owner	decision 0439; V1-0891; #646
+CAL-V0-126	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439 (V1-0891; GitHub #646)) The `pressure` object MAY car	owner	decision 0439; V1-0891; #646
+CAL-V0-127	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439 (V1-0890; GitHub #645)) A running `dispatch` MUST re-	owner	decision 0439; V1-0890; #645
+CAL-V0-128	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439 (V1-0890; GitHub #645)) A role `cap` MAY be 0. A role	owner	decision 0439; V1-0890; #645
+CAL-V0-129	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439 (V1-0890; GitHub #645)) A lane MAY carry `minAgeSecon	owner	decision 0439; V1-0890; #645
+CAL-V0-130	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439 (V1-0889; GitHub #644)) Replacing build N with build	owner	decision 0439; V1-0889; #644
+CAL-V0-131	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439 (V1-0889; GitHub #644)) `version` MUST report `format	owner	decision 0439; V1-0889; #644
+CAL-V0-132	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439 (V1-0889; GitHub #644)) A dispatcher ledger whose pro	owner	decision 0439; V1-0889; #644
+CAL-V0-133	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439 (V1-0889; GitHub #644)) Build N processes that outliv	owner	decision 0439; V1-0889; #644
+CAL-V0-134	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439 (V1-0889; GitHub #644)) Supervised Codex, Claude Code	owner	decision 0439; V1-0889; #644
+CAL-V0-135	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439 (V1-0893; GitHub #641)) A whole-history receipt bindi	owner	decision 0439; V1-0893; #641
+CAL-V0-136	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439 (V1-0894; GitHub #641)) On Darwin arm64 and amd64 the	owner	decision 0439; V1-0894; #641
+CAL-V0-137	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439 (V1-0894; GitHub #641)) The supervisor's host exit ca	owner	decision 0439; V1-0894; #641
+CAL-V0-138	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439 (V1-0894; GitHub #641)) A long-running dispatcher (`d	owner	decision 0439; V1-0894; #641
+CAL-V0-139	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439 (V1-0894; GitHub #641)) A long-running dispatcher who	owner	decision 0439; V1-0894; #641
+CAL-V0-140	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439 (V1-0893; GitHub #641)) Within one snapshot-pinned re	owner	decision 0439; V1-0893; #641
+CAL-V0-141	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439 (V1-0893; GitHub #641)) The full `plan preview` resul	owner	decision 0439; V1-0893; #641
+CAL-V0-142	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439 (V1-0894; GitHub #641)) `service run` MUST build its	owner	decision 0439; V1-0894; #641
 CAL-V0-143	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0440; V1-0930) On every supervising tick, right after it c	owner	decision 0440; V1-0930
 CAL-V0-144	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0440; V1-0930) When a tick finishes at least one worker, a	owner	decision 0440; V1-0930
 CAL-V0-155	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0441; V1-0937) A role MAY declare `budget` and the	owner	decision 0441; V1-0937
@@ -1459,15 +1459,15 @@ ATR-V0-013	docs/specs/corvint-tasks-attempt-runner-v0.md	A detached run MUST sta
 ATR-V0-014	docs/specs/corvint-tasks-attempt-runner-v0.md	A platform without new-session support (any other than Darwin and Linux) MUST re	unrecorded	-
 ATR-V0-015	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted by decision 0440; V1-0931) After a detached supervisor has written	owner	decision 0440; V1-0931
 ATR-V0-020	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1547)	standing	2026-10-11; V1-1547
-ATR-V0-021	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted, V1-1547) A repeated `--detach` with the same command, request id and	unrecorded	-
-ATR-V0-022	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted, V1-1547) The child MUST keep the lease command's complete result	unrecorded	-
-ATR-V0-023	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted, V1-1547) The child MUST be bounded by a 600-second ceiling: the lease	unrecorded	-
-ATR-V0-024	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted, V1-1547) `--wait SECONDS` MUST return within its bound plus the recor	unrecorded	-
-ATR-V0-025	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted, V1-1547) A finished record (one with `result.json`) older than 7 days	unrecorded	-
-ATR-V0-026	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted, V1-1547) Without `--detach`, `--attach` or `--wait` the `claim` and	unrecorded	-
+ATR-V0-021	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1547) A repeat	standing	2026-10-11; V1-1547
+ATR-V0-022	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1547) The chil	standing	2026-10-11; V1-1547
+ATR-V0-023	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1547) The chil	standing	2026-10-11; V1-1547
+ATR-V0-024	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1547) `--wait	standing	2026-10-11; V1-1547
+ATR-V0-025	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1547) A finish	standing	2026-10-11; V1-1547
+ATR-V0-026	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1547) Without	standing	2026-10-11; V1-1547
 ATR-V0-027	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1547 review	standing	2026-10-11; V1-1547
-ATR-V0-028	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted, V1-1547 review repair) `child.log` MUST be bounded: each launch moves	unrecorded	-
-ATR-V0-029	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted, V1-1547 review repair) Retention (ATR-V0-025) MUST page through the	unrecorded	-
+ATR-V0-028	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1547 review re	standing	2026-10-11; V1-1547
+ATR-V0-029	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1547 review re	standing	2026-10-11; V1-1547
 ATR-V0-030	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) A role M	standing	2026-10-11; V1-1549
 ATR-V0-031	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) A worker	standing	2026-10-11; V1-1549
 ATR-V0-032	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) `dispatc	standing	2026-10-11; V1-1549
@@ -2042,7 +2042,7 @@ DCW-V0-034	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, decision 0
 DCW-V0-035	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, decision 0510) The coordinator	owner	decision 0510
 DCW-V0-036	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, decision 0510) Trace recording, changed-path admission and	owner	decision 0510
 DCW-V0-037	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, decision 0510) `docs/DOGFOOD.md`	owner	decision 0510
-DCW-V0-038	docs/specs/daily-change-evidence-workflow-v0.md	accepted, decision 0510. Every build in Corvint's	unrecorded	-
+DCW-V0-038	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, decision 0510) Every build in Corvint's	owner	decision 0510
 DCW-V0-039	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, decision 0519 (V1-1151)) `corvint dogfood	owner	decision 0519; V1-1151
 DCW-V0-040	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, decision 0519 (V1-1151)) When `dogfood change`	owner	decision 0519; V1-1151
 DCW-V0-041	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, decision 0519 (V1-1171)) A citation plan row MAY	owner	decision 0519; V1-1171
@@ -2081,14 +2081,14 @@ DCW-V0-075	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the o
 DCW-V0-090	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1734) When	standing	2026-10-11; V1-1734
 DCW-V0-091	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1658) Untracke	standing	2026-10-11; V1-1658
 DCW-V0-092	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1657)	standing	2026-10-11; V1-1657
-DCW-V0-110	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1463) When `batch-check`	owner	2026-10-11; V1-1463
-DCW-V0-111	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1927) When a constituent's	owner	2026-10-11; V1-1927
+DCW-V0-110	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1463) When `ba	standing	2026-10-11; V1-1463
+DCW-V0-111	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1927) When a c	standing	2026-10-11; V1-1927
 DCW-V0-115	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1664, V1-1616)	standing	2026-10-11; V1-1664; V1-1616
 DCW-V0-116	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1664, V1-1488)	standing	2026-10-11; V1-1664; V1-1488
-DCW-V0-332	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1929) After a	owner	2026-10-11; V1-1929
-DCW-V0-112	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1760) A passing `dogfood ch	owner	2026-10-11; V1-1760
-DCW-V0-113	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-2266) A lane stacked on a	owner	2026-10-11; V1-2266
-DCW-V0-114	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1724) When `cem cite` refus	owner	2026-10-11; V1-1724
+DCW-V0-332	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1929) After a	standing	2026-10-11; V1-1929
+DCW-V0-112	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1760) A passin	standing	2026-10-11; V1-1760
+DCW-V0-113	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2266) A lane s	standing	2026-10-11; V1-2266
+DCW-V0-114	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1724) When `ce	standing	2026-10-11; V1-1724
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
 DNG-V0-002	docs/specs/decision-number-gate-v0.md	When no file in `docs/decisions/` matches that pattern, the gate MUST exit 0	unrecorded	-
 DNG-V0-003	docs/specs/decision-number-gate-v0.md	The gate MUST derive each matched file's decision number as the first four	unrecorded	-
@@ -2208,7 +2208,7 @@ DCI-V0-005	docs/specs/documentation-ci-v0.md	Admission MUST require an approved 
 DCI-V0-006	docs/specs/documentation-ci-v0.md	CI MUST build the classifier from a separate checkout at the captured event base	unrecorded	-
 DCI-V0-007	docs/specs/documentation-ci-v0.md	Only the root Go race invocation may be omitted. Documentation gates, shard-0	unrecorded	-
 DCI-V0-008	docs/specs/documentation-ci-v0.md	Qualification MUST retain source-bound consumer review and actual adversarial	unrecorded	-
-DCG-V0-001	docs/specs/documentation-citation-gate-v0.md	accepted, decision 0506. The gate MUST check every backticked citation in `docs/	unrecorded	-
+DCG-V0-001	docs/specs/documentation-citation-gate-v0.md	(accepted, decision 0506) The gate MUST check every backticked citation in `docs	owner	decision 0506
 DCG-V0-002	docs/specs/documentation-citation-gate-v0.md	For every checked citation the gate MUST fail when the named file is not tracked	unrecorded	-
 DCG-V0-003	docs/specs/documentation-citation-gate-v0.md	The gate MUST additionally fail when a cited line is blank or contains only	unrecorded	-
 DCG-V0-004	docs/specs/documentation-citation-gate-v0.md	A bare continuation MUST resolve only to an anchor its own paragraph states: the	unrecorded	-
@@ -2232,7 +2232,7 @@ DCG-V0-021	docs/specs/documentation-citation-gate-v0.md	When a file the gate rea
 DCG-V0-040	docs/specs/documentation-citation-gate-v0.md	When a pinned citation's lines no longer hash to its pin, or fall outside the	unrecorded	-
 DCG-V0-042	docs/specs/documentation-citation-gate-v0.md	`scanned_doc()` MUST scan `docs/AUTOMATION.md` and `docs/GLOSSARY.md` as	unrecorded	-
 DCG-V0-041	docs/specs/documentation-citation-gate-v0.md	`script/line-citation-unpinned-inventory.txt`, read from the index, MUST list on	unrecorded	-
-DCG-V0-043	docs/specs/documentation-citation-gate-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-2152). Every	unrecorded	-
+DCG-V0-043	docs/specs/documentation-citation-gate-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-2152)) Every	standing	2026-10-11; V1-2152
 DCP-V1-001	docs/specs/documentation-corpus-v1.md	The explicit manifest, normalized provider and artifact use closed versioned JSO	unrecorded	-
 DCP-V1-002	docs/specs/documentation-corpus-v1.md	Provenance carries builder identity/revision, shared native compiler/schema/tool	unrecorded	-
 DCP-V1-003	docs/specs/documentation-corpus-v1.md	Each literal source/provider scope has a complete immutable Git inventory checke	unrecorded	-
@@ -2448,7 +2448,7 @@ ESV-V0-008	docs/specs/experimental-source-views-v0.md	`context --summary` prints
 ESV-V0-009	docs/specs/experimental-source-views-v0.md	`context --expand HANDLE` returns only the handle's line range, read from Git	unrecorded	-
 ESV-V0-010	docs/specs/experimental-source-views-v0.md	The summary and expansion views stay experimental until the matched complete-tas	unrecorded	-
 ESV-V0-011	docs/specs/experimental-source-views-v0.md	A failed `git cat-file` read of the selected blob refuses as `git-failed` in bot	unrecorded	-
-ESV-V0-012	docs/specs/experimental-source-views-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-0426). Before	unrecorded	-
+ESV-V0-012	docs/specs/experimental-source-views-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-0426)) Before	standing	2026-10-11; V1-0426
 EAF-V0-001	docs/specs/expert-audit-followup-v0.md	Current Go/Python secret screening MUST reject ordinary double-quoted credential	unrecorded	-
 EAF-V0-002	docs/specs/expert-audit-followup-v0.md	Go mutation baseline, mutant and isolated grouped-fallback runs MUST use matchin	unrecorded	-
 EAF-V0-003	docs/specs/expert-audit-followup-v0.md	Checkpoint output MUST preserve the caller's obligations array exactly and label	unrecorded	-
@@ -2987,18 +2987,18 @@ IDX-SNAP-V0-027	docs/specs/index-snapshot-v0.md	(accepted by decision 0440; V1-0
 IDX-SNAP-V0-028	docs/specs/index-snapshot-v0.md	(proposed (V1-0983)) each pack or sectioned mapping MUST carry an explicit	unrecorded	-
 IDX-SNAP-V0-029	docs/specs/index-snapshot-v0.md	(proposed (V1-0983)) every string a pack read hands out (Source `Path`,	unrecorded	-
 IDX-SNAP-V0-030	docs/specs/index-snapshot-v0.md	(proposed (V1-0983)) a process that reads and releases more distinct pack or	unrecorded	-
-IDX-SNAP-V0-031	docs/specs/index-snapshot-v0.md	accepted, decision 0517. On the existing stale-snapshot	unrecorded	-
-IDX-SNAP-V0-032	docs/specs/index-snapshot-v0.md	accepted, decision 0517. A nonblocking flock on one	unrecorded	-
-IDX-SNAP-V0-033	docs/specs/index-snapshot-v0.md	accepted, decision 0517. The child owns a new session,	unrecorded	-
-IDX-SNAP-V0-034	docs/specs/index-snapshot-v0.md	accepted, decision 0517. Publication, disk bounds and	unrecorded	-
-IDX-SNAP-V0-035	docs/specs/index-snapshot-v0.md	accepted, decision 0517. `CORVINT_INDEX_AUTO_REFRESH=0`	unrecorded	-
-IDX-SNAP-V0-036	docs/specs/index-snapshot-v0.md	accepted, decision 0517. Acceptance requires a real	unrecorded	-
-IDX-SNAP-V0-060	docs/specs/index-snapshot-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-2130). The	unrecorded	-
-IDX-SNAP-V0-061	docs/specs/index-snapshot-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-1732).	unrecorded	-
-IDX-SNAP-V0-102	docs/specs/index-snapshot-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-1640). When	unrecorded	-
-IDX-SNAP-V0-103	docs/specs/index-snapshot-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-1640). The	unrecorded	-
-IDX-SNAP-V0-104	docs/specs/index-snapshot-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-1640). The	unrecorded	-
-IDX-SNAP-V0-105	docs/specs/index-snapshot-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-2237). On a	unrecorded	-
+IDX-SNAP-V0-031	docs/specs/index-snapshot-v0.md	(accepted, decision 0517) On the existing stale-snapshot	owner	decision 0517
+IDX-SNAP-V0-032	docs/specs/index-snapshot-v0.md	(accepted, decision 0517) A nonblocking flock on one	owner	decision 0517
+IDX-SNAP-V0-033	docs/specs/index-snapshot-v0.md	(accepted, decision 0517) The child owns a new session,	owner	decision 0517
+IDX-SNAP-V0-034	docs/specs/index-snapshot-v0.md	(accepted, decision 0517) Publication, disk bounds and	owner	decision 0517
+IDX-SNAP-V0-035	docs/specs/index-snapshot-v0.md	(accepted, decision 0517) `CORVINT_INDEX_AUTO_REFRESH=0`	owner	decision 0517
+IDX-SNAP-V0-036	docs/specs/index-snapshot-v0.md	(accepted, decision 0517) Acceptance requires a real	owner	decision 0517
+IDX-SNAP-V0-060	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-2130)) The	standing	2026-10-11; V1-2130
+IDX-SNAP-V0-061	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1732))	standing	2026-10-11; V1-1732
+IDX-SNAP-V0-102	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1640)) When	standing	2026-10-11; V1-1640
+IDX-SNAP-V0-103	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1640)) The	standing	2026-10-11; V1-1640
+IDX-SNAP-V0-104	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1640)) The	standing	2026-10-11; V1-1640
+IDX-SNAP-V0-105	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-2237)) On a	standing	2026-10-11; V1-2237
 JAT-V0-001	docs/specs/java-affected-test-v0.md	A plugin with namespace `java` MUST own exactly the names ending `.java`. Build	unrecorded	-
 JAT-V0-002	docs/specs/java-affected-test-v0.md	One unit MUST be one file, identity `java:<path>`. A file is a test, with `Tests	unrecorded	-
 JAT-V0-003	docs/specs/java-affected-test-v0.md	Imports MUST include the declaring file of each type named by: a single-type imp	unrecorded	-
@@ -3250,11 +3250,11 @@ LCP-V0-016	docs/specs/local-completion-policy-v0.md	(accepted by decision 0439; 
 LCP-V0-017	docs/specs/local-completion-policy-v0.md	(accepted, decision 0465; V1-1012) The top-level `ok` of a `corvint-local-comple	owner	decision 0465; V1-1012
 LCP-V0-018	docs/specs/local-completion-policy-v0.md	(accepted, decision 0472; V1-1043) A `dogfood begin` plan refusal of `invalid-in	owner	decision 0472; V1-1043
 LCP-V0-019	docs/specs/local-completion-policy-v0.md	(accepted, decision 0508) An enrolled dogfood event	owner	decision 0508
-LCP-V0-020	docs/specs/local-completion-policy-v0.md	accepted, decision 0510. Every `dogfood status`	unrecorded	-
-LCP-V0-031	docs/specs/local-completion-policy-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1014) When a `verify` check	owner	2026-10-11; V1-1014
-LCP-V0-032	docs/specs/local-completion-policy-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1011) Each plan check takes	owner	2026-10-11; V1-1011
-LCP-V0-033	docs/specs/local-completion-policy-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1524, V1-2144) A dogfood	owner	2026-10-11; V1-1524; V1-2144
-LCP-V0-034	docs/specs/local-completion-policy-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1976) A dogfood event whose	owner	2026-10-11; V1-1976
+LCP-V0-020	docs/specs/local-completion-policy-v0.md	(accepted, decision 0510) Every `dogfood status`	owner	decision 0510
+LCP-V0-031	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1014) When a `	standing	2026-10-11; V1-1014
+LCP-V0-032	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1011) Each pla	standing	2026-10-11; V1-1011
+LCP-V0-033	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1524, V1-2144)	standing	2026-10-11; V1-1524; V1-2144
+LCP-V0-034	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1976) A dogfoo	standing	2026-10-11; V1-1976
 LCP-V0-035	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2276) A prompt	standing	2026-10-11; V1-2276
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	Every displayed metric and source-derived value MUST derive through the compiled	unrecorded	-
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained	unrecorded	-
@@ -3368,7 +3368,7 @@ MMR-V0-006	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) 
 MMR-V0-007	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) Every result MUST bind to its own	owner	decision 0441; V1-0938
 MMR-V0-008	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) Per-root resident state MUST be only	owner	decision 0441; V1-0938
 MMR-V0-009	docs/specs/mcp-multi-root-v0.md	(accepted, decision 0519 (V1-1173); GitHub #781) At startup,	owner	decision 0519; V1-1173; #781
-MCPV0-035	docs/specs/mcp-server-2026-07-28-v0.md	accepted, decision 0512. Cancellation of an active	unrecorded	-
+MCPV0-035	docs/specs/mcp-server-2026-07-28-v0.md	(accepted, decision 0512) Cancellation of an active	owner	decision 0512
 MCPV0-001	docs/specs/mcp-server-2026-07-28-v0.md	The executable MUST run as `corvint-mcp --root ABSOLUTE_ROOT`. It owns exactly o	unrecorded	-
 MCPV0-002	docs/specs/mcp-server-2026-07-28-v0.md	P0 transport is stdio only. Each message is one UTF-8 JSON object followed by LF	unrecorded	-
 MCPV0-003	docs/specs/mcp-server-2026-07-28-v0.md	The decoder MUST reject invalid UTF-8, invalid JSON, duplicate object names at a	unrecorded	-
@@ -3405,7 +3405,7 @@ MCPV0-030	docs/specs/mcp-server-2026-07-28-v0.md	An explicitly requested gopls c
 MCPV0-031	docs/specs/mcp-server-2026-07-28-v0.md	(V1-0944; no GitHub issue) Each impact result carries at most four	unrecorded	-
 MCPV0-032	docs/specs/mcp-server-2026-07-28-v0.md	(V1-0944; no GitHub issue) Path impact accepts `--budget-bytes N`	unrecorded	-
 MCPV0-033	docs/specs/mcp-server-2026-07-28-v0.md	(V1-0944; no GitHub issue) When a successful tool result carries	unrecorded	-
-MCPV0-034	docs/specs/mcp-server-2026-07-28-v0.md	accepted 2026-10-08 (decision 0470; V1-0485; no GitHub issue). `Registry.Call` c	unrecorded	-
+MCPV0-034	docs/specs/mcp-server-2026-07-28-v0.md	(accepted 2026-10-08 (decision 0470; V1-0485; no GitHub issue)) `Registry.Call`	owner	2026-10-08; decision 0470; V1-0485
 MCPV0-039	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603)	standing	2026-10-11; V1-1603
 MCPV0-040	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603) A	standing	2026-10-11; V1-1603
 MCPV0-041	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603) Every	standing	2026-10-11; V1-1603
@@ -3498,7 +3498,7 @@ NEA-V0-006	docs/specs/new-e2e-test-acceptance-v0.md	Repeat and control execution
 NEA-V0-007	docs/specs/new-e2e-test-acceptance-v0.md	Emit one bounded report tied to request/source identities, environment and build	unrecorded	-
 NEA-V0-008	docs/specs/new-e2e-test-acceptance-v0.md	Each per-test assessment carries its own repeat counts (passed, failed, other),	unrecorded	-
 NEA-V0-009	docs/specs/new-e2e-test-acceptance-v0.md	The body is a fixed Markdown record containing the overall verdict, the product	unrecorded	-
-NEA-V0-010	docs/specs/new-e2e-test-acceptance-v0.md	accepted, decision 0507. Optional operator-only	unrecorded	-
+NEA-V0-010	docs/specs/new-e2e-test-acceptance-v0.md	(accepted, decision 0507) Optional operator-only	owner	decision 0507
 NGI-V0-001	docs/specs/non-go-impact-v0.md	Positional impact and MCP impact MUST admit tracked `.rb`, `.js`,	unrecorded	-
 NGI-V0-002	docs/specs/non-go-impact-v0.md	Default and expanded committed ranges MUST bind Ruby/JS/TS path	unrecorded	-
 NGI-V0-003	docs/specs/non-go-impact-v0.md	Every Ruby/JS/TS changed path MUST name a syntax-only dynamic	unrecorded	-
@@ -3811,7 +3811,7 @@ PGO-V0-006	docs/specs/process-group-owner-v0.md	On Linux, where signal 0 succeed
 PGO-V0-007	docs/specs/process-group-owner-v0.md	Proposed (V1-0608). `RunContained` runs a command as a group leader like `Run` a	unrecorded	-
 PGO-V0-008	docs/specs/process-group-owner-v0.md	Proposed (V1-0373, V1-0652). Where waitid is available (Darwin and Linux), no le	unrecorded	-
 PGO-V0-009	docs/specs/process-group-owner-v0.md	(accepted, decision 0492; V1-1036, V1-1047, V1-1050, V1-1056) Where waitid is av	owner	decision 0492; V1-1036; V1-1047; V1-1050; V1-1056
-PGO-V0-010	docs/specs/process-group-owner-v0.md	accepted, decision 0507. POSIX descendant snapshots retain at most 4 MiB stdout	unrecorded	-
+PGO-V0-010	docs/specs/process-group-owner-v0.md	(accepted, decision 0507) POSIX descendant snapshots retain at most 4 MiB stdout	owner	decision 0507
 PGO-V0-011	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0668) The Owne	standing	2026-10-11; V1-0668
 PGO-V0-012	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); cem1-producer-har	standing	2026-10-11
 PGO-V0-016	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1244). In the	standing	2026-10-11; V1-1244
@@ -4007,6 +4007,7 @@ RDG-V0-005	docs/specs/requirement-definition-gate-v0.md	The gate MUST fail when 
 RDG-V0-006	docs/specs/requirement-definition-gate-v0.md	When a successful Git index query establishes that	unrecorded	-
 RDG-V0-007	docs/specs/requirement-definition-gate-v0.md	The gate MUST NOT write to any file. After RDG-V0-006 has established that the T	unrecorded	-
 RDG-V0-021	docs/specs/requirement-definition-gate-v0.md	In every scanned spec with exactly one unfenced `## Requirements` heading, the g	unrecorded	-
+RDG-V0-022	docs/specs/requirement-definition-gate-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2168) The gate	standing	2026-10-11; V1-2168
 RBD-V0-001	docs/specs/retrieval-bench-diagnostics-v0.md	The benchmark MUST accept opt-in `--context-packets FILE` only with a context ar	unrecorded	-
 RBD-V0-002	docs/specs/retrieval-bench-diagnostics-v0.md	Capture MUST create a new exclusive mode-0600 file, refuse existing paths and	unrecorded	-
 RBD-V0-003	docs/specs/retrieval-bench-diagnostics-v0.md	After ordinary registration and before retrieval, capture MUST write a JSONL hea	unrecorded	-
@@ -4267,10 +4268,10 @@ SBQ-V0-003	docs/specs/snapshot-batch-v0.md	Each operation MUST run the standalon
 SBQ-V0-004	docs/specs/snapshot-batch-v0.md	Stdout MUST be one canonical JSON line with exactly the members `ok=true`,	unrecorded	-
 SBQ-V0-005	docs/specs/snapshot-batch-v0.md	The verb MUST be read-only: no index, trace, cache or ledger write on any path.	unrecorded	-
 SBQ-V0-006	docs/specs/snapshot-batch-v0.md	Work is bounded by `SBQ-V0-001`'s request bounds and each verb's own (`limit`	unrecorded	-
-SBQ-V0-007	docs/specs/snapshot-batch-v0.md	(AT-07 accepted contract; delivery requires verification) (a) An operation MAY c	unrecorded	-
-SBQ-V0-008	docs/specs/snapshot-batch-v0.md	(AT-07 accepted contract; delivery requires verification) At the one loaded snap	unrecorded	-
-SBQ-V0-009	docs/specs/snapshot-batch-v0.md	(AT-07 accepted contract; delivery requires verification) Suppression runs in `c	unrecorded	-
-SBQ-V0-010	docs/specs/snapshot-batch-v0.md	(AT-07 accepted contract; delivery requires verification) (a) Semantic key and w	unrecorded	-
+SBQ-V0-007	docs/specs/snapshot-batch-v0.md	(AT-07 accepted contract, decision 0052; delivery requires verification) (a) An	owner	decision 0052
+SBQ-V0-008	docs/specs/snapshot-batch-v0.md	(AT-07 accepted contract, decision 0052; delivery requires verification) At the	owner	decision 0052
+SBQ-V0-009	docs/specs/snapshot-batch-v0.md	(AT-07 accepted contract, decision 0052; delivery requires verification) Suppres	owner	decision 0052
+SBQ-V0-010	docs/specs/snapshot-batch-v0.md	(AT-07 accepted contract, decision 0052; delivery requires verification) (a) Sem	owner	decision 0052
 SDD-V0-001	docs/specs/source-documentation-draft-v0.md	`docs draft` reads admitted, tracked, immutable Git source through `contextindex	unrecorded	-
 SDD-V0-002	docs/specs/source-documentation-draft-v0.md	Add indexed exported-name declarations from exactly the selected Go directory, e	unrecorded	-
 SDD-V0-003	docs/specs/source-documentation-draft-v0.md	Every entry carries original path, blob, SHA-256 and line span. The page binds i	unrecorded	-
@@ -4292,8 +4293,8 @@ SEA-V0-006	docs/specs/source-evidence-axes-v0.md	The default command path MUST p
 SEA-V0-007	docs/specs/source-evidence-axes-v0.md	Qualification MUST freeze deterministic source/consumer fixtures, legacy byte	unrecorded	-
 SEA-V0-008	docs/specs/source-evidence-axes-v0.md	Rollout and rollback MUST retain existing receipts and failed evidence; publicat	unrecorded	-
 SRG-V0-001	docs/specs/spec-requirement-index-generator-v0.md	The generator MUST derive its input set from the paths Git reports as tracked	unrecorded	-
-SRG-V0-002	docs/specs/spec-requirement-index-generator-v0.md	accepted, decision 0506. The generator MUST recognise a requirement id as a toke	unrecorded	-
-SRG-V0-003	docs/specs/spec-requirement-index-generator-v0.md	accepted, decision 0506. The generator MUST classify each occurrence of an id in	unrecorded	-
+SRG-V0-002	docs/specs/spec-requirement-index-generator-v0.md	(accepted, decision 0506) The generator MUST recognise a requirement id as a tok	owner	decision 0506
+SRG-V0-003	docs/specs/spec-requirement-index-generator-v0.md	(accepted, decision 0506) The generator MUST classify each occurrence of an id i	owner	decision 0506
 SRG-V0-004	docs/specs/spec-requirement-index-generator-v0.md	Among retained occurrences of one id the generator MUST select exactly one	unrecorded	-
 SRG-V0-005	docs/specs/spec-requirement-index-generator-v0.md	For a rank 0 winner the generator MUST strip the leading bullet, emphasis,	unrecorded	-
 SRG-V0-006	docs/specs/spec-requirement-index-generator-v0.md	The generator MUST write to stdout a single header line `id`, `file`, `line`,	unrecorded	-
@@ -4311,6 +4312,8 @@ SRG-V0-017	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the
 SRG-V0-018	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1641) `--all D	standing	2026-10-11; V1-1641
 SRG-V0-040	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2141) Every	standing	2026-10-11; V1-2141
 SRG-V0-041	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1758) During a	standing	2026-10-11; V1-1758
+SRG-V0-042	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2160) Every	standing	2026-10-11; V1-2160
+SRG-V0-043	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2146) In every	standing	2026-10-11; V1-2146
 STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
 STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-
 STA-V0-003	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-delta` reads one OpenSpec delta file.	unrecorded	-
@@ -4457,11 +4460,11 @@ TCP-V0-062	docs/specs/task-context-packet-v0.md	(proposed (V1-0993), 2026-10-07;
 TCP-V0-063	docs/specs/task-context-packet-v0.md	(proposed 2026-10-08, V1-0859 and V1-0431; experimental) A lexical hit whose pat	unrecorded	-
 TCP-V0-064	docs/specs/task-context-packet-v0.md	(accepted 2026-10-08, decision 0470; V1-0485; experimental) `TaskContext` observ	owner	2026-10-08; decision 0470; V1-0485
 TCP-V0-065	docs/specs/task-context-packet-v0.md	(accepted, decision 0516 (V1-0315); experimental) A task-context	owner	decision 0516; V1-0315
-TCP-V0-121	docs/specs/task-context-packet-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-2131). Tasks	unrecorded	-
-TCP-V0-160	docs/specs/task-context-packet-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-0426). `context	unrecorded	-
-TCP-V0-141	docs/specs/task-context-packet-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-1285). The pack	unrecorded	-
-TCP-V0-150	docs/specs/task-context-packet-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-2127). The	unrecorded	-
-TCP-V0-152	docs/specs/task-context-packet-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-1010, V1-1015;	unrecorded	-
+TCP-V0-121	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-2131)) Tasks	standing	2026-10-11; V1-2131
+TCP-V0-160	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-0426)) `contex	standing	2026-10-11; V1-0426
+TCP-V0-141	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1285)) The pac	standing	2026-10-11; V1-1285
+TCP-V0-150	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-2127)) The	standing	2026-10-11; V1-2127
+TCP-V0-152	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1010, V1-1015;	standing	2026-10-11; V1-1010; V1-1015
 TCB-V0-001	docs/specs/tasks-criterion-binding-v0.md	Core MUST import only Tasks wire. Full ticket/attempt/policy validation stays Ta	unrecorded	-
 TCB-V0-002	docs/specs/tasks-criterion-binding-v0.md	`criterion-binding capture --ticket ID --attempt ID` MUST be a bounded read with	unrecorded	-
 TCB-V0-003	docs/specs/tasks-criterion-binding-v0.md	`criterion-binding verify` MUST consume a closed bounded capture on stdin with n	unrecorded	-

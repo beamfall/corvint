@@ -736,14 +736,14 @@ clause of `IDX-SNAP-V0-012` (decision 0517). The rest of that clause remains rec
 stays experimental. Human intent: after a commit or main move, the owner wants stale hook
 snapshots refreshed automatically without a manual warmup.
 
-- `IDX-SNAP-V0-031`: accepted, decision 0517. On the existing stale-snapshot
+- `IDX-SNAP-V0-031`: (accepted, decision 0517) On the existing stale-snapshot
   outcome, Claude Code and Codex adapters MAY start a separately exec'd copy of `os.Executable`
   with `--root ROOT index --if-stale`. Invariant 4 admission is limited to this explicit writer
   (`IDX-SNAP-V0-011`) and its coordination lock: the hook's evidence read remains non-mutating;
   neither ordinary reads nor fresh hook events acquire a writer. Lock and timing metadata never
   feed ranking, evidence or authority. Existing writer ignore maintenance and eviction remain
   writer-owned. This is an experimental proposal, not a new general read-command write exception.
-- `IDX-SNAP-V0-032`: accepted, decision 0517. A nonblocking flock on one
+- `IDX-SNAP-V0-032`: (accepted, decision 0517) A nonblocking flock on one
   `refresh.lock` in the shared snapshot store admits at most one background writer across its
   trees and linked worktrees. This stronger-than-per-tree bound limits host load without extra
   Git observations. The descriptor passes to the child; metadata records PID and start time.
@@ -754,7 +754,7 @@ snapshots refreshed automatically without a manual warmup.
   relative to a pinned directory descriptor with O_NOFOLLOW|O_DIRECTORY, and open the lock leaf
   with O_NOFOLLOW|O_NONBLOCK. A component swapped for a symlink cannot redirect lock creation
   or metadata writes; linked leaves, hardlinks and non-regular lock files are refused.
-- `IDX-SNAP-V0-033`: accepted, decision 0517. The child owns a new session,
+- `IDX-SNAP-V0-033`: (accepted, decision 0517) The child owns a new session,
   redirects all standard streams to `/dev/null`, uses nice priority at least +10 and GOMAXPROCS=1,
   cancels work at 55 seconds and kills its process group at a hard 60-second wall bound. It
   refuses to build if lowering priority is denied; a started notice still acknowledges only spawn.
@@ -771,17 +771,17 @@ snapshots refreshed automatically without a manual warmup.
   Invariant 7 admits one finite child, no daemon, restart loop or supervisor. Under the V1-1120
   HLQ load envelope, scheduling can still exhaust a hook deadline: no latency/FULL qualification
   or safe load threshold is inferred. Busy stores skip spawning; later events may retry.
-- `IDX-SNAP-V0-034`: accepted, decision 0517. Publication, disk bounds and
+- `IDX-SNAP-V0-034`: (accepted, decision 0517) Publication, disk bounds and
   eviction remain `IDX-SNAP-V0-001`, `IDX-SNAP-V0-007`, `IDX-SNAP-V0-025` and `IDX-SNAP-V0-027`.
   Killing or expiring a writer publishes no partial snapshot. Complete files already renamed
   remain valid. Abandoned temporaries remain unreadable as snapshots and the next writer sweeps
   them at the existing ten-minute cutoff; no extra background sweeper is admitted.
-- `IDX-SNAP-V0-035`: accepted, decision 0517. `CORVINT_INDEX_AUTO_REFRESH=0`
+- `IDX-SNAP-V0-035`: (accepted, decision 0517) `CORVINT_INDEX_AUTO_REFRESH=0`
   disables the spawn and retains the manual notice. Spawn failure, missing executable, unwritable
   or read-only store, lock refusal and unsupported platform all fail open with the existing stale
   code and exact manual argv. Notices distinguish started, already running, disabled and failed
   starts; started never means completed. There is no new configuration machinery or git hook install.
-- `IDX-SNAP-V0-036`: accepted, decision 0517. Acceptance requires a real
+- `IDX-SNAP-V0-036`: (accepted, decision 0517) Acceptance requires a real
   commit-then-event regression whose next event consumes the completed snapshot, concurrent
   single-flight and stale-lock recovery, opt-out and failed-start checks, a slow-child hook-bound
   check, and killed/expired-writer checks including stale temporary sweep and descendant retirement.
@@ -790,7 +790,7 @@ snapshots refreshed automatically without a manual warmup.
 
 ### Accepted (2026-10-21, V1-2130, V1-1732, owner's standing auto-accept 2026-10-11): analyzer schema maintenance
 
-- `IDX-SNAP-V0-060`: accepted under the owner's standing auto-accept (2026-10-11) (V1-2130). The
+- `IDX-SNAP-V0-060`: (accepted under the owner's standing auto-accept (2026-10-11) (V1-2130)) The
   `IDX-SNAP-V0-017` schema rule keeps its scope: every edit to an audited analyzer input still
   bumps `analyzerSchemaID` and both pins of `TestAnalyzerSchemaInputs`. `script/analyzer-schema.sh
   bump [--base REF]` performs that bump as one command: it recomputes the audit digest exactly as
@@ -801,7 +801,7 @@ snapshots refreshed automatically without a manual warmup.
   `script/repin-use-case-receipts.sh`. REF defaults to `origin/main`; an unresolvable REF refuses,
   writing nothing, so a bump never guesses its number. Repeated bumps on one branch keep one
   number. The test remains the authority: a digest the script computed wrongly fails it.
-- `IDX-SNAP-V0-061`: accepted under the owner's standing auto-accept (2026-10-11) (V1-1732).
+- `IDX-SNAP-V0-061`: (accepted under the owner's standing auto-accept (2026-10-11) (V1-1732))
   `script/analyzer-schema.sh check [--base REF]` (`make analyzer-schema-check`, which
   `make decision-numbers-check` and therefore CI's documentation step run) MUST refuse a tree whose
   audit digest differs from its pin, and a branch whose pins differ from both its merge base with
@@ -829,7 +829,7 @@ paid a full in-memory build (measured 22.8 s wall, 7.25 s user, 813 MB at `c92ee
 with a snapshot) without being told; the build itself should also stop running the import regex
 over bodies that cannot hold an import.
 
-- `IDX-SNAP-V0-102`: accepted under the owner's standing auto-accept (2026-10-11) (V1-1640). When
+- `IDX-SNAP-V0-102`: (accepted under the owner's standing auto-accept (2026-10-11) (V1-1640)) When
   `context` or the path, range or working-tree `impact` and `feature` profiles find no usable
   snapshot and their in-memory build takes at least one second (`snapshotMissNoticeAfter`), they
   write exactly one stderr line naming the verb, that no snapshot matches the tree, the build's
@@ -837,7 +837,7 @@ over bodies that cannot hold an import.
   the exit code and the snapshot store are unchanged; a faster build and a snapshot hit write
   nothing. The line is diagnostic: it is never evidence, ranking or authority input, and the read
   stays read-only (invariant 4). The one-second floor keeps fixture-sized builds silent.
-- `IDX-SNAP-V0-103`: accepted under the owner's standing auto-accept (2026-10-11) (V1-1640). The
+- `IDX-SNAP-V0-103`: (accepted under the owner's standing auto-accept (2026-10-11) (V1-1640)) The
   generic import scanner runs its regular expression only over a body in which some `from` is
   followed by at least one of the expression's space runes and a quote, or some `import` by
   optional spaces, an optional `(` with optional spaces, and a quote (`mayHoldGenericImport`).
@@ -863,7 +863,7 @@ build. `IDX-SNAP-V0-102` covered `context`, `impact` and `feature`; `query`, the
 pre-change step uses, still paid its miss build in silence (measured at `8def072e0`: 1.40 s wall
 without a snapshot versus 0.57 s with one).
 
-- `IDX-SNAP-V0-104`: accepted under the owner's standing auto-accept (2026-10-11) (V1-1640). The
+- `IDX-SNAP-V0-104`: (accepted under the owner's standing auto-accept (2026-10-11) (V1-1640)) The
   CLI `query` verb, on both its repository and authority-start paths, writes the
   `IDX-SNAP-V0-102` notice with verb `query` when it finds no usable snapshot and its in-memory
   build (`BuildEval` or `BuildQuery`) takes at least `snapshotMissNoticeAfter`, with the same
@@ -880,7 +880,7 @@ Human intent: the hook path decoded the 170 to 180 MB gob snapshot through read(
 the profile put about 22% in read syscalls and 17% in the trailer SHA-256, both serial with the
 decode. The on-disk format stays unchanged (invariant 7), so no format gate applies; the edit to analyzer
 inputs still bumps the schema (to `corvint-analyzer/139` in batch 1021h, shared with V1-0426 and V1-2276) under IDX-SNAP-V0-060.
-- `IDX-SNAP-V0-105`: accepted under the owner's standing auto-accept (2026-10-11) (V1-2237). On a
+- `IDX-SNAP-V0-105`: (accepted under the owner's standing auto-accept (2026-10-11) (V1-2237)) On a
   host where the snapshot file maps read-only, the default gob snapshot decode reads it through
   that mapping and hashes the payload for the IDX-SNAP-V0-003 trailer check on a second goroutine
   while the header and value decode, joining both before the mapping is released. It reads the

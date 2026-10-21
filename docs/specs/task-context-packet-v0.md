@@ -1121,14 +1121,14 @@ and `internal/cem/workflow/self_modified.go`. The `cem status` report is `CEM-V1
   exclusion, old-consumer decoding, and frozen no-exclusion packet bytes. Rollback removes this
   optional member and its assembly only; no index or snapshot migration is needed. Owner
   acceptance remains unresolved regardless of passing local tests.
-- `TCP-V0-121`: accepted under the owner's standing auto-accept (2026-10-11) (V1-2131). Tasks
+- `TCP-V0-121`: (accepted under the owner's standing auto-accept (2026-10-11) (V1-2131)) Tasks
   store projection files (`DIRTY-CACHE-017`, reason `task store projection`) are excluded by
   policy, not a gap in what the index could read. They still count in the `exclusions` member's
   `count`, but its `samples` order places every other reason first. Within each group, samples
   keep the `TCP-V0-065` order of display path then reason. A repository with a Tasks store
   therefore samples its real gaps (size bound, non-UTF-8, generated or protected paths) before
   task state. This changes no count, ranking, member or packet without projection exclusions.
-- `TCP-V0-160`: accepted under the owner's standing auto-accept (2026-10-11) (V1-0426). `context
+- `TCP-V0-160`: (accepted under the owner's standing auto-accept (2026-10-11) (V1-0426)) `context
   grep` screens the lines it quotes (`TCP-V0-017`). `internal/secretscreen` runs over the whole
   file text, and a quoted line that a match overlaps has `text` `[REDACTED]` and `"redacted":
   true`, keeping its `line` and `terms`. Clean lines and rows are unchanged. The packet itself
@@ -1136,14 +1136,14 @@ and `internal/cem/workflow/self_modified.go`. The `cem status` report is `CEM-V1
   Projection files never rank as results because the index never reads them. Rollback: restore
   the single path-then-reason order. Test:
   `TestTaskContextKeepsTaskStoreProjectionsOutOfRankingAndBehindRealGaps`.
-- `TCP-V0-141`: accepted under the owner's standing auto-accept (2026-10-11) (V1-1285). The packet
+- `TCP-V0-141`: (accepted under the owner's standing auto-accept (2026-10-11) (V1-1285)) The packet
   `revision` is the tree of the captured commit, so a worktree with uncommitted tracked or
   untracked paths answers from committed bytes. When the index records a non-empty dirty set,
   `coverage.uncertainty` gains one line giving the dirty-path count, the captured commit and its
   tree, and stating that uncommitted edits are not evidence. A clean worktree's packet bytes are
   unchanged. The line changes no ranking, result, state or schema version. Rollback: remove the
   line. Test: `TestTaskContextDisclosesDirtyWorktreeAgainstCommittedTree`.
-- `TCP-V0-150`: accepted under the owner's standing auto-accept (2026-10-11) (V1-2127). The
+- `TCP-V0-150`: (accepted under the owner's standing auto-accept (2026-10-11) (V1-2127)) The
   task packet's and the `context defs|refs|grep` envelope's `revision` stays the indexed tree
   object id (the tree of the HEAD commit, also on a dirty worktree); consumers keep reading it
   as a tree. Each also carries an optional top-level `commit` member, the full object id of the
@@ -1152,8 +1152,8 @@ and `internal/cem/workflow/self_modified.go`. The `cem status` report is `CEM-V1
   ranking, row or other member. Rollback removes the member. Test:
   `TestTaskContextCarriesHeadCommitBesideTreeRevision` and the regenerated
   `context-recipe-default-golden.json` and core-freeze context goldens (additive under CCF-V1-006).
-- `TCP-V0-152`: accepted under the owner's standing auto-accept (2026-10-11) (V1-1010, V1-1015;
-  V1-1285 abstention). A task anchor no evidence resolves is disclosed as uncertainty in
+- `TCP-V0-152`: (accepted under the owner's standing auto-accept (2026-10-11) (V1-1010, V1-1015;
+  V1-1285 abstention)) A task anchor no evidence resolves is disclosed as uncertainty in
   `coverage.unresolved_anchors` `{"count", "samples": [{"anchor", "reason"}]}` (at most ten samples
   in anchor order), present only when there is one: (a) a requirement id the task or subject names
   for which no tracked spec has a defining clause (TCP-V0-009); (b) a ticket-shaped id, an id

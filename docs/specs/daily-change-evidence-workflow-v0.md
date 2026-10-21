@@ -353,7 +353,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   tooling MUST NOT be advertised as staging one oversized commit. Trace and OCM-link bounds
   remain independent; missing intent or evidence MUST stay unknown.
 
-- `DCW-V0-038`: accepted, decision 0510. Every build in Corvint's
+- `DCW-V0-038`: (accepted, decision 0510) Every build in Corvint's
   dogfood wrappers MUST select the first nonempty cache from `CORVINT_GOCACHE`, caller
   `GOCACHE`, then `/tmp/corvint-go-build-cache`: change's current-tree build and check's
   current-tree and archived-base verifier builds, including check invoked by seal.
@@ -1035,7 +1035,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   outcome or intents inputs here. Failure modes: a verify file changed after the early check is
   still caught at bind as before.
 
-- `DCW-V0-110`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1463) When `batch-check`
+- `DCW-V0-110`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1463) When `batch-check`
   fails `unbound-commits` and every listed commit is reachable from the second parent of a merge in
   `BASE..HEAD`, it MUST print, after that failure's `fix:` line, one more `fix:` line naming the
   latest such merge and its merged parent as the `BASE` to rerun with when that parent is a
@@ -1046,7 +1046,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   ref is no authority), sealing Tasks policy carries. Failure modes: the line also names a merged
   lane tip that holds unbound commits; it states the mainline condition and the check command, and
   a rerun from that tip would leave those commits to no check, which the operator must not do.
-- `DCW-V0-111`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1927) When a constituent's
+- `DCW-V0-111`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1927) When a constituent's
   verifier output carries a stable `code` shaped as a reason code (`[a-z0-9][a-z0-9-]{0,63}`),
   `batch-check` MUST append ` code=<code>` to the constituent's `CONSTITUENT` line and failure
   detail, which `dogfood change`'s sealed-CEM refusal also prints. A code, or a stderr-only
@@ -1079,7 +1079,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   the rerun that prepares it again. Non-goals: resuming inside a pass, or raising the verifier's
   deadline. Failure modes: a stopped pass's `.corvint/dogfood-report.json` is not the checked
   report until the rerun's rebind rewrites it.
-- `DCW-V0-332`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1929) After a
+- `DCW-V0-332`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1929) After a
   `current-tree-corvint-build-failed` refusal, the Corvint wrappers `dogfood-batch-check.sh`,
   `dogfood-check.sh`, `dogfood-finish.sh` and `dogfood-change.sh` MUST print one `fix:` line naming
   the compile tail above and the non-composing-constituents recovery in `docs/DOGFOOD.md` (rebase
@@ -1088,13 +1088,13 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `fix:` line saying that no change can be sealed on a `BASE` that does not build. Non-goals:
   diagnosing which constituents fail to compose, or changing exit codes or reason codes. Failure
   modes: none beyond the existing refusals; the line is advisory.
-- `DCW-V0-112`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1760) A passing `dogfood check`
+- `DCW-V0-112`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1760) A passing `dogfood check`
   MUST print to stderr, before its `PASS` line, one `dogfood-check: WARN tier-below-anchored path=<quoted>
   hunk=<quoted> tier=<tier>` line with the `CEM-V1-081` fix for each hunk whose stable citation tier
   is `cited` or `unknown`, at most 50 lines then one `more=N` line. The warning never changes the
   exit code, the verdict or the `DCW-V0-033` stdout lines. Non-goals: failing the check, or warning when the status has no stable
   citation result. Failure modes: an unparsable status line prints no warning.
-- `DCW-V0-113`: (accepted, owner lane auto-acceptance 2026-10-11; V1-2266) A lane stacked on a
+- `DCW-V0-113`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2266) A lane stacked on a
   sealed predecessor (a branch from the shared base that merged the predecessor's seal commit) MAY
   bind, check and seal against that seal commit as `BASE`: the range then holds only the lane's own
   hunks and no sealed CEM, and `batch-check` verifies each sealed change against its own base. When
@@ -1106,7 +1106,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   predecessor still binds them from the seal commit, so it merges mainline into the predecessor
   first or binds from the shared base and narrows its intents; a seal commit that cannot be found
   is named `UNKNOWN`.
-- `DCW-V0-114`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1724) When `cem cite` refuses
+- `DCW-V0-114`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1724) When `cem cite` refuses
   a cite row of the citation plan with a row-caused code (`cite-span-not-stable`,
   `cite-self-modified-authority`, `missing-evidence`, `invalid-arguments`), `dogfood change` MUST
   still check every later cite row of the plan in the same pass, each against the map that the

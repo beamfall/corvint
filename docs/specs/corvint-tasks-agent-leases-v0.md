@@ -3805,7 +3805,7 @@ a retry. The issue asks that a purely additive pool change stay handoff-compatib
 whose own member, pool settings and budgets are unchanged, that every other relevant change still
 fence, and that `policy update` say which live attempts it will fence.
 
-- `CAL-V0-122`: Accepted by decision 0439 (V1-0888; GitHub #643). The issue 482 projection MUST, before comparing,
+- `CAL-V0-122`: (Accepted by decision 0439 (V1-0888; GitHub #643)) The issue 482 projection MUST, before comparing,
   remove from the current policy every member that the same-id pool of the original policy lacks,
   together with that member's own `reservedFor` and `memberConfig` entries; a map left empty by that
   removal is dropped only where the original pool omits it. This applies to every pool present in
@@ -3817,12 +3817,12 @@ fence, and that `policy update` say which live attempts it will fence.
   holds the allocated member MUST be incompatible, not malformed. The policy writer's existing
   refusal of a change to an occupied member's definition stays in force. Policy profile v0 has no
   pool size limit, so no raised limit is normalized.
-- `CAL-V0-123`: Accepted by decision 0439 (V1-0882; GitHub #643). A change limited to the optional top-level
+- `CAL-V0-123`: (Accepted by decision 0439 (V1-0882; GitHub #643)) A change limited to the optional top-level
   `holderLiveness` key (CAL-V0-120/121), added, changed or removed, MUST be handoff-compatible: the
   key sets only a derived read-time holder status and never fences. The projection drops it with
   policyVersion. A profile that does not define the key still refuses it in DecodePolicy before the
   projection runs, so naming it grants nothing there.
-- `CAL-V0-124`: Accepted by decision 0439 (V1-0888; GitHub #643). A COMPLETED `policy update` MUST carry
+- `CAL-V0-124`: (Accepted by decision 0439 (V1-0888; GitHub #643)) A COMPLETED `policy update` MUST carry
   `handoffFences`: one entry per live external-agent, unsupervised attempt whose configuration
   identity equals its policy identity, with attemptId, ticketId, generation, stage, holder, poolId,
   memberId and `handoff`. `FENCED` names an attempt claimed under the policy being replaced whose
@@ -3875,7 +3875,7 @@ publishes cumulative CPU ticks. macOS samples therefore carry no tick counters a
 `cpu`. The macOS mitigation the issue names is delivered: selecting `memory` alone removes the load
 average from the level.
 
-- `CAL-V0-125`: accepted by decision 0439 (V1-0891; GitHub #646). The Linux pressure sample MUST read cumulative CPU
+- `CAL-V0-125`: (accepted by decision 0439 (V1-0891; GitHub #646)) The Linux pressure sample MUST read cumulative CPU
   ticks from the aggregate `cpu` line of the same bounded `/proc/stat` read that counts CPUs: total is
   user, nice, system, idle, iowait, irq, softirq and steal; busy is total minus idle and iowait. A
   missing, duplicated, short, non-numeric or overflowing line adds a problem and leaves the counters
@@ -3897,7 +3897,7 @@ average from the level.
   of its leading `cpu` lines. Without `cpu` selected, the sample carries no tick counters or
   utilisation and records no tick problem, so those ledger fields are written only when `cpu` is
   selected.
-- `CAL-V0-126`: accepted by decision 0439 (V1-0891; GitHub #646). The `pressure` object MAY carry `signals`, a map
+- `CAL-V0-126`: (accepted by decision 0439 (V1-0891; GitHub #646)) The `pressure` object MAY carry `signals`, a map
   from host OS (`darwin` or `linux`) to 1..N unique signal names that host can observe (`darwin`:
   `load`, `memory`; `linux`: `cpu`, `load`, `swap`). Any other OS key, an empty or duplicated list, or
   an unobservable name MUST be refused. On a host whose OS has an entry, exactly the named signals set
@@ -3934,7 +3934,7 @@ ticket V1-0890, P2): apply a changed configuration file without restarting the d
 `cap: 0` disable a role, and let a lane wait until a member has stayed in its state for a minimum
 time. The coordinator assigned CAL-V0-127..129. All three requirements are accepted by decision 0439.
 
-- `CAL-V0-127`: accepted by decision 0439 (V1-0890; GitHub #645). A running `dispatch` MUST re-read its `--config`
+- `CAL-V0-127`: (accepted by decision 0439 (V1-0890; GitHub #645)) A running `dispatch` MUST re-read its `--config`
   file at the start of each tick, before it observes the store, with the CAL-V0-052 read and decode
   rules. Unchanged bytes (by SHA-256) do nothing. A changed file that decodes and validates and keeps
   `stateDir` and `workRoot` MUST become the applied configuration for that tick and every later one,
@@ -3964,13 +3964,13 @@ time. The coordinator assigned CAL-V0-127..129. All three requirements are accep
   invalid on-disk config are recorded by `ATR-V0-134` in
   `corvint-tasks-attempt-runner-v0.md` (exit 1 with ERROR/MALFORMED); this text states only what
   status still reports.
-- `CAL-V0-128`: accepted by decision 0439 (V1-0890; GitHub #645). A role `cap` MAY be 0. A role with cap 0 MUST
+- `CAL-V0-128`: (accepted by decision 0439 (V1-0890; GitHub #645)) A role `cap` MAY be 0. A role with cap 0 MUST
   launch nothing; its running workers are unaffected, and every other CAL-V0-052 bound is unchanged.
   A disabled role MUST take no part in planning: its pool is not among the pools the plan may select
   (CAL-V0-097), its work-state predicate holds nothing in the window (CAL-V0-105) and it yields no
   roster candidates, so a ticket only it could take never uses the `maxActiveAttempts` window of an
   enabled role.
-- `CAL-V0-129`: accepted by decision 0439 (V1-0890; GitHub #645). A lane MAY carry `minAgeSeconds` 0..604800. When
+- `CAL-V0-129`: (accepted by decision 0439 (V1-0890; GitHub #645)) A lane MAY carry `minAgeSeconds` 0..604800. When
   positive, the roster MUST admit a pool member only after the dispatcher has observed it in the
   same state and change sequence for at least that many seconds on the dispatcher clock. A changed
   state or change sequence, a member that disappears, a clock step backwards and a dispatcher
@@ -4007,7 +4007,7 @@ store format is the fixed `taskman-state/0`. What was missing was a supported pr
 compatibility rule, and a coded refusal when a build meets state another format wrote. These
 requirements are accepted by decision 0439 (V1-0889; GitHub #644).
 
-- `CAL-V0-130`: accepted by decision 0439 (V1-0889; GitHub #644). Replacing build N with build N+1 while external
+- `CAL-V0-130`: (accepted by decision 0439 (V1-0889; GitHub #644)) Replacing build N with build N+1 while external
   attempts are live MUST be supported without a drain when both builds report the same `formats`
   (CAL-V0-131): stop the dispatcher (its close leaves workers running), install N+1 at the same path,
   restart the dispatcher, which adopts the recorded workers. An attempt claimed under N MUST then
@@ -4019,7 +4019,7 @@ requirements are accepted by decision 0439 (V1-0889; GitHub #644).
   sets differ, rollback is UNSUPPORTED: draining does not help, because N refuses the newer formats
   N+1 persisted with UNSUPPORTED_VERSION (CAL-V0-131), which is the correct fail-closed result and
   leaves the store bytes unchanged. No restore, conversion or downgrade reader is provided.
-- `CAL-V0-131`: accepted by decision 0439 (V1-0889; GitHub #644). `version` MUST report `formats`, the sorted set of
+- `CAL-V0-131`: (accepted by decision 0439 (V1-0889; GitHub #644)) `version` MUST report `formats`, the sorted set of
   the store `VERSION` and every profile the tasks packages persist and decode again (journal, intent,
   lease, run, release, review, pool, dispatcher and user-service records, and the command-result
   envelope a supervisor reads back); only profiles written solely to stdout are left out, as is
@@ -4043,7 +4043,7 @@ requirements are accepted by decision 0439 (V1-0889; GitHub #644).
   decoder refuses another version UNSUPPORTED_VERSION, but that refusal only makes the writer
   decline to the complete route, which re-derives the checkpoint from the journal; the checkpoint
   is never authority, so replacing another version's checkpoint is not a migration.
-- `CAL-V0-132`: accepted by decision 0439 (V1-0889; GitHub #644). A dispatcher ledger whose profile is another
+- `CAL-V0-132`: (accepted by decision 0439 (V1-0889; GitHub #644)) A dispatcher ledger whose profile is another
   `taskman-dispatch-state` version, or that carries a top-level member no spelling of a known member
   matches, MUST refuse UNSUPPORTED_VERSION before any decode, rewrite or worker action, and the
   dispatcher MUST NOT open. Before V1-0889 both cases were reported MALFORMED. A different profile
@@ -4069,7 +4069,7 @@ requirements are accepted by decision 0439 (V1-0889; GitHub #644).
   before any worker action and stay unchanged, so a later `workers` or `WORKERS`, or a trailing
   value, cannot hide a recorded worker; dynamic map keys stay case-sensitive and a lone
   case-folded struct member keeps its CAL-V0-064 treatment.
-- `CAL-V0-133`: accepted by decision 0439 (V1-0889; GitHub #644). Build N processes that outlive the swap, such as
+- `CAL-V0-133`: (accepted by decision 0439 (V1-0889; GitHub #644)) Build N processes that outlive the swap, such as
   detached attempt-runner supervisors (which re-execute their own executable) and supervised program
   owners, keep running build N against the shared store. The procedure MUST install by writing a new
   file and renaming it over the path, never by rewriting the running file in place. The rationale is
@@ -4079,7 +4079,7 @@ requirements are accepted by decision 0439 (V1-0889; GitHub #644).
   place for the processes running it. No install command or script is provided. With equal
   `formats`, such a process MUST still read and heartbeat records build N+1 wrote, and finish and
   exit as it would have without the swap.
-- `CAL-V0-134`: accepted by decision 0439 (V1-0889; GitHub #644). Supervised Codex, Claude Code and OpenCode programs
+- `CAL-V0-134`: (accepted by decision 0439 (V1-0889; GitHub #644)) Supervised Codex, Claude Code and OpenCode programs
   keep their pinned-executable guarantee unchanged. The pin is the host runtime named in policy
   `runtimes`, not the corvint-tasks binary, so a corvint-tasks swap neither refuses nor re-pins it.
   The procedure MUST NOT kill or restart a live supervised owner: it finishes its program under
@@ -4117,14 +4117,14 @@ idle), both citing [issue 641](https://github.com/beamfall/corvint/issues/641), 
 2026-10-06 goals that large projects run without slowdowns and that CPU is spent only when
 essential. These requirements are accepted by decision 0439.
 
-- `CAL-V0-135`: accepted by decision 0439 (V1-0893; GitHub #641). A whole-history receipt binding fold (`receipt
+- `CAL-V0-135`: (accepted by decision 0439 (V1-0893; GitHub #641)) A whole-history receipt binding fold (`receipt
   audit`, redo of a pending receipt, and every `FoldExternalReviews` reader) MUST read receipts
   beneath one pinned `receipts/` directory descriptor, one no-follow open per receipt, with the same
   bytes, size bound and refusals as the per-path reader: a symlinked or non-regular receipt refuses
   UNSUPPORTED_FILESYSTEM and an absent receipt stays absent. A fold that completes MUST then
   re-bind the named `receipts/` path to the pinned directory and refuse SNAPSHOT_MOVED when it
   disappeared or now names another directory.
-- `CAL-V0-136`: accepted by decision 0439 (V1-0894; GitHub #641). On Darwin arm64 and amd64 the detached-host
+- `CAL-V0-136`: (accepted by decision 0439 (V1-0894; GitHub #641)) On Darwin arm64 and amd64 the detached-host
   escape scan MUST read the process table through the kernel (`sysctl kern.proc.all`) instead of
   starting `/bin/ps` every scan, with the same rows: pid, parent, process group and zombie state
   for every process except pid 0. A table that does not decode marks the scan uncertain, as a failed
@@ -4132,11 +4132,11 @@ essential. These requirements are accepted by decision 0439.
   starting `ps`, skipping a process that exits between the directory read and its `stat` read;
   a `stat` record that does not parse or names another pid marks the scan uncertain. Other Darwin
   architectures keep the `ps` reader.
-- `CAL-V0-137`: accepted by decision 0439 (V1-0894; GitHub #641). The supervisor's host exit capsule poll MUST
+- `CAL-V0-137`: (accepted by decision 0439 (V1-0894; GitHub #641)) The supervisor's host exit capsule poll MUST
   start at 10 milliseconds and double while the host runs, up to the detached escape scan interval
   (200 milliseconds), so a long host costs at most five wakeups a second; it MUST NOT poll slower
   than that interval, and the leader and interrupt wakeups stay immediate.
-- `CAL-V0-138`: accepted by decision 0439 (V1-0894; GitHub #641). A long-running dispatcher (`dispatch`, `service
+- `CAL-V0-138`: (accepted by decision 0439 (V1-0894; GitHub #641)) A long-running dispatcher (`dispatch`, `service
   run`) MAY carry its review binding fold in process memory between ticks and fold only the
   receipts appended since. It MUST continue only while the receipt it last folded keeps its digest,
   the `receipts/` directory listing still names every receipt from 1 to that receipt (canonical
@@ -4150,7 +4150,7 @@ essential. These requirements are accepted by decision 0439.
   decided for V1-0645, such prefix edits are detected by `receipt audit` and refresh (a content
   rewrite refuses JOURNAL_FORKED), not by every fold. This is a guarantee change from the whole-history fold, which
   re-reads every receipt, and is accepted by decision 0439. Nothing is persisted.
-- `CAL-V0-139`: accepted by decision 0439 (V1-0894; GitHub #641). A long-running dispatcher whose queue offers a
+- `CAL-V0-139`: (accepted by decision 0439 (V1-0894; GitHub #641)) A long-running dispatcher whose queue offers a
   store witness MAY skip a tick's store read only after a full tick left its ledger bytes unchanged
   (no events, no launches) and while the witness, the configuration and the ledger it settled on
   are unchanged, no operator request is waiting, it supervises no worker, sweep, recovery or
@@ -4168,13 +4168,13 @@ essential. These requirements are accepted by decision 0439.
   encoded bytes are unchanged, still in place and were last saved by this ledger with every step
   (file fsync, rename and directory fsync) succeeding; any failed save forgets that, so the next
   identical save writes and syncs again and reports its own result.
-- `CAL-V0-140`: accepted by decision 0439 (V1-0893; GitHub #641). Within one snapshot-pinned read, the journal
+- `CAL-V0-140`: (accepted by decision 0439 (V1-0893; GitHub #641)) Within one snapshot-pinned read, the journal
   audit's before and after captures MUST reuse the intent bytes the read's first probe hashed for
   every intent file whose current size matches, and MUST read any other file fresh. A same-size
   rewrite during the read is caught by the read's second probe, which re-hashes the tree and moves
   the snapshot, so the read retries or refuses SNAPSHOT_MOVED exactly as before. Disabling
   probed-tree reuse disables the sharing.
-- `CAL-V0-141`: accepted by decision 0439 (V1-0893; GitHub #641). The full `plan preview` result MUST validate
+- `CAL-V0-141`: (accepted by decision 0439 (V1-0893; GitHub #641)) The full `plan preview` result MUST validate
   against a JSON node bound of the base 250,000 nodes plus 64 nodes per plan entry (at most 890,000
   at the 10,000-ticket queue bound), so a full queue previews instead of refusing LIMIT_EXCEEDED. An
   entry is typically 27 nodes; a result over the scaled bound still refuses LIMIT_EXCEEDED. Every
@@ -4182,7 +4182,7 @@ essential. These requirements are accepted by decision 0439.
   `wire.MaxResultNodes` (890,000) on encode. The generic `DecodeResult` keeps the base bound; a
   consumer of the full plan decodes through the bounded route `DecodeResultLimit(raw, maxNodes)`,
   which refuses LIMIT_EXCEEDED for a bound outside 1..890,000.
-- `CAL-V0-142`: accepted by decision 0439 (V1-0894; GitHub #641). `service run` MUST build its dispatcher's queue
+- `CAL-V0-142`: (accepted by decision 0439 (V1-0894; GitHub #641)) `service run` MUST build its dispatcher's queue
   with the configured ticket pools, as `dispatch` does.
 
 Non-goals: the writer path, writer audit and journal checkpoint (owned by V1-0645) are unchanged;
