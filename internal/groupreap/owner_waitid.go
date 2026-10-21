@@ -49,6 +49,13 @@ func defaultPrimitives() Primitives {
 			}
 			return err
 		},
+		SignalGroup: func(leader int, signal syscall.Signal) error {
+			err := syscall.Kill(-leader, signal)
+			if err == syscall.ESRCH || (runtime.GOOS != "linux" && err == syscall.EPERM) {
+				return nil
+			}
+			return err
+		},
 		ProbeGroup: probe,
 		QuietProof: quiet,
 		Reap:       func(command *exec.Cmd) error { return command.Wait() },

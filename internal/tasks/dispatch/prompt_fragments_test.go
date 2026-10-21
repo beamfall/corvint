@@ -116,23 +116,22 @@ func TestCALV0176_ConfigWithoutFragmentsUnchanged(t *testing.T) {
 			t.Errorf("%s prompt accepted", name)
 		}
 	}
-	// A repeated prompt member decodes per occurrence, as the string field
-	// did: null keeps the earlier text, and an earlier bad type still fails.
+	// A repeated prompt member is refused (ATR-V0-161), and an earlier bad
+	// type still fails.
 	work := `"prompt":` + quote(c.Roles[0].Prompt)
-	if got, err := DecodeConfig(bytes.Replace(raw, []byte(work), []byte(work+`,"prompt":null`), 1)); err != nil || got.Roles[0].Prompt != c.Roles[0].Prompt {
+	if _, err := DecodeConfig(bytes.Replace(raw, []byte(work), []byte(work+`,"prompt":null`), 1)); err == nil || !strings.Contains(err.Error(), `repeated member "/roles/0/prompt"`) {
 		t.Fatalf("prompt then null: %v", err)
 	}
 	if _, err := DecodeConfig(bytes.Replace(raw, []byte(work), []byte(`"prompt":123,`+work), 1)); err == nil {
 		t.Fatal("number then prompt accepted")
 	}
-	// A repeated roles member decodes into the same elements, as before: a
-	// second role object that omits budget keeps the first one's.
+	// A repeated roles member is refused rather than merged (ATR-V0-161).
 	c.Roles[0].Budget = &Budget{SessionsPerDay: 3}
 	withBudget, _ := json.Marshal(c)
 	second := `,"roles":[{"name":"impl","host":"sh","cap":2,"match":{},"idleSeconds":30,"wallSeconds":60}]}`
 	twice := append(bytes.TrimSuffix(withBudget, []byte("}")), second...)
-	if got, err := DecodeConfig(twice); err != nil || got.Roles[0].Budget == nil || got.Roles[0].Prompt != c.Roles[0].Prompt {
-		t.Fatalf("repeated roles member: %v %+v", err, got)
+	if _, err := DecodeConfig(twice); err == nil || !strings.Contains(err.Error(), `repeated member "/roles"`) {
+		t.Fatalf("repeated roles member: %v", err)
 	}
 	c.Roles[0].Budget = nil
 	unknown := bytes.Replace(raw, []byte(`"name":"impl"`), []byte(`"name":"impl","extra":1`), 1)

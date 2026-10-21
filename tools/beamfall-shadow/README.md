@@ -45,6 +45,17 @@ this harness executable itself, never Corvint Core; process-group states claim
 the group (setsid) is adopted and outside that observation. A receipt labels non-Linux containment
 `PROCESS_GROUP_ONLY`; detached descendants remain outside that proof boundary.
 
+The harness and the wrapper own the candidate's group through the process-group
+Owner (`internal/groupreap`, `PGO-V0-019`): every group signal, including the
+cancellation, output-limit and timeout stop, is sent while the exited leader is
+still unreaped, so it cannot reach a reused group ID, and only signal-0
+observations follow the reap. A member left behind after a normal exit is
+`CLEANED_AFTER_RESIDUE` / `PROCESS_GROUP_RESIDUE`; a retirement not proved
+within five seconds is `CLEANUP_ERROR` / `PROCESS_GROUP_HOLD` (the wrapper exits
+124 and prints `PROCESS_GROUP_HOLD`), never a success. Hosts without the Owner
+(platforms other than Darwin and Linux) report `UNSUPPORTED_EXECUTION_AUTHORITY`
+before any candidate starts (the wrapper exits 125).
+
 On Linux, the harness and wrapper both establish and immediately query
 `PR_SET_CHILD_SUBREAPER` / `PR_GET_CHILD_SUBREAPER` before starting the
 candidate-facing process group. A failed set or probe is

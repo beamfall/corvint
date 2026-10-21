@@ -58,7 +58,12 @@ func (d *Dispatcher) classify(t *Ticket, w *Worker, progress bool) string {
 // infrastructure session: its own retry launch is no longer running, and
 // checked progress marks the episode RECOVERED without touching its debt.
 func (d *Dispatcher) infraEnded(key, worker string, progress bool) {
-	e := d.ledger.InfraRetry[key]
+	infraEndedOn(d.ledger, key, worker, progress)
+}
+
+// infraEndedOn is infraEnded on the given ledger.
+func infraEndedOn(l *Ledger, key, worker string, progress bool) {
+	e := l.InfraRetry[key]
 	if e == nil {
 		return
 	}

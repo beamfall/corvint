@@ -55,12 +55,14 @@ var runWriteBudget = runWriteBound
 // runOutcomeBackoff separates retries of a retryable outcome write.
 const runOutcomeBackoff = 250 * time.Millisecond
 
-// Test-only fault injection; both are zero in production. attemptWriteFault,
+// Test-only fault injection; all are zero in production. attemptWriteFault,
 // when set, can fail a lease write of the named verb before it is attempted;
-// attemptGroupPrimitives replaces the owned group's host operations.
+// attemptGroupPrimitives replaces the owned group's host operations;
+// attemptOutcomeReportFault can rewrite the outcome write's report.
 var (
-	attemptWriteFault      func(verb string) error
-	attemptGroupPrimitives groupreap.Primitives
+	attemptWriteFault         func(verb string) error
+	attemptGroupPrimitives    groupreap.Primitives
+	attemptOutcomeReportFault func(*store.Report)
 )
 
 // runnerSignals end a started run through the group stop and outcome path
@@ -400,6 +402,8 @@ func (r *attemptRunner) execute(argv []string, interrupts <-chan os.Signal) tran
 		defer gate.shut()
 		output = gate
 	}
+	// A non-file stdin is copied by an os/exec goroutine that only the reap
+	// joins; after a HOLD the caller must not reuse it (ATR-V0-166).
 	command.Stdin, command.Stdout, command.Stderr = r.env.Stdin, output, output
 	command.WaitDelay = time.Second
 	// A group SIGKILL can miss a member forked alongside it on Darwin, so
@@ -563,6 +567,9 @@ func (r *attemptRunner) finish(out transaction.RunOutcome) int {
 		digest = wire.String(string(wire.Sum(raw)))
 		var report *store.Report
 		report, err = r.recordOutcome(raw)
+		if err == nil && attemptOutcomeReportFault != nil {
+			attemptOutcomeReportFault(report)
+		}
 		if err == nil && report.Outcome.Outcome != mutation.OutcomeCompleted {
 			err = wire.Errorf(refusal(report), "run outcome", "the outcome receipt was refused: %s", report.Detail)
 		}
@@ -588,8 +595,15 @@ func (r *attemptRunner) finish(out transaction.RunOutcome) int {
 		res.Outcome, res.Codes = wire.OutcomeError, []string{wire.CodeSurvivors}
 	}
 	if err != nil {
+		// ATR-V0-160: the command already ran, so an uncoded failure (a
+		// filesystem error, a receipt refused without a code) is not a
+		// malformed request: its record is unproved, UNCERTAIN_EFFECT.
+		code := wire.CodeOf(err)
+		if code == wire.CodeMalformed {
+			code = wire.CodeUncertainEffect
+		}
 		res.Outcome = wire.OutcomeError
-		res.Codes = append(res.Codes, wire.CodeOf(err))
+		res.Codes = append(res.Codes, code)
 		res.Warnings = append(res.Warnings, prose("the outcome was not recorded: "+err.Error()))
 		if status != runExitCleanupHold {
 			status = runExitUnrecorded

@@ -692,6 +692,9 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 		return out, runErr
 	}
 	result := transaction.SupervisorChange{Clean: out.Clean, Session: out.SessionID, Holder: holder, Accepted: out.Result.Accepted, Claims: out.Result.Claims, Handoff: out.Stdout}
+	// changed is a read-only stage's edit of the bound candidate. The stage
+	// still stops, and the attempt waits for the operator (ATR-V0-170).
+	var changed error
 	if stage == "implement" && out.Clean {
 		candidate, tree, paths, e := w.preserve(path)
 		if e != nil {
@@ -717,12 +720,9 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 		// a dirty tree must not leave the attempt STOPPING (CAL-V0-086).
 		result.Tree = *w.attempt.CandidateTreeOid
 		if _, clean, e := worktreeTree(path); e != nil || !clean {
-			return out, fmt.Errorf("read-only stage changed candidate")
-		}
-		if len(extras) > 0 {
-			if e = w.checkComposite(path); e != nil {
-				return out, e
-			}
+			changed = fmt.Errorf("read-only stage changed candidate")
+		} else if len(extras) > 0 {
+			changed = w.checkComposite(path)
 		}
 	}
 	expectedKind := map[string]string{"implement": "BUILT", "review": "REVIEW", "integrate": "HANDOFF"}[stage]
@@ -731,6 +731,11 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 		if result.Question == "" {
 			result.Question = "resumable handoff: " + out.Class + " " + out.Result.NextAction
 		}
+	}
+	if changed != nil {
+		// The stage's own result is not trusted over a candidate it edited.
+		result.Accepted, result.Claims = false, nil
+		result.Question = changed.Error() + "; restore the " + stage + " worktree to the bound candidate, then answer to resume"
 	}
 	if e = w.step("STOPPED", result); e != nil {
 		return out, e
@@ -754,6 +759,13 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 		if e = w.persist("FINISHED"); e != nil {
 			return out, e
 		}
+	}
+	if changed != nil && out.Clean {
+		detail := ""
+		if runErr != nil {
+			detail = " after " + runErr.Error()
+		}
+		runErr = wire.Errorf(wire.CodeDirtyWorktree, "supervisor", "%v%s; the attempt is WAITING", changed, detail)
 	}
 	return out, runErr
 }

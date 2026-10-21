@@ -1520,6 +1520,18 @@ ATR-V0-151	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the own
 ATR-V0-152	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1916) A matchi	standing	2026-10-11; V1-1916
 ATR-V0-153	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2103) The runn	standing	2026-10-11; V1-2103
 ATR-V0-154	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0934) An	standing	2026-10-11; V1-0934
+ATR-V0-160	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2123) After th	standing	2026-10-11; V1-2123
+ATR-V0-161	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0951)	standing	2026-10-11; V1-0951
+ATR-V0-162	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1767) The disp	standing	2026-10-11; V1-1767
+ATR-V0-163	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1857) At load,	standing	2026-10-11; V1-1857
+ATR-V0-164	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1853) The	standing	2026-10-11; V1-1853
+ATR-V0-165	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1854) When the	standing	2026-10-11; V1-1854
+ATR-V0-166	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0748) When the	standing	2026-10-11; V1-0748
+ATR-V0-167	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0769) The ledg	standing	2026-10-11; V1-0769
+ATR-V0-168	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1793) Each	standing	2026-10-11; V1-1793
+ATR-V0-169	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1792) Besides	standing	2026-10-11; V1-1792
+ATR-V0-170	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0832) When a	standing	2026-10-11; V1-0832
+ATR-V0-171	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0933) A pass M	standing	2026-10-11; V1-0933
 TCD-V0-001	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]` is a	unrecorded	-
 TCD-V0-002	docs/specs/corvint-tasks-closeout-debt-v0.md	The verb reads Git only through `git rev-parse --verify`, `git config --get	unrecorded	-
 TCD-V0-003	docs/specs/corvint-tasks-closeout-debt-v0.md	The scan covers every commit reachable from the ref and not from `--since`, newe	unrecorded	-
@@ -3703,6 +3715,8 @@ PGO-V0-011	docs/specs/process-group-owner-v0.md	(accepted under the owner's stan
 PGO-V0-012	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); cem1-producer-har	standing	2026-10-11
 PGO-V0-016	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1244). In the	standing	2026-10-11; V1-1244
 PGO-V0-017	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2111) Every Ow	standing	2026-10-11; V1-2111
+PGO-V0-018	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1387) `Owner.S	standing	2026-10-11; V1-1387
+PGO-V0-019	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1387) The deve	standing	2026-10-11; V1-1387
 PCCO-V0-001	docs/specs/proof-carrying-context-optimization-v0.md	An optimization trial MUST begin from one canonical Corvint packet whose exact b	unrecorded	-
 PCCO-V0-002	docs/specs/proof-carrying-context-optimization-v0.md	V0 transformations are only whole-handle omission, exact duplicate elimination,	unrecorded	-
 PCCO-V0-003	docs/specs/proof-carrying-context-optimization-v0.md	Counterfactual search MUST run outside live agent sessions using bounded hierarc	unrecorded	-

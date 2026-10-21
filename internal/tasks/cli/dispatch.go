@@ -374,6 +374,11 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 // dispatchStatusValueFor is the status view with the observed tickets that
 // resolve each ticket's ATR-V0-087 effective budget limit.
 func dispatchStatusValueFor(c *dispatch.Config, dir string, l *dispatch.Ledger, events []dispatch.Event, now time.Time, tickets []dispatch.Ticket) wire.Value {
+	if c == nil {
+		// ATR-V0-162: no configuration renders as an empty one, the same
+		// fallback dispatchAuxConfig gives the production callers.
+		c = &dispatch.Config{StateDir: dir}
+	}
 	str := wire.String
 	ts := func(t time.Time) wire.Value { return str(t.UTC().Format(time.RFC3339)) }
 	sweeps := []wire.Value{}
