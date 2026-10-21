@@ -461,8 +461,69 @@ func TestAdapterSilentAbstentionsAreLedgered(t *testing.T) {
 		t.Fatalf("out-of-project post-tool output = %+v, want {}", output)
 	}
 	data, err = os.ReadFile(ledger)
-	if err != nil || bytes.Count(data, []byte("\n")) != 2 || !bytes.Contains(data, []byte(`"host":"claude-code","adapterCodes":["post-tool-path-not-project-relative"]`)) || !bytes.Contains(data, []byte(`"event":"post-tool"`)) || bytes.Contains(data, []byte("outside-secret")) {
+	if err != nil || bytes.Count(data, []byte("\n")) != 2 || !bytes.Contains(data, []byte(`"host":"claude-code","adapterCodes":["post-tool-path-outside-project"]`)) || !bytes.Contains(data, []byte(`"event":"post-tool"`)) || bytes.Contains(data, []byte("outside-secret")) {
 		t.Fatalf("out-of-project post-tool ledger=%s err=%v", data, err)
+	}
+}
+
+// SOL-V0-030 (V1-1975): a post-tool target outside the project is an exclusion, an in-project
+// absolute target is relativized and accepted, and a lexically in-project target that does not
+// resolve below the root stays a degradation.
+func TestSOL030PostToolTargetAbstentionClasses(t *testing.T) {
+	t.Parallel()
+	root := filepath.Join(t.TempDir(), "Repo")
+	outsideDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "src"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outsideDir, filepath.Join(root, "escape")); err != nil {
+		t.Fatal(err)
+	}
+	aliasDir := t.TempDir()
+	alias := filepath.Join(aliasDir, "alias")
+	if err := os.Symlink(root, alias); err != nil {
+		t.Fatal(err)
+	}
+	outsideRelative, err := filepath.Rel(root, filepath.Join(outsideDir, "x.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lower := filepath.Join(filepath.Dir(root), strings.ToLower(filepath.Base(root)))
+	payload := func(path string) map[string]any {
+		return map[string]any{"tool_name": "Edit", "tool_input": map[string]any{"file_path": path}}
+	}
+	const notExclusion = "<any but post-tool-path-outside-project>"
+	for _, test := range []struct{ name, path, want string }{
+		{"outside absolute new file", filepath.Join(outsideDir, "x.go"), "post-tool-path-outside-project"},
+		{"outside relative through an existing directory", outsideRelative, "post-tool-path-outside-project"},
+		{"in-project absolute", filepath.Join(root, "src", "main.go"), ""},
+		{"in-project relative", "src/main.go", ""},
+		{"in-project symlink escape", filepath.Join(root, "escape", "x.go"), "post-tool-path-not-project-relative"},
+		// An alias or case spelling of the root is never an exclusion: it is either accepted
+		// as in-project (it resolves into the root) or stays a degradation.
+		{"symlink alias of the root", filepath.Join(alias, "src", "x.go"), notExclusion},
+		{"root spelled in another case", filepath.Join(lower, "src", "x.go"), notExclusion},
+		{"dot-dot through a missing component", "missing/../../x.go", "post-tool-path-not-project-relative"},
+		{"missing outside parent", filepath.Join(outsideDir, "missing", "x.go"), "post-tool-path-not-project-relative"},
+		{"relative missing outside parent", "../elsewhere-missing/x.go", "post-tool-path-not-project-relative"},
+	} {
+		got := postToolTargetAbstention(root, payload(test.path))
+		if test.want == notExclusion && got != "post-tool-path-outside-project" {
+			continue
+		}
+		if got != test.want {
+			t.Errorf("%s: abstention(%q) = %q, want %q", test.name, test.path, got, test.want)
+		}
+	}
+	// The classifier itself never excludes a case-only or alias spelling of the root, even
+	// when the caller's relativization did not accept it.
+	for _, spelling := range []string{filepath.Join(lower, "src", "x.go"), filepath.Join(alias, "src", "x.go")} {
+		if outsideProject(root, spelling) {
+			t.Errorf("outsideProject(%q) = true for a spelling of the root", spelling)
+		}
+	}
+	if got, ok := projectRelativePath(root, filepath.Join(root, "src", "main.go")); !ok || got != "src/main.go" {
+		t.Fatalf("in-project absolute path relativized to %q, %v", got, ok)
 	}
 }
 

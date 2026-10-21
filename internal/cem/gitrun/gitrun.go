@@ -607,11 +607,16 @@ func (st *stableState) finishBounded(owner *groupreap.Owner, event Event, limit 
 	return result
 }
 
+// primitives also opts every stable child into the repeated pre-reap group
+// SIGKILL: Git forks helpers, and on Darwin a group signal can miss a member
+// forked alongside it (PGO-V0-017).
 func (st *stableState) primitives(ordinal int, session bool) groupreap.Primitives {
+	var p groupreap.Primitives
 	if st.seam.Primitives != nil {
-		return st.seam.Primitives(ordinal, session)
+		p = st.seam.Primitives(ordinal, session)
 	}
-	return groupreap.Primitives{}
+	p.RepeatKillWhileLive = true
+	return p
 }
 
 func (st *stableState) rewrite(ordinal int, replay bool, binary string, args []string) (string, []string) {

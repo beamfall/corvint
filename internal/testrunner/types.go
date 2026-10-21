@@ -92,6 +92,25 @@ type Invocation struct {
 	// leader's group (TRE-V0-030); omitted when false, so older plans keep
 	// their bytes.
 	RetireDetachedDescendants bool `json:"retireDetachedDescendants,omitempty"`
+	// DeviceCleanup is the bounded device-side stop a device-bound profile
+	// declares for a timed-out or interrupted run (TRE-V0-087); omitted when
+	// empty, so older plans keep their bytes.
+	DeviceCleanup []CleanupStep `json:"deviceCleanup,omitempty"`
+}
+
+// CleanupStep is one device-cleanup action (TRE-V0-087). A tool step runs
+// Argv with the declared Tool. A WebDriver step deletes the session whose
+// identity the test phase wrote to SessionFile in the report directory, on
+// the canonical loopback endpoint WebDriver.
+type CleanupStep struct {
+	Name string   `json:"name"`
+	Tool string   `json:"tool,omitempty"`
+	Argv []string `json:"argv,omitempty"`
+	// Expect is the exact last stdout line a tool step must print to count
+	// as done, so a transport that drops the remote exit status cannot pass.
+	Expect      string `json:"expect,omitempty"`
+	WebDriver   string `json:"webDriver,omitempty"`
+	SessionFile string `json:"sessionFile,omitempty"`
 }
 type Input struct {
 	Target                  string            `json:"target"`

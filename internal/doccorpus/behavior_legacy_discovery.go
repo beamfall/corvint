@@ -14,7 +14,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -173,7 +172,7 @@ func BuildLegacyInventory(ctx context.Context, input LegacyInventoryInput) ([]by
 	if err != nil {
 		return nil, err
 	}
-	auth, err := gitauth.Open(input.Root, gitrun.NewDefaultBudget())
+	auth, err := gitauth.Open(input.Root, newGitBudget())
 	if err != nil {
 		return nil, err
 	}
@@ -183,17 +182,26 @@ func BuildLegacyInventory(ctx context.Context, input LegacyInventoryInput) ([]by
 	if err != nil {
 		return nil, err
 	}
+	// Every test file is resolved and read in batches (DCP-V1-216); the loop
+	// below keeps its per-file refusals and order.
+	batched := newPathPrefetch(input.Revision)
+	if err := batched.resolve(ctx, auth, paths); err != nil {
+		return nil, err
+	}
+	if err := batched.read(ctx, auth, batched.regularOIDs(paths), MaxBytes, maxPinnedInputBytes); err != nil {
+		return nil, err
+	}
 	inventory := &LegacyInventory{Schema: LegacyInventorySchema, Status: "generated", Runner: input.Runner, Repository: repository, Revision: input.Revision, Path: input.Path, Legacy: []BehaviorLegacyCase{}, Preconditions: []LegacyPrecondition{}, Unknown: []LegacyUnknown{}, Limitations: legacyLimitations}
 	p := &legacyProducer{runner: runner, name: input.Runner, repository: repository, revision: input.Revision, inv: inventory, pre: map[string]LegacyPrecondition{}, visits: map[string][]string{}, caseUnknown: map[string]bool{}, ids: map[string]bool{}, duplicates: map[string]bool{}}
 	for _, current := range paths {
-		entry, ok, err := auth.LookupTreeEntry(ctx, input.Revision, current)
+		entry, ok, err := batched.lookup(ctx, auth, input.Revision, current)
 		if err != nil {
 			return nil, err
 		}
 		if !ok || entry.Type != "blob" || (entry.Mode != "100644" && entry.Mode != "100755") {
 			return nil, fail("legacy test file is not a regular Git blob at the revision: " + current)
 		}
-		data, over, err := auth.BlobBytesWithin(ctx, entry.OID, MaxBytes)
+		data, over, err := batched.blobWithin(ctx, auth, entry.OID, MaxBytes)
 		if err != nil {
 			return nil, err
 		}

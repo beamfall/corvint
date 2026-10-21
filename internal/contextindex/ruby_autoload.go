@@ -29,7 +29,6 @@ const (
 	// RubyAutoloadDeclarationPath is the optional committed declaration of a
 	// repository's autoload roots and inflections (NGI-V0-017).
 	RubyAutoloadDeclarationPath = rubyautoload.DeclarationPath
-	maxRubyNestingDepth         = 256
 
 	// Named-constant reverse references rank below every direct import
 	// (700 code, 650 test) and every type-only import (600, 550): they are
@@ -41,16 +40,11 @@ const (
 	rubyTransitiveTestScore      = 450
 )
 
-// The reference index is bounded (NGI-V0-040): an unbalanced file resolves
-// a reference against at most maxRubyResolutions of the namespaces it opens,
-// and the index retains at most maxRubyReferenceSites sites in total. A
-// reference either bound cuts counts in the ruby-reference-index-bounded
-// unknown rather than being dropped silently. They are variables only so a
-// test can lower them.
-var (
-	maxRubyResolutions    = 64
-	maxRubyReferenceSites = 1 << 20
-)
+// The reference index is bounded (NGI-V0-040, TSA-V0-460): an unbalanced
+// file resolves a reference against at most rubyResolutionBound of the
+// namespaces it opens, and the index retains at most rubySiteBound sites in
+// total. A reference either bound cuts counts in the
+// ruby-reference-index-bounded unknown rather than being dropped silently.
 
 // rubyAutoloadAdvisoryUncertainty is the coverage line a receipt carrying
 // any autoload-convention reference adds (NGI-V0-035).
@@ -100,6 +94,7 @@ type rubyConstantSource struct {
 	namespaces []string        // every namespace the file opens
 	local      map[string]bool // every constant the file defines, with its prefixes
 	balanced   bool
+	overflowed bool // a block opened past rubyNestingBound, so its namespaces are unknown
 	lookups    int
 	literals   []rubyLiteralName
 	readable   bool
@@ -160,7 +155,9 @@ func loadRubyAutoload(index *Index) *rubyAutoload {
 		autoload.sources[name] = source
 		for _, reference := range source.references {
 			resolved, complete := autoload.resolutions(source, reference)
-			if !autoload.indexSites(name, reference.line, resolved) || !complete {
+			// A file nested past the nesting bound opened namespaces that were
+			// never tracked, so no fallback is complete for it (TSA-V0-461).
+			if !autoload.indexSites(name, reference.line, resolved) || !complete || source.overflowed {
 				autoload.bounded++
 			}
 		}
@@ -175,7 +172,7 @@ func (autoload *rubyAutoload) indexSites(name string, line int, resolved []strin
 	named := map[string]bool{}
 	for _, constant := range resolved {
 		for prefix := constant; prefix != "" && !named[prefix]; {
-			if autoload.retained >= maxRubyReferenceSites {
+			if !rubySiteBound.admits(autoload.retained + 1) {
 				return false
 			}
 			named[prefix] = true
@@ -221,7 +218,7 @@ func sortedRubySet(set map[string]bool) []string {
 // lexical namespaces enclosing each. Blocks opened by keywords that need an
 // `end` are tracked so a namespace closes with its `end`; a file whose
 // openers and `end`s do not balance, or that nests deeper than
-// maxRubyNestingDepth blocks, is marked, and its references are then resolved
+// rubyNestingBound blocks, is marked, and its references are then resolved
 // against every namespace it opens, never fewer. known holds the mapped
 // constants and their namespace prefixes; together with the constants this
 // file defines it resolves the owner of a qualified `class A::B` name.
@@ -247,9 +244,9 @@ func scanRubyConstantSource(source Source, known func(string) bool) *rubyConstan
 		return snapshot
 	}
 	push := func(namespace string) bool {
-		if len(frames) >= maxRubyNestingDepth {
+		if !rubyNestingBound.admits(len(frames) + 1) {
 			overflow++
-			result.balanced = false
+			result.balanced, result.overflowed = false, true
 			return false
 		}
 		frames = append(frames, namespace != "")
@@ -356,14 +353,20 @@ func scanRubyConstantSource(source Source, known func(string) bool) *rubyConstan
 				name, end := rubyReferenceAt(code, i)
 				switch {
 				case name == "" || rubyLabelOrCall(code, end):
-				case !rooted && !strings.Contains(name, "::") && rubyAssignsConstant(code, end):
+				case rubyAssignsConstant(code, end):
 					// `Thing = ...` defines a constant in the innermost
-					// namespace; it is not a reference to an autoloaded one.
-					if outer := rubyInnermost(lexical); outer != "" {
-						result.define(outer + "::" + name)
-					} else {
-						result.define(name)
+					// namespace, `::Thing = ...` a top-level one and
+					// `A::B = ...` B inside the A lexical lookup finds; none is
+					// a reference to an autoloaded constant, but the namespace
+					// a qualified target names is (V1-1714).
+					full := name
+					if !rooted {
+						full = rubyDefinedConstant(name, lexical, known, result.local)
 					}
+					if cut := strings.LastIndex(name, "::"); cut >= 0 {
+						result.references = append(result.references, rubyReference{line: line, name: name[:cut], stack: namespaces(), rooted: rooted})
+					}
+					result.define(full)
 				default:
 					result.references = append(result.references, rubyReference{line: line, name: name, stack: namespaces(), rooted: rooted})
 				}
@@ -418,6 +421,9 @@ func rubyDefinedConstant(name string, lexical []string, known func(string) bool,
 }
 
 // rubyAssignsConstant reports `Name = value`, never `==`, `=~` or `=>`.
+// `Name ||= value` is not a definition: it reads Name through lexical scope
+// and ancestors and keeps an existing (autoloaded) constant, so it stays a
+// reference (V1-1714).
 func rubyAssignsConstant(code string, end int) bool {
 	cursor, _ := rubySkipSpaces(code, end)
 	return cursor < len(code) && code[cursor] == '=' &&
@@ -535,7 +541,7 @@ func rubyEndlessDef(code string, index int) bool {
 // itself (a local definition shadows an autoloaded constant). An unbalanced
 // file is resolved against every namespace it opens. A `class`/`module` name
 // resolves to the constant it opens, which reopening an autoloaded constant
-// first loads. The unbalanced fallback tries at most maxRubyResolutions
+// first loads. The unbalanced fallback tries at most rubyResolutionBound
 // namespaces and reports false when the file opens more (NGI-V0-040).
 func (autoload *rubyAutoload) resolutions(source *rubyConstantSource, reference rubyReference) ([]string, bool) {
 	if reference.rooted {
@@ -551,9 +557,9 @@ func (autoload *rubyAutoload) resolutions(source *rubyConstantSource, reference 
 			out = append(out, reference.constant)
 		}
 		namespaces := source.namespaces
-		complete := len(namespaces) <= maxRubyResolutions
+		complete := rubyResolutionBound.admits(len(namespaces))
 		if !complete {
-			namespaces = namespaces[:maxRubyResolutions]
+			namespaces = namespaces[:rubyResolutionBound.limit]
 		}
 		for _, namespace := range namespaces {
 			if autoload.mapper.Known(namespace + "::" + first) {
@@ -758,6 +764,24 @@ func isRubyTestPath(value string) bool {
 }
 
 // rubyImpactRequested reports a request naming a Ruby path (NGI-V0-033).
+// withRubyMapped returns a view of index naming the paths autoload maps, or
+// index itself when it maps none. The view is a shallow copy, so the shared
+// index is never written and a concurrent request never sees another's set.
+func (index *Index) withRubyMapped(paths []string, autoload *rubyAutoload) *Index {
+	mapped := map[string]struct{}{}
+	for _, name := range paths {
+		if autoload.mapped(name) {
+			mapped[name] = struct{}{}
+		}
+	}
+	if len(mapped) == 0 {
+		return index
+	}
+	view := *index
+	view.rubyMapped = mapped
+	return &view
+}
+
 func rubyImpactRequested(paths []string) bool {
 	for _, name := range paths {
 		if NonGoImpactLanguage(name) == "ruby" {

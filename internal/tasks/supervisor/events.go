@@ -16,9 +16,64 @@ type HostResult struct {
 	NextAction string   `json:"nextAction"`
 }
 
+// codexEventMembers names every member the Codex readers take from one event
+// line. Each line must repeat no member at any depth and must not alias a
+// read name by case: encoding/json keeps the last duplicate and matches names
+// case-insensitively, so a hostile turn could otherwise hide an error event,
+// swap the session identity or the final handoff, or merge partial usage
+// counters (CAL-V0-075; V1-0799, V1-0950).
+var codexEventMembers = memberTree{names: []string{"type", "thread_id", "item", "usage"}, nested: map[string]memberTree{
+	"item":  {names: []string{"type", "text"}},
+	"usage": {names: []string{"input_tokens", "output_tokens"}},
+}}
+
+func checkCodexLine(line []byte) error {
+	if e := uniqueMembers(line); e != nil {
+		return e
+	}
+	return codexEventMembers.check(line)
+}
+
+// codexMembers is the one member verdict the Codex result, session and usage
+// readers share: every line passes checkCodexLine, and a final agent_message
+// text that is JSON repeats no member and aliases no handoff member. Any
+// refusal leaves the session and usage unobserved as well as refusing the
+// result; a prose final text is not a handoff and keeps them observable
+// (CAL-V0-075; V1-0799, V1-0950).
+func codexMembers(raw []byte) error {
+	final := ""
+	scanner := bufio.NewScanner(bytes.NewReader(raw))
+	scanner.Buffer(make([]byte, 4096), 1<<20)
+	for scanner.Scan() {
+		if e := checkCodexLine(scanner.Bytes()); e != nil {
+			return e
+		}
+		var event struct {
+			Type string `json:"type"`
+			Item struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			} `json:"item"`
+		}
+		if json.Unmarshal(scanner.Bytes(), &event) == nil && event.Type == "item.completed" && event.Item.Type == "agent_message" {
+			final = event.Item.Text
+		}
+	}
+	if e := scanner.Err(); e != nil {
+		return e
+	}
+	if json.Valid([]byte(final)) {
+		return exactMembers([]byte(final), handoffMembers)
+	}
+	return nil
+}
+
 func DecodeEvents(raw []byte) (string, HostResult, error) {
 	session := ""
 	result := HostResult{}
+	if e := codexMembers(raw); e != nil {
+		return "", result, e
+	}
 	completed := false
 	final := ""
 	scanner := bufio.NewScanner(bytes.NewReader(raw))
@@ -26,7 +81,7 @@ func DecodeEvents(raw []byte) (string, HostResult, error) {
 	for scanner.Scan() {
 		var event map[string]json.RawMessage
 		if e := json.Unmarshal(scanner.Bytes(), &event); e != nil {
-			return session, result, e
+			return "", result, e
 		}
 		var kind string
 		json.Unmarshal(event["type"], &kind)
@@ -76,8 +131,12 @@ func DecodeEvents(raw []byte) (string, HostResult, error) {
 }
 
 // ObservedUsage admits only complete integer usage counters from the qualified
-// turn-completed event. Missing dimensions remain unobserved.
+// turn-completed event. Missing or null dimensions, and any line that repeats
+// or case-aliases a member, remain unobserved (V1-0950).
 func ObservedUsage(raw []byte) (uint64, uint64, bool) {
+	if codexMembers(raw) != nil {
+		return 0, 0, false
+	}
 	scanner := bufio.NewScanner(bytes.NewReader(raw))
 	var input, output uint64
 	found := false
@@ -93,6 +152,9 @@ func ObservedUsage(raw []byte) (uint64, uint64, bool) {
 			continue
 		}
 		var i, o uint64
+		if nullCounter(event.Usage["input_tokens"]) || nullCounter(event.Usage["output_tokens"]) {
+			return 0, 0, false
+		}
 		if json.Unmarshal(event.Usage["input_tokens"], &i) != nil || json.Unmarshal(event.Usage["output_tokens"], &o) != nil {
 			return 0, 0, false
 		}
@@ -107,6 +169,9 @@ func ObservedUsage(raw []byte) (uint64, uint64, bool) {
 }
 
 func ObservedSession(raw []byte) string {
+	if codexMembers(raw) != nil {
+		return ""
+	}
 	scanner := bufio.NewScanner(bytes.NewReader(raw))
 	session := ""
 	for scanner.Scan() {
@@ -125,4 +190,10 @@ func ObservedSession(raw []byte) string {
 		}
 	}
 	return session
+}
+
+// nullCounter reports a JSON null counter, which encoding/json would decode
+// as zero instead of refusing.
+func nullCounter(raw json.RawMessage) bool {
+	return string(bytes.TrimSpace(raw)) == "null"
 }

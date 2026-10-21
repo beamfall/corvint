@@ -265,10 +265,12 @@ func TestCEMV1290DashboardCEMStableReadsRealUniverse(t *testing.T) {
 }
 
 type cemStableRefusalView struct {
-	Profile      string          `json:"profile"`
-	Code         string          `json:"code"`
-	Input        cemStableInput  `json:"input"`
-	Verification json.RawMessage `json:"verification"`
+	Profile            string          `json:"profile"`
+	Code               string          `json:"code"`
+	Input              cemStableInput  `json:"input"`
+	VerifierStage      string          `json:"verifierStage"`
+	VerificationReason string          `json:"verificationReason"`
+	Verification       json.RawMessage `json:"verification"`
 }
 
 // TestCEMV1293DashboardCEMStableRefusesStaleOrIncompleteBindings
@@ -309,15 +311,17 @@ func TestCEMV1293DashboardCEMStableRefusesStaleOrIncompleteBindings(t *testing.T
 		name      string
 		arguments []string
 		mutate    func()
-		verified  bool
+		stage     string
 	}{
-		{"stale-base", with("--expected-base", f.producerTarget), nil, true},
-		{"stale-target", with("--target", f.producerTarget), nil, false},
-		{"edited-map", with("--cem", "producer.cem.json"), nil, true},
-		{"tampered-artifact", f.arguments(), func() { _ = os.WriteFile(artifact, []byte("{}\n"), 0o644) }, true},
-		{"missing-artifact", f.arguments(), func() { _ = os.Remove(artifact) }, true},
-		{"unbound-ocm", with("--ocm", "unbound.ocm.json"), nil, false},
-		{"legacy-map", with("--cem", "legacy.cem.json"), nil, false},
+		{"stale-base", with("--expected-base", f.producerTarget), nil, verifierStageRefused},
+		// The verifier accepts at the other target; its sidecar is inexact.
+		{"stale-target", with("--target", f.producerTarget), nil, verifierStageAccepted},
+		{"edited-map", with("--cem", "producer.cem.json"), nil, verifierStageRefused},
+		{"tampered-artifact", f.arguments(), func() { _ = os.WriteFile(artifact, []byte("{}\n"), 0o644) }, verifierStageRefused},
+		{"missing-artifact", f.arguments(), func() { _ = os.Remove(artifact) }, verifierStageRefused},
+		// The verifier accepts; the OCM/LRF admission refuses.
+		{"unbound-ocm", with("--ocm", "unbound.ocm.json"), nil, verifierStageAccepted},
+		{"legacy-map", with("--cem", "legacy.cem.json"), nil, verifierStageNotRun},
 	}
 	for _, test := range cases {
 		inputs := map[string][]byte{}
@@ -346,13 +350,16 @@ func TestCEMV1293DashboardCEMStableRefusesStaleOrIncompleteBindings(t *testing.T
 			refusal.Input.CEMSha256 == "" || refusal.Input.OCMSha256 == "" {
 			t.Fatalf("%s: refusal = %+v", test.name, refusal)
 		}
+		// CEM-V1-349: each refusal names the verifier step reached and keeps
+		// its result, or says why the verifier did not run.
 		verified := len(refusal.Verification) > 0 && string(refusal.Verification) != "null"
-		if verified != test.verified {
-			t.Fatalf("%s: verification retained = %v, want %v (%s)", test.name, verified, test.verified, stderr)
+		if refusal.VerifierStage != test.stage || verified != (test.stage != verifierStageNotRun) ||
+			(refusal.VerificationReason != "") != (test.stage == verifierStageNotRun) {
+			t.Fatalf("%s: stage %q reason %q verification retained = %v, want stage %q (%s)", test.name, refusal.VerifierStage, refusal.VerificationReason, verified, test.stage, stderr)
 		}
 		if verified {
 			var result verify.StableResult
-			if err := json.Unmarshal(refusal.Verification, &result); err != nil || result.Outcome == "ACCEPT" ||
+			if err := json.Unmarshal(refusal.Verification, &result); err != nil || (result.Outcome == "ACCEPT") != (test.stage == verifierStageAccepted) ||
 				len(objectKeys(t, refusal.Verification)) != 23 {
 				t.Fatalf("%s: retained result = %s", test.name, refusal.Verification)
 			}
@@ -363,7 +370,7 @@ func TestCEMV1293DashboardCEMStableRefusesStaleOrIncompleteBindings(t *testing.T
 				t.Fatalf("%s: input %s changed", test.name, name)
 			}
 		}
-		t.Logf("%s: %s", test.name, refusal.Code)
+		t.Logf("%s: %s stage=%s reason=%s", test.name, refusal.Code, refusal.VerifierStage, refusal.VerificationReason)
 	}
 	// Argument shape is checked before any path opens.
 	for _, arguments := range [][]string{

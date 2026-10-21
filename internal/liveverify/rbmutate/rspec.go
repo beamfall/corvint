@@ -45,6 +45,10 @@ const (
 	// runBroken is a run with no exit status at all: a sandbox that did
 	// not launch.
 	runBroken
+	// runUnadmitted is a containerised run that would have passed or
+	// failed, but whose report the runner's own parser rejected or
+	// observed as incomplete (FPK-V0-080); it earns no verdict.
+	runUnadmitted
 )
 
 // summary is the part of RSpec's JSON formatter output the receipt keeps.
@@ -172,7 +176,7 @@ func (runner rspecRunner) run(ctx context.Context, arguments ...string) (string,
 // source is the changed file's content the run sees, for the receipt.
 func (runner rspecRunner) runSpec(ctx context.Context, source []byte) specRun {
 	reportPath := filepath.Join(runner.copy.Scratch(), reportName)
-	output, timedOut, err := runner.run(ctx, "--options", runner.options, "--format", "json", "--out", reportPath, "--no-color", runner.configuration.testPath)
+	output, timedOut, err := runner.run(ctx, "--options", runner.options, "--format", "json", "--out", reportPath, "--no-color", runner.configuration.target)
 	content, readErr := os.ReadFile(reportPath)
 	return classifyRun(err, timedOut, output, content, readErr == nil, digest(source))
 }
@@ -181,20 +185,31 @@ func (runner rspecRunner) runSpec(ctx context.Context, source []byte) specRun {
 // ran, and both from a run that produced no exit status. RSpec's own report
 // decides; the exit status only confirms it.
 func classifyRun(err error, timedOut bool, output string, content []byte, haveReport bool, sourceDigest string) specRun {
+	status, started := 0, true
+	var exit *exec.ExitError
+	switch {
+	case err == nil:
+	case errors.As(err, &exit):
+		status = exit.ExitCode()
+	default:
+		started = false
+	}
+	return classifyReport(status, started, timedOut, output, content, haveReport, sourceDigest)
+}
+
+// classifyReport is classifyRun after the exit status is known; the
+// container runner (FPK-V0-079) reaches it from the runner receipt's input.
+func classifyReport(status int, started, timedOut bool, output string, content []byte, haveReport bool, sourceDigest string) specRun {
 	run := specRun{output: output, receipt: Receipt{SourceSHA256: sourceDigest}}
 	if timedOut {
 		run.outcome, run.receipt.ExitStatus, run.receipt.TimedOut = runTimedOut, -1, true
 		return run
 	}
-	var exit *exec.ExitError
-	switch {
-	case err == nil:
-	case errors.As(err, &exit):
-		run.receipt.ExitStatus = exit.ExitCode()
-	default:
+	if !started {
 		run.outcome, run.receipt.ExitStatus = runBroken, -1
 		return run
 	}
+	run.receipt.ExitStatus = status
 	var parsed summary
 	if !haveReport || json.Unmarshal(content, &parsed) != nil {
 		run.outcome = runUnloadable
@@ -263,22 +278,24 @@ func (runner rspecRunner) environment() []string {
 // baseline.
 func baselineDetail(run specRun, configuration settings) string {
 	switch {
+	case run.outcome == runUnadmitted:
+		return "the runner did not admit the baseline RSpec report: " + configuration.target
 	case run.outcome == runTimedOut:
-		return "baseline examples exceed the per-run timeout: " + configuration.testPath
+		return "baseline examples exceed the per-run timeout: " + configuration.target
 	case run.outcome == runBroken:
 		return "rspec cannot run inside the sandbox"
 	case containsAny(strings.ToLower(run.output), offlineHints):
 		return "gem dependencies unavailable offline"
 	case !run.reported:
-		return "rspec wrote no report: " + configuration.testPath
+		return "rspec wrote no report: " + configuration.target
 	case run.receipt.ErrorsOutsideExamples > 0:
-		return "baseline examples do not load: " + configuration.testPath
+		return "baseline examples do not load: " + configuration.target
 	case run.receipt.Examples == 0:
-		return "spec file runs no examples: " + configuration.testPath
+		return "spec file runs no examples: " + configuration.target
 	case run.receipt.Failures > 0:
-		return "baseline examples fail before mutation: " + configuration.testPath
+		return "baseline examples fail before mutation: " + configuration.target
 	}
-	return "baseline exits non-zero with every example passing: " + configuration.testPath
+	return "baseline exits non-zero with every example passing: " + configuration.target
 }
 
 func containsAny(text string, hints []string) bool {

@@ -63,8 +63,11 @@ func TestCALV0022_CLIUsesOptInPack(t *testing.T) {
 				id := field(created.res.Items[0], "ticketId").Str
 				fixture.Write(t, filepath.Join(r.Root, "go.mod"), []byte("module example.test/widget\n\ngo 1.27\n"))
 				fixture.Write(t, filepath.Join(r.Root, "widget.go"), []byte("package widget\nfunc HydrateWidget(value string) string { return value }\n"))
-				// Both the ticket and source repeat the task terms. Give the query a
+				// The ticket note and source both repeat the task terms. Give the query a
 				// realistic corpus where those terms are selective; tiny corpora abstain.
+				// The committed .taskman ticket is never indexed (DIRTY-CACHE-017), so a
+				// note carries the ticket's terms instead.
+				fixture.Write(t, filepath.Join(r.Root, "notes/ticket.md"), []byte("Repair HydrateWidget\nwidget.go\n"))
 				if tc.name != "unselective" {
 					for i := 0; i < 64; i++ {
 						fixture.Write(t, filepath.Join(r.Root, fmt.Sprintf("notes/%02d.txt", i)), []byte("unrelated documentation\n"))

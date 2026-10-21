@@ -2343,7 +2343,8 @@ index-admitted path to receive the disclosed packet and reserves `unsupported-im
 for a suffix the index does not admit. This grants no Rust reverse-import rule. The oracle
 contradicts the accepted clause, so `src/` remains unchanged under `GPK-V0-033`. The discriminating
 Go witness is `TestImpactDisclosesUnruledAdmittedSuffixAcrossSurfaces_GPKV0027`; its `.rs` fixture
-also asserts the exact `outside the native Go impact profile` disclosure.
+also asserts the exact disclosure, worded `not computed by the impact profile` since V1-2072
+(earlier `outside the native Go impact profile`).
 
 **Clause correction (2026-09-12).** `GPK-V0-027` required the disclosed packet and, in the same
 clause, said expected bytes for every rule "are captured from the Python oracle", which cannot hold
@@ -2987,6 +2988,28 @@ its `DR-0038` identity rename. `validFrontierCauseDivergence`
 the identity rename, the runner applies it outside the `packet_bytes` reconciliation and refuses a
 stop receipt in which the declared opening does not occur exactly once. The `SUMMARY` line moves
 from `known-divergences=30` to `known-divergences=31`.
+
+### DR-0044 — `query`: a second static named import on one line binds
+
+- **Status:** ADJUDICATED 2026-10-20 — `python-defect` / known-divergent under `GPK-V0-087`
+  (`docs/specs/go-production-kernel-migration-v0.md`, ticket V1-2128). The focused Go regression is
+  present; a `cli-parity-v0` discriminating row is **NOT_YET_AUTHORED**, so this latent divergence
+  cannot contribute to promotion (`GPK-V0-034`). No oracle was reconstructed (`GOC-V0-002`); `src/`
+  is absent and unrepaired.
+- **Command:** `query`, `eval`, and `harness event --event user-prompt`, through the
+  `GPK-V0-047` dependency-link stage of their shared `EvalQuery` ranking. **Discovered:**
+  2026-10-20 (V1-2128).
+
+**Divergence.** The oracle's static named-import pattern matches `import` only at the start of a
+line, so in `import { a } from './a'; import { b } from './b'` it binds `a` and drops `b` without
+an unknown. Under `GPK-V0-087` the candidate also starts a statement after a code `;` (never one
+inside a string, template literal or comment) and binds both, without rebinding a local the
+line-start reading bound, so a call through `b` can add a dependency link the oracle does not.
+
+**Adjudication: python-defect (known-divergent, no repair).** The oracle contradicts
+`GPK-V0-087` and product invariant 2; the candidate satisfies them. No committed `conformance/`
+fixture places two imports on one line (a `git grep` finds none), so no expectation is rewritten;
+the external `zod`/`execa` evaluation repositories were not checked (NOT_RUN).
 
 ## Typed verification extension (issue 408, accepted 2026-09-30)
 

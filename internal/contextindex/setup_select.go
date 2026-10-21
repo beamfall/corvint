@@ -11,10 +11,8 @@ import (
 // SetupSelectSchema names the `corvint tests setup-select` result (TSA-V0-001).
 const SetupSelectSchema = "corvint-tests-setup-select/0"
 
-const (
-	maxSetupClosure = 10000
-	maxSetupReasons = 100
-)
+// maxSetupReasons caps the reasons an ALL result lists; it shortens a list and claims nothing.
+const maxSetupReasons = 100
 
 // SetupSelectReason is one typed cause of an ALL result (TSA-V0-003).
 type SetupSelectReason struct {
@@ -144,8 +142,8 @@ func (s *setupSelector) drain() bool {
 	for len(s.queue) > 0 {
 		name := s.queue[0]
 		s.queue = s.queue[1:]
-		if len(s.visited) > maxSetupClosure {
-			s.reason("bound-exceeded", "", 0, "the dependency closure exceeds the bound")
+		if !setupClosureBound.admits(len(s.visited)) {
+			s.reason(setupClosureBound.outcome, "", 0, setupClosureBound.exhausted("the dependency closure"))
 			return false
 		}
 		s.visit(name)

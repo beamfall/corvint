@@ -342,11 +342,11 @@ func TestRubyAutoloadNestingBound(t *testing.T) {
 	nested := func(depth int, body string) string {
 		return "module Jobs\n" + strings.Repeat("begin\n", depth) + body + strings.Repeat("end\n", depth) + "end\nTail.new\n"
 	}
-	within := scanRubyConstantSource(Source{Data: []byte(nested(maxRubyNestingDepth-1, "Thing.new\n"))}, func(string) bool { return false })
+	within := scanRubyConstantSource(Source{Data: []byte(nested(rubyNestingBound.limit-1, "Thing.new\n"))}, func(string) bool { return false })
 	if !within.balanced {
 		t.Fatal("nesting at the bound must stay balanced")
 	}
-	past := scanRubyConstantSource(Source{Data: []byte(nested(maxRubyNestingDepth, "Thing.new\n"))}, func(string) bool { return false })
+	past := scanRubyConstantSource(Source{Data: []byte(nested(rubyNestingBound.limit, "Thing.new\n"))}, func(string) bool { return false })
 	if past.balanced {
 		t.Fatal("begin blocks past the nesting bound must mark the file unbalanced")
 	}
@@ -421,5 +421,54 @@ func TestRubyAutoloadLocalConstantShadows(t *testing.T) {
 	}
 	if !source.local["Jobs::Thing"] {
 		t.Fatalf("local definitions = %v", source.local)
+	}
+}
+
+// TestRubyAutoloadQualifiedAndOrAssignmentsDefine is V1-1714 (NGI-V0-018): a
+// qualified `A::B = value` and a rooted `::X = value` define the constant in
+// its resolved namespace, never reference it; the namespace a qualified
+// target names is still a reference. `Name ||= value` reads and keeps an
+// existing ::Name, so it stays a reference and defines nothing.
+func TestRubyAutoloadQualifiedAndOrAssignmentsDefine(t *testing.T) {
+	known := func(name string) bool { return name == "Thing" || name == "Admin" || name == "Admin::Thing" }
+	for name, test := range map[string]struct {
+		text    string
+		defined string
+		refs    []string
+	}{
+		"qualified":        {"Admin::Thing = Struct.new(:id)\n", "Admin::Thing", []string{"Admin"}},
+		"rooted":           {"module Jobs\n  ::Thing = Struct.new(:id)\nend\n", "Thing", nil},
+		"rooted qualified": {"module Jobs\n  ::Admin::Thing = 1\nend\n", "Admin::Thing", []string{"Admin"}},
+		"or-assign":        {"module Jobs\n  Thing ||= Struct.new(:id)\nend\n", "", []string{"Thing"}},
+		"nested qualified": {"module Admin\n  Admin::Thing = 1\nend\n", "Admin::Thing", []string{"Admin"}},
+	} {
+		source := scanRubyConstantSource(Source{Data: []byte(test.text)}, known)
+		if test.defined == "" && source.local["Jobs::Thing"] || test.defined != "" && !source.local[test.defined] {
+			t.Errorf("%s: local definitions = %v, want %s", name, source.local, test.defined)
+		}
+		refs := []string{}
+		for _, reference := range source.references {
+			if !reference.defined && reference.name != "Struct" {
+				refs = append(refs, reference.name)
+			}
+		}
+		if strings.Join(refs, ",") != strings.Join(test.refs, ",") {
+			t.Errorf("%s: references = %v, want %v", name, refs, test.refs)
+		}
+	}
+	files := map[string]string{
+		"app/models/thing.rb":   "class Thing\nend\n",
+		"app/jobs/rooted.rb":    "module Jobs\n  ::Thing = Struct.new(:id)\nend\n",
+		"app/jobs/or_assign.rb": "module Jobs\n  Thing ||= Struct.new(:id)\n  def self.run\n    Thing.new\n  end\nend\n",
+		"app/jobs/plain.rb":     "module Jobs\n  def self.run\n    Thing.new\n  end\nend\n",
+	}
+	rows := rubyResultRows(registryImpact(t, files, "app/models/thing.rb"))
+	if _, wrong := rows["app/jobs/rooted.rb"]; wrong {
+		t.Error("app/jobs/rooted.rb must not reference the autoloaded ::Thing")
+	}
+	for _, present := range []string{"app/jobs/plain.rb", "app/jobs/or_assign.rb"} {
+		if _, ok := rows[present]; !ok {
+			t.Errorf("%s: Thing (read by ||= or plain use) in module Jobs still resolves to ::Thing", present)
+		}
 	}
 }

@@ -404,3 +404,31 @@ func snapshotTree(t *testing.T, root string) string {
 	}
 	return out.String()
 }
+
+// TestCAPV0002GroupedRootHelp pins the grouped Commands: layout (V1-0945): the Core group is the
+// Core list, and a header or verb line that does not fit the layout fails instead of passing.
+func TestCAPV0002GroupedRootHelp(t *testing.T) {
+	const head = "const rootHelp = `Usage:\n\nCommands:\n"
+	commands, core, err := parseCommands([]byte(head +
+		"  Core (decision 0332):\n    init  first inventory\n" +
+		"  Experimental, no stability promise:\n    harness event  one event (AHI)\n\n`\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(commands, ",") != "init,harness event" || !core["init"] || core["harness"] || len(core) != 1 {
+		t.Fatalf("commands %v core %v", commands, core)
+	}
+	for name, block := range map[string]string{
+		"unknown header":    "  Core (x):\n    init  a\n  Deprecated:\n    old  b\n",
+		"repeated header":   "  Core (x):\n    init  a\n  Core (y):\n    adopt  b\n",
+		"misaligned":        "  Core (x):\n    init  a\n    Experimental, no stability promise:\n      feature  b\n",
+		"not indented":      "  Core (x):\n  init  a\n",
+		"header after verb": "  init  a\n  Core (x):\n    adopt  b\n",
+		"empty core":        "  Experimental, no stability promise:\n    feature  b\n",
+		"no description":    "  Core (x):\n    init\n",
+	} {
+		if _, _, err := parseCommands([]byte(head + block + "\n`\n")); err == nil {
+			t.Errorf("%s: grouped root help accepted", name)
+		}
+	}
+}

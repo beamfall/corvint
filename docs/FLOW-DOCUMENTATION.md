@@ -21,12 +21,14 @@ reach 256 MiB including that corpus and generated metadata. Total output is boun
 Narrow scope above those limits.
 
 The construct matrix includes Ruby methods, jobs, literal Rails routes and class validation/hooks;
-JS/TS named functions/arrows, literal route/Angular registrations; React JSX conditional candidates;
+JS/TS named functions/arrows (`.js`, `.mjs`, `.cjs`, `.jsx`, `.ts`, `.tsx`), literal route/Angular registrations; React JSX conditional candidates;
 and literal Angular HTML binding attributes. Dynamic dispatch and unsupported forms remain unknown.
 Restricted findings, arbitrary source bodies and source literals are never copied into prose.
 
 Check compares each original claim/paragraph's span hash using its logical identity. Unchanged spans
-remain fresh after line insertion. Changed spans become stale; missing/ambiguous identities are
+remain fresh after line insertion. A flow also binds its static call inventory, so adding, removing
+or changing a call in its body is stale even when the declaration line is unchanged. A manifest
+from generator version 1 (before V1-0461) is refused as `flowdocs-generator-stale`; regenerate it. Changed spans become stale; missing/ambiguous identities are
 unresolved and retired, without guessing renames. It also lists added identities. Optional output
 checking compares the original generation's bytes, including unexpected files. Neither check nor
 finalize writes files. Check exits 0 without drift, 1 for drift and 2 for invalid input. `--previous`

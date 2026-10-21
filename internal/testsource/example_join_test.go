@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -228,6 +229,17 @@ func TestExampleJoinSupportFiles(t *testing.T) {
 		t.Fatalf("unbound helper set read the support files: %+v", r.Examples[0])
 	}
 
+	listed := map[string]string{}
+	for i := range MaxFiles + 1 {
+		listed[fmt.Sprintf("spec/support/helper_%04d.rb", i)] = "module H; end\n"
+	}
+	overListed := commitFiles(t, root, listed)
+	_, err := ExampleJoin(repo, ExampleJoinOptions{Ruby: reportDocument(t, root, overListed, "")})
+	var refusal *Error
+	if !errors.As(err, &refusal) || refusal.Code != "tests-bound-exceeded" || refusal.Message != fmt.Sprintf("more than %d source files", MaxJoinFiles) {
+		t.Fatalf("support files past the tree listing budget: %v, want the join's tests-bound-exceeded refusal (V1-2088)", err)
+	}
+
 	other := t.TempDir()
 	big := commitFiles(t, other, map[string]string{
 		"spec/report_spec.rb": neverYieldSpec, "spec/support/report_io.rb": "# " + strings.Repeat("x", MaxFileBytes) + "\n",
@@ -276,8 +288,36 @@ func TestExampleJoinJS(t *testing.T) {
 	}
 	outside := jsReceipt(t, root, commit, cartA)
 	outside.Identity.TestFileDigests = map[string]string{"/elsewhere/tests/cart.spec.ts": "00"}
-	if r := joinOne(t, root, ExampleJoinOptions{JS: outside}); r.Examples[0].Verdict.Hygiene.Reason != joinReasonIdentityUnbound {
+	if r := joinOne(t, root, ExampleJoinOptions{JS: outside}); r.Examples[0].Verdict.Hygiene.Reason != joinReasonFileOutsideRepository {
 		t.Fatalf("file outside the root: %+v", r.Examples[0].Verdict)
+	}
+}
+
+// TestExampleJoinJSDigestKeys pins V1-2085: an anchor naming several absolute digest keys joins
+// only through a key that is the anchor itself, and abstains with a typed reason when no key is,
+// or when its one key lies outside the repository. A reporter-relative anchor is not repository
+// relative (the receipt retains no reporter root), so a repository-relative match does not win.
+func TestExampleJoinJSDigestKeys(t *testing.T) {
+	root := t.TempDir()
+	commit := commitFiles(t, root, map[string]string{"tests/cart.spec.ts": cartA, "e2e/tests/cart.spec.ts": cartB})
+	sum := sha256.Sum256([]byte(cartB))
+	nested := filepath.Join(root, "e2e", "tests", "cart.spec.ts")
+	receipt := jsReceipt(t, root, commit, cartA)
+	receipt.Identity.TestFileDigests[nested] = hex.EncodeToString(sum[:])
+	if r := joinOne(t, root, ExampleJoinOptions{JS: receipt}).Examples[0]; r.Verdict.Hygiene.Reason != joinReasonFileAmbiguous || r.Example != "" {
+		t.Fatalf("reporter-relative anchor under two keys: %+v", r)
+	}
+	receipt.Tests[0].Anchor = &jstestprovider.Anchor{File: nested, Line: 1}
+	if r := joinOne(t, root, ExampleJoinOptions{JS: receipt}).Examples[0]; r.Example != "e2e/tests/cart.spec.ts > chromium > cart adds an item" || r.Source.Files[0].Path != "e2e/tests/cart.spec.ts" {
+		t.Fatalf("anchor equal to one key: %+v", r)
+	}
+	receipt.Tests[0].Anchor.File = "cart.spec.ts"
+	if r := joinOne(t, root, ExampleJoinOptions{JS: receipt}).Examples[0]; r.Verdict.Hygiene.Reason != joinReasonFileAmbiguous || r.Example != "" {
+		t.Fatalf("ambiguous anchor: %+v", r)
+	}
+	receipt.Tests[0].Anchor.File = "nowhere.spec.ts"
+	if r := joinOne(t, root, ExampleJoinOptions{JS: receipt}).Examples[0]; r.Verdict.Hygiene.Reason != joinReasonIdentityUnbound {
+		t.Fatalf("unmatched anchor: %+v", r)
 	}
 }
 

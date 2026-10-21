@@ -31,10 +31,13 @@ var (
 	openSpecRenameFrom        = regexp.MustCompile("^\\s*[-*+]?\\s*FROM:\\s*`?###\\s*Requirement:\\s*(.+?)`?\\s*$")
 	openSpecRenameMarker      = regexp.MustCompile(`^\s*[-*+]?\s*(FROM|TO):`)
 	openSpecRenameTo          = regexp.MustCompile("^\\s*[-*+]?\\s*TO:\\s*`?###\\s*Requirement:\\s*(.+?)`?\\s*$")
-	specKitRequirementID      = regexp.MustCompile(`^(?:FR|SC)-[0-9]{3,}$`)
-	specKitRequirementLine    = regexp.MustCompile(`^- \*\*((?:FR|SC)-[0-9]{3,})\*\*: `)
-	specKitRequirements       = regexp.MustCompile(`^## Requirements(?: \*\([^)\n]*\)\*)?[ \t]*$`)
-	specKitSuccessCriteria    = regexp.MustCompile(`^## Success Criteria(?: \*\([^)\n]*\)\*)?[ \t]*$`)
+	// openSpecRemovedBullet is upstream's bullet form of a REMOVED entry,
+	// "- `### Requirement: Name`" with optional backticks (V1-1707).
+	openSpecRemovedBullet  = regexp.MustCompile("^\\s*-\\s*`?###\\s*Requirement:\\s*(.+?)`?\\s*$")
+	specKitRequirementID   = regexp.MustCompile(`^(?:FR|SC)-[0-9]{3,}$`)
+	specKitRequirementLine = regexp.MustCompile(`^- \*\*((?:FR|SC)-[0-9]{3,})\*\*: `)
+	specKitRequirements    = regexp.MustCompile(`^## Requirements(?: \*\([^)\n]*\)\*)?[ \t]*$`)
+	specKitSuccessCriteria = regexp.MustCompile(`^## Success Criteria(?: \*\([^)\n]*\)\*)?[ \t]*$`)
 )
 
 // ToolchainPrepareMembers are the PrepareResult members only the STA-V0 forms
@@ -240,8 +243,11 @@ func openSpecRemoved(data []byte, lines []int, fenced []bool, section openSpecDe
 		if offset <= section.start || offset >= section.end || fenced[number] {
 			continue
 		}
-		if name, header := openSpecRequirementName(lineWithoutEnding(data, offset)); header {
+		line := lineWithoutEnding(data, offset)
+		if name, header := openSpecRequirementName(line); header {
 			removed = append(removed, map[string]string{"operation": "REMOVED", "name": name})
+		} else if match := openSpecRemovedBullet.FindSubmatch(line); match != nil && openSpecRenameName(match[1]) != "" {
+			removed = append(removed, map[string]string{"operation": "REMOVED", "name": openSpecRenameName(match[1])})
 		}
 	}
 	return removed

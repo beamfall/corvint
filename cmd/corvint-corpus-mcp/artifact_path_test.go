@@ -76,3 +76,58 @@ func TestDCPV1207AbsoluteArtifactOutsideRootRefused(t *testing.T) {
 		}
 	}
 }
+
+// corpusMCPMapSession is corpusMCPSession with one --map argument.
+func corpusMCPMapSession(t *testing.T, root, mapPath string) (int, string, string) {
+	t.Helper()
+	input := strings.Join([]string{
+		`{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"conformance","version":"test"}}}`,
+		`{"jsonrpc":"2.0","method":"notifications/initialized"}`,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}`,
+	}, "\n") + "\n"
+	var stdout, stderr bytes.Buffer
+	code := run(context.Background(), []string{"--root", root, "--artifact", "corpus.json", "--map", mapPath, "--protocol-version", "2025-11-25"}, strings.NewReader(input), &stdout, &stderr)
+	return code, stdout.String(), stderr.String()
+}
+
+// V1-1998: an absolute --map below --root behaves like its relative spelling (DCP-V1-205,
+// DCP-V1-206); one not below --root names --map (DCP-V1-207).
+func TestDCPV1205AbsoluteMapInsideRoot(t *testing.T) {
+	root, _ := mapPlanRoot(t)
+	wantCode, want, wantErr := corpusMCPMapSession(t, root, "map-appmap.json")
+	if wantCode != 0 || wantErr != "" || !strings.Contains(want, "corvint.map_plan") {
+		t.Fatalf("relative baseline: code %d stderr %q stdout %q", wantCode, wantErr, want)
+	}
+	code, got, stderr := corpusMCPMapSession(t, root, filepath.Join(root, "map-appmap.json"))
+	if code != 0 || stderr != "" || got != want {
+		t.Fatalf("absolute map: code %d stderr %q, stdout differs from relative: %v", code, stderr, got != want)
+	}
+	outside := filepath.Join(t.TempDir(), "map-appmap.json")
+	code, stdout, stderr := corpusMCPMapSession(t, root, outside)
+	if code != 2 || stdout != "" || stderr != "corvint-corpus-mcp: --map: absolute path is not below --root\n" {
+		t.Fatalf("outside map: code %d stdout %q stderr %q", code, stdout, stderr)
+	}
+}
+
+// TestDCPV1242RelativeArtifactRefusalNamesArgumentAndRule checks that a relative --artifact that
+// breaks the local input path rule exits 2 naming the argument and the rule, not the generic
+// `repository unavailable` refusal (DCP-V1-242, V1-1228).
+func TestDCPV1242RelativeArtifactRefusalNamesArgumentAndRule(t *testing.T) {
+	root, _ := corpusServerFixture(t, "# Evidence\n\nOriginal source.\n")
+	for _, c := range []struct{ artifact, rule string }{
+		{"./corpus.json", "got a non-canonical path"},
+		{"../corpus.json", "got a parent traversal"},
+		{"docs//corpus.json", "got a non-canonical path"},
+		{"docs\\corpus.json", "got a backslash, NUL, tab, CR or LF"},
+	} {
+		code, stdout, stderr := corpusMCPSession(t, root, c.artifact)
+		want := "corvint-corpus-mcp: --artifact: local input paths must be canonical and relative to --root (" + c.rule + ")\n"
+		if code != 2 || stdout != "" || stderr != want {
+			t.Fatalf("artifact %q: code %d stdout %q stderr %q, want %q", c.artifact, code, stdout, stderr, want)
+		}
+	}
+	// A canonical relative path that does not exist keeps the generic refusal.
+	if code, _, stderr := corpusMCPSession(t, root, "missing.json"); code != 2 || stderr != "corvint-corpus-mcp: repository unavailable\n" {
+		t.Fatalf("missing artifact: code %d stderr %q", code, stderr)
+	}
+}

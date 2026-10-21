@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028)
+Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656)
 Delivery status: experimental
 Authoritative inputs: https://github.com/beamfall/corvint/issues/498; CAL-V0-028..034 in corvint-tasks-agent-leases-v0.md; independent Gate A packet-r2/GATE-A.md PASS with no HIGH, MED findings incorporated before implementation.
 Native ticket: V1-0695, original creation receipt2436.
 
 ## Agent digest
 - Claim: Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.
-- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
+- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
 - Exists: Foreground sweep, optional dispatcher integration and focused fixtures are implemented in source. Earlier source-bound repair evidence is retained separately from current integrated qualification.
 - Blocked on: Current integrated native binary, mandatory selected tests, exact-target review, terminal evidence, hosted integration and native completion. Linux runtime and physical external cleanup remain unqualified.
 - Read next: Requirements; Acceptance evidence; Non-goals and simpler baseline; Compatibility and rollback.
@@ -291,6 +291,24 @@ applies at release; pools without `allowedSources` behave as before.
 - `PSR-V0-086`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1586) A pool
   without `allowedSources` is unchanged: its policy, pools.json and `pool status` bytes carry no
   `source`, `identities`, `identity` or source keys, and its members free exactly as before.
+
+- `PSR-V0-168`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1656) The
+  PSR-V0-083 identity command never runs while the writer lock or the preparation gate is held.
+  On the writer-checkpoint route the observer serves only an observation memoized for the
+  byte-identical policy and pool state audited under the lock; otherwise it declines the route
+  (`fast.declined: ... identity ...`) without running anything and records that state. The command
+  then runs for the recorded state with the lock and gate released, and the route is tried once
+  more, where the lock-held observer accepts the observation only if the audited policy and pool
+  bytes still equal those it was made for (revalidation under the lock). A second decline prepares
+  the complete route, whose observer runs before the gate and whose locked head recheck refuses a
+  moved snapshot (`SNAPSHOT_MOVED`, next round), so no observation is ever bound to state it was
+  not made for. A concurrent writer therefore waits on this confirmation for at most its locked
+  append, never for the identity command; a confirmation whose state is unchanged runs the
+  command once. After the command ran unlocked, the write is recorded at the later of the caller's
+  time and the wall clock, so a writer that committed meanwhile never leaves it earlier than the
+  head receipt. Verdicts, receipts and pools.json bytes are otherwise those of PSR-V0-083/084.
+  Limit: the revalidation key binds the policy and pool bytes only; the command's environment
+  values and executable contents are not part of it, as for PSR-V0-083's observation.
 
   Failure modes: a source outside the allow-list (refused before allocation); a drifted, failing,
   timed-out, over-limit or malformed identity (member stays QUARANTINED with the reason); a missing
@@ -853,6 +871,7 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-084 | `TestPSRV0081_SourceIdentityGuard` (`internal/tasks/cli`) |
 | PSR-V0-085 | `TestPSRV0081_SourceIdentityGuard`, `TestPSRV0085_LaneUntouchedKeepsIdentityGuard` (`internal/tasks/cli`) |
 | PSR-V0-086 | `TestPSRV0086_PoolsWithoutSourcesUnchanged` (`internal/tasks/cli`) |
+| PSR-V0-168 | `TestPSRV0168_IdentityProbeOutsideWriterLock`, `TestPSRV0168_IdentityProbeStaleStateNotReused` (`internal/tasks/store`) |
 
 ## Traceability (PSR-V0-110..116)
 

@@ -135,10 +135,16 @@ func parse(arguments []string) (options, error) {
 	}
 	if index < len(arguments) && arguments[index] == "impact" {
 		result.command = "impact"
+		// The capabilities listing reads no repository, so it needs no Git
+		// root (V1-2067); every other impact keeps the root check first.
+		parsed, parseErr := parseImpactArguments(result, arguments[index+1:])
+		if parseErr == nil && parsed.impactCapabilities {
+			return parsed, nil
+		}
 		if err := requireRepositoryRoot(result.root); err != nil {
 			return result, err
 		}
-		return parseImpactArguments(result, arguments[index+1:])
+		return parsed, parseErr
 	}
 	if index < len(arguments) && arguments[index] == "feature" {
 		result.command = "feature"
@@ -1248,7 +1254,7 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			if options.command == "feature" {
 				return contextindex.FeatureBudget(index, options.featureID, options.featureLimit, options.featureBudget)
 			}
-			if options.requireClean && len(index.DirtyPaths) != 0 {
+			if options.requireClean && index.SourceDirty() {
 				return contextindex.ImpactCleanAbstention(index, options.impactPaths, options.impactLimit, impactBudget(options.impactPaths, options.impactBudget))
 			}
 			if options.impactWorktree {

@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -27,6 +28,7 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/mutate"
 	"github.com/Beamfall/corvint/internal/liveverify/pyresolve"
+	"github.com/Beamfall/corvint/internal/liveverify/rbmutate"
 	"github.com/Beamfall/corvint/internal/observations"
 )
 
@@ -101,13 +103,14 @@ func proveBoundsFrom(ctx context.Context) proveBounds {
 // languages in referenceLanguages; any other language falls through to the
 // authority table.
 var falsifierByKindAndAuthority = map[string]string{
-	"test|test-convention":             falsifierMutant,
-	"affected-test|affected-selection": falsifierMutant,
-	"reverse-import|syntax":            falsifierReference,
-	"reference|syntax":                 falsifierReference,
-	"cem-hunk|cem-supported":           falsifierVerifier,
-	"cem-hunk|cem-mechanical":          falsifierVerifier,
-	"cem-hunk|cem-unknown":             falsifierNone,
+	"test|test-convention":               falsifierMutant,
+	"affected-test|affected-selection":   falsifierMutant,
+	kindNamedSource + "|test-convention": falsifierMutant,
+	"reverse-import|syntax":              falsifierReference,
+	"reference|syntax":                   falsifierReference,
+	"cem-hunk|cem-supported":             falsifierVerifier,
+	"cem-hunk|cem-mechanical":            falsifierVerifier,
+	"cem-hunk|cem-unknown":               falsifierNone,
 }
 
 // referenceLanguages lists the path suffixes `reference-resolves` can judge:
@@ -128,6 +131,11 @@ type proveOptions struct {
 	checkpointPath, envelopePath, publicKeyPath     string
 	artifacts                                       string
 	patchGiven, attest, attestCEMV2                 bool
+	// named is the `--mutate-source` selector (FPK-V0-074), or nil.
+	named *proveNamedSource
+	// rubyRunner is the `--mutate-runner` container declaration
+	// (FPK-V0-078), or nil for the host sandbox.
+	rubyRunner *rbmutate.ContainerProfile
 }
 
 // falsifierByAuthority is the closed assignment table. Authorities that cite
@@ -248,6 +256,18 @@ type proveRow struct {
 	Mutation *proveMutationRecord `json:"mutation,omitempty"`
 	reason   string
 	basis    []string
+	// examples, namedLines and lineBasis are a named-source row's cited
+	// example lines, the caller's spans, and how the mutated lines were
+	// chosen (FPK-V0-074 to FPK-V0-076).
+	examples   []int
+	namedLines []mutate.LineSpan
+	lineBasis  string
+	// rubyRunner is the declared container runner of a Ruby row
+	// (FPK-V0-078), or nil.
+	rubyRunner *rbmutate.ContainerProfile
+	// repository is the checkout root a declared container workspace may
+	// not overlap (FPK-V0-078).
+	repository string
 }
 
 type proveMutationWitness struct {
@@ -306,12 +326,24 @@ func parseProveInvocation(arguments []string) (options, bool, error) {
 		return parsed, true, err
 	}
 	attackRest, attackCount := withoutAttackTestsFlag(arguments[position+1:])
-	rest, mutateCount := withoutMutateFlag(attackRest)
+	namedRest, named, namedErr := withoutNamedSourceFlags(attackRest)
+	if namedErr != nil {
+		return options{command: "prove"}, true, namedErr
+	}
+	namedRest, rubyRunner, runnerErr := withoutMutateRunnerFlag(namedRest)
+	if runnerErr != nil {
+		return options{command: "prove"}, true, runnerErr
+	}
+	rest, mutateCount := withoutMutateFlag(namedRest)
 	rewritten := append(append([]string{}, arguments[:position]...), proveWrappedCommand(rest))
 	rewritten = append(rewritten, rest...)
 	parsed, err := parse(rewritten)
+	if named != nil && rewritten[position] == "impact" && !parsed.impactBaseSet && !slices.Contains(parsed.impactPaths, named.source) {
+		parsed, err = parse(withNamedSourcePath(rewritten, named))
+	}
 	parsed.proveMode, parsed.command, parsed.proveMutate = rewritten[position], "prove", mutateCount > 0
 	parsed.proveAttackTests = attackCount > 0
+	parsed.prove.named, parsed.prove.rubyRunner = named, rubyRunner
 	if err != nil {
 		return parsed, true, err
 	}
@@ -338,6 +370,12 @@ func parseProveInvocation(arguments []string) (options, bool, error) {
 	}
 	if attackCount > 0 && (!parsed.proveMutate || parsed.proveMode != "change") {
 		return parsed, true, argumentError("argument --attack-tests: requires --base and --mutate")
+	}
+	if err := checkNamedSource(parsed); err != nil {
+		return parsed, true, err
+	}
+	if err := checkMutateRunner(parsed); err != nil {
+		return parsed, true, err
 	}
 	return parsed, true, nil
 }
@@ -560,6 +598,7 @@ func compileProof(ctx context.Context, options options) (any, error) {
 			return proveReceipt{}, err
 		}
 	}
+	rows = append(rows, namedSourceRows(options.prove.named)...)
 	checkoutRevision := ""
 	if options.proveMutate {
 		commit, tree, revisionErr := checkpointRevision(ctx, gitExecutable, options.root)
@@ -717,7 +756,7 @@ func affectedRow(test, changed string) proveRow {
 // unbound and its mutation claim fails before anything runs.
 func citeAffectedBlobs(rows []proveRow, cited map[string]citedBlob) {
 	for index := range rows {
-		if rows[index].Kind != kindAffectedTest {
+		if rows[index].Kind != kindAffectedTest && rows[index].Kind != kindNamedSource {
 			continue
 		}
 		if blob, present := cited[rows[index].Path]; present && blob.objectType == "blob" {
@@ -1216,6 +1255,7 @@ func judgeMutations(ctx context.Context, gitExecutable string, options options, 
 			}
 			continue
 		}
+		row.rubyRunner, row.repository = options.prove.rubyRunner, options.root
 		judged, err := judgeMutationMode(budgeted, exported, row, checkoutRevision, cited, dirty, spans, options.proveAttackTests)
 		if err != nil {
 			return nil, &gokernel.Error{Code: "unsupported-prove-mutation", Message: "the mutation runner failed for " + row.Path}
@@ -1344,6 +1384,9 @@ func judgeMutationMode(ctx context.Context, exported *mutate.Export, row proveRo
 		return mutationVerdict{falsified: falsifiedFail, detail: "the cited test blob is not at the cited path in the packet revision", witness: mutationWitnessNotProduced("mutation-input-unavailable")}, nil
 	}
 	lines, ok := confinedSpans(spans, changed)
+	if row.Kind == kindNamedSource {
+		lines, ok = row.namedLines, true
+	}
 	if !ok {
 		return mutationVerdict{falsified: falsifiedNotRun, detail: "the range changed no lines of " + changed, witness: mutationWitnessNotProduced("no-mutant-in-range")}, nil
 	}
@@ -1356,7 +1399,10 @@ func judgeMutationMode(ctx context.Context, exported *mutate.Export, row proveRo
 		return judged, err
 	}
 	if strings.HasSuffix(changed, ".rb") {
-		return judgeRubyMutation(ctx, exported, changed, row.Path, lines)
+		return judgeRubyMutation(ctx, exported, rbmutate.Request{
+			ChangedPath: changed, TestPath: row.Path, Lines: lines, Examples: row.examples, LineBasis: row.lineBasis,
+			Container: row.rubyRunner, Root: row.repository,
+		})
 	}
 	report, err := exported.Judge(ctx, mutate.Request{ChangedPath: changed, TestPath: row.Path, Lines: lines, Complete: attack})
 	if err != nil {
@@ -1419,6 +1465,9 @@ func confinedSpans(spans map[string][]mutate.LineSpan, changed string) ([]mutate
 // either claim form: impact's same-package row or change mode's affected row.
 func testClaimTarget(reason string) (string, bool) {
 	if changed, ok := strings.CutPrefix(reason, samePackageClaim); ok {
+		return changed, true
+	}
+	if changed, ok := strings.CutPrefix(reason, namedSourceClaimPrefix); ok {
 		return changed, true
 	}
 	return strings.CutPrefix(reason, affectedClaimPrefix)

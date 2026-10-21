@@ -17,7 +17,7 @@ lineage or carry an offset.
 A second, independent defect surfaced during this review: `0.7.0`'s released commit
 `41f2b68934ce0d7b2ee6f0b22e31dab41ddffa25` is not on `origin/main`'s first-parent chain at all
 (`git rev-list --first-parent --count` finds it 0 times on that chain, though it is a normal
-ancestor). `docs/RELEASE-NOTES.md:363-364@a8b5d080` records why: "the release source was a clean local clone of
+ancestor). The `0.7.0 prerelease` section of `docs/RELEASE-NOTES.md` records why: "the release source was a clean local clone of
 the integration branch at that commit rather than a GitHub clone, because nothing was pushed before
 tagging." The commit that actually sits at first-parent position 46 on `origin/main` is an unrelated
 merge, `e9a6e5456cfb0e7dbc72482fc3c43688c4f1372a` ("Merge pull request #131 from
@@ -32,13 +32,13 @@ shape or exact equality, never order:
 require an exact expected banner; `internal/releasecandidate/install.go:109@0a2f615a` and
 `cmd/corvint/work_executable_binding.go:75@d5b9289a` check the manifest/generated-binding shape;
 `extensions/vscode/src/executable.ts:13@29803a42` and `internal/companionrelease/core_smoke.go:52@d62aa33e` match a
-`(build N)` regex/prefix with no comparison across builds; `script/dogfood-check.sh:27@a5af256a` matches the
+`(build N)` regex/prefix with no comparison across builds; `script/dogfood-check.sh:37@a5af256a` matches the
 expected version's exact banner. `docs/specs/vscode-extension-v0.md:164@2ced530d` already states "the build
 number is not part of the pin." `SOP-V0-003` (`docs/specs/stable-operations-v0.md:84-92@feb4322f`, amended by
 decision 0360) compares upgrade/cold-index packet bytes, never build numbers, and a real N-1
 lifecycle upgrade from `0.6.0 (build 90)` into the installed `0.7.0 (build 46)` passed
 (`docs/BUILD-LOG.md:2455@b85d8a61`) even though the published build numbers went down (0.6.0 build 90, 0.7.0
-build 46, `docs/RELEASE-NOTES.md:354,377@9de89d5f`). `origin/main`'s current first-parent count already exceeds
+build 46; the `0.7.0 prerelease` and `0.6.0 prerelease` sections of `docs/RELEASE-NOTES.md`). `origin/main`'s current first-parent count already exceeds
 46, so the two published builds are not even the closest collision risk going forward.
 
 ## Decision

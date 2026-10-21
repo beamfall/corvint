@@ -4,7 +4,9 @@ import (
 	"bytes"
 	jsonstd "encoding/json"
 	"errors"
+	"reflect"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -684,8 +686,8 @@ func TestBehaviorAdapterCheckRetainsNoFrontier(t *testing.T) {
 	const outcomes, tests = 4096, 160
 	raw := behaviorAdapterOutcomeFrontierRequest(t, outcomes, tests)
 	result, buildErr := BuildBehaviorAdapter(raw, nil)
-	if buildErr != nil || len(result.Frontier) < outcomes*tests {
-		t.Fatalf("build should accept with at least %d diagnostics: %v %d", outcomes*tests, buildErr, len(result.Frontier))
+	if buildErr != nil || len(result.Frontier)+result.FrontierOmitted < outcomes*tests {
+		t.Fatalf("build should accept with at least %d diagnostics: %v %d+%d", outcomes*tests, buildErr, len(result.Frontier), result.FrontierOmitted)
 	}
 	result = BehaviorAdapterResult{}
 	var stats runtime.MemStats
@@ -705,6 +707,106 @@ func TestBehaviorAdapterCheckRetainsNoFrontier(t *testing.T) {
 	}
 	if !report.Accepted || len(report.Refusals) != 0 {
 		t.Fatalf("check should accept as Build does: %+v", report.Refusals)
+	}
+}
+
+// TestDCPV1240BuildBoundsTheFrontier proves DCP-V1-240 (V1-1089): Build
+// retains at most behaviorAdapterFrontierLimit reconciliation diagnostics and
+// counts the rest, so the reviewed round-6 repro encodes within the CLI
+// output bound and the CLI build agrees with --check, which accepts it.
+func TestDCPV1240BuildBoundsTheFrontier(t *testing.T) {
+	const outcomes, tests = 4096, 200
+	raw := behaviorAdapterOutcomeFrontierRequest(t, outcomes, tests)
+	result, err := BuildBehaviorAdapter(raw, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Frontier) != behaviorAdapterFrontierLimit || len(result.Frontier)+result.FrontierOmitted < outcomes*tests {
+		t.Fatalf("frontier not bounded: retained %d, omitted %d, want %d retained of at least %d", len(result.Frontier), result.FrontierOmitted, behaviorAdapterFrontierLimit, outcomes*tests)
+	}
+	if !slices.IsSortedFunc(result.Frontier, compareBehaviorAdapterDiagnostics) {
+		t.Fatal("retained frontier is not in canonical order")
+	}
+	encoded, err := Encode(result)
+	if err != nil {
+		t.Fatalf("CLI build would refuse the bounded result: %v", err)
+	}
+	var decoded map[string]any
+	if err := jsonstd.Unmarshal(encoded, &decoded); err != nil || decoded["frontier_omitted"] != float64(result.FrontierOmitted) {
+		t.Fatalf("omission count not encoded: %v %v", err, decoded["frontier_omitted"])
+	}
+	if report := CheckBehaviorAdapter(raw, nil); !report.Accepted {
+		t.Fatalf("check disagrees with the CLI build: %+v", report.Refusals)
+	}
+}
+
+// TestDCPV1240BoundedFrontierIsTheCanonicalPrefix proves the retained
+// entries are the smallest under the canonical order, independent of how
+// reconciliation interleaves them: a small bound keeps exactly the prefix of
+// the unbounded frontier, and the counts add up.
+func TestDCPV1240BoundedFrontierIsTheCanonicalPrefix(t *testing.T) {
+	raw := behaviorAdapterOutcomeFrontierRequest(t, 64, 40)
+	full, err := BuildBehaviorAdapter(raw, nil)
+	if err != nil || full.FrontierOmitted != 0 || len(full.Frontier) < 64*40 {
+		t.Fatalf("unbounded build: %v omitted %d retained %d", err, full.FrontierOmitted, len(full.Frontier))
+	}
+	defer func(limit int) { behaviorAdapterFrontierLimit = limit }(behaviorAdapterFrontierLimit)
+	for _, limit := range []int{1, 7, 100, len(full.Frontier) - 1} {
+		behaviorAdapterFrontierLimit = limit
+		bounded, err := BuildBehaviorAdapter(raw, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if bounded.FrontierOmitted != len(full.Frontier)-limit || !slices.Equal(bounded.Frontier, full.Frontier[:limit]) {
+			t.Fatalf("limit %d: retained %d omitted %d, not the canonical prefix of %d", limit, len(bounded.Frontier), bounded.FrontierOmitted, len(full.Frontier))
+		}
+		if !reflect.DeepEqual(bounded.Coverage, full.Coverage) {
+			t.Fatalf("limit %d changed coverage", limit)
+		}
+	}
+}
+
+// TestDCPV1240BuildBoundsTheFrontierBytes proves the encoded-byte half of
+// DCP-V1-240: 2048 flow-test diagnostics each repeating a 64 KiB flow
+// identity (about 128 MiB) stay under the count bound, so only the byte
+// bound keeps the result inside the CLI output bound. The retained entries
+// are the canonical prefix, the rest are counted, and --check agrees.
+func TestDCPV1240BuildBoundsTheFrontierBytes(t *testing.T) {
+	const tests = 2048
+	raw := behaviorAdapterFlowTestRequest(t, tests)
+	result, err := BuildBehaviorAdapter(raw, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Frontier) >= behaviorAdapterFrontierLimit || result.FrontierOmitted == 0 || len(result.Frontier)+result.FrontierOmitted < tests {
+		t.Fatalf("byte bound not applied: retained %d, omitted %d, want fewer than %d retained of at least %d", len(result.Frontier), result.FrontierOmitted, behaviorAdapterFrontierLimit, tests)
+	}
+	if !slices.IsSortedFunc(result.Frontier, compareBehaviorAdapterDiagnostics) {
+		t.Fatal("retained frontier is not in canonical order")
+	}
+	frontier, err := Encode(result.Frontier)
+	if err != nil || len(frontier) > behaviorAdapterFrontierByteLimit {
+		t.Fatalf("retained frontier encodes to %d bytes over the %d bound: %v", len(frontier), behaviorAdapterFrontierByteLimit, err)
+	}
+	encoded, err := Encode(result)
+	if err != nil {
+		t.Fatalf("CLI build would refuse the bounded result: %v", err)
+	}
+	var decoded map[string]any
+	if err := jsonstd.Unmarshal(encoded, &decoded); err != nil || decoded["frontier_omitted"] != float64(result.FrontierOmitted) {
+		t.Fatalf("omission count not encoded: %v %v", err, decoded["frontier_omitted"])
+	}
+	if report := CheckBehaviorAdapter(raw, nil); !report.Accepted {
+		t.Fatalf("check disagrees with the CLI build: %+v", report.Refusals)
+	}
+	defer func(limit int) { behaviorAdapterFrontierByteLimit = limit }(behaviorAdapterFrontierByteLimit)
+	behaviorAdapterFrontierByteLimit = 1 << 30
+	full, err := BuildBehaviorAdapter(raw, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(result.Frontier, full.Frontier[:len(result.Frontier)]) || len(result.Frontier)+result.FrontierOmitted != len(full.Frontier)+full.FrontierOmitted {
+		t.Fatalf("byte-bounded frontier is not the canonical prefix: retained %d omitted %d of %d+%d", len(result.Frontier), result.FrontierOmitted, len(full.Frontier), full.FrontierOmitted)
 	}
 }
 

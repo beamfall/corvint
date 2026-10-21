@@ -1988,9 +1988,10 @@ func relation03(s string) bool {
 }
 
 // structuralTuples are the exact Go releases admitted for structural
-// mechanical proof: go1.27.1, the S0E prototype tuple, and go1.27.2, admitted
-// by the sealed protocol/cem-1.0/structural-tuples/go1.27.2 packet.
-var structuralTuples = map[string]bool{"go1.27.1": true, "go1.27.2": true}
+// mechanical proof: go1.27.1, the S0E prototype tuple, and go1.27.2 and
+// go1.27.3, each admitted by its sealed
+// protocol/cem-1.0/structural-tuples/<version> packet (decisions 0522, 0547).
+var structuralTuples = map[string]bool{"go1.27.1": true, "go1.27.2": true, "go1.27.3": true}
 
 func structuralRuntimeAdmitted(version string) bool { return structuralTuples[version] }
 
@@ -2765,7 +2766,15 @@ type stableResult struct {
 func emptyStableReferences() stableReferences {
 	return stableReferences{[]stableCriterion{}, []stableRunner{}, []stableLink{}, []stableArtifact{}}
 }
-func newStableResult(base, target string) stableResult {
+
+// stableLegacyEnvelope is the repository envelope of the legacy portable
+// verify-stable (R1) path: the independently reviewed
+// primary-clean-config-bounded/1 envelope that R1-EXPECTED.json pins. The
+// canonical path uses stableCanonicalEnvelope. newStableResult takes the
+// envelope from its caller, so no result carries a defaulted label (V1-2142).
+const stableLegacyEnvelope = "primary-clean-config-bounded/1"
+
+func newStableResult(base, target, envelope string) stableResult {
 	axes := map[string]string{}
 	for _, key := range []string{"changeIntegrity", "referenceIntegrity", "structuralProof", "coverageValidation", "discriminationValidation"} {
 		axes[key] = "NOT_CHECKED"
@@ -2773,7 +2782,7 @@ func newStableResult(base, target string) stableResult {
 	for _, key := range []string{"nativeAuthority", "historicalValidity", "currentApplicability", "sourceGitBinding", "sourceInventoryCompleteness", "executionAtCommit", "runnerReceiptSemantics", "runnerExecution", "authentication", "dependencyClosure", "criterionAdequacy", "criterionDiscrimination", "externalInteroperability"} {
 		axes[key] = "NOT_OBSERVED"
 	}
-	r := stableResult{Profile: "cem-stable-verification/1", Spec: stableSpec, VerificationMode: "canonical-and-reference-integrity", Outcome: "UNSUPPORTED", Stage: "arguments", IssueCodes: []string{}, Sidecar: "NOT_CHECKED", Drift: []drift03{}, Hunks: resultHunks{}, References: resultReferences(emptyStableReferences()), ArtifactChecks: []stableArtifactCheck{}, Axes: axes, Runtime: runtime03{runtime.Version(), "NOT_REQUIRED"}, RepositoryEnvelope: "primary-clean-config-bounded/1"}
+	r := stableResult{Profile: "cem-stable-verification/1", Spec: stableSpec, VerificationMode: "canonical-and-reference-integrity", Outcome: "UNSUPPORTED", Stage: "arguments", IssueCodes: []string{}, Sidecar: "NOT_CHECKED", Drift: []drift03{}, Hunks: resultHunks{}, References: resultReferences(emptyStableReferences()), ArtifactChecks: []stableArtifactCheck{}, Axes: axes, Runtime: runtime03{runtime.Version(), "NOT_REQUIRED"}, RepositoryEnvelope: envelope}
 	if base != "" {
 		r.ExpectedBase = string03(base)
 	}
@@ -3603,7 +3612,7 @@ func runStableTrusted(ctx context.Context, repo string, raw []byte, base, target
 // runStableExternal is runStableTrusted with the consumer
 // --external-repository roots by name (CEM-V1-333); nil supplies none.
 func runStableExternal(ctx context.Context, repo string, raw []byte, base, target, artifacts string, trusted map[string]ed25519.PublicKey, externals map[string]string) (stableResult, int) {
-	r := newStableResult(base, target)
+	r := newStableResult(base, target, stableLegacyEnvelope)
 	r.MapSHA256 = string03(shaHex(raw))
 	m, e := decodeStable(raw)
 	if e != nil {
@@ -3970,7 +3979,7 @@ func executeStableCLIExternal(ctx context.Context, argv []string) (stableResult,
 			flags[argv[i]] = argv[i+1]
 		}
 	}
-	r := newStableResult(flags["--expected-base"], flags["--target"])
+	r := newStableResult(flags["--expected-base"], flags["--target"], stableLegacyEnvelope)
 	if bad || flags["--repository"] == "" || flags["--map"] == "" || !filepath.IsAbs(flags["--repository"]) || !filepath.IsAbs(flags["--map"]) {
 		res, status := failStable(&r, "arguments", operational("invalid-arguments"), false)
 		return res, status, nil, externals

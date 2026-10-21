@@ -39,6 +39,20 @@ func ProvenanceWithNotesTip(ctx context.Context, root, commit, notesTip string) 
 // set, adds the read-only `verdicts` listing of commit's verdict ledger
 // (CEM-V1-277). It writes nothing either way.
 func ProvenanceWithVerdicts(ctx context.Context, root, commit, notesTip string, verdicts bool) (map[string]any, error) {
+	return ProvenanceWithVerdictsTip(ctx, root, commit, notesTip, verdicts, "")
+}
+
+// ProvenanceWithVerdictsTip is ProvenanceWithVerdicts with an optional pinned
+// verdict ledger tip, an earlier refs/notes/corvint-verdicts commit the
+// caller recorded (CEM-V1-345). It needs verdicts. When verdictsTip is not an
+// ancestor of, or equal to, the live ledger tip, or the live ref is gone, the
+// ledger was rewound: the `verdicts` member carries `tip` with state
+// `rollback`, its own state is `rollback` and it lists no records, whatever
+// the live note holds. A ref that moves during the read is refused.
+func ProvenanceWithVerdictsTip(ctx context.Context, root, commit, notesTip string, verdicts bool, verdictsTip string) (map[string]any, error) {
+	if verdictsTip != "" && !verdicts {
+		return nil, cemcode.New(cemcode.InvalidArguments, "argument --verdicts-tip: requires --verdicts")
+	}
 	repo, err := open(root)
 	if err != nil {
 		return nil, err
@@ -47,9 +61,14 @@ func ProvenanceWithVerdicts(ctx context.Context, root, commit, notesTip string, 
 	if err != nil {
 		return nil, err
 	}
-	var tip map[string]any
+	var tip, ledgerTip map[string]any
 	if notesTip != "" {
-		if tip, err = repo.notesTipState(ctx, notesTip); err != nil {
+		if tip, err = repo.refTipState(ctx, Ref, "--notes-tip", notesTip); err != nil {
+			return nil, err
+		}
+	}
+	if verdictsTip != "" {
+		if ledgerTip, err = repo.refTipState(ctx, VerdictRef, "--verdicts-tip", verdictsTip); err != nil {
 			return nil, err
 		}
 	}
@@ -80,43 +99,80 @@ func ProvenanceWithVerdicts(ctx context.Context, root, commit, notesTip string, 
 		"evidence": append(rows, trailers...),
 	}
 	if verdicts {
-		if result["verdicts"], err = repo.verdictsMember(ctx, target); err != nil {
-			return nil, err
+		// With --verdicts-tip the ledger is read from the live commit the
+		// tip state captured, by object ID, so a ref that moves away and
+		// back during the read cannot supply other content (V1-2024).
+		notesCommit := ""
+		if ledgerTip != nil {
+			notesCommit, _ = ledgerTip["live"].(string)
 		}
-	}
-	if tip != nil {
-		// The rows must come from the tip the rollback state was computed
-		// against; a ref that moved during the read is refused, not reported.
-		live, err := repo.liveNotesTip(ctx)
+		verdictsRead("before")
+		member, err := repo.verdictsMember(ctx, target, ledgerTip != nil, notesCommit)
+		verdictsRead("after")
 		if err != nil {
 			return nil, err
 		}
-		if (tip["live"] == nil && live != "") || (tip["live"] != nil && tip["live"] != live) {
-			return nil, cemcode.New(CodeNotesMoved, "%s moved during the read; read provenance again", Ref)
+		if ledgerTip != nil {
+			if ledgerTip["state"] == "rollback" {
+				member["state"], member["records"] = "rollback", []VerdictRecord{}
+			}
+			member["tip"] = ledgerTip
 		}
+		result["verdicts"] = member
+	}
+	// The rows must come from the tips the rollback states were computed
+	// against; a ref that moved during the read is refused, not reported.
+	if err := repo.requireUnmoved(ctx, Ref, tip); err != nil {
+		return nil, err
+	}
+	if err := repo.requireUnmoved(ctx, VerdictRef, ledgerTip); err != nil {
+		return nil, err
+	}
+	if tip != nil {
 		result["notes_tip"] = tip
 	}
 	return result, nil
 }
 
-// notesTipState compares a pinned refs/notes/corvint commit with the live
-// tip: `current` when the pinned commit is the live tip or one of its
+// verdictsRead is a test seam around the verdict ledger read of a
+// provenance listing; it does nothing in production.
+var verdictsRead = func(stage string) {}
+
+// requireUnmoved refuses a read during which ref left the live tip that
+// state, a refTipState result, recorded. A nil state checks nothing.
+func (r *repository) requireUnmoved(ctx context.Context, ref string, state map[string]any) error {
+	if state == nil {
+		return nil
+	}
+	live, err := r.liveRefTip(ctx, ref)
+	if err != nil {
+		return err
+	}
+	if (state["live"] == nil && live != "") || (state["live"] != nil && state["live"] != live) {
+		return cemcode.New(CodeNotesMoved, "%s moved during the read; read provenance again", ref)
+	}
+	return nil
+}
+
+// refTipState compares a pinned commit of a notes ref (refs/notes/corvint
+// for --notes-tip, refs/notes/corvint-verdicts for --verdicts-tip) with the
+// live tip: `current` when the pinned commit is the live tip or one of its
 // ancestors, `rollback` otherwise, including when the live ref is absent. A
 // pinned tip that does not resolve to a commit is an error, never a state.
-func (r *repository) notesTipState(ctx context.Context, notesTip string) (map[string]any, error) {
+func (r *repository) refTipState(ctx context.Context, ref, flag, pinnedTip string) (map[string]any, error) {
 	// A revision name would resolve to the live tip it is meant to check.
-	if !objectID(notesTip) {
-		return nil, cemcode.New(cemcode.InvalidArguments, "argument --notes-tip: must be a full lowercase hexadecimal commit object ID")
+	if !objectID(pinnedTip) {
+		return nil, cemcode.New(cemcode.InvalidArguments, "argument %s: must be a full lowercase hexadecimal commit object ID", flag)
 	}
-	pinned, err := r.resolveCommit(ctx, notesTip)
+	pinned, err := r.resolveCommit(ctx, pinnedTip)
 	if err != nil {
 		return nil, err
 	}
-	live, err := r.liveNotesTip(ctx)
+	live, err := r.liveRefTip(ctx, ref)
 	if err != nil {
 		return nil, err
 	}
-	state := map[string]any{"ref": Ref, "pinned": pinned, "live": nil, "state": "rollback"}
+	state := map[string]any{"ref": ref, "pinned": pinned, "live": nil, "state": "rollback"}
 	if live == "" {
 		return state, nil
 	}
@@ -132,15 +188,15 @@ func (r *repository) notesTipState(ctx context.Context, notesTip string) (map[st
 	return state, nil
 }
 
-// liveNotesTip is the object refs/notes/corvint names, "" when it is absent.
-// for-each-ref also matches refs below Ref; only the exact name is the tip.
-func (r *repository) liveNotesTip(ctx context.Context) (string, error) {
-	out, err := r.git(ctx, MaxListBytes, nil, "for-each-ref", "--format=%(refname) %(objectname)", Ref)
+// liveRefTip is the object ref names, "" when it is absent. for-each-ref
+// also matches refs below ref; only the exact name is the tip.
+func (r *repository) liveRefTip(ctx context.Context, ref string) (string, error) {
+	out, err := r.git(ctx, MaxListBytes, nil, "for-each-ref", "--format=%(refname) %(objectname)", ref)
 	if err != nil {
 		return "", err
 	}
 	for _, line := range strings.Split(string(out), "\n") {
-		if name, oid, found := strings.Cut(line, " "); found && name == Ref {
+		if name, oid, found := strings.Cut(line, " "); found && name == ref {
 			return oid, nil
 		}
 	}

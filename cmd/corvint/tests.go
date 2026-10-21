@@ -83,9 +83,11 @@ when the waited method is unknown); with a committed .corvint/seed-rules.json
 (corvint-seed-rules/0) also the advisory SEED-VALIDATION-REJECTED,
 SEED-SIBLING-COLLISION, SEED-HOOK-BLAST-RADIUS and SEED-VALIDATION-UNRESOLVED.
 To a _spec.rb file: MEMOIZED-BLOCK-EXPECTATION,
-RSPEC-SKIPPED, RSPEC-FOCUSED, SHARED-EXAMPLE-ONLY, RB-BLOCK-NEVER-YIELDED,
-RB-ASSIGNMENT-IN-PREDICATE and the advisory DESCRIBED-CLASS-STUBBED,
-RB-CHANGE-ON-IDENTITY and RB-RAISE-ERROR-ONLY; a helper the reader cannot
+BLOCK-NOT-CALLED, RSPEC-SKIPPED, RSPEC-FOCUSED, SHARED-EXAMPLE-ONLY,
+RB-BLOCK-NEVER-YIELDED, RB-ASSIGNMENT-IN-PREDICATE and the advisory
+DESCRIBED-CLASS-STUBBED, RB-CHANGE-ON-IDENTITY and RB-RAISE-ERROR-ONLY; an
+example that skips conditionally or that a committed filter_run_excluding
+removes abstains with RSPEC-CONDITIONAL-SKIP or RSPEC-CONFIG-EXCLUDED; a helper the reader cannot
 resolve through spec/spec_helper.rb, spec/rails_helper.rb and spec/support
 abstains with RB-HELPER-UNRESOLVED or RB-HELPER-AMBIGUOUS. A qualified
 reference SPEC:INCLUDE_LINE>SHARED:EXAMPLE_LINE (SHARED may be "same") reads
@@ -97,7 +99,10 @@ RB-STUB-DECIDES-ASSERTION or RB-MESSAGE-CHAIN-PREFIX-ONLY, and a stub of a
 flag lookup (the built-in list or a committed .corvint/flag-lookups.json,
 corvint-flag-lookups/0) gives the advisory RB-FLAG-CONDITIONAL and
 RB-FLAG-FORCED-NON-DEFAULT and a "conditional on flag KEY=VALUE" condition on
-the test. It prints one
+the test. A _spec.rb example also abstains with RB-ASSERT-TARGET-NEVER-WRITTEN
+when it asserts a plain attr_accessor of an object it builds that nothing it
+exercises writes, read from the committed app/, lib/ and db/schema.rb. It
+prints one
 corvint-test-source-validity/0 document: each file's findings (uncertain with
 a reason where the reader abstained) and the tests. A JS/TS file lists every
 example in line order with its hygiene and a NOT_MEASURED strength; other
@@ -204,7 +209,7 @@ tests-join-selector-malformed, tests-join-selector-unknown.
 Contract: docs/specs/test-source-analysis-v0.md (experimental; V1-1587, V1-1589,
 V1-1592, V1-1798, V1-1858, V1-1866, V1-1867, V1-1883, V1-1884,
 V1-1887, V1-1888, V1-1889, V1-1933, V1-1934,
-V1-1935, V1-1972, V1-2039, V1-2040).
+V1-1935, V1-1972, V1-2039, V1-2040, V1-1892).
 `
 
 // testsInvocation recognises `[--root PATH] tests ...`.

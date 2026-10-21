@@ -18,6 +18,7 @@ go_cache=${CORVINT_GOCACHE:-${GOCACHE:-/tmp/corvint-go-build-cache}}
 base_arg=${1:?usage: dogfood-change.sh BASE}
 repo=$(cd "$(dirname "$0")/.." && pwd)
 git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
+source "$repo/script/dogfood-build-corvint.sh" || exit 2
 evidence="$git_dir/corvint"
 mkdir -p "$evidence" || exit 2
 expected_version=$(cat "$repo/VERSION")
@@ -27,12 +28,18 @@ if [[ -z $expected_version ]]; then
 fi
 if [[ -z $corvint_bin_set ]]; then
   corvint_bin="$evidence/corvint"
-  if ! GOCACHE="$go_cache" GOTOOLCHAIN=local \
-    go build -o "$corvint_bin" ./cmd/corvint 2> /dev/null; then
+  if ! dogfood_build_tree_corvint "$corvint_bin"; then
     printf 'dogfood-change: REFUSE current-tree-corvint-build-failed\n' >&2
     exit 2
   fi
 else
+  # A PATH-only name resolves once, before the version probe, so every later verifier receives the executable
+  # the probe ran. The result is absolute so a later cd cannot change its meaning.
+  [[ $corvint_bin == */* ]] || corvint_bin=$(type -P -- "$corvint_bin") || {
+    printf 'dogfood-change: REFUSE corvint-bin-unresolved\n' >&2
+    exit 2
+  }
+  [[ $corvint_bin == /* ]] || corvint_bin="$PWD/$corvint_bin"
   version_output=$("$corvint_bin" --version 2> /dev/null)
   return_code=$?
   if [[ $return_code -ne 0 || ! $version_output =~ ^"Corvint $expected_version (build "(0|[1-9][0-9]*)")"$ ]]; then
@@ -43,7 +50,6 @@ fi
 # The flow's root is the working directory, so run it from the repository;
 # relative executable and input paths keep meaning the ones the caller named.
 if [[ $PWD != "$repo" ]]; then
-  [[ $corvint_bin != */* || $corvint_bin == /* ]] || corvint_bin="$PWD/$corvint_bin"
   for name in DOGFOOD_INTENTS_FILE DOGFOOD_CITATIONS DOGFOOD_VERIFY_FILE DOGFOOD_OCM_LINKS; do
     value=${!name-}
     [[ -z $value || $value == /* ]] || export "$name=$PWD/$value"

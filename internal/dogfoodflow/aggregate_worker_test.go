@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -64,6 +65,49 @@ func TestAggregateCallerHoldRetainsLockAndStopsFollowOnWork(t *testing.T) {
 	c := check{flow: flow{ctx: ctx}, options: CheckOptions{AggregatePublish: func(context.Context, string, AggregateCheckCapture) error { published = true; return nil }}}
 	if err := c.finishAggregateCapture(2, nil); !errors.Is(err, dogfoodoperation.ErrCleanupHold) || published {
 		t.Fatal("HOLD capture started publication", err)
+	}
+}
+
+// PGO-V0-017: the aggregate worker's owner opts into RepeatKillWhileLive. The
+// fake host's first pre-reap quiet proof sees a live member, as one forked
+// alongside the group SIGKILL can be on Darwin; a later proof is quiet only
+// after a second group signal and otherwise fails, which HOLDs. The leader
+// exits on its own and is reaped for real.
+func TestPGOV0017AggregateWorkerRepeatsGroupKillWhileMemberLive(t *testing.T) {
+	if !groupreap.OwnerAvailable() {
+		t.Skip("native Owner unavailable")
+	}
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, release, err := dogfoodoperation.Acquire(context.Background(), dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	var kills, proofs atomic.Int32
+	was := aggregateWorkerHost
+	t.Cleanup(func() { aggregateWorkerHost = was })
+	aggregateWorkerHost = groupreap.Primitives{
+		KillGroup: func(int) error { kills.Add(1); return nil },
+		QuietProof: func(int) (groupreap.Probe, error) {
+			switch {
+			case proofs.Add(1) == 1:
+				return groupreap.ProbeLive, nil
+			case kills.Load() < 2:
+				return groupreap.ProbeLive, errors.New("live member after a single group signal")
+			}
+			return groupreap.ProbeQuiet, nil
+		},
+		ProbeGroup: func(int) (groupreap.Probe, error) { return groupreap.ProbeAbsent, nil },
+	}
+	out, _, status, err := runAggregateOwnedProcess(ctx, exec.Command("/bin/sh", "-c", "printf ok"), 1024, 1024, time.Now().Add(time.Minute))
+	if err != nil || string(out) != "ok" || status != 0 {
+		t.Fatalf("out=%q status=%d err=%v", out, status, err)
+	}
+	if got := kills.Load(); got != 2 {
+		t.Fatalf("group signals = %d, want the first and one repeat", got)
 	}
 }
 

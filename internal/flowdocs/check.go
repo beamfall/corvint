@@ -53,7 +53,15 @@ type checkItem struct {
 func collectBindings(m Manifest) map[string]checkItem {
 	r := map[string]checkItem{}
 	for _, f := range m.Flows {
-		r[f.ID] = checkItem{anchors: []doccorpus.Anchor{f.Paragraphs[0].Anchor}}
+		// The flow item also binds its static call inventory, which the
+		// flow-diagram page and same-file depends_on relations render: a body
+		// edit that adds, removes or changes a call is drift even when the
+		// declaration line and every claim span are unchanged.
+		anchors := []doccorpus.Anchor{f.Paragraphs[0].Anchor}
+		for _, c := range f.Calls {
+			anchors = append(anchors, c.Anchor)
+		}
+		r[f.ID] = checkItem{anchors: anchors}
 		for _, p := range f.Paragraphs {
 			anchors := []doccorpus.Anchor{p.Anchor}
 			if p.Imported {

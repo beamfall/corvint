@@ -1,7 +1,12 @@
 package sessiontest
 
 import (
+	"fmt"
+	"maps"
+	"os"
+	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -134,5 +139,83 @@ func TestSTRV0058AdapterManifestVersionPinned(t *testing.T) {
 	}
 	if drift := manifestVersionDrift(pins, good); drift != "" {
 		t.Fatalf("earlier version after the bump: %s", drift)
+	}
+}
+
+// pinLockDrift names every way pins departs from the append-only lock rows
+// (STR-V0-058, V1-2026): a locked version dropped or re-pinned, a duplicate
+// locked version, or a pin not yet appended to the lock. It returns nil when
+// pins and the lock agree row for row.
+func pinLockDrift(pins map[string]string, lock []byte) []string {
+	var drift []string
+	locked := map[string]string{}
+	for number, line := range strings.Split(string(lock), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) != 2 {
+			drift = append(drift, fmt.Sprintf("lock line %d: want \"version digest\", got %q", number+1, line))
+			continue
+		}
+		version, digest := fields[0], fields[1]
+		if _, ok := locked[version]; ok {
+			drift = append(drift, "lock pins "+version+" twice")
+		}
+		locked[version] = digest
+		switch pinned, ok := pins[version]; {
+		case !ok:
+			drift = append(drift, "locked pin "+version+" was removed from the pin table")
+		case pinned != digest:
+			drift = append(drift, "locked pin "+version+" was edited: table "+pinned+", lock "+digest)
+		}
+	}
+	for version := range pins {
+		if _, ok := locked[version]; !ok {
+			drift = append(drift, "pin "+version+" is not appended to the lock")
+		}
+	}
+	slices.Sort(drift)
+	return drift
+}
+
+// STR-V0-058, V1-2026: the pin table is append-only against the committed
+// lock, so editing or removing a shipped pin fails here rather than relying
+// on review alone.
+func TestSTRV0058PinTableMatchesLock(t *testing.T) {
+	lock, err := os.ReadFile(filepath.Join("testdata", "adapter-manifest-pins.lock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if drift := pinLockDrift(adapterManifestVersionPins, lock); len(drift) != 0 {
+		t.Fatalf("adapter manifest pin table departs from its append-only lock: %q", drift)
+	}
+	const v0 = "corvint-test-adapter/0"
+	other := "sha256:" + strings.Repeat("0", 64)
+	clone := func(edit func(map[string]string)) map[string]string {
+		pins := maps.Clone(adapterManifestVersionPins)
+		edit(pins)
+		return pins
+	}
+	for name, test := range map[string]struct {
+		pins map[string]string
+		lock string
+		want string
+	}{
+		"row edited":       {clone(func(p map[string]string) { p[v0] = other }), string(lock), "locked pin " + v0 + " was edited"},
+		"row removed":      {clone(func(p map[string]string) { delete(p, v0) }), string(lock), "locked pin " + v0 + " was removed"},
+		"pin not appended": {clone(func(p map[string]string) { p["corvint-test-adapter/1"] = other }), string(lock), "pin corvint-test-adapter/1 is not appended"},
+		"lock duplicated":  {adapterManifestVersionPins, string(lock) + v0 + " " + other + "\n", "lock pins " + v0 + " twice"},
+		"lock malformed":   {adapterManifestVersionPins, string(lock) + "corvint-test-adapter/1\n", "lock line"},
+	} {
+		drift := pinLockDrift(test.pins, []byte(test.lock))
+		if !slices.ContainsFunc(drift, func(d string) bool { return strings.HasPrefix(d, test.want) }) {
+			t.Errorf("%s: drift %q, want an entry starting %q", name, drift, test.want)
+		}
+	}
+	appended := clone(func(p map[string]string) { p["corvint-test-adapter/1"] = other })
+	if drift := pinLockDrift(appended, []byte(string(lock)+"corvint-test-adapter/1 "+other+"\n")); len(drift) != 0 {
+		t.Fatalf("an appended pin with its lock row: %q", drift)
 	}
 }

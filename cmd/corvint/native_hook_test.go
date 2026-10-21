@@ -176,3 +176,18 @@ func TestNativeHookReplacementCanBeInterrupted(t *testing.T) {
 		})
 	}
 }
+
+// V1-0445: the qualified native-hook path maps a SessionStart "fork" to resume, as the host
+// adapters do, and still refuses an unknown or non-string source.
+func TestNativeHookForkSessionStartIsResume(t *testing.T) {
+	t.Parallel()
+	got, err := normalizeNativeHook([]byte(`{"hook_event_name":"SessionStart","source":"fork"}`), true, "")
+	if err != nil || got["input"].(map[string]any)["startSource"] != "resume" {
+		t.Fatalf("fork: %#v %v", got, err)
+	}
+	for _, raw := range []string{`{"hook_event_name":"SessionStart","source":"tree"}`, `{"hook_event_name":"SessionStart","source":7}`} {
+		if _, err := normalizeNativeHook([]byte(raw), true, ""); err == nil {
+			t.Fatalf("admitted %s", raw)
+		}
+	}
+}

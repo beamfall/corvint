@@ -39,7 +39,7 @@ artifact also witness it. Driving the build inverts exactly that: Corvint become
 code, the tests, and the execution, and no second party is left to witness any of it.
 
 The proposition is also already a stated non-goal, three times over: **autonomous code editing** and
-**a new specification language** are both listed at `docs/PRODUCT.md:366-368@27e81383`, and
+**a new specification language** are both listed at `docs/PRODUCT.md:378-380@27e81383`, and
 `docs/specs/live-proof-carrying-verification-v0.md:577-578@38b12d34` forbids "generating tests, weakening
 assertions, rewriting product code … auto-fixing failures, merging, deploying, or publishing".
 
@@ -106,7 +106,7 @@ independent verdict axes. Those are shipped and running in CI.
 still labels its delivery experimental and candidate-only
 (`docs/specs/change-frontier-v0.md:10-22@8addad40`). The missing integration is a qualified
 host closing decision: the harness `stop` event reports `frontier.state: UNAVAILABLE` and
-cannot continue or block the host (`docs/specs/agent-harness-integration-v0.md:69-71@3208c7de`).
+cannot continue or block the host (`docs/specs/agent-harness-integration-v0.md:70-72@3208c7de`).
 The implemented advisory queue does not supply that host authority.
 
 ## Staged adoption
@@ -127,7 +127,7 @@ The implemented advisory queue does not supply that host authority.
 ## Modelling debt to clear first
 
 `authorityClass` currently carries four incompatible value sets — in the MCP bridge
-(`internal/mcp/bridge/bridge.go:974@87b754dd`), in the frontier spec
+(`internal/mcp/bridge/bridge.go:1020@87b754dd`), in the frontier spec
 (`docs/specs/change-frontier-v0.md:249-250@20d8f7d1`), as a lowercase constant in LRF (`internal/lrf/types.go:12@fc816169`), and as a
 seven-value lattice in the dashboard spec. The ordering between them is asserted per context and
 defined globally nowhere. Any spec-toolchain integration adds a fifth. One ordered lattice, one

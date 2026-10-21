@@ -45,10 +45,10 @@ func TestSelfObservationSpecEnumeratesEveryObligation(t *testing.T) {
 		{name: "SOL-V0-004"}, {name: "SOL-V0-005"}, {name: "SOL-V0-006"},
 		{name: "SOL-V0-007"}, {name: "SOL-V0-008"}, {name: "SOL-V0-009"},
 		{name: "SOL-V0-010"}, {name: "SOL-V0-011"}, {name: "SOL-V0-012"},
-		{name: "SOL-V0-013"},
+		{name: "SOL-V0-013"}, {name: "SOL-V0-030"},
 	}
 	if len(requirements) != len(cases) {
-		t.Fatalf("OCM enumerates %v; want all thirteen SOL-V0 clauses", requirements)
+		t.Fatalf("OCM enumerates %v; want all fourteen SOL-V0 clauses", requirements)
 	}
 	for i, test := range cases {
 		t.Run("registry lists "+test.name, func(t *testing.T) {
@@ -65,7 +65,7 @@ func TestImprovementLoopSpecsEnumerateEveryObligation(t *testing.T) {
 		want []string
 	}{
 		{"docs/specs/retrieval-bench-diagnostics-v0.md", []string{"RBD-V0-001", "RBD-V0-002", "RBD-V0-003", "RBD-V0-004", "RBD-V0-005", "RBD-V0-006", "RBD-V0-007"}},
-		{"docs/specs/source-documentation-draft-v0.md", []string{"SDD-V0-001", "SDD-V0-002", "SDD-V0-003", "SDD-V0-004", "SDD-V0-005", "SDD-V0-006", "SDD-V0-007", "SDD-V0-008", "SDD-V0-009", "SDD-V0-010", "SDD-V0-011"}},
+		{"docs/specs/source-documentation-draft-v0.md", []string{"SDD-V0-001", "SDD-V0-002", "SDD-V0-003", "SDD-V0-004", "SDD-V0-005", "SDD-V0-006", "SDD-V0-007", "SDD-V0-008", "SDD-V0-009", "SDD-V0-010", "SDD-V0-011", "SDD-V0-012"}},
 		{"docs/specs/rust-analyzer-candidate-v0.md", []string{"RAC-001", "RAC-002", "RAC-003", "RAC-004", "RAC-005", "RAC-006", "RAC-007", "RAC-008", "RAC-009", "RAC-010", "RAC-011"}},
 	}
 	for _, test := range cases {

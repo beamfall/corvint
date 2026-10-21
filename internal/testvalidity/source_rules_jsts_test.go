@@ -20,7 +20,7 @@ func TestApplyJSExampleSource(t *testing.T) {
 	}
 	for _, rule := range []string{RuleJSSkipped, RuleJSTodo, RuleJSFocused} {
 		got := ApplyJSExampleSource(p, ExampleSource{Read: ExampleSourceLocated, Findings: []SourceFinding{{Rule: rule, Severity: SeverityInvalid, Location: "s:2", Cause: "s:1"}}}, "s:2")
-		if want := (Axis{State: HygieneIneligible, Reason: rule, Anchors: []string{"s:2", "s:2", "s:1"}}); !reflect.DeepEqual(got.Hygiene, want) {
+		if want := (Axis{State: HygieneIneligible, Reason: rule, Anchors: []string{"s:2", "s:1"}}); !reflect.DeepEqual(got.Hygiene, want) {
 			t.Errorf("%s hygiene %+v", rule, got.Hygiene)
 		}
 	}

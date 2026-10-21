@@ -26,15 +26,8 @@ import (
 // resolved once, and every bound below turns an oversized or unbounded input
 // into an unknown, never a guess.
 
-const (
-	// maxWebConfigBytes bounds one tsconfig/jsconfig/package.json read.
-	maxWebConfigBytes = 1 << 20
-	// maxWebConfigDepth bounds one extends chain; a longer chain is unknown.
-	maxWebConfigDepth = 16
-	// maxWebConfigVisits bounds the configs one leaf's extends graph reads,
-	// so array extends sharing ancestors cannot grow the walk exponentially.
-	maxWebConfigVisits = 64
-)
+// The bounds are webConfigBytesBound, webConfigDepthBound and
+// webConfigVisitBound (analyzer_bounds.go, TSA-V0-460).
 
 // WebImportState classifies one resolved specifier.
 type WebImportState string
@@ -525,7 +518,7 @@ func parseWebConfig(sources map[string]Source, name string) *webConfig {
 		return nil
 	}
 	text, valid, loaded := source.Text()
-	if !valid || !loaded || len(text) > maxWebConfigBytes {
+	if !valid || !loaded || !webConfigBytesBound.admits(len(text)) {
 		return nil
 	}
 	clean, ok := jsoncToJSON(text)
@@ -662,8 +655,8 @@ func validWebPaths(paths map[string][]string) bool {
 // one before it, and the first declaration of a field wins.
 //
 // A link TypeScript itself rejects -- a cycle, an unreadable or missing
-// relative config, more than maxWebConfigDepth links, or more than
-// maxWebConfigVisits configs in all -- makes the whole config unknown, even a
+// relative config, more than webConfigDepthBound links, or more than
+// webConfigVisitBound configs in all -- makes the whole config unknown, even a
 // field the leaf declares, because the project does not compile as written. A
 // package-named or absolute extends is legal but not in the index, so only the
 // fields no config before it declares become unknown.
@@ -706,7 +699,7 @@ func (resolver *WebImportResolver) effective(leaf string) *webOptions {
 	walk = func(name string, depth int, stack map[string]bool) {
 		visits++
 		config := resolver.parse(name)
-		if broken || config == nil || stack[name] || depth > maxWebConfigDepth || visits > maxWebConfigVisits || !config.extendsValid {
+		if broken || config == nil || stack[name] || !webConfigDepthBound.admits(depth) || !webConfigVisitBound.admits(visits) || !config.extendsValid {
 			broken = true
 			return
 		}
@@ -977,7 +970,7 @@ func (resolver *WebImportResolver) manifestNames(name string) map[string]bool {
 	}
 	names := map[string]bool{}
 	source := resolver.index.Sources[name]
-	if text, valid, loaded := source.Text(); valid && loaded && len(text) <= maxWebConfigBytes {
+	if text, valid, loaded := source.Text(); valid && loaded && webConfigBytesBound.admits(len(text)) {
 		var fields struct {
 			Dependencies         map[string]json.RawMessage `json:"dependencies"`
 			DevDependencies      map[string]json.RawMessage `json:"devDependencies"`

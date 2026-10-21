@@ -163,8 +163,8 @@ func validatePlan(plan Plan) error {
 			return errors.New("invalid-check-id")
 		}
 		seen[check.ID] = true
-		if len(check.Argv) < 1 || len(check.Argv) > 64 || check.TimeoutSeconds < 1 || check.TimeoutSeconds > 3600 {
-			return errors.New("invalid-check-bound")
+		if len(check.Argv) < 1 || len(check.Argv) > maxCheckArgv || check.TimeoutSeconds < 1 || check.TimeoutSeconds > maxCheckTimeoutSeconds {
+			return &CheckBoundError{CheckID: check.ID, Argv: len(check.Argv), TimeoutSeconds: check.TimeoutSeconds}
 		}
 		for index, arg := range check.Argv {
 			if index == 0 && arg == "" || len(arg) > 4096 || strings.ContainsRune(arg, 0) {

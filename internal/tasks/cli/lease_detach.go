@@ -363,7 +363,9 @@ func leaseDetachLaunch(env Env, name, dir string, want leaseDetachRecord, rest [
 	if err := os.Mkdir(dir, 0o700); err != nil && !errors.Is(err, fs.ErrExist) {
 		return errorResult(cmd, err)
 	}
-	unlock, err := lockLeaseDetach(filepath.Join(dir, leaseDetachLockName), leaseDetachLockBound)
+	// The launch-lock wait shares the command deadline, so a concurrent
+	// launcher of the record never holds --wait 0 (ATR-V0-024, V1-1721).
+	unlock, err := lockLeaseDetach(filepath.Join(dir, leaseDetachLockName), max(min(leaseDetachLockBound, time.Until(deadline)), 0))
 	if err != nil {
 		return errorResult(cmd, err)
 	}

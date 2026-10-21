@@ -1117,6 +1117,16 @@ and `internal/cem/workflow/self_modified.go`. The `cem status` report is `CEM-V1
   exclusion, old-consumer decoding, and frozen no-exclusion packet bytes. Rollback removes this
   optional member and its assembly only; no index or snapshot migration is needed. Owner
   acceptance remains unresolved regardless of passing local tests.
+- `TCP-V0-121`: accepted under the owner's standing auto-accept (2026-10-11) (V1-2131). Tasks
+  store projection files (`DIRTY-CACHE-017`, reason `task store projection`) are excluded by
+  policy, not a gap in what the index could read. They still count in the `exclusions` member's
+  `count`, but its `samples` order places every other reason first. Within each group, samples
+  keep the `TCP-V0-065` order of display path then reason. A repository with a Tasks store
+  therefore samples its real gaps (size bound, non-UTF-8, generated or protected paths) before
+  task state. This changes no count, ranking, member or packet without projection exclusions.
+  Projection files never rank as results because the index never reads them. Rollback: restore
+  the single path-then-reason order. Test:
+  `TestTaskContextKeepsTaskStoreProjectionsOutOfRankingAndBehindRealGaps`.
 
 ## Non-goals and authority
 
@@ -1168,7 +1178,8 @@ lexical rows is decision 0367's to reopen with a new evaluation, not this slice'
 
 Operational note (V1-0051): `corvint context` and the generic harness-event dispatch it shares
 (`cmd/corvint/taskcontext.go`, `cmd/corvint/main.go`) write a local pprof CPU profile when the
-operator sets `CPUPROFILE=PATH` in the process environment. It is off by default, diagnostic only,
+operator sets `CORVINT_CPUPROFILE=PATH` in the process environment (V1-1643: the code resolves the
+`CORVINT_` prefix through `internal/runtimeenv`; a bare `CPUPROFILE` is ignored). It is off by default, diagnostic only,
 and does not widen what either read-only path reads, returns, or mutates (AGENTS.md invariant 4).
 
 The recency features (TCP-V0-035..038) add no index, snapshot or pack change, no clock read and
@@ -1362,7 +1373,8 @@ unchanged) and `internal/contextindex/sufficiency_test.go` (TCP-V0-028, table-dr
 absent, forged, out-of-range, inverted and other-path spans, an unindexed name, no anchors,
 satisfied plus unknown, and a tracked but unindexed path; a satisfied set never holds a
 non-satisfied anchor and every missing anchor is named). TCP-V0-029's measured on/off reading is
-the V1-0098 entry in `docs/BUILD-LOG.md`.
+the V1-0098 entry in `docs/BUILD-LOG.md`; its span scorer was never committed, so that reading is
+not independently reproducible from the repository (V1-0169).
 `internal/contextindex/recency_test.go` and `internal/contextindex/blame_test.go` (TCP-V0-035..038,
 proposed: default bytes equal the recipe golden for unset, `off` and other values; an equal-BM25
 recent source leads with the flag and both rows name recency, blame and the factor; recent
@@ -1569,7 +1581,7 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-026 | `callSites`, `coreCallSites`, `orderCallers`, `callerKey`, `callSite` | `TestContextSpansCoreAndCallSite` |
 | TCP-V0-027 | `spanRanker.rank`, `coveredBy`, `spanRanker.lines`, `extent` (80-line clip) | `TestContextSpansBudgetAndBounds` |
 | TCP-V0-028 | `sufficiency`, `pathAnchor`, `nameAnchor`, `spanCarries`, `setVerdict`, `sufficiencyVerdict.packet` (`internal/contextindex/sufficiency.go`) | `TestContextSufficiency` |
-| TCP-V0-029 | `tools/retrieval-bench --arms context --context-packets` with the flag unset and `on`; the offline span scorer is a scratch script, not committed | measured reading in `docs/BUILD-LOG.md` (V1-0098) |
+| TCP-V0-029 | `tools/retrieval-bench --arms context --context-packets` with the flag unset and `on`; the offline span scorer is a scratch script, not committed (NOT_PRODUCED, V1-0169) | measured reading in `docs/BUILD-LOG.md` (V1-0098), not independently reproducible from the repository (`docs/build-log/2026-10-21-v1-0169-tcp-v0-029-scorer-not-produced.md`) |
 | TCP-V0-035 | `startContextRecency`, `contextRecency.read`, `parse`, `decay`, `weight`, `reason`, `recencyLexical`, `reorderClass`, `recencyCochange` (`internal/contextindex/recency.go`) | `TestContextRecencyDefaultBytes`, `TestContextRecencyRanksRecentLexicalRowsAndNamesFeatures`, `TestContextRecencyCanChangeLexicalMembership`, `TestContextRecencyWeightsCochangeByAge` |
 | TCP-V0-036 | `blameHead`, `blamePath`, `parseBlame`, `touch`, `blameReason` (`internal/contextindex/blame.go`), `unchosen` (`recency.go`) | `TestContextRecencyBoundsBlameAndAbstains`, `TestContextRecencyWindowIsTheCochangeWindow`, `TestParseBlamePorcelainCountsLinesPerCommit` |
 | TCP-V0-037 | `codeOwners`, `parseCodeOwners`, `codeOwnersPattern`, `owning`, `checkOwners`, `ownerMatchesAny`, `ownership` | `TestCodeOwnersPatternFollowsGitHubSyntax`, `TestContextRecencyReportsCodeOwnersBlameDisagreement`, `TestContextRecencyBlamesOnlyRowsTheLexicalSlotCanAdmit` |
@@ -1598,3 +1610,4 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-062 | `parseTaskContextInvocation` (`contextPositionalTaskRefusal`); `runCorpusIntegration` query | `TestTaskContextPositionalTaskMatchesTheFlagBytes` (positional form, byte parity with `--task`), `TestTaskContextRefusesAmbiguousPositionalTasks` (both forms, two positionals, neither form unchanged) |
 | TCP-V0-064 | `taskContext` (final guard, `join`), `stopped` (compile boundaries, `lexicalHits` per term, `lexicalRows`) | `TestTaskContextCancellationNeverReturnsAPacket`, `TestTaskContextPreCancelledRequestReturnsCancellation` |
 | TCP-V0-006 amendment / TCP-V0-065 (accepted, decision 0516 (V1-0315)) | `taskContextCompiler.packet`, `taskContextExclusions` | `TestTaskContextDisclosesNonUTF8Exclusions`, `TestTaskContextExclusionsAreBoundedAndAdditive`, `TestTaskContextExclusionsAbsentKeepsFrozenBytes`, `TestTaskContextExclusionsCountUnsupportedSuffixes` |
+| TCP-V0-121 (accepted, standing auto-accept, V1-2131) | `taskContextExclusions` | `TestTaskContextKeepsTaskStoreProjectionsOutOfRankingAndBehindRealGaps` |

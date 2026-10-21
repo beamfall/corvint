@@ -361,7 +361,7 @@ func (connection *connection) handleRequest(requestCtx context.Context, cancel c
 	request := protocol.Request{ID: *inbound.ID, Method: inbound.Method, Params: inbound.Params, Meta: meta}
 	if request.Method == "server/discover" {
 		connection.respond(active, func() error {
-			return connection.writeResultContext(requestCtx, request.ID, connection.discoverResult())
+			return connection.writeResultContext(requestCtx, request.ID, connection.discoverResult(), request.Method, nil)
 		})
 		return
 	}
@@ -377,7 +377,7 @@ func (connection *connection) handleRequest(requestCtx context.Context, cancel c
 		return
 	}
 	connection.respond(active, func() error {
-		return connection.writeResultContext(requestCtx, request.ID, connection.decorateResult(result))
+		return connection.writeResultContext(requestCtx, request.ID, connection.decorateResult(result), request.Method, connection.decorateResult)
 	})
 }
 
@@ -504,17 +504,46 @@ type responseErrorBody struct {
 }
 
 func (connection *connection) writeResult(id protocol.ID, result map[string]any) error {
-	return connection.writeResultContext(nil, id, result)
+	return connection.writeResultContext(nil, id, result, "", nil)
 }
 
-func (connection *connection) writeResultContext(ctx context.Context, id protocol.ID, result map[string]any) error {
+// writeResultContext writes one result frame. A tools/call result over the
+// message bound is answered as the tool failure output-bound-exceeded, naming
+// the result size and the bound, so every server on this package refuses an
+// oversized tool result in the tool domain instead of a generic -32603
+// (MCPV0-042, V1-1999); decorate, when set, shapes that refusal like any other
+// result. Any other unwritable result stays the sanitized -32603.
+func (connection *connection) writeResultContext(ctx context.Context, id protocol.ID, result map[string]any, method string, decorate func(map[string]any) map[string]any) error {
 	value := response{JSONRPC: protocol.JSONRPCVersion, ID: &id, Result: result}
-	if err := connection.writeValueContext(ctx, value); errors.Is(err, errOutputLimit) || errors.Is(err, errUnencodable) {
-		return connection.writeRPCErrorContext(ctx, &id, &protocol.RPCError{Code: protocol.CodeInternalError, Message: "Internal error"})
-	} else {
-		return err
+	err := connection.writeValueContext(ctx, value)
+	var over *outputLimitError
+	if errors.As(err, &over) && method == "tools/call" {
+		refusal := outputBoundResult(over.size)
+		if decorate != nil {
+			refusal = decorate(refusal)
+		}
+		err = connection.writeValueContext(ctx, response{JSONRPC: protocol.JSONRPCVersion, ID: &id, Result: refusal})
 	}
+	if errors.Is(err, errOutputLimit) || errors.Is(err, errUnencodable) {
+		return connection.writeRPCErrorContext(ctx, &id, &protocol.RPCError{Code: protocol.CodeInternalError, Message: "Internal error"})
+	}
+	return err
 }
+
+// OutputBoundCode is the tool failure for a tools/call result that cannot fit
+// one MCP message (MCPV0-042).
+const OutputBoundCode = "output-bound-exceeded"
+
+func outputBoundResult(size int) map[string]any {
+	text := fmt.Sprintf("%s: tool result of %d bytes exceeds the %d-byte MCP message bound", OutputBoundCode, size, protocol.MaxMessageBytes)
+	return map[string]any{"content": []any{map[string]any{"type": "text", "text": text}}, "isError": true}
+}
+
+// outputLimitError is errOutputLimit carrying the encoded frame size.
+type outputLimitError struct{ size int }
+
+func (err *outputLimitError) Error() string        { return errOutputLimit.Error() }
+func (err *outputLimitError) Is(target error) bool { return target == errOutputLimit }
 
 func (connection *connection) writeRPCError(id *protocol.ID, rpcErr *protocol.RPCError) error {
 	return connection.writeRPCErrorContext(nil, id, rpcErr)
@@ -547,7 +576,7 @@ func (connection *connection) writeValueContext(ctx context.Context, value any) 
 		return errUnencodable
 	}
 	if body.Len()-1 > protocol.MaxMessageBytes {
-		return errOutputLimit
+		return &outputLimitError{size: body.Len() - 1}
 	}
 	connection.write.Lock()
 	defer connection.write.Unlock()

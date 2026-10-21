@@ -197,7 +197,7 @@ func TestRegistryDialectUnresolvedRegistryWidens(t *testing.T) {
 		"method":       "  make() { return 1; },\n",
 		"local-value":  "  'ctx:local': new LocalContext(),\n",
 		"called-value": "  'ctx:call': makeBeta(),\n",
-		"long-key":     "  " + strings.Repeat("k", maxRegistryKeyBytes+1) + ": Beta,\n",
+		"long-key":     "  " + strings.Repeat("k", registryKeyBound.limit+1) + ": Beta,\n",
 	} {
 		files := registryIssueFiles()
 		files["tests/data/registry.ts"] = strings.Replace(files["tests/data/registry.ts"], "};\n", entry+"};\n", 1)
@@ -641,6 +641,48 @@ func TestRegistryDialectConstAccessorKeyStaysNonLiteral(t *testing.T) {
 		}
 		if rows := registryRows(receipt); rows["tests/beta.spec.ts"] == nil || rows["tests/key.spec.ts"] == nil {
 			t.Errorf("%s: rows = %v, want every caller widened", name, rows)
+		}
+	}
+}
+
+// TestRegistryDialectExportUnresolvedIsWebOnly is V1-1479 (NGI-V0-010): an
+// unresolved registry export applies to every JS/TS changed path, and to no
+// Ruby path, which no JS/TS registry can map a key to.
+func TestRegistryDialectExportUnresolvedIsWebOnly(t *testing.T) {
+	files := registryIssueFiles()
+	files["tests/data/index.ts"] = "export { registry } from './registry';\n"
+	files["corvint/appmap.json"] = registryManifest(registryDeclaration("tests/data/index.ts", "registry", "createTestData"))
+	files["app/models/widget.rb"] = "class Widget\nend\n"
+	if found := registryUnknownRows(registryImpact(t, files, "src/contexts/alpha.ts"), "registry-export-unresolved"); len(found) != 1 {
+		t.Errorf("typescript path: want one registry-export-unresolved, got %v", found)
+	}
+	receipt := registryImpact(t, files, "app/models/widget.rb")
+	if found := registryUnknownRows(receipt, "registry-export-unresolved"); len(found) != 0 {
+		t.Errorf("ruby path: unknowns = %v, want no registry-export-unresolved", receipt["unknowns"])
+	}
+	for spec := range registryRows(receipt) {
+		if strings.HasPrefix(spec, "tests/") && strings.HasSuffix(spec, ".spec.ts") {
+			t.Errorf("ruby path: registry widened to %s", spec)
+		}
+	}
+}
+
+// TestRegistryDialectAmbientRequireIsLoader is V1-1479: a TypeScript ambient
+// `declare const require: ...` only types the loader and binds no value, so
+// lazy require entries stay closed.
+func TestRegistryDialectAmbientRequireIsLoader(t *testing.T) {
+	for name, prelude := range map[string]string{
+		"declare const": "declare const require: (name: string) => any;\n",
+		"declare var":   "declare var require: NodeRequire;\n",
+	} {
+		files := registryLazyFormFiles()
+		files["tests/data/registry.ts"] = prelude + files["tests/data/registry.ts"]
+		receipt := registryImpact(t, files, "src/contexts/zeta.ts")
+		if found := registryUnknownRows(receipt, "registry-key-unresolved"); len(found) != 0 {
+			t.Errorf("%s: unknowns = %v, want no registry-key-unresolved", name, receipt["unknowns"])
+		}
+		if rows := registryRows(receipt); len(rows) != 1 || rows["tests/zeta.spec.ts"] == nil {
+			t.Errorf("%s: rows = %v, want only the zeta spec", name, rows)
 		}
 	}
 }

@@ -110,12 +110,12 @@ var admittedAdapterEvents = codeSet("file-change", "post-compact", "post-tool", 
 // return after resolving the project root, of the silent abstentions they record without changing
 // hook output (V1-0746), and of the OpenCode abstentions `harness event` records (V1-0767).
 var admittedAdapterCodes = codeSet(
-	"adapter-host-kill-deadline", "adapter-internal-error", "changed-paths-truncated", "compaction-block-unavailable", "compaction-pin-not-preserved",
-	"compaction-pin-revision-unavailable", "compaction-pin-verification-unavailable",
+	"adapter-host-kill-deadline", "adapter-internal-error", "changed-paths-truncated", "compaction-block-unavailable", "compaction-pin-not-emitted",
+	"compaction-pin-not-preserved", "compaction-pin-revision-unavailable", "compaction-pin-verification-unavailable",
 	"corvint-degradations-unrecognised", "corvint-envelope-terminator-collision", "corvint-event-rejected",
 	"file-change-path-not-project-relative", "git-unavailable", "invalid-compaction-trigger", "invalid-input",
 	"invalid-session-identity", "invalid-start-source", "invalid-stop-hook-active", "malformed-corvint-output",
-	"missing-prompt", "missing-session-identity", "post-tool-path-not-project-relative", "prompt-over-query-bound",
+	"missing-prompt", "missing-session-identity", "post-tool-path-not-project-relative", "post-tool-path-outside-project", "prompt-over-query-bound",
 	"unsupported-hook-event",
 )
 
@@ -1182,7 +1182,7 @@ func falsificationLines(data Digest) []string {
 	return lines
 }
 
-// adapterLines tallies retained adapter degradations by host/event/code. A count is
+// adapterLines tallies retained adapter degradations and exclusions by host/event/code. A count is
 // the number of hour windows that recorded the code, not its occurrences.
 func adapterLines(data Digest) []string {
 	keys := make([]string, 0, len(data.Adapter))
@@ -1192,9 +1192,22 @@ func adapterLines(data Digest) []string {
 	sort.Strings(keys)
 	lines := make([]string, 0, len(keys))
 	for _, key := range keys {
-		lines = append(lines, fmt.Sprintf("ADAPTER-DEGRADATION windows=%d key=%s latest=%s", data.Adapter[key], key, data.AdapterLatest[key]))
+		label := "ADAPTER-DEGRADATION"
+		if adapterExclusion(key) {
+			label = "ADAPTER-EXCLUSION"
+		}
+		lines = append(lines, fmt.Sprintf("%s windows=%d key=%s latest=%s", label, data.Adapter[key], key, data.AdapterLatest[key]))
 	}
 	return lines
+}
+
+// adapterExclusionCodes are the adapter codes that record a correct exclusion, not a
+// fault: an Edit/Write target outside the project is not a project change (AHI-019),
+// so it is counted as ADAPTER-EXCLUSION rather than ADAPTER-DEGRADATION (SOL-V0-030).
+var adapterExclusionCodes = codeSet("post-tool-path-outside-project")
+
+func adapterExclusion(key string) bool {
+	return adapterExclusionCodes[key[strings.LastIndex(key, "/")+1:]]
 }
 
 func ranked(kind string, values map[string]int, total int, standing bool) []string {

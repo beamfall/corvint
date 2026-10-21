@@ -387,8 +387,8 @@ func terms(text string) map[string]struct{} {
 func collectTerms(text string, result map[string]struct{}) {
 	text = pythonLower(camelSplit(text))
 	text = strings.ReplaceAll(text, "_", "-")
-	for _, raw := range asciiWords(text) {
-		for _, token := range strings.Split(raw, "-") {
+	eachASCIIWord(text, func(raw string) {
+		for token := range strings.SplitSeq(raw, "-") {
 			if len(token) <= 1 || contains(stopWords, token) {
 				continue
 			}
@@ -408,7 +408,7 @@ func collectTerms(text string, result map[string]struct{}) {
 		if len(raw) > 2 && !contains(stopWords, raw) {
 			result[raw] = struct{}{}
 		}
-	}
+	})
 }
 
 // pythonLower lowercases as Python's str.lower does. The one unconditional
@@ -420,8 +420,24 @@ func pythonLower(value string) string {
 }
 
 func camelSplit(value string) string {
-	runes := []rune(value)
 	var output strings.Builder
+	output.Grow(len(value) + len(value)/4)
+	if isASCII(value) {
+		// V1-2001: the same rule over bytes, without a rune copy.
+		for index := 0; index < len(value); index++ {
+			current := rune(value[index])
+			if index > 0 {
+				previous := rune(value[index-1])
+				nextLower := index+1 < len(value) && asciiLower(rune(value[index+1]))
+				if (asciiLower(previous) || asciiDigit(previous)) && asciiUpper(current) || asciiUpper(previous) && asciiUpper(current) && nextLower {
+					output.WriteByte('-')
+				}
+			}
+			output.WriteByte(value[index])
+		}
+		return output.String()
+	}
+	runes := []rune(value)
 	for index, current := range runes {
 		if index > 0 {
 			previous := runes[index-1]
@@ -437,6 +453,22 @@ func camelSplit(value string) string {
 
 func asciiWords(value string) []string {
 	result := make([]string, 0)
+	eachASCIIWord(value, func(word string) { result = append(result, word) })
+	return result
+}
+
+func isASCII(value string) bool {
+	for index := 0; index < len(value); index++ {
+		if value[index] >= 0x80 {
+			return false
+		}
+	}
+	return true
+}
+
+// eachASCIIWord yields the words asciiWords returns, in order, without
+// collecting them.
+func eachASCIIWord(value string, yield func(string)) {
 	for index := 0; index < len(value); {
 		if !asciiLetter(rune(value[index])) {
 			index++
@@ -451,9 +483,8 @@ func asciiWords(value string) []string {
 			}
 			index++
 		}
-		result = append(result, value[start:index])
+		yield(value[start:index])
 	}
-	return result
 }
 
 func compactText(value string) string {

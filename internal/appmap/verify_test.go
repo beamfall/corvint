@@ -486,3 +486,23 @@ func TestRVNV0006OversizedEvidenceParity(t *testing.T) {
 		t.Fatalf("overlay %v", fact)
 	}
 }
+
+// RVN-V0-006 (V1-0975): an unbound step emits no fact even when it does not resolve, while a
+// bound step keeps its fact.
+func TestRVNV0006UnboundUnresolvedStepEmitsNoFact(t *testing.T) {
+	m := &Map{Flows: []Flow{{ID: "flow:f", Steps: []Step{
+		{ID: "step:f/bound", Status: "unresolved", Tests: []string{"test:k"}},
+		{ID: "step:f/unbound", Status: "unresolved"},
+	}}}}
+	v := &Verification{binds: map[string][]string{}}
+	facts, err := v.Overlay(m, Options{}).Facts(context.Background(), []string{"step:f/bound", "step:f/unbound"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(facts) != 1 || facts[0].ElementID != "step:f/bound" || facts[0].Kind != Unverified {
+		t.Fatalf("facts = %+v, want one unverified fact for the bound step", facts)
+	}
+	if want := `{"status":"unverified","reason":"step-unresolved","outcomes":0,"authority":"learned"}`; facts[0].Text != want {
+		t.Fatalf("bound fact text = %s, want %s", facts[0].Text, want)
+	}
+}

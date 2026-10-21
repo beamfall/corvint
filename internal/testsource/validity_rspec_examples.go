@@ -57,6 +57,8 @@ func RSpecExampleSourcesWithSupport(name, text string, support testvalidity.Ruby
 	if support.Flags != nil {
 		r.flags = *support.Flags
 	}
+	r.app = support.App
+	r.excluded = rspecExclusions(support.Files)
 	byTest := map[string][]testvalidity.SourceFinding{}
 	for _, f := range base.Findings {
 		byTest[f.Test] = append(byTest[f.Test], f)
@@ -68,8 +70,9 @@ func RSpecExampleSourcesWithSupport(name, text string, support testvalidity.Ruby
 		count, anchors := expectations(e.path, e.body)
 		out[e.line] = testvalidity.ExampleSource{Read: testvalidity.ExampleSourceLocated, Expectations: count, Findings: findings, ExpectationAnchors: anchors, TitlePath: r.titlePath(e)}
 	}
-	// The flow findings follow each example's other findings (TSA-V0-120..130), and the stub and
-	// flag findings follow them (TSA-V0-430).
+	// The flow findings follow each example's other findings (TSA-V0-120..130), the stub and flag
+	// findings follow them (TSA-V0-430), and the never-written assertion targets come last
+	// (TSA-V0-443).
 	for _, e := range r.examples {
 		test := fmt.Sprintf("%s:%d", name, e.line)
 		source := out[e.line]
@@ -77,6 +80,7 @@ func RSpecExampleSourcesWithSupport(name, text string, support testvalidity.Ruby
 		source.Findings = append(source.Findings, c.flowFindings(test)...)
 		stubs, conditions := c.stubFindings(test)
 		source.Findings = append(source.Findings, stubs...)
+		source.Findings = append(source.Findings, c.neverWritten(test)...)
 		if len(conditions) > 0 {
 			source.Conditions = conditions
 		}
@@ -158,6 +162,8 @@ func (r *rspecReader) exampleFindings(test string, e rspecExample) []testvalidit
 	if skipped != "" {
 		out = append(out, finding(testvalidity.RuleRSpecSkipped, testvalidity.SeverityInvalid, at(e.line), skipped,
 			"the example is skipped or pending, so its result proves nothing about the code; remove the skip, pending, x-prefix or skip metadata"))
+	} else {
+		out = append(out, r.skipConfigFindings(test, e)...)
 	}
 	if focused != "" {
 		out = append(out, finding(testvalidity.RuleRSpecFocused, testvalidity.SeverityInvalid, at(e.line), focused,

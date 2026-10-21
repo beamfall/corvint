@@ -21,25 +21,33 @@ const (
 // receipt, and the baseline receipt. It is deterministic: no timings, no
 // temporary paths.
 type proveMutationRecord struct {
-	Engine     string            `json:"engine"`
-	Runner     string            `json:"runner,omitempty"`
-	Stage      string            `json:"stage"`
-	Planned    int               `json:"planned"`
-	Selected   int               `json:"selected"`
-	Killed     int               `json:"killed"`
-	Survived   int               `json:"survived"`
-	Unloadable int               `json:"unloadable"`
+	Engine     string `json:"engine"`
+	Runner     string `json:"runner,omitempty"`
+	Stage      string `json:"stage"`
+	Planned    int    `json:"planned"`
+	Selected   int    `json:"selected"`
+	Killed     int    `json:"killed"`
+	Survived   int    `json:"survived"`
+	Unloadable int    `json:"unloadable"`
+	// Unadmitted counts containerised runs whose report the runner did
+	// not admit (FPK-V0-080); host rows omit it.
+	Unadmitted int               `json:"unadmitted,omitempty"`
 	TimedOut   int               `json:"timed_out"`
 	Skipped    int               `json:"skipped"`
 	Baseline   *rbmutate.Receipt `json:"baseline,omitempty"`
 	Mutants    []rbmutate.Result `json:"mutants"`
+	// Target and LineBasis are a named-source row's RSpec location selector
+	// and how its mutated lines were chosen (FPK-V0-076); other rows omit
+	// both.
+	Target    string `json:"target,omitempty"`
+	LineBasis string `json:"line_basis,omitempty"`
 }
 
 // judgeRubyMutation is judgeMutation's Ruby arm (FPK-V0-068 to FPK-V0-071):
 // the same export, sandbox, budget, and confinement, with rbmutate writing
 // the mutants and RSpec running the cited spec file against every one.
-func judgeRubyMutation(ctx context.Context, exported *mutate.Export, changed, test string, lines []mutate.LineSpan) (mutationVerdict, error) {
-	report, err := rbmutate.Judge(ctx, exported, rbmutate.Request{ChangedPath: changed, TestPath: test, Lines: lines})
+func judgeRubyMutation(ctx context.Context, exported *mutate.Export, request rbmutate.Request) (mutationVerdict, error) {
+	report, err := rbmutate.Judge(ctx, exported, request)
 	if err != nil {
 		return mutationVerdict{}, err
 	}
@@ -60,10 +68,20 @@ func rubyVerdict(report rbmutate.Report) mutationVerdict {
 		mutation: &proveMutationRecord{
 			Engine: "rbmutate", Runner: report.Runner, Stage: string(report.Stage),
 			Planned: report.Planned, Selected: report.Mutants, Killed: report.Killed, Survived: report.Survived,
-			Unloadable: report.Unloadable, TimedOut: report.TimedOut, Skipped: report.Skipped,
+			Unloadable: report.Unloadable, Unadmitted: report.Unadmitted, TimedOut: report.TimedOut, Skipped: report.Skipped,
 			Baseline: report.Baseline, Mutants: results,
+			Target: namedRecordTarget(report), LineBasis: report.LineBasis,
 		},
 	}
+}
+
+// namedRecordTarget keeps the RSpec selector on a named-source row only, so
+// every other Ruby row's record is unchanged.
+func namedRecordTarget(report rbmutate.Report) string {
+	if report.LineBasis == "" {
+		return ""
+	}
+	return report.Target
 }
 
 func rubyWitness(report rbmutate.Report) *proveMutationWitness {

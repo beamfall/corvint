@@ -770,7 +770,7 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-031 | `TestAFUV1031ClaimStateOrder`, `TestAFUV1030DocsRenderGoldenAndByteStable` (every state marked on the page, `PROVEN` unmarked) |
 | AFU-V1-032 | `TestAFUV1032DocsCheckDrift` (a lost `PROVEN` and a hand-edited page fail; the check is read-only), `TestAFUV1032WaiverExpiry` (unexpired, expired and malformed waivers), `TestAFUV1032WaiverExpiryBoundary` (expired on its expiry date), `TestAFUV1032WaiverKeepsUnrenderedClaim` (a waived claim that is no longer rendered keeps its committed form) |
 | AFU-V1-033 | `TestAFUV1033AnchoredMarkdown` (a changed unanchored document passes, an unknown anchor fails the check and refuses the render), `TestAFUV1033AnchorParsing`, `TestAFUV1032DocsCheckDrift` (the coverage row and the anchored claim's lost `PROVEN`), `TestAFUV1033NonRegularMarkdownSkipped` (a symlinked `.md` is unanchored, not a failure) |
-| AFU-V1-034 | `TestAFUV1034FlowsToolProfile` (golden default and task-review `tools/list` bytes without the selector, the four tools read-only under it, unknown, empty, duplicate and mixed selectors refused, flows tools `-32602` under the other profiles), `TestAFUV1034FlowsToolsMatchCLIVerbs` (each tool's receipt equals its CLI verb's output on the shop and navigation fixtures, the CLI's argument refusals are `-32602`, a verb refusal is `flows-refused`), `TestAFUV1034CommittedFlowsReadNeverFetchesAPromisorObject` (V1-0349: a missing intent blob in a blob:none clone is refused with no fetch, also through a Git that drops `GIT_NO_LAZY_FETCH`), `TestSanitizedGitEnvironmentRefusesAPromisorFetch` (the shared environment's empty `GIT_ALLOW_PROTOCOL` alone refuses the fetch); `TestAFUV1034FlowsCompiledConformance`, `TestAFUV1034FlowsOfficialSchema` run the compiled process on both protocols and the pinned official schema |
+| AFU-V1-034 | `TestAFUV1034FlowsToolProfile` (golden default and task-review `tools/list` bytes without the selector, the four tools read-only under it, unknown, empty, duplicate and mixed selectors refused, flows tools `-32602` under the other profiles), `TestAFUV1034FlowsToolsMatchCLIVerbs` (each tool's receipt equals its CLI verb's output on the shop and navigation fixtures, the CLI's argument refusals are `-32602`, a verb refusal is `flows-refused`), `TestAFUV1034CommittedFlowsReadNeverFetchesAPromisorObject` (V1-0349: a missing intent blob in a blob:none clone is refused with no fetch, also through a Git that drops `GIT_NO_LAZY_FETCH`), `TestSanitizedGitEnvironmentRefusesAPromisorFetch` (the shared environment's empty `GIT_ALLOW_PROTOCOL` alone refuses the fetch); `TestAFUV1034FlowsCompiledConformance`, `TestAFUV1034FlowsOfficialSchema` run the compiled process on both protocols and the pinned official schema; `TestAFUV1034FlowsCoverageCompiledConformance` (V1-0280) calls the fifth tool, `corvint.flows.coverage` (AFU-V1-049), through the compiled process on the flowcoverage fixture and, with `CORVINT_MCP_OFFICIAL_SCHEMA` set, checks it against the pinned schema; `TestAFUV1034FlowsToolProfile` pins byte goldens of every profile's `tools/list` (V1-2021) |
 | AFU-V1-059 | `TestAFUV1059BuildCancellation`, `TestAFUV1059SourceWalkCancellation`, `TestAFUV1059AdaptersCancel`, `TestAFUV1059FlowsImpactCancelledMidWalk` |
 | AFU-V1-035 | `TestAFUV1035FlowsTextStaysInsideEnvelope` (a hostile navigation step string returns only between the envelope prefix and suffix, with no `structuredContent`) |
 | AFU-V1-036 | `TestAFUV1036DocsReplaceConfined`, `TestAFUV1036DocsGitPathRefused`, `TestAFUV1InputRegularBeforeOpen`, `TestAFUV1InputSwapAfterLstatRefused`, `TestAFUV1ManifestRegularBeforeOpen`, `TestAFUV1ImportRefusesCaseVariantName`, `TestAFUV1RecordConfinedToRoot`, `TestAFUV1RecordGitPathRefused`, `TestAFUV1ImportNeverOverwrites`, `TestAFUV1IntentClosedSchema` (symlinked `--flows`) |
@@ -897,8 +897,9 @@ accepted variation, or a replacement for independent application/browser qualifi
 - **AFU-V1-043**: `docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR`
   reads immutable native-index source, emits an adoption provider and generation manifest, and
   materializes eight Markdown files per logical flow. Literal Ruby/Rails routes, named methods/jobs,
-  class-level validation/hooks, JavaScript/TypeScript named functions/arrows and literal route or
-  Angular registrations, React JSX conditional candidates and literal Angular HTML attributes form
+  class-level validation/hooks, JavaScript/TypeScript named functions/arrows (`.js`, `.mjs`, `.cjs`,
+  `.jsx`, `.ts`, `.tsx`; ES and CommonJS modules since V1-0461,
+  `TestFlowDocsJavaScriptModuleExtensions`) and literal route or Angular registrations, React JSX conditional candidates and literal Angular HTML attributes form
   the closed construct matrix. Calls to the recognized validation, permission, error, persistence
   and integration vocabulary are observations of source only. Native lexical masks exclude comments,
   strings and Ruby heredocs; web regex/arithmetic suffixes and JSX text are conservatively masked.
@@ -912,7 +913,15 @@ accepted variation, or a replacement for independent application/browser qualifi
   [--output-dir DIR]` strictly rederives the closed predecessor from original immutable source before
   reporting each flow, paragraph and claim fresh/stale/unresolved. Same identity plus same span hash
   remains fresh after relocation; changed spans are stale; absent/ambiguous identities are unresolved
-  and appear in retirement delta. Optional byte checking compares the original rendered directory,
+  and appear in retirement delta. A flow binds its declaration and its static call inventory, which
+  the flow diagram renders, so an added, removed or changed call is stale (since V1-0461,
+  `TestFlowDocsCallInventoryDriftIsStale`); control keywords (`if`, `function`, `return` and similar)
+  are never listed as bare calls; a member call that spells one (`promise.catch(h)`,
+  `iterator.return(v)`) is a call (`TestFlowDocsMemberKeywordCallsAreDrift`). This changed the
+  generator to version 2: a version 1 manifest cannot be rederived byte for byte, so check, finalize
+  and `generate --previous` refuse it with the typed `flowdocs-generator-stale` code even at its own
+  revision; regenerate it once with the current binary
+  (`TestFlowDocsPredecessorGeneratorManifestIsTypedStale`). Optional byte checking compares the original rendered directory,
   including missing/extra/changed files, without writing anything. Exit 1 means drift; exit 2 refusal.
 - **AFU-V1-046**: Materialization requires a new directory under existing nonsymlink parents and
   exclusively creates confined files. Refuse human-file overwrite, symlinks, malformed paths and

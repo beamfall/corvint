@@ -45,12 +45,18 @@ func stableCommand(ctx context.Context, args []string, out, errout io.Writer) in
 		return fail(e)
 	}
 	var result any
+	var next [][]string
 	if head.Profile == cc.PlainAssemblyProfile {
 		var r cc.PlainRequest
 		if e := cc.Decode(raw, &r); e != nil {
 			return fail(e)
 		}
-		result, e = cc.AssemblePlain(ctx, r, *output)
+		var plain cc.PlainAssemblyResult
+		plain, e = cc.AssemblePlain(ctx, r, *output)
+		result = plain
+		if e == nil {
+			next = plainNextActions(r, plain.StablePath, *output)
+		}
 	} else {
 		var r cc.StableRequest
 		if e := cc.Decode(raw, &r); e != nil {
@@ -61,16 +67,25 @@ func stableCommand(ctx context.Context, args []string, out, errout io.Writer) in
 	if e != nil {
 		return fail(e)
 	}
-	if e := encodeOK(out, result); e != nil {
+	if e := encodeOK(out, result, next); e != nil {
 		return fail(e)
 	}
 	return 0
 }
 
+// plainNextActions names the supported verify route for the bundle a plain
+// assembly wrote: cem verify-stable over its stable.json, with the request's
+// own repository and revisions and the bundle directory as the artifact root,
+// exactly the options the assembler's own verification used (CEM-V1-350).
+func plainNextActions(r cc.PlainRequest, stablePath, bundle string) [][]string {
+	return [][]string{{"corvint", "cem", "verify-stable", "--repository", r.Repository, "--map", stablePath, "--expected-base", r.ExpectedBase, "--target", r.Target, "--artifacts", bundle}}
+}
+
 // encodeOK writes result as json.Encoder does, with one leading top-level
 // "ok": true member; every other byte is the result's own encoding
-// (CEM-V1-341).
-func encodeOK(out io.Writer, result any) error {
+// (CEM-V1-341), except that a non-nil next is appended as one trailing
+// "nextActions" member (CEM-V1-350).
+func encodeOK(out io.Writer, result any, next [][]string) error {
 	encoded, e := json.Marshal(result)
 	if e != nil {
 		return e
@@ -82,7 +97,15 @@ func encodeOK(out io.Writer, result any) error {
 	if string(encoded) != "{}" {
 		envelope = append(envelope, ',')
 	}
-	envelope = append(append(envelope, encoded[1:]...), '\n')
+	envelope = append(envelope, encoded[1:len(encoded)-1]...)
+	if next != nil {
+		actions, e := json.Marshal(next)
+		if e != nil {
+			return e
+		}
+		envelope = append(append(envelope, `,"nextActions":`...), actions...)
+	}
+	envelope = append(envelope, '}', '\n')
 	_, e = out.Write(envelope)
 	return e
 }

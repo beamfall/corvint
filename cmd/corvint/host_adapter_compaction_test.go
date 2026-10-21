@@ -218,7 +218,7 @@ func TestClaudeCompactionDegradationIsPlainText(t *testing.T) {
 	t.Parallel()
 	root, ctx := compactionFixture(t)
 	pre := compactionHookStdout(t, ctx, root, "pre-compact", map[string]any{"trigger": "scheduled"})
-	if pre != "Corvint FALLBACK degraded: invalid-compaction-trigger; coding continues\n" {
+	if pre != compactionPinUnavailable+"Corvint FALLBACK degraded: invalid-compaction-trigger; coding continues\n" {
 		t.Fatalf("pre-compact stdout=%q", pre)
 	}
 	post := compactionHookStdout(t, ctx, root, "post-compact", map[string]any{"compact_summary": "no pin in the summary"})
@@ -283,5 +283,66 @@ func TestClaudeCompactionDeadlineNamesRemediation(t *testing.T) {
 		close(release)
 		text, _ := output["systemMessage"].(string)
 		assertDeadlineRemediation(t, text, "Corvint FALLBACK degraded: "+claudeDeadlineReason+"; coding continues", root)
+	}
+}
+
+// recordedCompactSummary is the shape of the host-authored compact_summary Claude Code 2.1.299
+// sent PostCompact at 2026-10-19T16:19Z (V1-1974): the host's continuation header, a numbered
+// summary that mentions the Corvint fallback the compactor's instructions carried, and no pin,
+// because PreCompact had degraded corvint-event-rejected:dogfood-event-deadline in that window.
+// The session body is paraphrased; the framing lines are the host's.
+func recordedCompactSummary(carried string) string {
+	return "This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.\n\n" +
+		"Summary:\n1. **Primary Request and Intent**\n   - Get Corvint to 1.0.\n" +
+		"2. **Key Technical Concepts**\n   - Corvint hooks reported a fallback: the check did not finish within the hook time limit (dogfood-event-deadline).\n" +
+		carried +
+		"\nContinue the conversation from where it left off without asking the user any further questions.\n"
+}
+
+// AHI-057 (V1-1974): a PreCompact whose compaction block read expired emits the unavailable line
+// instead of a pin, and a summary that carries it reports the pin as never emitted, not as dropped
+// by the summary; a summary that drops it, or drops an emitted pin, still reports
+// compaction-pin-not-preserved, and the last pin-shaped line decides between a pin and the line.
+func TestAHI057ClaudeCompactionDistinguishesUnemittedPinFromLostPin(t *testing.T) {
+	root, ctx := compactionFixture(t)
+	release := make(chan struct{})
+	defer close(release)
+	expiring := context.WithValue(ctx, dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return 10 * time.Millisecond })
+	expiring = context.WithValue(expiring, dogfoodEventReadKey{}, func(context.Context, options, map[string]any) (map[string]any, error) {
+		<-release
+		return nil, errors.New("released")
+	})
+	pre := compactionHookStdout(t, expiring, root, "pre-compact", map[string]any{"trigger": "auto"})
+	frame := "Corvint FALLBACK degraded: " + claudeDeadlineReason + "; coding continues\n"
+	if !strings.HasPrefix(pre, compactionPinUnavailable+frame) || compactionPinPattern.MatchString(pre) {
+		t.Fatalf("degraded pre-compact stdout=%q", pre)
+	}
+	unavailable := strings.Split(pre, "\n")[1]
+	tree := headTree(t, root)
+	pin := compactionPinProfile + " revision=" + tree + " tracked=1 untracked=1 paths=pkg/sample.go elided=0"
+	report := compactionReportProfile + " pinned=" + tree + " current=matches rehydrated=1 non-rehydratable=none elided=0 untracked=1 current-dirty=1\n"
+	cases := map[string]string{
+		// The 2026-10-19 false report: the pin was never emitted, and the summary kept the line saying so.
+		recordedCompactSummary("   - " + unavailable + "\n"): "Corvint FALLBACK degraded: compaction-pin-not-emitted; coding continues\n",
+		// The host reflowed the line; it is still the unavailable line.
+		recordedCompactSummary("   `corvint-compaction-pin/0\n   unavailable`\n"): "Corvint FALLBACK degraded: compaction-pin-not-emitted; coding continues\n",
+		// A real loss: the summary kept neither a pin nor the unavailable line.
+		recordedCompactSummary(""): "Corvint FALLBACK degraded: compaction-pin-not-preserved; coding continues\n",
+		// An earlier compaction's pin carried forward does not hide this compaction's missing pin.
+		recordedCompactSummary(pin + "\n" + unavailable + "\n"): "Corvint FALLBACK degraded: compaction-pin-not-emitted; coding continues\n",
+		// An earlier unavailable line carried forward does not hide this compaction's pin.
+		recordedCompactSummary(unavailable + "\n" + pin + "\n"): report,
+		// A mangled pin after the unavailable line is a pin the summary failed to preserve.
+		recordedCompactSummary(unavailable + "\n" + compactionPinProfile + " revision=" + tree + " tracked=1 untracked=1 paths=../x elided=0\n"): "Corvint FALLBACK degraded: compaction-pin-not-preserved; coding continues\n",
+		// A newer pin the summary truncated before elided= is still the last pin-shaped line: the
+		// loss is the summary's, not a never-emitted pin hidden behind the older unavailable line.
+		recordedCompactSummary(unavailable + "\n" + compactionPinProfile + " revision=" + tree + " tracked=1 untracked=1 paths=pkg/sample.go\n"): "Corvint FALLBACK degraded: compaction-pin-not-preserved; coding continues\n",
+		// Nor does an older whole pin stand in for a newer truncated one.
+		recordedCompactSummary(pin + "\n" + compactionPinProfile + " revision=" + tree + " tracked=1\n"): "Corvint FALLBACK degraded: compaction-pin-not-preserved; coding continues\n",
+	}
+	for summary, want := range cases {
+		if got := compactionHookStdout(t, ctx, root, "post-compact", map[string]any{"hook_event_name": "PostCompact", "compact_summary": summary}); got != want {
+			t.Errorf("summary %q:\n got %q\nwant %q", summary, got, want)
+		}
 	}
 }

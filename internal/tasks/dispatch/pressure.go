@@ -312,9 +312,13 @@ func stepPressure(c PressureConfig, goos string, state PressureState, sample Pre
 // PressureBudget counts only non-exempt concurrency. Roster integration must
 // call Accept before consuming static slots or reserving a candidate's key.
 type PressureBudget struct {
-	enabled        bool
-	cap, used      int
-	roles, tickets map[string]bool
+	// deferred stands in before this tick's sample (CAL-V0-351): its first
+	// Accept records the consultation and refuses, so nothing launches
+	// before the host is sampled.
+	deferred, consulted bool
+	enabled             bool
+	cap, used           int
+	roles, tickets      map[string]bool
 }
 
 // NewPressureBudget observes running assignments without changing them. A nil
@@ -357,6 +361,10 @@ func (b *PressureBudget) Exempt(a Assignment) bool {
 // Accept reserves pressure budget only; callers retain every static/native
 // admission fence and must not reserve a rejected candidate's key or role slot.
 func (b *PressureBudget) Accept(a Assignment) bool {
+	if b.deferred {
+		b.consulted = true
+		return false
+	}
 	if !b.enabled || b.Exempt(a) {
 		return true
 	}

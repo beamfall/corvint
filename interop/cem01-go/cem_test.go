@@ -956,7 +956,7 @@ func TestStableSeparateProfileAndArgumentPrecedence(t *testing.T) {
 	if n != 2 || r.Stage != "input" {
 		t.Fatalf("input precedence %v", r)
 	}
-	b, _ := json.Marshal(newStableResult("base", "target"))
+	b, _ := json.Marshal(newStableResult("base", "target", stableLegacyEnvelope))
 	var obj map[string]json.RawMessage
 	_ = json.Unmarshal(b, &obj)
 	if len(obj) != 23 {
@@ -1055,7 +1055,7 @@ func TestStableSidecarFailureStates(t *testing.T) {
 				t.Fatalf("unearned artifact success %+v", r)
 			}
 			if tc.stage == "binding" {
-				expected := newStableResult(base, target)
+				expected := newStableResult(base, target, stableLegacyEnvelope)
 				no := false
 				expected.Accept = &no
 				expected.Outcome = "REJECT"

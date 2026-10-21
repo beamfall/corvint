@@ -284,3 +284,13 @@ func TestCEMReportToolAdmitsTheCallerNamedRoot(t *testing.T) {
 		}
 	}
 }
+
+// V1-1992: a CEM Git read that exhausted its operation or output bound is a
+// capacity refusal, never a missing repository (MCPV0-025, DCP-V1-158).
+func TestCEMReportGitCapacityIsCapacityExceeded(t *testing.T) {
+	for _, code := range []string{cemcode.GitBudgetExceeded, cemcode.GitOutputExceeded} {
+		if got := cemFailure(context.Background(), cemcode.New(code, "bound")); got == nil || got.Code != "corpus-capacity-exceeded" {
+			t.Fatalf("%s maps to %v, want corpus-capacity-exceeded", code, got)
+		}
+	}
+}

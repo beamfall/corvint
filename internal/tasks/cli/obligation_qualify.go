@@ -1,6 +1,9 @@
 package cli
 
 import (
+	"context"
+
+	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/obligation"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -11,7 +14,9 @@ import (
 // expected classes and writes nothing. --from-playwright-report checks a
 // json-reporter document of that fixture and, only when every fixture id has
 // its expected class, records the version with its evidence in the
-// store-local allow-list. It writes no journal record and no ticket.
+// store-local allow-list. It writes no journal record and no ticket. The
+// allow-list read-modify-write runs under the store mutation lock, so
+// concurrent runs each keep their version (V1-1745).
 func obligationsQualifyVersion(env Env, cmd []string, args []string) *wire.Result {
 	var report string
 	printFixture := false
@@ -43,6 +48,11 @@ func obligationsQualifyVersion(env Env, cmd []string, args []string) *wire.Resul
 	if err != nil {
 		return errorResult(cmd, err)
 	}
+	lock, err := authority.AcquireLock(context.Background(), repo, authority.LockOptions{})
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	defer lock.Close()
 	p := obligation.AllowListPath(repo.CommonDir)
 	a, err := obligation.ReadAllowList(p)
 	if err != nil {

@@ -83,6 +83,12 @@ func (r SourceValidityReport) Refused() bool {
 // seed-parity comparison (TSA-V0-100..109); a link reference that is not `path:line` refuses
 // tests-invalid-arguments.
 func SourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport, error) {
+	return sourceValidity(r, options, newReadBudget())
+}
+
+// sourceValidity is SourceValidity with apps, the one application-read budget every spec prefix of
+// the command draws on (TSA-V0-448).
+func sourceValidity(r Repo, options SourceValidityOptions, apps *readBudget) (SourceValidityReport, error) {
 	files := []string{}
 	seen := map[string]bool{}
 	for _, name := range options.Files {
@@ -124,7 +130,7 @@ func SourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport
 	var flags *testvalidity.FlagLookups
 	for _, name := range files {
 		if m := RSpecQualifiedRef.FindStringSubmatch(name); m != nil {
-			file, test, err := r.qualifiedValidity(commit, m, supports)
+			file, test, err := r.qualifiedValidity(commit, m, supports, apps)
 			if err != nil {
 				return SourceValidityReport{}, err
 			}
@@ -138,7 +144,7 @@ func SourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport
 		}
 		support := testvalidity.RubySupport{}
 		if strings.HasSuffix(name, "_spec.rb") {
-			support = r.rubySupport(commit, name, supports)
+			support = r.rubySupport(commit, name, supports, apps)
 			if flags == nil {
 				read, err := r.flagLookups(commit)
 				if err != nil {
@@ -149,7 +155,7 @@ func SourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport
 			support.Flags = flags
 		}
 		file, tests := readSourceValidity(name, string(data), support)
-		if IsJSValidityTestFile(name) && !strings.HasSuffix(name, "_spec.rb") && !file.Uncertain {
+		if IsTestFile(name) && !strings.HasSuffix(name, "_spec.rb") && !file.Uncertain {
 			if seeds == nil {
 				if seeds, err = r.seedRules(commit); err != nil {
 					return SourceValidityReport{}, err
@@ -211,7 +217,7 @@ func (r Repo) committedFile(commit, name string) ([]byte, error) {
 // qualifiedValidity reads one qualified reference `SPEC:INCLUDE_LINE>SHARED:EXAMPLE_LINE`: the
 // shared example evaluated through that one inclusion, reported under the reference. A reference
 // the reader cannot bind is one ABSTAINED test with the refusal reason (TSA-V0-089..091).
-func (r Repo) qualifiedValidity(commit string, m []string, supports map[string]testvalidity.RubySupport) (SourceValidityFile, SourceValidityTest, error) {
+func (r Repo) qualifiedValidity(commit string, m []string, supports map[string]testvalidity.RubySupport, apps *readBudget) (SourceValidityFile, SourceValidityTest, error) {
 	q := testvalidity.RSpecInclusion{SpecPath: m[1], SharedPath: m[3]}
 	fmt.Sscanf(m[2], "%d", &q.IncludeLine)
 	fmt.Sscanf(m[4], "%d", &q.ExampleLine)
@@ -234,7 +240,7 @@ func (r Repo) qualifiedValidity(commit string, m []string, supports map[string]t
 		}
 	}
 	q.SpecText, q.SharedText = string(spec), string(shared)
-	q.Support = r.rubySupport(commit, q.SpecPath, supports)
+	q.Support = r.rubySupport(commit, q.SpecPath, supports, apps)
 	source, ref := RSpecInclusionSource(q)
 	file := SourceValidityFile{Path: ref, Findings: source.Findings}
 	if source.Read != testvalidity.ExampleSourceLocated {
@@ -300,7 +306,7 @@ func readSourceValidity(name, text string, support testvalidity.RubySupport) (So
 	}
 	base := ValidityFindings(name, text)
 	file := SourceValidityFile{Path: name, Uncertain: base.Uncertain, Reason: base.Reason, Findings: base.Findings, Abstentions: base.Abstentions}
-	if !IsJSValidityTestFile(name) || base.Uncertain {
+	if !IsTestFile(name) || base.Uncertain {
 		return file, findingTests(file.Findings, nil)
 	}
 	examples, reason := JSExampleSources(name, text)
@@ -361,8 +367,8 @@ func specPrefix(name string) string {
 
 // rubySupport reads the committed support set of a spec at commit once per prefix. A read that
 // fails or exceeds the bounds leaves the set unbound with a named reason, so helper resolution
-// abstains instead of guessing (TSA-V0-088).
-func (r Repo) rubySupport(commit, name string, cache map[string]testvalidity.RubySupport) testvalidity.RubySupport {
+// abstains instead of guessing (TSA-V0-088). The application source it binds draws on apps.
+func (r Repo) rubySupport(commit, name string, cache map[string]testvalidity.RubySupport, apps *readBudget) testvalidity.RubySupport {
 	prefix := specPrefix(name)
 	if support, ok := cache[prefix]; ok {
 		return support
@@ -372,8 +378,88 @@ func (r Repo) rubySupport(commit, name string, cache map[string]testvalidity.Rub
 	if err != nil {
 		support = testvalidity.RubySupport{Unbound: "rspec-support-unreadable"}
 	}
+	support.App = r.rubyApp(commit, prefix, apps)
 	cache[prefix] = support
 	return support
+}
+
+// maxAppFiles bounds the application files one prefix lists for TSA-V0-448.
+const maxAppFiles = 20000
+
+// rubyApp lists the committed application source under prefix that a never-written assertion
+// target resolves in (TSA-V0-448): the .rb files under app/, lib/ and config/, and db/schema.rb.
+// Each file is read on first use, at most MaxFileBytes, and cached; ReadAll reads the rest at
+// once. Every read draws on budget, which the command shares across all spec prefixes, so a file
+// over a bound or past the budget reads as absent and ReadAll fails. A listing that fails or
+// exceeds maxAppFiles lists none, so no target resolves.
+func (r Repo) rubyApp(commit, prefix string, budget *readBudget) *testvalidity.RubyApp {
+	entries, err := r.tree(commit, func(path string) bool {
+		rest, ok := strings.CutPrefix(path, prefix)
+		return ok && (rest == "db/schema.rb" || (strings.HasPrefix(rest, "app/") || strings.HasPrefix(rest, "lib/") || strings.HasPrefix(rest, "config/")) && strings.HasSuffix(rest, ".rb"))
+	}, maxAppFiles)
+	if err != nil {
+		return nil
+	}
+	listed := map[string]entry{}
+	paths := make([]string, 0, len(entries))
+	for _, e := range entries {
+		listed[e.path] = e
+		paths = append(paths, e.path)
+	}
+	slices.Sort(paths)
+	read := map[string]string{}
+	failed := map[string]bool{}
+	// load reads the given unread entries in one batch within budget, or none.
+	load := func(batch []entry) bool {
+		if len(batch) > budget.files {
+			return false
+		}
+		data, used, err := r.blobs(batch, budget.bytes)
+		if err != nil {
+			return false
+		}
+		budget.files -= len(batch)
+		budget.bytes -= used
+		for _, e := range batch {
+			read[e.path] = string(data[e.oid])
+		}
+		return true
+	}
+	app := &testvalidity.RubyApp{Paths: paths}
+	app.Read = func(path string) (string, bool) {
+		if text, ok := read[path]; ok {
+			return text, true
+		}
+		e, ok := listed[path]
+		if !ok || failed[path] {
+			return "", false
+		}
+		if !load([]entry{e}) {
+			failed[path] = true
+			return "", false
+		}
+		return read[path], true
+	}
+	complete, tried := false, false
+	app.ReadAll = func() bool {
+		if tried {
+			return complete
+		}
+		tried = true
+		batch := []entry{}
+		for _, path := range paths {
+			if _, ok := read[path]; ok {
+				continue
+			}
+			if failed[path] {
+				return false
+			}
+			batch = append(batch, listed[path])
+		}
+		complete = load(batch)
+		return complete
+	}
+	return app
 }
 
 func exampleLines(examples map[int]testvalidity.ExampleSource) []int {

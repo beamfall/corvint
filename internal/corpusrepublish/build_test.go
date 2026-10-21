@@ -3,6 +3,7 @@ package corpusrepublish
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"os"
 	"os/exec"
@@ -433,5 +434,19 @@ func TestDCPV1092ParityLargeTestKnowledge(t *testing.T) {
 	p, err = compare(before, after, nil)
 	if err != nil || len(p.Semantics.Changed) != 1 || p.Semantics.Changed[0] != "test_knowledge:tk:d" {
 		t.Fatalf("changed record not isolated: %+v %v", p.Semantics, err)
+	}
+}
+
+// V1-2003: republish already refuses a query index over its bounds with the
+// capacity code (DCP-V1-196), because corpusindex derives the index it embeds.
+func TestRepublishRefusesOverBoundIndex(t *testing.T) {
+	root, r, p := fixture(t)
+	if _, e := build(t, root, r, p, Output{}); e != nil {
+		t.Fatal(e)
+	}
+	defer doccorpus.SetIndexBoundsForTest(1, doccorpus.MaxIndexKeyBytes)()
+	var coded *doccorpus.Error
+	if _, e := build(t, root, r, p, Output{}); !errors.As(e, &coded) || coded.Code != doccorpus.CapacityCode {
+		t.Fatalf("over-bound index republished: %v", e)
 	}
 }

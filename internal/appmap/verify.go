@@ -91,7 +91,7 @@ func readReceipt(filename string) ([]byte, error) {
 // readRegular reads a regular file of at most max bytes without following a final symlink, and
 // reports false unless its identity, size and modification time held while it was read.
 func readRegular(filename string, max int) ([]byte, bool) {
-	before, err := os.Lstat(filename)
+	before, err := lstatInput(filename)
 	if err != nil || !before.Mode().IsRegular() {
 		return nil, false
 	}
@@ -114,6 +114,9 @@ func readRegular(filename string, max int) ([]byte, bool) {
 	}
 	return raw, true
 }
+
+// lstatInput is os.Lstat; a test replaces it to swap a FIFO in after the type check (V1-0971).
+var lstatInput = os.Lstat
 
 // unchanged reports whether two observations of one file agree in size and modification time.
 func unchanged(a, b os.FileInfo) bool {
@@ -448,17 +451,16 @@ func (vo verificationOverlay) Facts(ctx context.Context, ids []string) ([]Fact, 
 			continue
 		}
 		_, st := vo.m.step(id)
-		if st == nil {
+		// A step with no binding has no run evidence; it reads Unverified by absence, whether or
+		// not it resolves, which keeps the learned section within the projection budget for the
+		// steps that do (RVN-V0-006; V1-0975).
+		if st == nil || len(st.Tests) == 0 && len(vo.v.binds[st.ID]) == 0 {
 			continue
 		}
 		if e == nil {
 			e = newVerifier(ctx, vo.m, vo.v, vo.o)
 		}
-		// A step with no binding has no run evidence; it reads Unverified by absence, which keeps
-		// the learned section within the projection budget for the steps that do.
-		if sv := e.verify(*st); sv.Reason != "no-binding" {
-			facts = append(facts, verificationFact(id, *sv))
-		}
+		facts = append(facts, verificationFact(id, *e.verify(*st)))
 	}
 	return facts, nil
 }

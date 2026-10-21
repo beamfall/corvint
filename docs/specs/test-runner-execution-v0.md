@@ -57,6 +57,38 @@ analyzer families need explicit runtime/domain disposition; their presence is no
   acceptance, generation and candidate identities. FAILED alone MUST NOT establish a killed control;
   exact reviewed assertion/control relevance remains a separate experiment obligation. Default Core,
   frozen CEM0.x and Tasks policy remain unchanged until their own versioned migration is delivered.
+- `TRE-V0-110`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1541) For
+  `minitest` and `rails-test`, a test whose native result carries a `Minitest::UnexpectedError`
+  MUST be `FAILED` with failure kind `UNKNOWN` (the cause is an exception, not an assertion) and a
+  message naming only the exception class (`UnexpectedError: <Class>`, at most 1024 bytes; the
+  exception text is not retained). Other cases keep their native outcomes and the run stays
+  complete. A skipped or passed result is never reclassified.
+- `TRE-V0-111`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1537) The
+  `ctest` profile MUST run CTest with `--test-dir` set to a run-owned `ctest-run/` directory in the
+  report directory, whose generated `CTestTestfile.cmake` only includes the caller's build tree
+  (`subdirs("<Root>")`). CTest's own bookkeeping (`Testing/`, including `Testing/Temporary/`
+  `LastTest.log`, `LastTestsFailed.log` and `CTestCostData.txt`) is not written into the build
+  tree and stays in the report directory evidence (`ctest-run/Testing/Temporary/`). Tests still run
+  from their own build directories, so files a test itself writes there are outside this
+  requirement. A `Root` that is not absolute or holds a character CMake would
+  re-parse inside a quoted argument (`"`, `\`, `$`, `;`, NUL, CR, LF) is refused, never quoted.
+- `TRE-V0-113`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1537 review)
+  The run-owned test directory MUST keep the top-level configuration CTest reads from its test
+  directory. Its `CTestCustom.cmake` includes the build tree's `CTestCustom.cmake`, or else its
+  `CTestCustom.ctest` (CTest's precedence), so pre- and post-test hooks still run and a failing hook
+  still fails the run. The build tree's `DartConfiguration.tcl` (default test `TimeOut` and other
+  test settings) is copied with only its `BuildDirectory` entry pointed at the run directory, which
+  keeps CTest's bookkeeping out of the build tree. A `DartConfiguration.tcl` that cannot be read, or
+  that has other than exactly one `BuildDirectory` entry, is refused rather than dropped. Paths reach
+  CMake with forward slashes, so a Windows `Root` such as `C:\build` is admitted, and the
+  metacharacter refusal applies to the converted path.
+- `TRE-V0-112`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1535) The
+  `swift-testing` profile MUST refuse, before execution, a package directory (`Root`, or `Root`
+  joined with `Project`) whose symlink-resolved base name is case-insensitively a reserved
+  toolchain package identity, because SwiftPM derives the identity from the resolved directory.
+  A package directory that cannot be resolved is refused. The reserved set holds only the observed
+  collision, `swift-testing`. Other names, including `Testing` and a symlink named `swift-testing`
+  that resolves elsewhere, are admitted.
 
 ## Runner inventory
 
@@ -84,7 +116,9 @@ XCTest and Robolectric 4.16.1/API35 also have shared-executor witnesses. These d
 limits: TestCafe's current common-executor remote-Chrome CLI witness is qualified in
 `/private/tmp/cem10-build/dynamic/testcafe-cli-proof/qualification.json`; its prior permission
 refusal and first-use helper failure remain retained. Detox lacks a qualified task application/device;
-legacy Storybook collection is blocked by the observed runtime incompatibility. Playwright now retains actual pinned Chrome DOM pass/fail/skip/retry/zero/collection cases;
+legacy Storybook collection is witnessed (a complete FAILED run, `storybook-test-runner/collection`,
+Dynamic qualification matrix 2026-10-17 (V1-0592); the earlier runtime-incompatibility block is
+superseded). Playwright now retains actual pinned Chrome DOM pass/fail/skip/retry/zero/collection cases;
 a timeout initially left its native detached browser group alive (V1-0608), with durable cleanup
 repair independently reviewed and locally qualified for native cooperating Playwright; TRE-V0-034 adds
 executor-owned retirement of escaped descendants for every profile. The prior no-browser fixture remains retained. Nightwatch 3.16.0 now has a real
@@ -216,7 +250,7 @@ following evidence supports the prototype, not stable acceptance or automatic ti
 | TRE-V0-011..012 | `sql/sql.go`, `pgtap.go`, `sqllogictest.go`; `TestNativeMatrix`, `TestTAPRefusals`, `TestSQLiteRefusals`, `TestFixedInvocations`, `TestClosedConnection` | `sql/review.json` PASS; ten actual shared-executor receipts, native format provenance and disposable cluster cleanup retained |
 | TRE-V0-015 | `execute_unix.go`; `TestExecuteExplicitPrimaryTestWithoutArguments` (pinned `pwd` with no argv; implicit, ambiguous, BUILD, DISCOVER, DECODE, auxiliary and implicit-primary-name refusals) | `cmocka-independent-review-r2/REVIEW.json` PASS_BOUNDED (F4); root decision `e4de2129…e161` ACCEPTED_WITH_CONDITIONS |
 | TRE-V0-016..017 | `native/cmocka.go`; `TestCMockaActualDualFormatWitnesses`, `TestCMockaBoundaryContradictions`, `TestCMockaClosedBuild`, `TestCMockaRegistryDispatchAndTargetBoundary`, `TestCMockaPlanBindsTargetAndFixedEnvironment`, opt-in `TestCMockaNativeReceiptReadback` | Nine actual macOS arm64 CMocka 2.0.2 receipts in `cmocka-profile-proposal-r1/proof`; review PASS_BOUNDED; fresh requalification on the integration base NOT_RUN |
-| TRE-V0-018..020 | `native/ginkgo.go`; `TestGinkgoNativeProjectionStates`, `TestGinkgoReportCountAndBound`, `TestGinkgoParserRefusals`, `TestGinkgoStrictJSON`, `TestGinkgoBeforeSuiteSkipShape`, `TestGinkgoOrderedFollowOnFailure`, `TestGinkgoClosedBuild`, `TestGinkgoFocusBound`, `TestGinkgoRegistryDispatchAndTargetBoundary`, `TestGinkgoPlanBindsTargetAndFixedArgv` | Synthetic source-derived reports only; Ginkgo v2.33.0 read pins in `native/testdata/ginkgo-provenance.json`; actual runtime qualification NOT_RUN |
+| TRE-V0-018..020 | `native/ginkgo.go`; `TestGinkgoNativeProjectionStates`, `TestGinkgoReportCountAndBound`, `TestGinkgoParserRefusals`, `TestGinkgoStrictJSON`, `TestGinkgoBeforeSuiteSkipShape`, `TestGinkgoOrderedFollowOnFailure`, `TestGinkgoClosedBuild`, `TestGinkgoFocusBound`, `TestGinkgoRegistryDispatchAndTargetBoundary`, `TestGinkgoPlanBindsTargetAndFixedArgv` | Synthetic source-derived reports; Ginkgo v2.33.0 read pins in `native/testdata/ginkgo-provenance.json`; live runtime qualification: 10 actual witnesses on the 2026-10-17 host tuple (2026-10-17, see "Ginkgo v2 live qualification"), other tuples NOT_RUN |
 | TRE-V0-036..039 | `native/boosttest.go`; `TestBoostTestRecordedJUnitWitnesses`, `TestBoostTestBoundaryContradictions`, `TestBoostTestClosedBuild`, `TestBoostTestRegistryDispatch`, opt-in `TestBoostTestLiveExecution` | Actual Boost 1.92.0 (archive SHA-256 verified) JUnit reports from Apple clang 21.0.0 on macOS arm64 in `native/testdata/boosttest-provenance.json`; live shared-executor run PASS on 2026-10-08; other compilers, platforms and library variants NOT_RUN |
 
 Review and live manifests above are under `/private/tmp/cem10-build` for this build; their exact
@@ -299,6 +333,7 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `conflicting-outcomes` | A TestCafe skipped case also has errors, or an XML skipped case also has failure/error elements. | `internal/testrunner/dynamic/native.go:85@4df23ffc`; `internal/testrunner/dynamic/browser.go:51@02fd57db` |
 | `contradictory-exit` | A shared-boundary success exit accompanies an observed FAILED test. | `internal/testrunner/validate.go:122@8df4cef9` |
 | `count-mismatch` | A parsed native report total or category count disagrees with its observed rows, outcomes or attempts; the compared denominator is format-specific; or Node reports a negative skipped/todo count. | `internal/testrunner/dynamic/native.go:111@9a0a1c7f`; `internal/testrunner/dynamic/native.go:115@74f3bece`; `internal/testrunner/dynamic/native.go:230@b6957ba2`; `internal/testrunner/dynamic/native.go:259@ad1ded29`; `internal/testrunner/dynamic/native.go:473@0546fe58`; `internal/testrunner/dynamic/browser.go:57@312cf3e9`; `internal/testrunner/dynamic/browser.go:102@de598de5`; `internal/testrunner/dynamic/browser.go:159@6329112d`; `internal/testrunner/dynamic/browser.go:255@d7afa062`; `internal/testrunner/dynamic/parse.go:283@6144e481`; `internal/testrunner/dynamic/parse.go:290@9b100a65`; `internal/testrunner/dynamic/parse.go:348@c89d4e2d`; `internal/testrunner/dynamic/parse.go:375@5e2333a0`; `internal/testrunner/dynamic/parse.go:399@a3fc5178` |
+| `device-cleanup` | Device cleanup after a timed-out or interrupted TEST phase was not clean: a step failed, timed out, or its session identity was unobserved (TRE-V0-087). | `internal/testrunner/execute_unix.go:211@ab878870` |
 | `exception-conflict` | An RSpec example maps to PASSED while retaining an exception object. | `internal/testrunner/dynamic/parse.go:370@3ad339db` |
 | `exit-report-conflict` | A dynamic runner exits zero while a parsed test is FAILED, TIMED_OUT or INTERRUPTED. | `internal/testrunner/dynamic/parse.go:150@a9d4d7aa` |
 | `hook-error` | A WDIO hook has a native error or literal failed state. | `internal/testrunner/dynamic/browser.go:153@9b21db50` |
@@ -334,7 +369,7 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `node-suite-error` | A Node suite fail/error is not explained by subtestsFailed plus an already observed failed, timed-out or interrupted test. | `internal/testrunner/dynamic/native.go:166@7e3f3a32` |
 | `outside-example-errors` | RSpec reports a nonzero errors_outside_of_examples_count. | `internal/testrunner/dynamic/parse.go:351@503ba44e` |
 | `playwright-global-error` | The Playwright report contains a top-level error entry. | `internal/testrunner/dynamic/native.go:383@7d964fc3` |
-| `process-containment` | Escaped-descendant containment of an executor phase was incomplete: a retained escaped identity survived the bounded observation, or the structural proof could not be completed. | `internal/testrunner/execute_unix.go:239@aafefb4d` |
+| `process-containment` | Escaped-descendant containment of an executor phase was incomplete: a retained escaped identity survived the bounded observation, or the structural proof could not be completed. | `internal/testrunner/execute_unix.go:259@aafefb4d` |
 | `retry-history-missing` | Nightwatch declares positive retries without the same number of retained prior attempts; or Jest/Vitest indicates multiple invocations or passing-with-failure-messages without reconstructable attempt history. | `internal/testrunner/dynamic/browser.go:224@f37527eb`; `internal/testrunner/dynamic/parse.go:262@7bb3fc94`; `internal/testrunner/dynamic/parse.go:262@7bb3fc94` |
 | `runner-exit` | The shared boundary receives a negative exit code or one outside all admitted success/failure/outcome-neutral lists. | `internal/testrunner/validate.go:119@a90e3e46` |
 | `runner-unsuccessful` | Jest/Vitest reports success=false with assertion rows but no observed FAILED test. | `internal/testrunner/dynamic/parse.go:304@4b70a549` |
@@ -505,17 +540,17 @@ the caller-pinned executable digest and strict schema parsing; a
 `debug/buildinfo` module-sum check is NOT_IMPLEMENTED because the verified module
 sum is NOT_OBSERVED.
 
-Acceptance evidence is unit-level only: `TestGinkgoNativeProjectionStates`,
+Acceptance evidence is unit-level plus the 2026-10-17 live qualification: `TestGinkgoNativeProjectionStates`,
 `TestGinkgoReportCountAndBound`, `TestGinkgoParserRefusals`,
 `TestGinkgoStrictJSON`, `TestGinkgoBeforeSuiteSkipShape` (source-derived model of
 the BeforeSuite skip case), `TestGinkgoOrderedFollowOnFailure`,
 `TestGinkgoClosedBuild`, `TestGinkgoFocusBound`,
 `TestGinkgoRegistryDispatchAndTargetBoundary` and
 `TestGinkgoPlanBindsTargetAndFixedArgv`. Their reports are synthetic, shaped from
-the pinned source reading. Actual runner-generated qualification (`TRE-V0-009`)
-is NOT_RUN: no Ginkgo binary or `github.com/onsi/ginkgo` module was present
-locally, so every live pass/fail/skip/zero/lifecycle case remains a release
-blocker for this tuple.
+the pinned source reading. Actual runner-generated qualification (`TRE-V0-009`) for the
+darwin/arm64 tuple with Ginkgo 2.33.0 and Gomega 1.40.0 is recorded by 10 corvint-test-runner
+witnesses in "Ginkgo v2 live qualification" below, which supersedes the earlier NOT_RUN
+statement for that tuple (V1-1540). Other tuples remain unqualified release blockers.
 
 Rollback removes the additive `ginkgo-v2` profile, its tests and provenance file.
 No shared executor, other profile, queue, store or frozen wire changes.
@@ -1336,9 +1371,14 @@ Release blockers that remain, each with the missing piece:
   remote-browser path is qualified. Chrome for Testing 154 `--headless=new` never followed the
   remote `/browser/connect` redirect (`testcafe/remote-cft154-noconnect`), so the remote witness
   uses chrome-headless-shell 153.0.8010.12.
-- storybook-test-runner T: no executor-timeout witness (V1-1544). The pinned Jest config's 15 s test
-  timeout fires first and yields a complete FAILED run (`storybook-test-runner/timeout`); only the
-  interrupt path is qualified.
+- storybook-test-runner T: no executor-timeout witness, recorded as not applicable at the qualified
+  settings (V1-1544). The profile pins the runner's Jest config and refuses a caller `Config`, so its
+  per-test timeout is the pinned 15 s Jest timeout, which fires before any executor timeout of 15 s
+  or more and yields a complete FAILED run (`storybook-test-runner/timeout`, executor timeout 60 s).
+  The executor's `TimeoutSeconds` (1..1800) is still caller-chosen, so an executor timeout below the
+  Jest timeout plus runner and browser start-up is admitted but has no witness: the retained
+  Storybook fixture is gone and a new one needs a package install this lane did not run. Only the
+  interrupt path (`storybook-test-runner/interrupt`, incomplete) is qualified.
 - storybook-test-runner R: the profile pins the runner config and admits no Jest
   `test-runner-jest.config.js`; the runner has no native retry flag. The optional
   `.storybook/test-runner` config remains BLOCKED as recorded under TRE-V0-044.
@@ -1346,9 +1386,10 @@ Release blockers that remain, each with the missing piece:
   (`retry-history-missing`); Bun 1.3.11 JUnit and the WebdriverIO 9.32.0 JSON reporter repeat a
   retried test's identity (`ambiguous-test-identity`). A qualified retry needs a native report that
   carries attempts.
-- Minitest reports an erroring test (`Minitest::UnexpectedError`) as UNKNOWN, which makes the whole
+- Minitest reported an erroring test (`Minitest::UnexpectedError`) as UNKNOWN, which made the whole
   run unresolved (`minitest/mixed`); assertion failures are witnessed separately
-  (`minitest/mixed-noerror`).
+  (`minitest/mixed-noerror`). Superseded by TRE-V0-110 (V1-1541): the erroring case is now FAILED
+  with cause UNKNOWN.
 
 Rollback reverts the four parser changes and their tests and fixtures; the matrix stays as
 retained evidence. Plans and receipts are unchanged in shape.
@@ -1514,7 +1555,8 @@ Open residuals, retained and not fixed in this slice:
   device-side process, and the runner has no device cleanup phase. Only
   `am force-stop <target package>` ended it; `force-stop` of the test package did not. Every
   T case did that by hand (`runs/{android-junit,espresso,uiautomator}/timeout/cleanup-check.txt`).
-  This is a device-cleanup blocker for those three profiles.
+  This is a device-cleanup blocker for those three profiles. Addressed by `TRE-V0-087`
+  (V1-1553, section "Device cleanup after timeout or interrupt"); its live re-run is NOT_RUN.
 - The installed-APK identity is checked by the qualification harness, not bound by the receipt.
 - Failure kinds stay UNKNOWN for Android assertion errors, pgTAP, sqllogictest, WebdriverIO
   and Gradle exceptions.
@@ -1567,3 +1609,134 @@ documents, profiles and identities are unchanged.
 | TRE-V0-078 | `cmd/corvint-test-runner/main.go` `command`, `usage`; `TestHelpNeedsNoExecutablePin` | `go test ./cmd/corvint-test-runner`; built binary `--help` printed usage, exit 0 |
 | TRE-V0-079 | `command` listing dispatch; `TestListingVerbsNeedNoExecutablePin` | built binary `profiles` printed the runner ID JSON, exit 0 |
 | TRE-V0-080 | `missingIdentity`; `TestExecutingVerbsNameMissingPinFlags` | built binary `plan` refused naming both flags, exit 1 |
+
+## Device cleanup after timeout or interrupt (experimental)
+
+V1-1553: a timed-out or interrupted `android-junit`, `espresso`, `uiautomator` or
+`appium-uiautomator2-wdio` run retired the host process group, but the device kept running.
+Killing the adb client does not end a device-side process. The 2026-10-17 platform matrix
+retained the instrumentation (`mFinished=false`) and the target app alive after every Android
+timeout; only `am force-stop <target package>` ended them, and `force-stop` of the test package
+did not (`runs/{android-junit,espresso,uiautomator}/timeout/cleanup-check.txt`). The Appium
+timeout left its WebDriver session open until `newCommandTimeout`, and Appium 3.8.0 refuses
+session enumeration without the `session_discovery` feature
+(`runs/appium-uiautomator2-wdio/timeout/cleanup-check.txt`), so the runner must know the session
+identity itself.
+
+- `TRE-V0-087`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1553) A
+  device-bound profile MUST declare fixed, bounded device-cleanup steps in its invocation, and
+  the executor MUST run them, and only them, after the TEST phase timed out or was interrupted.
+  (1) The Android instrumentation profiles MUST resolve the instrumentation's target package on
+  the device from `pm list instrumentation`, force-stop it and then the test package, and then
+  verify that the instrumentation is no longer active and the target process is gone. A probe
+  that fails MUST fail the verify step, never count as an absence: `dumpsys` must succeed and
+  print its `ACTIVITY MANAGER RUNNING PROCESSES` header, and `pidof` must answer status 1 with
+  no output. Each step MUST print a fixed last line (`stopped`, `verified`), so an adb build that
+  drops the remote exit status cannot pass a step silently. (2) The Appium profile's fixed
+  configuration hooks MUST record the WebDriver session id, and the id of each replacement
+  session `browser.reloadSession()` creates (the WDIO `onReload` hook), one newline-terminated
+  id per line beneath the fresh report directory; cleanup MUST send `DELETE /session/<id>` for
+  every recorded id (at most eight) to the plan's canonical loopback endpoint. The record MUST
+  be a regular file, opened without blocking. Only a whole HTTP 200 body read before the step
+  deadline that is the W3C envelope `{"value":null}` counts as deleted, and a 404 `invalid
+  session id` counts as already absent. (3) Every step MUST run under its own bound (10 s, process
+  group contained) even when the run's context was cancelled, and later steps MUST still run
+  after an earlier failure. (4) The execution MUST record `deviceCleanup` with outcome
+  `not-required`, `clean` or `incomplete` and each step's status (`ok`, `failed`, `timed-out`,
+  `unobserved`) with bounded detail. A cleanup that is not clean MUST add the
+  `device-cleanup` execution problem, so the observation is incomplete; it MUST NOT be
+  reported as a clean stop. (5) Admission MUST refuse a cleanup step that names an undeclared
+  tool, holds more than 32 arguments or a NUL, combines a tool with a WebDriver endpoint, names
+  a non-canonical endpoint or a non-local session file, or exceeds four steps, before any phase
+  runs. (6) `deviceCleanup` MUST be omitted from plan JSON when empty, so historical plan bytes
+  and identities do not change; `corvint-test-runner run` MUST refuse a device-bound plan
+  written before cleanup existed rather than run it without cleanup. An Android plan, which
+  differs only by its steps, gets the re-plan diagnosis; an Appium plan also differs in its
+  wrapper and gets the generic profile-mismatch refusal.
+
+Failure modes. An instrumentation not listed by `pm` (uninstalled, or a mistyped component) is
+reported `failed` with `instrumentation-target-unresolved`, never as stopped. A force-stop that
+does not take effect fails the verify step. A failing or headerless `dumpsys` fails it with
+`instrumentation-probe-failed`, and a `pidof` that is missing or errors with
+`process-probe-failed`. A transport that swallows the remote exit status
+fails on the missing fixed line. A session id that was never recorded (the run timed out before
+the WebDriver session started) is `unobserved`, so cleanup is incomplete even when no session
+existed. A record that is not a regular file (a FIFO never blocks the open), is not
+newline-terminated, or holds more than eight ids is `unobserved`. A refused or unreachable
+delete, or a 200 whose body is not the null-value envelope, is `failed`; a response body that
+stalls past the step deadline is `timed-out`.
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-087 | `testrunner/types.go` `CleanupStep`; `execution.go` `DeviceCleanup`; `device_cleanup_unix.go` `checkDeviceCleanup`, `cleanDevice`; `platform/android.go` `androidCleanup`; `mobile/mobile.go` `Build`; `cmd/corvint-test-runner/main.go` `admittedInvocation`; `TestDeviceCleanupAdmission`, `TestDeviceCleanupIsBoundedAndRecorded`, `TestDeviceCleanupOnlyAfterTimeoutOrInterrupt`, `TestWebDriverSessionDeletionProvesAbsence`, `TestHistoricalPlanByteIdentity`, `platform` `TestAndroidTimeoutStopsDeviceProcesses`, `mobile` `TestTimeoutDeletesAppiumSession`, `TestNativeConfigIsolation`, `cmd/corvint-test-runner` `TestPreCleanupDevicePlanRefusedForExecution` | A recording fake `adb` with a stateful fake device shell, and an `httptest` WebDriver endpoint; the installed WDIO 9.32 ConfigParser loaded the wrapper and Node 22.23.3 ran its `before` hook and the ConfigParser-normalized `onReload` hook, which recorded both session ids; focused unit tests, 2026-10-20 |
+
+Recorded limits.
+- Live qualification is NOT_RUN: no device, emulator or Appium server ran. The ticket's live
+  witnesses for the four profiles remain outstanding.
+- `pidof` checks only the target's main process; `:remote` process names are not verified.
+- The `dumpsys` section header is taken from AOSP source, not from the 2026-10-17 captures. If
+  a device omits it, every verify step fails closed as `instrumentation-probe-failed`.
+- A run killed after Appium created a session but before the `before` or `onReload` hook
+  recorded it leaves that session unrecorded; cleanup then deletes only the recorded ids. A
+  session the test creates itself (a second `remote()` client) is not tracked.
+- Whether `dumpsys activity processes` lists the active instrumentation on every API level is
+  inferred from the 2026-10-17 API 35 evidence, not observed across versions.
+- Cleanup runs only after timeout or interrupt. A run that completes but leaves a process is
+  out of scope.
+
+Rollback removes `DeviceCleanup` from the invocation and execution, `device_cleanup_unix.go`,
+the Android steps, the Appium session hook and delete step, the runner's pre-cleanup plan
+refusal, these tests and this section. Device-bound plans written with cleanup would then fail
+closed decoding; historical plans and receipts are unaffected.
+
+## Minitest unexpected-error cases (experimental)
+
+V1-1541: the profile-owned Minitest reporter mapped a test that raises (`Minitest::UnexpectedError`)
+to `UNKNOWN`, so the shared normalizer voided every case of the run, although Minitest attributes
+the error to one named test and counts it as an error, never as a pass.
+
+Decision: FAILED-with-cause rather than UNKNOWN. The native runner names the case and never counts
+it as passed, so FAILED invents no certainty; UNKNOWN discarded the other cases' outcomes. The
+Python `unittest` and Ruby `test-unit` profiles still map native errors to UNKNOWN; aligning them is
+separate work.
+
+Rollback: restore the `UNKNOWN` state in `dynamic/reporters/minitest_reporter.rb`; plans, receipts
+and parsers are unchanged in shape.
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-110 | `dynamic/reporters/minitest_reporter.rb` `record`; `TestMinitestUnexpectedErrorFailsOnlyThatCaseLive` | Live Minitest 5.11.3 / Ruby 2.6.10: one raising and one passing test give native exit 1, a complete run, PASSED and FAILED/UNKNOWN; the test fails with the previous reporter |
+
+## CTest run-owned test directory (experimental)
+
+V1-1537: CTest always writes `Testing/Temporary` (`LastTest.log`, `LastTestsFailed.log`,
+`CTestCostData.txt`) into the directory it runs from, so the `ctest` profile left residue in the
+caller's build tree.
+
+Decision: the log is retained as report-directory evidence but is not a parsed report, so a large
+test log cannot exceed the report byte bound and turn a complete run incomplete; the JUnit report
+stays the only parsed input.
+
+Rollback: restore the earlier `ctest` argv without `--test-dir` and drop the generated file.
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-111 | `native/native.go` `Build` (`ctest`); `TestCTestRunsFromRunOwnedTestDirectory`, `TestCTestRunLeavesBuildDirectoryUnchanged` | Live CTest 4.4.4 (macOS arm64): one passing and one failing test that write nothing give a complete run, the build tree digest set is unchanged (no `Testing/` entry) and `LastTest.log` sits under the report directory; the live test fails with the previous argv (the build tree gained `Testing/Temporary/*`) |
+| TRE-V0-113 | `native/native.go` `ctestRunFiles`; `TestCTestRunsFromRunOwnedTestDirectory`, `TestCTestCarriesDartConfiguration`, `TestCTestWindowsRootUsesForwardSlashes` (Windows only), `TestCTestRunKeepsBuildTreeConfiguration` | Live CTest 4.4.4 (macOS arm64): a `CTestCustom.cmake` pre-test hook that exits 3 makes the run incomplete, and a `DartConfiguration.tcl` `TimeOut: 1` fails a 5 s test; both subtests fail against the wrapper without the carried files (the hook was skipped and the run passed). Copying `DartConfiguration.tcl` unchanged sent `Testing/` back into the build tree, which is why `BuildDirectory` is relocated. The Windows test is type-checked by `make windows-vet` and NOT_RUN on Windows |
+
+## swift-testing reserved package identity (experimental)
+
+V1-1535: SwiftPM derives a package's identity from its directory name. A fixture package in a
+directory named `swift-testing` is compiled with `-package-name swift_testing`, which collides with
+the toolchain swift-testing package; Swift 6.4 then fails the build with `error: fatalError` and the
+run reports a build failure that is the fixture's fault, not the code under test.
+
+Decision: reserve only the identity a live run showed to fail; a directory named `Testing` built and
+passed on the same toolchain, so it is not reserved. A newly observed collision is added to the set
+with its own live witness.
+
+Rollback: remove the reserved-identity check; the profile's argv is unchanged.
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-112 | `platform/platform.go` `Build` (`swift-testing`), `reservedSwiftPackageIdentity`; `TestSwiftTestingRefusesReservedPackageIdentity`; `platform/README.md` | Live Swift 6.4 (Xcode toolchain, macOS arm64) on 2026-10-20: identical one-library, one-test packages in directories `okpkg` and `Testing` pass; in `swift-testing` the build fails with `error: fatalError` (`-package-name swift_testing`). Live symlink probe: an alias `realbad-alias -> swift-testing` fails (`module 'Testing' is in package 'swift_testing'`), and `l/swift-testing -> ../okpkg` builds and passes |

@@ -47,7 +47,9 @@
       "go.mod",
       "internal/analyzerswift/"
     ],
-    "cmd/corvint-cem-candidate": [],
+    "cmd/corvint-cem-candidate": [
+      "protocol/cem-1.0/stable/neutral-criterion/"
+    ],
     "cmd/corvint-companion-release": [
       "script/corvint-companion-release-gate",
       "script/local-console-release-gate"
@@ -292,6 +294,7 @@
     "internal/liveverify/godiscovery": [],
     "internal/liveverify/gorunner": [],
     "internal/liveverify/parentverify": [],
+    "internal/liveverify/rbmutate": [],
     "internal/liveverify/session": [],
     "internal/localcompletion": [],
     "internal/lrf": [
@@ -452,6 +455,7 @@
       "internal/gateselect/readers.go",
       "internal/gateselect/readscopes.go",
       "internal/gateselect/select.go",
+      "internal/taskprojection/taskprojection.go",
       "tools/gate-affected-select/main.go"
     ],
     "tools/heading-nav-bench": [],

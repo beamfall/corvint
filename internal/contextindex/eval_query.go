@@ -147,11 +147,11 @@ func EvalImpactSyntax(index *Index, paths []string, limit int, budget *int) (map
 }
 
 func evalImpact(index *Index, paths []string, limit int, budget *int, syntaxFrontier bool) (map[string]any, error) {
-	result, disclosures, err := impact(index, paths, limit, syntaxFrontier || rubyImpactRequested(paths)) // NGI-V0-033
+	result, disclosures, view, err := impact(index, paths, limit, syntaxFrontier || rubyImpactRequested(paths)) // NGI-V0-033
 	if err != nil {
 		return nil, err
 	}
-	return compileReceipt(result, budget, index, disclosures...)
+	return compileReceipt(result, budget, view, disclosures...)
 }
 
 // EvalQuery compiles the broad Python-compatible query profile used by eval.

@@ -1,6 +1,7 @@
 # Corvint for OpenCode
 
-Version 0.7.5 supports unmodified OpenCode releases from 2.0.18 through the end of the 2.0 series.
+This adapter (its version is `version` in `package.json`) supports unmodified OpenCode releases from
+2.0.18 through the end of the 2.0 series.
 It supplies awaited task context, on-demand
 query and exact source expansion, edit/evidence/verification observations, explicit outcomes, and
 compaction recovery from current Git state. OpenCode 1.x requires the older 0.2.9 adapter.
@@ -216,7 +217,9 @@ a connected status alone does not verify a tool call or qualify native lifecycle
 Development probes with OpenCode CLI 1.17.18 and 1.18.31 connected the core, test-validity and
 docs servers built from this checkout and completed one call per tool through this selector; both
 clients send `notifications/cancelled` after each completed call, which the server ignores. These
-probes are transport evidence only, not a host-version support claim.
+probes are transport evidence only, not a host-version support claim. No MCP probe has been retained
+for OpenCode 2.x (`mcp.servers` with `corvint-mcp` is untested there), and the manifest's
+`testedHostVersions` stays empty until retained live OpenCode 2 evidence is committed (V1-0453).
 The optional docs and experimental corpus servers accept the same selector, but remain separately
 configured companions with their existing prerequisites. Disabling a server uses `disabled: true`;
 uninstalling it removes its `mcp.servers` entry.

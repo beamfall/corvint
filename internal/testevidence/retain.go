@@ -17,9 +17,9 @@ import (
 	"time"
 )
 
-// EvidenceDirectory is the worktree-relative retained-evidence location. It
-// equals testvaliditydoc.EvidenceDirectory, which Discover reads
-// (TestEvidenceDirectoryMatchesDiscovery). The package imports no other
+// EvidenceDirectory is the worktree-relative retained-evidence location and
+// the single source of testvaliditydoc.EvidenceDirectory, which Discover reads
+// (V1-1842). The package imports no other
 // Corvint package, so a provider package that testvaliditydoc imports, such as
 // rubytestprovider, can call IgnoreRetained (V1-1811).
 const EvidenceDirectory = ".corvint/test-evidence"

@@ -106,7 +106,21 @@ type ledger struct {
 // and no mapSha256 repeats; otherwise its state names the first failure in
 // that order. An absent note is `absent` with no records.
 func (r *repository) readLedger(ctx context.Context, target string) (ledger, error) {
-	noteOid, err := r.noteBlob(ctx, VerdictRef, target)
+	return r.readLedgerAt(ctx, target, false, "")
+}
+
+// readLedgerAt is readLedger over a fixed notes commit when pinned is true:
+// the note is found in that commit's tree by object ID, never through the
+// mutable ref, and an empty notesCommit (absent ref) reads `absent`.
+func (r *repository) readLedgerAt(ctx context.Context, target string, pinned bool, notesCommit string) (ledger, error) {
+	var noteOid string
+	var err error
+	switch {
+	case !pinned:
+		noteOid, err = r.noteBlob(ctx, VerdictRef, target)
+	case notesCommit != "":
+		noteOid, err = r.noteBlobAt(ctx, notesCommit, target)
+	}
 	if err != nil || noteOid == "" {
 		return ledger{state: "absent"}, err
 	}
@@ -248,8 +262,8 @@ func planAppend(current ledger, record VerdictRecord) ([]byte, *VerdictRecord, e
 // verdictsMember is the read-only listing of target's verdict ledger that
 // `cem provenance --verdicts` adds (CEM-V1-277): records only when the note
 // verifies, never records from a note that does not.
-func (r *repository) verdictsMember(ctx context.Context, target string) (map[string]any, error) {
-	current, err := r.readLedger(ctx, target)
+func (r *repository) verdictsMember(ctx context.Context, target string, pinned bool, notesCommit string) (map[string]any, error) {
+	current, err := r.readLedgerAt(ctx, target, pinned, notesCommit)
 	if err != nil {
 		return nil, err
 	}
