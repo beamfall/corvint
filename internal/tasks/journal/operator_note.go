@@ -214,7 +214,11 @@ func (n *noteAudit) bindEvent(req *snapshot.Request, target *ticket.Record, post
 	if w := n.st.elided; w != nil && !walked && !w.sameNote(t.path, pre.OperatorNote) {
 		return errCheckpoint(t.path, "note reference differs from the writer checkpoint")
 	}
-	policyRaw, err := n.prePost(n.st.canonical["intent/policy.json"], "intent/policy.json")
+	policyLatest, _, err := n.st.get("intent/policy.json")
+	if err != nil {
+		return err
+	}
+	policyRaw, err := n.prePost(policyLatest, "intent/policy.json")
 	if err != nil {
 		return err
 	}

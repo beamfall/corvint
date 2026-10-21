@@ -15,7 +15,7 @@ import (
 // carries `tickets` live ticket entries (ticket-proportional) and whose
 // retained request index carries `requests` records (history-proportional),
 // shaped like a store with one request per receipt.
-func benchWriterCheckpoint(b *testing.B, tickets, requests int) []byte {
+func benchWriterCheckpoint(b *testing.B, tickets, requests int) (base, raw []byte) {
 	b.Helper()
 	q, err := wire.ParseQueueID("", fixture.QueueID)
 	if err != nil {
@@ -38,11 +38,19 @@ func benchWriterCheckpoint(b *testing.B, tickets, requests int) []byte {
 	for _, d := range digests {
 		wc.requests = append(wc.requests, d...)
 	}
-	raw := wc.Encode()
-	if _, err := DecodeWriterCheckpoint(raw); err != nil {
+	wc.sizes = make([]uint64, len(cp.Entries))
+	for i := range wc.sizes {
+		wc.sizes[i] = 100
+	}
+	wc.Intent = IntentAggregate{Tickets: tickets, Cost: archive.FileSetCost{Files: tickets, PayloadBytes: uint64(100 * tickets)}}
+	base, raw, err = wc.Encode()
+	if err != nil {
 		b.Fatal(err)
 	}
-	return raw
+	if _, err := DecodeWriterCheckpoint(raw, base); err != nil {
+		b.Fatal(err)
+	}
+	return base, raw
 }
 
 // BenchmarkDecodeWriterCheckpoint separates the history-proportional request
@@ -52,12 +60,13 @@ func benchWriterCheckpoint(b *testing.B, tickets, requests int) []byte {
 func BenchmarkDecodeWriterCheckpoint(b *testing.B) {
 	for _, c := range []struct{ tickets, requests int }{{880, 3000}, {880, 6000}, {880, 13000}, {0, 13000}, {880, 0}} {
 		b.Run(fmt.Sprintf("tickets=%d/requests=%d", c.tickets, c.requests), func(b *testing.B) {
-			raw := benchWriterCheckpoint(b, c.tickets, c.requests)
+			base, raw := benchWriterCheckpoint(b, c.tickets, c.requests)
 			b.ReportMetric(float64(len(raw)), "bytes")
+			b.ReportMetric(float64(len(base)), "base-bytes")
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				if _, err := DecodeWriterCheckpoint(raw); err != nil {
+				if _, err := DecodeWriterCheckpoint(raw, base); err != nil {
 					b.Fatal(err)
 				}
 			}

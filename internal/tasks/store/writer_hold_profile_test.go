@@ -91,6 +91,11 @@ func TestCALV0118_WriterHoldProfile(t *testing.T) {
 		}
 		t.Cleanup(func() { os.RemoveAll(real) })
 		repo := historyStoreAt(t, filepath.Join(real, "repo"), tickets, n)
+		// A store this long is segmented in use (JSG-V0-008); the direct
+		// history appends skip the seal, so seal it before measuring.
+		if err := sealSegmentsLocked(context.Background(), repo); err != nil {
+			t.Fatal(err)
+		}
 		holdLeasePolicy(t, repo)
 		root := filepath.Join(real, "worktree")
 		holdGit(t, root, "init", "-q", "-b", "main")

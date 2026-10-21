@@ -1279,7 +1279,7 @@ CAL-V0-114	docs/specs/corvint-tasks-agent-leases-v0.md	When the journal audit (c
 CAL-V0-120	docs/specs/corvint-tasks-agent-leases-v0.md	A policy MAY carry the optional top-level key `holderLiveness`, a closed object	unrecorded	-
 CAL-V0-121	docs/specs/corvint-tasks-agent-leases-v0.md	`STALE_HOLDER` is advisory input, not release authority. `release --help` MUST s	unrecorded	-
 CAL-V0-115	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439) Writer checkpoint file. The writer checkpoint is der	owner	decision 0439
-CAL-V0-116	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439) Writer audit and fast route.	owner	decision 0439
+CAL-V0-116	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439; amended 2026-10-20 by decision 0549 for the `CAL-V0-	owner	decision 0439; 2026-10-20; decision 0549
 CAL-V0-117	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439) Counts, advance and scheduled refresh.	owner	decision 0439
 CAL-V0-118	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439) Writer cost measurement. The opt-in profile	owner	decision 0439
 CAL-V0-119	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439) Read checkpoint from a writer audit.	owner	decision 0439
@@ -1381,7 +1381,7 @@ CAL-V0-223	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner
 CAL-V0-260	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1353) `pause`,	standing	2026-10-11; V1-1353
 CAL-V0-261	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1353) `health`	standing	2026-10-11; V1-1353
 CAL-V0-262	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1353) The verb	standing	2026-10-11; V1-1353
-CAL-V0-224	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887; amended	standing	2026-10-11; V1-0887; 2026-10-15
+CAL-V0-224	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887; amended	standing	2026-10-11; V1-0887; 2026-10-15; 2026-10-20; decision 0548
 CAL-V0-232	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
 CAL-V0-233	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
 CAL-V0-234	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
@@ -1651,6 +1651,20 @@ JRT-V0-013	docs/specs/corvint-tasks-journal-retention-v0.md	(accepted under the 
 JRT-V0-014	docs/specs/corvint-tasks-journal-retention-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #	standing	2026-10-11; V1-1618; #1055
 JRT-V0-015	docs/specs/corvint-tasks-journal-retention-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1701) The comp	standing	2026-10-11; V1-1701
 JRT-V0-016	docs/specs/corvint-tasks-journal-retention-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1701) The walk	standing	2026-10-11; V1-1701
+JSG-V0-001	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R1) A HEARTBEAT or RENEW write MUST NOT list, read, sta	owner	decision 0549
+JSG-V0-002	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R2, fork F1) A HEARTBEAT or RENEW result reports `snaps	owner	decision 0549
+JSG-V0-003	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R3) The writer checkpoint carries the measured manifest	owner	decision 0549
+JSG-V0-004	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R4) The writer checkpoint is two derived files: a seale	owner	decision 0549
+JSG-V0-005	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R5) A segmented store keeps receipts F..S in sealed seg	owner	decision 0549
+JSG-V0-006	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R6) The segment manifest `segments/manifest-<S>.json` (	owner	decision 0549
+JSG-V0-007	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R7) Every writer audit lists `receipts/` exactly and re	owner	decision 0549
+JSG-V0-008	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R8, amended 2026-10-21 in slice S3) A writer whose comm	owner	decision 0549; 2026-10-21
+JSG-V0-009	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R9, amended 2026-10-21 in slice S5) A seal validates it	owner	decision 0549; 2026-10-21
+JSG-V0-010	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R10, amended 2026-10-21 in slice S5) On a segmented sto	owner	decision 0549; 2026-10-21
+JSG-V0-011	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R11, fork F3) When a sealed base exists, widen, reap, t	owner	decision 0549
+JSG-V0-012	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R12) The complete route and `receipt audit` read each b	owner	decision 0549
+JSG-V0-013	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R13, amended 2026-10-21 in slice S4) `corvint-tasks jou	owner	decision 0549; 2026-10-21
+JSG-V0-014	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R14) Maintained tests assert counts, not durations, at	owner	decision 0549
 KHN-V0-001	docs/specs/corvint-tasks-know-how-notes-v0.md	`ticket know-how add` MUST pin every `--anchor PATH` to the Git blob that path	unrecorded	-
 KHN-V0-002	docs/specs/corvint-tasks-know-how-notes-v0.md	A ticket record MAY carry the optional member `knowHow`. When present it is a	unrecorded	-
 KHN-V0-003	docs/specs/corvint-tasks-know-how-notes-v0.md	`KNOWHOW_ADD` (`{text, anchors, routes, commit, supersedes, reason, attempt,	unrecorded	-

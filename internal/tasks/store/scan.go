@@ -11,6 +11,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/archive"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -68,6 +69,11 @@ func scanWithReader(repo *intent.Repository, read inventoryReader, observed ...m
 		dirs = append(dirs, children.dirs...)
 		files = append(files, children.files...)
 	}
+	sealed, err := sealedEntries(repo, read)
+	if err != nil {
+		return nil, nil, err
+	}
+	files = withSealed(files, sealed)
 	intentFiles, err := scanIntentWithReader(repo, read, observed...)
 	if err != nil {
 		return nil, nil, err
@@ -76,6 +82,94 @@ func scanWithReader(repo *intent.Repository, read inventoryReader, observed ...m
 	sort.Strings(dirs)
 	archive.SortFiles(files)
 	return files, dirs, nil
+}
+
+// sealedEntries lists the receipts and request afterimages the segments of a
+// taskman-journal-head/1 hold, under their logical receipts/ and requests/
+// paths (JSG-V0-012), so a store's inventory is the same before and after a
+// seal. Each segment is read through read and checked against the manifest
+// the head binds; a manifest or segment a concurrent seal replaced is a
+// moved observation. A head that does not decode adds nothing: the journal
+// audit owns that refusal. Without segments/ the head is not read again: a
+// seal creates segments/ before it publishes a head that binds it, and only
+// an unseal removes it, after it published a head that does not.
+func sealedEntries(repo *intent.Repository, read inventoryReader) ([]archive.FileEntry, error) {
+	if _, err := os.Lstat(segmentPath(repo, snapshot.SegmentsDir)); errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	raw, err := read(filepath.Join(repo.StateDir, "head.json"), wire.MaxJournalHeadBytes)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	head, err := snapshot.DecodeHead(raw)
+	if err != nil || head.Segments == nil {
+		return nil, nil
+	}
+	moved := func(p, why string) error { return wire.Errorf(wire.CodeSnapshotMoved, p, "%s", why) }
+	name := snapshot.SegmentManifestName(head.Segments.Through.Uint64())
+	m, err := read(filepath.Join(repo.StateDir, filepath.FromSlash(name)), snapshot.MaxSegmentManifestBytes)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, moved(name, "a later seal replaced the manifest the head named")
+	}
+	if err != nil {
+		return nil, err
+	}
+	if wire.Sum(m) != head.Segments.ManifestSha256 {
+		return nil, moved(name, "segment manifest differs from the digest the head binds")
+	}
+	manifest, err := snapshot.DecodeSegmentManifest(m, 1)
+	if err != nil {
+		return nil, err
+	}
+	var out []archive.FileEntry
+	for _, e := range manifest.Segments {
+		seg := snapshot.SegmentName(e.First, e.Last)
+		raw, err := read(filepath.Join(repo.StateDir, filepath.FromSlash(seg)), snapshot.MaxSegmentBytes)
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, moved(seg, "bound segment absent")
+		}
+		if err != nil {
+			return nil, err
+		}
+		if uint64(len(raw)) != e.Bytes || wire.Sum(raw) != e.Sha256 {
+			return nil, moved(seg, "segment differs from the digest the manifest binds")
+		}
+		s, err := snapshot.DecodeSegment(raw, e.First, e.Last)
+		if err != nil {
+			return nil, err
+		}
+		for _, list := range [][]snapshot.SegmentFile{s.Receipts, s.Requests} {
+			for _, f := range list {
+				out = append(out, archive.FileEntry{Path: f.Path, Sha256: wire.Sum(f.Raw), Bytes: wire.SizeOf(uint64(len(f.Raw)))})
+			}
+		}
+	}
+	return out, nil
+}
+
+// withSealed adds the sealed entries to files. A physical file still linked
+// at a sealed path is the same file (a seal checks every digest before it
+// drops one), so the sealed entry replaces it.
+func withSealed(files, sealed []archive.FileEntry) []archive.FileEntry {
+	if len(sealed) == 0 {
+		return files
+	}
+	paths := make(map[string]struct{}, len(sealed))
+	for _, f := range sealed {
+		paths[f.Path] = struct{}{}
+	}
+	kept := files[:0]
+	for _, f := range files {
+		if _, dup := paths[f.Path]; !dup {
+			kept = append(kept, f)
+		}
+	}
+	return append(kept, sealed...)
 }
 
 type children struct {

@@ -222,6 +222,12 @@ func fullCommandHelp(cmd []string) *wire.Result {
 	if name == "receipt unretire" {
 		o.Set("note", wire.String("Rollback of receipt retire (JRT-V0-011): under the writer lock it checks --archive FILE against the digest and size the seal binds, verifies it, restores every retired receipt it holds, removes the seal and both derived checkpoints, and requires a complete audit from receipt 1."))
 	}
+	if name == "journal seal" {
+		o.Set("note", wire.String("Operator-invoked migration (JSG-V0-013): under the writer lock, after a complete settled audit, it converts an unsegmented store and seals every whole 512-receipt range that leaves at least 512 receipts active into segments/ bound by a taskman-journal-head/1 head; writers then keep sealing. A binary that predates the format refuses the sealed store as UNSUPPORTED_VERSION; journal unseal is the rollback. Refused on a store with a retired prefix. A fault refuses before the seal in progress writes; a stop leaves SEAL_INCOMPLETE for the next writer to settle."))
+	}
+	if name == "journal unseal" {
+		o.Set("note", wire.String("Rollback of journal seal (JSG-V0-013): under the writer lock, after a complete settled audit, it restores every sealed receipt and request afterimage, last segment first, and publishes a taskman-journal-head/0 head; the state directory is then byte-identical to the unsegmented tree. Each segment is its own marker-guarded step, so a stop is settled by the next writer and a rerun continues. On an unsegmented store it writes nothing."))
+	}
 	if name == "archive verify" {
 		o.Set("note", wire.String("Reads FILE, or stdin when FILE is absent or -. Help reads neither."))
 	}
@@ -271,6 +277,8 @@ var commandUsage = map[string]string{
 	"receipt compact":         "corvint-tasks receipt compact [--dry-run]",
 	"receipt retire":          "corvint-tasks receipt retire --archive FILE [--dry-run]",
 	"receipt unretire":        "corvint-tasks receipt unretire --archive FILE",
+	"journal seal":            "corvint-tasks journal seal",
+	"journal unseal":          "corvint-tasks journal unseal",
 	"reconcile inspect":       "corvint-tasks reconcile inspect <ticketId>",
 	"reconcile intent":        "corvint-tasks reconcile intent (--keep-journal | --adopt-file) --request-id ID --target TICKET|RELEASE --file FILE|- [--canonical-sha256 SHA256] [--role OWNER|OPERATOR]",
 	"archive export":          "corvint-tasks archive export [--staging DIR]",

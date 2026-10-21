@@ -100,3 +100,12 @@ func (m *MutationAudit) Canonical(paths ...string) (*Result, bool, error) {
 	out.request, out.requestTicket, out.selection = nil, "", nil
 	return &out, true, nil
 }
+
+// VerifyWriterCheckpoint is Result.VerifyWriterCheckpoint over this audit's
+// complete settled observation; ok is false without one (JSG-V0-003).
+func (m *MutationAudit) VerifyWriterCheckpoint(old *WriterCheckpoint) (ok bool, err error) {
+	if m == nil || m.result == nil || m.Physical.Files == nil {
+		return false, nil
+	}
+	return m.result.VerifyWriterCheckpoint(old, m.Physical.Files)
+}
