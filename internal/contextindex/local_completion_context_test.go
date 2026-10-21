@@ -276,13 +276,6 @@ func TestDogfoodPromptOmittedTaskNeverResolves(t *testing.T) {
 func TestDogfoodPromptEarlyResourceBounds(t *testing.T) {
 	t.Run("LCP-V0-012 bound", func(t *testing.T) {
 		index := localPromptFixture(t)
-		task := ""
-		for i := 0; i < localPromptMaxAnchors+1; i++ {
-			task += fmt.Sprintf("`Symbol%d` ", i)
-		}
-		if _, err := DogfoodPromptContext(context.Background(), index, task, nil, 20, 8000); err == nil || !strings.Contains(err.Error(), "bounded candidate profile") {
-			t.Fatalf("anchor ceiling=%v", err)
-		}
 		for i := 0; i < localPromptMaxCandidates+1; i++ {
 			index.Symbols = append(index.Symbols, Symbol{Name: "Excess", Path: fmt.Sprintf("pkg/%d.go", i), Line: 1})
 		}
@@ -443,4 +436,69 @@ func TestDogfoodPromptMentionIdentityAndRefusals(t *testing.T) {
 			t.Fatal("omitted mention evidence resolved")
 		}
 	})
+}
+
+// LCP-V0-035: more than localPromptMaxAnchors anchors degrade to a partial
+// packet that keeps the first anchors in the fixed kind order and counts the
+// dropped ones by kind, never naming the raw task terms.
+func TestDogfoodPromptLCPV0035KeepsFirstAnchorsInOrder(t *testing.T) {
+	index := localPromptFixture(t)
+	task := "pkg/packet.go pkg/missing.go "
+	for i := 0; i < localPromptMaxAnchors+3; i++ {
+		task += fmt.Sprintf("`Dropped%02d` ", i)
+	}
+	first := localPrompt(t, index, task, nil, 20, 8000)
+	resolution := first["resolution"].(map[string]any)
+	// Two paths come before identifiers, so 30 identifiers are kept and 5 dropped.
+	if resolution["anchors"] != localPromptMaxAnchors || resolution["dropped_anchors"] != 5 {
+		t.Fatalf("resolution=%v", resolution)
+	}
+	if kinds := resolution["dropped_anchor_kinds"].(map[string]any); len(kinds) != 1 || kinds["identifiers"] != 5 {
+		t.Fatalf("dropped kinds=%v", kinds)
+	}
+	encoded, err := CanonicalJSON(first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), "Dropped") {
+		t.Fatalf("packet names a raw task term: %s", encoded)
+	}
+	// The order is fixed: a permuted prompt yields the same packet.
+	fields := strings.Fields(task)
+	slices.Reverse(fields)
+	again, err := CanonicalJSON(localPrompt(t, index, strings.Join(fields, " "), nil, 20, 8000))
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstNoTask, againNoTask := dropTaskDigest(t, encoded), dropTaskDigest(t, again)
+	if firstNoTask != againNoTask {
+		t.Fatalf("order not deterministic:\n%s\n%s", firstNoTask, againNoTask)
+	}
+	// Within the bound the packet carries no dropped-anchor field.
+	if within := localPrompt(t, index, "pkg/packet.go", nil, 20, 8000)["resolution"].(map[string]any); within["dropped_anchors"] != nil || within["dropped_anchor_kinds"] != nil {
+		t.Fatalf("within-bound resolution=%v", within)
+	}
+	// Paths alone past the bound drop the last path in sorted order.
+	resolved := "pkg/packet.go"
+	for i := 0; i < localPromptMaxAnchors; i++ {
+		resolved += fmt.Sprintf(" pkg/extra%02d.go", i)
+	}
+	packet := localPrompt(t, index, resolved, nil, 20, 8000)
+	if got := packet["resolution"].(map[string]any); got["dropped_anchors"] != 1 || got["anchors"] != localPromptMaxAnchors {
+		t.Fatalf("path bound resolution=%v", got)
+	}
+}
+
+func dropTaskDigest(t *testing.T, encoded []byte) string {
+	t.Helper()
+	var packet map[string]any
+	if err := json.Unmarshal(encoded, &packet); err != nil {
+		t.Fatal(err)
+	}
+	delete(packet, "task_sha256")
+	again, err := json.Marshal(packet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(again)
 }

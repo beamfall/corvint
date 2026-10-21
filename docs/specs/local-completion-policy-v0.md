@@ -382,10 +382,23 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   `corvint-event-rejected:dogfood-event-prompt-bounds`, which `SOL-V0-010` admits into the
   self-observation ledger. Only the typed code is read, never message text; any other
   `contextindex` refusal or untyped failure stays `dogfood-event-unavailable`. The code names a
-  cause, not a remedy: the bounds themselves are unchanged (a long prompt whose derived anchors
-  exceed the 32-anchor profile is still refused). Rollback: drop the `contextindex.Error` branch in
+  cause, not a remedy: the bounds themselves are unchanged (an over-bound anchor set now degrades to a
+  partial packet under `LCP-V0-035`). Rollback: drop the `contextindex.Error` branch in
   `dogfoodReadFailureCode` and the registry entry; the refusal returns to
   `dogfood-event-unavailable`.
+- `LCP-V0-035`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2276) A prompt
+  whose derived explicit anchors (requirement IDs, mentions, paths, identifiers) exceed the
+  32-anchor profile MUST NOT be refused: the compiler keeps the first 32 in the fixed order
+  requirement IDs, mentions, paths, identifiers, each sorted, and resolves only those. The packet's
+  `resolution` MUST carry, only then, `dropped_anchors` (the count) and `dropped_anchor_kinds` (count per kind
+  that lost anchors); the dropped anchors are raw task terms, so `LCP-V0-011` keeps them out of
+  the packet and they are named by kind and count only. A prompt that otherwise resolves reports
+  `unresolved`/`anchor-bound-exceeded`; an earlier reason (`anchor-not-found` and the rest) keeps
+  precedence. This amends `LCP-V0-011`: `unsupported-dogfood-context-bounds` remains only for a
+  requirement ID with more than 128 candidate definitions, and the byte bound stays
+  `invalid-dogfood-context`. Non-goals: raising the 32-anchor profile or ranking anchors by
+  relevance. Failure modes: a long prompt whose most useful anchors sort late loses them; the
+  counts say so. Rollback: restore the `failBounds` call in `addAnchors` and drop the two fields.
 
 ## Non-goals and simpler baseline
 
@@ -571,6 +584,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-032 | `CheckBoundError` in `internal/localcompletion/types.go`, raised by `validatePlan`; `emitLocalCompletionFailureDetail` in `cmd/corvint/local_completion.go`; `TestDogfoodBeginCheckBoundNamesTheLimit` (`cmd/corvint/local_completion_test.go`: a 4000 s timeout and 65 argv elements; a secret-shaped check id is shown as `[REDACTED]`) |
 | LCP-V0-033 | `snapshotPrefetch` and `dogfoodEvent` in `cmd/corvint/local_completion_event.go`, consumed by `localEventContext`; `gokernel.ProbeRepositoryAroundPrefetching` (`internal/gokernel/repository.go`); `adoptObservation` (cmd, so the analyzer-schema inputs are unchanged) | `TestDogfoodEventPrefetchesTheSnapshotFromTheOpeningIdentity`, `TestSnapshotPrefetchServesOnlyItsOwnTree` and `TestAdoptObservationMatchesTheObservedLoader` (`cmd/corvint/dogfood_event_bracket_test.go`: one identity-only load, answer bytes equal to the sequential read, other-tree and unstarted fallback, adoption equal to `contextindex.LoadSnapshotObserved`'s); `TestProbeAroundPrefetchingOverlapsTheOpeningStatusRead` (`internal/gokernel/repository_around_test.go`: the status reply blocks until prefetch receives the identity, four Git calls, no closing prefetch, none after a failed identity read); `TestDogfoodEventSpawnsOneBracket` still counts four spawns; the A/B timings in `docs/build-log/2026-10-21-hooks-1021-snapshot-prefetch.md` |
 | LCP-V0-034 | `dogfoodReadFailureCode` in `cmd/corvint/local_completion_event.go`; `admittedAdapterRejections` in `internal/observations/observations.go` | `TestV11976PromptContractRefusalHasNamedCode` (`cmd/corvint/worktree_churn_test.go`: bounds, wrapped budget and invalid-context refusals report `dogfood-event-prompt-bounds`, another `contextindex` code stays `dogfood-event-unavailable`); `TestAdapterDegradationAdmitsPromptBounds` (`internal/observations/observations_test.go`); both fail without the change |
+| LCP-V0-035 | `keepAnchors` and `resolution` in `internal/contextindex/local_completion_context.go` | `TestDogfoodPromptLCPV0035KeepsFirstAnchorsInOrder` (`internal/contextindex/local_completion_context_test.go`: 2 paths and 35 identifiers keep 32 anchors and drop 5 identifiers, the packet holds no dropped term, a reversed prompt gives the same packet, 33 paths drop one path); `TestDogfoodPromptEarlyResourceBounds` keeps the 128-candidate refusal |
 
 ## Rollout, rollback and remaining gates
 
