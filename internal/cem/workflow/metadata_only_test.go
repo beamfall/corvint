@@ -16,6 +16,7 @@ import (
 // with metadata-only-change-unsupported naming the path and change kind
 // (CEM-V1-300), not the earlier misleading malformed-patch.
 func TestPrepareRefusesMetadataOnlyChanges(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name, kind, path string
 		change           func(t *testing.T, root string)

@@ -43,6 +43,7 @@ func verifyGuards(t *testing.T, root, base, target string) (map[string]any, *ver
 // byte-identical with and without the flag and the caller's repository is
 // untouched.
 func TestTCQV0062GuardingTestsNameObservedGuards(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRevertRepo(t)
 	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
 		t.Fatal(err)
@@ -106,6 +107,7 @@ func TestTCQV0062GuardingTestsNameObservedGuards(t *testing.T) {
 // refuse --guarding-tests, and verify refuses it beside --hunk-revert, so one
 // run never both suggests a test and credits it.
 func TestTCQV0062FlagIsVerifyOnly(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
 		t.Fatal(err)
