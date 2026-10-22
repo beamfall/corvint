@@ -137,6 +137,22 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   `rename to` path, else the new side of an unquoted `Binary files a/OLD and b/NEW differ` marker
   (the old side when the new side is `/dev/null`). A marker that declares no valid path keeps the
   earlier generic message. No path is invented and no map is published.
+- `CEM-V1-038`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2018) In the
+  `CEM-V1-286` chain, the ticket MUST require the `cem-verdict` gate, and a `GRANT` recorded for one
+  submitted tree MUST NOT be treated as current once another tree is submitted:
+  - Tasks refuses completion at the superseded seal commit with `STALE_TREE`.
+  - Tasks refuses completion at the new candidate with `GATE_STALE`, and after a failed verdict
+    there with `GATE_FAILED`.
+  - After the sealed tree is restored and resubmitted, completion is still refused with
+    `GATE_STALE` until the gate runs again at that candidate. Its fresh `GRANT` then completes the
+    ticket.
+- `CEM-V1-039`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2018) Runner
+  repairs MUST compose only on one bound source. When two isolated repairs of one draft each have a
+  real passing `corvint-test-runner` receipt over a source that the composed target does not
+  contain, the plain producer with admission MUST refuse each receipt with `runner-receipt-stale`
+  and write no bundle. It MUST admit the one receipt whose plan pins the composed target's inputs
+  and selects both repaired tests. That receipt observes both tests `PASSED`, and the bundle binds
+  the runner's exact bytes.
 - `CEM-V1-368`: The `cem-stable-review/0` projection MUST copy, from the verifier's own `citation`,
   each hunk row's `tier` and `anchors`, and a top-level `citationTiers` with the per-tier counts, the
   hunk count and `samePathCitations` (`NOT_PRODUCED` when the result has no citation). Each evidence
@@ -4293,3 +4309,38 @@ refusal code and every stable result are unchanged either way.
 | Requirement | Test | Evidence |
 | --- | --- | --- |
 | CEM-V1-037 | `TestBinaryRefusalNamesPath` (`internal/cem/patch`), `TestPrepareBinaryRefusalNamesPath` (`internal/cem/workflow`) | Modify, `GIT binary patch`, rename and bare creation/deletion markers name the path; bare and traversing markers keep the generic message; `cem prepare` on real binary creation, modification, deletion and a mixed text+binary commit refuses `binary-patch` naming the path |
+
+## Current versus historical Tasks authority and composed runner repairs (V1-2018, 2026-10-21)
+
+Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-2018.
+V1-0632 left two gaps in the `CEM-V1-286` chain. It did not show that a `GRANT` for a superseded
+tree has no authority, and it did not show how separate runner repairs combine into one admitted
+receipt. This section closes both gaps with fixture tests. It changes no product code, wire member,
+verifier rule or Tasks rule. The tests pin the existing Tasks gate-currency rules (`gateVerdict`,
+`completionBlocker`) and the producer's `CEM-V1-283` stale check in this chain.
+
+The requirements are `CEM-V1-038` and `CEM-V1-039` in `## Requirements`.
+
+Non-goals:
+- no new refusal code;
+- no change to how Tasks stores or reuses gate results;
+- no receipt merging: a composed receipt is a fresh runner execution over the composed source,
+  never a union of earlier receipts;
+- no receipt signing (`FPK-V0-036`).
+
+Failure modes: if Tasks treated a gate result from another tree as current, the historical `GRANT`
+would complete the ticket and `CEM-V1-038` fails. If the producer stopped comparing input digests
+with the target, an isolated repair's receipt would be admitted and `CEM-V1-039` fails.
+
+Acceptance evidence: both tests pass. With the tree comparison in `gateVerdict` disabled, the chain
+test fails because the historical `GRANT` completes the ticket. With the `CEM-V1-283` digest
+comparison disabled, the composition test fails because an isolated repair receipt is admitted.
+Build log `docs/build-log/2026-10-21-cem-authority-1021t-binary-path-runner-authority.md`.
+
+Rollback: revert the `internal/cemchain/chain_test.go` changes and these rows. No product code
+changed.
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-038 | `TestCEMV1286TasksRunnerProducerVerifyChain` (`internal/cemchain`) | Superseded seal `STALE_TREE`, historical `GRANT` `GATE_STALE`, failed verdict `GATE_FAILED`, restored tree `GATE_STALE` until re-gated, then `COMPLETED`; fails with the `gateVerdict` tree check disabled |
+| CEM-V1-039 | `TestCEMV1039RunnerRepairsComposeOnOneBoundSource` (`internal/cemchain`) | Both isolated repair receipts are refused as `runner-receipt-stale` with no bundle; the composed receipt is admitted, observing `TestAdd` and `TestMul` `PASSED`; fails with the input digest comparison disabled |
