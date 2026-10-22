@@ -14,7 +14,7 @@ var contextTicketAnchor = regexp.MustCompile(`[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9
 const (
 	undefinedRequirementReason = "no tracked spec has a defining clause for this requirement id"
 	ticketAnchorReason         = "a ticket-shaped id: the index holds no Tasks ticket state (TCP-V0-121), so nothing resolves it to the specs or paths its ticket cites"
-	undeclaredAnchorReason     = "no indexed declaration defines this identifier (a struct field or other member the extractor does not record is not a definition); only lexical rows can carry it"
+	undeclaredAnchorReason     = "no indexed declaration defines this identifier (a member the extractor does not record, such as an interface method or a local type's field, is not a definition); only lexical rows can carry it"
 )
 
 // undeclaredAnchor holds for a code-shaped name: at least four bytes, a

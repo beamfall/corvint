@@ -64,6 +64,7 @@ type eventSnapshot struct {
 	Features, Scenarios, Documents                            wirePairs[wireRecord]
 	Markers                                                   wirePairs[[]Marker]
 	Symbols                                                   []Symbol
+	Fields                                                    []Symbol
 	Imports                                                   wirePairs[[]string]
 	Unparsed                                                  []Unparsed
 	ApproximateImports                                        int
@@ -75,7 +76,7 @@ func (snapshot *eventSnapshot) index() (*Index, error) {
 		ObjectFormat: snapshot.ObjectFormat, CommitRevision: snapshot.CommitRevision, Revision: snapshot.Revision,
 		ProfileID: snapshot.ProfileID, Module: snapshot.Module,
 		Exclusions: snapshot.Exclusions, UnsupportedSuffixCount: snapshot.UnsupportedSuffixCount,
-		Symbols: snapshot.Symbols, Unparsed: snapshot.Unparsed, ApproximateImports: snapshot.ApproximateImports,
+		Symbols: snapshot.Symbols, Fields: snapshot.Fields, Unparsed: snapshot.Unparsed, ApproximateImports: snapshot.ApproximateImports,
 		ExtractionNotes: snapshot.ExtractionNotes,
 	}
 	var err error

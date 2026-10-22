@@ -194,6 +194,9 @@ func without(index *contextindex.Index, path string) *contextindex.Index {
 	reduced.Symbols = slices.DeleteFunc(slices.Clone(index.Symbols), func(symbol contextindex.Symbol) bool {
 		return symbol.Path == path
 	})
+	reduced.Fields = slices.DeleteFunc(slices.Clone(index.Fields), func(field contextindex.Symbol) bool {
+		return field.Path == path
+	})
 	// The term table is derived from the tables above; a stale one would
 	// answer for the removed source.
 	reduced.Vocabulary = nil

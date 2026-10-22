@@ -45,6 +45,7 @@ const (
 	sectionDocuments  = "documents"
 	sectionMarkers    = "markers"
 	sectionSymbols    = "symbols"
+	sectionFields     = "fields"
 	sectionImports    = "imports"
 	sectionUnparsed   = "unparsed"
 	sectionNotes      = "notes"
@@ -82,9 +83,9 @@ func (load snapshotLoad) deferredBodies() bool { return load&loadDeferredBodies 
 var sectionsByLoad = map[snapshotLoad][]string{
 	loadCompact: {sectionIdentity},
 	loadEvent: {sectionIdentity, sectionSources, sectionBodies, sectionExclusions, sectionFeatures, sectionScenarios,
-		sectionDocuments, sectionMarkers, sectionSymbols, sectionImports, sectionUnparsed, sectionNotes},
+		sectionDocuments, sectionMarkers, sectionSymbols, sectionFields, sectionImports, sectionUnparsed, sectionNotes},
 	loadFull: {sectionIdentity, sectionSources, sectionBodies, sectionExclusions, sectionFeatures, sectionScenarios,
-		sectionDocuments, sectionMarkers, sectionSymbols, sectionImports, sectionUnparsed, sectionNotes,
+		sectionDocuments, sectionMarkers, sectionSymbols, sectionFields, sectionImports, sectionUnparsed, sectionNotes,
 		sectionTracked, sectionSkipped, sectionVocabulary},
 }
 
@@ -171,6 +172,7 @@ func sectionWriters(index *Index, metas []sourceMeta) []sectionWriter {
 		gobSection(sectionDocuments, wireRecords(index.Documents)),
 		gobSection(sectionMarkers, pairsOf(index.Markers, same[[]Marker])),
 		gobSection(sectionSymbols, index.Symbols),
+		gobSection(sectionFields, index.Fields),
 		gobSection(sectionImports, wireImports(index.Imports)),
 		gobSection(sectionUnparsed, index.Unparsed),
 		gobSection(sectionNotes, index.ExtractionNotes),
@@ -590,6 +592,8 @@ func decodeSectionInto(file *sectionedFile, header sectionedHeader, name string,
 		index.Markers, err = decodeWireSection(file, header, name, markersOf)
 	case sectionSymbols:
 		index.Symbols, err = decodeGobSection[[]Symbol](file, header, name)
+	case sectionFields:
+		index.Fields, err = decodeGobSection[[]Symbol](file, header, name)
 	case sectionImports:
 		index.Imports, err = decodeWireSection(file, header, name, importsOf)
 	case sectionUnparsed:

@@ -17,8 +17,8 @@ import (
 // discovered, not an enumerated filename allowlist. Review new imports too.
 func TestAnalyzerSchemaInputs(t *testing.T) {
 	t.Run("IDX-SNAP-V0-017", func(t *testing.T) {
-		const auditedSchema = "corvint-analyzer/146"
-		const auditedSHA256 = "ad492408a67ae055504cf39552a34a23845467fe5b30ffe7b2260f16c153a717"
+		const auditedSchema = "corvint-analyzer/147"
+		const auditedSHA256 = "2e9b675d26d27a1989fd30e8e43fe25a1d8a58ea6cd938eba6f521ebf7121fac"
 		root := filepath.Join("..", "..")
 		paths := []string{"go.mod"}
 		if _, err := os.Stat(filepath.Join(root, "go.sum")); err == nil {
@@ -63,7 +63,7 @@ func TestAnalyzerSchemaInputs(t *testing.T) {
 // bump then repins only the input digest (IDX-SNAP-V0-107, V1-2289).
 func TestAnalyzerSchemaOutput(t *testing.T) {
 	t.Run("IDX-SNAP-V0-107", func(t *testing.T) {
-		const auditedOutputSHA256 = "bf31166338d9200683b8f5b752130e5b6a4cd727e554a7f883a96d0d443eb0b3"
+		const auditedOutputSHA256 = "c62c9c66683e1a9ef3e57ee462c62c29363a536ef4a7ef95817f1d7360019f5c"
 		got := analyzerGoldenOutput(t)
 		t.Logf("analyzer output SHA256=%s", got)
 		if got != auditedOutputSHA256 {
