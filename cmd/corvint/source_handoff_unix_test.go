@@ -44,7 +44,11 @@ exec /usr/bin/git "$@"
 }
 
 // ESV-V0-003: cancelling a Git read sends TERM to the child's owned process
-// group and reaps its descendants before the refusal is emitted.
+// group and reaps its descendants before the refusal is emitted. The test lifts
+// the read deadline and the TERM grace, so host load can neither fire the
+// deadline before the trap exists nor let SIGKILL beat the trap's marker; the
+// grace exceeds the descendant's sleep, so a stop that skips TERM still fails
+// (V1-2319).
 func TestSourceViewCancellationTerminatesGitProcessGroup(t *testing.T) {
 	t.Parallel()
 	root, commit, packet := sourceViewRepository(t)
@@ -55,19 +59,25 @@ func TestSourceViewCancellationTerminatesGitProcessGroup(t *testing.T) {
 echo $! > '`+pidFile+`.tmp' && mv '`+pidFile+`.tmp' '`+pidFile+`'
 wait
 `)
-	ctx, cancel := context.WithCancel(context.WithValue(context.Background(), sourceGitExecutableKey{}, script))
+	base := context.WithValue(liftedSourceDeadline(context.WithValue(context.Background(), sourceGitExecutableKey{}, script)), sourceTerminateGraceKey{}, time.Minute)
+	ctx, cancel := context.WithCancel(base)
 	defer cancel()
 	go func() {
-		for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		defer cancel()
+		for {
 			if _, err := os.Stat(pidFile); err == nil {
-				break
+				return
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(10 * time.Millisecond):
 			}
 		}
-		cancel()
 	}()
 	started := time.Now()
 	got := runSourceViewTestContext(t, ctx, root, commit, packet, "--lines", "3:3")
-	if sourceViewCode(got) != "repository-root" || time.Since(started) > 8*time.Second {
+	if sourceViewCode(got) != "repository-root" || time.Since(started) > 25*time.Second {
 		t.Fatalf("cancelled read=%v after %v", got, time.Since(started))
 	}
 	raw, err := os.ReadFile(pidFile)
