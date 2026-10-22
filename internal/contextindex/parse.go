@@ -348,6 +348,7 @@ func goSymbols(source Source, text string) ([]Symbol, []Symbol, string) {
 // goStructFieldNames names the fields a top-level `type T struct{...}`
 // declares by name. An embedded field names a type, not a field, and a nested
 // anonymous struct's fields are not the type's own, so neither is reported.
+// A parenthesized struct type (`type T (struct{...})`) is the same type.
 func goStructFieldNames(declaration ast.Decl) []goDeclaredName {
 	group, ok := declaration.(*ast.GenDecl)
 	if !ok || group.Tok != token.TYPE {
@@ -359,7 +360,15 @@ func goStructFieldNames(declaration ast.Decl) []goDeclaredName {
 		if !ok {
 			continue
 		}
-		structure, ok := typed.Type.(*ast.StructType)
+		underlying := typed.Type
+		for {
+			parenthesized, ok := underlying.(*ast.ParenExpr)
+			if !ok {
+				break
+			}
+			underlying = parenthesized.X
+		}
+		structure, ok := underlying.(*ast.StructType)
 		if !ok || structure.Fields == nil {
 			continue
 		}
