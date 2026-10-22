@@ -936,6 +936,17 @@ end column; VS Code validates/clamps document bounds. Evidence beyond the curren
 MUST NOT be discarded by a document line-count check. Preserve diagnostic severity, identity,
 caps, and stale-generation suppression.
 
+- **VSC-V0-080.** (accepted under the owner's standing auto-accept of 2026-10-11; V1-0437) The
+repository workflow `.github/workflows/vscode-extension.yml` MUST run, on every pull request that
+touches `extensions/vscode/**`, this spec, the extension conformance corpus, or the wire contracts
+the extension consumes (`cmd/corvint/main.go`, `cmd/corvint/query*.go`, `cmd/corvint/impact*.go`,
+`cmd/corvint-mcp/**`, `internal/mcp/**`, `cmd/corvint-go-test-provider/**`,
+`internal/liveverify/**`), `npm ci --ignore-scripts` from the committed lockfile, then
+`npm run lint`, `npm run typecheck` and `npm test` in `extensions/vscode`, with read-only
+permissions and SHA-pinned actions. It is not a required check; the unit tests use fake executables,
+so a Go-side wire change is caught only where those fixtures pin it, and real-host Electron runs stay
+under VSC-V0-039..045.
+
 ## 7. Rollout, compatibility, rollback, and maintenance
 
 1. Freeze independent host-observation and hostile vectors before implementation.
@@ -994,6 +1005,7 @@ retain CLI/MCP.
 | `VSC-V0-077` | `extensions/vscode/src/extension.ts` inert error projection | `extensions/vscode/test/error-presentation.test.ts`: first non-empty line, malformed UTF-8, sanitization, scalar bound, stable code and empty fallback |
 | `VSC-V0-078` | `extensions/vscode/src/presentation.ts` diagnostic ranges | `extensions/vscode/test/presentation.test.ts`: unopened evidence diagnostics, zero document-open calls, out-of-file and invalid lines |
 | `VSC-V0-079` | `extensions/vscode/package.json`, `src/extension.ts` (no import command or setting), `src/observations.ts` internal refusal | `extensions/vscode/test/manifest.test.ts`: no import command, activation event or setting; `test/model-json.test.ts`: `UNVERIFIED_IMPORT` refusal; `conformance/vscode-extension-v0` exact command surface |
+| `VSC-V0-080` | `.github/workflows/vscode-extension.yml` path-filtered extension job | `tools/ci-reuse-plan/vscode_workflow_test.go`: `TestVSCV0080ExtensionWorkflowRunsOnContractChanges` (path filters, lockfile install, lint, typecheck, tests) |
 
 Focused local evidence on 2026-08-23:
 
