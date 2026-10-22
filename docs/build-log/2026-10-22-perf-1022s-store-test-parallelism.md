@@ -1,8 +1,8 @@
 # Perf lane 1022s: store test parallelism, kernel pool identity, heavy.sh Go pin, wrapped requirement IDs
 
 Lane `perf-1022s`, branch `claude/perf-1022s`, base `6e90476ec`. Toolchain: go1.27.2 from the module cache,
-first on `PATH`, with `GOTOOLCHAIN=local`. Requirements RDG-V0-023, PSR-V0-201 and the ASD-V0-014 amendment
-are accepted under the owner's standing auto-accept of lane requirements (2026-10-11).
+first on `PATH`, with `GOTOOLCHAIN=local`. Requirements RDG-V0-023, PSR-V0-201, CTS-V0-018 and the ASD-V0-014
+amendment are accepted under the owner's standing auto-accept of lane requirements (2026-10-11).
 
 ## Problem
 
@@ -70,7 +70,13 @@ All timings are wall time with heavy.sh, `-p 4 -count=1`, on a loaded host (load
 - **V1-0916.** Skipped; it needs a design decision. Segmented stores are already bounded because the seal is
   the refresh (JSG-V0-010). Unsegmented stores still refresh inside the caller after the lock
   (`mutate.go`, `mutate_batch.go`, `lease_write.go`).
-- **V1-2400 and V1-2401.** Skipped; they depend on the import writer in the unmerged #1543.
+- **V1-2401 (CTS-V0-018).** #1543 merged before this lane's single main merge, which unblocked the ticket.
+  Import now checks the whole plan against the journaled map before the first batch, through
+  `transaction.ImportMapConflicts`. It refuses `DUPLICATE_ID` and names every conflicting source item.
+  Before this, a later batch's conflict left the earlier batches committed. TestCTSV0018 fails on the tree
+  without the pre-check: the import returns no error and one refused batch.
+- **V1-2400.** Skipped. Amending the map after genesis needs a new journaled, reviewed mutation, and its
+  review and identity semantics are a design decision.
 
 ## NOT_RUN
 
@@ -81,6 +87,7 @@ All timings are wall time with heavy.sh, `-p 4 -count=1`, on a loaded host (load
 
 ## Rollback
 
+- CTS-V0-018: remove `ImportMapConflicts` and its call in `importWith`. No stored state changes.
 - Revert the lane commits. Reverting PSR-V0-201 is safe for `lstart` records. Drain pool allocations whose
   recorded identity starts with `darwin:` before reverting, because the old code compares them against `ps`
   output and would mark those runners gone.
