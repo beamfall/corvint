@@ -264,7 +264,8 @@ func (r *Registry) loadedArtifact(ctx context.Context) (*doccorpus.Artifact, err
 	if doccorpus.Digest(raw) != r.digest {
 		return nil, evalRefused("configured artifact changed")
 	}
-	return r.artifactFor(ctx, raw, &Timing{})
+	a, _, err := r.artifactFor(ctx, raw, &Timing{})
+	return a, err
 }
 
 // Evaluate scores every case through CallTimed (DCP-V1-251..253).

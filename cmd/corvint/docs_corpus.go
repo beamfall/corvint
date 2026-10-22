@@ -332,6 +332,10 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 		}
 		return nil, doccorpus.RefuseCEMProjection(data)
 	}
+	// DCP-V1-313: corpus claims takes exactly one of --path or --query.
+	if o.op == "claims" && (strings.TrimSpace(o.path) == "") == (strings.TrimSpace(o.query) == "") {
+		return nil, argumentError("corpus claims takes exactly one of --path or --query")
+	}
 	overlay, err := doccorpus.LiveFreshness(ctx, o.root, a)
 	if err != nil {
 		return nil, err

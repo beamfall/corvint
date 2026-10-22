@@ -4,6 +4,8 @@ import (
 	"context"
 	"sort"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
 // OperationInput is shared by CLI, MCP and indexed companions. The native
@@ -116,6 +118,11 @@ func typedQuery(ctx context.Context, a *Artifact, q Request, r *Receipt) error {
 			}
 		}
 	case "claims":
+		if q.Query != "" {
+			// DCP-V1-313: a claim text query is ranked, so it returns
+			// before the identity sort below.
+			return claimSearch(ctx, a, q, r)
+		}
 		for _, ref := range x.Paths[q.Path] {
 			if err := ctx.Err(); err != nil {
 				return err
@@ -308,6 +315,43 @@ func typedQuery(ctx context.Context, a *Artifact, q Request, r *Receipt) error {
 	r.Results = unique
 	return ctx.Err()
 }
+
+// claimSearch ranks claims by the distinct query terms their ID and text
+// hold, with an exact case-insensitive text match first; ties order by claim
+// ID (DCP-V1-313). Each claim appears once.
+func claimSearch(ctx context.Context, a *Artifact, q Request, r *Receipt) error {
+	x := a.RuntimeIndex
+	terms := contextindex.EvidenceTerms(q.Query)
+	scores := map[int]int{}
+	for term := range terms {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		for _, i := range x.ClaimTerms[term] {
+			scores[i]++
+		}
+	}
+	for i := range scores {
+		if strings.EqualFold(strings.TrimSpace(q.Query), strings.TrimSpace(a.Claims[i].Text)) {
+			scores[i] += len(terms) + 1
+		}
+	}
+	ids := make([]int, 0, len(scores))
+	for i := range scores {
+		ids = append(ids, i)
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		if scores[ids[i]] != scores[ids[j]] {
+			return scores[ids[i]] > scores[ids[j]]
+		}
+		return a.Claims[ids[i]].ID < a.Claims[ids[j]].ID
+	})
+	for _, i := range ids {
+		addRecord(r, a.Claims[i])
+	}
+	return ctx.Err()
+}
+
 func typedKey(v any) string {
 	if e, ok := v.(DependencyEdge); ok {
 		return e.Direction + ":" + e.Relation.ID

@@ -1,0 +1,270 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package corpusbridge
+
+import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"runtime"
+	"sort"
+	"strconv"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/Beamfall/corvint/internal/doccorpus"
+)
+
+// A checkout stamp is a digest of the lstat data of every worktree entry and
+// of the Git control state that the reuse key and pinned-revision checks read
+// (DCP-V1-314). It runs no Git process. While a later stamp equals the one
+// captured before an observation or a pin verification, nothing those read
+// has changed, so the bridge reuses their result instead of repeating them
+// (DCP-V1-315, DCP-V1-316). Any state the stamp cannot prove unchanged makes
+// it unavailable, and an unavailable stamp never matches: the bridge then
+// observes and verifies exactly as before.
+const (
+	// stampEntryBound bounds the entries one checkout stamp lstats; a larger
+	// checkout keeps the Git observation path.
+	stampEntryBound = 250_000
+	// stampConfigBound bounds the repository config the stamp reads.
+	stampConfigBound = 1 << 20
+)
+
+var errStampUnavailable = errors.New("checkout stamp unavailable")
+
+// stampRacyWindow refuses a stamp holding any entry changed this close to the
+// capture, so a later change within the same timestamp granule cannot leave
+// the stamp unchanged. Tests shorten it.
+var stampRacyWindow = 2 * time.Second
+
+// checkoutStamp returns one digest over the stamps of dirs, in order, or ""
+// when any checkout cannot be stamped. Directories are read in parallel; each
+// one's records are hashed in path order, so the digest does not depend on
+// scheduling.
+func checkoutStamp(dirs []string) string {
+	s := &stamper{
+		horizon: time.Now().Add(-stampRacyWindow).UnixNano(),
+		slots:   make(chan struct{}, 2*runtime.GOMAXPROCS(0)),
+		records: map[string][]byte{},
+	}
+	for i, dir := range dirs {
+		s.wg.Go(func() { s.fail(s.checkout(strconv.Itoa(i)+"\x00"+dir+"\x00", dir)) })
+	}
+	s.wg.Wait()
+	if s.failed.Load() {
+		return ""
+	}
+	keys := make([]string, 0, len(s.records))
+	for key := range s.records {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	h := sha256.New()
+	for _, key := range keys {
+		h.Write([]byte(strconv.Itoa(len(key)) + ":" + key + "\n"))
+		h.Write(s.records[key])
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// stampDirs lists the checkouts the reuse key observes and the pins resolve
+// in: the primary root, each declared additional repository and the owner of
+// every pinned revision, without repeats.
+func stampDirs(root string, m doccorpus.Manifest, pins []string) []string {
+	dirs, seen := []string{}, map[string]bool{}
+	add := func(dir string) {
+		if !seen[dir] {
+			seen[dir] = true
+			dirs = append(dirs, dir)
+		}
+	}
+	add(root)
+	for _, r := range m.AdditionalRepositories {
+		add(m.RevisionRoot(root, r.Revision))
+	}
+	for _, revision := range pins {
+		add(m.RevisionRoot(root, revision))
+	}
+	return dirs
+}
+
+type stamper struct {
+	horizon int64
+	entries atomic.Int64
+	failed  atomic.Bool
+	slots   chan struct{}
+	wg      sync.WaitGroup
+	mu      sync.Mutex
+	records map[string][]byte
+}
+
+func (s *stamper) fail(err error) {
+	if err != nil {
+		s.failed.Store(true)
+	}
+}
+
+// spawn reads a directory on another goroutine while a slot is free, and on
+// this one otherwise.
+func (s *stamper) spawn(read func() error) error {
+	select {
+	case s.slots <- struct{}{}:
+		s.wg.Go(func() {
+			defer func() { <-s.slots }()
+			s.fail(read())
+		})
+		return nil
+	default:
+		return read()
+	}
+}
+
+// policy decides, for one entry of the directory rel, whether it is left
+// out of the stamp, whether a directory is descended into, and whether the
+// entry makes the stamp unavailable.
+type policy func(rel, name string, dir bool) (skip, descend bool, err error)
+
+// directory reads one directory's entries in name order and records each
+// entry's name, mode, size, inode, change and modification times under key,
+// then visits each subdirectory the policy descends into. An entry the
+// platform cannot describe, one changed inside the racy window, or more
+// entries than the bound make the stamp unavailable.
+func (s *stamper) directory(key, abs, rel string, visit policy) error {
+	if s.failed.Load() {
+		return errStampUnavailable
+	}
+	entries, err := os.ReadDir(abs)
+	if err != nil || s.entries.Add(int64(len(entries))) > stampEntryBound {
+		return errStampUnavailable
+	}
+	var b []byte
+	for _, e := range entries {
+		name := e.Name()
+		skip, descend, err := visit(rel, name, e.IsDir())
+		if err != nil {
+			return err
+		}
+		if skip {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil {
+			return errStampUnavailable
+		}
+		if b, err = s.line(b, name, info); err != nil {
+			return err
+		}
+		if !info.IsDir() || !descend {
+			continue
+		}
+		child := name
+		if rel != "" {
+			child = rel + "/" + name
+		}
+		childAbs := filepath.Join(abs, name)
+		if err := s.spawn(func() error { return s.directory(key, childAbs, child, visit) }); err != nil {
+			return err
+		}
+	}
+	s.mu.Lock()
+	s.records[key+rel] = b
+	s.mu.Unlock()
+	return nil
+}
+
+func (s *stamper) line(b []byte, name string, info fs.FileInfo) ([]byte, error) {
+	ino, ctime, mtime, ok := fileTimes(info)
+	if !ok || ctime >= s.horizon || mtime >= s.horizon {
+		return b, errStampUnavailable
+	}
+	b = strconv.AppendInt(b, int64(len(name)), 10)
+	b = append(b, ':')
+	b = append(b, name...)
+	for _, v := range []int64{int64(info.Mode()), info.Size(), int64(ino), ctime, mtime} {
+		b = append(b, ' ')
+		b = strconv.AppendInt(b, v, 10)
+	}
+	return append(b, '\n'), nil
+}
+
+// checkout records the checkout root itself, its repository control state
+// and every worktree entry except the repository's own .git. A nested .git
+// is a submodule or nested repository whose state the stamp does not cover,
+// so it makes the stamp unavailable. Symlinks are recorded, never followed.
+func (s *stamper) checkout(prefix, dir string) error {
+	info, err := os.Stat(dir)
+	if err != nil || !info.IsDir() {
+		return errStampUnavailable
+	}
+	root, err := s.line(nil, "", info)
+	if err != nil {
+		return err
+	}
+	gitdir := filepath.Join(dir, ".git")
+	info, err = os.Lstat(gitdir)
+	// A gitfile (linked worktree or submodule) points at state outside the
+	// checkout; only an ordinary repository directory is stamped.
+	if err != nil || !info.IsDir() {
+		return errStampUnavailable
+	}
+	if root, err = s.line(root, ".git", info); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	s.records[prefix] = root
+	s.mu.Unlock()
+	if err := s.gitdir(prefix+"g\x00", gitdir); err != nil {
+		return err
+	}
+	return s.directory(prefix+"w\x00", dir, "", worktreePolicy)
+}
+
+func worktreePolicy(rel, name string, dir bool) (bool, bool, error) {
+	if name == ".git" {
+		if rel == "" {
+			return true, false, nil
+		}
+		return false, false, errStampUnavailable
+	}
+	return false, dir, nil
+}
+
+// gitdir records the repository control state: HEAD, the index, refs,
+// packed refs, config, info files and the object store's shape. Loose object
+// directories and packs are recorded by their entries, so a deleted or
+// repacked object changes the stamp; object contents are immutable. An
+// alternate object store, a common-dir link, or a config include or worktree
+// setting points outside the stamped state and makes it unavailable.
+func (s *stamper) gitdir(key, gitdir string) error {
+	for _, outside := range []string{"commondir", filepath.Join("objects", "info", "alternates")} {
+		if _, err := os.Lstat(filepath.Join(gitdir, outside)); !errors.Is(err, fs.ErrNotExist) {
+			return errStampUnavailable
+		}
+	}
+	config, err := os.ReadFile(filepath.Join(gitdir, "config"))
+	if err != nil && !errors.Is(err, fs.ErrNotExist) || len(config) > stampConfigBound {
+		return errStampUnavailable
+	}
+	config = bytes.ToLower(config)
+	if bytes.Contains(config, []byte("include")) || bytes.Contains(config, []byte("worktree")) {
+		return errStampUnavailable
+	}
+	return s.directory(key, gitdir, "", controlPolicy)
+}
+
+// controlPolicy descends everywhere in the repository directory except
+// large-file storage, which status and pin checks never read, and loose
+// object directories, whose own entry changes when an object is added or
+// removed while object files are immutable.
+func controlPolicy(rel, name string, dir bool) (bool, bool, error) {
+	if rel == "" && name == "lfs" || rel == "objects" && len(name) == 2 {
+		return false, false, nil
+	}
+	return false, dir, nil
+}

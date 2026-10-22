@@ -53,7 +53,7 @@ func storedIndexSize(x *QueryIndex) (postings, keyBytes int) {
 		postings += len(v)
 		key(k)
 	}
-	for _, m := range []map[string][]int{x.Terms, x.Claims, x.Edges} {
+	for _, m := range []map[string][]int{x.Terms, x.Claims, x.Edges, x.ClaimTerms} {
 		for k, v := range m {
 			postings += len(v)
 			key(k)

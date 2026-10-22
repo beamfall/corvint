@@ -40,7 +40,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"concept":             {required: []string{"--artifact", "--query"}, optional: corpusReadOptional},
 	"vocabulary":          {required: []string{"--artifact", "--query"}, optional: corpusReadOptional},
 	"locate":              {required: []string{"--artifact", "--path"}, optional: append([]string{"--repository"}, corpusReadOptional...)},
-	"claims":              {required: []string{"--artifact", "--path"}, optional: corpusReadOptional},
+	"claims":              {required: []string{"--artifact"}, optional: append([]string{"--path", "--query"}, corpusReadOptional...)}, // DCP-V1-313: exactly one, checked after parsing
 	"recommend-tests":     {required: []string{"--artifact", "--path"}, optional: append([]string{"--repository"}, corpusReadOptional...)},
 	"get":                 {required: []string{"--artifact", "--id"}, optional: corpusReadOptional},
 	"trace":               {required: []string{"--artifact", "--id"}, optional: corpusReadOptional},

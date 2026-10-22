@@ -150,6 +150,13 @@ func ParseRequest(raw []byte) (doccorpus.Request, error) {
 		return q, fmt.Errorf("invalid bounded query")
 	}
 	kind := doccorpus.OperationInput(q.Operation)
+	if q.Operation == "claims" && q.Query != "" {
+		// DCP-V1-313: a claim text query replaces the path.
+		if q.Path != "" || q.ID != "" {
+			return q, fmt.Errorf("query arguments do not apply to operation")
+		}
+		return q, nil
+	}
 	if kind == "unsupported" || kind == "query" && q.Query == "" || kind == "id" && q.ID == "" || kind == "path" && q.Path == "" || kind != "query" && q.Query != "" || kind != "id" && q.Operation != "gaps" && q.ID != "" || kind != "path" && q.Path != "" {
 		return q, fmt.Errorf("query arguments do not apply to operation")
 	}

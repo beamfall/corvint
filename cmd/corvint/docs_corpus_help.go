@@ -56,7 +56,7 @@ func buildCorpusOperations() []corpusOperation {
 		read("coverage", "scoped coverage with its denominator", nil),
 		read("gaps", "reported gaps, optionally for one subject", nil, "--id"),
 		typed("concept", "typed subjects matching a concept"),
-		typed("claims", "typed claims about one path"),
+		read("claims", "typed claims about one path, or claims ranked by --query text (exactly one)", nil, "--path", "--query"),
 		read("flow", "one typed flow, optionally only some sections or record kinds", []string{"--id"}, "--section", "--include"),
 		typed("dependencies", "typed dependency relations of one subject"),
 		typedWith("recommend-tests", "tests related to one path; grants no test-selection authority", "--repository"),
