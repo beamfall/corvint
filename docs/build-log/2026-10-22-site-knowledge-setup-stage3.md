@@ -87,6 +87,9 @@ no reason given for either. Stage 3 (data setup) was not started.
 - V1-1236 is not delivered in ANL-V0. `SKH-V0-012` follows inherited methods and helpers for site
   knowledge only. The ANL-V0-035 edge effects still name these as `unknown`.
 - AMAP residuals: a router-basename declaration, and splat-screen specificity ranking.
+- Dogfood friction: the first bind refused `local-outcome` with `secret-shaped-path`. This entry's
+  original lane-prefixed file name (`sk-` followed by more than 20 name characters) matched the
+  secret screen's `sk-` API-key pattern. The entry was renamed; the false positive is a residual.
 
 ## Rollback
 
