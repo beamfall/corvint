@@ -44,7 +44,8 @@ what any packet says.
   object format, tree OID, engine) and the index with `Root`, `DirtyPaths`, and `StatusSHA256`
   cleared. The write is atomic (temporary file then rename). The receipt is one canonical JSON
   line with `mutates:true`, `path`, `bytes`, `tree`, `commit`, `engine`, `sources`, `symbols`,
-  `evicted`. The searchable-text admission allowlist includes `.rst`, `.mdx`, and `.txt`; these
+  `evicted`. The searchable-text admission allowlist includes `.rst`, `.mdx`, `.txt`, `.mts` and
+  `.cts` (IDX-SNAP-V0-106); these
   suffixes enter source and term tables without a symbol extractor. Clarifying amendment
   (2026-09-13, bug hunt): a failure closing the temporary file (a delayed write-back error
   surfacing only at `Close`) MUST be treated the same as an encode failure — the temporary is
@@ -895,6 +896,16 @@ the `mapReadOnly` branch in `decodeSnapshotValue` and `snapshot_decode.go`.
 Traceability: `TestMappedSnapshotDecodeMatchesStreamedDecode`, `TestMappedSnapshotDecodeFaultIsAMiss`
 and the existing `TestSnapshotSameLengthBodyOverwriteIsAMiss`; measured in
 `docs/build-log/2026-10-21-index-perf-1021i-hot-read-paths.md`.
+- `IDX-SNAP-V0-106`: accepted under the owner's standing auto-accept (2026-10-11) (V1-1088). The
+  index admits the TypeScript module suffixes `.mts` and `.cts` as searchable text: they enter the
+  source and term tables like `.rst`, with no symbol extractor. A reader that consumes indexed
+  sources, such as the AMAP-V0-025 side-effect import closure, then reads such a module instead of
+  failing closed on a file the index never held; a closure module that writes the table still
+  fails closed. Failure modes: no symbol rule reads these suffixes yet, so `definition`, `impact`
+  and `query` symbol evidence for them stays absent. Rollback: delete the two suffixes from
+  `textSuffixes` and bump the analyzer schema.
+Traceability: `TestAMAPV0025ChainBindingsFailClosed` (subtests `di closure reads .mts` and
+`di closure reads .cts`).
 
 ### Accepted (2026-10-21, V1-2290, V1-2289, owner's standing auto-accept 2026-10-11): deterministic snapshot bytes and output-equivalent schema edits
 Human intent: two writes of one tree produced different snapshot files because `encoding/gob`
@@ -1171,3 +1182,4 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-105 (standing auto-accept, V1-2237) | `decodeSnapshotValue`, `decodeMappedSnapshotValue`, `guardMappedRead` | `TestMappedSnapshotDecodeMatchesStreamedDecode`, `TestMappedSnapshotDecodeFaultIsAMiss` |
 | IDX-SNAP-V0-106 (standing auto-accept, V1-2290) | `snapshotWireOf`, `pairsOf`, `mapOf`, `wireValue`, `warmGobTypes` | `TestSnapshotBytesAreDeterministic`, `TestSnapshotWireRoundTripsMaps` |
 | IDX-SNAP-V0-107 (standing auto-accept, V1-2289) | `script/analyzer-schema.sh` (`actual_output`, output pin in `pins`) | `TestAnalyzerSchemaOutput`, `script/analyzer-schema_test.sh` |
+| IDX-SNAP-V0-106 (standing auto-accept, V1-1088) | `textSuffixes` | `TestAMAPV0025ChainBindingsFailClosed` |

@@ -60,7 +60,7 @@ var (
 		".yaml": true, ".yml": true, ".json": true, ".toml": true, ".mod": true,
 
 		".rs": true, ".cs": true, ".swift": true, ".kt": true, ".kts": true,
-		".rb": true,
+		".rb": true, ".mts": true, ".cts": true, // .mts/.cts text only (V1-1088)
 
 		".sql": true, ".m": true, ".rst": true, ".mdx": true, ".txt": true,
 	}
