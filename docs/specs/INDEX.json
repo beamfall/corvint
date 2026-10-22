@@ -3869,7 +3869,7 @@
     "path": "docs/specs/corvint-test-fold-v0.md",
     "title": "Corvint Test Fold V0",
     "reqPrefix": "CTF-V0",
-    "intent": "accepted (owner, 2026-10-22; requirements under the standing auto-accept of 2026-10-11)",
+    "intent": "accepted (owner, 2026-10-22)",
     "delivery": "experimental",
     "claim": "Test-executing companions fold into `corvint-test` groups, one move each, with output documents byte-identical and every old name still answering.",
     "dependsOn": [],

@@ -3,13 +3,13 @@
 Owner: Russell Lewis
 Date: 2026-10-22
 Requirement prefix: `CTF-V0`
-Intent status: accepted (owner, 2026-10-22; requirements under the standing auto-accept of 2026-10-11)
+Intent status: accepted (owner, 2026-10-22)
 Delivery status: experimental
 Authoritative inputs: owner decision of 2026-10-22 accepting the V1-1667 fold with its own acceptance criteria (recorded in `docs/build-log/2026-10-22-cce-1022k.md`); `docs/build-log/2026-10-17-binary-boundary-audit.md` (the fold proposal); `AGENTS.md` invariants 3, 7 and 8; `docs/specs/core-compatibility-freeze-v1.md` (CCF-V1-001, CCF-V1-002); `docs/specs/change-compiled-e2e-v0.md` (Binary boundary).
 
 ## Agent digest
 - Claim: Test-executing companions fold into `corvint-test` groups, one move each, with output documents byte-identical and every old name still answering.
-- Status: accepted; experimental. Groups 1 to 3 (`runner`, `falsify`, `minimize`) have moved behind byte-identical goldens; groups 4 to 6 have not.
+- Status: accepted (owner, 2026-10-22); experimental; CTF-V0-001..010 accepted under the standing auto-accept (2026-10-11). Groups 1 to 3 (`runner`, `falsify`, `minimize`) have moved behind byte-identical goldens; groups 4 to 6 have not.
 - Exists: `cmd/corvint-test` groups `e2e` (CCE-V0), `runner`, `falsify` and `minimize` (entries `internal/testrunner/cli`, `internal/behaviorfalsify/cli`, `internal/playwrightminimize/cli`); the three old companions are shims. Unmoved: `cmd/corvint-tests-accept`; core `corvint test-validity negate` and `corvint test`.
 - Blocked on: nothing for groups 1 to 4. Group 6 (core `test`) also needs the `make gate-affected` script and the CI shadow step moved first; `.github/` changes are owner-posted.
 - Read next: Fold map; Requirements; Rollback.
