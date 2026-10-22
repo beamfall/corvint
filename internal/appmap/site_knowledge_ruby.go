@@ -19,11 +19,12 @@ var (
 	rbSelect   = regexp.MustCompile(`^\s*select\s*\(?\s*(.+?)\s*,\s*from:\s*(['"])(.*?)['"]\s*\)?\s*$`)
 	rbCheck    = regexp.MustCompile(`^\s*(check|uncheck|choose)\s*\(?\s*(['"])(.*?)['"]`)
 	rbAttach   = regexp.MustCompile(`^\s*attach_file\s*\(?\s*(['"])(.*?)['"]\s*,\s*(.+?)\s*\)?\s*$`)
-	rbFindAct  = regexp.MustCompile(`^\s*find\s*\(\s*(['"])(.*?)['"]\s*\)\s*\.\s*(click|set|select_option)\b\s*\(?\s*(.*?)\s*\)?\s*$`)
+	rbSymbol   = regexp.MustCompile(`^:[a-z_][a-z0-9_]*$`)
+	rbFindAct  = regexp.MustCompile(`^\s*find\s*\(\s*(['"])(.*?)['"]\s*\)\s*\.\s*(click|set|select_option|hover|send_keys)\b\s*\(?\s*(.*?)\s*\)?\s*$`)
 	rbExpect   = regexp.MustCompile(`^\s*expect\s*\(\s*(page|[a-z_]\w*)\s*\)\s*\.\s*(to|not_to|to_not)\s+(\w+)\s*\(?\s*(.*?)\s*\)?\s*$`)
 	rbSetURL   = regexp.MustCompile(`^\s*set_url\s+(['"])(.*?)['"]`)
 	rbElement  = regexp.MustCompile(`^\s*(element|section)\s+:(\w+)\s*,\s*(['"])(.*?)['"]`)
-	rbElemAct  = regexp.MustCompile(`^\s*(?:(\w+)\.)?(\w+)\.(click|set|select)\b\s*\(?\s*(.*?)\s*\)?\s*$`)
+	rbElemAct  = regexp.MustCompile(`^\s*(?:(\w+)\.)?(\w+)\.(click|set|select|hover|send_keys)\b\s*\(?\s*(.*?)\s*\)?\s*$`)
 	rbNew      = regexp.MustCompile(`^\s*(\w+)\s*=\s*([A-Z][\w:]*)\.new\b`)
 	rbInstCall = regexp.MustCompile(`^\s*(\w+)\.(\w+[?!]?)\s*(?:\(\s*(.*?)\s*\)|\s+(.+?))?\s*$`)
 	rbBare     = regexp.MustCompile(`^\s*([a-z_]\w*[?!]?)\s*(?:\(\s*(.*?)\s*\)|\s+([^=].*?))?\s*$`)
@@ -156,6 +157,9 @@ func rbValue(s string, params map[string]bool) SKArg {
 	if params[s] {
 		return SKArg{Slot: s}
 	}
+	if rbSymbol.MatchString(s) {
+		return SKArg{Literal: s[1:]}
+	}
 	if s != "" && strings.Trim(s, "0123456789") == "" {
 		return SKArg{Literal: s}
 	}
@@ -244,6 +248,10 @@ func (m *SKModel) rubySteps(u *skUnit) []SKStep {
 			switch mm[3] {
 			case "click":
 				x.add(SKStep{Kind: StepClick, Locator: &sel, Anchor: at})
+			case "hover":
+				x.add(SKStep{Kind: StepHover, Locator: &sel, Anchor: at})
+			case "send_keys":
+				val(StepPress, &sel, rbValue(mm[4], params))
 			case "set":
 				val(StepFill, &sel, rbValue(mm[4], params))
 			default:
@@ -291,6 +299,10 @@ func (m *SKModel) rubySteps(u *skUnit) []SKStep {
 					switch mm[3] {
 					case "click":
 						x.add(SKStep{Kind: StepClick, Locator: &sel, Anchor: at})
+					case "hover":
+						x.add(SKStep{Kind: StepHover, Locator: &sel, Anchor: at})
+					case "send_keys":
+						val(StepPress, &sel, rbValue(mm[4], params))
 					case "set":
 						val(StepFill, &sel, rbValue(mm[4], params))
 					default:

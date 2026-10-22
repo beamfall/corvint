@@ -141,7 +141,7 @@ func TestSKHV0_010_PlaywrightClassPageObject(t *testing.T) {
 		"e2e/pages/base-page.ts":  skBasePage,
 		"e2e/pages/login-page.ts": skLoginPage,
 		"e2e/login.spec.ts":       skLoginSpec,
-	}), map[string]TestFile{"e2e/pages/login-page.ts": {Screen: "screen:login", ScreenBasis: "path"}})
+	}), map[string]TestFile{"e2e/pages/login-page.ts": {Screen: "screen:login", ScreenBasis: "path"}}, nil)
 	po := skPO(t, k, "page-object:e2e/pages/login-page.ts#LoginPage")
 	if po.Form != FormPlaywrightClass || po.Extends != "BasePage" || po.Authority != "learned" {
 		t.Fatalf("form/extends/authority = %s/%s/%s", po.Form, po.Extends, po.Authority)
@@ -166,8 +166,9 @@ func TestSKHV0_010_PlaywrightClassPageObject(t *testing.T) {
 	if strings.Join(login.Params, ",") != "user,secret" || skKinds(login.Actions) != "fill,fill,click" {
 		t.Fatalf("login params %v actions %s", login.Params, skKinds(login.Actions))
 	}
-	if login.Actions[0].Slots[0] != "user" || login.Effect != EffectUnknown {
-		// The submit click names a button, so the method's effect is not known statically.
+	if login.Actions[0].Slots[0] != "user" || login.Effect != EffectState || login.EffectReason != "" {
+		// The fills are state effects; under ANL-V0-035 precedence the button click does not
+		// make the method unknown (SKH-V0-016).
 		t.Fatalf("login slot %v effect %s", login.Actions[0].Slots, login.Effect)
 	}
 	visit := skMethod(t, po, "visit")
@@ -189,7 +190,7 @@ func TestSKHV0_021_InlinesCallsWithBoundArguments(t *testing.T) {
 		"e2e/pages/base-page.ts":  skBasePage,
 		"e2e/pages/login-page.ts": skLoginPage,
 		"e2e/login.spec.ts":       skLoginSpec,
-	}), nil)
+	}), nil, nil)
 	tt := skTest(t, k, "signs in")
 	if skKinds(tt.Steps) != "visit,fill,fill,click,assert,assert" || !tt.Complete {
 		t.Fatalf("steps = %s complete=%v", skKinds(tt.Steps), tt.Complete)
@@ -226,7 +227,7 @@ func TestSKHV0_022_DeduplicatesSequencesWithUsage(t *testing.T) {
 		"e2e/pages/base-page.ts":  skBasePage,
 		"e2e/pages/login-page.ts": skLoginPage,
 		"e2e/login.spec.ts":       skLoginSpec,
-	}), nil)
+	}), nil, nil)
 	a, b := skTest(t, k, "signs in"), skTest(t, k, "signs in again")
 	if a.Record != b.Record {
 		t.Fatalf("identical bodies got records %s and %s", a.Record, b.Record)
@@ -257,12 +258,12 @@ test('odd', async ({ page }) => {
   if (flag) {
     await page.getByRole('button', { name: 'Go' }).click();
   }
-  await page.keyboard.press('Enter');
+  await page.mouse.wheel(0, 10);
   await somethingElse(page);
   await page.getByTestId('save').click();
 });
 `,
-	}), nil)
+	}), nil, nil)
 	tt := skTest(t, k, "odd")
 	want := "opaque:dynamic-value,opaque:dynamic-value,opaque:parse-unsupported,opaque:parse-unsupported,opaque:unresolved-call,click"
 	if skKinds(tt.Steps) != want || tt.Complete {
@@ -276,6 +277,165 @@ test('odd', async ({ page }) => {
 	if ValidateSKStep(SKStep{Kind: "drag"}) || ValidateSKStep(SKStep{Kind: StepOpaque, Reason: "guess"}) ||
 		ValidateSKStep(SKStep{Kind: StepClick, Reason: OpaqueDynamicValue}) {
 		t.Fatal("a kind or reason outside the closed IR validated (SKH-V0-023)")
+	}
+}
+
+func TestSKHV0_024_PressFocusAndHoverAreTyped(t *testing.T) {
+	k := extractSiteKnowledge(skSrc(map[string]string{
+		"e2e/keys.spec.ts": `import { test } from '@playwright/test';
+test('keys', async ({ page }) => {
+  await page.getByRole('textbox', { name: 'Search' }).focus();
+  await page.keyboard.type('shoes');
+  await page.keyboard.press('Enter');
+  await page.getByTestId('menu').hover();
+  await page.getByLabel('Name').press('Tab');
+  await page.press('#q', 'ArrowDown');
+  await page.keyboard.down('Shift');
+  await page.keyboard.press(key);
+});
+`,
+		"spec/support/pages/menu_page.rb": `class MenuPage < SitePrism::Page
+  element :menu, '[data-testid=menu]'
+
+  def open_menu
+    menu.hover
+    menu.send_keys :enter
+  end
+end
+`,
+	}), nil, nil)
+	tt := skTest(t, k, "keys")
+	want := "focus,fill,press,hover,press,press,opaque:parse-unsupported,opaque:dynamic-value"
+	if skKinds(tt.Steps) != want {
+		t.Fatalf("steps = %s, want %s (SKH-V0-024)", skKinds(tt.Steps), want)
+	}
+	st := tt.Steps
+	if st[0].Locator == nil || st[0].Locator.Kind != "role" || st[0].Target != "" {
+		t.Fatalf("focus = %+v", st[0])
+	}
+	if st[1].Target != skKeyboard || st[1].Value != "shoes" || st[1].Locator != nil {
+		t.Fatalf("keyboard.type = %+v", st[1])
+	}
+	if st[2].Target != skKeyboard || st[2].Value != "Enter" || st[2].Locator != nil {
+		t.Fatalf("keyboard.press = %+v", st[2])
+	}
+	if st[3].Locator == nil || st[3].Locator.Kind != "test-id" || st[3].Locator.Value != "menu" {
+		t.Fatalf("hover = %+v", st[3])
+	}
+	if st[4].Locator == nil || st[4].Locator.Kind != "label" || st[4].Value != "Tab" || st[4].Target != "" {
+		t.Fatalf("locator press = %+v", st[4])
+	}
+	if st[5].Locator == nil || st[5].Locator.Value != "#q" || st[5].Value != "ArrowDown" {
+		t.Fatalf("legacy page.press = %+v", st[5])
+	}
+	if st[6].Call != "keyboard.down" {
+		t.Fatalf("keyboard.down = %+v", st[6])
+	}
+	for _, s := range st {
+		if !ValidateSKStep(s) {
+			t.Fatalf("invalid step %+v", s)
+		}
+	}
+	m := skMethod(t, skPO(t, k, "page-object:spec/support/pages/menu_page.rb#MenuPage"), "open_menu")
+	if skKinds(m.Actions) != "hover,press" || m.Actions[1].Value != "enter" || m.Actions[0].Locator.Value != "menu" {
+		t.Fatalf("ruby hover/send_keys = %s %+v", skKinds(m.Actions), m.Actions)
+	}
+	if _, err := DecodeSKStep([]byte(`{"kind":"press","target":"keyboard","value":"Enter","anchor":{}}`)); err != nil {
+		t.Fatalf("press refused by the strict decoder: %v", err)
+	}
+}
+
+func TestSKHV0_015_016_URLJoinAndNamedEffects(t *testing.T) {
+	screens := newScreenIndex("", []Screen{
+		{ID: "screen:settings", Status: StatusResolved, Key: "/users/{}/settings"},
+		{ID: "screen:a", Status: StatusResolved, Key: "/a"},
+		{ID: "screen:b", Status: StatusResolved, Key: "/b"},
+	})
+	k := extractSiteKnowledge(skSrc(map[string]string{
+		"e2e/flows.spec.ts": `import { test, expect, type Page } from '@playwright/test';
+async function openSettings(page: Page, id: string) {
+  await page.goto(` + "`/users/${id}/settings`" + `);
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+}
+async function mockApi(page: Page) {
+  await page.route('**/api/**', (r) => r.fulfill({ body: '{}' }));
+}
+async function openMenu(page: Page) {
+  await page.getByTestId('menu').hover();
+}
+async function save(page: Page, name: string) {
+  await openSettings(page, 'u1');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await page.getByLabel('Name').fill(name);
+}
+async function audit(page: Page) {
+  await openSettings(page, 'u1');
+  await page.evaluate(() => 1);
+}
+async function seed(page: Page) {
+  await mockApi(page);
+  await page.request.post('/api/users');
+}
+async function rename(page: Page) {
+  await page.getByLabel('Name').fill(randomName());
+}
+async function nothing(page: Page) {
+  console.log('x');
+}
+async function openDialog(page: Page): Promise<{ dialog: Locator; ok: boolean }> {
+  await page.goto('/users/u2/settings');
+  return { dialog: page.getByRole('dialog'), ok: true };
+}
+test('t', async ({ page }) => {
+  await seed(page);
+  await save(page, 'x');
+});
+`,
+		"e2e/pages/nav.ts": `import { type Page } from '@playwright/test';
+export async function toA(page: Page) { await page.goto('/a'); }
+export async function toB(page: Page) { await page.goto('/b'); }
+`,
+		"e2e/pages/dyn.ts": `import { type Page } from '@playwright/test';
+export async function go(page: Page) { await page.goto(baseURL + '/x'); }
+`,
+		"e2e/pages/none.ts": `import { type Page } from '@playwright/test';
+export async function press(page: Page) { await page.getByRole('link', { name: 'Home' }).click(); }
+`,
+		"e2e/pages/lost.ts": `import { type Page } from '@playwright/test';
+export async function go(page: Page) { await page.goto('/nowhere'); }
+`,
+	}), nil, screens)
+	po := skPO(t, k, "page-object:e2e/flows.spec.ts")
+	if po.Join != StatusResolved || po.Screen != "screen:settings" || po.ScreenBasis != "page-object-url" || po.JoinReason != "" {
+		t.Fatalf("flows join = %s %s %s %s (SKH-V0-015)", po.Join, po.Screen, po.ScreenBasis, po.JoinReason)
+	}
+	want := map[string][2]string{
+		"openSettings": {EffectNavigation, ""},
+		"mockApi":      {EffectUnknown, EffectReasonArranges},
+		"openMenu":     {EffectUnknown, EffectReasonPointer},
+		"save":         {EffectState, ""},
+		"audit":        {EffectUnknown, OpaqueParseUnsupported},
+		"seed":         {EffectState, ""},
+		"rename":       {EffectState, ""},
+		"nothing":      {EffectUnknown, EffectReasonNoActions},
+		"openDialog":   {EffectNavigation, ""},
+	}
+	for name, w := range want {
+		m := skMethod(t, po, name)
+		if m.Effect != w[0] || m.EffectReason != w[1] {
+			t.Fatalf("%s effect = %s/%s, want %s/%s (SKH-V0-016)", name, m.Effect, m.EffectReason, w[0], w[1])
+		}
+	}
+	for id, reason := range map[string][2]string{"page-object:e2e/pages/nav.ts": {JoinReasonAmbiguous, ""},
+		"page-object:e2e/pages/dyn.ts":  {JoinReasonUnresolvedTarget, JoinDetailDynamic},
+		"page-object:e2e/pages/lost.ts": {JoinReasonUnresolvedTarget, "no-matching-screen"},
+		"page-object:e2e/pages/none.ts": {JoinReasonUnbound, ""}} {
+		if p := skPO(t, k, id); p.Join != StatusUnknown || p.JoinReason != reason[0] || p.JoinDetail != reason[1] || p.Screen != "" {
+			t.Fatalf("%s join = %s/%s/%s, want unknown/%v (SKH-V0-015)", id, p.Join, p.JoinReason, p.JoinDetail, reason)
+		}
+	}
+	if m := skMethod(t, skPO(t, k, "page-object:e2e/pages/none.ts"), "press"); m.Effect != EffectNavigation {
+		t.Fatalf("link click effect = %s/%s", m.Effect, m.EffectReason)
 	}
 }
 
@@ -298,7 +458,7 @@ test('opens settings', async ({ page, request }) => {
   await expect(page.getByTestId('privacy-panel')).toHaveText('Privacy');
 });
 `,
-	}), nil)
+	}), nil, nil)
 	po := skPO(t, k, "page-object:e2e/lib/nav.ts")
 	if po.Form != FormPlaywrightModule || len(po.Methods) != 1 || po.Methods[0].Name != "openSettings" {
 		t.Fatalf("module page object = %+v", po)
@@ -340,7 +500,7 @@ it('checks out', () => {
   cy.login();
 });
 `,
-	}), nil)
+	}), nil, nil)
 	po := skPO(t, k, "page-object:cypress/pages/cart.ts#CartPage")
 	if po.Form != FormCypressClass {
 		t.Fatalf("form = %s", po.Form)
@@ -403,7 +563,7 @@ RSpec.feature 'Sign in' do
 end
 `,
 		"spec/Login.java": "class Login {}",
-	}), nil)
+	}), nil, nil)
 	cap := skPO(t, k, "page-object:spec/support/pages/sign_in_page.rb#SignInPage")
 	if cap.Form != FormCapybaraClass || cap.Extends != "BasePage" {
 		t.Fatalf("capybara page = %+v", cap)
@@ -448,8 +608,8 @@ func TestSKHV0_002_UnsupportedImportAndDeterminism(t *testing.T) {
 		"e2e/pages/login-page.ts": skLoginPage,
 		"e2e/login.spec.ts":       skLoginSpec,
 	}
-	a := extractSiteKnowledge(skSrc(files), nil)
-	b := extractSiteKnowledge(skSrc(files), nil)
+	a := extractSiteKnowledge(skSrc(files), nil, nil)
+	b := extractSiteKnowledge(skSrc(files), nil, nil)
 	ja, _ := json.Marshal([]any{a.PageObjects, a.Tests, a.Records, a.Unknowns})
 	jb, _ := json.Marshal([]any{b.PageObjects, b.Tests, b.Records, b.Unknowns})
 	if string(ja) != string(jb) {
@@ -486,7 +646,7 @@ test.describe('other', () => {
   function gotoArea(page: Page) {}
 });
 `,
-	}), nil)
+	}), nil, nil)
 	for _, po := range k.PageObjects {
 		if strings.Contains(po.ID, "reporter") {
 			t.Fatalf("a class with no page, locator or base listed as a page object: %+v", po)
@@ -522,7 +682,7 @@ test.describe('area', () => {
     await expect(page).toHaveURL(` + "`${BASE}/area/settings`" + `);
   });
 });
-`}), nil)
+`}), nil, nil)
 	po = skPO(t, k, "page-object:e2e/area.spec.ts")
 	if m := skMethod(t, po, "gotoArea"); m.Actions[0].Target != "/web/area/${route}" || strings.Join(m.Actions[0].Slots, ",") != "route" {
 		t.Fatalf("template visit = %+v", m.Actions[0])
@@ -546,7 +706,7 @@ test('a', async ({ page }) => {
   await expect(page.getByText('Saved')).toBeVisible();
 });
 `,
-	}), nil)
+	}), nil, nil)
 	for _, s := range skTest(t, k, "a").Steps {
 		b, err := json.Marshal(s)
 		if err != nil {

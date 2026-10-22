@@ -646,7 +646,7 @@
     "reqPrefix": "PRS-V1",
     "intent": "accepted (decisions 0373 and 0426, V1-0001 and V1-0461; PRS-V1-018 accepted (owner instruction 2026-10-13, V1-1344..V1-1348 at milestone v1-0))",
     "delivery": "partial; expanded 1.0 qualification pending",
-    "claim": "1.0 requires Core change evidence, Flows, navigation, docs, MCP, automatic docs and the PRS-V1-018 SDD improvements; the Tasks Beamfall takeover is post-1.0.",
+    "claim": "1.0 requires Core change evidence, Flows, navigation, docs, MCP, automatic docs, PRS-V1-018 SDD improvements and the Tasks Beamfall takeover.",
     "dependsOn": [
       "docs/specs/public-release-v0.md",
       "docs/specs/daily-change-evidence-workflow-v0.md",
@@ -3860,6 +3860,18 @@
     "intent": "JSG-V0-001..014 accepted by the orchestrator under decision 0548's delegation and the owner's standing auto-accept (2026-10-11) (decision 0549; V1-0887, V1-1512); JSG-V0-015 accepted under the same standing auto-accept (V1-0850)",
     "delivery": "experimental",
     "claim": "Lease writes stop reading intent and whole history: the journal seals 512-receipt segments, so each write is bounded by the active segment.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/corvint-test-fold-v0.md",
+    "title": "Corvint Test Fold V0",
+    "reqPrefix": "CTF-V0",
+    "intent": "accepted (owner, 2026-10-22)",
+    "delivery": "experimental",
+    "claim": "Test-executing companions fold into `corvint-test` groups, one move each, with output documents byte-identical and every old name still answering.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,

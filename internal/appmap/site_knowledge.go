@@ -42,6 +42,9 @@ const (
 	StepUpload  = "upload"
 	StepWaitFor = "wait-for"
 	StepAssert  = "assert"
+	StepPress   = "press"
+	StepFocus   = "focus"
+	StepHover   = "hover"
 	StepOpaque  = "opaque"
 	skCall      = "call"
 
@@ -58,7 +61,11 @@ const (
 )
 
 var skStepKinds = map[string]bool{StepVisit: true, StepClick: true, StepFill: true, StepSelect: true, StepCheck: true,
-	StepUpload: true, StepWaitFor: true, StepAssert: true, StepOpaque: true}
+	StepUpload: true, StepWaitFor: true, StepAssert: true, StepPress: true, StepFocus: true, StepHover: true, StepOpaque: true}
+
+// skKeyboard is the typed target of a press or fill sent to the focused element through the
+// page keyboard rather than to a located element (SKH-V0-024).
+const skKeyboard = "keyboard"
 
 var skOpaqueReasons = map[string]bool{OpaqueParseUnsupported: true, OpaqueDynamicValue: true, OpaqueUnresolvedCall: true}
 
@@ -145,31 +152,38 @@ type SKHop struct {
 
 // SKMethod is one page-object method with its parameters, ordered actions and effect.
 type SKMethod struct {
-	ID      string   `json:"id"`
-	Name    string   `json:"name"`
-	Params  []string `json:"params"`
-	Effect  string   `json:"effect"`
-	Actions []SKStep `json:"actions"`
-	Hops    []SKHop  `json:"hops"`
-	Anchor  Anchor   `json:"anchor"`
+	ID     string   `json:"id"`
+	Name   string   `json:"name"`
+	Params []string `json:"params"`
+	Effect string   `json:"effect"`
+	// EffectReason names why Effect is unknown, from a closed set (SKH-V0-016).
+	EffectReason string   `json:"effect_reason,omitempty"`
+	Actions      []SKStep `json:"actions"`
+	Hops         []SKHop  `json:"hops"`
+	Anchor       Anchor   `json:"anchor"`
 }
 
 // SKPageObject is one page-object class or module (SKH-V0-010, SKH-V0-011).
 type SKPageObject struct {
-	ID          string      `json:"id"`
-	Name        string      `json:"name"`
-	Form        string      `json:"form"`
-	Path        string      `json:"path"`
-	Screen      string      `json:"screen,omitempty"`
-	ScreenBasis string      `json:"screen_basis,omitempty"`
-	Join        string      `json:"join"`
-	Extends     string      `json:"extends,omitempty"`
-	Includes    []string    `json:"includes,omitempty"`
-	URL         string      `json:"url,omitempty"`
-	Bindings    []SKBinding `json:"bindings"`
-	Methods     []SKMethod  `json:"methods"`
-	Authority   string      `json:"authority"`
-	Anchor      Anchor      `json:"anchor"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Form        string `json:"form"`
+	Path        string `json:"path"`
+	Screen      string `json:"screen,omitempty"`
+	ScreenBasis string `json:"screen_basis,omitempty"`
+	Join        string `json:"join"`
+	// JoinReason names why Join is unknown, from a closed set (SKH-V0-015).
+	JoinReason string `json:"join_reason,omitempty"`
+	// JoinDetail names the first unresolved visit's cause: a screen-index URL reason
+	// (no-matching-screen, ambiguous-template, ...) or dynamic-target.
+	JoinDetail string      `json:"join_detail,omitempty"`
+	Extends    string      `json:"extends,omitempty"`
+	Includes   []string    `json:"includes,omitempty"`
+	URL        string      `json:"url,omitempty"`
+	Bindings   []SKBinding `json:"bindings"`
+	Methods    []SKMethod  `json:"methods"`
+	Authority  string      `json:"authority"`
+	Anchor     Anchor      `json:"anchor"`
 }
 
 // SKUnknown names one construct the extractors do not support (SKH-V0-002).
@@ -215,6 +229,7 @@ type SKModel struct {
 	Records     []SKRecord
 	Unknowns    []SKUnknown
 	files       map[string]*skFile
+	blobs       map[string]string // committed path -> blob id under the declared sources
 }
 
 // skSource is one committed input file.
@@ -235,6 +250,7 @@ type skUnit struct {
 	read     bool
 	steps    []SKStep
 	from, to int // body tokens [from, to); Ruby: body lines [from, to] (1-based)
+	open     int // TS: the parameter list's open paren
 	start    int // first line
 	end      int // last line
 	title    string
@@ -288,6 +304,7 @@ var (
 		"goto": StepVisit, "visit": StepVisit,
 		"waitForURL": StepWaitFor, "waitForSelector": StepWaitFor, "waitFor": StepWaitFor, "waitForLoadState": StepWaitFor,
 		"should": StepAssert,
+		"press":  StepPress, "focus": StepFocus, "hover": StepHover,
 	}
 	// Chain links that refine a locator without changing what it names for the IR.
 	skRefiners = wordSet("first last nth filter and or getByTestId getByRole getByLabel getByPlaceholder getByAltText " +
@@ -316,7 +333,10 @@ func screenValue(value string, field *Selector) (string, bool) {
 
 // ExtractSiteKnowledge reads page objects and test bodies from committed sources (SKH-V0-010,
 // SKH-V0-020). It never runs code and never reads anything but the given bytes (SKH-V0-005).
-func extractSiteKnowledge(sources []skSource, joins map[string]TestFile) *SKModel {
+func extractSiteKnowledge(sources []skSource, joins map[string]TestFile, screens *screenIndex) *SKModel {
+	if screens == nil {
+		screens = newScreenIndex("", nil)
+	}
 	m := &SKModel{PageObjects: []SKPageObject{}, Tests: []SKTest{}, Records: []SKRecord{}, Unknowns: []SKUnknown{}, files: map[string]*skFile{}}
 	sort.Slice(sources, func(i, j int) bool { return sources[i].entry.path < sources[j].entry.path })
 	paths := []string{}
@@ -362,9 +382,6 @@ func extractSiteKnowledge(sources []skSource, joins map[string]TestFile) *SKMode
 	for i := range m.PageObjects {
 		po := &m.PageObjects[i]
 		f := m.files[po.Path]
-		if tf, ok := joins[po.Path]; ok && tf.Screen != "" {
-			po.Screen, po.ScreenBasis, po.Join = tf.Screen, tf.ScreenBasis, StatusResolved
-		}
 		var units []*skUnit
 		if c := f.classes[po.Name]; c != nil && po.ID == "page-object:"+po.Path+"#"+c.name {
 			for _, n := range c.order {
@@ -386,13 +403,18 @@ func extractSiteKnowledge(sources []skSource, joins map[string]TestFile) *SKMode
 					meth.Hops = append(meth.Hops, m.hop(u, a))
 				}
 			}
-			meth.Effect = skEffect(meth.Actions, meth.Hops)
+			meth.Effect, meth.EffectReason = skEffect(m.inline(meth.Actions, u, nil, 0), m.reachedSetup(u))
 			po.Methods = append(po.Methods, meth)
 		}
 		for j := range po.Methods {
 			if u := m.unitFor(po, po.Methods[j].Name); u != nil {
 				u.method = &po.Methods[j]
 			}
+		}
+		if tf, ok := joins[po.Path]; ok && tf.Screen != "" {
+			po.Screen, po.ScreenBasis, po.Join = tf.Screen, tf.ScreenBasis, StatusResolved
+		} else {
+			m.urlJoin(po, units, screens)
 		}
 	}
 	for _, p := range paths {
@@ -450,37 +472,142 @@ func skModuleForm(f *skFile) string {
 	return ""
 }
 
-// skEffect applies the ANL-V0-035 classes to one method's own actions: navigation-only when every
-// action navigates, waits or reads; state-effect when any action fills, checks, selects, uploads
-// or submits; unknown when any action or hop cannot be classified.
-func skEffect(actions []SKStep, hops []SKHop) string {
-	effect := EffectNavigation
-	for _, h := range hops {
-		if h.Status != StatusResolved {
-			return EffectUnknown
+// Closed reasons a method's effect stays unknown (SKH-V0-016). An opaque step names its own
+// opaque reason (parse-unsupported, dynamic-value or unresolved-call).
+const (
+	EffectReasonClick     = "unclassified-click"
+	EffectReasonPointer   = "focus-or-hover"
+	EffectReasonArranges  = "arranges-run-only"
+	EffectReasonNoActions = "no-ui-actions"
+)
+
+// skRequestSetup are the setup entries that issue a request: a state effect under ANL-V0-035.
+var skRequestSetup = wordSet("request fetch page.request")
+
+// skEffect applies the ANL-V0-035 classes, in their precedence, to a method's inlined steps and
+// the setup its call graph performs (SKH-V0-016): state-effect when any step fills, selects,
+// checks, uploads or presses, or any reached unit issues a request; otherwise unknown, with the
+// first unclassifiable step's reason, when any step is a non-link click, a focus, a hover or
+// opaque, or when the method performs no UI step; otherwise navigation-only. A dynamic-value
+// step keeps its exact kind in Call, so a fill whose value is dynamic is still a state effect.
+func skEffect(steps []SKStep, setup []string) (string, string) {
+	reason := ""
+	note := func(r string) {
+		if reason == "" {
+			reason = r
 		}
 	}
-	for _, a := range actions {
-		switch a.Kind {
+	for _, s := range steps {
+		kind := s.Kind
+		if kind == StepOpaque && s.Reason == OpaqueDynamicValue && skStepKinds[s.Call] {
+			kind = s.Call
+		}
+		switch kind {
 		case StepVisit, StepWaitFor, StepAssert:
-		case StepFill, StepSelect, StepCheck, StepUpload:
-			if effect == EffectNavigation {
-				effect = EffectState
-			}
+		case StepFill, StepSelect, StepCheck, StepUpload, StepPress:
+			return EffectState, ""
 		case StepClick:
-			if a.Locator != nil && a.Locator.Kind == "role" && a.Locator.Value == "link" {
+			if s.Locator == nil || s.Locator.Kind != "role" || s.Locator.Value != "link" {
+				note(EffectReasonClick)
+			}
+		case StepFocus, StepHover:
+			note(EffectReasonPointer)
+		default:
+			note(s.Reason)
+		}
+	}
+	for _, n := range setup {
+		if skRequestSetup[n] {
+			return EffectState, ""
+		}
+	}
+	switch {
+	case reason != "":
+		return EffectUnknown, reason
+	case len(steps) == 0 && len(setup) > 0:
+		return EffectUnknown, EffectReasonArranges
+	case len(steps) == 0:
+		return EffectUnknown, EffectReasonNoActions
+	}
+	return EffectNavigation, ""
+}
+
+// Closed reasons a page object stays unjoined (SKH-V0-015); they match the AMAP-V0 page-object
+// join's own unknown reasons.
+const (
+	JoinReasonUnresolvedTarget = "page-object-unresolved-target"
+	JoinReasonUnbound          = "page-object-unbound"
+	JoinReasonAmbiguous        = "page-object-ambiguous"
+	JoinDetailDynamic          = "dynamic-target"
+)
+
+// urlJoin joins a page object the import-graph join left unbound through the visit targets of its
+// methods' inlined steps, as the AMAP-V0 page-object-url basis does for a page object's own gotos
+// (SKH-V0-015): one screen joins with basis page-object-url; a target the map cannot place, no
+// target, or two screens leave it unknown with a closed join reason.
+func (m *SKModel) urlJoin(po *SKPageObject, units []*skUnit, screens *screenIndex) {
+	targets, detail := map[string]bool{}, ""
+	unresolve := func(why string) {
+		if detail == "" {
+			detail = why
+		}
+	}
+	for _, u := range units {
+		for _, s := range m.inline(m.bodySteps(u), u, nil, 0) {
+			switch {
+			case s.Kind == StepVisit && s.Target != "" && !s.Screened:
+				url := s.Target
+				for _, slot := range s.Slots {
+					url = strings.ReplaceAll(url, "${"+slot+"}", substMark)
+				}
+				if id, why := screens.byURL(url); id != "" {
+					targets[id] = true
+				} else {
+					unresolve(why)
+				}
+			case s.Kind == StepVisit, s.Kind == StepOpaque && s.Call == StepVisit:
+				unresolve(JoinDetailDynamic)
+			}
+		}
+	}
+	switch {
+	case detail != "":
+		po.JoinReason, po.JoinDetail = JoinReasonUnresolvedTarget, detail
+	case len(targets) == 1:
+		for id := range targets {
+			po.Screen, po.ScreenBasis, po.Join = id, "page-object-url", StatusResolved
+		}
+	case len(targets) == 0:
+		po.JoinReason = JoinReasonUnbound
+	default:
+		po.JoinReason = JoinReasonAmbiguous
+	}
+}
+
+// reachedSetup collects the setup entries of u and of every unit its resolved calls reach, one
+// bounded hop at a time.
+func (m *SKModel) reachedSetup(u *skUnit) []string {
+	seen := map[*skUnit]bool{}
+	out := []string{}
+	var walk func(*skUnit, int)
+	walk = func(v *skUnit, depth int) {
+		if seen[v] || depth > maxSKHops {
+			return
+		}
+		seen[v] = true
+		steps := m.bodySteps(v)
+		out = append(out, v.setup...)
+		for _, s := range steps {
+			if s.Kind != skCall {
 				continue
 			}
-			return EffectUnknown
-		case skCall:
-		default:
-			return EffectUnknown
+			if t, _, _ := m.resolveCall(v, s.Call); t != nil {
+				walk(t, depth+1)
+			}
 		}
 	}
-	if len(actions) == 0 {
-		return EffectUnknown
-	}
-	return effect
+	walk(u, 0)
+	return uniqueSorted(out)
 }
 
 // hop resolves one call action of u (SKH-V0-012).
@@ -674,7 +801,7 @@ func bindStep(s SKStep, bind map[string]SKArg) SKStep {
 		if a, ok := bind[s.LocatorSlot]; ok {
 			switch {
 			case a.Dynamic || len(a.Template) > 0:
-				return SKStep{Kind: StepOpaque, Reason: OpaqueDynamicValue, Via: s.Via, Anchor: s.Anchor}
+				return SKStep{Kind: StepOpaque, Reason: OpaqueDynamicValue, Call: s.Kind, Via: s.Via, Anchor: s.Anchor}
 			case a.Slot != "":
 				s.LocatorSlot = a.Slot
 			default:
@@ -702,7 +829,7 @@ func bindStep(s SKStep, bind map[string]SKArg) SKStep {
 		case !ok:
 			slots = append(slots, slot)
 		case a.Dynamic:
-			return SKStep{Kind: StepOpaque, Reason: OpaqueDynamicValue, Via: s.Via, Anchor: s.Anchor}
+			return SKStep{Kind: StepOpaque, Reason: OpaqueDynamicValue, Call: s.Kind, Via: s.Via, Anchor: s.Anchor}
 		case a.Slot != "":
 			if inTemplate {
 				*field = strings.ReplaceAll(*field, mark, "${"+a.Slot+"}")

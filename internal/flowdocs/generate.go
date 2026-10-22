@@ -18,7 +18,14 @@ const Schema = "corvint-flow-documentation/1"
 // Version is the generator version a manifest records. Version 2 (V1-0461)
 // binds each flow's static call inventory and drops bare control keywords
 // from it, so a version 1 manifest can no longer be rederived byte for byte.
-const Version = "2"
+// Version 3 (V1-0461, AFU-V1-043) stops treating member-call arrows and
+// non-route HTTP-verb member calls as web declarations, so version 2
+// manifests can no longer be rederived byte for byte either.
+const Version = "3"
+
+// predecessorVersions are generator versions whose manifests are refused with
+// StaleGeneratorCode rather than the generic unsupported-version failure.
+var predecessorVersions = map[string]bool{"1": true, "2": true}
 
 // StaleGeneratorCode is the typed refusal of a manifest an older generator
 // wrote: it must be regenerated, not compared (AFU-V1-045).
@@ -357,8 +364,8 @@ func Open(ctx context.Context, root string, raw []byte) (*Result, error) {
 	if err := json.Unmarshal(raw, &m, json.RejectUnknownMembers(true)); err != nil {
 		return nil, fail("invalid closed generation manifest")
 	}
-	if m.Schema == Schema && m.Version == "1" {
-		return nil, &doccorpus.Error{Code: StaleGeneratorCode, Message: "generation manifest was written by flow-docs generator version 1; regenerate it with docs flows generate (generator version " + Version + ") before check or finalize"}
+	if m.Schema == Schema && predecessorVersions[m.Version] {
+		return nil, &doccorpus.Error{Code: StaleGeneratorCode, Message: "generation manifest was written by flow-docs generator version " + m.Version + "; regenerate it with docs flows generate (generator version " + Version + ") before check or finalize"}
 	}
 	if m.Schema != Schema || m.Version != Version {
 		return nil, fail("unsupported generator version")

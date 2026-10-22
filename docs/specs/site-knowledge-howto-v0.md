@@ -11,9 +11,9 @@ points", read through `docs/specs/INDEX.json` and their Agent digests.
 
 ## Agent digest
 - Claim: Page objects, steps, setup and edges mined from tests answer "how do I X" with a live-proven E2E test, or abstain naming the missing knowledge.
-- Status: accepted (owner intent 2026-10-19; V1-1897); experimental. SKH-V0-001..089 for stages 1..8 (V1-1898..V1-1905) are accepted under the owner's standing auto-accept (2026-10-11). Stages 1 and 2 are implemented as `flows appmap pageobjects` and `flows appmap steps` (V1-1898 partial: no MCP projection; V1-1899); stages 3..8 are not started.
-- Exists: `flows appmap pageobjects` and `flows appmap steps` (stages 1 and 2, experimental), plus the contracts this extends: AMAP-V0 map and selectors, ANL-V0 edges, AFU-V1 intents, DCP-V1 inventories and test knowledge, AMSP-V0 planner draft, CCE-V0 prover, NEA-V0 controls, RVN-V0 binding, PWP-V0 receipts and TSA-V0 validity.
-- Blocked on: nothing for the stage 1 MCP projection (SKH-V0-013), stage 3 (V1-1900) or stage 4 (V1-1901). First adopter core-history (owner 2026-10-22); N = 10.
+- Status: accepted (owner intent 2026-10-19; V1-1897); experimental. SKH-V0-001..089 for stages 1..8 (V1-1898..V1-1905) are accepted under the owner's standing auto-accept (2026-10-11). Stages 1 and 2 are implemented as `flows appmap pageobjects` and `flows appmap steps` and the corpus MCP tool `corvint.map_knowledge` (V1-1898, V1-1899). Stage 3 is partial: `flows appmap setup` reads Playwright and Cypress TypeScript fixtures, hooks, `storageState`, route mocks, API seeding and `cy.task`, and names the sources it does not read (V1-1900); stages 4..8 are not started.
+- Exists: `flows appmap pageobjects`, `flows appmap steps`, `flows appmap setup` and `corvint.map_knowledge` (stages 1 and 2, partial stage 3, experimental), plus the contracts this extends: AMAP-V0 map and selectors, ANL-V0 edges, AFU-V1 intents, DCP-V1 inventories and test knowledge, AMSP-V0 planner draft, CCE-V0 prover, NEA-V0 controls, RVN-V0 binding, PWP-V0 receipts and TSA-V0 validity.
+- Blocked on: nothing for the rest of stage 3 (V1-1900: FactoryBot, fixture files, seeds, setup endpoints, setup projects and the condition query) or stage 4 (V1-1901). First adopter core-history (owner 2026-10-22); N = 10.
 - Read next: Owner intent; Definition of "confidently"; Requirements; Preregistered measure; Owner questions.
 
 ## Owner intent
@@ -264,13 +264,32 @@ Each stage extends the named point. None of these contracts is restated here.
 - `SKH-V0-014`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1898) Stage 1
   evidence MUST include committed fixtures for each supported form plus one real-adopter sample.
   The sample reports counts of classes, methods, locators and abstentions.
+- `SKH-V0-015`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2407) A page
+  object the import-graph join leaves unbound MUST join through the visit targets of its methods'
+  inlined steps, as the AMAP-V0 `page-object-url` basis does: exactly one matching screen joins
+  with basis `page-object-url`. Otherwise the page object stays `UNKNOWN` with a closed
+  `join_reason` (`page-object-unbound` when no method visits, `page-object-ambiguous` when targets
+  match two or more screens, `page-object-unresolved-target` when a target matches none). An
+  unresolved target also names its `join_detail`: the AMAP-V0 screen-index reason
+  (`no-matching-screen`, `ambiguous-template`, `non-literal-url` or
+  `partial-segment-substitution`) or `dynamic-target` for a visit whose URL is not a literal or
+  bound parameter. The `pageobjects` report counts `join_reasons`.
+- `SKH-V0-016`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2407) A method's
+  effect MUST apply the `ANL-V0-035` classes in their precedence to its inlined steps and the setup
+  its call graph reaches: `state-effect` when any step fills, selects, checks, uploads or presses or
+  any reached unit issues a request; otherwise `unknown` when any step is unclassifiable;
+  otherwise `navigation-only`. An `unknown` effect MUST name one closed `effect_reason`: the first
+  unclassifiable step's opaque reason, `unclassified-click` for a click not on
+  `getByRole('link')`, `focus-or-hover`, `arranges-run-only` for a method that only arranges the
+  run (route mocks, init scripts, headers), or `no-ui-actions`. The `pageobjects` report counts
+  `effect_reasons`.
 
 ### Stage 2: step IR (V1-1899)
 
 - `SKH-V0-020`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1899) Spec bodies
   and page-object methods MUST normalise into one closed step IR with the kinds `visit`, `click`,
   `fill`, `select`, `check`, `upload`, `wait-for`, `assert` (with matcher and expected value) and
-  `opaque`. An `opaque` step carries a closed `reason` (`parse-unsupported`, `dynamic-value` or
+  `opaque`, plus the kinds `SKH-V0-024` adds. An `opaque` step carries a closed `reason` (`parse-unsupported`, `dynamic-value` or
   `unresolved-call`) and the source span it could not read. Each step carries a locator
   reference, parameter slots and a source span, for Playwright, Cypress and Capybara at least.
   Legacy Jasmine cases enter through the DCP-V1 inventory criteria (`DCP-V1-060`..`062`), not
@@ -285,6 +304,12 @@ Each stage extends the named point. None of these contracts is restated here.
   citing every source test.
 - `SKH-V0-023`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1899) The IR MUST
   be a closed, versioned record. An unknown step kind or field is refused, not coerced.
+- `SKH-V0-024`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2406) The closed
+  step IR MUST also type `press` (a key sent to a located element or, through
+  `page.keyboard.press`, to the `keyboard` target), `focus` and `hover`. `page.keyboard.type` and
+  `insertText` are a `fill` on the `keyboard` target; Capybara `hover` and `send_keys` map to
+  `hover` and `press`. Every other keyboard or mouse call stays `opaque`. A `press` is a state
+  effect and a `focus` or `hover` an unknown effect under `SKH-V0-016`.
 
 ### Stage 3: data setup (V1-1900)
 
@@ -306,6 +331,24 @@ Each stage extends the named point. None of these contracts is restated here.
 - `SKH-V0-034`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1900) A setup
   record backed by a `page.route` mock MUST be labelled `mocked`. No plan or proof may treat a
   mocked response as evidence of real backend behaviour.
+
+Implementation status (V1-1900, partial): `flows appmap setup` and the `setup` view of
+`corvint.map_knowledge` print the closed `site-knowledge-setup/0` report for Playwright and Cypress
+TypeScript. Records are `fixture` (each `X.extend({...})` property with its `test` object and
+`base`, destructured parameters, `scope`, `option`, `auto` and `after-use` cleanup; dependencies on
+other fixtures resolve along the extend chain into `requires`, the rest into `unresolved` unless a
+Playwright built-in), `hook` (`beforeEach`, `beforeAll`, `afterEach`, `afterAll`, `before`,
+`after`), `storage-state` (`mode` `reads` for an object-literal `storageState` property, `writes` for
+`.storageState({ path })`; a literal path keeps its committed blob when the declared sources hold
+it, and contents are never read), `route-mock` (`route`, `routeFromHAR`, `cy.intercept`, always
+`mocked`), `api-seed` (`request.<verb>`, `cy.request`) and `task` (`cy.task`). A non-literal target is
+`UNKNOWN` with reason `dynamic-value`. Each record anchors to its span and names the fixture, hook
+or helper it is `within`. Each test lists the records that arrange it: fixtures it destructures and
+their `requires`, auto fixtures along its test object's chain, hooks and `storageState` in its
+enclosing blocks, and records in the test body or the helpers it reaches. The report names
+`not_read`: `factorybot`, `fixture-files`, `seeds`, `setup-endpoints` and `setup-projects` (the
+`SKH-V0-032` reuse of TSA-V0 setup-select, V1-1891 and V1-1883 is not started), and the
+`SKH-V0-031` condition query is not started.
 
 ### Stage 4: navigation edges (V1-1901)
 
@@ -614,9 +657,10 @@ Stage dependencies (each stage also reads the contracts named for it above):
 | Requirements | Ticket | Implementation | Evidence |
 |---|---|---|---|
 | `SKH-V0-001`..`009` | V1-1897 | this spec; `internal/appmap/site_knowledge_project.go` | 002, 005, 007 and 009: `TestSKHV0_002_UnsupportedImportAndDeterminism`, `TestSKHV0_013_PageObjectsAndStepsCLI` and the core-history sample (build log 2026-10-22-sk-1022l); 001, 003, 004, 006 and 008: by construction in stages 1..2, NOT_STARTED beyond them |
-| `SKH-V0-010`..`014` | V1-1898 | `internal/appmap/site_knowledge*.go`, `cmd/corvint/flows_appmap_knowledge.go` | experimental: `TestSKHV0_010_PlaywrightClassPageObject`, `TestSKHV0_010_ModulePageObjectAndSetupHelpers`, `TestSKHV0_010_CypressClass`, `TestSKHV0_010_CapybaraAndSitePrism`, `TestSKHV0_012_SpecLocalHelpersTemplatesAndValueAsserts`, `TestSKHV0_013_PageObjectsAndStepsCLI`; core-history sample qualifies `playwright-ts-module` only; 013 corpus MCP projection NOT_STARTED; 011 screen join is the existing import-graph join and joined 0 adopter helpers |
-| `SKH-V0-020`..`023` | V1-1899 | `internal/appmap/site_knowledge*.go` | experimental: `TestSKHV0_020_OpaqueStepsAreKept`, `TestSKHV0_021_InlinesCallsWithBoundArguments`, `TestSKHV0_022_DeduplicatesSequencesWithUsage`, `TestSKHV0_023_StrictStepDecoderRefusesOutsideTheClosedIR`; core-history sample for Playwright; Cypress and Capybara fixture-only |
-| `SKH-V0-030`..`034` | V1-1900 | none | NOT_STARTED |
+| `SKH-V0-010`..`014` | V1-1898 | `internal/appmap/site_knowledge*.go`, `cmd/corvint/flows_appmap_knowledge.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: `TestSKHV0_010_PlaywrightClassPageObject`, `TestSKHV0_010_ModulePageObjectAndSetupHelpers`, `TestSKHV0_010_CypressClass`, `TestSKHV0_010_CapybaraAndSitePrism`, `TestSKHV0_012_SpecLocalHelpersTemplatesAndValueAsserts`, `TestSKHV0_013_PageObjectsAndStepsCLI`, `TestSKHV0013CorpusMCPMapKnowledge`; core-history sample qualifies `playwright-ts-module` only (build logs 2026-10-22-sk-1022l and 2026-10-22-site-knowledge-setup-stage3) |
+| `SKH-V0-015`, `016` | V1-2407 | `internal/appmap/site_knowledge.go`, `internal/appmap/site_knowledge_project.go` | experimental: `TestSKHV0_015_016_URLJoinAndNamedEffects`; core-history sample: 0 of 10 joined, every unjoined page object and unknown effect named |
+| `SKH-V0-020`..`024` | V1-1899, V1-2406 | `internal/appmap/site_knowledge*.go` | experimental: `TestSKHV0_020_OpaqueStepsAreKept`, `TestSKHV0_021_InlinesCallsWithBoundArguments`, `TestSKHV0_022_DeduplicatesSequencesWithUsage`, `TestSKHV0_023_StrictStepDecoderRefusesOutsideTheClosedIR`, `TestSKHV0_024_PressFocusAndHoverAreTyped`; core-history sample for Playwright; Cypress and Capybara fixture-only |
+| `SKH-V0-030`..`034` | V1-1900, V1-2408 | `internal/appmap/site_knowledge_setup.go`, `internal/appmap/site_knowledge_project.go`, `cmd/corvint/flows_appmap_knowledge.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental, partial: 030, 031, 033 and 034 for Playwright and Cypress TypeScript by `TestSKHV0_030_031_SetupRecordsAndTestLinks`, `TestSKHV0_013_PageObjectsAndStepsCLI` and `TestSKHV0013CorpusMCPMapKnowledge`; the other 030 sources, the 031 condition query and 032 NOT_STARTED |
 | `SKH-V0-040`..`043` | V1-1901 | none | NOT_STARTED |
 | `SKH-V0-050`..`054` | V1-1902 | none | NOT_STARTED |
 | `SKH-V0-060`..`064` | V1-1903 | none | NOT_STARTED |

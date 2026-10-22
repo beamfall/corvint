@@ -63,7 +63,9 @@ func runControl(ctx context.Context, inv behaviorfalsify.Invocation) (behaviorfa
 		Unrelated: []behaviorfalsify.CriterionObservation{}, Setup: []behaviorfalsify.SetupObservation{}, Artifacts: []behaviorfalsify.Artifact{}}
 	obs := behaviorfalsify.CriterionObservation{CriterionID: inv.Target.CriterionID, AssertionID: inv.Target.AssertionID}
 	line, err := strconv.Atoi(def["line"])
-	if err != nil || def["tree"] == "" || def["file"] == "" || def["locator"] == "" || def["matcher"] == "" || def["marker"] == "" || def["replacement"] == "" {
+	// An omitted-event control removes a line and needs no assertion binding (CCE-V0-036).
+	unbound := inv.Control.Kind != behaviorfalsify.OmittedEvent && (def["locator"] == "" || def["matcher"] == "" || def["marker"] == "")
+	if err != nil || def["tree"] == "" || def["file"] == "" || def["replacement"] == "" || unbound {
 		return r, errors.New("e2e-hook-definition-invalid")
 	}
 	var environment *Environment
@@ -114,7 +116,7 @@ func runControl(ctx context.Context, inv behaviorfalsify.Invocation) (behaviorfa
 	receipt, runErr := runPlaywright(ctx, runInput{Tree: tree, AppIdentity: inv.Target.ApplicationRevision, Placement: def["file"],
 		Repeats: 1, NodeModules: resolvedModules, RunnerVersion: inv.Runner.RunnerVersion,
 		PackageJSON: def["package_json"], Lockfile: def["lockfile"], Timeout: hookRunTimeout, Environment: environment,
-		ServeBin: def["serve_bin"], ServePath: def["serve_path"]})
+		ServeBin: def["serve_bin"], ServePath: def["serve_path"], Grep: def["grep"]})
 	digest, reason := qualify(receipt, runErr, 1)
 	if reason != "" {
 		r.TestOutcome = "infrastructure_failed"
@@ -127,10 +129,6 @@ func runControl(ctx context.Context, inv behaviorfalsify.Invocation) (behaviorfa
 	}
 	r.NativeReceiptSHA256 = digest
 	t := receipt.Tests[0]
-	locator := def["locator"]
-	if inv.Control.Kind == behaviorfalsify.WrongLocator {
-		locator = def["replacement"]
-	}
 	switch {
 	case inv.Control.Kind == behaviorfalsify.OmittedEvent && (t.State == jstestprovider.StateFailed || t.State == jstestprovider.StateTimedOut):
 		// The removed step or fixture setup was load-bearing: the scenario no longer completes
@@ -138,7 +136,9 @@ func runControl(ctx context.Context, inv behaviorfalsify.Invocation) (behaviorfa
 		r.TestOutcome, obs.State, obs.FailureKind = "failed", "failed", "assertion"
 	case t.State == jstestprovider.StateFailed:
 		r.TestOutcome, obs.State, obs.FailureKind = "failed", "failed", "unexpected"
-		if failsAtAssertion(string(t.State), t.FailureMessage, def["marker"], def["matcher"], locator) {
+		// The template controls perturb the outcome assertion's own line; only a failure the
+		// receipt locates there is an assertion failure (CCE-V0-009 step 6).
+		if file, at := receiptLocation(treeRoots(tree), t); file == def["file"] && at == line {
 			obs.FailureKind = "assertion"
 		}
 	case t.State == jstestprovider.StatePassed:
