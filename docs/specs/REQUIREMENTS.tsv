@@ -3758,6 +3758,7 @@ PWP-V0-051	docs/specs/playwright-external-provider-v0.md	(accepted under the own
 PWP-V0-052	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2009; GitHub #	standing	2026-10-11; V1-2009; #1270
 PWP-V0-053	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2112; GitHub #	standing	2026-10-11; V1-2112; #1270
 PWP-V0-054	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2112; GitHub #	standing	2026-10-11; V1-2112; #1270
+PWP-V0-055	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1002) The	standing	2026-10-11; V1-1002
 PWP-V3-001	docs/specs/playwright-external-provider-v0.md	`/3` is selected explicitly by a provider option in external-server mode. `/0`,	unrecorded	-
 PWP-V3-002	docs/specs/playwright-external-provider-v0.md	A `/3` test outcome carries `attemptDetails` with one entry per Playwright attem	unrecorded	-
 PWP-V3-003	docs/specs/playwright-external-provider-v0.md	The existing per-attempt classification is unchanged: browser or fixture failure	unrecorded	-
