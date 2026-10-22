@@ -44,6 +44,14 @@ func gitTest(t *testing.T, root string, args ...string) string {
 }
 func newAdapterFixture(t *testing.T) adapterFixture {
 	t.Helper()
+	return newAdapterFixturePolicy(t, nil)
+}
+
+// newAdapterFixturePolicy commits a policy changed by edit and rebinds the queue status and
+// observations to its digest under the taskman-policy/0 prefix, so only the profile and
+// closed-field checks can refuse it.
+func newAdapterFixturePolicy(t *testing.T, edit func(wire.Value)) adapterFixture {
+	t.Helper()
 	base, e := filepath.EvalSymlinks(t.TempDir())
 	if e != nil {
 		t.Fatal(e)
@@ -52,10 +60,20 @@ func newAdapterFixture(t *testing.T) adapterFixture {
 	if e = os.Mkdir(f.root, 0755); e != nil {
 		t.Fatal(e)
 	}
+	policyDigest := ""
 	for _, name := range []string{"policy", "queue"} {
 		raw, e := os.ReadFile("testdata/" + name + ".json")
 		if e != nil {
 			t.Fatal(e)
+		}
+		if name == "policy" && edit != nil {
+			v, e := document(raw, 1<<20)
+			if e != nil {
+				t.Fatal(e)
+			}
+			edit(v)
+			raw = append(canonical(v), '\n')
+			policyDigest = sum(append([]byte("policy\x00taskman-policy/0\x00"), canonical(v)...))
 		}
 		writeTest(t, filepath.Join(f.root, ".taskman", name+".json"), raw, 0644)
 	}
@@ -73,6 +91,9 @@ func newAdapterFixture(t *testing.T) adapterFixture {
 		v := testDocument(t, name)
 		snap := value(v, "snapshot")
 		setString(snap, "primaryWorktreeSha256", sum([]byte(f.root)))
+		if name == "status" && policyDigest != "" {
+			setString(value(v, "items").Arr[0], "policySha256", policyDigest)
+		}
 		f.snapshot = snap
 		writeTest(t, filepath.Join(f.responses, name+".json"), append(canonical(v), '\n'), 0644)
 	}
@@ -82,6 +103,9 @@ func newAdapterFixture(t *testing.T) adapterFixture {
 	v := observationValue(t, c)
 	setString(v, "sourceCommit", gitTest(t, f.root, "rev-parse", "HEAD"))
 	setString(v, "sourceTree", gitTest(t, f.root, "rev-parse", "HEAD^{tree}"))
+	if policyDigest != "" {
+		setString(v, "policySha256", policyDigest)
+	}
 	writeTest(t, f.observations, append(canonical(v), '\n'), 0644)
 	return f
 }
@@ -182,6 +206,47 @@ func TestNTPV0001AdapterRefusals(t *testing.T) {
 				raw, e := Preview(context.Background(), f.root, f.executor, f.observations)
 				if e == nil || len(raw) != 0 {
 					t.Fatal("refusal leaked plan", string(raw), e)
+				}
+				after := treeBytes(t, f.root)
+				for p, h := range before {
+					if after[p] != h {
+						t.Fatal("changed source", p)
+					}
+				}
+			})
+		}
+	})
+}
+
+// TestNTPV0001AdapterPolicyProfileBoundary pins the fixture preview's taskman-policy/0-only,
+// closed-field contract (V1-0468): a policy whose digest binds correctly still refuses when its
+// profile is not taskman-policy/0 or it carries a member the closed set does not name, such as
+// the opted-in externalReviews member the native store accepts.
+func TestNTPV0001AdapterPolicyProfileBoundary(t *testing.T) {
+	t.Run("NTP-V0-001 AdapterPolicyProfileBoundary", func(t *testing.T) {
+		control := newAdapterFixturePolicy(t, func(wire.Value) {})
+		if _, e := Preview(context.Background(), control.root, control.executor, control.observations); e != nil {
+			t.Fatal("rebound policy/0 control refused", e)
+		}
+		cases := []struct {
+			name string
+			edit func(wire.Value)
+		}{
+			{"policy/1 profile", func(v wire.Value) { setString(v, "profile", "taskman-policy/1") }},
+			{"unknown profile", func(v wire.Value) { setString(v, "profile", "taskman-policy/9") }},
+			{"non-string profile", func(v wire.Value) { setBool(v, "profile", true) }},
+			{"opted-in externalReviews member", func(v wire.Value) {
+				v.Obj.Keys = append(v.Obj.Keys, "externalReviews")
+				v.Obj.Values["externalReviews"] = testValue(t, []any{})
+			}},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				f := newAdapterFixturePolicy(t, tc.edit)
+				before := treeBytes(t, f.root)
+				raw, e := Preview(context.Background(), f.root, f.executor, f.observations)
+				if e == nil || len(raw) != 0 {
+					t.Fatal("policy outside the /0 fixture contract admitted", string(raw), e)
 				}
 				after := treeBytes(t, f.root)
 				for p, h := range before {
