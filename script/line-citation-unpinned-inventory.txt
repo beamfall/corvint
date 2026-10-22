@@ -762,7 +762,6 @@ docs/specs/source-documentation-draft-v0.md	internal/docmaintain/docmaintain.go:
 docs/specs/source-documentation-draft-v0.md	internal/docmaintain/docmaintain.go:219
 docs/specs/source-documentation-draft-v0.md	internal/docmaintain/docmaintain.go:256
 docs/specs/spec-requirement-index-generator-v0.md	Makefile:14
-docs/specs/spec-requirement-index-generator-v0.md	script/gen-spec-requirements.sh:214
 docs/specs/vscode-extension-v0.md	extensions/vscode/src/extension.ts:192
 docs/specs/vscode-extension-v0.md	extensions/vscode/src/liveTests.ts:58
 docs/specs/vscode-extension-v0.md	extensions/vscode/src/liveTests.ts:64

@@ -82,6 +82,20 @@ each requirement records its own mode in the leading parenthetical of its defini
 - `unrecorded`: anything else, including no parenthetical or a marker after the text; the
   requirement inherits the spec header's intent status.
 
+Accepted forms. A definition line is `` - `ID`: (note) text ``, `- **ID:** (note) text`,
+`- **ID.** (note) text` or `ID. (note) text`; a note between the id and its colon, as in
+`` - `ID` (V1-NNNN): text ``, is not a definition, and `make requirement-definitions-check` names
+such a line when the id has no other definition (`RDG-V0-022`). The acceptance note is the first
+parenthetical after the id, in one of these forms:
+
+- `owner`: `(accepted, decision NNNN; V1-NNNN)` or `(accepted YYYY-MM-DD; V1-NNNN)`;
+- `standing`: `(accepted under the owner's standing auto-accept (YYYY-MM-DD); V1-NNNN)`.
+
+`make spec-requirements` refuses three near misses, naming the line and these forms
+(`SRG-V0-042`): an auto-acceptance note without the word `standing` (`(accepted, owner lane
+auto-acceptance 2026-10-11; ...)`), an accepted or approved note with no decision number or date
+(`(accepted, V1-NNNN)`), and an unparenthesized note (`accepted, decision NNNN. Text`).
+
 A lane writes `standing` for its own requirements, never `owner`. A `standing` requirement becomes
 `owner` only when the owner reads it back: the marker is edited to name the read-back in the same
 commit as the build-log Owner acceptances entry that records it. `make spec-acceptance-audit` lists

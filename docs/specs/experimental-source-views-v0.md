@@ -308,7 +308,7 @@ Failure modes:
   blob limit refuses as `blob-budget` (source view) or `expand-budget` (`--expand`), so a missing
   object, a Git process error or a timeout no longer poses as a budget refusal (V1-2258, accepted
   under the owner's standing auto-accept of 2026-10-11).
-- `ESV-V0-012`: accepted under the owner's standing auto-accept (2026-10-11) (V1-0426). Before
+- `ESV-V0-012`: (accepted under the owner's standing auto-accept (2026-10-11) (V1-0426)) Before
   `context --expand` (`selection.text`) or the adapter source view (`claude-source-handoff`,
   `source-view`; view `text`) prints source text, `internal/secretscreen` runs over the whole
   pinned blob. Every selected line that a match overlaps, including the body of a multi-line key

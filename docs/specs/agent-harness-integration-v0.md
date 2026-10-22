@@ -570,7 +570,7 @@ separate exact extension tuple remains governed by AHI-024.
   yields `compaction-pin-not-emitted`, which is still a degradation and never a clean report.
   Evidence: `TestAHI057ClaudeCompactionDistinguishesUnemittedPinFromLostPin`. Rollback: revert the
   unavailable line and its detection, so a degraded `pre-compact` prints its frame text alone.
-- `AHI-053`: accepted, decision 0517 (V1-1128). Amendment to `AHI-031`
+- `AHI-053`: (accepted, decision 0517 (V1-1128)) Amendment to `AHI-031`
   and the no-writer wording of `AHI-029`: stale Claude/Codex notices retain their frame, code,
   channels and exact manual argv but may report a background refresh started, already running,
   disabled or failed to start under `IDX-SNAP-V0-031` through `IDX-SNAP-V0-036`. The current event

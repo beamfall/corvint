@@ -636,7 +636,7 @@ paths, and `--page` and `--claims` differ.
 
 ### MCP companion surface
 
-- `AFU-V1-059`: accepted, decision 0512. Impact graph construction MUST
+- `AFU-V1-059`: (accepted, decision 0512) Impact graph construction MUST
   accept the caller context and propagate it through every supported language adapter. Repository
   walks MUST check cancellation at every directory-entry callback, including opted-in skipped
   directories; source reads and cached-file filtering MUST check before each operation. Cancellation

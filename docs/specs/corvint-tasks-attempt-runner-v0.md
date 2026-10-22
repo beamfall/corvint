@@ -144,7 +144,7 @@ on the S19 request-id replay (CAL-V0-069) and the detached attempt runs (ATR-V0-
   record or start when combined wrongly (both modes, a repeat, `--wait` without a mode, a wait
   outside whole seconds 0..600, `--attach` with any other flag or a positional, `--detach` without
   `--request-id`). On a host other than Darwin or Linux they are refused `UNSUPPORTED`.
-- `ATR-V0-021`: (accepted, V1-1547) A repeated `--detach` with the same command, request id and
+- `ATR-V0-021`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1547) A repeated `--detach` with the same command, request id and
   arguments MUST NOT start a second mutation. A launch takes an exclusive lock on the record's
   `lock` file, bounded at 10 seconds (`LOCK_TIMEOUT` past it); with the lock held it starts a child
   only when no `result.json` exists and no child is live. A child is live while it holds the
@@ -157,28 +157,28 @@ on the S19 request-id replay (CAL-V0-069) and the detached attempt runs (ATR-V0-
   and the store's request-id replay (CAL-V0-069) returns a committed claim's attempt and
   generation instead of a second claim. The child checks that `request.json` matches its own
   argv before running.
-- `ATR-V0-022`: (accepted, V1-1547) The child MUST keep the lease command's complete result
+- `ATR-V0-022`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1547) The child MUST keep the lease command's complete result
   envelope as `result.json`. `--detach` and `--attach` MUST return those bytes unchanged, with
   exit 0 for `OK` and 1 otherwise: a claim's `attemptId` and `generation`, or a refusal's
   outcome, codes, warnings and items exactly as the plain command would emit them, never a
   generic timeout or `SUPERVISOR_LOST`. Repeated attaches return the same bytes.
-- `ATR-V0-023`: (accepted, V1-1547) The child MUST be bounded by a 600-second ceiling: the lease
+- `ATR-V0-023`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1547) The child MUST be bounded by a 600-second ceiling: the lease
   command runs under a context deadline at the ceiling, which bounds its lock waits and writer
   (the ceiling exceeds the 300-second `--lock-wait` maximum, CAL-V0-216), and a process still
   running 60 seconds past the ceiling exits 124 without a result, so attach reports it `LOST`.
   The command's own result at the deadline is kept like any other (ATR-V0-022); it is not `OK`.
   `child.json` records `ceilingAt`.
-- `ATR-V0-024`: (accepted, V1-1547) `--wait SECONDS` MUST return within its bound plus the record
+- `ATR-V0-024`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1547) `--wait SECONDS` MUST return within its bound plus the record
   poll (200 ms) and process start: the kept result when it appears, otherwise `REFUSED` with one
   item whose `state` is `PENDING` (request id, command, holder, child pid, start and ceiling
   times), exit 75. `--wait 0` or no `--wait` returns at once. The caller's wait never bounds or
   cancels the child. The item's advisory `progress` member (rounds, audit time and the walk
   split) is PSR-V0-112 and PSR-V0-152 in `docs/specs/corvint-tasks-pool-safe-reuse-v0.md`.
-- `ATR-V0-025`: (accepted, V1-1547) A finished record (one with `result.json`) older than 7 days
+- `ATR-V0-025`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1547) A finished record (one with `result.json`) older than 7 days
   MUST be pruned, best effort and bounded, when a later `--detach` starts; a live or unfinished
   record is never pruned. An attach of an unknown or pruned handle is `REFUSED`
   `MISSING_EVIDENCE`.
-- `ATR-V0-026`: (accepted, V1-1547) Without `--detach`, `--attach` or `--wait` the `claim` and
+- `ATR-V0-026`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1547) Without `--detach`, `--attach` or `--wait` the `claim` and
   `pool acquire` commands MUST be byte-identical to before: the same route, envelope and exit
   code, and no `taskman-requests` record. A lease flag's value (`--branch --detach`) is a value,
   not a detach flag. `claim --help` and `pool acquire --help` document the modes, the ceiling and
@@ -190,11 +190,11 @@ on the S19 request-id replay (CAL-V0-069) and the detached attempt runs (ATR-V0-
   recorded `unknown`, or the probe fails now), no `running` lock once a 60-second startup window
   from `startedAt` has passed. Inside that window an unconfirmed child is `PENDING` and is not
   replaced, so a child still starting is never reported `LOST` and then commits.
-- `ATR-V0-028`: (accepted, V1-1547 review repair) `child.log` MUST be bounded: each launch moves
+- `ATR-V0-028`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1547 review repair) `child.log` MUST be bounded: each launch moves
   the previous run's `child.log` to `child.1.log` (replacing it) and starts an empty `child.log`,
   and what the child itself writes there is capped at 64 KiB, the rest dropped. Restarts therefore
   keep at most two runs' logs; both live in the record directory and are removed with it.
-- `ATR-V0-029`: (accepted, V1-1547 review repair) Retention (ATR-V0-025) MUST page through the
+- `ATR-V0-029`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1547 review repair) Retention (ATR-V0-025) MUST page through the
   whole `taskman-requests` directory, 256 entries at a time and at most 65,536 entries per prune,
   and remove every expired finished record it has seen after the scan, so unfinished or lost
   records listed first never hide finished ones.

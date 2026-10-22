@@ -8,7 +8,8 @@ set -eu
 # the unbalanced-backtick form failed the real corpus on exactly that line. The fourth pins the
 # enumeration to the Git index: `make gate` must measure what a fresh clone contains, not what the
 # dirty worktree happens to hold. V1-1062 adds the unquoted prose range and a real duplicate;
-# RDG-V0-021 adds the outside-Requirements ratchet and its stale-baseline refusal.
+# RDG-V0-021 adds the outside-Requirements ratchet and its stale-baseline refusal; RDG-V0-022 the
+# definition-shaped near miss.
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-requirement-definitions-test.XXXXXX")
@@ -123,6 +124,27 @@ case $out in
     *"docs/specs/alpha.md ALPHA-V0-001"*) ;;
     *) fail "the definitions after the closed fence should be named, got: $out" ;;
 esac
+# shellcheck disable=SC2016
+printf '# Alpha\n\n## Requirements\n\n- `ALPHA-V0-001`: the clause.\n\n- `ALPHA-V0-002`: later.\n' \
+    > "$test_root/docs/specs/alpha.md"
+stage
+
+# RDG-V0-022 (V1-2168): `- `ID` (V1-x): text` is definition-shaped but no definition, so it fails
+# naming the line and the accepted forms; the same shape for an id defined elsewhere passes.
+# shellcheck disable=SC2016
+printf '# Alpha\n\n## Requirements\n\n- `ALPHA-V0-001`: the clause.\n\n- `ALPHA-V0-002` (V1-2168): misshapen.\n' \
+    > "$test_root/docs/specs/alpha.md"
+stage
+if out=$(run); then fail "a definition-shaped line with a note before its colon should fail"; fi
+case $out in
+    *"look like definitions"*'- `ID`: (note) text'*"docs/specs/alpha.md:7 ALPHA-V0-002"*) ;;
+    *) fail "the misshapen definition should be named with the accepted forms, got: $out" ;;
+esac
+# shellcheck disable=SC2016
+printf '# Alpha\n\n## Requirements\n\n- `ALPHA-V0-001`: the clause.\n\n- `ALPHA-V0-002`: later.\n\nALPHA-V0-002 (V1-2168): a traceability line.\n' \
+    > "$test_root/docs/specs/alpha.md"
+stage
+out=$(run) || fail "a traceability line for a defined id should pass, got: $out"
 # shellcheck disable=SC2016
 printf '# Alpha\n\n## Requirements\n\n- `ALPHA-V0-001`: the clause.\n\n- `ALPHA-V0-002`: later.\n' \
     > "$test_root/docs/specs/alpha.md"
