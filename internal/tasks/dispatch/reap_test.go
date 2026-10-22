@@ -3,8 +3,12 @@
 package dispatch
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
+	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"testing"
@@ -28,6 +32,107 @@ func init() {
 		launchedGroups.Lock()
 		launchedGroups.all = append(launchedGroups.all, launchedGroup{pid, id})
 		launchedGroups.Unlock()
+		deadMan.Lock()
+		if deadMan.w != nil {
+			_, _ = fmt.Fprintf(deadMan.w, "%d %s\n", pid, id)
+		}
+		deadMan.Unlock()
+	}
+}
+
+// deadManEnv selects the dead-man reaper mode of this test binary.
+const deadManEnv = "CORVINT_DISPATCH_TEST_DEAD_MAN"
+
+// deadMan is the write end of the reaper's stdin pipe. Only this test
+// binary holds it (os.Pipe sets close-on-exec, so no worker inherits it), so
+// the kernel closes it when the binary dies, even by SIGKILL, when neither
+// t.Cleanup nor TestMain runs (V1-2189, ATR-V0-213).
+var deadMan struct {
+	sync.Mutex
+	w   *os.File
+	cmd *exec.Cmd
+}
+
+// startDeadMan re-executes this test binary as a reaper in its own session,
+// reading launched groups from a pipe until end of file.
+func startDeadMan() error {
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	r, w, err := os.Pipe()
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	cmd := exec.Command(exe, "-test.run=^$")
+	cmd.Env = append(os.Environ(), deadManEnv+"=1")
+	cmd.Stdin = r
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	if err := cmd.Start(); err != nil {
+		w.Close()
+		return err
+	}
+	deadMan.Lock()
+	deadMan.w, deadMan.cmd = w, cmd
+	deadMan.Unlock()
+	return nil
+}
+
+// stopDeadMan closes the pipe after a normal run, whose own leak check has
+// already reaped every group, and waits, bounded, for the reaper.
+func stopDeadMan() {
+	deadMan.Lock()
+	w, cmd := deadMan.w, deadMan.cmd
+	deadMan.w = nil
+	deadMan.Unlock()
+	if w == nil {
+		return
+	}
+	w.Close()
+	done := make(chan struct{})
+	go func() { _ = cmd.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(30 * time.Second):
+		_ = cmd.Process.Kill()
+	}
+}
+
+// runDeadMan reads "pid identity" lines until end of file, which the kernel
+// delivers once the test binary has exited by any means, then sends SIGKILL
+// to each recorded group whose leader still carries its recorded start
+// identity. A group whose leader is gone or unreadable is not attributed and
+// is never signalled, as in reapLaunched.
+func runDeadMan(in *os.File) {
+	var groups []launchedGroup
+	scan := bufio.NewScanner(in)
+	for scan.Scan() {
+		pid, id, ok := strings.Cut(scan.Text(), " ")
+		if n, err := strconv.Atoi(pid); ok && err == nil && n > 0 && id != "" {
+			groups = append(groups, launchedGroup{n, id})
+		}
+	}
+	var killed []int
+	for _, g := range groups {
+		if groupOwned(g) {
+			killed = append(killed, g.pid)
+			_ = syscall.Kill(-g.pid, syscall.SIGKILL)
+		}
+	}
+	// A child forked while the group signal is delivered can miss it. While
+	// a killed group stays present its ID cannot name another group, so it is
+	// signalled again until it empties, within a bound.
+	for i := 0; i < 500 && len(killed) > 0; i++ {
+		var present []int
+		for _, pid := range killed {
+			if syscall.Kill(-pid, syscall.SIGKILL) == nil {
+				present = append(present, pid)
+			}
+		}
+		if killed = present; len(killed) > 0 {
+			time.Sleep(20 * time.Millisecond)
+		}
 	}
 }
 
@@ -114,9 +219,21 @@ func reapOnCleanup(t *testing.T) {
 // its matched leader; such a group is killed and fails the package. A group
 // present under a recorded pid whose leader no longer matches cannot be
 // attributed, so it is reported as a possible leak and never signalled.
+//
+// Cleanups and TestMain never run when the binary is killed, so a dead-man
+// reaper also stops the groups then (ATR-V0-213).
 func TestMain(m *testing.M) {
+	if os.Getenv(deadManEnv) == "1" {
+		runDeadMan(os.Stdin)
+		os.Exit(0)
+	}
+	if err := startDeadMan(); err != nil {
+		fmt.Fprintf(os.Stderr, "FAIL: V1-2189: start the dead-man reaper: %v\n", err)
+		os.Exit(1)
+	}
 	code := m.Run()
 	killed, left, unverified := reapLaunched(0)
+	stopDeadMan()
 	if len(killed) > 0 {
 		fmt.Fprintf(os.Stderr, "FAIL: V1-0948: dispatch tests left worker process groups alive: %v (killed; still present: %v)\n", killed, left)
 		code = 1
