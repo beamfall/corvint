@@ -517,6 +517,29 @@ func TestAFPV0041ObserveRefusesIncompleteOrFailedLogs(t *testing.T) {
 	}
 }
 
+// TestAFPV0041ObserveSkipsTheShadowSummaryLine replays the hosted shard log of a
+// current CI run: the AFP-V0-047 shadow step prints its one-line summary between the
+// go test -json records, and that complete object is not a record (V1-2269).
+func TestAFPV0041ObserveSkipsTheShadowSummaryLine(t *testing.T) {
+	log := `{"Action":"start","Package":"example.org/a"}
+shard (3)\tShadow corvint test plan\t2026-10-21T16:33:20.6098908Z {"scope":"NARROWED","exit":0,"selected":31,"manifestDigest":"sha256:658c76e61d57adedec195fb99ffdc55aebf386ee19a59ce657ff5c735598b5de","incomplete":[]}
+{"Action":"run","Package":"example.org/a","Test":"TestA"}
+{"Action":"pass","Package":"example.org/a","Test":"TestA","Elapsed":1}
+{"Action":"pass","Package":"example.org/a","Elapsed":1}
+2026-10-21T16:33:28.1308545Z {"scope":"FULL","exit":0,"selected":0,"manifestDigest":"sha256:00","incomplete":["no plan"]}
+`
+	log = strings.ReplaceAll(log, `\t`, "\t")
+	o, err := observe([]string{write(t, filepath.Join(t.TempDir(), "shard.log"), log)})
+	if err != nil || len(o.ends["example.org/a"]) != 1 {
+		t.Fatalf("current shard log with the shadow summary refused: %+v, %v", o, err)
+	}
+	// A record behind the summary's text is still interleaved output, not a summary.
+	bad := log + `{"scope":"x"} {"Action":"output","Package":"example.org/a"}` + "\n"
+	if _, err := observe([]string{write(t, filepath.Join(t.TempDir(), "bad.log"), bad)}); err == nil {
+		t.Fatal("accepted a line that is neither one summary nor one record")
+	}
+}
+
 func TestAFPV0041ListParsing(t *testing.T) {
 	ok := "TestA\nBenchmarkB\nExampleC\nFuzzD\nTestÜ\nok  \texample.org/p\t0.1s\n"
 	names, err := parseList([]byte(ok), "example.org/p")
