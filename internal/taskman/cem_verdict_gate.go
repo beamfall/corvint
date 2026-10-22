@@ -3,11 +3,13 @@ package taskman
 import (
 	"bytes"
 	"context"
+	"debug/buildinfo"
 	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"sort"
 	"strings"
 
@@ -347,10 +349,60 @@ func (g *verdictGate) crossCheck(ctx context.Context, in CEMVerdictInput, target
 		return false
 	}
 	if reading.pin.Outcome != native.Outcome || reading.pin.VerdictSha256 != verdict || reading.recomputed != verdict || !bytes.Equal(reading.citation, wire.CanonicalValue(nativeCitation)) {
-		g.refuse(CEMVerdictVerifierDisagreement, "verifier-disagreement")
+		reason := "verifier-disagreement"
+		if verifierBuildsDiffer(verifierBuilds(in.PortableConsumer)) {
+			reason = "verifier-build-mismatch"
+		}
+		g.refuse(CEMVerdictVerifierDisagreement, reason)
 		return false
 	}
 	return true
+}
+
+// verifierBuild is the source identity a Go executable records: its VCS
+// revision and whether the tree was modified. Revision is empty when the build
+// recorded none (go test, a non-Git build or a non-Go wrapper).
+type verifierBuild struct {
+	Revision string
+	Modified bool
+}
+
+// verifierBuilds reads the recorded build of this verifier and of the portable
+// consumer executable (TCB-V0-045). It runs only after a disagreement and never
+// executes the consumer.
+var verifierBuilds = func(consumer string) (native, portable verifierBuild) {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		native = recordedBuild(info)
+	}
+	if info, err := buildinfo.ReadFile(consumer); err == nil {
+		portable = recordedBuild(info)
+	}
+	return native, portable
+}
+
+func recordedBuild(info *debug.BuildInfo) verifierBuild {
+	var b verifierBuild
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			b.Revision = s.Value
+		case "vcs.modified":
+			b.Modified = s.Value == "true"
+		}
+	}
+	return b
+}
+
+// verifierBuildsDiffer reports a disagreement that the two legs' builds
+// explain (TCB-V0-045): both recorded a revision, and the revisions differ or
+// either tree was modified, so the legs are not known to share their source.
+// An unrecorded build on either side proves nothing and keeps
+// verifier-disagreement.
+func verifierBuildsDiffer(native, portable verifierBuild) bool {
+	if native.Revision == "" || portable.Revision == "" {
+		return false
+	}
+	return native.Revision != portable.Revision || native.Modified || portable.Modified
 }
 
 // runPortableConsumer hands the exact map bytes to the portable consumer

@@ -49,6 +49,8 @@ func TestNativeMatrix(t *testing.T) {
 				}
 				if f == "sqlite" && (c.name == "fail" || c.name == "infra") {
 					exit = 1
+				}
+				if f == "sqlite" && c.name == "fail" {
 					complete = true
 					state = tr.Failed
 				}
@@ -84,6 +86,37 @@ func TestNativeMatrix(t *testing.T) {
 	o, e := Parse(in)
 	if e != nil || o.Complete {
 		t.Fatal(o, e)
+	}
+}
+
+// TestSQLiteRejectedQueryIsNotAnAssertion pins TRE-V0-118 with the captured
+// native streams: an engine-rejected query ("query failed") is incomplete, a
+// result mismatch ("wrong result") stays a complete FAILED suite.
+func TestSQLiteRejectedQueryIsNotAnAssertion(t *testing.T) {
+	rejected := func(o tr.Observation) bool {
+		for _, p := range o.Problems {
+			if p.Code == "SQL_QUERY_REJECTED" {
+				return true
+			}
+		}
+		return false
+	}
+	in := nativeInput(t, "sqlite", "infra", 1)
+	o, e := Parse(in)
+	if e != nil || o.Complete || !rejected(o) {
+		t.Fatalf("rejected query: %+v %v", o, e)
+	}
+	if n := tr.Normalize(in, o); n.Complete || len(n.Tests) != 1 || n.Tests[0].State == tr.Failed {
+		t.Fatalf("normalized rejected query kept a verdict: %+v", n)
+	}
+	in = nativeInput(t, "sqlite", "fail", 1)
+	if o, e = Parse(in); e != nil || !o.Complete || rejected(o) {
+		t.Fatalf("result mismatch: %+v %v", o, e)
+	}
+	in = nativeInput(t, "sqlite", "fail", 1)
+	in.Stdout = append(in.Stdout, []byte("other.slt:2: query failed\n")...)
+	if o, e = Parse(in); e != nil || rejected(o) {
+		t.Fatalf("another file's diagnostic matched: %+v %v", o, e)
 	}
 }
 func TestTAPRefusals(t *testing.T) {

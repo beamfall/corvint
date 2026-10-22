@@ -34,6 +34,30 @@ checking compares the original generation's bytes, including unexpected files. N
 finalize writes files. Check exits 0 without drift, 1 for drift and 2 for invalid input. `--previous`
 on generate validates the supplied predecessor; use check to obtain the explicit transition delta.
 
+## Use your own flow inventory
+
+By default every supported declaration in scope becomes its own flow. A project that keeps a
+reviewed flow list can pass it with `--flows FILE` instead:
+
+```json
+{"schema": "corvint-flow-inventory/1", "flows": [
+  {"id": "checkout", "title": "Checkout",
+   "members": [{"path": "app/controllers/checkout_controller.rb"},
+               {"path": "app/services/charge.rb", "symbol": "Charge#call"}],
+   "entry_points": [{"path": "app/controllers/checkout_controller.rb"}]}]}
+```
+
+Each declared flow becomes one flow, titled as declared, that aggregates its members' calls, claims
+and corpus context. A member without `symbol` takes every declaration in its path; `symbol` is the
+declaration name generate reports (for example `Charge#call`). Entry points must be members.
+Members that do not resolve at the revision are listed with a reason in `generation.json`
+(`inventory.flows[].unresolved`) and in the flow README; a declared flow with no resolved member is
+reported but gets no pages. In-scope declarations that no declared flow claims are listed in
+`inventory.unassigned` and are not turned into flows. Members must lie inside `--scope`. The
+inventory is kept in `generation.json`, so `check` rederives the same identities and reports each
+flow, paragraph and claim fresh, stale or unresolved; a removed member's claims are unresolved and
+retired. Malformed, duplicate or overlapping inventories are refused. Contract: `AFU-V1-101..106`.
+
 ## Admit the provider to the corpus
 
 Generate at immutable source commit A. Explicitly retain `provider.json` in the repository and commit
@@ -59,6 +83,11 @@ Gitlink identity changes appear separately in `opaque_changes` and make check fa
 
 Supply `--corpus /path/to/validated-corpus.json` to import original evidence context. The artifact must
 pass `doccorpus.Open` against this repository and have the same source repository/revision as generation.
+Supported shape: the documented repository at `--revision` is the corpus's primary repository. It may
+declare further `additional_repositories`, whose roots resolve against `--root`. A corpus whose primary
+is another repository is refused up front as `flowdocs-corpus-repository-mismatch`, which names both
+repositories. This includes a multi-repository corpus that declares the documented repository only as
+an additional repository. Build the corpus with the documented repository as its primary.
 The artifact retains its original manifest, records and anchors in the generation manifest. Finalize
 preserves that manifest and adds missing source inputs and the new provider. A corpus already owning
 a `flowdocs` provider must be regenerated from the caller's original input manifest first.

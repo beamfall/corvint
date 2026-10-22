@@ -326,7 +326,14 @@ func (trace *Trace) attachFrames(files map[string]*zip.File, contexts []string) 
 			if event.Type != "before" || event.Class != "Frame" || event.Method != "expect" {
 				continue
 			}
-			index, ok := byStep[event.StepID]
+			// Playwright 1.63 links the library call to its runner expect
+			// step with stepId; 1.64 drops stepId and reuses the runner
+			// step's callId (LPCV-V0-290).
+			link := event.StepID
+			if link == "" {
+				link = event.CallID
+			}
+			index, ok := byStep[link]
 			if !ok {
 				continue
 			}

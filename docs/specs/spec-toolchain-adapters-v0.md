@@ -10,7 +10,7 @@ Authoritative inputs: `AGENTS.md` invariants 2, 3, 6 and 7, decision 0540, decis
 
 ## Agent digest
 - Claim: Corvint reads pinned OpenSpec and Spec Kit projects as declared OCM intent forms with native IDs, and CI checks them against upstream.
-- Status: accepted intent (owner, 2026-10-17, decision 0540); delivery experimental (partial, `STA-V0-001` to `STA-V0-013` built): the version pins, forms, context classification, host packaging, conformance job, latest-release check and self-development route exist, and `OIF-V0` is accepted (decision 0541), but nothing is advertised as delivered until a `spec-toolchain-conformance` CI run passes (`STA-V0-011`).
+- Status: accepted intent (owner, 2026-10-17, decision 0540); delivery experimental (partial, `STA-V0-001` to `STA-V0-014` built): the version pins, forms, context classification, host packaging, conformance job, latest-release check and self-development route exist, and `OIF-V0` is accepted (decision 0541), but nothing is advertised as delivered until a `spec-toolchain-conformance` CI run passes (`STA-V0-011`).
 - Exists: pins in `interop/spec-toolchains/versions.json`, forms in `internal/lrfrepo/ocm_toolchain_forms.go`, path classification in `internal/contextindex/toolchain_status.go`, packages under `protocol/integrations/{speckit,openspec}/`, fixtures under `interop/spec-toolchains/fixtures/`, `script/spec-toolchain-{conformance,latest}.sh`.
 - Blocked on: a passing `spec-toolchain-conformance` CI run (`STA-V0-011`, V1-1697); it passed locally on 2026-10-18.
 - Read next: Requirements; Lanes.
@@ -89,6 +89,8 @@ Corvint at `d35b0ee3`:
   | `specs/<feature>/spec.md` with `.specify/` present at the root | `**Status**:` text above the first level-2 heading, lowercased; `draft` when absent | — | header text |
   | `.specify/memory/constitution.md` | — | `instructions` | — |
 
+  "`.specify/` present at the root" means the pinned index holds at least one admitted source whose path starts with `.specify/`. It is never a filesystem probe, so a `.specify/` directory that is untracked, ignored or wholly excluded does not make `specs/<feature>/spec.md` a Spec Kit spec (`specKitPresent` in `internal/contextindex/toolchain_status.go`).
+
   Each result keeps the native state field so the reader sees the upstream lifecycle, not only Corvint's label. An instructions file under `openspec/changes/` takes the row's status and is never binding.
 - `STA-V0-008`: `protocol/integrations/speckit/corvint/` holds a Spec Kit extension (Apache-2.0, `LICENSING.md` boundary).
   - Manifest: `schema_version: "1.0"`, id `corvint`, `extension.effect: read-only` (where Spec Kit validates it), `requires.speckit_version: ">=1.2.1,<2"`, and a `requires.tools` entry for `corvint`.
@@ -109,6 +111,7 @@ Corvint at `d35b0ee3`:
   Any mismatch fails the job. The job runs on changes to its inputs, the forms and the integrations, not on every PR.
 - `STA-V0-012`: `script/spec-toolchain-latest.sh` (operator-run, network) compares `STA-V0-001` with the npm registry and the GitHub latest release. It prints `CURRENT`, `BEHIND <latest>` or `UNAVAILABLE` for each toolchain; of those verdicts only `BEHIND` makes it exit non-zero (1). A setup error, a missing `jq` or `curl` or a manifest that is missing, empty, unparsable or has no complete toolchain entry, prints no verdict and exits 2. Moving to a new release means a manifest edit, a green conformance job and a traced spec update in the same change.
 - `STA-V0-013`: `docs/SELF-DEVELOPMENT.md` gains a route for changes to these forms or integrations. The route uses `corvint affected`, the forms' focused tests and `make spec-toolchain-conformance`.
+- `STA-V0-014`: A tracked symlink at the root `AGENTS.md` is a Git blob (mode 120000) holding the target path, not an authority document, and no consumer follows it. The authority-start query refuses with `unsupported-query-authority` and a message that names the symlink; Codex governance context reports `AGENTS.md` unavailable. Keep the guide a regular file (or make the symlink the secondary name, for example `CLAUDE.md` pointing at `AGENTS.md`). Resolving a tracked symlink to a tracked regular file in the same tree at the same revision is a post-1.0 idea (V1-1272, V1-1325, V1-2181).
 
 ## Non-goals
 
@@ -145,7 +148,7 @@ Corvint at `d35b0ee3`:
   `TestSTAV0010_FixturesDerive`; in `cmd/corvint`, `TestSTAV0004_PrepareEnvelopeNativeMembers` and
   `TestSTAV0006_PrepareIntentFormFlag`.
 - `internal/contextindex` tests cover `STA-V0-007`: `TestSTAV0007_ToolchainPathClassification` and
-  `TestSTAV0007_NonToolchainPathsUnchanged`.
+  `TestSTAV0007_NonToolchainPathsUnchanged`; `TestSTAV0014_SymlinkedRootGuideIsNotAuthority` covers `STA-V0-014`.
 - `protocol/integrations` static tests cover the package shape and read-only commands:
   `TestSTAV0008_SpecKitExtensionManifest` and `TestSTAV0009_OpenSpecIntegration`.
 - `internal/lrfrepo` covers `STA-V0-001`: the manifest shape, and the npm lock and hashed Spec Kit
@@ -169,7 +172,7 @@ Corvint at `d35b0ee3`:
 
 1. Intent forms and fixtures (`STA-V0-002` to `STA-V0-006`, `STA-V0-010`): `internal/lrfrepo/`,
    `cmd/corvint/ocm.go` help, `interop/spec-toolchains/fixtures/`.
-2. Context classification (`STA-V0-007`): `internal/contextindex/`.
+2. Context classification (`STA-V0-007`, `STA-V0-014`): `internal/contextindex/`.
 3. Host packaging (`STA-V0-008`, `STA-V0-009`): `protocol/integrations/`.
 4. Conformance and versions (`STA-V0-001`, `STA-V0-011` to `STA-V0-013`): `interop/spec-toolchains/`
    (not fixtures), `Makefile`, `.github/workflows/`, `script/`, `docs/SELF-DEVELOPMENT.md`. Starts

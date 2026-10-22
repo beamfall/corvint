@@ -23,10 +23,14 @@ type Repository struct {
 // root-commit identity, its one pinned revision and the local checkout holding its objects, as a
 // clean path relative to the primary repository root. The locator grants no identity; the build
 // verifies both against the checkout and never fetches or discovers a repository.
+//
+// Revisions optionally pins further, older commits of the same repository, read from the same
+// checkout (DCP-V1-308); Revision stays the declared current one that freshness compares.
 type AdditionalRepository struct {
-	ID       string `json:"id"`
-	Revision string `json:"revision"`
-	Root     string `json:"root"`
+	ID        string   `json:"id"`
+	Revision  string   `json:"revision"`
+	Revisions []string `json:"revisions,omitempty"`
+	Root      string   `json:"root"`
 }
 type Profile struct {
 	ID       string   `json:"id"`
@@ -178,6 +182,7 @@ type ProviderRecord struct {
 	BehaviorContracts  *BehaviorRegistry        `json:"behavior_contracts,omitempty"`
 	TestKnowledge      *TestKnowledgeSet        `json:"test_knowledge,omitempty"`
 	FlowRelations      *FlowRelationSet         `json:"flow_relations,omitempty"`
+	ClaimAudits        *ClaimAuditSet           `json:"claim_audits,omitempty"`
 	// Gaps are producer-supplied gap claims (DCP-V1-185); adoption schema only.
 	Gaps         []SuppliedGap           `json:"gaps,omitempty"`
 	Schema       string                  `json:"schema"`
@@ -231,6 +236,7 @@ type Artifact struct {
 	StabilityEvidence   []StabilityReport        `json:"stability_evidence,omitempty"`
 	TestKnowledge       []TestKnowledgeJoin      `json:"test_knowledge,omitempty"`
 	FlowRelations       []FlowRelationJoin       `json:"flow_relations,omitempty"`
+	ClaimAudits         []ClaimAuditJoin         `json:"claim_audits,omitempty"`
 	SuppliedGaps        []SuppliedGap            `json:"supplied_gaps,omitempty"`
 	Schema              string                   `json:"schema"`
 	Builder             Builder                  `json:"builder"`
@@ -260,13 +266,21 @@ type Request struct {
 	// nil means absent.
 	Sections []string `json:"sections,omitempty"`
 	Include  []string `json:"include,omitempty"`
+	// Repository optionally restricts locate and recommend-tests to one declared repository's
+	// root-commit identity (DCP-V1-310).
+	Repository string `json:"repository,omitempty"`
+	// Kinds filters a gaps query to the named gap kinds (DCP-V1-284); nil means absent.
+	Kinds []string `json:"kinds,omitempty"`
 }
 type Receipt struct {
 	Envelope  *TrustEnvelope      `json:"trust_envelope,omitempty"`
 	Meaning   string              `json:"meaning,omitempty"`
 	Selection *TestRecommendation `json:"test_selection,omitempty"`
 	// FlowSelection is present only on a filtered flow query (DCP-V1-172).
-	FlowSelection  *FlowSelection           `json:"flow_selection,omitempty"`
+	FlowSelection *FlowSelection `json:"flow_selection,omitempty"`
+	// KindTotals counts, per requested kind, the gaps a kind-filtered gaps query matched before
+	// paging; present only with a kind filter (DCP-V1-284).
+	KindTotals     map[string]int           `json:"kind_totals,omitempty"`
 	Offset         int                      `json:"offset,omitempty"`
 	NextOffset     *int                     `json:"next_offset,omitempty"`
 	Details        map[string]RecordDetails `json:"details,omitempty"`
@@ -284,9 +298,15 @@ type Receipt struct {
 	Capabilities   []Capability             `json:"capabilities"`
 	Limitations    []string                 `json:"limitations"`
 	Omitted        int                      `json:"omitted"`
+	// ClaimAudits shows each visible claim's audit verdicts, present only when the corpus
+	// holds claim-audit records (DCP-V1-263).
+	ClaimAudits map[string][]ClaimAuditView `json:"claim_audits,omitempty"`
 	// SymbolAnchors is the live re-resolution of each cited symbol anchor,
 	// present only from a live reader (DCP-V1-141).
 	SymbolAnchors []SymbolAnchorCheck `json:"symbol_anchors,omitempty"`
+	// ResultRepositories names the repository of each locate or recommend-tests result when the
+	// artifact spans more than one repository (DCP-V1-311); absent otherwise.
+	ResultRepositories map[string]string `json:"result_repositories,omitempty"`
 }
 type Error struct {
 	Code    string

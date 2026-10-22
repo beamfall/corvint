@@ -2,7 +2,8 @@
 set -eu
 
 # Covers SRG-V0-001 (cases 1-3), SRG-V0-005 (case 4), SRG-V0-002/003 (case 5), SRG-V0-009 (case 6),
-# SRG-V0-012 (case 7), SRG-V0-010 (case 8), SRG-V0-015 (case 9) and SRG-V0-018 (case 10).
+# SRG-V0-012 and SRG-V0-043 (case 7), SRG-V0-010 (case 8), SRG-V0-015 (case 9), SRG-V0-018 (case 10)
+# and SRG-V0-042 (case 11).
 # SRG-V0-001: the generated index must be the one a fresh clone reproduces, so the enumeration is
 # the Git index and nothing the worktree alone says can change the output. The three cases are the drift directions reproduced in
 # `docs/specs/spec-requirement-index-generator-v0.md`: an untracked spec, a tracked spec
@@ -122,7 +123,7 @@ cat > "$test_root/docs/specs/accept.md" <<SPEC
 - ACC-004: (proposed; not accepted by decision 0478) A negated line.
 - ACC-005: (accepted, decision 0478 An unbalanced marker runs to the end of the line.
 - ACC-006: No marker.
-- ACC-007: (accepted) No anchor.
+- ACC-007: (proposed) No acceptance word.
 | ACC-008 | (accepted, decision 0478) a table row |
 - ACC-009: (owner-approved standing exception, decision 0478; #12) Standing wins.
 - ACC-010: ($late accepted, decision 0478) An anchor past the title cut.
@@ -211,7 +212,7 @@ Prose stays.
 
 | Scope | Contract | Intent | Delivery | Binding evidence or next gate |
 | --- | --- | --- | --- | --- |
-| One scope | [`one.md`](one.md) | proposed | not-started | A stale claim. Tail stays. |
+| One scope | [`one.md`](one.md) ONE-V0-001..009 | proposed | not-started | A stale claim. Tail stays. |
 | One section | [`one.md`](one.md#requirements) | anchored | kept | Anchored rows stay. |
 | Outside | [`notes`](../notes.md) | n/a | n/a | Non-spec rows stay. |
 
@@ -256,7 +257,7 @@ Prose stays.
 
 | Scope | Contract | Intent | Delivery | Binding evidence or next gate |
 | --- | --- | --- | --- | --- |
-| One scope | [`one.md`](one.md) | accepted (history: REQUIREMENTS.tsv acceptance columns and docs/build-log) | implemented | One does the first thing. Tail stays. |
+| One scope | [`one.md`](one.md) ONE-V0-001 | accepted (history: REQUIREMENTS.tsv acceptance columns and docs/build-log) | implemented | One does the first thing. Tail stays. |
 | One section | [`one.md`](one.md#requirements) | anchored | kept | Anchored rows stay. |
 | Outside | [`notes`](../notes.md) | n/a | n/a | Non-spec rows stay. |
 | Two spec | [`two.md`](two.md) | proposed | not-started | Two does the second thing. |
@@ -274,6 +275,18 @@ gen --index | cmp - "$project/docs/specs/INDEX.json" || fail "--index is not a f
 gen --readme | cmp - "$project/docs/specs/README.md" || fail "--readme is not a fixed point"
 gen --lines | grep -q '^ONE-V0-001	docs/specs/one.md	10	.*	standing	2026-10-11; V1-1347$' ||
   fail "the projected spec lost its standing row"
+# SRG-V0-043: the Contract-cell range follows the spec's ids, and a range whose prefix the spec
+# never defines is refused rather than kept.
+sed 's/(one\.md) ONE-V0-001 /(one.md) ONE-V0-001..003; extra /' "$project/docs/specs/README.md" > "$test_root/readme-range"
+cp "$test_root/readme-range" "$project/docs/specs/README.md"
+git -C "$project" add -- docs/specs/README.md
+gen --readme | grep -qF '| [`one.md`](one.md) ONE-V0-001; extra |' || fail "--readme kept a stale range before a ';'"
+sed 's/(one\.md) ONE-V0-001\.\.003; extra /(one.md) NONE-V0-001 /' "$test_root/readme-range" > "$project/docs/specs/README.md"
+git -C "$project" add -- docs/specs/README.md
+range_err=$(gen --readme 2>&1 > /dev/null) && fail "a range with an undefined prefix was accepted"
+case $range_err in *"docs/specs/one.md: its README row shows a NONE-V0- range but the spec defines no NONE-V0- id"*) ;; *) fail "the range refusal printed: $range_err" ;; esac
+cp "$test_root/got-readme" "$project/docs/specs/README.md"
+git -C "$project" add -- docs/specs/README.md
 
 # 8. SRG-V0-010: the audit lists standing requirements by spec, names a standing marker that is
 # not leading as UNPARSED_STANDING (but not a clause that only mentions a standing approval), and
@@ -391,5 +404,29 @@ for mode in '' --lines --index --readme; do
   case $long_err in *"docs/specs/two.md: the Agent digest Claim is 165 characters; the limit is 160"*) ;; *) fail "mode '${mode:-tsv}' did not name the long claim: $long_err" ;; esac
 done
 if gen --bogus > /dev/null 2>&1; then fail "an unknown mode was accepted"; else test $? = 2 || fail "an unknown mode did not exit 2"; fi
+
+# 11. SRG-V0-042: an acceptance note the SRG-V0-009 reader would misread is refused with the line,
+# the id, the reason and the accepted forms; the exact forms and an adjective "Accepted" pass.
+cat > "$test_root/docs/specs/near.md" <<'SPEC'
+- NEAR-001: (accepted under the owner's standing auto-accept (2026-10-11); V1-1347) Exact standing.
+- NEAR-002: (accepted, decision 0478; V1-0309) Exact owner.
+- NEAR-003: Accepted closed inputs MUST stay typed.
+- NEAR-004: (accepted, owner lane auto-acceptance 2026-10-11; V1-1463) Near miss: no standing.
+- NEAR-005: (accepted, V1-1547) Near miss: no anchor.
+- NEAR-006: accepted, decision 0506. Near miss: no parentheses.
+SPEC
+stage docs/specs/near.md
+near_err=$(run 2>&1 > /dev/null) && fail "near-miss acceptance notes were accepted"
+for want in \
+  'docs/specs/near.md:4: NEAR-004: an auto-acceptance note must name the standing approval' \
+  'docs/specs/near.md:5: NEAR-005: the acceptance note records no decision number or date' \
+  'docs/specs/near.md:6: NEAR-006: the acceptance note is not parenthesized, so it is not read' \
+  "(accepted under the owner's standing auto-accept (YYYY-MM-DD); V1-NNNN)"; do
+  case $near_err in *"$want"*) ;; *) fail "the near-miss refusal lacks '$want': $near_err" ;; esac
+done
+case $near_err in *NEAR-00[123]*) fail "an exact or adjective form was refused: $near_err" ;; esac
+sed -i.bak '4,6d' "$test_root/docs/specs/near.md"
+stage docs/specs/near.md
+run > /dev/null || fail "the exact acceptance forms were refused"
 
 printf 'ok\n'

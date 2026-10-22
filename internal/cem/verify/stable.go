@@ -80,6 +80,11 @@ type StableResult struct {
 	// VerdictSha256 is recomputed by MarshalJSON on every encoding; a value
 	// held in the struct is never emitted (CEM-V1-066).
 	VerdictSha256 string `json:"verdictSha256"`
+	// LimitCause is the bounded Git error behind an unsupported-resource-limit
+	// refusal, naming the bound that fired and its value. It is never encoded,
+	// so cem-stable-verification/1 bytes and verdictSha256 are unchanged
+	// (OCM-V0-026; V1-2170).
+	LimitCause string `json:"-"`
 }
 type StableDrift struct {
 	EvidenceID    string           `json:"evidenceId"`
@@ -305,6 +310,7 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 		}
 		switch code {
 		case "git-output-exceeded", "git-budget-exceeded":
+			r.LimitCause = e.Error()
 			return r.Refuse("repository", "unsupported-resource-limit", true)
 		case "git-start-failed", "git-exit-failure":
 			return r.Refuse("repository", "git-read-failed", true)
@@ -317,6 +323,9 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 				return r.Refuse(stage, code, true)
 			}
 		case "repository-object-unavailable", "unsupported-object-alternates", "git-read-failed", "unsupported-resource-limit", "unsupported-repository-envelope", "unsupported-patch-inventory", "git-timeout", "verification-timeout", "git-diff-failed":
+			if code == "unsupported-resource-limit" {
+				r.LimitCause = e.Error()
+			}
 			return r.Refuse("repository", code, true)
 		}
 		r.Axes["changeIntegrity"] = "FAILED"

@@ -213,6 +213,21 @@ func expandContextHandle(ctx context.Context, root, text string, maxBytes int) (
 	}
 	deadline, cancel := context.WithTimeout(ctx, sourceDeadline(ctx))
 	defer cancel()
+	result, err := expandPinnedHandle(deadline, root, text, handle, maxBytes)
+	if err != nil && deadline.Err() != nil {
+		// A Git read cut short by the bound fails like a missing or invalid
+		// object; name the cause instead (ESV-V0-013, V1-1412).
+		cause := fmt.Sprintf("the %s source-read bound expired before the expansion finished", sourceDeadline(ctx))
+		if errors.Is(deadline.Err(), context.Canceled) {
+			cause = "the expansion was cancelled before it finished"
+		}
+		return nil, contextHandleError("deadline-exceeded", cause)
+	}
+	return result, err
+}
+
+// expandPinnedHandle runs expandContextHandle's Git reads under its deadline.
+func expandPinnedHandle(deadline context.Context, root, text string, handle contextHandle, maxBytes int) (map[string]any, error) {
 	if !sourceIsToplevel(deadline, root) {
 		return nil, contextHandleError("repository-root", "the root is not its Git toplevel")
 	}

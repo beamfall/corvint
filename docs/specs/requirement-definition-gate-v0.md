@@ -96,6 +96,16 @@ row-only id or duplicate definition exists in the corpus.
   or tildes indented at most three spaces opens a fence (a backtick fence's info string holds no
   backtick), and only a run of the same character at least as long, followed by nothing but spaces
   or tabs, closes it (Codex review of the V1-0798 lane).
+- `RDG-V0-022`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2168) The gate MUST
+  fail on a line that looks like a definition but is not one because a parenthetical sits between
+  the id and its colon (optional bullet and `**`, the id with balanced backticks, optional `**`, a
+  parenthetical holding at most one nested level, optional `**`, then `:`, as in
+  `` - `ID` (V1-x): text ``), when no definition of that id is read anywhere. The diagnostic MUST
+  name `<path>:<line> <ID>` and the accepted forms (`` - `ID`: (note) text ``,
+  `- **ID:** (note) text`, `- **ID.** (note) text`), which `docs/SPEC-DRIVEN-DEVELOPMENT.md` lists.
+  A line of that shape for an id defined elsewhere (a traceability note) passes. Non-goal: other
+  misspellings, such as a dash after the id, are not diagnosed. Rollback: delete the `@misshapen`
+  scan and its report.
 
 ## Non-goals and simpler baseline
 
@@ -144,6 +154,7 @@ repair it was written to make mechanically checkable.
 | RDG-V0-007 | the script contains no write, and its final statement is `exit($failed)` gated on the failure arrays |
 | RDG-V0-004 (`..` range, V1-1062) | `script/check-requirement-definitions_test.sh`: `ALPHA-V0-001..003 are` prose passes, a real `ALPHA-V0-001.` duplicate fails; the live corpus matches 4948 definition lines under both the old and the new pattern |
 | RDG-V0-021 | `script/check-requirement-definitions_test.sh`: an unlisted outside definition fails, a listed one passes, a stale row fails, a fenced `##` line does not end the section, a three-backtick line inside a four-backtick fence does not close it while a closed three-backtick fence does; `TestRDGV0021MovedDefinitionsAreEnumerated` shows OCM enumerates LTPM-V0-001..016 after the move (CAL-V0-073 and CAL-V0-106 stay baseline rows, because moving them would take the leases Requirements section past the 256-obligation OCM limit); baseline of 604 rows across 10 specs at this change |
+| RDG-V0-022 | `script/check-requirement-definitions_test.sh`: `` - `ALPHA-V0-002` (V1-2168): `` fails naming `docs/specs/alpha.md:7 ALPHA-V0-002` and the accepted forms (the base gate did not name that line), and the same shape for a defined id passes; the live corpus has 0 hits at this change |
 
 ## Traceability
 
@@ -154,6 +165,7 @@ repair it was written to make mechanically checkable.
 | RDG-V0-003, RDG-V0-004 | the `%defined` scan of `docs/specs/*.md` and the undefined-id report | `requirement-definitions-check` |
 | RDG-V0-005 | the duplicate-location report over `%defined` | `requirement-definitions-check`; historical repair in `../BUILD-LOG.md` |
 | RDG-V0-007 | the collected `$failed` flag and final `exit($failed)` | `make gate` membership; the script performs no write |
+| RDG-V0-022 | the `@misshapen` scan and its report in `script/check-requirement-definitions.sh` | `script/check-requirement-definitions_test.sh`; `requirement-definitions-check` |
 | RDG-V0-021 | the `@outside` scan and the baseline comparison in `script/check-requirement-definitions.sh`; `script/requirement-definitions-outside-section.txt` | `script/check-requirement-definitions_test.sh`; `TestRDGV0021MovedDefinitionsAreEnumerated` |
 
 ## Rollout, rollback, and drift

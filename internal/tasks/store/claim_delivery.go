@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"path/filepath"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
@@ -93,4 +94,25 @@ func ReadOperatorNote(repo *intent.Repository, id wire.TicketID, ref ticket.Oper
 		return nil, nil, err
 	}
 	return event, request, nil
+}
+
+// claimGrantWarnings names the grants an APPROVAL_REQUIRED ticket still
+// lacks through completion when a fresh claim succeeds (ATR-V0-274), so the
+// holder learns of a missing COMPLETE grant before complete refuses it. It
+// reads the intent record the claim bound and is silent when that record has
+// moved since or cannot be read: the warning is advisory, never admission.
+func claimGrantWarnings(repo *intent.Repository, a *snapshot.Attempt) []string {
+	raw, err := intent.ReadFile(filepath.Join(repo.IntentRoot(), intent.Dir, "tickets", a.TicketID.Local+".json"), wire.MaxTicketFileBytes)
+	if err != nil || wire.Sum(raw) != a.TicketRecordSha256 {
+		return nil
+	}
+	rec, err := ticket.Decode(raw)
+	if err != nil {
+		return nil
+	}
+	missing := ticket.MissingGrants(rec)
+	if len(missing) == 0 {
+		return nil
+	}
+	return []string{"ticket " + a.TicketID.Raw + " is APPROVAL_REQUIRED and holds no " + strings.Join(missing, ",") + " grant at acceptanceRevision " + string(rec.AcceptanceRevision) + "; complete refuses APPROVAL_MISSING until an owner grants it"}
 }

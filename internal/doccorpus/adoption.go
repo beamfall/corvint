@@ -21,6 +21,7 @@ type RecordDetails struct {
 	Status           *SuppliedStatusDetails   `json:"status,omitempty"`
 	TestRun          *SuppliedTestRunDetails  `json:"test_run,omitempty"`
 	LegacyCase       *LegacyCaseLinkDetails   `json:"legacy_case,omitempty"`
+	MigrationMapping *MigrationMappingDetails `json:"migration_mapping,omitempty"`
 }
 type FlowDetails struct {
 	Sections    []FlowSection `json:"sections"`
@@ -69,10 +70,13 @@ type IntentComparisonDetails struct {
 }
 
 // SuppliedStatusDetails is a producer's readiness or proof status for the
-// subject of the claim it details (DCP-V1-187). It is supplied, not derived:
-// a "proven" state grants no trust and changes no compiler-computed result.
+// subject of the claim it details (DCP-V1-187, DCP-V1-300). It is supplied,
+// not derived: a "proven" state grants no trust and changes no
+// compiler-computed result. A qualifier keeps a provisional or
+// classification-only outcome apart from the plain state.
 type SuppliedStatusDetails struct {
 	State      string   `json:"state"`
+	Qualifier  string   `json:"qualifier,omitempty"`
 	Reason     string   `json:"reason"`
 	Supporting []string `json:"supporting"`
 }
@@ -87,6 +91,28 @@ type SuppliedTestRunDetails struct {
 	Origin   string `json:"origin"`
 	Revision string `json:"revision,omitempty"`
 	At       string `json:"at,omitempty"`
+	// Optional run-ledger fields (DCP-V1-303), each from a closed set. They are
+	// supplied, never derived, and grant no trust.
+	Retries        *int                  `json:"retries,omitempty"`
+	FlakeVerdict   string                `json:"flake_verdict,omitempty"`
+	Cleanup        string                `json:"cleanup,omitempty"`
+	ControlOutcome string                `json:"control_outcome,omitempty"`
+	Validity       []SuppliedRunValidity `json:"validity,omitempty"`
+}
+
+// SuppliedRunValidity is one supplied validity axis of a test run (DCP-V1-303).
+type SuppliedRunValidity struct {
+	Axis   string `json:"axis"`
+	Status string `json:"status"`
+}
+
+// MigrationMappingDetails types a migration_mapping relation between two
+// inventory units of a code-migration ledger (DCP-V1-306). A one-sided
+// outcome names the same unit at both ends. It is supplied, not derived.
+type MigrationMappingDetails struct {
+	Outcome string `json:"outcome"`
+	Basis   string `json:"basis"`
+	Run     string `json:"run,omitempty"`
 }
 
 // LegacyCaseLinkDetails names the external test-management case a
@@ -120,10 +146,35 @@ type ImportParity struct {
 
 var flowSections = []string{"readme", "entry-points", "flow-diagram", "functional-overview", "technical-deep-dive", "entities", "exceptions", "related-flows"}
 var adoptionSubjectKinds = words("flow paragraph variation coverage_definition ticket intent_comparison inventory manual_case")
-var adoptionRelationKinds = words("asserts navigates retired_to manual_case_for")
+var adoptionRelationKinds = words("asserts navigates retired_to manual_case_for migration_mapping")
 
-// suppliedStatusStates is the closed producer status vocabulary (DCP-V1-187).
-var suppliedStatusStates = words("blocked ready proven")
+// suppliedStatusStates is the closed producer status vocabulary (DCP-V1-187,
+// widened by DCP-V1-300); suppliedStatusQualifiers is its closed optional
+// qualifier set.
+var suppliedStatusStates = words("blocked ready proven partial not-demonstrable disputed obsolete not-established unknown")
+var suppliedStatusQualifiers = words("provisional classification-only")
+
+// Closed optional test-run ledger vocabularies (DCP-V1-303).
+var (
+	suppliedFlakeVerdicts  = words("stable flaky unqualified unknown")
+	suppliedRunCleanups    = words("passed failed partial not-run unknown")
+	suppliedValidityAxes   = words("revision environment isolation oracle determinism")
+	suppliedValidityStatus = words("passed failed unknown not-applicable")
+)
+
+// Closed migration mapping vocabularies (DCP-V1-306). The one-sided outcomes
+// name the same unit at both ends of the relation; every other outcome joins
+// two distinct units.
+var (
+	migrationOutcomes = words("unchanged modified moved renamed copied added removed ambiguous unresolved")
+	migrationOneSided = words("added removed unresolved")
+	migrationBases    = words("stable_id region_hash content_hash path symbol declared unknown")
+)
+
+const (
+	maxSuppliedRunRetries    = 1 << 20
+	maxSuppliedRunIdentifier = 1024
+)
 
 // suppliedTestRunOutcomes is the closed test-run outcome vocabulary (DCP-V1-210).
 var suppliedTestRunOutcomes = words("passed failed skipped errored")
@@ -222,7 +273,9 @@ func (c *compiler) validateAdoption(p ProviderRecord) error {
 	}
 	for _, r := range p.Relations {
 		if adoptionRelationKinds[r.Type] && r.Type != "retired_to" && r.Type != "manual_case_for" {
-			if _, ok := p.Details[r.ID]; !ok {
+			if _, ok := p.Details[r.ID]; !ok && r.Type == "migration_mapping" {
+				return fail("migration mapping requires typed details")
+			} else if !ok {
 				return fail("test relationship requires typed join details")
 			}
 		}
@@ -305,15 +358,18 @@ func validateRecordDetails(kind string, d RecordDetails, rel Relation) error {
 	if d.Status != nil {
 		count++
 		x := d.Status
-		if kind != "claim" || !suppliedStatusStates[x.State] || !textOK(x.Reason) || !boundedUnique(x.Supporting, 256) {
+		if kind != "claim" || !suppliedStatusStates[x.State] || x.Qualifier != "" && !suppliedStatusQualifiers[x.Qualifier] || !textOK(x.Reason) || !boundedUnique(x.Supporting, 256) {
 			return fail("invalid supplied status")
 		}
 	}
 	if d.TestRun != nil {
 		count++
 		x := d.TestRun
-		if kind != "claim" || !suppliedTestRunOutcomes[x.Outcome] || !textOK(x.Run) || len(x.Run) > 1024 || x.Origin != "supplied" || x.Revision != "" && !wire.IsGitOid(x.Revision) {
+		if kind != "claim" || !suppliedTestRunOutcomes[x.Outcome] || !textOK(x.Run) || len(x.Run) > maxSuppliedRunIdentifier || x.Origin != "supplied" || x.Revision != "" && !wire.IsGitOid(x.Revision) {
 			return fail("invalid supplied test run")
+		}
+		if !validRunLedger(x) {
+			return fail("invalid supplied test run ledger field")
 		}
 		if _, err := time.Parse(time.RFC3339, x.At); x.At != "" && err != nil {
 			return fail("invalid supplied test run time")
@@ -325,10 +381,40 @@ func validateRecordDetails(kind string, d RecordDetails, rel Relation) error {
 			return fail("invalid legacy case link")
 		}
 	}
+	if d.MigrationMapping != nil {
+		count++
+		x := d.MigrationMapping
+		if kind != "relation" || rel.Type != "migration_mapping" || !migrationOutcomes[x.Outcome] || !migrationBases[x.Basis] || x.Run != "" && (!textOK(x.Run) || len(x.Run) > maxSuppliedRunIdentifier) || migrationOneSided[x.Outcome] != (rel.From == rel.To) {
+			return fail("invalid migration mapping")
+		}
+	}
 	if count != 1 {
 		return fail("typed detail must name exactly one record family")
 	}
 	return nil
+}
+
+// validRunLedger admits the optional test-run ledger fields only from their
+// closed sets (DCP-V1-303): retries in [0, 2^20], each validity axis at most
+// once, and no empty validity list.
+func validRunLedger(x *SuppliedTestRunDetails) bool {
+	if x.Retries != nil && (*x.Retries < 0 || *x.Retries > maxSuppliedRunRetries) {
+		return false
+	}
+	if x.FlakeVerdict != "" && !suppliedFlakeVerdicts[x.FlakeVerdict] || x.Cleanup != "" && !suppliedRunCleanups[x.Cleanup] || x.ControlOutcome != "" && !suppliedTestRunOutcomes[x.ControlOutcome] {
+		return false
+	}
+	if x.Validity != nil && len(x.Validity) == 0 {
+		return false
+	}
+	axes := map[string]bool{}
+	for _, v := range x.Validity {
+		if !suppliedValidityAxes[v.Axis] || !suppliedValidityStatus[v.Status] || axes[v.Axis] {
+			return false
+		}
+		axes[v.Axis] = true
+	}
+	return true
 }
 func boundedUnique(values []string, limit int) bool {
 	if len(values) > limit {
@@ -440,9 +526,13 @@ func (c *compiler) validateAdoptionJoins() error {
 		}
 	}
 	// A manual case link joins an imported case subject to any subject (DCP-V1-189).
+	// A migration mapping joins two inventory units (DCP-V1-306).
 	for _, r := range c.artifact.Relations {
 		if r.Type == "manual_case_for" && kinds[r.From] != "manual_case" {
 			return fail("manual case link source is not a manual case")
+		}
+		if r.Type == "migration_mapping" && (kinds[r.From] != "inventory" || kinds[r.To] != "inventory") {
+			return fail("migration mapping must join inventory subjects")
 		}
 	}
 	// Each retirement edge is visited once, including long imported histories.

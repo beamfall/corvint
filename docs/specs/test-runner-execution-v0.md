@@ -105,6 +105,26 @@ analyzer families need explicit runtime/domain disposition; their presence is no
   as `TRE-V0-110` does for `minitest` and `rails-test` (`UnexpectedError: <Class>`). A `unittest`
   class or module fixture error, which names no single test, stays `UNKNOWN`. Other cases keep
   their native outcomes and the run stays complete.
+- `TRE-V0-116`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1538) The
+  executor's private `TMPDIR` (`<reportDir>/.tmp`) is executor scratch, never a report. `Execute`
+  MUST remove it on every return path, after process retirement, device cleanup and report reads,
+  including timeout, interruption and execution-boundary failures. Residue that cannot be removed
+  MUST be recorded as the execution problem `temp-cleanup` (detail at most 1024 bytes), which
+  makes the observation incomplete. Process retirement, the private `HOME` and every report
+  stream are unchanged.
+- `TRE-V0-117`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2182) For
+  `xcode-xctest`, a summary with no destination, result `unknown`, all counts zero and no
+  failures MUST map by its exact native shape: an empty test tree with `xcodebuild` exit 65 and
+  the native stderr block `The following build commands failed:` MUST record `BUILD_FAILURE` (no
+  test row, observation incomplete); a single empty `Test Plan` node with result `unknown` and
+  exit 0 MUST record `NO_TESTS`. Any other destination-less shape, including either shape with a
+  different exit or without that stderr block, stays `INVALID_NATIVE_REPORT`.
+- `TRE-V0-118`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1567) For
+  `sql-sqllogictest-sqlite`, a native diagnostic line `<sourceFile>:<line>: query failed` (the
+  engine rejected or could not execute a query record) MUST record `SQL_QUERY_REJECTED` with that
+  line as detail, so the observation is incomplete and its suite verdict is not retained. A
+  native result mismatch (`wrong result ...`) stays a complete `FAILED` suite. A diagnostic that
+  names another file does not match.
 
 ## Runner inventory
 
@@ -350,7 +370,7 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `conflicting-outcomes` | A TestCafe skipped case also has errors, or an XML skipped case also has failure/error elements. | `internal/testrunner/dynamic/native.go:85@4df23ffc`; `internal/testrunner/dynamic/browser.go:51@02fd57db` |
 | `contradictory-exit` | A shared-boundary success exit accompanies an observed FAILED test. | `internal/testrunner/validate.go:122@8df4cef9` |
 | `count-mismatch` | A parsed native report total or category count disagrees with its observed rows, outcomes or attempts; the compared denominator is format-specific; or Node reports a negative skipped/todo count. | `internal/testrunner/dynamic/native.go:111@9a0a1c7f`; `internal/testrunner/dynamic/native.go:115@74f3bece`; `internal/testrunner/dynamic/native.go:230@b6957ba2`; `internal/testrunner/dynamic/native.go:259@ad1ded29`; `internal/testrunner/dynamic/native.go:473@0546fe58`; `internal/testrunner/dynamic/browser.go:57@312cf3e9`; `internal/testrunner/dynamic/browser.go:102@de598de5`; `internal/testrunner/dynamic/browser.go:159@6329112d`; `internal/testrunner/dynamic/browser.go:255@d7afa062`; `internal/testrunner/dynamic/parse.go:283@6144e481`; `internal/testrunner/dynamic/parse.go:290@9b100a65`; `internal/testrunner/dynamic/parse.go:348@c89d4e2d`; `internal/testrunner/dynamic/parse.go:375@5e2333a0`; `internal/testrunner/dynamic/parse.go:399@a3fc5178` |
-| `device-cleanup` | Device cleanup after a timed-out or interrupted TEST phase was not clean: a step failed, timed out, or its session identity was unobserved (TRE-V0-087). | `internal/testrunner/execute_unix.go:217@ab878870` |
+| `device-cleanup` | Device cleanup after a timed-out or interrupted TEST phase was not clean: a step failed, timed out, or its session identity was unobserved (TRE-V0-087). | `internal/testrunner/execute_unix.go:223@ab878870` |
 | `exception-conflict` | An RSpec example maps to PASSED while retaining an exception object. | `internal/testrunner/dynamic/parse.go:370@3ad339db` |
 | `exit-report-conflict` | A dynamic runner exits zero while a parsed test is FAILED, TIMED_OUT or INTERRUPTED. | `internal/testrunner/dynamic/parse.go:150@a9d4d7aa` |
 | `hook-error` | A WDIO hook has a native error or literal failed state. | `internal/testrunner/dynamic/browser.go:153@9b21db50` |
@@ -386,7 +406,7 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `node-suite-error` | A Node suite fail/error is not explained by subtestsFailed plus an already observed failed, timed-out or interrupted test. | `internal/testrunner/dynamic/native.go:166@7e3f3a32` |
 | `outside-example-errors` | RSpec reports a nonzero errors_outside_of_examples_count. | `internal/testrunner/dynamic/parse.go:351@503ba44e` |
 | `playwright-global-error` | The Playwright report contains a top-level error entry. | `internal/testrunner/dynamic/native.go:383@7d964fc3` |
-| `process-containment` | Escaped-descendant containment of an executor phase was incomplete: a retained escaped identity survived the bounded observation, or the structural proof could not be completed. | `internal/testrunner/execute_unix.go:265@aafefb4d` |
+| `process-containment` | Escaped-descendant containment of an executor phase was incomplete: a retained escaped identity survived the bounded observation, or the structural proof could not be completed. | `internal/testrunner/execute_unix.go:271@aafefb4d` |
 | `retry-history-missing` | Nightwatch declares positive retries without the same number of retained prior attempts; or Jest/Vitest indicates multiple invocations or passing-with-failure-messages without reconstructable attempt history. | `internal/testrunner/dynamic/browser.go:224@f37527eb`; `internal/testrunner/dynamic/parse.go:262@7bb3fc94`; `internal/testrunner/dynamic/parse.go:262@7bb3fc94` |
 | `runner-exit` | The shared boundary receives a negative exit code or one outside all admitted success/failure/outcome-neutral lists. | `internal/testrunner/validate.go:119@a90e3e46` |
 | `runner-unsuccessful` | Jest/Vitest reports success=false with assertion rows but no observed FAILED test. | `internal/testrunner/dynamic/parse.go:304@4b70a549` |
@@ -396,6 +416,7 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `setup-or-runtime-error` | An XML testcase contains one or more error elements. | `internal/testrunner/dynamic/native.go:72@b1ab2b72` |
 | `success-conflict` | Jest/Vitest declares success with a failed assertion, or Node declares success with failed/cancelled counts or existing observation problems. | `internal/testrunner/dynamic/native.go:233@f9a16178`; `internal/testrunner/dynamic/parse.go:287@04a1c2a9` |
 | `tap-bailout` | The AVA TAP stream contains a line beginning Bail out!. | `internal/testrunner/dynamic/native.go:293@b75d2c79` |
+| `temp-cleanup` | The executor's private TMPDIR (`<reportDir>/.tmp`) could not be removed after retirement, device cleanup and report reads (TRE-V0-116). | `internal/testrunner/execute_unix.go:197@f623956b` |
 | `test-bound` | Observed inventory exceeds MaxTests at the shared boundary. | `internal/testrunner/validate.go:41@e88d43a4` |
 | `unclassified-exit` | An admitted shared-boundary failure exit has no observed FAILED test. | `internal/testrunner/validate.go:125@94987f7f` |
 | `unexpected-observed-test` | A Mocha run with file selectors and expected identities observes a test outside them. | `internal/testrunner/dynamic/mocha_selection.go:41@4ac5bca8` |
@@ -1425,6 +1446,12 @@ requests or reports native retries. Cell values:
   so it counts as parser-only.
 - -: no evidence.
 
+An A or H cell records that a witness exists for the case, not that the profile classified it
+as the case name says. The prose below states each outcome. In particular the
+`sql-sqllogictest-sqlite` B cell is a retained witness of an engine-rejected query, which the
+profile now refuses as `SQL_QUERY_REJECTED` (`TRE-V0-118`); it is not a build-error
+classification, and the native runner has no separate build phase.
+
 | Profile | P | F | S | Z | B | T |
 | --- | --- | --- | --- | --- | --- | --- |
 | swift-testing | A | A | A | A | A | A |
@@ -1490,8 +1517,9 @@ fixtures are under `fixtures/`.
   its shared scheme:
   - `pass-fail-skip`: exit 65. Both xcresult DECODE phases completed, and the results are
     PASSED, FAILED (ASSERTION) and SKIPPED.
-  - `zero`: exit 0. The summary has no destination, so the run is refused as incomplete.
-  - `build-error`: exit 65, incomplete.
+  - `zero`: exit 0. The summary has no destination, so the run was refused as incomplete;
+    `TRE-V0-117` now maps this exact shape to `NO_TESTS`.
+  - `build-error`: exit 65, incomplete; `TRE-V0-117` now records `BUILD_FAILURE` for it.
   - `timeout` (60 s): `testHang` had started, the decode never ran, the run is incomplete,
     and no `xctest` or `xcodebuild` process survived.
 
@@ -1534,8 +1562,8 @@ binary that wrote it.
   incomplete with `SQL_PROCESS_ERROR`, `no-tests` and `runner-exit`. sqllogictest
   (`runs/sql-sqllogictest-sqlite/build-error/`): the invalid statement is a failing query, not a
   build error. The native runner exited 1 and the receipt is `complete: true` with one FAILED
-  `UNKNOWN` suite (`broken.slt:1: query failed`), no problems and no receipt error. It is not
-  refused; the profile has no build-error refusal (V1-1564). pgTAP
+  `UNKNOWN` suite (`broken.slt:1: query failed`), no problems and no receipt error. It was not
+  refused (V1-1564); `TRE-V0-118` now refuses it as `SQL_QUERY_REJECTED`. pgTAP
   `timeout` found the `TRE-V0-076` residual server session (`runs/sql-pgtap/pre-0076/`).
 - **appium-uiautomator2-wdio**: an Appium server on `127.0.0.1:4734`, owned by the
   qualification harness. `pass-fail-skip` reads the real `greeting` view (PASSED, FAILED,
@@ -1579,10 +1607,13 @@ Open residuals, retained and not fixed in this slice:
   and Gradle exceptions.
 - Kotest reports two errors for one failure, and the build-error case is refused rather than
   classified. Bats `timeout` reports a count mismatch instead of a plain timeout.
-- `sql-sqllogictest-sqlite` has no build-error refusal: a SQL statement the engine rejects is
-  recorded as a complete FAILED suite. Release blocker: no witness distinguishes a rejected
-  statement from an assertion mismatch, because the native report carries no such field.
-- `xcode-xctest` `zero` and `build-error` are refused because destination reports disagree.
+- `sql-sqllogictest-sqlite` recorded a query the engine rejects as a complete FAILED suite.
+  The native per-record diagnostics do separate them (`query failed` on stderr against
+  `wrong result - expected [...] got [...]` on stdout, captured fixtures `sqlite/infra` and
+  `sqlite/fail`), so `TRE-V0-118` refuses the rejected query. A `statement ok` record the
+  engine rejects was not witnessed; its native text is unverified and it stays a FAILED suite.
+- `xcode-xctest` `zero` and `build-error` were refused because destination reports disagree;
+  `TRE-V0-117` maps both exact shapes.
 - Gradle and Maven write `build/` and `target/` into the fixture tree. Java ignores `TMPDIR`
   on macOS.
 - The Robolectric SDK jar the toolchain first supplied (12650502) is not the one Robolectric
@@ -1788,3 +1819,47 @@ unchanged.
 | --- | --- | --- |
 | TRE-V0-114 | `dynamic/parse.go` `Parse`; `dynamic/testcafe.go` `reconcileNativeOutput`, `testCafeHelperFailure`; `TestTestCafeBrowserHelperFailureIsNeverAPass` | Focused unit test with the native EEXIST line from the V1-0605 qualification console; before the fix a passing report with that stderr was a complete PASSED observation, 2026-10-21 |
 | TRE-V0-115 | `dynamic/reporters/unittest_reporter.py` `addError`, `addSubTest`; `dynamic/reporters/testunit_reporter.rb` `test_finished`; `TestUnittestAndTestUnitErrorFailsOnlyThatCaseLive` | Live Python 3.9.6 unittest and Ruby 2.6.10 bundled test-unit: one raising and one passing test give native exit 1, a complete run, PASSED and FAILED/UNKNOWN `Error: <Class>`; the test fails with the previous reporters, 2026-10-21 |
+
+## Private TMPDIR removal, Xcode destination-less summaries and SQLite rejected queries (experimental)
+
+V1-1538: on timeout, a .NET MTP host left `clr-debug-pipe-*` FIFOs in `<reportDir>/.tmp`. The
+2026-10-17 matrix runs also left `go-build*`, `rustdoctest*` and Xcode `TemporaryDirectory.*`
+directories there. `TRE-V0-116` removes the whole private `TMPDIR` after retirement, device
+cleanup and report reads. Retirement itself is unchanged.
+
+V1-2182: the 2026-10-17 `xcode-xctest` `zero` and `build-error` witnesses (Xcode 27.0 27A266a,
+xcresulttool 25115, schema 0.4.0, macOS 26.6.2) were refused because their destination-less
+summaries looked like a destination disagreement. `TRE-V0-117` maps the two exact native shapes.
+A build failure has no test row, so it reuses the native Go `BUILD_FAILURE` problem code, not a
+`BUILD` failure kind.
+
+V1-1567: `TRE-V0-118` refuses a sqllogictest query the engine rejects. The captured
+`db57eba9`/SQLite 3.53.0 streams show the native signal: `case.slt:1: query failed` on stderr for
+a query on a missing relation, and `case.slt:4: wrong result - expected [2] got [1]` on stdout
+for a mismatch.
+
+Failure modes. If removing `.tmp` fails (a file the user cannot delete, say), the run is
+incomplete with `temp-cleanup`; a residue is never hidden. An Xcode destination-less summary
+with any count, failure, destination or other tree shape stays `INVALID_NATIVE_REPORT`. A
+sqllogictest rejected `statement` record and runtime errors other than `query failed` are not
+detected.
+
+Recorded limits.
+- The `xcode-xctest` mappings are proved against the retained native bytes (parser fixtures).
+  A fresh live re-run is NOT_RUN.
+- The sqllogictest runner and source under `toolchains-2026-10-17/sqllogictest` were purged, so
+  `TRE-V0-118` is proved against the committed captured native streams. A fresh live run, and
+  the native text for a rejected `statement ok` record, are NOT_RUN.
+- Process-level proof of `TRE-V0-116` uses the executor helper: a FIFO plus nested scratch,
+  left by both a timed-out and a normally exiting phase. A live MTP re-run is NOT_RUN.
+
+Rollback: remove the `.tmp` removal defer in `execute_unix.go`, the destination-less switch in
+`platform/xcode.go` and the `query failed` check in `sql/sqllogictest.go`, together with their
+tests and fixtures. Residue would then stay in report directories, those Xcode runs would be
+refused again, and rejected queries would again be complete FAILED suites.
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-116 | `execute_unix.go` `Execute`, `boundedDetail`; `TestExecuteRemovesPrivateTempResidue` | Timeout and normal-exit helper phases leave a FIFO and nested scratch in `TMPDIR`; both subtests fail without the removal and pass with it, 2026-10-21 |
+| TRE-V0-117 | `platform/xcode.go` `parseXcode`; `TestXcodeBuildFailureAndZeroTests`; fixtures `xcode-build-error-*`, `xcode-zero-*` | Retained 2026-10-17 native bytes give `BUILD_FAILURE` and `NO_TESTS`; four shape mutations stay `INVALID_NATIVE_REPORT`; the test fails without the mapping, 2026-10-21 |
+| TRE-V0-118 | `sql/sqllogictest.go` `parseSQLite`; `TestSQLiteRejectedQueryIsNotAnAssertion`, `TestNativeMatrix` | Captured native `sqlite/infra` is incomplete with `SQL_QUERY_REJECTED`; `sqlite/fail` stays a complete FAILED suite; the test fails without the check, 2026-10-21 |

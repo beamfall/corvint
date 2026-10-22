@@ -25,6 +25,8 @@ func recordID(value any) string {
 		return x.ID
 	case FlowRelationJoin:
 		return x.ID
+	case ClaimAuditJoin:
+		return x.ID
 	case SuppliedGap:
 		return x.ID
 	}
@@ -50,6 +52,8 @@ func recordAnchors(value any) []Anchor {
 		return testKnowledgeAnchors(x)
 	case FlowRelationJoin:
 		return flowRelationAnchors(x)
+	case ClaimAuditJoin:
+		return claimAuditAnchors(x)
 	case SuppliedGap:
 		return x.Evidence.Anchors
 	}
@@ -82,6 +86,7 @@ func pageReceipt(ctx context.Context, a *Artifact, original Receipt, request Req
 		r.Offset = request.Offset
 		r.Results = original.Results[start:end]
 		r.Details = nil
+		r.ClaimAudits = nil
 		r.Citations = []Anchor{}
 		r.Limitations = append([]string{}, original.Limitations...)
 		r.Omitted = total - len(r.Results)
@@ -122,10 +127,13 @@ func pageReceipt(ctx context.Context, a *Artifact, original Receipt, request Req
 		for _, key := range keys {
 			r.Citations = append(r.Citations, unique[key])
 		}
+		attachClaimAudits(a, &r)
 		if err := attachSymbolAnchors(ctx, &r, symbols); err != nil {
 			return Receipt{}, err
 		}
-		finalizeEnvelope(&r)
+		r.ResultRepositories = nil
+		nameResultRepositories(a, request, &r)
+		finalizeEnvelope(&r, symbols)
 		if _, err := Encode(r); err != nil {
 			if end-start > 1 {
 				end = start + (end-start)/2
@@ -177,6 +185,11 @@ func validateReadableRecords(a *Artifact) error {
 		}
 	}
 	for _, x := range a.TestKnowledge {
+		if err := check(x); err != nil {
+			return err
+		}
+	}
+	for _, x := range a.ClaimAudits {
 		if err := check(x); err != nil {
 			return err
 		}

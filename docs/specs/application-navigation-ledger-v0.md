@@ -328,6 +328,14 @@ are URL templates, not component source files. This slice makes neither missing 
   regular `*.json` file that begins with `{"schema":"playwright-navigation-events/0"` and every
   `*.json.tmp` file, so `DIR` holds only the current run's documents. Other files are never
   removed. Any command that loads the config in the runner, including `--list`, clears `DIR`.
+- `ANL-V0-047`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1216) For an index
+  file, an occurrence of the `index` token that the `ANL-V0-032` JavaScript lexer leaves in code
+  position (an identifier, property or object key such as a loop `index`, `row.index` or
+  `{ index: 0 }`) in a confidently lexed script is not a mention, because `index` is a path segment
+  and never the binding an import names. Such a file no longer makes an index-file change
+  `unresolved-reference`. The directory-name token, an `index` inside a comment, string, template or
+  regular expression, any mention in a file the lexer does not read or doubts, and every other
+  `ANL-V0-032` rule are unchanged, so the hop still never narrows on an unprovable mention.
 
 ## Wire and limits
 
@@ -397,6 +405,7 @@ line; the closed `playwright-navigation-events/0` format is unchanged.
 | ANL-V0-044 | `internal/appmap/navigation-events.cjs` | `TestANLV0044ProducerRedactionMatchesObserve`, `TestANLV0037ProducerNodeUnit`, `TestANLV0039ObserveAcceptsProducerOutput` |
 | ANL-V0-045 | `docs/build-log/2026-10-11-navigation-events-producer.md` | `TestANLV0042LiveParityWithTraceZip` |
 | ANL-V0-046 | `internal/appmap/navigation-events.cjs` | `TestANLV0037ProducerNodeUnit` |
+| ANL-V0-047 | `internal/appmap/impacthop.go` `references` | `TestANLV0047IndexIdentifiersDoNotHideTheIndexFileReference` |
 
 ## Follow-ups and promotion
 

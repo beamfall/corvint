@@ -138,3 +138,19 @@ func TestPSRV0114_CompactHelpNotesWalkCost(t *testing.T) {
 		t.Fatalf("receipt compact help without the walk cost note: %s", out.String())
 	}
 }
+
+// TestPSRV0185_CompactHelpNamesFastRoute: receipt compact help names the
+// checkpoint routes that restore no covered elided receipt, and says
+// compaction drops both checkpoints so the next write and read pay one
+// complete audit (PSR-V0-185, V1-1785, GitHub #1063 ask 4).
+func TestPSRV0185_CompactHelpNamesFastRoute(t *testing.T) {
+	var out bytes.Buffer
+	if code := cli.Run(cli.Env{Cwd: t.TempDir(), Args: []string{"receipt", "compact", "--help", "--verbose"}, Stdout: &out}); code != 0 {
+		t.Fatalf("help: code %d %s", code, out.String())
+	}
+	for _, want := range []string{"CAL-V0-116 writer-checkpoint route", "resumes at the read checkpoint", "restore no elided receipt that checkpoint covers", "the next write and the next read each run one complete audit", "PSR-V0-185"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("receipt compact help lacks %q: %s", want, out.String())
+		}
+	}
+}
