@@ -32,3 +32,20 @@ func Rewritten(ctx context.Context, git Runner) string {
 	}
 	return ""
 }
+
+// RewrittenAt is Rewritten for a caller that already holds the checkout's resolved common Git
+// directory and scrubs GIT_GRAFT_FILE and GIT_SHALLOW_FILE from its Git environment: it reads the
+// same info/grafts and shallow files without spawning Git. Any entry at either path, or an
+// unreadable one, is never trusted.
+func RewrittenAt(commonDir string) string {
+	if commonDir == "" {
+		return "checkout Git directory unreadable"
+	}
+	if _, err := os.Lstat(filepath.Join(commonDir, "info", "grafts")); !errors.Is(err, fs.ErrNotExist) {
+		return "checkout rewrites ancestry with info/grafts"
+	}
+	if _, err := os.Lstat(filepath.Join(commonDir, "shallow")); !errors.Is(err, fs.ErrNotExist) {
+		return "checkout is shallow"
+	}
+	return ""
+}

@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -20,10 +22,11 @@ import (
 func TestClaudeNativeDogfoodLifecycle(t *testing.T) {
 	t.Parallel()
 	root := queryCLIRepository(t)
+	intent := commitLocalCompletionIntent(t, root)
 	base := strings.TrimSpace(gitOutput(t, root, "rev-parse", "HEAD"))
 	keyBytes := sha256.Sum256([]byte("corvint-local-completion-session/claude-code/0\x00native-session-é"))
 	key := hex.EncodeToString(keyBytes[:])
-	plan, err := json.Marshal(localcompletion.Plan{Base: base, Intents: []string{"AGENTS.md"}, Checks: []localcompletion.Check{{ID: "unrun", Argv: []string{"false"}, TimeoutSeconds: 1}}})
+	plan, err := json.Marshal(localcompletion.Plan{Base: base, Intents: []string{intent}, Checks: []localcompletion.Check{{ID: "unrun", Argv: []string{"false"}, TimeoutSeconds: 1}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,4 +232,20 @@ func claudeHookOutput(t *testing.T, output map[string]any) map[string]any {
 		t.Fatalf("native adapter output has no hookSpecificOutput: %v", output)
 	}
 	return hook
+}
+
+// commitLocalCompletionIntent commits an intent with a numbered Requirements
+// section, which dogfood begin requires (LCP-V0-037), and returns its path.
+func commitLocalCompletionIntent(t *testing.T, root string) string {
+	t.Helper()
+	const intent = "docs/specs/lcp-intent.md"
+	if err := os.MkdirAll(filepath.Join(root, "docs", "specs"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, intent), []byte("# Intent\n\n## Requirements\n\n- `FIXTURE-LCP-001`: preserve behavior.\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	gitOutput(t, root, "add", intent)
+	gitOutput(t, root, "commit", "-qm", "add intent fixture")
+	return intent
 }

@@ -18,7 +18,7 @@ import (
 func TestAnalyzerSchemaInputs(t *testing.T) {
 	t.Run("IDX-SNAP-V0-017", func(t *testing.T) {
 		const auditedSchema = "corvint-analyzer/141"
-		const auditedSHA256 = "72c6fc3243ddbf112e182ea07e64aeaf07bc0f90423f7a9e7ab9e17c74470b0a"
+		const auditedSHA256 = "6aef0e91d0cd9892ffc3f1fa5fe45cb93d882f9598b4999622c83c83cd8b4b42"
 		root := filepath.Join("..", "..")
 		paths := []string{"go.mod"}
 		if _, err := os.Stat(filepath.Join(root, "go.sum")); err == nil {

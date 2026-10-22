@@ -220,18 +220,25 @@ func (index *Index) buildSymbolWindows() windowPostings {
 	builders := make([]postingBuilder, workers)
 	var pending sync.WaitGroup
 	for worker := range builders {
-		builders[worker].ids = map[string]uint32{}
+		builders[worker].ids = make(map[string]uint32, interningHint)
 		pending.Add(1)
 		low, high := worker*len(index.Symbols)/workers, (worker+1)*len(index.Symbols)/workers
 		go func(builder *postingBuilder, low, high int) {
 			defer pending.Done()
 			sources := evalSourceLines{index: index}
+			// One set per worker, cleared between symbols: a fresh terms() map
+			// per symbol and its regrowth were the largest allocation site left
+			// in the build (GPK-V0-088). collectTerms is the body of terms,
+			// and a posting list does not depend on the order a set is walked.
+			window := make(map[string]struct{}, 256)
 			for position := low; position < high; position++ {
 				symbol := index.Symbols[position]
 				if isTestPath(symbol.Path) {
 					continue
 				}
-				for term := range terms(symbolContextText(symbol, sources.of(symbol.Path).lines)) {
+				clear(window)
+				collectTerms(symbolContextText(symbol, sources.of(symbol.Path).lines), window)
+				for term := range window {
 					builder.add(term, uint32(position), 0, false)
 				}
 			}
