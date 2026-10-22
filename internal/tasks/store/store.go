@@ -589,6 +589,10 @@ func Init(ctx context.Context, repo *intent.Repository, actor mutation.Binding, 
 	if err != nil {
 		return guardFailure(report, requestID, err)
 	}
+	importMap, err := readImportMap(repo, queue)
+	if err != nil {
+		return guardFailure(report, requestID, err)
+	}
 	inventory, err := transaction.NewInventory(nil, genesisDirectories)
 	if err != nil {
 		return guardFailure(report, requestID, err)
@@ -602,6 +606,7 @@ func Init(ctx context.Context, repo *intent.Repository, actor mutation.Binding, 
 			PrimaryWorktree: repo.PrimaryWorktree,
 			Queue:           queue,
 			Policy:          policy,
+			ImportMap:       importMap,
 		},
 		transaction.Input{
 			Inventory:  inventory,
@@ -622,7 +627,11 @@ func Init(ctx context.Context, repo *intent.Repository, actor mutation.Binding, 
 	if err != nil {
 		return guardFailure(report, requestID, err)
 	}
-	if wire.Sum(queue) != wire.Sum(currentQueue) || wire.Sum(policy) != wire.Sum(currentPolicy) || branch != currentBranch {
+	currentMap, err := readImportMap(repo, currentQueue)
+	if err != nil {
+		return guardFailure(report, requestID, err)
+	}
+	if wire.Sum(queue) != wire.Sum(currentQueue) || wire.Sum(policy) != wire.Sum(currentPolicy) || wire.Sum(importMap) != wire.Sum(currentMap) || branch != currentBranch {
 		return report, wire.Errorf(wire.CodeSnapshotMoved, "intent", "initialization inputs changed")
 	}
 	if err = session.Mkdir("state"); err != nil {
@@ -684,6 +693,22 @@ func firstEntry(dir string) (string, error) {
 // as raw canonical bytes: the transaction binds the exact bytes, not a
 // re-encoding of a decoded record. Their absence is the operator's own
 // missing input, reported as such rather than defaulted into existence.
+// readImportMap reads the operator's import map for INIT of a non-fixture
+// queue whose importMapSha256 names one (CTS-V0-014). Any other queue reads
+// nothing, so fixture and null-map queues initialize exactly as before; a
+// named map that is absent is left for the transaction model to refuse.
+func readImportMap(repo *intent.Repository, queue []byte) ([]byte, error) {
+	q, err := intent.DecodeQueue(queue)
+	if err != nil || q.Fixture || q.ImportMapSha256 == nil {
+		return nil, err
+	}
+	path := filepath.Join(repo.IntentRoot(), intent.Dir, intent.ImportMapFile)
+	if _, err = os.Lstat(path); errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	return intent.ReadFile(path, wire.MaxImportMapBytes)
+}
+
 func readIntent(repo *intent.Repository) (queue, policy []byte, queueID, branch string, err error) {
 	root := filepath.Join(repo.IntentRoot(), intent.Dir)
 	queue, err = intent.ReadFile(filepath.Join(root, "queue.json"), wire.MaxQueueFileBytes)

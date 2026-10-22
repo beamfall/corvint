@@ -162,7 +162,9 @@ func auditImport(repo *intent.Repository, head *snapshot.Head) (*importAudit, er
 			paths = append(paths, file.Path)
 		}
 	}
-	proof, err := lockedJournalReader(repo, head).Audit(paths...)
+	// The import map is selected too: a mapped queue's journal holds it from
+	// genesis (CTS-V0-017), and any other journal holds no such record.
+	proof, err := lockedJournalReader(repo, head).Audit(append(append([]string{}, paths...), "intent/import-map.json")...)
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +229,7 @@ func importBatch(repo *intent.Repository, session *authority.Session, actor muta
 	if err != nil {
 		return report, err
 	}
-	input := transaction.Input{Inventory: a.inv, Head: headRaw, HeadReceipt: headRc, Queue: a.proof.Records["intent/queue.json"].Raw, Policy: a.proof.Records["intent/policy.json"].Raw, Barrier: barrier, Reservations: reservations, CanonicalTickets: a.tickets, CanonicalReleases: a.releases, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now}
+	input := transaction.Input{Inventory: a.inv, Head: headRaw, HeadReceipt: headRc, Queue: a.proof.Records["intent/queue.json"].Raw, Policy: a.proof.Records["intent/policy.json"].Raw, ImportMap: a.proof.Records["intent/import-map.json"].Raw, Barrier: barrier, Reservations: reservations, CanonicalTickets: a.tickets, CanonicalReleases: a.releases, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now}
 	if a.sequence == nil {
 		a.sequence, err = transaction.NewImportSequence(queueID, actor, input)
 		if err != nil {
