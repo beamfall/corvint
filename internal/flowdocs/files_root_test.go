@@ -8,7 +8,7 @@ import (
 
 // TestAFPV0361_OpenDirectoryNeverReadsFilesystemRoot pins that a nested
 // directory is reached without opening / for reading, which a Landlock-confined
-// test cannot be granted (V1-0883); / itself still opens. The test swaps a
+// test cannot be granted (V1-0883); / itself is still the one directory opened. The test swaps a
 // package hook, so it does not run in parallel.
 func TestAFPV0361_OpenDirectoryNeverReadsFilesystemRoot(t *testing.T) {
 	dir, err := filepath.EvalSymlinks(t.TempDir())
@@ -36,12 +36,12 @@ func TestAFPV0361_OpenDirectoryNeverReadsFilesystemRoot(t *testing.T) {
 	if len(opened) != 1 {
 		t.Fatalf("absolute opens = %q, want only the first component", opened)
 	}
+	// Opening / itself may be refused where the test is Landlock-confined (CI);
+	// only the attempted open is asserted, not its success.
 	opened = nil
-	root, err := openDirectory(string(filepath.Separator))
-	if err != nil {
-		t.Fatal(err)
+	if root, err := openDirectory(string(filepath.Separator)); err == nil {
+		root.Close()
 	}
-	root.Close()
 	if len(opened) != 1 || opened[0] != string(filepath.Separator) {
 		t.Fatalf("opening / itself = %q", opened)
 	}
