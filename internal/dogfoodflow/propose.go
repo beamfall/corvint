@@ -8,8 +8,12 @@ import (
 	"io"
 	"path"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/cem/patch"
+	"github.com/Beamfall/corvint/internal/cem/verify"
 	"github.com/Beamfall/corvint/internal/cem/workflow"
 )
 
@@ -25,10 +29,22 @@ type proposal struct {
 	options ProposeOptions
 	stdout  io.Writer
 	blobs   map[string][]byte
+	lines   map[string][][]byte
+	// derived holds the canonical patch's hunks by ID and by path and old
+	// range; matches holds the BASE lines naming each anchor pattern.
+	derived map[string]*patch.Hunk
+	matches map[string][]spanLine
+}
+
+// spanLine is one line of a BASE file.
+type spanLine struct {
+	path string
+	line int
 }
 
 type proposedHunk struct {
 	ordinal     int
+	id          string
 	path        string
 	disposition string
 	reason      string
@@ -44,7 +60,7 @@ type proposedHunk struct {
 func ProposeCitations(ctx context.Context, options ProposeOptions, stdout, stderr io.Writer) (int, error) {
 	run := &proposal{
 		flow:    flow{ctx: ctx, prefix: "dogfood-propose-citations", root: options.Root, stderr: stderr},
-		options: options, stdout: stdout, blobs: map[string][]byte{},
+		options: options, stdout: stdout, blobs: map[string][]byte{}, lines: map[string][][]byte{},
 	}
 	return boundary(ctx, run.run, func() {})
 }
@@ -65,6 +81,7 @@ func (p *proposal) run() int {
 	var document struct {
 		BaseRevision string `json:"baseRevision"`
 		Hunks        []struct {
+			ID          string `json:"id"`
 			Path        string `json:"path"`
 			Disposition string `json:"disposition"`
 			Reason      string `json:"reason"`
@@ -84,34 +101,43 @@ func (p *proposal) run() int {
 	}
 	hunks := make([]proposedHunk, len(document.Hunks))
 	for index, hunk := range document.Hunks {
-		hunks[index] = proposedHunk{index + 1, hunk.Path, hunk.Disposition, hunk.Reason, hunk.OldRange.Start, hunk.OldRange.Count}
+		hunks[index] = proposedHunk{index + 1, hunk.ID, hunk.Path, hunk.Disposition, hunk.Reason, hunk.OldRange.Start, hunk.OldRange.Count}
 	}
-	rows := p.draft(hunks)
+	rows, notes := p.draft(hunks)
 	p.say("%s: PROPOSED rows=%d hunks=%d base=%s\n", p.prefix, len(rows), len(hunks), p.base)
 	p.say("  this draft is not a plan: review every row, replace each with the evidence the hunk really depends on or implements, then write it to the DOGFOOD_CITATIONS file; nothing is cited until dogfood change runs with that file (DCW-V0-150)\n")
+	for _, note := range notes {
+		p.say("  %s\n", note)
+	}
 	for _, row := range rows {
 		_, _ = fmt.Fprintln(p.stdout, row)
 	}
 	return 0
 }
 
-// draft returns the proposed rows in worklist order. Only hunks still owed a
-// row get one: an unknown hunk without a recorded unknown reason.
-func (p *proposal) draft(hunks []proposedHunk) []string {
+// draft returns the proposed rows in worklist order and one note per cite row
+// that is not anchored, saying why. Only hunks still owed a row get one: an
+// unknown hunk without a recorded unknown reason.
+func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 	edited := map[string][][2]int{}
+	owed := []proposedHunk{}
 	for _, hunk := range hunks {
 		edited[hunk.path] = append(edited[hunk.path], [2]int{hunk.oldStart, hunk.oldStart + hunk.oldCount})
+		if hunk.disposition == "unknown" && !recordedUnknownReasons[hunk.reason] {
+			owed = append(owed, hunk)
+		}
 	}
+	p.prepareAnchors(owed)
 	used := map[string]bool{}
-	rows := []string{}
+	rows, notes := []string{}, []string{}
 	cited := 0
 	lastCite := ""
 	uniform := true
-	for _, hunk := range hunks {
-		if hunk.disposition != "unknown" || recordedUnknownReasons[hunk.reason] {
-			continue
+	for _, hunk := range owed {
+		row, cite, fellBack := p.propose(hunk, edited, used)
+		if fellBack != "" {
+			notes = append(notes, fmt.Sprintf("row %d cited, not anchored (CEM-V1-081): %s", hunk.ordinal, fellBack))
 		}
-		row, cite := p.propose(hunk, edited[hunk.path], used)
 		if cite != "" {
 			used[cite] = true
 			uniform = uniform && (lastCite == "" || lastCite == cite)
@@ -129,35 +155,26 @@ func (p *proposal) draft(hunks []proposedHunk) []string {
 		ordinal, _, _ := strings.Cut(rows[last], "\t")
 		rows[last] = unknownProposal(ordinal, "no second stable span was found near this hunk")
 	}
-	return rows
+	return rows, notes
 }
 
-// propose returns one row for hunk and the PATH:START:END it cites, or "" for
-// an unknown row.
-func (p *proposal) propose(hunk proposedHunk, edited [][2]int, used map[string]bool) (string, string) {
+// propose returns one row for hunk, the PATH:START:END it cites, or "" for an
+// unknown row, and, for a cite row that is not anchored, why it fell back.
+func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used map[string]bool) (string, string, string) {
 	ordinal := fmt.Sprint(hunk.ordinal)
 	if workflow.GoverningInstructionPath(hunk.path) {
-		return unknownProposal(ordinal, hunk.path+" is a governing file this change modifies, so it cannot govern its own hunk (CEM-V1-114)"), ""
+		return unknownProposal(ordinal, hunk.path+" is a governing file this change modifies, so it cannot govern its own hunk (CEM-V1-114)"), "", ""
 	}
-	baseBlob, ok := p.blob(p.base, hunk.path)
-	if !ok {
-		return unknownProposal(ordinal, hunk.path+" is absent at BASE; name the BASE contract this new file implements"), ""
+	if row, cite := p.anchoredProposal(hunk, ordinal, edited, used); row != "" {
+		return row, cite, ""
 	}
-	targetBlob, _ := p.blob(p.target, hunk.path)
-	lines := splitRecords(baseBlob)
+	fellBack := "no stable BASE line names " + hunk.path + " or defines a requirement ID the hunk adds"
+	if _, ok := p.blob(p.base, hunk.path); !ok {
+		return unknownProposal(ordinal, hunk.path+" is absent at BASE and "+fellBack+"; name the BASE contract this new file implements"), "", ""
+	}
+	lines := p.baseLines(hunk.path)
 	if len(lines) == 0 {
-		return unknownProposal(ordinal, hunk.path+" is empty at BASE"), ""
-	}
-	free := func(line int) bool {
-		for _, span := range edited {
-			// A hunk's old range, plus the line after a pure insertion,
-			// may be edited; its three context lines make this conservative.
-			if line >= span[0] && line <= span[1] {
-				return false
-			}
-		}
-		return line >= 1 && line <= len(lines) && strings.TrimSpace(string(lines[line-1])) != "" &&
-			spanOccurrences(targetBlob, lines[line-1]) == 1 && spanOccurrences(baseBlob, lines[line-1]) == 1
+		return unknownProposal(ordinal, hunk.path+" is empty at BASE"), "", ""
 	}
 	anchor := min(max(hunk.oldStart, 1), len(lines))
 	relation, preferred := proposalRelation(hunk.path)
@@ -172,13 +189,13 @@ func (p *proposal) propose(hunk proposedHunk, edited [][2]int, used map[string]b
 	}
 	fallback := ""
 	for _, line := range candidates {
-		if !free(line) {
+		if !p.stable(hunk.path, line, edited) {
 			continue
 		}
 		cite := fmt.Sprintf("%s:%d:%d", hunk.path, line, line)
 		row := fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, hunk.path, line, line, relation)
 		if !used[cite] {
-			return row, cite
+			return row, cite, fellBack
 		}
 		if fallback == "" {
 			fallback = row + "\x00" + cite
@@ -186,9 +203,189 @@ func (p *proposal) propose(hunk proposedHunk, edited [][2]int, used map[string]b
 	}
 	if fallback != "" {
 		row, cite, _ := strings.Cut(fallback, "\x00")
-		return row, cite
+		return row, cite, fellBack
 	}
-	return unknownProposal(ordinal, "no BASE line of "+hunk.path+" both outside every hunk and unique after the change"), ""
+	return unknownProposal(ordinal, "no BASE line of "+hunk.path+" both outside every hunk and unique after the change"), "", ""
+}
+
+// anchoredProposal returns the first row, an unused span first, whose stable
+// BASE line earns hunk a CEM-V1-081 anchor (DCW-V0-161): the line defining a
+// requirement ID the hunk adds, then a line naming the hunk path, a
+// specification first. It returns "" when there is none.
+func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited map[string][][2]int, used map[string]bool) (string, string) {
+	derived := p.derivedHunk(hunk)
+	_, ids := verify.SpanAnchors(derived, nil)
+	candidates := []spanLine{}
+	for _, id := range ids {
+		candidates = append(candidates, p.matches[definitionPattern(id)]...)
+	}
+	candidates = append(candidates, p.matches[anchorPath(derived)]...)
+	fallback := [2]string{}
+	for _, candidate := range candidates {
+		if !p.stable(candidate.path, candidate.line, edited) {
+			continue
+		}
+		if kinds, _ := verify.SpanAnchors(derived, p.baseLines(candidate.path)[candidate.line-1]); len(kinds) == 0 {
+			continue
+		}
+		relation, _ := proposalRelation(candidate.path)
+		cite := fmt.Sprintf("%s:%d:%d", candidate.path, candidate.line, candidate.line)
+		row := fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, candidate.path, candidate.line, candidate.line, relation)
+		if !used[cite] {
+			return row, cite
+		}
+		if fallback[0] == "" {
+			fallback = [2]string{row, cite}
+		}
+	}
+	return fallback[0], fallback[1]
+}
+
+// prepareAnchors reads the canonical BASE..HEAD patch the map was derived
+// from and, in one `git grep` of BASE, the lines naming each owed hunk's path
+// or defining a requirement ID it adds. An unreadable or oversized read
+// leaves no candidates, and the drafts fall back to nearby lines.
+func (p *proposal) prepareAnchors(owed []proposedHunk) {
+	p.derived, p.matches = map[string]*patch.Hunk{}, map[string][]spanLine{}
+	if raw, status, bounded := p.boundedGit(p.canonicalDiffArguments()...); status == 0 && bounded {
+		if parsed, err := patch.Parse([]byte(raw)); err == nil {
+			for _, hunk := range parsed.Hunks {
+				p.derived[hunk.ID] = hunk
+				p.derived[rangeKey(hunk.DisplayPath, hunk.OldRange.Start, hunk.OldRange.Count)] = hunk
+			}
+		}
+	}
+	patterns := map[string]bool{}
+	for _, hunk := range owed {
+		derived := p.derivedHunk(hunk)
+		if name := anchorPath(derived); name != "" {
+			patterns[name] = true
+		}
+		_, ids := verify.SpanAnchors(derived, nil)
+		for _, id := range ids {
+			patterns[definitionPattern(id)] = true
+		}
+	}
+	if len(patterns) == 0 {
+		return
+	}
+	// -o prints each match, not its line, so a long one-line document that
+	// names a path cannot overflow the read bound.
+	arguments := []string{"grep", "-z", "-n", "-o", "-F", "-I"}
+	sorted := make([]string, 0, len(patterns))
+	for pattern := range patterns {
+		sorted = append(sorted, pattern)
+	}
+	sort.Strings(sorted)
+	for _, pattern := range sorted {
+		arguments = append(arguments, "-e", pattern)
+	}
+	out, status, bounded := p.boundedGit(append(arguments, p.base, "--", ".", ":(exclude).corvint/")...)
+	if status != 0 || !bounded {
+		return
+	}
+	for _, record := range strings.Split(out, "\n") {
+		name, rest, named := strings.Cut(strings.TrimPrefix(record, p.base+":"), "\x00")
+		number, text, numbered := strings.Cut(rest, "\x00")
+		line, err := strconv.Atoi(number)
+		if !named || !numbered || err != nil || line < 1 || workflow.GoverningInstructionPath(name) || strings.HasPrefix(name, ".corvint/") {
+			continue
+		}
+		for _, pattern := range sorted {
+			if strings.Contains(text, pattern) {
+				p.matches[pattern] = append(p.matches[pattern], spanLine{name, line})
+			}
+		}
+	}
+	// Specifications first, then other documents; git grep's path order
+	// within each.
+	for _, found := range p.matches {
+		sort.SliceStable(found, func(i, j int) bool { return documentRank(found[i].path) < documentRank(found[j].path) })
+	}
+}
+
+// canonicalDiffArguments are the canonical patch arguments of `cem` map
+// derivation (internal/cem/gitauth), so the parsed hunk IDs are the map's.
+func (p *proposal) canonicalDiffArguments() []string {
+	format, _ := p.git(true, "rev-parse", "--show-object-format")
+	empty := map[string]string{
+		"sha1":   "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+		"sha256": "6ef19b41225c5369f1c104d45d8d85efa9b057b53b14b4b9b939dd74decc5321",
+	}[chomp(format)]
+	return []string{"--attr-source=" + empty, "diff", "--full-index", "--no-color", "--no-ext-diff", "--no-textconv",
+		"--no-renames", "--no-indent-heuristic", "--diff-algorithm=myers", "--unified=3", "--inter-hunk-context=0",
+		"--src-prefix=a/", "--dst-prefix=b/", "--ignore-submodules=none", "--end-of-options", p.base, p.target,
+		"--", ".", ":(exclude).corvint/change.cem.json"}
+}
+
+// derivedHunk returns the canonical patch hunk of a map hunk, matched by ID or
+// else by path and old range, or a hunk carrying only its path.
+func (p *proposal) derivedHunk(hunk proposedHunk) *patch.Hunk {
+	if found := p.derived[hunk.id]; hunk.id != "" && found != nil {
+		return found
+	}
+	if found := p.derived[rangeKey(hunk.path, int64(hunk.oldStart), int64(hunk.oldCount))]; found != nil {
+		return found
+	}
+	name := hunk.path
+	return &patch.Hunk{NewPath: &name}
+}
+
+// anchorPath is the path a CEM-V1-081 path anchor names: the post-image path,
+// or the old path of a pure deletion.
+func anchorPath(hunk *patch.Hunk) string {
+	switch {
+	case hunk.NewPath != nil:
+		return *hunk.NewPath
+	case hunk.OldPath != nil:
+		return *hunk.OldPath
+	}
+	return ""
+}
+
+func definitionPattern(id string) string { return "- `" + id + "`:" }
+
+func rangeKey(name string, start, count int64) string {
+	return fmt.Sprintf("%s\x00%d\x00%d", name, start, count)
+}
+
+func documentRank(name string) int {
+	switch {
+	case strings.HasPrefix(name, "docs/specs/") && strings.HasSuffix(name, ".md"):
+		return 0
+	case strings.EqualFold(path.Ext(name), ".md"):
+		return 1
+	}
+	return 2
+}
+
+// stable reports whether line of name at BASE can be cited: it lies outside
+// every hunk range of that path (a hunk's old range, plus the line after a
+// pure insertion; its three context lines make this conservative), is not
+// blank, and its text occurs exactly once at BASE and at the target.
+func (p *proposal) stable(name string, line int, edited map[string][][2]int) bool {
+	for _, span := range edited[name] {
+		if line >= span[0] && line <= span[1] {
+			return false
+		}
+	}
+	lines := p.baseLines(name)
+	if line < 1 || line > len(lines) || strings.TrimSpace(string(lines[line-1])) == "" {
+		return false
+	}
+	baseBlob, _ := p.blob(p.base, name)
+	targetBlob, _ := p.blob(p.target, name)
+	return spanOccurrences(targetBlob, lines[line-1]) == 1 && spanOccurrences(baseBlob, lines[line-1]) == 1
+}
+
+// baseLines returns the LF records of name at BASE, none when it is absent.
+func (p *proposal) baseLines(name string) [][]byte {
+	if lines, ok := p.lines[name]; ok {
+		return lines
+	}
+	data, _ := p.blob(p.base, name)
+	p.lines[name] = splitRecords(data)
+	return p.lines[name]
 }
 
 // proposalRelation names the relation a draft row uses for path and the lines
