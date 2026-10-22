@@ -41,6 +41,10 @@ type TrustEnvelope struct {
 // unverifiedLimitation explains a null verified_at (DCP-V1-283).
 const unverifiedLimitation = "verified_at is null: no verification of this corpus content is recorded; content_status generated"
 
+// RefusalUnverifiedLimitation explains the null verified_at that every reader
+// refusal envelope carries (DCP-V1-320).
+const RefusalUnverifiedLimitation = "verified_at is null: the request was refused; no verification is recorded"
+
 func trustEnvelope(a *Artifact, freshness string, policy *RetirementPolicy) (*TrustEnvelope, error) {
 	e := &TrustEnvelope{ContentStatus: "generated", SourceRevision: a.Manifest.Repository.Revision, CorpusRevision: a.SHA256, Builder: a.Builder, Freshness: freshness, SourceValidation: "caller-provided-validated-artifact", Retirement: RetirementStatus{State: "unknown", Authority: "NOT_OBSERVED", Reasons: []string{"retirement policy not supplied"}}, Citations: []CitationState{}, Limitations: []string{"imported review labels are attributed declarations; semantic truth and review authentication NOT_OBSERVED", unverifiedLimitation}}
 	if policy == nil {

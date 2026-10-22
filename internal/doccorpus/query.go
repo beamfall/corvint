@@ -307,11 +307,13 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	if request.Depth < 0 || request.Depth > MaxFlowDepth || request.Depth != 0 && request.Operation != "trace" {
 		return Receipt{}, fail("flow trace depth is bounded and applies only to trace")
 	}
-	if (request.Sections != nil || request.Include != nil) && (request.Operation != "flow" || !ValidFlowFilter(request.Sections, request.Include)) {
+	// DCP-V1-328: search admits exactly include:["claims"]; flow keeps its filters.
+	if (request.Sections != nil || request.Include != nil) && !SearchIncludesClaims(request) && (request.Operation != "flow" || !ValidFlowFilter(request.Sections, request.Include)) {
 		return Receipt{}, fail("flow section and include filters are bounded and apply only to flow")
 	}
-	if request.Kinds != nil && (request.Operation != "gaps" || !ValidGapKinds(request.Kinds)) {
-		return Receipt{}, fail("gap kind filter is bounded and applies only to gaps")
+	// DCP-V1-331: search also admits a subject kind filter.
+	if request.Kinds != nil && (request.Operation != "gaps" && request.Operation != "search" || !ValidGapKinds(request.Kinds)) {
+		return Receipt{}, fail("kind filter is bounded and applies only to gaps and search")
 	}
 	if (request.State != "" || request.Qualifier != "" || request.Run != "") && (request.Operation != "claims" || request.Query != "" || request.Path != "" || !ValidStatusFilter(request.State, request.Qualifier, request.Run)) {
 		return Receipt{}, fail("status filter is bounded and applies only to claims without a path or query")
@@ -345,6 +347,14 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	}
 	if freshness == "stale" {
 		r.Limitations = append(r.Limitations, "evidence-stale; results describe the pinned revision only")
+	}
+	// DCP-V1-330: an id that names no record but exactly one subject's
+	// alternate id resolves to that subject, and the receipt records it.
+	if request.ID != "" && (OperationInput(request.Operation) == "id" || request.Operation == "gaps") {
+		if id, ok := resolveAlternateID(a, request.ID); ok {
+			r.AliasResolution = &AliasResolution{AlternateID: request.ID, ID: id}
+			request.ID = id
+		}
 	}
 	switch request.Operation {
 	case "info", "validate":
@@ -478,6 +488,22 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 				r.Citations = append(r.Citations, g.Evidence.Anchors...)
 			}
 		}
+		// DCP-V1-327: supplied coverage-ledger, flow-completeness and
+		// unresolved-concept claims follow, selected by subject and by their
+		// detail kind; they are claims, not gaps.
+		for _, c := range a.Claims {
+			if len(a.Details) == 0 {
+				break
+			}
+			k := claimParityKind(a.Details[c.ID])
+			if k != "coverage_ledger" && k != "flow_completeness" && k != "unresolved_concept" {
+				continue
+			}
+			if (request.ID == "" || c.Subject == request.ID || c.ID == request.ID) && kind(k) {
+				r.Results = append(r.Results, c)
+				r.Citations = append(r.Citations, c.Evidence.Anchors...)
+			}
+		}
 	case "concept", "claims", "flow", "dependencies", "recommend-tests", "navigation", "vocabulary", "intent":
 		if a.RuntimeIndex == nil {
 			copy := *a
@@ -536,6 +562,7 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 		}
 	}
 	attachClaimAudits(a, &r)
+	annotateVisibleResults(a, request, &r)
 	// Citations are deduplicated and independently bounded; truncation is visible.
 	sort.Slice(r.Citations, func(i, j int) bool { return anchorKey(r.Citations[i]) < anchorKey(r.Citations[j]) })
 	citations := []Anchor{}
@@ -826,85 +853,6 @@ func getRecords(a *Artifact, id string, r *Receipt) {
 		}
 	}
 }
-func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error {
-	terms := contextindex.EvidenceTerms(request.Query)
-	if x := a.RuntimeIndex; x != nil {
-		scores := map[int]int{}
-		for term := range terms {
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-			for _, i := range x.Terms[term] {
-				scores[i]++
-			}
-		}
-		for i, s := range a.Subjects {
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-			if strings.EqualFold(request.Query, s.Name) {
-				scores[i] += len(terms) + 1
-			}
-		}
-		ids := make([]int, 0, len(scores))
-		for i := range scores {
-			ids = append(ids, i)
-		}
-		sort.Slice(ids, func(i, j int) bool {
-			if scores[ids[i]] != scores[ids[j]] {
-				return scores[ids[i]] > scores[ids[j]]
-			}
-			return a.Subjects[ids[i]].ID < a.Subjects[ids[j]].ID
-		})
-		for _, i := range ids {
-			addRecord(r, a.Subjects[i])
-		}
-		return ctx.Err()
-	}
-	type ranked struct {
-		s     Subject
-		score int
-	}
-	rankedSubjects := []ranked{}
-	claims := map[string][]string{}
-	for _, c := range a.Claims {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		claims[c.Subject] = append(claims[c.Subject], c.Text)
-	}
-	for _, s := range a.Subjects {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		text := s.Name + " " + s.ID
-		text += " " + strings.Join(claims[s.ID], " ")
-		words := contextindex.EvidenceTerms(text)
-		score := 0
-		for term := range terms {
-			if _, ok := words[term]; ok {
-				score++
-			}
-		}
-		if strings.EqualFold(request.Query, s.Name) {
-			score += len(terms) + 1
-		}
-		if score > 0 {
-			rankedSubjects = append(rankedSubjects, ranked{s, score})
-		}
-	}
-	sort.Slice(rankedSubjects, func(i, j int) bool {
-		if rankedSubjects[i].score != rankedSubjects[j].score {
-			return rankedSubjects[i].score > rankedSubjects[j].score
-		}
-		return rankedSubjects[i].s.ID < rankedSubjects[j].s.ID
-	})
-	for _, item := range rankedSubjects {
-		r.Results = append(r.Results, item.s)
-		r.Citations = append(r.Citations, item.s.Evidence.Anchors...)
-	}
-	return ctx.Err()
-}
 
 func ReadQuery(ctx context.Context, root string, data []byte, request Request) (Receipt, error) {
 	a, err := Open(ctx, root, data)
@@ -921,8 +869,9 @@ func ReadQuery(ctx context.Context, root string, data []byte, request Request) (
 func coverageMetrics(a *Artifact) []any {
 	claimed, observed := map[string]bool{}, map[string]bool{}
 	for _, claim := range a.Claims {
-		// A supplied test-run receipt changes no other coverage metric (DCP-V1-211).
-		if a.Details[claim.ID].TestRun == nil {
+		// A supplied test-run receipt (DCP-V1-211) or coverage detail
+		// (DCP-V1-327) changes no other coverage metric.
+		if d := a.Details[claim.ID]; d.TestRun == nil && d.CoverageLedger == nil && d.FlowCompleteness == nil && d.UnresolvedConcept == nil {
 			claimed[claim.Subject] = true
 		}
 	}
@@ -963,6 +912,7 @@ func coverageMetrics(a *Artifact) []any {
 		}
 	}
 	rows = append(rows, suppliedStatusCoverage(a)...)
+	rows = append(rows, suppliedDetailCoverage(a)...)
 	rows = append(rows, testKnowledgeCoverage(a)...)
 	return append(rows, behaviorCoverage(a)...)
 }
@@ -1035,6 +985,47 @@ func suppliedStatusCoverage(a *Artifact) []any {
 		func(d RecordDetails) string {
 			if d.TestRun != nil {
 				return d.TestRun.Cleanup
+			}
+			return ""
+		})...)
+}
+
+// suppliedDetailCoverage counts the supplied coverage-ledger statuses and
+// flow completeness flags (DCP-V1-327). Each row is supplied, never derived,
+// and grants no trust; a true flag is not complete coverage.
+func suppliedDetailCoverage(a *Artifact) []any {
+	flag := func(f CompletenessFlag) string {
+		if f.Value {
+			return "true"
+		}
+		return "false"
+	}
+	limitation := "producer-supplied coverage detail; not derived or verified by the compiler and grants no trust"
+	rows := suppliedClaimCoverage(a, "supplied_coverage_ledger:", "supplied coverage-ledger claims with this status / all supplied coverage-ledger claims", limitation,
+		func(d RecordDetails) string {
+			if d.CoverageLedger != nil {
+				return d.CoverageLedger.LedgerStatus
+			}
+			return ""
+		})
+	rows = append(rows, suppliedClaimCoverage(a, "supplied_flow_coverage_complete:", "supplied flow completeness claims with this coverage flag / all supplied flow completeness claims", limitation,
+		func(d RecordDetails) string {
+			if d.FlowCompleteness != nil {
+				return flag(d.FlowCompleteness.CoverageComplete)
+			}
+			return ""
+		})...)
+	rows = append(rows, suppliedClaimCoverage(a, "supplied_flow_audit_complete:", "supplied flow completeness claims with this audit flag / all supplied flow completeness claims", limitation,
+		func(d RecordDetails) string {
+			if d.FlowCompleteness != nil {
+				return flag(d.FlowCompleteness.AuditComplete)
+			}
+			return ""
+		})...)
+	return append(rows, suppliedClaimCoverage(a, "supplied_unresolved_concepts:", "supplied unresolved concepts / all supplied unresolved concepts", limitation,
+		func(d RecordDetails) string {
+			if d.UnresolvedConcept != nil {
+				return "unplaced"
 			}
 			return ""
 		})...)

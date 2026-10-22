@@ -378,6 +378,32 @@ func (c *compiler) observation(link ObservationLink) (Observation, error) {
 	return Observation{Link: link, InputSHA256: Digest(source.Data), Document: document, Trust: trust, Limitations: []string{"native projection and source digest binding reproduced; provider honesty, assertion adequacy and completeness are not authenticated"}}, nil
 }
 
+// MaxAlternateIDs bounds one subject's alternate ids (DCP-V1-329).
+const MaxAlternateIDs = 32
+
+// validateAlternateIDs admits each subject's optional alternate ids: 1 to 32
+// distinct strings of at most 1,024 bytes, unique within the provider and
+// never a record id (DCP-V1-329).
+func validateAlternateIDs(subjects []Subject, ids map[string]bool) error {
+	owned := map[[2]string]bool{}
+	for _, s := range subjects {
+		if s.AlternateIDs == nil {
+			continue
+		}
+		if len(s.AlternateIDs) == 0 || !boundedUnique(s.AlternateIDs, MaxAlternateIDs) {
+			return fail("invalid subject alternate ids")
+		}
+		for _, alias := range s.AlternateIDs {
+			key := [2]string{s.Provider, alias}
+			if len(alias) > 1024 || ids[alias] || owned[key] {
+				return fail("duplicate or invalid subject alternate id")
+			}
+			owned[key] = true
+		}
+	}
+	return nil
+}
+
 func (c *compiler) validateRecords() error {
 	a := c.artifact
 	if len(a.Subjects) > c.manifest.recordLimit() || len(a.Claims) > c.manifest.recordLimit() || len(a.Relations) > c.manifest.recordLimit() || len(a.Observations) > c.manifest.recordLimit() || len(a.Journeys) > c.manifest.journeyLimit() || len(a.SuppliedGaps) > c.manifest.recordLimit() {
@@ -508,7 +534,7 @@ func (c *compiler) validateRecords() error {
 			a.Gaps = append(a.Gaps, Gap{claim.Subject, claim.Evidence.State, claim.Evidence.Unknown})
 		}
 	}
-	return nil
+	return validateAlternateIDs(a.Subjects, ids)
 }
 func observationMatches(test testvaliditydoc.Test, link ObservationLink) bool {
 	if test.Name != link.Test || test.Package != link.Package {

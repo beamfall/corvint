@@ -231,6 +231,13 @@ func (r *Registry) Tools() []bridge.ToolDescriptor {
 			properties["section"] = map[string]any{"oneOf": []any{name, map[string]any{"type": "array", "minItems": 1, "maxItems": doccorpus.MaxFlowSections, "uniqueItems": true, "items": name}}}
 			properties["include"] = map[string]any{"type": "array", "minItems": 1, "maxItems": len(doccorpus.FlowRecordKinds), "uniqueItems": true, "items": map[string]any{"type": "string", "enum": doccorpus.FlowRecordKinds}}
 		}
+		if op == "search" {
+			// DCP-V1-328: opt-in claim hits ranked with the subject hits.
+			properties["include"] = map[string]any{"type": "array", "minItems": 1, "maxItems": 1, "items": map[string]any{"type": "string", "enum": []string{"claims"}}}
+			// DCP-V1-331: optional subject kind filter, one kind or a list.
+			kind := map[string]any{"type": "string", "minLength": 1, "maxLength": 128}
+			properties["kind"] = map[string]any{"oneOf": []any{kind, map[string]any{"type": "array", "minItems": 1, "maxItems": doccorpus.MaxGapKinds, "uniqueItems": true, "items": kind}}}
+		}
 		if op == "trace" {
 			// DCP-V1-098: downstream flow-relation depth for a flow subject.
 			properties["depth"] = map[string]any{"type": "integer", "minimum": 1, "maximum": doccorpus.MaxFlowDepth}
@@ -293,7 +300,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	}
 	kind := doccorpus.OperationInput(op)
 	for key, value := range members {
-		allowed := key == "retirement" || key == "offset" && r.header.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && (kind == "query" || op == "claims") || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow" || key == "repository" && (op == "locate" || op == "recommend-tests") || key == "kind" && op == "gaps" || (key == "state" || key == "qualifier" || key == "run") && op == "claims"
+		allowed := key == "retirement" || key == "offset" && r.header.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && (kind == "query" || op == "claims") || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow" || key == "include" && op == "search" || key == "repository" && (op == "locate" || op == "recommend-tests") || key == "kind" && (op == "gaps" || op == "search") || (key == "state" || key == "qualifier" || key == "run") && op == "claims"
 		if !allowed || value == nil {
 			return nil, "", nil, &Error{"invalid-arguments"}, finish()
 		}
