@@ -1,0 +1,260 @@
+package changee2e
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/Beamfall/corvint/internal/behaviorfalsify"
+	"github.com/Beamfall/corvint/internal/jstestprovider"
+)
+
+// fakeSide is one side's scripted pool for the offline runner (CCE-V0-028).
+type fakeSide struct {
+	reason  string // a non-empty reason leaves the pool unqualified
+	states  []string
+	message string // the failure message of each failed repeat
+}
+
+// fakeRunner scripts the pools by application revision and records each staged tree's files.
+type fakeRunner struct {
+	sides    map[string]fakeSide
+	controls string // the status every control reads when the ladder reaches them
+	staged   map[string]map[string]string
+	called   int
+}
+
+func (f *fakeRunner) env(root string) *proveEnv {
+	e := &proveEnv{root: root}
+	e.side = func(_ context.Context, in runInput) (jstestprovider.Receipt, string, string) {
+		f.called++
+		files := map[string]string{}
+		for _, p := range []string{"e2e/pages/club.page.ts", "app/components/teesheet.html", proveConfigName} {
+			if data, err := os.ReadFile(filepath.Join(in.Tree, filepath.FromSlash(p))); err == nil {
+				files[p] = string(data)
+			}
+		}
+		if f.staged == nil {
+			f.staged = map[string]map[string]string{}
+		}
+		f.staged[in.AppIdentity] = files
+		s := f.sides[in.AppIdentity]
+		var r jstestprovider.Receipt
+		for _, st := range s.states {
+			t := jstestprovider.TestOutcome{State: jstestprovider.ExecutionState(st)}
+			if st == string(jstestprovider.StateFailed) {
+				t.FailureMessage = s.message
+			}
+			r.Tests = append(r.Tests, t)
+		}
+		if s.reason != "" {
+			return r, "", s.reason
+		}
+		return r, "sha256:" + strings.Repeat("0", 64), ""
+	}
+	e.controls = func(_ context.Context, _ string, sc Scenario, _ testTree, _ jstestprovider.Receipt) []controlProof {
+		out := notRunControls(sc, "")
+		for i := range out {
+			out[i].Status, out[i].Reasons = f.controls, nil
+		}
+		return out
+	}
+	return e
+}
+
+func repeat(state string) []string { return []string{state, state, state} }
+
+// assertionMessage is the Playwright failure text of the scenario's own outcome assertion.
+func assertionMessage(sc Scenario, received string) string {
+	return "Error: " + sc.Marker + "\n\nexpect(locator)." + sc.Matcher + "(expected) failed\n\nLocator: getByTestId('" + sc.Locator +
+		"')\nExpected: \"" + sc.Value + "\"\nReceived: " + received
+}
+
+func compiledScenario(t *testing.T, root, base, head string) Scenario {
+	t.Helper()
+	rep, err := Compile(bg, diffOpts(root, base, head))
+	if err != nil || len(rep.Compiled()) != 1 {
+		t.Fatalf("compile: %v", err)
+	}
+	return rep.Compiled()[0]
+}
+
+// CCE-V0-009/028 (V1-1687): every ladder verdict is produced offline, through proveScenario's
+// real staging, test-tree and verdict code, with only the Playwright run and the BBF controls
+// replaced by a scripted runner.
+func TestCCEV0028LadderOfflineFakeRunner(t *testing.T) {
+	root, base := fixtureRepo(t)
+	head := commitBehaviourChange(t, root)
+	sc := compiledScenario(t, root, base, head)
+	mismatch := assertionMessage(sc, `"Pending"`)
+	unresolved := assertionMessage(sc, "<element(s) not found>")
+	offAssertion := "Error: locator.click: Timeout 5000ms exceeded.\nCall log:\n  - waiting for getByTestId('slot')"
+	pass := fakeSide{states: repeat("passed")}
+	for _, tc := range []struct {
+		name       string
+		head, base fakeSide
+		controls   string
+		origin     string
+		want       string
+		note       string
+		scoring    bool
+		ranControl bool
+	}{
+		{"unqualified head", fakeSide{reason: "provider-error", states: repeat("passed")}, pass, "killed", OriginAdmittedAtBase, VerdictInconclusive, "run-without-qualified-receipt", false, false},
+		{"skipped repeat", fakeSide{states: []string{"passed", "skipped", "passed"}}, pass, "killed", OriginAdmittedAtBase, VerdictInconclusive, "repeat-incomplete", false, false},
+		{"intermittent head", fakeSide{states: []string{"passed", "failed", "passed"}, message: mismatch}, pass, "killed", OriginAdmittedAtBase, VerdictUnstable, "head-pool-intermittent", false, false},
+		{"regression detected", fakeSide{states: repeat("failed"), message: mismatch}, pass, "killed", OriginAdmittedAtBase, VerdictRegressionDetected, "the change broke a declared outcome", false, false},
+		{"scenario broken", fakeSide{states: repeat("failed"), message: offAssertion}, pass, "killed", OriginAdmittedAtBase, VerdictScenarioBroken, "head-repeat-failed", false, false},
+		{"control survived", pass, fakeSide{states: repeat("failed"), message: mismatch}, "survived", OriginAdmittedAtBase, VerdictControlSurvived, "control-survived:control:wrong-locator", false, true},
+		{"control not run", pass, fakeSide{states: repeat("failed"), message: mismatch}, "not_run", OriginAdmittedAtBase, VerdictInconclusive, "control-not-killed:control:wrong-locator", false, true},
+		{"discriminates", pass, fakeSide{states: repeat("failed"), message: mismatch}, "killed", OriginAdmittedAtBase, VerdictDiscriminates, "value mismatch", true, true},
+		{"new reach", pass, fakeSide{states: repeat("failed"), message: unresolved}, "killed", OriginAdmittedAtBase, VerdictNewReach, "locator did not resolve", true, true},
+		{"preserves", pass, pass, "killed", OriginAdmittedAtBase, VerdictPreserves, "regression-preservation", true, true},
+		{"base fails off the assertion", pass, fakeSide{states: repeat("failed"), message: offAssertion}, "killed", OriginAdmittedAtBase, VerdictInconclusive, "base-mixed-or-failed-off-assertion", false, true},
+		{"changed oracle caps discriminates", pass, fakeSide{states: repeat("failed"), message: mismatch}, "killed", OriginChangedInDiff, VerdictInconclusive, ReasonOracleSelfCertified, false, true},
+		{"changed oracle caps a regression", fakeSide{states: repeat("failed"), message: mismatch}, pass, "killed", OriginChangedInDiff, VerdictInconclusive, ReasonOracleSelfCertified, false, false},
+		{"new oracle keeps the verdict but does not score", pass, fakeSide{states: repeat("failed"), message: unresolved}, "killed", OriginNewInDiff, VerdictNewReach, "locator did not resolve", false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := &fakeRunner{sides: map[string]fakeSide{head: tc.head, base: tc.base}, controls: tc.controls}
+			s := sc
+			s.OracleOrigin = tc.origin
+			p := f.env(root).proveScenario(bg, base, head, s, 3)
+			if p.Verdict != tc.want || !strings.Contains(p.Note, tc.note) || p.Scoring != tc.scoring || p.OracleOrigin != tc.origin {
+				t.Fatalf("verdict %s (%s) scoring %v origin %s, want %s containing %q scoring %v", p.Verdict, p.Note, p.Scoring, p.OracleOrigin, tc.want, tc.note, tc.scoring)
+			}
+			ran := p.Controls[0].Status != string(behaviorfalsify.StatusNotRun) || tc.controls == "not_run" && p.Controls[0].Reasons == nil
+			if ran != tc.ranControl {
+				t.Fatalf("controls ran = %v, want %v: %+v", ran, tc.ranControl, p.Controls)
+			}
+			if p.Head.ApplicationRevision != head || p.Base.ApplicationRevision != base || p.Head.TestRevision != head || p.Base.TestRevision != head {
+				t.Fatalf("revisions head %+v base %+v", p.Head, p.Base)
+			}
+			if !strings.HasPrefix(p.Head.TestTreeDigest, "sha256:") || p.Head.TestTreeDigest != p.Base.TestTreeDigest {
+				t.Fatalf("test-tree digests %q and %q must be identical", p.Head.TestTreeDigest, p.Base.TestTreeDigest)
+			}
+		})
+	}
+}
+
+// CCE-V0-017: both sides run the head test tree; the base side runs it over the base application.
+// A page-object edit in the change therefore reaches the base run, and the recorded digest is the
+// same on both sides.
+func TestCCEV0017TestTreeHeldAtHead(t *testing.T) {
+	root, base := fixtureRepo(t)
+	page := strings.Replace(*overlayText(t, "e2e/pages/club.page.ts"), "async cleanup() {", "// head page object\n  async cleanup() {", 1)
+	commitFiles(t, root, map[string]*string{"e2e/pages/club.page.ts": text(page)}, "page object drift")
+	head := commitBehaviourChange(t, root)
+	sc := compiledScenario(t, root, base, head)
+	f := &fakeRunner{sides: map[string]fakeSide{head: {states: repeat("passed")}, base: {states: repeat("passed")}}, controls: "killed"}
+	p := f.env(root).proveScenario(bg, base, head, sc, 3)
+	if f.called != 2 {
+		t.Fatalf("runner called %d times", f.called)
+	}
+	for _, rev := range []string{head, base} {
+		if got := f.staged[rev]["e2e/pages/club.page.ts"]; got != page {
+			t.Fatalf("side %s ran page object %q, want the head page object", rev, got)
+		}
+		if f.staged[rev][proveConfigName] != proveConfig {
+			t.Fatalf("side %s lacks the generated config", rev)
+		}
+	}
+	if strings.Contains(f.staged[base]["app/components/teesheet.html"], "Booked") || f.staged[base]["app/components/teesheet.html"] == f.staged[head]["app/components/teesheet.html"] {
+		t.Fatal("the base side must run the base application tree")
+	}
+	if p.Head.TestTreeDigest == "" || p.Head.TestTreeDigest != p.Base.TestTreeDigest {
+		t.Fatalf("digests %q / %q", p.Head.TestTreeDigest, p.Base.TestTreeDigest)
+	}
+}
+
+// CCE-V0-017: an import that resolves nowhere in the test tree, and a test-tree file that
+// application code imports, each read INCONCLUSIVE before any run.
+func TestCCEV0017TestTreeRefusals(t *testing.T) {
+	root, base := fixtureRepo(t)
+	head := commitBehaviourChange(t, root)
+	sc := compiledScenario(t, root, base, head)
+	missing := sc
+	missing.Text = []byte(strings.Replace(string(sc.Text), "import { test, expect }", "import { Missing } from './missing-helper';\nimport { test, expect }", 1))
+	overlapRoot, overlapBase := fixtureRepo(t)
+	commitFiles(t, overlapRoot, map[string]*string{"app/main.ts": text("import { ClubPage } from '../e2e/pages/club.page';\nexport const page = ClubPage;\n")}, "app imports a page object")
+	overlapHead := commitBehaviourChange(t, overlapRoot)
+	overlap := compiledScenario(t, overlapRoot, overlapBase, overlapHead)
+	for _, tc := range []struct {
+		name             string
+		root, base, head string
+		sc               Scenario
+		want             string
+	}{
+		{"unresolved import", root, base, head, missing, ReasonTestTreeUnresolved},
+		{"application imports the test tree", overlapRoot, overlapBase, overlapHead, overlap, ReasonTestTreeOverlaps},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := &fakeRunner{controls: "killed"}
+			p := f.env(tc.root).proveScenario(bg, tc.base, tc.head, tc.sc, 3)
+			if p.Verdict != VerdictInconclusive || p.Note != tc.want || p.Head.Reason != tc.want || p.Base.Reason != tc.want || f.called != 0 {
+				t.Fatalf("verdict %s (%s), head reason %q, runner calls %d; want INCONCLUSIVE %s", p.Verdict, p.Note, p.Head.Reason, f.called, tc.want)
+			}
+		})
+	}
+}
+
+// CCE-V0-018: omitted-event controls cover the step expected to produce the outcome and every
+// fixture setup, and the perturbation comments out exactly that statement.
+func TestCCEV0018OmittedEventControls(t *testing.T) {
+	root, base := fixtureRepo(t)
+	head := commitBehaviourChange(t, root)
+	sc := compiledScenario(t, root, base, head)
+	lines := strings.Split(string(sc.Text), "\n")
+	specs := controlSpecs(sc)
+	var ids []string
+	for _, c := range specs {
+		ids = append(ids, c.id)
+	}
+	if strings.Join(ids, ",") != "control:wrong-locator,control:wrong-expected-value,control:omitted-event:step,control:omitted-event:setup-1" {
+		t.Fatalf("control IDs %v", ids)
+	}
+	for _, c := range specs[2:] {
+		out, err := perturbLine(sc.Text, c.line, c.kind, sc.Locator, sc.Matcher, sc.Value, c.replacement)
+		if err != nil {
+			t.Fatalf("%s: %v", c.id, err)
+		}
+		got := strings.Split(string(out), "\n")
+		if len(got) != len(lines) {
+			t.Fatalf("%s changed the line count", c.id)
+		}
+		for i := range lines {
+			if (got[i] != lines[i]) != (i == c.line-1) {
+				t.Fatalf("%s changed line %d, want only %d", c.id, i+1, c.line)
+			}
+		}
+		if !strings.Contains(got[c.line-1], "// corvint-test e2e prove: omitted-event control") {
+			t.Fatalf("%s line = %q", c.id, got[c.line-1])
+		}
+	}
+	if !strings.Contains(lines[specs[3].line-1], "seedOpenSlots()") || !strings.HasPrefix(lines[specs[2].line-1], "    await ") {
+		t.Fatalf("setup line %q, step line %q", lines[specs[3].line-1], lines[specs[2].line-1])
+	}
+	if _, err := perturbLine(sc.Text, sc.AssertionLine, behaviorfalsify.OmittedEvent, sc.Locator, sc.Matcher, sc.Value, omittedEvent); err == nil {
+		t.Fatal("omitting the outcome assertion itself must refuse")
+	}
+}
+
+// CCE-V0-026: the failure kind of a repeat at the outcome assertion is read from the message.
+func TestCCEV0026FailureKind(t *testing.T) {
+	sc := Scenario{Marker: "corvint-e2e outcome assert:a/b", Matcher: "toHaveText", Locator: "slot-status", Value: "Booked"}
+	for _, tc := range []struct{ name, state, message, want string }{
+		{"value mismatch", "failed", assertionMessage(sc, `"Pending"`), FailureValueMismatch},
+		{"locator unresolved", "failed", assertionMessage(sc, "<element(s) not found>"), FailureLocatorUnresolved},
+		{"coloured locator unresolved", "failed", assertionMessage(sc, "\x1b[31m<element(s) not found>\x1b[39m"), FailureLocatorUnresolved},
+		{"off the assertion", "failed", "Error: locator.click: element(s) not found", ""},
+		{"passed", "passed", "", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := assertionFailure(tc.state, tc.message, sc.Marker, sc.Matcher, sc.Locator); got != tc.want {
+				t.Fatalf("failure kind %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

@@ -107,7 +107,7 @@ func TestCompletionNoActionReasons(t *testing.T) {
 	if err != nil || len(result.NextActions) == 0 || result.NoActionReason != "" {
 		t.Fatalf("active: %#v %v", result, err)
 	}
-	result, err = Cancel(context.Background(), root, key)
+	result, err = Cancel(context.Background(), root, key, "test cancel")
 	if err != nil || len(result.NextActions) != 0 || result.NoActionReason != "enrollment-cancelled" {
 		t.Fatalf("cancelled: %#v %v", result, err)
 	}

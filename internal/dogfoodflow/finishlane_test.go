@@ -314,6 +314,7 @@ func TestFinishLaneDCWV0092RefusesVerifySyntaxBeforePrepare(t *testing.T) {
 	}{
 		{name: "quoted-run-regex", verifyFile: write("quoted.txt", []byte("go test -count=1 -run '^TestA$' ./internal/a\n")), reason: "unsupported-verify-syntax"},
 		{name: "env-quoted", verify: "go test -run \"TestA\" ./internal/a", reason: "unsupported-verify-syntax"},
+		{name: "quoted-run-alternation", verifyFile: write("alternation.txt", []byte("go test -count=1 -run 'TestA|TestB' ./internal/a\n")), reason: "unsupported-verify-syntax"},
 		{name: "over-bound", verifyFile: write("big.txt", bytes.Repeat([]byte("\n"), maxVerifyFileBytes+1)), reason: "verify-file-over-bound"},
 		{name: "unavailable", verifyFile: filepath.Join(scratch, "missing.txt"), reason: "verify-file-unavailable"},
 	} {
@@ -337,6 +338,15 @@ func TestFinishLaneDCWV0092RefusesVerifySyntaxBeforePrepare(t *testing.T) {
 			}
 			if tc.reason == "unsupported-verify-syntax" && !strings.Contains(out, "outside the admitted set") {
 				t.Fatalf("stderr = %q, want the refused byte named", out)
+			}
+			// DCW-V0-170 (V1-2344): the refusal names the accepted form for a
+			// quoted -run alternation: one command per test name, or a script.
+			if tc.reason == "unsupported-verify-syntax" {
+				for _, want := range []string{"accepted form:", "-run 'TestA|TestB' is refused even inside quotes", "go test -run TestA ./pkg, then go test -run TestB ./pkg", "sh path/to/script.sh"} {
+					if !strings.Contains(out, want) {
+						t.Fatalf("stderr = %q, want accepted-form hint %q", out, want)
+					}
+				}
 			}
 		})
 	}

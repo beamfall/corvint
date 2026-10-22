@@ -908,6 +908,21 @@ func OpenWorkflow(ctx context.Context, repo *intent.Repository, actor mutation.B
 			}
 		}
 		if w.attempt != nil && !w.attempt.Live() {
+			// The prior assignment's clean stage worktrees are removed
+			// before the reassign; any it cannot remove stay registered,
+			// shown by program show and removable by program cleanup
+			// (ATR-V0-297).
+			if _, e := w.cleanupPhase(); e == nil {
+				if _, e = w.CleanupWorktrees(); e != nil {
+					return nil, e
+				}
+			}
+			kept := []snapshot.WorktreeRecord{}
+			for _, r := range w.program.Worktrees {
+				if !r.Removed {
+					kept = append(kept, r)
+				}
+			}
 			base, _, e := poolSource(repo.PrimaryWorktree)
 			if e != nil {
 				return nil, e
@@ -926,7 +941,7 @@ func OpenWorkflow(ctx context.Context, repo *intent.Repository, actor mutation.B
 			w.program.WorktreeIdentity = ""
 			w.program.WorktreeGitDir = ""
 			w.program.WorktreeCommit = ""
-			w.program.Worktrees = nil
+			w.program.Worktrees = kept
 			w.program.CandidateCommit = ""
 			w.program.LeaderPID = 0
 			w.program.LeaderStarted = ""
@@ -1363,48 +1378,151 @@ func (w *Workflow) Resume(retry bool) error {
 	return nil
 }
 
-// CleanupWorktrees removes only registered clean stage checkouts after native
-// completion. Candidate refs and journal handoffs remain recoverable.
-func (w *Workflow) CleanupWorktrees() error {
-	if w.attempt.Phase != "COMPLETED" || w.attempt.Quiescence != "PROVED" {
-		return fmt.Errorf("cleanup requires completed proved attempt")
+// WorktreeCleanup reports one registered stage worktree that a cleanup
+// removed or kept (ATR-V0-296).
+type WorktreeCleanup struct {
+	Path       string `json:"path"`
+	Repository string `json:"repository,omitempty"`
+	Removed    bool   `json:"removed"`
+	Reason     string `json:"reason,omitempty"`
+}
+
+// cleanupPhase is the program phase a cleanup returns to: FINISHED behind a
+// terminal attempt whose stop is proved, or ADMITTED for an idle program that
+// holds no attempt. Any other state may still reference a stage worktree.
+func (w *Workflow) cleanupPhase() (string, error) {
+	switch {
+	case w.program.Phase == "FINISHED" && w.attempt != nil && !w.attempt.Live() && w.attempt.Quiescence == "PROVED":
+		return "FINISHED", nil
+	case w.program.Phase == "ADMITTED" && w.program.CurrentAttempt == "" && w.attempt == nil:
+		return "ADMITTED", nil
 	}
+	return "", wire.Errorf(wire.CodeAttemptLive, "program", "cleanup requires a terminal proved attempt or an idle program")
+}
+
+// CleanupWorktrees removes only registered clean stage checkouts whose HEAD
+// is still their recorded commit, once no live attempt can reference them.
+// Candidate refs and journal handoffs remain recoverable. A worktree that is
+// dirty, moved, missing or not removable is kept registered and reported, and
+// cleanup continues with the others (ATR-V0-296).
+func (w *Workflow) CleanupWorktrees() ([]WorktreeCleanup, error) {
+	phase, e := w.cleanupPhase()
+	if e != nil {
+		return nil, e
+	}
+	out := []WorktreeCleanup{}
 	for i, r := range w.program.Worktrees {
 		if r.Removed {
 			continue
 		}
+		item := WorktreeCleanup{Path: r.Path, Repository: r.Repository}
+		saved := w.program
 		root := w.repo.PrimaryWorktree
 		w.program.Worktree = r.Path
+		var bound error
 		if r.Repository != "" {
-			repo, ok := w.repository(r.Repository)
-			if !ok {
-				return fmt.Errorf("worktree names an undeclared repository")
-			}
-			root = repo.Checkout
-			if e := w.bindRepoWorktree(repo, r.Path, r.Commit); e != nil {
-				return e
+			if repo, ok := w.repository(r.Repository); !ok {
+				bound = fmt.Errorf("worktree names an undeclared repository")
+			} else {
+				root = repo.Checkout
+				bound = w.bindRepoWorktree(repo, r.Path, r.Commit)
 			}
 		} else {
 			w.program.WorktreeIdentity = r.Identity
 			w.program.WorktreeGitDir = r.PrivateIdentity
 			w.program.WorktreeCommit = r.Commit
-			if e := w.bindWorktree(r.Path, r.Commit); e != nil {
-				return e
-			}
+			bound = w.bindWorktree(r.Path, r.Commit)
+		}
+		if bound != nil {
+			w.program = saved
+			item.Reason = bound.Error()
+			out = append(out, item)
+			continue
 		}
 		w.program.Effect = supervisor.Digest([]byte("WORKTREE_REMOVE:" + r.Path + ":" + r.Identity))
 		if e := w.persist("WORKTREE_REMOVE"); e != nil {
-			return e
+			return out, e
 		}
 		if _, e := gitOutput(root, "-c", "core.hooksPath=/dev/null", "worktree", "remove", r.Path); e != nil {
-			return e
+			// The phase returns with the record kept, so a failed removal
+			// never leaves the program parked in WORKTREE_REMOVE.
+			item.Reason = "worktree remove: " + e.Error()
+		} else {
+			w.program.Worktrees[i].Removed = true
+			item.Removed = true
 		}
-		w.program.Worktrees[i].Removed = true
-		if e := w.persist("FINISHED"); e != nil {
-			return e
+		if e := w.persist(phase); e != nil {
+			return out, e
+		}
+		out = append(out, item)
+	}
+	return out, nil
+}
+
+// CleanupProgram is the operator cleanup of one recorded program's stage
+// worktrees: it takes ownership the way OpenWorkflow does, refused while
+// another owner lives, but never reassigns, claims or attaches work
+// (ATR-V0-296).
+func CleanupProgram(ctx context.Context, repo *intent.Repository, actor mutation.Binding, id string, c ProgramConfig) ([]WorktreeCleanup, error) {
+	if !programID(id) {
+		return nil, fmt.Errorf("invalid program id")
+	}
+	proof, e := readLeaseProof(ctx, repo)
+	if e != nil {
+		return nil, e
+	}
+	q, e := intent.DecodeQueue(proof.Records["intent/queue.json"].Raw)
+	if e != nil {
+		return nil, e
+	}
+	policy, e := intent.DecodePolicy(proof.Records["intent/policy.json"].Raw)
+	if e != nil {
+		return nil, e
+	}
+	w := &Workflow{repo: repo, actor: actor, cfg: c, queue: q, policy: policy}
+	if raw := proof.Records["programs.json"].Raw; len(raw) > 0 {
+		ps, e := snapshot.DecodePrograms(raw)
+		if e != nil {
+			return nil, e
+		}
+		for _, p := range ps.Entries {
+			if p.ID == id {
+				w.program = p
+			}
 		}
 	}
-	return nil
+	if w.program.ID == "" {
+		return nil, fmt.Errorf("program %s is not recorded", id)
+	}
+	config, _ := json.Marshal(c)
+	if w.program.ConfigSHA256 != supervisor.Digest(config) {
+		return nil, fmt.Errorf("program config differs")
+	}
+	if w.program.CurrentAttempt != "" {
+		rec, ok := proof.Records["attempts/"+w.program.CurrentAttempt+".json"]
+		if !ok {
+			return nil, fmt.Errorf("current attempt missing")
+		}
+		if w.attempt, e = snapshot.DecodeAttempt(rec.Raw); e != nil {
+			return nil, e
+		}
+	}
+	if _, e = w.cleanupPhase(); e != nil {
+		return nil, e
+	}
+	started, e := supervisor.ProcessIdentity(os.Getpid())
+	if e != nil || started == "" {
+		return nil, fmt.Errorf("supervisor identity unavailable")
+	}
+	if w.program.OwnerPID != os.Getpid() || w.program.OwnerStarted != started {
+		w.program.OwnerPID = os.Getpid()
+		w.program.OwnerStarted = started
+		w.program.Epoch++
+		if e = w.persist(w.program.Phase); e != nil {
+			return nil, e
+		}
+	}
+	return w.CleanupWorktrees()
 }
 
 func (w *Workflow) claimAndAttach(ctx context.Context, ticketID string) error {

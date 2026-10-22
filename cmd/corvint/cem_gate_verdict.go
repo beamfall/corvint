@@ -32,6 +32,12 @@ Tasks gate:
   path's minimum tier. Exit 0 grants, 1 refuses (verifier-disagreement when
   the consumers differ), 2 is an unreadable argv. --base and --candidate are
   full commit IDs; --touch-paths is a JSON string array.
+
+  When the consumers differ and their recorded Go builds show different
+  revisions or a modified tree, the refusal is verifier-build-mismatch: the
+  consumer is not known to share the verifier's source (TCB-V0-045). Rebuild
+  it from the verifier's checkout and rerun the gate:
+    (cd interop/cem01-go && GOTOOLCHAIN=local go build -o "$CONSUMER" .)
 `
 
 // runCEMInvocation runs the cem commands that own their whole argv before the

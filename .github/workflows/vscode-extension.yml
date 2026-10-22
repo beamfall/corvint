@@ -1,0 +1,53 @@
+name: vscode-extension
+
+# VSC-V0-080 (docs/specs/vscode-extension-v0.md, V1-0437): run the extension's own lockfile
+# install, lint, typecheck and unit tests on every pull request that touches extensions/vscode or
+# the local CLI, MCP and live test-provider wire contracts it consumes (query/impact argv and JSON,
+# corvint-mcp tools, corvint-go-test-provider session frames). It is path-filtered, is not a
+# required check, and needs only the npm registry for the lockfile install; install scripts stay off.
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/vscode-extension.yml"
+      - "extensions/vscode/**"
+      - "conformance/vscode-extension-v0/**"
+      - "docs/specs/vscode-extension-v0.md"
+      - "cmd/corvint/main.go"
+      - "cmd/corvint/query*.go"
+      - "cmd/corvint/impact*.go"
+      - "cmd/corvint-mcp/**"
+      - "internal/mcp/**"
+      - "cmd/corvint-go-test-provider/**"
+      - "internal/liveverify/**"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  vscode-extension:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: extensions/vscode
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+      - name: Install from the lockfile
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test

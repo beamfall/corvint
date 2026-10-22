@@ -267,6 +267,20 @@ const (
 	maxCheckTimeoutSeconds = 3600
 )
 
+// CancelReasonError is the cancel-reason-required refusal (LCP-V0-038). Its
+// Error is the stable code; Detail names what the cancel would close.
+type CancelReasonError struct {
+	Checks       int
+	Observations int
+}
+
+func (e *CancelReasonError) Error() string { return "cancel-reason-required" }
+
+// Detail names the selected checks and saved observations the cancel closes.
+func (e *CancelReasonError) Detail() string {
+	return fmt.Sprintf("cancelling this active enrollment closes %d selected checks and %d saved observations as non-success", e.Checks, e.Observations)
+}
+
 // CheckBoundError is the invalid-check-bound refusal. Its Error is the stable
 // code; Detail names the bounds and the requested values (LCP-V0-032, V1-1011).
 // CheckID has already matched the check id pattern, so Detail carries no path

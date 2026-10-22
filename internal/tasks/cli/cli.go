@@ -85,7 +85,7 @@ var ReadVerbs = []string{
 	"ticket revoke-approval", "ticket attach-evidence", "ticket batch-close",
 	"release create", "release update", "release candidate", "release record-gate", "release promote", "release list", "release show", "release readiness",
 	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview", "plan batches",
-	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
+	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show", "program cleanup",
 	"dispatch", "dispatch context-hook", "dispatch recover-reader", "dispatch salvage", "dispatch status", "dispatch unpark",
 	"submit", "gate run", "complete", "health", "doctor", "pool status", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe", "pool acquire", "pool release", "pool wait", "pool operate",
 	"slots acquire", "slots release",
@@ -149,7 +149,10 @@ func Run(env Env) int {
 		if len(args) > 1 && args[1] == "show" {
 			return emit(env.Stdout, programRead(env, false, args[2:]))
 		}
-		return emit(env.Stdout, usage([]string{"program"}, "expected show"))
+		if len(args) > 1 && args[1] == "cleanup" {
+			return emit(env.Stdout, programCleanup(env, args[2:]))
+		}
+		return emit(env.Stdout, usage([]string{"program"}, "expected show or cleanup"))
 	case "run":
 		if attemptMode(args[1:]) {
 			return attemptRun(env, args[1:])

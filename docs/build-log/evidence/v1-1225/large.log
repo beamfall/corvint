@@ -1,0 +1,38 @@
+heavy.sh: slot slot2 after 35s
+Linux 6.8.0-117-generic aarch64
+go version go1.27.2 linux/arm64
+tmp fs tmpfs
+=== RUN   TestCALV0221_CompleteRouteBoundedDescriptors
+=== RUN   TestCALV0221_CompleteRouteBoundedDescriptors/1000
+    descriptor_bound_unix_test.go:72: fixture receipts=1000 requests=1000 shards=250
+    descriptor_bound_unix_test.go:191: receipts=1000 fallback=false run=1 baseline=7 sampled_peak=525 delta=518 load=05:38:36 up 33 days, 10:04,  0 users,  load average: 2.10, 0.62, 0.21
+    descriptor_bound_unix_test.go:191: receipts=1000 fallback=false run=2 baseline=7 sampled_peak=524 delta=517 load=05:38:37 up 33 days, 10:04,  0 users,  load average: 2.10, 0.62, 0.21
+    descriptor_bound_unix_test.go:191: receipts=1000 fallback=false run=3 baseline=7 sampled_peak=525 delta=518 load=05:38:37 up 33 days, 10:04,  0 users,  load average: 2.10, 0.62, 0.21
+    descriptor_bound_unix_test.go:191: receipts=1000 fallback=false run=4 baseline=7 sampled_peak=525 delta=518 load=05:38:37 up 33 days, 10:04,  0 users,  load average: 2.10, 0.62, 0.21
+    descriptor_bound_unix_test.go:191: receipts=1000 fallback=false run=5 baseline=7 sampled_peak=525 delta=518 load=05:38:37 up 33 days, 10:04,  0 users,  load average: 2.10, 0.62, 0.21
+    descriptor_bound_unix_test.go:194: receipts=1000 fallback=false median_sampled_peak=525 peaks=[524 525 525 525 525]
+    descriptor_bound_unix_test.go:191: receipts=1000 fallback=true run=1 baseline=7 sampled_peak=524 delta=517 load=05:38:37 up 33 days, 10:04,  0 users,  load average: 2.10, 0.62, 0.21
+    descriptor_bound_unix_test.go:191: receipts=1000 fallback=true run=2 baseline=7 sampled_peak=523 delta=516 load=05:38:37 up 33 days, 10:04,  0 users,  load average: 2.10, 0.62, 0.21
+    descriptor_bound_unix_test.go:191: receipts=1000 fallback=true run=3 baseline=7 sampled_peak=524 delta=517 load=05:38:38 up 33 days, 10:04,  0 users,  load average: 2.10, 0.62, 0.21
+    descriptor_bound_unix_test.go:191: receipts=1000 fallback=true run=4 baseline=7 sampled_peak=524 delta=517 load=05:38:38 up 33 days, 10:04,  0 users,  load average: 2.10, 0.62, 0.21
+    descriptor_bound_unix_test.go:191: receipts=1000 fallback=true run=5 baseline=7 sampled_peak=524 delta=517 load=05:38:38 up 33 days, 10:04,  0 users,  load average: 2.10, 0.62, 0.21
+    descriptor_bound_unix_test.go:194: receipts=1000 fallback=true median_sampled_peak=524 peaks=[523 524 524 524 524]
+=== RUN   TestCALV0221_CompleteRouteBoundedDescriptors/100000
+    descriptor_bound_unix_test.go:72: fixture receipts=100000 requests=2000 shards=256
+    descriptor_bound_unix_test.go:191: receipts=100000 fallback=false run=1 baseline=7 sampled_peak=537 delta=530 load=05:38:42 up 33 days, 10:04,  0 users,  load average: 2.01, 0.63, 0.22
+    descriptor_bound_unix_test.go:191: receipts=100000 fallback=false run=2 baseline=7 sampled_peak=537 delta=530 load=05:38:46 up 33 days, 10:04,  0 users,  load average: 2.33, 0.72, 0.25
+    descriptor_bound_unix_test.go:191: receipts=100000 fallback=false run=3 baseline=7 sampled_peak=536 delta=529 load=05:38:50 up 33 days, 10:04,  0 users,  load average: 2.22, 0.72, 0.25
+    descriptor_bound_unix_test.go:191: receipts=100000 fallback=false run=4 baseline=7 sampled_peak=536 delta=529 load=05:38:53 up 33 days, 10:04,  0 users,  load average: 2.22, 0.72, 0.25
+    descriptor_bound_unix_test.go:191: receipts=100000 fallback=false run=5 baseline=7 sampled_peak=536 delta=529 load=05:38:57 up 33 days, 10:04,  0 users,  load average: 2.12, 0.73, 0.26
+    descriptor_bound_unix_test.go:194: receipts=100000 fallback=false median_sampled_peak=536 peaks=[536 536 536 537 537]
+    descriptor_bound_unix_test.go:191: receipts=100000 fallback=true run=1 baseline=7 sampled_peak=536 delta=529 load=05:39:00 up 33 days, 10:04,  0 users,  load average: 2.03, 0.73, 0.26
+    descriptor_bound_unix_test.go:191: receipts=100000 fallback=true run=2 baseline=7 sampled_peak=536 delta=529 load=05:39:07 up 33 days, 10:05,  0 users,  load average: 1.95, 0.74, 0.27
+    descriptor_bound_unix_test.go:191: receipts=100000 fallback=true run=3 baseline=7 sampled_peak=536 delta=529 load=05:39:13 up 33 days, 10:05,  0 users,  load average: 1.87, 0.74, 0.27
+    descriptor_bound_unix_test.go:191: receipts=100000 fallback=true run=4 baseline=7 sampled_peak=536 delta=529 load=05:39:20 up 33 days, 10:05,  0 users,  load average: 1.89, 0.79, 0.29
+    descriptor_bound_unix_test.go:191: receipts=100000 fallback=true run=5 baseline=7 sampled_peak=536 delta=529 load=05:39:29 up 33 days, 10:05,  0 users,  load average: 1.76, 0.79, 0.30
+    descriptor_bound_unix_test.go:194: receipts=100000 fallback=true median_sampled_peak=536 peaks=[536 536 536 536 536]
+--- PASS: TestCALV0221_CompleteRouteBoundedDescriptors (60.31s)
+    --- PASS: TestCALV0221_CompleteRouteBoundedDescriptors/1000 (2.09s)
+    --- PASS: TestCALV0221_CompleteRouteBoundedDescriptors/100000 (58.22s)
+PASS
+ok  	github.com/Beamfall/corvint/internal/tasks/store	60.323s

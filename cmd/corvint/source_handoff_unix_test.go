@@ -44,7 +44,13 @@ exec /usr/bin/git "$@"
 }
 
 // ESV-V0-003: cancelling a Git read sends TERM to the child's owned process
-// group and reaps its descendants before the refusal is emitted.
+// group and reaps its descendants before the refusal is emitted; the refusal
+// names the cancellation (ESV-V0-014). The test lifts the read deadline and the
+// TERM grace, so host load can neither fire the deadline before the trap exists
+// nor let SIGKILL beat the trap's marker; a stop that skips TERM still fails
+// the marker check. Linux holds the exited leader unreaped during the grace, so
+// signal 0 never reports the group gone and the whole grace elapses: keep it
+// well under the elapsed bound (V1-2319).
 func TestSourceViewCancellationTerminatesGitProcessGroup(t *testing.T) {
 	t.Parallel()
 	root, commit, packet := sourceViewRepository(t)
@@ -55,19 +61,25 @@ func TestSourceViewCancellationTerminatesGitProcessGroup(t *testing.T) {
 echo $! > '`+pidFile+`.tmp' && mv '`+pidFile+`.tmp' '`+pidFile+`'
 wait
 `)
-	ctx, cancel := context.WithCancel(context.WithValue(context.Background(), sourceGitExecutableKey{}, script))
+	base := context.WithValue(liftedSourceDeadline(context.WithValue(context.Background(), sourceGitExecutableKey{}, script)), sourceTerminateGraceKey{}, 5*time.Second)
+	ctx, cancel := context.WithCancel(base)
 	defer cancel()
 	go func() {
-		for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		defer cancel()
+		for {
 			if _, err := os.Stat(pidFile); err == nil {
-				break
+				return
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(10 * time.Millisecond):
 			}
 		}
-		cancel()
 	}()
 	started := time.Now()
 	got := runSourceViewTestContext(t, ctx, root, commit, packet, "--lines", "3:3")
-	if sourceViewCode(got) != "repository-root" || time.Since(started) > 8*time.Second {
+	if sourceViewCode(got) != "deadline-exceeded" || time.Since(started) > 25*time.Second {
 		t.Fatalf("cancelled read=%v after %v", got, time.Since(started))
 	}
 	raw, err := os.ReadFile(pidFile)
@@ -166,6 +178,55 @@ exec /usr/bin/git "$@"
 		var failure *gokernel.Error
 		if !errors.As(err, &failure) || failure.Code != test.want {
 			t.Fatalf("context --expand %s: %v, want %s", test.name, err, test.want)
+		}
+	}
+}
+
+// ESV-V0-014: when the sequence bound expires or the caller cancels partway
+// through `adapter source-view`, every Git step refuses as deadline-exceeded
+// instead of the code its cut-short read would otherwise imply (V1-2320). Each
+// case stalls exactly one step; before the fix the cases answered
+// repository-root, object-format, stale-commit, stale-tree, missing-path or
+// git-failed.
+func TestSourceViewDeadlineExpiryRefusesAsDeadlineExceeded(t *testing.T) {
+	t.Parallel()
+	root, commit, packet := sourceViewRepository(t)
+	for _, step := range []struct{ name, pattern string }{
+		{"toplevel", `*" --show-toplevel "*`},
+		{"object-format", `*" --show-object-format "*`},
+		{"head", "head"},
+		{"commit-tree", `*"^{tree} "*`},
+		{"ls-tree", `*" ls-tree "*`},
+		{"cat-file", `*" cat-file blob "*`},
+		{"recheck", "recheck"},
+	} {
+		for _, cancelled := range []bool{false, true} {
+			marker := filepath.Join(t.TempDir(), "seen")
+			body := `case " $* " in ` + step.pattern + `) exec /bin/sleep 30;; esac
+exec /usr/bin/git "$@"
+`
+			if step.pattern == "head" || step.pattern == "recheck" {
+				first, second := "exec /bin/sleep 30", ": > '"+marker+"'"
+				if step.pattern == "recheck" {
+					first, second = ": > '"+marker+"'", "exec /bin/sleep 30"
+				}
+				body = `case " $* " in *" rev-parse HEAD "*) if [ -e '` + marker + `' ]; then ` + second + `; else ` + first + `; fi;; esac
+exec /usr/bin/git "$@"
+`
+			}
+			ctx := context.WithValue(context.Background(), sourceGitExecutableKey{}, sourceGitScript(t, body))
+			if cancelled {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithCancel(context.WithValue(ctx, sourceDeadlineKey{}, time.Minute))
+				timer := time.AfterFunc(time.Second, cancel)
+				defer timer.Stop()
+			} else {
+				ctx = context.WithValue(ctx, sourceDeadlineKey{}, time.Second)
+			}
+			got := runSourceViewTestContext(t, ctx, root, commit, packet, "--lines", "3:3")
+			if sourceViewCode(got) != "deadline-exceeded" || got["view"] != nil {
+				t.Errorf("%s cancelled=%t: %v, want deadline-exceeded", step.name, cancelled, got["error"])
+			}
 		}
 	}
 }

@@ -557,12 +557,17 @@ func selectedContains(plan affected.Plan, unitID string) bool {
 	return false
 }
 
-// TestPythonSelectionNarrowsARealCorpus is the non-Go end-to-end proof. The
-// repository carries a real 18-module Python implementation with 41 test files;
-// selection must narrow that set for a single-file edit and must still reach
-// the test the specification's own traceability table pairs with the module.
+// TestPythonSelectionNarrowsARealCorpus is the non-Go end-to-end proof
+// (AFP-V0-186). It runs over the tracked layered corpus in
+// testdata/python-corpus (10 modules, 21 test files): a one-file edit must
+// narrow the full test set to exactly the tests whose imports reach the edited
+// module, including the paired test of the module that depends on it. The
+// 18-module corpus this test first named is not tracked, so it used to skip.
 func TestPythonSelectionNarrowsARealCorpus(t *testing.T) {
-	root := repositoryRoot(t)
+	root, err := filepath.Abs(filepath.Join("testdata", "python-corpus"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	graph, err := affected.Build(context.Background(), root, python.New())
 	if err != nil {
 		t.Fatalf("build: %v", err)
@@ -573,20 +578,20 @@ func TestPythonSelectionNarrowsARealCorpus(t *testing.T) {
 		unit, _ := graph.Unit(exclusion.UnitID)
 		total += len(unit.Tests)
 	}
-	if total < 20 {
-		t.Skipf("python corpus is too small to measure: %d tests", total)
+	if total != 21 {
+		t.Fatalf("python corpus carries %d tests, want 21", total)
 	}
-	const edited = "src/context_corvint_index.py"
+	const edited = "src/corpus/index.py"
 	if _, owned := graph.OwnerOf(edited); !owned {
-		t.Skipf("%s is not present", edited)
+		t.Fatalf("%s is not owned by a unit", edited)
 	}
 	plan := affected.Select(graph, []string{edited})
 	selected := plan.SelectedTests()
-	if len(selected) >= total {
-		t.Fatalf("selection did not narrow: %d of %d tests", len(selected), total)
-	}
-	if !contains(selected, "tests/test_context_corvint_cache.py") {
-		t.Fatalf("selection missed the module's paired test: %v", selected)
+	sort.Strings(selected)
+	want := []string{"tests/test_cache.py", "tests/test_cache_eviction.py", "tests/test_cli.py", "tests/test_cli_help.py",
+		"tests/test_index.py", "tests/test_index_build.py", "tests/test_query.py", "tests/test_query_filters.py"}
+	if !slices.Equal(selected, want) {
+		t.Fatalf("editing %s selected %v, want %v", edited, selected, want)
 	}
 	t.Logf("python: editing %s selects %d of %d tests (%.0f%% narrowed)",
 		edited, len(selected), total, 100*(1-float64(len(selected))/float64(total)))

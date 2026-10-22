@@ -488,3 +488,19 @@ func TestCatFileUsesLongestSortedPrefixes(t *testing.T) {
 		t.Fatalf("over-bound single ID rejection = %v", err)
 	}
 }
+
+// TestTraceV1NonASCIITaskMatchesProducerIdentity: a v1 row the production trace writer emitted
+// (internal/trace.Encode: ASCII JSON with \u escapes) keeps its identity when its task holds
+// non-ASCII text; the kit re-derives trace_id over the same ASCII bytes (V1-0571).
+func TestTraceV1NonASCIITaskMatchesProducerIdentity(t *testing.T) {
+	const revision = "0123456789abcdef0123456789abcdef01234567"
+	raw := []byte(`{"changed_paths":["tracked.txt"],"opened_paths":["tracked.txt"],"outcome":"passed","revision":"` + revision +
+		`","schema_version":1,"task":"plant é task ☃","trace_id":"0f6ec46b3d8342d3b05323ca7bcd3349222c1e2e58cdb6072883be87b5a6befe","verification":["go test ./..."]}`)
+	trace, err := validateTraceRow(raw, revision, acceptingTraceAuthority{})
+	if err != nil {
+		t.Fatalf("producer v1 row refused: %v", err)
+	}
+	if trace["task"] != "plant é task ☃" {
+		t.Fatalf("task = %q", trace["task"])
+	}
+}

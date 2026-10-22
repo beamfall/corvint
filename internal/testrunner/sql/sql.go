@@ -4,7 +4,6 @@ package sql
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -48,12 +47,7 @@ func readConnection(r tr.Request) (Connection, error) {
 	if filepath.Clean(name) != name {
 		return c, fmt.Errorf("noncanonical connection file path")
 	}
-	root, e := os.OpenRoot(string(filepath.Separator))
-	if e != nil {
-		return c, e
-	}
-	defer root.Close()
-	b, e := testvaliditydoc.ReadFileBounded(root, strings.TrimPrefix(name, string(filepath.Separator)), 16<<10)
+	b, e := testvaliditydoc.ReadAbsoluteFileBounded(name, 16<<10)
 	if e != nil {
 		return c, e
 	}

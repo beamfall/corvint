@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -149,7 +150,7 @@ func TestEnrollmentAndReadOnlyPolicy(t *testing.T) {
 			t.Fatal(err)
 		}
 		assertNextAction(t, result, key, "verify", "--check", "test")
-		result, err = Cancel(context.Background(), root, key)
+		result, err = Cancel(context.Background(), root, key, "test cancel")
 		if err != nil || result.Lifecycle != "cancelled" || result.Satisfied {
 			t.Fatalf("cancel: %#v %v", result, err)
 		}
@@ -178,7 +179,7 @@ func TestInactiveKeyNamesActiveWorktreeOwner(t *testing.T) {
 	if err != nil || owned.Owner != "" {
 		t.Fatalf("the owner named itself: %#v %v", owned, err)
 	}
-	if _, err = Cancel(context.Background(), root, key); err != nil {
+	if _, err = Cancel(context.Background(), root, key, "test cancel"); err != nil {
 		t.Fatal(err)
 	}
 	result, err = Evaluate(context.Background(), root, other)
@@ -524,7 +525,7 @@ func TestReenrollmentPreservesCompletedGenerations(t *testing.T) {
 		t.Fatal(err)
 	}
 	originalLog := saved.Observations[0].Stdout
-	if _, err = Cancel(context.Background(), root, key); err != nil {
+	if _, err = Cancel(context.Background(), root, key, "test cancel"); err != nil {
 		t.Fatal(err)
 	}
 	// Explicit enrollment of the same cancelled plan starts a fresh bounded
@@ -544,7 +545,7 @@ func TestReenrollmentPreservesCompletedGenerations(t *testing.T) {
 	if _, err = os.Stat(filepath.Join(repo.directory, key, saved.Generation, "state.json")); err != nil {
 		t.Fatal("history missing")
 	}
-	if _, err = Cancel(context.Background(), root, key); err != nil {
+	if _, err = Cancel(context.Background(), root, key, "test cancel"); err != nil {
 		t.Fatal(err)
 	}
 	plan.Checks[0].Argv = []string{"printf", "new"}
@@ -885,5 +886,65 @@ func TestAncestryRewrittenCheckoutRefusesBaseProbe(t *testing.T) {
 				t.Fatal("finish wrote local state in a rewritten-ancestry checkout")
 			}
 		})
+	}
+}
+
+// TestCancelActiveEnrollmentRequiresReason covers LCP-V0-038 (V1-2177): a bare
+// cancel of an active, unsatisfied enrollment is refused with the counts it
+// would close and leaves the enrollment active; a reason closes it.
+func TestCancelActiveEnrollmentRequiresReason(t *testing.T) {
+	root, key, plan := fixture(t, []string{"true"})
+	repo := beginFixture(t, root, key, plan)
+	before, _ := os.ReadFile(repo.local("state.json"))
+	_, err := Cancel(context.Background(), root, key, "")
+	var refusal *CancelReasonError
+	if err == nil || err.Error() != "cancel-reason-required" || !errors.As(err, &refusal) {
+		t.Fatalf("bare cancel of an active enrollment: %v", err)
+	}
+	if want := "closes 1 selected checks and 0 saved observations"; !strings.Contains(refusal.Detail(), want) {
+		t.Fatalf("detail %q lacks %q", refusal.Detail(), want)
+	}
+	if after, _ := os.ReadFile(repo.local("state.json")); !bytes.Equal(before, after) {
+		t.Fatal("refused cancel mutated the enrollment")
+	}
+	result, err := Cancel(context.Background(), root, key, "base moved; new worktree enrolled")
+	if err != nil || result.Lifecycle != "cancelled" {
+		t.Fatalf("cancel with a reason: %#v %v", result, err)
+	}
+	// A cancelled enrollment is no longer active, so a repeated bare cancel is not refused.
+	if _, err = Cancel(context.Background(), root, key, ""); err != nil {
+		t.Fatalf("repeat cancel: %v", err)
+	}
+}
+
+// TestStagedBeginAfterSatisfiedStageRefusesAndKeepsIt covers V1-0953: after a
+// satisfied stage-1 enrollment whose target is now an ancestor of HEAD, a
+// stage-2 begin in the same clone refuses prior-completion-stale (its remedy
+// names the fresh-worktree route) and leaves the stage-1 record untouched.
+func TestStagedBeginAfterSatisfiedStageRefusesAndKeepsIt(t *testing.T) {
+	root, key, plan := fixture(t, []string{"true"})
+	repo := beginFixture(t, root, key, plan)
+	saved, err := repo.load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved.Lifecycle = "satisfied"
+	if err = repo.save(saved); err != nil {
+		t.Fatal(err)
+	}
+	stage1, _ := os.ReadFile(repo.local("state.json"))
+	if err = os.WriteFile(filepath.Join(root, "stage2.go"), []byte("package fixture\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	localGit(t, root, "add", "stage2.go")
+	localGit(t, root, "commit", "-qm", "stage 2")
+	next := plan
+	next.Base = localGit(t, root, "rev-parse", "HEAD")
+	raw, _ := json.Marshal(next)
+	if _, err = Begin(context.Background(), root, key, raw); err == nil || err.Error() != "prior-completion-stale" {
+		t.Fatalf("stage-2 begin: %v, want prior-completion-stale", err)
+	}
+	if after, _ := os.ReadFile(repo.local("state.json")); !bytes.Equal(stage1, after) {
+		t.Fatal("refused stage-2 begin changed the stage-1 record")
 	}
 }

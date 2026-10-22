@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/procgroup"
@@ -443,9 +444,38 @@ func stageVerified(command Command) (string, func(), error) {
 	return staged, cleanup, nil
 }
 
+// runProcessGroup is procgroup.Run; tests replace it to inject start failures.
+var runProcessGroup = procgroup.Run
+
+// textBusyRetries bounds the start retries of a just-staged executable (see startProcess).
+var textBusyRetries = []time.Duration{5 * time.Millisecond, 20 * time.Millisecond, 50 * time.Millisecond, 100 * time.Millisecond, 200 * time.Millisecond}
+
+// startProcess runs one process group, retrying a start that failed with ETXTBSY. stageVerified
+// closes its write descriptor before returning, but a fork made concurrently by another goroutine
+// can inherit that descriptor and keep it open until the child's own exec closes it (close-on-exec),
+// so exec of the staged copy can briefly fail "text file busy" on Linux. Nothing started in that
+// case, so a bounded retry is safe; any other failure, or a start, returns at once.
+func startProcess(ctx context.Context, spec procgroup.Spec) procgroup.Observation {
+	observation := runProcessGroup(ctx, spec)
+	for _, delay := range textBusyRetries {
+		if observation.Started || !errors.Is(observation.Err, syscall.ETXTBSY) {
+			break
+		}
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return observation
+		case <-timer.C:
+		}
+		observation = runProcessGroup(ctx, spec)
+	}
+	return observation
+}
+
 // observeProcess runs one contained process group and returns its stdout and bounded evidence.
 func observeProcess(ctx context.Context, argv []string, dir string, env []string, input []byte, timeout time.Duration, outputLimit int) ([]byte, ProcessEvidence) {
-	observation := procgroup.Run(ctx, procgroup.Spec{Argv: argv, Dir: dir, Env: env, Stdin: input, Timeout: timeout, ShutdownTimeout: processShutdownAllowance, InputLimit: maxDocumentBytes, OutputLimit: outputLimit, StderrLimit: 1 << 20, ObserveDescendants: true})
+	observation := startProcess(ctx, procgroup.Spec{Argv: argv, Dir: dir, Env: env, Stdin: input, Timeout: timeout, ShutdownTimeout: processShutdownAllowance, InputLimit: maxDocumentBytes, OutputLimit: outputLimit, StderrLimit: 1 << 20, ObserveDescendants: true})
 	evidence := ProcessEvidence{
 		Exit: observation.ExitStatus, Started: observation.Started,
 		Completed: observation.WaitCompleted && observation.ExitObserved,

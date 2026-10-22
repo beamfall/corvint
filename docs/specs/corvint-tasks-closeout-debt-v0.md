@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-17
-Intent status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193); TCD-V0-154..157 accepted (standing auto-accept 2026-10-11, V1-2216); TCD-V0-158 accepted (standing auto-accept 2026-10-11, V1-1431); TCD-V0-159..164 accepted (standing auto-accept 2026-10-11, V1-2251, V1-2254); TCD-V0-165..166 accepted (standing auto-accept 2026-10-11, V1-2196); TCD-V0-169..173 accepted (standing auto-accept 2026-10-11, V1-2396, V1-2397, V1-2398)
+Intent status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193); TCD-V0-154..157 accepted (standing auto-accept 2026-10-11, V1-2216); TCD-V0-158 accepted (standing auto-accept 2026-10-11, V1-1431); TCD-V0-159..164 accepted (standing auto-accept 2026-10-11, V1-2251, V1-2254); TCD-V0-165..166 accepted (standing auto-accept 2026-10-11, V1-2196); TCD-V0-167..168 and the TCD-V0-160/161 amendments accepted (standing auto-accept 2026-10-11, V1-2303); TCD-V0-169..173 accepted (standing auto-accept 2026-10-11, V1-2396, V1-2397, V1-2398)
 Delivery status: experimental
 
 Authoritative input: the owner-requested native ticket V1-1615 ("tickets stay OPEN after their work
@@ -36,6 +36,15 @@ V1-2196 removes a rerun from failed-gate closeout. A `focused-docs` or `full-gat
 `GATE_FAILED`, so the closer reran the whole gate to learn which check failed. The captured output
 was already retained as an evidence blob, but no result named it (TCD-V0-165..166).
 
+## Agent digest
+- Claim: `corvint-tasks ticket closeout-debt` lists OPEN tickets that merged commits cite, with each one's pending native closeout step, and writes nothing.
+- Status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193); TCD-V0-154..157 accepted (standing auto-accept 2026-10-11, V1-2216); TCD-V0-158 accepted (standing auto-accept 2026-10-11, V1-1431); TCD-V0-159..164 accepted (standing auto-accept 2026-10-11, V1-2251, V1-2254); TCD-V0-165..166 accepted (standing auto-accept 2026-10-11, V1-2196); TCD-V0-167..168 and the TCD-V0-160/161 amendments accepted (standing auto-accept 2026-10-11, V1-2303); TCD-V0-169..173 accepted (standing auto-accept 2026-10-11, V1-2396, V1-2397, V1-2398); experimental; the verb, its help entry and fixture tests exist.
+- Exists: a bounded `git log` scan under the store's sanitized Git environment; direct-id, issue-link and umbrella citations; closeout steps derived from the attempt inventory and verified gate evidence; deterministic rows; a typed 0/1/2 exit status; a byte-identical store and journal proof; descendant gate reuse (V1-2193), where a reusable gate's PASS at a protected intent-branch commit covers an attempt whose candidate tree an ancestor commit carries (TCD-V0-151..153); CI-run gate evidence (V1-2216), where `gate run --ci-run FILE` records a policy-admitted green CI run at a protected intent-branch commit that descends from the candidate as the gate's PASS without executing it (TCD-V0-154..157); a reusable gate's reuse key covers its declared environment values (TCD-V0-158); `ticket delivery-screen` and `ticket batch-delivered` reads over `gh --json` exports (TCD-V0-159..164); a `gate run` result that reports the executed gate's state, exit and retained output path, with a bounded, secret-screened tail and failing line when it did not pass (TCD-V0-165..166); `ticket batch-close`, one COMPLETE_MANUAL per delivered OPEN ticket of a merged batch (TCD-V0-169); store-first COMPLETED and HELD verdicts, operator notes and a stdin export in `delivery-screen` (TCD-V0-170..171); multi-target `note set` and `hold` (TCD-V0-172..173).
+- Blocked on: nothing for V0. `COMPLETE_REFUSED` is NOT_PRODUCED: a refused `complete` writes no receipt (TCD-V0-006).
+- Read next: Requirements; Failure modes; Acceptance evidence and traceability.
+
+## User and current state
+
 V1-2396, V1-2397 and V1-2398 turn the batch closeout into one command. After batch PR #1525 merged,
 the orchestrator closed each delivered ticket with a hand-written `complete-manual` that cited the
 merge commit and the green CI run. `ticket batch-close` writes those closes from the same exports as
@@ -43,15 +52,6 @@ merge commit and the green CI run. `ticket batch-close` writes those closes from
 state ahead of PR evidence, shows the latest operator note, and takes the PR export on stdin
 (TCD-V0-170..171). `ticket note set` and `ticket hold` take several tickets in one call
 (TCD-V0-172..173).
-
-## Agent digest
-- Claim: `corvint-tasks ticket closeout-debt` lists OPEN tickets that merged commits cite, with each one's pending native closeout step, and writes nothing.
-- Status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193); TCD-V0-154..157 accepted (standing auto-accept 2026-10-11, V1-2216); TCD-V0-158 accepted (standing auto-accept 2026-10-11, V1-1431); TCD-V0-159..164 accepted (standing auto-accept 2026-10-11, V1-2251, V1-2254); TCD-V0-165..166 accepted (standing auto-accept 2026-10-11, V1-2196); TCD-V0-169..173 accepted (standing auto-accept 2026-10-11, V1-2396, V1-2397, V1-2398); experimental; the verb, its help entry and fixture tests exist.
-- Exists: a bounded `git log` scan under the store's sanitized Git environment; direct-id, issue-link and umbrella citations; closeout steps derived from the attempt inventory and verified gate evidence; deterministic rows; a typed 0/1/2 exit status; a byte-identical store and journal proof; descendant gate reuse (V1-2193), where a reusable gate's PASS at a protected intent-branch commit covers an attempt whose candidate tree an ancestor commit carries (TCD-V0-151..153); CI-run gate evidence (V1-2216), where `gate run --ci-run FILE` records a policy-admitted green CI run at a protected intent-branch commit that descends from the candidate as the gate's PASS without executing it (TCD-V0-154..157); a reusable gate's reuse key covers its declared environment values (TCD-V0-158); `ticket delivery-screen` and `ticket batch-delivered` reads over `gh --json` exports (TCD-V0-159..164); a `gate run` result that reports the executed gate's state, exit and retained output path, with a bounded, secret-screened tail and failing line when it did not pass (TCD-V0-165..166); `ticket batch-close`, one COMPLETE_MANUAL per delivered OPEN ticket of a merged batch (TCD-V0-169); store-first COMPLETED and HELD verdicts, operator notes and a stdin export in `delivery-screen` (TCD-V0-170..171); multi-target `note set` and `hold` (TCD-V0-172..173).
-- Blocked on: nothing for V0. `COMPLETE_REFUSED` is NOT_PRODUCED: a refused `complete` writes no receipt (TCD-V0-006).
-- Read next: Requirements; Failure modes; Acceptance evidence and traceability.
-
-## User and current state
 
 The user is an operator or orchestrator who has just merged work, or who is auditing the queue. Today
 they find delivered-but-open tickets by hand: they search the merged history for ticket IDs and issue
@@ -233,14 +233,15 @@ closeout step is missing.
   by ID, starts with `Refs`, `Closes`, `Fixes`, `Delivers` or `Delivered` (any case, after leading
   punctuation) or contains `DELIVERED` in capitals, and contains none of `not started`, `not
   delivered`, `skipped`, `residual`, `duplicate`, `blocked` or `already` (any case). Any other line
-  naming the ticket only mentions it. A commit message line naming the ticket delivers it unless it
-  contains one of those words. Delivered on any line wins over mentioned.
+  naming the ticket only mentions it. A commit message line delivers or mentions under the
+  `TCD-V0-167` rule. Delivered on any line wins over mentioned.
 - `TCD-V0-161`: The result is one `taskman-delivery-screen/0` item, marked untrusted, with
   `mutationAuthority` false. Per ticket it carries the ticket's status, its verdict, at most 32
   referencing PRs (number, state, reference, batch) and at most 32 referencing ref commits. The
   verdict is `IN_FLIGHT` when an OPEN PR delivers it, else `DELIVERED` when a MERGED PR or a ref
-  commit delivers it, else `NOT_OBSERVED` when no `--prs` export was given, else `MENTIONED` when
-  anything mentions it, else `CLEAR`. A CLOSED unmerged PR never sets the verdict beyond
+  commit delivers it, else `TRUNCATED` under `TCD-V0-168`, else `CITED` when a ref commit mentions
+  it, else `NOT_OBSERVED` when no `--prs` export was given, else `MENTIONED` when a PR mentions it,
+  else `CLEAR`. A CLOSED unmerged PR never sets the verdict beyond
   `MENTIONED`. Without an export a ticket is never `CLEAR`, and a warning says so.
 - `TCD-V0-162`: `ticket delivery-screen` exits 0 when every ticket is `CLEAR`, 1 when any is not,
   and 2 on a refusal or error.
@@ -272,6 +273,23 @@ closeout step is missing.
   evidence entry names, whatever the gate definition's `evidence` labels say. `evidence: []` does
   not suppress the capture. Declaring `evidence: ["output"]` is descriptive only, and it changes the
   gate's definition digest, so earlier results of that gate become stale.
+- `TCD-V0-167`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2303) A ref
+  commit's message line that names a ticket delivers it only when the line contains none of the
+  `TCD-V0-160` veto words and either starts with `Refs`, `Closes`, `Fixes`, `Delivers` or
+  `Delivered` (any case, after leading punctuation; a `Refs:` trailer qualifies), contains
+  `DELIVERED` in capitals, or is the message's first line and is scoped to the ticket: its first
+  word, its conventional-commit scope (`type(ID):`) or its final parenthetical (`... (ID).`) names
+  the ticket. Any other line naming the ticket only mentions it, so a commit that cites a ticket in
+  prose makes it `CITED`, never `DELIVERED`. Non-goal: no judgement of the commit's content.
+  Rollback: restore the every-line rule; prose mentions read as delivered again.
+- `TCD-V0-168`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2303) When the
+  commit scan stops at `--limit` (`scanTruncated` true), a ticket that no OPEN or MERGED PR or
+  scanned commit delivers and whose `createdAt` is before the committer time of the oldest scanned
+  commit plus one second (committer time has whole seconds) is `TRUNCATED`: history the scan did
+  not read may cite it, so it is never reported `CITED`, `NOT_OBSERVED`, `MENTIONED` or `CLEAR`. A
+  ticket created after that point keeps its verdict, and the truncation warning names the rule.
+  Non-goal: the default limit stays 1000 and is not widened to the ticket's creation. Rollback:
+  drop the branch; truncated scans report the window's verdicts again.
 - `TCD-V0-169`: `corvint-tasks ticket batch-close --pr N --prs FILE --runs FILE [--repo OWNER/NAME]
   [--dry-run] [--issued-at TS] [--role ROLE]` reads the same exports as `batch-delivered` and
   derives the same `delivered` and `mentioned` sets (`TCD-V0-163..164`). It never queries a network
@@ -434,6 +452,8 @@ closeout step is missing.
 | TCD-V0-164 | V1-2254 criterion 3 | `internal/tasks/cli` (`batchDeliveredCommand`) | `TestTCDV0163_BatchDeliveredListsLaneTicketsWithGreenRuns` (residual ticket under `mentioned`; unnamed PR's ticket absent) | none |
 | TCD-V0-165 | V1-2196 criteria 2, 3 | `internal/tasks/store` (`GateRun`, `GateExecution`), `internal/tasks/obligation` (`FailureTail`), `internal/tasks/cli` (`gateResultValue`) | `TestTCDV0165_GateRunReportsFailingTail` (FAILED exit 2, failing `make` line, four-line tail with the secret line withheld and absent from stdout, warning with path; PASSED null tail and no warning; replay null; receipt audit passes); `TestTCDV0165_FailureTail` (order, bound, blank lines, escapes, last actionable line, secret past the excerpt bound withheld) | a failing live `focused-docs` run: NOT_RUN |
 | TCD-V0-166 | V1-2196 criterion 1 | `internal/tasks/store` (`runGate`), `internal/tasks/transaction` (`LeaseGateRun` evidence post) | `TestTCDV0165_GateRunReportsFailingTail` (gate declared `evidence: []`; the full output, secret included, is at `output.path`); live store 2026-10-21: FAILED `focused-docs` record `b0248975` names output blob `c04e7d9e` (30377 bytes) ending in the `line-citations-check` failure | none |
+| TCD-V0-167 | V1-2303 criteria 1, 3 | `internal/tasks/cli` (`closeoutIndex.commitReferences`, `subjectTickets`) | `TestTCDV0167_DeliveryScreenCitedAndTruncated` (a prose mention is CITED; a `Refs:` trailer, a leading ID, a `feat(ID):` scope and a final `(ID, ...)` deliver; fails on the pre-change every-line rule); `TestTCDV0159_DeliveryScreenVerdicts` (a vetoed commit line is CITED) | none |
+| TCD-V0-168 | V1-2303 criteria 2, 3 | `internal/tasks/cli` (`deliveryScreenCommand` window start), `internal/tasks/store` (`CommitTime`) | `TestTCDV0167_DeliveryScreenCitedAndTruncated` (`--limit 1` makes undelivered tickets older than the window TRUNCATED; a backdated newest commit leaves the ticket CLEAR) | none |
 | TCD-V0-169 | V1-2396 | `internal/tasks/cli` (`batchCloseCommand`, `planClose`, `greenRunURL`, help) | `TestTCDV0169_BatchCloseClosesDeliveredOpenTickets` (missing green run and run without URL `PREREQUISITE_UNSATISFIED`, missing `--runs` `MALFORMED`, `--dry-run` all byte-identical; OPEN ticket closed with the lane reason and sorted sha256 of merge sha and run URL, deterministic request id; held `TICKET_STATE`, live attempt `ATTEMPT_LIVE`, mentioned-only reported with recovery and left open; exit 1 `REFUSED`; rerun `ALREADY_COMPLETED` writes nothing; `--repo` composes the URL; exit 0 when all close) | closing a real merged batch on the live store: NOT_RUN |
 | TCD-V0-170 | V1-2397 | `internal/tasks/cli` (`deliveryScreenValue`, verdict order) | `TestTCDV0170_DeliveryScreenStoreVerdictsAndNotes` (COMPLETED over an open PR's Refs, HELD with holdId and reason over a merged PR's Refs, CURRENT note text, NONE note; trees byte-identical) | none |
 | TCD-V0-171 | V1-2397 | `internal/tasks/cli` (`readGitHubExportArg`) | `TestTCDV0171_DeliveryScreenReadsPRsFromStdin` (stdin and file give IN_FLIGHT; empty stdin refused) | none |

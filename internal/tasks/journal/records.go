@@ -36,8 +36,10 @@ type chain struct {
 	// request paths are retained history the tail must not repeat.
 	elided *WriterCheckpoint
 	// resumed is the checkpoint receipt a resumed walk starts after (a read
-	// or writer checkpoint); zero for a walk from receipt 1.
-	resumed uint64
+	// or writer checkpoint); zero for a walk from receipt 1. resumedSha is
+	// that checkpoint's receipt digest (ON-V0-015).
+	resumed    uint64
+	resumedSha wire.Digest
 	// restore rebuilds elided liveness receipts (taskman-receipt/1,
 	// CAL-V0-301) on a complete walk from receipt 1. A walk resumed from a
 	// checkpoint has none: it refuses a tombstone as an unusable checkpoint so
@@ -987,7 +989,7 @@ func (r Reader) walkTail(o *observation, cp *Checkpoint, selected map[string]boo
 		}
 		return result, inFlight{errCheckpoint(next, "receipt beyond head")}
 	}
-	st := &chain{canonical: make(map[string]latest, len(cp.Entries)), prev: &cp.ReceiptSha256, generation: cp.Generation.Uint64(), resumed: from}
+	st := &chain{canonical: make(map[string]latest, len(cp.Entries)), prev: &cp.ReceiptSha256, generation: cp.Generation.Uint64(), resumed: from, resumedSha: cp.ReceiptSha256}
 	for _, e := range cp.Entries {
 		st.canonical[e.Path] = latest{seq: e.Seq, digest: e.Sha256, bytes: -1}
 	}

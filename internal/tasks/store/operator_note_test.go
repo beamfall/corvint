@@ -350,7 +350,8 @@ func (s *prefixReads) Read(p string, n int) ([]byte, error) {
 // checkpoint. The only receipts before the checkpoint it reads are the ones
 // the checkpoint entries name for those pre-states (the REFINE's prior
 // ticket, and a note event's pre-ticket and pre-policy), each bound by the
-// entry digest (amending CAL-V0-061). A prefix post that no longer matches
+// entry digest (amending CAL-V0-061), and the receipt before each one that
+// binds its previous digest (ON-V0-015). A prefix post that no longer matches
 // that digest falls back to the complete audit, which decides as it does
 // with no checkpoint.
 func TestONV0013_CheckpointTailBindsNotePreStateByDigest(t *testing.T) {
@@ -384,13 +385,34 @@ func TestONV0013_CheckpointTailBindsNotePreStateByDigest(t *testing.T) {
 		t.Fatalf("checkpoint has no %s", path)
 		return 0
 	}
+	// within holds when the resumed read touched only the prefix receipts
+	// ON-V0-013 and ON-V0-015 allow: each named entry's last poster, and the
+	// receipt before it unless that poster is the checkpoint receipt, which
+	// binds by the checkpoint's digest.
+	within := func(cp *journal.Checkpoint, seqs map[uint64]int, named ...uint64) bool {
+		want := map[uint64]int{}
+		for _, s := range named {
+			if s < cp.Seq.Uint64() {
+				want[s]++
+				if s > 1 {
+					want[s-1]++
+				}
+			}
+		}
+		for s, n := range seqs {
+			if n > want[s] {
+				return false
+			}
+		}
+		return true
+	}
 	ticketPath := "intent/tickets/" + created.Ticket[strings.LastIndex(created.Ticket, ":")+1:] + ".json"
 
 	// A tail REFINE of a ticket last posted before the checkpoint binds its
 	// unchanged note reference from that one prefix afterimage.
 	cp := checkpoint()
 	mutate(t, repo, envelope("req-refine", mutation.OpRefine, created.Ticket, "2", obj("title", str("Refined"))))
-	if res, src, err := resumed(cp); err != nil || res.Mode != journal.ModeCheckpoint || len(src.seqs) > 1 || len(src.seqs) != src.seqs[entrySeq(cp, ticketPath)] {
+	if res, src, err := resumed(cp); err != nil || res.Mode != journal.ModeCheckpoint || !within(cp, src.seqs, entrySeq(cp, ticketPath)) {
 		t.Fatalf("REFINE tail = %+v %v, prefix reads %v", res, err, src.seqs)
 	}
 	// The note's pre-ticket and pre-policy were both last posted at or
@@ -406,12 +428,10 @@ func TestONV0013_CheckpointTailBindsNotePreStateByDigest(t *testing.T) {
 		t.Fatalf("note tail = %+v %v, want %s with the complete audit's coverage %s", res, err, journal.ModeCheckpoint, full.SemanticCoverage)
 	}
 	policySeq := entrySeq(cp, "intent/policy.json")
-	for seq, n := range src.seqs {
-		if (seq != policySeq && seq != entrySeq(cp, ticketPath)) || n != 1 {
-			t.Fatalf("resumed read prefix receipt %d %d times; allowed only %d (policy) and %d (ticket), once each", seq, n, policySeq, entrySeq(cp, ticketPath))
-		}
+	if !within(cp, src.seqs, policySeq, entrySeq(cp, ticketPath)) {
+		t.Fatalf("resumed read prefix receipts %v; allowed only %d (policy) and %d (ticket), each with the receipt before it", src.seqs, policySeq, entrySeq(cp, ticketPath))
 	}
-	if src.seqs[policySeq] != 1 {
+	if src.seqs[policySeq] == 0 {
 		t.Fatalf("resumed read did not bind the pre-policy at receipt %d: %v", policySeq, src.seqs)
 	}
 	// A prefix pre-policy post rewritten under its old digest no longer

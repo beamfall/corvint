@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -84,7 +86,6 @@ func writeHelperDocument(value any) {
 
 func isolationRequest(t *testing.T, controls []ControlSpec) (Request, string) {
 	t.Helper()
-	t.Setenv(helperEnvironment, "1")
 	logPath := filepath.Join(t.TempDir(), "profile.log")
 	t.Setenv(profileLogEnvironment, logPath)
 	request := testRequest(t, controls)
@@ -272,6 +273,7 @@ func TestBBFV0022IsolationEvidenceReceipt(t *testing.T) {
 // TestBBFV0023LegacyWireIsByteIdentical pins plan and report digests captured at the base
 // revision before the profiles existed.
 func TestBBFV0023LegacyWireIsByteIdentical(t *testing.T) {
+	t.Parallel()
 	plan := classificationPlan()
 	control := plan.Controls[0]
 	result := AttemptResult{Attempt: 1, Receipt: receiptPointer(classificationReceipt(plan, control)), HookProcess: successfulProcess(), CleanupProcess: successfulProcess(), WorkspaceBefore: digestN("w"), WorkspaceAfter: digestN("w")}
@@ -296,8 +298,7 @@ func TestBBFV0023LegacyWireIsByteIdentical(t *testing.T) {
 // fails only when the perturbation environment names CHECKOUT_TOTAL_OFFSET.
 func providerRequest(t *testing.T, controls []ControlSpec) Request {
 	t.Helper()
-	t.Setenv(helperEnvironment, "1")
-	t.Setenv("GOCACHE", goEnv(t, "GOCACHE"))
+	processGoCache(t)
 	request := testRequest(t, controls)
 	repository := request.Repositories.Test
 	files := map[string]string{
@@ -380,16 +381,30 @@ func goToolchain(t *testing.T) Command {
 	return Command{Path: path, ExecutableSHA256: mustFileDigest(t, path)}
 }
 
-func goEnv(t *testing.T, key string) string {
-	t.Helper()
-	output, err := exec.Command(filepath.Join(runtime.GOROOT(), "bin", "go"), "env", key).Output()
-	if err != nil || strings.TrimSpace(string(output)) == "" {
-		t.Skipf("go env %s unavailable: %v", key, err)
+// goCacheOnce resolves the toolchain's GOCACHE once and exports it process-wide, the value the go
+// command would use anyway, so the declared GOCACHE key resolves without a per-test t.Setenv that
+// would forbid t.Parallel or a per-request go env call (V1-2213).
+var goCacheOnce = sync.OnceValues(func() (string, error) {
+	output, err := exec.Command(filepath.Join(runtime.GOROOT(), "bin", "go"), "env", "GOCACHE").Output()
+	value := strings.TrimSpace(string(output))
+	if err == nil && value == "" {
+		err = errors.New("empty GOCACHE")
 	}
-	return strings.TrimSpace(string(output))
+	if err == nil {
+		err = os.Setenv("GOCACHE", value)
+	}
+	return value, err
+})
+
+func processGoCache(t *testing.T) {
+	t.Helper()
+	if _, err := goCacheOnce(); err != nil {
+		t.Skipf("go env GOCACHE unavailable: %v", err)
+	}
 }
 
 func TestBBFV0024ProviderPlanIsBounded(t *testing.T) {
+	t.Parallel()
 	request := providerRequest(t, []ControlSpec{providerControl(t, "kill", "CHECKOUT_TOTAL_OFFSET")})
 	plan, err := BuildPlan(request)
 	if err != nil {
@@ -429,6 +444,7 @@ func TestBBFV0024ProviderPlanIsBounded(t *testing.T) {
 	}
 	for name, mutate := range cases {
 		t.Run("BBF-V0-024 refuses "+name, func(t *testing.T) {
+			t.Parallel()
 			candidate := providerRequest(t, []ControlSpec{providerControl(t, "kill", "CHECKOUT_TOTAL_OFFSET")})
 			mutate(&candidate)
 			if _, err := BuildPlan(candidate); err == nil {
@@ -439,6 +455,7 @@ func TestBBFV0024ProviderPlanIsBounded(t *testing.T) {
 }
 
 func TestBBFV0026GoProviderEndToEnd(t *testing.T) {
+	t.Parallel()
 	request := providerRequest(t, []ControlSpec{
 		providerControl(t, "kill", "CHECKOUT_TOTAL_OFFSET"),
 		providerControl(t, "panic", "CHECKOUT_PANIC"),
@@ -489,6 +506,7 @@ func TestBBFV0026GoProviderEndToEnd(t *testing.T) {
 }
 
 func TestBBFV0027ProviderEventsAreClosed(t *testing.T) {
+	t.Parallel()
 	plan := classificationPlan()
 	plan.Request.Target.AssertionID = "TestTotal"
 	control := plan.Controls[0]
@@ -534,6 +552,7 @@ func TestBBFV0027ProviderEventsAreClosed(t *testing.T) {
 }
 
 func TestBBFV0028ProviderEvidenceReceiptIsRefused(t *testing.T) {
+	t.Parallel()
 	plan, err := BuildPlan(providerRequest(t, []ControlSpec{providerControl(t, "kill", "CHECKOUT_TOTAL_OFFSET")}))
 	if err != nil {
 		t.Fatal(err)

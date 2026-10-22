@@ -180,7 +180,7 @@ func TestCALV0087_ExtraWorktreeCleanup(t *testing.T) {
 	if siblings == 0 {
 		t.Fatal("no extra repository worktree was registered")
 	}
-	if err := w.CleanupWorktrees(); err != nil {
+	if _, err := w.CleanupWorktrees(); err != nil {
 		t.Fatalf("cleanup: %v", err)
 	}
 	for _, r := range programRecord(t, f).Worktrees {

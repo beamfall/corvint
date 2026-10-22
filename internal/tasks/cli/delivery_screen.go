@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -33,6 +34,8 @@ const (
 
 	verdictInFlight  = "IN_FLIGHT"
 	verdictDelivered = "DELIVERED"
+	verdictTruncated = "TRUNCATED"
+	verdictCited     = "CITED"
 	verdictMentioned = "MENTIONED"
 	verdictClear     = "CLEAR"
 	// verdictCompleted and verdictHeld come from the store ahead of any PR
@@ -51,6 +54,11 @@ var (
 	deliveryVeto = regexp.MustCompile(`(?i)not[ -]started|not[ -]delivered|skipped|residual|duplicate|blocked|already`)
 	// prNumberRef is a `#N` PR reference in a batch title or body.
 	prNumberRef = regexp.MustCompile(`#([0-9]{1,9})\b`)
+	// subjectScope and subjectTail are the ticket-scoped parts of a commit
+	// subject (TCD-V0-167): a conventional-commit scope `type(ID):` and a
+	// final parenthetical `(... ID ...)`.
+	subjectScope = regexp.MustCompile(`^\s*[A-Za-z]+\(([^()]*)\)!?:`)
+	subjectTail  = regexp.MustCompile(`\(([^()]*)\)[\s.]*$`)
 )
 
 // ghPR is one record of `gh pr list --json
@@ -147,24 +155,69 @@ func (x *closeoutIndex) lineTickets(line string) []string {
 	return out
 }
 
-// references maps each ticket text names to delivered or mentioned
-// (TCD-V0-160). In a PR body only a lead or DELIVERED line delivers; in a
-// commit message (anyLine) every line does. A vetoed line only mentions.
-// Delivered on any line wins.
-func (x *closeoutIndex) references(text string, anyLine bool) map[string]string {
+// references maps each ticket a PR title or body names to delivered or
+// mentioned (TCD-V0-160): only a lead or DELIVERED line delivers, and a
+// vetoed line only mentions. Delivered on any line wins. Commit messages use
+// commitReferences (TCD-V0-167).
+func (x *closeoutIndex) references(text string) map[string]string {
 	out := map[string]string{}
 	for _, line := range strings.Split(text, "\n") {
 		ids := x.lineTickets(line)
 		if len(ids) == 0 {
 			continue
 		}
-		strong := !deliveryVeto.MatchString(line) && (anyLine || deliveryLead.MatchString(line) || deliveryTail.MatchString(line))
+		strong := !deliveryVeto.MatchString(line) && (deliveryLead.MatchString(line) || deliveryTail.MatchString(line))
 		for _, id := range ids {
 			if strong {
 				out[id] = refDelivered
 			} else if out[id] == "" {
 				out[id] = refMentioned
 			}
+		}
+	}
+	return out
+}
+
+// commitReferences maps each ticket a commit message names to delivered or
+// mentioned (TCD-V0-167). A line delivers when it is not vetoed and either
+// leads with Refs, Closes, Fixes, Delivers or Delivered, says DELIVERED in
+// capitals, or is the subject and the subject is scoped to the ticket: its
+// first word, its conventional-commit scope or its final parenthetical names
+// the ticket. Every other naming line only mentions. Delivered wins.
+func (x *closeoutIndex) commitReferences(message string) map[string]string {
+	out := map[string]string{}
+	for n, line := range strings.Split(strings.TrimLeft(message, "\n"), "\n") {
+		ids := x.lineTickets(line)
+		if len(ids) == 0 {
+			continue
+		}
+		vetoed := deliveryVeto.MatchString(line)
+		lead := !vetoed && (deliveryLead.MatchString(line) || deliveryTail.MatchString(line))
+		var scoped []string
+		if n == 0 && !vetoed {
+			scoped = x.subjectTickets(line)
+		}
+		for _, id := range ids {
+			if lead || slices.Contains(scoped, id) {
+				out[id] = refDelivered
+			} else if out[id] == "" {
+				out[id] = refMentioned
+			}
+		}
+	}
+	return out
+}
+
+// subjectTickets returns the tickets a commit subject is scoped to: its
+// first word, its conventional-commit scope and its final parenthetical.
+func (x *closeoutIndex) subjectTickets(subject string) []string {
+	var out []string
+	if w := closeoutWord.FindString(subject); w != "" {
+		out = append(out, x.lineTickets(w)...)
+	}
+	for _, re := range []*regexp.Regexp{subjectScope, subjectTail} {
+		if m := re.FindStringSubmatch(subject); m != nil {
+			out = append(out, x.lineTickets(m[1])...)
 		}
 	}
 	return out
@@ -207,6 +260,7 @@ func parseScanLimit(fl map[string]string) (int, error) {
 // screenRow is one screened ticket (TCD-V0-161).
 type screenRow struct {
 	ticketID, local, status, verdict string
+	created                          time.Time // zero when unreadable: never TRUNCATED
 	prs, commits                     []wire.Value
 	// holds and note are the store facts of TCD-V0-170: every hold with its
 	// holdId and reason, and the latest operator note.
@@ -259,7 +313,8 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 				return wire.Errorf(wire.CodeMalformed, "argv", "ticket %s is not in the queue", prose(arg))
 			}
 			if !slices.ContainsFunc(rows, func(r screenRow) bool { return r.ticketID == id }) {
-				rows = append(rows, screenRow{ticketID: id, local: rec.TicketID.Local, status: rec.Status, holds: slices.Clone(rec.Holds), note: operatorNoteShowValue(rc, rec)})
+				created, _ := time.Parse(time.RFC3339Nano, string(rec.CreatedAt))
+				rows = append(rows, screenRow{ticketID: id, local: rec.TicketID.Local, status: rec.Status, created: created, holds: slices.Clone(rec.Holds), note: operatorNoteShowValue(rc, rec)})
 			}
 		}
 		return nil
@@ -273,28 +328,36 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 	if err == nil {
 		scan, err = store.ScanCommits(root, refCommit, since, limit)
 	}
+	// windowStart is the committer time of the oldest scanned commit when
+	// the scan stopped at --limit: a ticket created before it may be cited
+	// in history the scan never read (TCD-V0-168). Committer time has whole
+	// seconds, so a ticket created within that second counts as before it.
+	var windowStart time.Time
+	if err == nil && scan.Truncated && len(scan.Commits) > 0 {
+		windowStart, err = store.CommitTime(root, scan.Commits[len(scan.Commits)-1].Commit)
+	}
 	if err != nil {
 		return failure(cmd, rc, err), 0
 	}
 	commitRefs := make([]map[string]string, len(scan.Commits))
 	for i, c := range scan.Commits {
-		commitRefs[i] = index.references(c.Message, true)
+		commitRefs[i] = index.commitReferences(c.Message)
 	}
 	prRefs := make([]map[string]string, len(prs))
 	for i := range prs {
-		prRefs[i] = index.references(prs[i].Title+"\n"+prs[i].Body, false)
+		prRefs[i] = index.references(prs[i].Title + "\n" + prs[i].Body)
 	}
 	sort.SliceStable(rows, func(i, j int) bool { return rows[i].ticketID < rows[j].ticketID })
 	clear := 0
 	for i := range rows {
 		r := &rows[i]
-		inFlight, delivered, mentioned := false, false, false
+		inFlight, delivered, cited, mentioned := false, false, false, false
 		for j, c := range scan.Commits {
 			kind := commitRefs[j][r.ticketID]
 			if kind == "" {
 				continue
 			}
-			delivered, mentioned = delivered || kind == refDelivered, true
+			delivered, cited = delivered || kind == refDelivered, true
 			if len(r.commits) < maxScreenHits {
 				o := wire.NewObject()
 				o.Set("commit", wire.String(c.Commit))
@@ -335,6 +398,10 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 			r.verdict = verdictInFlight
 		case delivered:
 			r.verdict = verdictDelivered
+		case !windowStart.IsZero() && r.created.Before(windowStart.Add(time.Second)):
+			r.verdict = verdictTruncated
+		case cited:
+			r.verdict = verdictCited
 		case !observed:
 			r.verdict = notObserved
 		case mentioned:
@@ -346,7 +413,7 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 	}
 	res := success(cmd, rc)
 	if scan.Truncated {
-		res.Warnings = append(res.Warnings, "commit scan stopped at --limit "+strconv.Itoa(limit)+"; older references are not reported")
+		res.Warnings = append(res.Warnings, "commit scan stopped at --limit "+strconv.Itoa(limit)+"; older references are not reported, and a ticket created before the oldest scanned commit is TRUNCATED")
 	}
 	if !observed {
 		res.Warnings = append(res.Warnings, "no --prs export; open and merged PRs NOT_OBSERVED")
@@ -504,7 +571,7 @@ func (in *batchInput) batchHits(rc *readCtx) (delivered, mentioned []batchHit) {
 		if n != 0 {
 			p = in.byNumber[n]
 		}
-		refs := index.references(p.Body, false)
+		refs := index.references(p.Body)
 		ids := make([]string, 0, len(refs))
 		for id := range refs {
 			ids = append(ids, id)

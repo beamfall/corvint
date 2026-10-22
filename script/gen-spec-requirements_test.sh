@@ -3,7 +3,7 @@ set -eu
 
 # Covers SRG-V0-001 (cases 1-3), SRG-V0-005 (case 4), SRG-V0-002/003 (case 5), SRG-V0-009 (case 6),
 # SRG-V0-012 and SRG-V0-043 (case 7), SRG-V0-010 (case 8), SRG-V0-015 (case 9), SRG-V0-018 (case 10)
-# and SRG-V0-042 (case 11).
+# and SRG-V0-042/044 (case 11).
 # SRG-V0-001: the generated index must be the one a fresh clone reproduces, so the enumeration is
 # the Git index and nothing the worktree alone says can change the output. The three cases are the drift directions reproduced in
 # `docs/specs/spec-requirement-index-generator-v0.md`: an untracked spec, a tracked spec
@@ -405,7 +405,8 @@ for mode in '' --lines --index --readme; do
 done
 if gen --bogus > /dev/null 2>&1; then fail "an unknown mode was accepted"; else test $? = 2 || fail "an unknown mode did not exit 2"; fi
 
-# 11. SRG-V0-042: an acceptance note the SRG-V0-009 reader would misread is refused with the line,
+# 11. SRG-V0-042 and SRG-V0-044: an acceptance note the SRG-V0-009 reader would misread (including a
+# trailing `Status: (accepted ...)` note) is refused with the line,
 # the id, the reason and the accepted forms; the exact forms and an adjective "Accepted" pass.
 cat > "$test_root/docs/specs/near.md" <<'SPEC'
 - NEAR-001: (accepted under the owner's standing auto-accept (2026-10-11); V1-1347) Exact standing.
@@ -414,6 +415,7 @@ cat > "$test_root/docs/specs/near.md" <<'SPEC'
 - NEAR-004: (accepted, owner lane auto-acceptance 2026-10-11; V1-1463) Near miss: no standing.
 - NEAR-005: (accepted, V1-1547) Near miss: no anchor.
 - NEAR-006: accepted, decision 0506. Near miss: no parentheses.
+- NEAR-007: Near miss: a trailing note. Status: (accepted, decision 0481; GitHub #715).
 SPEC
 stage docs/specs/near.md
 near_err=$(run 2>&1 > /dev/null) && fail "near-miss acceptance notes were accepted"
@@ -421,11 +423,12 @@ for want in \
   'docs/specs/near.md:4: NEAR-004: an auto-acceptance note must name the standing approval' \
   'docs/specs/near.md:5: NEAR-005: the acceptance note records no decision number or date' \
   'docs/specs/near.md:6: NEAR-006: the acceptance note is not parenthesized, so it is not read' \
+  'docs/specs/near.md:7: NEAR-007: the acceptance note trails the definition as `Status: (...)`, so it is not read' \
   "(accepted under the owner's standing auto-accept (YYYY-MM-DD); V1-NNNN)"; do
   case $near_err in *"$want"*) ;; *) fail "the near-miss refusal lacks '$want': $near_err" ;; esac
 done
 case $near_err in *NEAR-00[123]*) fail "an exact or adjective form was refused: $near_err" ;; esac
-sed -i.bak '4,6d' "$test_root/docs/specs/near.md"
+sed -i.bak '4,7d' "$test_root/docs/specs/near.md"
 stage docs/specs/near.md
 run > /dev/null || fail "the exact acceptance forms were refused"
 

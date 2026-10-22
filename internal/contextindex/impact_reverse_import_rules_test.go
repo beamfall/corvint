@@ -303,3 +303,25 @@ func TestImpactAdmitsARootPackagePath(t *testing.T) {
 		t.Fatalf("same-package tests = %v, want logger_test.go", tests)
 	}
 }
+
+// TestImpactResolvesBareDotDirectoryImportsToIndex refutes V1-2321: a `.` or
+// `..` specifier names its directory exactly as `../widget` does, so the impact
+// hop from that directory's `index.ts` reaches both importers through the same
+// `/index` rule (`GPK-V0-027` rule (c)).
+func TestImpactResolvesBareDotDirectoryImportsToIndex(t *testing.T) {
+	files := withBeamfallSignals(webImpactFiles())
+	files["internal/web/app/src/widget/same.ts"] = "import { Button } from \".\";\nexport const Same = Button;\n"
+	files["internal/web/app/src/widget/nested/up.ts"] = "import { Button } from \"..\";\nexport const Up = Button;\n"
+	files["internal/web/app/src/widget/nested/slash.ts"] = "import { Button } from \"../\";\nexport const Slash = Button;\n"
+	found := impactReverseImportIDs(t, impactRepositoryWithFiles(t, files), "internal/web/app/src/widget/index.ts")
+	for id, reason := range map[string]string{
+		"internal/web/app/src/widget/same.ts":         "imports .",
+		"internal/web/app/src/widget/nested/up.ts":    "imports ..",
+		"internal/web/app/src/widget/nested/slash.ts": "imports ../",
+		"internal/web/app/src/pages/directory.ts":     "imports ../widget",
+	} {
+		if !found[id][reason] {
+			t.Fatalf("index reverse-imports = %v, want %s via `%s`", found, id, reason)
+		}
+	}
+}

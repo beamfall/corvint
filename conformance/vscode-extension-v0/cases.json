@@ -180,6 +180,22 @@
       "expect": {"result": "degraded", "executionCount": 0, "status": "Incompatible", "failureCode": "CLI_INCOMPATIBLE", "noProjectedEvidence": true, "effectsEmpty": true}
     },
     {
+      "id": "VSC-CONF-PROCESS-004",
+      "requirements": ["VSC-V0-077"],
+      "title": "a failed process shows its stable code and only the first non-empty sanitized stderr line",
+      "setup": {"trusted": true, "cliBehavior": "nonzero-exit", "stderr": "\r\n \t\r\nCLI detail\u202e\nsecond stderr line must not display"},
+      "action": {"kind": "run", "command": "query"},
+      "expect": {"result": "degraded", "executionCount": 1, "failureCode": "CLI_FAILED", "failureMessageExact": "CLI_FAILED: CLI detail\ufffd", "forbiddenText": ["second stderr line must not display"], "noProjectedEvidence": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-PROCESS-005",
+      "requirements": ["VSC-V0-077"],
+      "title": "a failed process with blank stderr keeps the stable fallback detail",
+      "setup": {"trusted": true, "cliBehavior": "nonzero-exit", "stderr": " \t\r\n\n"},
+      "action": {"kind": "run", "command": "query"},
+      "expect": {"result": "degraded", "executionCount": 1, "failureCode": "CLI_FAILED", "failureMessageExact": "CLI_FAILED: local Corvint process failed", "noProjectedEvidence": true, "effectsEmpty": true}
+    },
+    {
       "id": "VSC-CONF-OUTPUT-001",
       "requirements": ["VSC-V0-017", "VSC-V0-020", "VSC-V0-039"],
       "title": "stdout overflow terminates parsing and degrades visibly",
@@ -314,6 +330,14 @@
       "setup": {"trusted": true, "cliBehavior": "two-diagnostic-generations"},
       "action": {"kind": "refresh-diagnostics-twice"},
       "expect": {"result": "ready", "diagnosticGenerationReplaced": true, "diagnosticsSafe": true, "locationsWithinWorkspace": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-DIAGNOSTIC-003",
+      "requirements": ["VSC-V0-078"],
+      "title": "evidence diagnostics for unopened files open no document and keep lines beyond the file length",
+      "setup": {"trusted": true, "cliBehavior": "evidence-beyond-file-length", "unopenedFile": "src/a.go", "fileLineCount": 3, "evidenceLines": [1, 5000, 0, -2]},
+      "action": {"kind": "refresh-diagnostics"},
+      "expect": {"result": "ready", "diagnosticsSafe": true, "documentOpenCount": 0, "diagnosticLinesExact": [0, 4999], "locationsWithinWorkspace": true, "effectsEmpty": true}
     },
     {
       "id": "VSC-CONF-DECORATION-001",

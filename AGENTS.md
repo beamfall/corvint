@@ -128,7 +128,8 @@ requirement IDs in `docs/specs/REQUIREMENTS.tsv`; open a full spec body only aft
 to a section. Backlog questions: the local roadmap is the Corvint task store `.taskman/`, read with
 `corvint-tasks queue status`, `roadmap`, `ticket search --label agent-memory`, and `ticket show`;
 file new bugs, fixes, test gaps, optimizations, ideas and open questions as tickets (label
-`agent-memory` plus `bugs|fixes|tests|optimizations|ideas|questions`), never as Markdown entries
+`agent-memory` plus `bugs|fixes|tests|optimizations|ideas|questions`, priority per
+`docs/TICKET-PRIORITY.md`), never as Markdown entries
 under `docs/agent-memory/`, which stays only as a redirect.
 
 Ticket-backed work is finished only after its acceptance evidence is retained, the required

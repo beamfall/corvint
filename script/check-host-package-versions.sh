@@ -27,13 +27,38 @@ cd "$root"
 # Without jq every version reads as absent, which reports a misleading stale bump.
 command -v jq >/dev/null 2>&1 || { printf 'host package versions: jq is required\n' >&2; exit 1; }
 
-# git_field_at REV PATH JQFILTER: the field value at REV, or the sentinel "\x01ABSENT" when
+# yaml_field PARENT CHILD: the scalar value of the indented CHILD key in the first top-level
+# PARENT: block on stdin, unquoted; exits 1 when absent. Spec Kit's extension.yml and the
+# OpenSpec skill's front matter carry their versions this way (V1-2184).
+yaml_field() {
+    awk -v parent="$1" -v child="$2" '
+        inside && /^[^[:space:]]/ { exit }
+        $0 ~ "^" parent ":[[:space:]]*$" { inside = 1; next }
+        inside && $0 ~ "^[[:space:]]+" child ":" {
+            value = $0
+            sub("^[[:space:]]+" child ":[[:space:]]*", "", value)
+            sub("[[:space:]]+$", "", value)
+            gsub(/^"|"$/, "", value)
+            print value
+            found = 1
+            exit
+        }
+        END { if (!found) exit 1 }'
+}
+
+# git_field_at REV PATH FILTER: the field value at REV, or the sentinel "\x01ABSENT" when
 # the path does not exist at REV (git show exits non-zero) so "absent" can never collide with
-# a real (possibly empty-string) field value.
+# a real (possibly empty-string) field value. FILTER is a jq filter, or yaml:PARENT.CHILD.
 git_field_at() {
     rev=$1 path=$2 filter=$3
     content=$(git show "$rev:$path" 2>/dev/null) || { printf '\001ABSENT'; return 0; }
-    printf '%s' "$content" | jq -r "$filter" 2>/dev/null || printf '\001ABSENT'
+    case $filter in
+        yaml:*)
+            key=${filter#yaml:}
+            printf '%s\n' "$content" | yaml_field "${key%%.*}" "${key#*.}" 2>/dev/null || printf '\001ABSENT'
+            ;;
+        *) printf '%s' "$content" | jq -r "$filter" 2>/dev/null || printf '\001ABSENT' ;;
+    esac
 }
 
 # last_field_change_commit PATH JQFILTER: the hash of the newest commit at which PATH's
@@ -99,8 +124,8 @@ check_package() {
         # committer-second timestamp comparison cannot tell those cases apart from two distinct
         # commits sharing a second (a rebase can produce this), so ancestry decides it instead.
         if [ "$bump_commit" != "$shipped_commit" ] && ! git merge-base --is-ancestor "$shipped_commit" "$bump_commit" 2>/dev/null; then
-            printf 'host package versions: %s: %s last bumped at %s, older than shipped content changed at %s\n' \
-                "$name" "$path" "$bump_commit" "$shipped_commit" >&2
+            printf 'host package versions: %s: %s last bumped at %s, older than shipped content changed at %s; run make host-package-version-bump PKG=%s\n' \
+                "$name" "$path" "$bump_commit" "$shipped_commit" "$name" >&2
             status=1
         fi
     done
@@ -145,5 +170,21 @@ check_package pi \
     'integrations/pi/package.json|.corvintIntegration.adapterVersion' \
     -- \
     integrations/pi/index.ts integrations/pi/extension.js integrations/pi/tools.js integrations/pi/runtime.js integrations/pi/README.md integrations/pi/compatibility.json integrations/pi/process.js integrations/pi/core.js integrations/pi/tasks.js integrations/pi/operations.js integrations/pi/cockpit.js integrations/pi/workflow.js
+
+# AHI-020 / V1-2184: the Spec Kit extension and the OpenSpec skill are cached by version too. The
+# OpenSpec skill file is both its version file and its main shipped content, so it stays in its
+# own shipped set: a body edit must land with a bump.
+check_package speckit \
+    'protocol/integrations/speckit/corvint/extension.yml|yaml:extension.version' \
+    -- \
+    protocol/integrations/speckit/corvint \
+    ':(exclude)protocol/integrations/speckit/corvint/extension.yml' \
+    ':(exclude)protocol/integrations/speckit/corvint/README.md'
+
+check_package openspec \
+    'protocol/integrations/openspec/skills/corvint-openspec/SKILL.md|yaml:metadata.version' \
+    -- \
+    protocol/integrations/openspec \
+    ':(exclude)protocol/integrations/openspec/README.md'
 
 exit $status

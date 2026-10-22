@@ -82,7 +82,16 @@ type Obligations struct {
 	Digest        string        `json:"digest"`
 
 	catalog *Catalog
-	encoded []byte
+	// baseOutcomes holds each outcome of the base map by ID, for oracle_origin (CCE-V0-016).
+	baseOutcomes map[string]baseOutcome
+	encoded      []byte
+}
+
+// baseOutcome is one outcome declared in the base map; admitted reads the CCE-V0-005/024
+// admission rule at base.
+type baseOutcome struct {
+	admitted                bool
+	matcher, locator, value string
 }
 
 // Encoded returns the sealed bytes of the report.
@@ -153,14 +162,14 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 	if err != nil {
 		return nil, err
 	}
-	removed, err := removedAtHead(ctx, o.Root, base, o.Manifest, cat.m)
+	removed, baseOutcomes, err := removedAtHead(ctx, o.Root, base, o.Manifest, cat.m)
 	if err != nil {
 		return nil, err
 	}
 	r := &Obligations{Schema: ObligationsSchema, Base: base, Head: cat.Revision, CatalogDigest: cat.Digest, ImpactDigest: impact.Digest,
 		Relations: Relations{Consulted: []string{"amap-impact", "amap-map:base", "amap-map:head", "e2e-blocks:reach_exempt@base"},
 			NotConsulted: []string{"affected-plan", "anl-edge-ledger"}},
-		Obligations: []Obligation{}, Unknown: []UnknownSpan{}, Exempt: []Exemption{}, catalog: cat}
+		Obligations: []Obligation{}, Unknown: []UnknownSpan{}, Exempt: []Exemption{}, catalog: cat, baseOutcomes: baseOutcomes}
 	changedRaw, err := git(ctx, o.Root, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", base, cat.Revision, "--")
 	if err != nil {
 		return nil, err
@@ -323,17 +332,25 @@ type removal struct{ path, entity string }
 
 // removedAtHead joins the base map: each screen, flow and outcome present at base and absent at head
 // is a removal located at its base anchor path (CCE-V0-019). A manifest absent at base has nothing
-// to remove; a base map that does not build refuses `e2e-map-unavailable`.
-func removedAtHead(ctx context.Context, root, base, manifest string, head *appmap.Map) ([]removal, error) {
+// to remove; a base map that does not build refuses `e2e-map-unavailable`. It also returns every
+// base outcome by ID, which oracle_origin joins (CCE-V0-016).
+func removedAtHead(ctx context.Context, root, base, manifest string, head *appmap.Map) ([]removal, map[string]baseOutcome, error) {
 	if manifest == "" {
 		manifest = "appmap.json"
 	}
 	if _, _, ok, err := blobAt(ctx, root, base, manifest); err != nil || !ok {
-		return nil, err
+		return nil, nil, err
 	}
 	bm, err := appmap.Build(ctx, root, manifest, base)
 	if err != nil {
-		return nil, refuse("e2e-map-unavailable", "base: %v", err)
+		return nil, nil, refuse("e2e-map-unavailable", "base: %v", err)
+	}
+	outcomes := map[string]baseOutcome{}
+	for _, f := range bm.Flows {
+		for _, oc := range f.Outcomes {
+			outcomes["outcome:"+f.FlowID+"/"+oc.ID] = baseOutcome{admitted: outcomeAdmissionReason(oc.Matcher, oc.Locator, oc.Value) == "",
+				matcher: oc.Matcher, locator: oc.Locator, value: oc.Value}
+		}
 	}
 	have := map[string]bool{}
 	for _, s := range head.Screens {
@@ -362,7 +379,22 @@ func removedAtHead(ctx context.Context, root, base, manifest string, head *appma
 			}
 		}
 	}
-	return out, nil
+	return out, outcomes, nil
+}
+
+// oracleOrigin joins a compiled outcome block with the base map (CCE-V0-016): ADMITTED_AT_BASE
+// when an admitted base outcome has the same ID, matcher, locator and value; CHANGED_IN_DIFF when
+// the ID exists at base otherwise (including an outcome present but unadmitted at base);
+// NEW_IN_DIFF when the base map lacks the ID or there is no base map.
+func (o *Obligations) oracleOrigin(b *Block) string {
+	bo, ok := o.baseOutcomes[b.ID]
+	switch {
+	case !ok:
+		return OriginNewInDiff
+	case bo.admitted && bo.matcher == b.Matcher && bo.locator == b.Locator && bo.value == b.Value:
+		return OriginAdmittedAtBase
+	}
+	return OriginChangedInDiff
 }
 
 // readReachExempt reads the `reach_exempt` member of the declarations file at base, so a diff

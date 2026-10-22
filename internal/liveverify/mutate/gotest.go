@@ -209,7 +209,11 @@ func runGoTest(ctx context.Context, timeout time.Duration, space workspace, pack
 		outcome = runTimedOut
 	}
 	if attributable {
-		return outcome, output.String(), sink.outcomes
+		text := output.String()
+		if sink.timeout != "" && !strings.Contains(text, testTimeoutMarker) {
+			text += "\n" + sink.timeout
+		}
+		return outcome, text, sink.outcomes
 	}
 	return outcome, output.String(), nil
 }
@@ -239,6 +243,9 @@ type eventSink struct {
 	outcomes    map[string]runOutcome
 	unbuildable bool
 	failed      bool
+	// timeout is go test's own alarm line ("panic: test timed out after T"),
+	// kept whole because the bounded buffer may have cut it (FPK-V0-143).
+	timeout string
 }
 
 // testEvent is the part of a go test -json event the sink reads.
@@ -295,6 +302,9 @@ func (sink *eventSink) readMarkers(action, output string) {
 	}
 	if reportsTestFailure(output) {
 		sink.failed = true
+	}
+	if sink.timeout == "" && strings.HasPrefix(output, testTimeoutMarker) {
+		sink.timeout = strings.TrimSpace(output)
 	}
 }
 
@@ -400,6 +410,22 @@ func goEnvironment(space workspace) []string {
 		"GOFLAGS=-mod=readonly", "GOPROXY=off", "GOSUMDB=off",
 		"LANG=C", "LC_ALL=C",
 	)
+}
+
+// testTimeoutMarker starts the line go test's alarm prints when its own -timeout
+// ends the test binary; go test -json then attaches no fail event to the running
+// test, only the package's FAIL.
+const testTimeoutMarker = "panic: test timed out after "
+
+// baselineFailure reports a failed baseline run whose -timeout was limit. A
+// run go test's own -timeout ended is no verdict about the unmodified tests: on a
+// loaded host it is the per-run limit, so it is BUDGET_EXCEEDED naming that
+// limit, never "baseline tests fail before mutation" (FPK-V0-143).
+func baselineFailure(output string, configuration settings, limit time.Duration) Report {
+	if strings.Contains(output, testTimeoutMarker) {
+		return budgetReport(perRunDetail(limit, "during the baseline run"))
+	}
+	return unsupportedReport(baselineDetail(output, configuration))
 }
 
 // baselineDetail names why the unmodified export could not establish a baseline.
