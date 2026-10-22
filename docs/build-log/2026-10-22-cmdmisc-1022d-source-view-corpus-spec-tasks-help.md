@@ -82,6 +82,15 @@ Evidence. `TestTCBV0045GateVerdictHelpNamesBuildMismatchRecovery` fails without 
 - V1-2219, V1-2348, V1-2036: in flight in open PRs. V1-2353, V1-1895, V1-2107, V1-2249,
   V1-2341, V1-2346: dependency, owner decision, sealed-schema collision or network.
 
+## Tests run
+
+Focused tests per ticket (each proven to fail without its fix); full `internal/tasks/cli` (500 s,
+includes the CAL-V0-131 trap), `internal/tasks/service`, `ticket`, `transaction`, `mutation`,
+`scale`, `benchmarks`, `benchmarks/selfuse-batch`, `TestImportDirection`; `cmd/corvint` with
+`-run 'SourceView|SourceHandoff|Corpus|DCPV1|Help|GateVerdict|TCB|ESV'`; `internal/tasks/store` in
+eight `-run` shards (all 552 tests pass), because one serial run exceeded the 30-minute hang
+detector under host load and the J-prefixed journal tests alone took over 9 minutes.
+
 ## NOT_RUN
 
 - `cmd/corvint` outside the `-run` subset; `corvint affected` tier 2 (94 units) for batch CI.
@@ -94,6 +103,8 @@ Evidence. `TestTCBV0045GateVerdictHelpNamesBuildMismatchRecovery` fails without 
   live-proof-carrying-verification-v0.md) and are not diagnosed, because the reader keeps only
   the definition line.
 - README rows with a generated range conflict when adjacent specs change in two lanes.
+- `internal/tasks/store` runs longer than 8 minutes serially (JSGV0013_UnsealStopsSettle 89 s,
+  JSGV0012_CompactionOnASealedStore 52 s) and hit the 30-minute detector under load.
 
 ## Rollback
 
