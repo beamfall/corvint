@@ -56,6 +56,25 @@
 - Not reproduced: ETXTBSY cannot be reproduced on this macOS host, so the Linux mechanism is
   inferred from the CI timings and the `behaviorfalsify` precedent.
 
+## Repair round 1 (independent review, three P2 findings)
+
+- If cancellation came during the ETXTBSY retry wait, `workStartAdapter` returned the busy error
+  (`ADAPTER_FAILED`). It now returns `ctx.Err()`, and it checks the context before each wait, so
+  the result is `CANCELLED` or `INPUT_LIMIT`. The retry test gained a cancellation case and a
+  deadline case. Both fail with the round-0 return.
+- The readiness wait ran inside `AfterStart`, whose context is capped at 1 s, so a slow shell start
+  failed `process-after-start-failed`. A test-only `processWaitChannels.beforeTimer` hook now runs
+  before the run timer is armed, with no bound except a 30 s hang detector. Evidence: with a 1.5 s
+  delay before the traps, the round-0 handshake fails `process-after-start-failed` and the new one
+  passes.
+- The witnessed-deadline expand test would still pass if the production `WithTimeout` became
+  `WithCancel`. The new `TestContextExpandSequenceBoundExpires` stalls the first Git step past a real
+  1 s bound with no caller deadline, and it fails under that substitution (`repository-root`). The
+  ESV-V0-013 evidence row in `docs/specs/experimental-source-views-v0.md` names both tests.
+- Stress after repair: procgroup `-count=50` passed (50.0 s). A single compiled cmd/corvint test
+  binary run with `-count=20` across the two flaky tests, the new bound test and the retry test passed
+  (134 s).
+
 ## Rollback
 
 Revert the lane commits. The product change is limited to `workStartAdapter`. Reverting it brings
