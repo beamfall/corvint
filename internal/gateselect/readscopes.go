@@ -20,8 +20,10 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -285,42 +287,140 @@ func baseBlob(root string, entries map[string]baseTreeEntry, name string, limit 
 }
 
 // baseWorkspace is workspaceDirectories over the base tree: the directories a
-// root go.work lists by its use grammar, or the root alone.
+// root go.work lists, or the root alone. It reads go.work with the planner's
+// strict manifest grammar (readManifest in
+// internal/liveverify/affected/golang/nested.go): a raw string, a block
+// comment, an invalid quoted string, an unknown or quoted directive, a block
+// of a verb that admits none, text after a block close, a use without exactly
+// one argument or an unterminated block refuses the file, and the base is
+// unknown, where the planner observes the root alone and raises its
+// workspace frontier (V1-2317).
 func baseWorkspace(root string, entries map[string]baseTreeEntry) (map[string]bool, bool) {
 	body, present, ok := baseBlob(root, entries, workspaceManifest, maxWorkspaceBytes)
 	if !ok {
 		return nil, false
 	}
 	listed := map[string]bool{}
-	use := func(value string) {
-		cleaned := path.Clean(filepath.ToSlash(strings.Trim(value, "\"`")))
+	block := ""
+	for _, line := range strings.Split(string(body), "\n") {
+		tokens, quoted, ok := workspaceTokens(line)
+		if !ok {
+			return nil, false
+		}
+		if len(tokens) == 0 {
+			continue
+		}
+		verb, args := block, tokens
+		switch {
+		case block != "" && tokens[0] == ")" && !quoted[0]:
+			if len(tokens) != 1 {
+				return nil, false
+			}
+			block = ""
+			continue
+		case block == "":
+			if quoted[0] || !workspaceVerbs[tokens[0]] {
+				return nil, false
+			}
+			verb, args = tokens[0], tokens[1:]
+			if len(args) == 1 && args[0] == "(" && !quoted[1] {
+				if !workspaceBlocks[verb] {
+					return nil, false
+				}
+				block = verb
+				continue
+			}
+		}
+		if verb != "use" {
+			continue
+		}
+		if len(args) != 1 || args[0] == "" {
+			return nil, false
+		}
+		cleaned := path.Clean(filepath.ToSlash(args[0]))
 		if cleaned == "." || validRelativePath(cleaned) {
 			listed[cleaned] = true
 		}
 	}
-	inBlock := false
-	for _, line := range strings.Split(string(body), "\n") {
-		if index := strings.Index(line, "//"); index >= 0 {
-			line = line[:index]
-		}
-		fields := strings.Fields(line)
-		switch {
-		case len(fields) == 0:
-		case inBlock && fields[0] == ")":
-			inBlock = false
-		case inBlock:
-			use(fields[0])
-		case fields[0] != "use" || len(fields) != 2:
-		case fields[1] == "(":
-			inBlock = true
-		default:
-			use(fields[1])
-		}
+	if block != "" {
+		return nil, false
 	}
 	if !present || len(listed) == 0 {
 		listed["."] = true
 	}
 	return listed, true
+}
+
+// workspaceVerbs and workspaceBlocks mirror the planner's workVerbs and
+// workBlocks.
+var (
+	workspaceVerbs  = map[string]bool{"go": true, "toolchain": true, "godebug": true, "use": true, "replace": true}
+	workspaceBlocks = map[string]bool{"godebug": true, "use": true, "replace": true}
+)
+
+// workspaceTokens is the planner's manifestLine lexer: it splits one go.work
+// line into tokens, reporting which were quoted, and refuses what that lexer
+// refuses.
+func workspaceTokens(line string) ([]string, []bool, bool) {
+	var tokens []string
+	var quoted []bool
+	for index := 0; index < len(line); {
+		character, size := utf8.DecodeRuneInString(line[index:])
+		switch {
+		case character == ' ' || character == '\t' || character == '\r':
+			index += size
+		case strings.HasPrefix(line[index:], "//"):
+			return tokens, quoted, true
+		case strings.HasPrefix(line[index:], "/*"), character == '`':
+			return nil, nil, false
+		case strings.ContainsRune(workspacePunctuation, character):
+			tokens, quoted = append(tokens, string(character)), append(quoted, false)
+			index += size
+		case character == '"':
+			end := index + 1
+			for end < len(line) && line[end] != '"' {
+				if line[end] == '\\' {
+					end++
+				}
+				end++
+			}
+			if end >= len(line) {
+				return nil, nil, false
+			}
+			value, err := strconv.Unquote(line[index : end+1])
+			if err != nil {
+				return nil, nil, false
+			}
+			tokens, quoted = append(tokens, value), append(quoted, true)
+			index = end + 1
+		case !workspaceIdentifierRune(character, size):
+			return nil, nil, false
+		default:
+			end := index
+			for end < len(line) && !strings.HasPrefix(line[end:], "//") {
+				next, width := utf8.DecodeRuneInString(line[end:])
+				if !workspaceIdentifierRune(next, width) || strings.ContainsRune(workspacePunctuation, next) {
+					break
+				}
+				if strings.HasPrefix(line[end:], "/*") {
+					return nil, nil, false
+				}
+				end += width
+			}
+			tokens, quoted = append(tokens, line[index:end]), append(quoted, false)
+			index = end
+		}
+	}
+	return tokens, quoted, true
+}
+
+// workspacePunctuation is the planner's manifestPunctuation.
+const workspacePunctuation = "()[]{},"
+
+// workspaceIdentifierRune is the planner's identifierRune: printable, not
+// space, and valid UTF-8.
+func workspaceIdentifierRune(character rune, size int) bool {
+	return !(character == utf8.RuneError && size == 1) && !unicode.IsSpace(character) && unicode.IsPrint(character)
 }
 
 // baseOwner is committedOwner over the base tree: the nearest listed module

@@ -1,4 +1,4 @@
-# 2026-10-21 idx-1022c: located Ruby frontiers (V1-2363, GH #1519)
+# 2026-10-21 idx-1022c: located Ruby frontiers (V1-2363, GH #1519) and strict base go.work (V1-2317)
 
 ## Problem
 
@@ -49,6 +49,20 @@ not tell whether the change reached the site, fix the site, or declare it resolv
 - A declaration is unverified caller authority. A declaration keyed to a line goes stale after edits
   above that line.
 - No live run on the reporter's Rails application (external repository).
+
+## V1-2317: the selector's base go.work grammar
+
+- Problem: `gateselect.baseWorkspace` skipped any go.work line it did not understand and trimmed
+  backquotes, so for a raw-string `use` or an unknown directive the selector read a known base while
+  the planner's strict `readManifest` refused the file.
+- Decision: mirror the planner's lexer and work grammar with only the standard library, because the
+  gate-ledger fixture compiles the package with no other dependency. A refused go.work makes the base
+  unknown (AFP-V0-050 (3) amended).
+- Evidence: six new cases in `TestBaseReadScopesFollowCommittedReadScopes_AFPV0050`. Five failed
+  before the fix with `want known = false`, and all pass now, agreeing with `CommittedReadScopes`.
+- Limit: argument validation for the `go`, `toolchain`, `godebug` and `replace` lines is not
+  mirrored. The ticket scope is raw strings and unknown directives.
+- Rollback: revert `baseWorkspace`.
 
 ## Rollback
 
