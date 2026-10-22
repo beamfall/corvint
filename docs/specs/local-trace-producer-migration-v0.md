@@ -319,6 +319,15 @@ Acceptance: `TestLTPMV0014TypedGolden`, `TestLTPMV0014TypedRefusals`,
 `TestTypedTraceFixtureAdmission`, `TestLODV0035MixedTraceSnapshot`, `TestConsoleTypedArgv`,
 `TestExportTypedArgv`, and `FuzzTypedVerificationRoundTrip` bind this amendment to source evidence.
 
+- `LTPM-V0-017`: (accepted 2026-10-21 under the owner's standing lane auto-accept of 2026-10-11; V1-2272)
+  A dogfood `record` MUST compile the context index exactly once. Each `LTPM-V0-001` and
+  `LTPM-V0-011` stability check MUST observe the current repository header instead of compiling
+  another index: commit, tree, object format and source status. A commit, tree or object-format
+  difference from the compiled index MUST refuse with `repository-identity-changed`; source status
+  keeps the existing cleanliness refusal. With an authority, the check MUST re-derive the candidate and admitted path digests against the compiled index's tracked
+  source set, which is a function of the unchanged tree. Recorded trace bytes and refusal codes are
+  unchanged.
+
 ## Non-goals and simpler baseline
 
 The simpler baseline is to retain bounded legacy read compatibility and never migrate. V0 does not
@@ -374,6 +383,7 @@ fallback consumers retain `admitted-path-limit`.
 | `LTPM-V0-009` | interruption after staging/quarantine/unlink boundaries, fresh dry-run, idempotent resume, byte preservation |
 | `LTPM-V0-010` | fixture-root CLI dogfood and before/after fingerprint of the real trace store |
 | `LTPM-V0-012` | stranded dry-run without writing, byte-preserved apply, non-commit refusal, probe failure, quarantine collision, identical-copy resume, CLI amend fixture |
+| `LTPM-V0-017` | one counted index compilation per dogfood record; unchanged repository passes; admitted-digest drift and a same-tree moved `HEAD` refuse |
 
 ## Rollout, rollback, and traceability
 
@@ -395,6 +405,7 @@ non-authoritative and slated for separate removal. The Go producer row below is 
 | `LTPM-V0-010` | public CLI and test harness | real-store fingerprint plus fixture-only dogfood |
 | `LTPM-V0-011` | `internal/trace`, `internal/tracerecordrepo`, `cmd/corvint`, `script/dogfood-change.sh`, `script/dogfood-check.sh` | shared tri-state admission tests; `TestTracePathScreenIsTheIndexScreen`; `TestRecordUnsupportedVerifySyntaxAppendsOneObservation` (verification refusal `code`) (`IDX-SNAP-V0-018` screen); mixed and source-free CLI fixtures; NUL-safe line-feed path fixture; malformed and over-bound refusal; `TestTraceTaskMustBeValidUTF8`; target/digest stability checks; shell coordination, evidence-drift, and interruption tests |
 | `LTPM-V0-012` | `internal/trace`, `internal/tracemigraterepo`, `cmd/corvint` | `TestMigrationQuarantinesStrandedCommitTrace`; `TestMigrationRefusesUnknownOrCollidingStrandedTrace`; `TestMigrateTracesQuarantinesTraceStrandedByAmend` |
+| `LTPM-V0-017` | `internal/tracerecordrepo` | `TestDogfoodRecordCompilesOneIndex`; `TestDogfoodStabilityBindsCandidateAndAdmittedDigests` |
 
 ## Accepted amendment: dogfood changed-path admission
 

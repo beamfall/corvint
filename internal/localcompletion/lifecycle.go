@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/lrfrepo"
 	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 )
@@ -123,6 +124,21 @@ func Begin(ctx context.Context, root, key string, raw []byte) (Evaluation, error
 		// resolve (decision 0170); a path HEAD lacks would pin an empty blob hash.
 		if !present {
 			return Evaluation{}, errors.New("intent-path-not-found")
+		}
+		// Finish prepares every intent's numbered Requirements section; refuse a
+		// section it would reject now, before a generation exists (LCP-V0-037).
+		var data []byte
+		over := entry.Type != "blob"
+		if !over {
+			if data, over, lookupErr = repo.auth.BlobBytesWithin(ctx, entry.OID, lrfrepo.MaxIntentBytes); lookupErr != nil {
+				return Evaluation{}, lookupErr
+			}
+		}
+		if over {
+			return Evaluation{}, errors.New("repository-object-unavailable")
+		}
+		if code := lrfrepo.IntentRequirementsRefusal(data); code != "" {
+			return Evaluation{}, errors.New(code)
 		}
 		pointer.BlobHash = entry.OID
 		saved.IntentPointers = append(saved.IntentPointers, pointer)

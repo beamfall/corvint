@@ -294,7 +294,7 @@ func TestLocalCompletionVerifyOKMirrorsCheckResult(t *testing.T) {
 		t.Fatal(err)
 	}
 	cemWrite(t, root, ".gitignore", ".corvint/\n")
-	cemWrite(t, root, "intent.md", "# Intent\n")
+	cemWrite(t, root, "intent.md", "# Intent\n\n## Requirements\n\n- `FIXTURE-001`: preserve behavior.\n")
 	cemGit(t, root, "init", "-q", "-b", "main")
 	cemGit(t, root, "add", ".")
 	cemGit(t, root, "commit", "-qm", "base")

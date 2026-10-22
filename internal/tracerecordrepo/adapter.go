@@ -173,7 +173,7 @@ func DogfoodFailureReason(err error) string {
 }
 
 func recordIndex(ctx context.Context, root string) (*contextindex.Index, []string, error) {
-	index, err := contextindex.Build(ctx, root)
+	index, err := buildRecordIndex(ctx, root)
 	if err != nil {
 		return nil, nil, recordIndexError(root, err)
 	}
@@ -444,34 +444,30 @@ func stabilityCheck(ctx context.Context, root string, expected *contextindex.Ind
 }
 
 func stabilityCheckForStage(ctx context.Context, root string, expected *contextindex.Index, authority *dogfoodAuthority, ownedStage string) func() error {
-	// Without an authority the closing check reads only header fields, so it
-	// observes them instead of compiling a second index whose sources it would
-	// discard. ProfileID is not compared because it is a pure function of the
-	// tree: an equal Revision already implies an equal ProfileID.
-	if authority == nil {
-		return func() error {
-			current, err := contextindex.Observe(ctx, root)
-			if err != nil {
-				return recordIndexError(root, err)
-			}
-			if current.CommitRevision != expected.CommitRevision || current.Revision != expected.Revision ||
-				current.ObjectFormat != expected.ObjectFormat {
-				return &repositoryChangedError{}
-			}
-			return recordSourceStatus(ctx, root, current.StatusSHA256, current.DirtyPaths, len(current.CommitRevision), ownedStage)
-		}
+	// Every check reads only header fields, so it observes them instead of
+	// compiling a second index whose sources it would discard. ProfileID and
+	// the tracked source set are not recompiled because both are pure
+	// functions of the tree: an equal Revision already implies them, so the
+	// authority re-derives admission against the expected index's source set
+	// (LTPM-V0-017).
+	var tracked []string
+	if authority != nil {
+		tracked = tracerepopaths.Paths(expected)
 	}
 	return func() error {
-		current, err := contextindex.Build(ctx, root)
+		current, err := contextindex.Observe(ctx, root)
 		if err != nil {
 			return recordIndexError(root, err)
 		}
 		if current.CommitRevision != expected.CommitRevision || current.Revision != expected.Revision ||
-			current.ObjectFormat != expected.ObjectFormat || current.ProfileID != expected.ProfileID {
+			current.ObjectFormat != expected.ObjectFormat {
 			return &repositoryChangedError{}
 		}
 		if err := recordSourceStatus(ctx, root, current.StatusSHA256, current.DirtyPaths, len(current.CommitRevision), ownedStage); err != nil {
 			return err
+		}
+		if authority == nil {
+			return nil
 		}
 		if current.CommitRevision != authority.target {
 			return &repositoryChangedError{}
@@ -480,7 +476,6 @@ func stabilityCheckForStage(ctx context.Context, root string, expected *contexti
 		if err != nil {
 			return err
 		}
-		tracked := tracerepopaths.Paths(current)
 		admitted, err := trace.AdmissibleCurrentPaths(candidates, tracked)
 		if err != nil {
 			return err
@@ -753,3 +748,7 @@ func lowerHex(value string, length int) bool {
 	}
 	return true
 }
+
+// buildRecordIndex is the recorder's one index compilation; a test counts it
+// to prove the stability checks observe instead of compiling (LTPM-V0-017).
+var buildRecordIndex = contextindex.Build

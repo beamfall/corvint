@@ -110,7 +110,8 @@ func RunProgram(ctx context.Context, repo *intent.Repository, actor mutation.Bin
 		if result != nil {
 			output = result.Stdout
 		}
-		report, e := ProgramTransition(context.WithoutCancel(ctx), repo, actor, q.QueueID.Raw, id+"-"+strconv.Itoa(n), p, output)
+		// A control recorded beside this runner is kept (ATR-V0-240).
+		report, e := programTransition(context.WithoutCancel(ctx), repo, actor, q.QueueID.Raw, id+"-"+strconv.Itoa(n), p, false, true, output)
 		if e != nil {
 			return e
 		}

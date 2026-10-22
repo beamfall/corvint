@@ -41,6 +41,13 @@ policy. Decisions 0081 and 0373 retain owner authority. No merge permission is e
 - `PMM-V0-007`: Expose `corvint-postmerge-metrics report --policy FILE --records FILE --from UTC
   --until UTC` as an optional standalone binary. Fail closed with fixed typed errors; bounded input,
   total deadline, Git output/time and owned-process cleanup. Do not register a Core CLI/MCP command.
+- `PMM-V0-008`: (accepted, owner lane auto-acceptance 2026-10-11; V1-2259) Before asking
+  `git merge-base --is-ancestor` for the bot/approved pair, the Git measurer MUST return
+  `git-evidence-unavailable` when the checkout has `info/grafts` or is shallow
+  (`gitancestry.Rewritten`), because either rewrites the ancestry answer; no new error code is
+  added. Evidence: `TestMeasureRefusesRewrittenAncestry_PMMV0008` (grafts and shallow fixtures
+  where Git still answers "ancestor"; the plain checkout measures again). Rollback: drop the guard
+  call in `GitMeasurer.Measure`.
 
 ## Wire and reducer contract
 

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/gitancestry"
 	"github.com/Beamfall/corvint/internal/procgroup"
 )
 
@@ -73,6 +74,11 @@ func ProtectedGitPaths(ctx context.Context, root string) ([]string, error) {
 func verifyBinding(ctx context.Context, root string, b Binding) error {
 	if !idPattern.MatchString(b.Forge) || !idPattern.MatchString(b.Repository) || !idPattern.MatchString(b.Change) || !oidPattern.MatchString(b.Base) || !oidPattern.MatchString(b.Merge) || b.Base == b.Merge {
 		return fmt.Errorf("invalid-binding")
+	}
+	// A grafted or shallow checkout rewrites the ancestry answer below; check it first so its
+	// cause is named rather than surfacing as a later read failure (PMC-V0-010).
+	if gitancestry.Rewritten(ctx, func(ctx context.Context, args ...string) ([]byte, error) { return gitBytes(ctx, root, 4096, args...) }) != "" {
+		return fmt.Errorf("ancestry-rewritten")
 	}
 	for _, id := range []string{b.Base, b.Merge} {
 		out, err := gitBytes(ctx, root, 256, "rev-parse", "--verify", id+"^{commit}")

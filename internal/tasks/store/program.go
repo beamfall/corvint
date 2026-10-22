@@ -66,15 +66,19 @@ func recoveryBootRefusal(err error) error {
 // ProgramTransition records the expected whole-inventory binding under the
 // native writer lock. A competing owner cannot replace the observed program.
 func ProgramTransition(ctx context.Context, repo *intent.Repository, actor mutation.Binding, queue, id string, next snapshot.Program, output ...[]byte) (*Report, error) {
-	return programTransition(ctx, repo, actor, queue, id, next, false, output...)
+	return programTransition(ctx, repo, actor, queue, id, next, false, false, output...)
 }
 
 // programTransition is ProgramTransition that, when fenced, refuses while the
 // record it replaces carries a pending control. The check reads the same
 // programs.json revision the write binds as Expected, so a control recorded
 // before the write refuses it and one recorded after it is a later revision
-// (CAL-V0-089).
-func programTransition(ctx context.Context, repo *intent.Repository, actor mutation.Binding, queue, id string, next snapshot.Program, fenced bool, output ...[]byte) (*Report, error) {
+// (CAL-V0-089). When keepControl is set, as for a phase write by the
+// program's own workflow or runner, the written control is the one that same
+// programs.json revision records, never the caller's earlier read, so a DRAIN
+// or CANCEL recorded meanwhile is kept, and one recorded after the read moves
+// the inventory and refuses the write (ATR-V0-240, V1-0831).
+func programTransition(ctx context.Context, repo *intent.Repository, actor mutation.Binding, queue, id string, next snapshot.Program, fenced, keepControl bool, output ...[]byte) (*Report, error) {
 	defer lockProgramWriter(repo)()
 	proof, e := readLeaseProof(ctx, repo)
 	if e != nil {
@@ -89,6 +93,9 @@ func programTransition(ctx context.Context, repo *intent.Repository, actor mutat
 		for _, old := range state.Entries {
 			if fenced && old.ID == next.ID && old.Control != "" {
 				return nil, wire.Errorf(wire.CodeFenced, "program", "program control %s is pending", old.Control)
+			}
+			if keepControl && old.ID == next.ID {
+				change.Next.Control = old.Control
 			}
 			if old.ID == next.ID && (old.OwnerPID != next.OwnerPID || old.OwnerStarted != next.OwnerStarted) {
 				identity, e := supervisor.ProcessIdentity(old.OwnerPID)

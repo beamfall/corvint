@@ -9,10 +9,12 @@
 // never sets the target or the sums.
 // After the log prefix (the job and step columns, a byte-order mark, the runner
 // timestamp and an annotation such as ##[error]), a line whose content starts
-// with { is a `go test -json` record that must decode completely and name its
-// Action; a damaged or truncated one, or a record that follows other text, is
-// refused. Only lines whose content is not JSON (runner, shell or build output)
-// are skipped. A record without Package must be build output that names its
+// with { must decode completely; one that opens with a `go test -json` key (Time,
+// Action or ImportPath) is a record that must name its Action. A damaged or
+// truncated line, or a record that follows other text, is refused. Lines whose
+// content is not JSON (runner, shell or build output) and complete JSON objects
+// that open with another key (such as the AFP-V0-047 shadow summary) are
+// skipped. A record without Package must be build output that names its
 // ImportPath; a build-fail record, or any other record without Package, is refused.
 // Each package of a log must run one lifecycle: start, its
 // tests (every one that runs ends), then one terminal pass or skip, and nothing
@@ -211,6 +213,14 @@ func (o *observation) read(path string) (int64, error) {
 		}
 		if err := json.Unmarshal(content, &e); err != nil {
 			return 0, fmt.Errorf("line %d: damaged go test -json record: %v", n, err)
+		}
+		if loc := record.FindIndex(content); loc == nil || loc[0] != 0 {
+			// A complete JSON object that does not open with a go test -json key is another
+			// step's output, such as the AFP-V0-047 shadow summary (V1-2269).
+			if loc != nil {
+				return 0, fmt.Errorf("line %d: go test -json record after other text (interleaved or damaged)", n)
+			}
+			continue
 		}
 		if e.Action == "" {
 			return 0, fmt.Errorf("line %d: damaged go test -json record: no Action", n)
