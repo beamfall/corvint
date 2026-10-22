@@ -285,7 +285,8 @@ bounded caller commands, but it diagnoses suite interactions rather than criteri
   root without `pkg/tool` is `provider toolchain GOROOT unavailable`; a declared or perturbation
   `GOROOT` key is refused at plan time. Limit: only the driver is digest-pinned. The compiler,
   linker and standard library under `GOROOT` and the RSpec toolchain, which may be a wrapper that
-  resolves paths from its own location, still run in place.
+  resolves paths from its own location, still run in place; `TestBBFV0214LimitToolsRunInPlace`
+  confirms both swaps run (V1-2215).
 
 ### Approval-bound evidence wire
 
@@ -411,7 +412,7 @@ default commands remain unchanged.
 | BBF-V0-018 | `internal/behaviorfalsify/receipt.go` capture, `unobservedAttemptVerifies` and `unadmittedAttemptVerifies` | `TestBBFV0018InfrastructureFailedAttemptVerifies`, `TestBBFV0018ForgedNilReceiptAttempts`, `TestBBFV0018ForgedUnobservedAndHiddenReceipts`, `TestBBFV0018PreHookAttemptShapesVerify` |
 | BBF-V0-019..028 | `internal/behaviorfalsify/profiles.go`; `executeAttempt`, `classifyAttempt`, `ExecuteReceipt` and `VerifyReceipt` | `TestBBFV0019IsolationProfileIsExplicitAndBounded`, `TestBBFV0021IsolationFailureIsNeverKilled`, `TestBBFV0022IsolationEvidenceReceipt`, `TestBBFV0023LegacyWireIsByteIdentical`, `TestBBFV0024ProviderPlanIsBounded`, `TestBBFV0026GoProviderEndToEnd`, `TestBBFV0027ProviderEventsAreClosed`, `TestBBFV0028ProviderEvidenceReceiptIsRefused` |
 | BBF-V0-029..033 | `internal/behaviorfalsify/profiles.go` (`validateProvider`, `runRSpecProvider`, `rspecReceipt`) and `plan.go` (`observationIDValid`) | `TestBBFV0029RSpecProviderPlanIsBounded`, `TestBBFV0030RSpecProviderEndToEnd`, `TestBBFV0031RSpecReportIsClosed`, `TestBBFV0032RSpecEvidenceReceiptIsRefused`, `TestBBFV0033LiveRSpecNegativeControls` |
-| BBF-V0-214 | `internal/behaviorfalsify/execute.go` (`stageVerified`), `profiles.go` (`runProvider`, `validateProvider`) | `TestBBFV0214ToolchainRunsVerifiedBytes` |
+| BBF-V0-214 | `internal/behaviorfalsify/execute.go` (`stageVerified`), `profiles.go` (`runProvider`, `validateProvider`) | `TestBBFV0214ToolchainRunsVerifiedBytes`; limit: `TestBBFV0214LimitToolsRunInPlace` |
 
 ## Unresolved decisions and promotion criteria
 
