@@ -105,6 +105,11 @@ func TestDogfoodFinishLaneDCWV0060MatchesManualRecipe(t *testing.T) {
 	if stdout != want {
 		t.Fatalf("finish-lane stdout:\n%s\nwant:\n%s", stdout, want)
 	}
+	// DCW-V0-166 (V1-2404): with no configured identity, the bind and seal
+	// commits take the GIT_AUTHOR_* and GIT_COMMITTER_* environment.
+	if got := cemGit(t, root, "log", "-2", "--format=%s|%an|%ae|%cn|%ce"); got != "chore: seal change evidence|t|t@example.invalid|t|t@example.invalid\nchore: bind change evidence|t|t@example.invalid|t|t@example.invalid" {
+		t.Fatalf("finish-lane commit identities %q", got)
+	}
 	if got, manualTree := cemGit(t, root, "rev-parse", "HEAD^{tree}"), cemGit(t, manual, "rev-parse", "HEAD^{tree}"); got != manualTree || seal != cemGit(t, manual, "rev-parse", "HEAD") {
 		t.Fatalf("seal tree %s, manual %s", got, manualTree)
 	}
