@@ -900,7 +900,13 @@ accepted variation, or a replacement for independent application/browser qualifi
   class-level validation/hooks, JavaScript/TypeScript named functions/arrows (`.js`, `.mjs`, `.cjs`,
   `.jsx`, `.ts`, `.tsx`; ES and CommonJS modules since V1-0461,
   `TestFlowDocsJavaScriptModuleExtensions`) and literal route or Angular registrations, React JSX conditional candidates and literal Angular HTML attributes form
-  the closed construct matrix. Calls to the recognized validation, permission, error, persistence
+  the closed construct matrix. A named arrow is a declaration only when the arrow is the direct
+  initializer, optionally wrapped in `useCallback`, `useMemo`, `memo` or `forwardRef` (bare or
+  `React.`-prefixed); an arrow passed to a member call (`messages.map((m) => ...)`) is not. An
+  HTTP-verb registration (`get`, `post`, `put`, `patch`, `delete`) needs a `/`-rooted path literal
+  followed by a handler argument; a member read such as `headers.get("Content-Length")` or a
+  single-argument client call is not a binding (since V1-0461 Beamfall qualification,
+  `TestFlowDocsWebMemberCallsAreNotDeclarations`). Calls to the recognized validation, permission, error, persistence
   and integration vocabulary are observations of source only. Native lexical masks exclude comments,
   strings and Ruby heredocs; web regex/arithmetic suffixes and JSX text are conservatively masked.
 - **AFU-V1-044**: Logical flow and paragraph IDs depend on provider namespace, repository-relative
@@ -918,9 +924,10 @@ accepted variation, or a replacement for independent application/browser qualifi
   `TestFlowDocsCallInventoryDriftIsStale`); control keywords (`if`, `function`, `return` and similar)
   are never listed as bare calls; a member call that spells one (`promise.catch(h)`,
   `iterator.return(v)`) is a call (`TestFlowDocsMemberKeywordCallsAreDrift`). This changed the
-  generator to version 2: a version 1 manifest cannot be rederived byte for byte, so check, finalize
-  and `generate --previous` refuse it with the typed `flowdocs-generator-stale` code even at its own
-  revision; regenerate it once with the current binary
+  generator to version 2, and the AFU-V1-043 member-call declaration fix to version 3: a version 1
+  or 2 manifest cannot be rederived byte for byte, so check, finalize and `generate --previous`
+  refuse it with the typed `flowdocs-generator-stale` code even at its own revision; regenerate it
+  once with the current binary
   (`TestFlowDocsPredecessorGeneratorManifestIsTypedStale`). Optional byte checking compares the original rendered directory,
   including missing/extra/changed files, without writing anything. Exit 1 means drift; exit 2 refusal.
 - **AFU-V1-046**: Materialization requires a new directory under existing nonsymlink parents and
