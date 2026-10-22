@@ -709,7 +709,7 @@ func (c *check) verifyBinding(report []byte) int {
 		if c.baseIndependence() != "" {
 			fmt.Fprintf(c.stdout, "dogfood-check: NOTE %s\n", c.baseIndependence())
 		}
-		writeLines(c.stderr, belowAnchoredWarnings(cemLine))
+		writeLines(c.stderr, c.tierWarnings(cemLine))
 		fmt.Fprintf(c.stdout, "dogfood-check: PASS\n")
 		return 0
 	}
@@ -724,7 +724,7 @@ func (c *check) verifyBinding(report []byte) int {
 	if noIntent {
 		_, _ = c.stdout.Write(ocmLine)
 	}
-	writeLines(c.stderr, belowAnchoredWarnings(cemLine))
+	writeLines(c.stderr, c.tierWarnings(cemLine))
 	fmt.Fprintf(c.stdout, "dogfood-check: PASS\n")
 	return 0
 }

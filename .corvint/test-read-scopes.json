@@ -421,7 +421,7 @@
       "cmd/",
       "docs/",
       "integrations/",
-      "internal/mcp/",
+      "internal/",
       "protocol/integrations/"
     ],
     "tools/cem-stable-regen": [

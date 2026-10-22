@@ -3,6 +3,7 @@ package ruby
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strings"
 	"testing"
 
@@ -59,6 +60,10 @@ func TestLocatedFrontierCountsOnlyCrossedSites_RUBYAFFECTEDV0047(t *testing.T) {
 		kinds["spec/api_clients/foo_client_spec.rb"] != affected.WitnessDependency || kinds["spec/services/bar/baz_service_spec.rb"] != affected.WitnessAdvisoryConstant {
 		t.Fatalf("uncrossed: scope=%s selected=%v unknown=%v", uncrossed.Scope, kinds, uncrossed.Unknown)
 	}
+	// AFP-V0-381: the plan still counts the repository's sites it does not cross.
+	if !maps.Equal(uncrossed.FrontierSites, issue1519Sites()) {
+		t.Fatalf("uncrossed frontierSites=%v", uncrossed.FrontierSites)
+	}
 
 	// The site's own change and a change to what it loads both cross it.
 	for _, changed := range []string{"app/services/exporter.rb", "lib/report_format.rb"} {
@@ -94,8 +99,8 @@ func TestRepositoryWideLoadSitesStayPluginWideAndLocated_RUBYAFFECTEDV0046(t *te
 			t.Fatalf("%s: scope=%s unknown=%v", name, got.Scope, got.Unknown)
 		}
 		write(t, repo, FrontierDeclarationPath, `{"schema":"ruby-frontiers/0","resolved":["`+site.detail+`"]}`)
-		if got = plan(t, repo, "app/api_clients/foo_client.rb"); got.Scope != affected.ScopeBounded {
-			t.Fatalf("%s declared: scope=%s unknown=%v", name, got.Scope, got.Unknown)
+		if got = plan(t, repo, "app/api_clients/foo_client.rb"); got.Scope != affected.ScopeBounded || !maps.Equal(got.FrontierSites, issue1519Sites()) {
+			t.Fatalf("%s declared: scope=%s unknown=%v frontierSites=%v", name, got.Scope, got.Unknown, got.FrontierSites)
 		}
 	}
 	write(t, root, "spec/spec_helper.rb", "$LOAD_PATH.unshift(File.expand_path(\"../lib\", __dir__))\nRSpec.configure do |config|\nend\n")
@@ -163,4 +168,10 @@ func TestFrontierDeclarationResolvesNamedSites_RUBYAFFECTEDV0048(t *testing.T) {
 	if !strings.HasPrefix(FrontierDeclarationInvalid, "ruby:") {
 		t.Fatal("declaration reason outside the plugin namespace")
 	}
+}
+
+// issue1519Sites is the AFP-V0-381 frontier site count of writeIssue1519: its
+// two per-unit sites, and no declared site.
+func issue1519Sites() map[string]int {
+	return map[string]int{FrontierConditionalLoad: 1, FrontierDynamicTestDefinition: 1}
 }

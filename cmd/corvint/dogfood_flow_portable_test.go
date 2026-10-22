@@ -29,8 +29,10 @@ const absentAgentReceipts = "dogfood-change: NOTE prechange-query NOT_OBSERVED a
 func dropGuardingNote(stderr string) string {
 	var kept strings.Builder
 	for _, line := range strings.SplitAfter(stderr, "\n") {
-		// DCW-V0-112 tier warnings are asserted where they are the subject.
-		if !strings.HasPrefix(line, "dogfood-change: NOTE guarding-tests ") && !strings.HasPrefix(line, "dogfood-check: WARN tier-below-anchored ") {
+		// DCW-V0-112 tier warnings and the DCW-V0-165 note are asserted
+		// where they are the subject.
+		if !strings.HasPrefix(line, "dogfood-change: NOTE guarding-tests ") && !strings.HasPrefix(line, "dogfood-check: WARN tier-below-anchored ") &&
+			!strings.HasPrefix(line, "dogfood-check: NOTE tier-below-anchored-unanchorable ") {
 			kept.WriteString(line)
 		}
 	}
@@ -163,9 +165,11 @@ func TestDogfoodDailyPathRunsFromBinaryInForeignRepository(t *testing.T) {
 	if code != 0 || len(lines) != 2 || lines[0] != summary || lines[1] != "dogfood-check: PASS" {
 		t.Fatalf("check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
-	// DCW-V0-112: the plan's cited hunk sits below anchored, so check warns on stderr only.
-	if !strings.Contains(stderr, "dogfood-check: WARN tier-below-anchored path=\"fixture/fixture.go\" hunk=\"hunk:sha256:") || !strings.Contains(stderr, " tier=cited rule=CEM-V1-081 fix=") {
-		t.Fatalf("check stderr lacks the below-anchored warning: %s", stderr)
+	// DCW-V0-112 and DCW-V0-165: the plan's cited hunk sits below anchored,
+	// but no BASE line names fixture/fixture.go or fixture.go, so check
+	// counts it in one stderr NOTE instead of warning.
+	if strings.Contains(stderr, "dogfood-check: WARN tier-below-anchored ") || !strings.Contains(stderr, "dogfood-check: NOTE tier-below-anchored-unanchorable hunks=1 rule=CEM-V1-081 reason=") {
+		t.Fatalf("check stderr lacks the unanchorable note: %s", stderr)
 	}
 	full, err := os.ReadFile(detail)
 	if err != nil || strings.Count(string(full), "\n") != 2 || !strings.Contains(string(full), `"tool":"cem-status"`) || !strings.Contains(string(full), `"tool":"dogfood-ocm-status"`) {

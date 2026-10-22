@@ -34,6 +34,11 @@ type proposal struct {
 	// range; matches holds the BASE lines naming each anchor pattern.
 	derived map[string]*patch.Hunk
 	matches map[string][]spanLine
+	// basenames also searches each hunk path's basename of at least 6
+	// bytes, which CEM-V1-081 counts as a path anchor. The check sets it to
+	// decide that no anchor is available (DCW-V0-165); drafts do not, since
+	// DCW-V0-161 excludes basename matches.
+	basenames bool
 }
 
 // spanLine is one line of a BASE file.
@@ -78,6 +83,30 @@ func (p *proposal) run() int {
 		p.say("%s: REFUSE map-unavailable\n  fix: run corvint dogfood change %s first to prepare .corvint/change.cem.json\n", p.prefix, p.options.Base)
 		p.exit(2)
 	}
+	baseRevision, hunks, ok := preparedHunks(data)
+	if !ok {
+		p.say("%s: REFUSE map-unavailable\n  fix: run corvint dogfood change %s first to prepare .corvint/change.cem.json\n", p.prefix, p.options.Base)
+		p.exit(2)
+	}
+	if baseRevision != p.base {
+		p.say("%s: REFUSE map-base-mismatch\n  map baseRevision=%s BASE=%s\n  fix: pass the BASE the map was prepared against, or rerun corvint dogfood change BASE\n", p.prefix, baseRevision, p.base)
+		p.exit(2)
+	}
+	rows, notes := p.draft(hunks)
+	p.say("%s: PROPOSED rows=%d hunks=%d base=%s\n", p.prefix, len(rows), len(hunks), p.base)
+	p.say("  this draft is not a plan: review every row, replace each with the evidence the hunk really depends on or implements, then write it to the DOGFOOD_CITATIONS file; nothing is cited until dogfood change runs with that file (DCW-V0-150)\n")
+	for _, note := range notes {
+		p.say("  %s\n", note)
+	}
+	for _, row := range rows {
+		_, _ = fmt.Fprintln(p.stdout, row)
+	}
+	return 0
+}
+
+// preparedHunks reads a prepared map's base revision and its hunks in map order,
+// or reports it unreadable.
+func preparedHunks(data []byte) (string, []proposedHunk, bool) {
 	var document struct {
 		BaseRevision string `json:"baseRevision"`
 		Hunks        []struct {
@@ -92,37 +121,31 @@ func (p *proposal) run() int {
 		} `json:"hunks"`
 	}
 	if json.Unmarshal(data, &document) != nil {
-		p.say("%s: REFUSE map-unavailable\n  fix: run corvint dogfood change %s first to prepare .corvint/change.cem.json\n", p.prefix, p.options.Base)
-		p.exit(2)
-	}
-	if document.BaseRevision != p.base {
-		p.say("%s: REFUSE map-base-mismatch\n  map baseRevision=%s BASE=%s\n  fix: pass the BASE the map was prepared against, or rerun corvint dogfood change BASE\n", p.prefix, document.BaseRevision, p.base)
-		p.exit(2)
+		return "", nil, false
 	}
 	hunks := make([]proposedHunk, len(document.Hunks))
 	for index, hunk := range document.Hunks {
 		hunks[index] = proposedHunk{index + 1, hunk.ID, hunk.Path, hunk.Disposition, hunk.Reason, hunk.OldRange.Start, hunk.OldRange.Count}
 	}
-	rows, notes := p.draft(hunks)
-	p.say("%s: PROPOSED rows=%d hunks=%d base=%s\n", p.prefix, len(rows), len(hunks), p.base)
-	p.say("  this draft is not a plan: review every row, replace each with the evidence the hunk really depends on or implements, then write it to the DOGFOOD_CITATIONS file; nothing is cited until dogfood change runs with that file (DCW-V0-150)\n")
-	for _, note := range notes {
-		p.say("  %s\n", note)
+	return document.BaseRevision, hunks, true
+}
+
+// editedRanges returns each path's hunk old ranges, which no stable span may touch.
+func editedRanges(hunks []proposedHunk) map[string][][2]int {
+	edited := map[string][][2]int{}
+	for _, hunk := range hunks {
+		edited[hunk.path] = append(edited[hunk.path], [2]int{hunk.oldStart, hunk.oldStart + hunk.oldCount})
 	}
-	for _, row := range rows {
-		_, _ = fmt.Fprintln(p.stdout, row)
-	}
-	return 0
+	return edited
 }
 
 // draft returns the proposed rows in worklist order and one note per cite row
 // that is not anchored, saying why. Only hunks still owed a row get one: an
 // unknown hunk without a recorded unknown reason.
 func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
-	edited := map[string][][2]int{}
+	edited := editedRanges(hunks)
 	owed := []proposedHunk{}
 	for _, hunk := range hunks {
-		edited[hunk.path] = append(edited[hunk.path], [2]int{hunk.oldStart, hunk.oldStart + hunk.oldCount})
 		if hunk.disposition == "unknown" && !recordedUnknownReasons[hunk.reason] {
 			owed = append(owed, hunk)
 		}
@@ -220,6 +243,9 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 		candidates = append(candidates, p.matches[definitionPattern(id)]...)
 	}
 	candidates = append(candidates, p.matches[anchorPath(derived)]...)
+	if name := anchorBasename(derived); p.basenames && name != "" {
+		candidates = append(candidates, p.matches[name]...)
+	}
 	fallback := [2]string{}
 	for _, candidate := range candidates {
 		if !p.stable(candidate.path, candidate.line, edited) {
@@ -244,11 +270,14 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 // prepareAnchors reads the canonical BASE..HEAD patch the map was derived
 // from and, in one `git grep` of BASE, the lines naming each owed hunk's path
 // or defining a requirement ID it adds. An unreadable or oversized read
-// leaves no candidates, and the drafts fall back to nearby lines.
-func (p *proposal) prepareAnchors(owed []proposedHunk) {
+// leaves no candidates, and the drafts fall back to nearby lines; it reports
+// whether both reads completed.
+func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 	p.derived, p.matches = map[string]*patch.Hunk{}, map[string][]spanLine{}
+	complete := false
 	if raw, status, bounded := p.boundedGit(p.canonicalDiffArguments()...); status == 0 && bounded {
 		if parsed, err := patch.Parse([]byte(raw)); err == nil {
+			complete = true
 			for _, hunk := range parsed.Hunks {
 				p.derived[hunk.ID] = hunk
 				p.derived[rangeKey(hunk.DisplayPath, hunk.OldRange.Start, hunk.OldRange.Count)] = hunk
@@ -261,13 +290,16 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) {
 		if name := anchorPath(derived); name != "" {
 			patterns[name] = true
 		}
+		if name := anchorBasename(derived); p.basenames && name != "" {
+			patterns[name] = true
+		}
 		_, ids := verify.SpanAnchors(derived, nil)
 		for _, id := range ids {
 			patterns[definitionPattern(id)] = true
 		}
 	}
 	if len(patterns) == 0 {
-		return
+		return complete
 	}
 	// -o prints each match, not its line, so a long one-line document that
 	// names a path cannot overflow the read bound.
@@ -281,8 +313,9 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) {
 		arguments = append(arguments, "-e", pattern)
 	}
 	out, status, bounded := p.boundedGit(append(arguments, p.base, "--", ".", ":(exclude).corvint/")...)
-	if status != 0 || !bounded {
-		return
+	// git grep exits 1 when nothing matches: a complete read with no candidates.
+	if status > 1 || !bounded {
+		return false
 	}
 	for _, record := range strings.Split(out, "\n") {
 		name, rest, named := strings.Cut(strings.TrimPrefix(record, p.base+":"), "\x00")
@@ -302,6 +335,7 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) {
 	for _, found := range p.matches {
 		sort.SliceStable(found, func(i, j int) bool { return documentRank(found[i].path) < documentRank(found[j].path) })
 	}
+	return complete
 }
 
 // canonicalDiffArguments are the canonical patch arguments of `cem` map
@@ -339,6 +373,16 @@ func anchorPath(hunk *patch.Hunk) string {
 		return *hunk.NewPath
 	case hunk.OldPath != nil:
 		return *hunk.OldPath
+	}
+	return ""
+}
+
+// anchorBasename is the basename of the hunk path when it is long enough to
+// earn a CEM-V1-081 path anchor on its own (6 bytes or more), else "".
+func anchorBasename(hunk *patch.Hunk) string {
+	name := anchorPath(hunk)
+	if name = name[strings.LastIndexByte(name, '/')+1:]; len(name) >= 6 {
+		return name
 	}
 	return ""
 }

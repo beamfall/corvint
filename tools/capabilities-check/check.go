@@ -6,12 +6,17 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/scanner"
+	"go/token"
 	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -22,6 +27,13 @@ type Inventory struct {
 	Dispatched []string        // cmd/corvint/main.go topLevelCommands: the verbs runContext dispatches
 	Binaries   []string        // cmd/ directories holding a package main Go file
 	Tools      []string        // corvint.* MCP tool name literals
+	// Experimental holds the verbs the grouped root help lists under the Experimental header (CAP-V0-008).
+	Experimental map[string]bool
+	// Subcommands maps a verb to the subcommands its code-declared table names (CAP-V0-007).
+	Subcommands map[string][]string
+	// Words holds every word of every string literal in non-test Go source under cmd/ and
+	// internal/; a listed refusal code must be one of them (CAP-V0-009). Nil skips that check.
+	Words map[string]bool
 }
 
 // Finding is one disagreement between the catalog or README and the code (CAP-V0-003, CAP-V0-004).
@@ -60,7 +72,7 @@ func Collect(helpGo, mainGo, cmdDir, mcpDir string) (Inventory, error) {
 	if err != nil {
 		return Inventory{}, err
 	}
-	commands, core, err := parseCommands(src)
+	commands, core, experimental, err := parseCommands(src)
 	if err != nil {
 		return Inventory{}, err
 	}
@@ -86,7 +98,194 @@ func Collect(helpGo, mainGo, cmdDir, mcpDir string) (Inventory, error) {
 	if err != nil {
 		return Inventory{}, err
 	}
-	return Inventory{Commands: commands, Core: core, Dispatched: dispatched, Binaries: binaries, Tools: tools}, nil
+	subcommands, err := parseSubcommands(filepath.Dir(helpGo))
+	if err != nil {
+		return Inventory{}, err
+	}
+	return Inventory{Commands: commands, Core: core, Dispatched: dispatched, Binaries: binaries, Tools: tools,
+		Experimental: experimental, Subcommands: subcommands}, nil
+}
+
+// subcommandTables names the code-declared subcommand tables in cmd/corvint (CAP-V0-007). An
+// empty command marks a nested table whose keys are verbs and whose values are subcommand sets.
+var subcommandTables = []struct{ variable, command string }{
+	{"helpSubcommands", ""},
+	{"docsSubcommands", "docs"},
+	{"flowSubcommands", "flows"},
+	{"leaseActions", "lease"},
+}
+
+// parseSubcommands reads each declared table from the non-test Go files of the corvint main
+// package: a top-level []string or map literal, a nested map whose values are literals or
+// top-level identifiers, and any NAME["sub"] = ... registration. A missing table is an error,
+// so renaming one cannot silently disable the check.
+func parseSubcommands(dir string) (map[string][]string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	vars := map[string]ast.Expr{}
+	registered := map[string][]string{}
+	tracked := map[string]bool{}
+	for _, t := range subcommandTables {
+		tracked[t.variable] = true
+	}
+	fset := token.NewFileSet()
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		file, err := parser.ParseFile(fset, filepath.Join(dir, name), nil, parser.SkipObjectResolution)
+		if err != nil {
+			return nil, err
+		}
+		for _, decl := range file.Decls {
+			gen, ok := decl.(*ast.GenDecl)
+			if !ok || gen.Tok != token.VAR {
+				continue
+			}
+			for _, spec := range gen.Specs {
+				vs := spec.(*ast.ValueSpec)
+				for i, ident := range vs.Names {
+					if i < len(vs.Values) {
+						vars[ident.Name] = vs.Values[i]
+					}
+				}
+			}
+		}
+		ast.Inspect(file, func(n ast.Node) bool {
+			assign, ok := n.(*ast.AssignStmt)
+			if !ok {
+				return true
+			}
+			for _, lhs := range assign.Lhs {
+				index, ok := lhs.(*ast.IndexExpr)
+				if !ok {
+					continue
+				}
+				target, ok := index.X.(*ast.Ident)
+				if !ok || !tracked[target.Name] {
+					continue
+				}
+				if key, ok := stringLit(index.Index); ok {
+					registered[target.Name] = append(registered[target.Name], key)
+				}
+			}
+			return true
+		})
+	}
+	out := map[string][]string{}
+	for _, t := range subcommandTables {
+		expr, ok := vars[t.variable]
+		if !ok {
+			return nil, fmt.Errorf("subcommand table %s not found in %s", t.variable, dir)
+		}
+		if t.command != "" {
+			out[t.command] = append(out[t.command], literalKeys(expr, vars)...)
+			out[t.command] = append(out[t.command], registered[t.variable]...)
+			continue
+		}
+		lit, ok := expr.(*ast.CompositeLit)
+		if !ok {
+			return nil, fmt.Errorf("subcommand table %s is not a composite literal", t.variable)
+		}
+		for _, elt := range lit.Elts {
+			kv, ok := elt.(*ast.KeyValueExpr)
+			if !ok {
+				continue
+			}
+			if verb, ok := stringLit(kv.Key); ok {
+				out[verb] = append(out[verb], literalKeys(kv.Value, vars)...)
+			}
+		}
+	}
+	for verb, subs := range out {
+		slices.Sort(subs)
+		out[verb] = slices.Compact(subs)
+	}
+	return out, nil
+}
+
+// literalKeys returns the string keys of a map literal or the string elements of a slice
+// literal, following one top-level identifier.
+func literalKeys(expr ast.Expr, vars map[string]ast.Expr) []string {
+	if ident, ok := expr.(*ast.Ident); ok {
+		if resolved, ok := vars[ident.Name]; ok {
+			expr = resolved
+		}
+	}
+	lit, ok := expr.(*ast.CompositeLit)
+	if !ok {
+		return nil
+	}
+	var keys []string
+	for _, elt := range lit.Elts {
+		if kv, ok := elt.(*ast.KeyValueExpr); ok {
+			elt = kv.Key
+		}
+		if key, ok := stringLit(elt); ok {
+			keys = append(keys, key)
+		}
+	}
+	return keys
+}
+
+func stringLit(expr ast.Expr) (string, bool) {
+	lit, ok := expr.(*ast.BasicLit)
+	if !ok || lit.Kind != token.STRING {
+		return "", false
+	}
+	value, err := strconv.Unquote(lit.Value)
+	return value, err == nil
+}
+
+// literalWord splits string literal text into the words a refusal code is matched against.
+var literalWord = regexp.MustCompile(`[A-Za-z0-9_-]+`)
+
+// ScanWords returns every word of every string literal in non-test Go source under dirs,
+// skipping testdata trees (CAP-V0-009).
+func ScanWords(dirs []string) (map[string]bool, error) {
+	words := map[string]bool{}
+	for _, dir := range dirs {
+		err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() {
+				if d.Name() == "testdata" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
+				return nil
+			}
+			src, err := os.ReadFile(p)
+			if err != nil {
+				return err
+			}
+			fset := token.NewFileSet()
+			var s scanner.Scanner
+			s.Init(fset.AddFile(p, -1, len(src)), src, nil, 0)
+			for {
+				_, tok, lit := s.Scan()
+				if tok == token.EOF {
+					break
+				}
+				if tok == token.STRING {
+					for _, w := range literalWord.FindAllString(lit, -1) {
+						words[w] = true
+					}
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return words, nil
 }
 
 // parseDispatched reads the topLevelCommands literal, which names every top-level verb
@@ -115,20 +314,22 @@ const (
 
 // parseCommands reads the root help's Commands: block and its Core maturity list. The block is
 // either flat, with the Core list in a separate section, or grouped under exactly the Core and
-// Experimental headers, in which case the Core group is the Core list.
-func parseCommands(src []byte) ([]string, map[string]bool, error) {
+// Experimental headers, in which case the Core group is the Core list and the Experimental group
+// is returned as the experimental set (nil for a flat block).
+func parseCommands(src []byte) ([]string, map[string]bool, map[string]bool, error) {
 	text := string(src)
 	start := strings.Index(text, "const rootHelp = `")
 	if start < 0 {
-		return nil, nil, errors.New("root help constant not found")
+		return nil, nil, nil, errors.New("root help constant not found")
 	}
 	text = text[start:]
 	block := strings.Index(text, "\nCommands:\n")
 	if block < 0 {
-		return nil, nil, errors.New("root help Commands: block not found")
+		return nil, nil, nil, errors.New("root help Commands: block not found")
 	}
 	var commands []string
 	core := map[string]bool{}
+	experimental := map[string]bool{}
 	seen := map[string]bool{}
 	group, groupIndent := "", -1
 	for _, line := range strings.Split(text[block+len("\nCommands:\n"):], "\n") {
@@ -145,51 +346,54 @@ func parseCommands(src []byte) ([]string, map[string]bool, error) {
 			case strings.HasPrefix(trimmed, experimentalGroupPrefix):
 				group = "experimental"
 			default:
-				return nil, nil, fmt.Errorf("root help group header is neither Core nor Experimental: %q", line)
+				return nil, nil, nil, fmt.Errorf("root help group header is neither Core nor Experimental: %q", line)
 			}
 			switch {
 			case seen[group]:
-				return nil, nil, fmt.Errorf("root help repeats a group header: %q", line)
+				return nil, nil, nil, fmt.Errorf("root help repeats a group header: %q", line)
 			case groupIndent < 0 && len(commands) > 0:
-				return nil, nil, fmt.Errorf("root help group header follows ungrouped commands: %q", line)
+				return nil, nil, nil, fmt.Errorf("root help group header follows ungrouped commands: %q", line)
 			case groupIndent >= 0 && indent != groupIndent:
-				return nil, nil, fmt.Errorf("root help group header is not aligned with the first header: %q", line)
+				return nil, nil, nil, fmt.Errorf("root help group header is not aligned with the first header: %q", line)
 			}
 			seen[group], groupIndent = true, indent
 			continue
 		}
 		if !ok {
-			return nil, nil, fmt.Errorf("root help command line has no description: %q", line)
+			return nil, nil, nil, fmt.Errorf("root help command line has no description: %q", line)
 		}
 		if groupIndent >= 0 && indent <= groupIndent {
-			return nil, nil, fmt.Errorf("root help command line is not indented under its group header: %q", line)
+			return nil, nil, nil, fmt.Errorf("root help command line is not indented under its group header: %q", line)
 		}
-		if group == "core" {
+		switch group {
+		case "core":
 			core[strings.Fields(name)[0]] = true
+		case "experimental":
+			experimental[strings.Fields(name)[0]] = true
 		}
 		commands = append(commands, name)
 	}
 	if len(commands) == 0 {
-		return nil, nil, errors.New("root help Commands: block is empty")
+		return nil, nil, nil, errors.New("root help Commands: block is empty")
 	}
 	if groupIndent >= 0 {
 		if len(core) == 0 {
-			return nil, nil, errors.New("root help Core group is empty")
+			return nil, nil, nil, errors.New("root help Core group is empty")
 		}
-		return commands, core, nil
+		return commands, core, experimental, nil
 	}
 	whole := string(src)
 	at := strings.Index(whole, coreGroupPrefix)
 	end := strings.Index(whole, experimentalGroupPrefix)
 	if at < 0 || end < at {
-		return nil, nil, errors.New("command maturity Core list not found")
+		return nil, nil, nil, errors.New("command maturity Core list not found")
 	}
 	coreText := whole[at:end]
 	coreText = coreText[strings.Index(coreText, ":\n")+2:]
 	for _, word := range strings.FieldsFunc(coreText, func(r rune) bool { return r == ',' || r == '\n' || r == ' ' }) {
 		core[word] = true
 	}
-	return commands, core, nil
+	return commands, core, nil, nil
 }
 
 func scanBinaries(cmdDir string) ([]string, error) {
@@ -277,6 +481,8 @@ type row struct {
 	Maturity string
 	Links    []string
 	Line     int
+	Spans    []string // every backticked span in the row
+	Refusals []string // backticked spans in the "Abstains or refuses on" cell, when the table has one
 }
 
 // parseRows returns the rows of every region between <!-- capability-gate:SECTION --> and
@@ -286,7 +492,7 @@ func parseRows(doc []byte, section string) ([]row, error) {
 	closing := "<!-- /capability-gate:" + section + " -->"
 	var rows []row
 	inside := false
-	maturityCol := -1
+	maturityCol, refusalCol := -1, -1
 	regions := 0
 	scanner := bufio.NewScanner(bytes.NewReader(doc))
 	scanner.Buffer(make([]byte, 0, 64*1024), 1<<20)
@@ -297,7 +503,7 @@ func parseRows(doc []byte, section string) ([]row, error) {
 			if inside {
 				return nil, fmt.Errorf("line %d: nested %s", n, open)
 			}
-			inside, maturityCol = true, -1
+			inside, maturityCol, refusalCol = true, -1, -1
 			regions++
 			continue
 		case line == closing:
@@ -315,6 +521,9 @@ func parseRows(doc []byte, section string) ([]row, error) {
 			for i, c := range cells {
 				if strings.EqualFold(c, "Maturity") {
 					maturityCol = i
+				}
+				if strings.Contains(strings.ToLower(c), "refuses") {
+					refusalCol = i
 				}
 			}
 			if maturityCol < 0 {
@@ -335,6 +544,14 @@ func parseRows(doc []byte, section string) ([]row, error) {
 		r := row{Name: m[1], Line: n}
 		if maturityCol < len(cells) {
 			r.Maturity = cells[maturityCol]
+		}
+		for _, span := range backticked.FindAllStringSubmatch(line, -1) {
+			r.Spans = append(r.Spans, span[1])
+		}
+		if refusalCol >= 0 && refusalCol < len(cells) {
+			for _, span := range backticked.FindAllStringSubmatch(cells[refusalCol], -1) {
+				r.Refusals = append(r.Refusals, span[1])
+			}
 		}
 		for _, link := range markdownRef.FindAllStringSubmatch(line, -1) {
 			target := link[1]
@@ -449,21 +666,78 @@ func Check(catalog, readme []byte, inv Inventory, linkBase string) []Finding {
 				if !want[name] {
 					continue
 				}
-				isCore := inv.Core[strings.Fields(name)[0]]
+				verb := strings.Fields(name)[0]
+				isCore := inv.Core[verb]
 				got := firstWord(r.Maturity)
-				if isCore != (got == "core") {
+				switch {
+				case isCore != (got == "core"):
 					findings = append(findings, Finding{"maturity", sec.name, name, fmt.Sprintf("maturity %q but root help Core list says core=%t", r.Maturity, isCore)})
+				case inv.Experimental[verb] && got != "experimental":
+					findings = append(findings, Finding{"maturity", sec.name, name, fmt.Sprintf("maturity %q but the root help lists it under Experimental", r.Maturity)})
 				}
 			}
 		}
 		catalogRows[sec.name] = byName
+		findings = append(findings, checkRefusals(sec.name, rows, inv.Words)...)
 	}
+	findings = append(findings, checkSubcommands(catalogRows[sectionCommands], inv.Subcommands)...)
 	if readme != nil {
 		findings = append(findings, checkReadme(readme, inv, catalogRows)...)
 	}
 	slices.SortFunc(findings, func(a, b Finding) int {
 		return strings.Compare(a.String(), b.String())
 	})
+	return findings
+}
+
+// checkSubcommands requires each code-declared subcommand to appear as a word inside a backticked
+// span of a catalog row for its verb (CAP-V0-007). A verb without a row is left to the missing check.
+func checkSubcommands(rows map[string]row, subcommands map[string][]string) []Finding {
+	var findings []Finding
+	for verb, subs := range subcommands {
+		words := map[string]bool{}
+		found := false
+		for name, r := range rows {
+			if strings.Fields(name)[0] != verb {
+				continue
+			}
+			found = true
+			for _, span := range r.Spans {
+				for _, w := range literalWord.FindAllString(span, -1) {
+					words[w] = true
+				}
+			}
+		}
+		if !found {
+			continue
+		}
+		for _, sub := range subs {
+			if !words[sub] {
+				findings = append(findings, Finding{"subcommand-undocumented", sectionCommands, verb + " " + sub, "the code declares this subcommand but no catalog row for the verb names it in a backticked span"})
+			}
+		}
+	}
+	return findings
+}
+
+// refusalCode matches a backticked refusal or abstention code: kebab-case or SCREAMING_SNAKE_CASE
+// with at least two parts.
+var refusalCode = regexp.MustCompile(`^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)+|[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)$`)
+
+// checkRefusals requires each refusal code a row lists to be a word of some string literal in
+// the scanned source (CAP-V0-009). Nil words skips the check.
+func checkRefusals(section string, rows []row, words map[string]bool) []Finding {
+	if words == nil {
+		return nil
+	}
+	var findings []Finding
+	for _, r := range rows {
+		for _, code := range r.Refusals {
+			if refusalCode.MatchString(code) && !words[code] {
+				findings = append(findings, Finding{"refusal-unknown", section, r.Name, fmt.Sprintf("row at line %d lists %q, which no non-test Go string literal under cmd/ or internal/ contains", r.Line, code)})
+			}
+		}
+	}
 	return findings
 }
 
