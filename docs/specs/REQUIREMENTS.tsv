@@ -3872,6 +3872,7 @@ PLE-V0-009	docs/specs/protected-local-execution-v0.md	The protected Stop consume
 PLE-V0-010	docs/specs/protected-local-execution-v0.md	FULL MUST require the eleven AHI cases and latency/equal-critical-recall evidenc	unrecorded	-
 PLE-V0-011	docs/specs/protected-local-execution-v0.md	Installation, upgrade, revocation and removal MUST follow reviewed immutable man	unrecorded	-
 PLE-V0-012	docs/specs/protected-local-execution-v0.md	A temporary native qualification exercise MUST require a distinct root-owned can	unrecorded	-
+PLE-V0-013	docs/specs/protected-local-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2036, decision	standing	2026-10-11; V1-2036; decision 0553
 PPI-V0-001	docs/specs/protected-pi-runtime-v0.md	Build an optional native macOS arm64 executable containing exact Pi 0.85.1 SDK c	unrecorded	-
 PPI-V0-002	docs/specs/protected-pi-runtime-v0.md	Executable loading MUST remain closed under all admitted arguments and environme	unrecorded	-
 PPI-V0-003	docs/specs/protected-pi-runtime-v0.md	Mutable session, credential, model and settings data MUST remain distinct from e	unrecorded	-

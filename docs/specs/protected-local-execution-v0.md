@@ -37,6 +37,7 @@ A signed result is insufficient without separately admitted current protected po
 - `PLE-V0-011`: Installation, upgrade, revocation and removal MUST follow reviewed immutable manifests, explicit operator action, principal/ancestor/ACL audits and complete process cleanup. No ambient claimant privilege, broad sudoers rule, permanent daemon or self-admitted key is permitted.
 
 - `PLE-V0-012`: A temporary native qualification exercise MUST require a distinct root-owned canonical campaign admission lasting at most 900 seconds and binding current execution root, floor, policy, exact repository/enrollment/target, release images and boot/app/engine process lifetimes. It MUST apply the same protected computation/currentness/runtime/cwd checks, require explicit all-native-Stops repository scope and both root/campaign permission for one remediation, and always remain FALLBACK/UNQUALIFIED without a qualified host digest. It MUST expire/refuse on drift, never accept a public grant or repair invalid completed qualification, and never promote itself.
+- `PLE-V0-013`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2036, decision 0553) The protected command's codec package check MUST be scoped to the target's `internal/wp3codec` directory, never the whole tree. That directory MUST admit `codec.go`, regular `*_test.go` files and one `testdata` directory entry (mode `40000`), whose subtree is not read, and MUST refuse every other entry, including additional production `.go`, assembly, `syso`, a non-regular test file and a `testdata` entry of any other mode.
 
 ## Wire contract
 
@@ -222,6 +223,11 @@ PLE-V0-011 reader alias validation, service singleton restrictions and conflicti
 These focused checks do not establish protected native admission or qualification.
 
 `tools/local-authority/*_test.go` owns executable feasibility evidence for PLE-V0-004/005.
+`tools/local-authority/codec_package_test.go` (`TestPLEV0013CodecPackageAdmitsTestdata`) covers
+PLE-V0-013: a real-shaped codec package with `testdata` is admitted and seven other entry shapes
+refuse. A live protected enrollment over a real map stays NOT_RUN (V1-2036): it needs the root-owned
+authority store and accounts, and this repository's own tree exceeds the capsule's 1,024-object and
+8,192-entry closure bounds.
 `internal/localauthority` tests own bounded wire verification for PLE-V0-006/007.
 New Frontier and host consumer tests own fixture-only PLE-V0-008/009 evidence. PLE-V0-002/003/010/011
 native acceptance is NOT_PRODUCED. Pre-context timing and billed tokens are NOT_OBSERVED; the retained
@@ -262,8 +268,9 @@ each object is `{oid,data}` with base64 raw Git header+NUL+body bytes. Capsule J
 16 MiB decoded typed bytes are allowed, including the fixed self-hashed empty tree required by canonical diff attribute isolation. One enrolled SHA-1 or SHA-256 width applies to every object. Every Git object hash, declared size and commit/tree
 path link is independently verified; no Git refs/configuration, pack helpers or repository command
 runs inside the signer. Target commit/tree are independently enrolled. The package directory admits
-exactly codec.go and regular *_test.go files (tests excluded); every other entry, including additional
-production .go, assembly and syso, is unsupported. Driver whole-file bytes at base and target match the
+exactly codec.go, regular *_test.go files (tests excluded) and one `testdata` directory that is never
+compiled or read (PLE-V0-013); every other entry, including additional production .go, assembly and
+syso, is unsupported. The rest of the target tree is not constrained by this check. Driver whole-file bytes at base and target match the
 admitted driver hash. Complete base/target commit/tree closure and every changed blob-bearing entry
 are required, including deleted base symlinks; target raw currentness still refuses target symlinks and
 submodules. Every CEM evidence base/existing-target path, OCM intentScope at base/target, target claim,
