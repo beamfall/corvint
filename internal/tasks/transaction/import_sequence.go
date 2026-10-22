@@ -187,6 +187,9 @@ func (s *ImportSequence) posts(r Request, posts map[string][]byte) error {
 		if p, ok := s.pendingRecords[rec.TicketID.Raw]; ok {
 			pre = p
 		}
+		if err = importMapAdmits(s.state, rec); err != nil {
+			return err
+		}
 		if err = importChain(rec, pre, s.input.Inventory); err != nil {
 			return err
 		}

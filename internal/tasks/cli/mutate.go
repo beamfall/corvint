@@ -39,8 +39,11 @@ var mutationVerbs = map[string]string{
 
 type mutateFlags struct {
 	role, requestID, target, expected, payload string
-	issuedAt                                   string
-	payloadFromStdin, help, template           bool
+	// targets is every --target in order; only ticket hold takes more than
+	// one (TCD-V0-173), and target stays the last one given.
+	targets                          []string
+	issuedAt                         string
+	payloadFromStdin, help, template bool
 	// verbose is --verbose, accepted only beside --help (CAL-V0-170); the
 	// in-parser mutation help is always the full text.
 	verbose bool
@@ -81,6 +84,12 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 		}
 		return createTemplate(env, cmd)
 	}
+	if len(flags.targets) > 1 && operation != mutation.OpHold {
+		return usage(cmd, "--target names one ticket: only ticket hold and ticket note set take several targets")
+	}
+	if len(flags.targets) > 1 && flags.expected != "" {
+		return usage(cmd, "--expected-revision names one revision: with several --target values hold reads each target's revision itself")
+	}
 	actor, err := initActor(flags.role)
 	if err != nil {
 		return errorResult(cmd, err)
@@ -94,6 +103,14 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 	}
 	if err != nil {
 		return errorResult(cmd, err)
+	}
+	if operation == mutation.OpHold && len(flags.targets) > 1 {
+		return multiTargetSubmit(env, cmd, operation, actor, flags, flags.targets, payload, true)
+	}
+	if operation == mutation.OpHold && flags.target != "" && flags.expected == "" {
+		if flags.expected, err = readTargetRevision(env, flags.target); err != nil {
+			return errorResult(cmd, err)
+		}
 	}
 	return submitMutation(env, cmd, operation, actor, flags, payload)
 }
@@ -137,6 +154,9 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 		}
 		i++
 		*dest = args[i]
+		if args[i-1] == "--target" && !slices.Contains(f.targets, args[i]) {
+			f.targets = append(f.targets, args[i])
+		}
 		f.others++
 	}
 	if f.payload != "" && f.payloadFromStdin {
@@ -221,6 +241,8 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 		o.Set("template", wire.String("corvint-tasks ticket create --template prints a canonical CREATE payload for this queue with each field's type, enum values and nullability; fill title, body and acceptanceCriteria and submit it with --payload-stdin. It reads only the intent store and writes nothing."))
 	}
 	if operation == mutation.OpHold {
+		target = " [--target TICKET|LOCAL ...] [--expected-revision N]"
+		o.Set("multiTarget", wire.String(multiTargetHoldHelp))
 		o.Set("optionalPayloadKeys", wire.Strings([]string{"condition"}))
 		o.Set("condition", wire.String("Optional machine-checkable condition (SCC-V0-010): {\"kind\":\"COMMIT_CONTAINED\",\"ref\":REF,\"commit\":OID}, {\"kind\":\"PATH_EXISTS\",\"ref\":REF,\"path\":PATH} or {\"kind\":\"SYMBOL_DEFINED\",\"ref\":REF,\"path\":FILE,\"symbol\":IDENTIFIER}; REF is a full refname under refs/. queue status re-evaluates it at every read (holdConditions: UNBLOCKED, BLOCKED or UNKNOWN with the reason) and doctor names met and unknown conditions; a met condition never releases the hold by itself. A commit is contained by ancestry or by a patch-equivalent commit (source contains)."))
 	}

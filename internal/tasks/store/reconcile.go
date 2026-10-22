@@ -197,7 +197,7 @@ func reconcileRelease(ctx context.Context, repo *intent.Repository, actor mutati
 		return report, wire.Errorf(wire.CodeLimitExceeded, "file", "release file bound")
 	}
 	resolved, err := intent.Load(repo.IntentRoot())
-	if err == nil && (resolved.Queue.ImportMapSha256 != nil || (resolved.Queue.Fixture && resolved.Queue.ExecutionCutover != nil)) {
+	if err == nil && resolved.Queue.Fixture && (resolved.Queue.ImportMapSha256 != nil || resolved.Queue.ExecutionCutover != nil) {
 		return report, wire.Errorf(wire.CodeUnsupported, "queue", "unsupported release queue state")
 	}
 	if _, err = authority.Qualify(repo.CommonDir); err != nil {
@@ -261,7 +261,7 @@ func reconcileRelease(ctx context.Context, repo *intent.Repository, actor mutati
 	if err != nil {
 		return report, err
 	}
-	if q.ImportMapSha256 != nil || (q.Fixture && q.ExecutionCutover != nil) {
+	if q.Fixture && (q.ImportMapSha256 != nil || q.ExecutionCutover != nil) {
 		return report, wire.Errorf(wire.CodeUnsupported, "queue", "unsupported release queue state")
 	}
 	ticketRaws, releaseRaws := [][]byte{}, [][]byte{}

@@ -94,6 +94,10 @@ type Request struct {
 	Records [][]byte
 	// Lease is the lease command, set only for Lease.
 	Lease *LeaseRequest
+	// ImportMap is the operator's intent/import-map.json, set only for Init
+	// of a non-fixture queue whose importMapSha256 names it (CTS-V0-014).
+	// Genesis posts it; a null-map INIT digest stays byte-identical.
+	ImportMap []byte
 }
 
 // ReplayObservation is mandatory; zero/unknown/error never means absence.
@@ -123,6 +127,10 @@ type Input struct {
 	Attempts    [][]byte
 	HeadReceipt []byte
 	LeaseFacts  LeaseFacts
+	// ImportMap is the store's intent/import-map.json bytes, bound to the
+	// inventory and the queue's importMapSha256; ImportApply on a mapped
+	// queue requires it (CTS-V0-017), and every other operation may omit it.
+	ImportMap []byte
 	// CanonicalTicketPaths names the intent/tickets/ projection of each
 	// CanonicalTickets record, in the same order. The lease routes supply it
 	// so a heartbeat or renew binds the set by path without decoding a
@@ -317,6 +325,9 @@ func Digest(r Request) (wire.Digest, error) {
 	if (r.Operation == Lease) != (r.Lease != nil) {
 		return "", malformed("inapplicable lease command")
 	}
+	if r.Operation != Init && r.ImportMap != nil {
+		return "", malformed("inapplicable import map")
+	}
 	o := object("actor", object("id", s(r.Actor.ID), "role", s(r.Actor.Role)), "operation", s(r.Operation), "queueId", s(r.QueueID), "requestId", s(r.RequestID))
 	switch r.Operation {
 	case Init:
@@ -343,6 +354,12 @@ func Digest(r Request) (wire.Digest, error) {
 		o.Obj.Set("queueSha256", s(string(wire.Sum(r.Queue))))
 		o.Obj.Set("policySha256", s(string(wire.Sum(r.Policy))))
 		o.Obj.Set("versionSha256", s(string(wire.Sum([]byte(snapshot.VersionBytes)))))
+		if r.ImportMap != nil {
+			if queue.ImportMapSha256 == nil || *queue.ImportMapSha256 != wire.Sum(r.ImportMap) {
+				return "", malformed("INIT import map differs from importMapSha256")
+			}
+			o.Obj.Set("importMapSha256", s(string(wire.Sum(r.ImportMap))))
+		}
 	case PolicyUpdate:
 		if _, e = wire.ParseSize("expectedPolicyVersion", string(r.ExpectedPolicyVersion)); e != nil {
 			return "", e
@@ -604,6 +621,9 @@ func model(r Request, in Input, sequence *ImportSequence) Result {
 		posts["intent/queue.json"] = bytes.Clone(r.Queue)
 		posts["intent/policy.json"] = bytes.Clone(r.Policy)
 		posts["reservations.json"] = emptyReservations(state.queue.QueueID.Raw)
+		if r.ImportMap != nil {
+			posts["intent/import-map.json"] = bytes.Clone(r.ImportMap)
+		}
 		init := snapshot.Init{QueueID: state.queue.QueueID, PrimaryWorktree: r.PrimaryWorktree, VersionSha256: wire.Sum(posts["VERSION"])}
 		raw := wire.EncodeFile(init.Value())
 		posts["pinned/"+string(wire.Sum(raw))+".json"] = raw
@@ -801,6 +821,9 @@ func model(r Request, in Input, sequence *ImportSequence) Result {
 		}
 		lease, effect, detail, authors = planned.effect, planned.ticket, planned.detail, planned.authors
 	}
+	if e = importMapUnchanged(r, state, posts); e != nil {
+		return failed(r.RequestID, e)
+	}
 	p, out, e := freeze(r, d, in.RecordedAt, in.Inventory, state.head, posts, effect, relEffect, lease)
 	if e != nil {
 		return failed(r.RequestID, e)
@@ -850,6 +873,9 @@ type inputState struct {
 	// reservations is the validated set; attempts is loaded for Lease only.
 	reservations *snapshot.ReservationSet
 	attempts     map[string]*snapshot.Attempt
+	// importMap is the queue's validated import map, decoded when the
+	// caller supplied its bytes (CTS-V0-015).
+	importMap *intent.ImportMap
 }
 
 func (s inputState) ticketIDs() map[string]bool {
@@ -880,8 +906,13 @@ func validateInput(r Request, in Input) (inputState, error) {
 	// Only a QUALIFICATION receipt sets an execution cutover, and only on a
 	// non-fixture queue (CAL-V0-020); INIT never takes one (A14).
 	cutover := q.ExecutionCutover != nil && (q.Fixture || r.Operation == Init)
-	if q.QueueID.Raw != r.QueueID || q.ImportMapSha256 != nil || cutover {
+	// A fixture queue never takes an import map (CAL-V0-003); a non-fixture
+	// queue that names one is admitted once its map is bound (CTS-V0-015).
+	if q.QueueID.Raw != r.QueueID || (q.ImportMapSha256 != nil && q.Fixture) || cutover {
 		return st, malformed("unsupported queue identity/state")
+	}
+	if st.importMap, e = bindImportMap(r, in, q); e != nil {
+		return st, e
 	}
 	p, e := intent.DecodePolicy(praw)
 	if e != nil {
@@ -1208,6 +1239,9 @@ func importPosts(r Request, in Input, state inputState, posts map[string][]byte)
 	for _, raw := range r.Records {
 		rec, e := ticket.Decode(raw)
 		if e != nil {
+			return e
+		}
+		if e = importMapAdmits(state, rec); e != nil {
 			return e
 		}
 		if e = importChain(rec, prospective[rec.TicketID.Raw], in.Inventory); e != nil {
