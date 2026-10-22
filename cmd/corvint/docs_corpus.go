@@ -24,6 +24,7 @@ type corpusOptions struct {
 	stable        doccorpus.StableCEMInputs
 	playwright    playwrightCorpusOptions
 	legacyCases   legacyCasesCorpusOptions
+	audit         corpusAuditOptions
 	apply, check  bool
 	limit, offset int
 }
@@ -34,6 +35,7 @@ func (o *corpusOptions) stringFlags() map[string]*string {
 		"--expected-base": &o.stable.ExpectedBase, "--target": &o.stable.Target, "--stable-artifact-root": &o.stable.ArtifactRoot}
 	o.playwright.addFlags(flags)
 	o.legacyCases.addFlags(flags)
+	o.audit.addFlags(flags)
 	return flags
 }
 
@@ -55,6 +57,10 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 		return o, true, argumentError("docs corpus requires an operation")
 	}
 	o.op = args[pos+2]
+	if op, ok := corpusAuditOperation(args[pos+2:]); ok {
+		o.op = op
+		pos++
+	}
 	flags := o.stringFlags()
 	seen := map[string]bool{}
 	for i := pos + 3; i < len(args); i++ {
@@ -282,6 +288,9 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	a, err := doccorpus.Open(ctx, o.root, raw)
 	if err != nil {
 		return nil, err
+	}
+	if o.op == "audit-sample" || o.op == "audit-report" {
+		return compileCorpusAudit(a, o)
 	}
 	if o.op == "render" {
 		output, err := doccorpus.Render(a)
