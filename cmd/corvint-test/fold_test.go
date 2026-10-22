@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -103,7 +104,7 @@ func TestCTFV0002RunnerFoldGoldens(t *testing.T) {
 	for _, inv := range []struct {
 		name string
 		argv []string
-	}{{g.Old, old}} {
+	}{{g.Old, old}, {g.New, []string{buildCompanion(t, ".", "corvint-test"), "runner"}}} {
 		for _, c := range g.Cases {
 			want := c
 			if c.Text {
@@ -114,6 +115,41 @@ func TestCTFV0002RunnerFoldGoldens(t *testing.T) {
 				t.Errorf("%s %s:\n got exit %d stdout %q stderr %q\nwant exit %d stdout %q stderr %q",
 					inv.name, c.Name, got.Exit, got.Stdout, got.Stderr, want.Exit, want.Stdout, want.Stderr)
 			}
+		}
+	}
+}
+
+// CTF-V0-007, CTF-V0-010: the folded runner entry is not linked into core `corvint`, the group
+// is named in the companion usage, and its sources never use the bare `corvint-test:` prefix of
+// core `corvint test` diagnostics nor name `corvint` as an executable.
+func TestCTFV0007RunnerGroupBoundary(t *testing.T) {
+	out, err := exec.Command("go", "list", "-deps", "../corvint").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dep := range strings.Fields(string(out)) {
+		if strings.HasSuffix(dep, "/internal/testrunner/cli") {
+			t.Fatalf("core corvint imports %s", dep)
+		}
+	}
+	if !strings.Contains(usage, "corvint-test runner <command>") {
+		t.Fatalf("usage does not name the runner group: %q", usage)
+	}
+	srcs, _ := filepath.Glob("../../internal/testrunner/cli/*.go")
+	if len(srcs) == 0 {
+		t.Fatal("no runner group sources")
+	}
+	corvintArgv := regexp.MustCompile(`"corvint"|"corvint\s|/corvint"`)
+	for _, p := range srcs {
+		if strings.HasSuffix(p, "_test.go") {
+			continue
+		}
+		data, err := os.ReadFile(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if corvintArgv.Match(data) || bytes.Contains(data, []byte(`"corvint-test:`)) {
+			t.Fatalf("%s names the core executable or its diagnostic prefix", p)
 		}
 	}
 }

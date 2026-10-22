@@ -2,6 +2,8 @@
 // E2E scenarios from admitted, revision-pinned blocks (CCE-V0). Core `corvint` does not import or
 // execute it, and it never executes `corvint` (CCE-V0-015). Diagnostics carry the
 // `corvint-test e2e:` prefix, disjoint from core `corvint test` diagnostics (`corvint-test:`).
+// The `runner` group is the folded runner companion (CTF-V0); its diagnostics name
+// `corvint-test runner`.
 package main
 
 import (
@@ -18,12 +20,14 @@ import (
 	"syscall"
 
 	"github.com/Beamfall/corvint/internal/changee2e"
+	"github.com/Beamfall/corvint/internal/testrunner/cli"
 )
 
 // proveReport is the proof report written under the prove --out directory.
 const proveReport = "e2e-prove.json"
 
-const usage = "usage: corvint-test e2e <catalog|harvest|obligations|compile|prove|shadow> [flags]"
+const usage = "usage: corvint-test e2e <catalog|harvest|obligations|compile|prove|shadow> [flags]\n" +
+	"       corvint-test runner <command> [flags] (folded corvint-test-runner, CTF-V0)"
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -35,6 +39,11 @@ func main() {
 			os.Exit(1)
 		}
 		return
+	}
+	// The runner group shares the old companion's entry, so its output is byte-identical
+	// apart from the invocation name in diagnostics (CTF-V0-002, CTF-V0-004).
+	if len(os.Args) > 1 && os.Args[1] == "runner" {
+		os.Exit(cli.Command(ctx, "corvint-test runner", os.Args[2:], os.Stdout, os.Stderr))
 	}
 	if err := run(ctx, os.Args[1:], os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, "corvint-test e2e:", err)

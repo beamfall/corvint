@@ -4,13 +4,13 @@ Owner: Russell Lewis
 Date: 2026-10-22
 Requirement prefix: `CTF-V0`
 Intent status: accepted (owner, 2026-10-22; requirements under the standing auto-accept of 2026-10-11)
-Delivery status: not-started
+Delivery status: experimental
 Authoritative inputs: owner decision of 2026-10-22 accepting the V1-1667 fold with its own acceptance criteria (recorded in `docs/build-log/2026-10-22-cce-1022k.md`); `docs/build-log/2026-10-17-binary-boundary-audit.md` (the fold proposal); `AGENTS.md` invariants 3, 7 and 8; `docs/specs/core-compatibility-freeze-v1.md` (CCF-V1-001, CCF-V1-002); `docs/specs/change-compiled-e2e-v0.md` (Binary boundary).
 
 ## Agent digest
 - Claim: Test-executing companions fold into `corvint-test` groups, one move each, with output documents byte-identical and every old name still answering.
-- Status: accepted; not-started. This spec is the fold plan the V1-1667 acceptance criteria require before any move; no group has moved.
-- Exists: `cmd/corvint-test` with one group, `e2e` (CCE-V0). The companions `cmd/corvint-behavior-falsify`, `cmd/corvint-playwright-minimize`, `cmd/corvint-tests-accept` and `cmd/corvint-test-runner`; core `corvint test-validity negate` and `corvint test`.
+- Status: accepted; experimental. Group 1 (`runner`) has moved behind byte-identical goldens; groups 2 to 6 have not.
+- Exists: `cmd/corvint-test` groups `e2e` (CCE-V0) and `runner` (entry `internal/testrunner/cli`; `cmd/corvint-test-runner` is its shim). Unmoved: `cmd/corvint-behavior-falsify`, `cmd/corvint-playwright-minimize`, `cmd/corvint-tests-accept`; core `corvint test-validity negate` and `corvint test`.
 - Blocked on: nothing for groups 1 to 4. Group 6 (core `test`) also needs the `make gate-affected` script and the CI shadow step moved first; `.github/` changes are owner-posted.
 - Read next: Fold map; Requirements; Rollback.
 
@@ -106,12 +106,27 @@ Not folded in V0:
 
 ## Acceptance evidence
 
-Per group: the golden files under `cmd/corvint-test/testdata/fold/<group>/`, the before and after
+Per group: the golden file `cmd/corvint-test/testdata/fold/<group>.json`, the before and after
 comparison test, the shim test at the old name, the re-entry test where one applies, and the
 prefix test. Core groups add the `command-moved` refusal test and an unchanged
 `TestCoreVerbsEmitTheFrozenProfiles`. Live qualification that a group already has (BBF-V0 live
 RSpec, NEA-V0 live Playwright) MUST be rerun through `corvint-test` or recorded `NOT_RUN` with its
 command.
+
+## Traceability
+
+| Requirement | Evidence |
+|---|---|
+| `CTF-V0-001` | Group 1 goldens committed before the move (`85bc22089`), the move in the next change |
+| `CTF-V0-002` | `cmd/corvint-test/fold_test.go` `TestCTFV0002RunnerFoldGoldens` over `cmd/corvint-test/testdata/fold/runner.json` (13 cases, recorded from the old binary; old and new invocations) |
+| `CTF-V0-003` | The same goldens: the `runners`, `profiles` and `plan` documents compare byte for byte, profile IDs included |
+| `CTF-V0-004` | `cmd/corvint-test-runner/main.go` is a shim over `internal/testrunner/cli`; its existing tests pass unchanged; `TestCTFV0002RunnerFoldGoldens` runs the old name |
+| `CTF-V0-007` | `cmd/corvint-test/fold_test.go` `TestCTFV0007RunnerGroupBoundary` |
+| `CTF-V0-008` | `internal/companionrelease/fold_names_test.go` `TestCTFV0008ExactCompanionNames` |
+| `CTF-V0-010` | `TestCTFV0007RunnerGroupBoundary` (core does not link `internal/testrunner/cli`) |
+
+`CTF-V0-005`, `CTF-V0-006` and `CTF-V0-009` have no evidence yet: they bind groups 2, 4, 5 and 6,
+which have not moved.
 
 ## Non-goals and limits
 
