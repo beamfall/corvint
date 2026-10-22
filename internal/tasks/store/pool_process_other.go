@@ -12,6 +12,9 @@ import (
 func poolRunnerIdentity(int) (string, error) {
 	return "", wire.Errorf(wire.CodeUnsupported, "pool", "process identity unavailable")
 }
+func poolRecordedIdentity(int, string) (string, error) {
+	return "", wire.Errorf(wire.CodeUnsupported, "pool", "process identity unavailable")
+}
 func executePoolGuarded(context.Context, *intent.PoolCommand, string, []string, func() error) (string, bool, wire.Digest) {
 	return "UNKNOWN", false, wire.Sum(nil)
 }
