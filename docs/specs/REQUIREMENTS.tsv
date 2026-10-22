@@ -102,6 +102,7 @@ AFP-V0-186	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-187	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2297)) An	standing	2026-10-11; V1-2297
 AFP-V0-188	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2296)) A	standing	2026-10-11; V1-2296
 AFP-V0-189	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2296)) Each tes	standing	2026-10-11; V1-2296
+AFP-V0-201	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2348))	standing	2026-10-11; V1-2348
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
 AHI-003	docs/specs/agent-harness-integration-v0.md	On session/task start, the adapter MUST resolve repository identity, exact Git	unrecorded	-
@@ -2919,8 +2920,8 @@ GPK-V0-066	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-09-25,
 GPK-V0-068	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-09-25, decision 0396; panel finding M2)	owner	2026-09-25; decision 0396
 GPK-V0-069	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-09-25, decision 0399; panel blocker B3)	owner	2026-09-25; decision 0399
 GPK-V0-070	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-09-26, decision 0422; panel blocker B4; V1-0263)	owner	2026-09-26; decision 0422; V1-0263
-GPK-V0-071	docs/specs/go-production-kernel-migration-v0.md	(proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global a	unrecorded	-
-GPK-V0-072	docs/specs/go-production-kernel-migration-v0.md	(proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`	unrecorded	-
+GPK-V0-071	docs/specs/go-production-kernel-migration-v0.md	(proposed 2026-09-25; accepted 2026-10-21 and narrowed to the classification, un	owner	2026-09-25; 2026-10-21
+GPK-V0-072	docs/specs/go-production-kernel-migration-v0.md	(proposed 2026-09-25; accepted 2026-10-21 as proposed, under the owner's	owner	2026-09-25; 2026-10-21
 GPK-V0-075	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-09-25, decision 0412; V1-0263; proposed in PR #247 as `GPK-V0-068	owner	2026-09-25; decision 0412; V1-0263; #247
 GPK-V0-076	docs/specs/go-production-kernel-migration-v0.md	(accepted by decision 0439; V1-0881; no GitHub issue)	owner	decision 0439; V1-0881
 GPK-V0-077	docs/specs/go-production-kernel-migration-v0.md	(accepted by decision 0445; V1-0958) Rule (c) gains an alias arm. For	owner	decision 0445; V1-0958
