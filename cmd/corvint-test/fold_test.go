@@ -30,13 +30,18 @@ type foldCase struct {
 	Name   string   `json:"name"`
 	Args   []string `json:"args"`
 	Text   bool     `json:"text,omitempty"`
+	Stdin  string   `json:"stdin,omitempty"`
 	Exit   int      `json:"exit"`
 	Stdout string   `json:"stdout"`
 	Stderr string   `json:"stderr"`
 }
 
-// foldDir stands for the per-run directory holding the case request file.
-const foldDir = "@DIR@"
+// foldDir stands for the per-run directory holding the case request file; a case whose stdin is
+// foldRequest reads the golden's request document on standard input.
+const (
+	foldDir     = "@DIR@"
+	foldRequest = "@REQUEST@"
+)
 
 func buildCompanion(t *testing.T, pkg, name string) string {
 	t.Helper()
@@ -47,7 +52,7 @@ func buildCompanion(t *testing.T, pkg, name string) string {
 	return bin
 }
 
-func runFoldCase(t *testing.T, argv []string, c foldCase, dir string) foldCase {
+func runFoldCase(t *testing.T, argv []string, c foldCase, dir string, request []byte) foldCase {
 	t.Helper()
 	args := make([]string, 0, len(argv)+len(c.Args))
 	args = append(args, argv[1:]...)
@@ -57,7 +62,12 @@ func runFoldCase(t *testing.T, argv []string, c foldCase, dir string) foldCase {
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Command(argv[0], args...)
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	got := foldCase{Name: c.Name, Args: c.Args, Text: c.Text}
+	if c.Stdin == foldRequest {
+		cmd.Stdin = bytes.NewReader(request)
+	} else {
+		cmd.Stdin = strings.NewReader(c.Stdin)
+	}
+	got := foldCase{Name: c.Name, Args: c.Args, Text: c.Text, Stdin: c.Stdin}
 	if err := cmd.Run(); err != nil {
 		var ee *exec.ExitError
 		if !errors.As(err, &ee) {
@@ -70,27 +80,33 @@ func runFoldCase(t *testing.T, argv []string, c foldCase, dir string) foldCase {
 	return got
 }
 
-// CTF-V0-002, CTF-V0-003: the runner group's old invocation reproduces the goldens recorded from
-// the pre-move `corvint-test-runner`: exit status, output documents byte for byte, and
-// diagnostics. Set CTF_UPDATE_GOLDEN=1 to rewrite the goldens from the old binary only.
+// CTF-V0-002, CTF-V0-003: the runner group's old invocation and `corvint-test runner` reproduce
+// the goldens recorded from the pre-move `corvint-test-runner`: exit status, output documents byte
+// for byte, and diagnostics with the invocation name substituted.
 func TestCTFV0002RunnerFoldGoldens(t *testing.T) {
-	path := filepath.Join("testdata", "fold", "runner.json")
+	foldGoldens(t, "runner", "../corvint-test-runner")
+}
+
+// foldGoldens compares every invocation of a group with testdata/fold/<group>.json. Set
+// CTF_UPDATE_GOLDEN=1 to rewrite the goldens from the old binary only (CTF-V0-002).
+func foldGoldens(t *testing.T, group, oldPkg string) {
+	path := filepath.Join("testdata", "fold", group+".json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var g foldGolden
-	if err := json.Unmarshal(data, &g); err != nil || g.Schema != "corvint-test-fold-golden/0" || len(g.Cases) == 0 {
+	if err := json.Unmarshal(data, &g); err != nil || g.Schema != "corvint-test-fold-golden/0" || g.Group != group || len(g.Cases) == 0 {
 		t.Fatalf("golden %s: %v", path, err)
 	}
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "req.json"), g.Request, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	old := []string{buildCompanion(t, "../corvint-test-runner", g.Old)}
+	old := []string{buildCompanion(t, oldPkg, g.Old)}
 	if os.Getenv("CTF_UPDATE_GOLDEN") == "1" {
 		for i, c := range g.Cases {
-			g.Cases[i] = runFoldCase(t, old, c, dir)
+			g.Cases[i] = runFoldCase(t, old, c, dir, g.Request)
 		}
 		out, err := json.MarshalIndent(g, "", "  ")
 		if err != nil {
@@ -101,17 +117,18 @@ func TestCTFV0002RunnerFoldGoldens(t *testing.T) {
 		}
 		return
 	}
+	newName := strings.TrimPrefix(g.New, "corvint-test ")
 	for _, inv := range []struct {
 		name string
 		argv []string
-	}{{g.Old, old}, {g.New, []string{buildCompanion(t, ".", "corvint-test"), "runner"}}} {
+	}{{g.Old, old}, {g.New, []string{buildCompanion(t, ".", "corvint-test"), newName}}} {
 		for _, c := range g.Cases {
 			want := c
 			if c.Text {
 				want.Stdout = strings.ReplaceAll(c.Stdout, g.Old, inv.name)
 				want.Stderr = strings.ReplaceAll(c.Stderr, g.Old, inv.name)
 			}
-			if got := runFoldCase(t, inv.argv, c, dir); got.Exit != want.Exit || got.Stdout != want.Stdout || got.Stderr != want.Stderr {
+			if got := runFoldCase(t, inv.argv, c, dir, g.Request); got.Exit != want.Exit || got.Stdout != want.Stdout || got.Stderr != want.Stderr {
 				t.Errorf("%s %s:\n got exit %d stdout %q stderr %q\nwant exit %d stdout %q stderr %q",
 					inv.name, c.Name, got.Exit, got.Stdout, got.Stderr, want.Exit, want.Stdout, want.Stderr)
 			}
