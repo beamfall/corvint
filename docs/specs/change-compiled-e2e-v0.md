@@ -574,7 +574,7 @@ Lane cce2-1022u adds CCE-V0-048 (V1-2410), accepted under the standing auto-acce
   worker-scoped fixture teardown that throws in the adopter's own fixture file is reported as an
   infrastructure fault, sending the adopter to the runner instead of the fixture. A BBF control run
   with such a failure still reads `infrastructure_failed`, with the teardown reason as its detail.
-- `CCE-V0-049` (V1-2409): A hosted proof MUST carry `runner_config`: `applied` (the prove config
+- `CCE-V0-049`: (V1-2409) A hosted proof MUST carry `runner_config`: `applied` (the prove config
   name), the adopter's Playwright config found at head (the first default name, in Playwright's
   lookup order, from the hosted test's directory up to the repository root) with its SHA-256, and
   `deviations`, one `{key, adopter, prove}` entry per top-level or `use.` key whose effective value
@@ -585,7 +585,7 @@ Lane cce2-1022u adds CCE-V0-048 (V1-2410), accepted under the standing auto-acce
   is named in `unread` and never refuses the proof. The prove config is still the one applied.
   Failure mode: a hosted verdict is read as the adopter's own suite outcome when its retries,
   projects, `globalSetup` or `storageState` were not applied.
-- `CCE-V0-050` (V1-2411): Every harvested proposal MUST carry `binding`, read from the application
+- `CCE-V0-050`: (V1-2411) Every harvested proposal MUST carry `binding`, read from the application
   map (`appmap.json`) at the harvested revision: a path proposal binds to the `screen` the map
   resolved for the same navigation line of the same test file (basis `app-map-goto`); an outcome
   proposal binds to the one `flow` declaring an outcome on the same locator (basis
@@ -596,7 +596,7 @@ Lane cce2-1022u adds CCE-V0-048 (V1-2410), accepted under the standing auto-acce
   never changes a proposal ID or admits a proposal (CCE-V0-043). Failure mode: an accepted proposal
   is compiled against a flow it was never observed on. The site-knowledge IR (SKH-V0, not yet on
   this base) is not consulted; binding through it is the V1-2411 remainder.
-- `CCE-V0-051` (V1-2413): A `CHANGED_IN_DIFF` scenario's proof MUST carry `oracle_digest`
+- `CCE-V0-051`: (V1-2413) A `CHANGED_IN_DIFF` scenario's proof MUST carry `oracle_digest`
   (`sha256:` of the scenario's test text at head). `prove --oracle-acceptance FILE` reads a closed
   `e2e-oracle-acceptance/0` document `{schema, base, head, acceptances: [{assertion_id,
   oracle_digest, accepted_by, reason}]}` recorded outside the repository; a path inside the
@@ -614,7 +614,7 @@ Lane cce2-1022u adds CCE-V0-048 (V1-2410), accepted under the standing auto-acce
   certifies it, or an acceptance outlives an edit to the oracle it accepted. Identity is the
   recorded name only; the document carries no signature, so independence is a reviewable claim,
   not a cryptographic one.
-- `CCE-V0-052` (V1-2413): When every head repeat of a compiled (not hosted) scenario fails at the
+- `CCE-V0-052`: (V1-2413) When every head repeat of a compiled (not hosted) scenario fails at the
   outcome assertion with `locator-unresolved`, the proof MUST carry `locator_repair`
   `{locator, proposed | unproposed, applied: false, evidence}`. The repair reads the zero-context
   base-to-head diff and pairs removed with added lines in order within each hunk; a pair whose
@@ -625,7 +625,7 @@ Lane cce2-1022u adds CCE-V0-048 (V1-2410), accepted under the standing auto-acce
   applied: the scenario, its verdict and its scoring are unchanged, and accepting it is a new
   compile. Failure mode: a renamed test id silently rewrites the oracle so that a regression reads
   as a pass.
-- `CCE-V0-053` (V1-2412): `prove --record-coverage` MUST wrap the head pool's in-process static
+- `CCE-V0-053`: (V1-2412) `prove --record-coverage` MUST wrap the head pool's in-process static
   server in a recorder of every request path it answers 200 or 304 (a directory as its
   `index.html`), attribute the paths to the screen the scenario's outcome assertion shows, drop
   test-tree and `node_modules` paths, and pin each remaining path to the blob the head revision
@@ -639,7 +639,7 @@ Lane cce2-1022u adds CCE-V0-048 (V1-2410), accepted under the standing auto-acce
   Coverage is file-served, not line-executed: a served file counts as covered for its screen even
   if none of its code ran. Failure mode: coverage recorded at one revision widens reach at another,
   or a base pool's paths are attributed to the head.
-- `CCE-V0-054` (V1-1685): `obligations`, `compile` and `prove` MUST accept `--module-graph`, which
+- `CCE-V0-054`: (V1-1685) `obligations`, `compile` and `prove` MUST accept `--module-graph`, which
   builds the TJAA-V0 TypeScript/JavaScript module graph of the immutable head tree (never the
   worktree) and names `tjaa-module-graph` under `relations.consulted`, with `module_graph`
   `{digest, frontier}` or `{unavailable}` (`repository-unreadable`, `head-tree-unreadable`,
