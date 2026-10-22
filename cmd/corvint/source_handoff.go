@@ -329,6 +329,18 @@ func executeSourceViewBytes(ctx context.Context, o sourceViewOptions, result map
 	}
 	deadline, cancel := context.WithTimeout(ctx, sourceDeadline(ctx))
 	defer cancel()
+	result, err = readPinnedSourceView(deadline, o, result, packet, handle, root, path)
+	if err != nil && deadline.Err() != nil {
+		// A Git read cut short by the bound or by cancellation fails like a
+		// non-toplevel root or a missing object; name the cause instead
+		// (ESV-V0-014, V1-2320).
+		return result, sourceRefusal("deadline-exceeded")
+	}
+	return result, err
+}
+
+// readPinnedSourceView runs executeSourceViewBytes's Git reads under its deadline.
+func readPinnedSourceView(deadline context.Context, o sourceViewOptions, result, packet, handle map[string]any, root, path string) (map[string]any, error) {
 	if !sourceIsToplevel(deadline, root) {
 		return result, sourceRefusal("repository-root")
 	}
