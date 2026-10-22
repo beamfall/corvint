@@ -55,6 +55,17 @@ func parseSQLite(in tr.Input, o *tr.Observation) error {
 	if halt.Match(in.Stdout) {
 		problem(o, "SQL_SUITE_HALTED", "native script halted before exhausting its records")
 	}
+	// The native runner prints "<file>:<line>: query failed" when the engine
+	// rejects or cannot execute a query record, and "wrong result" for an
+	// assertion mismatch. A rejected query is not an assertion verdict
+	// (TRE-V0-118).
+	rejected := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(in.SourceFile) + `:[1-9][0-9]*: query failed$`)
+	for _, stream := range [][]byte{in.Stderr, in.Stdout} {
+		if line := rejected.Find(stream); line != nil {
+			problem(o, "SQL_QUERY_REJECTED", string(line))
+			break
+		}
+	}
 	if executed+skipped == 0 {
 		problem(o, "NO_TESTS", "native summary reports no executed or skipped SQL records")
 		return nil

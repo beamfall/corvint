@@ -172,6 +172,18 @@ func TestExecutorHelper(t *testing.T) {
 	case "sleep":
 		time.Sleep(10 * time.Minute)
 		os.Exit(0)
+	case "tempresidue":
+		// MTP-shaped residue: a debugger FIFO and nested build scratch in TMPDIR (V1-1538).
+		dir := os.Getenv("TMPDIR")
+		if syscall.Mkfifo(filepath.Join(dir, "clr-debug-pipe-in"), 0600) != nil || os.MkdirAll(filepath.Join(dir, "scratch", "b001"), 0700) != nil || os.WriteFile(filepath.Join(dir, "scratch", "b001", "obj"), []byte("x"), 0600) != nil {
+			os.Exit(9)
+		}
+		if os.WriteFile(os.Getenv("CORVINT_EXEC_TARGET"), nil, 0600) != nil {
+			os.Exit(9)
+		}
+		for os.Getenv("CORVINT_EXEC_EXIT") != "1" {
+			time.Sleep(time.Second)
+		}
 	case "env":
 		fmt.Print(os.Getenv("PATH") + "\n" + os.Getenv("JAVA_HOME") + "\n" + os.Getenv("CORVINT_HOST_SECRET"))
 	}
@@ -956,5 +968,60 @@ func TestKilledRunReceiptRoundTrip(t *testing.T) {
 	// A string containing the sentinel text is data, not a number.
 	if e := DecodeDocument([]byte(`{"profile":"\"exitCode\":-1","planSha256":"","execution":{},"observation":{},"error":"-1"}`), new(ReceiptDocument)); e != nil {
 		t.Fatal(e)
+	}
+}
+
+// TestExecuteRemovesPrivateTempResidue covers V1-1538 (TRE-V0-116): pipes and
+// scratch a native tool leaves in the private TMPDIR are gone when Execute
+// returns, after a timeout and after a normal exit, with no execution problem.
+func TestExecuteRemovesPrivateTempResidue(t *testing.T) {
+	for _, mode := range []string{"timeout", "exit"} {
+		t.Run(mode, func(t *testing.T) {
+			r, inv := executorRequest(t)
+			marker := filepath.Join(r.Root, "residue-ready")
+			inv.Environment["CORVINT_EXEC_MODE"] = "tempresidue"
+			inv.Environment["CORVINT_EXEC_TARGET"] = marker
+			if mode == "exit" {
+				inv.Environment["CORVINT_EXEC_EXIT"] = "1"
+			} else {
+				// Time out only once the residue exists; TimeoutSeconds is a hang bound.
+				r.TimeoutSeconds = 120
+				release, stop := make(chan struct{}), make(chan struct{})
+				defer close(stop)
+				expireLimitAt(t, release)
+				go func() {
+					for {
+						if _, e := os.Stat(marker); e == nil {
+							close(release)
+							return
+						}
+						select {
+						case <-stop:
+							return
+						case <-time.After(5 * time.Millisecond):
+						}
+					}
+				}()
+			}
+			out, err := Execute(context.Background(), r, inv)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, e := os.Stat(marker); e != nil {
+				t.Fatalf("fixture never created its residue: %v", e)
+			}
+			if mode == "timeout" && !out.Input.TimedOut || mode == "exit" && out.Input.ExitCode != 0 {
+				t.Fatalf("lifecycle not retained: %+v", out.Input)
+			}
+			if len(out.Input.ExecutionProblems) != 0 {
+				t.Fatalf("execution problems: %+v", out.Input.ExecutionProblems)
+			}
+			if _, e := os.Lstat(ExecutionTempDir(r.ReportDir)); !os.IsNotExist(e) {
+				t.Fatalf("private TMPDIR residue survived: %v", e)
+			}
+			if _, e := os.Stat(filepath.Join(r.ReportDir, ".phase-00-stdout")); e != nil {
+				t.Fatalf("report directory artifact removed: %v", e)
+			}
+		})
 	}
 }
