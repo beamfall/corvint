@@ -154,7 +154,7 @@ func poolFactsWith(ctx context.Context, repo *intent.Repository, choice LeaseCho
 			}
 			for _, en := range state.Entries {
 				if en.MemberID == l.Member && string(en.AllocationID) == l.Allocation {
-					identity, e := poolRunnerIdentity(int(en.RunnerPID.Int()))
+					identity, e := poolRecordedIdentity(int(en.RunnerPID.Int()), en.RunnerStarted)
 					if e != nil {
 						return f, e
 					}

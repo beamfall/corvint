@@ -9,7 +9,7 @@ set -eu
 # enumeration to the Git index: `make gate` must measure what a fresh clone contains, not what the
 # dirty worktree happens to hold. V1-1062 adds the unquoted prose range and a real duplicate;
 # RDG-V0-021 adds the outside-Requirements ratchet and its stale-baseline refusal; RDG-V0-022 the
-# definition-shaped near miss.
+# definition-shaped near miss; RDG-V0-023 the wrapped-line citation.
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-requirement-definitions-test.XXXXXX")
@@ -72,6 +72,24 @@ if out=$(run); then fail "a real duplicate definition should fail"; fi
 case $out in
     *"duplicate definition: ALPHA-V0-001"*) ;;
     *) fail "the duplicate should be named, got: $out" ;;
+esac
+
+# RDG-V0-023 (V1-2403): a citation that starts a wrapped paragraph or list-item line is no
+# definition; a bulleted definition right after a paragraph line still is, so it still duplicates.
+# shellcheck disable=SC2016
+printf '# Alpha\n\n- `ALPHA-V0-001`: the clause.\n\nThis paragraph cites\n`ALPHA-V0-001`. It wraps.\n\n- an item that cites\n  `ALPHA-V0-001`: wrapped.\n' \
+    > "$test_root/docs/specs/alpha.md"
+stage
+run > /dev/null || fail "a citation starting a wrapped line must not count as a definition"
+
+# shellcheck disable=SC2016
+printf '# Alpha\n\n- `ALPHA-V0-001`: the clause.\n\nA paragraph line.\n- `ALPHA-V0-001`: a real second definition.\n' \
+    > "$test_root/docs/specs/alpha.md"
+stage
+if out=$(run); then fail "a bulleted duplicate after a paragraph line should fail"; fi
+case $out in
+    *"duplicate definition: ALPHA-V0-001 at docs/specs/alpha.md:3 and docs/specs/alpha.md:6"*) ;;
+    *) fail "the bulleted duplicate should be named, got: $out" ;;
 esac
 
 # RDG-V0-021: an OCM-form definition after the single Requirements section fails unless the

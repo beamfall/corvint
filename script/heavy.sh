@@ -11,6 +11,12 @@
 #   HEAVY_LOCK_DIR  directory holding the slot lock files; default /tmp/corvint-heavy-<uid>.
 #                   Every lane on the host must use the same directory and the same HEAVY_SLOTS.
 #
+# Pinned Go: the repository root's go.mod (else the nearest one) names the pinned release in its
+# toolchain line, else its go line. When the go on PATH reports another release and the pinned one
+# is installed in $HOME/sdk/goX or the module cache (golang.org/toolchain@v0.0.1-goX.OS-ARCH), its
+# bin goes first on PATH, so GOTOOLCHAIN=local commands run it; otherwise one warning line names
+# the go that will run.
+#
 # A slot is an flock(2) on HEAVY_LOCK_DIR/slotN. The command inherits the locked descriptor, so
 # the slot stays held while any workload process that kept it runs, even if the wrapper is killed.
 # The kernel releases it when the last holder exits, so a dead owner never strands a slot and no
@@ -20,7 +26,7 @@
 set -uo pipefail
 
 if [[ $# -eq 0 || $1 == -h || $1 == --help ]]; then
-  sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'
   [[ $# -eq 0 ]] && exit 2
   exit 0
 fi
@@ -42,6 +48,28 @@ if ! mkdir -p "$lock_dir" 2> /dev/null; then
   printf 'heavy.sh: REFUSE lock-dir-unavailable %s\n' "$lock_dir" >&2
   exit 2
 fi
+pin_go() {
+  local d want have cache os arch c
+  d=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [[ -z $d || ! -f $d/go.mod ]]; then
+    d=$PWD
+    until [[ -f $d/go.mod || $d == / ]]; do d=$(dirname "$d"); done
+  fi
+  [[ -f $d/go.mod ]] && command -v go > /dev/null || return 0
+  want=$(sed -n 's/^toolchain go\([0-9][0-9.]*\)[[:space:]]*$/\1/p' "$d/go.mod" | head -n 1)
+  [[ -n $want ]] || want=$(sed -n 's/^go \([0-9][0-9.]*\)[[:space:]]*$/\1/p' "$d/go.mod" | head -n 1)
+  [[ $want =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 0 # a language-only line pins no release
+  { read -r have; read -r cache; read -r os; read -r arch; } < <(GOTOOLCHAIN=local go env GOVERSION GOMODCACHE GOOS GOARCH 2> /dev/null)
+  [[ ${have-} == "go$want" ]] && return 0
+  for c in "$HOME/sdk/go$want/bin" "${cache-}/golang.org/toolchain@v0.0.1-go$want.${os-}-${arch-}/bin"; do
+    if [[ -x $c/go && $(GOTOOLCHAIN=local "$c/go" env GOVERSION 2> /dev/null) == "go$want" ]]; then
+      export PATH="$c:$PATH"
+      return 0
+    fi
+  done
+  printf 'heavy.sh: pinned go%s not installed; running %s\n' "$want" "${have:-an unknown go}" >&2
+}
+pin_go
 case " ${GOFLAGS-} " in
   *" -p="* | *" -p "*) ;;
   *) export GOFLAGS="${GOFLAGS:+$GOFLAGS }-p=$par" ;;

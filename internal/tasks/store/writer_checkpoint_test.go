@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -533,6 +534,14 @@ func (f fixedEntropy) Read(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// fixAttemptEntropy makes r the source of repo's attempt IDs for the rest
+// of t, without touching other stores' sources (V1-0961).
+func fixAttemptEntropy(t *testing.T, repo *intent.Repository, r io.Reader) {
+	t.Helper()
+	attemptEntropies.Store(repo.StateDir, r)
+	t.Cleanup(func() { attemptEntropies.Delete(repo.StateDir) })
+}
+
 // writerOracle reruns write with the writer checkpoint removed, so the
 // complete route alone decides it, then puts the checkpoint back.
 func writerOracle(t *testing.T, repo *intent.Repository, write func(context.Context) (*Report, error)) writerRun {
@@ -667,6 +676,7 @@ func retainedRequestSeq(t *testing.T, repo *intent.Repository, id string) uint64
 // lies beyond MaxWriterTail receipts before it, is declined to the complete
 // route, which decides it as it does with no checkpoint.
 func TestCALV0190_WriterRouteServesReplaysAndRefusals(t *testing.T) {
+	t.Parallel()
 	repo := writerStore(t, 70)
 	holdLeasePolicy(t, repo)
 	root := filepath.Join(filepath.Dir(repo.PrimaryWorktree), "worktree")
@@ -816,6 +826,7 @@ func TestCALV0190_WriterReplayBeyondBoundDeclines(t *testing.T) {
 // clock callback is not reachable here: this route samples the clock under
 // the lock.)
 func TestCALV0116_WriterRouteTamperAtFastStages(t *testing.T) {
+	t.Parallel()
 	repo := writerStore(t, 70)
 	holdLeasePolicy(t, repo)
 	root := filepath.Join(filepath.Dir(repo.PrimaryWorktree), "worktree")
@@ -909,6 +920,7 @@ func TestCALV0116_WriterRouteTamperAtFastStages(t *testing.T) {
 // that keeps the ticket file's inode, size and modification time publishes
 // nothing on the fast route and is decided by the complete route.
 func TestCALV0189_FastWriteRechecksIntentContent(t *testing.T) {
+	t.Parallel()
 	repo := writerStore(t, 70)
 	holdLeasePolicy(t, repo)
 	root := filepath.Join(filepath.Dir(repo.PrimaryWorktree), "worktree")
@@ -991,6 +1003,7 @@ func TestCALV0189_FastWriteRechecksIntentContent(t *testing.T) {
 // the intent tree unchanged declines the route, publishes nothing and is
 // decided by the complete route exactly as with no checkpoint.
 func TestCALV0116_FastWriteRechecksIntentBranch(t *testing.T) {
+	t.Parallel()
 	repo := writerStore(t, 70)
 	holdLeasePolicy(t, repo)
 	if run := writerMutate(t, repo, "branch-reseed", nil); !run.completed() || readWriterCheckpoint(repo) == nil {

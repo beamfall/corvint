@@ -9,10 +9,12 @@ import (
 	"github.com/Beamfall/corvint/internal/groupreap"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"io"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,7 +27,38 @@ func poolRunnerIdentity(pid int) (string, error) {
 	defer cancel()
 	return poolRunnerIdentityContext(ctx, pid)
 }
+
+// poolNativeIdentity reads a process start identity from the kernel without
+// listing processes; tests replace it to reach the listing.
+var poolNativeIdentity = supervisor.ProcessIdentity
+
+// poolRunnerIdentityContext answers from Darwin's kern.proc.pid when the
+// kernel read succeeds, so a loaded host's slow process listing cannot fail a
+// pool preparation (PSR-V0-201, V1-1008). A failed kernel read, and every
+// other host, keeps the bounded listing.
 func poolRunnerIdentityContext(ctx context.Context, pid int) (string, error) {
+	if runtime.GOOS == "darwin" {
+		if identity, e := poolNativeIdentity(pid); e == nil {
+			return identity, nil
+		}
+	}
+	return poolListedIdentity(ctx, pid)
+}
+
+// poolRecordedIdentity re-reads pid's identity with the reader that produced
+// recorded, so a listed identity (an earlier binary's, or one recorded after
+// a failed kernel read) is never compared with a kernel identity, or the
+// reverse, and a live runner never looks gone (PSR-V0-201).
+func poolRecordedIdentity(pid int, recorded string) (string, error) {
+	if runtime.GOOS == "darwin" && strings.HasPrefix(recorded, "darwin:") {
+		return poolNativeIdentity(pid)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	return poolListedIdentity(ctx, pid)
+}
+
+func poolListedIdentity(ctx context.Context, pid int) (string, error) {
 	raw, e := poolProbe(ctx, "/bin/ps", "-p", strconv.Itoa(pid), "-o", "lstart=")
 	if exit, ok := e.(*exec.ExitError); ok && exit.ExitCode() == 1 {
 		return "", nil

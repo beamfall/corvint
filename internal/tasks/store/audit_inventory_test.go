@@ -71,6 +71,7 @@ func auditInventoryObservation(t *testing.T, repo *intent.Repository) (*authorit
 }
 
 func TestCALV0026_AuditInventoryParityAndFallback(t *testing.T) {
+	t.Parallel()
 	t.Run("populated-5000-and-unread-evidence", func(t *testing.T) {
 		repo := cachedLeaseRepo(t)
 		fr := &fixture.Repo{Root: repo.PrimaryWorktree, CommonDir: repo.CommonDir, StateDir: repo.StateDir, IntentDir: filepath.Join(repo.PrimaryWorktree, intent.Dir)}

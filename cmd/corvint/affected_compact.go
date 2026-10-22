@@ -48,6 +48,8 @@ type affectedCompactPlan struct {
 	Excluded    affectedExcludedSummary    `json:"excluded"`
 	Unknown     []affected.Unknown         `json:"unknown"`
 	NonSource   []affected.NonSource       `json:"nonSource,omitempty"`
+	// FrontierSites is the plan's repository frontier site count (AFP-V0-381).
+	FrontierSites map[string]int `json:"frontierSites,omitempty"`
 }
 
 // affectedCompactAdvice is the affected-plan/0 advice except that the
@@ -124,13 +126,14 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 		Mutates:  full.Mutates,
 		OK:       full.OK,
 		Plan: affectedCompactPlan{
-			GraphDigest: full.Plan.GraphDigest,
-			Dirty:       full.Plan.Dirty,
-			Scope:       full.Plan.Scope,
-			Selected:    selected,
-			Excluded:    excluded,
-			Unknown:     full.Plan.Unknown,
-			NonSource:   full.Plan.NonSource,
+			GraphDigest:   full.Plan.GraphDigest,
+			Dirty:         full.Plan.Dirty,
+			Scope:         full.Plan.Scope,
+			Selected:      selected,
+			Excluded:      excluded,
+			Unknown:       full.Plan.Unknown,
+			NonSource:     full.Plan.NonSource,
+			FrontierSites: full.Plan.FrontierSites,
 		},
 		Profile:  affectedCompactProfile,
 		Provider: full.Provider,

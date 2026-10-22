@@ -23,6 +23,7 @@ import (
 // write's complete-route fallback, which read history by contract, are out of
 // scope. It never asserts a duration.
 func TestCALV0232_LivenessWritesNeverReadHistory(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS == "windows" {
 		t.Skip("a cleared mode does not deny reads on windows")
 	}

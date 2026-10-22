@@ -42,6 +42,7 @@ func sharedLeaseStore(t *testing.T, shared []string) *leaseStore {
 // for a claim as well as a widen, while a hand-authored spec path or the
 // uncovered docs/specs/ directory key still collides (V1-2119).
 func TestNTPV0026_SharedSpecIndexDoesNotCollide(t *testing.T) {
+	t.Parallel()
 	parkedScope := []string{"docs/specs/INDEX.json", "docs/specs/README.md", "docs/specs/REQUIREMENTS.tsv", "docs/specs/a-v0.md"}
 	widenOf := func(c *store.Report, scope ...string) transaction.LeaseRequest {
 		return transaction.LeaseRequest{Verb: transaction.LeaseWiden, AttemptID: c.AttemptID, Generation: c.Generation, Scope: scope}

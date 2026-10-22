@@ -189,3 +189,28 @@ func TestCTSV0017_ImportRefusesMapIdentityConflicts(t *testing.T) {
 		})
 	}
 }
+
+// TestCTSV0018_ImportPlanNamesEveryMapConflict: import checks its whole plan
+// against the import map before the first write, refusing DUPLICATE_ID with
+// every conflicting source item named and the store digest unchanged; the
+// per-batch check alone stopped at the first conflict (CTS-V0-018, V1-2401).
+func TestCTSV0018_ImportPlanNamesEveryMapConflict(t *testing.T) {
+	t.Parallel()
+	repo := mappedStore(t, "ROADMAP", importMapBytes(fixture.QueueID,
+		[3]string{"queue:beamfall:main", "BF-1", "OLD-1"},
+		[3]string{"queue:other:main", "X-9", "BF-3"}))
+	before := storeDigest(t, repo)
+	export := importExport(importItem("BF-1", "one\n", nil), importItem("BF-2", "two\n", nil), importItem("BF-3", "three\n", nil))
+	report, err := store.Import(context.Background(), repo, operator(), fixture.QueueID, export, now(t))
+	if wire.CodeOf(err) != wire.CodeDuplicateID {
+		t.Fatalf("code %q, want %q (%+v %v)", wire.CodeOf(err), wire.CodeDuplicateID, report, err)
+	}
+	for _, want := range []string{"2 import-map conflicts", "source item BF-1 of queue:beamfall:main", "source item BF-3 of queue:beamfall:main"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("refusal %q does not name %q", err, want)
+		}
+	}
+	if len(report.Batches) != 0 || storeDigest(t, repo) != before {
+		t.Fatalf("a conflicting plan wrote: %+v", report)
+	}
+}

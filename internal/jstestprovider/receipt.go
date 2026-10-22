@@ -123,6 +123,9 @@ type SensitiveInputPolicy struct {
 type InfrastructureFailure struct {
 	Reason string `json:"reason"`
 	Detail string `json:"detail"`
+	// Location is the reported file and line of a `/3` run-level error (PWP-V3-009); absent
+	// everywhere else.
+	Location *Anchor `json:"location,omitempty"`
 }
 
 // Identity is every binding fact a receipt commits to before evidence

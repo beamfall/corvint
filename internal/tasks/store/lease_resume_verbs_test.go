@@ -19,6 +19,7 @@ import (
 // later clock so receipts stay in order. Rewritten-prefix detection on the
 // resumed route is TestPSRV0053_ResumeKeepsRewrittenPrefixDetection.
 func TestPSRV0052_ReapResumesUnderWriter(t *testing.T) {
+	t.Parallel()
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}
@@ -60,6 +61,7 @@ func TestPSRV0052_ReapResumesUnderWriter(t *testing.T) {
 // its own audit (PSR-V0-052) and completes with one audit, so no
 // SNAPSHOT_MOVED escapes.
 func TestPSRV0052_PoolReleaseResumesUnderWriter(t *testing.T) {
+	t.Parallel()
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}

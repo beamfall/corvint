@@ -12,6 +12,8 @@ set -eu
 # Definition grammar (RDG-V0-004): after optional leading whitespace, an optional `-`/`*`
 # bullet and optional `**`, the ID (backticks balanced) is followed by `:` or by a single `.`.
 # A `..` is a prose range such as `AMAP-V0-024..026 are`, never a definition.
+# An unbulleted line that directly follows a non-blank, non-heading line outside a fence is a
+# wrapped continuation, so an id starting it is a citation, never a definition (RDG-V0-023).
 #
 # Outside-section ratchet (RDG-V0-021): the OCM intent reader enumerates only the one
 # `## Requirements` section, so an OCM-form definition (- `ID`: , - **ID:** , - **ID.** )
@@ -111,8 +113,13 @@ for my $file (tracked_spec_docs()) {
     # by nothing but spaces or tabs, closes it.
     my ($fence, $in_section, $sections) = ('', 0, 0);
     my @outside;
+    my $continues = 0;
     for my $line (index_lines($file)) {
         ++$line_number;
+        # RDG-V0-023: an unbulleted line that directly follows a non-blank, non-heading line
+        # outside a fence continues that paragraph or list item, so an id that starts it (a
+        # wrapped citation such as `ID`. ending a sentence) is never a definition.
+        my $wrapped = $continues && $line !~ /^\s*[-*]\s/;
         my ($run, $rest) = $line =~ /^ {0,3}(`{3,}|~{3,})(.*?)\r?\n?\z/ ? ($1, $2) : ('', '');
         if ($fence ne '') {
             $fence = '' if $run ne '' && substr($run, 0, 1) eq substr($fence, 0, 1)
@@ -127,6 +134,7 @@ for my $file (tracked_spec_docs()) {
             && $line =~ /^- (?:`([A-Z][A-Z0-9-]*-[0-9]{3})`: |\*\*([A-Z][A-Z0-9-]*-[0-9]{3})[:.]\*\* )/) {
             push @outside, "$file " . ($1 // $2);
         }
+        $continues = $fence eq '' && $run eq '' && $line =~ /\S/ && $line !~ /^ {0,3}#/;
         # RDG-V0-022: a definition-shaped line with a parenthetical between the id and its colon,
         # such as - `ID` (V1-x): text, is no definition under the grammar above, so an id with no
         # other definition would silently fall back to a table row or vanish. It fails, naming the
@@ -138,6 +146,7 @@ for my $file (tracked_spec_docs()) {
         # backtick matched while the closing one did not, so a prose range like
         # `PUB-V0-011..015`. read as a second definition of PUB-V0-011. The
         # backreference makes the closing backtick required exactly when one opened.
+        next if $wrapped;
         next unless $line =~ /^\s*(?:[-*]\s+)?(?:\*\*)?(`?)([A-Z][A-Z0-9-]*-[0-9]{3})\1(?:\*\*)?(?:\s*:|\.(?!\.))/;
         push @{ $defined{$2} }, "$file:$line_number";
     }

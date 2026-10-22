@@ -110,7 +110,7 @@ func TestProposeCitationsDCWV0161DraftsAnchoredRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	warnings := belowAnchoredWarnings(line)
+	warnings := belowAnchoredWarnings(line, nil)
 	if len(warnings) != 1 || !strings.Contains(warnings[0], `path="internal/x/plain.go"`) || !strings.Contains(warnings[0], "rule=CEM-V1-081") {
 		t.Errorf("tier warnings = %q; want one, for the fallback row", warnings)
 	}

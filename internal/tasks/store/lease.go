@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
@@ -333,9 +334,20 @@ func leaseInput(proof *journal.Result, attempts [][]byte, facts claimObserver, i
 // routes byte for byte replace it with a fixed source.
 var attemptEntropy io.Reader = rand.Reader
 
-func mintAttemptID(queueID string) (string, error) {
+// attemptEntropies holds, per store state directory, the fixed source a
+// package test set for that store's attempt IDs. Keying by store lets tests
+// over different stores run in parallel (V1-0961); it is empty in production.
+var attemptEntropies sync.Map // state directory -> io.Reader
+
+func mintAttemptID(repo *intent.Repository, queueID string) (string, error) {
+	source := attemptEntropy
+	if repo != nil {
+		if r, ok := attemptEntropies.Load(repo.StateDir); ok {
+			source = r.(io.Reader)
+		}
+	}
 	var b [16]byte
-	if _, err := io.ReadFull(attemptEntropy, b[:]); err != nil {
+	if _, err := io.ReadFull(source, b[:]); err != nil {
 		return "", err
 	}
 	return "attempt:" + strings.TrimPrefix(queueID, "queue:") + ":" + hex.EncodeToString(b[:]), nil
@@ -389,7 +401,7 @@ func claimFactsWith(ctx context.Context, repo *intent.Repository, choice LeaseCh
 		if rev == "" {
 			rev = "HEAD"
 		}
-		id, err := mintAttemptID(choice.QueueID)
+		id, err := mintAttemptID(repo, choice.QueueID)
 		if err != nil {
 			return transaction.LeaseFacts{}, err
 		}

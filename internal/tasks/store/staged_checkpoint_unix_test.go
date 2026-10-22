@@ -183,6 +183,7 @@ func stagedLeft(t *testing.T, repo *intent.Repository) []string {
 // some other writer replaced retains nothing. A stale staged temporary from
 // a stopped process is swept; a fresh one is left to its owner.
 func TestJSGV0015_StagedWriterCheckpointNeedsItsToken(t *testing.T) {
+	t.Parallel()
 	repo := writerStore(t, historyTickets+8)
 	// A complete audit derives a base-free checkpoint, so its base is fresh.
 	head, err := readHead(repo)
