@@ -3857,7 +3857,7 @@
     "path": "docs/specs/corvint-tasks-journal-segments-v0.md",
     "title": "Corvint Tasks journal segments V0",
     "reqPrefix": "JSG-V0",
-    "intent": "JSG-V0-001..014 accepted by the orchestrator under decision 0548's delegation and the owner's standing auto-accept (2026-10-11) (decision 0549; V1-0887, V1-1512)",
+    "intent": "JSG-V0-001..014 accepted by the orchestrator under decision 0548's delegation and the owner's standing auto-accept (2026-10-11) (decision 0549; V1-0887, V1-1512); JSG-V0-015 accepted under the same standing auto-accept (V1-0850)",
     "delivery": "experimental",
     "claim": "Lease writes stop reading intent and whole history: the journal seals 512-receipt segments, so each write is bounded by the active segment.",
     "dependsOn": [],

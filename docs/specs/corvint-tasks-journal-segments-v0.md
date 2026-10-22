@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-20
-Intent status: JSG-V0-001..014 accepted by the orchestrator under decision 0548's delegation and the owner's standing auto-accept (2026-10-11) (decision 0549; V1-0887, V1-1512)
+Intent status: JSG-V0-001..014 accepted by the orchestrator under decision 0548's delegation and the owner's standing auto-accept (2026-10-11) (decision 0549; V1-0887, V1-1512); JSG-V0-015 accepted under the same standing auto-accept (V1-0850)
 Delivery status: experimental
 Authoritative inputs: decision 0549 (`docs/decisions/0549-tasks-lease-write-performance-design-2026-10-20.md`),
 which records the measurements, targets T1 to T3 and forks F1 to F3; the owner's 2026-10-20 ruling
@@ -15,7 +15,7 @@ contract is at its obligation bound, so this domain spec holds the new requireme
 
 ## Agent digest
 - Claim: Lease writes stop reading intent and whole history: the journal seals 512-receipt segments, so each write is bounded by the active segment.
-- Status: JSG-V0-001..014 accepted by the orchestrator under decision 0548's delegation and the owner's standing auto-accept (2026-10-11) (decision 0549; V1-0887, V1-1512) / experimental; slices S1 to S7 land in order on the tasks-perf lane.
+- Status: JSG-V0-001..014 accepted by the orchestrator under decision 0548's delegation and the owner's standing auto-accept (2026-10-11) (decision 0549; V1-0887, V1-1512); JSG-V0-015 accepted under the same standing auto-accept (V1-0850) / experimental; slices S1 to S7 land in order on the tasks-perf lane.
 - Exists: the decision 0549 profile and spike; the CAL-V0-224 interim probe that JSG-V0-007 retires.
 - Blocked on: nothing; the format gate (Acceptance evidence) must pass before INIT creates a segmented store by default.
 - Read next: Requirements; Failure modes; Compatibility and rollback; Traceability.
@@ -58,6 +58,7 @@ is added (invariant 7): every seal runs in the writer whose commit makes it due.
 - `JSG-V0-012`: (accepted; decision 0549 R12) The complete route and `receipt audit` read each bound segment once, check its digest against the manifest, and validate every framed receipt and request with the existing validators in sequence order, exactly as if the files were in `receipts/` and `requests/`. Every tamper the unsegmented audit detects is detected; a sealed byte change also fails the segment digest. `receipt audit` is never shortened. Archive export, archive verify, liveness compaction and the doctor journal counts read through the same segment view.
 - `JSG-V0-013`: (accepted; decision 0549 R13, amended 2026-10-21 in slice S4) `corvint-tasks journal seal` and `corvint-tasks journal unseal` are operator-invoked, run under the writer lock after a complete settled audit, and refuse with nothing written on any fault. `seal` converts an unsegmented store to the segmented format and seals 512-receipt ranges while 1,024 receipts remain after S, the writer's JSG-V0-008 trigger, so at least 512 stay active; a store below the trigger is left unsegmented. `unseal` restores the exact receipt and request files and a `taskman-journal-head/0` head without segment fields; the tree it restores is byte-identical to the pre-seal tree. Unseal reverses one segment at a time as a staged transaction with the JSG-V0-008 marker, the prior and next heads swapped, so a stopped unseal settles like a stopped seal. The archive of a segmented store is byte-identical to the archive of the same store unsegmented. A binary that predates this format refuses a segmented store through its closed `head.json` decode (a newer profile) and never reads a partial history. Once the format gate passes, INIT creates a segmented store. `receipt retire` and `receipt unretire` refuse on a store with sealed segments (unseal first). A store with a retired prefix stays unsegmented: `journal seal` and `journal unseal` refuse it as UNSUPPORTED, and sealing from the anchor is deferred.
 - `JSG-V0-014`: (accepted; decision 0549 R14) Maintained tests assert counts, not durations, at two history sizes and two ticket counts: no intent or ticket read on a liveness write; at most k capacity measurements for k changed entries; the gated recheck's stat count bounded by segments plus active files; the complete audit's open count bounded by segments plus active receipts plus active requests. Durations are measured only by benchmarks B1 to B3.
+- `JSG-V0-015`: (accepted under the owner's standing auto-accept, 2026-10-11; V1-0850) A complete-route lease commit derives, encodes and writes the read checkpoint and a fresh writer-checkpoint base to private temporaries beside their destinations before it takes the writer lock. Under the lock, once the head digest is the audited one, it only renames them into place and writes the bounded writer delta, so no checkpoint byte that grows with the store is encoded or written while the lock is held. A staged base is published only when the commit retains under the invalidation token it was encoded with and the lock holder still reads that token; when the commit's complete audit replaced the token it encodes under the lock as before, and when another writer replaced it nothing is retained. A temporary that cannot be written or renamed skips retention, which is derived state, and never fails the write. A later stager removes temporaries older than ten minutes; a younger one is left to its owner. Both checkpoints keep their formats and their read-time verification (CAL-V0-115, JSG-V0-003, JSG-V0-004).
 
 ## Non-goals
 
@@ -84,6 +85,8 @@ is added (invariant 7): every seal runs in the writer whose commit makes it due.
 - A filesystem without change times keeps the listing route for every verb, as today; those hosts
   are outside the targets.
 - A migration on a store with a fault refuses and leaves the store unchanged (JSG-V0-013).
+- A lease commit stopped between staging and publishing leaves a private temporary beside the
+  checkpoint; the next stager removes it after ten minutes, and readers never open it (JSG-V0-015).
 
 ## Acceptance evidence
 
@@ -137,3 +140,4 @@ revert by commit.
 | JSG-V0-012 | S3: the audit rows of JSG-V0-005 to JSG-V0-007; S4: `TestJSGV0013_JournalSealAndUnseal` (sealed archive equals the unsegmented archive), `TestJSGV0012_CompactionOnASealedStore`, `TestJSGV0012_ArchiveExportRefusesADamagedSegment` |
 | JSG-V0-013 | S4: `TestJSGV0013_JournalSealAndUnseal`, `TestJSGV0013_MigrationRefusesAFault`, `TestJSGV0013_UnsealStopsSettle` (stop after each of four stages), `TestJSGV0013_SegmentedStoreRefusesRetireAndUnretire`, `TestJSGV0013_RetiredStoreRefusesJournalMigration`, `TestJSGV0013_JournalSealVerbs` (cli) |
 | JSG-V0-014 | S1 (no intent read at 70 and 210 tickets, 0 and 30 prior heartbeats): `TestJSGV0001_LivenessReadsNoIntentRecords`; S2 (one capacity measurement count at two history and two inventory sizes): `TestJSGV0003_SummarizedCapacityMeasuresOnlyChangedEntries`; slices S4 to S7 pending |
+| JSG-V0-015 | `TestJSGV0015_LeaseCommitStagesCheckpointsOutsideWriterLock` (store, 40 and 400 tickets: zero read-checkpoint and base bytes written under the writer lock, locked delta within 32 bytes across sizes, staged bytes grow 8x, published checkpoint resumes to the complete audit's head, intent tree, sequence and agreement, no temporaries left); `TestJSGV0015_StagedWriterCheckpointNeedsItsToken` (replaced token retains nothing, commit-replaced token falls back, matching token publishes, stale temporary swept and fresh one kept); measurements in `docs/build-log/2026-10-21-storeperf-1021u-lease-commit-staged-checkpoint.md` |
