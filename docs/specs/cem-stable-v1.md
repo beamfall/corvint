@@ -140,6 +140,51 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   map `ordinal`. The Markdown report renders a `Citation tiers` line and, per row, the tier, the
   anchors (or `none`), `self-only citation`, and `path bytes start-end` (or `bytes NOT_LOCATED`).
 
+- `CEM-V1-369`: (accepted by the owner in chat on 2026-10-21, decision 0551; V1-2327) The structural
+  predicates MUST be qualified once, on the qualified tuple `go1.27.1`, by the structural corpus
+  sealed under `protocol/cem-1.0/structural-corpus/`:
+  - `CORPUS.json` names the corpus: every tracked `.go` file of the Corvint tree at one pinned
+    commit and its `internal/cem/verify/testdata/structural` fixtures, by path-list digest and
+    count, plus the committed version-sensitive `cases/`. It also names the five derived perturbation kinds (`formatter-only`, `import-reorder`, `move`,
+    `rename`, `partial-rename`) and the rule that a `*.crlf.go.txt` case is observed with every LF
+    widened to CRLF.
+  - `CASES.observations.jsonl` holds the portable consumer's observations of `cases/` on
+    `go1.27.1`: per file the source, scanner, parser, printer and formatter digests and format
+    idempotence, and per pair its image segments and the four predicates' verdicts in both
+    directions.
+  - `QUALIFICATION.json` records, per host and toolchain, the observation digest of both sets, the
+    native/portable parity result, the parser-closure digests and what was not run.
+  - `manifest.json` binds every file by SHA-256.
+
+  Qualification holds only when the portable observations of both sets on `go1.27.1` are
+  byte-identical on darwin/arm64 and linux/arm64, and the native verifier reaches the portable
+  verdicts on every recorded pair on each host where it ran. `TestStructuralCorpusCases`
+  (portable) and `TestStructuralCorpusCasesParity` (native) MUST re-check the committed cases on
+  every admitted tuple. A rejected pair is an observation, not a failure; parity and host identity
+  are what qualify. A `go1.24.13` run is recorded as the comparison that a release with another
+  closure is detected; it is not admitted. Windows stays NOT_RUN until a Windows host runs the
+  corpus. Rollback: revert the packet and `CEM-V1-371`; the label returns to
+  `EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS`.
+- `CEM-V1-370`: (accepted by the owner in chat on 2026-10-21, decision 0551; V1-2327) A Go release
+  MAY join `structuralTuples` without a corpus run only when its parser-closure digest
+  (`tools/cem-structural-closure`, profile `cem-structural-parser-closure/1`) equals the qualified
+  tuple's. The closure is the union of `go list -deps` over `go/ast`, `go/format`, `go/parser`,
+  `go/printer`, `go/scanner` and `go/token` for darwin/arm64, linux/amd64, linux/arm64 and
+  windows/amd64, minus the runtime, scheduler, system-call, file-system and GODEBUG packages the
+  tool lists. Their behaviour is outside what the predicates observe, so a difference there is not a
+  qualification input. The digest covers every regular non-test file directly in each remaining
+  package directory. The release's tuple packet MUST record the digest, and
+  `TestRunningToolchainClosure` MUST fail when an admitted toolchain's live closure, or any tuple
+  packet, differs from the qualified digest. A release with any other digest MUST requalify on the
+  full corpus first. Rollback removes the release from both lists and its packet.
+- `CEM-V1-371`: (accepted by the owner in chat on 2026-10-21, decision 0551; V1-2327) Both stable
+  verifiers MUST set `runtime.structuralQualification` to `QUALIFIED_EXACT_TUPLE` on an admitted
+  tuple and keep `UNSUPPORTED` and `NOT_REQUIRED` unchanged. Every `expectedResult.runtime` of the
+  frozen packet and its envelope cells MUST be re-emitted through `make cem-stable-regen-replace`
+  (`CEM-V1-091`), keeping `goVersion` `go1.27.1`. The frozen `cancelledContextExpectedResult`
+  snapshot of the cancel-before-content cell is not a regenerated value and keeps the old label;
+  no consumer reads it. Rollback is a Git revert of the re-emission and the three emission sites.
+
 ## Non-goals and failure modes
 
 No daemon, network account, broad language rewrite or new specification language is required. Tests remain trusted local executable code; the optional executor does not provide an operating-system sandbox. A declared executable directory does not attest every dependency in that directory. Missing browsers, simulator/device/app identities, unavailable frameworks, unsupported custom harnesses, stale claims and absent independent consumers are retained failure modes, not passes.
@@ -417,50 +462,6 @@ every frozen S0E expectation, so it cannot land by hand edits to sealed case fil
   value is refused before any write. (Amended by V1-2327 under decision 0551: the capture runs on
   an admitted tuple, while every substitution starts from the frozen `go1.27.1`.)
   Rollback is a Git revert of the regenerated files and the consumer change.
-- `CEM-V1-369`: (accepted by the owner in chat on 2026-10-21, decision 0551; V1-2327) The structural
-  predicates MUST be qualified once, on the qualified tuple `go1.27.1`, by the structural corpus
-  sealed under `protocol/cem-1.0/structural-corpus/`:
-  - `CORPUS.json` names the corpus: every tracked `.go` file of the Corvint tree at one pinned
-    commit and its `internal/cem/verify/testdata/structural` fixtures, by path-list digest and count, plus the committed version-sensitive `cases/`. It also
-    names the five derived perturbation kinds (`formatter-only`, `import-reorder`, `move`,
-    `rename`, `partial-rename`) and the rule that a `*.crlf.go.txt` case is observed with every LF
-    widened to CRLF.
-  - `CASES.observations.jsonl` holds the portable consumer's observations of `cases/` on
-    `go1.27.1`: per file the source, scanner, parser, printer and formatter digests and format
-    idempotence, and per pair its image segments and the four predicates' verdicts in both
-    directions.
-  - `QUALIFICATION.json` records, per host and toolchain, the observation digest of both sets, the
-    native/portable parity result, the parser-closure digests and what was not run.
-  - `manifest.json` binds every file by SHA-256.
-
-  Qualification holds only when the portable observations of both sets on `go1.27.1` are
-  byte-identical on darwin/arm64 and linux/arm64, and the native verifier reaches the portable
-  verdicts on every recorded pair on each host where it ran. `TestStructuralCorpusCases`
-  (portable) and `TestStructuralCorpusCasesParity` (native) MUST re-check the committed cases on
-  every admitted tuple. A rejected pair is an observation, not a failure; parity and host identity
-  are what qualify. A `go1.24.13` run is recorded as the comparison that a release with another
-  closure is detected; it is not admitted. Windows stays NOT_RUN until a Windows host runs the
-  corpus. Rollback: revert the packet and `CEM-V1-371`; the label returns to
-  `EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS`.
-- `CEM-V1-370`: (accepted by the owner in chat on 2026-10-21, decision 0551; V1-2327) A Go release
-  MAY join `structuralTuples` without a corpus run only when its parser-closure digest
-  (`tools/cem-structural-closure`, profile `cem-structural-parser-closure/1`) equals the qualified
-  tuple's. The closure is the union of `go list -deps` over `go/ast`, `go/format`, `go/parser`,
-  `go/printer`, `go/scanner` and `go/token` for darwin/arm64, linux/amd64, linux/arm64 and
-  windows/amd64, minus the runtime, scheduler, system-call, file-system and GODEBUG packages the
-  tool lists. Their behaviour is outside what the predicates observe, so a difference there is not a
-  qualification input. The digest covers every regular non-test file directly in each remaining
-  package directory. The release's tuple packet MUST record the digest, and
-  `TestRunningToolchainClosure` MUST fail when an admitted toolchain's live closure, or any tuple
-  packet, differs from the qualified digest. A release with any other digest MUST requalify on the
-  full corpus first. Rollback removes the release from both lists and its packet.
-- `CEM-V1-371`: (accepted by the owner in chat on 2026-10-21, decision 0551; V1-2327) Both stable
-  verifiers MUST set `runtime.structuralQualification` to `QUALIFIED_EXACT_TUPLE` on an admitted
-  tuple and keep `UNSUPPORTED` and `NOT_REQUIRED` unchanged. Every `expectedResult.runtime` of the
-  frozen packet and its envelope cells MUST be re-emitted through `make cem-stable-regen-replace`
-  (`CEM-V1-091`), keeping `goVersion` `go1.27.1`. The frozen `cancelledContextExpectedResult`
-  snapshot of the cancel-before-content cell is not a regenerated value and keeps the old label;
-  no consumer reads it. Rollback is a Git revert of the re-emission and the three emission sites.
 
 ## Consumer-computed support tiers (V1-1262, decision 0523 P0)
 
