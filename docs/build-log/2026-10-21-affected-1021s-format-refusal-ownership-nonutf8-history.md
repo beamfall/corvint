@@ -29,6 +29,10 @@
   No existing `history_digest` moves, because every repository affected refused before. The Python
   oracle is retired (decision 0088), so no divergence-register entry is opened.
 
+- The `eval_query.go` and `history.go` edits are analyzer inputs (IDX-SNAP-V0-017), so the schema
+  moves to `corvint-analyzer/141` through `script/analyzer-schema.sh bump` (140 is reserved for
+  V1-2285; the orchestrator renumbers at batch time). Index extraction and encoding are unchanged.
+
 ## Evidence
 
 - `TestAFPV0201AffectedFormatIsRefusedWithAcceptedOptions` (`cmd/corvint`), FAILS without the change.
