@@ -847,15 +847,25 @@ as before. This change delivers that subset; the residuals below stay open under
   before its first run; a replay still returns its own receipt through PSR-V0-164's read of the
   observation transaction's posted pools.json. Readers keep accepting the earlier 1,280-receipt
   bound, so an older pools.json stays readable and its next operation write trims it.
-- `PSR-V0-202`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2361) A
-  `pool recover` reason, the only operator text a pools.json entry reason carries, MUST be 1..512
-  bytes of prose; a longer one is refused `LIMIT_EXCEEDED` by the lease codec before anything is
-  planned or written (other pool verbs keep their 4,096-byte bound). Every entry reason a writer
-  composes is then at most about 600 bytes, so 256 entries at that length plus the PSR-V0-196
-  receipt cap stay under the 1 MiB pools.json bound (measured 730,154 bytes at maximum identifier
-  lengths), and a full-size pool still accepts recovery, acquire and release. Readers keep
-  accepting the earlier 4,096-byte entry reason so an older pools.json stays readable. Rollback:
-  restore the 4,096-byte recover bound; recorded reasons are not rewritten.
+- `PSR-V0-202`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2361) A fresh
+  `pool recover` reason, the only operator text a pools.json entry reason carries, MUST be 1..224
+  bytes of prose; a longer one is refused `LIMIT_EXCEEDED` when the recover is planned, before
+  anything is written. The bound is a fresh-admission check only: the lease request digest keeps
+  the 4,096-byte prose bound shared with `pool confirm-safe`, so a recover recorded earlier with a
+  longer reason still digests and replays its recorded outcome under its original request ID.
+  The cap is derived from the worst case it covers: 256 entries, each with a maximum-length
+  `configRef`, a source pair and maximum-length identifiers, one of them a CLEANING retarget;
+  256 REPORTED identities with a source; and 512 operation receipts encode to 907,069 bytes with
+  every reason empty. Each entry may then add the 68-byte fixed prefix plus the reason, which JSON
+  escaping at most doubles (prose admits `"`, `\`, TAB, LF and CR, each escaped to two bytes),
+  allowing at most 242 bytes; 224 keeps a margin for 20-digit sequences. At the cap, with every
+  reason all-escaping, that state measures 1,038,649 bytes and the recovery still writes. Limit:
+  the derivation assumes identifiers that need no JSON escape, one running entry, no sweep owner,
+  and empty `slots` and `waiters`. Identifiers made of escaping characters, sweep owners on
+  every entry, or a large slot or waiter list can still exceed 1 MiB with every reason empty, and
+  such a write stays refused `LIMIT_EXCEEDED` (a residual a reason bound cannot remove). Readers
+  keep accepting the earlier 4,096-byte entry reason so an older pools.json stays readable.
+  Rollback: drop the planning check; recorded reasons are not rewritten.
 
 Failure modes:
 - A runner that dies after the pending entry commits leaves the member PREPARING or CLEANING until
@@ -863,9 +873,9 @@ Failure modes:
 - A failed `provision` or `refresh` from FREE quarantines the member; recovery is the existing
   cleanup and confirm-safe, or a `reset`, `retarget` or `refresh` from QUARANTINED followed by them.
 - pools.json stays bounded at 1 MiB: operation receipts are retained newest-first up to 512
-  (PSR-V0-196) and recover reasons to 512 bytes (PSR-V0-202), so neither receipts nor entry
-  reasons can fill it; a write still past the bound is refused `LIMIT_EXCEEDED` rather than
-  truncated.
+  (PSR-V0-196) and fresh recover reasons to 224 bytes (PSR-V0-202), so neither receipts nor
+  entry reasons can fill it within PSR-V0-202's derivation; a write still past the bound is
+  refused `LIMIT_EXCEEDED` rather than truncated.
 - On a non-Unix host the runner reports `UNKNOWN`, which quarantines.
 
 Non-goals: no operation by the holder of an ALLOCATED allocation, no automatic return to FREE
@@ -1115,7 +1125,7 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-166 | `TestPSRV0166_TimeoutKillsGroupOutputBounded` (`internal/tasks/store`) |
 | PSR-V0-167 | `TestPSRV0162_OperationCodec` (`internal/tasks/snapshot`); `TestPSRV0162_PoolOperateCLIAndStatus` (`internal/tasks/cli`) |
 | PSR-V0-196 | `TestPSRV0196_FullSizePoolReceiptsStayBounded` (`internal/tasks/transaction`) |
-| PSR-V0-202 | `TestPSRV0202_FullSizePoolLongestReasonsStayBounded`, `TestPSRV0202_OverlongRecoverReasonRefusedTyped` (`internal/tasks/transaction`) |
+| PSR-V0-202 | `TestPSRV0202_WorstCasePoolsStayBoundedAtReasonCap`, `TestPSRV0202_OverlongFreshRecoverRefusedTyped`, `TestPSRV0202_RecordedLongRecoverReasonReplays` (`internal/tasks/transaction`) |
 
 ## Traceability (PSR-V0-185)
 

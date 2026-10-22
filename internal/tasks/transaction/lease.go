@@ -390,11 +390,7 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 		return malformed("release reason is not a closed code")
 	}
 	if l.Verb == LeasePoolSafe || l.Verb == LeasePoolRecover {
-		max := 4096
-		if l.Verb == LeasePoolRecover {
-			max = MaxPoolRecoverReasonBytes
-		}
-		if _, e := wire.ParseProse("reason", l.Reason, 1, max); e != nil {
+		if _, e := wire.ParseProse("reason", l.Reason, 1, 4096); e != nil {
 			return e
 		}
 	}

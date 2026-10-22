@@ -7,139 +7,156 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
-	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// longestRecoverReason is the longest `pool recover` reason the lease codec
-// admits, found from the codec itself rather than a constant.
-func longestRecoverReason(t *testing.T, q wire.QueueID, member, allocation string) string {
-	t.Helper()
-	admits := func(n int) bool {
-		l := &LeaseRequest{Verb: LeasePoolRecover, Member: member, Allocation: allocation, Reason: strings.Repeat("r", n)}
-		_, err := leaseValue(l, q)
-		return err == nil
-	}
-	lo, hi := 1, 64*1024
-	if !admits(lo) || admits(hi) {
-		t.Fatalf("recover reason bound outside 1..%d", hi)
-	}
-	for hi-lo > 1 {
-		if mid := (lo + hi) / 2; admits(mid) {
-			lo = mid
-		} else {
-			hi = mid
-		}
-	}
-	return strings.Repeat("r", lo)
-}
-
-// PSR-V0-202 (V1-2361): every other member of a full-size pool is QUARANTINED
-// carrying the longest entry reason a recover can write, the pool holds a
-// receipt for every member and operation at maximum identifier lengths, and
-// one orphaned operation is recovered with the longest admitted reason. The
-// recovery, then a pooled claim of the last free member and its early
-// release, all still write a pools.json within MaxPoolStateBytes. Without
-// the reason bound a 4,096-byte recover reason made each entry over 4 KiB,
-// so this state is past 1 MiB and every pool write is refused.
-func TestPSRV0202_FullSizePoolLongestReasonsStayBounded(t *testing.T) {
-	label := func(prefix string, i, n int) string {
-		s := fmt.Sprintf("%s%03d", prefix, i)
-		return s + strings.Repeat("x", n-len(s))
-	}
-	members := make([]string, intent.MaxPoolMembers)
-	for i := range members {
-		members[i] = label("m", i, 64)
-	}
-	pool := label("p", 0, 64)
-	v := fixture.PolicyValue()
-	b, _ := v.Obj.Get("budgets")
-	b.Obj.Set("requireEnforcedFields", wire.Array())
-	v.Obj.Set("capacity", object("maxActiveAttempts", s("16"), "maxWorkersTotal", s("16"), "classes", wire.Array()))
-	v.Obj.Set("pools", wire.Array(object("id", s(pool), "members", wire.Strings(members))))
-	rec := priorityTicket("AA-02", "P1", pool)
-	f := newPriorityFixture(t, wire.EncodeFile(v), []*ticket.Record{rec})
-	id, out := wire.Sum([]byte("allocation")), wire.Sum(nil)
-	reason := longestRecoverReason(t, f.st.queue.QueueID, members[0], string(id))
-	// The longest prefix a recover writes: an orphaned operation with the
-	// longest operation name.
+// recoverPrefix is the longest fixed text a recover writes ahead of the
+// operator's reason: an orphaned operation with the longest operation name.
+func recoverPrefix() string {
 	longest := ""
 	for _, op := range intent.PoolOperations {
 		if len(op) > len(longest) {
 			longest = op
 		}
 	}
-	entryReason := "orphaned " + longest + " command; execution and physical cleanup unknown: " + reason
-	src := &intent.PoolSource{Revision: strings.Repeat("a", 64), Tree: strings.Repeat("b", 64)}
+	return "orphaned " + longest + " command; execution and physical cleanup unknown: "
+}
+
+// worstCasePools is a full-size pool state at the largest encoding the
+// PSR-V0-202 derivation covers: 256 entries, each with a maximum-length
+// configRef, a source pair, every digest and 19-digit sequences, entry 0 a
+// CLEANING member running a retarget with its source; 256 REPORTED identities
+// with a source; 512 operation receipts (a retarget with a source and a
+// provision per member, the longest failing class). Identifiers are at
+// their maximum length. Every QUARANTINED entry carries reason(member).
+func worstCasePools(t *testing.T, reason func(int) string) (*priorityFixture, []string, wire.Digest) {
+	t.Helper()
+	label := func(prefix string, i, n int) string {
+		s := fmt.Sprintf("%s%03d", prefix, i)
+		return s + strings.Repeat("x", n-len(s))
+	}
+	members := make([]string, intent.MaxPoolMembers)
+	for i := range members {
+		members[i] = label("m", i, wire.MaxLabelBytes)
+	}
+	pool := label("p", 0, wire.MaxLabelBytes)
+	v := fixture.PolicyValue()
+	b, _ := v.Obj.Get("budgets")
+	b.Obj.Set("requireEnforcedFields", wire.Array())
+	v.Obj.Set("capacity", object("maxActiveAttempts", s("16"), "maxWorkersTotal", s("16"), "classes", wire.Array()))
+	v.Obj.Set("pools", wire.Array(object("id", s(pool), "members", wire.Strings(members))))
+	f := newPriorityFixture(t, wire.EncodeFile(v), nil)
+	oid := strings.Repeat("a", 64)
+	src := &intent.PoolSource{Revision: oid, Tree: strings.Repeat("b", 64)}
+	id, out := wire.Sum([]byte("allocation")), wire.Sum(nil)
+	const top = 1<<63 - 1 // the fixture's int sequence bound: 19 digits
+	seqAt := func(n int) wire.Size { return wire.Size(fmt.Sprint(top - 4096 + n)) }
+	longest := strings.TrimSuffix(strings.TrimPrefix(recoverPrefix(), "orphaned "), " command; execution and physical cleanup unknown: ")
 	st := *f.st.pools
-	seq := 0
+	n := 0
 	for i, m := range members {
-		for _, op := range intent.PoolOperations {
-			seq++
-			r := snapshot.PoolOperationReceipt{PoolID: pool, MemberID: m, Operation: op, RequestID: label("r"+op, i, 128), AllocationID: id, Class: "EXIT_ZERO", Passed: true, OutputSha256: &out, ObservedSeq: wire.Size(fmt.Sprint(seq))}
+		for _, op := range []string{"provision", "retarget"} {
+			n++
+			r := snapshot.PoolOperationReceipt{PoolID: pool, MemberID: m, Operation: op, RequestID: label("r"+op, i, wire.MaxIdentifierBytes), AllocationID: id, Class: "SOURCE_CHANGED", OutputSha256: &out, ObservedSeq: seqAt(n)}
 			if op == "retarget" {
 				r.Source = src
 			}
 			st.Operations = append(st.Operations, r)
 		}
-	}
-	base := snapshot.PoolEntry{PoolAllocation: snapshot.PoolAllocation{PoolID: pool, AllocationID: id, DefinitionSha256: wire.Sum([]byte("definition")), AllocatedSeq: "1"}, Generation: "0", PolicySha256: wire.Sum([]byte("policy")), RequestSha256: wire.Sum([]byte("request")), RunnerPID: "0", ChangedSeq: "2"}
-	cleaning := base
-	cleaning.MemberID, cleaning.State, cleaning.Holder, cleaning.RunnerPID, cleaning.RunnerStarted = members[0], "CLEANING", "tester", "42", strings.Repeat("s", 128)
-	cleaning.CommandKind, cleaning.CommandRevision = longest, strings.Repeat("a", 40)
-	cleaning.Operation = &snapshot.PoolOperationPending{Name: longest, RequestID: label(longest, 0, 128)}
-	st.Entries = []snapshot.PoolEntry{cleaning}
-	for i, m := range members[2:] {
-		en := base
-		en.MemberID, en.State, en.Holder, en.ObservationSha256, en.Source = m, "QUARANTINED", label("h", i, 64), &id, src
-		en.Reason = entryReason
+		st.Identities = append(st.Identities, snapshot.PoolIdentity{PoolID: pool, MemberID: m, AllocationID: id, DefinitionSha256: id, Class: snapshot.PoolIdentityReported, Source: src, OutputSha256: out, ObservedAt: "2026-10-22T00:00:00Z", ObservedSeq: seqAt(0)})
+		en := snapshot.PoolEntry{PoolAllocation: snapshot.PoolAllocation{PoolID: pool, MemberID: m, AllocationID: id, DefinitionSha256: id, AllocatedSeq: seqAt(0), ConfigRef: &intent.ConfigRef{Revision: oid, Path: label("c", i, wire.MaxIdentifierBytes), Blob: oid}}, State: "QUARANTINED", Holder: label("h", i, wire.MaxLabelBytes), Generation: seqAt(0), ChangedSeq: seqAt(0), PolicySha256: id, RequestSha256: id, ObservationSha256: &id, Source: src, RunnerPID: "0", CommandKind: longest, CommandRevision: oid, Reason: reason(i)}
+		if i == 0 {
+			// A pending retarget is the only one carrying a source pair.
+			en.State, en.RunnerPID, en.RunnerStarted, en.Reason, en.CommandKind = "CLEANING", "4194304", label("s", 0, 128), "", "retarget"
+			en.Operation = &snapshot.PoolOperationPending{Name: "retarget", RequestID: label("retarget", 0, wire.MaxIdentifierBytes), Source: src}
+		}
 		st.Entries = append(st.Entries, en)
 	}
 	f.st.pools = &st
-	f.seq = seq + 1
+	f.seq = top
+	return f, members, id
+}
 
-	l := &LeaseRequest{Verb: LeasePoolRecover, Member: members[0], Allocation: string(id), Reason: reason}
+// PSR-V0-202 (V1-2361): the recover reason cap is derived, not chosen. The
+// worst-case state with every reason empty encodes to B0 bytes; each of the
+// 256 entries can then carry the fixed prefix plus a reason whose JSON
+// escaping at most doubles it (prose admits '"', '\\', TAB, LF and CR, each
+// escaped to two bytes; every other admitted byte is copied). The cap must
+// satisfy B0 + 256*(prefix + 2*cap) <= MaxPoolStateBytes. The state is then
+// rebuilt with every QUARANTINED reason at that escaping worst case, and the
+// recovery of entry 0 with the longest admitted all-escaping reason still
+// writes within the bound. With the 512-byte cap this was refused
+// LIMIT_EXCEEDED: the derivation allows less.
+func TestPSRV0202_WorstCasePoolsStayBoundedAtReasonCap(t *testing.T) {
+	prefix := recoverPrefix()
+	f, _, _ := worstCasePools(t, func(int) string { return "" })
+	empty, err := f.st.pools.Encode()
+	if err != nil {
+		t.Fatalf("worst-case state with empty reasons: %v", err)
+	}
+	derived := (snapshot.MaxPoolStateBytes - len(empty) - intent.MaxPoolMembers*len(prefix)) / (2 * intent.MaxPoolMembers)
+	t.Logf("B0 %d B, prefix %d B, derived cap %d B, MaxPoolRecoverReasonBytes %d B", len(empty), len(prefix), derived, MaxPoolRecoverReasonBytes)
+	if MaxPoolRecoverReasonBytes > derived {
+		t.Fatalf("MaxPoolRecoverReasonBytes %d exceeds the derived worst-case cap %d", MaxPoolRecoverReasonBytes, derived)
+	}
+
+	worst := strings.Repeat(`"`, MaxPoolRecoverReasonBytes)
+	f, members, id := worstCasePools(t, func(int) string { return prefix + worst })
+	before, err := f.st.pools.Encode()
+	if err != nil {
+		t.Fatalf("worst-case state at the cap: %v", err)
+	}
+	l := &LeaseRequest{Verb: LeasePoolRecover, Member: members[0], Allocation: string(id), Reason: worst}
+	if _, err := leaseValue(l, f.st.queue.QueueID); err != nil {
+		t.Fatalf("recover reason at the cap refused by the codec: %v", err)
+	}
 	c := f.waitRequest(l)
 	c.in.LeaseFacts.Pool = PoolFacts{RunnerGone: true}
 	recovered := planPoolRecover(c)
 	if recovered.result != nil {
-		t.Fatalf("recovery with a %d-byte reason on a full-size pool refused: %+v", len(reason), *recovered.result)
+		t.Fatalf("recovery of the worst-case pool refused: %+v", *recovered.result)
 	}
 	raw := recovered.posts["pools.json"]
+	t.Logf("pools.json %d B before recovery, %d B after, bound %d", len(before), len(raw), snapshot.MaxPoolStateBytes)
 	if len(raw) > snapshot.MaxPoolStateBytes {
 		t.Fatalf("pools.json is %d bytes", len(raw))
 	}
-	t.Logf("recover reason %d B, entry reason %d B, pools.json %d B of %d", len(reason), len(entryReason), len(raw), snapshot.MaxPoolStateBytes)
 	f.apply(t, recovered)
-	if got := f.st.pools.Entries; len(got) != intent.MaxPoolMembers-1 {
-		t.Fatalf("entries after recovery = %d", len(got))
-	}
-
-	a := f.admitted(t, f.claim(rec.TicketID.Raw, pool))
-	if a.PoolAllocation == nil || a.PoolAllocation.MemberID != members[1] || len(f.st.pools.Entries) != intent.MaxPoolMembers {
-		t.Fatalf("acquire of the last free member: %+v entries=%d", a.PoolAllocation, len(f.st.pools.Entries))
-	}
-	early := &LeaseRequest{Verb: LeasePoolRelease, AttemptID: a.AttemptID, Generation: a.Generation, Allocation: string(a.PoolAllocation.AllocationID)}
-	if released := viaPlanLease(f.waitRequest(early)); released.result != nil {
-		t.Fatalf("release on a full-size pool refused: %+v", *released.result)
+	if en := f.st.pools.Entries[0]; en.MemberID != members[0] || en.State != "QUARANTINED" || en.Reason != "orphaned retarget command; execution and physical cleanup unknown: "+worst {
+		t.Fatalf("recovered entry %+v", en)
 	}
 }
 
-// PSR-V0-202: a recover reason past the bound is refused LIMIT_EXCEEDED by
-// the lease codec, before any state is planned or written.
-func TestPSRV0202_OverlongRecoverReasonRefusedTyped(t *testing.T) {
-	queue, err := intent.DecodeQueue(fixture.QueueBytes())
+// PSR-V0-202: a fresh recover whose reason is past the cap is refused
+// LIMIT_EXCEEDED at planning, with nothing posted.
+func TestPSRV0202_OverlongFreshRecoverRefusedTyped(t *testing.T) {
+	f, members, id := worstCasePools(t, func(int) string { return "" })
+	l := &LeaseRequest{Verb: LeasePoolRecover, Member: members[0], Allocation: string(id), Reason: strings.Repeat("r", MaxPoolRecoverReasonBytes+1)}
+	c := f.waitRequest(l)
+	c.in.LeaseFacts.Pool = PoolFacts{RunnerGone: true}
+	got := planPoolRecover(c)
+	if got.result == nil || !got.result.Outcome.HasCode(wire.CodeLimitExceeded) || len(got.posts) != 0 {
+		t.Fatalf("overlong fresh recover: %+v posts=%d", got.result, len(got.posts))
+	}
+}
+
+// PSR-V0-202: the cap binds fresh admission only. A recover recorded before
+// it, with a reason up to the 4,096-byte codec bound, still digests and
+// replays its recorded outcome under its original request ID.
+func TestPSRV0202_RecordedLongRecoverReasonReplays(t *testing.T) {
+	r := admin(Lease, "recover-1")
+	r.Lease = &LeaseRequest{Verb: LeasePoolRecover, Member: "m1", Allocation: string(wire.Sum([]byte("a"))), Reason: strings.Repeat("r", 4096)}
+	d, err := Digest(r)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("a recorded 4,096-byte recover reason no longer digests: %v", err)
 	}
-	q := queue.QueueID
-	l := &LeaseRequest{Verb: LeasePoolRecover, Member: "m1", Allocation: string(wire.Sum([]byte("a"))), Reason: strings.Repeat("r", MaxPoolRecoverReasonBytes+1)}
-	if _, err := leaseValue(l, q); wire.CodeOf(err) != wire.CodeLimitExceeded {
-		t.Fatalf("overlong recover reason: %v, want %s", err, wire.CodeLimitExceeded)
-	}
-	l.Reason = strings.Repeat("r", MaxPoolRecoverReasonBytes)
-	if _, err := leaseValue(l, q); err != nil {
-		t.Fatalf("recover reason at the bound refused: %v", err)
+	seq := wire.Size("7")
+	outcome := mutation.Outcome{RequestID: r.RequestID, Outcome: mutation.OutcomeCompleted, ReceiptSeq: &seq, Codes: []string{}}
+	record := wire.EncodeFile(object("requestId", s(r.RequestID), "seq", s(string(seq)), "mutationSha256", s(string(d)), "outcome", outcome.Value()))
+	got := Model(r, Input{Replay: ReplayObservation{State: "FOUND", Record: record}})
+	if got.Kind != "Replay" || !got.Outcome.Replayed || got.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("replay of a recorded long recover: %+v", got)
 	}
 }

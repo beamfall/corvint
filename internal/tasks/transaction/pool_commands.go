@@ -178,13 +178,22 @@ func planPoolCleanup(c leaseContext) leaseOutcome {
 	return c.putPool(en, false, nil)
 }
 
-// MaxPoolRecoverReasonBytes bounds a `pool recover` reason, the only operator
-// text a pools.json entry reason carries (PSR-V0-202). With the longest fixed
-// prefix it keeps every written entry reason within 1 KiB, so 256 entries at
-// that length plus the PSR-V0-196 receipt cap stay under MaxPoolStateBytes.
-const MaxPoolRecoverReasonBytes = 512
+// MaxPoolRecoverReasonBytes bounds a fresh `pool recover` reason, the only
+// operator text a pools.json entry reason carries (PSR-V0-202). It is derived
+// from the worst case: 256 entries with maximum configRef and source, 256
+// identities and 512 receipts at maximum identifier lengths encode to about
+// 907 KB with empty reasons, leaving room for 256 x (68-byte prefix + twice
+// the reason, JSON escaping's worst case) only up to 242 bytes. 224 keeps a
+// margin for 20-digit sequences. TestPSRV0202_WorstCasePoolsStayBoundedAtReasonCap
+// recomputes the derivation.
+const MaxPoolRecoverReasonBytes = 224
 
 func planPoolRecover(c leaseContext) leaseOutcome {
+	// A fresh-admission bound: the request digest keeps the 4,096-byte codec
+	// bound, so a recover recorded before PSR-V0-202 still replays.
+	if len(c.l.Reason) > MaxPoolRecoverReasonBytes {
+		return c.fail(wire.Errorf(wire.CodeLimitExceeded, "reason", "pool recover reason longer than %d bytes (%d)", MaxPoolRecoverReasonBytes, len(c.l.Reason)))
+	}
 	en := c.poolEntry()
 	if en == nil {
 		return c.refuse(mutation.OutcomeRevisionConflict, wire.CodeFenced, "allocation differs")
