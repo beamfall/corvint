@@ -356,6 +356,16 @@ func verifyAll(sections []*packSection) error {
 	return nil
 }
 
+// decodeWire decodes a key-sorted pairs section and rebuilds its map.
+func decodeWire[W, V any](section *packSection, rebuild func(W) (V, error)) (V, error) {
+	wire, err := decodePackGob[W](section)
+	if err != nil {
+		var zero V
+		return zero, err
+	}
+	return rebuild(wire)
+}
+
 func decodePackGob[T any](section *packSection) (T, error) {
 	var wrapper struct{ V T }
 	content, err := section.all()
@@ -738,19 +748,19 @@ func (reader *packReader) eventTables(index *Index) error {
 	if index.Exclusions, err = decodePackGob[[]Exclusion](reader.sections[sectionExclusions]); err != nil {
 		return err
 	}
-	if index.Features, err = decodePackGob[map[string]Record](reader.sections[sectionFeatures]); err != nil {
+	if index.Features, err = decodeWire(reader.sections[sectionFeatures], recordsOf); err != nil {
 		return err
 	}
-	if index.Scenarios, err = decodePackGob[map[string]Record](reader.sections[sectionScenarios]); err != nil {
+	if index.Scenarios, err = decodeWire(reader.sections[sectionScenarios], recordsOf); err != nil {
 		return err
 	}
-	if index.Documents, err = decodePackGob[map[string]Record](reader.sections[sectionDocuments]); err != nil {
+	if index.Documents, err = decodeWire(reader.sections[sectionDocuments], recordsOf); err != nil {
 		return err
 	}
-	if index.Markers, err = decodePackGob[map[string][]Marker](reader.sections[sectionMarkers]); err != nil {
+	if index.Markers, err = decodeWire(reader.sections[sectionMarkers], markersOf); err != nil {
 		return err
 	}
-	if index.Imports, err = decodePackGob[map[string]map[string]struct{}](reader.sections[sectionImports]); err != nil {
+	if index.Imports, err = decodeWire(reader.sections[sectionImports], importsOf); err != nil {
 		return err
 	}
 	if index.Unparsed, err = decodePackGob[[]Unparsed](reader.sections[sectionUnparsed]); err != nil {

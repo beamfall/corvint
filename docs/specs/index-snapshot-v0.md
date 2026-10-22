@@ -501,9 +501,9 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   `Root`, `DirtyPaths` and `StatusSHA256` cleared, map keys ordered) whether the snapshot was written
   cold in a fresh clone or incrementally, after the same repository first indexed an earlier
   commit and then moved to this one. The moved repository MUST probe not fresh before the second
-  `index` (`IDX-SNAP-V0-011`). This is identity of the served index, not of the file: the gob bytes
-  of two writes of one tree differ (map order, Non-goals), and a byte-deterministic file encoding
-  stays behind the `deployment-neutral-index-platform-v0.md` gate. Since 2026-10-20
+  `index` (`IDX-SNAP-V0-011`). This is identity of the served index, not of the file. (Amended
+  2026-10-21 by `IDX-SNAP-V0-106`: the file bytes of two writes of one tree are now equal too; the
+  transport-neutral encoding still stays behind the `deployment-neutral-index-platform-v0.md` gate.) Since 2026-10-20
   (`IDX-SNAP-V0-037`, V1-0328) the default path reuses verified per-source facts from the newest
   prior snapshot, so this identity now covers that reuse; the cold side of the test runs with
   `CORVINT_INDEX_REUSE=0` and reuses nothing. The reading below predates the reuse. Measured on this repository
@@ -896,6 +896,59 @@ Traceability: `TestMappedSnapshotDecodeMatchesStreamedDecode`, `TestMappedSnapsh
 and the existing `TestSnapshotSameLengthBodyOverwriteIsAMiss`; measured in
 `docs/build-log/2026-10-21-index-perf-1021i-hot-read-paths.md`.
 
+### Accepted (2026-10-21, V1-2290, V1-2289, owner's standing auto-accept 2026-10-11): deterministic snapshot bytes and output-equivalent schema edits
+Human intent: two writes of one tree produced different snapshot files because `encoding/gob`
+writes maps in random order, so a file hash could not stand for its content (V1-2290); and every
+edit to an audited analyzer input forced a schema bump, invalidating every pack, even when the
+index it builds is byte-identical (V1-2289).
+- `IDX-SNAP-V0-106`: accepted under the owner's standing auto-accept (2026-10-11) (V1-2290). Two
+  writes of the same committed tree by one binary MUST produce byte-identical snapshot files, for
+  the default gob snapshot (format `corvint-index-snapshot/2`), the sectioned encoding and the
+  experimental pack, whether the write was cold or reused prior facts (`IDX-SNAP-V0-037`). Every
+  map the encodings carried is written as key-sorted pairs (`snapshot_wire.go`), nested maps inside
+  record fields included, and the gob type ids are fixed at package init so they do not depend on
+  which value a process encodes first. Decoding restores the same `Index`: nil and empty maps keep
+  their distinction, and malformed pairs (lengths that disagree, values without the presence bit)
+  are refused, which is the `IDX-SNAP-V0-003` miss. A `/1` file is refused as a format mismatch and
+  rebuilt; the gob snapshot is executable-keyed, so no binary ever read both. This changes the
+  encoding of the private cache, not its contract: it stays executable-keyed and is still not the
+  immutable transport-neutral encoding `deployment-neutral-index-platform-v0.md` governs (Non-goals).
+  The pack's sections change bytes, so the analyzer schema moves to `corvint-analyzer/147`.
+  Format gate evidence on this repository (9ae946a5c and a one-file commit on top, host load
+  average 24 to 40), base binary against this change: snapshot 182,633,829 to 182,598,748 bytes;
+  three cold `index` runs median 2.85 s to 3.12 s, max RSS 1,396 to 1,538 MB against 1,366 to
+  1,564 MB; reuse `index` median 1.85 s to 1.91 s; 20 interleaved `context` loads p50 0.46 s to
+  0.49 s, p95 0.57 s to 0.67 s, max RSS 912 to 914 MB; cross-format identity: the canonical JSON
+  (`IDX-SNAP-V0-022`) of the index decoded from the base `/1` gob, the new `/2` gob and the new
+  pack is one sha256 `554e1885...`; three writes of one tree hashed `c268c468...` each, where the
+  base binary's three writes hashed three different values. Falsifier: two writes of one tree
+  whose bytes differ. Rollback: revert `snapshot_wire.go` and its call sites and restore format
+  `/1`; files written as `/2` then miss and rebuild.
+- `IDX-SNAP-V0-107`: accepted under the owner's standing auto-accept (2026-10-11) (V1-2289);
+  amends `IDX-SNAP-V0-060` and `IDX-SNAP-V0-061`. `TestAnalyzerSchemaOutput` pins
+  `auditedOutputSHA256`, the sha256 of the pack a fixed golden corpus (Go, Python, Ruby,
+  TypeScript, JavaScript, feature and scenario records, an ADR, a spec, instructions, notes and a
+  binary file) compiles to under a fixed engine, git identity and dates, and fails with the bump
+  recovery when the bytes differ. When the test pins an output digest, `analyzer-schema.sh bump`
+  runs that test (`CORVINT_ANALYZER_OUTPUT_COMMAND` overrides the command) and, when the output
+  digest equals REF's, keeps REF's number and repins only the digests; otherwise it bumps as
+  `IDX-SNAP-V0-060` says. `check` accepts REF's number with another input digest when both output
+  pins are equal, and still refuses REF's number with another output digest. So a perf-only edit
+  whose golden output is byte-identical needs no bump, and an output-changing edit still fails
+  `TestAnalyzerSchemaOutput` and `check` until it bumps. A bump command that reports no output
+  digest refuses. The golden corpus bounds the claim: a fact the corpus does not exercise can
+  change without moving the output digest. Falsifier: an edit that changes the golden pack bytes
+  and passes both the test and `check` at REF's number. Rollback: delete the output pin and test;
+  the script then behaves as `IDX-SNAP-V0-060`/`061` (no output pin, every input edit bumps).
+Failure modes: the golden corpus misses a fact class (residual, see the build log); the blob-shard
+path (`IDX-SNAP-V0-016`, off by default) is not in the golden pack. V1-2232 (a re-index still
+writes the whole file, 182,598,749 bytes after a one-file commit) is not addressed here:
+deterministic bytes are the precondition for a content-addressed segment format, which needs its
+own design and the deployment-neutral gate.
+Traceability: `TestSnapshotBytesAreDeterministic`, `TestSnapshotWireRoundTripsMaps`,
+`TestAnalyzerSchemaOutput`, `script/analyzer-schema_test.sh`; evidence in
+`docs/build-log/2026-10-21-ctxsnap-1021u-deterministic-snapshot.md`.
+
 ## Non-goals and authority
 
 Accepted, decision 0517 (V1-1128): the adapter-only writer/lock exception in
@@ -904,7 +957,7 @@ hook build, supervision or new ranking/evidence authority. Ordinary read verbs k
 
 No daemon, no watcher, no write from a read verb, no cross-repository store, no network. The
 encoding is `encoding/gob` because the load is small against the target and the file is keyed,
-not shared; it is not byte-deterministic across writes (map order) and is not the immutable
+not shared; since `IDX-SNAP-V0-106` its bytes are deterministic per tree, but it is not the immutable
 transport-neutral encoding `deployment-neutral-index-platform-v0.md` governs. Promoting an
 encoding requires that spec's gate. `prove --checkpoint` and the Python oracle do not read the snapshot;
 `query`, harness `user-prompt`, `file-change`, and compact `session-start` do
@@ -1116,3 +1169,5 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-103 (standing auto-accept, V1-1640) | `mayHoldGenericImport`, `skipGenericImportSpaces`, `sourceImports` | `TestGenericImportPrefilterLosesNoMatch`, `FuzzGenericImportPrefilter` |
 | IDX-SNAP-V0-104 (standing auto-accept, V1-1640) | `withSnapshotMissNotice`, `timedMissBuild`, `repositoryQueryContext`, `authorityStartQueryContext` | `TestSnapshotMissNoticeNamesTheBuild` |
 | IDX-SNAP-V0-105 (standing auto-accept, V1-2237) | `decodeSnapshotValue`, `decodeMappedSnapshotValue`, `guardMappedRead` | `TestMappedSnapshotDecodeMatchesStreamedDecode`, `TestMappedSnapshotDecodeFaultIsAMiss` |
+| IDX-SNAP-V0-106 (standing auto-accept, V1-2290) | `snapshotWireOf`, `pairsOf`, `mapOf`, `wireValue`, `warmGobTypes` | `TestSnapshotBytesAreDeterministic`, `TestSnapshotWireRoundTripsMaps` |
+| IDX-SNAP-V0-107 (standing auto-accept, V1-2289) | `script/analyzer-schema.sh` (`actual_output`, output pin in `pins`) | `TestAnalyzerSchemaOutput`, `script/analyzer-schema_test.sh` |
