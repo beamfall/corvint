@@ -152,12 +152,22 @@ func ParseRequest(raw []byte) (doccorpus.Request, error) {
 	kind := doccorpus.OperationInput(q.Operation)
 	if q.Operation == "claims" && q.Query != "" {
 		// DCP-V1-313: a claim text query replaces the path.
-		if q.Path != "" || q.ID != "" {
+		if q.Path != "" || q.ID != "" || q.State != "" || q.Qualifier != "" || q.Run != "" {
 			return q, fmt.Errorf("query arguments do not apply to operation")
 		}
 		return q, nil
 	}
-	if kind == "unsupported" || kind == "query" && q.Query == "" || kind == "id" && q.ID == "" || kind == "path" && q.Path == "" || kind != "query" && q.Query != "" || kind != "id" && q.Operation != "gaps" && q.ID != "" || kind != "path" && q.Path != "" {
+	if q.Operation == "claims" && (q.State != "" || q.Qualifier != "" || q.Run != "") {
+		// DCP-V1-318: a status filter replaces the path.
+		if q.Path != "" || q.ID != "" || !doccorpus.ValidStatusFilter(q.State, q.Qualifier, q.Run) {
+			return q, fmt.Errorf("query arguments do not apply to operation")
+		}
+		return q, nil
+	}
+	if q.State != "" || q.Qualifier != "" || q.Run != "" {
+		return q, fmt.Errorf("query arguments do not apply to operation")
+	}
+	if kind == "unsupported" || kind == "query" && q.Query == "" || kind == "id" && q.ID == "" && q.Operation != "intent" || kind == "path" && q.Path == "" || kind != "query" && q.Query != "" || kind != "id" && q.Operation != "gaps" && q.ID != "" || kind != "path" && q.Path != "" {
 		return q, fmt.Errorf("query arguments do not apply to operation")
 	}
 	return q, nil

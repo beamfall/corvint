@@ -17,6 +17,13 @@ import (
 // tools and arguments below are independent of the production operation map.
 func typedCorpusCLIFixture(t *testing.T) (string, doccorpus.Manifest) {
 	t.Helper()
+	return typedCorpusCLIFixtureWith(t, nil)
+}
+
+// typedCorpusCLIFixtureWith is typedCorpusCLIFixture with edit applied to the
+// provider record before it is committed.
+func typedCorpusCLIFixtureWith(t *testing.T, edit func(*doccorpus.ProviderRecord, doccorpus.Evidence)) (string, doccorpus.Manifest) {
+	t.Helper()
 	root := taskContextRepository(t)
 	cemWrite(t, root, "proof.go", "package cache\nfunc Checkout() {}\n")
 	cemGit(t, root, "add", "proof.go")
@@ -56,6 +63,9 @@ func typedCorpusCLIFixture(t *testing.T) (string, doccorpus.Manifest) {
 	add("proof:intent", "intent_comparison", "Intent", doccorpus.RecordDetails{IntentComparison: &doccorpus.IntentComparisonDetails{ReportedIntent: []string{"proof:paragraph"}, ObservedClaims: []string{"proof:claim"}, Missing: []string{}, Conflicts: []string{}}})
 	for _, r := range []doccorpus.Relation{{ID: "proof:up", From: "proof:upstream", To: "proof:flow", Type: "depends_on", Provider: "proof", Evidence: ev}, {ID: "proof:down", From: "proof:flow", To: "proof:downstream", Type: "depends_on", Provider: "proof", Evidence: ev}, {ID: "proof:alias", From: "proof:term", To: "proof:flow", Type: "related_to", Provider: "proof", Evidence: ev}, {ID: "proof:screen-join", From: "proof:screen", To: "proof:flow", Type: "related_to", Provider: "proof", Evidence: ev}, {ID: "proof:route", From: "proof:flow", To: "proof:test", Type: "navigates", Provider: "proof", Evidence: ev}} {
 		p.Relations = append(p.Relations, r)
+	}
+	if edit != nil {
+		edit(&p, ev)
 	}
 	raw, err := doccorpus.Encode(p)
 	if err != nil {

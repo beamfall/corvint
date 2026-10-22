@@ -151,8 +151,19 @@ var adoptionRelationKinds = words("asserts navigates retired_to manual_case_for 
 // suppliedStatusStates is the closed producer status vocabulary (DCP-V1-187,
 // widened by DCP-V1-300); suppliedStatusQualifiers is its closed optional
 // qualifier set.
-var suppliedStatusStates = words("blocked ready proven partial not-demonstrable disputed obsolete not-established unknown")
-var suppliedStatusQualifiers = words("provisional classification-only")
+var (
+	SuppliedStatusStates     = []string{"blocked", "ready", "proven", "partial", "not-demonstrable", "disputed", "obsolete", "not-established", "unknown"}
+	SuppliedStatusQualifiers = []string{"provisional", "classification-only"}
+	suppliedStatusStates     = words(strings.Join(SuppliedStatusStates, " "))
+	suppliedStatusQualifiers = words(strings.Join(SuppliedStatusQualifiers, " "))
+)
+
+// ValidStatusFilter reports whether a claims status filter names a supplied
+// state, an absent or supplied qualifier, and a run of at most 1,024 bytes
+// (DCP-V1-318).
+func ValidStatusFilter(state, qualifier, run string) bool {
+	return suppliedStatusStates[state] && (qualifier == "" || suppliedStatusQualifiers[qualifier]) && len(run) <= maxSuppliedRunIdentifier
+}
 
 // Closed optional test-run ledger vocabularies (DCP-V1-303).
 var (

@@ -197,7 +197,10 @@ func (r *Registry) Tools() []bridge.ToolDescriptor {
 		}
 		if doccorpus.OperationInput(op) == "id" {
 			properties["id"] = map[string]any{"type": "string", "minLength": 1, "maxLength": 1024}
-			required = append(required, "id")
+			// DCP-V1-319: docs_intent without an id lists every intent comparison.
+			if op != "intent" {
+				required = append(required, "id")
+			}
 		}
 		if doccorpus.OperationInput(op) == "path" {
 			// DCP-V1-145: path or a paths batch, exactly one.
@@ -207,6 +210,10 @@ func (r *Registry) Tools() []bridge.ToolDescriptor {
 		if op == "claims" {
 			// DCP-V1-313: a ranked claim text query in place of path or paths.
 			properties["query"] = map[string]any{"type": "string", "minLength": 1, "maxLength": 1024}
+			// DCP-V1-318: or a supplied status filter.
+			properties["state"] = map[string]any{"type": "string", "enum": doccorpus.SuppliedStatusStates}
+			properties["qualifier"] = map[string]any{"type": "string", "enum": doccorpus.SuppliedStatusQualifiers}
+			properties["run"] = map[string]any{"type": "string", "minLength": 1, "maxLength": 1024}
 		}
 		if op == "locate" || op == "recommend-tests" {
 			// DCP-V1-310: an optional declared repository's root-commit identity.
@@ -273,6 +280,9 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 		Include    []string                    `json:"include"`
 		Repository string                      `json:"repository"`
 		Kind       jsontext.Value              `json:"kind"`
+		State      string                      `json:"state"`
+		Qualifier  string                      `json:"qualifier"`
+		Run        string                      `json:"run"`
 	}
 	if len(arguments) > 16<<10 || json.Unmarshal(arguments, &input, json.RejectUnknownMembers(true)) != nil {
 		return nil, "", nil, &Error{"invalid-arguments"}, finish()
@@ -283,7 +293,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	}
 	kind := doccorpus.OperationInput(op)
 	for key, value := range members {
-		allowed := key == "retirement" || key == "offset" && r.header.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && (kind == "query" || op == "claims") || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow" || key == "repository" && (op == "locate" || op == "recommend-tests") || key == "kind" && op == "gaps"
+		allowed := key == "retirement" || key == "offset" && r.header.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && (kind == "query" || op == "claims") || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow" || key == "repository" && (op == "locate" || op == "recommend-tests") || key == "kind" && op == "gaps" || (key == "state" || key == "qualifier" || key == "run") && op == "claims"
 		if !allowed || value == nil {
 			return nil, "", nil, &Error{"invalid-arguments"}, finish()
 		}
@@ -305,7 +315,17 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	if claimQuery && (input.Query == "" || input.Path != "" || batch) {
 		return nil, "", nil, &Error{"invalid-arguments"}, finish()
 	}
-	if kind == "query" && input.Query == "" || kind == "path" && !claimQuery && (input.Path == "") == !batch || kind == "id" && input.ID == "" {
+	// DCP-V1-318: or a state, with an optional qualifier and run.
+	_, claimStatus := members["state"]
+	_, hasPath := members["path"]
+	_, hasQualifier := members["qualifier"]
+	_, hasRun := members["run"]
+	if (hasQualifier || hasRun) && !claimStatus || claimStatus && (claimQuery || hasPath || batch || hasQualifier && input.Qualifier == "" || hasRun && input.Run == "" || !doccorpus.ValidStatusFilter(input.State, input.Qualifier, input.Run)) {
+		return nil, "", nil, &Error{"invalid-arguments"}, finish()
+	}
+	// DCP-V1-319: docs_intent may omit its id, but a present id is non-empty.
+	_, hasID := members["id"]
+	if kind == "query" && input.Query == "" || kind == "path" && !claimQuery && !claimStatus && (input.Path == "") == !batch || kind == "id" && input.ID == "" && (op != "intent" || hasID) {
 		return nil, "", nil, &Error{"invalid-arguments"}, finish()
 	}
 	if kind != "query" && !claimQuery && input.Query != "" || kind != "path" && input.Path != "" || kind != "id" && op != "gaps" && input.ID != "" {
@@ -333,7 +353,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	if !ok || !doccorpus.ValidGapKinds(kinds) {
 		return nil, "", nil, &Error{"invalid-arguments"}, finish()
 	}
-	request := doccorpus.Request{Operation: op, Retirement: input.Retirement, Query: input.Query, ID: input.ID, Path: input.Path, Limit: limit, Offset: input.Offset, Depth: input.Depth, Sections: sections, Include: input.Include, Repository: input.Repository, Kinds: kinds}
+	request := doccorpus.Request{Operation: op, Retirement: input.Retirement, Query: input.Query, ID: input.ID, Path: input.Path, Limit: limit, Offset: input.Offset, Depth: input.Depth, Sections: sections, Include: input.Include, Repository: input.Repository, Kinds: kinds, State: input.State, Qualifier: input.Qualifier, Run: input.Run}
 	// A batch whose deadline passes while the artifact or freshness is still
 	// being prepared names every path unresolved (DCP-V1-145).
 	prepared := func(err error) (map[string]any, string, *ToolFailure, *Error, Timing) {
