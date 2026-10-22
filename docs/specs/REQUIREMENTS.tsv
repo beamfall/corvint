@@ -5429,6 +5429,7 @@ WQO-V0-029	docs/specs/work-queue-observation-v0.md	Beamfall MUST add one support
 WQO-V0-030	docs/specs/work-queue-observation-v0.md	Corvint MUST NOT call Beamfall mutation verbs or `fanout-plan --claim`. Adapter	unrecorded	-
 WQO-V0-031	docs/specs/work-queue-observation-v0.md	`PARTIAL`, `CONFLICTED`, `STALE`, or `UNKNOWN` always produces an empty proposal	unrecorded	-
 WQO-V0-032	docs/specs/work-queue-observation-v0.md	Timeout, cancellation, non-zero exit, malformed bytes, digest mismatch, overflow	unrecorded	-
+WQO-V0-052	docs/specs/work-queue-observation-v0.md	(V1-2291, decision 0552) Each Git child a scratch-owning work source starts keep	unrecorded	-
 WQO-V0-033	docs/specs/work-queue-observation-v0.md	Corvint core makes no network request, model call, database, daemon, embedding,	unrecorded	-
 WQO-V0-034	docs/specs/work-queue-observation-v0.md	Independent Go conformance validates every schema, identity, decision row, bound	unrecorded	-
 WQO-V0-035	docs/specs/work-queue-observation-v0.md	Rollout is frozen conformance, Corvint self-dogfood, Beamfall shadow, 500 consec	unrecorded	-

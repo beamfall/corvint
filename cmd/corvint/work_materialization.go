@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/worksource"
 )
@@ -100,7 +101,15 @@ func workChildEnvironment(home, tmp string) ([]string, error) {
 	return []string{"PATH=" + path, "LANG=C", "LC_ALL=C", "TZ=UTC", "NO_COLOR=1", "GIT_CONFIG_NOSYSTEM=1", "GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "HOME=" + home, "TMPDIR=" + tmp, "GOTOOLCHAIN=local"}, nil
 }
 
-func (run *workMaterialization) Close() { _ = os.RemoveAll(run.root) }
+// Close retires the Git groups a killed producer left running in its
+// acquisition scratch before removing the run root (WQO-V0-052).
+func (run *workMaterialization) Close() {
+	_ = worksource.RetireGitGroups(run.tmp, workGitRetirementBound)
+	_ = os.RemoveAll(run.root)
+}
+
+// workGitRetirementBound is a hang detector for Git groups exiting after SIGKILL, not a budget.
+const workGitRetirementBound = time.Minute
 
 func (run *workMaterialization) git(ctx context.Context, args ...string) ([]byte, error) {
 	private := &worksource.Source{Root: run.target, GitPath: run.source.GitPath, GitEnvironment: append([]string(nil), run.environment...)}

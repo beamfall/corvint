@@ -212,10 +212,16 @@ func (source *Source) gitRaw(ctx context.Context, limit int, arguments ...string
 	stdout := &limitedOutput{limit: limit, cancel: cancel}
 	stderr := &limitedOutput{limit: 64 << 10, cancel: cancel}
 	command.Stdout, command.Stderr = stdout, stderr
+	record, release, err := source.recordGitGroup(command)
+	if err != nil {
+		return nil, fmt.Errorf("qualified Git acquisition failed (%s): %w", strings.Join(arguments, " "), err)
+	}
+	defer release()
 	// Drain sweeps the group after the pipes drain and before the reap, so a
 	// pipe holder stays incomplete capture without a post-reap signal (V1-0373).
 	wait, err := groupreap.Drain(ctx, command, gitCommandWaitDelay)
 	if err == nil {
+		record()
 		err = wait()
 	}
 	if err != nil || ctx.Err() != nil || stdout.overflow || stderr.overflow || stderr.buffer.Len() != 0 {

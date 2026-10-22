@@ -5,6 +5,7 @@ package worksource
 import (
 	"os"
 	"os/exec"
+	"time"
 )
 
 func setupGitProcess(command *exec.Cmd)  {}
@@ -13,3 +14,10 @@ func fileLinks(info os.FileInfo) uint64  { return 0 }
 func noFollowReadFlags() int             { return os.O_RDONLY }
 
 func fileIdentity(info os.FileInfo) [2]uint64 { return [2]uint64{} }
+
+func (source *Source) recordGitGroup(*exec.Cmd) (record, release func(), err error) {
+	return func() {}, func() {}, nil
+}
+
+// RetireGitGroups has no process groups to retire on this platform.
+func RetireGitGroups(string, time.Duration) error { return nil }
