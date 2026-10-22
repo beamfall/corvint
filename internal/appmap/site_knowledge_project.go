@@ -1,0 +1,171 @@
+package appmap
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"path"
+	"strings"
+
+	"github.com/Beamfall/corvint/internal/gokernel"
+)
+
+// SKLimits is printed in every site-knowledge report (SKH-V0-002, SKH-V0-005).
+const SKLimits = "static and lexical: page objects and test bodies are read from committed source at the map revision; " +
+	"no code runs, no browser starts, no network is used; a construct the reader does not support is an unknown or an " +
+	"opaque step, never a guess; the authority of every record is learned"
+
+const maxSKSources = 16
+
+// readSiteKnowledge reads the declared source directories from --root at the map revision.
+func readSiteKnowledge(ctx context.Context, m *Map, sources []string, o Options) (*SKModel, int, int, error) {
+	query := func(msg string) error { return &gokernel.Error{Code: "appmap-invalid-query", Message: msg} }
+	if len(sources) == 0 || len(sources) > maxSKSources {
+		return nil, 0, 0, query(fmt.Sprintf("site knowledge requires 1 to %d --source directories", maxSKSources))
+	}
+	seen := map[string]bool{}
+	for _, s := range sources {
+		if !safeRelative(s) || seen[s] {
+			return nil, 0, 0, query(fmt.Sprintf("--source %q is not a unique repository-relative directory", s))
+		}
+		seen[s] = true
+	}
+	r := repo{ctx: ctx, root: o.Root}
+	rev, err := r.resolve(m.Revision)
+	if err != nil || rev != m.Revision {
+		return nil, 0, 0, &gokernel.Error{Code: "appmap-invalid-revision", Message: "the map revision is not a commit in --root"}
+	}
+	if missing, err := r.missingDirs(rev, sources); err != nil {
+		return nil, 0, 0, err
+	} else if len(missing) > 0 {
+		return nil, 0, 0, query(fmt.Sprintf("--source %q is not a directory at the map revision", missing[0]))
+	}
+	entries, err := r.tree(rev, sources, maxTestFiles)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	picked, skipped, total := []blobEntry{}, 0, 0
+	for _, e := range entries {
+		ext := strings.ToLower(path.Ext(e.path))
+		if !webSuffix[ext] && ext != ".rb" && skUnsupported[ext] == "" {
+			continue
+		}
+		if strings.HasSuffix(e.path, ".d.ts") {
+			continue
+		}
+		if e.size > maxTestFileBytes {
+			skipped++
+			continue
+		}
+		picked = append(picked, e)
+		total += e.size
+	}
+	if len(picked) > maxSKFiles {
+		return nil, 0, 0, bound(fmt.Sprintf("declared sources hold more than %d candidate files", maxSKFiles))
+	}
+	if total > maxTestBytes {
+		return nil, 0, 0, bound(fmt.Sprintf("declared source files exceed %d bytes", maxTestBytes))
+	}
+	data, err := r.blobs(picked, maxTestFileBytes, maxTestBytes)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	in := []skSource{}
+	for _, e := range picked {
+		if b := data[e.oid]; bytes.IndexByte(b, 0) < 0 {
+			in = append(in, skSource{entry: e, data: b})
+		} else {
+			skipped++
+		}
+	}
+	joins := map[string]TestFile{}
+	for _, f := range m.Files {
+		if f.Anchor.Repo == "" {
+			joins[f.Path] = f
+		}
+	}
+	return extractSiteKnowledge(in, joins), len(in), skipped, nil
+}
+
+func skHead(schema string, m *Map, sources []string, budget int, o Options, read, skipped int) []field {
+	return []field{{"schema", schema}, {"app", m.App}, {"map_revision", m.Revision}, {"map_digest", m.Digest},
+		{"budget", budget}, {"full", o.Full}, {"authority", skAuthority}, {"limits", SKLimits}, {"sources", sources},
+		{"files_read", read}, {"files_skipped", skipped}}
+}
+
+// PageObjects reports the page-object model of the declared sources (SKH-V0-010..014).
+func PageObjects(ctx context.Context, m *Map, sources []string, o Options) ([]byte, error) {
+	budget, err := o.budget(DefaultFlowBudget)
+	if err != nil {
+		return nil, err
+	}
+	k, read, skipped, err := readSiteKnowledge(ctx, m, sources, o)
+	if err != nil {
+		return nil, err
+	}
+	forms, methods, joined, effects := map[string]int{}, 0, 0, map[string]int{}
+	items := make([]any, len(k.PageObjects))
+	for i, po := range k.PageObjects {
+		forms[po.Form]++
+		methods += len(po.Methods)
+		if po.Join == StatusResolved {
+			joined++
+		}
+		for _, mt := range po.Methods {
+			effects[mt.Effect]++
+		}
+		items[i] = po
+	}
+	unknowns := make([]any, len(k.Unknowns))
+	for i, u := range k.Unknowns {
+		unknowns[i] = u
+	}
+	head := append(skHead(PageObjectsSchema, m, sources, budget, o, read, skipped),
+		field{"page_objects", len(k.PageObjects)}, field{"forms", forms}, field{"methods", methods},
+		field{"method_effects", effects}, field{"screens_joined", joined}, field{"unknowns_total", len(k.Unknowns)})
+	return render(head, []section{{"page_objects", items}, {"unknowns", unknowns}}, budget)
+}
+
+// Steps reports the test bodies of the declared sources in the closed step IR, with
+// deduplicated reusable records (SKH-V0-020..023).
+func Steps(ctx context.Context, m *Map, sources []string, o Options) ([]byte, error) {
+	budget, err := o.budget(DefaultFlowBudget)
+	if err != nil {
+		return nil, err
+	}
+	k, read, skipped, err := readSiteKnowledge(ctx, m, sources, o)
+	if err != nil {
+		return nil, err
+	}
+	kinds, complete, reasons := map[string]int{}, 0, map[string]int{}
+	tests := make([]any, len(k.Tests))
+	for i, t := range k.Tests {
+		if t.Complete {
+			complete++
+		}
+		for _, s := range t.Steps {
+			kinds[s.Kind]++
+			if s.Kind == StepOpaque {
+				reasons[s.Reason]++
+			}
+		}
+		tests[i] = t
+	}
+	records := make([]any, len(k.Records))
+	reused := 0
+	for i, r := range k.Records {
+		if r.Usage > 1 {
+			reused++
+		}
+		records[i] = r
+	}
+	unknowns := make([]any, len(k.Unknowns))
+	for i, u := range k.Unknowns {
+		unknowns[i] = u
+	}
+	head := append(skHead(StepsSchema, m, sources, budget, o, read, skipped),
+		field{"tests", len(k.Tests)}, field{"tests_complete", complete}, field{"step_kinds", kinds},
+		field{"opaque_reasons", reasons}, field{"records", len(k.Records)}, field{"records_reused", reused},
+		field{"unknowns_total", len(k.Unknowns)})
+	return render(head, []section{{"records", records}, {"tests", tests}, {"unknowns", unknowns}}, budget)
+}

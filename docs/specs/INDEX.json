@@ -3787,7 +3787,7 @@
     "title": "Site Knowledge How-To V0",
     "reqPrefix": "SKH-V0",
     "intent": "accepted",
-    "delivery": "not-started",
+    "delivery": "experimental",
     "claim": "Page objects, steps, setup and edges mined from tests answer \"how do I X\" with a live-proven E2E test, or abstain naming the missing knowledge.",
     "dependsOn": [
       "docs/specs/application-flow-understanding-v1.md",

@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-10-19
 Intent status: accepted
-Delivery status: not-started
+Delivery status: experimental
 Authoritative inputs: the owner's intent of 2026-10-19, quoted verbatim below (native ticket
 V1-1897); the stage tickets V1-1898..V1-1905; `AGENTS.md` (product invariants 1..8);
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`; and the contracts named in "Existing contracts and extension
@@ -11,9 +11,10 @@ points", read through `docs/specs/INDEX.json` and their Agent digests.
 
 ## Agent digest
 - Claim: Page objects, steps, setup and edges mined from tests answer "how do I X" with a live-proven E2E test, or abstain naming the missing knowledge.
-- Status: accepted (owner intent 2026-10-19; V1-1897); not-started. SKH-V0-001..089 for stages 1..8 (V1-1898..V1-1905) are accepted under the owner's standing auto-accept (2026-10-11); nothing is implemented.
+- Status: accepted (owner intent 2026-10-19; V1-1897); experimental. SKH-V0-001..089 for stages 1..8 (V1-1898..V1-1905) are accepted under the owner's standing auto-accept (2026-10-11). Stages 1 and 2 are implemented as `flows appmap pageobjects` and `flows appmap steps` (V1-1898 partial: no MCP projection; V1-1899); stages 3..8 are not started.
 - Exists: only the contracts this extends: AMAP-V0 map and selectors, ANL-V0 edges, AFU-V1 intents, DCP-V1 inventories and test knowledge, AMSP-V0 planner draft, CCE-V0 prover, NEA-V0 controls, RVN-V0 binding, PWP-V0 receipts and TSA-V0 validity.
-- Blocked on: owner confirmation of the assumed first adopter and of N for the preregistered measure; then stage 1 (V1-1898).
+- First adopter: core-history (owner decision 2026-10-22), a React + react-router SPA with a Playwright TypeScript suite. N = 10 for the preregistered measure (orchestrator decision 2026-10-22).
+- Next: the stage 1 MCP projection (SKH-V0-013), then stage 3 (V1-1900) and stage 4 (V1-1901).
 - Read next: Owner intent; Definition of "confidently"; Requirements; Preregistered measure; Owner questions.
 
 ## Owner intent
@@ -98,17 +99,42 @@ Known gaps this spec depends on:
 - **V1-1191**: there is no bounded, local, link-only discovery crawl that reports unmapped URLs.
   Stage 4 consumes the crawl when it lands (`SKH-V0-042`).
 
-## Assumed first adopter
+## First adopter
 
-**ASSUMPTION — the owner must confirm before stage 1 starts (Owner question 1).** The first
-adopter is a Rails application with an AngularJS ui-router front end. Its tests are a Playwright
+**Owner decision, 2026-10-22: the first adopter for `SKH-V0-009` is core-history**
+(`/Users/russelllewis/projects/core-history`). It is a React 19 + react-router single-page
+application with a Playwright TypeScript E2E suite under `internal/web/app/e2e`, read through
+`react-router/0` (`AMAP-V0-040`; V1-1712 is complete). The suite has no page-object classes and no
+Ruby: its reusable helpers are exported module functions, so the qualified page-object form is
+`playwright-ts-module`. The Playwright and Cypress class forms and the Capybara and SitePrism forms
+have fixture evidence only and stay `experimental` (`SKH-V0-009`).
+
+The adopter is read-only. Corvint never writes to it, never runs its application, and never runs
+its tests against a network. Samples read its committed test sources at a pinned commit (its HEAD
+from `git rev-parse HEAD`) in a disposable clone. Only counts, hashes and paths from a sample enter
+the Corvint repository, in the build log; adopter source is never copied beyond minimal synthetic
+fixtures.
+
+**Real-adopter sample size.** One sample is the whole declared E2E directory of the adopter at the
+pinned commit (26 source files and 62 tests at `5f5d44d3`), not a subset. The directory is inside
+the extractor bounds, so a whole-suite read leaves no sampling choice to bias, and a rerun at the
+same commit must be byte-identical (`SKH-V0-007`). A second adopter is not required for V0.
+
+**N for the preregistered measure: 10** (orchestrator decision 2026-10-22, under the owner's
+delegation of in-task forks of 2026-10-05; the owner may revise it). Reasons: the adopter suite has
+62 tests, of which 30 read as complete step sequences today, so 20 distinct owner-written requests
+with accepted oracles would exceed the demonstrated surface; one owner writes and judges every
+request; and 10 keeps the 40% kill threshold meaningful (4 answered) at 10-point granularity. The
+40% threshold is unchanged.
+
+**Superseded assumption (2026-10-19).** The spec first assumed a Rails application with an AngularJS ui-router front end. Its tests are a Playwright
 E2E suite, RSpec (including Capybara feature or system specs) and a legacy Jasmine suite.
 
 Why this choice: AMAP already resolves both of its router dialects. They are `ui-router-states/0`
 (`AMAP-V0-002`, with the constant-table and DI extensions `AMAP-V0-016` and `AMAP-V0-021`..`026`)
 and `rails-routes/0` (`AMAP-V0-040`..`042`). Stage 1 therefore needs no new router dialect. The
-legacy Jasmine suite enters through the existing DCP-V1 inventory (`DCP-V1-060`..`062`). If the
-owner chooses a React adopter instead, V1-1712 becomes a prerequisite ticket ahead of stage 1.
+legacy Jasmine suite enters through the existing DCP-V1 inventory (`DCP-V1-060`..`062`). The owner
+chose a React adopter instead (above).
 
 ## Definitions
 
@@ -214,7 +240,8 @@ Each stage extends the named point. None of these contracts is restated here.
   instead of adding a parallel model, command or MCP surface. A stage that cannot do so MUST
   record why in its build-log entry before adding one.
 - `SKH-V0-009`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1897) The owner
-  MUST confirm the first adopter before stage 1 starts. No stage may leave `experimental` before
+  MUST confirm the first adopter before stage 1 starts (confirmed 2026-10-22: core-history; see
+  "First adopter"). No stage may leave `experimental` before
   the stage it reads from has fixture evidence plus one real-adopter sample.
 
 ### Stage 1: page objects (V1-1898)
@@ -454,8 +481,8 @@ Each stage extends the named point. None of these contracts is restated here.
 
 The measure is fixed before stage 6 runs on any request, and it is closable by the single owner.
 
-- **Request set**: N owner-written "how do I X" requests for the confirmed adopter. N is proposed
-  as 20, and the owner confirms it (Owner question 2). The set and its SHA-256 are committed in a
+- **Request set**: N owner-written "how do I X" requests for the confirmed adopter. N is 10
+  (decided 2026-10-22; see "First adopter"). The set and its SHA-256 are committed in a
   build-log entry before the first run and are not edited afterwards. Each request carries its
   accepted outcome oracle (`SKH-V0-087`), frozen with the set. A request added later is reported
   separately.
@@ -587,9 +614,9 @@ Stage dependencies (each stage also reads the contracts named for it above):
 
 | Requirements | Ticket | Implementation | Evidence |
 |---|---|---|---|
-| `SKH-V0-001`..`009` | V1-1897 | this spec | NOT_STARTED |
-| `SKH-V0-010`..`014` | V1-1898 | none | NOT_STARTED |
-| `SKH-V0-020`..`023` | V1-1899 | none | NOT_STARTED |
+| `SKH-V0-001`..`009` | V1-1897 | this spec; `internal/appmap/site_knowledge_project.go` | 002, 005, 007 and 009: `TestSKHV0_002_UnsupportedImportAndDeterminism`, `TestSKHV0_013_PageObjectsAndStepsCLI` and the core-history sample (build log 2026-10-22-sk-1022l); 001, 003, 004, 006 and 008: by construction in stages 1..2, NOT_STARTED beyond them |
+| `SKH-V0-010`..`014` | V1-1898 | `internal/appmap/site_knowledge*.go`, `cmd/corvint/flows_appmap_knowledge.go` | experimental: `TestSKHV0_010_*`, `TestSKHV0_012_*`, `TestSKHV0_013_PageObjectsAndStepsCLI`; core-history sample qualifies `playwright-ts-module` only; 013 corpus MCP projection NOT_STARTED; 011 screen join is the existing import-graph join and joined 0 adopter helpers |
+| `SKH-V0-020`..`023` | V1-1899 | `internal/appmap/site_knowledge*.go` | experimental: `TestSKHV0_020_*`, `TestSKHV0_021_*`, `TestSKHV0_022_*`, `TestSKHV0_023_*`, `TestSKHV0_012_*`; core-history sample for Playwright; Cypress and Capybara fixture-only |
 | `SKH-V0-030`..`034` | V1-1900 | none | NOT_STARTED |
 | `SKH-V0-040`..`043` | V1-1901 | none | NOT_STARTED |
 | `SKH-V0-050`..`054` | V1-1902 | none | NOT_STARTED |
@@ -608,12 +635,12 @@ Stage dependencies (each stage also reads the contracts named for it above):
 
 ## Owner questions
 
-1. Confirm the assumed first adopter (Rails + AngularJS ui-router, Playwright E2E, RSpec, legacy
-   Jasmine), and approve cloning it and running its suite locally for stage 8. If the adopter is a
-   React application instead, V1-1712 becomes a prerequisite of stage 1.
-2. Confirm N for the preregistered measure (proposed 20) and the 40% kill threshold.
-3. Which Ruby page-object form does the adopter use, Capybara page classes or SitePrism? Stage 1
-   needs at least one.
+1. Answered 2026-10-22: the first adopter is core-history. Still open: approval to run its suite
+   locally, offline, for stage 8; until then it is read-only and never run.
+2. Answered 2026-10-22: N = 10, kill threshold 40% (see "First adopter"); the owner may revise N
+   before the request set is frozen.
+3. Answered by the adopter choice: core-history has no Ruby, so the Capybara and SitePrism forms
+   stay fixture-only and `experimental`.
 
 Decided without the owner: V0 generation is Playwright-only (`SKH-V0-070`). This is an orchestrator
 decision under the owner's delegation of in-task forks (2026-10-05), made after review on
