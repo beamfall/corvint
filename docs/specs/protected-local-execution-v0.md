@@ -224,7 +224,7 @@ These focused checks do not establish protected native admission or qualificatio
 
 `tools/local-authority/*_test.go` owns executable feasibility evidence for PLE-V0-004/005.
 `tools/local-authority/codec_package_test.go` (`TestPLEV0013CodecPackageAdmitsTestdata`) covers
-PLE-V0-013: a real-shaped codec package with `testdata` is admitted and seven other entry shapes
+requirement PLE-V0-013: a real-shaped codec package with `testdata` is admitted and seven other entry shapes
 refuse. A live protected enrollment over a real map stays NOT_RUN (V1-2036): it needs the root-owned
 authority store and accounts, and this repository's own tree exceeds the capsule's 1,024-object and
 8,192-entry closure bounds.

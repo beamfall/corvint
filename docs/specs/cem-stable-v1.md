@@ -130,6 +130,13 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   `missing-target-blob` and `corrupt-target-blob`. A promisor repository still refuses without
   fetching (V1-0349, CEM-CB-019).
 
+- `CEM-V1-037`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0301, decision
+  0548) When the native parser (`internal/cem/patch`), and so `cem prepare`, refuses a
+  `Binary files` or `GIT binary patch` marker, it MUST keep the code `binary-patch` and MUST name
+  the repository path, taken from the unquoted symmetric `diff --git a/PATH b/PATH` line, else the
+  `rename to` path, else the new side of an unquoted `Binary files a/OLD and b/NEW differ` marker
+  (the old side when the new side is `/dev/null`). A marker that declares no valid path keeps the
+  earlier generic message. No path is invented and no map is published.
 - `CEM-V1-368`: The `cem-stable-review/0` projection MUST copy, from the verifier's own `citation`,
   each hunk row's `tier` and `anchors`, and a top-level `citationTiers` with the per-tier counts, the
   hunk count and `samePathCitations` (`NOT_PRODUCED` when the result has no citation). Each evidence
@@ -4259,3 +4266,30 @@ divergence table in the native envelope test; `CEM-V1-367` then reopens.
 | Requirement | Test | Evidence |
 | --- | --- | --- |
 | CEM-V1-568 | `TestStableCanonicalEnvelopeCellsNative` (`internal/cem/verify`), `TestCanonicalDiffOrdinaryRepositoryMissingBlobIsDiffFailed` (`internal/cem/gitauth`), `TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching` (`cmd/corvint`) | 29/29 exact native cells; ordinary repository `git-diff-failed`, promisor-marked repository `repository-object-unavailable` |
+
+## Binary-content refusal names the path (V1-0301, decision 0548, 2026-10-21)
+
+Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-0301,
+narrowed by decision 0548. `cem/1.0` does not represent binary content, and this section only makes
+that limit name the file that hit it. Mode-only and empty-file changes are already covered
+by `CEM-V1-300`. Representing binary or mode changes in a map (CEM-PILOT-001) moves to a post-1.0
+profile.
+
+The requirement is `CEM-V1-037` in `## Requirements`.
+
+Non-goals: no new refusal code; no wire, result or portable-consumer change (the portable
+`verify-candidate` result already carries only the code); no binary or mode representation.
+
+Failure modes: a quoted or traversing path is not named, so the message stays generic. A patch
+with several binary groups names only the first one the parser reaches.
+
+Acceptance evidence: the tests below pass. Each named-path case fails without the parser change,
+where every marker gave the generic message. Build log
+`docs/build-log/2026-10-21-cem-authority-1021t-binary-path-runner-authority.md`.
+
+Rollback: revert `binaryRefusal` and `binaryMarkerPath` in `internal/cem/patch/patch.go`. The
+refusal code and every stable result are unchanged either way.
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-037 | `TestBinaryRefusalNamesPath` (`internal/cem/patch`), `TestPrepareBinaryRefusalNamesPath` (`internal/cem/workflow`) | Modify, `GIT binary patch`, rename and bare creation/deletion markers name the path; bare and traversing markers keep the generic message; `cem prepare` on real binary creation, modification, deletion and a mixed text+binary commit refuses `binary-patch` naming the path |
