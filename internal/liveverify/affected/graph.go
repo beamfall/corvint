@@ -33,6 +33,9 @@ type Graph struct {
 	// documentation is the repository's declared documentation entries
 	// (AFP-V0-160), sorted; it is part of the digest when present.
 	documentation []string
+	// unobserved maps each plugin to the directories it owns but builds no
+	// unit for (AFP-V0-191), each list sorted.
+	unobserved map[string][]string
 	// priorReadScopes is the read-scope declaration a change is measured
 	// from, by package directory; nil means unknown (AFP-V0-050). It is a
 	// selection input, not part of the observed graph or its digest.
@@ -64,6 +67,9 @@ type digestBody struct {
 	// Documentation appears only when the repository declares documentation
 	// paths (AFP-V0-160), so graphs without the declaration keep their digest.
 	Documentation []string `json:"documentation,omitempty"`
+	// Unobserved appears only when a plugin reports a directory it owns but
+	// does not observe (AFP-V0-191), as "namespace:directory", sorted.
+	Unobserved []string `json:"unobserved,omitempty"`
 }
 
 // digestUnit projects one Unit; every member is always present except the
@@ -199,6 +205,19 @@ func build(ctx context.Context, languages []Language, reader *Source, observe fu
 }
 
 func (graph *Graph) admit(ctx context.Context, namespace string, result Result, frontier map[string]bool) error {
+	previous := ""
+	for _, directory := range result.Unobserved {
+		if !ValidRelativePath(directory) || directory <= previous {
+			return fmt.Errorf("%w: unobserved directory %q from %s", ErrInvalidLanguage, directory, namespace)
+		}
+		previous = directory
+	}
+	if len(result.Unobserved) != 0 {
+		if graph.unobserved == nil {
+			graph.unobserved = make(map[string][]string)
+		}
+		graph.unobserved[namespace] = append([]string(nil), result.Unobserved...)
+	}
 	for _, reason := range result.Frontier {
 		if reason == "" {
 			return fmt.Errorf("%w: empty frontier reason from %s", ErrInvalidLanguage, namespace)
@@ -367,7 +386,21 @@ func (graph *Graph) Canonical() ([]byte, error) {
 		Frontier:      graph.frontier,
 		Units:         units,
 		Documentation: graph.documentation,
+		Unobserved:    graph.unobservedEntries(),
 	}, json.Deterministic(true))
+}
+
+// unobservedEntries is the digest projection of the unobserved directories:
+// "namespace:directory" for every plugin, sorted; nil when there are none.
+func (graph *Graph) unobservedEntries() []string {
+	var entries []string
+	for namespace, directories := range graph.unobserved {
+		for _, directory := range directories {
+			entries = append(entries, namespace+":"+directory)
+		}
+	}
+	sort.Strings(entries)
+	return entries
 }
 
 func projectUnit(unit Unit) digestUnit {

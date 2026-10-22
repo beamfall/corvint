@@ -141,3 +141,22 @@ func TestPSRPublicRouteAndHelp(t *testing.T) {
 		}
 	}
 }
+
+// TestATRV0270_DispatchUsageNamesGrantID: the dispatch verbs take --grant as
+// the recorded integration grant ID, not a file (ATR-V0-270, V1-0830).
+func TestATRV0270_DispatchUsageNamesGrantID(t *testing.T) {
+	for _, verb := range []string{"run", "admit", "resume", "retry", "drain", "cancel", "answer"} {
+		var out bytes.Buffer
+		if cli.Run(cli.Env{Cwd: t.TempDir(), Args: []string{verb, "--help"}, Stdin: unreadHelpInput{}, Stdout: &out}) != 0 {
+			t.Fatalf("%s --help: %s", verb, out.String())
+		}
+		result, err := wire.DecodeResult(out.Bytes())
+		if err != nil {
+			t.Fatal(err)
+		}
+		usage := field(result.Items[0], "usage").Str
+		if !strings.Contains(usage, "[--grant ID]") || strings.Contains(usage, "--grant FILE") {
+			t.Fatalf("%s usage does not name --grant as a grant ID: %s", verb, usage)
+		}
+	}
+}

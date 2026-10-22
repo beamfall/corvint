@@ -101,7 +101,7 @@ sub index_lines {
     return split /^/, index_blob($_[0]);
 }
 
-my (%defined, %outside);
+my (%defined, %outside, @misshapen);
 for my $file (tracked_spec_docs()) {
     next if $file eq 'docs/specs/README.md';
     my $line_number = 0;
@@ -126,6 +126,13 @@ for my $file (tracked_spec_docs()) {
         } elsif (!$in_section
             && $line =~ /^- (?:`([A-Z][A-Z0-9-]*-[0-9]{3})`: |\*\*([A-Z][A-Z0-9-]*-[0-9]{3})[:.]\*\* )/) {
             push @outside, "$file " . ($1 // $2);
+        }
+        # RDG-V0-022: a definition-shaped line with a parenthetical between the id and its colon,
+        # such as - `ID` (V1-x): text, is no definition under the grammar above, so an id with no
+        # other definition would silently fall back to a table row or vanish. It fails, naming the
+        # accepted forms. A traceability line for an id defined elsewhere keeps passing.
+        if ($line =~ /^\s*(?:[-*]\s+)?(?:\*\*)?(`?)([A-Z][A-Z0-9-]*-[0-9]{3})\1(?:\*\*)?\s*\((?:[^()]|\([^()]*\))*\)(?:\*\*)?\s*:/) {
+            push @misshapen, [$2, "$file:$line_number $2"];
         }
         # The backticks must balance. With both optional and independent, an opening
         # backtick matched while the closing one did not, so a prose range like
@@ -191,6 +198,12 @@ if (@stale_baseline) {
     $failed = 1;
     print STDERR "requirement definitions: no longer outside ## Requirements; delete from script/requirement-definitions-outside-section.txt:\n";
     print STDERR "  $_\n" for @stale_baseline;
+}
+@misshapen = map { $_->[1] } grep { !$defined{$_->[0]} } @misshapen;
+if (@misshapen) {
+    $failed = 1;
+    print STDERR "requirement definitions: these lines look like definitions but put a note between the id and its colon, so no definition is read; write `- `ID`: (note) text`, `- **ID:** (note) text` or `- **ID.** (note) text` (docs/SPEC-DRIVEN-DEVELOPMENT.md):\n";
+    print STDERR "  $_\n" for @misshapen;
 }
 exit($failed);
 PERL

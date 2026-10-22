@@ -53,7 +53,7 @@ This proposed technical contract implements the human issue as a separately expe
   bad policy, unsafe paths/URLs and unverified requests before any write. Raw-intake and mutable
   outputs require separate trusted private single-writer directories; reject input/output aliases,
   symlinks and nonregular files, publish with exclusive private temporary files and atomic replace.
-- `PMC-V0-010`: (accepted, owner lane auto-acceptance 2026-10-11; V1-2259) Before reading the
+- `PMC-V0-010`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2259) Before reading the
   binding's commits or asking `git merge-base --is-ancestor`, the merged-change read MUST refuse
   with `ancestry-rewritten` when the checkout has `info/grafts` or is shallow
   (`gitancestry.Rewritten`), because either rewrites the ancestry answer. The refusal happens

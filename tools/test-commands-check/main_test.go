@@ -292,7 +292,7 @@ func TestSTRV0004ShellTestIsTheGateShellSteps(t *testing.T) {
 	slices.Sort(got)
 	slices.Sort(want)
 	if !slices.Equal(got, want) {
-		t.Errorf("shell-test prerequisites %q, want the GATE_STEPS steps that run a script/*_test.sh %q", got, want)
+		t.Errorf("shell-test prerequisites %q, want the GATE_STEPS steps that run a script/*_test.sh %q (registration steps: the SHELL-TEST-REGISTRATION note under docs)", got, want)
 	}
 }
 

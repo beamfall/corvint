@@ -113,7 +113,9 @@ func TestIndependentNestedModulesCloseTheFrontier_V1_0867(t *testing.T) {
 		t.Errorf("root-only plan scope = %s unknown = %+v, want BOUNDED with none", plan.Scope, plan.Unknown)
 	}
 	inside := affected.Select(graph, []string{"nested/n.go"})
-	wantInside := []affected.Unknown{{Reason: affected.UnknownUnindexedSourcePath, Detail: "nested/n.go"}}
+	// A change inside the nested module stays UNKNOWN, named as that module's
+	// frontier (AFP-V0-191) rather than as an unindexed source path.
+	wantInside := []affected.Unknown{{Reason: affected.UnknownLanguageFrontier, Detail: "go:unobserved-directory:nested:nested/n.go"}}
 	if inside.Scope != affected.ScopeUnknown || !reflect.DeepEqual(inside.Unknown, wantInside) {
 		t.Errorf("nested-change plan scope = %s unknown = %+v, want UNKNOWN with %+v", inside.Scope, inside.Unknown, wantInside)
 	}

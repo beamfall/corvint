@@ -3,6 +3,7 @@ package verify
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -38,6 +39,11 @@ func TestCEMV1260DriftResourceLimitNative(t *testing.T) {
 		t.Fatalf("Stable exit=%d drift=%d result=%s, want exit %d %s/%s %s with %d drift rows", exit, len(result.Drift), stableResultDebug(result), want.Exit, want.Outcome, want.Stage, want.Code, want.DriftItems)
 	}
 	checkResultBytes(t, filepath.Join(root, want.Result), result)
+	// OCM-V0-026: the unencoded cause names the bound that fired and its
+	// value, while the pinned result bytes above stay unchanged.
+	if cause := fmt.Sprintf("git-budget-exceeded: Git operation budget exhausted at its %d-operation bound", want.Operations); result.LimitCause != cause {
+		t.Fatalf("LimitCause=%q, want %q", result.LimitCause, cause)
+	}
 }
 
 type driftResourceLimitExpected struct {

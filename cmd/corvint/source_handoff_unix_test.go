@@ -169,3 +169,46 @@ exec /usr/bin/git "$@"
 		}
 	}
 }
+
+// ESV-V0-013: when the sequence bound expires partway through `context
+// --expand`, every Git step refuses as deadline-exceeded instead of the
+// validation code its failed read would otherwise imply (V1-1412). Each case
+// stalls exactly one step past a one-second bound. Before the fix 13 of the 14
+// cases answered repository-root, invalid-handle, missing-handle or git-failed.
+func TestContextExpandDeadlineExpiryRefusesAsDeadlineExceeded(t *testing.T) {
+	t.Parallel()
+	root, _, _ := sourceViewRepository(t)
+	tree := gitOutput(t, root, "rev-parse", "HEAD^{tree}")
+	blob := gitOutput(t, root, "rev-parse", "HEAD:spec.md")
+	for _, step := range []struct{ name, pattern string }{
+		{"toplevel", `*" --show-toplevel "*`},
+		{"object-format", `*" --show-object-format "*`},
+		{"head-tree", `*" HEAD^{tree} "*`},
+		{"ls-tree", `*" ls-tree "*`},
+		{"disambiguate", `*" --disambiguate="*`},
+		{"cat-file", `*" cat-file blob "*`},
+		{"recheck", "recheck"},
+	} {
+		for _, rangeText := range []string{"all", "1-999999999"} {
+			marker := filepath.Join(t.TempDir(), "seen")
+			body := `case " $* " in ` + step.pattern + `) exec /bin/sleep 30;; esac
+exec /usr/bin/git "$@"
+`
+			if step.pattern == "recheck" {
+				body = `case " $* " in *" HEAD^{tree} "*) if [ -e '` + marker + `' ]; then exec /bin/sleep 30; fi; : > '` + marker + `';; esac
+exec /usr/bin/git "$@"
+`
+			}
+			ctx := context.WithValue(context.WithValue(context.Background(), sourceGitExecutableKey{}, sourceGitScript(t, body)), sourceDeadlineKey{}, time.Second)
+			_, err := expandContextHandle(ctx, root, "cv1:"+tree+":"+blob+":"+rangeText+":spec.md", 1<<20)
+			want := "deadline-exceeded"
+			if step.name == "recheck" && rangeText != "all" {
+				want = "invalid-handle" // the range refuses before the stalled recheck runs
+			}
+			var failure *gokernel.Error
+			if !errors.As(err, &failure) || failure.Code != want {
+				t.Errorf("%s %s: %v, want %s", step.name, rangeText, err, want)
+			}
+		}
+	}
+}

@@ -65,7 +65,7 @@ Core/MCP/flows, generic falsifier authority or the whole requested capability.
   isolation states) and each test's reasons and the report unknowns. Every rendered value must match
   its closed identifier, OID, digest, build or reason-code shape; anything else renders `UNVALIDATED`.
 
-- `NEA-V0-010`: accepted, decision 0507. Optional operator-only
+- `NEA-V0-010`: (accepted, decision 0507) Optional operator-only
   `accept --temp-root` selects an existing clean absolute directory with no symlink components.
   The parent allocates a private per-run child, propagates it as TMPDIR to all workers, native
   providers and control executors, and removes that child after joined execution or cancellation.

@@ -285,7 +285,7 @@ func (graph *Graph) seed(dirty []string) (map[string]Witness, []Unknown) {
 	for _, path := range dirty {
 		id, owned := graph.owner[path]
 		if !owned {
-			unknown = append(unknown, Unknown{Reason: graph.unownedReason(path), Detail: path})
+			unknown = append(unknown, graph.unownedUnknown(path))
 			continue
 		}
 		kind := graph.witnessKind(id, path)
@@ -407,15 +407,40 @@ func (graph *Graph) claimantsOf(path string) []string {
 	return claimed
 }
 
-// unownedReason distinguishes a dirty path some plugin claims as its own source
-// text — an unindexed source file — from a path no plugin claims at all.
-func (graph *Graph) unownedReason(path string) string {
+// unownedUnknown distinguishes a dirty path some plugin claims as its own
+// source text — an unindexed source file — from a path no plugin claims at
+// all. A claimed path at or below a directory that plugin reported as
+// unobserved is that plugin's frontier instead: the file is known to lie
+// outside the observed graph, not merely to be missing from it (AFP-V0-191).
+func (graph *Graph) unownedUnknown(path string) Unknown {
+	reason := UnknownUnownedDirtyPath
 	for _, name := range graph.languages {
-		if graph.claimants[name] != nil && graph.claimants[name].Owns(path) {
-			return UnknownUnindexedSourcePath
+		if graph.claimants[name] == nil || !graph.claimants[name].Owns(path) {
+			continue
+		}
+		if directory, ok := underDirectory(path, graph.unobserved[name]); ok {
+			return Unknown{Reason: UnknownLanguageFrontier, Detail: name + ":" + FrontierUnobservedDirectory + ":" + directory + ":" + path}
+		}
+		reason = UnknownUnindexedSourcePath
+	}
+	return Unknown{Reason: reason, Detail: path}
+}
+
+// FrontierUnobservedDirectory is the LANGUAGE_FRONTIER detail category of a
+// dirty path inside a directory its plugin owns but does not observe; the
+// detail is "namespace:unobserved-directory:<directory>:<path>" (AFP-V0-191).
+const FrontierUnobservedDirectory = "unobserved-directory"
+
+// underDirectory returns the longest of the sorted directories that path lies
+// below, and whether there is one.
+func underDirectory(path string, directories []string) (string, bool) {
+	found := ""
+	for _, directory := range directories {
+		if strings.HasPrefix(path, directory+"/") && len(directory) > len(found) {
+			found = directory
 		}
 	}
-	return UnknownUnownedDirtyPath
+	return found, found != ""
 }
 
 func (graph *Graph) witnessKind(id, path string) string {

@@ -123,3 +123,45 @@ func TestWorkspaceUseOutsideRootIsAFrontier_AFPV0008(t *testing.T) {
 		t.Fatalf("scope = %s, want %s while a used module is outside the root", plan.Scope, affected.ScopeUnknown)
 	}
 }
+
+// TestWorkspaceUseSetIsTheStrictReaders_AFPV0190 pins that the go.work use set
+// is read by the strict manifest reader (V1-0874) on inputs the earlier
+// line-and-fields reader read differently: a quoted directory with a space is
+// observed (the earlier reader skipped the line and observed the root alone),
+// and a go.work the strict reader refuses (the earlier reader guessed ./app)
+// observes the root alone and raises go:workspace-unparsed.
+func TestWorkspaceUseSetIsTheStrictReaders_AFPV0190(t *testing.T) {
+	refused := []string{golang.FrontierModulePath, golang.FrontierNestedModule, golang.FrontierWorkspaceUnparsed}
+	for _, test := range []struct {
+		name, work, directory string
+		wantUnits             []string
+		wantFrontier          []string
+	}{
+		{"quoted directory with a space", "go 1.26\n\nuse \"./my app\"\n", "my app", []string{"go:example.test/app"}, []string{}},
+		{"raw string", "go 1.26\n\nuse `./app`\n", "app", []string{}, refused},
+		{"two directories on one use line", "go 1.26\n\nuse ./app ./other\n", "app", []string{}, refused},
+		{"unknown directive", "go 1.26\n\nuse ./app\nmodule example.test/root\n", "app", []string{}, refused},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeFiles(t, root, map[string]string{
+				"go.work":                       test.work,
+				test.directory + "/go.mod":      "module example.test/app\n",
+				test.directory + "/app.go":      "package app\n",
+				test.directory + "/app_test.go": "package app\n",
+			})
+			result, err := golang.New().Units(context.Background(), root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			units := []string{}
+			for _, unit := range result.Units {
+				units = append(units, unit.ID)
+			}
+			frontier := append([]string{}, result.Frontier...)
+			if !reflect.DeepEqual(units, test.wantUnits) || !reflect.DeepEqual(frontier, test.wantFrontier) {
+				t.Errorf("units = %v frontier = %v, want %v and %v", units, frontier, test.wantUnits, test.wantFrontier)
+			}
+		})
+	}
+}

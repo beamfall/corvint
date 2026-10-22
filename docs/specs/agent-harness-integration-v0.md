@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-08-23
-Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969); AHI-057 accepted under the owner's standing auto-accept (2026-10-11) (V1-1974); AHI-070 accepted under the owner's standing auto-accept (2026-10-11) (V1-2062); AHI-171 accepted under the owner's standing auto-accept (2026-10-11) (V1-2192); AHI-071 accepted under the owner's standing auto-accept (2026-10-11) (V1-2150; Pi tuple now 0.99.1 / 0.3.3, decision 0550)
+Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969); AHI-057 accepted under the owner's standing auto-accept (2026-10-11) (V1-1974); AHI-070 accepted under the owner's standing auto-accept (2026-10-11) (V1-2062); AHI-171 accepted under the owner's standing auto-accept (2026-10-11) (V1-2192); AHI-172 accepted under the owner's standing auto-accept (2026-10-11) (V1-2201); AHI-071 accepted under the owner's standing auto-accept (2026-10-11) (V1-2150; Pi tuple now 0.99.1 / 0.3.3, decision 0550)
 Delivery status: experimental
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.
-- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969); AHI-057 accepted under the owner's standing auto-accept (2026-10-11) (V1-1974); AHI-070 accepted under the owner's standing auto-accept (2026-10-11) (V1-2062); AHI-171 accepted under the owner's standing auto-accept (2026-10-11) (V1-2192); AHI-071 accepted under the owner's standing auto-accept (2026-10-11) (V1-2150; Pi tuple now 0.99.1 / 0.3.3, decision 0550)/experimental
+- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969); AHI-057 accepted under the owner's standing auto-accept (2026-10-11) (V1-1974); AHI-070 accepted under the owner's standing auto-accept (2026-10-11) (V1-2062); AHI-171 accepted under the owner's standing auto-accept (2026-10-11) (V1-2192); AHI-172 accepted under the owner's standing auto-accept (2026-10-11) (V1-2201); AHI-071 accepted under the owner's standing auto-accept (2026-10-11) (V1-2150; Pi tuple now 0.99.1 / 0.3.3, decision 0550)/experimental
 - Exists: `internal/gokernel`, `cmd/corvint`, native adapter previews, and the experimental OpenCode inspector/change/Tasks workbench (AHI-033–041) with the owner-approved Work / Change / Evidence presentation (AHI-042).
 - Blocked on: black-box release-matrix qualification with accepted closing authority.
 - Read next: `harness-authority-relation-v0.md` (superseded by accepted decision 0009 option 2; no execution authority root) and `change-frontier-profile-1.md`.
@@ -570,7 +570,7 @@ separate exact extension tuple remains governed by AHI-024.
   yields `compaction-pin-not-emitted`, which is still a degradation and never a clean report.
   Evidence: `TestAHI057ClaudeCompactionDistinguishesUnemittedPinFromLostPin`. Rollback: revert the
   unavailable line and its detection, so a degraded `pre-compact` prints its frame text alone.
-- `AHI-053`: accepted, decision 0517 (V1-1128). Amendment to `AHI-031`
+- `AHI-053`: (accepted, decision 0517 (V1-1128)) Amendment to `AHI-031`
   and the no-writer wording of `AHI-029`: stale Claude/Codex notices retain their frame, code,
   channels and exact manual argv but may report a background refresh started, already running,
   disabled or failed to start under `IDX-SNAP-V0-031` through `IDX-SNAP-V0-036`. The current event
@@ -762,6 +762,32 @@ separate exact extension tuple remains governed by AHI-024.
   averages lag a short burst. Evidence: `TestAHI171LatencyHostContention` in
   `internal/opencodequalification`. Rollback: revert `internal/opencodequalification/contention.go`
   and its call sites so a latency miss is a plain `FAIL` again.
+- `AHI-172`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2201; GitHub #1406)
+  Amendment to `AHI-171`; it replaces that requirement's same-window baseline non-goal. While each
+  OpenCode native timing window runs, the harness MUST spawn a fixed no-op probe that does not
+  depend on the candidate (`/usr/bin/true`, else `/bin/true`) every 100 ms and record, under
+  `metrics.latencyAttempts[].baseline` and, for the decisive attempt, `metrics.latencyBaseline`: the
+  probe path, the sample count, the probe p95, its declared quiet-host reference of 2 ms, the
+  slowdown (probe p95 over that reference, at least 1), the candidate query and lifecycle p95 each
+  relative to the probe p95, the AHI-012 limits scaled by the slowdown and the declared tolerance of
+  1.5, and the comparison `WITHIN_SCALED_LIMITS` or `BEYOND_SCALED_LIMITS`. A window with fewer than
+  20 completed probe spawns, or with no probe, MUST record each measured field as `NOT_OBSERVED`.
+  A miss that meets every `AHI-171` condition for `LATENCY_HOST_CONTENDED` MUST instead be
+  `LATENCY_REGRESSION` when the baseline was observed and the candidate is beyond its scaled limits,
+  because the candidate is slower than the host's slowdown explains. When the baseline was not
+  observed, the `AHI-171` load rule decides alone. A contended `retryHint` MUST also name the
+  baseline slowdown. A miss on a host below the load threshold stays `LATENCY_REGRESSION` however
+  slow the probe was. The Linux `/proc/loadavg` reader MUST be exercised from a fixture file on every
+  host: load averages, the runnable count as the run queue, and `NOT_OBSERVED` for a malformed
+  line. Non-goals: sampling a previously qualified binary, a per-host calibrated reference, CPU steal
+  time, and widening the absolute limits. Failure modes: the 2 ms reference is a declared constant,
+  so a host whose quiet probe spawn is slower shows a standing slowdown and the load rule then
+  decides as in `AHI-171`; process-spawn cost and hook latency need not scale alike; the macOS
+  scheduler favours short-lived processes over equal-priority CPU-bound threads, so a loaded window
+  can still pass. Evidence: `TestAHI172SameWindowBaseline` and `TestAHI172ProcLoadavgFixture` in
+  `internal/opencodequalification`; the live OpenCode 2.0.18 runs and the live Linux reading in
+  `docs/build-log/2026-10-21-gh1406-1021r-latency-baseline.md`. Rollback: revert
+  `internal/opencodequalification/baseline.go` and its call sites so `AHI-171` decides alone.
 - `AHI-070`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2062) The generic
   `corvint harness event --event user-prompt` keeps refusing a task whose raw input, counted before
   surrounding whitespace is trimmed, exceeds either query bound (2,000 characters or 16,384 bytes)
@@ -1564,6 +1590,7 @@ and rejection of package versions as wire versions (V1-0444).
 | AHI-053 (accepted, decision 0517) | `snapshotRemediation` | `TestSnapshotRefreshCommitThenEvent`, `TestSnapshotRefreshDisabledAndFailures` |
 | `AHI-070` (accepted under the owner's standing auto-accept (2026-10-11); V1-2062) | `internal/gokernel/harness.go` `validateInput` | `TestAHI070OverBoundTaskRefusalNamesLimitAndLength` (counts and bounds named, text never echoed; a task at the bound once trimmed but over it raw is refused with its raw counts) |
 | `AHI-171` (accepted under the owner's standing auto-accept (2026-10-11); V1-2192) | `internal/opencodequalification/contention.go`, `native.go` (window readings, `latencyOutcome`, `RETRY_LATER`), `tools/qualify-opencode` exit 75 | `TestAHI171LatencyHostContention` (a latency-only miss at load 11.5 on 12 CPUs is `LATENCY_HOST_CONTENDED` and retry-later with a hint; the same miss on a quiet host, with unobserved contention, with another failed check or with a short sample is not; absent readings are `NOT_OBSERVED`; a live host reading) |
+| `AHI-172` (accepted under the owner's standing auto-accept (2026-10-11); V1-2201) | `internal/opencodequalification/baseline.go` (`sampleBaseline`, `baselineComparison`, `baselineEvidence`), `contention.go` (`latencyOutcome`, `retryHint`, `procLoadavgPath`), `native.go` window sampling | `TestAHI172SameWindowBaseline` (both slow under contention is host-contended with the comparison recorded; a candidate beyond its slowdown-scaled limits is a regression under load; a slow probe on a quiet host excuses nothing; an unobserved baseline keeps the AHI-171 rule with `NOT_OBSERVED` fields; a live sampler), `TestAHI172ProcLoadavgFixture` (the Linux reader from a fixture, malformed lines unobserved) |
 | `AHI-055` (accepted under the owner's standing auto-accept (2026-10-11); V1-1280) | `cmd/corvint/host_adapter.go` (`deadlineRemediation`, `withDeadlineRemediation`), `cmd/corvint/host_adapter_compaction.go` | `TestClaudeAdapterStopDeadlineFailsOpenVisibly`, `TestClaudeCompactionDeadlineNamesRemediation`, `TestDeadlineRemediationKeepsFrameWithinLimit`, `TestClaudeAdapterDogfoodEventDeadlineCarriesNoNotice`, `TestCodexAdapterDeadlineNamesRemediation`, `TestClaudeAdapterStaleSnapshotNamesRemediation`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
 | `AHI-054` (accepted, decision 0519; V1-1157) | `internal/gokernel/harness.go` `HandleEvent` stop frontier, `FrontierCauseNoClosingAuthority`; `conformance/cli-parity-v0` `validFrontierCauseDivergence`, `outOfPacketKnownDivergence`; `integrations/testfixture/main.go` | `TestAHI054StopFrontierCarriesFixedCause`, `TestAHI054FrontierCauseDivergenceIsPinnedAndOutOfPacket`, `TestGPKV0002ManifestReplay` (`DR-0043`), Gemini CLI and OpenCode stop cases and the `AHI-054` with-and-without-cause case under `TestHostAdapterJavaScriptHosts` |
 | `AHI-004` | native adapter renderers, shared lifecycle command, `internal/repoenvelope`, and the JavaScript envelope builders | byte-identical untrusted-data envelope with hidden-character escaping and terminator refusal (`internal/repoenvelope`, `cmd/corvint`, `tools/native-hook-observer` and `integrations/host-adapters.test.mjs` tests), injection bounds, authority order, and query fixtures |

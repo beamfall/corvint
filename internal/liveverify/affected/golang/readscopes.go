@@ -106,9 +106,15 @@ func CommittedReadScopes(ctx context.Context, root, commit string) (map[string][
 	if err != nil {
 		return nil, err
 	}
-	workspace, err := workspaceDirectories(affected.FSSource(source), map[string]bool{})
+	frontier := map[string]bool{}
+	workspace, err := workspaceDirectories(affected.FSSource(source), frontier)
 	if err != nil {
 		return nil, err
+	}
+	if frontier[FrontierWorkspaceUnparsed] {
+		// A go.work the strict reader refuses leaves ownership unknown, so the
+		// base declaration is unknown too (AFP-V0-190).
+		return nil, fmt.Errorf("go.work at %s is outside the grammar the manifest reader admits", commit)
 	}
 	listed := make(map[string]module, len(workspace))
 	for _, directory := range workspace {

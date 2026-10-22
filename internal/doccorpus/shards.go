@@ -66,6 +66,9 @@ func (c *compiler) preloadProviders() error {
 			if (record.Schema == FlowRelationSchema) != (record.FlowRelations != nil) {
 				return fail("flow_relations requires its explicit provider schema")
 			}
+			if (record.Schema == ClaimAuditSchema) != (record.ClaimAudits != nil) {
+				return fail("claim_audits requires its explicit provider schema")
+			}
 			counts := [5]int{len(record.Subjects), len(record.Claims), len(record.Relations), len(record.Journeys), len(record.Observations)}
 			limits := [5]int{c.manifest.recordLimit(), c.manifest.recordLimit(), c.manifest.recordLimit(), c.manifest.journeyLimit(), c.manifest.recordLimit()}
 			for i, n := range counts {

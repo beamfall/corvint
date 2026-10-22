@@ -91,6 +91,9 @@ func inventory(a *doccorpus.Artifact) [7]map[string]any {
 	for _, j := range a.FlowRelations {
 		x[6]["flow_relation:"+j.ID] = j
 	}
+	for _, j := range a.ClaimAudits {
+		x[6]["claim_audit:"+j.ID] = j
+	}
 	for _, g := range a.SuppliedGaps {
 		x[6]["supplied_gap:"+g.ID] = g
 	}
