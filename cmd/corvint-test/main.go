@@ -82,7 +82,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	out := fs.String("out", "", "output file (catalog, harvest, obligations) or directory (compile, prove), outside the repository")
 	var rev, base, head, coverage *string
 	var repeats *int
-	var recordCoverage *bool
+	var recordCoverage, moduleGraph *bool
 	var nodeModules, nodeBin, packageJSON, lockfile, window, hostedTest, hostedTitle, oracleAcceptance *string
 	switch sub {
 	case "shadow":
@@ -93,6 +93,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		base = fs.String("base", "", "base revision")
 		head = fs.String("head", "", "head revision")
 		coverage = fs.String("coverage", "", "runtime coverage document recorded at head; it may only widen reach (CCE-V0-045)")
+		moduleGraph = fs.Bool("module-graph", false, "widen reach through the head tree's TypeScript/JavaScript module graph (CCE-V0-054)")
 		if sub == "prove" {
 			repeats = fs.Int("repeats", changee2e.DefaultRepeats, "repeats per side")
 			nodeModules = fs.String("node-modules", os.Getenv("CORVINT_PLAYWRIGHT_MODULES"), "node_modules holding @playwright/test")
@@ -122,7 +123,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		outPath = p
 	}
 	diff := func() changee2e.DiffOptions {
-		return changee2e.DiffOptions{Root: *root, Base: *base, Head: *head, Manifest: *manifest, Coverage: *coverage}
+		return changee2e.DiffOptions{Root: *root, Base: *base, Head: *head, Manifest: *manifest, Coverage: *coverage, ModuleGraph: *moduleGraph}
 	}
 	var doc []byte
 	switch sub {

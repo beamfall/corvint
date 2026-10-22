@@ -416,3 +416,36 @@ func TestCCEV0053RecordCoverageFlag(t *testing.T) {
 		t.Fatalf("non-proof wrote %v", entries)
 	}
 }
+
+// CCE-V0-054: --module-graph names the TJAA module graph as consulted in the obligations report;
+// without it the relation is listed as not consulted.
+func TestCCEV0054ModuleGraphFlag(t *testing.T) {
+	root, base, head := fixture(t)
+	for _, on := range []bool{false, true} {
+		args := []string{"e2e", "obligations", "--root", root, "--base", base, "--head", head}
+		if on {
+			args = append(args, "--module-graph")
+		}
+		var out bytes.Buffer
+		if err := run(context.Background(), args, &out); err != nil {
+			t.Fatal(err)
+		}
+		var doc struct {
+			Relations struct {
+				Consulted    []string `json:"consulted"`
+				NotConsulted []string `json:"not_consulted"`
+			} `json:"relations"`
+			ModuleGraph *struct {
+				Digest string `json:"digest"`
+			} `json:"module_graph"`
+		}
+		if err := json.Unmarshal(out.Bytes(), &doc); err != nil {
+			t.Fatal(err)
+		}
+		consulted := strings.Contains(strings.Join(doc.Relations.Consulted, ","), changee2e.ModuleGraphBasis)
+		listedNot := strings.Contains(strings.Join(doc.Relations.NotConsulted, ","), changee2e.ModuleGraphBasis)
+		if consulted != on || listedNot == on || (doc.ModuleGraph != nil) != on || on && doc.ModuleGraph.Digest == "" {
+			t.Fatalf("--module-graph=%v: %s", on, out.Bytes())
+		}
+	}
+}
