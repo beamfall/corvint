@@ -2056,6 +2056,16 @@ SERVICE500-008	docs/specs/corvint-tasks-user-service-v0.md	Status and health MUS
 SERVICE500-009	docs/specs/corvint-tasks-user-service-v0.md	Manager operations MUST use a durable recoverable original-request journal.	unrecorded	-
 SERVICE500-010	docs/specs/corvint-tasks-user-service-v0.md	Qualification MUST prove the complete native vertical lifecycle.	unrecorded	-
 SERVICE500-011	docs/specs/corvint-tasks-user-service-v0.md	Integrated delivery MUST retain intent, evidence and native closeout.	unrecorded	-
+CTF-V0-001	docs/specs/corvint-test-fold-v0.md	Each group MUST move in its own change, in the order of the fold map, and a chan	unrecorded	-
+CTF-V0-002	docs/specs/corvint-test-fold-v0.md	Before a group moves, its change MUST record goldens of the old invocation:	unrecorded	-
+CTF-V0-003	docs/specs/corvint-test-fold-v0.md	Every profile ID in the fold map MUST stay unchanged. A moved command MUST NOT g	unrecorded	-
+CTF-V0-004	docs/specs/corvint-test-fold-v0.md	After a group moves, its old companion binary MUST be a shim that calls the same	unrecorded	-
+CTF-V0-005	docs/specs/corvint-test-fold-v0.md	Once group 5 or 6 moves, the removed core verb or mode MUST return core's existi	unrecorded	-
+CTF-V0-006	docs/specs/corvint-test-fold-v0.md	A moved command that re-enters its own executable (group 2's control hook, group	unrecorded	-
+CTF-V0-007	docs/specs/corvint-test-fold-v0.md	A moved group's diagnostics MUST name its new invocation (`corvint-test <group>`	unrecorded	-
+CTF-V0-008	docs/specs/corvint-test-fold-v0.md	Name matchers MUST key on exact binary names, never on the `corvint-test` prefix	unrecorded	-
+CTF-V0-009	docs/specs/corvint-test-fold-v0.md	Group 6 MUST NOT move until `script/gate-affected-corvint.sh` and the CI shadow	unrecorded	-
+CTF-V0-010	docs/specs/corvint-test-fold-v0.md	The fold MUST NOT add a command, flag, dependency or default-path behaviour to c	unrecorded	-
 AGW-V0-001	docs/specs/corvint-witness-v0.md	`corvint witness` MUST be read-only, per AGENTS.md invariant 4: on every path —	unrecorded	-
 AGW-V0-002	docs/specs/corvint-witness-v0.md	Committed-range ancestry MUST follow immutable commit parents. The bounded Git	unrecorded	-
 AGW-V0-003	docs/specs/corvint-witness-v0.md	(proposed 2026-09-23, V1-0200, not accepted) the report MUST carry	unrecorded	-
