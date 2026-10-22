@@ -28,6 +28,9 @@ func TestProposeCitationsDCWV0161DraftsAnchoredRows(t *testing.T) {
 	}
 	writeTree(t, root, map[string]string{
 		"docs/specs/x-v0.md": spec, "internal/x/x.go": source("X"), "internal/x/named.go": source("Named"), "internal/x/plain.go": source("Plain"),
+		// One long record naming a path, as a one-line JSON document does:
+		// the grep must report the match, not the whole record.
+		"docs/notes.json": `{"note":"` + strings.Repeat("n", 40<<10) + ` internal/x/named.go"}` + "\n",
 	})
 	testGit(t, root, "add", ".")
 	testGit(t, root, "commit", "-q", "-m", "base")
@@ -46,8 +49,14 @@ func TestProposeCitationsDCWV0161DraftsAnchoredRows(t *testing.T) {
 	}
 	writeTree(t, root, map[string]string{".corvint/change.cem.json": string(document) + "\n"})
 
+	// A Git output limit below the long record's size proves the anchor read
+	// stays within the flow's bound however long the matching lines are.
 	var stdout, stderr bytes.Buffer
-	if code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: base}, &stdout, &stderr); err != nil || code != 0 {
+	run := &proposal{
+		flow:    flow{ctx: context.Background(), prefix: "dogfood-propose-citations", root: root, stderr: &stderr, gitOutputLimit: 32 << 10},
+		options: ProposeOptions{Root: root, Base: base}, stdout: &stdout, blobs: map[string][]byte{}, lines: map[string][][]byte{},
+	}
+	if code, err := boundary(context.Background(), run.run, func() {}); err != nil || code != 0 {
 		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
 	}
 	rows := textLines(stdout.Bytes())

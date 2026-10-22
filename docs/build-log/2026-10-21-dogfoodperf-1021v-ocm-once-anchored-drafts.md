@@ -57,6 +57,13 @@ stays four fields. Basename matches are not used, because they are too often unr
 `verify.ComputeCitation` and `belowAnchoredWarnings`: only the fallback row warns. The test fails
 without the change.
 
+**Found while dogfooding this change.** On Corvint itself, the first build anchored 0 of 27 rows.
+One-line JSON documents (tickets, indexes) that name a path made the grep print about 27 MB, which
+exceeded the flow's 16 MiB Git read bound, so every row fell back. The grep now prints each match
+with `-o`, not its whole line, and excludes `.corvint/`. With that change the same map anchored 22
+of 27 rows, in about 13 s. The test now carries a 40 KiB record that names a path and runs under a
+32 KiB read bound; without `-o` it drafts no anchored row.
+
 ## V1-2343: warning on new files citing a direct dependency (refuted as a defect)
 
 `CEM-V1-081` defines exactly two anchor kinds: a defined ID and the path. A direct dependency is not

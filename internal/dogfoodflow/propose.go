@@ -269,7 +269,9 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) {
 	if len(patterns) == 0 {
 		return
 	}
-	arguments := []string{"grep", "-z", "-n", "-F", "-I"}
+	// -o prints each match, not its line, so a long one-line document that
+	// names a path cannot overflow the read bound.
+	arguments := []string{"grep", "-z", "-n", "-o", "-F", "-I"}
 	sorted := make([]string, 0, len(patterns))
 	for pattern := range patterns {
 		sorted = append(sorted, pattern)
@@ -278,7 +280,7 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) {
 	for _, pattern := range sorted {
 		arguments = append(arguments, "-e", pattern)
 	}
-	out, status, bounded := p.boundedGit(append(arguments, p.base, "--")...)
+	out, status, bounded := p.boundedGit(append(arguments, p.base, "--", ".", ":(exclude).corvint/")...)
 	if status != 0 || !bounded {
 		return
 	}
