@@ -12,9 +12,8 @@ points", read through `docs/specs/INDEX.json` and their Agent digests.
 ## Agent digest
 - Claim: Page objects, steps, setup and edges mined from tests answer "how do I X" with a live-proven E2E test, or abstain naming the missing knowledge.
 - Status: accepted (owner intent 2026-10-19; V1-1897); experimental. SKH-V0-001..089 for stages 1..8 (V1-1898..V1-1905) are accepted under the owner's standing auto-accept (2026-10-11). Stages 1 and 2 are implemented as `flows appmap pageobjects` and `flows appmap steps` (V1-1898 partial: no MCP projection; V1-1899); stages 3..8 are not started.
-- Exists: only the contracts this extends: AMAP-V0 map and selectors, ANL-V0 edges, AFU-V1 intents, DCP-V1 inventories and test knowledge, AMSP-V0 planner draft, CCE-V0 prover, NEA-V0 controls, RVN-V0 binding, PWP-V0 receipts and TSA-V0 validity.
-- First adopter: core-history (owner decision 2026-10-22), a React + react-router SPA with a Playwright TypeScript suite. N = 10 for the preregistered measure (orchestrator decision 2026-10-22).
-- Next: the stage 1 MCP projection (SKH-V0-013), then stage 3 (V1-1900) and stage 4 (V1-1901).
+- Exists: `flows appmap pageobjects` and `flows appmap steps` (stages 1 and 2, experimental), plus the contracts this extends: AMAP-V0 map and selectors, ANL-V0 edges, AFU-V1 intents, DCP-V1 inventories and test knowledge, AMSP-V0 planner draft, CCE-V0 prover, NEA-V0 controls, RVN-V0 binding, PWP-V0 receipts and TSA-V0 validity.
+- Blocked on: nothing for the stage 1 MCP projection (SKH-V0-013), stage 3 (V1-1900) or stage 4 (V1-1901). First adopter core-history (owner 2026-10-22); N = 10.
 - Read next: Owner intent; Definition of "confidently"; Requirements; Preregistered measure; Owner questions.
 
 ## Owner intent
@@ -537,8 +536,8 @@ and 8 may stop there.
 
 | Failure | Required behaviour |
 |---|---|
-| Unsupported test or page-object form | abstain, naming the file and form (`SKH-V0-010`) |
-| Inherited or helper method not resolvable | UNKNOWN at that hop's line (`SKH-V0-012`) |
+| Unsupported test or page-object form | abstain, naming the file and form (`SKH-V0-010`): an UNKNOWN with reason `form-unsupported` for an unsupported file type, `parse-unsupported` for a Ruby file the reader cannot read, and `second-class-in-file` for a second page-object class in one file |
+| Inherited or helper method not resolvable | UNKNOWN at that hop's line (`SKH-V0-012`), with the closed hop reason `class-not-read`, `import-not-read`, `not-defined` or `not-exported` |
 | Step cannot be parsed | `opaque` step; the sequence is incomplete (`SKH-V0-021`) |
 | Precondition with no setup record | `unresolved`; the plan abstains with `no-setup-for-precondition` |
 | Mocked endpoint mistaken for real behaviour | prevented by the `mocked` label (`SKH-V0-034`) |
@@ -615,8 +614,8 @@ Stage dependencies (each stage also reads the contracts named for it above):
 | Requirements | Ticket | Implementation | Evidence |
 |---|---|---|---|
 | `SKH-V0-001`..`009` | V1-1897 | this spec; `internal/appmap/site_knowledge_project.go` | 002, 005, 007 and 009: `TestSKHV0_002_UnsupportedImportAndDeterminism`, `TestSKHV0_013_PageObjectsAndStepsCLI` and the core-history sample (build log 2026-10-22-sk-1022l); 001, 003, 004, 006 and 008: by construction in stages 1..2, NOT_STARTED beyond them |
-| `SKH-V0-010`..`014` | V1-1898 | `internal/appmap/site_knowledge*.go`, `cmd/corvint/flows_appmap_knowledge.go` | experimental: `TestSKHV0_010_*`, `TestSKHV0_012_*`, `TestSKHV0_013_PageObjectsAndStepsCLI`; core-history sample qualifies `playwright-ts-module` only; 013 corpus MCP projection NOT_STARTED; 011 screen join is the existing import-graph join and joined 0 adopter helpers |
-| `SKH-V0-020`..`023` | V1-1899 | `internal/appmap/site_knowledge*.go` | experimental: `TestSKHV0_020_*`, `TestSKHV0_021_*`, `TestSKHV0_022_*`, `TestSKHV0_023_*`, `TestSKHV0_012_*`; core-history sample for Playwright; Cypress and Capybara fixture-only |
+| `SKH-V0-010`..`014` | V1-1898 | `internal/appmap/site_knowledge*.go`, `cmd/corvint/flows_appmap_knowledge.go` | experimental: `TestSKHV0_010_PlaywrightClassPageObject`, `TestSKHV0_010_ModulePageObjectAndSetupHelpers`, `TestSKHV0_010_CypressClass`, `TestSKHV0_010_CapybaraAndSitePrism`, `TestSKHV0_012_SpecLocalHelpersTemplatesAndValueAsserts`, `TestSKHV0_013_PageObjectsAndStepsCLI`; core-history sample qualifies `playwright-ts-module` only; 013 corpus MCP projection NOT_STARTED; 011 screen join is the existing import-graph join and joined 0 adopter helpers |
+| `SKH-V0-020`..`023` | V1-1899 | `internal/appmap/site_knowledge*.go` | experimental: `TestSKHV0_020_OpaqueStepsAreKept`, `TestSKHV0_021_InlinesCallsWithBoundArguments`, `TestSKHV0_022_DeduplicatesSequencesWithUsage`, `TestSKHV0_023_StrictStepDecoderRefusesOutsideTheClosedIR`; core-history sample for Playwright; Cypress and Capybara fixture-only |
 | `SKH-V0-030`..`034` | V1-1900 | none | NOT_STARTED |
 | `SKH-V0-040`..`043` | V1-1901 | none | NOT_STARTED |
 | `SKH-V0-050`..`054` | V1-1902 | none | NOT_STARTED |
