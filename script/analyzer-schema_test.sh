@@ -5,8 +5,11 @@ set -eu
 # a clean tree checks; an input edit is refused until one `bump` rewrites both pins; a second edit
 # on the same branch keeps the branch's number; a base that took the same number with another
 # digest is refused with the rebump recovery and `bump` moves past it; an unresolvable base leaves
-# the collision check NOT_RUN and makes `bump` refuse. The fixture's digest must also equal the
-# one TestAnalyzerSchemaInputs computes, which the real repository's pin proves on every gate.
+# the collision check NOT_RUN and makes `bump` refuse. With an output pin (V1-2289,
+# IDX-SNAP-V0-107) a perf-only edit keeps the base number, a changed output bumps, the base number
+# with another output digest is refused, and a missing output digest makes `bump` refuse. The
+# fixture's digest must also equal the one TestAnalyzerSchemaInputs computes, which the real
+# repository's pin proves on every gate.
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-analyzer-schema-test.XXXXXX")
@@ -105,5 +108,58 @@ run check --base no-such-ref
 case $output in *'NOT_RUN'*) ;; *) fail "unresolvable base not reported NOT_RUN: $output" ;; esac
 run bump --base no-such-ref
 [ "$status" -eq 1 ] || fail "bump without a base did not refuse"
+
+# Output pin (V1-2289, IDX-SNAP-V0-107). The fixture's output command reads output.digest, which
+# stands in for the digest TestAnalyzerSchemaOutput prints for the golden corpus.
+digest_a=$(printf 'a%.0s' $(seq 64))
+digest_b=$(printf 'b%.0s' $(seq 64))
+produce() { printf 'ok\nanalyzer output SHA256=%s\n' "$1" >"$test_root/output.digest"; }
+output_pin() { sed -n 's/^[[:space:]]*const auditedOutputSHA256 = "\(.*\)"$/\1/p' "$test_root/internal/contextindex/analyzer_schema_test.go"; }
+CORVINT_ANALYZER_OUTPUT_COMMAND='cat output.digest'
+export CORVINT_ANALYZER_OUTPUT_COMMAND
+git -C "$test_root" checkout -q -f main
+printf 'output.digest\n' >>"$test_root/.gitignore"
+perl -0pi -e "s/^(\\s*const auditedSHA256 = \"[0-9a-f]{64}\"\\n)/\${1}\\t\\tconst auditedOutputSHA256 = \"$digest_a\"\\n/m or die" "$test_root/internal/contextindex/analyzer_schema_test.go"
+commit "pin output"
+produce "$digest_a"
+base_number=$(pinned)
+
+# A perf-only input edit whose golden output is unchanged keeps the base number.
+git -C "$test_root" checkout -q -b perf
+printf '// faster, same output\n' >>"$test_root/internal/contextindex/analyzer_schema.go"
+run check --base main
+[ "$status" -eq 1 ] || fail "perf edit with a stale input digest passed check"
+run bump --base main
+[ "$status" -eq 0 ] || fail "perf bump failed: $output"
+[ "$(pinned)" = "$base_number" ] || fail "perf-only edit bumped $base_number -> $(pinned)"
+[ "$(output_pin)" = "$digest_a" ] || fail "perf bump moved the output pin: $(output_pin)"
+run check --base main
+[ "$status" -eq 0 ] || fail "check refused a perf-only edit with the same output: $output"
+case $output in *'no bump needed'*) ;; *) fail "perf-only check did not report the output equivalence: $output" ;; esac
+
+# Claiming the base number with another output digest is refused.
+perl -0pi -e "s/$digest_a/$digest_b/ or die" "$test_root/internal/contextindex/analyzer_schema_test.go"
+run check --base main
+[ "$status" -eq 1 ] || fail "same number with a different output digest passed check: $output"
+case $output in *'Rebump to corvint-analyzer/'*) ;; *) fail "output collision refusal does not name the rebump: $output" ;; esac
+
+# An input edit that changes the output bumps once and pins the new output digest.
+git -C "$test_root" checkout -q -f main
+git -C "$test_root" checkout -q -b output-change
+printf '// new facts\n' >>"$test_root/internal/contextindex/analyzer_schema.go"
+produce "$digest_b"
+run bump --base main
+[ "$status" -eq 0 ] || fail "output-changing bump failed: $output"
+[ "$(pinned)" = "corvint-analyzer/$((${base_number#corvint-analyzer/} + 1))" ] || fail "output change did not bump past $base_number: $(pinned)"
+[ "$(output_pin)" = "$digest_b" ] || fail "output change did not repin the output digest: $(output_pin)"
+run check --base main
+[ "$status" -eq 0 ] || fail "check after an output bump failed: $output"
+
+# An output command that reports no digest makes bump refuse instead of guessing.
+printf '// another edit\n' >>"$test_root/internal/contextindex/analyzer_schema.go"
+printf 'build failed\n' >"$test_root/output.digest"
+run bump --base main
+[ "$status" -ne 0 ] || fail "bump without an output digest did not refuse"
+case $output in *'reported no output digest'*) ;; *) fail "missing output digest not reported: $output" ;; esac
 
 printf 'ok analyzer-schema\n'
