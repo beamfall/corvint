@@ -45,7 +45,12 @@ func legacyWrite(t *testing.T, root, name, data string) {
 
 func legacyInventory(t *testing.T, root, runner, revision, path string, registry []byte) (LegacyInventory, []byte, error) {
 	t.Helper()
-	data, err := BuildLegacyInventory(context.Background(), LegacyInventoryInput{Root: root, Runner: runner, Revision: revision, Path: path, Registry: registry})
+	return legacyInventoryContext(context.Background(), t, root, runner, revision, path, registry)
+}
+
+func legacyInventoryContext(ctx context.Context, t *testing.T, root, runner, revision, path string, registry []byte) (LegacyInventory, []byte, error) {
+	t.Helper()
+	data, err := BuildLegacyInventory(ctx, LegacyInventoryInput{Root: root, Runner: runner, Revision: revision, Path: path, Registry: registry})
 	var inventory LegacyInventory
 	if data != nil {
 		if decodeErr := decode(data, &inventory); decodeErr != nil {

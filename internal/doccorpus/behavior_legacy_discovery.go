@@ -172,7 +172,7 @@ func BuildLegacyInventory(ctx context.Context, input LegacyInventoryInput) ([]by
 	if err != nil {
 		return nil, err
 	}
-	auth, err := gitauth.Open(input.Root, newGitBudget())
+	auth, err := gitauth.Open(input.Root, newGitBudget(ctx))
 	if err != nil {
 		return nil, err
 	}

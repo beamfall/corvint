@@ -55,15 +55,23 @@ func SummarizeAttempt(en snapshot.ReservationEntry, a *snapshot.Attempt, now wir
 	if a.Lease != nil {
 		s.Holder, s.LeaseExpiresAt = a.Lease.Holder, string(a.Lease.ExpiresAt)
 	}
+	release := "`corvint-tasks release --attempt " + en.AttemptID + " --generation " + s.Generation + " --request-id NEW_ID`"
 	switch {
 	case expired(a, now):
 		s.Recovery = "the lease expired; reap it: `corvint-tasks reap --attempt " + en.AttemptID + " --generation " + s.Generation + " --lease-expires-at " + s.LeaseExpiresAt + " --request-id NEW_ID`"
 	case a.Supervision != nil:
-		s.Recovery = "it is supervised by program " + a.Supervision.ProgramID + " and has no work lease to reap; it ends with its program, or its holder releases it"
+		// A supervised attempt's liveness is its program's, not a work
+		// lease's, so nothing reaps it (ATR-V0-281, CAL-V0-121).
+		s.Recovery = "it is supervised by program " + a.Supervision.ProgramID + ", whose liveness replaces a work lease, so nothing reaps it; it ends with its program, or its holder releases it: " + release
 	case a.Lease == nil:
-		s.Recovery = "it has no work lease to reap; its holder releases it: `corvint-tasks release --attempt " + en.AttemptID + " --generation " + s.Generation + " --request-id NEW_ID`"
+		s.Recovery = "it has no work lease to reap; its holder releases it: " + release
 	default:
-		s.Recovery = "the lease is live until " + s.LeaseExpiresAt + "; wait for it, or its holder releases it: `corvint-tasks release --attempt " + en.AttemptID + " --generation " + s.Generation + " --request-id NEW_ID`"
+		s.Recovery = "the lease is live until " + s.LeaseExpiresAt + "; wait for it, or its holder releases it: " + release
+	}
+	if s.HolderStatus == "STALE_HOLDER" {
+		// STALE_HOLDER is advisory and never release authority (CAL-V0-121,
+		// ATR-V0-280): the refusal says so and names the same command.
+		s.Recovery = "its heartbeat is stale, which is advisory and frees nothing; " + s.Recovery
 	}
 	return s
 }

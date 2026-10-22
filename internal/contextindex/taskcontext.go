@@ -127,6 +127,9 @@ type taskContextCompiler struct {
 	answerability               answerability
 	slotOmitted, truncated      bool
 	historyFull, cochangeCapped bool
+	// omittedPairs is the subjectless counterpart tests that found no unfilled
+	// budget, in admission order (TCP-V0-161).
+	omittedPairs []string
 	// lexical caches the scored posting walk (TCP-V0-014) across the test
 	// slot and the lexical fill.
 	lexical []lexicalHit
@@ -414,18 +417,14 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 	return rows
 }
 
-// admitLexicalPairs keeps every selected source and authority row intact while
-// replacing unrelated lexical tests with the naming counterparts of the
-// selected lexical sources (TCP-V0-004). The rule is rank-relative, not a cap:
-// a counterpart inherits its source's lexical strength, so it may displace only
-// an unrelated lexical test that the task matched more weakly than that source
-// (BM25 order, weakest victim first). The packet never
-// grows past the limit and never loses a source, a governing row or any other
-// non-lexical row. Both chi orientation misses fixed by this form were cap and
-// victim-choice defects: the three-counterpart cap was spent on the
-// counterparts of weaker sources before the strongest source's turn, and the
-// last-position victim rule evicted the packet's strongest lexical test when it
-// was the only unprotected one left (docs/build-log, 2026-10-01).
+// admitLexicalPairs adds the naming counterparts of the selected lexical
+// sources to a subjectless packet (TCP-V0-004) while keeping every selected
+// row intact. A counterpart already selected lexically is promoted ahead of
+// the first unrelated lexical test the task matched more weakly than its
+// source (the rank-relative rule, docs/build-log 2026-10-01). A counterpart
+// not yet selected only fills unfilled budget: it never displaces a selected
+// lexical test, because that displacement cost code2test recall (V1-2288), and
+// one that does not fit is listed by path in `omitted_pairs` (TCP-V0-161).
 func (compiler *taskContextCompiler) admitLexicalPairs(rows []contextRow, limit int) []contextRow {
 	rank := compiler.lexicalRank()
 	type counterpart struct {
@@ -468,14 +467,14 @@ func (compiler *taskContextCompiler) admitLexicalPairs(rows []contextRow, limit 
 		if at >= 0 && at < limit && rows[at].kind != "lexical" {
 			continue
 		}
-		// The unrelated lexical tests this counterpart outranks, in packet order.
-		weaker := []int{}
-		for position, row := range rows[:min(len(rows), limit)] {
-			if row.kind == "lexical" && contextIsTest(row.path) && !protected[row.path] && testRank(row.path) > candidate.sourceRank {
-				weaker = append(weaker, position)
-			}
-		}
 		if at >= 0 && at < limit {
+			// The unrelated lexical tests this counterpart outranks, in packet order.
+			weaker := []int{}
+			for position, row := range rows[:min(len(rows), limit)] {
+				if row.kind == "lexical" && contextIsTest(row.path) && !protected[row.path] && testRank(row.path) > candidate.sourceRank {
+					weaker = append(weaker, position)
+				}
+			}
 			// Already selected lexically: promote it ahead of the first weaker
 			// unrelated test, if one precedes it; otherwise it stays as it is.
 			if len(weaker) == 0 || at < weaker[0] {
@@ -486,28 +485,33 @@ func (compiler *taskContextCompiler) admitLexicalPairs(rows []contextRow, limit 
 			rows = slices.Insert(rows, weaker[0], pair)
 			continue
 		}
-		if len(weaker) == 0 {
-			if len(rows) < limit {
-				rows = append(rows, pair)
-				compiler.chosen[pair.path] = struct{}{}
-			} else {
-				compiler.slotOmitted = true
-			}
+		// A counterpart only fills unfilled budget; it never displaces a
+		// selected lexical test (V1-2288). One that does not fit is a named
+		// omission (TCP-V0-161), never a silent drop.
+		if len(rows) < limit {
+			rows = append(rows, pair)
+			compiler.chosen[pair.path] = struct{}{}
 			continue
 		}
-		// Remove an already materialised tail row before promoting its relation.
-		if at >= limit {
-			compiler.promoted[pair.path] = rows[at].kind
-			rows = slices.Delete(rows, at, at+1)
-		}
-		victim := weaker[len(weaker)-1]
-		displaced := rows[victim]
-		rows = slices.Delete(rows, victim, victim+1)
-		rows = slices.Insert(rows, weaker[0], pair)
-		rows = slices.Insert(rows, min(limit, len(rows)), displaced)
-		compiler.chosen[pair.path] = struct{}{}
+		compiler.slotOmitted = true
+		compiler.omittedPairs = append(compiler.omittedPairs, pair.path)
 	}
 	return rows
+}
+
+// omittedPairCoverage is TCP-V0-161: the counterpart tests of selected lexical
+// sources that found no unfilled budget are listed by path, so a reader can
+// still open one, such as chi's wrap_writer_test.go for an orientation task.
+// The member is present only when there is one and changes no ranking.
+func (compiler *taskContextCompiler) omittedPairCoverage(coverage map[string]any) {
+	if len(compiler.omittedPairs) == 0 {
+		return
+	}
+	samples := make([]any, 0, min(len(compiler.omittedPairs), maxExclusionSamples))
+	for _, path := range compiler.omittedPairs[:min(len(compiler.omittedPairs), maxExclusionSamples)] {
+		samples = append(samples, map[string]any{"path": path, "reason": omittedPairReason})
+	}
+	coverage["omitted_pairs"] = map[string]any{"count": len(compiler.omittedPairs), "samples": samples}
 }
 
 // lexicalRank maps every lexical hit to its BM25 position (TCP-V0-014's
@@ -2608,6 +2612,7 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 		packet["exclusions"] = exclusions
 	}
 	compiler.unresolvedAnchors(packet["coverage"].(map[string]any))
+	compiler.omittedPairCoverage(packet["coverage"].(map[string]any))
 	compiler.recencyCoverage(packet["coverage"].(map[string]any), rows)
 	compiler.lexicalCoverage(packet["coverage"].(map[string]any), rows, limit)
 	worktreeCoverage(packet["coverage"].(map[string]any), compiler.index)
@@ -2632,6 +2637,9 @@ func worktreeCoverage(coverage map[string]any, index *Index) {
 // taskStoreProjectionReason marks a Tasks store projection file, which is task
 // state rather than evidence (DIRTY-CACHE-017).
 const taskStoreProjectionReason = "task store projection"
+
+// omittedPairReason is TCP-V0-161's reason for a counterpart test with no budget.
+const omittedPairReason = "paired test omitted: budget"
 
 // TCP-V0-065 discloses corpus gaps separately from ranked evidence. Sort a
 // copy so deterministic sampling never changes the index shared by readers.

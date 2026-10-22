@@ -298,6 +298,7 @@ func TestGoTestOnlyChangeSelectsItsPackageButNotItsImporters_V1_0984(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
+	reader := &UnboundedCause{Unit: "go:reader", Reads: "runtime.Caller"}
 	cases := []struct {
 		name  string
 		dirty []string
@@ -305,24 +306,24 @@ func TestGoTestOnlyChangeSelectsItsPackageButNotItsImporters_V1_0984(t *testing.
 	}{
 		{"test only", []string{"core/core_test.go", "core/export_test.go"}, map[string]Witness{
 			"go:core":   {Kind: WitnessDirectTest, DirtyPath: "core/core_test.go", Via: []string{"go:core"}},
-			"go:reader": {Kind: WitnessUnboundedReader, DirtyPath: "core/core_test.go", Via: []string{"go:reader"}},
+			"go:reader": {Kind: WitnessUnboundedReader, DirtyPath: "core/core_test.go", Via: []string{"go:reader"}, Cause: reader},
 		}},
 		{"source", []string{"core/core.go"}, map[string]Witness{
 			"go:core":     {Kind: WitnessDirectSource, DirtyPath: "core/core.go", Via: []string{"go:core"}},
 			"go:mid":      {Kind: WitnessDependency, DirtyPath: "core/core.go", Via: []string{"go:core", "go:mid"}},
 			"go:testuser": {Kind: WitnessDependency, DirtyPath: "core/core.go", Via: []string{"go:core", "go:testuser"}},
-			"go:reader":   {Kind: WitnessUnboundedReader, DirtyPath: "core/core.go", Via: []string{"go:reader"}},
+			"go:reader":   {Kind: WitnessUnboundedReader, DirtyPath: "core/core.go", Via: []string{"go:reader"}, Cause: reader},
 		}},
 		{"source and test", []string{"core/core.go", "core/core_test.go"}, map[string]Witness{
 			"go:core":     {Kind: WitnessDirectSource, DirtyPath: "core/core.go", Via: []string{"go:core"}},
 			"go:mid":      {Kind: WitnessDependency, DirtyPath: "core/core.go", Via: []string{"go:core", "go:mid"}},
 			"go:testuser": {Kind: WitnessDependency, DirtyPath: "core/core.go", Via: []string{"go:core", "go:testuser"}},
-			"go:reader":   {Kind: WitnessUnboundedReader, DirtyPath: "core/core.go", Via: []string{"go:reader"}},
+			"go:reader":   {Kind: WitnessUnboundedReader, DirtyPath: "core/core.go", Via: []string{"go:reader"}, Cause: reader},
 		}},
 		{"test here, source below", []string{"core/core_test.go", "mid/mid.go"}, map[string]Witness{
 			"go:core":   {Kind: WitnessDirectTest, DirtyPath: "core/core_test.go", Via: []string{"go:core"}},
 			"go:mid":    {Kind: WitnessDirectSource, DirtyPath: "mid/mid.go", Via: []string{"go:mid"}},
-			"go:reader": {Kind: WitnessUnboundedReader, DirtyPath: "core/core_test.go", Via: []string{"go:reader"}},
+			"go:reader": {Kind: WitnessUnboundedReader, DirtyPath: "core/core_test.go", Via: []string{"go:reader"}, Cause: reader},
 		}},
 	}
 	for _, tc := range cases {

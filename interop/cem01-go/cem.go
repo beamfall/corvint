@@ -2337,6 +2337,12 @@ func structuralProof03(ctx context.Context, _ string, base []byte, f *filePatch,
 	if e != nil || bytes.Equal(base, image) {
 		return false
 	}
+	return structuralPredicate03(reason, base, image)
+}
+
+// structuralPredicate03 judges one derived image against its base file; the
+// structural corpus (decision 0551) drives it directly.
+func structuralPredicate03(reason string, base, image []byte) bool {
 	a, ok := parseGo03(base)
 	if !ok {
 		return false
@@ -3650,7 +3656,7 @@ func runStableExternal(ctx context.Context, repo string, raw []byte, base, targe
 	}
 	for _, h := range m.Hunks {
 		if structuralReason03(h.Reason) {
-			r.Runtime.StructuralQualification = "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+			r.Runtime.StructuralQualification = "QUALIFIED_EXACT_TUPLE"
 			if !structuralRuntimeAdmitted(runtime.Version()) {
 				r.Runtime.StructuralQualification = "UNSUPPORTED"
 				r.Axes["structuralProof"] = "UNSUPPORTED_RUNTIME"

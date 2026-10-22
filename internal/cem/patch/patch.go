@@ -169,7 +169,7 @@ func hasPrefixLine(line []byte, prefix string) bool {
 func (p *parser) parseGroup() (*Group, error) {
 	line := p.peek()
 	if hasPrefixLine(line, "GIT binary patch") || hasPrefixLine(line, "Binary files ") {
-		return nil, cemcode.New(cemcode.BinaryPatch, "binary patches are outside the CEM patch grammar")
+		return nil, binaryRefusal("", line)
 	}
 	switch {
 	case hasPrefixLine(line, "diff --git "):
@@ -212,7 +212,11 @@ func (p *parser) parseStateMachineGroup() (*Group, error) {
 		return nil, malformed("diff --git group is missing file headers")
 	}
 	if hasPrefixLine(p.peek(), "GIT binary patch") || hasPrefixLine(p.peek(), "Binary files ") {
-		return nil, cemcode.New(cemcode.BinaryPatch, "binary patches are outside the CEM patch grammar")
+		path, ok := symmetricDiffPath(diffLine)
+		if !ok {
+			path = meta.renameTo
+		}
+		return nil, binaryRefusal(path, p.peek())
 	}
 	oldPath, newPath, err := p.parseFileHeaders()
 	if err != nil {
@@ -282,6 +286,46 @@ func metadataOnlyKind(first, second string) string {
 		return metadataOnlyModeOnly
 	}
 	return ""
+}
+
+// binaryRefusal returns the binary-patch refusal, naming the changed path when
+// the diff --git line, rename metadata or `Binary files` marker declares one
+// (CEM-V1-037). The refusal code is unchanged; cem/1.0 cannot represent binary
+// content.
+func binaryRefusal(path string, marker []byte) error {
+	if path == "" {
+		path = binaryMarkerPath(lineText(marker))
+	}
+	if path == "" {
+		return cemcode.New(cemcode.BinaryPatch, "binary patches are outside the CEM patch grammar")
+	}
+	return cemcode.New(cemcode.BinaryPatch,
+		"binary change to %q is outside the CEM patch grammar; cem/1.0 cannot represent binary content", path)
+}
+
+// binaryMarkerPath returns the new-side path, or the old side for a deletion,
+// from an unquoted `Binary files a/OLD and b/NEW differ` marker.
+func binaryMarkerPath(marker string) string {
+	body, ok := strings.CutPrefix(marker, "Binary files ")
+	if !ok {
+		return ""
+	}
+	body, ok = strings.CutSuffix(body, " differ")
+	if !ok {
+		return ""
+	}
+	oldLabel, newLabel, ok := strings.Cut(body, " and ")
+	if !ok || strings.Contains(newLabel, " and ") {
+		return ""
+	}
+	path, ok := strings.CutPrefix(newLabel, "b/")
+	if newLabel == "/dev/null" {
+		path, ok = strings.CutPrefix(oldLabel, "a/")
+	}
+	if !ok || wire.ValidatePath(path) != nil {
+		return ""
+	}
+	return path
 }
 
 // symmetricDiffPath returns PATH from an unquoted `diff --git a/PATH b/PATH`

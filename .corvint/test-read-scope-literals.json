@@ -31,6 +31,7 @@
       "docs/specs/REQUIREMENTS.tsv": "a reservations.sharedPaths policy value decoded in memory; nothing is read"
     },
     "internal/tasks/store": {
+      ".corvint/changes": "a shared reservation or claim-scope directory key in a temporary task store; the repository directory is not read",
       "docs/build-log": "a claim scope key written into a temporary fixture repository",
       "docs/specs": "a claim-scope directory key in a temporary task store; the repository directory is not read",
       "docs/specs/INDEX.json": "a shared reservation or claim-scope path in a temporary task store; the repository file is not read",

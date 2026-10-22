@@ -80,7 +80,7 @@ exec sleep 300`
 	}
 
 	// ATR-V0-126: an on-demand salvage of the running session.
-	notePath, n, err := SalvageWorker(d.dir, w, *now)
+	notePath, n, err := SalvageWorker(d.dir, w, *now, "")
 	if err != nil || notePath != HandoffNotePath(d.dir, w.ID) {
 		t.Fatalf("salvage %s %v", notePath, err)
 	}

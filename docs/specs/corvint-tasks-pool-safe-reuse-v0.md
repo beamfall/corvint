@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568)
+Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568)
 Delivery status: experimental
 Authoritative inputs: https://github.com/beamfall/corvint/issues/498; CAL-V0-028..034 in corvint-tasks-agent-leases-v0.md; independent Gate A packet-r2/GATE-A.md PASS with no HIGH, MED findings incorporated before implementation.
 Native ticket: V1-0695, original creation receipt2436.
 
 ## Agent digest
 - Claim: Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.
-- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
+- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
 - Exists: Foreground sweep, optional dispatcher integration and focused fixtures are implemented in source. Earlier source-bound repair evidence is retained separately from current integrated qualification.
 - Blocked on: Current integrated native binary, mandatory selected tests, exact-target review, terminal evidence, hosted integration and native completion. Linux runtime and physical external cleanup remain unqualified.
 - Read next: Requirements; Acceptance evidence; Non-goals and simpler baseline; Compatibility and rollback.
@@ -839,14 +839,23 @@ as before. This change delivers that subset; the residuals below stay open under
 - `PSR-V0-167`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1585) A policy
   without `operations` and a pools.json without `operations` or entry `operation` keys MUST encode,
   decode and behave exactly as before: no new key appears in pools.json or `pool status` for them.
+- `PSR-V0-196`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1750) This amends
+  the receipt list of `PSR-V0-162`: an operation receipt write MUST retain at most 512 receipts (two
+  per member at the 256-member bound), evicting the oldest by observing receipt sequence; the
+  receipt it records is never evicted. A full-size pool therefore keeps pools.json under its 1 MiB bound and still
+  accepts acquire and release. `pool status` shows `NOT_OBSERVED` for an evicted operation, as
+  before its first run; a replay still returns its own receipt through PSR-V0-164's read of the
+  observation transaction's posted pools.json. Readers keep accepting the earlier 1,280-receipt
+  bound, so an older pools.json stays readable and its next operation write trims it.
 
 Failure modes:
 - A runner that dies after the pending entry commits leaves the member PREPARING or CLEANING until
   `pool recover` proves the runner gone; the operation is never rerun by a replay.
 - A failed `provision` or `refresh` from FREE quarantines the member; recovery is the existing
   cleanup and confirm-safe, or a `reset`, `retarget` or `refresh` from QUARANTINED followed by them.
-- pools.json stays bounded at 1 MiB: at the 256-member bound with five receipts each, a write past
-  the bound is refused `LIMIT_EXCEEDED` rather than truncated.
+- pools.json stays bounded at 1 MiB: operation receipts are retained newest-first up to 512
+  (PSR-V0-196), so receipts alone cannot fill it; a write still past the bound, for example from
+  entry reasons, is refused `LIMIT_EXCEEDED` rather than truncated.
 - On a non-Unix host the runner reports `UNKNOWN`, which quarantines.
 
 Non-goals: no operation by the holder of an ALLOCATED allocation, no automatic return to FREE
@@ -859,7 +868,9 @@ Rollback: let every pending operation settle or recover, then publish the policy
 and revert the source. The `operations` list leaves pools.json once its members are no longer
 declared. An older binary refuses a policy with `operations` or a pools.json with an `operations`
 or `operation` key as `MALFORMED` (unknown key), the recorded compatibility boundary while
-operations are declared or recorded. No receipt, record or preimage is rewritten.
+operations are declared or recorded. No receipt, record or preimage is rewritten. Reverting
+PSR-V0-196 alone restores one retained receipt per member and operation; trimmed receipts are not
+restored; each one stays in the pools.json its observation transaction posted (PSR-V0-164).
 
 ### V1-1785 compaction cost and the fast route (issue 1063 ask 4)
 
@@ -888,6 +899,39 @@ Acceptance evidence: `TestPSRV0185_CompactHelpNamesFastRoute` (`internal/tasks/c
 the post-compaction complete audit; it fails on the base help.
 
 Rollback: revert the help sentence, the test and this subsection. No store or wire format changes.
+
+### V1-0917 and V1-0324 read-checkpoint request and projection checks
+
+A read that resumes from the read checkpoint walks only the tail, and the read checkpoint does not
+retain `requests/` entries (CAL-V0-059..061), so the tail walk could not see a tail receipt that
+posts a request ID already posted before the checkpoint; the complete audit refuses that history.
+Separately, TCP-00 §3.3 lets a read serve the intent projection without a journal check, while
+crash matrix C6 listed `INTENT_DIVERGED` under reads. The owner delegated the C6 reading to the
+orchestrator on 2026-10-21 (decision 0552): reads stay non-blocking and warn.
+
+- `PSR-V0-190`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0917) On a read
+  resumed from the read checkpoint, a tail receipt that posts a `requests/` path with a non-null
+  pre-state, which the read checkpoint does not retain, declines the checkpoint route, and the
+  complete audit classifies the history (a request ID already posted refuses `JOURNAL_FORKED`). A
+  request is posted once, so a non-null pre-state means the path already held a request. The check
+  reads nothing beyond the tail receipt it already decoded, so the route stays bounded by the tail.
+  Residual: a forged duplicate whose receipt declares a null pre-state passes this check; the
+  writer route (its request index) and the complete audit (`receipt audit`, the writer refresh)
+  still refuse it.
+- `PSR-V0-191`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0324) A read that
+  does not audit the journal still serves the intent projection without blocking (TCP-00 §3.3). It
+  compares each `intent/` afterimage the head receipt posts with the projected file's digest, from
+  the head receipt the snapshot already read and bound to `head.json`'s `lastSeq` and
+  `lastReceiptSha256`; a difference adds a `PROJECTION_STALE` warning naming the projected intent
+  tree, the head sequence and receipt digest, and at most four differing paths (then a count). It
+  reads no file beyond the snapshot, so it sees only paths the head receipt posted. A read that
+  audits the journal (for example `ticket show`, which reads attempt state) and every writer keep
+  the audit's `INTENT_DIVERGED` refusal. `PROJECTION_STALE` is a warning token, not a §11 code.
+  This amends crash matrix C6 for this repository: unaudited reads report `PROJECTION_STALE`;
+  audited reads and writers refuse `INTENT_DIVERGED` (the external TCP-00 wording edit is pending).
+
+Rollback: revert the source; reads again serve a stale projection silently and the read checkpoint
+again relies on the complete audit for a prefix request duplicate. No record format changes.
 
 ## Acceptance evidence
 
@@ -979,6 +1023,8 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-086 | `TestPSRV0086_PoolsWithoutSourcesUnchanged` (`internal/tasks/cli`) |
 | PSR-V0-168 | `TestPSRV0168_IdentityProbeOutsideWriterLock`, `TestPSRV0168_IdentityProbeStaleStateNotReused`, `TestV12138_ClaimDerivationOutsideWriterLock`, `TestV12138_UnmovedClaimServedOnWriterRoute`, `TestV12138_ClaimRebindsMovedBaseAfterJournalAdvance`, `TestV12138_LockedClaimObserverRunsNoGit` (`internal/tasks/store`) |
 | PSR-V0-169 | `TestPSRV0169_NonPublishingRefreshDoesNotRecurPerWrite`, `TestCALV0117_WriterAdvanceAndScheduledRefresh` (`internal/tasks/store`) |
+| PSR-V0-190 | `TestPSRV0190_CheckpointTailRefusesPrefixRequestDuplicate`, `TestCALV0061_CheckpointTailEqualsFullAudit` (`internal/tasks/journal`) |
+| PSR-V0-191 | `TestPSRV0191_StaleProjectionReadWarns` (`internal/tasks/cli`) |
 
 ## Traceability (PSR-V0-110..116)
 
@@ -1029,6 +1075,7 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-165 | `TestPSRV0165_FailedResetRetargetQuarantine`, `TestPSRV0165_PreExecutionFailureSettled` (`internal/tasks/store`); `TestPSRV0165_RecoverOrphanedOperation` (`internal/tasks/transaction`) |
 | PSR-V0-166 | `TestPSRV0166_TimeoutKillsGroupOutputBounded` (`internal/tasks/store`) |
 | PSR-V0-167 | `TestPSRV0162_OperationCodec` (`internal/tasks/snapshot`); `TestPSRV0162_PoolOperateCLIAndStatus` (`internal/tasks/cli`) |
+| PSR-V0-196 | `TestPSRV0196_FullSizePoolReceiptsStayBounded` (`internal/tasks/transaction`) |
 
 ## Traceability (PSR-V0-185)
 

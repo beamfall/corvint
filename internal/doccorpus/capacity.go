@@ -1,6 +1,7 @@
 package doccorpus
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -15,9 +16,30 @@ const CapacityCode = "corpus-capacity-exceeded"
 // maxPinnedInputBytes bounds the distinct input bytes one build pins.
 const maxPinnedInputBytes = 128 << 20
 
-// newGitBudget opens the Git operation budget of one corpus phase; tests
-// replace it to bound and count a phase's operations (DCP-V1-155).
-var newGitBudget = gitrun.NewDefaultBudget
+// corpusGitHooks are the test-only Git hooks one call carries in its context,
+// so tests that bound a phase's operations (DCP-V1-155) or compare batched
+// reads with the per-path reads (DCP-V1-216) can run in parallel. Production
+// contexts never carry them.
+type corpusGitHooks struct {
+	budget      func() *gitrun.Budget
+	prefetchOff bool
+}
+
+type corpusGitHooksKey struct{}
+
+func corpusGitHooksOf(ctx context.Context) corpusGitHooks {
+	hooks, _ := ctx.Value(corpusGitHooksKey{}).(corpusGitHooks)
+	return hooks
+}
+
+// newGitBudget opens the Git operation budget of one corpus phase: the
+// default budget unless a test context bounds it.
+func newGitBudget(ctx context.Context) *gitrun.Budget {
+	if budget := corpusGitHooksOf(ctx).budget; budget != nil {
+		return budget()
+	}
+	return gitrun.NewDefaultBudget()
+}
 
 func capacityExceeded(limit string, count, bound int) error {
 	return &Error{Code: CapacityCode, Message: fmt.Sprintf("%s %d exceeds the limit of %d", limit, count, bound)}

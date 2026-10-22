@@ -146,7 +146,7 @@ type playwrightPinnedSources struct {
 }
 
 func newPlaywrightPinnedSources(ctx context.Context, root, repository, revision string) (*playwrightPinnedSources, error) {
-	auth, err := gitauth.Open(root, newGitBudget())
+	auth, err := gitauth.Open(root, newGitBudget(ctx))
 	if err != nil {
 		return nil, err
 	}

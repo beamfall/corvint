@@ -82,6 +82,13 @@ func readPoolOperationReceipt(r *wire.Reader) PoolOperationReceipt {
 
 // readPoolOperationReceipts reads a present "operations" list: non-empty,
 // sorted by member then operation, one receipt per pair (PSR-V0-162).
+// MaxPoolOperationReceipts is the number of operation receipts a pools.json
+// writer retains (PSR-V0-196): two per member on average, so a full-size pool
+// keeps its encoding well under MaxPoolStateBytes. Readers still accept the
+// earlier one-per-member-and-operation bound so an older file stays readable;
+// its next operation write trims it.
+const MaxPoolOperationReceipts = 2 * intent.MaxPoolMembers
+
 func readPoolOperationReceipts(r *wire.Reader) []PoolOperationReceipt {
 	out := []PoolOperationReceipt{}
 	for _, x := range r.Array(intent.MaxPoolMembers*len(intent.PoolOperations), true) {

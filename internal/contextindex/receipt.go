@@ -70,10 +70,10 @@ func receipt(index *Index, mode string, request map[string]any, rawResults []map
 			"state": freshnessState, "scope": "git", "revision": index.Revision,
 			"mixed_paths": mixedPaths, "mixed_path_count": len(sourceDirty),
 		},
-		"results":      results,
-		"exclusions":   map[string]any{"count": len(index.Exclusions) + index.UnsupportedSuffixCount, "samples": exclusionSamples},
-		"verification": verification(index, rawResults),
+		"results":    results,
+		"exclusions": map[string]any{"count": len(index.Exclusions) + index.UnsupportedSuffixCount, "samples": exclusionSamples},
 	}
+	setVerification(result, index, verification(index, rawResults))
 	if taskState != nil {
 		result["freshness"].(map[string]any)["task_state"] = taskState
 	}
@@ -151,7 +151,7 @@ func compileReceipt(receipt map[string]any, budget *int, index *Index, extraUnce
 		trial := cloneMap(compact)
 		trialResults := append(cloneResults(selected), cloneMap(item))
 		trial["results"] = resultsToAny(trialResults)
-		trial["verification"] = verification(index, trialResults)
+		setVerification(trial, index, verification(index, trialResults))
 		if err := setCoverage(trial, admittedResults, critical, budget, index, extraUncertainty...); err != nil {
 			return nil, err
 		}
@@ -170,7 +170,7 @@ func compileReceipt(receipt map[string]any, budget *int, index *Index, extraUnce
 	coverageListsCompacted := false
 	for {
 		compact["results"] = resultsToAny(selected)
-		compact["verification"] = verification(index, selected)
+		setVerification(compact, index, verification(index, selected))
 		if err := setCoverage(compact, admittedResults, critical, budget, index, extraUncertainty...); err != nil {
 			return nil, err
 		}
@@ -312,6 +312,7 @@ func compactBudgetEnvelope(receipt map[string]any) error {
 	}
 	receipt["results"] = []any{}
 	receipt["verification"] = []any{}
+	delete(receipt, "verification_authority")
 	if value, ok := receipt["learning"]; ok {
 		learning := value.(map[string]any)
 		receipt["learning"] = map[string]any{
@@ -863,25 +864,85 @@ func verificationCommands(index *Index, orderedPaths []string) []any {
 	// The gate is the plan's closing proof, so the eight-command ceiling drops
 	// a package hint rather than the gate: appending the gate first and
 	// truncating afterwards cut it off exactly when the plan was busiest
-	// (DR-0022). Reserving its slot before the truncation keeps the ceiling and
-	// keeps the gate.
-	finalCommand, complete := gateCommand(profile, projectFiles)
-	appendsGate := complete && finalCommand != "" && !stringIn(commands, finalCommand)
-	ceiling := 8
-	if appendsGate {
-		ceiling--
+	// (DR-0022). Reserving its slots before the truncation keeps the ceiling
+	// and keeps the gate, including every command the instructions declare
+	// (NGI-V0-060).
+	gates := []string{}
+	for _, command := range closingGates(index, profile) {
+		if !stringIn(commands, command) {
+			gates = append(gates, command)
+		}
 	}
+	ceiling := max(verificationCeiling-len(gates), 0)
 	if len(commands) > ceiling {
 		commands = commands[:ceiling]
 	}
-	if appendsGate {
-		commands = append(commands, finalCommand)
-	}
+	commands = append(commands, gates...)
 	result := make([]any, len(commands))
 	for index, command := range commands {
 		result[index] = command
 	}
 	return result
+}
+
+// verificationCeiling bounds a verification plan's command count.
+const verificationCeiling = 8
+
+// closingGates names the commands that close a verification plan, shared by
+// path and range impact so the two never choose different gates for the same
+// tree (NGI-V0-062). The mandatory commands the repository's AGENTS.md
+// declares are project-owned authority and replace every inferred gate
+// (NGI-V0-060); otherwise the profile's or the Makefile's gate closes it.
+func closingGates(index *Index, profile projectprofile.Profile) []string {
+	if declared := declaredVerification(index); len(declared) != 0 {
+		return declared
+	}
+	command, complete := gateCommand(profile, index.Sources)
+	if !complete || command == "" {
+		return nil
+	}
+	return []string{command}
+}
+
+// declaredVerification returns, capped at the plan ceiling, the mandatory
+// commands the indexed AGENTS.md declares (NGI-V0-060), or nil when it
+// declares none or its bytes are unavailable.
+func declaredVerification(index *Index) []string {
+	source, ok := index.Sources[projectprofile.InstructionsPath]
+	if !ok {
+		return nil
+	}
+	text, valid, loaded := source.Text()
+	if !loaded || !valid {
+		return nil
+	}
+	declared := projectprofile.MandatoryVerifyCommands(text)
+	return declared[:min(len(declared), verificationCeiling)]
+}
+
+// setVerification writes a receipt's verification plan and, when the
+// instructions declare commands, the verification_authority member that
+// labels each planned command mandatory (declared) or inferred (NGI-V0-061).
+// A receipt whose repository declares nothing keeps its bytes.
+func setVerification(receipt map[string]any, index *Index, commands []any) {
+	receipt["verification"] = commands
+	delete(receipt, "verification_authority")
+	declared := declaredVerification(index)
+	if len(declared) == 0 || len(commands) == 0 {
+		return
+	}
+	mandatory, inferred := []any{}, []any{}
+	for _, raw := range commands {
+		command := stringValue(raw)
+		if stringIn(declared, command) {
+			mandatory = append(mandatory, command)
+		} else {
+			inferred = append(inferred, command)
+		}
+	}
+	receipt["verification_authority"] = map[string]any{
+		"source": projectprofile.InstructionsPath, "mandatory": mandatory, "inferred": inferred,
+	}
 }
 
 // verificationProfile elects the profile whose gate closes a verification plan.

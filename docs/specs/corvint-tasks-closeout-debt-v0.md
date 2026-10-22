@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-17
-Intent status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193); TCD-V0-154..157 accepted (standing auto-accept 2026-10-11, V1-2216); TCD-V0-158 accepted (standing auto-accept 2026-10-11, V1-1431); TCD-V0-159..164 accepted (standing auto-accept 2026-10-11, V1-2251, V1-2254)
+Intent status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193); TCD-V0-154..157 accepted (standing auto-accept 2026-10-11, V1-2216); TCD-V0-158 accepted (standing auto-accept 2026-10-11, V1-1431); TCD-V0-159..164 accepted (standing auto-accept 2026-10-11, V1-2251, V1-2254); TCD-V0-165..166 accepted (standing auto-accept 2026-10-11, V1-2196)
 Delivery status: experimental
 
 Authoritative input: the owner-requested native ticket V1-1615 ("tickets stay OPEN after their work
@@ -32,10 +32,14 @@ candidate tickets before dispatch (TCD-V0-159..162). `ticket batch-delivered` li
 batch delivered, with the CI evidence a closer feeds to `gate run --ci-run` (TCD-V0-163..164).
 GitHub facts come only from an operator's `gh --json` export file.
 
+V1-2196 removes a rerun from failed-gate closeout. A `focused-docs` or `full-gate` failure showed only
+`GATE_FAILED`, so the closer reran the whole gate to learn which check failed. The captured output
+was already retained as an evidence blob, but no result named it (TCD-V0-165..166).
+
 ## Agent digest
 - Claim: `corvint-tasks ticket closeout-debt` lists OPEN tickets that merged commits cite, with each one's pending native closeout step, and writes nothing.
-- Status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193); TCD-V0-154..157 accepted (standing auto-accept 2026-10-11, V1-2216); TCD-V0-158 accepted (standing auto-accept 2026-10-11, V1-1431); TCD-V0-159..164 accepted (standing auto-accept 2026-10-11, V1-2251, V1-2254); experimental; the verb, its help entry and fixture tests exist.
-- Exists: a bounded `git log` scan under the store's sanitized Git environment; direct-id, issue-link and umbrella citations; closeout steps derived from the attempt inventory and verified gate evidence; deterministic rows; a typed 0/1/2 exit status; a byte-identical store and journal proof; descendant gate reuse (V1-2193), where a reusable gate's PASS at a protected intent-branch commit covers an attempt whose candidate tree an ancestor commit carries (TCD-V0-151..153); CI-run gate evidence (V1-2216), where `gate run --ci-run FILE` records a policy-admitted green CI run at a protected intent-branch commit that descends from the candidate as the gate's PASS without executing it (TCD-V0-154..157); a reusable gate's reuse key covers its declared environment values (TCD-V0-158); `ticket delivery-screen` and `ticket batch-delivered` reads over `gh --json` exports (TCD-V0-159..164).
+- Status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193); TCD-V0-154..157 accepted (standing auto-accept 2026-10-11, V1-2216); TCD-V0-158 accepted (standing auto-accept 2026-10-11, V1-1431); TCD-V0-159..164 accepted (standing auto-accept 2026-10-11, V1-2251, V1-2254); TCD-V0-165..166 accepted (standing auto-accept 2026-10-11, V1-2196); experimental; the verb, its help entry and fixture tests exist.
+- Exists: a bounded `git log` scan under the store's sanitized Git environment; direct-id, issue-link and umbrella citations; closeout steps derived from the attempt inventory and verified gate evidence; deterministic rows; a typed 0/1/2 exit status; a byte-identical store and journal proof; descendant gate reuse (V1-2193), where a reusable gate's PASS at a protected intent-branch commit covers an attempt whose candidate tree an ancestor commit carries (TCD-V0-151..153); CI-run gate evidence (V1-2216), where `gate run --ci-run FILE` records a policy-admitted green CI run at a protected intent-branch commit that descends from the candidate as the gate's PASS without executing it (TCD-V0-154..157); a reusable gate's reuse key covers its declared environment values (TCD-V0-158); `ticket delivery-screen` and `ticket batch-delivered` reads over `gh --json` exports (TCD-V0-159..164); a `gate run` result that reports the executed gate's state, exit and retained output path, with a bounded, secret-screened tail and failing line when it did not pass (TCD-V0-165..166).
 - Blocked on: nothing for V0. `COMPLETE_REFUSED` is NOT_PRODUCED: a refused `complete` writes no receipt (TCD-V0-006).
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
 
@@ -244,6 +248,22 @@ closeout step is missing.
   is `taskman-batch-delivered/0`, marked untrusted, with `mutationAuthority` false.
 - `TCD-V0-164`: A ticket the batch or a lane only mentions, and that none delivers, is listed under
   `mentioned`, never under `delivered`. A PR the batch does not name contributes nothing.
+- `TCD-V0-165`: A `gate run` that executes its command gate and commits the result in that call
+  adds `gateResult` to its result item: `gateId`, `state`, `outcomeClass`, `exitCode`, `signal` and
+  `output` (`sha256`, `bytes`, and `path` `evidence/<sha256>`). When `state` is not `PASSED`,
+  `tail` is the excerpts of the last 20 non-blank output lines, oldest first, and `failingLine` is
+  the last of them that names an error, failure, mismatch or violation, else the last of them. Each
+  excerpt has terminal escapes and control characters removed and is bounded to 240 bytes. It is
+  replaced by the withheld marker when its cleaned or raw line matches the secret screen, or when it
+  overlaps a secret-screen match over the raw text of the whole tail. One warning then names the
+  gate, state, class, exit, failing line and output path. A `PASSED` result has null `tail` and
+  `failingLine` and no warning. A reuse, a CI-run record, a replay or a refusal reports
+  `gateResult: null`, because no gate ran in that call.
+- `TCD-V0-166`: Every executed command gate result retains its full captured output, within the
+  16 MiB gate output bound, as the evidence blob `evidence/<sha256>` that the result's `output`
+  evidence entry names, whatever the gate definition's `evidence` labels say. `evidence: []` does
+  not suppress the capture. Declaring `evidence: ["output"]` is descriptive only, and it changes the
+  gate's definition digest, so earlier results of that gate become stale.
 
 ## Failure modes
 
@@ -290,6 +310,13 @@ closeout step is missing.
 - A merge-queue run whose head is neither the merge commit nor the batch head is not listed in
   `greenRuns`.
 
+- A failure printed more than 20 non-blank lines before the end of the output is outside `tail`,
+  and `failingLine` then names a later line. The full output stays at `output.path`.
+- A secret the shared screen does not recognize is quoted in `tail`. The screen and its limits are
+  the same as for every other quoted gate or log excerpt.
+- The tail is reported only in the executing call's result. `attempt show` and `ticket show` still
+  list only result digests; read `evidence/<sha256>` from the store to inspect an older failure.
+
 ## Non-goals
 
 - Completing, claiming or submitting anything, or proposing a completion payload.
@@ -305,6 +332,8 @@ closeout step is missing.
   orchestrator and the existing native writes.
 - Capturing a CI run record automatically, or turning `ciEvidence` on for any store. Both are
   operator actions.
+- Changing any store policy for V1-2196. TCD-V0-166 shows the output is already retained, so
+  `focused-docs` and `full-gate` need no `evidence` change.
 
 ## Acceptance evidence and traceability
 
@@ -334,11 +363,16 @@ closeout step is missing.
 | TCD-V0-162 | V1-2251 | `internal/tasks/cli` (`emitDeliveryScreen`) | `TestTCDV0159_DeliveryScreenVerdicts` (exit 0 all CLEAR, 1 otherwise, 2 refused) | none |
 | TCD-V0-163 | V1-2254 criterion 1 (listing) | `internal/tasks/cli` (`batchDeliveredCommand`) | `TestTCDV0163_BatchDeliveredListsLaneTicketsWithGreenRuns` (lanes from `#N`, rows with lane, batch, merge commit, green runs at merge commit and head only; NOT_OBSERVED without runs; open batch `PREREQUISITE_UNSATISFIED`; absent batch `MALFORMED`) | listing a real merged batch: NOT_RUN |
 | TCD-V0-164 | V1-2254 criterion 3 | `internal/tasks/cli` (`batchDeliveredCommand`) | `TestTCDV0163_BatchDeliveredListsLaneTicketsWithGreenRuns` (residual ticket under `mentioned`; unnamed PR's ticket absent) | none |
+| TCD-V0-165 | V1-2196 criteria 2, 3 | `internal/tasks/store` (`GateRun`, `GateExecution`), `internal/tasks/obligation` (`FailureTail`), `internal/tasks/cli` (`gateResultValue`) | `TestTCDV0165_GateRunReportsFailingTail` (FAILED exit 2, failing `make` line, four-line tail with the secret line withheld and absent from stdout, warning with path; PASSED null tail and no warning; replay null; receipt audit passes); `TestTCDV0165_FailureTail` (order, bound, blank lines, escapes, last actionable line, secret past the excerpt bound withheld) | a failing live `focused-docs` run: NOT_RUN |
+| TCD-V0-166 | V1-2196 criterion 1 | `internal/tasks/store` (`runGate`), `internal/tasks/transaction` (`LeaseGateRun` evidence post) | `TestTCDV0165_GateRunReportsFailingTail` (gate declared `evidence: []`; the full output, secret included, is at `output.path`); live store 2026-10-21: FAILED `focused-docs` record `b0248975` names output blob `c04e7d9e` (30377 bytes) ending in the `line-citations-check` failure | none |
 
 ## Rollout and rollback
 
 The verb is additive and read-only. There is no store format, wire codec or policy change. To roll
 back, revert the change. Nothing persisted depends on the verb.
+
+TCD-V0-165..166 add one result field and change no store format, wire codec, receipt or policy. To
+roll back, revert the change; the output blobs stay retained as before.
 
 TCD-V0-151..153 add no store format, wire codec or policy field. They take effect only for gates
 the operator marks `reusable: true`. To roll back, set the gate back to `reusable: false` through a
