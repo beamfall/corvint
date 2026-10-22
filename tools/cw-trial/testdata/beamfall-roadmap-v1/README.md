@@ -1,6 +1,21 @@
 # beamfall-roadmap-v1: frozen `context --task` paired-trial protocol (V1-0319)
 
-Status: protocol frozen 2026-09-25, not run. The run waits on the owner questions below.
+Status: protocol frozen 2026-09-25. The agent-claims run below waits on the owner questions at the
+end. The model-free orientation routing gate (`orientation-gate.json`, CWT-V0-015..017, sha256
+`46b861800dd02e6c40383eaa8b9eef16001610f976e054b5eb25f0be93d13a9e`) was frozen on 2026-10-22,
+before any run of the set, and is read without a model:
+
+```sh
+cw-trial run --tasks tools/cw-trial/testdata/beamfall-roadmap-v1/tasks.json \
+  --history BEAMFALL_CORE_CLONE --corvint CORVINT_BIN --arms grep,corvint --access none --limit 20 \
+  --agent script --agent-command tools/cw-trial/testdata/abstain-agent.sh \
+  --output benchmarks/results/cw-trial-beamfall-roadmap-v1-orientation-run-1.json
+cw-trial gate --report benchmarks/results/cw-trial-beamfall-roadmap-v1-orientation-run-1.json \
+  --gate tools/cw-trial/testdata/beamfall-roadmap-v1/orientation-gate.json \
+  --output benchmarks/results/orientation-gate-beamfall-roadmap-v1.json
+```
+
+Routing changes only on `ADMIT` (CWT-V0-017).
 
 ## Gate
 
