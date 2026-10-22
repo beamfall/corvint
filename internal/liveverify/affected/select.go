@@ -73,6 +73,17 @@ type Witness struct {
 	Kind      string   `json:"kind"`
 	DirtyPath string   `json:"dirtyPath"`
 	Via       []string `json:"via"`
+	// Cause is set on an UNBOUNDED_READER witness only: the unit whose own
+	// file makes the selected unit's reads unbounded, and why (AFP-V0-192).
+	Cause *UnboundedCause `json:"cause,omitempty"`
+}
+
+// UnboundedCause names why an UNBOUNDED_READER unit can read any dirty path:
+// Unit is the unit itself, or the root-locating unit it depends on or whose
+// dependent its tests import, and Reads is that unit's unboundedReads.
+type UnboundedCause struct {
+	Unit  string `json:"unit"`
+	Reads string `json:"reads"`
 }
 
 // Selection is one unit whose tests the plan requires.

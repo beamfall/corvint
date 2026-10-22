@@ -445,6 +445,7 @@
     "tools/cw-trial": [
       "benchmarks/results/"
     ],
+    "tools/dogfood-guard-hunks": [],
     "tools/fixture-maintenance-check": [
       "cmd/",
       "conformance/",
