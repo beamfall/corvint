@@ -126,3 +126,15 @@ func SetAfterWorktreeLookupForTest(f func()) func() {
 	afterWorktreeLookup = f
 	return func() { afterWorktreeLookup = prev }
 }
+
+// SetProgramWriteHookForTest runs f after a workflow composes a program phase
+// record and before its native transition, until the returned function
+// restores the previous hook (V1-0831).
+func SetProgramWriteHookForTest(f func()) func() {
+	prev := programWriteHook
+	programWriteHook = f
+	return func() { programWriteHook = prev }
+}
+
+// PersistForTest records the workflow's program at phase.
+func (w *Workflow) PersistForTest(phase string) error { return w.persist(phase) }

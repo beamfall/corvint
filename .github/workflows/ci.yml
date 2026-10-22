@@ -56,6 +56,10 @@ jobs:
     # job always runs; absent tools/qualification select FULL, never an empty skip.
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    # AFP-V0-170: the reuse step reads the record job's log, which needs actions: read.
+    permissions:
+      actions: read
+      contents: read
     outputs:
       mode: ${{ steps.reuse.outputs.mode || steps.plan.outputs.mode }}
     env:
@@ -127,7 +131,9 @@ jobs:
         # a merge-queue entry whose tree a successful pull-request run of its second parent
         # already tested in full does the same, only when its first parent is on main, with the
         # tool built from that first parent. Every failure here keeps FULL. REUSE_SHARDS must
-        # equal the go-product-shard matrix, or no record name matches and CI runs FULL.
+        # equal the go-product-shard matrix, or no record line matches and CI runs FULL.
+        # AFP-V0-170 (V1-2271): the tested tree is read only from the log of the reused run's
+        # ci-tested-tree-record job, which runs no repository code; artifacts are never read.
         id: reuse
         if: github.event_name == 'push' || github.event_name == 'merge_group'
         continue-on-error: true
@@ -160,14 +166,14 @@ jobs:
           fi
           (cd "$tool" && go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-reuse-plan" ./tools/ci-reuse-plan)
           d="$RUNNER_TEMP/ci-reuse"
-          mkdir -p "$d/artifacts"
+          mkdir -p "$d/jobs" "$d/logs"
           api="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions"
-          # Public run and artifact listings need no actions permission; the anonymous retry
-          # covers a token the API refuses. Artifact contents are never downloaded.
+          # Run and job listings are public; a job log needs actions: read and redirects to
+          # storage. The anonymous retry covers a token the API refuses.
           get() {
-            curl -fsS --max-time 30 --max-filesize 4194304 -H 'Accept: application/vnd.github+json' \
+            curl -fsSL --max-time 30 --max-filesize 4194304 -H 'Accept: application/vnd.github+json' \
               -H "Authorization: Bearer $GH_TOKEN" -o "$2" "$1" ||
-              curl -fsS --max-time 30 --max-filesize 4194304 -H 'Accept: application/vnd.github+json' -o "$2" "$1"
+              curl -fsSL --max-time 30 --max-filesize 4194304 -H 'Accept: application/vnd.github+json' -o "$2" "$1"
           }
           # An unreadable listing leaves an empty file that contributes no run, so the tool
           # still retains a FULL decision when no listing is readable.
@@ -175,7 +181,10 @@ jobs:
           list() {
             get "$api/workflows/ci.yml/runs?$1&status=success&per_page=20" "$d/$2" || : > "$d/$2"
             for id in $(jq -r '.workflow_runs[]?.id | select(type == "number")' "$d/$2" | head -n 5); do
-              get "$api/runs/$id/artifacts?per_page=100" "$d/artifacts/$id.json" || true
+              get "$api/runs/$id/jobs?filter=latest&per_page=100" "$d/jobs/$id.json" || continue
+              for job in $(jq -r '.jobs[]? | select(.name == "ci-tested-tree-record") | .id | select(type == "number")' "$d/jobs/$id.json" | head -n 2); do
+                get "$api/jobs/$job/logs" "$d/logs/$job.txt" || true
+              done
             done
             runs+=(--runs "$d/$2")
           }
@@ -184,12 +193,12 @@ jobs:
             list "head_sha=$GITHUB_SHA&event=merge_group" queue-runs.json
           fi
           "$RUNNER_TEMP/ci-reuse-plan" --repository "$GITHUB_REPOSITORY" --event "$GITHUB_EVENT_NAME" --tree "$tree" \
-            --head "$head" --target "$GITHUB_SHA" --shards "$REUSE_SHARDS" "${runs[@]}" --artifacts "$d/artifacts" \
+            --head "$head" --target "$GITHUB_SHA" --shards "$REUSE_SHARDS" "${runs[@]}" --jobs "$d/jobs" --logs "$d/logs" \
             > "$d/decision.json.partial"
           mv "$d/decision.json.partial" "$d/decision.json"
           cat "$d/decision.json" >> "$GITHUB_STEP_SUMMARY"
           if jq -e --arg tree "$tree" --arg head "$head" --argjson shards "$REUSE_SHARDS" \
-            '.profile == "corvint-ci-reuse/0" and .mode == "REUSE" and .tree == $tree and .head == $head and (.runId | type == "number") and (.records | length == $shards)' \
+            '.profile == "corvint-ci-reuse/0" and .mode == "REUSE" and .tree == $tree and .head == $head and (.runId | type == "number") and (.recordJobId | type == "number") and (.records | length == $shards)' \
             "$d/decision.json" > /dev/null; then
             echo 'mode=REUSE' >> "$GITHUB_OUTPUT"
           fi
@@ -684,27 +693,11 @@ jobs:
             echo "::notice::shard $SHARD: package outcomes not captured; the cost-drift report will abstain"
             run_tests
           fi
-          # AFP-V0-024: only a complete pull-request or merge-queue (V1-0760) shard that passed
-          # names the tested tree; a DOCS or REUSE shard never reaches this line, and a
-          # narrowed shard (AFP-V0-099) stops here, so its merge-queue entry runs full.
+          # AFP-V0-024/170: a shard names no tested tree; the ci-tested-tree-record job does,
+          # after every shard passed in full. A narrowed shard (AFP-V0-099) stops that job.
           if [ -n "$narrowed" ]; then
             echo "AFP-V0-098: selected packages passed; the full suite runs in the merge queue"
-          elif [ "$GITHUB_EVENT_NAME" = pull_request ] || [ "$GITHUB_EVENT_NAME" = merge_group ]; then
-            tree=$(git rev-parse --verify -q "$TESTED_MERGE^{tree}")
-            mkdir -p "$RUNNER_TEMP/tested-tree"
-            printf '{"profile":"corvint-ci-tested-tree/0","tree":"%s","target":"%s","shard":%s,"shards":%s,"runId":%s}\n' \
-              "$tree" "$TESTED_MERGE" "$SHARD" "$SHARDS" "$GITHUB_RUN_ID" > "$RUNNER_TEMP/tested-tree/record.json"
-            echo "record=ci-tested-tree-$tree-full-$SHARD-of-$SHARDS" >> "$GITHUB_OUTPUT"
           fi
-      - name: Retain tested-tree record
-        if: steps.tests.outputs.record != ''
-        continue-on-error: true
-        timeout-minutes: 2
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: ${{ steps.tests.outputs.record }}
-          path: ${{ runner.temp }}/tested-tree/record.json
-          if-no-files-found: ignore
       - name: Retain package outcomes for the advisory cost-drift report
         # AFP-V0-040: only a complete full shard whose tests passed keeps its outcomes.
         if: steps.tests.outputs.costs == '1'
@@ -749,6 +742,45 @@ jobs:
         with:
           path: ~/.cache/go-build
           key: ${{ steps.gocache.outputs.cache-primary-key }}
+
+  ci-tested-tree-record:
+    # AFP-V0-170 (V1-2271): the only evidence the AFP-V0-024/046 reuse decision accepts. In a
+    # pull-request or merge-queue run, after every go-product shard passed with its complete
+    # package set (not DOCS, not REUSE, and no shard narrowed, which needs a MET verdict), it
+    # prints the tested tree, the tested commit, its second parent and the shard count as one
+    # fixed line to this job's own log. It runs no repository code (checkout, git and printf
+    # only) and persists no credentials, so no test, build step or fork pull request in another
+    # job can write that log. Only ci.yml, which the ci-control-plane admin review gates and
+    # which is part of the tree a reusing commit must equal, changes what it prints. Any
+    # mismatch prints no record, and the reusing run runs FULL; this job never fails CI.
+    needs: [docs-plan, narrowing-verdict, go-product-shard]
+    if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.go-product-shard.result == 'success' && needs.narrowing-verdict.outputs.verdict != 'MET' && (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      # Must equal the go-product-shard matrix length and REUSE_SHARDS.
+      SHARDS: "8"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Record the tested tree
+        env:
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -eu
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          if ! head=$(git rev-parse --verify -q "$GITHUB_SHA^2") || git rev-parse --verify -q "$GITHUB_SHA^3" > /dev/null; then
+            echo 'AFP-V0-170: the tested commit is not a two-parent merge; no tree is recorded.'
+            exit 0
+          fi
+          if [ "$GITHUB_EVENT_NAME" = pull_request ] && [ "$head" != "$PR_HEAD" ]; then
+            echo 'AFP-V0-170: the tested merge does not name the pull-request head; no tree is recorded.'
+            exit 0
+          fi
+          tree=$(git rev-parse --verify -q "$GITHUB_SHA^{tree}")
+          printf 'corvint-ci-tested-tree/1 tree=%s target=%s head=%s shards=%s\n' "$tree" "$GITHUB_SHA" "$head" "$SHARDS"
 
   static-reuse:
     # AFP-V0-080 (V1-1642): a main push whose own commit already passed go-static,
@@ -1043,21 +1075,126 @@ jobs:
 
   artifact-integrity:
     # Not a required check; skipped as go-interop is (AFP-V0-080, AFP-V0-081).
+    # AFP-V0-163 (V1-2113): a merge-queue entry whose tree a successful pull-request run of its
+    # second parent already verified skips the archive gate and still concludes success, so the
+    # AFP-V0-080 push reuse keeps working. The tree holds ci.yml, the Makefile, go.mod and every
+    # gate input, and the gate reads no network (GOPROXY off), so an equal tree is an equal
+    # verdict. The tested tree is read only from the log of that run's artifact-integrity-record
+    # job, which no repository code writes; artifact names are never trusted. Any mismatch,
+    # refusal or unreadable listing or log runs the gate in full.
     needs: static-reuse
     if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+          fetch-depth: 2
+      - name: Find a passed pull-request verdict for this tree
+        id: reuse
+        if: github.event_name == 'merge_group'
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          tree=$(git rev-parse --verify -q "$GITHUB_SHA^{tree}")
+          if ! head=$(git rev-parse --verify -q "$GITHUB_SHA^2") || git rev-parse --verify -q "$GITHUB_SHA^3" > /dev/null; then
+            echo 'Artifact integrity (AFP-V0-163): the queue commit is not a two-parent merge; the gate runs in full.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          api="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions"
+          get() {
+            curl -fsSL --max-time 30 --max-filesize 4194304 -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer $GH_TOKEN" -o "$2" "$1" ||
+              curl -fsSL --max-time 30 --max-filesize 4194304 -H 'Accept: application/vnd.github+json' -o "$2" "$1"
+          }
+          re='^([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z )?corvint-ci-integrity-tree/0 tree=[0-9a-f]{40} target=[0-9a-f]{40} head=[0-9a-f]{40}$'
+          d="$RUNNER_TEMP/integrity-reuse"
+          mkdir -p "$d"
+          get "$api/workflows/ci.yml/runs?head_sha=$head&event=pull_request&status=success&per_page=20" "$d/runs.json"
+          ids=$(jq -r --arg sha "$head" --arg repo "$GITHUB_REPOSITORY" '.workflow_runs[]?
+            | select(.head_sha == $sha and .event == "pull_request" and .conclusion == "success"
+              and .path == ".github/workflows/ci.yml" and .repository.full_name == $repo and (.id | type == "number"))
+            | .id' "$d/runs.json" | head -n 5)
+          for id in $ids; do
+            get "$api/runs/$id/jobs?filter=latest&per_page=100" "$d/jobs-$id.json" || continue
+            # Exactly one latest artifact-integrity job and exactly one latest record job of
+            # this run, both passed on the pull-request head; the record job's id is kept.
+            job=$(jq -r --arg sha "$head" --argjson id "$id" '[.jobs[]? | select(.name == "artifact-integrity" or .name == "artifact-integrity-record")]
+              | if length == 2 and (map(.name) | unique | length == 2)
+                  and all(.conclusion == "success" and .head_sha == $sha and .run_id == $id)
+                then (.[] | select(.name == "artifact-integrity-record") | .id | select(type == "number")) else empty end' \
+              "$d/jobs-$id.json") || continue
+            test -n "$job" || continue
+            get "$api/jobs/$job/logs" "$d/log-$job.txt" || continue
+            # Exactly one record line in that job's own log, naming this tree and this head.
+            n=$(tr -d '\r' < "$d/log-$job.txt" | grep -cE "$re" || true)
+            test "$n" = 1 || continue
+            line=$(tr -d '\r' < "$d/log-$job.txt" | grep -E "$re")
+            test "$(printf '%s\n' "$line" | sed -E 's/.* tree=([0-9a-f]{40}) .*/\1/')" = "$tree" || continue
+            test "$(printf '%s\n' "$line" | sed -E 's/.* head=([0-9a-f]{40})$/\1/')" = "$head" || continue
+            printf '{"profile":"corvint-ci-integrity-reuse/0","mode":"REUSE","tree":"%s","head":"%s","target":"%s","runId":%s,"recordJobId":%s}\n' \
+              "$tree" "$head" "$GITHUB_SHA" "$id" "$job" > "$d/decision.json"
+            cat "$d/decision.json" >> "$GITHUB_STEP_SUMMARY"
+            echo "Artifact integrity (AFP-V0-163): tree $tree passed in pull-request run $id (record job $job); the gate is not rerun." >> "$GITHUB_STEP_SUMMARY"
+            echo 'mode=REUSE' >> "$GITHUB_OUTPUT"
+            exit 0
+          done
+          echo "Artifact integrity (AFP-V0-163): no successful pull-request run of $head recorded tree $tree; the gate runs in full." >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain integrity reuse decision
+        # Diagnostic only; nothing reads it back.
+        if: steps.reuse.outputs.mode == 'REUSE'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-integrity-reuse
+          path: ${{ runner.temp }}/integrity-reuse/decision.json
+          if-no-files-found: ignore
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: steps.reuse.outputs.mode != 'REUSE'
         with:
           cache: false
           go-version: "1.27.2"
       - name: Verify native Go archives
+        if: steps.reuse.outputs.mode != 'REUSE'
         env:
           GOTOOLCHAIN: local
           GOPROXY: "off"
           GOWORK: "off"
         run: make go-archive-gate
+
+  artifact-integrity-record:
+    # AFP-V0-163: the only evidence the merge-queue reuse above accepts. It runs in a pull-request
+    # run only after artifact-integrity passed there, and prints the tested tree and the
+    # pull-request head as one fixed line to this job's own log. It runs no repository code (no
+    # go, make or repo script; checkout and git only) and persists no credentials, so a test, build step
+    # or fork pull request in another job cannot write this log. Only ci.yml, gated by the
+    # ci-control-plane admin review, changes what it prints, and that ci.yml is part of the
+    # tree the queue entry must equal.
+    needs: artifact-integrity
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.artifact-integrity.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Record the verified tree
+        id: record
+        env:
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -eu
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse --verify -q "$GITHUB_SHA^2")" = "$PR_HEAD"
+          tree=$(git rev-parse --verify -q "$GITHUB_SHA^{tree}")
+          printf 'corvint-ci-integrity-tree/0 tree=%s target=%s head=%s\n' "$tree" "$GITHUB_SHA" "$PR_HEAD"

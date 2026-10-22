@@ -16,11 +16,13 @@ func TestParseImportLineReadsEveryStatementForm(t *testing.T) {
 		"import numpy as np":              {{module: "numpy"}},
 		"import a.b.c":                    {{module: "a.b.c"}},
 		"import os  # trailing":           {{module: "os"}},
-		"from core import VALUE":          {{module: "core"}},
+		"from core import VALUE":          {{module: "core"}, {module: "core.VALUE"}},
 		"from a.b import (":               {{module: "a.b"}},
-		"from . import sibling":           {{module: "", dots: 1}},
-		"from .neighbor import thing":     {{module: "neighbor", dots: 1}},
-		"from ..parent.deep import thing": {{module: "parent.deep", dots: 2}},
+		"from . import sibling":           {{module: "", dots: 1}, {module: "sibling", dots: 1}},
+		"from .neighbor import thing":     {{module: "neighbor", dots: 1}, {module: "neighbor.thing", dots: 1}},
+		"from ..parent.deep import thing": {{module: "parent.deep", dots: 2}, {module: "parent.deep.thing", dots: 2}},
+		"from a import (b, c as d)  # x":  {{module: "a"}, {module: "a.b"}, {module: "a.c"}},
+		"from a import *":                 {{module: "a"}},
 		"from x import":                   {{module: "x"}},
 	}
 	for line, want := range cases {

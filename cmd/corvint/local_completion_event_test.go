@@ -480,14 +480,14 @@ func TestDogfoodEventReadOnlyEnrolledStopAndPrompt(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, "docs", "specs"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "docs", "specs", "event.md"), []byte("# Event specification\n\n- `LCP-TEST-001`: Preserve an explicit requirement anchor.\n"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "docs", "specs", "event.md"), []byte("# Event specification\n\n## Requirements\n\n- `LCP-TEST-001`: Preserve an explicit requirement anchor.\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	gitOutput(t, root, "add", "docs/specs/event.md")
 	gitOutput(t, root, "commit", "-qm", "add requirement fixture")
 	key := localcompletion.HashSession("event-session")
 	base := strings.TrimSpace(gitOutput(t, root, "rev-parse", "HEAD"))
-	plan, err := json.Marshal(localcompletion.Plan{Base: base, Intents: []string{"AGENTS.md"}, Checks: []localcompletion.Check{{ID: "check", Argv: []string{"false"}, TimeoutSeconds: 1}}})
+	plan, err := json.Marshal(localcompletion.Plan{Base: base, Intents: []string{"docs/specs/event.md"}, Checks: []localcompletion.Check{{ID: "check", Argv: []string{"false"}, TimeoutSeconds: 1}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -647,9 +647,10 @@ func TestPiLocalCompletionTuple(t *testing.T) {
 		}
 	}
 	root := queryCLIRepository(t)
+	intent := commitLocalCompletionIntent(t, root)
 	base := strings.TrimSpace(gitOutput(t, root, "rev-parse", "HEAD"))
 	key := dogfoodSHA([]byte("corvint-local-completion-session/pi/0\x00native-session"))
-	plan, err := json.Marshal(localcompletion.Plan{Base: base, Intents: []string{"AGENTS.md"}, Checks: []localcompletion.Check{{ID: "unrun", Argv: []string{"false"}, TimeoutSeconds: 1}}})
+	plan, err := json.Marshal(localcompletion.Plan{Base: base, Intents: []string{intent}, Checks: []localcompletion.Check{{ID: "unrun", Argv: []string{"false"}, TimeoutSeconds: 1}}})
 	if err != nil {
 		t.Fatal(err)
 	}

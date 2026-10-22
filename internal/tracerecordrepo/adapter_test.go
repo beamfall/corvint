@@ -108,6 +108,53 @@ func TestDogfoodStabilityBindsCandidateAndAdmittedDigests(t *testing.T) {
 	}
 }
 
+// LTPM-V0-017: a dogfood record compiles one index. Its stability checks
+// observe the repository header and re-derive admission against that index's
+// source set, so they never compile another, and a moved HEAD still fails.
+func TestDogfoodRecordCompilesOneIndex(t *testing.T) {
+	root := newAdapterFixture(t)
+	base := gitAdapterFixture(t, root, "rev-parse", "HEAD")
+	writeAdapterFixture(t, root, "internal/value.go", "package internal\n\nconst Changed = true\n")
+	gitAdapterFixture(t, root, "add", "internal/value.go")
+	gitAdapterFixture(t, root, "commit", "-qm", "target")
+	target := gitAdapterFixture(t, root, "rev-parse", "HEAD")
+
+	builds := 0
+	previous := buildRecordIndex
+	buildRecordIndex = func(ctx context.Context, root string) (*contextindex.Index, error) {
+		builds++
+		return previous(ctx, root)
+	}
+	t.Cleanup(func() { buildRecordIndex = previous })
+	result, err := RecordDogfood(context.Background(), root, base, target, Input{Producer: trace.ProducerCLI, Task: "one index", Verification: []string{"git diff --check"}, Outcome: "passed"})
+	if err != nil || result.State != "recorded" {
+		t.Fatalf("record state=%q err=%v", result.State, err)
+	}
+	if builds != 1 {
+		t.Fatalf("dogfood record compiled %d indexes; want 1", builds)
+	}
+
+	index, err := previous(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	authority := &dogfoodAuthority{base: base, target: target, candidates: result.CandidateSHA256, admitted: result.AdmittedSHA256}
+	stable := stabilityCheck(context.Background(), root, index, authority)
+	if err := stable(); err != nil {
+		t.Fatalf("unchanged repository rejected: %v", err)
+	}
+	authority.admitted = digestPaths(nil)
+	if err := stable(); err == nil {
+		t.Fatal("admitted digest drift was accepted")
+	}
+	authority.admitted = result.AdmittedSHA256
+	gitAdapterFixture(t, root, "commit", "-q", "--allow-empty", "-m", "moved")
+	var changed *repositoryChangedError
+	if err := stable(); !errors.As(err, &changed) {
+		t.Fatalf("moved HEAD err=%v; want repository identity changed", err)
+	}
+}
+
 func newAdapterFixture(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
