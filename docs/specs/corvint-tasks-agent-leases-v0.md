@@ -6425,7 +6425,21 @@ Non-goals: inferring containment from a missing pid, an exited leader or elapsed
 host-wide process scan for escaped descendants; a native Tasks journal entry for the recovery
 (the attestation lives in the program state directory and the dispatcher event log); an event for
 the operator path (no dispatcher runs then); re-sampling host pressure after a killed sample
-(issue 899 item (d), left as residual); changing the safe open's own refusal of relative paths.
+(issue 899 item (d)); changing the safe open's own refusal of relative paths.
+
+V1-1389 rationale (accepted under the owner's standing auto-accept (2026-10-11)). A pressure
+re-sample in either recovery is unnecessary. A recovery removes only the marker and launches
+nothing. The next dispatch start keeps the recorded pressure level, so a restart cannot bypass a
+throttle, and treats pressure as UNKNOWN until its own first sample (CAL-V0-068). Every launch
+decision that consults pressure takes that run's sample first, so a sample taken by the recovery
+would be older than the one the start takes anyway. A state-directory record suffices for the attestation. The recovery concerns
+no ticket, attempt or lease, so it carries no Tasks authority that a journal entry would order or
+fence. Its only consumer is the program's dispatcher, which reads the same state directory under
+the same program lock. The record is written exclusively, fsynced with its directory, never removed
+by Corvint, and checked against the marker before any removal. A journal write would make reader
+recovery depend on the store being writable, and it would add no fence that the program lock does
+not already give. An observable event for the operator path, and live and Linux qualification, stay
+open on V1-1389.
 
 Failure modes: a machine identity cloned onto another host with the same hostname could present
 a foreign boot as a reboot; the digest binds the hostname to narrow this, and an operator who
