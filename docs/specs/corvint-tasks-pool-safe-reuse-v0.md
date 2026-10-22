@@ -796,10 +796,10 @@ as before. This change delivers that subset; the residuals below stay open under
 - `PSR-V0-167`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1585) A policy
   without `operations` and a pools.json without `operations` or entry `operation` keys MUST encode,
   decode and behave exactly as before: no new key appears in pools.json or `pool status` for them.
-- `PSR-V0-196`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1750) Amends
-  PSR-V0-162. An operation receipt write MUST retain at most 512 receipts (two per member at the
-  256-member bound), evicting the oldest by observing receipt sequence; the receipt it records is
-  never evicted. A full-size pool therefore keeps pools.json under its 1 MiB bound and still
+- `PSR-V0-196`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1750) This amends
+  the receipt list of `PSR-V0-162`: an operation receipt write MUST retain at most 512 receipts (two
+  per member at the 256-member bound), evicting the oldest by observing receipt sequence; the
+  receipt it records is never evicted. A full-size pool therefore keeps pools.json under its 1 MiB bound and still
   accepts acquire and release. `pool status` shows `NOT_OBSERVED` for an evicted operation, as
   before its first run; a replay still returns its own receipt through PSR-V0-164's read of the
   observation transaction's posted pools.json. Readers keep accepting the earlier 1,280-receipt
