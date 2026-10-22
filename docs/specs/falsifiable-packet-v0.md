@@ -430,7 +430,7 @@ above stands with that substitution.
   most 256 KiB: `task` (visible intent text); `obligations` (spec/requirement ids the caller names);
   `repository` `{object_format, base_commit, base_tree, dirty_paths_sha256}`; `handles`, at most
   256, each `{path, blob_hash, line?, kind?, id?, authority?, reason?}`, the shape `evidence`
-  emits (`internal/contextindex/impact.go:615-617@fd0a67cc`) minus `confidence`, plus the result's
+  emits (`internal/contextindex/impact.go:618-620@fd0a67cc`) minus `confidence`, plus the result's
   `kind`/`id`, as FPK-V0-002's rows carry; `critical`, at most 256, selectors of the same shape
   naming handles that MUST survive; `unknowns` and `failed_approaches`, free text; `verification`,
   `[{command, observed_status, provenance}]`; and `provenance` `{receiptId?, packet_sha256?}`.
@@ -451,7 +451,7 @@ above stands with that substitution.
   `repository.object_format` names the Git object format the document's
   `blob_hash` values were computed under, and is consumed rather than decorative: FPK-V0-021
   compares it against the object format of the index built at the current revision
-  (`Index.ObjectFormat`, `internal/contextindex/index.go:211@1e49fe84`, set at `internal/contextindex/index.go:508-510@02852e4a`) and FPK-V0-024
+  (`Index.ObjectFormat`, `internal/contextindex/index.go:211@1e49fe84`, set at `internal/contextindex/index.go:512-514@02852e4a`) and FPK-V0-024
   refuses a mismatch, because a sha256 `blob_hash` compared against a sha1 repository would
   otherwise read as a confident `blob-changed` for every handle. Schema validation MUST also check
   every `blob_hash` against that declared format's object-id shape, stated here rather than
@@ -543,10 +543,10 @@ above stands with that substitution.
   After the index is built and before any handle is judged or the checkpoint branch's own blob
   reads, `repository.object_format` MUST equal
   the object format of the index built at the current revision (`Index.ObjectFormat`,
-  `internal/contextindex/index.go:211@1e49fe84`, `internal/contextindex/index.go:508-510@02852e4a`); a mismatch is refused under FPK-V0-024 as
+  `internal/contextindex/index.go:211@1e49fe84`, `internal/contextindex/index.go:512-514@02852e4a`); a mismatch is refused under FPK-V0-024 as
   `object-format-mismatch`. This is decided after `Build`, not before every `cat-file` call in the
   run: `Build` itself reads blobs through `cat-file --batch` while pinning sources
-  (`internal/contextindex/git.go:592-602@875d1117`, `internal/contextindex/index.go:489-491@16cf1c1f`, `internal/contextindex/index.go:1543-1545@b9840036`), so `Index.ObjectFormat`
+  (`internal/contextindex/git.go:592-602@875d1117`, `internal/contextindex/index.go:493-495@16cf1c1f`, `internal/contextindex/index.go:1547-1549@b9840036`), so `Index.ObjectFormat`
   is not known until that call has already made its own `cat-file` calls. It is the unframable
   class one level up: as an LF-bearing path cannot
   be framed for Git at all, a document whose `blob_hash` values were computed under another object
@@ -554,10 +554,10 @@ above stands with that substitution.
   so the document is refused rather than judged. Every
   handle MUST receive exactly one verdict, decided by this total order over all inputs, first match
   wins: (1) `unframable` — the path is not normalized
-  (`internal/contextindex/impact.go:602-612@00d37054`) or the LF-delimited `cat-file --batch` protocol cannot
+  (`internal/contextindex/impact.go:605-615@00d37054`) or the LF-delimited `cat-file --batch` protocol cannot
   carry it (`cmd/corvint/prove.go:1641-1645@7d324499`), so it is never sent to Git at all; (2) `unsupported` — the current
   tree lists the path at a non-blob mode, or lists it as a blob for which the path has no entry in
-  `Index.Sources` (`internal/contextindex/index.go:210-216@aa5d6289`, `internal/contextindex/index.go:507-510@478ddf23`), whether because its kind
+  `Index.Sources` (`internal/contextindex/index.go:210-216@aa5d6289`, `internal/contextindex/index.go:511-514@478ddf23`), whether because its kind
   is unadmitted or because an index exclusion removed it — the named field, not
   `Index.Exclusions`, decides, so a path that is both dirty and excluded is settled here — ordered
   ahead of every absence test so an omission from
@@ -588,7 +588,7 @@ above stands with that substitution.
   the handle's authority class — re-derived at the CURRENT snapshot from the live classifier
   `documentResult` uses: `Record.Kind == "instructions"` → `project-instructions`; `"decision"`
   → `accepted-decision`/`non-binding-decision`; else `repository-spec`/`accepted-spec`
-  (`internal/contextindex/impact.go:624-637@3c81c0ac`) — is instruction- or spec-authority; never keyed on
+  (`internal/contextindex/impact.go:627-640@3c81c0ac`) — is instruction- or spec-authority; never keyed on
   the checkpoint's own `authority?` field, per AGENTS.md invariant 3. When present, that field is
   echoed as `claimed_authority`; its absence does not change the flag, which is computed only from
   the live class).
@@ -626,7 +626,7 @@ above stands with that substitution.
   refusal — the document is caller-owned and the refusal list of FPK-V0-024 stays closed. The
   typed reasons are therefore exactly six: the four ineligible handle verdicts, `handle-undeclared`,
   and `selector-unresolved` below. The gate is load-bearing: current evidence rows are compiled from the
-  committed tree (`internal/contextindex/impact.go:109-115@d2231c48`), so a dirty or unadmitted path still has
+  committed tree (`internal/contextindex/impact.go:112-118@d2231c48`), so a dirty or unadmitted path still has
   matching committed rows, and an ungated match would rehydrate committed bytes as if they were
   what the agent will read — the same reason `judgeHistory` declines to judge a dirty path at all
   (`cmd/corvint/prove.go:1138-1144@72ba1935`). For an eligible handle, selectors MUST be matched by identity,
@@ -635,19 +635,19 @@ above stands with that substitution.
   result constructors. It uses only eligible critical paths, never the stored task prose, and
   does not apply a query/impact receipt's result-count cap; constructor evidence bounds remain
   unchanged. Matching walks RESULTS, not rows: `kind` and `id` are members of the
-  enclosing result (`internal/contextindex/impact.go:239-242@ca66ec11`, `internal/contextindex/impact.go:286-292@b4e89879`, `internal/contextindex/impact.go:658-660@92896c26`), never of an evidence
+  enclosing result (`internal/contextindex/impact.go:242-245@ca66ec11`, `internal/contextindex/impact.go:289-295@b4e89879`, `internal/contextindex/impact.go:661-663@92896c26`), never of an evidence
   row, which carries exactly `path`, `line`, `blob_hash`, `reason`, `confidence`, and `authority`
-  (`evidence`, `internal/contextindex/impact.go:615-617@fd0a67cc`). A selector carrying `kind` and `id` therefore selects the
+  (`evidence`, `internal/contextindex/impact.go:618-620@fd0a67cc`). A selector carrying `kind` and `id` therefore selects the
   results whose `kind` and `id` equal its own, and within them the evidence rows at the selector's
   `path`; a selector carrying neither selects the evidence rows at that `path` in every result.
   Selecting by the result's identity and the row's `path` matters because a result's evidence rows
   need not sit at the result's own id — `documentResult` emits rows whose `path` is a referenced
-  file (`internal/contextindex/impact.go:654-656@25e804e8`). Identity does not single out one
+  file (`internal/contextindex/impact.go:657-659@25e804e8`). Identity does not single out one
   row — `impact` emits a reference row per changed path, so one result identity can supply a
-  row at the same `path` more than once (`internal/contextindex/impact.go:296-304@4e3f46b9`) — so a match
+  row at the same `path` more than once (`internal/contextindex/impact.go:299-307@a672fd42`) — so a match
   is the whole set of matching rows, never "the row". Byte-identical matched rows collapse to one,
   as FPK-V0-020's byte-identical `handles` entries do: `documentResult` emits one row per
-  `references` entry (`internal/contextindex/impact.go:649-656@2a45c822`), so a `references` list naming one path twice yields
+  `references` entry (`internal/contextindex/impact.go:652-659@2a45c822`), so a `references` list naming one path twice yields
   two rows equal in all six members, and they rehydrate as one row.
   All of them MUST be rehydrated, in the shape `query`/`impact` rows carry,
   ordered by ascending `line`, then lexicographic `reason`, then lexicographic `blob_hash`, then
@@ -722,7 +722,7 @@ above stands with that substitution.
   FPK-V0-021 step (2) is answered from this one map rather than a call per handle; (10) the index
   cannot be built — the
   `contextindex.Build` error raised by the checkpoint compile function's own call to
-  `contextindex.Build` (`internal/contextindex/index.go:288@1cafb447`) and surfaced with its own code
+  `contextindex.Build` (`internal/contextindex/index.go:292@1cafb447`) and surfaced with its own code
   unchanged, which `--checkpoint` MUST NOT re-code, so the exact expected code is
   whatever `Build` returns for that repository. A `Build` error can carry no code at all
   (`internal/contextindex/git.go:463-464@bf504d51`), and `emitError` deliberately prints such an error without
@@ -751,7 +751,7 @@ above stands with that substitution.
   blobs
   through `git cat-file --batch` while pinning sources (`fetchBlobs`,
   `internal/contextindex/git.go:592-602@875d1117`,
-  called from `pinCandidates`/`readResidualBlobs`, `internal/contextindex/index.go:489-491@16cf1c1f`, `internal/contextindex/index.go:1543-1545@b9840036`), so `Build` (case
+  called from `pinCandidates`/`readResidualBlobs`, `internal/contextindex/index.go:493-495@16cf1c1f`, `internal/contextindex/index.go:1547-1549@b9840036`), so `Build` (case
   10) necessarily runs, and necessarily calls `cat-file`, before `Index.ObjectFormat` is even known
   to compare; (12) the `cat-file --batch` stream fails or passes its 64 MiB
   bound — `unsupported-prove-history` (`cmd/corvint/prove.go:1821-1828@a1df6715`); (13) the read bracket drifts,
@@ -791,13 +791,13 @@ above stands with that substitution.
   the document (`cmd/corvint/prove.go:554-556@ea3220b5`), so an `output-failed` exit MAY leave a partial document on
   stdout; a consumer MUST read the exit status, never stdout emptiness, as the signal that no
   verdict was produced. The checkpoint branch MUST call `contextindex.Build`
-  (`internal/contextindex/index.go:288@1cafb447`) directly, as prove's impact and change modes did until `IDX-SNAP-V0-020`, which
+  (`internal/contextindex/index.go:292@1cafb447`) directly, as prove's impact and change modes did until `IDX-SNAP-V0-020`, which
   left them `Build` only on a snapshot miss (`cmd/corvint/prove.go:1078@a1c6494d`, `cmd/corvint/index_snapshot.go:105@90129c09`), and MUST NOT read an on-disk index snapshot. `prove --task` is not the model
   for this: its project-operations query profile acquires through `standaloneQueryContext`
   (`cmd/corvint/prove.go:1064-1066@d473eb95`, `cmd/corvint/main.go:1410-1421@4e7cdb10`), which reaches `deferredSnapshotIndex` and `snapshotIndex`
   (`cmd/corvint/index_snapshot.go:93-94@5959c784`, `cmd/corvint/index_snapshot.go:61-62@123f0830`) at `cmd/corvint/main.go:1442-1443@c39315fe` and
-  `cmd/corvint/harness_context.go:70-71@70282d2c` and only builds (`BuildQuery`, `internal/contextindex/index.go:412-414@9faff3e7`, called at
-  `cmd/corvint/main.go:1435@33d39726`; `BuildEval`, `internal/contextindex/index.go:314-315@b1c33c59`, called at `cmd/corvint/harness_context.go:68@4dbd8b14`) on a miss — so plain
+  `cmd/corvint/harness_context.go:70-71@70282d2c` and only builds (`BuildQuery`, `internal/contextindex/index.go:416-418@9faff3e7`, called at
+  `cmd/corvint/main.go:1435@33d39726`; `BuildEval`, `internal/contextindex/index.go:318-319@b1c33c59`, called at `cmd/corvint/harness_context.go:68@4dbd8b14`) on a miss — so plain
   `prove --task` does read the snapshot today, which a run of the binary confirms: with a
   populated `.corvint/index/`, the snapshot file's access time advances under `prove --task` and
   did not under `prove PATH...` before `IDX-SNAP-V0-020` (decision 0180) gave impact and change modes the same read. `IDX-SNAP-V0-008` (`docs/specs/index-snapshot-v0.md:79-81`)

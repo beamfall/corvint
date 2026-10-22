@@ -330,6 +330,7 @@
       "conformance/postmerge-runtime-v2/process-qualification.schema.json"
     ],
     "internal/projectpath": [],
+    "internal/projectprofile": [],
     "internal/pythongrammar": [],
     "internal/releasecandidate": [],
     "internal/requestpath": [],
