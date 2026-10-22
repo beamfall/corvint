@@ -64,6 +64,16 @@ not tell whether the change reached the site, fix the site, or declare it resolv
   mirrored. The ticket scope is raw strings and unknown directives.
 - Rollback: revert `baseWorkspace`.
 
+## V1-2321: `.` and `..` directory imports (refuted)
+
+- Suspicion: the impact hop misses a web importer whose specifier is `.` or `..` when the changed
+  file is that directory's `index.ts`.
+- Finding: refuted. `webImportTarget` cleans `.` to the importer's directory and `..` to its parent,
+  and `webReverseImporters` already matches `<dir>/index` (GPK-V0-027 rule (c)), as it does for
+  `../widget`. No behaviour change.
+- Evidence: `TestImpactResolvesBareDotDirectoryImportsToIndex` covers `.`, `..` and `../`. It passes,
+  and it fails with `index reverse-imports = map[]` when the `/index` match is removed.
+
 ## Rollback
 
 Revert the change. Bare plugin-wide reasons return, `ruby:ambiguous-load` is raised again, and
