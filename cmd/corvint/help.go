@@ -1305,8 +1305,8 @@ Language capabilities (syntax evidence, never complete runtime impact):
   The non-go-syntax-v0 profile always reports dynamic-dispatch unknowns;
   unsupported constructs remain unknown even without a lexical dynamic token.
 
-Path receipts over MIXED roots warn with the bound commit and dirty count when
-requested paths are not all dirty. Mutable content remains excluded. Select
+Path receipts over MIXED roots warn with the bound commit, dirty count and up
+to 8 dirty paths when requested paths are not all dirty. Mutable content remains excluded. Select
 --language-profile non-go-syntax-v0 for versioned structured non-Go unknowns;
 a request naming a Ruby path selects it by default.
 Non-Go range receipts and MCP paths name that experimental profile automatically.

@@ -3644,6 +3644,7 @@ OCM-V0-022	docs/specs/ocm-v0-dogfood.md	(accepted under the owner's standing aut
 OCM-V0-023	docs/specs/ocm-v0-dogfood.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0522) at an	standing	2026-10-11; V1-0522
 OCM-V0-024	docs/specs/ocm-v0-dogfood.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1068) each	standing	2026-10-11; V1-1068
 OCM-V0-025	docs/specs/ocm-v0-dogfood.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1961) when the	standing	2026-10-11; V1-1961
+OCM-V0-026	docs/specs/ocm-v0-dogfood.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2170) when	standing	2026-10-11; V1-2170
 OCM-V0-013	docs/specs/ocm-v0-dogfood.md	one dogfood change MAY declare an ordered set of pinned Markdown intent	unrecorded	-
 UPD-V0-001	docs/specs/operator-update-v0.md	`check` MUST require explicit network opt-in, distinguish Core `v*` and standalo	unrecorded	-
 UPD-V0-002	docs/specs/operator-update-v0.md	`apply` MUST verify the release archive checksum before extraction, verify inter	unrecorded	-
@@ -4119,6 +4120,7 @@ DIRTY-CACHE-014	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted, decis
 DIRTY-CACHE-015	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted, decision 0518 (V1-1141)**. Path impact	unrecorded	-
 DIRTY-CACHE-016	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted (decision 0519; V1-1174)**. Every verb	unrecorded	-
 DIRTY-CACHE-017	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted under the owner's delegated 1.0 feature cut (decision 0548; V1-2068)*	unrecorded	-
+DIRTY-CACHE-018	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted under the owner's standing auto-accept (2026-10-11; V1-2218)**.	unrecorded	-
 RUBY-AFFECTED-V0-001	docs/specs/ruby-affected-test-adapter-v0.md	The plugin namespace MUST be `ruby` and `Owns` MUST claim exactly regular	unrecorded	-
 RUBY-AFFECTED-V0-002	docs/specs/ruby-affected-test-adapter-v0.md	One unit MUST be one repository-relative `.rb` file, the smallest common	unrecorded	-
 RUBY-AFFECTED-V0-003	docs/specs/ruby-affected-test-adapter-v0.md	Discovery MUST admit all concurrently present conventional RSpec	unrecorded	-
