@@ -78,7 +78,7 @@ var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
 	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket delivery-screen", "ticket batch-delivered", "ticket export",
 	"queue status", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "journal seal", "journal unseal", "reconcile inspect", "reconcile intent",
-	"init", "pause", "unpause", "policy show", "policy update", "import", "cutover",
+	"init", "pause", "unpause", "policy show", "policy update", "import", "cutover", "relocate",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
 	"ticket set-gates", "ticket set-effects", "ticket hold", "ticket release-hold", "ticket reopen",
 	"ticket archive", "ticket restore", "ticket complete-manual", "ticket grant-approval",
@@ -285,6 +285,8 @@ func Run(env Env) int {
 		return emit(env.Stdout, importCommand(env, args[1:]))
 	case "cutover":
 		return emit(env.Stdout, cutoverCommand(env, args[1:]))
+	case "relocate":
+		return emit(env.Stdout, relocateCommand(env, args[1:]))
 	case "init":
 		return emit(env.Stdout, initCommand(env, args[1:]))
 	case "queue":
@@ -484,6 +486,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate] [--selected-only] [--summary | --fields KEY[.SUB],...]",
 		"corvint-tasks claim --next --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate]",
 		"corvint-tasks cutover --execution --decision REF --qualification FILE",
+		"corvint-tasks relocate --from OLD --request-id ID [--role OWNER|OPERATOR] [--dispatch-config FILE]   (run from the new primary worktree)",
 		"corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID",
 		"corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE [--worktree DIR | --ci-run FILE]",
 		"corvint-tasks gate record|resubmit <ticketId|local> --gate GATE --subject-receipt SEQ --expected-generation N --expected-revision N --request-id ID [...]",
@@ -510,7 +513,7 @@ func LiveFormats() []string {
 		wire.CriterionCaptureProfile, wire.CriterionVerificationProfile, wire.CriterionCaptureResultProfile,
 		archive.Profile, journal.ProfileCheckpoint, journal.ProfileWriterCheckpoint, journal.ProfileWriterBase, journal.ProfileRetiredPrefix, mutation.Profile, mutation.OutcomeProfile,
 		intent.ProfileImportMap, intent.ProfileQueue, intent.ProfilePolicy,
-		snapshot.ProfileHead, snapshot.ProfileHeadSegmented, snapshot.ProfileSegment, snapshot.ProfileSegmentManifest, snapshot.ProfileSealMarker, snapshot.ProfileBarrier, snapshot.ProfileReceipt, snapshot.ProfileElidedReceipt, snapshot.ProfileInit,
+		snapshot.ProfileHead, snapshot.ProfileHeadSegmented, snapshot.ProfileSegment, snapshot.ProfileSegmentManifest, snapshot.ProfileSealMarker, snapshot.ProfileBarrier, snapshot.ProfileReceipt, snapshot.ProfileElidedReceipt, snapshot.ProfileInit, snapshot.ProfileRelocate,
 		snapshot.ProfileAttempt, snapshot.ProfileReservations, snapshot.ProfileRetryAccounting,
 		snapshot.ProfileGateResult, snapshot.ProfileCIRun, snapshot.ProfileManifest, snapshot.SupervisedProfile,
 		snapshot.ProfileExternalReviewRequest, snapshot.ProfileExternalReviewEvent,
@@ -595,7 +598,7 @@ func withStore(env Env, body func(rc *readCtx) error) (*readCtx, error) {
 	}}
 	snap, err := rd.Read(func(s *snapshot.Snapshot) error {
 		if s.Head.PrimaryWorktree != repo.PrimaryWorktree {
-			return wire.Errorf(wire.CodeUnsupportedFilesystem, repo.StateDir, "head.primaryWorktree %q differs from the resolved primary worktree %q (repository relocation is unsupported in this preview)", s.Head.PrimaryWorktree, repo.PrimaryWorktree)
+			return wire.Errorf(wire.CodeUnsupportedFilesystem, repo.StateDir, "head.primaryWorktree %q differs from the resolved primary worktree %q ; run `corvint-tasks relocate --from %s --request-id ID` from the new primary worktree (TRL-V0-001)", s.Head.PrimaryWorktree, repo.PrimaryWorktree, s.Head.PrimaryWorktree)
 		}
 		var st *intent.Store
 		var err error

@@ -43,7 +43,7 @@ func maximalDescriptor(op string) StageDescriptor {
 	if op == StageInit {
 		requestBytes = 551
 	}
-	if op == StageKeepJournal || op == StageAdoptFile || op == StageMutate || op == StagePolicyUpdate || op == StageAuthoritySwitch || op == StageQualification || op == StageLease || op == StageEscalation {
+	if op == StageKeepJournal || op == StageAdoptFile || op == StageMutate || op == StagePolicyUpdate || op == StageAuthoritySwitch || op == StageQualification || op == StageLease || op == StageEscalation || op == StageRelocate {
 		requestBytes = 579
 	}
 	add("POST", rp, requestBytes, hash)
@@ -91,6 +91,8 @@ func maximalDescriptor(op string) StageDescriptor {
 		add("EVIDENCE", "evidence/"+string(ticketHash), wire.MaxReservationSetBytes, ticketHash)
 		manifest := wire.Sum([]byte("manifest"))
 		add("POST", "evidence/"+string(manifest), wire.MaxGateOutputBytes, manifest)
+	case StageRelocate:
+		add("POST", "pinned/"+string(hash)+".json", MaxRelocateDescriptorBytes, hash)
 	case StageEscalation:
 		// A supersession: the blob-posted ticket and its two events.
 		add("POST", "intent/tickets/"+strings.Repeat("t", 64)+".json", 131072, hash)
@@ -148,7 +150,7 @@ func maximalRecoveryDescriptor(op string) StageDescriptor {
 }
 
 func TestTMV0002_AS10_StageCodecActualMaxima(t *testing.T) {
-	for _, op := range []string{StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StagePolicyUpdate, StageAuthoritySwitch, StageLease, StageQualification, StageEscalation} {
+	for _, op := range []string{StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StagePolicyUpdate, StageAuthoritySwitch, StageLease, StageQualification, StageEscalation, StageRelocate} {
 		d := maximalRecoveryDescriptor(op)
 		raw, e := d.Encode()
 		if e != nil {

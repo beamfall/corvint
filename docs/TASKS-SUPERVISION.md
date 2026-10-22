@@ -298,3 +298,34 @@ example `GEMINI_API_KEY`). A host's own permission allow/deny-list or sandbox (C
 Codex `--sandbox`, Gemini `--policy`, OpenCode `OPENCODE_CONFIG_CONTENT`) is the host's
 responsibility, not a containment guarantee. See
 [the accepted contract](specs/corvint-tasks-agent-leases-v0.md#s11--continuous-dispatcher-issue-431).
+
+# Moving or copying a task store
+
+Keep the store (`.git/taskman` in the git common directory), each dispatch config file and the
+config's `stateDir`, which holds every worker's `evidence` directory, on real paths with no
+symlink component. A symlinked component is refused, and a symlink left at a moved checkout's old
+path does not make the store readable at the new one (TRL-V0-005).
+
+The store records its primary worktree. After moving the checkout, every command refuses
+`UNSUPPORTED_FILESYSTEM` or `UNSUPPORTED` and names the recorded path. Bind the store to the new
+location explicitly, from the new primary worktree:
+
+```sh
+corvint-tasks relocate --from /old/primary/worktree --request-id relocate-1 \
+  --dispatch-config /real/path/dispatch.json
+```
+
+The command commits one RELOCATE receipt naming both paths and re-pins `head.primaryWorktree`. It
+refuses `QUIESCENCE_UNPROVED` while any attempt holds a reservation, so release or reap every
+attempt first. With `--dispatch-config` it also refuses while a dispatcher for that config runs;
+without the flag the result warns that the dispatcher check was `NOT_OBSERVED`, so stop every
+dispatcher yourself. A dispatch config whose `workRoot` or `stateDir` named the old path must be
+edited to the new real path. An interrupted relocation is finished by rerunning the same command
+(TRL-V0-001 to TRL-V0-004).
+
+A copy of the store for an off-path drill is bound to its new clone the same way. Copy only while
+no `corvint-tasks` writer, dispatcher or live attempt holds the store: a copy taken during writes
+refuses `JOURNAL_FORKED` and names that requirement. A relocated copy shares the original queue id
+and diverges from it, so keep only one of them writable (TRL-V0-006). Archive restore into a fresh
+store at a new path is not available in this build. See
+[the relocation contract](specs/corvint-tasks-store-relocation-v0.md).

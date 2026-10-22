@@ -216,7 +216,7 @@ func Export(opts ExportOptions) (result *ExportResult, retErr error) {
 			opts.afterProbe()
 		}
 		if s.Head.PrimaryWorktree != repo.PrimaryWorktree {
-			return wire.Errorf(wire.CodeUnsupportedFilesystem, repo.StateDir, "head.primaryWorktree %q differs from the resolved primary worktree %q (repository relocation is unsupported in this preview)", s.Head.PrimaryWorktree, repo.PrimaryWorktree)
+			return wire.Errorf(wire.CodeUnsupportedFilesystem, repo.StateDir, "head.primaryWorktree %q differs from the resolved primary worktree %q ; run `corvint-tasks relocate --from %s --request-id ID` from the new primary worktree (TRL-V0-001)", s.Head.PrimaryWorktree, repo.PrimaryWorktree, s.Head.PrimaryWorktree)
 		}
 		files, before, tree, err := life.captureLayout(wire.MaxArchiveScanEntries, wire.MaxArchiveFiles)
 		if err != nil {

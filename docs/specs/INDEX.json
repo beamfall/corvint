@@ -3864,5 +3864,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/corvint-tasks-store-relocation-v0.md",
+    "title": "Corvint Tasks store relocation V0",
+    "reqPrefix": "TRL-V0",
+    "intent": "accepted (owner standing auto-accept 2026-10-11)",
+    "delivery": "experimental",
+    "claim": "A moved or copied task store is bound to a new primary worktree only by an explicit `relocate` that commits one receipt naming both paths.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
