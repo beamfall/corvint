@@ -768,3 +768,44 @@ func TestRetentionStaysOutOfGitStatus(t *testing.T) {
 		t.Fatalf(".gitignore = %q, %v", data, err)
 	}
 }
+
+// playwright164 reshapes an archive's library Frame.expect calls as Playwright
+// 1.64.0 records them (retained trace, 2026-10-21): no stepId member, and the
+// call reuses the runner expect step's callId.
+func playwright164(a *traceArchive) {
+	for _, frame := range a.frames {
+		frame["callId"] = frame["stepId"]
+		delete(frame, "stepId")
+	}
+}
+
+// LPCV-V0-290: a Playwright 1.64.0 trace links each library expect call by
+// callId, so the derivation recovers the same frames and faults as from the
+// 1.63.0 stepId shape; a callId naming no runner expect step attaches nothing,
+// and a present stepId still wins over the callId.
+func TestLPCVV0290Playwright164FrameLink(t *testing.T) {
+	want := parsed(t, baselineArchive())
+	a := baselineArchive()
+	playwright164(a)
+	got := parsed(t, a)
+	if !reflect.DeepEqual(got.Assertions, want.Assertions) {
+		t.Fatalf("1.64 assertions = %+v\nwant %+v", got.Assertions, want.Assertions)
+	}
+	d := Derive(got, testKey, 2, appOrigin)
+	if d.Network == nil || d.DOM == nil || d.NetworkReason != "" || d.DOMReason != "" {
+		t.Fatalf("1.64 derivation = %+v", d)
+	}
+
+	stray := baselineArchive()
+	playwright164(stray)
+	stray.frames[0]["callId"] = "pvti@999"
+	if frame := parsed(t, stray).Assertions[0].Frame; frame != nil {
+		t.Fatalf("stray callId attached frame %+v", frame)
+	}
+
+	both := baselineArchive()
+	both.frames[0]["callId"] = "e2"
+	if !reflect.DeepEqual(parsed(t, both).Assertions, want.Assertions) {
+		t.Fatal("a present stepId did not win over the callId")
+	}
+}
