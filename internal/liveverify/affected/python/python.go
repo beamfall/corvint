@@ -211,7 +211,30 @@ func parseImportLine(line string) []importRef {
 		for dots < len(target) && target[dots] == '.' {
 			dots++
 		}
-		return []importRef{{module: target[dots:], dots: dots}}
+		module := target[dots:]
+		refs := []importRef{{module: module, dots: dots}}
+		// Each imported name may itself be a submodule (`from pkg import
+		// sub`), so it is tried as one; a name that is not resolves to the
+		// same longest observed prefix as the statement's module. Only the
+		// first line of a parenthesised form is visible here.
+		names := rest[cut+len(" import"):]
+		if stop := strings.IndexAny(names, "#;"); stop >= 0 {
+			names = names[:stop]
+		}
+		for _, clause := range strings.Split(strings.Trim(strings.TrimSpace(names), "()"), ",") {
+			name := strings.TrimSpace(strings.Trim(strings.TrimSpace(clause), "()"))
+			if as := strings.Index(name, " as "); as >= 0 {
+				name = strings.TrimSpace(name[:as])
+			}
+			if name == "" || name == "*" || strings.ContainsAny(name, " \t\\().") {
+				continue
+			}
+			if module != "" {
+				name = module + "." + name
+			}
+			refs = append(refs, importRef{module: name, dots: dots})
+		}
+		return refs
 	}
 	rest := strings.TrimSpace(strings.TrimPrefix(line, "import "))
 	refs := make([]importRef, 0, 2)

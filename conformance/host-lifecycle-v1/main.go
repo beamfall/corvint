@@ -1036,7 +1036,7 @@ func (r *runner) pluginFrontier() (string, error) {
 		return "", err
 	}
 	plan := filepath.Join(r.work, "plan.json")
-	body := fmt.Sprintf(`{"base":%q,"checks":[{"argv":["true"],"id":"noop","timeoutSeconds":10}],"intents":["add.go"]}`, head)
+	body := fmt.Sprintf(`{"base":%q,"checks":[{"argv":["true"],"id":"noop","timeoutSeconds":10}],"intents":["docs/intent.md"]}`, head)
 	if err := os.WriteFile(plan, []byte(body), 0o600); err != nil {
 		return "", err
 	}

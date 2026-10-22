@@ -250,10 +250,28 @@ func buildTermTable(sources map[string]Source) *TermTable {
 	}
 	pending.Wait()
 	table := &TermTable{Paths: paths}
-	table.Terms = invertCounts(perSource)
-	table.Words = invertPresence(perSource, func(entry sourceTerms) map[string]struct{} { return entry.words })
-	table.PathTerms = invertPresence(perSource, func(entry sourceTerms) map[string]struct{} { return stringSetOf(entry.pathTerms) })
+	table.Terms, table.Words, table.PathTerms = invertSourceTerms(perSource)
 	return table
+}
+
+// invertSourceTerms inverts the three tables of perSource. Each inversion
+// reads perSource only and ends in a serial merge and key sort, so the three
+// run side by side instead of each waiting for the last one's merge; every
+// table is the same function of the same input as before (GPK-V0-088).
+func invertSourceTerms(perSource []sourceTerms) (terms, words, pathTerms termPostings) {
+	var pending sync.WaitGroup
+	pending.Add(2)
+	go func() {
+		defer pending.Done()
+		words = invertPresence(perSource, func(entry sourceTerms) map[string]struct{} { return entry.words })
+	}()
+	go func() {
+		defer pending.Done()
+		pathTerms = invertPresence(perSource, func(entry sourceTerms) map[string]struct{} { return stringSetOf(entry.pathTerms) })
+	}()
+	terms = invertCounts(perSource)
+	pending.Wait()
+	return terms, words, pathTerms
 }
 
 func tokeniseSource(path string, source Source, tokeniser *tokeniser) sourceTerms {

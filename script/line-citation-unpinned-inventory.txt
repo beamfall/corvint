@@ -28,8 +28,6 @@ docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/d
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/gokernel/repository.go:198
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/liveverify/affected/dirty.go:52
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/liveverify/parentverify/repository.go:91
-docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/localcompletion/storage.go:431
-docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/localcompletion/storage.go:484
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/touchsurprise/git.go:110
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/tracerecordrepo/read.go:81
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/worksource/git.go:191
