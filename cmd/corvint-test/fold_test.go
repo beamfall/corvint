@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -144,6 +145,12 @@ func TestCTFV0002FalsifyFoldGoldens(t *testing.T) {
 	foldGoldens(t, "falsify", "../corvint-behavior-falsify")
 }
 
+// CTF-V0-002, CTF-V0-003: the same for the accept group, including the offline `plan` over a
+// fixture repository committed per run; its digest binds that run's roots (@DIGEST@).
+func TestCTFV0002AcceptFoldGoldens(t *testing.T) {
+	foldGoldens(t, "accept", "../corvint-tests-accept")
+}
+
 // CTF-V0-002, CTF-V0-003: the same for the minimize group (refusals and help; its plan reads
 // pinned live evidence, so no success path runs offline).
 func TestCTFV0002MinimizeFoldGoldens(t *testing.T) {
@@ -224,17 +231,17 @@ func TestCTFV0007FoldedGroupBoundary(t *testing.T) {
 	}
 	for _, dep := range strings.Fields(string(out)) {
 		if strings.HasSuffix(dep, "/internal/testrunner/cli") || strings.HasSuffix(dep, "/internal/behaviorfalsify/cli") ||
-			strings.HasSuffix(dep, "/internal/playwrightminimize/cli") {
+			strings.HasSuffix(dep, "/internal/playwrightminimize/cli") || strings.HasSuffix(dep, "/internal/testacceptance/cli") {
 			t.Fatalf("core corvint imports %s", dep)
 		}
 	}
-	for _, group := range []string{"corvint-test runner <command>", "corvint-test falsify <plan|", "corvint-test minimize <plan|"} {
+	for _, group := range []string{"corvint-test runner <command>", "corvint-test falsify <plan|", "corvint-test minimize <plan|", "corvint-test accept plan|accept"} {
 		if !strings.Contains(usage, group) {
 			t.Fatalf("usage does not name %q: %q", group, usage)
 		}
 	}
 	srcs, _ := filepath.Glob("../../internal/testrunner/cli/*.go")
-	for _, dir := range []string{"behaviorfalsify", "playwrightminimize"} {
+	for _, dir := range []string{"behaviorfalsify", "playwrightminimize", "testacceptance"} {
 		more, _ := filepath.Glob("../../internal/" + dir + "/cli/*.go")
 		srcs = append(srcs, more...)
 	}
@@ -256,10 +263,53 @@ func TestCTFV0007FoldedGroupBoundary(t *testing.T) {
 	}
 }
 
-// Recording aid for the pre-move accept goldens; removed once the group moves.
-func TestCTFV0002AcceptFoldRecord(t *testing.T) {
-	if os.Getenv("CTF_UPDATE_GOLDEN") != "1" {
-		t.Skip("record only")
+// CTF-V0-006: an approved `corvint-test accept accept` re-enters the built corvint-test binary as
+// `corvint-test accept worker`. Every worker returns a run report from the group code; a re-entry
+// that reached anything else would leave its run `worker-incomplete`.
+func TestCTFV0006AcceptWorkerReentersCorvintTest(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("testdata", "fold", "accept.json"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	foldGoldens(t, "accept", "../corvint-tests-accept")
+	var g foldGolden
+	if err := json.Unmarshal(data, &g); err != nil {
+		t.Fatal(err)
+	}
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := foldFixture(t, g, dir)
+	plan := filepath.Join(dir, "req.json")
+	if err := os.WriteFile(plan, request, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var r testacceptance.Request
+	if err := testacceptance.Decode(request, &r); err != nil {
+		t.Fatal(err)
+	}
+	// The executable re-enters itself by a path without symbolic links (self-worker-invalid).
+	bin := filepath.Join(dir, "corvint-test")
+	if out, err := exec.Command("go", "build", "-o", bin, ".").CombinedOutput(); err != nil {
+		t.Fatalf("build: %v\n%s", err, out)
+	}
+	var stdout, stderr bytes.Buffer
+	cmd := exec.Command(bin, "accept", "accept", "--plan", plan,
+		"--approve-plan", testacceptance.Digest(r), "--repeat", "2", "--environment", r.Environment, "--new", r.Tests[0].File)
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("accept: %v\n%s", err, stderr.String())
+	}
+	var report testacceptance.Report
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(report.Build, "corvint-test accept experimental/0 ") || len(report.Runs) == 0 {
+		t.Fatalf("report build %q, %d runs", report.Build, len(report.Runs))
+	}
+	for _, run := range report.Runs {
+		if slices.Contains(run.Reasons, "worker-incomplete") || slices.Contains(run.Reasons, "worker-report-invalid") {
+			t.Fatalf("worker re-entry did not reach the accept group: %s %v", run.Kind, run.Reasons)
+		}
+	}
 }
