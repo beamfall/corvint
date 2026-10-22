@@ -474,9 +474,9 @@ auto-accept of 2026-10-11, and pins these readings of 034..036:
   file must declare exactly one `test(...)`. It is run with `--grep` set to its escaped title.
   Its assertion lines are each line of the test body that starts with `expect(` or
   `await expect(`; the event line of each is the nearest preceding `await` line that is not an
-  assertion. A missing file, no match, several matches or an assertion with no event refuses
+  assertion. A missing file, no match or an assertion with no event refuses
   `e2e-hosted-test-invalid`, as do `--hosted-title` without `--hosted-test` and a hosted test
-  together with compiled scenarios.
+  together with compiled scenarios; several matching tests refuse `e2e-hosted-test-ambiguous`.
 - The required controls of a hosted test are one `omitted-event` per event line
   (`control:omitted-event:step-N`); the template controls of CCE-V0-018 need an emitted assertion
   and do not apply. The hosted run uses the generated runner configuration, not the host's own
