@@ -1586,6 +1586,8 @@ ATR-V0-183	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the own
 ATR-V0-190	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2263) An	standing	2026-10-11; V1-2263
 ATR-V0-191	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2263) `ticket	standing	2026-10-11; V1-2263
 ATR-V0-192	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1964) Every	standing	2026-10-11; V1-1964
+ATR-V0-280	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1964 criterion	standing	2026-10-11; V1-1964
+ATR-V0-281	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1964 criterion	standing	2026-10-11; V1-1964
 ATR-V0-210	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1321) When a t	standing	2026-10-11; V1-1321
 ATR-V0-211	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1321) Every cl	standing	2026-10-11; V1-1321
 ATR-V0-212	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1237, V1-1441)	standing	2026-10-11; V1-1237; V1-1441
@@ -1980,6 +1982,8 @@ PSR-V0-165	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the ow
 PSR-V0-166	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1585) Operatio	standing	2026-10-11; V1-1585
 PSR-V0-167	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1585) A policy	standing	2026-10-11; V1-1585
 PSR-V0-185	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1785; GitHub	standing	2026-10-11; V1-1785
+PSR-V0-190	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0917) On a rea	standing	2026-10-11; V1-0917
+PSR-V0-191	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0324) A read t	standing	2026-10-11; V1-0324
 SCC-V0-001	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) `store.S	standing	2026-10-11; V1-1920
 SCC-V0-002	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) An ABSEN	standing	2026-10-11; V1-1920
 SCC-V0-003	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) The patc	standing	2026-10-11; V1-1920
