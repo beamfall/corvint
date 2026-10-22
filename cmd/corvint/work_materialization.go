@@ -47,7 +47,7 @@ func newWorkMaterialization(ctx context.Context, source *worksource.Source) (_ *
 	run := &workMaterialization{root: root, target: filepath.Join(root, "target"), home: filepath.Join(root, "home"), tmp: filepath.Join(root, "tmp"), source: source}
 	defer func() {
 		if err != nil {
-			run.Close()
+			_ = run.Close()
 		}
 	}()
 	for _, path := range []string{run.target, run.home, run.tmp} {
@@ -102,14 +102,19 @@ func workChildEnvironment(home, tmp string) ([]string, error) {
 }
 
 // Close retires the Git groups a killed producer left running in its
-// acquisition scratch before removing the run root (WQO-V0-052).
-func (run *workMaterialization) Close() {
-	_ = worksource.RetireGitGroups(run.tmp, workGitRetirementBound)
-	_ = os.RemoveAll(run.root)
+// acquisition scratch, then removes the run root. When retirement is not
+// confirmed the run root, with the records needed to recover, is kept and the
+// error names it (WQO-V0-052).
+func (run *workMaterialization) Close() error {
+	if err := worksource.RetireGitGroups(run.tmp, workGitRetirementBound); err != nil {
+		return fmt.Errorf("work run scratch %s kept: %w", run.root, err)
+	}
+	return os.RemoveAll(run.root)
 }
 
-// workGitRetirementBound is a hang detector for Git groups exiting after SIGKILL, not a budget.
-const workGitRetirementBound = time.Minute
+// workGitRetirementBound is a hang detector for Git groups exiting after SIGKILL, not a budget;
+// tests shorten it.
+var workGitRetirementBound = time.Minute
 
 func (run *workMaterialization) git(ctx context.Context, args ...string) ([]byte, error) {
 	private := &worksource.Source{Root: run.target, GitPath: run.source.GitPath, GitEnvironment: append([]string(nil), run.environment...)}

@@ -15,8 +15,8 @@ func noFollowReadFlags() int             { return os.O_RDONLY }
 
 func fileIdentity(info os.FileInfo) [2]uint64 { return [2]uint64{} }
 
-func (source *Source) recordGitGroup(*exec.Cmd) (record, release func(), err error) {
-	return func() {}, func() {}, nil
+func (source *Source) recordGitGroup(*exec.Cmd) (release func(), err error) {
+	return func() {}, nil
 }
 
 // RetireGitGroups has no process groups to retire on this platform.

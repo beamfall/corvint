@@ -120,7 +120,7 @@ func workFinalCapture(t *testing.T, script string) (string, *workCapture) {
 	if code != "" {
 		t.Fatalf("initial capture: %s", code)
 	}
-	t.Cleanup(capture.Close)
+	t.Cleanup(func() { _ = capture.Close() })
 	if capture.observation.State != workqueue.StateUnknown || capture.observation.MutationState != "UNKNOWN" {
 		t.Fatalf("initial capture did not retain incomplete scope: %+v", capture.observation)
 	}

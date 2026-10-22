@@ -3,14 +3,14 @@
 package worksource
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -36,44 +36,56 @@ func fileIdentity(info os.FileInfo) [2]uint64 {
 // Source has started (WQO-V0-052).
 const gitGroupDirectory = "git-groups"
 
-// recordGitGroup gives command an inherited descriptor on a fresh, exclusively
-// flocked record file. The lock lives as long as any process holding that
-// descriptor, so it outlives a SIGKILLed producer exactly while the Git group
-// does. record writes the group ID once the leader has started; release
-// removes the record after the reap.
-func (source *Source) recordGitGroup(command *exec.Cmd) (record, release func(), err error) {
+// gitRunMarker is the inert Git configuration argument naming one Git run.
+func gitRunMarker(token string) string { return "corvint.worksourcerun=" + token }
+
+// recordGitGroup completes a record before Git exists: a fresh file named for
+// a random run token, exclusively flocked. command inherits the locked
+// descriptor and carries `-c corvint.worksourcerun=<token>` as its first
+// arguments, so from fork on the lock is held exactly while some process of
+// the run lives, and from exec on the Git group leader is identifiable by its
+// arguments without a published PID. release removes the record after the reap.
+func (source *Source) recordGitGroup(command *exec.Cmd) (release func(), err error) {
 	if source.temporary == "" {
-		return func() {}, func() {}, nil
+		return func() {}, nil
 	}
+	var random [16]byte
+	if _, err := rand.Read(random[:]); err != nil {
+		return nil, err
+	}
+	token := hex.EncodeToString(random[:])
 	directory := filepath.Join(source.temporary, gitGroupDirectory)
 	if err := os.Mkdir(directory, 0700); err != nil && !errors.Is(err, fs.ErrExist) {
-		return nil, nil, err
+		return nil, err
 	}
-	file, err := os.CreateTemp(directory, "group-")
+	path := filepath.Join(directory, "group-"+token)
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
+	}
+	release = func() {
+		_ = os.Remove(path)
+		_ = file.Close()
 	}
 	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		_ = os.Remove(file.Name())
-		_ = file.Close()
-		return nil, nil, err
+		release()
+		return nil, err
 	}
 	command.ExtraFiles = append(command.ExtraFiles, file)
-	record = func() { _, _ = file.WriteString(strconv.Itoa(command.Process.Pid) + "\n") }
-	release = func() {
-		_ = os.Remove(file.Name())
-		_ = file.Close()
-	}
-	return record, release, nil
+	command.Args = append([]string{command.Args[0], "-c", gitRunMarker(token)}, command.Args[1:]...)
+	return release, nil
 }
 
-// RetireGitGroups kills every Git process group recorded under the
-// acquisition scratch directories in parent whose record is still locked, then
-// waits until each lock is released, that is until no process holding it
-// remains. A SIGKILLed producer cannot reap its Git children, so the owner of
-// parent calls this before removing it (WQO-V0-052). bound is a hang detector.
+// RetireGitGroups retires the Git runs recorded under the acquisition
+// scratch directories in parent whose record is still locked, that is whose
+// launcher died before reaping them (WQO-V0-052). Until each lock is released
+// it finds the run's group leader by its marker argument and stops and kills
+// that group under groupreap's identity pinning; a recorded number is never
+// signalled. A free lock is a finished run and is never signalled. A nil
+// result confirms that no recorded Git process remains; any error means the
+// caller must keep the scratch. bound is a hang detector.
 func RetireGitGroups(parent string, bound time.Duration) error {
-	records, err := filepath.Glob(filepath.Join(parent, "corvint-work-source-*", gitGroupDirectory, "group-*"))
+	records, err := filepath.Glob(filepath.Join(parent, "corvint-work-source-*", gitGroupDirectory, "*"))
 	if err != nil {
 		return err
 	}
@@ -95,7 +107,7 @@ func retireGitGroup(path string, deadline time.Time) error {
 	}
 	defer file.Close()
 	fd := int(file.Fd())
-	locked := func() (bool, error) {
+	free := func() (bool, error) {
 		for {
 			err := syscall.Flock(fd, syscall.LOCK_EX|syscall.LOCK_NB)
 			if err == nil {
@@ -110,23 +122,31 @@ func retireGitGroup(path string, deadline time.Time) error {
 			return false, err
 		}
 	}
-	if free, err := locked(); free || err != nil {
+	if done, err := free(); done || err != nil {
 		return err
 	}
-	// A held lock means a holder is alive, and Git children stay in the
-	// leader's group, so the recorded group ID cannot have been reused.
-	raw, _ := io.ReadAll(io.LimitReader(file, 32))
-	if text := string(raw); strings.HasSuffix(text, "\n") {
-		if group, err := strconv.Atoi(strings.TrimSuffix(text, "\n")); err == nil && group > 1 {
-			_ = syscall.Kill(-group, syscall.SIGKILL)
-		}
+	token, ok := strings.CutPrefix(filepath.Base(path), "group-")
+	if !ok || len(token) != 32 || strings.Trim(token, "0123456789abcdef") != "" {
+		return fmt.Errorf("unreadable live Git group record %s", path)
 	}
+	var signalErr error
 	for {
-		if free, err := locked(); free || err != nil {
+		// A run between fork and exec does not carry its marker yet, so the
+		// leader is looked for again until the lock is released.
+		leaders, err := groupreap.GroupLeadersWithArgument(gitRunMarker(token))
+		if err != nil {
+			signalErr = err
+		}
+		for _, leader := range leaders {
+			if err := groupreap.StopKillGroup(leader); err != nil && !errors.Is(err, syscall.ESRCH) {
+				signalErr = err
+			}
+		}
+		if done, err := free(); done || err != nil {
 			return err
 		}
 		if time.Now().After(deadline) {
-			return fmt.Errorf("recorded Git process group %s did not exit", path)
+			return fmt.Errorf("recorded Git run %s is still alive: %v", path, signalErr)
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
