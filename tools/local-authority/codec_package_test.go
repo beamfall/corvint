@@ -28,7 +28,7 @@ func TestPLEV0013CodecPackageAdmitsTestdata(t *testing.T) {
 	tree := func(entries ...entry) []byte {
 		var body []byte
 		for _, e := range entries {
-			body = append(append(append(body, e.mode+" "+e.name+"\x00"...)), e.oid...)
+			body = append(append(body, e.mode+" "+e.name+"\x00"...), e.oid...)
 		}
 		return put("tree", body)
 	}
