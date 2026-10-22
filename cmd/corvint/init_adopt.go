@@ -136,6 +136,12 @@ func runActivationForPlatform(ctx context.Context, root, activation string, argu
 		}
 	}
 	ok := receipt["operationalState"] != "INVALID"
+	if !ok {
+		if refusal := repositoryOwnershipRefusal(ctx, root); refusal != nil {
+			emitError(stderr, refusal)
+			return 2
+		}
+	}
 	payload := map[string]any{"ok": ok, "mutates": false, "tool": activation, "inventory": inventory}
 	encoded, err := contextindex.CanonicalJSON(payload)
 	if err != nil {
