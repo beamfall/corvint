@@ -120,14 +120,19 @@ func TestCALV0061_CheckpointTailEqualsFullAudit(t *testing.T) {
 
 	// No tail: the checkpoint names the head receipt.
 	// A tail post of a ticket last posted at or before the checkpoint may read
-	// that ticket's one prefix receipt to bind its note reference (ON-V0-013).
+	// that ticket's one prefix receipt to bind its note reference (ON-V0-013),
+	// plus the receipt before it when it is below the checkpoint (ON-V0-015).
 	var tailTickets []string
 	check := func(want string, paths ...string) *Result {
 		t.Helper()
 		allowed := map[uint64]bool{}
 		for _, e := range cp.Entries {
 			if slices.Contains(tailTickets, e.Path) {
-				allowed[e.Seq.Uint64()] = true
+				seq := e.Seq.Uint64()
+				allowed[seq] = true
+				if seq < cp.Seq.Uint64() {
+					allowed[seq-1] = true
+				}
 			}
 		}
 		full, err := Reader{Source: r.Source, QueueID: r.QueueID, PrimaryWorktree: r.PrimaryWorktree}.Audit(paths...)
