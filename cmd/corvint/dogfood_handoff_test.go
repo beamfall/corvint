@@ -226,7 +226,7 @@ func TestDogfoodHandoffReportsEnrollmentDriftAndDegradations(t *testing.T) {
 	t.Parallel()
 	root, key := handoffRepository(t)
 	file, _ := emitHandoff(t, root, key)
-	if _, err := localcompletion.Cancel(context.Background(), root, key); err != nil {
+	if _, err := localcompletion.Cancel(context.Background(), root, key, "test cancel"); err != nil {
 		t.Fatal(err)
 	}
 	before := dogfoodPrivateFiles(t, root)

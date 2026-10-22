@@ -9,7 +9,7 @@ Authoritative inputs: `docs/DOGFOOD.md`, `docs/decisions/0009-harness-authority-
 ## Agent digest
 - Claim: Explicitly enrolled changes require selected checks, bound evidence and inspected reports before local completion; no execution attestation.
 - Status: accepted direction (owner selected decision 0009 option 2 in the 2026-09-06 Codex dogfood repair task); LCP-V0-008/009 Pi tuple accepted (decision 0452; V1-0506)/implemented
-- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is accepted by decision 0465 (V1-1012). `LCP-V0-018` (plan intent refusals name the rule) is accepted by decision 0472 (V1-1043). `LCP-V0-019` proposes reuse of immutable facts inside one enrolled event while re-reading private inputs and cleanliness (V1-1124; accepted, decision 0508). `LCP-V0-033` (snapshot read overlapping the opening status read) is accepted under the owner's lane auto-acceptance (V1-1524, V1-2144). `LCP-V0-034` (named prompt-bounds refusal code) is accepted under the same auto-acceptance (V1-1976). `LCP-V0-036` (base-ancestry probes refuse a grafted or shallow checkout with `ancestry-rewritten`) is accepted under the same auto-acceptance (V1-1757). `LCP-V0-037` (begin refuses an intent without numbered requirements) is accepted under the owner's standing auto-accept (V1-0680).
+- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is accepted by decision 0465 (V1-1012). `LCP-V0-018` (plan intent refusals name the rule) is accepted by decision 0472 (V1-1043). `LCP-V0-019` proposes reuse of immutable facts inside one enrolled event while re-reading private inputs and cleanliness (V1-1124; accepted, decision 0508). `LCP-V0-033` (snapshot read overlapping the opening status read) is accepted under the owner's lane auto-acceptance (V1-1524, V1-2144). `LCP-V0-034` (named prompt-bounds refusal code) is accepted under the same auto-acceptance (V1-1976). `LCP-V0-036` (base-ancestry probes refuse a grafted or shallow checkout with `ancestry-rewritten`) is accepted under the same auto-acceptance (V1-1757). `LCP-V0-037` (begin refuses an intent without numbered requirements) is accepted under the owner's standing auto-accept (V1-0680). `LCP-V0-038` (cancel of an active enrollment requires `--reason`) is accepted under the owner's standing auto-accept (2026-10-11) (V1-2177).
 - Blocked on: current-change canonical verification, report acknowledgment, strict outcome qualification and installed-hook validation, recorded separately; complete host-version matrix NOT_RUN.
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
 
@@ -422,6 +422,17 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   form) and re-checking an intent edited after enrollment, which finish still refuses. Failure
   modes: a plan that enrolled a decision document or instructions file now stops at begin
   instead of after selected checks. Rollback: drop the requirements read in `Begin`.
+- `LCP-V0-038`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2177)
+  `dogfood cancel` of an `active` enrollment MUST be refused with `cancel-reason-required` and
+  leave the saved state unchanged unless `--reason TEXT` is nonempty; the message MUST name the
+  number of selected checks and saved observations the cancel would close as non-success and the
+  route for a moved base (leave the enrollment ACTIVE and begin a new enrollment in a fresh
+  worktree or clone). With a reason the cancel proceeds as before and the result echoes the
+  reason as `cancelReason`; the reason is not persisted, so the closed state member set and older
+  binaries' reads are unchanged. Cancelling a satisfied or cancelled enrollment needs no reason.
+  Non-goals: recording the reason in state, a force flag, refusing cancel by an owner. Failure
+  modes: a script that cancelled an active enrollment without a reason now exits 2 and must pass
+  `--reason`. Rollback: drop the reason check in `Cancel` and the `--reason` flag.
 
 ## Non-goals and simpler baseline
 
@@ -461,6 +472,7 @@ elsewhere are not repeated.
 | `base-not-ancestor-of-target` | `internal/localcompletion/storage.go` (`requireBaseAncestor`) | Git reports the plan base is not an ancestor of the enrollment-time `HEAD` commit (exit 1, empty stderr) |
 | `ancestry-rewritten` | `internal/localcompletion/storage.go` (`requireBaseAncestor`) | the checkout's Git common directory holds `info/grafts`, the checkout is shallow, or that metadata is unreadable, so the base-ancestry probe is not asked (`LCP-V0-036`) |
 | `base-unavailable` | `internal/localcompletion/lifecycle.go` (`Begin`) | the plan base does not resolve, or resolves to a different object |
+| `cancel-reason-required` | `internal/localcompletion/lifecycle.go` (`Cancel`) | an `active` enrollment is cancelled without a nonempty `--reason`; the message names the selected checks and saved observations it would close (`LCP-V0-038`, V1-2177) |
 | `cem-bindings-required` | `internal/localcompletion/finish.go` (`prepareBindings`) | the public `cem status` run against the plan base and current target returned an error |
 | `check-executable-unavailable` | `internal/localcompletion/storage.go` (`resolveExecutable`) | `exec.LookPath` cannot resolve a check's executable |
 | `completion-evidence-drift` | `internal/localcompletion/finish.go` (`revalidate`) | after finishing, the tree is not clean, the target or tree differs from the pre-finish snapshot, or the saved report is no longer current |
@@ -534,7 +546,7 @@ elsewhere are not repeated.
 | `output-bound-exceeded` | `internal/localcompletion/finish.go` (`Write`) | a bounded output buffer would exceed the artifact byte bound |
 | `plan-bound-exceeded` | `internal/localcompletion/storage.go` (`validatePlan`) | the plan has fewer than 1 or more than 16 intents or checks; `error.message` names both bounds (`LCP-V0-018`) |
 | `plan-unavailable` | `internal/localcompletion/storage.go` (`ReadPlan`) | the plan file's parent directory does not resolve |
-| `prior-completion-stale` | `internal/localcompletion/lifecycle.go` (`Begin`) | the session's satisfied enrollment for a different plan no longer evaluates as satisfied |
+| `prior-completion-stale` | `internal/localcompletion/lifecycle.go` (`Begin`) | the session's satisfied enrollment for a different plan no longer evaluates as satisfied; the CLI message names the staged-binding route of a fresh worktree or clone (V1-0953) |
 | `public-command-output-bound` | `internal/localcompletion/finish.go` (`public`) | a public evidence command overflowed its stdout or stderr bound |
 | `public-evidence-command-failed` | `internal/localcompletion/finish.go` (`public`) | a public evidence command exited non-zero without a valid code on stderr |
 | `public-report-path-invalid` | `internal/localcompletion/finish.go` (`generateReports`) | the report path is not an allowed path |
@@ -613,6 +625,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-035 | `keepAnchors` and `resolution` in `internal/contextindex/local_completion_context.go` | `TestDogfoodPromptLCPV0035KeepsFirstAnchorsInOrder` (`internal/contextindex/local_completion_context_test.go`: 2 paths and 35 identifiers keep 32 anchors and drop 5 identifiers, the packet holds no dropped term, a reversed prompt gives the same packet, 33 paths drop one path); `TestDogfoodPromptEarlyResourceBounds` keeps the 128-candidate refusal |
 | LCP-V0-036 | `requireBaseAncestor` in `internal/localcompletion/storage.go` calling `gitancestry.RewrittenAt`; `TestRewrittenAtMatchesRewrittenWithoutGit_LCPV0036` (`internal/gitancestry`: same reason as the Git-asking guard for plain, shallow and grafted checkouts); `TestEvaluateAgainstChangedBase` still counts four Git calls; `TestAncestryRewrittenCheckoutRefusesBaseProbe` (`internal/localcompletion/lifecycle_test.go`: `info/grafts` and `.git/shallow` fixtures; `begin` refuses with no `state.json`, and after a valid enrollment status and finish refuse with the state bytes unchanged) |
 | LCP-V0-037 | `Begin` in `internal/localcompletion/lifecycle.go`; `IntentRequirementsRefusal` in `internal/lrfrepo/ocm.go` | `TestEnrollmentRefusesIntentWithoutNumberedRequirements_LCPV0037` (`internal/localcompletion/lifecycle_test.go`: no section, no IDs and a duplicate ID are refused with the `ocm prepare` code 16 times without state.json, then a valid plan enrolls; fails without the change) |
+| LCP-V0-038 | `Cancel` in `internal/localcompletion/lifecycle.go`; `CancelReasonError` in `internal/localcompletion/types.go`; `--reason` in `cmd/corvint/local_completion.go` | `TestCancelActiveEnrollmentRequiresReason` (`internal/localcompletion/lifecycle_test.go`: a bare cancel of an active enrollment refuses with the check and observation counts and unchanged state, a reasoned cancel closes it, a repeat bare cancel succeeds; fails without the check); `TestDogfoodCancelActiveEnrollmentRequiresReason` (`cmd/corvint/local_completion_test.go`: exit 2 envelope names `--reason TEXT` and the fresh-worktree route, status stays active, `cancel --reason` echoes `cancelReason`); V1-0953 staged route: `TestStagedBeginAfterSatisfiedStageRefusesAndKeepsIt` (`internal/localcompletion/lifecycle_test.go`: a stage-2 begin after a satisfied stage refuses `prior-completion-stale` and keeps the stage-1 state bytes) and `TestDogfoodPriorCompletionStaleNamesStagedRoute` |
 
 ## Rollout, rollback and remaining gates
 

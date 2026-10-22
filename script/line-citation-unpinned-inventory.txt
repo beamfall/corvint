@@ -246,8 +246,6 @@ docs/specs/correlated-witness-collapse-x0.md	internal/witnesscollapse/stable.go:
 docs/specs/decision-number-gate-v0.md	Makefile:18
 docs/specs/diagnostic-repair-contract-v0.md	cmd/corvint/batch.go:190
 docs/specs/diagnostic-repair-contract-v0.md	cmd/corvint/batch.go:190
-docs/specs/diagnostic-repair-contract-v0.md	cmd/corvint/local_completion.go:248
-docs/specs/diagnostic-repair-contract-v0.md	cmd/corvint/local_completion.go:248
 docs/specs/diagnostic-repair-contract-v0.md	cmd/corvint/source_handoff.go:222
 docs/specs/diagnostic-repair-contract-v0.md	internal/doccompiler/build.go:158
 docs/specs/diagnostic-repair-contract-v0.md	internal/doccompiler/build.go:32

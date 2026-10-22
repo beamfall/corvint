@@ -45,7 +45,7 @@ func TestLocalStateBoundsAndContention(t *testing.T) {
 		if strictJSON(make([]byte, MaxPlanBytes+1), &duplicate, MaxPlanBytes) == nil {
 			t.Fatal("oversize accepted")
 		}
-		if _, err := Cancel(context.Background(), root, key); err != nil {
+		if _, err := Cancel(context.Background(), root, key, "test cancel"); err != nil {
 			t.Fatal(err)
 		}
 		var group sync.WaitGroup

@@ -114,7 +114,7 @@ func TestDogfoodHandoffBundleDriftWithholdsState(t *testing.T) {
 		t.Fatal("HEAD drift accepted")
 	}
 	// Actual enrollment drift, rather than only a forged document.
-	if _, err := localcompletion.Cancel(context.Background(), root, key); err != nil {
+	if _, err := localcompletion.Cancel(context.Background(), root, key, "test cancel"); err != nil {
 		t.Fatal(err)
 	}
 	if code, result, _ := consumeBundle(t, root, key, writeBundle(t, doc.Bundle)); code != 1 || result["taskState"] != nil {

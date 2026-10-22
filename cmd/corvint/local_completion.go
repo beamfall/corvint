@@ -91,7 +91,7 @@ func runLocalCompletion(ctx context.Context, root string, args []string, stdin i
 	case "review":
 		result, err = localcompletion.Review(ctx, root, key, flags["--report-set"])
 	case "cancel":
-		result, err = localcompletion.Cancel(ctx, root, key)
+		result, err = localcompletion.Cancel(ctx, root, key, flags["--reason"])
 	}
 	if err != nil {
 		if result.Lifecycle != "" {
@@ -104,12 +104,21 @@ func runLocalCompletion(ctx context.Context, root string, args []string, stdin i
 		if errors.As(err, &bound) {
 			return emitLocalCompletionFailureDetail(stderr, err.Error(), bound.Detail())
 		}
+		var reasonless *localcompletion.CancelReasonError
+		if errors.As(err, &reasonless) {
+			return emitLocalCompletionFailureDetail(stderr, err.Error(), reasonless.Detail())
+		}
 		return emitLocalCompletionFailure(stderr, err.Error())
 	}
 	code := localCompletionExit(args[0], flags["--check"], result)
 	// ok mirrors the exit status (LCP-V0-017): a caller reading only ok never
 	// sees an unqualified selected check or an unsatisfied finish as success.
 	payload := map[string]any{"ok": code == 0, "profile": "corvint-local-completion/0", "tool": "dogfood-" + args[0], "mutates": args[0] != "status", "policy": result, "claim": "caller-owned-selected-workflow-only"}
+	if reason := flags["--reason"]; reason != "" {
+		// LCP-V0-038: the caller's reason is echoed, never persisted in the
+		// closed enrollment state.
+		payload["cancelReason"] = reason
+	}
 	if err = emit(stdout, payload); err != nil {
 		return emitLocalCompletionFailure(stderr, "output-failed")
 	}
@@ -145,7 +154,9 @@ func localCompletionFlags(args []string) (map[string]string, error) {
 	case "finish":
 		allowed["--aggregate-outcome-profile"] = true
 		allowed["--transport-adapted-recovery"] = true
-	case "status", "cancel":
+	case "status":
+	case "cancel":
+		allowed["--reason"] = true
 	case "handoff":
 		allowed["--anchors"], allowed["--receipt"] = true, true
 		allowed["--task-state"], allowed["--bundle"] = true, true
@@ -270,7 +281,9 @@ func emitLocalCompletionFailureDetail(stderr io.Writer, code, detail string) int
 // the rule (LCP-V0-018, V1-1043). Each text is fixed, so the message still
 // carries no path or command text; the code stays the stable member.
 var localCompletionRemedies = map[string]string{
-	"invalid-check-bound":  "each plan check takes 1-64 argv elements and timeoutSeconds 1-3600; split a longer run into several checks",
-	"invalid-intent-scope": "the plan intents array must list 1-16 repository-relative spec paths, each clean, sorted in byte order with no duplicates (the rule DOGFOOD_INTENTS_FILE follows for dogfood change); sort and de-duplicate it, for example with LC_ALL=C sort -u",
-	"plan-bound-exceeded":  "the plan intents array must list 1-16 repository-relative spec paths, sorted in byte order with no duplicates, and the checks array 1-16 checks; an empty or longer array is refused",
+	"cancel-reason-required": "an active, unsatisfied enrollment is cancelled only with --reason TEXT; to move to a new base, leave it ACTIVE and begin a new enrollment in a fresh worktree or clone instead (docs/DOGFOOD.md)",
+	"prior-completion-stale": "this session's satisfied enrollment is bound to an earlier target and no longer evaluates as satisfied; begin the next stage of a staged binding in a fresh worktree or clone, and leave this one as it is (docs/DOGFOOD.md, staged binding)",
+	"invalid-check-bound":    "each plan check takes 1-64 argv elements and timeoutSeconds 1-3600; split a longer run into several checks",
+	"invalid-intent-scope":   "the plan intents array must list 1-16 repository-relative spec paths, each clean, sorted in byte order with no duplicates (the rule DOGFOOD_INTENTS_FILE follows for dogfood change); sort and de-duplicate it, for example with LC_ALL=C sort -u",
+	"plan-bound-exceeded":    "the plan intents array must list 1-16 repository-relative spec paths, sorted in byte order with no duplicates, and the checks array 1-16 checks; an empty or longer array is refused",
 }

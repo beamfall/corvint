@@ -409,7 +409,7 @@ func TestLocalCompletionFrontierUnavailableNextActionOrReason(t *testing.T) {
 			if lifecycle == "inactive" {
 				session, reason = localcompletion.HashSession("unenrolled"), "enrollment-inactive"
 			} else if lifecycle == "cancelled" {
-				if _, err := localcompletion.Cancel(context.Background(), root, key); err != nil {
+				if _, err := localcompletion.Cancel(context.Background(), root, key, "test cancel"); err != nil {
 					t.Fatal(err)
 				}
 				reason = "enrollment-cancelled"
@@ -541,6 +541,73 @@ func TestDogfoodBeginCheckBoundNamesTheLimit(t *testing.T) {
 			if !strings.Contains(envelope.Error.Message, want) {
 				t.Fatalf("%s: message %q lacks %q", tc.name, envelope.Error.Message, want)
 			}
+		}
+	}
+}
+
+// TestDogfoodCancelActiveEnrollmentRequiresReason covers LCP-V0-038 (V1-2177):
+// the CLI refuses a bare cancel of an active enrollment with the counts and the
+// fresh-worktree route, and a --reason cancel succeeds and echoes the reason.
+func TestDogfoodCancelActiveEnrollmentRequiresReason(t *testing.T) {
+	t.Parallel()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cemWrite(t, root, "a.md", "# A\n\n## Requirements\n\n- `FIXTURE-001`: preserve behavior.\n")
+	cemWrite(t, root, ".gitignore", ".corvint/\n")
+	cemGit(t, root, "init", "-q", "-b", "main")
+	cemGit(t, root, "add", ".")
+	cemGit(t, root, "commit", "-qm", "base")
+	plan := localcompletion.Plan{Base: cemGit(t, root, "rev-parse", "HEAD"), Intents: []string{"a.md"}, Checks: []localcompletion.Check{{ID: "unit", Argv: []string{"true"}, TimeoutSeconds: 30}}}
+	raw, _ := json.Marshal(plan)
+	planPath := filepath.Join(t.TempDir(), "plan.json")
+	if err = os.WriteFile(planPath, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	key := localcompletion.HashSession(t.Name())
+	call := func(args ...string) (int, string, string) {
+		var stdout, stderr strings.Builder
+		code := runLocalCompletion(context.Background(), root, append(args, "--session-key", key), strings.NewReader(""), &stdout, &stderr)
+		return code, stdout.String(), stderr.String()
+	}
+	if code, stdout, stderr := call("begin", "--plan", planPath); code != 0 {
+		t.Fatalf("begin: exit %d stdout %s stderr %s", code, stdout, stderr)
+	}
+	code, stdout, stderr := call("cancel")
+	var envelope struct {
+		Code  string                         `json:"code"`
+		Error struct{ Code, Message string } `json:"error"`
+	}
+	if err = json.Unmarshal([]byte(stderr), &envelope); err != nil || code != 2 || stdout != "" || envelope.Code != "cancel-reason-required" {
+		t.Fatalf("bare cancel: exit %d stdout %q stderr %q", code, stdout, stderr)
+	}
+	for _, want := range []string{"--reason TEXT", "fresh worktree or clone", "closes 1 selected checks and 0 saved observations"} {
+		if !strings.Contains(envelope.Error.Message, want) {
+			t.Fatalf("message %q lacks %q", envelope.Error.Message, want)
+		}
+	}
+	if code, stdout, _ = call("status"); code != 0 || !strings.Contains(stdout, `"lifecycle":"active"`) {
+		t.Fatalf("refused cancel changed the enrollment: exit %d %s", code, stdout)
+	}
+	code, stdout, stderr = call("cancel", "--reason", "base moved")
+	if code != 0 || !strings.Contains(stdout, `"cancelReason":"base moved"`) || !strings.Contains(stdout, `"lifecycle":"cancelled"`) {
+		t.Fatalf("cancel --reason: exit %d stdout %s stderr %s", code, stdout, stderr)
+	}
+}
+
+// TestDogfoodPriorCompletionStaleNamesStagedRoute covers V1-0953: the
+// prior-completion-stale refusal keeps its code and names the staged-binding
+// route instead of carrying no next action.
+func TestDogfoodPriorCompletionStaleNamesStagedRoute(t *testing.T) {
+	t.Parallel()
+	var stderr strings.Builder
+	if code := emitLocalCompletionFailure(&stderr, "prior-completion-stale"); code != 2 {
+		t.Fatalf("exit %d", code)
+	}
+	for _, want := range []string{`"code":"prior-completion-stale"`, "fresh worktree or clone", "staged binding"} {
+		if !strings.Contains(stderr.String(), want) {
+			t.Fatalf("refusal %q lacks %q", stderr.String(), want)
 		}
 	}
 }

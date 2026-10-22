@@ -331,7 +331,17 @@ then use this order; `BASE_SHA` is the commit before the change's first commit, 
 When local Git configuration `corvint.dogfood.anchor` names one anchor ref, both commands require
 `BASE_SHA` to equal `git merge-base <anchor> HEAD` and refuse `base-not-anchored` otherwise. No
 implicit anchor such as `origin/main` is selected. Without a configured anchor, the caller base
-remains operative and the private report records the anchor as `NOT_OBSERVED`:
+remains operative and the private report records the anchor as `NOT_OBSERVED`.
+
+A lane that merged its mainline forward binds against the last mainline commit it merged,
+`git merge-base origin/main HEAD`, not its original unmoved base: `BASE..HEAD` would otherwise
+attest the mainline's commits as this change's and can exceed the bounds. The refusal names the
+anchored base on a `fix:` line. Without an anchor, `dogfood-change` prints
+`NOTE merged-forward merge=<merge> merged=<parent>` before its passes when a merge on `HEAD`'s
+first-parent path merged a descendant of `BASE` that is not a seal commit, and names that parent as
+the base to rerun with; set `git config --local corvint.dogfood.anchor refs/remotes/origin/main`
+to refuse instead (`DCW-V0-171`). A merged seal commit is a sealed lane or stacked predecessor and
+keeps its own route below:
 
 `dogfood-change` and `dogfood-check` require `rg` (ripgrep) on `PATH` to assert on their own evidence
 output; a host missing it gets a `REFUSE unsupported-environment-missing-rg` line instead of a
@@ -1080,6 +1090,21 @@ succeed while `HEAD` is the seal commit. Completion can then be rerun only from 
 succeeded. Leave the sealed worktree as it is, and begin the next enrollment with
 `corvint dogfood begin` in a fresh worktree or clone. Adding a sealed-terminal state would amend
 LCP-V0-002, 003 and 020, and decision 0534 does not adopt it.
+
+A staged over-cap batch, bound as several sealed stages, follows the same rule (V1-0953). After
+stage 1 is satisfied and sealed, a stage-2 `corvint dogfood begin` in the same clone with the same
+session key is refused with `prior-completion-stale`: the satisfied enrollment is bound to the
+stage-1 target, no longer evaluates as satisfied at `HEAD`, and its state is left unchanged.
+Begin each later stage in a fresh worktree or clone at the stage's base, and leave the stage-1
+checkout as it is; the refusal's message names this route.
+
+A new base needs a fresh worktree and a new enrollment (V1-2177). When the base moves under an
+active, unsatisfied enrollment, leave that enrollment ACTIVE in its own checkout until its
+coordinator disposes of it, and never cancel it in place to make room. `corvint dogfood cancel`
+on an active enrollment is refused with `cancel-reason-required`, naming the selected checks and
+saved observations it would close, unless `--reason TEXT` records why it is being abandoned. The
+reason is echoed as `cancelReason` in the result and is not persisted (LCP-V0-038). Cancelling an
+already satisfied or cancelled enrollment needs no reason.
 
 `status` and native events are read-only. An enrolled incomplete Stop permits one remediation;
 recursive Stop releases with an unresolved notice. `cancel` explicitly records non-success and is
