@@ -16,6 +16,7 @@ import (
 // restores each elided receipt, the acquire resumes after one complete
 // audit, and compaction is not what keeps an acquire on complete audits.
 func TestPSRV0115_ResumeAfterCompaction(t *testing.T) {
+	t.Parallel()
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}

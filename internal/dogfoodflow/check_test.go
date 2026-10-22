@@ -436,3 +436,41 @@ func TestOCMV0025CheckNamesUnlinkedRequirementIDs(t *testing.T) {
 		t.Fatalf("bounded note %q, want suffix %q", got, want)
 	}
 }
+
+// TestSealDCWV0166CommitsUnderTheEnvironmentIdentity reproduces V1-2404: the
+// seal commit takes its author and committer from GIT_AUTHOR_* and
+// GIT_COMMITTER_*, not from a global configuration identity.
+func TestSealDCWV0166CommitsUnderTheEnvironmentIdentity(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	testGit(t, root, "commit", "-q", "--allow-empty", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	if err := os.MkdirAll(filepath.Join(root, ".corvint"), 0o777); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".corvint", "change.cem.json"), []byte("{}\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "add", "-A")
+	testGit(t, root, "commit", "-q", "-m", "bind")
+	global := filepath.Join(t.TempDir(), "gitconfig")
+	if err := os.WriteFile(global, []byte("[user]\n\tname = global\n\temail = global@example.invalid\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", global)
+	t.Setenv("GIT_AUTHOR_NAME", "Seal Author")
+	t.Setenv("GIT_AUTHOR_EMAIL", "author@example.invalid")
+	t.Setenv("GIT_COMMITTER_NAME", "Seal Committer")
+	t.Setenv("GIT_COMMITTER_EMAIL", "committer@example.invalid")
+	var stdout, stderr bytes.Buffer
+	run := newCheck(context.Background(), "dogfood-seal", CheckOptions{Root: root}, &stdout, &stderr)
+	run.base = base
+	code, err := boundary(context.Background(), run.seal, func() {})
+	if err != nil || code != 0 {
+		t.Fatalf("seal exit=%d err=%v stderr=%q", code, err, stderr.String())
+	}
+	got := testGit(t, root, "log", "-1", "--format=%s|%an|%ae|%cn|%ce")
+	if want := "chore: seal change evidence|Seal Author|author@example.invalid|Seal Committer|committer@example.invalid"; got != want {
+		t.Fatalf("seal commit identity %q; want %q", got, want)
+	}
+}

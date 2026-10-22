@@ -83,8 +83,10 @@ type Obligations struct {
 	AcceptancesInDiff []string `json:"acceptances_in_diff,omitempty"`
 	// CoverageDigest is the SHA-256 of the runtime coverage document consulted (CCE-V0-045).
 	CoverageDigest string `json:"coverage_digest,omitempty"`
-	Truncated      int    `json:"truncated,omitempty"` // obligations dropped by the byte cap (CCE-V0-014)
-	Digest         string `json:"digest"`
+	// ModuleGraph records the consulted TJAA module graph (CCE-V0-054).
+	ModuleGraph *ModuleGraphRelation `json:"module_graph,omitempty"`
+	Truncated   int                  `json:"truncated,omitempty"` // obligations dropped by the byte cap (CCE-V0-014)
+	Digest      string               `json:"digest"`
 
 	catalog *Catalog
 	// baseOutcomes holds each outcome of the base map by ID, for oracle_origin (CCE-V0-016).
@@ -111,6 +113,9 @@ type DiffOptions struct {
 	Manifest         string
 	// Coverage names an optional runtime coverage document that may only widen reach (CCE-V0-045).
 	Coverage string
+	// ModuleGraph consults the head tree's TypeScript/JavaScript module graph, which may only widen
+	// reach (CCE-V0-054).
+	ModuleGraph bool
 }
 
 // maxObligations is MaxObligations; tests lower it to reach the fan-out case.
@@ -182,7 +187,7 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 	var coverageDigest string
 	var covered map[string][]string
 	if o.Coverage != "" {
-		if coverageDigest, covered, err = readCoverage(o.Coverage, cat.Revision, cat.m); err != nil {
+		if coverageDigest, covered, err = readCoverage(ctx, o.Root, o.Coverage, cat.Revision, cat.m); err != nil {
 			return nil, err
 		}
 		consulted = append(consulted, CoverageBasis)
@@ -255,6 +260,15 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 	// Runtime coverage hits come after impact's, so an obligation impact reaches keeps its chain;
 	// they were not counted as placed above, so every unknown span stands (CCE-V0-046).
 	hits := append(append([]appmap.ImpactScreen(nil), impact.Screens...), coverageHits(covered, changedSet, impact.Screens)...)
+	if o.ModuleGraph {
+		// Module-graph hits come last and, like coverage, were not counted as placed (CCE-V0-054).
+		var more []appmap.ImpactScreen
+		more, r.ModuleGraph = moduleGraphHits(ctx, o.Root, cat.Revision, cat.m, changed, hits)
+		hits = append(hits, more...)
+		r.Relations.Consulted = append(r.Relations.Consulted, ModuleGraphBasis)
+	} else {
+		r.Relations.NotConsulted = append(r.Relations.NotConsulted, ModuleGraphBasis)
+	}
 	for _, hit := range hits {
 		reached[hit.ID] = true
 		var spans []Span
@@ -293,7 +307,9 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 				}
 			}
 		}
-		if !reaches {
+		// A module-graph hit on a screen without an outcome adds no span, so the changed path's own
+		// unknown span keeps its reason (CCE-V0-054).
+		if !reaches && !strings.HasPrefix(hit.Basis, ModuleGraphBasis+":") {
 			for _, s := range spans {
 				lined = append(lined, UnknownSpan{Span: s, Reason: ReasonScreenWithoutOutcome, Detail: hit.ID})
 			}

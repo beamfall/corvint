@@ -46,10 +46,18 @@ const (
 	// FailureCleanupFailed is a failure located in the scenario's cleanup; it is never an
 	// assertion result and reads INCONCLUSIVE (CCE-V0-009 rung 1).
 	FailureCleanupFailed = "cleanup-failed"
+	// FailureTeardownFailed is a run-level error, such as a worker fixture teardown failure, that
+	// the receipt locates inside the staged test tree: the test's own failure, never an assertion
+	// result and never infrastructure; it reads INCONCLUSIVE (CCE-V0-048).
+	FailureTeardownFailed = "teardown-failed"
 )
 
 // ReasonOracleSelfCertified caps a CHANGED_IN_DIFF scenario's verdict (CCE-V0-016, CCE-V0-027).
 const ReasonOracleSelfCertified = "oracle-self-certified"
+
+// ReasonOracleAccepted notes a CHANGED_IN_DIFF verdict that an independent acceptance lifted
+// from the cap (CCE-V0-051).
+const ReasonOracleAccepted = "oracle-accepted"
 
 // outsideTestTree is the recorded failure location of a repeat whose receipt location lies
 // outside the staged test tree.
@@ -98,14 +106,15 @@ module.exports = {
 var proveLimitations = []string{
 	"outcome-assertion location is the receipt's PWP-V3-008 failure location (the innermost frame in the test file); a repeat whose receipt names no location is read off the assertion",
 	"failure kind is read from the failure message: a received `element(s) not found` is locator-unresolved, any other failure at the outcome assertion is value-mismatch",
-	"cleanup-failed is read only for a failure located in the test file's own `finally` cleanup; a fixture or hook teardown failure reads infrastructure",
+	"cleanup-failed is read only for a failure located in the test file's own `finally` cleanup; a test-scoped fixture or hook teardown failure is a failure off the assertion at its receipt location",
+	"teardown-failed is read only for a run-level error the receipt locates inside the staged test tree; an unlocated run-level error, or one located outside the tree, reads infrastructure",
 	"PRESERVES is a regression-preservation check only; it does not detect the change",
 	"NEW_REACH checks new behaviour against its absence; it does not detect a changed value",
 }
 
 // hostedLimitations are added to a hosted-test proof (CCE-V0-034..036).
 var hostedLimitations = []string{
-	"a hosted test runs under the prove config, not the host's own Playwright config: host projects, fixtures and globalSetup are not applied",
+	"a hosted test runs under the prove config, not the host's own Playwright config: host projects, fixtures and globalSetup are not applied; runner_config lists each key whose value differs from the host config read as text (CCE-V0-049)",
 	"a hosted test is selected by its literal title; a title another test in the file also matches under --grep runs both",
 	"hosted controls remove the awaited action before each assertion; the assertions themselves are not perturbed",
 }
@@ -133,6 +142,12 @@ type ProveOptions struct {
 	// executable must dispatch to RunHook when run with no arguments and
 	// CORVINT_BEHAVIOR_COMMAND_ROLE set.
 	HookExecutable string
+	// OracleAcceptance is an e2e-oracle-acceptance/0 document outside the repository that
+	// records an independent acceptance of CHANGED_IN_DIFF outcomes (CCE-V0-051).
+	OracleAcceptance string
+	// RecordCoverage records, per compiled scenario, the application paths the in-process static
+	// server serves during the head pool (CCE-V0-053).
+	RecordCoverage bool
 }
 
 type proveReport struct {
@@ -156,8 +171,19 @@ type scenarioProof struct {
 	AssertionID  string `json:"assertion_id"`
 	OracleOrigin string `json:"oracle_origin"`
 	Hosted       bool   `json:"hosted,omitempty"` // an existing hosted test run as given (CCE-V0-034)
-	Verdict      string `json:"verdict"`
-	Note         string `json:"note"`
+	// RunnerConfig lists how the prove config differs from the adopter's own config (CCE-V0-049).
+	RunnerConfig *runnerConfig `json:"runner_config,omitempty"`
+	// OracleDigest names a CHANGED_IN_DIFF scenario's oracle for an acceptance, and
+	// OracleAcceptance is the acceptance applied to it (CCE-V0-051).
+	OracleDigest     string            `json:"oracle_digest,omitempty"`
+	OracleAcceptance *oracleAcceptance `json:"oracle_acceptance,omitempty"`
+	// LocatorRepair proposes, and never applies, a replacement for an outcome locator that did
+	// not resolve at head (CCE-V0-052).
+	LocatorRepair *LocatorRepair `json:"locator_repair,omitempty"`
+	// RecordedCoverage is present only when Prove records coverage (CCE-V0-053).
+	RecordedCoverage *recordedCoverage `json:"recorded_coverage,omitempty"`
+	Verdict          string            `json:"verdict"`
+	Note             string            `json:"note"`
 	// Scoring is true only for a DISCRIMINATES, NEW_REACH or PRESERVES verdict on an
 	// ADMITTED_AT_BASE oracle: the scenarios CCE-V0-010 lets read above candidate.
 	Scoring  bool           `json:"scoring"`
@@ -203,6 +229,8 @@ type proveEnv struct {
 	environment                      *Environment // nil serves the tree statically
 	serveBin, servePath              string       // a bare serve[0] resolved once, and the PATH serve runs with
 	hook                             behaviorfalsify.Command
+	acceptances                      *oracleAcceptances // nil without an acceptance document
+	recordCoverage                   bool
 	// side runs one staged pool and returns its receipt and either the qualified receipt digest
 	// or the reason it has none; controls applies the CCE-V0-018 controls at head. Prove uses
 	// runQualified and runControls; the offline ladder tests substitute fakes (CCE-V0-028).
@@ -261,11 +289,17 @@ func Prove(ctx context.Context, o ProveOptions) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	acceptances, err := readOracleAcceptance(ctx, root, base, head, o.OracleAcceptance)
+	if err != nil {
+		return nil, err
+	}
 	env, err := proveToolchain(root, o)
 	if err != nil {
 		return nil, err
 	}
 	env.environment = environment
+	env.acceptances = acceptances
+	env.recordCoverage = o.RecordCoverage
 	restore := setEnv(proveEnvironment(o))
 	defer restore()
 	// A bare serve name is resolved once on Prove's PATH, so the sides and the BBF hook, which runs
@@ -291,6 +325,12 @@ func Prove(ctx context.Context, o ProveOptions) ([]byte, error) {
 // verdict with the oracle_origin cap.
 func (e *proveEnv) proveScenario(ctx context.Context, base, head string, sc Scenario, repeats int) scenarioProof {
 	p := scenarioProof{Obligation: sc.Obligation, Placement: sc.Placement, AssertionID: sc.AssertionID, OracleOrigin: sc.OracleOrigin, Hosted: sc.Hosted}
+	if sc.Hosted {
+		p.RunnerConfig = adopterRunnerConfig(ctx, e.root, head, sc.Placement)
+	}
+	if sc.OracleOrigin == OriginChangedInDiff {
+		p.OracleDigest = oracleDigest(sc)
+	}
 	tree, reason := e.headTestTree(ctx, head, sc)
 	if reason != "" {
 		p.Head, p.Base = unrunSide(head, head, reason), unrunSide(base, head, reason)
@@ -299,15 +339,33 @@ func (e *proveEnv) proveScenario(ctx context.Context, base, head string, sc Scen
 		return p
 	}
 	var headReceipt jstestprovider.Receipt
-	p.Head, headReceipt = e.proveSide(ctx, head, head, tree, sc, repeats)
-	p.Base, _ = e.proveSide(ctx, base, head, tree, sc, repeats)
+	var recorder *coverageRecorder
+	if e.recordCoverage && sc.Screen != "" && e.environment == nil {
+		recorder = newCoverageRecorder()
+	}
+	p.Head, headReceipt = e.proveSide(ctx, head, head, tree, sc, repeats, recorder)
+	p.Base, _ = e.proveSide(ctx, base, head, tree, sc, repeats, nil)
+	if e.recordCoverage {
+		p.RecordedCoverage = e.recorded(ctx, head, tree, sc, p.Head, recorder)
+	}
 	if controlsReachable(p.Head, p.Base) {
 		p.Controls = e.controls(ctx, head, sc, tree, headReceipt)
 	} else {
 		p.Controls = notRunControls(sc, "verdict-decided-before-controls")
 	}
 	p.Verdict, p.Note = verdict(p.Head, p.Base, p.Controls)
-	p.Verdict, p.Note = capOracle(sc.OracleOrigin, p.Verdict, p.Note)
+	if sc.Locator != "" && !sc.Hosted && headFailsUnresolved(p.Head) {
+		p.LocatorRepair = proposeLocatorRepair(ctx, e.root, base, head, sc.Locator)
+	}
+	p.OracleAcceptance = e.acceptances.lookup(sc)
+	if a := p.OracleAcceptance; a != nil && a.Status == "accepted" && p.Verdict != VerdictInconclusive {
+		p.Note += "; " + ReasonOracleAccepted + " by " + a.AcceptedBy
+	} else {
+		p.Verdict, p.Note = capOracle(sc.OracleOrigin, p.Verdict, p.Note)
+		if a != nil && p.Verdict == VerdictInconclusive && strings.HasPrefix(p.Note, ReasonOracleSelfCertified) {
+			p.Note += "; acceptance not applied: " + a.Status
+		}
+	}
 	switch p.Verdict {
 	case VerdictDiscriminates, VerdictNewReach, VerdictPreserves:
 		p.Scoring = sc.OracleOrigin == OriginAdmittedAtBase
@@ -412,7 +470,7 @@ func proveToolchain(root string, o ProveOptions) (*proveEnv, error) {
 // runQualified runs one pool through the Playwright provider and qualifies its receipt.
 func runQualified(ctx context.Context, in runInput) (jstestprovider.Receipt, string, string) {
 	receipt, runErr := runPlaywright(ctx, in)
-	digest, reason := qualify(receipt, runErr, in.Repeats)
+	digest, reason := qualify(receipt, runErr, in.Repeats, treeRoots(in.Tree))
 	return receipt, digest, reason
 }
 
@@ -471,7 +529,7 @@ func setEnv(vals map[string]string) func() {
 
 // proveSide runs the head test tree over a disposable extraction of the application revision app
 // (CCE-V0-017).
-func (e *proveEnv) proveSide(ctx context.Context, app, test string, tt testTree, sc Scenario, repeats int) (sideProof, jstestprovider.Receipt) {
+func (e *proveEnv) proveSide(ctx context.Context, app, test string, tt testTree, sc Scenario, repeats int, recorder *coverageRecorder) (sideProof, jstestprovider.Receipt) {
 	side := sideProof{ApplicationRevision: app, TestRevision: test, TestTreeDigest: tt.digest, Receipts: []string{}, Outcomes: []repeatOutcome{}}
 	dir, err := os.MkdirTemp("", "corvint-e2e-prove-")
 	if err != nil {
@@ -489,7 +547,7 @@ func (e *proveEnv) proveSide(ctx context.Context, app, test string, tt testTree,
 	roots := treeRoots(tree)
 	receipt, digest, reason := e.side(ctx, runInput{Tree: tree, AppIdentity: app, Placement: sc.Placement, Repeats: repeats,
 		NodeModules: e.nodeModules, RunnerVersion: e.runnerVersion, PackageJSON: e.packageJSON, Lockfile: e.lockfile, Timeout: sideTimeout,
-		Environment: e.environment, ServeBin: e.serveBin, ServePath: e.servePath, Grep: hostedGrep(sc)})
+		Environment: e.environment, ServeBin: e.serveBin, ServePath: e.servePath, Grep: hostedGrep(sc), Record: recorder.recordFunc()})
 	side.Qualified, side.Reason = reason == "", reason
 	if digest != "" {
 		side.Receipts = append(side.Receipts, digest)
@@ -603,6 +661,8 @@ type runInput struct {
 	Environment                  *Environment
 	ServeBin, ServePath          string
 	Grep                         string // a --grep title pattern selecting one hosted test (CCE-V0-034)
+	// Record, when set, receives each path the in-process static server answers (CCE-V0-053).
+	Record func(path string)
 }
 
 // runPlaywright serves tree, through the declared environment's serve argv when there is one and
@@ -630,7 +690,11 @@ func runPlaywright(ctx context.Context, in runInput) (jstestprovider.Receipt, er
 		if err != nil {
 			return jstestprovider.Receipt{}, err
 		}
-		srv := &http.Server{Handler: http.FileServer(http.Dir(tree)), ReadHeaderTimeout: 10 * time.Second}
+		var handler http.Handler = http.FileServer(http.Dir(tree))
+		if in.Record != nil {
+			handler = recordingHandler(handler, in.Record)
+		}
+		srv := &http.Server{Handler: handler, ReadHeaderTimeout: 10 * time.Second}
 		go func() { _ = srv.Serve(ln) }()
 		defer srv.Close()
 		url = "http://" + ln.Addr().String() + "/"
@@ -666,8 +730,9 @@ func runPlaywright(ctx context.Context, in runInput) (jstestprovider.Receipt, er
 	return receipt, err
 }
 
-// qualify returns the native receipt digest of a qualified run, or a reason it has none.
-func qualify(r jstestprovider.Receipt, runErr error, repeats int) (digest, reason string) {
+// qualify returns the native receipt digest of a qualified run, or a reason it has none. roots are
+// the staged test tree's paths, which place a run-level error (CCE-V0-048).
+func qualify(r jstestprovider.Receipt, runErr error, repeats int, roots []string) (digest, reason string) {
 	if code, ok := asEnvError(runErr); ok {
 		return "", code
 	}
@@ -676,6 +741,8 @@ func qualify(r jstestprovider.Receipt, runErr error, repeats int) (digest, reaso
 		return "", "provider-error"
 	case r.Cancelled:
 		return "", "cancelled"
+	case teardownFailure(r, roots) != "":
+		return "", teardownFailure(r, roots)
 	case r.Infrastructure != nil:
 		// Only a bare provider reason code is kept; free-text reasons can carry absolute paths.
 		if reasonCode.MatchString(r.Infrastructure.Reason) {
@@ -731,15 +798,35 @@ func receiptLocation(roots []string, t jstestprovider.TestOutcome) (string, int)
 		return "", 0
 	}
 	l := t.AttemptDetails[n-1].FailureLocation
+	return treeLocation(roots, *l), l.Line
+}
+
+// treeLocation is a reported location's test-tree-relative slash path, or outsideTestTree.
+func treeLocation(roots []string, l jstestprovider.Anchor) string {
 	if filepath.IsAbs(l.File) {
 		for _, root := range roots {
 			rel, err := filepath.Rel(root, l.File)
 			if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel) {
-				return filepath.ToSlash(rel), l.Line
+				return filepath.ToSlash(rel)
 			}
 		}
 	}
-	return outsideTestTree, l.Line
+	return outsideTestTree
+}
+
+// teardownFailure attributes a receipt's run-level reporter error by its PWP-V3-009 location
+// (CCE-V0-048): `teardown-failed at <path>:<line>` when it lies in the staged test tree outside
+// the linked node_modules, otherwise empty, so the error keeps reading infrastructure.
+func teardownFailure(r jstestprovider.Receipt, roots []string) string {
+	inf := r.Infrastructure
+	if inf == nil || inf.Reason != jstestprovider.ReasonReporterGlobalError || inf.Location == nil || inf.Location.Line < 1 {
+		return ""
+	}
+	file := treeLocation(roots, *inf.Location)
+	if file == outsideTestTree || file == "node_modules" || strings.HasPrefix(file, "node_modules/") {
+		return ""
+	}
+	return FailureTeardownFailed + " at " + locationText(file, inf.Location.Line)
 }
 
 func locationText(file string, line int) string {
@@ -919,6 +1006,11 @@ func incompletePool(head, base sideProof) string {
 // verdict is the CCE-V0-009 discrimination verdict: the first rung that holds.
 func verdict(head, base sideProof, controls []controlProof) (string, string) {
 	if !head.Qualified || !base.Qualified {
+		for _, s := range []sideProof{head, base} {
+			if strings.HasPrefix(s.Reason, FailureTeardownFailed+" at ") {
+				return VerdictInconclusive, s.Reason
+			}
+		}
 		return VerdictInconclusive, "run-without-qualified-receipt"
 	}
 	if reason := incompletePool(head, base); reason != "" {

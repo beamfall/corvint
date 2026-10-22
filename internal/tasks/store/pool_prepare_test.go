@@ -65,6 +65,7 @@ func psrPhaseObservation(t *testing.T, s *leaseStore, phase string) []snapshot.P
 // the sweep still owns the member (never FREE), passes before confirmation,
 // retains only its output digests, and an exact replay never reruns it.
 func TestPSRV0025PrepareRunsOwnedBeforeConfirm(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	runs, resume := filepath.Join(dir, "runs"), filepath.Join(dir, "resume")
 	script := "printf x >> " + runs + "; while [ ! -f " + resume + " ]; do /bin/sleep 0.01; done; printf prepared-stdout-bytes; printf prepared-stderr-bytes >&2"
@@ -132,6 +133,7 @@ func TestPSRV0025PrepareRunsOwnedBeforeConfirm(t *testing.T) {
 // PSR-V0-025: prepare shares the attempt deadline, so a prepare whose own
 // bound is 3600s ends as TIMEOUT at the member's attempt deadline.
 func TestPSRV0026PrepareFailureStaysQuarantined(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct{ name, script, attempt, class string }{
 		{"exit-nonzero", "exit 3", "", "EXIT_NONZERO"},
 		{"shared-deadline", "/bin/sleep 300", "20", "TIMEOUT"},
@@ -173,6 +175,7 @@ func TestPSRV0026PrepareFailureStaysQuarantined(t *testing.T) {
 // same-request replay reconciles from receipts and stays pending while the
 // sweep still owns the member; it never re-executes the completed prepare.
 func TestPSRV0026PendingReplayNeverRerunsPrepare(t *testing.T) {
+	t.Parallel()
 	runs := filepath.Join(t.TempDir(), "runs")
 	s, _ := psrFixtureConfigured(t, "printf reset", "printf verified", "verified", "1", false, psrPrepare("printf x >> "+runs, ""))
 	lost := false
@@ -205,6 +208,7 @@ func TestPSRV0026PendingReplayNeverRerunsPrepare(t *testing.T) {
 // PSR-V0-025: under an ALL barrier a declared prepare is a further phase
 // command, so it never launches; the owned sweep ends quarantined.
 func TestPSRV0025PrepareNeverLaunchesUnderAll(t *testing.T) {
+	t.Parallel()
 	runs := filepath.Join(t.TempDir(), "runs")
 	s, _ := psrFixtureConfigured(t, "printf reset", "printf verified", "verified", "1", false, psrPrepare("printf x >> "+runs, ""))
 	barrier := false

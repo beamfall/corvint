@@ -20,7 +20,7 @@ solution that is a perfect additional and use case for corvint".
 
 ## Agent digest
 - Claim: Reviewed E2E blocks compile into change-specific scenarios that must discriminate the change; hosted tests retire only after a shadow evaluation.
-- Status: accepted (owner, 2026-10-22); experimental; CCE-V0-026..047 accepted under the standing auto-accept (2026-10-11). First slice V1-1665 implements CCE-V0-001, 002, 004..009 and 015 in `internal/changee2e` behind `corvint-test e2e` with focused tests and a live Playwright qualification (Node v22.23.2); CCE-V0-003 is partial (one hand-written declarations file). The 2026-10-17 panel amendment adds CCE-V0-016..025 and amends 003, 004, 009, 011 and 012. Implemented: the CCE-V0-021 environment block (V1-1681 serve part), the obligations soundness of CCE-V0-019/020 with the amended 004 base join (V1-1678), and (2026-10-22 lane) the amended 009 ladder, 016 `oracle_origin`, 017 head test tree, 018 structure controls, 024 `outcome-vacuous`, the offline fake runner and the 011/012 shadow report over a recorded window (CCE-V0-026..033; V1-1679, V1-1680, V1-1682, V1-1687). The 2026-10-22 lane 1022k implements the hosted-test prover CCE-V0-034..036 (offline and live), receipt-located assertions (PWP-V3-008), `cleanup-failed`, the 037 usefulness exclusion of `PRESERVES`, CCE-V0-010, 013 and the 014 byte cap (CCE-V0-039, 040), and the first V1 authoring slice (V1-1683): `e2e harvest`, the `.corvint/e2e-acceptances.json` ledger and the in-diff flag (CCE-V0-041..044), and the runtime-coverage reach source of V1-1685 (CCE-V0-045..047). Not implemented: CCE-V0-022/023/025 and the rest of 024; NOT_RUN: the 038 actualbudget rerun and any adopter window. CCE-V0-086 (V1-1711) resolves a relative `--root`. Everything ships as the `e2e` group of one experimental companion, `corvint-test`; V0 adds nothing to core `corvint`.
+- Status: accepted (owner, 2026-10-22); experimental; CCE-V0-026..054 accepted under the standing auto-accept (2026-10-11). First slice V1-1665 implements CCE-V0-001, 002, 004..009 and 015 in `internal/changee2e` behind `corvint-test e2e` with focused tests and a live Playwright qualification (Node v22.23.2); CCE-V0-003 is partial (one hand-written declarations file). The 2026-10-17 panel amendment adds CCE-V0-016..025 and amends 003, 004, 009, 011 and 012. Implemented: the CCE-V0-021 environment block (V1-1681 serve part), the obligations soundness of CCE-V0-019/020 with the amended 004 base join (V1-1678), and (2026-10-22 lane) the amended 009 ladder, 016 `oracle_origin`, 017 head test tree, 018 structure controls, 024 `outcome-vacuous`, the offline fake runner and the 011/012 shadow report over a recorded window (CCE-V0-026..033; V1-1679, V1-1680, V1-1682, V1-1687). The 2026-10-22 lane 1022k implements the hosted-test prover CCE-V0-034..036 (offline and live), receipt-located assertions (PWP-V3-008), `cleanup-failed`, the 037 usefulness exclusion of `PRESERVES`, CCE-V0-010, 013 and the 014 byte cap (CCE-V0-039, 040), and the first V1 authoring slice (V1-1683): `e2e harvest`, the `.corvint/e2e-acceptances.json` ledger and the in-diff flag (CCE-V0-041..044), and the runtime-coverage reach source of V1-1685 (CCE-V0-045..047). Not implemented: CCE-V0-022/023/025 and the rest of 024; NOT_RUN: the 038 actualbudget rerun and any adopter window. Lane cce2-1022u attributes a located worker teardown failure as `teardown-failed` (CCE-V0-048, PWP-V3-009) and records how a hosted run's config differs from the adopter's (CCE-V0-049), binds harvested proposals to a map flow or screen (CCE-V0-050), lifts the edited-oracle cap only through a recorded independent acceptance (CCE-V0-051) proposes, never applies, a locator repair (CCE-V0-052), records the head pool's served paths per screen for `--coverage` (CCE-V0-053) and widens reach through the head tree's TJAA module graph behind `--module-graph` (CCE-V0-054). CCE-V0-086 (V1-1711) resolves a relative `--root`. Everything ships as the `e2e` group of one experimental companion, `corvint-test`; V0 adds nothing to core `corvint`.
 - Exists: `cmd/corvint-test` (`e2e catalog|harvest|obligations|compile|prove|shadow`) over `internal/changee2e`. It composes the existing AMAP-V0 map and scaffold, AMSP-V0 planner, AFU-V1 declared outcomes, ANL-V0 proven edges, RVN-V0 run verification, PWR-V0 run comparison and NEA-V0/BBF-V0 negative controls.
 - Blocked on: the CCE-V0-038 external rerun (V1-1733); an adopter shadow window of at least 30 recorded entries (external; umbrella V1-1666); the rest of the companion fold (V1-1667, planned in `docs/specs/corvint-test-fold-v0.md`; groups 1 to 3 have moved and groups 4 to 6 remain).
 - Read next: User and measurable job; Definitions; Requirements (016..033); Shadow evaluation and retirement; Beyond V0; Owner questions.
@@ -257,8 +257,9 @@ is a later, separate decision that needs its own owner acceptance and the promot
   frame in the test file, else the runner's error location); a failure counts as at the assertion
   only when that location is the scenario's file and one of its assertion lines, and the proof note
   names the location (`at <file>:<line>`, or `receipt names no failure location`). A failure
-  located inside the test file's own `finally` block reads `cleanup-failed`; a fixture or hook
-  teardown failure outside the test file reads `infrastructure` (a recorded limitation).
+  located inside the test file's own `finally` block reads `cleanup-failed`. A test-scoped fixture,
+  `afterEach` or `afterAll` failure is a test failure located off the assertion; a worker-scoped
+  fixture teardown failure is attributed by its location under CCE-V0-048.
 
   `PRESERVES` MUST be reported as a regression-preservation check only and MUST NOT be described as
   detecting the change. `NEW_REACH` MUST be described as checking new behaviour against its
@@ -549,7 +550,10 @@ the standing auto-accept of 2026-10-11:
   refuses `e2e-coverage-invalid`. A consulted document is named under `relations.consulted` as
   `runtime-coverage` with its SHA-256 as `coverage_digest`; without it `runtime-coverage` is listed
   under `relations.not_consulted` (CCE-V0-004). `prove --hosted-test` with `--coverage` refuses
-  `e2e-hosted-test-invalid`. Recording the document is outside this slice.
+  `e2e-hosted-test-invalid`. Recording the document is CCE-V0-053; a screen MAY also carry `pins`
+  (`{path, blob}`, each naming one listed path once) and the document MAY carry `proof_digest`.
+  A pin naming an unlisted or repeated path, or a blob the head revision does not hold for its
+  path, refuses `e2e-coverage-invalid`.
 - `CCE-V0-046`: A changed path that coverage lists under a screen MUST reach that screen as an
   impact hit with basis `runtime-coverage`, after impact's own hits (so an obligation impact reaches
   keeps impact's chain), under the same flow and `screen-without-outcome` rules as an impact hit.
@@ -560,7 +564,99 @@ the standing auto-accept of 2026-10-11:
   coverage that names a changed path silently discharges an unknown span. Not in this slice
   (V1-1685 remainder): the TJAA module graph, API contract joins and the ANL-V0 ledger.
 
-The 2026-10-21 fix lane (V1-1711) adds CCE-V0-086; IDs 048..085 are left free for parallel lanes.
+Lane cce2-1022u adds CCE-V0-048 (V1-2410), accepted under the standing auto-accept of 2026-10-11:
+
+- `CCE-V0-048`: A run whose only failure is a run-level reporter error with a receipt location
+  (PWP-V3-009) inside the staged test tree, outside `node_modules`, MUST read reason
+  `teardown-failed at <tree-relative file>:<line>` and the scenario `INCONCLUSIVE` with that reason,
+  never `run-without-qualified-receipt` and never an assertion result. An unlocated run-level error,
+  or one located outside the tree or in `node_modules`, stays infrastructure. Failure mode: a
+  worker-scoped fixture teardown that throws in the adopter's own fixture file is reported as an
+  infrastructure fault, sending the adopter to the runner instead of the fixture. A BBF control run
+  with such a failure still reads `infrastructure_failed`, with the teardown reason as its detail.
+- `CCE-V0-049`: (V1-2409) A hosted proof MUST carry `runner_config`: `applied` (the prove config
+  name), the adopter's Playwright config found at head (the first default name, in Playwright's
+  lookup order, from the hosted test's directory up to the repository root) with its SHA-256, and
+  `deviations`, one `{key, adopter, prove}` entry per top-level or `use.` key whose effective value
+  differs from the prove config's, where an unset adopter key takes Playwright's default. The
+  adopter config is read as text and never executed; a value is recorded as written only when it is
+  a number, a boolean or a short quoted string without credential characters, otherwise `<set>`.
+  An absent, oversized (over 256 KiB) or unparsed config, or one with a spread or computed member,
+  is named in `unread` and never refuses the proof. The prove config is still the one applied.
+  Failure mode: a hosted verdict is read as the adopter's own suite outcome when its retries,
+  projects, `globalSetup` or `storageState` were not applied.
+- `CCE-V0-050`: (V1-2411) Every harvested proposal MUST carry `binding`, read from the application
+  map (`appmap.json`) at the harvested revision: a path proposal binds to the `screen` the map
+  resolved for the same navigation line of the same test file (basis `app-map-goto`); an outcome
+  proposal binds to the one `flow` declaring an outcome on the same locator (basis
+  `flow-outcome-locator`), else to the `screen` the map gives its test file (basis
+  `test-file-screen`). Otherwise `binding` carries exactly one `unbound` reason from the closed set
+  `app-map-unavailable`, `test-file-not-mapped`, `goto-unresolved`, `goto-not-mapped`,
+  `flow-ambiguous`, `no-flow-or-screen`. A missing map never refuses the harvest, and the binding
+  never changes a proposal ID or admits a proposal (CCE-V0-043). Failure mode: an accepted proposal
+  is compiled against a flow it was never observed on. The site-knowledge IR (SKH-V0, not yet on
+  this base) is not consulted; binding through it is the V1-2411 remainder.
+- `CCE-V0-051`: (V1-2413) A `CHANGED_IN_DIFF` scenario's proof MUST carry `oracle_digest`
+  (`sha256:` of the scenario's test text at head). `prove --oracle-acceptance FILE` reads a closed
+  `e2e-oracle-acceptance/0` document `{schema, base, head, acceptances: [{assertion_id,
+  oracle_digest, accepted_by, reason}]}` recorded outside the repository; a path inside the
+  repository, an unreadable or over-1-MiB file, unknown members, a trailing value, another schema,
+  `base` or `head` other than the resolved revisions, an empty field or a duplicate
+  `assertion_id` refuses `e2e-oracle-acceptance-invalid` before any run. An entry naming the
+  scenario's assertion lifts the CCE-V0-016 `oracle-self-certified` cap only when its
+  `oracle_digest` equals the proof's and `accepted_by` is neither the head commit's author nor its
+  committer (name or email, case-insensitive); the verdict then stands with the note
+  `oracle-accepted by <acceptor>`. Every applied entry is recorded as `oracle_acceptance`
+  `{document_digest, accepted_by, reason, status}`, where `status` is `accepted`,
+  `oracle-digest-mismatch` or `acceptor-is-head-author`; the last two keep the cap and say so in
+  the note. An accepted verdict never scores (CCE-V0-010 counts `ADMITTED_AT_BASE` only), and an
+  entry for any other origin is ignored. Failure mode: the change that edits an outcome also
+  certifies it, or an acceptance outlives an edit to the oracle it accepted. Identity is the
+  recorded name only; the document carries no signature, so independence is a reviewable claim,
+  not a cryptographic one.
+- `CCE-V0-052`: (V1-2413) When every head repeat of a compiled (not hosted) scenario fails at the
+  outcome assertion with `locator-unresolved`, the proof MUST carry `locator_repair`
+  `{locator, proposed | unproposed, applied: false, evidence}`. The repair reads the zero-context
+  base-to-head diff and pairs removed with added lines in order within each hunk; a pair whose
+  removed line names the outcome locator as its `data-testid` and whose added line is identical
+  except for that value is evidence `{path, base_line, head_line, candidate}`. One distinct
+  candidate is `proposed`; several are `unproposed: repair-ambiguous`; none is
+  `no-rename-in-diff` (`diff-unavailable` if the diff cannot be read). The proposal is never
+  applied: the scenario, its verdict and its scoring are unchanged, and accepting it is a new
+  compile. Failure mode: a renamed test id silently rewrites the oracle so that a regression reads
+  as a pass.
+- `CCE-V0-053`: (V1-2412) `prove --record-coverage` MUST wrap the head pool's in-process static
+  server in a recorder of every request path it answers 200 or 304 (a directory as its
+  `index.html`), attribute the paths to the screen the scenario's outcome assertion shows, drop
+  test-tree and `node_modules` paths, and pin each remaining path to the blob the head revision
+  holds for it. Each scenario proof then carries `recorded_coverage` `{screen, paths, pins,
+  receipts}` (the head pool's qualified receipt digests) or `unrecorded` with one of
+  `hosted-test-without-screen`, `declared-environment-serve`, `head-pool-unqualified`,
+  `no-application-path-served` or `head-blobs-unreadable`, and an unrecorded scenario pins nothing.
+  The base pool is never recorded. Prove writes `e2e-runtime-coverage.json` beside the proof, an
+  `e2e-runtime-coverage/0` document at the head revision with the proof digest and each recorded
+  screen's union of pinned paths, which `--coverage` (CCE-V0-045..047) consumes unchanged.
+  Coverage is file-served, not line-executed: a served file counts as covered for its screen even
+  if none of its code ran. Failure mode: coverage recorded at one revision widens reach at another,
+  or a base pool's paths are attributed to the head.
+- `CCE-V0-054`: (V1-1685) `obligations`, `compile` and `prove` MUST accept `--module-graph`, which
+  builds the TJAA-V0 TypeScript/JavaScript module graph of the immutable head tree (never the
+  worktree) and names `tjaa-module-graph` under `relations.consulted`, with `module_graph`
+  `{digest, frontier}` or `{unavailable}` (`repository-unreadable`, `head-tree-unreadable`,
+  `module-graph-unbuildable`); without the flag the relation is listed under
+  `relations.not_consulted`. Each changed path the graph owns MUST reach every screen that places a
+  file of a unit reaching it through imports (a router anchor, with its lineage descendants, a map
+  test file or a flow anchor) as an impact hit with basis `tjaa-module-graph:<importer>`, after
+  impact's and coverage's hits and never repeating one of theirs. Like coverage (CCE-V0-047), the
+  graph only widens: it never places a path for the unknown-span rules, a hit on a screen without an
+  outcome adds no `screen-without-outcome` span, and every unknown span of the report without the
+  graph stands with its reason; the reached screens' map unknowns may join them (CCE-V0-019). The
+  graph's frontier is reported, never treated as evidence of no reach. Failure mode: a changed
+  helper module whose importer impact's reference hop cannot prove leaves every outcome of its
+  importer's screens without an obligation.
+
+The 2026-10-21 fix lane (V1-1711) adds CCE-V0-086; lane cce2-1022u uses 048..054; IDs 055..085 are
+left free for parallel lanes.
 
 - `CCE-V0-086`: A relative `--root`, including the default `.`, MUST resolve against the working
   directory to its absolute, symlink-resolved path before any Git or map read, for `catalog`,
@@ -681,6 +777,13 @@ row's status says what is delivered.
 | CCE-V0-016 | fixture per `oracle_origin` value; non-`ADMITTED_AT_BASE` never counts as a catch | V1-1680 | PASS: `TestCCEV0016OracleOrigin` (one fixture per value, field and encoded report), `TestCCEV0028LadderOfflineFakeRunner` (cap and non-scoring `NEW_IN_DIFF`), `TestCCEV0011ShadowMissesAndEscapes` (non-admitted catches never count) |
 | CCE-V0-019, 020 | one fixture per `UNKNOWN` reason; `NONE` only under exemptions or no-screen placement; closed-enum test | V1-1678 | PASS: `TestCCEV0019ReachedScreenWithoutOutcomeUnknown` (F1), `TestCCEV0019MapUnknownOnReachedScreenUnknown` (F2), `TestCCEV0019ImpactTruncationUnknown` (F3, screens and edge-only omissions), `TestCCEV0019RemovedAtHeadUnknown` (F4, flow and outcome), `TestCCEV0019FanOutOverLimitUnknown` (F7), `TestCCEV0020ClosedUnknownReasonSet`; every fixture checks its reasons against the closed set. `blocks-not-declared` stays a catalog unknown and is never an obligations span; `NONE` arises only from exemptions (a non-UI path impact merely ignores stays `unplaced-path`) |
 | CCE-V0-086 | relative-root catalog and obligations | V1-1711 | PASS: `TestCCEV0086RelativeRootResolves` |
+| CCE-V0-049 | hosted proof lists the adopter-config keys the prove config does not apply | V1-2409 | PASS: `TestCCEV0049HostedRunnerConfigDeviation` (an adopter config with `retries: 2`, `workers: 4`, `globalSetup`, `storageState`, a `baseURL` and projects; Playwright defaults when no config exists; a spread config read partially; failed with the proof wiring removed) |
+| CCE-V0-051 | a CHANGED_IN_DIFF verdict lifts the cap only through an independent, digest-bound acceptance recorded outside the repository | V1-2413 | PASS: `TestCCEV0051OracleAcceptance` (independent acceptance lifts DISCRIMINATES unscored; head author by name or email, a stale digest and no document keep the cap; an admitted scenario ignores it; failed with the lift removed), `TestCCEV0051OracleAcceptanceRefusals`, `TestCCEV0051OracleAcceptanceFlag` |
+| CCE-V0-052 | an unresolved outcome locator gets a proposed, never applied, data-testid rename with diff evidence | V1-2413 | PASS: `TestCCEV0052LocatorRepairProposal` (proposed `slot-state` with the line pair, verdict unchanged; value mismatch proposes nothing; ambiguous and no-rename; failed with the proposal removed) |
+| CCE-V0-053 | the head pool's served application paths recorded per screen, pinned to head blobs, and consumed by `--coverage` | V1-2412 | PASS: `TestCCEV0053RecordingHandler` (200/304 recorded, directory as `index.html`, 404 not), `TestCCEV0053CoverageRecorderFeedsReach` (pins equal head blobs; test-tree and `node_modules` dropped; unrequested, hosted and unqualified pools unrecorded; the produced document widens reach through `runtime-coverage`; a stale pin refuses; fails with the head recorder removed or `checkPins` disabled), `TestCCEV0053RecordCoverageFlag`, live `TestCCEV0053LiveRecordsCoverage` (Playwright 1.64.0, Node 22.23.2: `index.html`, `app/routes.js`, `app/components/teesheet.html` pinned on `screen:admin:app.clubs.teesheets`) |
+| CCE-V0-054 | the head tree's TJAA module graph widens reach from a changed module to its importers' screens and never removes or demotes an unknown span | V1-1685 (module graph; API joins and ANL edge-to-screen not delivered) | PASS: `TestCCEV0054ModuleGraphWidensReach` (a helper imported by the router anchor beside a comment the reference hop cannot prove reaches `obligation:book-tee-time/booked` with basis `tjaa-module-graph:app/routes.js`; every baseline unknown span stands with its reason; an unimported module reaches nothing; fails with the hits dropped), `TestCCEV0054ModuleGraphReadsHeadTree` (a worktree-only importer reaches nothing; fails when the graph is built from the worktree), `TestCCEV0054ModuleGraphFlag` |
+| CCE-V0-050 | harvested proposals bound to a map flow or screen, or carrying a closed unbound reason | V1-2411 (partial: no site-knowledge IR on this base) | PASS: `TestCCEV0050HarvestBinding` (flow-outcome and goto bindings on the AMAP fixture, `no-flow-or-screen` and `goto-unresolved`, every proposal `app-map-unavailable` without a map; failed with the binding removed) |
+| CCE-V0-048 | a located worker teardown error reads `teardown-failed` at its tree location; unlocated, outside-tree and `node_modules` errors stay infrastructure | V1-2410 | PASS: `TestCCEV0048TeardownAttribution`, the four teardown cases of `TestCCEV0028LadderOfflineFakeRunner` (both failed with the attribution removed), `TestPWPV3009RunLevelErrorLocation`; Playwright 1.64.0 observed live to report a worker fixture teardown as a located global error and test-scoped teardown on the test result (`docs/build-log/2026-10-22-cce2-1022u-cce-followups.md`) |
 | CCE-V0-026..030 | failure kind; oracle cap and scoring; offline seams; omitted-event reading; test-tree resolution | V1-1679, V1-1680, V1-1687 | PASS: `TestCCEV0026FailureKind`, `TestCCEV0028LadderOfflineFakeRunner`, `TestCCEV0018OmittedEventControls`, `TestCCEV0017TestTreeRefusals` |
 | CCE-V0-034..038 | hosted test held at head through the ladder; receipt-located assertions; required behaviour-removal control kills F1; no-op `PRESERVES` not useful; actualbudget rerun | V1-1733, V1-1713 | 034..037 PASS (lane 1022k): `TestCCEV0034HostedScenario`, `TestCCEV0034HostedTestFlag`, `TestCCEV0036HostedControls`, `TestCCEV0035HostedLadderOffline` (F1 reads `CONTROL_SURVIVED`, a base setup failure reads `INCONCLUSIVE`), `TestCCEV0037NoOpPreservesNotUseful`; live (Playwright 1.64.0, Node v24.11.1) `TestCCEV0034LiveHosted` (the booked test reads `DISCRIMINATES` with its base failure located at the assertion and its control killed; the F1 static overlay reads `CONTROL_SURVIVED`). 038 NOT_RUN (external host; command in `docs/build-log/2026-10-22-cce-1022k.md`) |
 | CCE-V0-039, 040 | a timed-out omitted-event control is killed; truncation keeps a prefix | V1-1733, V1-2378 | PASS: 039 by the live `TestCCEV0009LivePreserves` and `TestCCEV0009LiveDiscriminates` (each read `INCONCLUSIVE control-not-killed:control:omitted-event:setup-1` before the fix); 040 by `TestCCEV0040CapListPrefix`, `TestCCEV0014DocumentByteCap` |
@@ -726,8 +829,8 @@ Recorded so V0 choices do not block them; each needs its own requirements before
   names only), teardown through test fixtures, parameterised routes, path synthesis over admitted
   edges, typed locators and assertions each with a control that kills it, and `test.step` with
   per-step provenance and a trace on failure.
-- V1 reach (V1-1685; runtime coverage is CCE-V0-045..047, the rest stays here): the TJAA module
-  graph, runtime coverage that may only widen reach and never produce `NONE`, API contract joins,
+- V1 reach (V1-1685; runtime coverage is CCE-V0-045..047 and 053, the TJAA module graph CCE-V0-054,
+  the rest stays here): runtime coverage that may only widen reach and never produce `NONE`, API contract joins,
   and the ANL-V0 ledger in place of the first slice's nil.
 - V1/V2 (V1-1686): per-hunk `CHECKED`, `PRESERVED_ONLY`, `UNCHECKED` or `UNKNOWN` roll-up, ARIA
   locator proposals, flake quarantine with retained evidence, read-only MCP tools over the

@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io/fs"
 	"sort"
+	"strconv"
+	"strings"
 )
 
 // Graph is the composed dependency graph over every participating language.
@@ -32,7 +34,9 @@ type Graph struct {
 	languages  []string
 	frontier   []string
 	frontierBy map[string][]string
-	digest     string
+	// sites counts the repository's frontier sites by reason (AFP-V0-381).
+	sites  map[string]int
+	digest string
 	// documentation is the repository's declared documentation entries
 	// (AFP-V0-160), sorted; it is part of the digest when present.
 	documentation []string
@@ -190,6 +194,7 @@ func build(ctx context.Context, languages []Language, reader *Source, observe fu
 	}
 	sort.Strings(graph.languages)
 	graph.frontier = sortedKeys(frontier)
+	graph.sites = graph.frontierSites()
 	documentation, err := readDocumentationPaths(reader)
 	if err != nil {
 		return nil, err
@@ -454,4 +459,41 @@ func (graph *Graph) ReachedUnitIDs(dirty []string) []string {
 	}
 	sort.Strings(ids)
 	return ids
+}
+
+// frontierSites counts every frontier site in the repository by reason
+// (AFP-V0-381): each plugin and unit frontier entry is one site of the reason
+// formed by its first two colon-separated fields, except a `reason:+N` entry,
+// which counts the N sites its list left unnamed. Plugin-wide and unit
+// frontiers are summed per list, so a count does not depend on the dirty set.
+// It is nil when the repository has no frontier.
+func (graph *Graph) frontierSites() map[string]int {
+	var sites map[string]int
+	add := func(entries []string) {
+		for _, entry := range entries {
+			if sites == nil {
+				sites = make(map[string]int)
+			}
+			fields := strings.SplitN(entry, ":", 3)
+			if len(fields) < 2 {
+				sites[entry]++
+				continue
+			}
+			reason := fields[0] + ":" + fields[1]
+			if len(fields) == 3 && strings.HasPrefix(fields[2], "+") {
+				if n, err := strconv.Atoi(fields[2][1:]); err == nil && n > 0 {
+					sites[reason] += n
+					continue
+				}
+			}
+			sites[reason]++
+		}
+	}
+	for _, name := range graph.languages {
+		add(graph.frontierBy[name])
+	}
+	for _, unit := range graph.units {
+		add(unit.Frontier)
+	}
+	return sites
 }

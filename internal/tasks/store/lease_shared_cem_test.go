@@ -15,6 +15,7 @@ import (
 // `reservations.sharedPaths` it is admitted, while a hand-authored path and
 // the uncovered `.corvint/` directory key still collide.
 func TestNTPV0026_SharedCEMPathsAdmitIsolatedLanes(t *testing.T) {
+	t.Parallel()
 	cem := []string{".corvint/change.cem.json", ".corvint/changes/"}
 	shared := append(append([]string{}, cem...), generatedSpecIndex...)
 	lane := func(own string) []string {

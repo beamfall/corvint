@@ -34,6 +34,7 @@ func poolLeasePolicy(t *testing.T, repo *intent.Repository) {
 // refuses is answered as the complete route answers it; and with the
 // checkpoint removed the complete route still decides it.
 func TestCALV0205_PoolConfirmSafeTakesWriterRoute(t *testing.T) {
+	t.Parallel()
 	repo := writerStore(t, 70)
 	poolLeasePolicy(t, repo)
 	if run := writerMutate(t, repo, "pool-reseed", nil); !run.completed() {

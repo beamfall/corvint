@@ -173,6 +173,7 @@ func TestCALV0070_PinnedInventoryMutateParity(t *testing.T) {
 // or at a parent-root retirement, is never used: Mutate closes the watch and
 // takes the ordinary fresh inventory and audit, and completes as before.
 func TestCALV0070_PinnedInventoryFailureFallsBackFresh(t *testing.T) {
+	t.Parallel()
 	repo := historyStore(t, 70)
 	for _, kind := range []string{"open", "close"} {
 		t.Run(kind, func(t *testing.T) {

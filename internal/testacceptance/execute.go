@@ -290,10 +290,12 @@ func RunWorker(ctx context.Context, j Job) WorkerResult {
 }
 
 func invoke(ctx context.Context, exe string, j Job) (WorkerResult, Cleanup) {
-	return invokeEnvironment(ctx, exe, j, SafeEnvironment())
+	return invokeEnvironment(ctx, []string{exe, "worker"}, j, SafeEnvironment())
 }
 
-func invokeEnvironment(ctx context.Context, exe string, j Job, env []string) (WorkerResult, Cleanup) {
+// invokeEnvironment re-enters the companion: worker is its executable followed by the fixed
+// arguments that select the worker (CTF-V0-006).
+func invokeEnvironment(ctx context.Context, worker []string, j Job, env []string) (WorkerResult, Cleanup) {
 	b, _ := json.Marshal(j)
 	// Controls have their own bounded executor wall-clock limit; the outer bound
 	// includes cleanup and cannot be extended by request-controlled argv.
@@ -301,7 +303,7 @@ func invokeEnvironment(ctx context.Context, exe string, j Job, env []string) (Wo
 	if j.Kind == "control" {
 		timeout = 135 * time.Second
 	}
-	o := procgroup.Run(ctx, procgroup.Spec{Argv: []string{exe, "worker"}, Dir: j.Request.TestRepository.Root, Env: env, Stdin: b, InputLimit: InputLimit, OutputLimit: ReportLimit, Timeout: timeout, ObserveDescendants: true})
+	o := procgroup.Run(ctx, procgroup.Spec{Argv: slices.Clone(worker), Dir: j.Request.TestRepository.Root, Env: env, Stdin: b, InputLimit: InputLimit, OutputLimit: ReportLimit, Timeout: timeout, ObserveDescendants: true})
 	c := cleanup(o)
 	var w WorkerResult
 	if o.Err != nil || !o.Started || !o.WaitCompleted || o.ExitStatus != 0 || o.OutputOverflow || o.Cancelled || o.TimedOut {
@@ -324,7 +326,13 @@ func Execute(ctx context.Context, r Request, approved, exe, build string) (Repor
 
 // ExecuteWithTempRoot selects an operator-owned temporary output scope. Empty
 // preserves /tmp; ambient parent TMPDIR never silently changes worker policy.
-func ExecuteWithTempRoot(ctx context.Context, r Request, approved, exe, build, root string) (report Report, err error) {
+func ExecuteWithTempRoot(ctx context.Context, r Request, approved, exe, build, root string) (Report, error) {
+	return ExecuteWithWorker(ctx, r, approved, exe, []string{"worker"}, build, root)
+}
+
+// ExecuteWithWorker re-enters exe with reentry, the fixed arguments that select its worker:
+// `worker` for corvint-tests-accept, `accept worker` for corvint-test (CTF-V0-006).
+func ExecuteWithWorker(ctx context.Context, r Request, approved, exe string, reentry []string, build, root string) (report Report, err error) {
 	if e := approval(r, approved); e != nil {
 		return Report{}, e
 	}
@@ -349,7 +357,7 @@ func ExecuteWithTempRoot(ctx context.Context, r Request, approved, exe, build, r
 		env[3] = "TMPDIR=" + scope
 	}
 	runWorker := func(job Job) (WorkerResult, Cleanup) {
-		return invokeEnvironment(ctx, exe, job, env)
+		return invokeEnvironment(ctx, append([]string{exe}, reentry...), job, env)
 	}
 	report = Report{Schema: Schema, RequestDigest: approved, Product: r.Product, TestRepository: r.TestRepository, Environment: r.Environment, Build: build, Runs: []Run{}, Controls: []Control{}, Unknowns: []string{"provider-per-test-freshness", "qualified-baseline-test-and-browser-identity", "authenticated-operator-and-hook-semantics", "full-descendant-containment", "observed-order-with-owned-provider", "runner-and-hook-import-closure-unqualified", "runner-version-claim-only"}}
 	if r.Schema == FreshRequestSchema {

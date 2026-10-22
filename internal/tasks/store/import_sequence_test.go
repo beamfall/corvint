@@ -56,6 +56,7 @@ func testCALV0018ImportFailure(t *testing.T) {
 }
 
 func TestCALV0018_ImportCancellationAndProjectionDrift(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-018 bound import observations", testCALV0018ImportDrift)
 }
 func testCALV0018ImportDrift(t *testing.T) {

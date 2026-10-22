@@ -1,6 +1,9 @@
 package transaction
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -79,11 +82,20 @@ func importMapAdmits(state inputState, rec *ticket.Record) error {
 	if state.importMap == nil {
 		return malformed("import into a mapped queue requires its import map")
 	}
+	if err := importMapConflict(state.importMap, rec); err != nil {
+		return err
+	}
+	return nil
+}
+
+// importMapConflict is the CTS-V0-017 identity check of one record against
+// the map, or nil when the map admits it.
+func importMapConflict(m *intent.ImportMap, rec *ticket.Record) *wire.Error {
 	if rec.Source.SourceItemID == nil {
 		return nil
 	}
 	where := "/tickets/" + rec.TicketID.Raw
-	for _, entry := range state.importMap.Entries {
+	for _, entry := range m.Entries {
 		sameSource := entry.SourceQueueID == rec.Source.SourceQueueID && entry.SourceItemID == *rec.Source.SourceItemID
 		if sameSource && entry.TicketID.Raw != rec.TicketID.Raw {
 			return wire.Errorf(wire.CodeDuplicateID, where, "source item %s of %s is mapped to %s", entry.SourceItemID, entry.SourceQueueID, entry.TicketID.Raw)
@@ -93,4 +105,33 @@ func importMapAdmits(state inputState, rec *ticket.Record) error {
 		}
 	}
 	return nil
+}
+
+// ImportMapConflicts checks a whole import plan against the queue's journaled
+// import map before the first batch is written (CTS-V0-018). It refuses
+// DUPLICATE_ID naming every conflicting source item, so a conflict is never
+// discovered only when the batch that holds it commits. A nil map admits the
+// plan; the IMPORT_APPLY model still applies CTS-V0-017 to each batch.
+func ImportMapConflicts(importMap []byte, records [][]byte) error {
+	if importMap == nil {
+		return nil
+	}
+	m, err := intent.DecodeImportMap(importMap)
+	if err != nil {
+		return err
+	}
+	var conflicts []string
+	for _, raw := range records {
+		rec, err := ticket.Decode(raw)
+		if err != nil {
+			return err
+		}
+		if e := importMapConflict(m, rec); e != nil {
+			conflicts = append(conflicts, fmt.Sprintf("source item %s of %s -> %s: %s", *rec.Source.SourceItemID, rec.Source.SourceQueueID, rec.TicketID.Raw, e.Msg))
+		}
+	}
+	if len(conflicts) == 0 {
+		return nil
+	}
+	return wire.Errorf(wire.CodeDuplicateID, "/tickets", "%d import-map conflicts: %s", len(conflicts), strings.Join(conflicts, "; "))
 }

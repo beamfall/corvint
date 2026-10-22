@@ -107,6 +107,7 @@ AFP-V0-188	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-189	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2296)) Each tes	standing	2026-10-11; V1-2296
 AFP-V0-201	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2348))	standing	2026-10-11; V1-2348
 AFP-V0-380	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1103))	standing	2026-10-11; V1-1103
+AFP-V0-381	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2363, GH #1519)	standing	2026-10-11; V1-2363; #1519
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
 AHI-003	docs/specs/agent-harness-integration-v0.md	On session/task start, the adapter MUST resolve repository identity, exact Git	unrecorded	-
@@ -559,6 +560,9 @@ CAP-V0-003	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-004	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008) The root	standing	2026-10-11; V1-2008
 CAP-V0-005	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008)	standing	2026-10-11; V1-2008
 CAP-V0-006	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008) The chec	standing	2026-10-11; V1-2008
+CAP-V0-007	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2020) The chec	standing	2026-10-11; V1-2020
+CAP-V0-008	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2020) When the	standing	2026-10-11; V1-2020
+CAP-V0-009	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2020) Each	standing	2026-10-11; V1-2020
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,	unrecorded	-
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2	unrecorded	-
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa	unrecorded	-
@@ -1022,6 +1026,13 @@ CCE-V0-044	docs/specs/change-compiled-e2e-v0.md	`obligations` and `compile` MUST
 CCE-V0-045	docs/specs/change-compiled-e2e-v0.md	`obligations`, `compile` and `prove` MUST accept `--coverage FILE`, a closed	unrecorded	-
 CCE-V0-046	docs/specs/change-compiled-e2e-v0.md	A changed path that coverage lists under a screen MUST reach that screen as an	unrecorded	-
 CCE-V0-047	docs/specs/change-compiled-e2e-v0.md	Coverage MUST only widen reach. It never places a path for the unknown-span rule	unrecorded	-
+CCE-V0-048	docs/specs/change-compiled-e2e-v0.md	A run whose only failure is a run-level reporter error with a receipt location	unrecorded	-
+CCE-V0-049	docs/specs/change-compiled-e2e-v0.md	(V1-2409) A hosted proof MUST carry `runner_config`: `applied` (the prove config	unrecorded	-
+CCE-V0-050	docs/specs/change-compiled-e2e-v0.md	(V1-2411) Every harvested proposal MUST carry `binding`, read from the applicati	unrecorded	-
+CCE-V0-051	docs/specs/change-compiled-e2e-v0.md	(V1-2413) A `CHANGED_IN_DIFF` scenario's proof MUST carry `oracle_digest`	unrecorded	-
+CCE-V0-052	docs/specs/change-compiled-e2e-v0.md	(V1-2413) When every head repeat of a compiled (not hosted) scenario fails at th	unrecorded	-
+CCE-V0-053	docs/specs/change-compiled-e2e-v0.md	(V1-2412) `prove --record-coverage` MUST wrap the head pool's in-process static	unrecorded	-
+CCE-V0-054	docs/specs/change-compiled-e2e-v0.md	(V1-1685) `obligations`, `compile` and `prove` MUST accept `--module-graph`, whi	unrecorded	-
 CCE-V0-086	docs/specs/change-compiled-e2e-v0.md	A relative `--root`, including the default `.`, MUST resolve against the working	unrecorded	-
 CF-V1-001	docs/specs/change-frontier-profile-1.md	the profile identifier is exactly `frontier/1`; its error profile is exactly	unrecorded	-
 CF-V1-002	docs/specs/change-frontier-profile-1.md	`frontier/0` is untouched in every respect — clause text, item kinds, item IDs,	unrecorded	-
@@ -2036,6 +2047,7 @@ PSR-V0-196	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the ow
 PSR-V0-185	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1785; GitHub	standing	2026-10-11; V1-1785
 PSR-V0-190	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0917) On a rea	standing	2026-10-11; V1-0917
 PSR-V0-191	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0324) A read t	standing	2026-10-11; V1-0324
+PSR-V0-201	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1008) On Darwi	standing	2026-10-11; V1-1008
 SCC-V0-001	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) `store.S	standing	2026-10-11; V1-1920
 SCC-V0-002	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) An ABSEN	standing	2026-10-11; V1-1920
 SCC-V0-003	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) The patc	standing	2026-10-11; V1-1920
@@ -2063,6 +2075,7 @@ CTS-V0-014	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's
 CTS-V0-015	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0398) `init` M	standing	2026-10-11; V1-0398
 CTS-V0-016	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0398) After ge	standing	2026-10-11; V1-0398
 CTS-V0-017	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0398) `import`	standing	2026-10-11; V1-0398
+CTS-V0-018	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2401) `import`	standing	2026-10-11; V1-2401
 TWT-V0-001	docs/specs/corvint-tasks-ticket-worktrees-v0.md	Policy MAY declare `worktrees` as a closed object `{repository, base,	unrecorded	-
 TWT-V0-002	docs/specs/corvint-tasks-ticket-worktrees-v0.md	The ticket branch is `branchPattern` with `{ticket}` replaced by the ticket's lo	unrecorded	-
 TWT-V0-003	docs/specs/corvint-tasks-ticket-worktrees-v0.md	When the branch is already checked out in a worktree, ensure returns that worktr	unrecorded	-
@@ -2206,6 +2219,8 @@ DCW-V0-150	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the o
 DCW-V0-151	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1442) When	standing	2026-10-11; V1-1442
 DCW-V0-160	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2274)	standing	2026-10-11; V1-2274
 DCW-V0-161	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2355, V1-2343;	standing	2026-10-11; V1-2355; V1-2343
+DCW-V0-165	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2367, V1-2379;	standing	2026-10-11; V1-2367; V1-2379
+DCW-V0-166	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2404) Every	standing	2026-10-11; V1-2404
 DCW-V0-170	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2344) When	standing	2026-10-11; V1-2344
 DCW-V0-171	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2171) A	standing	2026-10-11; V1-2171
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
@@ -3864,6 +3879,7 @@ PWP-V3-005	docs/specs/playwright-external-provider-v0.md	The reporter emits `att
 PWP-V3-006	docs/specs/playwright-external-provider-v0.md	`/3` is non-promotable until the changed reporter completes the live matrix of `	unrecorded	-
 PWP-V3-007	docs/specs/playwright-external-provider-v0.md	The `/3` exact project identity permits an explicitly observed empty project nam	unrecorded	-
 PWP-V3-008	docs/specs/playwright-external-provider-v0.md	A failed or timed-out `/3` attempt detail may carry an optional	unrecorded	-
+PWP-V3-009	docs/specs/playwright-external-provider-v0.md	A `/3` report may carry `errorLocations`, one entry per run-level reporter error	unrecorded	-
 PTF-V0-001	docs/specs/playwright-per-test-freshness-v0.md	The profile is explicit, separate and bounded to trusted local source-direct ser	unrecorded	-
 PTF-V0-002	docs/specs/playwright-per-test-freshness-v0.md	Capture clean product/test repository and file identities before and after execu	unrecorded	-
 PTF-V0-003	docs/specs/playwright-per-test-freshness-v0.md	Record the actual reporter-selected semantic test identity, source anchor/digest	unrecorded	-
@@ -4192,6 +4208,7 @@ RDG-V0-006	docs/specs/requirement-definition-gate-v0.md	When a successful Git in
 RDG-V0-007	docs/specs/requirement-definition-gate-v0.md	The gate MUST NOT write to any file. After RDG-V0-006 has established that the T	unrecorded	-
 RDG-V0-021	docs/specs/requirement-definition-gate-v0.md	In every scanned spec with exactly one unfenced `## Requirements` heading, the g	unrecorded	-
 RDG-V0-022	docs/specs/requirement-definition-gate-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2168) The gate	standing	2026-10-11; V1-2168
+RDG-V0-023	docs/specs/requirement-definition-gate-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2403) The gate	standing	2026-10-11; V1-2403
 RBD-V0-001	docs/specs/retrieval-bench-diagnostics-v0.md	The benchmark MUST accept opt-in `--context-packets FILE` only with a context ar	unrecorded	-
 RBD-V0-002	docs/specs/retrieval-bench-diagnostics-v0.md	Capture MUST create a new exclusive mode-0600 file, refuse existing paths and	unrecorded	-
 RBD-V0-003	docs/specs/retrieval-bench-diagnostics-v0.md	After ordinary registration and before retrieval, capture MUST write a JSONL hea	unrecorded	-

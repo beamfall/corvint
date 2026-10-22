@@ -36,6 +36,23 @@ got=$(HEAVY_SLOTS=2 HEAVY_P=3 GOFLAGS= "$script/heavy.sh" sh -c 'printf %s "$GOF
 [[ $got == -p=3 ]] || fail "heavy.sh GOFLAGS=$got, want -p=3"
 got=$(HEAVY_SLOTS=2 HEAVY_P=3 GOFLAGS='-p=1 -mod=mod' "$script/heavy.sh" sh -c 'printf %s "$GOFLAGS"' 2> /dev/null)
 [[ $got == '-p=1 -mod=mod' ]] || fail "heavy.sh overrode an explicit GOFLAGS -p: $got"
+# ASD-V0-014 (V1-2384): the repository root go.mod's pinned release (a nested module's go line
+# does not override it) goes first on PATH when installed; without it the go on PATH runs and one
+# warning names it.
+pin=$tmp/gopin
+mkdir -p "$pin/mod/sub" "$pin/path" "$pin/home" "$pin/cache/golang.org/toolchain@v0.0.1-go1.99.1.tos-tarch/bin"
+printf 'module x\n\ngo 1.99.1\n' > "$pin/mod/go.mod"
+printf 'module x/sub\n\ngo 1.98.0\n' > "$pin/mod/sub/go.mod"
+git init -q "$pin/mod" || fail "git init"
+printf '#!/bin/sh\n[ "$2" = GOVERSION ] && echo go1.99.2 && [ $# -gt 2 ] && printf "%%s\\n" "%s" tos tarch\nexit 0\n' "$pin/cache" > "$pin/path/go"
+printf '#!/bin/sh\necho go1.99.1\n' > "$pin/cache/golang.org/toolchain@v0.0.1-go1.99.1.tos-tarch/bin/go"
+chmod +x "$pin/path/go" "$pin/cache/golang.org/toolchain@v0.0.1-go1.99.1.tos-tarch/bin/go"
+got=$(cd "$pin/mod/sub" && HOME=$pin/home PATH=$pin/path:$PATH HEAVY_SLOTS=1 "$script/heavy.sh" go env GOVERSION 2> "$tmp/err")
+[[ $got == go1.99.1 ]] && ! grep -q pinned "$tmp/err" || fail "heavy.sh ran $got, want the pinned go1.99.1"
+/bin/rm -rf "$pin/cache/golang.org"
+got=$(cd "$pin/mod/sub" && HOME=$pin/home PATH=$pin/path:$PATH HEAVY_SLOTS=1 "$script/heavy.sh" go env GOVERSION 2> "$tmp/err")
+[[ $got == go1.99.2 ]] && grep -q '^heavy.sh: pinned go1.99.1 not installed; running go1.99.2$' "$tmp/err" ||
+  fail "heavy.sh without the pinned go: ran $got, stderr $(cat "$tmp/err")"
 HEAVY_SLOTS=0 "$script/heavy.sh" true 2> "$tmp/err"
 [[ $? == 2 ]] && grep -q 'REFUSE invalid-slots' "$tmp/err" || fail "heavy.sh accepted HEAVY_SLOTS=0"
 ok

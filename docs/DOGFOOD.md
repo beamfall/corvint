@@ -153,7 +153,9 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `dogfood-check: PASS` (`DCW-V0-033`). On stderr, each hunk whose stable citation tier is
    `cited` or `unknown` prints one `dogfood-check: WARN tier-below-anchored path=... hunk=...
    tier=...` line with the `CEM-V1-081` fix (at most 50, then `more=N`); the warning never fails the
-   check (`DCW-V0-112`). `unknownShare` is the map's unknown hunks over its material
+   check (`DCW-V0-112`). A hunk no stable BASE line could anchor (none defines a requirement ID it
+   adds, none names its path or its basename of 6 bytes or more) is not warned but counted in one
+   `dogfood-check: NOTE tier-below-anchored-unanchorable hunks=N` line (`DCW-V0-165`). `unknownShare` is the map's unknown hunks over its material
    (non-mechanical) hunks, and `reasonedUnknown` the unknown hunks kept with a recorded reason
    (`DCW-V0-046`); section 6 explains its `requirements`, `linked` and `unlinked` members.
    The detail file holds the full CEM and OCM status JSON; `DOGFOOD_VERBOSE=1` prints that JSON
@@ -163,7 +165,10 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `dogfood-check: NOTE unbound-commits count=N window=PREVIOUS_BASE..BASE` followed by one
    `  unbound SHA` line per commit; neither note changes the verdict.
 10. Run `make dogfood-seal BASE=$BASE`. Expected: the step 9 lines, then `dogfood-seal: PASS
-    sealed=.corvint/changes/<bind-commit>.cem.json` and one rename-only commit.
+    sealed=.corvint/changes/<bind-commit>.cem.json` and one rename-only commit. The bind and seal
+    commits take `GIT_AUTHOR_*` and `GIT_COMMITTER_*` from the environment of the command that
+    makes them (`DCW-V0-166`): set them in the same shell invocation, since an agent shell that
+    does not keep exported variables between calls falls back to the configured identity.
 11. Hand the branch and reports to an independent reviewer (section 6) and keep the outcome
     recorded by step 6 (section 7). The verifier digests and `outputsAgree` in the report's
     `dogfoodCheck` line are author-only evidence (`DCW-V0-017`): the check also needs the author's
