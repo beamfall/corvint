@@ -74,6 +74,10 @@ flow-docs run on Beamfall also produced false flows and bindings.
 - **New and changed tests.** `TestFlowDocsWebMemberCallsAreNotDeclarations` and
   `TestFlowDocsPredecessorGeneratorManifestIsTypedStale` (now covers version 2) both fail on the
   base code.
+- **Review.** One Codex read-only review round found two regressions, both fixed with test cases:
+  direct arrows with nested parameter parentheses (`(cb: () => void) => cb()`), and route
+  registrations with a comment or line break before the handler comma. Rerunning generator 3 on
+  Beamfall gave the same 41 and 51 flows, a clean base check and an exit-1 drift check.
 - **core-history.** `retired_roadmap_writers_test.sh`, `release_readiness_test.sh`,
   `nightly-freshness_test.sh`, `roadmap_lib_test` and the new `bf_tools_test` check pass locally.
   Beamfall private Actions are billing-blocked, so CI was NOT_RUN.

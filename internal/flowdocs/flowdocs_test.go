@@ -830,13 +830,17 @@ func TestFlowDocsWebMemberCallsAreNotDeclarations(t *testing.T) {
 		"const onClick = useCallback((event) => {\n  save(event);\n}, []);\n" +
 		"const single = item => item.id;\n" +
 		"app.get('/users', list);\n" +
-		"router.post(\"/login\", login);\n"
+		"router.post(\"/login\", login);\n" +
+		"app.put('/items' /* path */, update);\n" +
+		"app.delete('/items'\n  , remove);\n" +
+		"const typed = (cb: () => void) => cb();\n" +
+		"const defaulted = (x = getDefault()) => x;\n"
 	ds, _ := extract(contextindex.Source{Path: "app/web.ts", Data: []byte(text)})
 	got := []string{}
 	for _, d := range ds {
 		got = append(got, d.name)
 	}
-	want := []string{"binding:get:/users", "binding:post:/login", "handler", "onClick", "single"}
+	want := []string{"binding:delete:/items", "binding:get:/users", "binding:post:/login", "binding:put:/items", "defaulted", "handler", "onClick", "single", "typed"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("declarations=%v want=%v", got, want)
 	}
