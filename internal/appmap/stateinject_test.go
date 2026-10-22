@@ -705,6 +705,16 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 			"app/setup/data.json": "{\"a\": 1}\n",
 			"app/setup/more.ts":   "export const x = [1, 2, true, null, { a: 1 }, ['b'],];\nconst [a, b] = x;\nangular.module('m', [uiRouter, ngAnimate]);\n"}, "", index)
 	})
+	// V1-1088: the index admits `.mts` and `.cts` as text, so a side-effect-imported module of
+	// either extension that only reads the table is read and stays readable instead of failing
+	// closed as a source the index never held. The "mts module" and "cts module" writes above
+	// still fail closed.
+	for _, ext := range []string{".mts", ".cts"} {
+		t.Run("di closure reads "+ext, func(t *testing.T) {
+			checkBarrel(t, reg+"import './read"+ext+"';\n", map[string]string{index: star, decl: table,
+				"app/setup/read" + ext: "import { SectionTable as T } from '../tables/routes';\nconst r = T.REPORTS;\n"}, "", index)
+		})
+	}
 	t.Run("di router side-effect write", func(t *testing.T) {
 		_, _, m, err := injectRepo(t, `["app/setup"]`, "import './setup/mutate';\n"+diRouter, map[string]string{diRegAt: reg, index: star, decl: table,
 			"app/setup/mutate.ts": "import { SectionTable as T } from '../tables/routes/routes.constants';\n(T as any).REPORTS = 'other';\n"})

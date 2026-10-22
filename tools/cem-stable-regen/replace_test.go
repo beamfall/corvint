@@ -311,3 +311,103 @@ func TestReplaceCellDisagreeingCases(t *testing.T) {
 		}
 	}
 }
+
+// TestReplaceRuntimeKeepsFrozenTuple re-emits runtime from a capture on a later
+// admitted tuple, here in the direction a rollback of decision 0551 would take:
+// the structural qualification changes and goVersion stays the frozen tuple
+// every substitution starts from. A captured goVersion that no sealed
+// substitution admits is refused.
+func TestReplaceRuntimeKeepsFrozenTuple(t *testing.T) {
+	f := newReplaceFixture(t)
+	const qualified, pending = "QUALIFIED_EXACT_TUPLE", "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+	requalify := func(rt any, goVersion string) (any, bool) {
+		m, ok := rt.(map[string]any)
+		if !ok || m["structuralQualification"] != qualified {
+			return rt, false
+		}
+		c := map[string]any{"structuralQualification": pending}
+		for k, v := range m {
+			if k != "structuralQualification" {
+				c[k] = v
+			}
+		}
+		if goVersion != "" {
+			c["goVersion"] = goVersion
+		}
+		return c, true
+	}
+	cases := frozenCases(t, f.root)
+	rec := record{Reason: "structural qualification rolled back", Cases: map[string]map[string]string{}, Cells: map[string]map[string]string{}}
+	changed := map[string]bool{}
+	for _, c := range cases {
+		if _, ok := requalify(c.ExpectedResult["runtime"], ""); ok {
+			old, _ := json.Marshal(c.ExpectedResult["runtime"])
+			rec.Cases[c.ID] = map[string]string{"runtime": digest(old)}
+			changed[verdictKey(t, c, "runtime")] = true
+		}
+	}
+	// A cell no case matches takes its requalified runtime from --cell-values.
+	verdicts := map[string]bool{}
+	for _, c := range cases {
+		verdicts[verdictKey(t, c, "runtime")] = true
+	}
+	overrides, derived := map[string]any{}, 0
+	for _, c := range frozenCells(t, f.root, "runtime") {
+		next, ok := requalify(c.ExpectedResult["runtime"], "")
+		if ok {
+			old, _ := json.Marshal(c.ExpectedResult["runtime"])
+			rec.Cells[c.ID] = map[string]string{"runtime": digest(old)}
+		}
+		switch {
+		case verdicts[c.key] && changed[c.key]:
+			derived++
+		case !verdicts[c.key] && ok:
+			overrides[c.ID] = map[string]any{"runtime": next}
+		case !verdicts[c.key]:
+			overrides[c.ID] = map[string]any{}
+		}
+	}
+	if len(rec.Cases) == 0 || derived == 0 {
+		t.Fatalf("%d cases and %d derived cells carry %s", len(rec.Cases), derived, qualified)
+	}
+	cells := filepath.Join(t.TempDir(), "cells.json")
+	writeJSON(t, cells, overrides)
+	casesFile := packetDir + "/" + casesName
+	before := snapshot(t, f.root)
+
+	captureFor(t, f.capture, cases, func(int) any { return nil }, func(_ int, r map[string]any) {
+		delete(r, "probe")
+		r["runtime"], _ = requalify(r["runtime"], "go9.9.9")
+	})
+	if code, out := f.run(t, rec, "--member", "runtime", "--cell-values", cells); code != 1 || !strings.Contains(out, `captured runtime.goVersion "go9.9.9" is not an admitted substitution of the frozen "go1.27.1"`) {
+		t.Fatalf("unadmitted goVersion: exit %d\n%s", code, out)
+	}
+	if after := snapshot(t, f.root); !bytes.Equal(before[casesFile], after[casesFile]) {
+		t.Fatal("a refused re-emission wrote the packet")
+	}
+
+	captureFor(t, f.capture, cases, func(int) any { return nil }, func(_ int, r map[string]any) {
+		delete(r, "probe")
+		r["runtime"], _ = requalify(r["runtime"], "")
+	})
+	if code, out := f.run(t, rec, "--member", "runtime", "--cell-values", cells); code != 0 {
+		t.Fatalf("replace: exit %d\n%s", code, out)
+	}
+	if code, out := runTool(t, "--root", f.root, "--check"); code != 0 {
+		t.Fatalf("check after replace: %s", out)
+	}
+	after := snapshot(t, f.root)
+	// cancelledContextExpectedResult, the original packet's 21-key snapshot in
+	// each cell file, is never re-emitted and keeps the pending label.
+	for _, rel := range []string{casesFile, packetDir + "/" + inheritedCells, stableDir + "/" + cellsName} {
+		if n := bytes.Count(after[rel], []byte(qualified)); n != 0 {
+			t.Errorf("%s still carries %s %d times", rel, qualified, n)
+		}
+		if a, b := bytes.Count(before[rel], []byte(`"go1.27.1"`)), bytes.Count(after[rel], []byte(`"go1.27.1"`)); a != b {
+			t.Errorf("%s: frozen go1.27.1 count %d -> %d", rel, a, b)
+		}
+	}
+	if n := bytes.Count(after[casesFile], []byte(pending)); n != len(rec.Cases) {
+		t.Fatalf("%s carries %s %d times, want %d", casesName, pending, n, len(rec.Cases))
+	}
+}

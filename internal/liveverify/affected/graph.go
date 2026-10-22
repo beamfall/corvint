@@ -25,6 +25,9 @@ type Graph struct {
 	execUsers  map[string][]string
 	testReach  map[string]bool
 	unbounded  []string
+	// causes names, for each unbounded reader, the unit whose own reason
+	// makes it one (AFP-V0-192).
+	causes     map[string]string
 	claimants  map[string]Language
 	languages  []string
 	frontier   []string
@@ -259,15 +262,17 @@ func (graph *Graph) finish() {
 	graph.testUsers = graph.reverse(func(unit Unit) []string { return unit.TestImports })
 	graph.execUsers = graph.reverse(func(unit Unit) []string { return unit.Execs })
 	graph.testReach = graph.unitsReachingTests()
-	graph.unbounded = graph.unboundedReaders()
+	graph.unbounded, graph.causes = graph.unboundedReaders()
 }
 
 // unboundedReaders lists, in id order, every unit whose reads no literal
 // bounds (AFP-V0-012 rule (d)): its own UnboundedReads, or a dependency whose
 // non-test code locates the root and so reads from it when this unit's code
 // or tests call it. A unit whose reads are declared is left out, whatever the
-// cause (AFP-V0-023): its declared scope bounds the whole test process.
-func (graph *Graph) unboundedReaders() []string {
+// cause (AFP-V0-023): its declared scope bounds the whole test process. It
+// also maps each listed unit to the unit whose own reason makes it one: the
+// unit itself when it has one, else the root locator its chain starts at.
+func (graph *Graph) unboundedReaders() ([]string, map[string]string) {
 	locators := make(map[string]Witness)
 	own := make([]string, 0)
 	for _, id := range graph.order {
@@ -285,13 +290,19 @@ func (graph *Graph) unboundedReaders() []string {
 		reached[id] = Witness{}
 	}
 	ids := make([]string, 0, len(reached))
-	for id := range reached {
-		if !graph.units[id].ReadScoped {
-			ids = append(ids, id)
+	causes := make(map[string]string, len(reached))
+	for id, witness := range reached {
+		if graph.units[id].ReadScoped {
+			continue
+		}
+		ids = append(ids, id)
+		causes[id] = id
+		if graph.units[id].UnboundedReads == "" && len(witness.Via) != 0 {
+			causes[id] = witness.Via[0]
 		}
 	}
 	sort.Strings(ids)
-	return ids
+	return ids, causes
 }
 
 // reverse maps every unit to the sorted units whose edges name it.

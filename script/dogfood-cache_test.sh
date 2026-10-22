@@ -38,6 +38,8 @@ set -eu
 [[ $1 == build && $2 == -o && ${!#} == ./cmd/corvint ]] || exit 1
 printf '%s\t%s\t%s\t%s\n' "$GOCACHE" "$GOTOOLCHAIN" "$(cat source-marker)" "$*" >> "$TEST_BUILD_LOG"
 [[ ${TEST_FAIL_SOURCE-} != "$(cat source-marker)" ]] || { printf 'early compile noise\n%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 >&2; printf 'cmd/corvint/x.go:1:1: undefined: fakeCompileError\n' >&2; exit 1; }
+# The interrupted build signals its own process group, the wrapper's, as a terminal interrupt does.
+[[ ${TEST_SIGNAL_SOURCE-} != "$(cat source-marker)" ]] || { kill "-$TEST_SIGNAL" 0; exit 1; }
 /bin/cp -f "$TEST_FAKE_CORVINT" "$3"
 EOF
 chmod +x "$root/bin/"* "$root/repo/script/"*.sh
@@ -174,6 +176,25 @@ env -u BASE make -s dogfood-bind-range TARGET=x > "$root/output" 2>&1 || status=
 status=0
 env -u BASE make -s dogfood-finish LANE=1 > "$root/output" 2>&1 || status=$?
 [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && rg -q 'REFUSE missing-inputs BASE ' "$root/output" || exit 1
+# DCW-V0-151 (V1-1442): an interrupt during either finish build names the step and the empty
+# NOT_PRODUCED block, exits 128 plus the signal and never reaches finish-lane. set -m gives the
+# wrapper its own process group, so the signal never reaches this test.
+printf '1\tsource-marker\t1:1\timplementation\n' > "$root/cites.tsv"
+for interrupt in tree-source:INT:build-tree:130 base-source:TERM:build-base:143; do
+  IFS=: read -r source signal step code <<< "$interrupt"
+  : > "$TEST_FLOW_LOG"
+  set -m
+  TEST_SIGNAL_SOURCE=$source TEST_SIGNAL=$signal \
+    bash script/dogfood-finish.sh "$base" "$root/cites.tsv" > "$root/output" 2> "$root/stderr" &
+  pid=$!
+  set +m
+  status=0
+  wait "$pid" || status=$?
+  [[ $status == "$code" && ! -s $TEST_FLOW_LOG ]] || { printf '%s: status=%s\n' "$step" "$status" >&2; exit 1; }
+  [[ $(cat "$root/output") == "dogfood-finish-lane: $step INTERRUPTED"$'\n'"dogfood-finish-lane: NOT_PRODUCED rows=0" ]] || exit 1
+  rg -q "^dogfood-finish-lane: INTERRUPTED $step$" "$root/stderr" || exit 1
+  rg -q "^  fix: rerun make dogfood-finish BASE=$base with the same inputs" "$root/stderr" || exit 1
+done
 # The stub never creates even the selected caches, and no real Go build runs in this test.
 [[ ! -e "$root/caller cache" && ! -e "$root/corvint cache" && ! -e "$root/private cache" && ! -e "$root/argument cache" ]] || exit 1
 printf 'DCW-V0-038 dogfood cache selection: PASS\n'

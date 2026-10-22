@@ -298,7 +298,7 @@ func narrowReceipt(index *Index, receipt map[string]any, survivors, suppressed [
 	line := fmt.Sprintf("%d results suppressed by caller possession", count)
 	coverage["uncertainty"] = append(anySlice(coverage["uncertainty"]), line)
 	if _, present := receipt["verification"]; present {
-		receipt["verification"] = verificationCommands(index, possessionVerificationPaths(survivors, suppressed))
+		setVerification(receipt, index, verificationCommands(index, possessionVerificationPaths(survivors, suppressed)))
 	}
 	if _, present := coverage["packet_bytes"]; !present {
 		return nil

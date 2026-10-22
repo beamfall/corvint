@@ -92,6 +92,9 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    by `dogfood batch-check` (`DCW-V0-043`, proposed).
 4. Write the citation plan from the prepared map. The hunk count is
    `python3 -c "import json; print(len(json.load(open('.corvint/change.cem.json'))['hunks']))"`.
+   `corvint dogfood propose-citations $BASE > plan.tsv` prints a draft with one row per owed hunk,
+   each citing a unique base line near that hunk or leaving it `unknown` (`DCW-V0-150`); it is not
+   a plan until you have checked that every cited line is the evidence the hunk relies on.
    A plan written for an earlier map, such as nine rows kept after a later commit added a tenth
    hunk, refuses `cem-cite: citation-plan-map-mismatch` and cites nothing; rewrite it from the
    current map. So does the same plan rerun after a commit moved a hunk it named by ordinal to

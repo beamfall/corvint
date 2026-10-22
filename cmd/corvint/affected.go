@@ -25,6 +25,7 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/typescript"
 	"github.com/Beamfall/corvint/internal/plansnapshot"
+	"github.com/Beamfall/corvint/internal/projectprofile"
 )
 
 // affectedProfile names the full wire `--full` emits (AFP-V0-003), which is
@@ -155,10 +156,8 @@ const (
 	adviceMakefileReason     = "the repository Makefile declares a gate target, so the full gate stays mandatory"
 	adviceAgentsReason       = "the repository AGENTS.md Verify block declares this command, so it stays mandatory"
 	adviceLaunchReason       = "the repository AGENTS.md Verify block declares this command, but it launches a program or runs in the background and does not end on its own, so it is not a check"
-	adviceVerifyHeading      = "Verify"
+	adviceAgentsLineReason   = "the repository AGENTS.md Verify line declares this command, so it stays mandatory"
 )
-
-var adviceShellFences = map[string]bool{"sh": true, "bash": true, "console": true}
 
 const (
 	providerStateRunnable      = "RUNNABLE"
@@ -217,6 +216,17 @@ func parseAffectedInvocation(arguments []string) (affectedInvocation, bool, erro
 // as `--flag VALUE` or `--flag=VALUE`.
 var affectedOptionNames = map[string]bool{"--path": true, "--snapshot": true, "--base": true, "--appmap-impact": true, "--playwright-config": true, "--playwright-discovery": true, "--provider": true, "--provider-command": true, "--repository": true, "--repository-base": true, "--selection-profile": true}
 
+// affectedFormatRefusal names why `--format` is refused and every option
+// `affected` accepts (AFP-V0-201): the command has one output, JSON.
+func affectedFormatRefusal() error {
+	names := []string{"--full", "--require-clean"}
+	for name := range affectedOptionNames {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return argumentError("affected has no --format option: it always writes one JSON document (affected-plan/1, or affected-plan/0 with --full); accepted options: " + strings.Join(names, ", "))
+}
+
 // parseAffectedOptions reads the flags after `affected`. `--base` must
 // already be a full object id: a ref name is resolved by the caller, never
 // here, so range.base is exactly what the operator asked for. `--provider`,
@@ -246,6 +256,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 			continue
 		}
 		name, value, inline := strings.Cut(rest[index], "=")
+		if name == "--format" {
+			return affectedInvocation{}, affectedFormatRefusal()
+		}
 		if !affectedOptionNames[name] {
 			return affectedInvocation{}, argumentError("unrecognized arguments: " + rest[index])
 		}
@@ -1020,13 +1033,13 @@ func mandatoryAffectedChecks(root string) (checks []affectedCheck, unknown []str
 		truncated = true
 		unknown = append(unknown, fmt.Sprintf(adviceUnreadableUnknown, adviceAgentsName))
 	}
-	commands, unrecognized := agentsVerifyCommands(agents)
+	commands, unrecognized := projectprofile.VerifyCommands(agents)
 	for _, command := range commands {
 		admit(agentsCheck(command))
 	}
-	scopeConditionalChecks(checks, agentsVerifyScopes(agents))
+	scopeConditionalChecks(checks, projectprofile.VerifyScopes(agents))
 	for _, heading := range unrecognized {
-		unknown = append(unknown, fmt.Sprintf("MANDATORY_DECLARATION_UNRECOGNIZED: %s heading %q is not %q, so its commands are not checks", adviceAgentsName, heading, adviceVerifyHeading))
+		unknown = append(unknown, fmt.Sprintf("MANDATORY_DECLARATION_UNRECOGNIZED: %s heading %q is not %q, so its commands are not checks", adviceAgentsName, heading, projectprofile.VerifyHeading))
 	}
 	if cappedSource != "" {
 		unknown = append(unknown, fmt.Sprintf("MANDATORY_DECLARATION_CAPPED: %s declared more than %d commands", cappedSource, adviceMaxMandatoryChecks))
@@ -1043,12 +1056,9 @@ func scopeConditionalChecks(checks []affectedCheck, scopes []string) {
 		if check.Kind != adviceKindMandatory {
 			continue
 		}
-		for _, sentence := range scopes {
-			if strings.Contains(sentence, "`"+check.Command+"`") {
-				checks[index].Kind = adviceKindConditional
-				checks[index].Reason = fmt.Sprintf(adviceConditionalReason, check.Source, sentence)
-				break
-			}
+		if sentence := projectprofile.ScopedBy(check.Command, scopes); sentence != "" {
+			checks[index].Kind = adviceKindConditional
+			checks[index].Reason = fmt.Sprintf(adviceConditionalReason, check.Source, sentence)
 		}
 	}
 }
@@ -1059,122 +1069,19 @@ const (
 	adviceConditionalReason = "the repository %s declares this command, but its AGENTS.md Verify section scopes it, so run it only when this condition holds: %s"
 )
 
-// adviceConditionPhrases mark a sentence that scopes a command to a condition.
-// They are matched as whole words: every non-letter of the sentence is a space.
-var adviceConditionPhrases = []string{" unless ", " only when ", " only if "}
-
-// agentsVerifyScopes returns, in order, each prose sentence under a heading
-// whose text is exactly "Verify", outside ``` and ~~~ fences, that states a
-// condition with "unless", "only when" or "only if". A paragraph's lines are
-// joined before it is split into sentences at ".", "!" or "?" followed by a
-// space or its end; a blank line, a heading, a fence or a list item ends a
-// paragraph.
-func agentsVerifyScopes(body string) []string {
-	scopes := []string{}
-	paragraph := []string{}
-	flush := func() {
-		text := strings.Join(paragraph, " ")
-		paragraph = paragraph[:0]
-		for len(text) > 0 {
-			end := len(text)
-			for index := 0; index < len(text); index++ {
-				if strings.IndexByte(".!?", text[index]) >= 0 && (index+1 == len(text) || text[index+1] == ' ') {
-					end = index + 1
-					break
-				}
-			}
-			sentence := strings.TrimSpace(text[:end])
-			text = text[end:]
-			words := strings.Join(strings.Fields(strings.Map(func(r rune) rune {
-				if r >= 'a' && r <= 'z' {
-					return r
-				}
-				return ' '
-			}, strings.ToLower(sentence))), " ")
-			for _, phrase := range adviceConditionPhrases {
-				if strings.Contains(" "+words+" ", phrase) {
-					scopes = append(scopes, sentence)
-					break
-				}
-			}
-		}
-	}
-	underVerify, fence := false, ""
-	for _, line := range strings.Split(body, "\n") {
-		trimmed := strings.TrimSpace(line)
-		marker := markdownFence(trimmed)
-		switch {
-		case fence != "":
-			if marker != "" && marker[0] == fence[0] && len(marker) >= len(fence) && strings.TrimSpace(trimmed[len(marker):]) == "" {
-				fence = ""
-			}
-		case marker != "":
-			flush()
-			fence = marker
-		case strings.HasPrefix(trimmed, "#"):
-			flush()
-			underVerify = strings.EqualFold(strings.TrimSpace(strings.Trim(trimmed, "#")), adviceVerifyHeading)
-		case trimmed == "":
-			flush()
-		case underVerify:
-			if markdownListItem(trimmed) {
-				flush()
-			}
-			paragraph = append(paragraph, trimmed)
-		}
-	}
-	flush()
-	return scopes
-}
-
-// markdownListItem reports a line that opens a Markdown list item ("-", "*",
-// "+", or digits then "." or ")", followed by a space), which starts a new
-// paragraph.
-func markdownListItem(trimmed string) bool {
-	digits := 0
-	for digits < len(trimmed) && trimmed[digits] >= '0' && trimmed[digits] <= '9' {
-		digits++
-	}
-	marker := digits == 0 && len(trimmed) > 0 && strings.IndexByte("-*+", trimmed[0]) >= 0
-	marker = marker || digits > 0 && digits < len(trimmed) && strings.IndexByte(".)", trimmed[digits]) >= 0
-	width := digits + 1
-	return marker && width < len(trimmed) && (trimmed[width] == ' ' || trimmed[width] == '\t')
-}
-
-// markdownFence returns the run of three or more backticks or tildes that
-// opens or closes a fenced block on a trimmed line, or "".
-func markdownFence(trimmed string) string {
-	for _, char := range []byte{'`', '~'} {
-		length := 0
-		for length < len(trimmed) && trimmed[length] == char {
-			length++
-		}
-		if length >= 3 {
-			return trimmed[:length]
-		}
-	}
-	return ""
-}
-
-// agentsCheck is a Verify-block command as a check: advisory when it does not
-// end on its own, mandatory otherwise.
-func agentsCheck(command string) affectedCheck {
-	if nonTerminatingCommand(command) {
+// agentsCheck is a declared AGENTS.md command as a check: advisory when it
+// does not end on its own, mandatory otherwise. An inline **Verify:** line
+// declares with the same authority as a Verify block (AFP-V0-196).
+func agentsCheck(declared projectprofile.DeclaredCommand) affectedCheck {
+	command := declared.Command
+	if projectprofile.NonTerminatingCommand(command) {
 		return affectedCheck{Command: command, Kind: adviceKindAdvisory, Reason: adviceLaunchReason, Source: adviceAgentsName}
 	}
-	return affectedCheck{Command: command, Kind: adviceKindMandatory, Reason: adviceAgentsReason, Source: adviceAgentsName}
-}
-
-// adviceLaunchers are the commands whose only job is to open a program the
-// caller then leaves running.
-var adviceLaunchers = map[string]bool{"open": true, "xdg-open": true}
-
-// nonTerminatingCommand reports a command that launches a program or runs in
-// the background. Any other command stays a check: requiring too much is safe.
-func nonTerminatingCommand(command string) bool {
-	fields := strings.Fields(command)
-	background := strings.HasSuffix(command, "&") && !strings.HasSuffix(command, "&&")
-	return background || adviceLaunchers[fields[0]]
+	reason := adviceAgentsReason
+	if declared.Inline {
+		reason = adviceAgentsLineReason
+	}
+	return affectedCheck{Command: command, Kind: adviceKindMandatory, Reason: reason, Source: adviceAgentsName}
 }
 
 // declaresMandatoryCheck reports whether any check is mandatory or
@@ -1299,71 +1206,6 @@ func makefileDeclaresGate(body string) bool {
 		}
 	}
 	return false
-}
-
-// agentsVerifyCommands returns the command lines of every fenced
-// sh/bash/console block under a heading whose text is exactly "Verify", in any
-// case, with shell comments removed. It also returns, in order, each other
-// heading containing "verify" that has such a block, whose commands are not
-// taken as checks.
-func agentsVerifyCommands(body string) (commands, unrecognized []string) {
-	commands, unrecognized = []string{}, []string{}
-	heading, underVerify, inBlock := "", false, false
-	for _, line := range strings.Split(body, "\n") {
-		trimmed := strings.TrimSpace(line)
-		fence := adviceShellFences[strings.ToLower(strings.TrimPrefix(trimmed, "```"))]
-		switch {
-		case !inBlock && strings.HasPrefix(trimmed, "#"):
-			heading = strings.TrimSpace(strings.Trim(trimmed, "#"))
-			underVerify = strings.EqualFold(heading, adviceVerifyHeading)
-		case inBlock && strings.HasPrefix(trimmed, "```"):
-			inBlock = false
-		case strings.HasPrefix(trimmed, "```") && fence && !underVerify && strings.Contains(strings.ToLower(heading), "verify"):
-			unrecognized = appendOnce(unrecognized, heading)
-		case strings.HasPrefix(trimmed, "```"):
-			inBlock = underVerify && fence
-		case inBlock:
-			commands = appendNonEmpty(commands, stripShellComment(strings.TrimPrefix(trimmed, "$ ")))
-		}
-	}
-	return commands, unrecognized
-}
-
-// stripShellComment removes a shell comment: a "#" that begins a word outside
-// quotes runs to the end of the line.
-func stripShellComment(line string) string {
-	quote := byte(0)
-	for index := 0; index < len(line); index++ {
-		char := line[index]
-		switch {
-		case quote != 0 && char == quote:
-			quote = 0
-		case quote == '\'':
-		case char == '\\':
-			index++
-		case quote == 0 && (char == '\'' || char == '"'):
-			quote = char
-		case quote == 0 && char == '#' && (index == 0 || line[index-1] == ' ' || line[index-1] == '\t'):
-			return strings.TrimSpace(line[:index])
-		}
-	}
-	return line
-}
-
-func appendNonEmpty(values []string, value string) []string {
-	if value == "" {
-		return values
-	}
-	return append(values, value)
-}
-
-func appendOnce(values []string, value string) []string {
-	for _, present := range values {
-		if present == value {
-			return values
-		}
-	}
-	return append(values, value)
 }
 
 func sortedUniqueStrings(values []string) []string {
