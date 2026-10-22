@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -62,6 +63,10 @@ const (
 	// names a directory outside the root. That module cannot be observed, so
 	// its packages and every import edge into them are absent from the graph.
 	FrontierWorkspaceModuleOutsideRoot = "go:workspace-module-outside-root"
+	// FrontierWorkspaceUnparsed reports a root go.work the strict manifest
+	// reader refuses. Its use set is unknown, so only the root module is
+	// observed and every other module's packages are absent (AFP-V0-190).
+	FrontierWorkspaceUnparsed = "go:workspace-unparsed"
 )
 
 // maxPathTokens bounds one package's distinct path tokens. A package over it
@@ -146,7 +151,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 			return affected.Result{}, statErr
 		}
 	}
-	modules, _, err := observeModules(root, manifests, frontier)
+	modules, evidence, err := observeModules(root, manifests, frontier)
 	if err != nil {
 		return affected.Result{}, err
 	}
@@ -187,7 +192,33 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	if err := root.Err(); err != nil {
 		return affected.Result{}, err
 	}
-	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
+	return affected.Result{Units: units, Frontier: sortedKeys(frontier), Unobserved: unobservedModules(evidence, modules)}, nil
+}
+
+// unobservedModules lists the nested module directories whose files no unit
+// declares (AFP-V0-191): every unlisted module below the root that contains no
+// observed module. The root and a directory holding an observed module are
+// left out, since an unindexed file there may belong to an observed module.
+func unobservedModules(evidence []nestedModule, modules map[string]module) []string {
+	directories := make([]string, 0, len(evidence))
+	for _, judged := range evidence {
+		directory := path.Dir(judged.Manifest)
+		if directory == "." {
+			continue
+		}
+		holdsObserved := false
+		for _, owner := range modules {
+			if owner.listed && (owner.dir == directory || strings.HasPrefix(owner.dir, directory+"/")) {
+				holdsObserved = true
+				break
+			}
+		}
+		if !holdsObserved {
+			directories = append(directories, directory)
+		}
+	}
+	sort.Strings(directories)
+	return slices.Compact(directories)
 }
 
 // directoryObservation is one observeDirectory result with the frontier
@@ -576,33 +607,28 @@ func observeModules(root *affected.Source, manifests []string, frontier map[stri
 }
 
 // workspaceDirectories lists the module directories the root's go.work uses,
-// or the root alone when there is no go.work. Only the use grammar is read: a
-// "use DIR" line or a "use (" block with one directory per line. A directory
-// outside the root cannot be observed; it is skipped and raised as a frontier.
+// or the root alone when there is no go.work. The go.work is read with the
+// strict manifest reader the nested-module decision uses (V1-0874), so the two
+// never disagree about the use set: a go.work that reader refuses (over-size,
+// unreadable, or outside the grammar it admits) observes the root alone and
+// raises FrontierWorkspaceUnparsed. A directory outside the root cannot be
+// observed; it is skipped and raised as a frontier.
 func workspaceDirectories(root *affected.Source, frontier map[string]bool) ([]string, error) {
-	body, err := root.Read("go.work")
+	_, err := root.Stat("go.work")
 	if errors.Is(err, fs.ErrNotExist) {
 		return []string{"."}, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	directories := make([]string, 0, 8)
-	inBlock := false
-	for _, line := range strings.Split(string(body), "\n") {
-		fields := strings.Fields(stripComment(line))
-		switch {
-		case len(fields) == 0:
-		case inBlock && fields[0] == ")":
-			inBlock = false
-		case inBlock:
-			directories = appendUse(directories, fields[0], frontier)
-		case fields[0] != "use" || len(fields) != 2:
-		case fields[1] == "(":
-			inBlock = true
-		default:
-			directories = appendUse(directories, fields[1], frontier)
-		}
+	work, reason := readManifest(root, "go.work", true)
+	if reason != "" {
+		frontier[FrontierWorkspaceUnparsed] = true
+		return []string{"."}, nil
+	}
+	directories := make([]string, 0, len(work.uses))
+	for _, use := range work.uses {
+		directories = appendUse(directories, use, frontier)
 	}
 	if len(directories) == 0 {
 		return []string{"."}, nil
@@ -618,7 +644,7 @@ func stripComment(line string) string {
 }
 
 func appendUse(directories []string, value string, frontier map[string]bool) []string {
-	cleaned := path.Clean(filepath.ToSlash(strings.Trim(value, "\"`")))
+	cleaned := path.Clean(filepath.ToSlash(value))
 	if cleaned == "." || affected.ValidRelativePath(cleaned) {
 		return append(directories, cleaned)
 	}

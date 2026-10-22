@@ -22,6 +22,8 @@ type fake struct {
 	frontier []string
 	owns     func(string) bool
 	err      error
+	// unobserved is the Result.Unobserved the fake reports (AFP-V0-191).
+	unobserved []string
 }
 
 func (language fake) Name() string { return language.name }
@@ -34,7 +36,7 @@ func (language fake) Owns(path string) bool {
 }
 
 func (language fake) Units(context.Context, string) (Result, error) {
-	return Result{Units: language.units, Frontier: language.frontier}, language.err
+	return Result{Units: language.units, Frontier: language.frontier, Unobserved: language.unobserved}, language.err
 }
 
 func chain() fake {
