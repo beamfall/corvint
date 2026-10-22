@@ -55,6 +55,10 @@ const (
 // ReasonOracleSelfCertified caps a CHANGED_IN_DIFF scenario's verdict (CCE-V0-016, CCE-V0-027).
 const ReasonOracleSelfCertified = "oracle-self-certified"
 
+// ReasonOracleAccepted notes a CHANGED_IN_DIFF verdict that an independent acceptance lifted
+// from the cap (CCE-V0-051).
+const ReasonOracleAccepted = "oracle-accepted"
+
 // outsideTestTree is the recorded failure location of a repeat whose receipt location lies
 // outside the staged test tree.
 const outsideTestTree = "outside-test-tree"
@@ -138,6 +142,9 @@ type ProveOptions struct {
 	// executable must dispatch to RunHook when run with no arguments and
 	// CORVINT_BEHAVIOR_COMMAND_ROLE set.
 	HookExecutable string
+	// OracleAcceptance is an e2e-oracle-acceptance/0 document outside the repository that
+	// records an independent acceptance of CHANGED_IN_DIFF outcomes (CCE-V0-051).
+	OracleAcceptance string
 }
 
 type proveReport struct {
@@ -163,8 +170,15 @@ type scenarioProof struct {
 	Hosted       bool   `json:"hosted,omitempty"` // an existing hosted test run as given (CCE-V0-034)
 	// RunnerConfig lists how the prove config differs from the adopter's own config (CCE-V0-049).
 	RunnerConfig *runnerConfig `json:"runner_config,omitempty"`
-	Verdict      string        `json:"verdict"`
-	Note         string        `json:"note"`
+	// OracleDigest names a CHANGED_IN_DIFF scenario's oracle for an acceptance, and
+	// OracleAcceptance is the acceptance applied to it (CCE-V0-051).
+	OracleDigest     string            `json:"oracle_digest,omitempty"`
+	OracleAcceptance *oracleAcceptance `json:"oracle_acceptance,omitempty"`
+	// LocatorRepair proposes, and never applies, a replacement for an outcome locator that did
+	// not resolve at head (CCE-V0-052).
+	LocatorRepair *LocatorRepair `json:"locator_repair,omitempty"`
+	Verdict       string         `json:"verdict"`
+	Note          string         `json:"note"`
 	// Scoring is true only for a DISCRIMINATES, NEW_REACH or PRESERVES verdict on an
 	// ADMITTED_AT_BASE oracle: the scenarios CCE-V0-010 lets read above candidate.
 	Scoring  bool           `json:"scoring"`
@@ -210,6 +224,7 @@ type proveEnv struct {
 	environment                      *Environment // nil serves the tree statically
 	serveBin, servePath              string       // a bare serve[0] resolved once, and the PATH serve runs with
 	hook                             behaviorfalsify.Command
+	acceptances                      *oracleAcceptances // nil without an acceptance document
 	// side runs one staged pool and returns its receipt and either the qualified receipt digest
 	// or the reason it has none; controls applies the CCE-V0-018 controls at head. Prove uses
 	// runQualified and runControls; the offline ladder tests substitute fakes (CCE-V0-028).
@@ -268,11 +283,16 @@ func Prove(ctx context.Context, o ProveOptions) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	acceptances, err := readOracleAcceptance(ctx, root, base, head, o.OracleAcceptance)
+	if err != nil {
+		return nil, err
+	}
 	env, err := proveToolchain(root, o)
 	if err != nil {
 		return nil, err
 	}
 	env.environment = environment
+	env.acceptances = acceptances
 	restore := setEnv(proveEnvironment(o))
 	defer restore()
 	// A bare serve name is resolved once on Prove's PATH, so the sides and the BBF hook, which runs
@@ -301,6 +321,9 @@ func (e *proveEnv) proveScenario(ctx context.Context, base, head string, sc Scen
 	if sc.Hosted {
 		p.RunnerConfig = adopterRunnerConfig(ctx, e.root, head, sc.Placement)
 	}
+	if sc.OracleOrigin == OriginChangedInDiff {
+		p.OracleDigest = oracleDigest(sc)
+	}
 	tree, reason := e.headTestTree(ctx, head, sc)
 	if reason != "" {
 		p.Head, p.Base = unrunSide(head, head, reason), unrunSide(base, head, reason)
@@ -317,7 +340,18 @@ func (e *proveEnv) proveScenario(ctx context.Context, base, head string, sc Scen
 		p.Controls = notRunControls(sc, "verdict-decided-before-controls")
 	}
 	p.Verdict, p.Note = verdict(p.Head, p.Base, p.Controls)
-	p.Verdict, p.Note = capOracle(sc.OracleOrigin, p.Verdict, p.Note)
+	if sc.Locator != "" && !sc.Hosted && headFailsUnresolved(p.Head) {
+		p.LocatorRepair = proposeLocatorRepair(ctx, e.root, base, head, sc.Locator)
+	}
+	p.OracleAcceptance = e.acceptances.lookup(sc)
+	if a := p.OracleAcceptance; a != nil && a.Status == "accepted" && p.Verdict != VerdictInconclusive {
+		p.Note += "; " + ReasonOracleAccepted + " by " + a.AcceptedBy
+	} else {
+		p.Verdict, p.Note = capOracle(sc.OracleOrigin, p.Verdict, p.Note)
+		if a != nil && p.Verdict == VerdictInconclusive && strings.HasPrefix(p.Note, ReasonOracleSelfCertified) {
+			p.Note += "; acceptance not applied: " + a.Status
+		}
+	}
 	switch p.Verdict {
 	case VerdictDiscriminates, VerdictNewReach, VerdictPreserves:
 		p.Scoring = sc.OracleOrigin == OriginAdmittedAtBase

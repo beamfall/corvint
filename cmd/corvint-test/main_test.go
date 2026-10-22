@@ -367,3 +367,21 @@ func TestCCEV0013NoRepositoryWrites(t *testing.T) {
 		}
 	}
 }
+
+// CCE-V0-051: --oracle-acceptance reaches Prove on both the compiled and the hosted path, which
+// refuse a document recorded inside the repository before any run.
+func TestCCEV0051OracleAcceptanceFlag(t *testing.T) {
+	root, base, head := fixture(t)
+	ctx := context.Background()
+	inside := filepath.Join(root, "acceptance.json")
+	if err := os.WriteFile(inside, []byte(`{"schema":"e2e-oracle-acceptance/0","base":"`+base+`","head":"`+head+`","acceptances":[]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, extra := range [][]string{nil, {"--hosted-test", "e2e/specs/teesheet-click.spec.ts"}} {
+		args := append([]string{"e2e", "prove", "--root", root, "--base", base, "--head", head, "--out", t.TempDir(), "--oracle-acceptance", inside}, extra...)
+		var r *changee2e.Refusal
+		if err := run(ctx, args, &bytes.Buffer{}); !errors.As(err, &r) || r.Code != "e2e-oracle-acceptance-invalid" {
+			t.Fatalf("%v: %v, want e2e-oracle-acceptance-invalid", extra, err)
+		}
+	}
+}

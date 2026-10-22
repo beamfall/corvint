@@ -78,7 +78,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	out := fs.String("out", "", "output file (catalog, harvest, obligations) or directory (compile, prove), outside the repository")
 	var rev, base, head, coverage *string
 	var repeats *int
-	var nodeModules, nodeBin, packageJSON, lockfile, window, hostedTest, hostedTitle *string
+	var nodeModules, nodeBin, packageJSON, lockfile, window, hostedTest, hostedTitle, oracleAcceptance *string
 	switch sub {
 	case "shadow":
 		window = fs.String("window", "", "frozen shadow window file (CCE-V0-011)")
@@ -96,6 +96,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 			lockfile = fs.String("lockfile", "", "lockfile binding the runner identity")
 			hostedTest = fs.String("hosted-test", "", "prove this existing hosted Playwright test file as given, without compiling (CCE-V0-034)")
 			hostedTitle = fs.String("hosted-title", "", "the hosted test's title; optional when the file declares one test")
+			oracleAcceptance = fs.String("oracle-acceptance", "", "e2e-oracle-acceptance/0 document, outside the repository, recording an independent acceptance of edited outcomes (CCE-V0-051)")
 		}
 	default:
 		return errors.New(usage)
@@ -165,7 +166,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 			}
 			doc, err := changee2e.Prove(ctx, changee2e.ProveOptions{Root: *root, Base: *base, Head: *head, Repeats: *repeats,
 				NodeModules: *nodeModules, NodeBin: *nodeBin, PackageJSON: *packageJSON, Lockfile: *lockfile,
-				Hosted: &changee2e.HostedSelection{File: *hostedTest, Title: *hostedTitle}})
+				Hosted: &changee2e.HostedSelection{File: *hostedTest, Title: *hostedTitle}, OracleAcceptance: *oracleAcceptance})
 			if err != nil {
 				return err
 			}
@@ -179,7 +180,8 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 			return err
 		}
 		doc, err = changee2e.Prove(ctx, changee2e.ProveOptions{Root: *root, Base: r.Base, Head: r.Head, Repeats: *repeats,
-			NodeModules: *nodeModules, NodeBin: *nodeBin, PackageJSON: *packageJSON, Lockfile: *lockfile, Scenarios: r.Compiled()})
+			NodeModules: *nodeModules, NodeBin: *nodeBin, PackageJSON: *packageJSON, Lockfile: *lockfile, Scenarios: r.Compiled(),
+			OracleAcceptance: *oracleAcceptance})
 		if err != nil {
 			return err
 		}
