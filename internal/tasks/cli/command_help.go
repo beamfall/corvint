@@ -146,6 +146,9 @@ func fullCommandHelp(cmd []string) *wire.Result {
 	if name == "claim" || name == "pool acquire" {
 		o.Set("detach", wire.String(leaseDetachHelp))
 	}
+	if name == "claim" {
+		o.Set("scope", wire.String("--scope takes every following path until the next flag and may repeat. A ticket that declares QUALIFIED touchPaths or PATH resources keeps that DECLARED scope (CAL-V0-021): a requested path it covers is accepted, and one it does not cover refuses OUT_OF_SCOPE naming each such path, so claim without them and add them with widen (ATR-V0-210). Without declared paths the requested paths are the REQUESTED scope. Every claim result carries scope {source, resources}, the effective reserved scope, or null when nothing was reserved (ATR-V0-211)."))
+	}
 	if name == "pool acquire" {
 		o.Set("note", wire.String("Allocates one member to the named live external-agent attempt that holds none, for the attempt's own holder and stage, by the pooled-claim rules: priority yield, --exclude-member and --exclude-authors (review or integrate attempts only), health preparation, and a RESOURCE_COLLISION refusal when no eligible member is free. One allocation per generation: an attempt that returned one cannot acquire again. Generation-fenced; a request-id replay returns the original receipt's allocation (CAL-V0-198..200, CAL-V0-204). --source REV:TREE asks for a member on that source pair: a pool whose allowedSources omit it refuses BLOCKED OUT_OF_SCOPE with SOURCE_NOT_ALLOWED before allocating, and the allocation records the pair (PSR-V0-081)."))
 	}

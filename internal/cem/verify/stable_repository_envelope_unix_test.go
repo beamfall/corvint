@@ -186,6 +186,7 @@ func runS0ECasesWhere(t *testing.T, want int, keep func(id string) bool) {
 		}
 		selected++
 		t.Run(c.ID, func(t *testing.T) {
+			t.Parallel()
 			c := s0eBindRuntime(t, packet, c)
 			result, exit, run := runS0E(t, packet, c, s0eRecipes[c.ID])
 			ok := requireS0EResult(t, c, result, exit)
@@ -206,6 +207,7 @@ func runS0ECasesWhere(t *testing.T, want int, keep func(id string) bool) {
 // TestStableRepositoryEnvelopeCancelled runs the public cancellation cases:
 // context cancellation maps to verification-timeout at its observed stage.
 func TestStableRepositoryEnvelopeCancelled(t *testing.T) {
+	t.Parallel()
 	runS0ECasesWhere(t, 11, func(id string) bool {
 		return strings.HasPrefix(id, "cancel-") || strings.Contains(id, "-cancel")
 	})
@@ -215,6 +217,7 @@ func TestStableRepositoryEnvelopeCancelled(t *testing.T) {
 // prove owned-group teardown: a contained lingering descendant and an
 // unproved owner failure.
 func TestStableRepositoryEnvelopeDescendantCleanup(t *testing.T) {
+	t.Parallel()
 	runS0ECasesWhere(t, 3, func(id string) bool {
 		return strings.Contains(id, "lingering-descendant") || strings.HasPrefix(id, "owner-failure-")
 	})
@@ -223,5 +226,6 @@ func TestStableRepositoryEnvelopeDescendantCleanup(t *testing.T) {
 // TestStableRepositoryEnvelopeRootIdentity runs the public case whose
 // repository root is replaced before the final identity check.
 func TestStableRepositoryEnvelopeRootIdentity(t *testing.T) {
+	t.Parallel()
 	runS0ECasesWhere(t, 1, func(id string) bool { return id == "root-replaced-before-final-check" })
 }

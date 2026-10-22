@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -251,8 +252,11 @@ func expandContextHandle(ctx context.Context, root, text string, maxBytes int) (
 		return nil, contextHandleError("invalid-handle", "the handle's blob is not the pinned tree's blob at its path")
 	}
 	source, err := sourceGit(deadline, root, sourceBlobLimit+1, "cat-file", "blob", blob)
-	if err != nil || len(source) > sourceBlobLimit {
-		return nil, contextHandleError("expand-budget", fmt.Sprintf("the blob is unreadable or larger than %d bytes", sourceBlobLimit))
+	if errors.Is(err, errSourceOutputOverflow) || err == nil && len(source) > sourceBlobLimit {
+		return nil, contextHandleError("expand-budget", fmt.Sprintf("the blob is larger than %d bytes", sourceBlobLimit))
+	}
+	if err != nil {
+		return nil, contextHandleError("git-failed", "cannot read the handle's blob")
 	}
 	if sourceObjectID(format, source) != blob {
 		return nil, contextHandleError("source-digest-mismatch", "the read bytes do not recompute the blob's object ID")
@@ -322,11 +326,16 @@ func contextHandleSelection(handle contextHandle, source []byte, maxBytes int) (
 		return nil, contextHandleError("unsupported-text", "the selected bytes are not UTF-8 and cannot be returned exactly as JSON text")
 	}
 	sum := sha256.Sum256(selected)
-	return map[string]any{
+	text, redacted := screenSourceLines(source, lines, first, last)
+	selection := map[string]any{
 		"range": handle.rangeText, "complete": byteStart == 0 && len(selected) == len(source),
 		"line_start": first, "line_end": last, "byte_start": byteStart, "byte_end": byteStart + len(selected),
-		"bytes": len(selected), "sha256": hex.EncodeToString(sum[:]), "text": string(selected),
-	}, nil
+		"bytes": len(selected), "sha256": hex.EncodeToString(sum[:]), "text": text,
+	}
+	if redacted != nil {
+		selection["redacted_lines"] = redacted
+	}
+	return selection, nil
 }
 
 // runContextExpand prints one expansion or refuses on stderr with nothing on stdout.

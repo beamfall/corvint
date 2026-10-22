@@ -202,6 +202,7 @@ func TestImpactResolvesWebReverseImporters(t *testing.T) {
 // not -- while the relative specifiers, which need no configuration, resolve in
 // both.
 func TestImpactWebAliasComesFromTheProjectProfile(t *testing.T) {
+	t.Parallel()
 	changed := "internal/web/app/src/widget/button.ts"
 	aliased := "internal/web/app/src/pages/aliased.ts"
 	relative := "internal/web/app/src/pages/home.ts"

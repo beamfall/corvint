@@ -9,6 +9,7 @@ import (
 )
 
 func TestCorpusScopeAdditionFreshness(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-011 inventory drift", func(t *testing.T) {
 		root, m := fixture(t)
 		a, err := Build(context.Background(), root, m)
@@ -31,6 +32,7 @@ func TestCorpusScopeAdditionFreshness(t *testing.T) {
 	})
 }
 func TestCorpusNativeExcludedInputs(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-003 DCP-V1-010 native admission", func(t *testing.T) {
 		for _, test := range []struct {
 			path, body string
@@ -77,6 +79,7 @@ func TestCorpusNativeExcludedInputs(t *testing.T) {
 	})
 }
 func TestCorpusCEMRejectsBaseSymlink(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-014 CEM mode admission", func(t *testing.T) {
 		root, _ := fixture(t)
 		p := filepath.Join(root, "source.md")
@@ -187,6 +190,7 @@ func TestCorpusMaintenanceConcurrentPublication(t *testing.T) {
 }
 
 func TestCorpusMaintenanceTargetAdmission(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-017 DCP-V1-018 metadata protection", func(t *testing.T) {
 		root, m := fixture(t)
 		a, err := Build(context.Background(), root, m)

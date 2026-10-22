@@ -683,6 +683,15 @@ which is the whole of what the row asserts.
   A new Go artifact checker or an accepted extension to the release-integrity contract MUST exist
   before publishing Go binaries. The migration MUST NOT turn a Python wheel into an opaque binary
   downloader or select a runtime from the network at install or execution time.
+- `GPK-V0-088`: (accepted 2026-10-21, standing auto-accept; V1-2285) The index build MAY run an
+  index phase concurrently with another, or reuse a worker's working storage between inputs, only
+  when the phase reads nothing the other writes and the compiled index is unchanged: every exported
+  table MUST equal the one the phases build when run one after another, and each symbol's window
+  terms MUST be exactly that symbol's own `terms(symbolContextText)`. The snapshot encoding MUST NOT
+  change for such a change. The analyzer schema number still moves with its audited input digest
+  (`IDX-SNAP-V0-017`), so the V1-2285 change lands as `corvint-analyzer/140` (owner-approved
+  2026-10-21) with byte-identical built content. The amendment section of that date records its
+  failure modes, evidence and rollback.
 
 ### Conformance authority
 
@@ -1747,3 +1756,28 @@ evaluations were NOT_RUN for this change. Rollback: remove `webImportAfterSemico
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | `GPK-V0-087` (accepted 2026-10-20, V1-2128) | `webImportBindings`, `webImportAfterSemicolon` and `webCodeSemicolons` in `internal/contextindex/eval_dependency.go` | `TestWebImportBindingsReadsEveryStatementOnALine`, `TestWebImportBindingsIgnoresSemicolonsOutsideCode` |
+
+## Amendment accepted 2026-10-21 (V1-2285): index build runs its independent phases in parallel
+
+A cold `corvint index` on this repository spent its CPU in the per-source tables, the vocabulary
+and the symbol windows one after another, and in allocation: a fresh term set per symbol window
+and a copy of every Go source for the parser. The vocabulary reads only the pinned sources and the
+reuse inputs, which neither the per-source tables nor the symbol windows write. The owner's standing
+auto-accept of lane requirements (2026-10-11) accepts this amendment.
+
+`GPK-V0-088` (defined under "Performance and packaging" in the Requirements section) applies.
+
+Failure modes: a phase that started reading a table another phase writes would race; a reused
+term set that was not cleared would carry one symbol's terms into the next window. Both change
+the compiled tables, and the tests below fail on them. Non-goals: the leaf `openat` per pinned
+file, the snapshot gob encode (`internal/contextindex/snapshot.go`), and the Go parser's body
+parse remain the measured floor. Acceptance evidence: the build log entry
+`docs/build-log/2026-10-21-idxbuild-1021k-index-build-parallel.md` records the content digest
+before and after and the timings at recorded load. Rollback: revert `compile` in
+`internal/contextindex/index.go`, `invertSourceTerms` in `internal/contextindex/termtable.go` and
+its two callers, the per-worker set in `buildSymbolWindows`, `parserSource` in
+`internal/contextindex/parse.go`, the two tests, and this section.
+
+| Requirement | Implementation | Evidence |
+|---|---|---|
+| `GPK-V0-088` (accepted 2026-10-21, V1-2285) | `compile` in `internal/contextindex/index.go`, `invertSourceTerms` in `internal/contextindex/termtable.go`, `buildSymbolWindows` in `internal/contextindex/symbolwindows.go`, `parserSource` in `internal/contextindex/parse.go` | `TestGPKV0088SymbolWindowsMatchEachSymbolsTerms`, `TestGPKV0088ConcurrentCompileMatchesSequentialPhases` |

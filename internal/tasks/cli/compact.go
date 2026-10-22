@@ -27,6 +27,9 @@ type compactSpec struct {
 	extra     string
 	exclusive string
 	values    []string
+	// routes names, per item key this read does not carry, the read that
+	// returns it; a --fields refusal for that key appends the route (CTS-V0-012).
+	routes map[string]string
 }
 
 // compactRead strips `--fields` and `--summary` from args, runs read on the
@@ -90,6 +93,7 @@ func compactRead(cmd []string, args []string, spec compactSpec, read func([]stri
 		return res
 	}
 	if msg := checkCompactFields(res.Items, fields); msg != "" {
+		msg += fieldRoute(msg, spec.routes)
 		refused := compactRefusal(cmd, msg)
 		refused.Snapshot = res.Snapshot
 		return refused
@@ -98,6 +102,18 @@ func compactRead(cmd []string, args []string, spec compactSpec, read func([]stri
 		res.Items[i] = projectFields(item, fields)
 	}
 	return res
+}
+
+// fieldRoute returns the supported route for the key a --fields refusal
+// names, when the read declares one, so the caller learns where the value is
+// instead of only that this read lacks it.
+func fieldRoute(msg string, routes map[string]string) string {
+	for key, route := range routes {
+		if strings.HasPrefix(msg, "field "+quoteField(key)+" ") || strings.HasPrefix(msg, "field \""+key+".") {
+			return "; " + route
+		}
+	}
+	return ""
 }
 
 func containsArg(args []string, flag string) bool {

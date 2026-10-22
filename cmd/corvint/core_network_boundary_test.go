@@ -79,7 +79,7 @@ func moduleImporters(t *testing.T, config, target string, imported func(string) 
 	command := exec.CommandContext(ctx, "go", "list", "-deps", "-f", "{{.ImportPath}}{{range .Imports}} {{.}}{{end}}", target)
 	command.Dir = root
 	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GOWORK=off", "GOFLAGS=", "CGO_ENABLED=0", "GOOS="+goos, "GOARCH="+goarch)
-	output, err := command.Output()
+	output, err := goListOutput(command)
 	if err != nil {
 		t.Fatalf("go list %s for %s: %v", target, config, err)
 	}

@@ -124,7 +124,7 @@ var admittedAdapterCodes = codeSet(
 var admittedAdapterRejections = codeSet(
 	"dogfood-event-context-drift", "dogfood-event-deadline", "dogfood-event-index-snapshot-stale",
 	"dogfood-event-input-unavailable", "dogfood-event-native-budget", "dogfood-event-output-too-large", "dogfood-event-output-unavailable",
-	"dogfood-event-policy-drift", "dogfood-event-repository-drift", "dogfood-event-unavailable", "dogfood-event-worktree-churn",
+	"dogfood-event-policy-drift", "dogfood-event-prompt-bounds", "dogfood-event-repository-drift", "dogfood-event-unavailable", "dogfood-event-worktree-churn",
 	"invalid-dogfood-event-arguments", "invalid-dogfood-event-budget", "invalid-dogfood-event-input",
 	"qualified-lifecycle-target-drift", "unsupported-dogfood-event", "unsupported-dogfood-event-host",
 )
@@ -570,7 +570,7 @@ func validDogfoodReason(value string) bool {
 		return false
 	}
 	switch value {
-	case "cem-map-not-produced", "cem-map-stable-unsupported", "citation-plan-map-mismatch", "citation-plan-not-provided", "citation-plan-uniform",
+	case "cem-map-not-produced", "cem-map-stable-unsupported", "citation-plan-map-mismatch", "citation-plan-not-provided", "citation-plan-recites-cited-hunk", "citation-plan-uniform",
 		"citation-plan-unavailable", "citation-plan-row-limit-exceeded", "ocm-link-plan-row-limit-exceeded", "citation-stage-cleanup-failed", "citation-stage-exists", "empty-citation-plan", "guarding-tests-not-run",
 		"intent-manifest-over-bound", "intent-scope-drift", "invalid-citation-plan",
 		"invalid-record-admission-output", "missing-intent-scope", "no-source-paths", "none",

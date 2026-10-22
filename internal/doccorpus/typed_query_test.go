@@ -7,6 +7,7 @@ import (
 )
 
 func TestCorpusTypedQueryConformance(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-038 DCP-V1-039 typed documented evidence", func(t *testing.T) {
 		root, m := adoptionFixture(t, func(p *ProviderRecord) {
 			ev := p.Subjects[0].Evidence
@@ -99,6 +100,7 @@ func TestCorpusTypedQueryConformance(t *testing.T) {
 }
 
 func TestCorpusTypedMultiFileCoverageAndSelectors(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-038 separate selectors and explicit cross-file coverage", func(t *testing.T) {
 		members := []string{"native:file:src/value.go:excerpt", "native:file:src/value_test.go:excerpt"}
 		root, manifest := adoptionFixture(t, func(p *ProviderRecord) {
@@ -188,6 +190,7 @@ func TestCorpusTypedMultiFileCoverageAndSelectors(t *testing.T) {
 }
 
 func TestCorpusRetirementBindings(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-039 age distance and unknown provenance", func(t *testing.T) {
 		a := &Artifact{Schema: SchemaV2, SHA256: strings.Repeat("a", 64), Manifest: Manifest{Repository: Repository{Revision: strings.Repeat("b", 40)}, BuiltAt: "2026-09-19T00:00:00Z"}, Capabilities: []Capability{{Name: "subjects", State: "present"}}}
 		age := int64(10)
@@ -218,6 +221,7 @@ func TestCorpusRetirementBindings(t *testing.T) {
 }
 
 func TestCorpusRetirementBounds(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-039 bounded retirement declarations and unknown measurements", func(t *testing.T) {
 		a := &Artifact{Schema: SchemaV2, SHA256: strings.Repeat("a", 64), Manifest: Manifest{Repository: Repository{Revision: strings.Repeat("b", 40)}, BuiltAt: "2026-09-19T00:00:00Z"}, Capabilities: []Capability{{Name: "subjects", State: "present"}}}
 		for _, body := range []string{
@@ -261,6 +265,7 @@ func TestCorpusRetirementBounds(t *testing.T) {
 }
 
 func TestCorpusNavigationSelectorEvidence(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-038 exact declared navigation selector and anchor", func(t *testing.T) {
 		root, m := behaviorFixture(t, nil)
 		a, err := Build(context.Background(), root, m)
@@ -287,6 +292,7 @@ func TestCorpusNavigationSelectorEvidence(t *testing.T) {
 }
 
 func TestCorpusIndexedParityEdgeCases(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-038 DCP-V1-040 exact short names self edges and pages", func(t *testing.T) {
 		a := &Artifact{Schema: SchemaV2, Subjects: []Subject{{ID: "s", Name: "X", Kind: "flow"}}, Relations: []Relation{{ID: "self", From: "s", To: "s", Type: "depends_on"}}, Capabilities: []Capability{{Name: "subjects", State: "present"}, {Name: "relations", State: "present"}}, Details: map[string]RecordDetails{}}
 		x, e := BuildQueryIndex(context.Background(), a)
@@ -333,6 +339,7 @@ func (c *cancellationProbe) Err() error {
 	return nil
 }
 func TestCorpusTypedCancellationDuringExecution(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-042 bounded joins and cancellable active traversal", func(t *testing.T) {
 		a := &Artifact{Schema: SchemaV2, Subjects: []Subject{}, Relations: []Relation{}, Capabilities: []Capability{{Name: "subjects", State: "present"}, {Name: "relations", State: "present"}, {Name: "gaps", State: "present"}}, Details: map[string]RecordDetails{}}
 		for i := 0; i < 1000; i++ {

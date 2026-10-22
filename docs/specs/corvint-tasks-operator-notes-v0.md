@@ -278,5 +278,19 @@ released store holds a legacy attempt beside a noted ticket; such an attempt sim
 Reverting the journal binding returns note receipts to UNKNOWN coverage and is otherwise
 compatible. The history read writes nothing and reverts cleanly. Reverting dispatch rendering
 makes an older config decoder refuse a role prompt using `{operatorNote}` as an unknown
-placeholder, so rollback removes the placeholder from dispatch configs first. History pages and dispatch rendering now exist; promotion still requires the complete evidence
+placeholder, so rollback removes the placeholder from dispatch configs first.
+
+Historical policy audit (V1-0770): a full journal audit decodes every historical `intent/policy.json`
+POST (`journal.Reader.validateRecord` calls `intent.DecodePolicy`, whose role rows admit only the
+`intent.Operations` vocabulary). So once an accepted policy names `NOTE_SET` or `NOTE_CLEAR`, in an
+explicit `policy.roles.OPERATOR` row or in an `OWNER` row, a binary without those operations fails
+audit on that historical row even after a later policy drops them, and whether or not any note was
+ever written. "Rollback before any note is written" is therefore a plain revert only while no
+accepted policy has named either operation. After such a policy, rollback keeps `NOTE_SET` and
+`NOTE_CLEAR` in `intent.Operations` and `intent.ExplicitGrantOperations` and disables only the
+writer (and the CLI that reaches it); removing the vocabulary is not rollback. Native witness (grant,
+revoke, then audit with the operations removed refuses the historical row): NOT_RUN; the rule is
+established by reading the cited decoder path.
+
+History pages and dispatch rendering now exist; promotion still requires the complete evidence
 matrix (the NOT_RUN cells above), owner acceptance and native closeout.

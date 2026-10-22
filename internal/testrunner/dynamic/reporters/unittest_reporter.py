@@ -10,8 +10,14 @@ class Result(unittest.TextTestResult):
         super().__init__(*args)
         self.rows = []
 
-    def record(self, test, state):
-        self.rows.append({"ID": test.id(), "Name": str(test), "State": state})
+    def record(self, test, state, err=None):
+        row = {"ID": test.id(), "Name": str(test), "State": state}
+        if err is not None:
+            # TRE-V0-115: an exception raised in a named test fails that test
+            # with cause UNKNOWN, naming only the exception class.
+            row["FailureKind"] = "UNKNOWN"
+            row["Message"] = ("Error: " + err[0].__name__)[:1024]
+        self.rows.append(row)
 
     def addSuccess(self, test):
         super().addSuccess(test)
@@ -23,7 +29,11 @@ class Result(unittest.TextTestResult):
 
     def addError(self, test, err):
         super().addError(test, err)
-        self.record(test, "UNKNOWN")
+        # A class or module fixture error names no single test and stays UNKNOWN.
+        if isinstance(test, unittest.suite._ErrorHolder):
+            self.record(test, "UNKNOWN")
+        else:
+            self.record(test, "FAILED", err)
 
     def addSkip(self, test, reason):
         super().addSkip(test, reason)
@@ -40,8 +50,12 @@ class Result(unittest.TextTestResult):
     def addSubTest(self, test, subtest, err):
         super().addSubTest(test, subtest, err)
         # Subtests are distinct native outcomes; a successful parent may follow.
-        self.record(subtest, "PASSED" if err is None else
-                    ("FAILED" if issubclass(err[0], test.failureException) else "UNKNOWN"))
+        if err is None:
+            self.record(subtest, "PASSED")
+        elif issubclass(err[0], test.failureException):
+            self.record(subtest, "FAILED")
+        else:
+            self.record(subtest, "FAILED", err)
 
 
 if __name__ == "__main__":

@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/gitancestry"
 	"github.com/Beamfall/corvint/internal/procgroup"
 )
 
@@ -88,6 +89,14 @@ func (g *GitMeasurer) Measure(ctx context.Context, p GitPair) (Measurement, erro
 		if string(v) != "commit\n" {
 			return m, ErrGit
 		}
+	}
+	// A grafted or shallow checkout rewrites the ancestry answer below, so it is
+	// unavailable evidence rather than a measured pair (PMM-V0-008).
+	if gitancestry.Rewritten(ctx, func(ctx context.Context, args ...string) ([]byte, error) { return g.command(ctx, p, nil, args...) }) != "" {
+		if ctx.Err() != nil {
+			return m, ErrCancelled
+		}
+		return m, ErrGit
 	}
 	if _, e = g.command(ctx, p, nil, "merge-base", "--is-ancestor", p.Bot, p.Approved); e != nil {
 		return m, e

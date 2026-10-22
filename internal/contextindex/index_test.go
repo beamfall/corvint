@@ -185,6 +185,7 @@ func nonUTF8Repository(t *testing.T, clean bool) string {
 }
 
 func TestNonUTF8TrackedPathIsExcludedAndTheRestIndexes(t *testing.T) {
+	t.Parallel()
 	want := Exclusion{Path: "latin/caf�.go", Reason: "unsafe-or-non-utf8-path"}
 	for _, clean := range []bool{true, false} {
 		t.Run(fmt.Sprintf("clean=%v", clean), func(t *testing.T) {
@@ -408,6 +409,7 @@ func TestBuildPinsTrackedBytesAndOmitsUntrackedContent(t *testing.T) {
 }
 
 func TestBuildReportsModeOnlyAndRenameEndpoints(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS == "windows" {
 		t.Skip("mode and rename fixture is POSIX-only")
 	}
@@ -590,6 +592,7 @@ func TestForbiddenPathScreenIsTheAcceptedSet(t *testing.T) {
 // receipt's `exclusions.count` includes it on the eager, selective-query, and
 // event-snapshot paths alike. It has no Exclusion row, so it adds no sample.
 func TestReceiptCountsUnsupportedSuffixExclusions(t *testing.T) {
+	t.Parallel()
 	root := authorityRepository(t)
 	eager, err := Build(context.Background(), root)
 	if err != nil {

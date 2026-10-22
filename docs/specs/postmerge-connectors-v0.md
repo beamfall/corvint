@@ -53,6 +53,11 @@ This proposed technical contract implements the human issue as a separately expe
   bad policy, unsafe paths/URLs and unverified requests before any write. Raw-intake and mutable
   outputs require separate trusted private single-writer directories; reject input/output aliases,
   symlinks and nonregular files, publish with exclusive private temporary files and atomic replace.
+- `PMC-V0-010`: (accepted, owner lane auto-acceptance 2026-10-11; V1-2259) Before reading the
+  binding's commits or asking `git merge-base --is-ancestor`, the merged-change read MUST refuse
+  with `ancestry-rewritten` when the checkout has `info/grafts` or is shallow
+  (`gitancestry.Rewritten`), because either rewrites the ancestry answer. The refusal happens
+  before any output write. Rollback: drop the guard call in `verifyBinding`.
 
 ## Trust boundary
 
@@ -104,6 +109,7 @@ establishes no independent adopter or remote profile qualification.
 | PMC-V0-003, PMC-V0-004, PMC-V0-005 | `plan.go` | `TestConnectorConformance` |
 | PMC-V0-006, PMC-V0-007, PMC-V0-008 | `client.go`, `types.go` | `TestConnectorConformance`, `TestCLIReferenceWorkflow` |
 | PMC-V0-009 | `decode.go`, `files.go` | `TestConnectorConformance`, `TestCLIReferenceWorkflow` |
+| PMC-V0-010 | `git.go` (`verifyBinding`) | `TestChangedFilesRefusesRewrittenAncestry_PMCV0010` (grafts and shallow fixtures; the plain checkout reads again) |
 
 ## Qualification and rollback
 

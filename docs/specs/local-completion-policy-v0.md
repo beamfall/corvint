@@ -9,7 +9,7 @@ Authoritative inputs: `docs/DOGFOOD.md`, `docs/decisions/0009-harness-authority-
 ## Agent digest
 - Claim: Explicitly enrolled changes require selected checks, bound evidence and inspected reports before local completion; no execution attestation.
 - Status: accepted direction (owner selected decision 0009 option 2 in the 2026-09-06 Codex dogfood repair task); LCP-V0-008/009 Pi tuple accepted (decision 0452; V1-0506)/implemented
-- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is accepted by decision 0465 (V1-1012). `LCP-V0-018` (plan intent refusals name the rule) is accepted by decision 0472 (V1-1043). `LCP-V0-019` proposes reuse of immutable facts inside one enrolled event while re-reading private inputs and cleanliness (V1-1124; accepted, decision 0508). `LCP-V0-033` (snapshot read overlapping the opening status read) is accepted under the owner's lane auto-acceptance (V1-1524, V1-2144).
+- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is accepted by decision 0465 (V1-1012). `LCP-V0-018` (plan intent refusals name the rule) is accepted by decision 0472 (V1-1043). `LCP-V0-019` proposes reuse of immutable facts inside one enrolled event while re-reading private inputs and cleanliness (V1-1124; accepted, decision 0508). `LCP-V0-033` (snapshot read overlapping the opening status read) is accepted under the owner's lane auto-acceptance (V1-1524, V1-2144). `LCP-V0-034` (named prompt-bounds refusal code) is accepted under the same auto-acceptance (V1-1976). `LCP-V0-036` (base-ancestry probes refuse a grafted or shallow checkout with `ancestry-rewritten`) is accepted under the same auto-acceptance (V1-1757). `LCP-V0-037` (begin refuses an intent without numbered requirements) is accepted under the owner's standing auto-accept (V1-0680).
 - Blocked on: current-change canonical verification, report acknowledgment, strict outcome qualification and installed-hook validation, recorded separately; complete host-version matrix NOT_RUN.
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
 
@@ -173,8 +173,9 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   `dogfood-event-deadline` on expiry). A read refused because the worktree moved under it
   (`repository-state-unstable` from the probe, `dogfood-event-repository-drift` or
   `dogfood-event-context-drift`) reports the fixed `dogfood-event-worktree-churn` code, and
-  `dogfood-event-policy-drift` keeps its own code; every other read failure stays
-  `dogfood-event-unavailable` (amended 2026-10-16, decision 0533, V1-0880). A supplied `stop_hook_active` MUST be boolean. Expensive
+  `dogfood-event-policy-drift` keeps its own code; a prompt the bounded prompt-context contract
+  refuses reports `dogfood-event-prompt-bounds` (`LCP-V0-034`); every other read failure stays
+  `dogfood-event-unavailable` (amended 2026-10-16, decision 0533, V1-0880; amended 2026-10-21, V1-1976). A supplied `stop_hook_active` MUST be boolean. Expensive
   verification and mutations never run in Stop. User interruption remains effective.
   The owner’s 2026-09-29 Pi build request additionally admits Pi 0.99.1 / extension
   0.3.3 (superseding 0.3.2, decision 0550, V1-2150). Its `agent_before_settle` handler evaluates only a trusted completed activity
@@ -233,7 +234,7 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   A budget that cannot retain the mandatory fields fails `unsupported-dogfood-context-budget`, and
   explicit-anchor context over its bounded candidate profile fails `unsupported-dogfood-context-bounds`
   (`internal/contextindex/local_completion_context.go`, `failBounds` and `packet`); the native event reports either as
-  the fixed `dogfood-event-unavailable` (`cmd/corvint/local_completion_event.go`, `runLocalCompletionEvent`).
+  the fixed `dogfood-event-prompt-bounds` (`cmd/corvint/local_completion_event.go`, `dogfoodReadFailureCode`; `LCP-V0-034`, V1-1976; it was `dogfood-event-unavailable`).
   Amendment (2026-10-07, accepted by decision 0441; V1-0939, V1-0942): the receipt rules
   above are unchanged, but the Claude Code and Codex adapters inject its `corvint-hook-context/0`
   projection (`AHI-045`); an anchorless prompt whose receipt holds only governance, current scope
@@ -373,6 +374,54 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   interleaved runs each, no run over the 1.6 s event deadline; build log
   `2026-10-21-hooks-1021-snapshot-prefetch`). Rollback: call `gokernel.ProbeRepositoryAround`
   again and drop the prefetch key.
+- `LCP-V0-034`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1976) A dogfood event whose
+  prompt context is refused by the bounded prompt-context contract (`*contextindex.Error` with code
+  `unsupported-dogfood-context-bounds`, `unsupported-dogfood-context-budget` or
+  `invalid-dogfood-context`) MUST report the one fixed `dogfood-event-prompt-bounds` code, and the
+  host adapter's degradation reason MUST carry it as
+  `corvint-event-rejected:dogfood-event-prompt-bounds`, which `SOL-V0-010` admits into the
+  self-observation ledger. Only the typed code is read, never message text; any other
+  `contextindex` refusal or untyped failure stays `dogfood-event-unavailable`. The code names a
+  cause, not a remedy: the bounds themselves are unchanged (an over-bound anchor set now degrades to a
+  partial packet under `LCP-V0-035`). Rollback: drop the `contextindex.Error` branch in
+  `dogfoodReadFailureCode` and the registry entry; the refusal returns to
+  `dogfood-event-unavailable`.
+- `LCP-V0-035`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2276) A prompt
+  whose derived explicit anchors (requirement IDs, mentions, paths, identifiers) exceed the
+  32-anchor profile MUST NOT be refused: the compiler keeps the first 32 in the fixed order
+  requirement IDs, mentions, paths, identifiers, each sorted, and resolves only those. The packet's
+  `resolution` MUST carry, only then, `dropped_anchors` (the count) and `dropped_anchor_kinds` (count per kind
+  that lost anchors); the dropped anchors are raw task terms, so `LCP-V0-011` keeps them out of
+  the packet and they are named by kind and count only. A prompt that otherwise resolves reports
+  `unresolved`/`anchor-bound-exceeded`; an earlier reason (`anchor-not-found` and the rest) keeps
+  precedence. This amends `LCP-V0-011`: `unsupported-dogfood-context-bounds` remains only for a
+  requirement ID with more than 128 candidate definitions, and the byte bound stays
+  `invalid-dogfood-context`. Non-goals: raising the 32-anchor profile or ranking anchors by
+  relevance. Failure modes: a long prompt whose most useful anchors sort late loses them; the
+  counts say so. Rollback: restore the `failBounds` call in `addAnchors` and drop the two fields.
+- `LCP-V0-036`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1757) Every base-ancestry
+  probe in `LCP-V0-002` (`begin`, evaluate, `finish` and the aggregate finish paths) MUST first apply
+  the shared ancestry guard (`EEP-V0-028`, `internal/gitancestry`): when the checkout's Git common
+  directory holds `info/grafts`, the checkout is shallow, or that metadata cannot be read, the probe
+  refuses with `ancestry-rewritten` instead of asking `git merge-base --is-ancestor`, whose answer
+  such a checkout rewrites. The guard reads those files from the already-resolved common directory
+  (`gitancestry.RewrittenAt`, which names the same reasons as `gitancestry.Rewritten`) rather than
+  spawning Git, so the `LCP-V0-019` Git-process bound on the Stop path is unchanged. The refusal is a hard error at every site, before any local write, so it
+  consumes no enrollment generation and never reaches `satisfied`; it is not reported as the
+  `base-not-ancestor-of-target` unmet condition, because the checkout made no claim about history.
+  Rollback: drop the guard call in `requireBaseAncestor`.
+- `LCP-V0-037`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0680)
+  `dogfood begin` MUST read each intent blob at the enrollment target and refuse it with the
+  code finish's default-form `ocm prepare` would report for its numbered Requirements section
+  (`invalid-intent`, `invalid-requirements-section`, `missing-requirements`,
+  `duplicate-requirement` or `too-many-obligations`), and refuse a non-blob or over-4 MiB intent
+  with `repository-object-unavailable`, before `plan.json` creates a generation directory, so a
+  refused enrollment consumes no generation and leaves the session inactive. The check reuses
+  the `ocm prepare` parser (`lrfrepo.IntentRequirementsRefusal`), so begin and finish cannot
+  disagree on the same bytes. Non-goals: declared intent forms (finish prepares only the default
+  form) and re-checking an intent edited after enrollment, which finish still refuses. Failure
+  modes: a plan that enrolled a decision document or instructions file now stops at begin
+  instead of after selected checks. Rollback: drop the requirements read in `Begin`.
 
 ## Non-goals and simpler baseline
 
@@ -410,6 +459,7 @@ elsewhere are not repeated.
 | Code | First emitting site | Condition at the cited site |
 |---|---|---|
 | `base-not-ancestor-of-target` | `internal/localcompletion/storage.go` (`requireBaseAncestor`) | Git reports the plan base is not an ancestor of the enrollment-time `HEAD` commit (exit 1, empty stderr) |
+| `ancestry-rewritten` | `internal/localcompletion/storage.go` (`requireBaseAncestor`) | the checkout's Git common directory holds `info/grafts`, the checkout is shallow, or that metadata is unreadable, so the base-ancestry probe is not asked (`LCP-V0-036`) |
 | `base-unavailable` | `internal/localcompletion/lifecycle.go` (`Begin`) | the plan base does not resolve, or resolves to a different object |
 | `cem-bindings-required` | `internal/localcompletion/finish.go` (`prepareBindings`) | the public `cem status` run against the plan base and current target returned an error |
 | `check-executable-unavailable` | `internal/localcompletion/storage.go` (`resolveExecutable`) | `exec.LookPath` cannot resolve a check's executable |
@@ -423,6 +473,7 @@ elsewhere are not repeated.
 | `dogfood-event-output-too-large` | `cmd/corvint/local_completion_event.go` (`dogfoodEventBytes`) | the canonical response plus a final LF exceeds the byte budget |
 | `dogfood-event-output-unavailable` | `cmd/corvint/local_completion_event.go` (`runLocalCompletionEvent`) | writing the encoded response to stdout failed |
 | `dogfood-event-policy-drift` | `cmd/corvint/local_completion_event.go` (`localEventRead`) | the evaluation's target is set and differs from the commit probed before the event |
+| `dogfood-event-prompt-bounds` | `cmd/corvint/local_completion_event.go` (`dogfoodReadFailureCode`) | the prompt-context compiler refused the event's prompt as `unsupported-dogfood-context-bounds`, `unsupported-dogfood-context-budget` or `invalid-dogfood-context` (`LCP-V0-034`, V1-1976) |
 | `dogfood-event-repository-drift` | `cmd/corvint/local_completion_event.go` (`localEventRead`) | the closing observation of the event's one bracket differs from the opening one (`gokernel.ErrRepositoryDrift`), or the commit differs from the expected target |
 | `dogfood-event-worktree-churn` | `cmd/corvint/local_completion_event.go` (`dogfoodReadFailureCode`) | the event's repository read was refused as `repository-state-unstable`, `dogfood-event-repository-drift` or `dogfood-event-context-drift`: the worktree moved under the read (`LCP-V0-008`, decision 0533, V1-0880) |
 | `dogfood-report-drift` | `internal/localcompletion/finish.go` (`checkCoordinatorContext`) | the dogfood report does not parse, is not complete, or names a base or target other than the plan base and current target |
@@ -438,6 +489,8 @@ elsewhere are not repeated.
 | `initial-receipt-secret-screened` | `internal/localcompletion/lifecycle.go` (`Begin`) | a preserved pre-change query or impact receipt matches the secret screen; recorded as the `NOT_PRODUCED` reason in its refusal metadata |
 | `input-bound-exceeded` | `internal/localcompletion/storage.go` (`strictJSON`) | strict JSON input is empty or larger than its bound |
 | `intent-path-not-found` | `internal/localcompletion/lifecycle.go` (`Begin`) | an intent path is absent from the tree of the current target commit |
+| `invalid-intent`, `invalid-requirements-section`, `missing-requirements`, `duplicate-requirement`, `too-many-obligations` | `internal/localcompletion/lifecycle.go` (`Begin`, via `lrfrepo.IntentRequirementsRefusal`) | an intent's numbered Requirements section would be refused by finish's `ocm prepare` (`LCP-V0-037`, V1-0680) |
+| `repository-object-unavailable` | `internal/localcompletion/lifecycle.go` (`Begin`) | an intent path names a tree or a blob over 4 MiB (`LCP-V0-037`) |
 | `invalid-check-argv` | `internal/localcompletion/storage.go` (`validatePlan`) | a check's first argv element is empty, or any element exceeds 4096 bytes or contains NUL |
 | `invalid-check-bound` | `internal/localcompletion/storage.go` (`validatePlan`) | a check has fewer than 1 or more than 64 argv elements, or a timeout outside 1..3600 seconds; the message names the bounds and the requested values (`LCP-V0-032`) |
 | `invalid-check-id` | `internal/localcompletion/storage.go` (`validatePlan`) | a check id does not match `^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$` or repeats |
@@ -556,6 +609,10 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-031 | `screenedLog` and `failedTestNames` in `internal/localcompletion/screened_log.go`, applied in `Verify`; `TestScreenedCheckLogKeepsFailureLines` (screened FAIL line kept with the token redacted and named in `failedTests`; an unscreened failure names its subtests; a passing check names none; truncated and complete PEM and PGP private-key blocks keep only the marker; the over-bound and name bounds); `TestActualVerificationAndSecretRefusal` (no secret persists) |
 | LCP-V0-032 | `CheckBoundError` in `internal/localcompletion/types.go`, raised by `validatePlan`; `emitLocalCompletionFailureDetail` in `cmd/corvint/local_completion.go`; `TestDogfoodBeginCheckBoundNamesTheLimit` (`cmd/corvint/local_completion_test.go`: a 4000 s timeout and 65 argv elements; a secret-shaped check id is shown as `[REDACTED]`) |
 | LCP-V0-033 | `snapshotPrefetch` and `dogfoodEvent` in `cmd/corvint/local_completion_event.go`, consumed by `localEventContext`; `gokernel.ProbeRepositoryAroundPrefetching` (`internal/gokernel/repository.go`); `adoptObservation` (cmd, so the analyzer-schema inputs are unchanged) | `TestDogfoodEventPrefetchesTheSnapshotFromTheOpeningIdentity`, `TestSnapshotPrefetchServesOnlyItsOwnTree` and `TestAdoptObservationMatchesTheObservedLoader` (`cmd/corvint/dogfood_event_bracket_test.go`: one identity-only load, answer bytes equal to the sequential read, other-tree and unstarted fallback, adoption equal to `contextindex.LoadSnapshotObserved`'s); `TestProbeAroundPrefetchingOverlapsTheOpeningStatusRead` (`internal/gokernel/repository_around_test.go`: the status reply blocks until prefetch receives the identity, four Git calls, no closing prefetch, none after a failed identity read); `TestDogfoodEventSpawnsOneBracket` still counts four spawns; the A/B timings in `docs/build-log/2026-10-21-hooks-1021-snapshot-prefetch.md` |
+| LCP-V0-034 | `dogfoodReadFailureCode` in `cmd/corvint/local_completion_event.go`; `admittedAdapterRejections` in `internal/observations/observations.go` | `TestV11976PromptContractRefusalHasNamedCode` (`cmd/corvint/worktree_churn_test.go`: bounds, wrapped budget and invalid-context refusals report `dogfood-event-prompt-bounds`, another `contextindex` code stays `dogfood-event-unavailable`); `TestAdapterDegradationAdmitsPromptBounds` (`internal/observations/observations_test.go`); both fail without the change |
+| LCP-V0-035 | `keepAnchors` and `resolution` in `internal/contextindex/local_completion_context.go` | `TestDogfoodPromptLCPV0035KeepsFirstAnchorsInOrder` (`internal/contextindex/local_completion_context_test.go`: 2 paths and 35 identifiers keep 32 anchors and drop 5 identifiers, the packet holds no dropped term, a reversed prompt gives the same packet, 33 paths drop one path); `TestDogfoodPromptEarlyResourceBounds` keeps the 128-candidate refusal |
+| LCP-V0-036 | `requireBaseAncestor` in `internal/localcompletion/storage.go` calling `gitancestry.RewrittenAt`; `TestRewrittenAtMatchesRewrittenWithoutGit_LCPV0036` (`internal/gitancestry`: same reason as the Git-asking guard for plain, shallow and grafted checkouts); `TestEvaluateAgainstChangedBase` still counts four Git calls; `TestAncestryRewrittenCheckoutRefusesBaseProbe` (`internal/localcompletion/lifecycle_test.go`: `info/grafts` and `.git/shallow` fixtures; `begin` refuses with no `state.json`, and after a valid enrollment status and finish refuse with the state bytes unchanged) |
+| LCP-V0-037 | `Begin` in `internal/localcompletion/lifecycle.go`; `IntentRequirementsRefusal` in `internal/lrfrepo/ocm.go` | `TestEnrollmentRefusesIntentWithoutNumberedRequirements_LCPV0037` (`internal/localcompletion/lifecycle_test.go`: no section, no IDs and a duplicate ID are refused with the `ocm prepare` code 16 times without state.json, then a valid plan enrolls; fails without the change) |
 
 ## Rollout, rollback and remaining gates
 

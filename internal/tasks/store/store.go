@@ -115,6 +115,9 @@ type Report struct {
 	// ScopeWarnings are the CAL-V0-211 warnings of a fresh claim: each
 	// exact PATH key of its scope that names a directory at its base commit.
 	ScopeWarnings []string
+	// Scope is the effective scope a claim reserved, read from its
+	// receipt's attempt (ATR-V0-211); nil for any other command.
+	Scope *snapshot.Scope
 	// ReplayWarnings are the CAL-V0-236 advisories of a replayed lease
 	// command whose attempt has since moved to another generation. They are
 	// outside the replayed outcome, which stays the original.

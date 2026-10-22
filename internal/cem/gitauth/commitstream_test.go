@@ -22,6 +22,7 @@ func streamRecord(kind string, body []byte, width int) (string, []byte) {
 }
 
 func TestCommitStreamSplitFramesAndBoundedMemory(t *testing.T) {
+	// Not parallel: the bound reads process-wide runtime.MemStats.TotalAlloc.
 	t.Run("CEM-CB-023 streamed commit identity preserves tree bytes", func(t *testing.T) {
 		for _, width := range []int{40, 64} {
 			tree, treeRecord := streamRecord("tree", []byte("tree body"), width)
@@ -71,6 +72,7 @@ func TestCommitStreamSplitFramesAndBoundedMemory(t *testing.T) {
 }
 
 func TestCommitStreamRefusesMalformedFrames(t *testing.T) {
+	t.Parallel()
 	tree := strings.Repeat("a", 40)
 	_, good := streamRecord("commit", []byte("tree "+tree+"\n\nmessage\n"), 40)
 	_, badHeader := streamRecord("commit", []byte("parent "+tree+"\n"), 40)
@@ -116,6 +118,7 @@ func TestCommitStreamRefusesMalformedFrames(t *testing.T) {
 }
 
 func TestCommitTreeLinkRejectsValidUnrelatedObjects(t *testing.T) {
+	t.Parallel()
 	t.Run("CEM-CB-023 verified commit and root must be related", func(t *testing.T) {
 		for _, width := range []int{40, 64} {
 			a, _ := streamRecord("tree", nil, width)
@@ -138,6 +141,7 @@ func TestCommitTreeLinkRejectsValidUnrelatedObjects(t *testing.T) {
 }
 
 func TestCanonicalDiffPreservesSymbolicRevisions(t *testing.T) {
+	t.Parallel()
 	t.Run("CEM-CB-023 symbolic revisions retain Git-owned selection", func(t *testing.T) {
 		for _, format := range []string{"sha1", "sha256"} {
 			t.Run(format, func(t *testing.T) {
@@ -192,6 +196,7 @@ func TestVerifiedCommitTreesRejectsUnpinnedCommit(t *testing.T) {
 }
 
 func TestCommitVerificationLargeMessagesAndTreeishParity(t *testing.T) {
+	t.Parallel()
 	t.Run("CEM-CB-023 streamed commit reads preserve admitted treeish inputs", func(t *testing.T) {
 		for _, format := range []string{"sha1", "sha256"} {
 			root, seed := pathsRepo(t, format)
@@ -222,6 +227,7 @@ func TestCommitVerificationLargeMessagesAndTreeishParity(t *testing.T) {
 }
 
 func TestCommitVerificationRejectsLooseAndPackedCorruption(t *testing.T) {
+	t.Parallel()
 	t.Run("CEM-CB-023 commit corruption refuses every verified root reader", func(t *testing.T) {
 		for _, format := range []string{"sha1", "sha256"} {
 			for _, packed := range []bool{false, true} {
@@ -269,6 +275,7 @@ func TestCommitVerificationPreservesGitChildBudget(t *testing.T) {
 }
 
 func TestCommitTreeStreamsLargeRoot(t *testing.T) {
+	t.Parallel()
 	root, seed := pathsRepo(t, "sha1")
 	blob, _ := hex.DecodeString(integrityOID(t, root, seed+":other.txt"))
 	var body bytes.Buffer

@@ -14,6 +14,7 @@ import (
 // stable result it produced before V1-0609, and every other error passes
 // through unchanged.
 func TestStablePatchRefusalKeepsFrozenVocabulary(t *testing.T) {
+	t.Parallel()
 	_, err := patch.Parse([]byte("diff --git a/m.sh b/m.sh\nold mode 100644\nnew mode 100755\n"))
 	if cemcode.CodeOf(err) != cemcode.MetadataOnlyChangeUnsupported {
 		t.Fatalf("parse error = %v, want %s", err, cemcode.MetadataOnlyChangeUnsupported)

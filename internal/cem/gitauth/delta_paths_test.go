@@ -8,6 +8,7 @@ import (
 )
 
 func TestDeltaPathsIncludeCEMAndTypeChanges(t *testing.T) {
+	t.Parallel()
 	t.Run("DLT-V0-001 complete changed path set", testDeltaPathsIncludeCEMAndTypeChanges)
 }
 func testDeltaPathsIncludeCEMAndTypeChanges(t *testing.T) {
@@ -35,6 +36,7 @@ func testDeltaPathsIncludeCEMAndTypeChanges(t *testing.T) {
 	}
 }
 func TestDeltaMetadataAndBoundedSHA256(t *testing.T) {
+	t.Parallel()
 	t.Run("DLT-V0-007 self-hashed head metadata", testDeltaMetadataAndBoundedSHA256)
 }
 func testDeltaMetadataAndBoundedSHA256(t *testing.T) {

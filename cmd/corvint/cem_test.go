@@ -284,7 +284,7 @@ func TestCEMSeamsDependOnlyOnStdlibAndGit(t *testing.T) {
 	}
 	command := exec.Command(goTool, "list", "-deps", "./internal/cem/...")
 	command.Dir = filepath.Join("..", "..")
-	out, err := command.Output()
+	out, err := goListOutput(command)
 	if err != nil {
 		t.Fatalf("go list: %v", err)
 	}

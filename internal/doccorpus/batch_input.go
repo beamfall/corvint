@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/contextindex"
 )
@@ -50,6 +51,24 @@ func regularBlob(entry gitauth.TreeEntry) bool {
 	return entry.Type == "blob" && (entry.Mode == "100644" || entry.Mode == "100755")
 }
 
+// resolvePathsPerPathBound resolves paths through one verified walk
+// (DCP-V1-155) and refuses, as the per-path lookup does, a path whose
+// LookupTreeEntry would stream more than gitauth.MaxTreeBytes of tree records,
+// so the walk's aggregate bound never admits a path the per-path lookup
+// refuses (DCP-V1-243).
+func resolvePathsPerPathBound(ctx context.Context, auth *gitauth.Repository, commit string, paths []string) (map[string]gitauth.TreeEntry, error) {
+	entries, lookups, err := auth.ResolvePathLookups(ctx, commit, paths)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range paths {
+		if lookups[p] > gitauth.MaxTreeBytes {
+			return nil, cemcode.New(cemcode.GitOutputExceeded, "Git stdout exceeded its byte bound")
+		}
+	}
+	return entries, nil
+}
+
 // stageInputs resolves the inputs (revision -> paths) that indexes do not
 // hold as text and reads the headers of their regular blobs. No body is read.
 func stageInputs(ctx context.Context, auth *gitauth.Repository, indexes map[string]*contextindex.Index, inputs map[string][]string, limit int) (*inputLoader, error) {
@@ -75,7 +94,7 @@ func stageInputs(ctx context.Context, auth *gitauth.Repository, indexes map[stri
 		if len(paths) == 0 {
 			continue
 		}
-		entries, err := auth.ResolvePaths(ctx, index.CommitRevision, paths)
+		entries, err := resolvePathsPerPathBound(ctx, auth, index.CommitRevision, paths)
 		if err != nil {
 			return nil, err
 		}

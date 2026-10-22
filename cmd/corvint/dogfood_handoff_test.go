@@ -30,7 +30,7 @@ func handoffRepository(t *testing.T) (string, string) {
 	if err := os.MkdirAll(filepath.Join(root, "docs", "specs"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, handoffSpec), []byte("# Event specification\n\n- `LCP-TEST-001`: Preserve an explicit requirement anchor.\n"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, handoffSpec), []byte("# Event specification\n\n## Requirements\n\n- `LCP-TEST-001`: Preserve an explicit requirement anchor.\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	gitOutput(t, root, "add", handoffSpec)
