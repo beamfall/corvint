@@ -20,7 +20,6 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
-	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
@@ -196,6 +195,9 @@ func (r *Registry) Tools() []bridge.ToolDescriptor {
 		}
 		if op == "gaps" {
 			properties["id"] = map[string]any{"type": "string", "maxLength": 1024}
+			// DCP-V1-284: optional gap kind filter, one kind or a list.
+			kind := map[string]any{"type": "string", "minLength": 1, "maxLength": 128}
+			properties["kind"] = map[string]any{"oneOf": []any{kind, map[string]any{"type": "array", "minItems": 1, "maxItems": doccorpus.MaxGapKinds, "uniqueItems": true, "items": kind}}}
 		}
 		if op == "flow" {
 			// DCP-V1-170, DCP-V1-171: optional section and record-kind filters.
@@ -212,6 +214,11 @@ func (r *Registry) Tools() []bridge.ToolDescriptor {
 	sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
 	return result
 }
+
+// ArtifactSHA256 is the configured artifact's digest, the corpus identity an
+// outcome log is bound to (DCP-V1-285).
+func (r *Registry) ArtifactSHA256() string { return r.digest }
+
 func (r *Registry) Call(ctx context.Context, name string, arguments []byte) (map[string]any, string, *ToolFailure, *Error) {
 	result, text, failure, protocol, _ := r.CallTimed(ctx, name, arguments)
 	return result, text, failure, protocol
@@ -246,6 +253,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 		Section    jsontext.Value              `json:"section"`
 		Include    []string                    `json:"include"`
 		Repository string                      `json:"repository"`
+		Kind       jsontext.Value              `json:"kind"`
 	}
 	if len(arguments) > 16<<10 || json.Unmarshal(arguments, &input, json.RejectUnknownMembers(true)) != nil {
 		return nil, "", nil, &Error{"invalid-arguments"}, finish()
@@ -256,7 +264,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	}
 	kind := doccorpus.OperationInput(op)
 	for key, value := range members {
-		allowed := key == "retirement" || key == "offset" && r.header.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && kind == "query" || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow" || key == "repository" && (op == "locate" || op == "recommend-tests")
+		allowed := key == "retirement" || key == "offset" && r.header.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && kind == "query" || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow" || key == "repository" && (op == "locate" || op == "recommend-tests") || key == "kind" && op == "gaps"
 		if !allowed || value == nil {
 			return nil, "", nil, &Error{"invalid-arguments"}, finish()
 		}
@@ -296,7 +304,11 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	if !ok || !doccorpus.ValidFlowFilter(sections, input.Include) {
 		return nil, "", nil, &Error{"invalid-arguments"}, finish()
 	}
-	request := doccorpus.Request{Operation: op, Retirement: input.Retirement, Query: input.Query, ID: input.ID, Path: input.Path, Limit: limit, Offset: input.Offset, Depth: input.Depth, Sections: sections, Include: input.Include, Repository: input.Repository}
+	kinds, ok := flowSections(input.Kind)
+	if !ok || !doccorpus.ValidGapKinds(kinds) {
+		return nil, "", nil, &Error{"invalid-arguments"}, finish()
+	}
+	request := doccorpus.Request{Operation: op, Retirement: input.Retirement, Query: input.Query, ID: input.ID, Path: input.Path, Limit: limit, Offset: input.Offset, Depth: input.Depth, Sections: sections, Include: input.Include, Repository: input.Repository, Kinds: kinds}
 	// A batch whose deadline passes while the artifact or freshness is still
 	// being prepared names every path unresolved (DCP-V1-145).
 	prepared := func(err error) (map[string]any, string, *ToolFailure, *Error, Timing) {
@@ -560,13 +572,14 @@ func (r *Registry) indexFor(ctx context.Context, a *doccorpus.Artifact) (*doccor
 // the same key the context snapshot store reuses an index under. The key is
 // read before the build, so a change during the build only forces a rebuild.
 func (r *Registry) freshness(ctx context.Context, a *doccorpus.Artifact, timing *Timing) (doccorpus.FreshnessOverlay, error) {
-	observed, err := contextindex.Observe(ctx, r.root)
+	// Every declared checkout is observed, so an additional repository's
+	// change forces a rebuild and an unchanged set reuses (DCP-V1-280).
+	key, err := doccorpus.CorpusObservation(ctx, r.root, a)
 	if err != nil {
 		return doccorpus.FreshnessOverlay{}, err
 	}
 	// The memo is keyed by the state the overlay was built from, never by an
 	// earlier observation, so a change during the build cannot be reused.
-	key := doccorpus.ObservationKey(observed)
 	r.live.Lock()
 	if r.live.artifact == a && r.live.key == key {
 		overlay := r.live.overlay

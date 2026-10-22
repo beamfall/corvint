@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/contextindex"
@@ -23,6 +24,7 @@ type FreshnessOverlay struct {
 	State       string
 	Limitations []string
 	symbols     *symbolOverlay
+	drift       *anchorDrift
 	observation string
 }
 
@@ -39,6 +41,53 @@ func ObservationKey(o contextindex.Observation) string {
 	return strings.Join(append([]string{o.ObjectFormat, o.CommitRevision, o.Revision, o.StatusSHA256}, dirty...), "\x00")
 }
 
+// CorpusObservation observes every checkout the artifact's live freshness reads, the primary
+// root and each declared additional repository, concurrently (DCP-V1-280). It equals
+// ObservationKey of the primary observation for a single-repository corpus, and an overlay's
+// Observation is reusable exactly while CorpusObservation still returns it.
+func CorpusObservation(ctx context.Context, root string, a *Artifact) (string, error) {
+	dirs := []string{root}
+	for _, r := range a.Manifest.AdditionalRepositories {
+		dirs = append(dirs, a.Manifest.RevisionRoot(root, r.Revision))
+	}
+	keys, errs := make([]string, len(dirs)), make([]error, len(dirs))
+	var wg sync.WaitGroup
+	for i, dir := range dirs {
+		wg.Go(func() {
+			observed, err := contextindex.Observe(ctx, dir)
+			keys[i], errs[i] = ObservationKey(observed), err
+		})
+	}
+	wg.Wait()
+	for _, err := range errs {
+		if err != nil {
+			return "", err
+		}
+	}
+	return checkoutsKey(a, keys), nil
+}
+
+func indexObservationKey(live *contextindex.Index) string {
+	return ObservationKey(contextindex.Observation{
+		ObjectFormat: live.ObjectFormat, CommitRevision: live.CommitRevision, Revision: live.Revision, StatusSHA256: live.StatusSHA256, DirtyPaths: live.DirtyPaths})
+}
+
+// checkoutsKey joins the primary key and each additional repository's identity and key,
+// length-prefixed so no path byte can make two checkout sets collide.
+func checkoutsKey(a *Artifact, keys []string) string {
+	if len(keys) == 1 {
+		return keys[0]
+	}
+	var b strings.Builder
+	for i, key := range keys {
+		if i > 0 {
+			key = a.Manifest.AdditionalRepositories[i-1].ID + "\x00" + key
+		}
+		fmt.Fprintf(&b, "%d:%s;", len(key), key)
+	}
+	return b.String()
+}
+
 // LiveFreshness is Freshness plus symbol-anchor re-resolution (DCP-V1-141).
 // The overall state is unchanged by the symbol checks.
 func LiveFreshness(ctx context.Context, root string, a *Artifact) (FreshnessOverlay, error) {
@@ -51,7 +100,8 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 	}()
 	unknown := FreshnessOverlay{State: "unknown"}
 	primary := func(revision string) bool { _, ok := a.Manifest.additionalRepository(revision); return !ok }
-	live, stale, limits, err := liveRepository(ctx, root, a, primary, "")
+	drift := &anchorDrift{pinned: map[string]string{}, changed: map[string]inputDrift{}}
+	live, stale, limits, err := liveRepository(ctx, root, a, primary, "", drift)
 	if err != nil {
 		return unknown, err
 	}
@@ -59,21 +109,21 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 	if a.Builder.Revision == "unrecorded" || strings.HasSuffix(a.Builder.Revision, "+dirty") {
 		limits = append(limits, "builder source revision is unrecorded or dirty; no immutable build attestation")
 	}
-	observation := ObservationKey(contextindex.Observation{
-		ObjectFormat: live.ObjectFormat, CommitRevision: live.CommitRevision, Revision: live.Revision, StatusSHA256: live.StatusSHA256, DirtyPaths: live.DirtyPaths})
+	keys := []string{indexObservationKey(live)}
 	// Each additional repository's inputs are checked against its own declared checkout, never
-	// the primary tree (DCP-V1-178). The primary observation alone then no longer identifies the
-	// state, so the overlay carries no reusable observation key.
+	// the primary tree (DCP-V1-178), and that checkout's own observation joins the overlay's
+	// reuse key (DCP-V1-280).
 	for _, r := range a.Manifest.AdditionalRepositories {
 		member := func(revision string) bool { return revision == r.Revision }
-		_, changed, reasons, err := liveRepository(ctx, a.Manifest.RevisionRoot(root, r.Revision), a, member, "additional repository "+r.ID+": ")
+		checkout, changed, reasons, err := liveRepository(ctx, a.Manifest.RevisionRoot(root, r.Revision), a, member, "additional repository "+r.ID+": ", drift)
 		if err != nil {
 			return unknown, err
 		}
 		stale = stale || changed
 		limits = append(limits, reasons...)
-		observation = ""
+		keys = append(keys, indexObservationKey(checkout))
 	}
+	observation := checkoutsKey(a, keys)
 	state := "fresh"
 	if stale {
 		state = "stale"
@@ -92,7 +142,7 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 			limits = append(limits[:MaxResults], fmt.Sprintf("freshness diagnostic bound withheld %d reasons", omitted))
 		}
 	}
-	overlay := FreshnessOverlay{State: state, Limitations: limits, observation: observation}
+	overlay := FreshnessOverlay{State: state, Limitations: limits, drift: drift, observation: observation}
 	if symbols {
 		overlay.symbols = &symbolOverlay{root: root, live: live, repository: a.Manifest.Repository.ID, files: &sharedSymbolFiles{files: map[string]sharedSymbolFile{}}}
 	}
@@ -100,8 +150,9 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 }
 
 // liveRepository compares the scopes and inputs whose revision member admits against the live
-// checkout at dir, returning whether any is stale and each reason under prefix.
-func liveRepository(ctx context.Context, dir string, a *Artifact, member func(string) bool, prefix string) (*contextindex.Index, bool, []string, error) {
+// checkout at dir, returning whether any is stale and each reason under prefix. It records each
+// admitted input's pinned blob, and its live drift when it differs, in drift (DCP-V1-282).
+func liveRepository(ctx context.Context, dir string, a *Artifact, member func(string) bool, prefix string, drift *anchorDrift) (*contextindex.Index, bool, []string, error) {
 	live, err := contextindex.BuildContext(ctx, dir, "")
 	if err != nil {
 		return nil, false, nil, err
@@ -178,11 +229,17 @@ func liveRepository(ctx context.Context, dir string, a *Artifact, member func(st
 		if source, ok := live.Sources[in.Path]; ok && !dirty[in.Path] {
 			entry, exists = gitauth.TreeEntry{Type: "blob", Mode: source.Mode, OID: source.BlobHash}, true
 		}
-		if !exists || entry.Type != "blob" || (entry.Mode != "100644" && entry.Mode != "100755") || entry.OID != in.Blob {
+		regular := exists && entry.Type == "blob" && (entry.Mode == "100644" || entry.Mode == "100755")
+		if !regular || entry.OID != in.Blob {
 			note("input changed or absent: " + in.Path)
 		}
 		if dirty[in.Path] {
 			note("working-tree input differs: " + in.Path)
+		}
+		key := inputKey(in.Revision, in.Path)
+		drift.pinned[key] = in.Blob
+		if !regular || entry.OID != in.Blob || dirty[in.Path] {
+			drift.changed[key] = inputDrift{dir: dir, oid: entry.OID, objectFormat: live.ObjectFormat, dirty: dirty[in.Path], exists: regular}
 		}
 	}
 	return live, stale, limits, nil
@@ -228,7 +285,7 @@ func QueryContext(ctx context.Context, a *Artifact, request Request, freshness s
 // cites are re-resolved, on demand and under one budget per call, so the
 // receipt is the one a fresh reader returns (DCP-V1-144).
 func QueryLive(ctx context.Context, a *Artifact, request Request, overlay FreshnessOverlay) (Receipt, error) {
-	checker := &symbolChecker{overlay: overlay.symbols, checks: map[string]SymbolAnchorCheck{}}
+	checker := &symbolChecker{overlay: overlay.symbols, checks: map[string]SymbolAnchorCheck{}, anchors: &anchorStates{drift: overlay.drift, states: map[string]string{}, files: map[string][]byte{}}}
 	defer checker.close()
 	return queryContext(ctx, a, request, overlay.State, overlay.Limitations, checker)
 }
@@ -252,6 +309,9 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	}
 	if (request.Sections != nil || request.Include != nil) && (request.Operation != "flow" || !ValidFlowFilter(request.Sections, request.Include)) {
 		return Receipt{}, fail("flow section and include filters are bounded and apply only to flow")
+	}
+	if request.Kinds != nil && (request.Operation != "gaps" || !ValidGapKinds(request.Kinds)) {
+		return Receipt{}, fail("gap kind filter is bounded and applies only to gaps")
 	}
 	if request.Offset < 0 || request.Offset > MaxCorpusRecords*4 || a.Schema != SchemaV2 && (request.Offset != 0 || request.Operation == "inventory") {
 		return Receipt{}, fail("pagination requires corpus /2 and bounded offset")
@@ -277,7 +337,7 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 				r.Limitations = append(r.Limitations, cap.Reason)
 			}
 		}
-		finalizeEnvelope(&r)
+		finalizeEnvelope(&r, symbols)
 		return r, nil
 	}
 	if freshness == "stale" {
@@ -380,11 +440,28 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 		if e != nil {
 			return Receipt{}, e
 		}
+		// DCP-V1-284: a kind filter keeps only the named kinds and totals each, before paging.
+		kind := func(k string) bool {
+			if request.Kinds == nil {
+				return true
+			}
+			if _, ok := r.KindTotals[k]; !ok {
+				return false
+			}
+			r.KindTotals[k]++
+			return true
+		}
+		if request.Kinds != nil {
+			r.KindTotals = map[string]int{}
+			for _, k := range request.Kinds {
+				r.KindTotals[k] = 0
+			}
+		}
 		for _, g := range append(append([]Gap{}, a.Gaps...), generated...) {
 			if err := ctx.Err(); err != nil {
 				return Receipt{}, err
 			}
-			if request.ID == "" || g.Subject == request.ID {
+			if (request.ID == "" || g.Subject == request.ID) && kind(g.Kind) {
 				r.Results = append(r.Results, g)
 			}
 		}
@@ -393,7 +470,7 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 		// claim's subject.
 		targets := suppliedGapClaimSubjects(a, request.ID)
 		for _, g := range a.SuppliedGaps {
-			if request.ID == "" || g.Subject == request.ID || g.ID == request.ID || targets[g.Subject] {
+			if (request.ID == "" || g.Subject == request.ID || g.ID == request.ID || targets[g.Subject]) && kind(g.Kind) {
 				r.Results = append(r.Results, g)
 				r.Citations = append(r.Citations, g.Evidence.Anchors...)
 			}
@@ -476,7 +553,7 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 		return Receipt{}, err
 	}
 	nameResultRepositories(a, request, &r)
-	finalizeEnvelope(&r)
+	finalizeEnvelope(&r, symbols)
 	if _, err := Encode(r); err != nil {
 		return Receipt{}, err
 	}

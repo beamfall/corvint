@@ -269,13 +269,18 @@ type Request struct {
 	// Repository optionally restricts locate and recommend-tests to one declared repository's
 	// root-commit identity (DCP-V1-310).
 	Repository string `json:"repository,omitempty"`
+	// Kinds filters a gaps query to the named gap kinds (DCP-V1-284); nil means absent.
+	Kinds []string `json:"kinds,omitempty"`
 }
 type Receipt struct {
 	Envelope  *TrustEnvelope      `json:"trust_envelope,omitempty"`
 	Meaning   string              `json:"meaning,omitempty"`
 	Selection *TestRecommendation `json:"test_selection,omitempty"`
 	// FlowSelection is present only on a filtered flow query (DCP-V1-172).
-	FlowSelection  *FlowSelection           `json:"flow_selection,omitempty"`
+	FlowSelection *FlowSelection `json:"flow_selection,omitempty"`
+	// KindTotals counts, per requested kind, the gaps a kind-filtered gaps query matched before
+	// paging; present only with a kind filter (DCP-V1-284).
+	KindTotals     map[string]int           `json:"kind_totals,omitempty"`
 	Offset         int                      `json:"offset,omitempty"`
 	NextOffset     *int                     `json:"next_offset,omitempty"`
 	Details        map[string]RecordDetails `json:"details,omitempty"`

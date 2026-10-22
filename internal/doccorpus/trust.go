@@ -31,12 +31,18 @@ type TrustEnvelope struct {
 	Freshness        string           `json:"freshness"`
 	SourceValidation string           `json:"source_validation"`
 	Retirement       RetirementStatus `json:"retirement"`
-	Citations        []Anchor         `json:"citations"`
-	Limitations      []string         `json:"limitations"`
+	// VerifiedAt is when the content was last verified; no verification is recorded, so it is
+	// always null with a limitation (DCP-V1-283).
+	VerifiedAt  *string         `json:"verified_at"`
+	Citations   []CitationState `json:"citations"`
+	Limitations []string        `json:"limitations"`
 }
 
+// unverifiedLimitation explains a null verified_at (DCP-V1-283).
+const unverifiedLimitation = "verified_at is null: no verification of this corpus content is recorded; content_status generated"
+
 func trustEnvelope(a *Artifact, freshness string, policy *RetirementPolicy) (*TrustEnvelope, error) {
-	e := &TrustEnvelope{ContentStatus: "generated", SourceRevision: a.Manifest.Repository.Revision, CorpusRevision: a.SHA256, Builder: a.Builder, Freshness: freshness, SourceValidation: "caller-provided-validated-artifact", Retirement: RetirementStatus{State: "unknown", Authority: "NOT_OBSERVED", Reasons: []string{"retirement policy not supplied"}}, Citations: []Anchor{}, Limitations: []string{"imported review labels are attributed declarations; semantic truth and review authentication NOT_OBSERVED"}}
+	e := &TrustEnvelope{ContentStatus: "generated", SourceRevision: a.Manifest.Repository.Revision, CorpusRevision: a.SHA256, Builder: a.Builder, Freshness: freshness, SourceValidation: "caller-provided-validated-artifact", Retirement: RetirementStatus{State: "unknown", Authority: "NOT_OBSERVED", Reasons: []string{"retirement policy not supplied"}}, Citations: []CitationState{}, Limitations: []string{"imported review labels are attributed declarations; semantic truth and review authentication NOT_OBSERVED", unverifiedLimitation}}
 	if policy == nil {
 		return e, nil
 	}
@@ -83,11 +89,23 @@ func trustEnvelope(a *Artifact, freshness string, policy *RetirementPolicy) (*Tr
 	}
 	return e, nil
 }
-func finalizeEnvelope(r *Receipt) {
+
+// finalizeEnvelope copies the receipt's citations into the envelope with their anchor states:
+// unknown without a live reader. A cited span that moved, changed or is gone makes the envelope
+// freshness stale; it is never fresher than the reader's freshness (DCP-V1-282).
+func finalizeEnvelope(r *Receipt, c *symbolChecker) {
 	if r.Envelope == nil {
 		return
 	}
-	r.Envelope.Citations = append([]Anchor{}, r.Citations...)
+	var states *anchorStates
+	if c != nil {
+		states = c.anchors
+	}
+	citations, drifted := citationStates(r.Citations, states)
+	r.Envelope.Citations = citations
+	if drifted {
+		r.Envelope.Freshness, r.Freshness = "stale", "stale"
+	}
 	r.Envelope.Limitations = append(r.Envelope.Limitations, r.Limitations...)
 	if r.State == "empty" && r.Miss != "page-exhausted" {
 		r.Meaning = "not documented"

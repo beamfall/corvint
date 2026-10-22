@@ -133,7 +133,7 @@ func pageReceipt(ctx context.Context, a *Artifact, original Receipt, request Req
 		}
 		r.ResultRepositories = nil
 		nameResultRepositories(a, request, &r)
-		finalizeEnvelope(&r)
+		finalizeEnvelope(&r, symbols)
 		if _, err := Encode(r); err != nil {
 			if end-start > 1 {
 				end = start + (end-start)/2
