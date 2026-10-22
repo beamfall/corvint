@@ -14,3 +14,7 @@ func openReceiptFile(parent *os.Root, name string) (*os.File, error) {
 func openReceiptDirectory(parent *os.Root, name string) (*os.Root, error) {
 	return nil, errors.New("unsupported receipt platform")
 }
+
+func openTopDirectory(name string) (*os.Root, error) {
+	return nil, errors.New("unsupported receipt platform")
+}

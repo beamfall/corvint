@@ -61,12 +61,12 @@ func descend(parent *os.File, rel string, flags int, perm os.FileMode) (*os.File
 		return nil, fmt.Errorf("unclean relative path %q", rel)
 	}
 	parts := strings.Split(rel, "/")
-	cur, err := child(parent, ".", syscall.O_RDONLY|syscall.O_DIRECTORY, 0)
+	cur, err := child(parent, ".", traversalFlags, 0)
 	if err != nil {
 		return nil, err
 	}
 	for _, part := range parts[:len(parts)-1] {
-		next, err := child(cur, part, syscall.O_RDONLY|syscall.O_DIRECTORY, 0)
+		next, err := child(cur, part, traversalFlags, 0)
 		cur.Close()
 		if err != nil {
 			return nil, err
@@ -85,7 +85,7 @@ func Root(path string) (*Directory, error) {
 	if !filepath.IsAbs(path) || filepath.Clean(path) != path {
 		return nil, fmt.Errorf("unclean absolute directory %q", path)
 	}
-	anchor, err := os.OpenFile("/", os.O_RDONLY|syscall.O_DIRECTORY|syscall.O_NOFOLLOW, 0)
+	anchor, err := os.OpenFile("/", traversalFlags|syscall.O_NOFOLLOW, 0)
 	if err != nil {
 		return nil, err
 	}
