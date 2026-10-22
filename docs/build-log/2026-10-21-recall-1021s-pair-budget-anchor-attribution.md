@@ -23,7 +23,8 @@ is the owner-delegated orchestrator decision of 2026-10-21.
   TCP-V0-011's `withheld` count is unchanged.
 - IDX-SNAP-V0-108: `.mts` and `.cts` join the text-only suffix allowlist (no symbol extractor).
 - Analyzer schema `corvint-analyzer/143`. 140 is on main (V1-2285), and #1483, #1502 and #1509
-  take 141. Batch #1505 takes 142.
+  take 141. Batch #1505 takes 142. Batch 1021v renumbered it to `corvint-analyzer/146`, after
+  #1509 (143), #1512 (144) and #1514 (145).
 - V1-2295 is attributed and not changed here. The drop is the TCP-V0-022 anchors default flip in
   `366c3756a` (#444), not the pair rule. Choosing between the chi orientation gain and trace2code
   is an owner fork, so the baseline is not moved.

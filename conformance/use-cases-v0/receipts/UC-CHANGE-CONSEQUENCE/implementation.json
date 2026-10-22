@@ -6,7 +6,7 @@
     ]
   },
   "evidenceClass": "implementation",
-  "repositoryRevision": "b5421ca364d96951d7687d5a5bdc135ad2fc9c13",
+  "repositoryRevision": "72cff3ce8ec49fabcd53f3c3f231b7d33d894784",
   "result": "PASS",
   "spec": "corvint-use-case-evidence/0",
   "subjects": [
@@ -16,7 +16,7 @@
     },
     {
       "path": "cmd/corvint/affected.go",
-      "sha256": "3dd02d89e6624aca75a02445758ff766f9e9d0000893d590922ab172f0bd4f90"
+      "sha256": "f8906d36a2ee2eddced597c92aa8c1f6bd021b8fb01d97fbc02cc8c2d15fb881"
     }
   ],
   "useCaseId": "UC-CHANGE-CONSEQUENCE"

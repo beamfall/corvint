@@ -924,7 +924,7 @@ index it builds is byte-identical (V1-2289).
   rebuilt; the gob snapshot is executable-keyed, so no binary ever read both. This changes the
   encoding of the private cache, not its contract: it stays executable-keyed and is still not the
   immutable transport-neutral encoding `deployment-neutral-index-platform-v0.md` governs (Non-goals).
-  The pack's sections change bytes, so the analyzer schema moves to `corvint-analyzer/147`.
+  The pack's sections change bytes, so the analyzer schema moves to `corvint-analyzer/145` (the lane's 147, renumbered by batch 1021v).
   Format gate evidence on this repository (9ae946a5c and a one-file commit on top, host load
   average 24 to 40), base binary against this change: snapshot 182,633,829 to 182,598,748 bytes;
   three cold `index` runs median 2.85 s to 3.12 s, max RSS 1,396 to 1,538 MB against 1,366 to

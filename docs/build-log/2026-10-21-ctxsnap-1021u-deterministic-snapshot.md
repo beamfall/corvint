@@ -22,7 +22,8 @@ owner's standing auto-accept (2026-10-11). Base `origin/main` 9ae946a5c.
   infrastructure, no new file layout. The gob format string moves to `corvint-index-snapshot/2`; a
   `/1` file is a format mismatch and rebuilds (the gob snapshot is executable-keyed, so no binary
   reads both). The pack sections change bytes, so the analyzer schema moves 140 -> 147 (141 to 146
-  are reserved by other lanes).
+  are reserved by other lanes). Batch 1021v renumbered it to `corvint-analyzer/145`, after #1505
+  (142), #1509 (143) and #1512 (144); the golden output digest was unchanged by the batch.
 - V1-2289: an output pin, not a weaker input rule. `TestAnalyzerSchemaOutput` hashes the pack a
   fixed golden corpus compiles to; `script/analyzer-schema.sh` reads that pin, `bump` runs the test
   to get the real output digest and keeps REF's number when it equals REF's, and `check` accepts
@@ -80,5 +81,5 @@ owner's standing auto-accept (2026-10-11). Base `origin/main` 9ae946a5c.
 ## Rollback
 
 Revert the commit. Files written as `/2` then miss and rebuild under `/1`; packs written at
-`corvint-analyzer/147` miss under the reverted schema id. The output pin and its script handling
+`corvint-analyzer/145` (the lane's 147, renumbered by batch 1021v) miss under the reverted schema id. The output pin and its script handling
 can be removed alone: the script then behaves as `IDX-SNAP-V0-060`/`061`.

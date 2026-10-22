@@ -40,7 +40,8 @@ took its gate from the profile alone while path impact read the Makefile first.
   closes with them instead of `make gate`; that is the intended reading of its declaration.
 - The analyzer inputs changed (`internal/contextindex`, `internal/projectprofile`), so the schema
   moves to `corvint-analyzer/143` (139 on the base; 141 and 142 are taken by open PRs; the
-  orchestrator renumbers at batch time).
+  orchestrator renumbers at batch time). Batch 1021v renumbered it to `corvint-analyzer/144`,
+  because batch #1505 took 142 and #1509 took 143.
 
 ## Evidence
 
