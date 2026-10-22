@@ -104,7 +104,7 @@ receipt, cache, and denial policy; the local source-content-free policy does not
 
 ## Requirements
 
-- `MCPV0-035`: accepted, decision 0512. Cancellation of an active
+- `MCPV0-035`: (accepted, decision 0512) Cancellation of an active
   `corvint.flows.impact` MUST stop its impact graph walk under AFU-V1-059 and return the
   existing `cancelled` failure without a ready receipt. A regression MUST cancel after the
   actual language walk begins and prove the call returns, under the race detector.
@@ -652,7 +652,7 @@ Each row cites the first emitting site and states only the condition checked the
   SHOULD that a structured result also returns its serialized JSON as text; a text-only client
   sees the ranked rows but not their evidence. A client that validates the text block MUST also
   admit the full framed object, which servers predating this requirement emit.
-- `MCPV0-034`: accepted 2026-10-08 (decision 0470; V1-0485; no GitHub issue). `Registry.Call` checks the request context
+- `MCPV0-034`: (accepted 2026-10-08 (decision 0470; V1-0485; no GitHub issue)) `Registry.Call` checks the request context
   again after the tool operation returns and before the root-identity check: a call whose context
   ended at any point before that check returns the `cancelled` failure and no result, never a
   READY receipt or an abstention built before the cancellation was observed. `invalid-arguments`

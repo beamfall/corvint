@@ -15,6 +15,8 @@ fixtures are in `/private/tmp/cem10-build/platform` for this build session.
 | bats.tap | Bats Core 1.14.0 | `bats --formatter tap matrix.bats`; exit 1; pass, failure, skip |
 | shellspec.xml | ShellSpec 0.28.1 | `shellspec --shell /bin/sh --format junit --no-color matrix_spec.sh`; exit 101; pass, expectation failure, skip |
 | xcode-tests.json / xcode-summary.json | Xcode 27.0, xcresulttool schema 0.4.0 | `xcodebuild test -destination platform=macOS ... CODE_SIGNING_ALLOWED=NO`; exit 65; Swift and Objective-C XCTest pass, assertion failure, skip; native xcresulttool tests and summary views |
+| xcode-build-error-tests.json / xcode-build-error-summary.json / xcode-build-error-stderr.txt | Xcode 27.0 (27A266a), xcresulttool 25115 schema 0.4.0, macOS 26.6.2, 2026-10-17 | `xcodebuild test` on a target with a compile error, then both xcresulttool views; exit 65; empty test tree, destination-less summary, native `The following build commands failed:` stderr; byte-exact (TRE-V0-117) |
+| xcode-zero-tests.json / xcode-zero-summary.json | Xcode 27.0 (27A266a), xcresulttool 25115 schema 0.4.0, macOS 26.6.2, 2026-10-17 | `xcodebuild test` on a test target with no tests, then both xcresulttool views; exit 0; one empty `Test Plan` node, destination-less summary; byte-exact (TRE-V0-117) |
 
 These fixtures verify native decoding. They do not qualify mutation adequacy,
 all framework features, other runtime versions, devices or language variants.

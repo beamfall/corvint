@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/jstestprovider"
@@ -56,6 +57,71 @@ func applyJSSources(tests []Test, receipt jstestprovider.Receipt, worktree *os.R
 		tests[index].Projection = testvalidity.ApplyJSExampleSource(tests[index].Projection, source, anchor)
 		tests[index].SourceRules = &source
 	}
+	placeJSDeclarations(tests, receipt, files, worktree, root, read)
+}
+
+// placeJSDeclarations places, by title, each JS/TS outcome whose anchor did not place its
+// declaration: a Vitest or unprofiled outcome with no anchor or a failure-frame anchor
+// (LPCV-V0-291). Every retained test file bound inside root is read as applyJSSources reads it,
+// and an example matches when its literal title path, joined by " " (Vitest) or " > " (Bun),
+// equals the outcome's full name. Exactly one match sets the location's file, declaring line and
+// title path; more than one names file and line declaration-ambiguous; none leaves the location
+// as it was. The projection is unchanged: only an anchor-bound reading moves an axis.
+func placeJSDeclarations(tests []Test, receipt jstestprovider.Receipt, files map[string]jsSourceFile, worktree *os.Root, root string, read ExampleSourceReader) {
+	keys := []string{}
+	for key := range receipt.Identity.TestFileDigests {
+		if filepath.IsAbs(key) {
+			if relative, err := filepath.Rel(root, key); err == nil && filepath.IsLocal(relative) {
+				keys = append(keys, key)
+			}
+		}
+	}
+	slices.Sort(keys)
+	for index, outcome := range receipt.Tests {
+		if index >= len(tests) || tests[index].Name != outcome.Name || outcome.FullName == "" || !unplacedJSDeclaration(tests[index].Location) {
+			continue
+		}
+		type match struct {
+			file   string
+			line   int
+			source testvalidity.ExampleSource
+		}
+		var matches []match
+		for _, key := range keys {
+			file, seen := files[key]
+			if !seen {
+				file = readJSSource(worktree, root, key, receipt.Identity.TestFileDigests[key], read)
+				files[key] = file
+			}
+			if file.reason != "" {
+				continue
+			}
+			for line, example := range file.examples {
+				if len(example.TitlePath) > 0 && (strings.Join(example.TitlePath, " ") == outcome.FullName || strings.Join(example.TitlePath, " > ") == outcome.FullName) {
+					matches = append(matches, match{file.relative, line, example})
+				}
+			}
+		}
+		location := tests[index].Location
+		switch len(matches) {
+		case 0:
+		case 1:
+			location.placeSource(matches[0].file, matches[0].line, matches[0].source)
+		default:
+			location.Absent[locationFile] = LocationDeclarationAmbiguous
+			location.Absent[locationLine] = LocationDeclarationAmbiguous
+		}
+	}
+}
+
+// unplacedJSDeclaration reports whether a JS/TS location still lacks its file and line because
+// the provider recorded no anchor or its anchor is not the declaration.
+func unplacedJSDeclaration(location *Location) bool {
+	if location == nil || location.File != "" || location.Line > 0 {
+		return false
+	}
+	reason := location.Absent[locationFile]
+	return reason == LocationNotDeclaration || reason == LocationNotRecorded
 }
 
 // boundTestFile returns the one testFileDigests key that is an absolute path inside root and that

@@ -523,6 +523,7 @@ type symbolChecker struct {
 	blobs    map[string]string
 	checks   map[string]SymbolAnchorCheck
 	withheld string
+	anchors  *anchorStates
 }
 
 func (c *symbolChecker) close() {

@@ -59,14 +59,15 @@ func BuildAdmitted(ctx context.Context, root string, m Manifest) (*Artifact, err
 }
 
 // AdmitIndex is BuildAdmitted's index check for a corpus built by another
-// writer (republish, flow docs): it returns the capacity refusal when the
-// artifact's query index would exceed its bounds, or the context's error when
-// the check was interrupted before it finished, and nil otherwise
-// (DCP-V1-196, V1-2003).
+// writer (republish, flow docs): it returns the typed refusal the indexed reads
+// would return for the artifact's query index (the capacity code, or
+// corpus-refused for a record family, key, identity or path-fanout bound;
+// DCP-V1-244, V1-2002), or the context's error when the check was interrupted
+// before it finished, and nil otherwise (DCP-V1-196, V1-2003).
 func AdmitIndex(ctx context.Context, a *Artifact) error {
 	var coded *Error
 	_, err := BuildQueryIndex(ctx, a)
-	if errors.As(err, &coded) && coded.Code == CapacityCode {
+	if errors.As(err, &coded) {
 		return err
 	}
 	return ctx.Err()

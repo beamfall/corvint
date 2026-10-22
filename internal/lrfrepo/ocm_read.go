@@ -534,7 +534,7 @@ func verifyStableOCMCEM(ctx context.Context, repository *gitauth.Repository, roo
 	if err != nil {
 		var refusal *StableRefusal
 		if errors.As(err, &refusal) {
-			return nil, fail(refusal.Code(), "stable CEM verification did not accept: %s", refusal.Code())
+			return nil, stableOCMRefusal(refusal)
 		}
 		return nil, err
 	}
@@ -547,6 +547,13 @@ func verifyStableOCMCEM(ctx context.Context, repository *gitauth.Repository, roo
 	}
 	excluded := wire.ExcludedCEMPath
 	return &verifiedCEM{cem.BaseRevision, *result.TargetRevision, patchBytes, "canonical-derived", &excluded}, nil
+}
+
+// stableOCMRefusal is the OCM read/prepare refusal for an unaccepted stable
+// map: the verifier's code, and for a resource limit the bound that fired and
+// its value (OCM-V0-026).
+func stableOCMRefusal(refusal *StableRefusal) error {
+	return fail(refusal.Code(), "stable CEM verification did not accept: %s%s", refusal.Code(), refusal.limitSuffix())
 }
 
 // sameStableResult reports whether two stable verifier results encode to the

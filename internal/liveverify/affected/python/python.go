@@ -10,6 +10,7 @@ package python
 import (
 	"context"
 	"path"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -29,6 +30,10 @@ const (
 	// FrontierConditionalImport reports an import nested inside a block, whose
 	// execution is conditional. The edge is kept; the condition is the frontier.
 	FrontierConditionalImport = "python:conditional-import"
+	// FrontierPytestPlugins reports a pytest_plugins assignment whose value is
+	// not only string literals, so the plugin modules it loads are not all
+	// visible in source text (AFP-V0-188).
+	FrontierPytestPlugins = "python:pytest-plugins-unresolved"
 )
 
 // SourceRoots are the directory prefixes stripped when deriving a dotted module
@@ -100,8 +105,47 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 		}
 	}
 	resolve(units, rawImports, moduleNames, frontier)
+	linkConftests(units)
 	sort.Slice(units, func(left, right int) bool { return units[left].ID < units[right].ID })
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
+}
+
+// linkConftests adds, to every unit declaring a test, an import edge to each
+// conftest.py in the test's directory or an ancestor of it (AFP-V0-189).
+// pytest loads those conftest files, and the fixtures and hooks they define,
+// before it collects the test, although no import statement names them.
+func linkConftests(units []affected.Unit) {
+	conftests := make(map[string]string, 4)
+	for _, unit := range units {
+		for _, file := range append(append([]string(nil), unit.Sources...), unit.Tests...) {
+			if path.Base(file) == "conftest.py" {
+				conftests[path.Dir(file)] = unit.ID
+			}
+		}
+	}
+	if len(conftests) == 0 {
+		return
+	}
+	for index := range units {
+		unit := &units[index]
+		edges := make(map[string]bool, len(unit.Imports)+len(conftests))
+		for _, target := range unit.Imports {
+			edges[target] = true
+		}
+		for _, test := range unit.Tests {
+			for directory := path.Dir(test); ; directory = path.Dir(directory) {
+				if id, ok := conftests[directory]; ok && id != unit.ID {
+					edges[id] = true
+				}
+				if directory == "." {
+					break
+				}
+			}
+		}
+		if len(edges) != len(unit.Imports) {
+			unit.Imports = sortedKeys(edges)
+		}
+	}
 }
 
 type importRef struct {
@@ -170,9 +214,13 @@ func resolveRef(ref importRef, moduleNames map[string]string) (string, bool) {
 	return "", false
 }
 
-// scanImports reads import statements line by line. Only the first line of a
-// statement carries the module name, so parenthesised multi-line forms need no
-// continuation handling.
+// scanImports reads import statements line by line. A statement whose
+// parentheses are still open at the end of its first line, or whose line ends
+// in a backslash, continues on the following lines; those lines are joined to
+// it, comments removed, before it is parsed, so every name of a multi-line
+// `from X import (...)` is read (AFP-V0-187). A `pytest_plugins` assignment at
+// module level is read the same way: each plugin module it names is an import
+// (AFP-V0-188).
 //
 // A name that appears inside a string or comment can produce an edge that does
 // not exist. That is conservative in the safe direction: a spurious edge widens
@@ -180,10 +228,24 @@ func resolveRef(ref importRef, moduleNames map[string]string) (string, bool) {
 func scanImports(owner, text string) ([]importRef, map[string]bool) {
 	refs := make([]importRef, 0, 16)
 	flags := make(map[string]bool, 2)
-	for _, line := range strings.Split(text, "\n") {
+	lines := strings.Split(text, "\n")
+	for index := 0; index < len(lines); index++ {
+		line := lines[index]
 		trimmed := strings.TrimSpace(line)
 		if strings.Contains(trimmed, "importlib") || strings.Contains(trimmed, "__import__") {
 			flags[FrontierDynamicImport] = true
+		}
+		if plugins, ok := strings.CutPrefix(line, "pytest_plugins"); ok && pluginsAssignment(plugins) {
+			statement, next := joinContinuation(lines, index)
+			index = next
+			names, literal := pluginModules(statement)
+			if !literal {
+				flags[FrontierPytestPlugins] = true
+			}
+			for _, name := range names {
+				refs = append(refs, importRef{module: name, owner: owner})
+			}
+			continue
 		}
 		if !strings.HasPrefix(trimmed, "import ") && !strings.HasPrefix(trimmed, "from ") {
 			continue
@@ -191,12 +253,67 @@ func scanImports(owner, text string) ([]importRef, map[string]bool) {
 		if len(line) != len(trimmed) {
 			flags[FrontierConditionalImport] = true
 		}
-		for _, ref := range parseImportLine(trimmed) {
+		statement, next := joinContinuation(lines, index)
+		index = next
+		for _, ref := range parseImportLine(statement) {
 			ref.owner = owner
 			refs = append(refs, ref)
 		}
 	}
 	return refs, flags
+}
+
+// joinContinuation returns the statement starting at lines[start], comments
+// removed and continuation lines joined with single spaces, and the index of
+// its last line. Parentheses and brackets are counted outside comments only;
+// a statement still open at the end of the file ends there.
+func joinContinuation(lines []string, start int) (string, int) {
+	parts := make([]string, 0, 4)
+	depth := 0
+	index := start
+	for ; index < len(lines); index++ {
+		part := strings.TrimSpace(lines[index])
+		if cut := strings.IndexByte(part, '#'); cut >= 0 {
+			part = strings.TrimSpace(part[:cut])
+		}
+		depth += strings.Count(part, "(") + strings.Count(part, "[") - strings.Count(part, ")") - strings.Count(part, "]")
+		backslash := strings.HasSuffix(part, "\\")
+		part = strings.TrimSpace(strings.TrimSuffix(part, "\\"))
+		if part != "" {
+			parts = append(parts, part)
+		}
+		if depth <= 0 && !backslash {
+			break
+		}
+	}
+	if index == len(lines) {
+		index--
+	}
+	return strings.Join(parts, " "), index
+}
+
+// pluginsAssignment reports whether the text after a column-zero
+// `pytest_plugins` is an assignment to it.
+func pluginsAssignment(rest string) bool {
+	rest = strings.TrimLeft(rest, " \t")
+	return (strings.HasPrefix(rest, "=") && !strings.HasPrefix(rest, "==")) || strings.HasPrefix(rest, "+=")
+}
+
+// pluginLiteral is one quoted dotted module name in a pytest_plugins value.
+var pluginLiteral = regexp.MustCompile(`"([A-Za-z_][A-Za-z0-9_.]*)"|'([A-Za-z_][A-Za-z0-9_.]*)'`)
+
+// pluginModules lists the module names a pytest_plugins assignment names, and
+// whether its value is only string literals in a list, tuple or bare string.
+// Any other value (a variable, a call, a computed string) is not literal: the
+// names it does show are still edges, and the caller raises a frontier.
+func pluginModules(statement string) ([]string, bool) {
+	_, value, _ := strings.Cut(statement, "=")
+	names := make([]string, 0, 4)
+	for _, match := range pluginLiteral.FindAllStringSubmatch(value, -1) {
+		names = append(names, match[1]+match[2])
+	}
+	rest := pluginLiteral.ReplaceAllString(value, "")
+	return names, strings.TrimSpace(value) != "" && strings.Trim(rest, " \t()[],") == ""
 }
 
 func parseImportLine(line string) []importRef {
@@ -215,8 +332,8 @@ func parseImportLine(line string) []importRef {
 		refs := []importRef{{module: module, dots: dots}}
 		// Each imported name may itself be a submodule (`from pkg import
 		// sub`), so it is tried as one; a name that is not resolves to the
-		// same longest observed prefix as the statement's module. Only the
-		// first line of a parenthesised form is visible here.
+		// same longest observed prefix as the statement's module. A
+		// multi-line form arrives joined by scanImports (AFP-V0-187).
 		names := rest[cut+len(" import"):]
 		if stop := strings.IndexAny(names, "#;"); stop >= 0 {
 			names = names[:stop]

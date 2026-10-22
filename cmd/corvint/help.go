@@ -51,6 +51,11 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 	directTopic := ""
 	if len(rest) == 2 && rest[0] == "help" {
 		directTopic, _ = publicHelpTopic(rest[1])
+		// A nested topic passed as the one argument the refusal lists it as
+		// ("docs corpus") resolves like its separate-word form (DCP-V1-057).
+		if command, subcommand, spaced := strings.Cut(rest[1], " "); directTopic == "" && spaced {
+			directTopic = nestedHelpTopic(command, subcommand)
+		}
 	} else if len(rest) == 3 && rest[0] == "help" {
 		directTopic = cemOrNestedHelpTopic(rest[1], rest[2])
 	}
@@ -1300,8 +1305,8 @@ Language capabilities (syntax evidence, never complete runtime impact):
   The non-go-syntax-v0 profile always reports dynamic-dispatch unknowns;
   unsupported constructs remain unknown even without a lexical dynamic token.
 
-Path receipts over MIXED roots warn with the bound commit and dirty count when
-requested paths are not all dirty. Mutable content remains excluded. Select
+Path receipts over MIXED roots warn with the bound commit, dirty count and up
+to 8 dirty paths when requested paths are not all dirty. Mutable content remains excluded. Select
 --language-profile non-go-syntax-v0 for versioned structured non-Go unknowns;
 a request naming a Ruby path selects it by default.
 Non-Go range receipts and MCP paths name that experimental profile automatically.

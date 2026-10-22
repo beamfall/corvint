@@ -73,7 +73,7 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
 
 ## Requirements
 
-- `DCG-V0-001`: accepted, decision 0506. The gate MUST check every backticked citation in `docs/specs/*.md`,
+- `DCG-V0-001`: (accepted, decision 0506) The gate MUST check every backticked citation in `docs/specs/*.md`,
   `docs/agent-memory/*.md`, `docs/decisions/*.md`, and the current-contract documents `README.md`,
   `docs/DOGFOOD.md`, `docs/AGENT-ROUTES.md`, `docs/AUTOMATION.md`, `docs/GLOSSARY.md`, `docs/SELF-DEVELOPMENT.md`, `docs/SPEC-TOOLCHAIN-INTEGRATION.md`, `docs/RELEASE-NOTES-*.md`
   (amended by decision 0534, V1-1480; `docs/AUTOMATION.md` and `docs/GLOSSARY.md` by DCG-V0-042), and `conformance/*/README.md` (one directory
@@ -236,7 +236,7 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   inventory only shrinks (Codex review of the V1-1952 lane). Rows are only
   deleted: adding one is a contract amendment like raising the unpinned ceiling (decision 0154),
   which stays as a second bound (V1-1952, V1-2139).
-- `DCG-V0-043`: accepted under the owner's standing auto-accept (2026-10-11) (V1-2152). Every
+- `DCG-V0-043`: (accepted under the owner's standing auto-accept (2026-10-11) (V1-2152)) Every
   index read, `--hash` included, MUST refuse a path that has unmerged index entries (from
   `git ls-files -u`) and no stage 0, exiting non-zero with a message that names the path, its
   unmerged stages and that no stage 0 exists, instead of the bare `git cat-file` failure.

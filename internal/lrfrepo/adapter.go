@@ -270,7 +270,16 @@ func (e *StableRefusal) Code() string {
 }
 
 func (e *StableRefusal) Error() string {
-	return e.Code() + ": stable verification " + e.Result.Outcome + " at stage " + e.Result.Stage
+	return e.Code() + ": stable verification " + e.Result.Outcome + " at stage " + e.Result.Stage + e.limitSuffix()
+}
+
+// limitSuffix names the bound behind a resource-limit refusal and its value,
+// or nothing (OCM-V0-026; V1-2170).
+func (e *StableRefusal) limitSuffix() string {
+	if e.Result.LimitCause == "" {
+		return ""
+	}
+	return " (" + e.Result.LimitCause + ")"
 }
 
 // Unwrap exposes the refusal code to CodeOf as an adapter error.

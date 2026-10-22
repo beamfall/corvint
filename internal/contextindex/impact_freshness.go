@@ -1,14 +1,46 @@
 package contextindex
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+	"strconv"
+	"strings"
+)
 
-// mixedImpactWarning describes the immutable answer binding, never mutable content.
+// impactDirtyPathsShown bounds the dirty paths a MIXED impact warning names
+// (DIRTY-CACHE-018); the rest are counted, matching affected's detail.
+const impactDirtyPathsShown = 8
+
+// mixedImpactWarning describes the immutable answer binding, never mutable
+// content. It names up to impactDirtyPathsShown dirty paths in sorted order
+// and counts the rest.
 func mixedImpactWarning(index *Index) string {
+	return mixedImpactWarningNaming(index, impactDirtyPathsShown)
+}
+
+// mixedImpactWarningNaming names at most shown dirty paths. A budgeted
+// receipt starts from shown=0 and names only what fits after evidence is
+// selected, so the disclosure never evicts a result (DIRTY-CACHE-018).
+func mixedImpactWarningNaming(index *Index, shown int) string {
 	commit := index.CommitRevision
 	if commit == "" {
 		commit = "UNKNOWN"
 	}
-	return fmt.Sprintf("MIXED worktree: impact is bound to commit %s; %d dirty paths; mutable content is excluded.", commit, len(index.DirtyPaths))
+	paths := append([]string(nil), index.DirtyPaths...)
+	sort.Strings(paths)
+	shown = min(max(shown, 0), len(paths))
+	named := make([]string, 0, shown)
+	for _, path := range paths[:shown] {
+		named = append(named, strconv.Quote(path))
+	}
+	detail := "dirty: " + strings.Join(named, ", ")
+	switch {
+	case shown == 0:
+		detail = "dirty path names omitted"
+	case shown < len(paths):
+		detail += fmt.Sprintf(" (+%d more)", len(paths)-shown)
+	}
+	return fmt.Sprintf("MIXED worktree: impact is bound to commit %s; %d dirty paths; mutable content is excluded; %s.", commit, len(paths), detail)
 }
 
 func impactRequestOutsideDirtySet(index *Index, request map[string]any) bool {

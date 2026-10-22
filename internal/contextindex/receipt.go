@@ -134,6 +134,9 @@ func compileReceipt(receipt map[string]any, budget *int, index *Index, extraUnce
 	if err := compactBudgetEnvelope(compact); err != nil {
 		return nil, err
 	}
+	if _, warned := compact["warning"]; warned {
+		compact["warning"] = mixedImpactWarningNaming(index, 0)
+	}
 
 	selected := make([]map[string]any, 0, len(requestedResults))
 	criticalSet := stringSetFromAny(critical)
@@ -200,6 +203,9 @@ func compileReceipt(receipt map[string]any, budget *int, index *Index, extraUnce
 			return nil, &Error{Message: "cannot encode context receipt"}
 		}
 		if len(encoded) <= *budget {
+			if err := fitImpactWarningNames(compact, index, *budget); err != nil {
+				return nil, err
+			}
 			return compact, nil
 		}
 		if len(selected) == 0 {
@@ -233,6 +239,32 @@ func compileReceipt(receipt map[string]any, budget *int, index *Index, extraUnce
 			overflow[droppedKey] = struct{}{}
 		}
 	}
+}
+
+// fitImpactWarningNames spends only the slack left after evidence selection
+// on naming dirty paths in a budgeted MIXED impact warning: it names as many
+// as fit, up to impactDirtyPathsShown, and otherwise keeps the count-only
+// form (DIRTY-CACHE-018).
+func fitImpactWarningNames(receipt map[string]any, index *Index, budget int) error {
+	if _, warned := receipt["warning"]; !warned {
+		return nil
+	}
+	countOnly := receipt["warning"]
+	for shown := min(impactDirtyPathsShown, len(index.DirtyPaths)); shown > 0; shown-- {
+		receipt["warning"] = mixedImpactWarningNaming(index, shown)
+		if err := stabilizePacketBytes(receipt); err != nil {
+			return err
+		}
+		encoded, err := CanonicalJSON(receipt)
+		if err != nil {
+			return &Error{Message: "cannot encode context receipt"}
+		}
+		if len(encoded) <= budget {
+			return nil
+		}
+	}
+	receipt["warning"] = countOnly
+	return stabilizePacketBytes(receipt)
 }
 
 func compactBudgetEnvelope(receipt map[string]any) error {

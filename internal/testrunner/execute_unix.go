@@ -42,11 +42,7 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 	}
 	defer func() {
 		if retErr != nil {
-			detail := retErr.Error()
-			if len(detail) > 1024 {
-				detail = detail[:1024]
-			}
-			out.Input.ExecutionProblems = append(out.Input.ExecutionProblems, Problem{"execution-boundary", detail})
+			out.Input.ExecutionProblems = append(out.Input.ExecutionProblems, Problem{"execution-boundary", boundedDetail(retErr.Error())})
 		}
 	}()
 	if err := exitProfile(inv.SuccessExitCodes, inv.FailureExitCodes, inv.OutcomeNeutralExitCodes); err != nil {
@@ -191,6 +187,16 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 		return out, err
 	}
 	defer reportRoot.Close()
+	// Native tools leave sockets, pipes and scratch in the private TMPDIR,
+	// most often when a timeout kills them before their own cleanup. It is
+	// executor scratch, never a report: remove it after retirement, device
+	// cleanup and report reads. Residue that will not go is an execution
+	// problem (TRE-V0-116).
+	defer func() {
+		if e := reportRoot.RemoveAll(".tmp"); e != nil {
+			out.Input.ExecutionProblems = append(out.Input.ExecutionProblems, Problem{"temp-cleanup", boundedDetail(e.Error())})
+		}
+	}()
 	templateDigests := map[string]string{}
 	for name, data := range inv.Files {
 		templateDigests[name] = Digest(data)
@@ -368,6 +374,12 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 		return out, err
 	}
 	return out, nil
+}
+func boundedDetail(detail string) string {
+	if len(detail) > 1024 {
+		return detail[:1024]
+	}
+	return detail
 }
 func tool(r Request, name string) (Tool, bool) {
 	if name == "" || name == "primary" {

@@ -333,7 +333,7 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   Acceptance: the clean enrolled Stop trace falls from 28 to 22 Git processes, existing Stop
   results remain unchanged, and same-host CPU/wall measurements are retained in the build log.
   Rollback: revert the change; no persisted state or wire format changes.
-- `LCP-V0-020`: accepted, decision 0510. Every `dogfood status`
+- `LCP-V0-020`: (accepted, decision 0510) Every `dogfood status`
   and `dogfood finish` evaluation MUST carry nonempty `nextActions` or a stable
   `noActionReason`, including when Frontier authority is `UNAVAILABLE` with
   `frontier-authority-unavailable`. Active incomplete evaluations retain the eligible
@@ -345,7 +345,7 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   JSON field MUST surface in the CLI `policy` consistently. Frontier unavailability
   MUST NOT become local satisfaction or imply authority. Rollback: remove the additive
   field and its assignments; persisted state and existing actions are unchanged.
-- `LCP-V0-031`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1014) When a `verify` check log
+- `LCP-V0-031`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1014) When a `verify` check log
   matches the secret screen, the observation MUST stay `secretScreened` and unqualified, and each
   retained log MUST begin with the line `log-secret-screened` followed by the captured output with
   every secret-shaped span replaced by `[REDACTED]`, so test names and FAIL lines stay readable. If
@@ -355,13 +355,13 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   `checks[].failedTests`, the distinct test names of `--- FAIL: NAME` lines in its retained logs,
   at most 16 names of at most 256 bytes each, none matching the screen; status and finish do not
   re-read logs for it. Rollback: restore the marker-only log and drop the additive field.
-- `LCP-V0-032`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1011) Each plan check takes 1-64
+- `LCP-V0-032`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1011) Each plan check takes 1-64
   argv elements and a `timeoutSeconds` of 1-3600. The `invalid-check-bound` refusal from `dogfood
   begin` MUST keep that stable code and its message MUST name both bounds, the offending check id
   and the requested argv count and timeout, so a caller can split an over-long run into several
   checks. The message carries no path or command text, and an id that matches the secret screen is
   shown as `[REDACTED]`. Rollback: drop the message detail.
-- `LCP-V0-033`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1524, V1-2144) A dogfood
+- `LCP-V0-033`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1524, V1-2144) A dogfood
   event that reads a context packet (`user-prompt`, `session-start`) MUST start its snapshot read
   from the opening observation's identity (object format, `HEAD`, tree) as soon as that identity
   read returns, while the same observation's status read is still running, and MUST then apply the
@@ -374,7 +374,7 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   interleaved runs each, no run over the 1.6 s event deadline; build log
   `2026-10-21-hooks-1021-snapshot-prefetch`). Rollback: call `gokernel.ProbeRepositoryAround`
   again and drop the prefetch key.
-- `LCP-V0-034`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1976) A dogfood event whose
+- `LCP-V0-034`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1976) A dogfood event whose
   prompt context is refused by the bounded prompt-context contract (`*contextindex.Error` with code
   `unsupported-dogfood-context-bounds`, `unsupported-dogfood-context-budget` or
   `invalid-dogfood-context`) MUST report the one fixed `dogfood-event-prompt-bounds` code, and the
@@ -399,7 +399,7 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   `invalid-dogfood-context`. Non-goals: raising the 32-anchor profile or ranking anchors by
   relevance. Failure modes: a long prompt whose most useful anchors sort late loses them; the
   counts say so. Rollback: restore the `failBounds` call in `addAnchors` and drop the two fields.
-- `LCP-V0-036`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1757) Every base-ancestry
+- `LCP-V0-036`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1757) Every base-ancestry
   probe in `LCP-V0-002` (`begin`, evaluate, `finish` and the aggregate finish paths) MUST first apply
   the shared ancestry guard (`EEP-V0-028`, `internal/gitancestry`): when the checkout's Git common
   directory holds `info/grafts`, the checkout is shallow, or that metadata cannot be read, the probe

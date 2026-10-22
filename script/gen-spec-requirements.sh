@@ -150,6 +150,39 @@ sub acceptance {
     return ($mode, @anchors ? join('; ', @anchors) : '-');
 }
 
+# SRG-V0-042: a definition whose text opens with an acceptance note the SRG-V0-009 reader does not
+# classify as intended is refused, naming the accepted forms, instead of silently recording
+# `unrecorded` or `owner`. Three near misses are refused: an auto-acceptance that omits the word
+# `standing` (it would read as `owner` or `unrecorded`); a leading parenthetical that affirms
+# acceptance but records no decision number or date; and an unparenthesized leading `accepted` or
+# `approved` note, which the reader never sees. An empty return is no near miss.
+sub acceptance_near_miss {
+    my ($text) = @_;
+    if ($text =~ /\A\(/) {
+        my ($depth, $end) = (0, length $text);
+        for my $i (0 .. length($text) - 1) {
+            my $char = substr($text, $i, 1);
+            if ($char eq '(') {
+                ++$depth;
+            } elsif ($char eq ')' && --$depth == 0) {
+                $end = $i;
+                last;
+            }
+        }
+        my $marker = substr($text, 1, $end - 1);
+        my ($mode) = acceptance($text);
+        return 'an auto-acceptance note must name the standing approval'
+            if $marker =~ /\bauto-?accept/i && $mode ne 'standing';
+        (my $affirmed = $marker) =~ s/\b(?:not|never)\b[^;,]*?\b(?:accepted|approved|owner decision)\b//gi;
+        return 'the acceptance note records no decision number or date'
+            if $mode eq 'unrecorded' && $affirmed =~ /\b(?:accepted|approved|owner decision)\b/i;
+        return '';
+    }
+    return 'the acceptance note is not parenthesized, so it is not read'
+        if $text =~ /\A(?:accepted|approved)(?:,|:|\s+(?:by|under|on)\b|\s+\(|\s+[0-9]{4}-[0-9]{2}-[0-9]{2}\b)/i;
+    return '';
+}
+
 sub trim {
     my ($text) = @_;
     $text =~ s/\A\s+|\s+\z//g;
@@ -233,6 +266,7 @@ for my $file (sort @specs) {
             $title =~ s/[\t\r\n]+/ /g;
             $title =~ s/^\s+|\s+$//g;
             my ($acceptance, $accepted_by) = $rank == 0 ? acceptance($title) : ('unrecorded', '-');
+            my $near_miss = $rank == 0 ? acceptance_near_miss($title) : '';
             # SRG-V0-005 counts characters: decode UTF-8 only around the cut so a multibyte
             # sequence is never split and the whitespace trims keep their byte semantics. Bytes
             # that are not valid UTF-8 cannot be decoded and are cut by byte.
@@ -247,6 +281,7 @@ for my $file (sort @specs) {
                 title => $title,
                 acceptance => $acceptance,
                 accepted_by => $accepted_by,
+                near_miss => $near_miss,
             };
         }
     }
@@ -271,6 +306,15 @@ for my $file (sort @specs) {
     utf8::decode($claim);
     length($claim) <= 160
         or die "$file: the Agent digest Claim is " . length($claim) . " characters; the limit is 160\n";
+}
+{
+    my @near = grep { $best{$_}{near_miss} ne '' } sort keys %best;
+    if (@near) {
+        print STDERR "$best{$_}{file}:$best{$_}{line}: $_: $best{$_}{near_miss}\n" for @near;
+        die "write the note in parentheses right after the id: `(accepted, decision NNNN; V1-NNNN)`, "
+            . "`(accepted YYYY-MM-DD; V1-NNNN)` or `(accepted under the owner's standing auto-accept "
+            . "(YYYY-MM-DD); V1-NNNN)`; see docs/SPEC-DRIVEN-DEVELOPMENT.md (SRG-V0-042)\n";
+    }
 }
 if ($mode eq 'tsv') {
     print tsv_text();
@@ -406,6 +450,16 @@ sub readme_text {
         my $path = $link =~ m{\A\.\./} ? $link : "docs/specs/$link";
         my $spec = $header{$path} or next;
         $rowed{$path} = 1;
+        # SRG-V0-043: a requirement range written right after the link, alone or before a `;`, is
+        # the span of the ids of that prefix the spec defines, so it cannot drift from the TSV.
+        if ($columns[2] =~ /\A(.*?\]\([^)]+\)\s+)([A-Z][A-Z0-9-]*-)([0-9]{3})(?:\.\.([0-9]{3}))?(?=\s*(?:;|\z))/s) {
+            my ($lead, $prefix) = ($1, $2);
+            my @numbers = sort map { substr $_, length $prefix }
+                grep { $best{$_}{file} eq $path && /\A\Q$prefix\E[0-9]{3}\z/ } keys %best;
+            @numbers or die "$path: its README row shows a $prefix range but the spec defines no $prefix id\n";
+            my $range = $prefix . $numbers[0] . ($numbers[-1] ne $numbers[0] ? "..$numbers[-1]" : '');
+            substr($columns[2], length $lead, $+[0] - length $lead) = $range;
+        }
         $columns[3] = $cell->($columns[3], $spec->{intent});
         $columns[4] = $cell->($columns[4], $spec->{delivery});
         if (defined $spec->{claim}) {

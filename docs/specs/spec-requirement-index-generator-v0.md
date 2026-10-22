@@ -90,12 +90,12 @@ No requirement below diverges from the implementation.
   under `docs/specs/` matching `*.md`, not from a worktree directory listing, so that an untracked
   file contributes no row and a tracked file deleted from the worktree alone still contributes its
   rows. It MUST exclude `docs/specs/README.md`, which is the index of specs rather than a spec.
-- `SRG-V0-002`: accepted, decision 0506. The generator MUST recognise a requirement id as a token matching an uppercase
+- `SRG-V0-002`: (accepted, decision 0506) The generator MUST recognise a requirement id as a token matching an uppercase
   letter followed by uppercase letters, digits, and hyphens, then a hyphen and exactly three
-  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:214`). An id with a suffix
+  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:246@86a5b2d6`). An id with a suffix
   that is not exactly three digits MUST NOT be indexed. Matching the token alone MUST NOT
   establish a definition; the occurrence MUST also meet SRG-V0-003.
-- `SRG-V0-003`: accepted, decision 0506. The generator MUST classify each occurrence of an id into exactly one of three
+- `SRG-V0-003`: (accepted, decision 0506) The generator MUST classify each occurrence of an id into exactly one of three
   ranks: rank 0 when the line begins with the id, optionally preceded by a list bullet and
   optionally wrapped in bold or backticks, and followed either by a period and whitespace or by a
   colon; rank 1 when the line begins with a table cell holding the id; rank 2 otherwise. It MUST
@@ -258,6 +258,28 @@ No requirement below diverges from the implementation.
   gets the INDEX.json entry and README.md row its header derives, so hand-set fields of that entry
   are re-applied by hand. Rollback: delete the script and the target; the manual
   take-a-side-and-regenerate resolution is unchanged.
+- `SRG-V0-042`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2160) Every
+  generator mode MUST refuse, before writing anything, a rank 0 winning definition whose text opens
+  with an acceptance note SRG-V0-009 would misread, printing `<file>:<line>: <id>: <reason>` for
+  each and then the accepted forms. The near misses are: a leading parenthetical that names an
+  auto-acceptance (`auto-accept`, `auto-acceptance`) but does not classify as `standing`; a leading
+  parenthetical that affirms `accepted`, `approved` or `owner decision` (after the negation rule)
+  but records no decision number or date, so it classifies as `unrecorded`; and an unparenthesized
+  leading `accepted` or `approved` followed by `,`, `:`, `by`, `under`, `on`, `(` or a date, which
+  the reader never sees. A leading adjective such as "Accepted closed inputs" and a note anywhere
+  but the start of the definition are not near misses (the audit's `UNPARSED_STANDING` still
+  reports a trailing standing note). The accepted forms are listed in
+  `docs/SPEC-DRIVEN-DEVELOPMENT.md`. Non-goal: no new acceptance form is accepted, and no note is
+  rewritten. Rollback: delete `acceptance_near_miss` and its refusal block; the misread notes
+  silently classify again.
+- `SRG-V0-043`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2146) In every
+  README row SRG-V0-012 projects, a requirement range written right after the Contract cell's link,
+  as `PREFIX-NNN` or `PREFIX-NNN..MMM` and followed only by the cell end or a `;`, MUST be rewritten
+  to the lowest and highest ids of that prefix the spec defines (one id prints alone), so
+  `spec-requirements-check` fails when a row's range disagrees with REQUIREMENTS.tsv. A range whose
+  prefix the spec defines no id of MUST be refused naming the spec and the prefix. A row with no
+  range keeps none, and the range is a span: it does not list gaps. Rollback: delete the range
+  block in `readme_text`; the ranges become hand-kept again.
 
 ## Non-goals and simpler baseline
 
@@ -354,6 +376,8 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-017 | `TestSRGV0017DefinitionLineLocatesEveryRow` (every committed row), `TestSRGV0017DefinitionLineFollowsGeneratorRanks`, `TestSRGV0017ParseIndexReadsBothLayouts`, `TestSRGV0017SpecLookupLocatesCommittedLayout`, `TestSRGV0017KernelLocatesCommittedLayoutLines`, `TestSRGV0017RoadmapLocatesCommittedLayoutLines`, `TestSRGV0017LoadRequirementsReadsBothLayouts`; `script/spec-acceptance-audit.sh` output byte-identical before and after for all three modes; `script/gen-spec-requirements_test.sh` case 8: a row naming another file than its staged definition makes the audit exit 1 |
 | SRG-V0-018 | `script/gen-spec-requirements_test.sh` case 10: `--all` output equals each mode's output byte for byte, a refused projection leaves DIR empty, a missing or absent DIR exits 2, and a newline path and a gitlink entry take the one-shot fallback beside the batch. On the live corpus at `f3ca7224` the `--all` files were byte-identical to the three-pass output and the committed files; the V1-1641 build-log entry holds the before and after timings |
 | SRG-V0-040 | `script/gen-spec-requirements_test.sh`: a 165-character claim fails `--all` with `<path>: the Agent digest Claim is 165 characters; the limit is 160` and leaves DIR empty, and the TSV, `--lines`, `--index` and `--readme` modes refuse it with the same message (the TSV mode now reads spec headers too) |
+| SRG-V0-042 | `script/gen-spec-requirements_test.sh` case 11: an auto-acceptance without `standing`, an affirmed note without an anchor and an unparenthesized note are each refused with line, id, reason and the accepted forms, while the exact standing and owner forms and the adjective "Accepted" pass; the test fails against the generator without the refusal. 74 near misses on main at `ef2a01db` were rewritten to the exact forms in the same change (V1-2160 build log) |
+| SRG-V0-043 | `script/gen-spec-requirements_test.sh` case 7: a stale `ONE-V0-001..009` becomes `ONE-V0-001`, a range before `;` is rewritten with the tail kept, and an undefined prefix is refused; 13 drifted rows on main were regenerated by `make spec-requirements` |
 | SRG-V0-041 | `script/spec-requirements-conflict_test.sh`: the target refuses while the one-section spec is still conflicted and resolves the TSV once it is staged; two new specs conflict only in generated files and resolve in both merge orders to the fresh generation with both specs indexed |
 
 ## Traceability
@@ -380,6 +404,8 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-018 | `index_blobs`, the `--all` mode in `script/gen-spec-requirements.sh` and `SPEC_GENERATE` in the `Makefile` | `spec-requirements-test`; `spec-requirements-check` |
 | SRG-V0-040 | the claim-length loop before the TSV and `--lines` exits in `script/gen-spec-requirements.sh` | `spec-requirements-test` |
 | SRG-V0-041 | `script/spec-requirements-resolve.sh` and the `spec-requirements-resolve` target in the `Makefile` | `spec-requirements-test` |
+| SRG-V0-042 | `acceptance_near_miss` and the refusal block before the TSV exit in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `spec-requirements-check` |
+| SRG-V0-043 | the Contract-cell range block in `readme_text` in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `spec-requirements-check` |
 
 ## Rollout, rollback, and drift
 

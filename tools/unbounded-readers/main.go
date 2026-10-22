@@ -138,7 +138,7 @@ func run(root string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "unbounded-readers: %s records %v, which are not unbounded test packages; remove the entries to keep the gain.\n", recordPath, stale)
 	}
 	if len(unrecorded) > 0 {
-		fmt.Fprintf(stderr, "unbounded-readers: %v are selected on every change and are not in units of %s. Declare each package's reads in %s (AFP-V0-023) or keep them inside its directory; add it to units only when neither is possible.\n",
+		fmt.Fprintf(stderr, "unbounded-readers: %v are selected on every change and are not in units of %s. Declare each package's reads in %s (AFP-V0-023) or keep them inside its directory; add it to units only when neither is possible; a shell test is registered as described in docs/SHELL-TEST-REGISTRATION.md.\n",
 			unrecorded, recordPath, affected.ReadScopesPath)
 	}
 	if len(unreasoned) > 0 {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/contextindex"
@@ -23,6 +24,7 @@ type FreshnessOverlay struct {
 	State       string
 	Limitations []string
 	symbols     *symbolOverlay
+	drift       *anchorDrift
 	observation string
 }
 
@@ -39,6 +41,53 @@ func ObservationKey(o contextindex.Observation) string {
 	return strings.Join(append([]string{o.ObjectFormat, o.CommitRevision, o.Revision, o.StatusSHA256}, dirty...), "\x00")
 }
 
+// CorpusObservation observes every checkout the artifact's live freshness reads, the primary
+// root and each declared additional repository, concurrently (DCP-V1-280). It equals
+// ObservationKey of the primary observation for a single-repository corpus, and an overlay's
+// Observation is reusable exactly while CorpusObservation still returns it.
+func CorpusObservation(ctx context.Context, root string, a *Artifact) (string, error) {
+	dirs := []string{root}
+	for _, r := range a.Manifest.AdditionalRepositories {
+		dirs = append(dirs, a.Manifest.RevisionRoot(root, r.Revision))
+	}
+	keys, errs := make([]string, len(dirs)), make([]error, len(dirs))
+	var wg sync.WaitGroup
+	for i, dir := range dirs {
+		wg.Go(func() {
+			observed, err := contextindex.Observe(ctx, dir)
+			keys[i], errs[i] = ObservationKey(observed), err
+		})
+	}
+	wg.Wait()
+	for _, err := range errs {
+		if err != nil {
+			return "", err
+		}
+	}
+	return checkoutsKey(a, keys), nil
+}
+
+func indexObservationKey(live *contextindex.Index) string {
+	return ObservationKey(contextindex.Observation{
+		ObjectFormat: live.ObjectFormat, CommitRevision: live.CommitRevision, Revision: live.Revision, StatusSHA256: live.StatusSHA256, DirtyPaths: live.DirtyPaths})
+}
+
+// checkoutsKey joins the primary key and each additional repository's identity and key,
+// length-prefixed so no path byte can make two checkout sets collide.
+func checkoutsKey(a *Artifact, keys []string) string {
+	if len(keys) == 1 {
+		return keys[0]
+	}
+	var b strings.Builder
+	for i, key := range keys {
+		if i > 0 {
+			key = a.Manifest.AdditionalRepositories[i-1].ID + "\x00" + key
+		}
+		fmt.Fprintf(&b, "%d:%s;", len(key), key)
+	}
+	return b.String()
+}
+
 // LiveFreshness is Freshness plus symbol-anchor re-resolution (DCP-V1-141).
 // The overall state is unchanged by the symbol checks.
 func LiveFreshness(ctx context.Context, root string, a *Artifact) (FreshnessOverlay, error) {
@@ -51,7 +100,8 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 	}()
 	unknown := FreshnessOverlay{State: "unknown"}
 	primary := func(revision string) bool { _, ok := a.Manifest.additionalRepository(revision); return !ok }
-	live, stale, limits, err := liveRepository(ctx, root, a, primary, "")
+	drift := &anchorDrift{pinned: map[string]string{}, changed: map[string]inputDrift{}}
+	live, stale, limits, err := liveRepository(ctx, root, a, primary, "", drift)
 	if err != nil {
 		return unknown, err
 	}
@@ -59,21 +109,21 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 	if a.Builder.Revision == "unrecorded" || strings.HasSuffix(a.Builder.Revision, "+dirty") {
 		limits = append(limits, "builder source revision is unrecorded or dirty; no immutable build attestation")
 	}
-	observation := ObservationKey(contextindex.Observation{
-		ObjectFormat: live.ObjectFormat, CommitRevision: live.CommitRevision, Revision: live.Revision, StatusSHA256: live.StatusSHA256, DirtyPaths: live.DirtyPaths})
+	keys := []string{indexObservationKey(live)}
 	// Each additional repository's inputs are checked against its own declared checkout, never
-	// the primary tree (DCP-V1-178). The primary observation alone then no longer identifies the
-	// state, so the overlay carries no reusable observation key.
+	// the primary tree (DCP-V1-178), and that checkout's own observation joins the overlay's
+	// reuse key (DCP-V1-280).
 	for _, r := range a.Manifest.AdditionalRepositories {
 		member := func(revision string) bool { return revision == r.Revision }
-		_, changed, reasons, err := liveRepository(ctx, a.Manifest.RevisionRoot(root, r.Revision), a, member, "additional repository "+r.ID+": ")
+		checkout, changed, reasons, err := liveRepository(ctx, a.Manifest.RevisionRoot(root, r.Revision), a, member, "additional repository "+r.ID+": ", drift)
 		if err != nil {
 			return unknown, err
 		}
 		stale = stale || changed
 		limits = append(limits, reasons...)
-		observation = ""
+		keys = append(keys, indexObservationKey(checkout))
 	}
+	observation := checkoutsKey(a, keys)
 	state := "fresh"
 	if stale {
 		state = "stale"
@@ -92,7 +142,7 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 			limits = append(limits[:MaxResults], fmt.Sprintf("freshness diagnostic bound withheld %d reasons", omitted))
 		}
 	}
-	overlay := FreshnessOverlay{State: state, Limitations: limits, observation: observation}
+	overlay := FreshnessOverlay{State: state, Limitations: limits, drift: drift, observation: observation}
 	if symbols {
 		overlay.symbols = &symbolOverlay{root: root, live: live, repository: a.Manifest.Repository.ID, files: &sharedSymbolFiles{files: map[string]sharedSymbolFile{}}}
 	}
@@ -100,8 +150,9 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 }
 
 // liveRepository compares the scopes and inputs whose revision member admits against the live
-// checkout at dir, returning whether any is stale and each reason under prefix.
-func liveRepository(ctx context.Context, dir string, a *Artifact, member func(string) bool, prefix string) (*contextindex.Index, bool, []string, error) {
+// checkout at dir, returning whether any is stale and each reason under prefix. It records each
+// admitted input's pinned blob, and its live drift when it differs, in drift (DCP-V1-282).
+func liveRepository(ctx context.Context, dir string, a *Artifact, member func(string) bool, prefix string, drift *anchorDrift) (*contextindex.Index, bool, []string, error) {
 	live, err := contextindex.BuildContext(ctx, dir, "")
 	if err != nil {
 		return nil, false, nil, err
@@ -178,11 +229,17 @@ func liveRepository(ctx context.Context, dir string, a *Artifact, member func(st
 		if source, ok := live.Sources[in.Path]; ok && !dirty[in.Path] {
 			entry, exists = gitauth.TreeEntry{Type: "blob", Mode: source.Mode, OID: source.BlobHash}, true
 		}
-		if !exists || entry.Type != "blob" || (entry.Mode != "100644" && entry.Mode != "100755") || entry.OID != in.Blob {
+		regular := exists && entry.Type == "blob" && (entry.Mode == "100644" || entry.Mode == "100755")
+		if !regular || entry.OID != in.Blob {
 			note("input changed or absent: " + in.Path)
 		}
 		if dirty[in.Path] {
 			note("working-tree input differs: " + in.Path)
+		}
+		key := inputKey(in.Revision, in.Path)
+		drift.pinned[key] = in.Blob
+		if !regular || entry.OID != in.Blob || dirty[in.Path] {
+			drift.changed[key] = inputDrift{dir: dir, oid: entry.OID, objectFormat: live.ObjectFormat, dirty: dirty[in.Path], exists: regular}
 		}
 	}
 	return live, stale, limits, nil
@@ -228,7 +285,7 @@ func QueryContext(ctx context.Context, a *Artifact, request Request, freshness s
 // cites are re-resolved, on demand and under one budget per call, so the
 // receipt is the one a fresh reader returns (DCP-V1-144).
 func QueryLive(ctx context.Context, a *Artifact, request Request, overlay FreshnessOverlay) (Receipt, error) {
-	checker := &symbolChecker{overlay: overlay.symbols, checks: map[string]SymbolAnchorCheck{}}
+	checker := &symbolChecker{overlay: overlay.symbols, checks: map[string]SymbolAnchorCheck{}, anchors: &anchorStates{drift: overlay.drift, states: map[string]string{}, files: map[string][]byte{}}}
 	defer checker.close()
 	return queryContext(ctx, a, request, overlay.State, overlay.Limitations, checker)
 }
@@ -253,12 +310,18 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	if (request.Sections != nil || request.Include != nil) && (request.Operation != "flow" || !ValidFlowFilter(request.Sections, request.Include)) {
 		return Receipt{}, fail("flow section and include filters are bounded and apply only to flow")
 	}
+	if request.Kinds != nil && (request.Operation != "gaps" || !ValidGapKinds(request.Kinds)) {
+		return Receipt{}, fail("gap kind filter is bounded and applies only to gaps")
+	}
 	if request.Offset < 0 || request.Offset > MaxCorpusRecords*4 || a.Schema != SchemaV2 && (request.Offset != 0 || request.Operation == "inventory") {
 		return Receipt{}, fail("pagination requires corpus /2 and bounded offset")
 	}
 	capability := CapabilityFor(request.Operation)
 	if capability == "" {
 		return Receipt{}, fail("unknown corpus operation")
+	}
+	if request.Repository != "" && (request.Operation != "locate" && request.Operation != "recommend-tests" || !a.Manifest.declaresRepository(request.Repository)) {
+		return Receipt{}, fail("repository qualifier applies only to locate and recommend-tests and must name a declared repository")
 	}
 	r := Receipt{Envelope: envelope, Schema: ReceiptSchema, Operation: request.Operation, ArtifactSHA256: a.SHA256, Repository: a.Manifest.Repository, Tree: a.Tree, Trust: "generated", Freshness: freshness, State: "ready", Results: []any{}, Citations: []Anchor{}, Capabilities: a.Capabilities, Limitations: append([]string{}, limitations...)}
 	if a.Schema == SchemaV2 {
@@ -274,7 +337,7 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 				r.Limitations = append(r.Limitations, cap.Reason)
 			}
 		}
-		finalizeEnvelope(&r)
+		finalizeEnvelope(&r, symbols)
 		return r, nil
 	}
 	if freshness == "stale" {
@@ -308,6 +371,9 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 		for _, x := range a.FlowRelations {
 			r.Results = append(r.Results, x)
 		}
+		for _, x := range a.ClaimAudits {
+			r.Results = append(r.Results, x)
+		}
 		sort.Slice(r.Results, func(i, j int) bool { return recordID(r.Results[i]) < recordID(r.Results[j]) })
 	case "search":
 		if e := search(ctx, a, request, &r); e != nil {
@@ -320,19 +386,22 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 			r.Results = append(r.Results, TraceFlows(a, []string{request.ID}, request.Depth))
 		}
 	case "locate":
+		// DCP-V1-310: a repository qualifier keeps only records anchored at the path there.
 		for _, j := range testKnowledgeOnPath(a, request.Path) {
-			addRecord(&r, j)
+			if pathInRepository(recordAnchors(j), request.Path, request.Repository) {
+				addRecord(&r, j)
+			}
 		}
 		if a.RuntimeIndex != nil {
 			for _, ref := range a.RuntimeIndex.Paths[request.Path] {
-				if ref.Kind == "subject" {
+				if ref.Kind == "subject" && pathInRepository(a.Subjects[ref.Offset].Evidence.Anchors, request.Path, request.Repository) {
 					addRecord(&r, a.indexedRecord(ref))
 				}
 			}
 			break
 		}
 		for _, s := range a.Subjects {
-			if subjectPath(s, request.Path) {
+			if subjectPath(s, request.Path) && pathInRepository(s.Evidence.Anchors, request.Path, request.Repository) {
 				r.Results = append(r.Results, s)
 				r.Citations = append(r.Citations, s.Evidence.Anchors...)
 			}
@@ -371,17 +440,37 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 		if e != nil {
 			return Receipt{}, e
 		}
+		// DCP-V1-284: a kind filter keeps only the named kinds and totals each, before paging.
+		kind := func(k string) bool {
+			if request.Kinds == nil {
+				return true
+			}
+			if _, ok := r.KindTotals[k]; !ok {
+				return false
+			}
+			r.KindTotals[k]++
+			return true
+		}
+		if request.Kinds != nil {
+			r.KindTotals = map[string]int{}
+			for _, k := range request.Kinds {
+				r.KindTotals[k] = 0
+			}
+		}
 		for _, g := range append(append([]Gap{}, a.Gaps...), generated...) {
 			if err := ctx.Err(); err != nil {
 				return Receipt{}, err
 			}
-			if request.ID == "" || g.Subject == request.ID {
+			if (request.ID == "" || g.Subject == request.ID) && kind(g.Kind) {
 				r.Results = append(r.Results, g)
 			}
 		}
 		// DCP-V1-186: supplied gaps follow the computed ones, labelled by origin.
+		// DCP-V1-304: a gap that targets a claim is also selected by the
+		// claim's subject.
+		targets := suppliedGapClaimSubjects(a, request.ID)
 		for _, g := range a.SuppliedGaps {
-			if request.ID == "" || g.Subject == request.ID || g.ID == request.ID {
+			if (request.ID == "" || g.Subject == request.ID || g.ID == request.ID || targets[g.Subject]) && kind(g.Kind) {
 				r.Results = append(r.Results, g)
 				r.Citations = append(r.Citations, g.Evidence.Anchors...)
 			}
@@ -443,6 +532,7 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 			r.Details[id] = detail
 		}
 	}
+	attachClaimAudits(a, &r)
 	// Citations are deduplicated and independently bounded; truncation is visible.
 	sort.Slice(r.Citations, func(i, j int) bool { return anchorKey(r.Citations[i]) < anchorKey(r.Citations[j]) })
 	citations := []Anchor{}
@@ -462,11 +552,72 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	if err := attachSymbolAnchors(ctx, &r, symbols); err != nil {
 		return Receipt{}, err
 	}
-	finalizeEnvelope(&r)
+	nameResultRepositories(a, request, &r)
+	finalizeEnvelope(&r, symbols)
 	if _, err := Encode(r); err != nil {
 		return Receipt{}, err
 	}
 	return r, nil
+}
+
+// declaresRepository reports whether id is the primary or a declared additional repository.
+func (m Manifest) declaresRepository(id string) bool {
+	if id == m.Repository.ID {
+		return true
+	}
+	for _, r := range m.AdditionalRepositories {
+		if r.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+// pathInRepository reports whether an anchor at path (or symbol) belongs to repository; an empty
+// repository admits every record (DCP-V1-310).
+func pathInRepository(anchors []Anchor, path, repository string) bool {
+	if repository == "" {
+		return true
+	}
+	for _, a := range anchors {
+		if (a.Path == path || a.Symbol == path) && a.Repository == repository {
+			return true
+		}
+	}
+	return false
+}
+
+// resultRepository is the repository of the record's anchor at path, else of its first anchor,
+// else the primary repository.
+func resultRepository(a *Artifact, anchors []Anchor, path string) string {
+	for _, x := range anchors {
+		if x.Path == path || x.Symbol == path {
+			return x.Repository
+		}
+	}
+	if len(anchors) > 0 {
+		return anchors[0].Repository
+	}
+	return a.Manifest.Repository.ID
+}
+
+// nameResultRepositories names each visible locate or recommend-tests result's repository when
+// the artifact spans more than one repository (DCP-V1-311); single-repository receipts are
+// unchanged.
+func nameResultRepositories(a *Artifact, request Request, r *Receipt) {
+	if len(a.Manifest.AdditionalRepositories) == 0 || request.Operation != "locate" && request.Operation != "recommend-tests" {
+		return
+	}
+	for _, v := range r.Results {
+		id := recordID(v)
+		if id == "" {
+			continue
+		}
+		if r.ResultRepositories == nil {
+			r.ResultRepositories = map[string]string{}
+		}
+		r.ResultRepositories[id] = resultRepository(a, recordAnchors(v), request.Path)
+	}
 }
 func anchorKey(a Anchor) string { return a.Revision + ":" + a.Path + ":" + a.SpanSHA256 }
 func subjectPath(s Subject, p string) bool {
@@ -482,6 +633,70 @@ func get(a *Artifact, id string, r *Receipt) {
 	getRecords(a, id, r)
 	if len(r.Results) == before {
 		getLegacyCase(a, id, r)
+		return
+	}
+	getMigrationChain(a, id, r)
+}
+
+// getMigrationChain appends, in artifact order, every migration_mapping
+// relation reachable from an inventory unit through migration mappings in
+// either direction (DCP-V1-307): the unit's own mapping and the chain across
+// earlier and later migrations. Relations the receipt already holds are not
+// repeated. A corpus without migration mappings reads nothing more.
+func getMigrationChain(a *Artifact, id string, r *Receipt) {
+	var edges func(node string) []int
+	if x := a.RuntimeIndex; x != nil {
+		if ref, ok := x.IDs[id]; !ok || ref.Kind != "subject" || a.Subjects[ref.Offset].Kind != "inventory" {
+			return
+		}
+		edges = func(node string) []int { return x.Edges[node] }
+	} else {
+		adjacent := map[string][]int{}
+		for i, rel := range a.Relations {
+			if rel.Type == "migration_mapping" {
+				adjacent[rel.From] = append(adjacent[rel.From], i)
+				if rel.To != rel.From {
+					adjacent[rel.To] = append(adjacent[rel.To], i)
+				}
+			}
+		}
+		if len(adjacent[id]) == 0 {
+			return
+		}
+		edges = func(node string) []int { return adjacent[node] }
+	}
+	held := map[string]bool{}
+	for _, v := range r.Results {
+		if rel, ok := v.(Relation); ok {
+			held[rel.ID] = true
+		}
+	}
+	seen := map[string]bool{id: true}
+	chain := map[int]bool{}
+	for queue := []string{id}; len(queue) > 0; queue = queue[1:] {
+		for _, i := range edges(queue[0]) {
+			rel := a.Relations[i]
+			if rel.Type != "migration_mapping" || chain[i] {
+				continue
+			}
+			chain[i] = true
+			for _, next := range []string{rel.From, rel.To} {
+				if !seen[next] {
+					seen[next] = true
+					queue = append(queue, next)
+				}
+			}
+		}
+	}
+	offsets := make([]int, 0, len(chain))
+	for i := range chain {
+		offsets = append(offsets, i)
+	}
+	sort.Ints(offsets)
+	for _, i := range offsets {
+		if !held[a.Relations[i].ID] {
+			addRecord(r, a.Relations[i])
+		}
 	}
 }
 
@@ -516,6 +731,11 @@ func getRecords(a *Artifact, id string, r *Receipt) {
 		}
 	}
 	for _, j := range a.FlowRelations {
+		if j.ID == id {
+			addRecord(r, j)
+		}
+	}
+	for _, j := range a.ClaimAudits {
 		if j.ID == id {
 			addRecord(r, j)
 		}
@@ -744,24 +964,74 @@ func coverageMetrics(a *Artifact) []any {
 	return append(rows, behaviorCoverage(a)...)
 }
 
+// suppliedGapClaimSubjects returns the claims on subject id that a supplied
+// gap targets (DCP-V1-304). It reads nothing when no supplied gap exists, so
+// a corpus without supplied gaps does no extra work.
+func suppliedGapClaimSubjects(a *Artifact, id string) map[string]bool {
+	if id == "" || len(a.SuppliedGaps) == 0 {
+		return nil
+	}
+	targeted := map[string]bool{}
+	for _, g := range a.SuppliedGaps {
+		targeted[g.Subject] = true
+	}
+	claims := map[string]bool{}
+	if x := a.RuntimeIndex; x != nil {
+		for _, i := range x.Claims[id] {
+			if c := a.Claims[i]; c.Subject == id && targeted[c.ID] {
+				claims[c.ID] = true
+			}
+		}
+		return claims
+	}
+	for _, c := range a.Claims {
+		if c.Subject == id && targeted[c.ID] {
+			claims[c.ID] = true
+		}
+	}
+	return claims
+}
+
 // suppliedStatusCoverage counts producer-supplied statuses per state
-// (DCP-V1-188) and supplied test-run receipts per outcome (DCP-V1-211). Each
-// family yields no row when nothing was supplied, so existing coverage
+// (DCP-V1-188) and supplied test-run receipts per outcome (DCP-V1-211). A
+// qualified state counts under STATE:QUALIFIER, never under the plain state
+// (DCP-V1-301), and test-run receipts that carry a flake verdict or cleanup
+// outcome are counted per value over the receipts that carry it (DCP-V1-305).
+// Each family yields no row when nothing was supplied, so existing coverage
 // receipts keep their bytes.
 func suppliedStatusCoverage(a *Artifact) []any {
 	rows := suppliedClaimCoverage(a, "supplied_status:", "supplied status claims in this state / all supplied status claims",
 		"producer-supplied status; not derived or verified by the compiler and grants no trust",
 		func(d RecordDetails) string {
-			if d.Status != nil {
-				return d.Status.State
+			if d.Status == nil {
+				return ""
 			}
-			return ""
+			if d.Status.Qualifier != "" {
+				return d.Status.State + ":" + d.Status.Qualifier
+			}
+			return d.Status.State
 		})
-	return append(rows, suppliedClaimCoverage(a, "supplied_test_run:", "supplied test-run receipts with this outcome / all supplied test-run receipts",
+	rows = append(rows, suppliedClaimCoverage(a, "supplied_test_run:", "supplied test-run receipts with this outcome / all supplied test-run receipts",
 		"producer-supplied test-run receipt; not executed, derived or verified by the compiler and grants no trust",
 		func(d RecordDetails) string {
 			if d.TestRun != nil {
 				return d.TestRun.Outcome
+			}
+			return ""
+		})...)
+	rows = append(rows, suppliedClaimCoverage(a, "supplied_test_run_flake:", "supplied test-run receipts with this flake verdict / supplied test-run receipts that carry a flake verdict",
+		"producer-supplied flake verdict; not re-run, derived or verified by the compiler and grants no trust",
+		func(d RecordDetails) string {
+			if d.TestRun != nil {
+				return d.TestRun.FlakeVerdict
+			}
+			return ""
+		})...)
+	return append(rows, suppliedClaimCoverage(a, "supplied_test_run_cleanup:", "supplied test-run receipts with this cleanup outcome / supplied test-run receipts that carry a cleanup outcome",
+		"producer-supplied cleanup outcome; not observed, derived or verified by the compiler and grants no trust",
+		func(d RecordDetails) string {
+			if d.TestRun != nil {
+				return d.TestRun.Cleanup
 			}
 			return ""
 		})...)

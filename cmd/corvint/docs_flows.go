@@ -12,7 +12,7 @@ import (
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
-type docsFlowsOptions struct{ root, mode, revision, scope, output, corpus, previous, providerRevision, providerPath string }
+type docsFlowsOptions struct{ root, mode, revision, scope, output, corpus, flows, previous, providerRevision, providerPath string }
 
 func parseDocsFlowsInvocation(arguments []string) (docsFlowsOptions, bool, error) {
 	pos := commandPositionAfterRoots(arguments)
@@ -33,7 +33,7 @@ func parseDocsFlowsInvocation(arguments []string) (docsFlowsOptions, bool, error
 	}
 	o.mode = arguments[pos+2]
 	allowed := map[string]map[string]bool{
-		"generate": {"--revision": true, "--scope": true, "--output-dir": true, "--corpus": true, "--previous": true},
+		"generate": {"--revision": true, "--scope": true, "--output-dir": true, "--corpus": true, "--flows": true, "--previous": true},
 		"check":    {"--revision": true, "--previous": true, "--output-dir": true},
 		"finalize": {"--previous": true, "--provider-revision": true, "--provider-path": true},
 	}
@@ -66,6 +66,8 @@ func parseDocsFlowsInvocation(arguments []string) (docsFlowsOptions, bool, error
 			o.output = value
 		case "--corpus":
 			o.corpus = value
+		case "--flows":
+			o.flows = value
 		case "--previous":
 			o.previous = value
 		case "--provider-revision":
@@ -97,6 +99,10 @@ func runDocsFlows(ctx context.Context, o docsFlowsOptions, stdout, stderr io.Wri
 			if o.corpus != "" {
 				corpus, err = flowdocs.ReadCorpusFile(o.corpus)
 			}
+			var flows []byte
+			if err == nil && o.flows != "" {
+				flows, err = flowdocs.ReadInventoryFile(o.flows)
+			}
 			if err == nil && len(previous) > 0 {
 				var old *flowdocs.Result
 				old, err = flowdocs.Open(ctx, o.root, previous)
@@ -106,7 +112,7 @@ func runDocsFlows(ctx context.Context, o docsFlowsOptions, stdout, stderr io.Wri
 			}
 			if err == nil {
 				var r *flowdocs.Result
-				r, err = flowdocs.Generate(ctx, o.root, flowdocs.Options{Revision: o.revision, Scope: o.scope, Corpus: corpus})
+				r, err = flowdocs.Generate(ctx, o.root, flowdocs.Options{Revision: o.revision, Scope: o.scope, Corpus: corpus, Flows: flows})
 				if err == nil {
 					err = flowdocs.Materialize(o.output, r)
 					value = r.Manifest
@@ -150,13 +156,15 @@ func runDocsFlows(ctx context.Context, o docsFlowsOptions, stdout, stderr io.Wri
 const docsFlowsHelp = `Generate bounded source-derived flow documentation (generated trust).
 
 Usage:
-  corvint [--root PATH] docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR [--corpus FILE] [--previous FILE]
+  corvint [--root PATH] docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR [--corpus FILE] [--flows FILE] [--previous FILE]
   corvint [--root PATH] docs flows check --revision FULL_SHA --previous FILE [--output-dir DIR]
   corvint [--root PATH] docs flows finalize --previous FILE --provider-revision FULL_SHA --provider-path PATH
 
 Generate exclusively writes a new output directory: eight Markdown pages per flow,
 provider.json and generation.json. Ruby/Rails, JS/TS, React JSX and literal Angular
 bindings are bounded lexical observations, never accepted intent or runtime proof.
+--flows FILE groups declarations into the project's declared flows; unresolved
+members and unassigned declarations are reported, never generated as flows.
 Check and finalize are read-only. Check reports each stable claim/paragraph's
 fresh/stale/unresolved source binding and optional byte drift (exit 1).
 Finalize admits separately committed provider bytes without changing source anchors.

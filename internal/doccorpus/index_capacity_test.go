@@ -181,3 +181,27 @@ func TestDCPV1196BuildAdmittedRefusesOverBoundIndex(t *testing.T) {
 		t.Fatal("an interrupted admission must fail closed", err)
 	}
 }
+
+// DCP-V1-244: admission refuses with the same typed code every condition the
+// query-time index derivation refuses, not only the capacity bound (V1-2002).
+// A claim reusing a subject's identity is refused by the derivation as
+// corpus-refused; before the fix admission returned nil for it.
+func TestDCPV1244AdmitIndexRefusesEveryDerivationRefusal(t *testing.T) {
+	root, m := adoptionFixture(t, nil)
+	built, err := Build(context.Background(), root, m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(built.Subjects) == 0 || len(built.Claims) == 0 {
+		t.Fatal("fixture has no subject or claim to collide")
+	}
+	built.Claims[0].ID = built.Subjects[0].ID
+	_, queryErr := BuildQueryIndex(context.Background(), built)
+	var queried, admitted *Error
+	if !errors.As(queryErr, &queried) || queried.Code == CapacityCode {
+		t.Fatal("fixture does not reach a non-capacity derivation refusal:", queryErr)
+	}
+	if err := AdmitIndex(context.Background(), built); !errors.As(err, &admitted) || admitted.Code != queried.Code || admitted.Message != queried.Message {
+		t.Fatalf("admission returned %v, query time refuses %v", err, queryErr)
+	}
+}

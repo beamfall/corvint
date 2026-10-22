@@ -40,14 +40,15 @@ const (
 // Budget bounds one verification's Git usage: an operation count and a total
 // wall deadline shared across operations.
 type Budget struct {
-	remaining int
-	deadline  time.Time
-	stable    *stableState // nil for every legacy caller
+	remaining  int
+	operations int // the initial operation bound, named when it is exhausted
+	deadline   time.Time
+	stable     *stableState // nil for every legacy caller
 }
 
 // NewBudget returns a budget of ops operations within total wall time.
 func NewBudget(ops int, total time.Duration) *Budget {
-	return &Budget{remaining: ops, deadline: time.Now().Add(total)}
+	return &Budget{remaining: ops, operations: ops, deadline: time.Now().Add(total)}
 }
 
 // NewDefaultBudget returns the frozen 1,024-operation, 30-minute budget.
@@ -105,6 +106,29 @@ type limitedBuffer struct {
 	overrun  func()
 }
 
+// exceededError names the stream and the byte bound it exceeded, so a refusal
+// can say which bound fired and its value (V1-2170).
+func (b *limitedBuffer) exceededError(stream string) *cemcode.Error {
+	return cemcode.New(cemcode.GitOutputExceeded, "Git %s exceeded its %d-byte bound", stream, b.limit)
+}
+
+// outputExceeded reports an overrun observed before the process exited: the
+// stream that crossed its bound when known, else both bounds.
+func outputExceeded(stdout, stderr *limitedBuffer) *cemcode.Error {
+	if _, exceeded := stdout.snapshot(); exceeded {
+		return stdout.exceededError("stdout")
+	}
+	if _, exceeded := stderr.snapshot(); exceeded {
+		return stderr.exceededError("stderr")
+	}
+	return cemcode.New(cemcode.GitOutputExceeded, "Git output exceeded its byte bound (stdout %d bytes, stderr %d bytes)", stdout.limit, stderr.limit)
+}
+
+// exhausted names the operation bound that ran out (V1-2170).
+func (b *Budget) exhausted() *cemcode.Error {
+	return cemcode.New(cemcode.GitBudgetExceeded, "Git operation budget exhausted at its %d-operation bound", b.operations)
+}
+
 // newLimitedBuffer constructs a limitedBuffer capped at limit, preallocating
 // its backing capacity to hint when hint is positive. The preallocation is
 // clamped to limit so a bogus or oversized hint cannot itself trigger a huge
@@ -158,7 +182,7 @@ func (b *Budget) ReserveOperation(perOp time.Duration) (time.Duration, error) {
 		return reservation.Deadline.Sub(b.stable.now()), nil
 	}
 	if b.remaining <= 0 {
-		return 0, cemcode.New(cemcode.GitBudgetExceeded, "Git operation budget exhausted")
+		return 0, b.exhausted()
 	}
 	b.remaining--
 	untilDeadline := time.Until(b.deadline)
@@ -297,9 +321,9 @@ func runReservedStream(ctx context.Context, perOp time.Duration, options Options
 			return nil, streamErr
 		}
 		if _, exceeded := stdout.snapshot(); exceeded {
-			failure = cemcode.New(cemcode.GitOutputExceeded, "Git stdout exceeded its byte bound")
+			failure = stdout.exceededError("stdout")
 		} else if _, exceeded := stderr.snapshot(); exceeded {
-			failure = cemcode.New(cemcode.GitOutputExceeded, "Git stderr exceeded its byte bound")
+			failure = stderr.exceededError("stderr")
 		} else if runErr != nil {
 			errText, _ := stderr.snapshot()
 			exitCode := -1
@@ -316,7 +340,7 @@ func runReservedStream(ctx context.Context, perOp time.Duration, options Options
 		if streamErr := stream.failure(); streamErr != nil {
 			return nil, streamErr
 		}
-		failure = cemcode.New(cemcode.GitOutputExceeded, "Git output exceeded its byte bound")
+		failure = outputExceeded(stdout, stderr)
 	case <-ctx.Done():
 		killAndReap()
 		failure = cemcode.New(cemcode.GitCancelled, "Git operation cancelled")
@@ -418,7 +442,7 @@ type stableState struct {
 // deadline. expire is called once when the budget first observes that
 // deadline passed. Only the Stable verifier constructs one.
 func NewStableBudget(ops int, deadline time.Time, expire func(), seam Seam) *Budget {
-	return &Budget{remaining: ops, deadline: deadline, stable: &stableState{seam: seam, deadline: deadline, expire: expire}}
+	return &Budget{remaining: ops, operations: ops, deadline: deadline, stable: &stableState{seam: seam, deadline: deadline, expire: expire}}
 }
 
 // Stable reports whether the budget routes to the owned runner.
@@ -474,7 +498,7 @@ func (b *Budget) Reserve() (Reservation, error) {
 		ordinal := st.ordinal
 		st.mu.Unlock()
 		st.event(Event{Name: "refused-before-spawn", Ordinal: ordinal})
-		return Reservation{}, cemcode.New(cemcode.GitBudgetExceeded, "Git operation budget exhausted")
+		return Reservation{}, b.exhausted()
 	}
 	b.remaining--
 	st.ordinal++
@@ -721,9 +745,9 @@ func runOwned(ctx context.Context, st *stableState, reservation Reservation, rep
 	case stream.failure() != nil:
 		return nil, stream.failure()
 	case stdoutExceeded:
-		return nil, cemcode.New(cemcode.GitOutputExceeded, "Git stdout exceeded its byte bound")
+		return nil, stdout.exceededError("stdout")
 	case stderrExceeded:
-		return nil, cemcode.New(cemcode.GitOutputExceeded, "Git stderr exceeded its byte bound")
+		return nil, stderr.exceededError("stderr")
 	case result.WaitErr != nil:
 		exitCode := -1
 		var exitError *exec.ExitError

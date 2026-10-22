@@ -59,8 +59,8 @@ func loadReferenceGraph(r repo, head string) (*referenceGraph, string) {
 }
 
 // mentionTokens are the texts a reference to target must contain one of: the stem of a script
-// (imports omit the extension), and for an index file both its directory name and `index`; the
-// base name of anything else.
+// (imports omit the extension), and for an index file both its directory name and `index` (always
+// the second token); the base name of anything else.
 func mentionTokens(target string) []string {
 	base := path.Base(target)
 	ext := path.Ext(base)
@@ -112,7 +112,8 @@ func (g *referenceGraph) references(name, target string) ([]int, bool) {
 	text := string(g.files[name])
 	code, lexed := hopLexed(name, text)
 	set := map[int]bool{}
-	for _, token := range mentionTokens(target) {
+	tokens := mentionTokens(target)
+	for k, token := range tokens {
 		for from := 0; ; {
 			i := strings.Index(text[from:], token)
 			if i < 0 {
@@ -122,6 +123,12 @@ func (g *referenceGraph) references(name, target string) ([]int, bool) {
 			from = i + len(token)
 			if i > 0 && hopNameByte(text[i-1]) || from < len(text) && hopNameByte(text[from]) {
 				continue // part of a longer name; a property `x.token` is a mention like any other
+			}
+			if k == 1 && lexed && code != "" && code[i:from] == token {
+				// An index file's `index` token is a path segment, never the binding an import
+				// names, so a code-position identifier (a loop index, `x.index`, `{index: 1}`)
+				// that the lexer left unblanked cannot reference the file (ANL-V0-047, V1-1216).
+				continue
 			}
 			ls := strings.LastIndexByte(text[:i], '\n') + 1
 			le := strings.IndexByte(text[i:], '\n')

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/mcp/server"
@@ -36,10 +37,14 @@ func main() {
 }
 
 func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	if len(arguments) > 0 && arguments[0] == "--outcome-summary" {
+		return runOutcomeSummary(arguments, stdout, stderr) // DCP-V1-286
+	}
 	arguments, protocolVersion, protocolOK := protocol.ExtractVersionArgument(arguments)
 	arguments, legacyCases, legacyOK := extractLegacyCasesFlag(arguments)
+	arguments, outcomePath, outcomeOK := extractOutcomeLogFlag(arguments)
 	root, artifact, maps, consolidation, versionOnly, ok := parseArguments(arguments)
-	if !ok || !protocolOK || !legacyOK || versionOnly && legacyCases {
+	if !ok || !protocolOK || !legacyOK || !outcomeOK || versionOnly && legacyCases {
 		_, _ = fmt.Fprintln(stderr, "corvint-corpus-mcp: invalid arguments")
 		return 2
 	}
@@ -76,6 +81,7 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 		return 2
 	}
 	handler := &toolHandler{registry: registry, planner: planner}
+	var err error
 	if consolidation {
 		absolute, err := filepath.Abs(root)
 		if err != nil {
@@ -86,6 +92,17 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 	}
 	if legacyCases {
 		handler.legacyCases = &legacyCaseSearcher{root: root}
+	}
+	if outcomePath != "" { // DCP-V1-285: opt-in, off by default
+		listed := []string{}
+		for _, tool := range handler.listedTools() {
+			listed = append(listed, tool.Name)
+		}
+		handler.outcomes, err = openOutcomeLog(outcomePath, registry.ArtifactSHA256(), listed, stderr)
+		if err != nil {
+			_, _ = fmt.Fprintln(stderr, "corvint-corpus-mcp: --outcome-log: "+err.Error())
+			return 2
+		}
 	}
 	instance, err := server.New(server.Config{
 		ProtocolVersion: protocolVersion,
@@ -177,7 +194,23 @@ type toolHandler struct {
 	planner      *mapPlanner
 	consolidator *consolidator
 	legacyCases  *legacyCaseSearcher
+	outcomes     *outcomeLog   // nil unless --outcome-log (DCP-V1-285)
 	deadline     time.Duration // zero means callDeadline
+}
+
+func (handler *toolHandler) listedTools() []bridge.ToolDescriptor {
+	tools := handler.registry.Tools()
+	if handler.planner != nil {
+		tools = append(tools, handler.planner.descriptor())
+	}
+	if handler.consolidator != nil {
+		tools = append(tools, handler.consolidator.descriptor())
+	}
+	if handler.legacyCases != nil {
+		tools = append(tools, handler.legacyCases.descriptor())
+	}
+	sort.Slice(tools, func(left, right int) bool { return tools[left].Name < tools[right].Name })
+	return tools
 }
 
 func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request, _ server.Notifier) (map[string]any, *protocol.RPCError) {
@@ -191,22 +224,19 @@ func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request
 				return nil, protocol.InvalidParams("Invalid params")
 			}
 		}
-		tools := handler.registry.Tools()
-		if handler.planner != nil {
-			tools = append(tools, handler.planner.descriptor())
-		}
-		if handler.consolidator != nil {
-			tools = append(tools, handler.consolidator.descriptor())
-		}
-		if handler.legacyCases != nil {
-			tools = append(tools, handler.legacyCases.descriptor())
-		}
-		sort.Slice(tools, func(left, right int) bool { return tools[left].Name < tools[right].Name })
+		tools := handler.listedTools()
 		return map[string]any{
 			"cacheScope": "private", "tools": tools, "ttlMs": 300_000,
 		}, nil
 	case "tools/call":
-		return handler.call(ctx, request.Params)
+		if handler.outcomes == nil {
+			return handler.call(ctx, request.Params)
+		}
+		started := time.Now()
+		result, rpcErr := handler.call(ctx, request.Params)
+		name, _ := request.Params["name"].(string)
+		handler.outcomes.record(name, classifyOutcome(result, rpcErr), time.Since(started))
+		return result, rpcErr
 	default:
 		return nil, protocol.MethodNotFound()
 	}
