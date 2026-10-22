@@ -275,7 +275,7 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 		"count": len(omissions), "sha256": fmt.Sprintf("sha256:%x", omissionHash.Sum(nil)),
 		"samples": omissions[:min(len(omissions), maxExclusionSamples)],
 	}
-	result["verification"] = rangeVerification(goPaths, admittedPaths, index, moduleChanged)
+	setVerification(result, index, rangeVerification(goPaths, admittedPaths, index, moduleChanged))
 	coverage := result["coverage"].(map[string]any)
 	// The result counts are left to `receipt`, which now denominates them in
 	// the same pre-truncation `rawResults` this function would restate.  They
@@ -990,9 +990,14 @@ func rangeVerification(goPaths, admittedPaths []string, index *Index, moduleChan
 	if moduleChanged {
 		commands = append(commands, "go mod verify")
 	}
-	final := projectprofile.ByID(index.ProfileID).Gate
-	if _, exists := seen[final]; !exists {
-		commands = append(commands, final)
+	// The range plan closes with the same gates as a path plan over the same
+	// tree: declared commands first, else the profile's or Makefile's gate
+	// (NGI-V0-062).
+	for _, final := range closingGates(index, projectprofile.ByID(index.ProfileID)) {
+		if _, exists := seen[final]; !exists {
+			seen[final] = struct{}{}
+			commands = append(commands, final)
+		}
 	}
 	return commands
 }
