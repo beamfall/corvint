@@ -74,6 +74,12 @@ not tell whether the change reached the site, fix the site, or declare it resolv
 - Evidence: `TestImpactResolvesBareDotDirectoryImportsToIndex` covers `.`, `..` and `../`. It passes,
   and it fails with `index reverse-imports = map[]` when the `/index` match is removed.
 
+## Analyzer schema
+
+`internal/rubyautoload/rubyautoload.go` is an analyzer input, so `TestAnalyzerSchemaInputs` drifted.
+`script/analyzer-schema.sh bump` moved the schema to `corvint-analyzer/143` (origin/main is at 142).
+The orchestrator may renumber it at batch time.
+
 ## Rollback
 
 Revert the change. Bare plugin-wide reasons return, `ruby:ambiguous-load` is raised again, and
