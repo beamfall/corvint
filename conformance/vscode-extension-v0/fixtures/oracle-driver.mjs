@@ -112,7 +112,8 @@ if (expect.testStatusMap) {
   for (const [sourceStatus, status] of Object.entries(expect.testStatusMap)) tests.push({ id: `status:${sourceStatus}`, label: sourceStatus, sourceStatus, status });
 }
 if (expect.testHierarchy) for (const item of expect.testHierarchy) tests.push({ ...item, status: 'queued', output: '' });
-const diagnostics = expect.diagnosticsSafe ? [{ id: expect.diagnosticGenerationReplaced ? 'new' : 'diagnostic', severity: 'warning', message: 'bounded diagnostic', location: { path: 'src/a.go', line: 0, withinWorkspace: true } }] : [];
+const diagnosticLines = expect.diagnosticLinesExact ?? (expect.diagnosticsSafe ? [0] : []);
+const diagnostics = diagnosticLines.map((line, index) => ({ id: expect.diagnosticGenerationReplaced ? 'new' : `diagnostic:${index}`, severity: 'warning', message: 'bounded diagnostic', location: { path: 'src/a.go', line, withinWorkspace: true } }));
 const decorations = expect.decorationsSafe ? [{ label: 'impact', location: { path: 'src/a.go', line: 0, withinWorkspace: true } }] : [];
 const observation = {
   profile: 'corvint-vscode-host-observation/0',
@@ -126,7 +127,7 @@ const observation = {
   processPolicy: { retryCount: 0, failoverCount: 0 },
   uncertainties: expect.uncertaintyContains ? [expect.uncertaintyContains] : [],
   claims: { descendantContainment: false, executableAttestation: false },
-  failure: expect.failureCode || expect.failureCodeOneOf ? { code: expect.failureCode ?? expect.failureCodeOneOf[0] } : null,
+  failure: expect.failureCode || expect.failureCodeOneOf ? { code: expect.failureCode ?? expect.failureCodeOneOf[0], ...(expect.failureMessageExact != null ? { message: expect.failureMessageExact } : {}) } : null,
   observationFile: {
     readCount: expect.observationReadOnce ? 1 : 0,
     stableRevalidation: expect.observationReadOnce ?? false,
@@ -189,6 +190,7 @@ const observation = {
       why: [{ id: 'mcp:why:authority', label: 'MCP authority: ABSTAINED', description: 'NOT_OBSERVED · NONE', tooltip: `Reason: ${expect.mcpNullAbstentionExact ? 'UNSUPPORTED_INTENT' : 'OUT_OF_SCOPE'}` }],
     } : { evidence: [], impact: [], why: [] },
     diagnostics,
+    documentOpenCount: expect.documentOpenCount ?? 0,
     decorations,
     tests,
     testRunProfiles: 0,

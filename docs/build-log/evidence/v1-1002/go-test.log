@@ -1,0 +1,46 @@
+heavy.sh: slot slot3 after 0s
+=== RUN   TestQualifiedPlaywrightLive
+=== RUN   TestQualifiedPlaywrightLive/interruption-wait-releases-on-request-cancel
+=== RUN   TestQualifiedPlaywrightLive/PWP-V0-009_explicit-node-tuple
+=== RUN   TestQualifiedPlaywrightLive/PWP-V0-003_distinct-project-identities
+=== RUN   TestQualifiedPlaywrightLive/PWP-V0-004_preserve-real-attempt-states
+=== RUN   TestQualifiedPlaywrightLive/PWP-V0-001_external-server-survives
+=== RUN   TestQualifiedPlaywrightLive/PWP-V0-002_original-config-inputs-and-hooks
+=== RUN   TestQualifiedPlaywrightLive/PWP-V0-005_retained-MCP-discovery
+=== RUN   TestQualifiedPlaywrightLive/PWP-V0-007_live-browser-matrix
+=== RUN   TestQualifiedPlaywrightLive/PWP-V0-006_cancellation-preserves-external-server
+=== NAME  TestQualifiedPlaywrightLive
+    external_live_test.go:432: PWP-V0-008 system browser Google Chrome 155.0.8059.85 remains unqualified; previous system tuple NOT_OBSERVED
+    external_live_test.go:472: qualified real Playwright 1.64.0 bundled headless-shell on Node v24.11.1: pass/assertion/timeout/retry/browser infra, two projects, retained discovery, cancellation/server survival
+--- PASS: TestQualifiedPlaywrightLive (25.62s)
+    --- PASS: TestQualifiedPlaywrightLive/interruption-wait-releases-on-request-cancel (0.00s)
+    --- PASS: TestQualifiedPlaywrightLive/PWP-V0-009_explicit-node-tuple (0.00s)
+    --- PASS: TestQualifiedPlaywrightLive/PWP-V0-003_distinct-project-identities (0.00s)
+    --- PASS: TestQualifiedPlaywrightLive/PWP-V0-004_preserve-real-attempt-states (0.00s)
+    --- PASS: TestQualifiedPlaywrightLive/PWP-V0-001_external-server-survives (0.00s)
+    --- PASS: TestQualifiedPlaywrightLive/PWP-V0-002_original-config-inputs-and-hooks (0.00s)
+    --- PASS: TestQualifiedPlaywrightLive/PWP-V0-005_retained-MCP-discovery (0.02s)
+    --- PASS: TestQualifiedPlaywrightLive/PWP-V0-007_live-browser-matrix (0.00s)
+    --- PASS: TestQualifiedPlaywrightLive/PWP-V0-006_cancellation-preserves-external-server (0.98s)
+=== RUN   TestQualifiedPlaywrightLiveDevicesSpread
+=== RUN   TestQualifiedPlaywrightLiveDevicesSpread/PWP-V0-003_standard-devices-spread-identity
+=== RUN   TestQualifiedPlaywrightLiveDevicesSpread/PWP-V0-008_bundled-headless-qualified-tuple
+--- PASS: TestQualifiedPlaywrightLiveDevicesSpread (1.13s)
+    --- PASS: TestQualifiedPlaywrightLiveDevicesSpread/PWP-V0-003_standard-devices-spread-identity (0.00s)
+    --- PASS: TestQualifiedPlaywrightLiveDevicesSpread/PWP-V0-008_bundled-headless-qualified-tuple (0.00s)
+=== RUN   TestPWPV0010KeepReportersLive
+=== RUN   TestPWPV0010KeepReportersLive/PWP-V0-011_kept_entries_bound_in_provider-first_order
+=== RUN   TestPWPV0010KeepReportersLive/PWP-V0-055_provider_scratch_files_are_not_config_inputs
+=== RUN   TestPWPV0010KeepReportersLive/PWP-V0-010_configDir_override_honoured
+    keep_reporters_live_test.go:147: observed FullConfig.reporter shape: {"reporter":[["/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/corvint-playwright-196981742/reporter.cjs",{"output":"/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/corvint-playwright-196981742/report.json","sensitiveInputPolicy":null,"keepReporters":true}],["list",null],["html",{"configDir":"/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001","open":"never"}],["json",{"configDir":"/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001"}],["junit",{"configDir":"/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001"}],["/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/shape-reporter.cjs",null]],"options":{"configDir":"/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/corvint-playwright-196981742","_mode":"test","_commandHash":"098b596"}}
+=== RUN   TestPWPV0010KeepReportersLive/PWP-V0-012_keep_receipt_abstains_without_qualification
+=== RUN   TestPWPV0010KeepReportersLive/PWP-V0-015_PWP-V0-016_live_qualification_projects_the_passing_outcome
+    keep_reporters_live_test.go:206: keep-reporters qualification: {"profile":"corvint-playwright-keep-reporters-qualification/0","verdict":"qualified","reasons":[],"receiptProfile":"corvint-playwright-external/0","runnerVersion":"1.64.0","nodeVersion":"v24.11.1","entries":[{"name":"list","module":"builtin","options":"absent"},{"name":"html","module":"builtin","options":"bound","optionsDigest":"16cb0f4a2e9ebf6fa5b163e5a9bbc0c1d831f3b75aa528c4196f22fab709c4fa"},{"name":"json","module":"builtin","options":"bound","optionsDigest":"aae116af613974f0b05ba45fc48ced3a2da7ccdb531283acc357994c1a8ae92c"},{"name":"junit","module":"builtin","options":"bound","optionsDigest":"aae116af613974f0b05ba45fc48ced3a2da7ccdb531283acc357994c1a8ae92c"},{"name":"/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/shape-reporter.cjs","module":"bound","moduleDigest":"6c1f53602697ce0207048c46ba39c5a694bcd448862dd8539c9a936ac5ae392f","options":"absent"}],"configInputs":{"/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/keep.config.cjs":"0c37fcaa5a12b4d3c0a56caef280aa28e529e9f66fee1599c055eeb576413097","/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/keep.spec.cjs":"b551480e18683acd35dbe8574c7c52f644b179c8bf6174e756fa2741ef4f9ea6","/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/shape-reporter.cjs":"6c1f53602697ce0207048c46ba39c5a694bcd448862dd8539c9a936ac5ae392f"},"tests":2,"controlReceiptSha256":"091b81397655a73ac41a2792c422a45c8be43fa536c3e4418f2ba9028b3cd7d2","keepReceiptSha256":"3e62ed440e8228d95f60a96d9a05913c0bdbb0b8562120d7fef1e87c128fb7a5"}
+--- PASS: TestPWPV0010KeepReportersLive (2.90s)
+    --- PASS: TestPWPV0010KeepReportersLive/PWP-V0-011_kept_entries_bound_in_provider-first_order (0.00s)
+    --- PASS: TestPWPV0010KeepReportersLive/PWP-V0-055_provider_scratch_files_are_not_config_inputs (0.00s)
+    --- PASS: TestPWPV0010KeepReportersLive/PWP-V0-010_configDir_override_honoured (0.00s)
+    --- PASS: TestPWPV0010KeepReportersLive/PWP-V0-012_keep_receipt_abstains_without_qualification (0.00s)
+    --- PASS: TestPWPV0010KeepReportersLive/PWP-V0-015_PWP-V0-016_live_qualification_projects_the_passing_outcome (0.95s)
+PASS
+ok  	github.com/Beamfall/corvint/internal/jstestprovider	30.011s

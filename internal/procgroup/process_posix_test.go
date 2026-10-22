@@ -319,3 +319,27 @@ func TestV11055NoGroupOperationAfterConcurrentRelease(t *testing.T) {
 		t.Fatalf("group released %d times, want once", n)
 	}
 }
+
+// V1-2319: a positive TerminateGrace gives a slow SIGTERM handler that long
+// before SIGKILL, so a handler delayed past the 100 ms default still completes;
+// a negative grace is refused before any process starts.
+func TestTerminateGraceLetsSlowTermHandlerFinish(t *testing.T) {
+	fixture := t.TempDir()
+	ready, handled := filepath.Join(fixture, "ready"), filepath.Join(fixture, "handled")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		waitForProcessFile(t, ready)
+		cancel()
+	}()
+	observation := Run(ctx, Spec{
+		Argv: []string{"/bin/sh", "-c", `trap 'sleep 0.5; echo >"$1/handled"; exit 0' TERM; sleep 30 & echo >"$1/ready"; wait`, "sh", fixture},
+		Dir:  fixture, Env: []string{"PATH=/usr/bin:/bin"}, Timeout: time.Minute, ShutdownTimeout: 20 * time.Second, TerminateGrace: 10 * time.Second,
+	})
+	if _, err := os.Stat(handled); err != nil || !observation.Cancelled || observation.StopSignal != "SIGTERM" {
+		t.Fatalf("slow TERM handler did not finish within the grace: err=%v observation=%+v", err, observation)
+	}
+	if refused := Run(context.Background(), Spec{Argv: []string{"/bin/true"}, Timeout: time.Second, TerminateGrace: -time.Second}); refused.Started || refused.Err == nil {
+		t.Fatalf("negative terminate grace accepted: %+v", refused)
+	}
+}
