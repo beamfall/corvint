@@ -2,6 +2,8 @@ package changee2e
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -90,4 +92,62 @@ func TestCCEV0007PlacementsInjective(t *testing.T) {
 	if a == b || !strings.HasPrefix(a, PlacementDir+"/a-b-c-") || !strings.HasSuffix(b, ".spec.ts") {
 		t.Fatalf("placements %q, %q", a, b)
 	}
+}
+
+// CCE-V0-016: each compiled scenario records where its oracle came from. An outcome admitted
+// unchanged at base is ADMITTED_AT_BASE; one whose expected value the diff edits is
+// CHANGED_IN_DIFF; one the diff introduces is NEW_IN_DIFF.
+func TestCCEV0016OracleOrigin(t *testing.T) {
+	flow := func(t *testing.T, root string) string {
+		return readFile(t, root, "flows/book-tee-time.json")
+	}
+	for _, tc := range []struct {
+		name string
+		edit func(t *testing.T, root string) (string, string) // returns base, head
+		want string
+	}{
+		{"admitted at base", func(t *testing.T, root string) (string, string) {
+			return "", commitBehaviourChange(t, root)
+		}, OriginAdmittedAtBase},
+		{"changed in diff", func(t *testing.T, root string) (string, string) {
+			f := strings.Replace(flow(t, root), `"value": "Booked"`, `"value": "Reserved"`, 1)
+			commitFiles(t, root, map[string]*string{"flows/book-tee-time.json": text(f)}, "edit the oracle")
+			return "", commitBehaviourChange(t, root)
+		}, OriginChangedInDiff},
+		{"new in diff", func(t *testing.T, root string) (string, string) {
+			f := flow(t, root)
+			bare := strings.Replace(f, `"outcomes": [`+"\n"+`    {"outcome_id": "booked", "behavior": "slot shows as booked", "matcher": "toHaveText", "locator": "slot-status", "value": "Booked"}`+"\n"+`  ]`, `"outcomes": []`, 1)
+			bare = strings.Replace(bare, `"expect": ["booked"]`, `"expect": []`, 1)
+			if bare == f {
+				t.Fatal("fixture flow shape changed")
+			}
+			base := commitFiles(t, root, map[string]*string{"flows/book-tee-time.json": text(bare)}, "no outcome yet")
+			commitFiles(t, root, map[string]*string{"flows/book-tee-time.json": text(f)}, "declare the outcome")
+			return base, commitBehaviourChange(t, root)
+		}, OriginNewInDiff},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root, base := fixtureRepo(t)
+			b, head := tc.edit(t, root)
+			if b != "" {
+				base = b
+			}
+			r, err := Compile(bg, diffOpts(root, base, head))
+			if err != nil || len(r.Compiled()) != 1 {
+				t.Fatalf("compile: %v\n%s", err, r.Encoded())
+			}
+			if got := r.Compiled()[0].OracleOrigin; got != tc.want || !strings.Contains(string(r.Encoded()), `"oracle_origin": "`+tc.want+`"`) {
+				t.Fatalf("oracle origin %q, want %q\n%s", got, tc.want, r.Encoded())
+			}
+		})
+	}
+}
+
+func readFile(t *testing.T, root, p string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(p)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
 }

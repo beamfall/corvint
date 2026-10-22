@@ -131,13 +131,17 @@ func runControl(ctx context.Context, inv behaviorfalsify.Invocation) (behaviorfa
 	if inv.Control.Kind == behaviorfalsify.WrongLocator {
 		locator = def["replacement"]
 	}
-	switch t.State {
-	case jstestprovider.StateFailed:
+	switch {
+	case inv.Control.Kind == behaviorfalsify.OmittedEvent && (t.State == jstestprovider.StateFailed || t.State == jstestprovider.StateTimedOut):
+		// The removed step or fixture setup was load-bearing: the scenario no longer completes
+		// (CCE-V0-029). BBF reads only an assertion failure as killed.
+		r.TestOutcome, obs.State, obs.FailureKind = "failed", "failed", "assertion"
+	case t.State == jstestprovider.StateFailed:
 		r.TestOutcome, obs.State, obs.FailureKind = "failed", "failed", "unexpected"
 		if failsAtAssertion(string(t.State), t.FailureMessage, def["marker"], def["matcher"], locator) {
 			obs.FailureKind = "assertion"
 		}
-	case jstestprovider.StatePassed:
+	case t.State == jstestprovider.StatePassed:
 		r.TestOutcome, obs.State = "passed", "passed"
 	default:
 		r.TestOutcome, obs.State, obs.FailureKind = string(t.State), string(t.State), "unexpected"
@@ -157,7 +161,9 @@ func infrastructureReason(ctx context.Context, r jstestprovider.Receipt) string 
 }
 
 // perturbLine replaces exactly one quoted locator (wrong-locator) or expected value
-// (wrong-expected-value) on the 1-based line, keeping the literal's quote style.
+// (wrong-expected-value) on the 1-based line, keeping the literal's quote style. For
+// omitted-event it replaces the awaited statement on the line with a comment, so every later
+// line, including the outcome assertion, keeps its number.
 func perturbLine(text []byte, line int, kind behaviorfalsify.ControlKind, locator, matcher, value, replacement string) ([]byte, error) {
 	lines := strings.SplitAfter(string(text), "\n")
 	if line < 1 || line > len(lines) {
@@ -165,6 +171,15 @@ func perturbLine(text []byte, line int, kind behaviorfalsify.ControlKind, locato
 	}
 	var prefix, original string
 	switch kind {
+	case behaviorfalsify.OmittedEvent:
+		l := lines[line-1]
+		body := strings.TrimLeft(l, " ")
+		if !strings.HasPrefix(body, "await ") || strings.Contains(body, "expect(") {
+			return nil, errors.New("e2e-hook-event-not-found")
+		}
+		indent := l[:len(l)-len(body)]
+		lines[line-1] = indent + "// corvint-test e2e prove: omitted-event control\n"
+		return []byte(strings.Join(lines, "")), nil
 	case behaviorfalsify.WrongLocator:
 		prefix, original = "getByTestId(", locator
 	case behaviorfalsify.WrongExpectedValue:

@@ -218,7 +218,7 @@
     "path": "docs/specs/change-compiled-e2e-v0.md",
     "title": "Change-Compiled E2E V0",
     "reqPrefix": "CCE-V0",
-    "intent": "proposed",
+    "intent": "accepted (owner, 2026-10-22)",
     "delivery": "experimental",
     "claim": "Reviewed E2E blocks compile into change-specific scenarios that must discriminate the change; hosted tests retire only after a shadow evaluation.",
     "dependsOn": [
