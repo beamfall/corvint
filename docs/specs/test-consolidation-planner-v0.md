@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-10-08
 Requirement prefix: `TCN-V0`
-Intent status: accepted (decision 0457; V1-1023); TCN-V0-013..015 accepted under the owner's standing auto-accept (2026-10-11; V1-2093; GitHub #1320)
+Intent status: accepted (decision 0457; V1-1023); TCN-V0-013..015 accepted under the owner's standing auto-accept (2026-10-11; V1-2093; GitHub #1320); TCN-V0-016 accepted under the same standing auto-accept (V1-1031)
 Delivery status: experimental
 Authoritative inputs: owner request [issue 681](https://github.com/beamfall/corvint/issues/681)
 (native ticket V1-1023), `AGENTS.md` invariants 1, 2, 4, 7 and 8,
@@ -13,13 +13,14 @@ setup scenarios), `docs/specs/application-flow-understanding-v1.md` (AFU-V1 flow
 declared test-link vocabulary) and `docs/specs/live-proof-carrying-verification-v0.md`
 (LPCV-V0-047..053, the `corvint-test-validity/0` document read as test witnesses); owner issue
 [#1320](https://github.com/beamfall/corvint/issues/1320) (native ticket V1-2093) for the step-local
-precondition channel TCN-V0-013..015.
+precondition channel TCN-V0-013..015; native ticket V1-1031 for the synthetic-only `REUSED` narrowing
+TCN-V0-016.
 
 ## Agent digest
 - Claim: A read-only planner could group variations sharing fixture state, screen and user into fewer focused tests, as a fail-closed checkable table with reasons.
-- Status: accepted (decision 0457; V1-1023); TCN-V0-013..015 accepted under the owner's standing auto-accept (2026-10-11; V1-2093; GitHub #1320); experimental. GitHub #681 is the V0 request. Acceptance settles intent only.
-- Exists: `internal/testplan`, `corvint test-plan consolidate|check` and, with `--consolidation`, `corvint-corpus-mcp` tool `corvint.consolidate_tests`; TCN-V0-001..015 each have passing focused tests (Deterministic acceptance and traceability).
-- Blocked on: owner-run qualification on the adopter's labelled variation set (`NOT_RUN`); a lane qualification on this repository's console tests ran (44 variations, 31 new tests; Repository qualification); `REUSED` is not reachable from real provider documents in V0 (Implementation notes).
+- Status: accepted (decision 0457; V1-1023); TCN-V0-013..016 accepted under the owner's standing auto-accept (2026-10-11; V1-2093; GitHub #1320; V1-1031); experimental. GitHub #681 is the V0 request. Acceptance settles intent only.
+- Exists: `internal/testplan`, `corvint test-plan consolidate|check` and, with `--consolidation`, `corvint-corpus-mcp` tool `corvint.consolidate_tests`; TCN-V0-001..016 each have passing focused tests (Deterministic acceptance and traceability).
+- Blocked on: owner-run qualification on the adopter's labelled variation set (`NOT_RUN`); a lane qualification on this repository's console tests ran (44 variations, 31 new tests; Repository qualification); `REUSED` is synthetic-only in V0 (TCN-V0-016).
 - Read next: Requirements; Grouping algorithm; Implementation notes; Owner questions.
 
 ## User and measurable job
@@ -270,6 +271,18 @@ requirements TCN-V0-013..015 are accepted under the owner's standing auto-accept
   facts compare equal. Splitting a class this way changes the plan as any distinct variation does;
   it is the one exception to the TCN-V0-013 output invariance. (accepted under the owner's
   standing auto-accept (2026-10-11; V1-2093))
+- `TCN-V0-016`: In V0 `REUSED` is synthetic-only: no provider document a real run emits yields a
+  witness that meets TCN-V0-004, and the planner MUST NOT relax a TCN-V0-004 rule to reach it. The
+  qualified external Playwright profiles are the only JavaScript receipts that may carry a test
+  `id` and project, and their recomputed freshness is always `UNKNOWN`
+  (`retained-external-app-lifecycle-unverifiable`, LPCV-V0-053); an unprofiled receipt carrying an
+  `id` and a `corvint-playwright-freshness/0` receipt are refused with
+  `invalid-test-validity-receipt`; a completed Go session projects tests without an `id`; a Ruby
+  document is not a JavaScript `e2e` document. Every real witness therefore reads a rejection
+  reason and its variation is planned. A maintained test MUST drive real provider documents
+  through `Run`, not synthetic projections, and show that none reaches `REUSED`. A provider that
+  can bind its app lifecycle to the evaluated revision needs its own requirement before this
+  narrowing is lifted. (accepted under the owner's standing auto-accept (2026-10-11; V1-1031))
 
 ## Grouping algorithm (informative restatement of TCN-V0-003..008)
 
@@ -398,6 +411,7 @@ Evidence is the focused tests below (`internal/testplan`, `cmd/corvint`, `cmd/co
 | TCN-V0-013 | `TestStepFactsNeverConflictOrOrder` (different values of one step-fact key share a test; no edge from a `changes` fact to a step fact; table and JSON equal the plan without step facts apart from `input_digest`, the header and `table_digest`; the same values as `requires` read `conflicting-state`), `TestStepFactsDecoding` (absent equals empty, sorted set, canonical member, every refusal and bound), `TestInputOrderDoesNotChangeOutput` (step facts permuted). |
 | TCN-V0-014 | `TestStepFactKeyAlsoRequiredRefuses` (equal and different values refuse; the key across variations is valid). |
 | TCN-V0-015 | `TestStepFactsInDuplicateKey` (differing step facts are not duplicates; equal, absent and empty ones class), `TestStepFactsSplitDuplicateChangesPlan` (a step fact on one of two identical variations turns a duplicate into a planned variation; the plan changes beyond its digests). |
+| TCN-V0-016 | `TestRealProviderDocumentsNeverReuse` (a canonical qualified external Playwright receipt bound to a committed spec reads freshness `UNKNOWN` with `retained-external-app-lifecycle-unverifiable` and is rejected; a completed Go session reads `witness-not-found`; an unprofiled receipt with an `id` and a freshness-profile receipt are refused; `REUSED` stays empty). |
 
 Owner-run qualification (solo-closable): run the planner on the adopter's labelled variation set
 (issue 681 cites 3,614 core rows over 133 flows) and record new tests versus
@@ -467,12 +481,12 @@ Choices the requirements left open, made by the implementation and open to owner
   differ only in a step fact can share one page-state group there; that view is governed by its own
   spec and is unchanged by this slice.
 
-Known limit: `REUSED` is not reachable end to end from real provider documents in V0. A qualified
-external JavaScript profile always reads freshness `UNKNOWN`
-(`retained-external-app-lifecycle-unverifiable`) and needs a full Playwright tuple; Go tests carry
-no `id`; and an unprofiled receipt with an `id` is refused. Reuse is exercised only through
-synthetic projections in `TestWitnessVerdicts`. A follow-up must decide how a real witness can
-reach `CURRENT`.
+Known limit: `REUSED` is synthetic-only in V0 (TCN-V0-016, V1-1031). A qualified external
+JavaScript profile always reads freshness `UNKNOWN` (`retained-external-app-lifecycle-unverifiable`)
+and needs a full Playwright tuple; Go tests carry no `id`; and an unprofiled receipt with an `id` is
+refused. Reuse is exercised through synthetic projections in `TestWitnessVerdicts`, and
+`TestRealProviderDocumentsNeverReuse` drives the real documents through `Run`. Lifting the
+narrowing needs a provider whose app lifecycle can be bound to the evaluated revision.
 
 ## Rollout, rollback and compatibility
 
