@@ -81,16 +81,17 @@ func TestDCPV1195IndexRefusalDerivedOncePerArtifact(t *testing.T) {
 		if i > 0 && (timing.Load != "reused" || timing.FreshnessMS != 0) {
 			t.Fatalf("%s: refusal reloaded or computed freshness: %+v", tool.name, timing)
 		}
-		if i > 0 && !raceEnabled && timing.TotalMS >= 50 {
-			t.Fatalf("%s: cached refusal took %d ms", tool.name, timing.TotalMS)
-		}
 	}
-	timing := check("corvint.docs_claims", batchArgs(20))
-	if !raceEnabled && timing.TotalMS >= 50 {
-		t.Fatalf("20-path batch refusal took %d ms", timing.TotalMS)
+	// Derivation is counted, not timed: a wall-clock bound flaked under host
+	// load (V1-2351), while a repeated derivation always moves the counter.
+	if *calls != 1 {
+		t.Fatalf("index derived %d times across the indexed tools, want once", *calls)
+	}
+	if timing := check("corvint.docs_claims", batchArgs(20)); timing.Load != "reused" || timing.FreshnessMS != 0 {
+		t.Fatalf("20-path batch refusal reloaded or computed freshness: %+v", timing)
 	}
 	if *calls != 1 {
-		t.Fatalf("index derived %d times, want once", *calls)
+		t.Fatalf("index derived %d times after a 20-path batch, want once", *calls)
 	}
 	// Reads that need no index still answer.
 	if _, _, failure, protocol := r.Call(context.Background(), "corvint.docs_locate", []byte(`{"path":"docs/p1.md"}`)); failure != nil || protocol != nil {

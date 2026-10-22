@@ -1132,6 +1132,9 @@ CWT-V0-012	docs/specs/confidently-wrong-trial-v0.md	Unseen set generation. `cw-t
 CWT-V0-009	docs/specs/confidently-wrong-trial-v0.md	No verdict field. The report carries the rates the bet's kill criteria read	unrecorded	-
 CWT-V0-013	docs/specs/confidently-wrong-trial-v0.md	Retrieval-native metrics (decision 0034). Beside the agent's outcome, each	unrecorded	-
 CWT-V0-014	docs/specs/confidently-wrong-trial-v0.md	Invocation lifecycle (proposed). On Darwin and Linux, `runCommand`	unrecorded	-
+CWT-V0-015	docs/specs/confidently-wrong-trial-v0.md	(accepted 2026-10-22 under the owner's standing auto-accept (2026-10-11); V1-031	standing	2026-10-22; 2026-10-11; V1-0319
+CWT-V0-016	docs/specs/confidently-wrong-trial-v0.md	(accepted 2026-10-22 under the owner's standing auto-accept (2026-10-11); V1-031	standing	2026-10-22; 2026-10-11; V1-0319
+CWT-V0-017	docs/specs/confidently-wrong-trial-v0.md	(accepted 2026-10-22 under the owner's standing auto-accept (2026-10-11); V1-031	standing	2026-10-22; 2026-10-11; V1-0319
 CEP-V0-001	docs/specs/context-evolution-program-v0.md	ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench	unrecorded	-
 CEP-V0-002	docs/specs/context-evolution-program-v0.md	ContextBench metrics. For every error-free arm answer on a ContextBench sample,	unrecorded	-
 CEP-V0-003	docs/specs/context-evolution-program-v0.md	Pinned offline runs. Every external run MUST be local and offline: rows and	unrecorded	-
@@ -3806,6 +3809,7 @@ PWP-V1-005	docs/specs/playwright-external-provider-v0.md	The provider runs befor
 PWP-V1-006	docs/specs/playwright-external-provider-v0.md	`/1` binds one clean test repository by root commit, revision and tree before Pl	unrecorded	-
 PWP-V1-007	docs/specs/playwright-external-provider-v0.md	Corvint supplies only canonical configuration bytes on provider stdin and owns o	unrecorded	-
 PWP-V1-008	docs/specs/playwright-external-provider-v0.md	Qualification includes a deterministic, locally owned Docker Compose fixture and	unrecorded	-
+PWP-V1-009	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-0679)) The supp	standing	2026-10-11; V1-0679
 PWP-V2-001	docs/specs/playwright-external-provider-v0.md	`/2` is selected explicitly by `--sensitive-input-redaction`. It retains bounded	unrecorded	-
 PWP-V2-002	docs/specs/playwright-external-provider-v0.md	Before reporter serialization, input actions matching the fixed defaults `fill`,	unrecorded	-
 PWP-V2-003	docs/specs/playwright-external-provider-v0.md	Redaction recurses through nested steps and retry attempts. Any sensitive action	unrecorded	-
