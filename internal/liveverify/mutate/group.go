@@ -210,7 +210,7 @@ func baselineAlone(ctx context.Context, entry *claim, space workspace) error {
 		return inconclusive(output)
 	}
 	if outcome != runPassed {
-		entry.finish(unsupportedReport(baselineDetail(output, entry.configuration)))
+		entry.finish(baselineFailure(output, entry.configuration, entry.configuration.perRun))
 	}
 	return nil
 }

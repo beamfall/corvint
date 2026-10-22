@@ -2689,6 +2689,7 @@ FPK-V0-079	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-2
 FPK-V0-080	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2116 for GitHub #1354; accepted under the	standing	2026-10-20; V1-2116; #1354; 2026-10-11
 FPK-V0-081	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2116 for GitHub #1354; accepted under the	standing	2026-10-20; V1-2116; #1354; 2026-10-11
 FPK-V0-142	docs/specs/falsifiable-packet-v0.md	(proposed 2026-10-21, V1-1483, V1-1484, V1-1485 and V1-1577; accepted under the	owner	2026-10-21; V1-1483; V1-1484; V1-1485; V1-1577
+FPK-V0-143	docs/specs/falsifiable-packet-v0.md	(proposed 2026-10-22, V1-2199; accepted under the 2026-10-11 standing lane	standing	2026-10-22; V1-2199; 2026-10-11
 FPK-V0-029	docs/specs/falsifiable-packet-v0.md	(accepted 2026-09-07 by decision 0080) A document's `status`, which decides ever	owner	2026-09-07; decision 0080
 FPK-V0-030	docs/specs/falsifiable-packet-v0.md	(experimental prototype, not advertised) A CEM MUST be attestable in the same DS	unrecorded	-
 FPK-V0-031	docs/specs/falsifiable-packet-v0.md	(experimental prototype, not advertised; help labels it experimental) The CLI	unrecorded	-
