@@ -182,7 +182,7 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 	var coverageDigest string
 	var covered map[string][]string
 	if o.Coverage != "" {
-		if coverageDigest, covered, err = readCoverage(o.Coverage, cat.Revision, cat.m); err != nil {
+		if coverageDigest, covered, err = readCoverage(ctx, o.Root, o.Coverage, cat.Revision, cat.m); err != nil {
 			return nil, err
 		}
 		consulted = append(consulted, CoverageBasis)

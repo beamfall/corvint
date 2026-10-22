@@ -28,6 +28,10 @@ import (
 // proveReport is the proof report written under the prove --out directory.
 const proveReport = "e2e-prove.json"
 
+// proveCoverage is the e2e-runtime-coverage/0 document `prove --record-coverage` writes beside the
+// proof (CCE-V0-053).
+const proveCoverage = "e2e-runtime-coverage.json"
+
 const usage = "usage: corvint-test e2e <catalog|harvest|obligations|compile|prove|shadow> [flags]\n" +
 	"       corvint-test runner <command> [flags] (folded corvint-test-runner, CTF-V0)\n" +
 	"       corvint-test falsify <plan|execute|execute-receipt|verify-receipt> --experimental [flags] < input.json (folded corvint-behavior-falsify, CTF-V0)\n" +
@@ -78,6 +82,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	out := fs.String("out", "", "output file (catalog, harvest, obligations) or directory (compile, prove), outside the repository")
 	var rev, base, head, coverage *string
 	var repeats *int
+	var recordCoverage *bool
 	var nodeModules, nodeBin, packageJSON, lockfile, window, hostedTest, hostedTitle, oracleAcceptance *string
 	switch sub {
 	case "shadow":
@@ -96,6 +101,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 			lockfile = fs.String("lockfile", "", "lockfile binding the runner identity")
 			hostedTest = fs.String("hosted-test", "", "prove this existing hosted Playwright test file as given, without compiling (CCE-V0-034)")
 			hostedTitle = fs.String("hosted-title", "", "the hosted test's title; optional when the file declares one test")
+			recordCoverage = fs.Bool("record-coverage", false, "record the application paths each compiled scenario's head pool served and write "+proveCoverage+" under --out for --coverage (CCE-V0-053)")
 			oracleAcceptance = fs.String("oracle-acceptance", "", "e2e-oracle-acceptance/0 document, outside the repository, recording an independent acceptance of edited outcomes (CCE-V0-051)")
 		}
 	default:
@@ -166,32 +172,48 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 			}
 			doc, err := changee2e.Prove(ctx, changee2e.ProveOptions{Root: *root, Base: *base, Head: *head, Repeats: *repeats,
 				NodeModules: *nodeModules, NodeBin: *nodeBin, PackageJSON: *packageJSON, Lockfile: *lockfile,
-				Hosted: &changee2e.HostedSelection{File: *hostedTest, Title: *hostedTitle}, OracleAcceptance: *oracleAcceptance})
+				Hosted: &changee2e.HostedSelection{File: *hostedTest, Title: *hostedTitle}, OracleAcceptance: *oracleAcceptance,
+				RecordCoverage: *recordCoverage})
 			if err != nil {
 				return err
 			}
-			return writeUnder(outPath, proveReport, doc, stdout)
+			return writeProof(outPath, doc, *recordCoverage, stdout)
 		}
 		r, err := changee2e.Compile(ctx, diff())
 		if err != nil {
 			return err
 		}
-		if err := writeScenarios(outPath, r.Compiled(), proveReport); err != nil {
+		if err := writeScenarios(outPath, r.Compiled(), proveReport, proveCoverage); err != nil {
 			return err
 		}
 		doc, err = changee2e.Prove(ctx, changee2e.ProveOptions{Root: *root, Base: r.Base, Head: r.Head, Repeats: *repeats,
 			NodeModules: *nodeModules, NodeBin: *nodeBin, PackageJSON: *packageJSON, Lockfile: *lockfile, Scenarios: r.Compiled(),
-			OracleAcceptance: *oracleAcceptance})
+			OracleAcceptance: *oracleAcceptance, RecordCoverage: *recordCoverage})
 		if err != nil {
 			return err
 		}
-		return writeUnder(outPath, proveReport, doc, stdout)
+		return writeProof(outPath, doc, *recordCoverage, stdout)
 	}
 	if outPath != "" {
 		return writeFile(outPath, doc, nil)
 	}
 	_, err := stdout.Write(doc)
 	return err
+}
+
+// writeProof writes the proof under dir and, when coverage was recorded, the coverage document
+// derived from it (CCE-V0-053).
+func writeProof(dir string, doc []byte, recorded bool, stdout io.Writer) error {
+	if recorded {
+		cov, err := changee2e.CoverageFromProof(doc)
+		if err != nil {
+			return err
+		}
+		if err := writeUnder(dir, proveCoverage, cov, nil); err != nil {
+			return err
+		}
+	}
+	return writeUnder(dir, proveReport, doc, stdout)
 }
 
 // writeScenarios writes each compiled scenario under dir at its placement (CCE-V0-007). Every

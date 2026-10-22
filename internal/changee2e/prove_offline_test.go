@@ -24,6 +24,8 @@ type fakeSide struct {
 	// teardown is a run-level reporter error's PWP-V3-009 location (`file:line`, a file relative
 	// to the staged tree unless absolute); the pool is then qualified by the real qualify.
 	teardown string
+	// served are the paths the side's static server answers, given to a coverage recorder.
+	served []string
 }
 
 // fakeRunner scripts the pools by application revision and records each staged tree's files.
@@ -49,6 +51,11 @@ func (f *fakeRunner) env(root string) *proveEnv {
 		}
 		f.staged[in.AppIdentity] = files
 		s := f.sides[in.AppIdentity]
+		if in.Record != nil {
+			for _, p := range s.served {
+				in.Record(p)
+			}
+		}
 		var r jstestprovider.Receipt
 		for _, st := range s.states {
 			t := jstestprovider.TestOutcome{State: jstestprovider.ExecutionState(st)}

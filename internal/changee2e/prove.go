@@ -145,6 +145,9 @@ type ProveOptions struct {
 	// OracleAcceptance is an e2e-oracle-acceptance/0 document outside the repository that
 	// records an independent acceptance of CHANGED_IN_DIFF outcomes (CCE-V0-051).
 	OracleAcceptance string
+	// RecordCoverage records, per compiled scenario, the application paths the in-process static
+	// server serves during the head pool (CCE-V0-053).
+	RecordCoverage bool
 }
 
 type proveReport struct {
@@ -177,8 +180,10 @@ type scenarioProof struct {
 	// LocatorRepair proposes, and never applies, a replacement for an outcome locator that did
 	// not resolve at head (CCE-V0-052).
 	LocatorRepair *LocatorRepair `json:"locator_repair,omitempty"`
-	Verdict       string         `json:"verdict"`
-	Note          string         `json:"note"`
+	// RecordedCoverage is present only when Prove records coverage (CCE-V0-053).
+	RecordedCoverage *recordedCoverage `json:"recorded_coverage,omitempty"`
+	Verdict          string            `json:"verdict"`
+	Note             string            `json:"note"`
 	// Scoring is true only for a DISCRIMINATES, NEW_REACH or PRESERVES verdict on an
 	// ADMITTED_AT_BASE oracle: the scenarios CCE-V0-010 lets read above candidate.
 	Scoring  bool           `json:"scoring"`
@@ -225,6 +230,7 @@ type proveEnv struct {
 	serveBin, servePath              string       // a bare serve[0] resolved once, and the PATH serve runs with
 	hook                             behaviorfalsify.Command
 	acceptances                      *oracleAcceptances // nil without an acceptance document
+	recordCoverage                   bool
 	// side runs one staged pool and returns its receipt and either the qualified receipt digest
 	// or the reason it has none; controls applies the CCE-V0-018 controls at head. Prove uses
 	// runQualified and runControls; the offline ladder tests substitute fakes (CCE-V0-028).
@@ -293,6 +299,7 @@ func Prove(ctx context.Context, o ProveOptions) ([]byte, error) {
 	}
 	env.environment = environment
 	env.acceptances = acceptances
+	env.recordCoverage = o.RecordCoverage
 	restore := setEnv(proveEnvironment(o))
 	defer restore()
 	// A bare serve name is resolved once on Prove's PATH, so the sides and the BBF hook, which runs
@@ -332,8 +339,15 @@ func (e *proveEnv) proveScenario(ctx context.Context, base, head string, sc Scen
 		return p
 	}
 	var headReceipt jstestprovider.Receipt
-	p.Head, headReceipt = e.proveSide(ctx, head, head, tree, sc, repeats)
-	p.Base, _ = e.proveSide(ctx, base, head, tree, sc, repeats)
+	var recorder *coverageRecorder
+	if e.recordCoverage && sc.Screen != "" && e.environment == nil {
+		recorder = newCoverageRecorder()
+	}
+	p.Head, headReceipt = e.proveSide(ctx, head, head, tree, sc, repeats, recorder)
+	p.Base, _ = e.proveSide(ctx, base, head, tree, sc, repeats, nil)
+	if e.recordCoverage {
+		p.RecordedCoverage = e.recorded(ctx, head, tree, sc, p.Head, recorder)
+	}
 	if controlsReachable(p.Head, p.Base) {
 		p.Controls = e.controls(ctx, head, sc, tree, headReceipt)
 	} else {
@@ -515,7 +529,7 @@ func setEnv(vals map[string]string) func() {
 
 // proveSide runs the head test tree over a disposable extraction of the application revision app
 // (CCE-V0-017).
-func (e *proveEnv) proveSide(ctx context.Context, app, test string, tt testTree, sc Scenario, repeats int) (sideProof, jstestprovider.Receipt) {
+func (e *proveEnv) proveSide(ctx context.Context, app, test string, tt testTree, sc Scenario, repeats int, recorder *coverageRecorder) (sideProof, jstestprovider.Receipt) {
 	side := sideProof{ApplicationRevision: app, TestRevision: test, TestTreeDigest: tt.digest, Receipts: []string{}, Outcomes: []repeatOutcome{}}
 	dir, err := os.MkdirTemp("", "corvint-e2e-prove-")
 	if err != nil {
@@ -533,7 +547,7 @@ func (e *proveEnv) proveSide(ctx context.Context, app, test string, tt testTree,
 	roots := treeRoots(tree)
 	receipt, digest, reason := e.side(ctx, runInput{Tree: tree, AppIdentity: app, Placement: sc.Placement, Repeats: repeats,
 		NodeModules: e.nodeModules, RunnerVersion: e.runnerVersion, PackageJSON: e.packageJSON, Lockfile: e.lockfile, Timeout: sideTimeout,
-		Environment: e.environment, ServeBin: e.serveBin, ServePath: e.servePath, Grep: hostedGrep(sc)})
+		Environment: e.environment, ServeBin: e.serveBin, ServePath: e.servePath, Grep: hostedGrep(sc), Record: recorder.recordFunc()})
 	side.Qualified, side.Reason = reason == "", reason
 	if digest != "" {
 		side.Receipts = append(side.Receipts, digest)
@@ -647,6 +661,8 @@ type runInput struct {
 	Environment                  *Environment
 	ServeBin, ServePath          string
 	Grep                         string // a --grep title pattern selecting one hosted test (CCE-V0-034)
+	// Record, when set, receives each path the in-process static server answers (CCE-V0-053).
+	Record func(path string)
 }
 
 // runPlaywright serves tree, through the declared environment's serve argv when there is one and
@@ -674,7 +690,11 @@ func runPlaywright(ctx context.Context, in runInput) (jstestprovider.Receipt, er
 		if err != nil {
 			return jstestprovider.Receipt{}, err
 		}
-		srv := &http.Server{Handler: http.FileServer(http.Dir(tree)), ReadHeaderTimeout: 10 * time.Second}
+		var handler http.Handler = http.FileServer(http.Dir(tree))
+		if in.Record != nil {
+			handler = recordingHandler(handler, in.Record)
+		}
+		srv := &http.Server{Handler: handler, ReadHeaderTimeout: 10 * time.Second}
 		go func() { _ = srv.Serve(ln) }()
 		defer srv.Close()
 		url = "http://" + ln.Addr().String() + "/"

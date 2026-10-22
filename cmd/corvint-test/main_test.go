@@ -385,3 +385,34 @@ func TestCCEV0051OracleAcceptanceFlag(t *testing.T) {
 		}
 	}
 }
+
+// CCE-V0-053: --record-coverage is a prove flag, and writeProof writes the coverage document
+// derived from the proof beside it; a document that is not a proof writes neither.
+func TestCCEV0053RecordCoverageFlag(t *testing.T) {
+	root, base, head := fixture(t)
+	t.Setenv("CORVINT_E2E_NODE_BIN", "")
+	var r *changee2e.Refusal
+	err := run(context.Background(), []string{"e2e", "prove", "--root", root, "--base", base, "--head", head, "--out", t.TempDir(), "--record-coverage"}, &bytes.Buffer{})
+	if !errors.As(err, &r) || r.Code != "e2e-toolchain-unavailable" {
+		t.Fatalf("prove --record-coverage: %v", err)
+	}
+	dir := t.TempDir()
+	proof := []byte(`{"schema":"` + changee2e.ProveSchema + `","base":"` + base + `","head":"` + head + `","digest":"sha256:p","scenarios":[]}`)
+	if err := writeProof(dir, proof, true, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, proveCoverage))
+	if err != nil || !strings.Contains(string(data), `"schema": "e2e-runtime-coverage/0"`) || !strings.Contains(string(data), `"revision": "`+head+`"`) {
+		t.Fatalf("coverage %v: %s", err, data)
+	}
+	if _, err := os.Stat(filepath.Join(dir, proveReport)); err != nil {
+		t.Fatal(err)
+	}
+	empty := t.TempDir()
+	if err := writeProof(empty, []byte(`{}`), true, &bytes.Buffer{}); !errors.As(err, &r) || r.Code != "e2e-coverage-invalid" {
+		t.Fatalf("non-proof: %v", err)
+	}
+	if entries, _ := os.ReadDir(empty); len(entries) != 0 {
+		t.Fatalf("non-proof wrote %v", entries)
+	}
+}

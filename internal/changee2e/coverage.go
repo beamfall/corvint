@@ -2,6 +2,7 @@ package changee2e
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -22,16 +23,23 @@ const (
 type runtimeCoverage struct {
 	Schema   string `json:"schema"`
 	Revision string `json:"revision"`
-	Screens  []struct {
-		Screen string   `json:"screen"`
-		Paths  []string `json:"paths"`
-	} `json:"screens"`
+	// ProofDigest names the e2e-prove/0 document a recorded coverage was derived from (CCE-V0-053).
+	ProofDigest string           `json:"proof_digest,omitempty"`
+	Screens     []coverageScreen `json:"screens"`
+}
+
+type coverageScreen struct {
+	Screen string   `json:"screen"`
+	Paths  []string `json:"paths"`
+	// Pins bind recorded paths to their head blobs; a consumer refuses a pin head contradicts.
+	Pins []coveragePin `json:"pins,omitempty"`
 }
 
 // readCoverage reads a runtime coverage document bound to the head revision and the head map
 // (CCE-V0-045). Any other document refuses `e2e-coverage-invalid`; it returns the document's
-// SHA-256 and, per head-map screen, the repository paths observed executing on it.
-func readCoverage(file, head string, m *appmap.Map) (string, map[string][]string, error) {
+// SHA-256 and, per head-map screen, the repository paths observed executing on it. A pin must
+// name one of its screen's paths and the blob head holds for it (CCE-V0-053).
+func readCoverage(ctx context.Context, root, file, head string, m *appmap.Map) (string, map[string][]string, error) {
 	f, err := os.Open(file)
 	if err != nil {
 		return "", nil, refuse("e2e-coverage-invalid", "%v", err)
@@ -68,6 +76,9 @@ func readCoverage(file, head string, m *appmap.Map) (string, map[string][]string
 			}
 		}
 		out[s.Screen] = append([]string{}, s.Paths...)
+		if err := checkPins(ctx, root, head, s); err != nil {
+			return "", nil, err
+		}
 	}
 	return sha256Hex(data), out, nil
 }
@@ -98,6 +109,36 @@ func coverageHits(covered map[string][]string, changed map[string]bool, impact [
 	}
 	sort.Slice(hits, func(i, j int) bool { return hits[i].ID < hits[j].ID })
 	return hits
+}
+
+// checkPins refuses a pin naming a path its screen does not list, repeating a path, or naming a
+// blob other than the one head holds.
+func checkPins(ctx context.Context, root, head string, s coverageScreen) error {
+	if len(s.Pins) == 0 {
+		return nil
+	}
+	listed := map[string]bool{}
+	for _, p := range s.Paths {
+		listed[p] = true
+	}
+	var paths []string
+	for _, pin := range s.Pins {
+		if !listed[pin.Path] {
+			return refuse("e2e-coverage-invalid", "screen %q: pin %q names no listed path or repeats", s.Screen, pin.Path)
+		}
+		listed[pin.Path] = false
+		paths = append(paths, pin.Path)
+	}
+	blobs, err := headBlobs(ctx, root, head, paths)
+	if err != nil {
+		return refuse("e2e-coverage-invalid", "read head blobs: %v", err)
+	}
+	for _, pin := range s.Pins {
+		if blobs[pin.Path] != pin.Blob {
+			return refuse("e2e-coverage-invalid", "screen %q: pin %q names blob %q, head holds %q", s.Screen, pin.Path, pin.Blob, blobs[pin.Path])
+		}
+	}
+	return nil
 }
 
 func uniqueStrings(sorted []string) []string {
