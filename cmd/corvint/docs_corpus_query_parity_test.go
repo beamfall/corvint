@@ -218,7 +218,7 @@ func TestCorpusTypedCLIMCPEndToEnd(t *testing.T) {
 				if err := json.Unmarshal([]byte(out), &receipt); err != nil {
 					t.Fatal(err)
 				}
-				if receipt.Operation != tc.op || receipt.Envelope == nil || receipt.Envelope.ContentStatus != "generated" || receipt.Envelope.SourceRevision != m.Repository.Revision || receipt.Envelope.CorpusRevision != receipt.ArtifactSHA256 || receipt.Envelope.Freshness != receipt.Freshness || receipt.Envelope.Retirement.State != "unknown" || !reflect.DeepEqual(receipt.Citations, receipt.Envelope.Citations) || len(receipt.Envelope.Limitations) == 0 {
+				if receipt.Operation != tc.op || receipt.Envelope == nil || receipt.Envelope.ContentStatus != "generated" || receipt.Envelope.SourceRevision != m.Repository.Revision || receipt.Envelope.CorpusRevision != receipt.ArtifactSHA256 || receipt.Envelope.Freshness != receipt.Freshness || receipt.Envelope.Retirement.State != "unknown" || !reflect.DeepEqual(receipt.Citations, envelopeAnchors(receipt.Envelope.Citations)) || len(receipt.Envelope.Limitations) == 0 {
 					t.Fatal("uniform trust envelope lost", out)
 				}
 				encoded, _ := json.Marshal(input)
@@ -290,4 +290,17 @@ func TestCorpusTypedCLIMCPEndToEnd(t *testing.T) {
 			})
 		}
 	})
+}
+
+// envelopeAnchors strips the read-time anchor_state (DCP-V1-282) so the
+// envelope's bounded citations compare with the receipt's.
+func envelopeAnchors(citations []doccorpus.CitationState) []doccorpus.Anchor {
+	if citations == nil {
+		return nil
+	}
+	anchors := make([]doccorpus.Anchor, len(citations))
+	for i, c := range citations {
+		anchors[i] = c.Anchor
+	}
+	return anchors
 }

@@ -113,6 +113,9 @@ func selectQueryAuthority(index *Index, queryText string, queryTerms map[string]
 		return nil, err
 	}
 	if len(candidates) == 0 || candidates[0].record.ID != "AGENTS.md" || (len(candidates) > 1 && candidates[0].score == candidates[1].score) {
+		if agents, ok := index.Sources["AGENTS.md"]; ok && agents.Mode == "120000" {
+			return nil, &Error{Code: "unsupported-query-authority", Message: "native Go authority-start query found root AGENTS.md as a symlink, which is not an authority document; keep the guide as a regular file or point consumers at its canonical target"}
+		}
 		return nil, &Error{Code: "unsupported-query-authority", Message: "native Go authority-start query requires one uniquely highest-ranked root AGENTS.md"}
 	}
 	return candidates, nil

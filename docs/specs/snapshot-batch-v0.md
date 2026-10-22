@@ -88,7 +88,7 @@ the standalone verbs' own receipts at one snapshot with fewer process launches a
   trace read and history learning, `context`'s cochange `git log`); batch adds none and removes the
   per-verb index builds. It MUST open no network connection and MUST NOT hold the snapshot after
   the response is written.
-- **SBQ-V0-007:** (AT-07 accepted contract; delivery requires verification) (a) An operation MAY carry `possessed`, which
+- **SBQ-V0-007:** (AT-07 accepted contract, decision 0052; delivery requires verification) (a) An operation MAY carry `possessed`, which
   amends `SBQ-V0-001`'s closed per-operation member set to admit it as `SBQ-V0-004` admits the
   batch-level `delta`: at most 32 objects, each `{"path", "blob_hash"}` (non-empty strings) plus an
   optional non-negative integer `line`, validated and ignored in V0: no clause reads it, so a
@@ -101,7 +101,7 @@ the standalone verbs' own receipts at one snapshot with fewer process launches a
   parsing: `path` and `blob_hash` are unbounded, so the 32-entry cap bounds no byte total and is
   secondary — 32 entries
   at ~4,200-byte paths exceed 128 KiB and the byte bound refuses them first.
-- **SBQ-V0-008:** (AT-07 accepted contract; delivery requires verification) At the one loaded snapshot (`SBQ-V0-002`) every
+- **SBQ-V0-008:** (AT-07 accepted contract, decision 0052; delivery requires verification) At the one loaded snapshot (`SBQ-V0-002`) every
   entry gets exactly one verdict, matched by literal repository-relative path against its `Index`
   tables: no normalization, case folding, symlink resolution, `..` cleanup or Git process. No tree
   holds both a blob `p` and an entry under `p/`, so file and directory readings never collide; a
@@ -128,7 +128,7 @@ the standalone verbs' own receipts at one snapshot with fewer process launches a
   `SBQ-V0-002`'s variant always fills `Tracked`, so this refusal is unreachable there and stands
   only to fail closed if that variant changes: a table-less index would silence (b) and send every
   path to (f).
-- **SBQ-V0-009:** (AT-07 accepted contract; delivery requires verification) Suppression runs in `cmd/corvint/batch.go` on
+- **SBQ-V0-009:** (AT-07 accepted contract, decision 0052; delivery requires verification) Suppression runs in `cmd/corvint/batch.go` on
   the receipt `runBatchOperation` returned, so no verb's code path changes (`SBQ-V0-003`). (a)
   Suppression and invalidation matching are separate: a row is suppression-matched when `path` and
   `blob_hash` both equal some entry's; a row whose `path` equals an entry's but whose hash differs
@@ -156,7 +156,7 @@ the standalone verbs' own receipts at one snapshot with fewer process launches a
   `unsupported` row matching a result is by definition `"unsupported-possession"`, also a fallback.
   An `absent` or `unframable` entry never matches a row, every row being
   built from an indexed path, and is echoed under `delta.ignored` (`SBQ-V0-010`(g)) instead.
-- **SBQ-V0-010:** (AT-07 accepted contract; delivery requires verification) (a) Semantic key and wire shape differ per verb
+- **SBQ-V0-010:** (AT-07 accepted contract, decision 0052; delivery requires verification) (a) Semantic key and wire shape differ per verb
   and both are fixed, so suppression MUST key `delta` on the semantic pair, reproduce that verb's
   wire shape, and add no member beyond the `coverage.suppressed_results` (b) requires — (b)'s one
   appended `uncertainty` line is a new element of an existing member, not a new member. `query`

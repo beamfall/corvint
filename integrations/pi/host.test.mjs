@@ -208,7 +208,10 @@ test('AHI-002 AHI-024 native Pi package lifecycle and ephemeral context',async t
   const prior=readFileSync(capture,'utf8');
   const running=run(process.env.PI_BIN??'pi',[...flags,'must not reach provider'],{cwd:repo,env:{...env,CORVINT_BIN:slow},onSpawn:started});
   const child=await ready;
-  for(let i=0;i<150&&!existsSync(witness);i++)await new Promise(r=>setTimeout(r,10));
+  // Wait on observed progress, not a wall clock (V1-2245): the witness appears
+  // or Pi exits first; run's child timeout is the hang bound.
+  let exited=false;running.then(()=>{exited=true},()=>{exited=true});
+  while(!exited&&!existsSync(witness))await new Promise(r=>setTimeout(r,10));
   assert.ok(existsSync(witness),'startup native child witness');
   if(process.env.CORVINT_PI_INTERRUPT_WITNESS){
    writeFileSync(process.env.CORVINT_PI_INTERRUPT_WITNESS,JSON.stringify({group:Number(readFileSync(group,'utf8')),descendant:Number(readFileSync(witness,'utf8'))}));

@@ -23,7 +23,7 @@ func corpusHelpRun(t *testing.T, args ...string) string {
 // issue805CorpusOperations is every operation parseCorpusInvocation admits.
 var issue805CorpusOperations = []string{
 	"manifest", "build", "render", "maintain", "cem", "behavior-adapter", "behavior-provider",
-	"discover-playwright", "witness-playwright", "discover-legacy", "import-cases", "search-cases", "info", "validate", "inventory", "search", "get",
+	"discover-playwright", "witness-playwright", "discover-legacy", "import-cases", "search-cases", "eval", "audit-sample", "audit-report", "info", "validate", "inventory", "search", "get",
 	"trace", "related", "journey", "stability", "locate", "coverage", "gaps", "concept", "claims",
 	"flow", "dependencies", "recommend-tests", "navigation", "vocabulary", "intent",
 }
@@ -70,6 +70,9 @@ func TestDocsCorpusOperationHelpPrintsFlags(t *testing.T) {
 		"maintain":            {"--artifact", "--page", "--apply"},
 		"import-cases":        {"--format", "--input", "--content"},
 		"search-cases":        {"--format", "--input", "--query", "--id", "--match", "--limit"},
+		"eval":                {"--artifact", "--cases", "--baseline", "--format"},
+		"audit-sample":        {"--artifact", "--seed", "--size", "--stratify", "--scope"},
+		"audit-report":        {"--artifact", "--sample", "--format"},
 	}
 	rootRelative := map[string][]string{
 		"discover-playwright": {"--migration", "--playwright-list", "--receipt"},
@@ -79,6 +82,9 @@ func TestDocsCorpusOperationHelpPrintsFlags(t *testing.T) {
 		"maintain":            {"--artifact"},
 		"import-cases":        {"--input"},
 		"search-cases":        {"--input"},
+		"eval":                {"--artifact", "--cases", "--baseline"},
+		"audit-sample":        {"--artifact"},
+		"audit-report":        {"--artifact", "--sample"},
 	}
 	for _, op := range issue805CorpusOperations {
 		help := corpusHelpRun(t, "docs", "corpus", op, "--help")
@@ -154,5 +160,31 @@ func TestUnknownHelpTopicListsValidTopics(t *testing.T) {
 		if !topics[want] {
 			t.Errorf("valid topics omit %q: %s", want, list)
 		}
+	}
+}
+
+// DCP-V1-057 (V1-2308, GitHub #1476): every topic the unknown-topic refusal lists resolves when
+// passed exactly as listed, as one argument, to the same help as its separate-word form.
+func TestListedHelpTopicResolvesAsOneArgument(t *testing.T) {
+	t.Parallel()
+	var stdout, stderr bytes.Buffer
+	run([]string{"help", "not-a-topic"}, &forbiddenHelpReader{}, &stdout, &stderr)
+	prefix := "{\"code\": \"invalid-arguments\", \"error\": \"unknown help topic: 'not-a-topic' (choose from "
+	list := strings.TrimSuffix(strings.TrimPrefix(stderr.String(), prefix), ")\", \"ok\": false}\n")
+	if list == stderr.String() {
+		t.Fatalf("unexpected refusal: %q", stderr.String())
+	}
+	nested := 0
+	for _, quoted := range strings.Split(list, ", ") {
+		topic := strings.Trim(quoted, "'")
+		if strings.Contains(topic, " ") {
+			nested++
+		}
+		if got, want := corpusHelpRun(t, "help", topic), corpusHelpRun(t, append([]string{"help"}, strings.Fields(topic)...)...); got != want {
+			t.Errorf("help %q differs from its separate-word form", topic)
+		}
+	}
+	if nested != len(nestedHelpTopics) {
+		t.Fatalf("listed %d nested topics, want %d: %s", nested, len(nestedHelpTopics), list)
 	}
 }

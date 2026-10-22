@@ -2,8 +2,11 @@ package ruby
 
 import (
 	"context"
+	"io/fs"
+	"os"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
@@ -232,4 +235,174 @@ func TestStockBundlerRequireKeepsRailsAppBounded_RUBYAFFECTEDV0013(t *testing.T)
 			t.Fatalf("%s: dynamic load not raised: %v", name, result.Frontier)
 		}
 	}
+}
+
+// writeIssue1475 writes the #1475 repository: autoload-convention sources
+// with no Rails application, a three-hop constant chain, a namespaced
+// constant, an acronym inflection and a spec that reaches none of them.
+func writeIssue1475(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	write(t, root, "Gemfile", "source \"https://rubygems.org\"\n")
+	write(t, root, "app/models/alpha_account.rb", "class AlphaAccount\n  def balance; Alpha::Ledger.new.total; end\nend\n")
+	write(t, root, "app/models/alpha/ledger.rb", "module Alpha\n  class Ledger\n    def total; 1; end\n  end\nend\n")
+	write(t, root, "app/models/alpha/journal.rb", "module Alpha\n  class Journal\n    def total; Ledger.new.total; end\n  end\nend\n")
+	write(t, root, "app/services/alpha_report.rb", "class AlphaReport\n  def call; AlphaAccount.new.balance; end\nend\n")
+	write(t, root, "app/services/alpha_digest.rb", "class AlphaDigest\n  def call; AlphaReport.new.call; end\nend\n")
+	write(t, root, "app/clients/api_client.rb", "class APIClient\n  def get; 1; end\nend\n")
+	write(t, root, "app/services/beta_note.rb", "class BetaNote\n  def call; 2; end\nend\n")
+	write(t, root, "config/initializers/inflections.rb", "ActiveSupport::Inflector.inflections(:en) do |inflect|\n  inflect.acronym \"API\"\nend\n")
+	write(t, root, "spec/models/alpha_account_spec.rb", "RSpec.describe AlphaAccount do\n  it \"x\" do expect(AlphaAccount.new.balance).to eq(1) end\nend\n")
+	write(t, root, "spec/services/alpha_report_spec.rb", "RSpec.describe AlphaReport do\n  it \"y\" do expect(AlphaReport.new.call).to eq(1) end\nend\n")
+	write(t, root, "spec/digests/alpha_digest_spec.rb", "RSpec.describe AlphaDigest do\n  it \"z\" do expect(AlphaDigest.new.call).to eq(1) end\nend\n")
+	write(t, root, "spec/journal_spec.rb", "RSpec.describe Alpha::Journal do\n  it \"j\" do expect(Alpha::Journal.new.total).to eq(1) end\nend\n")
+	write(t, root, "spec/remote/client_spec.rb", "RSpec.describe APIClient do\n  it \"c\" do expect(APIClient.new.get).to eq(1) end\nend\n")
+	write(t, root, "spec/other/beta_spec.rb", "RSpec.describe BetaNote do\n  it \"b\" do expect(BetaNote.new.call).to eq(2) end\nend\n")
+	return root
+}
+
+// TestConventionAutoloadEdgesWithoutRailsApplication_RUBYAFFECTEDV0045 is the
+// #1475 acceptance: without config/application.rb the autoload-convention
+// constants impact maps still become advisory edges, transitively, through a
+// namespaced constant and an acronym inflection; an unrelated spec stays a
+// proven exclusion; and the disk and fs.FS sources the worktree, --base,
+// --path and --snapshot modes read give the same plan.
+func TestConventionAutoloadEdgesWithoutRailsApplication_RUBYAFFECTEDV0045(t *testing.T) {
+	root := writeIssue1475(t)
+	got := plan(t, root, "app/models/alpha/ledger.rb")
+	want := map[string]string{
+		"spec/models/alpha_account_spec.rb":  affected.WitnessAdvisoryConstant,
+		"spec/services/alpha_report_spec.rb": affected.WitnessAdvisoryConstant,
+		"spec/digests/alpha_digest_spec.rb":  affected.WitnessAdvisoryConstant,
+		"spec/journal_spec.rb":               affected.WitnessAdvisoryConstant,
+	}
+	if kinds := selectedWitnesses(got); got.Scope != affected.ScopeBounded || len(got.Unknown) != 0 || !equalWitnesses(kinds, want) {
+		t.Fatalf("scope=%s selected=%v unknown=%v", got.Scope, kinds, got.Unknown)
+	}
+	excluded := map[string]string{}
+	for _, exclusion := range got.Excluded {
+		excluded[exclusion.UnitID] = exclusion.Reason
+	}
+	for _, id := range []string{"ruby:rspec:spec/other/beta_spec", "ruby:rspec:spec/remote/client_spec"} {
+		if excluded[id] != affected.ExcludedNoDependencyPath {
+			t.Fatalf("%s not a proven exclusion: %v", id, excluded)
+		}
+	}
+
+	issue := plan(t, root, "app/models/alpha_account.rb")
+	if kinds := selectedWitnesses(issue); issue.Scope != affected.ScopeBounded ||
+		kinds["spec/services/alpha_report_spec.rb"] != affected.WitnessAdvisoryConstant ||
+		kinds["spec/digests/alpha_digest_spec.rb"] != affected.WitnessAdvisoryConstant || len(kinds) != 3 {
+		t.Fatalf("scope=%s selected=%v unknown=%v", issue.Scope, kinds, issue.Unknown)
+	}
+	client := plan(t, root, "app/clients/api_client.rb")
+	if tests := client.SelectedTests(); len(tests) != 1 || tests[0] != "spec/remote/client_spec.rb" {
+		t.Fatalf("acronym inflection: selected=%v unknown=%v", tests, client.Unknown)
+	}
+
+	graph, err := affected.BuildFS(newImmutableTree(t, root), New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	fromFS := affected.Select(graph, []string{"app/models/alpha/ledger.rb"})
+	if fromFS.GraphDigest != got.GraphDigest || !equalWitnesses(selectedWitnesses(fromFS), want) {
+		t.Fatalf("fs.FS plan differs: %s %s %v", fromFS.GraphDigest, got.GraphDigest, selectedWitnesses(fromFS))
+	}
+}
+
+// TestConventionAutoloadFailsClosed_RUBYAFFECTEDV0045 keeps the
+// RUBY-AFFECTED-V0-010 bounds outside Rails: a dynamic constant lookup or an
+// invalid declaration raises ruby:rails-autoload, and a library with no
+// app/<dir> root or declaration gets no constant edges.
+func TestConventionAutoloadFailsClosed_RUBYAFFECTEDV0045(t *testing.T) {
+	dynamic := writeIssue1475(t)
+	write(t, dynamic, "app/services/beta_note.rb", "class BetaNote\n  def call; params[:kind].constantize; end\nend\n")
+	invalid := writeIssue1475(t)
+	write(t, invalid, ".corvint/ruby-autoload.json", "{\"schema\":\"ruby-autoload/0\",\"roots\":[]}\n")
+	for name, root := range map[string]string{"dynamic": dynamic, "invalid-declaration": invalid} {
+		result, err := New().Units(context.Background(), root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !contains(result.Frontier, FrontierRailsAutoload) {
+			t.Fatalf("%s: rails-autoload frontier missing: %v", name, result.Frontier)
+		}
+		if got := plan(t, root, "app/models/alpha_account.rb"); got.Scope == affected.ScopeBounded {
+			t.Fatalf("%s: plan stayed BOUNDED: %v", name, got.Unknown)
+		}
+	}
+
+	library := t.TempDir()
+	write(t, library, "lib/widget.rb", "class Widget\n  def size; Gadget.new.size; end\nend\n")
+	write(t, library, "lib/gadget.rb", "class Gadget\n  def size; 1; end\nend\n")
+	write(t, library, "spec/widget_spec.rb", "require \"widget\"\nRSpec.describe Widget do\n  it \"w\" do expect(Widget.new.size).to eq(1) end\nend\n")
+	result, err := New().Units(context.Background(), library)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, unit := range result.Units {
+		if len(unit.AdvisoryImports) != 0 {
+			t.Fatalf("library unit %s carries constant edges %v", unit.ID, unit.AdvisoryImports)
+		}
+	}
+}
+
+// TestRailsSignalsWithoutApplicationStayUnbounded_RUBYAFFECTEDV0045 keeps
+// RUBY-AFFECTED-V0-010's absent-application bound: a Rails test with no root
+// config/application.rb still raises ruby:rails-autoload when convention
+// edges exist.
+func TestRailsSignalsWithoutApplicationStayUnbounded_RUBYAFFECTEDV0045(t *testing.T) {
+	root := writeIssue1475(t)
+	write(t, root, "test/models/alpha_account_test.rb", "class AlphaAccountTest < ActiveSupport::TestCase\n  test \"x\" do\n    assert AlphaAccount.new\n  end\nend\n")
+	result, err := New().Units(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !contains(result.Frontier, FrontierRailsAutoload) {
+		t.Fatalf("rails-autoload frontier missing: %v", result.Frontier)
+	}
+}
+
+// immutableTree is root as the bounded fs.FS the --base, --path and
+// --snapshot modes read from a Git tree.
+type immutableTree struct{ fstest.MapFS }
+
+func (tree immutableTree) OpenBounded(name string, limit int) (fs.File, error) {
+	file, ok := tree.MapFS[name]
+	if !ok {
+		return nil, fs.ErrNotExist
+	}
+	if len(file.Data) > limit {
+		return nil, affected.ErrWalkLimit
+	}
+	return tree.Open(name)
+}
+
+func newImmutableTree(t *testing.T, root string) immutableTree {
+	t.Helper()
+	tree := fstest.MapFS{}
+	err := fs.WalkDir(os.DirFS(root), ".", func(name string, entry fs.DirEntry, err error) error {
+		if err != nil || entry.IsDir() {
+			return err
+		}
+		data, err := fs.ReadFile(os.DirFS(root), name)
+		tree[name] = &fstest.MapFile{Data: data, Mode: 0o644}
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return immutableTree{tree}
+}
+
+func equalWitnesses(got, want map[string]string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for test, kind := range want {
+		if got[test] != kind {
+			return false
+		}
+	}
+	return true
 }

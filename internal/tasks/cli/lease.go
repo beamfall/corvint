@@ -472,6 +472,7 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 	// explicit members rather than on recorded ones.
 	res.Warnings = append(res.Warnings, report.AuthorExclusion.Notes()...)
 	res.Warnings = append(res.Warnings, report.ScopeWarnings...)
+	res.Warnings = append(res.Warnings, report.GrantWarnings...)
 	res.Warnings = append(res.Warnings, report.ReplayWarnings...)
 	return res
 }

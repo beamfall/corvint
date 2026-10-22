@@ -167,6 +167,26 @@ or Cucumber scenarios.
   and the other `%r` delimiters are masked as percent literals. A slash after an identifier, a
   number, a method call or a closing bracket is division and masks nothing; a candidate that does
   not close on its line masks nothing.
+- `RUBY-AFFECTED-V0-045`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2306,
+  GH #1475) A repository with no `config/application.rb` (root or nested) whose Ruby sources still
+  follow the autoload convention `corvint impact` maps, meaning a present `.corvint/ruby-autoload.json`
+  declaration or a default `app/<dir>` root of `internal/rubyautoload`, MUST carry the
+  `RUBY-AFFECTED-V0-009` advisory constant edges built by that same mapper (roots, ignore list,
+  declared and configured inflections, lexical namespaces), so a spec reaching a changed file only
+  through an autoloaded constant is selected with `ADVISORY_CONSTANT_REFERENCE` and is never a
+  `NO_DEPENDENCY_PATH_TO_DIRTY_UNIT` exclusion. `Select` traverses these edges transitively with no
+  hop bound, so a chain longer than impact's two advisory hops is still selected. The Rails boot and
+  route edges of `RUBY-AFFECTED-V0-011` are not added. The `RUBY-AFFECTED-V0-010` bounds apply
+  unchanged: a dynamic constant lookup, an unresolvable association, an invalid declaration or
+  unresolved autoload configuration MUST raise `ruby:rails-autoload` when the repository has tests,
+  and a Rails test without a root `config/application.rb` still raises it. A repository with neither
+  a declaration nor an `app/<dir>` root (a plain library under `lib/`) keeps its require and
+  counterpart edges alone. A spec that references no constant reaching the dirty file stays a
+  `NO_DEPENDENCY_PATH_TO_DIRTY_UNIT` exclusion. Impact's per-path baseline
+  `dynamic-dispatch-unresolved` row is a statement that syntax never proves closure, not evidence
+  about the dirty set; affected keeps its own evidence-based Ruby frontiers (dynamic constant lookup,
+  dynamic or conditional load, `autoload` calls) and does not copy that baseline, since doing so
+  would make every Ruby plan `UNKNOWN`.
 
 ### Autoload edge failure modes
 
@@ -278,6 +298,7 @@ affected tuple.
 | `RUBY-AFFECTED-V0-042` | `readStockAutoloadLib` in `internal/rubyautoload/rubyautoload.go`; `rails-7-1-autoload-lib` class in `conformance/ruby-profile-v0/rows.json` | `TestStockAutoloadLibIsReadAsLibRoot_RUBYAFFECTEDV0042`, `TestRubyProfileAffectedRows_RUBYAFFECTEDV0014`, `TestRubyProfileImpactRows_RUBYAFFECTEDV0014` |
 | `RUBY-AFFECTED-V0-043` | `maskHeredocBodies`, `scanLexicalScopes` in `internal/liveverify/affected/ruby/nesting.go` | `TestHeredocAndLexicalNestingBoundConstantEdges_RUBYAFFECTEDV0043`, `TestHeredocMaskKeepsEvaluatedAndUnterminatedBodies_RUBYAFFECTEDV0043`, `TestLexicalScopesBalanceModifiersAndFallBack_RUBYAFFECTEDV0043`, `TestHeredocMaskRejectsShiftsAndKeepsInterpolation_RUBYAFFECTEDV0043`, `TestRegexKeywordFallsBack_RUBYAFFECTEDV0043` |
 | `RUBY-AFFECTED-V0-044` | `maskQuotedLiteralsAndInlineComments`, `rubySlashRegex` in `internal/liveverify/affected/ruby/ruby.go` | `TestRegexLiteralMaskHidesQuotesNotDivision_RUBYAFFECTEDV0044` |
+| `RUBY-AFFECTED-V0-045` | `newConventionAutoload`, `mapAutoload` in `internal/liveverify/affected/ruby/autoload.go`; `UnitsSource` in `internal/liveverify/affected/ruby/ruby.go` | `TestConventionAutoloadEdgesWithoutRailsApplication_RUBYAFFECTEDV0045`, `TestConventionAutoloadFailsClosed_RUBYAFFECTEDV0045`, `TestRailsSignalsWithoutApplicationStayUnbounded_RUBYAFFECTEDV0045`, `TestAffectedSelectsEveryImpactAutoloadTest_RUBYAFFECTEDV0045` |
 
 ## Unresolved decisions
 

@@ -1,6 +1,7 @@
 package platform
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -74,6 +75,21 @@ func parseXcode(in tr.Input, o *tr.Observation) error {
 	}
 	if summary.Total == nil || summary.Passed == nil || summary.Failed == nil || summary.Skipped == nil || summary.Expected == nil || summary.Start == nil || summary.Finish == nil || *summary.Finish < *summary.Start || *summary.Total < 0 || *summary.Total > tr.MaxTests {
 		return fmt.Errorf("Xcode summary lifecycle/counts incomplete")
+	}
+	// A run that never reached its destination writes an empty "unknown"
+	// summary. The tests view separates a build that never produced a test
+	// plan (no nodes, exit 65, native failed-build-commands report) from a
+	// plan with no tests (one childless plan node, exit 0); any other shape
+	// stays a report contradiction (TRE-V0-117).
+	if len(summary.Destinations) == 0 && summary.Result == "unknown" && *summary.Total == 0 && *summary.Passed == 0 && *summary.Failed == 0 && *summary.Skipped == 0 && *summary.Expected == 0 && len(summary.Failures) == 0 {
+		switch {
+		case len(tree.Nodes) == 0 && in.ExitCode == 65 && bytes.Contains(in.Stderr, []byte("\nThe following build commands failed:\n")):
+			problem(o, "BUILD_FAILURE", "xcodebuild reported failed build commands before any test ran")
+			return nil
+		case len(tree.Nodes) == 1 && tree.Nodes[0].Kind == "Test Plan" && tree.Nodes[0].Result == "unknown" && len(tree.Nodes[0].Children) == 0 && in.ExitCode == 0:
+			// Parse records NO_TESTS for the empty inventory.
+			return nil
+		}
 	}
 	if len(summary.Destinations) != 1 || summary.Destinations[0].Device.ID != tree.Devices[0].ID {
 		return fmt.Errorf("Xcode destination reports disagree")

@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-22
-Intent status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469), `OCM-V0-019` and `OCM-V0-020` (2026-10-13, V1-1345, owner's standing auto-accept), `OCM-V0-021` to `OCM-V0-023` (2026-10-14, V1-1049, V1-1048, V1-0522, owner's standing auto-accept), `OCM-V0-024` (2026-10-21, V1-1068, owner's standing auto-accept), `OCM-V0-025` (2026-10-21, V1-1961, owner's standing auto-accept)
+Intent status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469), `OCM-V0-019` and `OCM-V0-020` (2026-10-13, V1-1345, owner's standing auto-accept), `OCM-V0-021` to `OCM-V0-023` (2026-10-14, V1-1049, V1-1048, V1-0522, owner's standing auto-accept), `OCM-V0-024` (2026-10-21, V1-1068, owner's standing auto-accept), `OCM-V0-025` (2026-10-21, V1-1961, owner's standing auto-accept), `OCM-V0-026` (2026-10-21, V1-2170, owner's standing auto-accept)
 Delivery status: experimental
 Authoritative inputs: `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/CHANGE-EVIDENCE-MAP.md`,
 `docs/specs/cem-pilot-kit.md`, `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: OCM maps scoped requirements to exact change-and-test witnesses or explicit unknowns; ordered multi-intent dogfood coordination is experimental.
-- Status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469), `OCM-V0-019` and `OCM-V0-020` (2026-10-13, V1-1345, owner's standing auto-accept), `OCM-V0-021` to `OCM-V0-023` (2026-10-14, V1-1049, V1-1048, V1-0522, owner's standing auto-accept), `OCM-V0-024` (2026-10-21, V1-1068, owner's standing auto-accept), `OCM-V0-025` (2026-10-21, V1-1961, owner's standing auto-accept)/experimental; accepted amendments implemented without promotion
+- Status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469), `OCM-V0-019` and `OCM-V0-020` (2026-10-13, V1-1345, owner's standing auto-accept), `OCM-V0-021` to `OCM-V0-023` (2026-10-14, V1-1049, V1-1048, V1-0522, owner's standing auto-accept), `OCM-V0-024` (2026-10-21, V1-1068, owner's standing auto-accept), `OCM-V0-025` (2026-10-21, V1-1961, owner's standing auto-accept), `OCM-V0-026` (2026-10-21, V1-2170, owner's standing auto-accept)/experimental; accepted amendments implemented without promotion
 - Exists: an `ocm/0.1-experimental` structural traceability profile, verifier, and evidence mapping.
 - Blocked on: ten-change dogfood and promotion gates; linked rows do not prove correctness or adequacy.
 - Read next: Verified starting state; Requirements; Acceptance and dogfood.
@@ -252,6 +252,17 @@ claim, and mutation ordering deltas below.
   unchanged, and an unread coverage (`NOT_OBSERVED`) prints no note rather than a guessed list.
   Non-goals: naming the unreferenced requirements of the intent scope. Failure modes: an ID past
   the bound is counted, not named.
+- `OCM-V0-026`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2170) when
+  `ocm prepare` (or an OCM read) refuses because the stable verifier returned
+  `unsupported-resource-limit`, the refusal message MUST name the bound that fired and its value:
+  the Git operation budget (`git-budget-exceeded: ... at its N-operation bound`) or a Git output
+  byte bound (`git-output-exceeded: Git stdout|stderr exceeded its N-byte bound`), or the
+  path-set bound's own message when that raised it. The refusal code stays
+  `unsupported-resource-limit`; the cause travels in an unencoded verifier field, so
+  `cem-stable-verification/1` bytes and `verdictSha256` are unchanged. Other refusals keep their
+  text. Non-goals: reporting the measured size that would have been needed (the operation stops at
+  the bound, so it is not observed), and changing any bound. Rollback: drop the field and the
+  message suffix.
 
 ## Wire profile
 
@@ -550,6 +561,7 @@ non-authoritative and slated for separate removal. The native OCM status/verify/
 | OCM-V0-023 | `docs/DOGFOOD.md` section 5 (choosing intents at an aggregate bound) | adjudication `docs/build-log/2026-10-14-batch5-refusal-diagnostics.md`; bounds pinned by `internal/dogfoodocm/aggregate_test.go:TestOCMV0021BoundRefusalsNameTotalsBoundAndScopes` |
 | OCM-V0-024 | `internal/dogfoodocm/aggregate.go` (`boundMessage`, `boundNarrowing`) | `internal/dogfoodocm/aggregate_test.go:TestOCMV0024BoundRefusalNamesNarrowingRoute` (exact route, worst case within 512 bytes, no path); `TestOCMV0021BoundRefusalsNameTotalsBoundAndScopes` (full messages) |
 | OCM-V0-025 | `internal/dogfoodflow/ocm_coverage.go` (`changeCoverage`, `unlinkedNote`), `internal/dogfoodflow/check.go` | `internal/dogfoodflow/check_test.go:TestOCMV0025CheckNamesUnlinkedRequirementIDs`, `internal/dogfoodflow/check_test.go:TestOCMV0019SummaryCountsRequirementsTheChangeCitesOrTraces` (names each unresolved ID) |
+| OCM-V0-026 | `internal/cem/gitrun/gitrun.go` (`exhausted`, `exceededError`), `internal/cem/verify/stable.go` (`LimitCause`), `internal/lrfrepo/ocm_read.go` (`stableOCMRefusal`), `internal/lrfrepo/adapter.go` | `internal/lrfrepo/ocm_stable_refusal_test.go:TestOCMV0026PrepareRefusalNamesTheBoundThatFired`, `internal/cem/verify/stable_drift_resource_limit_test.go:TestCEMV1260DriftResourceLimitNative`, `internal/cem/gitrun/gitrun_unix_test.go:TestTypedOutputBound`, `internal/cem/gitrun/gitrun_unix_test.go:TestTypedBudgetExhaustion` |
 
 Native selector diagnostic amendment to `OCM-V0-007` (2026-09-08): the owner's Task 2
 follow-up explicitly requests printing the normalized fragment on a miss. A missing `/case:` selector retains

@@ -219,3 +219,40 @@ func TestLPCVV0146AmbiguousLineTitlePathAbsent(t *testing.T) {
 		t.Fatalf("static location=%+v", got)
 	}
 }
+
+// LPCV-V0-292: stock Playwright names a spec relative to its rootDir. With rootDir e2e/ the anchor
+// login.spec.ts binds the one retained key ending in /login.spec.ts and the location is the
+// repository-relative e2e/login.spec.ts; with no root it stays repository-root-unbound, and when
+// two retained keys share the rootDir-relative tail it is anchor-file-unbound, never a guess.
+func TestLPCVV0292PlaywrightRootDirRelativeSpec(t *testing.T) {
+	receipt := func(t *testing.T, keys ...string) Input {
+		t.Helper()
+		digests := map[string]string{}
+		for _, key := range keys {
+			digests[key] = strings.Repeat("a", 64)
+		}
+		data, err := json.Marshal(map[string]any{"receipt": map[string]any{"kind": "e2e", "identity": map[string]any{"runnerName": "playwright", "testFileDigests": digests},
+			"tests": []map[string]any{{"name": "login works", "state": "passed", "anchor": map[string]any{"file": "login.spec.ts", "line": 4}}}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		input, err := Decode(data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return input
+	}
+	root := t.TempDir()
+	bound := receipt(t, filepath.Join(root, "e2e", "login.spec.ts"), filepath.Join(root, "e2e", "cart.spec.ts"))
+	located := Locate(Project(bound), bound, root).Tests[0].Location
+	if !reflect.DeepEqual(located, &Location{File: "e2e/login.spec.ts", Line: 4, Absent: map[string]string{"titlePath": LocationSourceNotRead}}) {
+		t.Fatalf("rootDir-relative location=%+v", located)
+	}
+	if got := Locate(Project(bound), bound, "").Tests[0].Location; got.File != "" || got.Absent["file"] != LocationRootUnbound {
+		t.Fatalf("no-root location=%+v", got)
+	}
+	twice := receipt(t, filepath.Join(root, "e2e", "login.spec.ts"), filepath.Join(root, "e2e", "admin", "login.spec.ts"))
+	if got := Locate(Project(twice), twice, root).Tests[0].Location; got.File != "" || got.Absent["file"] != LocationFileUnbound {
+		t.Fatalf("shared-tail location=%+v", got)
+	}
+}

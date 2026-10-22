@@ -240,3 +240,53 @@ func TestANLV0032TemplateHopPlacesReferencedFiles(t *testing.T) {
 		t.Fatalf("reference outside every span did not widen to the file (%d anchored): %+v", anchored, r)
 	}
 }
+
+// ANL-V0-047: an index file's `index` token in code position (a loop index, a property, an object
+// key) in a confidently lexed script is not a reference, so a change to an index file that the
+// router reaches by its directory resolves to that reference instead of unresolved-reference
+// (V1-1216). A commented `index` or one in markup still refuses.
+func TestANLV0047IndexIdentifiersDoNotHideTheIndexFileReference(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	routes, err := os.ReadFile(filepath.Join(root, "app/routes.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		"app/routes.js":       "var pane = require('./panels');\n" + string(routes),
+		"app/panels/index.js": "module.exports = {};\n",
+		"app/list.js":         "var rows = [{ index: 0 }];\nrows.forEach(function (row, index) { return row.index + index; });\n",
+	}
+	for p, body := range files {
+		dst := filepath.Join(root, p)
+		if err = os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err = os.WriteFile(dst, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rev := commitAll(t, root, "index identifiers")
+	f := prefixFixture{m: build(t, root, rev), root: root, rev: rev}
+	impactCommit(t, f, map[string]string{"app/panels/index.js": "module.exports = { v: 2 };\n"})
+	r := impactRun(t, f, nil, rev, Options{})
+	if r.Verdict != VerdictTargeted || len(r.Unknown) != 0 || len(r.Screens) == 0 || r.Screens[0].Basis != "template-reference:app/routes.js" {
+		t.Fatalf("index file behind index identifiers not placed: %+v", r)
+	}
+	for _, c := range []struct{ name, body, clean string }{
+		{"app/note.js", "// see index\nmodule.exports = 1;\n", "module.exports = 1;\n"},
+		{"app/list.html", "<li>{{index}}</li>\n", "<li></li>\n"},
+	} {
+		name := c.name
+		head := gitTest(t, root, "rev-parse", "HEAD")
+		impactCommit(t, f, map[string]string{name: c.body, "app/panels/index.js": "module.exports = { v: '" + name + "' };\n"})
+		r = impactRun(t, f, nil, head, Options{})
+		unresolved := false
+		for _, u := range r.Unknown {
+			unresolved = unresolved || u.Path == "app/panels/index.js" && u.Reason == "unresolved-reference"
+		}
+		if r.Verdict != VerdictFullSuite || !unresolved {
+			t.Fatalf("%s: an unprovable index mention narrowed: %+v", name, r)
+		}
+		impactCommit(t, f, map[string]string{name: c.clean})
+	}
+}

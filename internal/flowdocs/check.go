@@ -80,7 +80,13 @@ func CheckRevision(ctx context.Context, root string, previous []byte, revision, 
 	if err != nil {
 		return Check{}, err
 	}
-	current, err := Generate(ctx, root, Options{Revision: revision, Scope: old.Manifest.Scope})
+	// A declared inventory keeps its identities at the target revision
+	// (AFU-V1-105).
+	flows, err := old.Manifest.inventoryInput()
+	if err != nil {
+		return Check{}, err
+	}
+	current, err := Generate(ctx, root, Options{Revision: revision, Scope: old.Manifest.Scope, Flows: flows})
 	if err != nil {
 		return Check{}, err
 	}

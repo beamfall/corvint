@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
 // additionalRepositoryFixture builds primary repository A with a records provider whose claim
@@ -118,9 +120,13 @@ func TestDCPV1175AdditionalRepositoryAnchors(t *testing.T) {
 		if err != nil || state != "stale" || !strings.Contains(strings.Join(limits, "\n"), "additional repository "+extra.ID+": working-tree input differs: doc.md") {
 			t.Fatalf("change in B not reported stale: %s %v %v", state, limits, err)
 		}
+		// DCP-V1-280: the overlay's reuse key covers every declared checkout, so it is never the
+		// primary observation alone and equals what a reader observes before the next call.
 		overlay, err := LiveFreshness(context.Background(), root, a)
-		if err != nil || overlay.Observation() != "" {
-			t.Fatalf("multi-repository overlay must not be reusable on the primary observation alone: %q %v", overlay.Observation(), err)
+		observed, observeErr := CorpusObservation(context.Background(), root, a)
+		primary, primaryErr := contextindex.Observe(context.Background(), root)
+		if err != nil || observeErr != nil || primaryErr != nil || overlay.Observation() == "" || overlay.Observation() != observed || observed == ObservationKey(primary) {
+			t.Fatalf("multi-repository overlay key %q, observed %q: %v %v %v", overlay.Observation(), observed, err, observeErr, primaryErr)
 		}
 	})
 }

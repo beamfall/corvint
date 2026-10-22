@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
 )
 
 // corpusOperation is one `docs corpus` operation: the options it admits and requires, in usage
@@ -61,6 +62,9 @@ func buildCorpusOperations() []corpusOperation {
 		typed("navigation", "typed navigation subject"),
 		typed("vocabulary", "typed vocabulary matching a term"),
 		typed("intent", "typed intent comparisons of one subject"),
+		{name: "eval", purpose: "score caller-labelled cases through the corpus MCP tool path; --baseline ratchets", required: []string{"--artifact", "--cases"}, optional: []string{"--baseline", "--format"}},
+		{name: "audit-sample", purpose: "draw a reproducible claim sample to audit; also spelled audit sample", required: []string{"--artifact", "--seed", "--size"}, optional: []string{"--stratify", "--scope"}},
+		{name: "audit-report", purpose: "measure sampled-claim accuracy from independent verdicts; also spelled audit report", required: []string{"--artifact", "--sample"}, optional: []string{"--format"}},
 	}
 }
 
@@ -90,7 +94,7 @@ func (operation corpusOperation) admits(flag string) bool {
 
 // corpusLocalInputFlags are the options whose value is a local input file: a canonical path
 // relative to --root that sits under it (DCP-V1-054).
-var corpusLocalInputFlags = []string{"--manifest", "--artifact", "--input", "--previous", "--cem", "--retirement", "--migration", "--playwright-list", "--receipt", "--report"}
+var corpusLocalInputFlags = []string{"--manifest", "--artifact", "--input", "--previous", "--cem", "--retirement", "--migration", "--playwright-list", "--receipt", "--report", "--cases", "--baseline", "--sample"}
 
 var corpusFlagHelp = map[string][2]string{
 	"--revision":             {"FULL_COMMIT", "source revision the manifest pins"},
@@ -125,10 +129,32 @@ var corpusFlagHelp = map[string][2]string{
 	"--expected-base":        {"FULL_COMMIT", "base the cem/1.0 map must bind"},
 	"--target":               {"FULL_COMMIT", "target commit holding the map as its sidecar"},
 	"--stable-artifact-root": {"DIR", "directory holding the map's referenced artifacts"},
+	"--cases":                {"CASES.json", "caller-owned " + corpusbridge.EvalCasesSchema + " case file"},
+	"--baseline":             {"RECEIPT.json", "earlier eval receipt; every regressed case is listed and exits 1"},
+	"--seed":                 {"N", "sample seed, 0.." + strconv.FormatUint(doccorpus.MaxAuditSeed, 10) + "; the same seed, artifact and options give the same sample"},
+	"--size":                 {"N", "claims to sample, 1.." + strconv.Itoa(doccorpus.MaxAuditSample)},
+	"--stratify":             {"provider|kind|flow|trust", "proportionally allocate the sample across strata"},
+	"--sample":               {"SAMPLE.json", doccorpus.AuditSampleSchema + " sample from docs corpus audit sample"},
 }
 
-func corpusFlagUsage(flag string) string {
-	if metavar := corpusFlagHelp[flag][0]; metavar != "" {
+// corpusOperationFlagHelp overrides a shared option's help for one operation: eval's --format
+// selects the report view, not a test-management export format.
+var corpusOperationFlagHelp = map[string]map[string][2]string{
+	"eval":         {"--format": {"json|table", "report view (default json)"}},
+	"audit-sample": {"--scope": {"PATH", "sample only claims citing this path or directory"}},
+	"audit-report": {"--format": {"json|table", "report view (default json)"}},
+}
+
+// corpusFlagHelpFor is the help entry of flag for operation.
+func corpusFlagHelpFor(operation, flag string) [2]string {
+	if entry, ok := corpusOperationFlagHelp[operation][flag]; ok {
+		return entry
+	}
+	return corpusFlagHelp[flag]
+}
+
+func corpusOperationFlagUsage(operation, flag string) string {
+	if metavar := corpusFlagHelpFor(operation, flag)[0]; metavar != "" {
 		return flag + " " + metavar
 	}
 	return flag
@@ -160,16 +186,16 @@ func docsCorpusOperationHelp(name string) string {
 	}
 	usage := []string{"corvint [--root PATH] docs corpus " + operation.name}
 	for _, flag := range operation.required {
-		usage = append(usage, corpusFlagUsage(flag))
+		usage = append(usage, corpusOperationFlagUsage(name, flag))
 	}
 	for _, flag := range operation.optional {
-		usage = append(usage, "["+corpusFlagUsage(flag)+"]")
+		usage = append(usage, "["+corpusOperationFlagUsage(name, flag)+"]")
 	}
 	var text strings.Builder
 	text.WriteString("Experimental documentation corpus: " + operation.purpose + "\n\nUsage:\n  " + strings.Join(usage, " ") + "\n\nOptions:\n")
 	for _, flags := range [][]string{operation.required, operation.optional} {
 		for _, flag := range flags {
-			text.WriteString("  " + corpusFlagUsage(flag) + "  " + corpusFlagHelp[flag][1] + "\n")
+			text.WriteString("  " + corpusOperationFlagUsage(name, flag) + "  " + corpusFlagHelpFor(name, flag)[1] + "\n")
 		}
 	}
 	var relative []string
@@ -200,6 +226,9 @@ func docsCorpusOperationHelp(name string) string {
 func corpusHelpTopic(rest []string) string {
 	if len(rest) == 0 || rest[0] == "--help" || rest[0] == "-h" {
 		return "docs-corpus"
+	}
+	if op, ok := corpusAuditOperation(rest); ok {
+		return "docs-corpus-" + op
 	}
 	if _, ok := lookupCorpusOperation(rest[0]); ok {
 		return "docs-corpus-" + rest[0]

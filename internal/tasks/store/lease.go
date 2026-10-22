@@ -204,6 +204,7 @@ func claimedTicket(repo *intent.Repository, root string, repos map[string]string
 			root = repo.PrimaryWorktree
 		}
 		report.ScopeWarnings = scopeDirectoryKeyWarnings(root, a)
+		report.GrantWarnings = claimGrantWarnings(repo, a)
 	}
 	return nil
 }
