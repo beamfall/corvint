@@ -9,7 +9,7 @@ Authoritative inputs: V1-2008 owner request (2026-10-20) "make sure corvints cap
 
 ## Agent digest
 - Claim: `docs/CAPABILITIES.md` lists every command, binary and MCP tool with its use, invocation, maturity and refusals; a Go test fails on drift.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008; V1-2020)/experimental
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020)/experimental
 - Exists: `docs/CAPABILITIES.md`, the README "What Corvint can do" section, `tools/capabilities-check` (its `go test` and `make capabilities-check`), and catalog pointers in `AGENTS.md`, `docs/AGENT-ROUTES.md`, `docs/README.md` and the shipped Claude Code, Codex, Gemini CLI, OpenCode and OpenSpec skills.
 - Blocked on: subcommands outside the declared tables, flags, profile membership and prose claims are not gated (see Failure modes); the Pi package text is not routed yet (its qualified adapter tuple pins the package bytes).
 - Read next: Requirements; Boundaries and failure modes; Traceability.

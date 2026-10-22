@@ -2468,8 +2468,8 @@ modelled.
   are summed, so every site counts whether or not the dirty set reaches it, and the count is the
   same for every plan over one graph. A site a frontier declaration resolves is not a frontier
   entry and is not counted. The member is omitted when the repository has no frontier, so a plan
-  over a frontier-free graph is byte-identical to the one before it; adding it is compatible under
-  CCF-V1-006. The count measures progress toward a bounded scope; it does not change `scope`,
+  over a frontier-free graph is byte-identical to the one before it; adding it is compatible
+  under CCF-V1-006. The count measures progress toward a bounded scope; it does not change `scope`,
   `unknown` or any selection. Falsifier: a plan whose count differs between two dirty sets over one
   graph, omits an unreached unit's site, counts a truncation entry as one, or differs between the
   two profiles. Rollback: remove `Plan.FrontierSites` and `Graph.frontierSites`.
