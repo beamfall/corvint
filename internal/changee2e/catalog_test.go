@@ -3,6 +3,9 @@ package changee2e
 import (
 	"bytes"
 	"errors"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -123,5 +126,31 @@ func TestCCEV0001OutInsideRootRefuses(t *testing.T) {
 	}
 	if _, err := CheckOut(root, t.TempDir()); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// CCE-V0-024: an outcome with an empty expected value is unadmitted `outcome-vacuous`, so no
+// scenario asserts a value any element text satisfies. Today the AMAP flow parser already refuses
+// an empty value (the map is then unavailable), so the catalog check is the second line.
+func TestCCEV0024OutcomeVacuous(t *testing.T) {
+	for _, tc := range []struct{ matcher, locator, value, want string }{
+		{"toHaveText", "slot-status", "Booked", ""},
+		{"toHaveText", "slot-status", "", "outcome-vacuous"},
+		{"toHaveText", "", "Booked", "outcome-not-compilable"},
+		{"toBeVisible", "slot-status", "", "outcome-not-compilable"},
+	} {
+		if got := outcomeAdmissionReason(tc.matcher, tc.locator, tc.value); got != tc.want {
+			t.Fatalf("%s/%s/%q: %q, want %q", tc.matcher, tc.locator, tc.value, got, tc.want)
+		}
+	}
+	root, _ := fixtureRepo(t)
+	data, err := os.ReadFile(filepath.Join(root, "flows", "book-tee-time.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	vacuous := strings.Replace(string(data), `"value": "Booked"`, `"value": ""`, 1)
+	rev := commitFiles(t, root, map[string]*string{"flows/book-tee-time.json": text(vacuous)}, "vacuous outcome")
+	if _, err := BuildCatalog(bg, CatalogOptions{Root: root, Rev: rev, Manifest: "appmap.json"}); refusalCode(err) != "e2e-map-unavailable" {
+		t.Fatalf("an empty outcome value must not reach a catalog: %v", err)
 	}
 }

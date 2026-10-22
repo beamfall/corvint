@@ -29,13 +29,24 @@ import (
 
 // Discrimination verdicts (CCE-V0-009).
 const (
-	VerdictInconclusive    = "INCONCLUSIVE"
-	VerdictUnstable        = "UNSTABLE"
-	VerdictFailsAtHead     = "FAILS_AT_HEAD"
-	VerdictControlSurvived = "CONTROL_SURVIVED"
-	VerdictDiscriminates   = "DISCRIMINATES"
-	VerdictPreserves       = "PRESERVES"
+	VerdictInconclusive       = "INCONCLUSIVE"
+	VerdictUnstable           = "UNSTABLE"
+	VerdictRegressionDetected = "REGRESSION_DETECTED"
+	VerdictScenarioBroken     = "SCENARIO_BROKEN"
+	VerdictControlSurvived    = "CONTROL_SURVIVED"
+	VerdictDiscriminates      = "DISCRIMINATES"
+	VerdictNewReach           = "NEW_REACH"
+	VerdictPreserves          = "PRESERVES"
 )
+
+// Failure kinds of a repeat that fails at the outcome assertion (CCE-V0-009 rungs 7-8, CCE-V0-026).
+const (
+	FailureValueMismatch     = "value-mismatch"
+	FailureLocatorUnresolved = "locator-unresolved"
+)
+
+// ReasonOracleSelfCertified caps a CHANGED_IN_DIFF scenario's verdict (CCE-V0-016, CCE-V0-027).
+const ReasonOracleSelfCertified = "oracle-self-certified"
 
 // Fixed run settings (CCE-V0-008): retries and workers are never configurable.
 const (
@@ -61,6 +72,7 @@ const (
 	markerText       = "corvint-test e2e prove disposable fixture\n"
 	wrongLocator     = "corvint-wrong-locator"
 	wrongValue       = "corvint-wrong-value"
+	omittedEvent     = "corvint-omitted-event"
 )
 
 // proveConfig is the generated Playwright config: one worker, no retries, chromium, and the
@@ -78,7 +90,10 @@ module.exports = {
 // proveLimitations are carried in every proof document.
 var proveLimitations = []string{
 	"outcome-assertion location is matched from the failure message (the assertion's own expect message, matcher and locator); the provider receipt does not retain the error line",
+	"failure kind is read from the failure message: a received `element(s) not found` is locator-unresolved, any other failure at the outcome assertion is value-mismatch",
+	"a fixture cleanup failure is not reported as cleanup-failed: it surfaces as a failure off the outcome assertion, which reads SCENARIO_BROKEN at head or INCONCLUSIVE at base",
 	"PRESERVES is a regression-preservation check only; it does not detect the change",
+	"NEW_REACH checks new behaviour against its absence; it does not detect a changed value",
 	"document byte cap (CCE-V0-014) is not applied by this slice",
 }
 
@@ -112,28 +127,37 @@ type proveReport struct {
 }
 
 type scenarioProof struct {
-	Obligation  string         `json:"obligation"`
-	Placement   string         `json:"placement"`
-	AssertionID string         `json:"assertion_id"`
-	Verdict     string         `json:"verdict"`
-	Note        string         `json:"note"`
-	Head        sideProof      `json:"head"`
-	Base        sideProof      `json:"base"`
-	Controls    []controlProof `json:"controls"`
+	Obligation   string `json:"obligation"`
+	Placement    string `json:"placement"`
+	AssertionID  string `json:"assertion_id"`
+	OracleOrigin string `json:"oracle_origin"`
+	Verdict      string `json:"verdict"`
+	Note         string `json:"note"`
+	// Scoring is true only for a DISCRIMINATES, NEW_REACH or PRESERVES verdict on an
+	// ADMITTED_AT_BASE oracle: the scenarios CCE-V0-010 lets read above candidate.
+	Scoring  bool           `json:"scoring"`
+	Head     sideProof      `json:"head"`
+	Base     sideProof      `json:"base"`
+	Controls []controlProof `json:"controls"`
 }
 
+// sideProof is one side's pool. The application revision differs between the sides; the test
+// revision and the test-tree digest are the head's on both (CCE-V0-017).
 type sideProof struct {
-	Revision  string          `json:"revision"`
-	Qualified bool            `json:"qualified"`
-	Reason    string          `json:"reason,omitempty"`
-	Receipts  []string        `json:"receipts"`
-	Outcomes  []repeatOutcome `json:"outcomes"`
-	Stability string          `json:"stability"`
+	ApplicationRevision string          `json:"application_revision"`
+	TestRevision        string          `json:"test_revision"`
+	TestTreeDigest      string          `json:"test_tree_digest,omitempty"`
+	Qualified           bool            `json:"qualified"`
+	Reason              string          `json:"reason,omitempty"`
+	Receipts            []string        `json:"receipts"`
+	Outcomes            []repeatOutcome `json:"outcomes"`
+	Stability           string          `json:"stability"`
 }
 
 type repeatOutcome struct {
 	State              string `json:"state"`
 	AtOutcomeAssertion bool   `json:"at_outcome_assertion"`
+	FailureKind        string `json:"failure_kind,omitempty"`
 }
 
 type controlProof struct {
@@ -151,6 +175,11 @@ type proveEnv struct {
 	environment                      *Environment // nil serves the tree statically
 	serveBin, servePath              string       // a bare serve[0] resolved once, and the PATH serve runs with
 	hook                             behaviorfalsify.Command
+	// side runs one staged pool and returns its receipt and either the qualified receipt digest
+	// or the reason it has none; controls applies the CCE-V0-018 controls at head. Prove uses
+	// runQualified and runControls; the offline ladder tests substitute fakes (CCE-V0-028).
+	side     func(ctx context.Context, in runInput) (jstestprovider.Receipt, string, string)
+	controls func(ctx context.Context, head string, sc Scenario, tree testTree, headReceipt jstestprovider.Receipt) []controlProof
 }
 
 // Prove runs each compiled scenario at head and then at base through the Playwright provider,
@@ -210,19 +239,70 @@ func Prove(ctx context.Context, o ProveOptions) ([]byte, error) {
 		report.Limitations = append(slices.Clone(proveLimitations), environmentLimitations...)
 	}
 	for _, sc := range o.Scenarios {
-		p := scenarioProof{Obligation: sc.Obligation, Placement: sc.Placement, AssertionID: sc.AssertionID}
-		var headReceipt jstestprovider.Receipt
-		p.Head, headReceipt = env.proveSide(ctx, head, sc, repeats)
-		p.Base, _ = env.proveSide(ctx, base, sc, repeats)
-		if controlsReachable(p.Head, p.Base) {
-			p.Controls = env.runControls(ctx, head, sc, headReceipt)
-		} else {
-			p.Controls = notRunControls("verdict-decided-before-controls")
-		}
-		p.Verdict, p.Note = verdict(p.Head, p.Base, p.Controls)
-		report.Scenarios = append(report.Scenarios, p)
+		report.Scenarios = append(report.Scenarios, env.proveScenario(ctx, base, head, sc, repeats))
 	}
 	return seal(&report, &report.Digest)
+}
+
+// proveScenario proves one scenario: it reads the head test tree, runs it over the head and then
+// the base application tree, applies the controls when the ladder reaches them, and reads the
+// verdict with the oracle_origin cap.
+func (e *proveEnv) proveScenario(ctx context.Context, base, head string, sc Scenario, repeats int) scenarioProof {
+	p := scenarioProof{Obligation: sc.Obligation, Placement: sc.Placement, AssertionID: sc.AssertionID, OracleOrigin: sc.OracleOrigin}
+	tree, reason := e.headTestTree(ctx, head, sc)
+	if reason != "" {
+		p.Head, p.Base = unrunSide(head, head, reason), unrunSide(base, head, reason)
+		p.Controls = notRunControls(sc, "verdict-decided-before-controls")
+		p.Verdict, p.Note = VerdictInconclusive, reason
+		return p
+	}
+	var headReceipt jstestprovider.Receipt
+	p.Head, headReceipt = e.proveSide(ctx, head, head, tree, sc, repeats)
+	p.Base, _ = e.proveSide(ctx, base, head, tree, sc, repeats)
+	if controlsReachable(p.Head, p.Base) {
+		p.Controls = e.controls(ctx, head, sc, tree, headReceipt)
+	} else {
+		p.Controls = notRunControls(sc, "verdict-decided-before-controls")
+	}
+	p.Verdict, p.Note = verdict(p.Head, p.Base, p.Controls)
+	p.Verdict, p.Note = capOracle(sc.OracleOrigin, p.Verdict, p.Note)
+	switch p.Verdict {
+	case VerdictDiscriminates, VerdictNewReach, VerdictPreserves:
+		p.Scoring = sc.OracleOrigin == OriginAdmittedAtBase
+	}
+	return p
+}
+
+// capOracle reads a CHANGED_IN_DIFF scenario's positive verdict INCONCLUSIVE with
+// oracle-self-certified: the change edited the outcome it is proved against (CCE-V0-016/027).
+func capOracle(origin, verdict, note string) (string, string) {
+	if origin != OriginChangedInDiff {
+		return verdict, note
+	}
+	switch verdict {
+	case VerdictRegressionDetected, VerdictDiscriminates, VerdictNewReach, VerdictPreserves:
+		return VerdictInconclusive, ReasonOracleSelfCertified + ": the ladder read " + verdict + " against an outcome the change edited"
+	}
+	return verdict, note
+}
+
+// headTestTree extracts the head revision once and reads the scenario's test tree from it
+// (CCE-V0-017).
+func (e *proveEnv) headTestTree(ctx context.Context, head string, sc Scenario) (testTree, string) {
+	dir, err := os.MkdirTemp("", "corvint-e2e-testtree-")
+	if err != nil {
+		return testTree{}, "workspace-unavailable"
+	}
+	defer os.RemoveAll(dir)
+	if err := extractRev(ctx, e.root, head, dir); err != nil {
+		return testTree{}, "workspace-unavailable"
+	}
+	return buildTestTree(dir, sc)
+}
+
+func unrunSide(app, test, reason string) sideProof {
+	return sideProof{ApplicationRevision: app, TestRevision: test, Reason: reason, Receipts: []string{}, Outcomes: []repeatOutcome{},
+		Stability: playwrightruns.Insufficient}
 }
 
 func validateScenarios(scs []Scenario) error {
@@ -278,8 +358,17 @@ func proveToolchain(root string, o ProveOptions) (*proveEnv, error) {
 	if err != nil {
 		return nil, bad("hook executable is unreadable")
 	}
-	return &proveEnv{root: root, nodeModules: modules, runnerVersion: version, packageJSON: o.PackageJSON, lockfile: o.Lockfile,
-		hook: behaviorfalsify.Command{Path: hookPath, ExecutableSHA256: "sha256:" + sha256Hex(data)}}, nil
+	e := &proveEnv{root: root, nodeModules: modules, runnerVersion: version, packageJSON: o.PackageJSON, lockfile: o.Lockfile,
+		hook: behaviorfalsify.Command{Path: hookPath, ExecutableSHA256: "sha256:" + sha256Hex(data)}, side: runQualified}
+	e.controls = e.runControls
+	return e, nil
+}
+
+// runQualified runs one pool through the Playwright provider and qualifies its receipt.
+func runQualified(ctx context.Context, in runInput) (jstestprovider.Receipt, string, string) {
+	receipt, runErr := runPlaywright(ctx, in)
+	digest, reason := qualify(receipt, runErr, in.Repeats)
+	return receipt, digest, reason
 }
 
 func playwrightVersion(modules string) (string, error) {
@@ -335,9 +424,10 @@ func setEnv(vals map[string]string) func() {
 	}
 }
 
-// proveSide runs one scenario at rev in a disposable extraction of that revision.
-func (e *proveEnv) proveSide(ctx context.Context, rev string, sc Scenario, repeats int) (sideProof, jstestprovider.Receipt) {
-	side := sideProof{Revision: rev, Receipts: []string{}, Outcomes: []repeatOutcome{}}
+// proveSide runs the head test tree over a disposable extraction of the application revision app
+// (CCE-V0-017).
+func (e *proveEnv) proveSide(ctx context.Context, app, test string, tt testTree, sc Scenario, repeats int) (sideProof, jstestprovider.Receipt) {
+	side := sideProof{ApplicationRevision: app, TestRevision: test, TestTreeDigest: tt.digest, Receipts: []string{}, Outcomes: []repeatOutcome{}}
 	dir, err := os.MkdirTemp("", "corvint-e2e-prove-")
 	if err != nil {
 		side.Reason = "workspace-unavailable"
@@ -346,40 +436,41 @@ func (e *proveEnv) proveSide(ctx context.Context, rev string, sc Scenario, repea
 	}
 	defer os.RemoveAll(dir)
 	tree := filepath.Join(dir, "tree")
-	if err := e.stageTree(ctx, e.root, rev, tree, sc); err != nil {
+	if err := stageTree(ctx, e.root, app, tree, tt); err != nil {
 		side.Reason = "workspace-unavailable"
 		side.Stability = playwrightruns.Insufficient
 		return side, jstestprovider.Receipt{}
 	}
-	receipt, runErr := runPlaywright(ctx, runInput{Tree: tree, AppIdentity: rev, Placement: sc.Placement, Repeats: repeats,
+	receipt, digest, reason := e.side(ctx, runInput{Tree: tree, AppIdentity: app, Placement: sc.Placement, Repeats: repeats,
 		NodeModules: e.nodeModules, RunnerVersion: e.runnerVersion, PackageJSON: e.packageJSON, Lockfile: e.lockfile, Timeout: sideTimeout,
 		Environment: e.environment, ServeBin: e.serveBin, ServePath: e.servePath})
-	digest, reason := qualify(receipt, runErr, repeats)
 	side.Qualified, side.Reason = reason == "", reason
 	if digest != "" {
 		side.Receipts = append(side.Receipts, digest)
 	}
 	for _, t := range receipt.Tests {
-		side.Outcomes = append(side.Outcomes, repeatOutcome{State: string(t.State),
-			AtOutcomeAssertion: failsAtAssertion(string(t.State), t.FailureMessage, sc.Marker, sc.Matcher, sc.Locator)})
+		kind := assertionFailure(string(t.State), t.FailureMessage, sc.Marker, sc.Matcher, sc.Locator)
+		side.Outcomes = append(side.Outcomes, repeatOutcome{State: string(t.State), AtOutcomeAssertion: kind != "", FailureKind: kind})
 	}
 	side.Stability = stability(side.Outcomes)
 	return side, receipt
 }
 
-// stageTree extracts rev into dest and writes the scenario and the generated config.
-func (e *proveEnv) stageTree(ctx context.Context, repo, rev, dest string, sc Scenario) error {
+// stageTree extracts the application revision rev into dest and writes the test tree over it.
+func stageTree(ctx context.Context, repo, rev, dest string, tt testTree) error {
 	if err := extractRev(ctx, repo, rev, dest); err != nil {
 		return err
 	}
-	target := filepath.Join(dest, filepath.FromSlash(sc.Placement))
-	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-		return err
+	for rel, data := range tt.files {
+		target := filepath.Join(dest, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(target, data, 0o644); err != nil {
+			return err
+		}
 	}
-	if err := os.WriteFile(target, sc.Text, 0o644); err != nil {
-		return err
-	}
-	return os.WriteFile(filepath.Join(dest, proveConfigName), []byte(proveConfig), 0o644)
+	return nil
 }
 
 // extractRev writes `git archive rev` of repo into dest, a new directory.
@@ -573,6 +664,19 @@ func failsAtAssertion(state, message, marker, matcher, locator string) bool {
 	return strings.Contains(m, "getByTestId('"+locator+"')") || strings.Contains(m, `getByTestId("`+locator+`")`)
 }
 
+// assertionFailure is empty unless the repeat failed at the outcome assertion, and otherwise its
+// failure kind (CCE-V0-026): Playwright reports a locator that matched nothing as a received
+// `<element(s) not found>`; any other failure at the assertion compared a different value.
+func assertionFailure(state, message, marker, matcher, locator string) string {
+	if !failsAtAssertion(state, message, marker, matcher, locator) {
+		return ""
+	}
+	if strings.Contains(ansiEscape.ReplaceAllString(message, ""), "element(s) not found") {
+		return FailureLocatorUnresolved
+	}
+	return FailureValueMismatch
+}
+
 // stability classifies the head pool in the PWR-V0-003 vocabulary: differing outcomes, or any
 // flaky repeat, are INTERMITTENT at any count.
 func stability(outs []repeatOutcome) string {
@@ -595,9 +699,9 @@ func failing(state string) bool {
 	return false
 }
 
-// controlsReachable reports whether the verdict can reach the control steps (CCE-V0-009 step 4).
+// controlsReachable reports whether the verdict can reach the control rungs (CCE-V0-009 rung 5).
 func controlsReachable(head, base sideProof) bool {
-	if !head.Qualified || !base.Qualified || head.Stability != playwrightruns.Deterministic {
+	if !head.Qualified || !base.Qualified || incompletePool(head, base) != "" || head.Stability != playwrightruns.Deterministic {
 		return false
 	}
 	for _, o := range head.Outcomes {
@@ -608,81 +712,151 @@ func controlsReachable(head, base sideProof) bool {
 	return true
 }
 
-var controlKinds = []behaviorfalsify.ControlKind{behaviorfalsify.WrongLocator, behaviorfalsify.WrongExpectedValue}
+// controlSpec is one required control (CCE-V0-018): the two BBF template controls on the outcome
+// assertion, omitted-event on the step expected to produce the outcome, and omitted-event on each
+// fixture setup.
+type controlSpec struct {
+	id          string
+	kind        behaviorfalsify.ControlKind
+	line        int
+	replacement string
+}
 
-func notRunControls(reason string) []controlProof {
-	out := []controlProof{}
-	for _, k := range controlKinds {
-		out = append(out, controlProof{ID: "control:" + string(k), Kind: string(k), Status: string(behaviorfalsify.StatusNotRun), Reasons: []string{reason}})
+func controlSpecs(sc Scenario) []controlSpec {
+	out := []controlSpec{
+		{"control:" + string(behaviorfalsify.WrongLocator), behaviorfalsify.WrongLocator, sc.AssertionLine, wrongLocator},
+		{"control:" + string(behaviorfalsify.WrongExpectedValue), behaviorfalsify.WrongExpectedValue, sc.AssertionLine, wrongValue},
+		{"control:omitted-event:step", behaviorfalsify.OmittedEvent, sc.AssertionLine - 1, omittedEvent},
+	}
+	for i, line := range setupLines(sc) {
+		out = append(out, controlSpec{"control:omitted-event:setup-" + strconv.Itoa(i+1), behaviorfalsify.OmittedEvent, line, omittedEvent})
 	}
 	return out
 }
 
-// verdict is the CCE-V0-009 discrimination verdict: the first rule that holds.
+// setupLines are the 1-based lines of the fixture setup calls: the awaited statements between the
+// test declaration and the scenario's `try`.
+func setupLines(sc Scenario) []int {
+	var out []int
+	inTest := false
+	for i, l := range strings.Split(string(sc.Text), "\n") {
+		switch {
+		case strings.HasPrefix(l, "test("):
+			inTest = true
+		case !inTest:
+		case l == "  try {":
+			return out
+		case strings.HasPrefix(l, "  await "):
+			out = append(out, i+1)
+		}
+	}
+	return out
+}
+
+func notRunControls(sc Scenario, reason string) []controlProof {
+	out := []controlProof{}
+	for _, c := range controlSpecs(sc) {
+		out = append(out, controlProof{ID: c.id, Kind: string(c.kind), Status: string(behaviorfalsify.StatusNotRun), Reasons: []string{reason}})
+	}
+	return out
+}
+
+// incompletePool is the CCE-V0-009 rung-1 reason a pool is incomplete: empty, or a repeat that was
+// skipped or did not finish.
+func incompletePool(head, base sideProof) string {
+	for _, s := range []sideProof{head, base} {
+		if len(s.Outcomes) == 0 {
+			return "pool-empty"
+		}
+		for _, o := range s.Outcomes {
+			switch jstestprovider.ExecutionState(o.State) {
+			case jstestprovider.StateSkipped, jstestprovider.StateInterrupted:
+				return "repeat-incomplete"
+			}
+		}
+	}
+	return ""
+}
+
+// verdict is the CCE-V0-009 discrimination verdict: the first rung that holds.
 func verdict(head, base sideProof, controls []controlProof) (string, string) {
 	if !head.Qualified || !base.Qualified {
 		return VerdictInconclusive, "run-without-qualified-receipt"
 	}
+	if reason := incompletePool(head, base); reason != "" {
+		return VerdictInconclusive, reason
+	}
 	if head.Stability == playwrightruns.Intermittent {
 		return VerdictUnstable, "head-pool-intermittent"
 	}
+	if every(head.Outcomes, func(o repeatOutcome) bool { return o.AtOutcomeAssertion }) &&
+		every(base.Outcomes, func(o repeatOutcome) bool { return o.State == string(jstestprovider.StatePassed) }) {
+		return VerdictRegressionDetected, "every head repeat fails at the outcome assertion and every base repeat passes: the change broke a declared outcome"
+	}
 	for _, o := range head.Outcomes {
 		if failing(o.State) {
-			return VerdictFailsAtHead, "head-repeat-failed"
+			return VerdictScenarioBroken, "head-repeat-failed"
 		}
 	}
-	status := map[string]string{}
+	if len(controls) == 0 {
+		return VerdictInconclusive, "controls-missing"
+	}
 	for _, c := range controls {
-		status[c.Kind] = c.Status
-	}
-	for _, k := range controlKinds {
-		if status[string(k)] == string(behaviorfalsify.StatusSurvived) {
-			return VerdictControlSurvived, "control-survived:" + string(k)
+		if c.Status == string(behaviorfalsify.StatusSurvived) {
+			return VerdictControlSurvived, "control-survived:" + c.ID
 		}
 	}
-	for _, k := range controlKinds {
-		if status[string(k)] != string(behaviorfalsify.StatusKilled) {
-			return VerdictInconclusive, "control-not-killed:" + string(k)
+	for _, c := range controls {
+		if c.Status != string(behaviorfalsify.StatusKilled) {
+			return VerdictInconclusive, "control-not-killed:" + c.ID
 		}
 	}
-	allAt, allPass := len(base.Outcomes) > 0, len(base.Outcomes) > 0
-	for _, o := range base.Outcomes {
-		allAt = allAt && o.AtOutcomeAssertion
-		allPass = allPass && o.State == string(jstestprovider.StatePassed)
+	kind := func(k string) func(repeatOutcome) bool {
+		return func(o repeatOutcome) bool { return o.AtOutcomeAssertion && o.FailureKind == k }
 	}
 	switch {
-	case allAt:
-		return VerdictDiscriminates, "every base repeat fails at the outcome assertion"
-	case allPass:
+	case every(base.Outcomes, kind(FailureValueMismatch)):
+		return VerdictDiscriminates, "every base repeat fails at the outcome assertion with a value mismatch"
+	case every(base.Outcomes, kind(FailureLocatorUnresolved)):
+		return VerdictNewReach, "every base repeat fails at the outcome assertion because the locator did not resolve: checks new behaviour against its absence, not a changed value"
+	case every(base.Outcomes, func(o repeatOutcome) bool { return o.State == string(jstestprovider.StatePassed) }):
 		return VerdictPreserves, "regression-preservation check only; not evidence that the scenario detects the change"
 	}
 	return VerdictInconclusive, "base-mixed-or-failed-off-assertion"
 }
 
-// runControls applies the BBF wrong-locator and wrong-expected-value controls to the outcome
-// assertion at head (CCE-V0-009 steps 4-5). The proof repository holds the head tree, the
-// scenario and the config, and serves as application, test and documentation repository at one
-// revision; the scenario file is the contract file.
-func (e *proveEnv) runControls(ctx context.Context, head string, sc Scenario, headReceipt jstestprovider.Receipt) []controlProof {
+func every(outs []repeatOutcome, f func(repeatOutcome) bool) bool {
+	for _, o := range outs {
+		if !f(o) {
+			return false
+		}
+	}
+	return len(outs) > 0
+}
+
+// runControls applies the CCE-V0-018 controls at head (CCE-V0-009 rungs 5-6). The proof
+// repository holds the head tree with the test tree over it, and serves as application, test and
+// documentation repository at one revision; the scenario file is the contract file.
+func (e *proveEnv) runControls(ctx context.Context, head string, sc Scenario, tree testTree, headReceipt jstestprovider.Receipt) []controlProof {
 	work, err := os.MkdirTemp("", "corvint-e2e-controls-")
 	if err != nil {
-		return notRunControls("control-workspace-unavailable")
+		return notRunControls(sc, "control-workspace-unavailable")
 	}
 	defer os.RemoveAll(work)
 	work, err = filepath.EvalSymlinks(work)
 	if err != nil {
-		return notRunControls("control-workspace-unavailable")
+		return notRunControls(sc, "control-workspace-unavailable")
 	}
 	repo, disposable := filepath.Join(work, "proof"), filepath.Join(work, "disposable")
-	rev, err := e.proofRepo(ctx, head, repo, sc)
+	rev, err := e.proofRepo(ctx, head, repo, tree)
 	if err != nil {
-		return notRunControls("proof-repository-unavailable")
+		return notRunControls(sc, "proof-repository-unavailable")
 	}
 	if err := os.MkdirAll(disposable, 0o755); err != nil {
-		return notRunControls("control-workspace-unavailable")
+		return notRunControls(sc, "control-workspace-unavailable")
 	}
 	if err := os.WriteFile(filepath.Join(disposable, behaviorfalsify.MarkerName), []byte(markerText), 0o644); err != nil {
-		return notRunControls("control-workspace-unavailable")
+		return notRunControls(sc, "control-workspace-unavailable")
 	}
 	request := e.controlRequest(sc, rev, repo, disposable, headReceipt)
 	plan, err := behaviorfalsify.BuildPlan(request)
@@ -691,23 +865,23 @@ func (e *proveEnv) runControls(ctx context.Context, head string, sc Scenario, he
 		if !strings.Contains(err.Error(), "/") {
 			reason += ": " + err.Error()
 		}
-		return notRunControls(reason)
+		return notRunControls(sc, reason)
 	}
 	report, err := behaviorfalsify.Execute(ctx, plan, plan.Digest)
 	if err != nil {
-		out := notRunControls("execute-refused")
+		out := notRunControls(sc, "execute-refused")
 		for i := range out {
 			out[i].PlanDigest = plan.Digest
 		}
 		return out
 	}
 	out := []controlProof{}
-	for _, k := range controlKinds {
-		c := controlProof{ID: "control:" + string(k), Kind: string(k), Status: string(behaviorfalsify.StatusNotRun),
+	for _, spec := range controlSpecs(sc) {
+		c := controlProof{ID: spec.id, Kind: string(spec.kind), Status: string(behaviorfalsify.StatusNotRun),
 			PlanDigest: plan.Digest, Reasons: []string{"control-result-missing"}}
 		for _, r := range report.Results {
-			if r.Kind == k {
-				c.ID, c.Status, c.Reasons = r.ID, string(r.Status), append([]string{}, r.Reasons...)
+			if r.ID == spec.id && r.Kind == spec.kind {
+				c.Status, c.Reasons = string(r.Status), append([]string{}, r.Reasons...)
 			}
 		}
 		out = append(out, c)
@@ -715,8 +889,8 @@ func (e *proveEnv) runControls(ctx context.Context, head string, sc Scenario, he
 	return out
 }
 
-func (e *proveEnv) proofRepo(ctx context.Context, head, repo string, sc Scenario) (string, error) {
-	if err := e.stageTree(ctx, e.root, head, repo, sc); err != nil {
+func (e *proveEnv) proofRepo(ctx context.Context, head, repo string, tree testTree) (string, error) {
+	if err := stageTree(ctx, e.root, head, repo, tree); err != nil {
 		return "", err
 	}
 	for _, args := range [][]string{
@@ -769,9 +943,9 @@ func (e *proveEnv) controlRequest(sc Scenario, rev, repo, disposable string, hea
 	runner := behaviorfalsify.RunnerIdentity{Runner: "playwright", RunnerVersion: e.runnerVersion, Browser: proveProject,
 		BrowserVersion: browserVersion(headReceipt), ConfigFile: proveConfigName,
 		ConfigSHA256: "sha256:" + sha256Hex([]byte(proveConfig)), EnvironmentSHA256: digestCanonical(envValues)}
-	def := func(kind behaviorfalsify.ControlKind, replacement string) map[string]string {
-		d := map[string]string{"tree": repo, "file": sc.Placement, "line": strconv.Itoa(sc.AssertionLine),
-			"locator": sc.Locator, "matcher": sc.Matcher, "marker": sc.Marker, "replacement": replacement, "kind": string(kind)}
+	def := func(spec controlSpec) map[string]string {
+		d := map[string]string{"tree": repo, "file": sc.Placement, "line": strconv.Itoa(spec.line),
+			"locator": sc.Locator, "matcher": sc.Matcher, "marker": sc.Marker, "replacement": spec.replacement, "kind": string(spec.kind)}
 		if sc.Value != "" {
 			d["value"] = sc.Value
 		}
@@ -792,12 +966,12 @@ func (e *proveEnv) controlRequest(sc Scenario, rev, repo, disposable string, hea
 		return d
 	}
 	hook := e.hook
+	var controls []behaviorfalsify.ControlSpec
+	for _, spec := range controlSpecs(sc) {
+		controls = append(controls, behaviorfalsify.ControlSpec{ID: spec.id, Kind: spec.kind, Disposition: "run", Definition: def(spec), Hook: &hook})
+	}
 	return behaviorfalsify.Request{
-		Target: target, Runner: runner,
-		Controls: []behaviorfalsify.ControlSpec{
-			{ID: "control:wrong-locator", Kind: behaviorfalsify.WrongLocator, Disposition: "run", Definition: def(behaviorfalsify.WrongLocator, wrongLocator), Hook: &hook},
-			{ID: "control:wrong-expected-value", Kind: behaviorfalsify.WrongExpectedValue, Disposition: "run", Definition: def(behaviorfalsify.WrongExpectedValue, wrongValue), Hook: &hook},
-		},
+		Target: target, Runner: runner, Controls: controls,
 		Cleanup: e.hook, DisposableRoot: disposable,
 		Repositories:    behaviorfalsify.RepositoryRoots{Application: repo, Test: repo, Documentation: repo},
 		MarkerSHA256:    "sha256:" + sha256Hex([]byte(markerText)),

@@ -32,7 +32,16 @@ type Scenario struct {
 	// message with it, which places a failure on this assertion (CCE-V0-009 step 6).
 	Marker                  string
 	Matcher, Locator, Value string
+	// OracleOrigin is the CCE-V0-016 join of the outcome block with the base map.
+	OracleOrigin string
 }
+
+// oracle_origin values (CCE-V0-016).
+const (
+	OriginAdmittedAtBase = "ADMITTED_AT_BASE"
+	OriginChangedInDiff  = "CHANGED_IN_DIFF"
+	OriginNewInDiff      = "NEW_IN_DIFF"
+)
 
 // Missing names one block a scenario needs that is missing or unadmitted (CCE-V0-006).
 type Missing struct {
@@ -49,6 +58,7 @@ type CompiledEntry struct {
 	FileDigest    string    `json:"file_digest,omitempty"`
 	AssertionID   string    `json:"assertion_id,omitempty"`
 	AssertionLine int       `json:"assertion_line,omitempty"`
+	OracleOrigin  string    `json:"oracle_origin,omitempty"`
 	Blocks        []string  `json:"blocks"`
 	Missing       []Missing `json:"missing"`
 }
@@ -172,6 +182,8 @@ func compileOne(cat *Catalog, obs *Obligations, ob Obligation) (*Scenario, Compi
 	entry.State, entry.Placement, entry.AssertionID, entry.AssertionLine = Compiled, sc.Placement, sc.AssertionID, sc.AssertionLine
 	entry.FileDigest = headerDigest(sc.Text)
 	entry.Blocks = p.blockIDs()
+	sc.OracleOrigin = obs.oracleOrigin(p.outcome)
+	entry.OracleOrigin = sc.OracleOrigin
 	return sc, entry
 }
 

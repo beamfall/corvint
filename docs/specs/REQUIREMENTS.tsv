@@ -999,6 +999,19 @@ CCE-V0-022	docs/specs/change-compiled-e2e-v0.md	`prove` MUST pass the runner onl
 CCE-V0-023	docs/specs/change-compiled-e2e-v0.md	Every `corvint-test e2e` subcommand MUST exit by this closed table: `0` the	unrecorded	-
 CCE-V0-024	docs/specs/change-compiled-e2e-v0.md	Compile hygiene: emitted golden bytes MUST be pinned to the compiler version, so	unrecorded	-
 CCE-V0-025	docs/specs/change-compiled-e2e-v0.md	Text read from the page or the runner (error messages, DOM snippets, console	unrecorded	-
+CCE-V0-026	docs/specs/change-compiled-e2e-v0.md	The CCE-V0-009 failure kind of a failed assertion MUST be read from the runner's	unrecorded	-
+CCE-V0-027	docs/specs/change-compiled-e2e-v0.md	A `CHANGED_IN_DIFF` scenario whose verdict would be `REGRESSION_DETECTED`,	unrecorded	-
+CCE-V0-028	docs/specs/change-compiled-e2e-v0.md	`prove` MUST reach the runner and the controls only through two injectable seams	unrecorded	-
+CCE-V0-029	docs/specs/change-compiled-e2e-v0.md	The `omitted-event` control for a step or a fixture setup is killed when the	unrecorded	-
+CCE-V0-030	docs/specs/change-compiled-e2e-v0.md	The test tree of CCE-V0-017 MUST be the compiled scenario, the generated runner	unrecorded	-
+CCE-V0-031	docs/specs/change-compiled-e2e-v0.md	`corvint-test e2e shadow --window FILE` MUST read one `e2e-shadow-window/0`	unrecorded	-
+CCE-V0-032	docs/specs/change-compiled-e2e-v0.md	Shadow readings: a compiled catch counts only from an eligible scenario	unrecorded	-
+CCE-V0-033	docs/specs/change-compiled-e2e-v0.md	The shadow report MUST state as limitations that recorded results are not	unrecorded	-
+CCE-V0-034	docs/specs/change-compiled-e2e-v0.md	`prove` MUST accept a hosted Playwright test selected by file and optional title	unrecorded	-
+CCE-V0-035	docs/specs/change-compiled-e2e-v0.md	For a hosted test, a failure counts as at the outcome assertion only when the	unrecorded	-
+CCE-V0-036	docs/specs/change-compiled-e2e-v0.md	A behaviour-removal control (`omitted-event` on the action that precedes each	unrecorded	-
+CCE-V0-037	docs/specs/change-compiled-e2e-v0.md	A `PRESERVES` verdict on an outcome the diff does not change MUST NOT count as	unrecorded	-
+CCE-V0-038	docs/specs/change-compiled-e2e-v0.md	The rerun on the four `actualbudget/actual` fixes that shipped hosted E2E tests	unrecorded	-
 CCE-V0-086	docs/specs/change-compiled-e2e-v0.md	A relative `--root`, including the default `.`, MUST resolve against the working	unrecorded	-
 CF-V1-001	docs/specs/change-frontier-profile-1.md	the profile identifier is exactly `frontier/1`; its error profile is exactly	unrecorded	-
 CF-V1-002	docs/specs/change-frontier-profile-1.md	`frontier/0` is untouched in every respect — clause text, item kinds, item IDs,	unrecorded	-
