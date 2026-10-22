@@ -65,3 +65,29 @@ func TestTOLV0001_ReaderAdmitsObligations(t *testing.T) {
 		})
 	}
 }
+
+// TestTOLV0001_ReaderRefusesNonNativeObligations: the Core reader refuses the
+// obligations member on an IMPORT record and on a shadow overlay, as the Tasks
+// codec does (internal/tasks/ticket TestTOLV0001_ImportRecordRefusesObligations,
+// V1-1035), and still admits both records without it.
+func TestTOLV0001_ReaderRefusesNonNativeObligations(t *testing.T) {
+	ref, e := document([]byte(`{"counts":{"coreTotal":"2","coreWitnessed":"1","deferred":"1","total":"3","witnessed":"2"},`+
+		`"head":"`+strings.Repeat("e1", 32)+`","highWater":{"acceptanceRevision":"1","witnessed":"2"},`+
+		`"lastRaise":{"acceptanceRevision":"1","attempt":"attempt:acme:main:b30a2bde9265683313779c2922bdca29","generation":"1"},"prefix":"AC","revision":"4"}`+"\n"), 1<<16)
+	if e != nil {
+		t.Fatal(e)
+	}
+	for _, shadow := range []bool{false, true} {
+		v := issue502Record(t)
+		dropMember(v, "obligations")
+		setMember(value(v, "source"), "kind", str502("IMPORT"))
+		setMember(v, "shadowOverlay", wire.Value{Kind: wire.KindBool, Bool: shadow})
+		if _, e := decodeTicket(v); e != nil {
+			t.Fatalf("shadow=%v import record without obligations: %v", shadow, e)
+		}
+		setMember(v, "obligations", ref)
+		if _, e := decodeTicket(v); e == nil || !strings.Contains(e.Error(), "only a NATIVE record carries an obligation ledger") {
+			t.Fatalf("shadow=%v import record with obligations: %v", shadow, e)
+		}
+	}
+}
