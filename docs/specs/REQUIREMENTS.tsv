@@ -324,6 +324,7 @@ AFU-V1-070	docs/specs/application-flow-understanding-v1.md	Coverage: a coverage 
 AFU-V1-071	docs/specs/application-flow-understanding-v1.md	Reviewed links: a `source` link target MAY name a qualified path. A declared lin	unrecorded	-
 AFU-V1-072	docs/specs/application-flow-understanding-v1.md	Compatibility: without declared or bound repositories the `e2e-safe-selection/1`	unrecorded	-
 AFU-V1-090	docs/specs/application-flow-understanding-v1.md	(accepted under the owner's standing auto-accept (2026-10-11)) `docs flows	standing	2026-10-11
+AFU-V1-091	docs/specs/application-flow-understanding-v1.md	(accepted under the owner's standing auto-accept (2026-10-11)) `docs flows	standing	2026-10-11
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,	unrecorded	-
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a	unrecorded	-
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	Freshness MUST come from one Git read at the evaluated revision. That read	unrecorded	-
@@ -4093,6 +4094,7 @@ RUBY-AFFECTED-V0-041	docs/specs/ruby-affected-test-adapter-v0.md	In a repository
 RUBY-AFFECTED-V0-042	docs/specs/ruby-affected-test-adapter-v0.md	Without a committed autoload declaration, the generated Rails 7.1+ line	unrecorded	-
 RUBY-AFFECTED-V0-043	docs/specs/ruby-affected-test-adapter-v0.md	The constant scan of `RUBY-AFFECTED-V0-009` MUST mask each heredoc body	unrecorded	-
 RUBY-AFFECTED-V0-044	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2158)	standing	2026-10-11; V1-2158
+RUBY-AFFECTED-V0-045	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2306,	standing	2026-10-11; V1-2306
 RVN-V0-001	docs/specs/run-verified-navigation-v0.md	`corvint flows appmap screen` and `flow` MUST accept repeatable	unrecorded	-
 RVN-V0-002	docs/specs/run-verified-navigation-v0.md	A step's bound keys MUST be the union of `Step.tests` (compiled into the map fro	unrecorded	-
 RVN-V0-003	docs/specs/run-verified-navigation-v0.md	An outcome MUST count as a pass only when `QualifiedReceiptBindingReady` holds a	unrecorded	-

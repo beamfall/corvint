@@ -156,3 +156,29 @@ func TestUnknownHelpTopicListsValidTopics(t *testing.T) {
 		}
 	}
 }
+
+// DCP-V1-057 (V1-2308, GitHub #1476): every topic the unknown-topic refusal lists resolves when
+// passed exactly as listed, as one argument, to the same help as its separate-word form.
+func TestListedHelpTopicResolvesAsOneArgument(t *testing.T) {
+	t.Parallel()
+	var stdout, stderr bytes.Buffer
+	run([]string{"help", "not-a-topic"}, &forbiddenHelpReader{}, &stdout, &stderr)
+	prefix := "{\"code\": \"invalid-arguments\", \"error\": \"unknown help topic: 'not-a-topic' (choose from "
+	list := strings.TrimSuffix(strings.TrimPrefix(stderr.String(), prefix), ")\", \"ok\": false}\n")
+	if list == stderr.String() {
+		t.Fatalf("unexpected refusal: %q", stderr.String())
+	}
+	nested := 0
+	for _, quoted := range strings.Split(list, ", ") {
+		topic := strings.Trim(quoted, "'")
+		if strings.Contains(topic, " ") {
+			nested++
+		}
+		if got, want := corpusHelpRun(t, "help", topic), corpusHelpRun(t, append([]string{"help"}, strings.Fields(topic)...)...); got != want {
+			t.Errorf("help %q differs from its separate-word form", topic)
+		}
+	}
+	if nested != len(nestedHelpTopics) {
+		t.Fatalf("listed %d nested topics, want %d: %s", nested, len(nestedHelpTopics), list)
+	}
+}
