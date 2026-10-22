@@ -1,0 +1,7 @@
+package cases
+import "fmt"
+func   spaced( a,b int )int{return a+b}
+func  more(){
+fmt.Println( spaced(1,2) )
+	  if x:=1;x>0{fmt.Println(x)}
+}

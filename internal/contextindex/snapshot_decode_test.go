@@ -36,7 +36,7 @@ func TestMappedSnapshotDecodeMatchesStreamedDecode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, fresh := range []func() any{func() any { return &Index{} }, func() any { return &eventSnapshot{} }} {
+	for _, fresh := range []func() any{func() any { return &snapshotWire{} }, func() any { return &eventSnapshot{} }} {
 		mapped, streamed := fresh(), fresh()
 		mapping := mapReadOnly(file, info.Size())
 		if mapping == nil {
@@ -67,7 +67,7 @@ func TestMappedSnapshotDecodeMatchesStreamedDecode(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer changed.Close()
-	if err := decodeSnapshotValue(changed, identity, engineID, &Index{}); err == nil || err.Error() != "snapshot digest mismatch" {
+	if err := decodeSnapshotValue(changed, identity, engineID, &snapshotWire{}); err == nil || err.Error() != "snapshot digest mismatch" {
 		t.Fatalf("changed trailer decoded: %v", err)
 	}
 }

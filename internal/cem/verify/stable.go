@@ -243,7 +243,7 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 			exit = r.Refuse("runtime", "unsupported-structural-runtime", true)
 			return r, exit
 		}
-		r.Runtime.StructuralQualification = "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+		r.Runtime.StructuralQualification = "QUALIFIED_EXACT_TUPLE"
 	}
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		exit = r.Refuse("runtime", "unsupported-process-containment", true)

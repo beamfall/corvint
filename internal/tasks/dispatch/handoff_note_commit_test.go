@@ -34,3 +34,39 @@ func TestERGV0026_HandoffNoteCommit(t *testing.T) {
 		t.Fatalf("short commit accepted: %v", err)
 	}
 }
+
+// TestERGV0028_CheckpointCommit: the note's commit is the attempt's
+// worktree HEAD when it records a worktree, else its branch in the work
+// root; no branch or worktree, a resolver error, or anything but a full
+// commit id names no commit (ERG-V0-028).
+func TestERGV0028_CheckpointCommit(t *testing.T) {
+	full := strings.Repeat("0b", 20)
+	var asked []string
+	resolve := func(answer string, err error) func(dir, rev string) (string, error) {
+		return func(dir, rev string) (string, error) {
+			asked = append(asked, dir+"@"+rev)
+			return answer, err
+		}
+	}
+	for _, tc := range []struct {
+		name     string
+		a        Attempt
+		answer   string
+		err      error
+		want, at string
+	}{
+		{"worktree", Attempt{Worktree: "/wt", Branch: "b"}, full, nil, full, "/wt@HEAD"},
+		{"branch", Attempt{Branch: "b"}, full, nil, full, "/root@refs/heads/b"},
+		{"neither", Attempt{}, full, nil, "", ""},
+		{"short", Attempt{Branch: "b"}, "0b0b0b0", nil, "", "/root@refs/heads/b"},
+		{"error", Attempt{Branch: "b"}, "", os.ErrNotExist, "", "/root@refs/heads/b"},
+	} {
+		asked = nil
+		if got := CheckpointCommit(resolve(tc.answer, tc.err), "/root", tc.a); got != tc.want || strings.Join(asked, ",") != tc.at {
+			t.Errorf("%s: commit %q asked %v", tc.name, got, asked)
+		}
+	}
+	if got := CheckpointCommit(nil, "/root", Attempt{Branch: "b"}); got != "" {
+		t.Errorf("nil resolver named %q", got)
+	}
+}

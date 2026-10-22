@@ -126,22 +126,24 @@ it must read, each with the relation that admitted it, without naming the task's
   the relations in `summary` after "; also"; the evidence row stays the admitting relation's
   (decision 0027). Without `--subject` the packet has the retrieval shape: `mentioned`,
   `definition`, `test`, `lexical`. Outside the opt-in named-test frame, after final reservation
-  and ranking, `pair` rows may replace unrelated lexical test rows (amended 2026-10-01, proposed):
+  and ranking, `pair` rows are added for the selected lexical sources (amended 2026-10-01;
+  amended 2026-10-21, V1-2288, accepted under the owner's standing auto-accept of 2026-10-11):
   their anchors are the selected non-test lexical sources, and the counterpart must satisfy the
-  existing naming convention. The rule is rank-relative, not a cap:
-  a counterpart inherits its source's lexical strength, so it may displace only an unrelated
-  lexical test the task matched more weakly than that source (TCP-V0-014's BM25 order, weakest
-  victim first), and a source admitted by a relation other than `lexical` counts as stronger
-  than every lexical test. Counterparts already selected are retained; a lexical counterpart
-  behind an unrelated lexical test weaker than its source is promoted in place to `pair`.
-  Selected counterpart tests are never victims. A new pair takes the position of the first
-  weaker unrelated test, while every selected source, governing row and other non-lexical row
-  is retained and the packet never grows past the limit. Unfilled budget may admit a pair
-  directly. Remaining lexical rows retain their BM25 order; their public score remains a
+  existing naming convention. A counterpart already selected is retained, and a lexical
+  counterpart behind an unrelated lexical test the task matched more weakly than its source
+  (TCP-V0-014's BM25 order; a source admitted by a relation other than `lexical` counts as
+  stronger than every lexical test) is promoted in place to `pair` ahead of the first such test.
+  A counterpart not yet selected only fills unfilled budget: it never displaces a selected
+  lexical test, and one that does not fit is a named omission (TCP-V0-161). Every selected
+  source, governing row and other non-lexical row is retained and the packet never grows past
+  the limit. The 2026-10-01 displacement of weaker unrelated lexical tests was retired because
+  the frozen Agent Retrieval Bench v2 showed it costing code2test recall@20 (0.5116 to 0.4642)
+  and collapsing the abstention rate (0.1707 to 0.0366): the displaced rows were often the gold
+  test, and a packet that should abstain was filled. Remaining lexical rows retain their BM25 order; their public score remains a
   relation weight, not the BM25 value reported in their evidence. Pair generators and budget
   omissions are disclosed by TCP-V0-011; a subjectless pair relation is examined when lexical
   anchors are scanned. The earlier three-counterpart cap and last-position victim rule were
-  retired because the go-chi/chi orientation corpus (now development) showed both failing: the
+  retired (2026-10-01) because the go-chi/chi orientation corpus (now development) showed both failing: the
   cap was spent on counterparts of weaker sources before the strongest source's turn (task
   `record response status when flushing`), and the victim rule evicted the packet's strongest
   lexical test when it was the only unprotected one left (task `Don't duplicate methods in
@@ -1133,6 +1135,15 @@ and `internal/cem/workflow/self_modified.go`. The `cem status` report is `CEM-V1
   file text, and a quoted line that a match overlaps has `text` `[REDACTED]` and `"redacted":
   true`, keeping its `line` and `terms`. Clean lines and rows are unchanged. The packet itself
   quotes no file text, so it needs no screen.
+- `TCP-V0-161`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2288) A
+  subjectless counterpart test that TCP-V0-004 cannot admit because the packet has no unfilled
+  budget is listed in an optional `coverage.omitted_pairs` member: `count` is the number of such
+  counterparts and `samples` holds at most ten `{path, reason}` objects in admission order, with
+  `reason` `paired test omitted: budget`. The member is present only when there is one (additive
+  under CCF-V1-006); it ranks nothing and changes no row. TCP-V0-011's `withheld` count for
+  `pair` still counts the same counterparts. Falsifier: the go-chi/chi orientation case `record
+  response status when flushing` no longer carries `middleware/wrap_writer_test.go` as a row, and
+  its packet must name that path here.
   Projection files never rank as results because the index never reads them. Rollback: restore
   the single path-then-reason order. Test:
   `TestTaskContextKeepsTaskStoreProjectionsOutOfRankingAndBehindRealGaps`.
@@ -1653,3 +1664,4 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-150 (accepted, standing auto-accept, V1-2127) | `taskContextCompiler.packet`, `lookupEnvelope` | `TestTaskContextCarriesHeadCommitBesideTreeRevision`, `TestTaskContextExclusionsAbsentKeepsFrozenBytes` (regenerated golden), `TestCoreVerbsEmitTheFrozenProfiles` (context goldens) |
 | TCP-V0-152 (accepted, standing auto-accept, V1-1010/V1-1015) | `unresolvedAnchors`, `undeclaredAnchor` (`internal/contextindex/taskcontext_anchors.go`), `specMentionedRows`, `symbolRows` | `TestTaskContextDisclosesUnresolvedIDAnchors` |
 | TCP-V0-160 (accepted, standing auto-accept, V1-0426) | `matchingLines`, `spansOverlap` | `TestTCPV0160LookupGrepRedactsSecretLines` |
+| TCP-V0-004 amendment / TCP-V0-161 (accepted, standing auto-accept, V1-2288) | `admitLexicalPairs`, `omittedPairCoverage` | `TestTaskContextSelectedLexicalPairs`, `TestTaskContextLexicalPairPromotion`, `TestRunTaskContextSubjectlessCounterparts` |

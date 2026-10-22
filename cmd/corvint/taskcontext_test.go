@@ -99,7 +99,7 @@ func repositoryListing(t *testing.T, root string) string {
 }
 
 func TestRunTaskContextSubjectlessCounterparts(t *testing.T) {
-	t.Run("TCP-V0-004 selected lexical sources retain paired tests", func(t *testing.T) {
+	t.Run("TCP-V0-004 selected lexical sources carry or name paired tests", func(t *testing.T) {
 		root := taskContextRepository(t)
 		files := map[string]string{
 			"alpha.go":      "package fixture\n// Record response status when flushing.\nfunc Alpha() {}\n",
@@ -132,6 +132,12 @@ func TestRunTaskContextSubjectlessCounterparts(t *testing.T) {
 				Kind, ID string
 				Evidence []struct{ Reason, Authority string }
 			}
+			Coverage struct {
+				OmittedPairs struct {
+					Count   int
+					Samples []struct{ Path, Reason string }
+				} `json:"omitted_pairs"`
+			}
 		}
 		if err := json.Unmarshal(stdout.Bytes(), &packet); err != nil {
 			t.Fatal(err)
@@ -140,7 +146,7 @@ func TestRunTaskContextSubjectlessCounterparts(t *testing.T) {
 		for i, row := range packet.Results {
 			positions[row.ID] = i
 		}
-		for _, name := range []string{"alpha.go", "beta.go", "alpha_test.go", "beta_test.go"} {
+		for _, name := range []string{"alpha.go", "beta.go", "alpha_test.go"} {
 			if _, ok := positions[name]; !ok {
 				t.Fatalf("missing %s: %s", name, &stdout)
 			}
@@ -148,10 +154,12 @@ func TestRunTaskContextSubjectlessCounterparts(t *testing.T) {
 		if len(packet.Results) != 8 || positions["alpha.go"] >= positions["beta.go"] {
 			t.Fatalf("limit or lexical strength order changed: %s", &stdout)
 		}
-		for _, row := range packet.Results {
-			if strings.HasPrefix(row.ID, "unrelated") && positions[row.ID] < positions["beta_test.go"] {
-				t.Fatalf("unrelated test precedes counterpart: %s", &stdout)
-			}
+		// The limit is full of selected rows, so beta_test.go displaces no
+		// selected lexical test (V1-2288) and is named instead (TCP-V0-161).
+		omitted := packet.Coverage.OmittedPairs
+		if _, carried := positions["beta_test.go"]; carried || omitted.Count != 1 || len(omitted.Samples) != 1 ||
+			omitted.Samples[0].Path != "beta_test.go" || omitted.Samples[0].Reason != "paired test omitted: budget" {
+			t.Fatalf("beta_test.go is neither carried nor named once: %s", &stdout)
 		}
 	})
 }

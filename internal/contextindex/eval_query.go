@@ -1332,7 +1332,9 @@ func evalLearnedCandidates(ctx context.Context, index *Index, opening *historyPr
 	if err != nil {
 		return nil, nil, err
 	}
-	entries, canonical, err := parseHistory(dropGraftedCommits(raw), index.ObjectFormat, false)
+	// A non-UTF-8 path is left out of its commit (GPK-V0-072): the index already
+	// excludes and discloses it, so it can match no history term or candidate.
+	entries, canonical, err := parseHistory(dropGraftedCommits(raw), index.ObjectFormat, true)
 	if err != nil {
 		return nil, nil, err
 	}

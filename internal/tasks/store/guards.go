@@ -139,7 +139,9 @@ func retainCheckpoint(repo *intent.Repository, proof *journal.Result) {
 	if err != nil {
 		return
 	}
-	_, err = f.Write(cp.Encode())
+	raw := cp.Encode()
+	_, err = f.Write(raw)
+	noteDerived(path, len(raw))
 	if closeErr := f.Close(); err == nil {
 		err = closeErr
 	}

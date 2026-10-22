@@ -451,18 +451,28 @@ func TestAFPV0060CommittedSlicesBoundOversizedPackages(t *testing.T) {
 	for p := range costs {
 		universe = append(universe, p)
 	}
-	// AFP-V0-164 (V1-1752): internal/tasks/cli and internal/tasks/authority are split too.
+	// AFP-V0-164 (V1-1752): internal/tasks/cli is split too; internal/tasks/authority
+	// stays allowed but runs whole while its cost is within the bound (V1-0961).
 	for _, p := range []string{
 		"github.com/Beamfall/corvint/cmd/corvint",
 		"github.com/Beamfall/corvint/internal/tasks/store",
 		"github.com/Beamfall/corvint/internal/tasks/cli",
-		"github.com/Beamfall/corvint/internal/tasks/authority",
 	} {
 		if _, ok := f.Packages[p]; !ok {
 			t.Fatalf("%s is not split", p)
 		}
 		if _, ok := costs[p]; !ok {
 			t.Fatalf("%s is missing from the cost table", p)
+		}
+	}
+	// AFP-V0-164: every allowed package the cost table puts above the bound is split.
+	allowed, ok := Allowed(defaultAllow)
+	if !ok {
+		t.Fatal("committed allow-list is unusable")
+	}
+	for p := range allowed {
+		if _, split := f.Packages[p]; costs[p] > bound && !split {
+			t.Fatalf("%s costs %d ms, over %d, and is not split", p, costs[p], bound)
 		}
 	}
 	split := SplitPackages(universe, 8, defaultAllow, defaultSlices)

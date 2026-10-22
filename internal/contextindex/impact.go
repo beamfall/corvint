@@ -78,6 +78,9 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 		return result, nil, index, err
 	}
 
+	if syntaxFrontier && rubyImpactRequested(cleaned) {
+		index = index.withRubyTests() // NGI-V0-063
+	}
 	ranked := make([]rankedResult, 0)
 	related := make(map[string]struct{})
 	// carried holds the keys a changed path's own markers carry;
@@ -164,12 +167,12 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 			registryUnknowns[changedPath] = append(registryUnknowns[changedPath], unknowns...)
 		}
 		for _, reference := range packageReferences {
-			if isTestPath(reference.path) {
+			if index.isTest(reference.path) {
 				testReferences[reference.path] = reference
 			}
 		}
 		packageMarkers := make(map[string][]markerRelation)
-		if strings.HasSuffix(changedPath, ".go") && !isTestPath(changedPath) {
+		if strings.HasSuffix(changedPath, ".go") && !index.isTest(changedPath) {
 			parent, stem := path.Dir(changedPath), strings.TrimSuffix(path.Base(changedPath), ".go")
 			tests := make([]string, 0)
 			for _, candidate := range dirIndex[parent] {
@@ -210,7 +213,7 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 			}
 			for key, markers := range index.Markers {
 				for _, marker := range markers {
-					if isTestPath(marker.Path) && path.Dir(marker.Path) == parent && markerCredited(marker.Path, key, stem+"_test.go", changedKeys, testReferences) {
+					if index.isTest(marker.Path) && path.Dir(marker.Path) == parent && markerCredited(marker.Path, key, stem+"_test.go", changedKeys, testReferences) {
 						packageMarkers[marker.Path] = append(packageMarkers[marker.Path], markerRelation{key, marker})
 						related[key] = struct{}{}
 					}
@@ -242,7 +245,7 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 				"evidence": testEvidence,
 			}})
 		}
-		if !isTestPath(changedPath) {
+		if !index.isTest(changedPath) {
 			exported := exportedGoNames(index, changedPath)
 			importers := reverseImporters(index, changedPath)
 			webPath := webSuffixes[strings.ToLower(pythonPathSuffix(changedPath))]
@@ -257,7 +260,7 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 			}
 			for _, importer := range importers {
 				importerMarkers := markerKeysForPath(index, importer.path)
-				if isTestPath(importer.path) && countKind(importerMarkers, "feature") <= 1 && countKind(importerMarkers, "scenario") <= 1 {
+				if index.isTest(importer.path) && countKind(importerMarkers, "feature") <= 1 && countKind(importerMarkers, "scenario") <= 1 {
 					for _, key := range importerMarkers {
 						related[key] = struct{}{}
 						if _, named := importerCarriers[key]; !named {
@@ -271,7 +274,7 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 				}
 				recordGoCaller(goCallers, index, changedPath, importer, line)
 				score := 700
-				if isTestPath(importer.path) {
+				if index.isTest(importer.path) {
 					score = 650
 				}
 				importerSource := index.Sources[importer.path]
@@ -294,7 +297,7 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 			}
 		}
 		for _, reference := range packageReferences {
-			if isTestPath(reference.path) {
+			if index.isTest(reference.path) {
 				continue
 			}
 			ranked = append(ranked, rankedResult{score: 775, order: 1, key: reference.path, result: map[string]any{
@@ -757,7 +760,7 @@ func recordResultWithSortedPaths(index *Index, record Record, score int, reason 
 	}
 	for _, marker := range markers[:markerLimit] {
 		confidence, authority := "medium", "source-marker"
-		if isTestPath(marker.Path) {
+		if index.isTest(marker.Path) {
 			confidence, authority = "high", "test-marker"
 		}
 		resultEvidence = append(resultEvidence, evidence(marker.Path, marker.Line, marker.BlobHash,

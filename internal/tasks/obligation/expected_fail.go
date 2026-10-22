@@ -85,6 +85,54 @@ func FirstActionableLine(log string) string {
 	return screened(first)
 }
 
+// FailureTail is the excerpts of the last n non-blank lines of log, oldest
+// first, each cleaned and bounded as Excerpt is, and the excerpt of the last
+// of them that names an error, failure, mismatch or violation, else of the
+// last non-blank line (TCD-V0-165). A line is ExcerptWithheld when its
+// cleaned or raw text matches the secret screen, or when it overlaps a
+// secret-screen match over the raw text of the whole tail, so a match that
+// spans lines or the excerpt bound is withheld too. It reads log from the
+// end, so a large log costs only its tail.
+func FailureTail(log string, n int) (tail []string, failing string) {
+	type picked struct {
+		start, end int
+		text       string
+	}
+	var picks []picked
+	for rest := len(log); len(picks) < n && rest > 0; {
+		start := strings.LastIndexByte(log[:rest], '\n') + 1
+		if e := cleanLine(log[start:rest]); e != "" {
+			picks = append(picks, picked{start, rest, e})
+		}
+		rest = start - 1
+	}
+	if len(picks) == 0 {
+		return nil, ""
+	}
+	base := picks[len(picks)-1].start
+	spans := secretscreen.MatchIndexes(log[base:])
+	tail = make([]string, len(picks))
+	for i, p := range picks {
+		text := screened(p.text)
+		if text != ExcerptWithheld && MatchesSecretScreen(ansiEscape.ReplaceAllString(log[p.start:p.end], "")) {
+			text = ExcerptWithheld
+		}
+		for _, sp := range spans {
+			if sp[0]+base < p.end && sp[1]+base > p.start {
+				text = ExcerptWithheld
+			}
+		}
+		if failing == "" && actionableLine.MatchString(p.text) {
+			failing = text
+		}
+		tail[len(picks)-1-i] = text
+	}
+	if failing == "" {
+		failing = tail[len(tail)-1]
+	}
+	return tail, failing
+}
+
 func cleanLine(line string) string {
 	line = ansiEscape.ReplaceAllString(line, "")
 	line = strings.Map(func(r rune) rune {

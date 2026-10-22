@@ -1,7 +1,7 @@
 # Corvint Tasks store initialization V0
 
 Owner: Russell Lewis
-Date: 2026-09-25 (CTS-V0-001, CTS-V0-003 and CTS-V0-004 accepted 2026-09-27; CTS-V0-002 accepted 2026-09-28; CTS-V0-006 requested 2026-10-01 in issue 433; CTS-V0-008 proposed 2026-10-10 in V1-0825 and accepted 2026-10-10, decision 0490; CTS-V0-010 accepted 2026-10-15 under the owner's standing auto-accept, V1-1379; CTS-V0-011 accepted 2026-10-21 under the same auto-accept, V1-0758; CTS-V0-012 accepted 2026-10-21 under the same auto-accept, V1-2143)
+Date: 2026-09-25 (CTS-V0-001, CTS-V0-003 and CTS-V0-004 accepted 2026-09-27; CTS-V0-002 accepted 2026-09-28; CTS-V0-006 requested 2026-10-01 in issue 433; CTS-V0-008 proposed 2026-10-10 in V1-0825 and accepted 2026-10-10, decision 0490; CTS-V0-010 accepted 2026-10-15 under the owner's standing auto-accept, V1-1379; CTS-V0-011 accepted 2026-10-21 under the same auto-accept, V1-0758; CTS-V0-012 accepted 2026-10-21 under the same auto-accept, V1-2143; CTS-V0-013 accepted 2026-10-21 under the same auto-accept, V1-1660)
 Intent status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28)
 Delivery status: experimental
 Authoritative inputs: owner request [issue 336](https://github.com/beamfall/corvint/issues/336), decision 0397 (corvint-tasks built in tree), `AGENTS.md`,
@@ -159,6 +159,13 @@ drains, the import-map writer, and writing or changing the foreign export.
   `effects`; a `--fields` refusal naming either key (or a sub-key of it) MUST stay `MALFORMED` with no
   item and MUST name the supported route, `ticket show <id> --fields record.<key>` or `ticket export`.
   Keys without a declared route keep the existing refusal wording.
+- `CTS-V0-013`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1660) A checkout
+  made by `git clone --shared`, whose objects are reached through `objects/info/alternates`, MUST be
+  a supported Tasks repository: `init`, `ticket create` and the inventory reads (`queue status`,
+  `ticket list`, `receipt audit`, `doctor`) succeed there with no `UNSUPPORTED` or
+  `UNSUPPORTED_FILESYSTEM` refusal, since Tasks resolves only the worktree, its `.git` directory and
+  `.taskman`, never the object store. A tool that does refuse alternates, such as dogfood's
+  `unsupported-object-alternates`, names that cause itself.
 
 ## Import export and batching
 
@@ -289,6 +296,11 @@ loaded qualification is 100 race-enabled repetitions of
 V1-1126 build-log entry. Rollback restores the single immediate head probe in attach; no state
 format or wire code changes.
 
+CTS-V0-013 (V1-1660) records supported behaviour that current source already has: the
+`git clone --shared` fixture `TestCTSV0013_SharedCloneIsSupported` runs init, a create and the
+inventory reads in such a clone. Rollback removes the test; no source, state format or wire code
+changes.
+
 ## Traceability
 
 | Requirement | Implementation | Evidence |
@@ -301,6 +313,7 @@ format or wire code changes.
 | CTS-V0-006 | `internal/tasks/snapshot/probe.go` (`Reader.Read`, `Reader.Patience`, `DefaultPatience`, `readBackoff`, `afterWait`), `internal/tasks/fixture/fixture.go` (`init`, `ApplyReceipt`) | TestCTSV0006_ReadWaitsForInFlightWriter, TestCTSV0006_ReadReportsPendingAfterPatience, TestCTSV0006_MovedReadsPauseBetweenAttempts, TestCTSV0006_ReadVerbsWaitForWriterToApplyReceipt, TestCTSV0006_ReadVerbsUnderConcurrentWriter; unchanged attempt counts: TestTMV0008_AS36_ReadRetriesThenSnapshotMoved, TestTMV0008_AS07_ReadsLeaveStoreByteIdentical |
 | CTS-V0-007 | `internal/tasks/importer/importer.go` (`record`) | TestCTSV0007_ReimportKeepsRefinedPoolAndRoles |
 | CTS-V0-011 | `internal/tasks/mutation/adopt.go` (`composeAdopt`, `differingFields`, `adoptCovered`) | TestCTSV0011_AdoptComposesPoolAndRoles, TestCTSV0011_AdoptUnknownPoolRefused |
+| CTS-V0-013 | `internal/tasks/intent/worktree.go` (`Resolve`; no object-store read) | TestCTSV0013_SharedCloneIsSupported |
 | CTS-V0-012 | `internal/tasks/cli/cli.go` (`searchFilter.matches`, `parseSearchFilter`, `recordFieldRoutes`), `internal/tasks/cli/compact.go` (`fieldRoute`) | TestCTSV0012_SearchTextIsTokenBasedAndFieldsNameTheRoute |
 | CTS-V0-010 | `internal/tasks/cli/cli.go` (`ticketShow`, `journalAbsentNotFound`) | TestCTSV0010_JournalAbsentShowNamesTheStaleSnapshot; `docs/build-log/2026-10-15-v1-1384-1379-tasks-cli-refusals.md` |
 | CTS-V0-009 | `internal/tasks/cli/attempt_detach.go` (`attemptAttach`), `internal/tasks/snapshot/probe.go` (`Reader.Read`) | TestCTSV0009_AttachWaitsForReceiptLinkBeforeHeadRename, TestCTSV0009_AttachReportsPendingAfterPatience; loaded qualification: TestATRV0008_DetachedRunSurvivesItsLauncher |
