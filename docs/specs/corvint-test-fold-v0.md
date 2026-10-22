@@ -11,7 +11,7 @@ Authoritative inputs: owner decision of 2026-10-22 accepting the V1-1667 fold wi
 - Claim: Test-executing companions fold into `corvint-test` groups, one move each, with output documents byte-identical and every old name still answering.
 - Status: accepted (owner, 2026-10-22); experimental; CTF-V0-001..010 accepted under the standing auto-accept (2026-10-11). Groups 1 to 4 (`runner`, `falsify`, `minimize`, `accept`) have moved behind byte-identical goldens; groups 5 and 6 have not.
 - Exists: `cmd/corvint-test` groups `e2e` (CCE-V0), `runner`, `falsify`, `minimize` and `accept` (entries `internal/testrunner/cli`, `internal/behaviorfalsify/cli`, `internal/playwrightminimize/cli`, `internal/testacceptance/cli`); the four old companions are shims. Unmoved: core `corvint test-validity negate` and `corvint test`.
-- Blocked on: nothing for group 5. Group 6 (core `test`) also needs the `make gate-affected` script and the CI shadow step moved first; `.github/` changes are owner-posted.
+- Blocked on: for group 5, an owner decision on where `corvint-test negate` takes its worktree root: core reads the global `--root` and its negate parser refuses `--root` by name, so the moved command must either read only the working directory or gain a root option, and CTF-V0-003 forbids gaining a flag (lane cce2-1022u, 2026-10-22). Group 6 (core `test`) also needs the `make gate-affected` script and the CI shadow step moved first; `.github/` changes are owner-posted.
 - Read next: Fold map; Requirements; Rollback.
 
 ## User and measurable job
