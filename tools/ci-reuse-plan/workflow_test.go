@@ -482,7 +482,7 @@ func TestAFPV0163RecordJobRunsNoRepositoryCode(t *testing.T) {
 	rec := jobBlock(t, readWorkflow(t, "ci.yml"), "artifact-integrity-record")
 	for _, line := range []string{
 		"    needs: artifact-integrity",
-		"    if: ${{ github.event_name == 'pull_request' && needs.artifact-integrity.result == 'success' }}",
+		"    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.artifact-integrity.result == 'success' }}",
 		"          persist-credentials: false",
 		"          PR_HEAD: ${{ github.event.pull_request.head.sha }}",
 	} {
