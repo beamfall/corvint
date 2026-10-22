@@ -82,7 +82,7 @@ var ReadVerbs = []string{
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
 	"ticket set-gates", "ticket set-effects", "ticket hold", "ticket release-hold", "ticket reopen",
 	"ticket archive", "ticket restore", "ticket complete-manual", "ticket grant-approval",
-	"ticket revoke-approval", "ticket attach-evidence",
+	"ticket revoke-approval", "ticket attach-evidence", "ticket batch-close",
 	"release create", "release update", "release candidate", "release record-gate", "release promote", "release list", "release show", "release readiness",
 	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview", "plan batches",
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show", "program cleanup",
@@ -201,6 +201,8 @@ func Run(env Env) int {
 			return emitDeliveryScreen(env, args[2:])
 		case "batch-delivered":
 			return emit(env.Stdout, batchDeliveredCommand(env, args[2:]))
+		case "batch-close":
+			return emit(env.Stdout, batchCloseCommand(env, args[2:]))
 		case "export":
 			return emit(env.Stdout, ticketExport(env, args[2:]))
 		}
