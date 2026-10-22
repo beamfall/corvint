@@ -1262,3 +1262,33 @@ func TestAffectedAdviceLabelsScopedGateConditional_V1_0682(t *testing.T) {
 		t.Fatalf("receipt check = %v, want the conditional make gate quoting %q", first, scope)
 	}
 }
+
+// AFP-V0-196 (V1-2071): an inline **Verify:** line in a repository without a
+// Makefile declares its code spans as mandatory checks with the line reason,
+// so `affected` no longer reports NO_REPOSITORY_GATE_DECLARED; a span after
+// other text on the line is not a check.
+func TestAFPV0196AffectedInlineVerifyIsMandatory(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	agents := "# Agents\n\nUse the docs toolchain. **Verify:** `npm run build` (Tasks gate id `build`).\n"
+	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte(agents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	receipt, _, stderr, code := runAffectedCLI(t, root)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	got := []string{}
+	for _, check := range affectedChecks(t, receipt) {
+		if check["source"] == "AGENTS.md" {
+			got = append(got, fmt.Sprint(check["kind"], " ", check["command"], " | ", check["reason"]))
+		}
+	}
+	want := []string{"mandatory npm run build | " + adviceAgentsLineReason}
+	if !slices.Equal(got, want) {
+		t.Fatalf("AGENTS.md checks = %q, want %q", got, want)
+	}
+	if unknown := fmt.Sprint(receipt["advice"].(map[string]any)["unknown"]); strings.Contains(unknown, "NO_REPOSITORY_GATE_DECLARED") {
+		t.Fatalf("an inline Verify line is a declaration: %s", unknown)
+	}
+}
