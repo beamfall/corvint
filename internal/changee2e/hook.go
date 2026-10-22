@@ -117,7 +117,7 @@ func runControl(ctx context.Context, inv behaviorfalsify.Invocation) (behaviorfa
 		Repeats: 1, NodeModules: resolvedModules, RunnerVersion: inv.Runner.RunnerVersion,
 		PackageJSON: def["package_json"], Lockfile: def["lockfile"], Timeout: hookRunTimeout, Environment: environment,
 		ServeBin: def["serve_bin"], ServePath: def["serve_path"], Grep: def["grep"]})
-	digest, reason := qualify(receipt, runErr, 1)
+	digest, reason := qualify(receipt, runErr, 1, treeRoots(tree))
 	if reason != "" {
 		r.TestOutcome = "infrastructure_failed"
 		obs.State = "not_run"

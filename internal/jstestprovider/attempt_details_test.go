@@ -115,3 +115,34 @@ func TestPWPV3ProfileBoundaries(t *testing.T) {
 		}
 	})
 }
+
+// PWP-V3-009 (V1-2410): a `/3` report pairs one location (or null) with each run-level error; the
+// receipt's reporter-global-error carries the first located one, and earlier profiles refuse the
+// member.
+func TestPWPV3009RunLevelErrorLocation(t *testing.T) {
+	raw := `{"version":"1.64.0","files":{},"configFiles":{},"status":"failed","tests":[],"errors":["unlocated","teardown boom"],"errorLocations":[null,{"file":"/repo/e2e/a.spec.ts","line":4}]}`
+	report, failure := decodeQualifiedReport([]byte(raw), AttemptExternalProfile)
+	if failure != nil {
+		t.Fatalf("/3 report refused: %+v", failure)
+	}
+	if got := firstErrorLocation(report); got == nil || *got != (Anchor{File: "/repo/e2e/a.spec.ts", Line: 4}) {
+		t.Fatalf("first located error = %+v", got)
+	}
+	report.ErrorLocations = report.ErrorLocations[:1]
+	if got := firstErrorLocation(report); got != nil {
+		t.Fatalf("unpaired locations must not locate an error: %+v", got)
+	}
+	for _, profile := range []string{ExternalProfile, AttestedExternalProfile} {
+		if _, failure := decodeQualifiedReport([]byte(raw), profile); failure == nil || failure.Reason != "report-unparseable" {
+			t.Fatalf("%s accepted errorLocations: %+v", profile, failure)
+		}
+	}
+	located := Receipt{Profile: AttemptExternalProfile, Infrastructure: &InfrastructureFailure{Reason: ReasonReporterGlobalError, Location: &Anchor{File: "/repo/a.spec.ts", Line: 4}}}
+	if !locatedGlobalError(located) {
+		t.Fatal("a located /3 run-level error must explain the exit status")
+	}
+	located.Profile = ExternalProfile
+	if locatedGlobalError(located) {
+		t.Fatal("only a /3 run-level error explains the exit status")
+	}
+}

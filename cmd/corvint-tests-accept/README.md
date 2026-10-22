@@ -2,6 +2,8 @@
 
 Build with `go build -o /tmp/corvint-tests-accept ./cmd/corvint-tests-accept`.
 This separate local command implements the proposed `new-e2e-test-acceptance-v0.md` contract.
+It is a shim over the `corvint-test accept` group (CTF-V0-004): `corvint-test accept plan|accept`
+takes the same flags and writes the same documents, apart from the build identity.
 It adds no Core command and executes only operator-approved disposable fixtures.
 
 Prepare the closed request described by `internal/testacceptance.Request`: pinned clean product

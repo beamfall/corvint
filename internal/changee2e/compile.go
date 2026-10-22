@@ -37,7 +37,10 @@ type Scenario struct {
 	// Hosted marks an existing hosted test run as given (CCE-V0-034): AssertionLines are its
 	// outcome assertions, EventLines the awaited actions its behaviour-removal controls omit, and
 	// DeclLine its test declaration.
-	Hosted         bool
+	Hosted bool
+	// Screen is the map screen the compiled outcome assertion shows; recorded coverage is
+	// attributed to it (CCE-V0-053). A hosted test has none.
+	Screen         string
 	AssertionLines []int
 	EventLines     []int
 	DeclLine       int
@@ -188,6 +191,7 @@ func compileOne(cat *Catalog, obs *Obligations, ob Obligation) (*Scenario, Compi
 		return nil, entry
 	}
 	sc := render(cat, obs, ob, p)
+	sc.Screen = flow.Steps[expecting].Screen
 	entry.State, entry.Placement, entry.AssertionID, entry.AssertionLine = Compiled, sc.Placement, sc.AssertionID, sc.AssertionLine
 	entry.FileDigest = headerDigest(sc.Text)
 	entry.Blocks = p.blockIDs()

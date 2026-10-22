@@ -281,6 +281,28 @@ test('PWP-V3-008 failure location prefers the innermost frame in the test file',
   } finally { fs.rmSync(dir,{recursive:true,force:true}); }
 });
 
+test('PWP-V3-009 a /3 run keeps each run-level error location; other profiles emit none', () => {
+  const Reporter = loadReporter();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'corvint-attempts-'));
+  try {
+    const output = path.join(dir, 'report.json');
+    const attempt = new Reporter({output, retainAttemptDetails: true});
+    attempt.onError({message: 'worker fixture teardown boom', location: {file: '/repo/e2e/a.spec.ts', line: 4, column: 51}});
+    attempt.onError({message: 'unlocated'});
+    attempt.onEnd({status: 'failed'});
+    const report = JSON.parse(fs.readFileSync(output, 'utf8'));
+    assert.deepEqual(report.errors, ['worker fixture teardown boom', 'unlocated']);
+    assert.deepEqual(report.errorLocations, [{file: '/repo/e2e/a.spec.ts', line: 4}, null]);
+    const legacy = new Reporter({output});
+    legacy.onError({message: 'boom', location: {file: '/repo/e2e/a.spec.ts', line: 4}});
+    legacy.onEnd({status: 'failed'});
+    assert.equal(JSON.parse(fs.readFileSync(output, 'utf8')).errorLocations, undefined);
+    const clean = new Reporter({output, retainAttemptDetails: true});
+    clean.onEnd({status: 'passed'});
+    assert.equal(JSON.parse(fs.readFileSync(output, 'utf8')).errorLocations, undefined);
+  } finally { fs.rmSync(dir,{recursive:true,force:true}); }
+});
+
 test('PWP-V0-011 PWP-V0-014 keep mode reports kept entries after the first provider entry with order-independent option digests', () => {
   const Reporter = loadReporter();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'corvint-kept-'));

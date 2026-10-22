@@ -367,3 +367,85 @@ func TestCCEV0013NoRepositoryWrites(t *testing.T) {
 		}
 	}
 }
+
+// CCE-V0-051: --oracle-acceptance reaches Prove on both the compiled and the hosted path, which
+// refuse a document recorded inside the repository before any run.
+func TestCCEV0051OracleAcceptanceFlag(t *testing.T) {
+	root, base, head := fixture(t)
+	ctx := context.Background()
+	inside := filepath.Join(root, "acceptance.json")
+	if err := os.WriteFile(inside, []byte(`{"schema":"e2e-oracle-acceptance/0","base":"`+base+`","head":"`+head+`","acceptances":[]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, extra := range [][]string{nil, {"--hosted-test", "e2e/specs/teesheet-click.spec.ts"}} {
+		args := append([]string{"e2e", "prove", "--root", root, "--base", base, "--head", head, "--out", t.TempDir(), "--oracle-acceptance", inside}, extra...)
+		var r *changee2e.Refusal
+		if err := run(ctx, args, &bytes.Buffer{}); !errors.As(err, &r) || r.Code != "e2e-oracle-acceptance-invalid" {
+			t.Fatalf("%v: %v, want e2e-oracle-acceptance-invalid", extra, err)
+		}
+	}
+}
+
+// CCE-V0-053: --record-coverage is a prove flag, and writeProof writes the coverage document
+// derived from the proof beside it; a document that is not a proof writes neither.
+func TestCCEV0053RecordCoverageFlag(t *testing.T) {
+	root, base, head := fixture(t)
+	t.Setenv("CORVINT_E2E_NODE_BIN", "")
+	var r *changee2e.Refusal
+	err := run(context.Background(), []string{"e2e", "prove", "--root", root, "--base", base, "--head", head, "--out", t.TempDir(), "--record-coverage"}, &bytes.Buffer{})
+	if !errors.As(err, &r) || r.Code != "e2e-toolchain-unavailable" {
+		t.Fatalf("prove --record-coverage: %v", err)
+	}
+	dir := t.TempDir()
+	proof := []byte(`{"schema":"` + changee2e.ProveSchema + `","base":"` + base + `","head":"` + head + `","digest":"sha256:p","scenarios":[]}`)
+	if err := writeProof(dir, proof, true, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, proveCoverage))
+	if err != nil || !strings.Contains(string(data), `"schema": "e2e-runtime-coverage/0"`) || !strings.Contains(string(data), `"revision": "`+head+`"`) {
+		t.Fatalf("coverage %v: %s", err, data)
+	}
+	if _, err := os.Stat(filepath.Join(dir, proveReport)); err != nil {
+		t.Fatal(err)
+	}
+	empty := t.TempDir()
+	if err := writeProof(empty, []byte(`{}`), true, &bytes.Buffer{}); !errors.As(err, &r) || r.Code != "e2e-coverage-invalid" {
+		t.Fatalf("non-proof: %v", err)
+	}
+	if entries, _ := os.ReadDir(empty); len(entries) != 0 {
+		t.Fatalf("non-proof wrote %v", entries)
+	}
+}
+
+// CCE-V0-054: --module-graph names the TJAA module graph as consulted in the obligations report;
+// without it the relation is listed as not consulted.
+func TestCCEV0054ModuleGraphFlag(t *testing.T) {
+	root, base, head := fixture(t)
+	for _, on := range []bool{false, true} {
+		args := []string{"e2e", "obligations", "--root", root, "--base", base, "--head", head}
+		if on {
+			args = append(args, "--module-graph")
+		}
+		var out bytes.Buffer
+		if err := run(context.Background(), args, &out); err != nil {
+			t.Fatal(err)
+		}
+		var doc struct {
+			Relations struct {
+				Consulted    []string `json:"consulted"`
+				NotConsulted []string `json:"not_consulted"`
+			} `json:"relations"`
+			ModuleGraph *struct {
+				Digest string `json:"digest"`
+			} `json:"module_graph"`
+		}
+		if err := json.Unmarshal(out.Bytes(), &doc); err != nil {
+			t.Fatal(err)
+		}
+		consulted := strings.Contains(strings.Join(doc.Relations.Consulted, ","), changee2e.ModuleGraphBasis)
+		listedNot := strings.Contains(strings.Join(doc.Relations.NotConsulted, ","), changee2e.ModuleGraphBasis)
+		if consulted != on || listedNot == on || (doc.ModuleGraph != nil) != on || on && doc.ModuleGraph.Digest == "" {
+			t.Fatalf("--module-graph=%v: %s", on, out.Bytes())
+		}
+	}
+}

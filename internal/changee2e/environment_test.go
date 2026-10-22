@@ -183,7 +183,7 @@ func TestCCEV0021ServeTree(t *testing.T) {
 		t.Fatalf("exiting serve: %v", err)
 	}
 	// A failed environment is a side without a qualified receipt, so the verdict is INCONCLUSIVE.
-	if _, reason := qualify(jstestprovider.Receipt{}, &envError{"ready-timeout"}, 1); reason != "environment-unavailable:ready-timeout" {
+	if _, reason := qualify(jstestprovider.Receipt{}, &envError{"ready-timeout"}, 1, nil); reason != "environment-unavailable:ready-timeout" {
 		t.Fatalf("qualify reason %q", reason)
 	}
 	side := sideProof{Reason: "environment-unavailable:ready-timeout"}

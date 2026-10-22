@@ -1026,6 +1026,13 @@ CCE-V0-044	docs/specs/change-compiled-e2e-v0.md	`obligations` and `compile` MUST
 CCE-V0-045	docs/specs/change-compiled-e2e-v0.md	`obligations`, `compile` and `prove` MUST accept `--coverage FILE`, a closed	unrecorded	-
 CCE-V0-046	docs/specs/change-compiled-e2e-v0.md	A changed path that coverage lists under a screen MUST reach that screen as an	unrecorded	-
 CCE-V0-047	docs/specs/change-compiled-e2e-v0.md	Coverage MUST only widen reach. It never places a path for the unknown-span rule	unrecorded	-
+CCE-V0-048	docs/specs/change-compiled-e2e-v0.md	A run whose only failure is a run-level reporter error with a receipt location	unrecorded	-
+CCE-V0-049	docs/specs/change-compiled-e2e-v0.md	(V1-2409) A hosted proof MUST carry `runner_config`: `applied` (the prove config	unrecorded	-
+CCE-V0-050	docs/specs/change-compiled-e2e-v0.md	(V1-2411) Every harvested proposal MUST carry `binding`, read from the applicati	unrecorded	-
+CCE-V0-051	docs/specs/change-compiled-e2e-v0.md	(V1-2413) A `CHANGED_IN_DIFF` scenario's proof MUST carry `oracle_digest`	unrecorded	-
+CCE-V0-052	docs/specs/change-compiled-e2e-v0.md	(V1-2413) When every head repeat of a compiled (not hosted) scenario fails at th	unrecorded	-
+CCE-V0-053	docs/specs/change-compiled-e2e-v0.md	(V1-2412) `prove --record-coverage` MUST wrap the head pool's in-process static	unrecorded	-
+CCE-V0-054	docs/specs/change-compiled-e2e-v0.md	(V1-1685) `obligations`, `compile` and `prove` MUST accept `--module-graph`, whi	unrecorded	-
 CCE-V0-086	docs/specs/change-compiled-e2e-v0.md	A relative `--root`, including the default `.`, MUST resolve against the working	unrecorded	-
 CF-V1-001	docs/specs/change-frontier-profile-1.md	the profile identifier is exactly `frontier/1`; its error profile is exactly	unrecorded	-
 CF-V1-002	docs/specs/change-frontier-profile-1.md	`frontier/0` is untouched in every respect — clause text, item kinds, item IDs,	unrecorded	-
@@ -3872,6 +3879,7 @@ PWP-V3-005	docs/specs/playwright-external-provider-v0.md	The reporter emits `att
 PWP-V3-006	docs/specs/playwright-external-provider-v0.md	`/3` is non-promotable until the changed reporter completes the live matrix of `	unrecorded	-
 PWP-V3-007	docs/specs/playwright-external-provider-v0.md	The `/3` exact project identity permits an explicitly observed empty project nam	unrecorded	-
 PWP-V3-008	docs/specs/playwright-external-provider-v0.md	A failed or timed-out `/3` attempt detail may carry an optional	unrecorded	-
+PWP-V3-009	docs/specs/playwright-external-provider-v0.md	A `/3` report may carry `errorLocations`, one entry per run-level reporter error	unrecorded	-
 PTF-V0-001	docs/specs/playwright-per-test-freshness-v0.md	The profile is explicit, separate and bounded to trusted local source-direct ser	unrecorded	-
 PTF-V0-002	docs/specs/playwright-per-test-freshness-v0.md	Capture clean product/test repository and file identities before and after execu	unrecorded	-
 PTF-V0-003	docs/specs/playwright-per-test-freshness-v0.md	Record the actual reporter-selected semantic test identity, source anchor/digest	unrecorded	-
