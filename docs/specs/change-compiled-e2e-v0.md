@@ -20,8 +20,8 @@ solution that is a perfect additional and use case for corvint".
 
 ## Agent digest
 - Claim: Reviewed E2E blocks compile into change-specific scenarios that must discriminate the change; hosted tests retire only after a shadow evaluation.
-- Status: accepted (owner, 2026-10-22); experimental; CCE-V0-026..040 accepted under the standing auto-accept (2026-10-11). First slice V1-1665 implements CCE-V0-001, 002, 004..009 and 015 in `internal/changee2e` behind `corvint-test e2e` with focused tests and a live Playwright qualification (Node v22.23.2); CCE-V0-003 is partial (one hand-written declarations file). The 2026-10-17 panel amendment adds CCE-V0-016..025 and amends 003, 004, 009, 011 and 012. Implemented: the CCE-V0-021 environment block (V1-1681 serve part), the obligations soundness of CCE-V0-019/020 with the amended 004 base join (V1-1678), and (2026-10-22 lane) the amended 009 ladder, 016 `oracle_origin`, 017 head test tree, 018 structure controls, 024 `outcome-vacuous`, the offline fake runner and the 011/012 shadow report over a recorded window (CCE-V0-026..033; V1-1679, V1-1680, V1-1682, V1-1687). The 2026-10-22 lane 1022k implements the hosted-test prover CCE-V0-034..036 (offline and live), receipt-located assertions (PWP-V3-008), `cleanup-failed`, the 037 usefulness exclusion of `PRESERVES`, CCE-V0-010, 013 and the 014 byte cap (CCE-V0-039, 040). Not implemented: CCE-V0-022/023/025 and the rest of 024; NOT_RUN: the 038 actualbudget rerun and any adopter window. CCE-V0-086 (V1-1711) resolves a relative `--root`. Everything ships as the `e2e` group of one experimental companion, `corvint-test`; V0 adds nothing to core `corvint`.
-- Exists: `cmd/corvint-test` (`e2e catalog|obligations|compile|prove|shadow`) over `internal/changee2e`. It composes the existing AMAP-V0 map and scaffold, AMSP-V0 planner, AFU-V1 declared outcomes, ANL-V0 proven edges, RVN-V0 run verification, PWR-V0 run comparison and NEA-V0/BBF-V0 negative controls.
+- Status: accepted (owner, 2026-10-22); experimental; CCE-V0-026..044 accepted under the standing auto-accept (2026-10-11). First slice V1-1665 implements CCE-V0-001, 002, 004..009 and 015 in `internal/changee2e` behind `corvint-test e2e` with focused tests and a live Playwright qualification (Node v22.23.2); CCE-V0-003 is partial (one hand-written declarations file). The 2026-10-17 panel amendment adds CCE-V0-016..025 and amends 003, 004, 009, 011 and 012. Implemented: the CCE-V0-021 environment block (V1-1681 serve part), the obligations soundness of CCE-V0-019/020 with the amended 004 base join (V1-1678), and (2026-10-22 lane) the amended 009 ladder, 016 `oracle_origin`, 017 head test tree, 018 structure controls, 024 `outcome-vacuous`, the offline fake runner and the 011/012 shadow report over a recorded window (CCE-V0-026..033; V1-1679, V1-1680, V1-1682, V1-1687). The 2026-10-22 lane 1022k implements the hosted-test prover CCE-V0-034..036 (offline and live), receipt-located assertions (PWP-V3-008), `cleanup-failed`, the 037 usefulness exclusion of `PRESERVES`, CCE-V0-010, 013 and the 014 byte cap (CCE-V0-039, 040), and the first V1 authoring slice (V1-1683): `e2e harvest`, the `.corvint/e2e-acceptances.json` ledger and the in-diff flag (CCE-V0-041..044). Not implemented: CCE-V0-022/023/025 and the rest of 024; NOT_RUN: the 038 actualbudget rerun and any adopter window. CCE-V0-086 (V1-1711) resolves a relative `--root`. Everything ships as the `e2e` group of one experimental companion, `corvint-test`; V0 adds nothing to core `corvint`.
+- Exists: `cmd/corvint-test` (`e2e catalog|harvest|obligations|compile|prove|shadow`) over `internal/changee2e`. It composes the existing AMAP-V0 map and scaffold, AMSP-V0 planner, AFU-V1 declared outcomes, ANL-V0 proven edges, RVN-V0 run verification, PWR-V0 run comparison and NEA-V0/BBF-V0 negative controls.
 - Blocked on: the CCE-V0-038 external rerun (V1-1733); an adopter shadow window of at least 30 recorded entries (external; umbrella V1-1666); the companion fold (V1-1667, accepted 2026-10-22, not built).
 - Read next: User and measurable job; Definitions; Requirements (016..033); Shadow evaluation and retirement; Beyond V0; Owner questions.
 
@@ -154,7 +154,7 @@ Checked against `origin/main` at `2c826212c74beb48507b60e7759fae80faaf2a40`.
 ## Binary boundary
 
 Every CCE-V0 command is a subcommand of the `e2e` group in one experimental companion binary,
-`cmd/corvint-test`: `corvint-test e2e catalog|obligations|compile|prove|shadow`. `corvint-test` is
+`cmd/corvint-test`: `corvint-test e2e catalog|harvest|obligations|compile|prove|shadow`. `corvint-test` is
 named for every kind of test, not only E2E; V0 defines only the `e2e` group. Folding the existing
 test companions (`corvint-test-runner`, `corvint-tests-accept`, `corvint-behavior-falsify`,
 `corvint-playwright-minimize`) into it is outside this spec and needs its own spec and migration
@@ -496,7 +496,48 @@ auto-accept of 2026-10-11, and pins these readings of 034..036:
   and read no emitted document. Failure mode: a capped report silently loses entries or changes a
   total.
 
-The 2026-10-21 fix lane (V1-1711) adds CCE-V0-086; IDs 041..085 are left free for parallel lanes.
+Lane 1022k also adds CCE-V0-041..044, the first V1 authoring slice (V1-1683), accepted under the
+standing auto-accept of 2026-10-11:
+
+- `CCE-V0-041`: `corvint-test e2e harvest --rev R` MUST emit an `e2e-block-proposals/0` document
+  (members `schema`, `harvester` = `corvint-test-e2e-harvest/0`, `revision`, `files`, `proposals`,
+  `withheld`, optional `truncated`, `digest`) to stdout or to an `--out` file outside the
+  repository (CCE-V0-001). It reads only the committed bytes of the tracked files at R whose names
+  end in `.spec` or `.test` plus a TypeScript or JavaScript extension. It proposes an `outcome`
+  block for each line of the literal form `[await ]expect(page.getByTestId('<id>')).<matcher>('<value>')[;]`
+  with an admitted matcher (CCE-V0-005), and a `path` block (URL only, no screen) for each line
+  `[await ]page.goto('/<url>')[;]`. Each proposal carries `provenance`
+  `harvested:<blob>:<start>-<end>`, its blob and a span with the line's SHA-256, relation
+  `harvested-proposal`, and the ID `<kind>:harvested:<first 16 hex of SHA-256 over kind, locator,
+  matcher, value and URL>`, so moving a line keeps the ID and changing what it asserts or opens
+  changes it. Repeats collapse to the first occurrence by path, then line; proposals are sorted by
+  ID and the document is byte-identical across runs at the same revision. More than 2000 test
+  files refuse `e2e-harvest-over-limit`. Page objects are not harvested: their callable methods
+  are already admitted blocks (CCE-V0-001).
+- `CCE-V0-042`: A line that names `expect(page.getByTestId(` or `page.goto(` but is not of a
+  literal form above (a template literal, concatenation, variable, message argument or other
+  matcher) MUST be listed under `withheld` with its path, line and reason `harvest-not-literal`;
+  an empty value reads `outcome-vacuous` (CCE-V0-024) and a secret-shaped value (the CCE-V0-003
+  screen) `harvest-secret-shaped`. A withheld line is never proposed and a secret-shaped value is
+  never emitted.
+- `CCE-V0-043`: The acceptance ledger `.corvint/e2e-acceptances.json` (closed schema
+  `e2e-acceptances/0`: `acceptances`, each with a `proposal_id` holding `:harvested:` and a
+  non-empty `reason`, no duplicates) MUST be read at the catalog revision; any schema error refuses
+  `e2e-acceptances-invalid`. With the ledger present, the catalog admits a proposal as a block with
+  relation `accepted-proposal`, its provenance, blob and span only when the ledger accepts its ID
+  and the harvester proposes that ID at the same revision; an accepted ID not proposed there is
+  unadmitted `acceptance-stale`. An unaccepted proposal never becomes a block, so `obligations`,
+  `compile` and `prove` never read it. Without the ledger nothing is harvested and the catalog is
+  unchanged. A harvested ID holds a second colon, which no declared or map-derived ID does, so an
+  accepted proposal cannot shadow another block.
+- `CCE-V0-044`: `obligations` and `compile` MUST list under `acceptances_in_diff` (omitted when
+  empty) each accepted proposal admitted at head whose ID the base ledger does not accept, so an
+  acceptance added by the change under test is visible to the reviewer and never trusted silently;
+  a base ledger that does not validate accepts nothing. Not in this slice (V1 remainder):
+  `CHANGED_IN_DIFF` and `NEW_IN_DIFF` oracle acceptance, the locator-repair loop, harvesting other
+  assertion and navigation forms, and screen resolution of a harvested path.
+
+The 2026-10-21 fix lane (V1-1711) adds CCE-V0-086; IDs 045..085 are left free for parallel lanes.
 
 - `CCE-V0-086`: A relative `--root`, including the default `.`, MUST resolve against the working
   directory to its absolute, symlink-resolved path before any Git or map read, for `catalog`,
@@ -620,6 +661,7 @@ row's status says what is delivered.
 | CCE-V0-026..030 | failure kind; oracle cap and scoring; offline seams; omitted-event reading; test-tree resolution | V1-1679, V1-1680, V1-1687 | PASS: `TestCCEV0026FailureKind`, `TestCCEV0028LadderOfflineFakeRunner`, `TestCCEV0018OmittedEventControls`, `TestCCEV0017TestTreeRefusals` |
 | CCE-V0-034..038 | hosted test held at head through the ladder; receipt-located assertions; required behaviour-removal control kills F1; no-op `PRESERVES` not useful; actualbudget rerun | V1-1733, V1-1713 | 034..037 PASS (lane 1022k): `TestCCEV0034HostedScenario`, `TestCCEV0034HostedTestFlag`, `TestCCEV0036HostedControls`, `TestCCEV0035HostedLadderOffline` (F1 reads `CONTROL_SURVIVED`, a base setup failure reads `INCONCLUSIVE`), `TestCCEV0037NoOpPreservesNotUseful`; live (Playwright 1.64.0, Node v24.11.1) `TestCCEV0034LiveHosted` (the booked test reads `DISCRIMINATES` with its base failure located at the assertion and its control killed; the F1 static overlay reads `CONTROL_SURVIVED`). 038 NOT_RUN (external host; command in `docs/build-log/2026-10-22-cce-1022k.md`) |
 | CCE-V0-039, 040 | a timed-out omitted-event control is killed; truncation keeps a prefix | V1-1733, V1-2378 | PASS: 039 by the live `TestCCEV0009LivePreserves` and `TestCCEV0009LiveDiscriminates` (each read `INCONCLUSIVE control-not-killed:control:omitted-event:setup-1` before the fix); 040 by `TestCCEV0040CapListPrefix`, `TestCCEV0014DocumentByteCap` |
+| CCE-V0-041..044 | harvest determinism and literal-only proposals; withheld reasons and secret screen; an unaccepted proposal never compiles; acceptance added in the diff is flagged | V1-1683 | PASS: `TestCCEV0041HarvestDeterministicLiteralOnly` (failed with the secret screen removed), `TestCCEV0043UnacceptedProposalNeverCompiles` (failed when every proposal was admitted, and failed with `acceptances_in_diff` unset), `TestCCEV0015SubcommandsReachable` (harvest reachable, `--out` inside the repository refused), `TestCCEV0013NoRepositoryWrites` |
 | CCE-V0-031..033 | window format and refusals; shadow readings; limitations | V1-1682 | PASS: `TestCCEV0011ShadowRegistrationRefuses`, `TestCCEV0011ShadowMissesAndEscapes`, `TestCCEV0012ShadowBoundsAndHolm`, `TestCCEV0011ShadowUsefulnessMinutesCost` |
 | CCE-V0-022, 023 | environment allowlist test; non-loopback request aborted and recorded; report digest changes with each bound input; one test per exit code, including a `prove` report with passing verdicts over `UNKNOWN` obligations exiting 3 | V1-1681 | NOT_STARTED |
 | CCE-V0-024, 025 | golden bytes tied to the compiler version; `outcome-vacuous`; per-block `secret-suspected`; page text only in `untrusted_text` | V1-1679, V1-1681 | PARTIAL: `outcome-vacuous` by `TestCCEV0024OutcomeVacuous`; golden-version pinning, per-block `secret-suspected` and 025 NOT_STARTED |
@@ -649,7 +691,8 @@ file. Everything else belongs to the umbrella (V1-1666).
 
 Recorded so V0 choices do not block them; each needs its own requirements before implementation.
 
-- V1 authoring (V1-1683): a deterministic harvester proposes blocks from existing specs and page
+- V1 authoring (V1-1683; the harvester, proposals document, acceptance ledger and in-diff flag are
+  CCE-V0-041..044, the rest stays here): a deterministic harvester proposes blocks from existing specs and page
   objects with `harvested:<blob>:<span>` provenance; an `e2e-block-proposals/0` document written
   outside the repository; a human acceptance ledger `.corvint/e2e-acceptances.json`, which also
   accepts `CHANGED_IN_DIFF` and `NEW_IN_DIFF` oracles and flags an acceptance added in the diff

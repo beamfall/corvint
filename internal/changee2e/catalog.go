@@ -37,6 +37,8 @@ type Block struct {
 	Blob     string `json:"blob"`
 	Span     Span   `json:"span"`
 	Relation string `json:"relation"`
+	// Provenance is `harvested:<blob>:<start>-<end>` on a harvested proposal (CCE-V0-041).
+	Provenance string `json:"provenance,omitempty"`
 
 	// page-object
 	Class  string `json:"class,omitempty"`
@@ -213,6 +215,9 @@ func BuildCatalog(ctx context.Context, o CatalogOptions) (*Catalog, error) {
 		}
 	}
 	if err := c.addDeclarations(ctx, o.Root, rev, pageObjects); err != nil {
+		return nil, err
+	}
+	if err := c.addAcceptances(ctx, o.Root, rev); err != nil {
 		return nil, err
 	}
 	for _, u := range m.Unknowns {

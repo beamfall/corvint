@@ -79,8 +79,10 @@ type Obligations struct {
 	Obligations   []Obligation  `json:"obligations"`
 	Unknown       []UnknownSpan `json:"unknown"`
 	Exempt        []Exemption   `json:"exempt"`
-	Truncated     int           `json:"truncated,omitempty"` // obligations dropped by the byte cap (CCE-V0-014)
-	Digest        string        `json:"digest"`
+	// AcceptancesInDiff lists accepted proposals the change itself accepts (CCE-V0-044).
+	AcceptancesInDiff []string `json:"acceptances_in_diff,omitempty"`
+	Truncated         int      `json:"truncated,omitempty"` // obligations dropped by the byte cap (CCE-V0-014)
+	Digest            string   `json:"digest"`
 
 	catalog *Catalog
 	// baseOutcomes holds each outcome of the base map by ID, for oracle_origin (CCE-V0-016).
@@ -167,7 +169,11 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 	if err != nil {
 		return nil, err
 	}
-	r := &Obligations{Schema: ObligationsSchema, Base: base, Head: cat.Revision, CatalogDigest: cat.Digest, ImpactDigest: impact.Digest,
+	inDiff, err := acceptancesInDiff(ctx, o.Root, base, cat)
+	if err != nil {
+		return nil, err
+	}
+	r := &Obligations{AcceptancesInDiff: inDiff, Schema: ObligationsSchema, Base: base, Head: cat.Revision, CatalogDigest: cat.Digest, ImpactDigest: impact.Digest,
 		Relations: Relations{Consulted: []string{"amap-impact", "amap-map:base", "amap-map:head", "e2e-blocks:reach_exempt@base"},
 			NotConsulted: []string{"affected-plan", "anl-edge-ledger"}},
 		Obligations: []Obligation{}, Unknown: []UnknownSpan{}, Exempt: []Exemption{}, catalog: cat, baseOutcomes: baseOutcomes}

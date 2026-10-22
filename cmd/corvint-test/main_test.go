@@ -74,6 +74,7 @@ func TestCCEV0015SubcommandsReachable(t *testing.T) {
 	ctx := context.Background()
 	for _, args := range [][]string{
 		{"e2e", "catalog", "--root", root, "--rev", head},
+		{"e2e", "harvest", "--root", root, "--rev", head},
 		{"e2e", "obligations", "--root", root, "--base", base, "--head", head},
 		{"e2e", "compile", "--root", root, "--base", base, "--head", head, "--out", t.TempDir()},
 	} {
@@ -114,6 +115,11 @@ func TestCCEV0015SubcommandsReachable(t *testing.T) {
 	err := run(ctx, []string{"e2e", "catalog", "--root", root, "--rev", head, "--out", filepath.Join(root, ".corvint", "c.json")}, &bytes.Buffer{})
 	if !errors.As(err, &r) || r.Code != "e2e-out-not-allowed" {
 		t.Fatalf("%v", err)
+	}
+	// CCE-V0-041: the proposals document is written outside the repository only.
+	err = run(ctx, []string{"e2e", "harvest", "--root", root, "--rev", head, "--out", filepath.Join(root, "h.json")}, &bytes.Buffer{})
+	if !errors.As(err, &r) || r.Code != "e2e-out-not-allowed" {
+		t.Fatalf("harvest: %v", err)
 	}
 }
 
@@ -322,6 +328,7 @@ func TestCCEV0013NoRepositoryWrites(t *testing.T) {
 	}
 	for _, args := range [][]string{
 		{"e2e", "catalog", "--root", root, "--rev", head, "--out", filepath.Join(t.TempDir(), "c.json")},
+		{"e2e", "harvest", "--root", root, "--rev", head, "--out", filepath.Join(t.TempDir(), "h.json")},
 		{"e2e", "obligations", "--root", root, "--base", base, "--head", head},
 		{"e2e", "compile", "--root", root, "--base", base, "--head", head, "--out", t.TempDir()},
 		{"e2e", "prove", "--root", root, "--base", base, "--head", head, "--out", t.TempDir()},

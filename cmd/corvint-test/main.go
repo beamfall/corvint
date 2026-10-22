@@ -23,7 +23,7 @@ import (
 // proveReport is the proof report written under the prove --out directory.
 const proveReport = "e2e-prove.json"
 
-const usage = "usage: corvint-test e2e <catalog|obligations|compile|prove|shadow> [flags]"
+const usage = "usage: corvint-test e2e <catalog|harvest|obligations|compile|prove|shadow> [flags]"
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -51,14 +51,14 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	fs.SetOutput(io.Discard)
 	root := fs.String("root", ".", "repository root")
 	manifest := fs.String("manifest", "appmap.json", "repository-relative application-map manifest")
-	out := fs.String("out", "", "output file (catalog, obligations) or directory (compile, prove), outside the repository")
+	out := fs.String("out", "", "output file (catalog, harvest, obligations) or directory (compile, prove), outside the repository")
 	var rev, base, head *string
 	var repeats *int
 	var nodeModules, nodeBin, packageJSON, lockfile, window, hostedTest, hostedTitle *string
 	switch sub {
 	case "shadow":
 		window = fs.String("window", "", "frozen shadow window file (CCE-V0-011)")
-	case "catalog":
+	case "catalog", "harvest":
 		rev = fs.String("rev", "", "revision")
 	case "obligations", "compile", "prove":
 		base = fs.String("base", "", "base revision")
@@ -108,6 +108,12 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 			return err
 		}
 		doc = c.Encoded()
+	case "harvest":
+		p, err := changee2e.Harvest(ctx, changee2e.HarvestOptions{Root: *root, Rev: *rev})
+		if err != nil {
+			return err
+		}
+		doc = p.Encoded()
 	case "obligations":
 		o, err := changee2e.BuildObligations(ctx, diff())
 		if err != nil {

@@ -81,7 +81,8 @@ type CompileReport struct {
 	State             string          `json:"state"` // COMPILED | INCOMPLETE | NONE
 	Unknown           []UnknownSpan   `json:"unknown"`
 	Scenarios         []CompiledEntry `json:"scenarios"`
-	Truncated         int             `json:"truncated,omitempty"` // entries dropped by the byte cap (CCE-V0-014)
+	AcceptancesInDiff []string        `json:"acceptances_in_diff,omitempty"` // CCE-V0-044
+	Truncated         int             `json:"truncated,omitempty"`           // entries dropped by the byte cap (CCE-V0-014)
 	Digest            string          `json:"digest"`
 
 	compiled []Scenario
@@ -108,7 +109,7 @@ func Compile(ctx context.Context, o DiffOptions) (*CompileReport, error) {
 func CompileObligations(obs *Obligations) (*CompileReport, error) {
 	cat := obs.catalog
 	r := &CompileReport{Schema: CompileSchema, Compiler: CompilerVersion, Base: obs.Base, Head: obs.Head, CatalogDigest: cat.Digest,
-		ObligationsDigest: obs.Digest, Unknown: obs.Unknown, Scenarios: []CompiledEntry{}}
+		ObligationsDigest: obs.Digest, Unknown: obs.Unknown, Scenarios: []CompiledEntry{}, AcceptancesInDiff: obs.AcceptancesInDiff}
 	for _, ob := range obs.Obligations {
 		sc, entry := compileOne(cat, obs, ob)
 		r.Scenarios = append(r.Scenarios, entry)
