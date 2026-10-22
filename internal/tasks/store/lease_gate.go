@@ -124,12 +124,19 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 		case err != nil || report.Outcome.Outcome != mutation.OutcomeCompleted:
 		case report.Kind == "Transaction" && choice.gate != nil && choice.gate.source != nil:
 			report.GateReusedFrom = gateReuseOf(choice.gate.source)
+		case report.Kind == "Transaction" && choice.gate != nil:
+			report.GateExecuted = &GateExecution{Record: choice.gate.record, Output: choice.gate.output}
 		case report.Kind == "Replay" && report.Outcome.ReceiptSeq != nil:
 			report.GateReusedFrom = recordedReuse(repo, report.Outcome.ReceiptSeq.Uint64(), choice.Lease.AttemptID, choice.Lease.Gate)
 		}
 	}
 	return report, err
 }
+
+// GateExecution is the encoded gate result record a gate run executed and
+// committed in this call, and the output it captured, retained as evidence
+// under the record's "output" digest (TCD-V0-165, TCD-V0-166).
+type GateExecution struct{ Record, Output []byte }
 
 // GateReuse names the earlier result a gate run reused: its digest and the
 // attempt that executed it (CAL-V0-240).

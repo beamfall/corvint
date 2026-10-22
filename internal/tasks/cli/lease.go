@@ -451,6 +451,11 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 			reused = wire.ObjectValue(wire.NewObject().Set("result", wire.String(string(r.Result))).Set("attemptId", wire.String(r.AttemptID)))
 		}
 		o.Set("reusedFrom", reused)
+		gate, warning := gateResultValue(report.GateExecuted)
+		o.Set("gateResult", gate)
+		if warning != "" {
+			res.Warnings = append(res.Warnings, warning)
+		}
 		if report.GateInterrupted {
 			res.Warnings = append(res.Warnings, "gate run interrupted: the gate's process group was stopped and the run's result and captured output were recorded (CAL-V0-319)")
 		}
