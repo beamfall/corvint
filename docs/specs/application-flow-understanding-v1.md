@@ -834,7 +834,7 @@ without the `e2e-safe` value, so neither S4 nor a companion slice blocks it (dec
 | AFU-V1-041, AFU-V1-042 | implemented: `internal/appflows/runregistry.go`, `internal/appflows/query_stability.go`, `cmd/corvint/flows.go` (`flows stability` and query qualification) |
 | AFU-V1-011..014, 038 | implemented (014 accepted observer gap; see the matrix): `internal/appflows/runevidence.go`, `runingest.go`, `internal/runhygiene/runhygiene.go`, `internal/jstestprovider/playwright.go`, `receipt.go`, `projection.go`, `external.go` |
 | AFU-V1-037 | partial (tests in the matrix): run evidence is incomplete under `run-evidence-byte-bound`, `run-evidence-record-bound`, `run-evidence-attempt-bound`, `run-evidence-link-bound` or `run-evidence-traversal-bound` (`internal/appflows/runevidence.go`), enforced in `runingest.go`. The byte bound applies before any decode. The traversal bound applies before decode for Playwright JSON and `go test -json` and during the JUnit token walk. The record, attempt and link bounds apply during the JUnit and `go test -json` walks, but for Playwright JSON and the `/3` receipt only after the byte-bounded document is decoded. The `/3` receipt has no traversal bound of its own. Those two orderings do not yet meet "before decode and walk"; `flows ingest` writes no record when one is exceeded (`cmd/corvint/flows.go`); intent, import, docs and read-side bounds in `internal/appflows/intent.go`, `import.go`, `docs.go`, `query.go` |
-| AFU-V1-065..066 | implemented (V1-1676): `internal/appflows/selection.go` (`MaxSelectionTests`, `MaxSelectionPaths`, `MaxSelectionCoveragePaths`, `MaxSelectionEvidencePaths`, `boundCodes`, `global`, `proofDigest`, `evidenceDiff`), `internal/appflows/review.go` (`anchorFacts`) |
+| AFU-V1-065..066 | implemented (V1-1676): `internal/appflows/selection.go` (`MaxSelectionTests`, `MaxSelectionPaths`, `MaxSelectionCoveragePaths`, `MaxSelectionEvidencePaths`, `boundCodes`, `global`, `proofDigest`, `evidenceDiff`), `internal/appflows/review.go` (`anchorFacts`), `internal/appflows/input.go` (`decodeElement`, V1-2164) |
 | AFU-V1-067..072 | implemented (V1-1675): `internal/appflows/repositories.go` (`bindRepositories`, `bindRepository`, `ancestryRewritten`, `repositoryChanges`, `splitQualified`), `internal/appflows/selection.go` (`repositoryStale`, `evidenceDiffAt`, `globalCodes`, `qualified`, `validCoverage`), `internal/appflows/review.go` (`EvaluateLinksAcross`, `repositoryTargetState`), `internal/appflows/intent.go` (`reviewed_at_repository`), `cmd/corvint/affected.go` (`--repository-base`), `internal/extevidence/repository.go` (`ValidRepositoryID`) |
 | AFU-V1-019..024, 040 | implemented: `internal/appflows/selection.go` (`SelectE2E`), `cmd/corvint/affected.go`, `internal/liveverify/affected/typescript/playwright_discovery.go` (`VerifyPlaywrightDiscovery`), `internal/extevidence/selection.go` (`SelectionNote`); corpus `cmd/corvint/testdata/e2e-safe-corpus.json` |
 | AFU-V1-059 | accepted, decision 0512: `internal/liveverify/affected/graph.go`, `source.go`, `walk.go`, the eight language adapters, `internal/appflows/impact.go` and its CLI/MCP callers |
@@ -1098,7 +1098,9 @@ reviewed links. The result was `narrow-selection-allowed` with 16,383 omissions 
 proofs. Elapsed time was 7.49 s for the whole command and the receipt was 5,952,721 bytes. Total
 allocation was 2,077,947,160 bytes and the heap system size was 82,116,608 bytes. The CPU profile
 puts about 2.9 s in `SelectE2E`. Most of the rest is the existing secret screen on decode and
-intent loading. Without the shared proofs, each omission would repeat its flow's links and the
+intent loading. Since V1-2164, `Decode` screens the provider document once and each inventory
+element is decoded strictly without a second screen, which cut allocation at the ceiling by about
+37% (`BenchmarkAFUV1065InventoryDecodeAtCeiling`). Without the shared proofs, each omission would repeat its flow's links and the
 changed paths, so output would grow with tests times links.
 
 Acceptance: `TestAFUV1065LargeInventoryNarrows` (3,072 generated tests above the old 1,024 bound
@@ -1114,7 +1116,9 @@ changed against 65,536 global paths in under 2 s, with the exact prefix semantic
 For the `/1` proof wire, `TestAFUV1020ExclusionProofsPerBasis` (every stated digest is recomputed
 from the emitted proof JSON with the `digest` member removed; each omission names one proof;
 `disjoint_from` stated once) and `TestAFUV1040SelectionCorpusReport` in `cmd/corvint`, and
-`TestAFUV1066ProofDigestOmitsDigestMember` in `internal/appflows`.
+`TestAFUV1066ProofDigestOmitsDigestMember` in `internal/appflows`. `TestAFUV1065InventoryDecodeScreensOnce`
+(a 16,384-test provider is secret-screened exactly once; a secret, unknown key or missing project
+inside an element is still refused) covers the single decode screen.
 
 Non-goals: no operator-configurable bound, no streaming or paged output, no change to `MaxFlows`
 (512), links per flow (1,024) or variations (256), and no change to which tests are selected or

@@ -418,6 +418,7 @@ func runProvider(ctx context.Context, plan Plan, perturbation map[string]string,
 	if err := validateCommand(provider.Toolchain); err != nil {
 		return nil, ProcessEvidence{Error: err.Error()}
 	}
+	afterToolchainChecked(provider.Toolchain)
 	if provider.Name == ProviderRSpec {
 		return runRSpecProvider(ctx, plan, perturbation, scratch, filepath.Join(checkout, filepath.FromSlash(provider.Package)), timeout)
 	}
@@ -457,6 +458,10 @@ func runProvider(ctx context.Context, plan Plan, perturbation map[string]string,
 
 // afterToolchainStaged is a test seam between staging and execution (BBF-V0-214).
 var afterToolchainStaged = func(Command) {}
+
+// afterToolchainChecked is a test seam between the toolchain digest check and anything that runs
+// it, which exercises the BBF-V0-214 limit that the RSpec toolchain still runs in place (V1-2215).
+var afterToolchainChecked = func(Command) {}
 
 // runRSpecProvider runs the pinned RSpec command in the staged project directory with RSpec's
 // stock JSON formatter writing to a fixed project-relative report, so a container wrapper that

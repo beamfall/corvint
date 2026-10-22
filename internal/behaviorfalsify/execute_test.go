@@ -25,6 +25,9 @@ func TestMain(m *testing.M) {
 		runTestHelper()
 		return
 	}
+	// Every test runs its hooks as this binary in helper mode, so the marker is process-wide
+	// rather than per-test: a per-test t.Setenv would forbid t.Parallel (V1-2213).
+	os.Setenv(helperEnvironment, "1")
 	os.Exit(m.Run())
 }
 
@@ -127,6 +130,7 @@ func runTestHelper() {
 }
 
 func TestBBFV0001PlanIsCanonicalAndRequiresApproval(t *testing.T) {
+	t.Parallel()
 	request := testRequest(t, []ControlSpec{
 		{ID: "z", Kind: WrongLocator, Disposition: "not_supported", Definition: map[string]string{"reason": "no hook"}},
 		{ID: "a", Kind: WrongExpectedValue, Disposition: "not_run", Definition: map[string]string{"reason": "deferred"}},
@@ -159,6 +163,7 @@ func TestBBFV0001PlanIsCanonicalAndRequiresApproval(t *testing.T) {
 }
 
 func TestBBFV0003ClosedControlVocabulary(t *testing.T) {
+	t.Parallel()
 	t.Run("BBF-V0-003 closed controls never convert unsupported work to kills", func(t *testing.T) {
 		kinds := []ControlKind{
 			WrongLocator, WrongExpectedValue, OmittedAssertion, OmittedEvent,
@@ -189,6 +194,7 @@ func TestBBFV0003ClosedControlVocabulary(t *testing.T) {
 }
 
 func TestBBFV0001PlanDriftRefused(t *testing.T) {
+	t.Parallel()
 	request := testRequest(t, []ControlSpec{{ID: "unsupported", Kind: WrongLocator, Disposition: "not_supported", Definition: map[string]string{"reason": "fixture"}}})
 	plan, err := BuildPlan(request)
 	if err != nil {
@@ -208,6 +214,7 @@ func TestBBFV0001PlanDriftRefused(t *testing.T) {
 }
 
 func TestBBFV0011SyntheticConformance(t *testing.T) {
+	t.Parallel()
 	plan := classificationPlan()
 	control := plan.Controls[0]
 	success := successfulProcess()
@@ -243,6 +250,7 @@ func TestBBFV0011SyntheticConformance(t *testing.T) {
 }
 
 func TestBBFV0011DistinctSurvivorFixtures(t *testing.T) {
+	t.Parallel()
 	for _, fixture := range []struct {
 		name       string
 		kind       ControlKind
@@ -269,6 +277,7 @@ func TestBBFV0011DistinctSurvivorFixtures(t *testing.T) {
 }
 
 func TestBBFV0006InfrastructureReceiptIsClosed(t *testing.T) {
+	t.Parallel()
 	plan := classificationPlan()
 	control := plan.Controls[0]
 	base := AttemptResult{Attempt: 1, Receipt: receiptPointer(classificationReceipt(plan, control)), HookProcess: successfulProcess(), CleanupProcess: successfulProcess(), WorkspaceBefore: digestN("workspace"), WorkspaceAfter: digestN("workspace")}
@@ -301,7 +310,7 @@ func TestBBFV0006InfrastructureReceiptIsClosed(t *testing.T) {
 }
 
 func TestBBFV0004LiveHookRestoresDisposableWorkspace(t *testing.T) {
-	t.Setenv(helperEnvironment, "1")
+	t.Parallel()
 	request := testRequest(t, []ControlSpec{{
 		ID: "wrong-value", Kind: WrongExpectedValue, Disposition: "run",
 		Definition: map[string]string{"scenario": "killed"}, Hook: testCommand(t),
@@ -329,7 +338,6 @@ func TestBBFV0004LiveHookRestoresDisposableWorkspace(t *testing.T) {
 }
 
 func TestBBFV0005LiveTimeoutIsInfrastructureFailure(t *testing.T) {
-	t.Setenv(helperEnvironment, "1")
 	request := testRequest(t, []ControlSpec{{
 		ID: "timeout", Kind: OmittedEvent, Disposition: "run",
 		Definition: map[string]string{"scenario": "timeout"}, Hook: testCommand(t),
@@ -354,7 +362,6 @@ func TestBBFV0005LiveTimeoutIsInfrastructureFailure(t *testing.T) {
 }
 
 func TestBBFV0010SlowTerminationPreservesCleanupBudget(t *testing.T) {
-	t.Setenv(helperEnvironment, "1")
 	request := liveRequest(t, []ControlSpec{liveControl(t, "slow-termination", "slow-termination")})
 	request.TimeoutSeconds = 1
 	request.WallClockSeconds = 12
@@ -373,7 +380,7 @@ func TestBBFV0010SlowTerminationPreservesCleanupBudget(t *testing.T) {
 }
 
 func TestBBFV0004LiveFailureMatrix(t *testing.T) {
-	t.Setenv(helperEnvironment, "1")
+	t.Parallel()
 	for _, test := range []struct {
 		scenario string
 		want     Status
@@ -385,6 +392,7 @@ func TestBBFV0004LiveFailureMatrix(t *testing.T) {
 		{"html-expansion", StatusInvalidControl},
 	} {
 		t.Run(test.scenario, func(t *testing.T) {
+			t.Parallel()
 			request := liveRequest(t, []ControlSpec{liveControl(t, test.scenario, test.scenario)})
 			plan, err := BuildPlan(request)
 			if err != nil {
@@ -399,7 +407,6 @@ func TestBBFV0004LiveFailureMatrix(t *testing.T) {
 }
 
 func TestBBFV0007CancellationStopsFurtherExecution(t *testing.T) {
-	t.Setenv(helperEnvironment, "1")
 	request := liveRequest(t, []ControlSpec{
 		liveControl(t, "first", "wait-cancel"),
 		liveControl(t, "second", "killed"),
@@ -447,7 +454,7 @@ func TestBBFV0007CancellationStopsFurtherExecution(t *testing.T) {
 }
 
 func TestBBFV0009AggregateCountsAndFallback(t *testing.T) {
-	t.Setenv(helperEnvironment, "1")
+	t.Parallel()
 	request := liveRequest(t, []ControlSpec{
 		liveControl(t, "killed", "killed"),
 		{ID: "unsupported", Kind: WrongLocator, Disposition: "not_supported", Definition: map[string]string{"reason": "fixture"}},
@@ -479,6 +486,7 @@ func TestBBFV0009AggregateCountsAndFallback(t *testing.T) {
 }
 
 func TestBBFV0010EncodingIsBounded(t *testing.T) {
+	t.Parallel()
 	t.Run("BBF-V0-010 bounded report rejects oversized output", func(t *testing.T) {
 		if _, err := Encode(Report{Limitations: []string{strings.Repeat("x", maxDocumentBytes)}}); err == nil {
 			t.Fatal("oversized report unexpectedly encoded")
@@ -491,7 +499,7 @@ func TestBBFV0010EncodingIsBounded(t *testing.T) {
 }
 
 func TestBBFV0010InvocationInputUsesDocumentBound(t *testing.T) {
-	t.Setenv(helperEnvironment, "1")
+	t.Parallel()
 	input := bytes.Repeat([]byte("x"), (16<<20)+1)
 	_, evidence := runPinned(context.Background(), *testCommand(t), t.TempDir(), []string{helperEnvironment}, "control", input, 5*time.Second, 1<<20)
 	if !evidence.Started || strings.Contains(evidence.Error, "stdin exceeds") {
@@ -500,7 +508,7 @@ func TestBBFV0010InvocationInputUsesDocumentBound(t *testing.T) {
 }
 
 func TestBBFV0010ExecutionOutputOverflowRemainsReportable(t *testing.T) {
-	t.Setenv(helperEnvironment, "1")
+	t.Parallel()
 	request := liveRequest(t, []ControlSpec{liveControl(t, "overflow", "overflow")})
 	request.Attempts = 2
 	request.WallClockSeconds = 60
@@ -523,6 +531,7 @@ func TestBBFV0010ExecutionOutputOverflowRemainsReportable(t *testing.T) {
 }
 
 func TestBBFV0002HookDriftRefused(t *testing.T) {
+	t.Parallel()
 	copyPath := filepath.Join(t.TempDir(), "hook")
 	executable, err := os.ReadFile(testCommand(t).Path)
 	if err != nil {
@@ -546,6 +555,7 @@ func TestBBFV0002HookDriftRefused(t *testing.T) {
 }
 
 func TestBBFV0004StaleArtifactDigestRefused(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "artifact.json"), []byte("actual"), 0600); err != nil {
 		t.Fatal(err)
@@ -556,6 +566,7 @@ func TestBBFV0004StaleArtifactDigestRefused(t *testing.T) {
 }
 
 func TestBBFV0004ArtifactParentSymlinkIsRefused(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	outside := t.TempDir()
 	data := []byte("escaped")
@@ -572,6 +583,7 @@ func TestBBFV0004ArtifactParentSymlinkIsRefused(t *testing.T) {
 }
 
 func TestBBFV0002PlanRejectsStaleRepositoryBindings(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		mutate func(*Request)
@@ -604,6 +616,7 @@ func TestBBFV0002PlanIsolatedFromAmbientGit(t *testing.T) {
 }
 
 func TestBBFV0004ReservedEnvironmentCannotOverrideBoundary(t *testing.T) {
+	t.Parallel()
 	request := testRequest(t, []ControlSpec{{ID: "unsupported", Kind: WrongLocator, Disposition: "not_supported", Definition: map[string]string{"reason": "fixture"}}})
 	request.DeclaredEnvKeys = []string{"CORVINT_BEHAVIOR_COMMAND_ROLE"}
 	request.Runner.EnvironmentSHA256 = digestJSON(declaredEnvironment(request.DeclaredEnvKeys))
@@ -613,6 +626,7 @@ func TestBBFV0004ReservedEnvironmentCannotOverrideBoundary(t *testing.T) {
 }
 
 func TestBBFV0004WorkspaceDigestFramesFileContent(t *testing.T) {
+	t.Parallel()
 	empties := t.TempDir()
 	for _, name := range []string{"a", "b"} {
 		if err := os.WriteFile(filepath.Join(empties, name), nil, 0600); err != nil {
@@ -641,6 +655,7 @@ func TestBBFV0004WorkspaceDigestFramesFileContent(t *testing.T) {
 }
 
 func TestBBFV0010ReceiptOutputLimitFitsAcceptedReceiptAtPlanBound(t *testing.T) {
+	t.Parallel()
 	hook := testCommand(t)
 	controls := make([]ControlSpec, 0, 64)
 	for index := 0; index < 64; index++ {
@@ -672,6 +687,7 @@ func TestBBFV0010ReceiptOutputLimitFitsAcceptedReceiptAtPlanBound(t *testing.T) 
 }
 
 func TestBBFV0010PlanRefusesBudgetInsideCleanupReserve(t *testing.T) {
+	t.Parallel()
 	request := testRequest(t, []ControlSpec{{ID: "deferred", Kind: WrongLocator, Disposition: "not_run", Definition: map[string]string{"reason": "fixture"}}})
 	request.WallClockSeconds = int(cleanupReserve / time.Second)
 	if _, err := BuildPlan(request); err == nil {
@@ -680,6 +696,7 @@ func TestBBFV0010PlanRefusesBudgetInsideCleanupReserve(t *testing.T) {
 }
 
 func TestBBFV0010ControlListLengthCapProtectsDocumentBound(t *testing.T) {
+	t.Parallel()
 	buildControl := func(unrelatedCount, setupCount int) ControlSpec {
 		unrelated := make([]string, unrelatedCount)
 		for index := range unrelated {

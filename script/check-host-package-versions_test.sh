@@ -168,4 +168,53 @@ done
 printf 'development-only test\n' >"$test_root/integrations/opencode/fixture.test.ts"
 commit "change unpublished OpenCode test only" 2026-01-02T01:00:00
 output=$(run) || fail "unpublished OpenCode change failed the gate: $output"
-printf 'check-host-package-versions_test: 14 cases passed\n'
+# AHI-020 / V1-2184: the Spec Kit extension reads its version from extension.yml's extension block,
+# and the failure names the bump command (AHI-173).
+mkdir -p "$test_root/protocol/integrations/speckit/corvint/commands"
+speckit_version() {
+    printf 'schema_version: "1.0"\nextension:\n  id: corvint\n  version: "%s"\nrequires:\n  version: "%s"\n' "$1" "$2" \
+        >"$test_root/protocol/integrations/speckit/corvint/extension.yml"
+}
+speckit_version 0.1.0 9.9.9
+printf 'context\n' >"$test_root/protocol/integrations/speckit/corvint/commands/context.md"
+commit "introduce Spec Kit fixture" 2026-01-03T00:00:00
+output=$(run) || fail "Spec Kit introduction did not pass: $output"
+printf 'changed context\n' >"$test_root/protocol/integrations/speckit/corvint/commands/context.md"
+commit "change a Spec Kit command without a bump" 2026-01-03T00:01:00
+if output=$(run); then fail "a Spec Kit command change with no version bump passed the gate"; fi
+case $output in
+    *'speckit: protocol/integrations/speckit/corvint/extension.yml last bumped'*'run make host-package-version-bump PKG=speckit'*) ;;
+    *) fail "Spec Kit failure did not name the package and the bump command: $output" ;;
+esac
+speckit_version 0.1.1 9.9.9
+commit "bump Spec Kit" 2026-01-03T00:02:00
+output=$(run) || fail "Spec Kit bump did not clear the change: $output"
+# Another block's version key is not the package version.
+printf 'changed again\n' >"$test_root/protocol/integrations/speckit/corvint/commands/context.md"
+commit "change a Spec Kit command" 2026-01-03T00:03:00
+speckit_version 0.1.1 9.9.10
+commit "change only requires.version" 2026-01-03T00:04:00
+if output=$(run); then fail "a requires.version edit was read as the Spec Kit package bump"; fi
+
+# The OpenSpec skill is its own version file: a body edit without a front-matter bump fails, a
+# body edit that lands with the bump passes.
+speckit_version 0.1.2 9.9.10
+mkdir -p "$test_root/protocol/integrations/openspec/skills/corvint-openspec"
+skill() {
+    printf -- '---\nname: corvint-openspec\nmetadata:\n  author: fixture\n  version: "%s"\n---\n\n%s\n' "$1" "$2" \
+        >"$test_root/protocol/integrations/openspec/skills/corvint-openspec/SKILL.md"
+}
+skill 0.1.0 body
+commit "introduce OpenSpec fixture and clear Spec Kit" 2026-01-04T00:00:00
+output=$(run) || fail "OpenSpec introduction did not pass: $output"
+skill 0.1.0 "changed body"
+commit "change the OpenSpec skill body without a bump" 2026-01-04T00:01:00
+if output=$(run); then fail "an OpenSpec skill body change with no version bump passed the gate"; fi
+case $output in
+    *'openspec: protocol/integrations/openspec/skills/corvint-openspec/SKILL.md last bumped'*) ;;
+    *) fail "OpenSpec failure not named: $output" ;;
+esac
+skill 0.1.1 "changed body again"
+commit "change the OpenSpec skill body with a bump" 2026-01-04T00:02:00
+output=$(run) || fail "an OpenSpec body change with its bump did not pass: $output"
+printf 'check-host-package-versions_test: 19 cases passed\n'

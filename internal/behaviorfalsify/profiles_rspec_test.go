@@ -49,7 +49,6 @@ printf '{"version":"3.13.6","examples":[{"id":"./spec/checkout_spec.rb[1:1]","st
 // the given executable.
 func rspecRequest(t *testing.T, toolchain Command, controls []ControlSpec) Request {
 	t.Helper()
-	t.Setenv(helperEnvironment, "1")
 	request := testRequest(t, controls)
 	repository := request.Repositories.Test
 	head := commitFixtureFiles(t, repository, map[string]string{"example/.rspec": "--order defined\n", "example/Gemfile": "source \"https://rubygems.org\"\n", "example/spec/checkout_spec.rb": rspecCheckoutSpec})
@@ -80,6 +79,7 @@ func writeToolchain(t *testing.T, dir, script string) Command {
 }
 
 func TestBBFV0029RSpecProviderPlanIsBounded(t *testing.T) {
+	t.Parallel()
 	toolchain := writeToolchain(t, t.TempDir(), fakeRSpec)
 	plan, err := BuildPlan(rspecRequest(t, toolchain, []ControlSpec{rspecControl(t, "kill", "CHECKOUT_TOTAL_OFFSET")}))
 	if err != nil {
@@ -119,6 +119,7 @@ func TestBBFV0029RSpecProviderPlanIsBounded(t *testing.T) {
 	}
 	for name, mutate := range cases {
 		t.Run("BBF-V0-029 refuses "+name, func(t *testing.T) {
+			t.Parallel()
 			candidate := rspecRequest(t, toolchain, []ControlSpec{rspecControl(t, "kill", "CHECKOUT_TOTAL_OFFSET")})
 			mutate(&candidate)
 			if _, err := BuildPlan(candidate); err == nil {
@@ -137,6 +138,7 @@ func TestBBFV0029RSpecProviderPlanIsBounded(t *testing.T) {
 }
 
 func TestBBFV0030RSpecProviderEndToEnd(t *testing.T) {
+	t.Parallel()
 	toolchain := writeToolchain(t, t.TempDir(), fakeRSpec)
 	request := rspecRequest(t, toolchain, []ControlSpec{
 		rspecControl(t, "kill", "CHECKOUT_TOTAL_OFFSET"),
@@ -194,6 +196,7 @@ func assertRSpecControls(t *testing.T, request Request) {
 }
 
 func TestBBFV0031RSpecReportIsClosed(t *testing.T) {
+	t.Parallel()
 	plan := classificationPlan()
 	plan.Request.Target.AssertionID = rspecTotalExample
 	control := plan.Controls[0]
@@ -245,6 +248,7 @@ func TestBBFV0031RSpecReportIsClosed(t *testing.T) {
 }
 
 func TestBBFV0032RSpecEvidenceReceiptIsRefused(t *testing.T) {
+	t.Parallel()
 	toolchain := writeToolchain(t, t.TempDir(), fakeRSpec)
 	plan, err := BuildPlan(rspecRequest(t, toolchain, []ControlSpec{rspecControl(t, "kill", "CHECKOUT_TOTAL_OFFSET")}))
 	if err != nil {
