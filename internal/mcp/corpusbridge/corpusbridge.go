@@ -190,6 +190,10 @@ func (r *Registry) Tools() []bridge.ToolDescriptor {
 			properties["path"] = map[string]any{"type": "string", "minLength": 1, "maxLength": 1024}
 			properties["paths"] = map[string]any{"type": "array", "minItems": 1, "maxItems": MaxBatchPaths, "uniqueItems": true, "items": map[string]any{"type": "string", "minLength": 1, "maxLength": 1024}}
 		}
+		if op == "locate" || op == "recommend-tests" {
+			// DCP-V1-310: an optional declared repository's root-commit identity.
+			properties["repository"] = map[string]any{"type": "string", "minLength": 40, "maxLength": 64}
+		}
 		if op == "gaps" {
 			properties["id"] = map[string]any{"type": "string", "maxLength": 1024}
 		}
@@ -241,6 +245,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 		Depth      int                         `json:"depth"`
 		Section    jsontext.Value              `json:"section"`
 		Include    []string                    `json:"include"`
+		Repository string                      `json:"repository"`
 	}
 	if len(arguments) > 16<<10 || json.Unmarshal(arguments, &input, json.RejectUnknownMembers(true)) != nil {
 		return nil, "", nil, &Error{"invalid-arguments"}, finish()
@@ -251,12 +256,12 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	}
 	kind := doccorpus.OperationInput(op)
 	for key, value := range members {
-		allowed := key == "retirement" || key == "offset" && r.header.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && kind == "query" || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow"
+		allowed := key == "retirement" || key == "offset" && r.header.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && kind == "query" || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow" || key == "repository" && (op == "locate" || op == "recommend-tests")
 		if !allowed || value == nil {
 			return nil, "", nil, &Error{"invalid-arguments"}, finish()
 		}
 	}
-	if input.Offset < 0 || input.Offset > doccorpus.MaxCorpusRecords*4 || input.Depth < 0 || input.Depth > doccorpus.MaxFlowDepth || members["depth"] != nil && input.Depth == 0 {
+	if input.Offset < 0 || input.Offset > doccorpus.MaxCorpusRecords*4 || input.Depth < 0 || input.Depth > doccorpus.MaxFlowDepth || members["depth"] != nil && input.Depth == 0 || members["repository"] != nil && input.Repository == "" {
 		return nil, "", nil, &Error{"invalid-arguments"}, finish()
 	}
 	limit := 20
@@ -291,7 +296,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	if !ok || !doccorpus.ValidFlowFilter(sections, input.Include) {
 		return nil, "", nil, &Error{"invalid-arguments"}, finish()
 	}
-	request := doccorpus.Request{Operation: op, Retirement: input.Retirement, Query: input.Query, ID: input.ID, Path: input.Path, Limit: limit, Offset: input.Offset, Depth: input.Depth, Sections: sections, Include: input.Include}
+	request := doccorpus.Request{Operation: op, Retirement: input.Retirement, Query: input.Query, ID: input.ID, Path: input.Path, Limit: limit, Offset: input.Offset, Depth: input.Depth, Sections: sections, Include: input.Include, Repository: input.Repository}
 	// A batch whose deadline passes while the artifact or freshness is still
 	// being prepared names every path unresolved (DCP-V1-145).
 	prepared := func(err error) (map[string]any, string, *ToolFailure, *Error, Timing) {

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -348,7 +349,9 @@ func validateManifest(m Manifest) error {
 	}
 	revisions := map[string]bool{m.Repository.Revision: true}
 	for _, r := range m.AdditionalRepositories {
-		revisions[r.Revision] = true
+		for _, revision := range r.pinned() {
+			revisions[revision] = true
+		}
 	}
 	scopes := map[string]bool{}
 	for _, s := range m.Scopes {
@@ -415,8 +418,30 @@ func validateAdditionalRepositories(m Manifest) error {
 			return fail("invalid additional repository declaration")
 		}
 		revisions[r.Revision], roots[r.Root] = true, true
+		// DCP-V1-308: further pinned revisions of the same repository, sorted and distinct from
+		// every other repository's revisions.
+		if r.Revisions != nil && len(r.Revisions) == 0 {
+			return fail("invalid additional repository declaration")
+		}
+		for j, revision := range r.Revisions {
+			if !wire.IsGitOid(revision) || revisions[revision] || j > 0 && revision <= r.Revisions[j-1] {
+				return fail("invalid additional repository declaration")
+			}
+			revisions[revision] = true
+		}
+	}
+	if len(revisions) > maxPinnedRevisions {
+		return capacityExceeded("pinned repository revision count", len(revisions), maxPinnedRevisions)
 	}
 	return nil
+}
+
+// maxPinnedRevisions is the eight-revision bound every pinned repository revision counts toward.
+const maxPinnedRevisions = 8
+
+// pinned lists the repository's declared current revision followed by its further pinned ones.
+func (r AdditionalRepository) pinned() []string {
+	return append([]string{r.Revision}, r.Revisions...)
 }
 
 // maxAdditionalRepositories keeps every repository's pinned revision inside the eight-revision bound.
@@ -428,10 +453,11 @@ func validRepositoryRoot(p string) bool {
 	return p != "" && p != "." && len(p) <= 1024 && utf8.ValidString(p) && !strings.ContainsAny(p, "\\\x00\r\n\t") && !path.IsAbs(p) && path.Clean(p) == p
 }
 
-// additionalRepository returns the declared additional repository pinned at revision.
+// additionalRepository returns the declared additional repository pinned at revision, whether
+// it is the repository's current revision or a further pinned one (DCP-V1-308).
 func (m Manifest) additionalRepository(revision string) (AdditionalRepository, bool) {
 	for _, r := range m.AdditionalRepositories {
-		if r.Revision == revision {
+		if slices.Contains(r.pinned(), revision) {
 			return r, true
 		}
 	}
@@ -458,7 +484,9 @@ func (c *compiler) pin(ctx context.Context) (err error) {
 	defer func() { err = gitCapacity(err, fmt.Sprintf("while pinning %d inputs", len(c.manifest.Inputs))) }()
 	revisions := map[string]bool{c.manifest.Repository.Revision: true}
 	for _, r := range c.manifest.AdditionalRepositories {
-		revisions[r.Revision] = true
+		for _, revision := range r.pinned() {
+			revisions[revision] = true
+		}
 	}
 	for _, s := range c.manifest.Scopes {
 		revisions[s.Revision] = true

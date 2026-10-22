@@ -52,11 +52,17 @@ All shards are validated together; missing shards, duplicate IDs and dangling jo
 The profile preserves typed claims, eight-section flows, stable paragraphs and retirement redirects,
 test-link roles/confidence, explicit coverage membership, ticket history and intent comparisons.
 It also gives supplied records a typed home: `gaps` (producer gap claims, returned by `docs_gaps`
-with `origin: supplied`), a `status` claim detail (`blocked`, `ready` or `proven`, counted by
-`docs_coverage`), and `manual_case` subjects linked by `manual_case_for` relations, which satisfy
-the `missing-manual-cases` gap. A `test_run` claim detail carries a supplied test-run receipt
-(`outcome`, `run`, `origin: supplied`), returned by `docs_get` and counted per outcome by
-`docs_coverage`. A `legacy_case` detail on a `manual_case` subject names its external case ID
+with `origin: supplied`; a gap may target a subject or a claim, such as a run's `test_run`
+claim), a `status` claim detail (`blocked`, `ready`, `proven`, `partial`, `not-demonstrable`,
+`disputed`, `obsolete`, `not-established` or `unknown`, with an optional `provisional` or
+`classification-only` qualifier, counted by `docs_coverage` under `STATE` or `STATE:QUALIFIER`, so
+a qualified `proven` never counts as plain `proven`), and `manual_case` subjects linked by
+`manual_case_for` relations, which satisfy the `missing-manual-cases` gap. A `test_run` claim
+detail carries a supplied test-run receipt (`outcome`, `run`, `origin: supplied`, and optional
+`retries`, `flake_verdict`, `cleanup`, `control_outcome` and `validity` axes), returned by
+`docs_get` and counted per outcome, flake verdict and cleanup by `docs_coverage`. A
+`migration_mapping` relation joins two `inventory` units of a code-migration ledger with a closed
+`outcome` and `basis`; `docs_get` on a unit returns its mapping chain. A `legacy_case` detail on a `manual_case` subject names its external case ID
 (`C123`), so `docs_get C123` returns that subject and its links, or a `legacy-case-unlinked` gap
 when no subject declares the case. The `gaps` capability and the query index list supplied gaps.
 Supplied records stay attributed and never raise trust.
@@ -444,3 +450,8 @@ from the primary checkout to a local checkout of that repository. Declare the an
 scopes and inputs at that revision. The build verifies the root commit and reads only that
 checkout; it never fetches. Freshness compares those inputs with that checkout, so a change there
 makes the corpus `stale`. An anchor naming an undeclared repository is refused. See DCP-V1-175..179.
+A repository may also list further pinned commits in `revisions` (sorted, within the
+eight-revision bound); anchors there cite that revision, and freshness compares only `revision`.
+`docs_locate` and `docs_recommend_tests` accept an optional `repository` (a declared root-commit
+identity) and otherwise name each result's repository in `result_repositories`. See
+DCP-V1-308..311.

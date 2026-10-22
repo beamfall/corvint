@@ -260,6 +260,9 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	if capability == "" {
 		return Receipt{}, fail("unknown corpus operation")
 	}
+	if request.Repository != "" && (request.Operation != "locate" && request.Operation != "recommend-tests" || !a.Manifest.declaresRepository(request.Repository)) {
+		return Receipt{}, fail("repository qualifier applies only to locate and recommend-tests and must name a declared repository")
+	}
 	r := Receipt{Envelope: envelope, Schema: ReceiptSchema, Operation: request.Operation, ArtifactSHA256: a.SHA256, Repository: a.Manifest.Repository, Tree: a.Tree, Trust: "generated", Freshness: freshness, State: "ready", Results: []any{}, Citations: []Anchor{}, Capabilities: a.Capabilities, Limitations: append([]string{}, limitations...)}
 	if a.Schema == SchemaV2 {
 		r.Capabilities = boundedCapabilities(a.Capabilities)
@@ -323,19 +326,22 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 			r.Results = append(r.Results, TraceFlows(a, []string{request.ID}, request.Depth))
 		}
 	case "locate":
+		// DCP-V1-310: a repository qualifier keeps only records anchored at the path there.
 		for _, j := range testKnowledgeOnPath(a, request.Path) {
-			addRecord(&r, j)
+			if pathInRepository(recordAnchors(j), request.Path, request.Repository) {
+				addRecord(&r, j)
+			}
 		}
 		if a.RuntimeIndex != nil {
 			for _, ref := range a.RuntimeIndex.Paths[request.Path] {
-				if ref.Kind == "subject" {
+				if ref.Kind == "subject" && pathInRepository(a.Subjects[ref.Offset].Evidence.Anchors, request.Path, request.Repository) {
 					addRecord(&r, a.indexedRecord(ref))
 				}
 			}
 			break
 		}
 		for _, s := range a.Subjects {
-			if subjectPath(s, request.Path) {
+			if subjectPath(s, request.Path) && pathInRepository(s.Evidence.Anchors, request.Path, request.Repository) {
 				r.Results = append(r.Results, s)
 				r.Citations = append(r.Citations, s.Evidence.Anchors...)
 			}
@@ -383,8 +389,11 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 			}
 		}
 		// DCP-V1-186: supplied gaps follow the computed ones, labelled by origin.
+		// DCP-V1-304: a gap that targets a claim is also selected by the
+		// claim's subject.
+		targets := suppliedGapClaimSubjects(a, request.ID)
 		for _, g := range a.SuppliedGaps {
-			if request.ID == "" || g.Subject == request.ID || g.ID == request.ID {
+			if request.ID == "" || g.Subject == request.ID || g.ID == request.ID || targets[g.Subject] {
 				r.Results = append(r.Results, g)
 				r.Citations = append(r.Citations, g.Evidence.Anchors...)
 			}
@@ -466,11 +475,72 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	if err := attachSymbolAnchors(ctx, &r, symbols); err != nil {
 		return Receipt{}, err
 	}
+	nameResultRepositories(a, request, &r)
 	finalizeEnvelope(&r)
 	if _, err := Encode(r); err != nil {
 		return Receipt{}, err
 	}
 	return r, nil
+}
+
+// declaresRepository reports whether id is the primary or a declared additional repository.
+func (m Manifest) declaresRepository(id string) bool {
+	if id == m.Repository.ID {
+		return true
+	}
+	for _, r := range m.AdditionalRepositories {
+		if r.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+// pathInRepository reports whether an anchor at path (or symbol) belongs to repository; an empty
+// repository admits every record (DCP-V1-310).
+func pathInRepository(anchors []Anchor, path, repository string) bool {
+	if repository == "" {
+		return true
+	}
+	for _, a := range anchors {
+		if (a.Path == path || a.Symbol == path) && a.Repository == repository {
+			return true
+		}
+	}
+	return false
+}
+
+// resultRepository is the repository of the record's anchor at path, else of its first anchor,
+// else the primary repository.
+func resultRepository(a *Artifact, anchors []Anchor, path string) string {
+	for _, x := range anchors {
+		if x.Path == path || x.Symbol == path {
+			return x.Repository
+		}
+	}
+	if len(anchors) > 0 {
+		return anchors[0].Repository
+	}
+	return a.Manifest.Repository.ID
+}
+
+// nameResultRepositories names each visible locate or recommend-tests result's repository when
+// the artifact spans more than one repository (DCP-V1-311); single-repository receipts are
+// unchanged.
+func nameResultRepositories(a *Artifact, request Request, r *Receipt) {
+	if len(a.Manifest.AdditionalRepositories) == 0 || request.Operation != "locate" && request.Operation != "recommend-tests" {
+		return
+	}
+	for _, v := range r.Results {
+		id := recordID(v)
+		if id == "" {
+			continue
+		}
+		if r.ResultRepositories == nil {
+			r.ResultRepositories = map[string]string{}
+		}
+		r.ResultRepositories[id] = resultRepository(a, recordAnchors(v), request.Path)
+	}
 }
 func anchorKey(a Anchor) string { return a.Revision + ":" + a.Path + ":" + a.SpanSHA256 }
 func subjectPath(s Subject, p string) bool {
@@ -486,6 +556,70 @@ func get(a *Artifact, id string, r *Receipt) {
 	getRecords(a, id, r)
 	if len(r.Results) == before {
 		getLegacyCase(a, id, r)
+		return
+	}
+	getMigrationChain(a, id, r)
+}
+
+// getMigrationChain appends, in artifact order, every migration_mapping
+// relation reachable from an inventory unit through migration mappings in
+// either direction (DCP-V1-307): the unit's own mapping and the chain across
+// earlier and later migrations. Relations the receipt already holds are not
+// repeated. A corpus without migration mappings reads nothing more.
+func getMigrationChain(a *Artifact, id string, r *Receipt) {
+	var edges func(node string) []int
+	if x := a.RuntimeIndex; x != nil {
+		if ref, ok := x.IDs[id]; !ok || ref.Kind != "subject" || a.Subjects[ref.Offset].Kind != "inventory" {
+			return
+		}
+		edges = func(node string) []int { return x.Edges[node] }
+	} else {
+		adjacent := map[string][]int{}
+		for i, rel := range a.Relations {
+			if rel.Type == "migration_mapping" {
+				adjacent[rel.From] = append(adjacent[rel.From], i)
+				if rel.To != rel.From {
+					adjacent[rel.To] = append(adjacent[rel.To], i)
+				}
+			}
+		}
+		if len(adjacent[id]) == 0 {
+			return
+		}
+		edges = func(node string) []int { return adjacent[node] }
+	}
+	held := map[string]bool{}
+	for _, v := range r.Results {
+		if rel, ok := v.(Relation); ok {
+			held[rel.ID] = true
+		}
+	}
+	seen := map[string]bool{id: true}
+	chain := map[int]bool{}
+	for queue := []string{id}; len(queue) > 0; queue = queue[1:] {
+		for _, i := range edges(queue[0]) {
+			rel := a.Relations[i]
+			if rel.Type != "migration_mapping" || chain[i] {
+				continue
+			}
+			chain[i] = true
+			for _, next := range []string{rel.From, rel.To} {
+				if !seen[next] {
+					seen[next] = true
+					queue = append(queue, next)
+				}
+			}
+		}
+	}
+	offsets := make([]int, 0, len(chain))
+	for i := range chain {
+		offsets = append(offsets, i)
+	}
+	sort.Ints(offsets)
+	for _, i := range offsets {
+		if !held[a.Relations[i].ID] {
+			addRecord(r, a.Relations[i])
+		}
 	}
 }
 
@@ -753,24 +887,74 @@ func coverageMetrics(a *Artifact) []any {
 	return append(rows, behaviorCoverage(a)...)
 }
 
+// suppliedGapClaimSubjects returns the claims on subject id that a supplied
+// gap targets (DCP-V1-304). It reads nothing when no supplied gap exists, so
+// a corpus without supplied gaps does no extra work.
+func suppliedGapClaimSubjects(a *Artifact, id string) map[string]bool {
+	if id == "" || len(a.SuppliedGaps) == 0 {
+		return nil
+	}
+	targeted := map[string]bool{}
+	for _, g := range a.SuppliedGaps {
+		targeted[g.Subject] = true
+	}
+	claims := map[string]bool{}
+	if x := a.RuntimeIndex; x != nil {
+		for _, i := range x.Claims[id] {
+			if c := a.Claims[i]; c.Subject == id && targeted[c.ID] {
+				claims[c.ID] = true
+			}
+		}
+		return claims
+	}
+	for _, c := range a.Claims {
+		if c.Subject == id && targeted[c.ID] {
+			claims[c.ID] = true
+		}
+	}
+	return claims
+}
+
 // suppliedStatusCoverage counts producer-supplied statuses per state
-// (DCP-V1-188) and supplied test-run receipts per outcome (DCP-V1-211). Each
-// family yields no row when nothing was supplied, so existing coverage
+// (DCP-V1-188) and supplied test-run receipts per outcome (DCP-V1-211). A
+// qualified state counts under STATE:QUALIFIER, never under the plain state
+// (DCP-V1-301), and test-run receipts that carry a flake verdict or cleanup
+// outcome are counted per value over the receipts that carry it (DCP-V1-305).
+// Each family yields no row when nothing was supplied, so existing coverage
 // receipts keep their bytes.
 func suppliedStatusCoverage(a *Artifact) []any {
 	rows := suppliedClaimCoverage(a, "supplied_status:", "supplied status claims in this state / all supplied status claims",
 		"producer-supplied status; not derived or verified by the compiler and grants no trust",
 		func(d RecordDetails) string {
-			if d.Status != nil {
-				return d.Status.State
+			if d.Status == nil {
+				return ""
 			}
-			return ""
+			if d.Status.Qualifier != "" {
+				return d.Status.State + ":" + d.Status.Qualifier
+			}
+			return d.Status.State
 		})
-	return append(rows, suppliedClaimCoverage(a, "supplied_test_run:", "supplied test-run receipts with this outcome / all supplied test-run receipts",
+	rows = append(rows, suppliedClaimCoverage(a, "supplied_test_run:", "supplied test-run receipts with this outcome / all supplied test-run receipts",
 		"producer-supplied test-run receipt; not executed, derived or verified by the compiler and grants no trust",
 		func(d RecordDetails) string {
 			if d.TestRun != nil {
 				return d.TestRun.Outcome
+			}
+			return ""
+		})...)
+	rows = append(rows, suppliedClaimCoverage(a, "supplied_test_run_flake:", "supplied test-run receipts with this flake verdict / supplied test-run receipts that carry a flake verdict",
+		"producer-supplied flake verdict; not re-run, derived or verified by the compiler and grants no trust",
+		func(d RecordDetails) string {
+			if d.TestRun != nil {
+				return d.TestRun.FlakeVerdict
+			}
+			return ""
+		})...)
+	return append(rows, suppliedClaimCoverage(a, "supplied_test_run_cleanup:", "supplied test-run receipts with this cleanup outcome / supplied test-run receipts that carry a cleanup outcome",
+		"producer-supplied cleanup outcome; not observed, derived or verified by the compiler and grants no trust",
+		func(d RecordDetails) string {
+			if d.TestRun != nil {
+				return d.TestRun.Cleanup
 			}
 			return ""
 		})...)
