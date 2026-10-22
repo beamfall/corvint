@@ -156,7 +156,10 @@ func treeEntry(raw []byte, wanted string, width int) (string, string, error) {
 }
 
 // The initial recipe compiles one exact production file. An undeclared sibling
-// cannot silently disappear from the subject whose execution is attested.
+// cannot silently disappear from the subject whose execution is attested. The
+// check is scoped to the package directory, not the whole tree: the rest of a
+// real repository is unconstrained here. A `testdata` directory is admitted
+// because the Go toolchain never compiles it into the package (PLE-V0-013).
 func (objects objectSet) onlyCodecPackage(commit string) error {
 	tree, e := objects.tree(commit)
 	if e != nil {
@@ -187,6 +190,10 @@ func (objects objectSet) onlyCodecPackage(commit string) error {
 			return errors.New("package tree framing")
 		}
 		mode, name, ok := strings.Cut(string(head), " ")
+		if ok && mode == "40000" && name == "testdata" {
+			raw = tail[len(commit)/2:]
+			continue
+		}
 		if !ok || mode != "100644" {
 			return errors.New("unsupported package entry")
 		}
