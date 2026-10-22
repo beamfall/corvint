@@ -100,13 +100,19 @@ go-vet:
 
 # cross-vet catches cross-OS compile gaps that go-vet's native-host run cannot see
 # (docs/agent-memory/tests.md, 2026-09-12): it type-checks the root module and interop/cem01-go
-# for GOOS=windows and GOOS=linux. CGO stays disabled so the check never depends on a
+# for GOOS=windows and GOOS=linux, and for the unqualified Unix platforms freebsd, openbsd,
+# netbsd and solaris (PRS-V1-019, V1-0393). CGO stays disabled so the check never depends on a
 # cross-compiling C toolchain being installed.
+CROSS_VET_UNQUALIFIED_GOOS = freebsd openbsd netbsd solaris
 cross-vet:
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go vet ./...
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go vet ./...
 	cd interop/cem01-go && GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go vet ./...
 	cd interop/cem01-go && GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go vet ./...
+	set -e; for goos in $(CROSS_VET_UNQUALIFIED_GOOS); do \
+		GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local GOOS=$$goos GOARCH=amd64 CGO_ENABLED=0 go vet ./...; \
+		(cd interop/cem01-go && GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local GOOS=$$goos GOARCH=amd64 CGO_ENABLED=0 go vet ./...); \
+	done
 
 go-archive-gate:
 	@script/go-archive-gate

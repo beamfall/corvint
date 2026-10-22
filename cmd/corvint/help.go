@@ -295,7 +295,7 @@ const rootHelp = `Corvint extraction alpha
 Usage:
   corvint [--root PATH] COMMAND [OPTIONS]
   corvint COMMAND --help | corvint help COMMAND
-  corvint --version
+  corvint --version [--json]
 
 Commands:
   Core (decision 0332; only the modes and profiles CCF-V1 lists are frozen):
@@ -353,7 +353,8 @@ Commands:
 
 Global options:
   --root PATH  Repository root (default: current directory).
-  --version    Print the version and build number.
+  --version    Print the version and build number; with --json, the corvint-version/1
+               identity (version, build, verbs, harness hosts) for skew checks.
   --help       Print this help on stdout and exit 0.
 
 Support boundary:
