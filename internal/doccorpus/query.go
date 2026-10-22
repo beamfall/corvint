@@ -308,6 +308,9 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 		for _, x := range a.FlowRelations {
 			r.Results = append(r.Results, x)
 		}
+		for _, x := range a.ClaimAudits {
+			r.Results = append(r.Results, x)
+		}
 		sort.Slice(r.Results, func(i, j int) bool { return recordID(r.Results[i]) < recordID(r.Results[j]) })
 	case "search":
 		if e := search(ctx, a, request, &r); e != nil {
@@ -443,6 +446,7 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 			r.Details[id] = detail
 		}
 	}
+	attachClaimAudits(a, &r)
 	// Citations are deduplicated and independently bounded; truncation is visible.
 	sort.Slice(r.Citations, func(i, j int) bool { return anchorKey(r.Citations[i]) < anchorKey(r.Citations[j]) })
 	citations := []Anchor{}
@@ -516,6 +520,11 @@ func getRecords(a *Artifact, id string, r *Receipt) {
 		}
 	}
 	for _, j := range a.FlowRelations {
+		if j.ID == id {
+			addRecord(r, j)
+		}
+	}
+	for _, j := range a.ClaimAudits {
 		if j.ID == id {
 			addRecord(r, j)
 		}

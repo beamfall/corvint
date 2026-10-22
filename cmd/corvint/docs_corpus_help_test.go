@@ -23,7 +23,7 @@ func corpusHelpRun(t *testing.T, args ...string) string {
 // issue805CorpusOperations is every operation parseCorpusInvocation admits.
 var issue805CorpusOperations = []string{
 	"manifest", "build", "render", "maintain", "cem", "behavior-adapter", "behavior-provider",
-	"discover-playwright", "witness-playwright", "discover-legacy", "import-cases", "search-cases", "eval", "info", "validate", "inventory", "search", "get",
+	"discover-playwright", "witness-playwright", "discover-legacy", "import-cases", "search-cases", "eval", "audit-sample", "audit-report", "info", "validate", "inventory", "search", "get",
 	"trace", "related", "journey", "stability", "locate", "coverage", "gaps", "concept", "claims",
 	"flow", "dependencies", "recommend-tests", "navigation", "vocabulary", "intent",
 }
@@ -71,6 +71,8 @@ func TestDocsCorpusOperationHelpPrintsFlags(t *testing.T) {
 		"import-cases":        {"--format", "--input", "--content"},
 		"search-cases":        {"--format", "--input", "--query", "--id", "--match", "--limit"},
 		"eval":                {"--artifact", "--cases", "--baseline", "--format"},
+		"audit-sample":        {"--artifact", "--seed", "--size", "--stratify", "--scope"},
+		"audit-report":        {"--artifact", "--sample", "--format"},
 	}
 	rootRelative := map[string][]string{
 		"discover-playwright": {"--migration", "--playwright-list", "--receipt"},
@@ -81,6 +83,8 @@ func TestDocsCorpusOperationHelpPrintsFlags(t *testing.T) {
 		"import-cases":        {"--input"},
 		"search-cases":        {"--input"},
 		"eval":                {"--artifact", "--cases", "--baseline"},
+		"audit-sample":        {"--artifact"},
+		"audit-report":        {"--artifact", "--sample"},
 	}
 	for _, op := range issue805CorpusOperations {
 		help := corpusHelpRun(t, "docs", "corpus", op, "--help")

@@ -178,6 +178,7 @@ type ProviderRecord struct {
 	BehaviorContracts  *BehaviorRegistry        `json:"behavior_contracts,omitempty"`
 	TestKnowledge      *TestKnowledgeSet        `json:"test_knowledge,omitempty"`
 	FlowRelations      *FlowRelationSet         `json:"flow_relations,omitempty"`
+	ClaimAudits        *ClaimAuditSet           `json:"claim_audits,omitempty"`
 	// Gaps are producer-supplied gap claims (DCP-V1-185); adoption schema only.
 	Gaps         []SuppliedGap           `json:"gaps,omitempty"`
 	Schema       string                  `json:"schema"`
@@ -231,6 +232,7 @@ type Artifact struct {
 	StabilityEvidence   []StabilityReport        `json:"stability_evidence,omitempty"`
 	TestKnowledge       []TestKnowledgeJoin      `json:"test_knowledge,omitempty"`
 	FlowRelations       []FlowRelationJoin       `json:"flow_relations,omitempty"`
+	ClaimAudits         []ClaimAuditJoin         `json:"claim_audits,omitempty"`
 	SuppliedGaps        []SuppliedGap            `json:"supplied_gaps,omitempty"`
 	Schema              string                   `json:"schema"`
 	Builder             Builder                  `json:"builder"`
@@ -284,6 +286,9 @@ type Receipt struct {
 	Capabilities   []Capability             `json:"capabilities"`
 	Limitations    []string                 `json:"limitations"`
 	Omitted        int                      `json:"omitted"`
+	// ClaimAudits shows each visible claim's audit verdicts, present only when the corpus
+	// holds claim-audit records (DCP-V1-263).
+	ClaimAudits map[string][]ClaimAuditView `json:"claim_audits,omitempty"`
 	// SymbolAnchors is the live re-resolution of each cited symbol anchor,
 	// present only from a live reader (DCP-V1-141).
 	SymbolAnchors []SymbolAnchorCheck `json:"symbol_anchors,omitempty"`
