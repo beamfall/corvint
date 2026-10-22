@@ -64,6 +64,13 @@ const AuthoritySwitch = snapshot.StageAuthoritySwitch
 // requestId names the decision; File carries the run.
 const Qualification = snapshot.StageQualification
 
+// Relocate re-pins head.primaryWorktree from FromPrimaryWorktree to
+// PrimaryWorktree (TRL-V0-001..003): one RELOCATE receipt posts a pinned
+// taskman-relocate/0 descriptor naming both paths. It never changes the
+// queue identity, tickets or intent; it refuses while any attempt holds a
+// reservation.
+const Relocate = snapshot.StageRelocate
+
 type Coverage struct {
 	ActorAuthentication, AdministrativeAuthorization       string
 	InventoryObservation, Durability, RuntimeQualification string
@@ -80,8 +87,11 @@ type Request struct {
 	Operation, QueueID, RequestID, TargetID string
 	Actor                                   mutation.Binding
 	PrimaryWorktree                         string
-	Queue, Policy, File                     []byte
-	CanonicalSha256                         wire.Digest
+	// FromPrimaryWorktree is the recorded primary worktree a Relocate moves
+	// away from; PrimaryWorktree is its destination.
+	FromPrimaryWorktree string
+	Queue, Policy, File []byte
+	CanonicalSha256     wire.Digest
 	// Envelope is the canonical taskman-mutation/0 bytes, set only for Mutate.
 	// The request digest of a mutation is the digest of these bytes exactly
 	// (TM-V0-006), so an identical retry replays and any other byte sequence
@@ -301,8 +311,11 @@ func Digest(r Request) (wire.Digest, error) {
 	if len(r.File) > fileLimit {
 		return "", limit("offered file")
 	}
-	if r.Operation != Init && (len(r.Queue) != 0 || r.PrimaryWorktree != "") {
+	if r.Operation != Init && (len(r.Queue) != 0 || (r.PrimaryWorktree != "" && r.Operation != Relocate)) {
 		return "", malformed("inapplicable INIT inputs")
+	}
+	if r.Operation != Relocate && r.FromPrimaryWorktree != "" {
+		return "", malformed("inapplicable relocation input")
 	}
 	if r.Operation != Init && r.Operation != PolicyUpdate && len(r.Policy) != 0 {
 		return "", malformed("inapplicable policy input")
@@ -397,6 +410,18 @@ func Digest(r Request) (wire.Digest, error) {
 		}
 		o.Obj.Set("recordSha256s", wire.Array(digests...))
 	case AuthoritySwitch:
+	case Relocate:
+		if _, e = wire.ParsePathText("fromPrimaryWorktree", r.FromPrimaryWorktree); e != nil {
+			return "", e
+		}
+		if _, e = wire.ParsePathText("primaryWorktree", r.PrimaryWorktree); e != nil {
+			return "", e
+		}
+		if r.FromPrimaryWorktree == r.PrimaryWorktree {
+			return "", malformed("relocation must change the primary worktree")
+		}
+		o.Obj.Set("fromPrimaryWorktree", s(r.FromPrimaryWorktree))
+		o.Obj.Set("primaryWorktree", s(r.PrimaryWorktree))
 	case Qualification:
 		if r.TargetID != "" {
 			return "", malformed("inapplicable ticket inputs")
@@ -597,7 +622,7 @@ func model(r Request, in Input, sequence *ImportSequence) Result {
 	if r.Operation == Unpause && state.barrier == nil {
 		return noChange(r.RequestID)
 	}
-	if (r.Operation == Init || r.Operation == KeepJournal || r.Operation == AdoptFile || r.Operation == Mutate || r.Operation == Release || r.Operation == PolicyUpdate || r.Operation == ImportApply || r.Operation == AuthoritySwitch || r.Operation == Qualification || r.Operation == Lease) && in.Branch != state.queue.IntentBranch {
+	if (r.Operation == Init || r.Operation == KeepJournal || r.Operation == AdoptFile || r.Operation == Mutate || r.Operation == Release || r.Operation == PolicyUpdate || r.Operation == ImportApply || r.Operation == AuthoritySwitch || r.Operation == Qualification || r.Operation == Lease || r.Operation == Relocate) && in.Branch != state.queue.IntentBranch {
 		return refused(r.RequestID, mutation.OutcomeBlocked, wire.CodeIntentBranchMismatch, "primary intent branch differs")
 	}
 	posts := map[string][]byte{}
@@ -683,6 +708,19 @@ func model(r Request, in Input, sequence *ImportSequence) Result {
 		next.CanonicalWriter, next.ForeignAdapterID = "NATIVE", nil
 		next.WriteBarrier = intent.WriteBarrier{Reason: "CUTOVER", Since: &since}
 		posts["intent/queue.json"] = wire.EncodeFile(next.Value())
+	case Relocate:
+		// TRL-V0-003: relocation is explicit about where it moves from, and
+		// an empty reservation set is the quiescence it requires; a live
+		// attempt's recorded worktree would otherwise silently change.
+		if state.head.PrimaryWorktree != r.FromPrimaryWorktree {
+			return refused(r.RequestID, mutation.OutcomeBlocked, wire.CodeUnsupported, "head.primaryWorktree differs from the relocation source")
+		}
+		if len(state.reservations.Entries) != 0 {
+			return refused(r.RequestID, mutation.OutcomeBlocked, wire.CodeQuiescenceUnproved, "attempts hold reservations; release or reap every attempt before relocating")
+		}
+		d := snapshot.Relocate{QueueID: state.queue.QueueID, RequestID: r.RequestID, FromPrimaryWorktree: r.FromPrimaryWorktree, ToPrimaryWorktree: r.PrimaryWorktree}
+		raw := wire.EncodeFile(d.Value())
+		posts["pinned/"+string(wire.Sum(raw))+".json"] = raw
 	case Qualification:
 		if refusal := qualificationPosts(r, in, state, posts); refusal != nil {
 			return *refusal
@@ -1452,6 +1490,11 @@ func freeze(r Request, d wire.Digest, now wire.Timestamp, inv *Inventory, base *
 		h.PrimaryWorktree = base.PrimaryWorktree
 		h.VersionSha256 = base.VersionSha256
 		h.Segments = base.Segments
+	}
+	if base != nil && r.Operation == Relocate && out.Outcome == mutation.OutcomeCompleted {
+		// TRL-V0-002: only a completed RELOCATE re-pins the primary worktree,
+		// and its receipt posts the descriptor naming both paths.
+		h.PrimaryWorktree = r.PrimaryWorktree
 	}
 	head := wire.EncodeFile(h.Value())
 	if _, e := snapshot.DecodeHead(head); e != nil {

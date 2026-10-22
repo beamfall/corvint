@@ -225,7 +225,7 @@ func stageReceiptKind(operation, kind string) bool {
 		return kind == "RELEASE" || kind == "RECONCILE"
 	case StageKeepJournal, StageAdoptFile:
 		return kind == "RECONCILE"
-	case StageInit, StagePause, StageUnpause, StagePolicyUpdate, StageImportApply, StageAuthoritySwitch, StageQualification:
+	case StageInit, StagePause, StageUnpause, StagePolicyUpdate, StageImportApply, StageAuthoritySwitch, StageQualification, StageRelocate:
 		return kind == operation
 	default:
 		return false

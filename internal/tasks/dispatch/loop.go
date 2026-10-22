@@ -217,6 +217,23 @@ type Dispatcher struct {
 	holdAnnounced bool
 }
 
+// lockProgram creates the program directory and takes its single-dispatcher
+// lock without waiting.
+func lockProgram(dir string) (*os.File, error) {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, err
+	}
+	lock, err := os.OpenFile(filepath.Join(dir, "lock"), os.O_RDWR|os.O_CREATE, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	if err := lockExclusive(lock); err != nil {
+		lock.Close()
+		return nil, fmt.Errorf("another dispatcher holds %s: %w", dir, err)
+	}
+	return lock, nil
+}
+
 // Open locks the program's state directory, loads the ledger and adopts
 // every worker recorded by a previous dispatcher.
 func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error) {
@@ -228,16 +245,17 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 		return nil, fmt.Errorf("program name must match [a-z][a-z0-9-]{0,23}")
 	}
 	dir := ProgramDir(c, program)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return nil, err
-	}
-	lock, err := os.OpenFile(filepath.Join(dir, "lock"), os.O_RDWR|os.O_CREATE, 0o600)
+	// The shared start gate covers creating the program directory and
+	// taking its lock, so a relocation either sees the lock or keeps this
+	// start out (TRL-V0-003).
+	gate, err := openStartGate(c)
 	if err != nil {
 		return nil, err
 	}
-	if err := lockExclusive(lock); err != nil {
-		lock.Close()
-		return nil, fmt.Errorf("another dispatcher holds %s: %w", dir, err)
+	lock, err := lockProgram(dir)
+	gate.Close()
+	if err != nil {
+		return nil, err
 	}
 	// A host reboot is the one automatic containment proof (CAL-V0-227); it
 	// is recorded before the marker goes. Any other prior unresolved reader

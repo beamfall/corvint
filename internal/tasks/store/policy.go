@@ -97,17 +97,32 @@ func administrativeWriteRound(ctx context.Context, repo *intent.Repository, requ
 		return report, nil, err
 	}
 	defer session.Close()
-	head, err := writerGuards(repo, guardOperation(request))
+	// id is the repository identity the journal is read and guarded under:
+	// the resolved repository, except that a RELOCATE reads the store under
+	// the primary worktree it names explicitly (TRL-V0-001).
+	id := repo
+	if request.Operation == transaction.Relocate {
+		if id, err = relocationIdentity(repo, request.FromPrimaryWorktree); err != nil {
+			return report, nil, err
+		}
+	}
+	head, err := writerGuards(id, guardOperation(request))
 	if err != nil {
 		return guardFailureAudit(report, request.RequestID, err)
 	}
 	if head.QueueID.Raw != request.QueueID {
 		return report, nil, wire.Errorf(wire.CodeOutOfScope, "queueId", "request queue differs")
 	}
-	if report.Redone, err = redoPending(repo, session); err != nil {
+	if report.Redone, err = redoPending(id, session); err != nil {
 		return guardFailureAudit(report, request.RequestID, err)
 	}
-	reader := lockedJournalReader(repo, head)
+	if request.Operation == transaction.Relocate && report.Redone {
+		// A redone RELOCATE re-pinned the head (TRL-V0-004).
+		if id, err = relocationIdentity(repo, request.FromPrimaryWorktree); err != nil {
+			return report, nil, err
+		}
+	}
+	reader := lockedJournalReader(id, head)
 	index := journal.RequestIndex{Reader: reader}
 	entry, found, err := index.Lookup(request.RequestID)
 	if err != nil {
@@ -184,7 +199,7 @@ func administrativeWriteRound(ctx context.Context, repo *intent.Repository, requ
 	if err = requireBranch(repo, q.IntentBranch); err != nil {
 		return guardFailureAudit(report, request.RequestID, err)
 	}
-	if err = bindObservation(repo, proof.Identity, guardOperation(request)); err != nil {
+	if err = bindObservation(id, proof.Identity, guardOperation(request)); err != nil {
 		return guardFailureAudit(report, request.RequestID, err)
 	}
 	report.Receipt, err = applyBeforeCommit(repo, session, result.Plan, beforeCommit)

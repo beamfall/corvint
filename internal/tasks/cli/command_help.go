@@ -260,7 +260,7 @@ const lockWaitHelp = "--lock-wait SECONDS (whole seconds, 1..300; anything else 
 // probe accepts a pending receipt and whose store writer settles it
 // (CAL-V0-260, CAL-V0-261); redoPendingHelp is their help (CAL-V0-262).
 var redoSettlingVerbs = map[string]bool{
-	"pause": true, "unpause": true, "policy update": true, "import": true, "cutover": true,
+	"pause": true, "unpause": true, "policy update": true, "import": true, "cutover": true, "relocate": true,
 	"ticket escalate": true, "ticket answer": true, "run": true, "health": true, "pool cleanup": true,
 	"pool operate": true,
 }
@@ -305,6 +305,7 @@ var commandUsage = map[string]string{
 	"policy update":           "corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR]",
 	"import":                  "corvint-tasks import --file PATH [--role OWNER|OPERATOR]",
 	"cutover":                 "corvint-tasks cutover [--execution] --decision REF [--qualification FILE]",
+	"relocate":                "corvint-tasks relocate --from OLD --request-id ID [--role OWNER|OPERATOR] [--dispatch-config FILE]   (run from the new primary worktree; OLD is the head.primaryWorktree the refusal names)",
 	"release list":            "corvint-tasks release list",
 	"release show":            "corvint-tasks release show RELEASE",
 	"release readiness":       "corvint-tasks release readiness RELEASE",

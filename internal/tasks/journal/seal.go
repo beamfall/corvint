@@ -266,7 +266,9 @@ func (r Reader) walkSealed(o *observation, result *Result, selected map[string]b
 	if head == nil {
 		return nil, sealForked("a retired prefix needs a settled head")
 	}
-	if a.QueueID != r.QueueID || a.PrimaryWorktree != r.PrimaryWorktree || a.InitSha256 != head.InitSha256 || from > headSeq || a.Generation.Uint64() > head.Generation.Uint64() {
+	// The anchor records the primary worktree as of the seal; a later
+	// RELOCATE receipt in the walked tail moves it (TRL-V0-002).
+	if a.QueueID != r.QueueID || a.InitSha256 != head.InitSha256 || from > headSeq || a.Generation.Uint64() > head.Generation.Uint64() || (from == headSeq && a.PrimaryWorktree != head.PrimaryWorktree) {
 		return nil, sealForked("anchor is not a prefix of head")
 	}
 	count := uint64(len(o.receipts))
@@ -306,7 +308,7 @@ func (r Reader) walkSealed(o *observation, result *Result, selected map[string]b
 			return nil, wire.Errorf(wire.CodeUnsupported, rp, "request was retired with the prefix; its receipt is in the retained archive")
 		}
 	}
-	st := &chain{canonical: make(map[string]latest, len(a.Entries)), prev: &a.ReceiptSha256, generation: a.Generation.Uint64(), seal: s,
+	st := &chain{canonical: make(map[string]latest, len(a.Entries)), prev: &a.ReceiptSha256, generation: a.Generation.Uint64(), seal: s, primary: a.PrimaryWorktree,
 		notes: &noteState{refs: map[string]*ticket.OperatorNoteReference{}, policyWalked: true}}
 	for _, e := range a.Entries {
 		st.canonical[e.Path] = latest{seq: e.Seq, digest: e.Sha256, bytes: -1}
