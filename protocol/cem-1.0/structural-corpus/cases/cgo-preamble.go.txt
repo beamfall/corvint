@@ -1,0 +1,15 @@
+package cases
+
+/*
+#cgo CFLAGS: -O2
+#include <stdlib.h>
+
+static int add(int a, int b) { return a + b; }
+*/
+import "C"
+
+import "unsafe"
+
+func add(a, b int) int { return int(C.add(C.int(a), C.int(b))) }
+
+func free(p unsafe.Pointer) { C.free(p) }

@@ -565,9 +565,11 @@ native authority checks, not a convenient Git-only view.
 
 The portable source-build floor remains Go1.24. Structural parser/scanner/gofmt
 runtime support is a separate exact-tuple qualification. The verifiers admit
-exactly go1.27.1 (the prototype tuple) and go1.27.2 (decision 0522, sealed in
-`../structural-tuples/go1.27.2`), report both as
-`EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS`, and refuse every other release with
+exactly go1.27.1 (the prototype tuple), go1.27.2 (decision 0522) and go1.27.3
+(decision 0547), each later tuple sealed in `../structural-tuples/<tuple>`. They
+report each as `QUALIFIED_EXACT_TUPLE`: the structural corpus in
+`../structural-corpus` qualifies go1.27.1, and the later tuples share its
+parser-closure digest (decision 0551). They refuse every other release with
 `unsupported-structural-runtime`. The P0 primary-clean-config-bounded/1 prototype refuses ordinary
 clone metadata and linked worktrees; no false native-wide claim is inherited.
 Broader repository admission, safe process descendants, supported OS/architectures,

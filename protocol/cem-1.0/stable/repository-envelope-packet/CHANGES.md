@@ -309,3 +309,140 @@ file and are recorded in Git, in ../manifest.json and in each tuple manifest.
 | protocol/cem-1.0/stable/manifest.json | 90c71102e2f03631f70d0382dc18fffb976c35b042384cb601183b0d610ab1d3 |
 | protocol/cem-1.0/structural-tuples/go1.27.2/TUPLE.json | 31d7adcd19c95f2fbcbfef62a0b86c7d69c44630403c45205e285c01efef8cb7 |
 | protocol/cem-1.0/structural-tuples/go1.27.2/manifest.json | 2172d7ce6511ace2212b37b3ce3acef1af042e60972df010a80b4ac7072e34d8 |
+
+# Recorded value re-emission of `runtime` (2026-10-22)
+
+Base: the public packet with manifest sha256
+f0cfb65c79a4621811eb8ae790787eaa7b99f1568fb23cf0125b437de71b4c16.
+Reason: V1-2327, decision 0551: the go1.27.1 structural corpus qualified the predicates; runtime.structuralQualification is QUALIFIED_EXACT_TUPLE on every admitted tuple (CEM-V1-371)
+Record file sha256: e4e052bde1fbd26811a8a28a626dda102a9755ed96619a30d28a8bd1dd536ac0.
+Produced by `make cem-stable-regen-replace` (tools/cem-stable-regen, CEM-V1-091
+as amended by decision 0530).
+
+- Members re-emitted in place: `runtime`. No key is added or removed and
+  RESULT.schema.json is unchanged.
+- Values captured from the native verifier on go1.27.3 for 54 cases.
+- Values from the override file (sha256 1ec46acfcc49c59c654cac0e451f3c84c8cb192ca4c281763f48a67f58a235a2) for: go1.24.13-nonstructural-positive, go1.24.13-structural-refusal.
+- Envelope cells (inherited/s0e/REPOSITORY-ENVELOPE.cells.json and its ../REPOSITORY-ENVELOPE.cells.json copy):
+  22 cells take the values of the cases with the same exit and other keys.
+- Cell values from the cell override file (sha256 fad1aff75a4b170fbe35439511c057de174caed5d569109ce3bfdf456d15deaa) for: ordinary-sha256, origin-sha256, linked-sha256, relative-sha256, attributes, corrupt-base, linked-attributes.
+- Every other key and expectedExit is unchanged; every captured result
+  matched its frozen expectation on them (runtime.goVersion only through a
+  sealed structural-tuple substitution). The case count stays 56.
+
+## Re-emitted values
+
+Each digest is the sha256 of the value's compact JSON.
+
+| Kind | Id | Member | Predecessor sha256 | New sha256 |
+| --- | --- | --- | --- | --- |
+| case | cancel-before-content | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | cancel-during-target-resolution | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | cancel-during-base-sidecar | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | cancel-during-initial-target-entry | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | cancel-during-target-sidecar-body | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | cancel-during-canonical-diff | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | cancel-during-evidence-or-structural | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | cancel-before-first-drift-item | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | cancel-during-artifacts | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | root-replaced-before-final-check | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | cancel-at-final-publication | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | owner-failure-before-first-content-progress | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | owner-failure-after-provisional-complete | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | normal-exit-lingering-descendant-contained | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | canonical-per-op-timeout | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | canonical-output-limit | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | canonical-nonzero-exit | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | simultaneous-outer-cancel-and-overflow | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | simultaneous-overflow-and-nonzero | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | simultaneous-owner-failure-and-cancel | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | optional-attributes-EACCES | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | optional-objects-info-ELOOP | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | optional-commondir-EIO | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | metadata-leaf-replaced | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | admin-ancestor-symlink | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | empty-commondir | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | absolute-commondir | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | metadata-CRLF | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | metadata-two-final-LF | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | metadata-invalid-UTF8 | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | metadata-over4096 | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | empty-http-alternates | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | target-sidecar-blob-missing-child-exit | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | target-sidecar-blob-corrupt-compressed-child-exit | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | target-sidecar-blob-wrong-complete-hash | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | target-sidecar-blob-launch-failure | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | evidence-blob-missing-child-exit | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | evidence-blob-corrupt-compressed-child-exit | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | evidence-blob-wrong-complete-hash | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | evidence-blob-launch-failure | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | repeated-target-sidecar-lookup-cancel | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | canonical-complete-parser-and-nonzero | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | canonical-per-op-timeout-and-overflow | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | canonical-valid-framing-limit-plus-one-and-nonzero | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | canonical-complete-malformed-before-limit-and-overflow | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | outer-expiry-content-observed | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | outer-expiry-content-unobserved | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | outer-expiry-normal-session-close-observed | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | outer-expiry-normal-session-close-unobserved | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | ledger-336-evidence | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | ledger-337-evidence | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | partial-drift-one-item-cancel | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | per-op-timeout-returned-then-outer-expiry-in-teardown | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| case | per-op-timeout-unreturned-then-outer-expiry-in-teardown | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | ordinary-sha1 | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | origin-sha1 | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | linked-sha1 | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | relative-sha1 | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | ordinary-sha256 | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | origin-sha256 | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | linked-sha256 | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | relative-sha256 | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | attributes | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | comments | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | alternates | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | bad-marker | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | object-link | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | root-link | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | shallow-complete | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | shallow-missing | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | missing-base | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | corrupt-base | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | hostile | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | ambient-alternates | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | linked-wrong-backpointer | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | linked-missing-common | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | linked-attributes | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | pack-link | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | info-link | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | missing-promisor | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | missing-target-tree | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | missing-target-blob | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+| cell | corrupt-target-blob | runtime | a1bcb5397051dbdf1ef7b989dfbcb816debca97960cf0e64e9c314fc19fba4ed | dfb50cb0d15bb83f6d2aed5150ce554bb7861e3885b57139782c2d5992f60c37 |
+
+## Changed files
+
+| File | Old sha256 | New sha256 |
+| --- | --- | --- |
+| FULL-RESULT-CASES.json | 045b8fd32d81d09d79d9d157213bcbb6cf133c006f6b6f102b3a0f680816819c | 06fb20c0a1903921c7c5f83459bf790313c5e33379538e867982ab9a5e6603be |
+| inherited/s0e/REPOSITORY-ENVELOPE.cells.json | aff583ede3f3dd083aaaf4321efb9cc7d3d6413a280058db445b6df322cb6d5b | b59262dca59a6f815477c599f6fc173d2665bcf83d8d128e7c0c92160e0c4fdc |
+| CHANGES.md | 8f7ed45631c927ffb9b65c2185d7fa261f26962b7c58b2582ff477fc9e419ccb | See manifest.json; this file cannot contain its own final digest. |
+| manifest.json | f0cfb65c79a4621811eb8ae790787eaa7b99f1568fb23cf0125b437de71b4c16 | See ../manifest.json publicAmendmentManifestSHA256; manifest.json is not listed inside its own file list. |
+
+Files not listed above are byte-identical to the base packet. INPUTS.json
+keeps its repair-era pins as history.
+
+## Re-bound files outside the packet
+
+These files are re-bound to the digests above; their new digests depend on this
+file and are recorded in Git, in ../manifest.json and in each tuple manifest.
+
+| File | Predecessor sha256 |
+| --- | --- |
+| protocol/cem-1.0/stable/REPOSITORY-ENVELOPE.cells.json | 3678fcca54082ed8b2919bcfa9d1f6240c34d8f761eee1a7364a9d0a9e42b23d |
+| protocol/cem-1.0/stable/REPOSITORY-ENVELOPE.md | 5d54f6f53f4bddc8582635398656f97cd3e4db582dcda410be77ea93ac7843c3 |
+| protocol/cem-1.0/stable/manifest.json | f9498bddc7764801cc1179c5996b6a9730f2834b0d9a70cc1ac93c08aa405174 |
+| protocol/cem-1.0/structural-tuples/go1.27.2/TUPLE.json | ec302a1f4745bb1e7b620df1b580fc2a54371244d4243710376f0516aeee21e5 |
+| protocol/cem-1.0/structural-tuples/go1.27.2/manifest.json | 49f4e95921aeebcbcccb87136a8b55cf70aa6e24cbb8c1fbbc555b3a2da33b52 |
+| protocol/cem-1.0/structural-tuples/go1.27.3/TUPLE.json | cd9e83cb4a997369dd5cedaf74c8b622181c7246fbf599ab58f56de03ce62750 |
+| protocol/cem-1.0/structural-tuples/go1.27.3/manifest.json | 1240a0b0b4fb5525f16899e387940097b9cdd3c852da3bbabeeaaf2d53789a2e |
