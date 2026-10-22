@@ -1389,7 +1389,7 @@ func (r Reader) walkWriter(o *observation, wc *WriterCheckpoint, selected map[st
 	}
 	// The walk reads the checkpoint's entries where it uses them, never
 	// copying the inventory (JSG-V0-004).
-	st := &chain{canonical: map[string]latest{}, prev: &wc.ReceiptSha256, generation: wc.Generation.Uint64(), elided: wc, resumed: from, posted: map[string]bool{}, view: true}
+	st := &chain{canonical: map[string]latest{}, prev: &wc.ReceiptSha256, generation: wc.Generation.Uint64(), elided: wc, resumed: from, resumedSha: wc.ReceiptSha256, posted: map[string]bool{}, view: true}
 	result.SemanticCoverage = wc.SemanticCoverage
 	result.LastSeq, result.LastReceiptSha256 = wc.Seq, wc.ReceiptSha256
 	for seq := from + 1; seq <= headSeq; seq++ {

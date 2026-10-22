@@ -213,6 +213,12 @@ func TestONV0014_UnboundNotePreStateDeclinesTheWriter(t *testing.T) {
 		{"prefix-seq", func(t *testing.T, repo *intent.Repository, _ string, prior uint64) {
 			editReceipt(t, repo, prior, func(v wire.Value) { v.Obj.Set("seq", wire.String(strconv.FormatUint(prior+1, 10))) })
 		}, "checkpoint pre-state does not bind", wire.CodeJournalForked},
+		{"prefix-prev", func(t *testing.T, repo *intent.Repository, _ string, prior uint64) {
+			if prior < 2 {
+				t.Fatalf("prefix receipt %d has no previous digest to forge", prior)
+			}
+			editReceipt(t, repo, prior, func(v wire.Value) { v.Obj.Set("prev", wire.String(string(wire.Sum([]byte("forged prev"))))) })
+		}, "checkpoint pre-state does not bind", wire.CodeJournalForked},
 		{"prefix-elided", func(t *testing.T, repo *intent.Repository, _ string, prior uint64) {
 			editReceipt(t, repo, prior, func(v wire.Value) { v.Obj.Set("profile", wire.String(snapshot.ProfileElidedReceipt)) })
 		}, "checkpoint pre-state does not bind", "oracle"},
@@ -406,6 +412,21 @@ func TestONV0014_ReadAndWriterResumesBindPrefixState(t *testing.T) {
 			}
 			editReceipt(t, repo, prior, func(v wire.Value) {
 				v.Obj.Set("seq", wire.String(strconv.FormatUint(prior+1, 10)))
+			})
+		}, "checkpoint pre-state does not bind"},
+		{"prefix-receipt-prev", func(t *testing.T, repo *intent.Repository, _, b string, cp *journal.Checkpoint) {
+			noteOn(t, repo, b, "tail-note-b")
+			var prior uint64
+			for _, e := range cp.Entries {
+				if e.Path == b {
+					prior = e.Seq.Uint64()
+				}
+			}
+			if prior < 2 {
+				t.Fatalf("prefix receipt %d has no previous digest to forge", prior)
+			}
+			editReceipt(t, repo, prior, func(v wire.Value) {
+				v.Obj.Set("prev", wire.String(string(wire.Sum([]byte("forged prev")))))
 			})
 		}, "checkpoint pre-state does not bind"},
 	}

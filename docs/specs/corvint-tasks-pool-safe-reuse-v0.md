@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750)
+Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568)
 Delivery status: experimental
 Authoritative inputs: https://github.com/beamfall/corvint/issues/498; CAL-V0-028..034 in corvint-tasks-agent-leases-v0.md; independent Gate A packet-r2/GATE-A.md PASS with no HIGH, MED findings incorporated before implementation.
 Native ticket: V1-0695, original creation receipt2436.
 
 ## Agent digest
 - Claim: Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.
-- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
+- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
 - Exists: Foreground sweep, optional dispatcher integration and focused fixtures are implemented in source. Earlier source-bound repair evidence is retained separately from current integrated qualification.
 - Blocked on: Current integrated native binary, mandatory selected tests, exact-target review, terminal evidence, hosted integration and native completion. Linux runtime and physical external cleanup remain unqualified.
 - Read next: Requirements; Acceptance evidence; Non-goals and simpler baseline; Compatibility and rollback.
@@ -209,6 +209,49 @@ Rollback: revert the resume route in `prepareLease`/`leaseWrite`, `observeWriter
 the journal `PrefixFallback`/`ResumeBase`/`AuditForResume`/`RecheckResume`, their tests and this amendment. A
 resume base is in-memory only. No store format, receipt, checkpoint format or wire result changes,
 so stores written by either build are read by the other.
+
+### V1-1568 lease paths that keep the complete route
+
+V1-1568 (found by the V1-1560 lane, PR #1018) listed the lease paths that the PSR-V0-051/052 resume
+does not cover. The PSR-V0-050..057 failure modes name them without a reason. This requirement gives
+the reason for each, so that none is an unexplained gap.
+
+- `PSR-V0-200`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1568) Each lease
+  path below MUST keep the complete route, or pay the one extra preparation stated, for the reason
+  given. None may be moved onto a resume without its own requirement that keeps the reason's
+  guarantee.
+  1. A request that is a handoff-policy candidate (a `release --reason HANDOFF` the reducer refused
+     `STALE_POLICY`) keeps the complete route each round. Its conversion needs `AuditForHandoff`.
+     That is one fresh complete audit selected by the attempt's admission policy digest, which reads
+     the attempt's history and the original policy from receipt 1. Neither the writer checkpoint nor
+     the PSR-V0-051 base retains that history. The request is a single release, not a contended
+     acquire loop, so a retryable `SNAPSHOT_MOVED` after 16 rounds is the accepted cost.
+  2. A request whose model reads an elided path keeps the complete route. The writer route's
+     inventory carries only the paths the writer checkpoint selects (JSG-V0-004). A model question
+     about any other path's metadata voids the result (`Inventory.Incomplete`), so committing it
+     would rest on metadata the route never read. Carrying every path's metadata would change the
+     writer-checkpoint profile and grow it with the store, which is outside the bounded route.
+  3. A command whose PSR-V0-050 prefix walk was declined keeps the complete route for the rest of
+     the command. A declined prefix walk means the prefix refused on an unchanged observation, and
+     a prefix walk never decides a refusal (PSR-V0-050). Only the complete audit may decide it, and
+     a resume base from that prefix would let a write commit over a journal the complete audit
+     refuses.
+  4. Every lease write on a platform without file change times (not Darwin or Linux,
+     `ResumableAudits`) keeps the complete route. PSR-V0-053 detects a rewrite under a resume
+     base by change time. Without it, a rewrite that restores size and modification time would go
+     undetected, and that is the CAL-V0-116 rewritten-prefix detection the owner kept by declining
+     CAL-V0-264.
+  5. A tail longer than 256 receipts, or a changed writer-invalidation token, declines the resume
+     and costs that round one more preparation audit (PSR-V0-055). The 256-receipt tail is the
+     CAL-V0-116 bound that keeps a resumed write bounded. A changed token means the writer checkpoint
+     under the base no longer holds, so the next preparation derives a new base.
+
+  Acceptance evidence: paths 3 to 5 are witnessed by `TestPSRV0050_PrefixFallback`
+  (`internal/tasks/journal`), `TestPSRV0150_DeclinedResumeWalksOncePerRound`,
+  `TestPSRV0151_DeclinedResumeChargesNoResumedWalk` and `TestPSRV0053_ResumeKeepsRewrittenPrefixDetection`
+  (`internal/tasks/store`). There are no focused tests yet for paths 1 and 2 staying on the
+  complete route under a concurrent writer (NOT_RUN). Rollback: revert this paragraph. No code,
+  format or wire contract changes with it.
 
 ### V1-1572 older binaries and slots
 
