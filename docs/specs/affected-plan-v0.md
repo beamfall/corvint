@@ -84,9 +84,11 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   changes nothing a frontier could hide an edge from, so a clean worktree's plan is `BOUNDED`). A reason that bears only on one unit is that unit's sorted `frontier` member, covered
   by the graph digest, and is named only by a plan that reaches the unit. The Go plugin's
   `go:build-constraint-variants` is such a reason, because every variant's imports are edges, so
-  the closure is a superset of each variant's; every other plugin reason stays plugin-wide,
-  because it hides edges or units of that plugin. Rollback names every graph frontier reason in
-  every plan again.
+  the closure is a superset of each variant's; so are the Ruby per-unit sites of
+  `RUBY-AFFECTED-V0-047` (amended for V1-2363 under the owner's standing auto-accept, 2026-10-11),
+  whose entries name their site as `reason:path:line` (`RUBY-AFFECTED-V0-046`). Every other plugin
+  reason stays plugin-wide, because it hides edges or units of that plugin. Rollback names every
+  graph frontier reason in every plan again.
 - **AFP-V0-005:** For a fixed tree, HEAD, and dirty set the document MUST be byte-identical across
   runs; with `--base`, the base commit is part of that fixed input.
   (proposed, decision 0398; V1-0299) `plan.graphDigest` MUST be `affected-graph:sha256:` followed by
