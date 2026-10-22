@@ -392,6 +392,16 @@ func parseRunOptions(arguments []string) (options, error) {
 			return options{}, fmt.Errorf("--resume: no checkpoint to resume: %w", err)
 		}
 	}
+	// A script agent named by a relative path runs from the task's root (or an
+	// empty directory under --access none), so it is resolved against the
+	// directory cw-trial was started in, where its identity is also read.
+	if strings.ContainsRune(configuration.agentCommand, filepath.Separator) && !filepath.IsAbs(configuration.agentCommand) {
+		absolute, err := filepath.Abs(configuration.agentCommand)
+		if err != nil {
+			return options{}, fmt.Errorf("--agent-command: %w", err)
+		}
+		configuration.agentCommand = absolute
+	}
 	return configuration, validateAgentOptions(configuration)
 }
 

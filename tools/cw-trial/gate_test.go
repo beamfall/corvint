@@ -2,13 +2,16 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
@@ -220,5 +223,31 @@ func TestFrozenBeamfallOrientationGateNamesTheFrozenSet(t *testing.T) {
 	}
 	if spec.TasksSHA256 != sha256Hex(data) || spec.Tasks != len(tasks.Tasks) {
 		t.Fatalf("gate binds %s/%d, set is %s/%d", spec.TasksSHA256, spec.Tasks, sha256Hex(data), len(tasks.Tasks))
+	}
+}
+
+// TestRelativeAgentCommandResolvesAgainstTheLaunchDirectory covers CWT-V0-016:
+// the documented `--agent-command tools/cw-trial/testdata/abstain-agent.sh`
+// must name the same file when the agent runs from an empty directory.
+func TestRelativeAgentCommandResolvesAgainstTheLaunchDirectory(t *testing.T) {
+	tasks := filepath.Join("testdata", "beamfall-roadmap-v1", "tasks.json")
+	configuration, err := parseRunOptions([]string{"--tasks", tasks, "--arms", "grep", "--access", "none",
+		"--agent", "script", "--agent-command", filepath.Join("testdata", "abstain-agent.sh")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, _ := filepath.Abs(filepath.Join("testdata", "abstain-agent.sh"))
+	if configuration.agentCommand != want {
+		t.Fatalf("agent command %q, want %q", configuration.agentCommand, want)
+	}
+	if runtime.GOOS == "windows" {
+		t.Skip("the abstain agent is a POSIX shell script")
+	}
+	result, err := scriptAgent{command: configuration.agentCommand}.run(context.Background(), t.TempDir(), "prompt", 30*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if claims, state := extractClaims(result.reply); len(claims) != 0 || state != "PRESENT" {
+		t.Fatalf("abstain agent replied %q (%s)", result.reply, state)
 	}
 }
