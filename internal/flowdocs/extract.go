@@ -26,7 +26,11 @@ type declaration struct {
 var rubyDef = regexp.MustCompile(`^\s*def\s+([A-Za-z_][A-Za-z0-9_!?]*(?:\.[A-Za-z_][A-Za-z0-9_!?]*)?)`)
 var rubyClass = regexp.MustCompile(`^\s*(?:class|module)\s+([A-Za-z_][A-Za-z0-9_:]*)`)
 var webDef = regexp.MustCompile(`^\s*(?:export\s+(?:default\s+)?)?(?:async\s+)?function\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*\(`)
-var webArrow = regexp.MustCompile(`^\s*(?:export\s+)?(?:const|let)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=.*=>`)
+
+// webArrow accepts an arrow function only as the direct initializer, optionally
+// wrapped in a React hook/HOC call. A member call such as messages.map(x => ...)
+// is a value, not a declaration (AFU-V1-043).
+var webArrow = regexp.MustCompile(`^\s*(?:export\s+)?(?:const|let)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*(?:(?:React\.)?(?:useCallback|useMemo|memo|forwardRef)\s*\(\s*)?(?:async\s+)?(?:<[^<>()]*>\s*)?(?:\([^()]*\)|[A-Za-z_$][A-Za-z0-9_$]*)\s*(?::[^=]*)?=>`)
 var call = regexp.MustCompile(`\b([A-Za-z_$][A-Za-z0-9_$]*)(?:[.!?])?\s*\(`)
 var rubyCall = regexp.MustCompile(`(?:^|[.;\s])([A-Za-z_][A-Za-z0-9_]*[!?]?)(?:\s|\(|$)`)
 var rubyBlock = regexp.MustCompile(`^\s*(?:class|module|def|if|unless|case|begin|while|until|for)\b|\bdo\s*(?:\|[^|]*\|)?\s*$`)
@@ -53,6 +57,18 @@ func literalAt(raw string, start int) string {
 		return ""
 	}
 	return value
+}
+
+var httpVerbs = map[string]bool{"get": true, "post": true, "put": true, "patch": true, "delete": true}
+
+// routeLiteral reports whether an HTTP-verb registration's first argument is a
+// route path ("/...") followed by a handler argument.
+func routeLiteral(raw string, start int, value string) bool {
+	if value[0] != '/' {
+		return false
+	}
+	s := strings.TrimSpace(raw[start:])
+	return strings.HasPrefix(strings.TrimSpace(s[len(value)+2:]), ",")
 }
 func extract(source contextindex.Source) ([]declaration, []string) {
 	ext := path.Ext(source.Path)
@@ -138,9 +154,15 @@ func extract(source contextindex.Source) ([]declaration, []string) {
 			}
 		} else {
 			for _, loc := range registration.FindAllStringSubmatchIndex(line, -1) {
+				verb := line[loc[2]:loc[3]]
 				value := literalAt(raw[i], loc[1])
+				if value != "" && httpVerbs[verb] && !routeLiteral(raw[i], loc[1], value) {
+					// headers.get("Content-Length") and map.get('key') are member
+					// reads, not route registrations (AFU-V1-043).
+					continue
+				}
 				if value != "" {
-					ds = append(ds, declaration{name: "binding:" + line[loc[2]:loc[3]] + ":" + value, line: i + 1, end: webExtent(code, i)})
+					ds = append(ds, declaration{name: "binding:" + verb + ":" + value, line: i + 1, end: webExtent(code, i)})
 				} else {
 					gaps = append(gaps, "computed web registration unresolved")
 				}

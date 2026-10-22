@@ -788,7 +788,7 @@ func TestFlowDocsMemberKeywordCallsAreDrift(t *testing.T) {
 }
 
 // TestFlowDocsPredecessorGeneratorManifestIsTypedStale (AFU-V1-045, V1-0461):
-// a manifest that generator version 1 wrote is refused with the typed
+// a manifest that generator version 1 or 2 wrote is refused with the typed
 // flowdocs-generator-stale code at its own unchanged revision, by Open,
 // check and generate --previous alike, instead of the generic rederivation
 // mismatch; regenerating with the current generator is clean.
@@ -799,18 +799,45 @@ func TestFlowDocsPredecessorGeneratorManifestIsTypedStale(t *testing.T) {
 		t.Fatal(e)
 	}
 	current := r.Files["generation.json"]
-	predecessor := bytes.Replace(current, []byte(`"version":"`+Version+`"`), []byte(`"version":"1"`), 1)
-	if bytes.Equal(predecessor, current) {
-		t.Fatal("fixture did not carry the generator version")
-	}
-	var coded *doccorpus.Error
-	if _, e := Open(context.Background(), root, predecessor); !errors.As(e, &coded) || coded.Code != StaleGeneratorCode {
-		t.Fatalf("Open: %v", e)
-	}
-	if _, e := CheckRevision(context.Background(), root, predecessor, rev, ""); !errors.As(e, &coded) || coded.Code != StaleGeneratorCode {
-		t.Fatalf("CheckRevision: %v", e)
+	for _, version := range []string{"1", "2"} {
+		predecessor := bytes.Replace(current, []byte(`"version":"`+Version+`"`), []byte(`"version":"`+version+`"`), 1)
+		if bytes.Equal(predecessor, current) {
+			t.Fatal("fixture did not carry the generator version")
+		}
+		var coded *doccorpus.Error
+		if _, e := Open(context.Background(), root, predecessor); !errors.As(e, &coded) || coded.Code != StaleGeneratorCode {
+			t.Fatalf("Open version %s: %v", version, e)
+		}
+		if _, e := CheckRevision(context.Background(), root, predecessor, rev, ""); !errors.As(e, &coded) || coded.Code != StaleGeneratorCode {
+			t.Fatalf("CheckRevision version %s: %v", version, e)
+		}
 	}
 	if checked, e := CheckRevision(context.Background(), root, current, rev, ""); e != nil || !checked.Clean {
 		t.Fatalf("regenerated manifest: %v %+v", e, checked)
+	}
+}
+
+// TestFlowDocsWebMemberCallsAreNotDeclarations (AFU-V1-043, V1-0461): a
+// member-call arrow (messages.map(m => ...)) and a non-route HTTP-verb member
+// read (headers.get("Content-Length")) are not flows, while direct and
+// hook-wrapped arrows and literal route registrations still are.
+func TestFlowDocsWebMemberCallsAreNotDeclarations(t *testing.T) {
+	text := "const matched = messages.map((message) => message.id);\n" +
+		"const size = response.headers.get(\"Content-Length\");\n" +
+		"const cached = store.get('session', fallback);\n" +
+		"const client = axios.get('/api/users');\n" +
+		"export const handler = async (req) => {\n  save(req);\n};\n" +
+		"const onClick = useCallback((event) => {\n  save(event);\n}, []);\n" +
+		"const single = item => item.id;\n" +
+		"app.get('/users', list);\n" +
+		"router.post(\"/login\", login);\n"
+	ds, _ := extract(contextindex.Source{Path: "app/web.ts", Data: []byte(text)})
+	got := []string{}
+	for _, d := range ds {
+		got = append(got, d.name)
+	}
+	want := []string{"binding:get:/users", "binding:post:/login", "handler", "onClick", "single"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("declarations=%v want=%v", got, want)
 	}
 }
