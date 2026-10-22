@@ -1175,6 +1175,8 @@ PRS-V1-015	docs/specs/corvint-1.0-product-and-release-v1.md	Automatic developer 
 PRS-V1-016	docs/specs/corvint-1.0-product-and-release-v1.md	Deferred post-1.0 (amendment 2026-10-21, V1-0464); not a stable 1.0 promotion	unrecorded	-
 PRS-V1-017	docs/specs/corvint-1.0-product-and-release-v1.md	The expanded capabilities MUST retain exact-candidate acceptance evidence and	unrecorded	-
 PRS-V1-018	docs/specs/corvint-1.0-product-and-release-v1.md	Stable 1.0 MUST ship five spec-driven development improvements (owner instructio	unrecorded	-
+PRS-V1-019	docs/specs/corvint-1.0-product-and-release-v1.md	The root module and `interop/cem01-go` MUST type-check (`go vet ./...`, CGO	unrecorded	-
+PRS-V1-020	docs/specs/corvint-1.0-product-and-release-v1.md	`corvint --version --json` (also after `--root PATH`) MUST print one canonical J	unrecorded	-
 CRB-V0-001	docs/specs/corvint-rebrand-v0.md	The current product display name MUST be `Corvint`, with lowercase slug `corvint	unrecorded	-
 CRB-V0-002	docs/specs/corvint-rebrand-v0.md	The root and repository-owned nested Go modules, active Go self-imports, and ope	unrecorded	-
 CRB-V0-003	docs/specs/corvint-rebrand-v0.md	The main native CLI version output MUST be `Corvint <version> (build <N>)` (amen	unrecorded	-

@@ -1,4 +1,4 @@
-//go:build !unix
+//go:build !unix || solaris
 
 package main
 
@@ -9,7 +9,8 @@ import (
 )
 
 // The ledger records only where it can verify ownership and serialise runs,
-// so a non-Unix host refuses its directory and runs every step (GL-V0-005).
+// so a non-Unix host, or Solaris without flock(2) in syscall, refuses its
+// directory and runs every step (GL-V0-005, V1-0393).
 
 func ownedByInvokingUser(os.FileInfo) bool { return false }
 
