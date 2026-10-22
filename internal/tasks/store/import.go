@@ -100,6 +100,9 @@ func importWith(ctx context.Context, repo *intent.Repository, actor mutation.Bin
 		return out, err
 	}
 	out.Planned = len(records)
+	if err = transaction.ImportMapConflicts(st.proof.Records["intent/import-map.json"].Raw, records); err != nil {
+		return out, err
+	}
 	defer func() {
 		if st.sequence != nil {
 			st.sequence.Close()
