@@ -177,6 +177,13 @@ func planPoolCleanup(c leaseContext) leaseOutcome {
 	en.ObservationSha256 = nil
 	return c.putPool(en, false, nil)
 }
+
+// MaxPoolRecoverReasonBytes bounds a `pool recover` reason, the only operator
+// text a pools.json entry reason carries (PSR-V0-202). With the longest fixed
+// prefix it keeps every written entry reason within 1 KiB, so 256 entries at
+// that length plus the PSR-V0-196 receipt cap stay under MaxPoolStateBytes.
+const MaxPoolRecoverReasonBytes = 512
+
 func planPoolRecover(c leaseContext) leaseOutcome {
 	en := c.poolEntry()
 	if en == nil {
