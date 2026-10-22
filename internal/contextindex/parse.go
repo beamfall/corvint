@@ -318,23 +318,60 @@ func parserSource(text string) []byte {
 	return unsafe.Slice(unsafe.StringData(text), len(text))
 }
 
-func goSymbols(source Source, text string) ([]Symbol, string) {
+// goSymbols' second table is the named fields of every top-level struct type
+// (TCP-V0-162). A source the grammar refuses contributes none: the scanner
+// fallback has no struct body to read.
+func goSymbols(source Source, text string) ([]Symbol, []Symbol, string) {
 	fileSet := token.NewFileSet()
 	// go/parser reports malformed input as an error rather than a panic, so no
 	// recovery wrapper is needed for totality. Object resolution is skipped: no
 	// symbol below reads a resolved identifier, only its own name and position.
 	file, err := parser.ParseFile(fileSet, "source.go", parserSource(text), parser.SkipObjectResolution)
 	if err != nil {
-		return goSymbolsScan(source, text), truncateRunes(err.Error(), 200)
+		return goSymbolsScan(source, text), nil, truncateRunes(err.Error(), 200)
 	}
 	result := make([]Symbol, 0, len(file.Decls))
+	var fields []Symbol
 	for _, declaration := range file.Decls {
 		for _, declared := range goDeclaredNames(declaration) {
 			line := fileSet.Position(declared.position).Line
 			result = append(result, Symbol{Kind: declared.kind, Name: declared.name, Path: source.Path, BlobHash: source.BlobHash, Line: line})
 		}
+		for _, declared := range goStructFieldNames(declaration) {
+			line := fileSet.Position(declared.position).Line
+			fields = append(fields, Symbol{Kind: declared.kind, Name: declared.name, Path: source.Path, BlobHash: source.BlobHash, Line: line})
+		}
 	}
-	return result, ""
+	return result, fields, ""
+}
+
+// goStructFieldNames names the fields a top-level `type T struct{...}`
+// declares by name. An embedded field names a type, not a field, and a nested
+// anonymous struct's fields are not the type's own, so neither is reported.
+func goStructFieldNames(declaration ast.Decl) []goDeclaredName {
+	group, ok := declaration.(*ast.GenDecl)
+	if !ok || group.Tok != token.TYPE {
+		return nil
+	}
+	var result []goDeclaredName
+	for _, spec := range group.Specs {
+		typed, ok := spec.(*ast.TypeSpec)
+		if !ok {
+			continue
+		}
+		structure, ok := typed.Type.(*ast.StructType)
+		if !ok || structure.Fields == nil {
+			continue
+		}
+		for _, field := range structure.Fields.List {
+			for _, name := range field.Names {
+				if name.Name != "_" {
+					result = append(result, goDeclaredName{"field", name.Name, name.Pos()})
+				}
+			}
+		}
+	}
+	return result
 }
 
 // goDeclaredName is one name a top-level declaration binds, with the position

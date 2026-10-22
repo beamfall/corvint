@@ -38,6 +38,7 @@ type blobFacts struct {
 	Terms                         map[string]uint32
 	Words                         map[string]struct{}
 	Symbols                       []Symbol
+	Fields                        []Symbol
 	Markers                       map[string][]Marker
 	Imports                       map[string]struct{}
 	Unparsed                      []Unparsed
@@ -309,6 +310,7 @@ func (index *Index) buildVocabulary() *TermTable {
 
 func (chunk *compiledSources) collectBlobFact(fact *blobFacts, imports importPolicy, text string) {
 	chunk.symbols = append(chunk.symbols, fact.Symbols...)
+	chunk.fields = append(chunk.fields, fact.Fields...)
 	chunk.notes = append(chunk.notes, fact.Notes...)
 	for key, markers := range fact.Markers {
 		chunk.markers[key] = append(chunk.markers[key], markers...)
@@ -346,7 +348,7 @@ func writeBlobShards(index *Index, store snapshotStore, engineID string) error {
 		chunk.collect(local, []string{path}, nil)
 		terms := tokeniseSource(path, source, tokeniser)
 		fact := blobFacts{Version: blobShardVersion, Engine: engineID, ObjectFormat: index.ObjectFormat, Source: source,
-			Terms: terms.terms, Words: terms.words, Symbols: chunk.symbols, Markers: chunk.markers,
+			Terms: terms.terms, Words: terms.words, Symbols: chunk.symbols, Fields: chunk.fields, Markers: chunk.markers,
 			Imports: chunk.imports[path], Unparsed: chunk.unparsed, Notes: chunk.notes, ApproximateImports: chunk.approximateImports}
 		payload, err := json.Marshal(fact)
 		if err != nil {

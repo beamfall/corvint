@@ -39,7 +39,7 @@ func containsSymbol(symbols []Symbol, key string) bool {
 // scanner's 10,180 false positives over the workspace corpus.
 func TestGoSymbolsExcludesFunctionLocalDeclarations(t *testing.T) {
 	text := "package sample\n\nvar TopLevel = 1\n\nfunc Run() {\n\tvar password string\n\tconst localLimit = 3\n\ttype localAlias = int\n\t_, _, _ = password, localLimit, localAlias(0)\n}\n"
-	symbols, refusal := goSymbols(testSource(), text)
+	symbols, _, refusal := goSymbols(testSource(), text)
 	if refusal != "" {
 		t.Fatalf("refusal = %q", refusal)
 	}
@@ -63,7 +63,7 @@ func TestGoSymbolsExcludesFunctionLocalDeclarations(t *testing.T) {
 // multi-name specs are 4,195 of its 4,333 false negatives.
 func TestGoSymbolsNamesEveryGroupMember(t *testing.T) {
 	text := "package sample\n\nconst (\n\tAlpha = 1\n\tBeta  = 2\n)\n\ntype (\n\tGamma struct{}\n\tDelta = int\n)\n\nvar Epsilon, Zeta = 3, 4\n"
-	symbols, refusal := goSymbols(testSource(), text)
+	symbols, _, refusal := goSymbols(testSource(), text)
 	if refusal != "" {
 		t.Fatalf("refusal = %q", refusal)
 	}
@@ -87,7 +87,7 @@ func TestGoSymbolsNamesEveryGroupMember(t *testing.T) {
 // package does not have.
 func TestGoSymbolsIgnoresRawStringInterior(t *testing.T) {
 	text := "package sample\n\nconst goodMarkerFile = `package inner\n\nfunc TestSample(t *testing.T) {}\n\ntype Inner struct{}\n`\n"
-	symbols, refusal := goSymbols(testSource(), text)
+	symbols, _, refusal := goSymbols(testSource(), text)
 	if refusal != "" {
 		t.Fatalf("refusal = %q", refusal)
 	}
@@ -108,7 +108,7 @@ func TestGoSymbolsIgnoresRawStringInterior(t *testing.T) {
 // opens with `[`.
 func TestGoSymbolsNamesGenericDeclarations(t *testing.T) {
 	text := "package sample\n\ntype Pair[K comparable, V any] struct{}\n\nfunc Map[T any](values []T) []T { return values }\n"
-	symbols, _ := goSymbols(testSource(), text)
+	symbols, _, _ := goSymbols(testSource(), text)
 	want := []string{"func Map:5", "type Pair:3"}
 	if got := symbolKeys(symbols); !stringSlicesEqual(got, want) {
 		t.Fatalf("goSymbols = %v, want %v", got, want)
@@ -122,7 +122,7 @@ func TestGoSymbolsNamesGenericDeclarations(t *testing.T) {
 // no counter able to observe the omission.
 func TestGoSymbolsReportsRefusalAndStaysNonEmpty(t *testing.T) {
 	broken := "package sample\n\nfunc Visible() {}\n\nfunc (\n"
-	symbols, refusal := goSymbols(testSource(), broken)
+	symbols, _, refusal := goSymbols(testSource(), broken)
 	if refusal == "" {
 		t.Fatal("unparseable source reported no refusal")
 	}

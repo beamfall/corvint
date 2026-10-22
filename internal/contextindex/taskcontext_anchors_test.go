@@ -11,7 +11,7 @@ import (
 func TestTaskContextDisclosesUnresolvedIDAnchors(t *testing.T) {
 	root := impactRepositoryWithFiles(t, map[string]string{
 		"go.mod":             "module example.test/anchors\n\ngo 1.27.0\n",
-		"main.go":            "package main\n\ntype Plan struct{ ExpectedTests []string }\n\nfunc MintToken() {}\n",
+		"main.go":            "package main\n\n// ExpectedTests is filled by a later change.\nfunc MintToken() {}\n",
 		"docs/specs/demo.md": "# Demo\n\n- `DEMO-V0-001`: MintToken mints one token.\n",
 	})
 	index, err := Build(context.Background(), root)

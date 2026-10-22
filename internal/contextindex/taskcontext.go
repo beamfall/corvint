@@ -873,7 +873,7 @@ func (compiler *taskContextCompiler) eligibleDefiners() map[string][]Symbol {
 			wanted[identifier.name] = struct{}{}
 		}
 	}
-	definers := map[string][]Symbol{}
+	definers, fields := map[string][]Symbol{}, map[string][]Symbol{}
 	if len(wanted) == 0 {
 		return definers
 	}
@@ -881,6 +881,20 @@ func (compiler *taskContextCompiler) eligibleDefiners() map[string][]Symbol {
 		if _, ok := wanted[symbol.Name]; ok {
 			definers[symbol.Name] = append(definers[symbol.Name], symbol)
 		}
+	}
+	// A struct field defines a name only when no declaration does
+	// (TCP-V0-162), so a name a declaration already defines keeps its exact
+	// definer set and rarity.
+	for _, field := range compiler.index.Fields {
+		if _, ok := wanted[field.Name]; !ok {
+			continue
+		}
+		if _, ok := definers[field.Name]; !ok {
+			fields[field.Name] = append(fields[field.Name], field)
+		}
+	}
+	for name, found := range fields {
+		definers[name] = found
 	}
 	return definers
 }

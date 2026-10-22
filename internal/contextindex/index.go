@@ -226,7 +226,12 @@ type Index struct {
 	Features, Scenarios, Documents map[string]Record
 	Markers                        map[string][]Marker
 	Symbols                        []Symbol
-	Imports                        map[string]map[string]struct{}
+	// Fields holds, in Symbols' order, the named fields of Go top-level struct
+	// types (kind "field", TCP-V0-162). They are a table of their own so that
+	// only the task-context definition slot and `context defs` read them; every
+	// other Symbols consumer keeps its declaration set.
+	Fields  []Symbol
+	Imports map[string]map[string]struct{}
 	// Unparsed lists, in path order, every admitted source whose facts were
 	// dropped. It is the denominator that makes a silent extraction loss
 	// countable.
@@ -1159,8 +1164,20 @@ func (index *Index) compileTables(imports importPolicy) {
 		}
 	}
 	index.compileSources(imports)
-	sort.Slice(index.Symbols, func(left, right int) bool {
-		a, b := index.Symbols[left], index.Symbols[right]
+	sortSymbols(index.Symbols)
+	sortSymbols(index.Fields)
+	for key := range index.Markers {
+		sort.Slice(index.Markers[key], func(left, right int) bool {
+			a, b := index.Markers[key][left], index.Markers[key][right]
+			return a.Path < b.Path || (a.Path == b.Path && (a.Line < b.Line || (a.Line == b.Line && a.Column < b.Column)))
+		})
+	}
+}
+
+// sortSymbols puts a symbol table in its canonical order.
+func sortSymbols(symbols []Symbol) {
+	sort.Slice(symbols, func(left, right int) bool {
+		a, b := symbols[left], symbols[right]
 		if a.Path != b.Path {
 			return a.Path < b.Path
 		}
@@ -1178,12 +1195,6 @@ func (index *Index) compileTables(imports importPolicy) {
 		}
 		return a.EndLine < b.EndLine
 	})
-	for key := range index.Markers {
-		sort.Slice(index.Markers[key], func(left, right int) bool {
-			a, b := index.Markers[key][left], index.Markers[key][right]
-			return a.Path < b.Path || (a.Path == b.Path && (a.Line < b.Line || (a.Line == b.Line && a.Column < b.Column)))
-		})
-	}
 }
 
 // sourcesPerWorker is how many sources have to be waiting before a second
@@ -1193,6 +1204,7 @@ const sourcesPerWorker = 128
 type compiledSources struct {
 	documents          []Record
 	symbols            []Symbol
+	fields             []Symbol
 	notes              []ExtractionNote
 	markers            map[string][]Marker
 	imports            map[string]map[string]struct{}
@@ -1233,6 +1245,7 @@ func (index *Index) compileSources(imports importPolicy) {
 			index.Documents[document.ID] = document
 		}
 		index.Symbols = append(index.Symbols, chunk.symbols...)
+		index.Fields = append(index.Fields, chunk.fields...)
 		index.ExtractionNotes = append(index.ExtractionNotes, chunk.notes...)
 		for key, markers := range chunk.markers {
 			index.Markers[key] = append(index.Markers[key], markers...)
@@ -1305,8 +1318,9 @@ func (chunk *compiledSources) collect(index *Index, paths []string, imports impo
 			continue
 		}
 		if strings.HasSuffix(source.Path, ".go") {
-			symbols, refusal := goSymbols(source, text)
+			symbols, fields, refusal := goSymbols(source, text)
 			chunk.symbols = append(chunk.symbols, symbols...)
+			chunk.fields = append(chunk.fields, fields...)
 			if refusal != "" {
 				chunk.unparsed = append(chunk.unparsed, Unparsed{Path: source.Path, BlobHash: source.BlobHash, Facts: "symbols", Reason: UnparsedGoGrammar, Detail: refusal})
 			}

@@ -172,6 +172,16 @@ func priorFacts(index *Index) (map[string]*blobFacts, error) {
 		}
 		fact.Symbols = append(fact.Symbols, symbol)
 	}
+	for _, field := range index.Fields {
+		fact := facts[field.Path]
+		if fact == nil {
+			return nil, missing
+		}
+		if field.BlobHash != fact.Source.BlobHash {
+			return nil, unbound
+		}
+		fact.Fields = append(fact.Fields, field)
+	}
 	for key, markers := range index.Markers {
 		for _, marker := range markers {
 			fact := facts[marker.Path]
