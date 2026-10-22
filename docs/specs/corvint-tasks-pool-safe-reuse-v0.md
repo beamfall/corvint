@@ -833,7 +833,7 @@ Bounded acquire calls (PSR-V0-110..116; V1-1617, issue 1010 follow-up, issue 106
 
 Bounded complete audit (PSR-V0-150..153; V1-1626, issue 1063): the focused store and CLI tests named in that subsection and in Traceability (PSR-V0-150..153); the 47,000-receipt harness runs before and after the change on a loaded 12-CPU host are in the build log; quiet-host and Linux qualification NOT_RUN.
 
-Allocated changedSeq (PSR-V0-013; V1-0895): when a live attempt takes a PREPARING member to ALLOCATED, the member records that receipt's sequence as `changedSeq`, the last pool-state change that `pool status` reports. `TestPSRV0013_PreparedAllocationAdvancesChangedSeq` (`internal/tasks/transaction`) failed before the fix, with changedSeq 3 where 7 was expected. Receipts already written keep the sequence they recorded, and nothing is migrated. Rollback: revert the commit.
+Allocated changedSeq (PSR-V0-013; V1-0895): when a live attempt takes a PREPARING member to ALLOCATED, the member records that receipt's sequence as `changedSeq`, the last pool-state change that `pool status` reports. `TestPSRV0013_PreparedAllocationAdvancesChangedSeq` (`internal/tasks/transaction`) failed before the fix, with changedSeq 3 where 7 was expected. Through the CLI, `TestPSRV0013_PoolStatusAllocatedAfterPreparing` (`internal/tasks/cli`) claims a health-checked member, which takes a PREPARING receipt and then the ALLOCATED one, and `pool status` reports the second receipt's sequence; with the fix reverted it reports the PREPARING receipt (3 where 4 was expected). Receipts already written keep the sequence they recorded, and nothing is migrated. Rollback: revert the commit.
 
 ## Non-goals and simpler baseline
 

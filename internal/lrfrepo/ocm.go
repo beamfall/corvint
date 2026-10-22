@@ -1337,3 +1337,16 @@ func gitBoundReached(err error) bool {
 	}
 	return false
 }
+
+// MaxIntentBytes is the largest intent blob `ocm prepare` reads.
+const MaxIntentBytes = maxOCMBlob
+
+// IntentRequirementsRefusal returns the `ocm prepare` refusal code for an
+// intent's numbered Requirements section, or "" when it would be admitted, so
+// enrollment can refuse it before any workflow state exists (LCP-V0-037).
+func IntentRequirementsRefusal(data []byte) string {
+	if _, _, _, err := requirementsFromBlob("", "", data); err != nil {
+		return CodeOf(err)
+	}
+	return ""
+}

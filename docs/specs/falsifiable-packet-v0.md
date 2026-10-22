@@ -546,7 +546,7 @@ above stands with that substitution.
   `internal/contextindex/index.go:211@1e49fe84`, `internal/contextindex/index.go:508-510@02852e4a`); a mismatch is refused under FPK-V0-024 as
   `object-format-mismatch`. This is decided after `Build`, not before every `cat-file` call in the
   run: `Build` itself reads blobs through `cat-file --batch` while pinning sources
-  (`internal/contextindex/git.go:592-602@875d1117`, `internal/contextindex/index.go:489-491@16cf1c1f`, `internal/contextindex/index.go:1534-1536@b9840036`), so `Index.ObjectFormat`
+  (`internal/contextindex/git.go:592-602@875d1117`, `internal/contextindex/index.go:489-491@16cf1c1f`, `internal/contextindex/index.go:1543-1545@b9840036`), so `Index.ObjectFormat`
   is not known until that call has already made its own `cat-file` calls. It is the unframable
   class one level up: as an LF-bearing path cannot
   be framed for Git at all, a document whose `blob_hash` values were computed under another object
@@ -751,7 +751,7 @@ above stands with that substitution.
   blobs
   through `git cat-file --batch` while pinning sources (`fetchBlobs`,
   `internal/contextindex/git.go:592-602@875d1117`,
-  called from `pinCandidates`/`readResidualBlobs`, `internal/contextindex/index.go:489-491@16cf1c1f`, `internal/contextindex/index.go:1534-1536@b9840036`), so `Build` (case
+  called from `pinCandidates`/`readResidualBlobs`, `internal/contextindex/index.go:489-491@16cf1c1f`, `internal/contextindex/index.go:1543-1545@b9840036`), so `Build` (case
   10) necessarily runs, and necessarily calls `cat-file`, before `Index.ObjectFormat` is even known
   to compare; (12) the `cat-file --batch` stream fails or passes its 64 MiB
   bound — `unsupported-prove-history` (`cmd/corvint/prove.go:1821-1828@a1df6715`); (13) the read bracket drifts,

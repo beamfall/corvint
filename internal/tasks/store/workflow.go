@@ -67,17 +67,17 @@ func (w *Workflow) requestID() string {
 }
 func (w *Workflow) persist(phase string) error { return w.persistFenced(phase, false) }
 
+// programWriteHook runs after a workflow composes a program phase record and
+// before its native transition; tests record a control there (V1-0831).
+var programWriteHook = func() {}
+
 // persistFenced is persist that, when fenced, refuses while a control is
 // pending and then reloads the recorded program (CAL-V0-089).
+// The recorded control is kept under the writer lock (ATR-V0-240).
 func (w *Workflow) persistFenced(phase string, fenced bool) error {
-	entries, _ := ProgramRecords(context.Background(), w.repo)
-	for _, p := range entries {
-		if p.ID == w.program.ID {
-			w.program.Control = p.Control
-		}
-	}
 	w.program.Phase = phase
-	r, e := programTransition(context.Background(), w.repo, w.actor, w.queue.QueueID.Raw, w.requestID(), w.program, fenced)
+	programWriteHook()
+	r, e := programTransition(context.Background(), w.repo, w.actor, w.queue.QueueID.Raw, w.requestID(), w.program, fenced, true)
 	if e = transitionOK(r, e); e != nil && fenced {
 		entries, _ := ProgramRecords(context.Background(), w.repo)
 		for _, p := range entries {
@@ -517,12 +517,6 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 		if phase == "SPAWNING" {
 			return nil
 		}
-		entries, _ := ProgramRecords(context.Background(), w.repo)
-		for _, p := range entries {
-			if p.ID == w.program.ID {
-				w.program.Control = p.Control
-			}
-		}
 		w.program.Phase = phase
 
 		if boot.PID > 0 {
@@ -551,7 +545,8 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 				w.program.Quiescence = "PROVED"
 			}
 		}
-		r, e := ProgramTransition(context.Background(), w.repo, w.actor, w.queue.QueueID.Raw, w.requestID(), w.program, output)
+		// The recorded control is kept under the writer lock (ATR-V0-240).
+		r, e := programTransition(context.Background(), w.repo, w.actor, w.queue.QueueID.Raw, w.requestID(), w.program, false, true, output)
 		if e = transitionOK(r, e); e != nil {
 			entries, _ := ProgramRecords(context.Background(), w.repo)
 			for _, p := range entries {

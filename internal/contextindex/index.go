@@ -1068,11 +1068,20 @@ func queryIndex(root string, identity repositoryIdentity, statusSHA256 string, s
 // query profile ranks out of: it is the same walk with the whole-repository
 // import extraction removed, replaced afterwards by the bounded marker-test
 // extraction featureImplementationCandidates is the only consumer of.
+// compile derives every table from the pinned sources. The vocabulary reads
+// only Sources and the reuse inputs (blobFacts, priorVocabulary), none of
+// which the per-source tables or the symbol windows write, so it is built
+// beside them; the identifier graph needs both and runs last. Each phase is
+// the same function over the same inputs as when they ran one after another,
+// so the tables are unchanged (GPK-V0-088).
 func (index *Index) compile() {
+	vocabulary := make(chan *TermTable, 1)
+	go func() { vocabulary <- index.buildVocabulary() }()
 	index.compileTables(nil)
 	index.sortUnparsed()
-	index.Vocabulary = index.buildVocabulary()
-	index.Vocabulary.SymbolWindows = index.buildSymbolWindows()
+	windows := index.buildSymbolWindows()
+	index.Vocabulary = <-vocabulary
+	index.Vocabulary.SymbolWindows = windows
 	index.Vocabulary.IdentGraph = index.buildIdentGraph(index.Vocabulary)
 }
 

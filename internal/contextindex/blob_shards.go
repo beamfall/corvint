@@ -302,9 +302,9 @@ func (index *Index) buildVocabulary() *TermTable {
 		}
 		perSource[i] = tokeniseSource(path, index.Sources[path], tokeniser)
 	}
-	return &TermTable{Paths: paths, Terms: invertCounts(perSource),
-		Words:     invertPresence(perSource, func(s sourceTerms) map[string]struct{} { return s.words }),
-		PathTerms: invertPresence(perSource, func(s sourceTerms) map[string]struct{} { return stringSetOf(s.pathTerms) })}
+	table := &TermTable{Paths: paths}
+	table.Terms, table.Words, table.PathTerms = invertSourceTerms(perSource)
+	return table
 }
 
 func (chunk *compiledSources) collectBlobFact(fact *blobFacts, imports importPolicy, text string) {

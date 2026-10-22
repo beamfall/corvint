@@ -58,6 +58,8 @@ AFP-V0-097	docs/specs/affected-plan-v0.md	(decided by the orchestrator under own
 AFP-V0-098	docs/specs/affected-plan-v0.md	(decided by the orchestrator under owner delegation (owner chat, 2026-10-20;	unrecorded	-
 AFP-V0-099	docs/specs/affected-plan-v0.md	(decided by the orchestrator under owner delegation (owner chat, 2026-10-20;	unrecorded	-
 AFP-V0-046	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1360) A	standing	2026-10-11; V1-1360
+AFP-V0-170	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2271) The	standing	2026-10-11; V1-2271
+AFP-V0-171	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1847) When	standing	2026-10-11; V1-1847
 AFP-V0-047	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0811) The	standing	2026-10-11; V1-0811
 AFP-V0-048	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1361) A	standing	2026-10-11; V1-1361
 AFP-V0-049	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1371)	standing	2026-10-11; V1-1371
@@ -88,6 +90,12 @@ AFP-V0-356	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-156	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2162))	standing	2026-10-11; V1-2162
 AFP-V0-162	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2256, V1-2252))	standing	2026-10-11; V1-2256; V1-2252
 AFP-V0-196	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2071))	standing	2026-10-11; V1-2071
+AFP-V0-181	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) The Pyth	standing	2026-10-11; V1-2050
+AFP-V0-182	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) Import	standing	2026-10-11; V1-2050
+AFP-V0-183	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) Each nam	standing	2026-10-11; V1-2050
+AFP-V0-184	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) A relati	standing	2026-10-11; V1-2050
+AFP-V0-185	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) What sou	standing	2026-10-11; V1-2050
+AFP-V0-186	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) On the	standing	2026-10-11; V1-2050
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
 AHI-003	docs/specs/agent-harness-integration-v0.md	On session/task start, the adapter MUST resolve repository identity, exact Git	unrecorded	-
@@ -1559,6 +1567,8 @@ ATR-V0-192	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the own
 ATR-V0-210	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1321) When a t	standing	2026-10-11; V1-1321
 ATR-V0-211	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1321) Every cl	standing	2026-10-11; V1-1321
 ATR-V0-212	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1237, V1-1441)	standing	2026-10-11; V1-1237; V1-1441
+ATR-V0-240	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0831) A progra	standing	2026-10-11; V1-0831
+ATR-V0-241	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0775) Recorded	standing	2026-10-11; V1-0775
 TCD-V0-001	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]` is a	unrecorded	-
 TCD-V0-002	docs/specs/corvint-tasks-closeout-debt-v0.md	The verb reads Git only through `git rev-parse --verify`, `git config --get	unrecorded	-
 TCD-V0-003	docs/specs/corvint-tasks-closeout-debt-v0.md	The scan covers every commit reachable from the ref and not from `--since`, newe	unrecorded	-
@@ -2090,6 +2100,7 @@ DCW-V0-332	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane
 DCW-V0-112	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1760) A passing `dogfood ch	owner	2026-10-11; V1-1760
 DCW-V0-113	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-2266) A lane stacked on a	owner	2026-10-11; V1-2266
 DCW-V0-114	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1724) When `cem cite` refus	owner	2026-10-11; V1-1724
+DCW-V0-117	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2267) Before a	standing	2026-10-11; V1-2267
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
 DNG-V0-002	docs/specs/decision-number-gate-v0.md	When no file in `docs/decisions/` matches that pattern, the gate MUST exit 0	unrecorded	-
 DNG-V0-003	docs/specs/decision-number-gate-v0.md	The gate MUST derive each matched file's decision number as the first four	unrecorded	-
@@ -2806,6 +2817,7 @@ GPK-V0-050	docs/specs/go-production-kernel-migration-v0.md	`corvint record` and 
 GPK-V0-018	docs/specs/go-production-kernel-migration-v0.md	Public Go artifacts MUST be `CGO_ENABLED=0`, built from one exact clean Git comm	unrecorded	-
 GPK-V0-057	docs/specs/go-production-kernel-migration-v0.md	A target is shipped only after its native conformance, filesystem-safety,	unrecorded	-
 GPK-V0-019	docs/specs/go-production-kernel-migration-v0.md	The existing Python wheel integrity contract remains binding while a wheel ships	unrecorded	-
+GPK-V0-088	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-21, standing auto-accept; V1-2285) The index build MAY run an	standing	2026-10-21; V1-2285
 GPK-V0-033	docs/specs/go-production-kernel-migration-v0.md	The frozen spec, not the Python implementation, is the conformance authority.	unrecorded	-
 GPK-V0-034	docs/specs/go-production-kernel-migration-v0.md	Every adjudication under `GPK-V0-033` MUST be recorded in	unrecorded	-
 GPK-V0-035	docs/specs/go-production-kernel-migration-v0.md	Known-divergent cases MUST NOT accumulate unexamined. Every one carries an	unrecorded	-
@@ -3257,6 +3269,8 @@ LCP-V0-032	docs/specs/local-completion-policy-v0.md	(accepted, owner lane auto-a
 LCP-V0-033	docs/specs/local-completion-policy-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1524, V1-2144) A dogfood	owner	2026-10-11; V1-1524; V1-2144
 LCP-V0-034	docs/specs/local-completion-policy-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1976) A dogfood event whose	owner	2026-10-11; V1-1976
 LCP-V0-035	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2276) A prompt	standing	2026-10-11; V1-2276
+LCP-V0-036	docs/specs/local-completion-policy-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1757) Every base-ancestry	owner	2026-10-11; V1-1757
+LCP-V0-037	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0680)	standing	2026-10-11; V1-0680
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	Every displayed metric and source-derived value MUST derive through the compiled	unrecorded	-
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained	unrecorded	-
 LOD-V0-003	docs/specs/local-observability-dashboard-v0.md	P0 MUST produce byte-identical CLI snapshots for identical frozen inputs and the	unrecorded	-
@@ -3308,6 +3322,7 @@ LTPM-V0-013	docs/specs/local-trace-producer-migration-v0.md	`record` MUST accept
 LTPM-V0-014	docs/specs/local-trace-producer-migration-v0.md	All ordinary trace consumers MUST admit validated mixed v1/v2 revision files	unrecorded	-
 LTPM-V0-015	docs/specs/local-trace-producer-migration-v0.md	(owner-selected design 2026-10-04, decision 0429; requirement text accepted 2026	owner	2026-10-04; decision 0429; decision 0430
 LTPM-V0-016	docs/specs/local-trace-producer-migration-v0.md	(owner-selected design 2026-10-04, decision 0429; requirement text accepted 2026	owner	2026-10-04; decision 0429; decision 0430
+LTPM-V0-017	docs/specs/local-trace-producer-migration-v0.md	(accepted 2026-10-21 under the owner's standing lane auto-accept of 2026-10-11;	standing	2026-10-21; 2026-10-11; V1-2272
 LEC-V0-001	docs/specs/lsp-editor-context-v0.md	Only explicit `corvint/context` MUST be added. Initialization MUST expose `exper	unrecorded	-
 LEC-V0-002	docs/specs/lsp-editor-context-v0.md	Params MUST be the closed object `{textDocument:{uri},task,limit}`; recursively	unrecorded	-
 LEC-V0-003	docs/specs/lsp-editor-context-v0.md	Success MUST contain schema `corvint-editor-context/0`, intact validated `Result	unrecorded	-
@@ -3772,6 +3787,7 @@ PMC-V0-006	docs/specs/postmerge-connectors-v0.md	The separately qualified client
 PMC-V0-007	docs/specs/postmerge-connectors-v0.md	Publish distinct tracker and forge reference connectors and a conformance kit.	unrecorded	-
 PMC-V0-008	docs/specs/postmerge-connectors-v0.md	Each connector declares minimum scopes; local references require none.	unrecorded	-
 PMC-V0-009	docs/specs/postmerge-connectors-v0.md	Reject unknown JSON fields, duplicate keys, oversized inputs, malformed identiti	unrecorded	-
+PMC-V0-010	docs/specs/postmerge-connectors-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-2259) Before reading the	owner	2026-10-11; V1-2259
 PMM-V0-001	docs/specs/postmerge-metrics-v0.md	Validate closed JSON policy and history envelopes, duplicate keys, trailing valu	unrecorded	-
 PMM-V0-002	docs/specs/postmerge-metrics-v0.md	Retain each stage outcome and duration, follow-up creation latency or explicit n	unrecorded	-
 PMM-V0-003	docs/specs/postmerge-metrics-v0.md	Report per-class window cohort totals, distinct corrected generated-run numerato	unrecorded	-
@@ -3779,6 +3795,7 @@ PMM-V0-004	docs/specs/postmerge-metrics-v0.md	Process full retained eligible run
 PMM-V0-005	docs/specs/postmerge-metrics-v0.md	Validate contiguous per-class sequence inventories starting at 1 and independent	unrecorded	-
 PMM-V0-006	docs/specs/postmerge-metrics-v0.md	Produce byte-identical reports from the same validated policy, records, immutabl	unrecorded	-
 PMM-V0-007	docs/specs/postmerge-metrics-v0.md	Expose `corvint-postmerge-metrics report --policy FILE --records FILE --from UTC	unrecorded	-
+PMM-V0-008	docs/specs/postmerge-metrics-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-2259) Before asking	owner	2026-10-11; V1-2259
 PMR-V0-001	docs/specs/postmerge-replay-v0.md	Decode a bounded closed fixture containing immutable connector identity and	unrecorded	-
 PMR-V0-002	docs/specs/postmerge-replay-v0.md	Use a separate host-owned policy to pin the connector binding, executable bytes,	unrecorded	-
 PMR-V0-003	docs/specs/postmerge-replay-v0.md	Admit human labels only when one separate pinned registry entry matches full imm	unrecorded	-

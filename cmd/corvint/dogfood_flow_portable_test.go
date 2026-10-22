@@ -332,9 +332,9 @@ func TestDogfoodChangeRegeneratesAMapTheNextFixCommitOutdates(t *testing.T) {
 	}
 }
 
-// DCW-V0-019: cem cite only adds evidence, so a corrected plan joins the resumed
-// map's earlier citations; the pass names the delete-and-rerun step, which
-// leaves only the corrected plan's citation.
+// DCW-V0-019, DCW-V0-117: cem cite only adds evidence, so a corrected plan that
+// would join the resumed map's earlier citation is refused before any cite and
+// names the delete-and-rerun step, which leaves only the corrected citation.
 func TestDogfoodChangeNamesDeleteWhenACorrectedPlanJoinsEarlierCitations(t *testing.T) {
 	t.Parallel()
 	run := portableDogfoodRunner(t)
@@ -364,7 +364,9 @@ func TestDogfoodChangeNamesDeleteWhenACorrectedPlanJoinsEarlierCitations(t *test
 	if stderr, evidence := pass("1\tintent.md\t1:5\tspecification\n"); strings.Contains(stderr, note) || evidence != 1 {
 		t.Fatalf("first plan evidence=%d stderr=%s", evidence, stderr)
 	}
-	if stderr, evidence := pass("1\tintent.md\t1:3\tspecification\n"); !strings.Contains(stderr, note) || evidence != 2 {
+	// DCW-V0-117 (V1-2267): the corrected plan is refused before any cite, so
+	// the uncommitted map keeps only the first plan's citation.
+	if stderr, evidence := pass("1\tintent.md\t1:3\tspecification\n"); strings.Contains(stderr, note) || !strings.Contains(stderr, "\n  cem-cite: citation-plan-recites-cited-hunk\n    fix: plan row 1 would change hunk ") || evidence != 1 {
 		t.Fatalf("corrected plan evidence=%d stderr=%s", evidence, stderr)
 	}
 	if err := os.Remove(filepath.Join(root, ".corvint/change.cem.json")); err != nil {

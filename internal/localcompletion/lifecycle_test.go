@@ -227,10 +227,43 @@ func TestRefusedEnrollmentConsumesNoGeneration(t *testing.T) {
 	})
 }
 
+func TestEnrollmentRefusesIntentWithoutNumberedRequirements_LCPV0037(t *testing.T) {
+	for _, test := range []struct{ name, body, code string }{
+		{"no section", "# Decision\n\nNo numbered requirements.\n", "invalid-requirements-section"},
+		{"no IDs", "# Intent\n\n## Requirements\n\n- prose only\n", "missing-requirements"},
+		{"duplicate ID", "# Intent\n\n## Requirements\n\n- `DUP-001`: a.\n- `DUP-001`: b.\n", "duplicate-requirement"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root, key, plan := fixture(t, []string{"true"})
+			valid, _ := json.Marshal(plan)
+			if err := os.WriteFile(filepath.Join(root, "decision.md"), []byte(test.body), 0600); err != nil {
+				t.Fatal(err)
+			}
+			localGit(t, root, "add", "decision.md")
+			localGit(t, root, "commit", "-qm", "decision")
+			plan.Intents = []string{"decision.md"}
+			refused, _ := json.Marshal(plan)
+			// Refused before plan.json creates a generation directory, so the
+			// generation bound and the session lifecycle are untouched.
+			for attempt := 0; attempt < 16; attempt++ {
+				if _, err := Begin(context.Background(), root, key, refused); err == nil || err.Error() != test.code {
+					t.Fatalf("begin attempt %d: %v, want %s", attempt, err, test.code)
+				}
+			}
+			if _, err := os.Stat(filepath.Join(root, ".git/corvint/local-completion", key, "state.json")); !os.IsNotExist(err) {
+				t.Fatal("refused enrollment recorded state.json")
+			}
+			if _, err := Begin(context.Background(), root, key, valid); err != nil {
+				t.Fatalf("valid begin after refusals: %v", err)
+			}
+		})
+	}
+}
+
 func TestEnrollmentPinsSameChangeIntentAtHead(t *testing.T) {
 	t.Run("LCP-V0-002 intent absent from base resolves at enrollment HEAD", func(t *testing.T) {
 		root, key, plan := fixture(t, []string{"true"})
-		if err := os.WriteFile(filepath.Join(root, "proposed.md"), []byte("# Proposed\n"), 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(root, "proposed.md"), []byte("# Proposed\n\n## Requirements\n\n- `PROPOSED-001`: preserve behavior.\n"), 0600); err != nil {
 			t.Fatal(err)
 		}
 		localGit(t, root, "add", "proposed.md")
@@ -797,4 +830,60 @@ func TestScreenedCheckLogKeepsFailureLines(t *testing.T) {
 			t.Fatalf("over-long name kept: %#v", got)
 		}
 	})
+}
+
+func TestAncestryRewrittenCheckoutRefusesBaseProbe(t *testing.T) {
+	rewrites := map[string]func(t *testing.T, root string){
+		"grafts": func(t *testing.T, root string) {
+			head := strings.TrimSpace(localGit(t, root, "rev-parse", "HEAD"))
+			if err := os.MkdirAll(filepath.Join(root, ".git/info"), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(root, ".git/info/grafts"), []byte(head+"\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		},
+		"shallow": func(t *testing.T, root string) {
+			head := strings.TrimSpace(localGit(t, root, "rev-parse", "HEAD"))
+			if err := os.WriteFile(filepath.Join(root, ".git/shallow"), []byte(head+"\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		},
+	}
+	for name, rewrite := range rewrites {
+		t.Run("LCP-V0-036 begin refuses "+name, func(t *testing.T) {
+			root, key, plan := fixture(t, []string{"true"})
+			rewrite(t, root)
+			raw, _ := json.Marshal(plan)
+			if _, err := Begin(context.Background(), root, key, raw); err == nil || err.Error() != "ancestry-rewritten" {
+				t.Fatalf("begin: %v, want ancestry-rewritten", err)
+			}
+			if _, err := os.Stat(filepath.Join(root, ".git/corvint/local-completion", key, "state.json")); !os.IsNotExist(err) {
+				t.Fatalf("refused enrollment recorded state.json: %v", err)
+			}
+		})
+		t.Run("LCP-V0-036 status and finish refuse "+name+" after begin", func(t *testing.T) {
+			root, key, plan := fixture(t, []string{"true"})
+			beginFixture(t, root, key, plan)
+			rewrite(t, root)
+			statePath := filepath.Join(root, ".git/corvint/local-completion", key, "state.json")
+			before, err := os.ReadFile(statePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Evaluate(context.Background(), root, key); err == nil || err.Error() != "ancestry-rewritten" {
+				t.Fatalf("status: %v, want ancestry-rewritten", err)
+			}
+			if result, err := Finish(context.Background(), root, key, nil); err == nil || err.Error() != "ancestry-rewritten" || result.Satisfied {
+				t.Fatalf("finish: %#v %v, want ancestry-rewritten", result, err)
+			}
+			after, err := os.ReadFile(statePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(before) != string(after) {
+				t.Fatal("finish wrote local state in a rewritten-ancestry checkout")
+			}
+		})
+	}
 }

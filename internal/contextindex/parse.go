@@ -12,6 +12,7 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+	"unsafe"
 )
 
 var (
@@ -308,12 +309,21 @@ func documentRecord(source Source, text string, sources map[string]Source) (Reco
 // caller, which records it in Index.Unparsed, and goSymbolsScan runs as the
 // lossy fallback so a source that does not compile still contributes the
 // symbols a scanner can see rather than none at all.
+// parserSource hands go/parser a read-only byte view of text. Given a string,
+// ParseFile copies the whole body into a fresh slice before it scans even the
+// import block; those copies were 2.4% of an index build's CPU. The scanner
+// only reads its source, so the view parses exactly the same bytes
+// (GPK-V0-088).
+func parserSource(text string) []byte {
+	return unsafe.Slice(unsafe.StringData(text), len(text))
+}
+
 func goSymbols(source Source, text string) ([]Symbol, string) {
 	fileSet := token.NewFileSet()
 	// go/parser reports malformed input as an error rather than a panic, so no
 	// recovery wrapper is needed for totality. Object resolution is skipped: no
 	// symbol below reads a resolved identifier, only its own name and position.
-	file, err := parser.ParseFile(fileSet, "source.go", text, parser.SkipObjectResolution)
+	file, err := parser.ParseFile(fileSet, "source.go", parserSource(text), parser.SkipObjectResolution)
 	if err != nil {
 		return goSymbolsScan(source, text), truncateRunes(err.Error(), 200)
 	}
@@ -578,7 +588,7 @@ func goImports(text string) (map[string]struct{}, string) {
 	// paths carrying escapes.
 	// go/parser accepts arbitrary bytes and reports malformed input as an error
 	// rather than a panic, so no recovery wrapper is needed for totality.
-	file, err := parser.ParseFile(token.NewFileSet(), "source.go", text, parser.ImportsOnly)
+	file, err := parser.ParseFile(token.NewFileSet(), "source.go", parserSource(text), parser.ImportsOnly)
 	refusal := ""
 	if err != nil {
 		refusal = truncateRunes(err.Error(), 200)
