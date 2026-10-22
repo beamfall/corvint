@@ -14,8 +14,8 @@ arm64, Go 1.27.1, at `01b6804`); the worked example at the end is that run.
   nothing keeps running between triggers. The 1.0 Core scope accepted by decision 0373
   (`docs/decisions/0373-corvint-1.0-scope-ratified-2026-09-23.md`) defines the Core loop as one
   native Go binary with no account, network, hosted service, database service, embeddings or daemon
-  (`docs/specs/corvint-1.0-product-and-release-v1.md:75@efcd3ea7`) and rejects a permanent daemon in the
-  default binary (`docs/specs/corvint-1.0-product-and-release-v1.md:191@b7b9e11e`). Decision 0081
+  (`docs/specs/corvint-1.0-product-and-release-v1.md:86@efcd3ea7`) and rejects a permanent daemon in the
+  default binary (`docs/specs/corvint-1.0-product-and-release-v1.md:202@b7b9e11e`). Decision 0081
   (`docs/decisions/0081-local-admin-console-accepted-2026-09-07.md:24-31@4e183223`) keeps even the optional
   console operator-started, foreground only, loopback only, with no service and no durable state.
   The trigger, its schedule, its runner and its retention belong to the automation host, not to
