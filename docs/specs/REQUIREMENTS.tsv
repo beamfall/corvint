@@ -1656,6 +1656,11 @@ TCD-V0-165	docs/specs/corvint-tasks-closeout-debt-v0.md	A `gate run` that execut
 TCD-V0-166	docs/specs/corvint-tasks-closeout-debt-v0.md	Every executed command gate result retains its full captured output, within the	unrecorded	-
 TCD-V0-167	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2303) A ref	standing	2026-10-11; V1-2303
 TCD-V0-168	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2303) When the	standing	2026-10-11; V1-2303
+TCD-V0-169	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket batch-close --pr N --prs FILE --runs FILE [--repo OWNER/NA	unrecorded	-
+TCD-V0-170	docs/specs/corvint-tasks-closeout-debt-v0.md	`ticket delivery-screen` reads the store before PR evidence. A COMPLETED ticket'	unrecorded	-
+TCD-V0-171	docs/specs/corvint-tasks-closeout-debt-v0.md	`--prs -` reads the PR export from stdin, in `delivery-screen`, `batch-delivered	unrecorded	-
+TCD-V0-172	docs/specs/corvint-tasks-closeout-debt-v0.md	`ticket note set` takes several leading ticket ids or local tokens with one	unrecorded	-
+TCD-V0-173	docs/specs/corvint-tasks-closeout-debt-v0.md	`ticket hold` takes `--target` more than once with one `holdId` and reason. Each	unrecorded	-
 TDR-V0-001	docs/specs/corvint-tasks-defect-register-v0.md	Policy MAY declare `defects` as a closed object with optional `prefix` (matching	unrecorded	-
 TDR-V0-002	docs/specs/corvint-tasks-defect-register-v0.md	Each entry has `id` (`PREFIX-N`), `title`, `location`, `evidence`, `severity`	unrecorded	-
 TDR-V0-003	docs/specs/corvint-tasks-defect-register-v0.md	`status` is `SUSPECTED` (default), `CONFIRMED`, `NOT_A_BUG` or `DUPLICATE`;	unrecorded	-
@@ -2046,6 +2051,10 @@ CTS-V0-010	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's
 CTS-V0-011	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0758) `ADOPT_F	standing	2026-10-11; V1-0758
 CTS-V0-012	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2143) `ticket	standing	2026-10-11; V1-2143
 CTS-V0-013	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1660) A checko	standing	2026-10-11; V1-1660
+CTS-V0-014	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0398) `init` o	standing	2026-10-11; V1-0398
+CTS-V0-015	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0398) `init` M	standing	2026-10-11; V1-0398
+CTS-V0-016	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0398) After ge	standing	2026-10-11; V1-0398
+CTS-V0-017	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0398) `import`	standing	2026-10-11; V1-0398
 TWT-V0-001	docs/specs/corvint-tasks-ticket-worktrees-v0.md	Policy MAY declare `worktrees` as a closed object `{repository, base,	unrecorded	-
 TWT-V0-002	docs/specs/corvint-tasks-ticket-worktrees-v0.md	The ticket branch is `branchPattern` with `{ticket}` replaced by the ticket's lo	unrecorded	-
 TWT-V0-003	docs/specs/corvint-tasks-ticket-worktrees-v0.md	When the branch is already checked out in a worktree, ensure returns that worktr	unrecorded	-

@@ -37,6 +37,15 @@ func noteWrite(env Env, cmd []string, operation string, args []string) *wire.Res
 	if len(args) == 0 || strings.HasPrefix(args[0], "--") {
 		return usage(cmd, "the first argument is the ticket id or local token")
 	}
+	// note set takes several leading ticket arguments (TCD-V0-172).
+	n := 1
+	for n < len(args) && !strings.HasPrefix(args[n], "--") {
+		n++
+	}
+	targets := args[:n]
+	if len(targets) > 1 && operation != mutation.OpNoteSet {
+		return usage(cmd, "only ticket note set takes several ticket ids")
+	}
 	f := mutateFlags{role: "OWNER", target: args[0]}
 	var text, supersedes string
 	textFromStdin := false
@@ -47,7 +56,7 @@ func noteWrite(env Env, cmd []string, operation string, args []string) *wire.Res
 	if operation == mutation.OpNoteSet {
 		set["--text"] = &text
 	}
-	rest := args[1:]
+	rest := args[n:]
 	for i := 0; i < len(rest); i++ {
 		if rest[i] == "--text-stdin" && operation == mutation.OpNoteSet {
 			textFromStdin = true
@@ -65,6 +74,9 @@ func noteWrite(env Env, cmd []string, operation string, args []string) *wire.Res
 	}
 	if f.requestID == "" {
 		return usage(cmd, "--request-id is required: it is the idempotency key of this mutation")
+	}
+	if len(targets) > 1 && (supersedes != "" || f.expected != "") {
+		return usage(cmd, "--supersedes and --expected-revision name one ticket's note: a multi-target note set is unconditional")
 	}
 	if operation == mutation.OpNoteSet {
 		if (text != "") == textFromStdin {
@@ -90,6 +102,9 @@ func noteWrite(env Env, cmd []string, operation string, args []string) *wire.Res
 		payload.Set("supersedes", wire.Null())
 	} else {
 		payload.Set("supersedes", wire.String(supersedes))
+	}
+	if len(targets) > 1 {
+		return multiTargetSubmit(env, cmd, operation, actor, f, targets, wire.ObjectValue(payload), false)
 	}
 	return submitMutation(env, cmd, operation, actor, f, wire.ObjectValue(payload))
 }

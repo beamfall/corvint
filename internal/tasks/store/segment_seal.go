@@ -22,9 +22,10 @@ import (
 // stays between 512 and 1,023 receipts.
 const sealTrigger = 2 * snapshot.SegmentReceipts
 
-// segmentSealStage is a test seam run after each durable seal step; a
-// non-nil error stops the seal there as a crash would, with no cleanup.
-var segmentSealStage = func(string) error { return nil }
+// segmentSealStage is a test seam run after each durable seal step of repo;
+// a non-nil error stops the seal there as a crash would, with no cleanup.
+// It receives the store so parallel tests stop only their own store's seal.
+var segmentSealStage = func(*intent.Repository, string) error { return nil }
 
 // errSegmentSealStop is what a test's segmentSealStage returns to leave the
 // stopped seal for the next writer to settle.
@@ -142,7 +143,7 @@ func sealSegment(repo *intent.Repository, session *authority.Session, convert bo
 	if err := syncDir(repo, snapshot.SegmentsDir); err != nil {
 		return err
 	}
-	if err := segmentSealStage("marker"); err != nil {
+	if err := segmentSealStage(repo, "marker"); err != nil {
 		return err
 	}
 	for _, f := range []struct {
@@ -160,7 +161,7 @@ func sealSegment(repo *intent.Repository, session *authority.Session, convert bo
 	if err := syncDir(repo, snapshot.SegmentsDir); err != nil {
 		return err
 	}
-	if err := segmentSealStage("segment"); err != nil {
+	if err := segmentSealStage(repo, "segment"); err != nil {
 		return err
 	}
 	current, err := currentDigest(repo, "head.json")
@@ -178,13 +179,13 @@ func sealSegment(repo *intent.Repository, session *authority.Session, convert bo
 	if err := session.Replace(stage, authority.Target{Role: authority.RoleHead, Name: "head.json"}, current); err != nil {
 		return err
 	}
-	if err := segmentSealStage("head"); err != nil {
+	if err := segmentSealStage(repo, "head"); err != nil {
 		return err
 	}
 	if err := dropSealed(repo, seg, through); err != nil {
 		return err
 	}
-	if err := segmentSealStage("dropped"); err != nil {
+	if err := segmentSealStage(repo, "dropped"); err != nil {
 		return err
 	}
 	if err := removeSealMarker(repo); err != nil {
@@ -580,7 +581,7 @@ func unsealLast(repo *intent.Repository, session *authority.Session) error {
 	if err := syncDir(repo, snapshot.SegmentsDir); err != nil {
 		return err
 	}
-	if err := segmentSealStage("marker"); err != nil {
+	if err := segmentSealStage(repo, "marker"); err != nil {
 		return err
 	}
 	dirs := map[string]bool{"receipts": true, snapshot.SegmentsDir: true}
@@ -625,7 +626,7 @@ func unsealLast(repo *intent.Repository, session *authority.Session) error {
 	if err := syncDirs(repo, dirs); err != nil {
 		return err
 	}
-	if err := segmentSealStage("segment"); err != nil {
+	if err := segmentSealStage(repo, "segment"); err != nil {
 		return err
 	}
 	current, err := currentDigest(repo, "head.json")
@@ -642,7 +643,7 @@ func unsealLast(repo *intent.Repository, session *authority.Session) error {
 	if err := session.Replace(stage, authority.Target{Role: authority.RoleHead, Name: "head.json"}, current); err != nil {
 		return err
 	}
-	if err := segmentSealStage("head"); err != nil {
+	if err := segmentSealStage(repo, "head"); err != nil {
 		return err
 	}
 	for _, n := range []string{name, snapshot.SegmentManifestName(e.Last)} {
@@ -653,7 +654,7 @@ func unsealLast(repo *intent.Repository, session *authority.Session) error {
 	if err := syncDir(repo, snapshot.SegmentsDir); err != nil {
 		return err
 	}
-	if err := segmentSealStage("dropped"); err != nil {
+	if err := segmentSealStage(repo, "dropped"); err != nil {
 		return err
 	}
 	return removeSealMarker(repo)

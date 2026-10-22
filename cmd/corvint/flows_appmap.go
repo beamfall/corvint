@@ -24,6 +24,8 @@ Application map usage (experimental, AMAP-V0):
   corvint [--root PATH] flows appmap entries --map FILE [--ledger FILE] [--budget N | --full] [--revision REV]
   corvint [--root PATH] flows appmap stats --map FILE [--budget N | --full] [--min-resolved PCT]
   corvint [--root PATH] flows appmap refs --map FILE --source DIR [--source DIR]... [--budget N | --full]
+  corvint [--root PATH] flows appmap pageobjects --map FILE --source DIR [--source DIR]... [--budget N | --full]
+  corvint [--root PATH] flows appmap steps --map FILE --source DIR [--source DIR]... [--budget N | --full]
   corvint [--root PATH] flows appmap actions --map FILE [--budget N | --full]
   corvint [--root PATH] flows appmap blocker --map FILE --note TEXT [--budget N | --full]
   corvint [--root PATH] flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...] [--budget N | --full]
@@ -95,6 +97,16 @@ only. Templated values are prefixes; catch-all routes, regular-expression patter
 application-templated names are labelled; text-level selectors and dynamic values are counted
 as unchecked. An unlabelled miss exits 1; refusals exit 2. No repository file changes.
 
+Site knowledge (experimental, SKH-V0): pageobjects reads up to 16 --source directories at the
+map revision and lists page objects (Playwright and Cypress TypeScript classes and page-function
+modules, Capybara helper classes, SitePrism pages) with their locator bindings, methods, effect
+class (navigation-only, state-effect or unknown) and screen join. steps compiles each test body
+to the closed step IR (visit, click, fill, select, check, upload, wait-for, assert, opaque),
+inlining page-object and helper calls with bound arguments, and deduplicates repeated sequences
+into reusable records with usage counts (default caps 6144 bytes). Unsupported constructs are
+unknowns or opaque steps with a reason; secret-shaped values are screened. Learned authority,
+static, no code runs and no repository file changes.
+
 Route-action check (experimental, V1-1890): actions compiles every rails-routes/0 route (and its
 one-level draws) to a controller and action and reports ROUTE-ACTION-MISSING when the handler
 class, its ancestors, its included modules and its implicit view templates define no public
@@ -126,7 +138,7 @@ selector strength or freshness. A --bind test key absent from every receipt refu
 
 func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, actions, blocker, branches, edges, observe, impact or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, pageobjects, steps, actions, blocker, branches, edges, observe, impact or plan")
 	}
 	verb, args := args[0], args[1:]
 	if verb == "edges" {
@@ -181,6 +193,9 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 	if verb == "refs" {
 		return runFlowsAppmapRefs(ctx, root, args, out)
 	}
+	if verb == "pageobjects" || verb == "steps" {
+		return runFlowsAppmapKnowledge(ctx, root, verb, args, out)
+	}
 	if verb == "actions" {
 		return runFlowsAppmapActions(ctx, root, args, out)
 	}
@@ -198,7 +213,7 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 		"screen": appmap.ProjectScreen, "flow": appmap.ProjectFlow, "find": appmap.ProjectFind, "scaffold": appmap.ProjectScaffold,
 	}[verb], map[string]string{"screen": "screen", "flow": "flow", "find": "text", "scaffold": "flow"}[verb]
 	if project == nil {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, actions, blocker, branches, edges, observe, impact or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, pageobjects, steps, actions, blocker, branches, edges, observe, impact or plan")
 	}
 	mapFile := f.String("map", "", "application-map/0 file")
 	query := f.String(queryFlag, "", "query")
