@@ -338,9 +338,9 @@ closeout step is missing.
   `REFUSED` with the union of codes. One ticket keeps the original result shape.
 - `TCD-V0-173`: `ticket hold` takes `--target` more than once with one `holdId` and reason. Each
   distinct target gets its own `HOLD` at the revision hold reads for it, lock-free, just before its
-  write, with the per-target request ids, shared `issuedAt`, row semantics and item of
-  `TCD-V0-172`. A single `--target` without `--expected-revision` also reads its revision; with
-  `--expected-revision` it behaves as before. `--expected-revision` with several targets, and
+  write, with the per-target request ids, shared `issuedAt`, row semantics and item that
+  `TCD-V0-172` defines. A single `--target` without `--expected-revision` also reads its revision;
+  with `--expected-revision` it behaves as before. `--expected-revision` with several targets, and
   several distinct `--target` values on any other mutation verb, are usage errors.
 
 ## Failure modes
