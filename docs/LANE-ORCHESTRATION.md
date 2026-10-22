@@ -160,6 +160,12 @@ every gap above the threshold with the time the watchdog would have flagged it.
   switch one checkout between lanes. A fresh plain clone remains the fallback until a live lane has
   run `dogfood-finish` and `dogfood-batch-check` in a linked worktree
   (`docs/build-log/2026-10-18-v1-1627-lane-orchestration.md`).
+- Never run `git stash` in a lane. The stash is one ref (`refs/stash`) in the clone's common
+  directory, shared by every linked worktree, so one lane's `git stash pop` can apply another
+  lane's stash (incident, 2026-10-21: the dogfood-flow lane's `git stash pop` applied the affected-selection lane's stash `723eec1`, V1-2161). Park work in a
+  patch file kept outside the checkout (`git diff > ../p.patch`, then `git apply -R ../p.patch`;
+  restore with `git apply ../p.patch`) or in a named WIP commit on the lane's own branch.
+  `script/lane-clean.sh` keeps any checkout that still has a stash entry.
 - Scratch logs go outside the checkout (untracked files make dogfood report
   `record-index-failed`).
 - After a lane's PR merges, the orchestrator fetches the shared repository and runs
@@ -187,6 +193,14 @@ the checkout, and a root that does not resolve (or is `/`) is refused. Worktrees
   renames a sibling copy over the target, keeps one `<tool>.corvint-prev-<n>` rollback (more with
   `--keep N`), prunes older ones, and `--rollback` restores it. It never removes other backup names;
   existing ad-hoc `.bak*` files are the operator's to review and delete.
+
+### Lane build-log entry shape
+
+One entry per lane, `docs/build-log/YYYY-MM-DD-<lane>-<slug>.md`, with these sections in order:
+problem, decisions, evidence, `NOT_RUN`, rollback, and **Outcome** (V1-2234). Outcome states the
+final disposition per ticket (delivered, already delivered with evidence, skipped with reason), the
+dogfood result and every `NOT_PRODUCED` reason. Fill it before the final commit; text in earlier
+sections must not say "see the outcome below" unless the entry has that section.
 
 ## 7. Measuring the procedure
 

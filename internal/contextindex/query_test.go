@@ -242,6 +242,37 @@ func TestAuthorityStartQueryRejectsUnsupportedAuthorityAndTraceState(t *testing.
 	})
 }
 
+// TestSTAV0014_SymlinkedRootGuideIsNotAuthority proves a tracked symlink at
+// AGENTS.md is refused as authority and the refusal names the symlink.
+func TestSTAV0014_SymlinkedRootGuideIsNotAuthority(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks need privileges on Windows")
+	}
+	root := authorityRepository(t)
+	data, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, root, "CLAUDE.md", string(data))
+	if err := os.Remove(filepath.Join(root, "AGENTS.md")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("CLAUDE.md", filepath.Join(root, "AGENTS.md")); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "add", "-A")
+	testGit(t, root, "commit", "-qm", "symlink the root guide")
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = QueryAuthorityStart(context.Background(), index, queryTaskFixture, 1)
+	var unsupported *Error
+	if !errors.As(err, &unsupported) || unsupported.Code != "unsupported-query-authority" || !strings.Contains(unsupported.Message, "AGENTS.md as a symlink") {
+		t.Fatalf("error=%#v", err)
+	}
+}
+
 func TestAuthorityStartQueryRejectsHistoryTreeDrift(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("test wrapper uses a POSIX shell")
