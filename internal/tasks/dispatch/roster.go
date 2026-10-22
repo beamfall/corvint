@@ -126,6 +126,11 @@ type Attempt struct {
 	// reference, carried across generations that record none, the
 	// HANDOFF_EVIDENCE progress fingerprint (ATR-V0-084); empty without one.
 	HandoffEvidence string
+
+	// Branch and Worktree are the attempt's recorded branch and supervised
+	// worktree path, empty without them; a salvaged note names the commit
+	// they hold (ERG-V0-028).
+	Branch, Worktree string
 }
 
 // Member is one native pool member.

@@ -87,6 +87,7 @@ func dispatchCommand(env Env, args []string) *wire.Result {
 	if exe, err := os.Executable(); err == nil {
 		d.HookCommand = []string{exe, "dispatch", "context-hook"}
 	}
+	d.ResolveCommit = store.ResolveCommit // ERG-V0-028
 	d.WatchConfig(func() ([]byte, fs.FileInfo, error) {
 		return intent.ReadFileWithInfo(values["--config"], dispatch.MaxConfig)
 	}, func() (fs.FileInfo, error) { return os.Lstat(values["--config"]) }, raw)
@@ -982,6 +983,10 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 				x.Candidate = *a.CandidateTreeOid
 			}
 			x.HandoffEvidence = snapshot.LatestHandoffEvidence(a) // ATR-V0-084
+			x.Branch = a.Branch                                   // ERG-V0-028
+			if a.WorktreePath != nil {
+				x.Worktree = *a.WorktreePath
+			}
 			if a.Cause != nil {
 				x.Cause = *a.Cause
 			}

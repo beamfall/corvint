@@ -359,7 +359,9 @@ and an unknown estimate never stops a worker.
   - a `stdout.log` shorter than the read offset
 
   An earlier known estimate, however high, then stops nothing until a later recognised line
-  replaces it.
+  replaces it. The refused `opencode` line also marks the CAL-V0-157 usage totals malformed, so
+  they are reported `PARTIAL` (or `UNKNOWN` with no counted line), never `KNOWN`, because it may
+  have been an uncounted `step_finish` (V1-1571 amendment).
 - `ATR-V0-038`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1549) An estimate
   read back from a ATR-V0-033 record (after a dispatcher restart) is shown by `dispatch status` but
   is not acted on. It records no crossing and makes no ATR-V0-035 stop until the dispatcher reads a
@@ -375,7 +377,7 @@ and an unknown estimate never stops a worker.
 
 Non-goals: a Codex context estimate; a tokenizer or inferred estimate; a notice inside
 `corvint-tasks` verb output (the worker reads its file); forcing a turn end at `WARN` or `HANDOFF`;
-changing the CAL-V0-157 totals or budgets; a dispatcher ledger change (the record is beside the
+changing the CAL-V0-157 totals or budgets (beyond the V1-1571 malformed mark in ATR-V0-037); a dispatcher ledger change (the record is beside the
 worker logs and the ledger stays `taskman-dispatch-state/5`).
 
 Failure modes:
@@ -388,12 +390,14 @@ Failure modes:
 - A record that cannot be written leaves the worker without a notice until a write succeeds. The
   hard stop still follows the estimate.
 - After a restart, a crossing whose record write failed before the restart is reported only after
-  the worker's next recognised line (ATR-V0-038).
-- After a restart, a detached-run deferral whose worker is no longer in the ledger hands off
-  without the context detail. The strict detached marker cannot carry it, and the deferral's
-  `handoff-deferred` event already did.
-- An `opencode` line refused for a repeated member leaves the context estimate UNKNOWN, but the
-  CAL-V0-157 usage totals still skip it as before.
+  the worker's next recognised line (ATR-V0-038). This delay is accepted (V1-1571): reporting it
+  earlier would act on an estimate the restarted run never observed, which ATR-V0-038 forbids, and
+  the hard stop still follows the in-memory estimate.
+- After a restart, a detached-run deferral whose worker is no longer in the ledger hands off with
+  the context detail its `/1` marker carries (ATR-V0-057). Only a `/0` marker written before that
+  upgrade still hands off without it.
+- An `opencode` line refused for a repeated member leaves the context estimate UNKNOWN and marks
+  the CAL-V0-157 usage totals malformed (ATR-V0-037, V1-1571).
 
 Acceptance evidence: `TestATRV0030_ContextConfigIsExactAndBounded`,
 `TestATRV0031_ContextEstimateFromRecognisedLinesOnly`,
@@ -2157,7 +2161,7 @@ receipt or wire shape changes.
 | ATR-V0-034 | `internal/tasks/dispatch/loop.go` | `TestATRV0034_WorkerGetsContextFile` (`internal/tasks/dispatch`) |
 | ATR-V0-035 | `internal/tasks/dispatch/context.go`, `internal/tasks/dispatch/loop.go`, `internal/tasks/dispatch/detached.go` | `TestATRV0035_HardStopHandsOffWithReason`, `TestATRV0035_UnknownEstimateNeverStops`, `TestATRV0035_DeferredAndRecoveredHandoffsKeepContext` (`internal/tasks/dispatch`) |
 | ATR-V0-036 | `internal/tasks/dispatch/context.go`, `internal/tasks/dispatch/loop.go` | `TestATRV0036_ThresholdsHotReload` (`internal/tasks/dispatch`) |
-| ATR-V0-037 | `internal/tasks/dispatch/context.go`, `internal/tasks/dispatch/usage.go` | `TestATRV0037_HiddenOrLostContextLinesAreUnknown` (`internal/tasks/dispatch`) |
+| ATR-V0-037 | `internal/tasks/dispatch/context.go`, `internal/tasks/dispatch/usage.go` | `TestATRV0037_HiddenOrLostContextLinesAreUnknown`, `TestCALV0157_UsageVocabulariesAndStates` (`internal/tasks/dispatch`) |
 | ATR-V0-038 | `internal/tasks/dispatch/context.go` | `TestATRV0038_ReloadedEstimateActsOnlyAfterAFreshLine` (`internal/tasks/dispatch`) |
 | ATR-V0-039 | `internal/tasks/cli/dispatch.go`, `internal/tasks/dispatch/context.go` | `TestATRV0039_DispatchStatusShowsAppliedThresholds`, `TestATRV0032_DispatchStatusShowsContextEstimate` (`internal/tasks/cli`) |
 | ATR-V0-050 | `internal/tasks/wire/context.go` (`ContextEnded`), `internal/tasks/wire/retry.go`, `internal/tasks/store/policy.go` (`administrativeWriteWith`), `internal/tasks/cli/attempt_run.go` (`prepare`) | `TestATRV0050_ContendedPrelaunchWriteIsLockTimeout` (`internal/tasks/cli`), `TestATRV0050_ContextEndedIsRetryableLockTimeout` (`internal/tasks/wire`) |

@@ -191,7 +191,9 @@ func (u *WorkerUsage) line(b []byte) {
 			return
 		case !ok && kind == "":
 			// ATR-V0-037: a repeated or case-folded member may hide an
-			// escaped step_finish type, so the line may be a context line.
+			// escaped step_finish type, so the line may be a context line,
+			// and a usage line the total cannot count (V1-1571).
+			u.Malformed = true
 			u.observeContext(0, false)
 			return
 		case !ok:
