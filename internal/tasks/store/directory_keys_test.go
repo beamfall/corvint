@@ -15,6 +15,7 @@ import (
 // the key and the directory key; a file key, a directory key ending in "/"
 // and an absent path add none, and a replay adds none (V1-1118).
 func TestCALV0211_ClaimWarnsOnExactDirectoryKey(t *testing.T) {
+	t.Parallel()
 	s := newGateStore(t)
 	_, tree := s.commit(t, "src/a.go", "lib/b.go", "doc/c.md", "tool/d.go")
 	one := s.ticket(t, "one")

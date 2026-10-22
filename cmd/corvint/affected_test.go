@@ -1042,7 +1042,7 @@ func assertAffectedCompactSummarizesFull(t *testing.T, compact, full map[string]
 		t.Fatalf("advice does not resolve to the full advice:\n%v\n%v", resolved, full["advice"])
 	}
 	compactPlan, fullPlan := compact["plan"].(map[string]any), full["plan"].(map[string]any)
-	for _, member := range []string{"graphDigest", "dirty", "scope", "unknown"} {
+	for _, member := range []string{"graphDigest", "dirty", "scope", "unknown", "frontierSites"} {
 		if !reflect.DeepEqual(compactPlan[member], fullPlan[member]) {
 			t.Fatalf("plan.%s differs", member)
 		}
@@ -1290,5 +1290,20 @@ func TestAFPV0196AffectedInlineVerifyIsMandatory(t *testing.T) {
 	}
 	if unknown := fmt.Sprint(receipt["advice"].(map[string]any)["unknown"]); strings.Contains(unknown, "NO_REPOSITORY_GATE_DECLARED") {
 		t.Fatalf("an inline Verify line is a declaration: %s", unknown)
+	}
+}
+
+// AFP-V0-381: the default projection keeps the plan's repository frontier
+// site count unchanged.
+func TestAFPV0381CompactPlanKeepsFrontierSites(t *testing.T) {
+	t.Parallel()
+	sites := map[string]int{"ruby:conditional-load": 1, "ruby:dynamic-load": 18}
+	full := affectedReceipt{Plan: affected.Plan{Selected: []affected.Selection{}, Excluded: []affected.Exclusion{}, Unknown: []affected.Unknown{}, FrontierSites: sites}}
+	compact, err := compactAffected(full)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(compact.Plan.FrontierSites, sites) {
+		t.Fatalf("frontierSites=%v want %v", compact.Plan.FrontierSites, sites)
 	}
 }

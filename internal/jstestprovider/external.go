@@ -102,13 +102,16 @@ func qualifiedPlaywrightVersion(version string) bool {
 var qualifiedReporter []byte
 
 type qualifiedReport struct {
-	Schedule             *ExecutionSchedule    `json:"schedule,omitempty"`
-	ConfigFiles          map[string]string     `json:"configFiles"`
-	Version              string                `json:"version"`
-	Files                map[string]string     `json:"files"`
-	Status               string                `json:"status"`
-	Tests                []TestOutcome         `json:"tests"`
-	Errors               []string              `json:"errors"`
+	Schedule    *ExecutionSchedule `json:"schedule,omitempty"`
+	ConfigFiles map[string]string  `json:"configFiles"`
+	Version     string             `json:"version"`
+	Files       map[string]string  `json:"files"`
+	Status      string             `json:"status"`
+	Tests       []TestOutcome      `json:"tests"`
+	Errors      []string           `json:"errors"`
+	// ErrorLocations is emitted only by a `/3` run with run-level errors: one reported location,
+	// or null, per error (PWP-V3-009).
+	ErrorLocations       []*Anchor             `json:"errorLocations,omitempty"`
 	SensitiveInputPolicy *SensitiveInputPolicy `json:"sensitiveInputPolicy,omitempty"`
 	// ProjectReporters is emitted only by a keep-reporters run (PWP-V0-011).
 	ProjectReporters []reportedProjectReporter `json:"projectReporters,omitempty"`
@@ -312,7 +315,8 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 		}
 	}
 	if len(report.Errors) > 0 {
-		r.Infrastructure = externalReportFailure(profile, "reporter-global-error", strings.Join(report.Errors, "\n"))
+		r.Infrastructure = externalReportFailure(profile, ReasonReporterGlobalError, strings.Join(report.Errors, "\n"))
+		r.Infrastructure.Location = firstErrorLocation(report)
 	}
 	// A timed-out runner's exit status is explained by the timeout, including
 	// an interrupted report written during the interrupt grace (PWP-V0-030).
@@ -320,7 +324,8 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 		r.Infrastructure = &InfrastructureFailure{Reason: "exit-status-unexplained", Detail: "runner exited nonzero with a passed report"}
 	}
 	applyReportStatus(&r, report.Status, obs.TimedOut)
-	if obs.ExitStatus != 0 && !obs.TimedOut && !explainedPlaywrightFailure(r.Tests) {
+	// A located run-level error of a `/3` run explains a nonzero exit (PWP-V3-009).
+	if obs.ExitStatus != 0 && !obs.TimedOut && !explainedPlaywrightFailure(r.Tests) && !locatedGlobalError(r) {
 		r.Infrastructure = &InfrastructureFailure{Reason: "exit-status-unexplained", Detail: "runner exited nonzero without a failing test observation"}
 	}
 	if profile == SensitiveExternalProfile {
@@ -353,6 +358,9 @@ func decodeQualifiedReport(data []byte, profile string) (qualifiedReport, *Infra
 	if profile != AttemptExternalProfile && hasAttemptDetails(Receipt{Tests: report.Tests}) {
 		return qualifiedReport{}, externalReportFailure(profile, "report-unparseable", "unknown field \"attemptDetails\"")
 	}
+	if profile != AttemptExternalProfile && report.ErrorLocations != nil {
+		return qualifiedReport{}, externalReportFailure(profile, "report-unparseable", "unknown field \"errorLocations\"")
+	}
 	if profile == AttemptExternalProfile {
 		if err := ValidateAttemptDetails(report.Tests); err != nil {
 			return qualifiedReport{}, externalReportFailure(profile, "external-attempt-details-invalid", "attempt inventory disagrees with retained details")
@@ -374,6 +382,28 @@ func setApplicationAttestationFailure(receipt *Receipt, reason string) {
 	if receipt.Infrastructure == nil {
 		receipt.Infrastructure = &InfrastructureFailure{Reason: reason, Detail: "external application attestation did not qualify"}
 	}
+}
+
+// ReasonReporterGlobalError is the infrastructure reason of a run whose reporter recorded a
+// run-level error, such as a worker fixture teardown failure.
+const ReasonReporterGlobalError = "reporter-global-error"
+
+// firstErrorLocation is the reported location of the first located run-level error of a `/3`
+// report (PWP-V3-009), or nil when the locations do not pair one to one with the errors.
+func firstErrorLocation(report qualifiedReport) *Anchor {
+	if len(report.ErrorLocations) != len(report.Errors) {
+		return nil
+	}
+	for _, l := range report.ErrorLocations {
+		if l != nil && l.File != "" && l.Line > 0 {
+			return &Anchor{File: l.File, Line: l.Line}
+		}
+	}
+	return nil
+}
+
+func locatedGlobalError(r Receipt) bool {
+	return r.Profile == AttemptExternalProfile && r.Infrastructure != nil && r.Infrastructure.Reason == ReasonReporterGlobalError && r.Infrastructure.Location != nil
 }
 
 func explainedPlaywrightFailure(tests []TestOutcome) bool {

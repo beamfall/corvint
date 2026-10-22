@@ -25,6 +25,7 @@ import (
 // mapped content, so the next write's audit refuses the store while the change
 // is in place, and accepts it again once the file is restored.
 func TestATRV0241_MappedWriteAfterLeaseAuditRefusedByNextWrite(t *testing.T) {
+	t.Parallel()
 	for _, stage := range []string{"sweep", "lock"} {
 		for _, tc := range []struct{ target, want string }{
 			{"request-projection", wire.CodeJournalForked},

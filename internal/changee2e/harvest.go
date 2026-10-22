@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/appmap"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
@@ -25,8 +26,19 @@ const (
 // Proposal is one harvested candidate block. It is never a block until the acceptance ledger
 // admits its ID at the catalog revision (CCE-V0-043).
 type Proposal struct {
-	ID    string `json:"id"`
-	Block Block  `json:"block"`
+	ID      string  `json:"id"`
+	Block   Block   `json:"block"`
+	Binding Binding `json:"binding"`
+}
+
+// Binding names the flow or screen a harvested proposal belongs to in the application map at the
+// harvested revision, or the reason it has none (CCE-V0-050). Exactly one of a bound target with
+// its basis, or Unbound, is set.
+type Binding struct {
+	Flow    string `json:"flow,omitempty"`
+	Screen  string `json:"screen,omitempty"`
+	Basis   string `json:"basis,omitempty"`
+	Unbound string `json:"unbound,omitempty"`
 }
 
 // Withheld is a harvestable-looking line that is not proposed, with its reason (CCE-V0-042).
@@ -78,7 +90,12 @@ func Harvest(ctx context.Context, o HarvestOptions) (*Proposals, error) {
 	if err != nil {
 		return nil, err
 	}
-	p, err := harvestAt(ctx, root, rev)
+	// The map is read only to bind proposals; without it every proposal is unbound (CCE-V0-050).
+	m, err := appmap.Build(ctx, root, "appmap.json", rev)
+	if err != nil {
+		m = nil
+	}
+	p, err := harvestAt(ctx, root, rev, m)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +103,7 @@ func Harvest(ctx context.Context, o HarvestOptions) (*Proposals, error) {
 	return p, err
 }
 
-func harvestAt(ctx context.Context, root, rev string) (*Proposals, error) {
+func harvestAt(ctx context.Context, root, rev string, m *appmap.Map) (*Proposals, error) {
 	out, err := git(ctx, root, "ls-tree", "-r", "-z", "--full-tree", rev)
 	if err != nil {
 		return nil, refuse("e2e-revision-invalid", "list %s: %v", rev, err)
@@ -131,7 +148,7 @@ func harvestAt(ctx context.Context, root, rev string) (*Proposals, error) {
 				continue // the first occurrence by path, then line, carries the provenance
 			}
 			seen[b.ID] = true
-			p.Proposals = append(p.Proposals, Proposal{ID: b.ID, Block: b})
+			p.Proposals = append(p.Proposals, Proposal{ID: b.ID, Block: b, Binding: bindProposal(m, b)})
 		}
 	}
 	sort.Slice(p.Proposals, func(i, j int) bool { return p.Proposals[i].ID < p.Proposals[j].ID })
@@ -204,7 +221,7 @@ func (c *Catalog) addAcceptances(ctx context.Context, root, rev string) error {
 	if err != nil || !ok {
 		return err
 	}
-	p, err := harvestAt(ctx, root, rev)
+	p, err := harvestAt(ctx, root, rev, c.m)
 	if err != nil {
 		return err
 	}
@@ -254,4 +271,54 @@ func acceptancesInDiff(ctx context.Context, root, base string, head *Catalog) ([
 		}
 	}
 	return added, nil
+}
+
+// bindProposal binds a harvested block through the application map (CCE-V0-050). A path block
+// binds to the screen the map resolved for the same navigation line of the same test file; an
+// outcome block binds to the single flow declaring an outcome on the same locator, else to the
+// screen the map gives its test file. Anything else is unbound with its reason; nothing is
+// guessed from names. The site-knowledge IR is not consulted by this slice.
+func bindProposal(m *appmap.Map, b Block) Binding {
+	if m == nil {
+		return Binding{Unbound: "app-map-unavailable"}
+	}
+	var file *appmap.TestFile
+	for i := range m.Files {
+		if m.Files[i].Path == b.Span.Path {
+			file = &m.Files[i]
+			break
+		}
+	}
+	if b.Kind == KindPath {
+		if file == nil {
+			return Binding{Unbound: "test-file-not-mapped"}
+		}
+		for _, g := range file.Gotos {
+			if g.Line == b.Span.Start {
+				if g.Screen == "" {
+					return Binding{Unbound: "goto-unresolved"}
+				}
+				return Binding{Screen: g.Screen, Basis: "app-map-goto"}
+			}
+		}
+		return Binding{Unbound: "goto-not-mapped"}
+	}
+	var flows []string
+	for _, f := range m.Flows {
+		for _, oc := range f.Outcomes {
+			if oc.Locator == b.Locator {
+				flows = append(flows, f.FlowID)
+				break
+			}
+		}
+	}
+	switch {
+	case len(flows) == 1:
+		return Binding{Flow: flows[0], Basis: "flow-outcome-locator"}
+	case len(flows) > 1:
+		return Binding{Unbound: "flow-ambiguous"}
+	case file != nil && file.Screen != "":
+		return Binding{Screen: file.Screen, Basis: "test-file-screen"}
+	}
+	return Binding{Unbound: "no-flow-or-screen"}
 }

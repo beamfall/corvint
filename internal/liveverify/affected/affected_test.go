@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	json "encoding/json/v2"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -765,5 +767,48 @@ func TestShortFragmentsDoNotNamePaths_V1_1818(t *testing.T) {
 	}
 	if !namesPath("./s/a/", strings.Split("x/s/a/b.txt", "/")) {
 		t.Error("a marked token whose components are whole path components must still name the path")
+	}
+}
+
+// AFP-V0-381: every plan counts the repository's frontier sites by reason,
+// unit and plugin-wide alike, whether or not its dirty set reaches them; a
+// truncation entry counts the sites it left unnamed, and a repository with no
+// frontier emits no count.
+func TestAFPV0381PlanCountsRepositoryFrontierSites(t *testing.T) {
+	x := chain()
+	for index := range x.units {
+		if x.units[index].ID == "x:solo" {
+			x.units[index].Frontier = []string{"x:conditional-load:solo.x:7", "x:dynamic-load:+4", "x:dynamic-load:solo.x:3"}
+		}
+	}
+	y := fake{name: "y", frontier: []string{"y:bare", "y:dynamic-load:+2", "y:dynamic-load:a.y:2"}}
+	graph, err := Build(context.Background(), t.TempDir(), x, y)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]int{"x:conditional-load": 1, "x:dynamic-load": 5, "y:bare": 1, "y:dynamic-load": 3}
+	plan := Select(graph, []string{"leaf.x"})
+	if plan.Scope != ScopeBounded || len(plan.Unknown) != 0 {
+		t.Fatalf("an unreached site must not widen the plan: %+v", plan)
+	}
+	if !maps.Equal(plan.FrontierSites, want) {
+		t.Fatalf("frontierSites=%v want %v", plan.FrontierSites, want)
+	}
+	if reached := Select(graph, []string{"solo.x"}); reached.Scope != ScopeUnknown || !maps.Equal(reached.FrontierSites, want) {
+		t.Fatalf("the count must not depend on the dirty set: %+v", reached)
+	}
+	encoded, err := json.Marshal(plan, json.Deterministic(true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(encoded), `"frontierSites":{"x:conditional-load":1,"x:dynamic-load":5,"y:bare":1,"y:dynamic-load":3}`) {
+		t.Fatalf("wire=%s", encoded)
+	}
+	clean, err := Build(context.Background(), t.TempDir(), chain())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if encoded, err := json.Marshal(Select(clean, []string{"leaf.x"})); err != nil || strings.Contains(string(encoded), "frontierSites") {
+		t.Fatalf("a repository with no frontier must omit the count: %s %v", encoded, err)
 	}
 }

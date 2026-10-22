@@ -1029,11 +1029,14 @@ seal_fail_status=0
 (cd "$seal_repo" && SEAL_TEST_CHECK_STATUS=1 script/dogfood-seal.sh HEAD) || seal_fail_status=$?
 test "$seal_fail_status" = 1
 test "$(git -C "$seal_repo" rev-parse HEAD)" = "$seal_bind"
-seal_output=$(cd "$seal_repo" && GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid \
-  GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid script/dogfood-seal.sh HEAD)
+seal_output=$(cd "$seal_repo" && GIT_AUTHOR_NAME="Seal Author" GIT_AUTHOR_EMAIL=author@example.invalid \
+  GIT_COMMITTER_NAME="Seal Committer" GIT_COMMITTER_EMAIL=committer@example.invalid script/dogfood-seal.sh HEAD)
 test "$seal_output" = "dogfood-seal: PASS sealed=.corvint/changes/$seal_bind.cem.json"
 test "$(git -C "$seal_repo" diff-tree -r -M --no-commit-id --name-status HEAD^ HEAD)" = \
   "R100"$'\t'".corvint/change.cem.json"$'\t'".corvint/changes/$seal_bind.cem.json"
+# DCW-V0-166 (V1-2404): the seal commit takes the GIT_AUTHOR_* and GIT_COMMITTER_* identity.
+test "$(git -C "$seal_repo" log -1 --format='%an|%ae|%cn|%ce')" = \
+  "Seal Author|author@example.invalid|Seal Committer|committer@example.invalid"
 seal_again_status=0
 (cd "$seal_repo" && script/dogfood-seal.sh HEAD 2>/dev/null) || seal_again_status=$?
 test "$seal_again_status" = 2

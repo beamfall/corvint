@@ -49,6 +49,7 @@ func declinedResume(mid func(attempt int), walks *int) func(*inventoryHooks) {
 // four blind attempts and a second four-attempt audit a round; one that
 // stops lets the next round settle and commit.
 func TestPSRV0150_DeclinedResumeWalksOncePerRound(t *testing.T) {
+	t.Parallel()
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}
@@ -94,6 +95,7 @@ func TestPSRV0150_DeclinedResumeWalksOncePerRound(t *testing.T) {
 // walk, the prefix walk that became the base and the resumed walk, with no
 // decline, and the resumed route serves the write (PSR-V0-052).
 func TestPSRV0151_TimingSplitsResumedAcquire(t *testing.T) {
+	t.Parallel()
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}
@@ -144,6 +146,7 @@ func TestPSRV0151_TimingSplitsResumedAcquire(t *testing.T) {
 // route then serves the write. The retry inside a resumed audit is
 // TestPSRV0151_ResumedWalksCountEachAttempt in internal/tasks/journal.
 func TestPSRV0151_DeclinedResumeChargesNoResumedWalk(t *testing.T) {
+	t.Parallel()
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}
@@ -167,6 +170,7 @@ func TestPSRV0151_DeclinedResumeChargesNoResumedWalk(t *testing.T) {
 // refused by the next round's attempt: nothing commits, the head stays where
 // the tamper left it, and the decision is the complete route's own.
 func TestPSRV0153_BoundedAuditKeepsRewrittenPrefixDetection(t *testing.T) {
+	t.Parallel()
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}

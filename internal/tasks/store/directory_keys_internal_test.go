@@ -14,6 +14,7 @@ import (
 // routes retain the committed effects rather than an earlier CLI inventory
 // or a later ticket revision. Replays carry no effects for warning generation.
 func TestCALV0214_CommittedEffectsStayBoundToTransaction(t *testing.T) {
+	t.Parallel()
 	for _, fast := range []bool{false, true} {
 		name := "complete-audit"
 		if fast {

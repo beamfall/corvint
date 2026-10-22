@@ -2,7 +2,7 @@
 // E2E scenarios from admitted, revision-pinned blocks (CCE-V0). Core `corvint` does not import or
 // execute it, and it never executes `corvint` (CCE-V0-015). Diagnostics carry the
 // `corvint-test e2e:` prefix, disjoint from core `corvint test` diagnostics (`corvint-test:`).
-// The `runner`, `falsify` and `minimize` groups are folded companions (CTF-V0); their
+// The `runner`, `falsify`, `minimize` and `accept` groups are folded companions (CTF-V0); their
 // diagnostics name `corvint-test <group>`.
 package main
 
@@ -22,16 +22,25 @@ import (
 	falsifycli "github.com/Beamfall/corvint/internal/behaviorfalsify/cli"
 	"github.com/Beamfall/corvint/internal/changee2e"
 	minimizecli "github.com/Beamfall/corvint/internal/playwrightminimize/cli"
+	acceptcli "github.com/Beamfall/corvint/internal/testacceptance/cli"
 	"github.com/Beamfall/corvint/internal/testrunner/cli"
 )
 
 // proveReport is the proof report written under the prove --out directory.
 const proveReport = "e2e-prove.json"
 
+// proveCoverage is the e2e-runtime-coverage/0 document `prove --record-coverage` writes beside the
+// proof (CCE-V0-053).
+const proveCoverage = "e2e-runtime-coverage.json"
+
 const usage = "usage: corvint-test e2e <catalog|harvest|obligations|compile|prove|shadow> [flags]\n" +
 	"       corvint-test runner <command> [flags] (folded corvint-test-runner, CTF-V0)\n" +
 	"       corvint-test falsify <plan|execute|execute-receipt|verify-receipt> --experimental [flags] < input.json (folded corvint-behavior-falsify, CTF-V0)\n" +
-	"       corvint-test minimize <plan|execute> --experimental [flags] < input.json (folded corvint-playwright-minimize, CTF-V0)"
+	"       corvint-test minimize <plan|execute> --experimental [flags] < input.json (folded corvint-playwright-minimize, CTF-V0)\n" +
+	"       corvint-test accept plan|accept --plan FILE [flags] (folded corvint-tests-accept, CTF-V0)"
+
+// acceptWorker selects the accept group's worker when the executable re-enters itself.
+var acceptWorker = []string{"accept", "worker"}
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -48,6 +57,15 @@ func main() {
 	// apart from the invocation name in diagnostics (CTF-V0-002, CTF-V0-004).
 	if len(os.Args) > 1 && os.Args[1] == "runner" {
 		os.Exit(cli.Command(ctx, "corvint-test runner", os.Args[2:], os.Stdout, os.Stderr))
+	}
+	// The accept group exits 2 like the old companion, and its worker re-enters this
+	// executable as `corvint-test accept worker` (CTF-V0-006).
+	if len(os.Args) > 1 && os.Args[1] == "accept" {
+		if err := acceptcli.Run(ctx, "corvint-test accept", acceptWorker, os.Args[2:], os.Stdin, os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		return
 	}
 	folded := map[string]func(context.Context, string, []string, io.Reader, io.Writer) error{
 		"falsify":  falsifycli.Run,
@@ -78,7 +96,8 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	out := fs.String("out", "", "output file (catalog, harvest, obligations) or directory (compile, prove), outside the repository")
 	var rev, base, head, coverage *string
 	var repeats *int
-	var nodeModules, nodeBin, packageJSON, lockfile, window, hostedTest, hostedTitle *string
+	var recordCoverage, moduleGraph *bool
+	var nodeModules, nodeBin, packageJSON, lockfile, window, hostedTest, hostedTitle, oracleAcceptance *string
 	switch sub {
 	case "shadow":
 		window = fs.String("window", "", "frozen shadow window file (CCE-V0-011)")
@@ -88,6 +107,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		base = fs.String("base", "", "base revision")
 		head = fs.String("head", "", "head revision")
 		coverage = fs.String("coverage", "", "runtime coverage document recorded at head; it may only widen reach (CCE-V0-045)")
+		moduleGraph = fs.Bool("module-graph", false, "widen reach through the head tree's TypeScript/JavaScript module graph (CCE-V0-054)")
 		if sub == "prove" {
 			repeats = fs.Int("repeats", changee2e.DefaultRepeats, "repeats per side")
 			nodeModules = fs.String("node-modules", os.Getenv("CORVINT_PLAYWRIGHT_MODULES"), "node_modules holding @playwright/test")
@@ -96,6 +116,8 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 			lockfile = fs.String("lockfile", "", "lockfile binding the runner identity")
 			hostedTest = fs.String("hosted-test", "", "prove this existing hosted Playwright test file as given, without compiling (CCE-V0-034)")
 			hostedTitle = fs.String("hosted-title", "", "the hosted test's title; optional when the file declares one test")
+			recordCoverage = fs.Bool("record-coverage", false, "record the application paths each compiled scenario's head pool served and write "+proveCoverage+" under --out for --coverage (CCE-V0-053)")
+			oracleAcceptance = fs.String("oracle-acceptance", "", "e2e-oracle-acceptance/0 document, outside the repository, recording an independent acceptance of edited outcomes (CCE-V0-051)")
 		}
 	default:
 		return errors.New(usage)
@@ -115,7 +137,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		outPath = p
 	}
 	diff := func() changee2e.DiffOptions {
-		return changee2e.DiffOptions{Root: *root, Base: *base, Head: *head, Manifest: *manifest, Coverage: *coverage}
+		return changee2e.DiffOptions{Root: *root, Base: *base, Head: *head, Manifest: *manifest, Coverage: *coverage, ModuleGraph: *moduleGraph}
 	}
 	var doc []byte
 	switch sub {
@@ -165,31 +187,48 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 			}
 			doc, err := changee2e.Prove(ctx, changee2e.ProveOptions{Root: *root, Base: *base, Head: *head, Repeats: *repeats,
 				NodeModules: *nodeModules, NodeBin: *nodeBin, PackageJSON: *packageJSON, Lockfile: *lockfile,
-				Hosted: &changee2e.HostedSelection{File: *hostedTest, Title: *hostedTitle}})
+				Hosted: &changee2e.HostedSelection{File: *hostedTest, Title: *hostedTitle}, OracleAcceptance: *oracleAcceptance,
+				RecordCoverage: *recordCoverage})
 			if err != nil {
 				return err
 			}
-			return writeUnder(outPath, proveReport, doc, stdout)
+			return writeProof(outPath, doc, *recordCoverage, stdout)
 		}
 		r, err := changee2e.Compile(ctx, diff())
 		if err != nil {
 			return err
 		}
-		if err := writeScenarios(outPath, r.Compiled(), proveReport); err != nil {
+		if err := writeScenarios(outPath, r.Compiled(), proveReport, proveCoverage); err != nil {
 			return err
 		}
 		doc, err = changee2e.Prove(ctx, changee2e.ProveOptions{Root: *root, Base: r.Base, Head: r.Head, Repeats: *repeats,
-			NodeModules: *nodeModules, NodeBin: *nodeBin, PackageJSON: *packageJSON, Lockfile: *lockfile, Scenarios: r.Compiled()})
+			NodeModules: *nodeModules, NodeBin: *nodeBin, PackageJSON: *packageJSON, Lockfile: *lockfile, Scenarios: r.Compiled(),
+			OracleAcceptance: *oracleAcceptance, RecordCoverage: *recordCoverage})
 		if err != nil {
 			return err
 		}
-		return writeUnder(outPath, proveReport, doc, stdout)
+		return writeProof(outPath, doc, *recordCoverage, stdout)
 	}
 	if outPath != "" {
 		return writeFile(outPath, doc, nil)
 	}
 	_, err := stdout.Write(doc)
 	return err
+}
+
+// writeProof writes the proof under dir and, when coverage was recorded, the coverage document
+// derived from it (CCE-V0-053).
+func writeProof(dir string, doc []byte, recorded bool, stdout io.Writer) error {
+	if recorded {
+		cov, err := changee2e.CoverageFromProof(doc)
+		if err != nil {
+			return err
+		}
+		if err := writeUnder(dir, proveCoverage, cov, nil); err != nil {
+			return err
+		}
+	}
+	return writeUnder(dir, proveReport, doc, stdout)
 }
 
 // writeScenarios writes each compiled scenario under dir at its placement (CCE-V0-007). Every

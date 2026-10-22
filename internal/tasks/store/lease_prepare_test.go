@@ -16,6 +16,7 @@ import (
 // CAL-V0-026: even a failed optimistic read waits for a live writer and
 // rechecks its observation instead of reporting transient staging as damage.
 func TestCALV0026_PreparationFailureWaitsForWriter(t *testing.T) {
+	t.Parallel()
 	for _, recovery := range []bool{false, true} {
 		t.Run(fmt.Sprint("recovery=", recovery), func(t *testing.T) { testPreparedWriter(t, recovery) })
 	}

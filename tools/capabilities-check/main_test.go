@@ -22,6 +22,7 @@ const (
 	mainPath    = "../../cmd/corvint/main.go"
 	cmdPath     = "../../cmd"
 	mcpPath     = "../../internal/mcp"
+	internalDir = "../../internal"
 	linkBase    = "../../docs"
 )
 
@@ -29,6 +30,9 @@ func load(t *testing.T) (Inventory, []byte, []byte) {
 	t.Helper()
 	inv, err := Collect(helpPath, mainPath, cmdPath, mcpPath)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if inv.Words, err = ScanWords([]string{cmdPath, internalDir}); err != nil {
 		t.Fatal(err)
 	}
 	catalog, err := os.ReadFile(catalogPath)
@@ -323,7 +327,9 @@ func TestCAPV0006CheckIsReadOnly(t *testing.T) {
 	files := map[string]string{
 		"cmd/corvint/help.go": "package main\n\nconst rootHelp = `Usage:\n\nCommands:\n  init  first inventory\n\n" +
 			"  Core (decision 0332):\n    init\n  Experimental, no stability promise:\n    none\n`\n",
-		"cmd/corvint/main.go":     "package main\n\nvar topLevelCommands = []string{\"init\"}\n",
+		"cmd/corvint/main.go": "package main\n\nvar topLevelCommands = []string{\"init\"}\n",
+		"cmd/corvint/tables.go": "package main\n\nvar helpSubcommands = map[string]map[string]bool{}\nvar docsSubcommands = []string{}\n" +
+			"var flowSubcommands = map[string]bool{}\nvar leaseActions = []string{}\n",
 		"cmd/corvint-mcp/main.go": "package main\n\nconst tool = \"corvint.query\"\n",
 		"internal/mcp/tools.go":   "package mcp\n",
 		"docs/CAPABILITIES.md": "<!-- capability-gate:commands -->\n| Command | Maturity |\n|---|---|\n| `corvint init` | core |\n<!-- /capability-gate:commands -->\n" +
@@ -409,7 +415,7 @@ func snapshotTree(t *testing.T, root string) string {
 // Core list, and a header or verb line that does not fit the layout fails instead of passing.
 func TestCAPV0002GroupedRootHelp(t *testing.T) {
 	const head = "const rootHelp = `Usage:\n\nCommands:\n"
-	commands, core, err := parseCommands([]byte(head +
+	commands, core, experimental, err := parseCommands([]byte(head +
 		"  Core (decision 0332):\n    init  first inventory\n" +
 		"  Experimental, no stability promise:\n    harness event  one event (AHI)\n\n`\n"))
 	if err != nil {
@@ -417,6 +423,9 @@ func TestCAPV0002GroupedRootHelp(t *testing.T) {
 	}
 	if strings.Join(commands, ",") != "init,harness event" || !core["init"] || core["harness"] || len(core) != 1 {
 		t.Fatalf("commands %v core %v", commands, core)
+	}
+	if !experimental["harness"] || experimental["init"] || len(experimental) != 1 {
+		t.Fatalf("experimental %v", experimental)
 	}
 	for name, block := range map[string]string{
 		"unknown header":    "  Core (x):\n    init  a\n  Deprecated:\n    old  b\n",
@@ -427,8 +436,111 @@ func TestCAPV0002GroupedRootHelp(t *testing.T) {
 		"empty core":        "  Experimental, no stability promise:\n    feature  b\n",
 		"no description":    "  Core (x):\n    init\n",
 	} {
-		if _, _, err := parseCommands([]byte(head + block + "\n`\n")); err == nil {
+		if _, _, _, err := parseCommands([]byte(head + block + "\n`\n")); err == nil {
 			t.Errorf("%s: grouped root help accepted", name)
+		}
+	}
+}
+
+// replaceOnce returns doc with old replaced by new, failing when old is not present exactly once.
+func replaceOnce(t *testing.T, doc []byte, old, new string) []byte {
+	t.Helper()
+	if n := bytes.Count(doc, []byte(old)); n != 1 {
+		t.Fatalf("%q occurs %d times in the catalog", old, n)
+	}
+	return bytes.Replace(doc, []byte(old), []byte(new), 1)
+}
+
+// TestCAPV0007UndocumentedSubcommandFails proves the subcommand half of the gate fails without
+// the fix: a subcommand dropped from its verb's row, or one registered in code but never listed.
+func TestCAPV0007UndocumentedSubcommandFails(t *testing.T) {
+	inv, catalog, readme := load(t)
+	for _, verb := range []string{"cem", "ocm", "step", "docs", "flows", "lease"} {
+		if len(inv.Subcommands[verb]) == 0 {
+			t.Errorf("no subcommands collected for %q: %v", verb, inv.Subcommands)
+		}
+	}
+	for _, sub := range []string{"gate-verdict", "anchor"} {
+		if !contains(inv.Subcommands["cem"], sub) {
+			t.Errorf("cem subcommand %q not followed through cemHelpActions", sub)
+		}
+	}
+	if !contains(inv.Subcommands["flows"], "request-path") || !contains(inv.Subcommands["flows"], "appmap") {
+		t.Errorf("flows init registrations not collected: %v", inv.Subcommands["flows"])
+	}
+	dropped := replaceOnce(t, catalog, "`gate-verdict`, ", "")
+	if got := kinds(Check(dropped, readme, inv, linkBase))["subcommand-undocumented"]; !contains(got, "cem gate-verdict") || len(got) != 1 {
+		t.Errorf("dropped cem subcommand: subcommand-undocumented %v", got)
+	}
+	inv.Subcommands["lease"] = append(inv.Subcommands["lease"], "transfer")
+	if got := kinds(Check(catalog, readme, inv, linkBase))["subcommand-undocumented"]; !contains(got, "lease transfer") || len(got) != 1 {
+		t.Errorf("new lease subcommand: subcommand-undocumented %v", got)
+	}
+}
+
+// TestCAPV0007SubcommandTablesParse pins the table reader on a synthetic package: a nested map
+// following an identifier, a slice, a map with an init registration, and a missing table.
+func TestCAPV0007SubcommandTablesParse(t *testing.T) {
+	dir := t.TempDir()
+	src := "package main\n\nvar cemActions = map[string]bool{\"verify\": true}\n" +
+		"var helpSubcommands = map[string]map[string]bool{\"cem\": cemActions, \"ocm\": {\"link\": true}}\n" +
+		"var docsSubcommands = []string{\"nav\"}\nvar flowSubcommands = map[string]func(){\"map\": nil}\n" +
+		"func init() { flowSubcommands[\"navigate\"] = nil }\nvar leaseActions = []string{\"list\"}\n"
+	if err := os.WriteFile(filepath.Join(dir, "a.go"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "a_test.go"), []byte("package main\n\nfunc init() { flowSubcommands[\"ghost\"] = nil }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := parseSubcommands(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{"cem": "verify", "ocm": "link", "docs": "nav", "flows": "map,navigate", "lease": "list"}
+	for verb, subs := range want {
+		if strings.Join(got[verb], ",") != subs {
+			t.Errorf("%s: got %v, want %s", verb, got[verb], subs)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(dir, "a.go"), []byte(strings.Replace(src, "leaseActions", "leaseVerbs", 1)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := parseSubcommands(dir); err == nil || !strings.Contains(err.Error(), "leaseActions") {
+		t.Errorf("renamed table: err %v", err)
+	}
+}
+
+// TestCAPV0008ExperimentalMaturityMismatchFails proves an Experimental-group verb whose row
+// claims another maturity fails, where the Core-only comparison let it pass.
+func TestCAPV0008ExperimentalMaturityMismatchFails(t *testing.T) {
+	inv, catalog, readme := load(t)
+	if !inv.Experimental["lease"] || inv.Experimental["init"] {
+		t.Fatalf("experimental group not collected: %v", inv.Experimental)
+	}
+	drifted := replaceOnce(t, catalog, "| `corvint lease list` | Lease JSON naming whether it mutated | experimental |", "| `corvint lease list` | Lease JSON naming whether it mutated | implemented |")
+	if got := kinds(Check(drifted, readme, inv, linkBase))["maturity"]; !contains(got, "lease") || len(got) != 1 {
+		t.Errorf("maturity findings %v", got)
+	}
+}
+
+// TestCAPV0009RemovedRefusalCodeFails proves a listed refusal code that no source literal holds
+// fails: a code renamed in the row, and a code removed from the code while the row keeps it.
+func TestCAPV0009RemovedRefusalCodeFails(t *testing.T) {
+	inv, catalog, readme := load(t)
+	stale := replaceOnce(t, catalog, "`attest-public-key-unavailable`", "`public-key-unavailable`")
+	if got := kinds(Check(stale, readme, inv, linkBase))["refusal-unknown"]; !contains(got, "corvint prove") || len(got) != 1 {
+		t.Errorf("renamed code: refusal-unknown %v", got)
+	}
+	if !inv.Words["attest-public-key-unavailable"] {
+		t.Fatal("refusal code literal not scanned")
+	}
+	delete(inv.Words, "attest-public-key-unavailable")
+	if got := kinds(Check(catalog, readme, inv, linkBase))["refusal-unknown"]; !contains(got, "corvint prove") || len(got) != 1 {
+		t.Errorf("removed code: refusal-unknown %v", got)
+	}
+	for _, prose := range []string{"--mutate", "cem/0.x", "context --task TASK --limit 5", ".corvint/x.json", "exit"} {
+		if refusalCode.MatchString(prose) {
+			t.Errorf("%q matched as a refusal code", prose)
 		}
 	}
 }

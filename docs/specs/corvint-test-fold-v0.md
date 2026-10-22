@@ -9,9 +9,9 @@ Authoritative inputs: owner decision of 2026-10-22 accepting the V1-1667 fold wi
 
 ## Agent digest
 - Claim: Test-executing companions fold into `corvint-test` groups, one move each, with output documents byte-identical and every old name still answering.
-- Status: accepted (owner, 2026-10-22); experimental; CTF-V0-001..010 accepted under the standing auto-accept (2026-10-11). Groups 1 to 3 (`runner`, `falsify`, `minimize`) have moved behind byte-identical goldens; groups 4 to 6 have not.
-- Exists: `cmd/corvint-test` groups `e2e` (CCE-V0), `runner`, `falsify` and `minimize` (entries `internal/testrunner/cli`, `internal/behaviorfalsify/cli`, `internal/playwrightminimize/cli`); the three old companions are shims. Unmoved: `cmd/corvint-tests-accept`; core `corvint test-validity negate` and `corvint test`.
-- Blocked on: nothing for groups 1 to 4. Group 6 (core `test`) also needs the `make gate-affected` script and the CI shadow step moved first; `.github/` changes are owner-posted.
+- Status: accepted (owner, 2026-10-22); experimental; CTF-V0-001..010 accepted under the standing auto-accept (2026-10-11). Groups 1 to 4 (`runner`, `falsify`, `minimize`, `accept`) have moved behind byte-identical goldens; groups 5 and 6 have not.
+- Exists: `cmd/corvint-test` groups `e2e` (CCE-V0), `runner`, `falsify`, `minimize` and `accept` (entries `internal/testrunner/cli`, `internal/behaviorfalsify/cli`, `internal/playwrightminimize/cli`, `internal/testacceptance/cli`); the four old companions are shims. Unmoved: core `corvint test-validity negate` and `corvint test`.
+- Blocked on: for group 5, an owner decision on where `corvint-test negate` takes its worktree root: core reads the global `--root` and its negate parser refuses `--root` by name, so the moved command must either read only the working directory or gain a root option, and CTF-V0-003 forbids gaining a flag (lane cce2-1022u, 2026-10-22). Group 6 (core `test`) also needs the `make gate-affected` script and the CI shadow step moved first; `.github/` changes are owner-posted.
 - Read next: Fold map; Requirements; Rollback.
 
 ## User and measurable job
@@ -63,7 +63,10 @@ Not folded in V0:
   the old binary name. The only output-document fields exempt from byte identity are those that
   name the executing binary: group 2's `execute-receipt` tool identity (name, revision, executable
   digest) and group 4's build identity. A golden comparison that covers such a field MUST name it
-  and compare every other byte.
+  and compare every other byte. Group 4's `plan` request binds the absolute roots of a fixture
+  repository the test commits for each run, so its digest differs per run: the golden holds
+  `@DIGEST@` in its place, and the test MUST show that the output carries exactly the digest of
+  that run's request.
 - `CTF-V0-003`: Every profile ID in the fold map MUST stay unchanged. A moved command MUST NOT gain,
   lose or rename a flag, read a different input, or write to a different place.
 - `CTF-V0-004`: After a group moves, its old companion binary MUST be a shim that calls the same
@@ -119,16 +122,17 @@ command.
 
 | Requirement | Evidence |
 |---|---|
-| `CTF-V0-001` | Each group's goldens committed before its move: group 1 at `85bc22089`, group 2 at `868affc59`, group 3 at `44cbf177a` |
-| `CTF-V0-002` | `cmd/corvint-test/fold_test.go` `TestCTFV0002RunnerFoldGoldens` (`testdata/fold/runner.json`, 13 cases) and `TestCTFV0002FalsifyFoldGoldens` (`testdata/fold/falsify.json`, 16 cases including offline `verify-receipt` over a committed receipt) and `TestCTFV0002MinimizeFoldGoldens` (`testdata/fold/minimize.json`, 13 refusal and help cases; its plan needs pinned live evidence), each recorded from the old binary and run against old and new invocations |
-| `CTF-V0-003` | The same goldens: the `runners`, `profiles`, `plan` and `verify-receipt` documents compare byte for byte, profile IDs included; the flag sets moved unchanged |
-| `CTF-V0-004` | `cmd/corvint-test-runner`, `cmd/corvint-behavior-falsify` and `cmd/corvint-playwright-minimize` are shims over the shared `cli` entries; their existing tests pass unchanged; the golden tests run the old names |
+| `CTF-V0-001` | Each group's goldens committed before its move: group 1 at `85bc22089`, group 2 at `868affc59`, group 3 at `44cbf177a`, group 4 at `721706587` |
+| `CTF-V0-002` | `cmd/corvint-test/fold_test.go` `TestCTFV0002RunnerFoldGoldens` (`testdata/fold/runner.json`, 13 cases) and `TestCTFV0002FalsifyFoldGoldens` (`testdata/fold/falsify.json`, 16 cases including offline `verify-receipt` over a committed receipt) and `TestCTFV0002MinimizeFoldGoldens` (`testdata/fold/minimize.json`, 13 refusal and help cases; its plan needs pinned live evidence) and `TestCTFV0002AcceptFoldGoldens` (`testdata/fold/accept.json`, 19 cases including the offline `plan` over a fixture repository committed per run, its digest checked against that run's request), each recorded from the old binary and run against old and new invocations |
+| `CTF-V0-003` | The same goldens: the `runners`, `profiles`, `plan` (groups 1 and 4) and `verify-receipt` documents compare byte for byte, profile IDs included; the flag sets moved unchanged |
+| `CTF-V0-004` | `cmd/corvint-test-runner`, `cmd/corvint-behavior-falsify`, `cmd/corvint-playwright-minimize` and `cmd/corvint-tests-accept` are shims over the shared `cli` entries; their existing tests pass unchanged; the golden tests run the old names |
+| `CTF-V0-006` | `cmd/corvint-test/fold_test.go` `TestCTFV0006AcceptWorkerReentersCorvintTest`: an approved `corvint-test accept accept` over the fixture re-enters the built binary as `corvint-test accept worker`, and no run reads `worker-incomplete` (it does when the re-entry is `worker`). Live NEA-V0-002 (`TestNEAV0002ActualBrowserAssessment`, Playwright 1.64.0, Node 22.23.2) was run through the shim and fails identically before (`721706587`) and after the move with `provider-infrastructure` on this host, so live qualification through `corvint-test` is `NOT_RUN` (lane cce2-1022u) |
 | `CTF-V0-007` | `cmd/corvint-test/fold_test.go` `TestCTFV0007FoldedGroupBoundary` |
 | `CTF-V0-008` | `internal/companionrelease/fold_names_test.go` `TestCTFV0008ExactCompanionNames` |
 | `CTF-V0-010` | `TestCTFV0007FoldedGroupBoundary` (core links no group entry) |
 
-`CTF-V0-005`, `CTF-V0-006` and `CTF-V0-009` have no evidence yet: they bind groups 4, 5 and 6,
-which have not moved.
+`CTF-V0-005` and `CTF-V0-009` have no evidence yet: they bind groups 5 and 6, which have not
+moved.
 
 ## Non-goals and limits
 

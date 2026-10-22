@@ -4,12 +4,14 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -208,6 +210,10 @@ wait "$child"
 func TestPSRBoundedProbes(t *testing.T) {
 	original := poolProbe
 	defer func() { poolProbe = original }()
+	// The listing is the fallback after a failed kernel read (PSR-V0-201).
+	originalNative := poolNativeIdentity
+	defer func() { poolNativeIdentity = originalNative }()
+	poolNativeIdentity = func(int) (string, error) { return "", errors.New("kernel read failed") }
 	calls := 0
 	poolProbe = func(ctx context.Context, argv ...string) ([]byte, error) {
 		calls++
@@ -492,5 +498,41 @@ func TestPSRSweepSourceBoundClass(t *testing.T) {
 		if e == nil || sweepSourceClass(e) != tc.want {
 			t.Fatalf("want %s got %s (%v)", tc.want, sweepSourceClass(e), e)
 		}
+	}
+}
+
+// PSR-V0-201 (V1-1008): on Darwin the runner identity comes from the kernel,
+// so a process listing that overruns its bound on a loaded host cannot fail a
+// preparation; recovery re-reads a recorded identity with the reader that
+// produced it, so a listed record from an earlier binary is never compared
+// with a kernel identity.
+func TestPSRV0201_RunnerIdentityNeedsNoListing(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("the kernel runner identity is Darwin-only")
+	}
+	original := poolProbe
+	t.Cleanup(func() { poolProbe = original })
+	listings := 0
+	poolProbe = func(ctx context.Context, argv ...string) ([]byte, error) {
+		listings++
+		if len(argv) > 2 && argv[1] == "-p" && strings.HasPrefix(argv[len(argv)-1], "lstart") {
+			return []byte("Thu Oct 22 09:00:00 2026\n"), nil
+		}
+		return nil, context.DeadlineExceeded
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	identity, e := poolRunnerIdentityContext(ctx, os.Getpid())
+	if e != nil || !strings.HasPrefix(identity, "darwin:") || listings != 0 {
+		t.Fatalf("identity %q %v after %d listings, want a kernel identity and none", identity, e, listings)
+	}
+	if again, e := poolRecordedIdentity(os.Getpid(), identity); e != nil || again != identity || listings != 0 {
+		t.Fatalf("recorded kernel identity re-read as %q %v after %d listings", again, e, listings)
+	}
+	if legacy, e := poolRecordedIdentity(os.Getpid(), "Thu Oct 22 09:00:00 2026"); e != nil || legacy != "Thu Oct 22 09:00:00 2026" || listings != 1 {
+		t.Fatalf("listed record re-read as %q %v after %d listings, want the listing", legacy, e, listings)
+	}
+	if gone, e := poolRunnerIdentityContext(ctx, 1<<30); e != nil || gone != "" {
+		t.Fatalf("absent process identity %q %v, want none", gone, e)
 	}
 }
