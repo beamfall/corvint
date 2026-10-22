@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -23,21 +22,11 @@ import (
 // stays between 512 and 1,023 receipts.
 const sealTrigger = 2 * snapshot.SegmentReceipts
 
-// segmentSealStages holds, per store state directory, a test seam run after
-// each durable seal step; a non-nil error stops the seal there as a crash
-// would, with no cleanup. Keying by store lets tests over different stores
-// run in parallel (V1-0961); it is empty in production.
-var segmentSealStages sync.Map // state directory -> func(step string) error
+// segmentSealStage is a test seam run after each durable seal step; a
+// non-nil error stops the seal there as a crash would, with no cleanup.
+var segmentSealStage = func(string) error { return nil }
 
-func segmentSealStage(repo *intent.Repository, step string) error {
-	f, ok := segmentSealStages.Load(repo.StateDir)
-	if !ok {
-		return nil
-	}
-	return f.(func(string) error)(step)
-}
-
-// errSegmentSealStop is what a test's segmentSealStages entry returns to leave the
+// errSegmentSealStop is what a test's segmentSealStage returns to leave the
 // stopped seal for the next writer to settle.
 var errSegmentSealStop = errors.New("segment seal stopped by a test")
 
@@ -153,7 +142,7 @@ func sealSegment(repo *intent.Repository, session *authority.Session, convert bo
 	if err := syncDir(repo, snapshot.SegmentsDir); err != nil {
 		return err
 	}
-	if err := segmentSealStage(repo, "marker"); err != nil {
+	if err := segmentSealStage("marker"); err != nil {
 		return err
 	}
 	for _, f := range []struct {
@@ -171,7 +160,7 @@ func sealSegment(repo *intent.Repository, session *authority.Session, convert bo
 	if err := syncDir(repo, snapshot.SegmentsDir); err != nil {
 		return err
 	}
-	if err := segmentSealStage(repo, "segment"); err != nil {
+	if err := segmentSealStage("segment"); err != nil {
 		return err
 	}
 	current, err := currentDigest(repo, "head.json")
@@ -189,13 +178,13 @@ func sealSegment(repo *intent.Repository, session *authority.Session, convert bo
 	if err := session.Replace(stage, authority.Target{Role: authority.RoleHead, Name: "head.json"}, current); err != nil {
 		return err
 	}
-	if err := segmentSealStage(repo, "head"); err != nil {
+	if err := segmentSealStage("head"); err != nil {
 		return err
 	}
 	if err := dropSealed(repo, seg, through); err != nil {
 		return err
 	}
-	if err := segmentSealStage(repo, "dropped"); err != nil {
+	if err := segmentSealStage("dropped"); err != nil {
 		return err
 	}
 	if err := removeSealMarker(repo); err != nil {
@@ -591,7 +580,7 @@ func unsealLast(repo *intent.Repository, session *authority.Session) error {
 	if err := syncDir(repo, snapshot.SegmentsDir); err != nil {
 		return err
 	}
-	if err := segmentSealStage(repo, "marker"); err != nil {
+	if err := segmentSealStage("marker"); err != nil {
 		return err
 	}
 	dirs := map[string]bool{"receipts": true, snapshot.SegmentsDir: true}
@@ -636,7 +625,7 @@ func unsealLast(repo *intent.Repository, session *authority.Session) error {
 	if err := syncDirs(repo, dirs); err != nil {
 		return err
 	}
-	if err := segmentSealStage(repo, "segment"); err != nil {
+	if err := segmentSealStage("segment"); err != nil {
 		return err
 	}
 	current, err := currentDigest(repo, "head.json")
@@ -653,7 +642,7 @@ func unsealLast(repo *intent.Repository, session *authority.Session) error {
 	if err := session.Replace(stage, authority.Target{Role: authority.RoleHead, Name: "head.json"}, current); err != nil {
 		return err
 	}
-	if err := segmentSealStage(repo, "head"); err != nil {
+	if err := segmentSealStage("head"); err != nil {
 		return err
 	}
 	for _, n := range []string{name, snapshot.SegmentManifestName(e.Last)} {
@@ -664,7 +653,7 @@ func unsealLast(repo *intent.Repository, session *authority.Session) error {
 	if err := syncDir(repo, snapshot.SegmentsDir); err != nil {
 		return err
 	}
-	if err := segmentSealStage(repo, "dropped"); err != nil {
+	if err := segmentSealStage("dropped"); err != nil {
 		return err
 	}
 	return removeSealMarker(repo)

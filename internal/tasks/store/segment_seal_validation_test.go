@@ -102,7 +102,6 @@ func verifyAgainstCompleteAudit(t *testing.T, repo *intent.Repository) {
 // writer route, none schedules a refresh, and head − FullSeq stays at most
 // 1,023 through two validated seals.
 func TestJSGV0009_SealValidatesAndAdvancesFullSeq(t *testing.T) {
-	t.Parallel()
 	repo := sealValidationStore(t)
 	check := func(run writerRun) {
 		t.Helper()
@@ -144,7 +143,6 @@ func TestJSGV0009_SealValidatesAndAdvancesFullSeq(t *testing.T) {
 // seal declines and invalidates the checkpoint; the write itself completes.
 // The next write takes the complete route and seals plainly.
 func TestJSGV0009_SealDeclinesACarriedValueThatDiffers(t *testing.T) {
-	t.Parallel()
 	repo := sealValidationStore(t)
 	last := uint64(3 * snapshot.SegmentReceipts)
 	forged := ""
@@ -190,7 +188,6 @@ func TestJSGV0009_SealDeclinesACarriedValueThatDiffers(t *testing.T) {
 // checkpoint before the sealing write: the write takes the complete route,
 // retains FullSeq at its observed head and the seal does not validate.
 func TestJSGV0009_SealWithoutCheckpointSealsPlainly(t *testing.T) {
-	t.Parallel()
 	repo := sealValidationStore(t)
 	observed := headSeqOf(t, repo)
 	os.Remove(journal.WriterCheckpointPath(repo.StateDir))
@@ -212,7 +209,6 @@ func TestJSGV0009_SealWithoutCheckpointSealsPlainly(t *testing.T) {
 // whose head is 1,023 receipts past FullSeq takes the writer route, and one
 // 1,024 past declines to the complete route.
 func TestJSGV0010_SegmentedWriterBound(t *testing.T) {
-	t.Parallel()
 	repo := sealValidationStore(t)
 	for _, tc := range []struct {
 		past uint64

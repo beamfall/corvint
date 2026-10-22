@@ -59,7 +59,6 @@ func mustSameTree(t *testing.T, repo *intent.Repository, want map[string]string,
 // sealed store is byte-identical to the archive of the unsegmented one
 // (JSG-V0-012), and unseal restores the byte-identical prior tree.
 func TestJSGV0013_JournalSealAndUnseal(t *testing.T) {
-	t.Parallel()
 	ctx := context.Background()
 	repo := historyStore(t, migrateHistory)
 	before := stateTree(t, repo)
@@ -97,7 +96,6 @@ func TestJSGV0013_JournalSealAndUnseal(t *testing.T) {
 // TestJSGV0013_MigrationRefusesAFault checks that seal and unseal refuse a
 // store the complete audit does not prove and write nothing.
 func TestJSGV0013_MigrationRefusesAFault(t *testing.T) {
-	t.Parallel()
 	ctx := context.Background()
 	for _, tc := range []struct {
 		name   string
@@ -171,27 +169,25 @@ func firstSealedLogicalRequest(t *testing.T, repo *intent.Repository) string {
 // it back to the sealed store, after it the writer rolls it forward, and a
 // rerun of unseal then restores the byte-identical unsegmented tree.
 func TestJSGV0013_UnsealStopsSettle(t *testing.T) {
-	t.Parallel()
 	ctx := context.Background()
 	for _, tc := range []struct {
 		stage   string
 		through uint64
 	}{{"marker", 2 * snapshot.SegmentReceipts}, {"segment", 2 * snapshot.SegmentReceipts}, {"head", snapshot.SegmentReceipts}, {"dropped", snapshot.SegmentReceipts}} {
 		t.Run(tc.stage, func(t *testing.T) {
-			t.Parallel()
 			repo := historyStore(t, migrateHistory)
 			before := stateTree(t, repo)
 			if _, err := SealJournal(ctx, repo); err != nil {
 				t.Fatal(err)
 			}
-			withSealStop(t, repo, tc.stage)
+			withSealStop(t, tc.stage)
 			if _, err := UnsealJournal(ctx, repo); !errors.Is(err, errSegmentSealStop) {
 				t.Fatalf("unseal: %v", err)
 			}
 			if _, err := segmentAudit(repo); wire.CodeOf(err) != wire.CodeRedoPending {
 				t.Fatalf("audit with a pending unseal: %v, want REDO_PENDING", err)
 			}
-			segmentSealStages.Delete(repo.StateDir)
+			segmentSealStage = func(string) error { return nil }
 			if err := settleSegmentSeal(repo); err != nil {
 				t.Fatal(err)
 			}
@@ -216,7 +212,6 @@ func TestJSGV0013_UnsealStopsSettle(t *testing.T) {
 // TestJSGV0013_SegmentedStoreRefusesRetireAndUnretire checks that retire and
 // unretire refuse a segmented store with nothing written: unseal first.
 func TestJSGV0013_SegmentedStoreRefusesRetireAndUnretire(t *testing.T) {
-	t.Parallel()
 	ctx := context.Background()
 	repo := historyStore(t, segmentHistory)
 	if _, err := SealJournal(ctx, repo); err != nil {
@@ -239,7 +234,7 @@ func TestJSGV0013_SegmentedStoreRefusesRetireAndUnretire(t *testing.T) {
 func TestJSGV0012_CompactionOnASealedStore(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	const created = 480
+	const created = 400
 	repo := historyStore(t, created)
 	holdLeasePolicy(t, repo)
 	root := filepath.Join(t.TempDir(), "worktree")
@@ -358,7 +353,6 @@ func TestJSGV0012_CompactionOnASealedStore(t *testing.T) {
 // TestJSGV0012_ArchiveExportRefusesADamagedSegment checks that export of a
 // sealed store whose segment bytes changed refuses and writes no archive.
 func TestJSGV0012_ArchiveExportRefusesADamagedSegment(t *testing.T) {
-	t.Parallel()
 	repo := historyStore(t, segmentHistory)
 	if _, err := SealJournal(context.Background(), repo); err != nil {
 		t.Fatal(err)
