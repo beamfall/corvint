@@ -110,7 +110,7 @@ var proveLimitations = []string{
 
 // hostedLimitations are added to a hosted-test proof (CCE-V0-034..036).
 var hostedLimitations = []string{
-	"a hosted test runs under the prove config, not the host's own Playwright config: host projects, fixtures and globalSetup are not applied",
+	"a hosted test runs under the prove config, not the host's own Playwright config: host projects, fixtures and globalSetup are not applied; runner_config lists each key whose value differs from the host config read as text (CCE-V0-049)",
 	"a hosted test is selected by its literal title; a title another test in the file also matches under --grep runs both",
 	"hosted controls remove the awaited action before each assertion; the assertions themselves are not perturbed",
 }
@@ -161,6 +161,8 @@ type scenarioProof struct {
 	AssertionID  string `json:"assertion_id"`
 	OracleOrigin string `json:"oracle_origin"`
 	Hosted       bool   `json:"hosted,omitempty"` // an existing hosted test run as given (CCE-V0-034)
+	// RunnerConfig lists how the prove config differs from the adopter's own config (CCE-V0-049).
+	RunnerConfig *runnerConfig `json:"runner_config,omitempty"`
 	Verdict      string `json:"verdict"`
 	Note         string `json:"note"`
 	// Scoring is true only for a DISCRIMINATES, NEW_REACH or PRESERVES verdict on an
@@ -296,6 +298,9 @@ func Prove(ctx context.Context, o ProveOptions) ([]byte, error) {
 // verdict with the oracle_origin cap.
 func (e *proveEnv) proveScenario(ctx context.Context, base, head string, sc Scenario, repeats int) scenarioProof {
 	p := scenarioProof{Obligation: sc.Obligation, Placement: sc.Placement, AssertionID: sc.AssertionID, OracleOrigin: sc.OracleOrigin, Hosted: sc.Hosted}
+	if sc.Hosted {
+		p.RunnerConfig = adopterRunnerConfig(ctx, e.root, head, sc.Placement)
+	}
 	tree, reason := e.headTestTree(ctx, head, sc)
 	if reason != "" {
 		p.Head, p.Base = unrunSide(head, head, reason), unrunSide(base, head, reason)
