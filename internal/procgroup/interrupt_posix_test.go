@@ -8,20 +8,50 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
 )
 
+// readySignal closes ready on the first byte the child writes to stdout.
+type readySignal struct {
+	once  sync.Once
+	ready chan struct{}
+}
+
+func (r *readySignal) Write(value []byte) (int, error) {
+	r.once.Do(func() { close(r.ready) })
+	return len(value), nil
+}
+
 // trapSpec runs a shell loop whose traps record which stop signal reached it.
+// The shell prints once its traps are installed, and AfterStart, which Run
+// calls before it arms the run timer, waits for that line, so the timeout
+// never fires at a shell that has not installed its traps yet. TerminateGrace
+// gives the TERM trap's fork and exec far longer than the 100 ms default
+// before SIGKILL, so a loaded host cannot turn a SIGTERM stop into a SIGKILL
+// one (V1-2446, as V1-2319 for TestTerminateGraceLetsSlowTermHandlerFinish).
 func trapSpec(t *testing.T, directory, traps string) Spec {
 	t.Helper()
+	signal := &readySignal{ready: make(chan struct{})}
 	return Spec{
-		Argv:    []string{"/bin/sh", "-c", traps + "; while :; do /bin/sleep 0.05; done"},
-		Dir:     directory,
-		Env:     []string{"PATH=/usr/bin:/bin", "MARK=" + filepath.Join(directory, "mark")},
-		Timeout: 200 * time.Millisecond,
+		Argv:            []string{"/bin/sh", "-c", traps + "; echo ready; while :; do /bin/sleep 0.05; done"},
+		Dir:             directory,
+		Env:             []string{"PATH=/usr/bin:/bin", "MARK=" + filepath.Join(directory, "mark")},
+		Timeout:         200 * time.Millisecond,
+		ShutdownTimeout: 20 * time.Second,
+		TerminateGrace:  10 * time.Second,
+		StdoutTee:       signal,
+		AfterStart: func(ctx context.Context, _ int) error {
+			select {
+			case <-signal.ready:
+				return nil
+			case <-ctx.Done():
+				return errors.New("shell did not report its traps installed")
+			}
+		},
 	}
 }
 
