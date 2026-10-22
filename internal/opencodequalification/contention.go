@@ -43,11 +43,14 @@ type contentionSnapshot struct {
 // readContention is the host reading; tests replace it.
 var readContention = observeContention
 
+// procLoadavgPath is the Linux load-average file; tests point it at a fixture.
+var procLoadavgPath = "/proc/loadavg"
+
 // observeContention reads load averages and the run queue from /proc/loadavg (Linux) or
 // `sysctl -n vm.loadavg` (macOS); anything it cannot read stays unobserved, never zero.
 func observeContention() contentionSnapshot {
 	s := contentionSnapshot{cpus: runtime.NumCPU(), source: "none"}
-	if b, e := os.ReadFile("/proc/loadavg"); e == nil {
+	if b, e := os.ReadFile(procLoadavgPath); e == nil {
 		f := strings.Fields(string(b))
 		if len(f) >= 4 && parseLoad(&s, f[:3]) {
 			s.source = "/proc/loadavg"
@@ -112,16 +115,18 @@ func (s latencySample) peakLoadPerCPU() (float64, bool) {
 }
 
 // latencyOutcome classifies the decisive attempt: within limits, a complete sample that missed only a
-// p95 limit in a window whose observed peak load per CPU exceeds the declared threshold, or a
+// p95 limit in a window whose observed peak load per CPU exceeds the declared threshold and, when the
+// AHI-172 same-window baseline was observed, stayed within its slowdown-scaled limits, or a
 // regression (any other miss, including one whose contention was not observed).
 func latencyOutcome(s latencySample) string {
 	if len(latencyFailures(s)) == 0 {
 		return latencyOutcomePass
 	}
-	if peak, ok := s.peakLoadPerCPU(); ok && latencyResample(s) && peak > latencyContentionLoadPerCPU {
-		return latencyOutcomeContended
+	peak, ok := s.peakLoadPerCPU()
+	if !ok || !latencyResample(s) || peak <= latencyContentionLoadPerCPU || baselineComparison(s) == baselineBeyond {
+		return latencyOutcomeRegressed
 	}
-	return latencyOutcomeRegressed
+	return latencyOutcomeContended
 }
 
 // latencyOnlyRetry reports whether latency is the only failed check and it missed under contention.
@@ -141,7 +146,11 @@ func retryHint(s latencySample) string {
 		cpus = s.start.cpus
 	}
 	peak, _ := s.peakLoadPerCPU()
-	return fmt.Sprintf("retry when the 1-minute load average is below %.1f (%.2f x %d logical CPUs); the timing window peaked at %.2f per CPU", latencyContentionLoadPerCPU*float64(cpus), latencyContentionLoadPerCPU, cpus, peak)
+	hint := fmt.Sprintf("retry when the 1-minute load average is below %.1f (%.2f x %d logical CPUs); the timing window peaked at %.2f per CPU", latencyContentionLoadPerCPU*float64(cpus), latencyContentionLoadPerCPU, cpus, peak)
+	if slow, ok := s.baseline.slowdown(); ok {
+		hint += fmt.Sprintf("; the same-window no-op baseline ran at %.2fx its quiet reference", slow)
+	}
+	return hint
 }
 
 // RetryLaterError is a native campaign whose only failure is a latency miss under recorded host

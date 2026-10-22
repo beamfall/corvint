@@ -227,7 +227,10 @@ func Native(ctx context.Context, c Config) (Object, error) {
 	faultStart := len(faults)
 	config["plugins"] = []Object{{"package": fileURL(instrumented), "options": Object{"corvintBinary": c.Corvint}}, {"package": fileURL(probe), "options": Object{}}}
 	windowStart := readContention()
-	if e = campaign("timing", true, false); e != nil {
+	stopBaseline := startBaseline(ctx)
+	e = campaign("timing", true, false)
+	firstBaseline := stopBaseline()
+	if e != nil {
 		return nil, e
 	}
 	windowEnd := readContention()
@@ -240,14 +243,17 @@ func Native(ctx context.Context, c Config) (Object, error) {
 		return nil, e
 	}
 	first, delivered := timingSample(timings[timingStart:])
-	first.start, first.end = windowStart, windowEnd
+	first.start, first.end, first.baseline = windowStart, windowEnd, firstBaseline
 	checks["timed-delivery"] = delivered && len(faults) == faultStart
 	attempts := []latencySample{first}
 	// AHI-056: one same-run re-sample when only the p95 limits missed; the re-sample decides.
 	if truth(checks["timed-delivery"]) && latencyResample(first) {
 		resampleStart := len(timings)
 		windowStart = readContention()
-		if e = campaign("timing-resample", true, false); e != nil {
+		stopBaseline = startBaseline(ctx)
+		e = campaign("timing-resample", true, false)
+		secondBaseline := stopBaseline()
+		if e != nil {
 			return nil, e
 		}
 		windowEnd = readContention()
@@ -258,7 +264,7 @@ func Native(ctx context.Context, c Config) (Object, error) {
 			return nil, e
 		}
 		second, again := timingSample(timings[resampleStart:])
-		second.start, second.end = windowStart, windowEnd
+		second.start, second.end, second.baseline = windowStart, windowEnd, secondBaseline
 		checks["timed-delivery"] = again && len(faults) == faultStart
 		attempts = append(attempts, second)
 	}
@@ -284,7 +290,7 @@ func Native(ctx context.Context, c Config) (Object, error) {
 		}
 	}
 	checks["bounded-stops"] = stops >= 1 && stops <= 2
-	metrics := Object{"query": queryTimes, "lifecycle": lifeTimes, "queryP95Ms": p95(queryTimes), "lifecycleP95Ms": p95(lifeTimes), "latencyAttempts": latencyAttemptEvidence(attempts), "latencyMethod": latencyMethod, "latencyOutcome": latencyOutcome(decisive), "contentionThresholdLoadPerCPU": latencyContentionLoadPerCPU, "injectedBytes": injected, "manualBytes": len(source), "criticalRecall": Object{"injected": boolInt(recall), "manual": 1, "total": 1}, "surface": "real stock host callbacks, including normalization, spawn, framing and delivery", "observer": "transparent registration wrapper; candidate source unchanged; direct Corvint executable, no capture subprocess"}
+	metrics := Object{"query": queryTimes, "lifecycle": lifeTimes, "queryP95Ms": p95(queryTimes), "lifecycleP95Ms": p95(lifeTimes), "latencyAttempts": latencyAttemptEvidence(attempts), "latencyMethod": latencyMethod, "latencyOutcome": latencyOutcome(decisive), "contentionThresholdLoadPerCPU": latencyContentionLoadPerCPU, "latencyBaseline": baselineEvidence(decisive), "injectedBytes": injected, "manualBytes": len(source), "criticalRecall": Object{"injected": boolInt(recall), "manual": 1, "total": 1}, "surface": "real stock host callbacks, including normalization, spawn, framing and delivery", "observer": "transparent registration wrapper; candidate source unchanged; direct Corvint executable, no capture subprocess"}
 	for _, installed := range []bool{true, false} {
 		config["plugins"] = []Object{}
 		name := "uninstall"
@@ -457,14 +463,16 @@ const (
 	queryP95LimitMs     = 500.0
 	lifecycleP95LimitMs = 250.0
 	latencyMinSamples   = 20
-	latencyMethod       = "AHI-056: absolute AHI-012 p95 limits; at most one same-run re-sample when only a p95 limit missed; the re-sample decides and every attempt is retained. AHI-171: each window records host contention; a latency-only miss whose decisive window peaked above the declared load per CPU is RETRY_LATER (LATENCY_HOST_CONTENDED), not a regression"
+	latencyMethod       = "AHI-056: absolute AHI-012 p95 limits; at most one same-run re-sample when only a p95 limit missed; the re-sample decides and every attempt is retained. AHI-171: each window records host contention; a latency-only miss whose decisive window peaked above the declared load per CPU is RETRY_LATER (LATENCY_HOST_CONTENDED), not a regression. AHI-172: a fixed no-op probe sampled during each window measures the host's slowdown against its quiet reference; a contended miss beyond the limits scaled by that slowdown and tolerance is a LATENCY_REGRESSION"
 )
 
 // latencySample is one timing campaign's post-warm-up samples in milliseconds.
-// start and end are the AHI-171 host-contention readings at the window's boundaries.
+// start and end are the AHI-171 host-contention readings at the window's boundaries; baseline is the
+// AHI-172 same-window no-op probe.
 type latencySample struct {
 	query, lifecycle []float64
 	start, end       contentionSnapshot
+	baseline         baselineSample
 }
 
 // timingSample extracts one campaign's samples, dropping each series' first (warm-up) sample.
@@ -517,7 +525,7 @@ func latencyResample(s latencySample) bool {
 func latencyAttemptEvidence(attempts []latencySample) []Object {
 	out := []Object{}
 	for _, a := range attempts {
-		out = append(out, Object{"queryP95Ms": p95(a.query), "lifecycleP95Ms": p95(a.lifecycle), "querySamples": len(a.query), "lifecycleSamples": len(a.lifecycle), "failures": latencyFailures(a), "outcome": latencyOutcome(a), "contention": Object{"start": a.start.evidence(), "end": a.end.evidence()}})
+		out = append(out, Object{"queryP95Ms": p95(a.query), "lifecycleP95Ms": p95(a.lifecycle), "querySamples": len(a.query), "lifecycleSamples": len(a.lifecycle), "failures": latencyFailures(a), "outcome": latencyOutcome(a), "contention": Object{"start": a.start.evidence(), "end": a.end.evidence()}, "baseline": baselineEvidence(a)})
 	}
 	return out
 }
