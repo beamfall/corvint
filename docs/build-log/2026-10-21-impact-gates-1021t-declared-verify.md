@@ -1,7 +1,8 @@
 # 2026-10-21 impact-gates-1021t: declared verify commands close impact plans
 
 Tickets: V1-2071 (declared verify command ignored by `affected`/`impact`), V1-1848 (range and path
-impact choose different gates). Requirements: `NGI-V0-060`, `NGI-V0-061`, `NGI-V0-062`
+impact choose different gates), V1-1823 acceptance criteria 1-2 (Ruby RSpec classification and the
+repository-wide bounded count; see the last section). Requirements: `NGI-V0-060` to `NGI-V0-064`
 (`docs/specs/non-go-impact-v0.md`) and `AFP-V0-196` (`docs/specs/affected-plan-v0.md`), accepted
 under the owner's standing auto-accept (2026-10-11).
 
@@ -58,7 +59,32 @@ took its gate from the profile alone while path impact read the Makefile first.
 `make gate`; tier-2 packages of `corvint affected` (left to batch CI); live runs against the real
 beamfall repositories (private, not cloned in this lane).
 
+## V1-1823: Ruby request rows and the bounded unknown
+
+Problem: PR #1137's round-1 limits. A Ruby request classified RSpec paths as tests only in the
+autoload rows, so a `spec/*_spec.rb` feature marker reached from a mixed request kept
+`source-marker` authority; and `ruby-reference-index-bounded` was the repository-wide count of cut
+references, emitted on every mapped changed path whether or not a cut could hide its referrers.
+
+Decisions: `NGI-V0-063` takes a shallow index view (`withRubyTests`) for any path or range request
+naming a Ruby path, so every row uses `isRubyTestPath`; requests naming no Ruby path never take it,
+and `TestRubySpecPathNonRubyRequestBaseBytes` still matches its base-commit golden. The receipt
+coverage gap rule stays on the shared rule (non-goal). `NGI-V0-064` records each cut reference
+(`rubyCut`) and counts, per plan, only those outside the changed file that could name a traversed
+constant; nesting overflow stays conservative. `TestAnalyzerBoundsFailClosed/ruby-resolutions` now
+changes the constant past the bound, the one a truncated reference could name.
+
+Evidence: the four new or changed assertions (`TestNGIV0063RubyRequestClassifiesSpecMarkersAsTests`,
+`TestNGIV0063RubyRangeClassifiesSpecMarkersAsTests`, `TestRubyAutoloadResolutionBound`,
+`TestRubyAutoloadSiteBound`) failed with the behavior lines reverted and pass with them; the full
+`./internal/contextindex` package passed. The analyzer schema stays `corvint-analyzer/143`; its
+digest was repinned.
+
+Residual: V1-1823 has no criterion beyond these two; none.
+
 ## Rollback
+
+V1-1823: drop the `withRubyTests` view and emit `rubyAutoload.bounded` again.
 
 Revert this change: `closingGates` back to `gateCommand`, `rangeVerification` back to the profile
 gate, drop `setVerification`'s authority member and `internal/projectprofile/verify.go` (moving the

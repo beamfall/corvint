@@ -821,6 +821,9 @@ func qualifyRangePathEvidence(results []map[string]any, index *Index, spans map[
 }
 
 func compileRangeResults(index *Index, goPaths []string, spans map[string][]rangeHunk, changeByPath map[string]rangeChange, authored map[string]struct{}) ([]map[string]any, []any) {
+	if rubyImpactRequested(goPaths) {
+		index = index.withRubyTests() // NGI-V0-063
+	}
 	results := make([]map[string]any, 0, len(goPaths))
 	for _, changedPath := range goPaths {
 		results = append(results, map[string]any{
@@ -847,7 +850,7 @@ func compileRangeResults(index *Index, goPaths []string, spans map[string][]rang
 		}
 		if record, exists := records[identifier]; exists {
 			_, selfAuthored := authored[record.Path]
-			results = append(results, rangeMarkerResult(record, filtered.Markers[key], selfAuthored))
+			results = append(results, rangeMarkerResult(index, record, filtered.Markers[key], selfAuthored))
 			if selfAuthored {
 				ledgerUncertainty = append(ledgerUncertainty, kind+":"+identifier+
 					" is declared by "+record.Path+", which the same change set authors, so its canonical-ledger authority is withheld")
@@ -863,7 +866,7 @@ func compileRangeResults(index *Index, goPaths []string, spans map[string][]rang
 // is caller-controlled at target HEAD: `CF-V0-031` forbids emitting
 // `authoritative` confidence or a canonical authority label for it, so the
 // record is still reported but its authority is withheld and named.
-func rangeMarkerResult(record Record, markers []Marker, selfAuthoredLedger bool) map[string]any {
+func rangeMarkerResult(index *Index, record Record, markers []Marker, selfAuthoredLedger bool) map[string]any {
 	ledgerConfidence, ledgerAuthority := "authoritative", "canonical-ledger"
 	if selfAuthoredLedger {
 		ledgerConfidence, ledgerAuthority = "low", UnverifiedLedgerAuthority
@@ -875,7 +878,7 @@ func rangeMarkerResult(record Record, markers []Marker, selfAuthoredLedger bool)
 			break
 		}
 		confidence, authority := "medium", "source-marker"
-		if isTestPath(marker.Path) {
+		if index.isTest(marker.Path) {
 			confidence, authority = "high", "test-marker"
 		}
 		resultEvidence = append(resultEvidence, evidence(marker.Path, marker.Line, marker.BlobHash,
