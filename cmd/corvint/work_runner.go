@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"runtime"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/groupreap"
@@ -154,6 +155,38 @@ var workStartLive = groupreap.StartLive
 
 var errWorkBoundExecutableUnqualified = errors.New("bound Corvint executable is unqualified")
 
+// workTextBusyRetries bounds the start retries of a just-materialized adapter
+// (see workStartAdapter).
+var workTextBusyRetries = []time.Duration{5 * time.Millisecond, 20 * time.Millisecond, 50 * time.Millisecond, 100 * time.Millisecond, 200 * time.Millisecond}
+
+// workStartAdapter starts a fresh command from build, retrying a start that
+// failed with ETXTBSY. Materialization closes each file's write descriptor,
+// but a fork made concurrently by another goroutine can inherit it until that
+// child's own exec closes it (close-on-exec), so exec of the materialized
+// adapter can briefly fail "text file busy" on Linux (V1-2433). Nothing
+// started in that case, so a bounded retry is safe; any other failure, a
+// start, or cancellation returns at once. An exec.Cmd starts at most once, so
+// each attempt builds a new one.
+func workStartAdapter(ctx context.Context, build func() *exec.Cmd) (*exec.Cmd, error) {
+	command := build()
+	err := workStartLive(command)
+	for _, delay := range workTextBusyRetries {
+		if err == nil || !errors.Is(err, syscall.ETXTBSY) {
+			break
+		}
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return command, err
+		case <-timer.C:
+		}
+		command = build()
+		err = workStartLive(command)
+	}
+	return command, err
+}
+
 func (runner *workAdapterRunner) run(operation string, argv []string, stdoutLimit int) ([]byte, workqueue.AdapterReceipt, error) {
 	stdout := &workLimitedBuffer{limit: min(stdoutLimit, int(max(0, int64(workAggregateLimit)-runner.total)))}
 	stderr := &workLimitedBuffer{limit: workStderrLimit}
@@ -187,8 +220,6 @@ func (runner *workAdapterRunner) run(operation string, argv []string, stdoutLimi
 	if runner.bound != nil {
 		commandArgv = append([]string{runner.bound.executionPath}, commandArgv...)
 	}
-	command := exec.Command(runner.path, commandArgv...)
-	command.Dir, command.Env = runner.root, append([]string(nil), runner.env...)
 	// A nil stdin is /dev/null. Explicit pipes keep Cmd.Wait independent of drains.
 	outRead, outWrite, err := os.Pipe()
 	if err != nil {
@@ -202,9 +233,14 @@ func (runner *workAdapterRunner) run(operation string, argv []string, stdoutLimi
 	}
 	defer errRead.Close()
 	defer errWrite.Close()
-	command.Stdout, command.Stderr = outWrite, errWrite
-	workContain(command)
-	if err = workStartLive(command); err != nil {
+	command, err := workStartAdapter(runner.ctx, func() *exec.Cmd {
+		command := exec.Command(runner.path, commandArgv...)
+		command.Dir, command.Env = runner.root, append([]string(nil), runner.env...)
+		command.Stdout, command.Stderr = outWrite, errWrite
+		workContain(command)
+		return command
+	})
+	if err != nil {
 		return finish(err)
 	}
 	_ = outWrite.Close()

@@ -4,9 +4,13 @@ package main
 
 import (
 	"context"
+	"errors"
+	"io"
+	"io/fs"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -48,6 +52,51 @@ func TestV11036WorkRunnerResidueIsObservedBeforeReap(t *testing.T) {
 			}
 			if calls != 1 {
 				t.Fatalf("pre-reap residue observation calls = %d, want 1", calls)
+			}
+		})
+	}
+}
+
+// V1-2433: an adapter start refused "text file busy", as a concurrent fork
+// holding materialization's write descriptor makes it on Linux, is retried
+// with a fresh command instead of failing the capture as ADAPTER_FAILED; a
+// start that stays busy past the bounded retries still fails, and any other
+// start error is not retried.
+func TestV12433WorkRunnerRetriesTextBusyAdapterStart(t *testing.T) {
+	previous := workStartLive
+	t.Cleanup(func() { workStartLive = previous })
+	for _, tc := range []struct {
+		name          string
+		busy          int
+		cause         error
+		wantStarts    int
+		wantSucceeded bool
+	}{
+		{"busy then started", 2, syscall.ETXTBSY, 3, true},
+		{"busy past the retries", 100, syscall.ETXTBSY, 1 + len(workTextBusyRetries), false},
+		{"other start error", 100, syscall.EACCES, 1, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			starts := 0
+			commands := map[*exec.Cmd]bool{}
+			workStartLive = func(command *exec.Cmd) error {
+				starts++
+				if commands[command] {
+					t.Error("a command was started twice")
+				}
+				commands[command] = true
+				if starts <= tc.busy {
+					return &fs.PathError{Op: "fork/exec", Path: command.Path, Err: tc.cause}
+				}
+				return previous(command)
+			}
+			runner := workTestRunner(t, context.Background(), "#!/bin/sh\nexit 0\n")
+			_, receipt, err := runner.run("snapshot", []string{}, 100)
+			if starts != tc.wantStarts || (err == nil) != tc.wantSucceeded {
+				t.Fatalf("starts=%d err=%v receipt=%+v; want %d starts, success %v", starts, err, receipt, tc.wantStarts, tc.wantSucceeded)
+			}
+			if !tc.wantSucceeded && (!errors.Is(err, tc.cause) || runner.commandError(err, io.Discard) != "ADAPTER_FAILED") {
+				t.Fatalf("failed start lost its cause: %v", err)
 			}
 		})
 	}
