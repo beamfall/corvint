@@ -82,6 +82,18 @@ the uname strings and the binary digests.
 - The full-corpus parity runs read observation files outside the repository. Their completeness rests
   on the observation digests recorded in `QUALIFICATION.json`, not on a count check in the harness.
 
+## Verification
+
+- Focused tests pass: `internal/cem/verify`, `internal/cem/workflow`, `internal/cem/cli`,
+  `internal/doccorpus`, `internal/witness`, `internal/witnesscollapse`, `internal/console`,
+  `tools/cem-stable-regen`, `tools/cem-structural-closure`, `tools/test-read-scopes-check` and
+  `interop/cem01-go`, plus `go vet` in both modules.
+- After the zero-byte case became a declared case, the cases still observe `55792ead…8a9a41` on
+  go1.27.1 and `afe35c56…ad718c` on go1.24.13. Native case parity passes on go1.27.2 and
+  go1.27.3.
+- The local doc-gates, `gofmt -l` and `make windows-vet` pass. The dogfood binding is the CEM
+  sealed with this change. The repository-wide `make gate` was not run.
+
 ## Review
 
 One Codex round (`gpt-6-astra`, read-only) over `ef2a01db5..HEAD` raised four findings. All are
