@@ -4177,7 +4177,7 @@ RUBY-AFFECTED-V0-001	docs/specs/ruby-affected-test-adapter-v0.md	The plugin name
 RUBY-AFFECTED-V0-002	docs/specs/ruby-affected-test-adapter-v0.md	One unit MUST be one repository-relative `.rb` file, the smallest common	unrecorded	-
 RUBY-AFFECTED-V0-003	docs/specs/ruby-affected-test-adapter-v0.md	Discovery MUST admit all concurrently present conventional RSpec	unrecorded	-
 RUBY-AFFECTED-V0-004	docs/specs/ruby-affected-test-adapter-v0.md	Imports MUST include uniquely resolved literal `require` and	unrecorded	-
-RUBY-AFFECTED-V0-005	docs/specs/ruby-affected-test-adapter-v0.md	Unreadable or undecodable Ruby, dynamic/interpolated loading, ambiguous	unrecorded	-
+RUBY-AFFECTED-V0-005	docs/specs/ruby-affected-test-adapter-v0.md	Unreadable or undecodable Ruby, dynamic/interpolated loading,	unrecorded	-
 RUBY-AFFECTED-V0-006	docs/specs/ruby-affected-test-adapter-v0.md	Units, paths, imports, and frontier reasons MUST be sorted and reproducible.	unrecorded	-
 RUBY-AFFECTED-V0-007	docs/specs/ruby-affected-test-adapter-v0.md	Framework-qualified unit IDs MUST preserve the runner class and runnable	unrecorded	-
 RUBY-AFFECTED-V0-008	docs/specs/ruby-affected-test-adapter-v0.md	Focused fixtures MUST cover mixed frameworks, dependency closure,	unrecorded	-
@@ -4192,6 +4192,9 @@ RUBY-AFFECTED-V0-042	docs/specs/ruby-affected-test-adapter-v0.md	Without a commi
 RUBY-AFFECTED-V0-043	docs/specs/ruby-affected-test-adapter-v0.md	The constant scan of `RUBY-AFFECTED-V0-009` MUST mask each heredoc body	unrecorded	-
 RUBY-AFFECTED-V0-044	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2158)	standing	2026-10-11; V1-2158
 RUBY-AFFECTED-V0-045	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2306,	standing	2026-10-11; V1-2306
+RUBY-AFFECTED-V0-046	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2363,	standing	2026-10-11; V1-2363
+RUBY-AFFECTED-V0-047	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2363,	standing	2026-10-11; V1-2363
+RUBY-AFFECTED-V0-048	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2363,	standing	2026-10-11; V1-2363
 RVN-V0-001	docs/specs/run-verified-navigation-v0.md	`corvint flows appmap screen` and `flow` MUST accept repeatable	unrecorded	-
 RVN-V0-002	docs/specs/run-verified-navigation-v0.md	A step's bound keys MUST be the union of `Step.tests` (compiled into the map fro	unrecorded	-
 RVN-V0-003	docs/specs/run-verified-navigation-v0.md	An outcome MUST count as a pass only when `QualifiedReceiptBindingReady` holds a	unrecorded	-

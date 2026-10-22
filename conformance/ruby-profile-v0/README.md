@@ -40,8 +40,11 @@ Recorded limits:
 - Provider freshness binds spec and helper blobs only. Editing application
   source leaves a retained run `CURRENT`; affected selection, not freshness,
   decides which specs rerun.
-- `const_get` also raises `ruby:dynamic-test-definition`, because the plugin
-  treats it as a possible generated test.
+- Each negative row names its site by path and line. A dynamic constant
+  lookup can name any constant, so its site bears on every change
+  (`RUBY-AFFECTED-V0-047`). The `const_get` site is also a possible generated
+  test, but that per-unit site is named only for a change whose reverse
+  closure reaches `handler_registry.rb`, which a worker change does not.
 - The base application uses the Rails 7.0 `config/application.rb`. The
   positive `rails-7-1-autoload-lib` class overlays the generated Rails 7.1 form
   with `config.autoload_lib(ignore: %w[assets tasks])` and expects the same

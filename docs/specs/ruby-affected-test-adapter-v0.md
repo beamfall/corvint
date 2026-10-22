@@ -59,13 +59,15 @@ or Cucumber scenarios.
   `Rake::TestTask`, each repository-relative literal `IDENTIFIER.libs << "ROOT"` entry without a
   backslash escape MUST add `ROOT` as an alias root for every observed Ruby file; Corvint reads this
   bounded form without executing Rake or claiming the `Rakefile` as a Ruby unit.
-- `RUBY-AFFECTED-V0-005`: Unreadable or undecodable Ruby, dynamic/interpolated loading, ambiguous
-  repository loads, conditional loading, reflection/metaprogramming that can define tests, Rails
+- `RUBY-AFFECTED-V0-005`: Unreadable or undecodable Ruby, dynamic/interpolated loading,
+  conditional loading, reflection/metaprogramming that can define tests, Rails
   autoloading that `RUBY-AFFECTED-V0-010` cannot bound, Cucumber feature presence, and a nonliteral, absolute, or repository-escaping
   escaped, nonliteral, absolute, or repository-escaping `Rake::TestTask` `.libs` declaration MUST
   produce stable frontier reasons (the stock Rails gem-group load is not dynamic loading, see
   `RUBY-AFFECTED-V0-013`). A frontier makes
-  selection `UNKNOWN_SCOPE`; it MUST NOT silently omit a potentially runnable test.
+  selection `UNKNOWN_SCOPE`; it MUST NOT silently omit a potentially runnable test. (amended for
+  V1-2363: each reason is located and scoped by `RUBY-AFFECTED-V0-046..048`; an ambiguous repository
+  load becomes edges to every candidate.)
 - `RUBY-AFFECTED-V0-006`: Units, paths, imports, and frontier reasons MUST be sorted and reproducible.
   Clean rebuilds over fixed admissible inputs MUST produce byte-identical graph and plan identities.
 - `RUBY-AFFECTED-V0-007`: Framework-qualified unit IDs MUST preserve the runner class and runnable
@@ -187,6 +189,44 @@ or Cucumber scenarios.
   about the dirty set; affected keeps its own evidence-based Ruby frontiers (dynamic constant lookup,
   dynamic or conditional load, `autoload` calls) and does not copy that baseline, since doing so
   would make every Ruby plan `UNKNOWN`.
+- `RUBY-AFFECTED-V0-046`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2363,
+  GH #1519) Every Ruby frontier entry MUST name its site: `reason:path:line` when a line holds the
+  cause, `reason:path` when only the file is known (an unreadable file, a Cucumber feature, a test
+  with no visible edge, an invalid declaration, a nested `config/application.rb`), and the bare
+  reason only when no observed file holds it (Rails test signals with no Rails test file). Paths are
+  repository-relative. One plugin or unit frontier MUST name at most 16 sites of one reason, in
+  sorted order, followed by one `reason:+N` entry counting the rest, so the list stays bounded. A
+  literal repository load, or a test's conventional counterpart, that resolves to more than one
+  observed file (`lib/x.rb` and `app/x.rb`) MUST carry an import edge to every candidate instead of
+  raising `ruby:ambiguous-load`: the runtime loads one of them, so the closure over all of them is a
+  superset.
+- `RUBY-AFFECTED-V0-047`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2363,
+  GH #1519) A site that bears only on the unit whose file holds it MUST be that unit's `frontier`
+  member and is named only by a plan that reaches the unit (the AFP-V0-004 unit frontier rule): a
+  conditional load whose target resolves (`ruby:conditional-load`, the target is an edge), a
+  `require_relative` that resolves to no file (`ruby:relative-load-unresolved`), a possible generated
+  test (`ruby:dynamic-test-definition`), and an ambiguous test framework
+  (`ruby:ambiguous-test-framework`). A site that can hide an edge to any changed file MUST stay
+  plugin-wide: a computed or interpolated load, `$LOAD_PATH`/`$:` manipulation, autoload-root
+  configuration the autoload mapper does not read, a dynamic constant lookup, an association whose
+  target maps to no observed file, an unresolved inflection or autoload configuration, a test with no
+  visible edge (`ruby:implicit-test-dependency`), a unit whose edges exceed
+  `affected.MaxPathsPerUnit`, an unreadable file, and a Cucumber feature. So a change whose reverse
+  closure reaches no per-unit site, in a repository with no plugin-wide site, is `BOUNDED` with its
+  tier-1 selection, and a change that reaches one stays `UNKNOWN` naming exactly that site.
+- `RUBY-AFFECTED-V0-048`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2363,
+  GH #1519) A committed `.corvint/ruby-frontiers.json`, strict JSON
+  `{"schema":"ruby-frontiers/0","resolved":[...]}` with no other member, MUST resolve each named
+  site: an exact `reason:path:line` entry resolves that site only, and a `reason:path` entry resolves
+  every site of that reason in the file. Only `ruby:dynamic-load`, `ruby:conditional-load`,
+  `ruby:dynamic-test-definition`, `ruby:ambiguous-test-framework`, `ruby:relative-load-unresolved`,
+  `ruby:implicit-test-dependency` and `ruby:rails-autoload` sites are declarable; an unreadable file
+  or a Cucumber feature is not. A declaration that is unreadable, over 1 MiB, not that exact schema,
+  has an unknown or duplicate member, a missing `resolved` list, a duplicate or malformed entry, an
+  undeclarable reason or a non-canonical path resolves nothing and MUST raise the plugin-wide
+  `ruby:frontier-declaration-invalid:.corvint/ruby-frontiers.json`. A declared line that no longer
+  matches a site resolves nothing. The declaration is the caller's claim that the site's tests are
+  covered; Corvint does not verify it.
 
 ### Autoload edge failure modes
 
@@ -202,6 +242,13 @@ or Cucumber scenarios.
 - More than `affected.MaxPathsPerUnit` imports or advisory edges on one unit drop both lists and raise
   `ruby:implicit-test-dependency` instead of truncating.
 - Non-Ruby views, templates, and assets stay unowned and produce `UNOWNED_DIRTY_PATH` when dirty.
+- A per-unit site bears on its own unit's tests only (`RUBY-AFFECTED-V0-047`). A conditional load,
+  an unresolved relative load, a generated test or an ambiguous framework in a unit no change reaches
+  cannot change which of the reached tests run. A construct that hides an outbound edge stays
+  plugin-wide, so a large Rails application with any `constantize` stays `UNKNOWN` until each named
+  site is declared (`RUBY-AFFECTED-V0-048`). A declaration is unverified caller authority.
+- Text scanning finds a site by line: a construct split over lines is named at the line the scan
+  matches, and a declaration keyed to an old line stops resolving it after an edit above it.
 
 ## Cross-language ownership decision required
 
@@ -298,6 +345,7 @@ affected tuple.
 | `RUBY-AFFECTED-V0-042` | `readStockAutoloadLib` in `internal/rubyautoload/rubyautoload.go`; `rails-7-1-autoload-lib` class in `conformance/ruby-profile-v0/rows.json` | `TestStockAutoloadLibIsReadAsLibRoot_RUBYAFFECTEDV0042`, `TestRubyProfileAffectedRows_RUBYAFFECTEDV0014`, `TestRubyProfileImpactRows_RUBYAFFECTEDV0014` |
 | `RUBY-AFFECTED-V0-043` | `maskHeredocBodies`, `scanLexicalScopes` in `internal/liveverify/affected/ruby/nesting.go` | `TestHeredocAndLexicalNestingBoundConstantEdges_RUBYAFFECTEDV0043`, `TestHeredocMaskKeepsEvaluatedAndUnterminatedBodies_RUBYAFFECTEDV0043`, `TestLexicalScopesBalanceModifiersAndFallBack_RUBYAFFECTEDV0043`, `TestHeredocMaskRejectsShiftsAndKeepsInterpolation_RUBYAFFECTEDV0043`, `TestRegexKeywordFallsBack_RUBYAFFECTEDV0043` |
 | `RUBY-AFFECTED-V0-044` | `maskQuotedLiteralsAndInlineComments`, `rubySlashRegex` in `internal/liveverify/affected/ruby/ruby.go` | `TestRegexLiteralMaskHidesQuotesNotDivision_RUBYAFFECTEDV0044` |
+| `RUBY-AFFECTED-V0-046..048` | `UnitsSource`, `scanLoads`, `resolveLoads` in `internal/liveverify/affected/ruby/ruby.go`; `internal/liveverify/affected/ruby/frontier.go`; `edges`, `mapAutoload` in `autoload.go`; `UnresolvedConfigSites` in `internal/rubyautoload/rubyautoload.go` | `TestLocatedFrontierCountsOnlyCrossedSites_RUBYAFFECTEDV0047`, `TestRepositoryWideLoadSitesStayPluginWideAndLocated_RUBYAFFECTEDV0046`, `TestFrontierDeclarationResolvesNamedSites_RUBYAFFECTEDV0048`, `TestLoadsResolveOnlyUniqueRepositoryTargets`, `TestRubyProfileAffectedRows_RUBYAFFECTEDV0014` |
 | `RUBY-AFFECTED-V0-045` | `newConventionAutoload`, `mapAutoload` in `internal/liveverify/affected/ruby/autoload.go`; `UnitsSource` in `internal/liveverify/affected/ruby/ruby.go` | `TestConventionAutoloadEdgesWithoutRailsApplication_RUBYAFFECTEDV0045`, `TestConventionAutoloadFailsClosed_RUBYAFFECTEDV0045`, `TestRailsSignalsWithoutApplicationStayUnbounded_RUBYAFFECTEDV0045`, `TestAffectedSelectsEveryImpactAutoloadTest_RUBYAFFECTEDV0045` |
 
 ## Unresolved decisions

@@ -447,8 +447,11 @@ func TestRubyProfileRowsCoverEveryClass_RUBYAFFECTEDV0014(t *testing.T) {
 	for _, row := range table.Affected {
 		negative := declared[row.Class].Negative
 		switch {
-		case negative && (row.Scope != affected.ScopeUnknown || !slices.Contains(row.Unknown, autoloadFrontier)):
-			t.Fatalf("affected row %s must stay UNKNOWN with %s", row.Class, autoloadFrontier)
+		case negative && (row.Scope != affected.ScopeUnknown || !slices.ContainsFunc(row.Unknown, func(unknown string) bool {
+			// The site is located (RUBY-AFFECTED-V0-046): reason:path:line.
+			return strings.HasPrefix(unknown, autoloadFrontier+":")
+		})):
+			t.Fatalf("affected row %s must stay UNKNOWN with a located %s", row.Class, autoloadFrontier)
 		case !negative && (row.Scope != affected.ScopeBounded || len(row.Unknown) != 0 || len(row.Selected) == 0):
 			t.Fatalf("affected row %s must be BOUNDED with a selection", row.Class)
 		}
