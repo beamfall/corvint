@@ -346,6 +346,9 @@ func (d StageDescriptor) shape() error {
 					cap = 262144
 				case a.Target == "reservations.json":
 					cap = 194
+				case a.Target == "intent/import-map.json":
+					// A non-fixture queue's genesis import map (CTS-V0-014).
+					cap = wire.MaxImportMapBytes
 				case a.Target == "pinned/"+string(a.Sha256)+".json":
 					key = "pinned"
 					cap = 8465
@@ -371,6 +374,9 @@ func (d StageDescriptor) shape() error {
 		required["intent/policy.json"] = 1
 		required["reservations.json"] = 1
 		required["pinned"] = 1
+		if counts["intent/import-map.json"] == 1 {
+			required["intent/import-map.json"] = 1
+		}
 	case StagePause:
 		required["barrier"] = 1
 	case StageKeepJournal:
