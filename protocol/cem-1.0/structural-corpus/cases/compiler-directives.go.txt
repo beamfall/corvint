@@ -1,0 +1,21 @@
+package cases
+
+import (
+	_ "embed"
+	_ "unsafe"
+)
+
+//go:embed testdata/hello.txt
+var hello string
+
+//go:linkname runtimeNano runtime.nanotime
+func runtimeNano() int64
+
+//go:noinline
+func helper() int { return len(hello) }
+
+//go:nosplit
+func fast() int { return helper() }
+
+//export exported
+func exported() {}

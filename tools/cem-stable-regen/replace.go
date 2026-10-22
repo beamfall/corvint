@@ -161,6 +161,11 @@ func reemit(t *tree, o options) (string, error) {
 				return "", fmt.Errorf("case %s: %w", id, err)
 			}
 			src, source = capturedCase.src, capturedCase.result
+			if members["runtime"] {
+				if src, source, err = frozenGoVersion(cases, expected, capturedCase, substitutions); err != nil {
+					return "", fmt.Errorf("case %s: %w", id, err)
+				}
+			}
 			tuplesSeen[capturedCase.tuple]++
 		case override != nil:
 			src, source = values.src, override
@@ -301,6 +306,31 @@ func reemit(t *tree, o options) (string, error) {
 		fmt.Fprintln(&report, "wrote "+name)
 	}
 	return report.String(), nil
+}
+
+// frozenGoVersion maps a captured runtime.goVersion back through its admitted
+// tuple substitution, so a re-emitted runtime member keeps the frozen tuple
+// that every substitution starts from (decision 0551). Any other goVersion
+// change is refused.
+func frozenGoVersion(cases *document, expected *jnode, got *captured, substitutions map[[2]string]bool) ([]byte, *jnode, error) {
+	from := expected.get("runtime").get("goVersion").text(cases.src)
+	version := got.result.get("runtime").get("goVersion")
+	to := version.text(got.src)
+	if from == to {
+		return got.src, got.result, nil
+	}
+	if version == nil || !substitutions[[2]string{from, to}] {
+		return nil, nil, fmt.Errorf("captured runtime.goVersion %q is not an admitted substitution of the frozen %q", to, from)
+	}
+	src, err := applySplices(got.src, []splice{replaceValue(version, quote(from))})
+	if err != nil {
+		return nil, nil, err
+	}
+	root, err := parseJSON(src)
+	if err != nil {
+		return nil, nil, err
+	}
+	return src, root.get("result"), nil
 }
 
 // reemitCells re-emits members in both envelope cell copies. A cell takes the

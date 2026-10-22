@@ -1463,6 +1463,7 @@ Usage:
     [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]
     [--base-verifier PATH] [--tree-verifier PATH] [--override-verifier PATH]
   corvint [--root PATH] dogfood batch-check [--verifier PATH] BASE
+  corvint [--root PATH] dogfood propose-citations BASE
 
 A plan freezes base, intent paths and selected checks with id, argv, timeoutSeconds
 and optional allowCemSidecarOnlyReuse (false by default). Session keys are 64 hex
@@ -1517,6 +1518,12 @@ DOGFOOD_CITATIONS, DOGFOOD_INTENTS_FILE, DOGFOOD_VERIFY_FILE and DOGFOOD_OUTCOME
 batch-check is read-only. It checks that every commit in BASE..HEAD belongs to a
 sealed change the range adds, verifies each sealed CEM against its own base, and
 re-derives each merge result; it reports what it cannot prove (DCW-V0-039).
+
+propose-citations is read-only. It prints, on stdout, a draft citation plan with
+one row per hunk of .corvint/change.cem.json still owed a row: a BASE line next to
+the hunk (its enclosing heading or declaration) that no hunk edits and the change
+leaves unique, or an unknown row. The draft is labelled PROPOSED on stderr; review
+it and write it to the DOGFOOD_CITATIONS file yourself (DCW-V0-150).
 `
 
 // rootPreambleValue reports whether arguments[index] may be consumed as the value of a bare `--root`

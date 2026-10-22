@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,5 +66,39 @@ func TestMCPOpaqueGitlinkStatus(t *testing.T) {
 	result, callErr := registry.Call(context.Background(), ToolStatus, []byte(`{}`))
 	if callErr != nil || result.Repository == nil || result.Repository.WorktreeState != "CLEAN" {
 		t.Fatalf("gitlink binding=%+v %v", result, callErr)
+	}
+}
+
+// V1-2219: a MIXED binding stays the closed count-and-digest identity and never
+// names a dirty path (MCPV0-095).
+func TestMCPV0095MixedBindingIsCountAndDigestOnly(t *testing.T) {
+	root := makeRepository(t)
+	const name = "zz-mcpv0095-dirty-name"
+	writeFile(t, filepath.Join(root, name+".go"), "package dirty\n")
+	registry, err := New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, call := range []struct{ tool, arguments string }{{ToolStatus, `{}`}, {ToolQuery, `{"task":"orient contributor roadmap ticket workflow"}`}} {
+		result, callErr := registry.Call(context.Background(), call.tool, []byte(call.arguments))
+		if callErr != nil || result.Repository == nil || result.Repository.WorktreeState != "MIXED" || result.Repository.DirtyPathCount != 1 {
+			t.Fatalf("%s: %+v %v", call.tool, result, callErr)
+		}
+		encoded, err := json.Marshal(result.Repository)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var members map[string]any
+		if err := json.Unmarshal(encoded, &members); err != nil {
+			t.Fatal(err)
+		}
+		if len(members) != 7 || strings.Contains(string(encoded), "mcpv0095") {
+			t.Fatalf("%s binding is not the closed count-and-digest identity: %s", call.tool, encoded)
+		}
+		for _, key := range []string{"commitRevision", "dirtyPathCount", "dirtyPathsSha256", "objectFormat", "profileId", "treeRevision", "worktreeState"} {
+			if _, ok := members[key]; !ok {
+				t.Fatalf("%s binding lacks %s: %s", call.tool, key, encoded)
+			}
+		}
 	}
 }

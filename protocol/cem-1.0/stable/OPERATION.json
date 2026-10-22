@@ -92,7 +92,7 @@
         "unsupported-process-containment"
       ],
       "exit": 2,
-      "rule": "No structural runtime is qualified for stable release by this proposed contract. The verifiers admit exactly go1.27.1 (prototype tuple) and go1.27.2 (decision 0522, sealed structural-tuples/go1.27.2 packet) and report both as EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS. Stable release admission needs pinned corpus/toolchain evidence. Unsupported tuple is explicit; no weakened proof fallback."
+      "rule": "The verifiers admit exactly go1.27.1 (prototype tuple), go1.27.2 (decision 0522) and go1.27.3 (decision 0547), each later tuple sealed in a structural-tuples packet, and report each as QUALIFIED_EXACT_TUPLE: the structural-corpus packet qualifies go1.27.1 and the later tuples share its parser-closure digest (decision 0551). Stable release promotion is a separate decision. Unsupported tuple is explicit; no weakened proof fallback."
     },
     {
       "stage": "repository",

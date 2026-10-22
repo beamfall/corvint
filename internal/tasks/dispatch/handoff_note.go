@@ -307,9 +307,10 @@ func evidenceFiles(dir, worker string) (files []NoteFile, redacted int, truncate
 	return files, redacted, truncated
 }
 
-// buildHandoffNote assembles worker w's bounded, screened note.
-func (d *Dispatcher) buildHandoffNote(w *Worker, now time.Time) *HandoffNote {
-	n := &HandoffNote{Profile: HandoffNoteProfile, Worker: w.ID, Ticket: w.Ticket, Role: w.Role, At: now.UTC().Format(time.RFC3339), ContextTokens: UsageUnknown, Messages: []string{}, Files: []NoteFile{}}
+// buildHandoffNote assembles worker w's bounded, screened note, naming
+// commit when it is not empty.
+func (d *Dispatcher) buildHandoffNote(w *Worker, now time.Time, commit string) *HandoffNote {
+	n := &HandoffNote{Profile: HandoffNoteProfile, Worker: w.ID, Ticket: w.Ticket, Role: w.Role, At: now.UTC().Format(time.RFC3339), ContextTokens: UsageUnknown, Messages: []string{}, Files: []NoteFile{}, Commit: commit}
 	if detail := d.contextHandoffDetail(w); detail != nil {
 		n.ContextTokens = detail["contextTokens"]
 	}
@@ -338,12 +339,50 @@ func (d *Dispatcher) buildHandoffNote(w *Worker, now time.Time) *HandoffNote {
 	return n
 }
 
-// salvage writes the ATR-V0-104 note of worker w, stopped for CONTEXT.
-func (d *Dispatcher) salvage(w *Worker, now time.Time) {
+// CheckpointCommit is the full commit id attempt a's checkout holds
+// (ERG-V0-028): its worktree's HEAD when it records a worktree, otherwise
+// its branch in workRoot. Anything resolve does not answer with a full
+// commit id gives "", so the note names no commit and the packet's
+// checkpoint stays NOT_OBSERVED.
+func CheckpointCommit(resolve func(dir, rev string) (string, error), workRoot string, a Attempt) string {
+	dir, rev := a.Worktree, "HEAD"
+	if dir == "" {
+		dir, rev = workRoot, "refs/heads/"+a.Branch
+	}
+	if resolve == nil || dir == "" || a.Worktree == "" && a.Branch == "" {
+		return ""
+	}
+	c, err := resolve(dir, rev)
+	if err != nil {
+		return ""
+	}
+	if _, err := wire.ParseOID("/commit", c); err != nil {
+		return ""
+	}
+	return c
+}
+
+// salvageCommit is the checkpoint commit of worker w's attempt in obs: the
+// attempt its lease names w as holder of on w's ticket, or "" without one.
+func (d *Dispatcher) salvageCommit(w *Worker, obs *Observation) string {
+	if obs == nil || d.ResolveCommit == nil {
+		return ""
+	}
+	for _, a := range obs.Attempts {
+		if a.Holder == w.ID && a.Ticket == w.Ticket {
+			return CheckpointCommit(d.ResolveCommit, d.Config.WorkRoot, a)
+		}
+	}
+	return ""
+}
+
+// salvage writes the ATR-V0-104 note of worker w, stopped for CONTEXT,
+// naming its attempt's commit in obs when it resolves (ERG-V0-028).
+func (d *Dispatcher) salvage(w *Worker, now time.Time, obs *Observation) {
 	if w.KillReason != "CONTEXT" {
 		return
 	}
-	n := d.buildHandoffNote(w, now)
+	n := d.buildHandoffNote(w, now, d.salvageCommit(w, obs))
 	path := HandoffNotePath(d.dir, w.ID)
 	if err := writeAtomic(path, n.encode()); err != nil {
 		d.emit(Event{Kind: "alert", Ticket: w.Ticket, Worker: w.ID, Message: fmt.Sprintf("could not save the hand-off note of %s, stopped for context: %v", w.ID, err)})
@@ -357,10 +396,11 @@ func (d *Dispatcher) salvage(w *Worker, now time.Time) {
 // that still runs or that something other than the dispatcher's hard stop
 // ended (ATR-V0-126). It reuses the note's bounds and secret screen; the
 // context figure comes from the worker's record when the worker was not
-// stopped for context. It returns the note's path and the note.
-func SalvageWorker(dir string, w *Worker, now time.Time) (string, *HandoffNote, error) {
+// stopped for context. commit, when not empty, is the full commit id the
+// note names (ERG-V0-028). It returns the note's path and the note.
+func SalvageWorker(dir string, w *Worker, now time.Time, commit string) (string, *HandoffNote, error) {
 	d := &Dispatcher{dir: dir}
-	n := d.buildHandoffNote(w, now)
+	n := d.buildHandoffNote(w, now, commit)
 	if n.ContextTokens == UsageUnknown {
 		if r, err := ReadContextRecord(dir, w.ID); err == nil {
 			if t, ok := r.Estimate(); ok {

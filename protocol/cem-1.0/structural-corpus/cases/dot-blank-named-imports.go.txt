@@ -1,0 +1,12 @@
+package cases
+
+import (
+	. "strings"
+	_ "net/http/pprof"
+	str "strconv"
+	"fmt"
+)
+
+func upper(s string) string { return ToUpper(s) }
+
+func number(n int) string { return fmt.Sprint(str.Itoa(n), upper("x")) }

@@ -10,7 +10,7 @@ semantics; issue intent does not accept generated implementation detail.
 
 ## Agent digest
 - Claim: Ruby, JavaScript and TypeScript path/range impact binds syntax evidence and explicitly names unresolved dynamic dispatch.
-- Status: proposed/experimental; local source and focused conformance implemented; human acceptance and integration pending. NGI-V0-007..011 (declared `string-key-registry/0` dialect: literal registry keys to the tests passing them) are accepted under the owner's standing auto-accept (2026-10-11; V1-1365) and implemented over synthetic repositories. NGI-V0-012..015 (an unresolved entry widens every JS/TS path; lazy `require()`/`import()` entries; a non-exported top-level registry; a same-file top-level `const` key) are accepted under the same standing auto-accept (V1-1455, V1-1456, V1-1457). NGI-V0-016..021 (Ruby named-constant reverse references by autoload path convention: path-to-constant mapping, default roots or a declared `ruby-autoload/0` file, literal inflections, a reference class ranked below imports, metaprogrammed names kept unknown, and a report of the roots and inflections applied) are accepted under the same standing auto-accept (V1-1674). NGI-V0-027 (`bundle exec rspec` named for a Ruby path when the tree tracks a root Gemfile and `.rspec` or `spec/`) is accepted under the same standing auto-accept (V1-1796; GitHub #1130). NGI-V0-051..053 (the Ruby command in committed-range receipts; RSpec gated on an rspec gem in the committed Gemfile or Gemfile.lock; `bin/rails test` or `bundle exec rake test` for a proved Minitest suite) are accepted under the same standing auto-accept (V1-1804, V1-1805; GitHub #1128, #1130). NGI-V0-059 (the unknown-language line in a Ruby range receipt whose plan names no language command) is accepted under the same standing auto-accept (V1-1827; GitHub #1130). NGI-V0-033..040 (Ruby autoload reverse references on by default for any request naming a Ruby path, a bounded second hop, advisory marking, no `reverse-import-rule-unavailable` for a mapped path, range impact, RSpec test paths in the Ruby reading's test rule, the reusable `internal/rubyautoload` mapper, and a bounded reference index) are accepted under the same standing auto-accept (V1-1794, V1-1700; GitHub #1129).
+- Status: proposed/experimental; local source and focused conformance implemented; human acceptance and integration pending. NGI-V0-007..011 (declared `string-key-registry/0` dialect: literal registry keys to the tests passing them) are accepted under the owner's standing auto-accept (2026-10-11; V1-1365) and implemented over synthetic repositories. NGI-V0-012..015 (an unresolved entry widens every JS/TS path; lazy `require()`/`import()` entries; a non-exported top-level registry; a same-file top-level `const` key) are accepted under the same standing auto-accept (V1-1455, V1-1456, V1-1457). NGI-V0-016..021 (Ruby named-constant reverse references by autoload path convention: path-to-constant mapping, default roots or a declared `ruby-autoload/0` file, literal inflections, a reference class ranked below imports, metaprogrammed names kept unknown, and a report of the roots and inflections applied) are accepted under the same standing auto-accept (V1-1674). NGI-V0-027 (`bundle exec rspec` named for a Ruby path when the tree tracks a root Gemfile and `.rspec` or `spec/`) is accepted under the same standing auto-accept (V1-1796; GitHub #1130). NGI-V0-051..053 (the Ruby command in committed-range receipts; RSpec gated on an rspec gem in the committed Gemfile or Gemfile.lock; `bin/rails test` or `bundle exec rake test` for a proved Minitest suite) are accepted under the same standing auto-accept (V1-1804, V1-1805; GitHub #1128, #1130). NGI-V0-059 (the unknown-language line in a Ruby range receipt whose plan names no language command) is accepted under the same standing auto-accept (V1-1827; GitHub #1130). NGI-V0-060..062 (the root AGENTS.md declared verify commands close path and range plans, a `verification_authority` label separating them from inferred commands, and one closing-gate rule for path and range impact) are accepted under the same standing auto-accept (V1-2071, V1-1848). NGI-V0-033..040 (Ruby autoload reverse references on by default for any request naming a Ruby path, a bounded second hop, advisory marking, no `reverse-import-rule-unavailable` for a mapped path, range impact, RSpec test paths in the Ruby reading's test rule, the reusable `internal/rubyautoload` mapper, and a bounded reference index) are accepted under the same standing auto-accept (V1-1794, V1-1700; GitHub #1129). NGI-V0-063..064 (the RSpec test rule in every row of a Ruby request, and the bounded unknown counted only on paths a cut could reach) are accepted under the same standing auto-accept (V1-1823).
 - Exists: Ruby/JS/TS versioned positional, committed-range and MCP admission; bounded structured unknowns; existing JS/TS import rules; a declared string-keyed registry dialect and advisory Ruby named-constant reverse references by autoload convention, two hops deep, for default, syntax-profile and range impact.
 - Blocked on: shared registry/CEM closeout, draft publication, integration and owner acceptance; no runtime-dispatch qualification.
 - Read next: Requirements; Trust and failure boundaries; Acceptance and traceability.
@@ -327,8 +327,38 @@ path receives it by default, add a bounded second hop, and mark every such row a
   at most 64 of the namespaces it opens, and the index retains at most 1,048,576 reference
   sites in total. Every reference whose resolutions or sites a bound cut, and every reference
   of a source that nests more than 256 blocks (whose deeper namespaces are not tracked;
-  TSA-V0-461, V1-1720), MUST be counted in a `ruby-reference-index-bounded` unknown row on each
-  mapped changed Ruby path, never dropped silently; below every bound no row is added.
+  TSA-V0-461, V1-1720), MUST be counted in a `ruby-reference-index-bounded` unknown row on the
+  mapped changed Ruby paths `NGI-V0-064` selects, never dropped silently; below every bound no row
+  is added.
+- `NGI-V0-063`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1823) In a path
+  or committed-range request naming or admitting a Ruby path, every row MUST classify paths with
+  the Ruby reading's test-path rule (`isRubyTestPath`, `NGI-V0-038`), not only the autoload rows:
+  an RSpec `*_spec.rb` path or a `.rb` path below `spec/` cited as a feature or scenario marker,
+  or reached as a reverse import or same-package reference, is a test (`test-marker` authority,
+  the test score). A request naming no Ruby path MUST keep the shared rule and its exact bytes.
+  Non-goals: the coverage gap classification in `receipt.go` (`reverseImportProfileGap`), which
+  stays on the shared rule; a Ruby test rule for non-Ruby requests.
+  Failure modes: a mixed request (a Ruby path beside a Go or JS path) now ranks RSpec markers the
+  non-Ruby path reaches as tests; that is the intended reading, since the request is Ruby work.
+  Acceptance evidence: `TestNGIV0063RubyRequestClassifiesSpecMarkersAsTests`,
+  `TestNGIV0063RubyRangeClassifiesSpecMarkersAsTests`, `TestRubySpecPathNonRubyRequestBaseBytes`.
+  Rollback: drop the `withRubyTests` view in `impact` and `compileRangeResults`.
+- `NGI-V0-064`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1823) A mapped
+  changed Ruby path's `ruby-reference-index-bounded` count MUST be the number of cut references,
+  outside the changed path itself, that could name a constant its plan traverses (the changed
+  constant and each second-hop constant): a reference whose sites the site bound left unrecorded
+  names a candidate equal to or below the constant; a non-rooted reference of a source past the
+  nesting bound could name any constant; a reference the namespace bound truncated names the
+  constant through a namespace past the bound that the mapper knows. A changed path no cut could
+  reach carries no row, so the unknown is no longer a repository-wide count on every mapped path.
+  Non-goals: a third hop; counting cuts that hide only an untraversed constant's referrers (the
+  cut that hid the hop is already counted).
+  Failure modes: the rule is conservative for nesting overflow, so a deeply nested source still
+  counts on every plan; a cut inside the changed file is not counted, since its path row is
+  already reported.
+  Acceptance evidence: `TestRubyAutoloadResolutionBound`, `TestRubyAutoloadSiteBound`,
+  `TestAnalyzerBoundsFailClosed`.
+  Rollback: emit `rubyAutoload.bounded` in place of `cutReferences`.
 
 ### Ruby verification command (V1-1796; GitHub #1130 item 4)
 
@@ -423,13 +453,59 @@ path receives it by default, add a bounded second hop, and mark every such row a
   line, as path impact does.
   Non-goals: the line for other non-Go languages in a range; changing the range `verification`
   member or reading any manifest beyond `NGI-V0-052`/`NGI-V0-053`.
-  Failure modes: a Ruby repository whose Makefile declares a gate target gets the line in a range
-  (whose gate is the profile gate) but not in path impact (whose fallback gate reads the
-  Makefile); that range plan still names no language command, so the line is accurate.
+  Failure modes: before `NGI-V0-062` a Ruby repository whose Makefile declares a gate target got
+  the line in a range (whose gate was the profile gate) but not in path impact (whose fallback gate
+  reads the Makefile); both plans now close with the same gate, so they agree on the line.
   Acceptance evidence: `TestNGIV0059RubyRangeReportsUnknownVerification`,
   `TestNGIV0059RangeWithoutRubyPathKeepsUncertainty`, `TestNonGoRangeImpactLegacyGoBytes`.
   Rollback: remove the `rangeHasRubyPath` and `lacksLanguageVerification` branch in `RangeImpact`
   and the tests.
+
+- `NGI-V0-060`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2071) When the
+  committed root `AGENTS.md` declares verify commands, path impact and committed-range impact MUST
+  close their `verification` member with the declared mandatory commands, in declaration order and
+  deduplicated, in place of the inferred closing gate (the Makefile or Taskfile gate target, else
+  the profile gate, else `git diff --check`). The declaration is the one `corvint affected` reads
+  (`AFP-V0-009`, `AFP-V0-196`) through the shared `internal/projectprofile` parser: the commands of
+  sh/bash/console fences under a heading whose text is exactly "Verify" and the code spans an
+  inline `**Verify:**` line names, minus launch or background commands and commands a Verify scope
+  sentence makes conditional. At most 8 declared commands are used, the first 256 KiB of the file
+  are read, and the language commands before them are trimmed so the member keeps its 8-entry
+  ceiling. A repository without the file, or whose file declares nothing mandatory, keeps its exact
+  receipt bytes.
+  Non-goals: running or validating a declared command; reading instruction files other than the
+  root `AGENTS.md` or headings other than "Verify"; changing the language commands named before the
+  gate.
+  Failure modes: a declaration that names a command needing a service the agent lacks is still
+  named, because project authority outranks inference (AGENTS.md invariant 3); a declaration
+  spread across non-shell fences or `## Build / gate` headings is not read and the inferred gate
+  stays.
+  Acceptance evidence: `TestNGIV0060DeclaredVerifyCommandClosesMakefileLessPlan`,
+  `TestNGIV0060MandatoryVerifyCommands`. Rollback: make `closingGates` return the inferred gate only.
+- `NGI-V0-061`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2071) A path or
+  range receipt whose plan uses `NGI-V0-060` declared commands and whose `verification` member is
+  not empty MUST carry a `verification_authority` object with `source` (`"AGENTS.md"`),
+  `mandatory` (the declared commands in the member) and `inferred` (every other command in the
+  member, which Corvint inferred from the repository's shape), so an agent can tell the commands
+  the project requires from the ones Corvint suggests. A receipt without a declaration carries no
+  such member.
+  Non-goals: labelling commands in receipts without a declaration; ranking or dropping inferred
+  commands.
+  Failure modes: a budget-trimmed receipt drops the member with its empty `verification`.
+  Acceptance evidence: `TestNGIV0060DeclaredVerifyCommandClosesMakefileLessPlan`,
+  `TestNGIV0061InferredCommandBesideDeclaredGate`. Rollback: remove `setVerification`'s authority
+  branch.
+- `NGI-V0-062`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1848) Path impact
+  and committed-range impact MUST choose their closing gate through one rule (`closingGates`): the
+  `NGI-V0-060` declared commands, else the Makefile or Taskfile gate target, else the profile gate,
+  else `git diff --check`. A range over a Ruby repository with a Makefile `test` target therefore
+  closes with `make test`, as path impact does, not with `git diff --check`.
+  Non-goals: aligning the language commands named before the gate, which `NGI-V0-051` governs.
+  Failure modes: a committed-range receipt over a repository with a Makefile gate gains that gate
+  where it used to name only the profile gate; Go range receipts in repositories without one keep
+  their exact bytes.
+  Acceptance evidence: `TestNGIV0062RangeAndPathChooseOneGate`, `TestNonGoRangeImpactLegacyGoBytes`.
+  Rollback: restore `rangeVerification`'s profile-only gate.
 
 ## Trust and failure boundaries
 
@@ -465,7 +541,7 @@ for languages not admitted by this new range capability.
 | `ruby-constant-lookup-dynamic` | `count` dynamic constant lookups or dynamic sends in other Ruby sources may name the constant (`NGI-V0-019`). |
 | `ruby-constant-name-literal` | `count` strings or association symbols in other Ruby sources may name the constant without a resolvable reference (`NGI-V0-019`). |
 | `ruby-constant-source-unavailable` | `count` other Ruby sources could not be read for constant references (`NGI-V0-019`). |
-| `ruby-reference-index-bounded` | `count` Ruby references were indexed incompletely because the resolution, retained-site or nesting bound cut them, so the named-constant rows may be incomplete (`NGI-V0-040`). |
+| `ruby-reference-index-bounded` | `count` Ruby references that could name a constant this path's plan traverses were indexed incompletely because the resolution, retained-site or nesting bound cut them, so the named-constant rows may be incomplete (`NGI-V0-040`, `NGI-V0-064`). |
 
 These codes are uncertainty, never execution evidence. The versioned receipt
 names `language_profile: non-go-syntax-v0`; line 0 denotes a baseline frontier.
@@ -502,6 +578,9 @@ and a validated declared identifier, never source text.
 | `NGI-V0-052` | `rubyVerificationCommand`, `declaredGems`, `committedRootText` (`internal/contextindex/ruby_verification.go`) | `TestNGIV0052RSpecNeedsDeclaredGem`, `TestNGIV0027RubyImpactNamesBundleExecRSpec` |
 | `NGI-V0-053` | `rubyVerificationCommand`, `rakefileDeclaresTestTask` | `TestNGIV0053MinitestCommands` |
 | `NGI-V0-059` | `RangeImpact` unknown-language branch (`internal/contextindex/range_impact.go`), `lacksLanguageVerification` | `TestNGIV0059RubyRangeReportsUnknownVerification`, `TestNGIV0059RangeWithoutRubyPathKeepsUncertainty` |
+| `NGI-V0-060` | `closingGates`, `declaredVerification` (`internal/contextindex/receipt.go`); `MandatoryVerifyCommands` (`internal/projectprofile/verify.go`) | `TestNGIV0060DeclaredVerifyCommandClosesMakefileLessPlan`, `TestNGIV0060MandatoryVerifyCommands` |
+| `NGI-V0-061` | `setVerification` (`internal/contextindex/receipt.go`) | `TestNGIV0060DeclaredVerifyCommandClosesMakefileLessPlan`, `TestNGIV0061InferredCommandBesideDeclaredGate` |
+| `NGI-V0-062` | `rangeVerification` (`internal/contextindex/range_impact.go`), `closingGates` | `TestNGIV0062RangeAndPathChooseOneGate`, `TestNonGoRangeImpactLegacyGoBytes` |
 | `NGI-V0-033` | `rubyImpactRequested` and the syntax-frontier selection in `impact` | `TestRubyAutoloadDefaultOn`, `TestRubyAutoloadIssue1130DefaultTransitive`, `TestNonGoImpactCLIProfile`; Go/JS goldens `conformance/cli-parity-v0`, `TestNonGoRangeImpactLegacyGoBytes` |
 | `NGI-V0-034` | `rubyAutoload.impact` second hop (`traversed`), `referrers`, `result` | `TestRubyAutoloadIssue1130DefaultTransitive`, `TestRubyAutoloadSecondHopOnce`, `TestRubyAutoloadSecondHopConstantOnce` |
 | `NGI-V0-035` | `result` (`advisory`); `setCoverage` (`internal/contextindex/receipt.go`); range coverage in `compileRangeImpact` | `TestRubyAutoloadIssue1130DefaultTransitive`, `TestRubyAutoloadRangeImpact`, `TestRubyAutoloadNamedConstantReverseReference` |
@@ -510,6 +589,8 @@ and a validated declared identifier, never source text.
 | `NGI-V0-038` | `isRubyTestPath` (`internal/contextindex/ruby_autoload.go`); `isTestPath` unchanged | `TestIsTestPathRSpec`, `TestRubyAutoloadIssue1130DefaultTransitive`, `TestRubySpecPathNonRubyRequestBaseBytes` |
 | `NGI-V0-039` | `internal/rubyautoload` package | `TestRubyAutoloadConstantMapping`, `TestRubyAutoloadMapperDeclaration`; real CLI output in `../build-log/2026-10-18-v1-1794-ruby-constant-impact.md` |
 | `NGI-V0-040` | `resolutions`, `indexSites`, `loadRubyAutoload`; `ruby-reference-index-bounded` in `rubyAutoload.impact` | `TestRubyAutoloadResolutionBound`, `TestRubyAutoloadSiteBound`, `TestRubyNestingOverflowIsBounded` |
+| `NGI-V0-063` | `withRubyTests`, `isTest` (`internal/contextindex/ruby_autoload.go`); the view in `impact` and `compileRangeResults`; `rangeMarkerResult` | `TestNGIV0063RubyRequestClassifiesSpecMarkersAsTests`, `TestNGIV0063RubyRangeClassifiesSpecMarkersAsTests`, `TestRubySpecPathNonRubyRequestBaseBytes` |
+| `NGI-V0-064` | `rubyCut`, `cutReferences`, `cutNames` (`internal/contextindex/ruby_autoload.go`) | `TestRubyAutoloadResolutionBound`, `TestRubyAutoloadSiteBound`, `TestAnalyzerBoundsFailClosed` |
 
 Names in this matrix identify evidence rather than implying passing execution.
 Observed execution and independent findings are retained in

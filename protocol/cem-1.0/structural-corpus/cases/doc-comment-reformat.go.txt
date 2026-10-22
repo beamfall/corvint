@@ -1,0 +1,22 @@
+// Package cases exercises doc-comment reformatting.
+//
+// A list:
+//  - first item
+//  - second item
+//
+// A code block:
+//	x := 1
+//
+//  # Heading
+//
+// [Link]: https://example.com
+// See [fmt.Println] and [Link].
+package cases
+
+// helper does things:
+//   1. one
+//   2. two
+func helper() {}
+
+// caller calls helper.
+func caller() { helper() }

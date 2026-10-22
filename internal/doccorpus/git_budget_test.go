@@ -20,20 +20,19 @@ import (
 // regardless of its input count (DCP-V1-155, issue #1240: "<= 16").
 const phaseGitOps = 16
 
-// boundCorpusGitOps gives every corpus phase opened during the test a budget
-// of ops Git operations; a phase that needs more fails with the budget error.
-func boundCorpusGitOps(t *testing.T, ops int) {
-	t.Helper()
-	previous := newGitBudget
-	t.Cleanup(func() { newGitBudget = previous })
-	newGitBudget = func() *gitrun.Budget { return gitrun.NewBudget(ops, gitrun.DefaultTotalBudget) }
+// boundCorpusGitOps returns ctx giving every corpus phase opened under it a
+// budget of ops Git operations; a phase that needs more fails with the budget
+// error. The bound travels with the context, so bounded tests run in parallel.
+func boundCorpusGitOps(ctx context.Context, ops int) context.Context {
+	hooks := corpusGitHooksOf(ctx)
+	hooks.budget = func() *gitrun.Budget { return gitrun.NewBudget(ops, gitrun.DefaultTotalBudget) }
+	return context.WithValue(ctx, corpusGitHooksKey{}, hooks)
 }
 
-// writeBulkFixture commits files under root in one commit with fixed dates.
+// writeBulkFixture commits files under root in one commit with fixed dates,
+// set on the commit alone so callers may run in parallel.
 func writeBulkFixture(t *testing.T, root string, files map[string]string) string {
 	t.Helper()
-	t.Setenv("GIT_AUTHOR_DATE", "2026-10-19T00:00:00Z")
-	t.Setenv("GIT_COMMITTER_DATE", "2026-10-19T00:00:00Z")
 	git(t, root, "init", "-q")
 	git(t, root, "config", "user.name", "Corpus test")
 	git(t, root, "config", "user.email", "corpus@example.invalid")
@@ -46,7 +45,7 @@ func writeBulkFixture(t *testing.T, root string, files map[string]string) string
 		}
 	}
 	git(t, root, "add", ".")
-	git(t, root, "commit", "-qm", "source")
+	gitStdin(t, root, "", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "commit", "-qm", "source")
 	return git(t, root, "rev-parse", "HEAD")
 }
 
@@ -86,6 +85,7 @@ func pinAll(t *testing.T, root, rev, scope string) Manifest {
 }
 
 func TestDCPV1155ReadFreshnessGitOpsIndependentOfInputCount(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-155 DCP-V1-156 10,000 pinned inputs build, read and go stale on one change within a constant Git budget", func(t *testing.T) {
 		root := t.TempDir()
 		files := map[string]string{}
@@ -101,8 +101,7 @@ func TestDCPV1155ReadFreshnessGitOpsIndependentOfInputCount(t *testing.T) {
 		if len(m.Inputs) != 10000 {
 			t.Fatalf("fixture pins %d inputs", len(m.Inputs))
 		}
-		boundCorpusGitOps(t, phaseGitOps)
-		ctx := context.Background()
+		ctx := boundCorpusGitOps(context.Background(), phaseGitOps)
 		a, err := Build(ctx, root, m)
 		if err != nil {
 			t.Fatalf("build of 10,000 inputs within %d Git operations: %v", phaseGitOps, err)
@@ -139,6 +138,7 @@ func TestDCPV1155ReadFreshnessGitOpsIndependentOfInputCount(t *testing.T) {
 }
 
 func TestDCPV1156ManifestAndBuildBatchNonIndexedInputs(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-156 2,000 html/erb/json inputs inventory and build within a constant Git budget", func(t *testing.T) {
 		root := t.TempDir()
 		files := map[string]string{}
@@ -147,8 +147,7 @@ func TestDCPV1156ManifestAndBuildBatchNonIndexedInputs(t *testing.T) {
 			files[p] = data
 		}
 		rev := writeBulkFixture(t, root, files)
-		boundCorpusGitOps(t, phaseGitOps)
-		ctx := context.Background()
+		ctx := boundCorpusGitOps(context.Background(), phaseGitOps)
 		m, err := Inventory(ctx, root, rev, "docs", "2026-10-19T00:00:00Z")
 		if err != nil {
 			t.Fatalf("manifest of 2,000 non-indexed inputs within %d Git operations: %v", phaseGitOps, err)
@@ -168,6 +167,7 @@ func TestDCPV1156ManifestAndBuildBatchNonIndexedInputs(t *testing.T) {
 }
 
 func TestDCPV1157CapacityRefusalsAreTypedAndEarly(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-157 an over-limit input count is refused before any Git work, naming limit and count", func(t *testing.T) {
 		root, m := fixture(t)
 		m.Schema = ManifestSchemaV2
@@ -177,8 +177,8 @@ func TestDCPV1157CapacityRefusalsAreTypedAndEarly(t *testing.T) {
 			m.Inputs[i] = sample
 			m.Inputs[i].Path = fmt.Sprintf("src/generated/f%06d.md", i)
 		}
-		boundCorpusGitOps(t, 0) // any Git operation would fail with the budget error instead
-		_, err := Build(context.Background(), root, m)
+		ctx := boundCorpusGitOps(context.Background(), 0) // any Git operation would fail with the budget error instead
+		_, err := Build(ctx, root, m)
 		var refused *Error
 		if !errors.As(err, &refused) || refused.Code != CapacityCode || !strings.Contains(refused.Message, fmt.Sprint(MaxCorpusRecords+1)) || !strings.Contains(refused.Message, fmt.Sprint(MaxCorpusRecords)) {
 			t.Fatalf("over-limit manifest: %v", err)
@@ -189,8 +189,8 @@ func TestDCPV1157CapacityRefusalsAreTypedAndEarly(t *testing.T) {
 		p, data := nonIndexedFile(0)
 		rev := writeBulkFixture(t, root, map[string]string{p: data, "docs/readme.md": "# Readme\n"})
 		m := pinAll(t, root, rev, "docs")
-		boundCorpusGitOps(t, 0) // the Git-pinned html input needs at least one operation
-		_, err := Build(context.Background(), root, m)
+		ctx := boundCorpusGitOps(context.Background(), 0) // the Git-pinned html input needs at least one operation
+		_, err := Build(ctx, root, m)
 		var refused *Error
 		if !errors.As(err, &refused) || refused.Code != CapacityCode || !strings.Contains(refused.Message, "Git operation budget") || !strings.Contains(refused.Message, fmt.Sprintf("pinning %d inputs", len(m.Inputs))) {
 			t.Fatalf("exhausted budget: %v", err)
@@ -207,6 +207,7 @@ func TestDCPV1157CapacityRefusalsAreTypedAndEarly(t *testing.T) {
 }
 
 func TestDCPV1159BatchedPinningKeepsArtifactBytes(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-159 a mixed indexed and Git-pinned corpus encodes to the pre-batching bytes", func(t *testing.T) {
 		root := t.TempDir()
 		files := map[string]string{

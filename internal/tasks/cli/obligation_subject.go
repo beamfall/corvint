@@ -152,12 +152,15 @@ type planWitnessReport struct {
 	considered map[string]wire.Value
 }
 
-func planWitnesses(env Env, rc *readCtx, l *ticket.ObligationLedger, findings []ticket.ObligationPlanFinding) (planWitnessReport, error) {
+// planWitnesses judges each reviewed witness where obligations show judges
+// it: at the ticket's candidate branch when candidate resolves, else at HEAD,
+// naming the basis in staleBasis (TOL-V0-132).
+func planWitnesses(env Env, rc *readCtx, l *ticket.ObligationLedger, findings []ticket.ObligationPlanFinding, candidate string) (planWitnessReport, error) {
 	rep := planWitnessReport{witnesses: []wire.Value{}, considered: map[string]wire.Value{}}
 	if l == nil {
 		return rep, nil
 	}
-	heads, err := reviewHeadStates(env, rc, l, "")
+	heads, err := reviewHeadStates(env, rc, l, candidate)
 	if err != nil {
 		return rep, err
 	}
@@ -181,6 +184,9 @@ func planWitnesses(env Env, rc *readCtx, l *ticket.ObligationLedger, findings []
 			}
 			if status != "COVERED" {
 				rep.stale = append(rep.stale, ticket.ObligationPlanFinding{Kind: planStaleReview, ID: e.ID, Tests: []string{}})
+			}
+			if ok {
+				o.Set("staleBasis", staleBasisValue(h))
 			}
 		}
 		rep.witnesses = append(rep.witnesses, wire.ObjectValue(o.Set("status", wire.String(status))))
