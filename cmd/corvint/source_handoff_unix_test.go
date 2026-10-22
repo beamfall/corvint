@@ -297,6 +297,38 @@ exec /usr/bin/git "$@"
 	}
 }
 
+// ESV-V0-013: the sequence bound itself expires. The first Git step stalls
+// past a one-second bound with no deadline on the caller's context, so the
+// refusal can only come from expandContextHandle's own bound. The stall is at
+// the first step, so no earlier step can absorb host load: the bound started
+// before that step's process and its per-command timer, so it has expired by
+// the time the stopped step returns. If the bound did not expire, the stopped
+// step would refuse as repository-root.
+func TestContextExpandSequenceBoundExpires(t *testing.T) {
+	t.Parallel()
+	root, _, _ := sourceViewRepository(t)
+	tree := gitOutput(t, root, "rev-parse", "HEAD^{tree}")
+	blob := gitOutput(t, root, "rev-parse", "HEAD:spec.md")
+	stalled := filepath.Join(t.TempDir(), "stalled")
+	body := `case " $* " in *" --show-toplevel "*) : > '` + stalled + `'; exec /bin/sleep 30;; esac
+exec /usr/bin/git "$@"
+`
+	ctx := context.WithValue(context.WithValue(context.Background(), sourceGitExecutableKey{}, sourceGitScript(t, body)), sourceDeadlineKey{}, time.Second)
+	started := time.Now()
+	_, err := expandContextHandle(ctx, root, "cv1:"+tree+":"+blob+":all:spec.md", 1<<20)
+	var failure *gokernel.Error
+	if !errors.As(err, &failure) || failure.Code != "deadline-exceeded" || !strings.Contains(failure.Message, "bound expired") {
+		t.Fatalf("stalled first step: %v, want deadline-exceeded from the expired bound", err)
+	}
+	if _, statErr := os.Stat(stalled); statErr != nil {
+		t.Fatalf("the stalled step was not reached: %v", statErr)
+	}
+	// A hang detector, not a budget (decision 0082): the stand-in sleeps 30 s.
+	if elapsed := time.Since(started); elapsed > 25*time.Second {
+		t.Fatalf("the bound did not stop the stalled step: %s", elapsed)
+	}
+}
+
 // sourceExpireWhenStalled calls expire once the stalled file exists, or
 // returns when done closes first.
 func sourceExpireWhenStalled(stalled string, expire func(), done <-chan struct{}) {
