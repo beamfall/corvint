@@ -90,6 +90,7 @@ func retireArchive(t *testing.T) string {
 // second retire refuse; unretire restores every retired receipt byte for
 // byte, keeps the later receipts, and the audit starts at receipt 1 again.
 func TestJRTV0002_RetireShrinksJournalAndRollsBack(t *testing.T) {
+	t.Parallel()
 	s, id2 := retirable(t, 6)
 	before := receiptFiles(t, s)
 	head := retiredAuditOK(t, s, 0, "before").LastSeq.Uint64()
@@ -169,6 +170,7 @@ func TestJRTV0002_RetireShrinksJournalAndRollsBack(t *testing.T) {
 // bad archive target each refuse before anything is written, and the store
 // still audits from receipt 1.
 func TestJRTV0007_RetireRefusesIneligibleAnchor(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	id := s.ticket(t, "live")
 	s.claim(t, "claim-live", id, 1)
@@ -251,6 +253,7 @@ func flipByte(t *testing.T, path string, at int) []byte {
 // complete audit and the lease writers refuse alike, and restoring the bytes
 // restores the audit.
 func TestJRTV0006_TamperRefuses(t *testing.T) {
+	t.Parallel()
 	s, anchor, path, before, c := sealedStore(t)
 	sealPath := filepath.Join(s.repo.StateDir, journal.RetiredPrefixFile)
 	audit := func(label string) error {
@@ -484,6 +487,7 @@ func TestJRTV0011_InterruptedUnretireIsOldOrNew(t *testing.T) {
 // The sealed audit reads the anchor and later receipts only, so its cost no
 // longer grows with the retired history.
 func TestJRTV0013_RetireBoundsAuditCost(t *testing.T) {
+	t.Parallel()
 	cycles := 40
 	if v := os.Getenv("JRT_MEASURE_CYCLES"); v != "" {
 		n, err := strconv.Atoi(v)
@@ -560,6 +564,7 @@ func TestJRTV0013_RetireBoundsAuditCost(t *testing.T) {
 // records, so claim, heartbeat, release, compact, retire and unretire round-trip
 // and the store audits from receipt 1 again.
 func TestJRTV0011_UnretireAfterCompaction(t *testing.T) {
+	t.Parallel()
 	s, _ := retirable(t, 6)
 	if rep, err := store.CompactLiveness(context.Background(), s.repo, false); err != nil || rep.Elided == 0 {
 		t.Fatalf("compaction %+v %v", rep, err)
@@ -675,6 +680,7 @@ func (c *countingSource) List(p string, max int) (journal.Listing, error) {
 // accept that history from the anchor, a retired request ID refuses
 // UNSUPPORTED when replayed, and unretire restores an audit from receipt 1.
 func TestJRTV0008_EscalationAndGateReuseAcrossRetirement(t *testing.T) {
+	t.Parallel()
 	open, id, src := escalationClaim(t)
 	committed(t, escalate(t, open, holder, openRequest(t, "q-1", src, "", ""), 1), "OPEN")
 	held := &store.Report{AttemptID: src.AttemptID, Generation: src.Generation}

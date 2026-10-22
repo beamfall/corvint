@@ -59,6 +59,7 @@ func claimTargetStore(t *testing.T) (*intent.Repository, string, string) {
 }
 
 func TestV12138_ClaimDerivationOutsideWriterLock(t *testing.T) {
+	t.Parallel()
 	repo, root, ticketID := claimTargetStore(t)
 	started, release := make(chan struct{}), make(chan struct{})
 	var runs atomic.Int32
@@ -132,6 +133,7 @@ func TestV12138_ClaimDerivationOutsideWriterLock(t *testing.T) {
 // unlocked prewarm, the deriver runs once outside the lock, and the retried
 // writer route serves both and commits the claim.
 func TestV12138_UnmovedClaimServedOnWriterRoute(t *testing.T) {
+	t.Parallel()
 	repo, root, ticketID := claimTargetStore(t)
 	var runs atomic.Int32
 	derive := func(context.Context, string, string, string, string) ([]string, string, bool) {
@@ -159,6 +161,7 @@ func TestV12138_UnmovedClaimServedOnWriterRoute(t *testing.T) {
 // it observed before the advance instead of reusing it, declines once more,
 // and the complete route binds the claim to the new base commit.
 func TestV12138_ClaimRebindsMovedBaseAfterJournalAdvance(t *testing.T) {
+	t.Parallel()
 	repo, root, ticketID := claimTargetStore(t)
 	started, release := make(chan struct{}), make(chan struct{})
 	var runs atomic.Int32

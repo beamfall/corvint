@@ -259,16 +259,53 @@ func TestJSGV0012_CompactionOnASealedStore(t *testing.T) {
 		return r
 	}
 	c := lease("jsg-claim", transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: fixture.TicketID(strings.TrimSuffix(entries[0].Name(), ".json")), Holder: "agent-1", LeaseMinutes: "60"})
-	for i := 0; ; i++ {
+	heartbeats := 0
+	beatUntil := func(seq uint64) {
+		t.Helper()
+		for {
+			head, err := readHead(repo)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if head.LastSeq.Uint64() >= seq {
+				return
+			}
+			lease(fmt.Sprintf("jsg-hb-%d", heartbeats), transaction.LeaseRequest{Verb: transaction.LeaseHeartbeat, AttemptID: c.AttemptID, Generation: c.Generation})
+			heartbeats++
+		}
+	}
+	// Heartbeats span the first segment boundary, so the sealed prefix and
+	// the active tail both hold superseded heartbeats; synthetic edits of an
+	// unleased ticket then carry head toward the second boundary (V1-2402)
+	// and a last few heartbeats supersede the active ones.
+	beatUntil(snapshot.SegmentReceipts + 20)
+	padPath := filepath.Join(repo.PrimaryWorktree, intent.Dir, "tickets", entries[1].Name())
+	padRaw, err := os.ReadFile(padPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pad, err := wire.Parse(padRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for {
 		head, err := readHead(repo)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if head.LastSeq.Uint64() >= 2*snapshot.SegmentReceipts+20 {
+		seq := head.LastSeq.Uint64() + 1
+		if seq > 2*snapshot.SegmentReceipts+16 {
 			break
 		}
-		lease(fmt.Sprintf("jsg-hb-%d", i), transaction.LeaseRequest{Verb: transaction.LeaseHeartbeat, AttemptID: c.AttemptID, Generation: c.Generation})
+		id := fmt.Sprintf("jsg-pad-%d", seq)
+		reqPath, _ := snapshot.RequestPath(id)
+		pad.Obj.Set("body", wire.String(fmt.Sprintf("padding receipt %d", seq)))
+		historyAppend(t, repo, map[string][]byte{
+			reqPath:                               historyRequest(id, seq),
+			"intent/tickets/" + entries[1].Name(): wire.EncodeFile(pad),
+		}, id)
 	}
+	beatUntil(2*snapshot.SegmentReceipts + 20)
 	head, err := readHead(repo)
 	if err != nil {
 		t.Fatal(err)

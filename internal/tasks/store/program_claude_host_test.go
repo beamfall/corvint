@@ -474,6 +474,7 @@ func TestCALV0074_NoExecCrashChild(t *testing.T) {
 // proved leaves a SPAWNING program whose dispatched worker has no boot record
 // to recover, so a replacement is still refused and the claim held.
 func TestCALV0074_NoExecCrashTakeover(t *testing.T) {
+	t.Parallel()
 	for _, point := range []string{"dispatched", "stopped", "cancel", "release"} {
 		t.Run(point, func(t *testing.T) {
 			ctx := context.Background()
