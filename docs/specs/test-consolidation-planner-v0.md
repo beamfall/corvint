@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-10-08
 Requirement prefix: `TCN-V0`
-Intent status: accepted (decision 0457; V1-1023); TCN-V0-013..015 accepted under the owner's standing auto-accept (2026-10-11; V1-2093; GitHub #1320); TCN-V0-016 accepted under the same standing auto-accept (V1-1031)
+Intent status: accepted (decision 0457; V1-1023); TCN-V0-013..016 accepted under the owner's standing auto-accept (2026-10-11; V1-2093; GitHub #1320; V1-1031)
 Delivery status: experimental
 Authoritative inputs: owner request [issue 681](https://github.com/beamfall/corvint/issues/681)
 (native ticket V1-1023), `AGENTS.md` invariants 1, 2, 4, 7 and 8,
@@ -13,8 +13,8 @@ setup scenarios), `docs/specs/application-flow-understanding-v1.md` (AFU-V1 flow
 declared test-link vocabulary) and `docs/specs/live-proof-carrying-verification-v0.md`
 (LPCV-V0-047..053, the `corvint-test-validity/0` document read as test witnesses); owner issue
 [#1320](https://github.com/beamfall/corvint/issues/1320) (native ticket V1-2093) for the step-local
-precondition channel TCN-V0-013..015; native ticket V1-1031 for the synthetic-only `REUSED` narrowing
-TCN-V0-016.
+precondition channel TCN-V0-013..015; native ticket V1-1031 for the synthetic-only `REUSED`
+narrowing in TCN-V0-016.
 
 ## Agent digest
 - Claim: A read-only planner could group variations sharing fixture state, screen and user into fewer focused tests, as a fail-closed checkable table with reasons.
@@ -100,7 +100,7 @@ At `2a93b5a1` (origin/main):
 ## Requirements
 
 Requirements TCN-V0-001..012 are accepted as written (decision 0457; V1-1023; GitHub #681); and
-requirements TCN-V0-013..015 are accepted under the owner's standing auto-accept of 2026-10-11 (V1-2093; GitHub #1320).
+requirements TCN-V0-013..016 are accepted under the owner's standing auto-accept of 2026-10-11 (V1-2093; GitHub #1320; V1-1031).
 
 - `TCN-V0-001`: The planner MUST be a read-only local projection. `corvint test-plan consolidate
   --input FILE [--tests FILE]... [--map FILE]... [--revision REV] [--max-steps N]
