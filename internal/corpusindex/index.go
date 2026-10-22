@@ -149,8 +149,37 @@ func ParseRequest(raw []byte) (doccorpus.Request, error) {
 	if len(raw) > 16<<10 || json.Unmarshal(raw, &q, json.RejectUnknownMembers(true)) != nil {
 		return q, fmt.Errorf("invalid bounded query")
 	}
+	// The struct loses whether a member was present: an explicitly empty
+	// status member is refused as the CLI and MCP refuse it (DCP-V1-318).
+	// Query, id and path are always encoded, so an empty one means absent.
+	var members map[string]any
+	if json.Unmarshal(raw, &members) != nil {
+		return q, fmt.Errorf("invalid bounded query")
+	}
+	for _, name := range []string{"state", "qualifier", "run"} {
+		if v, ok := members[name]; ok && v == "" {
+			return q, fmt.Errorf("query arguments do not apply to operation")
+		}
+	}
 	kind := doccorpus.OperationInput(q.Operation)
-	if kind == "unsupported" || kind == "query" && q.Query == "" || kind == "id" && q.ID == "" || kind == "path" && q.Path == "" || kind != "query" && q.Query != "" || kind != "id" && q.Operation != "gaps" && q.ID != "" || kind != "path" && q.Path != "" {
+	if q.Operation == "claims" && q.Query != "" {
+		// DCP-V1-313: a claim text query replaces the path.
+		if q.Path != "" || q.ID != "" || q.State != "" || q.Qualifier != "" || q.Run != "" {
+			return q, fmt.Errorf("query arguments do not apply to operation")
+		}
+		return q, nil
+	}
+	if q.Operation == "claims" && (q.State != "" || q.Qualifier != "" || q.Run != "") {
+		// DCP-V1-318: a status filter replaces the path.
+		if q.Path != "" || q.ID != "" || !doccorpus.ValidStatusFilter(q.State, q.Qualifier, q.Run) {
+			return q, fmt.Errorf("query arguments do not apply to operation")
+		}
+		return q, nil
+	}
+	if q.State != "" || q.Qualifier != "" || q.Run != "" {
+		return q, fmt.Errorf("query arguments do not apply to operation")
+	}
+	if kind == "unsupported" || kind == "query" && q.Query == "" || kind == "id" && q.ID == "" && q.Operation != "intent" || kind == "path" && q.Path == "" || kind != "query" && q.Query != "" || kind != "id" && q.Operation != "gaps" && q.ID != "" || kind != "path" && q.Path != "" {
 		return q, fmt.Errorf("query arguments do not apply to operation")
 	}
 	return q, nil

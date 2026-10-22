@@ -19,6 +19,8 @@ type corpusOptions struct {
 	// repository is the locate and recommend-tests qualifier: a declared repository's root-commit
 	// identity (DCP-V1-310, DCP-V1-312).
 	repository string
+	// state, qualifier and run select claims' supplied status claims (DCP-V1-318).
+	state, qualifier, run string
 	// scopes holds every repeated manifest --scope in argument order (DCP-V1-161).
 	scopes []string
 	// section and include are the flow filters as comma-separated lists (DCP-V1-170, DCP-V1-171).
@@ -34,7 +36,7 @@ type corpusOptions struct {
 
 // stringFlags maps each value-taking corpus option to its field.
 func (o *corpusOptions) stringFlags() map[string]*string {
-	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner, "--schema": &o.schema, "--section": &o.section, "--include": &o.include, "--cases": &o.cases, "--baseline": &o.baseline, "--repository": &o.repository,
+	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner, "--schema": &o.schema, "--section": &o.section, "--include": &o.include, "--cases": &o.cases, "--baseline": &o.baseline, "--repository": &o.repository, "--state": &o.state, "--qualifier": &o.qualifier, "--run": &o.run,
 		"--expected-base": &o.stable.ExpectedBase, "--target": &o.stable.Target, "--stable-artifact-root": &o.stable.ArtifactRoot}
 	o.playwright.addFlags(flags)
 	o.legacyCases.addFlags(flags)
@@ -131,6 +133,15 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 	}
 	if seen["--repository"] && o.repository == "" {
 		return o, true, argumentError("--repository must name a repository")
+	}
+	// DCP-V1-318, DCP-V1-319: a present status filter or intent --id is non-empty.
+	for _, flag := range []string{"--state", "--qualifier", "--run"} {
+		if seen[flag] && strings.TrimSpace(*flags[flag]) == "" {
+			return o, true, argumentError(flag + " must not be empty")
+		}
+	}
+	if o.op == "intent" && seen["--id"] && strings.TrimSpace(o.id) == "" {
+		return o, true, argumentError("--id must not be empty")
 	}
 	if seen["--schema"] && o.schema != "1" && o.schema != "2" {
 		return o, true, argumentError("--schema must be 1 or 2")
@@ -332,6 +343,22 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 		}
 		return nil, doccorpus.RefuseCEMProjection(data)
 	}
+	// DCP-V1-313, DCP-V1-318: corpus claims takes exactly one of --path, --query or --state;
+	// --qualifier and --run refine --state.
+	if o.op == "claims" {
+		forms := 0
+		for _, v := range []string{o.path, o.query, o.state} {
+			if strings.TrimSpace(v) != "" {
+				forms++
+			}
+		}
+		if forms != 1 {
+			return nil, argumentError("corpus claims takes exactly one of --path, --query or --state")
+		}
+		if o.state == "" && (o.qualifier != "" || o.run != "") || o.state != "" && !doccorpus.ValidStatusFilter(o.state, o.qualifier, o.run) {
+			return nil, argumentError("invalid corpus claims status filter")
+		}
+	}
 	overlay, err := doccorpus.LiveFreshness(ctx, o.root, a)
 	if err != nil {
 		return nil, err
@@ -347,7 +374,7 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 			return nil, e
 		}
 	}
-	receipt, err := doccorpus.QueryLive(ctx, a, doccorpus.Request{Operation: o.op, Retirement: retirement, Query: o.query, ID: o.id, Path: o.path, Limit: o.limit, Offset: o.offset, Sections: corpusList(o.section), Include: corpusList(o.include), Repository: o.repository}, overlay)
+	receipt, err := doccorpus.QueryLive(ctx, a, doccorpus.Request{Operation: o.op, Retirement: retirement, Query: o.query, ID: o.id, Path: o.path, Limit: o.limit, Offset: o.offset, Sections: corpusList(o.section), Include: corpusList(o.include), Repository: o.repository, State: o.state, Qualifier: o.qualifier, Run: o.run}, overlay)
 	if err != nil {
 		return nil, err
 	}

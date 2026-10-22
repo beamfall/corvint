@@ -271,6 +271,11 @@ type Request struct {
 	Repository string `json:"repository,omitempty"`
 	// Kinds filters a gaps query to the named gap kinds (DCP-V1-284); nil means absent.
 	Kinds []string `json:"kinds,omitempty"`
+	// State, Qualifier and Run select a claims query's supplied status claims
+	// (DCP-V1-318); an empty State means absent.
+	State     string `json:"state,omitempty"`
+	Qualifier string `json:"qualifier,omitempty"`
+	Run       string `json:"run,omitempty"`
 }
 type Receipt struct {
 	Envelope  *TrustEnvelope      `json:"trust_envelope,omitempty"`

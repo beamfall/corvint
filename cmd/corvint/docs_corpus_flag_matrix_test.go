@@ -40,7 +40,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"concept":             {required: []string{"--artifact", "--query"}, optional: corpusReadOptional},
 	"vocabulary":          {required: []string{"--artifact", "--query"}, optional: corpusReadOptional},
 	"locate":              {required: []string{"--artifact", "--path"}, optional: append([]string{"--repository"}, corpusReadOptional...)},
-	"claims":              {required: []string{"--artifact", "--path"}, optional: corpusReadOptional},
+	"claims":              {required: []string{"--artifact"}, optional: append([]string{"--path", "--query", "--state", "--qualifier", "--run"}, corpusReadOptional...)}, // DCP-V1-313, DCP-V1-318: exactly one form, checked after parsing
 	"recommend-tests":     {required: []string{"--artifact", "--path"}, optional: append([]string{"--repository"}, corpusReadOptional...)},
 	"get":                 {required: []string{"--artifact", "--id"}, optional: corpusReadOptional},
 	"trace":               {required: []string{"--artifact", "--id"}, optional: corpusReadOptional},
@@ -50,7 +50,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"flow":                {required: []string{"--artifact", "--id"}, optional: append([]string{"--section", "--include"}, corpusReadOptional...)},
 	"dependencies":        {required: []string{"--artifact", "--id"}, optional: corpusReadOptional},
 	"navigation":          {required: []string{"--artifact", "--id"}, optional: corpusReadOptional},
-	"intent":              {required: []string{"--artifact", "--id"}, optional: corpusReadOptional},
+	"intent":              {required: []string{"--artifact"}, optional: append([]string{"--id"}, corpusReadOptional...)}, // DCP-V1-319
 }
 
 var corpusAllFlags = []string{"--revision", "--scope", "--timestamp", "--manifest", "--artifact", "--page", "--apply",

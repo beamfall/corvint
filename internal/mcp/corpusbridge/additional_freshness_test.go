@@ -218,19 +218,20 @@ func TestDCPV1280AdditionalRepositoryFreshnessReused(t *testing.T) {
 }
 
 // TestDCPV1281AdditionalRepositoryWarmCallsAtScale measures the primary + 2 additional
-// repository fixture with 8,001 pinned inputs: warm calls reuse freshness, the median reused
-// freshness costs under 100 ms and the warm p95 of docs_get and docs_search is under 1 s.
+// repository fixture with 17,001 pinned inputs, one additional checkout holding 12,000 tracked
+// files (DCP-V1-317): warm calls reuse freshness, the median reused freshness costs under 100 ms
+// and the warm p95 of docs_get and docs_search is under 1 s.
 func TestDCPV1281AdditionalRepositoryWarmCallsAtScale(t *testing.T) {
 	if testing.Short() || raceEnabled {
 		t.Skip("timing bound measured without -short and without the race detector")
 	}
-	root, extra := multiRepositoryFixture(t, [3]int{4000, 3000, 1000})
+	root, extra := multiRepositoryFixture(t, [3]int{4000, 12000, 1000})
 	r, e := New(root, "corpus.json")
 	if e != nil {
 		t.Fatal(e)
 	}
 	first, _, _ := freshnessCall(t, r, "corvint.docs_get", `{"id":"adapter:lib2-1"}`)
-	freshness, total := []int64{}, []int64{}
+	freshness, total, verify := []int64{}, []int64{}, []int64{}
 	for i := range 20 {
 		tool, arguments := "corvint.docs_get", `{"id":"adapter:lib1-0"}`
 		if i%2 == 1 {
@@ -240,12 +241,12 @@ func TestDCPV1281AdditionalRepositoryWarmCallsAtScale(t *testing.T) {
 		if timing.Freshness != "reused" || state != "fresh" {
 			t.Fatalf("warm call %d: %+v %q", i, timing, state)
 		}
-		freshness, total = append(freshness, timing.FreshnessMS), append(total, timing.TotalMS)
+		freshness, total, verify = append(freshness, timing.FreshnessMS), append(total, timing.TotalMS), append(verify, timing.VerifyMS)
 	}
 	slices.Sort(freshness)
 	slices.Sort(total)
 	median, p95 := freshness[len(freshness)/2], total[len(total)*95/100]
-	t.Logf("DCP-V1-281 first call %+v; warm freshness_ms sorted %v; warm total_ms sorted %v; p95 %d ms", first, freshness, total, p95)
+	t.Logf("DCP-V1-281 first call %+v; warm freshness_ms sorted %v; warm total_ms sorted %v; p95 %d ms; warm verify_ms in call order %v", first, freshness, total, p95, verify)
 	if median >= 100 || p95 >= int64(time.Second/time.Millisecond) {
 		t.Fatalf("warm freshness median %d ms (bound 100), total p95 %d ms (bound 1000)", median, p95)
 	}
