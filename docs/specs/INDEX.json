@@ -3762,7 +3762,7 @@
     "path": "docs/specs/shared-path-change-policy-v0.md",
     "title": "Shared-path change policy V0",
     "reqPrefix": "SPC-V0",
-    "intent": "accepted under the owner's standing auto-accept (2026-10-11; V1-1591)",
+    "intent": "accepted under the owner's standing auto-accept (2026-10-11; V1-1591); SPC-V0-013/014 accepted under the owner's standing auto-accept (2026-10-11; V1-1723)",
     "delivery": "experimental",
     "claim": "Names unlabelled commits that change shared test infrastructure, splits them out, and reports the shared-path base commits a branch lacks.",
     "dependsOn": [],
