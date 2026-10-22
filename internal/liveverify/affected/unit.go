@@ -72,22 +72,27 @@ const MaxPathsPerUnit = 20_000
 // plugin resolved without an explicit load, such as a Ruby constant that
 // autoloading maps to a file (RUBY-AFFECTED-V0-009). A change there selects
 // the unit like an import does, but the witness says the edge is advisory.
+// RouteDispatchImports name units a test reaches only because the framework
+// dispatches a request to them, with no constant naming them, such as every
+// Rails controller for a request spec (RUBY-AFFECTED-V0-049). A change there
+// selects the unit like an advisory edge, with a ROUTE_DISPATCH_BOOT witness.
 type Unit struct {
-	ID                string   `json:"id"`
-	Sources           []string `json:"sources"`
-	Tests             []string `json:"tests"`
-	Imports           []string `json:"imports"`
-	TestImports       []string `json:"testImports,omitempty"`
-	Execs             []string `json:"execs,omitempty"`
-	AdvisoryImports   []string `json:"advisoryImports,omitempty"`
-	PathTokens        []string `json:"pathTokens,omitempty"`
-	PathTokensBounded bool     `json:"pathTokensBounded,omitempty"`
-	Embeds            bool     `json:"embeds,omitempty"`
-	UnboundedReads    string   `json:"unboundedReads,omitempty"`
-	LocatesRoot       bool     `json:"locatesRoot,omitempty"`
-	ReadScoped        bool     `json:"readScoped,omitempty"`
-	ReadScope         []string `json:"readScope,omitempty"`
-	Frontier          []string `json:"frontier,omitempty"`
+	ID                   string   `json:"id"`
+	Sources              []string `json:"sources"`
+	Tests                []string `json:"tests"`
+	Imports              []string `json:"imports"`
+	TestImports          []string `json:"testImports,omitempty"`
+	Execs                []string `json:"execs,omitempty"`
+	AdvisoryImports      []string `json:"advisoryImports,omitempty"`
+	RouteDispatchImports []string `json:"routeDispatchImports,omitempty"`
+	PathTokens           []string `json:"pathTokens,omitempty"`
+	PathTokensBounded    bool     `json:"pathTokensBounded,omitempty"`
+	Embeds               bool     `json:"embeds,omitempty"`
+	UnboundedReads       string   `json:"unboundedReads,omitempty"`
+	LocatesRoot          bool     `json:"locatesRoot,omitempty"`
+	ReadScoped           bool     `json:"readScoped,omitempty"`
+	ReadScope            []string `json:"readScope,omitempty"`
+	Frontier             []string `json:"frontier,omitempty"`
 }
 
 // Result is what one Language plugin observed for a repository.
@@ -159,6 +164,9 @@ func validUnit(unit Unit, namespace string) error {
 		return err
 	}
 	if err := validIdentifierList(unit.AdvisoryImports); err != nil {
+		return err
+	}
+	if err := validIdentifierList(unit.RouteDispatchImports); err != nil {
 		return err
 	}
 	if err := validIdentifierList(unit.Frontier); err != nil {

@@ -2320,7 +2320,7 @@ and container qualification; full fallback remains available.
   0 when the witness kind is `DIRECT_SOURCE_CHANGE`, `DIRECT_TEST_CHANGE` or `ENCLOSING_PACKAGE`
   (the unit owns or encloses a dirty path); otherwise 1 when the witness is `DEPENDENCY_PATH` or
   `ADVISORY_CONSTANT_REFERENCE` with a chain of at most two units (a direct dependent of a changed
-  unit), or the unit id's path part (after its namespace) has the same parent directory as a tier-0
+  unit; a `ROUTE_DISPATCH_BOOT` witness, RUBY-AFFECTED-V0-049, is not one), or the unit id's path part (after its namespace) has the same parent directory as a tier-0
   unit's whose witness `dirtyPath` has a parent of its directory that is not a top-level directory
   (`internal/a/b/x.go` makes `internal/a/*` siblings; `internal/b/x.go` makes none); otherwise 2, path-literal and read-scope readers included, because almost every change
   touches a spec or build-log path that many packages name. `counts` is `[tier0, tier1, tier2]` and `summary` is the text line

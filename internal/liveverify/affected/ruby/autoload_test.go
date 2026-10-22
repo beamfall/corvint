@@ -3,7 +3,9 @@ package ruby
 import (
 	"context"
 	"io/fs"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -149,6 +151,52 @@ func TestRailsBootAndRouteEdgesSelectTheirSpecs_RUBYAFFECTEDV0011(t *testing.T) 
 	routed := plan(t, root, "app/controllers/fetches_controller.rb")
 	if tests := routed.SelectedTests(); routed.Scope != affected.ScopeBounded || !equal(tests, []string{"spec/requests/fetches_spec.rb"}) {
 		t.Fatalf("scope=%s selected=%v unknown=%v", routed.Scope, tests, routed.Unknown)
+	}
+}
+
+// writeRouteDispatch writes two controllers with one controller spec each,
+// a request spec naming the first controller by constant, and a request spec
+// that names no controller (RUBY-AFFECTED-V0-049).
+func writeRouteDispatch(t *testing.T) string {
+	t.Helper()
+	root := writeIssue1130(t, true)
+	write(t, root, "app/controllers/application_controller.rb", "class ApplicationController\nend\n")
+	write(t, root, "app/controllers/alpha_controller.rb", "class AlphaController < ApplicationController\nend\n")
+	write(t, root, "app/controllers/beta_controller.rb", "class BetaController < ApplicationController\nend\n")
+	write(t, root, "spec/controllers/alpha_controller_spec.rb", "require \"rails_helper\"\n\nRSpec.describe AlphaController, type: :controller do\nend\n")
+	write(t, root, "spec/controllers/beta_controller_spec.rb", "require \"rails_helper\"\n\nRSpec.describe BetaController, type: :controller do\nend\n")
+	write(t, root, "spec/requests/alpha_flow_spec.rb", "require \"rails_helper\"\n\nRSpec.describe AlphaController, type: :request do\n  it \"lists\" do\n    get \"/alpha\"\n  end\nend\n")
+	write(t, root, "spec/requests/pages_spec.rb", "require \"rails_helper\"\n\nRSpec.describe \"pages\", type: :request do\n  it \"lists\" do\n    get \"/pages\"\n  end\nend\n")
+	return root
+}
+
+// TestRouteDispatchEdgesCarryTheirOwnWitness_RUBYAFFECTEDV0049 keeps every
+// route-dispatched spec selected on a controller change, but names the boot
+// fan-out ROUTE_DISPATCH_BOOT unless a constant or load also reaches the spec.
+func TestRouteDispatchEdgesCarryTheirOwnWitness_RUBYAFFECTEDV0049(t *testing.T) {
+	root := writeRouteDispatch(t)
+	got := plan(t, root, "app/controllers/alpha_controller.rb")
+	want := map[string]string{
+		"spec/controllers/alpha_controller_spec.rb": affected.WitnessDependency,
+		"spec/requests/alpha_flow_spec.rb":          affected.WitnessAdvisoryConstant,
+		"spec/controllers/beta_controller_spec.rb":  "ROUTE_DISPATCH_BOOT",
+		"spec/requests/pages_spec.rb":               "ROUTE_DISPATCH_BOOT",
+	}
+	if kinds := selectedWitnesses(got); got.Scope != affected.ScopeBounded || !maps.Equal(kinds, want) {
+		t.Fatalf("scope=%s witnesses=%v unknown=%v", got.Scope, kinds, got.Unknown)
+	}
+	result, err := New().Units(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	flow := unitByID(t, result, "ruby:rspec:spec/requests/alpha_flow_spec")
+	if !slices.Contains(flow.AdvisoryImports, "ruby:source:app/controllers/alpha_controller") ||
+		slices.Contains(flow.RouteDispatchImports, "ruby:source:app/controllers/alpha_controller") ||
+		!slices.Contains(flow.RouteDispatchImports, "ruby:source:app/controllers/beta_controller") {
+		t.Fatalf("alpha flow edges advisory=%v routed=%v", flow.AdvisoryImports, flow.RouteDispatchImports)
+	}
+	if service := unitByID(t, result, "ruby:rspec:spec/services/bar/baz_service_spec"); len(service.RouteDispatchImports) != 0 {
+		t.Fatalf("a service spec carries route edges %v", service.RouteDispatchImports)
 	}
 }
 

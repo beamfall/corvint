@@ -103,9 +103,9 @@ or Cucumber scenarios.
   `ruby:implicit-test-dependency`.
 - `RUBY-AFFECTED-V0-011`: In a bounded Rails application, every test MUST carry advisory edges to each
   observed Ruby file under `config/`, and a request, system, feature, integration, routing, or
-  controller test (by directory) MUST also carry advisory edges to each observed file under
+  controller test (by directory) MUST also carry edges to each observed file under
   `app/controllers/` and `app/helpers/`, because routing dispatches to them without a constant
-  reference in the test.
+  reference in the test; those are route-dispatch edges (`RUBY-AFFECTED-V0-049`), not advisory ones.
 - `RUBY-AFFECTED-V0-012`: `spec_helper.rb`, `rails_helper.rb`, and `test_helper.rb` MUST remain
   source units even when a runner hint names them. Every test in a `spec/` or `test/` suite MUST
   import that suite's helpers and each observed file below its `support/` directory, so a change to
@@ -227,6 +227,21 @@ or Cucumber scenarios.
   `ruby:frontier-declaration-invalid:.corvint/ruby-frontiers.json`. A declared line that no longer
   matches a site resolves nothing. The declaration is the caller's claim that the site's tests are
   covered; Corvint does not verify it.
+- `RUBY-AFFECTED-V0-049`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2448,
+  GH #1565) The controller and view-helper edges of `RUBY-AFFECTED-V0-011` MUST be carried as
+  `Unit.RouteDispatchImports`, a sorted list that is part of the graph digest only when non-empty
+  (member `routeDispatchImports`), and MUST omit every target the test already reaches by an import
+  or advisory constant edge. `Select` MUST traverse them like advisory edges, after explicit and
+  advisory edges at each depth, and every unit reached through one, directly or transitively, MUST
+  carry the witness `ROUTE_DISPATCH_BOOT`, so a plan or receipt names the boot fallback apart from a
+  named constant (`RSpec.describe Foo::BarController`). Selection is unchanged: every
+  route-dispatched test is still selected on any controller or helper change. Under `AFP-V0-162` a
+  `ROUTE_DISPATCH_BOOT` unit is tier 2 unless the same-parent rule promotes it, so in a large Rails
+  application a controller change puts the specs naming that controller in tier 1 and the routed
+  fan-out in tier 2. A reader that knows only the older witness kinds sees an unknown kind and MUST
+  treat it as it treats any other non-direct witness (selected, not narrowed); the `config/` boot
+  edges stay advisory. A controller-type test keeps the fan-out to every controller and helper,
+  because a controller spec can render views or call helpers of other controllers.
 
 ### Autoload edge failure modes
 
@@ -295,6 +310,9 @@ presence and raises `ruby:cucumber-feature-ownership`; it does not claim or enum
 - Rollback of `RUBY-AFFECTED-V0-009..012` is reverting their change: the Ruby plugin returns to the
   coarse `ruby:rails-autoload` frontier, and because `advisoryImports` is omitted when empty, no Go or
   Python graph digest or plan changes in either direction.
+- Rollback of `RUBY-AFFECTED-V0-049` is reverting its change: route edges return to
+  `advisoryImports` with the `ADVISORY_CONSTANT_REFERENCE` witness and tier 1. Selection does not
+  change in either direction; Rails graph digests do, and non-Ruby graphs keep their bytes.
 
 ## Deterministic acceptance matrix
 
@@ -308,6 +326,7 @@ presence and raises `ruby:cucumber-feature-ownership`; it does not claim or enum
 | Dynamic/reflection-driven tests | explicit frontier; no safe-exclusion claim | `UNKNOWN_SCOPE` |
 | Determinism and seam composition | shared conformance suite, repeated canonical bytes | experimental |
 | Rails autoload constant edges (#1130) | fixture change to an autoloaded client selects its spec and the referencing service spec with `ADVISORY_CONSTANT_REFERENCE`; frontier only for unbounded lookup | experimental |
+| Rails route-dispatch tiers (#1565) | a controller change ranks the spec naming it tier 1 and another controller's spec tier 2 with `ROUTE_DISPATCH_BOOT` | experimental |
 | Suite helpers and support | helpers stay source; a helper or `support/**` change selects every suite test | experimental |
 | Stock Rails gem-group load | `Bundler.require(*Rails.groups)` in `config/application.rb` keeps an `app/models` change `BOUNDED`; other dynamic requires widen | experimental |
 | Ruby profile conformance fixture (#1130 S6) | `conformance/ruby-profile-v0` impact, affected and provider rows per fixture class, negative dynamic-lookup rows, run by the go-product CI shards | experimental; Ruby runtime `NOT_RUN` |
@@ -319,7 +338,8 @@ presence and raises `ruby:cucumber-feature-ownership`; it does not claim or enum
 This slice does not execute Ruby tests, inspect runtime coverage, parse the full Ruby grammar,
 discover individual examples/scenarios/methods, claim Cucumber assets, change `Language`, qualify
 safe omission, or advertise Ruby support. The only seam change is the additive, digest-neutral-when-
-empty `Unit.AdvisoryImports` edge and its `Select` witness (`RUBY-AFFECTED-V0-009`); it does not
+empty `Unit.AdvisoryImports` edge and its `Select` witness (`RUBY-AFFECTED-V0-009`), and its
+route-dispatch counterpart `Unit.RouteDispatchImports` (`RUBY-AFFECTED-V0-049`); it does not
 evaluate Ruby, boot Rails, or read Zeitwerk at runtime. The simpler recovery remains each
 repository's declared full test command.
 
@@ -346,6 +366,7 @@ affected tuple.
 | `RUBY-AFFECTED-V0-043` | `maskHeredocBodies`, `scanLexicalScopes` in `internal/liveverify/affected/ruby/nesting.go` | `TestHeredocAndLexicalNestingBoundConstantEdges_RUBYAFFECTEDV0043`, `TestHeredocMaskKeepsEvaluatedAndUnterminatedBodies_RUBYAFFECTEDV0043`, `TestLexicalScopesBalanceModifiersAndFallBack_RUBYAFFECTEDV0043`, `TestHeredocMaskRejectsShiftsAndKeepsInterpolation_RUBYAFFECTEDV0043`, `TestRegexKeywordFallsBack_RUBYAFFECTEDV0043` |
 | `RUBY-AFFECTED-V0-044` | `maskQuotedLiteralsAndInlineComments`, `rubySlashRegex` in `internal/liveverify/affected/ruby/ruby.go` | `TestRegexLiteralMaskHidesQuotesNotDivision_RUBYAFFECTEDV0044` |
 | `RUBY-AFFECTED-V0-046..048` | `UnitsSource`, `scanLoads`, `resolveLoads` in `internal/liveverify/affected/ruby/ruby.go`; `internal/liveverify/affected/ruby/frontier.go`; `edges`, `mapAutoload` in `autoload.go`; `UnresolvedConfigSites` in `internal/rubyautoload/rubyautoload.go` | `TestLocatedFrontierCountsOnlyCrossedSites_RUBYAFFECTEDV0047`, `TestRepositoryWideLoadSitesStayPluginWideAndLocated_RUBYAFFECTEDV0046`, `TestFrontierDeclarationResolvesNamedSites_RUBYAFFECTEDV0048`, `TestLoadsResolveOnlyUniqueRepositoryTargets`, `TestRubyProfileAffectedRows_RUBYAFFECTEDV0014` |
+| `RUBY-AFFECTED-V0-049` | `bootEdges` in `internal/liveverify/affected/ruby/autoload.go`; `UnitsSource` in `internal/liveverify/affected/ruby/ruby.go`; `Unit.RouteDispatchImports` and `traverse` in `internal/liveverify/affected/`; `tierAffectedSelections` in `cmd/corvint/affected_tiers.go`; `request-spec` and `controller-spec` rows in `conformance/ruby-profile-v0/rows.json` | `TestRouteDispatchEdgesCarryTheirOwnWitness_RUBYAFFECTEDV0049`, `TestRubyRouteDispatchSpecsAreTierTwo_RUBYAFFECTEDV0049`, `TestRubyProfileAffectedRows_RUBYAFFECTEDV0014` |
 | `RUBY-AFFECTED-V0-045` | `newConventionAutoload`, `mapAutoload` in `internal/liveverify/affected/ruby/autoload.go`; `UnitsSource` in `internal/liveverify/affected/ruby/ruby.go` | `TestConventionAutoloadEdgesWithoutRailsApplication_RUBYAFFECTEDV0045`, `TestConventionAutoloadFailsClosed_RUBYAFFECTEDV0045`, `TestRailsSignalsWithoutApplicationStayUnbounded_RUBYAFFECTEDV0045`, `TestAffectedSelectsEveryImpactAutoloadTest_RUBYAFFECTEDV0045` |
 
 ## Unresolved decisions
