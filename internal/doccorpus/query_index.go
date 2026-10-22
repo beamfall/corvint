@@ -40,6 +40,10 @@ type QueryIndex struct {
 	Terms  map[string][]int       `json:"terms"`
 	Claims map[string][]int       `json:"claims"`
 	Edges  map[string][]int       `json:"edges"`
+	// ClaimTerms maps each evidence term of a claim's ID and text to the
+	// claim offsets holding it, in artifact order (DCP-V1-313). It is
+	// derived on every admission and is not part of the companion encoding.
+	ClaimTerms map[string][]int `json:"-"`
 }
 
 // BuildAdmitted is Build for an artifact that will be written: a corpus whose
@@ -86,7 +90,7 @@ func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
 	if len(a.Subjects) > MaxCorpusRecords || len(a.Claims) > MaxCorpusRecords || len(a.Relations) > MaxCorpusRecords || len(a.Journeys) > MaxCorpusJourneys || len(a.Observations) > MaxCorpusRecords || len(a.SuppliedGaps) > MaxCorpusRecords {
 		return nil, fail("indexed record family bound exceeded")
 	}
-	x := &QueryIndex{IDs: map[string]RecordRef{}, Paths: map[string][]RecordRef{}, Terms: map[string][]int{}, Claims: map[string][]int{}, Edges: map[string][]int{}}
+	x := &QueryIndex{IDs: map[string]RecordRef{}, Paths: map[string][]RecordRef{}, Terms: map[string][]int{}, Claims: map[string][]int{}, Edges: map[string][]int{}, ClaimTerms: map[string][]int{}}
 	// Each posting is charged once. Past a bound the index stops storing
 	// postings but keeps counting, so the refusal names the observed totals
 	// (DCP-V1-194).
@@ -154,7 +158,7 @@ func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
 		}
 	}
 	// V1-2001: one reused set holds each claim's terms in turn.
-	claimTerms := map[string]struct{}{}
+	claimTerms, ownTerms := map[string]struct{}{}, map[string]struct{}{}
 	for i, c := range a.Claims {
 		if err := add(c, RecordRef{"claim", i}); err != nil {
 			return nil, err
@@ -164,6 +168,18 @@ func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
 		}
 		if !over {
 			x.Claims[c.Subject] = append(x.Claims[c.Subject], i)
+		}
+		// DCP-V1-313: the claim's own ID and text terms rank docs_claims
+		// queries; each posting is charged like every other.
+		clear(ownTerms)
+		contextindex.CollectEvidenceTerms(c.ID+" "+c.Text, ownTerms)
+		for term := range ownTerms {
+			if err := charge(term); err != nil {
+				return nil, err
+			}
+			if !over {
+				x.ClaimTerms[term] = append(x.ClaimTerms[term], i)
+			}
 		}
 		if j, ok := subjectIDs[c.Subject]; ok {
 			clear(claimTerms)

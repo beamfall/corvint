@@ -208,6 +208,70 @@ func (d Init) Value() wire.Value {
 	return wire.ObjectValue(o)
 }
 
+// ProfileRelocate names the pinned descriptor a RELOCATE receipt posts. It
+// records both primary worktree paths so the receipt chain, not an inference
+// from the filesystem, carries every change of head.primaryWorktree
+// (TRL-V0-002).
+const ProfileRelocate = "taskman-relocate/0"
+
+// MaxRelocateDescriptorBytes is the exact canonical maximum of a relocate
+// descriptor: two maximal PathText values, a maximal queue id and request id,
+// each at its worst-case JSON escaping.
+const MaxRelocateDescriptorBytes = 16747
+
+// Relocate is the pinned descriptor of one explicit relocation of the
+// primary worktree.
+type Relocate struct {
+	QueueID             wire.QueueID
+	RequestID           string
+	FromPrimaryWorktree string
+	ToPrimaryWorktree   string
+}
+
+func DecodeRelocate(raw []byte) (*Relocate, error) {
+	if len(raw) > MaxRelocateDescriptorBytes {
+		return nil, wire.Errorf(wire.CodeLimitExceeded, "/", "RELOCATE descriptor too large")
+	}
+	v, err := wire.Parse(raw)
+	if err != nil {
+		return nil, err
+	}
+	r := wire.NewReader(v, "/")
+	if err := wire.ProfileVersion("/profile", v, ProfileRelocate); err != nil {
+		return nil, err
+	}
+	r.Closed("profile", "queueId", "requestId", "fromPrimaryWorktree", "toPrimaryWorktree")
+	if err := r.Err(); err != nil {
+		return nil, err
+	}
+	if err := wire.CheckProfile("/profile", r.Field("profile").String(), ProfileRelocate); err != nil {
+		return nil, err
+	}
+	d := &Relocate{QueueID: r.Field("queueId").QueueID(), FromPrimaryWorktree: r.Field("fromPrimaryWorktree").PathText(), ToPrimaryWorktree: r.Field("toPrimaryWorktree").PathText()}
+	rid := r.Field("requestId")
+	d.RequestID = rid.Identifier()
+	if err := r.Err(); err != nil {
+		return nil, err
+	}
+	if len(d.RequestID) > wire.MaxRequestIDBytes {
+		return nil, wire.Errorf(wire.CodeLimitExceeded, "/requestId", "requestId longer than %d bytes", wire.MaxRequestIDBytes)
+	}
+	if d.FromPrimaryWorktree == d.ToPrimaryWorktree {
+		return nil, wire.Errorf(wire.CodeMalformed, "/toPrimaryWorktree", "relocation must change the primary worktree")
+	}
+	return d, nil
+}
+
+func (d Relocate) Value() wire.Value {
+	o := wire.NewObject()
+	o.Set("profile", wire.String(ProfileRelocate))
+	o.Set("queueId", wire.String(d.QueueID.Raw))
+	o.Set("requestId", wire.String(d.RequestID))
+	o.Set("fromPrimaryWorktree", wire.String(d.FromPrimaryWorktree))
+	o.Set("toPrimaryWorktree", wire.String(d.ToPrimaryWorktree))
+	return wire.ObjectValue(o)
+}
+
 // Request is receipt-bound by its ordinary post digest; it contains no
 // receipt hash and grants no actor authority.
 type Request struct {

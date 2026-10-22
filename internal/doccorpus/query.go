@@ -313,6 +313,9 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	if request.Kinds != nil && (request.Operation != "gaps" || !ValidGapKinds(request.Kinds)) {
 		return Receipt{}, fail("gap kind filter is bounded and applies only to gaps")
 	}
+	if (request.State != "" || request.Qualifier != "" || request.Run != "") && (request.Operation != "claims" || request.Query != "" || request.Path != "" || !ValidStatusFilter(request.State, request.Qualifier, request.Run)) {
+		return Receipt{}, fail("status filter is bounded and applies only to claims without a path or query")
+	}
 	if request.Offset < 0 || request.Offset > MaxCorpusRecords*4 || a.Schema != SchemaV2 && (request.Offset != 0 || request.Operation == "inventory") {
 		return Receipt{}, fail("pagination requires corpus /2 and bounded offset")
 	}

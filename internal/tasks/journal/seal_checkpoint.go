@@ -78,7 +78,7 @@ func (r Reader) SealCheckpoint(head *snapshot.Head, w *WriterCheckpoint, seg *sn
 	o := &observation{head: head}
 	result := &Result{Head: head, Mode: ModeWriter, Records: map[string]Record{}, StructuralConsistency: "NOT_OBSERVED", SemanticCoverage: bc.SemanticCoverage}
 	from := b.seq
-	st := &chain{canonical: map[string]latest{}, prev: &bc.ReceiptSha256, generation: bc.Generation.Uint64(), elided: bc, resumed: from, posted: map[string]bool{}, view: true}
+	st := &chain{canonical: map[string]latest{}, prev: &bc.ReceiptSha256, generation: bc.Generation.Uint64(), elided: bc, resumed: from, posted: map[string]bool{}, view: true, primary: bc.PrimaryWorktree}
 	result.LastSeq, result.LastReceiptSha256 = bc.Seq, bc.ReceiptSha256
 	for seq := from + 1; seq <= seg.Last; seq++ {
 		name, err := snapshot.ReceiptName(seq)

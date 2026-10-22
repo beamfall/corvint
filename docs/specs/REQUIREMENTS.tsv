@@ -2076,6 +2076,12 @@ CTS-V0-015	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's
 CTS-V0-016	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0398) After ge	standing	2026-10-11; V1-0398
 CTS-V0-017	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0398) `import`	standing	2026-10-11; V1-0398
 CTS-V0-018	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2401) `import`	standing	2026-10-11; V1-2401
+TRL-V0-001	docs/specs/corvint-tasks-store-relocation-v0.md	`corvint-tasks relocate --from OLD --request-id ID [--role OWNER|OPERATOR]	unrecorded	-
+TRL-V0-002	docs/specs/corvint-tasks-store-relocation-v0.md	A completed relocation commits one RELOCATE receipt that posts exactly one pinne	unrecorded	-
+TRL-V0-003	docs/specs/corvint-tasks-store-relocation-v0.md	Relocation refuses `QUIESCENCE_UNPROVED`, writing nothing, while any attempt hol	unrecorded	-
+TRL-V0-004	docs/specs/corvint-tasks-store-relocation-v0.md	A relocation interrupted after its receipt is linked is settled by `TM-V0-009` r	unrecorded	-
+TRL-V0-005	docs/specs/corvint-tasks-store-relocation-v0.md	The store, the dispatch config and its `stateDir` (including each worker's	unrecorded	-
+TRL-V0-006	docs/specs/corvint-tasks-store-relocation-v0.md	A copied store is bound to a new clone by the same explicit relocation. A copy i	unrecorded	-
 TWT-V0-001	docs/specs/corvint-tasks-ticket-worktrees-v0.md	Policy MAY declare `worktrees` as a closed object `{repository, base,	unrecorded	-
 TWT-V0-002	docs/specs/corvint-tasks-ticket-worktrees-v0.md	The ticket branch is `branchPattern` with `{ticket}` replaced by the ticket's lo	unrecorded	-
 TWT-V0-003	docs/specs/corvint-tasks-ticket-worktrees-v0.md	When the branch is already checked out in a worktree, ensure returns that worktr	unrecorded	-
@@ -2543,6 +2549,13 @@ DCP-V1-311	docs/specs/documentation-corpus-v1.md	(accepted under the owner's sta
 DCP-V1-312	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2345) `corvint	standing	2026-10-11; V1-2345
 DCP-V1-280	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1487;	standing	2026-10-11; #1487
 DCP-V1-281	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1487;	standing	2026-10-11; #1487
+DCP-V1-313	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1555;	standing	2026-10-11; #1555
+DCP-V1-314	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1554;	standing	2026-10-11; #1554
+DCP-V1-315	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1554;	standing	2026-10-11; #1554
+DCP-V1-316	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1554;	standing	2026-10-11; #1554
+DCP-V1-317	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1554;	standing	2026-10-11; #1554
+DCP-V1-318	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1556;	standing	2026-10-11; #1556
+DCP-V1-319	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1556;	standing	2026-10-11; #1556
 DCP-V1-282	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1492;	standing	2026-10-11; #1492
 DCP-V1-283	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1492;	standing	2026-10-11; #1492
 DCP-V1-284	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1492;	standing	2026-10-11; #1492

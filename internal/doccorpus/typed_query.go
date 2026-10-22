@@ -4,6 +4,8 @@ import (
 	"context"
 	"sort"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
 // OperationInput is shared by CLI, MCP and indexed companions. The native
@@ -116,6 +118,17 @@ func typedQuery(ctx context.Context, a *Artifact, q Request, r *Receipt) error {
 			}
 		}
 	case "claims":
+		if q.Query != "" {
+			// DCP-V1-313: a claim text query is ranked, so it returns
+			// before the identity sort below.
+			return claimSearch(ctx, a, q, r)
+		}
+		if q.State != "" {
+			if err := suppliedStatusClaims(ctx, a, q, r); err != nil {
+				return err
+			}
+			break
+		}
 		for _, ref := range x.Paths[q.Path] {
 			if err := ctx.Err(); err != nil {
 				return err
@@ -279,6 +292,19 @@ func typedQuery(ctx context.Context, a *Artifact, q Request, r *Receipt) error {
 		}
 		r.Limitations = append(r.Limitations, "routes, screens and selectors are documented anchors/declarations; live UI and navigation completeness NOT_OBSERVED")
 	case "intent":
+		if q.ID == "" {
+			// DCP-V1-319: without an id, list every intent comparison.
+			for _, s := range a.Subjects {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+				if a.Details[s.ID].IntentComparison != nil {
+					addRecord(r, s)
+				}
+			}
+			r.Limitations = append(r.Limitations, "recorded intent and observed claims are distinct attributed records; no accepted intent inferred")
+			break
+		}
 		targets := map[string]bool{q.ID: true}
 		for _, i := range x.Edges[q.ID] {
 			if err := ctx.Err(); err != nil {
@@ -308,6 +334,74 @@ func typedQuery(ctx context.Context, a *Artifact, q Request, r *Receipt) error {
 	r.Results = unique
 	return ctx.Err()
 }
+
+// claimSearch ranks claims by the distinct query terms their ID and text
+// hold, with an exact case-insensitive text match first; ties order by claim
+// ID (DCP-V1-313). Each claim appears once.
+func claimSearch(ctx context.Context, a *Artifact, q Request, r *Receipt) error {
+	x := a.RuntimeIndex
+	terms := contextindex.EvidenceTerms(q.Query)
+	scores := map[int]int{}
+	for term := range terms {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		for _, i := range x.ClaimTerms[term] {
+			scores[i]++
+		}
+	}
+	for i := range scores {
+		if strings.EqualFold(strings.TrimSpace(q.Query), strings.TrimSpace(a.Claims[i].Text)) {
+			scores[i] += len(terms) + 1
+		}
+	}
+	ids := make([]int, 0, len(scores))
+	for i := range scores {
+		ids = append(ids, i)
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		if scores[ids[i]] != scores[ids[j]] {
+			return scores[ids[i]] > scores[ids[j]]
+		}
+		return a.Claims[ids[i]].ID < a.Claims[ids[j]].ID
+	})
+	for _, i := range ids {
+		addRecord(r, a.Claims[i])
+	}
+	return ctx.Err()
+}
+
+// suppliedStatusClaims selects the supplied status claims in q.State (DCP-V1-318):
+// only unqualified ones unless q.Qualifier names a qualifier, matching the
+// docs_coverage supplied_status rows, and with q.Run only claims whose subject
+// is an end of a migration_mapping relation of that run.
+func suppliedStatusClaims(ctx context.Context, a *Artifact, q Request, r *Receipt) error {
+	x := a.RuntimeIndex
+	for _, c := range a.Claims {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		status := a.Details[c.ID].Status
+		if status == nil || status.State != q.State || status.Qualifier != q.Qualifier {
+			continue
+		}
+		inRun := q.Run == ""
+		for _, i := range x.Edges[c.Subject] {
+			if inRun {
+				break
+			}
+			rel := a.Relations[i]
+			mapping := a.Details[rel.ID].MigrationMapping
+			inRun = rel.Type == "migration_mapping" && mapping != nil && mapping.Run == q.Run
+		}
+		if inRun {
+			addRecord(r, c)
+		}
+	}
+	r.Limitations = append(r.Limitations, "supplied status claims are producer records; no readiness or proof is derived")
+	return nil
+}
+
 func typedKey(v any) string {
 	if e, ok := v.(DependencyEdge); ok {
 		return e.Direction + ":" + e.Relation.ID

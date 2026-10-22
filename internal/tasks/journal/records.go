@@ -25,10 +25,14 @@ type latest struct {
 // chain is the state one receipt hands to the next. A complete audit builds
 // it from receipt 1; a checkpoint read resumes it at the checkpoint sequence.
 type chain struct {
-	canonical     map[string]latest
-	prev          *wire.Digest
-	generation    uint64
-	init          *snapshot.Init
+	canonical  map[string]latest
+	prev       *wire.Digest
+	generation uint64
+	init       *snapshot.Init
+	// primary is the primary worktree the chain has recorded so far: the
+	// INIT descriptor's, then each RELOCATE descriptor's destination
+	// (TRL-V0-002). A resumed walk seeds it from its checkpoint.
+	primary       string
 	genesisQueue  []byte
 	selectedBytes int
 	notes         *noteState
@@ -207,7 +211,7 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 	if o.head != nil {
 		headSeq = o.head.LastSeq.Uint64()
 		if o.head.QueueID != r.QueueID || o.head.PrimaryWorktree != r.PrimaryWorktree {
-			return result, wire.Errorf(wire.CodeJournalForked, "head.json", "selected queue/primary differs from head; relocation unsupported")
+			return result, wire.Errorf(wire.CodeJournalForked, "head.json", "selected queue/primary differs from head; relocation needs an explicit RELOCATE receipt")
 		}
 	}
 	if o.seal != nil {
@@ -335,6 +339,8 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 	requiredGenesis := map[string]bool{}
 	descriptorCount := 0
 	requestCount := 0
+	relocateCount := 0
+	var relocate *snapshot.Relocate
 	var boundRequest *snapshot.Request
 	var target *ticket.Record
 	notes := r.noteAudit(st, rc)
@@ -377,6 +383,10 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 			}
 			coverage, descriptor, decoded := checked.coverage, checked.descriptor, checked.decoded
 			postTicket, postRequest = decoded.ticket, decoded.request
+			if decoded.relocate != nil {
+				relocateCount++
+				relocate = decoded.relocate
+			}
 			notes.decoded(j, postTicket)
 			if !coverage {
 				result.SemanticCoverage = "UNKNOWN"
@@ -473,12 +483,25 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 		if len(rc.Post) != 5+requestCount+maps || descriptorCount != 1 || !requiredGenesis["VERSION"] || !requiredGenesis["intent/queue.json"] || !requiredGenesis["intent/policy.json"] || !requiredGenesis["reservations.json"] {
 			return wire.Errorf(wire.CodeJournalForked, name, "genesis requires VERSION blob, queue, policy, empty reservations and unique INIT descriptor")
 		}
-		if st.init.VersionSha256 != wire.Sum([]byte(snapshot.VersionBytes)) || st.init.QueueID != r.QueueID || st.init.PrimaryWorktree != r.PrimaryWorktree {
+		// A relocated store's head names a later primary worktree; the
+		// chain carries it from the INIT descriptor through each RELOCATE
+		// receipt and binds it to head at headSeq (TRL-V0-002).
+		if st.init.VersionSha256 != wire.Sum([]byte(snapshot.VersionBytes)) || st.init.QueueID != r.QueueID || (o.head == nil && st.init.PrimaryWorktree != r.PrimaryWorktree) {
 			return wire.Errorf(wire.CodeJournalForked, name, "genesis identity/version mismatch")
 		}
-		if o.head != nil && (o.head.VersionSha256 != st.init.VersionSha256 || o.head.PrimaryWorktree != st.init.PrimaryWorktree || o.head.QueueID != st.init.QueueID) {
+		if o.head != nil && (o.head.VersionSha256 != st.init.VersionSha256 || o.head.QueueID != st.init.QueueID) {
 			return wire.Errorf(wire.CodeJournalForked, "head.json", "head and INIT descriptor disagree")
 		}
+		st.primary = st.init.PrimaryWorktree
+	}
+	if relocateCount != 0 || rc.Kind == snapshot.StageRelocate {
+		if rc.Kind != snapshot.StageRelocate || relocateCount != 1 || seq == 1 || rc.RequestID == nil || relocate.RequestID != *rc.RequestID || relocate.QueueID != r.QueueID || relocate.FromPrimaryWorktree != st.primary {
+			return wire.Errorf(wire.CodeJournalForked, name, "a RELOCATE receipt posts exactly one descriptor continuing the recorded primary worktree")
+		}
+		st.primary = relocate.ToPrimaryWorktree
+	}
+	if seq == headSeq && st.primary != o.head.PrimaryWorktree {
+		return wire.Errorf(wire.CodeJournalForked, "head.json", "head primary worktree differs from the receipt chain")
 	}
 	st.prev = &digest
 	st.generation = rc.HeadGeneration.Uint64()
@@ -581,8 +604,9 @@ func (r Reader) postBytes(p snapshot.PostEntry) ([]byte, error) {
 // post, so step and the note binding reuse it instead of decoding the same
 // bytes again (V1-1701).
 type decodedPost struct {
-	ticket  *ticket.Record
-	request *snapshot.Request
+	ticket   *ticket.Record
+	request  *snapshot.Request
+	relocate *snapshot.Relocate
 }
 
 // afterValidateRecord counts validateRecord calls in the V1-1701 parse-once
@@ -719,6 +743,16 @@ func (r Reader) validateRecord(p string, raw []byte, rc *snapshot.Receipt) (bool
 		}
 		d, err := snapshot.DecodeInit(raw)
 		return true, d, decodedPost{}, err
+	}
+	if profile.Kind == wire.KindString && strings.HasPrefix(profile.Str, "taskman-relocate/") {
+		if !strings.HasPrefix(p, "pinned/") {
+			return false, nil, decodedPost{}, wire.Errorf(wire.CodeMalformed, p, "RELOCATE descriptor requires pinned path")
+		}
+		d, err := snapshot.DecodeRelocate(raw)
+		if err != nil {
+			return false, nil, decodedPost{}, err
+		}
+		return true, nil, decodedPost{relocate: d}, nil
 	}
 	// Later attempt/effect/pinned profiles lack full J1 semantic decoders.
 	// Recognized scope and path identity fields still cannot conflict.
@@ -994,7 +1028,7 @@ func (r Reader) walkTail(o *observation, cp *Checkpoint, selected map[string]boo
 		}
 		return result, inFlight{errCheckpoint(next, "receipt beyond head")}
 	}
-	st := &chain{canonical: make(map[string]latest, len(cp.Entries)), prev: &cp.ReceiptSha256, generation: cp.Generation.Uint64(), resumed: from, resumedSha: cp.ReceiptSha256}
+	st := &chain{canonical: make(map[string]latest, len(cp.Entries)), prev: &cp.ReceiptSha256, generation: cp.Generation.Uint64(), resumed: from, resumedSha: cp.ReceiptSha256, primary: cp.PrimaryWorktree}
 	for _, e := range cp.Entries {
 		st.canonical[e.Path] = latest{seq: e.Seq, digest: e.Sha256, bytes: -1}
 	}

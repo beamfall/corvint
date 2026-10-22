@@ -42,11 +42,19 @@ type Registry struct {
 	load               chan struct{}
 	artifact           *doccorpus.Artifact
 	pins               []string
-	live               struct {
+	// pinStamp is the checkout stamp captured before the last successful
+	// verification of pins; while the stamp is unchanged the verification is
+	// not repeated (DCP-V1-316). It is guarded by load.
+	pinStamp string
+	live     struct {
 		sync.Mutex
 		key      string
 		artifact *doccorpus.Artifact
 		overlay  doccorpus.FreshnessOverlay
+		// stamp is the checkout stamp captured before the observation that
+		// matched key; an equal later stamp reuses overlay without observing
+		// (DCP-V1-315).
+		stamp string
 	}
 	// index memoizes the query index of the memoized artifact, or its
 	// deterministic refusal, so neither is recomputed per call or per batch
@@ -60,6 +68,13 @@ type Registry struct {
 
 // buildIndex derives the query index; tests replace it to count derivations.
 var buildIndex = doccorpus.BuildQueryIndex
+
+// observeCorpus and verifyPinned are the Git-backed reuse-key observation
+// and pin verification; tests replace them to count runs (DCP-V1-315).
+var (
+	observeCorpus = doccorpus.CorpusObservation
+	verifyPinned  = verifyPins
+)
 
 type header struct {
 	Schema       string                 `json:"schema"`
@@ -182,12 +197,23 @@ func (r *Registry) Tools() []bridge.ToolDescriptor {
 		}
 		if doccorpus.OperationInput(op) == "id" {
 			properties["id"] = map[string]any{"type": "string", "minLength": 1, "maxLength": 1024}
-			required = append(required, "id")
+			// DCP-V1-319: docs_intent without an id lists every intent comparison.
+			if op != "intent" {
+				required = append(required, "id")
+			}
 		}
 		if doccorpus.OperationInput(op) == "path" {
 			// DCP-V1-145: path or a paths batch, exactly one.
 			properties["path"] = map[string]any{"type": "string", "minLength": 1, "maxLength": 1024}
 			properties["paths"] = map[string]any{"type": "array", "minItems": 1, "maxItems": MaxBatchPaths, "uniqueItems": true, "items": map[string]any{"type": "string", "minLength": 1, "maxLength": 1024}}
+		}
+		if op == "claims" {
+			// DCP-V1-313: a ranked claim text query in place of path or paths.
+			properties["query"] = map[string]any{"type": "string", "minLength": 1, "maxLength": 1024}
+			// DCP-V1-318: or a supplied status filter.
+			properties["state"] = map[string]any{"type": "string", "enum": doccorpus.SuppliedStatusStates}
+			properties["qualifier"] = map[string]any{"type": "string", "enum": doccorpus.SuppliedStatusQualifiers}
+			properties["run"] = map[string]any{"type": "string", "minLength": 1, "maxLength": 1024}
 		}
 		if op == "locate" || op == "recommend-tests" {
 			// DCP-V1-310: an optional declared repository's root-commit identity.
@@ -254,6 +280,9 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 		Include    []string                    `json:"include"`
 		Repository string                      `json:"repository"`
 		Kind       jsontext.Value              `json:"kind"`
+		State      string                      `json:"state"`
+		Qualifier  string                      `json:"qualifier"`
+		Run        string                      `json:"run"`
 	}
 	if len(arguments) > 16<<10 || json.Unmarshal(arguments, &input, json.RejectUnknownMembers(true)) != nil {
 		return nil, "", nil, &Error{"invalid-arguments"}, finish()
@@ -264,7 +293,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	}
 	kind := doccorpus.OperationInput(op)
 	for key, value := range members {
-		allowed := key == "retirement" || key == "offset" && r.header.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && kind == "query" || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow" || key == "repository" && (op == "locate" || op == "recommend-tests") || key == "kind" && op == "gaps"
+		allowed := key == "retirement" || key == "offset" && r.header.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && (kind == "query" || op == "claims") || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow" || key == "repository" && (op == "locate" || op == "recommend-tests") || key == "kind" && op == "gaps" || (key == "state" || key == "qualifier" || key == "run") && op == "claims"
 		if !allowed || value == nil {
 			return nil, "", nil, &Error{"invalid-arguments"}, finish()
 		}
@@ -280,10 +309,26 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 		}
 	}
 	_, batch := members["paths"]
-	if kind == "query" && input.Query == "" || kind == "path" && (input.Path == "") == !batch || kind == "id" && input.ID == "" {
+	// DCP-V1-313: docs_claims takes exactly one of path, paths or query.
+	_, claimQuery := members["query"]
+	claimQuery = claimQuery && op == "claims"
+	if claimQuery && (input.Query == "" || input.Path != "" || batch) {
 		return nil, "", nil, &Error{"invalid-arguments"}, finish()
 	}
-	if kind != "query" && input.Query != "" || kind != "path" && input.Path != "" || kind != "id" && op != "gaps" && input.ID != "" {
+	// DCP-V1-318: or a state, with an optional qualifier and run.
+	_, claimStatus := members["state"]
+	_, hasPath := members["path"]
+	_, hasQualifier := members["qualifier"]
+	_, hasRun := members["run"]
+	if (hasQualifier || hasRun) && !claimStatus || claimStatus && (claimQuery || hasPath || batch || hasQualifier && input.Qualifier == "" || hasRun && input.Run == "" || !doccorpus.ValidStatusFilter(input.State, input.Qualifier, input.Run)) {
+		return nil, "", nil, &Error{"invalid-arguments"}, finish()
+	}
+	// DCP-V1-319: docs_intent may omit its id, but a present id is non-empty.
+	_, hasID := members["id"]
+	if kind == "query" && input.Query == "" || kind == "path" && !claimQuery && !claimStatus && (input.Path == "") == !batch || kind == "id" && input.ID == "" && (op != "intent" || hasID) {
+		return nil, "", nil, &Error{"invalid-arguments"}, finish()
+	}
+	if kind != "query" && !claimQuery && input.Query != "" || kind != "path" && input.Path != "" || kind != "id" && op != "gaps" && input.ID != "" {
 		return nil, "", nil, &Error{"invalid-arguments"}, finish()
 	}
 	if batch && !validBatch(input.Paths) {
@@ -308,7 +353,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	if !ok || !doccorpus.ValidGapKinds(kinds) {
 		return nil, "", nil, &Error{"invalid-arguments"}, finish()
 	}
-	request := doccorpus.Request{Operation: op, Retirement: input.Retirement, Query: input.Query, ID: input.ID, Path: input.Path, Limit: limit, Offset: input.Offset, Depth: input.Depth, Sections: sections, Include: input.Include, Repository: input.Repository, Kinds: kinds}
+	request := doccorpus.Request{Operation: op, Retirement: input.Retirement, Query: input.Query, ID: input.ID, Path: input.Path, Limit: limit, Offset: input.Offset, Depth: input.Depth, Sections: sections, Include: input.Include, Repository: input.Repository, Kinds: kinds, State: input.State, Qualifier: input.Qualifier, Run: input.Run}
 	// A batch whose deadline passes while the artifact or freshness is still
 	// being prepared names every path unresolved (DCP-V1-145).
 	prepared := func(err error) (map[string]any, string, *ToolFailure, *Error, Timing) {
@@ -321,7 +366,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 		}
 		return failure(err, finish())
 	}
-	a, err := r.artifactFor(ctx, raw, &timing)
+	a, stamp, err := r.artifactFor(ctx, raw, &timing)
 	if err != nil {
 		return prepared(err)
 	}
@@ -342,7 +387,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 		queried = &indexed
 	}
 	step := time.Now()
-	overlay, err := r.freshness(ctx, a, &timing)
+	overlay, err := r.freshness(ctx, a, stamp, &timing)
 	timing.FreshnessMS = time.Since(step).Milliseconds()
 	if err != nil {
 		return prepared(err)
@@ -515,24 +560,33 @@ func writeJSON(out *bytes.Buffer, value any) {
 // rederivation; later calls reuse it while every pinned revision still
 // resolves to a commit and tree. A failed check drops the memo and rederives,
 // so a missing input reports the native typed failure (DCP-V1-011, DCP-V1-143).
-func (r *Registry) artifactFor(ctx context.Context, raw []byte, timing *Timing) (*doccorpus.Artifact, error) {
+// A reused artifact also returns the checkout stamp captured before its
+// checks, which freshness pairs with its observation; the first call returns
+// none. The pins are not verified again while that stamp equals the one
+// captured before their last successful verification (DCP-V1-316).
+func (r *Registry) artifactFor(ctx context.Context, raw []byte, timing *Timing) (*doccorpus.Artifact, string, error) {
 	select {
 	case r.load <- struct{}{}:
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, "", ctx.Err()
 	}
 	defer func() { <-r.load }()
 	if r.artifact != nil {
 		step := time.Now()
-		err := verifyPins(ctx, r.root, r.artifact.Manifest, r.pins)
+		stamp := checkoutStamp(stampDirs(r.root, r.artifact.Manifest, r.pins))
+		var err error
+		if stamp == "" || stamp != r.pinStamp {
+			err = verifyPinned(ctx, r.root, r.artifact.Manifest, r.pins)
+		}
 		timing.VerifyMS = time.Since(step).Milliseconds()
 		if err == nil {
-			return r.artifact, nil
+			r.pinStamp = stamp
+			return r.artifact, stamp, nil
 		}
 		if ctx.Err() != nil {
-			return nil, ctx.Err()
+			return nil, "", ctx.Err()
 		}
-		r.artifact, r.pins = nil, nil
+		r.artifact, r.pins, r.pinStamp = nil, nil, ""
 		r.index.artifact, r.index.value, r.index.err = nil, nil, nil
 	}
 	step := time.Now()
@@ -540,10 +594,10 @@ func (r *Registry) artifactFor(ctx context.Context, raw []byte, timing *Timing) 
 	a, err := doccorpus.Open(ctx, r.root, raw)
 	timing.LoadMS = time.Since(step).Milliseconds()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	r.artifact, r.pins = a, pinnedRevisions(a.Manifest)
-	return a, nil
+	return a, "", nil
 }
 
 // indexFor returns the query index of a, deriving it on the first indexed
@@ -571,10 +625,23 @@ func (r *Registry) indexFor(ctx context.Context, a *doccorpus.Artifact) (*doccor
 // the repository observation (commit, tree and worktree status) is unchanged:
 // the same key the context snapshot store reuses an index under. The key is
 // read before the build, so a change during the build only forces a rebuild.
-func (r *Registry) freshness(ctx context.Context, a *doccorpus.Artifact, timing *Timing) (doccorpus.FreshnessOverlay, error) {
+// A stamp captured before the observation is kept with the memo: while a
+// later call's stamp is equal, nothing the observation reads has changed, so
+// the overlay is reused without running Git (DCP-V1-315). An unavailable
+// stamp is empty and never matches.
+func (r *Registry) freshness(ctx context.Context, a *doccorpus.Artifact, stamp string, timing *Timing) (doccorpus.FreshnessOverlay, error) {
+	if stamp != "" {
+		r.live.Lock()
+		if r.live.artifact == a && r.live.stamp == stamp {
+			overlay := r.live.overlay
+			r.live.Unlock()
+			return overlay, nil
+		}
+		r.live.Unlock()
+	}
 	// Every declared checkout is observed, so an additional repository's
 	// change forces a rebuild and an unchanged set reuses (DCP-V1-280).
-	key, err := doccorpus.CorpusObservation(ctx, r.root, a)
+	key, err := observeCorpus(ctx, r.root, a)
 	if err != nil {
 		return doccorpus.FreshnessOverlay{}, err
 	}
@@ -582,6 +649,7 @@ func (r *Registry) freshness(ctx context.Context, a *doccorpus.Artifact, timing 
 	// earlier observation, so a change during the build cannot be reused.
 	r.live.Lock()
 	if r.live.artifact == a && r.live.key == key {
+		r.live.stamp = stamp
 		overlay := r.live.overlay
 		r.live.Unlock()
 		return overlay, nil
@@ -593,7 +661,7 @@ func (r *Registry) freshness(ctx context.Context, a *doccorpus.Artifact, timing 
 		return overlay, err
 	}
 	r.live.Lock()
-	r.live.key, r.live.artifact, r.live.overlay = overlay.Observation(), a, overlay
+	r.live.key, r.live.artifact, r.live.overlay, r.live.stamp = overlay.Observation(), a, overlay, stamp
 	r.live.Unlock()
 	return overlay, nil
 }

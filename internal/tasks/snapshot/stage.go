@@ -38,6 +38,11 @@ const StageImportApply = "IMPORT_APPLY"
 // operation name is the receipt kind.
 const StageAuthoritySwitch = "AUTHORITY_SWITCH"
 
+// StageRelocate re-pins head.primaryWorktree under one RELOCATE receipt that
+// posts its request and a pinned taskman-relocate/0 descriptor naming both
+// paths (TRL-V0-002); the operation name is the receipt kind.
+const StageRelocate = "RELOCATE"
+
 // StageLease carries one CAL-V0 lease transaction: its receipt kind is ADMIT,
 // TRANSITION, GATE_RESULT or MANIFEST. A recorded FENCED refusal is a TRANSITION
 // with REVISION_CONFLICT outcome and posts only its request.
@@ -106,6 +111,8 @@ func StageLimits(op string) (int, int) {
 		return 6, 1680
 	case StageEscalation:
 		return 7, 1879
+	case StageRelocate:
+		return 4, 1311
 	}
 	return 0, 0
 }
@@ -149,7 +156,7 @@ func DecodeStageDescriptor(raw []byte) (*StageDescriptor, error) {
 	if e = wire.CheckProfile("stage/profile", r.Field("profile").String(), "taskman-stage/0"); e != nil {
 		return nil, e
 	}
-	d := &StageDescriptor{QueueID: r.Field("queueId").QueueID().Raw, Operation: r.Field("operation").Enum(StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate, StageImportApply, StageAuthoritySwitch, StageLease, StageQualification, StageEscalation), RequestID: r.Field("requestId").String(), RequestSha256: r.Field("requestSha256").Digest(), RecordedAt: r.Field("recordedAt").Timestamp()}
+	d := &StageDescriptor{QueueID: r.Field("queueId").QueueID().Raw, Operation: r.Field("operation").Enum(StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate, StageImportApply, StageAuthoritySwitch, StageLease, StageQualification, StageEscalation, StageRelocate), RequestID: r.Field("requestId").String(), RequestSha256: r.Field("requestSha256").Digest(), RecordedAt: r.Field("recordedAt").Timestamp()}
 	b := r.Field("base")
 	if !b.IsNull() {
 		b.Closed("lastSeq", "lastReceiptSha256")
@@ -259,7 +266,7 @@ func (d StageDescriptor) shape() error {
 					cap = 551
 				}
 				// A LEASE request is at most REVISION_CONFLICT with FENCED.
-				if d.Operation == StageKeepJournal || d.Operation == StageAdoptFile || d.Operation == StageMutate || d.Operation == StageRelease || d.Operation == StagePolicyUpdate || d.Operation == StageImportApply || d.Operation == StageAuthoritySwitch || d.Operation == StageLease || d.Operation == StageQualification || d.Operation == StageEscalation {
+				if d.Operation == StageKeepJournal || d.Operation == StageAdoptFile || d.Operation == StageMutate || d.Operation == StageRelease || d.Operation == StagePolicyUpdate || d.Operation == StageImportApply || d.Operation == StageAuthoritySwitch || d.Operation == StageLease || d.Operation == StageQualification || d.Operation == StageEscalation || d.Operation == StageRelocate {
 					cap = 579
 				}
 			case strings.HasPrefix(a.Target, "attempts/") && d.Operation == StageLease:
@@ -278,6 +285,9 @@ func (d StageDescriptor) shape() error {
 			case a.Target == "reservations.json" && d.Operation == StageLease:
 				key = "reservations"
 				cap = wire.MaxReservationSetBytes
+			case a.Target == "pinned/"+string(a.Sha256)+".json" && d.Operation == StageRelocate:
+				key = "pinned"
+				cap = MaxRelocateDescriptorBytes
 			case a.Target == "barrier.json" && d.Operation == StagePause:
 				key = "barrier"
 				cap = 4096
@@ -379,6 +389,8 @@ func (d StageDescriptor) shape() error {
 		}
 	case StagePause:
 		required["barrier"] = 1
+	case StageRelocate:
+		required["pinned"] = 1
 	case StageKeepJournal:
 		required["ticket"] = 1
 		required["discard"] = 1

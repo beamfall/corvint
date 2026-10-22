@@ -235,13 +235,13 @@ needs `--legacy-cases`.
 | `corvint.docs_info` | `corvint-corpus-mcp` | Corpus header, revision and capabilities | experimental | Capability absent | [DCP-V1](specs/documentation-corpus-v1.md) |
 | `corvint.docs_validate` | `corvint-corpus-mcp` | Validate the corpus artifact | experimental | Capability absent | [DCP-V1](specs/documentation-corpus-v1.md) |
 | `corvint.docs_concept` | `corvint-corpus-mcp` | One concept's record | experimental | Capability absent | [DCP-V1](specs/documentation-corpus-v1.md) |
-| `corvint.docs_claims` | `corvint-corpus-mcp` | Claims attached to a subject | experimental | Capability absent | [DCP-V1](specs/documentation-corpus-v1.md) |
+| `corvint.docs_claims` | `corvint-corpus-mcp` | Claims about a path, claims ranked by text, or supplied status claims by state, qualifier and run | experimental | Capability absent | [DCP-V1](specs/documentation-corpus-v1.md) |
 | `corvint.docs_flow` | `corvint-corpus-mcp` | One documented flow | experimental | Capability absent | [DCP-V1](specs/documentation-corpus-v1.md) |
 | `corvint.docs_dependencies` | `corvint-corpus-mcp` | Dependencies of a subject | experimental | Capability absent | [DCP-V1](specs/documentation-corpus-v1.md) |
 | `corvint.docs_recommend_tests` | `corvint-corpus-mcp` | Tests the corpus links to a subject | experimental | Capability absent | [DCP-V1](specs/documentation-corpus-v1.md) |
 | `corvint.docs_navigation` | `corvint-corpus-mcp` | Navigation structure | experimental | Capability absent | [DCP-V1](specs/documentation-corpus-v1.md) |
 | `corvint.docs_vocabulary` | `corvint-corpus-mcp` | Corpus vocabulary | experimental | Capability absent | [DCP-V1](specs/documentation-corpus-v1.md) |
-| `corvint.docs_intent` | `corvint-corpus-mcp` | Intent records | experimental | Capability absent | [DCP-V1](specs/documentation-corpus-v1.md) |
+| `corvint.docs_intent` | `corvint-corpus-mcp` | Intent records of one subject, or every intent comparison | experimental | Capability absent | [DCP-V1](specs/documentation-corpus-v1.md) |
 | `corvint.docs_search` | `corvint-corpus-mcp` | Search the corpus | experimental | Capability absent | [DCP-V1](specs/documentation-corpus-v1.md) |
 | `corvint.docs_get` | `corvint-corpus-mcp` | One subject and its links, by ID or legacy case ID | experimental | `legacy-case-unlinked` gap; capability absent | [DCP-V1](specs/documentation-corpus-v1.md) |
 | `corvint.docs_locate` | `corvint-corpus-mcp` | Where a subject is documented | experimental | Capability absent | [DCP-V1](specs/documentation-corpus-v1.md) |

@@ -293,6 +293,16 @@ func advanceHead(repo *intent.Repository, session *authority.Session, head *snap
 	next.LastSeq = receipt.Seq
 	next.LastReceiptSha256 = &digest
 	next.Generation = receipt.HeadGeneration
+	if receipt.Kind == transaction.Relocate {
+		// A redone RELOCATE re-pins the head as the fresh write would have
+		// (TRL-V0-004): the destination comes from the descriptor the
+		// receipt posts, which must continue the recorded primary worktree.
+		to, err := relocatedPrimary(repo, head, receipt)
+		if err != nil {
+			return err
+		}
+		next.PrimaryWorktree = to
+	}
 	raw := wire.EncodeFile(next.Value())
 	if _, err := snapshot.DecodeHead(raw); err != nil {
 		return err
@@ -324,7 +334,7 @@ func readHead(repo *intent.Repository) (*snapshot.Head, error) {
 		return nil, err
 	}
 	if head.PrimaryWorktree != repo.PrimaryWorktree {
-		return nil, wire.Errorf(wire.CodeUnsupported, "head.json", "primary worktree differs; relocation unsupported")
+		return nil, wire.Errorf(wire.CodeUnsupported, "head.json", "head.primaryWorktree %q differs from the resolved primary worktree %q; from the new primary worktree run `corvint-tasks relocate --from %s --request-id ID` (TRL-V0-001)", head.PrimaryWorktree, repo.PrimaryWorktree, head.PrimaryWorktree)
 	}
 	return head, nil
 }
