@@ -317,7 +317,9 @@ corvint-tasks relocate --from /old/primary/worktree --request-id relocate-1 \
 
 The command commits one RELOCATE receipt naming both paths and re-pins `head.primaryWorktree`. It
 refuses `QUIESCENCE_UNPROVED` while any attempt holds a reservation, so release or reap every
-attempt first. With `--dispatch-config` it also refuses while a dispatcher for that config runs;
+attempt first. With `--dispatch-config` it also refuses while a dispatcher for that config runs or
+is starting, refuses a `stateDir` that is not a real path, and refuses any dispatcher start until it
+finishes;
 without the flag the result warns that the dispatcher check was `NOT_OBSERVED`, so stop every
 dispatcher yourself. A dispatch config whose `workRoot` or `stateDir` named the old path must be
 edited to the new real path. An interrupted relocation is finished by rerunning the same command

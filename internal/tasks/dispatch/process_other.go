@@ -16,6 +16,7 @@ type proc struct{ comm string }
 var errPlatform = errors.New("dispatch is supported only on darwin and linux")
 
 func lockExclusive(f *os.File) error      { return errPlatform }
+func lockShared(f *os.File) error         { return errPlatform }
 func observeProcs() (map[int]proc, error) { return nil, errPlatform }
 func launch(argv, env []string, dir, logDir string) (int, string, <-chan int, error) {
 	return 0, "", nil, errPlatform

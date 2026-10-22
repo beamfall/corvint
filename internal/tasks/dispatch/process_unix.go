@@ -33,6 +33,11 @@ func lockExclusive(f *os.File) error {
 	return syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
 }
 
+// lockShared takes the state directory's start gate shared without waiting.
+func lockShared(f *os.File) error {
+	return syscall.Flock(int(f.Fd()), syscall.LOCK_SH|syscall.LOCK_NB)
+}
+
 // observeProcs reads the live (non-zombie) process table.
 func observeProcs() (map[int]proc, error) {
 	ps := "/bin/ps"

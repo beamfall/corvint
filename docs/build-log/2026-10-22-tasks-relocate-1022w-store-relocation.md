@@ -48,6 +48,31 @@ had to qualify on a fresh store instead of a copy.
   disabling the dispatcher lock or the reservation check fails both `TestTRLV0003_*` tests. At the
   base, the `relocate` verb and descriptor codec do not exist, so the other TRLV tests cannot pass.
 
+## Review repair (Codex round on #1560)
+
+Two findings were confirmed by reading `internal/tasks/dispatch/hold.go`:
+
+- `DirEntry.IsDir` is false for a symlink, so a program directory reached through a link was
+  skipped while its dispatcher held the lock, and `os.Open` followed symlinked `stateDir`
+  components. `HoldIdle` now refuses a symlinked program directory, a non-regular lock, and a
+  `stateDir` that does not resolve to itself (checked at its nearest existing ancestor before it is
+  created).
+- The scan was a single pass, so a dispatcher starting after it could create its program directory
+  and lock unseen, and an absent `stateDir` held nothing. Decision: one synchronization point. A
+  non-blocking `flock` on the `stateDir` directory is the start gate: `dispatch.Open` takes it
+  shared across creating the program directory and taking its lock, and `HoldIdle` creates the
+  directory when absent and takes it exclusive before scanning. A start during a relocation is
+  refused with `ErrRelocationHolds`; a start in progress refuses the relocation. Already-running
+  dispatchers do not hold the gate, so they keep their program lock, which the scan finds. The
+  standalone work-state reader and reader recovery lock their own program directories without the
+  gate; neither writes the task store, and a held one still refuses the relocation.
+- Tests: `TestTRLV0003_HoldIdleRefusesSymlinkedProgramDir`,
+  `TestTRLV0005_HoldIdleRefusesSymlinkedStateDir`,
+  `TestTRLV0003_DispatcherStartRefusedDuringRelocation` and
+  `TestTRLV0003_HoldIdleRefusesStartingDispatcher`. Each fails with its fix removed: with the
+  symlink, real-path and exclusive-gate checks removed, all four fail; with the gate removed from
+  `Open`, the concurrent-start test fails.
+
 ## NOT_RUN
 
 - Archive export/restore into a fresh store at a new path (#1557's alternative criterion): the

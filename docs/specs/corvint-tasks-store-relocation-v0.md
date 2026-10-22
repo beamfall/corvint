@@ -44,16 +44,21 @@ to run.
   `JOURNAL_FORKED`. A head re-pinned without a receipt is therefore detected by `receipt audit`.
   RELOCATE is a new receipt kind, so a binary without it refuses the store fail-closed.
 - `TRL-V0-003`: Relocation refuses `QUIESCENCE_UNPROVED`, writing nothing, while any attempt holds
-  a reservation. With `--dispatch-config`, it takes every program's single-dispatcher lock under the
-  config's `stateDir` without waiting and holds them across the write; a lock another process holds
-  refuses `QUIESCENCE_UNPROVED`. Without the flag the result warns that the dispatcher check was
+  a reservation. With `--dispatch-config`, it takes, without waiting, the config's `stateDir` start
+  gate exclusive (an advisory lock on the directory, creating it when absent) and then every
+  program's single-dispatcher lock, and holds them across the write. A dispatcher start holds the
+  same gate shared while it creates its program directory and takes its lock, so a start during a
+  relocation is refused and a start the scan cannot yet see keeps the relocation out. A held gate or
+  lock, or a symbolic link where a program directory or its lock belongs, refuses
+  `QUIESCENCE_UNPROVED`. Without the flag the result warns that the dispatcher check was
   `NOT_OBSERVED`. The ordinary writer guards still apply, including the barrier and the intent
   branch check.
 - `TRL-V0-004`: A relocation interrupted after its receipt is linked is settled by `TM-V0-009` redo,
   which re-pins the head from the receipt's descriptor; the identical request then replays. A new
   request after a completed relocation refuses, since the head no longer records `OLD`.
 - `TRL-V0-005`: The store, the dispatch config and its `stateDir` (including each worker's
-  `evidence` directory) must be on real paths with no symlink component. The symlink refusal and
+  `evidence` directory) must be on real paths with no symlink component; relocation refuses a
+  `stateDir` that does not resolve to itself. The symlink refusal and
   fail-closed path resolution are unchanged; a symlink at the old path is not a relocation.
 - `TRL-V0-006`: A copied store is bound to a new clone by the same explicit relocation. A copy is
   usable only as a consistent snapshot, taken while no `corvint-tasks` writer, dispatcher or live
@@ -77,6 +82,8 @@ snapshot verb that quiesces writers itself, and archive restore into a fresh sto
 | `--from` names neither the recorded nor the resolved primary | Refused; store unchanged (`TRL-V0-001`). |
 | A live attempt holds a reservation | `QUIESCENCE_UNPROVED`; store unchanged (`TRL-V0-003`). |
 | A dispatcher holds its program lock (with `--dispatch-config`) | `QUIESCENCE_UNPROVED`; store unchanged (`TRL-V0-003`). |
+| A dispatcher starts during a relocation, or is starting when it begins (with `--dispatch-config`) | The start is refused, or the relocation refuses `QUIESCENCE_UNPROVED`; never both run (`TRL-V0-003`). |
+| A program directory or `stateDir` component is a symbolic link | `QUIESCENCE_UNPROVED`; store unchanged (`TRL-V0-003`, `TRL-V0-005`). |
 | No `--dispatch-config` | Relocation proceeds with a `NOT_OBSERVED` warning (`TRL-V0-003`). |
 | Interrupted after the receipt link | Retry redoes the head re-pin, then replays (`TRL-V0-004`). |
 | `head.json` edited to a new path without a receipt, or moved back after a relocation | `JOURNAL_FORKED` on audit and reads (`TRL-V0-002`). |
@@ -102,9 +109,9 @@ before relocation, to be read; stores that never relocated are unaffected.
 | --- | --- |
 | `TRL-V0-001` | `TestTRLV0001_RelocateMovedRepository` |
 | `TRL-V0-002` | `TestTRLV0001_RelocateMovedRepository`, `TestTRLV0002_HeadRepinWithoutReceiptForks`, `TestTRLV0002_RelocateDescriptorCodec` |
-| `TRL-V0-003` | `TestTRLV0003_RelocateRefusesLiveAttempt`, `TestTRLV0003_RelocateRefusesHeldDispatcher` |
+| `TRL-V0-003` | `TestTRLV0003_RelocateRefusesLiveAttempt`, `TestTRLV0003_RelocateRefusesHeldDispatcher`, `TestTRLV0003_HoldIdleRefusesSymlinkedProgramDir`, `TestTRLV0003_DispatcherStartRefusedDuringRelocation`, `TestTRLV0003_HoldIdleRefusesStartingDispatcher` |
 | `TRL-V0-004` | `TestTRLV0004_RelocateRedoRepinsHead`, `TestTRLV0001_RelocateMovedRepository` |
-| `TRL-V0-005` | Documentation requirement (`docs/TASKS-SUPERVISION.md`); no runtime test. |
+| `TRL-V0-005` | `TestTRLV0005_HoldIdleRefusesSymlinkedStateDir` for the dispatch `stateDir`; otherwise a documentation requirement (`docs/TASKS-SUPERVISION.md`). |
 | `TRL-V0-006` | `TestTRLV0006_RelocateCopiedStore` |
 
 ## Unresolved decisions
