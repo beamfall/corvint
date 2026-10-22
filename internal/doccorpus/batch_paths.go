@@ -25,9 +25,12 @@ type pathPrefetch struct {
 	bodies   map[string][]byte
 }
 
-// pathPrefetchOff, set only by tests, makes every batch a no-op so a test can
-// compare batched output with the per-path reads byte for byte.
-var pathPrefetchOff bool
+// pathPrefetchOff reports whether a test context turned every batch into a
+// no-op, so the test can compare batched output with the per-path reads byte
+// for byte.
+func pathPrefetchOff(ctx context.Context) bool {
+	return corpusGitHooksOf(ctx).prefetchOff
+}
 
 func newPathPrefetch(commit string) *pathPrefetch {
 	return &pathPrefetch{commit: commit, entries: map[string]gitauth.TreeEntry{}, resolved: map[string]bool{}, sizes: map[string]int{}, bodies: map[string][]byte{}}
@@ -45,7 +48,7 @@ func (p *pathPrefetch) resolve(ctx context.Context, auth *gitauth.Repository, pa
 			pending = append(pending, path)
 		}
 	}
-	if len(pending) == 0 || !wire.IsGitOid(p.commit) || pathPrefetchOff {
+	if len(pending) == 0 || !wire.IsGitOid(p.commit) || pathPrefetchOff(ctx) {
 		return nil
 	}
 	sort.Strings(pending)
@@ -93,7 +96,7 @@ func (p *pathPrefetch) read(ctx context.Context, auth *gitauth.Repository, oids 
 			pending = append(pending, oid)
 		}
 	}
-	if len(pending) == 0 || pathPrefetchOff {
+	if len(pending) == 0 || pathPrefetchOff(ctx) {
 		return nil
 	}
 	sorted := append([]string(nil), pending...)
