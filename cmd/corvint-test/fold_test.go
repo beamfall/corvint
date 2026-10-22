@@ -87,6 +87,12 @@ func TestCTFV0002RunnerFoldGoldens(t *testing.T) {
 	foldGoldens(t, "runner", "../corvint-test-runner")
 }
 
+// CTF-V0-002, CTF-V0-003: the same for the falsify group, including the offline `verify-receipt`
+// success path over a committed evidence receipt.
+func TestCTFV0002FalsifyFoldGoldens(t *testing.T) {
+	foldGoldens(t, "falsify", "../corvint-behavior-falsify")
+}
+
 // foldGoldens compares every invocation of a group with testdata/fold/<group>.json. Set
 // CTF_UPDATE_GOLDEN=1 to rewrite the goldens from the old binary only (CTF-V0-002).
 func foldGoldens(t *testing.T, group, oldPkg string) {
@@ -136,23 +142,27 @@ func foldGoldens(t *testing.T, group, oldPkg string) {
 	}
 }
 
-// CTF-V0-007, CTF-V0-010: the folded runner entry is not linked into core `corvint`, the group
+// CTF-V0-007, CTF-V0-010: the folded group entries are not linked into core `corvint`, each group
 // is named in the companion usage, and its sources never use the bare `corvint-test:` prefix of
 // core `corvint test` diagnostics nor name `corvint` as an executable.
-func TestCTFV0007RunnerGroupBoundary(t *testing.T) {
+func TestCTFV0007FoldedGroupBoundary(t *testing.T) {
 	out, err := exec.Command("go", "list", "-deps", "../corvint").Output()
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, dep := range strings.Fields(string(out)) {
-		if strings.HasSuffix(dep, "/internal/testrunner/cli") {
+		if strings.HasSuffix(dep, "/internal/testrunner/cli") || strings.HasSuffix(dep, "/internal/behaviorfalsify/cli") {
 			t.Fatalf("core corvint imports %s", dep)
 		}
 	}
-	if !strings.Contains(usage, "corvint-test runner <command>") {
-		t.Fatalf("usage does not name the runner group: %q", usage)
+	for _, group := range []string{"corvint-test runner <command>", "corvint-test falsify <plan|"} {
+		if !strings.Contains(usage, group) {
+			t.Fatalf("usage does not name %q: %q", group, usage)
+		}
 	}
 	srcs, _ := filepath.Glob("../../internal/testrunner/cli/*.go")
+	falsify, _ := filepath.Glob("../../internal/behaviorfalsify/cli/*.go")
+	srcs = append(srcs, falsify...)
 	if len(srcs) == 0 {
 		t.Fatal("no runner group sources")
 	}

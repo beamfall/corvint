@@ -2061,7 +2061,7 @@ CTF-V0-002	docs/specs/corvint-test-fold-v0.md	Before a group moves, its change M
 CTF-V0-003	docs/specs/corvint-test-fold-v0.md	Every profile ID in the fold map MUST stay unchanged. A moved command MUST NOT g	unrecorded	-
 CTF-V0-004	docs/specs/corvint-test-fold-v0.md	After a group moves, its old companion binary MUST be a shim that calls the same	unrecorded	-
 CTF-V0-005	docs/specs/corvint-test-fold-v0.md	Once group 5 or 6 moves, the removed core verb or mode MUST return core's existi	unrecorded	-
-CTF-V0-006	docs/specs/corvint-test-fold-v0.md	A moved command that re-enters its own executable (group 2's control hook, group	unrecorded	-
+CTF-V0-006	docs/specs/corvint-test-fold-v0.md	A moved command that re-enters its own executable (group 4's `worker`) MUST re-e	unrecorded	-
 CTF-V0-007	docs/specs/corvint-test-fold-v0.md	A moved group's diagnostics MUST name its new invocation (`corvint-test <group>`	unrecorded	-
 CTF-V0-008	docs/specs/corvint-test-fold-v0.md	Name matchers MUST key on exact binary names, never on the `corvint-test` prefix	unrecorded	-
 CTF-V0-009	docs/specs/corvint-test-fold-v0.md	Group 6 MUST NOT move until `script/gate-affected-corvint.sh` and the CI shadow	unrecorded	-

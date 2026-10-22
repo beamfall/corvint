@@ -2,8 +2,8 @@
 // E2E scenarios from admitted, revision-pinned blocks (CCE-V0). Core `corvint` does not import or
 // execute it, and it never executes `corvint` (CCE-V0-015). Diagnostics carry the
 // `corvint-test e2e:` prefix, disjoint from core `corvint test` diagnostics (`corvint-test:`).
-// The `runner` group is the folded runner companion (CTF-V0); its diagnostics name
-// `corvint-test runner`.
+// The `runner` and `falsify` groups are folded companions (CTF-V0); their diagnostics name
+// `corvint-test runner` and `corvint-test falsify`.
 package main
 
 import (
@@ -19,6 +19,7 @@ import (
 	"strings"
 	"syscall"
 
+	falsifycli "github.com/Beamfall/corvint/internal/behaviorfalsify/cli"
 	"github.com/Beamfall/corvint/internal/changee2e"
 	"github.com/Beamfall/corvint/internal/testrunner/cli"
 )
@@ -27,7 +28,8 @@ import (
 const proveReport = "e2e-prove.json"
 
 const usage = "usage: corvint-test e2e <catalog|harvest|obligations|compile|prove|shadow> [flags]\n" +
-	"       corvint-test runner <command> [flags] (folded corvint-test-runner, CTF-V0)"
+	"       corvint-test runner <command> [flags] (folded corvint-test-runner, CTF-V0)\n" +
+	"       corvint-test falsify <plan|execute|execute-receipt|verify-receipt> --experimental [flags] < input.json (folded corvint-behavior-falsify, CTF-V0)"
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -44,6 +46,13 @@ func main() {
 	// apart from the invocation name in diagnostics (CTF-V0-002, CTF-V0-004).
 	if len(os.Args) > 1 && os.Args[1] == "runner" {
 		os.Exit(cli.Command(ctx, "corvint-test runner", os.Args[2:], os.Stdout, os.Stderr))
+	}
+	if len(os.Args) > 1 && os.Args[1] == "falsify" {
+		if err := falsifycli.Run(ctx, "corvint-test falsify", os.Args[2:], os.Stdin, os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
 	}
 	if err := run(ctx, os.Args[1:], os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, "corvint-test e2e:", err)
