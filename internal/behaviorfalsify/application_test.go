@@ -25,6 +25,7 @@ func ownMarker(control PlannedControl) MarkerObservation {
 }
 
 func TestBBFV0015ApplicationClassification(t *testing.T) {
+	t.Parallel()
 	plan, control, base := markedClassification()
 	own := ownMarker(control)
 	tests := []struct {
@@ -95,6 +96,7 @@ func TestBBFV0015ApplicationClassification(t *testing.T) {
 }
 
 func TestBBFV0015UnmarkedControlKeepsLegacyClassification(t *testing.T) {
+	t.Parallel()
 	plan := classificationPlan()
 	control := plan.Controls[0]
 	result := AttemptResult{Attempt: 1, Receipt: receiptPointer(classificationReceipt(plan, control)), HookProcess: successfulProcess(), CleanupProcess: successfulProcess(), WorkspaceBefore: digestN("workspace"), WorkspaceAfter: digestN("workspace")}
@@ -113,6 +115,7 @@ func TestBBFV0015UnmarkedControlKeepsLegacyClassification(t *testing.T) {
 }
 
 func TestBBFV0015AggregateApplication(t *testing.T) {
+	t.Parallel()
 	plan, control, _ := markedClassification()
 	_ = plan
 	attempts := []AttemptResult{{Application: ApplicationAppliedEarlyFail}, {Application: ApplicationNotApplied}}
@@ -132,7 +135,7 @@ func TestBBFV0015AggregateApplication(t *testing.T) {
 }
 
 func TestBBFV0015PlanMarkerValidation(t *testing.T) {
-	t.Setenv(helperEnvironment, "1")
+	t.Parallel()
 	for _, marker := range []ApplicationMarker{{Kind: "console", Type: "control-applied"}, {Kind: MarkerAnnotation, Type: ""}, {Kind: MarkerProviderEvent, Type: "bad type"}} {
 		control := liveControl(t, "control", "killed")
 		control.ApplicationMarker = &marker
@@ -143,6 +146,7 @@ func TestBBFV0015PlanMarkerValidation(t *testing.T) {
 }
 
 func TestBBFV0016LegacyWireUnchanged(t *testing.T) {
+	t.Parallel()
 	plan, r := receiptFixture(t, "killed")
 	encoded, err := EncodeEvidence(r)
 	if err != nil {
@@ -169,7 +173,7 @@ func markedControl(t *testing.T, id, scenario, markers string) ControlSpec {
 }
 
 func TestBBFV0016InertControlsListedSeparately(t *testing.T) {
-	t.Setenv(helperEnvironment, "1")
+	t.Parallel()
 	plan, err := BuildPlan(liveRequest(t, []ControlSpec{
 		markedControl(t, "control-applied", "killed", "self"),
 		markedControl(t, "control-inert", "survived", "none"),
@@ -262,7 +266,7 @@ func advanceRevision(t *testing.T, request Request, message string) Request {
 }
 
 func TestBBFV0017RepeatedNotAppliedAcrossRevisions(t *testing.T) {
-	t.Setenv(helperEnvironment, "1")
+	t.Parallel()
 	request := liveRequest(t, nil)
 	first := inertHistoryReceipt(t, request, testMarker.Type)
 	again := inertHistoryReceipt(t, request, testMarker.Type)

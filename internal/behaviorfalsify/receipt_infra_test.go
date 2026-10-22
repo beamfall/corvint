@@ -14,7 +14,6 @@ import (
 // staging directory after planning so the hook never starts.
 func infraReceiptFixture(t *testing.T, scenario string, timeoutSeconds int, stagingUnavailable bool) (Plan, EvidenceReceipt) {
 	t.Helper()
-	t.Setenv(helperEnvironment, "1")
 	request := liveRequest(t, []ControlSpec{liveControl(t, "control", scenario)})
 	request.TimeoutSeconds = timeoutSeconds
 	request.WallClockSeconds = 20
@@ -87,6 +86,7 @@ func TestBBFV0018InfrastructureFailedAttemptVerifies(t *testing.T) {
 }
 
 func TestBBFV0018ForgedNilReceiptAttempts(t *testing.T) {
+	t.Parallel()
 	plan, original := infraReceiptFixture(t, "partial-crash", 5, false)
 	_, killed := receiptFixture(t, "killed")
 	encoded, err := EncodeEvidence(original)
