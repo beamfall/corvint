@@ -475,6 +475,7 @@ ANL-V0-043	docs/specs/application-navigation-ledger-v0.md	(accepted under the ow
 ANL-V0-044	docs/specs/application-navigation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); issue #814) The p	standing	2026-10-11; #814
 ANL-V0-045	docs/specs/application-navigation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); issue #814) Its c	standing	2026-10-11; #814
 ANL-V0-046	docs/specs/application-navigation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); issue #814) The r	standing	2026-10-11; #814
+ANL-V0-047	docs/specs/application-navigation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1216) For an i	standing	2026-10-11; V1-1216
 ASS-V0-001	docs/specs/authoring-step-scope-v0.md	A strict versioned declaration must list allowed write paths/prefixes, guarded	unrecorded	-
 ASS-V0-002	docs/specs/authoring-step-scope-v0.md	Pre- and post-state observation must be read-only and bind full commit/tree,	unrecorded	-
 ASS-V0-003	docs/specs/authoring-step-scope-v0.md	Verification must name every observed out-of-scope write, guarded modification a	unrecorded	-
@@ -2408,6 +2409,7 @@ DCP-V1-158	docs/specs/documentation-corpus-v1.md	(accepted under the owner's sta
 DCP-V1-159	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1240;	standing	2026-10-11; #1240
 DCP-V1-216	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1991)) The rea	standing	2026-10-11; V1-1991
 DCP-V1-243	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2151) The	standing	2026-10-11; V1-2151
+DCP-V1-244	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2002) The	standing	2026-10-11; V1-2002
 DCP-V1-217	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1991)) Legacy	standing	2026-10-11; V1-1991
 DCP-V1-241	docs/specs/documentation-corpus-v1.md	`corvint docs corpus maintain --page` names the flag and the broken rule when it	unrecorded	-
 DCP-V1-054	docs/specs/documentation-corpus-v1.md	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
@@ -2464,6 +2466,7 @@ ESV-V0-009	docs/specs/experimental-source-views-v0.md	`context --expand HANDLE` 
 ESV-V0-010	docs/specs/experimental-source-views-v0.md	The summary and expansion views stay experimental until the matched complete-tas	unrecorded	-
 ESV-V0-011	docs/specs/experimental-source-views-v0.md	A failed `git cat-file` read of the selected blob refuses as `git-failed` in bot	unrecorded	-
 ESV-V0-012	docs/specs/experimental-source-views-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-0426)) Before	standing	2026-10-11; V1-0426
+ESV-V0-013	docs/specs/experimental-source-views-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1412) When	standing	2026-10-11; V1-1412
 EAF-V0-001	docs/specs/expert-audit-followup-v0.md	Current Go/Python secret screening MUST reject ordinary double-quoted credential	unrecorded	-
 EAF-V0-002	docs/specs/expert-audit-followup-v0.md	Go mutation baseline, mutant and isolated grouped-fallback runs MUST use matchin	unrecorded	-
 EAF-V0-003	docs/specs/expert-audit-followup-v0.md	Checkpoint output MUST preserve the caller's obligations array exactly and label	unrecorded	-

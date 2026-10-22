@@ -207,6 +207,7 @@ Every refusal exits 2, prints nothing on stdout, and prints one typed error on s
 | `expand-budget` | `--max-bytes` is outside 1..1048576, the blob read exceeds 1048576 bytes, or the selection exceeds `--max-bytes` |
 | `repository-root` | the root is not its Git toplevel |
 | `git-failed` | Git cannot read HEAD's tree, resolve the blob identity, or read the blob for a reason other than its size (`ESV-V0-011`) |
+| `deadline-exceeded` | the 10-second source-read bound expired, or the caller cancelled, before the expansion finished; it replaces whatever code the cut-short read would otherwise imply (`ESV-V0-013`) |
 
 Non-goals:
 
@@ -318,6 +319,12 @@ Failure modes:
   still describe the exact pinned selection, so a caller can tell the text was screened. The
   screen's assignment grammar also matches code such as `token := value`; such false positives
   are accepted and disclosed, never silently passed.
+- `ESV-V0-013`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1412) When
+  `context --expand` refuses after its 10-second source-read bound has expired or its context was
+  cancelled, the refusal is `deadline-exceeded`, whichever Git step the expiry interrupted
+  (toplevel, object format, HEAD tree, tree entry, blob identity, blob read or the HEAD recheck),
+  never `repository-root`, `invalid-handle`, `missing-handle` or `git-failed`. A refusal decided
+  before the bound expired keeps its own code. `adapter source-view` keeps its codes unchanged.
 
 ### Source handoff error codes
 
@@ -360,6 +367,7 @@ dispatch.
 | ESV-V0-010 | preregistration `benchmarks/evidence-summary-trial-v0.json` | NOT_OBSERVED; no trial run; no owner acceptance |
 | ESV-V0-011 | `sourceGit` output-overflow sentinel; cat-file sites in `executeSourceView` and `expandContextHandle` | `TestSourceBlobReadFailureIsDistinctFromBudget` scripted failing and oversized cat-file reads |
 | ESV-V0-012 | `screenSourceLines` in `cmd/corvint/source_screen.go`, called by `contextHandleSelection` and `extractSourceView` | `TestESVV0012ScreenSourceLinesRedactsSecretLines`; `TestESVV0012SourceViewRedactsSecretLines`; `TestESVV0012ContextExpandAndPacketScreenSecretLines` (expand redacts with disclosure and the exact sha256; the `context` packet carries no secret) |
+| ESV-V0-013 | `expandContextHandle` deadline mapping over `expandPinnedHandle` in `cmd/corvint/context_summary.go` | `TestContextExpandDeadlineExpiryRefusesAsDeadlineExceeded` stalls each of the seven Git steps past a one-second bound, for an `all` and an over-long range; 13 of 14 cases refused with an unrelated code before the fix |
 
 Implementation sequence: freeze this spec and independent read-only plan review; implement only
 consumer/tests; focused identity/extraction/refusal/lifecycle checks; fresh independent review;
