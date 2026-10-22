@@ -93,6 +93,12 @@ func TestCTFV0002FalsifyFoldGoldens(t *testing.T) {
 	foldGoldens(t, "falsify", "../corvint-behavior-falsify")
 }
 
+// CTF-V0-002, CTF-V0-003: the same for the minimize group (refusals and help; its plan reads
+// pinned live evidence, so no success path runs offline).
+func TestCTFV0002MinimizeFoldGoldens(t *testing.T) {
+	foldGoldens(t, "minimize", "../corvint-playwright-minimize")
+}
+
 // foldGoldens compares every invocation of a group with testdata/fold/<group>.json. Set
 // CTF_UPDATE_GOLDEN=1 to rewrite the goldens from the old binary only (CTF-V0-002).
 func foldGoldens(t *testing.T, group, oldPkg string) {
@@ -151,18 +157,21 @@ func TestCTFV0007FoldedGroupBoundary(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, dep := range strings.Fields(string(out)) {
-		if strings.HasSuffix(dep, "/internal/testrunner/cli") || strings.HasSuffix(dep, "/internal/behaviorfalsify/cli") {
+		if strings.HasSuffix(dep, "/internal/testrunner/cli") || strings.HasSuffix(dep, "/internal/behaviorfalsify/cli") ||
+			strings.HasSuffix(dep, "/internal/playwrightminimize/cli") {
 			t.Fatalf("core corvint imports %s", dep)
 		}
 	}
-	for _, group := range []string{"corvint-test runner <command>", "corvint-test falsify <plan|"} {
+	for _, group := range []string{"corvint-test runner <command>", "corvint-test falsify <plan|", "corvint-test minimize <plan|"} {
 		if !strings.Contains(usage, group) {
 			t.Fatalf("usage does not name %q: %q", group, usage)
 		}
 	}
 	srcs, _ := filepath.Glob("../../internal/testrunner/cli/*.go")
-	falsify, _ := filepath.Glob("../../internal/behaviorfalsify/cli/*.go")
-	srcs = append(srcs, falsify...)
+	for _, dir := range []string{"behaviorfalsify", "playwrightminimize"} {
+		more, _ := filepath.Glob("../../internal/" + dir + "/cli/*.go")
+		srcs = append(srcs, more...)
+	}
 	if len(srcs) == 0 {
 		t.Fatal("no runner group sources")
 	}

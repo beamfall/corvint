@@ -9,8 +9,8 @@ Authoritative inputs: owner decision of 2026-10-22 accepting the V1-1667 fold wi
 
 ## Agent digest
 - Claim: Test-executing companions fold into `corvint-test` groups, one move each, with output documents byte-identical and every old name still answering.
-- Status: accepted; experimental. Groups 1 (`runner`) and 2 (`falsify`) have moved behind byte-identical goldens; groups 3 to 6 have not.
-- Exists: `cmd/corvint-test` groups `e2e` (CCE-V0), `runner` (entry `internal/testrunner/cli`) and `falsify` (entry `internal/behaviorfalsify/cli`); `cmd/corvint-test-runner` and `cmd/corvint-behavior-falsify` are shims. Unmoved: `cmd/corvint-playwright-minimize`, `cmd/corvint-tests-accept`; core `corvint test-validity negate` and `corvint test`.
+- Status: accepted; experimental. Groups 1 to 3 (`runner`, `falsify`, `minimize`) have moved behind byte-identical goldens; groups 4 to 6 have not.
+- Exists: `cmd/corvint-test` groups `e2e` (CCE-V0), `runner`, `falsify` and `minimize` (entries `internal/testrunner/cli`, `internal/behaviorfalsify/cli`, `internal/playwrightminimize/cli`); the three old companions are shims. Unmoved: `cmd/corvint-tests-accept`; core `corvint test-validity negate` and `corvint test`.
 - Blocked on: nothing for groups 1 to 4. Group 6 (core `test`) also needs the `make gate-affected` script and the CI shadow step moved first; `.github/` changes are owner-posted.
 - Read next: Fold map; Requirements; Rollback.
 
@@ -119,13 +119,13 @@ command.
 
 | Requirement | Evidence |
 |---|---|
-| `CTF-V0-001` | Each group's goldens committed before its move: group 1 at `85bc22089`, group 2 at `868affc59` |
-| `CTF-V0-002` | `cmd/corvint-test/fold_test.go` `TestCTFV0002RunnerFoldGoldens` (`testdata/fold/runner.json`, 13 cases) and `TestCTFV0002FalsifyFoldGoldens` (`testdata/fold/falsify.json`, 16 cases including offline `verify-receipt` over a committed receipt), each recorded from the old binary and run against old and new invocations |
+| `CTF-V0-001` | Each group's goldens committed before its move: group 1 at `85bc22089`, group 2 at `868affc59`, group 3 at `44cbf177a` |
+| `CTF-V0-002` | `cmd/corvint-test/fold_test.go` `TestCTFV0002RunnerFoldGoldens` (`testdata/fold/runner.json`, 13 cases) and `TestCTFV0002FalsifyFoldGoldens` (`testdata/fold/falsify.json`, 16 cases including offline `verify-receipt` over a committed receipt) and `TestCTFV0002MinimizeFoldGoldens` (`testdata/fold/minimize.json`, 13 refusal and help cases; its plan needs pinned live evidence), each recorded from the old binary and run against old and new invocations |
 | `CTF-V0-003` | The same goldens: the `runners`, `profiles`, `plan` and `verify-receipt` documents compare byte for byte, profile IDs included; the flag sets moved unchanged |
-| `CTF-V0-004` | `cmd/corvint-test-runner/main.go` and `cmd/corvint-behavior-falsify/main.go` are shims over `internal/testrunner/cli` and `internal/behaviorfalsify/cli`; their existing tests pass unchanged; the golden tests run the old names |
+| `CTF-V0-004` | `cmd/corvint-test-runner`, `cmd/corvint-behavior-falsify` and `cmd/corvint-playwright-minimize` are shims over the shared `cli` entries; their existing tests pass unchanged; the golden tests run the old names |
 | `CTF-V0-007` | `cmd/corvint-test/fold_test.go` `TestCTFV0007FoldedGroupBoundary` |
 | `CTF-V0-008` | `internal/companionrelease/fold_names_test.go` `TestCTFV0008ExactCompanionNames` |
-| `CTF-V0-010` | `TestCTFV0007FoldedGroupBoundary` (core links neither group entry) |
+| `CTF-V0-010` | `TestCTFV0007FoldedGroupBoundary` (core links no group entry) |
 
 `CTF-V0-005`, `CTF-V0-006` and `CTF-V0-009` have no evidence yet: they bind groups 4, 5 and 6,
 which have not moved.
