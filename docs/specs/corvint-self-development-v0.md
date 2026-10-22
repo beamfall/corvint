@@ -9,7 +9,7 @@ Authoritative inputs: `AGENTS.md`, `docs/DOGFOOD.md`, `docs/LANE-ORCHESTRATION.m
 
 ## Agent digest
 - Claim: Corvint development selects applicable existing feature routes, preserves real use evidence, and finishes through the existing local completion policy.
-- Status: accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08); ASD-V0-013..026 accepted under the owner's standing auto-accept (2026-10-11) (V1-1627..V1-1632, V1-1755, V1-1910, V1-0360, V1-1978, V1-1725, V1-1953, V1-1979, V1-1956)/experimental; ASD-V0-027 accepted under the owner's standing auto-accept (2026-10-11; V1-2253)
+- Status: accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08); ASD-V0-013..026 accepted under the owner's standing auto-accept (2026-10-11) (V1-1627..V1-1632, V1-1755, V1-1910, V1-0360, V1-1978, V1-1725, V1-1953, V1-1979, V1-1956); ASD-V0-027 accepted under the owner's standing auto-accept (2026-10-11; V1-2253)/experimental
 - Exists: `docs/SELF-DEVELOPMENT.md`, thin Codex/Claude skill routes and native feature/eval help.
 - Blocked on: final exact-target checks, independent review and enrolled strict finish; formal FULL and protected-runner authority remain separate.
 - Read next: Requirements; Acceptance and evidence; Failure and rollback.

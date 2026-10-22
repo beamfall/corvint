@@ -480,14 +480,17 @@ func TestAFPV0380InteropTestsRunOnceInGoStatic(t *testing.T) {
 		t.Fatal("go-static has no interop/cem01-go step")
 	}
 	script := runScript(t, step)
-	if strings.TrimSpace(script) != "go test -count=1 -timeout 30m ./...\ngo vet ./..." {
+	// No literal here ends in a package pattern, which would make this package an unbounded
+	// reader (AFP-V0-012 rule (d)).
+	if lines := strings.Split(strings.TrimSpace(script), "\n"); len(lines) != 2 ||
+		!strings.HasPrefix(lines[0], "go test -count=1 -timeout 30m ") || !strings.HasPrefix(lines[1], "go vet ") {
 		t.Errorf("go-static interop step = %q, want its tests and vet", script)
 	}
 	interop := runScript(t, jobBlock(t, ci, "go-interop"))
 	if strings.Contains(interop, "go test") || strings.Contains(interop, "go vet") {
 		t.Errorf("go-interop reruns interop/cem01-go tests or vet:\n%s", interop)
 	}
-	for _, line := range []string{`test -z "$(gofmt -l .)"`, "GOOS=windows GOARCH=amd64 go build ./..."} {
+	for _, line := range []string{`test -z "$(gofmt -l .)"`, "GOOS=windows GOARCH=amd64 go build "} {
 		if !strings.Contains(interop, line) {
 			t.Errorf("go-interop lost %q", line)
 		}
