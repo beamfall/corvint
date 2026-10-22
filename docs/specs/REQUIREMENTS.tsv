@@ -326,6 +326,12 @@ AFU-V1-071	docs/specs/application-flow-understanding-v1.md	Reviewed links: a `so
 AFU-V1-072	docs/specs/application-flow-understanding-v1.md	Compatibility: without declared or bound repositories the `e2e-safe-selection/1`	unrecorded	-
 AFU-V1-090	docs/specs/application-flow-understanding-v1.md	(accepted under the owner's standing auto-accept (2026-10-11)) `docs flows	standing	2026-10-11
 AFU-V1-091	docs/specs/application-flow-understanding-v1.md	(accepted under the owner's standing auto-accept (2026-10-11)) `docs flows	standing	2026-10-11
+AFU-V1-101	docs/specs/application-flow-understanding-v1.md	`docs flows generate` accepts optional `--flows FILE`, a closed	unrecorded	-
+AFU-V1-102	docs/specs/application-flow-understanding-v1.md	With an inventory, generation emits exactly one flow per declared flow that has	unrecorded	-
+AFU-V1-103	docs/specs/application-flow-understanding-v1.md	A member that does not resolve at the revision is reported in the generation	unrecorded	-
+AFU-V1-104	docs/specs/application-flow-understanding-v1.md	In-scope unambiguous declarations that belong to no declared flow are listed in	unrecorded	-
+AFU-V1-105	docs/specs/application-flow-understanding-v1.md	The manifest retains the declared inventory, so `Open`, `finalize`,	unrecorded	-
+AFU-V1-106	docs/specs/application-flow-understanding-v1.md	The inventory file is a bounded regular file of at most 4 MiB with 1 to 256 flow	unrecorded	-
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,	unrecorded	-
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a	unrecorded	-
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	Freshness MUST come from one Git read at the evaluated revision. That read	unrecorded	-

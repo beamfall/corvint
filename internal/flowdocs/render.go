@@ -66,6 +66,7 @@ func render(m Manifest) map[string][]byte {
 				for _, g := range m.Gaps {
 					fmt.Fprintf(&b, "\n- %s\n", quote(g))
 				}
+				renderInventoryMembers(&b, m, f)
 			case "related-flows":
 				for _, r := range m.Provider.Relations {
 					if (r.Type == "related_to" || r.Type == "depends_on") && (r.From == f.ID || r.To == f.ID) {

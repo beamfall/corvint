@@ -15,7 +15,7 @@ decisions 0374, 0385 and 0416; source-generation extension [issue 338](https://g
 ## Agent digest
 - Claim: Reviewed flows link to source, tests and run evidence; Corvint selects E2E tests with exclusion proofs, maps navigation and proves documentation claims.
 - Status: accepted (decision 0385); partially delivered; original issue-175 flows qualified locally. S1-S4, S6-S8 delivered with local issue-175 evidence in `evidence/issues-167-175/`; S5 delivered with the 2026-10-08 navigation execution qualification. AFU-V1-012 now retains and consumes the qualified `/3` external attempt inventory. The Beamfall UI/API lifecycle and both semantic-change qualifications pass; the latter use conservative full-suite fallback, not reduced selections. Compiled MCP conformance covers both protocols and the pinned official schema. AFU-V1-006 has a bounded `/2` producer and declaration-only corpus ingestion; external runtime qualification remains unobserved; S5's AFU-V1-029 observer integration is delivered by the experimental navigation execution companion (decision 0455, `application-flow-navigation-execution-v0.md`), locally qualified on 2026-10-08; AFU-V1-014 retains its accepted observer gap.
-- Exists: AFU-V1-049..053 adds fail-closed variation coverage and safe write-back; final source-bound qualification remains separately recorded. AFU-V1-043..048 defines the separately generated non-Go documentation profile; it never upgrades the existing accepted-outcome documentation truth table. the AFU-V0 experimental `corvint flows` report and `record`, the issue-53 behavior adapter, ETS-V1 selection and the Playwright provider this spec extends.
+- Exists: AFU-V1-049..053 adds fail-closed variation coverage and safe write-back; final source-bound qualification remains separately recorded. AFU-V1-043..048 defines the separately generated non-Go documentation profile, and AFU-V1-101..106 its optional declared flow inventory; it never upgrades the existing accepted-outcome documentation truth table. the AFU-V0 experimental `corvint flows` report and `record`, the issue-53 behavior adapter, ETS-V1 selection and the Playwright provider this spec extends.
 - Blocked on: AFU-V1-006 external runtime qualification; production backend and hosted-CI qualification are not observed.
 - Read next: Requirements; Trust boundary, limits, and failure modes; Deterministic acceptance.
 
@@ -1273,3 +1273,56 @@ against `--root` and failed with an unrelated checkout or bad-object error, or t
 `invalid additional repository declaration`. Rollback: revert this section, the documentation
 paragraph, `corpusSourceMatches` and its test; the later equality check after Open still refuses a
 mismatch, with the old messages.
+
+## Declared flow inventory for flows generate (issue 1478, V1-2313)
+
+Human-owned intent: a team that already keeps a reviewed flow inventory can keep those flow pages
+current with `generate` and `check`, instead of receiving one flow per extracted declaration.
+Inventory membership is caller-declared grouping of source observations; it never establishes
+accepted intent, runtime order or a semantic join. Requirements accepted under the owner's standing
+auto-accept (2026-10-11).
+
+- **AFU-V1-101**: `docs flows generate` accepts optional `--flows FILE`, a closed
+  `corvint-flow-inventory/1` object `{"schema", "flows": [{"id", "title", "members": [{"path",
+  "symbol"?}], "entry_points"?: [{"path", "symbol"?}]}]}`. An id is unique lowercase `[a-z0-9._-]`
+  of at most 128 bytes; a title is 1 to 200 bytes of printable UTF-8; each flow has at least one
+  member; a member path is confined like `--scope`; a symbol is the declaration name generation
+  reports (for example `Billing::Charge#call`), and a member without one takes every unambiguous
+  declaration in its path. Unknown members, another schema, duplicate ids or members, a path-only
+  member overlapping another member of the same path in one flow, and an entry point that is not a
+  member of its flow are refused with `flowdocs-refused`, never repaired
+  (`TestFlowDocsInventoryRefusals`).
+- **AFU-V1-102**: With an inventory, generation emits exactly one flow per declared flow that has
+  at least one resolved member, in inventory order, with identity `flow` of `inventory:<id>` and the
+  declared title. The flow aggregates every resolved member's static calls, lexical claims and
+  revalidated corpus context; each member also gets a member paragraph (in `entry-points` for a
+  declared entry point, otherwise `technical-deep-dive`) bound at its declaration. Paragraph and claim
+  identities are keyed by flow id, member path and declaration name. Same-file and same-name
+  relations between flows are not derived for inventory flows and a gap says so
+  (`TestFlowDocsInventoryAggregatesDeclaredFlows`, `TestFlowDocsCLIInventory`).
+- **AFU-V1-103**: A member that does not resolve at the revision is reported in the generation
+  manifest's `inventory.flows[].unresolved` with its path, symbol and reason (path has no unambiguous
+  supported declaration; symbol not declared in the path; symbol declaration ambiguous) and in its
+  flow README, never dropped. A declared flow with no resolved member is reported with
+  `generated: false` and no pages (`TestFlowDocsInventoryAggregatesDeclaredFlows`).
+- **AFU-V1-104**: In-scope unambiguous declarations that belong to no declared flow are listed in
+  `inventory.unassigned` by path and declaration name and are not turned into flows. Without
+  `--flows` the generation manifest has no `inventory` member and the output is byte-identical to
+  the declaration-per-flow behaviour (`TestFlowDocsInventoryAggregatesDeclaredFlows`, plus the
+  unchanged existing flowdocs suite).
+- **AFU-V1-105**: The manifest retains the declared inventory, so `Open`, `finalize`,
+  `generate --previous` and `check` rederive with the same inventory. `check` keeps per-flow,
+  per-paragraph and per-claim fresh/stale/unresolved against the inventory identities: an unchanged
+  member stays fresh, a changed claim span is stale, and a removed member's paragraph and claims are
+  unresolved and retired (`TestFlowDocsInventoryCheckIdentities`).
+- **AFU-V1-106**: The inventory file is a bounded regular file of at most 4 MiB with 1 to 256 flows
+  and at most 8,192 members in total; a member outside `--scope` is refused because generation never
+  reads it; resolution considers at most 16,384 in-scope declarations, above which generation refuses
+  and asks for a narrower scope (`TestFlowDocsInventoryRefusals`).
+
+Failure modes: a stale inventory naming renamed declarations reports them unresolved rather than
+guessing the rename; overlapping members across different flows are allowed and give each flow its
+own identities for the shared declaration; flow-diagram call lines name lines without a path, so a
+multi-file flow's diagram is read with the member paragraphs. Rollback: revert this section,
+`flowinventory.go`, `flowbuild.go` and the `--flows` flag; the declaration-per-flow path is unchanged
+and manifests without an inventory remain valid.
