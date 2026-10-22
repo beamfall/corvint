@@ -217,6 +217,17 @@ func parseAffectedInvocation(arguments []string) (affectedInvocation, bool, erro
 // as `--flag VALUE` or `--flag=VALUE`.
 var affectedOptionNames = map[string]bool{"--path": true, "--snapshot": true, "--base": true, "--appmap-impact": true, "--playwright-config": true, "--playwright-discovery": true, "--provider": true, "--provider-command": true, "--repository": true, "--repository-base": true, "--selection-profile": true}
 
+// affectedFormatRefusal names why `--format` is refused and every option
+// `affected` accepts (AFP-V0-201): the command has one output, JSON.
+func affectedFormatRefusal() error {
+	names := []string{"--full", "--require-clean"}
+	for name := range affectedOptionNames {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return argumentError("affected has no --format option: it always writes one JSON document (affected-plan/1, or affected-plan/0 with --full); accepted options: " + strings.Join(names, ", "))
+}
+
 // parseAffectedOptions reads the flags after `affected`. `--base` must
 // already be a full object id: a ref name is resolved by the caller, never
 // here, so range.base is exactly what the operator asked for. `--provider`,
@@ -246,6 +257,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 			continue
 		}
 		name, value, inline := strings.Cut(rest[index], "=")
+		if name == "--format" {
+			return affectedInvocation{}, affectedFormatRefusal()
+		}
 		if !affectedOptionNames[name] {
 			return affectedInvocation{}, argumentError("unrecognized arguments: " + rest[index])
 		}

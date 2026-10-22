@@ -443,6 +443,31 @@ func TestAffectedRejectsNonRepositoryAndExtraArguments(t *testing.T) {
 	}
 }
 
+// TestAFPV0201AffectedFormatIsRefusedWithAcceptedOptions pins the specific
+// --format refusal: it names the single JSON output and every accepted option
+// instead of the generic unrecognized-arguments message (V1-2348).
+func TestAFPV0201AffectedFormatIsRefusedWithAcceptedOptions(t *testing.T) {
+	t.Parallel()
+	for _, arguments := range [][]string{{"affected", "--format", "json"}, {"affected", "--format=table"}, {"affected", "--full", "--format"}} {
+		var stdout, stderr bytes.Buffer
+		if code := runContext(context.Background(), append([]string{"--root", t.TempDir()}, arguments...), strings.NewReader(""), &stdout, &stderr); code != 2 {
+			t.Fatalf("%q must exit 2, got %d: %s", arguments, code, stderr.String())
+		}
+		var refusal struct{ Code, Error string }
+		if err := json.Unmarshal(stderr.Bytes(), &refusal); err != nil {
+			t.Fatalf("%q: stderr is not one JSON refusal: %v: %s", arguments, err, stderr.String())
+		}
+		if refusal.Code != "invalid-arguments" || strings.Contains(refusal.Error, "unrecognized arguments") || !strings.Contains(refusal.Error, "affected has no --format option") {
+			t.Fatalf("%q: refusal is not the specific --format message: %+v", arguments, refusal)
+		}
+		for _, option := range []string{"--base", "--full", "--path", "--provider", "--require-clean", "--selection-profile", "--snapshot"} {
+			if !strings.Contains(refusal.Error, option) {
+				t.Fatalf("%q: refusal does not name accepted option %s: %s", arguments, option, refusal.Error)
+			}
+		}
+	}
+}
+
 func TestAffectedHelpTopicsAreWired(t *testing.T) {
 	t.Parallel()
 	for _, arguments := range [][]string{{"help", "affected"}, {"affected", "--help"}} {

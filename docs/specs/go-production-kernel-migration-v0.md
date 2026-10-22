@@ -13,7 +13,7 @@
 
 ## Agent digest
 - Claim: Corvint is migrating hot paths to one native-Go binary; GPK-V0-043 and GPK-V0-044 are experimental, while promotion and cutover remain gated.
-- Status: accepted/experimental; GPK-V0-043 implementation evidence landed 2026-08-31, GPK-V0-044 implementation evidence landed 2026-09-01, and GPK-V0-055/056 are implemented in the 2026-09-05 repair lane, all without promotion
+- Status: accepted/experimental; GPK-V0-043 implementation evidence landed 2026-08-31, GPK-V0-044 implementation evidence landed 2026-09-01, and GPK-V0-055/056 are implemented in the 2026-09-05 repair lane, all without promotion; GPK-V0-071 (narrowed) and GPK-V0-072 accepted 2026-10-21 under the owner's delegation and standing auto-accept (V1-0288, V1-0313)
 - Exists: the native Go binary, all six OCM workflow actions, and independently gated migration slices; full cutover remains unqualified.
 - Blocked on: remaining parity, benchmark, platform, dogfood, and promotion gates.
 - Read next: User and measurable job; Relationship to the deployment-neutral platform direction; Verified current state.
@@ -882,6 +882,8 @@ repository rewrite, cache conversion, trace conversion, or sidecar migration is 
 | `GPK-V0-066` (accepted, decision 0387) | the confident-symbol substitution ahead of the floor withdrawal in `evalQuery` (`internal/contextindex/eval_query.go`) | `TestEvalQueryUnsupportedRecordsYieldToSupportedSymbols`, which FAILS against a candidate without the substitution and keeps the withdrawal when no symbol clears the floor; before/after `corvint eval` and `tools/retrieval-bench --arms corvint` numbers in `docs/BUILD-LOG.md` |
 | `GPK-V0-068` (accepted, decision 0396) | the `evalOmitsCompetingRecord` state check in `evalQuery` (`internal/contextindex/eval_query.go`) | `TestEvalQueryLimitOmittingCompetingRecordNeedsWidening`, which FAILS against a candidate without the check at limit 1 and pins `READY` once the limit admits both records; before/after `corvint eval` and `tools/retrieval-bench --arms corvint` numbers in `docs/BUILD-LOG.md` |
 | `GPK-V0-070` (accepted, decision 0422) | `commentText` and `markerComments` in `internal/contextindex/markers.go`, called from the marker scan in `internal/contextindex/index.go`; `markerCredited`, `reserveCallerRows`, `exportedGoNames` and `namesAny` in `internal/contextindex/impact.go` | `TestMarkersComeOnlyFromCommentSpans` and `TestImpactCreditsOnlyRelatedMarkedTestsAndKeepsCallers` (`internal/contextindex/marker_comments_test.go`), both of which FAIL against the base without the change; before/after `corvint eval` and `tools/retrieval-bench --arms impact` numbers in `docs/BUILD-LOG.md` |
+| `GPK-V0-071` (accepted 2026-10-21, V1-0288) | `dubiousOwnershipRefusal` and its call at the start of `emitError` in `cmd/corvint/main.go` | `TestGPKV0071DubiousOwnershipIsOneCodedRefusal` (index, query, impact, context and feature under a Git that reports dubious ownership) and `TestGPKV0071DubiousOwnershipClassifierIsExact` (`cmd/corvint/dubious_ownership_test.go`), both of which FAIL without the change |
+| `GPK-V0-072` (accepted 2026-10-21, V1-0313) | the `parseHistory(..., true)` call in `evalLearnedCandidates` (`internal/contextindex/eval_query.go`) | `TestGPKV0072QueryLearningSkipsNonUTF8HistoryPaths` (`internal/contextindex/history_nonutf8_test.go`), which commits a Latin-1 path and FAILS without the change |
 | `GPK-V0-075` (accepted, decision 0412) | the omitted-caller disclosure (`recordGoCaller`, `goImportQualifier`, `goPackageName`, `omittedCallerDisclosures` in `internal/contextindex/impact_callers.go`) threaded through `Impact` (`internal/contextindex/impact.go`) and `EvalImpact` (`internal/contextindex/eval_query.go`); the importing-test carrier reason (`importerCarriers` in `impact` in `internal/contextindex/impact.go`) | `TestImpactDisclosesOmittedDirectGoCallers/GPK-V0-075` and `TestImpactNamesTheImportingTestThatCarriesARelatedMarker` (`internal/contextindex/impact_callers_test.go`), both of which FAIL without the change; the Beamfall before/after packets in decision 0412; `DR-0042` in `conformance/divergence-register.md` |
 | `GPK-V0-040` | pre-truncation admitted count captured in `receipt` and carried forward by `compileReceipt`, leaving `setCoverage` the single writer of the three result counts; `EvalQuery` hands `receipt` the whole admitted list instead of a list its own ceiling already narrowed | `impact` and `range impact` report the results a ceiling dropped; `impact-ranked-past-limit` FAILS against a candidate that measures its own truncated output; `TestQueryCoverageCountsAdmittedCandidatesPastLimit` holds `query` to the same count and FAILS against a candidate whose limit-1 packet reports `omitted_results: 0`; the confident-symbol fallback admits at its own caps rather than the caller's ceiling, pinned by `TestQueryCoverageCountsConfidentFallbackPastLimit`; the decision 0157 three-per-feature admission is pinned by `TestQueryAdmitsThreeImplementationsPerFeature`, which FAILS against a two- or four-per-feature candidate. Two denominators remain limit-dependent and are the next slice: feature-symbol admission over the ceiling-narrowed `competitive` list, and the learned-path truncation `evalLearnedCandidates` applies from its `limit` argument |
 | `GPK-V0-041` | the `GPK-V0-037` typed `.py`-claim abstention applied at `verifyOptionalOCM`, so the `lrf` OCM leg and the read slice share one refusal instead of one refusal and one approximate grammar | `lrf --ocm` refuses a map carrying a `.py` claim; `lrf-ocm-python-claim-refusal` FAILS against a candidate that verifies that claim with the closed Go grammar |
@@ -1364,39 +1366,44 @@ is one name, so one matching code line is one pair and one evidence item for `ki
   same-package marker credit and the unreserved tail in `impact.go`, and the analyzer schema to
   `corvint-analyzer/84`.
 
-## Proposed amendment: repositories owned by another user
+## Accepted amendment: repositories owned by another user
 
-- `GPK-V0-071`: (proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global and
-  system configuration (`GPK-V0-009`), so Git's `safe.directory` exception can never be honoured and
-  a checkout owned by another user (a bind mount, a container volume, a shared CI workspace) fails
-  every Core verb with Git's uncoded `detected dubious ownership` exit 128, whose printed advice
-  (`git config --global --add safe.directory`) cannot work under Corvint. The kernel MUST classify
-  that exit as one coded refusal, the same code from every verb, whose message names the
-  repository path and a remedy that works under the sanitized environment. Owner decision needed
-  before implementation: whether the remedy is only "run as the owning user or change ownership",
-  or whether an explicit operator opt-in passes `-c safe.directory=<worktree>` and
-  `-c safe.directory=<common Git directory>` per invocation. The opt-in bypasses the protection
-  Git added against configuration planted by another user, so it is acceptable only if every Git
-  subprocess on that path also neutralizes repository-configured filters, hooks, fsmonitor and
-  textconv, which is not true of every env builder today. The fix touches the roughly thirty
-  per-capability env builders, including `cmd/corvint` files that PR #218 (decision 0393) also
-  changes, so it lands after that PR. Rollback: remove the classification, restoring Git's exit.
+- `GPK-V0-071`: (proposed 2026-09-25; accepted 2026-10-21 and narrowed to the classification, under
+  the owner's 2026-10-21 delegation of owner-blocked ticket decisions and the standing auto-accept
+  of lane requirements of 2026-10-11; V1-0288) Every Git subprocess nulls global and system
+  configuration (`GPK-V0-009`), so Git's `safe.directory` exception can never be honoured and a
+  checkout owned by another user (a bind mount, a container volume, a shared CI workspace) fails
+  with Git's uncoded `detected dubious ownership` exit 128, whose printed advice
+  (`git config --global --add safe.directory`) cannot work under Corvint. The central CLI error
+  writer (`emitError` in `cmd/corvint/main.go`) MUST turn an error carrying that Git message into
+  one coded refusal, `repository-ownership-refused`, the same code from every verb whose error
+  reaches it, whose message names the repository path Git named and says that a `safe.directory`
+  exception cannot take effect, and whose remedy is to run Corvint as the user who owns the
+  repository or to give the current user ownership of it. The message never repeats Git's
+  `git config --global` advice. Decision: no operator opt-in passes `-c safe.directory=...`; the
+  opt-in would bypass the protection Git added against configuration planted by another user, and
+  not every per-capability env builder neutralizes repository-configured filters, hooks, fsmonitor
+  and textconv. Limit: a verb that swallows Git's stderr before the error writer sees it (observed:
+  `affected` reports no resolvable HEAD commit, `init` succeeds with an empty inventory, `overview`
+  reports `invalid-repository`) is not classified by this clause and stays a filed residual.
+  Rollback: remove `dubiousOwnershipRefusal` from `emitError`, restoring Git's uncoded exit.
 
-## Proposed amendment: non-UTF-8 paths in query history
+## Accepted amendment: non-UTF-8 paths in query history
 
-- `GPK-V0-072`: (proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
-  refuse the whole repository with `unsupported-query-history` when any commit in the bounded
-  history names a path whose Git bytes are not UTF-8 (`parseHistory` in
-  `internal/contextindex/history.go`), although decision 0394 made such a path an index exclusion
-  everywhere else. Proposed: query learning leaves such a path out of its commit's path list, so
-  it contributes to no history match, no `history_digest` input, and no candidate, and the
-  commit's other paths answer as before; `unsupported-query-history` stays the code for every
-  other history failure. No existing digest moves, because every repository this changes is one
-  that refuses today. The Python oracle still refuses, so the change is a `python-defect` under
-  `GPK-V0-033`, registered in `conformance/divergence-register.md` with one declared oracle-only
-  case, and `src/` is not repaired. Owner decision needed: accept the skip (implemented on the
-  `skipNonUTF8` seam that PR #219 adds to `parseHistory`, so it lands after that PR) or keep the
-  refusal and close V1-0313. Rollback: pass `false` on the query path, restoring the refusal.
+- `GPK-V0-072`: (proposed 2026-09-25; accepted 2026-10-21 as proposed, under the owner's
+  2026-10-21 delegation of owner-blocked ticket decisions and the standing auto-accept of lane
+  requirements of 2026-10-11; V1-0313) `query --task` and `prove --task` refused the whole
+  repository with `unsupported-query-history` when any commit in the bounded history named a path
+  whose Git bytes are not UTF-8, although decision 0394 made such a path an index exclusion
+  everywhere else. Query learning (`evalLearnedCandidates` in
+  `internal/contextindex/eval_query.go`, shared by both verbs) MUST leave such a path out of its
+  commit's path list through the `skipNonUTF8` seam of `parseHistory`, so it contributes to no
+  history match, no `history_digest` input, and no candidate, and the commit's other paths answer
+  as before; `unsupported-query-history` stays the code for every other history failure, and the
+  index exclusion still discloses the path. No existing digest moves, because every repository
+  this changes is one that refused before. The Python oracle that also refused is retired
+  (decision 0088), so, as for `GPK-V0-070`, no divergence-register entry is opened. Rollback: pass
+  `false` on the query path, restoring the refusal.
 
 ## Accepted amendment: omitted direct Go callers are disclosed and importing-test markers are named
 
