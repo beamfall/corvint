@@ -244,7 +244,8 @@ func newTasks(t *testing.T, bin, root, corvint, consumer string) *tasks {
 }
 
 // ticket creates one native ticket whose declared touch paths cover the
-// claimed scope; a claim cannot widen past them (ATR-V0-210).
+// claimed scope; a claim cannot widen past them (ATR-V0-210). It requires the
+// cem-verdict gate, so completion needs that gate's current PASSED result.
 func (s *tasks) ticket() string {
 	s.t.Helper()
 	payload := obj(
@@ -252,7 +253,7 @@ func (s *tasks) ticket() string {
 		"body", wire.Null(), "capabilities", wire.Strings(nil), "dependencies", wire.Array(), "dueDate", wire.Null(),
 		"effects", obj("coverage", str("QUALIFIED"), "externalUnbounded", wire.Bool(false), "resources", wire.Array(), "touchPaths", wire.Strings([]string{".corvint/changes/", "artifacts/", "src/"})),
 		"estimateMinutes", wire.Null(), "executionClass", str("AUTONOMOUS"), "kind", str("FEATURE"), "labels", wire.Strings(nil),
-		"milestone", wire.Null(), "order", str("0"), "owner", wire.Null(), "priority", str("P2"), "requiredGates", wire.Strings(nil),
+		"milestone", wire.Null(), "order", str("0"), "owner", wire.Null(), "priority", str("P2"), "requiredGates", wire.Strings([]string{"cem-verdict"}),
 		"requirementRefs", wire.Strings(nil),
 		"source", obj("kind", str("NATIVE"), "sourceItemId", wire.Null(), "sourceQueueId", str(queueID), "sourceRevisionSha256", wire.Null()),
 		"supersededBy", wire.Null(), "supersedes", wire.Null(), "title", str("chain"))
@@ -279,6 +280,21 @@ func (s *tasks) gate(requestID string, claim item) (envelope, []byte) {
 	s.t.Helper()
 	return s.run("gate", "run", "--attempt", claim.AttemptID, "--generation", claim.Generation, "--request-id", requestID,
 		"--gate", "cem-verdict", "--worktree", s.root, "--role", "OWNER")
+}
+
+// complete asks Tasks to complete the attempt at an intent-branch commit.
+func (s *tasks) complete(requestID string, claim item, commit string) (envelope, []byte) {
+	s.t.Helper()
+	return s.run("complete", "--attempt", claim.AttemptID, "--generation", claim.Generation, "--request-id", requestID,
+		"--commit", commit, "--role", "OWNER")
+}
+
+// refused requires a Tasks command to have been refused with code.
+func refused(t *testing.T, step string, e envelope, raw []byte, code string) {
+	t.Helper()
+	if e.Outcome == "OK" || !slices.Contains(e.Codes, code) {
+		t.Fatalf("%s: want refusal %s, got %s", step, code, raw)
+	}
 }
 
 // gateRan requires a gate run to have committed its result.
@@ -391,9 +407,9 @@ func newRunner(t *testing.T, bin string) runner {
 	return runner{t: t, bin: bin, dir: realTemp(t), identity: []string{"--executable", goExe, "--executable-sha256", tr.Digest(tool)}}
 }
 
-// run plans and executes one selected test of the checkout's src package over
+// run plans and executes the selected tests of the checkout's src package over
 // the current worktree bytes and returns the plan and receipt bytes.
-func (r runner) run(name, root, test string, wantExit int) ([]byte, []byte) {
+func (r runner) run(name, root string, wantExit int, tests ...string) ([]byte, []byte) {
 	r.t.Helper()
 	inputs := map[string]string{}
 	for _, path := range []string{"go.mod", "src/calc.go", "src/calc_test.go"} {
@@ -403,7 +419,10 @@ func (r runner) run(name, root, test string, wantExit int) ([]byte, []byte) {
 		}
 		inputs[path] = tr.Digest(raw)
 	}
-	selector := []string{project + "::" + test}
+	var selector []string
+	for _, test := range tests {
+		selector = append(selector, project+"::"+test)
+	}
 	request := tr.Request{Runner: "go-test", Root: root, Project: project, ReportDir: filepath.Join(r.dir, name+"-reports"), TimeoutSeconds: 300, InputFiles: inputs, ExpectedTests: selector, Selectors: selector}
 	raw, err := json.Marshal(request)
 	if err != nil {
@@ -437,62 +456,27 @@ func (r runner) run(name, root, test string, wantExit int) ([]byte, []byte) {
 	return plan, receipt
 }
 
-// TestCEMV1286TasksRunnerProducerVerifyChain drives the bounded chain on one
-// private disposable Tasks store, through the built corvint-tasks CLI, and one
-// fixture checkout: a native claim, the
-// trusted runner's plan and receipt, the plain producer with runner
-// admission, and the Tasks cem-verdict gate running the built corvint CLI,
-// which recomputes the verdict natively and through the independently
-// authored portable consumer built from interop/cem01-go. Failed, skipped,
-// stale and tampered receipts are each refused by the producer with their
-// registered codes before any bundle exists (CEM-V1-286); a runner artifact
-// tampered after production is refused by the gate, by native and portable
-// recomputation, and by Tasks itself (CEM-V1-287).
-func TestCEMV1286TasksRunnerProducerVerifyChain(t *testing.T) {
-	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
-		t.Skip("the cem-verdict gate and stable process containment are only supported on Darwin/Linux")
-	}
-	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	corvint := build(t, repoRoot, "./cmd/corvint", "corvint")
-	tasksBin := build(t, repoRoot, "./cmd/corvint-tasks", "corvint-tasks")
-	runnerBin := build(t, repoRoot, "./cmd/corvint-test-runner", "corvint-test-runner")
-	consumer := build(t, filepath.Join(repoRoot, "interop", "cem01-go"), ".", "cem01-go")
-	run := newRunner(t, runnerBin)
-
+// newCheckout creates the fixture checkout on main whose base commit holds
+// go.mod and the one-line spec every hunk cites.
+func newCheckout(t *testing.T, spec string) (checkout, string) {
+	t.Helper()
 	code := checkout{t: t, root: filepath.Join(realTemp(t), "code"), home: realTemp(t)}
 	if err := os.Mkdir(code.root, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	code.git("init", "-q", "-b", "main")
 	code.put("go.mod", "module "+module+"\n\ngo 1.27.1\n")
-	code.put("docs/spec.md", "# Calc\n\n"+specLine)
+	code.put("docs/spec.md", "# Calc\n\n"+spec)
 	code.git("add", ".")
 	code.git("commit", "-qm", "base")
-	base := code.git("rev-parse", "HEAD")
+	return code, code.git("rev-parse", "HEAD")
+}
 
-	// Tasks: one native ticket claimed on the base; the attempt's base is it.
-	s := newTasks(t, tasksBin, code.root, corvint, consumer)
-	claim := s.claim(s.ticket(), ".corvint/changes/", "artifacts/", "src/")
-
-	// Runner: a passing receipt over a draft that later changes is stale;
-	// the final sources yield the passing, failed and skipped receipts.
-	code.put("src/calc.go", calcDraft)
-	code.put("src/calc_test.go", calcTest)
-	stalePlan, staleReceipt := run.run("stale", code.root, "TestPass", 0)
-	code.put("src/calc.go", calcFinal)
-	passPlan, passReceipt := run.run("pass", code.root, "TestPass", 0)
-	failPlan, failReceipt := run.run("fail", code.root, "TestFail", 1)
-	skipPlan, skipReceipt := run.run("skip", code.root, "TestSkip", 0)
-	code.put("artifacts/runner-plan.json", string(passPlan))
-	code.put("artifacts/runner-receipt.json", string(passReceipt))
-	code.git("add", ".")
-	code.git("commit", "-qm", "calc: add Add with its runner receipt")
-	target := code.git("rev-parse", "HEAD")
-
-	// Producer map: every hunk cites the base spec line naming its path.
+// plainRequests prepares the base..target producer map, cites the base spec
+// line from each of its wantHunks hunks, and returns a constructor of
+// admitted plain-assembly requests over that one source map.
+func plainRequests(t *testing.T, code checkout, base, target string, wantHunks int) func(name string, plan, receipt []byte) cemcandidate.PlainRequest {
+	t.Helper()
 	session, err := workflow.Open(code.root)
 	if err != nil {
 		t.Fatal(err)
@@ -506,7 +490,7 @@ func TestCEMV1286TasksRunnerProducerVerifyChain(t *testing.T) {
 		t.Fatal(err)
 	}
 	draft, err := cw.ParseStable(prepared)
-	if err != nil || len(draft.Change.Hunks) != 4 {
+	if err != nil || len(draft.Change.Hunks) != wantHunks {
 		t.Fatalf("prepared map: %v %+v", err, draft)
 	}
 	if session, err = workflow.Open(code.root); err != nil {
@@ -537,13 +521,65 @@ func TestCEMV1286TasksRunnerProducerVerifyChain(t *testing.T) {
 		return cemcandidate.FileRef{Path: path, Sha256: tr.Digest(raw)}
 	}
 	evidence := source.Change.Evidence[0].ID
-	request := func(name string, plan, receipt []byte) cemcandidate.PlainRequest {
+	return func(name string, plan, receipt []byte) cemcandidate.PlainRequest {
 		return cemcandidate.PlainRequest{Profile: cemcandidate.PlainAssemblyProfile, Repository: code.root, ExpectedBase: base, Target: target,
 			SourceMap: ref(name+"-source.json", sourceBytes), RunnerPlan: ref(name+"-plan.json", plan), RunnerReceipt: ref(name+"-receipt.json", receipt),
 			Criteria:        []cemcandidate.PlainCriterion{{CriterionEvidenceID: evidence, HunkIDs: hunks, EvidenceIDs: []string{evidence}}},
 			RunnerAdmission: json.RawMessage(strconv.Quote(cemcandidate.RunnerAdmissionProfile))}
 	}
+}
 
+// TestCEMV1286TasksRunnerProducerVerifyChain drives the bounded chain on one
+// private disposable Tasks store, through the built corvint-tasks CLI, and one
+// fixture checkout: a native claim, the
+// trusted runner's plan and receipt, the plain producer with runner
+// admission, and the Tasks cem-verdict gate running the built corvint CLI,
+// which recomputes the verdict natively and through the independently
+// authored portable consumer built from interop/cem01-go. Failed, skipped,
+// stale and tampered receipts are each refused by the producer with their
+// registered codes before any bundle exists (CEM-V1-286); a runner artifact
+// tampered after production is refused by the gate, by native and portable
+// recomputation, and by Tasks itself (CEM-V1-287). A GRANT superseded by
+// another submitted tree never completes the ticket, which completes only on
+// a fresh GRANT at its current candidate (CEM-V1-038).
+func TestCEMV1286TasksRunnerProducerVerifyChain(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("the cem-verdict gate and stable process containment are only supported on Darwin/Linux")
+	}
+	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	corvint := build(t, repoRoot, "./cmd/corvint", "corvint")
+	tasksBin := build(t, repoRoot, "./cmd/corvint-tasks", "corvint-tasks")
+	runnerBin := build(t, repoRoot, "./cmd/corvint-test-runner", "corvint-test-runner")
+	consumer := build(t, filepath.Join(repoRoot, "interop", "cem01-go"), ".", "cem01-go")
+	run := newRunner(t, runnerBin)
+
+	code, base := newCheckout(t, specLine)
+
+	// Tasks: one native ticket claimed on the base; the attempt's base is it.
+	s := newTasks(t, tasksBin, code.root, corvint, consumer)
+	claim := s.claim(s.ticket(), ".corvint/changes/", "artifacts/", "src/")
+
+	// Runner: a passing receipt over a draft that later changes is stale;
+	// the final sources yield the passing, failed and skipped receipts.
+	code.put("src/calc.go", calcDraft)
+	code.put("src/calc_test.go", calcTest)
+	stalePlan, staleReceipt := run.run("stale", code.root, 0, "TestPass")
+	code.put("src/calc.go", calcFinal)
+	passPlan, passReceipt := run.run("pass", code.root, 0, "TestPass")
+	failPlan, failReceipt := run.run("fail", code.root, 1, "TestFail")
+	skipPlan, skipReceipt := run.run("skip", code.root, 0, "TestSkip")
+	code.put("artifacts/runner-plan.json", string(passPlan))
+	code.put("artifacts/runner-receipt.json", string(passReceipt))
+	code.git("add", ".")
+	code.git("commit", "-qm", "calc: add Add with its runner receipt")
+	target := code.git("rev-parse", "HEAD")
+
+	// Producer map: every hunk cites the base spec line naming its path.
+	ctx := context.Background()
+	request := plainRequests(t, code, base, target, 4)
 	// Producer controls: each refused with its code, nothing written.
 	for _, c := range []struct {
 		name, code    string
@@ -641,11 +677,125 @@ func TestCEMV1286TasksRunnerProducerVerifyChain(t *testing.T) {
 	// Committed tamper: the candidate is no longer the sealed target with
 	// only its sidecar moved, so the Tasks gate fails.
 	code.git("commit", "-qam", "tamper with the runner receipt")
+	tamper := code.git("rev-parse", "HEAD")
 	s.submit("submit-tamper", claim, code.git("rev-parse", "HEAD^{tree}"))
+
+	// Historical authority (V1-2018, CEM-V1-038): the GRANT above was
+	// recorded for the sealed tree, and submitting another tree supersedes
+	// it. Tasks refuses completion at the superseded seal commit, which is
+	// no longer the candidate, and at the new candidate, where the only
+	// cem-verdict result last ran at another tree.
+	e, raw := s.complete("complete-superseded-seal", claim, seal)
+	refused(t, "completion at the superseded seal", e, raw, wire.CodeStaleTree)
+	e, raw = s.complete("complete-historical-grant", claim, tamper)
+	refused(t, "completion on the historical GRANT", e, raw, wire.CodeGateStale)
+
 	s.gateRan("gate-tamper", claim)
 	g, out = s.result(claim.AttemptID)
 	doc = decodeVerdict(t, out)
 	if g.State != "FAILED" || doc.Outcome != "REFUSE" || deref(doc.Code) != taskman.CEMVerdictProducerMismatch || deref(doc.Reason) != "sealed-tree-mismatch" {
 		t.Fatalf("committed tamper not refused: state %s\n%s", g.State, out)
+	}
+	e, raw = s.complete("complete-failed", claim, tamper)
+	refused(t, "completion on the failed verdict", e, raw, wire.CodeGateFailed)
+
+	// Current authority: reverting the tamper restores the sealed tree, and
+	// resubmitting it leaves the failed result at another tree, so
+	// completion waits for a gate run at the current candidate, whose fresh
+	// GRANT then completes the ticket.
+	code.git("revert", "--no-edit", "HEAD")
+	reseal := code.git("rev-parse", "HEAD")
+	if tree := code.git("rev-parse", "HEAD^{tree}"); tree != code.git("rev-parse", seal+"^{tree}") {
+		t.Fatalf("revert did not restore the sealed tree: %s", tree)
+	}
+	s.submit("submit-reseal", claim, code.git("rev-parse", "HEAD^{tree}"))
+	e, raw = s.complete("complete-before-regate", claim, reseal)
+	refused(t, "completion before re-running the gate", e, raw, wire.CodeGateStale)
+	s.gateRan("gate-reseal", claim)
+	if g, out = s.result(claim.AttemptID); g.State != "PASSED" || decodeVerdict(t, out).Outcome != "GRANT" {
+		t.Fatalf("resealed chain not granted: state %s\n%s", g.State, out)
+	}
+	s.mutate("complete", "--attempt", claim.AttemptID, "--generation", claim.Generation, "--request-id", "complete-current", "--commit", reseal)
+}
+
+const (
+	composeSpec  = "src/calc.go defines Add and Mul; src/calc_test.go holds TestAdd and TestMul; artifacts/runner-plan.json and artifacts/runner-receipt.json prove both repairs.\n"
+	composeDraft = "package src\n\nfunc Add(a, b int) int { return a - b }\n\nfunc Mul(a, b int) int { return a + b }\n"
+	composeAdd   = "package src\n\nfunc Add(a, b int) int { return a + b }\n\nfunc Mul(a, b int) int { return a + b }\n"
+	composeMul   = "package src\n\nfunc Add(a, b int) int { return a - b }\n\nfunc Mul(a, b int) int { return a * b }\n"
+	composeFinal = "package src\n\nfunc Add(a, b int) int { return a + b }\n\nfunc Mul(a, b int) int { return a * b }\n"
+	composeTest  = "package src\n\nimport \"testing\"\n\nfunc TestAdd(t *testing.T) {\n\tif Add(2, 3) != 5 {\n\t\tt.Fatal(\"Add(2, 3) != 5\")\n\t}\n}\n\nfunc TestMul(t *testing.T) {\n\tif Mul(2, 3) != 6 {\n\t\tt.Fatal(\"Mul(2, 3) != 6\")\n\t}\n}\n"
+)
+
+// TestCEMV1039RunnerRepairsComposeOnOneBoundSource drives two independent
+// repairs of one draft through the trusted runner and the plain producer
+// with admission (V1-2018, CEM-V1-039). Each isolated repair's passing
+// receipt observes only its own fix over a source the composed target does
+// not contain, so the producer refuses it as runner-receipt-stale. One plan
+// over the composed source, selecting both repaired tests, yields the one
+// admitted receipt, which observes both tests PASSED and is bound into the
+// map as the runner's exact bytes.
+func TestCEMV1039RunnerRepairsComposeOnOneBoundSource(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("the trusted runner's process containment is only supported on Darwin/Linux")
+	}
+	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	run := newRunner(t, build(t, repoRoot, "./cmd/corvint-test-runner", "corvint-test-runner"))
+	code, base := newCheckout(t, composeSpec)
+
+	// The draft fails both tests; each repair alone passes its own test.
+	code.put("src/calc_test.go", composeTest)
+	code.put("src/calc.go", composeDraft)
+	run.run("draft", code.root, 1, "TestAdd", "TestMul")
+	code.put("src/calc.go", composeAdd)
+	addPlan, addReceipt := run.run("repair-add", code.root, 0, "TestAdd")
+	code.put("src/calc.go", composeMul)
+	mulPlan, mulReceipt := run.run("repair-mul", code.root, 0, "TestMul")
+	code.put("src/calc.go", composeFinal)
+	plan, receipt := run.run("composed", code.root, 0, "TestAdd", "TestMul")
+	code.put("artifacts/runner-plan.json", string(plan))
+	code.put("artifacts/runner-receipt.json", string(receipt))
+	code.git("add", ".")
+	code.git("commit", "-qm", "calc: compose the Add and Mul repairs")
+	target := code.git("rev-parse", "HEAD")
+
+	ctx := context.Background()
+	request := plainRequests(t, code, base, target, 4)
+	for _, c := range []struct {
+		name          string
+		plan, receipt []byte
+	}{{"repair-add", addPlan, addReceipt}, {"repair-mul", mulPlan, mulReceipt}} {
+		out := filepath.Join(realTemp(t), "bundle")
+		_, err := cemcandidate.AssemblePlain(ctx, request(c.name, c.plan, c.receipt), out)
+		if got := cemcode.CodeOf(err); got != "runner-receipt-stale" {
+			t.Fatalf("isolated %s receipt: code %q (%v), want runner-receipt-stale", c.name, got, err)
+		}
+		if _, err := os.Stat(out); !os.IsNotExist(err) {
+			t.Fatalf("isolated %s receipt left a bundle: %v", c.name, err)
+		}
+	}
+
+	bundle := filepath.Join(realTemp(t), "bundle")
+	produced, err := cemcandidate.AssemblePlain(ctx, request("composed", plan, receipt), bundle)
+	if err != nil || produced.Verification.Outcome != "ACCEPT" {
+		t.Fatalf("composed receipt: %+v %v", produced.Verification, err)
+	}
+	bound, err := os.ReadFile(filepath.Join(bundle, "artifacts", "runner-receipt.json"))
+	if err != nil || !bytes.Equal(bound, receipt) {
+		t.Fatalf("bundle receipt is not the composed runner's bytes: %v", err)
+	}
+	var doc tr.ReceiptDocument
+	if err := tr.DecodeDocument(bound, &doc); err != nil {
+		t.Fatal(err)
+	}
+	passed := map[string]bool{}
+	for _, test := range doc.Observation.Tests {
+		passed[test.Name] = test.State == tr.Passed
+	}
+	if !doc.Observation.Complete || len(doc.Observation.Tests) != 2 || !passed["TestAdd"] || !passed["TestMul"] {
+		t.Fatalf("composed receipt does not observe both repairs passing: %+v", doc.Observation)
 	}
 }

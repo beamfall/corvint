@@ -62,18 +62,21 @@ changes-shared-merge-in-range, changes-shared-live-session,
 changes-shared-head-mismatch, changes-shared-tree-mismatch.
 Contract: docs/specs/shared-path-change-policy-v0.md.
 
-Shared-path commits a branch is missing (SPC-V0-009..012, V1-1710):
+Shared-path commits a branch is missing (SPC-V0-009..014, V1-1710, V1-1723):
   corvint [--root SOURCE] changes behind --base REF [--head REV]
     [--config FILE] [--ticket ID --stale-hours N] [--format json|doctor-plugin]
 Read-only; never fetches. Lists the commits of head..base that change a
-configured shared path (commit, subject, committedAt, sharedPaths,
-headTouches, conflictRisk) and a dry merge of head into base: clean,
-generated-only or conflict with the conflicting paths. JSON records base,
+configured shared path (commit, subject, committedAt, arrivedVia, arrivedAt,
+sharedPaths, headTouches, conflictRisk) and a dry merge of head into base:
+clean, generated-only or conflict with the conflicting paths. arrivedVia is
+the first-parent commit of base that brought the commit onto base, and
+arrivedAt its committer time. JSON records base, baseRef (the ref and when it
+was last observed: its reflog or, for a remote-tracking ref, FETCH_HEAD),
 head, mergeBase, configDigest and observedAt. Over 512 commits refuses at once
 with changes-shared-range-too-large, naming limit and commits. With --ticket
-and --stale-hours, an oldest missing shared commit at least N hours old is a
-SHARED_BASE_BEHIND finding; --format doctor-plugin prints only the findings as
-a corvint-tasks doctor --plugins array.
+and --stale-hours, a missing shared commit that reached base at least N hours
+ago is a SHARED_BASE_BEHIND finding; --format doctor-plugin prints only the
+findings as a corvint-tasks doctor --plugins array.
 `
 
 func changesInvocation(args []string) (string, []string, bool) {

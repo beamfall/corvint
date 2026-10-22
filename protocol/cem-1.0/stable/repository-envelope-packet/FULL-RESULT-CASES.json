@@ -269,7 +269,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "9ebd181b8bbc986334c6203c7c86015e14d1f71e1ad5c8008b56b584c0a3639e"
@@ -486,7 +486,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "9b5174483c0a6b4795391393bf54564d867fb9aa84d27897013aea53803605ab"
@@ -703,7 +703,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "9ebd181b8bbc986334c6203c7c86015e14d1f71e1ad5c8008b56b584c0a3639e"
@@ -920,7 +920,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "9b5174483c0a6b4795391393bf54564d867fb9aa84d27897013aea53803605ab"
@@ -1137,7 +1137,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "2d595926608d513e964af0cb2a8e7778bff8abcdb40b78aba2a2f9b0db4e80c2"
@@ -1354,7 +1354,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "1c613d84a8351dac807335da46ffb13d6d2580ac9f9bea8cb434e04428d1ad54"
@@ -1571,7 +1571,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "e6572355f4055f6087267f9824917a5b6c06ab9657c46b0f95a17a847eb47367"
@@ -1788,7 +1788,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "0f6312bb5a7cc9a9d7ede73a6cbd547db5e2b78175485623d288365f7ccbee82"
@@ -2017,7 +2017,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "338d456a6a3b5f83bf30fca14593a0fdaed5833f36d70e1420154669f5038daa"
@@ -2283,7 +2283,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "a056561d8dc3c54a9d675577d9020dd9c690f81cbf00014157f46c1dc4a85b2d"
@@ -2549,7 +2549,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "dc2fd87fbf76568fb797720becc4bf5b4bc188d2992cb0d535cf596ad8e8e587"
@@ -2766,7 +2766,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "de317a08ff5cb46def8696ac4de1a4812e4b5c32b7e87e47dd6a9d2a187ec4ab"
@@ -3032,7 +3032,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "34a5c287d2a1d8dcb401c16ab187ff39c6a63941bbb72d424a8e99b96349f784"
@@ -3334,7 +3334,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "2657cf1a18b419b14e92ac450d28e116ab75f4449955ef4ca7247f22162c18c1"
@@ -3551,7 +3551,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "1de41f044d3db9ae0fd7f62d647835c180e358aa2ee9c8b1a480f2191e832eeb"
@@ -3768,7 +3768,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "06af93d7dffa372e2771900ccd0de18fdb1d8ebd4ef22a662a2e3e8a4a60f64f"
@@ -3985,7 +3985,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "d4c97deb1f0a83525c7dcc13b6f4cc973b8fbaae8acd8181fd2500c22bfa86e3"
@@ -4202,7 +4202,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "1c613d84a8351dac807335da46ffb13d6d2580ac9f9bea8cb434e04428d1ad54"
@@ -4419,7 +4419,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "06af93d7dffa372e2771900ccd0de18fdb1d8ebd4ef22a662a2e3e8a4a60f64f"
@@ -4636,7 +4636,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "de69a5b79cf3aad42c84a67b4119762347b513a368ce69fc96a07ae7a4b0aeb8"
@@ -5372,7 +5372,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
@@ -5589,7 +5589,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
@@ -5806,7 +5806,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
@@ -6023,7 +6023,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
@@ -6240,7 +6240,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
@@ -6457,7 +6457,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
@@ -6674,7 +6674,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
@@ -6891,7 +6891,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
@@ -7108,7 +7108,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
@@ -7325,7 +7325,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
@@ -7542,7 +7542,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
@@ -7759,7 +7759,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "0422ebf9fcbd92a5f80bb300f47d7c7421601429e2b7be74c7f2ae35ddd34f8d"
@@ -7976,7 +7976,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "cb664e189418f0c96070f737ca7c3311f05bccf50d1e53f4a689b5c05fb60d67"
@@ -8193,7 +8193,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "cb664e189418f0c96070f737ca7c3311f05bccf50d1e53f4a689b5c05fb60d67"
@@ -8410,7 +8410,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "cb664e189418f0c96070f737ca7c3311f05bccf50d1e53f4a689b5c05fb60d67"
@@ -8627,7 +8627,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "ab21e388c28852cbf7355aeadce3cb392d999d271233bea836a9aadc60c14c39"
@@ -8844,7 +8844,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "39239d23d9230261d232f1ca683f34afc935b4aba22ad0435acf7b1444e9f678"
@@ -9061,7 +9061,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "39239d23d9230261d232f1ca683f34afc935b4aba22ad0435acf7b1444e9f678"
@@ -9278,7 +9278,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "39239d23d9230261d232f1ca683f34afc935b4aba22ad0435acf7b1444e9f678"
@@ -9495,7 +9495,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "a8660a92dea90704aff2d9201f92f33cf15a52deb4b7004063800bbffbc767a9"
@@ -9712,7 +9712,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "2d595926608d513e964af0cb2a8e7778bff8abcdb40b78aba2a2f9b0db4e80c2"
@@ -9929,7 +9929,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "5fad3b77ffee15097c7a992e16936500187f1b739fc3455e70c7482a5df4cb0b"
@@ -10146,7 +10146,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "1de41f044d3db9ae0fd7f62d647835c180e358aa2ee9c8b1a480f2191e832eeb"
@@ -10363,7 +10363,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "06af93d7dffa372e2771900ccd0de18fdb1d8ebd4ef22a662a2e3e8a4a60f64f"
@@ -10580,7 +10580,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "5fad3b77ffee15097c7a992e16936500187f1b739fc3455e70c7482a5df4cb0b"
@@ -10797,7 +10797,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "1c613d84a8351dac807335da46ffb13d6d2580ac9f9bea8cb434e04428d1ad54"
@@ -11014,7 +11014,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "de69a5b79cf3aad42c84a67b4119762347b513a368ce69fc96a07ae7a4b0aeb8"
@@ -11280,7 +11280,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "dc2fd87fbf76568fb797720becc4bf5b4bc188d2992cb0d535cf596ad8e8e587"
@@ -11546,7 +11546,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "34a5c287d2a1d8dcb401c16ab187ff39c6a63941bbb72d424a8e99b96349f784"
@@ -18763,7 +18763,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "8ff5162af2c43d028b75bf8a618dd0aa7c45fe23e0713d24388bf652cbab55fb"
@@ -24502,7 +24502,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "de13acfcd42492f26fbec5c3996d4347bede59c657f889551790ca6a83ff2a4c"
@@ -26567,7 +26567,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "a6a11a6796e1c65bc588e11a34afd29c4ef781ce604e0d90ac94ebf1851634e5"
@@ -26786,7 +26786,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "1de41f044d3db9ae0fd7f62d647835c180e358aa2ee9c8b1a480f2191e832eeb"
@@ -27003,7 +27003,7 @@
         },
         "runtime": {
           "goVersion": "go1.27.1",
-          "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+          "structuralQualification": "QUALIFIED_EXACT_TUPLE"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
         "verdictSha256": "1c613d84a8351dac807335da46ffb13d6d2580ac9f9bea8cb434e04428d1ad54"
@@ -27011,5 +27011,5 @@
     }
   ],
   "comparison": "Every expectedResult is a complete closed23-key object; no runtime/envelope normalization. Synchronized proposed cases require reviewed test seams before measurement. No new runtime case has been evaluated in this draft.",
-  "predecessorSHA256": "25d4155c2235c3034146093d0c844e0e448281429c74bad5f19abf215d672146"
+  "predecessorSHA256": "045b8fd32d81d09d79d9d157213bcbb6cf133c006f6b6f102b3a0f680816819c"
 }

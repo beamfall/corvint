@@ -312,6 +312,17 @@ func (f hunkFacts) anchors(evidenceIDs []string, spans map[string][]byte, define
 	return kinds
 }
 
+// SpanAnchors returns the sorted CEM-V1-081 anchor kinds span earns for
+// hunk, by the rule ComputeCitation tiers a cited hunk with, and the distinct
+// requirement IDs the hunk's added bytes carry. A citation drafter asks it of
+// each candidate span so that the rows it prefers are the ones the check
+// counts as anchored (DCW-V0-161).
+func SpanAnchors(hunk *patch.Hunk, span []byte) (kinds, addedIDs []string) {
+	facts := newHunkFacts(hunk)
+	kinds = facts.anchors([]string{""}, map[string][]byte{"": span}, map[string]map[string]bool{"": definedIDs(span)})
+	return kinds, facts.ids
+}
+
 // definedIDs returns every ID a span defines with a line that, after optional
 // leading spaces and tabs, reads "- `ID`:". It scans the span once without
 // materialising its lines, so a large span costs no more than its bytes.

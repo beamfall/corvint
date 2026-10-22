@@ -29,7 +29,7 @@ import (
 // common directory and every linked worktree at that tree reads the one copy
 // (DIRTY-CACHE-013).
 const (
-	snapshotFormat = "corvint-index-snapshot/1"
+	snapshotFormat = "corvint-index-snapshot/2"
 	snapshotKeep   = 8
 	// snapshotKeepCap caps the shared store's scaled entry bound.
 	snapshotKeepCap = 64
@@ -53,37 +53,51 @@ type snapshotHeader struct {
 	Format, ObjectFormat, Tree, Engine string
 }
 
-// eventSnapshot is the subset of Index read by Impact and compact-session
-// rehydration. Gob skips the snapshot's query-only Tracked and Vocabulary
-// fields while retaining the same on-disk format.
+// eventSnapshot is the subset of snapshotWire read by Impact and
+// compact-session rehydration. Gob skips the snapshot's query-only Tracked,
+// Skipped and Vocabulary fields while retaining the same on-disk format.
 type eventSnapshot struct {
-	Root, ObjectFormat, CommitRevision, Revision, ProfileID, Module string
-	StatusSHA256                                                    string
-	Sources                                                         map[string]Source
-	Exclusions                                                      []Exclusion
-	UnsupportedSuffixCount                                          int
-	DirtyPaths                                                      []string
-	Features, Scenarios, Documents                                  map[string]Record
-	Markers                                                         map[string][]Marker
-	Symbols                                                         []Symbol
-	Imports                                                         map[string]map[string]struct{}
-	Unparsed                                                        []Unparsed
-	ApproximateImports                                              int
-	ExtractionNotes                                                 []ExtractionNote
+	ObjectFormat, CommitRevision, Revision, ProfileID, Module string
+	Sources                                                   wirePairs[Source]
+	Exclusions                                                []Exclusion
+	UnsupportedSuffixCount                                    int
+	Features, Scenarios, Documents                            wirePairs[wireRecord]
+	Markers                                                   wirePairs[[]Marker]
+	Symbols                                                   []Symbol
+	Imports                                                   wirePairs[[]string]
+	Unparsed                                                  []Unparsed
+	ApproximateImports                                        int
+	ExtractionNotes                                           []ExtractionNote
 }
 
-func (snapshot *eventSnapshot) index() *Index {
-	return &Index{
-		Root: snapshot.Root, ObjectFormat: snapshot.ObjectFormat,
-		CommitRevision: snapshot.CommitRevision, Revision: snapshot.Revision,
-		ProfileID: snapshot.ProfileID, Module: snapshot.Module, StatusSHA256: snapshot.StatusSHA256,
-		Sources: snapshot.Sources, Exclusions: snapshot.Exclusions, DirtyPaths: snapshot.DirtyPaths,
-		UnsupportedSuffixCount: snapshot.UnsupportedSuffixCount, Features: snapshot.Features,
-		Scenarios: snapshot.Scenarios, Documents: snapshot.Documents,
-		Markers: snapshot.Markers, Symbols: snapshot.Symbols, Imports: snapshot.Imports,
-		Unparsed: snapshot.Unparsed, ApproximateImports: snapshot.ApproximateImports,
+func (snapshot *eventSnapshot) index() (*Index, error) {
+	index := &Index{
+		ObjectFormat: snapshot.ObjectFormat, CommitRevision: snapshot.CommitRevision, Revision: snapshot.Revision,
+		ProfileID: snapshot.ProfileID, Module: snapshot.Module,
+		Exclusions: snapshot.Exclusions, UnsupportedSuffixCount: snapshot.UnsupportedSuffixCount,
+		Symbols: snapshot.Symbols, Unparsed: snapshot.Unparsed, ApproximateImports: snapshot.ApproximateImports,
 		ExtractionNotes: snapshot.ExtractionNotes,
 	}
+	var err error
+	if index.Sources, err = mapOf(snapshot.Sources, sameOK[Source]); err != nil {
+		return nil, err
+	}
+	if index.Features, err = recordsOf(snapshot.Features); err != nil {
+		return nil, err
+	}
+	if index.Scenarios, err = recordsOf(snapshot.Scenarios); err != nil {
+		return nil, err
+	}
+	if index.Documents, err = recordsOf(snapshot.Documents); err != nil {
+		return nil, err
+	}
+	if index.Markers, err = markersOf(snapshot.Markers); err != nil {
+		return nil, err
+	}
+	if index.Imports, err = importsOf(snapshot.Imports); err != nil {
+		return nil, err
+	}
+	return index, nil
 }
 
 type compactEventSnapshot struct{ ProfileID string }
@@ -148,6 +162,8 @@ type SnapshotProbe struct {
 func init() {
 	gob.Register([]any{})
 	gob.Register(map[string]any{})
+	gob.Register(wireAnyMap{})
+	warmGobTypes()
 }
 
 var (
@@ -521,14 +537,12 @@ func writeSnapshotGitIgnore(directory string) error {
 }
 
 func encodeSnapshot(file *os.File, index *Index, engineID string) (int64, error) {
-	portable := *index
-	portable.Root, portable.DirtyPaths, portable.StatusSHA256 = "", nil, ""
 	digest := sha256.New()
 	encoder := gob.NewEncoder(io.MultiWriter(file, digest))
 	if err := encoder.Encode(snapshotHeader{Format: snapshotFormat, ObjectFormat: index.ObjectFormat, Tree: index.Revision, Engine: engineID}); err != nil {
 		return 0, err
 	}
-	if err := encoder.Encode(&portable); err != nil {
+	if err := encoder.Encode(snapshotWireOf(index)); err != nil {
 		return 0, err
 	}
 	if _, err := file.Write(digest.Sum(nil)); err != nil {
@@ -902,8 +916,12 @@ func readSnapshotIndex(directory string, identity repositoryIdentity, engineID s
 }
 
 func decodeSnapshot(file *os.File, identity repositoryIdentity, engineID string) (*Index, error) {
-	index := &Index{}
-	if err := decodeSnapshotValue(file, identity, engineID, index); err != nil {
+	wire := &snapshotWire{}
+	if err := decodeSnapshotValue(file, identity, engineID, wire); err != nil {
+		return nil, err
+	}
+	index, err := wire.index()
+	if err != nil {
 		return nil, err
 	}
 	if err := index.checkSymbolWindows(); err != nil {
@@ -920,7 +938,7 @@ func decodeEventSnapshot(file *os.File, identity repositoryIdentity, engineID st
 	if err := decodeSnapshotValue(file, identity, engineID, portable); err != nil {
 		return nil, err
 	}
-	return portable.index(), nil
+	return portable.index()
 }
 
 func decodeCompactEventSnapshot(file *os.File, identity repositoryIdentity, engineID string) (*Index, error) {

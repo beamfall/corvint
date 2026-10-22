@@ -16,13 +16,18 @@ import (
 	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
-// unboundedPerPathReads turns the batches off and lifts the operation bound,
-// so a test can produce the per-path reads' output to compare byte for byte.
-func unboundedPerPathReads(t *testing.T) {
-	t.Helper()
-	pathPrefetchOff = true
-	t.Cleanup(func() { pathPrefetchOff = false })
-	newGitBudget = func() *gitrun.Budget { return gitrun.NewBudget(1<<20, gitrun.DefaultTotalBudget) }
+// unboundedPerPathReads returns ctx with the batches off and the operation
+// bound lifted, so a test can produce the per-path reads' output to compare
+// byte for byte.
+func unboundedPerPathReads(ctx context.Context) context.Context {
+	return perPathReads(boundCorpusGitOps(ctx, 1<<20))
+}
+
+// perPathReads returns ctx with every path batch turned into a no-op.
+func perPathReads(ctx context.Context) context.Context {
+	hooks := corpusGitHooksOf(ctx)
+	hooks.prefetchOff = true
+	return context.WithValue(ctx, corpusGitHooksKey{}, hooks)
 }
 
 // treeBlobs maps every path at rev to its blob in one ls-tree.
@@ -44,6 +49,7 @@ func bulkSymbolSource(i int) (string, string) {
 // symbol anchors (V1-1991): 5,000 cited anchors whose files all moved resolve
 // within the phase bound, and their checks equal the per-path reads'.
 func TestDCPV1216SymbolAnchorsGitOpsIndependentOfAnchorCount(t *testing.T) {
+	t.Parallel()
 	const n = 5000
 	ctx := context.Background()
 	root := t.TempDir()
@@ -69,7 +75,7 @@ func TestDCPV1216SymbolAnchorsGitOpsIndependentOfAnchorCount(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	run := func(t *testing.T) []byte {
+	run := func(t *testing.T, ctx context.Context) []byte {
 		t.Helper()
 		receipt := Receipt{Citations: citations}
 		checker := &symbolChecker{overlay: &symbolOverlay{root: root, repository: id, live: live, files: &sharedSymbolFiles{files: map[string]sharedSymbolFile{}}}, checks: map[string]SymbolAnchorCheck{}}
@@ -91,10 +97,8 @@ func TestDCPV1216SymbolAnchorsGitOpsIndependentOfAnchorCount(t *testing.T) {
 		}
 		return raw
 	}
-	boundCorpusGitOps(t, phaseGitOps)
-	batched := run(t)
-	unboundedPerPathReads(t)
-	if !bytes.Equal(batched, run(t)) {
+	batched := run(t, boundCorpusGitOps(ctx, phaseGitOps))
+	if !bytes.Equal(batched, run(t, unboundedPerPathReads(ctx))) {
 		t.Fatal("batched symbol checks differ from the per-path reads")
 	}
 }
@@ -103,7 +107,9 @@ func TestDCPV1216SymbolAnchorsGitOpsIndependentOfAnchorCount(t *testing.T) {
 // the CEM claim projection: 5,000 anchors at the base project within the phase
 // bound with the per-path reads' rows and omission count.
 func TestDCPV1216CEMProjectionGitOpsIndependentOfAnchorCount(t *testing.T) {
+	t.Parallel()
 	const n = 5000
+	ctx := context.Background()
 	root := t.TempDir()
 	files := map[string]string{}
 	for i := 0; i < n; i++ {
@@ -117,9 +123,9 @@ func TestDCPV1216CEMProjectionGitOpsIndependentOfAnchorCount(t *testing.T) {
 		raw := []byte(files[path])
 		a.Claims = append(a.Claims, Claim{ID: fmt.Sprintf("claim-%d", i), Evidence: Evidence{Derivation: "extracted", Trust: "documented", Anchors: []Anchor{{Path: path, Blob: blobs[path], Revision: base, SHA256: Digest(raw), Start: 3, End: 3, SpanSHA256: spanDigest(raw, 3, 3)}}}})
 	}
-	run := func(t *testing.T) []byte {
+	run := func(t *testing.T, ctx context.Context) []byte {
 		t.Helper()
-		rows, omitted, err := projectClaims(context.Background(), root, a, "", base, nil)
+		rows, omitted, err := projectClaims(ctx, root, a, "", base, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -132,10 +138,8 @@ func TestDCPV1216CEMProjectionGitOpsIndependentOfAnchorCount(t *testing.T) {
 		}
 		return raw
 	}
-	boundCorpusGitOps(t, phaseGitOps)
-	batched := run(t)
-	unboundedPerPathReads(t)
-	if !bytes.Equal(batched, run(t)) {
+	batched := run(t, boundCorpusGitOps(ctx, phaseGitOps))
+	if !bytes.Equal(batched, run(t, unboundedPerPathReads(ctx))) {
 		t.Fatal("batched CEM projection differs from the per-path reads")
 	}
 }
@@ -147,7 +151,9 @@ func TestDCPV1216CEMProjectionGitOpsIndependentOfAnchorCount(t *testing.T) {
 // because the revision walk still costs one operation per directory
 // (DCP-V1-217).
 func TestDCPV1216LegacyDiscoveryGitOpsIndependentOfPathCount(t *testing.T) {
+	t.Parallel()
 	n := MaxRecords
+	ctx := context.Background()
 	root := t.TempDir()
 	files := map[string]string{}
 	for i := 0; i < n; i++ {
@@ -158,9 +164,9 @@ func TestDCPV1216LegacyDiscoveryGitOpsIndependentOfPathCount(t *testing.T) {
 		files[fmt.Sprintf("e2e/flat/f%d.spec.js", i)] = data
 	}
 	rev := writeBulkFixture(t, root, files)
-	run := func(t *testing.T) []byte {
+	run := func(t *testing.T, ctx context.Context) []byte {
 		t.Helper()
-		inventory, raw, err := legacyInventory(t, root, "jasmine", rev, "e2e", nil)
+		inventory, raw, err := legacyInventoryContext(ctx, t, root, "jasmine", rev, "e2e", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -169,10 +175,8 @@ func TestDCPV1216LegacyDiscoveryGitOpsIndependentOfPathCount(t *testing.T) {
 		}
 		return raw
 	}
-	boundCorpusGitOps(t, phaseGitOps)
-	batched := run(t)
-	unboundedPerPathReads(t)
-	if !bytes.Equal(batched, run(t)) {
+	batched := run(t, boundCorpusGitOps(ctx, phaseGitOps))
+	if !bytes.Equal(batched, run(t, unboundedPerPathReads(ctx))) {
 		t.Fatal("batched legacy inventory differs from the per-path reads")
 	}
 }
@@ -182,7 +186,9 @@ func TestDCPV1216LegacyDiscoveryGitOpsIndependentOfPathCount(t *testing.T) {
 // each run by both projects,
 // (DCP-V1-217) discover within the phase bound with the per-path reads' bytes.
 func TestDCPV1216PlaywrightDiscoveryGitOpsIndependentOfPathCount(t *testing.T) {
+	t.Parallel()
 	const n = 2000
+	ctx := context.Background()
 	repo := newPlaywrightBehaviorRepo(t)
 	var listing map[string]any
 	if err := json.Unmarshal(repo.listing, &listing); err != nil {
@@ -210,9 +216,9 @@ func TestDCPV1216PlaywrightDiscoveryGitOpsIndependentOfPathCount(t *testing.T) {
 	repo.revision = git(t, repo.root, "rev-parse", "HEAD")
 	repo.revisions.App.Revision, repo.revisions.E2E.Revision, repo.revisions.Docs.Revision = repo.revision, repo.revision, repo.revision
 	repo.migration = behaviorAdapterRaw(t, BehaviorMigration{Revisions: repo.revisions, Schema: 2, ContractID: "items-contract", SourceRevision: repo.revision, DocumentationRevision: repo.revision})
-	run := func(t *testing.T) []byte {
+	run := func(t *testing.T, ctx context.Context) []byte {
 		t.Helper()
-		out, err := BuildPlaywrightDiscovery(context.Background(), PlaywrightDiscoveryInput{Root: repo.root, Migration: repo.migration, ConfigPath: playwrightBehaviorConfig, Listing: repo.listing, Receipt: repo.receipt})
+		out, err := BuildPlaywrightDiscovery(ctx, PlaywrightDiscoveryInput{Root: repo.root, Migration: repo.migration, ConfigPath: playwrightBehaviorConfig, Listing: repo.listing, Receipt: repo.receipt})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -222,22 +228,20 @@ func TestDCPV1216PlaywrightDiscoveryGitOpsIndependentOfPathCount(t *testing.T) {
 		}
 		return out
 	}
-	boundCorpusGitOps(t, phaseGitOps)
-	batched := run(t)
-	unboundedPerPathReads(t)
-	if !bytes.Equal(batched, run(t)) {
+	batched := run(t, boundCorpusGitOps(ctx, phaseGitOps))
+	if !bytes.Equal(batched, run(t, unboundedPerPathReads(ctx))) {
 		t.Fatal("batched Playwright discovery differs from the per-path reads")
 	}
 }
 
 // symbolAnchorReceipt checks cited symbol anchors once under the current
 // budget and returns the receipt's checks and limitations as JSON.
-func symbolAnchorReceipt(t *testing.T, root, id string, live *contextindex.Index, citations []Anchor) []byte {
+func symbolAnchorReceipt(ctx context.Context, t *testing.T, root, id string, live *contextindex.Index, citations []Anchor) []byte {
 	t.Helper()
 	receipt := Receipt{Citations: citations}
 	checker := &symbolChecker{overlay: &symbolOverlay{root: root, repository: id, live: live, files: &sharedSymbolFiles{files: map[string]sharedSymbolFile{}}}, checks: map[string]SymbolAnchorCheck{}}
 	defer checker.close()
-	if err := attachSymbolAnchors(context.Background(), &receipt, checker); err != nil {
+	if err := attachSymbolAnchors(ctx, &receipt, checker); err != nil {
 		t.Fatal(err)
 	}
 	raw, err := json.Marshal(struct {
@@ -256,6 +260,7 @@ func symbolAnchorReceipt(t *testing.T, root, id string, live *contextindex.Index
 // withholds every symbol state with its budget diagnostic, as the per-path
 // reads do, instead of reading as an unavailable blob.
 func TestDCPV1216SymbolFallbackBudgetWithholdsStates(t *testing.T) {
+	t.Parallel()
 	const n = 600
 	ctx := context.Background()
 	root := t.TempDir()
@@ -284,13 +289,11 @@ func TestDCPV1216SymbolFallbackBudgetWithholdsStates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	batched := symbolAnchorReceipt(t, root, id, live, citations)
+	batched := symbolAnchorReceipt(ctx, t, root, id, live, citations)
 	if !strings.Contains(string(batched), string(cemcode.GitBudgetExceeded)) || strings.Contains(string(batched), `"moved"`) {
 		t.Fatalf("batched fallback did not withhold on the budget: %.400s", batched)
 	}
-	pathPrefetchOff = true
-	t.Cleanup(func() { pathPrefetchOff = false })
-	if perPath := symbolAnchorReceipt(t, root, id, live, citations); !bytes.Equal(batched, perPath) {
+	if perPath := symbolAnchorReceipt(perPathReads(ctx), t, root, id, live, citations); !bytes.Equal(batched, perPath) {
 		t.Fatalf("batched fallback %.400s\nper-path %.400s", batched, perPath)
 	}
 }
@@ -313,6 +316,7 @@ func gitStdin(t *testing.T, root, stdin string, args ...string) string {
 // per-path lookup bound is refused by the batched projection exactly as by
 // the per-path lookup, although the batched walk's 32 MiB bound admits it.
 func TestDCPV1216ProjectionKeepsPerPathTreeBound(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	git(t, root, "init", "-q")
 	doc := "# Page\n\nClaim holds.\n"
@@ -334,9 +338,7 @@ func TestDCPV1216ProjectionKeepsPerPathTreeBound(t *testing.T) {
 	if cemcode.CodeOf(batched) != cemcode.GitOutputExceeded {
 		t.Fatalf("batched projection = %v, want the per-path tree bound refusal", batched)
 	}
-	pathPrefetchOff = true
-	t.Cleanup(func() { pathPrefetchOff = false })
-	_, _, perPath := projectClaims(context.Background(), root, a, "", base, nil)
+	_, _, perPath := projectClaims(perPathReads(context.Background()), root, a, "", base, nil)
 	if perPath == nil || perPath.Error() != batched.Error() {
 		t.Fatalf("batched %v, per-path %v", batched, perPath)
 	}
@@ -347,6 +349,7 @@ func TestDCPV1216ProjectionKeepsPerPathTreeBound(t *testing.T) {
 // alone passes the 4 MiB per-path lookup bound with the per-path lookup's
 // own refusal, byte for byte, although the walk's 32 MiB bound admits it.
 func TestDCPV1243ResolvedInputsKeepPerPathTreeBound(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	git(t, root, "init", "-q")
 	docBlob := gitStdin(t, root, "# Page\n", "hash-object", "-w", "--stdin")
@@ -385,5 +388,43 @@ func TestDCPV1243ResolvedInputsKeepPerPathTreeBound(t *testing.T) {
 	entries, err := resolvePathsPerPathBound(ctx, auth, base, []string{"docs/small/page.md"})
 	if err != nil || entries["docs/small/page.md"].OID != docBlob {
 		t.Fatalf("small tree path: %v %v", entries, err)
+	}
+}
+
+// TestDCPV1216GitHooksTravelWithTheContext pins V1-2286: the operation bound
+// and the batch switch reach a phase through its context alone, so the
+// equivalence tests above compare real per-path reads while running in
+// parallel. 40 anchors project within the bound in batches; the same bound
+// with the batches off fails with the budget error; a context without hooks
+// keeps the default budget and the batches.
+func TestDCPV1216GitHooksTravelWithTheContext(t *testing.T) {
+	t.Parallel()
+	const n = 40
+	root := t.TempDir()
+	files := map[string]string{}
+	for i := 0; i < n; i++ {
+		files[fmt.Sprintf("docs/d%d/p%d.md", i/10, i)] = fmt.Sprintf("# Page %d\n\nClaim %d holds.\n", i, i)
+	}
+	base := writeBulkFixture(t, root, files)
+	blobs := treeBlobs(t, root, base)
+	a := &Artifact{Schema: SchemaV2}
+	for i := 0; i < n; i++ {
+		path := fmt.Sprintf("docs/d%d/p%d.md", i/10, i)
+		raw := []byte(files[path])
+		a.Claims = append(a.Claims, Claim{ID: fmt.Sprintf("claim-%d", i), Evidence: Evidence{Derivation: "extracted", Trust: "documented", Anchors: []Anchor{{Path: path, Blob: blobs[path], Revision: base, SHA256: Digest(raw), Start: 3, End: 3, SpanSHA256: spanDigest(raw, 3, 3)}}}})
+	}
+	ctx := context.Background()
+	bounded := boundCorpusGitOps(ctx, phaseGitOps)
+	if _, _, err := projectClaims(bounded, root, a, "", base, nil); err != nil {
+		t.Fatalf("batched projection within %d operations: %v", phaseGitOps, err)
+	}
+	if _, _, err := projectClaims(perPathReads(bounded), root, a, "", base, nil); cemcode.CodeOf(err) != cemcode.GitBudgetExceeded {
+		t.Fatalf("per-path projection of %d anchors within %d operations = %v, want the budget error", n, phaseGitOps, err)
+	}
+	if hooks := corpusGitHooksOf(ctx); hooks.budget != nil || hooks.prefetchOff {
+		t.Fatalf("derived contexts changed their parent: %+v", hooks)
+	}
+	if _, _, err := projectClaims(perPathReads(ctx), root, a, "", base, nil); err != nil {
+		t.Fatalf("per-path projection under the default budget: %v", err)
 	}
 }

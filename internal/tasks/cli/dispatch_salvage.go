@@ -10,6 +10,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -43,6 +44,7 @@ func dispatchSalvage(env Env, args []string) *wire.Result {
 		return usage(cmd, "workRoot must resolve to the same task store as the command's working directory")
 	}
 	var holder, ticket, phase string
+	var checkpoint dispatch.Attempt
 	rc, err := withStore(env, func(rc *readCtx) error {
 		if _, err := snapshot.AttemptQueue(values["--attempt"]); err != nil {
 			return err
@@ -61,6 +63,10 @@ func dispatchSalvage(env Env, args []string) *wire.Result {
 			return err
 		}
 		ticket, phase = a.TicketID.Raw, a.Phase
+		checkpoint.Branch = a.Branch
+		if a.WorktreePath != nil {
+			checkpoint.Worktree = *a.WorktreePath
+		}
 		if a.Lease != nil {
 			holder = a.Lease.Holder
 		}
@@ -101,7 +107,7 @@ func dispatchSalvage(env Env, args []string) *wire.Result {
 	}
 	// The note names the attempt's ticket, which ATR-V0-105 matches.
 	w.Ticket = ticket
-	path, n, e := dispatch.SalvageWorker(dir, &w, time.Now())
+	path, n, e := dispatch.SalvageWorker(dir, &w, time.Now(), dispatch.CheckpointCommit(store.ResolveCommit, c.WorkRoot, checkpoint)) // ERG-V0-028
 	if e != nil {
 		return errorResult(cmd, e)
 	}

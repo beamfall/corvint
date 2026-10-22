@@ -89,15 +89,16 @@ func (graph *Graph) readers(reached map[string]Witness, dirty []string) map[stri
 
 // unboundedReadersOf selects, on any dirty path, each unit not already reached
 // whose reads no literal bounds, witnessed by the smallest dirty path (rule
-// (d)). Like a reader it is not traversed: its unbounded dependents are
-// already in the set.
+// (d)), with the cause that makes it one (AFP-V0-192). Like a reader it is not
+// traversed: its unbounded dependents are already in the set.
 func (graph *Graph) unboundedReadersOf(reached map[string]Witness, dirty []string) {
 	if len(dirty) == 0 {
 		return
 	}
 	for _, id := range graph.unbounded {
 		if _, seen := reached[id]; !seen {
-			reached[id] = Witness{Kind: WitnessUnboundedReader, DirtyPath: dirty[0], Via: []string{id}}
+			cause := graph.causes[id]
+			reached[id] = Witness{Kind: WitnessUnboundedReader, DirtyPath: dirty[0], Via: []string{id}, Cause: &UnboundedCause{Unit: cause, Reads: graph.units[cause].UnboundedReads}}
 		}
 	}
 }

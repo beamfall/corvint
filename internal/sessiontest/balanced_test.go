@@ -152,14 +152,22 @@ func TestSTRV0008BalancedUsesEveryShard(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	run := []string{}
+	// The heaviest package can fill a shard alone, so take the first shard
+	// holding at least four whole packages.
+	byShard := map[int][]string{}
 	for _, unit := range m.Units {
-		if unit.Shard == 0 && unit.Slice == SliceWhole && len(run) < 4 {
-			run = append(run, strings.TrimPrefix(unit.Unit, "go:"))
+		if unit.Slice == SliceWhole {
+			byShard[unit.Shard] = append(byShard[unit.Shard], strings.TrimPrefix(unit.Unit, "go:"))
+		}
+	}
+	shard, run := -1, []string{}
+	for s := 0; s < 4 && shard < 0; s++ {
+		if len(byShard[s]) >= 4 {
+			shard, run = s, byShard[s][:4]
 		}
 	}
 	input.GoSelection = "run " + strings.Join(run, " ")
-	if m, err = Build(input); err != nil || len(m.Units) != 4 || m.Units[3].Shard != 0 {
+	if m, err = Build(input); err != nil || len(m.Units) != 4 || m.Units[3].Shard != shard {
 		t.Fatalf("universe placement of %v: %v %v", run, err, unitIDs(m))
 	}
 	for _, partition := range []PartitionFiles{files, {}} {

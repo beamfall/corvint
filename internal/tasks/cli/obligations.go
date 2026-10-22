@@ -292,8 +292,10 @@ func obligationsPlan(env Env, cmd []string, args []string) *wire.Result {
 	}
 	var findings, reruns []ticket.ObligationPlanFinding
 	var ledger *ticket.ObligationLedger
+	var candidate string
 	ok := false
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
+		candidate = ""
 		rec, l, ferr := obligationTarget(rc, target)
 		if ferr != nil {
 			return ferr
@@ -304,7 +306,12 @@ func obligationsPlan(env Env, cmd []string, args []string) *wire.Result {
 		findings, ok = ticket.CheckObligationPlan(l, plan)
 		reruns = ticket.ObligationPlanReruns(l, plan)
 		ledger = l
-		return nil
+		if !withWitnesses {
+			return nil
+		}
+		var cerr error
+		candidate, cerr = reviewCandidate(rc, rec.TicketID.Raw, l)
+		return cerr
 	})
 	if err != nil {
 		return failure(cmd, rc, err)
@@ -319,7 +326,7 @@ func obligationsPlan(env Env, cmd []string, args []string) *wire.Result {
 	// considered. Without it the output keeps its exact earlier bytes.
 	var wr planWitnessReport
 	if withWitnesses {
-		if wr, err = planWitnesses(env, rc, ledger, findings); err != nil {
+		if wr, err = planWitnesses(env, rc, ledger, findings, candidate); err != nil {
 			return errorResult(cmd, err)
 		}
 		if len(wr.stale) > 0 {

@@ -22,6 +22,8 @@ var dogfoodFlowOptions = map[string]map[string]bool{
 	"seal":   {"--base-verifier": true, "--tree-verifier": true, "--override-verifier": true},
 	// batch-check is read-only and verifies sealed constituents (DCW-V0-039).
 	"batch-check": {"--verifier": true},
+	// propose-citations is read-only and prints a draft plan (DCW-V0-150).
+	"propose-citations": {},
 	// finish-lane runs change, check and seal in turn, so it takes both
 	// option sets plus the bind loop's inputs; BASE is --base (DCW-V0-060).
 	"finish-lane": {"--base": true, "--citations": true, "--intents": true, "--verify": true, "--outcome": true,
@@ -138,6 +140,9 @@ func runDogfoodAction(ctx context.Context, root, action, base string, flags map[
 	}
 	if action == "change" {
 		return dogfoodflow.Change(ctx, change, stderr)
+	}
+	if action == "propose-citations" {
+		return dogfoodflow.ProposeCitations(ctx, dogfoodflow.ProposeOptions{Root: root, Base: base}, stdout, stderr)
 	}
 	if action == "batch-check" {
 		return dogfoodflow.BatchCheck(ctx, dogfoodflow.BatchCheckOptions{Root: root, Base: base, Verifier: runner("--verifier")}, stdout, stderr)

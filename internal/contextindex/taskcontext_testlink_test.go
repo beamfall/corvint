@@ -201,18 +201,45 @@ func TestTaskContextSelectedLexicalPairs(t *testing.T) {
 			if pairs > sources {
 				t.Fatalf("limit %d: %d pairs for %d selected sources", limit, pairs, sources)
 			}
-			// AGENTS.md, the five sources and six unrelated tests fill limit 12;
-			// every source outranks every unrelated test, so all five
-			// counterparts (one already held by the test slot) displace the
-			// five weakest unrelated tests.
-			if (limit == 12 || limit == 30) && counterparts != 5 {
-				t.Fatalf("limit %d: rank-relative displacement admitted %d of 5 counterparts: %v", limit, counterparts, rows)
+			// A counterpart only fills unfilled budget (V1-2288): every selected
+			// source's counterpart is either carried or named in `omitted_pairs`
+			// with TCP-V0-161's reason, never silently dropped. AGENTS.md, the
+			// five sources and six unrelated tests fill limit 12, so the
+			// counterparts the test slot did not hold are named, not swapped in
+			// for the unrelated tests; limit 30 has room for all five.
+			omitted := map[string]bool{}
+			if member, ok := contextCoverage(t, packet)["omitted_pairs"].(map[string]any); ok {
+				samples := mapsFromAny(member["samples"])
+				if contextIntValue(member["count"]) != len(samples) {
+					t.Fatalf("limit %d: omitted_pairs %v", limit, member)
+				}
+				for _, sample := range samples {
+					if sample["reason"] != "paired test omitted: budget" {
+						t.Fatalf("limit %d: omitted pair reason %v", limit, sample)
+					}
+					omitted[sample["path"].(string)] = true
+				}
+			}
+			for id := range present {
+				if !strings.HasPrefix(id, "source") || strings.HasSuffix(id, "_test.go") {
+					continue
+				}
+				counterpart := strings.TrimSuffix(id, ".go") + "_test.go"
+				if present[counterpart] == omitted[counterpart] {
+					t.Fatalf("limit %d: counterpart %s carried=%v omitted=%v", limit, counterpart, present[counterpart], omitted[counterpart])
+				}
+			}
+			if limit == 12 && (len(omitted) == 0 || counterparts+len(omitted) != 5) {
+				t.Fatalf("limit %d: %d counterparts carried, %d named omitted: %v", limit, counterparts, len(omitted), rows)
+			}
+			if limit == 30 && (counterparts != 5 || len(omitted) != 0) {
+				t.Fatalf("limit %d: %d of 5 counterparts carried, %d omitted: %v", limit, counterparts, len(omitted), rows)
 			}
 		}
 	})
 	t.Run("TCP-V0-011 pair shortage remains visible", func(t *testing.T) {
-		// Limit 8 holds AGENTS.md, five sources and two tests, so three
-		// counterparts have no weaker unrelated test to displace.
+		// Limit 8 holds AGENTS.md, five sources and two tests, so the
+		// counterparts that find no unfilled budget are withheld.
 		packet, err := TaskContext(context.Background(), index, "record response status when flushing", "", 8)
 		if err != nil {
 			t.Fatal(err)

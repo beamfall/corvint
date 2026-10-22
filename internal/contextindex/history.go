@@ -143,9 +143,10 @@ func parseHistoryIdentity(raw []byte, objectFormat string) (string, string, erro
 }
 
 // parseHistory refuses a path that is not UTF-8 unless skipNonUTF8 is set, in
-// which case the path is left out of its commit. Query learning keeps the
-// refusal its history digest is pinned to; the co-change slot skips, because
-// the index already excludes and discloses such a path (nonUTF8PathReason).
+// which case the path is left out of its commit. Query learning (GPK-V0-072)
+// and the co-change slot both skip, because the index already excludes and
+// discloses such a path (nonUTF8PathReason); no existing digest moves, since
+// every repository the skip changes was refused before.
 func parseHistory(raw []byte, objectFormat string, skipNonUTF8 bool) ([]historyEntry, []any, error) {
 	entries := make([]historyEntry, 0, maxHistoryCommits)
 	canonical := make([]any, 0, maxHistoryCommits)

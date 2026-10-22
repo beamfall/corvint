@@ -119,6 +119,7 @@ func replaceDerived(path string, raw []byte) error {
 		return err
 	}
 	_, err = f.Write(raw)
+	noteDerived(path, len(raw))
 	if closeErr := f.Close(); err == nil {
 		err = closeErr
 	}

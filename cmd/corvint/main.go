@@ -1555,7 +1555,33 @@ func readInputBounded(ctx context.Context, stdin io.Reader, limit int64) ([]byte
 	}
 }
 
+// dubiousOwnershipMarker is the text Git prints, before the repository path in
+// single quotes, when it refuses a repository owned by another user.
+const dubiousOwnershipMarker = "detected dubious ownership in repository at '"
+
+// dubiousOwnershipRefusal classifies Git's uncoded dubious-ownership exit as
+// one coded refusal, the same from every verb (GPK-V0-071). Every Git
+// subprocess runs with global and system configuration nulled (GPK-V0-009), so
+// the safe.directory exception Git suggests can never take effect; the message
+// names the repository and the remedies that do work. It returns nil for any
+// other error.
+func dubiousOwnershipRefusal(err error) error {
+	message := err.Error()
+	start := strings.Index(message, dubiousOwnershipMarker)
+	if start < 0 {
+		return nil
+	}
+	repository, _, quoted := strings.Cut(message[start+len(dubiousOwnershipMarker):], "'")
+	if !quoted || repository == "" {
+		return nil
+	}
+	return &gokernel.Error{Code: "repository-ownership-refused", Message: "Git refuses the repository at " + pythonRepr(repository) + " because another user owns it (detected dubious ownership); Corvint runs Git without global or system configuration, so a safe.directory exception cannot take effect: run Corvint as the user who owns the repository, or give the current user ownership of it"}
+}
+
 func emitError(stderr io.Writer, err error) {
+	if refusal := dubiousOwnershipRefusal(err); refusal != nil {
+		err = refusal
+	}
 	code := "internal-error"
 	var kernelError *gokernel.Error
 	if errors.As(err, &kernelError) {

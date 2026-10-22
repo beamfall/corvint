@@ -130,6 +130,29 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   `missing-target-blob` and `corrupt-target-blob`. A promisor repository still refuses without
   fetching (V1-0349, CEM-CB-019).
 
+- `CEM-V1-037`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0301, decision
+  0548) When the native parser (`internal/cem/patch`), and so `cem prepare`, refuses a
+  `Binary files` or `GIT binary patch` marker, it MUST keep the code `binary-patch` and MUST name
+  the repository path, taken from the unquoted symmetric `diff --git a/PATH b/PATH` line, else the
+  `rename to` path, else the new side of an unquoted `Binary files a/OLD and b/NEW differ` marker
+  (the old side when the new side is `/dev/null`). A marker that declares no valid path keeps the
+  earlier generic message. No path is invented and no map is published.
+- `CEM-V1-038`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2018) In the
+  `CEM-V1-286` chain, the ticket MUST require the `cem-verdict` gate, and a `GRANT` recorded for one
+  submitted tree MUST NOT be treated as current once another tree is submitted:
+  - Tasks refuses completion at the superseded seal commit with `STALE_TREE`.
+  - Tasks refuses completion at the new candidate with `GATE_STALE`, and after a failed verdict
+    there with `GATE_FAILED`.
+  - After the sealed tree is restored and resubmitted, completion is still refused with
+    `GATE_STALE` until the gate runs again at that candidate. Its fresh `GRANT` then completes the
+    ticket.
+- `CEM-V1-039`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2018) Runner
+  repairs MUST compose only on one bound source. When two isolated repairs of one draft each have a
+  real passing `corvint-test-runner` receipt over a source that the composed target does not
+  contain, the plain producer with admission MUST refuse each receipt with `runner-receipt-stale`
+  and write no bundle. It MUST admit the one receipt whose plan pins the composed target's inputs
+  and selects both repaired tests. That receipt observes both tests `PASSED`, and the bundle binds
+  the runner's exact bytes.
 - `CEM-V1-368`: The `cem-stable-review/0` projection MUST copy, from the verifier's own `citation`,
   each hunk row's `tier` and `anchors`, and a top-level `citationTiers` with the per-tier counts, the
   hunk count and `samePathCitations` (`NOT_PRODUCED` when the result has no citation). Each evidence
@@ -139,6 +162,53 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   self-only, then `cited` with no anchor, then the rest, map order breaking ties, each row keeping its
   map `ordinal`. The Markdown report renders a `Citation tiers` line and, per row, the tier, the
   anchors (or `none`), `self-only citation`, and `path bytes start-end` (or `bytes NOT_LOCATED`).
+
+- `CEM-V1-369`: (accepted by the owner in chat on 2026-10-21, decision 0551; V1-2327) The structural
+  predicates MUST be qualified once, on the qualified tuple `go1.27.1`, by the structural corpus
+  sealed under `protocol/cem-1.0/structural-corpus/`:
+  - `CORPUS.json` names the corpus: every tracked `.go` file of the Corvint tree at one pinned
+    commit and its `internal/cem/verify/testdata/structural` fixtures, by path-list digest and
+    count, plus the version-sensitive `cases/`. A zero-byte case is declared there and observed as
+    zero bytes instead of committed, because an empty-file creation is not representable
+    (`CEM-V1-300`). It also names the five derived perturbation kinds (`formatter-only`,
+    `import-reorder`, `move`, `rename`, `partial-rename`) and the rule that a `*.crlf.go.txt` case
+    is observed with every LF widened to CRLF.
+  - `CASES.observations.jsonl` holds the portable consumer's observations of `cases/` on
+    `go1.27.1`: per file the source, scanner, parser, printer and formatter digests and format
+    idempotence, and per pair its image segments and the four predicates' verdicts in both
+    directions.
+  - `QUALIFICATION.json` records, per host and toolchain, the observation digest of both sets, the
+    native/portable parity result, the parser-closure digests and what was not run.
+  - `manifest.json` binds every file by SHA-256.
+
+  Qualification holds only when the portable observations of both sets on `go1.27.1` are
+  byte-identical on darwin/arm64 and linux/arm64, and the native verifier reaches the portable
+  verdicts on every recorded pair on each host where it ran. `TestStructuralCorpusCases`
+  (portable) and `TestStructuralCorpusCasesParity` (native) MUST re-check the committed cases on
+  every admitted tuple. A rejected pair is an observation, not a failure; parity and host identity
+  are what qualify. A `go1.24.13` run is recorded as the comparison that a release with another
+  closure is detected; it is not admitted. Windows stays NOT_RUN until a Windows host runs the
+  corpus. Rollback: revert the packet and `CEM-V1-371`; the label returns to
+  `EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS`.
+- `CEM-V1-370`: (accepted by the owner in chat on 2026-10-21, decision 0551; V1-2327) A Go release
+  MAY join `structuralTuples` without a corpus run only when its parser-closure digest
+  (`tools/cem-structural-closure`, profile `cem-structural-parser-closure/1`) equals the qualified
+  tuple's. The closure is the union of `go list -deps` over `go/ast`, `go/format`, `go/parser`,
+  `go/printer`, `go/scanner` and `go/token` for darwin/arm64, linux/amd64, linux/arm64 and
+  windows/amd64, minus the runtime, scheduler, system-call, file-system and GODEBUG packages the
+  tool lists. Their behaviour is outside what the predicates observe, so a difference there is not a
+  qualification input. The digest covers every regular non-test file directly in each remaining
+  package directory. The release's tuple packet MUST record the digest, and
+  `TestRunningToolchainClosure` MUST fail when an admitted toolchain's live closure, or any tuple
+  packet, differs from the qualified digest. A release with any other digest MUST requalify on the
+  full corpus first. Rollback removes the release from both lists and its packet.
+- `CEM-V1-371`: (accepted by the owner in chat on 2026-10-21, decision 0551; V1-2327) Both stable
+  verifiers MUST set `runtime.structuralQualification` to `QUALIFIED_EXACT_TUPLE` on an admitted
+  tuple and keep `UNSUPPORTED` and `NOT_REQUIRED` unchanged. Every `expectedResult.runtime` of the
+  frozen packet and its envelope cells MUST be re-emitted through `make cem-stable-regen-replace`
+  (`CEM-V1-091`), keeping `goVersion` `go1.27.1`. The frozen `cancelledContextExpectedResult`
+  snapshot of the cancel-before-content cell is not a regenerated value and keeps the old label;
+  no consumer reads it. Rollback is a Git revert of the re-emission and the three emission sites.
 
 ## Non-goals and failure modes
 
@@ -157,7 +227,10 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-007, 014..016 | Additive native and portable candidate verification plus the optional `internal/cemcandidate` producer and `cmd/corvint-cem-candidate`; byte-compatible runner envelope extraction; actual same-target assembly and independent `/private/tmp/cem10-build/cem-next/review1.json` PASS | Existing producer/report/OCM/frontier/companion consumer migrations and their compatibility inventory remain open |
 | CEM-V1-008..010 | Optional-profile rollback defined; the 0.x defaults and packets are removed under decision 0525 §6 (`CEM-V1-215..225`) and kept in Git history only | Independent external consumer, matched external outcomes and terminal release/promotion evidence remain open |
 | CEM-V1-051..059 | `lrfrepo.VerifyStableUniverse`, `StableUniverse`, `StableRefusal`, `lrf.ValidateStableRequest`; explicit `cem/1.0` refusals in `VerifyUniverse`, `readOCMBytes`, `PrepareOCM`; tests in the OCM/LRF stable admission traceability table | Stable LRF evaluation needs an accepted stable LRF profile; no CLI or MCP route. The OCM writers bind `cem/1.0` (`CEM-V1-149`, V1-1276) and the 0.x OCM/LRF routes are retired (`CEM-V1-210`, `CEM-V1-215`); C06..C09 and C17 landed under `CEM-V1-120..139`, `CEM-V1-147..150`, `CEM-V1-168` and `CEM-V1-290..299` (`MIGRATION.json`, V1-0595) |
-| CEM-V1-050 | `structuralRuntimeAdmitted` in `internal/cem/verify/stable.go` and `interop/cem01-go/cem.go`; sealed `protocol/cem-1.0/structural-tuples/go1.27.2/`; `TestCEMV1050StructuralTupleAdmission` (native and portable); S0E, linked-control, ledger and cell tests bound through the tuple packet | Linux and Windows hosts, CI-hosted go1.27.2 runs and the full structural corpus remain NOT_RUN |
+| CEM-V1-050 | `structuralRuntimeAdmitted` in `internal/cem/verify/stable.go` and `interop/cem01-go/cem.go`; sealed `protocol/cem-1.0/structural-tuples/go1.27.2/` and `go1.27.3/`; `TestCEMV1050StructuralTupleAdmission` (native and portable); S0E, linked-control, ledger and cell tests bound through the tuple packet | The full structural corpus ran under V1-2327 (`CEM-V1-369`); Windows and linux/amd64 hosts remain NOT_RUN |
+| CEM-V1-369 | `protocol/cem-1.0/structural-corpus/`; `TestStructuralCorpus`, `TestStructuralCorpusCases` (`interop/cem01-go`); `TestStructuralCorpusParity`, `TestStructuralCorpusCasesParity` (`internal/cem/verify`); runs in `docs/build-log/2026-10-21-v1-2327-structural-label-lift.md` | Windows and linux/amd64 hosts NOT_RUN; linux/arm64 ran in a colima VM |
+| CEM-V1-370 | `tools/cem-structural-closure`; `TestClosureDigestBoundary`, `TestExcludedTreesMatchWholeSegments`, `TestRunningToolchainClosure`; closure digests in `structural-corpus/QUALIFICATION.json` and each tuple's `TUPLE.json` | A future release with another closure needs a corpus run |
+| CEM-V1-371 | `internal/cem/verify/stable.go`, `interop/cem01-go/cem.go`, `interop/cem01-go/stable_repository.go`; the `runtime` re-emission in the packet's `CHANGES.md`; `TestReplaceRuntimeKeepsFrozenTuple` (`tools/cem-stable-regen`); S0E and envelope-cell tests on the re-emitted packet | The frozen `cancelledContextExpectedResult` snapshot keeps the old label (no reader) |
 | CEM-V1-080..082 | `internal/cem/verify/support.go`, `interop/cem01-go/citation.go` and `testdata/citation/`; `TestCEMV1080*`, `TestCEMV1081*`, `TestCEMV1082*` in `internal/cem/verify`, `internal/cem/workflow` and `interop/cem01-go`, including `TestCEMV1082MeasureVectorsNative` and `TestCEMV1082MeasureVectorsPortable` over `protocol/cem-1.0/stable/citation-vectors/measures.json` (V1-1331, V1-1335, V1-1332 under decision 0530; mutations in `docs/build-log/2026-10-15-v1-1331-1335-1332-citation-measures.md`) | Recorded limits: `held` never produced, no `symbol` anchors, no threshold or cut-off, stable-result emission is CEM-V1-092; historical 591-map report in the build log, computed before the decision 0530 amendments |
 | CEM-V1-083 | Plain criterion form in `internal/cem/wire/stable.go` and `interop/cem01-go/cem.go`; public case `protocol/cem-1.0/stable/neutral-criterion/`; `TestCEMV1083*` in `internal/cem/wire`, `internal/cem/verify` and `interop/cem01-go` | The plain form is produced by the experimental `cem-stable-plain-assembly/1` request of `corvint-cem-candidate assemble-stable` (`CEM-V1-240`, V1-1290); no default `corvint cem` verb emits it; stranger time NOT_OBSERVED |
 | CEM-V1-240 | `AssemblePlain` in `internal/cemcandidate/plain.go` and the profile dispatch in `cmd/corvint-cem-candidate/stable.go`; `TestCEMV1240*` in `internal/cemcandidate` and `cmd/corvint-cem-candidate`; timed run in `docs/build-log/2026-10-15-cem-plain-criterion-producer.md` | Experimental companion, not promoted; the runner plan and receipt are opaque inputs checked only by SHA-256, so receipt authority and execution at the target stay `NOT_OBSERVED`; one runner receipt per map; stranger time NOT_OBSERVED |
@@ -349,14 +422,17 @@ the stable verifier admits it only on an exact qualified tuple and otherwise ref
   weakened fallback. A tuple admitted after `go1.27.1` MUST carry its own sealed packet under
   `protocol/cem-1.0/structural-tuples/<version>/` that binds the frozen
   `repository-envelope-packet` manifest and result files by SHA-256, records the stdlib source and
-  behavioural byte-identity comparison against its predecessor, and admits exactly one
+  behavioural byte-identity comparison against its predecessor, records the parser-closure digest
+  that admits it (`CEM-V1-370`), and admits exactly one
   substitution: `expectedResult.runtime.goVersion` from the predecessor to the new tuple. The
   frozen packet is never rewritten except by an additive member regeneration or a recorded value
   re-emission of an existing member (`CEM-V1-091`). Tests run the S0E cases, linked control, ledgers and envelope
   cells on an admitted tuple only through that binding and report NOT_RUN otherwise.
-  Qualification stays `EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS`; admitting a tuple does not complete
-  the full corpus. Rollback removes the tuple from both lists and its packet; the frozen packet and
-  `go1.27.1` behaviour are unchanged.
+  On an admitted tuple both verifiers report `runtime.structuralQualification`
+  `QUALIFIED_EXACT_TUPLE` (`CEM-V1-371`), qualified by the structural corpus (`CEM-V1-369`).
+  (Amended by V1-2327 under decision 0551, owner approval of 2026-10-21: the label was
+  `EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS` until the full corpus ran.) Rollback removes the tuple
+  from both lists and its packet; the frozen packet and `go1.27.1` behaviour are unchanged.
 
 ### Additive member regeneration
 
@@ -406,6 +482,10 @@ every frozen S0E expectation, so it cannot land by hand edits to sealed case fil
   entry; without one the re-emission is refused. (Amended by V1-1297 under decision 0535, owner
   delegated to the orchestrator 2026-10-16: re-emitting `code` of the missing-object cells needs
   both, because their other keys equal cases with other codes and no case value changes.)
+  A re-emitted `runtime` member keeps the frozen `goVersion`: a captured `runtime.goVersion` that
+  differs from the frozen value MUST map back through an admitted tuple substitution, and any other
+  value is refused before any write. (Amended by V1-2327 under decision 0551: the capture runs on
+  an admitted tuple, while every substitution starts from the frozen `go1.27.1`.)
   Rollback is a Git revert of the regenerated files and the consumer change.
 
 ## Consumer-computed support tiers (V1-1262, decision 0523 P0)
@@ -4259,3 +4339,65 @@ divergence table in the native envelope test; `CEM-V1-367` then reopens.
 | Requirement | Test | Evidence |
 | --- | --- | --- |
 | CEM-V1-568 | `TestStableCanonicalEnvelopeCellsNative` (`internal/cem/verify`), `TestCanonicalDiffOrdinaryRepositoryMissingBlobIsDiffFailed` (`internal/cem/gitauth`), `TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching` (`cmd/corvint`) | 29/29 exact native cells; ordinary repository `git-diff-failed`, promisor-marked repository `repository-object-unavailable` |
+
+## Binary-content refusal names the path (V1-0301, decision 0548, 2026-10-21)
+
+Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-0301,
+narrowed by decision 0548. `cem/1.0` does not represent binary content, and this section only makes
+that limit name the file that hit it. Mode-only and empty-file changes are already covered
+by `CEM-V1-300`. Representing binary or mode changes in a map (CEM-PILOT-001) moves to a post-1.0
+profile.
+
+The requirement is `CEM-V1-037` in `## Requirements`.
+
+Non-goals: no new refusal code; no wire, result or portable-consumer change (the portable
+`verify-candidate` result already carries only the code); no binary or mode representation.
+
+Failure modes: a quoted or traversing path is not named, so the message stays generic. A patch
+with several binary groups names only the first one the parser reaches.
+
+Acceptance evidence: the tests below pass. Each named-path case fails without the parser change,
+where every marker gave the generic message. Build log
+`docs/build-log/2026-10-21-cem-authority-1021t-binary-path-runner-authority.md`.
+
+Rollback: revert `binaryRefusal` and `binaryMarkerPath` in `internal/cem/patch/patch.go`. The
+refusal code and every stable result are unchanged either way.
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-037 | `TestBinaryRefusalNamesPath` (`internal/cem/patch`), `TestPrepareBinaryRefusalNamesPath` (`internal/cem/workflow`) | Modify, `GIT binary patch`, rename and bare creation/deletion markers name the path; bare and traversing markers keep the generic message; `cem prepare` on real binary creation, modification, deletion and a mixed text+binary commit refuses `binary-patch` naming the path |
+
+## Current versus historical Tasks authority and composed runner repairs (V1-2018, 2026-10-21)
+
+Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-2018.
+V1-0632 left two gaps in the `CEM-V1-286` chain. It did not show that a `GRANT` for a superseded
+tree has no authority, and it did not show how separate runner repairs combine into one admitted
+receipt. This section closes both gaps with fixture tests. It changes no product code, wire member,
+verifier rule or Tasks rule. The tests pin the existing Tasks gate-currency rules (`gateVerdict`,
+`completionBlocker`) and the producer's `CEM-V1-283` stale check in this chain.
+
+The requirements are `CEM-V1-038` and `CEM-V1-039` in `## Requirements`.
+
+Non-goals:
+- no new refusal code;
+- no change to how Tasks stores or reuses gate results;
+- no receipt merging: a composed receipt is a fresh runner execution over the composed source,
+  never a union of earlier receipts;
+- no receipt signing (`FPK-V0-036`).
+
+Failure modes: if Tasks treated a gate result from another tree as current, the historical `GRANT`
+would complete the ticket and `CEM-V1-038` fails. If the producer stopped comparing input digests
+with the target, an isolated repair's receipt would be admitted and `CEM-V1-039` fails.
+
+Acceptance evidence: both tests pass. With the tree comparison in `gateVerdict` disabled, the chain
+test fails because the historical `GRANT` completes the ticket. With the `CEM-V1-283` digest
+comparison disabled, the composition test fails because an isolated repair receipt is admitted.
+Build log `docs/build-log/2026-10-21-cem-authority-1021t-binary-path-runner-authority.md`.
+
+Rollback: revert the `internal/cemchain/chain_test.go` changes and these rows. No product code
+changed.
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-038 | `TestCEMV1286TasksRunnerProducerVerifyChain` (`internal/cemchain`) | Superseded seal `STALE_TREE`, historical `GRANT` `GATE_STALE`, failed verdict `GATE_FAILED`, restored tree `GATE_STALE` until re-gated, then `COMPLETED`; fails with the `gateVerdict` tree check disabled |
+| CEM-V1-039 | `TestCEMV1039RunnerRepairsComposeOnOneBoundSource` (`internal/cemchain`) | Both isolated repair receipts are refused as `runner-receipt-stale` with no bundle; the composed receipt is admitted, observing `TestAdd` and `TestMul` `PASSED`; fails with the input digest comparison disabled |

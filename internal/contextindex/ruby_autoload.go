@@ -111,6 +111,19 @@ type rubyReferenceSite struct {
 	line int
 }
 
+// rubyCut is one reference a bound cut (NGI-V0-040): the file holding it,
+// the candidates it resolved, whether that resolution was complete (the
+// namespace bound did not truncate it), and whether every site was recorded
+// (the site bound did not stop it).
+type rubyCut struct {
+	path      string
+	source    *rubyConstantSource
+	reference rubyReference
+	resolved  []string
+	complete  bool
+	indexed   bool
+}
+
 type rubyAutoload struct {
 	mapper  *rubyautoload.Mapper
 	sources map[string]*rubyConstantSource
@@ -122,6 +135,9 @@ type rubyAutoload struct {
 	// retained counts the sites in sites; bounded counts the references
 	// whose resolutions or sites a bound cut (NGI-V0-040).
 	retained, bounded int
+	// cuts holds each reference counted in bounded, so a changed path's
+	// unknown counts only the cuts that could name its constants (NGI-V0-064).
+	cuts []rubyCut
 	// lookups counts referrers calls, so a test can observe that each
 	// constant is traversed once.
 	lookups int
@@ -157,8 +173,9 @@ func loadRubyAutoload(index *Index) *rubyAutoload {
 			resolved, complete := autoload.resolutions(source, reference)
 			// A file nested past the nesting bound opened namespaces that were
 			// never tracked, so no fallback is complete for it (TSA-V0-461).
-			if !autoload.indexSites(name, reference.line, resolved) || !complete || source.overflowed {
+			if indexed := autoload.indexSites(name, reference.line, resolved); !indexed || !complete || source.overflowed {
 				autoload.bounded++
+				autoload.cuts = append(autoload.cuts, rubyCut{name, source, reference, resolved, complete, indexed})
 			}
 		}
 	}
@@ -659,10 +676,60 @@ func (autoload *rubyAutoload) impact(index *Index, changedPath string) ([]ranked
 	if unreadable != 0 {
 		unknowns = append(unknowns, row("ruby-constant-source-unavailable", unreadable))
 	}
-	if autoload.bounded != 0 {
-		unknowns = append(unknowns, row("ruby-reference-index-bounded", autoload.bounded))
+	if bounded := autoload.cutReferences(changedPath, traversed); bounded != 0 {
+		unknowns = append(unknowns, row("ruby-reference-index-bounded", bounded))
 	}
 	return ranked, unknowns
+}
+
+// cutReferences counts the cut references outside changedPath that could
+// name one of the traversed constants, so the bounded unknown appears only on
+// a changed path whose referrers a bound may have hidden (NGI-V0-064).
+func (autoload *rubyAutoload) cutReferences(changedPath string, traversed map[string]bool) int {
+	count := 0
+	for _, cut := range autoload.cuts {
+		if cut.path == changedPath {
+			continue
+		}
+		for constant := range traversed {
+			if autoload.cutNames(cut, constant) {
+				count++
+				break
+			}
+		}
+	}
+	return count
+}
+
+// cutNames reports whether a cut reference could name constant: a candidate
+// whose sites the site bound left unrecorded names it or a namespace below it;
+// a non-rooted reference in a file nested past the nesting bound could name
+// anything, since its namespaces are unknown; and a candidate past the
+// namespace bound, which resolutions never formed, names it.
+func (autoload *rubyAutoload) cutNames(cut rubyCut, constant string) bool {
+	if !cut.indexed {
+		for _, candidate := range cut.resolved {
+			if rubyNamesConstant(candidate, constant) {
+				return true
+			}
+		}
+	}
+	if cut.reference.rooted {
+		return false
+	}
+	if cut.source.overflowed {
+		return true
+	}
+	if !cut.complete {
+		first, _, _ := strings.Cut(cut.reference.name, "::")
+		namespaces := cut.source.namespaces[min(rubyResolutionBound.limit, len(cut.source.namespaces)):]
+		for _, namespace := range namespaces {
+			if autoload.mapper.Known(namespace+"::"+first) && rubyNamesConstant(namespace+"::"+cut.reference.name, constant) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // referrers returns the paths, outside skip, with a reference naming
@@ -761,6 +828,25 @@ func isRubyTestPath(value string) bool {
 	name := strings.ToLower(path.Base(value))
 	return isTestPath(value) || (strings.HasSuffix(name, ".rb") &&
 		(strings.HasSuffix(name, "_spec.rb") || strings.Contains("/"+strings.ToLower(value)+"/", "/spec/")))
+}
+
+// withRubyTests returns a view of index whose rows classify paths with the
+// Ruby reading's test-path rule, so an RSpec path is a test in every row of a
+// request naming a Ruby path, not only in the autoload rows (NGI-V0-063). The
+// view is a shallow copy; a request naming no Ruby path never takes it, so its
+// bytes stay the base's.
+func (index *Index) withRubyTests() *Index {
+	view := *index
+	view.rubyTests = true
+	return &view
+}
+
+// isTest is the test-path rule of the request this index view serves.
+func (index *Index) isTest(value string) bool {
+	if index.rubyTests {
+		return isRubyTestPath(value)
+	}
+	return isTestPath(value)
 }
 
 // rubyImpactRequested reports a request naming a Ruby path (NGI-V0-033).

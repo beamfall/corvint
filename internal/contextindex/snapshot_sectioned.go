@@ -166,16 +166,16 @@ func sectionWriters(index *Index, metas []sourceMeta) []sectionWriter {
 		gobSection(sectionSources, metas),
 		bodies,
 		gobSection(sectionExclusions, index.Exclusions),
-		gobSection(sectionFeatures, index.Features),
-		gobSection(sectionScenarios, index.Scenarios),
-		gobSection(sectionDocuments, index.Documents),
-		gobSection(sectionMarkers, index.Markers),
+		gobSection(sectionFeatures, wireRecords(index.Features)),
+		gobSection(sectionScenarios, wireRecords(index.Scenarios)),
+		gobSection(sectionDocuments, wireRecords(index.Documents)),
+		gobSection(sectionMarkers, pairsOf(index.Markers, same[[]Marker])),
 		gobSection(sectionSymbols, index.Symbols),
-		gobSection(sectionImports, index.Imports),
+		gobSection(sectionImports, wireImports(index.Imports)),
 		gobSection(sectionUnparsed, index.Unparsed),
 		gobSection(sectionNotes, index.ExtractionNotes),
-		gobSection(sectionTracked, index.Tracked),
-		gobSection(sectionSkipped, index.Skipped),
+		gobSection(sectionTracked, wireSetOf(index.Tracked)),
+		gobSection(sectionSkipped, wireSetOf(index.Skipped)),
 		gobSection(sectionVocabulary, index.Vocabulary),
 	}
 }
@@ -436,6 +436,16 @@ func (f *sectionedFile) section(header sectionedHeader, name string) ([]byte, er
 	return content, nil
 }
 
+// decodeWireSection decodes a key-sorted pairs section and rebuilds its map.
+func decodeWireSection[W, V any](f *sectionedFile, header sectionedHeader, name string, rebuild func(W) (V, error)) (V, error) {
+	wire, err := decodeGobSection[W](f, header, name)
+	if err != nil {
+		var zero V
+		return zero, err
+	}
+	return rebuild(wire)
+}
+
 func decodeGobSection[T any](f *sectionedFile, header sectionedHeader, name string) (T, error) {
 	var wrapper struct{ V T }
 	content, err := f.section(header, name)
@@ -571,25 +581,25 @@ func decodeSectionInto(file *sectionedFile, header sectionedHeader, name string,
 	case sectionExclusions:
 		index.Exclusions, err = decodeGobSection[[]Exclusion](file, header, name)
 	case sectionFeatures:
-		index.Features, err = decodeGobSection[map[string]Record](file, header, name)
+		index.Features, err = decodeWireSection(file, header, name, recordsOf)
 	case sectionScenarios:
-		index.Scenarios, err = decodeGobSection[map[string]Record](file, header, name)
+		index.Scenarios, err = decodeWireSection(file, header, name, recordsOf)
 	case sectionDocuments:
-		index.Documents, err = decodeGobSection[map[string]Record](file, header, name)
+		index.Documents, err = decodeWireSection(file, header, name, recordsOf)
 	case sectionMarkers:
-		index.Markers, err = decodeGobSection[map[string][]Marker](file, header, name)
+		index.Markers, err = decodeWireSection(file, header, name, markersOf)
 	case sectionSymbols:
 		index.Symbols, err = decodeGobSection[[]Symbol](file, header, name)
 	case sectionImports:
-		index.Imports, err = decodeGobSection[map[string]map[string]struct{}](file, header, name)
+		index.Imports, err = decodeWireSection(file, header, name, importsOf)
 	case sectionUnparsed:
 		index.Unparsed, err = decodeGobSection[[]Unparsed](file, header, name)
 	case sectionNotes:
 		index.ExtractionNotes, err = decodeGobSection[[]ExtractionNote](file, header, name)
 	case sectionTracked:
-		index.Tracked, err = decodeGobSection[map[string]struct{}](file, header, name)
+		index.Tracked, err = decodeWireSection(file, header, name, wireSet.set)
 	case sectionSkipped:
-		index.Skipped, err = decodeGobSection[map[string]struct{}](file, header, name)
+		index.Skipped, err = decodeWireSection(file, header, name, wireSet.set)
 	case sectionVocabulary:
 		index.Vocabulary, err = decodeGobSection[*TermTable](file, header, name)
 		if err == nil {
