@@ -3777,6 +3777,7 @@ PWP-V1-005	docs/specs/playwright-external-provider-v0.md	The provider runs befor
 PWP-V1-006	docs/specs/playwright-external-provider-v0.md	`/1` binds one clean test repository by root commit, revision and tree before Pl	unrecorded	-
 PWP-V1-007	docs/specs/playwright-external-provider-v0.md	Corvint supplies only canonical configuration bytes on provider stdin and owns o	unrecorded	-
 PWP-V1-008	docs/specs/playwright-external-provider-v0.md	Qualification includes a deterministic, locally owned Docker Compose fixture and	unrecorded	-
+PWP-V1-009	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-0679)) The supp	standing	2026-10-11; V1-0679
 PWP-V2-001	docs/specs/playwright-external-provider-v0.md	`/2` is selected explicitly by `--sensitive-input-redaction`. It retains bounded	unrecorded	-
 PWP-V2-002	docs/specs/playwright-external-provider-v0.md	Before reporter serialization, input actions matching the fixed defaults `fill`,	unrecorded	-
 PWP-V2-003	docs/specs/playwright-external-provider-v0.md	Redaction recurses through nested steps and retry attempts. Any sensitive action	unrecorded	-
