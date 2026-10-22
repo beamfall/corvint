@@ -26,17 +26,23 @@ func (r *readySignal) Write(value []byte) (int, error) {
 	return len(value), nil
 }
 
+// trapReadyBound is a hang detector for the shell's readiness line, not a
+// performance budget (decision 0082).
+const trapReadyBound = 30 * time.Second
+
 // trapSpec runs a shell loop whose traps record which stop signal reached it.
-// The shell prints once its traps are installed, and AfterStart, which Run
-// calls before it arms the run timer, waits for that line, so the timeout
-// never fires at a shell that has not installed its traps yet. TerminateGrace
-// gives the TERM trap's fork and exec far longer than the 100 ms default
-// before SIGKILL, so a loaded host cannot turn a SIGTERM stop into a SIGKILL
-// one (V1-2446, as V1-2319 for TestTerminateGraceLetsSlowTermHandlerFinish).
-func trapSpec(t *testing.T, directory, traps string) Spec {
+// The shell prints once its traps are installed, and the beforeTimer hook,
+// which run calls before it arms the run timer and outside AfterStart's
+// one-second allowance, waits for that line, so the timeout never fires at a
+// shell that has not installed its traps yet. TerminateGrace gives the TERM
+// trap's fork and exec far longer than the 100 ms default before SIGKILL, so
+// a loaded host cannot turn a SIGTERM stop into a SIGKILL one (V1-2446, as
+// V1-2319 for TestTerminateGraceLetsSlowTermHandlerFinish). Pass both results
+// to run.
+func trapSpec(t *testing.T, directory, traps string) (Spec, processWaitChannels) {
 	t.Helper()
 	signal := &readySignal{ready: make(chan struct{})}
-	return Spec{
+	spec := Spec{
 		Argv:            []string{"/bin/sh", "-c", traps + "; echo ready; while :; do /bin/sleep 0.05; done"},
 		Dir:             directory,
 		Env:             []string{"PATH=/usr/bin:/bin", "MARK=" + filepath.Join(directory, "mark")},
@@ -44,15 +50,17 @@ func trapSpec(t *testing.T, directory, traps string) Spec {
 		ShutdownTimeout: 20 * time.Second,
 		TerminateGrace:  10 * time.Second,
 		StdoutTee:       signal,
-		AfterStart: func(ctx context.Context, _ int) error {
-			select {
-			case <-signal.ready:
-				return nil
-			case <-ctx.Done():
-				return errors.New("shell did not report its traps installed")
-			}
-		},
 	}
+	return spec, processWaitChannels{beforeTimer: func() {
+		timer := time.NewTimer(trapReadyBound)
+		defer timer.Stop()
+		select {
+		case <-signal.ready:
+		case <-timer.C:
+			// Run still times out and stops the shell; the test then fails.
+			t.Errorf("shell did not report its traps installed within %s", trapReadyBound)
+		}
+	}}
 }
 
 func markExists(directory string) bool {
@@ -63,8 +71,8 @@ func markExists(directory string) bool {
 // PWP-V0-030: without InterruptGrace the stop stays SIGTERM-first.
 func TestPWPV0030ZeroInterruptGraceKeepsTerminateFirstStop(t *testing.T) {
 	directory := t.TempDir()
-	spec := trapSpec(t, directory, `trap '/usr/bin/touch "$MARK"; exit 130' INT`)
-	result := Run(context.Background(), spec)
+	spec, channels := trapSpec(t, directory, `trap '/usr/bin/touch "$MARK"; exit 130' INT`)
+	result := run(context.Background(), spec, channels)
 	if !result.TimedOut || markExists(directory) {
 		t.Fatalf("default stop sent SIGINT or did not time out: %+v", result)
 	}
@@ -77,10 +85,10 @@ func TestPWPV0030ZeroInterruptGraceKeepsTerminateFirstStop(t *testing.T) {
 // that exits on it ends the stop there and records SIGINT.
 func TestPWPV0030InterruptFirstStopLetsRunnerExitOnSIGINT(t *testing.T) {
 	directory := t.TempDir()
-	spec := trapSpec(t, directory, `trap '/usr/bin/touch "$MARK"; exit 130' INT; trap 'exit 143' TERM`)
+	spec, channels := trapSpec(t, directory, `trap '/usr/bin/touch "$MARK"; exit 130' INT; trap 'exit 143' TERM`)
 	spec.InterruptGrace = 5 * time.Second
 	started := time.Now()
-	result := Run(context.Background(), spec)
+	result := run(context.Background(), spec, channels)
 	if !result.TimedOut || !markExists(directory) {
 		t.Fatalf("SIGINT did not reach the runner: %+v", result)
 	}
@@ -95,9 +103,9 @@ func TestPWPV0030InterruptFirstStopLetsRunnerExitOnSIGINT(t *testing.T) {
 // PWP-V0-030: a runner that ignores SIGINT gets SIGTERM after the grace.
 func TestPWPV0030InterruptGraceEscalatesToSIGTERM(t *testing.T) {
 	directory := t.TempDir()
-	spec := trapSpec(t, directory, `trap '' INT; trap '/usr/bin/touch "$MARK"; exit 143' TERM`)
+	spec, channels := trapSpec(t, directory, `trap '' INT; trap '/usr/bin/touch "$MARK"; exit 143' TERM`)
 	spec.InterruptGrace = 300 * time.Millisecond
-	result := Run(context.Background(), spec)
+	result := run(context.Background(), spec, channels)
 	if !result.TimedOut || !markExists(directory) || result.StopSignal != "SIGTERM" || result.ExitStatus != 143 {
 		t.Fatalf("escalation record = %q exit %d: %+v", result.StopSignal, result.ExitStatus, result)
 	}
