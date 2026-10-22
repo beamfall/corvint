@@ -164,7 +164,12 @@ func guidanceError(err error) error {
 func runGuidance(ctx context.Context, in guidanceInvocation, stdout, stderr io.Writer) int {
 	raw, err := compileGuidance(ctx, in, nil)
 	if err != nil {
-		emitError(stderr, guidanceError(err))
+		if refusal := repositoryOwnershipRefusal(ctx, in.Root); refusal != nil {
+			err = refusal
+		} else {
+			err = guidanceError(err)
+		}
+		emitError(stderr, err)
 		return 2
 	}
 	if _, err = stdout.Write(append(raw, '\n')); err != nil {

@@ -178,7 +178,9 @@ func TestWorkActualProducerInterruptedScratchCleanup(t *testing.T) {
 		t.Fatalf("interruption witness disappeared before observer cleanup in all %d observed attempts", observedAttempts)
 	}
 	runRoot := run.root
-	run.Close()
+	if err := run.Close(); err != nil {
+		t.Fatal(err)
+	}
 	for _, witness := range witnesses {
 		if _, err := os.Stat(witness); !os.IsNotExist(err) {
 			t.Fatalf("killed producer acquisition scratch remains: %s", witness)
@@ -256,4 +258,145 @@ func workInterruptActualProducer(t *testing.T, ctx context.Context, run *workMat
 		t.Fatal(err)
 	}
 	return observed, witnesses
+}
+
+// TestWorkGitGroupProducerHelper is the producer TestWorkCloseRetiresKilledProducerGit
+// kills: it acquires source in the run's scratch and blocks in a fixture Git read.
+func TestWorkGitGroupProducerHelper(t *testing.T) {
+	target := os.Getenv("CORVINT_WORK_TEST_GIT_PRODUCER_TARGET")
+	if target == "" {
+		t.Skip("producer helper")
+	}
+	source, err := worksource.AcquireWithScratch(context.Background(), target, os.Getenv("CORVINT_WORK_TEST_GIT_PRODUCER_SCRATCH"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source.GitPath = os.Getenv("CORVINT_WORK_TEST_GIT_PRODUCER_FIXTURE")
+	_, _ = source.Git(context.Background(), 100, "cat-file")
+}
+
+// WQO-V0-052 (V1-2291, decision 0552): a producer SIGKILLed during a Git read
+// leaves that Git group running in its acquisition scratch; run.Close retires
+// it, so no Git child outlives Close, and then removes the run root.
+func TestWorkCloseRetiresKilledProducerGit(t *testing.T) {
+	caller := materializationFixture(t)
+	source, err := worksource.Acquire(context.Background(), caller)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer source.Close()
+	run, err := newWorkMaterialization(context.Background(), source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer run.Close()
+	fixtures := t.TempDir()
+	pidPath := filepath.Join(fixtures, "pids")
+	fixture := filepath.Join(fixtures, "git-fixture")
+	if err := os.WriteFile(fixture, []byte("#!/bin/sh\nsleep 600 &\nprintf '%s %s\\n' \"$$\" \"$!\" > "+pidPath+".tmp\nmv "+pidPath+".tmp "+pidPath+"\nwait\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	producer := exec.Command(os.Args[0], "-test.run=^TestWorkGitGroupProducerHelper$", "-test.count=1")
+	producer.Env = append(os.Environ(), "CORVINT_WORK_TEST_GIT_PRODUCER_TARGET="+run.target, "CORVINT_WORK_TEST_GIT_PRODUCER_SCRATCH="+run.tmp, "CORVINT_WORK_TEST_GIT_PRODUCER_FIXTURE="+fixture)
+	workContain(producer)
+	if err := producer.Start(); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() { _ = producer.Wait(); close(done) }()
+	var pids []int
+	t.Cleanup(func() {
+		workKillGroup(producer)
+		<-done
+		for _, pid := range pids {
+			_ = syscall.Kill(pid, syscall.SIGKILL)
+		}
+	})
+	// Readiness ends on the marker or producer exit; the deadline is a hang detector.
+	deadline := time.Now().Add(5 * time.Minute)
+	for pids == nil {
+		if raw, err := os.ReadFile(pidPath); err == nil {
+			for _, field := range strings.Fields(string(raw)) {
+				pid, err := strconv.Atoi(field)
+				if err != nil || pid <= 1 {
+					t.Fatalf("fixture pids %q", raw)
+				}
+				pids = append(pids, pid)
+			}
+			break
+		}
+		select {
+		case <-done:
+			t.Fatal("producer exited before its Git fixture was ready")
+		default:
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("Git fixture readiness exceeded the hang bound")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	workKillGroup(producer)
+	<-done
+	for _, pid := range pids {
+		if err := syscall.Kill(pid, 0); err != nil {
+			t.Fatalf("Git process %d did not survive the producer kill: %v", pid, err)
+		}
+	}
+	runRoot := run.root
+	if err := run.Close(); err != nil {
+		t.Fatal(err)
+	}
+	// Close returned only after every recorded holder exited; the orphaned
+	// zombies are reaped by the system, bounded by a hang detector.
+	deadline = time.Now().Add(time.Minute)
+	for _, pid := range pids {
+		for syscall.Kill(pid, 0) == nil {
+			if time.Now().After(deadline) {
+				t.Fatalf("Git process %d outlived run.Close", pid)
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+	if _, err := os.Stat(runRoot); !os.IsNotExist(err) {
+		t.Fatal("run root remains after retirement")
+	}
+}
+
+// WQO-V0-052: when retirement is not confirmed, Close keeps the run root and
+// its records and returns the error instead of removing scratch under a live run.
+func TestWorkCloseKeepsScratchWhenRetirementIsUnconfirmed(t *testing.T) {
+	caller := materializationFixture(t)
+	source, err := worksource.Acquire(context.Background(), caller)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer source.Close()
+	run, err := newWorkMaterialization(context.Background(), source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(run.root)
+	bound := workGitRetirementBound
+	workGitRetirementBound = 100 * time.Millisecond
+	defer func() { workGitRetirementBound = bound }()
+	directory := filepath.Join(run.tmp, "corvint-work-source-held", "git-groups")
+	if err := os.MkdirAll(directory, 0700); err != nil {
+		t.Fatal(err)
+	}
+	// This test holds the record's lock, standing in for a Git run that never exits.
+	record := filepath.Join(directory, "group-"+strings.Repeat("cd", 16))
+	holder, err := os.OpenFile(record, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer holder.Close()
+	if err := syscall.Flock(int(holder.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		t.Fatal(err)
+	}
+	if err := run.Close(); err == nil || !strings.Contains(err.Error(), run.root) {
+		t.Fatalf("unconfirmed retirement: %v", err)
+	}
+	if _, err := os.Stat(record); err != nil {
+		t.Fatalf("run scratch removed under a live record: %v", err)
+	}
 }

@@ -194,6 +194,7 @@ type snapshotWire struct {
 	Features, Scenarios, Documents                            wirePairs[wireRecord]
 	Markers                                                   wirePairs[[]Marker]
 	Symbols                                                   []Symbol
+	Fields                                                    []Symbol
 	Imports                                                   wirePairs[[]string]
 	Unparsed                                                  []Unparsed
 	ApproximateImports                                        int
@@ -209,7 +210,7 @@ func snapshotWireOf(index *Index) *snapshotWire {
 		Tracked: wireSetOf(index.Tracked), Skipped: wireSetOf(index.Skipped),
 		Exclusions: index.Exclusions, UnsupportedSuffixCount: index.UnsupportedSuffixCount,
 		Features: wireRecords(index.Features), Scenarios: wireRecords(index.Scenarios), Documents: wireRecords(index.Documents),
-		Markers: pairsOf(index.Markers, same[[]Marker]), Symbols: index.Symbols, Imports: wireImports(index.Imports),
+		Markers: pairsOf(index.Markers, same[[]Marker]), Symbols: index.Symbols, Fields: index.Fields, Imports: wireImports(index.Imports),
 		Unparsed: index.Unparsed, ApproximateImports: index.ApproximateImports,
 		ExtractionNotes: index.ExtractionNotes, Vocabulary: index.Vocabulary,
 	}
@@ -221,7 +222,7 @@ func (wire *snapshotWire) index() (*Index, error) {
 		ProfileID: wire.ProfileID, Module: wire.Module, Sources: wire.Sources,
 		Exclusions: wire.Exclusions, UnsupportedSuffixCount: wire.UnsupportedSuffixCount,
 		Features: wire.Features, Scenarios: wire.Scenarios, Documents: wire.Documents,
-		Markers: wire.Markers, Symbols: wire.Symbols, Imports: wire.Imports,
+		Markers: wire.Markers, Symbols: wire.Symbols, Fields: wire.Fields, Imports: wire.Imports,
 		Unparsed: wire.Unparsed, ApproximateImports: wire.ApproximateImports, ExtractionNotes: wire.ExtractionNotes,
 	}
 	index, err := event.index()
@@ -246,7 +247,7 @@ func (wire *snapshotWire) index() (*Index, error) {
 func warmGobTypes() {
 	sample := &Index{
 		Sources: map[string]Source{"": {}}, Tracked: map[string]struct{}{"": {}}, Skipped: map[string]struct{}{},
-		Exclusions: []Exclusion{{}}, Markers: map[string][]Marker{"": {{}}}, Symbols: []Symbol{{}},
+		Exclusions: []Exclusion{{}}, Markers: map[string][]Marker{"": {{}}}, Symbols: []Symbol{{}}, Fields: []Symbol{{}},
 		Imports: map[string]map[string]struct{}{"": {"": {}}}, Unparsed: []Unparsed{{}}, ExtractionNotes: []ExtractionNote{{}},
 		Features: map[string]Record{"": {Fields: map[string]any{
 			"a": "", "b": []any{"", true, nil}, "c": []string{""}, "d": true, "e": map[string]any{"": ""},

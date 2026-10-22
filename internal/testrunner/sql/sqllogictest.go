@@ -66,6 +66,14 @@ func parseSQLite(in tr.Input, o *tr.Observation) error {
 			break
 		}
 	}
+	// "<file>:<line>: statement error" is printed both for a "statement ok"
+	// record the engine rejected and for a "statement error" record it
+	// accepted; the streams cannot tell which, so no verdict is kept
+	// (TRE-V0-119).
+	statement := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(in.SourceFile) + `:[1-9][0-9]*: statement error$`)
+	if line := statement.Find(in.Stderr); line != nil {
+		problem(o, "SQL_STATEMENT_UNRESOLVED", string(line))
+	}
 	if executed+skipped == 0 {
 		problem(o, "NO_TESTS", "native summary reports no executed or skipped SQL records")
 		return nil

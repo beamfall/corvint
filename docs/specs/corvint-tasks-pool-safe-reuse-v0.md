@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); PSR-V0-201 accepted (standing auto-accept 2026-10-11; V1-1008)
+Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-202 accepted (standing auto-accept 2026-10-11; V1-2361); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); PSR-V0-201 accepted (standing auto-accept 2026-10-11; V1-1008)
 Delivery status: experimental
 Authoritative inputs: https://github.com/beamfall/corvint/issues/498; CAL-V0-028..034 in corvint-tasks-agent-leases-v0.md; independent Gate A packet-r2/GATE-A.md PASS with no HIGH, MED findings incorporated before implementation.
 Native ticket: V1-0695, original creation receipt2436.
 
 ## Agent digest
 - Claim: Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.
-- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); PSR-V0-201 accepted (standing auto-accept 2026-10-11; V1-1008); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
+- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-202 accepted (standing auto-accept 2026-10-11; V1-2361); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); PSR-V0-201 accepted (standing auto-accept 2026-10-11; V1-1008); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
 - Exists: Foreground sweep, optional dispatcher integration and focused fixtures are implemented in source. Earlier source-bound repair evidence is retained separately from current integrated qualification.
 - Blocked on: Current integrated native binary, mandatory selected tests, exact-target review, terminal evidence, hosted integration and native completion. Linux runtime and physical external cleanup remain unqualified.
 - Read next: Requirements; Acceptance evidence; Non-goals and simpler baseline; Compatibility and rollback.
@@ -847,6 +847,25 @@ as before. This change delivers that subset; the residuals below stay open under
   before its first run; a replay still returns its own receipt through PSR-V0-164's read of the
   observation transaction's posted pools.json. Readers keep accepting the earlier 1,280-receipt
   bound, so an older pools.json stays readable and its next operation write trims it.
+- `PSR-V0-202`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2361) A fresh
+  `pool recover` reason, the only operator text a pools.json entry reason carries, MUST be 1..224
+  bytes of prose; a longer one is refused `LIMIT_EXCEEDED` when the recover is planned, before
+  anything is written. The bound is a fresh-admission check only: the lease request digest keeps
+  the 4,096-byte prose bound shared with `pool confirm-safe`, so a recover recorded earlier with a
+  longer reason still digests and replays its recorded outcome under its original request ID.
+  The cap is derived from the worst case it covers: 256 entries, each with a maximum-length
+  `configRef`, a source pair and maximum-length identifiers, one of them a CLEANING retarget;
+  256 REPORTED identities with a source; and 512 operation receipts encode to 907,069 bytes with
+  every reason empty. Each entry may then add the 68-byte fixed prefix plus the reason, which JSON
+  escaping at most doubles (prose admits `"`, `\`, TAB, LF and CR, each escaped to two bytes),
+  allowing at most 242 bytes; 224 keeps a margin for 20-digit sequences. At the cap, with every
+  reason all-escaping, that state measures 1,038,649 bytes and the recovery still writes. Limit:
+  the derivation assumes identifiers that need no JSON escape, one running entry, no sweep owner,
+  and empty `slots` and `waiters`. Identifiers made of escaping characters, sweep owners on
+  every entry, or a large slot or waiter list can still exceed 1 MiB with every reason empty, and
+  such a write stays refused `LIMIT_EXCEEDED` (a residual a reason bound cannot remove). Readers
+  keep accepting the earlier 4,096-byte entry reason so an older pools.json stays readable.
+  Rollback: drop the planning check; recorded reasons are not rewritten.
 
 Failure modes:
 - A runner that dies after the pending entry commits leaves the member PREPARING or CLEANING until
@@ -854,8 +873,9 @@ Failure modes:
 - A failed `provision` or `refresh` from FREE quarantines the member; recovery is the existing
   cleanup and confirm-safe, or a `reset`, `retarget` or `refresh` from QUARANTINED followed by them.
 - pools.json stays bounded at 1 MiB: operation receipts are retained newest-first up to 512
-  (PSR-V0-196), so receipts alone cannot fill it; a write still past the bound, for example from
-  entry reasons, is refused `LIMIT_EXCEEDED` rather than truncated.
+  (PSR-V0-196) and fresh recover reasons to 224 bytes (PSR-V0-202), so neither receipts nor
+  entry reasons can fill it within PSR-V0-202's derivation; a write still past the bound is
+  refused `LIMIT_EXCEEDED` rather than truncated.
 - On a non-Unix host the runner reports `UNKNOWN`, which quarantines.
 
 Non-goals: no operation by the holder of an ALLOCATED allocation, no automatic return to FREE
@@ -1105,6 +1125,7 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-166 | `TestPSRV0166_TimeoutKillsGroupOutputBounded` (`internal/tasks/store`) |
 | PSR-V0-167 | `TestPSRV0162_OperationCodec` (`internal/tasks/snapshot`); `TestPSRV0162_PoolOperateCLIAndStatus` (`internal/tasks/cli`) |
 | PSR-V0-196 | `TestPSRV0196_FullSizePoolReceiptsStayBounded` (`internal/tasks/transaction`) |
+| PSR-V0-202 | `TestPSRV0202_WorstCasePoolsStayBoundedAtReasonCap`, `TestPSRV0202_OverlongFreshRecoverRefusedTyped`, `TestPSRV0202_RecordedLongRecoverReasonReplays` (`internal/tasks/transaction`) |
 
 ## Traceability (PSR-V0-185)
 

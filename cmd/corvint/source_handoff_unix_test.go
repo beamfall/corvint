@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -16,12 +17,17 @@ import (
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
-// sourceGitScript writes an executable stand-in for /usr/bin/git.
+// sourceGitScript writes an executable stand-in for /usr/bin/git. A child
+// process writes it, so this test process never holds a write descriptor a
+// concurrent fork could inherit, which on Linux makes exec of the stand-in
+// fail "text file busy" before any Git step runs (V1-2433).
 func sourceGitScript(t *testing.T, body string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "git")
-	if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body), 0700); err != nil {
-		t.Fatal(err)
+	write := exec.Command("/bin/sh", "-c", `umask 077 && /bin/cat > "$1" && /bin/chmod 700 "$1"`, "sh", path)
+	write.Stdin = strings.NewReader("#!/bin/sh\n" + body)
+	if output, err := write.CombinedOutput(); err != nil {
+		t.Fatalf("write git stand-in: %v %s", err, output)
 	}
 	return path
 }
@@ -234,8 +240,11 @@ exec /usr/bin/git "$@"
 // ESV-V0-013: when the sequence bound expires partway through `context
 // --expand`, every Git step refuses as deadline-exceeded instead of the
 // validation code its failed read would otherwise imply (V1-1412). Each case
-// stalls exactly one step past a one-second bound. Before the fix 13 of the 14
-// cases answered repository-root, invalid-handle, missing-handle or git-failed.
+// stalls exactly one step, and the bound expires only once that step's Git
+// stand-in reports it has stalled, so host load cannot move the expiry to an
+// earlier step (V1-2433). The one-minute bound is a hang detector, not the
+// expiry under test (decision 0082). Before the V1-1412 fix 13 of the 14 cases
+// answered repository-root, invalid-handle, missing-handle or git-failed.
 func TestContextExpandDeadlineExpiryRefusesAsDeadlineExceeded(t *testing.T) {
 	t.Parallel()
 	root, _, _ := sourceViewRepository(t)
@@ -251,24 +260,88 @@ func TestContextExpandDeadlineExpiryRefusesAsDeadlineExceeded(t *testing.T) {
 		{"recheck", "recheck"},
 	} {
 		for _, rangeText := range []string{"all", "1-999999999"} {
-			marker := filepath.Join(t.TempDir(), "seen")
-			body := `case " $* " in ` + step.pattern + `) exec /bin/sleep 30;; esac
+			fixture := t.TempDir()
+			marker, stalled := filepath.Join(fixture, "seen"), filepath.Join(fixture, "stalled")
+			stall := `: > '` + stalled + `'; exec /bin/sleep 30`
+			body := `case " $* " in ` + step.pattern + `) ` + stall + `;; esac
 exec /usr/bin/git "$@"
 `
 			if step.pattern == "recheck" {
-				body = `case " $* " in *" HEAD^{tree} "*) if [ -e '` + marker + `' ]; then exec /bin/sleep 30; fi; : > '` + marker + `';; esac
+				body = `case " $* " in *" HEAD^{tree} "*) if [ -e '` + marker + `' ]; then ` + stall + `; fi; : > '` + marker + `';; esac
 exec /usr/bin/git "$@"
 `
 			}
-			ctx := context.WithValue(context.WithValue(context.Background(), sourceGitExecutableKey{}, sourceGitScript(t, body)), sourceDeadlineKey{}, time.Second)
+			parent, expire := workFinalInterruption("deadline")
+			ctx := context.WithValue(context.WithValue(parent, sourceGitExecutableKey{}, sourceGitScript(t, body)), sourceDeadlineKey{}, time.Minute)
+			watcherDone, watcher := make(chan struct{}), make(chan struct{})
+			go func() {
+				defer close(watcher)
+				sourceExpireWhenStalled(stalled, expire, watcherDone)
+			}()
 			_, err := expandContextHandle(ctx, root, "cv1:"+tree+":"+blob+":"+rangeText+":spec.md", 1<<20)
-			want := "deadline-exceeded"
+			close(watcherDone)
+			<-watcher
+			want, wantStalled := "deadline-exceeded", true
 			if step.name == "recheck" && rangeText != "all" {
-				want = "invalid-handle" // the range refuses before the stalled recheck runs
+				// The range refuses before the stalled recheck runs.
+				want, wantStalled = "invalid-handle", false
 			}
 			var failure *gokernel.Error
 			if !errors.As(err, &failure) || failure.Code != want {
 				t.Errorf("%s %s: %v, want %s", step.name, rangeText, err, want)
+			}
+			if _, statErr := os.Stat(stalled); (statErr == nil) != wantStalled {
+				t.Errorf("%s %s: stalled step reached = %t, want %t", step.name, rangeText, statErr == nil, wantStalled)
+			}
+		}
+	}
+}
+
+// ESV-V0-013: the sequence bound itself expires. The first Git step stalls
+// past a one-second bound with no deadline on the caller's context, so the
+// refusal can only come from expandContextHandle's own bound. The stall is at
+// the first step, so no earlier step can absorb host load: the bound started
+// before that step's process and its per-command timer, so it has expired by
+// the time the stopped step returns. If the bound did not expire, the stopped
+// step would refuse as repository-root.
+func TestContextExpandSequenceBoundExpires(t *testing.T) {
+	t.Parallel()
+	root, _, _ := sourceViewRepository(t)
+	tree := gitOutput(t, root, "rev-parse", "HEAD^{tree}")
+	blob := gitOutput(t, root, "rev-parse", "HEAD:spec.md")
+	stalled := filepath.Join(t.TempDir(), "stalled")
+	body := `case " $* " in *" --show-toplevel "*) : > '` + stalled + `'; exec /bin/sleep 30;; esac
+exec /usr/bin/git "$@"
+`
+	ctx := context.WithValue(context.WithValue(context.Background(), sourceGitExecutableKey{}, sourceGitScript(t, body)), sourceDeadlineKey{}, time.Second)
+	started := time.Now()
+	_, err := expandContextHandle(ctx, root, "cv1:"+tree+":"+blob+":all:spec.md", 1<<20)
+	var failure *gokernel.Error
+	if !errors.As(err, &failure) || failure.Code != "deadline-exceeded" || !strings.Contains(failure.Message, "bound expired") {
+		t.Fatalf("stalled first step: %v, want deadline-exceeded from the expired bound", err)
+	}
+	if _, statErr := os.Stat(stalled); statErr != nil {
+		t.Fatalf("the stalled step was not reached: %v", statErr)
+	}
+	// A hang detector, not a budget (decision 0082): the stand-in sleeps 30 s.
+	if elapsed := time.Since(started); elapsed > 25*time.Second {
+		t.Fatalf("the bound did not stop the stalled step: %s", elapsed)
+	}
+}
+
+// sourceExpireWhenStalled calls expire once the stalled file exists, or
+// returns when done closes first.
+func sourceExpireWhenStalled(stalled string, expire func(), done <-chan struct{}) {
+	ticker := time.NewTicker(5 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			if _, err := os.Stat(stalled); err == nil {
+				expire()
+				return
 			}
 		}
 	}

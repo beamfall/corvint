@@ -1171,11 +1171,33 @@ and `internal/cem/workflow/self_modified.go`. The `cem status` report is `CEM-V1
   token ending in four or more digits such as `V1-0523`, which no pass can resolve because the
   index holds no Tasks ticket state (TCP-V0-121); (c) a code-shaped identifier the task names
   (`definitionEligible`, at least four bytes, a lower-case letter, and an inner upper-case letter
-  or underscore) that no indexed declaration defines, such as a struct field. The member changes
-  no ranking, row, limit or answerability verdict; resolving ticket anchors through ticket state
-  or indexing struct fields would each need its own requirement and frozen evaluation. Rollback
-  removes the member and the two compiler fields that feed it. Test:
+  or underscore) that no indexed declaration or struct field (TCP-V0-162) defines, such as an
+  interface method. The member changes no ranking, row, limit or answerability verdict;
+  resolving ticket anchors through ticket state would need its own requirement and frozen
+  evaluation. Rollback removes the member and the two compiler fields that feed it. Test:
   `TestTaskContextDisclosesUnresolvedIDAnchors`.
+- `TCP-V0-162`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2262, V1-1015
+  follow-up) The index records each named field of a Go top-level struct type (kind `field`,
+  with its file, blob and line) in its own `Index.Fields` table, persisted by every snapshot
+  encoding (gob, sectioned, pack, blob facts and snapshot reuse). A parenthesized struct type
+  (`type T (struct{...})`) is the same struct. Embedded fields, `_`, the fields of a nested
+  anonymous struct and of a function-local type are not recorded, and a source the Go grammar
+  refuses records none. The `definition` slot (TCP-V0-010) reads a name's fields only when no
+  func, type or var declaration defines that name, so a declared name keeps its exact definer
+  set, `contextMaxDefiners` cut and rarity; a field-defined name then yields a `definition` row
+  at the field's line and is no longer a TCP-V0-152(c) anchor. A path the slot reaches through
+  several task names keeps its strongest match (highest weight times rarity, the first such name
+  on a tie) as its score and citation, whatever order the names are visited in. No other
+  consumer of the declaration table (`query`, `impact`, `context defs|refs`, features, symbol
+  windows, the identifier graph) reads fields. Falsifier: a task naming `ExpectedTests` on this
+  repository no longer carries `internal/testrunner/types.go` as a `definition` row, or the
+  frozen `tools/retrieval-bench --arms context` code2test recall@20/@10/@5 falls below the
+  base. Rollback: drop the table and the fallback, restore the analyzer schema. Tests:
+  `TestGoStructFieldsAreIndexedWithFileAndLine_TCPV0162`,
+  `TestTaskContextRetrievesTheStructFieldDefiner_TCPV0162` (decodes each encoding directly and
+  proves shard and snapshot reuse), `TestParenthesizedStructTypeFieldsAreIndexed_TCPV0162`,
+  `TestDefinitionRowKeepsTheStrongestMatchPerPath_TCPV0162`,
+  `TestStructFieldNeverJoinsADeclaredNamesDefiners_TCPV0162`.
 
 ## Non-goals and authority
 
@@ -1665,3 +1687,4 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-152 (accepted, standing auto-accept, V1-1010/V1-1015) | `unresolvedAnchors`, `undeclaredAnchor` (`internal/contextindex/taskcontext_anchors.go`), `specMentionedRows`, `symbolRows` | `TestTaskContextDisclosesUnresolvedIDAnchors` |
 | TCP-V0-160 (accepted, standing auto-accept, V1-0426) | `matchingLines`, `spansOverlap` | `TestTCPV0160LookupGrepRedactsSecretLines` |
 | TCP-V0-004 amendment / TCP-V0-161 (accepted, standing auto-accept, V1-2288) | `admitLexicalPairs`, `omittedPairCoverage` | `TestTaskContextSelectedLexicalPairs`, `TestTaskContextLexicalPairPromotion`, `TestRunTaskContextSubjectlessCounterparts` |
+| TCP-V0-162 (accepted, standing auto-accept, V1-2262) | `goStructFieldNames`, `goSymbols` (`internal/contextindex/parse.go`), `eligibleDefiners`, `symbolRows`, `Index.Fields` persistence | `TestGoStructFieldsAreIndexedWithFileAndLine_TCPV0162`, `TestTaskContextRetrievesTheStructFieldDefiner_TCPV0162`, `TestParenthesizedStructTypeFieldsAreIndexed_TCPV0162`, `TestDefinitionRowKeepsTheStrongestMatchPerPath_TCPV0162`, `TestStructFieldNeverJoinsADeclaredNamesDefiners_TCPV0162`, `TestTaskContextDisclosesUnresolvedIDAnchors` |

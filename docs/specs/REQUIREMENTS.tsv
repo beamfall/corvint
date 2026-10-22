@@ -2044,6 +2044,7 @@ PSR-V0-165	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the ow
 PSR-V0-166	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1585) Operatio	standing	2026-10-11; V1-1585
 PSR-V0-167	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1585) A policy	standing	2026-10-11; V1-1585
 PSR-V0-196	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1750) This ame	standing	2026-10-11; V1-1750
+PSR-V0-202	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2361) A fresh	standing	2026-10-11; V1-2361
 PSR-V0-185	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1785; GitHub	standing	2026-10-11; V1-1785
 PSR-V0-190	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0917) On a rea	standing	2026-10-11; V1-0917
 PSR-V0-191	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0324) A read t	standing	2026-10-11; V1-0324
@@ -2994,6 +2995,7 @@ GPK-V0-018	docs/specs/go-production-kernel-migration-v0.md	Public Go artifacts M
 GPK-V0-057	docs/specs/go-production-kernel-migration-v0.md	A target is shipped only after its native conformance, filesystem-safety,	unrecorded	-
 GPK-V0-019	docs/specs/go-production-kernel-migration-v0.md	The existing Python wheel integrity contract remains binding while a wheel ships	unrecorded	-
 GPK-V0-088	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-21, standing auto-accept; V1-2285) The index build MAY run an	standing	2026-10-21; V1-2285
+GPK-V0-089	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-22, standing auto-accept; V1-2353) `corvint affected`, `init`	standing	2026-10-22; V1-2353
 GPK-V0-033	docs/specs/go-production-kernel-migration-v0.md	The frozen spec, not the Python implementation, is the conformance authority.	unrecorded	-
 GPK-V0-034	docs/specs/go-production-kernel-migration-v0.md	Every adjudication under `GPK-V0-033` MUST be recorded in	unrecorded	-
 GPK-V0-035	docs/specs/go-production-kernel-migration-v0.md	Known-divergent cases MUST NOT accumulate unexamined. Every one carries an	unrecorded	-
@@ -3236,6 +3238,7 @@ LTA-V0-013	docs/specs/learned-trace-admission-v0.md	Schema-2 verification define
 LTA-V0-014	docs/specs/learned-trace-admission-v0.md	The writer screen MAY skip a top-level branch of `secretscreen.Pattern` for a te	unrecorded	-
 LTA-V0-015	docs/specs/learned-trace-admission-v0.md	The writer screen MUST treat the structural `PASS:` prefix inside one complete	unrecorded	-
 LTA-V0-016	docs/specs/learned-trace-admission-v0.md	The writer screen's JWT-shaped branch MUST require compact-JWS header structure:	unrecorded	-
+LTA-V0-017	docs/specs/learned-trace-admission-v0.md	The writer screen's `sk-` vendor branch MUST require, after a word boundary and	unrecorded	-
 LRF-V0-001	docs/specs/lexical-relevance-floor-v0.md	the profile MUST accept only a structurally valid CEM and, for obligation checks	unrecorded	-
 LRF-V0-002	docs/specs/lexical-relevance-floor-v0.md	every term set MUST use the frozen identifier algorithm and subject text. A	unrecorded	-
 LRF-V0-003	docs/specs/lexical-relevance-floor-v0.md	an evaluated evidence span MUST be no larger than both 512 raw bytes and 20 logi	unrecorded	-
@@ -4284,6 +4287,7 @@ RUBY-AFFECTED-V0-045	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under
 RUBY-AFFECTED-V0-046	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2363,	standing	2026-10-11; V1-2363
 RUBY-AFFECTED-V0-047	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2363,	standing	2026-10-11; V1-2363
 RUBY-AFFECTED-V0-048	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2363,	standing	2026-10-11; V1-2363
+RUBY-AFFECTED-V0-049	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2448,	standing	2026-10-11; V1-2448
 RVN-V0-001	docs/specs/run-verified-navigation-v0.md	`corvint flows appmap screen` and `flow` MUST accept repeatable	unrecorded	-
 RVN-V0-002	docs/specs/run-verified-navigation-v0.md	A step's bound keys MUST be the union of `Step.tests` (compiled into the map fro	unrecorded	-
 RVN-V0-003	docs/specs/run-verified-navigation-v0.md	An outcome MUST count as a pass only when `QualifiedReceiptBindingReady` holds a	unrecorded	-
@@ -4692,6 +4696,7 @@ TCP-V0-161	docs/specs/task-context-packet-v0.md	(accepted under the owner's stan
 TCP-V0-141	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1285)) The pac	standing	2026-10-11; V1-1285
 TCP-V0-150	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-2127)) The	standing	2026-10-11; V1-2127
 TCP-V0-152	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1010, V1-1015;	standing	2026-10-11; V1-1010; V1-1015
+TCP-V0-162	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2262, V1-1015	standing	2026-10-11; V1-2262; V1-1015
 TCB-V0-001	docs/specs/tasks-criterion-binding-v0.md	Core MUST import only Tasks wire. Full ticket/attempt/policy validation stays Ta	unrecorded	-
 TCB-V0-002	docs/specs/tasks-criterion-binding-v0.md	`criterion-binding capture --ticket ID --attempt ID` MUST be a bounded read with	unrecorded	-
 TCB-V0-003	docs/specs/tasks-criterion-binding-v0.md	`criterion-binding verify` MUST consume a closed bounded capture on stdin with n	unrecorded	-
@@ -4853,6 +4858,7 @@ TRE-V0-115	docs/specs/test-runner-execution-v0.md	(accepted under the owner's st
 TRE-V0-116	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1538) The	standing	2026-10-11; V1-1538
 TRE-V0-117	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2182) For	standing	2026-10-11; V1-2182
 TRE-V0-118	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1567) For	standing	2026-10-11; V1-1567
+TRE-V0-119	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2341) For	standing	2026-10-11; V1-2341
 TRE-V0-036	docs/specs/test-runner-execution-v0.md	`boost-test-junit` MUST execute the pinned test executable with	unrecorded	-
 TRE-V0-037	docs/specs/test-runner-execution-v0.md	The dedicated parser MUST accept exactly one `boost-junit.xml`	unrecorded	-
 TRE-V0-038	docs/specs/test-runner-execution-v0.md	A row without an outcome is `PASSED`; `skipped` is `SKIPPED`; a	unrecorded	-
@@ -5428,6 +5434,7 @@ WQO-V0-029	docs/specs/work-queue-observation-v0.md	Beamfall MUST add one support
 WQO-V0-030	docs/specs/work-queue-observation-v0.md	Corvint MUST NOT call Beamfall mutation verbs or `fanout-plan --claim`. Adapter	unrecorded	-
 WQO-V0-031	docs/specs/work-queue-observation-v0.md	`PARTIAL`, `CONFLICTED`, `STALE`, or `UNKNOWN` always produces an empty proposal	unrecorded	-
 WQO-V0-032	docs/specs/work-queue-observation-v0.md	Timeout, cancellation, non-zero exit, malformed bytes, digest mismatch, overflow	unrecorded	-
+WQO-V0-052	docs/specs/work-queue-observation-v0.md	(V1-2291, decision 0552) Each Git child a scratch-owning work source starts keep	unrecorded	-
 WQO-V0-033	docs/specs/work-queue-observation-v0.md	Corvint core makes no network request, model call, database, daemon, embedding,	unrecorded	-
 WQO-V0-034	docs/specs/work-queue-observation-v0.md	Independent Go conformance validates every schema, identity, decision row, bound	unrecorded	-
 WQO-V0-035	docs/specs/work-queue-observation-v0.md	Rollout is frozen conformance, Corvint self-dogfood, Beamfall shadow, 500 consec	unrecorded	-

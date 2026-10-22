@@ -7,6 +7,7 @@ import (
 	json "encoding/json/v2"
 	"fmt"
 	"io/fs"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -23,6 +24,7 @@ type Graph struct {
 	owner      map[string]string
 	dependents map[string][]string
 	advisory   map[string][]string
+	routed     map[string][]string
 	testUsers  map[string][]string
 	execUsers  map[string][]string
 	testReach  map[string]bool
@@ -82,24 +84,26 @@ type digestBody struct {
 // digestUnit projects one Unit; every member is always present except the
 // declared read scope, which appears only for a declared unit, and the
 // command edges, which appear only for a unit that runs a command, and the
-// advisory edges, which appear only for a unit that has one
-// (RUBY-AFFECTED-V0-009), so that graphs without them keep their digest.
+// advisory and route-dispatch edges, which appear only for a unit that has
+// one (RUBY-AFFECTED-V0-009, RUBY-AFFECTED-V0-049), so that graphs without
+// them keep their digest.
 type digestUnit struct {
-	ID                string   `json:"id"`
-	Sources           []string `json:"sources"`
-	Tests             []string `json:"tests"`
-	Imports           []string `json:"imports"`
-	TestImports       []string `json:"testImports"`
-	Execs             []string `json:"execs,omitempty"`
-	AdvisoryImports   []string `json:"advisoryImports,omitempty"`
-	PathTokens        []string `json:"pathTokens"`
-	PathTokensBounded bool     `json:"pathTokensBounded"`
-	Embeds            bool     `json:"embeds"`
-	UnboundedReads    string   `json:"unboundedReads"`
-	LocatesRoot       bool     `json:"locatesRoot"`
-	ReadScoped        bool     `json:"readScoped,omitzero"`
-	ReadScope         []string `json:"readScope,omitempty"`
-	Frontier          []string `json:"frontier"`
+	ID                   string   `json:"id"`
+	Sources              []string `json:"sources"`
+	Tests                []string `json:"tests"`
+	Imports              []string `json:"imports"`
+	TestImports          []string `json:"testImports"`
+	Execs                []string `json:"execs,omitempty"`
+	AdvisoryImports      []string `json:"advisoryImports,omitempty"`
+	RouteDispatchImports []string `json:"routeDispatchImports,omitempty"`
+	PathTokens           []string `json:"pathTokens"`
+	PathTokensBounded    bool     `json:"pathTokensBounded"`
+	Embeds               bool     `json:"embeds"`
+	UnboundedReads       string   `json:"unboundedReads"`
+	LocatesRoot          bool     `json:"locatesRoot"`
+	ReadScoped           bool     `json:"readScoped,omitzero"`
+	ReadScope            []string `json:"readScope,omitempty"`
+	Frontier             []string `json:"frontier"`
 }
 
 // Build composes one graph from every supplied language plugin.
@@ -264,6 +268,7 @@ func (graph *Graph) finish() {
 	sort.Strings(graph.order)
 	graph.dependents = graph.reverse(func(unit Unit) []string { return unit.Imports })
 	graph.advisory = graph.reverse(func(unit Unit) []string { return unit.AdvisoryImports })
+	graph.routed = graph.reverse(func(unit Unit) []string { return unit.RouteDispatchImports })
 	graph.testUsers = graph.reverse(func(unit Unit) []string { return unit.TestImports })
 	graph.execUsers = graph.reverse(func(unit Unit) []string { return unit.Execs })
 	graph.testReach = graph.unitsReachingTests()
@@ -340,7 +345,7 @@ func (graph *Graph) unitsReachingTests() map[string]bool {
 		id := frontier[len(frontier)-1]
 		frontier = frontier[:len(frontier)-1]
 		unit := graph.units[id]
-		for _, target := range append(append([]string(nil), unit.Imports...), unit.AdvisoryImports...) {
+		for _, target := range slices.Concat(unit.Imports, unit.AdvisoryImports, unit.RouteDispatchImports) {
 			if _, known := graph.units[target]; !known || reach[target] {
 				continue
 			}
@@ -421,21 +426,22 @@ func (graph *Graph) unobservedEntries() []string {
 
 func projectUnit(unit Unit) digestUnit {
 	return digestUnit{
-		ID:                unit.ID,
-		Sources:           unit.Sources,
-		Tests:             unit.Tests,
-		Imports:           unit.Imports,
-		TestImports:       unit.TestImports,
-		Execs:             unit.Execs,
-		AdvisoryImports:   unit.AdvisoryImports,
-		PathTokens:        unit.PathTokens,
-		PathTokensBounded: unit.PathTokensBounded,
-		Embeds:            unit.Embeds,
-		UnboundedReads:    unit.UnboundedReads,
-		LocatesRoot:       unit.LocatesRoot,
-		ReadScoped:        unit.ReadScoped,
-		ReadScope:         unit.ReadScope,
-		Frontier:          unit.Frontier,
+		ID:                   unit.ID,
+		Sources:              unit.Sources,
+		Tests:                unit.Tests,
+		Imports:              unit.Imports,
+		TestImports:          unit.TestImports,
+		Execs:                unit.Execs,
+		AdvisoryImports:      unit.AdvisoryImports,
+		RouteDispatchImports: unit.RouteDispatchImports,
+		PathTokens:           unit.PathTokens,
+		PathTokensBounded:    unit.PathTokensBounded,
+		Embeds:               unit.Embeds,
+		UnboundedReads:       unit.UnboundedReads,
+		LocatesRoot:          unit.LocatesRoot,
+		ReadScoped:           unit.ReadScoped,
+		ReadScope:            unit.ReadScope,
+		Frontier:             unit.Frontier,
 	}
 }
 

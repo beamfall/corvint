@@ -249,6 +249,20 @@ hit, negatives unmatched, the dotted alias still matched by `MatchStoredV1String
 `TestLTAV0014PatternSourceIsUnchanged` (re-pinned writer digest), and
 `TestTOLV0055`..`TestTOLV0059` in `internal/tasks/cli` with a dotted adopter alias.
 
+### Proposed amendment: sk- branch hyphenated words (2026-10-22, ticket V1-2418)
+
+- `LTA-V0-017`: The writer screen's `sk-` vendor branch MUST require, after a word boundary and
+  `sk-`, at least 20 consecutive characters from `[a-z0-9_]` (case-insensitive) within the
+  following `[a-z0-9_-]` run, and MUST still redact that whole run. A run of short hyphenated words
+  such as the build-log path `2026-10-22-sk-1022p-site-knowledge-setup.md` MUST NOT match that
+  branch; legacy, `sk-proj-` and `sk-ant-` shaped keys MUST still be redacted. Every writer match of
+  the branch is also a match of the previous branch with the same span, and `StoredV1Pattern` is
+  unchanged, so schema-v1 rows keep their recorded classification.
+
+Acceptance: `TestLTAV0017SKBranchNeedsAnUnhyphenatedRun` (key shapes redacted in prose and paths,
+hyphenated word runs unmatched, `MatchStoredV1String` still matching the original shape) and
+`TestLTAV0014PatternSourceIsUnchanged` (re-pinned writer digest).
+
 ## Non-goals and simpler baseline
 
 The simpler baseline is the empty-trace evaluation arm and hard refusal at the existing store cap.
@@ -346,6 +360,7 @@ is weighted; that mismatch is why the gate, not the labels, decides admission.
 | `LTA-V0-014` | every parity fixture, its case, fold, split, JSON and base64 variants and every ordered fixture pair return `Pattern`'s matches, as do texts generated from each branch's own expression; each branch's necessary condition holds wherever that branch alone matches; a text with U+212A or U+017F uses the complete pattern; the writer pattern's source digest is pinned |
 | `LTA-V0-016` | real compact JWS forms (bare, JSON, URL fragment, prose, after a hyphen, spaced and newline headers) are fully redacted and a five-part JWE is hit; a dotted adopter alias, lowercase dotted text, a word ending in `ey`, an uppercased header, a module-like path, two segments and a short header do not match; the stored-v1 pattern still matches the alias |
 | `LTA-V0-015` | a recorded go1.27.1 `go test -json` transcript, top-level, subtest, indented, CRLF, time-less and package-less PASS events screen clean; a credential in the test name, Package value or a later line is still redacted while the marker stays recognised; a mismatched Test field, a non-`output` Action, a non-`frame` OutputType, an extra or reordered field, continued or prefixed Output, an escaped quote or `\u` sequence, a raw tab or NUL, leading text, another JSON value and an unterminated line are not recognised and still match; `dogfood verify` qualifies the clean event and screens the credential-bearing one |
+| `LTA-V0-017` | legacy, `sk-proj-` and `sk-ant-` shaped keys are redacted bare, in prose and in a path; hyphenated word runs such as `sk-1022p-site-knowledge-setup` and a 19-character run do not match; the stored-v1 pattern still matches the hyphenated run |
 | writer/stored-reader screen compatibility | one shared fixture corpus proves the four baseline patterns agree; new assignment-key and quoted-property cases reject in both writers while Go/Python stored-v1 validation and both dashboard readers retain their previous result; benign quoted properties remain admissible, Git-history screening uses the current detector, and ledger output redacts the synthetic value |
 
 Blind-v4 is not acceptance evidence for this spec. A first development result is first-observation
@@ -380,6 +395,7 @@ repaired by silently changing the oracle after evaluation.
 | `LTA-V0-012` | `internal/slotlearn`, `cmd/corvint/eval_slot_weights.go`, `internal/contextindex/slot_weights.go` | `TestLTAV0012ResetRestoresTheDefaultPacket`, `TestLTAV0012AdmittedTraceRoundTripsAndResetRestoresDefault`, `TestLTAV0012ResetRefusesASymlinkedStoreAndRemovesALeafLink`, `TestLTAV0012PinnedStoreIgnoresASubstitutedDirectory` |
 | `LTA-V0-014` | `internal/secretscreen/prefilter.go` | `TestLTAV0014PrefilterReturnsPatternMatches`, `TestLTAV0014PatternSourceIsUnchanged`, `TestLTAV0014TextWithoutCandidatesSkipsThePattern`, `TestLTAV0014BareKeyFieldIsNoCandidate`, `FuzzLTAV0014PrefilterReturnsPatternMatches`, `BenchmarkScreen` |
 | `LTA-V0-016` | `internal/secretscreen/prefilter.go` (`writerJWTAlt`) | `TestLTAV0016JWTBranchRequiresHeaderStructure`, `TestLTAV0014PatternSourceIsUnchanged`, `TestTOLV0055_AliasLimit128` |
+| `LTA-V0-017` | `internal/secretscreen/prefilter.go` (`writerSKAlt`) | `TestLTAV0017SKBranchNeedsAnUnhyphenatedRun`, `TestLTAV0014PatternSourceIsUnchanged` |
 | `LTA-V0-015` | `internal/secretscreen/secretscreen.go` (`goJSONPassMarker`, `maskGoPassMarkers`), consumed by `internal/localcompletion` verify | `TestLTAV0015GoJSONPassMarker`, `TestActualVerificationAndSecretRefusal` (`go-json-pass-log`, `go-json-pass-log-with-embedded-secret`) |
 | writer/stored-reader screen compatibility | `internal/secretscreen`, `internal/trace`, `src/context_corvint_trace.py`, `internal/dashboard/adapters/trace.go`, `conformance/dashboard-snapshot-v0/trace_corpus.go` | `TestSecretPatternParityCorpus`, `TestQuotedCredentialsRejectNewRecordsButRetainStoredV1`, `TestSecretPatternMatchesHistorySecretShapes`, `TestAppendRedactsQuotedCredentialPath`, `TestScreenConsumesWholeQuotedAssignmentValue`, `TestScreenRedactsAWSSecretAdjacentToItsKeyID`, Python `SecretPatternParityTest` and `CorvintLearningTest.test_trace_inputs_fail_closed`; stored-v1 compatibility and intentional-asymmetry tests |
 
@@ -398,7 +414,9 @@ and the ledgers return to being read by no learning path. For `LTA-V0-014`, make
 `writerMatches` call `Pattern` directly; no stored state depends on the prefilter. For `LTA-V0-015`,
 remove `goJSONPassMarker` and its loop in `maskGoPassMarkers`; `go test -json` PASS output is
 screened again and nothing stored depends on the recognition. For `LTA-V0-016`, restore the
-previous last writer alternative and the prior source digest; no stored state depends on it.
+previous last writer alternative and the prior source digest; no stored state depends on it. For
+`LTA-V0-017`, drop the `writerSKAlt` substitution and restore the prior source digest; no stored
+state depends on it.
 
 ## Unresolved decisions and promotion or kill criteria
 

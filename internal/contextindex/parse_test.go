@@ -8,7 +8,7 @@ import (
 
 func TestGoSymbolsMatchPythonUnicodeWordSemantics(t *testing.T) {
 	source := Source{Path: "value.go", BlobHash: strings.Repeat("0", 40)}
-	symbols, refusal := goSymbols(source, "package value\nfunc Fünf() {}\ntype T٣ struct{}\n")
+	symbols, _, refusal := goSymbols(source, "package value\nfunc Fünf() {}\ntype T٣ struct{}\n")
 	if refusal != "" {
 		t.Fatalf("refusal = %q", refusal)
 	}

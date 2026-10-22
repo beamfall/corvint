@@ -1298,6 +1298,9 @@ func affectedRevision(ctx context.Context, gitExecutable, root, spec string) (st
 	command := hermeticGitCommand(deadline, gitExecutable, root, "rev-parse", "--verify", "--quiet", spec+"^{commit}")
 	output, err := command.Output()
 	revision := string(bytes.TrimSpace(output))
+	if refusal := gitExitOwnershipRefusal(err); refusal != nil {
+		return "", refusal
+	}
 	if err != nil || !validGitObjectID(revision) {
 		return "", affectedHeadRefusal()
 	}

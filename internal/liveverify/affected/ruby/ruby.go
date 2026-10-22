@@ -9,6 +9,7 @@ package ruby
 
 import (
 	"context"
+	"maps"
 	"path"
 	"regexp"
 	"sort"
@@ -250,6 +251,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	aliases := indexAliases(observed, loadRoots)
 	paths := indexPaths(observed)
 	advisory := make(map[string]map[string]bool, len(observed))
+	routes := make(map[string]map[string]bool, len(observed))
 	constants := make(map[string]int, len(observed))
 	if autoload != nil {
 		for _, item := range observed {
@@ -263,9 +265,11 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 			}
 			constants[item.id] = len(edges)
 			if rails && item.kind != frameworkSource {
-				for id := range autoload.bootEdges(item) {
+				boot, routed := autoload.bootEdges(item)
+				for id := range boot {
 					edges[id] = true
 				}
+				routes[item.id] = routed
 			}
 			advisory[item.id] = edges
 		}
@@ -283,11 +287,16 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 			imports[id] = true
 		}
 		unit := affected.Unit{ID: item.id, Imports: sortedKeys(imports), AdvisoryImports: sortedEdges(advisory[item.id], imports)}
-		if len(unit.Imports) > affected.MaxPathsPerUnit || len(unit.AdvisoryImports) > affected.MaxPathsPerUnit {
+		// A controller the test also names by constant keeps that edge.
+		named := maps.Clone(imports)
+		maps.Copy(named, advisory[item.id])
+		unit.RouteDispatchImports = sortedEdges(routes[item.id], named)
+		if len(unit.Imports) > affected.MaxPathsPerUnit || len(unit.AdvisoryImports) > affected.MaxPathsPerUnit ||
+			len(unit.RouteDispatchImports) > affected.MaxPathsPerUnit {
 			// Dropped edges can no longer reach the unit, so its frontier
 			// stays plugin-wide.
 			frontier[located(FrontierImplicitTestDependency, item.relative, 0)] = true
-			unit.Imports, unit.AdvisoryImports = nil, nil
+			unit.Imports, unit.AdvisoryImports, unit.RouteDispatchImports = nil, nil, nil
 		}
 		if item.kind == frameworkSource {
 			unit.Sources = []string{item.relative}

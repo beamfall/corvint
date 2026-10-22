@@ -228,7 +228,7 @@
       "scope": "BOUNDED",
       "selected": {
         "spec/controllers/users_controller_spec.rb": "DEPENDENCY_PATH",
-        "spec/requests/users_spec.rb": "ADVISORY_CONSTANT_REFERENCE"
+        "spec/requests/users_spec.rb": "ROUTE_DISPATCH_BOOT"
       },
       "unknown": []
     },
@@ -237,7 +237,7 @@
       "scope": "BOUNDED",
       "selected": {
         "spec/controllers/users_controller_spec.rb": "DEPENDENCY_PATH",
-        "spec/requests/users_spec.rb": "ADVISORY_CONSTANT_REFERENCE"
+        "spec/requests/users_spec.rb": "ROUTE_DISPATCH_BOOT"
       },
       "unknown": []
     },

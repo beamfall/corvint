@@ -220,7 +220,10 @@ var errUnheldGroupUnproved = errors.New("leader exit not observed before shutdow
 // replaces groupreap.HeldGroupQuiet; exitWait replaces the waitid goroutine's
 // waitProcessExitUnreaped, so a test can order a foreign reap before it
 // (V1-1378); descendantSnap replaces the descendant observer's snapshot, so a
-// test can wait until a snapshot has been applied (V1-1374).
+// test can wait until a snapshot has been applied (V1-1374); beforeTimer runs
+// after AfterStart and before the run timer is armed, without AfterStart's
+// one-second allowance, so a test can wait for a child's readiness before the
+// timeout can fire (V1-2446).
 type processWaitChannels struct {
 	exitObserved   <-chan error
 	waitDone       <-chan error
@@ -228,6 +231,7 @@ type processWaitChannels struct {
 	quietProof     func(int) (bool, error)
 	exitWait       func(int) error
 	descendantSnap func(context.Context) (map[int]ObservedProcess, error)
+	beforeTimer    func()
 }
 
 func newProcessCapture(limit int, notify chan struct{}, policy OverflowPolicy) *processCapture {
@@ -402,6 +406,9 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 		selectedWaitDone = waitChannels.waitDone
 	}
 
+	if waitChannels.beforeTimer != nil && afterStartErr == nil {
+		waitChannels.beforeTimer()
+	}
 	runTimer := time.NewTimer(spec.Timeout)
 	var exitObservationErr error
 	exitObservationCompleted := false

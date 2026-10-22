@@ -62,13 +62,13 @@ const (
 // as its tables and defers only the verification of bodies.
 var packFullSections = []string{packSectionIdentity, packSectionStrings, packSectionSources, packSectionBodies,
 	sectionExclusions, sectionFeatures, sectionScenarios, sectionDocuments, sectionMarkers, packSectionSymbols,
-	sectionImports, sectionUnparsed, sectionNotes, packSectionTracked, packSectionSkipped, packSectionPaths,
+	sectionFields, sectionImports, sectionUnparsed, sectionNotes, packSectionTracked, packSectionSkipped, packSectionPaths,
 	packSectionTerms, packSectionWords, packSectionPathTerms, packSectionWindows, packSectionCochange, packSectionGraph}
 
 var packSectionsByLoad = map[snapshotLoad][]string{
 	loadCompact: {packSectionIdentity},
 	loadEvent: {packSectionIdentity, packSectionStrings, packSectionSources, packSectionBodies, sectionExclusions,
-		sectionFeatures, sectionScenarios, sectionDocuments, sectionMarkers, packSectionSymbols, sectionImports,
+		sectionFeatures, sectionScenarios, sectionDocuments, sectionMarkers, packSectionSymbols, sectionFields, sectionImports,
 		sectionUnparsed, sectionNotes},
 	loadFull: packFullSections,
 }
@@ -286,6 +286,7 @@ func packSectionWriters(index *Index, history []historyEntry) []sectionWriter {
 		gobSection(sectionDocuments, wireRecords(index.Documents)),
 		gobSection(sectionMarkers, pairsOf(index.Markers, same[[]Marker])),
 		symbolsSection(index.Symbols, table),
+		gobSection(sectionFields, index.Fields),
 		gobSection(sectionImports, wireImports(index.Imports)),
 		gobSection(sectionUnparsed, index.Unparsed),
 		gobSection(sectionNotes, index.ExtractionNotes),

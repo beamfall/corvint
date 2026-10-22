@@ -30,6 +30,11 @@ const (
 	// to the dirty unit (RUBY-AFFECTED-V0-009): the dependency is inferred
 	// from a naming convention, not from an explicit load.
 	WitnessAdvisoryConstant = "ADVISORY_CONSTANT_REFERENCE"
+	// WitnessRouteDispatch names a unit reached through at least one
+	// route-dispatch edge (Unit.RouteDispatchImports), such as a Rails
+	// request spec reaching a controller it names by no constant
+	// (RUBY-AFFECTED-V0-049).
+	WitnessRouteDispatch = "ROUTE_DISPATCH_BOOT"
 )
 
 // Exclusion reasons. Every eligible unit that is not selected carries one,
@@ -502,13 +507,12 @@ func (graph *Graph) traverse(seeds map[string]Witness) map[string]Witness {
 	sort.Strings(frontier)
 	for len(frontier) != 0 {
 		next := make([]string, 0, len(frontier))
-		// Explicit import edges are taken before advisory ones at each
-		// depth, so a unit reached both ways keeps the explicit witness.
-		for _, advisory := range []bool{false, true} {
-			edges := graph.dependents
-			if advisory {
-				edges = graph.advisory
-			}
+		// Explicit import edges are taken before advisory ones, and those
+		// before route-dispatch ones, at each depth, so a unit reached
+		// several ways keeps the most specific witness. A chain with a
+		// route-dispatch edge is ROUTE_DISPATCH_BOOT, else one with an
+		// advisory edge is ADVISORY_CONSTANT_REFERENCE (RUBY-AFFECTED-V0-049).
+		for class, edges := range []map[string][]string{graph.dependents, graph.advisory, graph.routed} {
 			for _, id := range frontier {
 				for _, dependent := range edges[id] {
 					if _, seen := reached[dependent]; seen {
@@ -516,7 +520,10 @@ func (graph *Graph) traverse(seeds map[string]Witness) map[string]Witness {
 					}
 					parent := reached[id]
 					kind := WitnessDependency
-					if advisory || parent.Kind == WitnessAdvisoryConstant {
+					switch {
+					case class == 2 || parent.Kind == WitnessRouteDispatch:
+						kind = WitnessRouteDispatch
+					case class == 1 || parent.Kind == WitnessAdvisoryConstant:
 						kind = WitnessAdvisoryConstant
 					}
 					reached[dependent] = Witness{

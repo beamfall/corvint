@@ -823,7 +823,10 @@ func (compiler *taskContextCompiler) symbolRows() []contextRow {
 		score float64
 	}
 	found := make([]scored, 0)
-	seen := map[string]struct{}{}
+	// seen maps a path to its row in found. A path keeps its strongest match
+	// (TCP-V0-162): the first identifier to reach a path must not fix its
+	// score and citation when a rarer name the task also names defines it.
+	seen := map[string]int{}
 	for _, identifier := range compiler.identifiers {
 		if !definitionEligible(identifier) {
 			continue
@@ -837,15 +840,19 @@ func (compiler *taskContextCompiler) symbolRows() []contextRow {
 		}
 		rarity := math.Log(float64(len(compiler.index.Sources)+1) / float64(len(symbols)))
 		for _, symbol := range symbols {
-			if _, ok := seen[symbol.Path]; ok {
-				continue
-			}
-			seen[symbol.Path] = struct{}{}
-			found = append(found, scored{contextRow{
+			candidate := scored{contextRow{
 				kind: "definition", path: symbol.Path, score: 800, line: symbol.Line,
 				summary: "defines " + symbol.Name + ", which the task names",
 				reason:  "defines " + symbol.Name, confidence: "high", authority: SyntaxAuthority,
-			}, float64(identifier.weight) * rarity})
+			}, float64(identifier.weight) * rarity}
+			if position, ok := seen[symbol.Path]; ok {
+				if candidate.score > found[position].score {
+					found[position] = candidate
+				}
+				continue
+			}
+			seen[symbol.Path] = len(found)
+			found = append(found, candidate)
 		}
 	}
 	sort.SliceStable(found, func(left, right int) bool {
@@ -873,7 +880,7 @@ func (compiler *taskContextCompiler) eligibleDefiners() map[string][]Symbol {
 			wanted[identifier.name] = struct{}{}
 		}
 	}
-	definers := map[string][]Symbol{}
+	definers, fields := map[string][]Symbol{}, map[string][]Symbol{}
 	if len(wanted) == 0 {
 		return definers
 	}
@@ -881,6 +888,20 @@ func (compiler *taskContextCompiler) eligibleDefiners() map[string][]Symbol {
 		if _, ok := wanted[symbol.Name]; ok {
 			definers[symbol.Name] = append(definers[symbol.Name], symbol)
 		}
+	}
+	// A struct field defines a name only when no declaration does
+	// (TCP-V0-162), so a name a declaration already defines keeps its exact
+	// definer set and rarity.
+	for _, field := range compiler.index.Fields {
+		if _, ok := wanted[field.Name]; !ok {
+			continue
+		}
+		if _, ok := definers[field.Name]; !ok {
+			fields[field.Name] = append(fields[field.Name], field)
+		}
+	}
+	for name, found := range fields {
+		definers[name] = found
 	}
 	return definers
 }

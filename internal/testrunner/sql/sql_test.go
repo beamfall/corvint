@@ -312,3 +312,29 @@ func TestCapturedReportBundle(t *testing.T) {
 		t.Fatal("bundle shadowed physical report")
 	}
 }
+
+// TestSQLiteStatementErrorIsNotAVerdict pins TRE-V0-119 with the native text
+// sqllogictest.c prints for a failed statement record: neither a rejected
+// "statement ok" nor an accepted "statement error" keeps a suite verdict.
+func TestSQLiteStatementErrorIsNotAVerdict(t *testing.T) {
+	unresolved := func(o tr.Observation) bool {
+		for _, p := range o.Problems {
+			if p.Code == "SQL_STATEMENT_UNRESOLVED" {
+				return p.Detail == "case.slt:3: statement error"
+			}
+		}
+		return false
+	}
+	in := tr.Input{Runner: "sql-sqllogictest-sqlite", SourceFile: "case.slt", Stderr: []byte("case.slt:3: statement error\n1 errors out of 2 tests in case.slt - 0 skipped.\n"), ExitCode: 1, SuccessExitCodes: []int{0}, FailureExitCodes: []int{1}}
+	o, e := Parse(in)
+	if e != nil || o.Complete || !unresolved(o) {
+		t.Fatalf("statement error: %+v %v", o, e)
+	}
+	if n := tr.Normalize(in, o); n.Complete || len(n.Tests) != 1 || n.Tests[0].State == tr.Failed {
+		t.Fatalf("normalized statement error kept a verdict: %+v", n)
+	}
+	in.Stderr = []byte("other.slt:3: statement error\n1 errors out of 2 tests in case.slt - 0 skipped.\n")
+	if o, e = Parse(in); e != nil || unresolved(o) {
+		t.Fatalf("another file's diagnostic matched: %+v %v", o, e)
+	}
+}

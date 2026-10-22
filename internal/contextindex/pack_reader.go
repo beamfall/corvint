@@ -745,6 +745,9 @@ func (reader *packReader) eventTables(index *Index) error {
 	if index.Symbols, err = decodeSymbols(reader.data(packSectionSymbols), reader.strings); err != nil {
 		return err
 	}
+	if index.Fields, err = decodePackGob[[]Symbol](reader.sections[sectionFields]); err != nil {
+		return err
+	}
 	if index.Exclusions, err = decodePackGob[[]Exclusion](reader.sections[sectionExclusions]); err != nil {
 		return err
 	}
