@@ -205,7 +205,7 @@ func witnessReviewValue(env Env, rc *readCtx, l *ticket.ObligationLedger, candid
 		if !resolved {
 			item.Set("stale", wire.Null()).Set("staleUnknown", wire.String(testRepositoryUnresolved))
 		}
-		item.Set("staleBasis", wire.ObjectValue(wire.NewObject().Set("source", wire.String(h.basis)).Set("commit", wire.StringOrNull(h.commit))))
+		item.Set("staleBasis", staleBasisValue(h))
 		items = append(items, wire.ObjectValue(item))
 	}
 	return wire.ObjectValue(wire.NewObject().Set("effectiveWitnessed", wire.String(string(wire.CountOf(witnessed)))).Set("entries", wire.Array(items...))), true, nil
@@ -220,6 +220,12 @@ type reviewHeadState struct {
 	stale    bool
 	basis    string
 	commit   *string
+}
+
+// staleBasisValue is the TOL-V0-131 {source, commit} basis a reviewed entry
+// was judged at.
+func staleBasisValue(h reviewHeadState) wire.Value {
+	return wire.ObjectValue(wire.NewObject().Set("source", wire.String(h.basis)).Set("commit", wire.StringOrNull(h.commit)))
 }
 
 // TOL-V0-131 staleness bases.

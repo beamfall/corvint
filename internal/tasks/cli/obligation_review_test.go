@@ -302,3 +302,64 @@ func TestTOLV0131_StalenessJudgedAtCandidate(t *testing.T) {
 		t.Fatalf("candidate edited: %s", wire.Encode(wr))
 	}
 }
+
+// TestTOLV0132_PlanWitnessJudgedAtCandidate: plan --witnesses judges a
+// reviewed witness at HEAD without a candidate, then at the ticket's
+// candidate branch once one is submitted: an edit on HEAD alone leaves it
+// COVERED, an edit on the candidate makes it a STALE_REVIEW; each reviewed
+// witness names its staleBasis (TOL-V0-132).
+func TestTOLV0132_PlanWitnessJudgedAtCandidate(t *testing.T) {
+	r, id, head := obligationRepo(t)
+	seedObligations(t, r.Root, id)
+	file := reviewFile(t, "1", "none", verdict("rev-a", "correct", "none", "asserts the login redirect"))
+	if x := reviewWitness(t, r.Root, id, "rv-1", head, "AC-1", file); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("review: %s", x.stdout)
+	}
+	plan := planFile(t, id, `[{"test":"a","project":"api","obligations":["AC-2"]}]`)
+	witness := func() (string, string) {
+		t.Helper()
+		x := planRun(t, r.Root, id, plan, "--witnesses")
+		w := field(x.res.Items[0], "ledgerWitnesses").Arr
+		if len(w) != 1 {
+			t.Fatalf("ledgerWitnesses: %s", x.stdout)
+		}
+		b := field(w[0], "staleBasis")
+		return field(w[0], "status").Str, field(b, "source").Str + "@" + field(b, "commit").Str
+	}
+	if status, basis := witness(); status != "COVERED" || basis != "HEAD@"+head {
+		t.Fatalf("no candidate: %s %s", status, basis)
+	}
+	commit := func(branch, msg string) string {
+		t.Helper()
+		git(t, r.Root, "checkout", "-q", branch)
+		spec := filepath.Join(r.Root, "e2e", "login.spec.ts")
+		raw, err := os.ReadFile(spec)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fixture.Write(t, spec, append(raw, []byte("\n// "+msg+"\n")...))
+		git(t, r.Root, "add", "e2e")
+		git(t, r.Root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", msg)
+		return headOID(t, r.Root)
+	}
+	short := id[strings.LastIndex(id, ":")+1:]
+	main := strings.TrimSpace(gitOut(t, r.Root, "rev-parse", "--abbrev-ref", "HEAD"))
+	git(t, r.Root, "branch", short, head)
+	c := atm(t, r.Root, nil, "claim", id, "--holder", "owner", "--request-id", "claim-c")
+	if c.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("claim: %s", c.stdout)
+	}
+	attempt, generation := field(c.res.Items[0], "attemptId").Str, field(c.res.Items[0], "generation").Str
+	if s := atm(t, r.Root, nil, "submit", "--attempt", attempt, "--generation", generation, "--tree", strings.TrimSpace(gitOut(t, r.Root, "rev-parse", head+"^{tree}")), "--request-id", "submit-c"); s.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("submit: %s", s.stdout)
+	}
+	commit(main, "edited on HEAD only")
+	if status, basis := witness(); status != "COVERED" || basis != "CANDIDATE_BRANCH@"+head {
+		t.Fatalf("HEAD edited, candidate unchanged: %s %s", status, basis)
+	}
+	cand := commit(short, "edited on the candidate")
+	git(t, r.Root, "checkout", "-q", main)
+	if status, basis := witness(); status != "REVIEW_STALE_AT_HEAD" || basis != "CANDIDATE_BRANCH@"+cand {
+		t.Fatalf("candidate edited: %s %s", status, basis)
+	}
+}
