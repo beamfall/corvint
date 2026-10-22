@@ -123,6 +123,11 @@ type Plan struct {
 	// TASK_STORE_PROJECTION group first, then the DECLARED_DOCUMENTATION
 	// group. It is omitted when empty.
 	NonSource []NonSource `json:"nonSource,omitempty"`
+	// FrontierSites counts the repository's frontier sites by reason,
+	// whether or not this dirty set reaches them, so progress toward a
+	// bounded scope can be measured (AFP-V0-381). It is omitted when the
+	// repository has no frontier.
+	FrontierSites map[string]int `json:"frontierSites,omitempty"`
 }
 
 // Select computes the plan for one dirty path set.
@@ -158,6 +163,12 @@ func Select(graph *Graph, dirty []string) Plan {
 		Selected:    []Selection{},
 		Excluded:    []Exclusion{},
 		Unknown:     []Unknown{},
+	}
+	if len(graph.sites) != 0 {
+		plan.FrontierSites = make(map[string]int, len(graph.sites))
+		for reason, count := range graph.sites {
+			plan.FrontierSites[reason] = count
+		}
 	}
 	reached, seeds, unknown, narrowed := graph.reach(normalized)
 	plan.NonSource, unknown = graph.taskState(unknown)
