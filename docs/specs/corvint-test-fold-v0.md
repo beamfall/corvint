@@ -63,7 +63,10 @@ Not folded in V0:
   the old binary name. The only output-document fields exempt from byte identity are those that
   name the executing binary: group 2's `execute-receipt` tool identity (name, revision, executable
   digest) and group 4's build identity. A golden comparison that covers such a field MUST name it
-  and compare every other byte.
+  and compare every other byte. Group 4's `plan` request binds the absolute roots of a fixture
+  repository the test commits for each run, so its digest differs per run: the golden holds
+  `@DIGEST@` in its place, and the test MUST show that the output carries exactly the digest of
+  that run's request.
 - `CTF-V0-003`: Every profile ID in the fold map MUST stay unchanged. A moved command MUST NOT gain,
   lose or rename a flag, read a different input, or write to a different place.
 - `CTF-V0-004`: After a group moves, its old companion binary MUST be a shim that calls the same

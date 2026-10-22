@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"os"
@@ -10,6 +12,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testacceptance"
 )
 
 // foldGolden is one group's recorded old-invocation behaviour (CTF-V0-002): the goldens are
@@ -20,7 +24,10 @@ type foldGolden struct {
 	Old     string          `json:"old"`
 	New     string          `json:"new"`
 	Request json.RawMessage `json:"request"`
-	Cases   []foldCase      `json:"cases"`
+	// Fixture is a repository committed at @DIR@/repo before the cases run; the request names
+	// its commit, tree and file digests as @COMMIT@, @TREE@ and @SHA256:<path>@ (group 4).
+	Fixture map[string]string `json:"fixture,omitempty"`
+	Cases   []foldCase        `json:"cases"`
 }
 
 // foldCase is one invocation. Text marks a case whose stdout and stderr are diagnostics that name
@@ -37,11 +44,51 @@ type foldCase struct {
 }
 
 // foldDir stands for the per-run directory holding the case request file; a case whose stdin is
-// foldRequest reads the golden's request document on standard input.
+// foldRequest reads the golden's request document on standard input. foldDigest stands for the
+// request digest of a run whose request binds that directory's absolute roots (group 4 `plan`).
 const (
 	foldDir     = "@DIR@"
 	foldRequest = "@REQUEST@"
+	foldDigest  = "@DIGEST@"
 )
+
+// foldFixture commits g.Fixture at dir/repo with a fixed identity and date, then substitutes the
+// request's placeholders.
+func foldFixture(t *testing.T, g foldGolden, dir string) []byte {
+	t.Helper()
+	request := strings.ReplaceAll(string(g.Request), foldDir, dir)
+	if len(g.Fixture) == 0 {
+		return []byte(request)
+	}
+	repo := filepath.Join(dir, "repo")
+	for rel, text := range g.Fixture {
+		path := filepath.Join(repo, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(text), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		sum := sha256.Sum256([]byte(text))
+		request = strings.ReplaceAll(request, "@SHA256:"+rel+"@", "sha256:"+hex.EncodeToString(sum[:]))
+	}
+	gitOut := func(args ...string) string {
+		cmd := exec.Command("git", append([]string{"-C", repo}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null",
+			"GIT_AUTHOR_NAME=fold", "GIT_AUTHOR_EMAIL=fold@example.invalid", "GIT_AUTHOR_DATE=2026-01-01T00:00:00Z",
+			"GIT_COMMITTER_NAME=fold", "GIT_COMMITTER_EMAIL=fold@example.invalid", "GIT_COMMITTER_DATE=2026-01-01T00:00:00Z")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	gitOut("init", "-q")
+	gitOut("add", "-A")
+	gitOut("commit", "-q", "-m", "fold fixture")
+	request = strings.ReplaceAll(request, "@COMMIT@", gitOut("rev-parse", "HEAD"))
+	return []byte(strings.ReplaceAll(request, "@TREE@", gitOut("rev-parse", "HEAD^{tree}")))
+}
 
 func buildCompanion(t *testing.T, pkg, name string) string {
 	t.Helper()
@@ -52,7 +99,7 @@ func buildCompanion(t *testing.T, pkg, name string) string {
 	return bin
 }
 
-func runFoldCase(t *testing.T, argv []string, c foldCase, dir string, request []byte) foldCase {
+func runFoldCase(t *testing.T, argv []string, c foldCase, dir, digest string, request []byte) foldCase {
 	t.Helper()
 	args := make([]string, 0, len(argv)+len(c.Args))
 	args = append(args, argv[1:]...)
@@ -75,8 +122,12 @@ func runFoldCase(t *testing.T, argv []string, c foldCase, dir string, request []
 		}
 		got.Exit = ee.ExitCode()
 	}
-	got.Stdout = strings.ReplaceAll(stdout.String(), dir, foldDir)
-	got.Stderr = strings.ReplaceAll(stderr.String(), dir, foldDir)
+	placeholders := []string{dir, foldDir}
+	if digest != "" {
+		placeholders = append(placeholders, digest, foldDigest)
+	}
+	r := strings.NewReplacer(placeholders...)
+	got.Stdout, got.Stderr = r.Replace(stdout.String()), r.Replace(stderr.String())
 	return got
 }
 
@@ -111,14 +162,29 @@ func foldGoldens(t *testing.T, group, oldPkg string) {
 	if err := json.Unmarshal(data, &g); err != nil || g.Schema != "corvint-test-fold-golden/0" || g.Group != group || len(g.Cases) == 0 {
 		t.Fatalf("golden %s: %v", path, err)
 	}
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "req.json"), g.Request, 0o600); err != nil {
+	// The accept group refuses a root reached through a symbolic link (macOS /var).
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
 		t.Fatal(err)
+	}
+	request := foldFixture(t, g, dir)
+	if err := os.WriteFile(filepath.Join(dir, "req.json"), request, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// A request binding the run's absolute roots has a per-run digest: the golden holds
+	// foldDigest, and the output must carry exactly the digest of this run's request.
+	digest := ""
+	if len(g.Fixture) != 0 {
+		var r testacceptance.Request
+		if err := testacceptance.Decode(request, &r); err != nil {
+			t.Fatal(err)
+		}
+		digest = testacceptance.Digest(r)
 	}
 	old := []string{buildCompanion(t, oldPkg, g.Old)}
 	if os.Getenv("CTF_UPDATE_GOLDEN") == "1" {
 		for i, c := range g.Cases {
-			g.Cases[i] = runFoldCase(t, old, c, dir, g.Request)
+			g.Cases[i] = runFoldCase(t, old, c, dir, digest, request)
 		}
 		out, err := json.MarshalIndent(g, "", "  ")
 		if err != nil {
@@ -140,7 +206,7 @@ func foldGoldens(t *testing.T, group, oldPkg string) {
 				want.Stdout = strings.ReplaceAll(c.Stdout, g.Old, inv.name)
 				want.Stderr = strings.ReplaceAll(c.Stderr, g.Old, inv.name)
 			}
-			if got := runFoldCase(t, inv.argv, c, dir, g.Request); got.Exit != want.Exit || got.Stdout != want.Stdout || got.Stderr != want.Stderr {
+			if got := runFoldCase(t, inv.argv, c, dir, digest, request); got.Exit != want.Exit || got.Stdout != want.Stdout || got.Stderr != want.Stderr {
 				t.Errorf("%s %s:\n got exit %d stdout %q stderr %q\nwant exit %d stdout %q stderr %q",
 					inv.name, c.Name, got.Exit, got.Stdout, got.Stderr, want.Exit, want.Stdout, want.Stderr)
 			}
@@ -188,4 +254,12 @@ func TestCTFV0007FoldedGroupBoundary(t *testing.T) {
 			t.Fatalf("%s names the core executable or its diagnostic prefix", p)
 		}
 	}
+}
+
+// Recording aid for the pre-move accept goldens; removed once the group moves.
+func TestCTFV0002AcceptFoldRecord(t *testing.T) {
+	if os.Getenv("CTF_UPDATE_GOLDEN") != "1" {
+		t.Skip("record only")
+	}
+	foldGoldens(t, "accept", "../corvint-tests-accept")
 }
