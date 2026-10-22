@@ -251,3 +251,26 @@ func TestRelativeAgentCommandResolvesAgainstTheLaunchDirectory(t *testing.T) {
 		t.Fatalf("abstain agent replied %q (%s)", result.reply, state)
 	}
 }
+
+// TestCommittedOrientationVerdictReproducesAndAdmits covers CWT-V0-017: the
+// skill and DOGFOOD route task-start orientation to `context --task` on the
+// strength of the committed verdict, so that verdict must be exactly what the
+// frozen gate yields over the committed run report, and it must admit.
+func TestCommittedOrientationVerdictReproducesAndAdmits(t *testing.T) {
+	results := filepath.Join("..", "..", "benchmarks", "results")
+	recorded, err := os.ReadFile(filepath.Join(results, "orientation-gate-beamfall-roadmap-v1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stdout bytes.Buffer
+	code := runGate([]string{
+		"--report", filepath.Join(results, "cw-trial-beamfall-roadmap-v1-orientation-run-1.json"),
+		"--gate", filepath.Join("testdata", "beamfall-roadmap-v1", "orientation-gate.json"),
+	}, &stdout, io.Discard)
+	if code != 0 {
+		t.Fatalf("gate exit %d, routing requires ADMIT", code)
+	}
+	if !bytes.Equal(recorded, stdout.Bytes()) {
+		t.Fatalf("committed verdict does not reproduce:\n%s", stdout.String())
+	}
+}

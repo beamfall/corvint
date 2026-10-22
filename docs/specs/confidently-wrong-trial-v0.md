@@ -252,7 +252,8 @@ has committed to nothing and is scored as abstaining.
   reading of the set's README (the bet's kill criteria under CWT-V0-009) is a separate, owner-read
   measurement that this gate neither runs nor replaces.
 - `CWT-V0-017`: (accepted 2026-10-22 under the owner's standing auto-accept (2026-10-11); V1-0319)
-  Orientation routing rule. The Claude Code `context` skill and `docs/DOGFOOD.md` section 1 may route
+  Orientation routing rule. The Claude Code `context` skill, the Codex `corvint` skill and
+  `docs/DOGFOOD.md` section 1 may route
   task-start orientation to `corvint context --task` only when a CWT-V0-016 run's committed verdict
   is `ADMIT`. A `REFUSE` keeps routing unchanged and is recorded unrepaired; a later attempt needs a
   new task set frozen before any Corvint output on it, because a refused set becomes development
@@ -308,7 +309,7 @@ listed as non-reproducing with its rescored values cited beside the recorded one
 | CWT-V0-012 | `generate`, `generateManifest`, `candidateCommits`, `inspectCommit`, `generateTask`, `writeSnapshot`, `evenlySpaced` (`tools/cw-trial/generate.go`) | `TestGenerateBuildsCoChangeTasksFromLocalHistory` |
 | CWT-V0-015 | `runGate`, `readGate`, `judgeGate`, `identityRule`, `pairedRule`, `armMetric` (`tools/cw-trial/gate.go`) | `TestGateAdmitsANonInferiorTreatmentAndRefusesAWorseOne`; `TestGateRefusesAReportItWasNotFrozenFor`; `TestGateCountsTreatmentFailuresAsMissesAndBoundsThem`; `TestGateRebuildsMetricsAndRefusesUnreadableGates` |
 | CWT-V0-016 | `testdata/beamfall-roadmap-v1/orientation-gate.json`, `testdata/abstain-agent.sh` | `TestFrozenBeamfallOrientationGateNamesTheFrozenSet`; the committed run and verdict under `benchmarks/results/` (build-log 2026-10-22-ctx-1022j) |
-| CWT-V0-017 | routing text in `integrations/claude-code/plugins/corvint/skills/context/SKILL.md` and `docs/DOGFOOD.md` section 1, changed only on `ADMIT` | the committed verdict `benchmarks/results/orientation-gate-beamfall-roadmap-v1.json` |
+| CWT-V0-017 | routing text in `integrations/claude-code/plugins/corvint/skills/context/SKILL.md`, `integrations/codex/plugins/corvint/skills/corvint/SKILL.md` and `docs/DOGFOOD.md` section 1, changed only on `ADMIT` | `TestCommittedOrientationVerdictReproducesAndAdmits` over the committed verdict `benchmarks/results/orientation-gate-beamfall-roadmap-v1.json` |
 
 Compatibility and drift: the grep scorer duplicates `tools/retrieval-bench`'s rules on purpose
 (the tool does not import that package); if the bench's tokenizer changes, both change in one

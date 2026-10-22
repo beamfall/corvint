@@ -63,7 +63,8 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
 
 ### Steps and expected state
 
-1. Orient before editing: retain `corvint query` and `corvint impact` receipts (section 1). A miss
+1. Orient before editing: read `corvint context --task` for the files the change touches and retain
+   `corvint query` and `corvint impact` receipts (section 1). A miss
    or abstention is recorded in a `docs/build-log/` entry, not repaired by rewording the task.
 2. Bind intent, implement, run the focused checks and commit (sections 2 and 3). Only ignored paths
    may remain modified.
@@ -234,9 +235,16 @@ the private Git directory:
 $ corvint_git_dir=$(git rev-parse --absolute-git-dir)
 $ mkdir -p "$corvint_git_dir/corvint"
 $ corvint index --if-stale
+$ corvint context --task "THE CHANGE" --limit 20 > "$corvint_git_dir/corvint/prechange-context.json"
 $ corvint query --task "THE CHANGE" --limit 1 > "$corvint_git_dir/corvint/prechange-query.json"
 $ corvint impact PATH... --limit 10 > "$corvint_git_dir/corvint/prechange-impact.json"
 ```
+
+`context --task` is the orientation read: which tracked files a ticket-to-change task touches. The
+frozen Beamfall roadmap orientation gate admitted it against a grep baseline before this route
+changed (`CWT-V0-017`, `benchmarks/results/orientation-gate-beamfall-roadmap-v1.json`); a READY
+packet still misses the gold file on some tasks, so its omissions stay open. `dogfood change` does
+not read `prechange-context.json`; the query and impact receipts remain its contract.
 
 Run `corvint index --if-stale` once per fresh clone or worktree (or after a rebuilt binary, whose
 engine digest misses the old snapshot) before the first context, query or impact read
