@@ -1135,7 +1135,7 @@ and `internal/cem/workflow/self_modified.go`. The `cem status` report is `CEM-V1
   file text, and a quoted line that a match overlaps has `text` `[REDACTED]` and `"redacted":
   true`, keeping its `line` and `terms`. Clean lines and rows are unchanged. The packet itself
   quotes no file text, so it needs no screen.
-- `TCP-V0-161`: accepted under the owner's standing auto-accept (2026-10-11) (V1-2288). A
+- `TCP-V0-161`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2288) A
   subjectless counterpart test that TCP-V0-004 cannot admit because the packet has no unfilled
   budget is listed in an optional `coverage.omitted_pairs` member: `count` is the number of such
   counterparts and `samples` holds at most ten `{path, reason}` objects in admission order, with

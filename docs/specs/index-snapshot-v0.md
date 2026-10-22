@@ -896,7 +896,7 @@ the `mapReadOnly` branch in `decodeSnapshotValue` and `snapshot_decode.go`.
 Traceability: `TestMappedSnapshotDecodeMatchesStreamedDecode`, `TestMappedSnapshotDecodeFaultIsAMiss`
 and the existing `TestSnapshotSameLengthBodyOverwriteIsAMiss`; measured in
 `docs/build-log/2026-10-21-index-perf-1021i-hot-read-paths.md`.
-- `IDX-SNAP-V0-108`: accepted under the owner's standing auto-accept (2026-10-11) (V1-1088). The
+- `IDX-SNAP-V0-108`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1088) The
   index admits the TypeScript module suffixes `.mts` and `.cts` as searchable text: they enter the
   source and term tables like `.rst`, with no symbol extractor. A reader that consumes indexed
   sources, such as the AMAP-V0-025 side-effect import closure, then reads such a module instead of
@@ -912,7 +912,7 @@ Human intent: two writes of one tree produced different snapshot files because `
 writes maps in random order, so a file hash could not stand for its content (V1-2290); and every
 edit to an audited analyzer input forced a schema bump, invalidating every pack, even when the
 index it builds is byte-identical (V1-2289).
-- `IDX-SNAP-V0-106`: accepted under the owner's standing auto-accept (2026-10-11) (V1-2290). Two
+- `IDX-SNAP-V0-106`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2290) Two
   writes of the same committed tree by one binary MUST produce byte-identical snapshot files, for
   the default gob snapshot (format `corvint-index-snapshot/2`), the sectioned encoding and the
   experimental pack, whether the write was cold or reused prior facts (`IDX-SNAP-V0-037`). Every
@@ -935,7 +935,7 @@ index it builds is byte-identical (V1-2289).
   base binary's three writes hashed three different values. Falsifier: two writes of one tree
   whose bytes differ. Rollback: revert `snapshot_wire.go` and its call sites and restore format
   `/1`; files written as `/2` then miss and rebuild.
-- `IDX-SNAP-V0-107`: accepted under the owner's standing auto-accept (2026-10-11) (V1-2289);
+- `IDX-SNAP-V0-107`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2289);
   amends `IDX-SNAP-V0-060` and `IDX-SNAP-V0-061`. `TestAnalyzerSchemaOutput` pins
   `auditedOutputSHA256`, the sha256 of the pack a fixed golden corpus (Go, Python, Ruby,
   TypeScript, JavaScript, feature and scenario records, an ADR, a spec, instructions, notes and a

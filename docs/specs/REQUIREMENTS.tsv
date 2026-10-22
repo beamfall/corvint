@@ -3088,6 +3088,9 @@ IDX-SNAP-V0-102	docs/specs/index-snapshot-v0.md	(accepted under the owner's stan
 IDX-SNAP-V0-103	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1640)) The	standing	2026-10-11; V1-1640
 IDX-SNAP-V0-104	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1640)) The	standing	2026-10-11; V1-1640
 IDX-SNAP-V0-105	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-2237)) On a	standing	2026-10-11; V1-2237
+IDX-SNAP-V0-108	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1088) The	standing	2026-10-11; V1-1088
+IDX-SNAP-V0-106	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2290) Two	standing	2026-10-11; V1-2290
+IDX-SNAP-V0-107	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2289);	standing	2026-10-11; V1-2289
 JAT-V0-001	docs/specs/java-affected-test-v0.md	A plugin with namespace `java` MUST own exactly the names ending `.java`. Build	unrecorded	-
 JAT-V0-002	docs/specs/java-affected-test-v0.md	One unit MUST be one file, identity `java:<path>`. A file is a test, with `Tests	unrecorded	-
 JAT-V0-003	docs/specs/java-affected-test-v0.md	Imports MUST include the declaring file of each type named by: a single-type imp	unrecorded	-
@@ -4572,6 +4575,7 @@ TCP-V0-064	docs/specs/task-context-packet-v0.md	(accepted 2026-10-08, decision 0
 TCP-V0-065	docs/specs/task-context-packet-v0.md	(accepted, decision 0516 (V1-0315); experimental) A task-context	owner	decision 0516; V1-0315
 TCP-V0-121	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-2131)) Tasks	standing	2026-10-11; V1-2131
 TCP-V0-160	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-0426)) `contex	standing	2026-10-11; V1-0426
+TCP-V0-161	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2288) A	standing	2026-10-11; V1-2288
 TCP-V0-141	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1285)) The pac	standing	2026-10-11; V1-1285
 TCP-V0-150	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-2127)) The	standing	2026-10-11; V1-2127
 TCP-V0-152	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1010, V1-1015;	standing	2026-10-11; V1-1010; V1-1015
