@@ -692,6 +692,16 @@ which is the whole of what the row asserts.
   (`IDX-SNAP-V0-017`), so the V1-2285 change lands as `corvint-analyzer/140` (owner-approved
   2026-10-21) with byte-identical built content. The amendment section of that date records its
   failure modes, evidence and rollback.
+- `GPK-V0-089`: (accepted 2026-10-22, standing auto-accept; V1-2353) `corvint affected`, `init`
+  (and `adopt`, which shares its path) and the guidance verbs (`overview`, `features`, `review`)
+  MUST return the same `repository-ownership-refused` refusal as `GPK-V0-071` when Git refuses the
+  repository for dubious ownership. `affected` classifies the stderr of its failed hermetic
+  `rev-parse`; `init`/`adopt` (on an `INVALID` inventory) and the guidance verbs (on any failure)
+  probe once with a hermetic `git rev-parse --git-dir` on the failure path only, so a successful
+  run starts no extra Git process. A refused `init`/`adopt` writes the refusal to stderr and exits
+  2 instead of printing an `INVALID` inventory. Rollback: drop the `gitExitOwnershipRefusal` call in
+  `affectedRevision` and the `repositoryOwnershipRefusal` calls in `runActivationForPlatform` and
+  `runGuidance`, restoring the generic failures.
 
 ### Conformance authority
 
@@ -892,6 +902,7 @@ repository rewrite, cache conversion, trace conversion, or sidecar migration is 
 | `GPK-V0-068` (accepted, decision 0396) | the `evalOmitsCompetingRecord` state check in `evalQuery` (`internal/contextindex/eval_query.go`) | `TestEvalQueryLimitOmittingCompetingRecordNeedsWidening`, which FAILS against a candidate without the check at limit 1 and pins `READY` once the limit admits both records; before/after `corvint eval` and `tools/retrieval-bench --arms corvint` numbers in `docs/BUILD-LOG.md` |
 | `GPK-V0-070` (accepted, decision 0422) | `commentText` and `markerComments` in `internal/contextindex/markers.go`, called from the marker scan in `internal/contextindex/index.go`; `markerCredited`, `reserveCallerRows`, `exportedGoNames` and `namesAny` in `internal/contextindex/impact.go` | `TestMarkersComeOnlyFromCommentSpans` and `TestImpactCreditsOnlyRelatedMarkedTestsAndKeepsCallers` (`internal/contextindex/marker_comments_test.go`), both of which FAIL against the base without the change; before/after `corvint eval` and `tools/retrieval-bench --arms impact` numbers in `docs/BUILD-LOG.md` |
 | `GPK-V0-071` (accepted 2026-10-21, V1-0288) | `dubiousOwnershipRefusal` and its call at the start of `emitError` in `cmd/corvint/main.go` | `TestGPKV0071DubiousOwnershipIsOneCodedRefusal` (index, query, impact, context and feature under a Git that reports dubious ownership) and `TestGPKV0071DubiousOwnershipClassifierIsExact` (`cmd/corvint/dubious_ownership_test.go`), both of which FAIL without the change |
+| `GPK-V0-089` (accepted 2026-10-22, V1-2353) | `gitExitOwnershipRefusal` and `repositoryOwnershipRefusal` in `cmd/corvint/repository_ownership.go`, called from `affectedRevision`, `runActivationForPlatform` and `runGuidance` | `TestGPKV0071DubiousOwnershipIsOneCodedRefusal` subtests `affected`, `init` and `overview` (`cmd/corvint/dubious_ownership_test.go`), each of which FAILS without the change |
 | `GPK-V0-072` (accepted 2026-10-21, V1-0313) | the `parseHistory(..., true)` call in `evalLearnedCandidates` (`internal/contextindex/eval_query.go`) | `TestGPKV0072QueryLearningSkipsNonUTF8HistoryPaths` (`internal/contextindex/history_nonutf8_test.go`), which commits a Latin-1 path and FAILS without the change |
 | `GPK-V0-075` (accepted, decision 0412) | the omitted-caller disclosure (`recordGoCaller`, `goImportQualifier`, `goPackageName`, `omittedCallerDisclosures` in `internal/contextindex/impact_callers.go`) threaded through `Impact` (`internal/contextindex/impact.go`) and `EvalImpact` (`internal/contextindex/eval_query.go`); the importing-test carrier reason (`importerCarriers` in `impact` in `internal/contextindex/impact.go`) | `TestImpactDisclosesOmittedDirectGoCallers/GPK-V0-075` and `TestImpactNamesTheImportingTestThatCarriesARelatedMarker` (`internal/contextindex/impact_callers_test.go`), both of which FAIL without the change; the Beamfall before/after packets in decision 0412; `DR-0042` in `conformance/divergence-register.md` |
 | `GPK-V0-040` | pre-truncation admitted count captured in `receipt` and carried forward by `compileReceipt`, leaving `setCoverage` the single writer of the three result counts; `EvalQuery` hands `receipt` the whole admitted list instead of a list its own ceiling already narrowed | `impact` and `range impact` report the results a ceiling dropped; `impact-ranked-past-limit` FAILS against a candidate that measures its own truncated output; `TestQueryCoverageCountsAdmittedCandidatesPastLimit` holds `query` to the same count and FAILS against a candidate whose limit-1 packet reports `omitted_results: 0`; the confident-symbol fallback admits at its own caps rather than the caller's ceiling, pinned by `TestQueryCoverageCountsConfidentFallbackPastLimit`; the decision 0157 three-per-feature admission is pinned by `TestQueryAdmitsThreeImplementationsPerFeature`, which FAILS against a two- or four-per-feature candidate. Two denominators remain limit-dependent and are the next slice: feature-symbol admission over the ceiling-narrowed `competitive` list, and the learned-path truncation `evalLearnedCandidates` applies from its `limit` argument |
@@ -1394,7 +1405,8 @@ is one name, so one matching code line is one pair and one evidence item for `ki
   not every per-capability env builder neutralizes repository-configured filters, hooks, fsmonitor
   and textconv. Limit: a verb that swallows Git's stderr before the error writer sees it (observed:
   `affected` reports no resolvable HEAD commit, `init` succeeds with an empty inventory, `overview`
-  reports `invalid-repository`) is not classified by this clause and stays a filed residual.
+  reports `invalid-repository`) is not classified by this clause; `GPK-V0-089` (Requirements
+  section) closes it.
   Rollback: remove `dubiousOwnershipRefusal` from `emitError`, restoring Git's uncoded exit.
 
 ## Accepted amendment: non-UTF-8 paths in query history
