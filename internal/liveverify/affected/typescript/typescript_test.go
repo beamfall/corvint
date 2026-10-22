@@ -48,6 +48,41 @@ const text = "require('./also-forged')";
 	}
 }
 
+// TJAA-V0-034: import types and literal text are not computed loading; runtime calls still are.
+func TestScanImportsSeparatesImportTypesAndLiteralTextFromDynamicImports(t *testing.T) {
+	static := map[string]string{
+		"type position": "import type { Page } from '@playwright/test';\nexport class Login { constructor(readonly page: import('@playwright/test').Page) {} }\nlet pages: import(\"./pages\").Page[] = []",
+		"typeof alias":  "type Module = typeof import('./module');\nconst k: Map<string, import('./kind').Kind> = new Map()",
+		"literal text":  "const a = 'import (x)'; const b = \"import('./y')\"; const c = `await import(\"./z\")`; const d = /import\\(/",
+		"member call":   "loader.import('./x'); const reimport = 1",
+	}
+	for name, body := range static {
+		if refs, dynamic, err := scanImports("pages/login.ts", body); err != nil || dynamic {
+			t.Fatalf("%s: refs=%v dynamic=%v err=%v", name, refs, dynamic, err)
+		}
+	}
+	if refs, _, _ := scanImports("pages/login.ts", static["type position"]); !slices.Equal(refs, []string{"./pages", "@playwright/test"}) {
+		t.Fatalf("import-type specifiers must stay static references: %v", refs)
+	}
+	dynamicBodies := []string{
+		"const m = import('./x')",
+		"const m = await import('./x').Page",
+		"import('./x').then(run)",
+		"const p = import('./x').default()",
+		"const p = `${import('./x')}`",
+		"const p = import(name).Page",
+		"const p = import('./' + name)",
+	}
+	for _, body := range dynamicBodies {
+		if _, dynamic, err := scanImports("spec/a.ts", body); err != nil || !dynamic {
+			t.Fatalf("%q must stay computed loading: dynamic=%v err=%v", body, dynamic, err)
+		}
+	}
+	if _, dynamic, _ := scanImports("spec/a.js", "const p = import('./x').Page"); !dynamic {
+		t.Fatal("JavaScript has no import types, so a member read stays a runtime import")
+	}
+}
+
 func TestDynamicImportWithCommentBeforeParenthesisRaisesFrontier(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
@@ -73,7 +108,7 @@ func TestUnitsDetectsEverySupportedRunnerFromImportsOrConfiguration(t *testing.T
 		{name: "vitest", manifest: `{"devDependencies":{"vitest":"1"}}`, path: "tests/a.test.ts", body: `import { test } from "vitest"`, runner: runnerVitest},
 		{name: "jest", manifest: `{"devDependencies":{"jest":"1"}}`, path: "tests/a.test.js", body: `import { test } from "@jest/globals"`, runner: runnerJest},
 		{name: "node", path: "checks/a.js", body: `import test from "node:test"`, runner: runnerNode},
-		{name: "playwright", path: "e2e/login.ts", body: `import { test } from "@playwright/test"`, runner: runnerPlaywright},
+		{name: "playwright", path: "e2e/login.spec.ts", body: `import { test } from "@playwright/test"`, runner: runnerPlaywright},
 		{name: "bun", path: "tests/a.ts", body: `import { test } from "bun:test"`, runner: runnerBun},
 		{name: "deno", path: "tests/a.ts", body: `Deno.test("a", () => {})`, runner: runnerDeno},
 		{name: "cypress config membership", config: "cypress.config.ts", path: "cypress/e2e/login.ts", body: `describe("login", () => {})`, runner: runnerCypress},
@@ -653,14 +688,14 @@ func TestNestedTemplateLiteralsKeepContent(t *testing.T) {
 	if _, err := stripComments(deep, false); err == nil {
 		t.Fatal("over-deep template nesting accepted")
 	}
-	if _, _, parsed := scanRequires(deep); parsed {
+	if _, _, parsed := scanRequires(deep, false); parsed {
 		t.Fatal("over-deep template nesting scanned")
 	}
 	shallow := strings.Repeat("`${", jsTemplateMaxDepth) + "require('./d')" + strings.Repeat("}`", jsTemplateMaxDepth)
 	if clean, err := stripComments(shallow, false); err != nil || clean != shallow {
 		t.Fatalf("bounded template nesting refused: %v", err)
 	}
-	if refs, _, parsed := scanRequires(shallow); !parsed || !slices.Equal(refs, []string{"./d"}) {
+	if refs, _, parsed := scanRequires(shallow, false); !parsed || !slices.Equal(refs, []string{"./d"}) {
 		t.Fatalf("bounded template nesting: refs=%v parsed=%v", refs, parsed)
 	}
 }

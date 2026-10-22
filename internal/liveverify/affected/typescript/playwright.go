@@ -35,6 +35,7 @@ const (
 	PlaywrightUnknownBrowserIdentity     = "playwright:browser-identity-unresolved"
 	PlaywrightUnknownDynamicSource       = "playwright:dynamic-source-reachability"
 	PlaywrightUnknownExternalApplication = "playwright:external-application-state"
+	PlaywrightUnknownBrowserExecutable   = "playwright:browser-executable-unresolved"
 	PlaywrightUnknownDiscoveryOmission   = "playwright:discovery-omission-unverified"
 )
 
@@ -66,6 +67,9 @@ type PlaywrightProject struct {
 	// unresolved holds the selection unknowns scoped to this one project, so advisory narrowing
 	// can keep the projects that resolve statically (TJAA-V0-032).
 	unresolved []PlaywrightUnknown
+	// execution holds EXECUTION-axis unknowns of this project's `use`, such as a computed
+	// launchOptions.executablePath, which change the binary but not test membership (TJAA-V0-035).
+	execution []PlaywrightUnknown
 }
 
 type PlaywrightWitness struct {
@@ -197,6 +201,9 @@ func selectPlaywrightStaticDraft(root, configPath string, dirty []string) (Playw
 		selected = allPlaywrightUnits(units)
 	}
 	selected = expandPlaywrightProjectEdges(selected, projects, units)
+	for _, project := range projects {
+		executionUnknown = append(executionUnknown, project.execution...)
+	}
 	unknown := append(selectionUnknown, executionUnknown...)
 	unknown = append(unknown, PlaywrightUnknown{Axis: PlaywrightAxisExecution, Reason: PlaywrightUnknownExternalApplication, Detail: "application state and runtime feature flags are not observed by static affected selection"})
 	unknown = canonicalPlaywrightUnknowns(unknown)
@@ -591,6 +598,10 @@ func parsePlaywrightProject(scope playwrightPureScope, configPath, globalTestDir
 	project.TestIgnore, project.ignores, unknown = parsePlaywrightMatchers(name, "testIgnore", properties, unknown)
 	if value, exists := properties["dependencies"]; exists {
 		dependencies, literal := playwrightStringArray(value)
+		if bound, ok := scope.arrays[strings.TrimSpace(value)]; !literal && ok {
+			// A const of literal arrays resolves to the union of its branches (TJAA-V0-036).
+			dependencies, literal = bound, true
+		}
 		if !literal {
 			unknown = append(unknown, selectionUnknown(PlaywrightUnknownProjectDependency, name+" dependencies are dynamic"))
 		} else {
@@ -617,7 +628,11 @@ func parsePlaywrightProject(scope playwrightPureScope, configPath, globalTestDir
 			project.Metadata = hex.EncodeToString(sum[:])
 		}
 	}
-	project.Browser, project.Device, ok = playwrightInheritedUseIdentity(scope, globalUse, properties["use"])
+	var computedExecutable bool
+	project.Browser, project.Device, computedExecutable, ok = playwrightInheritedUseIdentity(scope, globalUse, properties["use"])
+	if ok && computedExecutable {
+		project.execution = []PlaywrightUnknown{{Axis: PlaywrightAxisExecution, Reason: PlaywrightUnknownBrowserExecutable, Detail: name + " use.launchOptions.executablePath is computed, so the browser binary that runs is not observed"}}
+	}
 	if !ok {
 		unknown = append(unknown, selectionUnknown(PlaywrightUnknownBrowserIdentity, name+" use.browserName/device is dynamic or unsupported"))
 	}
@@ -673,35 +688,54 @@ func playwrightStaticIdentity(project, member string, properties map[string]stri
 	return strings.TrimSpace(raw), unknown
 }
 
-func playwrightInheritedUseIdentity(scope playwrightPureScope, global, raw string) (browser, device string, ok bool) {
-	browser, device, ok = playwrightUseLayer(scope, global, "", "")
+func playwrightInheritedUseIdentity(scope playwrightPureScope, global, raw string) (browser, device string, computedExecutable, ok bool) {
+	browser, device, computedExecutable, ok = playwrightUseLayer(scope, global, "", "")
 	if !ok {
-		return "", "", false
+		return "", "", false, false
 	}
-	browser, device, ok = playwrightUseLayer(scope, raw, browser, device)
+	var localExecutable bool
+	browser, device, localExecutable, ok = playwrightUseLayer(scope, raw, browser, device)
 	if browser == "" && device != "" {
 		browser = playwrightDeviceBrowser(device)
 	}
 	if browser == "" {
 		browser = "chromium"
 	}
-	return browser, device, ok
+	// A local launchOptions replaces the inherited one, executablePath included.
+	if localExecutable || playwrightUseDeclares(raw, "launchOptions") {
+		computedExecutable = localExecutable
+	}
+	return browser, device, computedExecutable, ok
+}
+
+// playwrightUseDeclares reports whether the `use` object literal raw declares key.
+func playwrightUseDeclares(raw, key string) bool {
+	properties, ok := playwrightObjectProperties(raw)
+	_, declared := properties[key]
+	return ok && declared
 }
 
 // playwrightUseLayer reads one `use` layer. A device spread keeps its identity only when the
 // devices import is sound in scope: any other occurrence of `devices` may rewrite a descriptor.
-func playwrightUseLayer(scope playwrightPureScope, raw, browser, device string) (string, string, bool) {
+// A launchOptions whose only computed property is a side-effect-free executablePath keeps the
+// identity and reports computedExecutable, an EXECUTION-axis unknown (TJAA-V0-035).
+func playwrightUseLayer(scope playwrightPureScope, raw, browser, device string) (string, string, bool, bool) {
+	browser, device, computedExecutable, ok := playwrightUseLayerItems(scope, raw, browser, device)
+	return browser, device, computedExecutable && ok, ok
+}
+
+func playwrightUseLayerItems(scope playwrightPureScope, raw, browser, device string) (_, _ string, computedExecutable, _ bool) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return browser, device, true
+		return browser, device, false, true
 	}
 	object, exact := playwrightObject(raw)
 	if !exact {
-		return "", "", false
+		return "", "", false, false
 	}
 	items, split := playwrightSplitTopLevel(object[1 : len(object)-1])
 	if !split {
-		return "", "", false
+		return "", "", false, false
 	}
 	seenBrowser := false
 	seenDevice := false
@@ -713,18 +747,18 @@ func playwrightUseLayer(scope playwrightPureScope, raw, browser, device string) 
 		if strings.HasPrefix(item, "...") {
 			name, literal := playwrightDeviceSpread(strings.TrimSpace(strings.TrimPrefix(item, "...")))
 			if !literal || seenDevice || !scope.devices {
-				return "", "", false
+				return "", "", false, false
 			}
 			device = name
 			seenDevice = true
 			if playwrightDeviceBrowser(device) == "" {
-				return "", device, false
+				return "", device, false, false
 			}
 			continue
 		}
 		colon := playwrightTopLevelColon(item)
 		if colon < 0 {
-			return "", device, false
+			return "", device, false, false
 		}
 		key := strings.TrimSpace(item[:colon])
 		if quoted, literal := playwrightString(key); literal {
@@ -732,33 +766,54 @@ func playwrightUseLayer(scope playwrightPureScope, raw, browser, device string) 
 		} else {
 			for index, character := range key {
 				if character != '_' && character != '$' && !unicode.IsLetter(character) && (index == 0 || !unicode.IsDigit(character)) {
-					return "", device, false
+					return "", device, false, false
 				}
 			}
 			if key == "" {
-				return "", device, false
+				return "", device, false, false
 			}
 		}
 		if key == "defaultBrowserType" {
-			return "", device, false
+			return "", device, false, false
 		}
 		if key != "browserName" {
 			// An identity value must be a static literal. Another option's value (baseURL,
 			// storageState, trace, ...) may be computed only when evaluating it cannot run code or
 			// write state, so it cannot rewrite a devices descriptor (TJAA-V0-018).
 			value := strings.TrimSpace(item[colon+1:])
+			if key == "launchOptions" && !playwrightStaticValue(value) && playwrightComputedExecutableOnly(scope, value) {
+				computedExecutable = true
+				continue
+			}
 			if slices.Contains(PlaywrightUseIdentityKeys, key) && !playwrightStaticValue(value) || !playwrightPureExpression(value, scope) {
-				return "", device, false
+				return "", device, false, false
 			}
 			continue
 		}
 		value, literal := playwrightString(strings.TrimSpace(item[colon+1:]))
 		if !literal || seenBrowser || value != "chromium" && value != "firefox" && value != "webkit" {
-			return "", device, false
+			return "", device, false, false
 		}
 		browser, seenBrowser = value, true
 	}
-	return browser, device, true
+	return browser, device, computedExecutable, true
+}
+
+// playwrightComputedExecutableOnly reports a launchOptions object literal whose properties are
+// static except executablePath, which is side-effect free: it chooses the browser binary, not the
+// project's browser identity or test membership (TJAA-V0-035).
+func playwrightComputedExecutableOnly(scope playwrightPureScope, raw string) bool {
+	properties, ok := playwrightObjectProperties(raw)
+	executable, declared := properties["executablePath"]
+	if !ok || !declared || !playwrightPureExpression(executable, scope) {
+		return false
+	}
+	for key, value := range properties {
+		if key != "executablePath" && !playwrightStaticValue(value) {
+			return false
+		}
+	}
+	return true
 }
 
 // PlaywrightUseIdentityKeys are the `use` options that make up a project's browser/device
@@ -1210,12 +1265,18 @@ func playwrightObjectProperties(raw string) (map[string]string, bool) {
 	return properties, true
 }
 
+// playwrightArrayItems splits an array literal. One trailing comma after an element ends the
+// list, as in ECMAScript, so `['a', 'b',]` has two items (TJAA-V0-035); `[]` stays one empty item.
 func playwrightArrayItems(raw string) ([]string, bool) {
 	raw = strings.TrimSpace(raw)
 	if len(raw) < 2 || raw[0] != '[' || raw[len(raw)-1] != ']' {
 		return nil, false
 	}
-	return playwrightSplitTopLevel(raw[1 : len(raw)-1])
+	items, ok := playwrightSplitTopLevel(raw[1 : len(raw)-1])
+	if ok && len(items) > 1 && items[len(items)-1] == "" && items[len(items)-2] != "" {
+		items = items[:len(items)-1]
+	}
+	return items, ok
 }
 
 func playwrightSplitTopLevel(raw string) ([]string, bool) {
@@ -1469,6 +1530,9 @@ func playwrightStringArray(raw string) ([]string, bool) {
 	if !ok {
 		return nil, false
 	}
+	if len(items) == 1 && items[0] == "" {
+		return []string{}, true // []
+	}
 	values := make([]string, 0, len(items))
 	for _, item := range items {
 		value, literal := playwrightString(item)
@@ -1501,6 +1565,9 @@ func playwrightStaticValueAt(raw string, depth int) bool {
 		return true
 	}
 	if items, ok := playwrightArrayItems(raw); ok {
+		if len(items) == 1 && items[0] == "" {
+			return true // []
+		}
 		for _, item := range items {
 			if !playwrightStaticValueAt(item, depth+1) {
 				return false

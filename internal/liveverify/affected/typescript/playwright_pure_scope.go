@@ -10,23 +10,41 @@ import (
 
 // playwrightPureScope names the roots whose member reads cannot run code (TJAA-V0-018). A member
 // read can invoke a getter or a Proxy trap, so a pure expression reads a member only of:
+//
 //   - the `devices` import from '@playwright/test', through a device-name key and then one scalar
 //     descriptor field (userAgent, deviceScaleFactor, isMobile, hasTouch, defaultBrowserType) or
 //     viewport/screen width/height, when every other occurrence of `devices` in the config is
-//     that import, a `...devices[...]` spread or such a read; and
+//     that import, a `...devices[...]` spread or such a read;
 //   - a top-level `const` bound to a plain object literal: `key: value` properties only, with an
 //     identifier or string key other than __proto__, each value a nested plain literal or an
 //     expression proven primitive; and every other occurrence of the name in the config a read
 //     chain that resolves through own keys to a primitive value, never written, updated,
-//     deleted, called, destructured into, spread, aliased as an object or shadowed.
+//     deleted, called, destructured into, spread, aliased as an object or shadowed; or
+//   - the `process` global, through exactly `env` and one variable name (TJAA-V0-035), when every
+//     occurrence of `process` in the config is such a read: the config can then neither replace
+//     process.env nor shadow `process`, and Node's process.env yields a string or undefined, so
+//     the read is proven primitive.
 //
-// Every other root (process.env, other imports, globals, `this`, call results) is refused. A
+// It also admits calls of the numeric conversions `Number`, `Number.parseInt`,
+// `Number.parseFloat`, `parseInt` and `parseFloat` over operands proven primitive, when every
+// occurrence of each callee name in the config is such a call, so it is neither shadowed nor
+// written (TJAA-V0-035). The process root and the conversions are refused in a config that names
+// a global object (`globalThis`, `global`, `window`, `self`), which could reach them without
+// their names. A module the config imports or a runtime preload that rewrites these globals is
+// outside the static model, as one that rewrites a devices descriptor is.
+//
+// Every other root (other imports, globals, `this`, call results) is refused. A
 // config that names `eval`, has a `delete`, `++` or `--` token or a `\` escape in code (only an
 // escaped identifier can hold one there) has no admitted roots, whatever the token's operand. Occurrences are found in the comment-stripped
 // text, string and template contents included, so an unrecognized one fails closed.
 type playwrightPureScope struct {
 	devices  bool
+	env      bool
+	numeric  map[string]bool
 	literals map[string]playwrightPlainValue
+	// arrays binds a top-level const whose initializer is a string-array literal or a conditional
+	// of them to the union of its branches (TJAA-V0-036).
+	arrays map[string][]string
 }
 
 // playwrightPlainValue is one property value of a plain const literal: a nested plain literal
@@ -62,6 +80,11 @@ func newPlaywrightPureScope(clean string) playwrightPureScope {
 		}
 		scope.devices = specifier >= 0 && playwrightDevicesSound(clean, lexed, specifier)
 	}
+	if !slices.ContainsFunc([]string{"globalThis", "global", "window", "self"}, func(name string) bool { return playwrightHasToken(clean, name) }) {
+		scope.env = playwrightEnvSound(clean, lexed)
+		scope.numeric = playwrightNumericSound(clean, lexed)
+	}
+	scope.arrays = playwrightConstArrays(clean, lexed)
 	declared := map[string]int{}
 	for _, match := range playwrightConstLiteral.FindAllStringSubmatchIndex(clean, -1) {
 		declared[clean[match[2]:match[3]]]++
@@ -107,13 +130,72 @@ func playwrightCodeMutationToken(clean string, lexed playwrightLexed) bool {
 	return false
 }
 
-// memberRead reports whether reading keys from root is admitted.
-func (scope playwrightPureScope) memberRead(root string, keys []string) bool {
-	if root == "devices" {
-		return scope.devices && playwrightDeviceRead(keys)
+// memberRead reports whether reading keys from root is admitted and whether the value read is
+// proven primitive.
+func (scope playwrightPureScope) memberRead(root string, keys []string) (admitted, primitive bool) {
+	switch root {
+	case "devices":
+		return scope.devices && playwrightDeviceRead(keys), false
+	case "process":
+		admitted = scope.env && playwrightEnvRead(keys)
+		return admitted, admitted
 	}
 	literal, ok := scope.literals[root]
-	return ok && literal.resolves(keys)
+	return ok && literal.resolves(keys), false
+}
+
+// playwrightEnvRead admits `env` followed by one variable name that is not an Object.prototype
+// member, so the read yields a string or undefined.
+func playwrightEnvRead(keys []string) bool {
+	return len(keys) == 2 && keys[0] == "env" && keys[1] != "" && !strings.HasPrefix(keys[1], "__") && !slices.Contains(playwrightObjectPrototypeKeys, keys[1])
+}
+
+// playwrightEnvSound reports whether every occurrence of `process` is a read-only
+// `process.env.NAME` chain.
+func playwrightEnvSound(raw string, lexed playwrightLexed) bool {
+	for _, at := range playwrightTokenOffsets(raw, "process") {
+		if !lexed.code[at] {
+			return false
+		}
+		keys, end, ok := playwrightMemberChain(raw, at+len("process"))
+		if !ok || !playwrightEnvRead(keys) || !playwrightReadContext(raw, lexed, at, end) {
+			return false
+		}
+	}
+	return true
+}
+
+// playwrightNumericCallee reports whether root followed by keys names an admitted numeric
+// conversion.
+func playwrightNumericCallee(root string, keys []string) bool {
+	switch root {
+	case "Number":
+		return len(keys) == 0 || len(keys) == 1 && (keys[0] == "parseInt" || keys[0] == "parseFloat")
+	case "parseInt", "parseFloat":
+		return len(keys) == 0
+	}
+	return false
+}
+
+// playwrightNumericSound returns the conversion callee names every occurrence of which is a
+// direct call: not a property name, a binding, an assignment target or an operand.
+func playwrightNumericSound(raw string, lexed playwrightLexed) map[string]bool {
+	sound := map[string]bool{}
+	for _, name := range []string{"Number", "parseInt", "parseFloat"} {
+		sound[name] = true
+		for _, at := range playwrightTokenOffsets(raw, name) {
+			if !lexed.code[at] || !playwrightReadBefore(raw, at) {
+				sound[name] = false
+				break
+			}
+			keys, end, ok := playwrightMemberChain(raw, at+len(name))
+			if next := skipPlaywrightSpace(raw, end); !ok || !playwrightNumericCallee(name, keys) || next == len(raw) || raw[next] != '(' {
+				sound[name] = false
+				break
+			}
+		}
+	}
+	return sound
 }
 
 // resolves reports whether keys name own properties down to a primitive value.
@@ -269,28 +351,8 @@ func playwrightDevicesSound(raw string, lexed playwrightLexed, specifier int) bo
 // before it does not update, delete, construct or spread it, the code after it does not assign,
 // update, call or tag it, and no enclosing bracket group is a destructuring or for-in/of target.
 func playwrightReadContext(raw string, lexed playwrightLexed, start, end int) bool {
-	if previous := playwrightPreviousCode(raw, start); previous >= 0 {
-		character := raw[previous]
-		word := ""
-		if character < utf8.RuneSelf && (character == '_' || character == '$' || character >= 'a' && character <= 'z' || character >= 'A' && character <= 'Z' || character >= '0' && character <= '9') {
-			from := previous
-			for from > 0 && strings.IndexByte("_$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", raw[from-1]) >= 0 {
-				from--
-			}
-			word = raw[from : previous+1]
-		}
-		switch {
-		case word != "":
-			if word != "return" && word != "typeof" && word != "void" {
-				return false
-			}
-		case !strings.ContainsRune("([{,:?=!&|+-*/%<>^~;})", rune(character)):
-			return false
-		case (character == '+' || character == '-') && previous > 0 && raw[previous-1] == character:
-			return false
-		case character == '.':
-			return false
-		}
+	if !playwrightReadBefore(raw, start) {
+		return false
 	}
 	after := skipPlaywrightSpace(raw, end)
 	if after < len(raw) {
@@ -311,6 +373,35 @@ func playwrightReadContext(raw string, lexed playwrightLexed, start, end int) bo
 			return false
 		}
 		if word, _ := playwrightIdentifier(raw, next); word == "of" || word == "in" {
+			return false
+		}
+	}
+	return true
+}
+
+// playwrightReadBefore reports whether the code before start neither updates, deletes,
+// constructs, spreads nor declares the expression there, nor names it as a property.
+func playwrightReadBefore(raw string, start int) bool {
+	if previous := playwrightPreviousCode(raw, start); previous >= 0 {
+		character := raw[previous]
+		word := ""
+		if character < utf8.RuneSelf && (character == '_' || character == '$' || character >= 'a' && character <= 'z' || character >= 'A' && character <= 'Z' || character >= '0' && character <= '9') {
+			from := previous
+			for from > 0 && strings.IndexByte("_$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", raw[from-1]) >= 0 {
+				from--
+			}
+			word = raw[from : previous+1]
+		}
+		switch {
+		case word != "":
+			if word != "return" && word != "typeof" && word != "void" {
+				return false
+			}
+		case !strings.ContainsRune("([{,:?=!&|+-*/%<>^~;})", rune(character)):
+			return false
+		case (character == '+' || character == '-') && previous > 0 && raw[previous-1] == character:
+			return false
+		case character == '.':
 			return false
 		}
 	}
@@ -529,4 +620,120 @@ func playwrightLex(raw string) (playwrightLexed, bool) {
 		}
 	}
 	return lexed, len(stack) == 0
+}
+
+// playwrightConstArray matches a top-level `const NAME =` with at most a simple type annotation.
+var playwrightConstArray = regexp.MustCompile(`(?m)^[\t ]*const[\t ]+([A-Za-z_$][A-Za-z0-9_$]*)[\t ]*(?::[\t ]*[A-Za-z_$][A-Za-z0-9_$]*(?:\[\])?[\t ]*)?=`)
+
+// playwrightConstArrays binds each top-level const, declared once, whose initializer is a
+// string-array literal, a parenthesized one or a conditional `test ? A : B` of them, to the
+// sorted union of the branches: a conservative superset of the value the config evaluates
+// (TJAA-V0-036). Every other occurrence of the name must be a property value (`key: NAME`
+// followed by `,` or `}`), so the array is never written, called, aliased, spread or shadowed.
+func playwrightConstArrays(clean string, lexed playwrightLexed) map[string][]string {
+	arrays := map[string][]string{}
+	matches := playwrightConstArray.FindAllStringSubmatchIndex(clean, -1)
+	declared := map[string]int{}
+	for _, match := range matches {
+		declared[clean[match[2]:match[3]]]++
+	}
+	for _, match := range matches {
+		name := clean[match[2]:match[3]]
+		if declared[name] != 1 || playwrightImpureKeywords[name] || !lexed.topLevel(match[0]) {
+			continue
+		}
+		values, next, ok := playwrightConstArrayValue(clean, lexed, match[1], 0)
+		if !ok || !playwrightStatementEnds(clean, next) || !playwrightConstArraySound(clean, lexed, name, match[2]) {
+			continue
+		}
+		arrays[name] = sortedUnique(values)
+	}
+	return arrays
+}
+
+// playwrightConstArrayValue parses the array value at index and returns its union and end.
+func playwrightConstArrayValue(raw string, lexed playwrightLexed, index, depth int) ([]string, int, bool) {
+	start := skipPlaywrightSpace(raw, index)
+	if depth > playwrightPureMaxDepth || start >= len(raw) || !lexed.code[start] {
+		return nil, start, false
+	}
+	mark, conditional := playwrightConditionalTest(raw, lexed, start)
+	if !conditional {
+		close, closed := lexed.closes[start]
+		switch {
+		case !closed:
+			return nil, start, false
+		case raw[start] == '[':
+			values, ok := playwrightStringArray(raw[start : close+1])
+			return values, close + 1, ok
+		case raw[start] == '(':
+			values, end, ok := playwrightConstArrayValue(raw, lexed, start+1, depth+1)
+			return values, close + 1, ok && skipPlaywrightSpace(raw, end) == close
+		}
+		return nil, start, false
+	}
+	consequent, end, ok := playwrightConstArrayValue(raw, lexed, mark+1, depth+1)
+	colon := skipPlaywrightSpace(raw, end)
+	if !ok || colon >= len(raw) || raw[colon] != ':' {
+		return nil, start, false
+	}
+	alternate, end, ok := playwrightConstArrayValue(raw, lexed, colon+1, depth+1)
+	return append(consequent, alternate...), end, ok
+}
+
+// playwrightConditionalTest returns the `?` that ends a conditional's test starting at start.
+// The test stays in one bracket level and holds no `;`, comma, `:`, assignment, arrow, or line break
+// except directly before the `?`, so automatic semicolon insertion cannot end the statement early.
+func playwrightConditionalTest(raw string, lexed playwrightLexed, start int) (int, bool) {
+	level := lexed.parent[start]
+	for index := start; index < len(raw); index++ {
+		if !lexed.code[index] || lexed.parent[index] != level {
+			continue
+		}
+		switch character := raw[index]; character {
+		case '?':
+			if strings.HasPrefix(raw[index:], "??") {
+				index++
+				continue
+			}
+			if strings.HasPrefix(raw[index:], "?.") && !(index+2 < len(raw) && raw[index+2] >= '0' && raw[index+2] <= '9') {
+				continue
+			}
+			return index, strings.TrimSpace(raw[start:index]) != ""
+		case ';', ',', ':', ')', ']', '}':
+			return 0, false
+		case '\n', '\r':
+			if next := skipPlaywrightSpace(raw, index); next >= len(raw) || raw[next] != '?' {
+				return 0, false
+			}
+		case '=':
+			previous, next := byte(0), byte(0)
+			if index > 0 {
+				previous = raw[index-1]
+			}
+			if index+1 < len(raw) {
+				next = raw[index+1]
+			}
+			if next == '>' || next != '=' && strings.IndexByte("=!<>", previous) < 0 {
+				return 0, false
+			}
+		}
+	}
+	return 0, false
+}
+
+// playwrightConstArraySound reports whether every occurrence of name other than its declaration
+// is a property value.
+func playwrightConstArraySound(raw string, lexed playwrightLexed, name string, declaration int) bool {
+	for _, at := range playwrightTokenOffsets(raw, name) {
+		if at == declaration {
+			continue
+		}
+		previous := playwrightPreviousCode(raw, at)
+		next := skipPlaywrightSpace(raw, at+len(name))
+		if !lexed.code[at] || previous < 0 || raw[previous] != ':' || previous > 0 && raw[previous-1] == ':' || next >= len(raw) || raw[next] != ',' && raw[next] != '}' {
+			return false
+		}
+	}
+	return true
 }

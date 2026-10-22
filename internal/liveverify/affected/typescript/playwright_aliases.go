@@ -10,7 +10,8 @@ import (
 )
 
 // These inputs are already covered by ObservePlaywrightSources. The general
-// affected-plan adapter deliberately retains its original alias frontier.
+// affected-plan adapter resolves the same aliases only when Playwright is the sole
+// runner identity it observes (TJAA-V0-037); otherwise it retains its alias frontier.
 type typeScriptAliases struct {
 	directory string
 	base      string
