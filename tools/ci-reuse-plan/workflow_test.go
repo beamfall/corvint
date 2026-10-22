@@ -403,7 +403,7 @@ func writeJSON(t *testing.T, path string, v any) {
 
 // AFP-V0-081: a ci:batched constituent starts none of the jobs its batch pull request and queue
 // entry rerun in full, but keeps the cheap documentation gates and the required go-product
-// failure that keeps it from merging alone.
+// check, which the merge queue's full run keeps from landing it untested (AFP-V0-027).
 func TestAFPV0081BatchedConstituentSkipsOnlyRerunJobs(t *testing.T) {
 	ci := readWorkflow(t, "ci.yml")
 	const batched = "!contains(github.event.pull_request.labels.*.name, 'ci:batched')"
@@ -413,12 +413,88 @@ func TestAFPV0081BatchedConstituentSkipsOnlyRerunJobs(t *testing.T) {
 		}
 	}
 	for _, job := range []string{"doc-gates", "docs-plan", "go-product"} {
-		if strings.Contains(jobBlock(t, ci, job), "'ci:batched'") {
+		// Only the job condition decides whether it runs; go-product reads the label in its step.
+		if cond := regexp.MustCompile(`(?m)^    if: .*$`).FindString(jobBlock(t, ci, job)); strings.Contains(cond, "'ci:batched'") {
 			t.Errorf("%s must still run for a ci:batched constituent", job)
 		}
 	}
 	wantLine(t, "go-product", jobBlock(t, ci, "go-product"), "    if: always()")
 	wantLine(t, "containment", jobBlock(t, readWorkflow(t, "intake-containment.yml"), "containment"), "    if: ${{ "+batched+" }}")
+}
+
+// AFP-V0-027 (V1-2265): go-product passes, with a notice, only for a pull_request labelled
+// ci:batched whose shards and go-static were both skipped; every other skipped or failed shard or
+// static result still fails it, and the label never stands in for a failed docs-plan.
+func TestAFPV0027BatchedSkipPassesGoProductWithANotice(t *testing.T) {
+	ci := readWorkflow(t, "ci.yml")
+	b := jobBlock(t, ci, "go-product")
+	wantLine(t, "go-product", b,
+		"          BATCHED: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:batched') }}")
+	script := runScript(t, b)
+	run := func(batched, shards, static, docs string) (bool, string) {
+		t.Helper()
+		summary := filepath.Join(t.TempDir(), "summary")
+		cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
+		cmd.Env = append(os.Environ(), "BATCHED="+batched, "SHARDS_RESULT="+shards, "STATIC_RESULT="+static,
+			"STATIC_REUSE=", "DOCS_RESULT="+docs, "GITHUB_EVENT_NAME=pull_request", "GITHUB_STEP_SUMMARY="+summary)
+		out, err := cmd.CombinedOutput()
+		return err == nil, string(out)
+	}
+	if ok, out := run("true", "skipped", "skipped", "success"); !ok || !strings.Contains(out, "::notice::") || !strings.Contains(out, "ci:batched") {
+		t.Errorf("a ci:batched skip must pass with a notice naming the label; ok=%v\n%s", ok, out)
+	}
+	for name, c := range map[string][4]string{
+		"unlabelled skipped shards":       {"false", "skipped", "skipped", "success"},
+		"batched with a failed docs-plan": {"true", "skipped", "skipped", "failure"},
+		"batched but go-static ran":       {"true", "skipped", "success", "success"},
+		"batched but shards failed":       {"true", "failure", "skipped", "success"},
+		"batched but shards cancelled":    {"true", "cancelled", "skipped", "success"},
+		"unlabelled failed shards":        {"false", "failure", "success", "success"},
+	} {
+		if ok, out := run(c[0], c[1], c[2], c[3]); ok {
+			t.Errorf("%s: go-product passed\n%s", name, out)
+		}
+	}
+	if ok, out := run("false", "success", "success", "success"); !ok {
+		t.Errorf("a full pass must pass go-product\n%s", out)
+	}
+	// The shards of the queue run that must test the constituent: the label is read from the
+	// pull_request payload only, so it is off for merge_group.
+	if !strings.Contains(jobBlock(t, ci, "go-product-shard"), "!contains(github.event.pull_request.labels.*.name, 'ci:batched')") {
+		t.Error("go-product-shard must read the label from the pull_request payload")
+	}
+	// A skipped shard job never prints the AFP-V0-170 tree record the queue's REUSE needs.
+	if !strings.Contains(jobBlock(t, ci, "ci-tested-tree-record"), "needs.go-product-shard.result == 'success'") {
+		t.Error("ci-tested-tree-record must require passed shards")
+	}
+}
+
+// AFP-V0-380 (V1-1103): interop/cem01-go's tests and vet run exactly once per CI run, in
+// go-static, which the required go-product check needs; go-interop keeps only the formatting and
+// Windows build checks that go-static does not run for that module.
+func TestAFPV0380InteropTestsRunOnceInGoStatic(t *testing.T) {
+	ci := readWorkflow(t, "ci.yml")
+	static := jobBlock(t, ci, "go-static")
+	_, step, ok := strings.Cut(static, "        working-directory: source/interop/cem01-go\n")
+	if !ok {
+		t.Fatal("go-static has no interop/cem01-go step")
+	}
+	script := runScript(t, step)
+	if strings.TrimSpace(script) != "go test -count=1 -timeout 30m ./...\ngo vet ./..." {
+		t.Errorf("go-static interop step = %q, want its tests and vet", script)
+	}
+	interop := runScript(t, jobBlock(t, ci, "go-interop"))
+	if strings.Contains(interop, "go test") || strings.Contains(interop, "go vet") {
+		t.Errorf("go-interop reruns interop/cem01-go tests or vet:\n%s", interop)
+	}
+	for _, line := range []string{`test -z "$(gofmt -l .)"`, "GOOS=windows GOARCH=amd64 go build ./..."} {
+		if !strings.Contains(interop, line) {
+			t.Errorf("go-interop lost %q", line)
+		}
+	}
+	if !strings.Contains(regexp.MustCompile(`(?m)^    needs: .*$`).FindString(jobBlock(t, ci, "go-product")), "go-static") {
+		t.Error("go-product must need go-static, which owns the interop tests")
+	}
 }
 
 // V1-0728: a main push run is grouped by its own commit, so a later merge never cancels it,

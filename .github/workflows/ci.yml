@@ -45,7 +45,7 @@ jobs:
       - name: Host package versions (AHI-020)
         run: make -s host-package-versions-check host-package-versions-test
       - name: Documentation gate steps
-        run: make -s spec-requirements-check requirement-definitions-check traceability-tests-check decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check test-read-scopes-check test-commands-check
+        run: make -s spec-requirements-check requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check test-read-scopes-check test-commands-check
       - name: Use-case receipt pins (run script/repin-use-case-receipts.sh on failure)
         run: |
           make -s use-case-receipts-check use-case-receipts-test
@@ -276,8 +276,9 @@ jobs:
   go-product-shard:
     needs: [docs-plan, narrowing-verdict]
     # AFP-V0-027: a pull request labelled ci:batched is a constituent of a batch pull request
-    # that runs this suite on the combined tree, so its own race shards never start. The
-    # skipped shard job fails go-product below; the label never makes a PR mergeable.
+    # that runs this suite on the combined tree, so its own race shards never start. go-product
+    # below passes with a notice (V1-2265); the label never lands a PR untested, because every
+    # merge goes through the merge queue, whose run ignores the label and tests in full.
     if: ${{ always() && !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') }}
     # Partition the complete runtime package universe using advisory measured costs. An
     # admitted Corvint selection intersects those same disjoint partitions; mixed full
@@ -907,13 +908,15 @@ jobs:
             )
           done
       - name: Independent interop under production toolchain
+        # AFP-V0-380 (V1-1103): the only run of interop/cem01-go's tests and vet in this workflow.
         working-directory: source/interop/cem01-go
         run: |
           go test -count=1 -timeout 30m ./...
           go vet ./...
 
   go-product:
-    # The required check. A needed job that fails, is cancelled or is skipped is not success.
+    # The required check. A needed job that fails, is cancelled or is skipped is not success,
+    # except the AFP-V0-027 skip of a ci:batched pull request, which the merge queue tests.
     if: always()
     needs: [go-product-shard, go-static, docs-plan, static-reuse]
     runs-on: ubuntu-24.04
@@ -925,9 +928,19 @@ jobs:
           STATIC_RESULT: ${{ needs.go-static.result }}
           STATIC_REUSE: ${{ needs.static-reuse.outputs.mode }}
           DOCS_RESULT: ${{ needs.docs-plan.result }}
+          BATCHED: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:batched') }}
         run: |
-          if [ "$SHARDS_RESULT" = skipped ]; then
-            echo '::error::go-product shards did not run: this pull request is labelled ci:batched. Merge it through its batch pull request, or remove the label and push (or close and reopen) to test it alone.'
+          # AFP-V0-027 (V1-2265): a ci:batched pull request's shards and go-static never start, and
+          # this check passes with a notice instead of failing, so a lane PR is not red. It still
+          # cannot land untested: main's merge_queue rule sends every merge through a merge_group
+          # run, where the label is off and, with no AFP-V0-170 record for this skipped run, the
+          # shards run FULL.
+          if [ "$BATCHED" = true ] && [ "$SHARDS_RESULT" = skipped ] && [ "$STATIC_RESULT" = skipped ]; then
+            test "$DOCS_RESULT" = success
+            msg='go-product shards did not run: this pull request is labelled ci:batched (AFP-V0-027). Nothing was tested here; its batch pull request and the merge queue run the full suite. Remove the label and push (or close and reopen) to test it alone.'
+            echo "::notice::$msg"
+            echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
           test "$SHARDS_RESULT" = success
           # AFP-V0-080: only a main push whose queue run passed go-static on this commit skips it.
@@ -1047,7 +1060,9 @@ jobs:
   go-interop:
     # Not a required check. AFP-V0-081: a ci:batched constituent never starts it (its batch pull
     # request and queue entry run it on the combined tree); AFP-V0-080: a main push reuses the
-    # passed merge-queue run of the same commit.
+    # passed merge-queue run of the same commit. AFP-V0-380 (V1-1103): interop/cem01-go's tests
+    # and vet run once, in go-static (which go-product needs); this job keeps only the formatting
+    # and Windows build checks go-static does not run for that module.
     needs: static-reuse
     if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' }}
     runs-on: ubuntu-24.04
@@ -1069,8 +1084,6 @@ jobs:
           GOWORK: "off"
         run: |
           test -z "$(gofmt -l .)"
-          go test -count=1 ./...
-          go vet ./...
           GOOS=windows GOARCH=amd64 go build ./...
 
   artifact-integrity:
