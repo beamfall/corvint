@@ -106,7 +106,7 @@ func liveRepository(ctx context.Context, dir string, a *Artifact, member func(st
 	if err != nil {
 		return nil, false, nil, err
 	}
-	auth, err := gitauth.Open(dir, newGitBudget())
+	auth, err := gitauth.Open(dir, newGitBudget(ctx))
 	if err != nil {
 		return nil, false, nil, err
 	}

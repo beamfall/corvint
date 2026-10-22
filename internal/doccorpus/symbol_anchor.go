@@ -555,7 +555,7 @@ func (c *symbolChecker) check(ctx context.Context, anchor Anchor) (SymbolAnchorC
 // committed, clean content of its path is live without a parse.
 func (c *symbolChecker) resolve(ctx context.Context, anchor Anchor) (SymbolAnchorCheck, error) {
 	live := c.overlay.live
-	if err := c.open(); err != nil {
+	if err := c.open(ctx); err != nil {
 		return SymbolAnchorCheck{}, err
 	}
 	blob, seen := c.blobs[anchor.Path]
@@ -577,12 +577,12 @@ func (c *symbolChecker) resolve(ctx context.Context, anchor Anchor) (SymbolAncho
 }
 
 // open binds the request's resolver and Git budget on first use.
-func (c *symbolChecker) open() error {
+func (c *symbolChecker) open(ctx context.Context) error {
 	if c.resolver != nil {
 		return nil
 	}
 	live := c.overlay.live
-	auth, err := gitauth.Open(c.overlay.root, newGitBudget())
+	auth, err := gitauth.Open(c.overlay.root, newGitBudget(ctx))
 	if err != nil {
 		return err
 	}
@@ -618,7 +618,7 @@ func (c *symbolChecker) prefetch(ctx context.Context, citations []Anchor) error 
 			paths = append(paths, anchor.Path)
 		}
 	}
-	if len(anchors) == 0 || c.open() != nil {
+	if len(anchors) == 0 || c.open(ctx) != nil {
 		return nil // check reports a failed open
 	}
 	r, p := c.resolver, c.resolver.prefetched

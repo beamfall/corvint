@@ -66,7 +66,7 @@ func InventoryScopes(ctx context.Context, root, revision string, scopes []string
 	for _, scope := range scopes {
 		m.Scopes = append(m.Scopes, Scope{scope, revision})
 	}
-	auth, err := gitauth.Open(root, newGitBudget())
+	auth, err := gitauth.Open(root, newGitBudget(ctx))
 	if err != nil {
 		return m, err
 	}
@@ -471,7 +471,7 @@ func (c *compiler) pin(ctx context.Context) (err error) {
 	}
 	sessions := map[string]*gitauth.Repository{}
 	for i, dir := range dirs {
-		auth, err := gitauth.Open(dir, newGitBudget())
+		auth, err := gitauth.Open(dir, newGitBudget(ctx))
 		if err != nil {
 			if i > 0 {
 				return &Error{Code: "corpus-input-unavailable", Message: "additional repository checkout unavailable: " + c.manifest.AdditionalRepositories[i-1].ID}
