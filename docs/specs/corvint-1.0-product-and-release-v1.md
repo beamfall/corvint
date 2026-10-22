@@ -13,7 +13,7 @@ scope, `PUB-V0-001..026` and the 2026-09-16 Core release scope amendment),
 (0.7.0 build 46), task-store tickets V1-0001..V1-0021.
 
 ## Agent digest
-- Claim: 1.0 requires Core change evidence, Flows, navigation, docs, MCP, automatic docs and the PRS-V1-018 SDD improvements; the Tasks Beamfall takeover is post-1.0.
+- Claim: 1.0 requires Core change evidence, Flows, navigation, docs, MCP, automatic docs, PRS-V1-018 SDD improvements and the Tasks Beamfall takeover.
 - Status: accepted (decisions 0373 and 0426, V1-0001 and V1-0461; PRS-V1-018 accepted (owner instruction 2026-10-13, V1-1344..V1-1348 at milestone v1-0)) / partial; expanded 1.0 qualification pending
 - Exists: this spec, decision 0373 with the eleven owner answers, and the prospective amendment section in `public-release-v0.md`; the candidate reader and installer admit a Core-only profile (V1-0125), and `corvint-release-candidate` assembles one when `-companion-dir` is omitted (V1-0229).
 - Blocked on: V1-0019 external validation and V1-0020 qualification of the next candidate. `1.0.0-rc.1` (build 163, `b967f6bb`) is published as a prerelease with V1-0019 run-001 as a known issue (decision 0425): orientation FAIL on go-chi/chi (3 of 20) and beamfall/core (1 of 20), consequence and completion PASS on both, and the Corvint run aborted (V1-0431..V1-0433). The next run uses urfave/cli (decision 0432): the previously selected cobra pin was already scored in development, so its untouched-repository admission is superseded; the native linux/amd64 host is a GitHub-hosted `ubuntu-24.04` runner (decision 0420).
@@ -43,7 +43,18 @@ Core's binary boundary, artifact independence and compatibility promises remain 
 The expanded release is tracked by V1-0461..0465 and the existing Flows tickets V1-0249 and
 V1-0252..0255.
 
-**Amendment 2026-10-21 (V1-0461 criterion 3).** Under the owner's 2026-10-20 delegation of the 1.0
+**Amendment 2026-10-22 (V1-0461 criterion 1, V1-0464).** The owner moved the takeover's
+prerequisite V1-0398 to milestone v1-0 on 2026-10-22, and V1-0464 already carries milestone v1-0, so
+the reason for the 2026-10-21 deferral no longer holds. `PRS-V1-014` and `PRS-V1-016` are again
+stable 1.0 promotion requirements (`../build-log/2026-10-22-bf-1022q-beamfall-takeover.md`).
+Decision 0544 records ADR-0227 in Beamfall core-history as the accepted activation of the Core
+cutover; the remaining 1.0 evidence is consumer rewiring and legacy writer fencing (in review as
+beamfall/core-history#45), actual production native completion with readback and receipt audit,
+and the concrete owner authority switch, which still needs explicit owner approval. Until those are
+retained, stable 1.0 makes no claim that Tasks has replaced Beamfall's roadmap writers. The
+2026-10-21 paragraph below is kept as history.
+
+**Amendment 2026-10-21 (V1-0461 criterion 3, superseded 2026-10-22).** Under the owner's 2026-10-20 delegation of the 1.0
 feature cut, the Beamfall roadmap takeover (V1-0464, `PRS-V1-014` and `PRS-V1-016`) moved post-1.0
 because its prerequisite V1-0398 is post-1.0
 (`../build-log/2026-10-21-v1-0461-criterion-3-post-1-0.md`). Stable 1.0 makes no claim that Tasks
@@ -173,7 +184,7 @@ rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 clai
 | `corvint feature` | experimental | Legacy parity verb kept for the Go kernel migration. |
 | Internal `authority-event`, `qualified-event`, `native-hook`, `frontier-next`, `plan-fixture`, `source-view`, `docs corpus` | experimental | Protected-authority, planning, source-view and corpus prototypes. |
 | `corvint-console`, `corvint-dashboard-snapshot` | companion | Optional operator console with no authority (decision 0081). |
-| `corvint-tasks` | companion | Native task store with its own qualification. The full Beamfall roadmap replacement of decision 0426 (`PRS-V1-014`, `PRS-V1-016`, V1-0464) is post-1.0 (amendment 2026-10-21); stable 1.0 makes no takeover claim. |
+| `corvint-tasks` | companion | Native task store with its own qualification. The full Beamfall roadmap replacement of decision 0426 (`PRS-V1-014`, `PRS-V1-016`, V1-0464) is a stable 1.0 requirement again (amendment 2026-10-22); no takeover claim until its production completion and owner switch are retained. |
 | `corvint-mcp`, `corvint-docs-mcp` | required 1.0 companion | Native-parity Flows and documentation tools with compiled-process conformance (decision 0426). |
 | `corvint-test-validity-mcp` | companion | Optional test-validity host surface with its own qualification. |
 | `corvint-js-test-provider`, `corvint-go-test-provider` | companion | Test providers qualify under `/2` or `/3`, not Core. |
@@ -340,8 +351,8 @@ accepted by decision 0373 and the amendment it requires are stated.
 - `PRS-V1-013`: Stable 1.0 MUST include qualified Flows, safe application navigation,
   evidence-bound flow documentation and the corresponding MCP tools under their owning AFU
   contract. Missing observers and unavailable production integrations remain explicit gaps.
-- `PRS-V1-014`: Deferred post-1.0 (amendment 2026-10-21, V1-0464); not a stable 1.0 promotion
-  requirement. The kept direction: Tasks MUST replace Beamfall's active roadmap workflow through native ticket
+- `PRS-V1-014`: Stable 1.0 requirement (restored by amendment 2026-10-22 after the 2026-10-21
+  deferral, V1-0464). Tasks MUST replace Beamfall's active roadmap workflow through native ticket
   mutation, claims/leases, independent candidate review and repair, actual gates, single- and
   multi-repository integration, completion and consumer migration. Preserve history and original
   evidence; imported manual completions MUST NOT be relabelled newly verified execution.
@@ -349,8 +360,8 @@ accepted by decision 0373 and the amendment it requires are stated.
   sources and observations, retain citations and uncertainty, preserve human prose, detect drift,
   preview updates, support safe explicit apply and repeat no-ops, and retain rollback evidence.
   Generated output MUST NOT accept intent or publish itself.
-- `PRS-V1-016`: Deferred post-1.0 (amendment 2026-10-21, V1-0464); not a stable 1.0 promotion
-  requirement. The kept direction: before Beamfall production activation, the migration MUST reconcile active work,
+- `PRS-V1-016`: Stable 1.0 requirement (restored by amendment 2026-10-22 after the 2026-10-21
+  deferral, V1-0464). Before Beamfall production activation, the migration MUST reconcile active work,
   fence legacy writers, qualify real gates and process cleanup, and rehearse recovery that retains
   post-cutover native writes. The final concrete switch requires owner approval. Stable promotion
   additionally requires actual production native completion, ticket readback and receipt audit.
@@ -451,7 +462,7 @@ is `github.com/go-chi/chi` (decision 0422). The questions stay as asked.
 |---|---|---|
 | `PRS-V1-001..012` | Decision 0373 | PRODUCED (2026-09-23) |
 | `PRS-V1-013`, `PRS-V1-015`, `PRS-V1-017` | Decision 0426; V1-0461..0463, V1-0465 and V1-0249/V1-0252..0255; docs and flow-doc run on this repository (`../build-log/2026-10-21-v1-0461-docs-flows-e2e.md`) | Owner scope recorded; local end-to-end run retained for docs maintain and flow docs; exact-candidate qualification pending |
-| `PRS-V1-014`, `PRS-V1-016` | V1-0464; `../build-log/2026-10-21-v1-0461-criterion-3-post-1-0.md` | Deferred post-1.0 (2026-10-21); no 1.0 claim |
+| `PRS-V1-014`, `PRS-V1-016` | V1-0464; decision 0544; beamfall/core-history#45; `../build-log/2026-10-22-bf-1022q-beamfall-takeover.md` | Restored to 1.0 (2026-10-22); activation recorded, consumer rewire in review; production completion and owner switch NOT_PRODUCED |
 | `PRS-V1-018` | Owner instruction 2026-10-13; V1-1344..V1-1348 at milestone v1-0 (V1-0020 dependencies) | Owner scope recorded; each clause NOT_QUALIFIED until its ticket retains acceptance evidence and completes natively |
 | `PRS-V1-010` | Review of this table against the base commit's verbs, binaries and trees | review only |
 | `PRS-V1-002` | N-1 upgrade: 0.7.0 archive to 0.8.0 `upgrade-b` and `rollback-a` under `SOP-V0-003` (`stable-operations-v0.md`, V1-0190) | PASS on darwin/arm64, darwin/amd64 (Rosetta 2), linux/arm64 (container); linux/amd64 emulated only |
