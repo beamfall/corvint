@@ -723,6 +723,23 @@ Each row cites the first emitting site and states only the condition checked the
   the ring was evicted; a result whose bytes change after the mapping is unmapped; a fault under
   concurrent context calls. Rollback: remove the deferred `Release` and `detachedContext` from
   `callContext`; the mapping is then pinned until process exit, as before.
+- `MCPV0-095`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2219) A `MIXED`
+  bridge `repository` binding MUST stay exactly the seven members of the closed
+  `corvint-mcp-bridge-result/0` object above: it names no dirty path, only `dirtyPathCount` and
+  `dirtyPathsSha256`, unlike the bounded path list of `corvint affected` (`AFP-V0-356`, whose
+  non-goals already exclude this binding). Why not: (1) the binding is the closed `/0` wire, and
+  `internal/lspstdio` serialises the same `bridge.RepositoryBinding`, so a path member changes two
+  wires and every closed-shape consumer; (2) it is an identity, not a diagnosis: the count and
+  digest let a caller see that the dirty set changed between calls, and they are repeated in every
+  result, including `ABSTAINED` ones and `corvint.status`, so names there would put repository-authored
+  path text into model input on every call; (3) `corvint.status` and `corvint.cem.report` bind from
+  `gokernel.ProbeRepositoryContext`, which keeps only the count and digest, so names would need a
+  second worktree read that can disagree with the bound snapshot. A caller that needs the names
+  reads them where they are diagnostic: the native receipt, which the bridge passes through
+  unaltered, so any MIXED path naming a receipt carries reaches MCP callers unchanged; `corvint
+  affected` (`AFP-V0-356`); or `git status`. Falsifier: a MIXED binding that carries a path, a
+  path fragment or any member beyond the seven. Rollback: delete this requirement; a path member
+  would then need its own wire revision.
 
 ## Acceptance matrix
 
@@ -821,6 +838,7 @@ cleanup remain outside that receipt.
 | `MCPV0-040` | `followRef.sync` dirty and attached guards | `TestMCPV0040DirtyTreeNeverModifiedAndFlaggedStale`: untracked and tracked edits survive, head unchanged, `DIRTY` and `stale`; a checked-out branch is `NOT_DETACHED`; an injected index failure is `INDEX_FAILED`; `TestMCPV0040ChecksRunWhenHeadAlreadyCurrent`: dirty and attached at the current head are stale with no index write; `TestMCPV0040MoveNeverOverwritesIgnoredFiles`: an ignored file the new commit tracks survives as `CHECKOUT_FAILED` |
 | `MCPV0-041` | `withFollowRef`, `followState.block`, `toolFailure` | `TestMCPV0041MissingRefIsTypedErrorAndCommitEchoed`: the commit is echoed; a deleted ref is tool error `follow-ref-missing` with `reasonClass` `unclassified`, `state` `MISSING` and the worktree unchanged |
 | `MCPV0-090` | `callContext` (deferred `Index.Release`), `detachedContext`, `compileContext` retry release | `internal/contextindex/bridge_release_test.go`'s `TestMCPV0090ContextCallReleasesItsSnapshotMapping`: one task-review bridge answers 1 sequential and 24 concurrent (6x4) `corvint.context` calls from a mapped pack; the ring holds exactly 1 mapping, 0 stay live after it is evicted, and every result encodes to the first result's bytes after the unmap; fails with 1 live mapping when the release is removed; passes under `-race` |
+| `MCPV0-095` | `RepositoryBinding`, `snapshotIndex`, `bindingFromRepository` (no path member) | `internal/mcp/bridge/worktree_test.go`'s `TestMCPV0095MixedBindingIsCountAndDigestOnly`: `corvint.status` and `corvint.query` over a worktree with one untracked file bind `MIXED` with count 1, exactly the seven members, and no byte of the dirty path's name |
 | `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |
 
 ## Unresolved decisions and promotion/kill criteria
