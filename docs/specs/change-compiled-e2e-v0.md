@@ -2,9 +2,10 @@
 
 Owner: Russell Lewis
 Date: 2026-10-17
-Intent status: proposed
+Intent status: accepted (owner, 2026-10-22)
 Delivery status: experimental
-Authoritative inputs: owner direction of 2026-10-17 (this session; recorded in
+Authoritative inputs: owner acceptance of 2026-10-22 ("I want the CCE stuff in 1.0"; recorded in
+`docs/build-log/2026-10-22-feat1-cce-site-knowledge.md`); owner direction of 2026-10-17 (this session; recorded in
 `docs/build-log/2026-10-17-change-compiled-e2e-direction.md`): "Draft the spec as augment-first:
 hosted blocks, generated scenarios, a shadow evaluation against the existing suite before any test
 is retired"; `AGENTS.md`; `docs/SPEC-DRIVEN-DEVELOPMENT.md`; `docs/specs/application-map-v0.md`
@@ -19,10 +20,10 @@ solution that is a perfect additional and use case for corvint".
 
 ## Agent digest
 - Claim: Reviewed E2E blocks compile into change-specific scenarios that must discriminate the change; hosted tests retire only after a shadow evaluation.
-- Status: proposed; experimental. First slice V1-1665 implements CCE-V0-001, 002, 004..009 and 015 in `internal/changee2e` behind `corvint-test e2e` with focused tests and a live Playwright qualification (Node v22.23.2); CCE-V0-003 is partial (one hand-written declarations file) and CCE-V0-010..014 are not started. The 2026-10-17 panel amendment adds CCE-V0-016..025 and amends 003, 004, 009, 011 and 012; none of that is implemented except the CCE-V0-021 environment block (V1-1681 serve part) and the obligations soundness of CCE-V0-019/020 with the amended 004 base join (V1-1678); the rest is V1-1677, V1-1679..V1-1682, V1-1687. CCE-V0-086 (V1-1711) resolves a relative `--root`. Everything ships as the `e2e` group of one experimental companion, `corvint-test`; V0 adds nothing to core `corvint`.
-- Exists: `cmd/corvint-test` (`e2e catalog|obligations|compile|prove`) over `internal/changee2e`. It composes the existing AMAP-V0 map and scaffold, AMSP-V0 planner, AFU-V1 declared outcomes, ANL-V0 proven edges, RVN-V0 run verification, PWR-V0 run comparison and NEA-V0/BBF-V0 negative controls.
-- Blocked on: owner acceptance of this intent; first slice V1-1665; falsification spike V1-1677 before more V0 build (umbrella V1-1666).
-- Read next: User and measurable job; Definitions; Requirements (016..025); Shadow evaluation and retirement; Beyond V0; Owner questions.
+- Status: accepted (owner, 2026-10-22); experimental; CCE-V0-026..038 accepted under the standing auto-accept (2026-10-11). First slice V1-1665 implements CCE-V0-001, 002, 004..009 and 015 in `internal/changee2e` behind `corvint-test e2e` with focused tests and a live Playwright qualification (Node v22.23.2); CCE-V0-003 is partial (one hand-written declarations file) and CCE-V0-010, 013 and 014 are not started. The 2026-10-17 panel amendment adds CCE-V0-016..025 and amends 003, 004, 009, 011 and 012. Implemented: the CCE-V0-021 environment block (V1-1681 serve part), the obligations soundness of CCE-V0-019/020 with the amended 004 base join (V1-1678), and (2026-10-22 lane) the amended 009 ladder, 016 `oracle_origin`, 017 head test tree, 018 structure controls, 024 `outcome-vacuous`, the offline fake runner and the 011/012 shadow report over a recorded window (CCE-V0-026..033; V1-1679, V1-1680, V1-1682, V1-1687). Not implemented: the hosted-test prover CCE-V0-034..038 (V1-1733), receipt-located assertions, `cleanup-failed`, CCE-V0-022/023/025 and the rest of 024, CCE-V0-013/014, and any adopter window. CCE-V0-086 (V1-1711) resolves a relative `--root`. Everything ships as the `e2e` group of one experimental companion, `corvint-test`; V0 adds nothing to core `corvint`.
+- Exists: `cmd/corvint-test` (`e2e catalog|obligations|compile|prove|shadow`) over `internal/changee2e`. It composes the existing AMAP-V0 map and scaffold, AMSP-V0 planner, AFU-V1 declared outcomes, ANL-V0 proven edges, RVN-V0 run verification, PWR-V0 run comparison and NEA-V0/BBF-V0 negative controls.
+- Blocked on: owner question 9 (the 2026-10-18 kill of compilation versus the 2026-10-22 acceptance); the hosted-test prover CCE-V0-034..038 (V1-1733) and its external rerun; an adopter shadow window of at least 30 recorded entries (external; umbrella V1-1666); owner acceptance of the companion fold (V1-1667).
+- Read next: User and measurable job; Definitions; Requirements (016..033); Shadow evaluation and retirement; Beyond V0; Owner questions.
 
 ## User and measurable job
 
@@ -248,7 +249,10 @@ is a later, separate decision that needs its own owner acceptance and the promot
      but the outcome assertion.
 
   The assertion's location MUST be read from the receipt's error location (file and line of the
-  emitted assertion), not from marker text in the message.
+  emitted assertion), not from marker text in the message. PARTIAL (2026-10-22): the PWP receipt
+  does not yet carry the error location, so the implementation attributes a failure to the
+  assertion through its emitted-line marker and reads the failure kind under CCE-V0-026; a failure
+  elsewhere with the same message is a recorded limitation. `cleanup-failed` is not yet detected.
 
   `PRESERVES` MUST be reported as a regression-preservation check only and MUST NOT be described as
   detecting the change. `NEW_REACH` MUST be described as checking new behaviour against its
@@ -377,7 +381,86 @@ slice or the draft; the build-log entry gives the evidence.
   reason, code, summary or block. Failure mode: page-controlled text reaches an agent as
   instructions or forges a verdict explanation.
 
-The 2026-10-21 fix lane (V1-1711) adds CCE-V0-086; IDs 026..085 are left free for parallel lanes.
+The 2026-10-22 feature lane (V1-1679, V1-1680, V1-1682, V1-1687) adds CCE-V0-026..033. They pin
+readings the amended requirements leave open; each is accepted under the standing auto-accept of
+2026-10-11.
+
+- `CCE-V0-026`: The CCE-V0-009 failure kind of a failed assertion MUST be read from the runner's
+  error message after removing terminal escape sequences: `locator-unresolved` when it reports
+  that the element was not found, `value-mismatch` otherwise. Failure mode: a coloured message or
+  a different matcher wording turns new behaviour into a value mismatch.
+- `CCE-V0-027`: A `CHANGED_IN_DIFF` scenario whose verdict would be `REGRESSION_DETECTED`,
+  `DISCRIMINATES`, `NEW_REACH` or `PRESERVES` MUST read `INCONCLUSIVE` with the note
+  `oracle-self-certified`. A scenario MUST be marked scoring only when its verdict is
+  `DISCRIMINATES`, `NEW_REACH` or `PRESERVES` and its origin is `ADMITTED_AT_BASE`; a
+  `NEW_IN_DIFF` scenario keeps its verdict but never scores. Failure mode: a diff edits the
+  outcome it is then judged by.
+- `CCE-V0-028`: `prove` MUST reach the runner and the controls only through two injectable seams
+  (one side run, one control set), so every ladder verdict, the test-tree overlay and the oracle
+  cap are tested offline without Node or a browser. Failure mode: the ladder is covered only by
+  live tests that no CI lane runs.
+- `CCE-V0-029`: The `omitted-event` control for a step or a fixture setup is killed when the
+  perturbed scenario fails or times out at any point, because removing the event is expected to
+  break the outcome before or at the assertion. A perturbation line that is the outcome assertion
+  itself MUST refuse `e2e-hook-event-not-found`. Failure mode: the control removes the assertion
+  and reads killed for the wrong reason.
+- `CCE-V0-030`: The test tree of CCE-V0-017 MUST be the compiled scenario, the generated runner
+  configuration, the transitive closure of relative module specifiers (static `import`/`export ...
+  from`, dynamic `import(...)` and `require(...)`, resolved as the path, then each TypeScript or
+  JavaScript extension, then the TypeScript source of a `.js` specifier, then an `index` file), and
+  the root package manifest and lockfiles; bare specifiers resolve through those manifests. A tree
+  over 512 files reads `test-tree-unresolved`. An application file is any script outside the tree
+  that is not test-like (a `.spec.` or `.test.` file, or a file under a conventional test
+  directory); an application scan over 50,000 files reads `test-tree-unresolved`. Failure mode: a
+  page object shared with application code is overlaid on the base side and changes the product
+  under test.
+- `CCE-V0-031`: `corvint-test e2e shadow --window FILE` MUST read one `e2e-shadow-window/0`
+  document of recorded results (registration, gate, hosted tests and entries, each entry with its
+  type, revisions, obligations, mutants, compiled scenarios with verdict, origin, killed mutants
+  and real failures, and the hosted side's tests run, caught mutants, real failures and cost) and
+  MUST NOT run either side. A missing operator set, seed, catalog digest or compiler version MUST
+  refuse `e2e-shadow-unregistered`; an unknown member, a wrong schema, a duplicate entry or mutant
+  ID, or a reference to an undeclared mutant, obligation or hosted test MUST refuse
+  `e2e-shadow-window-invalid`. The `e2e-shadow/0` report is byte-deterministic. Failure mode: a
+  shadow report scores results nobody registered.
+- `CCE-V0-032`: Shadow readings: a compiled catch counts only from an eligible scenario
+  (`DISCRIMINATES`, `NEW_REACH`, `REGRESSION_DETECTED` or `PRESERVES` with `ADMITTED_AT_BASE`), and
+  an `UNKNOWN` obligation catches nothing; a miss is a hosted-caught mutant or a real failure the
+  compiled side did not catch; an escape is a missed real failure only; a real failure is caught
+  only by an eligible `REGRESSION_DETECTED` scenario listing it. The zero-escapes denominator is
+  the `bug-fix` and `red-ci` entries the candidate ran in, and a zero denominator fails that
+  criterion. The Holm family is every hosted test that caught at least one mutant. Bounds are exact
+  Clopper-Pearson at 95%, a zero denominator reads upper 1 and lower 0, and every rate carries its
+  numerator, denominator and side. The frozen gate is a compiled constant; a window whose gate
+  differs fails `window-gate`. Failure mode: a vacuous denominator or a self-chosen family passes
+  the gate.
+- `CCE-V0-033`: The shadow report MUST state as limitations that recorded results are not
+  re-verified, that `red-ci` completeness is assumed from the window, and that mutants of one entry
+  are dependent (it also reports the entry-level miss rate). Failure mode: a passing report is read
+  as independently re-run evidence.
+
+The V1-1733 pivot (owner decision 2026-10-18; section Discrimination prover pivot) adds
+CCE-V0-034..038, accepted under the standing auto-accept (2026-10-11) and NOT_STARTED.
+
+- `CCE-V0-034`: `prove` MUST accept a hosted Playwright test selected by file and optional title in
+  place of a compiled scenario, run it with its test tree held at head against the base and head
+  application trees, and report the CCE-V0-009 ladder. Its `oracle_origin` MUST come from joining
+  the test file at base and head: unchanged reads `ADMITTED_AT_BASE`, changed `CHANGED_IN_DIFF`,
+  absent `NEW_IN_DIFF`. Failure mode: a change that rewrites its own hosted assertion scores.
+- `CCE-V0-035`: For a hosted test, a failure counts as at the outcome assertion only when the
+  receipt's error location is one of the test's own assertion lines; otherwise the run reads
+  `INCONCLUSIVE`. Failure mode: a setup failure at base reads `DISCRIMINATES`.
+- `CCE-V0-036`: A behaviour-removal control (`omitted-event` on the action that precedes each
+  assertion, CCE-V0-018/029) MUST be required for a positive verdict on a hosted test. The F1
+  static-overlay falsifier of the spike MUST read `CONTROL_SURVIVED` or `INCONCLUSIVE`, never
+  `DISCRIMINATES`.
+- `CCE-V0-037`: A `PRESERVES` verdict on an outcome the diff does not change MUST NOT count as
+  useful (V1-1713; the spike's F2 no-op falsifier).
+- `CCE-V0-038`: The rerun on the four `actualbudget/actual` fixes that shipped hosted E2E tests
+  (`3234be04d`, `c65884a27`, `eb28966d6`, `bc9bba67f`) MUST record per-change verdicts, minutes
+  and usefulness in a build-log entry, pass or fail.
+
+The 2026-10-21 fix lane (V1-1711) adds CCE-V0-086; IDs 039..085 are left free for parallel lanes.
 
 - `CCE-V0-086`: A relative `--root`, including the default `.`, MUST resolve against the working
   directory to its absolute, symlink-resolved path before any Git or map read, for `catalog`,
@@ -454,6 +537,10 @@ A failed shadow evaluation stays recorded as failed; it is not renamed developme
   `e2e-input-secret`), and PWP `/2` redaction applies to run evidence.
 - Isolation: `prove` passes only an allowlisted environment and blocks non-loopback egress
   (CCE-V0-022); page-derived text stays in `untrusted_text` (CCE-V0-025).
+- 2026-10-22 lane codes: refusals `e2e-shadow-unregistered`, `e2e-shadow-window-invalid` and
+  `e2e-hook-event-not-found`; `INCONCLUSIVE` notes `test-tree-unresolved`,
+  `test-tree-overlaps-application`, `oracle-self-certified` and
+  `base-mixed-or-failed-off-assertion`; unadmitted-block reason `outcome-vacuous`.
 - First-slice codes (V1-1665), each fail-closed:
   - Refusals: `e2e-root-required`, `e2e-revision-invalid`, `e2e-map-unavailable`,
     `e2e-impact-unavailable`, `e2e-repeats-over-limit`,
@@ -477,31 +564,36 @@ A failed shadow evaluation stays recorded as failed; it is not renamed developme
 | CCE-V0-001..003 | catalog golden over the AMAP-V0 fixture plus a declared `e2e-blocks.json` | PASS (first slice, one hand-written declarations file): `TestCCEV0001CatalogDeterministicAndBound`, `TestCCEV0002DeclarationsFailClosed`, `TestCCEV0001OutInsideRootRefuses`, `TestCCEV0001OutNestedSymlinkRefused`, `TestCCEV0001OutFileSymlinkRefused` |
 | CCE-V0-004 | obligations golden for a one-screen diff, an unknown-reach diff and a no-UI diff | PASS: `TestCCEV0004OneScreenDiffReachesOneOutcome`, `TestCCEV0004UnboundedUnknownAndUnplacedPathUnknown`, `TestCCEV0004EarlierScreenReachesLaterStepOutcome`; the amended base-and-head map join (V1-1678) by `TestCCEV0019RemovedAtHeadUnknown`, and the report's `relations` member names the consulted relations (AMAP impact, the base and head maps, the base `reach_exempt`) and those not consulted (affected plan, ANL edge ledger) |
 | CCE-V0-005..007 | compile golden, byte-identical rerun, `INCOMPLETE` cases per missing block kind | PASS (first slice; a missing fixture and unknown reach exercised): `TestCCEV0005CompileFromAdmittedBlocks`, `TestCCEV0006MissingBlocksIncomplete`, `TestCCEV0007PlacementsInjective` |
-| CCE-V0-008..010 | live local Playwright run on the fixture app: head pass, base fail, two BBF controls | 008 and the pre-amendment 009 ladder PASS (the amended ladder, `REGRESSION_DETECTED`/`SCENARIO_BROKEN`/`NEW_REACH` and error-location matching are NOT_STARTED, V1-1679): `TestCCEV0008ProveLimitsRefuse`, `TestCCEV0008UntarSkipsLinks`, `TestCCEV0009VerdictOrder`, `TestCCEV0009AssertionDetector`, `TestCCEV0009HeadIntermittency`, `TestCCEV0009ControlPerturbation`; live (Playwright 1.63.0, Node v22.23.2, 5 repeats) `TestCCEV0009LiveDiscriminates` (head 5/5 pass, base 5/5 fail at the outcome assertion, both controls killed, qualified PWP receipts) and `TestCCEV0009LivePreserves`; the live tests skip without `CORVINT_PLAYWRIGHT_MODULES`. 010 NOT_STARTED |
-| CCE-V0-011..013 | shadow report over a synthetic window; adopter window `NOT_RUN` | NOT_STARTED |
+| CCE-V0-008..010 | live local Playwright run on the fixture app: head pass, base fail, two BBF controls | 008 and the pre-amendment 009 ladder PASS (the amended ladder is PASS offline, see the panel row; error-location matching is PARTIAL under the CCE-V0-009 note): `TestCCEV0008ProveLimitsRefuse`, `TestCCEV0008UntarSkipsLinks`, `TestCCEV0009VerdictOrder`, `TestCCEV0009AssertionDetector`, `TestCCEV0009HeadIntermittency`, `TestCCEV0009ControlPerturbation`; live (Playwright 1.63.0, Node v22.23.2, 5 repeats) `TestCCEV0009LiveDiscriminates` (head 5/5 pass, base 5/5 fail at the outcome assertion, both controls killed, qualified PWP receipts) and `TestCCEV0009LivePreserves`; the live tests skip without `CORVINT_PLAYWRIGHT_MODULES`. 010 NOT_STARTED |
+| CCE-V0-011..013 | shadow report over a synthetic window; adopter window `NOT_RUN` | 011/012 PASS over a synthetic window (see the panel row); adopter window `NOT_RUN`; 013 NOT_STARTED |
 | CCE-V0-014 | byte-cap truncation tests per document | NOT_STARTED |
 | CCE-V0-015 | core baseline comparison before and after: `cmd/corvint` commands, flags and transitive imports unchanged and no CCE package in its import graph; no `init` side effect in any package both binaries import; every CCE-V0 command reachable as `corvint-test e2e <sub>`; a subprocess check that the companion never executes `corvint` | PASS: `TestCCEV0015SubcommandsReachable`, `TestCCEV0015CoreBoundary`, `TestCCEV0015NeverExecutesCorvint`; core tree byte-identical to the claim base outside docs, `go list -deps ./cmd/corvint` has no CCE package |
 
-Panel amendment (2026-10-17). Every row is NOT_STARTED; the planned evidence is the acceptance
-of the named ticket.
+Panel amendment (2026-10-17). The planned evidence is the acceptance of the named ticket; each
+row's status says what is delivered.
 
 | Requirement | Planned evidence | Ticket | Status |
 |---|---|---|---|
 | CCE-V0-003 (`environment`) and 021 | declarations with the member; unknown members refuse; `serve` without a shell; failed `ready` reads `INCONCLUSIVE` | V1-1681 | PASS: `TestCCEV0021EnvironmentShape` (the closed shape; non-loopback, portless, `https` or path-carrying `base_url`, empty argv, relative `ready`, `NAME=value`, reserved names (`PATH`, `HOME`, the prove toolchain names, `CORVINT_BEHAVIOR_*`), a `serve[0]` escaping the tree and unknown members refuse `e2e-blocks-invalid`), `TestCCEV0021ServeTree` (argv run without a shell inside the tree, only `PATH`, `HOME` and declared names reach it, an already answering port refuses `port-in-use`, missing tool, a serve exiting before or after `ready` reads `serve-exited`, `ready` needs a 2xx answer within 120 s, the leader stays unreaped until its process group is killed and the port is released on stop, `environment-unavailable:*` reads `INCONCLUSIVE`); live (Playwright 1.63.0, Node v22.23.2) `TestCCEV0021LiveEnvironmentDiscriminates` (both sides and both BBF controls run against the declared serve; the proof records the environment digest) and the static tests now assert `environment: static`. `TestCCEV0021ServeCommandResolution` (a relative `serve[0]` resolves inside the tree, a symlink out refuses `serve-outside-tree`, a bare name is the executable Prove resolved once on its PATH), `TestCCEV0021ReadyRequires2xx`, `TestCCEV0021ControlRequestEnvironment` (the BBF hook receives only set declared names plus the resolved serve executable and PATH, so its serve matches the sides). Not detected (recorded as a proof limitation): a serve that binds another port, a detached child outliving the group |
 | CCE-V0-003 (`reach_exempt`), 020 | declarations golden with the member | V1-1678 | PASS: `TestCCEV0020ReachExemptAndNone` (an exempt-only diff over a clean map reads `NONE` citing the base glob; map unknowns keep it `UNKNOWN`; a diff adding its own glob stays `UNKNOWN`), `TestCCEV0020ReachExemptInvalidRefuses` |
-| CCE-V0-009 (amended), 017, 018 | offline fake-runner tests per ladder verdict; identical test-tree digest across sides; overlap reads `INCONCLUSIVE`; each structure control killed on the fixture | V1-1679, V1-1687 | NOT_STARTED |
-| CCE-V0-011, 012 (amended) | synthetic window with each entry type: registration refusal, a mutant caught by one eligible scenario beside a broken one counts once as caught, an uncaught target counts once as a miss, bounds and Holm correction against a reference computation | V1-1682 | NOT_STARTED |
-| CCE-V0-016 | fixture per `oracle_origin` value; non-`ADMITTED_AT_BASE` never counts as a catch | V1-1680 | NOT_STARTED |
+| CCE-V0-009 (amended), 017, 018 | offline fake-runner tests per ladder verdict; identical test-tree digest across sides; overlap reads `INCONCLUSIVE`; each structure control killed on the fixture | V1-1679, V1-1687 | PASS offline: `TestCCEV0028LadderOfflineFakeRunner` (every rung, the oracle cap, application and test revisions, identical digests), `TestCCEV0009VerdictOrder`, `TestCCEV0017TestTreeHeldAtHead`, `TestCCEV0017TestTreeRefusals`, `TestCCEV0018OmittedEventControls`; live qualification `NOT_RUN` (Playwright 1.64 reads `project-location-unknown` on every side, at the lane base too); receipt error location PARTIAL; the CI lane for live tests is not delivered (`.github` needs the owner's ci-control-plane) |
+| CCE-V0-011, 012 (amended) | synthetic window with each entry type: registration refusal, a mutant caught by one eligible scenario beside a broken one counts once as caught, an uncaught target counts once as a miss, bounds and Holm correction against a reference computation | V1-1682 | PASS (synthetic window): `TestCCEV0011ShadowRegistrationRefuses`, `TestCCEV0011ShadowMissesAndEscapes`, `TestCCEV0012ShadowBoundsAndHolm` (0.95^59 about 0.0485, Clopper-Pearson references, 72 versus 71 caught at m = 2, Holm step-down), `TestCCEV0011ShadowUsefulnessMinutesCost`, `TestCCEV0015SubcommandsReachable` (shadow); adopter window `NOT_RUN` |
+| CCE-V0-016 | fixture per `oracle_origin` value; non-`ADMITTED_AT_BASE` never counts as a catch | V1-1680 | PASS: `TestCCEV0016OracleOrigin` (one fixture per value, field and encoded report), `TestCCEV0028LadderOfflineFakeRunner` (cap and non-scoring `NEW_IN_DIFF`), `TestCCEV0011ShadowMissesAndEscapes` (non-admitted catches never count) |
 | CCE-V0-019, 020 | one fixture per `UNKNOWN` reason; `NONE` only under exemptions or no-screen placement; closed-enum test | V1-1678 | PASS: `TestCCEV0019ReachedScreenWithoutOutcomeUnknown` (F1), `TestCCEV0019MapUnknownOnReachedScreenUnknown` (F2), `TestCCEV0019ImpactTruncationUnknown` (F3, screens and edge-only omissions), `TestCCEV0019RemovedAtHeadUnknown` (F4, flow and outcome), `TestCCEV0019FanOutOverLimitUnknown` (F7), `TestCCEV0020ClosedUnknownReasonSet`; every fixture checks its reasons against the closed set. `blocks-not-declared` stays a catalog unknown and is never an obligations span; `NONE` arises only from exemptions (a non-UI path impact merely ignores stays `unplaced-path`) |
 | CCE-V0-086 | relative-root catalog and obligations | V1-1711 | PASS: `TestCCEV0086RelativeRootResolves` |
+| CCE-V0-026..030 | failure kind; oracle cap and scoring; offline seams; omitted-event reading; test-tree resolution | V1-1679, V1-1680, V1-1687 | PASS: `TestCCEV0026FailureKind`, `TestCCEV0028LadderOfflineFakeRunner`, `TestCCEV0018OmittedEventControls`, `TestCCEV0017TestTreeRefusals` |
+| CCE-V0-034..038 | hosted test held at head through the ladder; receipt-located assertions; required behaviour-removal control kills F1; no-op `PRESERVES` not useful; actualbudget rerun | V1-1733, V1-1713 | NOT_STARTED |
+| CCE-V0-031..033 | window format and refusals; shadow readings; limitations | V1-1682 | PASS: `TestCCEV0011ShadowRegistrationRefuses`, `TestCCEV0011ShadowMissesAndEscapes`, `TestCCEV0012ShadowBoundsAndHolm`, `TestCCEV0011ShadowUsefulnessMinutesCost` |
 | CCE-V0-022, 023 | environment allowlist test; non-loopback request aborted and recorded; report digest changes with each bound input; one test per exit code, including a `prove` report with passing verdicts over `UNKNOWN` obligations exiting 3 | V1-1681 | NOT_STARTED |
-| CCE-V0-024, 025 | golden bytes tied to the compiler version; `outcome-vacuous`; per-block `secret-suspected`; page text only in `untrusted_text` | V1-1679, V1-1681 | NOT_STARTED |
+| CCE-V0-024, 025 | golden bytes tied to the compiler version; `outcome-vacuous`; per-block `secret-suspected`; page text only in `untrusted_text` | V1-1679, V1-1681 | PARTIAL: `outcome-vacuous` by `TestCCEV0024OutcomeVacuous`; golden-version pinning, per-block `secret-suspected` and 025 NOT_STARTED |
 
 Before more V0 build, spike V1-1677 replays 10 historical bug-fix commits of a real Playwright
 repository through the slice and runs two oracle-review falsifiers (a static overlay that satisfies
 a text matcher without the behaviour, and a base-only no-op seed), recording usefulness, time and
 the continue, pivot or kill decision. V1-1687 adds an offline fake runner and a CI lane for the
-live tests, which no CI lane runs today.
+live tests, which no CI lane runs today. Spike V1-1677 ran on 2026-10-18 and read 0 of 10
+(Discrimination prover pivot below). The offline fake runner is delivered (CCE-V0-028); the CI lane
+is not, because it needs a `.github` change under the owner's ci-control-plane.
 
 The first slice (V1-1665) covers CCE-V0-001, 002, 004, 005, 006, 007, 008, 009 and 015 for one
 obligation on the committed fixture. CCE-V0-003 there may use a single hand-written declarations
@@ -544,7 +636,27 @@ Recorded so V0 choices do not block them; each needs its own requirements before
   obligations compile without `INCOMPLETE`, or total seeded-regression parity is below 80%.
 - Kill or pivot to a discrimination prover (CCE-V0-009 and 016..018 applied to existing hosted
   tests, without compilation) when the usefulness rate is below 40% on spike V1-1677 or the first
-  adopter window, or when block authoring takes more minutes than the hosted runs it saves.
+  adopter window, or when block authoring takes more minutes than the hosted runs it saves. Spike
+  V1-1677 read 0 of 10; the owner pivoted on 2026-10-18 (V1-1733, CCE-V0-034..038).
+
+### Discrimination prover pivot (V1-1733)
+
+Authority: the owner's decision of 2026-10-18, after spike V1-1677 found 0 of 10 changes useful
+(`docs/build-log/2026-10-18-cce-spike-v1-1677.md`): "Kill V0 compilation and pivot to the
+discrimination prover over hosted tests." The 2026-10-22 acceptance moved the CCE tickets into 1.0;
+it does not by itself reverse the 2026-10-18 kill of compilation as the retirement route (owner
+question 9).
+
+Intent: take an existing hosted Playwright test as given and prove whether it discriminates the
+change, reusing the delivered prove machinery (the CCE-V0-009 ladder, the head test tree of
+CCE-V0-017, the CCE-V0-018 controls, the CCE-V0-021 environment block, PWP receipts and the
+CCE-V0-028 seams). Nothing is compiled.
+
+The requirements are CCE-V0-034..038 in Requirements.
+
+Non-goals: no compilation, no new oracle form, no deletion or disabling of hosted tests, and no
+selection narrowing. Rollback: remove the hosted-test input from `prove`; compiled-scenario proofs
+and the report schemas are unchanged.
 
 ## Owner questions
 
@@ -563,3 +675,5 @@ Recorded so V0 choices do not block them; each needs its own requirements before
    exists, for example through a reviewer approving the PR?
 8. Is a 5% Holm-corrected upper bound per candidate (at least 59 caught seeded regressions with zero
    misses) the right statistical gate, or is a looser bound acceptable for a first retirement?
+9. Does the 2026-10-22 acceptance ("I want the CCE stuff in 1.0") resume compilation as a 1.0
+   route, or does the 2026-10-18 kill stand with only the discrimination prover (V1-1733) in 1.0?

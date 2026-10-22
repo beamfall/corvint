@@ -23,7 +23,7 @@ import (
 // proveReport is the proof report written under the prove --out directory.
 const proveReport = "e2e-prove.json"
 
-const usage = "usage: corvint-test e2e <catalog|obligations|compile|prove> [flags]"
+const usage = "usage: corvint-test e2e <catalog|obligations|compile|prove|shadow> [flags]"
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -54,8 +54,10 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	out := fs.String("out", "", "output file (catalog, obligations) or directory (compile, prove), outside the repository")
 	var rev, base, head *string
 	var repeats *int
-	var nodeModules, nodeBin, packageJSON, lockfile *string
+	var nodeModules, nodeBin, packageJSON, lockfile, window *string
 	switch sub {
+	case "shadow":
+		window = fs.String("window", "", "frozen shadow window file (CCE-V0-011)")
 	case "catalog":
 		rev = fs.String("rev", "", "revision")
 	case "obligations", "compile", "prove":
@@ -90,6 +92,14 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	}
 	var doc []byte
 	switch sub {
+	case "shadow":
+		data, err := os.ReadFile(*window)
+		if err != nil {
+			return &changee2e.Refusal{Code: "e2e-shadow-window-invalid", Detail: err.Error()}
+		}
+		if doc, err = changee2e.Shadow(data); err != nil {
+			return err
+		}
 	case "catalog":
 		c, err := changee2e.BuildCatalog(ctx, changee2e.CatalogOptions{Root: *root, Rev: *rev, Manifest: *manifest})
 		if err != nil {

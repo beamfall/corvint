@@ -95,8 +95,17 @@ func TestCCEV0015SubcommandsReachable(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(out, "e2e/corvint-compiled/book-tee-time-booked-e77a467370e1.spec.ts")); err != nil {
 		t.Fatal(err)
 	}
+	window := filepath.Join(t.TempDir(), "window.json")
+	if err := os.WriteFile(window, []byte(`{"schema":"e2e-shadow-window/0","registration":{"operators":["text-literal-swap"],"seed":"1",`+
+		`"catalog_digest":"sha256:00","compiler_version":"corvint-test-e2e-compile/0"},"gate":{},"hosted_tests":[],"entries":[]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var shadow bytes.Buffer
+	if err := run(ctx, []string{"e2e", "shadow", "--window", window}, &shadow); err != nil || !strings.Contains(shadow.String(), `"schema": "e2e-shadow/0"`) {
+		t.Fatalf("shadow: %v %s", err, shadow.Bytes())
+	}
 	// prove is registered: a bad flag fails at parse, not as an unknown subcommand.
-	for _, args := range [][]string{{}, {"e2e"}, {"e2e", "unknown"}, {"test"}, {"e2e", "prove", "--bogus"}} {
+	for _, args := range [][]string{{}, {"e2e"}, {"e2e", "unknown"}, {"test"}, {"e2e", "prove", "--bogus"}, {"e2e", "shadow", "--bogus"}} {
 		if err := run(ctx, args, &bytes.Buffer{}); err == nil || !strings.Contains(err.Error(), usage) {
 			t.Fatalf("%v: %v", args, err)
 		}

@@ -304,3 +304,66 @@ func envelopeAnchors(citations []doccorpus.CitationState) []doccorpus.Anchor {
 	}
 	return anchors
 }
+
+// DCP-V1-312: `docs corpus locate` and `recommend-tests` accept --repository with the MCP
+// tools' semantics: the same receipt for a declared repository, corpus-refused for an
+// undeclared one, and invalid-arguments for an empty value or another operation (V1-2345).
+func TestDCPV1312CorpusCLIRepositoryQualifierParity(t *testing.T) {
+	t.Parallel()
+	root, m := typedCorpusCLIFixture(t)
+	registry, err := corpusbridge.New(root, "corpus.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mcp := func(tool string, args map[string]string) (string, string) {
+		t.Helper()
+		raw, _ := json.Marshal(args)
+		_, text, failure, protocol := registry.Call(context.Background(), tool, raw)
+		switch {
+		case protocol != nil:
+			return "", protocol.Code
+		case failure != nil:
+			return "", failure.Code
+		}
+		return text, ""
+	}
+	cli := func(args ...string) (string, string) {
+		t.Helper()
+		code, out, stderr := corpusCLI(t, root, append([]string{"docs", "corpus"}, args...)...)
+		if code == 0 {
+			return out, ""
+		}
+		var envelope struct{ Code string }
+		if err := json.Unmarshal([]byte(stderr), &envelope); err != nil || envelope.Code == "" {
+			t.Fatalf("%v: exit %d, stderr %s", args, code, stderr)
+		}
+		return "", envelope.Code
+	}
+	undeclared := strings.Repeat("e", 40)
+	for _, c := range []struct{ op, tool string }{{"locate", "corvint.docs_locate"}, {"recommend-tests", "corvint.docs_recommend_tests"}} {
+		for _, repository := range []string{m.Repository.ID, undeclared, ""} {
+			out, code := cli(c.op, "--artifact", "corpus.json", "--path", "proof.go", "--repository="+repository)
+			text, mcpCode := mcp(c.tool, map[string]string{"path": "proof.go", "repository": repository})
+			want := map[string]string{m.Repository.ID: "", undeclared: "corpus-refused", "": "invalid-arguments"}[repository]
+			if code != want || mcpCode != want {
+				t.Fatalf("%s repository %q: CLI %q MCP %q, want %q", c.op, repository, code, mcpCode, want)
+			}
+			if want != "" {
+				continue
+			}
+			var receipt, other doccorpus.Receipt
+			if err := json.Unmarshal([]byte(out), &receipt); err != nil || json.Unmarshal([]byte(text), &other) != nil || !reflect.DeepEqual(receipt, other) {
+				t.Fatalf("%s CLI/MCP repository receipt mismatch: %s vs %s", c.op, out, text)
+			}
+			if len(receipt.Results) == 0 {
+				t.Fatalf("%s primary repository returned nothing: %s", c.op, out)
+			}
+		}
+	}
+	if _, code := cli("search", "--artifact", "corpus.json", "--query", "Checkout", "--repository", m.Repository.ID); code != "invalid-arguments" {
+		t.Fatalf("search --repository: %q", code)
+	}
+	if _, code := mcp("corvint.docs_search", map[string]string{"query": "Checkout", "repository": m.Repository.ID}); code != "invalid-arguments" {
+		t.Fatalf("docs_search repository: %q", code)
+	}
+}

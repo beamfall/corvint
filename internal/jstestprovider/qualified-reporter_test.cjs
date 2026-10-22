@@ -287,3 +287,26 @@ test('PWP-V0-011 PWP-V0-014 keep mode reports kept entries after the first provi
   assert.equal(run([[provider[0], {output: path.join(dir, 'other.json')}], ['list']], true).projectReporters, undefined);
   assert.equal(run(undefined, true).projectReporters, undefined);
 });
+
+test('PWP-V0-055 provider output files are never config inputs when the output path runs through a symlink', () => {
+  const Reporter = loadReporter();
+  const real = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'corvint-scratch-real-')));
+  const link = path.join(fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'corvint-scratch-link-'))), 'scratch');
+  fs.symlinkSync(real, link);
+  const scratchModule = path.join(real, 'playwright.config.cjs');
+  fs.writeFileSync(scratchModule, 'module.exports = {};\n');
+  try {
+    require(path.join(link, 'playwright.config.cjs'));
+    assert.ok(Object.hasOwn(require.cache, scratchModule), 'module cache keys are real paths');
+    const output = path.join(link, 'report.json');
+    const reporter = new Reporter({output});
+    reporter.onBegin({workers: 1, version: '1.64.0', reporter: []}, {allTests: () => []});
+    reporter.onEnd({status: 'passed'});
+    const report = JSON.parse(fs.readFileSync(path.join(real, 'report.json'), 'utf8'));
+    assert.deepEqual(Object.keys(report.configFiles).filter(file => file.startsWith(real + '/')), []);
+  } finally {
+    delete require.cache[scratchModule];
+    fs.rmSync(real, {recursive: true, force: true});
+    fs.rmSync(path.dirname(link), {recursive: true, force: true});
+  }
+});

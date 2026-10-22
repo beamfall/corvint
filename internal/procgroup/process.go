@@ -85,6 +85,11 @@ type Spec struct {
 	// for the leader's exit, before the SIGTERM/SIGKILL stop. Zero keeps the
 	// SIGTERM-first stop every existing caller relies on (PWP-V0-030).
 	InterruptGrace time.Duration
+	// TerminateGrace, when positive, replaces the 100 ms a signalled group
+	// has to handle SIGTERM before Run sends SIGKILL; ShutdownTimeout still
+	// bounds it. Zero keeps the default. Tests that witness SIGTERM handling
+	// set it so the witness does not race the scheduler (V1-2319).
+	TerminateGrace time.Duration
 	// StdoutTee and StderrTee, when set, receive every byte of the child's
 	// stream, untruncated by the bounded capture. Each is written by its own
 	// forwarder goroutine from a bounded queue, so a blocked sink holds a
@@ -456,7 +461,7 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 		if terminationErr != nil {
 			terminationErr = fmt.Errorf("terminate owned process group: %w", terminationErr)
 		}
-		cleanupErr = cleanupProcessGroupBeforeReap(command.Process.Pid, groupPresent, leaderExited, spec.JoinAncestorProcessGroup, groupProbe, shutdownDeadline)
+		cleanupErr = cleanupProcessGroupBeforeReap(command.Process.Pid, groupPresent, leaderExited, spec.JoinAncestorProcessGroup, groupProbe, spec.TerminateGrace, shutdownDeadline)
 		if cleanupErr != nil {
 			cleanupErr = fmt.Errorf("force owned process group before reap: %w", cleanupErr)
 		}
@@ -567,6 +572,9 @@ func normalizeProcessSpec(spec Spec) (Spec, error) {
 	}
 	if spec.InterruptGrace < 0 {
 		return spec, errors.New("interrupt grace must not be negative")
+	}
+	if spec.TerminateGrace < 0 {
+		return spec, errors.New("terminate grace must not be negative")
 	}
 	if spec.InputLimit == 0 {
 		spec.InputLimit = defaultProcessInputLimit

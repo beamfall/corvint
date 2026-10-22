@@ -66,8 +66,8 @@ func TestUnitsDetectsConcurrentFrameworksAndRunnerIdentities(t *testing.T) {
 	}
 	// Autoloading is mapped to edges, so only the tests with no edge of
 	// their own widen scope (RUBY-AFFECTED-V0-009, RUBY-AFFECTED-V0-010).
-	if contains(result.Frontier, FrontierRailsAutoload) || !contains(result.Frontier, FrontierImplicitTestDependency) {
-		t.Fatalf("frontier=%v", result.Frontier)
+	if raised(result, FrontierRailsAutoload) || !raised(result, FrontierImplicitTestDependency) {
+		t.Fatalf("frontier=%v", allFrontier(result))
 	}
 	if !contains(unitByID(t, result, "ruby:rspec:spec/models/account_spec").Imports, "ruby:source:app/models/account") {
 		t.Fatalf("account spec does not reach its model: %+v", result.Units)
@@ -152,8 +152,10 @@ func TestLoadsResolveOnlyUniqueRepositoryTargets(t *testing.T) {
 	if !contains(relative.Imports, "ruby:source:lib/core") {
 		t.Fatalf("require_relative edge missing: %v", relative.Imports)
 	}
-	if !contains(result.Frontier, FrontierAmbiguousLoad) {
-		t.Fatalf("ambiguous load frontier missing: %v", result.Frontier)
+	// A load two units answer to is an edge to each (RUBY-AFFECTED-V0-048).
+	ambiguous := unitByID(t, result, "ruby:rspec:spec/ambiguous_spec")
+	if !contains(ambiguous.Imports, "ruby:source:lib/core") || !contains(ambiguous.Imports, "ruby:source:app/core") || raised(result, FrontierAmbiguousLoad) {
+		t.Fatalf("ambiguous load: imports=%v frontier=%v", ambiguous.Imports, allFrontier(result))
 	}
 	compound := unitByID(t, result, "ruby:source:lib/compound")
 	for _, dependency := range []string{"ruby:source:lib/core", "ruby:source:lib/relative"} {
@@ -171,8 +173,8 @@ func TestLoadsResolveOnlyUniqueRepositoryTargets(t *testing.T) {
 			t.Fatalf("alternative load %s missing: %v", dependency, either.Imports)
 		}
 	}
-	if !contains(result.Frontier, FrontierConditionalLoad) || !contains(result.Frontier, FrontierDynamicLoad) {
-		t.Fatalf("conditional or load-path uncertainty missing: %v", result.Frontier)
+	if !raised(result, FrontierConditionalLoad) || !raised(result, FrontierDynamicLoad) {
+		t.Fatalf("conditional or load-path uncertainty missing: %v", allFrontier(result))
 	}
 	nested := unitByID(t, result, "ruby:source:components/shop/lib/shop/order")
 	if !contains(nested.Imports, "ruby:source:components/shop/lib/shop/item") {
@@ -185,6 +187,7 @@ func TestUnknownDiscoverySurfacesNeverBecomeSilentExclusions(t *testing.T) {
 	write(t, root, "spec/generated_spec.rb", "RSpec.describe \"generated\" do\n  [1, 2].each do |value|\n    define_method(\"test_#{value}\") {}\n  end\nend\n")
 	write(t, root, "spec/dynamic_spec.rb", "target = ENV.fetch(\"TARGET\")\nrequire target\nRSpec.describe \"dynamic\" do\nend\n")
 	write(t, root, "spec/conditional_spec.rb", "if ENV[\"OPTIONAL\"]\n  require \"optional\"\nend\nRSpec.describe \"conditional\" do\nend\n")
+	write(t, root, "lib/optional.rb", "OPTIONAL = 1\n")
 	write(t, root, "features/login.feature", "Feature: login\n  Scenario: success\n    Given a user\n")
 	write(t, root, "features/step_definitions/login_steps.rb", "Given(\"a user\") do\nend\n")
 	write(t, root, "generated.rb", "Class.new(Minitest::Test) do\n  [1, 2].each { |value| define_method(\"test_#{value}\") {} }\nend\n")
@@ -200,8 +203,8 @@ func TestUnknownDiscoverySurfacesNeverBecomeSilentExclusions(t *testing.T) {
 		FrontierDynamicTestDefinition,
 		FrontierCucumberOwnership,
 	} {
-		if !contains(result.Frontier, reason) {
-			t.Fatalf("frontier %s missing from %v", reason, result.Frontier)
+		if !raised(result, reason) {
+			t.Fatalf("frontier %s missing from %v", reason, allFrontier(result))
 		}
 	}
 	for _, unit := range result.Units {
@@ -239,8 +242,8 @@ func TestHelperFrameworkHintsIgnoreCommentsAndSurfaceConflicts(t *testing.T) {
 	if len(unitByID(t, result, "ruby:minitest:spec/indirect_spec").Tests) != 1 {
 		t.Fatalf("transitive helper did not preserve Minitest runner")
 	}
-	if !contains(result.Frontier, FrontierAmbiguousFramework) {
-		t.Fatalf("mixed helper frameworks were not surfaced: %v", result.Frontier)
+	if !raised(result, FrontierAmbiguousFramework) {
+		t.Fatalf("mixed helper frameworks were not surfaced: %v", allFrontier(result))
 	}
 }
 
@@ -323,7 +326,7 @@ func TestRakeTestTaskDynamicLoadPathRaisesFrontier(t *testing.T) {
 		t.Fatal(err)
 	}
 	plan := affected.Select(graph, []string{"src/gadget.rb"})
-	want := affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: FrontierDynamicLoad}
+	want := affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: FrontierDynamicLoad + ":Rakefile:2"}
 	untested := affected.Unknown{Reason: affected.UnknownNoSelectableTest, Detail: "ruby:source:src/gadget"}
 	if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 2 || plan.Unknown[0] != want || plan.Unknown[1] != untested {
 		t.Fatalf("scope=%s selected=%v unknown=%v", plan.Scope, plan.SelectedTests(), plan.Unknown)
@@ -345,7 +348,7 @@ end
 		t.Fatal(err)
 	}
 	plan := affected.Select(graph, []string{"src/gadget.rb"})
-	want := affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: FrontierDynamicLoad}
+	want := affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: FrontierDynamicLoad + ":Rakefile:2"}
 	untested := affected.Unknown{Reason: affected.UnknownNoSelectableTest, Detail: "ruby:source:src/gadget"}
 	if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 2 || plan.Unknown[0] != want || plan.Unknown[1] != untested {
 		t.Fatalf("scope=%s selected=%v unknown=%v", plan.Scope, plan.SelectedTests(), plan.Unknown)
@@ -361,8 +364,8 @@ func TestPostfixLiteralLoadIndependentlyWidensScope(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !contains(result.Frontier, FrontierConditionalLoad) {
-		t.Fatalf("postfix load was treated as unconditional: %v", result.Frontier)
+	if !raised(result, FrontierConditionalLoad) {
+		t.Fatalf("postfix load was treated as unconditional: %v", allFrontier(result))
 	}
 	if !contains(unitByID(t, result, "ruby:source:lib/postfix").Imports, "ruby:source:lib/core") {
 		t.Fatalf("postfix literal edge was omitted")
@@ -382,8 +385,8 @@ func TestRailsHelperKeepsRSpecRunnerAndNestedRailsWidensScope(t *testing.T) {
 	if len(unitByID(t, result, "ruby:rspec:engines/shop/spec/system/checkout_spec").Tests) != 1 {
 		t.Fatalf("Rails helper changed the RSpec runner: %+v", result.Units)
 	}
-	if !contains(result.Frontier, FrontierRailsAutoload) {
-		t.Fatalf("nested Rails application did not widen scope: %v", result.Frontier)
+	if !raised(result, FrontierRailsAutoload) {
+		t.Fatalf("nested Rails application did not widen scope: %v", allFrontier(result))
 	}
 }
 
@@ -398,8 +401,8 @@ func TestParenthesizedAutoloadAndImportedGeneratedTestsWidenScope(t *testing.T) 
 		t.Fatal(err)
 	}
 	for _, reason := range []string{FrontierDynamicLoad, FrontierDynamicTestDefinition} {
-		if !contains(result.Frontier, reason) {
-			t.Fatalf("frontier %s missing from %v", reason, result.Frontier)
+		if !raised(result, reason) {
+			t.Fatalf("frontier %s missing from %v", reason, allFrontier(result))
 		}
 	}
 }
@@ -412,8 +415,8 @@ func TestReflectionDrivenLoopHasIndependentUnknownRegression(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !contains(result.Frontier, FrontierDynamicTestDefinition) {
-		t.Fatalf("reflection-driven loop was silently omitted: %v", result.Frontier)
+	if !raised(result, FrontierDynamicTestDefinition) {
+		t.Fatalf("reflection-driven loop was silently omitted: %v", allFrontier(result))
 	}
 }
 
@@ -497,6 +500,26 @@ func unitByID(t *testing.T, result affected.Result, id string) affected.Unit {
 	}
 	t.Fatalf("unit %s missing from %+v", id, result.Units)
 	return affected.Unit{}
+}
+
+// raised reports reason anywhere in result: plugin-wide or on a unit, bare
+// or located (RUBY-AFFECTED-V0-046).
+func raised(result affected.Result, reason string) bool {
+	for _, site := range allFrontier(result) {
+		if site == reason || strings.HasPrefix(site, reason+":") {
+			return true
+		}
+	}
+	return false
+}
+
+// allFrontier lists the plugin-wide frontier, then every unit's.
+func allFrontier(result affected.Result) []string {
+	sites := append([]string(nil), result.Frontier...)
+	for _, unit := range result.Units {
+		sites = append(sites, unit.Frontier...)
+	}
+	return sites
 }
 
 func contains(values []string, want string) bool {

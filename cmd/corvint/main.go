@@ -73,7 +73,7 @@ type options struct {
 	queryTaskSet       bool
 	queryBudget        *int
 	queryIntent        string
-	version            bool
+	version            string
 }
 
 type readResult struct {
@@ -91,8 +91,8 @@ func parse(arguments []string) (options, error) {
 		result.helpTopic = topic
 		return result, err
 	}
-	if len(arguments) == 1 && arguments[0] == "--version" {
-		result.version = true
+	if isVersionRequest(arguments) {
+		result.version = arguments[len(arguments)-1]
 		return result, nil
 	}
 	workingDirectory, err := os.Getwd()
@@ -130,8 +130,8 @@ func parse(arguments []string) (options, error) {
 		}
 		result.root = root
 	}
-	if index+1 == len(arguments) && arguments[index] == "--version" {
-		result.version = true
+	if isVersionRequest(arguments[index:]) {
+		result.version = arguments[len(arguments)-1]
 		return result, nil
 	}
 	if index < len(arguments) && arguments[index] == "impact" {
@@ -1218,9 +1218,9 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		}
 		return 0
 	}
-	if options.version {
-		_, _ = fmt.Fprintln(stdout, "Corvint "+version+" (build "+build+")")
-		return 0
+	if options.version != "" {
+		// The last argument: --version for text, --json for corvint-version/1 (PRS-V1-020).
+		return emitVersion(stdout, stderr, options.version == "--json")
 	}
 	if options.command == "query" {
 		contextReceipt, err := standaloneQueryContext(withSnapshotMissNotice(ctx, stderr, "query", options.root), options)

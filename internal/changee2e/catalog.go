@@ -200,8 +200,8 @@ func BuildCatalog(ctx context.Context, o CatalogOptions) (*Catalog, error) {
 	for _, f := range m.Flows {
 		for _, oc := range f.Outcomes {
 			id := "outcome:" + f.FlowID + "/" + oc.ID
-			if !admittedMatchers[oc.Matcher] || oc.Locator == "" {
-				c.Unadmitted = append(c.Unadmitted, Unadmitted{Kind: KindOutcome, ID: id, Reason: "outcome-not-compilable"})
+			if reason := outcomeAdmissionReason(oc.Matcher, oc.Locator, oc.Value); reason != "" {
+				c.Unadmitted = append(c.Unadmitted, Unadmitted{Kind: KindOutcome, ID: id, Reason: reason})
 				continue
 			}
 			c.Blocks = append(c.Blocks, Block{Kind: KindOutcome, ID: id, Blob: f.Anchor.Blob, Span: span(f.Anchor),
@@ -429,4 +429,17 @@ func boolInt(b bool) int {
 		return 1
 	}
 	return 0
+}
+
+// outcomeAdmissionReason is empty for an admitted outcome: an admitted matcher on a non-empty
+// locator compared with a non-empty value. An empty value is `outcome-vacuous` (CCE-V0-024),
+// since the compiled assertion would hold on any element text.
+func outcomeAdmissionReason(matcher, locator, value string) string {
+	switch {
+	case !admittedMatchers[matcher] || locator == "":
+		return "outcome-not-compilable"
+	case value == "":
+		return "outcome-vacuous"
+	}
+	return ""
 }

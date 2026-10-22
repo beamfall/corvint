@@ -5,6 +5,10 @@
 # install-local-bin.sh (ASD-V0-025). No Go build runs.
 set -uo pipefail
 export LC_ALL=C
+# The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
+# (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, GIT_CONFIG_PARAMETERS..., as a Git hook exports) would
+# point them at the caller's repository and its remote instead of the fixtures.
+unset $(git rev-parse --local-env-vars)
 
 script=$(cd "$(dirname "$0")" && pwd)
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/corvint-lane-scripts-test.XXXXXX") || exit 1

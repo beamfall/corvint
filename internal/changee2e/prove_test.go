@@ -64,24 +64,46 @@ func TestCCEV0008ProveLimitsRefuse(t *testing.T) {
 	}
 }
 
+// pool is a qualified pool of n repeats; at places each failure on the outcome assertion with a
+// value mismatch.
 func pool(state string, n int, at bool) sideProof {
+	kind := ""
+	if at {
+		kind = FailureValueMismatch
+	}
+	return poolKind(state, n, kind)
+}
+
+func poolKind(state string, n int, kind string) sideProof {
 	s := sideProof{Qualified: true}
 	for range n {
-		s.Outcomes = append(s.Outcomes, repeatOutcome{State: state, AtOutcomeAssertion: at})
+		s.Outcomes = append(s.Outcomes, repeatOutcome{State: state, AtOutcomeAssertion: kind != "", FailureKind: kind})
 	}
 	s.Stability = stability(s.Outcomes)
 	return s
 }
 
+// controls reads the two template controls with the given statuses and the omitted-event
+// controls killed.
 func controls(locator, value string) []controlProof {
-	return []controlProof{{Kind: string(behaviorfalsify.WrongLocator), Status: locator}, {Kind: string(behaviorfalsify.WrongExpectedValue), Status: value}}
+	return []controlProof{{ID: "control:wrong-locator", Kind: string(behaviorfalsify.WrongLocator), Status: locator},
+		{ID: "control:wrong-expected-value", Kind: string(behaviorfalsify.WrongExpectedValue), Status: value},
+		{ID: "control:omitted-event:step", Kind: string(behaviorfalsify.OmittedEvent), Status: "killed"},
+		{ID: "control:omitted-event:setup-1", Kind: string(behaviorfalsify.OmittedEvent), Status: "killed"}}
 }
 
-// CCE-V0-009: the verdict is the first rule that holds, in the specified order.
+// CCE-V0-009: the verdict is the first rung that holds, in the amended ten-rung order.
 func TestCCEV0009VerdictOrder(t *testing.T) {
 	passHead := pool("passed", 3, false)
 	failBase := pool("failed", 3, true)
+	unresolvedBase := poolKind("failed", 3, FailureLocatorUnresolved)
+	mixedKinds := poolKind("failed", 2, FailureValueMismatch)
+	mixedKinds.Outcomes = append(mixedKinds.Outcomes, repeatOutcome{State: "failed", AtOutcomeAssertion: true, FailureKind: FailureLocatorUnresolved})
 	killed := controls("killed", "killed")
+	setupSurvived := controls("killed", "killed")
+	setupSurvived[3].Status = "survived"
+	skipped := pool("passed", 2, false)
+	skipped.Outcomes = append(skipped.Outcomes, repeatOutcome{State: "skipped"})
 	unqualified := passHead
 	unqualified.Qualified = false
 	mixed := pool("passed", 2, false)
@@ -98,19 +120,28 @@ func TestCCEV0009VerdictOrder(t *testing.T) {
 	}{
 		{"1 head unqualified beats everything", unqualified, failBase, controls("survived", "survived"), VerdictInconclusive},
 		{"1 base unqualified", passHead, sideProof{Qualified: false}, killed, VerdictInconclusive},
+		{"1 empty base pool", passHead, sideProof{Qualified: true}, killed, VerdictInconclusive},
+		{"1 skipped head repeat beats intermittency", skipped, failBase, killed, VerdictInconclusive},
+		{"1 interrupted base repeat", passHead, pool("interrupted", 3, false), killed, VerdictInconclusive},
 		{"2 intermittent head beats a head failure", mixed, failBase, killed, VerdictUnstable},
 		{"2 flaky repeat is intermittent", pool("flaky", 3, false), failBase, killed, VerdictUnstable},
-		{"3 deterministic head failure", pool("failed", 3, true), failBase, killed, VerdictFailsAtHead},
-		{"3 head timeout", pool("timedOut", 3, false), failBase, killed, VerdictFailsAtHead},
-		{"4 wrong-locator survived", passHead, failBase, controls("survived", "killed"), VerdictControlSurvived},
-		{"4 wrong-value survived beats a not-run control", passHead, failBase, controls("not_run", "survived"), VerdictControlSurvived},
-		{"5 control invalid", passHead, failBase, controls("invalid_control", "killed"), VerdictInconclusive},
-		{"5 control infrastructure", passHead, failBase, controls("killed", "infrastructure_failed"), VerdictInconclusive},
-		{"5 control missing", passHead, failBase, nil, VerdictInconclusive},
-		{"6 every base repeat fails at the assertion", passHead, failBase, killed, VerdictDiscriminates},
-		{"7 every base repeat passes", passHead, pool("passed", 3, false), killed, VerdictPreserves},
-		{"8 mixed base", passHead, mixedBase, killed, VerdictInconclusive},
-		{"8 base fails off the assertion", passHead, offAssertion, killed, VerdictInconclusive},
+		{"3 head fails at the assertion and base passes", pool("failed", 3, true), pool("passed", 3, false), killed, VerdictRegressionDetected},
+		{"3 regression beats survived controls", pool("failed", 3, true), pool("passed", 3, false), controls("survived", "survived"), VerdictRegressionDetected},
+		{"4 head fails at the assertion but base fails too", pool("failed", 3, true), failBase, killed, VerdictScenarioBroken},
+		{"4 head fails off the assertion", pool("failed", 3, false), pool("passed", 3, false), killed, VerdictScenarioBroken},
+		{"4 head timeout", pool("timedOut", 3, false), failBase, killed, VerdictScenarioBroken},
+		{"5 wrong-locator survived", passHead, failBase, controls("survived", "killed"), VerdictControlSurvived},
+		{"5 wrong-value survived beats a not-run control", passHead, failBase, controls("not_run", "survived"), VerdictControlSurvived},
+		{"5 omitted fixture setup survived", passHead, failBase, setupSurvived, VerdictControlSurvived},
+		{"6 control invalid", passHead, failBase, controls("invalid_control", "killed"), VerdictInconclusive},
+		{"6 control infrastructure", passHead, failBase, controls("killed", "infrastructure_failed"), VerdictInconclusive},
+		{"6 control missing", passHead, failBase, nil, VerdictInconclusive},
+		{"7 every base repeat fails at the assertion with a value mismatch", passHead, failBase, killed, VerdictDiscriminates},
+		{"8 every base repeat fails at the assertion with the locator unresolved", passHead, unresolvedBase, killed, VerdictNewReach},
+		{"9 every base repeat passes", passHead, pool("passed", 3, false), killed, VerdictPreserves},
+		{"10 mixed base", passHead, mixedBase, killed, VerdictInconclusive},
+		{"10 base fails off the assertion", passHead, offAssertion, killed, VerdictInconclusive},
+		{"10 mixed failure kinds at the assertion", passHead, mixedKinds, killed, VerdictInconclusive},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, note := verdict(tc.head, tc.base, tc.controls)
@@ -119,6 +150,9 @@ func TestCCEV0009VerdictOrder(t *testing.T) {
 			}
 			if got == VerdictPreserves && !strings.Contains(note, "regression-preservation") {
 				t.Fatalf("PRESERVES note %q must say regression preservation only", note)
+			}
+			if got == VerdictNewReach && !strings.Contains(note, "new behaviour against its absence") {
+				t.Fatalf("NEW_REACH note %q must say new behaviour against its absence", note)
 			}
 		})
 	}
@@ -280,8 +314,12 @@ func TestCCEV0009LiveDiscriminates(t *testing.T) {
 	requireOutcomes(t, p.Head, "passed", false)
 	requireOutcomes(t, p.Base, "failed", true)
 	requireVerdict(t, p, VerdictDiscriminates)
-	if len(p.Controls) != 2 {
-		t.Fatalf("controls = %+v, want both BBF controls", p.Controls)
+	var ids []string
+	for _, c := range p.Controls {
+		ids = append(ids, c.ID)
+	}
+	if strings.Join(ids, ",") != "control:wrong-locator,control:wrong-expected-value,control:omitted-event:step,control:omitted-event:setup-1" {
+		t.Fatalf("controls = %+v, want the template and omitted-event controls", p.Controls)
 	}
 }
 
@@ -302,11 +340,11 @@ func TestCCEV0009LivePreserves(t *testing.T) {
 func requireOutcomes(t *testing.T, s sideProof, state string, atAssertion bool) {
 	t.Helper()
 	if len(s.Outcomes) != DefaultRepeats || s.Stability != playwrightruns.Deterministic {
-		t.Fatalf("side %s: outcomes %+v stability %s (%s)", s.Revision, s.Outcomes, s.Stability, s.Reason)
+		t.Fatalf("side %s: outcomes %+v stability %s (%s)", s.ApplicationRevision, s.Outcomes, s.Stability, s.Reason)
 	}
 	for _, o := range s.Outcomes {
 		if o.State != state || o.AtOutcomeAssertion != atAssertion {
-			t.Fatalf("side %s: outcome %+v, want %s at-assertion=%v", s.Revision, o, state, atAssertion)
+			t.Fatalf("side %s: outcome %+v, want %s at-assertion=%v", s.ApplicationRevision, o, state, atAssertion)
 		}
 	}
 }

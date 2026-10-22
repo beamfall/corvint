@@ -443,7 +443,9 @@ class Reporter {
     this.files = {};
     this.configFiles = {};
     for (const file of Object.keys(require.cache)) {
-      const outputRoot = this.freshnessProfile ? fs.realpathSync(path.dirname(this.path)) : path.dirname(this.path);
+      // Module cache keys are real paths, so the private output root is compared as one too: on a host
+      // whose temp directory is a symlink (macOS /var) the provider's own files were bound as config inputs (PWP-V0-055).
+      const outputRoot = fs.realpathSync(path.dirname(this.path));
       if ((!this.freshnessProfile && file.includes('/node_modules/')) || file.startsWith(outputRoot + '/')) continue;
       // A module moved or removed since it was loaded is skipped rather than aborting onBegin.
       try { if (fs.statSync(file).isFile()) this.configFiles[file] = crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'); } catch { continue; }

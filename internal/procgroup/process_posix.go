@@ -102,7 +102,7 @@ func terminateProcessGroup(pid int, leaderExited, joinAncestorGroup bool, overri
 	return err == nil, err
 }
 
-func cleanupProcessGroupBeforeReap(pid int, groupPresent, leaderExited, joinAncestorGroup bool, override func(int, syscall.Signal) error, deadline time.Time) error {
+func cleanupProcessGroupBeforeReap(pid int, groupPresent, leaderExited, joinAncestorGroup bool, override func(int, syscall.Signal) error, grace time.Duration, deadline time.Time) error {
 	if pid <= 0 {
 		return errors.New("process group has no leader")
 	}
@@ -112,7 +112,10 @@ func cleanupProcessGroupBeforeReap(pid int, groupPresent, leaderExited, joinAnce
 	if leaderExited {
 		return nil
 	}
-	graceDeadline := time.Now().Add(processGroupGracePeriod)
+	if grace <= 0 {
+		grace = processGroupGracePeriod
+	}
+	graceDeadline := time.Now().Add(grace)
 	if graceDeadline.After(deadline) {
 		graceDeadline = deadline
 	}

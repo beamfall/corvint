@@ -214,11 +214,20 @@ Rollback removes the opt-in fixture command/package and registry entry; native s
 no migration. Atomic admission, CONFIG_PIN, runtime/reservations, exact completion reducer and
 real-queue cutover remain in the executor handoff. No automatic task execution is authorized.
 
+Named limitation (V1-0468): the preview reads only `taskman-policy/0` with exactly the closed field
+set NTP-V0-001 checks. A policy with any other profile (including `taskman-policy/1`), a non-string
+profile, or an optional member the native store admits, such as the opted-in `externalReviews`
+member, refuses the whole preview even when its digest binds. The refusal is limited to this
+fixture path: `corvint work plan-fixture` is the only caller of `taskman.Preview`, and general task
+context does not read the policy through it. It is not a production task-context regression.
+Upgrading the reader needs both profile shapes and malformed/unknown refusals qualified, and is
+in scope only once a supported product path calls `Preview`.
+
 ## Traceability
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| NTP-V0-001 | internal/taskman capture and process boundary | TestNTPV0001AdapterRefusals, TestNTPV0001InterruptionRetiresDescendant, TestNTPV0001NativeJSON |
+| NTP-V0-001 | internal/taskman capture and process boundary | TestNTPV0001AdapterRefusals, TestNTPV0001AdapterPolicyProfileBoundary, TestNTPV0001InterruptionRetiresDescendant, TestNTPV0001NativeJSON |
 | NTP-V0-002 | internal/taskman capture/observations | TestNTPV0002AdapterFinalDrift, TestNTPV0002ObservationRefusals |
 | NTP-V0-003 | internal/taskman priority-first planner | TestNTPV0003PriorityFirst; real native fixture priority counterexample |
 | NTP-V0-004 | internal/taskman eligibility | TestNTPV0004Eligibility |

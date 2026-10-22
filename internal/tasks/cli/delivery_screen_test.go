@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -58,8 +59,8 @@ func tdsVerdicts(t *testing.T, x run) map[string]string {
 
 // TestTCDV0159_DeliveryScreenVerdicts covers V1-2251 acceptance 1 and 3: an
 // open PR's Refs line is IN_FLIGHT, a merged PR's Refs line and a ref commit
-// are DELIVERED, a "Not delivered" mention and a vetoed commit line are only
-// MENTIONED, an unreferenced ticket is CLEAR, and without a --prs export a
+// are DELIVERED, a "Not delivered" mention is only MENTIONED and a vetoed
+// commit line only CITED (TCD-V0-167), an unreferenced ticket is CLEAR, and without a --prs export a
 // ticket nothing delivers is NOT_OBSERVED, never CLEAR. The store and
 // journal trees are unchanged (TCD-V0-159..162).
 func TestTCDV0159_DeliveryScreenVerdicts(t *testing.T) {
@@ -87,7 +88,7 @@ func TestTCDV0159_DeliveryScreenVerdicts(t *testing.T) {
 	if x.code != 1 {
 		t.Fatalf("exit %d, want 1: %s", x.code, x.stdout)
 	}
-	want := map[string]string{inflight: "IN_FLIGHT", merged: "DELIVERED", committed: "DELIVERED", mentioned: "MENTIONED", vetoed: "MENTIONED", clear: "MENTIONED"}
+	want := map[string]string{inflight: "IN_FLIGHT", merged: "DELIVERED", committed: "DELIVERED", mentioned: "MENTIONED", vetoed: "CITED", clear: "MENTIONED"}
 	got := tdsVerdicts(t, x)
 	for k, v := range want {
 		if got[k] != v {
@@ -177,4 +178,65 @@ func TestTCDV0163_BatchDeliveredListsLaneTicketsWithGreenRuns(t *testing.T) {
 	if x := atm(t, root, nil, "ticket", "batch-delivered", "--pr", "77", "--prs", prs); x.code == 0 || !hasCode(x.res, wire.CodeMalformed) {
 		t.Fatalf("absent batch: %s", x.stdout)
 	}
+}
+
+// TestTCDV0167_DeliveryScreenCitedAndTruncated covers V1-2303: a commit that
+// only mentions a ticket in prose is CITED, not DELIVERED, while a closing
+// trailer, a subject led by the ID, a conventional-commit scope and a final
+// subject parenthetical deliver (TCD-V0-167); a ticket created before the
+// oldest commit of a scan cut at --limit is TRUNCATED rather than CLEAR or
+// NOT_OBSERVED, and one created after it keeps its verdict (TCD-V0-168).
+func TestTCDV0167_DeliveryScreenCitedAndTruncated(t *testing.T) {
+	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	_, prose := tcdTicket(t, root, "prose", "")
+	_, trailer := tcdTicket(t, root, "trailer", "")
+	_, first := tcdTicket(t, root, "first", "")
+	_, scope := tcdTicket(t, root, "scope", "")
+	_, tail := tcdTicket(t, root, "tail", "")
+	_, old := tcdTicket(t, root, "old", "")
+	tcdCommit(t, root, "fix: old work ("+old+")")
+	tcdCommit(t, root, "docs: release notes\n\nThe release still waits on "+prose+" and the RC.")
+	tcdCommit(t, root, "fix: lease renewal\n\nRefs: "+trailer)
+	tcdCommit(t, root, first+": delivery screen verdicts")
+	tcdCommit(t, root, "feat("+scope+"): scope form")
+	tcdCommit(t, root, "fix: subject tail ("+tail+", V1-0000).")
+	prs := tdsExport(t, "prs.json", "[]")
+
+	x := tdsRun(t, root, "ticket", "delivery-screen", prose, trailer, first, scope, tail, old, "--prs", prs)
+	want := map[string]string{prose: "CITED", trailer: "DELIVERED", first: "DELIVERED", scope: "DELIVERED", tail: "DELIVERED", old: "DELIVERED"}
+	if got := tdsVerdicts(t, x); x.code != 1 || !mapsEqual(got, want) {
+		t.Fatalf("exit %d verdicts %v, want %v", x.code, got, want)
+	}
+
+	// --limit 1 reads only the newest commit, made after every ticket's
+	// creation, so the undelivered tickets are TRUNCATED.
+	x = tdsRun(t, root, "ticket", "delivery-screen", old, prose, tail, "--prs", prs, "--limit", "1")
+	want = map[string]string{old: "TRUNCATED", prose: "TRUNCATED", tail: "DELIVERED"}
+	if got := tdsVerdicts(t, x); x.code != 1 || !mapsEqual(got, want) || !field(x.res.Items[0], "scanTruncated").Bool {
+		t.Fatalf("truncated: exit %d verdicts %v, want %v", x.code, got, want)
+	}
+	// A newest commit dated before the tickets were created (2026-10-17)
+	// means the window reaches back past their creation: not TRUNCATED.
+	c := exec.Command("git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "--allow-empty", "-q", "-m", "chore: backdated")
+	c.Dir, c.Env = root, append(os.Environ(), "GIT_COMMITTER_DATE=2026-10-01T00:00:00Z", "GIT_AUTHOR_DATE=2026-10-01T00:00:00Z")
+	if out, err := c.CombinedOutput(); err != nil {
+		t.Fatalf("backdated commit: %v: %s", err, out)
+	}
+	x = tdsRun(t, root, "ticket", "delivery-screen", old, "--prs", prs, "--limit", "1")
+	if got := tdsVerdicts(t, x); x.code != 0 || got[old] != "CLEAR" {
+		t.Fatalf("window covers creation: exit %d verdicts %v", x.code, got)
+	}
+}
+
+func mapsEqual(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if b[k] != v {
+			return false
+		}
+	}
+	return true
 }

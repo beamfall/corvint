@@ -39,9 +39,9 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"search":              {required: []string{"--artifact", "--query"}, optional: corpusReadOptional},
 	"concept":             {required: []string{"--artifact", "--query"}, optional: corpusReadOptional},
 	"vocabulary":          {required: []string{"--artifact", "--query"}, optional: corpusReadOptional},
-	"locate":              {required: []string{"--artifact", "--path"}, optional: corpusReadOptional},
+	"locate":              {required: []string{"--artifact", "--path"}, optional: append([]string{"--repository"}, corpusReadOptional...)},
 	"claims":              {required: []string{"--artifact", "--path"}, optional: corpusReadOptional},
-	"recommend-tests":     {required: []string{"--artifact", "--path"}, optional: corpusReadOptional},
+	"recommend-tests":     {required: []string{"--artifact", "--path"}, optional: append([]string{"--repository"}, corpusReadOptional...)},
 	"get":                 {required: []string{"--artifact", "--id"}, optional: corpusReadOptional},
 	"trace":               {required: []string{"--artifact", "--id"}, optional: corpusReadOptional},
 	"related":             {required: []string{"--artifact", "--id"}, optional: corpusReadOptional},
@@ -55,7 +55,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 
 var corpusAllFlags = []string{"--revision", "--scope", "--timestamp", "--manifest", "--artifact", "--page", "--apply",
 	"--cem", "--id", "--input", "--previous", "--check", "--migration", "--config", "--playwright-list", "--receipt",
-	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match", "--schema", "--section", "--include", "--cases", "--baseline", "--seed", "--size", "--stratify", "--sample"}
+	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match", "--schema", "--section", "--include", "--cases", "--baseline", "--seed", "--size", "--stratify", "--sample", "--repository"}
 
 func corpusFlagArgs(flag string) []string {
 	switch flag {

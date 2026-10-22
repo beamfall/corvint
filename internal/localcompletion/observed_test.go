@@ -27,7 +27,7 @@ func TestEvaluateAgainstMatchesFullEvaluation(t *testing.T) {
 				target := localGit(t, root, "commit-tree", tree, "-m", "unrelated")
 				localGit(t, root, "update-ref", "HEAD", target)
 			case "cancelled":
-				if _, err := Cancel(ctx, root, key); err != nil {
+				if _, err := Cancel(ctx, root, key, "test cancel"); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -148,7 +148,7 @@ func TestEvaluateAgainstChangedBase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Cancel(ctx, root, key); err != nil {
+	if _, err := Cancel(ctx, root, key, "test cancel"); err != nil {
 		t.Fatal(err)
 	}
 	plan.Base = localGit(t, root, "rev-parse", "HEAD")

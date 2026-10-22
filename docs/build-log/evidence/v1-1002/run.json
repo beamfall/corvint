@@ -1,0 +1,234 @@
+{
+  "config": {
+    "argv": [
+      "/private/tmp/cem10-build/toolchains-2026-10-17/node24/node-v24.11.1-darwin-arm64/bin/node",
+      "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/node_modules/.bin/playwright",
+      "test",
+      "--config=/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/corvint-playwright-196981742/playwright.config.cjs",
+      "keep.spec.cjs"
+    ],
+    "configFile": "/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/corvint-playwright-196981742/playwright.config.cjs",
+    "rootDir": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001",
+        "testIgnore": [],
+        "testMatch": [
+          "/keep\\.spec\\.cjs$/"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "filteredProjects": [
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "name": "chromium",
+        "testDir": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001",
+        "snapshotDir": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001",
+        "testIgnore": [],
+        "testMatch": {},
+        "timeout": 30000,
+        "use": {
+          "browserName": "chromium"
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "chromium"
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/corvint-playwright-196981742/reporter.cjs",
+        {
+          "output": "/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/corvint-playwright-196981742/report.json",
+          "sensitiveInputPolicy": null,
+          "keepReporters": true
+        }
+      ],
+      [
+        "list",
+        null
+      ],
+      [
+        "html",
+        {
+          "configDir": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001",
+          "open": "never"
+        }
+      ],
+      [
+        "json",
+        {
+          "configDir": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001"
+        }
+      ],
+      [
+        "junit",
+        {
+          "configDir": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001"
+        }
+      ],
+      [
+        "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/shape-reporter.cjs",
+        null
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "default",
+    "updateSourceMethod": "patch",
+    "version": "1.64.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "keep.spec.cjs",
+      "file": "keep.spec.cjs",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "keep passes",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T05:51:18.396Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "19e163893e20ba51ae26-2ee0ce4c207822f59d06",
+          "file": "keep.spec.cjs",
+          "line": 2,
+          "column": 1
+        },
+        {
+          "title": "keep fails",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 1,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n    at /private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/keep.spec.cjs:3:38",
+                    "location": {
+                      "file": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/keep.spec.cjs",
+                      "column": 38,
+                      "line": 3
+                    },
+                    "snippet": "  1 | const { test, expect } = require('@playwright/test');\n  2 | test('keep passes', () => { expect(1).toBe(1); });\n> 3 | test('keep fails', () => { expect(1).toBe(2); });\n    |                                      ^\n  4 |"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/keep.spec.cjs",
+                        "column": 38,
+                        "line": 3
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n\n  1 | const { test, expect } = require('@playwright/test');\n  2 | test('keep passes', () => { expect(1).toBe(1); });\n> 3 | test('keep fails', () => { expect(1).toBe(2); });\n    |                                      ^\n  4 |\n    at /private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/keep.spec.cjs:3:38"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T05:51:18.423Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/results/keep-keep-fails-chromium/error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/keep.spec.cjs",
+                    "column": 38,
+                    "line": 3
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "19e163893e20ba51ae26-58b3b1e6e174b60ceca5",
+          "file": "keep.spec.cjs",
+          "line": 3,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-22T05:51:18.174Z",
+    "duration": 360.426,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}

@@ -84,8 +84,8 @@ func TestConstantEdgeSelectsAutoloadedDependentSpec_RUBYAFFECTEDV0009(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(selectedWitnesses(committed)) != 2 || !equal(result.Frontier, []string{FrontierRelativeLoad}) {
-		t.Fatalf("selected=%v frontier=%v", committed.SelectedTests(), result.Frontier)
+	if len(selectedWitnesses(committed)) != 2 || len(result.Frontier) != 0 || !raised(result, FrontierRelativeLoad) || raised(result, FrontierRailsAutoload) {
+		t.Fatalf("selected=%v frontier=%v", committed.SelectedTests(), allFrontier(result))
 	}
 	service := unitByID(t, result, "ruby:source:app/services/bar/baz_service")
 	if !equal(service.AdvisoryImports, []string{"ruby:source:app/api_clients/foo_client"}) {
@@ -114,8 +114,8 @@ func TestUnboundedConstantLookupKeepsRailsAutoloadFrontier_RUBYAFFECTEDV0010(t *
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !contains(result.Frontier, FrontierRailsAutoload) {
-			t.Fatalf("%s: rails-autoload frontier missing: %v", name, result.Frontier)
+		if !raised(result, FrontierRailsAutoload) {
+			t.Fatalf("%s: rails-autoload frontier missing: %v", name, allFrontier(result))
 		}
 	}
 	root := writeIssue1130(t, true)
@@ -126,8 +126,8 @@ func TestUnboundedConstantLookupKeepsRailsAutoloadFrontier_RUBYAFFECTEDV0010(t *
 	if err != nil {
 		t.Fatal(err)
 	}
-	if contains(result.Frontier, FrontierRailsAutoload) {
-		t.Fatalf("resolved associations widened scope: %v", result.Frontier)
+	if raised(result, FrontierRailsAutoload) {
+		t.Fatalf("resolved associations widened scope: %v", allFrontier(result))
 	}
 	if !equal(unitByID(t, result, "ruby:source:app/models/customer").AdvisoryImports, []string{"ruby:source:app/models/order"}) ||
 		!equal(unitByID(t, result, "ruby:source:app/models/invoice").AdvisoryImports, []string{"ruby:source:app/models/customer"}) {
@@ -190,8 +190,8 @@ func TestSuiteHelpersAndSupportSelectEverySpec_RUBYAFFECTEDV0012(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !contains(result.Frontier, FrontierDynamicLoad) {
-		t.Fatalf("foreign glob did not widen: %v", result.Frontier)
+	if !raised(result, FrontierDynamicLoad) {
+		t.Fatalf("foreign glob did not widen: %v", allFrontier(result))
 	}
 }
 
@@ -231,8 +231,8 @@ func TestStockBundlerRequireKeepsRailsAppBounded_RUBYAFFECTEDV0013(t *testing.T)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !contains(result.Frontier, FrontierDynamicLoad) {
-			t.Fatalf("%s: dynamic load not raised: %v", name, result.Frontier)
+		if !raised(result, FrontierDynamicLoad) {
+			t.Fatalf("%s: dynamic load not raised: %v", name, allFrontier(result))
 		}
 	}
 }
@@ -324,12 +324,22 @@ func TestConventionAutoloadFailsClosed_RUBYAFFECTEDV0045(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !contains(result.Frontier, FrontierRailsAutoload) {
-			t.Fatalf("%s: rails-autoload frontier missing: %v", name, result.Frontier)
+		if !raised(result, FrontierRailsAutoload) {
+			t.Fatalf("%s: rails-autoload frontier missing: %v", name, allFrontier(result))
 		}
-		if got := plan(t, root, "app/models/alpha_account.rb"); got.Scope == affected.ScopeBounded {
+		// A dynamic lookup bears on its own unit's closure; an invalid
+		// declaration on every plan (RUBY-AFFECTED-V0-046, RUBY-AFFECTED-V0-047).
+		changed := "app/models/alpha_account.rb"
+		if name == "dynamic" {
+			changed = "app/services/beta_note.rb"
+		}
+		if got := plan(t, root, changed); got.Scope == affected.ScopeBounded {
 			t.Fatalf("%s: plan stayed BOUNDED: %v", name, got.Unknown)
 		}
+	}
+	site := affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: FrontierRailsAutoload + ":app/services/beta_note.rb:2"}
+	if got := plan(t, dynamic, "app/services/beta_note.rb"); len(got.Unknown) == 0 || got.Unknown[0] != site {
+		t.Fatalf("dynamic site not located: %v", got.Unknown)
 	}
 
 	library := t.TempDir()
@@ -358,8 +368,8 @@ func TestRailsSignalsWithoutApplicationStayUnbounded_RUBYAFFECTEDV0045(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !contains(result.Frontier, FrontierRailsAutoload) {
-		t.Fatalf("rails-autoload frontier missing: %v", result.Frontier)
+	if !raised(result, FrontierRailsAutoload) {
+		t.Fatalf("rails-autoload frontier missing: %v", allFrontier(result))
 	}
 }
 
