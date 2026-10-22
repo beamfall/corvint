@@ -331,6 +331,7 @@ var commandUsage = map[string]string{
 	"lane-leader":             "corvint-tasks lane-leader --directory DIR --capsule FILE",
 	"pending":                 "corvint-tasks pending",
 	"program show":            "corvint-tasks program show",
+	"program cleanup":         "corvint-tasks program cleanup --program ID --config FILE",
 	"dispatch":                "corvint-tasks dispatch --program ID --config FILE [--once | --ticks N]; dispatch <status|unpark|recover-reader|salvage|context-hook> --help",
 	"dispatch context-hook":   "corvint-tasks dispatch context-hook   (Claude Code hook a dispatched worker runs: reads CORVINT_DISPATCH_CONTEXT_FILE and the hook payload on stdin, prints undelivered context notices as hook JSON, always exits 0)",
 	"dispatch recover-reader": "corvint-tasks dispatch recover-reader --program ID --config FILE --reason TEXT --evidence REF --request-id ID",

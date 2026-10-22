@@ -126,7 +126,10 @@ func planProgram(c leaseContext) leaseOutcome {
 				return c.fail(malformed("program control"))
 			}
 		}
-		ok := recovering || controlOnly || binding || reassign
+		// An idle program with no attempt removes a kept stage worktree
+		// and returns to ADMITTED (ATR-V0-298).
+		idleRemove := old.CurrentAttempt == "" && next.CurrentAttempt == "" && (old.Phase == "ADMITTED" && next.Phase == "WORKTREE_REMOVE" || old.Phase == "WORKTREE_REMOVE" && next.Phase == "ADMITTED")
+		ok := recovering || controlOnly || binding || reassign || idleRemove
 		for _, phase := range transitions[old.Phase] {
 			ok = ok || phase == next.Phase
 		}

@@ -34,3 +34,32 @@ func TestSupervisorCLIRefusalAndReadsDoNotMutate(t *testing.T) {
 		t.Fatal("supervisor refusal/read mutated initialized store")
 	}
 }
+
+// TestATRV0296_ProgramCleanupRefusalsDoNotMutate proves program cleanup
+// refuses incomplete, repeated or unknown flags and an invalid config before
+// any store write (ATR-V0-296).
+func TestATRV0296_ProgramCleanupRefusalsDoNotMutate(t *testing.T) {
+	r := fixture.TempRepo(t)
+	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
+	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
+	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("init: %+v", x.res)
+	}
+	config := filepath.Join(t.TempDir(), "program.json")
+	fixture.Write(t, config, []byte("{}\n"))
+	state := fixture.TreeSnapshot(t, r.StateDir)
+	for _, args := range [][]string{
+		{"program", "cleanup"},
+		{"program", "cleanup", "--program", "p"},
+		{"program", "cleanup", "--program", "p", "--program", "q", "--config", config},
+		{"program", "cleanup", "--program", "p", "--config", config, "--role", "implementer"},
+		{"program", "cleanup", "--program", "p", "--config", config},
+	} {
+		if x := atm(t, r.Root, nil, args...); x.res.Outcome != wire.OutcomeError || x.code == 0 {
+			t.Fatalf("%v: %+v", args, x.res)
+		}
+	}
+	if !reflect.DeepEqual(state, fixture.TreeSnapshot(t, r.StateDir)) {
+		t.Fatal("program cleanup refusal mutated the store")
+	}
+}
