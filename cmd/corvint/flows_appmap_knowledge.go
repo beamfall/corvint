@@ -10,7 +10,8 @@ import (
 )
 
 // runFlowsAppmapKnowledge prints the site-knowledge page-object model (pageobjects,
-// SKH-V0-010..014) or the test-body step IR (steps, SKH-V0-020..023). Refusals exit 2.
+// SKH-V0-010..016), the test-body step IR (steps, SKH-V0-020..024) or the setup records (setup,
+// SKH-V0-030, SKH-V0-031, SKH-V0-033, SKH-V0-034). Refusals exit 2.
 func runFlowsAppmapKnowledge(ctx context.Context, root, verb string, args []string, out io.Writer) error {
 	f := flag.NewFlagSet("flows appmap "+verb, flag.ContinueOnError)
 	f.SetOutput(io.Discard)
@@ -36,8 +37,11 @@ func runFlowsAppmapKnowledge(ctx context.Context, root, verb string, args []stri
 		return err
 	}
 	report := appmap.PageObjects
-	if verb == "steps" {
+	switch verb {
+	case "steps":
 		report = appmap.Steps
+	case "setup":
+		report = appmap.Setup
 	}
 	doc, err := report(ctx, m, sources, appmap.Options{Root: root, Budget: *budget, Full: *full})
 	if err != nil {
