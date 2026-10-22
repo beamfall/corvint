@@ -1,15 +1,15 @@
 {
   "profile": "corvint-ci-test-slices/0",
   "source": {
-    "revision": "754708fd34fc885c60b3a262b5a30c71a7487888",
-    "runURL": "https://github.com/beamfall/corvint/actions/runs/39613481398",
+    "revision": "f29ddc0db09c01c370cd3c9bcc5022a296ae3876",
+    "runURL": "https://github.com/beamfall/corvint/actions/runs/39709153564",
     "goVersion": "go1.27.2"
   },
   "packages": {
     "github.com/Beamfall/corvint/cmd/corvint": {
       "named": [
         {
-          "milliseconds": 318627,
+          "milliseconds": 338411,
           "tests": [
             "FuzzGuidancePrefilter",
             "TestAFPV0009NoGoAdviceGapWithoutGoUnits",
@@ -37,6 +37,11 @@
             "TestAFPV0151ReviewFallbackCancellationRefuses",
             "TestAFPV0151StandaloneAffectedCancellationRefuses",
             "TestAFPV0155CompactAdviceDoesNotRepeatPlanUnknown",
+            "TestAFPV0162AffectedTiersRankTheFullSelection",
+            "TestAFPV0162EmptySelectionOmitsTiers",
+            "TestAFPV0162TopLevelParentHasNoSiblings",
+            "TestAFPV0356DirtyDetailIsBounded",
+            "TestAFPV0356MixedNamesGloballyExcludedPath",
             "TestAFUV1019UndiscoveredTestForbidsNarrowing",
             "TestAFUV1019UnnamedProjectSelection",
             "TestAFUV1020ExclusionProofsPerBasis",
@@ -135,6 +140,7 @@
             "TestAdapterErrorTailIsBounded",
             "TestAdapterRejectedReasonSurfacesEngineErrorCode",
             "TestAdapterSilentAbstentionsAreLedgered",
+            "TestAdoptObservationMatchesTheObservedLoader",
             "TestAdoptSetupRefusesOtherOptions",
             "TestAdoptSetupRejectsFIFOWithoutOpening",
             "TestAdoptSetupReportsEachGapClass",
@@ -157,6 +163,7 @@
             "TestAffectedCleanTreeSelectsNothingAndWritesNothing",
             "TestAffectedDirtyGoSourceSelectsDependentsAsProviderPackages",
             "TestAffectedDocumentSelectsThePackageThatNamesIt",
+            "TestAffectedEmptyDiffIsABoundedEmptyPlan_V1_2126",
             "TestAffectedHelpTopicsAreWired",
             "TestAffectedMixedRangeWarning",
             "TestAffectedPlaywrightArgumentsFailClosed",
@@ -331,6 +338,7 @@
             "TestConfinedSpansAdmitNothingForAPathWithoutHunks",
             "TestContextAuthorityModeAcceptsSeveralPathsAndStaysReadOnly",
             "TestContextDefaultWireIsTheGolden",
+            "TestContextExpandDeadlineExpiryRefusesAsDeadlineExceeded",
             "TestContextExpandRefusesAStaleHandleAfterHeadMoves",
             "TestContextExpandRefusesASymlinkRowNamingItsMode",
             "TestContextExpandRefusesAnAmbiguousAbbreviatedBlob",
@@ -370,6 +378,8 @@
             "TestDCPV1165DocsCorpusSearchCasesModesCLI",
             "TestDCPV1174CorpusFlowFilterOptions",
             "TestDCPV1241CorpusMaintainPageRefusalNamesFlag",
+            "TestDCPV1257CorpusEvalCLI",
+            "TestDCPV1268CorpusAuditCLI",
             "TestDeadlineRemediationKeepsFrameWithinLimit",
             "TestDeltaCLIPreservesClosedRefusalCodes",
             "TestDeltaInternalCLIExplicitImmutableNoOp",
@@ -427,6 +437,7 @@
             "TestDogfoodEventFailedPolicyReReadIsNotDrift",
             "TestDogfoodEventGoPythonWireAndSession",
             "TestDogfoodEventObservedMismatchFallsBack",
+            "TestDogfoodEventPrefetchesTheSnapshotFromTheOpeningIdentity",
             "TestDogfoodEventReadOnlyEnrolledStopAndPrompt",
             "TestDogfoodEventRefusesRepositoryDriftInsideTheBracket",
             "TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot",
@@ -468,6 +479,9 @@
             "TestDogfoodRecordUnrelatedNonSourceWritesNoTrace",
             "TestDogfoodRecordUnsupportedVerifySyntaxAppendsOneObservation",
             "TestDogfoodSingleCommitStagedCitationPlans",
+            "TestESVV0012ContextExpandAndPacketScreenSecretLines",
+            "TestESVV0012ScreenSourceLinesRedactsSecretLines",
+            "TestESVV0012SourceViewRedactsSecretLines",
             "TestEmitEscapesNonASCIIWithoutChangingReceiptCanonicalization",
             "TestEnrolledStopSpawnsBoundedGit",
             "TestEntriesCLI",
@@ -501,14 +515,10 @@
             "TestFlowDocMaintenanceAdoption",
             "TestFlowDocMaintenanceCLIGuards",
             "TestFlowDocMaintenanceCompiled",
-            "TestFlowDocMaintenanceLifecycle"
-          ]
-        },
-        {
-          "milliseconds": 323611,
-          "tests": [
+            "TestFlowDocMaintenanceLifecycle",
             "TestFlowDocMaintenanceRefusals",
             "TestFlowDocsCLIEndToEnd",
+            "TestFlowDocsCLIInventory",
             "TestFlowDocsCLIPredecessorManifestTypedStale",
             "TestFlowsCLIReadPurity",
             "TestFlowsHelpDoesNotRequireRepository",
@@ -532,6 +542,12 @@
             "TestGPKV0084ImpactCapabilitiesListing",
             "TestGPKV0084ImpactCapabilitiesOutsideGitRoot",
             "TestGPKV0086ImpactCapabilitiesArgumentsAndRefusalUnchanged",
+            "TestGoListOutputCarriesStderr"
+          ]
+        },
+        {
+          "milliseconds": 353447,
+          "tests": [
             "TestGoOnlyContextAbstentionRemainsClosed",
             "TestGoOnlySourceAndVersion",
             "TestGuidancePrefilterIsANecessaryCondition",
@@ -619,6 +635,7 @@
             "TestLeaseCommandReportsAnInvalidActionBeforeItsFlags",
             "TestLeaseHelpMatchesCommandSurface",
             "TestLeaseListIsSortedByIdentifier",
+            "TestListedHelpTopicResolvesAsOneArgument",
             "TestLocalCompletionCLIRejectsUnknownAndSecretInputs",
             "TestLocalCompletionFrontierUnavailableNextActionOrReason",
             "TestLocalCompletionInactiveStatusGolden",
@@ -644,6 +661,7 @@
             "TestMutationVerdictVocabulary",
             "TestMutationWitnessDisclosesNotProducedWhenRunnerUnavailable",
             "TestNTPV0008CommandBoundary",
+            "TestNTPV0246PlanFixtureHelpStatesBound",
             "TestNativeHookAllQualifiedEvents",
             "TestNativeHookClosedProjection",
             "TestNativeHookEnvironmentIsClosed",
@@ -922,6 +940,7 @@
             "TestSkillExportInvocationFlags_LTA006",
             "TestSkillExportWritesOnlyOperatorDirectory_LTA006",
             "TestSnapshotMissNoticeNamesTheBuild",
+            "TestSnapshotPrefetchServesOnlyItsOwnTree",
             "TestSnapshotRefreshCommitThenEvent",
             "TestSnapshotRefreshDisabledAndFailures",
             "TestSnapshotRefreshEffectivePriority",
@@ -931,6 +950,7 @@
             "TestSnapshotRefreshSlowChild",
             "TestSnapshotRefreshStaleLock",
             "TestSnapshotRefreshWorkerHelper",
+            "TestSourceBlobReadFailureIsDistinctFromBudget",
             "TestSourceDeadlineReplacesFrozenBound",
             "TestSourceViewBindsObjectFormatAndOIDWidth",
             "TestSourceViewBoundsArgumentBytes",
@@ -990,88 +1010,18 @@
             "TestTestsRoleLocatorsAndEnvCLI",
             "TestTestsTeardownCLI",
             "TestTestsUnselectedCLI",
-            "TestTestsValidityCLI"
+            "TestTestsValidityCLI",
+            "TestTraceGitignoreFinishThenChangeCheckSeal",
+            "TestTransportAdaptedRecoveryNative"
           ]
         }
       ],
-      "restMilliseconds": 336088
-    },
-    "github.com/Beamfall/corvint/internal/tasks/authority": {
-      "named": [
-        {
-          "milliseconds": 223108,
-          "tests": [
-            "TestCALV0026_ChangeGuard",
-            "TestCALV0026_ChangeGuardClosesAndRefusesSymlinks",
-            "TestCALV0026_ChangeGuardDerivedBudgetFitsLimit",
-            "TestCALV0026_ChangeGuardDescriptorExhaustion",
-            "TestCALV0026_ChangeGuardFailureIsNotValidity",
-            "TestCALV0026_ChangeGuardOverBudgetFiles",
-            "TestCALV0026_LockObserverReportsOnceAfterRelease",
-            "TestCALV0026_LockedCheckIndependentOfOverBudgetFiles",
-            "TestCALV0026_PreparationGateAuthority",
-            "TestCALV0026_RegistrationSeesMembershipChange",
-            "TestCALV0026_SweepThenLockedCheckLosesNoChange",
-            "TestCALV0095ProcessHolderHelper",
-            "TestCALV0095RecordLockHelper",
-            "TestCALV0095_PreparationQueueObservation",
-            "TestCALV0095_PreparationQueueObservationAcrossProcesses",
-            "TestCALV0095_RecordLockIsNotARegistration",
-            "TestCALV0111_CallerWaitBound",
-            "TestCALV0111_CallerWaitOutlastsDefault",
-            "TestCALV0215_ReceiptLinkExhaustion",
-            "TestCALV0219_ChangeGuardBoundedDescriptors",
-            "TestCALV0219_ChangeGuardBudgetIsProcessWide",
-            "TestCALV0219_ChangeGuardManyDirectoriesAdmitted",
-            "TestCALV0234_RequestShardsPinnedOnFirstUse",
-            "TestCStringMatchesNULPrefix",
-            "TestCTWV0008_LinkedIntentWorktreeOnAnotherMountIsRefused",
-            "TestCTWV0008_SessionPinsTheLinkedIntentWorktree",
-            "TestCTWV0008_SwappedLinkedIntentWorktreeIsRefused",
-            "TestGH494PreparationAdmission",
-            "TestGH494PreparationAdmissionProcess",
-            "TestGH494PreparationAdmissionProcessHelper",
-            "TestGH494PreparationCompositeClose",
-            "TestGH494PreparationOpen",
-            "TestPrerequisitesAreExplicit",
-            "TestTMV0001_AS10_AuthorityDirectoryReplacement",
-            "TestTMV0001_AS10_FixtureFoundationSourceLifetime",
-            "TestTMV0001_AS10_FixtureReplacementPreservation",
-            "TestTMV0001_AS10_FixtureSessionIdentity",
-            "TestTMV0001_AS29_LockRefusesSymlinkNonRegularAndDrift",
-            "TestTMV0001_LockRefusesIdentityDriftDuringAcquisition",
-            "TestTMV0001_OpenDirRefusesSymlinkEscapeAndUninitialized",
-            "TestTMV0002_AS10_FixtureDestinationRoles",
-            "TestTMV0002_AS10_FixtureStageRolesAndBounds",
-            "TestTMV0002_AS27_FixtureNativeAssignedEmptyEvidence",
-            "TestTMV0006_AS03_FixtureFoundationNoArtifacts",
-            "TestTMV0006_AS03_FixtureFoundationReplayOutcome",
-            "TestTMV0006_AS35_FixtureNativeEmptyIntentIndex",
-            "TestTMV0007_AS10_FixtureClosedDestinations",
-            "TestTMV0007_AS35_FixtureFoundationSeedRefusals",
-            "TestTMV0007_AS35_FixtureNativeOrdinaryIntentRefusal",
-            "TestTMV0008_AS10_FixtureNativeAccountingAndSequentialReads",
-            "TestTMV0008_AS11_FixtureNativeStageBindings",
-            "TestTMV0008_AS27_FixtureNativeStageParity",
-            "TestTMV0009_AS10_FixtureJoinedFailures",
-            "TestTMV0009_AS10_FixtureLifetimeAndClose",
-            "TestTMV0009_AS10_FixtureStageForeignAndFaults",
-            "TestTMV0009_AS10_FixtureTransientHandlesAndCleanupRetention",
-            "TestTMV0009_AS10_LockInterruptedDeadlineAndCancellation",
-            "TestTMV0009_AS11_FixtureExclusiveLink",
-            "TestTMV0009_AS11_FixtureFoundationCommittedSyncFailure",
-            "TestTMV0009_AS11_FixtureFoundationEveryPublicationPrefix",
-            "TestTMV0009_AS11_FixtureFoundationFiveOperations",
-            "TestTMV0009_AS11_FixtureFoundationFreshRecovery"
-          ]
-        }
-      ],
-      "restMilliseconds": 221426
+      "restMilliseconds": 336728
     },
     "github.com/Beamfall/corvint/internal/tasks/cli": {
       "named": [
         {
-          "milliseconds": 236388,
+          "milliseconds": 276393,
           "tests": [
             "TestATRV0001_UsageRefusesBeforeEffects",
             "TestATRV0002_RefusedAuthorityStartsNothing",
@@ -1128,6 +1078,7 @@
             "TestATRV0088_DispatchStatusShowsEffectiveLimitAndSelector",
             "TestATRV0095_RelaunchWaitsOutTheFinishingChild",
             "TestATRV0095_RunningWaitIsBoundedByWait",
+            "TestATRV0095_StaleStartingChildAfterRelaunchKeepsOneResult",
             "TestATRV0101_ContextHookFailsQuietly",
             "TestATRV0101_ContextHookHelper",
             "TestATRV0101_WorkerWithoutDispatcherVerbReceivesNoticesThroughHook",
@@ -1144,6 +1095,14 @@
             "TestATRV0160_UnrecordedOutcomeIsNeverMalformed",
             "TestATRV0162_DispatchStatusRendersForNilConfig",
             "TestATRV0171_RetryDuringRetirementKeepsItsRuns",
+            "TestATRV0190_CompleteManualRefusalNamesExpiredAttempt",
+            "TestATRV0192_CollisionNamesHoldingAttempt",
+            "TestATRV0211_ClaimResultListsEffectiveScope",
+            "TestATRV0212_ReadOnlySessionRefusesMutations",
+            "TestATRV0270_DispatchUsageNamesGrantID",
+            "TestATRV0271_GateRunAfterExpiryNamesRemedy",
+            "TestATRV0272_ApprovalGrantsNamedUpFront",
+            "TestATRV0275_LostOutputRetryAfterLaterUpdateRecovers",
             "TestCALV0002_PlanPreviewBlocksANonFixtureQueue",
             "TestCALV0004_CLICutoverPublishesImportedRecords",
             "TestCALV0011_CLIReapReportsActualChildTransactions",
@@ -1321,6 +1280,7 @@
             "TestCTSV0009_AttachReportsPendingAfterPatience",
             "TestCTSV0009_AttachWaitsForReceiptLinkBeforeHeadRename",
             "TestCTSV0010_JournalAbsentShowNamesTheStaleSnapshot",
+            "TestCTSV0012_SearchTextIsTokenBasedAndFieldsNameTheRoute",
             "TestCTWV0002_TicketCreateFromAFeatureBranch",
             "TestCriterionBindingOfflineVerify",
             "TestCriterionCaptureRetainsClaimAcrossNativeBodyEdit",
@@ -1336,14 +1296,18 @@
           ]
         }
       ],
-      "restMilliseconds": 231223
+      "restMilliseconds": 268545
     },
     "github.com/Beamfall/corvint/internal/tasks/store": {
       "named": [
         {
-          "milliseconds": 317044,
+          "milliseconds": 331797,
           "tests": [
             "TestATRV0170_ReadOnlyStageEditIsTypedAndRecoverable",
+            "TestATRV0210_ClaimRefusesRequestedPathsOutsideDeclaredScope",
+            "TestATRV0211_RequestedScopeWithoutDeclaredPathsIsReported",
+            "TestATRV0240_PhaseWriteKeepsControlRecordedMeanwhile",
+            "TestATRV0241_MappedWriteAfterLeaseAuditRefusedByNextWrite",
             "TestCALV0001_ImportMappedQueueStaysRefused",
             "TestCALV0001_NonFixtureQueueTakesEveryWrite",
             "TestCALV0002_NonFixtureQueueRefusesClaims",
@@ -1453,7 +1417,12 @@
             "TestCALV0071_UndeclaredRepositoryRefusedBeforeMutation",
             "TestCALV0071_WritableRoots",
             "TestCALV0072_MultiRepositoryGatesFailClosed",
-            "TestCALV0074_AdmissionRunsLaunchCheck",
+            "TestCALV0074_AdmissionRunsLaunchCheck"
+          ]
+        },
+        {
+          "milliseconds": 345386,
+          "tests": [
             "TestCALV0074_CheckProgramConfigHost",
             "TestCALV0074_HostSwitchAndRollback",
             "TestCALV0074_NoExecCancelBeforeRelease",
@@ -1481,12 +1450,7 @@
             "TestCALV0078_SupervisedRunAfterCommitIsNotRetryable",
             "TestCALV0078_SweepContentionBeforeObservationCommitIsNotRetryable",
             "TestCALV0078_SweepContentionBeforeOwnerCommitIsRetryable",
-            "TestCALV0078_SweepResponseLossAfterExecutionIsNotRetryable"
-          ]
-        },
-        {
-          "milliseconds": 317745,
-          "tests": [
+            "TestCALV0078_SweepResponseLossAfterExecutionIsNotRetryable",
             "TestCALV0086_LongWorkRootStageDispatches",
             "TestCALV0086_OverlongWorktreeRefusedBeforeMutation",
             "TestCALV0086_UnprovedStopIsNotFinished",
@@ -1499,16 +1463,16 @@
             "TestCALV0087_UnchangedRepositoryNeedsNoDesignation",
             "TestCALV0088_ExtraRepositoryContextRequired",
             "TestCALV0089_CodexContinuationResumesPreservedSession",
-            "TestCALV0089_ContinuationBoundThenOperatorRestart",
-            "TestCALV0089_DrainStopsContinuation",
-            "TestCALV0089_IntegrateCheckpointRestartKeepsGrant",
-            "TestCALV0089_OpenCodeContinuationForksPreservedSession",
-            "TestCALV0089_ProgramWallExpiryEndsContinuation"
+            "TestCALV0089_ContinuationBoundThenOperatorRestart"
           ]
         },
         {
-          "milliseconds": 217278,
+          "milliseconds": 349749,
           "tests": [
+            "TestCALV0089_DrainStopsContinuation",
+            "TestCALV0089_IntegrateCheckpointRestartKeepsGrant",
+            "TestCALV0089_OpenCodeContinuationForksPreservedSession",
+            "TestCALV0089_ProgramWallExpiryEndsContinuation",
             "TestCALV0089_StageRechecksContinuations",
             "TestCALV0089_TurnCapsBoundContinuation",
             "TestCALV0089_UnsupportedContinuationRefusedBeforeMutation",
@@ -1529,7 +1493,12 @@
             "TestCALV0116_FastWriteRechecksIntentBranch",
             "TestCALV0116_PrefixTamperIsLeftToCompleteAudits",
             "TestCALV0116_TailNoteReferenceChangeWithoutEvent",
-            "TestCALV0116_WriterFullBoundDeclines",
+            "TestCALV0116_WriterFullBoundDeclines"
+          ]
+        },
+        {
+          "milliseconds": 357793,
+          "tests": [
             "TestCALV0116_WriterRouteCounterexamples",
             "TestCALV0116_WriterRouteParity",
             "TestCALV0116_WriterRouteTamperAtFastStages",
@@ -1539,12 +1508,7 @@
             "TestCALV0117_WriterAdvanceAndScheduledRefresh",
             "TestCALV0118_WriterHoldProfile",
             "TestCALV0122_OccupiedOwnMemberChangeRefusedAtUpdate",
-            "TestCALV0135_ReceiptFoldPinnedReader"
-          ]
-        },
-        {
-          "milliseconds": 317526,
-          "tests": [
+            "TestCALV0135_ReceiptFoldPinnedReader",
             "TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsNotRegular",
             "TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsRemoved",
             "TestCALV0138_ReviewFoldCarriesOnlyAChainedPrefix",
@@ -1621,7 +1585,12 @@
             "TestIssue502_AnswerRaceHasOneWinner",
             "TestIssue502_DeletedEventIsJournalDamage",
             "TestIssue502_EscalationBindingFoldRefusals",
-            "TestIssue502_ForgedEventRefusesAsJournalDamage",
+            "TestIssue502_ForgedEventRefusesAsJournalDamage"
+          ]
+        },
+        {
+          "milliseconds": 354529,
+          "tests": [
             "TestIssue502_InterruptedSupersessionRedoes",
             "TestIssue502_OpenAnswerCommitsTicketAndEvents",
             "TestIssue502_OpenAuditsTheClaim",
@@ -1642,6 +1611,39 @@
             "TestJRTV0011_InterruptedUnretireIsOldOrNew",
             "TestJRTV0011_UnretireAfterCompaction",
             "TestJRTV0013_RetireBoundsAuditCost",
+            "TestJSGV0001_LivenessBindDeclinesMovedInputs",
+            "TestJSGV0001_LivenessReadsNoIntentRecords",
+            "TestJSGV0003_CompleteRouteVerifiesRetainedCheckpoint",
+            "TestJSGV0005_SealUnsealRollback",
+            "TestJSGV0006_SegmentTamperAndMovedReads",
+            "TestJSGV0007_SegmentLayoutRefusals",
+            "TestJSGV0008_SealDeclinesUnprovenInput",
+            "TestJSGV0008_SealSettleRefusesForeignState",
+            "TestJSGV0008_SealStopsSettle"
+          ]
+        },
+        {
+          "milliseconds": 333633,
+          "tests": [
+            "TestJSGV0008_WriterSealsOnlySegmentedStores",
+            "TestJSGV0009_SealDeclinesACarriedValueThatDiffers",
+            "TestJSGV0009_SealValidatesAndAdvancesFullSeq",
+            "TestJSGV0009_SealWithoutCheckpointSealsPlainly",
+            "TestJSGV0010_SegmentedWriterBound",
+            "TestJSGV0011_ResumeDeclinesRewrittenSegment",
+            "TestJSGV0011_SealedStoreWidenAndReapResume",
+            "TestJSGV0012_ArchiveExportRefusesADamagedSegment",
+            "TestJSGV0012_CompactionOnASealedStore"
+          ]
+        },
+        {
+          "milliseconds": 308737,
+          "tests": [
+            "TestJSGV0013_JournalSealAndUnseal",
+            "TestJSGV0013_MigrationRefusesAFault",
+            "TestJSGV0013_RetiredStoreRefusesJournalMigration",
+            "TestJSGV0013_SegmentedStoreRefusesRetireAndUnretire",
+            "TestJSGV0013_UnsealStopsSettle",
             "TestKHNV0001_PinsResolveTheWritersCommit",
             "TestKHNV0005_FreshnessIsComputedAtReadTime",
             "TestKHNV0006_SelectionAndProjection",
@@ -1658,6 +1660,7 @@
             "TestLeaseReadCanonical",
             "TestLeaseReadFatalAuditAndCleanup",
             "TestLeaseReadSnapshotRetry",
+            "TestNTPV0026_SharedSpecIndexDoesNotCollide",
             "TestONV0006_ForgedNoteHistoryIsJournalForked",
             "TestONV0006_NativeNoteSetClearReplayAndAudit",
             "TestONV0006_NoteReceiptBindsOnlyItsOwnTransition",
@@ -1706,11 +1709,26 @@
             "TestPSRV0012ExpectedNonzeroNeedsProof",
             "TestPSRV0012PinBoundToLaunch",
             "TestPSRV0012PinnedExternalCwd",
-            "TestPSRV0012PinnedSweep"
+            "TestPSRV0012PinnedSweep",
+            "TestPSRV0012PostExitClassification",
+            "TestPSRV0016_ShareCrashReplay",
+            "TestPSRV0018_ShareLeaseExpiry",
+            "TestPSRV0019_ShareExcludesLaneUntouched",
+            "TestPSRV0022_UnprovedProbeCleanupRecordsUnknown",
+            "TestPSRV0023ScaledProbeBoundEnforced",
+            "TestPSRV0023SweepBoundsScaleWithBudget",
+            "TestPSRV0025PrepareNeverLaunchesUnderAll",
+            "TestPSRV0025PrepareRunsOwnedBeforeConfirm",
+            "TestPSRV0026PendingReplayNeverRerunsPrepare",
+            "TestPSRV0026PrepareFailureStaysQuarantined",
+            "TestPSRV0032_SlotsGrantWaitAndFreeWithoutOperator",
+            "TestPSRV0033_ExclusiveEventuallyGrantedUnderSharedLoad",
+            "TestPSRV0034_WaitersGrantedByPriorityThenRequestOrder",
+            "TestPSRV0035_ReservedClassNeverStarved"
           ]
         }
       ],
-      "restMilliseconds": 317648
+      "restMilliseconds": 357622
     }
   }
 }
