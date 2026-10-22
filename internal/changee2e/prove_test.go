@@ -9,10 +9,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/behaviorfalsify"
+	"github.com/Beamfall/corvint/internal/jstestprovider"
 	"github.com/Beamfall/corvint/internal/playwrightruns"
 )
 
@@ -158,32 +160,45 @@ func TestCCEV0009VerdictOrder(t *testing.T) {
 	}
 }
 
-// CCE-V0-009 step 6: a base failure counts only when it is at the outcome assertion, matched from
-// the Playwright failure message with its colour codes stripped. The assertion's own expect message
-// must lead the matcher header, so another assertion on the same locator and matcher (a page-object
-// check failing first) is not placed on the outcome assertion.
+// CCE-V0-009 step 6 (V1-2373, V1-2374): a failure counts at the outcome assertion only when the
+// receipt's PWP-V3-008 failure location is the scenario's file at the assertion line. A failure in
+// the test's own cleanup is cleanup-failed; a page-object frame, a file outside the test tree, or a
+// receipt with no location is off the assertion whatever the message says.
 func TestCCEV0009AssertionDetector(t *testing.T) {
-	const marker = "corvint-e2e outcome assert:a/b"
-	coloured := "Error: " + marker + "\n\n\x1b[2mexpect(\x1b[22m\x1b[31mlocator\x1b[39m\x1b[2m).\x1b[22mtoHaveText\x1b[2m(\x1b[22m\x1b[32mexpected\x1b[39m\x1b[2m)\x1b[22m failed\n\nLocator: getByTestId('slot-status')\nExpected: \x1b[32m\"Booked\"\x1b[39m\nReceived: \x1b[31m\"Pending\"\x1b[39m"
+	tree := t.TempDir()
+	text := "import { test, expect } from '@playwright/test';\ntest('t', async ({ page }) => {\n  try {\n    await page.click('#b');\n    await expect(page.getByTestId('s'), 'm').toHaveText('Booked');\n  } finally {\n    await page.close();\n  }\n});\n"
+	sc := Scenario{Placement: "e2e/corvint-compiled/a.spec.ts", Text: []byte(text), AssertionLine: 5}
+	at := func(file string, line int) jstestprovider.TestOutcome {
+		return jstestprovider.TestOutcome{State: jstestprovider.StateFailed, AttemptDetails: []jstestprovider.AttemptDetail{
+			{State: jstestprovider.StateFailed, FailureLocation: &jstestprovider.Anchor{File: file, Line: line}}}}
+	}
+	in := filepath.Join(tree, "e2e", "corvint-compiled", "a.spec.ts")
 	for _, tc := range []struct {
-		name, state, message, locator string
-		want                          bool
+		name     string
+		outcome  jstestprovider.TestOutcome
+		want     string
+		location string
 	}{
-		{"coloured outcome failure", "failed", coloured, "slot-status", true},
-		{"double-quoted locator", "failed", marker + "\n\nexpect(locator).toHaveText(expected) failed\nLocator: getByTestId(\"slot-status\")", "slot-status", true},
-		{"same locator and matcher without the marker", "failed", "Error: expect(locator).toHaveText(expected) failed\n\nLocator: getByTestId('slot-status')", "slot-status", false},
-		{"other assertion's marker", "failed", strings.Replace(coloured, marker, "corvint-e2e outcome assert:a/c", 1), "slot-status", false},
-		{"other locator", "failed", coloured, "slot", false},
-		{"other matcher", "failed", marker + "\n\nexpect(locator).toBeVisible() failed\nLocator: getByTestId('slot-status')", "slot-status", false},
-		{"navigation failure", "failed", "page.goto: net::ERR_CONNECTION_REFUSED", "slot-status", false},
-		{"timed out is not at the assertion", "timedOut", coloured, "slot-status", false},
-		{"passed", "passed", "", "slot-status", false},
+		{"at the assertion", at(in, 5), FailureValueMismatch, sc.Placement + ":5"},
+		{"at the event before it", at(in, 4), "", sc.Placement + ":4"},
+		{"in the test's own cleanup", at(in, 7), FailureCleanupFailed, sc.Placement + ":7"},
+		{"in a page object at the same line number", at(filepath.Join(tree, "e2e", "pages", "club.page.ts"), 5), "", "e2e/pages/club.page.ts:5"},
+		{"outside the test tree", at("/elsewhere/a.spec.ts", 5), "", outsideTestTree},
+		{"no location", jstestprovider.TestOutcome{State: jstestprovider.StateFailed}, "", ""},
+		{"timed out at the assertion", func() jstestprovider.TestOutcome { o := at(in, 5); o.State = jstestprovider.StateTimedOut; return o }(), "", sc.Placement + ":5"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := failsAtAssertion(tc.state, tc.message, marker, "toHaveText", tc.locator); got != tc.want {
-				t.Fatalf("failsAtAssertion = %v, want %v", got, tc.want)
+			file, line := receiptLocation(treeRoots(tree), tc.outcome)
+			if got := assertionFailure(string(tc.outcome.State), "Error: m", file, line, sc); got != tc.want {
+				t.Fatalf("assertionFailure = %q, want %q", got, tc.want)
+			}
+			if got := locationText(file, line); got != tc.location {
+				t.Fatalf("location %q, want %q", got, tc.location)
 			}
 		})
+	}
+	if got := cleanupLines([]byte(text)); len(got) != 1 || got[0] != 7 {
+		t.Fatalf("cleanup lines %v, want [7]", got)
 	}
 }
 
@@ -268,29 +283,43 @@ func liveProve(t *testing.T, root, base, head string) scenarioProof {
 	return p
 }
 
-func liveProveDoc(t *testing.T, root, base, head string) (scenarioProof, proveReport) {
+// liveToolchain is the configured Playwright toolchain; the live tests skip without one.
+func liveToolchain(t *testing.T) (modules, node string) {
 	t.Helper()
-	modules := os.Getenv(envModules)
+	modules = os.Getenv(envModules)
 	if modules == "" {
 		t.Skip("CORVINT_PLAYWRIGHT_MODULES is not set")
 	}
-	node := os.Getenv("CORVINT_PLAYWRIGHT_NODE")
+	node = os.Getenv("CORVINT_PLAYWRIGHT_NODE")
 	if node == "" {
 		var err error
 		if node, err = exec.LookPath("node"); err != nil {
 			t.Skip("node is not available")
 		}
 	}
+	return modules, node
+}
+
+func liveProveDoc(t *testing.T, root, base, head string) (scenarioProof, proveReport) {
+	t.Helper()
+	modules, _ := liveToolchain(t)
 	rep, err := Compile(bg, diffOpts(root, base, head))
 	if err != nil || len(rep.Compiled()) != 1 {
 		t.Fatalf("compile: %v", err)
 	}
+	return liveProveWith(t, root, modules, ProveOptions{Root: root, Base: base, Head: head, Scenarios: rep.Compiled()})
+}
+
+// liveProveWith runs Prove with the live toolchain and this test binary as the hook.
+func liveProveWith(t *testing.T, root, _ string, o ProveOptions) (scenarioProof, proveReport) {
+	t.Helper()
+	modules, node := liveToolchain(t)
 	hook, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, err := Prove(bg, ProveOptions{Root: root, Base: base, Head: head, Repeats: DefaultRepeats, NodeModules: modules,
-		NodeBin: node, Scenarios: rep.Compiled(), HookExecutable: hook})
+	o.Repeats, o.NodeModules, o.NodeBin, o.HookExecutable = DefaultRepeats, modules, node, hook
+	out, err := Prove(bg, o)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -333,6 +362,30 @@ func TestCCEV0009LivePreserves(t *testing.T) {
 	requireOutcomes(t, p.Head, "passed", false)
 	requireOutcomes(t, p.Base, "passed", false)
 	requireVerdict(t, p, VerdictPreserves)
+}
+
+// CCE-V0-034..036 live (V1-1733): an existing hosted test, selected by file and title, runs as
+// given at head and base with the test tree held at head. The discriminating test fails at base on
+// its own assertion and its omitted-event control is killed; the F1 static-overlay falsifier passes
+// on both sides and its omitted-event control survives, so it reads CONTROL_SURVIVED.
+func TestCCEV0034LiveHosted(t *testing.T) {
+	liveToolchain(t)
+	root, base, head := hostedRepo(t)
+	p, _ := liveProveWith(t, root, "", ProveOptions{Root: root, Base: base, Head: head, Hosted: &HostedSelection{File: hostedPath, Title: "shows the booked status"}})
+	requireOutcomes(t, p.Head, "passed", false)
+	requireOutcomes(t, p.Base, "failed", true)
+	requireVerdict(t, p, VerdictDiscriminates)
+	for _, o := range p.Base.Outcomes {
+		if o.FailureLocation != hostedPath+":15" {
+			t.Fatalf("base failure location %q, want the receipt's %s:15", o.FailureLocation, hostedPath)
+		}
+	}
+	f1, _ := liveProveWith(t, root, "", ProveOptions{Root: root, Base: base, Head: head, Hosted: &HostedSelection{File: hostedPath, Title: "static overlay"}})
+	requireOutcomes(t, f1.Head, "passed", false)
+	requireOutcomes(t, f1.Base, "passed", false)
+	if f1.Verdict != VerdictControlSurvived || f1.Scoring || len(f1.Controls) != 1 || f1.Controls[0].Status != "survived" {
+		t.Fatalf("F1 static overlay: %s (%s) %+v", f1.Verdict, f1.Note, f1.Controls)
+	}
 }
 
 // requireOutcomes checks the observed browser outcomes, which Prove keeps even when the receipt
@@ -400,5 +453,29 @@ func TestCCEV0008UntarSkipsLinks(t *testing.T) {
 	}
 	if data, err := os.ReadFile(filepath.Join(dest, "index.html")); err != nil || string(data) != "ok" {
 		t.Fatalf("index.html = %q, %v", data, err)
+	}
+}
+
+// CCE-V0-010: the proof and shadow documents carry no field that could narrow, skip, replace or
+// retire a hosted test's selection; scoring is the only above-candidate signal a proof carries.
+func TestCCEV0010NoSelectionFields(t *testing.T) {
+	tags := func(v any) []string {
+		var out []string
+		rt := reflect.TypeOf(v)
+		for i := range rt.NumField() {
+			if tag := strings.Split(rt.Field(i).Tag.Get("json"), ",")[0]; tag != "" && tag != "-" {
+				out = append(out, tag)
+			}
+		}
+		return out
+	}
+	for _, v := range []any{proveReport{}, scenarioProof{}, sideProof{}, controlProof{}, shadowReport{}, entryReport{}, candidateReport{}} {
+		for _, tag := range tags(v) {
+			for _, word := range []string{"skip", "select", "narrow", "replace", "retire", "disable", "delete", "exclude"} {
+				if strings.Contains(tag, word) {
+					t.Fatalf("%T carries a selection field %q", v, tag)
+				}
+			}
+		}
 	}
 }

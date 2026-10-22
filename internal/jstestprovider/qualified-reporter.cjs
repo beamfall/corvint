@@ -291,6 +291,25 @@ function checkStepBounds(steps, priorCount, policy) {
   return count;
 }
 
+// failureLocation is PWP-V3-008's location of a failed attempt: the innermost stack frame of the
+// first located error that lies in the test's own file, else that error's reported location.
+function failureLocation(errors, testFile) {
+  for (const e of errors) {
+    if (!e) continue;
+    if (typeof e.stack === 'string' && typeof testFile === 'string' && testFile !== '') {
+      for (const frame of e.stack.split('\n').slice(0, 256)) {
+        if (!/^\s+at /.test(frame)) continue;
+        const i = frame.lastIndexOf(testFile + ':');
+        const m = i < 0 ? null : /^(\d+):\d+\)?\s*$/.exec(frame.slice(i + testFile.length + 1));
+        if (m && Number(m[1]) > 0) return {file: testFile, line: Number(m[1])};
+      }
+    }
+    const l = e.location;
+    if (l && typeof l.file === 'string' && l.file !== '' && Number.isInteger(l.line) && l.line > 0) return {file: l.file, line: l.line};
+  }
+  return undefined;
+}
+
 function fileSha256(file) {
   const hash = crypto.createHash('sha256');
   const descriptor = fs.openSync(file, 'r');
@@ -501,7 +520,9 @@ class Reporter {
     const attemptDetails = previous?.attemptDetails || [];
     if (this.retainAttemptDetails) {
       if (result.retry !== attemptDetails.length || attemptDetails.length >= 32) throw new Error('external-attempt-details-invalid');
-      attemptDetails.push({state, retry: result.retry, durationMs: result.duration, failureMessage: message, anchor, artifacts: artifacts.map(a => ({...a}))});
+      // PWP-V3-008: where the failure happened, distinct from the test declaration anchor.
+      const located = state === 'passed' ? undefined : failureLocation(errors, test.location.file);
+      attemptDetails.push({state, retry: result.retry, durationMs: result.duration, failureMessage: message, anchor, artifacts: artifacts.map(a => ({...a})), ...(located ? {failureLocation: located} : {})});
     }
     this.tests.set(test.id, {
       name: test.title, fullName: test.titlePath().join(' > ') + repeat, state,

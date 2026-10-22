@@ -76,6 +76,10 @@ type AttemptDetail struct {
 	FailureMessage string            `json:"failureMessage,omitempty"`
 	Anchor         *Anchor           `json:"anchor,omitempty"`
 	Artifacts      []FailureArtifact `json:"artifacts,omitempty"`
+	// FailureLocation is the failing error's own file and line in a `/3` attempt (PWP-V3-008),
+	// distinct from Anchor, which there names the test declaration. Absent means Playwright
+	// reported no error location, never a location at the anchor.
+	FailureLocation *Anchor `json:"failureLocation,omitempty"`
 	// RouteStubs is the attempt's request-stub record (LPCV-V0-072), unprofiled receipts only.
 	// Absent means not produced, never zero hits.
 	RouteStubs *RouteStubRecord `json:"routeStubs,omitempty"`
