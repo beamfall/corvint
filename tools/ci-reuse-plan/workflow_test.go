@@ -427,3 +427,281 @@ func TestAFPV0082PushConcurrencyGroupsByCommit(t *testing.T) {
 	wantLine(t, "ci.yml", readWorkflow(t, "ci.yml"),
 		"  group: ${{ github.workflow }}-${{ github.event.pull_request.number || (github.event_name == 'push' && github.sha) || github.ref }}")
 }
+
+// AFP-V0-163 (V1-2113): a merge-queue entry decides integrity reuse before the gate and skips
+// only the gate's steps on REUSE (so the job still concludes success for the AFP-V0-080 push
+// reuse). The decision reads only the jobs listing and one job log, never an artifact, because
+// an artifact name does not authenticate the job that uploaded it.
+func TestAFPV0163WorkflowWiresIntegrityTreeReuse(t *testing.T) {
+	w := readWorkflow(t, "ci.yml")
+	ai := jobBlock(t, w, "artifact-integrity")
+	for _, line := range []string{
+		"    permissions:",
+		"      actions: read",
+		"      contents: read",
+		"          fetch-depth: 2",
+		"        id: reuse",
+		"        if: github.event_name == 'merge_group'",
+		"        if: steps.reuse.outputs.mode == 'REUSE'",
+		"          name: ci-integrity-reuse",
+		"        run: make go-archive-gate",
+	} {
+		wantLine(t, "artifact-integrity", ai, line)
+	}
+	if n := strings.Count(ai, "        if: steps.reuse.outputs.mode != 'REUSE'\n"); n != 2 {
+		t.Errorf("setup-go and the archive gate must both be skipped only on REUSE: %d conditions", n)
+	}
+	if r, gate := strings.Index(ai, "id: reuse"), strings.Index(ai, "run: make go-archive-gate"); r < 0 || r > gate {
+		t.Error("the reuse decision must precede the gate")
+	}
+	reuse := stepScript(t, ai, "reuse")
+	for _, want := range []string{
+		`get "$api/runs/$id/jobs?filter=latest&per_page=100" "$d/jobs-$id.json" || continue`,
+		`select(.name == "artifact-integrity" or .name == "artifact-integrity-record")`,
+		`get "$api/jobs/$job/logs" "$d/log-$job.txt" || continue`,
+		`test "$n" = 1 || continue`,
+	} {
+		if !strings.Contains(reuse, want) {
+			t.Errorf("the reuse step must hold %q", want)
+		}
+	}
+	// No artifact is ever evidence: the step lists none, and no job names one after a tree.
+	if strings.Contains(reuse, "artifacts") || strings.Contains(w, "ci-tested-tree-$tree-artifact-integrity") ||
+		strings.Contains(w, "-artifact-integrity\n") {
+		t.Error("integrity reuse must not read or name a tree-named artifact")
+	}
+	if n := strings.Count(reuse, "$api/"); n != 3 {
+		t.Errorf("the reuse step reads %d API paths, want the run listing, the jobs listing and the record job log", n)
+	}
+}
+
+// AFP-V0-163: the record job, the only evidence the queue accepts, runs only in a pull-request run
+// after artifact-integrity passed there, persists no credentials, and runs no repository code: a checkout
+// without credentials, then one script of shell builtins, git and printf.
+func TestAFPV0163RecordJobRunsNoRepositoryCode(t *testing.T) {
+	rec := jobBlock(t, readWorkflow(t, "ci.yml"), "artifact-integrity-record")
+	for _, line := range []string{
+		"    needs: artifact-integrity",
+		"    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.artifact-integrity.result == 'success' }}",
+		"          persist-credentials: false",
+		"          PR_HEAD: ${{ github.event.pull_request.head.sha }}",
+	} {
+		wantLine(t, "artifact-integrity-record", rec, line)
+	}
+	if n := strings.Count(rec, "\n      - "); n != 2 || !strings.Contains(rec, "\n      - uses: actions/checkout@") || strings.Count(rec, "uses:") != 1 {
+		t.Errorf("the record job must be exactly a checkout and one run step: %d steps", n)
+	}
+	for _, banned := range []string{"github.token", "secrets.", "GH_TOKEN", "permissions:", "services:", "container:", "shell:", "working-directory:"} {
+		if strings.Contains(rec, banned) {
+			t.Errorf("the record job must not use %q", banned)
+		}
+	}
+	allowed := regexp.MustCompile(`^(set -eu|test "\$\(git rev-parse [^;&|<>]*\)" = "\$(GITHUB_SHA|PR_HEAD)"|tree=\$\(git rev-parse --verify -q "\$GITHUB_SHA\^\{tree\}"\)|printf '[^']*' "\$tree" "\$GITHUB_SHA" "\$PR_HEAD")$`)
+	script := stepScript(t, rec, "record")
+	for _, line := range strings.Split(strings.TrimSpace(script), "\n") {
+		if !allowed.MatchString(line) {
+			t.Errorf("the record script may run only builtins, git and printf: %q", line)
+		}
+	}
+}
+
+// V1-2113 fail-closed: REUSE only for a successful pull-request run of the queue commit's second
+// parent whose latest artifact-integrity and artifact-integrity-record jobs both passed on that
+// head, and whose record job log holds exactly one record line naming this tree and head. The log
+// served here is the record script's own output, so the two steps agree on the line. Every other
+// listing or log, an unreadable one, or a non-merge commit leaves mode empty and the gate runs.
+func TestAFPV0163IntegrityReuseDecidesOnlyForAPassedPullRequestRunOfThisTree(t *testing.T) {
+	for _, tool := range []string{"bash", "jq", "git", "grep", "sed", "tr"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Fatalf("the integrity reuse step needs %s on PATH: %v", tool, err)
+		}
+	}
+	const repo = "beamfall/corvint"
+	const runID, jobID = 39472511845, 112233445566
+	w := readWorkflow(t, "ci.yml")
+	scripts := t.TempDir()
+	script, recordScript := filepath.Join(scripts, "step.sh"), filepath.Join(scripts, "record.sh")
+	if err := os.WriteFile(script, []byte(stepScript(t, jobBlock(t, w, "artifact-integrity"), "reuse")), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(recordScript, []byte(stepScript(t, jobBlock(t, w, "artifact-integrity-record"), "record")), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// A two-parent queue commit (main + pull-request head) and a single-parent commit.
+	work := t.TempDir()
+	gitEnv := []string{"GIT_CONFIG_GLOBAL=" + os.DevNull, "GIT_CONFIG_SYSTEM=" + os.DevNull, "GIT_CONFIG_NOSYSTEM=1",
+		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.test", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.test",
+		"PATH=" + os.Getenv("PATH"), "HOME=" + work}
+	git := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
+		cmd.Dir, cmd.Env = work, gitEnv
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	git("init", "-q", "-b", "main")
+	git("commit", "-q", "--allow-empty", "-m", "base")
+	git("checkout", "-q", "-b", "pr")
+	if err := os.WriteFile(filepath.Join(work, "f"), []byte("x\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	git("add", "f")
+	git("commit", "-q", "-m", "pr")
+	head := git("rev-parse", "HEAD")
+	git("checkout", "-q", "main")
+	git("commit", "-q", "--allow-empty", "-m", "main moved")
+	git("merge", "-q", "--no-ff", "-m", "queue", "pr")
+	merge, tree := git("rev-parse", "HEAD"), git("rev-parse", "HEAD^{tree}")
+
+	// The pull-request run's record job prints its line; GitHub prefixes each log line with a
+	// timestamp and ends it with CRLF.
+	cmd := exec.Command("bash", "--noprofile", "--norc", "-eo", "pipefail", recordScript)
+	cmd.Dir, cmd.Env = work, append(append([]string{}, gitEnv...), "GITHUB_SHA="+merge, "PR_HEAD="+head)
+	printed, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("the record script: %v", err)
+	}
+	line := strings.TrimSuffix(string(printed), "\n")
+	if strings.Count(line, "\n") != 0 || !strings.Contains(line, " tree="+tree+" ") || !strings.HasSuffix(line, " head="+head) {
+		t.Fatalf("the record script printed %q, want one line naming tree %s and head %s", printed, tree, head)
+	}
+	ts := "2026-10-21T10:00:00.1234567Z "
+	logOf := func(lines ...string) string {
+		var b strings.Builder
+		b.WriteString(ts + "##[group]Run set -eu\r\n" + ts + "printf 'corvint-ci-integrity-tree/0 tree=%s target=%s head=%s\\n' \"$tree\" \"$GITHUB_SHA\" \"$PR_HEAD\"\r\n" + ts + "##[endgroup]\r\n")
+		for _, l := range lines {
+			b.WriteString(ts + l + "\r\n")
+		}
+		return b.String()
+	}
+	other := func(c string) string { return strings.Repeat(c, 40) }
+
+	run := func(target string, edit func(r, ai, rec map[string]any, log *string), env ...string) (string, string) {
+		git("checkout", "-q", target)
+		dir := t.TempDir()
+		r := map[string]any{"id": runID, "head_sha": head, "event": "pull_request", "conclusion": "success",
+			"path": ".github/workflows/ci.yml", "repository": map[string]any{"full_name": repo}}
+		ai := map[string]any{"id": 1, "run_id": runID, "name": "artifact-integrity", "conclusion": "success", "head_sha": head}
+		rec := map[string]any{"id": jobID, "run_id": runID, "name": "artifact-integrity-record", "conclusion": "success", "head_sha": head}
+		log := logOf(line)
+		if edit != nil {
+			edit(r, ai, rec, &log)
+		}
+		jobs := []any{map[string]any{"id": 2, "run_id": runID, "name": "go-static", "conclusion": "success", "head_sha": head}}
+		for _, j := range []map[string]any{ai, rec} {
+			if j["drop"] != true {
+				jobs = append(jobs, j)
+			}
+			if j["dup"] == true {
+				jobs = append(jobs, j)
+			}
+		}
+		writeJSON(t, filepath.Join(dir, "runs.json"), map[string]any{"workflow_runs": []any{r}})
+		if rec["unreadable"] != true {
+			writeJSON(t, filepath.Join(dir, "jobs.json"), map[string]any{"jobs": jobs})
+		}
+		if log != "unreadable" {
+			if err := os.WriteFile(filepath.Join(dir, "log.txt"), []byte(log), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		// A forged tree-named artifact is on offer too; the step must never ask for it.
+		writeJSON(t, filepath.Join(dir, "artifacts.json"), map[string]any{"artifacts": []any{map[string]any{
+			"name": "ci-tested-tree-" + tree + "-artifact-integrity", "expired": false,
+			"workflow_run": map[string]any{"id": runID, "head_sha": head}}}})
+		bin := filepath.Join(dir, "bin")
+		if err := os.Mkdir(bin, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		// A stub curl answering only the exact listings and the one job log the step may read.
+		stub := `#!/bin/sh
+out= url= auth=
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -o) out=$2; shift ;;
+    -H) case "$2" in Authorization:*) auth=1 ;; esac; shift ;;
+    -*) ;;
+    *) url=$1 ;;
+  esac
+  shift
+done
+[ -n "$auth" ] && [ -n "${STUB_DENY_AUTH:-}" ] && exit 22
+case "$url" in
+  "$STUB_API/workflows/ci.yml/runs?head_sha=$STUB_HEAD&event=pull_request&status=success&per_page=20") f=runs.json ;;
+  "$STUB_API/runs/$STUB_RUN/jobs?filter=latest&per_page=100") f=jobs.json ;;
+  "$STUB_API/jobs/$STUB_JOB/logs") f=log.txt ;;
+  "$STUB_API/runs/$STUB_RUN/artifacts"*) f=artifacts.json ;;
+  *) exit 22 ;;
+esac
+[ -f "$STUB_DIR/$f" ] || exit 22
+cat "$STUB_DIR/$f" > "$out"
+`
+		if err := os.WriteFile(filepath.Join(bin, "curl"), []byte(stub), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		output, summary := filepath.Join(dir, "output"), filepath.Join(dir, "summary")
+		cmd := exec.Command("bash", "--noprofile", "--norc", "-eo", "pipefail", script)
+		cmd.Dir = work
+		cmd.Env = append(append([]string{}, gitEnv[:len(gitEnv)-2]...),
+			"PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"), "HOME="+dir,
+			"GITHUB_API_URL=https://api.github.test", "GITHUB_REPOSITORY="+repo, "GITHUB_SHA="+target,
+			"RUNNER_TEMP="+dir, "GITHUB_OUTPUT="+output, "GITHUB_STEP_SUMMARY="+summary,
+			"GH_TOKEN=t", "STUB_DIR="+dir, "STUB_HEAD="+head, "STUB_RUN="+strconv.Itoa(runID), "STUB_JOB="+strconv.Itoa(jobID),
+			"STUB_API=https://api.github.test/repos/"+repo+"/actions")
+		cmd.Env = append(cmd.Env, env...)
+		_ = cmd.Run() // a nonzero exit is continue-on-error in the workflow; only the output binds
+		o, _ := os.ReadFile(output)
+		s, _ := os.ReadFile(summary)
+		return string(o), string(s)
+	}
+	out, summary := run(merge, nil)
+	if out != "mode=REUSE\n" || !strings.Contains(summary, `"profile":"corvint-ci-integrity-reuse/0","mode":"REUSE","tree":"`+tree+`","head":"`+head+`"`) ||
+		!strings.Contains(summary, `"runId":`+strconv.Itoa(runID)+`,"recordJobId":`+strconv.Itoa(jobID)+`}`) {
+		t.Fatalf("a passed pull-request run of this tree: output %q summary %q, want REUSE naming the run, record job and tree", out, summary)
+	}
+	if out, _ := run(merge, nil, "STUB_DENY_AUTH=1"); out != "mode=REUSE\n" {
+		t.Errorf("a refused token must retry the public listing anonymously: output %q", out)
+	}
+	if out, _ := run(head, nil); out != "" {
+		t.Errorf("a single-parent commit: output %q, want no mode", out)
+	}
+	type edit = func(r, ai, rec map[string]any, log *string)
+	for name, e := range map[string]edit{
+		"other head":      func(r, ai, rec map[string]any, log *string) { r["head_sha"] = other("0") },
+		"merge_group run": func(r, ai, rec map[string]any, log *string) { r["event"] = "merge_group" },
+		"failed run":      func(r, ai, rec map[string]any, log *string) { r["conclusion"] = "failure" },
+		"other workflow":  func(r, ai, rec map[string]any, log *string) { r["path"] = ".github/workflows/other.yml" },
+		"other repository": func(r, ai, rec map[string]any, log *string) {
+			r["repository"] = map[string]any{"full_name": "fork/corvint"}
+		},
+		"string run id":             func(r, ai, rec map[string]any, log *string) { r["id"] = strconv.Itoa(runID) },
+		"gate job failed":           func(r, ai, rec map[string]any, log *string) { ai["conclusion"] = "failure" },
+		"gate job missing":          func(r, ai, rec map[string]any, log *string) { ai["drop"] = true },
+		"record job failed":         func(r, ai, rec map[string]any, log *string) { rec["conclusion"] = "failure" },
+		"record job skipped":        func(r, ai, rec map[string]any, log *string) { rec["conclusion"] = "skipped" },
+		"record job missing":        func(r, ai, rec map[string]any, log *string) { rec["drop"] = true },
+		"record job duplicated":     func(r, ai, rec map[string]any, log *string) { rec["dup"] = true },
+		"record job on other head":  func(r, ai, rec map[string]any, log *string) { rec["head_sha"] = other("1") },
+		"record job of another run": func(r, ai, rec map[string]any, log *string) { rec["run_id"] = 1 },
+		"record job string id":      func(r, ai, rec map[string]any, log *string) { rec["id"] = strconv.Itoa(jobID) },
+		"jobs unreadable":           func(r, ai, rec map[string]any, log *string) { rec["unreadable"] = true },
+		"log unreadable":            func(r, ai, rec map[string]any, log *string) { *log = "unreadable" },
+		"log without a record":      func(r, ai, rec map[string]any, log *string) { *log = logOf() },
+		"log with two records":      func(r, ai, rec map[string]any, log *string) { *log = logOf(line, line) },
+		"record of another tree": func(r, ai, rec map[string]any, log *string) {
+			*log = logOf(strings.Replace(line, " tree="+tree+" ", " tree="+other("2")+" ", 1))
+		},
+		"record of another head": func(r, ai, rec map[string]any, log *string) {
+			*log = logOf(strings.Replace(line, " head="+head, " head="+other("3"), 1))
+		},
+		"record with trailing text": func(r, ai, rec map[string]any, log *string) { *log = logOf(line + " x") },
+		"record inside other text":  func(r, ai, rec map[string]any, log *string) { *log = logOf("echo " + line) },
+	} {
+		if out, _ := run(merge, e); out != "" {
+			t.Errorf("%s: output %q, want no mode (the gate runs in full)", name, out)
+		}
+	}
+}
