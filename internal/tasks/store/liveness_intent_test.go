@@ -130,9 +130,11 @@ func (f *livenessFixture) sealIntentRecords(t *testing.T) {
 // rewritten below the advance tail. A claim, which reads tickets, does not
 // commit on that route (the control that the seal bites).
 func TestJSGV0001_LivenessReadsNoIntentRecords(t *testing.T) {
+	t.Parallel()
 	for _, tickets := range []int{70, 210} {
 		for _, extra := range []int{0, 30} {
 			t.Run(fmt.Sprintf("tickets=%d/heartbeats=%d", tickets, extra), func(t *testing.T) {
+				t.Parallel()
 				f := newLivenessFixture(t, tickets)
 				for i := 0; i < extra; i++ {
 					if run := f.heartbeat(nil); !run.completed() || !run.fast() {
@@ -165,6 +167,7 @@ func TestJSGV0001_LivenessReadsNoIntentRecords(t *testing.T) {
 // bind or branch recheck, so no fast commit is made from the moved input.
 // An intent ticket edit, which the liveness model does not read, does not.
 func TestJSGV0001_LivenessBindDeclinesMovedInputs(t *testing.T) {
+	t.Parallel()
 	state := func(name string) func(*livenessFixture) string {
 		return func(f *livenessFixture) string { return filepath.Join(f.repo.StateDir, filepath.FromSlash(name)) }
 	}
@@ -186,6 +189,7 @@ func TestJSGV0001_LivenessBindDeclinesMovedInputs(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
 			f := newLivenessFixture(t, 70)
 			p := c.path(f)
 			change := func() {
@@ -206,6 +210,7 @@ func TestJSGV0001_LivenessBindDeclinesMovedInputs(t *testing.T) {
 		})
 	}
 	t.Run("ticket", func(t *testing.T) {
+		t.Parallel()
 		g := newLivenessFixture(t, 70)
 		ticket := g.ticketFiles[1]
 		edit := func() {

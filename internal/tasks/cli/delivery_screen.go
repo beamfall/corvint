@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"regexp"
 	"slices"
 	"sort"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/store"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -36,6 +38,10 @@ const (
 	verdictCited     = "CITED"
 	verdictMentioned = "MENTIONED"
 	verdictClear     = "CLEAR"
+	// verdictCompleted and verdictHeld come from the store ahead of any PR
+	// or commit evidence (TCD-V0-170).
+	verdictCompleted = "COMPLETED"
+	verdictHeld      = "HELD"
 )
 
 var (
@@ -56,7 +62,7 @@ var (
 )
 
 // ghPR is one record of `gh pr list --json
-// number,state,title,body,headRefName,headRefOid,mergeCommit,labels`.
+// number,state,title,body,headRefName,headRefOid,mergeCommit,labels[,mergedAt]`.
 type ghPR struct {
 	Number      int64  `json:"number"`
 	State       string `json:"state"`
@@ -64,6 +70,9 @@ type ghPR struct {
 	Body        string `json:"body"`
 	HeadRefName string `json:"headRefName"`
 	HeadRefOid  string `json:"headRefOid"`
+	// MergedAt is the optional `mergedAt` field; batch-close uses it as the
+	// default issuedAt so a rerun replays (TCD-V0-169).
+	MergedAt    string `json:"mergedAt"`
 	MergeCommit *struct {
 		Oid string `json:"oid"`
 	} `json:"mergeCommit"`
@@ -72,11 +81,13 @@ type ghPR struct {
 	} `json:"labels"`
 }
 
-// ghRun is one record of `gh run list --json databaseId,headSha,conclusion`.
+// ghRun is one record of `gh run list --json
+// databaseId,headSha,conclusion[,url]`.
 type ghRun struct {
 	DatabaseID int64  `json:"databaseId"`
 	HeadSha    string `json:"headSha"`
 	Conclusion string `json:"conclusion"`
+	URL        string `json:"url"`
 }
 
 // readGitHubExport decodes a bounded `gh --json` array file into out.
@@ -85,6 +96,29 @@ func readGitHubExport(flag, file string, out any) error {
 	if err != nil {
 		return err
 	}
+	return decodeGitHubExport(flag, raw, out)
+}
+
+// readGitHubExportArg is readGitHubExport where the file "-" reads the
+// export from stdin under the same byte bound (TCD-V0-171).
+func readGitHubExportArg(env Env, flag, file string, out any) error {
+	if file != "-" {
+		return readGitHubExport(flag, file, out)
+	}
+	if env.Stdin == nil {
+		return wire.Errorf(wire.CodeMissingEvidence, flag, "the %s export on stdin is unreadable", flag)
+	}
+	raw, err := io.ReadAll(io.LimitReader(env.Stdin, int64(maxGitHubExportBytes)+1))
+	if err != nil {
+		return wire.Errorf(wire.CodeMissingEvidence, flag, "the %s export on stdin is unreadable", flag)
+	}
+	if len(raw) > maxGitHubExportBytes {
+		return wire.Errorf(wire.CodeLimitExceeded, flag, "the %s export on stdin exceeds %d bytes", flag, maxGitHubExportBytes)
+	}
+	return decodeGitHubExport(flag, raw, out)
+}
+
+func decodeGitHubExport(flag string, raw []byte, out any) error {
 	if err := json.NewDecoder(bytes.NewReader(raw)).Decode(out); err != nil {
 		return wire.Errorf(wire.CodeMalformed, flag, "the %s file is not a gh --json array: %s", flag, prose(err.Error()))
 	}
@@ -228,11 +262,17 @@ type screenRow struct {
 	ticketID, local, status, verdict string
 	created                          time.Time // zero when unreadable: never TRUNCATED
 	prs, commits                     []wire.Value
+	// holds and note are the store facts of TCD-V0-170: every hold with its
+	// holdId and reason, and the latest operator note.
+	holds []ticket.Hold
+	note  wire.Value
 }
 
 // deliveryScreenCommand is `corvint-tasks ticket delivery-screen`. It takes
 // no lock and writes nothing (TCD-V0-159); exit 0 when every ticket is
-// CLEAR, 1 otherwise, 2 on a refusal (TCD-V0-162).
+// CLEAR, 1 otherwise, 2 on a refusal (TCD-V0-162). A COMPLETED or HELD
+// ticket takes that verdict from the store before any PR evidence, and each
+// row carries the ticket's holds and latest operator note (TCD-V0-170).
 func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 	cmd := []string{"ticket", "delivery-screen"}
 	fl, pos, err := flags(args, "prs", "ref", "since", "limit")
@@ -246,7 +286,7 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 	var prs []ghPR
 	file, observed := fl["prs"]
 	if err == nil && observed {
-		err = readGitHubExport("--prs", file, &prs)
+		err = readGitHubExportArg(env, "--prs", file, &prs)
 	}
 	if err != nil {
 		return failure(cmd, nil, err), 0
@@ -274,7 +314,7 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 			}
 			if !slices.ContainsFunc(rows, func(r screenRow) bool { return r.ticketID == id }) {
 				created, _ := time.Parse(time.RFC3339Nano, string(rec.CreatedAt))
-				rows = append(rows, screenRow{ticketID: id, local: rec.TicketID.Local, status: rec.Status, created: created})
+				rows = append(rows, screenRow{ticketID: id, local: rec.TicketID.Local, status: rec.Status, created: created, holds: slices.Clone(rec.Holds), note: operatorNoteShowValue(rc, rec)})
 			}
 		}
 		return nil
@@ -350,6 +390,10 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 			}
 		}
 		switch {
+		case r.status == ticket.StatusCompleted:
+			r.verdict = verdictCompleted
+		case r.status == ticket.StatusHeld || len(r.holds) > 0:
+			r.verdict = verdictHeld
 		case inFlight:
 			r.verdict = verdictInFlight
 		case delivered:
@@ -398,8 +442,19 @@ func deliveryScreenValue(rows []screenRow, ref, refCommit string, observed bool,
 		o.Set("verdict", wire.String(r.verdict))
 		o.Set("prs", wire.Array(r.prs...))
 		o.Set("commits", wire.Array(r.commits...))
+		holds := make([]wire.Value, 0, len(r.holds))
+		line := r.local + " " + r.verdict + " status=" + r.status + " prs=" + strconv.Itoa(len(r.prs)) + " commits=" + strconv.Itoa(len(r.commits))
+		for _, h := range r.holds {
+			holds = append(holds, wire.ObjectValue(wire.NewObject().Set("holdId", wire.String(h.HoldID)).Set("reason", wire.String(h.Reason))))
+			line += " hold=" + h.HoldID
+		}
+		o.Set("holds", wire.Array(holds...))
+		o.Set("operatorNote", r.note)
+		if st, ok := r.note.Obj.Get("state"); ok && st.Str != "NONE" {
+			line += " note=" + st.Str
+		}
 		tickets = append(tickets, wire.ObjectValue(o))
-		human = append(human, r.local+" "+r.verdict+" status="+r.status+" prs="+strconv.Itoa(len(r.prs))+" commits="+strconv.Itoa(len(r.commits)))
+		human = append(human, line)
 	}
 	o := wire.NewObject()
 	o.Set("profile", wire.String(profileDeliveryScreen))
@@ -423,6 +478,124 @@ func emitDeliveryScreen(env Env, args []string) int {
 	return code
 }
 
+// batchInput is the parsed --pr, --prs and --runs input that `ticket
+// batch-delivered` (TCD-V0-163) and `ticket batch-close` (TCD-V0-169) share,
+// so both verbs read one export the same way.
+type batchInput struct {
+	number       int64
+	batch        *ghPR
+	byNumber     map[int64]*ghPR
+	lanes        []int64
+	runs         []ghRun
+	runsObserved bool
+	// green is the sorted successful run IDs at the batch merge commit or
+	// the batch head.
+	green []int64
+}
+
+// batchHit is one ticket a batch delivered or only mentioned.
+type batchHit struct {
+	ticketID string
+	lane     int64 // 0 = the batch body itself
+}
+
+// parseBatchInput reads the batch inputs of verb from already-parsed flags.
+// --prs - reads the PR export from stdin (TCD-V0-171).
+func parseBatchInput(env Env, verb string, fl map[string]string, pos []string) (*batchInput, error) {
+	in := &batchInput{byNumber: map[int64]*ghPR{}}
+	var err error
+	if len(pos) != 0 {
+		err = wire.Errorf(wire.CodeMalformed, "argv", "ticket %s takes no positional argument", verb)
+	}
+	if err == nil {
+		in.number, err = strconv.ParseInt(fl["pr"], 10, 64)
+		if err != nil || in.number < 1 {
+			err = wire.Errorf(wire.CodeMalformed, "--pr", "--pr must be a PR number")
+		}
+	}
+	if _, ok := fl["prs"]; err == nil && !ok {
+		err = wire.Errorf(wire.CodeMalformed, "--prs", "ticket %s needs a --prs export", verb)
+	}
+	var prs []ghPR
+	if err == nil {
+		err = readGitHubExportArg(env, "--prs", fl["prs"], &prs)
+	}
+	runsFile, runsObserved := fl["runs"]
+	in.runsObserved = runsObserved
+	if err == nil && runsObserved {
+		err = readGitHubExport("--runs", runsFile, &in.runs)
+	}
+	for i := range prs {
+		in.byNumber[prs[i].Number] = &prs[i]
+	}
+	in.batch = in.byNumber[in.number]
+	switch {
+	case err != nil:
+	case in.batch == nil:
+		err = wire.Errorf(wire.CodeMalformed, "--pr", "PR #%d is not in the --prs export", in.number)
+	case in.batch.State != "MERGED" || in.batch.mergeOid() == "":
+		err = wire.Errorf(wire.CodePrerequisiteUnsatisfied, "--pr", "PR #%d is %s, not merged", in.number, prose(in.batch.State))
+	}
+	if err != nil {
+		return nil, err
+	}
+	for _, m := range prNumberRef.FindAllStringSubmatch(in.batch.Title+"\n"+in.batch.Body, -1) {
+		n, _ := strconv.ParseInt(m[1], 10, 64)
+		if n != in.number && in.byNumber[n] != nil && !slices.Contains(in.lanes, n) {
+			in.lanes = append(in.lanes, n)
+		}
+	}
+	slices.Sort(in.lanes)
+	for _, r := range in.runs {
+		if r.Conclusion == "success" && (r.HeadSha == in.batch.mergeOid() || r.HeadSha == in.batch.HeadRefOid) && !slices.Contains(in.green, r.DatabaseID) {
+			in.green = append(in.green, r.DatabaseID)
+		}
+	}
+	slices.Sort(in.green)
+	return in, nil
+}
+
+// batchHits indexes the store and returns the tickets the batch delivered
+// (a delivery line in a lane PR body or the batch body) and those it only
+// mentioned (TCD-V0-163..164). A delivered ticket is never also mentioned.
+func (in *batchInput) batchHits(rc *readCtx) (delivered, mentioned []batchHit) {
+	index := &closeoutIndex{tokens: map[string]string{}, issues: map[string][]string{}}
+	for _, id := range rc.store.Inventory.Sorted() {
+		rec, _ := rc.store.Inventory.Get(id)
+		index.add(rec)
+	}
+	seen := map[string]bool{}
+	var weak []batchHit
+	for _, n := range append(slices.Clone(in.lanes), 0) {
+		p := in.batch
+		if n != 0 {
+			p = in.byNumber[n]
+		}
+		refs := index.references(p.Body)
+		ids := make([]string, 0, len(refs))
+		for id := range refs {
+			ids = append(ids, id)
+		}
+		sort.Strings(ids)
+		for _, id := range ids {
+			switch {
+			case refs[id] == refDelivered && !seen[id]:
+				seen[id] = true
+				delivered = append(delivered, batchHit{id, n})
+			case refs[id] == refMentioned:
+				weak = append(weak, batchHit{id, n})
+			}
+		}
+	}
+	for _, h := range weak {
+		if !seen[h.ticketID] {
+			seen[h.ticketID] = true
+			mentioned = append(mentioned, h)
+		}
+	}
+	return delivered, mentioned
+}
+
 // batchDeliveredCommand is `corvint-tasks ticket batch-delivered`: the
 // tickets a merged batch PR delivered, each with its lane PR, the batch PR,
 // the main merge commit and the green CI runs at it (TCD-V0-163). It writes
@@ -431,105 +604,21 @@ func emitDeliveryScreen(env Env, args []string) int {
 func batchDeliveredCommand(env Env, args []string) *wire.Result {
 	cmd := []string{"ticket", "batch-delivered"}
 	fl, pos, err := flags(args, "pr", "prs", "runs")
-	if err == nil && len(pos) != 0 {
-		err = wire.Errorf(wire.CodeMalformed, "argv", "ticket batch-delivered takes no positional argument")
-	}
-	var number int64
+	var in *batchInput
 	if err == nil {
-		number, err = strconv.ParseInt(fl["pr"], 10, 64)
-		if err != nil || number < 1 {
-			err = wire.Errorf(wire.CodeMalformed, "--pr", "--pr must be a PR number")
-		}
-	}
-	if _, ok := fl["prs"]; err == nil && !ok {
-		err = wire.Errorf(wire.CodeMalformed, "--prs", "ticket batch-delivered needs a --prs export")
-	}
-	var prs []ghPR
-	if err == nil {
-		err = readGitHubExport("--prs", fl["prs"], &prs)
-	}
-	var runs []ghRun
-	runsFile, runsObserved := fl["runs"]
-	if err == nil && runsObserved {
-		err = readGitHubExport("--runs", runsFile, &runs)
-	}
-	byNumber := map[int64]*ghPR{}
-	for i := range prs {
-		byNumber[prs[i].Number] = &prs[i]
-	}
-	batch := byNumber[number]
-	switch {
-	case err != nil:
-	case batch == nil:
-		err = wire.Errorf(wire.CodeMalformed, "--pr", "PR #%d is not in the --prs export", number)
-	case batch.State != "MERGED" || batch.mergeOid() == "":
-		err = wire.Errorf(wire.CodePrerequisiteUnsatisfied, "--pr", "PR #%d is %s, not merged", number, prose(batch.State))
+		in, err = parseBatchInput(env, "batch-delivered", fl, pos)
 	}
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
-	var lanes []int64
-	for _, m := range prNumberRef.FindAllStringSubmatch(batch.Title+"\n"+batch.Body, -1) {
-		n, _ := strconv.ParseInt(m[1], 10, 64)
-		if n != number && byNumber[n] != nil && !slices.Contains(lanes, n) {
-			lanes = append(lanes, n)
-		}
-	}
-	slices.Sort(lanes)
+	number, batch, lanes, runsObserved := in.number, in.batch, in.lanes, in.runsObserved
 	var green []wire.Value
-	if runsObserved {
-		var ids []int64
-		for _, r := range runs {
-			if r.Conclusion == "success" && (r.HeadSha == batch.mergeOid() || r.HeadSha == batch.HeadRefOid) && !slices.Contains(ids, r.DatabaseID) {
-				ids = append(ids, r.DatabaseID)
-			}
-		}
-		slices.Sort(ids)
-		for _, id := range ids {
-			green = append(green, wire.String(strconv.FormatInt(id, 10)))
-		}
+	for _, id := range in.green {
+		green = append(green, wire.String(strconv.FormatInt(id, 10)))
 	}
-	type hit struct {
-		ticketID string
-		lane     int64 // 0 = the batch body itself
-	}
-	var delivered, mentioned []hit
+	var delivered, mentioned []batchHit
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
-		index := &closeoutIndex{tokens: map[string]string{}, issues: map[string][]string{}}
-		for _, id := range rc.store.Inventory.Sorted() {
-			rec, _ := rc.store.Inventory.Get(id)
-			index.add(rec)
-		}
-		delivered, mentioned = nil, nil
-		seen := map[string]bool{}
-		var weak []hit
-		for _, n := range append(slices.Clone(lanes), 0) {
-			p := batch
-			if n != 0 {
-				p = byNumber[n]
-			}
-			refs := index.references(p.Body)
-			ids := make([]string, 0, len(refs))
-			for id := range refs {
-				ids = append(ids, id)
-			}
-			sort.Strings(ids)
-			for _, id := range ids {
-				switch {
-				case refs[id] == refDelivered && !seen[id]:
-					seen[id] = true
-					delivered = append(delivered, hit{id, n})
-				case refs[id] == refMentioned:
-					weak = append(weak, hit{id, n})
-				}
-			}
-		}
-		for _, h := range weak {
-			if !seen[h.ticketID] {
-				seen[h.ticketID] = true
-				mentioned = append(mentioned, h)
-			}
-		}
+		delivered, mentioned = in.batchHits(rc)
 		return nil
 	})
 	if err != nil {
