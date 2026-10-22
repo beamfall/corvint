@@ -1391,6 +1391,11 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   additional repositories, a `locate` or `recommend-tests` receipt carries `result_repositories`,
   naming for each visible result the repository of its anchor at the path (else of its first
   anchor, else the primary). A single-repository receipt omits the member and keeps its bytes.
+- `DCP-V1-312`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2345) `corvint docs
+  corpus locate` and `corvint docs corpus recommend-tests` accept an optional `--repository
+  ROOT_COMMIT` with the `DCP-V1-310` semantics of the MCP `repository` argument: the same receipt
+  for a declared repository, `corpus-refused` for an undeclared one, and `invalid-arguments` for an
+  empty value or for the flag on any other operation.
 - `DCP-V1-280`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1487;
   V1-2328) The `DCP-V1-144` reuse key covers every declared checkout: the primary repository and
   each `DCP-V1-175` additional repository, observed in parallel (object format, commit, tree,
@@ -2048,6 +2053,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-303..305 | `internal/doccorpus/adoption.go`, `providers.go`, `query.go` | `TestDCPV1303TestRunLedgerFieldsRoundTrip`, `TestDCPV1303TestRunLedgerUnknownValuesRefused`, `TestDCPV1304SuppliedGapTargetsRunClaim` |
 | DCP-V1-306..307 | `internal/doccorpus/adoption.go`, `query.go` | `TestDCPV1306MigrationMappingLedger`, `TestDCPV1306MigrationMappingRefusals` |
 | DCP-V1-308..311 | `internal/doccorpus/types.go`, `compile.go`, `query.go`, `typed_query.go`, `pagination.go`, `internal/mcp/corpusbridge/corpusbridge.go` | `TestDCPV1308AdditionalRepositoryAtTwoRevisions`, `TestDCPV1308AdditionalRevisionRefusals`, `TestDCPV1310LocateRepositoryQualifier`, `TestDCPV1310DocsLocateRepositoryArgument`, `TestDCPV1311SingleRepositoryLocateUnchanged` |
+| DCP-V1-312 | `cmd/corvint/docs_corpus.go`, `cmd/corvint/docs_corpus_help.go` | `TestDCPV1312CorpusCLIRepositoryQualifierParity` (CLI and MCP receipts equal for the primary repository; matching corpus-refused and invalid-arguments refusals); `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-280 | `internal/doccorpus/query.go`, `internal/mcp/corpusbridge/corpusbridge.go` | `TestDCPV1280AdditionalRepositoryFreshnessReused`, `TestDCPV1175AdditionalRepositoryAnchors` |
 | DCP-V1-281 | `internal/doccorpus/query.go`, `internal/mcp/corpusbridge/corpusbridge.go` | `TestDCPV1281AdditionalRepositoryWarmCallsAtScale` |
 | DCP-V1-282 | `internal/doccorpus/anchor_state.go`, `internal/doccorpus/query.go`, `internal/doccorpus/trust.go` | `TestDCPV1282PerCitationAnchorState` |
