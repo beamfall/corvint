@@ -31,8 +31,10 @@ predicates cannot observe. Taken at face value, it would demand a corpus rerun o
   qualified tuple's (`CEM-V1-370`, `tools/cem-structural-closure`). The closure is `go list -deps`
   of the six `go/*` roots for four platforms, minus the runtime, scheduler, system-call, file-system
   and GODEBUG packages. The predicates read only in-memory bytes, so those packages are outside what
-  they observe. go1.27.0 through go1.27.3 share one closure digest, `2110e6fc…befbf8` (33 packages,
-  309 files). go1.24.13 has another, `56737f4a…1d23d4` (32 packages, 299 files).
+  they observe. The lexical path packages `path/filepath` and `internal/filepathlite` stay in,
+  because `go/scanner` cleans and joins `//line` file names with them. go1.27.0 through go1.27.3
+  share one closure digest, `83e19e1d…877ec7` (35 packages, 323 files). go1.24.13 has another,
+  `e11da95b…3a232c` (34 packages, 313 files).
 - Both verifiers now report `QUALIFIED_EXACT_TUPLE` on an admitted tuple (`CEM-V1-371`). The frozen
   packet's `runtime` values are re-emitted through `make cem-stable-regen-replace` (`CEM-V1-091`).
   The capture ran on go1.27.3, and `goVersion` stays `go1.27.1`: the tool maps a captured version

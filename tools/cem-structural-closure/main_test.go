@@ -81,6 +81,7 @@ func TestExcludedTreesMatchWholeSegments(t *testing.T) {
 		"runtime": true, "internal/godebug": true, "internal/godebugs": true,
 		"internal/runtime/atomic": true, "internal/cpu": true, "internal/cpuid": false,
 		"go/parser": false, "time": true, "text/tabwriter": false,
+		"path/filepath": false, "internal/filepathlite": false,
 	} {
 		if got := excluded(path); got != want {
 			t.Errorf("excluded(%q) = %v, want %v", path, got, want)
@@ -139,18 +140,23 @@ func TestRunningToolchainClosure(t *testing.T) {
 	if !admitted {
 		t.Skipf("%s is not an admitted structural tuple", runtime.Version())
 	}
-	cmd := exec.Command("go", "env", "GOROOT")
-	cmd.Env = append(os.Environ(), "GOTOOLCHAIN=local")
-	out, err := cmd.Output()
-	if err != nil {
-		t.Skipf("go env GOROOT: %v", err)
+	// go test exports the GOROOT of the toolchain that built this binary.
+	goroot := os.Getenv("GOROOT")
+	if goroot == "" {
+		cmd := exec.Command("go", "env", "GOROOT")
+		cmd.Env = append(os.Environ(), "GOTOOLCHAIN=local")
+		out, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("locate the GOROOT of admitted %s: %v", runtime.Version(), err)
+		}
+		goroot = strings.TrimSpace(string(out))
 	}
-	c, err := digestToolchain(strings.TrimSpace(string(out)))
+	c, err := digestToolchain(goroot)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if c.GoVersion != runtime.Version() {
-		t.Skipf("go on PATH is %s, the test binary %s", c.GoVersion, runtime.Version())
+		t.Fatalf("GOROOT %s is %s, the test binary %s", goroot, c.GoVersion, runtime.Version())
 	}
 	if c.ClosureSha256 != q.ParserClosure.ClosureSha256 {
 		t.Fatalf("%s parser closure %s, qualified %s", c.GoVersion, c.ClosureSha256, q.ParserClosure.ClosureSha256)

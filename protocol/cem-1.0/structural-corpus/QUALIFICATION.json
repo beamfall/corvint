@@ -16,20 +16,20 @@
   "parserClosure": {
     "profile": "cem-structural-parser-closure/1",
     "tool": "tools/cem-structural-closure",
-    "qualifiedClosureSha256": "2110e6fc1cc932e8b22f03ff704aac8d8e07a96fd5e9380343cb88144ebefbf8",
-    "packages": 33,
-    "files": 309,
+    "qualifiedClosureSha256": "83e19e1d4fe7e661c587b465ccd191630d64f3f3d8edfb830c86626bc8877ec7",
+    "packages": 35,
+    "files": 323,
     "tuples": {
-      "go1.27.0": "2110e6fc1cc932e8b22f03ff704aac8d8e07a96fd5e9380343cb88144ebefbf8",
-      "go1.27.1": "2110e6fc1cc932e8b22f03ff704aac8d8e07a96fd5e9380343cb88144ebefbf8",
-      "go1.27.2": "2110e6fc1cc932e8b22f03ff704aac8d8e07a96fd5e9380343cb88144ebefbf8",
-      "go1.27.3": "2110e6fc1cc932e8b22f03ff704aac8d8e07a96fd5e9380343cb88144ebefbf8"
+      "go1.27.0": "83e19e1d4fe7e661c587b465ccd191630d64f3f3d8edfb830c86626bc8877ec7",
+      "go1.27.1": "83e19e1d4fe7e661c587b465ccd191630d64f3f3d8edfb830c86626bc8877ec7",
+      "go1.27.2": "83e19e1d4fe7e661c587b465ccd191630d64f3f3d8edfb830c86626bc8877ec7",
+      "go1.27.3": "83e19e1d4fe7e661c587b465ccd191630d64f3f3d8edfb830c86626bc8877ec7"
     },
     "comparison": {
       "go1.24.13": {
-        "closureSha256": "56737f4a060b80746e6cf7a976fb019a795218af91b0123ae42731db081d23d4",
-        "packages": 32,
-        "files": 299
+        "closureSha256": "e11da95b21b02d873c18d4e3de8cfdde659a4d703a5874e2537cb9b9e93a232c",
+        "packages": 34,
+        "files": 313
       }
     }
   },

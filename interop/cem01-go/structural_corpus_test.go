@@ -70,6 +70,9 @@ func TestStructuralCorpus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(lines) == 0 {
+		t.Fatalf("%s holds no regular file; an empty corpus proves nothing", dir)
+	}
 	if err := os.WriteFile(out, bytes.Join(lines, nil), 0o644); err != nil {
 		t.Fatal(err)
 	}

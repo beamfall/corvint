@@ -49,7 +49,7 @@
   "observation": {
     "order": "one JSON line per regular file, in path order",
     "file": "path, source sha256, and the sha256 of the scanner token stream (offset, kind, literal), the go/ast.Fprint dump with object resolution filtered, the go/printer output and the go/format.Source output, plus whether formatting is idempotent; a failing step records error:<sha256 of the error text>, and print is empty when parsing fails",
-    "pair": "kind, image segments of the base file ({s, e} byte range or {t} text), image sha256, and eight verdict bits: formatter-only, import-reorder, move and rename forward (base to image), then the same four in reverse"
+    "pair": "kind, image segments of the base file ({s, e} byte range or {t} text), image sha256, and eight verdict bits, two per predicate in the order formatter-only, import-reorder, move, rename: first forward (base to image), then reverse (image to base)"
   },
   "perturbations": {
     "formatter-only": "two blank lines after the package clause line",

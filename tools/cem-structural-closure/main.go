@@ -38,13 +38,14 @@ var roots = []string{"go/ast", "go/format", "go/parser", "go/printer", "go/scann
 var platforms = []string{"darwin/arm64", "linux/amd64", "linux/arm64", "windows/amd64"}
 
 // excludedPackages and excludedTrees (a package and every package below it)
-// are the runtime, scheduler, system
-// call and file-system packages. They change across patch releases for
-// reasons the predicates cannot observe: the predicates read only in-memory
-// bytes and never touch time, files, goroutines or the environment.
+// are the runtime, scheduler, system call and file-system packages. They
+// change across patch releases for reasons the predicates cannot observe: the
+// predicates read only in-memory bytes and never touch time, files, goroutines
+// or the environment. The lexical path packages stay in: go/scanner cleans and
+// joins `//line` file names with path/filepath.
 var excludedPackages = map[string]bool{
 	"runtime": true, "os": true, "syscall": true, "time": true, "sync": true,
-	"sync/atomic": true, "unsafe": true, "io/fs": true, "path/filepath": true,
+	"sync/atomic": true, "unsafe": true, "io/fs": true,
 }
 
 var excludedTrees = []string{
@@ -54,7 +55,7 @@ var excludedTrees = []string{
 	"internal/goarch", "internal/goos", "internal/goexperiment",
 	"internal/profilerecord", "internal/synctest", "internal/bisect",
 	"internal/godebug", "internal/godebugs", "internal/testlog", "internal/poll",
-	"internal/oserror", "internal/filepathlite", "internal/sync",
+	"internal/oserror", "internal/sync",
 	"internal/unsafeheader",
 }
 

@@ -47,6 +47,9 @@ func TestStructuralCorpusParity(t *testing.T) {
 		t.Skip("CEM_STRUCTURAL_CORPUS and CEM_STRUCTURAL_CORPUS_OBSERVATIONS name the corpus extract and the portable observations")
 	}
 	files, pairs := checkCorpusParity(t, dir, observations)
+	if files == 0 || pairs == 0 {
+		t.Fatalf("%s: %d files, %d pairs; an empty observation set proves nothing", observations, files, pairs)
+	}
 	t.Logf("%s %s/%s: %d files, %d pairs, native verdicts equal portable", runtime.Version(), runtime.GOOS, runtime.GOARCH, files, pairs)
 }
 

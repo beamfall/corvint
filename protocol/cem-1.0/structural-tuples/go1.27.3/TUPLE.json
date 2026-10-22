@@ -22,9 +22,9 @@
   },
   "parserClosure": {
     "profile": "cem-structural-parser-closure/1",
-    "closureSha256": "2110e6fc1cc932e8b22f03ff704aac8d8e07a96fd5e9380343cb88144ebefbf8",
-    "packages": 33,
-    "files": 309,
+    "closureSha256": "83e19e1d4fe7e661c587b465ccd191630d64f3f3d8edfb830c86626bc8877ec7",
+    "packages": 35,
+    "files": 323,
     "qualifiedTuple": "go1.27.1",
     "decision": "0551",
     "corpus": "../../structural-corpus"

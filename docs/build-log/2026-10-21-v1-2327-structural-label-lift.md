@@ -76,4 +76,23 @@ the uname strings and the binary digests.
 - The frozen `cancelledContextExpectedResult` snapshot in the two envelope cell files keeps the old
   label, as decision 0551 records.
 - A later Go release is admitted only by a new tuple packet whose parser-closure digest equals
-  `2110e6fc…befbf8`. A release that changes the closure needs a new corpus run.
+  `83e19e1d…877ec7`. A release that changes the closure needs a new corpus run.
+- The full-corpus parity runs read observation files outside the repository. Their completeness rests
+  on the observation digests recorded in `QUALIFICATION.json`, not on a count check in the harness.
+
+## Review
+
+One Codex round (`gpt-6-astra`, read-only) over `ef2a01db5..HEAD` raised four findings. All are
+fixed in this change:
+
+1. **High.** The closure excluded `path/filepath` and `internal/filepathlite`, but `go/scanner`
+   uses them on `//line` file names. Both are now in the closure. The digest became
+   `83e19e1d…877ec7` (35 packages, 323 files), and go1.27.0 through go1.27.3 still share it. The
+   corpus observations are unaffected, since the closure only governs admission.
+2. **Medium.** An empty corpus or observation set passed. Both full-corpus harnesses now fail on
+   zero files or pairs.
+3. **Medium.** `TestRunningToolchainClosure` resolved `go` from PATH and skipped on a mismatch. It
+   now digests the `GOROOT` that `go test` exports for the building toolchain, and fails if that
+   GOROOT cannot be found or names another version.
+4. **Medium.** `CORPUS.json` described the verdict bits as four forward then four reverse. The
+   harnesses interleave forward and reverse per predicate, and the text now says so.
