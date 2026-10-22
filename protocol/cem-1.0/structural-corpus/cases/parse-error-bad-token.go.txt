@@ -1,0 +1,5 @@
+package cases
+
+func bad() int {
+	return 1 @ 2
+}

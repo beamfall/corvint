@@ -673,6 +673,13 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 	if len(p.fatalCleanup) > 0 {
 		return p.fatalError()
 	}
+	// The derived checkpoints grow with the store, so they are encoded and
+	// staged before the lock; under it the commit only renames them into
+	// place once the head is the audited one (JSG-V0-015, V1-0850).
+	staged := stageReadCheckpoint(repo, p.proof)
+	defer staged.discard()
+	stagedWriter := stageWriterCheckpoint(repo, p.writer, p.writerToken)
+	defer stagedWriter.discard()
 	// The caller swept the guard before the gate (CAL-V0-263).
 	hooksForInventory(ctx).commitStage("lock")
 	timing, wait := leaseTimingOf(ctx), time.Now()
@@ -720,13 +727,13 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 	}
 	// The lock is held and the head is the audited one. Read verbs share
 	// leaseAudit, so the checkpoint is retained here and never there.
-	retainCheckpoint(repo, p.proof)
+	staged.publish()
 	if p.writerProof != nil {
 		p.writerToken = verifyWriterCheckpoint(ctx, repo, p.writerToken, func(old *journal.WriterCheckpoint) (bool, error) {
 			return p.writerProof.VerifyWriterCheckpoint(old, p.writerPhys)
 		})
 	}
-	retainWriterCheckpoint(repo, p.writer, p.writerToken)
+	retainStagedWriterCheckpoint(repo, p.writer, p.writerToken, stagedWriter)
 	if !p.pending && (p.result.Kind != "Transaction" || p.result.Plan == nil) {
 		setLeaseReport(report, p.result)
 		return nil

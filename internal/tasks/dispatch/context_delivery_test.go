@@ -169,13 +169,21 @@ exec sleep 300`
 	}
 	w := d.ledger.Workers[0]
 	killOnCleanup(t, w)
-	q.obs.Attempts = []Attempt{{ID: "a1", Ticket: w.Ticket, Holder: w.ID, Phase: "RUNNING", Generation: "3", Live: true, LeaseExpires: d.Now().Add(time.Hour)}}
+	q.obs.Attempts = []Attempt{{ID: "a1", Ticket: w.Ticket, Holder: w.ID, Phase: "RUNNING", Generation: "3", Live: true, LeaseExpires: d.Now().Add(time.Hour), Branch: "lane-1"}}
+	// ERG-V0-028: the note names the commit the attempt's branch holds.
+	commit := strings.Repeat("0c", 20)
+	d.ResolveCommit = func(dir, rev string) (string, error) {
+		if dir != d.Config.WorkRoot || rev != "refs/heads/lane-1" {
+			return "", fmt.Errorf("unexpected %s@%s", dir, rev)
+		}
+		return commit, nil
+	}
 	tickUntil(t, d, func() bool { return d.Running() == 0 })
 	n, err := ReadHandoffNote(HandoffNotePath(d.dir, w.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n.Worker != w.ID || n.Ticket != w.Ticket || n.Role != "impl" || n.ContextTokens != "5000" {
+	if n.Worker != w.ID || n.Ticket != w.Ticket || n.Role != "impl" || n.ContextTokens != "5000" || n.Commit != commit {
 		t.Fatalf("note header %+v", n)
 	}
 	if strings.Join(n.Messages, "|") != "second|third|fourth\n"+redactedLine+"\nend" {
@@ -231,7 +239,7 @@ exec sleep 300`
 			t.Fatal(err)
 		}
 	}
-	bn := d.buildHandoffNote(big, d.Now())
+	bn := d.buildHandoffNote(big, d.Now(), "")
 	if size := len(bn.encode()); size > maxHandoffNote || !bn.Truncated || len(bn.Messages) == 0 || len(bn.Messages[len(bn.Messages)-1]) != maxNoteMessage || !strings.HasPrefix(bn.Messages[len(bn.Messages)-1], "e") {
 		t.Fatalf("bounded note %d bytes, truncated %v, %d messages", size, bn.Truncated, len(bn.Messages))
 	}
@@ -242,7 +250,7 @@ exec sleep 300`
 		t.Fatal(err)
 	}
 	before := len(eventsOf(t, d, "alert"))
-	d.salvage(blocked, d.Now())
+	d.salvage(blocked, d.Now(), nil)
 	if alerts := eventsOf(t, d, "alert"); len(alerts) != before+1 || !strings.Contains(alerts[len(alerts)-1].Message, "hand-off note") {
 		t.Fatalf("alerts %+v", alerts)
 	}
@@ -489,7 +497,7 @@ func TestATRV0104_ScreensBeforeCutting(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(d.workerDir(w.ID), "stdout.log"), []byte(log), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	n := d.buildHandoffNote(w, d.Now())
+	n := d.buildHandoffNote(w, d.Now(), "")
 	if len(n.Files) != 2 || n.Files[0].Text != "intro\n"+redactedLine+"\nafter\n" || n.Files[0].Cut || n.Files[1].Text != "after\n" || !n.Files[1].Cut {
 		t.Fatalf("files %+v", n.Files)
 	}

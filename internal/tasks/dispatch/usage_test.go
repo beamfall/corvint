@@ -45,6 +45,10 @@ func TestCALV0157_UsageVocabulariesAndStates(t *testing.T) {
 		{"opencode last step not stopped", "opencode", openCodeStart + "\n" + openCodeStep("tool-calls") + "\n", UsagePartial, 6, 2},
 		{"opencode step still open", "opencode", openCodeStart + "\n" + openCodeStep("stop") + "\n" + openCodeStart + "\n", UsagePartial, 6, 2},
 		{"opencode malformed step", "opencode", openCodeStart + "\n" + openCodeStep("stop") + "\n" + `{"type":"step_finish","part":{}}` + "\n", UsagePartial, 6, 2},
+		// ATR-V0-037, V1-1571: a refused member hides the escaped type, so
+		// the line may have been a step_finish and the total is PARTIAL.
+		{"opencode escaped type repeats a member", "opencode", openCodeStart + "\n" + openCodeStep("stop") + "\n" + strings.Replace(openCodeStep("stop"), `"type":"step_finish","timestamp":2,"sessionID":"ses_1"`, `"type":"step\u005ffinish","timestamp":2,"sessionID":"ses_1","sessionID":"ses_2"`, 1) + "\n", UsagePartial, 6, 2},
+		{"opencode escaped type case-folds a member", "opencode", openCodeStart + "\n" + openCodeStep("stop") + "\n" + strings.Replace(openCodeStep("stop"), `"type":"step_finish","timestamp":2`, `"type":"step\u005ffinish","TYPE":"x","timestamp":2`, 1) + "\n", UsagePartial, 6, 2},
 		{"codex null counters", "codex", codexTurn + "\n" + `{"type":"turn.completed","usage":{"input_tokens":null,"output_tokens":null}}` + "\n", UsagePartial, 10, 3},
 		{"codex repeated counter", "codex", codexTurn + "\n" + `{"type":"turn.completed","usage":{"input_tokens":null,"input_tokens":0,"output_tokens":0}}` + "\n", UsagePartial, 10, 3},
 		{"codex escaped type repeats a counter", "codex", codexTurn + "\n" + `{"type":"turn.\u0063ompleted","usage":{"input_tokens":100,"input_tokens":0,"output_tokens":0}}` + "\n", UsagePartial, 10, 3},

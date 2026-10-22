@@ -102,12 +102,25 @@ go_cache=${CORVINT_GOCACHE:-${GOCACHE:-/tmp/corvint-go-build-cache}}
 tree_bin="$evidence/corvint"
 base_bin="$evidence/corvint-base"
 mkdir -p "$evidence" || exit 2
+# DCW-V0-151: an interrupt during either build names the step and the NOT_PRODUCED block, as finish-lane
+# does once it runs (DCW-V0-067); nothing is prepared, bound or committed before it starts. Bash runs the
+# trap when the build returns: a terminal interrupt stops the whole foreground group at once.
+build_step=build-tree
+dogfood_finish_interrupted() {
+  printf 'dogfood-finish-lane: %s INTERRUPTED\ndogfood-finish-lane: NOT_PRODUCED rows=0\n' "$build_step"
+  printf 'dogfood-finish-lane: INTERRUPTED %s\n  fix: rerun make dogfood-finish BASE=%s with the same inputs; nothing was prepared, bound or committed\n' \
+    "$build_step" "$base" >&2
+  exit "$1"
+}
+trap 'dogfood_finish_interrupted 130' INT
+trap 'dogfood_finish_interrupted 143' TERM
 if ! dogfood_build_tree_corvint "$tree_bin"; then
   printf 'dogfood-finish-lane: REFUSE current-tree-corvint-build-failed\n' >&2
   dogfood_build_fix dogfood-finish-lane tree
   exit 2
 fi
 base_status=0
+build_step=build-base
 dogfood_build_base_corvint "$base_bin" "$base" || base_status=$?
 if ((base_status == 2)); then
   printf 'dogfood-finish-lane: REFUSE base-verifier-source-unavailable\n' >&2
@@ -117,6 +130,7 @@ elif ((base_status != 0)); then
   dogfood_build_fix dogfood-finish-lane base
   exit 2
 fi
+trap - INT TERM
 steps_bin=$tree_bin
 [[ -z $corvint_bin_set ]] || steps_bin=$corvint_bin
 cd "$repo" || exit 2

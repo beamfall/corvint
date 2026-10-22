@@ -305,7 +305,7 @@ func TestSPCV0011BehindReportRecordsBaseHeadCommitsAndDigest(t *testing.T) {
 	if err := json.Unmarshal(encoded, &v); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"profile", "mutates", "base", "head", "mergeBase", "configDigest", "observedAt", "counted", "behind", "skippedMerges", "dryMerge", "findings"} {
+	for _, key := range []string{"profile", "mutates", "base", "baseRef", "head", "mergeBase", "configDigest", "observedAt", "counted", "behind", "skippedMerges", "dryMerge", "findings"} {
 		if _, ok := v[key]; !ok {
 			t.Fatalf("report lacks %s: %s", key, encoded)
 		}
@@ -335,7 +335,7 @@ func TestSPCV0012StaleFindingNamesTicketOldestCommitAndAge(t *testing.T) {
 	}
 	got := r.Findings[0]
 	if got.Kind != StaleKind || got.Who != "V1-1710" || got.Commit != older || got.AgeSeconds != 48*3600 ||
-		!strings.Contains(got.Detail, "V1-1710") || !strings.Contains(got.Detail, older) || !strings.Contains(got.Detail, "48 h old") || got.Remedy == "" {
+		!strings.Contains(got.Detail, "V1-1710") || !strings.Contains(got.Detail, older) || !strings.Contains(got.Detail, "reached base 48 h ago") || got.Remedy == "" {
 		t.Fatalf("finding: %+v", got)
 	}
 	if r, err := behind("V1-1710", 49); err != nil || len(r.Findings) != 0 {
@@ -351,5 +351,129 @@ func TestSPCV0012StaleFindingNamesTicketOldestCommitAndAge(t *testing.T) {
 		if _, err := behind(bad.ticket, bad.hours); err == nil || err.Error() != CodeInvalidArguments {
 			t.Fatalf("%+v: %v", bad, err)
 		}
+	}
+}
+
+// gitAt runs one fixture Git command with both identities dated at the given time.
+func (f *fixture) gitAt(at string, args ...string) string {
+	f.t.Helper()
+	cmd := exec.Command("git", append([]string{"-C", f.root, "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
+	cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1",
+		"GIT_AUTHOR_NAME=Ada Author", "GIT_AUTHOR_EMAIL=ada@example.invalid", "GIT_AUTHOR_DATE="+at,
+		"GIT_COMMITTER_NAME=Cy Committer", "GIT_COMMITTER_EMAIL=cy@example.invalid", "GIT_COMMITTER_DATE="+at)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		f.t.Fatalf("git %v: %v %s", args, err, out)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// V1-1723: a shared commit authored long ago but merged into base recently is
+// aged from its merge, the first-parent commit that brought it onto base, not
+// from its own committer time.
+func TestSPCV0013AgeIsArrivalOnBase(t *testing.T) {
+	f := newFixture(t)
+	f.commitWithCommitterDate("base", "2026-01-01T00:00:00Z", map[string]string{"internal/testutil/a.go": "a\n"})
+	f.git("branch", "feature")
+	f.git("checkout", "-q", "-b", "side")
+	old := f.commitWithCommitterDate("shared-path: written long ago", "2026-01-02T00:00:00Z", map[string]string{"script/old.sh": "old\n"})
+	f.git("checkout", "-q", "main")
+	direct := f.commitWithCommitterDate("shared-path: direct on base", "2026-03-01T00:00:00Z", map[string]string{"internal/testutil/a.go": "b\n"})
+	f.gitAt("2026-03-02T00:00:00Z", "merge", "-q", "--no-ff", "-m", "merge side", "side")
+	merge := f.git("rev-parse", "HEAD")
+	now := time.Date(2026, 3, 3, 0, 0, 0, 0, time.UTC)
+	behind := func(hours int) BehindReport {
+		t.Helper()
+		r, err := Behind(context.Background(), BehindRequest{Root: f.root, Base: "main", Head: "feature", Ticket: "V1-1723", StaleHours: hours, Now: now, Config: testConfig()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	r := behind(48)
+	byCommit := map[string]BehindCommit{}
+	for _, bc := range r.Behind {
+		byCommit[bc.Commit] = bc
+	}
+	if got := byCommit[old]; got.CommittedAt != "2026-01-02T00:00:00Z" || got.ArrivedVia != merge || got.ArrivedAt != "2026-03-02T00:00:00Z" {
+		t.Fatalf("merged commit: %+v", got)
+	}
+	if got := byCommit[direct]; got.ArrivedVia != direct || got.ArrivedAt != "2026-03-01T00:00:00Z" {
+		t.Fatalf("direct commit: %+v", got)
+	}
+	if len(r.Findings) != 1 || r.Findings[0].Commit != direct || r.Findings[0].AgeSeconds != 48*3600 {
+		t.Fatalf("finding: %+v", r.Findings)
+	}
+	// The merged commit's committer time is 60 days old, but base has carried
+	// it for 24 h and the direct commit for 48 h: a 49 h threshold is not met.
+	if r := behind(49); len(r.Findings) != 0 {
+		t.Fatalf("aged by committer time: %+v", r.Findings)
+	}
+	chain := []rangeCommit{{sha: "m", parents: []string{"d", "s2"}}, {sha: "d", parents: []string{"b"}}, {sha: "s2", parents: []string{"s1"}}, {sha: "s1", parents: []string{"b"}}}
+	if got := arrivalCommits(chain, "m"); !reflect.DeepEqual(got, map[string]string{"m": "m", "d": "d", "s2": "m", "s1": "m"}) {
+		t.Fatalf("arrivals: %v", got)
+	}
+}
+
+// V1-1723: the report names the base ref and when the checkout last observed
+// it, so a remote-tracking base that was not fetched recently is visible.
+func TestSPCV0014BaseObservationRecordsRefAndLastObservedTime(t *testing.T) {
+	f := newFixture(t)
+	f.commitWithCommitterDate("base", "2026-01-01T00:00:00Z", map[string]string{"internal/testutil/a.go": "a\n"})
+	f.git("branch", "feature")
+	tip := f.commitWithCommitterDate("shared-path: helper", "2026-02-01T00:00:00Z", map[string]string{"internal/testutil/a.go": "b\n"})
+	f.gitAt("2026-02-10T00:00:00Z", "update-ref", "-m", "fetch: fast-forward", "refs/remotes/origin/main", tip)
+	now := time.Date(2026, 3, 3, 0, 0, 0, 0, time.UTC)
+	behind := func(base string) BehindReport {
+		t.Helper()
+		r, err := Behind(context.Background(), BehindRequest{Root: f.root, Base: base, Head: "feature", Ticket: "V1-1723", StaleHours: 1, Now: now, Config: testConfig()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	at := func(o BaseObservation) string {
+		if o.LastObservedAt == nil {
+			return "null"
+		}
+		return *o.LastObservedAt
+	}
+	if o := behind("main").BaseRef; o.Name != "main" || o.Ref != "refs/heads/main" || o.ObservedVia != "reflog" || at(o) != "2026-02-01T00:00:00Z" {
+		t.Fatalf("local base: %+v %s", o, at(o))
+	}
+	if o := behind("origin/main").BaseRef; o.Ref != "refs/remotes/origin/main" || o.ObservedVia != "reflog" || at(o) != "2026-02-10T00:00:00Z" {
+		t.Fatalf("remote base without FETCH_HEAD: %+v %s", o, at(o))
+	}
+	fetchHead := filepath.Join(f.root, ".git", "FETCH_HEAD")
+	if err := os.WriteFile(fetchHead, []byte(tip+"\t\tbranch 'main' of origin\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	stamp := time.Date(2026, 3, 1, 6, 0, 0, 0, time.UTC)
+	if err := os.Chtimes(fetchHead, stamp, stamp); err != nil {
+		t.Fatal(err)
+	}
+	r := behind("origin/main")
+	if o := r.BaseRef; o.ObservedVia != "FETCH_HEAD" || at(o) != "2026-03-01T06:00:00Z" {
+		t.Fatalf("remote base with FETCH_HEAD: %+v %s", o, at(o))
+	}
+	if len(r.Findings) != 1 || !strings.Contains(r.Findings[0].Detail, "base refs/remotes/origin/main was last observed at 2026-03-01T06:00:00Z (FETCH_HEAD)") {
+		t.Fatalf("finding detail: %+v", r.Findings)
+	}
+	// FETCH_HEAD says nothing about a local branch.
+	if o := behind("main").BaseRef; o.ObservedVia != "reflog" || at(o) != "2026-02-01T00:00:00Z" {
+		t.Fatalf("local base with FETCH_HEAD: %+v %s", o, at(o))
+	}
+	raw := behind(tip)
+	if o := raw.BaseRef; o.Name != tip || o.Ref != "" || o.LastObservedAt != nil || o.ObservedVia != "none" ||
+		len(raw.Findings) != 1 || !strings.Contains(raw.Findings[0].Detail, "is not a ref, so its last observation is unknown") {
+		t.Fatalf("commit base: %+v %+v", o, raw.Findings)
+	}
+	encoded, err := json.Marshal(raw.BaseRef)
+	if err != nil || string(encoded) != `{"name":"`+tip+`","ref":"","lastObservedAt":null,"observedVia":"none"}` {
+		t.Fatalf("wire: %s %v", encoded, err)
+	}
+	f.git("reflog", "expire", "--expire=all", "--all")
+	if o := behind("main").BaseRef; o.Ref != "refs/heads/main" || o.LastObservedAt != nil || o.ObservedVia != "none" {
+		t.Fatalf("base without reflog: %+v", o)
 	}
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -29,15 +31,33 @@ type RangeTooLargeError struct{ Limit, Commits int }
 
 func (*RangeTooLargeError) Error() string { return CodeRangeTooLarge }
 
-// BehindCommit is one base commit, missing from head, that changes a shared path.
+// BehindCommit is one base commit, missing from head, that changes a shared
+// path. ArrivedVia is the first-parent commit of base that introduced it, and
+// ArrivedAt that commit's committer time: when the change reached base
+// (SPC-V0-013).
 type BehindCommit struct {
 	Commit       string   `json:"commit"`
 	Subject      string   `json:"subject"`
 	CommittedAt  string   `json:"committedAt"`
+	ArrivedVia   string   `json:"arrivedVia"`
+	ArrivedAt    string   `json:"arrivedAt"`
 	SharedPaths  []string `json:"sharedPaths"`
 	HeadTouches  []string `json:"headTouches"`
 	ConflictRisk bool     `json:"conflictRisk"`
-	committed    time.Time
+	arrived      time.Time
+}
+
+// BaseObservation names the base as given, the full ref it resolves to ("" when
+// it is not a ref) and when this checkout last observed that ref: the later of
+// the ref's newest reflog entry and, for a remote-tracking ref, the FETCH_HEAD
+// modification time. LastObservedAt is null and ObservedVia "none" when neither
+// exists (SPC-V0-014).
+type BaseObservation struct {
+	Name           string  `json:"name"`
+	Ref            string  `json:"ref"`
+	LastObservedAt *string `json:"lastObservedAt"`
+	ObservedVia    string  `json:"observedVia"`
+	observed       time.Time
 }
 
 // DryMerge is the merge-tree probe of merging head into base (SPC-V0-010).
@@ -62,6 +82,7 @@ type BehindReport struct {
 	Profile       string          `json:"profile"`
 	Mutates       bool            `json:"mutates"`
 	Base          string          `json:"base"`
+	BaseRef       BaseObservation `json:"baseRef"`
 	Head          string          `json:"head"`
 	MergeBase     string          `json:"mergeBase"`
 	ConfigDigest  string          `json:"configDigest"`
@@ -136,12 +157,18 @@ func Behind(ctx context.Context, request BehindRequest) (BehindReport, error) {
 			touched[p] = true
 		}
 	}
-	r := BehindReport{Profile: BehindProfile, Base: base, Head: head, MergeBase: mergeBase, ConfigDigest: request.Config.Digest(),
+	baseRef, err := observeBase(g, request.Base)
+	if err != nil {
+		return BehindReport{}, err
+	}
+	r := BehindReport{Profile: BehindProfile, Base: base, BaseRef: baseRef, Head: head, MergeBase: mergeBase, ConfigDigest: request.Config.Digest(),
 		ObservedAt: request.Now.UTC().Format(time.RFC3339), Counted: counted, Behind: []BehindCommit{}, SkippedMerges: []string{}, Findings: []BehindFinding{}}
 	commits, err := g.commits(head, base)
 	if err != nil {
 		return BehindReport{}, err
 	}
+	arrivals := arrivalCommits(commits, base)
+	arrivedAt := map[string]time.Time{}
 	for _, rc := range commits {
 		if len(rc.parents) > 1 {
 			r.SkippedMerges = append(r.SkippedMerges, rc.sha)
@@ -168,10 +195,19 @@ func Behind(ctx context.Context, request BehindRequest) (BehindReport, error) {
 		if err != nil {
 			return BehindReport{}, err
 		}
-		if bc.committed, err = m.committedAt(); err != nil {
+		committed, err := m.committedAt()
+		if err != nil {
 			return BehindReport{}, err
 		}
-		bc.Subject, bc.CommittedAt, bc.ConflictRisk = m.subject(), bc.committed.UTC().Format(time.RFC3339), len(bc.HeadTouches) > 0
+		bc.ArrivedVia = arrivals[rc.sha]
+		if bc.ArrivedVia == "" {
+			return BehindReport{}, errors.New(CodeGitUnavailable)
+		}
+		if bc.arrived, err = arrivalTime(g, bc.ArrivedVia, arrivedAt); err != nil {
+			return BehindReport{}, err
+		}
+		bc.Subject, bc.CommittedAt, bc.ConflictRisk = m.subject(), committed.UTC().Format(time.RFC3339), len(bc.HeadTouches) > 0
+		bc.ArrivedAt = bc.arrived.UTC().Format(time.RFC3339)
 		r.Behind = append(r.Behind, bc)
 	}
 	merge, err := mergeConflicts(g, base, head)
@@ -183,6 +219,110 @@ func Behind(ctx context.Context, request BehindRequest) (BehindReport, error) {
 		r.Findings = append(r.Findings, f)
 	}
 	return r, nil
+}
+
+// arrivalCommits maps every commit of head..base to the first-parent commit of
+// base that introduced it: the oldest commit on base's first-parent chain
+// (inside the range) that reaches it. A commit made directly on base arrives
+// as itself; a commit merged from a side branch arrives with its merge
+// (SPC-V0-013). Every range commit is an ancestor of base, so each is mapped.
+func arrivalCommits(commits []rangeCommit, base string) map[string]string {
+	parents := make(map[string][]string, len(commits))
+	for _, rc := range commits {
+		parents[rc.sha] = rc.parents
+	}
+	var chain []string
+	for c := base; ; {
+		ps, ok := parents[c]
+		if !ok {
+			break
+		}
+		chain = append(chain, c)
+		if len(ps) == 0 {
+			break
+		}
+		c = ps[0]
+	}
+	arrivals := make(map[string]string, len(commits))
+	for i := len(chain) - 1; i >= 0; i-- {
+		via := chain[i]
+		stack := []string{via}
+		for len(stack) > 0 {
+			c := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			if _, inRange := parents[c]; !inRange || arrivals[c] != "" {
+				continue
+			}
+			// An assigned commit's ancestors were reached by the same
+			// earlier chain commit, so the walk stops there.
+			arrivals[c] = via
+			stack = append(stack, parents[c]...)
+		}
+	}
+	return arrivals
+}
+
+// arrivalTime is the committer time of an arrival commit, read once per commit.
+func arrivalTime(g git, via string, cache map[string]time.Time) (time.Time, error) {
+	if t, ok := cache[via]; ok {
+		return t, nil
+	}
+	m, err := g.message(via)
+	if err != nil {
+		return time.Time{}, err
+	}
+	t, err := m.committedAt()
+	if err != nil {
+		return time.Time{}, err
+	}
+	cache[via] = t
+	return t, nil
+}
+
+// observeBase resolves the base argument to a full ref and reads, without
+// writing, when the checkout last observed it: the ref's newest reflog entry
+// and, for refs/remotes/, the FETCH_HEAD modification time, whichever is later
+// (SPC-V0-014). Behind never fetches, so a stale base is visible here rather
+// than corrected.
+func observeBase(g git, name string) (BaseObservation, error) {
+	o := BaseObservation{Name: name, ObservedVia: "none"}
+	out, code, err := g.run(nil, nil, "rev-parse", "--symbolic-full-name", name)
+	if err != nil {
+		return BaseObservation{}, err
+	}
+	if ref := strings.TrimSpace(string(out)); code == 0 && strings.HasPrefix(ref, "refs/") && !strings.ContainsAny(ref, " \t\n\r") {
+		o.Ref = ref
+	}
+	if o.Ref == "" {
+		return o, nil
+	}
+	if out, code, err := g.run(nil, nil, "log", "--no-show-signature", "-g", "-n", "1", "--date=unix", "--format=%gd", "--end-of-options", o.Ref, "--"); err != nil {
+		return BaseObservation{}, err
+	} else if selector := strings.TrimSpace(string(out)); code == 0 && strings.HasSuffix(selector, "}") {
+		if i := strings.LastIndex(selector, "@{"); i >= 0 {
+			if seconds, err := strconv.ParseInt(selector[i+2:len(selector)-1], 10, 64); err == nil {
+				o.observed, o.ObservedVia = time.Unix(seconds, 0).UTC(), "reflog"
+			}
+		}
+	}
+	if strings.HasPrefix(o.Ref, "refs/remotes/") {
+		out, err := g.ok("rev-parse", "--git-path", "FETCH_HEAD")
+		if err != nil {
+			return BaseObservation{}, err
+		}
+		file := strings.TrimSpace(string(out))
+		if !filepath.IsAbs(file) {
+			file = filepath.Join(g.root, file)
+		}
+		if info, err := os.Lstat(file); err == nil && info.Mode().IsRegular() && info.ModTime().After(o.observed) {
+			o.observed, o.ObservedVia = info.ModTime().UTC().Truncate(time.Second), "FETCH_HEAD"
+		}
+	}
+	if o.ObservedVia != "none" {
+		at := o.observed.Format(time.RFC3339)
+		o.LastObservedAt = &at
+	}
+	return o, nil
 }
 
 // countBehind counts head..base and refuses past the bound before any commit
@@ -224,29 +364,43 @@ func dryMergeOf(c Config, merge mergeOutcome) DryMerge {
 	return d
 }
 
-// staleFinding names the ticket, the oldest missing shared commit and its age
-// when that age reaches the threshold (SPC-V0-012).
+// staleFinding names the ticket, the missing shared commit that reached base
+// first and how long base has carried it, when that age reaches the threshold
+// (SPC-V0-012, SPC-V0-013). The detail also names when the base ref was last
+// observed (SPC-V0-014).
 func staleFinding(request BehindRequest, r BehindReport) (BehindFinding, bool) {
 	if request.Ticket == "" || len(r.Behind) == 0 {
 		return BehindFinding{}, false
 	}
 	oldest := r.Behind[0]
 	for _, bc := range r.Behind[1:] {
-		if bc.committed.Before(oldest.committed) {
+		if bc.arrived.Before(oldest.arrived) {
 			oldest = bc
 		}
 	}
-	age := request.Now.Sub(oldest.committed)
+	age := request.Now.Sub(oldest.arrived)
 	if age < time.Duration(request.StaleHours)*time.Hour {
 		return BehindFinding{}, false
 	}
 	hours := int64(age / time.Hour)
 	return BehindFinding{
 		Kind: StaleKind, Who: request.Ticket, Commit: oldest.Commit, AgeSeconds: int64(age / time.Second),
-		Detail: fmt.Sprintf("ticket %s lacks %d shared-path commit(s) from base %s; the oldest, %s, is %d h old (threshold %d h)",
-			request.Ticket, len(r.Behind), r.Base, oldest.Commit, hours, request.StaleHours),
+		Detail: fmt.Sprintf("ticket %s lacks %d shared-path commit(s) from base %s; the oldest, %s, reached base %d h ago (threshold %d h); %s",
+			request.Ticket, len(r.Behind), r.Base, oldest.Commit, hours, request.StaleHours, baseObservationDetail(r.BaseRef)),
 		Remedy: "Merge the base into the ticket branch and rerun the affected tests before submitting.",
 	}, true
+}
+
+// baseObservationDetail states when the base ref was last observed, so a stale
+// remote-tracking base is visible in the doctor-plugin finding too.
+func baseObservationDetail(o BaseObservation) string {
+	if o.Ref == "" {
+		return fmt.Sprintf("base %s is not a ref, so its last observation is unknown", strconv.Quote(o.Name))
+	}
+	if o.LastObservedAt == nil {
+		return fmt.Sprintf("base %s has no reflog or FETCH_HEAD time, so its last observation is unknown", o.Ref)
+	}
+	return fmt.Sprintf("base %s was last observed at %s (%s); fetch to see newer base commits", o.Ref, *o.LastObservedAt, o.ObservedVia)
 }
 
 // committedAt parses the committer timestamp of a commit header.

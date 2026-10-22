@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"slices"
+	"sort"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
@@ -168,7 +169,8 @@ func recoverOperation(c leaseContext, en *snapshot.PoolEntry) leaseOutcome {
 
 // withOperationReceipt is c over a pool state whose receipts replace the
 // member's receipt for rec's operation and drop receipts of members no pool
-// declares any longer.
+// declares any longer. It then retains at most MaxPoolOperationReceipts,
+// evicting the oldest by observedSeq (PSR-V0-196); rec is the newest.
 func (c leaseContext) withOperationReceipt(rec snapshot.PoolOperationReceipt) leaseContext {
 	state := *c.st.pools
 	state.Operations = []snapshot.PoolOperationReceipt{}
@@ -176,6 +178,12 @@ func (c leaseContext) withOperationReceipt(rec snapshot.PoolOperationReceipt) le
 		if (x.MemberID != rec.MemberID || x.Operation != rec.Operation) && poolDeclares(c.st.policy, x.PoolID, x.MemberID) {
 			state.Operations = append(state.Operations, x)
 		}
+	}
+	if excess := len(state.Operations) + 1 - snapshot.MaxPoolOperationReceipts; excess > 0 {
+		sort.SliceStable(state.Operations, func(i, j int) bool {
+			return state.Operations[i].ObservedSeq.Uint64() > state.Operations[j].ObservedSeq.Uint64()
+		})
+		state.Operations = state.Operations[:len(state.Operations)-excess]
 	}
 	state.Operations = append(state.Operations, rec)
 	c.st.pools = &state

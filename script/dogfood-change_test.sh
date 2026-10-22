@@ -1197,7 +1197,8 @@ rg -q '^\.corvint/change.cem.json\t\.corvint/change.cem.json\t' "$citation_case/
 run_citation_case empty "$citation_artifacts/empty.tsv" 1 0
 cmp "$citation_artifacts/prepared.json" "$citation_case/final.json"
 rg -q '"name": "cem-cite", "status": "NOT_PRODUCED", "reason": "empty-citation-plan"' "$citation_case/report.json"
-rg -Fxq -- '    fix: DOGFOOD_CITATIONS names an empty file but .corvint/change.cem.json still has unknown hunks; write one row per unknown hunk, or unset DOGFOOD_CITATIONS to prepare the map without citing' "$citation_case/stderr"
+# DCW-V0-150: the fix names the per-hunk draft helper with the run's BASE.
+rg -xq -- '    fix: DOGFOOD_CITATIONS names an empty file but \.corvint/change\.cem\.json still has unknown hunks; write one row per unknown hunk \(corvint dogfood propose-citations [0-9a-f]{40} prints a per-hunk draft to review and write there\), or unset DOGFOOD_CITATIONS to prepare the map without citing \(DCW-V0-150\)' "$citation_case/stderr"
 
 cat "$citation_artifacts/one.tsv" > "$citation_artifacts/unstable.tsv"
 printf '2\tdocs/specs/intent-b.md\tunstable\tspecification\n' >> "$citation_artifacts/unstable.tsv"

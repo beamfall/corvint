@@ -169,7 +169,9 @@ func TestAnalyzerBoundsFailClosed(t *testing.T) {
 		},
 		"ruby-resolutions": func(t *testing.T, bound *analyzerBound) {
 			lowerBound(t, bound, 2)
-			rubyBounded(t, bound, rubyCraftedNamespaces(bound.limit+1), "app/models/ns0/x.rb")
+			// The constant past the bound is the one a cut reference could
+			// name, so its plan carries the unknown (NGI-V0-064).
+			rubyBounded(t, bound, rubyCraftedNamespaces(bound.limit+1), fmt.Sprintf("app/models/ns%d/x.rb", bound.limit))
 		},
 		"ruby-reference-sites": func(t *testing.T, bound *analyzerBound) {
 			lowerBound(t, bound, 1)

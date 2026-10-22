@@ -85,6 +85,10 @@ type Report struct {
 	// after its program ran; that run's result is still recorded
 	// (CAL-V0-319).
 	GateInterrupted bool
+	// GateExecuted is the gate result record a committed gate run executed
+	// in this call and the output it captured, nil for a reuse, a replay or
+	// a refusal (TCD-V0-165).
+	GateExecuted *GateExecution
 	// Ticket is the ticket a committed mutation wrote, read back from the
 	// receipt rather than from the request: a CREATE that allocated a serial
 	// learns its own id here and nowhere else.

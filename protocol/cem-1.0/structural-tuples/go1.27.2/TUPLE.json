@@ -4,21 +4,30 @@
   "predecessorTuple": "go1.27.1",
   "decision": "0522",
   "requirement": "CEM-V1-050",
-  "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS",
+  "structuralQualification": "QUALIFIED_EXACT_TUPLE",
   "license": "Apache-2.0 public specifications/data only; no native code",
   "inherited": {
     "packet": "repository-envelope-packet",
-    "manifestSha256": "f0cfb65c79a4621811eb8ae790787eaa7b99f1568fb23cf0125b437de71b4c16",
-    "predecessorManifestSha256": "259a294acb88a797e6f3b6f628c895f86871898177f102969826b125f6f3b4fa",
+    "manifestSha256": "c6a5cbe0899fe31968f42e740db00da6005989c3e7ce1954c1e832e5045834f4",
+    "predecessorManifestSha256": "f0cfb65c79a4621811eb8ae790787eaa7b99f1568fb23cf0125b437de71b4c16",
     "files": {
-      "FULL-RESULT-CASES.json": "045b8fd32d81d09d79d9d157213bcbb6cf133c006f6b6f102b3a0f680816819c",
-      "inherited/s0e/REPOSITORY-ENVELOPE.cells.json": "aff583ede3f3dd083aaaf4321efb9cc7d3d6413a280058db445b6df322cb6d5b"
+      "FULL-RESULT-CASES.json": "06fb20c0a1903921c7c5f83459bf790313c5e33379538e867982ab9a5e6603be",
+      "inherited/s0e/REPOSITORY-ENVELOPE.cells.json": "b59262dca59a6f815477c599f6fc173d2665bcf83d8d128e7c0c92160e0c4fdc"
     }
   },
   "substitution": {
     "field": "expectedResult.runtime.goVersion",
     "from": "go1.27.1",
     "to": "go1.27.2"
+  },
+  "parserClosure": {
+    "profile": "cem-structural-parser-closure/1",
+    "closureSha256": "83e19e1d4fe7e661c587b465ccd191630d64f3f3d8edfb830c86626bc8877ec7",
+    "packages": 35,
+    "files": 323,
+    "qualifiedTuple": "go1.27.1",
+    "decision": "0551",
+    "corpus": "../../structural-corpus"
   },
   "qualification": {
     "host": "darwin/arm64",
@@ -125,9 +134,8 @@
       }
     },
     "notRun": [
-      "linux and windows hosts",
-      "CI-hosted go1.27.2 runs",
-      "the full structural corpus that would lift EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+      "linux and windows hosts for this packet's comparison; the decision 0551 structural corpus (../../structural-corpus/QUALIFICATION.json) ran on darwin/arm64 and linux/arm64 and leaves windows and linux/amd64 NOT_RUN",
+      "CI-hosted go1.27.2 runs"
     ]
   }
 }

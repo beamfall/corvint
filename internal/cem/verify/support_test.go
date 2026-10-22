@@ -132,6 +132,32 @@ func TestCEMV1081PathAnchorUsesPostImageAndBasenameFloor(t *testing.T) {
 	}
 }
 
+// TestCEMV1081DirectDependencyIsNotAnAnchor pins V1-2343: a new file's hunk
+// whose cited span is a direct dependency (the function it calls) is tiered
+// `cited`, since CEM-V1-081 anchors only on a defined ID the hunk adds or on
+// the hunk path, and the same hunk citing a span that names its path is
+// `anchored`. SpanAnchors, which citation drafts use, agrees.
+func TestCEMV1081DirectDependencyIsNotAnAnchor(t *testing.T) {
+	t.Parallel()
+	dependency := "func Helper(value int) int {\n"
+	for _, test := range []struct {
+		span string
+		tier string
+	}{
+		{dependency, TierCited},
+		{"| `internal/x/caller.go` | calls `Helper` |\n", TierAnchored},
+	} {
+		c := supportCase{id: "hunk:a", newPath: "internal/x/caller.go", added: []string{"package x\n", "func Caller() int { return Helper(1) }\n"}, disposition: "supported", evidence: []string{"evidence:1"}}
+		document, parsed, spans := supportInputs([]supportCase{c}, map[string]string{"evidence:1": "internal/x/helper.go"}, map[string]string{"evidence:1": test.span})
+		if row := ComputeCitation(document, parsed, spans).Hunks[0]; row.Tier != test.tier {
+			t.Errorf("span %q: tier = %s, want %s", test.span, row.Tier, test.tier)
+		}
+		if kinds, _ := SpanAnchors(parsed.Hunks[0], []byte(test.span)); (len(kinds) > 0) != (test.tier == TierAnchored) {
+			t.Errorf("span %q: SpanAnchors = %v, disagrees with tier %s", test.span, kinds, test.tier)
+		}
+	}
+}
+
 // TestCEMV1081Annotation checks the neutral-token rule.
 func TestCEMV1081Annotation(t *testing.T) {
 	t.Parallel()

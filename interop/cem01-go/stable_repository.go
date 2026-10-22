@@ -786,7 +786,7 @@ func runStableCanonicalExternal(ctx context.Context, repo string, raw []byte, ba
 	}
 	for _, h := range m.Hunks {
 		if structuralReason03(h.Reason) {
-			r.Runtime.StructuralQualification = "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
+			r.Runtime.StructuralQualification = "QUALIFIED_EXACT_TUPLE"
 			if !structuralRuntimeAdmitted(runtime.Version()) {
 				r.Runtime.StructuralQualification = "UNSUPPORTED"
 				r.Axes["structuralProof"] = "UNSUPPORTED_RUNTIME"

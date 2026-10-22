@@ -27,7 +27,7 @@ func RefuseCEMProjection(data []byte) error {
 // binds it to the map's evidence by identity. A stable projection never offers
 // a writer (CEM-V1-076).
 func projectClaims(ctx context.Context, root string, a *Artifact, claimID, base string, evidence []wire.Evidence) ([]any, int, error) {
-	auth, err := gitauth.Open(root, newGitBudget())
+	auth, err := gitauth.Open(root, newGitBudget(ctx))
 	if err != nil {
 		return nil, 0, err
 	}

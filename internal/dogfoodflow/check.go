@@ -636,7 +636,7 @@ func missingLines(report []byte) []string {
 	return lines
 }
 
-// verifyBinding requires the verifiers to agree on the OCM aggregate and the
+// verifyBinding verifies the OCM aggregate (DCW-V0-160), requires the verifiers to agree on the
 // CEM policy, records their identities in the report and prints the results.
 func (c *check) verifyBinding(report []byte) int {
 	if !isRegular(c.root + "/.corvint/change.cem.json") {
@@ -808,23 +808,15 @@ func summaryInt(value *int) string {
 	return strconv.Itoa(*value)
 }
 
-// verifyOCM requires the verifiers to agree on the OCM aggregate the change
-// published and returns its first line. Under an admitted output-change
-// declaration the tree verifier fills both roles, as for `cem status`: a base
-// that cannot read the change's own map spec cannot agree (DCW-V0-047, V1-1276).
+// verifyOCM verifies the OCM aggregate the change published and returns its
+// first line. The aggregate is a function of the target tree and its frozen
+// scope set, so it is computed once, by the tree verifier, and that one result
+// stands for every verifier role, declared output change or not (DCW-V0-160,
+// V1-2274; it was run by each verifier, as for `cem status`). Its byte
+// comparison with the aggregate `dogfood change` published, which the change's
+// own executable computed, stays the second computation of it.
 func (c *check) verifyOCM(aggregate string) []byte {
-	args := []string{"dogfood-ocm", "status", "--expected-base", c.base, "--target", c.target}
-	var ocm verification
-	var agreed bool
-	if c.outputChange == "" {
-		ocm, agreed = c.verifyAll(args...)
-	} else {
-		_, ocm, agreed = c.verifyDeclared(args...)
-	}
-	if !agreed {
-		_ = c.record(false, 0)
-		c.fail("verifier-disagreement")
-	}
+	ocm := c.verify(c.options.TreeVerifier, "dogfood-ocm", "status", "--expected-base", c.base, "--target", c.target)
 	if ocm.status != 0 {
 		reason, _ := firstCapture(codePattern, ocm.stderr)
 		if reason == "" {

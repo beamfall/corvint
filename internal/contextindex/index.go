@@ -60,7 +60,7 @@ var (
 		".yaml": true, ".yml": true, ".json": true, ".toml": true, ".mod": true,
 
 		".rs": true, ".cs": true, ".swift": true, ".kt": true, ".kts": true,
-		".rb": true,
+		".rb": true, ".mts": true, ".cts": true, // .mts/.cts text only (V1-1088)
 
 		".sql": true, ".m": true, ".rst": true, ".mdx": true, ".txt": true,
 	}
@@ -255,6 +255,10 @@ type Index struct {
 	// resolves (NGI-V0-036). It is set only on the per-request view
 	// withRubyMapped returns, so the shared index is never written.
 	rubyMapped map[string]struct{}
+	// rubyTests selects the Ruby reading's test-path rule (isRubyTestPath) for
+	// every row of a request naming a Ruby path (NGI-V0-063). It is set only on
+	// the per-request view withRubyTests returns.
+	rubyTests bool
 	// priorVocabulary and reusedSources are set only on a build that reuses a
 	// prior snapshot (snapshot_reuse.go); compile consumes the first, and the
 	// second counts the sources taken from it.
