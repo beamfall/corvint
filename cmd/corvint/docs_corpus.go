@@ -16,6 +16,9 @@ type corpusOptions struct {
 	root, op, manifest, artifact, input, previous, revision, scope, timestamp, query, id, path, page, cem, retirement, runner, schema string
 	// cases and baseline are the eval case file and ratchet receipt (DCP-V1-250, DCP-V1-254).
 	cases, baseline string
+	// repository is the locate and recommend-tests qualifier: a declared repository's root-commit
+	// identity (DCP-V1-310, DCP-V1-312).
+	repository string
 	// scopes holds every repeated manifest --scope in argument order (DCP-V1-161).
 	scopes []string
 	// section and include are the flow filters as comma-separated lists (DCP-V1-170, DCP-V1-171).
@@ -31,7 +34,7 @@ type corpusOptions struct {
 
 // stringFlags maps each value-taking corpus option to its field.
 func (o *corpusOptions) stringFlags() map[string]*string {
-	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner, "--schema": &o.schema, "--section": &o.section, "--include": &o.include, "--cases": &o.cases, "--baseline": &o.baseline,
+	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner, "--schema": &o.schema, "--section": &o.section, "--include": &o.include, "--cases": &o.cases, "--baseline": &o.baseline, "--repository": &o.repository,
 		"--expected-base": &o.stable.ExpectedBase, "--target": &o.stable.Target, "--stable-artifact-root": &o.stable.ArtifactRoot}
 	o.playwright.addFlags(flags)
 	o.legacyCases.addFlags(flags)
@@ -125,6 +128,9 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 		if strings.TrimSpace(*flags[flag]) == "" {
 			return o, true, argumentError("missing required corpus option")
 		}
+	}
+	if seen["--repository"] && o.repository == "" {
+		return o, true, argumentError("--repository must name a repository")
 	}
 	if seen["--schema"] && o.schema != "1" && o.schema != "2" {
 		return o, true, argumentError("--schema must be 1 or 2")
@@ -341,7 +347,7 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 			return nil, e
 		}
 	}
-	receipt, err := doccorpus.QueryLive(ctx, a, doccorpus.Request{Operation: o.op, Retirement: retirement, Query: o.query, ID: o.id, Path: o.path, Limit: o.limit, Offset: o.offset, Sections: corpusList(o.section), Include: corpusList(o.include)}, overlay)
+	receipt, err := doccorpus.QueryLive(ctx, a, doccorpus.Request{Operation: o.op, Retirement: retirement, Query: o.query, ID: o.id, Path: o.path, Limit: o.limit, Offset: o.offset, Sections: corpusList(o.section), Include: corpusList(o.include), Repository: o.repository}, overlay)
 	if err != nil {
 		return nil, err
 	}

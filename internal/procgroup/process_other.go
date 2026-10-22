@@ -45,7 +45,7 @@ func terminateProcessGroup(int, bool, bool, func(int, syscall.Signal) error) (bo
 	return false, errors.New("owned process-group cleanup is unsupported on this platform")
 }
 
-func cleanupProcessGroupBeforeReap(int, bool, bool, bool, func(int, syscall.Signal) error, time.Time) error {
+func cleanupProcessGroupBeforeReap(int, bool, bool, bool, func(int, syscall.Signal) error, time.Duration, time.Time) error {
 	return errors.New("owned process-group cleanup is unsupported on this platform")
 }
 

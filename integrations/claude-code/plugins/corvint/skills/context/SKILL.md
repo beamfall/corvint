@@ -16,7 +16,12 @@ policies and the general routes below remain operative. This is feature-use guid
 FULL support, automatic feature fanout or new execution authority.
 
 1. Before broad search, run the narrowest applicable command:
-   - At task start, when the request is about the active work queue, roadmap tickets, orientation,
+   - At task start, to orient on a ticket-to-change task (which tracked files the change will
+     touch), prefer `corvint context --task "TASK" --limit 20` on macOS or Linux when `corvint`
+     is available. The frozen Beamfall roadmap orientation gate admitted this route against a
+     grep baseline (CWT-V0-017); a READY packet can still miss the gold file, so treat its
+     uncertainty and omissions as open.
+   - At task start, when the request is about the active work queue, roadmap tickets,
      or required workflow gates, prefer
      `corvint query --task "TASK" --limit 1` on macOS or Linux when `corvint` is available.
      This is a deliberately narrow authority-start profile. If it rejects the task, preserve the

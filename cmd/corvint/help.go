@@ -295,7 +295,7 @@ const rootHelp = `Corvint extraction alpha
 Usage:
   corvint [--root PATH] COMMAND [OPTIONS]
   corvint COMMAND --help | corvint help COMMAND
-  corvint --version
+  corvint --version [--json]
 
 Commands:
   Core (decision 0332; only the modes and profiles CCF-V1 lists are frozen):
@@ -353,7 +353,7 @@ Commands:
 
 Global options:
   --root PATH  Repository root (default: current directory).
-  --version    Print the version and build number.
+  --version    Print the version and build (--json: the corvint-version/1 identity).
   --help       Print this help on stdout and exit 0.
 
 Support boundary:
@@ -1449,7 +1449,7 @@ Usage:
   corvint [--root PATH] dogfood verify --check ID [--session-key HASH]
   corvint [--root PATH] dogfood finish [--session-key HASH]
   corvint [--root PATH] dogfood review --report-set DIGEST [--session-key HASH]
-  corvint [--root PATH] dogfood cancel [--session-key HASH]
+  corvint [--root PATH] dogfood cancel [--reason TEXT] [--session-key HASH]
   corvint [--root PATH] dogfood handoff [--anchors "ANCHOR..."] [--session-key HASH]
   corvint [--root PATH] dogfood handoff --receipt FILE [--session-key HASH]
   corvint [--root PATH] dogfood handoff --task-state FILE [--session-key HASH]

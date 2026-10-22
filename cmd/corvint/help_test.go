@@ -599,6 +599,22 @@ func TestCEMV1340HelpCEMActionAndOwnedArgvActions(t *testing.T) {
 	}
 }
 
+// TestTCBV0045GateVerdictHelpNamesBuildMismatchRecovery covers V1-2324:
+// `corvint help cem gate-verdict` names the verifier-build-mismatch refusal
+// and the consumer rebuild command TCB-V0-045 prescribes.
+func TestTCBV0045GateVerdictHelpNamesBuildMismatchRecovery(t *testing.T) {
+	t.Parallel()
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"help", "cem", "gate-verdict"}, &forbiddenHelpReader{}, &stdout, &stderr); code != 0 || stderr.Len() != 0 {
+		t.Fatalf("help cem gate-verdict: exit=%d stderr=%q", code, &stderr)
+	}
+	for _, want := range []string{"verifier-disagreement", "verifier-build-mismatch", `(cd interop/cem01-go && GOTOOLCHAIN=local go build -o "$CONSUMER" .)`} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Errorf("gate-verdict help lacks %q:\n%s", want, &stdout)
+		}
+	}
+}
+
 // V1-1643: the CPU-profile help note names the variable runtimeenv resolves
 // for the "CPUPROFILE" suffix that main.go and taskcontext.go read.
 func TestCPUProfileHelpNamesResolvedVariable(t *testing.T) {

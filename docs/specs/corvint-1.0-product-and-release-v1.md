@@ -366,6 +366,18 @@ accepted by decision 0373 and the amendment it requires are stated.
   (V1-1347); (e) one `dogfood finish-lane` command that takes a committed branch plus a citation
   plan from BASE to a sealed, checked tree (V1-1348). Delivery of each clause stays NOT_QUALIFIED
   until its ticket retains the clause's acceptance evidence and completes natively.
+- `PRS-V1-019`: The root module and `interop/cem01-go` MUST type-check (`go vet ./...`, CGO
+  disabled) for GOOS=freebsd, openbsd, netbsd and solaris on amd64, and `make cross-vet` MUST run
+  those checks. A package whose platform code is implemented only for qualified platforms carries a
+  fallback that refuses the operation (or, for a test, a build constraint that excludes the
+  platform); the darwin, linux and windows builds do not change. These checks do not qualify the
+  platforms (`PRS-V1-004`) and run no native test (V1-0393).
+- `PRS-V1-020`: `corvint --version --json` (also after `--root PATH`) MUST print one canonical JSON
+  object with profile `corvint-version/1`, `tool` `corvint`, the release `version`, the `build`, the
+  sorted `commands` the binary dispatches and the `harnessHosts` its adapter schema admits, so a
+  plugin or script detects binary skew before it calls a verb instead of meeting a parse failure.
+  Plain `--version` keeps its text line; any further argument is an argument error. Plugin trees
+  consuming the identity are a separate host-qualified change (V1-0300).
 
 ## Decisions the owner must make
 
@@ -443,6 +455,8 @@ is `github.com/go-chi/chi` (decision 0422). The questions stay as asked.
 | `PRS-V1-004` | Native install lifecycle on each Core platform | darwin/arm64 retained for 0.7.0; linux/amd64 `NOT_RUN` |
 | `PRS-V1-006` | Host lifecycle qualification, nine cases per tuple (`host-lifecycle-qualification-v1.md`, V1-0016) | PASS for plain CLI, Codex CLI 0.153.2 and Claude Code 2.1.267 on darwin/arm64 with 0.8.0, all FALLBACK; linux `NOT_RUN` |
 | `PRS-V1-007` | V1-0014 | `NOT_RUN` |
+| `PRS-V1-019` | `make cross-vet` freebsd/openbsd/netbsd/solaris amd64 lines; `TestReadTargetOnceOtherRefusesRegularFile` (compiled by the cross vet); `../build-log/2026-10-21-portwire-1021x-xplat-wire.md` (V1-0393) | PASS (cross vet, 2026-10-21); native BSD/Solaris execution `NOT_RUN` |
+| `PRS-V1-020` | `TestPRSV1020VersionJSONNamesVerbsAndHosts` (V1-0300) | PASS (unit); no plugin tree reads it yet |
 | `PRS-V1-008` | V1-0019 run-001 on `1.0.0-rc.1` (`b967f6bb`), `benchmarks/untouched-repository-v1/runs/run-001.json` | FAIL: orientation on go-chi/chi (3 of 20) and beamfall/core (1 of 20); Corvint aborted; known issue of `1.0.0-rc.1` (decision 0425) |
 
 ## Sections not applicable to a scope spec

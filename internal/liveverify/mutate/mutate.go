@@ -397,7 +397,7 @@ func falsify(ctx context.Context, configuration settings, space workspace) (repo
 		return Report{}, inconclusive(output)
 	}
 	if baseline != runPassed {
-		return unsupportedReport(baselineDetail(output, configuration)), nil
+		return baselineFailure(output, configuration, configuration.perRun), nil
 	}
 	mutants, err := generateMutants(source, configuration.maxMutants, configuration.lines)
 	if err != nil {

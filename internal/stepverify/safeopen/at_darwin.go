@@ -10,6 +10,9 @@ import (
 	"unsafe"
 )
 
+// Darwin has no O_PATH, so ancestors are opened for reading.
+const traversalFlags = syscall.O_RDONLY | syscall.O_DIRECTORY
+
 // Darwin openat is syscall 463 (XNU syscall ABI). Go 1.27 exposes only
 // syscall's private libc openat wrapper. Use the pinned Syscall6 ABI here;
 // no linkname into Go internals or third-party dependency is required.

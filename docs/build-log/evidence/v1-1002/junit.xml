@@ -1,0 +1,31 @@
+<testsuites id="" name="" tests="2" failures="1" skipped="0" errors="0" time="0.36042599999999997">
+<testsuite name="keep.spec.cjs" timestamp="2026-10-22T05:51:18.187Z" hostname="chromium" tests="2" failures="1" skipped="0" time="0.003" errors="0">
+<testcase name="keep passes" classname="keep.spec.cjs" time="0.002">
+</testcase>
+<testcase name="keep fails" classname="keep.spec.cjs" time="0.001">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../results/keep-keep-fails-chromium/error-context.md]]
+]]>
+</system-out>
+<failure message="expect(received).toBe(expected) // Object.is equality" type="expect.toBe">
+<![CDATA[  [chromium] › keep.spec.cjs:3:1 › keep fails ──────────────────────────────────────────────────────
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 2
+    Received: 1
+
+      1 | const { test, expect } = require('@playwright/test');
+      2 | test('keep passes', () => { expect(1).toBe(1); });
+    > 3 | test('keep fails', () => { expect(1).toBe(2); });
+        |                                      ^
+      4 |
+        at /private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/keep.spec.cjs:3:38
+
+    Error Context: results/keep-keep-fails-chromium/error-context.md
+]]>
+</failure>
+</testcase>
+</testsuite>
+</testsuites>

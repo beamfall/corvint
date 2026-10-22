@@ -10,43 +10,64 @@ import (
 	"strings"
 )
 
+// openAbsoluteRoot opens a root by absolute path; tests observe its names.
+var openAbsoluteRoot = os.OpenRoot
+
 // openDirectory rejects symlink ancestors before acquiring a confined root.
 // All later file operations are relative to that root, including race handling.
+// The first component is pinned by its absolute path with the same identity
+// checks, so the filesystem root / is opened for reading only when it is the
+// directory itself: a sandbox such as Landlock cannot grant a read of /
+// (V1-0883).
 func openDirectory(dir string) (*os.Root, error) {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, fail("invalid directory")
 	}
-	current, err := os.OpenRoot(string(filepath.Separator))
-	if err != nil {
-		return nil, fail("cannot open filesystem root")
-	}
+	var current *os.Root
 	for _, part := range strings.Split(strings.TrimPrefix(abs, string(filepath.Separator)), string(filepath.Separator)) {
 		if part == "" {
 			continue
 		}
-		next, e := openComponent(current, part)
-		if e != nil {
+		var next *os.Root
+		var e error
+		if current == nil {
+			top := string(filepath.Separator) + part
+			next, e = openVerified(os.Lstat, openAbsoluteRoot, top)
+		} else {
+			next, e = openComponent(current, part)
 			current.Close()
+		}
+		if e != nil {
 			return nil, e
 		}
-		current.Close()
 		current = next
+	}
+	if current == nil {
+		if current, err = openAbsoluteRoot(string(filepath.Separator)); err != nil {
+			return nil, fail("cannot open filesystem root")
+		}
 	}
 	return current, nil
 }
 
 func openComponent(parent *os.Root, name string) (*os.Root, error) {
-	before, err := parent.Lstat(name)
+	return openVerified(parent.Lstat, parent.OpenRoot, name)
+}
+
+// openVerified opens one real directory, refusing a symlink or a component
+// replaced between its no-follow Lstat and the open.
+func openVerified(lstat func(string) (fs.FileInfo, error), open func(string) (*os.Root, error), name string) (*os.Root, error) {
+	before, err := lstat(name)
 	if err != nil || !before.IsDir() || before.Mode()&os.ModeSymlink != 0 {
 		return nil, fail("directory must be a real nonsymlink component")
 	}
-	next, err := parent.OpenRoot(name)
+	next, err := open(name)
 	if err != nil {
 		return nil, fail("cannot open directory component")
 	}
 	opened, err := next.Stat(".")
-	after, afterErr := parent.Lstat(name)
+	after, afterErr := lstat(name)
 	if err != nil || afterErr != nil || !after.IsDir() || after.Mode()&os.ModeSymlink != 0 || !os.SameFile(before, opened) || !os.SameFile(before, after) {
 		next.Close()
 		return nil, fail("directory changed during confined open")

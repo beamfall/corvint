@@ -48,7 +48,7 @@
         },
         {
           "path": "cmd/corvint/source_handoff.go",
-          "sha256": "b8d06ac32e65006761534aa755034d91b17da4e2cc9625f6d32684edf40da626"
+          "sha256": "6d52665a7b5e9b16d82c560ac7b54ca1a652ce55256604949304546a71d9fd01"
         },
         {
           "path": "cmd/corvint/source_screen.go",

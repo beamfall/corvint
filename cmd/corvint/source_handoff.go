@@ -329,6 +329,18 @@ func executeSourceViewBytes(ctx context.Context, o sourceViewOptions, result map
 	}
 	deadline, cancel := context.WithTimeout(ctx, sourceDeadline(ctx))
 	defer cancel()
+	result, err = readPinnedSourceView(deadline, o, result, packet, handle, root, path)
+	if err != nil && deadline.Err() != nil {
+		// A Git read cut short by the bound or by cancellation fails like a
+		// non-toplevel root or a missing object; name the cause instead
+		// (ESV-V0-014, V1-2320).
+		return result, sourceRefusal("deadline-exceeded")
+	}
+	return result, err
+}
+
+// readPinnedSourceView runs executeSourceViewBytes's Git reads under its deadline.
+func readPinnedSourceView(deadline context.Context, o sourceViewOptions, result, packet, handle map[string]any, root, path string) (map[string]any, error) {
 	if !sourceIsToplevel(deadline, root) {
 		return result, sourceRefusal("repository-root")
 	}
@@ -598,7 +610,8 @@ func sourceGit(ctx context.Context, root string, limit int, arguments ...string)
 		executable = sourceGitPath
 	}
 	argv := append(append([]string{executable}, sourceGitOptions...), append([]string{"-C", directory}, arguments...)...)
-	observation := procgroup.Run(ctx, procgroup.Spec{Argv: argv, Dir: directory, Env: sourceGitEnvironment, Timeout: sourceDeadline(ctx), ShutdownTimeout: sourceShutdownLimit, OutputLimit: limit, StderrLimit: 8192})
+	grace, shutdown := sourceShutdown(ctx)
+	observation := procgroup.Run(ctx, procgroup.Spec{Argv: argv, Dir: directory, Env: sourceGitEnvironment, Timeout: sourceDeadline(ctx), ShutdownTimeout: shutdown, TerminateGrace: grace, OutputLimit: limit, StderrLimit: 8192})
 	if observation.StdoutOverflow {
 		return nil, errSourceOutputOverflow
 	}
@@ -724,4 +737,19 @@ func sourceDeadline(ctx context.Context) time.Duration {
 		return bound
 	}
 	return sourceGitDeadline
+}
+
+// sourceTerminateGraceKey carries an in-process test grace for a stopped Git
+// command to handle SIGTERM before SIGKILL, added to sourceShutdownLimit, so a
+// test that witnesses TERM handling does not race host scheduling against
+// procgroup's 100 ms default (V1-2319); no command-line path sets it.
+type sourceTerminateGraceKey struct{}
+
+// sourceShutdown returns the TERM grace (zero keeps procgroup's default) and
+// the shutdown bound under ctx.
+func sourceShutdown(ctx context.Context) (time.Duration, time.Duration) {
+	if grace, ok := ctx.Value(sourceTerminateGraceKey{}).(time.Duration); ok && grace > 0 {
+		return grace, grace + sourceShutdownLimit
+	}
+	return 0, sourceShutdownLimit
 }

@@ -110,13 +110,14 @@ type InventoryTest struct {
 }
 
 // UnmarshalJSON keeps an omitted or null project distinct from Playwright's explicit default identity.
+// It runs only inside Decode of the whole provider, which already screened these bytes (V1-2164).
 func (t *InventoryTest) UnmarshalJSON(raw []byte) error {
 	var input struct {
 		TestKey string  `json:"test_key"`
 		Project *string `json:"project"`
 		Path    string  `json:"path"`
 	}
-	if err := Decode(raw, &input); err != nil {
+	if err := decodeElement(raw, &input); err != nil {
 		return err
 	}
 	if input.Project == nil {

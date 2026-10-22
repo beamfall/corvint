@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -121,6 +122,19 @@ func ScanCommits(root, ref, since string, limit int) (CommitScan, error) {
 		scan.Commits = append(scan.Commits, ScannedCommit{Commit: commit, Subject: subjectOf(message), Message: message})
 	}
 	return scan, nil
+}
+
+// CommitTime is commit's committer time in root (TCD-V0-168).
+func CommitTime(root, commit string) (time.Time, error) {
+	out, err := gitOutput(root, "show", "-s", "--no-show-signature", "--format=%ct", "--end-of-options", commit)
+	if err != nil {
+		return time.Time{}, err
+	}
+	sec, e := strconv.ParseInt(strings.TrimSpace(string(out)), 10, 64)
+	if e != nil {
+		return time.Time{}, wire.Errorf(wire.CodeUnsupported, "git", "git observation failed: committer time %q", strings.TrimSpace(string(out)))
+	}
+	return time.Unix(sec, 0).UTC(), nil
 }
 
 // subjectOf is the message's first paragraph joined by spaces, as `%s`.

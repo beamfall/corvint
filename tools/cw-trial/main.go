@@ -280,7 +280,7 @@ func main() {
 
 func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int {
 	if len(arguments) == 0 {
-		fmt.Fprintln(stderr, "cw-trial: usage: cw-trial run|score|import-heldout [flags]")
+		fmt.Fprintln(stderr, "cw-trial: usage: cw-trial run|score|import-heldout|generate|gate [flags]")
 		return 2
 	}
 	var document *report
@@ -298,6 +298,8 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 		return importHeldout(arguments[1:], stdout, stderr)
 	case "generate":
 		return generate(arguments[1:], stdout, stderr)
+	case "gate":
+		return runGate(arguments[1:], stdout, stderr)
 	default:
 		err = fmt.Errorf("unknown command %q", arguments[0])
 	}
@@ -389,6 +391,16 @@ func parseRunOptions(arguments []string) (options, error) {
 		if _, err := os.Stat(configuration.reuse); err != nil {
 			return options{}, fmt.Errorf("--resume: no checkpoint to resume: %w", err)
 		}
+	}
+	// A script agent named by a relative path runs from the task's root (or an
+	// empty directory under --access none), so it is resolved against the
+	// directory cw-trial was started in, where its identity is also read.
+	if strings.ContainsRune(configuration.agentCommand, filepath.Separator) && !filepath.IsAbs(configuration.agentCommand) {
+		absolute, err := filepath.Abs(configuration.agentCommand)
+		if err != nil {
+			return options{}, fmt.Errorf("--agent-command: %w", err)
+		}
+		configuration.agentCommand = absolute
 	}
 	return configuration, validateAgentOptions(configuration)
 }

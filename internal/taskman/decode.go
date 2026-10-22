@@ -324,6 +324,11 @@ func decodeTicket(v wire.Value) (ticket, error) {
 	if !oneOf(stringAt(source, "kind"), "NATIVE IMPORT") {
 		return t, errors.New("source kind")
 	}
+	// The Tasks writer refuses an obligation ledger on an IMPORT or shadow-overlay record
+	// (internal/tasks/ticket/obligations.go); the Core reader admits exactly what it accepts (V1-1035).
+	if hasMember(v, "obligations") && (stringAt(source, "kind") != "NATIVE" || boolAt(v, "shadowOverlay")) {
+		return t, errors.New("obligations: only a NATIVE record carries an obligation ledger")
+	}
 	return t, nil
 }
 func decodeObservations(raw []byte, c captured, commit, tree string) (observation, error) {

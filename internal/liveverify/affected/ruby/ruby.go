@@ -12,6 +12,7 @@ import (
 	"path"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -98,12 +99,19 @@ type observation struct {
 	id       string
 	loads    []loadRef
 	text     string
+	// frontier holds the located sites that bear only on this file's unit
+	// (RUBY-AFFECTED-V0-047).
+	frontier map[string]bool
 }
 
 type loadRef struct {
 	target   string
 	relative bool
 	owner    string
+	// line is the 1-based line of the load; conditional reports a load the
+	// scan cannot prove runs unconditionally (RUBY-AFFECTED-V0-046).
+	line        int
+	conditional bool
 }
 
 // Units observes every Ruby file in the repository rooted at root.
@@ -128,13 +136,20 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	if goModuleRoot(root) {
 		files, features = withoutTestdata(files), withoutTestdata(features)
 	}
+	// Every frontier entry is located (RUBY-AFFECTED-V0-046). A cause that
+	// can hide an edge to any change stays plugin-wide; a site that bears on
+	// its own file's unit alone is that unit's frontier (RUBY-AFFECTED-V0-047).
 	frontier := map[string]bool{}
-	if len(features) != 0 {
-		frontier[FrontierCucumberOwnership] = true
+	for _, feature := range features {
+		frontier[located(FrontierCucumberOwnership, feature, 0)] = true
 	}
 	loadRoots, err := rakeLoadRoots(root, frontier)
 	if err != nil {
 		return affected.Result{}, err
+	}
+	declared, declarationValid := readFrontierDeclaration(root)
+	if !declarationValid {
+		frontier[located(FrontierDeclarationInvalid, FrontierDeclarationPath, 0)] = true
 	}
 	rails := hasRailsLayout(files)
 	railsObserved := rails
@@ -143,23 +158,30 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 		fileSet[relative] = true
 	}
 	observed := make([]observation, 0, len(files))
+	autoloadSites := make(map[string][]int)
+	var railsTests []string
 	for _, relative := range files {
 		body, readErr := root.Read(relative)
 		if readErr != nil || !utf8.Valid(body) {
-			frontier[FrontierUnreadableSource] = true
+			frontier[located(FrontierUnreadableSource, relative, 0)] = true
 			continue
 		}
 		text := string(body)
 		code := codeForDetection(text)
-		loads, flags := scanLoads(relative, text)
-		for flag := range flags {
-			frontier[flag] = true
+		local := map[string]bool{}
+		loads, sites := scanLoads(relative, text)
+		for _, site := range sites {
+			if site.scope == siteAutoload {
+				autoloadSites[relative] = append(autoloadSites[relative], site.line)
+				continue
+			}
+			frontier[located(site.reason, relative, site.line)] = true
 		}
 		kind := classify(relative, code, rails)
 		hint, hintConflict, helperRails := helperFramework(root, relative, loads, fileSet, loadRoots)
 		railsObserved = railsObserved || helperRails
 		if hintConflict {
-			frontier[FrontierAmbiguousFramework] = true
+			local[located(FrontierAmbiguousFramework, relative, 0)] = true
 		}
 		// A helper that defines no test of its own stays source whatever it
 		// loads: rails_helper requiring spec_helper is not a spec
@@ -168,12 +190,15 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 		if hint != frameworkSource && !helper && !hasDirectFramework(code) && !(kind == frameworkRSpec && hint == frameworkRailsTest) {
 			kind = hint
 		}
-		railsObserved = railsObserved || kind == frameworkRailsTest
+		if kind == frameworkRailsTest {
+			railsObserved = true
+			railsTests = append(railsTests, relative)
+		}
 		if frameworkAmbiguous(relative, code, kind, rails) && hint == frameworkSource {
-			frontier[FrontierAmbiguousFramework] = true
+			local[located(FrontierAmbiguousFramework, relative, 0)] = true
 		}
 		if hasDynamicTestDefinition(relative, code, kind) && !sharedSupportDefinition(relative, code, kind) {
-			frontier[FrontierDynamicTestDefinition] = true
+			local[located(FrontierDynamicTestDefinition, relative, dynamicDefinitionLine(text))] = true
 		}
 		observed = append(observed, observation{
 			relative: relative,
@@ -181,6 +206,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 			id:       unitID(kind, relative),
 			loads:    loads,
 			text:     text,
+			frontier: local,
 		})
 	}
 	// A Rails application loads constants by name, not by require. Its
@@ -196,16 +222,45 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	} else {
 		autoload = newConventionAutoload(root, observed, files)
 	}
+	// Autoload-root configuration in a source file is what the autoload
+	// mapper reads: it is resolved by a valid autoload declaration and
+	// otherwise located as a ruby:rails-autoload cause. Anywhere the mapper
+	// does not read, it stays a located dynamic load.
+	for _, item := range observed {
+		for _, line := range autoloadSites[item.relative] {
+			if autoload == nil || item.kind != frameworkSource || insideTestTree(item.relative, "spec") || insideTestTree(item.relative, "test") {
+				frontier[located(FrontierDynamicLoad, item.relative, line)] = true
+			}
+		}
+	}
 	tests := hasTests(observed)
-	railsUnbounded := tests && (railsObserved && !rails || autoload != nil && autoload.unresolved)
+	if tests && railsObserved && !rails {
+		for _, relative := range railsTests {
+			frontier[located(FrontierRailsAutoload, relative, 0)] = true
+		}
+		if len(railsTests) == 0 {
+			frontier[FrontierRailsAutoload] = true
+		}
+	}
+	if tests && autoload != nil {
+		for _, site := range autoload.unresolved {
+			frontier[site] = true
+		}
+	}
 	aliases := indexAliases(observed, loadRoots)
 	paths := indexPaths(observed)
 	advisory := make(map[string]map[string]bool, len(observed))
 	constants := make(map[string]int, len(observed))
 	if autoload != nil {
 		for _, item := range observed {
-			edges, bounded := autoload.edges(item)
-			railsUnbounded = railsUnbounded || !bounded && tests
+			edges, unbounded := autoload.edges(item)
+			// A dynamic lookup or an unmapped association can name any
+			// constant, so its site bears on every change.
+			if tests {
+				for _, line := range unbounded {
+					frontier[located(FrontierRailsAutoload, item.relative, line)] = true
+				}
+			}
 			constants[item.id] = len(edges)
 			if rails && item.kind != frameworkSource {
 				for id := range autoload.bootEdges(item) {
@@ -215,23 +270,23 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 			advisory[item.id] = edges
 		}
 	}
-	if railsUnbounded {
-		frontier[FrontierRailsAutoload] = true
-	}
 	units := make([]affected.Unit, 0, len(observed))
 	for _, item := range observed {
-		imports := resolveLoads(item, aliases, frontier)
-		mapped := addConventionalCounterpart(item, paths, imports, frontier)
+		imports := resolveLoads(item, aliases, item.frontier)
+		mapped := addConventionalCounterpart(item, paths, imports)
 		reached := len(imports) != 0 || mapped || constants[item.id] != 0
-		if item.kind != frameworkSource && !reached && (!rails || !railsUnbounded) {
-			frontier[FrontierImplicitTestDependency] = true
+		// A test with no visible edge can depend on any change.
+		if item.kind != frameworkSource && !reached {
+			frontier[located(FrontierImplicitTestDependency, item.relative, 0)] = true
 		}
 		for id := range supportEdges(item, paths) {
 			imports[id] = true
 		}
 		unit := affected.Unit{ID: item.id, Imports: sortedKeys(imports), AdvisoryImports: sortedEdges(advisory[item.id], imports)}
 		if len(unit.Imports) > affected.MaxPathsPerUnit || len(unit.AdvisoryImports) > affected.MaxPathsPerUnit {
-			frontier[FrontierImplicitTestDependency] = true
+			// Dropped edges can no longer reach the unit, so its frontier
+			// stays plugin-wide.
+			frontier[located(FrontierImplicitTestDependency, item.relative, 0)] = true
 			unit.Imports, unit.AdvisoryImports = nil, nil
 		}
 		if item.kind == frameworkSource {
@@ -239,10 +294,11 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 		} else {
 			unit.Tests = []string{item.relative}
 		}
+		unit.Frontier = undeclared(item.frontier, declared)
 		units = append(units, unit)
 	}
 	sort.Slice(units, func(left, right int) bool { return units[left].ID < units[right].ID })
-	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
+	return affected.Result{Units: units, Frontier: undeclared(frontier, declared)}, nil
 }
 
 // goModuleRoot reports a repository whose root declares a Go module. There a
@@ -447,15 +503,38 @@ func unitID(kind framework, relative string) string {
 	return "ruby:" + string(kind) + ":" + strings.TrimSuffix(relative, ".rb")
 }
 
-func scanLoads(owner, body string) ([]loadRef, map[string]bool) {
+// siteScope says how far a located load site bears (RUBY-AFFECTED-V0-046).
+type siteScope int
+
+const (
+	// siteGlobal bears on every change: it changes how loads resolve, or
+	// hides what its own load reaches, so no reverse closure bounds it.
+	siteGlobal siteScope = iota
+	// siteAutoload is autoload-root configuration, which a valid autoload
+	// declaration stands in for.
+	siteAutoload
+)
+
+// loadSite is one located construct the load scan cannot bound.
+type loadSite struct {
+	reason string
+	line   int
+	scope  siteScope
+}
+
+func scanLoads(owner, body string) ([]loadRef, []loadSite) {
 	refs := make([]loadRef, 0, 8)
-	flags := make(map[string]bool, 2)
-	for _, line := range strings.Split(body, "\n") {
+	sites := make([]loadSite, 0, 2)
+	for index, line := range strings.Split(body, "\n") {
+		number := index + 1
 		if coveredSupportGlob(owner, line) || stockGemGroupLoad(owner, line) {
 			continue
 		}
-		if strings.Contains(line, "$LOAD_PATH") || strings.Contains(line, "$:") || strings.Contains(line, "autoload_paths") {
-			flags[FrontierDynamicLoad] = true
+		switch {
+		case strings.Contains(line, "$LOAD_PATH") || strings.Contains(line, "$:"):
+			sites = append(sites, loadSite{FrontierDynamicLoad, number, siteGlobal})
+		case strings.Contains(line, "autoload_paths"):
+			sites = append(sites, loadSite{FrontierDynamicLoad, number, siteAutoload})
 		}
 		statements := strings.Split(line, ";")
 		first := strings.TrimSpace(statements[0])
@@ -465,20 +544,9 @@ func scanLoads(owner, body string) ([]loadRef, map[string]bool) {
 			embedded := embeddedLoad.FindAllStringSubmatch(trimmed, -1)
 			if len(embedded) == 0 {
 				if loadStartPattern.MatchString(trimmed) || anyLoadCall.MatchString(trimmed) || anyAutoload.MatchString(trimmed) || strings.Contains(trimmed, ".require(") || strings.Contains(trimmed, "send(:require") {
-					flags[FrontierDynamicLoad] = true
+					sites = append(sites, loadSite{FrontierDynamicLoad, number, siteGlobal})
 				}
 				continue
-			}
-			for _, match := range embedded {
-				if strings.Contains(match[2], "#{") {
-					flags[FrontierDynamicLoad] = true
-					continue
-				}
-				refs = append(refs, loadRef{
-					target:   strings.TrimSuffix(path.Clean(match[2]), ".rb"),
-					relative: match[1] == "require_relative",
-					owner:    owner,
-				})
 			}
 			firstMatch := embeddedLoad.FindStringIndex(trimmed)
 			literal := literalLoadPattern.FindStringIndex(trimmed)
@@ -486,12 +554,36 @@ func scanLoads(owner, body string) ([]loadRef, map[string]bool) {
 			if firstMatch != nil {
 				suffix = strings.TrimSpace(trimmed[firstMatch[1]:])
 			}
-			if len(embedded) > 1 || literal == nil || firstMatch[0] != 0 || suffix != "" && !strings.HasPrefix(suffix, "#") || statementIndex > 0 && conditionalLine || len(line) != len(strings.TrimLeft(line, " \t")) {
-				flags[FrontierConditionalLoad] = true
+			conditional := len(embedded) > 1 || literal == nil || firstMatch[0] != 0 || suffix != "" && !strings.HasPrefix(suffix, "#") || statementIndex > 0 && conditionalLine || len(line) != len(strings.TrimLeft(line, " \t"))
+			for _, match := range embedded {
+				if strings.Contains(match[2], "#{") {
+					sites = append(sites, loadSite{FrontierDynamicLoad, number, siteGlobal})
+					continue
+				}
+				refs = append(refs, loadRef{
+					target:      strings.TrimSuffix(path.Clean(match[2]), ".rb"),
+					relative:    match[1] == "require_relative",
+					owner:       owner,
+					line:        number,
+					conditional: conditional,
+				})
 			}
 		}
 	}
-	return refs, flags
+	return refs, sites
+}
+
+// located names one frontier site: the reason, then the repository path and
+// the 1-based line where they are known (RUBY-AFFECTED-V0-046).
+func located(reason, relative string, line int) string {
+	switch {
+	case relative == "":
+		return reason
+	case line > 0:
+		return reason + ":" + relative + ":" + strconv.Itoa(line)
+	default:
+		return reason + ":" + relative
+	}
 }
 
 // stockGemGroupLoad reports the unindented `Bundler.require(*Rails.groups)`
@@ -502,30 +594,35 @@ func stockGemGroupLoad(owner, line string) bool {
 		stockBundlerRequire.MatchString(strings.TrimRight(line, "\r"))
 }
 
-func resolveLoads(item observation, aliases map[string][]string, frontier map[string]bool) map[string]bool {
+// resolveLoads turns item's literal loads into import edges. A load several
+// units answer to gets an edge to each, a sound superset; a relative load no
+// unit answers, and a conditional load of a repository unit, are located on
+// the unit (RUBY-AFFECTED-V0-046, RUBY-AFFECTED-V0-047).
+func resolveLoads(item observation, aliases map[string][]string, local map[string]bool) map[string]bool {
 	imports := make(map[string]bool, len(item.loads)+1)
 	for _, ref := range item.loads {
 		target := ref.target
 		if ref.relative {
 			target = path.Clean(path.Join(path.Dir(ref.owner), target))
 			if target == ".." || strings.HasPrefix(target, "../") {
-				frontier[FrontierRelativeLoad] = true
+				local[located(FrontierRelativeLoad, item.relative, ref.line)] = true
 				continue
 			}
 		}
 		matches := aliases[target]
 		if len(matches) == 0 {
 			if ref.relative {
-				frontier[FrontierRelativeLoad] = true
+				local[located(FrontierRelativeLoad, item.relative, ref.line)] = true
 			}
 			continue
 		}
-		if len(matches) > 1 {
-			frontier[FrontierAmbiguousLoad] = true
-			continue
+		if ref.conditional {
+			local[located(FrontierConditionalLoad, item.relative, ref.line)] = true
 		}
-		if matches[0] != item.id {
-			imports[matches[0]] = true
+		for _, match := range matches {
+			if match != item.id {
+				imports[match] = true
+			}
 		}
 	}
 	return imports
@@ -581,25 +678,25 @@ func rakeLoadRoots(root *affected.Source, frontier map[string]bool) ([]string, e
 	for _, relative := range files {
 		body, readErr := root.Read(relative)
 		if readErr != nil || !utf8.Valid(body) {
-			frontier[FrontierUnreadableSource] = true
+			frontier[located(FrontierUnreadableSource, relative, 0)] = true
 			continue
 		}
 		text := string(body)
 		if !strings.Contains(text, "Rake::TestTask") {
 			continue
 		}
-		for _, line := range strings.Split(text, "\n") {
+		for index, line := range strings.Split(text, "\n") {
 			declaration := strings.TrimSpace(line)
 			if !rakeLibDeclaration.MatchString(declaration) {
 				continue
 			}
 			match := rakeLiteralLib.FindStringSubmatch(declaration)
 			if len(match) != 2 {
-				frontier[FrontierDynamicLoad] = true
+				frontier[located(FrontierDynamicLoad, relative, index+1)] = true
 				continue
 			}
 			if strings.Contains(match[1], `\`) {
-				frontier[FrontierDynamicLoad] = true
+				frontier[located(FrontierDynamicLoad, relative, index+1)] = true
 				continue
 			}
 			loadRoot := path.Clean(strings.TrimSpace(match[1]))
@@ -607,7 +704,7 @@ func rakeLoadRoots(root *affected.Source, frontier map[string]bool) ([]string, e
 				continue
 			}
 			if path.IsAbs(loadRoot) || loadRoot == ".." || strings.HasPrefix(loadRoot, "../") {
-				frontier[FrontierDynamicLoad] = true
+				frontier[located(FrontierDynamicLoad, relative, index+1)] = true
 				continue
 			}
 			roots[loadRoot] = true
@@ -624,7 +721,10 @@ func indexPaths(observed []observation) map[string]string {
 	return indexed
 }
 
-func addConventionalCounterpart(item observation, paths map[string]string, imports map[string]bool, frontier map[string]bool) bool {
+// addConventionalCounterpart adds the edge from a test to the source its
+// path names; when both app/ and lib/ hold one, it adds both
+// (RUBY-AFFECTED-V0-046).
+func addConventionalCounterpart(item observation, paths map[string]string, imports map[string]bool) bool {
 	if item.kind == frameworkSource {
 		return false
 	}
@@ -636,22 +736,14 @@ func addConventionalCounterpart(item observation, paths map[string]string, impor
 	stem = strings.TrimSuffix(stem, "_spec")
 	stem = strings.TrimSuffix(stem, "_test")
 	stem = strings.TrimPrefix(stem, "test_")
-	candidates := make([]string, 0, 2)
+	mapped := false
 	for _, sourceRoot := range []string{"app/", "lib/"} {
-		candidate := prefix + sourceRoot + stem + ".rb"
-		if _, exists := paths[candidate]; exists {
-			candidates = append(candidates, candidate)
+		if id, exists := paths[prefix+sourceRoot+stem+".rb"]; exists {
+			imports[id] = true
+			mapped = true
 		}
 	}
-	if len(candidates) > 1 {
-		frontier[FrontierAmbiguousLoad] = true
-		return false
-	}
-	if len(candidates) == 0 {
-		return false
-	}
-	imports[paths[candidates[0]]] = true
-	return true
+	return mapped
 }
 
 func testRelative(relative string) (string, string, bool) {

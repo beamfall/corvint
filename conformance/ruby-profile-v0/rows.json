@@ -273,7 +273,7 @@
         "spec/workers/welcome_worker_spec.rb": "ADVISORY_CONSTANT_REFERENCE"
       },
       "unknown": [
-        "LANGUAGE_FRONTIER ruby:rails-autoload"
+        "LANGUAGE_FRONTIER ruby:rails-autoload:app/services/model_lookup.rb:3"
       ]
     },
     {
@@ -284,8 +284,7 @@
         "spec/workers/welcome_worker_spec.rb": "DEPENDENCY_PATH"
       },
       "unknown": [
-        "LANGUAGE_FRONTIER ruby:dynamic-test-definition",
-        "LANGUAGE_FRONTIER ruby:rails-autoload"
+        "LANGUAGE_FRONTIER ruby:rails-autoload:app/services/handler_registry.rb:3"
       ]
     }
   ],

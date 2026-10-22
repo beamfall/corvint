@@ -40,7 +40,9 @@ type railsAutoload struct {
 	mapper     *rubyautoload.Mapper
 	byConstant map[string][]string
 	ids        map[string]string
-	unresolved bool
+	// unresolved locates every cause that keeps the mapping from standing in
+	// for Rails, one ruby:rails-autoload entry each (RUBY-AFFECTED-V0-046).
+	unresolved []string
 }
 
 // newRailsAutoload maps every observed Ruby file through the documented
@@ -48,19 +50,23 @@ type railsAutoload struct {
 // mapping cannot stand in for Rails: a nested or absent root application, an
 // invalid declaration, or autoload configuration the mapper does not model.
 func newRailsAutoload(root *affected.Source, observed []observation, files []string) *railsAutoload {
-	rootApplication, nested := false, false
+	rootApplication := false
+	var nested []string
 	for _, relative := range files {
 		if relative == "config/application.rb" {
 			rootApplication = true
 		} else if strings.HasSuffix(relative, "/config/application.rb") {
-			nested = true
+			nested = append(nested, located(FrontierRailsAutoload, relative, 0))
 		}
 	}
 	if !rootApplication {
-		return &railsAutoload{byConstant: map[string][]string{}, ids: map[string]string{}, unresolved: true}
+		if len(nested) == 0 {
+			nested = []string{FrontierRailsAutoload}
+		}
+		return &railsAutoload{byConstant: map[string][]string{}, ids: map[string]string{}, unresolved: nested}
 	}
 	autoload := mapAutoload(root, observed, files)
-	autoload.unresolved = autoload.unresolved || nested
+	autoload.unresolved = append(autoload.unresolved, nested...)
 	return autoload
 }
 
@@ -118,8 +124,11 @@ func mapAutoload(root *affected.Source, observed []observation, files []string) 
 		repository.DeclarationPresent = true
 	}
 	autoload.mapper = rubyautoload.New(repository)
-	if autoload.mapper.DeclarationInvalid() || autoload.mapper.ConfigUnresolved() != 0 {
-		autoload.unresolved = true
+	if autoload.mapper.DeclarationInvalid() {
+		autoload.unresolved = append(autoload.unresolved, located(FrontierRailsAutoload, rubyautoload.DeclarationPath, 0))
+	}
+	for _, site := range autoload.mapper.UnresolvedConfigSites() {
+		autoload.unresolved = append(autoload.unresolved, FrontierRailsAutoload+":"+site)
 	}
 	for _, relative := range files {
 		if _, observed := autoload.ids[relative]; !observed {
@@ -139,14 +148,18 @@ func strictJSON(body []byte) bool {
 	return json.Unmarshal(body, &decoded) == nil
 }
 
-// edges returns the units item's constant references resolve to, and reports
-// a reference the mapping cannot bound: a dynamic constant lookup or an
-// association whose class is not a mapped constant (RUBY-AFFECTED-V0-010).
-func (autoload *railsAutoload) edges(item observation) (map[string]bool, bool) {
+// edges returns the units item's constant references resolve to, and the
+// lines of every reference the mapping cannot bound: a dynamic constant lookup
+// or an association whose class is not a mapped constant
+// (RUBY-AFFECTED-V0-010, RUBY-AFFECTED-V0-046).
+func (autoload *railsAutoload) edges(item observation) (map[string]bool, []int) {
 	text := maskHeredocBodies(item.text)
 	masked := maskQuotedLiteralsAndInlineComments(text)
 	targets := map[string]bool{}
-	bounded := !dynamicConstantLookup.MatchString(masked)
+	var unbounded []int
+	for _, at := range dynamicConstantLookup.FindAllStringIndex(masked, -1) {
+		unbounded = append(unbounded, strings.Count(masked[:at[0]], "\n")+1)
+	}
 	scopes := scanLexicalScopes(text, masked)
 	for _, at := range constantReference.FindAllStringIndex(masked, -1) {
 		autoload.resolve(masked[at[0]:at[1]], scopes.at(at[0]), targets)
@@ -161,7 +174,7 @@ func (autoload *railsAutoload) edges(item observation) (map[string]bool, bool) {
 			continue
 		}
 		if !autoload.association(match[1], raw[index], scopes.at(lineStart), targets) {
-			bounded = false
+			unbounded = append(unbounded, index+1)
 		}
 	}
 	edges := map[string]bool{}
@@ -170,7 +183,7 @@ func (autoload *railsAutoload) edges(item observation) (map[string]bool, bool) {
 			edges[autoload.ids[relative]] = true
 		}
 	}
-	return edges, bounded
+	return edges, unbounded
 }
 
 // association resolves one Active Record association to the paths defining

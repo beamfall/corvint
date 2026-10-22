@@ -38,7 +38,7 @@ func Decode(data []byte, out any) error {
 	if len(data) > MaxBytes {
 		return errors.New("flow input exceeds byte limit")
 	}
-	if secretscreen.MatchString(string(data)) {
+	if screenSecrets(string(data)) {
 		return errors.New("flow input contains secret-shaped data")
 	}
 	if _, err := wire.Parse(data); err != nil {
@@ -508,4 +508,22 @@ func ValueDigest(v json.RawMessage) string {
 	e.SetEscapeHTML(false)
 	_ = e.Encode(value)
 	return Digest(bytes.TrimSuffix(b.Bytes(), []byte{'\n'}))
+}
+
+// screenSecrets is Decode's secret screen; a test counts its calls (V1-2164).
+var screenSecrets = secretscreen.MatchString
+
+// decodeElement strictly decodes one element of a document that Decode has already bounded,
+// secret-screened and parsed, so a custom UnmarshalJSON does not repeat those whole-input checks
+// for every element (V1-2164). It is valid only inside a Decode call.
+func decodeElement(raw []byte, out any) error {
+	d := json.NewDecoder(bytes.NewReader(raw))
+	d.DisallowUnknownFields()
+	if err := d.Decode(out); err != nil {
+		return errors.New("invalid flow schema")
+	}
+	if d.Decode(new(any)) != io.EOF {
+		return errors.New("trailing flow input")
+	}
+	return nil
 }

@@ -13,7 +13,7 @@ Wilson intervals, canonical output), `AGENTS.md` invariants 2 and 4.
 ## Agent digest
 - Claim: `tools/cw-trial` runs one agent over a frozen task set under `none`, `grep`, and `corvint` arms and scores confidently-wrong claims per task with intervals.
 - Status: proposed/experimental
-- Exists: `tools/cw-trial` (`run`, `score`), `tools/cw-trial/testdata/pilot/tasks.json` (five code2test tasks, `partition: pilot`), `benchmarks/results/cw-trial-pilot-first-run.json`.
+- Exists: `tools/cw-trial` (`run`, `score`, `gate`), `tools/cw-trial/testdata/pilot/tasks.json` (five code2test tasks, `partition: pilot`), `benchmarks/results/cw-trial-pilot-first-run.json`.
 - Blocked on: the judged run's first observation over `tools/cw-trial/testdata/heldout-v1` under `--access none` with the pilot's model (decision 0022).
 - Read next: Requirements (claim grammar, definition, arms); Non-goals; Promotion or kill.
 
@@ -225,6 +225,40 @@ has committed to nothing and is scored as abstaining.
   other platforms, remain unsupported. Other trial subprocess helpers are outside this slice.
   The clause does not qualify hostile external execution or change a frozen outcome trial.
 
+- `CWT-V0-015`: (accepted 2026-10-22 under the owner's standing auto-accept (2026-10-11); V1-0319)
+  Frozen paired gate. `cw-trial gate --report FILE --gate FILE [--output FILE]` applies a gate file
+  (profile `corvint-cw-trial-gate/0`, unknown fields refused) to a report and writes a canonical
+  verdict (profile `corvint-cw-trial-gate-verdict/0`) carrying the gate's, the report's and the
+  task set's sha256, the report's `corvint` identity, every rule with its observed values and
+  threshold, and `verdict` `ADMIT` or `REFUSE`; it exits 0 on `ADMIT`, 1 on `REFUSE` and 2 when an
+  input cannot be read. It rebuilds the report's derived fields from the raw ones first, so an
+  edited metric is never trusted. Rules: `identity` (the report's `tasks_sha256`, task count,
+  `access` and `limit` equal the gate's, every task appears once with both arms, the run is neither
+  partial nor pilot, and the `corvint` binary is observed); `treatment-context` (treatment tasks
+  whose context or invocation failed are at most `max_treatment_context_failed`); and one
+  `paired-METRIC` per frozen metric (a per-task retrieval metric of CWT-V0-013, `success`, or a gold
+  placement): the treatment's rate minus the control's over every task of the set, a failed or
+  missing arm counting as a miss, is at least `-margin`, with paired wins, losses and ties reported.
+  A gate file is committed before the run it judges and never edited after it; the report itself
+  still carries no verdict (CWT-V0-009).
+- `CWT-V0-016`: (accepted 2026-10-22 under the owner's standing auto-accept (2026-10-11); V1-0319)
+  Beamfall orientation gate. `tools/cw-trial/testdata/beamfall-roadmap-v1/orientation-gate.json`
+  (frozen 2026-10-22 before any run of the set) is the orientation routing gate for the frozen
+  `beamfall-roadmap-v1` set: treatment `corvint`, control `grep`, `--access none`, `--limit 20`,
+  metrics `packet_top_10` and `gold_as_result`, margin 0, at most 5 failed corvint contexts. Its
+  reading is model-free: the run uses `--arms grep,corvint --agent script --agent-command
+  tools/cw-trial/testdata/abstain-agent.sh`, an agent that commits to nothing, so the report holds
+  the two arms' contexts and their retrieval-native metrics and no agent outcome. The agent-claims
+  reading of the set's README (the bet's kill criteria under CWT-V0-009) is a separate, owner-read
+  measurement that this gate neither runs nor replaces.
+- `CWT-V0-017`: (accepted 2026-10-22 under the owner's standing auto-accept (2026-10-11); V1-0319)
+  Orientation routing rule. The Claude Code `context` skill, the Codex `corvint` skill and
+  `docs/DOGFOOD.md` section 1 may route
+  task-start orientation to `corvint context --task` only when a CWT-V0-016 run's committed verdict
+  is `ADMIT`. A `REFUSE` keeps routing unchanged and is recorded unrepaired; a later attempt needs a
+  new task set frozen before any Corvint output on it, because a refused set becomes development
+  (`benchmarks/README.md`).
+
 Simpler baseline: `tools/retrieval-bench`'s ranking metrics, which cannot see what an agent
 commits to. This slice measures the agent's action, not the retriever's list; CWT-V0-013 reports
 both, because a metric saturated by the counterpart guess cannot separate retrievers (BUILD-LOG
@@ -273,6 +307,9 @@ listed as non-reproducing with its rescored values cited beside the recorded one
 | CWT-V0-013 | `retrievalMetrics`, `orderedRows`, `hardGold`, `hardStem`, `goldPresent`, `f1`, `mean`, `backfillRecords`, `dispatchTask` (`subject`, `gold_at_base`) | `TestRetrievalMetricsReadTheContextRowsAndTheHardGold`; `TestTrialFinalizeAndScoreAreByteIdentical` (the recorded fields reproduce); `TestCommittedReportsReproduceTheirRetrievalMetricsUnderScore` (every committed report carrying the metrics reproduces, except the three listed non-reproducing reports, which must still differ) |
 | CWT-V0-014 | `runCommand`; `internal/procgroup.Run`, `OverflowPolicy`, `Spec.StderrLimit` | `TestRunProcessLifecycleMatrix`; `TestRunProcessTruncateOverflowPolicy`; `TestRunProcessDefaultOverflowPolicyStillTerminates`; `TestRunProcessRejectsInvalidOverflowPolicyBeforeSpawn`; `TestTruncateCaptureConsumesCrossingWrite`; `TestRunCommandPreservesExitShapes`; `TestRunCommandNormalizesPathsAndEnvironment`; `TestRunCommandRefusesBeforeDispatch`; `TestRunCommandTruncatesOutput`; `TestRunCommandCancellationKillsDescendant`; `TestTrialMainSignalsCleanOwnedAgentGroup` |
 | CWT-V0-012 | `generate`, `generateManifest`, `candidateCommits`, `inspectCommit`, `generateTask`, `writeSnapshot`, `evenlySpaced` (`tools/cw-trial/generate.go`) | `TestGenerateBuildsCoChangeTasksFromLocalHistory` |
+| CWT-V0-015 | `runGate`, `readGate`, `judgeGate`, `identityRule`, `pairedRule`, `armMetric` (`tools/cw-trial/gate.go`) | `TestGateAdmitsANonInferiorTreatmentAndRefusesAWorseOne`; `TestGateRefusesAReportItWasNotFrozenFor`; `TestGateCountsTreatmentFailuresAsMissesAndBoundsThem`; `TestGateRebuildsMetricsAndRefusesUnreadableGates` |
+| CWT-V0-016 | `testdata/beamfall-roadmap-v1/orientation-gate.json`, `testdata/abstain-agent.sh` | `TestFrozenBeamfallOrientationGateNamesTheFrozenSet`; the committed run and verdict under `benchmarks/results/` (build-log 2026-10-22-ctx-1022j) |
+| CWT-V0-017 | routing text in `integrations/claude-code/plugins/corvint/skills/context/SKILL.md`, `integrations/codex/plugins/corvint/skills/corvint/SKILL.md` and `docs/DOGFOOD.md` section 1, changed only on `ADMIT` | `TestCommittedOrientationVerdictReproducesAndAdmits` over the committed verdict `benchmarks/results/orientation-gate-beamfall-roadmap-v1.json` |
 
 Compatibility and drift: the grep scorer duplicates `tools/retrieval-bench`'s rules on purpose
 (the tool does not import that package); if the bench's tokenizer changes, both change in one

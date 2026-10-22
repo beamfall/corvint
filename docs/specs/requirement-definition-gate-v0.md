@@ -12,7 +12,7 @@ Authoritative inputs: `../../AGENTS.md` invariant 8, `../SPEC-DRIVEN-DEVELOPMENT
 ## Agent digest
 - Claim: Every requirement id in REQUIREMENTS.tsv must have a clause body in some spec, and none may be defined twice.
 - Status: accepted (owner instruction 2026-09-07) / implemented
-- Exists: `script/check-requirement-definitions.sh`, wired into `make gate` as `requirement-definitions-check`.
+- Exists: `script/check-requirement-definitions.sh`, wired into `make gate` as `requirement-definitions-check`; its fixture cases `script/check-requirement-definitions_test.sh` run as `requirement-definitions-test` (V1-2311).
 - Blocked on: nothing for this gate. Three sibling gate scripts remain unspecified (`../agent-memory/fixes.md`).
 - Read next: Requirements; Trust boundary, limits, and failure modes.
 

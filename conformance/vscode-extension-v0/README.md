@@ -5,7 +5,7 @@ VS Code extension. It does not import extension internals. A host driver exercis
 extension through public VS Code surfaces, then emits one bounded observation for each input case.
 The runner validates the observations against `cases.json` and cross-case security invariants.
 
-The suite covers `VSC-V0-001..076`, including the optional MCP 2026-07-28 stdio client. A pass from
+The suite covers `VSC-V0-001..079`, including the optional MCP 2026-07-28 stdio client. A pass from
 `fixtures/oracle-driver.mjs` proves only that the runner recognizes the frozen observation contract
 and detects selected weakenings; it is not Corvint extension evidence. Product status remains
 `NOT_RUN` until an actual `@vscode/test-electron` host driver supplies observations for distinct

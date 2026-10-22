@@ -20,6 +20,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -112,6 +113,7 @@ type Mapper struct {
 	declarationInvalid bool
 	declared           bool
 	configUnresolved   int
+	configSites        []string
 	autoloadLib        bool
 	constants          map[string]string
 	paths              map[string]string
@@ -270,15 +272,15 @@ func (mapper *Mapper) readConfiguredInflections(repository Repository, paths []s
 				break
 			}
 			if !mapper.declared && autoloadRootConfig.MatchString(code) && !mapper.readStockAutoloadLib(raw[i]) {
-				mapper.configUnresolved++
+				mapper.unresolvedAt(name, i+1)
 			}
 			if collapseConfig.MatchString(code) {
-				mapper.configUnresolved++
+				mapper.unresolvedAt(name, i+1)
 			}
 			for _, loc := range acronymCall.FindAllStringIndex(code, -1) {
 				match := acronymLiteral.FindStringSubmatch(raw[i][loc[0]:])
 				if match == nil {
-					mapper.configUnresolved++
+					mapper.unresolvedAt(name, i+1)
 					continue
 				}
 				acronym := match[2] + match[4]
@@ -287,7 +289,7 @@ func (mapper *Mapper) readConfiguredInflections(repository Repository, paths []s
 			for _, loc := range inflectCall.FindAllStringIndex(code, -1) {
 				pairs, ok := inflectPairs(raw, i, loc[1])
 				if !ok {
-					mapper.configUnresolved++
+					mapper.unresolvedAt(name, i+1)
 					continue
 				}
 				for _, pair := range pairs {
@@ -431,6 +433,19 @@ func (mapper *Mapper) Known(name string) bool {
 // such a repository maps no path.
 func (mapper *Mapper) DeclarationInvalid() bool {
 	return mapper.declarationInvalid
+}
+
+// unresolvedAt counts one autoload configuration line the mapper does not
+// model and records where it is (RUBY-AFFECTED-V0-046).
+func (mapper *Mapper) unresolvedAt(name string, line int) {
+	mapper.configUnresolved++
+	mapper.configSites = append(mapper.configSites, name+":"+strconv.Itoa(line))
+}
+
+// UnresolvedConfigSites names, as "path:line" in the order read, every
+// configuration line ConfigUnresolved counts (RUBY-AFFECTED-V0-046).
+func (mapper *Mapper) UnresolvedConfigSites() []string {
+	return append([]string(nil), mapper.configSites...)
 }
 
 // ConfigUnresolved counts autoload-root, collapse and inflection

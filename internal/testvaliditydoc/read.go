@@ -17,6 +17,34 @@ func ReadFile(root *os.Root, name string) ([]byte, error) {
 	return ReadFileBounded(root, name, MaxInputBytes)
 }
 
+// openFilesystemRoot opens / for a file directly in it; tests observe it.
+var openFilesystemRoot = os.OpenRoot
+
+// ReadAbsoluteFileBounded is ReadFileBounded for a clean absolute path. The
+// first directory below / is pinned by its absolute path with the same
+// no-follow identity check as every later component, so / is opened for
+// reading only for a file directly in it (V1-0883).
+func ReadAbsoluteFileBounded(name string, limit int64) ([]byte, error) {
+	if !filepath.IsAbs(name) || filepath.Clean(name) != name {
+		return nil, errors.New("receipt path is not a clean absolute path")
+	}
+	relative := strings.TrimPrefix(name, string(filepath.Separator))
+	top, rest, nested := strings.Cut(relative, string(filepath.Separator))
+	var root *os.Root
+	var err error
+	if nested {
+		root, err = openTopDirectory(top)
+	} else {
+		root, err = openFilesystemRoot(string(filepath.Separator))
+		rest = relative
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	return ReadFileBounded(root, rest, limit)
+}
+
 // ReadFileBounded retains the no-follow receipt reader while allowing an explicit
 // corpus-sized bound. Receipt callers keep ReadFile and its original 4 MiB limit.
 func ReadFileBounded(root *os.Root, name string, limit int64) ([]byte, error) {

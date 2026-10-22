@@ -361,3 +361,33 @@ func TestTOLV0004_EvidenceCodec(t *testing.T) {
 		}
 	}
 }
+
+// TestTOLV0001_ImportRecordRefusesObligations: a well-formed IMPORT record, and
+// its shadow overlay, decode without the member and refuse it with
+// MALFORMED at /obligations; the Core reader enforces the same rule
+// (internal/taskman TestTOLV0001_ReaderRefusesNonNativeObligations, V1-1035).
+func TestTOLV0001_ImportRecordRefusesObligations(t *testing.T) {
+	fv := tolParse(t, string(tolRecord(t, nil)))
+	ref, _ := fv.Obj.Get("obligations")
+	delete(fv.Obj.Vals, "obligations")
+	fv.Obj.Keys = slices.DeleteFunc(fv.Obj.Keys, func(k string) bool { return k == "obligations" })
+	rec, err := ticket.Decode(wire.EncodeFile(fv))
+	if err != nil {
+		t.Fatal(err)
+	}
+	item := "R-1"
+	rec.Source = ticket.Source{Kind: "IMPORT", SourceQueueID: "roadmap", SourceItemID: &item}
+	for _, shadow := range []bool{false, true} {
+		rec.ShadowOverlay = shadow
+		plain := rec.Encode()
+		if _, err := ticket.Decode(plain); err != nil {
+			t.Fatalf("shadow=%v import record without obligations: %v", shadow, err)
+		}
+		v := tolParse(t, string(plain))
+		v.Obj.Set("obligations", ref)
+		_, err := ticket.Decode(wire.EncodeFile(v))
+		if wire.CodeOf(err) != wire.CodeMalformed || !strings.Contains(err.Error(), "/obligations") {
+			t.Fatalf("shadow=%v import record with obligations: %v", shadow, err)
+		}
+	}
+}

@@ -15,7 +15,6 @@ func receiptTool() ToolIdentity {
 
 func receiptFixture(t *testing.T, scenario string) (Plan, EvidenceReceipt) {
 	t.Helper()
-	t.Setenv(helperEnvironment, "1")
 	plan, err := BuildPlan(liveRequest(t, []ControlSpec{liveControl(t, "control", scenario)}))
 	if err != nil {
 		t.Fatal(err)
@@ -28,6 +27,7 @@ func receiptFixture(t *testing.T, scenario string) (Plan, EvidenceReceipt) {
 }
 
 func TestBBFV0013OfflineReceipt(t *testing.T) {
+	t.Parallel()
 	t.Run("BBF-V0-013 retained bytes verify after workspace removal", func(t *testing.T) {
 		plan, r := receiptFixture(t, "killed")
 		if r.Report.Counts[StatusKilled] != 1 || len(r.RawAttempts) != 1 {
@@ -54,6 +54,7 @@ func TestBBFV0013OfflineReceipt(t *testing.T) {
 }
 
 func TestBBFV0013ReceiptTampering(t *testing.T) {
+	t.Parallel()
 	plan, original := receiptFixture(t, "killed")
 	raw, err := EncodeEvidence(original)
 	if err != nil {
@@ -104,8 +105,10 @@ func TestBBFV0013ReceiptTampering(t *testing.T) {
 }
 
 func TestBBFV0013ReceiptFailuresNeverKill(t *testing.T) {
+	t.Parallel()
 	for _, scenario := range []string{"unrelated-failure", "setup-failure", "wrong-assertion", "retry", "stale", "stale-artifact", "cleanup-fail", "native-missing", "crash", "timeout"} {
 		t.Run("BBF-V0-013 "+scenario, func(t *testing.T) {
+			t.Parallel()
 			_, r := receiptFixture(t, scenario)
 			if r.Report.Counts[StatusKilled] != 0 || r.Report.Results[0].Status == StatusKilled {
 				t.Fatal("failure became a kill")
@@ -115,9 +118,9 @@ func TestBBFV0013ReceiptFailuresNeverKill(t *testing.T) {
 }
 
 func TestBBFV0013SecretOutputRefused(t *testing.T) {
+	t.Parallel()
 	for _, scenario := range []string{"secret-output", "malformed-secret-output", "failed-secret-output"} {
 		t.Run("BBF-V0-013 "+scenario, func(t *testing.T) {
-			t.Setenv(helperEnvironment, "1")
 			plan, err := BuildPlan(liveRequest(t, []ControlSpec{liveControl(t, "control", scenario)}))
 			if err != nil {
 				t.Fatal(err)
@@ -139,6 +142,7 @@ func TestBBFV0013SecretOutputRefused(t *testing.T) {
 }
 
 func TestBBFV0013ReceiptApprovalAndBounds(t *testing.T) {
+	t.Parallel()
 	plan, receipt := receiptFixture(t, "killed")
 	t.Run("BBF-V0-013 approval cannot authorize another plan", func(t *testing.T) {
 		if _, err := ExecuteReceipt(context.Background(), plan, digestN("other"), receiptTool()); err == nil {
@@ -157,6 +161,7 @@ func TestBBFV0013ReceiptApprovalAndBounds(t *testing.T) {
 }
 
 func TestBBFV0013OversizePrecedesSecretScreen(t *testing.T) {
+	t.Parallel()
 	for _, field := range []string{"native", "hook", "plan", "aggregate", "metadata"} {
 		t.Run(field, func(t *testing.T) {
 			r := EvidenceReceipt{RawAttempts: []RawAttempt{{}}}
@@ -188,6 +193,7 @@ func TestBBFV0013OversizePrecedesSecretScreen(t *testing.T) {
 }
 
 func TestBBFV0013EncodedBoundaryAdjacent(t *testing.T) {
+	t.Parallel()
 	t.Run("BBF-V0-013 final envelope and base64 adjacency", func(t *testing.T) {
 		// A small secret refuses admitted envelopes before scanning a 32 MiB filler.
 		// Size must still take precedence at the first byte beyond the actual JSON bound.

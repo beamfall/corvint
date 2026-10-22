@@ -1,0 +1,21 @@
+heavy.sh: slot slot2 after 10s
+=== RUN   TestCALV0026_ChangeGuard
+=== RUN   TestCALV0026_ChangeGuard/in-place-restored-time
+=== RUN   TestCALV0026_ChangeGuard/replace
+=== RUN   TestCALV0026_ChangeGuard/add
+=== RUN   TestCALV0026_ChangeGuard/remove
+=== RUN   TestCALV0026_ChangeGuard/directory
+=== RUN   TestCALV0026_ChangeGuard/ancestor
+--- PASS: TestCALV0026_ChangeGuard (0.02s)
+    --- PASS: TestCALV0026_ChangeGuard/in-place-restored-time (0.00s)
+    --- PASS: TestCALV0026_ChangeGuard/replace (0.00s)
+    --- PASS: TestCALV0026_ChangeGuard/add (0.00s)
+    --- PASS: TestCALV0026_ChangeGuard/remove (0.00s)
+    --- PASS: TestCALV0026_ChangeGuard/directory (0.00s)
+    --- PASS: TestCALV0026_ChangeGuard/ancestor (0.00s)
+=== RUN   TestCALV0026_ChangeGuardClosesAndRefusesSymlinks
+--- PASS: TestCALV0026_ChangeGuardClosesAndRefusesSymlinks (0.08s)
+=== RUN   TestCALV0026_ChangeGuardFailureIsNotValidity
+--- PASS: TestCALV0026_ChangeGuardFailureIsNotValidity (0.00s)
+PASS
+ok  	github.com/Beamfall/corvint/internal/tasks/authority	0.106s

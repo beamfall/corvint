@@ -164,6 +164,11 @@ func (l *finishLane) requireVerifyInput() {
 		l.say("  %s\n", oneLine(detail))
 	}
 	l.say("  fix: pass a readable verify file of at most %d bytes with one shell-free command per line (no quotes, globs or operators), then rerun corvint dogfood finish-lane --base %s\n", maxVerifyFileBytes, l.options.Change.Base)
+	if reason == "unsupported-verify-syntax" {
+		// DCW-V0-170: a quoted -run alternation is the common refusal; name the
+		// accepted form instead of leaving the lane to rediscover it.
+		l.say("  accepted form: a quoted -run regex such as -run 'TestA|TestB' is refused even inside quotes; write one command per test name (go test -run TestA ./pkg, then go test -run TestB ./pkg), use a shared name prefix (-run TestA matches TestA*), or commit a script and list it as sh path/to/script.sh\n")
+	}
 	l.exit(2)
 }
 

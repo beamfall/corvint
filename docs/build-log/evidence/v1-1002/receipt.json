@@ -1,0 +1,249 @@
+{
+ "runnerResources": {
+  "UserCPUNs": 1006330000,
+  "SystemCPUNs": 176311000,
+  "MaxRSSBytes": 215433216
+ },
+ "schedule": {
+  "workers": 1,
+  "starts": [
+   {
+    "fullName": " \u003e chromium \u003e keep.spec.cjs \u003e keep passes",
+    "file": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/keep.spec.cjs",
+    "line": 2,
+    "project": "chromium",
+    "retry": 0,
+    "retries": 0,
+    "worker": 0,
+    "fullyParallel": false
+   },
+   {
+    "fullName": " \u003e chromium \u003e keep.spec.cjs \u003e keep fails",
+    "file": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/keep.spec.cjs",
+    "line": 3,
+    "project": "chromium",
+    "retry": 0,
+    "retries": 0,
+    "worker": 0,
+    "fullyParallel": false
+   }
+  ]
+ },
+ "profile": "corvint-playwright-external/0",
+ "external": {
+  "readyUrl": "http://127.0.0.1:60144",
+  "declaredAppIdentity": "keep-reporters-v1",
+  "ownership": "external",
+  "cleanupResponsibility": "external",
+  "serverDescendants": "unknown",
+  "readyAtStart": true,
+  "readyAtPublish": true,
+  "runnerDescendantsGone": true,
+  "inputsUnchanged": true,
+  "configOverride": "const imported = require(\"/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/keep.config.cjs\");\nconst original = imported.default || imported;\nconst base = \"/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001\";\nconst resolve = value =\u003e require('node:path').resolve(base, value);\nconst modulePath = value =\u003e Array.isArray(value) ? value.map(modulePath) : typeof value === 'string' ? require.resolve(value, {paths:[base]}) : value;\nconst paths = object =\u003e { const result = {...object}; for (const key of ['testDir', 'outputDir', 'snapshotDir', 'tsconfig']) if (typeof result[key] === 'string') result[key] = resolve(result[key]); return result; };\nconst keptBuiltin = [\"blob\",\"dot\",\"github\",\"html\",\"json\",\"junit\",\"line\",\"list\",\"null\"];\nconst keptInvalid = () =\u003e { throw new Error('project-reporters-invalid'); };\nconst keptName = name =\u003e keptBuiltin.includes(name) ? name : name.startsWith('.') || require('node:path').isAbsolute(name) ? resolve(name) : (() =\u003e { try { return require.resolve(name, {paths:[base]}); } catch { return name; } })();\nconst keptOptions = (name, options) =\u003e { if (!['blob', 'html', 'json', 'junit'].includes(name) || (options !== undefined \u0026\u0026 (options === null || typeof options !== 'object' || Array.isArray(options)))) return options; const result = {configDir: base, ...options}; for (const key of ['outputFile', 'outputFolder', 'outputDir']) if (typeof result[key] === 'string') result[key] = resolve(result[key]); return result; };\nconst keptReporters = value =\u003e (value === undefined ? [] : typeof value === 'string' ? [value] : Array.isArray(value) ? value : keptInvalid()).map(entry =\u003e { const [name, options] = typeof entry === 'string' ? [entry] : Array.isArray(entry) \u0026\u0026 entry.length \u003e= 1 \u0026\u0026 entry.length \u003c= 2 \u0026\u0026 typeof entry[0] === 'string' ? entry : keptInvalid(); const resolved = keptName(name); const kept = keptOptions(resolved, options); return kept === undefined ? [resolved] : [resolved, kept]; });\nmodule.exports = {...paths(original), testDir: original.testDir ? resolve(original.testDir) : base, globalSetup: modulePath(original.globalSetup), globalTeardown: modulePath(original.globalTeardown), projects: original.projects?.map(paths), webServer: undefined, reporter: [[\"/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/corvint-playwright-196981742/reporter.cjs\", {output:\"/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/corvint-playwright-196981742/report.json\", sensitiveInputPolicy:null, keepReporters:true}], ...keptReporters(original.reporter)]};\n",
+  "projectReporters": {
+   "entries": [
+    {
+     "name": "list",
+     "module": "builtin",
+     "options": "absent"
+    },
+    {
+     "name": "html",
+     "module": "builtin",
+     "options": "bound",
+     "optionsDigest": "16cb0f4a2e9ebf6fa5b163e5a9bbc0c1d831f3b75aa528c4196f22fab709c4fa"
+    },
+    {
+     "name": "json",
+     "module": "builtin",
+     "options": "bound",
+     "optionsDigest": "aae116af613974f0b05ba45fc48ced3a2da7ccdb531283acc357994c1a8ae92c"
+    },
+    {
+     "name": "junit",
+     "module": "builtin",
+     "options": "bound",
+     "optionsDigest": "aae116af613974f0b05ba45fc48ced3a2da7ccdb531283acc357994c1a8ae92c"
+    },
+    {
+     "name": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/shape-reporter.cjs",
+     "module": "bound",
+     "moduleDigest": "6c1f53602697ce0207048c46ba39c5a694bcd448862dd8539c9a936ac5ae392f",
+     "options": "absent"
+    }
+   ],
+   "effects": "unknown"
+  },
+  "runner": {
+   "exitObserved": true,
+   "exitStatus": 1,
+   "signal": "",
+   "stopSignal": "",
+   "outputTruncated": false
+  }
+ },
+ "kind": "e2e",
+ "identity": {
+  "configInputDigests": {
+   "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/keep.config.cjs": "0c37fcaa5a12b4d3c0a56caef280aa28e529e9f66fee1599c055eeb576413097",
+   "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/keep.spec.cjs": "b551480e18683acd35dbe8574c7c52f644b179c8bf6174e756fa2741ef4f9ea6",
+   "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/shape-reporter.cjs": "6c1f53602697ce0207048c46ba39c5a694bcd448862dd8539c9a936ac5ae392f"
+  },
+  "testFileDigests": {
+   "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/keep.spec.cjs": "b551480e18683acd35dbe8574c7c52f644b179c8bf6174e756fa2741ef4f9ea6"
+  },
+  "configFile": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/keep.config.cjs",
+  "configDigest": "0c37fcaa5a12b4d3c0a56caef280aa28e529e9f66fee1599c055eeb576413097",
+  "packageDigest": "52f42769409a94c5d74bbb40e49bdbbfed29bc31f924f978741b24c6cfdfd0fc",
+  "nodeVersion": "v24.11.1",
+  "runnerName": "playwright",
+  "runnerVersion": "1.64.0",
+  "environment": {
+   "PLAYWRIGHT_BROWSERS_PATH": "~/Library/Caches/ms-playwright",
+   "PLAYWRIGHT_JSON_OUTPUT_NAME": "reports/run.json",
+   "PLAYWRIGHT_JUNIT_OUTPUT_NAME": "reports/junit.xml"
+  },
+  "argv": [
+   "npx",
+   "--no-install",
+   "playwright",
+   "test",
+   "--config=/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/corvint-playwright-196981742/playwright.config.cjs",
+   "keep.spec.cjs"
+  ]
+ },
+ "appBuildAtStart": {
+  "digest": "",
+  "unknown": true,
+  "reason": "no app build directory configured"
+ },
+ "appBuildAtPublish": {
+  "digest": "",
+  "unknown": true,
+  "reason": "no app build directory configured"
+ },
+ "staleAppBuild": false,
+ "tests": [
+  {
+   "id": "0aa16b69ec618d277e748da4697804e5e2cd9ec226e5a87ca38d8f76ee1395c0",
+   "project": {
+    "name": "chromium",
+    "browser": "chromium",
+    "device": "unknown",
+    "use": {
+     "browserName": "chromium",
+     "channel": "",
+     "colorScheme": "light",
+     "contextOptions": {},
+     "corvintBrowser": {
+      "arch": "arm64",
+      "browserRevision": "1248",
+      "browserType": "chromium",
+      "browserVersion": "Google Chrome for Testing 156.0.8078.4",
+      "channel": "",
+      "executableName": "chromium-headless-shell",
+      "executablePath": "~/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+      "executableSha256": "77d8278b1ac9d0687fad4e817ea83023ede09b1deef36e1864b49ba194ac9634",
+      "executableSource": "playwright-bundled",
+      "headlessShellAvailable": true,
+      "manifestBrowserVersion": "156.0.8078.4",
+      "nodeVersion": "v24.11.1",
+      "platform": "darwin"
+     },
+     "defaultBrowserType": "chromium",
+     "hasTouch": false,
+     "headless": true,
+     "isMobile": false,
+     "launchOptions": {},
+     "locale": "en-US",
+     "viewport": {
+      "height": 720,
+      "width": 1280
+     }
+    },
+    "configDigest": "0c37fcaa5a12b4d3c0a56caef280aa28e529e9f66fee1599c055eeb576413097"
+   },
+   "attempts": [
+    {
+     "state": "passed",
+     "retry": 0,
+     "failureKind": "none"
+    }
+   ],
+   "name": "keep passes",
+   "fullName": " \u003e chromium \u003e keep.spec.cjs \u003e keep passes",
+   "state": "passed",
+   "retries": 0,
+   "durationMs": 2,
+   "anchor": {
+    "file": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/keep.spec.cjs",
+    "line": 2
+   }
+  },
+  {
+   "id": "533fd80a241b96abedcc94bd35bf51e5578d89b220e4f572335a618d8a90ea9c",
+   "project": {
+    "name": "chromium",
+    "browser": "chromium",
+    "device": "unknown",
+    "use": {
+     "browserName": "chromium",
+     "channel": "",
+     "colorScheme": "light",
+     "contextOptions": {},
+     "corvintBrowser": {
+      "arch": "arm64",
+      "browserRevision": "1248",
+      "browserType": "chromium",
+      "browserVersion": "Google Chrome for Testing 156.0.8078.4",
+      "channel": "",
+      "executableName": "chromium-headless-shell",
+      "executablePath": "~/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+      "executableSha256": "77d8278b1ac9d0687fad4e817ea83023ede09b1deef36e1864b49ba194ac9634",
+      "executableSource": "playwright-bundled",
+      "headlessShellAvailable": true,
+      "manifestBrowserVersion": "156.0.8078.4",
+      "nodeVersion": "v24.11.1",
+      "platform": "darwin"
+     },
+     "defaultBrowserType": "chromium",
+     "hasTouch": false,
+     "headless": true,
+     "isMobile": false,
+     "launchOptions": {},
+     "locale": "en-US",
+     "viewport": {
+      "height": 720,
+      "width": 1280
+     }
+    },
+    "configDigest": "0c37fcaa5a12b4d3c0a56caef280aa28e529e9f66fee1599c055eeb576413097"
+   },
+   "attempts": [
+    {
+     "state": "failed",
+     "retry": 0,
+     "failureKind": "assertion-or-test"
+    }
+   ],
+   "name": "keep fails",
+   "fullName": " \u003e chromium \u003e keep.spec.cjs \u003e keep fails",
+   "state": "failed",
+   "retries": 0,
+   "durationMs": 1,
+   "anchor": {
+    "file": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/keep.spec.cjs",
+    "line": 3
+   },
+   "failureMessage": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m",
+   "artifacts": [
+    {
+     "name": "error-context",
+     "path": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/TestPWPV0010KeepReportersLive3320688137/001/results/keep-keep-fails-chromium/error-context.md"
+    }
+   ]
+  }
+ ],
+ "cancelled": false
+}

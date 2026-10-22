@@ -21,6 +21,29 @@ import (
 )
 
 func programRun(env Env, args []string) *wire.Result { return programCommand(env, "run", args) }
+
+// readProgramConfig reads one supervised program config file, relative to the
+// caller's working directory, with unknown fields and trailing input refused.
+func readProgramConfig(env Env, cmd []string, path string) (store.ProgramConfig, *wire.Result) {
+	var c store.ProgramConfig
+	raw, e := intent.ReadFile(commandPath(env.Cwd, path), 65536)
+	if e != nil {
+		return c, errorResult(cmd, e)
+	}
+	if e = wire.RawProfileVersion("/profile", raw, snapshot.SupervisedProfile); e != nil {
+		return c, errorResult(cmd, e)
+	}
+	d := json.NewDecoder(bytes.NewReader(raw))
+	d.DisallowUnknownFields()
+	if e = d.Decode(&c); e != nil {
+		return c, errorResult(cmd, e)
+	}
+	if d.Decode(new(any)) != io.EOF {
+		return c, usage(cmd, "trailing config input")
+	}
+	return c, nil
+}
+
 func programCommand(env Env, verb string, args []string) *wire.Result {
 	cmd := []string{verb}
 	values := map[string]string{}
@@ -40,22 +63,9 @@ func programCommand(env Env, verb string, args []string) *wire.Result {
 	if values["--program"] == "" || values["--config"] == "" {
 		return usage(cmd, "run requires --program and --config")
 	}
-	values["--config"] = commandPath(env.Cwd, values["--config"])
-	raw, e := intent.ReadFile(values["--config"], 65536)
-	if e != nil {
-		return errorResult(cmd, e)
-	}
-	if e = wire.RawProfileVersion("/profile", raw, snapshot.SupervisedProfile); e != nil {
-		return errorResult(cmd, e)
-	}
-	var c store.ProgramConfig
-	d := json.NewDecoder(bytes.NewReader(raw))
-	d.DisallowUnknownFields()
-	if e = d.Decode(&c); e != nil {
-		return errorResult(cmd, e)
-	}
-	if d.Decode(new(any)) != io.EOF {
-		return usage(cmd, "trailing config input")
+	c, bad := readProgramConfig(env, cmd, values["--config"])
+	if bad != nil {
+		return bad
 	}
 	repo, e := intent.Resolve(env.Cwd)
 	if e != nil {

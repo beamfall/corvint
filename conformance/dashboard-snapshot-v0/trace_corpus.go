@@ -462,10 +462,9 @@ func validateTraceRow(raw []byte, revision string, authority traceRepositoryAuth
 	if err != nil || !traceIDRE.MatchString(claimed) {
 		return nil, reject(rejectIdentity)
 	}
-	basisBytes, err := canonical(cloneWithout(trace, "trace_id"), false)
-	if typedRules {
-		basisBytes, err = canonicalTypedTrace(cloneWithout(trace, "trace_id"))
-	}
+	// Every trace schema derives trace_id over the producer's ASCII JSON (internal/trace/codec.go),
+	// so a v1 row with non-ASCII text is checked over the same bytes as a typed row (V1-0571).
+	basisBytes, err := canonicalTypedTrace(cloneWithout(trace, "trace_id"))
 	if err != nil {
 		return nil, err
 	}

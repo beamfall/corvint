@@ -232,3 +232,28 @@ entry; until then they are `NOT_PRODUCED`:
   that hit the 600 s limit across lane transcripts; targets under 1 h and under 10.
 - Idle lanes (V1-1631): `script/lane-idle-check.sh --gaps` over the batch's lane transcripts.
 - Disk (V1-1632): the `lane-clean.sh --apply` `SUMMARY` line of the one-off cleanup.
+
+## 8. Batch pull request pushes (ASD-V0-027)
+
+Every push to a pull request cancels that pull request's in-flight `ci.yml` run (AFP-V0-082
+`concurrency`, `cancel-in-progress`), so a batch pushed after each constituent merge pays for runs
+that never finish (V1-2253: 12 cancelled runs, about 250 runner-minutes, on 2026-10-21). The batch
+integrator therefore:
+
+- merges every constituent branch into the batch branch locally, runs the batch's local doc gates,
+  and pushes once;
+- after a CI failure, fixes every failure the run reported, then pushes once more (one push per
+  failure round);
+- never pushes a partial batch to "start CI early"; a constituent that arrives late joins the next
+  failure-round push or the next batch.
+
+Report, after the batch merges (count of cancelled `pull_request` runs on the batch branch):
+
+```sh
+gh run list --repo beamfall/corvint --workflow ci.yml --branch <batch-branch> --event pull_request \
+  --limit 200 --json conclusion --jq '[.[] | select(.conclusion == "cancelled")] | length'
+```
+
+Retain the per-batch counts in the batch's build-log entry. Target: at most 1 cancelled run per
+batch on average over 10 batches; the measurement under this procedure is `NOT_PRODUCED` until 10
+batches have run.
