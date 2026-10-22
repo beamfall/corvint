@@ -155,7 +155,8 @@ sub acceptance {
 # `unrecorded` or `owner`. Three near misses are refused: an auto-acceptance that omits the word
 # `standing` (it would read as `owner` or `unrecorded`); a leading parenthetical that affirms
 # acceptance but records no decision number or date; and an unparenthesized leading `accepted` or
-# `approved` note, which the reader never sees. An empty return is no near miss.
+# `approved` note, which the reader never sees. SRG-V0-044 adds a trailing `Status: (accepted ...)`
+# note on the definition line, also never seen. An empty return is no near miss.
 sub acceptance_near_miss {
     my ($text) = @_;
     if ($text =~ /\A\(/) {
@@ -180,6 +181,9 @@ sub acceptance_near_miss {
     }
     return 'the acceptance note is not parenthesized, so it is not read'
         if $text =~ /\A(?:accepted|approved)(?:,|:|\s+(?:by|under|on)\b|\s+\(|\s+[0-9]{4}-[0-9]{2}-[0-9]{2}\b)/i;
+    # SRG-V0-044: a trailing `Status: (accepted ...)` note on the definition line is never read.
+    return 'the acceptance note trails the definition as `Status: (...)`, so it is not read'
+        if $text =~ /\bStatus:\s*\((?:accepted|approved)\b/i;
     return '';
 }
 
