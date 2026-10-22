@@ -115,6 +115,9 @@ type Report struct {
 	// ScopeWarnings are the CAL-V0-211 warnings of a fresh claim: each
 	// exact PATH key of its scope that names a directory at its base commit.
 	ScopeWarnings []string
+	// GrantWarnings name the grants a fresh claim on an APPROVAL_REQUIRED
+	// ticket still lacks through completion (ATR-V0-274).
+	GrantWarnings []string
 	// Scope is the effective scope a claim reserved, read from its
 	// receipt's attempt (ATR-V0-211); nil for any other command.
 	Scope *snapshot.Scope

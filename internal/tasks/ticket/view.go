@@ -267,22 +267,14 @@ func (inv *Inventory) View(id string, ctx Context) (View, bool) {
 	switch rec.ExecutionClass {
 	case "AUTONOMOUS":
 	case "APPROVAL_REQUIRED":
-		granted := false
-		revoked := false
-		for _, a := range rec.Approvals {
-			if a.Operation == "RUN" && a.TargetRevision == rec.AcceptanceRevision {
-				if a.Revoked {
-					revoked = true
-				} else {
-					granted = true
-				}
-			}
-		}
+		granted, revoked := grantState(rec, "RUN")
 		if !granted {
+			// ATR-V0-272: name every grant still missing through completion.
+			through := "; grants missing through completion: " + strings.Join(MissingGrants(rec), ",")
 			if revoked {
-				add(wire.CodeApprovalRevoked, "", "the RUN grant at acceptanceRevision "+string(rec.AcceptanceRevision)+" is revoked")
+				add(wire.CodeApprovalRevoked, "", "the RUN grant at acceptanceRevision "+string(rec.AcceptanceRevision)+" is revoked"+through)
 			} else {
-				add(wire.CodeApprovalMissing, "", "no RUN grant at acceptanceRevision "+string(rec.AcceptanceRevision))
+				add(wire.CodeApprovalMissing, "", "no RUN grant at acceptanceRevision "+string(rec.AcceptanceRevision)+through)
 			}
 		}
 	default:
@@ -482,4 +474,41 @@ func (rec *Record) EscalationPending() []string {
 	}
 	ids, _ := wire.EscalationPending(string(rec.AcceptanceRevision), entries)
 	return ids
+}
+
+// grantedThroughCompletion is the closed, ordered set of operations an
+// APPROVAL_REQUIRED ticket needs a grant for on its claim-to-complete path:
+// RUN to claim, COMPLETE to complete (§3.2, §7.3 row 12).
+var grantedThroughCompletion = []string{"RUN", "COMPLETE"}
+
+// grantState says whether the record holds an unrevoked grant for op at its
+// current acceptanceRevision, and whether a grant there was revoked.
+func grantState(rec *Record, op string) (granted, revoked bool) {
+	for _, a := range rec.Approvals {
+		if a.Operation == op && a.TargetRevision == rec.AcceptanceRevision {
+			if a.Revoked {
+				revoked = true
+			} else {
+				granted = true
+			}
+		}
+	}
+	return granted, revoked
+}
+
+// MissingGrants lists, in lifecycle order, the operations of an
+// APPROVAL_REQUIRED ticket that hold no unrevoked grant at its current
+// acceptanceRevision; it is empty for every other execution class
+// (ATR-V0-272, ATR-V0-273).
+func MissingGrants(rec *Record) []string {
+	out := []string{}
+	if rec.ExecutionClass != "APPROVAL_REQUIRED" {
+		return out
+	}
+	for _, op := range grantedThroughCompletion {
+		if granted, _ := grantState(rec, op); !granted {
+			out = append(out, op)
+		}
+	}
+	return out
 }
