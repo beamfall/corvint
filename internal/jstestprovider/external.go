@@ -102,13 +102,13 @@ func qualifiedPlaywrightVersion(version string) bool {
 var qualifiedReporter []byte
 
 type qualifiedReport struct {
-	Schedule             *ExecutionSchedule    `json:"schedule,omitempty"`
-	ConfigFiles          map[string]string     `json:"configFiles"`
-	Version              string                `json:"version"`
-	Files                map[string]string     `json:"files"`
-	Status               string                `json:"status"`
-	Tests                []TestOutcome         `json:"tests"`
-	Errors               []string              `json:"errors"`
+	Schedule    *ExecutionSchedule `json:"schedule,omitempty"`
+	ConfigFiles map[string]string  `json:"configFiles"`
+	Version     string             `json:"version"`
+	Files       map[string]string  `json:"files"`
+	Status      string             `json:"status"`
+	Tests       []TestOutcome      `json:"tests"`
+	Errors      []string           `json:"errors"`
 	// ErrorLocations is emitted only by a `/3` run with run-level errors: one reported location,
 	// or null, per error (PWP-V3-009).
 	ErrorLocations       []*Anchor             `json:"errorLocations,omitempty"`
