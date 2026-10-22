@@ -265,6 +265,8 @@
       "go.mod",
       "internal/remoteprovider/"
     ],
+    "internal/flowcoverage": [],
+    "internal/flowdocs": [],
     "internal/frontier": [
       "benchmarks/expert-audit-followup/finite-policy.json",
       "protocol/cem-1.0/stable/RESULT.schema.json"
@@ -396,6 +398,7 @@
     "internal/testrunner/native": [],
     "internal/testrunner/platform": [],
     "internal/testrunner/registry": [],
+    "internal/testrunner/sql": [],
     "internal/testsource": [],
     "internal/testvaliditydoc": [
       "conformance/test-validity-v0/route-stubs.json"
