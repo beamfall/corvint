@@ -535,6 +535,17 @@ tasks-test: go-version
 	$(GO_TEST_COMMAND) ./cmd/corvint-tasks/... ./internal/tasks/...
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go vet ./cmd/corvint-tasks/... ./internal/tasks/...
 
+# test-shard runs shard SHARD of SHARDS of one slow Go test package through script/heavy.sh, so a
+# package over the agent's 600 s foreground limit runs as bounded pieces that together cover every
+# top-level test exactly once (ASD-V0-026, tools/test-shards). Reference splits:
+# PKG=./internal/tasks/store SHARDS=8 and PKG=./internal/tasks/cli SHARDS=4, SHARD=0..SHARDS-1.
+.PHONY: test-shard
+test-shard: go-version
+	@test -n "$(PKG)" && test -n "$(SHARDS)" && test -n "$(SHARD)" || { echo "usage: make test-shard PKG=./internal/tasks/store SHARDS=8 SHARD=0" >&2; exit 2; }
+	@sel=$$(script/heavy.sh env GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/test-shards -shards '$(SHARDS)' -shard '$(SHARD)' '$(PKG)') && \
+	  flag=$${sel%% *} && pattern=$${sel#* } && \
+	  script/heavy.sh env GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test -count=1 -timeout $(GO_TEST_TIMEOUT) $(TEST_SHARD_FLAGS) "$$flag" "$$pattern" '$(PKG)'
+
 # shell-test is the shell full command .github/cishards/test-commands.json declares (STR-V0-004):
 # exactly the GATE_STEPS steps whose recipe runs a script/*_test.sh, so it runs the shell suites
 # make gate runs and no others. TestSTRV0004ShellTestIsTheGateShellSteps

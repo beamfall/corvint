@@ -695,7 +695,7 @@
     "path": "docs/specs/corvint-self-development-v0.md",
     "title": "Corvint Self-Development V0",
     "reqPrefix": "ASD-V0",
-    "intent": "accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08); ASD-V0-013..025 accepted under the owner's standing auto-accept (2026-10-11) (V1-1627..V1-1632, V1-1755, V1-1910, V1-0360, V1-1978, V1-1725, V1-1953, V1-1979)",
+    "intent": "accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08); ASD-V0-013..026 accepted under the owner's standing auto-accept (2026-10-11) (V1-1627..V1-1632, V1-1755, V1-1910, V1-0360, V1-1978, V1-1725, V1-1953, V1-1979, V1-1956)",
     "delivery": "experimental",
     "claim": "Corvint development selects applicable existing feature routes, preserves real use evidence, and finishes through the existing local completion policy.",
     "dependsOn": [
@@ -3555,7 +3555,7 @@
     "path": "docs/specs/tasks-criterion-binding-v0.md",
     "title": "Tasks criterion binding V0",
     "reqPrefix": "TCB-V0",
-    "intent": "proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356); TCB-V0-030..031 accepted under it (V1-1358); TCB-V0-035..039 accepted under it (V1-1359); TCB-V0-040..044 accepted under it (V1-1377)",
+    "intent": "proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356); TCB-V0-030..031 accepted under it (V1-1358); TCB-V0-035..039 accepted under it (V1-1359); TCB-V0-040..044 accepted under it (V1-1377); TCB-V0-045 accepted under it (V1-1761)",
     "delivery": "experimental",
     "claim": "Native Tasks captures and verifies coherent claim-era criterion bindings; Core consumes only the Tasks wire contract.",
     "dependsOn": [
