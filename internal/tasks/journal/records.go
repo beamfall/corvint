@@ -347,6 +347,12 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 		if strings.HasPrefix(p.Path, "requests/") && st.elided != nil && st.elided.HasRequest(p.Path) {
 			return errCheckpoint(p.Path, "request ID repeats one retained before the checkpoint")
 		}
+		if strings.HasPrefix(p.Path, "requests/") && st.resumed > 0 && prior.seq == "" && rc.Pre[j].Sha256 != nil {
+			// A request is posted once, so a pre-state means the path already
+			// held a request: one the read checkpoint does not retain. The
+			// complete audit classifies it (PSR-V0-190, V1-0917).
+			return errCheckpoint(p.Path, "request post names a pre-state the checkpoint does not retain")
+		}
 		if !found && st.count() >= lim.scan+intent.MaxIntentRootEntries+wire.MaxTicketsPerQueue+wire.MaxReleasesPerQueue {
 			return wire.Errorf(wire.CodeLimitExceeded, p.Path, "latest metadata exceeds store scan bound")
 		}

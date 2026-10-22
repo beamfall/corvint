@@ -640,7 +640,57 @@ func success(cmd []string, rc *readCtx) *wire.Result {
 	if rc.journalAbsent {
 		return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Warnings: []string{"journal-absent; unaudited current worktree intent projection; journal history and liveness NOT_OBSERVED"}}
 	}
-	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Snapshot: rc.snap.EnvelopeSnapshot(rc.repo.PrimaryWorktreeSha256(), false)}
+	res := &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Snapshot: rc.snap.EnvelopeSnapshot(rc.repo.PrimaryWorktreeSha256(), false)}
+	if w := projectionStale(rc); w != "" {
+		res.Warnings = append(res.Warnings, w)
+	}
+	return res
+}
+
+// projectionStale is the read's cheap journal check (PSR-V0-191, V1-0324).
+// A read still serves the intent projection without blocking (TCP-00 §3.3),
+// but it compares the projection with the head receipt the snapshot already
+// read and bound to head.json's lastSeq and lastReceiptSha256: every intent
+// afterimage that receipt posts must be the projected file. A difference is
+// a PROJECTION_STALE warning naming the projected tree and the current head;
+// only a writer refuses INTENT_DIVERGED. It reads no file beyond the snapshot,
+// so it sees only the paths the head receipt posted.
+// maxStaleNamed bounds the paths one PROJECTION_STALE warning names.
+const maxStaleNamed = 4
+
+func projectionStale(rc *readCtx) string {
+	if rc == nil || rc.snap == nil || rc.snap.Head == nil || rc.snap.Head.LastReceiptSha256 == nil || rc.store == nil || rc.snap.LastReceiptRaw == nil {
+		return ""
+	}
+	rcpt, err := snapshot.DecodeReceipt(rc.snap.LastReceiptRaw)
+	if err != nil {
+		// An elided liveness receipt posts no intent afterimage.
+		return ""
+	}
+	var stale []string
+	for _, p := range rcpt.Post {
+		rel, ok := strings.CutPrefix(p.Path, "intent/")
+		if !ok {
+			continue
+		}
+		got, present := rc.store.Digests[rel]
+		switch {
+		case p.Sha256 == nil && present:
+			stale = append(stale, p.Path+" projected sha256 "+string(got)+", head deletes it")
+		case p.Sha256 != nil && !present:
+			stale = append(stale, p.Path+" absent from the projection, head afterimage sha256 "+string(*p.Sha256))
+		case p.Sha256 != nil && got != *p.Sha256:
+			stale = append(stale, p.Path+" projected sha256 "+string(got)+", head afterimage sha256 "+string(*p.Sha256))
+		}
+	}
+	if len(stale) == 0 {
+		return ""
+	}
+	if n := len(stale); n > maxStaleNamed {
+		stale = append(stale[:maxStaleNamed], "and "+strconv.Itoa(n-maxStaleNamed)+" more")
+	}
+	head := rc.snap.Head
+	return prose("PROJECTION_STALE; the intent projection (tree sha256 " + string(rc.snap.IntentTree) + ") differs from journal head seq " + string(head.LastSeq) + " (receipt sha256 " + string(*head.LastReceiptSha256) + "): " + strings.Join(stale, "; ") + "; this read served the projection as it is, and a writer's journal audit refuses INTENT_DIVERGED over it")
 }
 
 // flags parses `--name value` / `--name=value` pairs; positional arguments
