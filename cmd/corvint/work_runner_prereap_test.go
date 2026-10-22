@@ -4,9 +4,13 @@ package main
 
 import (
 	"context"
+	"errors"
+	"io"
+	"io/fs"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -48,6 +52,65 @@ func TestV11036WorkRunnerResidueIsObservedBeforeReap(t *testing.T) {
 			}
 			if calls != 1 {
 				t.Fatalf("pre-reap residue observation calls = %d, want 1", calls)
+			}
+		})
+	}
+}
+
+// V1-2433: an adapter start refused "text file busy", as a concurrent fork
+// holding materialization's write descriptor makes it on Linux, is retried
+// with a fresh command instead of failing the capture as ADAPTER_FAILED; a
+// start that stays busy past the bounded retries still fails, and any other
+// start error is not retried. A cancellation or deadline that ends the context
+// during the retry wait stops the retries and reports the context's cause
+// (CANCELLED or INPUT_LIMIT), never the busy start's ADAPTER_FAILED.
+func TestV12433WorkRunnerRetriesTextBusyAdapterStart(t *testing.T) {
+	previous := workStartLive
+	t.Cleanup(func() { workStartLive = previous })
+	for _, tc := range []struct {
+		name       string
+		busy       int
+		cause      error
+		interrupt  string
+		wantStarts int
+		wantErr    error
+		wantCode   string
+	}{
+		{"busy then started", 2, syscall.ETXTBSY, "", 3, nil, ""},
+		{"busy past the retries", 100, syscall.ETXTBSY, "", 1 + len(workTextBusyRetries), syscall.ETXTBSY, "ADAPTER_FAILED"},
+		{"other start error", 100, syscall.EACCES, "", 1, syscall.EACCES, "ADAPTER_FAILED"},
+		{"cancelled during the retry", 100, syscall.ETXTBSY, "cancelled", 1, context.Canceled, "CANCELLED"},
+		{"deadline during the retry", 100, syscall.ETXTBSY, "deadline", 1, context.DeadlineExceeded, "INPUT_LIMIT"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, interrupt := context.Context(context.Background()), func() {}
+			if tc.interrupt != "" {
+				ctx, interrupt = workFinalInterruption(tc.interrupt)
+			}
+			defer interrupt()
+			starts := 0
+			commands := map[*exec.Cmd]bool{}
+			workStartLive = func(command *exec.Cmd) error {
+				starts++
+				if commands[command] {
+					t.Error("a command was started twice")
+				}
+				commands[command] = true
+				if starts <= tc.busy {
+					// The context ends after the first refused start, while
+					// the runner decides whether to retry.
+					interrupt()
+					return &fs.PathError{Op: "fork/exec", Path: command.Path, Err: tc.cause}
+				}
+				return previous(command)
+			}
+			runner := workTestRunner(t, ctx, "#!/bin/sh\nexit 0\n")
+			_, receipt, err := runner.run("snapshot", []string{}, 100)
+			if starts != tc.wantStarts || (err == nil) != (tc.wantErr == nil) {
+				t.Fatalf("starts=%d err=%v receipt=%+v; want %d starts, error %v", starts, err, receipt, tc.wantStarts, tc.wantErr)
+			}
+			if tc.wantErr != nil && (!errors.Is(err, tc.wantErr) || runner.commandError(err, io.Discard) != tc.wantCode) {
+				t.Fatalf("failed start = %v (%s), want %v (%s)", err, runner.commandError(err, io.Discard), tc.wantErr, tc.wantCode)
 			}
 		})
 	}
