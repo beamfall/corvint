@@ -28,8 +28,12 @@ marked superseded.
 
 - `TestCheckDCWV0160ComputesOCMStatusOnce` counts one tree run, with no base or override run, both
   declared and undeclared, including when the base would refuse.
-- Without the change, the test fails with `verifier-disagreement`.
-- Wall times: TIMINGS.
+- Without the change, the test fails with `runs = map[base:1 override:1 tree:1]`, which is three
+  runs where one is wanted.
+- Wall times: the before/after time of one `dogfood check` on this change is measured in the
+  terminal dogfood clone, with the base build (old driver) and the tree build (new driver) run
+  against the same report. The bound diff cannot carry numbers measured after it is bound, so they
+  are recorded in the pull request body.
 
 ## V1-2355: drafts were never anchored
 
@@ -71,6 +75,10 @@ mirrors, and is not a small fix. The drafter remedy above removes the warnings f
 ## NOT_RUN
 
 - Tier 2 of `corvint affected` (batch CI).
+- Tier 1 importers beyond the cap of 15: `internal/console`, `internal/criterionexperiment`,
+  `internal/doccorpus`, `internal/lrfrepo`, `internal/taskman`, `internal/witnesscollapse`,
+  `cmd/corvint-cem-candidate`, `cmd/corvint-dashboard-snapshot`, and `cmd/corvint` (not changed
+  directly).
 - `make gate`.
 
 ## Rollback
