@@ -92,22 +92,22 @@ func receiptLinked(t *testing.T, repo *intent.Repository, seq uint64) bool {
 	return on
 }
 
-func withSealStop(t *testing.T, stage string) {
+func withSealStop(t *testing.T, repo *intent.Repository, stage string) {
 	t.Helper()
-	prior := segmentSealStage
-	segmentSealStage = func(s string) error {
+	segmentSealStages.Store(repo.StateDir, func(s string) error {
 		if s == stage {
 			return errSegmentSealStop
 		}
 		return nil
-	}
-	t.Cleanup(func() { segmentSealStage = prior })
+	})
+	t.Cleanup(func() { segmentSealStages.Delete(repo.StateDir) })
 }
 
 // TestJSGV0005_SealUnsealRollback seals a settled store, checks the sealed
 // journal audits, keeps its inventory and serves sealed files by logical
 // path, then unseals it back to the byte-identical prior state directory.
 func TestJSGV0005_SealUnsealRollback(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	repo := historyStore(t, segmentHistory)
 	before := stateTree(t, repo)
@@ -195,6 +195,7 @@ func TestJSGV0005_SealUnsealRollback(t *testing.T) {
 // segmented store, and that the same write leaves an unsegmented store as
 // it is, so no write converts a store a prior binary reads.
 func TestJSGV0008_WriterSealsOnlySegmentedStores(t *testing.T) {
+	t.Parallel()
 	const history = 3*snapshot.SegmentReceipts - 1
 	plain := historyStore(t, history)
 	historyMutate(t, plain, "jsg-unsegmented")
@@ -222,20 +223,22 @@ func TestJSGV0008_WriterSealsOnlySegmentedStores(t *testing.T) {
 // lock-free audit reports the pending seal, and the next writer settles it:
 // back to the prior head before the head is published, forward after.
 func TestJSGV0008_SealStopsSettle(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		stage   string
 		through uint64
 	}{{"marker", 0}, {"segment", 0}, {"head", snapshot.SegmentReceipts}, {"dropped", snapshot.SegmentReceipts}} {
 		t.Run(tc.stage, func(t *testing.T) {
+			t.Parallel()
 			repo := historyStore(t, segmentHistory)
-			withSealStop(t, tc.stage)
+			withSealStop(t, repo, tc.stage)
 			if err := sealSegmentsLocked(context.Background(), repo); !errors.Is(err, errSegmentSealStop) {
 				t.Fatalf("seal: %v", err)
 			}
 			if _, err := segmentAudit(repo); wire.CodeOf(err) != wire.CodeRedoPending {
 				t.Fatalf("audit with a pending seal: %v, want REDO_PENDING", err)
 			}
-			segmentSealStage = func(string) error { return nil }
+			segmentSealStages.Delete(repo.StateDir)
 			if err := settleSegmentSeal(repo); err != nil {
 				t.Fatal(err)
 			}
@@ -269,9 +272,11 @@ func TestJSGV0008_SealStopsSettle(t *testing.T) {
 // still linked with bytes that differ from the sealed ones. Nothing is
 // removed in either case.
 func TestJSGV0008_SealSettleRefusesForeignState(t *testing.T) {
+	t.Parallel()
 	t.Run("foreign head", func(t *testing.T) {
+		t.Parallel()
 		repo := historyStore(t, segmentHistory)
-		withSealStop(t, "segment")
+		withSealStop(t, repo, "segment")
 		if err := sealSegmentsLocked(context.Background(), repo); !errors.Is(err, errSegmentSealStop) {
 			t.Fatalf("seal: %v", err)
 		}
@@ -290,8 +295,9 @@ func TestJSGV0008_SealSettleRefusesForeignState(t *testing.T) {
 		}
 	})
 	t.Run("linked file differs", func(t *testing.T) {
+		t.Parallel()
 		repo := historyStore(t, segmentHistory)
-		withSealStop(t, "head")
+		withSealStop(t, repo, "head")
 		if err := sealSegmentsLocked(context.Background(), repo); !errors.Is(err, errSegmentSealStop) {
 			t.Fatalf("seal: %v", err)
 		}
@@ -316,6 +322,7 @@ func TestJSGV0008_SealSettleRefusesForeignState(t *testing.T) {
 // when a receipt to seal does not chain or a request afterimage differs from
 // the digest its receipt posted.
 func TestJSGV0008_SealDeclinesUnprovenInput(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name string
 		code string
@@ -375,6 +382,7 @@ func firstSealedRequest(t *testing.T, repo *intent.Repository) string {
 // manifest refuses the audit and every writer, and that a logical read whose
 // head names a manifest a later seal replaced is a moved observation.
 func TestJSGV0006_SegmentTamperAndMovedReads(t *testing.T) {
+	t.Parallel()
 	seal := func(t *testing.T) *intent.Repository {
 		repo := historyStore(t, segmentHistory)
 		if err := sealSegmentsLocked(context.Background(), repo); err != nil {
@@ -417,6 +425,7 @@ func TestJSGV0006_SegmentTamperAndMovedReads(t *testing.T) {
 // bind, and segments beside an unsegmented head are each a fork that both a
 // reader and a writer report.
 func TestJSGV0007_SegmentLayoutRefusals(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		seal   bool

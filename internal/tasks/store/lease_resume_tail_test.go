@@ -29,7 +29,7 @@ func (f resumeFixture) otherClaims(t *testing.T, n int) []*Report {
 			t.Fatalf("create %d: %+v %v", i, created.rep, created.err)
 		}
 		// newResumeFixture fixed the attempt entropy; each claim needs its own.
-		attemptEntropy = fixedEntropy(byte(40 + i))
+		attemptEntropies.Store(f.repo.StateDir, fixedEntropy(byte(40+i)))
 		claim := stagedWrite(f.lease(fmt.Sprintf("tail-claim-%d", i), transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: created.rep.Ticket, Holder: fmt.Sprintf("worker-%d", i), LeaseMinutes: "60", Scope: []string{fmt.Sprintf("w%d/", i)}}), nil)
 		if !claim.completed() {
 			t.Fatalf("claim %d: %+v %v", i, claim.rep, claim.err)
@@ -75,6 +75,7 @@ func replaceKeepingStamps(t *testing.T, p string, old, new []byte) {
 // the new head and does not allocate a member its stale FREE view showed,
 // and it decides exactly as the complete route decides that journal.
 func TestPSRV0113_ResumeDecidesNonHeartbeatTail(t *testing.T) {
+	t.Parallel()
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}
@@ -109,6 +110,7 @@ func TestPSRV0113_ResumeDecidesNonHeartbeatTail(t *testing.T) {
 // and the acquire ends with the complete route's own decision for that
 // journal. No receipt kind or verb is trusted to bound what a tail changed.
 func TestPSRV0113_ForgedHeartbeatTailNeverCommits(t *testing.T) {
+	t.Parallel()
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}
@@ -202,6 +204,7 @@ func forgeHeartbeatRequest(t *testing.T, f resumeFixture) {
 // modelling, is caught by the resume recheck: the write declines, the head
 // stays, and the acquire ends with the complete route's own decision.
 func TestPSRV0116_TailRewrittenAfterAuditNeverCommits(t *testing.T) {
+	t.Parallel()
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}
@@ -247,6 +250,7 @@ func TestPSRV0116_TailRewrittenAfterAuditNeverCommits(t *testing.T) {
 // every preparation round, on the writing goroutine, so a detached child can
 // keep its round count and audit time where a PENDING attach reads them.
 func TestPSRV0112_LeaseProgressAfterEachRound(t *testing.T) {
+	t.Parallel()
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}

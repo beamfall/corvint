@@ -484,6 +484,7 @@ func TestJRTV0011_InterruptedUnretireIsOldOrNew(t *testing.T) {
 // The sealed audit reads the anchor and later receipts only, so its cost no
 // longer grows with the retired history.
 func TestJRTV0013_RetireBoundsAuditCost(t *testing.T) {
+	t.Parallel()
 	cycles := 40
 	if v := os.Getenv("JRT_MEASURE_CYCLES"); v != "" {
 		n, err := strconv.Atoi(v)

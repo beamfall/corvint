@@ -37,9 +37,7 @@ func newResumeFixture(t *testing.T) resumeFixture {
 // checkpoint the route already serves.
 func resumeFixtureOn(t *testing.T, repo *intent.Repository) resumeFixture {
 	t.Helper()
-	entropy := attemptEntropy
-	attemptEntropy = fixedEntropy(11)
-	t.Cleanup(func() { attemptEntropy = entropy })
+	fixAttemptEntropy(t, repo, fixedEntropy(11))
 	poolLeasePolicy(t, repo)
 	if run := writerMutate(t, repo, "resume-reseed", nil); !run.completed() {
 		t.Fatalf("reseed: %+v %v", run.rep, run.err)
@@ -126,6 +124,7 @@ func movingStaged(t *testing.T, f resumeFixture, write func(context.Context) (*R
 // resumed write, the same bytes and report as the complete route on the
 // same pre-state.
 func TestPSRV0052_PoolAcquireResumesUnderWriter(t *testing.T) {
+	t.Parallel()
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}
@@ -171,6 +170,7 @@ func TestPSRV0052_PoolAcquireResumesUnderWriter(t *testing.T) {
 // PSR-V0-052 (proposed): widen, which stays off the retained-checkpoint
 // route (CAL-V0-116), also resumes from its own audit when overtaken.
 func TestPSRV0052_WidenResumesUnderWriter(t *testing.T) {
+	t.Parallel()
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}
@@ -187,6 +187,7 @@ func TestPSRV0052_WidenResumesUnderWriter(t *testing.T) {
 // declines, the command keeps the complete audit, and the acquire ends with
 // the complete route's own refusal for the held journal.
 func TestPSRV0053_ResumeKeepsRewrittenPrefixDetection(t *testing.T) {
+	t.Parallel()
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}
@@ -235,6 +236,7 @@ func TestPSRV0053_ResumeKeepsRewrittenPrefixDetection(t *testing.T) {
 // committed over the rewritten prefix, and the command keeps the complete
 // route's own decision for that journal.
 func TestPSRV0056_ResumeRechecksBaseBeforeCommit(t *testing.T) {
+	t.Parallel()
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}
@@ -268,6 +270,7 @@ func TestPSRV0056_ResumeRechecksBaseBeforeCommit(t *testing.T) {
 // base and the next round resumes under the writer lock: on the base every
 // round ends at the guard and the acquire runs out of rounds.
 func TestPSRV0054_OvertakenGuardStillResumes(t *testing.T) {
+	t.Parallel()
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}
@@ -290,6 +293,7 @@ func TestPSRV0054_OvertakenGuardStillResumes(t *testing.T) {
 // resumed audit declines, the guardless rounds decide nothing, and the
 // acquire ends with nothing written.
 func TestPSRV0054_OvertakenGuardKeepsRewrittenPrefixDetection(t *testing.T) {
+	t.Parallel()
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}

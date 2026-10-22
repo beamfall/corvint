@@ -135,6 +135,7 @@ func identityDeclines(run writerRun) int {
 // the confirmation commits on the writer route against the observation it
 // revalidated under the lock, and the command ran exactly once.
 func TestPSRV0168_IdentityProbeOutsideWriterLock(t *testing.T) {
+	t.Parallel()
 	f := newIdentityLockFixture(t)
 	run, count := f.confirm(t, func() {
 		concurrent := writerMutate(t, f.repo, "identity-concurrent", nil)
@@ -162,6 +163,7 @@ func TestPSRV0168_IdentityProbeOutsideWriterLock(t *testing.T) {
 // writer route declines again and the complete route observes afresh: the
 // stale observation is never committed.
 func TestPSRV0168_IdentityProbeStaleStateNotReused(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name   string
 		change func(t *testing.T, f *identityLockFixture)

@@ -40,6 +40,7 @@ func newSealedResumeFixture(t *testing.T) resumeFixture {
 // (PSR-V0-052), instead of rerunning the complete audit in every round and
 // ending SNAPSHOT_MOVED.
 func TestJSGV0011_SealedStoreWidenAndReapResume(t *testing.T) {
+	t.Parallel()
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}
@@ -73,6 +74,7 @@ func TestJSGV0011_SealedStoreWidenAndReapResume(t *testing.T) {
 // the writer lock, is never committed over. The resume declines and the
 // command keeps the complete route's own decision for that journal.
 func TestJSGV0011_ResumeDeclinesRewrittenSegment(t *testing.T) {
+	t.Parallel()
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}
