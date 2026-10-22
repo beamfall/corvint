@@ -256,7 +256,9 @@ func scanIntent(repo *intent.Repository) ([]archive.FileEntry, error) {
 func scanIntentWithReader(repo *intent.Repository, read inventoryReader, observed ...map[string]journal.PhysicalFile) ([]archive.FileEntry, error) {
 	root := filepath.Join(repo.IntentRoot(), intent.Dir)
 	files := []archive.FileEntry{}
-	for _, name := range []string{"queue.json", "policy.json"} {
+	// The import map is listed like the intent tree lists it (CTS-V0-014), so
+	// the inventory and the journal's intent tree digest name the same files.
+	for _, name := range []string{intent.QueueFile, intent.PolicyFile, intent.ImportMapFile} {
 		entry, ok, err := fileEntryWithReader(filepath.Join(root, name), "intent/"+name, read, observed...)
 		if err != nil {
 			return nil, err

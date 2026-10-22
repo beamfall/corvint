@@ -48,6 +48,10 @@ feature cut, the Beamfall roadmap takeover (V1-0464, `PRS-V1-014` and `PRS-V1-01
 because its prerequisite V1-0398 is post-1.0
 (`../build-log/2026-10-21-v1-0461-criterion-3-post-1-0.md`). Stable 1.0 makes no claim that Tasks
 replaces Beamfall's roadmap writers; `corvint-tasks` stays a companion with its own qualification.
+**Amendment 2026-10-22 (V1-0398).** The owner moved V1-0398 into 1.0 on 2026-10-22. Its writer
+for import-mapped non-fixture queues is specified by CTS-V0-014 to CTS-V0-017 in
+`corvint-tasks-store-init-v0.md` (`../build-log/2026-10-22-tw-1022m.md`). That removes the
+prerequisite named above but does not by itself move the Beamfall roadmap takeover back into 1.0.
 Decision 0544 item 2 still records the accepted Core cutover deviations, but no longer places that
 activation inside the 1.0 promotion. The text below describes the deferred direction, kept for
 the post-1.0 work. Native claims and gates alone do not establish full Tasks takeover: independent

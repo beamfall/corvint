@@ -459,7 +459,12 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 		return err
 	}
 	if seq == 1 {
-		if len(rc.Post) != 5+requestCount || descriptorCount != 1 || !requiredGenesis["VERSION"] || !requiredGenesis["intent/queue.json"] || !requiredGenesis["intent/policy.json"] || !requiredGenesis["reservations.json"] {
+		// A non-fixture queue's genesis may also post its import map (CTS-V0-014).
+		maps := 0
+		if requiredGenesis["intent/import-map.json"] {
+			maps = 1
+		}
+		if len(rc.Post) != 5+requestCount+maps || descriptorCount != 1 || !requiredGenesis["VERSION"] || !requiredGenesis["intent/queue.json"] || !requiredGenesis["intent/policy.json"] || !requiredGenesis["reservations.json"] {
 			return wire.Errorf(wire.CodeJournalForked, name, "genesis requires VERSION blob, queue, policy, empty reservations and unique INIT descriptor")
 		}
 		if st.init.VersionSha256 != wire.Sum([]byte(snapshot.VersionBytes)) || st.init.QueueID != r.QueueID || st.init.PrimaryWorktree != r.PrimaryWorktree {

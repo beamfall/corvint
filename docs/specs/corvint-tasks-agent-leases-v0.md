@@ -71,7 +71,8 @@ editing its own worktree but can neither move its attempt nor complete the ticke
 External-agent non-goals (S10 explicitly qualifies only its own Codex children): a supervisor, `lane-leader`, process-group signalling of external agents or any §6.4 spawn effect; creating,
 removing or inspecting worktrees; budgets beyond reporting them `NOT_OBSERVED`; review lanes (§7.2)
 and the completion-manifest reducer beyond the tree and gate check in CAL-V0-016; fanout (TCP-07) and
-routing (TCP-08); the import-map writer; automatic reaping by anything other than an invoked command
+routing (TCP-08); the import-map writer (until 2026-10-22, when CTS-V0-014 to CTS-V0-017 in
+`corvint-tasks-store-init-v0.md` specified it for V1-0398); automatic reaping by anything other than an invoked command
 (no daemon, no timer); any network use; and any change to another repository. Switching Beamfall's
 agents and `roadmap.sh` onto these verbs is a separate, owner-run step in the Beamfall repository
 (TCP-09), taken only after S7 below.
@@ -172,7 +173,9 @@ S1, non-fixture writer.
 - `CAL-V0-001`: The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and
   `policy update` to a queue whose `fixture` is false and whose `importMapSha256` is null, under
   exactly the checks it applies to a fixture queue. A queue with a non-null `importMapSha256` stays
-  refused.
+  refused unless its map is bound: since 2026-10-22 a non-fixture queue whose journaled map matches
+  that digest takes the same writes under CTS-V0-014 to CTS-V0-017 (V1-0398); a fixture queue that
+  names a map, or a non-fixture queue whose map is absent or mismatched, stays refused.
 - `CAL-V0-002`: A non-fixture queue MUST refuse `claim` until its `executionCutover` names an owner
   decision and a `QUALIFICATION` receipt for the CAL-V0-019 suite exists at or before the head
   (CAL-V0-020). A fixture queue keeps `mode` `DEVELOPMENT` and needs neither.

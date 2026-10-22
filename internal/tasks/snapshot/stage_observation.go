@@ -116,7 +116,7 @@ func (o *StageObservation) Bind(b StageBinding) error {
 	if q.QueueID.Raw != b.QueueID {
 		return stageFork("observed queue differs")
 	}
-	if q.ImportMapSha256 != nil || (q.ExecutionCutover != nil && (q.Fixture || (o.Descriptor != nil && o.Descriptor.Operation == StageInit))) {
+	if (q.ImportMapSha256 != nil && q.Fixture) || (q.ExecutionCutover != nil && (q.Fixture || (o.Descriptor != nil && o.Descriptor.Operation == StageInit))) {
 		return wire.Errorf(wire.CodeUnsupported, "staging", "unsupported staging queue state")
 	}
 	d := o.Descriptor
