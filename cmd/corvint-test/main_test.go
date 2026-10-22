@@ -138,6 +138,7 @@ func TestCCEV0034HostedTestFlag(t *testing.T) {
 		{[]string{"--hosted-title", "books a slot reached by clicking"}, "e2e-hosted-test-invalid"},
 		{[]string{"--hosted-test", "app/components/teesheet.html"}, "e2e-hosted-test-invalid"},
 		{[]string{"--hosted-test", "e2e/specs/teesheet-click.spec.ts", "--hosted-title", "no such test"}, "e2e-hosted-test-invalid"},
+		{[]string{"--hosted-test", "e2e/specs/teesheet-click.spec.ts", "--coverage", "coverage.json"}, "e2e-hosted-test-invalid"},
 	} {
 		out := t.TempDir()
 		args := append([]string{"e2e", "prove", "--root", root, "--base", base, "--head", head, "--out", out}, tc.args...)
@@ -147,6 +148,25 @@ func TestCCEV0034HostedTestFlag(t *testing.T) {
 		}
 		if entries, _ := os.ReadDir(out); len(entries) != 0 {
 			t.Fatalf("%v: hosted prove compiled into the out directory: %v", tc.args, entries)
+		}
+	}
+}
+
+// CCE-V0-045: --coverage reaches obligations and compile, which refuse a document not bound to head.
+func TestCCEV0045CoverageFlag(t *testing.T) {
+	root, base, head := fixture(t)
+	doc := filepath.Join(t.TempDir(), "coverage.json")
+	if err := os.WriteFile(doc, []byte(`{"schema":"e2e-runtime-coverage/0","revision":"`+base+`","screens":[]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, sub := range []string{"obligations", "compile"} {
+		args := []string{"e2e", sub, "--root", root, "--base", base, "--head", head, "--coverage", doc}
+		if sub == "compile" {
+			args = append(args, "--out", t.TempDir())
+		}
+		var r *changee2e.Refusal
+		if err := run(context.Background(), args, &bytes.Buffer{}); !errors.As(err, &r) || r.Code != "e2e-coverage-invalid" {
+			t.Fatalf("%s: %v", sub, err)
 		}
 	}
 }

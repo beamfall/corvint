@@ -1016,6 +1016,9 @@ CCE-V0-041	docs/specs/change-compiled-e2e-v0.md	`corvint-test e2e harvest --rev 
 CCE-V0-042	docs/specs/change-compiled-e2e-v0.md	A line that names `expect(page.getByTestId(` or `page.goto(` but is not of a	unrecorded	-
 CCE-V0-043	docs/specs/change-compiled-e2e-v0.md	The acceptance ledger `.corvint/e2e-acceptances.json` (closed schema	unrecorded	-
 CCE-V0-044	docs/specs/change-compiled-e2e-v0.md	`obligations` and `compile` MUST list under `acceptances_in_diff` (omitted when	unrecorded	-
+CCE-V0-045	docs/specs/change-compiled-e2e-v0.md	`obligations`, `compile` and `prove` MUST accept `--coverage FILE`, a closed	unrecorded	-
+CCE-V0-046	docs/specs/change-compiled-e2e-v0.md	A changed path that coverage lists under a screen MUST reach that screen as an	unrecorded	-
+CCE-V0-047	docs/specs/change-compiled-e2e-v0.md	Coverage MUST only widen reach. It never places a path for the unknown-span rule	unrecorded	-
 CCE-V0-086	docs/specs/change-compiled-e2e-v0.md	A relative `--root`, including the default `.`, MUST resolve against the working	unrecorded	-
 CF-V1-001	docs/specs/change-frontier-profile-1.md	the profile identifier is exactly `frontier/1`; its error profile is exactly	unrecorded	-
 CF-V1-002	docs/specs/change-frontier-profile-1.md	`frontier/0` is untouched in every respect — clause text, item kinds, item IDs,	unrecorded	-

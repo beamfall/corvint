@@ -20,7 +20,7 @@ solution that is a perfect additional and use case for corvint".
 
 ## Agent digest
 - Claim: Reviewed E2E blocks compile into change-specific scenarios that must discriminate the change; hosted tests retire only after a shadow evaluation.
-- Status: accepted (owner, 2026-10-22); experimental; CCE-V0-026..044 accepted under the standing auto-accept (2026-10-11). First slice V1-1665 implements CCE-V0-001, 002, 004..009 and 015 in `internal/changee2e` behind `corvint-test e2e` with focused tests and a live Playwright qualification (Node v22.23.2); CCE-V0-003 is partial (one hand-written declarations file). The 2026-10-17 panel amendment adds CCE-V0-016..025 and amends 003, 004, 009, 011 and 012. Implemented: the CCE-V0-021 environment block (V1-1681 serve part), the obligations soundness of CCE-V0-019/020 with the amended 004 base join (V1-1678), and (2026-10-22 lane) the amended 009 ladder, 016 `oracle_origin`, 017 head test tree, 018 structure controls, 024 `outcome-vacuous`, the offline fake runner and the 011/012 shadow report over a recorded window (CCE-V0-026..033; V1-1679, V1-1680, V1-1682, V1-1687). The 2026-10-22 lane 1022k implements the hosted-test prover CCE-V0-034..036 (offline and live), receipt-located assertions (PWP-V3-008), `cleanup-failed`, the 037 usefulness exclusion of `PRESERVES`, CCE-V0-010, 013 and the 014 byte cap (CCE-V0-039, 040), and the first V1 authoring slice (V1-1683): `e2e harvest`, the `.corvint/e2e-acceptances.json` ledger and the in-diff flag (CCE-V0-041..044). Not implemented: CCE-V0-022/023/025 and the rest of 024; NOT_RUN: the 038 actualbudget rerun and any adopter window. CCE-V0-086 (V1-1711) resolves a relative `--root`. Everything ships as the `e2e` group of one experimental companion, `corvint-test`; V0 adds nothing to core `corvint`.
+- Status: accepted (owner, 2026-10-22); experimental; CCE-V0-026..047 accepted under the standing auto-accept (2026-10-11). First slice V1-1665 implements CCE-V0-001, 002, 004..009 and 015 in `internal/changee2e` behind `corvint-test e2e` with focused tests and a live Playwright qualification (Node v22.23.2); CCE-V0-003 is partial (one hand-written declarations file). The 2026-10-17 panel amendment adds CCE-V0-016..025 and amends 003, 004, 009, 011 and 012. Implemented: the CCE-V0-021 environment block (V1-1681 serve part), the obligations soundness of CCE-V0-019/020 with the amended 004 base join (V1-1678), and (2026-10-22 lane) the amended 009 ladder, 016 `oracle_origin`, 017 head test tree, 018 structure controls, 024 `outcome-vacuous`, the offline fake runner and the 011/012 shadow report over a recorded window (CCE-V0-026..033; V1-1679, V1-1680, V1-1682, V1-1687). The 2026-10-22 lane 1022k implements the hosted-test prover CCE-V0-034..036 (offline and live), receipt-located assertions (PWP-V3-008), `cleanup-failed`, the 037 usefulness exclusion of `PRESERVES`, CCE-V0-010, 013 and the 014 byte cap (CCE-V0-039, 040), and the first V1 authoring slice (V1-1683): `e2e harvest`, the `.corvint/e2e-acceptances.json` ledger and the in-diff flag (CCE-V0-041..044), and the runtime-coverage reach source of V1-1685 (CCE-V0-045..047). Not implemented: CCE-V0-022/023/025 and the rest of 024; NOT_RUN: the 038 actualbudget rerun and any adopter window. CCE-V0-086 (V1-1711) resolves a relative `--root`. Everything ships as the `e2e` group of one experimental companion, `corvint-test`; V0 adds nothing to core `corvint`.
 - Exists: `cmd/corvint-test` (`e2e catalog|harvest|obligations|compile|prove|shadow`) over `internal/changee2e`. It composes the existing AMAP-V0 map and scaffold, AMSP-V0 planner, AFU-V1 declared outcomes, ANL-V0 proven edges, RVN-V0 run verification, PWR-V0 run comparison and NEA-V0/BBF-V0 negative controls.
 - Blocked on: the CCE-V0-038 external rerun (V1-1733); an adopter shadow window of at least 30 recorded entries (external; umbrella V1-1666); the companion fold (V1-1667, accepted 2026-10-22, not built).
 - Read next: User and measurable job; Definitions; Requirements (016..033); Shadow evaluation and retirement; Beyond V0; Owner questions.
@@ -202,7 +202,8 @@ is a later, separate decision that needs its own owner acceptance and the promot
 - `CCE-V0-004`: `corvint-test e2e obligations [--root PATH] --base SHA --head SHA` MUST map the diff to
   obligations through the AMAP-V0 impact relation over the application maps at both base and head,
   and MUST name in its document each relation it consulted and each it did not (the affected plan
-  and the ANL-V0 ledger are not consulted until V1-1685 adds them). It lists each reached outcome
+  and the ANL-V0 ledger are not consulted until V1-1685 adds them; runtime coverage is consulted
+  only when given, CCE-V0-045). It lists each reached outcome
   with the changed span and the chain that reaches it. When any changed span's reach cannot
   be bounded, the report MUST read `UNKNOWN` overall and name the spans; it MUST NOT read `NONE`.
   A compilation over an `UNKNOWN` report MUST read `INCOMPLETE` overall with those spans, even when
@@ -537,7 +538,29 @@ standing auto-accept of 2026-10-11:
   `CHANGED_IN_DIFF` and `NEW_IN_DIFF` oracle acceptance, the locator-repair loop, harvesting other
   assertion and navigation forms, and screen resolution of a harvested path.
 
-The 2026-10-21 fix lane (V1-1711) adds CCE-V0-086; IDs 045..085 are left free for parallel lanes.
+Lane 1022k also adds CCE-V0-045..047, the runtime-coverage reach source of V1-1685, accepted under
+the standing auto-accept of 2026-10-11:
+
+- `CCE-V0-045`: `obligations`, `compile` and `prove` MUST accept `--coverage FILE`, a closed
+  `e2e-runtime-coverage/0` document of at most 4 MiB (members `schema`, `revision`, `screens`, each
+  with a head-map `screen` ID and the repository-relative `paths` observed executing while the
+  application showed it). The `revision` MUST equal the head revision and each screen MUST be a
+  head-map screen named once with clean relative paths; any other document, or an unreadable file,
+  refuses `e2e-coverage-invalid`. A consulted document is named under `relations.consulted` as
+  `runtime-coverage` with its SHA-256 as `coverage_digest`; without it `runtime-coverage` is listed
+  under `relations.not_consulted` (CCE-V0-004). `prove --hosted-test` with `--coverage` refuses
+  `e2e-hosted-test-invalid`. Recording the document is outside this slice.
+- `CCE-V0-046`: A changed path that coverage lists under a screen MUST reach that screen as an
+  impact hit with basis `runtime-coverage`, after impact's own hits (so an obligation impact reaches
+  keeps impact's chain), under the same flow and `screen-without-outcome` rules as an impact hit.
+- `CCE-V0-047`: Coverage MUST only widen reach. It never places a path for the unknown-span rules
+  (CCE-V0-019/020), so every unknown span of the report without coverage stands and a report that
+  reads `UNKNOWN` without coverage reads `UNKNOWN` with any valid coverage, never `NONE` or
+  `REACHED`. Absence from coverage is never evidence that a path reaches nothing. Failure mode:
+  coverage that names a changed path silently discharges an unknown span. Not in this slice
+  (V1-1685 remainder): the TJAA module graph, API contract joins and the ANL-V0 ledger.
+
+The 2026-10-21 fix lane (V1-1711) adds CCE-V0-086; IDs 048..085 are left free for parallel lanes.
 
 - `CCE-V0-086`: A relative `--root`, including the default `.`, MUST resolve against the working
   directory to its absolute, symlink-resolved path before any Git or map read, for `catalog`,
@@ -661,6 +684,7 @@ row's status says what is delivered.
 | CCE-V0-026..030 | failure kind; oracle cap and scoring; offline seams; omitted-event reading; test-tree resolution | V1-1679, V1-1680, V1-1687 | PASS: `TestCCEV0026FailureKind`, `TestCCEV0028LadderOfflineFakeRunner`, `TestCCEV0018OmittedEventControls`, `TestCCEV0017TestTreeRefusals` |
 | CCE-V0-034..038 | hosted test held at head through the ladder; receipt-located assertions; required behaviour-removal control kills F1; no-op `PRESERVES` not useful; actualbudget rerun | V1-1733, V1-1713 | 034..037 PASS (lane 1022k): `TestCCEV0034HostedScenario`, `TestCCEV0034HostedTestFlag`, `TestCCEV0036HostedControls`, `TestCCEV0035HostedLadderOffline` (F1 reads `CONTROL_SURVIVED`, a base setup failure reads `INCONCLUSIVE`), `TestCCEV0037NoOpPreservesNotUseful`; live (Playwright 1.64.0, Node v24.11.1) `TestCCEV0034LiveHosted` (the booked test reads `DISCRIMINATES` with its base failure located at the assertion and its control killed; the F1 static overlay reads `CONTROL_SURVIVED`). 038 NOT_RUN (external host; command in `docs/build-log/2026-10-22-cce-1022k.md`) |
 | CCE-V0-039, 040 | a timed-out omitted-event control is killed; truncation keeps a prefix | V1-1733, V1-2378 | PASS: 039 by the live `TestCCEV0009LivePreserves` and `TestCCEV0009LiveDiscriminates` (each read `INCONCLUSIVE control-not-killed:control:omitted-event:setup-1` before the fix); 040 by `TestCCEV0040CapListPrefix`, `TestCCEV0014DocumentByteCap` |
+| CCE-V0-045..047 | coverage bound to head and the head map; a covered changed path reaches its screen's outcomes; coverage never removes an unknown span or turns UNKNOWN into NONE | V1-1685 (partial) | PASS: `TestCCEV0046CoverageOnlyWidensReach` (failed when coverage-placed paths dropped their unknown spans, and failed when coverage hits were dropped), `TestCCEV0045CoverageBoundToHead` (failed without the revision binding), `TestCCEV0045CoverageFlag`, `TestCCEV0034HostedTestFlag` (`--coverage` with `--hosted-test` refused) |
 | CCE-V0-041..044 | harvest determinism and literal-only proposals; withheld reasons and secret screen; an unaccepted proposal never compiles; acceptance added in the diff is flagged | V1-1683 | PASS: `TestCCEV0041HarvestDeterministicLiteralOnly` (failed with the secret screen removed), `TestCCEV0043UnacceptedProposalNeverCompiles` (failed when every proposal was admitted, and failed with `acceptances_in_diff` unset), `TestCCEV0015SubcommandsReachable` (harvest reachable, `--out` inside the repository refused), `TestCCEV0013NoRepositoryWrites` |
 | CCE-V0-031..033 | window format and refusals; shadow readings; limitations | V1-1682 | PASS: `TestCCEV0011ShadowRegistrationRefuses`, `TestCCEV0011ShadowMissesAndEscapes`, `TestCCEV0012ShadowBoundsAndHolm`, `TestCCEV0011ShadowUsefulnessMinutesCost` |
 | CCE-V0-022, 023 | environment allowlist test; non-loopback request aborted and recorded; report digest changes with each bound input; one test per exit code, including a `prove` report with passing verdicts over `UNKNOWN` obligations exiting 3 | V1-1681 | NOT_STARTED |
@@ -702,8 +726,9 @@ Recorded so V0 choices do not block them; each needs its own requirements before
   names only), teardown through test fixtures, parameterised routes, path synthesis over admitted
   edges, typed locators and assertions each with a control that kills it, and `test.step` with
   per-step provenance and a trace on failure.
-- V1 reach (V1-1685): the TJAA module graph, runtime coverage that may only widen reach and never
-  produce `NONE`, API contract joins, and the ANL-V0 ledger in place of the first slice's nil.
+- V1 reach (V1-1685; runtime coverage is CCE-V0-045..047, the rest stays here): the TJAA module
+  graph, runtime coverage that may only widen reach and never produce `NONE`, API contract joins,
+  and the ANL-V0 ledger in place of the first slice's nil.
 - V1/V2 (V1-1686): per-hunk `CHECKED`, `PRESERVED_ONLY`, `UNCHECKED` or `UNKNOWN` roll-up, ARIA
   locator proposals, flake quarantine with retained evidence, read-only MCP tools over the
   documents, and snapshotting a proven scenario into the hosted suite. Retirement (V2) also needs a

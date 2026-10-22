@@ -52,7 +52,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	root := fs.String("root", ".", "repository root")
 	manifest := fs.String("manifest", "appmap.json", "repository-relative application-map manifest")
 	out := fs.String("out", "", "output file (catalog, harvest, obligations) or directory (compile, prove), outside the repository")
-	var rev, base, head *string
+	var rev, base, head, coverage *string
 	var repeats *int
 	var nodeModules, nodeBin, packageJSON, lockfile, window, hostedTest, hostedTitle *string
 	switch sub {
@@ -63,6 +63,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	case "obligations", "compile", "prove":
 		base = fs.String("base", "", "base revision")
 		head = fs.String("head", "", "head revision")
+		coverage = fs.String("coverage", "", "runtime coverage document recorded at head; it may only widen reach (CCE-V0-045)")
 		if sub == "prove" {
 			repeats = fs.Int("repeats", changee2e.DefaultRepeats, "repeats per side")
 			nodeModules = fs.String("node-modules", os.Getenv("CORVINT_PLAYWRIGHT_MODULES"), "node_modules holding @playwright/test")
@@ -90,7 +91,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		outPath = p
 	}
 	diff := func() changee2e.DiffOptions {
-		return changee2e.DiffOptions{Root: *root, Base: *base, Head: *head, Manifest: *manifest}
+		return changee2e.DiffOptions{Root: *root, Base: *base, Head: *head, Manifest: *manifest, Coverage: *coverage}
 	}
 	var doc []byte
 	switch sub {
@@ -134,6 +135,9 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		if *hostedTest != "" || *hostedTitle != "" {
 			if *hostedTest == "" {
 				return &changee2e.Refusal{Code: "e2e-hosted-test-invalid", Detail: "--hosted-title needs --hosted-test"}
+			}
+			if *coverage != "" {
+				return &changee2e.Refusal{Code: "e2e-hosted-test-invalid", Detail: "--coverage compiles reach; a hosted test is proved as given"}
 			}
 			doc, err := changee2e.Prove(ctx, changee2e.ProveOptions{Root: *root, Base: *base, Head: *head, Repeats: *repeats,
 				NodeModules: *nodeModules, NodeBin: *nodeBin, PackageJSON: *packageJSON, Lockfile: *lockfile,
