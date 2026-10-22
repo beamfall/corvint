@@ -26,7 +26,8 @@ const affectedTierSummary = "tier0=%d tier1=%d tier2=%d"
 // unit (a one-edge witness chain) or shares the parent directory of a tier-0
 // unit whose dirty path lies at least three directories deep (so the parent
 // is not a top-level directory); 2 otherwise, path readers included, since most changes touch a spec or
-// build-log path that many packages name. It
+// build-log path that many packages name, and so is a ROUTE_DISPATCH_BOOT
+// unit, which every controller change reaches (RUBY-AFFECTED-V0-049). It
 // returns nil for an empty selection, so the member is then omitted.
 func tierAffectedSelections(selected []affected.Selection) *affectedTiers {
 	if len(selected) == 0 {

@@ -280,20 +280,24 @@ func singular(word string) string {
 
 // bootEdges are the units every test of a Rails application loads when it
 // boots the application: every source under config/ (RUBY-AFFECTED-V0-011).
-// A route-dispatched test also reaches every controller and view helper.
-func (autoload *railsAutoload) bootEdges(item observation) map[string]bool {
-	edges := map[string]bool{}
+// routes are the controllers and view helpers a route-dispatched test also
+// reaches, which no constant names, so they are route-dispatch edges rather
+// than advisory ones (RUBY-AFFECTED-V0-049).
+func (autoload *railsAutoload) bootEdges(item observation) (boot, routes map[string]bool) {
+	boot, routes = map[string]bool{}, map[string]bool{}
 	routed := routeDispatched(item)
 	for relative, id := range autoload.ids {
 		if relative == item.relative || !strings.HasPrefix(id, "ruby:source:") {
 			continue
 		}
-		if strings.HasPrefix(relative, "config/") ||
-			routed && (strings.HasPrefix(relative, "app/controllers/") || strings.HasPrefix(relative, "app/helpers/")) {
-			edges[id] = true
+		switch {
+		case strings.HasPrefix(relative, "config/"):
+			boot[id] = true
+		case routed && (strings.HasPrefix(relative, "app/controllers/") || strings.HasPrefix(relative, "app/helpers/")):
+			routes[id] = true
 		}
 	}
-	return edges
+	return boot, routes
 }
 
 func routeDispatched(item observation) bool {

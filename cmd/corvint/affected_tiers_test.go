@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/liveverify/affected/ruby"
 )
 
 // AFP-V0-162: a change to one package puts it in tier 0, its direct importer
@@ -91,5 +93,57 @@ func TestAFPV0162TopLevelParentHasNoSiblings(t *testing.T) {
 	})
 	if tiers.Units["go:example.com/m/internal/other"] != 2 || tiers.Summary != "tier0=1 tier1=0 tier2=1" {
 		t.Fatalf("tiers = %+v", tiers)
+	}
+}
+
+// RUBY-AFFECTED-V0-049 (GH #1565): a controller change ranks the spec that
+// names it by constant in tier 1 and leaves the route-dispatch fan-out to
+// another controller's spec selected in tier 2, witnessed ROUTE_DISPATCH_BOOT.
+func TestRubyRouteDispatchSpecsAreTierTwo_RUBYAFFECTEDV0049(t *testing.T) {
+	t.Parallel()
+	tree := map[string]string{
+		"Gemfile":               "source \"https://rubygems.org\"\ngem \"rails\"\ngem \"rspec-rails\"\n",
+		".rspec":                "--require rails_helper\n",
+		"config/application.rb": "module Fixture\n  class Application < Rails::Application\n  end\nend\n",
+		"app/controllers/application_controller.rb": "class ApplicationController\nend\n",
+		"app/controllers/alpha_controller.rb":       "class AlphaController < ApplicationController\nend\n",
+		"app/controllers/beta_controller.rb":        "class BetaController < ApplicationController\nend\n",
+		"spec/rails_helper.rb":                      "RSpec.configure do |config|\nend\n",
+		"spec/requests/alpha_flow_spec.rb":          "require \"rails_helper\"\n\nRSpec.describe AlphaController, type: :request do\n  it \"lists\" do\n    get \"/alpha\"\n  end\nend\n",
+		"spec/requests/beta_flow_spec.rb":           "require \"rails_helper\"\n\nRSpec.describe BetaController, type: :request do\n  it \"lists\" do\n    get \"/beta\"\n  end\nend\n",
+		"spec/requests/pages_spec.rb":               "require \"rails_helper\"\n\nRSpec.describe \"pages\", type: :request do\n  it \"lists\" do\n    get \"/pages\"\n  end\nend\n",
+	}
+	root := t.TempDir()
+	for name, body := range tree {
+		path := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	graph, err := affected.Build(context.Background(), root, ruby.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"app/controllers/alpha_controller.rb"})
+	tiers := tierAffectedSelections(plan.Selected)
+	if plan.Scope != affected.ScopeBounded || tiers == nil {
+		t.Fatalf("scope=%s unknown=%v selected=%v", plan.Scope, plan.Unknown, plan.SelectedTests())
+	}
+	kinds := map[string]string{}
+	for _, selection := range plan.Selected {
+		kinds[selection.UnitID] = selection.Witness.Kind
+	}
+	const alpha, beta, pages = "ruby:rspec:spec/requests/alpha_flow_spec", "ruby:rspec:spec/requests/beta_flow_spec", "ruby:rspec:spec/requests/pages_spec"
+	if tiers.Units[alpha] != 1 || kinds[alpha] != affected.WitnessAdvisoryConstant {
+		t.Fatalf("describing spec tier=%d kind=%s; tiers=%+v", tiers.Units[alpha], kinds[alpha], tiers)
+	}
+	for _, id := range []string{beta, pages} {
+		tier, selected := tiers.Units[id]
+		if !selected || tier != 2 || kinds[id] != "ROUTE_DISPATCH_BOOT" {
+			t.Fatalf("%s selected=%v tier=%d kind=%s; tiers=%+v", id, selected, tier, kinds[id], tiers)
+		}
 	}
 }
