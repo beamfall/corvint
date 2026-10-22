@@ -49,6 +49,11 @@ auto-accept (2026-10-11).
 - `TestCALV0157_UsageVocabulariesAndStates` gains two refused-member rows. Both fail without the
   fix (state `KNOWN` instead of `PARTIAL`) and pass with it.
 
+Dogfood intents are the external-reviews and attempt-runner specs. The agent-leases spec is
+omitted, because it holds 258 requirements, which is over the 256-obligation aggregate bound
+(OCM-V0-023). This change adds only non-normative V1-1389 rationale to that spec, and
+CAL-V0-226..229 still apply unchanged. Omitting it is not a claim that they hold.
+
 ## NOT_RUN
 
 Live dispatched-lane note binding; a supervised attempt's worktree `HEAD` beyond the fixture; live
