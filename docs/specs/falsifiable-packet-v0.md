@@ -726,22 +726,22 @@ above stands with that substitution.
   unchanged, which `--checkpoint` MUST NOT re-code, so the exact expected code is
   whatever `Build` returns for that repository. A `Build` error can carry no code at all
   (`internal/contextindex/git.go:463-464@bf504d51`), and `emitError` deliberately prints such an error without
-  a `code` member (`cmd/corvint/main.go:1573-1575@a109d3d7`); because this clause requires every checkpoint
+  a `code` member (`cmd/corvint/main.go:1599-1601@a109d3d7`); because this clause requires every checkpoint
   refusal to bear a code, a code-less `Build` error MUST be reported as `unsupported-prove-index`,
   a checkpoint-only mapping that preserves the `Build` message verbatim as the refusal's `error`
   member — for an error carrying no `DRC-V0` diagnostic, which this refusal never does, the only
   members `emitError` writes are `code`, `error`, and `ok`
-  (`cmd/corvint/main.go:1577-1581@b96186e4`), so there is no `reason` member on this wire — and MUST NOT
+  (`cmd/corvint/main.go:1603-1607@b96186e4`), so there is no `reason` member on this wire — and MUST NOT
   change what plain `prove` emits for the same error. The mapping MUST construct a
   fresh `&gokernel.Error{Code: "unsupported-prove-index", Message: buildErr.Error()}` that does
   NOT wrap the `*contextindex.Error`: `emitError` prints without a `code` member for an error
-  that unwraps to a code-less context error (`cmd/corvint/main.go:1558-1569@a9930fba`), so wrapping to preserve the message
+  that unwraps to a code-less context error (`cmd/corvint/main.go:1581-1595@40f3e6b1`), so wrapping to preserve the message
   would still emit an uncoded refusal, which this clause forbids. That mapping MUST live in the
   checkpoint branch's own compile function — `compileCheckpointProof` (`cmd/corvint/prove.go:657@01d34b22`), the sibling of
   `compileCEMProof` (`cmd/corvint/prove.go:874@e469a50d`) that `compileProof` dispatches to on the
   checkpoint mode (`cmd/corvint/prove.go:565@6d433de3`, `cmd/corvint/prove.go:574-576@acc310b7`) — between its
   index build and its return to `runProve` (`cmd/corvint/prove.go:670-680@5563dd2e`, `cmd/corvint/prove.go:525-533@73e66e84`). It MUST NOT be placed in
-  `emitError` (`cmd/corvint/main.go:1567-1569@4f554a82`), which plain `prove` shares, so plain `prove`'s
+  `emitError` (`cmd/corvint/main.go:1593-1595@4f554a82`), which plain `prove` shares, so plain `prove`'s
   stderr for the same code-less `Build` error stays byte-unchanged, which FPK-V0-026 requires as a
   named test; (11) `repository.object_format` differs from the object format of the index
   built at the current revision (FPK-V0-021) — `object-format-mismatch`, decided after the index
@@ -877,7 +877,7 @@ above stands with that substitution.
   refusal, and each other case FPK-V0-024 enumerates yields the exact code that clause names for
   it, an invented code being a failure; a `Build` error carrying its own code yields that code
   unchanged, and a code-less `Build` error yields `unsupported-prove-index` carrying the `Build`
-  message verbatim as its `error` member (`cmd/corvint/main.go:1577-1581@b96186e4`), an uncoded refusal
+  message verbatim as its `error` member (`cmd/corvint/main.go:1603-1607@b96186e4`), an uncoded refusal
   being a failure; and a checkpoint whose
   `repository.object_format` is `sha256` replayed in a sha1 repository refuses
   `object-format-mismatch` before any handle verdict, a confident all-`blob-changed` document being
