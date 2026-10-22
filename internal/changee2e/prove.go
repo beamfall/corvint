@@ -163,8 +163,8 @@ type scenarioProof struct {
 	Hosted       bool   `json:"hosted,omitempty"` // an existing hosted test run as given (CCE-V0-034)
 	// RunnerConfig lists how the prove config differs from the adopter's own config (CCE-V0-049).
 	RunnerConfig *runnerConfig `json:"runner_config,omitempty"`
-	Verdict      string `json:"verdict"`
-	Note         string `json:"note"`
+	Verdict      string        `json:"verdict"`
+	Note         string        `json:"note"`
 	// Scoring is true only for a DISCRIMINATES, NEW_REACH or PRESERVES verdict on an
 	// ADMITTED_AT_BASE oracle: the scenarios CCE-V0-010 lets read above candidate.
 	Scoring  bool           `json:"scoring"`
