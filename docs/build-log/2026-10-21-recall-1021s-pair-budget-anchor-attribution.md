@@ -21,7 +21,7 @@ is the owner-delegated orchestrator decision of 2026-10-21.
   selected (unchanged), otherwise it only fills unfilled budget. One that does not fit is listed
   in the optional `coverage.omitted_pairs` member with reason `paired test omitted: budget`.
   TCP-V0-011's `withheld` count is unchanged.
-- IDX-SNAP-V0-106: `.mts` and `.cts` join the text-only suffix allowlist (no symbol extractor).
+- IDX-SNAP-V0-108: `.mts` and `.cts` join the text-only suffix allowlist (no symbol extractor).
 - Analyzer schema `corvint-analyzer/143`. 140 is on main (V1-2285), and #1483, #1502 and #1509
   take 141. Batch #1505 takes 142.
 - V1-2295 is attributed and not changed here. The drop is the TCP-V0-022 anchors default flip in
@@ -62,7 +62,7 @@ r20/r10/r5 (abstention: rate).
   | `Bump minimum Go...` | carries `tree_test.go` | names it in `omitted_pairs` |
   | `Remove superfluous import aliases` | misses `clean_path_test.go` | carries it |
 
-  Critical rows carried: base 45/55, this change 44/55, with 3 of the 11 misses named.
+  Critical rows carried: base 44/55, this change 44/55, with 3 of the 11 misses named.
 - Tests: `TestTaskContextSelectedLexicalPairs` and `TestRunTaskContextSubjectlessCounterparts`
   pin carried-or-named. The first fails on base (`counterpart source1_test.go carried=false
   omitted=false`). `TestAMAPV0025ChainBindingsFailClosed` `.mts`/`.cts` subtests fail without the
