@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -74,8 +73,7 @@ type options struct {
 	queryTaskSet       bool
 	queryBudget        *int
 	queryIntent        string
-	version            bool
-	versionJSON        bool
+	version            string
 }
 
 type readResult struct {
@@ -94,7 +92,7 @@ func parse(arguments []string) (options, error) {
 		return result, err
 	}
 	if isVersionRequest(arguments) {
-		result.version, result.versionJSON = true, len(arguments) == 2
+		result.version = arguments[len(arguments)-1]
 		return result, nil
 	}
 	workingDirectory, err := os.Getwd()
@@ -133,7 +131,7 @@ func parse(arguments []string) (options, error) {
 		result.root = root
 	}
 	if isVersionRequest(arguments[index:]) {
-		result.version, result.versionJSON = true, len(arguments)-index == 2
+		result.version = arguments[len(arguments)-1]
 		return result, nil
 	}
 	if index < len(arguments) && arguments[index] == "impact" {
@@ -1220,12 +1218,9 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		}
 		return 0
 	}
-	if options.versionJSON {
-		return emitPayload(stdout, stderr, "version", versionPayload())
-	}
-	if options.version {
-		_, _ = fmt.Fprintln(stdout, "Corvint "+version+" (build "+build+")")
-		return 0
+	if options.version != "" {
+		// The last argument: --version for text, --json for corvint-version/1 (PRS-V1-020).
+		return emitVersion(stdout, stderr, options.version == "--json")
 	}
 	if options.command == "query" {
 		contextReceipt, err := standaloneQueryContext(withSnapshotMissNotice(ctx, stderr, "query", options.root), options)
@@ -1486,25 +1481,6 @@ func emitImpactCapabilities(stdout, stderr io.Writer) int {
 	payload["profile"] = contextindex.ImpactCapabilitiesProfile
 	payload["producer"] = currentProducer().members()
 	return emitPayload(stdout, stderr, "impact capabilities", payload)
-}
-
-// isVersionRequest reports `--version` or `--version --json` as the whole
-// remaining argument list.
-func isVersionRequest(arguments []string) bool {
-	return len(arguments) > 0 && arguments[0] == "--version" && (len(arguments) == 1 || len(arguments) == 2 && arguments[1] == "--json")
-}
-
-// versionPayload is the machine-readable identity a plugin or script reads to
-// detect binary skew before it calls a verb or names a host (PRS-V1-020,
-// V1-0300): the release version, the build, every top-level verb this binary
-// dispatches and every harness host its adapter schema admits.
-func versionPayload() map[string]any {
-	commands := slices.Clone(topLevelCommands)
-	slices.Sort(commands)
-	return map[string]any{
-		"profile": "corvint-version/1", "tool": "corvint", "version": version, "build": build,
-		"commands": commands, "harnessHosts": gokernel.HarnessHosts(),
-	}
 }
 
 func emitPayload(stdout, stderr io.Writer, tool string, payload map[string]any) int {

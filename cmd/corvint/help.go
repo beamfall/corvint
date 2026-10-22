@@ -353,8 +353,7 @@ Commands:
 
 Global options:
   --root PATH  Repository root (default: current directory).
-  --version    Print the version and build number; with --json, the corvint-version/1
-               identity (version, build, verbs, harness hosts) for skew checks.
+  --version    Print the version and build (--json: the corvint-version/1 identity).
   --help       Print this help on stdout and exit 0.
 
 Support boundary:
