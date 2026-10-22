@@ -214,12 +214,48 @@ test('live observation extension is closed and event ordering cannot be reversed
   assert.ok(checkObservation(testCase, reordered, manifest.limits).some((failure) => failure.includes('monotonic')));
 });
 
+test('VSC-V0-077 and VSC-V0-078 checkers reject later stderr lines, lost fallbacks, document opens and dropped lines', async () => {
+  const oracle = path.join(here, 'fixtures/oracle-driver.mjs');
+  const detailCase = manifest.cases.find((item) => item.id === 'VSC-CONF-PROCESS-004');
+  const fallbackCase = manifest.cases.find((item) => item.id === 'VSC-CONF-PROCESS-005');
+  const diagnosticCase = manifest.cases.find((item) => item.id === 'VSC-CONF-DIAGNOSTIC-003');
+  for (const testCase of [detailCase, fallbackCase, diagnosticCase]) {
+    assert.deepEqual(checkObservation(testCase, await runDriver(oracle, testCase, manifest.limits), manifest.limits), []);
+  }
+
+  const secondLine = await runDriver(oracle, detailCase, manifest.limits);
+  secondLine.failure.message = 'CLI_FAILED: second stderr line must not display';
+  const secondLineFailures = checkObservation(detailCase, secondLine, manifest.limits);
+  assert.ok(secondLineFailures.some((failure) => failure.includes('expected failure message')));
+  assert.ok(secondLineFailures.some((failure) => failure.includes('forbidden text leaked')));
+  const codeless = await runDriver(oracle, detailCase, manifest.limits);
+  codeless.failure.message = 'CLI detail\ufffd';
+  assert.ok(checkObservation(detailCase, codeless, manifest.limits).some((failure) => failure.includes('expected failure message')));
+  const lostFallback = await runDriver(oracle, fallbackCase, manifest.limits);
+  lostFallback.failure.message = 'CLI_FAILED: ';
+  assert.ok(checkObservation(fallbackCase, lostFallback, manifest.limits).some((failure) => failure.includes('expected failure message')));
+
+  const opened = await runDriver(oracle, diagnosticCase, manifest.limits);
+  opened.ui.documentOpenCount = 1;
+  assert.ok(checkObservation(diagnosticCase, opened, manifest.limits).some((failure) => failure.includes('text-document opens')));
+  const clamped = await runDriver(oracle, diagnosticCase, manifest.limits);
+  clamped.ui.diagnostics = clamped.ui.diagnostics.filter((item) => item.location.line < 3);
+  assert.ok(checkObservation(diagnosticCase, clamped, manifest.limits).some((failure) => failure.includes('expected diagnostic lines')));
+  const invalidKept = await runDriver(oracle, diagnosticCase, manifest.limits);
+  invalidKept.ui.diagnostics.push({ ...invalidKept.ui.diagnostics[0], id: 'diagnostic:zero', location: { ...invalidKept.ui.diagnostics[0].location, line: 0 } });
+  assert.ok(checkObservation(diagnosticCase, invalidKept, manifest.limits).some((failure) => failure.includes('expected diagnostic lines')));
+});
+
 test('manifest rejects missing new requirements and unknown numbered intents', () => {
   const changed = structuredClone(manifest);
   changed.cases = changed.cases.filter((item) => !item.requirements.includes('VSC-V0-076'));
   assert.ok(validateManifest(changed).includes('uncovered requirement VSC-V0-076'));
-  changed.cases[0].requirements.push('VSC-V0-077');
-  assert.ok(validateManifest(changed).includes('unknown requirement VSC-V0-077'));
+  changed.cases[0].requirements.push('VSC-V0-080');
+  assert.ok(validateManifest(changed).includes('unknown requirement VSC-V0-080'));
+  const withoutProcessDetail = structuredClone(manifest);
+  withoutProcessDetail.cases = withoutProcessDetail.cases.filter((item) => !item.requirements.includes('VSC-V0-077') && !item.requirements.includes('VSC-V0-078'));
+  assert.ok(validateManifest(withoutProcessDetail).includes('uncovered requirement VSC-V0-077'));
+  assert.ok(validateManifest(withoutProcessDetail).includes('uncovered requirement VSC-V0-078'));
 });
 
 test('malformed live checkpoints and events fail without crashing the checker', () => {

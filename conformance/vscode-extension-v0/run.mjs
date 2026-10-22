@@ -143,12 +143,12 @@ export function validateManifest(manifest) {
     if (!Array.isArray(testCase.requirements) || testCase.requirements.length === 0) failures.push(`${testCase.id}: missing requirements`);
     for (const requirement of testCase.requirements ?? []) {
       requirements.add(requirement);
-      if (!/^VSC-V0-(?:00[1-9]|0[1-6][0-9]|07[0-69])$/u.test(requirement)) failures.push(`unknown requirement ${requirement}`);
+      if (!/^VSC-V0-(?:00[1-9]|0[1-6][0-9]|07[0-9])$/u.test(requirement)) failures.push(`unknown requirement ${requirement}`);
     }
     if (!testCase.setup || !testCase.action || !testCase.expect) failures.push(`${testCase.id}: incomplete vector`);
     if (testCase.action?.kind === 'import-observation' && testCase.expect?.result === 'ready' && testCase.setup?.sharedCorvintVerifier !== 'available') failures.push(`${testCase.id}: positive observation projection lacks an explicit shared Corvint verifier`);
   }
-  for (let ordinal = 1; ordinal <= 76; ordinal += 1) {
+  for (let ordinal = 1; ordinal <= 79; ordinal += 1) {
     const requirement = `VSC-V0-${String(ordinal).padStart(3, '0')}`;
     if (!requirements.has(requirement)) failures.push(`uncovered requirement ${requirement}`);
   }
@@ -413,6 +413,7 @@ export function checkObservation(testCase, observation, limits) {
   if (expect.pinned) assertCondition(failures, path.isAbsolute(observation?.binary?.pinnedPath ?? '') && Boolean(observation?.binary?.pinnedIdentity), `${prefix}: binary was not canonically pinned`);
   if (expect.status) assertCondition(failures, observation?.ui?.status === expect.status, `${prefix}: expected UI status ${expect.status}, got ${observation?.ui?.status}`);
   if (expect.failureCode) assertCondition(failures, observation?.failure?.code === expect.failureCode, `${prefix}: expected failure code ${expect.failureCode}, got ${observation?.failure?.code}`);
+  if (expect.failureMessageExact != null) assertCondition(failures, observation?.failure?.message === expect.failureMessageExact, `${prefix}: expected failure message ${JSON.stringify(expect.failureMessageExact)}, got ${JSON.stringify(observation?.failure?.message)}`);
   if (expect.failureCodeOneOf) assertCondition(failures, expect.failureCodeOneOf.includes(observation?.failure?.code), `${prefix}: failure code ${observation?.failure?.code} is not one of ${expect.failureCodeOneOf.join('|')}`);
   if (expect.hostKind) assertCondition(failures, observation?.host?.kind === expect.hostKind, `${prefix}: expected host kind ${expect.hostKind}`);
   if (expect.sameHostPin) {
@@ -579,6 +580,11 @@ export function checkObservation(testCase, observation, limits) {
       assertCondition(failures, typeof diagnostic.message === 'string' && isSafeUiText(diagnostic.message), `${prefix}: unsafe diagnostic message`);
       assertCondition(failures, Number.isSafeInteger(diagnostic.location?.line) && diagnostic.location.line >= 0, `${prefix}: invalid diagnostic line`);
     }
+  }
+  if (expect.documentOpenCount != null) assertCondition(failures, observation?.ui?.documentOpenCount === expect.documentOpenCount, `${prefix}: expected ${expect.documentOpenCount} text-document opens, got ${observation?.ui?.documentOpenCount}`);
+  if (expect.diagnosticLinesExact) {
+    const lines = (observation?.ui?.diagnostics ?? []).map((item) => item?.location?.line);
+    assertCondition(failures, canonicalJson(lines) === canonicalJson(expect.diagnosticLinesExact), `${prefix}: expected diagnostic lines ${JSON.stringify(expect.diagnosticLinesExact)}, got ${JSON.stringify(lines)}`);
   }
   if (expect.diagnosticGenerationReplaced) {
     const generations = observation?.ui?.diagnosticGenerations ?? [];
