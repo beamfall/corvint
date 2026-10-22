@@ -21,6 +21,9 @@ type fakeSide struct {
 	// defaults to the scenario's placement and a zero line leaves the location unset.
 	line int
 	file string
+	// teardown is a run-level reporter error's PWP-V3-009 location (`file:line`, a file relative
+	// to the staged tree unless absolute); the pool is then qualified by the real qualify.
+	teardown string
 }
 
 // fakeRunner scripts the pools by application revision and records each staged tree's files.
@@ -60,6 +63,18 @@ func (f *fakeRunner) env(root string) *proveEnv {
 				}
 			}
 			r.Tests = append(r.Tests, t)
+		}
+		if s.teardown != "" {
+			i := strings.LastIndex(s.teardown, ":")
+			line, _ := strconv.Atoi(s.teardown[i+1:])
+			file := s.teardown[:i]
+			if !filepath.IsAbs(file) {
+				file = filepath.Join(in.Tree, filepath.FromSlash(file))
+			}
+			r.Infrastructure = &jstestprovider.InfrastructureFailure{Reason: jstestprovider.ReasonReporterGlobalError, Detail: "Error: worker fixture teardown",
+				Location: &jstestprovider.Anchor{File: file, Line: line}}
+			_, reason := qualify(r, nil, len(s.states), treeRoots(in.Tree))
+			return r, "", reason
 		}
 		if s.reason != "" {
 			return r, "", s.reason
@@ -139,6 +154,10 @@ func TestCCEV0028LadderOfflineFakeRunner(t *testing.T) {
 		{"base fails off the assertion", pass, fakeSide{states: repeat("failed"), message: offAssertion, line: sc.AssertionLine - 1}, "killed", OriginAdmittedAtBase, VerdictInconclusive, "base-mixed-or-failed-off-assertion", false, true},
 		{"base fails in cleanup", pass, fakeSide{states: repeat("failed"), message: "Error: cleanup", line: cleanup}, "killed", OriginAdmittedAtBase, VerdictInconclusive, FailureCleanupFailed + " at " + sc.Placement + ":" + strconv.Itoa(cleanup), false, false},
 		{"head fails in cleanup", fakeSide{states: repeat("failed"), message: "Error: cleanup", line: cleanup}, pass, "killed", OriginAdmittedAtBase, VerdictInconclusive, FailureCleanupFailed + " at " + sc.Placement + ":" + strconv.Itoa(cleanup), false, false},
+		{"head teardown located in the scenario", fakeSide{states: repeat("passed"), teardown: sc.Placement + ":3"}, pass, "killed", OriginAdmittedAtBase, VerdictInconclusive, FailureTeardownFailed + " at " + sc.Placement + ":3", false, false},
+		{"base teardown located in a page object", pass, fakeSide{states: repeat("passed"), teardown: "e2e/pages/club.page.ts:7"}, "killed", OriginAdmittedAtBase, VerdictInconclusive, FailureTeardownFailed + " at e2e/pages/club.page.ts:7", false, false},
+		{"teardown located outside the tree is infrastructure", fakeSide{states: repeat("passed"), teardown: "/elsewhere/fixtures.js:4"}, pass, "killed", OriginAdmittedAtBase, VerdictInconclusive, "run-without-qualified-receipt", false, false},
+		{"teardown located in node_modules is infrastructure", fakeSide{states: repeat("passed"), teardown: "node_modules/@playwright/test/index.js:4"}, pass, "killed", OriginAdmittedAtBase, VerdictInconclusive, "run-without-qualified-receipt", false, false},
 		{"assertion message without a location is off the assertion", pass, fakeSide{states: repeat("failed"), message: mismatch}, "killed", OriginAdmittedAtBase, VerdictInconclusive, "(receipt names no failure location)", false, true},
 		{"assertion message located in a page object is off the assertion", pass, fakeSide{states: repeat("failed"), message: mismatch, file: "e2e/pages/club.page.ts", line: sc.AssertionLine}, "killed", OriginAdmittedAtBase, VerdictInconclusive, "at e2e/pages/club.page.ts:" + strconv.Itoa(sc.AssertionLine), false, true},
 		{"changed oracle caps discriminates", pass, fakeSide{states: repeat("failed"), message: mismatch, line: sc.AssertionLine}, "killed", OriginChangedInDiff, VerdictInconclusive, ReasonOracleSelfCertified, false, true},

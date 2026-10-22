@@ -472,7 +472,16 @@ class Reporter {
       this.files[file] = crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
     }
   }
-  onError(error) { this.errors.push(error.message || String(error)); }
+  // PWP-V3-009: a /3 run keeps each run-level error's reported location, so a worker teardown
+  // failure can be placed like a test failure instead of reading as infrastructure.
+  onError(error) {
+    this.errors.push(error.message || String(error));
+    if (this.retainAttemptDetails) {
+      const l = error && error.location;
+      if (!this.errorLocations) this.errorLocations = [];
+      this.errorLocations.push(l && typeof l.file === 'string' && l.file !== '' && Number.isInteger(l.line) && l.line > 0 ? {file: l.file, line: l.line} : null);
+    }
+  }
   onTestBegin(test, result) {
     const project = test.parent.project();
     const repeat = test.repeatEachIndex > 0 ? ` > repeat ${test.repeatEachIndex}` : '';
@@ -538,7 +547,7 @@ class Reporter {
       if (test.state === 'passed' && test.attempts.some(a => a.state !== 'passed')) test.state = 'flaky';
     }
     if (this.hasSensitiveInput) this.errors = this.errors.map(() => redactionMarker);
-    const report = {version: this.version, files: this.files, configFiles: this.configFiles, status: result.status, tests, errors: this.errors, schedule: this.schedule, ...(this.sensitiveInputPolicy ? {sensitiveInputPolicy: this.sensitiveInputPolicy} : {}), ...(this.keepReporters && this.projectReporters ? {projectReporters: this.projectReporters} : {})};
+    const report = {version: this.version, files: this.files, configFiles: this.configFiles, status: result.status, tests, errors: this.errors, ...(this.errorLocations ? {errorLocations: this.errorLocations} : {}), schedule: this.schedule, ...(this.sensitiveInputPolicy ? {sensitiveInputPolicy: this.sensitiveInputPolicy} : {}), ...(this.keepReporters && this.projectReporters ? {projectReporters: this.projectReporters} : {})};
     fs.writeFileSync(this.path, JSON.stringify(scrubReportRiskFields(report, this.sensitiveValues)));
   }
 }

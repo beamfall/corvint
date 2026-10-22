@@ -46,6 +46,10 @@ const (
 	// FailureCleanupFailed is a failure located in the scenario's cleanup; it is never an
 	// assertion result and reads INCONCLUSIVE (CCE-V0-009 rung 1).
 	FailureCleanupFailed = "cleanup-failed"
+	// FailureTeardownFailed is a run-level error, such as a worker fixture teardown failure, that
+	// the receipt locates inside the staged test tree: the test's own failure, never an assertion
+	// result and never infrastructure; it reads INCONCLUSIVE (CCE-V0-048).
+	FailureTeardownFailed = "teardown-failed"
 )
 
 // ReasonOracleSelfCertified caps a CHANGED_IN_DIFF scenario's verdict (CCE-V0-016, CCE-V0-027).
@@ -98,7 +102,8 @@ module.exports = {
 var proveLimitations = []string{
 	"outcome-assertion location is the receipt's PWP-V3-008 failure location (the innermost frame in the test file); a repeat whose receipt names no location is read off the assertion",
 	"failure kind is read from the failure message: a received `element(s) not found` is locator-unresolved, any other failure at the outcome assertion is value-mismatch",
-	"cleanup-failed is read only for a failure located in the test file's own `finally` cleanup; a fixture or hook teardown failure reads infrastructure",
+	"cleanup-failed is read only for a failure located in the test file's own `finally` cleanup; a test-scoped fixture or hook teardown failure is a failure off the assertion at its receipt location",
+	"teardown-failed is read only for a run-level error the receipt locates inside the staged test tree; an unlocated run-level error, or one located outside the tree, reads infrastructure",
 	"PRESERVES is a regression-preservation check only; it does not detect the change",
 	"NEW_REACH checks new behaviour against its absence; it does not detect a changed value",
 }
@@ -412,7 +417,7 @@ func proveToolchain(root string, o ProveOptions) (*proveEnv, error) {
 // runQualified runs one pool through the Playwright provider and qualifies its receipt.
 func runQualified(ctx context.Context, in runInput) (jstestprovider.Receipt, string, string) {
 	receipt, runErr := runPlaywright(ctx, in)
-	digest, reason := qualify(receipt, runErr, in.Repeats)
+	digest, reason := qualify(receipt, runErr, in.Repeats, treeRoots(in.Tree))
 	return receipt, digest, reason
 }
 
@@ -666,8 +671,9 @@ func runPlaywright(ctx context.Context, in runInput) (jstestprovider.Receipt, er
 	return receipt, err
 }
 
-// qualify returns the native receipt digest of a qualified run, or a reason it has none.
-func qualify(r jstestprovider.Receipt, runErr error, repeats int) (digest, reason string) {
+// qualify returns the native receipt digest of a qualified run, or a reason it has none. roots are
+// the staged test tree's paths, which place a run-level error (CCE-V0-048).
+func qualify(r jstestprovider.Receipt, runErr error, repeats int, roots []string) (digest, reason string) {
 	if code, ok := asEnvError(runErr); ok {
 		return "", code
 	}
@@ -676,6 +682,8 @@ func qualify(r jstestprovider.Receipt, runErr error, repeats int) (digest, reaso
 		return "", "provider-error"
 	case r.Cancelled:
 		return "", "cancelled"
+	case teardownFailure(r, roots) != "":
+		return "", teardownFailure(r, roots)
 	case r.Infrastructure != nil:
 		// Only a bare provider reason code is kept; free-text reasons can carry absolute paths.
 		if reasonCode.MatchString(r.Infrastructure.Reason) {
@@ -731,15 +739,35 @@ func receiptLocation(roots []string, t jstestprovider.TestOutcome) (string, int)
 		return "", 0
 	}
 	l := t.AttemptDetails[n-1].FailureLocation
+	return treeLocation(roots, *l), l.Line
+}
+
+// treeLocation is a reported location's test-tree-relative slash path, or outsideTestTree.
+func treeLocation(roots []string, l jstestprovider.Anchor) string {
 	if filepath.IsAbs(l.File) {
 		for _, root := range roots {
 			rel, err := filepath.Rel(root, l.File)
 			if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel) {
-				return filepath.ToSlash(rel), l.Line
+				return filepath.ToSlash(rel)
 			}
 		}
 	}
-	return outsideTestTree, l.Line
+	return outsideTestTree
+}
+
+// teardownFailure attributes a receipt's run-level reporter error by its PWP-V3-009 location
+// (CCE-V0-048): `teardown-failed at <path>:<line>` when it lies in the staged test tree outside
+// the linked node_modules, otherwise empty, so the error keeps reading infrastructure.
+func teardownFailure(r jstestprovider.Receipt, roots []string) string {
+	inf := r.Infrastructure
+	if inf == nil || inf.Reason != jstestprovider.ReasonReporterGlobalError || inf.Location == nil || inf.Location.Line < 1 {
+		return ""
+	}
+	file := treeLocation(roots, *inf.Location)
+	if file == outsideTestTree || file == "node_modules" || strings.HasPrefix(file, "node_modules/") {
+		return ""
+	}
+	return FailureTeardownFailed + " at " + locationText(file, inf.Location.Line)
 }
 
 func locationText(file string, line int) string {
@@ -919,6 +947,11 @@ func incompletePool(head, base sideProof) string {
 // verdict is the CCE-V0-009 discrimination verdict: the first rung that holds.
 func verdict(head, base sideProof, controls []controlProof) (string, string) {
 	if !head.Qualified || !base.Qualified {
+		for _, s := range []sideProof{head, base} {
+			if strings.HasPrefix(s.Reason, FailureTeardownFailed+" at ") {
+				return VerdictInconclusive, s.Reason
+			}
+		}
 		return VerdictInconclusive, "run-without-qualified-receipt"
 	}
 	if reason := incompletePool(head, base); reason != "" {
