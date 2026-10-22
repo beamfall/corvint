@@ -14,6 +14,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
 func testSelector(t *testing.T, root string, dirty []string, provider SelectionProvider, records []CoverageRecord) *e2eSelector {
@@ -202,5 +203,63 @@ func TestAFUV1066ProofDigestOmitsDigestMember(t *testing.T) {
 	}
 	if old := sha256.Sum256(raw); proofDigest(proof) == proofDigestPrefix+hex.EncodeToString(old[:]) {
 		t.Fatal("digest still covers the empty digest member")
+	}
+}
+
+// inventoryProvider encodes a selection provider with n inventory tests, the last one carrying
+// extra in its path.
+func inventoryProvider(n int, extra string) []byte {
+	var b bytes.Buffer
+	b.WriteString(`{"schema":"` + SelectionProviderSchema + `","flows":"flows","runner_config":"playwright.config.ts","global_paths":[],"inventory":[`)
+	for i := range n {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		path := fmt.Sprintf("e2e/t%05d.spec.ts", i)
+		if i == n-1 {
+			path += extra
+		}
+		fmt.Fprintf(&b, `{"test_key":"t%05d","project":"chromium","path":%q}`, i, path)
+	}
+	b.WriteString(`]}`)
+	return b.Bytes()
+}
+
+// AFU-V1-065 / V1-2164: Decode screens a provider once, so each inventory element is not screened
+// again, and a secret inside an element, an unknown element field or a missing project is still
+// refused.
+func TestAFUV1065InventoryDecodeScreensOnce(t *testing.T) {
+	screens := 0
+	screenSecrets = func(s string) bool { screens++; return secretscreen.MatchString(s) }
+	t.Cleanup(func() { screenSecrets = secretscreen.MatchString })
+	var p SelectionProvider
+	if err := Decode(inventoryProvider(MaxSelectionTests, ""), &p); err != nil || len(p.Inventory) != MaxSelectionTests {
+		t.Fatalf("ceiling provider: %v, %d tests", err, len(p.Inventory))
+	}
+	if screens != 1 {
+		t.Fatalf("Decode screened a %d-test provider %d times, want once", MaxSelectionTests, screens)
+	}
+	for name, tc := range map[string]struct{ data, want string }{
+		"secret in an element": {string(inventoryProvider(3, "?token=ghp_"+strings.Repeat("a", 36))), "flow input contains secret-shaped data"},
+		"unknown element key":  {strings.Replace(string(inventoryProvider(2, "")), `"project":"chromium"`, `"project":"chromium","extra":1`, 1), "invalid flow schema"},
+		"missing project":      {strings.Replace(string(inventoryProvider(2, "")), `"project":"chromium",`, ``, 1), "invalid flow schema"},
+		"null project":         {strings.Replace(string(inventoryProvider(2, "")), `"project":"chromium"`, `"project":null`, 1), "invalid flow schema"},
+	} {
+		var q SelectionProvider
+		if err := Decode([]byte(tc.data), &q); err == nil || err.Error() != tc.want {
+			t.Errorf("%s: Decode = %v, want %q", name, err, tc.want)
+		}
+	}
+}
+
+// BenchmarkAFUV1065InventoryDecodeAtCeiling measures Decode of a provider at the 16,384-test
+// ceiling (V1-2164).
+func BenchmarkAFUV1065InventoryDecodeAtCeiling(b *testing.B) {
+	data := inventoryProvider(MaxSelectionTests, "")
+	for b.Loop() {
+		var p SelectionProvider
+		if err := Decode(data, &p); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
