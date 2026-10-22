@@ -1010,6 +1010,8 @@ CCE-V0-035	docs/specs/change-compiled-e2e-v0.md	For a hosted test, a failure cou
 CCE-V0-036	docs/specs/change-compiled-e2e-v0.md	A behaviour-removal control (`omitted-event` on the action that precedes each	unrecorded	-
 CCE-V0-037	docs/specs/change-compiled-e2e-v0.md	A `PRESERVES` verdict on an outcome the diff does not change MUST NOT count as	unrecorded	-
 CCE-V0-038	docs/specs/change-compiled-e2e-v0.md	The rerun on the four `actualbudget/actual` fixes that shipped hosted E2E tests	unrecorded	-
+CCE-V0-039	docs/specs/change-compiled-e2e-v0.md	A test that times out MUST be read as that test's own outcome, not as lost	unrecorded	-
+CCE-V0-040	docs/specs/change-compiled-e2e-v0.md	The CCE-V0-014 truncation MUST drop entries only from the end of one list per	unrecorded	-
 CCE-V0-086	docs/specs/change-compiled-e2e-v0.md	A relative `--root`, including the default `.`, MUST resolve against the working	unrecorded	-
 CF-V1-001	docs/specs/change-frontier-profile-1.md	the profile identifier is exactly `frontier/1`; its error profile is exactly	unrecorded	-
 CF-V1-002	docs/specs/change-frontier-profile-1.md	`frontier/0` is untouched in every respect — clause text, item kinds, item IDs,	unrecorded	-
@@ -3811,6 +3813,7 @@ PWP-V3-004	docs/specs/playwright-external-provider-v0.md	Every `/3` attempt fail
 PWP-V3-005	docs/specs/playwright-external-provider-v0.md	The reporter emits `attemptDetails` only under `/3`; the provider validates the	unrecorded	-
 PWP-V3-006	docs/specs/playwright-external-provider-v0.md	`/3` is non-promotable until the changed reporter completes the live matrix of `	unrecorded	-
 PWP-V3-007	docs/specs/playwright-external-provider-v0.md	The `/3` exact project identity permits an explicitly observed empty project nam	unrecorded	-
+PWP-V3-008	docs/specs/playwright-external-provider-v0.md	A failed or timed-out `/3` attempt detail may carry an optional	unrecorded	-
 PTF-V0-001	docs/specs/playwright-per-test-freshness-v0.md	The profile is explicit, separate and bounded to trusted local source-direct ser	unrecorded	-
 PTF-V0-002	docs/specs/playwright-per-test-freshness-v0.md	Capture clean product/test repository and file identities before and after execu	unrecorded	-
 PTF-V0-003	docs/specs/playwright-per-test-freshness-v0.md	Record the actual reporter-selected semantic test identity, source anchor/digest	unrecorded	-

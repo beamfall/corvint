@@ -861,6 +861,7 @@ browser-path override. With the bundled path, the exact command is:
 | PWP-V1-001..008 | `internal/jstestprovider/application_attestation.go`, `internal/jstestprovider/external.go`, `cmd/corvint-js-test-provider/main.go`, `internal/testvaliditydoc/document.go` | `TestApplicationAttestationCommandProvider`, `TestApplicationAttestationNegativeControls`, `TestAttestedReceiptNeverPassesWrongOrRestartedApplication`, `TestApplicationAttestationDockerComposeQualification` |
 | PWP-V2-001..006 | `internal/jstestprovider/sensitive_input.go`, `internal/jstestprovider/sensitive_input_boundary.go`, `internal/jstestprovider/sensitive_input_grammar.go`, `internal/jstestprovider/qualified-reporter.cjs`, `internal/jstestprovider/external.go`, `internal/testvaliditydoc/document.go`, `cmd/corvint-js-test-provider/main.go` | `TestQualifiedReporterSensitiveRedaction`, `TestSensitiveInputEvidenceRedactionAndValidation`, `TestSensitiveInputNormalizationBoundsAndNoPanic`, `TestSensitiveInputAlreadyRedactedRiskFieldsFailClosed`, `TestSensitiveInputReceiverPrefixExtraction`, `TestSensitiveInputUnicodeGrammarAndReportScope`, `TestSensitiveInputAlreadyRedactedCrossTestRiskRejected`, `TestSensitiveInputArgumentCandidatesRespectStructure`, `TestSensitiveInputPolicyGrammarAgreement`, `TestSensitiveInputUnsupportedReceiverSyntaxRejected`, `TestSensitiveRetainedPolicyAndUnsupportedActionRejection`, `TestSensitiveRetainedDecodeNeverEchoesUnknownProperties`, `TestSensitiveInputConformanceFixtureRejectsLeakAndAcceptsRedaction`; live Playwright matrix `NOT_RUN` |
 | PWP-V3-001..006 | `internal/jstestprovider/attempt_details.go`, `external.go`, `qualified-reporter.cjs`, `internal/appflows/runingest.go`, strict consumer and provider CLI | `TestPWPV3AttemptInventory`, `TestPWPV3ProfileBoundaries`, `TestAFUV1012QualifiedReceiptIngest`, `TestAFUV1012QualifiedReceiptRefusals`, `TestQualifiedPlaywrightAttemptsLive`, `TestQualifiedPlaywrightAttemptsLiveDevicesSpread`; local live log `evidence/issues-167-175/pwp3-live-passed.log` |
+| PWP-V3-008 | `internal/jstestprovider/attempt_details.go`, `receipt.go`, `qualified-reporter.cjs` | `TestPWPV3008FailureLocation`, `TestQualifiedReporterSensitiveRedaction` (runs `qualified-reporter_test.cjs`) |
 
 The `/3` matrix passed locally on 2026-09-28. It retains failed-then-passed and infrastructure-then-assertion attempts. System Chrome 153.0.8010.54 was observed and refused; the older system tuple was NOT_OBSERVED in this run. `/3` does not inherit earlier-profile qualification.
 
@@ -899,3 +900,21 @@ The `/3` matrix passed locally on 2026-09-28. It retains failed-then-passed and 
 
 Regression: `TestProfileAttemptEmptyProject`; actual live evidence remains required for the changed
 project admission boundary. Issue340 does not change the qualified runtime tuple or earlier profiles.
+
+## V1-2373 attempt failure location amendment
+
+- **PWP-V3-008**: A failed or timed-out `/3` attempt detail may carry an optional
+  `failureLocation` (`file`, positive `line`). For the first error of the attempt that has a stack
+  frame in the test's own file or a reported location, it is the innermost stack frame in the test's
+  own file (so a failure inside a page object called from the test names the calling line of the
+  test), and otherwise Playwright's reported error location. It is distinct from `anchor`, which in
+  `/3` names the test declaration. The reporter emits it only from such a frame or location and
+  never copies the anchor into it; a passed attempt, an empty file or a non-positive line refuses the receipt with
+  `external-attempt-details-invalid`. The member is optional and additive: readers that do not use it
+  ignore it, and earlier profiles are unchanged. It lets a consumer place a failure at an exact line
+  (CCE-V0-009 step 6) instead of matching message text.
+
+Regression: `TestPWPV3008FailureLocation` and the reporter regression in
+`qualified-reporter_test.cjs`. Accepted under the owner's standing auto-accept of lane requirements
+(2026-10-11). Live qualification of the member on a `PWP-V0-008` tuple is not claimed by this
+amendment; until it runs, a consumer must treat an absent member as "location unknown".

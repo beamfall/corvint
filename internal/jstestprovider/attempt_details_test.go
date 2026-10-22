@@ -45,6 +45,33 @@ func TestPWPV3AttemptInventory(t *testing.T) {
 	}
 }
 
+// PWP-V3-008: a failed attempt may name its error location; a passed attempt, an empty file or a
+// non-positive line refuses the receipt.
+func TestPWPV3008FailureLocation(t *testing.T) {
+	o := attemptTestOutcome()
+	o.AttemptDetails[0].FailureLocation = &Anchor{File: "/fixture/test.cjs", Line: 12}
+	if err := ValidateAttemptDetails([]TestOutcome{o}); err != nil {
+		t.Fatalf("located failure refused: %v", err)
+	}
+	data, err := json.Marshal(o.AttemptDetails[0])
+	if err != nil || !strings.Contains(string(data), `"failureLocation":{"file":"/fixture/test.cjs","line":12}`) {
+		t.Fatalf("wire member = %s, %v", data, err)
+	}
+	for name, mutate := range map[string]func(*TestOutcome){
+		"passed attempt": func(o *TestOutcome) {
+			o.AttemptDetails[1].FailureLocation = &Anchor{File: "/fixture/test.cjs", Line: 3}
+		},
+		"empty file": func(o *TestOutcome) { o.AttemptDetails[0].FailureLocation = &Anchor{Line: 3} },
+		"zero line":  func(o *TestOutcome) { o.AttemptDetails[0].FailureLocation = &Anchor{File: "/fixture/test.cjs"} },
+	} {
+		o := attemptTestOutcome()
+		mutate(&o)
+		if ValidateAttemptDetails([]TestOutcome{o}) == nil {
+			t.Fatalf("%s: invalid failure location accepted", name)
+		}
+	}
+}
+
 func TestPWPV3ProfileBoundaries(t *testing.T) {
 	o := attemptTestOutcome()
 	t.Run("PWP-V3-001 earlier profiles still refuse the new field", func(t *testing.T) {

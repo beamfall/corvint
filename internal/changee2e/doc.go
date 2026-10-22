@@ -163,3 +163,48 @@ func blobAt(ctx context.Context, root, rev, path string) (data []byte, oid strin
 }
 
 var errNoRoot = errors.New("e2e-root-required")
+
+// DocumentByteCap is the CCE-V0-014 default byte cap of every emitted document.
+const DocumentByteCap = 1 << 20
+
+// docByteCap is the cap in force; tests lower it.
+var docByteCap = DocumentByteCap
+
+// capList encodes a document and, when it exceeds the byte cap, keeps the longest prefix of
+// *items that fits, recording the dropped count in *truncated (CCE-V0-014, CCE-V0-040). Every
+// verdict, state and count is computed before this call, so truncation never changes them. A
+// document that does not fit even with no items refuses `e2e-document-over-cap`.
+func capList[T any](items *[]T, truncated *int, encode func() ([]byte, error)) ([]byte, error) {
+	*truncated = 0
+	data, err := encode()
+	if err != nil || len(data) <= docByteCap {
+		return data, err
+	}
+	all := *items
+	fits := func(k int) ([]byte, bool, error) {
+		*items, *truncated = all[:k], len(all)-k
+		b, err := encode()
+		return b, err == nil && len(b) <= docByteCap, err
+	}
+	// The largest k in [0, len(all)) whose encoding fits; encodings grow with k.
+	lo, hi := 0, len(all)-1
+	best := -1
+	for lo <= hi {
+		mid := lo + (hi-lo)/2
+		_, ok, err := fits(mid)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			best, lo = mid, mid+1
+		} else {
+			hi = mid - 1
+		}
+	}
+	if best < 0 {
+		*items, *truncated = all, 0
+		return nil, refuse("e2e-document-over-cap", "document exceeds %d bytes with no entries", docByteCap)
+	}
+	data, _, err = fits(best)
+	return data, err
+}

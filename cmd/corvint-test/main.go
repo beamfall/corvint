@@ -54,7 +54,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	out := fs.String("out", "", "output file (catalog, obligations) or directory (compile, prove), outside the repository")
 	var rev, base, head *string
 	var repeats *int
-	var nodeModules, nodeBin, packageJSON, lockfile, window *string
+	var nodeModules, nodeBin, packageJSON, lockfile, window, hostedTest, hostedTitle *string
 	switch sub {
 	case "shadow":
 		window = fs.String("window", "", "frozen shadow window file (CCE-V0-011)")
@@ -69,6 +69,8 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 			nodeBin = fs.String("node-bin", os.Getenv("CORVINT_E2E_NODE_BIN"), "directory holding node and npx")
 			packageJSON = fs.String("package-json", "", "package.json binding the runner identity")
 			lockfile = fs.String("lockfile", "", "lockfile binding the runner identity")
+			hostedTest = fs.String("hosted-test", "", "prove this existing hosted Playwright test file as given, without compiling (CCE-V0-034)")
+			hostedTitle = fs.String("hosted-title", "", "the hosted test's title; optional when the file declares one test")
 		}
 	default:
 		return errors.New(usage)
@@ -123,6 +125,18 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		_, err = stdout.Write(r.Encoded())
 		return err
 	case "prove":
+		if *hostedTest != "" || *hostedTitle != "" {
+			if *hostedTest == "" {
+				return &changee2e.Refusal{Code: "e2e-hosted-test-invalid", Detail: "--hosted-title needs --hosted-test"}
+			}
+			doc, err := changee2e.Prove(ctx, changee2e.ProveOptions{Root: *root, Base: *base, Head: *head, Repeats: *repeats,
+				NodeModules: *nodeModules, NodeBin: *nodeBin, PackageJSON: *packageJSON, Lockfile: *lockfile,
+				Hosted: &changee2e.HostedSelection{File: *hostedTest, Title: *hostedTitle}})
+			if err != nil {
+				return err
+			}
+			return writeUnder(outPath, proveReport, doc, stdout)
+		}
 		r, err := changee2e.Compile(ctx, diff())
 		if err != nil {
 			return err

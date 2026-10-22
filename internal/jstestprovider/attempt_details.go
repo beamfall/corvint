@@ -53,6 +53,10 @@ func ValidateAttemptDetails(tests []TestOutcome) error {
 			if d.State != StatePassed {
 				hadFailure = true
 			}
+			// PWP-V3-008: a failure location names a file and a positive line of a failed attempt.
+			if l := d.FailureLocation; l != nil && (d.State == StatePassed || l.File == "" || l.Line < 1) {
+				return errors.New("external-attempt-details-invalid")
+			}
 		}
 		last := t.AttemptDetails[len(t.AttemptDetails)-1]
 		state := last.State

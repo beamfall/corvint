@@ -82,6 +82,7 @@ type Catalog struct {
 	Blocks       []Block          `json:"blocks"`
 	Unadmitted   []Unadmitted     `json:"unadmitted"`
 	Unknowns     []CatalogUnknown `json:"unknowns"`
+	Truncated    int              `json:"truncated,omitempty"` // blocks dropped by the byte cap (CCE-V0-014)
 	Digest       string           `json:"digest"`
 
 	m       *appmap.Map
@@ -229,7 +230,7 @@ func BuildCatalog(ctx context.Context, o CatalogOptions) (*Catalog, error) {
 		a, b := c.Unknowns[i], c.Unknowns[j]
 		return a.Kind+"\x00"+a.Ref+"\x00"+a.Reason < b.Kind+"\x00"+b.Ref+"\x00"+b.Reason
 	})
-	c.encoded, err = seal(c, &c.Digest)
+	c.encoded, err = capList(&c.Blocks, &c.Truncated, func() ([]byte, error) { return seal(c, &c.Digest) })
 	return c, err
 }
 

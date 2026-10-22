@@ -43,10 +43,17 @@ const (
 const (
 	FailureValueMismatch     = "value-mismatch"
 	FailureLocatorUnresolved = "locator-unresolved"
+	// FailureCleanupFailed is a failure located in the scenario's cleanup; it is never an
+	// assertion result and reads INCONCLUSIVE (CCE-V0-009 rung 1).
+	FailureCleanupFailed = "cleanup-failed"
 )
 
 // ReasonOracleSelfCertified caps a CHANGED_IN_DIFF scenario's verdict (CCE-V0-016, CCE-V0-027).
 const ReasonOracleSelfCertified = "oracle-self-certified"
+
+// outsideTestTree is the recorded failure location of a repeat whose receipt location lies
+// outside the staged test tree.
+const outsideTestTree = "outside-test-tree"
 
 // Fixed run settings (CCE-V0-008): retries and workers are never configurable.
 const (
@@ -89,12 +96,25 @@ module.exports = {
 
 // proveLimitations are carried in every proof document.
 var proveLimitations = []string{
-	"outcome-assertion location is matched from the failure message (the assertion's own expect message, matcher and locator); the provider receipt does not retain the error line",
+	"outcome-assertion location is the receipt's PWP-V3-008 failure location (the innermost frame in the test file); a repeat whose receipt names no location is read off the assertion",
 	"failure kind is read from the failure message: a received `element(s) not found` is locator-unresolved, any other failure at the outcome assertion is value-mismatch",
-	"a fixture cleanup failure is not reported as cleanup-failed: it surfaces as a failure off the outcome assertion, which reads SCENARIO_BROKEN at head or INCONCLUSIVE at base",
+	"cleanup-failed is read only for a failure located in the test file's own `finally` cleanup; a fixture or hook teardown failure reads infrastructure",
 	"PRESERVES is a regression-preservation check only; it does not detect the change",
 	"NEW_REACH checks new behaviour against its absence; it does not detect a changed value",
-	"document byte cap (CCE-V0-014) is not applied by this slice",
+}
+
+// hostedLimitations are added to a hosted-test proof (CCE-V0-034..036).
+var hostedLimitations = []string{
+	"a hosted test runs under the prove config, not the host's own Playwright config: host projects, fixtures and globalSetup are not applied",
+	"a hosted test is selected by its literal title; a title another test in the file also matches under --grep runs both",
+	"hosted controls remove the awaited action before each assertion; the assertions themselves are not perturbed",
+}
+
+func hostedGrep(sc Scenario) string {
+	if !sc.Hosted {
+		return ""
+	}
+	return grepTitle(sc.TestTitle)
 }
 
 // ProveOptions selects the revisions, scenarios and local Playwright toolchain for Prove.
@@ -106,6 +126,9 @@ type ProveOptions struct {
 	NodeModules, NodeBin  string
 	PackageJSON, Lockfile string // optional host files bound into the receipt identity
 	Scenarios             []Scenario
+	// Hosted selects an existing hosted test, read at head and run as given, in place of
+	// Scenarios (CCE-V0-034).
+	Hosted *HostedSelection
 	// HookExecutable overrides os.Executable() as the BBF control hook and cleanup command. The
 	// executable must dispatch to RunHook when run with no arguments and
 	// CORVINT_BEHAVIOR_COMMAND_ROLE set.
@@ -123,6 +146,7 @@ type proveReport struct {
 	Environment   string          `json:"environment"` // "static" or the CCE-V0-021 environment digest
 	Scenarios     []scenarioProof `json:"scenarios"`
 	Limitations   []string        `json:"limitations"`
+	Truncated     int             `json:"truncated,omitempty"` // scenarios dropped by the byte cap (CCE-V0-014)
 	Digest        string          `json:"digest"`
 }
 
@@ -131,6 +155,7 @@ type scenarioProof struct {
 	Placement    string `json:"placement"`
 	AssertionID  string `json:"assertion_id"`
 	OracleOrigin string `json:"oracle_origin"`
+	Hosted       bool   `json:"hosted,omitempty"` // an existing hosted test run as given (CCE-V0-034)
 	Verdict      string `json:"verdict"`
 	Note         string `json:"note"`
 	// Scoring is true only for a DISCRIMINATES, NEW_REACH or PRESERVES verdict on an
@@ -158,6 +183,9 @@ type repeatOutcome struct {
 	State              string `json:"state"`
 	AtOutcomeAssertion bool   `json:"at_outcome_assertion"`
 	FailureKind        string `json:"failure_kind,omitempty"`
+	// FailureLocation is the receipt's failure location of a failing repeat as `path:line` in the
+	// test tree, or outside-test-tree; empty when the receipt names none (CCE-V0-009 step 6).
+	FailureLocation string `json:"failure_location,omitempty"`
 }
 
 type controlProof struct {
@@ -197,7 +225,10 @@ func Prove(ctx context.Context, o ProveOptions) ([]byte, error) {
 	if repeats < 1 || repeats > MaxRepeats {
 		return nil, refuse("e2e-repeats-over-limit", "repeats %d outside 1..%d", o.Repeats, MaxRepeats)
 	}
-	if len(o.Scenarios) == 0 {
+	if o.Hosted != nil && len(o.Scenarios) > 0 {
+		return nil, refuse("e2e-hosted-test-invalid", "a hosted test is proved alone, without compiled scenarios")
+	}
+	if o.Hosted == nil && len(o.Scenarios) == 0 {
 		return nil, refuse("e2e-scenarios-required", "no compiled scenario to prove")
 	}
 	if len(o.Scenarios) > MaxScenarios {
@@ -217,6 +248,14 @@ func Prove(ctx context.Context, o ProveOptions) ([]byte, error) {
 	head, err := resolveRev(ctx, root, o.Head)
 	if err != nil {
 		return nil, err
+	}
+	scenarios := o.Scenarios
+	if o.Hosted != nil {
+		sc, err := hostedScenario(ctx, root, base, head, *o.Hosted)
+		if err != nil {
+			return nil, err
+		}
+		scenarios = []Scenario{sc}
 	}
 	environment, err := readEnvironment(ctx, root, head)
 	if err != nil {
@@ -238,17 +277,20 @@ func Prove(ctx context.Context, o ProveOptions) ([]byte, error) {
 	if environment != nil {
 		report.Limitations = append(slices.Clone(proveLimitations), environmentLimitations...)
 	}
-	for _, sc := range o.Scenarios {
+	if o.Hosted != nil {
+		report.Limitations = append(slices.Clone(report.Limitations), hostedLimitations...)
+	}
+	for _, sc := range scenarios {
 		report.Scenarios = append(report.Scenarios, env.proveScenario(ctx, base, head, sc, repeats))
 	}
-	return seal(&report, &report.Digest)
+	return capList(&report.Scenarios, &report.Truncated, func() ([]byte, error) { return seal(&report, &report.Digest) })
 }
 
 // proveScenario proves one scenario: it reads the head test tree, runs it over the head and then
 // the base application tree, applies the controls when the ladder reaches them, and reads the
 // verdict with the oracle_origin cap.
 func (e *proveEnv) proveScenario(ctx context.Context, base, head string, sc Scenario, repeats int) scenarioProof {
-	p := scenarioProof{Obligation: sc.Obligation, Placement: sc.Placement, AssertionID: sc.AssertionID, OracleOrigin: sc.OracleOrigin}
+	p := scenarioProof{Obligation: sc.Obligation, Placement: sc.Placement, AssertionID: sc.AssertionID, OracleOrigin: sc.OracleOrigin, Hosted: sc.Hosted}
 	tree, reason := e.headTestTree(ctx, head, sc)
 	if reason != "" {
 		p.Head, p.Base = unrunSide(head, head, reason), unrunSide(base, head, reason)
@@ -313,13 +355,16 @@ func validateScenarios(scs []Scenario) error {
 		switch {
 		case sc.Obligation == "" || sc.AssertionID == "" || sc.TestTitle == "" || len(sc.Text) == 0:
 			return refuse("e2e-scenario-invalid", "scenario %d lacks identity or text", i)
-		case p == "" || path.IsAbs(p) || path.Clean(p) != p || p == ".." || strings.HasPrefix(p, "../") ||
-			!strings.HasSuffix(p, ".spec.ts") || strings.Contains(p, "node_modules"):
+		case sc.Hosted && !hostedPlacement(p),
+			!sc.Hosted && (p == "" || path.IsAbs(p) || path.Clean(p) != p || p == ".." || strings.HasPrefix(p, "../") ||
+				!strings.HasSuffix(p, ".spec.ts") || strings.Contains(p, "node_modules")):
 			return refuse("e2e-scenario-invalid", "scenario %d placement %q is not a clean relative spec path", i, p)
 		case seen[p]:
 			return refuse("e2e-scenario-invalid", "duplicate placement %q", p)
-		case sc.AssertionLine < 1 || sc.AssertionLine > lines || sc.Matcher == "" || sc.Locator == "" || sc.Marker == "":
+		case sc.AssertionLine < 1 || sc.AssertionLine > lines || !sc.Hosted && (sc.Matcher == "" || sc.Locator == "" || sc.Marker == ""):
 			return refuse("e2e-scenario-invalid", "scenario %d outcome assertion is unbound", i)
+		case sc.Hosted && (len(sc.AssertionLines) == 0 || len(sc.EventLines) == 0 || sc.DeclLine < 1):
+			return refuse("e2e-scenario-invalid", "hosted scenario %d lacks its assertion, event or declaration lines", i)
 		}
 		seen[p] = true
 	}
@@ -441,16 +486,22 @@ func (e *proveEnv) proveSide(ctx context.Context, app, test string, tt testTree,
 		side.Stability = playwrightruns.Insufficient
 		return side, jstestprovider.Receipt{}
 	}
+	roots := treeRoots(tree)
 	receipt, digest, reason := e.side(ctx, runInput{Tree: tree, AppIdentity: app, Placement: sc.Placement, Repeats: repeats,
 		NodeModules: e.nodeModules, RunnerVersion: e.runnerVersion, PackageJSON: e.packageJSON, Lockfile: e.lockfile, Timeout: sideTimeout,
-		Environment: e.environment, ServeBin: e.serveBin, ServePath: e.servePath})
+		Environment: e.environment, ServeBin: e.serveBin, ServePath: e.servePath, Grep: hostedGrep(sc)})
 	side.Qualified, side.Reason = reason == "", reason
 	if digest != "" {
 		side.Receipts = append(side.Receipts, digest)
 	}
 	for _, t := range receipt.Tests {
-		kind := assertionFailure(string(t.State), t.FailureMessage, sc.Marker, sc.Matcher, sc.Locator)
-		side.Outcomes = append(side.Outcomes, repeatOutcome{State: string(t.State), AtOutcomeAssertion: kind != "", FailureKind: kind})
+		file, line := receiptLocation(roots, t)
+		kind := assertionFailure(string(t.State), t.FailureMessage, file, line, sc)
+		o := repeatOutcome{State: string(t.State), AtOutcomeAssertion: kind != "" && kind != FailureCleanupFailed, FailureKind: kind}
+		if failing(o.State) {
+			o.FailureLocation = locationText(file, line)
+		}
+		side.Outcomes = append(side.Outcomes, o)
 	}
 	side.Stability = stability(side.Outcomes)
 	return side, receipt
@@ -534,6 +585,15 @@ func untar(data []byte, dest string) error {
 	}
 }
 
+func testArgv(in runInput) []string {
+	argv := []string{in.Placement, "--repeat-each=" + strconv.Itoa(in.Repeats),
+		"--retries=" + strconv.Itoa(proveRetries), "--workers=" + strconv.Itoa(proveWorkers), "--project=" + proveProject}
+	if in.Grep != "" {
+		argv = append(argv, "--grep="+in.Grep)
+	}
+	return argv
+}
+
 type runInput struct {
 	Tree, AppIdentity, Placement string
 	Repeats                      int
@@ -542,6 +602,7 @@ type runInput struct {
 	Timeout                      time.Duration
 	Environment                  *Environment
 	ServeBin, ServePath          string
+	Grep                         string // a --grep title pattern selecting one hosted test (CCE-V0-034)
 }
 
 // runPlaywright serves tree, through the declared environment's serve argv when there is one and
@@ -594,8 +655,7 @@ func runPlaywright(ctx context.Context, in runInput) (jstestprovider.Receipt, er
 		AppIdentity:          in.AppIdentity,
 		ServerReadyURL:       ready,
 		RetainAttemptDetails: true,
-		TestArgv: []string{in.Placement, "--repeat-each=" + strconv.Itoa(in.Repeats),
-			"--retries=" + strconv.Itoa(proveRetries), "--workers=" + strconv.Itoa(proveWorkers), "--project=" + proveProject},
+		TestArgv:             testArgv(in),
 	})
 	if served != nil {
 		// A serve that ended during the run leaves no proof of what answered the run's requests.
@@ -632,6 +692,11 @@ func qualify(r jstestprovider.Receipt, runErr error, repeats int) (digest, reaso
 		if !jstestprovider.QualifiedReceiptBindingReady(r, t) {
 			return "", "receipt-not-qualified"
 		}
+		// A test timeout is the test's own outcome, not lost infrastructure: an omitted
+		// fixture step that leaves an action waiting must still kill its control (CCE-V0-039).
+		if t.State == jstestprovider.StateTimedOut {
+			t.State = jstestprovider.StateFailed
+		}
 		if jstestprovider.ReceiptTestProjection(r, t).Execution.State == testvalidity.ExecutionInfrastructure {
 			return "", "infrastructure"
 		}
@@ -648,33 +713,94 @@ var (
 	reasonCode = regexp.MustCompile(`^[a-z][a-z-]{0,63}$`)
 )
 
-// failsAtAssertion reports whether a failed repeat failed at the outcome assertion. PWP does not
-// retain the failing error's line, so the location is matched from the failure message:
-// Playwright writes the assertion's own expect message (the marker) directly before its
-// `expect(locator).<matcher>` header, and the body names `getByTestId('<locator>')`. Another
-// assertion on the same locator and matcher carries no marker and does not match.
-func failsAtAssertion(state, message, marker, matcher, locator string) bool {
-	if state != string(jstestprovider.StateFailed) || marker == "" {
-		return false
+// treeRoots are the staged tree's path and its symlink-resolved path: the runner reports
+// locations under the resolved tree.
+func treeRoots(tree string) []string {
+	roots := []string{tree}
+	if resolved, err := filepath.EvalSymlinks(tree); err == nil && resolved != tree {
+		roots = append(roots, resolved)
 	}
-	m := ansiEscape.ReplaceAllString(message, "")
-	if !strings.Contains(m, marker+"\n\nexpect(locator)."+matcher) {
-		return false
-	}
-	return strings.Contains(m, "getByTestId('"+locator+"')") || strings.Contains(m, `getByTestId("`+locator+`")`)
+	return roots
 }
 
-// assertionFailure is empty unless the repeat failed at the outcome assertion, and otherwise its
-// failure kind (CCE-V0-026): Playwright reports a locator that matched nothing as a received
-// `<element(s) not found>`; any other failure at the assertion compared a different value.
-func assertionFailure(state, message, marker, matcher, locator string) string {
-	if !failsAtAssertion(state, message, marker, matcher, locator) {
+// receiptLocation is a repeat's PWP-V3-008 failure location from its last attempt, as a
+// test-tree-relative slash path, or outsideTestTree; the file is empty when the receipt names none.
+func receiptLocation(roots []string, t jstestprovider.TestOutcome) (string, int) {
+	n := len(t.AttemptDetails)
+	if n == 0 || t.AttemptDetails[n-1].FailureLocation == nil {
+		return "", 0
+	}
+	l := t.AttemptDetails[n-1].FailureLocation
+	if filepath.IsAbs(l.File) {
+		for _, root := range roots {
+			rel, err := filepath.Rel(root, l.File)
+			if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel) {
+				return filepath.ToSlash(rel), l.Line
+			}
+		}
+	}
+	return outsideTestTree, l.Line
+}
+
+func locationText(file string, line int) string {
+	switch file {
+	case "":
+		return ""
+	case outsideTestTree:
+		return outsideTestTree
+	}
+	return file + ":" + strconv.Itoa(line)
+}
+
+// assertionFailure reads a failed repeat at its receipt location (CCE-V0-009 step 6, CCE-V0-035):
+// empty unless it failed in the scenario's file at one of its outcome-assertion lines or in its
+// cleanup; cleanup-failed in a cleanup line; otherwise the CCE-V0-026 failure kind, read from the
+// message: Playwright reports a locator that matched nothing as a received `<element(s) not
+// found>`, and any other failure at the assertion compared a different value.
+func assertionFailure(state, message, file string, line int, sc Scenario) string {
+	if state != string(jstestprovider.StateFailed) || file != sc.Placement {
+		return ""
+	}
+	if slices.Contains(cleanupLines(sc.Text), line) {
+		return FailureCleanupFailed
+	}
+	if !slices.Contains(assertionLines(sc), line) {
 		return ""
 	}
 	if strings.Contains(ansiEscape.ReplaceAllString(message, ""), "element(s) not found") {
 		return FailureLocatorUnresolved
 	}
 	return FailureValueMismatch
+}
+
+// assertionLines are the outcome-assertion lines: the compiled scenario's one assertion, or each
+// assertion of a hosted test (CCE-V0-035).
+func assertionLines(sc Scenario) []int {
+	if sc.Hosted {
+		return sc.AssertionLines
+	}
+	return []int{sc.AssertionLine}
+}
+
+// cleanupLines are the 1-based lines inside each `finally` block of a test file: the block opens
+// on a line ending in `} finally {` and closes on the next line at the same indentation that
+// starts with `}`.
+func cleanupLines(text []byte) []int {
+	var out []int
+	indent := -1
+	for i, l := range strings.Split(string(text), "\n") {
+		body := strings.TrimLeft(l, " \t")
+		depth := len(l) - len(body)
+		switch {
+		case indent < 0 && strings.HasSuffix(strings.TrimRight(body, " \t"), "finally {"):
+			indent = depth
+		case indent >= 0 && depth == indent && strings.HasPrefix(body, "}"):
+			indent = -1
+		case indent >= 0:
+			out = append(out, i+1)
+		}
+	}
+	return out
 }
 
 // stability classifies the head pool in the PWR-V0-003 vocabulary: differing outcomes, or any
@@ -723,6 +849,15 @@ type controlSpec struct {
 }
 
 func controlSpecs(sc Scenario) []controlSpec {
+	if sc.Hosted {
+		// A hosted test's outcome assertions are its own; only removing the behaviour each one
+		// follows can show that the assertion depends on it (CCE-V0-036).
+		var out []controlSpec
+		for i, line := range sc.EventLines {
+			out = append(out, controlSpec{"control:omitted-event:step-" + strconv.Itoa(i+1), behaviorfalsify.OmittedEvent, line, omittedEvent})
+		}
+		return out
+	}
 	out := []controlSpec{
 		{"control:" + string(behaviorfalsify.WrongLocator), behaviorfalsify.WrongLocator, sc.AssertionLine, wrongLocator},
 		{"control:" + string(behaviorfalsify.WrongExpectedValue), behaviorfalsify.WrongExpectedValue, sc.AssertionLine, wrongValue},
@@ -773,6 +908,9 @@ func incompletePool(head, base sideProof) string {
 			case jstestprovider.StateSkipped, jstestprovider.StateInterrupted:
 				return "repeat-incomplete"
 			}
+			if o.FailureKind == FailureCleanupFailed {
+				return FailureCleanupFailed + " at " + o.FailureLocation
+			}
 		}
 	}
 	return ""
@@ -795,7 +933,7 @@ func verdict(head, base sideProof, controls []controlProof) (string, string) {
 	}
 	for _, o := range head.Outcomes {
 		if failing(o.State) {
-			return VerdictScenarioBroken, "head-repeat-failed"
+			return VerdictScenarioBroken, "head-repeat-failed" + at(o)
 		}
 	}
 	if len(controls) == 0 {
@@ -822,7 +960,20 @@ func verdict(head, base sideProof, controls []controlProof) (string, string) {
 	case every(base.Outcomes, func(o repeatOutcome) bool { return o.State == string(jstestprovider.StatePassed) }):
 		return VerdictPreserves, "regression-preservation check only; not evidence that the scenario detects the change"
 	}
+	for _, o := range base.Outcomes {
+		if failing(o.State) && !o.AtOutcomeAssertion {
+			return VerdictInconclusive, "base-mixed-or-failed-off-assertion" + at(o)
+		}
+	}
 	return VerdictInconclusive, "base-mixed-or-failed-off-assertion"
+}
+
+// at names a failing repeat's receipt location in a verdict note.
+func at(o repeatOutcome) string {
+	if o.FailureLocation == "" {
+		return " (receipt names no failure location)"
+	}
+	return " at " + o.FailureLocation
 }
 
 func every(outs []repeatOutcome, f func(repeatOutcome) bool) bool {
@@ -945,9 +1096,14 @@ func (e *proveEnv) controlRequest(sc Scenario, rev, repo, disposable string, hea
 		ConfigSHA256: "sha256:" + sha256Hex([]byte(proveConfig)), EnvironmentSHA256: digestCanonical(envValues)}
 	def := func(spec controlSpec) map[string]string {
 		d := map[string]string{"tree": repo, "file": sc.Placement, "line": strconv.Itoa(spec.line),
-			"locator": sc.Locator, "matcher": sc.Matcher, "marker": sc.Marker, "replacement": spec.replacement, "kind": string(spec.kind)}
-		if sc.Value != "" {
-			d["value"] = sc.Value
+			"replacement": spec.replacement, "kind": string(spec.kind)}
+		for k, v := range map[string]string{"locator": sc.Locator, "matcher": sc.Matcher, "marker": sc.Marker, "value": sc.Value} {
+			if v != "" { // BBF refuses an empty definition value; a hosted test has none of these
+				d[k] = v
+			}
+		}
+		if sc.Hosted {
+			d["grep"] = grepTitle(sc.TestTitle)
 		}
 		if e.packageJSON != "" {
 			d["package_json"] = e.packageJSON
@@ -992,6 +1148,9 @@ func digestCanonical(v any) string {
 }
 
 func testLine(sc Scenario) int {
+	if sc.Hosted {
+		return sc.DeclLine
+	}
 	for i, l := range strings.Split(string(sc.Text), "\n") {
 		if strings.HasPrefix(l, "test(") {
 			return i + 1

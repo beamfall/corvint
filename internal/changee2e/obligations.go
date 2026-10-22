@@ -79,6 +79,7 @@ type Obligations struct {
 	Obligations   []Obligation  `json:"obligations"`
 	Unknown       []UnknownSpan `json:"unknown"`
 	Exempt        []Exemption   `json:"exempt"`
+	Truncated     int           `json:"truncated,omitempty"` // obligations dropped by the byte cap (CCE-V0-014)
 	Digest        string        `json:"digest"`
 
 	catalog *Catalog
@@ -322,7 +323,7 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 	default:
 		r.State = None
 	}
-	r.encoded, err = seal(r, &r.Digest)
+	r.encoded, err = capList(&r.Obligations, &r.Truncated, func() ([]byte, error) { return seal(r, &r.Digest) })
 	return r, err
 }
 

@@ -243,7 +243,7 @@ test('PWP-V3-002 retains ordered detail and the flaky first attempt', () => {
     const reporter = new Reporter({output, retainAttemptDetails: true});
     const project = {name: 'chromium', use: {}, metadata: {}};
     const item = {id:'retry', title:'retry', retries:1, repeatEachIndex:0, location:{file:'/repo/test.cjs',line:8}, _testType:{fixtures:[]}, parent:{project:()=>project}, titlePath:()=>['retry']};
-    reporter.onTestEnd(item, {status:'failed',retry:0,duration:7,errors:[{message:'first assertion failed'}],attachments:[{name:'screen',path:'/tmp/first.png'}],steps:[]});
+    reporter.onTestEnd(item, {status:'failed',retry:0,duration:7,errors:[{message:'first assertion failed',location:{file:'/repo/test.cjs',line:12,column:5}}],attachments:[{name:'screen',path:'/tmp/first.png'}],steps:[]});
     reporter.onTestEnd(item, {status:'passed',retry:1,duration:3,errors:[],attachments:[],steps:[]});
     reporter.onEnd({status:'passed'});
     const result = JSON.parse(fs.readFileSync(output,'utf8')).tests[0];
@@ -252,7 +252,32 @@ test('PWP-V3-002 retains ordered detail and the flaky first attempt', () => {
     assert.equal(result.attemptDetails[0].failureMessage,'first assertion failed');
     assert.equal(result.attemptDetails[0].artifacts[0].path,'/tmp/first.png');
     assert.equal(result.attemptDetails[1].failureMessage,result.failureMessage);
+    // PWP-V3-008: the failed attempt names its error location; the anchor stays the declaration.
+    assert.deepEqual(result.attemptDetails[0].failureLocation,{file:'/repo/test.cjs',line:12});
+    assert.deepEqual(result.attemptDetails[0].anchor,{file:'/repo/test.cjs',line:8});
+    assert.equal(result.attemptDetails[1].failureLocation,undefined);
     assert.throws(()=>new Reporter({output,retainAttemptDetails:true,sensitiveInputPolicy:{}}),/composition-unsupported/);
+  } finally { fs.rmSync(dir,{recursive:true,force:true}); }
+});
+
+test('PWP-V3-008 failure location prefers the innermost frame in the test file', () => {
+  const Reporter = loadReporter();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'corvint-attempts-'));
+  try {
+    const output = path.join(dir, 'report.json');
+    const reporter = new Reporter({output, retainAttemptDetails: true});
+    const project = {name: 'chromium', use: {}, metadata: {}};
+    const item = (id, repeatEachIndex) => ({id, title:'t', retries:0, repeatEachIndex, location:{file:'/repo/e2e/a.spec.ts',line:4}, _testType:{fixtures:[]}, parent:{project:()=>project}, titlePath:()=>['t']});
+    // The page object throws; its own frame comes first, the scenario's cleanup call second.
+    const stack = 'Error: cleanup failed /repo/e2e/a.spec.ts:2:1\n    at ClubPage.cleanup (/repo/e2e/pages/club.page.ts:30:11)\n    at /repo/e2e/a.spec.ts:19:5\n    at /repo/e2e/a.spec.ts:7:3';
+    reporter.onTestEnd(item('own', 0), {status:'failed',retry:0,duration:1,errors:[{message:'cleanup failed',stack,location:{file:'/repo/e2e/pages/club.page.ts',line:30,column:11}}],attachments:[],steps:[]});
+    // No frame in the test file: the error's own location stands.
+    reporter.onTestEnd(item('elsewhere', 1), {status:'failed',retry:0,duration:1,errors:[{message:'x',stack:'Error: x\n    at helper (/repo/lib/h.ts:3:1)',location:{file:'/repo/lib/h.ts',line:3,column:1}}],attachments:[],steps:[]});
+    // No location at all: the member is absent rather than the anchor.
+    reporter.onTestEnd(item('none', 2), {status:'timedOut',retry:0,duration:1,errors:[{message:'Test timeout'}],attachments:[],steps:[]});
+    reporter.onEnd({status:'failed'});
+    const tests = JSON.parse(fs.readFileSync(output,'utf8')).tests;
+    assert.deepEqual(tests.map(t=>t.attemptDetails[0].failureLocation),[{file:'/repo/e2e/a.spec.ts',line:19},{file:'/repo/lib/h.ts',line:3},undefined]);
   } finally { fs.rmSync(dir,{recursive:true,force:true}); }
 });
 
