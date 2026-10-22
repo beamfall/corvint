@@ -1,7 +1,7 @@
 # Start an external-agent queue
 
-`corvint-tasks` is a separate binary. The rc.1 core archive contains only `corvint`;
-its Tasks companion predates some of the commands below. Check `corvint-tasks help` for
+`corvint-tasks` is a separate binary. Core release archives contain only `corvint`, and an
+installed Tasks companion may predate some of the commands below. Check `corvint-tasks help` for
 `plan preview`, `claim --next`, `submit`, `gate run` and `complete`. An unstamped or
 `0.0.0-tcp01-unverified` version is not qualification evidence. In a checkout, see `docs/INSTALL.md`. In a standalone archive, the binary is under
 `bin/`, the templates under `templates/`, and the matching source under `source/`.

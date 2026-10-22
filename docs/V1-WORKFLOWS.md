@@ -3,7 +3,8 @@
 These owner-requested additions are available in the source build. Their technical contracts
 remain proposed or experimental; the qualification below does not promote Core 1.0 or close
 the broader release backlog. Build with `make build` and use that candidate executable for
-new flags. Installed Core 1.0.0-rc.1 build 163 predates these additions.
+new flags. Installed Core 1.0.0-rc.1 build 163 predates these additions; check
+`corvint --version` and the command's help before relying on a flag in an installed release.
 
 ## Review one exact change
 

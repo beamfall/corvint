@@ -1,9 +1,48 @@
 # Release notes
 
-## 1.0.0-rc.3 (unreleased): recorded limits
+## 1.0.0-rc.3 release candidate
 
-This section is untagged. It records the limits of the CEM 1.0 hunk-revert work (V1-1266) that the
-rc.3 notes must carry. It is not a claim that rc.3 qualifies them.
+`v1.0.0-rc.3` is the third 1.0 release candidate, cut from `main` after `1.0.0-rc.2` (build 360).
+Its headline is [decision 0525](decisions/0525-cem-1-0-only-rc3-2026-10-11.md): `cem/1.0` is the
+only CEM wire. The `cem/0.1` to `cem/0.3` producers, consumers, packets and schemas were removed,
+every committed legacy map was migrated to `cem/1.0`, and `cem/0.x` survives only in Git history.
+It does not qualify for 1.0 final: the untouched-repository evaluation (V1-0019) for this candidate
+is `NOT_RUN`, and the expanded stable-release scope of decision 0426 remains pending.
+
+Main changes since rc.2:
+- CEM 1.0 cutover: the 0.x wire, verifier, producers, examples and routes are deleted (V1-1278); a
+  `cem/0.x` to `cem/1.0` converter migrated every committed map (V1-1275, V1-1277); the dogfood loop
+  and the Tasks seal gate recompute the sealed `cem/1.0` verdict (V1-1283); the technical contract
+  is accepted with recorded limits (decision 0546). New opt-in steps are `cem verify --hunk-revert`
+  and `--guarding-tests`, consumer-side DSSE Ed25519 receipt authentication (`CEM-V1-084`), the
+  plain-criterion producer (`CEM-V1-240`) and a tamper matrix shared by both consumers (V1-1340).
+  Promotion of the stable profile stays owner-blocked (V1-0596).
+- Tasks: pool member source identity (V1-1586), capacity slots (V1-1550), detached claims and pool
+  acquire/release for live attempts (V1-1042), `doctor` queue-health detectors (#715), read facets
+  and `--count`, `run-batch` and `qualify` job commands (#714), receipt retire/unretire (V1-1618),
+  lease and liveness write performance (V1-0887), and reuse of a descendant full-gate PASS for
+  merged seals (V1-2193). GitHub issues #622 to #628 were addressed after the rc.2 tag.
+- Affected and context: orientation changes for the rc.2 V1-0019 misses (V1-0859, V1-0431; not yet
+  re-evaluated), a Java adapter with Kotlin cross-reach frontiers (V1-1308), a Playwright static
+  profile and discovery producer, fingerprinted result reuse (V1-1578), and a Verify-scoped full
+  gate labelled conditional (`AFP-V0-009`).
+- Runners and test providers: Ginkgo v2 native runner qualification (V1-0593), Playwright tuples on
+  Node v24.11.1, Gradle per-run user homes, Storybook skip tags, e2e-safe selection ceilings of
+  16,384 tests (V1-1676), and the experimental Ruby test provider (below). Most runners remain
+  recorded limits (decision 0523 §3, below).
+- Analyzers: Ruby named-constant reverse references and profile completion (V1-1674), flows and
+  appmap name-level test references (V1-1581), and docs-corpus Playwright discovery and witness
+  producers.
+- CI and release tooling: the toolchain pin moves to go1.27.2, with go1.27.3 admitted as a patch
+  revision (decisions 0522, 0547); Windows test vet runs in PR CI and locally as `make windows-vet`
+  (V1-1117, V1-1719); duration-balanced shard planning (V1-1579); the gate ledger runs unresolved
+  packages after a failed batch (V1-0847); the hosted release gate no longer stops at the first
+  failed step (V1-0848); and the workflow least-privilege check covers every workflow (V1-1469).
+- Flake fixes: the rc.2 known issues V1-0845 and V1-0391 are fixed, and load- and timing-sensitive
+  failures in `cmd/corvint`, the Tasks store and CLI, process-group snapshots (V1-1368) and the
+  reaper (V1-2111) are hardened under the V1-0849 umbrella.
+
+### CEM 1.0 hunk-revert limits (V1-1266)
 
 - `cem verify --hunk-revert` (opt-in, `CEM-V1-088`/`089`) is the only source of the `held` tier.
   It reverse-applies one cited hunk in a disposable copy and runs the tests that the hunk's
@@ -122,6 +161,14 @@ several are not yet measured:
 
 [`docs/CHANGE-EVIDENCE-MAP.md`](CHANGE-EVIDENCE-MAP.md) carries the same §6 list and kill criteria
 in its positioning section.
+
+### Published prerelease
+
+The published prerelease is `Corvint 1.0.0-rc.3 (build BUILD_N)`, commit `FULL_COMMIT`. Its
+qualification evidence is listed here after the release gate passes. Until then, the
+untouched-repository evaluation, the install lifecycle, the N-1 upgrade from 1.0.0-rc.2 and native
+performance are `NOT_RUN`. Like rc.2, it is unsigned: `SHA256SUMS` only, publisher identity
+`NOT_VERIFIED` (decision 0433).
 
 ## 1.0.0-rc.2 release candidate
 

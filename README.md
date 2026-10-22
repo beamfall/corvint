@@ -40,7 +40,8 @@ the two bounded exceptions are a local `.corvint/self-observations.jsonl` ledger
 the operator marker `.corvint/unplanned-reads.enabled` exists, `.corvint/unplanned-reads.jsonl`.
 Neither is a direct input to ranking, evidence, or authority. Learning from these ledgers requires
 an explicit operator step and a frozen held-out gate ([AGENTS.md](AGENTS.md) invariant 4). Version
-`1.0.0-rc.2` is the published prerelease and the second release candidate for Corvint 1.0;
+`1.0.0-rc.3` is the third release candidate for Corvint 1.0, being prepared for publication as a
+prerelease; `1.0.0-rc.2` is the previous candidate. Read
 [what 1.0 promises and what is still being qualified](#status-stated-plainly).
 
 ## Why Corvint
@@ -171,15 +172,18 @@ export PATH="$HOME/.local/bin:$PATH"
 corvint --version
 ```
 
-Versioned assets are on the [releases page](https://github.com/beamfall/corvint/releases). The
-[Core rc.2 release](https://github.com/beamfall/corvint/releases/tag/v1.0.0-rc.2) contains only
-`corvint`, with four macOS/Linux archives, `SHA256SUMS` and `verification-report.json`. A matching
+Versioned assets are on the [releases page](https://github.com/beamfall/corvint/releases). Core
+releases contain only `corvint`; the previous candidate, the
+[Core rc.2 release](https://github.com/beamfall/corvint/releases/tag/v1.0.0-rc.2), has four
+macOS/Linux archives, `SHA256SUMS` and `verification-report.json`. A matching
 native archive needs Git but no Go compiler; verify both the downloaded archive and its internal
 checksums before running it. Read the exact platform's qualification, including native versus
 emulated runs. Tasks has its own developer release; source companions are not automatically
-included in a Core archive. Source builds of `main` report `1.0.0-rc.3`, an unreleased candidate
-label, and carry fixes made after the rc.2 tag (decision 0486). Like rc.1, rc.2 is unsigned, and 1.0 will be too: `SHA256SUMS` only, publisher
-identity `NOT_VERIFIED` (decision 0433). The [installation guide](docs/INSTALL.md) covers checks, first use,
+included in a Core archive. Source builds of `main` report `1.0.0-rc.3`, the candidate being
+prepared; its assets and qualification evidence are listed in the
+[release notes](docs/RELEASE-NOTES.md#100-rc3-release-candidate) only after its release gate passes.
+Like rc.1 and rc.2, rc.3 is unsigned, and 1.0 will be too: `SHA256SUMS` only, publisher identity
+`NOT_VERIFIED` (decision 0433). The [installation guide](docs/INSTALL.md) covers checks, first use,
 optional tools, upgrades and removal.
 
 ## The workflow
@@ -263,8 +267,8 @@ The [wire format, schemas, and conformance vectors](docs/CHANGE-EVIDENCE-MAP.md)
 
 ## Optional Go LSP evidence
 
-The following CLI/MCP selectors were added after rc.1 and are in the published `1.0.0-rc.2`
-binary. With an older build, or with an MCP companion that does not match your binary, check your
+The following CLI/MCP selectors were added after rc.1 and are in `1.0.0-rc.2` and later
+binaries. With an older build, or with an MCP companion that does not match your binary, check your
 installed `corvint help context` before using them.
 
 Corvint can use `gopls`, the Go language server, to add definition and reference relationships
@@ -538,8 +542,9 @@ experimental; exact client tuples and outcome/performance floors are unqualified
 ## Status, stated plainly
 
 > [!IMPORTANT]
-> `1.0.0-rc.2` is the published release candidate for Corvint 1.0. It does not qualify for 1.0
-> final: its untouched-repository evaluation failed (Core jobs row below). The 1.0 stability promise (frozen
+> `1.0.0-rc.3` is the release candidate being prepared for Corvint 1.0; `1.0.0-rc.2` is the
+> previous published candidate. Neither qualifies for 1.0 final: the rc.2 untouched-repository
+> evaluation failed, and the rc.3 evaluation is `NOT_RUN` (Core jobs row below). The 1.0 stability promise (frozen
 > contracts, N-1 readers or deterministic migrations) covers the Core surfaces below and nothing
 > else ([1.0 scope](docs/specs/corvint-1.0-product-and-release-v1.md), decision 0373). Stable 1.0
 > also requires the expanded Flows, safe navigation, documentation/MCP and automatic
@@ -548,19 +553,20 @@ experimental; exact client tuples and outcome/performance floors are unqualified
 > requirements do not expand Core's binary boundary or transfer its stability promise to
 > companions. The three Core jobs must pass on Corvint, Beamfall and one untouched public
 > repository (`PRS-V1-008`; urfave/cli for rc.2, decision 0432), alongside the expanded product qualification. Platform status comes
-> from each release's exact assets and evidence. The table reports retained rc.2 evidence
-> separately from the expanded scope; it does not qualify source changes made after the rc.2 tag.
+> from each release's exact assets and evidence. The table reports retained rc.2 evidence, labelled
+> as such, separately from the expanded scope; it does not qualify rc.3 or any source change made
+> after the rc.2 tag. Every rc.3 qualification row is pending until its release gate runs.
 
 | Surface | 1.0 label | Release evidence and current scope |
 |---|---|---|
 | `init`, `adopt`, `index`, `query`, `context`, `impact`, `affected`, `prove` | Core | Command, wire and migration contracts frozen; `init`, `adopt` and the deterministic index lifecycle qualified. Receipts carry coverage, omissions and uncertainty as specified. |
 | CEM `1.0`, OCM, change frontier | Core | Frozen with canonical conformance vectors. `cem/0.x` was removed by decision 0525 and survives only in Git history. `interop/cem01-go` is an in-repo second consumer for `cem/1.0`; 1.0 claims no third-party interoperability. |
 | Dogfood loop | Core | Substantive Corvint changes are bound to a CEM and sealed with a retained local outcome ([dogfood contract](docs/DOGFOOD.md)). |
-| Core jobs | Core | **The rc.2 evaluation failed overall.** Task orientation missed critical files that the lexical baseline found: 6 files in 2 of 20 scored cases on urfave/cli, 9 files in 6 of 17 on Corvint and 1 file in 1 of 20 on Beamfall. Of the 15 public missed files, 11 are documentation or other non-Go files. Change consequence (no misses) and evidence-carrying completion (12 of 12 informative, no false complete verdict) passed on all three repositories. 1.0 final stays blocked on this evaluation ([release evidence](docs/RELEASE-NOTES.md#100-rc2-release-candidate)). The rc.1 evaluation also failed orientation, on go-chi/chi and Beamfall; its Corvint run aborted before scoring. |
-| Native release artifact and install lifecycle | Core | darwin/arm64 and linux/amd64 have retained rc.2 install-lifecycle qualification, in same-bytes mode and as the N-1 upgrade from rc.1 with rollback. darwin/amd64 was tested under Rosetta 2 and linux/arm64 in a container; both remain `FALLBACK`. Windows is unsupported. rc.2 is unsigned, and decision 0433 selects no signing for 1.0 either: `SHA256SUMS` only, publisher identity `NOT_VERIFIED` ([release evidence](docs/RELEASE-NOTES.md#100-rc2-release-candidate)). |
+| Core jobs | Core | **The rc.2 evaluation failed overall.** Task orientation missed critical files that the lexical baseline found: 6 files in 2 of 20 scored cases on urfave/cli, 9 files in 6 of 17 on Corvint and 1 file in 1 of 20 on Beamfall. Of the 15 public missed files, 11 are documentation or other non-Go files. Change consequence (no misses) and evidence-carrying completion (12 of 12 informative, no false complete verdict) passed on all three repositories. 1.0 final stays blocked on this evaluation ([release evidence](docs/RELEASE-NOTES.md#100-rc2-release-candidate)). The rc.1 evaluation also failed orientation, on go-chi/chi and Beamfall; its Corvint run aborted before scoring. The rc.3 evaluation is `NOT_RUN`, pending rc.3 qualification. |
+| Native release artifact and install lifecycle | Core | rc.3 artifacts, install lifecycle and the N-1 upgrade from rc.2 are `NOT_RUN`, pending rc.3 qualification. Retained rc.2 evidence: darwin/arm64 and linux/amd64 have rc.2 install-lifecycle qualification, in same-bytes mode and as the N-1 upgrade from rc.1 with rollback. darwin/amd64 was tested under Rosetta 2 and linux/arm64 in a container; both remain `FALLBACK`. Windows is unsupported. rc.2 is unsigned, rc.3 will be too, and decision 0433 selects no signing for 1.0 either: `SHA256SUMS` only, publisher identity `NOT_VERIFIED` ([release evidence](docs/RELEASE-NOTES.md#100-rc2-release-candidate)). |
 | Retrieval quality | Core surface, unqualified ranking | Bounded receipts around a named path or subject are the product. Broad task-to-evidence retrieval has not passed held-out evaluation: the retained held-out attempt beat the exact-search baseline on top-5 (0.571 vs 0.343) and met the abstention and latency bars, but returned forbidden results on 7 of 36 must-exclude checks. Do not rely on ranking or abstention. |
 | Does CEM help a reviewer? | Not claimed | **Unproven.** A five-pair pilot scored mean missed evidence of 0.90 for control and 0.86 with CEM. It is a pilot, not a held-out outcome study. |
-| Performance | Not claimed | No native performance qualification is claimed for rc.1 or rc.2. Earlier measurements compared against the retired Python runtime and do not qualify the Go-only release. |
+| Performance | Not claimed | No native performance qualification is claimed for rc.1 or rc.2; rc.3 performance is `NOT_RUN`. Earlier measurements compared against the retired Python runtime and do not qualify the Go-only release. |
 | Host adapters | Core (Codex, Claude Code), companion (Gemini CLI, OpenCode, Pi) | Core lifecycle receipts report `FALLBACK`; formal `FULL` host authority is post-1.0. OpenCode native integration has separate exact-tuple qualification and no execution authority. The VS Code extension is deferred. |
 | Flows, safe navigation, Tasks takeover, documentation and MCP | Required 1.0 product outcomes, independently packaged | Expanded stable-release qualification remains pending under decision 0426; source presence and local gates do not establish whole-product acceptance. |
 | MCP servers, `corvint-tasks`, dashboard, console, test providers, docs | Companion | Qualified separately, with no Core stability promise. Selected outcomes above are required for stable 1.0; unrelated consoles and providers remain optional. The console and dashboard present evidence and never hold authority over it. |
