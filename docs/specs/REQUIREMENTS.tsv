@@ -3238,6 +3238,7 @@ LTA-V0-013	docs/specs/learned-trace-admission-v0.md	Schema-2 verification define
 LTA-V0-014	docs/specs/learned-trace-admission-v0.md	The writer screen MAY skip a top-level branch of `secretscreen.Pattern` for a te	unrecorded	-
 LTA-V0-015	docs/specs/learned-trace-admission-v0.md	The writer screen MUST treat the structural `PASS:` prefix inside one complete	unrecorded	-
 LTA-V0-016	docs/specs/learned-trace-admission-v0.md	The writer screen's JWT-shaped branch MUST require compact-JWS header structure:	unrecorded	-
+LTA-V0-017	docs/specs/learned-trace-admission-v0.md	The writer screen's `sk-` vendor branch MUST require, after a word boundary and	unrecorded	-
 LRF-V0-001	docs/specs/lexical-relevance-floor-v0.md	the profile MUST accept only a structurally valid CEM and, for obligation checks	unrecorded	-
 LRF-V0-002	docs/specs/lexical-relevance-floor-v0.md	every term set MUST use the frozen identifier algorithm and subject text. A	unrecorded	-
 LRF-V0-003	docs/specs/lexical-relevance-floor-v0.md	an evaluated evidence span MUST be no larger than both 512 raw bytes and 20 logi	unrecorded	-
@@ -4855,6 +4856,7 @@ TRE-V0-115	docs/specs/test-runner-execution-v0.md	(accepted under the owner's st
 TRE-V0-116	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1538) The	standing	2026-10-11; V1-1538
 TRE-V0-117	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2182) For	standing	2026-10-11; V1-2182
 TRE-V0-118	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1567) For	standing	2026-10-11; V1-1567
+TRE-V0-119	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2341) For	standing	2026-10-11; V1-2341
 TRE-V0-036	docs/specs/test-runner-execution-v0.md	`boost-test-junit` MUST execute the pinned test executable with	unrecorded	-
 TRE-V0-037	docs/specs/test-runner-execution-v0.md	The dedicated parser MUST accept exactly one `boost-junit.xml`	unrecorded	-
 TRE-V0-038	docs/specs/test-runner-execution-v0.md	A row without an outcome is `PASSED`; `skipped` is `SKIPPED`; a	unrecorded	-
@@ -5430,6 +5432,7 @@ WQO-V0-029	docs/specs/work-queue-observation-v0.md	Beamfall MUST add one support
 WQO-V0-030	docs/specs/work-queue-observation-v0.md	Corvint MUST NOT call Beamfall mutation verbs or `fanout-plan --claim`. Adapter	unrecorded	-
 WQO-V0-031	docs/specs/work-queue-observation-v0.md	`PARTIAL`, `CONFLICTED`, `STALE`, or `UNKNOWN` always produces an empty proposal	unrecorded	-
 WQO-V0-032	docs/specs/work-queue-observation-v0.md	Timeout, cancellation, non-zero exit, malformed bytes, digest mismatch, overflow	unrecorded	-
+WQO-V0-052	docs/specs/work-queue-observation-v0.md	(V1-2291, decision 0552) Each Git child a scratch-owning work source starts keep	unrecorded	-
 WQO-V0-033	docs/specs/work-queue-observation-v0.md	Corvint core makes no network request, model call, database, daemon, embedding,	unrecorded	-
 WQO-V0-034	docs/specs/work-queue-observation-v0.md	Independent Go conformance validates every schema, identity, decision row, bound	unrecorded	-
 WQO-V0-035	docs/specs/work-queue-observation-v0.md	Rollout is frozen conformance, Corvint self-dogfood, Beamfall shadow, 500 consec	unrecorded	-

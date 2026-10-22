@@ -3,6 +3,7 @@ package secretscreen
 import (
 	"bytes"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -20,6 +21,15 @@ type alternative struct {
 // writerJWTAlt is the writer's JWT-shaped branch (LTA-V0-016, V1-1704).
 const writerJWTAlt = `\b(?-i:e[wy])[a-z0-9_-]{8,}\.[a-z0-9_-]{10,}\.[a-z0-9_-]{10,}`
 
+// storedSKAlt is the sk- vendor branch StoredV1Pattern keeps. writerSKAlt
+// additionally needs 20 consecutive characters without a hyphen, so a run of
+// short hyphenated words such as `sk-1022p-site-knowledge-setup` is not a key
+// (LTA-V0-017, V1-2418). Every writer match is a stored match with the same span.
+const (
+	storedSKAlt = `\bsk-[a-z0-9_-]{20,}`
+	writerSKAlt = `\bsk-[a-z0-9_-]*[a-z0-9_]{20}[a-z0-9_-]*`
+)
+
 // writerAlternatives is Pattern in precedence order; see the comments on the
 // expression constants for why each branch sits where it does.
 var writerAlternatives = func() []alternative {
@@ -33,6 +43,7 @@ var writerAlternatives = func() []alternative {
 	// Dotted identifiers such as `CHECKOUT-REGRESSION.PAYMENT-FLOW.SAVED-CARD`
 	// therefore pass (V1-1704). StoredV1Pattern keeps the original shape.
 	secret[len(secret)-1] = writerJWTAlt
+	secret[slices.Index(secret, storedSKAlt)] = writerSKAlt
 	secretNeeds := []func([]byte) bool{
 		assignmentCandidate,
 		contains(`-----begin `), contains(`-----begin `), contains(`-----begin `), contains(`-----begin `),

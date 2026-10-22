@@ -183,7 +183,7 @@ func runWork(ctx context.Context, root string, arguments []string, stdout, stder
 	if commandCode != "" {
 		return emitWorkError(stdout, commandCode)
 	}
-	defer capture.Close()
+	defer closeWorkCapture(capture, stderr)
 	if options.operation == "observe" {
 		result := &workqueue.CommandResult{Observation: capture.observation, State: "OK"}
 		workqueue.RefreshCommandResult(result)
@@ -251,7 +251,7 @@ func observeWork(parent context.Context, root string, stderr io.Writer) (*workCa
 	completed := false
 	defer func() {
 		if !completed {
-			capture.Close()
+			closeWorkCapture(capture, stderr)
 		}
 	}()
 	adapterPath := filepath.Join(materialization.target, filepath.FromSlash(policy.AdapterPath))
@@ -308,15 +308,25 @@ func observeWork(parent context.Context, root string, stderr io.Writer) (*workCa
 	return capture, ""
 }
 
-func (capture *workCapture) Close() {
+// Close releases the capture and reports a run scratch it had to keep.
+func (capture *workCapture) Close() error {
+	var err error
 	if capture.runner != nil {
 		capture.runner.Close()
 	}
 	if capture.materialization != nil {
-		capture.materialization.Close()
+		err = capture.materialization.Close()
 	}
 	if capture.opening.qualified != nil {
 		capture.opening.qualified.Close()
+	}
+	return err
+}
+
+// closeWorkCapture closes capture and names a kept run scratch on stderr.
+func closeWorkCapture(capture *workCapture, stderr io.Writer) {
+	if err := capture.Close(); err != nil {
+		io.WriteString(stderr, "corvint work: "+err.Error()+"\n")
 	}
 }
 

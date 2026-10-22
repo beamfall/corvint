@@ -694,6 +694,21 @@ Explicit unknowns for an adopted repository:
   `work --help` and `help work` are help requests, not command input: they print usage text on stdout
   and exit 0 before any work command is parsed (amendment 2026-09-12).
 
+- `WQO-V0-052`: (V1-2291, decision 0552) Each Git child a scratch-owning work source starts keeps
+  its own process group. Before the child exists, the source MUST create an exclusively `flock`ed
+  record file under its acquisition scratch named for a fresh random run token, and the child MUST
+  inherit that descriptor and carry the inert arguments `-c corvint.worksourcerun=<token>`; the
+  record is removed after the reap. The lock is therefore held from fork exactly while a process of
+  the run lives, and no PID is published after start. Before removing the run root, the observer's
+  run `Close` MUST, for every record whose lock is still held, find the group leader carrying that
+  marker and stop then kill its group under `groupreap` identity pinning, repeating until the lock
+  is released, bounded by a hang detector. No recorded or previously observed group number is
+  signalled, and a record whose lock is free is never acted on. When release is not confirmed
+  (lock still held at the bound, an unreadable record, or a lock error), `Close` MUST keep the run
+  root and its records and return an error naming it; `corvint work` writes it to stderr. Non-Unix
+  platforms keep no record. Rollback: remove the record, marker and `Close` retirement; scratch
+  removal then races surviving Git children as before.
+
 - `WQO-V0-033`: Corvint core makes no network request, model call, database, daemon, embedding, or
   hosted-service call. Adapter network is `DENIED` only under enforced denial; otherwise
   `HOST_UNOBSERVED` with `NETWORK_UNOBSERVED`. V0 never claims hermeticity. ACL mismatch invalidates
@@ -785,6 +800,7 @@ repository's existing roadmap files; a repository with another queue writes its 
 | Repository adoption | WQO-V0-047..048 | `cmd/corvint/work_adopt.go`, `internal/worklistadapter`, `TestWorkAdoptedRepositoryWorklist`, `TestWorkMappingReproduced` |
 | Bound adoption executable | WQO-V0-049..050 | `cmd/corvint/work_executable_binding.go`, `TestWorkInitBindsExplicitExecutableWQOV0049`, `TestWorkInitBindsResolvedSymlinkTargetWQOV0049`, `TestWorkInitRejectsUnqualifiedExecutableWQOV0049`, `TestWorkExecutableMissingAndSymlinkSwapWQOV0049`, `TestWorkExecutableChangeRequiresReviewedRebindWQOV0050` |
 | Source refusal reason | WQO-V0-051 | `cmd/corvint/work.go` `workSourceReasons`, `internal/worksource/source.go` `RefusalReason`, `cmd/corvint/work_adopt.go`, `TestWorkSourceUnqualifiedNamesReasonWQOV0051`, `TestWorkRebindUnqualifiedAdoptionOmitsGitStderr` |
+| Killed-producer Git groups | WQO-V0-052 | `internal/worksource/process_unix.go` `recordGitGroup`, `RetireGitGroups`; `internal/groupreap/argv.go` `GroupLeadersWithArgument`, `StopKillGroup`; `cmd/corvint/work_materialization.go` `Close`; `TestRetireGitGroupsAfterProducerKill`, `TestRetireGitGroupsAfterProducerDiesAtGitStart`, `TestRetireGitGroupsNeverSignalsAnUnpinnedGroup`, `TestRetireGitGroupsLeavesFinishedRecords`, `TestGitRunRemovesItsGroupRecord`, `TestGroupLeadersWithArgumentAndStopKillGroup`, `TestWorkCloseRetiresKilledProducerGit`, `TestWorkCloseKeepsScratchWhenRetirementIsUnconfirmed` |
 
 Decision 0046 accepted this contract and assigned the Corvint self-dogfood authority IDs
 (`repo:corvint`, `queue:corvint:worklist`, `scope:corvint:worklist`, `access:corvint:local`); the core

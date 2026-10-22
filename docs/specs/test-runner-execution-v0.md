@@ -125,6 +125,13 @@ analyzer families need explicit runtime/domain disposition; their presence is no
   line as detail, so the observation is incomplete and its suite verdict is not retained. A
   native result mismatch (`wrong result ...`) stays a complete `FAILED` suite. A diagnostic that
   names another file does not match.
+- `TRE-V0-119`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2341) For
+  `sql-sqllogictest-sqlite`, a native stderr line `<sourceFile>:<line>: statement error` MUST record
+  `SQL_STATEMENT_UNRESOLVED` with that line as detail, so the observation is incomplete and its
+  suite verdict is not retained. The native runner prints that line both for a `statement ok`
+  record the engine rejected and for a `statement error` record it accepted, so the streams cannot
+  separate a rejection from an assertion mismatch. A diagnostic that names another file does not
+  match.
 
 ## Runner inventory
 
@@ -1611,7 +1618,8 @@ Open residuals, retained and not fixed in this slice:
   The native per-record diagnostics do separate them (`query failed` on stderr against
   `wrong result - expected [...] got [...]` on stdout, captured fixtures `sqlite/infra` and
   `sqlite/fail`), so `TRE-V0-118` refuses the rejected query. A `statement ok` record the
-  engine rejects was not witnessed; its native text is unverified and it stays a FAILED suite.
+  engine rejects prints `<file>:<line>: statement error` (sqllogictest.c), which `TRE-V0-119`
+  refuses as `SQL_STATEMENT_UNRESOLVED`; a live capture of it is NOT_RUN.
 - `xcode-xctest` `zero` and `build-error` were refused because destination reports disagree;
   `TRE-V0-117` maps both exact shapes.
 - Gradle and Maven write `build/` and `target/` into the fixture tree. Java ignores `TMPDIR`
@@ -1841,8 +1849,8 @@ for a mismatch.
 Failure modes. If removing `.tmp` fails (a file the user cannot delete, say), the run is
 incomplete with `temp-cleanup`; a residue is never hidden. An Xcode destination-less summary
 with any count, failure, destination or other tree shape stays `INVALID_NATIVE_REPORT`. A
-sqllogictest rejected `statement` record and runtime errors other than `query failed` are not
-detected.
+sqllogictest rejected `statement` record was not detected until `TRE-V0-119` (V1-2341); other
+runtime errors are not detected.
 
 Recorded limits.
 - The `xcode-xctest` mappings are proved against the retained native bytes (parser fixtures).
@@ -1857,9 +1865,12 @@ Rollback: remove the `.tmp` removal defer in `execute_unix.go`, the destination-
 `platform/xcode.go` and the `query failed` check in `sql/sqllogictest.go`, together with their
 tests and fixtures. Residue would then stay in report directories, those Xcode runs would be
 refused again, and rejected queries would again be complete FAILED suites.
+For `TRE-V0-119`, remove the `statement error` check and its test; such records would again be
+complete FAILED suites.
 
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
 | TRE-V0-116 | `execute_unix.go` `Execute`, `boundedDetail`; `TestExecuteRemovesPrivateTempResidue` | Timeout and normal-exit helper phases leave a FIFO and nested scratch in `TMPDIR`; both subtests fail without the removal and pass with it, 2026-10-21 |
 | TRE-V0-117 | `platform/xcode.go` `parseXcode`; `TestXcodeBuildFailureAndZeroTests`; fixtures `xcode-build-error-*`, `xcode-zero-*` | Retained 2026-10-17 native bytes give `BUILD_FAILURE` and `NO_TESTS`; four shape mutations stay `INVALID_NATIVE_REPORT`; the test fails without the mapping, 2026-10-21 |
 | TRE-V0-118 | `sql/sqllogictest.go` `parseSQLite`; `TestSQLiteRejectedQueryIsNotAnAssertion`, `TestNativeMatrix` | Captured native `sqlite/infra` is incomplete with `SQL_QUERY_REJECTED`; `sqlite/fail` stays a complete FAILED suite; the test fails without the check, 2026-10-21 |
+| TRE-V0-119 | `sql/sqllogictest.go` `parseSQLite`; `TestSQLiteStatementErrorIsNotAVerdict` | The `statement error` line shape is read from sqllogictest.c (`fprintf(stderr, "%s:%d: statement error\n", ...)` for both statement directions); the test fails without the check, 2026-10-22. A live capture is NOT_RUN |
