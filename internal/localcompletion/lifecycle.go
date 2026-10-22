@@ -557,7 +557,11 @@ func Review(ctx context.Context, root, key, reportDigest string) (Evaluation, er
 	return repo.evaluate(ctx, saved)
 }
 
-func Cancel(ctx context.Context, root, key string) (Evaluation, error) {
+// Cancel records an explicit non-success. An active, unsatisfied enrollment is
+// closed only with a nonempty reason (LCP-V0-038): moving to a new base takes a
+// fresh worktree and enrollment instead, so a bare cancel there is refused with
+// the check and observation counts it would close.
+func Cancel(ctx context.Context, root, key, reason string) (Evaluation, error) {
 	repo, err := open(root, key)
 	if err != nil {
 		return Evaluation{}, err
@@ -573,6 +577,9 @@ func Cancel(ctx context.Context, root, key string) (Evaluation, error) {
 	saved, err := repo.load()
 	if err != nil {
 		return Evaluation{}, err
+	}
+	if saved.Lifecycle == "active" && reason == "" {
+		return Evaluation{}, &CancelReasonError{Checks: len(saved.Plan.Checks), Observations: len(saved.Observations)}
 	}
 	saved.Lifecycle = "cancelled"
 	saved.Terminal = nil

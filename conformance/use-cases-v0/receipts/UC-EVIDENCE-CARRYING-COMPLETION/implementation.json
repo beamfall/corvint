@@ -8,7 +8,7 @@
     ]
   },
   "evidenceClass": "implementation",
-  "repositoryRevision": "2c7a3c194c01172926365b5b1eca98d387f041d6",
+  "repositoryRevision": "f29ddc0db09c01c370cd3c9bcc5022a296ae3876",
   "result": "PASS",
   "spec": "corvint-use-case-evidence/0",
   "subjects": [
@@ -34,7 +34,7 @@
     },
     {
       "path": "cmd/corvint/local_completion.go",
-      "sha256": "82cfc9af559f20b6e156ea51ccd061936f0beda1c4f3ab52400319708111aba9"
+      "sha256": "5d32d94364434d4320b0bdcf9c2a0476537fb92538177ef69fce7602d3b39adb"
     }
   ],
   "useCaseId": "UC-EVIDENCE-CARRYING-COMPLETION"

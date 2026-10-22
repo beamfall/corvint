@@ -124,7 +124,10 @@ PATH="$fake_dir:$PATH" CORVINT_BIN=$(basename "$TEST_FAKE_CORVINT") bash script/
 rg -q -- "--override-verifier $TEST_FAKE_CORVINT $base$" "$TEST_FLOW_LOG" || exit 1
 # A relative PATH entry resolves to an absolute path before the wrapper changes directory.
 : > "$TEST_FLOW_LOG"
-rel_dir=$(python3 -c 'import os,sys; print(os.path.relpath(sys.argv[1]))' "$fake_dir")
+# The fake binary's directory is a sibling of the repository, so the relative entry is computed
+# in the shell (GOC-V0-008: no Python runtime) and checked to name the same directory.
+rel_dir=../$(basename "$fake_dir")
+[[ $(cd "$rel_dir" && pwd -P) == "$(cd "$fake_dir" && pwd -P)" ]] || exit 1
 PATH="$rel_dir:$PATH" CORVINT_BIN=$(basename "$TEST_FAKE_CORVINT") bash script/dogfood-check.sh "$base"
 rg -q -F -- "--override-verifier $PWD/$rel_dir/$(basename "$TEST_FAKE_CORVINT") $base" "$TEST_FLOW_LOG" || exit 1
 # An unresolvable name is refused as unresolved, before the version probe.

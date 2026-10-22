@@ -515,7 +515,9 @@ set -m
   anchor_status=0
   anchor_output=$("${default_env[@]}" script/dogfood-check.sh HEAD 2>&1) || anchor_status=$?
   test "$anchor_status" = 2
-  test "$anchor_output" = 'dogfood-check: REFUSE base-not-anchored'
+  # DCW-V0-171: the refusal is followed by a fix line naming the anchored base.
+  test "${anchor_output%%$'\n'*}" = 'dogfood-check: REFUSE base-not-anchored'
+  [[ $anchor_output == *"rerun with BASE=$base,"* ]]
   git config --local corvint.dogfood.anchor ''
   empty_anchor_status=0
   empty_anchor_output=$("${default_env[@]}" script/dogfood-check.sh "$base" 2>&1) || empty_anchor_status=$?

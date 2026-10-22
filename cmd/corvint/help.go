@@ -1449,7 +1449,7 @@ Usage:
   corvint [--root PATH] dogfood verify --check ID [--session-key HASH]
   corvint [--root PATH] dogfood finish [--session-key HASH]
   corvint [--root PATH] dogfood review --report-set DIGEST [--session-key HASH]
-  corvint [--root PATH] dogfood cancel [--session-key HASH]
+  corvint [--root PATH] dogfood cancel [--reason TEXT] [--session-key HASH]
   corvint [--root PATH] dogfood handoff [--anchors "ANCHOR..."] [--session-key HASH]
   corvint [--root PATH] dogfood handoff --receipt FILE [--session-key HASH]
   corvint [--root PATH] dogfood handoff --task-state FILE [--session-key HASH]

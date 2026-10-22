@@ -264,8 +264,51 @@ func (f *flow) resolveAnchor() {
 	f.anchorObserved = true
 	f.anchorMergeBase = merges
 	if f.base != f.anchorMergeBase {
-		f.refuse("base-not-anchored")
+		// DCW-V0-171: name the anchored base, so a lane that merged its
+		// mainline forward past an unmoved BASE learns the base to rerun with.
+		f.say("%s: REFUSE base-not-anchored\n", f.prefix)
+		f.say("  fix: BASE %s is not git merge-base %s HEAD; rerun with BASE=%s, which binds only the commits HEAD adds to the anchor (docs/DOGFOOD.md \"Produce the CEM\", DCW-V0-171)\n", f.base, configured, f.anchorMergeBase)
+		f.exit(2)
 	}
+}
+
+// maxMergedForwardScan bounds the first-parent merges mergedForward reads.
+const maxMergedForwardScan = 64
+
+// mergedForward returns the newest merge on HEAD's first-parent path from
+// BASE whose merged parent descends from BASE and is not a seal commit: the
+// shape of a lane that merged its mainline forward past an unmoved BASE
+// (DCW-V0-171). A merged seal commit is a sealed lane or stacked predecessor,
+// which DCW-V0-042 and DCW-V0-113 route instead. Empty when none is found.
+func (f *flow) mergedForward() (merge, parent string) {
+	merges, status := f.git(true, "rev-list", "--first-parent", "--merges", fmt.Sprintf("--max-count=%d", maxMergedForwardScan), f.base+".."+f.target)
+	if status != 0 {
+		return "", ""
+	}
+	for _, candidate := range nonEmpty(strings.Split(chomp(merges), "\n")) {
+		merged, status := f.git(true, "rev-parse", "--verify", "-q", candidate+"^2")
+		merged = chomp(merged)
+		if status != 0 || merged == f.base || !f.gitSucceeds("merge-base", "--is-ancestor", f.base, merged) || f.isSealCommit(merged) {
+			continue
+		}
+		return candidate, merged
+	}
+	return "", ""
+}
+
+// noteMergedForward prints the DCW-V0-171 note before the expensive passes
+// when no anchor is configured and BASE..HEAD merged a descendant of BASE.
+// No implicit anchor is selected, so it is a note, not a refusal.
+func (f *flow) noteMergedForward() {
+	if f.anchorObserved {
+		return
+	}
+	merge, merged := f.mergedForward()
+	if merge == "" {
+		return
+	}
+	f.say("%s: NOTE merged-forward merge=%s merged=%s\n", f.prefix, merge, merged)
+	f.say("  fix: if %s is a mainline commit (git merge-base --is-ancestor %s origin/main), BASE %s..HEAD binds the mainline's commits as this change's and can exceed the bounds; rerun dogfood-change, dogfood-check and dogfood-seal with BASE=%s (git merge-base origin/main HEAD after the last merge); to refuse this before the passes run, set git config --local corvint.dogfood.anchor refs/remotes/origin/main (docs/DOGFOOD.md \"Produce the CEM\", DCW-V0-171)\n", merged, merged, f.base, merged)
 }
 
 // isSealCommit reports a one-parent commit that only renames that parent's

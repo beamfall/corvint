@@ -152,6 +152,7 @@ func (c *change) run() int {
 	c.runTmp = runTmp
 	c.citationStage = ".corvint/.cem-citations." + filepath.Base(runTmp) + ".json"
 	c.resolveAnchor()
+	c.noteMergedForward()
 	// Query and impact run after the change, so they are coordination-time
 	// receipts; the agent's prechange-*.json receipts are never written here (DCW-V0-026).
 	if c.scope == passFull {
