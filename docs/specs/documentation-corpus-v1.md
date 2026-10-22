@@ -1431,12 +1431,13 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   V1-2434) The corpus MCP bridge keeps a checkout stamp: one digest, built without running Git,
   over each checkout that the reuse key observes or that owns a pinned revision. Per checkout it
   records the checkout root, every worktree entry except the repository's own `.git`, and every
-  entry of the repository directory except large-file storage and the contents of loose-object
-  directories, each by name, mode, size, inode, change time and modification time; symlinks are
-  recorded, never followed. The stamp is unavailable, and never matches, when any checkout is not
-  an ordinary repository directory (a gitfile, a missing or non-Git directory), holds a nested
-  `.git`, declares a common-dir link or an alternate object store, has a repository config naming
-  an include or a worktree, exceeds 250,000 entries, has an entry changed within 2 s of the
+  entry of the repository directory except large-file storage, loose objects included, each by
+  name, mode, size, inode, change time and modification time; symlinks are recorded, never
+  followed. The repository config is read only as a regular file of at most 1 MiB, opened without
+  following a symlink and without blocking. The stamp is unavailable, and never matches, when any
+  checkout is not an ordinary repository directory (a gitfile, a missing or non-Git directory),
+  holds a nested `.git`, declares a common-dir link or an alternate object store, has a repository
+  config that is not such a file or names an include or a worktree, exceeds 250,000 entries, has an entry changed within 2 s of the
   capture, or runs on a platform whose lstat result carries no change time (only Darwin and Linux
   are stamped). Acceptance: `TestDCPV1314StampChangesWithCheckoutState`,
   `TestDCPV1314StampUnavailableOutsideCoveredState`, `TestDCPV1314StampRefusesRacyEntries`.

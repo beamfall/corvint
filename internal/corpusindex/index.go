@@ -149,6 +149,18 @@ func ParseRequest(raw []byte) (doccorpus.Request, error) {
 	if len(raw) > 16<<10 || json.Unmarshal(raw, &q, json.RejectUnknownMembers(true)) != nil {
 		return q, fmt.Errorf("invalid bounded query")
 	}
+	// The struct loses whether a member was present: an explicitly empty
+	// status member is refused as the CLI and MCP refuse it (DCP-V1-318).
+	// Query, id and path are always encoded, so an empty one means absent.
+	var members map[string]any
+	if json.Unmarshal(raw, &members) != nil {
+		return q, fmt.Errorf("invalid bounded query")
+	}
+	for _, name := range []string{"state", "qualifier", "run"} {
+		if v, ok := members[name]; ok && v == "" {
+			return q, fmt.Errorf("query arguments do not apply to operation")
+		}
+	}
 	kind := doccorpus.OperationInput(q.Operation)
 	if q.Operation == "claims" && q.Query != "" {
 		// DCP-V1-313: a claim text query replaces the path.

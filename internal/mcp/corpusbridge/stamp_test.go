@@ -3,10 +3,12 @@
 package corpusbridge
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -118,6 +120,8 @@ func TestDCPV1314StampChangesWithCheckoutState(t *testing.T) {
 		{"commit", func() { stampGit(t, dir, "commit", "-qam", "next") }},
 		{"packed refs", func() { stampGit(t, dir, "pack-refs", "--all") }},
 		{"repack", func() { stampGit(t, dir, "repack", "-qad") }},
+		{"loose commit", func() { stampGit(t, dir, "commit", "-q", "--allow-empty", "-m", "loose") }},
+		{"loose object truncated in place", func() { truncateLooseObject(t, dir, "HEAD") }},
 	} {
 		change.apply()
 		next := checkoutStamp([]string{dir})
@@ -154,6 +158,30 @@ func TestDCPV1314StampUnavailableOutsideCoveredState(t *testing.T) {
 		}},
 		{"config include", func(t *testing.T, dir string) string {
 			stampGit(t, dir, "config", "include.path", "/elsewhere")
+			return dir
+		}},
+		{"oversized config", func(t *testing.T, dir string) string {
+			if err := os.WriteFile(filepath.Join(dir, ".git", "config"), bytes.Repeat([]byte("#"), stampConfigBound+1), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			return dir
+		}},
+		{"symlinked config", func(t *testing.T, dir string) string {
+			config := filepath.Join(dir, ".git", "config")
+			copied := filepath.Join(t.TempDir(), "config")
+			body, err := os.ReadFile(config)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(copied, body, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Remove(config); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(copied, config); err != nil {
+				t.Fatal(err)
+			}
 			return dir
 		}},
 		{"not a repository", func(t *testing.T, dir string) string { return t.TempDir() }},
@@ -262,4 +290,61 @@ func TestDCPV1315WarmCallsSkipGitWhileStampUnchanged(t *testing.T) {
 	expectGit("commit in an additional repository", true, true)
 	call("reused", "fresh")
 	expectGit("settled checkouts", false, false)
+}
+
+// truncateLooseObject truncates the loose object file revision names in
+// dir's repository in place, keeping its inode and its directory's entries.
+func truncateLooseObject(t *testing.T, dir, revision string) {
+	t.Helper()
+	c := exec.Command("git", "-C", dir, "rev-parse", revision)
+	out, err := c.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	oid := strings.TrimSpace(string(out))
+	path := filepath.Join(dir, ".git", "objects", oid[:2], oid[2:])
+	if err := os.Chmod(path, 0o600); err != nil {
+		t.Fatalf("pinned commit %s is not a loose object: %v", oid, err)
+	}
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_TRUNC, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString("x"); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestDCPV1316WarmCallRefusesCorruptedPinnedObject: a pinned commit object
+// corrupted in place after warm-up changes the stamp, so the next call
+// verifies the pin again and refuses instead of returning evidence.
+func TestDCPV1316WarmCallRefusesCorruptedPinnedObject(t *testing.T) {
+	supportedStampPlatform(t)
+	shortenStampWindow(t)
+	root, extra := multiRepositoryFixture(t, [3]int{3, 3, 3})
+	r, e := New(root, "corpus.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	freshnessCall(t, r, "corvint.docs_get", `{"id":"adapter:lib2-1"}`)
+	freshnessCall(t, r, "corvint.docs_get", `{"id":"adapter:lib2-1"}`)
+	verified := 0
+	saved := verifyPinned
+	t.Cleanup(func() { verifyPinned = saved })
+	verifyPinned = func(ctx context.Context, root string, m doccorpus.Manifest, revisions []string) error {
+		verified++
+		return saved(ctx, root, m, revisions)
+	}
+	freshnessCall(t, r, "corvint.docs_get", `{"id":"adapter:lib2-1"}`)
+	if verified != 0 {
+		t.Fatalf("warm call with an unchanged stamp verified pins %d times", verified)
+	}
+	truncateLooseObject(t, extra[1], "HEAD")
+	_, text, failure, protocol, _ := r.CallTimed(context.Background(), "corvint.docs_get", []byte(`{"id":"adapter:lib2-1"}`))
+	if failure == nil || protocol != nil || verified == 0 {
+		t.Fatalf("corrupted pinned object: failure=%v protocol=%v verified=%d text=%s", failure, protocol, verified, text)
+	}
 }

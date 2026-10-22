@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -236,9 +237,9 @@ func worktreePolicy(rel, name string, dir bool) (bool, bool, error) {
 }
 
 // gitdir records the repository control state: HEAD, the index, refs,
-// packed refs, config, info files and the object store's shape. Loose object
-// directories and packs are recorded by their entries, so a deleted or
-// repacked object changes the stamp; object contents are immutable. An
+// packed refs, config, info files and every object file. Each loose object
+// and pack is recorded by its own entry, so an object deleted, repacked, or
+// truncated or rewritten in place changes the stamp. An
 // alternate object store, a common-dir link, or a config include or worktree
 // setting points outside the stamped state and makes it unavailable.
 func (s *stamper) gitdir(key, gitdir string) error {
@@ -247,9 +248,9 @@ func (s *stamper) gitdir(key, gitdir string) error {
 			return errStampUnavailable
 		}
 	}
-	config, err := os.ReadFile(filepath.Join(gitdir, "config"))
-	if err != nil && !errors.Is(err, fs.ErrNotExist) || len(config) > stampConfigBound {
-		return errStampUnavailable
+	config, err := readStampConfig(filepath.Join(gitdir, "config"))
+	if err != nil {
+		return err
 	}
 	config = bytes.ToLower(config)
 	if bytes.Contains(config, []byte("include")) || bytes.Contains(config, []byte("worktree")) {
@@ -259,12 +260,37 @@ func (s *stamper) gitdir(key, gitdir string) error {
 }
 
 // controlPolicy descends everywhere in the repository directory except
-// large-file storage, which status and pin checks never read, and loose
-// object directories, whose own entry changes when an object is added or
-// removed while object files are immutable.
+// large-file storage, which status and pin checks never read. Loose object
+// directories are descended into: an object file modified in place changes
+// only its own entry, never its directory's (DCP-V1-316).
 func controlPolicy(rel, name string, dir bool) (bool, bool, error) {
-	if rel == "" && name == "lfs" || rel == "objects" && len(name) == 2 {
+	if rel == "" && name == "lfs" {
 		return false, false, nil
 	}
 	return false, dir, nil
+}
+
+// readStampConfig reads the repository config through a bounded reader. A
+// missing config is empty. A symlink is never followed, and anything other
+// than a regular file of at most stampConfigBound bytes (a FIFO, device or
+// directory swapped in, or an oversized file) makes the stamp unavailable
+// before any blocking read or large allocation.
+func readStampConfig(path string) ([]byte, error) {
+	f, err := openStampFile(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, errStampUnavailable
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil || !info.Mode().IsRegular() || info.Size() > stampConfigBound {
+		return nil, errStampUnavailable
+	}
+	config, err := io.ReadAll(io.LimitReader(f, stampConfigBound+1))
+	if err != nil || len(config) > stampConfigBound {
+		return nil, errStampUnavailable
+	}
+	return config, nil
 }
