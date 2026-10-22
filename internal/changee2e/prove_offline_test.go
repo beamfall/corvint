@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -16,6 +17,10 @@ type fakeSide struct {
 	reason  string // a non-empty reason leaves the pool unqualified
 	states  []string
 	message string // the failure message of each failed repeat
+	// line and file are each failed repeat's receipt failure location (PWP-V3-008); file
+	// defaults to the scenario's placement and a zero line leaves the location unset.
+	line int
+	file string
 }
 
 // fakeRunner scripts the pools by application revision and records each staged tree's files.
@@ -46,6 +51,13 @@ func (f *fakeRunner) env(root string) *proveEnv {
 			t := jstestprovider.TestOutcome{State: jstestprovider.ExecutionState(st)}
 			if st == string(jstestprovider.StateFailed) {
 				t.FailureMessage = s.message
+				if s.line > 0 {
+					file := filepath.Join(in.Tree, filepath.FromSlash(cmpOr(s.file, in.Placement)))
+					if filepath.IsAbs(s.file) {
+						file = s.file
+					}
+					t.AttemptDetails = []jstestprovider.AttemptDetail{{State: jstestprovider.StateFailed, FailureLocation: &jstestprovider.Anchor{File: file, Line: s.line}}}
+				}
 			}
 			r.Tests = append(r.Tests, t)
 		}
@@ -62,6 +74,13 @@ func (f *fakeRunner) env(root string) *proveEnv {
 		return out
 	}
 	return e
+}
+
+func cmpOr(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
 }
 
 func repeat(state string) []string { return []string{state, state, state} }
@@ -92,6 +111,11 @@ func TestCCEV0028LadderOfflineFakeRunner(t *testing.T) {
 	unresolved := assertionMessage(sc, "<element(s) not found>")
 	offAssertion := "Error: locator.click: Timeout 5000ms exceeded.\nCall log:\n  - waiting for getByTestId('slot')"
 	pass := fakeSide{states: repeat("passed")}
+	cleanups := cleanupLines(sc.Text)
+	if len(cleanups) == 0 {
+		t.Fatal("the compiled scenario has no cleanup line")
+	}
+	cleanup := cleanups[0]
 	for _, tc := range []struct {
 		name       string
 		head, base fakeSide
@@ -104,18 +128,22 @@ func TestCCEV0028LadderOfflineFakeRunner(t *testing.T) {
 	}{
 		{"unqualified head", fakeSide{reason: "provider-error", states: repeat("passed")}, pass, "killed", OriginAdmittedAtBase, VerdictInconclusive, "run-without-qualified-receipt", false, false},
 		{"skipped repeat", fakeSide{states: []string{"passed", "skipped", "passed"}}, pass, "killed", OriginAdmittedAtBase, VerdictInconclusive, "repeat-incomplete", false, false},
-		{"intermittent head", fakeSide{states: []string{"passed", "failed", "passed"}, message: mismatch}, pass, "killed", OriginAdmittedAtBase, VerdictUnstable, "head-pool-intermittent", false, false},
-		{"regression detected", fakeSide{states: repeat("failed"), message: mismatch}, pass, "killed", OriginAdmittedAtBase, VerdictRegressionDetected, "the change broke a declared outcome", false, false},
-		{"scenario broken", fakeSide{states: repeat("failed"), message: offAssertion}, pass, "killed", OriginAdmittedAtBase, VerdictScenarioBroken, "head-repeat-failed", false, false},
-		{"control survived", pass, fakeSide{states: repeat("failed"), message: mismatch}, "survived", OriginAdmittedAtBase, VerdictControlSurvived, "control-survived:control:wrong-locator", false, true},
-		{"control not run", pass, fakeSide{states: repeat("failed"), message: mismatch}, "not_run", OriginAdmittedAtBase, VerdictInconclusive, "control-not-killed:control:wrong-locator", false, true},
-		{"discriminates", pass, fakeSide{states: repeat("failed"), message: mismatch}, "killed", OriginAdmittedAtBase, VerdictDiscriminates, "value mismatch", true, true},
-		{"new reach", pass, fakeSide{states: repeat("failed"), message: unresolved}, "killed", OriginAdmittedAtBase, VerdictNewReach, "locator did not resolve", true, true},
+		{"intermittent head", fakeSide{states: []string{"passed", "failed", "passed"}, message: mismatch, line: sc.AssertionLine}, pass, "killed", OriginAdmittedAtBase, VerdictUnstable, "head-pool-intermittent", false, false},
+		{"regression detected", fakeSide{states: repeat("failed"), message: mismatch, line: sc.AssertionLine}, pass, "killed", OriginAdmittedAtBase, VerdictRegressionDetected, "the change broke a declared outcome", false, false},
+		{"scenario broken", fakeSide{states: repeat("failed"), message: offAssertion, line: sc.AssertionLine - 1}, pass, "killed", OriginAdmittedAtBase, VerdictScenarioBroken, "head-repeat-failed at " + sc.Placement + ":" + strconv.Itoa(sc.AssertionLine-1), false, false},
+		{"control survived", pass, fakeSide{states: repeat("failed"), message: mismatch, line: sc.AssertionLine}, "survived", OriginAdmittedAtBase, VerdictControlSurvived, "control-survived:control:wrong-locator", false, true},
+		{"control not run", pass, fakeSide{states: repeat("failed"), message: mismatch, line: sc.AssertionLine}, "not_run", OriginAdmittedAtBase, VerdictInconclusive, "control-not-killed:control:wrong-locator", false, true},
+		{"discriminates", pass, fakeSide{states: repeat("failed"), message: mismatch, line: sc.AssertionLine}, "killed", OriginAdmittedAtBase, VerdictDiscriminates, "value mismatch", true, true},
+		{"new reach", pass, fakeSide{states: repeat("failed"), message: unresolved, line: sc.AssertionLine}, "killed", OriginAdmittedAtBase, VerdictNewReach, "locator did not resolve", true, true},
 		{"preserves", pass, pass, "killed", OriginAdmittedAtBase, VerdictPreserves, "regression-preservation", true, true},
-		{"base fails off the assertion", pass, fakeSide{states: repeat("failed"), message: offAssertion}, "killed", OriginAdmittedAtBase, VerdictInconclusive, "base-mixed-or-failed-off-assertion", false, true},
-		{"changed oracle caps discriminates", pass, fakeSide{states: repeat("failed"), message: mismatch}, "killed", OriginChangedInDiff, VerdictInconclusive, ReasonOracleSelfCertified, false, true},
-		{"changed oracle caps a regression", fakeSide{states: repeat("failed"), message: mismatch}, pass, "killed", OriginChangedInDiff, VerdictInconclusive, ReasonOracleSelfCertified, false, false},
-		{"new oracle keeps the verdict but does not score", pass, fakeSide{states: repeat("failed"), message: unresolved}, "killed", OriginNewInDiff, VerdictNewReach, "locator did not resolve", false, true},
+		{"base fails off the assertion", pass, fakeSide{states: repeat("failed"), message: offAssertion, line: sc.AssertionLine - 1}, "killed", OriginAdmittedAtBase, VerdictInconclusive, "base-mixed-or-failed-off-assertion", false, true},
+		{"base fails in cleanup", pass, fakeSide{states: repeat("failed"), message: "Error: cleanup", line: cleanup}, "killed", OriginAdmittedAtBase, VerdictInconclusive, FailureCleanupFailed + " at " + sc.Placement + ":" + strconv.Itoa(cleanup), false, false},
+		{"head fails in cleanup", fakeSide{states: repeat("failed"), message: "Error: cleanup", line: cleanup}, pass, "killed", OriginAdmittedAtBase, VerdictInconclusive, FailureCleanupFailed + " at " + sc.Placement + ":" + strconv.Itoa(cleanup), false, false},
+		{"assertion message without a location is off the assertion", pass, fakeSide{states: repeat("failed"), message: mismatch}, "killed", OriginAdmittedAtBase, VerdictInconclusive, "(receipt names no failure location)", false, true},
+		{"assertion message located in a page object is off the assertion", pass, fakeSide{states: repeat("failed"), message: mismatch, file: "e2e/pages/club.page.ts", line: sc.AssertionLine}, "killed", OriginAdmittedAtBase, VerdictInconclusive, "at e2e/pages/club.page.ts:" + strconv.Itoa(sc.AssertionLine), false, true},
+		{"changed oracle caps discriminates", pass, fakeSide{states: repeat("failed"), message: mismatch, line: sc.AssertionLine}, "killed", OriginChangedInDiff, VerdictInconclusive, ReasonOracleSelfCertified, false, true},
+		{"changed oracle caps a regression", fakeSide{states: repeat("failed"), message: mismatch, line: sc.AssertionLine}, pass, "killed", OriginChangedInDiff, VerdictInconclusive, ReasonOracleSelfCertified, false, false},
+		{"new oracle keeps the verdict but does not score", pass, fakeSide{states: repeat("failed"), message: unresolved, line: sc.AssertionLine}, "killed", OriginNewInDiff, VerdictNewReach, "locator did not resolve", false, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := &fakeRunner{sides: map[string]fakeSide{head: tc.head, base: tc.base}, controls: tc.controls}
@@ -243,16 +271,20 @@ func TestCCEV0018OmittedEventControls(t *testing.T) {
 
 // CCE-V0-026: the failure kind of a repeat at the outcome assertion is read from the message.
 func TestCCEV0026FailureKind(t *testing.T) {
-	sc := Scenario{Marker: "corvint-e2e outcome assert:a/b", Matcher: "toHaveText", Locator: "slot-status", Value: "Booked"}
-	for _, tc := range []struct{ name, state, message, want string }{
-		{"value mismatch", "failed", assertionMessage(sc, `"Pending"`), FailureValueMismatch},
-		{"locator unresolved", "failed", assertionMessage(sc, "<element(s) not found>"), FailureLocatorUnresolved},
-		{"coloured locator unresolved", "failed", assertionMessage(sc, "\x1b[31m<element(s) not found>\x1b[39m"), FailureLocatorUnresolved},
-		{"off the assertion", "failed", "Error: locator.click: element(s) not found", ""},
-		{"passed", "passed", "", ""},
+	sc := Scenario{Placement: "e2e/a.spec.ts", AssertionLine: 4, Marker: "corvint-e2e outcome assert:a/b", Matcher: "toHaveText", Locator: "slot-status", Value: "Booked"}
+	for _, tc := range []struct {
+		name, state, message string
+		line                 int
+		want                 string
+	}{
+		{"value mismatch", "failed", assertionMessage(sc, `"Pending"`), 4, FailureValueMismatch},
+		{"locator unresolved", "failed", assertionMessage(sc, "<element(s) not found>"), 4, FailureLocatorUnresolved},
+		{"coloured locator unresolved", "failed", assertionMessage(sc, "\x1b[31m<element(s) not found>\x1b[39m"), 4, FailureLocatorUnresolved},
+		{"off the assertion", "failed", "Error: locator.click: element(s) not found", 3, ""},
+		{"passed", "passed", "", 4, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := assertionFailure(tc.state, tc.message, sc.Marker, sc.Matcher, sc.Locator); got != tc.want {
+			if got := assertionFailure(tc.state, tc.message, sc.Placement, tc.line, sc); got != tc.want {
 				t.Fatalf("failure kind %q, want %q", got, tc.want)
 			}
 		})

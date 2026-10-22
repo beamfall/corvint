@@ -19,7 +19,7 @@ var (
 		"isEditable getAttribute inputValue boundingBox all allTextContents allInnerTexts its invoke then as url title " +
 		"content screenshot waitForTimeout elementHandle elementHandles")
 	// Interactions the closed IR cannot express: kept as opaque, never dropped (SKH-V0-020).
-	skOpaqueMethods = wordSet("press hover focus blur clear dragTo dispatchEvent evaluate evaluateHandle " +
+	skOpaqueMethods = wordSet("blur clear dragTo dispatchEvent evaluate evaluateHandle " +
 		"scrollIntoViewIfNeeded trigger rightclick reload goBack goForward keyboard mouse touchscreen scrollTo")
 	// Page methods that arrange the run rather than act on the UI: stage 3 setup (SKH-V0-030).
 	skSetupPageMethods = wordSet("route unroute routeFromHAR addInitScript exposeFunction exposeBinding setExtraHTTPHeaders " +
@@ -236,12 +236,28 @@ func skParams(toks []token, open, close int) ([]string, map[string]bool) {
 
 // skBodyOpen finds the '{' that opens a function body after its parameter list closes at close.
 func skBodyOpen(toks []token, close, limit int) int {
+	// After a return type annotation, a brace inside type arguments or in a type position is an
+	// object type, not the body: `): Promise<{ a: Locator }> {` opens its body at the last brace.
+	typed, angle := next(toks, close+1, ":"), 0
 	for k := close + 1; k < limit && k < len(toks); k++ {
-		if next(toks, k, "{") {
-			return k
-		}
-		if next(toks, k, ";") {
+		switch {
+		case next(toks, k, ";"):
 			return -1
+		case !typed:
+			if next(toks, k, "{") {
+				return k
+			}
+		case next(toks, k, "<"):
+			angle++
+		case next(toks, k, ">") && !next(toks, k-1, "="):
+			angle = max(angle-1, 0)
+		case next(toks, k, "(") || next(toks, k, "["):
+			k = closeParen(toks, k)
+		case next(toks, k, "{"):
+			if angle == 0 && !next(toks, k-1, ":") && !next(toks, k-1, "|") && !next(toks, k-1, "&") && !next(toks, k-1, ",") {
+				return k
+			}
+			k = closeParen(toks, k)
 		}
 	}
 	return -1
@@ -251,7 +267,7 @@ func (f *skFile) newUnit(c *skClass, name string, open, close, body int) *skUnit
 	toks := f.toks
 	end := closeParen(toks, body)
 	params, page := skParams(toks, open, close)
-	return &skUnit{file: f, class: c, name: name, params: params, pageArgs: page, from: body + 1, to: end,
+	return &skUnit{file: f, class: c, name: name, params: params, pageArgs: page, from: body + 1, to: end, open: open,
 		start: toks[open].line, end: toks[end].line}
 }
 
@@ -959,7 +975,7 @@ func (x *skCtx) valued(kind string, loc *skLoc, a SKArg, at Anchor) SKStep {
 	}
 	switch {
 	case a.Dynamic:
-		return SKStep{Kind: StepOpaque, Reason: OpaqueDynamicValue, Anchor: at}
+		return SKStep{Kind: StepOpaque, Reason: OpaqueDynamicValue, Call: kind, Anchor: at}
 	case a.Slot != "":
 		s.Slots = []string{a.Slot}
 	default:
@@ -1202,6 +1218,14 @@ func (x *skCtx) actions(state string, loc skLoc, segs []skSeg, at Anchor, a, b i
 			x.u.setup = append(x.u.setup, "page."+s.name)
 			return
 		}
+		if state == "page" && s.name == skKeyboard && !s.call {
+			state = skKeyboard
+			continue
+		}
+		if state == skKeyboard {
+			x.keyboard(s, at)
+			return
+		}
 		if skOpaqueMethods[s.name] {
 			x.add(SKStep{Kind: StepOpaque, Reason: OpaqueParseUnsupported, Call: s.name, Anchor: at})
 			return
@@ -1220,6 +1244,22 @@ func (x *skCtx) actions(state string, loc skLoc, segs []skSeg, at Anchor, a, b i
 			continue
 		}
 	}
+}
+
+// keyboard reads page.keyboard.press(key) as a press and page.keyboard.type|insertText(text) as a
+// fill, both typed to the keyboard target; every other keyboard call stays opaque (SKH-V0-024).
+func (x *skCtx) keyboard(s skSeg, at Anchor) {
+	kind := map[string]string{"press": StepPress, "type": StepFill, "insertText": StepFill}[s.name]
+	a, has := x.arg(s, 0)
+	if kind == "" || !s.call || !has {
+		x.add(SKStep{Kind: StepOpaque, Reason: OpaqueParseUnsupported, Call: skKeyboard + "." + s.name, Anchor: at})
+		return
+	}
+	st := x.valued(kind, nil, a, at)
+	if st.Kind != StepOpaque {
+		st.Target = skKeyboard
+	}
+	x.add(st)
 }
 
 // action emits one mapped action.
@@ -1251,7 +1291,7 @@ func (x *skCtx) action(kind, state string, loc *skLoc, s skSeg, at Anchor) {
 				sel.sel = newSelector("test-id", mm[1], "", strengthStrong, x.f.toks[s.open].line)
 			}
 			if a.Dynamic || len(a.Template) > 0 {
-				x.add(SKStep{Kind: StepOpaque, Reason: OpaqueDynamicValue, Anchor: at})
+				x.add(SKStep{Kind: StepOpaque, Reason: OpaqueDynamicValue, Call: kind, Anchor: at})
 				return
 			}
 			loc, n = &sel, 1
@@ -1261,7 +1301,7 @@ func (x *skCtx) action(kind, state string, loc *skLoc, s skSeg, at Anchor) {
 		}
 	}
 	switch kind {
-	case StepClick, StepCheck, StepWaitFor:
+	case StepClick, StepCheck, StepWaitFor, StepFocus, StepHover:
 		st := SKStep{Kind: kind, Anchor: at}
 		sel := loc.sel
 		st.Locator, st.LocatorSlot = &sel, loc.slot
@@ -1275,7 +1315,7 @@ func (x *skCtx) action(kind, state string, loc *skLoc, s skSeg, at Anchor) {
 		if has && a.Literal != "" {
 			st.Matcher = a.Literal
 		} else if has {
-			x.add(SKStep{Kind: StepOpaque, Reason: OpaqueDynamicValue, Anchor: at})
+			x.add(SKStep{Kind: StepOpaque, Reason: OpaqueDynamicValue, Call: StepAssert, Anchor: at})
 			return
 		}
 		sel := loc.sel
@@ -1285,7 +1325,7 @@ func (x *skCtx) action(kind, state string, loc *skLoc, s skSeg, at Anchor) {
 			return
 		}
 		x.add(st)
-	default: // fill, select, upload
+	default: // fill, select, upload, press
 		a, has := x.arg(s, n)
 		if !has {
 			a = SKArg{Literal: ""}
@@ -1302,7 +1342,7 @@ func (x *skCtx) argIs(s skSeg, n int, lit string) bool {
 func (x *skCtx) withExpected(st SKStep, e SKArg) SKStep {
 	switch {
 	case e.Dynamic:
-		return SKStep{Kind: StepOpaque, Reason: OpaqueDynamicValue, Anchor: st.Anchor}
+		return SKStep{Kind: StepOpaque, Reason: OpaqueDynamicValue, Call: st.Kind, Anchor: st.Anchor}
 	case e.Slot != "":
 		st.Slots = []string{e.Slot}
 	default:

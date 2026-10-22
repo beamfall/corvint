@@ -26,6 +26,7 @@ Application map usage (experimental, AMAP-V0):
   corvint [--root PATH] flows appmap refs --map FILE --source DIR [--source DIR]... [--budget N | --full]
   corvint [--root PATH] flows appmap pageobjects --map FILE --source DIR [--source DIR]... [--budget N | --full]
   corvint [--root PATH] flows appmap steps --map FILE --source DIR [--source DIR]... [--budget N | --full]
+  corvint [--root PATH] flows appmap setup --map FILE --source DIR [--source DIR]... [--budget N | --full]
   corvint [--root PATH] flows appmap actions --map FILE [--budget N | --full]
   corvint [--root PATH] flows appmap blocker --map FILE --note TEXT [--budget N | --full]
   corvint [--root PATH] flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...] [--budget N | --full]
@@ -101,9 +102,12 @@ Site knowledge (experimental, SKH-V0): pageobjects reads up to 16 --source direc
 map revision and lists page objects (Playwright and Cypress TypeScript classes and page-function
 modules, Capybara helper classes, SitePrism pages) with their locator bindings, methods, effect
 class (navigation-only, state-effect or unknown) and screen join. steps compiles each test body
-to the closed step IR (visit, click, fill, select, check, upload, wait-for, assert, opaque),
+to the closed step IR (visit, click, fill, select, check, upload, press, focus, hover, wait-for,
+assert, opaque),
 inlining page-object and helper calls with bound arguments, and deduplicates repeated sequences
-into reusable records with usage counts (default caps 6144 bytes). Unsupported constructs are
+into reusable records with usage counts. setup lists test.extend fixtures and their chains,
+hooks, storageState paths (never contents), route mocks (labelled mocked), API seeding calls and
+cy.task, and links each test to the records that arrange it (default caps 6144 bytes). Unsupported constructs are
 unknowns or opaque steps with a reason; secret-shaped values are screened. Learned authority,
 static, no code runs and no repository file changes.
 
@@ -138,7 +142,7 @@ selector strength or freshness. A --bind test key absent from every receipt refu
 
 func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, pageobjects, steps, actions, blocker, branches, edges, observe, impact or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, pageobjects, steps, setup, actions, blocker, branches, edges, observe, impact or plan")
 	}
 	verb, args := args[0], args[1:]
 	if verb == "edges" {
@@ -193,7 +197,7 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 	if verb == "refs" {
 		return runFlowsAppmapRefs(ctx, root, args, out)
 	}
-	if verb == "pageobjects" || verb == "steps" {
+	if verb == "pageobjects" || verb == "steps" || verb == "setup" {
 		return runFlowsAppmapKnowledge(ctx, root, verb, args, out)
 	}
 	if verb == "actions" {
@@ -213,7 +217,7 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 		"screen": appmap.ProjectScreen, "flow": appmap.ProjectFlow, "find": appmap.ProjectFind, "scaffold": appmap.ProjectScaffold,
 	}[verb], map[string]string{"screen": "screen", "flow": "flow", "find": "text", "scaffold": "flow"}[verb]
 	if project == nil {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, pageobjects, steps, actions, blocker, branches, edges, observe, impact or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, pageobjects, steps, setup, actions, blocker, branches, edges, observe, impact or plan")
 	}
 	mapFile := f.String("map", "", "application-map/0 file")
 	query := f.String(queryFlag, "", "query")

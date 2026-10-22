@@ -74,6 +74,7 @@ func TestCCEV0015SubcommandsReachable(t *testing.T) {
 	ctx := context.Background()
 	for _, args := range [][]string{
 		{"e2e", "catalog", "--root", root, "--rev", head},
+		{"e2e", "harvest", "--root", root, "--rev", head},
 		{"e2e", "obligations", "--root", root, "--base", base, "--head", head},
 		{"e2e", "compile", "--root", root, "--base", base, "--head", head, "--out", t.TempDir()},
 	} {
@@ -114,6 +115,59 @@ func TestCCEV0015SubcommandsReachable(t *testing.T) {
 	err := run(ctx, []string{"e2e", "catalog", "--root", root, "--rev", head, "--out", filepath.Join(root, ".corvint", "c.json")}, &bytes.Buffer{})
 	if !errors.As(err, &r) || r.Code != "e2e-out-not-allowed" {
 		t.Fatalf("%v", err)
+	}
+	// CCE-V0-041: the proposals document is written outside the repository only.
+	err = run(ctx, []string{"e2e", "harvest", "--root", root, "--rev", head, "--out", filepath.Join(root, "h.json")}, &bytes.Buffer{})
+	if !errors.As(err, &r) || r.Code != "e2e-out-not-allowed" {
+		t.Fatalf("harvest: %v", err)
+	}
+}
+
+// CCE-V0-034: prove --hosted-test selects an existing hosted test and reaches Prove without
+// compiling; it refuses a title without a file and a file that is not a Playwright test.
+func TestCCEV0034HostedTestFlag(t *testing.T) {
+	root, base, head := fixture(t)
+	ctx := context.Background()
+	t.Setenv("CORVINT_E2E_NODE_BIN", "")
+	for _, tc := range []struct {
+		args []string
+		code string
+	}{
+		{[]string{"--hosted-test", "e2e/specs/teesheet-click.spec.ts"}, "e2e-toolchain-unavailable"},
+		{[]string{"--hosted-test", "e2e/specs/teesheet-click.spec.ts", "--hosted-title", "books a slot reached by clicking"}, "e2e-toolchain-unavailable"},
+		{[]string{"--hosted-title", "books a slot reached by clicking"}, "e2e-hosted-test-invalid"},
+		{[]string{"--hosted-test", "app/components/teesheet.html"}, "e2e-hosted-test-invalid"},
+		{[]string{"--hosted-test", "e2e/specs/teesheet-click.spec.ts", "--hosted-title", "no such test"}, "e2e-hosted-test-invalid"},
+		{[]string{"--hosted-test", "e2e/specs/teesheet-click.spec.ts", "--coverage", "coverage.json"}, "e2e-hosted-test-invalid"},
+	} {
+		out := t.TempDir()
+		args := append([]string{"e2e", "prove", "--root", root, "--base", base, "--head", head, "--out", out}, tc.args...)
+		var r *changee2e.Refusal
+		if err := run(ctx, args, &bytes.Buffer{}); !errors.As(err, &r) || r.Code != tc.code {
+			t.Fatalf("%v: %v, want %s", tc.args, err, tc.code)
+		}
+		if entries, _ := os.ReadDir(out); len(entries) != 0 {
+			t.Fatalf("%v: hosted prove compiled into the out directory: %v", tc.args, entries)
+		}
+	}
+}
+
+// CCE-V0-045: --coverage reaches obligations and compile, which refuse a document not bound to head.
+func TestCCEV0045CoverageFlag(t *testing.T) {
+	root, base, head := fixture(t)
+	doc := filepath.Join(t.TempDir(), "coverage.json")
+	if err := os.WriteFile(doc, []byte(`{"schema":"e2e-runtime-coverage/0","revision":"`+base+`","screens":[]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, sub := range []string{"obligations", "compile"} {
+		args := []string{"e2e", sub, "--root", root, "--base", base, "--head", head, "--coverage", doc}
+		if sub == "compile" {
+			args = append(args, "--out", t.TempDir())
+		}
+		var r *changee2e.Refusal
+		if err := run(context.Background(), args, &bytes.Buffer{}); !errors.As(err, &r) || r.Code != "e2e-coverage-invalid" {
+			t.Fatalf("%s: %v", sub, err)
+		}
 	}
 }
 
@@ -239,6 +293,77 @@ func TestCCEV0001OutFileSymlinkRefused(t *testing.T) {
 	for _, rel := range []string{"../x", "/abs", ""} {
 		if _, err := checkUnder(out, rel); !errors.As(err, &r) || r.Code != "e2e-out-unsafe" {
 			t.Fatalf("%q: %v", rel, err)
+		}
+	}
+}
+
+// repoSnapshot is every worktree file's mode and bytes plus HEAD, the refs and the git config.
+func repoSnapshot(t *testing.T, root string) map[string]string {
+	t.Helper()
+	snap := map[string]string{"HEAD": gitTest(t, root, "rev-parse", "HEAD"), "refs": gitTest(t, root, "for-each-ref")}
+	if cfg, err := os.ReadFile(filepath.Join(root, ".git", "config")); err == nil {
+		snap["config"] = string(cfg)
+	}
+	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() && d.Name() == ".git" {
+			return filepath.SkipDir
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(root, p)
+		data := ""
+		if d.Type().IsRegular() {
+			b, err := os.ReadFile(p)
+			if err != nil {
+				return err
+			}
+			data = string(b)
+		}
+		snap["file:"+rel] = info.Mode().String() + "\x00" + data
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return snap
+}
+
+// CCE-V0-010, CCE-V0-013 (V1-1666): no subcommand deletes, disables, skips, moves or rewrites a
+// hosted test or any other repository file, ref or configuration, including a hosted prove that
+// names the test it runs.
+func TestCCEV0013NoRepositoryWrites(t *testing.T) {
+	root, base, head := fixture(t)
+	ctx := context.Background()
+	t.Setenv("CORVINT_E2E_NODE_BIN", "")
+	before := repoSnapshot(t, root)
+	window := filepath.Join(t.TempDir(), "window.json")
+	if err := os.WriteFile(window, []byte(`{"schema":"e2e-shadow-window/0","registration":{"operators":["text-literal-swap"],"seed":"1",`+
+		`"catalog_digest":"sha256:00","compiler_version":"corvint-test-e2e-compile/0"},"gate":{},"hosted_tests":[],"entries":[]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"e2e", "catalog", "--root", root, "--rev", head, "--out", filepath.Join(t.TempDir(), "c.json")},
+		{"e2e", "harvest", "--root", root, "--rev", head, "--out", filepath.Join(t.TempDir(), "h.json")},
+		{"e2e", "obligations", "--root", root, "--base", base, "--head", head},
+		{"e2e", "compile", "--root", root, "--base", base, "--head", head, "--out", t.TempDir()},
+		{"e2e", "prove", "--root", root, "--base", base, "--head", head, "--out", t.TempDir()},
+		{"e2e", "prove", "--root", root, "--base", base, "--head", head, "--out", t.TempDir(), "--hosted-test", "e2e/specs/teesheet-click.spec.ts"},
+		{"e2e", "shadow", "--window", window},
+	} {
+		_ = run(ctx, args, &bytes.Buffer{}) // prove refuses without a toolchain after resolving its inputs
+		if after := repoSnapshot(t, root); len(after) != len(before) {
+			t.Fatalf("%v changed the repository file set: %d -> %d entries", args[1], len(before), len(after))
+		} else {
+			for k, v := range before {
+				if after[k] != v {
+					t.Fatalf("%v changed %s", args[1], k)
+				}
+			}
 		}
 	}
 }

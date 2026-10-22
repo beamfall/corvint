@@ -79,7 +79,12 @@ type Obligations struct {
 	Obligations   []Obligation  `json:"obligations"`
 	Unknown       []UnknownSpan `json:"unknown"`
 	Exempt        []Exemption   `json:"exempt"`
-	Digest        string        `json:"digest"`
+	// AcceptancesInDiff lists accepted proposals the change itself accepts (CCE-V0-044).
+	AcceptancesInDiff []string `json:"acceptances_in_diff,omitempty"`
+	// CoverageDigest is the SHA-256 of the runtime coverage document consulted (CCE-V0-045).
+	CoverageDigest string `json:"coverage_digest,omitempty"`
+	Truncated      int    `json:"truncated,omitempty"` // obligations dropped by the byte cap (CCE-V0-014)
+	Digest         string `json:"digest"`
 
 	catalog *Catalog
 	// baseOutcomes holds each outcome of the base map by ID, for oracle_origin (CCE-V0-016).
@@ -104,6 +109,8 @@ func (o *Obligations) Catalog() *Catalog { return o.catalog }
 type DiffOptions struct {
 	Root, Base, Head string
 	Manifest         string
+	// Coverage names an optional runtime coverage document that may only widen reach (CCE-V0-045).
+	Coverage string
 }
 
 // maxObligations is MaxObligations; tests lower it to reach the fan-out case.
@@ -166,9 +173,24 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 	if err != nil {
 		return nil, err
 	}
-	r := &Obligations{Schema: ObligationsSchema, Base: base, Head: cat.Revision, CatalogDigest: cat.Digest, ImpactDigest: impact.Digest,
-		Relations: Relations{Consulted: []string{"amap-impact", "amap-map:base", "amap-map:head", "e2e-blocks:reach_exempt@base"},
-			NotConsulted: []string{"affected-plan", "anl-edge-ledger"}},
+	inDiff, err := acceptancesInDiff(ctx, o.Root, base, cat)
+	if err != nil {
+		return nil, err
+	}
+	consulted := []string{"amap-impact", "amap-map:base", "amap-map:head", "e2e-blocks:reach_exempt@base"}
+	notConsulted := []string{"affected-plan", "anl-edge-ledger"}
+	var coverageDigest string
+	var covered map[string][]string
+	if o.Coverage != "" {
+		if coverageDigest, covered, err = readCoverage(o.Coverage, cat.Revision, cat.m); err != nil {
+			return nil, err
+		}
+		consulted = append(consulted, CoverageBasis)
+	} else {
+		notConsulted = append(notConsulted, CoverageBasis)
+	}
+	r := &Obligations{CoverageDigest: coverageDigest, AcceptancesInDiff: inDiff, Schema: ObligationsSchema, Base: base, Head: cat.Revision, CatalogDigest: cat.Digest, ImpactDigest: impact.Digest,
+		Relations:   Relations{Consulted: consulted, NotConsulted: notConsulted},
 		Obligations: []Obligation{}, Unknown: []UnknownSpan{}, Exempt: []Exemption{}, catalog: cat, baseOutcomes: baseOutcomes}
 	changedRaw, err := git(ctx, o.Root, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", base, cat.Revision, "--")
 	if err != nil {
@@ -230,7 +252,10 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 	}
 	reached := map[string]bool{}
 	byID := map[string]int{}
-	for _, hit := range impact.Screens {
+	// Runtime coverage hits come after impact's, so an obligation impact reaches keeps its chain;
+	// they were not counted as placed above, so every unknown span stands (CCE-V0-046).
+	hits := append(append([]appmap.ImpactScreen(nil), impact.Screens...), coverageHits(covered, changedSet, impact.Screens)...)
+	for _, hit := range hits {
 		reached[hit.ID] = true
 		var spans []Span
 		for _, p := range hit.Paths {
@@ -322,7 +347,7 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 	default:
 		r.State = None
 	}
-	r.encoded, err = seal(r, &r.Digest)
+	r.encoded, err = capList(&r.Obligations, &r.Truncated, func() ([]byte, error) { return seal(r, &r.Digest) })
 	return r, err
 }
 

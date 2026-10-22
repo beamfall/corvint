@@ -277,3 +277,21 @@ func TestCCEV0011ShadowUsefulnessMinutesCost(t *testing.T) {
 		t.Fatalf("totals %+v", tot)
 	}
 }
+
+// CCE-V0-037 (V1-1713): a no-op diff whose admitted scenario passes at base and head reads
+// PRESERVES; it never counts as useful, while the seeded mutants it kills still count as caught.
+func TestCCEV0037NoOpPreservesNotUseful(t *testing.T) {
+	w := gateWindow(30)
+	w.Entries[0].Scenarios[0].Verdict = VerdictPreserves
+	doc := runShadow(t, w)
+	if e := doc.Entries[0]; e.Useful || len(e.Misses) != 0 {
+		t.Fatalf("no-op entry %+v", e)
+	}
+	if u := doc.Totals.Usefulness; u.Numerator != 29 || u.Denominator != 30 {
+		t.Fatalf("usefulness %+v", u)
+	}
+	w.Entries[0].Scenarios = append(w.Entries[0].Scenarios, eligibleScenario())
+	if !runShadow(t, w).Entries[0].Useful {
+		t.Fatal("a DISCRIMINATES scenario beside PRESERVES must keep the entry useful")
+	}
+}

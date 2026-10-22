@@ -48,6 +48,9 @@ type ShadowWindow struct {
 	Gate         ShadowGate         `json:"gate"`
 	HostedTests  []HostedTest       `json:"hosted_tests"`
 	Entries      []ShadowEntry      `json:"entries"`
+	// Truncated is set when the window was assembled from a capped document; shadow refuses it
+	// with `e2e-input-truncated` (CCE-V0-014).
+	Truncated int `json:"truncated,omitempty"`
 }
 
 // ShadowRegistration is pinned before the first run (CCE-V0-011).
@@ -164,6 +167,7 @@ type shadowReport struct {
 	Totals       shadowTotals       `json:"totals"`
 	Candidates   []candidateReport  `json:"candidates"`
 	Limitations  []string           `json:"limitations"`
+	Truncated    int                `json:"truncated,omitempty"` // entries dropped by the byte cap (CCE-V0-014)
 }
 
 type shadowTotals struct {
@@ -197,6 +201,9 @@ func Shadow(window []byte) ([]byte, error) {
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&w); err != nil || dec.More() {
 		return nil, refuse("e2e-shadow-window-invalid", "decode: %v", err)
+	}
+	if w.Truncated != 0 {
+		return nil, refuse("e2e-input-truncated", "window dropped %d entries", w.Truncated)
 	}
 	if w.Schema != ShadowWindowSchema {
 		return nil, refuse("e2e-shadow-window-invalid", "schema %q", w.Schema)
@@ -261,7 +268,7 @@ func Shadow(window []byte) ([]byte, error) {
 	t.Compiled.WallMSMedian, t.Compiled.WallMSP95, t.Compiled.CPUMSMedian, t.Compiled.CPUMSP95 = quantile(cw, 50), quantile(cw, 95), quantile(cc, 50), quantile(cc, 95)
 	t.Hosted.WallMSMedian, t.Hosted.WallMSP95, t.Hosted.CPUMSMedian, t.Hosted.CPUMSP95 = quantile(hw, 50), quantile(hw, 95), quantile(hc, 50), quantile(hc, 95)
 	rep.Candidates = w.candidates(t)
-	return encode(rep)
+	return capList(&rep.Entries, &rep.Truncated, func() ([]byte, error) { return encode(rep) })
 }
 
 func (w *ShadowWindow) validate() error {
@@ -391,7 +398,9 @@ func (e ShadowEntry) report() entryReport {
 	for _, s := range e.Scenarios {
 		er.Verdicts[s.Verdict]++
 		er.Origins[s.OracleOrigin]++
-		er.Useful = er.Useful || s.eligible()
+		// PRESERVES passes at base and head, so it cannot tell a refactor from a no-op diff and is
+		// never usefulness evidence; it still scores the mutants it kills (CCE-V0-037).
+		er.Useful = er.Useful || (s.eligible() && s.Verdict != VerdictPreserves)
 	}
 	er.Useful = er.Useful && !e.unknown()
 	caught, hosted := e.compiledCaught(), e.hostedMutants()

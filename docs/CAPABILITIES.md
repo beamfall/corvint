@@ -209,8 +209,9 @@ metadata) unless started with `--protocol-version 2025-11-25` for an `initialize
 `corvint-mcp` profiles: the default lists `corvint.query`, `corvint.impact` and `corvint.status`.
 `--tool-profile task-review` and `task-review-lsp` add `corvint.context` and `corvint.cem.report`.
 `--tool-profile flows` adds the five `corvint.flows.*` tools. `corvint-corpus-mcp` lists only the
-tools that the artifact's capabilities support; `corvint.map_plan`, `corvint.consolidate_tests` and
-`corvint.docs_search_cases` also need `--map`, `--consolidation` and `--legacy-cases`.
+tools that the artifact's capabilities support; `corvint.map_plan` and `corvint.map_knowledge` also
+need `--map`, `corvint.consolidate_tests` needs `--consolidation`, and `corvint.docs_search_cases`
+needs `--legacy-cases`.
 
 <!-- capability-gate:mcp-tools -->
 | Tool | Server and profile | Q | Maturity | Abstains or refuses on | Spec |
@@ -250,6 +251,7 @@ tools that the artifact's capabilities support; `corvint.map_plan`, `corvint.con
 | `corvint.docs_trace` | `corvint-corpus-mcp` | Walk relations to a depth | experimental | Capability absent | [DCP-V1](specs/documentation-corpus-v1.md) |
 | `corvint.docs_search_cases` | `corvint-corpus-mcp` with `--legacy-cases` | Search imported legacy test cases | experimental | Server started without the flag | [DCP-V1](specs/documentation-corpus-v1.md) |
 | `corvint.map_plan` | `corvint-corpus-mcp` with `--map` | Scenario plan over an application map | experimental | Server started without the flag | [AMSP-V0](specs/application-map-scenario-planner-v0.md) |
+| `corvint.map_knowledge` | `corvint-corpus-mcp` with `--map` | Site knowledge (page objects, steps, setup) mined from committed E2E sources | experimental | Server started without the flag; unread sources are named | [SKH-V0](specs/site-knowledge-howto-v0.md) |
 | `corvint.consolidate_tests` | `corvint-corpus-mcp` with `--consolidation` | Test consolidation plan | experimental | Server started without the flag | [TCN-V0](specs/test-consolidation-planner-v0.md) |
 <!-- /capability-gate:mcp-tools -->
 

@@ -2,6 +2,8 @@
 // E2E scenarios from admitted, revision-pinned blocks (CCE-V0). Core `corvint` does not import or
 // execute it, and it never executes `corvint` (CCE-V0-015). Diagnostics carry the
 // `corvint-test e2e:` prefix, disjoint from core `corvint test` diagnostics (`corvint-test:`).
+// The `runner`, `falsify` and `minimize` groups are folded companions (CTF-V0); their
+// diagnostics name `corvint-test <group>`.
 package main
 
 import (
@@ -17,13 +19,19 @@ import (
 	"strings"
 	"syscall"
 
+	falsifycli "github.com/Beamfall/corvint/internal/behaviorfalsify/cli"
 	"github.com/Beamfall/corvint/internal/changee2e"
+	minimizecli "github.com/Beamfall/corvint/internal/playwrightminimize/cli"
+	"github.com/Beamfall/corvint/internal/testrunner/cli"
 )
 
 // proveReport is the proof report written under the prove --out directory.
 const proveReport = "e2e-prove.json"
 
-const usage = "usage: corvint-test e2e <catalog|obligations|compile|prove|shadow> [flags]"
+const usage = "usage: corvint-test e2e <catalog|harvest|obligations|compile|prove|shadow> [flags]\n" +
+	"       corvint-test runner <command> [flags] (folded corvint-test-runner, CTF-V0)\n" +
+	"       corvint-test falsify <plan|execute|execute-receipt|verify-receipt> --experimental [flags] < input.json (folded corvint-behavior-falsify, CTF-V0)\n" +
+	"       corvint-test minimize <plan|execute> --experimental [flags] < input.json (folded corvint-playwright-minimize, CTF-V0)"
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -32,6 +40,22 @@ func main() {
 	if role := os.Getenv("CORVINT_BEHAVIOR_COMMAND_ROLE"); role != "" && len(os.Args) == 1 {
 		if err := changee2e.RunHook(ctx, role, os.Stdin, os.Stdout); err != nil {
 			fmt.Fprintln(os.Stderr, "corvint-test e2e hook:", err)
+			os.Exit(1)
+		}
+		return
+	}
+	// The runner group shares the old companion's entry, so its output is byte-identical
+	// apart from the invocation name in diagnostics (CTF-V0-002, CTF-V0-004).
+	if len(os.Args) > 1 && os.Args[1] == "runner" {
+		os.Exit(cli.Command(ctx, "corvint-test runner", os.Args[2:], os.Stdout, os.Stderr))
+	}
+	folded := map[string]func(context.Context, string, []string, io.Reader, io.Writer) error{
+		"falsify":  falsifycli.Run,
+		"minimize": minimizecli.Run,
+	}
+	if len(os.Args) > 1 && folded[os.Args[1]] != nil {
+		if err := folded[os.Args[1]](ctx, "corvint-test "+os.Args[1], os.Args[2:], os.Stdin, os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
 		return
@@ -51,24 +75,27 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	fs.SetOutput(io.Discard)
 	root := fs.String("root", ".", "repository root")
 	manifest := fs.String("manifest", "appmap.json", "repository-relative application-map manifest")
-	out := fs.String("out", "", "output file (catalog, obligations) or directory (compile, prove), outside the repository")
-	var rev, base, head *string
+	out := fs.String("out", "", "output file (catalog, harvest, obligations) or directory (compile, prove), outside the repository")
+	var rev, base, head, coverage *string
 	var repeats *int
-	var nodeModules, nodeBin, packageJSON, lockfile, window *string
+	var nodeModules, nodeBin, packageJSON, lockfile, window, hostedTest, hostedTitle *string
 	switch sub {
 	case "shadow":
 		window = fs.String("window", "", "frozen shadow window file (CCE-V0-011)")
-	case "catalog":
+	case "catalog", "harvest":
 		rev = fs.String("rev", "", "revision")
 	case "obligations", "compile", "prove":
 		base = fs.String("base", "", "base revision")
 		head = fs.String("head", "", "head revision")
+		coverage = fs.String("coverage", "", "runtime coverage document recorded at head; it may only widen reach (CCE-V0-045)")
 		if sub == "prove" {
 			repeats = fs.Int("repeats", changee2e.DefaultRepeats, "repeats per side")
 			nodeModules = fs.String("node-modules", os.Getenv("CORVINT_PLAYWRIGHT_MODULES"), "node_modules holding @playwright/test")
 			nodeBin = fs.String("node-bin", os.Getenv("CORVINT_E2E_NODE_BIN"), "directory holding node and npx")
 			packageJSON = fs.String("package-json", "", "package.json binding the runner identity")
 			lockfile = fs.String("lockfile", "", "lockfile binding the runner identity")
+			hostedTest = fs.String("hosted-test", "", "prove this existing hosted Playwright test file as given, without compiling (CCE-V0-034)")
+			hostedTitle = fs.String("hosted-title", "", "the hosted test's title; optional when the file declares one test")
 		}
 	default:
 		return errors.New(usage)
@@ -88,7 +115,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		outPath = p
 	}
 	diff := func() changee2e.DiffOptions {
-		return changee2e.DiffOptions{Root: *root, Base: *base, Head: *head, Manifest: *manifest}
+		return changee2e.DiffOptions{Root: *root, Base: *base, Head: *head, Manifest: *manifest, Coverage: *coverage}
 	}
 	var doc []byte
 	switch sub {
@@ -106,6 +133,12 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 			return err
 		}
 		doc = c.Encoded()
+	case "harvest":
+		p, err := changee2e.Harvest(ctx, changee2e.HarvestOptions{Root: *root, Rev: *rev})
+		if err != nil {
+			return err
+		}
+		doc = p.Encoded()
 	case "obligations":
 		o, err := changee2e.BuildObligations(ctx, diff())
 		if err != nil {
@@ -123,6 +156,21 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		_, err = stdout.Write(r.Encoded())
 		return err
 	case "prove":
+		if *hostedTest != "" || *hostedTitle != "" {
+			if *hostedTest == "" {
+				return &changee2e.Refusal{Code: "e2e-hosted-test-invalid", Detail: "--hosted-title needs --hosted-test"}
+			}
+			if *coverage != "" {
+				return &changee2e.Refusal{Code: "e2e-hosted-test-invalid", Detail: "--coverage compiles reach; a hosted test is proved as given"}
+			}
+			doc, err := changee2e.Prove(ctx, changee2e.ProveOptions{Root: *root, Base: *base, Head: *head, Repeats: *repeats,
+				NodeModules: *nodeModules, NodeBin: *nodeBin, PackageJSON: *packageJSON, Lockfile: *lockfile,
+				Hosted: &changee2e.HostedSelection{File: *hostedTest, Title: *hostedTitle}})
+			if err != nil {
+				return err
+			}
+			return writeUnder(outPath, proveReport, doc, stdout)
+		}
 		r, err := changee2e.Compile(ctx, diff())
 		if err != nil {
 			return err
