@@ -53,7 +53,7 @@ func TestATRV0169_ScreenRedactsSecretsWrappedAcrossLines(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(ev, "a.log"), []byte(text+"\n"), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		n := d.buildHandoffNote(w, d.Now())
+		n := d.buildHandoffNote(w, d.Now(), "")
 		if len(n.Files) != 1 || n.Files[0].Text != want+"\n" || n.RedactedLines != 6 {
 			t.Fatalf("salvage note %+v", n)
 		}

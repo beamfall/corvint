@@ -40,6 +40,10 @@ type Dispatcher struct {
 	// HookCommand is the argv a worker's context hook runs (ATR-V0-102);
 	// empty runs corvint-tasks from PATH.
 	HookCommand []string
+	// ResolveCommit resolves a Git revision in a directory to its full
+	// commit id; a salvaged note names its attempt's commit through it
+	// (ERG-V0-028). Nil leaves every note without a commit.
+	ResolveCommit func(dir, rev string) (string, error)
 
 	dir       string
 	nonce     string
@@ -1318,7 +1322,7 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 		stalled := d.countStall(t, w, detail)
 		d.emit(Event{Kind: "finished", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: msg, Detail: detail})
 		d.noteSession(w, now)
-		d.salvage(w, now)                                   // ATR-V0-104
+		d.salvage(w, now, obs)                              // ATR-V0-104
 		d.noteHardStop(w, now)                              // ATR-V0-106
 		d.noteCarryOver(w, now, class, progress, run != "") // ATR-V0-111
 		if stalled != nil {
