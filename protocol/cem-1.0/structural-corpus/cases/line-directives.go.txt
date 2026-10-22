@@ -1,0 +1,11 @@
+package cases
+
+//line generated.y:10
+func parsed() int {
+	return 1
+}
+
+/*line generated.y:20:5*/ var x = parsed()
+
+//line :30
+func again() int { return parsed() + x }

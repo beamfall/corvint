@@ -1,0 +1,16 @@
+package cases
+
+const (
+	octal   = 0o755
+	oldOct  = 0755
+	binary  = 0b1010_1010
+	hex     = 0xFF_FF
+	hexFlt  = 0x1.8p3
+	under   = 1_000_000
+	imag    = 3i
+	floatE  = 1e-3
+	rn      = '\u00e9'
+	esc     = "\x41\101\u0041"
+)
+
+func lits() []any { return []any{octal, oldOct, binary, hex, hexFlt, under, imag, floatE, rn, esc} }

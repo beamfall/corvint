@@ -1,0 +1,24 @@
+package cases
+
+type record struct {
+	a int `json:"a"`
+	longName string `json:"long_name,omitempty"`
+	b, c bool // comment
+	nested struct{ x, yy int }
+}
+
+var table = map[string]int{
+	"a": 1,
+	"bbbbbb": 2,
+	"cc": 3,
+}
+
+const (
+	one = iota // first
+	twentyTwo // second
+	three
+)
+
+func build() record { return record{a: 1, longName: "x"} }
+
+func use() int { return build().a + table["a"] + one }

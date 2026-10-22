@@ -1,0 +1,19 @@
+package cases
+
+import (
+	"strings"
+	"bytes"
+)
+
+type Set[T comparable] = map[T]struct{}
+
+type Pair[K comparable, V any] struct {
+	Key K
+	Val V
+}
+
+type StringPair = Pair[string, string]
+
+func join(p StringPair) string { return strings.Join([]string{p.Key, p.Val}, "=") }
+
+func buf() *bytes.Buffer { return new(bytes.Buffer) }

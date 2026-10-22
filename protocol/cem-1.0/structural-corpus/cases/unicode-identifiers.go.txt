@@ -1,0 +1,9 @@
+package cases
+
+var π = 3.14159
+
+func größe(ñ int) int { return ñ * 2 }
+
+func 世界() float64 { return π * float64(größe(1)) }
+
+func ǅx() int { return größe(2) }

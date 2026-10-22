@@ -1,0 +1,5 @@
+package cases
+
+var s = "unterminated
+
+func after() {}

@@ -210,6 +210,7 @@
       "protocol/cem-1.0/stable/reference-precedence/",
       "protocol/cem-1.0/stable/repository-envelope-packet/",
       "protocol/cem-1.0/stable/tamper-matrix/",
+      "protocol/cem-1.0/structural-corpus/",
       "protocol/cem-1.0/structural-tuples/"
     ],
     "internal/cem/wire": [
@@ -420,6 +421,11 @@
     ],
     "tools/cem-stable-regen": [
       "protocol/cem-1.0/"
+    ],
+    "tools/cem-structural-closure": [
+      "go.mod",
+      "protocol/cem-1.0/structural-corpus/",
+      "protocol/cem-1.0/structural-tuples/"
     ],
     "tools/compat-trial": [
       "go.mod",
