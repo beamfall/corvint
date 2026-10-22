@@ -47,8 +47,10 @@ exec /usr/bin/git "$@"
 // group and reaps its descendants before the refusal is emitted; the refusal
 // names the cancellation (ESV-V0-014). The test lifts the read deadline and the
 // TERM grace, so host load can neither fire the deadline before the trap exists
-// nor let SIGKILL beat the trap's marker; the grace exceeds the descendant's
-// sleep, so a stop that skips TERM still fails (V1-2319).
+// nor let SIGKILL beat the trap's marker; a stop that skips TERM still fails
+// the marker check. Linux holds the exited leader unreaped during the grace, so
+// signal 0 never reports the group gone and the whole grace elapses: keep it
+// well under the elapsed bound (V1-2319).
 func TestSourceViewCancellationTerminatesGitProcessGroup(t *testing.T) {
 	t.Parallel()
 	root, commit, packet := sourceViewRepository(t)
@@ -59,7 +61,7 @@ func TestSourceViewCancellationTerminatesGitProcessGroup(t *testing.T) {
 echo $! > '`+pidFile+`.tmp' && mv '`+pidFile+`.tmp' '`+pidFile+`'
 wait
 `)
-	base := context.WithValue(liftedSourceDeadline(context.WithValue(context.Background(), sourceGitExecutableKey{}, script)), sourceTerminateGraceKey{}, time.Minute)
+	base := context.WithValue(liftedSourceDeadline(context.WithValue(context.Background(), sourceGitExecutableKey{}, script)), sourceTerminateGraceKey{}, 5*time.Second)
 	ctx, cancel := context.WithCancel(base)
 	defer cancel()
 	go func() {
