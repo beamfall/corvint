@@ -84,7 +84,12 @@ func readSiteKnowledge(ctx context.Context, m *Map, sources []string, o Options)
 			joins[f.Path] = f
 		}
 	}
-	return extractSiteKnowledge(in, joins), len(in), skipped, nil
+	k := extractSiteKnowledge(in, joins, newScreenIndex(m.HashPrefix, m.Screens))
+	k.blobs = map[string]string{}
+	for _, e := range entries {
+		k.blobs[e.path] = e.oid
+	}
+	return k, len(in), skipped, nil
 }
 
 func skHead(schema string, m *Map, sources []string, budget int, o Options, read, skipped int) []field {
@@ -104,15 +109,21 @@ func PageObjects(ctx context.Context, m *Map, sources []string, o Options) ([]by
 		return nil, err
 	}
 	forms, methods, joined, effects := map[string]int{}, 0, 0, map[string]int{}
+	joinReasons, effectReasons := map[string]int{}, map[string]int{}
 	items := make([]any, len(k.PageObjects))
 	for i, po := range k.PageObjects {
 		forms[po.Form]++
 		methods += len(po.Methods)
 		if po.Join == StatusResolved {
 			joined++
+		} else {
+			joinReasons[po.JoinReason]++
 		}
 		for _, mt := range po.Methods {
 			effects[mt.Effect]++
+			if mt.EffectReason != "" {
+				effectReasons[mt.EffectReason]++
+			}
 		}
 		items[i] = po
 	}
@@ -121,9 +132,52 @@ func PageObjects(ctx context.Context, m *Map, sources []string, o Options) ([]by
 		unknowns[i] = u
 	}
 	head := append(skHead(PageObjectsSchema, m, sources, budget, o, read, skipped),
-		field{"page_objects", len(k.PageObjects)}, field{"forms", forms}, field{"methods", methods},
-		field{"method_effects", effects}, field{"screens_joined", joined}, field{"unknowns_total", len(k.Unknowns)})
+		field{"page_objects_total", len(k.PageObjects)}, field{"forms", forms}, field{"methods", methods},
+		field{"method_effects", effects}, field{"effect_reasons", effectReasons}, field{"screens_joined", joined},
+		field{"join_reasons", joinReasons}, field{"unknowns_total", len(k.Unknowns)})
 	return render(head, []section{{"page_objects", items}, {"unknowns", unknowns}}, budget)
+}
+
+// Setup reports the stage-3 setup records of the declared sources and links each test to the
+// records that arrange it (SKH-V0-030, SKH-V0-031, SKH-V0-033, SKH-V0-034).
+func Setup(ctx context.Context, m *Map, sources []string, o Options) ([]byte, error) {
+	budget, err := o.budget(DefaultFlowBudget)
+	if err != nil {
+		return nil, err
+	}
+	k, read, skipped, err := readSiteKnowledge(ctx, m, sources, o)
+	if err != nil {
+		return nil, err
+	}
+	records, uses := k.extractSetup(k.blobs)
+	kinds, unknown, mocked := map[string]int{}, 0, 0
+	items := make([]any, len(records))
+	for i, s := range records {
+		kinds[s.Kind]++
+		if s.Status != StatusResolved {
+			unknown++
+		}
+		if s.Mocked {
+			mocked++
+		}
+		items[i] = s
+	}
+	linked, unresolved := 0, 0
+	tests := make([]any, len(uses))
+	for i, u := range uses {
+		if len(u.Uses) > 0 {
+			linked++
+		}
+		if len(u.Unresolved) > 0 {
+			unresolved++
+		}
+		tests[i] = u
+	}
+	head := append(skHead(SetupSchema, m, sources, budget, o, read, skipped),
+		field{"records", len(records)}, field{"record_kinds", kinds}, field{"records_unknown", unknown},
+		field{"records_mocked", mocked}, field{"tests_total", len(uses)}, field{"tests_linked", linked},
+		field{"tests_unresolved_fixtures", unresolved}, field{"not_read", SetupNotRead})
+	return render(head, []section{{"setup", items}, {"tests", tests}}, budget)
 }
 
 // Steps reports the test bodies of the declared sources in the closed step IR, with
@@ -164,8 +218,8 @@ func Steps(ctx context.Context, m *Map, sources []string, o Options) ([]byte, er
 		unknowns[i] = u
 	}
 	head := append(skHead(StepsSchema, m, sources, budget, o, read, skipped),
-		field{"tests", len(k.Tests)}, field{"tests_complete", complete}, field{"step_kinds", kinds},
-		field{"opaque_reasons", reasons}, field{"records", len(k.Records)}, field{"records_reused", reused},
+		field{"tests_total", len(k.Tests)}, field{"tests_complete", complete}, field{"step_kinds", kinds},
+		field{"opaque_reasons", reasons}, field{"records_total", len(k.Records)}, field{"records_reused", reused},
 		field{"unknowns_total", len(k.Unknowns)})
 	return render(head, []section{{"records", records}, {"tests", tests}, {"unknowns", unknowns}}, budget)
 }

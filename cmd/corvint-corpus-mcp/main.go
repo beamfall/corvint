@@ -201,7 +201,7 @@ type toolHandler struct {
 func (handler *toolHandler) listedTools() []bridge.ToolDescriptor {
 	tools := handler.registry.Tools()
 	if handler.planner != nil {
-		tools = append(tools, handler.planner.descriptor())
+		tools = append(tools, handler.planner.descriptor(), handler.planner.knowledgeDescriptor())
 	}
 	if handler.consolidator != nil {
 		tools = append(tools, handler.consolidator.descriptor())
@@ -263,7 +263,10 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 		return nil, protocol.InvalidParams("Invalid params")
 	}
 	if name == mapPlanTool && handler.planner != nil {
-		return handler.callMapPlan(ctx, raw)
+		return handler.callMapTool(ctx, mapPlanTool, handler.planner.call, raw)
+	}
+	if name == mapKnowledgeTool && handler.planner != nil {
+		return handler.callMapTool(ctx, mapKnowledgeTool, handler.planner.knowledge, raw)
 	}
 	if name == consolidateTool && handler.consolidator != nil {
 		return handler.callConsolidate(ctx, raw)
@@ -322,10 +325,12 @@ func timedFailure(name, code, message string, timing corpusbridge.Timing) (map[s
 	return result, rpcErr
 }
 
-// callMapPlan frames the plan like every other tool result: the model-facing text in the
-// untrusted-data envelope, the plan itself as structured content.
-func (handler *toolHandler) callMapPlan(ctx context.Context, raw []byte) (map[string]any, *protocol.RPCError) {
-	text, code, message, valid := handler.planner.call(ctx, raw)
+// callMapTool frames a map tool's report (the plan, or a site-knowledge projection) like every
+// other tool result: the model-facing text in the untrusted-data envelope, the report itself as
+// structured content.
+func (handler *toolHandler) callMapTool(ctx context.Context, name string,
+	run func(context.Context, []byte) (string, string, string, bool), raw []byte) (map[string]any, *protocol.RPCError) {
+	text, code, message, valid := run(ctx, raw)
 	if !valid {
 		return nil, protocol.InvalidParams("Invalid params")
 	}
@@ -333,7 +338,7 @@ func (handler *toolHandler) callMapPlan(ctx context.Context, raw []byte) (map[st
 		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
 	}
 	if code != "" {
-		return toolFailureResult(mapPlanTool, code, message)
+		return toolFailureResult(name, code, message)
 	}
 	if text == "" {
 		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
@@ -344,7 +349,7 @@ func (handler *toolHandler) callMapPlan(ctx context.Context, raw []byte) (map[st
 	}
 	framed, frameErr := repoenvelope.Frame(text)
 	if frameErr != nil {
-		return toolFailureResult(mapPlanTool, repoenvelope.CollisionCode, repoenvelope.CollisionCode)
+		return toolFailureResult(name, repoenvelope.CollisionCode, repoenvelope.CollisionCode)
 	}
 	return map[string]any{
 		"content":           []any{map[string]any{"type": "text", "text": framed}},
