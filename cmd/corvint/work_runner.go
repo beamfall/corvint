@@ -165,8 +165,10 @@ var workTextBusyRetries = []time.Duration{5 * time.Millisecond, 20 * time.Millis
 // child's own exec closes it (close-on-exec), so exec of the materialized
 // adapter can briefly fail "text file busy" on Linux (V1-2433). Nothing
 // started in that case, so a bounded retry is safe; any other failure, a
-// start, or cancellation returns at once. An exec.Cmd starts at most once, so
-// each attempt builds a new one.
+// start, or cancellation returns at once; cancellation during a retry returns
+// the context's error, so the command reports CANCELLED or INPUT_LIMIT rather
+// than ADAPTER_FAILED. An exec.Cmd starts at most once, so each attempt builds
+// a new one.
 func workStartAdapter(ctx context.Context, build func() *exec.Cmd) (*exec.Cmd, error) {
 	command := build()
 	err := workStartLive(command)
@@ -174,11 +176,14 @@ func workStartAdapter(ctx context.Context, build func() *exec.Cmd) (*exec.Cmd, e
 		if err == nil || !errors.Is(err, syscall.ETXTBSY) {
 			break
 		}
+		if ctx.Err() != nil {
+			return command, ctx.Err()
+		}
 		timer := time.NewTimer(delay)
 		select {
 		case <-ctx.Done():
 			timer.Stop()
-			return command, err
+			return command, ctx.Err()
 		case <-timer.C:
 		}
 		command = build()
