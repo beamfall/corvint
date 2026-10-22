@@ -31,7 +31,7 @@ func testCALV0027_NonfixtureStageBinding(t *testing.T) {
 			if !bytes.Equal(before, b.QueueRaw) {
 				t.Fatal("observation mutated queue")
 			}
-			for _, mode := range []string{"import-map", "fixture-cutover", "init-cutover", "wrong-queue", "stale", "malformed"} {
+			for _, mode := range []string{"import-map", "fixture-import-map", "fixture-cutover", "init-cutover", "wrong-queue", "stale", "malformed"} {
 				t.Run(mode, func(t *testing.T) {
 					copyBinding := b
 					queue, err := intent.DecodeQueue(b.QueueRaw)
@@ -40,9 +40,16 @@ func testCALV0027_NonfixtureStageBinding(t *testing.T) {
 					}
 					want := wire.CodeUnsupported
 					switch mode {
-					case "import-map":
+					case "import-map", "fixture-import-map":
+						// CTS-V0-015: a mapped non-fixture queue takes every
+						// non-fixture write; a fixture queue naming a map stays refused.
 						d := wire.Sum([]byte("map"))
 						queue.ImportMapSha256 = &d
+						if mode == "import-map" {
+							want = ""
+						} else {
+							queue.Fixture = true
+						}
 					case "fixture-cutover", "init-cutover":
 						if mode == "init-cutover" && op != StageInit {
 							t.Skip("INIT-specific boundary")
