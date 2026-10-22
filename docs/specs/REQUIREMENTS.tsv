@@ -1651,6 +1651,8 @@ TCD-V0-163	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket ba
 TCD-V0-164	docs/specs/corvint-tasks-closeout-debt-v0.md	A ticket the batch or a lane only mentions, and that none delivers, is listed un	unrecorded	-
 TCD-V0-165	docs/specs/corvint-tasks-closeout-debt-v0.md	A `gate run` that executes its command gate and commits the result in that call	unrecorded	-
 TCD-V0-166	docs/specs/corvint-tasks-closeout-debt-v0.md	Every executed command gate result retains its full captured output, within the	unrecorded	-
+TCD-V0-167	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2303) A ref	standing	2026-10-11; V1-2303
+TCD-V0-168	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2303) When the	standing	2026-10-11; V1-2303
 TDR-V0-001	docs/specs/corvint-tasks-defect-register-v0.md	Policy MAY declare `defects` as a closed object with optional `prefix` (matching	unrecorded	-
 TDR-V0-002	docs/specs/corvint-tasks-defect-register-v0.md	Each entry has `id` (`PREFIX-N`), `title`, `location`, `evidence`, `severity`	unrecorded	-
 TDR-V0-003	docs/specs/corvint-tasks-defect-register-v0.md	`status` is `SUSPECTED` (default), `CONFIRMED`, `NOT_A_BUG` or `DUPLICATE`;	unrecorded	-
@@ -1661,37 +1663,37 @@ TDR-V0-007	docs/specs/corvint-tasks-defect-register-v0.md	`preflight` reads the 
 TDR-V0-008	docs/specs/corvint-tasks-defect-register-v0.md	A `DEFECT` or `BLOCKED` obligation whose cited register ids all resolve (through	unrecorded	-
 TDR-V0-009	docs/specs/corvint-tasks-defect-register-v0.md	The default register is `<git-common-dir>/taskman-defects/register.jsonl`	unrecorded	-
 TDR-V0-010	docs/specs/corvint-tasks-defect-register-v0.md	`corvint-tasks defects add|update <id>|list [--status S] [--category C]` return	unrecorded	-
-TQD-V0-001	docs/specs/corvint-tasks-doctor-v0.md	`corvint-tasks doctor [--refresh] [--plugins DIR] [--config FILE]` is a pure rea	unrecorded	-
-TQD-V0-002	docs/specs/corvint-tasks-doctor-v0.md	`summary` is `{lanes:{free,total}, runningSessions, completions24h, alerts}`. `l	unrecorded	-
-TQD-V0-003	docs/specs/corvint-tasks-doctor-v0.md	Each finding is `{kind, source, who, detail, remedy, firstSeen, ageSeconds, evid	unrecorded	-
-TQD-V0-004	docs/specs/corvint-tasks-doctor-v0.md	Journal-derived detectors read one bounded backward scan of receipts from the sn	unrecorded	-
-TQD-V0-005	docs/specs/corvint-tasks-doctor-v0.md	NO_PROGRESS_HANDOFF names a ticket whose newest three or more ended generations	unrecorded	-
-TQD-V0-006	docs/specs/corvint-tasks-doctor-v0.md	REPEAT_REFUSAL names a ticket and candidate tree refused three or more times in	unrecorded	-
-TQD-V0-007	docs/specs/corvint-tasks-doctor-v0.md	SLOW_LANE_RECOVERY names a pool member whose allocation entered CLEANING (a clea	unrecorded	-
-TQD-V0-008	docs/specs/corvint-tasks-doctor-v0.md	SETUP_ONLY_PROOF names a ticket COMPLETED within the window whose obligation led	unrecorded	-
-TQD-V0-009	docs/specs/corvint-tasks-doctor-v0.md	FALSE_IDLE names a live attempt whose holder status is STALE_HOLDER or LEASE_EXP	unrecorded	-
-TQD-V0-010	docs/specs/corvint-tasks-doctor-v0.md	Plugins run only when `--plugins DIR` names a directory. Discovery opens it with	unrecorded	-
-TQD-V0-011	docs/specs/corvint-tasks-doctor-v0.md	`doctor --refresh` writes the item, with profile `taskman-doctor-cache/0` and `r	unrecorded	-
-TQD-V0-012	docs/specs/corvint-tasks-doctor-v0.md	`doctor --line` reads only the cache, through the repository resolution walk to	unrecorded	-
-TQD-V0-013	docs/specs/corvint-tasks-doctor-v0.md	NO_PROGRESS_HANDOFF is not reported for a ticket whose current audited record ha	unrecorded	-
-TQD-V0-020	docs/specs/corvint-tasks-doctor-v0.md	`--config FILE` names an operator file (relative to the working directory, at mo	unrecorded	-
-TQD-V0-021	docs/specs/corvint-tasks-doctor-v0.md	QUEUE_LOCK_HELD names this queue's `taskman.lock` or `taskman.prepare.lock` (in	unrecorded	-
-TQD-V0-022	docs/specs/corvint-tasks-doctor-v0.md	SLOW_QUEUE_COMMAND names (`who` `pid N`) each other `corvint-tasks` process with	unrecorded	-
-TQD-V0-023	docs/specs/corvint-tasks-doctor-v0.md	NO_COMPLETIONS names the queue when no completion has been recorded for at least	unrecorded	-
-TQD-V0-024	docs/specs/corvint-tasks-doctor-v0.md	FD_PRESSURE names `system` when the system file table's in-use handles are at le	unrecorded	-
-TQD-V0-026	docs/specs/corvint-tasks-doctor-v0.md	With `notify` configured, `doctor --refresh` runs the hook at most once per chan	unrecorded	-
-TQD-V0-027	docs/specs/corvint-tasks-doctor-v0.md	For each configured dispatcher, the doctor reads each worker directory's `stdout	unrecorded	-
-TQD-V0-028	docs/specs/corvint-tasks-doctor-v0.md	HOST_ERRORS names the worker id when the log holds at least `hostErrors` host er	unrecorded	-
-TQD-V0-029	docs/specs/corvint-tasks-doctor-v0.md	EARLY_REFUSAL names the worker id when at least `earlyRefusal` tool calls failed	unrecorded	-
-TQD-V0-030	docs/specs/corvint-tasks-doctor-v0.md	Host-session findings derive only from lines a known usage format recognises (`d	unrecorded	-
-TQD-V0-031	docs/specs/corvint-tasks-doctor-v0.md	For each configured dispatcher the item's `dispatchers` array (in configuration	unrecorded	-
-TQD-V0-032	docs/specs/corvint-tasks-doctor-v0.md	NO_PROGRESS_HANDOFF counts only generations claimed at the ticket's current acce	unrecorded	-
-TQD-V0-033	docs/specs/corvint-tasks-doctor-v0.md	One doctor scan reads the journal through one read session that pins the store's	unrecorded	-
-TQD-V0-040	docs/specs/corvint-tasks-doctor-v0.md	Under a store policy that declares the ATR-V0-080 `progressSignal` `HANDOFF_EVID	unrecorded	-
-TQD-V0-041	docs/specs/corvint-tasks-doctor-v0.md	Under the same declaration REPEAT_REFUSAL MUST restart its count for a ticket at	unrecorded	-
-TQD-V0-042	docs/specs/corvint-tasks-doctor-v0.md	SETUP_ONLY_PROOF MUST ignore the progress signal: its judgment is witnessed core	unrecorded	-
-TQD-V0-043	docs/specs/corvint-tasks-doctor-v0.md	For each configured dispatcher the doctor MUST read the ATR-V0-150 queue observa	unrecorded	-
-TQD-V0-044	docs/specs/corvint-tasks-doctor-v0.md	From the same observation, a role whose queue (running plus waiting sessions) st	unrecorded	-
+TQD-V0-001	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715; `--config` and `dispatchers` amendment ac	standing	decision 0481; #715; 2026-10-17; V1-1519
+TQD-V0-002	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715) `summary` is `{lanes:{free,total}, runnin	owner	decision 0481; #715
+TQD-V0-003	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715) Each finding is `{kind, source, who, deta	owner	decision 0481; #715
+TQD-V0-004	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715) Journal-derived detectors read one bounde	owner	decision 0481; #715
+TQD-V0-005	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715) NO_PROGRESS_HANDOFF names a ticket whose	owner	decision 0481; #715
+TQD-V0-006	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715) REPEAT_REFUSAL names a ticket and candida	owner	decision 0481; #715
+TQD-V0-007	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715) SLOW_LANE_RECOVERY names a pool member wh	owner	decision 0481; #715
+TQD-V0-008	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715) SETUP_ONLY_PROOF names a ticket COMPLETED	owner	decision 0481; #715
+TQD-V0-009	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715) FALSE_IDLE names a live attempt whose hol	owner	decision 0481; #715
+TQD-V0-010	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715) Plugins run only when `--plugins DIR` nam	owner	decision 0481; #715
+TQD-V0-011	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715) `doctor --refresh` writes the item, with	owner	decision 0481; #715
+TQD-V0-012	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715) `doctor --line` reads only the cache, thr	owner	decision 0481; #715
+TQD-V0-013	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0519; V1-1176; GitHub #791) NO_PROGRESS_HANDOFF is not repor	owner	decision 0519; V1-1176; #791
+TQD-V0-020	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1598, standing lane auto-accept; GitHub #1041) `--confi	standing	2026-10-17; V1-1598; #1041
+TQD-V0-021	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1598, standing lane auto-accept; GitHub #1041; amended	standing	2026-10-17; V1-1598; #1041; #1060
+TQD-V0-022	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1598, standing lane auto-accept; GitHub #1041) SLOW_QUE	standing	2026-10-17; V1-1598; #1041
+TQD-V0-023	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1598, standing lane auto-accept; GitHub #1041) NO_COMPL	standing	2026-10-17; V1-1598; #1041
+TQD-V0-024	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1598, standing lane auto-accept; GitHub #1041) FD_PRESS	standing	2026-10-17; V1-1598; #1041
+TQD-V0-026	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1601, standing lane auto-accept; GitHub #1044; amended	standing	2026-10-17; V1-1601; #1044; #1060
+TQD-V0-027	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1604, standing lane auto-accept; GitHub #1047; amended	standing	2026-10-17; V1-1604; #1047; #1060
+TQD-V0-028	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1604, standing lane auto-accept; GitHub #1047) HOST_ERR	standing	2026-10-17; V1-1604; #1047
+TQD-V0-029	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1604, standing lane auto-accept; GitHub #1047) EARLY_RE	standing	2026-10-17; V1-1604; #1047
+TQD-V0-030	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1604, standing lane auto-accept; GitHub #1047; amended	standing	2026-10-17; V1-1604; #1047; #1060
+TQD-V0-031	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1519, standing lane auto-accept; approved TQD-V0-001 am	standing	2026-10-17; V1-1519; #1060
+TQD-V0-032	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1192, standing lane auto-accept) NO_PROGRESS_HANDOFF co	standing	2026-10-17; V1-1192
+TQD-V0-033	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1193, standing lane auto-accept; amended 2026-10-17, Co	standing	2026-10-17; V1-1193; #1060
+TQD-V0-040	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-18, V1-1608, standing lane auto-accept; GitHub #1050) Under a	standing	2026-10-18; V1-1608; #1050
+TQD-V0-041	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-18, V1-1608, standing lane auto-accept; GitHub #1050) Under th	standing	2026-10-18; V1-1608; #1050
+TQD-V0-042	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-18, V1-1608, standing lane auto-accept; GitHub #1050) SETUP_ON	standing	2026-10-18; V1-1608; #1050
+TQD-V0-043	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-19, V1-1914, standing lane auto-accept; GitHub #1181) For each	standing	2026-10-19; V1-1914; #1181
+TQD-V0-044	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-19, V1-1916, standing lane auto-accept; GitHub #1183) From the	standing	2026-10-19; V1-1916; #1183
 TQD-V0-045	docs/specs/corvint-tasks-doctor-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1193; GitHub #	standing	2026-10-11; V1-1193; #791
 ESC-V0-001	docs/specs/corvint-tasks-escalations-v0.md	`ticket escalate --attempt A --kind decision|infrastructure|scope|blocked --ques	unrecorded	-
 ESC-V0-002	docs/specs/corvint-tasks-escalations-v0.md	Questions MUST be stored as an optional tool-owned `escalations` reference on th	unrecorded	-
@@ -2492,6 +2494,7 @@ DCP-V1-308	docs/specs/documentation-corpus-v1.md	(accepted under the owner's sta
 DCP-V1-309	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1490; V1-	standing	2026-10-11; #1490; V1-2333
 DCP-V1-310	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1490; V1-	standing	2026-10-11; #1490; V1-2333
 DCP-V1-311	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1490; V1-	standing	2026-10-11; #1490; V1-2333
+DCP-V1-312	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2345) `corvint	standing	2026-10-11; V1-2345
 DCP-V1-280	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1487;	standing	2026-10-11; #1487
 DCP-V1-281	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1487;	standing	2026-10-11; #1487
 DCP-V1-282	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1492;	standing	2026-10-11; #1492
@@ -2573,6 +2576,7 @@ ESV-V0-010	docs/specs/experimental-source-views-v0.md	The summary and expansion 
 ESV-V0-011	docs/specs/experimental-source-views-v0.md	A failed `git cat-file` read of the selected blob refuses as `git-failed` in bot	unrecorded	-
 ESV-V0-012	docs/specs/experimental-source-views-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-0426)) Before	standing	2026-10-11; V1-0426
 ESV-V0-013	docs/specs/experimental-source-views-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1412) When	standing	2026-10-11; V1-1412
+ESV-V0-014	docs/specs/experimental-source-views-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2320) When	standing	2026-10-11; V1-2320
 EAF-V0-001	docs/specs/expert-audit-followup-v0.md	Current Go/Python secret screening MUST reject ordinary double-quoted credential	unrecorded	-
 EAF-V0-002	docs/specs/expert-audit-followup-v0.md	Go mutation baseline, mutant and isolated grouped-fallback runs MUST use matchin	unrecorded	-
 EAF-V0-003	docs/specs/expert-audit-followup-v0.md	Checkpoint output MUST preserve the caller's obligations array exactly and label	unrecorded	-
@@ -4468,6 +4472,7 @@ SRG-V0-040	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the
 SRG-V0-041	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1758) During a	standing	2026-10-11; V1-1758
 SRG-V0-042	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2160) Every	standing	2026-10-11; V1-2160
 SRG-V0-043	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2146) In every	standing	2026-10-11; V1-2146
+SRG-V0-044	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2309) The	standing	2026-10-11; V1-2309
 STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
 STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-
 STA-V0-003	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-delta` reads one OpenSpec delta file.	unrecorded	-

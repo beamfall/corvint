@@ -251,7 +251,7 @@ Failure modes:
   path, ambiguous/duplicate/incomplete requirement, unsupported text, capture/time/count/byte
   overflow with typed errors and no partial view. The Go handoff's requirement and text codes are
   `ambiguous-requirement`, `unsupported-requirement`, `incomplete-boundary` and `unsupported-text`
-  (`cmd/corvint/source_handoff.go:466,479,497,457@b810edfe`). Preserve available packet metadata including
+  (`cmd/corvint/source_handoff.go:478,491,509,469@b810edfe`). Preserve available packet metadata including
   shortages, omissions, coverage and unknown fields. After a packet-size/parse refusal no decoded packet is available; disclose this
   instead of claiming metadata preservation. Supply a raw immutable Git recovery argv
   when a syntactically safe commit/path exists; otherwise declare fallback unavailable and why.
@@ -324,7 +324,15 @@ Failure modes:
   cancelled, the refusal is `deadline-exceeded`, whichever Git step the expiry interrupted
   (toplevel, object format, HEAD tree, tree entry, blob identity, blob read or the HEAD recheck),
   never `repository-root`, `invalid-handle`, `missing-handle` or `git-failed`. A refusal decided
-  before the bound expired keeps its own code. `adapter source-view` keeps its codes unchanged.
+  before the bound expired keeps its own code. `adapter source-view` follows `ESV-V0-014`.
+- `ESV-V0-014`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2320) When
+  `adapter source-view` refuses after its 10-second source-read bound has expired or its context
+  was cancelled, the refusal envelope's code is `deadline-exceeded`, whichever Git step the expiry
+  interrupted (toplevel, object format, HEAD, commit tree, tree entry, blob read or the HEAD
+  recheck), never `repository-root`, `object-format`, `stale-commit`, `stale-tree`,
+  `missing-path` or `git-failed`. The envelope keeps its packet metadata, selection and raw
+  fallback argv. A refusal decided before the bound expired, or before the Git reads begin, keeps
+  its own code.
 
 ### Source handoff error codes
 
@@ -368,6 +376,7 @@ dispatch.
 | ESV-V0-011 | `sourceGit` output-overflow sentinel; cat-file sites in `executeSourceView` and `expandContextHandle` | `TestSourceBlobReadFailureIsDistinctFromBudget` scripted failing and oversized cat-file reads |
 | ESV-V0-012 | `screenSourceLines` in `cmd/corvint/source_screen.go`, called by `contextHandleSelection` and `extractSourceView` | `TestESVV0012ScreenSourceLinesRedactsSecretLines`; `TestESVV0012SourceViewRedactsSecretLines`; `TestESVV0012ContextExpandAndPacketScreenSecretLines` (expand redacts with disclosure and the exact sha256; the `context` packet carries no secret) |
 | ESV-V0-013 | `expandContextHandle` deadline mapping over `expandPinnedHandle` in `cmd/corvint/context_summary.go` | `TestContextExpandDeadlineExpiryRefusesAsDeadlineExceeded` stalls each of the seven Git steps past a one-second bound, for an `all` and an over-long range; 13 of 14 cases refused with an unrelated code before the fix |
+| ESV-V0-014 | `executeSourceViewBytes` deadline mapping over `readPinnedSourceView` in `cmd/corvint/source_handoff.go` | `TestSourceViewDeadlineExpiryRefusesAsDeadlineExceeded` stalls each of the seven Git steps past a one-second bound and, separately, cancels the caller mid-step; all 14 cases refused with an unrelated code before the fix; `TestSourceViewCancellationTerminatesGitProcessGroup` now expects `deadline-exceeded` |
 
 Implementation sequence: freeze this spec and independent read-only plan review; implement only
 consumer/tests; focused identity/extraction/refusal/lifecycle checks; fresh independent review;

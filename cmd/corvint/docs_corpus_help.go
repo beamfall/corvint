@@ -25,9 +25,10 @@ func buildCorpusOperations() []corpusOperation {
 	read := func(name, purpose string, required []string, optional ...string) corpusOperation {
 		return corpusOperation{name: name, purpose: purpose, required: append([]string{"--artifact"}, required...), optional: append(optional, reads...)}
 	}
-	typed := func(name, purpose string) corpusOperation {
-		return read(name, purpose, []string{"--" + doccorpus.OperationInput(name)})
+	typedWith := func(name, purpose string, optional ...string) corpusOperation {
+		return read(name, purpose, []string{"--" + doccorpus.OperationInput(name)}, optional...)
 	}
+	typed := func(name, purpose string) corpusOperation { return typedWith(name, purpose) }
 	return []corpusOperation{
 		{name: "manifest", purpose: "inventory one or more scopes at a full commit as a corpus manifest", required: []string{"--revision", "--scope", "--timestamp"}, optional: []string{"--schema"}},
 		{name: "build", purpose: "build the immutable corpus artifact from a manifest", required: []string{"--manifest"}},
@@ -51,14 +52,14 @@ func buildCorpusOperations() []corpusOperation {
 		read("related", "subjects related to one subject", []string{"--id"}),
 		read("journey", "one recorded journey and its observations", []string{"--id"}),
 		read("stability", "repeated-run stability evidence of one subject", []string{"--id"}),
-		read("locate", "subjects that cite one path", []string{"--path"}),
+		read("locate", "subjects that cite one path", []string{"--path"}, "--repository"),
 		read("coverage", "scoped coverage with its denominator", nil),
 		read("gaps", "reported gaps, optionally for one subject", nil, "--id"),
 		typed("concept", "typed subjects matching a concept"),
 		typed("claims", "typed claims about one path"),
 		read("flow", "one typed flow, optionally only some sections or record kinds", []string{"--id"}, "--section", "--include"),
 		typed("dependencies", "typed dependency relations of one subject"),
-		typed("recommend-tests", "tests related to one path; grants no test-selection authority"),
+		typedWith("recommend-tests", "tests related to one path; grants no test-selection authority", "--repository"),
 		typed("navigation", "typed navigation subject"),
 		typed("vocabulary", "typed vocabulary matching a term"),
 		typed("intent", "typed intent comparisons of one subject"),
@@ -120,6 +121,7 @@ var corpusFlagHelp = map[string][2]string{
 	"--content":              {"ids-paths-titles|full", "case text kept; full is local_only (default ids-paths-titles)"},
 	"--query":                {"TEXT", "search text"},
 	"--path":                 {"PATH", "repository path"},
+	"--repository":           {"ROOT_COMMIT", "declared repository's root-commit identity; keeps only records anchored at the path there"},
 	"--limit":                {"N", "1.." + strconv.Itoa(doccorpus.MaxResults) + " results (default 20)"},
 	"--offset":               {"N", "results to skip"},
 	"--section":              {"NAME[,NAME]", "flow sections whose paragraphs to return"},
