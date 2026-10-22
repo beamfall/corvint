@@ -1881,6 +1881,7 @@ ON-V0-010	docs/specs/corvint-tasks-operator-notes-v0.md	Promotion and rollback M
 ON-V0-012	docs/specs/corvint-tasks-operator-notes-v0.md	(proposed; V1-1650; amends the CAL-V0-116 decline list) A writer audit resumed f	unrecorded	-
 ON-V0-013	docs/specs/corvint-tasks-operator-notes-v0.md	(proposed; V1-1650; amends the CAL-V0-061 tail rule) A read resumed from the rea	unrecorded	-
 ON-V0-014	docs/specs/corvint-tasks-operator-notes-v0.md	(proposed; V1-1650) Any failure to bind an ON-V0-012 or ON-V0-013 pre-state MUST	unrecorded	-
+ON-V0-015	docs/specs/corvint-tasks-operator-notes-v0.md	(accepted under the owner's standing auto-accept of 2026-10-11; V1-1663; amends	standing	2026-10-11; V1-1663
 PUR-V0-001	docs/specs/corvint-tasks-pending-unpause-recovery-v0.md	`pause` and `unpause` run `TM-V0-009` redo of a pending receipt under their own	unrecorded	-
 PUR-V0-002	docs/specs/corvint-tasks-pending-unpause-recovery-v0.md	Redo of a pending UNPAUSE receipt completes its paired non-null pre/null post	unrecorded	-
 PUR-V0-003	docs/specs/corvint-tasks-pending-unpause-recovery-v0.md	Redo of a pending receipt whose kind is UNPAUSE and which posts no `intent/` pat	unrecorded	-

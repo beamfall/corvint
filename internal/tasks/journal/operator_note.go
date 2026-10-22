@@ -295,8 +295,12 @@ func (n *noteAudit) prePost(prior latest, path string) ([]byte, error) {
 // from the receipt that posted it; its digest binds the bytes. The receipt
 // must also hold the chain position the complete audit checks for it: its
 // own sequence, a previous digest exactly when it is not receipt 1, and a
-// head generation no later than the walk's (ON-V0-014).
-func (r Reader) priorPost(prior latest, path string, generation uint64) ([]byte, error) {
+// head generation no later than the walk's (ON-V0-014). A walk resumed after
+// checkpoint receipt resumed (digest tip), which did not walk the prefix,
+// also binds the receipt's chain position by value: the checkpoint receipt
+// itself by tip, and an earlier one by its previous digest naming the
+// receipt before it (ON-V0-015).
+func (r Reader) priorPost(prior latest, path string, generation, resumed uint64, tip wire.Digest) ([]byte, error) {
 	if prior.seq == "" || prior.digest == nil {
 		return nil, noteForked(path, "no audited prior afterimage")
 	}
@@ -315,10 +319,44 @@ func (r Reader) priorPost(prior latest, path string, generation uint64) ([]byte,
 	if rc.Seq != prior.seq || (rc.Prev == nil) != (prior.seq.Uint64() == 1) || rc.HeadGeneration.Uint64() > generation {
 		return nil, noteForked(path, "prior receipt sequence/prev/generation differs from its chain position")
 	}
+	switch seq := prior.seq.Uint64(); {
+	case resumed == 0 || seq > resumed:
+	case seq == resumed:
+		if wire.Sum(raw) != tip {
+			return nil, noteForked(path, "prior receipt is not the checkpoint receipt")
+		}
+	case rc.Prev != nil:
+		if err := r.priorLink(path, seq, *rc.Prev); err != nil {
+			return nil, err
+		}
+	}
 	for _, p := range rc.Post {
 		if p.Path == path && equalDigest(p.Sha256, prior.digest) {
 			return r.postBytes(p)
 		}
 	}
 	return nil, noteForked(path, "prior receipt does not post the audited afterimage")
+}
+
+// priorLink binds a prefix receipt's previous digest to the receipt before
+// it: that receipt must hold sequence seq-1 and its chain digest (its bytes,
+// or the digest an elided liveness receipt retains) must equal prev. One more
+// bounded read; the complete audit walks this link itself (ON-V0-015).
+func (r Reader) priorLink(path string, seq uint64, prev wire.Digest) error {
+	name, err := snapshot.ReceiptName(seq - 1)
+	if err != nil {
+		return err
+	}
+	raw, err := requiredRead(r.Source, "receipts/"+name, wire.MaxReceiptFileBytes)
+	if err != nil {
+		return err
+	}
+	rc, digest, _, err := snapshot.DecodeRetainedReceipt(raw)
+	if err != nil {
+		return err
+	}
+	if rc.Seq.Uint64() != seq-1 || digest != prev {
+		return noteForked(path, "prior receipt's previous digest does not name the receipt before it")
+	}
+	return nil
 }
