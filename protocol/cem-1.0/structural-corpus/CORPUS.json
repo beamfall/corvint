@@ -17,6 +17,7 @@
     "directory": "cases/",
     "files": 26,
     "crlfRule": "a *.crlf.go.txt case is committed with LF endings and observed with every LF widened to CRLF",
+    "emptyRule": "empty-file.go.txt is zero bytes and is not committed, because CEM 1.0 cannot bind an empty-file creation (CEM-V1-300); both harnesses declare it and observe it as zero bytes at its sorted path",
     "sha256": {
       "alignment.go.txt": "3f54bca014ec46d021183161eb19cd56751d176eeb97d38fa217205227396899",
       "bom.go.txt": "e8d2de8b1f2d7051aff820c54945eaf86920d4749068d8953e440972e4acea5d",

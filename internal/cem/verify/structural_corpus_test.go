@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -53,6 +54,10 @@ func TestStructuralCorpusParity(t *testing.T) {
 	t.Logf("%s %s/%s: %d files, %d pairs, native verdicts equal portable", runtime.Version(), runtime.GOOS, runtime.GOARCH, files, pairs)
 }
 
+// emptyCases are the zero-byte cases. CEM 1.0 cannot bind an empty-file
+// creation (CEM-V1-300), so they are declared here instead of committed.
+var emptyCases = []string{"empty-file.go.txt"}
+
 // TestStructuralCorpusCasesParity checks the committed version-sensitive
 // cases against their qualified portable observations on every admitted
 // structural tuple.
@@ -61,7 +66,7 @@ func TestStructuralCorpusCasesParity(t *testing.T) {
 		t.Skipf("%s is not an admitted structural tuple", runtime.Version())
 	}
 	root := filepath.Join("..", "..", "..", "protocol", "cem-1.0", "structural-corpus")
-	files, pairs := checkCorpusParity(t, filepath.Join(root, "cases"), filepath.Join(root, "CASES.observations.jsonl"))
+	files, pairs := checkCorpusParity(t, filepath.Join(root, "cases"), filepath.Join(root, "CASES.observations.jsonl"), emptyCases...)
 	if files == 0 || pairs == 0 {
 		t.Fatalf("cases parity observed %d files and %d pairs", files, pairs)
 	}
@@ -92,7 +97,7 @@ func TestStructuralTuplesMatchQualification(t *testing.T) {
 	}
 }
 
-func checkCorpusParity(t *testing.T, dir, observations string) (files, pairs int) {
+func checkCorpusParity(t *testing.T, dir, observations string, empty ...string) (files, pairs int) {
 	t.Helper()
 	f, err := os.Open(observations)
 	if err != nil {
@@ -107,9 +112,11 @@ func checkCorpusParity(t *testing.T, dir, observations string) (files, pairs int
 		if err := json.Unmarshal(scan.Bytes(), &line); err != nil {
 			t.Fatal(err)
 		}
-		src, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(line.Path)))
-		if err != nil {
-			t.Fatal(err)
+		src := []byte{}
+		if !slices.Contains(empty, line.Path) {
+			if src, err = os.ReadFile(filepath.Join(dir, filepath.FromSlash(line.Path))); err != nil {
+				t.Fatal(err)
+			}
 		}
 		if strings.HasSuffix(line.Path, ".crlf.go.txt") {
 			src = bytes.ReplaceAll(src, []byte("\n"), []byte("\r\n"))

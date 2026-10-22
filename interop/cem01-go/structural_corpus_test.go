@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -80,6 +81,11 @@ func TestStructuralCorpus(t *testing.T) {
 	t.Logf("%s %s/%s: %d files, observations sha256 %s", runtime.Version(), runtime.GOOS, runtime.GOARCH, len(lines), hex.EncodeToString(sum[:]))
 }
 
+// emptyCases are the zero-byte cases. CEM 1.0 cannot bind an empty-file
+// creation (CEM-V1-300), so they are declared here instead of committed and
+// observed as zero bytes at their sorted path.
+var emptyCases = []string{"empty-file.go.txt"}
+
 // TestStructuralCorpusCases reobserves the committed version-sensitive cases
 // and requires the qualified digest whenever the running toolchain is an
 // admitted structural tuple: an admitted tuple shares the qualified parser
@@ -102,7 +108,7 @@ func TestStructuralCorpusCases(t *testing.T) {
 	if !sameTuples(q.AdmittedTuples) {
 		t.Fatalf("structuralTuples %v differ from QUALIFICATION.json admittedTuples %v", structuralTuples, q.AdmittedTuples)
 	}
-	lines, err := corpusObserve(filepath.Join(root, "cases"))
+	lines, err := corpusObserve(filepath.Join(root, "cases"), emptyCases...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +134,7 @@ func sameTuples(admitted []string) bool {
 	return len(seen) == len(structuralTuples)
 }
 
-func corpusObserve(dir string) ([][]byte, error) {
+func corpusObserve(dir string, empty ...string) ([][]byte, error) {
 	var paths []string
 	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -146,12 +152,15 @@ func corpusObserve(dir string) ([][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	paths = append(paths, empty...)
 	sort.Strings(paths)
 	lines := make([][]byte, 0, len(paths))
 	for _, rel := range paths {
-		src, err := readCorpusFile(dir, rel)
-		if err != nil {
-			return nil, err
+		src := []byte{}
+		if !slices.Contains(empty, rel) {
+			if src, err = readCorpusFile(dir, rel); err != nil {
+				return nil, err
+			}
 		}
 		line, err := json.Marshal(observeSource(rel, src))
 		if err != nil {

@@ -12,8 +12,10 @@ and `CEM-V1-091` amended.
   The value was already in the result schema's enum.
 - `protocol/cem-1.0/structural-corpus/` seals the qualifying corpus:
   - `CORPUS.json` names the repository selection and the observation and perturbation rules;
-  - `cases/` holds the 26 version-sensitive cases, with their go1.27.1 observations in
-    `CASES.observations.jsonl`;
+  - `cases/` holds 25 of the 26 version-sensitive cases, with the go1.27.1 observations of all
+    26 in `CASES.observations.jsonl`. The zero-byte `empty-file.go.txt` is declared, not
+    committed: CEM 1.0 refuses an empty-file creation (`metadata-only-change-unsupported`,
+    `CEM-V1-300`), so both harnesses observe it as zero bytes at its sorted path;
   - `QUALIFICATION.json` records every run, host and digest;
   - `manifest.json` binds all of them.
 - `tools/cem-structural-closure` computes the parser-closure digest. Both tuple packets record it

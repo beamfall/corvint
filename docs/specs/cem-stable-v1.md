@@ -145,9 +145,11 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   sealed under `protocol/cem-1.0/structural-corpus/`:
   - `CORPUS.json` names the corpus: every tracked `.go` file of the Corvint tree at one pinned
     commit and its `internal/cem/verify/testdata/structural` fixtures, by path-list digest and
-    count, plus the committed version-sensitive `cases/`. It also names the five derived perturbation kinds (`formatter-only`, `import-reorder`, `move`,
-    `rename`, `partial-rename`) and the rule that a `*.crlf.go.txt` case is observed with every LF
-    widened to CRLF.
+    count, plus the version-sensitive `cases/`. A zero-byte case is declared there and observed as
+    zero bytes instead of committed, because an empty-file creation is not representable
+    (`CEM-V1-300`). It also names the five derived perturbation kinds (`formatter-only`,
+    `import-reorder`, `move`, `rename`, `partial-rename`) and the rule that a `*.crlf.go.txt` case
+    is observed with every LF widened to CRLF.
   - `CASES.observations.jsonl` holds the portable consumer's observations of `cases/` on
     `go1.27.1`: per file the source, scanner, parser, printer and formatter digests and format
     idempotence, and per pair its image segments and the four predicates' verdicts in both

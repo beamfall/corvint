@@ -4,8 +4,8 @@
   "files": [
     {
       "path": "CORPUS.json",
-      "sha256": "a7adf654ff83e5f15d38dcea2014383a73d51441b12aa7c7476a4240265fb053",
-      "bytes": 5218
+      "sha256": "bc0579b608d04cff9442a7c1f2bfd3b7300183cfb8e05a812b2e1557a5f5348d",
+      "bytes": 5431
     },
     {
       "path": "CASES.observations.jsonl",
@@ -66,11 +66,6 @@
       "path": "cases/dot-blank-named-imports.go.txt",
       "sha256": "c765caf8b18770a9444c50eae35dc8504565eb6cd617d65972a2ac9b55507697",
       "bytes": 206
-    },
-    {
-      "path": "cases/empty-file.go.txt",
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "bytes": 0
     },
     {
       "path": "cases/generic-alias.go.txt",

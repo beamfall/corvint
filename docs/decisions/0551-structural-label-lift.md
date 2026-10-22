@@ -22,7 +22,9 @@ predicates cannot observe. Taken at face value, it would demand a corpus rerun o
   (`CEM-V1-369`). It contains:
   - every tracked `.go` file of the Corvint tree at `ef2a01db5` (4824) and its 12
     `internal/cem/verify/testdata/structural` fixtures, 4836 files in all;
-  - 26 committed version-sensitive cases.
+  - 26 version-sensitive cases. 25 are committed. The zero-byte `empty-file.go.txt` is declared in
+    `CORPUS.json` and in both harnesses instead, because CEM 1.0 cannot bind an empty-file
+    creation (`CEM-V1-300`).
 
   Each file yields scanner, parser, printer and formatter digests plus up to five derived
   perturbation pairs. The four portable predicates judge each pair in both directions, and the
