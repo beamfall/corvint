@@ -1642,6 +1642,73 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `TestDCPV1241CorpusMaintainPageRefusalNamesFlag`. Status: (accepted under the owner's standing
   auto-accept (2026-10-11); V1-1227).
 
+### Static test discovery (`docs corpus discover-tests`, GitHub #1582)
+
+`corvint docs corpus discover-tests --runner playwright|rspec --revision FULL_COMMIT --path PATH`
+reads the committed Playwright or RSpec test files under one repository-relative path at one full
+commit through the TSA-V0 static readers and prints one `corvint-test-discovery/1` document on
+standard output. It is a read command: it writes nothing to the repository, the index or a trace
+store. The document is generated trust and sets no review verdict; it is test evidence an agent or
+a provider can cite, not a corpus artifact. Status for `DCP-V1-370..376`: (accepted under the
+owner's standing auto-accept (2026-10-11); GitHub #1582).
+
+- `DCP-V1-370`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) The
+  document names the runner, repository, full revision and path, lists each read file with its blob
+  and SHA-256, and lists examples sorted by path, line and identity. Every title, tag, annotation,
+  expectation, navigation, reach and hook carries an `external-provider` anchor whose blob, file
+  digest and span digest are those of the committed lines, under the compiler's `maxSpanBytes`
+  excerpt rule; a fact whose span cannot be anchored is not emitted with a zero-valued anchor but
+  dropped with the example unknown `fact-span-unanchored` (DCP-V1-376). The bytes are identical
+  across runs at the same revision. A runner other than
+  `playwright` or `rspec`, an unsafe path or a missing argument is refused with `corpus-refused`, and
+  a revision that is not a full commit with `corpus-invalid-revision`; the encoded document is
+  bounded at 32 MiB. Acceptance: `TestDCPV1370DiscoverTestsDeterministicAnchored`,
+  `TestDCPV1370DocsCorpusDiscoverTestsCLI`.
+- `DCP-V1-371`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Each
+  example carries the identity `tests example-join` (`TSA-V0`) gives the same example: for RSpec the
+  scoped id `spec/x_spec.rb[1:1]`, for Playwright the file and full title path, which form the
+  `js-title-path` key once a run receipt supplies the project. An identity the source does not fix
+  (a loop-generated, inline-included, shared-body or unplaced scoped id, or a non-literal title) is
+  empty with its reason. An inline inclusion advances the scoped ids of its later siblings by the
+  shared body's runtime slots, counted through nested inline inclusions; a loop in that body, or an
+  inclusion that is unresolved or includes itself, leaves those later ids empty with
+  `scoped-id-loop-generated` or `scoped-id-inline-include` rather than a guessed `[1:N]`. Acceptance:
+  `TestDCPV1371DiscoverTestsIdentityJoins`.
+- `DCP-V1-372`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Each
+  expectation names its matcher, negation, receiver and line span, including multi-line RSpec block
+  expectations, whose matcher is read only from the `}` or `end` line that closes the expectation's
+  own block (nested blocks are counted), never from an inner block's closing line. An expectation
+  whose matcher or shape the reader cannot classify is kept with
+  `matcher-not-read` or `assertion-shape-not-read`, never dropped. Acceptance:
+  `TestDCPV1372DiscoverTestsExpectations`.
+- `DCP-V1-373`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582)
+  Navigations and requests (Playwright `goto`, `route`, `waitForURL`, `waitForRequest`,
+  `waitForResponse` and `request.<method>`; RSpec `visit` and request-spec verbs) in the example and its applicable hooks name the kind, method and literal target and say
+  whether they come from the example or a hook; a computed target is `target-not-literal` with the
+  rendered expression. Acceptance: `TestDCPV1373DiscoverTestsNavigations`.
+- `DCP-V1-374`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582)
+  Statically reached modules are listed per example: page objects and helpers by static import,
+  Playwright fixtures, RSpec shared examples and contexts by inclusion and files by `require` or
+  `require_relative`, each with its declaration anchor and resolved repository path. A computed
+  lookup, an unresolved import or an unregistered shared group carries the setup-select reason
+  (`computed-lookup`, `import-unresolved`, `registry-unresolved`, `TSA-V0-003`). Acceptance:
+  `TestDCPV1374DiscoverTestsReaches`.
+- `DCP-V1-375`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) The
+  hooks that apply to each example are listed outermost first with their kind, scope and whether the
+  hook body asserts; tags and annotations come from the example's declaration, its enclosing groups
+  and its runtime skip calls, and a conditional skip is marked conditional. Acceptance:
+  `TestDCPV1375DiscoverTestsHooksTagsAnnotations`.
+- `DCP-V1-376`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) What
+  the readers cannot classify is an unknown with a reason and an anchor where one exists, never a
+  guess or a silent drop: a non-literal metadata value, a project name that is not static, a file
+  the reader cannot balance, a file over the reader's byte bound (`source-too-large`), a fact list
+  over 512 entries (`fact-bound-exceeded`), a Playwright hook whose callback is not a literal
+  function (`hook-body-not-literal`), an example span that cannot be excerpted
+  (`example-span-unanchored`) and a fact span
+  that cannot be anchored (`fact-span-unanchored`, for example an expectation line over 64 KiB),
+  which is dropped rather than emitted without an anchor. Acceptance:
+  `TestDCPV1376DiscoverTestsUnknowns`.
+
 ### Caller-owned retrieval evaluation (`docs corpus eval`)
 
 `corvint docs corpus eval --artifact PATH --cases PATH [--baseline PATH] [--format json|table]`
@@ -2374,6 +2441,12 @@ The separate MCP startup uses `corpus-unavailable` when its configured corpus ca
 its header cannot be decoded; rederivation happens on the first call (`DCP-V1-143`), and call
 failures retain the specific native error and never return successful empty evidence.
 
+- `DCP-V1-370..376` discovery failure modes: a test file the reader cannot balance, a file over the
+  reader's byte bound, a non-literal title, tag, target or project, an unresolved import and a fact
+  list over its bound each become a typed unknown with a reason; an unsafe path, an unknown runner or
+  a short or unknown revision is refused before any read; an encoded document over 32 MiB is refused
+  rather than truncated.
+
 The experimental JSON HTTP companion returns `corvint-corpus-http-refusal/1` with
 `state: abstained` for these DCP-V1-042 transport/query refusals:
 
@@ -2407,6 +2480,11 @@ fuzzy or semantic match, classify journeys, observations or supplied gaps, carry
 additional repositories, or expose an MCP tool. Carry-forward writes no file and grants no trust:
 the caller commits and declares the record. Rollback removes the two operations and
 `internal/doccorpus/delta*.go`; no artifact or manifest format changes.
+
+Static test discovery (`DCP-V1-370..376`) does not run tests, evaluate Ruby or JavaScript, expand
+loops, resolve dynamic imports, judge assertion adequacy or write a corpus provider record; it is
+generated evidence for a caller to cite. Rollback removes the `discover-tests` subcommand and the
+`internal/testsource/discover_tests*.go` producer; no stored state depends on it.
 
 Extractor profiles (`DCP-V1-390..399`) are not a framework catalog, language parser or Core
 taxonomy: they add no subject kind beyond the generic `job` and `event`, run no tool, infer no
@@ -2515,6 +2593,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-216..217 | `internal/doccorpus/batch_paths.go`, `symbol_anchor.go`, `cem.go`, `behavior_legacy_discovery.go`, `behavior_playwright_discovery.go` | `TestDCPV1216SymbolAnchorsGitOpsIndependentOfAnchorCount` (5,000 moved anchors), `TestDCPV1216CEMProjectionGitOpsIndependentOfAnchorCount` (5,000 anchors), `TestDCPV1216LegacyDiscoveryGitOpsIndependentOfPathCount` (4,096 files, the record bound), `TestDCPV1216PlaywrightDiscoveryGitOpsIndependentOfPathCount` (2,000 files, 4,008 executions), each within 16 Git operations per phase and byte-identical to the per-path reads; `TestDCPV1216ProjectionKeepsPerPathTreeBound` (anchor under a tree past 4 MiB refused as per path), `TestDCPV1216SymbolFallbackBudgetWithholdsStates` (missing pinned blob, budget exhausted in the fallback, states withheld as per path), `TestDCPV1216GitHooksTravelWithTheContext` (the test budget and per-path override travel on the call's context, so the equivalence tests run under `t.Parallel` and `-race`); measured in docs/build-log/2026-10-20-v1-1991-batched-path-reads.md and docs/build-log/2026-10-21-testspeed-1021v-doccorpus-parallel-equivalence.md |
+| DCP-V1-370..376 | `internal/testsource/discover_tests.go`, `discover_tests_playwright.go`, `discover_tests_rspec.go`, `internal/doccorpus/line_anchor.go`, `cmd/corvint/docs_corpus_discover_tests.go` | `TestDCPV1370DiscoverTestsDeterministicAnchored`, `TestDCPV1370DocsCorpusDiscoverTestsCLI`, `TestDCPV1371DiscoverTestsIdentityJoins`, `TestDCPV1372DiscoverTestsExpectations`, `TestDCPV1373DiscoverTestsNavigations`, `TestDCPV1374DiscoverTestsReaches`, `TestDCPV1375DiscoverTestsHooksTagsAnnotations`, `TestDCPV1376DiscoverTestsUnknowns` |
 | DCP-V1-390..392 | `internal/doccorpus/extractor.go` | `TestDCPV1390ExtractorProfileIsClosed`, `TestDCPV1390ExtractorGlobMatchIsLinear`, `TestDCPV1391ExtractorEmitsGenericSubjectsWithExactAnchors`, `TestDCPV1392ExtractorDerivesImplementsAndCallsRelations`, `TestDCPV1392ExtractorRelationsCiteBothEnds` |
 | DCP-V1-393..395 | `internal/doccorpus/extractor.go`, `providers.go` | `TestDCPV1393ExtractorProviderRecordBuildsUnchanged`, `TestDCPV1394ExtractorReadsOnlyPinnedToolOutput`, `TestDCPV1395ExtractorReportsUnreadableFilesAndShapesAsGaps`, `TestDCPV1395AmbiguousEntityDeclarationClosesTheEntity`, `TestDCPV1395ExtractorDenseFileIsRefusedWhileScanning` |
 | DCP-V1-396 | `internal/doccorpus/providers.go` | `TestDCPV1396JobAndEventAreGenericSubjectKinds` |
