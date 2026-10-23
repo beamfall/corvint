@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -295,6 +296,9 @@ func buildCandidate(t *testing.T) string {
 	t.Helper()
 	root := repositoryRoot(t)
 	binary := filepath.Join(t.TempDir(), "corvint-analyzer-html-css")
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
 	cache := filepath.Join(t.TempDir(), "gocache")
 	command := exec.Command("go", "build", "-o", binary, "./cmd/corvint-analyzer-html-css")
 	command.Dir = root
