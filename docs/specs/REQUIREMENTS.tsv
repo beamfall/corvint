@@ -3585,7 +3585,7 @@ MCPV0-004	docs/specs/mcp-server-2026-07-28-v0.md	A valid request has exactly JSO
 MCPV0-005	docs/specs/mcp-server-2026-07-28-v0.md	The only supported protocol version is exactly `2026-07-28`. Every request, incl	unrecorded	-
 MCPV0-006	docs/specs/mcp-server-2026-07-28-v0.md	`server/discover` MUST return only the implemented surface:	unrecorded	-
 MCPV0-007	docs/specs/mcp-server-2026-07-28-v0.md	`tools/list` is paginated even when one page currently contains all tools. Its c	unrecorded	-
-MCPV0-008	docs/specs/mcp-server-2026-07-28-v0.md	V0 advertises exactly these three tools, subject to the implementation schemas f	unrecorded	-
+MCPV0-008	docs/specs/mcp-server-2026-07-28-v0.md	V0 advertises exactly these four tools, subject to the implementation schemas fr	unrecorded	-
 MCPV0-009	docs/specs/mcp-server-2026-07-28-v0.md	Query `task` contains 1 through 2,000 printable ASCII characters and has no `lim	unrecorded	-
 MCPV0-010	docs/specs/mcp-server-2026-07-28-v0.md	`corvint.status` reports only the exact repository binding already defined by th	unrecorded	-
 MCPV0-011	docs/specs/mcp-server-2026-07-28-v0.md	The dispatcher MUST continue reading frames while a tool request runs. A valid	unrecorded	-
@@ -3620,6 +3620,7 @@ MCPV0-040	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's sta
 MCPV0-041	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603) Every	standing	2026-10-11; V1-1603
 MCPV0-042	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1999) A	standing	2026-10-11; V1-1999
 MCPV0-090	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1004) A	standing	2026-10-11; V1-1004
+MCPV0-100	docs/specs/mcp-server-2026-07-28-v0.md	(owner directive through the orchestrator, 2026-10-23; gh#1588; amends `MCPV0-00	unrecorded	-
 MCPV0-095	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2219) A `MIXED	standing	2026-10-11; V1-2219
 MTV-V0-001	docs/specs/mcp-test-validity-profile-v0.md	The profile MUST be served by the separate executable `corvint-test-validity-mcp	unrecorded	-
 MTV-V0-002	docs/specs/mcp-test-validity-profile-v0.md	The tool's input schema MUST be a closed JSON Schema 2020-12 object with two	unrecorded	-

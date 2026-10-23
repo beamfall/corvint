@@ -6,6 +6,7 @@
   "tools": [
     "corvint.cem.report",
     "corvint.context",
+    "corvint.help",
     "corvint.impact",
     "corvint.query",
     "corvint.status"

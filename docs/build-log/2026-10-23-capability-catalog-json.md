@@ -28,24 +28,49 @@ and no task-indexed guide shipped with the install.
   `corvint help --json`, and a `cmd/corvint` test compares the two byte for byte.
   `GuideProblems` fails when the guide names a command, operation, option or schema that the
   live catalog lacks. `make capability-catalog` regenerates the snapshot.
-  `make capability-catalog-check` runs the tests. Wiring a CI step needs owner
-  ci-control-plane approval, so `.github` is unchanged.
+  `make capability-catalog-check` runs the tests. The owner accepted (2026-10-23, through the
+  orchestrator) that these tests already run in the existing CI Go test shards, so `.github` is
+  unchanged and no separate CI step is added.
 - Root help keeps its three usage lines (CCF-V1-009). The second line now ends with
   `| corvint help --json|guide`.
 
-## Omitted, with reasons
+## MCP help tool, and the MCPV0-008 amendment
 
-- MCP help tool or resource. MCPV0-008 freezes the V0 tool list, and byte goldens pin every
-  profile's `tools/list`. The shared `internal/capcatalog` package makes the follow-up a small
-  change once that contract is amended.
-- Guide as a separate release-archive member. `archiveMembers`, `archivewire.MaxMembers` (6), the
+The owner, through the orchestrator, directed on 2026-10-23 that MCP help ship before rc.3,
+because every issue is to be fixed first and adding a tool is additive for MCP clients. New
+requirement `MCPV0-100` in `docs/specs/mcp-server-2026-07-28-v0.md` adds one read-only tool,
+`corvint.help`, to every `corvint-mcp` profile (default, task-review, task-review-lsp and flows).
+With no arguments or `{"topic":"catalog"}` its receipt (`corvint-mcp-help/0`) carries the exact
+bytes of `corvint help --json`, and with `{"topic":"guide"}` the exact bytes of
+`corvint help guide`, plus their byte count and SHA-256. Both come from `internal/capcatalog` in
+the binary, so the call reads no repository state and is deterministic. The catalog is 105,424
+bytes, well under the 393,216-byte bridge budget; an oversized future catalog abstains with
+`OUTPUT_BUDGET_EXCEEDED` rather than truncating.
+
+This explicitly amends `MCPV0-008`, which said "exactly these three tools" and now says four, and
+it supersedes, for this one binary-only tool, decision 0103's rule that a new MCP tool needs a
+descendant profile identity. Every other new tool still needs one. The four byte-pinned
+`tools/list` goldens, the conformance tool lists, and the companion workflow smoke's tool list
+were repinned in the same change; the only difference in each golden is the added descriptor.
+The docs, corpus and test-validity MCP servers did not gain the tool.
+
+Parity: `TestMCPV0100HelpToolMatchesTheCLI` in `cmd/corvint` compares the bridge receipt text with
+the stdout of `corvint help --json` and `corvint help guide`. `TestMCPV0100HelpToolAnswersOnEveryProfile`
+in `cmd/corvint-mcp` checks the wire result in both `structuredContent` and the enveloped text
+block on each profile.
+
+## Not done, with reasons
+
+- Guide as a separate release-archive member. The owner accepted (2026-10-23) the embedded guide as
+  "shipped with the install", so no archive member is added. `archiveMembers`, `archivewire.MaxMembers` (6), the
   archive verifier, `internal/releasecandidate` (exactly six members), and the deployed
   `corvint-update` allowlist (`unexpected Core archive file`) all refuse a seventh member.
-  Adding one now would break installed updaters. The rollout has two steps: first a tolerant
-  updater and release-candidate check, then the member and its manifest pin. Until then the
-  guide ships inside the binary.
+  Adding one now would break installed updaters. If a member is ever wanted, the rollout has two
+  steps: first a tolerant updater and release-candidate check, then the member and its manifest
+  pin.
 
 ## Evidence
 
-Focused tests: `go test ./internal/capcatalog`, and the `cmd/corvint` help, core-freeze and docs
-tests with `-run`. Results are in the PR body.
+Focused tests: `go test ./internal/capcatalog ./internal/mcp/... ./cmd/corvint-mcp
+./conformance/mcp-2026-07-28 ./internal/companionrelease`, and the `cmd/corvint` help, core-freeze,
+docs and `TestMCPV0100` tests with `-run`. Results are in the PR body.

@@ -11,7 +11,7 @@ Authoritative inputs: V1-2008 owner request (2026-10-20) "make sure corvints cap
 - Claim: `docs/CAPABILITIES.md`, `corvint help --json` and `corvint help guide` describe every command; tests fail when any drifts from the binary.
 - Status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020); CAP-V0-015 to CAP-V0-021 accepted under the same standing auto-accept (beamfall/corvint#1588)/experimental
 - Exists: `docs/CAPABILITIES.md`, the README "What Corvint can do" section, `tools/capabilities-check` (its `go test` and `make capabilities-check`), and `internal/capcatalog` (`corvint help --json`, `corvint help guide`, `make capability-catalog`, `make capability-catalog-check`), and catalog pointers in `AGENTS.md`, `docs/AGENT-ROUTES.md`, `docs/README.md` and the shipped Claude Code, Codex, Gemini CLI, OpenCode and OpenSpec skills.
-- Blocked on: subcommands outside the declared tables, flags, profile membership and prose claims are not gated in `docs/CAPABILITIES.md` (see Failure modes); the catalog and guide are not served over MCP or shipped as a release-archive member, and `capability-catalog-check` is not a CI step (owner ci-control-plane approval); the Pi package text is not routed yet (its qualified adapter tuple pins the package bytes).
+- Blocked on: subcommands outside the declared tables, flags, profile membership and prose claims are not gated in `docs/CAPABILITIES.md` (see Failure modes); the guide ships inside the binary rather than as a release-archive member (owner-accepted as shipped with the install, 2026-10-23: a seventh member would break deployed updaters); the drift tests run in the existing Go test shards, and `capability-catalog-check` is not a separate CI step; `corvint-mcp` serves both through `corvint.help` (`MCPV0-100`), the other MCP servers do not; the Pi package text is not routed yet (its qualified adapter tuple pins the package bytes).
 - Read next: Requirements; Boundaries and failure modes; Traceability.
 
 ## User and baseline
@@ -147,13 +147,13 @@ backticks or without a separator is not checked; a row naming the right thing wi
 passes. A catalog edit
 that the check rejects is fixed by editing the row, never by widening the gate.
 
-CAP-V0-015 to CAP-V0-021 non-goals: an MCP help tool or resource (MCPV0-008 freezes the V0 tool
-list and byte goldens pin every profile's `tools/list`; a follow-up needs that contract amended);
-a separate guide member in the release archive (the archive, its verifier, the release-candidate
+CAP-V0-015 to CAP-V0-021 non-goals: an MCP help resource or prompt, or a help tool on the docs,
+corpus or test-validity servers (`corvint-mcp`'s `corvint.help` tool is `MCPV0-100`, which amends
+`MCPV0-008` and returns this catalog and guide byte for byte); a separate guide member in the release archive (the archive, its verifier, the release-candidate
 check and the deployed `corvint-update` allow exactly six members, so a seventh needs a staged
 rollout: tolerant updater and checks first, then the member and its manifest pin); a CI step
-(`.github` changes need owner ci-control-plane approval; the Makefile target and Go tests enforce
-drift locally); per-command input/output separation.
+(the owner accepted on 2026-10-23 that the drift tests already run in the existing CI Go test
+shards, so no `.github` change is needed); per-command input/output separation.
 
 CAP-V0-015 to CAP-V0-021 failure modes: catalog fields are read from help prose, so they are as
 complete as the help: a flag or schema the help omits is missing, an exit status stated without

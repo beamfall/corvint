@@ -214,7 +214,8 @@ are the `corvint.*` names in `tools/list`. The [MCP guide](MCP-SERVER.md) covers
 protocol version: both servers speak MCP `2026-07-28` (no `initialize`; every request carries
 metadata) unless started with `--protocol-version 2025-11-25` for an `initialize`-first client.
 
-`corvint-mcp` profiles: the default lists `corvint.query`, `corvint.impact` and `corvint.status`.
+`corvint-mcp` profiles: the default lists `corvint.help`, `corvint.query`, `corvint.impact` and
+`corvint.status`.
 `--tool-profile task-review` and `task-review-lsp` add `corvint.context` and `corvint.cem.report`.
 `--tool-profile flows` adds the five `corvint.flows.*` tools. `corvint-corpus-mcp` lists only the
 tools that the artifact's capabilities support; `corvint.map_plan` and `corvint.map_knowledge` also
@@ -227,6 +228,7 @@ needs `--legacy-cases`.
 | `corvint.query` | `corvint-mcp` (all profiles) | Same receipt as `corvint query` | experimental | Same codes as the CLI | [MCPV0](specs/mcp-server-2026-07-28-v0.md) |
 | `corvint.impact` | `corvint-mcp` (all profiles) | Same receipt as `corvint impact`, path requests for Go, Ruby, JS and TS | experimental | Other suffixes and range requests | [MCPV0](specs/mcp-server-2026-07-28-v0.md) |
 | `corvint.status` | `corvint-mcp` (all profiles) | Repository status receipt | experimental | Unavailable repository state | [MCPV0](specs/mcp-server-2026-07-28-v0.md) |
+| `corvint.help` | `corvint-mcp` (all profiles) | Same bytes as `corvint help --json` or `corvint help guide` | experimental | Arguments other than `topic` `catalog` or `guide` | [MCPV0](specs/mcp-server-2026-07-28-v0.md) |
 | `corvint.context` | `corvint-mcp` task-review, task-review-lsp | Same packet as `corvint context` | experimental | Same codes as the CLI | [MCPV0](specs/mcp-server-2026-07-28-v0.md) |
 | `corvint.cem.report` | `corvint-mcp` task-review, task-review-lsp | Read a CEM report | experimental | Maps the verifier does not accept | [CEM-V1](specs/cem-stable-v1.md) |
 | `corvint.flows.coverage` | `corvint-mcp` flows | Flow variation coverage | experimental | Missing inputs stay unknown | [Flow coverage](FLOW-COVERAGE.md) |

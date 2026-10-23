@@ -2,11 +2,15 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/capcatalog"
+	"github.com/Beamfall/corvint/internal/mcp/bridge"
 )
 
 func runCatalogHelp(t *testing.T, args ...string) string {
@@ -113,5 +117,28 @@ func TestCAPV0021RootHelpNamesTheCatalogTopicsWithinItsBound(t *testing.T) {
 	err := unknownHelpTopic([]string{"nope"})
 	if strings.Contains(err.Error(), "--json") || strings.Contains(err.Error(), "'guide'") {
 		t.Fatalf("the unknown-topic refusal must keep listing commands and nested topics only: %v", err)
+	}
+}
+
+// MCPV0-100: the corvint.help MCP tool returns the CLI's own stdout byte for
+// byte, for both topics.
+func TestMCPV0100HelpToolMatchesTheCLI(t *testing.T) {
+	t.Parallel()
+	root := filepath.Clean(t.TempDir())
+	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	registry, bridgeErr := bridge.New(root)
+	if bridgeErr != nil {
+		t.Fatal(bridgeErr)
+	}
+	for arguments, cli := range map[string][]string{`{}`: {"help", "--json"}, `{"topic":"guide"}`: {"help", "guide"}} {
+		result, callErr := registry.Call(context.Background(), bridge.ToolHelp, []byte(arguments))
+		if callErr != nil {
+			t.Fatal(callErr)
+		}
+		if text, _ := result.Receipt["text"].(string); text != runCatalogHelp(t, cli...) {
+			t.Fatalf("corvint.help %s differs from corvint %s", arguments, strings.Join(cli, " "))
+		}
 	}
 }

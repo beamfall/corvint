@@ -448,7 +448,7 @@ archive. `corvint-corpus-mcp` is source-only and experimental:
 
 | Server | Tools |
 |---|---|
-| `corvint-mcp` | `corvint.query`, `corvint.impact` and `corvint.status`: the same bounded context, Go impact and repository-status receipts as the CLI; with `--tool-profile task-review`, `corvint.context` and `corvint.cem.report` also return the task-context packet and a non-publishing CEM report preview |
+| `corvint-mcp` | `corvint.query`, `corvint.impact` and `corvint.status`: the same bounded context, Go impact and repository-status receipts as the CLI; `corvint.help` returns the `corvint help --json` catalog or the agent guide; with `--tool-profile task-review`, `corvint.context` and `corvint.cem.report` also return the task-context packet and a non-publishing CEM report preview |
 | `corvint-docs-mcp` | `corvint.docs_draft` returns a source-pinned documentation draft from owner prose and indexed Go declarations; `corvint.docs_consume` rechecks a draft's exact bytes against source |
 | `corvint-corpus-mcp` (source-only) | Experimental [revision-pinned documentation corpus](docs/DOCUMENTATION-CORPUS.md); capability-gated read tools over one explicitly supplied local artifact |
 | `corvint-test-validity-mcp` | Discovery and projection of retained test evidence in one five-axis shape |
