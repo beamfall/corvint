@@ -74,6 +74,26 @@ func checkoutStamp(dirs []string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
+// artifactFileStamp is the stat record of the configured artifact file, by
+// mode, size, inode, change and modification times, or "" when the file
+// cannot be described or changed inside the racy window, so a later rewrite
+// within the same timestamp granule cannot keep the stamp (DCP-V1-417). The
+// file is reached through the artifact reader's own no-follow walk, so a
+// symlink in any path component, the leaf included, leaves no stamp and the
+// next call reads the file and is refused as a fresh read is.
+func artifactFileStamp(root, path string) string {
+	info, err := doccorpus.StatCorpusFile(root, path)
+	if err != nil || !info.Mode().IsRegular() {
+		return ""
+	}
+	s := &stamper{horizon: time.Now().Add(-stampRacyWindow).UnixNano()}
+	line, err := s.line(nil, path, info)
+	if err != nil {
+		return ""
+	}
+	return string(line)
+}
+
 // stampDirs lists the checkouts the reuse key observes and the pins resolve
 // in: the primary root, each declared additional repository and the owner of
 // every pinned revision, without repeats.

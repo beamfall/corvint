@@ -57,6 +57,13 @@ type Registry struct {
 		// (DCP-V1-315).
 		stamp string
 	}
+	// artifactFile is the stat stamp of the configured artifact file captured
+	// before the last read whose digest matched; while the file keeps that
+	// stamp a call neither reads nor hashes it again (DCP-V1-417).
+	artifactFile struct {
+		sync.Mutex
+		stamp string
+	}
 	// index memoizes the query index of the memoized artifact, or its
 	// deterministic refusal, so neither is recomputed per call or per batch
 	// path (DCP-V1-195). It is guarded by load.
@@ -353,12 +360,14 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	if err != nil || !os.SameFile(identity, r.identity) {
 		return nil, "", &ToolFailure{"corpus-input-unavailable", "repository root changed"}, nil, finish()
 	}
-	raw, err := doccorpus.ReadCorpusFile(r.root, r.path)
-	if err != nil {
-		return failure(err, finish())
-	}
-	if doccorpus.Digest(raw) != r.digest {
-		return nil, "", &ToolFailure{"corpus-refused", "configured artifact changed; restart with the new artifact"}, nil, finish()
+	read := r.artifactReader()
+	if !read.unchanged {
+		if _, err := read.bytes(); err != nil {
+			if errors.Is(err, errArtifactChanged) {
+				return nil, "", &ToolFailure{"corpus-refused", "configured artifact changed; restart with the new artifact"}, nil, finish()
+			}
+			return failure(err, finish())
+		}
 	}
 	sections, ok := flowSections(input.Section)
 	if !ok || !doccorpus.ValidFlowFilter(sections, input.Include) {
@@ -385,13 +394,29 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 		}
 		return failure(err, finish())
 	}
-	a, stamp, err := r.artifactFor(ctx, raw, &timing)
+	a, stamp, err := r.artifactFor(ctx, read.bytes, &timing)
 	if err != nil {
 		return prepared(err)
 	}
 	// An indexed read answers from, or is refused by, the one index derived for
 	// this artifact, before any freshness work (DCP-V1-195).
 	queried := a
+	// docs_validate rederives the artifact from its pinned inputs on every call,
+	// as the CLI validate does; other tools answer from the verified read
+	// (DCP-V1-413). The memo and its freshness stay keyed by the verified read.
+	if op == "validate" {
+		step := time.Now()
+		raw, err := read.bytes()
+		var rederived *doccorpus.Artifact
+		if err == nil {
+			rederived, err = doccorpus.OpenRead(ctx, r.root, raw, doccorpus.ReadOptions{Rederive: true})
+		}
+		timing.VerifyMS += time.Since(step).Milliseconds()
+		if err != nil {
+			return prepared(err)
+		}
+		queried = rederived
+	}
 	var indexMS int64
 	if doccorpus.IndexedOperation(op) {
 		step := time.Now()
@@ -575,15 +600,16 @@ func writeJSON(out *bytes.Buffer, value any) {
 	out.Write(data)
 }
 
-// artifactFor returns the rederived artifact. The first call runs the full
-// rederivation; later calls reuse it while every pinned revision still
-// resolves to a commit and tree. A failed check drops the memo and rederives,
-// so a missing input reports the native typed failure (DCP-V1-011, DCP-V1-143).
+// artifactFor returns the verified artifact. The first call runs the verified
+// read (DCP-V1-410, DCP-V1-416); later calls reuse it while every pinned
+// revision still resolves to a commit and tree. A failed check drops the memo
+// and reads again, so a missing revision reports the native typed failure
+// (DCP-V1-011, DCP-V1-143).
 // A reused artifact also returns the checkout stamp captured before its
 // checks, which freshness pairs with its observation; the first call returns
 // none. The pins are not verified again while that stamp equals the one
 // captured before their last successful verification (DCP-V1-316).
-func (r *Registry) artifactFor(ctx context.Context, raw []byte, timing *Timing) (*doccorpus.Artifact, string, error) {
+func (r *Registry) artifactFor(ctx context.Context, read func() ([]byte, error), timing *Timing) (*doccorpus.Artifact, string, error) {
 	select {
 	case r.load <- struct{}{}:
 	case <-ctx.Done():
@@ -610,7 +636,11 @@ func (r *Registry) artifactFor(ctx context.Context, raw []byte, timing *Timing) 
 	}
 	step := time.Now()
 	timing.Load = "first-call"
-	a, err := doccorpus.Open(ctx, r.root, raw)
+	raw, err := read()
+	if err != nil {
+		return nil, "", err
+	}
+	a, err := doccorpus.OpenRead(ctx, r.root, raw, doccorpus.ReadOptions{})
 	timing.LoadMS = time.Since(step).Milliseconds()
 	if err != nil {
 		return nil, "", err
@@ -683,6 +713,53 @@ func (r *Registry) freshness(ctx context.Context, a *doccorpus.Artifact, stamp s
 	r.live.key, r.live.artifact, r.live.overlay, r.live.stamp = overlay.Observation(), a, overlay, stamp
 	r.live.Unlock()
 	return overlay, nil
+}
+
+// readArtifactFile reads the configured artifact; tests replace it to count
+// reads (DCP-V1-417).
+var readArtifactFile = doccorpus.ReadCorpusFile
+
+// errArtifactChanged is a configured artifact whose bytes no longer match the
+// startup digest.
+var errArtifactChanged = errors.New("configured artifact changed")
+
+// artifactRead reads the configured artifact at most once per call, and not
+// at all while its file keeps the stat stamp captured before the last read
+// whose digest matched (DCP-V1-417).
+type artifactRead struct {
+	r         *Registry
+	stamp     string
+	unchanged bool
+	raw       []byte
+}
+
+func (r *Registry) artifactReader() *artifactRead {
+	stamp := artifactFileStamp(r.root, r.path)
+	r.artifactFile.Lock()
+	unchanged := stamp != "" && stamp == r.artifactFile.stamp
+	r.artifactFile.Unlock()
+	return &artifactRead{r: r, stamp: stamp, unchanged: unchanged}
+}
+
+// bytes reads the artifact and checks it against the startup digest. The
+// stamp it records was captured before the read, so a change during the read
+// leaves a stamp no later state matches.
+func (a *artifactRead) bytes() ([]byte, error) {
+	if a.raw != nil {
+		return a.raw, nil
+	}
+	raw, err := readArtifactFile(a.r.root, a.r.path)
+	if err != nil {
+		return nil, err
+	}
+	if doccorpus.Digest(raw) != a.r.digest {
+		return nil, errArtifactChanged
+	}
+	a.r.artifactFile.Lock()
+	a.r.artifactFile.stamp = a.stamp
+	a.r.artifactFile.Unlock()
+	a.raw = raw
+	return raw, nil
 }
 
 func pinnedRevisions(m doccorpus.Manifest) []string {

@@ -934,7 +934,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   V1-1982)) The corpus MCP server starts from the configured artifact's digest and top-level
   `schema` and `capabilities` alone: tool advertisement needs no rederivation, and an artifact whose
   header cannot be read still fails startup with `corpus-unavailable`. The first tool call opens
-  and rederives the artifact (`DCP-V1-011`) and keeps it; a later call reuses it only while the
+  and rederives the artifact (`DCP-V1-011`; amended by `DCP-V1-416` to the verified read) and keeps it; a later call reuses it only while the
   artifact bytes still match the startup digest and every pinned revision still resolves to its
   tree, and otherwise rederives. A rederivation failure is that call's typed failure. Each result
   reports `load` as `first-call` or `reused` with the load time.
@@ -1837,6 +1837,170 @@ auto-accept (2026-10-11); GitHub #1481; V1-2316.
   `TestDCPV1268CorpusAuditCLI`, `TestDocsCorpusOperationFlagMatrix`,
   `TestDocsCorpusOperationHelpPrintsFlags`.
 
+### Verified fast corpus reads (GitHub #1598)
+
+Every CLI read used to rederive the whole artifact (`DCP-V1-011`) and then index each live
+checkout in full, so one lookup cost more than a build (25 to 27 s and 1.7 to 2.0 GB on a
+95 MB, 9,170-input corpus with four additional repositories). The owner's targets on an unchanged
+checkout: a CLI read (`info`, `search`, `get`, `flow`, `coverage`, `locate`, `gaps`) under 1 s
+cold and under 200 ms with warm reuse, with memory close to the artifact size; a corpus MCP first
+tool call under 1 s; a warm MCP call under 100 ms. Status for `DCP-V1-410..419`: proposed,
+experimental; GitHub #1598.
+
+- `DCP-V1-410`: A read admits an artifact through the verified read, amending `DCP-V1-011`. It
+  refuses unless the bytes are exactly the canonical encoding, match the recorded content digest,
+  name the running builder, pair the artifact schema with the manifest schema, carry a valid
+  manifest whose `manifest_sha256` and `profile_sha256` it recomputes, and every revision the
+  manifest pins (repository, scopes, inputs, providers and additional repository pins) still
+  resolves to a commit and tree in the checkout that owns it, the primary revision to the recorded
+  `tree`. It then decodes the records without reading any pinned input body or rederiving any
+  record. Every failure refuses the read (`corpus-refused`, or the native typed failure of an
+  unresolvable revision); a read never falls back to serving unverified data. It applies to every
+  `docs corpus` operation that opens `--artifact` except `validate`, `delta` and `carry-forward`,
+  and to the corpus MCP tools. The content digest is integrity, not origin: a record edit whose
+  digest was deliberately recomputed passes the verified read and is refused by the rederivation
+  of `DCP-V1-413`. An equal builder label proves rebuild equivalence only when it is attested: a
+  recorded source revision without uncommitted changes. Binaries built from different uncommitted
+  changes share one `<revision>+dirty` label and binaries built without version-control metadata
+  share `unrecorded`, and the artifact records no executable content identity that could tell
+  them apart, so a running builder with such a label never takes the verified read: every read it
+  makes runs the `DCP-V1-011` rederivation and reports `source-rederived`. Acceptance:
+  `TestDCPV1410VerifiedReadSkipsRederivation`, `TestDCPV1410VerifiedReadRefusals`,
+  `TestDCPV1410UnattestedBuilderRederives`, `TestDCPV1413CorpusReadsWithoutRederivation`.
+- `DCP-V1-411`: Live freshness observes each declared checkout from Git's identity, its
+  stat-cached status and one tree listing of blob modes and IDs, the checkouts in parallel. It
+  reads and indexes no tracked file. Each checkout's identity is read, then its status while the
+  identified tree is listed, then its identity again; the status is kept only when both identity
+  reads agree, so the listing, identity and status describe one checkout state. When HEAD moved
+  in between, the observation is repeated, at most three times, and then refused as a context
+  build refuses (`repository HEAD changed`), never mixing two states. Git's index is the per-input stat stamp (path, size,
+  modification time, inode and blob): status re-hashes only entries whose stat changed. States,
+  limitations and the `DCP-V1-144`/`DCP-V1-280` reuse key are those the full live index gave.
+  The CLI observes freshness from the decoded header members while the records are still being
+  decoded and verified, and uses it only after the artifact is admitted. No sidecar or stamp file
+  is written. Acceptance: `TestDCPV1411ObserveTreeMatchesBuildContext`,
+  `TestDCPV1411ObserveTreeRetriesWhenHeadMoves`,
+  `TestDCPV1280AdditionalRepositoryFreshnessReused`, `TestCorpusDeterministicRoundTrip`.
+- `DCP-V1-412`: Symbol re-resolution (`DCP-V1-141`) builds the full live index of the primary
+  checkout only when a cited Ruby or TypeScript/JavaScript symbol anchor's pinned blob changed or
+  its path is dirty, once per overlay, and the corpus MCP server keeps it with the overlay. An
+  index built from another checkout state than the overlay observed is refused, so the
+  re-resolution is withheld and every cited symbol anchor is `unresolved` with the failure as a
+  limitation (`DCP-V1-142`). Acceptance: `TestDCPV1412SymbolIndexBuiltOnlyWhenNeeded`,
+  `TestSymbolAnchorReaderReceipt`.
+- `DCP-V1-413`: `validate`, `--verify-rederive` on any read operation, and the corpus MCP
+  `docs_validate` tool run the complete `DCP-V1-011` rederivation on every call. The `info` and
+  `validate` result reports `validation` as `artifact-verified` or `source-rederived`. `build` is
+  unchanged. Acceptance: `TestDCPV1410VerifiedReadSkipsRederivation`,
+  `TestDCPV1413CorpusReadsWithoutRederivation`, `TestCorpusTypedCLIMCPEndToEnd`,
+  `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags`.
+- `DCP-V1-414`: The verified read finds the members of the input and the elements of every
+  always-emitted record array in one scan, decodes the elements in parallel while the scan goes
+  on, each compared with its own canonical encoding and separated by exactly one comma, and
+  compares the rest with the canonical encoding of the artifact with those arrays empty: together
+  exactly canonical byte equality. The content
+  digest is hashed from the input bytes while they are decoded. It admits and refuses exactly what
+  the closed decoder (`ParseArtifact`) admits and refuses. The rederivation compares its encoding
+  with the input while encoding, without a second artifact-sized buffer. Acceptance:
+  `TestDCPV1414ParallelDecodeMatchesClosedDecode`, `TestCorpusClosedInputsAndTamper`.
+- `DCP-V1-415`: `--timings` on a read writes one line to stderr after the result:
+  `corvint docs corpus timings: validation=V parse_ms=… verify_ms=… freshness_ms=… index_ms=…
+  query_ms=… encode_ms=… total_ms=…`. Phases may overlap; times are host diagnostics, never a
+  receipt field, and stdout is byte-identical with and without the flag. Acceptance:
+  `TestDCPV1413CorpusReadsWithoutRederivation`.
+- `DCP-V1-416`: The corpus MCP server's first tool call admits the artifact through the verified
+  read, amending `DCP-V1-143`; `load` stays `first-call`, startup and the memo rules are
+  unchanged. Acceptance: `TestDCPV1413CorpusReadsWithoutRederivation`,
+  `TestDCPV1416CorpusMCPFirstAndWarmCalls`, `TestDCPV1143LazyLoadAndMemo`.
+- `DCP-V1-417`: A warm corpus MCP call neither reads nor hashes the configured artifact while its
+  file keeps the stat stamp (mode, size, inode, change and modification times) captured before
+  the last read whose digest matched. A file changed within the `DCP-V1-314` racy window, or one
+  that cannot be described, has no stamp and is read; a rewrite changes the stamp and is refused
+  as before. The file is described through the artifact reader's own no-follow walk of every
+  path component, so a symlink anywhere in the path, the leaf included, leaves no stamp: the call
+  reads the file and is refused exactly as a fresh read is. Acceptance:
+  `TestDCPV1417WarmCallsSkipUnchangedArtifactRead`, `TestDCPV1417WarmStampRefusesParentSymlink`.
+- `DCP-V1-418`: Acceptance at scale, on a generated fixture with a 4,000-page native scope, 6,000
+  source files outside it and four additional repositories of 1,500 pinned files each (10,001
+  inputs, a 67 MB artifact): a verified read with live freshness, and a corpus MCP first call, are
+  each at least 3x faster than the rederivation they replace and answer identically. Wall time and
+  peak memory before and after are recorded in the build log and pull request. Acceptance:
+  `TestDCPV1418LargeFixtureVerifiedReadIsFast`, `TestDCPV1416CorpusMCPFirstAndWarmCalls`,
+  `BenchmarkDCPV1418VerifiedRead`.
+- `DCP-V1-419`: A read derives the same query index, receipts and refusals with less wall time.
+  The index's record maps and term maps are built concurrently and its claim and subject terms
+  are tokenized in blocks on worker goroutines, each block in record order and the blocks joined
+  in order; its posting and unique-key-byte totals are taken from the finished maps. That
+  derivation answers only when no reference refusal is possible (no empty or duplicate identity,
+  no key over 65,536 bytes, no path at its fanout bound, both totals within their `DCP-V1-193`
+  bounds); otherwise the serial reference derivation runs, so every refusal keeps its code,
+  message and observed count (`DCP-V1-194`). Unindexed `search` tokenizes subjects in blocks the
+  same way. The CLI derives the index while the live freshness observation of `DCP-V1-411`
+  finishes, and still reports an index refusal before any freshness failure (`DCP-V1-195`). A
+  bounded input file is read into one buffer sized from its opened size. No artifact or manifest
+  format changes, nothing is persisted, and search ranking is unchanged. Acceptance:
+  `TestDCPV1419FastIndexMatchesReference`, `TestDCPV1419FastIndexDeclinesEveryRefusal`,
+  `TestDCPV1419BoundaryScanFindsStringContent`, `TestDCPV1413CorpusReadsWithoutRederivation`;
+  CLI timings before and after in docs/build-log/2026-10-23-corpus-verified-fast-reads.md.
+
+### Read hot spots: scope matching and stat-routed revision pins (GitHub #1610)
+
+A CPU profile of one read of a 9,170-input corpus with one single-file scope per input put about
+half of the read in two places: every scope check compared each scope with each path, building
+`scope + "/"` on every comparison, and every pin of a revision opened, read and hashed each
+tracked file of each checkout. Status for `DCP-V1-450..453`: proposed, experimental; GitHub #1610.
+
+- `DCP-V1-450`: Scope membership allocates nothing, and each scope check finds the scopes holding
+  a path by walking the path's ancestors through a per-revision scope set instead of comparing
+  the path with every scope: the manifest's input admission, the compiler's scope check (an
+  undeclared input, then an unsupported entry, then an empty scope, scopes in manifest order),
+  live freshness's new-input, new-working-tree-input and unsupported-entry reasons (once per
+  holding scope) and the
+  inventory's nested-scope refusal (the byte-least containing scope, then the byte-least
+  contained one). The walk visits exactly the scopes the pairwise comparison admitted, so every
+  artifact, receipt, reason and refusal is byte-identical. Acceptance:
+  `TestDCPV1450ScopeMatchingMatchesPairwise`, `TestDCPV1450NestedScopesKeepRefusalsAndReasons`,
+  `TestDCPV1450NewLiveFileNotedPerHoldingScope`.
+- `DCP-V1-451`: The read fixture of `DCP-V1-418` has a many-scopes shape, one single-file scope
+  per native page and per additional-repository file, and its verified read answers exactly as
+  its rederivation, fresh on the unchanged checkout. Benchmarks measure the verified and the
+  rederived read over it, and CPU profiles before and after over the 10,000-scope persisted
+  fixture (`CORVINT_READ_FIXTURE_SCOPES=many`) are recorded in the build log and pull request.
+  Acceptance: `TestDCPV1451ManyScopesReadMatchesRederivation`,
+  `BenchmarkDCPV1451ManyScopesVerifiedRead`, `BenchmarkDCPV1451ManyScopesRederivedRead`.
+- `DCP-V1-452`: A corpus revision pin (`BuildRevisionContext`) reads the checkout's Git index
+  (located by `git rev-parse --git-path index`, opened without following a symlink or blocking,
+  at most 256 MiB, version 2, 3 or 4, trailing checksum verified unless it is Git's all-zero
+  `index.skipHash` trailer). An eligible entry whose index
+  record is stage 0, carries no assume-valid, skip-worktree or intent-to-add flag, and whose
+  worktree file's lstat matches the record's size, modification and change times, inode, owner
+  and executable bit, with the recorded modification time in a whole second strictly before the
+  index file's modification second (Git's racy-clean rule with a one-second racy window, so no
+  nanosecond timestamp is assumed), is vouched: it is pinned from the tree entry's committed blob in one
+  batched object read and its worktree file is never opened. Every other eligible entry is
+  opened and hashed as before and, when its bytes do not hash to the tree entry's blob, pinned
+  from that blob. Worktree bytes are therefore used only when they hash to the pinned blob, and
+  the pinned bytes, exclusions and records are byte-identical to an unrouted pin: vouching
+  selects only where an entry's tree blob is read from, never what is pinned. Other index
+  builds (`Build`, `BuildContext`, `BuildEval`) are unchanged and still read no committed blob
+  for a clean repository. Acceptance: `TestDCPV1452GitIndexVouchesUnchangedEntries`,
+  `TestDCPV1452RacyEntryIsNotVouched`, `TestDCPV1452IndexVersionsAndFlags`,
+  `TestDCPV1453RoutedPinMatchesParityRepository`.
+- `DCP-V1-453`: Routing fails closed to the hashed worktree pass: a missing, unreadable,
+  symlinked, oversized, truncated or corrupt (checksum mismatch) index, an unsupported version,
+  an entry with an extended flag other than skip-worktree or intent-to-add (Git refuses such an
+  index), a decoded pathname longer than 4,096 bytes, decoded pathnames together exceeding eight
+  times the index size (checked before each name is allocated, so version 4 prefix compression
+  cannot expand without bound), a split index
+  (`link`) or an unknown required extension vouches for nothing; a stat mismatch, a racy entry or
+  a platform without lstat inode and change times leaves that entry unvouched; and a failed or
+  incomplete blob batch returns its entries to the hashed worktree pass. No unverified worktree
+  file is ever pinned. Acceptance: `TestDCPV1453UnusableIndexVouchesNothing` (including the
+  unknown-extended-flag, long-pathname and expanded-pathnames cases),
+  `TestDCPV1453IndexPathnameBounds`, `FuzzParseGitIndex`,
+  `TestDCPV1453FailedBlobBatchFallsBackToWorktree`,
+  `TestDCPV1453RoutedPinMatchesParityRepository`.
+
 ### Cross-revision delta worklist and carry-forward (`docs corpus delta`, `docs corpus carry-forward`)
 
 `corvint docs corpus delta --previous OLD.json (--artifact NEW.json | --manifest NEW.json) [--limit N] [--offset N] [--uncovered changed|all] [--anchorless summary|list] [--format json|jsonl]`
@@ -2650,6 +2814,17 @@ profile, and an inventory over the record bound with `corpus-refused` and no out
 file, shape or reference it cannot resolve is an inventory gap (`DCP-V1-395`), never a refusal or
 a guessed subject.
 
+- Verified reads (`DCP-V1-410`): a noncanonical artifact, a digest mismatch, a different
+  builder, a schema pair, manifest or profile digest that does not match, an unresolvable pinned
+  revision or a recorded tree that differs each refuse the read; none falls back to unverified
+  data. A dirty or unrecorded running builder rederives instead of verifying. HEAD moving during
+  a freshness observation repeats it and, after three attempts, refuses (`DCP-V1-411`). A symlink
+  in the configured MCP artifact's path voids its warm stamp (`DCP-V1-417`). A live index built from another state than the freshness observation withholds symbol
+  re-resolution (`DCP-V1-412`).
+- Stat-routed revision pins (`DCP-V1-452`, `DCP-V1-453`): an unusable Git index (including an
+  unknown extended entry flag or pathnames past the length and expansion bounds), a stat
+  mismatch, a racy entry or a failed blob batch never refuses a build; the entry is opened and
+  hashed, and a worktree copy that does not hash to the pinned blob is replaced by that blob.
 - `DCP-V1-054`: Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
   `--input`, `--previous`, `--cem`, `--retirement`, `--migration`, `--playwright-list`, `--receipt`,
   `--report`) is a canonical path relative to `--root` that sits under it: no leading `/`, no `..`
@@ -2764,6 +2939,16 @@ Carrying adoption records (`DCP-V1-440..445`) does not validate typed details be
 build's own admission, carry journeys, observations or supplied gaps, or merge a partly changed
 flow. Rollback restores the `unresolved` adoption-only classification and the generic-only
 carry-forward record; adoption records already committed stay valid adoption provider records.
+Verified fast reads (`DCP-V1-410..419`) add no daemon or `--serve` mode, persist no read index
+or sidecar, write nothing on a read, change no search ranking or delta paging, and do not
+authenticate an artifact's origin. Rollback points the CLI and MCP readers back at `Open`; the
+artifact and manifest formats are unchanged and no stored state needs migration.
+The read hot-spot fixes (`DCP-V1-450..453`) change no artifact, receipt, reason, refusal or
+format, persist nothing and write nothing (the Git index is only read). They do not trust a
+worktree file by its stat (a vouched entry is pinned from its committed blob), do not route the
+pins of `Build`, `BuildContext` or `BuildEval`, and do not remove the second pin pass of a build.
+Rollback restores the pairwise scope loops and drops the `withStatRoutedPins` context mark from
+`BuildRevisionContext`; no stored state needs migration.
 
 The claim mention check and pattern report (`DCP-V1-340..352`) make no semantic or correctness
 judgment, do not parse non-ASCII identifiers, compare templates only exactly after
@@ -2883,9 +3068,13 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-205..207 | `cmd/corvint-corpus-mcp/main.go` | `TestDCPV1205AbsoluteArtifactInsideRoot`, `TestDCPV1206AbsoluteArtifactThroughSymlinkedRoot`, `TestDCPV1207AbsoluteArtifactOutsideRootRefused`, `TestDCPV1205AbsoluteMapInsideRoot` |; | DCP-V1-200..203 | `internal/mcp/corpusbridge/corpusbridge.go` | `TestDCPV1200SingleCallOverBoundPagesWithNextOffset`, `TestDCPV1202UnpagedSchemaRefusesOverBound`, `TestDCPV1143LazyLoadAndMemo` (a fitting receipt keeps its CLI bytes); docs/build-log/2026-10-19-V1-1996-corpus-mcp-output-bound.md |; | DCP-V1-193..197 | `internal/doccorpus/query_index.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1193HundredThousandRecordCorpusAnswersIndexedReads`, `TestDCPV1194IndexRefusalNamesBoundAndObservedCount`, `TestDCPV1195IndexRefusalDerivedOncePerArtifact`, `TestDCPV1195IndexDerivedOncePerArtifact`, `TestDCPV1196BuildAdmittedRefusesOverBoundIndex`, `TestFlowDocsFinalizeRefusesOverBoundIndex`, `TestRepublishRefusesOverBoundIndex`; memory, latency and byte identity measured in docs/build-log/2026-10-19-V1-1995-corpus-index-bound.md |; | DCP-V1-210..215 | `internal/doccorpus/adoption.go`, `query.go`, `query_index.go`, `providers.go`, `incremental.go` | `TestDCPV1210SuppliedTestRunReceipt`, `TestDCPV1210ResidualRecordRefusals`, `TestDCPV1212LegacyCaseIDLinksToSubject`, `TestDCPV1214SuppliedGapsInCapabilitiesAndIndex`, `TestDCPV1215IncrementalCountsSuppliedClaimKinds`; byte identity measured in docs/build-log/2026-10-19-V1-1993-adoption-residuals.md |
 | DCP-V1-146 | `internal/doccorpus/compile.go` | `TestDCPV1146OversizedParagraphStaysVerbatim`, `TestDCPV1146OversizedLineIsAGap`, `TestDCPV1146RefusalsNameTheSpan`; measured on Corvint's docs scope in docs/build-log/2026-10-19-V1-1983-docs-corpus-located-refusals.md |; | DCP-V1-150..152 | `internal/doccorpus/typed_query.go`, `docs/DOCUMENTATION-CORPUS.md` | `TestDCPV1150ProviderReportedReviewYieldsUnauthenticatedGap`, `TestDCPV1151AuthenticatedReviewClearsAssertingGap`, `TestDCPV1152AssertingGapNamesTheFailedCondition` |; | DCP-V1-165..169 | `internal/doccorpus/legacy_cases.go`, `cmd/corvint/docs_corpus_legacy_cases.go`, `cmd/corvint/docs_corpus_help.go`, `cmd/corvint-corpus-mcp/legacycases.go` | `TestDCPV1165LegacyCaseIDLookup`, `TestDCPV1166LegacyCaseAnyMatchRanks`, `TestDCPV1167LegacyCaseQueryIDRule`, `TestDCPV1168LegacyCaseAllModeBytesUnchanged`, `TestDCPV1169CorpusMCPSearchCasesModes`, `TestDCPV1165DocsCorpusSearchCasesModesCLI`, `TestDocsCorpusOperationFlagMatrix` |; | DCP-V1-160..163 | `internal/doccorpus/compile.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1160SchemaTwoManifestOfTwentyThousandFilesBuilds`, `TestDCPV1160DefaultSingleScopeUnchanged`, `TestDCPV1160SchemaFlagValues`, `TestDCPV1161ScopesSortedAndOverlapRefused`, `TestDCPV1162BoundRefusalNamesBoundScopeAndCount` |; | DCP-V1-170..174 | `internal/doccorpus/flow_filter.go`, `typed_query.go`, `query.go`, `pagination.go`, `types.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1170FlowSectionFilter`, `TestDCPV1171FlowIncludeFilter`, `TestDCPV1172FlowSelectionReceipt`, `TestDCPV1173FlowFilterPagination`, `TestDCPV1174DocsFlowToolFilters`, `TestDCPV1174CorpusFlowFilterOptions`, `TestDocsCorpusOperationFlagMatrix`; measured in docs/build-log/2026-10-19-V1-1990-docs-flow-section-filter.md |; | DCP-V1-155..159 | `internal/cem/gitauth/pathset.go`, `internal/doccorpus/batch_input.go`, `capacity.go`, `compile.go`, `query.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1155ReadFreshnessGitOpsIndependentOfInputCount` (10,000 inputs, 16 Git operations per phase, one change is `stale`), `TestDCPV1155ResolvePathsMatchesSingleLookupsWithinOneOpPerLevel`, `TestDCPV1156ManifestAndBuildBatchNonIndexedInputs`, `TestDCPV1157CapacityRefusalsAreTypedAndEarly`, `TestDCPV1158BridgeTypesGitCapacityLikeTheCLI`, `TestDCPV1158CLITypesGitCapacityLikeTheBridge`, `TestDCPV1159BatchedPinningKeepsArtifactBytes`; measured in docs/build-log/2026-10-19-V1-1984-corpus-git-budget.md |; | DCP-V1-175..179 | `internal/doccorpus/types.go`, `compile.go`, `providers.go`, `query.go`, `internal/mcp/corpusbridge/corpusbridge.go` | `TestDCPV1175AdditionalRepositoryAnchors`, `TestDCPV1176AdditionalRepositoryRefusals`, `TestDCPV1178BridgeVerifiesPinsInOwningCheckout`, `TestDCPV1179SingleRepositoryManifestUnchanged`; byte identity measured in docs/build-log/2026-10-19-V1-1986-corpus-additional-repositories.md |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
+| DCP-V1-410..419 | `internal/doccorpus/read.go`, `artifact_decode.go`, `encoding.go`, `compile.go`, `query.go`, `query_index.go`, `query_index_fast.go`, `search_rank.go`, `symbol_anchor.go`, `internal/contextindex/observe_tree.go`, `internal/testvaliditydoc/read.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `stamp.go`, `eval.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1410VerifiedReadSkipsRederivation`, `TestDCPV1410VerifiedReadRefusals`, `TestDCPV1410UnattestedBuilderRederives`, `TestDCPV1411ObserveTreeMatchesBuildContext`, `TestDCPV1411ObserveTreeRetriesWhenHeadMoves`, `TestDCPV1412SymbolIndexBuiltOnlyWhenNeeded`, `TestDCPV1413CorpusReadsWithoutRederivation`, `TestDCPV1414ParallelDecodeMatchesClosedDecode`, `TestDCPV1416CorpusMCPFirstAndWarmCalls`, `TestDCPV1417WarmCallsSkipUnchangedArtifactRead`, `TestDCPV1417WarmStampRefusesParentSymlink`, `TestDCPV1418LargeFixtureVerifiedReadIsFast`, `BenchmarkDCPV1418VerifiedRead`, `TestDCPV1419FastIndexMatchesReference`, `TestDCPV1419FastIndexDeclinesEveryRefusal`, `TestDCPV1419BoundaryScanFindsStringContent`; measured in docs/build-log/2026-10-23-corpus-verified-fast-reads.md |
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-420..425 | `internal/doccorpus/delta.go`, `delta_open.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1420DeltaAdditionalRepositoryAnchors`, `TestDCPV1420DeltaSharedReadBound`, `TestDCPV1424DeltaHistoricalPins`, `TestDCPV1425OpenDeltaCurrentUnavailableCheckout`, `TestDCPV1425DeltaUnavailableCheckoutCLI`, `TestDCPV1421DeltaViewsCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-440..445 | `internal/doccorpus/delta.go`, `adoption.go`, `cmd/corvint/docs_corpus_help.go`, `internal/capcatalog/catalog.json` | `TestDCPV1440DeltaAdoptionRecords`, `TestDCPV1442DeltaExactTestJoinNeedsItsFile`, `TestDCPV1444SelfDeltaSharedSpanChargedOnce`, `TestCAPV0019CommittedCatalogMatchesTheBinary`, `TestMCPV0100HelpToolMatchesTheCLI`, `TestDocsCorpusHelpListsOperations` |
+| DCP-V1-450 | `internal/doccorpus/compile.go`, `query.go` | `TestDCPV1450ScopeMatchingMatchesPairwise`, `TestDCPV1450NestedScopesKeepRefusalsAndReasons`, `TestDCPV1450NewLiveFileNotedPerHoldingScope` |
+| DCP-V1-451 | `internal/doccorpus/read_fast_fixture_test.go`, `many_scopes_test.go` | `TestDCPV1451ManyScopesReadMatchesRederivation`, `BenchmarkDCPV1451ManyScopesVerifiedRead`, `BenchmarkDCPV1451ManyScopesRederivedRead`; profiles in docs/build-log/2026-10-23-read-hotspots-scope-and-pin.md |
+| DCP-V1-452..453 | `internal/contextindex/stat_routed_pin.go`, `index_stat_darwin.go`, `index_stat_linux.go`, `index_stat_unix.go`, `index_stat_other.go`, `index.go`, `corpus.go` | `TestDCPV1452GitIndexVouchesUnchangedEntries`, `TestDCPV1452RacyEntryIsNotVouched`, `TestDCPV1452IndexVersionsAndFlags`, `TestDCPV1453UnusableIndexVouchesNothing`, `TestDCPV1453IndexPathnameBounds`, `FuzzParseGitIndex`, `TestDCPV1453FailedBlobBatchFallsBackToWorktree`, `TestDCPV1453RoutedPinMatchesParityRepository` |
 | DCP-V1-216..217 | `internal/doccorpus/batch_paths.go`, `symbol_anchor.go`, `cem.go`, `behavior_legacy_discovery.go`, `behavior_playwright_discovery.go` | `TestDCPV1216SymbolAnchorsGitOpsIndependentOfAnchorCount` (5,000 moved anchors), `TestDCPV1216CEMProjectionGitOpsIndependentOfAnchorCount` (5,000 anchors), `TestDCPV1216LegacyDiscoveryGitOpsIndependentOfPathCount` (4,096 files, the record bound), `TestDCPV1216PlaywrightDiscoveryGitOpsIndependentOfPathCount` (2,000 files, 4,008 executions), each within 16 Git operations per phase and byte-identical to the per-path reads; `TestDCPV1216ProjectionKeepsPerPathTreeBound` (anchor under a tree past 4 MiB refused as per path), `TestDCPV1216SymbolFallbackBudgetWithholdsStates` (missing pinned blob, budget exhausted in the fallback, states withheld as per path), `TestDCPV1216GitHooksTravelWithTheContext` (the test budget and per-path override travel on the call's context, so the equivalence tests run under `t.Parallel` and `-race`); measured in docs/build-log/2026-10-20-v1-1991-batched-path-reads.md and docs/build-log/2026-10-21-testspeed-1021v-doccorpus-parallel-equivalence.md |
 | DCP-V1-340..352 | `internal/doccorpus/claim_mentions.go`, `claim_patterns.go`, `claim_audit_report.go`, `compile.go`, `query.go`, `pagination.go`, `typed_query.go`, `types.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_audit.go`, `docs_corpus_help.go` | `TestDCPV1340ExtractCodeTokens`, `TestDCPV1341ClaimMentionCheckIsBuiltAndPinned`, `TestDCPV1343ClaimMentionsAreServedWithTheClaim`, `TestDCPV1344ClaimMentionGapsAndCoverage`, `TestDCPV1346UnresolvedMentionThreshold`, `TestDCPV1347DanglingReferencesRefuse`, `TestDCPV1348CorpusPatternReport`, `TestDCPV1349CorpusPatternsCLI`, `TestDCPV1350StratifyPatternsOverSamples`, `TestDCPV1351WeightedAuditFigure`, `TestDCPV1352PatternRateThresholds`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-370..376 | `internal/testsource/discover_tests.go`, `discover_tests_playwright.go`, `discover_tests_rspec.go`, `internal/doccorpus/line_anchor.go`, `cmd/corvint/docs_corpus_discover_tests.go` | `TestDCPV1370DiscoverTestsDeterministicAnchored`, `TestDCPV1370DocsCorpusDiscoverTestsCLI`, `TestDCPV1371DiscoverTestsIdentityJoins`, `TestDCPV1372DiscoverTestsExpectations`, `TestDCPV1373DiscoverTestsNavigations`, `TestDCPV1374DiscoverTestsReaches`, `TestDCPV1375DiscoverTestsHooksTagsAnnotations`, `TestDCPV1376DiscoverTestsUnknowns` |

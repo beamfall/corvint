@@ -2629,6 +2629,20 @@ DCP-V1-265	docs/specs/documentation-corpus-v1.md	`audit sample` takes a seed in 
 DCP-V1-266	docs/specs/documentation-corpus-v1.md	`audit report` reads the sample strictly (closed `corvint-corpus-audit-sample/1`	unrecorded	-
 DCP-V1-267	docs/specs/documentation-corpus-v1.md	Excluded current verdicts (non-independent and generator-method counts, verdict	unrecorded	-
 DCP-V1-268	docs/specs/documentation-corpus-v1.md	`audit sample` and `audit report` are also spelled `audit-sample` and	unrecorded	-
+DCP-V1-410	docs/specs/documentation-corpus-v1.md	A read admits an artifact through the verified read, amending `DCP-V1-011`. It	unrecorded	-
+DCP-V1-411	docs/specs/documentation-corpus-v1.md	Live freshness observes each declared checkout from Git's identity, its	unrecorded	-
+DCP-V1-412	docs/specs/documentation-corpus-v1.md	Symbol re-resolution (`DCP-V1-141`) builds the full live index of the primary	unrecorded	-
+DCP-V1-413	docs/specs/documentation-corpus-v1.md	`validate`, `--verify-rederive` on any read operation, and the corpus MCP	unrecorded	-
+DCP-V1-414	docs/specs/documentation-corpus-v1.md	The verified read finds the members of the input and the elements of every	unrecorded	-
+DCP-V1-415	docs/specs/documentation-corpus-v1.md	`--timings` on a read writes one line to stderr after the result:	unrecorded	-
+DCP-V1-416	docs/specs/documentation-corpus-v1.md	The corpus MCP server's first tool call admits the artifact through the verified	unrecorded	-
+DCP-V1-417	docs/specs/documentation-corpus-v1.md	A warm corpus MCP call neither reads nor hashes the configured artifact while it	unrecorded	-
+DCP-V1-418	docs/specs/documentation-corpus-v1.md	Acceptance at scale, on a generated fixture with a 4,000-page native scope, 6,00	unrecorded	-
+DCP-V1-419	docs/specs/documentation-corpus-v1.md	A read derives the same query index, receipts and refusals with less wall time.	unrecorded	-
+DCP-V1-450	docs/specs/documentation-corpus-v1.md	Scope membership allocates nothing, and each scope check finds the scopes holdin	unrecorded	-
+DCP-V1-451	docs/specs/documentation-corpus-v1.md	The read fixture of `DCP-V1-418` has a many-scopes shape, one single-file scope	unrecorded	-
+DCP-V1-452	docs/specs/documentation-corpus-v1.md	A corpus revision pin (`BuildRevisionContext`) reads the checkout's Git index	unrecorded	-
+DCP-V1-453	docs/specs/documentation-corpus-v1.md	Routing fails closed to the hashed worktree pass: a missing, unreadable,	unrecorded	-
 DCP-V1-360	docs/specs/documentation-corpus-v1.md	`delta` prints one `corvint-corpus-delta/1` receipt: the previous and current	unrecorded	-
 DCP-V1-361	docs/specs/documentation-corpus-v1.md	The classified population is the previous corpus's subjects, claims and relation	unrecorded	-
 DCP-V1-362	docs/specs/documentation-corpus-v1.md	Every anchor is re-validated against the current revision's blobs. A blob is rea	unrecorded	-
