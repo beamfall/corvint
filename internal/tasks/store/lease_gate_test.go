@@ -80,12 +80,18 @@ func completeOf(a *store.Report, commit string) transaction.LeaseRequest {
 // gate runs l in the checkout with the clock fixed at t0 plus minutes.
 func (s *leaseStore) gate(t *testing.T, requestID string, l transaction.LeaseRequest, minutes int) (*store.Report, error) {
 	t.Helper()
+	return s.gateWith(context.Background(), t, requestID, l, minutes)
+}
+
+// gateWith is gate under ctx, for a gate whose lock wait the test bounds.
+func (s *leaseStore) gateWith(ctx context.Context, t *testing.T, requestID string, l transaction.LeaseRequest, minutes int) (*store.Report, error) {
+	t.Helper()
 	at, err := time.Parse("2006-01-02T15:04:05Z", string(s.at(t, minutes)))
 	if err != nil {
 		t.Fatal(err)
 	}
 	choice := store.LeaseChoice{QueueID: fixture.QueueID, RequestID: requestID, Root: s.root, Lease: l}
-	return store.GateRun(context.Background(), s.repo, operator(), choice, s.root, func() time.Time { return at })
+	return store.GateRun(ctx, s.repo, operator(), choice, s.root, func() time.Time { return at })
 }
 
 func (s *leaseStore) passes(t *testing.T, requestID string, l transaction.LeaseRequest, minutes int) {
@@ -422,6 +428,10 @@ func TestCALV0017_CompletionNeedsEveryRequiredGateAndApproval(t *testing.T) {
 	refusedWith(t, s.lease(t, "complete-plain", completeOf(plain, commit), 7, nil), mutation.OutcomeBlocked, wire.CodeGateFailed)
 }
 
+// contendedRecordingWait is the caller lock wait of a gate whose recording the
+// test holds the store lock against.
+const contendedRecordingWait = 5 * time.Second
+
 // TestCALV0078_GateRunContentionAfterExecutionIsReported: a gate run whose
 // program already ran and whose recording then meets lock contention returns
 // LOCK_TIMEOUT with Unretryable set, so the CLI marks it not retryable (a retry
@@ -454,7 +464,11 @@ func TestCALV0078_GateRunContentionAfterExecutionIsReported(t *testing.T) {
 			t.Error(err)
 		}
 	}()
-	report, err := s.gate(t, "gate-1", gateOf(claim, "verify"), 2)
+	// The test holds the lock until the recording gives up, so the caller wait
+	// (CAL-V0-111) only sets how long that takes: the default 30 s idled a
+	// parallel slot for the whole wait (V1-0961). The wait is armed only for
+	// the recording; nothing contends before the program has run.
+	report, err := s.gateWith(store.WithLeaseLockWait(context.Background(), contendedRecordingWait), t, "gate-1", gateOf(claim, "verify"), 2)
 	if _, e := os.Stat(ran); e != nil {
 		t.Fatalf("program did not run: %v %v", e, err)
 	}
