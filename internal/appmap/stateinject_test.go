@@ -1156,8 +1156,11 @@ func TestAMAPV0070DirectoryStarEnum(t *testing.T) {
 	star := "export * from './routes.constants';\n"
 	files := map[string]string{diRegAt: reg, index: star, decl: enum}
 	_, _, m, err := injectRepo(t, `["app/setup"]`, diRouter, files)
-	if err != nil || !diResolved(t, m) || len(diUnknown(m)) != 0 {
-		t.Fatalf("directory star enum: %v %+v", err, m.Unknowns)
+	if err != nil {
+		t.Fatalf("directory star enum: %v", err)
+	}
+	if !diResolved(t, m) || len(diUnknown(m)) != 0 {
+		t.Fatalf("directory star enum: %+v", m.Unknowns)
 	}
 	files[index], files[copy] = star+"export * from './copy';\n", enum
 	_, _, m, err = injectRepo(t, `["app/setup"]`, diRouter, files)
