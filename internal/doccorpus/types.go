@@ -281,6 +281,9 @@ type Request struct {
 	State     string `json:"state,omitempty"`
 	Qualifier string `json:"qualifier,omitempty"`
 	Run       string `json:"run,omitempty"`
+	// CallerRevision is the caller's checkout commit, compared with the corpus
+	// source revision (DCP-V1-332); empty means absent.
+	CallerRevision string `json:"caller_revision,omitempty"`
 }
 type Receipt struct {
 	Envelope  *TrustEnvelope      `json:"trust_envelope,omitempty"`

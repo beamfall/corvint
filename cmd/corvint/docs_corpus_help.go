@@ -21,7 +21,7 @@ type corpusOperation struct {
 var corpusOperations = buildCorpusOperations()
 
 func buildCorpusOperations() []corpusOperation {
-	reads := []string{"--limit", "--offset", "--retirement"}
+	reads := []string{"--limit", "--offset", "--retirement", "--caller-revision"}
 	read := func(name, purpose string, required []string, optional ...string) corpusOperation {
 		return corpusOperation{name: name, purpose: purpose, required: append([]string{"--artifact"}, required...), optional: append(optional, reads...)}
 	}
@@ -127,6 +127,7 @@ var corpusFlagHelp = map[string][2]string{
 	"--run":                  {"RUN", "keep claims whose subject a migration_mapping of this run names (requires --state)"},
 	"--limit":                {"N", "1.." + strconv.Itoa(doccorpus.MaxResults) + " results (default 20)"},
 	"--offset":               {"N", "results to skip"},
+	"--caller-revision":      {"FULL_COMMIT", "caller's checkout commit; the trust envelope relates it to the source revision"},
 	"--section":              {"NAME[,NAME]", "flow sections whose paragraphs to return"},
 	"--include":              {"KIND[,KIND]", "flow record kinds: claims, relations, test_knowledge, paragraphs; search admits only claims"},
 	"--kind":                 {"KIND[,KIND]", "gaps: gap kinds to keep, each totalled before paging; search: subject kinds to keep"},

@@ -48,3 +48,24 @@ func TestDCPV1320And321HTTPRefusalAndGapKinds(t *testing.T) {
 		t.Fatalf("empty kinds admitted: %d %v", status, out)
 	}
 }
+
+// TestDCPV1332HTTPCallerRevisionUnknown: the HTTP companion has no Git access,
+// so a caller revision other than the source revision is unknown with a
+// reason; a malformed one is a query refusal.
+func TestDCPV1332HTTPCallerRevisionUnknown(t *testing.T) {
+	server := httptest.NewServer(Handler(portable(t)))
+	defer server.Close()
+	caller := strings.Repeat("f", 40)
+	status, out := postQuery(t, server, `{"operation":"info","caller_revision":"`+caller+`"}`)
+	envelope, _ := out["trust_envelope"].(map[string]any)
+	got, _ := envelope["caller_revision"].(map[string]any)
+	if status != 200 || got["relation"] != "unknown" || got["revision"] != caller || got["source_revision"] != envelope["source_revision"] || !strings.Contains(got["reason"].(string), "no Git repository access") {
+		t.Fatalf("HTTP caller revision: %d %v", status, got)
+	}
+	if _, out := postQuery(t, server, `{"operation":"info"}`); out["trust_envelope"].(map[string]any)["caller_revision"] != nil {
+		t.Fatal("caller_revision emitted without a request")
+	}
+	if status, out := postQuery(t, server, `{"operation":"info","caller_revision":"main"}`); status != 422 || out["code"] != "query-refused" {
+		t.Fatalf("malformed caller revision admitted: %d %v", status, out)
+	}
+}

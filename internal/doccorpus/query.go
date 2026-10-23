@@ -26,6 +26,9 @@ type FreshnessOverlay struct {
 	symbols     *symbolOverlay
 	drift       *anchorDrift
 	observation string
+	// root is the primary checkout the overlay read, where a caller revision's
+	// ancestry is observed (DCP-V1-332).
+	root string
 }
 
 // Observation is the ObservationKey of the repository state the overlay was
@@ -142,7 +145,7 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 			limits = append(limits[:MaxResults], fmt.Sprintf("freshness diagnostic bound withheld %d reasons", omitted))
 		}
 	}
-	overlay := FreshnessOverlay{State: state, Limitations: limits, drift: drift, observation: observation}
+	overlay := FreshnessOverlay{State: state, Limitations: limits, drift: drift, observation: observation, root: root}
 	if symbols {
 		overlay.symbols = &symbolOverlay{root: root, live: live, repository: a.Manifest.Repository.ID, files: &sharedSymbolFiles{files: map[string]sharedSymbolFile{}}}
 	}
@@ -285,7 +288,7 @@ func QueryContext(ctx context.Context, a *Artifact, request Request, freshness s
 // cites are re-resolved, on demand and under one budget per call, so the
 // receipt is the one a fresh reader returns (DCP-V1-144).
 func QueryLive(ctx context.Context, a *Artifact, request Request, overlay FreshnessOverlay) (Receipt, error) {
-	checker := &symbolChecker{overlay: overlay.symbols, checks: map[string]SymbolAnchorCheck{}, anchors: &anchorStates{drift: overlay.drift, states: map[string]string{}, files: map[string][]byte{}}}
+	checker := &symbolChecker{root: overlay.root, overlay: overlay.symbols, checks: map[string]SymbolAnchorCheck{}, anchors: &anchorStates{drift: overlay.drift, states: map[string]string{}, files: map[string][]byte{}}}
 	defer checker.close()
 	return queryContext(ctx, a, request, overlay.State, overlay.Limitations, checker)
 }
@@ -321,12 +324,25 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	if request.Offset < 0 || request.Offset > MaxCorpusRecords*4 || a.Schema != SchemaV2 && (request.Offset != 0 || request.Operation == "inventory") {
 		return Receipt{}, fail("pagination requires corpus /2 and bounded offset")
 	}
+	if !ValidCallerRevision(request.CallerRevision) {
+		return Receipt{}, fail("caller revision must be a full lowercase hex Git object ID")
+	}
 	capability := CapabilityFor(request.Operation)
 	if capability == "" {
 		return Receipt{}, fail("unknown corpus operation")
 	}
 	if request.Repository != "" && (request.Operation != "locate" && request.Operation != "recommend-tests" || !a.Manifest.declaresRepository(request.Repository)) {
 		return Receipt{}, fail("repository qualifier applies only to locate and recommend-tests and must name a declared repository")
+	}
+	// DCP-V1-332: only a live reader's checkout can observe the caller revision's ancestry.
+	if request.CallerRevision != "" {
+		root := ""
+		if symbols != nil {
+			root = symbols.root
+		}
+		if envelope.CallerRevision, err = relateCallerRevision(ctx, root, a.Manifest.Repository.Revision, request.CallerRevision); err != nil {
+			return Receipt{}, err
+		}
 	}
 	r := Receipt{Envelope: envelope, Schema: ReceiptSchema, Operation: request.Operation, ArtifactSHA256: a.SHA256, Repository: a.Manifest.Repository, Tree: a.Tree, Trust: "generated", Freshness: freshness, State: "ready", Results: []any{}, Citations: []Anchor{}, Capabilities: a.Capabilities, Limitations: append([]string{}, limitations...)}
 	if a.Schema == SchemaV2 {
@@ -349,9 +365,11 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 		r.Limitations = append(r.Limitations, "evidence-stale; results describe the pinned revision only")
 	}
 	// DCP-V1-330: an id that names no record but exactly one subject's
-	// alternate id resolves to that subject, and the receipt records it.
+	// alternate id resolves to that subject, and the receipt records it. A
+	// record get finds by the id, including a join, stability or declared
+	// legacy-case record, always wins over an alias.
 	if request.ID != "" && (OperationInput(request.Operation) == "id" || request.Operation == "gaps") {
-		if id, ok := resolveAlternateID(a, request.ID); ok {
+		if id, ok := resolveAlternateID(a, request.ID); ok && !getFindsRecord(a, request.ID) {
 			r.AliasResolution = &AliasResolution{AlternateID: request.ID, ID: id}
 			request.ID = id
 		}
@@ -658,6 +676,20 @@ func subjectPath(s Subject, p string) bool {
 	}
 	return false
 }
+
+// getFindsRecord reports whether get resolves id to a corpus record; the
+// legacy-case-unlinked gap get reports for an undeclared case is not one.
+func getFindsRecord(a *Artifact, id string) bool {
+	probe := Receipt{Operation: "get"}
+	get(a, id, &probe)
+	for _, v := range probe.Results {
+		if g, ok := v.(Gap); !ok || g.Kind != "legacy-case-unlinked" {
+			return true
+		}
+	}
+	return false
+}
+
 func get(a *Artifact, id string, r *Receipt) {
 	before := len(r.Results)
 	getRecords(a, id, r)
@@ -995,7 +1027,7 @@ func suppliedStatusCoverage(a *Artifact) []any {
 // and grants no trust; a true flag is not complete coverage.
 func suppliedDetailCoverage(a *Artifact) []any {
 	flag := func(f CompletenessFlag) string {
-		if f.Value {
+		if f.Value != nil && *f.Value {
 			return "true"
 		}
 		return "false"

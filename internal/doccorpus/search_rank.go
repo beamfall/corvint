@@ -61,7 +61,14 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 			return err
 		}
 		idf := searchIDF(len(a.Subjects), len(postings[term]))
-		exact += nameFieldWeight * idf
+		// The exact bonus covers the best partial weight of the term in
+		// either family, so with claims an exact match of one family
+		// outranks every partial match of the other (DCP-V1-331).
+		best := nameFieldWeight * idf
+		if claims {
+			best = max(best, claimFieldWeight*searchIDF(len(a.Claims), len(x.ClaimTerms[term])))
+		}
+		exact += best
 		for _, i := range postings[term] {
 			if !keep(a.Subjects[i].Kind) {
 				continue
@@ -78,7 +85,7 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 			return err
 		}
 		if keep(s.Kind) && strings.EqualFold(request.Query, s.Name) {
-			// An exact name match outranks every partial match.
+			// An exact name match outranks every partial match of either family.
 			scores[i] += exact + 1
 		}
 	}
@@ -86,7 +93,7 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 		hits = append(hits, searchHit{a.Subjects[i], a.Subjects[i].ID, score})
 	}
 	if claims {
-		claimHits, err := claimSearchHits(ctx, a, x, request, terms, keep)
+		claimHits, err := claimSearchHits(ctx, a, x, request, terms, keep, exact)
 		if err != nil {
 			return err
 		}
@@ -150,8 +157,9 @@ func subjectPostings(ctx context.Context, a *Artifact, x *QueryIndex, terms []st
 }
 
 // claimSearchHits scores claims by their ID and text terms with claim-text
-// weight, adding an exact-text bonus above every partial match (DCP-V1-328).
-func claimSearchHits(ctx context.Context, a *Artifact, x *QueryIndex, request Request, terms []string, keep func(string) bool) ([]searchHit, error) {
+// weight, adding the shared exact bonus, which exceeds every partial subject
+// or claim score, to an exact-text match (DCP-V1-328, DCP-V1-331).
+func claimSearchHits(ctx context.Context, a *Artifact, x *QueryIndex, request Request, terms []string, keep func(string) bool, exact float64) ([]searchHit, error) {
 	about := func(c Claim) bool {
 		if request.Kinds == nil {
 			return true
@@ -160,13 +168,11 @@ func claimSearchHits(ctx context.Context, a *Artifact, x *QueryIndex, request Re
 		return ok && ref.Kind == "subject" && keep(a.Subjects[ref.Offset].Kind)
 	}
 	scores := map[int]float64{}
-	exact := 0.0
 	for _, term := range terms {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 		idf := searchIDF(len(a.Claims), len(x.ClaimTerms[term]))
-		exact += claimFieldWeight * idf
 		for _, i := range x.ClaimTerms[term] {
 			if about(a.Claims[i]) {
 				scores[i] += claimFieldWeight * idf

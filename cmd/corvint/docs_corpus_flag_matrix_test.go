@@ -3,6 +3,7 @@ package main
 import (
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -13,7 +14,7 @@ import (
 // claude/issue-811-legacy-inventory parser (DCP-V1-060..069); both predate the table.
 type corpusFlagExpectation struct{ required, optional []string }
 
-var corpusReadOptional = []string{"--limit", "--offset", "--retirement"}
+var corpusReadOptional = []string{"--limit", "--offset", "--retirement", "--caller-revision"} // DCP-V1-332
 
 var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"manifest":            {required: []string{"--revision", "--scope", "--timestamp"}, optional: []string{"--schema"}},
@@ -55,7 +56,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 
 var corpusAllFlags = []string{"--revision", "--scope", "--timestamp", "--manifest", "--artifact", "--page", "--apply",
 	"--cem", "--id", "--input", "--previous", "--check", "--migration", "--config", "--playwright-list", "--receipt",
-	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match", "--schema", "--section", "--include", "--cases", "--baseline", "--seed", "--size", "--stratify", "--sample", "--repository", "--kind"}
+	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match", "--schema", "--section", "--include", "--cases", "--baseline", "--seed", "--size", "--stratify", "--sample", "--repository", "--kind", "--caller-revision"}
 
 func corpusFlagArgs(op, flag string) []string {
 	switch flag {
@@ -67,6 +68,8 @@ func corpusFlagArgs(op, flag string) []string {
 		return []string{flag, "2"}
 	case "--section":
 		return []string{flag, "readme"}
+	case "--caller-revision":
+		return []string{flag, strings.Repeat("a", 40)}
 	case "--include":
 		if op == "search" {
 			return []string{flag, "claims"}

@@ -404,6 +404,40 @@ func validateAlternateIDs(subjects []Subject, ids map[string]bool) error {
 	return nil
 }
 
+// validateAlternateIDsAfterJoins refuses a subject alternate id equal to an id
+// that get resolves outside the record table: a test-knowledge, flow-relation
+// or claim-audit join, a stability report's id, test id or contract id, or a
+// declared legacy case id. Those records are added after validateRecords, so
+// validateAlternateIDs cannot see them (DCP-V1-329).
+func validateAlternateIDsAfterJoins(a *Artifact) error {
+	taken := map[string]bool{}
+	for _, j := range a.TestKnowledge {
+		taken[j.ID] = true
+	}
+	for _, j := range a.FlowRelations {
+		taken[j.ID] = true
+	}
+	for _, j := range a.ClaimAudits {
+		taken[j.ID] = true
+	}
+	for _, s := range a.StabilityEvidence {
+		taken[s.ID], taken[s.TestID], taken[s.ContractID] = true, true, true
+	}
+	for _, d := range a.Details {
+		if d.LegacyCase != nil {
+			taken[d.LegacyCase.ID] = true
+		}
+	}
+	for _, s := range a.Subjects {
+		for _, alias := range s.AlternateIDs {
+			if taken[alias] {
+				return fail("duplicate or invalid subject alternate id")
+			}
+		}
+	}
+	return nil
+}
+
 func (c *compiler) validateRecords() error {
 	a := c.artifact
 	if len(a.Subjects) > c.manifest.recordLimit() || len(a.Claims) > c.manifest.recordLimit() || len(a.Relations) > c.manifest.recordLimit() || len(a.Observations) > c.manifest.recordLimit() || len(a.Journeys) > c.manifest.journeyLimit() || len(a.SuppliedGaps) > c.manifest.recordLimit() {

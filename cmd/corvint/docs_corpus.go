@@ -21,6 +21,9 @@ type corpusOptions struct {
 	repository string
 	// state, qualifier and run select claims' supplied status claims (DCP-V1-318).
 	state, qualifier, run string
+	// callerRevision is the caller's checkout commit compared with the corpus source revision
+	// (DCP-V1-332).
+	callerRevision string
 	// scopes holds every repeated manifest --scope in argument order (DCP-V1-161).
 	scopes []string
 	// section and include are the flow filters as comma-separated lists (DCP-V1-170, DCP-V1-171).
@@ -38,7 +41,7 @@ type corpusOptions struct {
 
 // stringFlags maps each value-taking corpus option to its field.
 func (o *corpusOptions) stringFlags() map[string]*string {
-	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner, "--schema": &o.schema, "--section": &o.section, "--include": &o.include, "--cases": &o.cases, "--baseline": &o.baseline, "--repository": &o.repository, "--state": &o.state, "--qualifier": &o.qualifier, "--run": &o.run, "--kind": &o.kind,
+	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner, "--schema": &o.schema, "--section": &o.section, "--include": &o.include, "--cases": &o.cases, "--baseline": &o.baseline, "--repository": &o.repository, "--state": &o.state, "--qualifier": &o.qualifier, "--run": &o.run, "--kind": &o.kind, "--caller-revision": &o.callerRevision,
 		"--expected-base": &o.stable.ExpectedBase, "--target": &o.stable.Target, "--stable-artifact-root": &o.stable.ArtifactRoot}
 	o.playwright.addFlags(flags)
 	o.legacyCases.addFlags(flags)
@@ -144,6 +147,9 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 	}
 	if o.op == "intent" && seen["--id"] && strings.TrimSpace(o.id) == "" {
 		return o, true, argumentError("--id must not be empty")
+	}
+	if seen["--caller-revision"] && (o.callerRevision == "" || !doccorpus.ValidCallerRevision(o.callerRevision)) {
+		return o, true, argumentError("--caller-revision must be a full lowercase hex Git object ID")
 	}
 	if seen["--schema"] && o.schema != "1" && o.schema != "2" {
 		return o, true, argumentError("--schema must be 1 or 2")
@@ -382,7 +388,7 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 			return nil, e
 		}
 	}
-	receipt, err := doccorpus.QueryLive(ctx, a, doccorpus.Request{Operation: o.op, Retirement: retirement, Query: o.query, ID: o.id, Path: o.path, Limit: o.limit, Offset: o.offset, Sections: corpusList(o.section), Include: corpusList(o.include), Kinds: corpusList(o.kind), Repository: o.repository, State: o.state, Qualifier: o.qualifier, Run: o.run}, overlay)
+	receipt, err := doccorpus.QueryLive(ctx, a, doccorpus.Request{Operation: o.op, Retirement: retirement, Query: o.query, ID: o.id, Path: o.path, Limit: o.limit, Offset: o.offset, Sections: corpusList(o.section), Include: corpusList(o.include), Kinds: corpusList(o.kind), Repository: o.repository, State: o.state, Qualifier: o.qualifier, Run: o.run, CallerRevision: o.callerRevision}, overlay)
 	if err != nil {
 		return nil, err
 	}

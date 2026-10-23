@@ -2,6 +2,7 @@ package doccorpus
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -75,7 +76,7 @@ func ledger(scope, status string) *CoverageLedgerDetails {
 }
 
 func completeness(p *ProviderRecord, coverage, audit bool) *FlowCompletenessDetails {
-	return &FlowCompletenessDetails{TargetStatus: "documented", CoverageComplete: CompletenessFlag{coverage, "ledger rows reviewed"}, AuditComplete: CompletenessFlag{audit, "audit pending"}, Revision: p.Source.Revision, Path: "docs/flows/count.md"}
+	return &FlowCompletenessDetails{TargetStatus: "documented", CoverageComplete: CompletenessFlag{&coverage, "ledger rows reviewed"}, AuditComplete: CompletenessFlag{&audit, "audit pending"}, Revision: p.Source.Revision, Path: "docs/flows/count.md"}
 }
 
 func unresolved() *UnresolvedConceptDetails {
@@ -97,7 +98,7 @@ func TestDCPV1324To326CoverageDetailShapes(t *testing.T) {
 		if x := r.Details["adapter:ledger"].CoverageLedger; x == nil || x.LedgerStatus != "partial" || *x.Journeys != 3 {
 			t.Fatalf("ledger lost: %+v", x)
 		}
-		if x := r.Details["adapter:complete"].FlowCompleteness; x == nil || !x.CoverageComplete.Value || x.AuditComplete.Value {
+		if x := r.Details["adapter:complete"].FlowCompleteness; x == nil || !*x.CoverageComplete.Value || *x.AuditComplete.Value {
 			t.Fatalf("completeness lost: %+v", x)
 		}
 		if x := r.Details["adapter:concept"].UnresolvedConcept; x == nil || len(x.Unplaced) != 2 {
@@ -131,6 +132,12 @@ func TestDCPV1324To326CoverageDetailShapes(t *testing.T) {
 			c.AuditComplete.Reason = ""
 			detailClaim("adapter:x", RecordDetails{FlowCompleteness: c})(p)
 		}, "invalid supplied flow completeness"},
+		// Codex P2: an omitted or null completeness value is refused, never read as false.
+		"completeness value omitted": {func(p *ProviderRecord) {
+			c := completeness(p, true, true)
+			c.AuditComplete.Value = nil
+			detailClaim("adapter:x", RecordDetails{FlowCompleteness: c})(p)
+		}, "invalid supplied flow completeness"},
 		"concept target": {func(p *ProviderRecord) {
 			u := unresolved()
 			u.Unplaced = []string{"page"}
@@ -153,6 +160,19 @@ func TestDCPV1324To326CoverageDetailShapes(t *testing.T) {
 	} {
 		if err := decode([]byte(raw), &d); err == nil {
 			t.Fatalf("unknown member admitted: %s", raw)
+		}
+	}
+	// Codex P2: an omitted or null value decodes to nil and fails validation.
+	for _, raw := range []string{
+		`{"flow_completeness":{"target_status":"documented","coverage_complete":{"reason":"r"},"audit_complete":{"value":true,"reason":"r"},"revision":"` + strings.Repeat("a", 40) + `","path":"docs/a.md"}}`,
+		`{"flow_completeness":{"target_status":"documented","coverage_complete":{"value":null,"reason":"r"},"audit_complete":{"value":true,"reason":"r"},"revision":"` + strings.Repeat("a", 40) + `","path":"docs/a.md"}}`,
+	} {
+		var nullable RecordDetails
+		if err := decode([]byte(raw), &nullable); err != nil {
+			t.Fatalf("decode %s: %v", raw, err)
+		}
+		if err := validateRecordDetails("claim", nullable, Relation{}); err == nil || !strings.Contains(err.Error(), "invalid supplied flow completeness") {
+			t.Fatalf("absent completeness value admitted: %s: %v", raw, err)
 		}
 	}
 	// An explicit empty limitation list is refused; encoding would drop it.
@@ -417,6 +437,80 @@ func TestDCPV1331SearchRanking(t *testing.T) {
 	} {
 		if _, err := Query(a, q, "fresh", nil); err == nil {
 			t.Fatalf("admitted %+v", q)
+		}
+	}
+}
+
+// DCP-V1-331 (Codex P3): with include:["claims"] the exact bonus is shared
+// across families, so an exact subject name match outranks a partial claim
+// match whose rare claim term scores higher than the common subject term.
+func TestDCPV1331ExactBonusAcrossFamilies(t *testing.T) {
+	t.Parallel()
+	a := buildAdoption(t, func(p *ProviderRecord) {
+		ev := p.Subjects[0].Evidence
+		p.Subjects = append(p.Subjects, Subject{ID: p.ID + ":zz-login", Kind: "use_case", Name: "Login", Provider: p.ID, Evidence: ev})
+		for i := range 40 {
+			id := fmt.Sprintf("%s:login-helper-%02d", p.ID, i)
+			p.Subjects = append(p.Subjects, Subject{ID: id, Kind: "use_case", Name: "login helper " + id, Provider: p.ID, Evidence: ev})
+		}
+		for i := range 30 {
+			text := fmt.Sprintf("unrelated step %02d", i)
+			if i == 0 {
+				text = "the login page opens"
+			}
+			p.Claims = append(p.Claims, Claim{ID: fmt.Sprintf("%s:aa-claim-%02d", p.ID, i), Subject: p.ID + ":zz-login", Text: text, Provider: p.ID, Evidence: ev})
+		}
+	})
+	index, err := BuildQueryIndex(context.Background(), a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexed := *a
+	indexed.RuntimeIndex = index
+	for _, b := range []*Artifact{a, &indexed} {
+		first := func(query string) string {
+			r := queryResults(t, b, Request{Operation: "search", Query: query, Include: []string{"claims"}})
+			if len(r.Results) == 0 {
+				return ""
+			}
+			return recordID(r.Results[0])
+		}
+		if got := first("login"); got != "adapter:zz-login" {
+			t.Fatalf("exact subject should outrank a partial claim, got %s first", got)
+		}
+		if got := first("the login page opens"); got != "adapter:aa-claim-00" {
+			t.Fatalf("exact claim should outrank partial subjects, got %s first", got)
+		}
+	}
+}
+
+// DCP-V1-329, DCP-V1-330 (Codex P2): an alias equal to a join record id is
+// refused at build, and a reader given such an alias still serves the join
+// record rather than redirecting through the alias.
+func TestDCPV1329AliasCannotShadowJoinRecords(t *testing.T) {
+	t.Parallel()
+	shadow := func(p *ProviderRecord) { p.Subjects[0].AlternateIDs = []string{"audit:v1"} }
+	if _, _, err := auditBuild(t, shadow, one(t, nil), nil); err == nil || !strings.Contains(err.Error(), "alternate id") {
+		t.Fatalf("alias equal to a claim-audit id: got %v, want an alternate id refusal", err)
+	}
+	_, a, err := auditBuild(t, nil, one(t, nil), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.Subjects[0].AlternateIDs = []string{"audit:v1"}
+	index, err := BuildQueryIndex(context.Background(), a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexed := *a
+	indexed.RuntimeIndex = index
+	for _, b := range []*Artifact{a, &indexed} {
+		r := queryResults(t, b, Request{Operation: "get", ID: "audit:v1"})
+		if r.AliasResolution != nil || len(r.Results) == 0 {
+			t.Fatalf("alias shadowed the claim-audit record: %+v", r.AliasResolution)
+		}
+		if _, ok := r.Results[0].(ClaimAuditJoin); !ok {
+			t.Fatalf("get audit:v1 served %T, want the claim-audit join", r.Results[0])
 		}
 	}
 }

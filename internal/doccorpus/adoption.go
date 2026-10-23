@@ -52,9 +52,11 @@ type FlowCompletenessDetails struct {
 	Path             string           `json:"path"`
 }
 
-// CompletenessFlag is one supplied completeness boolean and its reason.
+// CompletenessFlag is one supplied completeness boolean and its reason. Value
+// is a pointer so an omitted or null value is refused rather than read as
+// false (DCP-V1-325).
 type CompletenessFlag struct {
-	Value  bool   `json:"value"`
+	Value  *bool  `json:"value"`
 	Reason string `json:"reason"`
 }
 
@@ -479,7 +481,7 @@ func validateRecordDetails(kind string, d RecordDetails, rel Relation) error {
 	if d.FlowCompleteness != nil {
 		count++
 		x := d.FlowCompleteness
-		if kind != "claim" || !suppliedLabel(x.TargetStatus) || !textOK(x.CoverageComplete.Reason) || !textOK(x.AuditComplete.Reason) || !wire.IsGitOid(x.Revision) || !validPath(x.Path) {
+		if kind != "claim" || !suppliedLabel(x.TargetStatus) || x.CoverageComplete.Value == nil || x.AuditComplete.Value == nil || !textOK(x.CoverageComplete.Reason) || !textOK(x.AuditComplete.Reason) || !wire.IsGitOid(x.Revision) || !validPath(x.Path) {
 			return fail("invalid supplied flow completeness")
 		}
 	}

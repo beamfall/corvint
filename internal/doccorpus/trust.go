@@ -33,9 +33,12 @@ type TrustEnvelope struct {
 	Retirement       RetirementStatus `json:"retirement"`
 	// VerifiedAt is when the content was last verified; no verification is recorded, so it is
 	// always null with a limitation (DCP-V1-283).
-	VerifiedAt  *string         `json:"verified_at"`
-	Citations   []CitationState `json:"citations"`
-	Limitations []string        `json:"limitations"`
+	VerifiedAt *string `json:"verified_at"`
+	// CallerRevision relates an optional caller revision to SourceRevision; absent
+	// unless the request supplied one, so other envelopes keep their bytes (DCP-V1-332).
+	CallerRevision *CallerRevision `json:"caller_revision,omitempty"`
+	Citations      []CitationState `json:"citations"`
+	Limitations    []string        `json:"limitations"`
 }
 
 // unverifiedLimitation explains a null verified_at (DCP-V1-283).
