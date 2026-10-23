@@ -6,10 +6,12 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/capcatalog"
+	"github.com/Beamfall/corvint/internal/repoenvelope"
 )
 
 // MCPV0-100: every profile advertises and answers corvint.help from the
@@ -120,5 +122,47 @@ func TestMCPV0100HelpCancellationPrecedesTheBudget(t *testing.T) {
 	result, callErr := helpResult(context.Background(), helpTopicCatalog, "corvint help --json", oversized)
 	if callErr != nil || result.State != "ABSTAINED" || result.Abstention.Reason != "OUTPUT_BUDGET_EXCEEDED" || result.Receipt != nil {
 		t.Fatalf("live oversized call = %+v, %#v", result, callErr)
+	}
+}
+
+// MCPV0-104: the companion servers' entry answers exactly what Registry.Call
+// answers, wrapped as cmd/corvint-mcp wraps it, and refuses the same inputs.
+func TestMCPV0104HelpToolResultIsTheRegistryAnswer(t *testing.T) {
+	t.Parallel()
+	root := filepath.Clean(t.TempDir())
+	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	registry, err := New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, arguments := range []string{`{}`, `{"topic":"catalog"}`, `{"topic":"guide"}`} {
+		answer, callErr := HelpToolResult(context.Background(), []byte(arguments))
+		if callErr != nil {
+			t.Fatalf("%s: %v", arguments, callErr)
+		}
+		result, _ := registry.Call(context.Background(), ToolHelp, []byte(arguments))
+		object, _ := result.Object()
+		text, _ := result.TextJSON()
+		framed, _ := repoenvelope.Frame(string(text))
+		content, _ := answer["content"].([]any)
+		if len(answer) != 3 || answer["isError"] != false || !reflect.DeepEqual(answer["structuredContent"], object) || len(content) != 1 ||
+			!reflect.DeepEqual(content[0], map[string]any{"type": "text", "text": framed}) {
+			t.Fatalf("%s: companion answer differs from the registry answer", arguments)
+		}
+	}
+	if !reflect.DeepEqual(HelpDescriptor(), helpDescriptor()) {
+		t.Fatal("HelpDescriptor differs from the corvint-mcp descriptor")
+	}
+	for _, arguments := range []string{``, `{"topic":"COMMAND"}`, `{"topic":null}`, `{"extra":true}`, `null`, `[]`, "{\"topic\":\"\xff\"}", `{"topic":"` + strings.Repeat("x", maxArgumentSize) + `"}`} {
+		if _, callErr := HelpToolResult(context.Background(), []byte(arguments)); callErr == nil || callErr.Code != "invalid-arguments" {
+			t.Fatalf("%.40q error = %#v", arguments, callErr)
+		}
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, callErr := HelpToolResult(ctx, []byte(`{}`)); callErr == nil || callErr.Code != "cancelled" {
+		t.Fatalf("cancelled call error = %#v", callErr)
 	}
 }

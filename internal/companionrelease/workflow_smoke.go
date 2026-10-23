@@ -60,7 +60,7 @@ func checkWorkflowTools(ctx context.Context, extracted, repo, scratch string, in
 		err = requireMCPDiscovery(draftResponses, 0, inventory.name("corvint-docs-mcp"), "0.1.0-experimental")
 	}
 	if err == nil {
-		err = requireMCPTools(draftResponses, 1, []string{"corvint.docs_consume", "corvint.docs_draft"})
+		err = requireMCPTools(draftResponses, 1, []string{"corvint.docs_consume", "corvint.docs_draft", "corvint.help"})
 	}
 	if err == nil {
 		markdown, err = mcpStructuredString(draftResponses, 2, "markdown")
@@ -86,9 +86,9 @@ func checkWorkflowTools(ctx context.Context, extracted, repo, scratch string, in
 		err = requireMCPDiscovery(tv, 0, inventory.name("corvint-test-validity-mcp"), "0.1.0-experimental")
 	}
 	if err == nil {
-		err = requireMCPTools(tv, 1, []string{"corvint.test_validity"})
+		err = requireMCPTools(tv, 1, []string{"corvint.help", "corvint.test_validity"})
 	}
-	steps = append(steps, step("corvint-test-validity-mcp-list", err, "server/discover, one read-only tool; retained evidence discovery deferred to installed qualification"))
+	steps = append(steps, step("corvint-test-validity-mcp-list", err, "server/discover, two read-only tools (help, test_validity); retained evidence discovery deferred to installed qualification"))
 	if err != nil {
 		return steps, err
 	}

@@ -120,6 +120,25 @@ func TestCAPV0021RootHelpNamesTheCatalogTopicsWithinItsBound(t *testing.T) {
 	}
 }
 
+// MCPV0-105: the corvint.help answer that corvint-docs-mcp, corvint-corpus-mcp
+// and corvint-test-validity-mcp return through bridge.HelpToolResult carries the
+// CLI's own stdout byte for byte, for both topics, in structuredContent. Each
+// server's wire test holds its answer equal to bridge.HelpToolResult's.
+func TestMCPV0105CompanionHelpMatchesTheCLI(t *testing.T) {
+	t.Parallel()
+	for arguments, cli := range map[string][]string{`{}`: {"help", "--json"}, `{"topic":"guide"}`: {"help", "guide"}} {
+		answer, callErr := bridge.HelpToolResult(context.Background(), []byte(arguments))
+		if callErr != nil {
+			t.Fatal(callErr)
+		}
+		structured, _ := answer["structuredContent"].(map[string]any)
+		receipt, _ := structured["receipt"].(map[string]any)
+		if text, _ := receipt["text"].(string); text != runCatalogHelp(t, cli...) {
+			t.Fatalf("companion corvint.help %s differs from corvint %s", arguments, strings.Join(cli, " "))
+		}
+	}
+}
+
 // MCPV0-100: the corvint.help MCP tool returns the CLI's own stdout byte for
 // byte, for both topics.
 func TestMCPV0100HelpToolMatchesTheCLI(t *testing.T) {
