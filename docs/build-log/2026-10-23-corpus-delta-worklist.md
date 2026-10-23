@@ -62,3 +62,24 @@ that still held into the next build.
   TypeScript/JavaScript). Other symbol anchors are placed by span hash within their own path.
 - Diffs past 1024 edits, or past the 8 MiB per-blob or 64 MiB total read bounds, degrade to a coarse
   region or an `unresolved` anchor with its reason.
+
+## Review repair (PR #1589)
+
+Independent review raised six findings and one request; all were confirmed and fixed with
+regression tests in `TestDCPV1360DeltaRepairs`:
+
+- Span numbering: the delta numbered lines without the empty line after a final newline, while
+  `spanDigest` and the compiler's `span` keep it, so a valid end-of-file anchor panicked once its
+  blob changed. Placement and the previous span now use the build's numbering (`DCP-V1-362`).
+- Provider closure: classification demotes across all providers, so a provider-scoped
+  carry-forward could emit a claim whose subject only another provider carries. Decision: refuse,
+  naming each dependency and its carrying provider, rather than silently dropping records or
+  widening the record to another provider's IDs; the caller carries and builds that provider first
+  (`DCP-V1-365`, `DCP-V1-366`).
+- Uncovered regions: covered lines are now subtracted and each uncovered sub-range is its own
+  region; current subjects that no claim names are `uncovered` subject entries (`DCP-V1-364`).
+  Regions sort before subjects within `uncovered`.
+- Bounds: the aggregate read bound is passed as the header-checked per-blob limit, so no body is
+  read past it, and every span digest is charged to the hashing bound before it is computed,
+  including the unchanged-blob path (`DCP-V1-367`).
+- A symbol anchor the resolver reports changed now carries `changed_lines` (`DCP-V1-363`).

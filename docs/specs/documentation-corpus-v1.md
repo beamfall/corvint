@@ -1681,7 +1681,7 @@ only standard output. Neither changes a claim's text, trust or limitations. Stat
   (`ParseArtifact`). The current side is exactly one of `--artifact`, reopened and rederived
   (`Open`), or `--manifest`, built in memory (`BuildAdmitted`) and never written. Both forms give the
   same entries and counts. Entries sort by class (`removed`, `changed`, `unresolved`, `uncovered`,
-  `moved`, `carry-forward`), then record kind (subject, claim, relation, region), then ID. The CLI
+  `moved`, `carry-forward`), then record kind (region, subject, claim, relation), then ID. The CLI
   page is 1..256 entries, default 20; an offset past the end returns no entries. Acceptance:
   `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1360DeltaCLI`.
 - `DCP-V1-361`: The classified population is the previous corpus's subjects, claims and relations
@@ -1692,8 +1692,8 @@ only standard output. Neither changes a claim's text, trust or limitations. Stat
   anchors, or with an adoption-only subject kind or relation type, is `unresolved`. Acceptance:
   `TestDCPV1360DeltaWorklistClasses`.
 - `DCP-V1-362`: Every anchor is re-validated against the current revision's blobs. A blob is read
-  from Git and its SHA-256 checked, and the span is hashed with the same span digest the build
-  uses.
+  from Git and its SHA-256 checked, and the span is hashed with the same span digest and line
+  numbering the build uses, so a span may end on the empty line after a final newline.
   - `carry-forward`: the span hash is confirmed at the same lines of the declared input. This
     covers both an unchanged blob and the same lines in a changed blob.
   - `moved`: the span hash is confirmed at exactly one other window of the same path, or at a span
@@ -1709,24 +1709,31 @@ only standard output. Neither changes a claim's text, trust or limitations. Stat
   - up to 16 `changed_lines` hunks (1-based old and new starts and counts) that touch the span, with
     a truncation flag beyond 16.
   Lines the diff deleted with no replacement state that reason. A diff beyond 1024 edits is one
-  `coarse` hunk, never a guessed alignment. Acceptance: `TestDCPV1360DeltaWorklistClasses`,
-  `TestDCPV1363LineDiff`.
+  `coarse` hunk, never a guessed alignment. A symbol anchor the symbol re-resolution reports
+  changed keeps the resolver's estimated span and still carries the `changed_lines` of the previous
+  blob against the current blob of the re-resolved path. Acceptance:
+  `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`.
 - `DCP-V1-364`: For each current `source` input whose blob is new or changed, the inserted or
   replaced line ranges that no current records-provider claim covers are `uncovered` region entries.
-  A previous claim's re-pinned current span counts as coverage; native compiler claims do not. Each
-  region entry has:
+  A previous claim's re-pinned current span counts as coverage; native compiler claims do not.
+  Covered lines are subtracted, so each maximal uncovered sub-range of a changed range is its own
+  region. Each region entry has:
   - the ID `PATH:START-END`;
   - the region's blob, SHA-256 and span hash;
   - up to 8 current subject IDs whose evidence overlaps it, plus the count left out.
-  A new path, an unreadable previous blob or a coarse diff yields one whole-file region. Inputs
-  that cannot be read within the bounds are named in a limitation. Acceptance:
-  `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1360DeltaCLI`.
+  A new path, an unreadable previous blob or a coarse diff yields one whole-file range before
+  subtraction. Inputs that cannot be read within the bounds are named in a limitation. In addition,
+  every current subject that no current claim of any provider names as its subject is an
+  `uncovered` entry of record kind `subject`, whether or not its lines changed; these entries are
+  bounded by the corpus record capacity and paged with the rest. Acceptance:
+  `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1360DeltaCLI`, `TestDCPV1360DeltaRepairs`.
 - `DCP-V1-365`: Carry-forward and moved records are demoted to `unresolved`, with a reason naming
   the missing ID, when a dependency is missing:
   - a claim whose subject is neither in the current corpus nor itself carried;
   - a relation with an endpoint in that state.
-  Demotion repeats until stable, so the carried set imports without a dangling reference.
-  Acceptance: `TestDCPV1360DeltaWorklistClasses`.
+  Demotion repeats until stable across all providers. A dependency that only another provider
+  carries therefore survives classification, and `carry-forward` for one provider refuses it
+  (`DCP-V1-366`). Acceptance: `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1360DeltaRepairs`.
 - `DCP-V1-366`: `carry-forward --provider ID` emits a `corvint-corpus-provider/1` record. It names
   the previous provider's ID and version, and the current repository as its source. It holds that
   provider's `carry-forward` and `moved` records that the current corpus does not already hold.
@@ -1735,13 +1742,22 @@ only standard output. Neither changes a claim's text, trust or limitations. Stat
     blob, SHA-256 and lines) with the same span hash;
   - a provider-reported `reviewed` trust is restored to its reported form, so the next build's
     import reproduces the previous trust, reported trust and limitations byte for byte;
-  - each non-empty kind declares a `present` capability naming the previous corpus SHA-256.
+  - each non-empty kind declares a `present` capability naming the previous corpus SHA-256;
+  - the record must import on its own: when a carried claim's subject or relation endpoint is
+    neither in the current corpus nor in the record, because another provider carries it, the
+    operation is refused (`corpus-refused`). The refusal names up to 16 such dependencies and their
+    carrying provider, so the caller carries and builds that provider first and then repeats.
+    Records are never silently dropped or widened to another provider.
   Committed and declared as a records provider, the record builds without refusal. A second
   carry-forward against that build carries nothing. Acceptance:
-  `TestDCPV1366CarryForwardFeedsNextBuild`.
+  `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1360DeltaRepairs`.
 - `DCP-V1-367`: Reads are bounded and deterministic:
-  - each blob is limited to 8 MiB, total admitted blob bytes to 64 MiB, and bytes hashed to place
-    spans to 64 MiB;
+  - each blob is limited to 8 MiB and total admitted blob bytes to 64 MiB, both checked against
+    the object header before the body is read;
+  - every span digest the classification computes (unchanged-blob confirmation, previous span,
+    placement windows, symbol re-resolution and estimated spans) is charged to a 64 MiB hashing
+    bound before it is hashed; region digests are disjoint parts of read blobs and stay inside the
+    read bound;
   - Git object reads are batched and tree lookups prefetched;
   - an exhausted Git budget is `corpus-capacity-exceeded`;
   - a blob past a bound, unreadable, or failing its recorded SHA-256 makes its anchor `unresolved`
@@ -1749,7 +1765,7 @@ only standard output. Neither changes a claim's text, trust or limitations. Stat
   - the carry-forward record stays within 4096 records per kind and the provider encode bound, and
     is otherwise `corpus-capacity-exceeded`.
   The same inputs give byte-identical receipts and records. Acceptance:
-  `TestDCPV1360DeltaWorklistClasses`.
+  `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1360DeltaRepairs`.
 - `DCP-V1-368`: Neither operation writes the repository, the index, the working tree or any
   artifact. A `--manifest` current side is built in memory only. Acceptance:
   `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1360DeltaCLI`.
@@ -2143,8 +2159,10 @@ profile is refused (`DCP-V1-266`).
 A delta anchor whose span hash cannot be confirmed at the current revision (unreadable or
 over-bound blob, digest mismatch, ambiguous window, hashing bound) is `changed`, `removed` or
 `unresolved` with its reason and is never carried (`DCP-V1-362`, `DCP-V1-367`); a carried record
-with an unconfirmed dependency is demoted (`DCP-V1-365`); a cross-repository comparison, an
-undeclared carry-forward provider or an ambiguous current side is refused (`DCP-V1-369`).
+with an unconfirmed dependency is demoted (`DCP-V1-365`); a carry-forward whose record depends on
+another provider's carried record is refused with the missing dependencies named (`DCP-V1-366`); a
+cross-repository comparison, an undeclared carry-forward provider or an ambiguous current side is
+refused (`DCP-V1-369`).
 A test-knowledge record refuses with `corpus-refused` for an unknown member or enum value, a
 broken field rule, a secret-shaped free-text value, a malformed or unpinned anchor, a bound
 breach, use under manifest `/1`, or a forged binding (any anchor mismatch at the corpus
@@ -2280,7 +2298,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-205..207 | `cmd/corvint-corpus-mcp/main.go` | `TestDCPV1205AbsoluteArtifactInsideRoot`, `TestDCPV1206AbsoluteArtifactThroughSymlinkedRoot`, `TestDCPV1207AbsoluteArtifactOutsideRootRefused`, `TestDCPV1205AbsoluteMapInsideRoot` |; | DCP-V1-200..203 | `internal/mcp/corpusbridge/corpusbridge.go` | `TestDCPV1200SingleCallOverBoundPagesWithNextOffset`, `TestDCPV1202UnpagedSchemaRefusesOverBound`, `TestDCPV1143LazyLoadAndMemo` (a fitting receipt keeps its CLI bytes); docs/build-log/2026-10-19-V1-1996-corpus-mcp-output-bound.md |; | DCP-V1-193..197 | `internal/doccorpus/query_index.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1193HundredThousandRecordCorpusAnswersIndexedReads`, `TestDCPV1194IndexRefusalNamesBoundAndObservedCount`, `TestDCPV1195IndexRefusalDerivedOncePerArtifact`, `TestDCPV1195IndexDerivedOncePerArtifact`, `TestDCPV1196BuildAdmittedRefusesOverBoundIndex`, `TestFlowDocsFinalizeRefusesOverBoundIndex`, `TestRepublishRefusesOverBoundIndex`; memory, latency and byte identity measured in docs/build-log/2026-10-19-V1-1995-corpus-index-bound.md |; | DCP-V1-210..215 | `internal/doccorpus/adoption.go`, `query.go`, `query_index.go`, `providers.go`, `incremental.go` | `TestDCPV1210SuppliedTestRunReceipt`, `TestDCPV1210ResidualRecordRefusals`, `TestDCPV1212LegacyCaseIDLinksToSubject`, `TestDCPV1214SuppliedGapsInCapabilitiesAndIndex`, `TestDCPV1215IncrementalCountsSuppliedClaimKinds`; byte identity measured in docs/build-log/2026-10-19-V1-1993-adoption-residuals.md |
 | DCP-V1-146 | `internal/doccorpus/compile.go` | `TestDCPV1146OversizedParagraphStaysVerbatim`, `TestDCPV1146OversizedLineIsAGap`, `TestDCPV1146RefusalsNameTheSpan`; measured on Corvint's docs scope in docs/build-log/2026-10-19-V1-1983-docs-corpus-located-refusals.md |; | DCP-V1-150..152 | `internal/doccorpus/typed_query.go`, `docs/DOCUMENTATION-CORPUS.md` | `TestDCPV1150ProviderReportedReviewYieldsUnauthenticatedGap`, `TestDCPV1151AuthenticatedReviewClearsAssertingGap`, `TestDCPV1152AssertingGapNamesTheFailedCondition` |; | DCP-V1-165..169 | `internal/doccorpus/legacy_cases.go`, `cmd/corvint/docs_corpus_legacy_cases.go`, `cmd/corvint/docs_corpus_help.go`, `cmd/corvint-corpus-mcp/legacycases.go` | `TestDCPV1165LegacyCaseIDLookup`, `TestDCPV1166LegacyCaseAnyMatchRanks`, `TestDCPV1167LegacyCaseQueryIDRule`, `TestDCPV1168LegacyCaseAllModeBytesUnchanged`, `TestDCPV1169CorpusMCPSearchCasesModes`, `TestDCPV1165DocsCorpusSearchCasesModesCLI`, `TestDocsCorpusOperationFlagMatrix` |; | DCP-V1-160..163 | `internal/doccorpus/compile.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1160SchemaTwoManifestOfTwentyThousandFilesBuilds`, `TestDCPV1160DefaultSingleScopeUnchanged`, `TestDCPV1160SchemaFlagValues`, `TestDCPV1161ScopesSortedAndOverlapRefused`, `TestDCPV1162BoundRefusalNamesBoundScopeAndCount` |; | DCP-V1-170..174 | `internal/doccorpus/flow_filter.go`, `typed_query.go`, `query.go`, `pagination.go`, `types.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1170FlowSectionFilter`, `TestDCPV1171FlowIncludeFilter`, `TestDCPV1172FlowSelectionReceipt`, `TestDCPV1173FlowFilterPagination`, `TestDCPV1174DocsFlowToolFilters`, `TestDCPV1174CorpusFlowFilterOptions`, `TestDocsCorpusOperationFlagMatrix`; measured in docs/build-log/2026-10-19-V1-1990-docs-flow-section-filter.md |; | DCP-V1-155..159 | `internal/cem/gitauth/pathset.go`, `internal/doccorpus/batch_input.go`, `capacity.go`, `compile.go`, `query.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1155ReadFreshnessGitOpsIndependentOfInputCount` (10,000 inputs, 16 Git operations per phase, one change is `stale`), `TestDCPV1155ResolvePathsMatchesSingleLookupsWithinOneOpPerLevel`, `TestDCPV1156ManifestAndBuildBatchNonIndexedInputs`, `TestDCPV1157CapacityRefusalsAreTypedAndEarly`, `TestDCPV1158BridgeTypesGitCapacityLikeTheCLI`, `TestDCPV1158CLITypesGitCapacityLikeTheBridge`, `TestDCPV1159BatchedPinningKeepsArtifactBytes`; measured in docs/build-log/2026-10-19-V1-1984-corpus-git-budget.md |; | DCP-V1-175..179 | `internal/doccorpus/types.go`, `compile.go`, `providers.go`, `query.go`, `internal/mcp/corpusbridge/corpusbridge.go` | `TestDCPV1175AdditionalRepositoryAnchors`, `TestDCPV1176AdditionalRepositoryRefusals`, `TestDCPV1178BridgeVerifiesPinsInOwningCheckout`, `TestDCPV1179SingleRepositoryManifestUnchanged`; byte identity measured in docs/build-log/2026-10-19-V1-1986-corpus-additional-repositories.md |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
-| DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
+| DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-216..217 | `internal/doccorpus/batch_paths.go`, `symbol_anchor.go`, `cem.go`, `behavior_legacy_discovery.go`, `behavior_playwright_discovery.go` | `TestDCPV1216SymbolAnchorsGitOpsIndependentOfAnchorCount` (5,000 moved anchors), `TestDCPV1216CEMProjectionGitOpsIndependentOfAnchorCount` (5,000 anchors), `TestDCPV1216LegacyDiscoveryGitOpsIndependentOfPathCount` (4,096 files, the record bound), `TestDCPV1216PlaywrightDiscoveryGitOpsIndependentOfPathCount` (2,000 files, 4,008 executions), each within 16 Git operations per phase and byte-identical to the per-path reads; `TestDCPV1216ProjectionKeepsPerPathTreeBound` (anchor under a tree past 4 MiB refused as per path), `TestDCPV1216SymbolFallbackBudgetWithholdsStates` (missing pinned blob, budget exhausted in the fallback, states withheld as per path), `TestDCPV1216GitHooksTravelWithTheContext` (the test budget and per-path override travel on the call's context, so the equivalence tests run under `t.Parallel` and `-race`); measured in docs/build-log/2026-10-20-v1-1991-batched-path-reads.md and docs/build-log/2026-10-21-testspeed-1021v-doccorpus-parallel-equivalence.md |
 
 ## Open decisions

@@ -50,7 +50,9 @@ const (
 const compilerReviewLimitation = "provider-reported review is unauthenticated and grants no Core authority"
 
 var deltaClassOrder = map[string]int{DeltaRemoved: 0, DeltaChanged: 1, DeltaUnresolved: 2, DeltaUncovered: 3, DeltaMoved: 4, DeltaCarryForward: 5}
-var deltaKindOrder = map[string]int{"subject": 0, "claim": 1, "relation": 2, "region": 3}
+
+// Regions occur only among uncovered entries, where changed lines lead the subjects no claim cites.
+var deltaKindOrder = map[string]int{"region": 0, "subject": 1, "claim": 2, "relation": 3}
 
 // DeltaSpan is one side of an anchored span or an uncovered region.
 type DeltaSpan struct {
@@ -134,6 +136,8 @@ type deltaRun struct {
 	blobs         map[string][]byte
 	blobReasons   map[string]string
 	read, hashed  int
+	hashLimit     int // deltaHashMaxBytes; zero means the default
+	readLimit     int // deltaReadMaxBytes; zero means the default
 	index         *contextindex.Index
 	resolver      *SymbolResolver
 	records       []*deltaRecord
@@ -225,6 +229,9 @@ func CarryForward(ctx context.Context, root string, previous, current *Artifact,
 			record.Relations = append(record.Relations, rel)
 		}
 	}
+	if err := carriedClosure(run, record, provider); err != nil {
+		return nil, err
+	}
 	if len(record.Subjects) > MaxRecords || len(record.Claims) > MaxRecords || len(record.Relations) > MaxRecords {
 		return nil, capacityExceeded("carried records of one kind", max(len(record.Subjects), len(record.Claims), len(record.Relations)), MaxRecords)
 	}
@@ -241,6 +248,52 @@ func CarryForward(ctx context.Context, root string, previous, current *Artifact,
 		return nil, err
 	}
 	return record, nil
+}
+
+// carriedClosure refuses a carry-forward record that would not import on its
+// own: a carried claim's subject, or a carried relation's endpoint, that is
+// neither in the current corpus nor in the record. Classification already
+// demoted records whose dependency is carried by no provider (DCP-V1-365), so
+// what remains is a dependency another provider carries; the refusal names it
+// so the caller can carry and build that provider first (DCP-V1-366).
+func carriedClosure(run *deltaRun, record *ProviderRecord, provider string) error {
+	present := map[string]bool{}
+	for _, s := range run.current.Subjects {
+		present[s.ID] = true
+	}
+	for _, c := range run.current.Claims {
+		present[c.ID] = true
+	}
+	for _, s := range record.Subjects {
+		present[s.ID] = true
+	}
+	for _, c := range record.Claims {
+		present[c.ID] = true
+	}
+	carriedBy := map[string]string{}
+	for _, r := range run.records {
+		if r.entry.Class == DeltaCarryForward || r.entry.Class == DeltaMoved {
+			carriedBy[r.entry.ID] = r.entry.Provider
+		}
+	}
+	missing := []string{}
+	need := func(id, dep string) {
+		if !present[dep] {
+			missing = append(missing, id+" needs "+dep+" (carried by provider "+carriedBy[dep]+")")
+		}
+	}
+	for _, c := range record.Claims {
+		need(c.ID, c.Subject)
+	}
+	for _, r := range record.Relations {
+		need(r.ID, r.From)
+		need(r.ID, r.To)
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	shown := missing[:min(len(missing), deltaLimitedPaths)]
+	return fail(fmt.Sprintf("carry-forward of provider %s depends on %d records outside it and the current corpus: %s; carry, declare and build those providers first, then carry %s against that build", provider, len(missing), strings.Join(shown, "; "), provider))
 }
 
 // carriedEvidence re-pins anchors and undoes the compiler's review demotion so
@@ -273,7 +326,7 @@ func classifyDelta(ctx context.Context, root string, previous, current *Artifact
 	}
 	release := auth.BeginObjectSession()
 	defer release()
-	d := &deltaRun{root: root, previous: previous, current: current, auth: auth, pre: newPathPrefetch(current.Manifest.Repository.Revision), newInputs: map[string]Input{}, oldInputs: map[string]Input{}, blobs: map[string][]byte{}, blobReasons: map[string]string{}}
+	d := &deltaRun{root: root, previous: previous, current: current, auth: auth, pre: newPathPrefetch(current.Manifest.Repository.Revision), hashLimit: deltaHashMaxBytes, readLimit: deltaReadMaxBytes, newInputs: map[string]Input{}, oldInputs: map[string]Input{}, blobs: map[string][]byte{}, blobReasons: map[string]string{}}
 	for _, in := range current.Manifest.Inputs {
 		if in.Revision == current.Manifest.Repository.Revision {
 			d.newInputs[in.Path] = in
@@ -337,7 +390,7 @@ func (d *deltaRun) prefetch(ctx context.Context) error {
 	if err := d.pre.resolve(ctx, d.auth, paths); err != nil {
 		return err
 	}
-	return d.pre.read(ctx, d.auth, oids, deltaFileMaxBytes, deltaReadMaxBytes)
+	return d.pre.read(ctx, d.auth, oids, deltaFileMaxBytes, d.readLimit)
 }
 
 func subjectEvidence(list []Subject) []Evidence {
@@ -380,7 +433,18 @@ func (d *deltaRun) blob(ctx context.Context, oid, sha string) ([]byte, string, e
 	if reason, ok := d.blobReasons[oid]; ok {
 		return nil, reason, nil
 	}
-	data, over, err := d.pre.blobWithin(ctx, d.auth, oid, deltaFileMaxBytes)
+	budget := d.readLimit
+	if budget == 0 {
+		budget = deltaReadMaxBytes
+	}
+	limit := min(deltaFileMaxBytes, budget-d.read)
+	if limit < 1 {
+		reason := "the 64 MiB delta read bound was reached before blob " + oid
+		d.blobReasons[oid] = reason
+		return nil, reason, nil
+	}
+	// The limit is checked against the object header before any body is read.
+	data, over, err := d.pre.blobWithin(ctx, d.auth, oid, limit)
 	reason := ""
 	switch {
 	case err != nil:
@@ -392,10 +456,10 @@ func (d *deltaRun) blob(ctx context.Context, oid, sha string) ([]byte, string, e
 			return nil, "", typed
 		}
 		reason = "blob " + oid + " is not readable from this repository"
-	case over:
+	case over && limit == deltaFileMaxBytes:
 		reason = "blob " + oid + " exceeds the 8 MiB per-file delta bound"
-	case d.read+len(data) > deltaReadMaxBytes:
-		reason = "the 64 MiB delta read bound was reached before blob " + oid
+	case over:
+		reason = fmt.Sprintf("blob %s exceeds the %d bytes left under the 64 MiB delta read bound", oid, limit)
 	case sha != "" && Digest(data) != sha:
 		reason = "blob " + oid + " does not hash to its recorded sha256"
 	}
@@ -551,6 +615,8 @@ func (d *deltaRun) classifyAnchor(ctx context.Context, a Anchor) (DeltaAnchor, A
 			return da, moved, err
 		}
 		switch {
+		case da.State == DeltaChanged:
+			return d.changedLines(ctx, a, da)
 		case da.State != "":
 			return da, Anchor{}, nil
 		case exists && regularBlob(entry):
@@ -573,23 +639,35 @@ func (d *deltaRun) classifyAnchor(ctx context.Context, a Anchor) (DeltaAnchor, A
 		da.Current = &DeltaSpan{Path: a.Path, Blob: in.Blob, SHA256: in.SHA256, Start: s, End: e, SpanSHA256: a.SpanSHA256}
 		return p
 	}
-	if in.Blob == a.Blob && spanDigest(data, a.Start, a.End) == a.SpanSHA256 {
-		da.State, da.Reason = DeltaCarryForward, "anchored blob is unchanged at the current revision"
-		return da, pin(a.Start, a.End), nil
+	if in.Blob == a.Blob {
+		digest, ok := d.spanHash(spanLines(data), a.Start, a.End)
+		if !ok {
+			return state(DeltaUnresolved, deltaHashBoundReason)
+		}
+		if digest == a.SpanSHA256 {
+			da.State, da.Reason = DeltaCarryForward, "anchored blob is unchanged at the current revision"
+			return da, pin(a.Start, a.End), nil
+		}
 	}
 	oldData, oldReason, err := d.blob(ctx, a.Blob, a.SHA256)
 	if err != nil {
 		return da, Anchor{}, err
 	}
 	var oldSpan []byte
-	if oldReason == "" && spanDigest(oldData, a.Start, a.End) == a.SpanSHA256 {
-		lines := splitLines(oldData)
-		oldSpan = []byte(strings.Join(lines[a.Start-1:a.End], ""))
+	if oldReason == "" {
+		lines := spanLines(oldData)
+		digest, ok := d.spanHash(lines, a.Start, a.End)
+		if !ok {
+			return state(DeltaUnresolved, deltaHashBoundReason)
+		}
+		if digest == a.SpanSHA256 {
+			oldSpan = []byte(strings.Join(lines[a.Start-1:a.End], ""))
+		}
 	}
 	same, others, bounded := d.place(data, a, oldSpan)
 	switch {
 	case bounded:
-		return state(DeltaUnresolved, "the 64 MiB delta hashing bound was reached before the span could be placed")
+		return state(DeltaUnresolved, deltaHashBoundReason)
 	case same:
 		if err := d.confirmSymbol(ctx, a, a.Path, a.Start, a.End); err != "" {
 			return state(DeltaUnresolved, err)
@@ -609,7 +687,10 @@ func (d *deltaRun) classifyAnchor(ctx context.Context, a Anchor) (DeltaAnchor, A
 	if moved, ok, err := d.symbolMove(ctx, a, &da); err != nil || ok {
 		return da, moved, err
 	}
-	if da.State == DeltaRemoved || da.State == DeltaChanged {
+	switch da.State {
+	case DeltaChanged:
+		return d.changedLines(ctx, a, da)
+	case DeltaRemoved, DeltaUnresolved:
 		return da, Anchor{}, nil
 	}
 	da.State, da.Reason = DeltaChanged, "span hash is absent from the current blob"
@@ -624,10 +705,44 @@ func (d *deltaRun) classifyAnchor(ctx context.Context, a Anchor) (DeltaAnchor, A
 	end, okEnd := mapLine(hunks, a.End, true)
 	start, end = max(start, 1), min(end, len(newLines))
 	if (okStart || okEnd) && start <= end {
-		da.Current = &DeltaSpan{Path: a.Path, Blob: in.Blob, SHA256: in.SHA256, Start: start, End: end, SpanSHA256: spanDigest(data, start, end), Estimated: true}
+		digest, ok := d.spanHash(spanLines(data), start, end)
+		if !ok {
+			return state(DeltaUnresolved, deltaHashBoundReason)
+		}
+		da.Current = &DeltaSpan{Path: a.Path, Blob: in.Blob, SHA256: in.SHA256, Start: start, End: end, SpanSHA256: digest, Estimated: true}
 	} else {
 		da.Reason = "anchored lines were deleted from the current blob"
 	}
+	return da, Anchor{}, nil
+}
+
+// changedLines fills the changed-line hunks of an anchor the symbol resolver
+// reported changed, diffing the previous blob against the current blob of the
+// re-resolved path while keeping the resolver's estimated current span.
+func (d *deltaRun) changedLines(ctx context.Context, a Anchor, da DeltaAnchor) (DeltaAnchor, Anchor, error) {
+	path := a.Path
+	if da.Current != nil {
+		path = da.Current.Path
+	}
+	in, declared := d.newInputs[path]
+	if !declared {
+		da.Reason += "; changed lines not computed: " + path + " is not a declared input of the current manifest"
+		return da, Anchor{}, nil
+	}
+	data, reason, err := d.blob(ctx, in.Blob, in.SHA256)
+	if err == nil && reason == "" {
+		var oldData []byte
+		oldData, reason, err = d.blob(ctx, a.Blob, a.SHA256)
+		if err == nil && reason == "" {
+			hunks := lineDiff(splitLines(oldData), splitLines(data), deltaMaxEdits)
+			da.ChangedLines, da.ChangedTruncated = overlappingHunks(hunks, a.Start, a.End, deltaHunksPerAnchor)
+			return da, Anchor{}, nil
+		}
+	}
+	if err != nil {
+		return da, Anchor{}, err
+	}
+	da.Reason += "; changed lines not computed: " + reason
 	return da, Anchor{}, nil
 }
 
@@ -635,33 +750,30 @@ func (d *deltaRun) classifyAnchor(ctx context.Context, a Anchor) (DeltaAnchor, A
 // line windows where it holds (at most two). A known previous span narrows the
 // candidates to windows whose first line matches before any hashing.
 func (d *deltaRun) place(data []byte, a Anchor, oldSpan []byte) (same bool, others []int, bounded bool) {
-	lines := splitLines(data)
+	lines := spanLines(data)
 	width := a.End - a.Start + 1
-	window := func(first int) string {
-		joined := strings.Join(lines[first:first+width], "")
-		d.hashed += len(joined)
-		return Digest([]byte(joined))
-	}
 	if a.End <= len(lines) {
-		if d.hashed > deltaHashMaxBytes {
+		digest, ok := d.spanHash(lines, a.Start, a.End)
+		if !ok {
 			return false, nil, true
 		}
-		if window(a.Start-1) == a.SpanSHA256 {
+		if digest == a.SpanSHA256 {
 			return true, nil, false
 		}
 	}
 	firstLine := ""
 	if oldSpan != nil {
-		firstLine = splitLines(oldSpan)[0]
+		firstLine = spanLines(oldSpan)[0]
 	}
 	for first := 0; first+width <= len(lines); first++ {
 		if first == a.Start-1 || oldSpan != nil && lines[first] != firstLine {
 			continue
 		}
-		if d.hashed > deltaHashMaxBytes {
+		digest, ok := d.spanHash(lines, first+1, first+width)
+		if !ok {
 			return false, nil, true
 		}
-		if window(first) == a.SpanSHA256 {
+		if digest == a.SpanSHA256 {
 			others = append(others, first+1)
 			if len(others) == 2 {
 				break
@@ -669,6 +781,33 @@ func (d *deltaRun) place(data []byte, a Anchor, oldSpan []byte) (same bool, othe
 		}
 	}
 	return false, others, false
+}
+
+const deltaHashBoundReason = "the 64 MiB delta hashing bound was reached before the span could be confirmed"
+
+// spanLines numbers lines exactly as spanDigest and the compiler's span do: a
+// trailing newline leaves one final empty line, so an anchor may end there.
+func spanLines(data []byte) []string {
+	return strings.SplitAfter(string(data), "\n")
+}
+
+// spanHash digests lines start..end of lines, charging their bytes to the
+// hashing bound before hashing. ok is false, with nothing charged or hashed,
+// when the bytes would pass the bound; an out-of-range span digests to "".
+func (d *deltaRun) spanHash(lines []string, start, end int) (string, bool) {
+	if start < 1 || end > len(lines) || end < start {
+		return "", true
+	}
+	joined := strings.Join(lines[start-1:end], "")
+	limit := d.hashLimit
+	if limit == 0 {
+		limit = deltaHashMaxBytes
+	}
+	if d.hashed+len(joined) > limit {
+		return "", false
+	}
+	d.hashed += len(joined)
+	return Digest([]byte(joined)), true
 }
 
 // liveIndex is the current revision's context index, built once on demand.
@@ -753,9 +892,14 @@ func (d *deltaRun) symbolMove(ctx context.Context, a Anchor, da *DeltaAnchor) (A
 		da.State, da.Reason = DeltaUnresolved, "current "+reason
 		return Anchor{}, false, nil
 	}
-	if spanDigest(data, l.Start, l.End) != a.SpanSHA256 {
+	digest, ok := d.spanHash(spanLines(data), l.Start, l.End)
+	if !ok {
+		da.State, da.Reason = DeltaUnresolved, deltaHashBoundReason
+		return Anchor{}, false, nil
+	}
+	if digest != a.SpanSHA256 {
 		da.State, da.Reason = DeltaChanged, "symbol region re-resolved to "+l.Path+" but its exact span hash differs"
-		da.Current = &DeltaSpan{Path: l.Path, Blob: l.Blob, SHA256: l.SHA256, Start: l.Start, End: l.End, SpanSHA256: spanDigest(data, l.Start, l.End), Estimated: true}
+		da.Current = &DeltaSpan{Path: l.Path, Blob: l.Blob, SHA256: l.SHA256, Start: l.Start, End: l.End, SpanSHA256: digest, Estimated: true}
 		return Anchor{}, false, nil
 	}
 	if reason := d.confirmSymbol(ctx, a, l.Path, l.Start, l.End); reason != "" {
@@ -803,17 +947,11 @@ func (d *deltaRun) uncovered(ctx context.Context) error {
 			}
 		}
 	}
-	subjects := map[string][]struct {
-		id         string
-		start, end int
-	}{}
+	subjects := map[string][]deltaSubjectSpan{}
 	for _, s := range d.current.Subjects {
 		for _, a := range s.Evidence.Anchors {
 			if a.Revision == revision {
-				subjects[a.Path] = append(subjects[a.Path], struct {
-					id         string
-					start, end int
-				}{s.ID, a.Start, a.End})
+				subjects[a.Path] = append(subjects[a.Path], deltaSubjectSpan{s.ID, a.Start, a.End})
 			}
 		}
 	}
@@ -861,36 +999,78 @@ func (d *deltaRun) uncovered(ctx context.Context) error {
 			if h.NewCount == 0 {
 				continue
 			}
-			s, e := h.NewStart, h.NewStart+h.NewCount-1
-			covered := false
-			for _, c := range covers[p] {
-				if c[0] <= e && c[1] >= s {
-					covered = true
-					break
-				}
+			for _, r := range uncoveredRanges(h.NewStart, h.NewStart+h.NewCount-1, covers[p]) {
+				d.regions = append(d.regions, regionEntry(p, in, data, r[0], r[1], why, subjects[p]))
 			}
-			if covered {
-				continue
-			}
-			entry := DeltaEntry{Class: DeltaUncovered, RecordKind: "region", ID: fmt.Sprintf("%s:%d-%d", p, s, e), Reason: why, Region: &DeltaSpan{Path: p, Blob: in.Blob, SHA256: in.SHA256, Start: s, End: e, SpanSHA256: spanDigest(data, s, e)}}
-			named := map[string]bool{}
-			for _, sub := range subjects[p] {
-				if sub.start <= e && sub.end >= s && !named[sub.id] {
-					named[sub.id] = true
-				}
-			}
-			ids := sortedKeys(named)
-			if len(ids) > deltaRegionSubjects {
-				entry.SubjectsOmitted = len(ids) - deltaRegionSubjects
-				ids = ids[:deltaRegionSubjects]
-			}
-			entry.Subjects = ids
-			d.regions = append(d.regions, entry)
 		}
 	}
 	if len(unread) > 0 {
 		shown := unread[:min(len(unread), deltaLimitedPaths)]
 		d.limitations = append(d.limitations, fmt.Sprintf("%d changed source inputs were not read, so their uncovered lines are unknown: %s", len(unread), strings.Join(shown, "; ")))
 	}
+	d.uncitedSubjects()
 	return nil
+}
+
+type deltaSubjectSpan struct {
+	id         string
+	start, end int
+}
+
+// uncoveredRanges returns the sub-ranges of lines s..e that no covering span
+// touches, in line order.
+func uncoveredRanges(s, e int, covers [][2]int) [][2]int {
+	sorted := append([][2]int(nil), covers...)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i][0] < sorted[j][0] })
+	out := [][2]int{}
+	next := s
+	for _, c := range sorted {
+		if c[1] < next || c[0] > e {
+			continue
+		}
+		if c[0] > next {
+			out = append(out, [2]int{next, c[0] - 1})
+		}
+		next = max(next, c[1]+1)
+		if next > e {
+			return out
+		}
+	}
+	return append(out, [2]int{next, e})
+}
+
+// regionEntry is one uncovered changed region with the current subjects
+// anchored inside it (at most deltaRegionSubjects). Regions are disjoint
+// sub-ranges of read blobs, so their digests stay inside the read bound.
+func regionEntry(p string, in Input, data []byte, s, e int, why string, subjects []deltaSubjectSpan) DeltaEntry {
+	entry := DeltaEntry{Class: DeltaUncovered, RecordKind: "region", ID: fmt.Sprintf("%s:%d-%d", p, s, e), Reason: why, Region: &DeltaSpan{Path: p, Blob: in.Blob, SHA256: in.SHA256, Start: s, End: e, SpanSHA256: spanDigest(data, s, e)}}
+	named := map[string]bool{}
+	for _, sub := range subjects {
+		if sub.start <= e && sub.end >= s {
+			named[sub.id] = true
+		}
+	}
+	ids := sortedKeys(named)
+	if len(ids) > deltaRegionSubjects {
+		entry.SubjectsOmitted = len(ids) - deltaRegionSubjects
+		ids = ids[:deltaRegionSubjects]
+	}
+	entry.Subjects = ids
+	return entry
+}
+
+// uncitedSubjects lists every current subject that no current claim, of any
+// provider, names as its subject (DCP-V1-364). The list is bounded by the
+// corpus capacity and paged with the rest of the worklist.
+func (d *deltaRun) uncitedSubjects() {
+	cited := map[string]bool{}
+	for _, c := range d.current.Claims {
+		cited[c.Subject] = true
+	}
+	for _, s := range d.current.Subjects {
+		if cited[s.ID] {
+			continue
+		}
+		d.regions = append(d.regions, DeltaEntry{Class: DeltaUncovered, RecordKind: "subject", ID: s.ID, Provider: s.Provider, Reason: "no claim in the current corpus names this subject"})
+	}
 }
