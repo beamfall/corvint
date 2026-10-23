@@ -12,13 +12,14 @@ budgets encode); GitHub #1406 (host-latency limits need a baseline and a content
 
 ## Agent digest
 - Claim: Every command and MCP server honours the CPU and heap profile knobs, and `make perf-budget` measures six read budgets over a generated fixture.
-- Status: accepted (owner standing auto-accept 2026-10-11)/experimental; checked by `TestPRBV0008EveryNamedCommandWritesProfiles` and `TestPRBV0024HarnessSmokeRun`.
+- Status: accepted (owner standing auto-accept 2026-10-11)/experimental; checked by `TestPRBV0008EveryNamedCommandWritesProfiles`, `TestPRBV0024HarnessSmokeRun` and `TestPRBV0039ContentionWithholdsJudgement`; a contended host is `NOT_JUDGED`, not failed.
 - Exists: `internal/procprofile`, `cmd/corvint/profile_knobs.go`, each MCP server's `runProfiled`, `internal/perfbudget`, `internal/perfbudget/budgets.json`, `make perf-budget`.
 - Blocked on: CI wiring of `make perf-budget` needs owner approval of a `.github/` change; the #1598 and #1601 targets stay pending until those changes land.
 - Read next: Requirements; Failure modes; Acceptance.
 
-PRB-V0-001..013 (GitHub #1600; V1-2475) and PRB-V0-020..037 (GitHub #1602; V1-2474) are
-accepted under the owner's standing auto-accept (2026-10-11); each definition carries its marker.
+PRB-V0-001..013 (GitHub #1600; V1-2475), PRB-V0-020..037 (GitHub #1602; V1-2474) and
+PRB-V0-038..043 (GitHub #1602, contention judgement) are accepted under the owner's standing
+auto-accept (2026-10-11); each definition carries its marker.
 
 ## User and boundary
 
@@ -132,7 +133,8 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
   JSON. The harness MUST exit 0 when every enforced limit holds, 1 when an enforced limit is
   exceeded or unknown, and 2 when it cannot run, including a `--scale` other than the budgets
   file's and a measured executable (`--corvint`, `--corpus-mcp`) that cannot be started (a command
-  or tool that starts and refuses fails its scenario instead); `make` fails on either non-zero status and names it in its `Error N` line. `PERF_BUDGET_ARGS`
+  or tool that starts and refuses fails its scenario instead); a `NOT_JUDGED` run exits as
+  `PRB-V0-041` states; `make` fails on either non-zero status and names it in its `Error N` line. `PERF_BUDGET_ARGS`
   passes `--budgets`, `--fixture`, `--scale`, `--corvint`, `--corpus-mcp`, `--out` and
   `--record-baseline`; a baseline is not recorded when any scenario failed or measured nothing.
 - `PRB-V0-030`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2474) The committed budgets file (`internal/perfbudget/budgets.json`,
@@ -166,12 +168,47 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
   retirement, so a descendant that left the group is killed and awaited too. The harness removes
   its scratch directory only after that cleanup returns.
 
+### Contention judgement (GitHub #1602, #1406)
+
+- `PRB-V0-038`: (accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) Every report MUST carry a run `verdict` of `PASS`, `FAIL`
+  or `NOT_JUDGED`, and for `NOT_JUDGED` a `not_judged_reason`. `ok` MUST be true only for `PASS`.
+- `PRB-V0-039`: (accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) The run MUST be `NOT_JUDGED`, never `PASS` or `FAIL`
+  on latency or memory, when its own host-contention record (`PRB-V0-028`) cannot support a
+  verdict. The stated threshold is `PRB-V0-028`'s `contended`: a 1-minute load average before or
+  after the measurements that reached the core count. A run whose load average was not observed
+  before or after (`contended` null) has no contention record and is also `NOT_JUDGED`. Every
+  enforced limit with an observed value MUST then report `not-judged` with that reason and keep
+  the value; pending targets keep their `PRB-V0-034` verdicts. Every scenario is still measured
+  and reported.
+- `PRB-V0-040`: (accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) A scenario that failed or was not measured, or an enforced
+  metric that was not observed, MUST fail the run (`FAIL`) on a contended host too, because
+  neither is a timing effect; those limits stay `unknown` (`PRB-V0-035`). The other enforced limits
+  of that run stay `not-judged` and the report keeps the `not_judged_reason`.
+- `PRB-V0-041`: (accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) The harness MUST exit 0 for `PASS` and 1 for `FAIL`
+  (status 2 stays the harness that cannot run). For `NOT_JUDGED` it MUST print
+  `perf-budget: NOT_JUDGED: <reason>` on stderr and exit 0, or 3 under `--require-judgement`; no
+  verdict shares a status with another.
+- `PRB-V0-042`: (accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) `make perf-budget` MUST pass `--require-judgement`
+  exactly when `PERF_BUDGET_REQUIRE_JUDGEMENT=1`, so one make step either tolerates or fails an
+  unjudged run without wrapping the harness.
+- `PRB-V0-043`: (accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) `--record-baseline` MUST refuse a `NOT_JUDGED` run
+  with status 2 and leave the budgets file byte-identical, as it already refuses a run in which a
+  scenario failed or measured nothing (`PRB-V0-029`); a contended baseline would become every
+  later run's ceiling. A committed baseline recorded before this rule stays valid until re-recorded.
+
 ## Non-goals
 
 - No per-phase timing for `docs corpus` (`--timings` is GitHub #1598's lane) and no profile
   analysis, upload or retention; the knobs write files and nothing reads them.
 - No CI job: wiring `make perf-budget` into `.github/` needs owner approval. GitHub #1602 stays open
-  for that step.
+  for that step. The proposed step (text only): job `perf-budget`, `runs-on: ubuntu-24.04`,
+  `timeout-minutes: 45`, after the pinned `actions/setup-go` with Go 1.27.2 as the other jobs, run
+  `make perf-budget PERF_BUDGET_ARGS="--out perf-budget-report.json"` and upload the report.
+- No configurable contention threshold and no waiting for a quiet host: `PRB-V0-039` uses the
+  `PRB-V0-028` record as measured, and a busy host yields `NOT_JUDGED` instead of a retry.
+- No re-recorded baseline: the committed baseline (load 137 on 12 cores) predates `PRB-V0-043`
+  and its ceilings stand until an uncontended full-scale run is recorded.
+- No TypeScript tree: `affected-path` measures the generated Ruby tree only.
 - No enforced product targets before #1598 and #1601 land, and no loosening of their numbers.
 - No profile for the internal child workers (PRB-V0-012), `corvint-lsp`, `corvint-pulse` or the
   other non-MCP binaries.
@@ -199,8 +236,16 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
 - An unreadable fixture directory: refused before anything is written (PRB-V0-023).
 - An interrupted harness: every started process group is swept, and owned descendants retired,
   before the scratch directory is removed (PRB-V0-037).
-- Contended hosts inflate latency: the run still judges ceilings and records `contended` so a
-  reader can discount the verdict; the baseline itself was recorded under heavy contention.
+- Contended hosts inflate latency: the run is `NOT_JUDGED` with the load and threshold in its
+  reason, never a flaking `FAIL` or an unsupported `PASS` (PRB-V0-039); `make perf-budget` succeeds
+  unless `PERF_BUDGET_REQUIRE_JUDGEMENT=1` (PRB-V0-041, PRB-V0-042). A failed scenario still fails
+  (PRB-V0-040).
+- A host without a load average (no `/proc/loadavg` or `vm.loadavg`) never gets a verdict:
+  `NOT_JUDGED`, `no host-contention record` (PRB-V0-039).
+- `--record-baseline` on a contended or unobserved host: refused, budgets file unchanged
+  (PRB-V0-043).
+- A host only lightly below the threshold still slows reads; the ceilings' 3x and 1.5x margins
+  (PRB-V0-032) absorb that, not the judgement rule.
 
 ## Acceptance
 
@@ -216,6 +261,15 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
   `TestPRBV0031CommittedBudgets` checks the committed targets, ceilings and baseline. The recorded
   full-scale baseline (build-log entry 2026-10-23-profile-knobs-and-read-budget) measured 96,350
   records over 10,000 inputs on a 12-core host at load 137 (contended).
+- #1602 contention judgement: `TestPRBV0039ContentionWithholdsJudgement` judges quiet, contended
+  (before and after) and unobserved hosts and failed or missing scenarios;
+  `TestPRBV0024HarnessSmokeRun` reruns the smoke fixture under an injected contended load and gets
+  `NOT_JUDGED` with every measurement kept; `TestPRBV0041VerdictExitStatus`,
+  `TestPRBV0042MakeTargetRequireJudgement` and `TestPRBV0043NotJudgedRunIsNotBaselined` cover the
+  statuses, the make switch and the baseline refusal (its status 2 is `run`'s refusal path, covered
+  by `TestPRBV0029HarnessCannotRunExitsTwo`). A full-scale `make perf-budget` on
+  2026-10-23 (build-log entry 2026-10-23-perf-budget-contention-judgement) was judged `PASS` at
+  load 7.8 on 12 cores.
 
 ## Traceability
 
@@ -252,6 +306,12 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
 | `PRB-V0-035` | `internal/perfbudget/budget.go` | `TestPRBV0034EvaluateVerdicts` |
 | `PRB-V0-036` | `internal/perfbudget/measure.go`, `internal/perfbudget/harness.go` | `TestPRBV0036MeasuredEnvironmentStripsSettings`, `TestPRBV0024HarnessSmokeRun` |
 | `PRB-V0-037` | `internal/perfbudget/process.go`, `internal/perfbudget/measure.go`, `internal/perfbudget/cmd/perf-budget/main.go` | `TestPRBV0037InterruptRetiresBuildDescendants`, `TestPRBV0024HarnessSmokeRun` |
+| `PRB-V0-038` | `internal/perfbudget/budget.go`, `internal/perfbudget/harness.go` | `TestPRBV0039ContentionWithholdsJudgement`, `TestPRBV0024HarnessSmokeRun` |
+| `PRB-V0-039` | `internal/perfbudget/host.go`, `internal/perfbudget/budget.go` | `TestPRBV0039ContentionWithholdsJudgement`, `TestPRBV0024HarnessSmokeRun` |
+| `PRB-V0-040` | `internal/perfbudget/budget.go` | `TestPRBV0039ContentionWithholdsJudgement` |
+| `PRB-V0-041` | `internal/perfbudget/cmd/perf-budget/main.go` | `TestPRBV0041VerdictExitStatus` |
+| `PRB-V0-042` | `Makefile` | `TestPRBV0042MakeTargetRequireJudgement` |
+| `PRB-V0-043` | `internal/perfbudget/cmd/perf-budget/main.go` | `TestPRBV0043NotJudgedRunIsNotBaselined` |
 
 ## Rollback
 
@@ -260,3 +320,6 @@ harness-event blocks if the original `CORVINT_CPUPROFILE` scope is wanted, drop
 `CORVINT_MEMPROFILE` from `CRB-V0-018`, and drop `help --json` (or the `profiling` member once the
 catalog lands). No persistent state, wire format or read output changes. Budget harness: remove
 `internal/perfbudget`, the Makefile target and this spec's rows; nothing else depends on them.
+Contention judgement alone: drop `Judge`, the report's `verdict` and `not_judged_reason`,
+`--require-judgement` and `PERF_BUDGET_REQUIRE_JUDGEMENT`, and the baseline refusal; the run then
+judges every host again as before PRB-V0-038.

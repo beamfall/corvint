@@ -3903,6 +3903,12 @@ PRB-V0-034	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted unde
 PRB-V0-035	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) An enfor	standing	2026-10-11; V1-2474
 PRB-V0-036	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) Measured	standing	2026-10-11; V1-2474
 PRB-V0-037	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) Every pr	standing	2026-10-11; V1-2474
+PRB-V0-038	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) Eve	standing	2026-10-11; #1602
+PRB-V0-039	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) The	standing	2026-10-11; #1602
+PRB-V0-040	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) A s	standing	2026-10-11; #1602
+PRB-V0-041	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) The	standing	2026-10-11; #1602
+PRB-V0-042	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) `ma	standing	2026-10-11; #1602
+PRB-V0-043	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) `--	standing	2026-10-11; #1602
 PWV-V0-001	docs/specs/pi-workflow-v0.md	Pi MUST preserve original native Core receipt objects, output and exit status, i	unrecorded	-
 PWV-V0-002	docs/specs/pi-workflow-v0.md	Core read tools MUST use closed operation and argument sets for query, context,	unrecorded	-
 PWV-V0-003	docs/specs/pi-workflow-v0.md	Each command MUST use bounded argv-only local execution, one owned POSIX process	unrecorded	-

@@ -2,6 +2,7 @@ package perfbudget
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
@@ -27,19 +28,40 @@ type Host struct {
 	Contended *bool `json:"contended"`
 }
 
-func observeHost(ctx context.Context) Host {
+// LoadFunc reports the 1, 5 and 15 minute load averages, or nil with a NOT_OBSERVED reason.
+type LoadFunc func(context.Context) ([]float64, string)
+
+func observeHost(ctx context.Context, load LoadFunc) Host {
 	h := Host{GOOS: runtime.GOOS, GOARCH: runtime.GOARCH, GoVersion: runtime.Version(), Cores: runtime.NumCPU()}
-	h.LoadBefore, h.LoadUnknown = loadAverage(ctx)
+	h.LoadBefore, h.LoadUnknown = load(ctx)
 	return h
 }
 
-func (h *Host) finish(ctx context.Context) {
+// NotJudgedReason is why latency and memory cannot be judged on this host record, or "" when
+// they can (PRB-V0-039): the stated threshold is PRB-V0-028's `contended`, a 1-minute load
+// average before or after the run that reached the core count, and an unobserved load is no
+// contention record at all.
+func (h Host) NotJudgedReason() string {
+	switch {
+	case h.Contended == nil || len(h.LoadBefore) == 0 || len(h.LoadAfter) == 0:
+		reason := h.LoadUnknown
+		if reason == "" {
+			reason = "load average NOT_OBSERVED"
+		}
+		return "no host-contention record (" + reason + ")"
+	case *h.Contended:
+		return fmt.Sprintf("host contended: 1-minute load average %.2f before and %.2f after the run, threshold %d (the core count)", h.LoadBefore[0], h.LoadAfter[0], h.Cores)
+	}
+	return ""
+}
+
+func (h *Host) finish(ctx context.Context, load LoadFunc) {
 	var unknown string
-	h.LoadAfter, unknown = loadAverage(ctx)
+	h.LoadAfter, unknown = load(ctx)
 	if h.LoadUnknown == "" {
 		h.LoadUnknown = unknown
 	}
-	if h.LoadBefore != nil && h.LoadAfter != nil {
+	if len(h.LoadBefore) > 0 && len(h.LoadAfter) > 0 {
 		contended := h.LoadBefore[0] >= float64(h.Cores) || h.LoadAfter[0] >= float64(h.Cores)
 		h.Contended = &contended
 	}

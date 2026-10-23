@@ -133,7 +133,41 @@ const (
 	VerdictPendingExceeded = "pending-exceeded"
 	VerdictUnknown         = "unknown"
 	VerdictPendingUnknown  = "pending-unknown"
+	VerdictNotJudged       = "not-judged"
 )
+
+// Run verdicts (PRB-V0-038).
+const (
+	RunPass      = "PASS"
+	RunFail      = "FAIL"
+	RunNotJudged = "NOT_JUDGED"
+)
+
+// Judge evaluates the budgets like Evaluate and then withholds judgement when the host record
+// cannot support one (PRB-V0-039, PRB-V0-040): every enforced limit with an observed value
+// becomes not-judged with the reason, keeping that value. A scenario that failed or was not
+// measured, or an enforced metric that was not observed, still fails the run, because neither is
+// a timing effect.
+func Judge(b *Budgets, host Host, measured []ScenarioMeasured) ([]Check, string, string) {
+	checks, ok := Evaluate(b, measured)
+	reason := host.NotJudgedReason()
+	if reason == "" {
+		if ok {
+			return checks, RunPass, ""
+		}
+		return checks, RunFail, ""
+	}
+	verdict := RunNotJudged
+	for i, c := range checks {
+		switch {
+		case c.Verdict == VerdictUnknown:
+			verdict = RunFail
+		case c.Limit.Status == StatusEnforced:
+			checks[i].Verdict, checks[i].Reason = VerdictNotJudged, reason
+		}
+	}
+	return checks, verdict, reason
+}
 
 // Check is one evaluated limit.
 type Check struct {
