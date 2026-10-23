@@ -44,6 +44,11 @@ const (
 // canonical bytes; it posts nothing else.
 const PolicyUpdate = snapshot.StagePolicyUpdate
 
+// ImportMapUpdate records an amended intent/import-map.json and the queue
+// whose importMapSha256 names it (CTS-V0-020..022). Request.ImportMap carries
+// the new canonical map and ExpectedImportMapSha256 the map the caller read.
+const ImportMapUpdate = snapshot.StageImportMapUpdate
+
 // ImportApply posts one batch of CTS-V0-003 shadow-imported ticket records.
 // Request.Records carries each post record's canonical bytes in ascending
 // ticketId order; the caller computed them, and the model only checks that
@@ -106,8 +111,12 @@ type Request struct {
 	Lease *LeaseRequest
 	// ImportMap is the operator's intent/import-map.json, set only for Init
 	// of a non-fixture queue whose importMapSha256 names it (CTS-V0-014).
-	// Genesis posts it; a null-map INIT digest stays byte-identical.
+	// Genesis posts it; a null-map INIT digest stays byte-identical. For
+	// ImportMapUpdate it is the amended map (CTS-V0-020).
 	ImportMap []byte
+	// ExpectedImportMapSha256 is the import map digest the caller read, set
+	// only for ImportMapUpdate.
+	ExpectedImportMapSha256 wire.Digest
 }
 
 // ReplayObservation is mandatory; zero/unknown/error never means absence.
@@ -338,8 +347,11 @@ func Digest(r Request) (wire.Digest, error) {
 	if (r.Operation == Lease) != (r.Lease != nil) {
 		return "", malformed("inapplicable lease command")
 	}
-	if r.Operation != Init && r.ImportMap != nil {
+	if r.Operation != Init && r.Operation != ImportMapUpdate && r.ImportMap != nil {
 		return "", malformed("inapplicable import map")
+	}
+	if r.Operation != ImportMapUpdate && r.ExpectedImportMapSha256 != "" {
+		return "", malformed("inapplicable expected import map")
 	}
 	o := object("actor", object("id", s(r.Actor.ID), "role", s(r.Actor.Role)), "operation", s(r.Operation), "queueId", s(r.QueueID), "requestId", s(r.RequestID))
 	switch r.Operation {
@@ -385,6 +397,22 @@ func Digest(r Request) (wire.Digest, error) {
 		}
 		o.Obj.Set("expectedPolicyVersion", s(string(r.ExpectedPolicyVersion)))
 		o.Obj.Set("policySha256", s(string(wire.Sum(r.Policy))))
+	case ImportMapUpdate:
+		if _, e = wire.ParseDigest("expectedImportMapSha256", string(r.ExpectedImportMapSha256)); e != nil {
+			return "", e
+		}
+		m, e := intent.DecodeImportMap(r.ImportMap)
+		if e != nil {
+			return "", e
+		}
+		if m.QueueID.Raw != q.Raw {
+			return "", malformed("import map queue identity")
+		}
+		if e = canonical(r.ImportMap); e != nil {
+			return "", e
+		}
+		o.Obj.Set("expectedImportMapSha256", s(string(r.ExpectedImportMapSha256)))
+		o.Obj.Set("importMapSha256", s(string(wire.Sum(r.ImportMap))))
 	case ImportApply:
 		if len(r.Records) == 0 {
 			return "", malformed("empty import batch")
@@ -622,7 +650,7 @@ func model(r Request, in Input, sequence *ImportSequence) Result {
 	if r.Operation == Unpause && state.barrier == nil {
 		return noChange(r.RequestID)
 	}
-	if (r.Operation == Init || r.Operation == KeepJournal || r.Operation == AdoptFile || r.Operation == Mutate || r.Operation == Release || r.Operation == PolicyUpdate || r.Operation == ImportApply || r.Operation == AuthoritySwitch || r.Operation == Qualification || r.Operation == Lease || r.Operation == Relocate) && in.Branch != state.queue.IntentBranch {
+	if (r.Operation == Init || r.Operation == KeepJournal || r.Operation == AdoptFile || r.Operation == Mutate || r.Operation == Release || r.Operation == PolicyUpdate || r.Operation == ImportMapUpdate || r.Operation == ImportApply || r.Operation == AuthoritySwitch || r.Operation == Qualification || r.Operation == Lease || r.Operation == Relocate) && in.Branch != state.queue.IntentBranch {
 		return refused(r.RequestID, mutation.OutcomeBlocked, wire.CodeIntentBranchMismatch, "primary intent branch differs")
 	}
 	posts := map[string][]byte{}
@@ -679,6 +707,10 @@ func model(r Request, in Input, sequence *ImportSequence) Result {
 			}
 		}
 		posts["intent/policy.json"] = bytes.Clone(r.Policy)
+	case ImportMapUpdate:
+		if result := importMapUpdatePosts(r, state, posts); result != nil {
+			return *result
+		}
 	case ImportApply:
 		if sequence == nil {
 			e = importPosts(r, in, state, posts)

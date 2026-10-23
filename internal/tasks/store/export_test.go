@@ -138,3 +138,11 @@ func SetProgramWriteHookForTest(f func()) func() {
 
 // PersistForTest records the workflow's program at phase.
 func (w *Workflow) PersistForTest(phase string) error { return w.persist(phase) }
+
+// SetWorktreeRemoveHookForTest runs f at each step of a worktree removal
+// ("persisted", "removed") until the returned function restores it.
+func SetWorktreeRemoveHookForTest(f func(string)) func() {
+	prev := worktreeRemoveHook
+	worktreeRemoveHook = f
+	return func() { worktreeRemoveHook = prev }
+}

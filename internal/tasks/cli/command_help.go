@@ -116,6 +116,10 @@ func fullCommandHelp(cmd []string) *wire.Result {
 		o.Set("fileFormat", wire.String("Canonical UTF-8 JSON: sorted object keys, no insignificant whitespace, and exactly one trailing LF."))
 		o.Set("versionRule", wire.String("The file policyVersion must equal --expected-policy-version plus one; the flag names the current version."))
 	}
+	if name == "import-map update" {
+		o.Set("fileFormat", wire.String("Canonical UTF-8 JSON taskman-import-map/0 for this queue: sorted object keys, no insignificant whitespace, and exactly one trailing LF."))
+		o.Set("identityRule", wire.String("--expected-import-map-sha256 names the current map. Every ticket the current map names must stay mapped, a source item both maps name keeps its ticket, no ticket is mapped twice, and no ticket record's own source item may map to another ticket; any conflict refuses DUPLICATE_ID naming each, with nothing written. A source item may move to a new sourceQueueId or sourceItemId under its ticket (a renamed or added source queue). Only an OWNER amends, and only a queue that already names a journaled map (CTS-V0-020..022)."))
+	}
 	if name == "queue status" || name == "roadmap" {
 		o.Set("milestoneCount", wire.String("queue status reports openWithoutMilestone, the count of OPEN tickets with a null milestone; roadmap warns with that count when it is non-zero (CAL-V0-196)."))
 	}
@@ -303,6 +307,7 @@ var commandUsage = map[string]string{
 	"unpause":                 "corvint-tasks unpause --request-id ID [--role OWNER|OPERATOR]",
 	"policy show":             "corvint-tasks policy show",
 	"policy update":           "corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR]",
+	"import-map update":       "corvint-tasks import-map update --request-id ID --expected-import-map-sha256 SHA256 --file PATH [--role OWNER]",
 	"import":                  "corvint-tasks import --file PATH [--role OWNER|OPERATOR]",
 	"cutover":                 "corvint-tasks cutover [--execution] --decision REF [--qualification FILE]",
 	"relocate":                "corvint-tasks relocate --from OLD --request-id ID [--role OWNER|OPERATOR] [--dispatch-config FILE]   (run from the new primary worktree; OLD is the head.primaryWorktree the refusal names)",

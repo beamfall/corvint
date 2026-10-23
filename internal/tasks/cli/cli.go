@@ -78,7 +78,7 @@ var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
 	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket delivery-screen", "ticket batch-delivered", "ticket export",
 	"queue status", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "journal seal", "journal unseal", "reconcile inspect", "reconcile intent",
-	"init", "pause", "unpause", "policy show", "policy update", "import", "cutover", "relocate",
+	"init", "pause", "unpause", "policy show", "policy update", "import-map update", "import", "cutover", "relocate",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
 	"ticket set-gates", "ticket set-effects", "ticket hold", "ticket release-hold", "ticket reopen",
 	"ticket archive", "ticket restore", "ticket complete-manual", "ticket grant-approval",
@@ -281,6 +281,8 @@ func Run(env Env) int {
 		return emit(env.Stdout, barrierCommand(env, args[0], args[1:]))
 	case "policy":
 		return emit(env.Stdout, policyCommand(env, args[1:]))
+	case "import-map":
+		return emit(env.Stdout, importMapCommand(env, args[1:]))
 	case "import":
 		return emit(env.Stdout, importCommand(env, args[1:]))
 	case "cutover":
@@ -460,6 +462,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks archive verify [FILE|-]           (stdin when absent)",
 		"corvint-tasks init [--role ROLE] [--request-id ID]",
 		"corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR]",
+		"corvint-tasks import-map update --request-id ID --expected-import-map-sha256 SHA256 --file PATH [--role OWNER]",
 		"corvint-tasks ticket create --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE]   (optional payload localToken, e.g. BT-002, picks the queue-local ID; no --target)",
 		"corvint-tasks ticket <refine|prioritize|set-dependencies|set-gates|set-effects|hold|release-hold|reopen|archive|restore|complete-manual|grant-approval|revoke-approval|attach-evidence> --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N [--issued-at TS] [--role ROLE]",
 		"corvint-tasks ticket <mutation> --help   (its payload keys)",

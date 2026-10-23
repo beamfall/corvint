@@ -33,6 +33,11 @@ const (
 // under one IMPORT_APPLY receipt; the operation name is the receipt kind.
 const StageImportApply = "IMPORT_APPLY"
 
+// StageImportMapUpdate posts an amended intent/import-map.json and the queue
+// whose importMapSha256 names it under one IMPORT_MAP_UPDATE receipt
+// (CTS-V0-020); the operation name is the receipt kind.
+const StageImportMapUpdate = "IMPORT_MAP_UPDATE"
+
 // StageAuthoritySwitch posts intent/queue.json with canonicalWriter NATIVE
 // under one AUTHORITY_SWITCH receipt (TCP-00 §5.4 A5, CAL-V0-004); the
 // operation name is the receipt kind.
@@ -105,6 +110,8 @@ func StageLimits(op string) (int, int) {
 		return 11, 2422
 	case StageAuthoritySwitch:
 		return 5, 1474
+	case StageImportMapUpdate:
+		return 7, 1844
 	case StageLease:
 		return 11, 2658
 	case StageQualification:
@@ -156,7 +163,7 @@ func DecodeStageDescriptor(raw []byte) (*StageDescriptor, error) {
 	if e = wire.CheckProfile("stage/profile", r.Field("profile").String(), "taskman-stage/0"); e != nil {
 		return nil, e
 	}
-	d := &StageDescriptor{QueueID: r.Field("queueId").QueueID().Raw, Operation: r.Field("operation").Enum(StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate, StageImportApply, StageAuthoritySwitch, StageLease, StageQualification, StageEscalation, StageRelocate), RequestID: r.Field("requestId").String(), RequestSha256: r.Field("requestSha256").Digest(), RecordedAt: r.Field("recordedAt").Timestamp()}
+	d := &StageDescriptor{QueueID: r.Field("queueId").QueueID().Raw, Operation: r.Field("operation").Enum(StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate, StageImportApply, StageAuthoritySwitch, StageLease, StageQualification, StageEscalation, StageRelocate, StageImportMapUpdate), RequestID: r.Field("requestId").String(), RequestSha256: r.Field("requestSha256").Digest(), RecordedAt: r.Field("recordedAt").Timestamp()}
 	b := r.Field("base")
 	if !b.IsNull() {
 		b.Closed("lastSeq", "lastReceiptSha256")
@@ -248,6 +255,9 @@ func (d StageDescriptor) shape() error {
 			if d.Operation == StageAuthoritySwitch || d.Operation == StageQualification {
 				cap = wire.MaxQueueFileBytes
 			}
+			if d.Operation == StageImportMapUpdate {
+				cap = wire.MaxImportMapBytes
+			}
 			if d.Operation == StageEscalation {
 				cap = wire.MaxTicketFileBytes
 			}
@@ -266,7 +276,7 @@ func (d StageDescriptor) shape() error {
 					cap = 551
 				}
 				// A LEASE request is at most REVISION_CONFLICT with FENCED.
-				if d.Operation == StageKeepJournal || d.Operation == StageAdoptFile || d.Operation == StageMutate || d.Operation == StageRelease || d.Operation == StagePolicyUpdate || d.Operation == StageImportApply || d.Operation == StageAuthoritySwitch || d.Operation == StageLease || d.Operation == StageQualification || d.Operation == StageEscalation || d.Operation == StageRelocate {
+				if d.Operation == StageKeepJournal || d.Operation == StageAdoptFile || d.Operation == StageMutate || d.Operation == StageRelease || d.Operation == StagePolicyUpdate || d.Operation == StageImportApply || d.Operation == StageAuthoritySwitch || d.Operation == StageLease || d.Operation == StageQualification || d.Operation == StageEscalation || d.Operation == StageRelocate || d.Operation == StageImportMapUpdate {
 					cap = 579
 				}
 			case strings.HasPrefix(a.Target, "attempts/") && d.Operation == StageLease:
@@ -338,13 +348,16 @@ func (d StageDescriptor) shape() error {
 				}
 				key = "run"
 				cap = wire.MaxGateOutputBytes
-			case a.Target == "intent/queue.json" && (d.Operation == StageMutate || d.Operation == StageAuthoritySwitch || d.Operation == StageQualification):
+			case a.Target == "intent/queue.json" && (d.Operation == StageMutate || d.Operation == StageAuthoritySwitch || d.Operation == StageQualification || d.Operation == StageImportMapUpdate):
 				// CREATE advances nextSerial; no other mutation posts the manifest.
 				key = "queue"
 				cap = 1048576
 			case a.Target == "intent/policy.json" && d.Operation == StagePolicyUpdate:
 				key = "policy"
 				cap = wire.MaxPolicyFileBytes
+			case a.Target == "intent/import-map.json" && d.Operation == StageImportMapUpdate:
+				key = "importMap"
+				cap = wire.MaxImportMapBytes
 			case d.Operation == StageInit:
 				key = a.Target
 				switch {
@@ -402,6 +415,9 @@ func (d StageDescriptor) shape() error {
 		required["policy"] = 1
 	case StageAuthoritySwitch:
 		required["queue"] = 1
+	case StageImportMapUpdate:
+		required["queue"] = 1
+		required["importMap"] = 1
 	case StageQualification:
 		required["queue"] = 1
 		required["run"] = 1
@@ -476,6 +492,9 @@ func (d StageDescriptor) shape() error {
 	case StageImportApply:
 		// A ticket record over the inline post bound is carried as a blob.
 		maxEvidence = 8
+	case StageImportMapUpdate:
+		// Both the queue and the map may be carried as blobs.
+		maxEvidence = 2
 	}
 	if ecount > maxEvidence {
 		return stageLimit("evidence slots")

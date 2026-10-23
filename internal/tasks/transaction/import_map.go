@@ -1,10 +1,13 @@
 package transaction
 
 import (
+	"bytes"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -20,7 +23,9 @@ const importMapPath = "intent/" + intent.ImportMapFile
 // queue digest binds them here. A queue that names no map takes no map bytes.
 func bindImportMap(r Request, in Input, q *intent.Queue) (*intent.ImportMap, error) {
 	if q.ImportMapSha256 == nil {
-		if r.ImportMap != nil || in.ImportMap != nil {
+		// An amendment's own map is its request, not the store's map; the
+		// model refuses it for a queue that names none (CTS-V0-020).
+		if (r.ImportMap != nil && r.Operation != ImportMapUpdate) || in.ImportMap != nil {
 			return nil, malformed("import map without importMapSha256")
 		}
 		return nil, nil
@@ -48,9 +53,10 @@ func bindImportMap(r Request, in Input, q *intent.Queue) (*intent.ImportMap, err
 
 // importMapUnchanged keeps the import map immutable after genesis
 // (CTS-V0-016): no later transaction posts it, and a queue post keeps the
-// queue's importMapSha256.
+// queue's importMapSha256. The one exception is the journaled amendment,
+// whose posts importMapUpdatePosts builds and checks (CTS-V0-020).
 func importMapUnchanged(r Request, state inputState, posts map[string][]byte) error {
-	if r.Operation == Init {
+	if r.Operation == Init || r.Operation == ImportMapUpdate {
 		return nil
 	}
 	if _, ok := posts[importMapPath]; ok {
@@ -134,4 +140,91 @@ func ImportMapConflicts(importMap []byte, records [][]byte) error {
 		return nil
 	}
 	return wire.Errorf(wire.CodeDuplicateID, "/tickets", "%d import-map conflicts: %s", len(conflicts), strings.Join(conflicts, "; "))
+}
+
+// importMapUpdatePosts records an amended import map (CTS-V0-020..022). The
+// queue must already name a journaled map, the caller must have read the
+// current one, and the amendment must keep every existing ticket identity:
+// each ticket the current map names stays mapped, a source item both maps
+// name keeps its ticket, no ticket is mapped twice, and no ticket record's
+// own source item is mapped to another ticket. A source item may move to a
+// new (sourceQueueId, sourceItemId) under its ticket, which is how a renamed
+// or added source queue is recorded. Any conflict refuses the whole
+// amendment DUPLICATE_ID, naming each; nothing is written. It returns nil
+// once posts holds the map and the queue that names it.
+func importMapUpdatePosts(r Request, state inputState, posts map[string][]byte) *Result {
+	q := state.queue
+	if r.Actor.Role != "OWNER" {
+		res := refused(r.RequestID, mutation.OutcomeUnauthorized, "", "an import map amendment needs an OWNER binding")
+		return &res
+	}
+	if q.ImportMapSha256 == nil || state.importMap == nil {
+		res := refused(r.RequestID, mutation.OutcomeBlocked, wire.CodeUnsupported, "the queue names no journaled import map to amend")
+		return &res
+	}
+	if *q.ImportMapSha256 != r.ExpectedImportMapSha256 {
+		res := refused(r.RequestID, mutation.OutcomeRevisionConflict, "", "expectedImportMapSha256 "+string(r.ExpectedImportMapSha256)+" but the current import map is "+string(*q.ImportMapSha256))
+		return &res
+	}
+	next, e := intent.DecodeImportMap(r.ImportMap)
+	if e != nil {
+		res := failed(r.RequestID, e)
+		return &res
+	}
+	if next.QueueID.Raw != q.QueueID.Raw {
+		res := failed(r.RequestID, malformed("import map queue identity"))
+		return &res
+	}
+	if wire.Sum(r.ImportMap) == *q.ImportMapSha256 {
+		res := noChange(r.RequestID)
+		return &res
+	}
+	if conflicts := importMapAmendConflicts(state.importMap, next, state.tickets); len(conflicts) > 0 {
+		res := failed(r.RequestID, wire.Errorf(wire.CodeDuplicateID, "/entries", "%d import-map amendment conflicts: %s", len(conflicts), strings.Join(conflicts, "; ")))
+		return &res
+	}
+	amended := *q
+	d := wire.Sum(r.ImportMap)
+	amended.ImportMapSha256 = &d
+	posts["intent/queue.json"] = wire.EncodeFile(amended.Value())
+	posts[importMapPath] = bytes.Clone(r.ImportMap)
+	return nil
+}
+
+// importMapAmendConflicts names every way next would change an existing
+// ticket identity that current or a ticket record fixes (CTS-V0-021).
+func importMapAmendConflicts(current, next *intent.ImportMap, tickets *ticket.Inventory) []string {
+	key := func(e intent.ImportEntry) string { return e.SourceQueueID + "\x00" + e.SourceItemID }
+	name := func(e intent.ImportEntry) string { return "source item " + e.SourceItemID + " of " + e.SourceQueueID }
+	nextByKey := map[string]intent.ImportEntry{}
+	nextByTicket := map[string]intent.ImportEntry{}
+	var conflicts []string
+	for _, e := range next.Entries {
+		nextByKey[key(e)] = e
+		if prior, ok := nextByTicket[e.TicketID.Raw]; ok {
+			conflicts = append(conflicts, fmt.Sprintf("ticket %s is mapped to both %s and %s", e.TicketID.Raw, name(prior), name(e)))
+			continue
+		}
+		nextByTicket[e.TicketID.Raw] = e
+	}
+	for _, e := range current.Entries {
+		if n, ok := nextByKey[key(e)]; ok && n.TicketID.Raw != e.TicketID.Raw {
+			conflicts = append(conflicts, fmt.Sprintf("%s moves from %s to %s", name(e), e.TicketID.Raw, n.TicketID.Raw))
+		}
+		if _, ok := nextByTicket[e.TicketID.Raw]; !ok {
+			conflicts = append(conflicts, fmt.Sprintf("ticket %s (%s) is dropped from the map", e.TicketID.Raw, name(e)))
+		}
+	}
+	for _, id := range tickets.IDs() {
+		rec, _ := tickets.Get(id)
+		if rec == nil || rec.Source.SourceItemID == nil {
+			continue
+		}
+		e := intent.ImportEntry{SourceQueueID: rec.Source.SourceQueueID, SourceItemID: *rec.Source.SourceItemID}
+		if n, ok := nextByKey[key(e)]; ok && n.TicketID.Raw != rec.TicketID.Raw {
+			conflicts = append(conflicts, fmt.Sprintf("%s is ticket %s's own source but is mapped to %s", name(e), rec.TicketID.Raw, n.TicketID.Raw))
+		}
+	}
+	sort.Strings(conflicts)
+	return conflicts
 }

@@ -58,7 +58,7 @@ supervisor: `admit` reserves the ticket, a supervisor forks a `lane-leader`, a `
 handshake proves whether the runtime ran, and process-group liveness decides when a reservation may
 be released (§6.2 to §6.4). None of that is built in tree: the only reservations are S3's
 `external-agent` leases, `cutover` requires an empty reservation set
-(`internal/tasks/transaction/model.go:700@afae0d34`), and until S1 the writer refused every queue
+(`internal/tasks/transaction/model.go:732@afae0d34`), and until S1 the writer refused every queue
 that was not a fixture.
 
 The agents that use these queues are not processes corvint-tasks starts. They are interactive or
@@ -653,7 +653,7 @@ Non-fixture release lifecycle (owner request 2026-09-28 to complete the Tasks ta
   refusal being a `TRANSITION` with outcome `REVISION_CONFLICT` and code `FENCED`, never a kind;
   `ESCALATION` to `TRANSITION`; `RELEASE` to `RELEASE` or settled `RECONCILE`; `KEEP_JOURNAL` and
   `ADOPT_FILE` to `RECONCILE`; and `INIT`, `PAUSE`, `UNPAUSE`, `POLICY_UPDATE`, `IMPORT_APPLY`,
-  `AUTHORITY_SWITCH` and `QUALIFICATION` to their own name. Import-mapped queues,
+  `AUTHORITY_SWITCH`, `QUALIFICATION` and `IMPORT_MAP_UPDATE` (CTS-V0-020) to their own name. Import-mapped queues,
   fixture execution cutover and INIT with execution cutover remain refused. Observation MUST
   NOT remove stage bytes or authorize execution. The existing locked writer retry MUST recover
   orphan slots and redo a durable receipt exactly once; an unchanged request replays and a

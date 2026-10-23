@@ -43,7 +43,7 @@ func maximalDescriptor(op string) StageDescriptor {
 	if op == StageInit {
 		requestBytes = 551
 	}
-	if op == StageKeepJournal || op == StageAdoptFile || op == StageMutate || op == StagePolicyUpdate || op == StageAuthoritySwitch || op == StageQualification || op == StageLease || op == StageEscalation || op == StageRelocate {
+	if op == StageKeepJournal || op == StageAdoptFile || op == StageMutate || op == StagePolicyUpdate || op == StageAuthoritySwitch || op == StageQualification || op == StageLease || op == StageEscalation || op == StageRelocate || op == StageImportMapUpdate {
 		requestBytes = 579
 	}
 	add("POST", rp, requestBytes, hash)
@@ -66,6 +66,13 @@ func maximalDescriptor(op string) StageDescriptor {
 	case StageAuthoritySwitch:
 		add("POST", "intent/queue.json", 1048576, hash)
 		add("EVIDENCE", "evidence/"+string(hash), 1048576, hash)
+	case StageImportMapUpdate:
+		// Either blob may be the map, so both reach the map's bound.
+		add("POST", "intent/queue.json", 1048576, hash)
+		add("EVIDENCE", "evidence/"+string(hash), wire.MaxImportMapBytes, hash)
+		m := wire.Sum([]byte("import map"))
+		add("POST", "intent/import-map.json", wire.MaxImportMapBytes, m)
+		add("EVIDENCE", "evidence/"+string(m), wire.MaxImportMapBytes, m)
 	case StageQualification:
 		add("POST", "intent/queue.json", 1048576, hash)
 		run := wire.Sum([]byte("run"))
@@ -150,7 +157,7 @@ func maximalRecoveryDescriptor(op string) StageDescriptor {
 }
 
 func TestTMV0002_AS10_StageCodecActualMaxima(t *testing.T) {
-	for _, op := range []string{StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StagePolicyUpdate, StageAuthoritySwitch, StageLease, StageQualification, StageEscalation, StageRelocate} {
+	for _, op := range []string{StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StagePolicyUpdate, StageAuthoritySwitch, StageLease, StageQualification, StageEscalation, StageRelocate, StageImportMapUpdate} {
 		d := maximalRecoveryDescriptor(op)
 		raw, e := d.Encode()
 		if e != nil {

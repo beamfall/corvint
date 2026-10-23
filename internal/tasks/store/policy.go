@@ -31,6 +31,25 @@ func PolicyUpdate(ctx context.Context, repo *intent.Repository, actor mutation.B
 	return policyUpdate(ctx, repo, actor, choice, now, nil)
 }
 
+// ImportMapRequest is one IMPORT_MAP_UPDATE: the amended canonical map and
+// the digest of the map the caller read (CTS-V0-020).
+type ImportMapRequest struct {
+	QueueID, RequestID      string
+	ExpectedImportMapSha256 wire.Digest
+	ImportMap               []byte
+}
+
+// ImportMapUpdate records an amended import map through the §5.2 writer
+// (CTS-V0-020..022): the model refuses it unless the queue names a journaled
+// map, the expected digest is the current one, the actor is OWNER, and every
+// existing ticket identity is kept.
+func ImportMapUpdate(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice ImportMapRequest, now wire.Timestamp) (out *Report, outErr error) {
+	defer func() { out, outErr = intentFix(repo, out, outErr) }()
+	request := transaction.Request{Operation: transaction.ImportMapUpdate, QueueID: choice.QueueID, RequestID: choice.RequestID, Actor: actor, ImportMap: choice.ImportMap, ExpectedImportMapSha256: choice.ExpectedImportMapSha256}
+	report, _, err := administrativeWrite(ctx, repo, request, now, nil)
+	return report, err
+}
+
 func policyUpdate(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice PolicyRequest, now wire.Timestamp, beforeCommit func() error) (*Report, error) {
 	request := transaction.Request{Operation: transaction.PolicyUpdate, QueueID: choice.QueueID, RequestID: choice.RequestID, Actor: actor, Policy: choice.Policy, ExpectedPolicyVersion: choice.ExpectedPolicyVersion}
 	report, proof, err := administrativeWrite(ctx, repo, request, now, beforeCommit)
@@ -143,7 +162,13 @@ func administrativeWriteRound(ctx context.Context, repo *intent.Repository, requ
 			paths = append(paths, file.Path)
 		}
 	}
-	proof, err := reader.Audit(paths...)
+	audited := paths
+	if request.Operation == transaction.ImportMapUpdate {
+		// The amendment checks the current map, which the audit selects
+		// beside the queue that names it (CTS-V0-020).
+		audited = append(append([]string{}, paths...), "intent/import-map.json")
+	}
+	proof, err := reader.Audit(audited...)
 	if err != nil {
 		return report, nil, err
 	}
@@ -185,6 +210,9 @@ func administrativeWriteRound(ctx context.Context, repo *intent.Repository, requ
 		return report, nil, err
 	}
 	input := transaction.Input{Inventory: inv, Head: headRaw, HeadReceipt: headRc, Queue: proof.Records["intent/queue.json"].Raw, Policy: proof.Records["intent/policy.json"].Raw, Barrier: barrier, Reservations: reservations, Pools: proof.Records["pools.json"].Raw, Programs: proof.Records["programs.json"].Raw, CanonicalTickets: tickets, CanonicalReleases: releases, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now}
+	if request.Operation == transaction.ImportMapUpdate {
+		input.ImportMap = proof.Records["intent/import-map.json"].Raw
+	}
 	if request.Operation == transaction.Lease {
 		if err = leaseInput(proof, attempts, facts, &input); err != nil {
 			return report, nil, err
