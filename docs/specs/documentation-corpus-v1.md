@@ -3086,11 +3086,6 @@ Static test discovery (`DCP-V1-370..376`) does not run tests, evaluate Ruby or J
 loops, resolve dynamic imports, judge assertion adequacy or write a corpus provider record; it is
 generated evidence for a caller to cite. Rollback removes the `discover-tests` subcommand and the
 `internal/testsource/discover_tests*.go` producer; no stored state depends on it.
-`internal/doccorpus/delta*.go`; no artifact or manifest format changes.
-The `docs_search` ranking amendment (`DCP-V1-400..404`) exposes no field weights or new arguments,
-learns no weights, and returns no separate claim list; it does not change `docs_claims` or the query
-index. Rollback restores `internal/doccorpus/search_rank.go` and the two `DCP-V1-328` assertions;
-no artifact, index or wire format changes.
 
 Extractor profiles (`DCP-V1-390..399`) are not a framework catalog, language parser or Core
 taxonomy: they add no subject kind beyond the generic `job` and `event`, run no tool, infer no
