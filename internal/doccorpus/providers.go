@@ -9,7 +9,9 @@ import (
 	"github.com/Beamfall/corvint/internal/testvaliditydoc"
 )
 
-var subjectKinds = words("repository package module symbol endpoint ui_surface capability use_case interaction test journey document external_system data_entity change finding business_term")
+// subjectKinds is Core's closed generic subject vocabulary; job and event name asynchronous work
+// and messages declared by an extractor profile (DCP-V1-396).
+var subjectKinds = words("repository package module symbol endpoint ui_surface capability use_case interaction test journey document external_system data_entity change finding business_term job event")
 var relationKinds = words("implements calls imports documents tested_by journey_for depends_on affects related_to conflicts_with supersedes")
 var derivations = words("generated source-derived observed declared imported")
 var claimStates = words("supported conflicted unknown")
