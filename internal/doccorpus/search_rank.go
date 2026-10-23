@@ -39,14 +39,17 @@ type searchHit struct {
 	value any
 	id    string
 	score float64
+	// exact marks an exact name or claim-text match, which orders before
+	// every hit that is not exact, whatever its score (DCP-V1-402).
+	exact bool
 	// claim orders a claim after a subject of equal score (DCP-V1-402).
 	claim bool
 }
 
 // normalized divides a family's raw score by the family's largest possible
 // partial score for the query, so each family's partial hits score in [0, 1]
-// and an exact match, adding 1, outranks every partial hit of both families
-// (DCP-V1-402). A query without terms has no partial hits.
+// and compare across families (DCP-V1-402). A query without terms has no
+// partial hits.
 func normalized(score, maximum float64) float64 {
 	if maximum <= 0 {
 		return 0
@@ -59,8 +62,9 @@ func normalized(score, maximum float64) float64 {
 // with module and file path segments in the name field and prose names
 // weighed as text (DCP-V1-400, DCP-V1-401). Each family's score is
 // normalized by its largest possible partial score before the families merge
-// (DCP-V1-402). Terms are summed in sorted order so the floating-point score
-// is deterministic; equal scores order subjects before claims, then by record
+// (DCP-V1-402). Exact matches order first whatever their term overlap.
+// Terms are summed in sorted order so the floating-point score is
+// deterministic; equal scores order subjects before claims, then by record
 // ID. A kind filter keeps only subjects of the named kinds and claims about
 // them.
 func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error {
@@ -102,17 +106,22 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 	for i := range scores {
 		scores[i] = normalized(scores[i], maximum)
 	}
+	exact := map[int]bool{}
 	for i, s := range a.Subjects {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 		if keep(s.Kind) && strings.EqualFold(request.Query, s.Name) {
-			// An exact name match outranks every partial match of either family.
-			scores[i]++
+			// An exact name match outranks every partial match of either
+			// family, even one sharing no query term after tokenization.
+			exact[i] = true
+			if _, ok := scores[i]; !ok {
+				scores[i] = 0
+			}
 		}
 	}
 	for i, score := range scores {
-		hits = append(hits, searchHit{a.Subjects[i], a.Subjects[i].ID, score, false})
+		hits = append(hits, searchHit{a.Subjects[i], a.Subjects[i].ID, score, exact[i], false})
 	}
 	if claims {
 		claimHits, err := claimSearchHits(ctx, a, x, request, terms, keep)
@@ -122,6 +131,9 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 		hits = append(hits, claimHits...)
 	}
 	sort.Slice(hits, func(i, j int) bool {
+		if hits[i].exact != hits[j].exact {
+			return hits[i].exact
+		}
 		if hits[i].score != hits[j].score {
 			return hits[i].score > hits[j].score
 		}
@@ -138,35 +150,49 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 
 // subjectPostings returns, for each query term, the subject offsets whose
 // name, id, claim text or (for a module or file subject) anchor path holds
-// it, and a function naming the terms of one subject's name field: its id,
-// its name unless the name is prose, and a module or file subject's anchor
-// paths (DCP-V1-400, DCP-V1-401). With an index the name, id and claim-text
+// it, and a function naming the query terms in one subject's name field: its
+// id, its name unless the name is prose, and a module or file subject's
+// anchor paths (DCP-V1-400, DCP-V1-401). Only query terms are kept, and only
+// for subjects the function is asked about, so a miss retains no subject
+// vocabulary (DCP-V1-403). With an index the name, id and claim-text
 // postings are the index's; without one every subject is read once. The
 // index is never modified.
 func subjectPostings(ctx context.Context, a *Artifact, x *QueryIndex, terms []string) (map[string][]int, func(int) map[string]bool, error) {
+	query := make(map[string]bool, len(terms))
+	for _, term := range terms {
+		query[term] = true
+	}
+	// matching returns the query terms in subject i's name field, or nil.
+	matching := func(i int) map[string]bool {
+		s := a.Subjects[i]
+		var set map[string]bool
+		add := func(words map[string]struct{}) {
+			for term := range words {
+				if query[term] {
+					if set == nil {
+						set = map[string]bool{}
+					}
+					set[term] = true
+				}
+			}
+		}
+		add(contextindex.EvidenceTerms(s.ID))
+		if name := contextindex.EvidenceTerms(s.Name); pathSubject(s) || len(name) <= proseNameTerms {
+			add(name)
+		}
+		if pathSubject(s) {
+			for _, p := range extraPaths(s) {
+				add(contextindex.EvidenceTerms(p))
+			}
+		}
+		return set
+	}
 	names := map[int]map[string]bool{}
 	nameTerms := func(i int) map[string]bool {
 		if set, ok := names[i]; ok {
 			return set
 		}
-		s := a.Subjects[i]
-		set := map[string]bool{}
-		for term := range contextindex.EvidenceTerms(s.ID) {
-			set[term] = true
-		}
-		name := contextindex.EvidenceTerms(s.Name)
-		if pathSubject(s) || len(name) <= proseNameTerms {
-			for term := range name {
-				set[term] = true
-			}
-		}
-		if pathSubject(s) {
-			for _, p := range extraPaths(s) {
-				for term := range contextindex.EvidenceTerms(p) {
-					set[term] = true
-				}
-			}
-		}
+		set := matching(i)
 		names[i] = set
 		return set
 	}
@@ -205,11 +231,14 @@ func subjectPostings(ctx context.Context, a *Artifact, x *QueryIndex, terms []st
 		if !pathSubject(s) || !slices.ContainsFunc(s.Evidence.Anchors, func(a Anchor) bool { return a.Path != "" && a.Path != s.Name }) {
 			continue
 		}
-		set := nameTerms(i)
+		set := matching(i)
 		for _, term := range terms {
 			if set[term] {
 				extra[term] = append(extra[term], i)
 			}
+		}
+		if set != nil {
+			names[i] = set
 		}
 	}
 	for term, add := range extra {
@@ -234,7 +263,7 @@ func extraPaths(s Subject) []string {
 
 // claimSearchHits scores claims by their ID and text terms with claim-text
 // weight, normalized by the claim family's largest possible partial score;
-// an exact-text match adds 1 (DCP-V1-328, DCP-V1-402).
+// an exact-text match orders first (DCP-V1-328, DCP-V1-402).
 func claimSearchHits(ctx context.Context, a *Artifact, x *QueryIndex, request Request, terms []string, keep func(string) bool) ([]searchHit, error) {
 	about := func(c Claim) bool {
 		if request.Kinds == nil {
@@ -257,13 +286,22 @@ func claimSearchHits(ctx context.Context, a *Artifact, x *QueryIndex, request Re
 			}
 		}
 	}
+	query := strings.TrimSpace(request.Query)
+	exact := map[int]bool{}
+	for i, c := range a.Claims {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		if query != "" && strings.EqualFold(query, strings.TrimSpace(c.Text)) && about(c) {
+			exact[i] = true
+			if _, ok := scores[i]; !ok {
+				scores[i] = 0
+			}
+		}
+	}
 	hits := make([]searchHit, 0, len(scores))
 	for i, score := range scores {
-		score = normalized(score, maximum)
-		if strings.EqualFold(strings.TrimSpace(request.Query), strings.TrimSpace(a.Claims[i].Text)) {
-			score++
-		}
-		hits = append(hits, searchHit{a.Claims[i], a.Claims[i].ID, score, true})
+		hits = append(hits, searchHit{a.Claims[i], a.Claims[i].ID, normalized(score, maximum), exact[i], true})
 	}
 	return hits, nil
 }

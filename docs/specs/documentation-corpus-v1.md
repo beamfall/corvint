@@ -1664,19 +1664,21 @@ accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-2
 - `DCP-V1-402`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-2470) Each family's score is normalized before the families merge: a subject's partial
   score is divided by the sum over the query terms of `3 × idf` over the subjects, and a claim's
   by the sum of `1 × idf` over the claims, so every partial hit of either family scores in
-  `[0, 1]`. An exact name (or claim-text) match adds 1, replacing `DCP-V1-331`'s shared bonus, so
-  it still outranks every partial hit of both families. Equal scores order subjects before claims,
-  then by record ID. A claim holding every query term therefore outranks a subject naming only
-  some of them; without `include` the subject order is the one `DCP-V1-400` and `DCP-V1-401`
-  give, since one divisor never reorders one family. Acceptance:
-  `TestDCPV1402ClaimFamilyNormalizedMerge`, `TestDCPV1328SearchIncludesClaims`,
-  `TestDCPV1331ExactBonusAcrossFamilies`.
+  `[0, 1]`. An exact case-insensitive name (or trimmed claim-text) match orders before every hit
+  that is not exact, replacing `DCP-V1-331`'s shared bonus, even when tokenization leaves it no
+  query term (a subject named `SignIn` for the query `signin`); exact hits order among themselves
+  by score. Equal scores order subjects before claims, then by record ID. A claim holding every
+  query term therefore outranks a subject naming only some of them; without `include` the subject
+  order is the one `DCP-V1-400` and `DCP-V1-401` give, since one divisor never reorders one family.
+  Acceptance: `TestDCPV1402ClaimFamilyNormalizedMerge`, `TestDCPV1402ExactMatchPrecedesTermOverlap`,
+  `TestDCPV1328SearchIncludesClaims`, `TestDCPV1331ExactBonusAcrossFamilies`.
 - `DCP-V1-403`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-2470) The ranking stays deterministic and bounded: terms are summed in sorted order, the
   path terms of `DCP-V1-400` are read per query from the artifact's subjects without modifying
-  the query index or its encoding, and the indexed and scanning readers return the same order.
-  `docs_claims` with `query` (`DCP-V1-313`) is unchanged. Acceptance:
+  the query index or its encoding, and the indexed and scanning readers return the same order. A
+  query keeps only its own terms of a subject's name field, so a miss retains no per-subject
+  vocabulary. `docs_claims` with `query` (`DCP-V1-313`) is unchanged. Acceptance:
   `TestDCPV1402ClaimFamilyNormalizedMerge`, `TestDCPV1400ModulePathSegmentsAreNameTerms`,
-  `TestDCPV1331SearchRanking`.
+  `TestDCPV1331SearchRanking`, `TestDCPV1403MissRetainsNoSubjectNameTerms`.
 - `DCP-V1-404`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-2470) A committed synthetic fixture,
   `internal/mcp/corpusbridge/testdata/search-ranking-gh1597/` (a source tree, supplied records
   and a `corvint-corpus-eval-cases/1` case file of six file-lookup cases without `kind` and six
@@ -2530,7 +2532,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-330 | `internal/doccorpus/receipt_annotations.go`, `query.go`, `query_index.go` | `TestDCPV1330AlternateIDResolution` |
 | DCP-V1-331 | `internal/doccorpus/search_rank.go`, `query.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1331SearchRanking`, `TestDCPV1331ExactBonusAcrossFamilies`, `TestDCPV1328And331SearchArguments`, `TestDCPV1321CorpusKindAndClaimSearchCLIParity` |
 | DCP-V1-332 | `internal/doccorpus/caller_revision.go`, `query.go`, `trust.go`, `internal/cem/gitauth/ancestry.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1332RelateCallerRevision`, `TestDCPV1332CallerRevisionEnvelope`, `TestDCPV1332CallerRevisionArgument`, `TestDCPV1332HTTPCallerRevisionUnknown`, `TestDCPV1332CorpusCallerRevisionCLIParity` |
-| DCP-V1-400..403 | `internal/doccorpus/search_rank.go` | `TestDCPV1400ModulePathSegmentsAreNameTerms`, `TestDCPV1401ProseNameThreshold`, `TestDCPV1402ClaimFamilyNormalizedMerge`, `TestDCPV1328SearchIncludesClaims`, `TestDCPV1331SearchRanking`, `TestDCPV1331ExactBonusAcrossFamilies` |
+| DCP-V1-400..403 | `internal/doccorpus/search_rank.go` | `TestDCPV1400ModulePathSegmentsAreNameTerms`, `TestDCPV1401ProseNameThreshold`, `TestDCPV1402ClaimFamilyNormalizedMerge`, `TestDCPV1402ExactMatchPrecedesTermOverlap`, `TestDCPV1403MissRetainsNoSubjectNameTerms`, `TestDCPV1328SearchIncludesClaims`, `TestDCPV1331SearchRanking`, `TestDCPV1331ExactBonusAcrossFamilies` |
 | DCP-V1-404 | `internal/mcp/corpusbridge/testdata/search-ranking-gh1597/` | `TestDCPV1404SearchRankingEvalFixture` |
 | DCP-V1-282 | `internal/doccorpus/anchor_state.go`, `internal/doccorpus/query.go`, `internal/doccorpus/trust.go` | `TestDCPV1282PerCitationAnchorState` |
 | DCP-V1-283 | `internal/doccorpus/trust.go` | `TestDCPV1283UnverifiedCorpusVerifiedAtNull` |

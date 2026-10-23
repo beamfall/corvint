@@ -47,11 +47,32 @@ shared exact bonus.
   repeated anchor-path walk, and the per-requirement status that `REQUIREMENTS.tsv` reads. The
   third LOW finding is kept as a limit below.
 
+## Review repair (PR #1603)
+
+- P2, exact-match precedence: the exact bonus added 1 to a normalized partial score, so an exact
+  name that tokenization leaves without a query term (`SignIn` for `signin`) scored 1 and tied a
+  partial hit holding every term, and the ID tie-break could put the partial first. Exact name and
+  claim-text matches now form a tier that orders before every non-exact hit; claims are scanned
+  for exact text too, so a camel-case claim cannot miss the tier. Regression:
+  `TestDCPV1402ExactMatchPrecedesTermOverlap` (index and scan readers, with and without
+  `include: ["claims"]`) failed before with the helper first and passes after.
+- P3, retained name terms: the extra-path pass cached each supplied module's whole ID, name and
+  path vocabulary even on a miss. The name-field function now keeps only query terms, the pass
+  caches a subject only when one matches, and scoring caches only subjects it is asked about.
+  Regression: `TestDCPV1403MissRetainsNoSubjectNameTerms` (4000 supplied modules, query matches
+  none) retained 2,591,128 heap bytes before and 784 after (limit 256 KiB).
+- `BenchmarkDCPV1403SearchMissSuppliedModules` (4000 supplied modules, indexed reader, miss,
+  Apple M2 Max, 200 iterations, 3 runs): before 5,832,657-5,832,689 B/op and 56,056 allocs/op
+  (8.6-9.0 ms/op); after 2,688,868-2,688,979 B/op and 36,012 allocs/op (8.4-13.5 ms/op, the time
+  noisy on a shared host). The remaining allocations are the tokenizer's temporary per-subject
+  maps, which are garbage after the pass.
+
 ## Limits
 
 - Each query walks every subject once. For each supplied `module` or `file` subject whose anchor
-  path differs from its name, it also tokenizes that subject's ID, name and paths. Native file
-  subjects skip the tokenizing. The cost grows with the number of such subjects.
+  path differs from its name, it also tokenizes that subject's ID, name and paths into temporary
+  maps; only matching query terms are kept. Native file subjects skip the tokenizing. The time
+  grows with the number of such subjects.
 
 - The reporter's 52-case labelled suite and corpus are not in the repository, so their before and
   after counts are `NOT_OBSERVED`. The fixture shows that the two mechanisms are fixed, not that

@@ -101,6 +101,28 @@ func TestDCPV1401ProseNameThreshold(t *testing.T) {
 	}
 }
 
+// DCP-V1-402 (review P2): an exact case-insensitive name match ranks first
+// even when tokenization gives it no query term. "SignIn" splits into "sign"
+// and "in", so it shares no term with the query "signin", while the helper's
+// name holds every query term.
+func TestDCPV1402ExactMatchPrecedesTermOverlap(t *testing.T) {
+	t.Parallel()
+	a := buildAdoption(t, func(p *ProviderRecord) {
+		ev := p.Subjects[0].Evidence
+		p.Subjects = append(p.Subjects,
+			Subject{ID: p.ID + ":zz-target", Kind: "use_case", Name: "SignIn", Provider: p.ID, Evidence: ev},
+			Subject{ID: p.ID + ":aa-helper", Kind: "use_case", Name: "signin helper", Provider: p.ID, Evidence: ev},
+		)
+		p.Claims = append(p.Claims, Claim{ID: p.ID + ":aa-claim", Subject: p.ID + ":aa-helper", Text: "signin opens the session", Provider: p.ID, Evidence: ev})
+	})
+	for _, include := range [][]string{nil, {"claims"}} {
+		order := searchOrders(t, a, Request{Operation: "search", Query: "signin", Include: include})
+		if len(order) < 2 || order[0] != "adapter:zz-target" {
+			t.Fatalf("exact name match should rank first (include %v): %v", include, order)
+		}
+	}
+}
+
 // claimBurialCorpus for GitHub #1597 row 2: every query word is common
 // across claims, though only one claim holds them all, while a handful of
 // subjects name one query word, so under raw field weights every such
