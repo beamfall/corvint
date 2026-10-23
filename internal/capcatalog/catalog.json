@@ -13,12 +13,14 @@
     "operations": "the code-declared subcommand tables plus the lowercase word after the command in each help usage line",
     "owningSpec": "the parenthesized spec code ending the command's root help line",
     "purpose": "the command's label in the root help Commands block",
-    "requiredFlags": "per usage form (the command and its catalogued operation words), the --options every Usage block line of that form names outside [ ] and ( ); a form whose lines require none is omitted, and options a help text states as required only in prose are not derived",
+    "requiredFlags": "per usage form (the command and its catalogued operation words), the --options every Usage block line of that form names outside [ ] and ( ); a form whose lines require none is omitted, and options a help text states as required only in prose are not derived; see requiredFlagsCoverage",
+    "requiredFlagsCoverage": "always partial: requiredFlags reads only Usage synopses, and the binary declares no structured required-option table for most forms, so an option that help prose or the parser requires (one of two alternatives, or one required only in some mode) is missing; an absent form or option does not mean none is required, so treat requiredFlags as a lower bound and read corvint help COMMAND before relying on an omission",
     "schemaIds": "every NAME/VERSION schema identifier the command's help text names; input and output are not separated",
     "selfObservationLedger": "best-effort-append when the root help Support boundary lists the command as appending to .corvint/self-observations.jsonl",
     "writeStatements": "sentences of the command's help text that mention writing, mutation or read-only behaviour",
     "writes": "none when the root help Support boundary lists the command as reading without mutating, local-state when it lists the command (in at least one mode) as writing local CEM artifacts or local state, mode-dependent when it lists both"
   },
+  "requiredFlagsCoverage": "partial",
   "globalFlags": [
     "--help",
     "--json",
