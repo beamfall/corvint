@@ -46,13 +46,27 @@ type gitIndex struct {
 // maxGitIndexBytes bounds the index read; a larger index vouches for nothing.
 const maxGitIndexBytes = 256 << 20
 
+// maxGitIndexPathBytes bounds one decoded index pathname (PATH_MAX), and
+// maxGitIndexNameExpansion bounds all decoded pathnames together as a multiple
+// of the index size, so a version 4 index's prefix compression cannot expand
+// into unbounded memory. An index past either bound vouches for nothing.
+const (
+	maxGitIndexPathBytes     = 4096
+	maxGitIndexNameExpansion = 8
+)
+
+// gitIndexExtendedFlags are the extended entry flags Git defines
+// (skip-worktree and intent-to-add); Git refuses an index setting any other.
+const gitIndexExtendedFlags = 0x6000
+
 // pinStatVouched pins every eligible entry Git's index vouches for from the
 // committed blob, in one batched object read, and marks it in done; it opens
 // no worktree file. An entry is vouched when its index record is stage 0,
 // carries no assume-valid, skip-worktree or intent-to-add flag, and its
 // worktree file's lstat matches the record's size, modification and change
-// times, inode, owner and executable bit, with the modification time strictly
-// older than the index file's own (Git's racy-clean rule). Such a file holds
+// times, inode, owner and executable bit, with the modification time in a
+// whole second strictly before the index file's own (Git's racy-clean rule,
+// with a one-second window). Such a file holds
 // exactly the blob the index names, so opening it could at best repeat a
 // committed object, and the blob read here is the tree entry's own: it is
 // immutable content, which is why nothing about the worktree is trusted.
@@ -138,7 +152,9 @@ func (index *gitIndex) vouches(recorded gitIndexStat, info os.FileInfo) bool {
 		live.uid != recorded.uid || live.gid != recorded.gid {
 		return false
 	}
-	return uint64(recorded.mtimeSec)<<32|uint64(recorded.mtimeNsec) < uint64(index.mtimeSec)<<32|uint64(index.mtimeNsec)
+	// The racy window is a whole second: a filesystem or Git build that
+	// records only seconds cannot order two writes within the same second.
+	return recorded.mtimeSec < index.mtimeSec
 }
 
 // readGitIndexFor locates the checkout's index through Git, which honours
@@ -188,8 +204,10 @@ func readGitIndex(path, objectFormat string) (*gitIndex, bool) {
 }
 
 // parseGitIndex reads the stage-0 entries of a version 2, 3 or 4 index whose
-// trailing checksum verifies. Any other version, a malformed entry, a split
-// index (`link`) or an unknown required extension refuses the whole file. A
+// trailing checksum verifies. Any other version, a malformed entry, an unknown
+// extended flag, a pathname past maxGitIndexPathBytes, decoded pathnames past
+// maxGitIndexNameExpansion times the index size, a split index (`link`) or an
+// unknown required extension refuses the whole file. A
 // path with a conflict stage or a flag that stops Git checking its stat is
 // left out, so it is never vouched.
 func parseGitIndex(data []byte, objectFormat string) (*gitIndex, bool) {
@@ -222,6 +240,7 @@ func parseGitIndex(data []byte, objectFormat string) (*gitIndex, bool) {
 	excluded := map[string]struct{}{}
 	offset := 12
 	previous := []byte{}
+	nameBudget := uint64(len(data)) * maxGitIndexNameExpansion
 	for range count {
 		if offset+fixed > len(body) {
 			return nil, false
@@ -240,7 +259,10 @@ func parseGitIndex(data []byte, objectFormat string) (*gitIndex, bool) {
 				return nil, false
 			}
 			extended := binary.BigEndian.Uint16(entry[cursor:])
-			trusted = trusted && extended&0x6000 == 0
+			if extended&^gitIndexExtendedFlags != 0 {
+				return nil, false
+			}
+			trusted = trusted && extended == 0
 			cursor += 2
 		}
 		var name []byte
@@ -254,14 +276,19 @@ func parseGitIndex(data []byte, objectFormat string) (*gitIndex, bool) {
 			if end < 0 {
 				return nil, false
 			}
-			name = append(append([]byte{}, previous[:len(previous)-int(strip)]...), entry[cursor:cursor+end]...)
+			length := len(previous) - int(strip) + end
+			if length > maxGitIndexPathBytes || uint64(length) > nameBudget {
+				return nil, false
+			}
+			nameBudget -= uint64(length)
+			name = append(append(make([]byte, 0, length), previous[:len(previous)-int(strip)]...), entry[cursor:cursor+end]...)
 			cursor += end + 1
 		} else {
 			end := bytes.IndexByte(entry[cursor:], 0)
 			if end < 0 {
 				return nil, false
 			}
-			if length := int(flags & 0x0fff); length < 0x0fff && length != end {
+			if length := int(flags & 0x0fff); length < 0x0fff && length != end || end > maxGitIndexPathBytes {
 				return nil, false
 			}
 			name = entry[cursor : cursor+end]

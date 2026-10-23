@@ -1,6 +1,7 @@
 package contextindex
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha1"
 	"encoding/binary"
@@ -8,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -20,8 +22,8 @@ func requireIndexStat(t *testing.T) {
 	}
 }
 
-// statRoutedRepository commits files, then rewrites the index after a pause so
-// every entry's modification time is strictly older than the index file's.
+// statRoutedRepository commits files, then rewrites the index so every
+// entry's modification time is in a whole second before the index file's.
 func statRoutedRepository(t *testing.T, files map[string]string) string {
 	t.Helper()
 	root := t.TempDir()
@@ -37,10 +39,19 @@ func statRoutedRepository(t *testing.T, files map[string]string) string {
 	return root
 }
 
-// settleIndex rewrites the index after the racy window so no entry is racy.
+// settleIndex backdates every tracked file past the one-second racy window
+// and rewrites the index, so no entry is racy.
 func settleIndex(t *testing.T, root string) {
 	t.Helper()
-	time.Sleep(20 * time.Millisecond)
+	earlier := time.Now().Add(-3 * time.Second)
+	for _, path := range strings.Split(testGit(t, root, "ls-files", "-z"), "\x00") {
+		if path == "" {
+			continue
+		}
+		if err := os.Chtimes(filepath.Join(root, filepath.FromSlash(path)), earlier, earlier); err != nil {
+			t.Fatal(err)
+		}
+	}
 	testGit(t, root, "update-index", "--really-refresh")
 	testGit(t, root, "update-index", "--force-write-index")
 }
@@ -141,8 +152,9 @@ func TestDCPV1452GitIndexVouchesUnchangedEntries(t *testing.T) {
 }
 
 // TestDCPV1452RacyEntryIsNotVouched: an entry whose recorded modification time
-// is not strictly older than the index file's is not vouched even when every
-// stat field matches (Git's racy-clean rule), and one nanosecond older is.
+// falls in the index file's second or later is not vouched even when every
+// stat field matches (Git's racy-clean rule with a whole-second window), and
+// one in an earlier second is.
 func TestDCPV1452RacyEntryIsNotVouched(t *testing.T) {
 	requireIndexStat(t)
 	path := filepath.Join(t.TempDir(), "file.go")
@@ -165,12 +177,12 @@ func TestDCPV1452RacyEntryIsNotVouched(t *testing.T) {
 	if at(recorded.mtimeSec-1, 999_999_999).vouches(recorded, info) {
 		t.Fatal("an entry newer than the index was vouched")
 	}
-	later := at(recorded.mtimeSec, recorded.mtimeNsec+1)
-	if recorded.mtimeNsec == 999_999_999 {
-		later = at(recorded.mtimeSec+1, 0)
+	if at(recorded.mtimeSec, 999_999_999).vouches(recorded, info) {
+		t.Fatal("an entry in the index file's second was vouched")
 	}
+	later := at(recorded.mtimeSec+1, 0)
 	if !later.vouches(recorded, info) {
-		t.Fatal("an entry strictly older than the index was not vouched")
+		t.Fatal("an entry from an earlier second than the index was not vouched")
 	}
 	for name, edit := range map[string]func(*gitIndexStat){
 		"size":  func(s *gitIndexStat) { s.size++ },
@@ -305,6 +317,24 @@ func TestDCPV1453UnusableIndexVouchesNothing(t *testing.T) {
 				t.Fatal(err)
 			}
 		},
+		"unknown extended flag": func(t *testing.T, root, index string) {
+			testGit(t, root, "update-index", "--skip-worktree", "go.mod")
+			data, _ := os.ReadFile(index)
+			at := indexEntryExtendedFlags(t, data, "go.mod")
+			binary.BigEndian.PutUint16(data[at:], binary.BigEndian.Uint16(data[at:])|0x0001)
+			writeIndex(t, index, resum(data))
+		},
+		"long pathname": func(t *testing.T, root, index string) {
+			long := strings.Repeat("a", maxGitIndexPathBytes)
+			writeIndex(t, index, syntheticIndexV4([]string{long, long + "b"}))
+		},
+		"expanded pathnames": func(t *testing.T, root, index string) {
+			names := []string{strings.Repeat("a", 2000)}
+			for range 400 {
+				names = append(names, names[len(names)-1]+"b")
+			}
+			writeIndex(t, index, syntheticIndexV4(names))
+		},
 		"symlink": func(t *testing.T, root, index string) {
 			moved := index + ".real"
 			if err := os.Rename(index, moved); err != nil {
@@ -331,6 +361,76 @@ func TestDCPV1453UnusableIndexVouchesNothing(t *testing.T) {
 			assertIndexEvidenceEqual(t, root, revisionEvidence(t, root, false), routed)
 		})
 	}
+}
+
+// TestDCPV1453IndexPathnameBounds: a version 4 index whose prefix compression
+// stays within the pathname bounds parses; one pathname past PATH_MAX, or
+// decoded pathnames past the expansion bound, refuse the whole index before
+// the names are allocated.
+func TestDCPV1453IndexPathnameBounds(t *testing.T) {
+	chain := func(first, count int) []string {
+		names := []string{strings.Repeat("a", first)}
+		for range count {
+			names = append(names, names[len(names)-1]+"b")
+		}
+		return names
+	}
+	if index, ok := parseGitIndex(syntheticIndexV4(chain(40, 40)), "sha1"); !ok || len(index.entries) != 41 {
+		t.Fatalf("bounded v4 index: ok=%v", ok)
+	}
+	if index, ok := parseGitIndex(syntheticIndexV4(chain(maxGitIndexPathBytes, 0)), "sha1"); !ok || len(index.entries) != 1 {
+		t.Fatalf("PATH_MAX pathname: ok=%v", ok)
+	}
+	if _, ok := parseGitIndex(syntheticIndexV4(chain(maxGitIndexPathBytes, 1)), "sha1"); ok {
+		t.Fatal("a pathname past PATH_MAX was parsed")
+	}
+	if _, ok := parseGitIndex(syntheticIndexV4(chain(2000, 400)), "sha1"); ok {
+		t.Fatal("pathnames past the expansion bound were parsed")
+	}
+}
+
+// indexEntryExtendedFlags returns the offset of path's extended flag word in a
+// version 3 SHA-1 index.
+func indexEntryExtendedFlags(t *testing.T, data []byte, path string) int {
+	t.Helper()
+	offset := 12
+	for range binary.BigEndian.Uint32(data[8:12]) {
+		flags := binary.BigEndian.Uint16(data[offset+60:])
+		cursor := 62
+		if flags&0x4000 != 0 {
+			cursor += 2
+		}
+		end := bytes.IndexByte(data[offset+cursor:], 0)
+		if string(data[offset+cursor:offset+cursor+end]) == path {
+			if flags&0x4000 == 0 {
+				t.Fatalf("%s has no extended flags", path)
+			}
+			return offset + 62
+		}
+		offset += (cursor + end + 8) &^ 7
+	}
+	t.Fatalf("%s is not in the index", path)
+	return 0
+}
+
+// syntheticIndexV4 encodes a checksummed version 4 index whose entries each
+// keep the previous pathname whole (strip 0) and append their own suffix.
+func syntheticIndexV4(names []string) []byte {
+	data := []byte("DIRC\x00\x00\x00\x04")
+	data = binary.BigEndian.AppendUint32(data, uint32(len(names)))
+	previous := ""
+	for _, name := range names {
+		entry := make([]byte, 62)
+		binary.BigEndian.PutUint32(entry[24:], 0o100644)
+		binary.BigEndian.PutUint16(entry[60:], uint16(min(len(name), 0x0fff)))
+		entry = append(entry, 0)
+		entry = append(entry, strings.TrimPrefix(name, previous)...)
+		entry = append(entry, 0)
+		data = append(data, entry...)
+		previous = name
+	}
+	sum := sha1.Sum(data)
+	return append(data, sum[:]...)
 }
 
 func writeIndex(t *testing.T, path string, data []byte) {
