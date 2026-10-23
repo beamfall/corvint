@@ -149,6 +149,7 @@ one.
 | V1-1981 | CAL-V0-320 | Accepted (standing auto-accept, 2026-10-20): the standalone Tasks archive builder also cross-builds `linux/amd64` (`CGO_ENABLED=0`, reproducible, `SHA256SUMS`); the Linux runtime is `NOT_OBSERVED` until a Linux host runs the documented commands |
 | V1-2352 | CAL-V0-321 | Accepted (standing auto-accept, 2026-10-23): a read checkpoint carries a no-false-negative filter of the request paths posted at or before its sequence, so a checkpoint read refuses a duplicate request with a null pre-state through the complete audit (PSR-V0-203); a checkpoint without the filter serves no read; implemented with focused tests |
 | V1-2359 | CAL-V0-322 | Accepted (standing auto-accept, 2026-10-23): `attempt show` and `ticket show` carry `lastFailedGate`, the newest FAILED or BLOCKED gate result with the TCD-V0-165 bounded, secret-screened tail of its retained output; implemented with focused tests |
+| V1-2368 | CAL-V0-365, CAL-V0-366 | Accepted (standing auto-accept, 2026-10-23): an interrupted `WORKTREE_REMOVE` is taken over and settled with a typed outcome; removed worktree records are dropped; implemented with focused tests on Linux |
 | V1-1321 | ATR-V0-210, ATR-V0-211 | Delivered as a refusal naming uncovered requested paths plus the reported scope (attempt runner spec); CAL-V0-021 unamended |
 | V1-1494 | CAL-V0-263, CAL-V0-265 | Proposed (issue 967): no lease write holds the preparation gate for a complete-history audit; the scheduled refresh walks the prefix to its captured head when the journal moves; focused tests, mutation check and an opt-in load harness |
 | V1-1512 | none (evidence; PSR-V0-052) | Accepted (standing auto-accept, 2026-10-20): issue 967 remainder; at 40,000 receipts and 15 writers heartbeat/renew p99 1,138/1,131 ms (residual: gate wait behind about 1 s widen and reap commits), no `SNAPSHOT_MOVED`; reap and pool release resume tests; proposals 2 remainder and 3 are 1.0 work per decision 0549, proposal 5 deferred past 1.0 |
@@ -7432,6 +7433,42 @@ every gate record the attempt names (one per gate, 64 KiB bound each) is read.
 
 Rollback: revert the source; the field disappears and nothing stored changes.
 
+### V1-2368 interrupted stage-worktree removal and removed records (CAL-V0-365..366)
+
+Human-owned input: native ticket V1-2368, the residual of V1-0826 (ATR-V0-296..298). A `program
+cleanup` or reassign interrupted after its `WORKTREE_REMOVE` write left a program that no later owner
+could take over, and removed worktrees stayed recorded with `removed: true` for the rest of the
+assignment. This amends ATR-V0-296's non-goal "resuming a removal interrupted after its
+`WORKTREE_REMOVE` write" and its failure mode "the worktrees already removed stay marked removed".
+
+- `CAL-V0-365`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A program
+  whose owner is proved gone in `WORKTREE_REMOVE` MUST be taken over in that phase, like `FINISHED`,
+  `ADMITTED`, `WORKTREE_ADD` and `READY`. The next owner (`program cleanup` or the reopen that
+  reassigns) MUST settle that removal before anything else moves the program: a worktree that still
+  passes the ATR-V0-296 checks is removed, one already absent from disk and from Git's worktree list
+  is recorded removed, and any other is kept with its reason. Either way the program returns to
+  `FINISHED` behind a terminal proved attempt, or `ADMITTED` with no current attempt, and the settled
+  item carries `outcome` `REMOVAL_FINISHED` or `REMOVAL_ROLLED_BACK`. No other item carries `outcome`.
+- `CAL-V0-366`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A cleanup MUST
+  drop the record of each worktree it removes in the same program write that leaves
+  `WORKTREE_REMOVE`, and MUST drop records an earlier version marked `removed` with its next program
+  write, so repeated cleanups of one assignment record only the kept worktrees.
+
+Non-goals: forced removal of a dirty or moved worktree; `git worktree prune`; a record for a worktree
+absent from disk but still registered (it is kept, with its reason).
+
+Failure modes: a takeover that cannot find the record its `WORKTREE_REMOVE` effect names refuses
+`JOURNAL_FORKED` with nothing written; a refused phase write stops the cleanup with that error.
+
+Acceptance evidence: `TestCALV0365_InterruptedWorktreeRemoveTakenOver` (child process stopped after
+the `WORKTREE_REMOVE` write, before and after `git worktree remove`, with a dirtied worktree, and
+through the reassigning reopen) and `TestCALV0366_RemovedWorktreeRecordsDropped`
+(`internal/tasks/store`). The first fails with the takeover rule reverted (`prior program owner not
+proved stopped`); the second fails with records marked removed instead of dropped.
+
+Rollback: revert the commit. An interrupted removal again needs manual repair, and removed records
+are kept marked `removed` until the reassign; records already dropped need no migration.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -8288,3 +8325,5 @@ after this restore.
 | CAL-V0-320 | `TestTasksArchiveCrossTargetIsLinuxAmd64Only`, `TestTasksArchiveCrossManifestStatesTheLimit`, `TestTasksArchiveRefusesOtherTargets` (`internal/companionrelease`); `docs/build-log/2026-10-20-v1-1981-tasks-linux-amd64-archive.md` (cross-build, ELF check, checksum; Linux runtime `NOT_OBSERVED`) |
 | CAL-V0-321 | `TestCALV0321_CheckpointRequestFilter`, `TestCALV0321_RequestFilterHasNoFalseNegatives`, `TestCALV0321_EmbeddedHeadersRefuseRequestFilter`, `TestPSRV0203_CheckpointTailRefusesNullPreStateDuplicate` (`internal/tasks/journal`) |
 | CAL-V0-322 | `TestCALV0322_ShowReportsLastFailedGateTail`, `TestCALV0322_LastFailedGateUnknowns` (`internal/tasks/cli`) |
+| CAL-V0-365 | `TestCALV0365_InterruptedWorktreeRemoveTakenOver` (`internal/tasks/store`) |
+| CAL-V0-366 | `TestCALV0366_RemovedWorktreeRecordsDropped`, `TestATRV0297_ReassignRemovesPriorStageWorktrees` (`internal/tasks/store`) |

@@ -74,7 +74,8 @@ func TestATRV0297_ReassignRemovesPriorStageWorktrees(t *testing.T) {
 	if err != nil || len(results) != 1 || !results[0].Removed || results[0].Path != dirty {
 		t.Fatalf("cleanup of the restored worktree: %+v %v", results, err)
 	}
-	if p = programRecord(t, f); p.Phase != "ADMITTED" || !p.Worktrees[0].Removed {
+	// The removed worktree's record is dropped (CAL-V0-366).
+	if p = programRecord(t, f); p.Phase != "ADMITTED" || len(p.Worktrees) != 0 {
 		t.Fatalf("cleanup recorded phase %s worktrees %+v", p.Phase, p.Worktrees)
 	}
 	if list := multiGit(t, f.extra, "worktree", "list", "--porcelain"); strings.Count(list, "worktree ") != 1 {

@@ -907,6 +907,17 @@ func OpenWorkflow(ctx context.Context, repo *intent.Repository, actor mutation.B
 				}
 			}
 		}
+		if w.program.Phase == "WORKTREE_REMOVE" {
+			// A removal its owner left after the WORKTREE_REMOVE write is
+			// settled before anything else moves the program (CAL-V0-365).
+			phase, e := w.cleanupPhase()
+			if e != nil {
+				return nil, e
+			}
+			if _, e = w.resumeRemove(phase); e != nil {
+				return nil, e
+			}
+		}
 		if w.attempt != nil && !w.attempt.Live() {
 			// The prior assignment's clean stage worktrees are removed
 			// before the reassign; any it cannot remove stay registered,
@@ -1379,22 +1390,39 @@ func (w *Workflow) Resume(retry bool) error {
 }
 
 // WorktreeCleanup reports one registered stage worktree that a cleanup
-// removed or kept (ATR-V0-296).
+// removed or kept (ATR-V0-296). Outcome is set only on the item that settles
+// a removal interrupted after its WORKTREE_REMOVE write (CAL-V0-365).
 type WorktreeCleanup struct {
 	Path       string `json:"path"`
 	Repository string `json:"repository,omitempty"`
 	Removed    bool   `json:"removed"`
 	Reason     string `json:"reason,omitempty"`
+	Outcome    string `json:"outcome,omitempty"`
 }
+
+// Outcomes of an interrupted removal settled by the next owner (CAL-V0-365).
+const (
+	RemovalFinished   = "REMOVAL_FINISHED"
+	RemovalRolledBack = "REMOVAL_ROLLED_BACK"
+)
 
 // cleanupPhase is the program phase a cleanup returns to: FINISHED behind a
 // terminal attempt whose stop is proved, or ADMITTED for an idle program that
-// holds no attempt. Any other state may still reference a stage worktree.
+// holds no attempt. Any other state may still reference a stage worktree. A
+// program left in WORKTREE_REMOVE returns to the phase its removal began
+// from, which the same two conditions decide (CAL-V0-365).
 func (w *Workflow) cleanupPhase() (string, error) {
+	phase := w.program.Phase
+	if phase == "WORKTREE_REMOVE" {
+		phase = "FINISHED"
+		if w.program.CurrentAttempt == "" {
+			phase = "ADMITTED"
+		}
+	}
 	switch {
-	case w.program.Phase == "FINISHED" && w.attempt != nil && !w.attempt.Live() && w.attempt.Quiescence == "PROVED":
+	case phase == "FINISHED" && w.attempt != nil && !w.attempt.Live() && w.attempt.Quiescence == "PROVED":
 		return "FINISHED", nil
-	case w.program.Phase == "ADMITTED" && w.program.CurrentAttempt == "" && w.attempt == nil:
+	case phase == "ADMITTED" && w.program.CurrentAttempt == "" && w.attempt == nil:
 		return "ADMITTED", nil
 	}
 	return "", wire.Errorf(wire.CodeAttemptLive, "program", "cleanup requires a terminal proved attempt or an idle program")
@@ -1404,59 +1432,171 @@ func (w *Workflow) cleanupPhase() (string, error) {
 // is still their recorded commit, once no live attempt can reference them.
 // Candidate refs and journal handoffs remain recoverable. A worktree that is
 // dirty, moved, missing or not removable is kept registered and reported, and
-// cleanup continues with the others (ATR-V0-296).
+// cleanup continues with the others (ATR-V0-296). A removal interrupted after
+// its WORKTREE_REMOVE write is settled first (CAL-V0-365), and a removed
+// worktree's record is dropped rather than kept (CAL-V0-366).
 func (w *Workflow) CleanupWorktrees() ([]WorktreeCleanup, error) {
 	phase, e := w.cleanupPhase()
 	if e != nil {
 		return nil, e
 	}
 	out := []WorktreeCleanup{}
-	for i, r := range w.program.Worktrees {
-		if r.Removed {
-			continue
-		}
-		item := WorktreeCleanup{Path: r.Path, Repository: r.Repository}
-		saved := w.program
-		root := w.repo.PrimaryWorktree
-		w.program.Worktree = r.Path
-		var bound error
-		if r.Repository != "" {
-			if repo, ok := w.repository(r.Repository); !ok {
-				bound = fmt.Errorf("worktree names an undeclared repository")
-			} else {
-				root = repo.Checkout
-				bound = w.bindRepoWorktree(repo, r.Path, r.Commit)
-			}
-		} else {
-			w.program.WorktreeIdentity = r.Identity
-			w.program.WorktreeGitDir = r.PrivateIdentity
-			w.program.WorktreeCommit = r.Commit
-			bound = w.bindWorktree(r.Path, r.Commit)
-		}
-		if bound != nil {
-			w.program = saved
-			item.Reason = bound.Error()
-			out = append(out, item)
-			continue
-		}
-		w.program.Effect = supervisor.Digest([]byte("WORKTREE_REMOVE:" + r.Path + ":" + r.Identity))
-		if e := w.persist("WORKTREE_REMOVE"); e != nil {
+	if w.program.Phase == "WORKTREE_REMOVE" {
+		item, e := w.resumeRemove(phase)
+		if e != nil {
 			return out, e
 		}
-		if _, e := gitOutput(root, "-c", "core.hooksPath=/dev/null", "worktree", "remove", r.Path); e != nil {
-			// The phase returns with the record kept, so a failed removal
-			// never leaves the program parked in WORKTREE_REMOVE.
-			item.Reason = "worktree remove: " + e.Error()
-		} else {
-			w.program.Worktrees[i].Removed = true
-			item.Removed = true
+		out = append(out, item)
+	}
+	// Records an earlier cleanup marked removed are dropped with the next
+	// program write (CAL-V0-366).
+	kept := []snapshot.WorktreeRecord{}
+	for _, r := range w.program.Worktrees {
+		if !r.Removed {
+			kept = append(kept, r)
 		}
-		if e := w.persist(phase); e != nil {
+	}
+	w.program.Worktrees = kept
+	for _, r := range kept {
+		item, e := w.removeWorktree(r, phase, false)
+		if e != nil {
 			return out, e
 		}
 		out = append(out, item)
 	}
 	return out, nil
+}
+
+// removeWorktree removes one recorded stage worktree under the ATR-V0-296
+// checks and returns the program to phase. A resumed removal is already in
+// WORKTREE_REMOVE, so it writes no second WORKTREE_REMOVE and, when a check
+// fails, rolls the program back to phase with the record kept.
+func (w *Workflow) removeWorktree(r snapshot.WorktreeRecord, phase string, resumed bool) (WorktreeCleanup, error) {
+	item := WorktreeCleanup{Path: r.Path, Repository: r.Repository}
+	saved := w.program
+	root := w.repo.PrimaryWorktree
+	w.program.Worktree = r.Path
+	var bound error
+	if r.Repository != "" {
+		if repo, ok := w.repository(r.Repository); !ok {
+			bound = fmt.Errorf("worktree names an undeclared repository")
+		} else {
+			root = repo.Checkout
+			bound = w.bindRepoWorktree(repo, r.Path, r.Commit)
+		}
+	} else {
+		w.program.WorktreeIdentity = r.Identity
+		w.program.WorktreeGitDir = r.PrivateIdentity
+		w.program.WorktreeCommit = r.Commit
+		bound = w.bindWorktree(r.Path, r.Commit)
+	}
+	if bound != nil {
+		w.program = saved
+		item.Reason = bound.Error()
+		if resumed {
+			return item, w.persist(phase)
+		}
+		return item, nil
+	}
+	if !resumed {
+		w.program.Effect = removeEffect(r)
+		if e := w.persist("WORKTREE_REMOVE"); e != nil {
+			return item, e
+		}
+	}
+	if e := fault(w.repo, "worktree-remove:written"); e != nil {
+		return item, e
+	}
+	if _, e := gitOutput(root, "-c", "core.hooksPath=/dev/null", "worktree", "remove", r.Path); e != nil {
+		// The phase returns with the record kept, so a failed removal
+		// never leaves the program parked in WORKTREE_REMOVE.
+		item.Reason = "worktree remove: " + e.Error()
+	} else {
+		w.dropWorktree(r.Path)
+		item.Removed = true
+	}
+	if e := fault(w.repo, "worktree-remove:removed"); e != nil {
+		return item, e
+	}
+	return item, w.persist(phase)
+}
+
+func removeEffect(r snapshot.WorktreeRecord) string {
+	return supervisor.Digest([]byte("WORKTREE_REMOVE:" + r.Path + ":" + r.Identity))
+}
+
+// dropWorktree forgets a removed worktree's record (CAL-V0-366).
+func (w *Workflow) dropWorktree(path string) {
+	kept := []snapshot.WorktreeRecord{}
+	for _, r := range w.program.Worktrees {
+		if r.Path != path {
+			kept = append(kept, r)
+		}
+	}
+	w.program.Worktrees = kept
+}
+
+// resumeRemove settles a removal whose owner stopped after the
+// WORKTREE_REMOVE write (CAL-V0-365). The worktree that write names is
+// removed when it still passes the ATR-V0-296 checks, recorded removed when
+// it is already gone from disk and from Git's registry, and otherwise kept
+// with its reason; either way the program returns to phase.
+func (w *Workflow) resumeRemove(phase string) (WorktreeCleanup, error) {
+	var rec *snapshot.WorktreeRecord
+	for i, r := range w.program.Worktrees {
+		if r.Path == w.program.Worktree && !r.Removed && removeEffect(r) == w.program.Effect {
+			rec = &w.program.Worktrees[i]
+		}
+	}
+	if rec == nil {
+		return WorktreeCleanup{}, wire.Errorf(wire.CodeJournalForked, "program", "interrupted worktree removal names no recorded worktree")
+	}
+	r := *rec
+	root := w.repo.PrimaryWorktree
+	if r.Repository != "" {
+		if repo, ok := w.repository(r.Repository); ok {
+			root = repo.Checkout
+		}
+	}
+	if _, e := os.Lstat(r.Path); os.IsNotExist(e) {
+		item := WorktreeCleanup{Path: r.Path, Repository: r.Repository, Outcome: RemovalRolledBack}
+		registered, e := worktreeRegistered(root, r.Path)
+		switch {
+		case e != nil:
+			item.Reason = "worktree registry: " + e.Error()
+		case registered:
+			item.Reason = "worktree directory absent but still registered"
+		default:
+			w.dropWorktree(r.Path)
+			item.Removed, item.Outcome = true, RemovalFinished
+		}
+		return item, w.persist(phase)
+	}
+	item, e := w.removeWorktree(r, phase, true)
+	item.Outcome = RemovalRolledBack
+	if item.Removed {
+		item.Outcome = RemovalFinished
+	}
+	return item, e
+}
+
+// worktreeRegistered reports whether Git still lists path as a worktree of
+// the checkout at root.
+func worktreeRegistered(root, path string) (bool, error) {
+	raw, e := gitOutput(root, "worktree", "list", "--porcelain")
+	if e != nil {
+		return false, e
+	}
+	names := map[string]bool{filepath.Clean(path): true}
+	if dir, e := filepath.EvalSymlinks(filepath.Dir(path)); e == nil {
+		names[filepath.Join(dir, filepath.Base(path))] = true
+	}
+	for _, line := range strings.Split(string(raw), "\n") {
+		if p, ok := strings.CutPrefix(line, "worktree "); ok && names[filepath.Clean(p)] {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // CleanupProgram is the operator cleanup of one recorded program's stage

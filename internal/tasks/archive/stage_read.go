@@ -39,18 +39,57 @@ func (n archiveNative) path(p string) (string, error) {
 	return filepath.Join(n.StateDir, p), nil
 }
 
-// archiveRead lives for exactly one export attempt. It retains every listed
-// no-follow parent; file reads never reopen the original absolute parent.
+// archiveRead lives for exactly one export attempt. It retains the two
+// anchor roots (the state dir and the intent dir) and at most maxHeldRoots
+// other no-follow directory roots; file reads never reopen the original
+// absolute parent. A directory root released under that bound is reopened
+// beneath its retained or reopened parent and must be the directory its
+// parent's listing observed, else the attempt is moved (CTS-V0-020).
 type archiveRead struct {
 	native   archiveNative
 	roots    map[string]*os.Root
+	held     []string // non-anchor roots, oldest first
 	absent   map[string]bool
 	listed   map[string]os.FileInfo
 	closeErr error
 }
 
+// maxHeldRoots bounds the directory descriptors one export attempt keeps
+// open beyond its two anchors, so its descriptor use no longer grows with
+// the 256 request shard directories (V1-0903). Payload reads are sorted, so
+// shards are visited in turn and a small bound reopens almost none.
+var maxHeldRoots = 16
+
+// afterHold reports the open root count after each hold; a test sets it.
+var afterHold func(open int)
+
 func newArchiveRead(n archiveNative) *archiveRead {
-	return &archiveRead{n, map[string]*os.Root{}, map[string]bool{}, map[string]os.FileInfo{}, nil}
+	return &archiveRead{native: n, roots: map[string]*os.Root{}, absent: map[string]bool{}, listed: map[string]os.FileInfo{}}
+}
+
+// hold records a newly opened non-anchor root and releases the oldest held
+// ones beyond maxHeldRoots. A caller uses a root only until its next parent
+// call, so a released root is never in use.
+func (s *archiveRead) hold(p string, root *os.Root) {
+	s.roots[p] = root
+	if p == "." || p == "intent" {
+		if afterHold != nil {
+			afterHold(len(s.roots))
+		}
+		return
+	}
+	s.held = append(s.held, p)
+	for len(s.held) > maxHeldRoots {
+		old := s.held[0]
+		s.held = s.held[1:]
+		if r := s.roots[old]; r != nil {
+			s.closeErr = errors.Join(s.closeErr, closeReadRoot(r))
+			delete(s.roots, old)
+		}
+	}
+	if afterHold != nil {
+		afterHold(len(s.roots))
+	}
 }
 
 var afterReadNames func(string) // deterministic enumeration/metadata race witness
@@ -63,6 +102,7 @@ func (s *archiveRead) close() error {
 		err = errors.Join(err, closeReadRoot(r))
 		delete(s.roots, p)
 	}
+	s.held = nil
 	return err
 }
 func archiveMoved(p string) error {
@@ -92,7 +132,21 @@ func (s *archiveRead) parent(p string) (*os.Root, error) {
 		}
 		return nil, e
 	}
-	s.roots[p] = root
+	if old := s.listed[p]; old != nil {
+		// A released root reopened, or a listed directory opened for the
+		// first time: it must still be the directory the listing saw.
+		info, e := root.Stat(".")
+		if e != nil || !os.SameFile(old, info) {
+			if c := closeReadRoot(root); c != nil {
+				s.closeErr = errors.Join(s.closeErr, c)
+			}
+			if e != nil {
+				return nil, e
+			}
+			return nil, archiveMoved(p)
+		}
+	}
+	s.hold(p, root)
 	return root, nil
 }
 func (s *archiveRead) binding(p string, root *os.Root) (err error) {

@@ -100,7 +100,9 @@ func planProgram(c leaseContext) leaseOutcome {
 			return c.recordProgramRefusal("immutable repository binding differs")
 		}
 		if recovering {
-			safePhase := (old.Phase == "FINISHED" || old.Phase == "ADMITTED" || old.Phase == "WORKTREE_ADD" || old.Phase == "READY") && next.Phase == old.Phase
+			// An owner stopped after a WORKTREE_REMOVE write is taken over in
+			// that phase; the new owner then settles the removal (CAL-V0-365).
+			safePhase := (old.Phase == "FINISHED" || old.Phase == "ADMITTED" || old.Phase == "WORKTREE_ADD" || old.Phase == "READY" || old.Phase == "WORKTREE_REMOVE") && next.Phase == old.Phase
 			recovered := change.PreviousWorkerClean && next.Phase == "FINISHED" && next.Quiescence == "PROVED"
 			settled := (old.Phase == "SPAWNING" || old.Phase == "STOPPING") && next.Phase == "FINISHED" && next.Quiescence == "PROVED" && BoundStoppedAttempt(c.st.attempts[old.CurrentAttempt], old)
 			if !change.PreviousOwnerGone || next.Epoch != old.Epoch+1 || (!safePhase && !recovered && !settled) || old.Worktree != next.Worktree {

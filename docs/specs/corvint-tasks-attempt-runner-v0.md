@@ -1976,9 +1976,10 @@ worktree registry with no record left that could find or remove it.
   the next program has a current attempt.
 Non-goals: removing a dirty, moved or re-pointed worktree; deleting candidate refs or journal
 hand-offs; resuming a removal interrupted after its `WORKTREE_REMOVE` write (the program stays in
-that phase, as before); automatic cleanup outside a reassign.
+that phase, as before; amended by CAL-V0-365, V1-2368); automatic cleanup outside a reassign.
 Failure modes: a kept worktree is reported, never removed by force; a refused or failed phase write
-stops the cleanup with that error, and the worktrees already removed stay marked removed.
+stops the cleanup with that error, and the worktrees already removed stay marked removed (amended by
+CAL-V0-366: removed records are dropped).
 Acceptance evidence: `TestATRV0297_ReassignRemovesPriorStageWorktrees` (covers ATR-V0-296..298) and
 `TestATRV0296_CleanupRefusesLiveAttempt` (`internal/tasks/store`), and
 `TestATRV0296_ProgramCleanupRefusalsDoNotMutate` (`internal/tasks/cli`). The reassign test fails
