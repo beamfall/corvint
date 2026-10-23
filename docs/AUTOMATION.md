@@ -27,6 +27,7 @@ arm64, Go 1.27.1, at `01b6804`); the worked example at the end is that run.
   authority off the Core path (row 6, line 19); a CI or hook invocation of the same binary gains
   nothing either path lacks. In particular: `affected` never claims omitted tests are safe to skip
   (`cmd/corvint/help.go:716-717@d5d6e05c`); a valid CEM establishes provenance completeness, not semantic
+  (`cmd/corvint/help.go:712-713@d5d6e05c`); a valid CEM establishes provenance completeness, not semantic
   correctness ([Change Evidence Map](CHANGE-EVIDENCE-MAP.md)); and `witness` exits 0 on a
   report whose obligations are all unproven (worked example below).
 - **Network.** "Local-only; no network or telemetry" (root help support boundary)
@@ -62,6 +63,7 @@ either file.
 Each takes `--root PATH` (default: the current directory) and reads the checkout at `HEAD`. Every
 base must be a full 40-hex commit id that is present in the clone, so a shallow CI checkout must
 fetch enough history to contain it (`cmd/corvint/help.go:698@a892984d`). On an argument or input refusal each
+fetch enough history to contain it (`cmd/corvint/help.go:694@a892984d`). On an argument or input refusal each
 prints one JSON object with `"ok": false` to stderr and exits 2.
 
 Scope: the table lists the steps that answer a question about one change against a fixed base,
@@ -69,6 +71,7 @@ which is what a CI job, git hook or team automation asks. Other verbs that help 
 read-only (`init`, `adopt`, `query`, `docs`, `harness`, `lrf` at `cmd/corvint/help.go:367-368@a54374e4`, and the
 experimental `batch`, `depsource`, `necessity`, `surprise`, `answerability`, `kernel` and `reads`
 in the command-maturity list at `cmd/corvint/help.go:341-350@80dd8f06`) are not classified here. They need a per-session task, packet or
+in the command-maturity list at `cmd/corvint/help.go:1436-1448@e77a32b6`) are not classified here. They need a per-session task, packet or
 request as input, or they are experimental without a stability promise. This page makes no claim
 about their safety as a triggered step.
 
@@ -85,6 +88,9 @@ Where each row was verified:
 - `affected`: profile `cmd/corvint/affected.go:35@af9fb447`; exits `cmd/corvint/affected.go:501-531@38b82c0e`; its
   refusals are emitted without the ledger recorder (`cmd/corvint/main.go:1076-1081@7ed11581`); help text
   "runs no test, writes no repository state" (`cmd/corvint/help.go:716@f024c3ab`).
+- `affected`: profile `cmd/corvint/affected.go:35@af9fb447`; exits `cmd/corvint/affected.go:519-549@38b82c0e`; its
+  refusals are emitted without the ledger recorder (`cmd/corvint/main.go:1077-1082@7ed11581`); help text
+  "runs no test, writes no repository state" (`cmd/corvint/help.go:712@f024c3ab`).
 - `cem verify` and `cem status`: exits `internal/cem/cli/cli.go:351-380@773eecd5` (0 when the envelope says
   `"ok": true`, 1 when it says false, 2 on a dispatch error); `ok`, `mutates` and `state`
   `internal/cem/workflow/stable_read.go:130-158@247aec24`; refusals pass through the ledger recorder

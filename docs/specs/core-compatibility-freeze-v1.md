@@ -227,6 +227,9 @@ compatibility baseline; see the N-1 replay paragraph of CCF-V1-007 for how the r
   | `plan.scope` | `affected` | `BOUNDED`, `UNKNOWN` | closed | `internal/liveverify/affected/select.go:71@884d7796` |
   | `advice.status` | `affected` | `PLAN_ONLY` | closed | `cmd/corvint/affected.go:144@7320d4cb` |
   | `provider.go.state` | `affected` | `RUNNABLE`, `EMPTY_SELECTION`, `MODULE_PATH_UNRESOLVED`, `PACKAGE_BOUND_EXCEEDED` | closed | `cmd/corvint/affected.go:163@797e536b` |
+  | `plan.scope` | `affected` | `BOUNDED`, `UNKNOWN` | closed | `internal/liveverify/affected/select.go:68@884d7796` |
+  | `advice.status` | `affected` | `PLAN_ONLY` | closed | `cmd/corvint/affected.go:152@7320d4cb` |
+  | `provider.go.state` | `affected` | `RUNNABLE`, `EMPTY_SELECTION`, `MODULE_PATH_UNRESOLVED`, `PACKAGE_BOUND_EXCEEDED` | closed | `cmd/corvint/affected.go:171@797e536b` |
   | `state` | `prove` | `READY`, `OUT_OF_SCOPE`, `NEEDS_WIDENING`, `BUDGETED`, `CRITICAL_EVIDENCE_OVERFLOW`, `WORKTREE_EVIDENCE`, `PARTIAL`, `CITED`, `UNPROVEN` | closed | `cmd/corvint/prove.go:1737@b984fed9` |
   | `coverage.answerability.verdict` | `context` | `no-specific-terms`, `relations-answer`, `unsupported-conjunction`, `not-withheld`, `supported` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/taskcontext.go:3540@c020e4b8` |
   | `context.intent.id` | `query` | `repository`, `project-operations`, `agent-tooling` | open | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/query.go:204@56442382` |
