@@ -46,7 +46,7 @@ func TestPlaywrightExampleAppQualification(t *testing.T) {
 		shared, err := New().Units(context.Background(), root)
 		// TJAA-V0-037: with Playwright as the only runner identity, the general adapter resolves
 		// the same tsconfig aliases instead of retaining the alias frontier.
-		if err != nil || slices.Contains(shared.Frontier, FrontierPathAlias) {
+		if err != nil || frontierHas(shared, FrontierPathAlias) {
 			t.Fatal("general adapter did not resolve Playwright-only aliases", err, shared.Frontier)
 		}
 	})
