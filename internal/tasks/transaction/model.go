@@ -1314,7 +1314,7 @@ func importPosts(r Request, in Input, state inputState, posts map[string][]byte)
 		if e = importMapAdmits(state, rec); e != nil {
 			return e
 		}
-		if e = importChain(rec, prospective[rec.TicketID.Raw], in.Inventory); e != nil {
+		if e = importChain(rec, prospective[rec.TicketID.Raw], in.Inventory, state.importMap); e != nil {
 			return e
 		}
 		prospective[rec.TicketID.Raw] = rec
@@ -1328,8 +1328,10 @@ func importPosts(r Request, in Input, state inputState, posts map[string][]byte)
 	return e
 }
 
-// importChain checks that post is a shadow IMPORT record that follows pre.
-func importChain(post, pre *ticket.Record, inv *Inventory) error {
+// importChain checks that post is a shadow IMPORT record that follows pre. A
+// source item the queue's import map assigns to the ticket may replace pre's
+// source, which is how a renamed source re-imports (CTS-V0-023).
+func importChain(post, pre *ticket.Record, inv *Inventory, m *intent.ImportMap) error {
 	where := "/tickets/" + post.TicketID.Raw
 	if post.Source.Kind != "IMPORT" || !post.ShadowOverlay || post.Source.SourceRevisionSha256 == nil {
 		return wire.Errorf(wire.CodeMalformed, where, "an imported record is a shadow IMPORT record with a source revision")
@@ -1362,7 +1364,7 @@ func importChain(post, pre *ticket.Record, inv *Inventory) error {
 	if pre.Source.Kind != "IMPORT" {
 		return wire.Errorf(wire.CodeDuplicateID, where, "ticket is held by a %s record", pre.Source.Kind)
 	}
-	if pre.Source.SourceQueueID != post.Source.SourceQueueID || *pre.Source.SourceItemID != *post.Source.SourceItemID {
+	if (pre.Source.SourceQueueID != post.Source.SourceQueueID || *pre.Source.SourceItemID != *post.Source.SourceItemID) && (post.Source.SourceItemID == nil || !m.Maps(post.Source.SourceQueueID, *post.Source.SourceItemID, post.TicketID.Raw)) {
 		return wire.Errorf(wire.CodeDuplicateID, where, "ticket is held by source item %s of %s", *pre.Source.SourceItemID, pre.Source.SourceQueueID)
 	}
 	if post.Revision.Int() != pre.Revision.Int()+1 || post.PreviousRecordSha256 == nil || *post.PreviousRecordSha256 != pre.FileDigest() || post.CreatedAt != pre.CreatedAt {

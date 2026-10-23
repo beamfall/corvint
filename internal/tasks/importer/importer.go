@@ -113,6 +113,10 @@ type Store struct {
 	Queue   *intent.Queue
 	Policy  *intent.Policy
 	Tickets *ticket.Inventory
+	// ImportMap is the queue's journaled import map, nil when it names none.
+	// A source item it maps to an imported ticket may re-import into that
+	// ticket under a renamed source (CTS-V0-023).
+	ImportMap *intent.ImportMap
 }
 
 // Plan returns the canonical post records for every new or changed item, in
@@ -175,7 +179,7 @@ func record(sourceQueue string, item Item, st Store, current map[string]*ticket.
 		if pre.Source.Kind != "IMPORT" {
 			return nil, wire.Errorf(wire.CodeDuplicateID, id.Raw, "ticket is held by a %s record", pre.Source.Kind)
 		}
-		if pre.Source.SourceQueueID != sourceQueue || *pre.Source.SourceItemID != item.SourceItemID {
+		if (pre.Source.SourceQueueID != sourceQueue || *pre.Source.SourceItemID != item.SourceItemID) && !st.ImportMap.Maps(sourceQueue, item.SourceItemID, id.Raw) {
 			return nil, wire.Errorf(wire.CodeDuplicateID, id.Raw, "ticket is held by source item %s of %s", *pre.Source.SourceItemID, pre.Source.SourceQueueID)
 		}
 		if *pre.Source.SourceRevisionSha256 == revision {

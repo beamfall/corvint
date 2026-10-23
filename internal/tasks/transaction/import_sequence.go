@@ -190,7 +190,7 @@ func (s *ImportSequence) posts(r Request, posts map[string][]byte) error {
 		if err = importMapAdmits(s.state, rec); err != nil {
 			return err
 		}
-		if err = importChain(rec, pre, s.input.Inventory); err != nil {
+		if err = importChain(rec, pre, s.input.Inventory, s.state.importMap); err != nil {
 			return err
 		}
 		if pre == nil {

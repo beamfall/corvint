@@ -1,7 +1,7 @@
 # corvint-tasks command correctness lane (V1-0903, V1-2368, V1-2400, V1-0907, V1-0775)
 
 Date: 2026-10-23. Base `7b3a8e55fc909b9692c684e47dc4c6787ac2419a` (origin/main). Requirement IDs:
-CAL-V0-365..366 (V1-2368, in `corvint-tasks-attempt-runner-v0.md`) and CTS-V0-020..022 (V1-2400, in
+CAL-V0-365..366 (V1-2368, in `corvint-tasks-attempt-runner-v0.md`) and CTS-V0-020..023 (V1-2400, in
 `corvint-tasks-store-init-v0.md`), from the lane's reserved ranges. None was taken on main or in any
 open pull request when numbered.
 
@@ -32,6 +32,18 @@ rename or an added source queue) but refuses a dropped ticket, a moved source it
 twice, or a record's own source mapped elsewhere. The stage maximum (7 artifacts, 1844 bytes) is
 measured by the existing codec maxima test. The new receipt kind is a format extension: an older
 binary refuses a store that recorded one, which the rollback note states.
+
+## Independent review
+
+One read-only review of the first commit found: a missing checkout settled as removed even when it
+had been moved (fixed: git's private worktree directory must be gone; a moved case is tested); a
+mapped rename that left the renamed ticket impossible to re-import, because the planner and
+`importChain` still required the record's old source (fixed as CTS-V0-023, tested); a new map entry
+naming a native ticket admitted (fixed in CTS-V0-021, tested); `newImportMapSha256` reported on a
+refused CLI call (fixed); and untested paths (idle `OpenWorkflow` settlement, earlier
+removed-marked records, map immutability after later writes), now tested. Not fixed: a
+`CleanupWorktrees` retry on the same in-memory `Workflow` after a failed phase write misreports the
+already-dropped record as `ROLLED_BACK` (persisted state is correct; the next process reads it).
 
 ## V1-0903: not reproduced
 

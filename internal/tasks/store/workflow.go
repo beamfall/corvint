@@ -1531,6 +1531,19 @@ func (w *Workflow) settleRemoval(phase string) (WorktreeCleanup, error) {
 	default:
 		item.Repository = record.Repository
 		if _, e := os.Lstat(path); errors.Is(e, fs.ErrNotExist) {
+			// A moved checkout keeps git's private administration
+			// directory; only a removed one loses it.
+			root := w.repo.PrimaryWorktree
+			if repo, ok := w.repository(record.Repository); record.Repository != "" && ok {
+				root = repo.Checkout
+			}
+			if remains, e := privateGitDirRemains(root, record.PrivateIdentity); e != nil || remains {
+				item.Reason = "checkout is missing but git still registers it (moved, or a removal git did not finish); run git worktree prune or restore it"
+				if e != nil {
+					item.Reason = "checkout is missing and its git registration is unobservable: " + e.Error()
+				}
+				break
+			}
 			w.dropWorktree(path)
 			item.Removed, item.Takeover = true, "FINISHED"
 			break
@@ -1550,6 +1563,37 @@ func (w *Workflow) settleRemoval(phase string) (WorktreeCleanup, error) {
 		item.Removed, item.Takeover = true, "FINISHED"
 	}
 	return item, w.persist(phase)
+}
+
+// privateGitDirRemains reports whether the common directory of root's
+// repository still holds a worktree administration directory whose identity
+// is private, which git keeps for a moved checkout and deletes on removal.
+func privateGitDirRemains(root, private string) (bool, error) {
+	raw, e := gitOutput(root, "rev-parse", "--git-common-dir")
+	if e != nil {
+		return false, e
+	}
+	common := strings.TrimSpace(string(raw))
+	if !filepath.IsAbs(common) {
+		common = filepath.Join(root, common)
+	}
+	entries, e := os.ReadDir(filepath.Join(common, "worktrees"))
+	if errors.Is(e, fs.ErrNotExist) {
+		return false, nil
+	}
+	if e != nil {
+		return false, e
+	}
+	for _, entry := range entries {
+		id, e := supervisor.DirectoryIdentity(filepath.Join(common, "worktrees", entry.Name()))
+		if e != nil {
+			return false, e
+		}
+		if id == private {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // dropWorktree removes path's record from the program (CAL-V0-366).

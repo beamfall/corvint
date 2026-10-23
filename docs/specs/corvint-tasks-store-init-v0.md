@@ -1,7 +1,7 @@
 # Corvint Tasks store initialization V0
 
 Owner: Russell Lewis
-Date: 2026-09-25 (CTS-V0-001, CTS-V0-003 and CTS-V0-004 accepted 2026-09-27; CTS-V0-002 accepted 2026-09-28; CTS-V0-006 requested 2026-10-01 in issue 433; CTS-V0-008 proposed 2026-10-10 in V1-0825 and accepted 2026-10-10, decision 0490; CTS-V0-010 accepted 2026-10-15 under the owner's standing auto-accept, V1-1379; CTS-V0-011 accepted 2026-10-21 under the same auto-accept, V1-0758; CTS-V0-012 accepted 2026-10-21 under the same auto-accept, V1-2143; CTS-V0-013 accepted 2026-10-21; CTS-V0-014 to CTS-V0-017 accepted 2026-10-22 under the same auto-accept, V1-1660; CTS-V0-018 accepted 2026-10-22 under the same auto-accept, V1-2401; CTS-V0-020 to CTS-V0-022 accepted 2026-10-23 under the same auto-accept, V1-2400)
+Date: 2026-09-25 (CTS-V0-001, CTS-V0-003 and CTS-V0-004 accepted 2026-09-27; CTS-V0-002 accepted 2026-09-28; CTS-V0-006 requested 2026-10-01 in issue 433; CTS-V0-008 proposed 2026-10-10 in V1-0825 and accepted 2026-10-10, decision 0490; CTS-V0-010 accepted 2026-10-15 under the owner's standing auto-accept, V1-1379; CTS-V0-011 accepted 2026-10-21 under the same auto-accept, V1-0758; CTS-V0-012 accepted 2026-10-21 under the same auto-accept, V1-2143; CTS-V0-013 accepted 2026-10-21; CTS-V0-014 to CTS-V0-017 accepted 2026-10-22 under the same auto-accept, V1-1660; CTS-V0-018 accepted 2026-10-22 under the same auto-accept, V1-2401; CTS-V0-020 to CTS-V0-023 accepted 2026-10-23 under the same auto-accept, V1-2400)
 Intent status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28)
 Delivery status: experimental
 Authoritative inputs: owner request [issue 336](https://github.com/beamfall/corvint/issues/336), decision 0397 (corvint-tasks built in tree), `AGENTS.md`,
@@ -11,7 +11,7 @@ Authoritative inputs: owner request [issue 336](https://github.com/beamfall/corv
 
 ## Agent digest
 - Claim: `corvint-tasks init` refuses an intent store that already holds records, and works in a repository reached through a symlinked ancestor such as macOS `/tmp`.
-- Status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28); experimental. CTS-V0-001 through CTS-V0-004 are implemented; CTS-V0-002 permits only four unaudited inventory reads when the journal directory is absent; CTS-V0-005 adds tested non-fixture external-agent setup templates; CTS-V0-006 makes journal-backed reads wait out an in-flight writer (issue 433) instead of failing `REDO_PENDING` or `SNAPSHOT_MOVED` at once; CTS-V0-008 (accepted, decision 0490; V1-0825) makes an unlocked journal audit or archive export wait out a writer's descriptor-less staging slots before refusing `MALFORMED`, while an audit made under the writer lock still refuses them at once. CTS-V0-010 (V1-1379) makes a journal-absent `ticket show` miss name the stale `.taskman` snapshot and the journal it lacks instead of claiming the ticket does not exist. CTS-V0-011 (V1-0758) makes `ADOPT_FILE` compose added, changed or removed `requiresPool` and `requiredRoles` through `REFINE`. CTS-V0-012 (V1-2143) makes `ticket search --text` token-based and makes a list or search `--fields` refusal for `labels` or `effects` name the read that returns them. CTS-V0-014 to CTS-V0-017 (V1-0398) are the import-map writer: a non-fixture queue whose `importMapSha256` names `.taskman/import-map.json` initializes with the map journaled at genesis, takes every non-fixture write, keeps the map immutable, and imports only under the map's identity. CTS-V0-018 (V1-2401) checks the whole import plan against the map before the first batch and names every conflict. CTS-V0-020 to CTS-V0-022 (V1-2400) let an OWNER record an amended map through one journaled `import-map update` (`IMPORT_MAP_UPDATE`) that keeps every existing ticket identity and refuses any conflict `DUPLICATE_ID`.
+- Status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28); experimental. CTS-V0-001 through CTS-V0-004 are implemented; CTS-V0-002 permits only four unaudited inventory reads when the journal directory is absent; CTS-V0-005 adds tested non-fixture external-agent setup templates; CTS-V0-006 makes journal-backed reads wait out an in-flight writer (issue 433) instead of failing `REDO_PENDING` or `SNAPSHOT_MOVED` at once; CTS-V0-008 (accepted, decision 0490; V1-0825) makes an unlocked journal audit or archive export wait out a writer's descriptor-less staging slots before refusing `MALFORMED`, while an audit made under the writer lock still refuses them at once. CTS-V0-010 (V1-1379) makes a journal-absent `ticket show` miss name the stale `.taskman` snapshot and the journal it lacks instead of claiming the ticket does not exist. CTS-V0-011 (V1-0758) makes `ADOPT_FILE` compose added, changed or removed `requiresPool` and `requiredRoles` through `REFINE`. CTS-V0-012 (V1-2143) makes `ticket search --text` token-based and makes a list or search `--fields` refusal for `labels` or `effects` name the read that returns them. CTS-V0-014 to CTS-V0-017 (V1-0398) are the import-map writer: a non-fixture queue whose `importMapSha256` names `.taskman/import-map.json` initializes with the map journaled at genesis, takes every non-fixture write, keeps the map immutable, and imports only under the map's identity. CTS-V0-018 (V1-2401) checks the whole import plan against the map before the first batch and names every conflict. CTS-V0-020 to CTS-V0-023 (V1-2400) let an OWNER record an amended map through one journaled `import-map update` (`IMPORT_MAP_UPDATE`) that keeps every existing ticket identity and refuses any conflict `DUPLICATE_ID`, and let a renamed source the map assigns to an imported ticket re-import into it.
 - Exists: journal-absent inventory reads with no audit identity, the coded init refusal, the ancestor resolution, the `corvint-tasks import` verb with its `IMPORT_APPLY` stage operation, and their store, transaction and CLI tests.
 - Blocked on: broader task-store authority recovery (V1-0310) remains open; CTS-V0-002 has narrow independent owner acceptance. For a non-fixture import writer, V1-0398.
 - Read next: Requirements; Import export and batching; Failure modes; Traceability.
@@ -212,8 +212,9 @@ on a fixture queue remain non-goals.
   CTS-V0-018.
 - `CTS-V0-021`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2400) The amendment
   MUST keep every existing ticket identity: each ticket the current map names stays mapped, a source
-  item both maps name keeps its ticket, no ticket is mapped to two source items, and no ticket
-  record's own (`sourceQueueId`, `sourceItemId`) is mapped to another ticket. Any conflict MUST refuse
+  item both maps name keeps its ticket, no ticket is mapped to two source items, no ticket
+  record's own (`sourceQueueId`, `sourceItemId`) is mapped to another ticket, and no new or changed
+  entry maps a source item to a ticket held by a non-`IMPORT` (native) record. Any conflict MUST refuse
   the whole amendment `VALIDATION_FAILED` `DUPLICATE_ID`, naming each conflict, with nothing written.
   A source item MAY move to a new (`sourceQueueId`, `sourceItemId`) under its ticket, and new entries
   MAY be added, which is how a renamed or added source queue is recorded.
@@ -222,7 +223,12 @@ on a fixture queue remain non-goals.
   journaled `importMapSha256` names a map (`BLOCKED` `UNSUPPORTED` otherwise), and only on the intent
   branch; a map that does not decode, is not canonical or names another queue is refused before any
   write. Non-goals: adding a first map to a queue initialized without one, removing a map, and
-  rewriting ticket records' own `source` to follow a rename.
+  rewriting ticket records' own `source` at the amendment (a re-import does it, CTS-V0-023).
+- `CTS-V0-023`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2400) An `import`
+  item whose ticket already holds an imported record under another source MUST be admitted, and
+  replace that record's `source` with the item's, when the journaled import map assigns the item's
+  (`sourceQueueId`, `sourceItemId`) to that ticket; both the import planner and the `IMPORT_APPLY`
+  model apply the rule. Any other source change stays refused `DUPLICATE_ID` with nothing written.
 
 ## Import export and batching
 
@@ -283,6 +289,7 @@ revision 1, a broken revision chain, and a target held by a native record or ano
 | Import map amendment with a stale `--expected-import-map-sha256` | `REVISION_CONFLICT`; nothing is written (CTS-V0-020). |
 | Import map amendment that drops a mapped ticket, moves a source item to another ticket, maps a ticket twice, or maps a ticket record's own source item elsewhere | Refused `VALIDATION_FAILED` `DUPLICATE_ID` naming every conflict; nothing is written (CTS-V0-021). |
 | Import map amendment by a non-`OWNER`, or of a queue that names no journaled map | `UNAUTHORIZED`, or `BLOCKED` `UNSUPPORTED`; nothing is written (CTS-V0-022). |
+| Re-import from a renamed source whose item the import map does not assign to the ticket | Refused `DUPLICATE_ID`; nothing is written (CTS-V0-023). |
 | Import item whose source or ticket the import map assigns elsewhere | Refused `DUPLICATE_ID`; nothing is written (CTS-V0-017). |
 | Import plan with one or more import-map conflicts | Refused `DUPLICATE_ID` before the first batch, naming every conflicting source item; no batch is written, including any earlier conflict-free one (CTS-V0-018). |
 | Re-import of an `IMPORT` record that a `REFINE` gave `requiresPool` or `requiredRoles` | Both keys are kept byte-identical; only the changed `source` bumps `acceptanceRevision` (CTS-V0-007). |
@@ -390,8 +397,9 @@ CTS-V0-020 to CTS-V0-022 (V1-2400) are accepted when a store test amends a mappe
 renamed source queue and an added entry) after an import, with the queue and map projections
 following, the ticket records byte-identical, the journal audit `OK`, a retry replayed, a changed
 same-id request `REQUEST_ID_CONFLICT`, a stale expected digest `REVISION_CONFLICT`, and a later
-create and import committing; when each identity conflict refuses `DUPLICATE_ID` naming it with the
-store digest unchanged; when an `OPERATOR` and an unmapped queue are refused with nothing written;
+create and import committing with the amended map unchanged; when a re-import from the renamed
+source updates the mapped ticket's source and an unmapped renamed item is refused (CTS-V0-023); when each identity conflict (a native-record target included) refuses `DUPLICATE_ID` naming it
+with the store digest unchanged; when an `OPERATOR` and an unmapped queue are refused with nothing written;
 and when the CLI verb commits, keeps `receipt audit` `OK` and refuses a conflicting map. The stage
 descriptor maximum of the new operation is pinned by `TestTMV0002_AS10_StageCodecActualMaxima` (7
 artifacts, 1844 bytes). On the tree before this change no amendment path exists: the tests do not
@@ -421,6 +429,7 @@ closed receipt-kind and stage-operation sets, so it must stay on this version or
 | CTS-V0-020 | `internal/tasks/transaction/model.go` (`ImportMapUpdate`, `Digest`), `internal/tasks/transaction/import_map.go` (`importMapUpdatePosts`, `importMapUnchanged`, `bindImportMap`), `internal/tasks/snapshot/stage.go` (`StageImportMapUpdate`), `internal/tasks/snapshot/head.go` (`ReceiptKinds`), `internal/tasks/store/policy.go` (`ImportMapUpdate`, `administrativeWriteRound`), `internal/tasks/cli/import_map.go` | TestCTSV0020_ImportMapAmendmentRecordsAndReplays, TestCTSV0020_ImportMapUpdateThroughTheCLI, TestTMV0002_AS10_StageCodecActualMaxima |
 | CTS-V0-021 | `internal/tasks/transaction/import_map.go` (`importMapAmendConflicts`) | TestCTSV0021_ImportMapAmendmentKeepsTicketIdentities, TestCTSV0020_ImportMapUpdateThroughTheCLI |
 | CTS-V0-022 | `internal/tasks/transaction/import_map.go` (`importMapUpdatePosts`), `internal/tasks/transaction/model.go` (intent-branch check) | TestCTSV0022_ImportMapAmendmentFailsClosed |
+| CTS-V0-023 | `internal/tasks/importer/importer.go` (`Store.ImportMap`, `record`), `internal/tasks/intent/importmap.go` (`ImportMap.Maps`), `internal/tasks/transaction/model.go` (`importChain`), `internal/tasks/store/import.go` (`auditImport`) | TestCTSV0023_RenamedSourceReimportsIntoMappedTicket |
 | CTS-V0-010 | `internal/tasks/cli/cli.go` (`ticketShow`, `journalAbsentNotFound`) | TestCTSV0010_JournalAbsentShowNamesTheStaleSnapshot; `docs/build-log/2026-10-15-v1-1384-1379-tasks-cli-refusals.md` |
 | CTS-V0-009 | `internal/tasks/cli/attempt_detach.go` (`attemptAttach`), `internal/tasks/snapshot/probe.go` (`Reader.Read`) | TestCTSV0009_AttachWaitsForReceiptLinkBeforeHeadRename, TestCTSV0009_AttachReportsPendingAfterPatience; loaded qualification: TestATRV0008_DetachedRunSurvivesItsLauncher |
 | CTS-V0-008 | `internal/tasks/snapshot/stage_slot_wait.go` (`StageSlotWait`), `internal/tasks/journal/stage_read.go` (`readStage`, `slotsInFlight`), `internal/tasks/journal/audit.go` (`audit`, `Reader.WriterLocked`, `stageSleep`), `internal/tasks/store/guards.go` (`lockedJournalReader`) and its writer-locked call sites, `internal/tasks/archive/stage_read.go` (`readStage`, `slotsInFlight`, `readArchive`) | TestCTSV0008_StageSlotWaitBackoffAndBudget, TestCTSV0008_AuditWaitsForWriterHeldStageSlot, TestCTSV0008_OrphanStageSlotStillMalformedAfterBoundedWait, TestCTSV0008_UnassignedSlotBesideDescriptorRefusedAtOnce, TestCTSV0008_WriterLockedAuditRefusesOrphanSlotWithoutPause, TestCTSV0008_MovedObservationsAndSpentWaitCompose, TestCTSV0008_LockedReconcileRefusesOrphanSlotWithoutWaiting, TestCTSV0008_ArchiveWaitsForWriterHeldStageSlot, TestCTSV0008_ArchiveOrphanSlotMalformedAfterBoundedWait, TestCTSV0008_ArchiveSlotBesideDescriptorRefusedAtOnce, TestCTSV0008_ArchiveMovedAttemptsAndSpentWaitCompose, TestCTSV0008_ArchiveStagePauseLeavesPatienceForPending; unchanged refusal order: TestCALV0114_DivergentProjectionRefusalIsDeterministic |

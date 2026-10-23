@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
+	"github.com/Beamfall/corvint/internal/tasks/importer"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/store"
@@ -91,6 +92,45 @@ func TestCTSV0020_ImportMapAmendmentRecordsAndReplays(t *testing.T) {
 	}
 	runImport(t, repo, importExport(importItem("BF-3", "three\n", nil)))
 	auditOK(t, repo)
+	if got, err := os.ReadFile(filepath.Join(repo.PrimaryWorktree, intent.Dir, intent.ImportMapFile)); err != nil || string(got) != string(next) {
+		t.Fatalf("later writes changed the amended map: %v", err)
+	}
+	if raw, err := os.ReadFile(filepath.Join(repo.PrimaryWorktree, intent.Dir, "queue.json")); err != nil {
+		t.Fatal(err)
+	} else if q, err := intent.DecodeQueue(raw); err != nil || *q.ImportMapSha256 != wire.Sum(next) {
+		t.Fatalf("later writes changed the queue's map digest: %v", err)
+	}
+}
+
+// importExportFrom is importExport under another source queue.
+func importExportFrom(source string, items ...string) []byte {
+	header := string(wire.Encode(obj("profile", str(importer.Profile), "sourceQueueId", str(source))))
+	return []byte(strings.Join(append([]string{header}, items...), "\n") + "\n")
+}
+
+// TestCTSV0023_RenamedSourceReimportsIntoMappedTicket: after an amendment
+// maps a renamed source queue's item to an already-imported ticket, a
+// re-import from the renamed source updates that ticket (its source now the
+// renamed one, its identity unchanged), and an item the map does not move
+// stays refused DUPLICATE_ID with nothing written (CTS-V0-023).
+func TestCTSV0023_RenamedSourceReimportsIntoMappedTicket(t *testing.T) {
+	t.Parallel()
+	repo, current := importedMappedStore(t)
+	next := importMapBytes(fixture.QueueID, [3]string{"queue:beamfall:renamed", "BF-1", "BF-1"})
+	if r := amendImportMap(t, repo, operator(), "amend", wire.Sum(current), next); r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("amendment: %+v", r)
+	}
+	runImport(t, repo, importExportFrom("queue:beamfall:renamed", importItem("BF-1", "one, renamed\n", nil)))
+	rec, _ := readImported(t, repo, "BF-1")
+	if rec.TicketID.Raw != fixture.TicketID("BF-1") || rec.Source.SourceQueueID != "queue:beamfall:renamed" || *rec.Source.SourceItemID != "BF-1" {
+		t.Fatalf("re-imported record %s source %+v", rec.TicketID.Raw, rec.Source)
+	}
+	auditOK(t, repo)
+	before := storeDigest(t, repo)
+	report, err := store.Import(context.Background(), repo, operator(), fixture.QueueID, importExportFrom("queue:beamfall:renamed", importItem("BF-2", "two, renamed\n", nil)), now(t))
+	if wire.CodeOf(err) != wire.CodeDuplicateID || storeDigest(t, repo) != before {
+		t.Fatalf("unmapped renamed source: %+v %v, want DUPLICATE_ID with nothing written", report, err)
+	}
 }
 
 // TestCTSV0021_ImportMapAmendmentKeepsTicketIdentities: an amendment that
@@ -110,10 +150,22 @@ func TestCTSV0021_ImportMapAmendmentKeepsTicketIdentities(t *testing.T) {
 		{"mapped twice", [][3]string{{"queue:beamfall:main", "BF-1", "BF-1"}, {"queue:beamfall:renamed", "BF-1", "BF-1"}}, "is mapped to both"},
 		{"record source elsewhere", [][3]string{{"queue:beamfall:main", "BF-1", "BF-1"}, {"queue:beamfall:main", "BF-2", "BF-9"}}, "is ticket " + fixture.TicketID("BF-2") + "'s own source"},
 	}
+	cases = append(cases, struct {
+		name    string
+		entries [][3]string
+		want    string
+	}{"native ticket", [][3]string{{"queue:beamfall:main", "BF-1", "BF-1"}, {"queue:beamfall:main", "N-1", "native"}}, "which is a NATIVE record"})
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			repo, current := importedMappedStore(t)
+			if c.name == "native ticket" {
+				created := mutate(t, repo, envelope("create-native", mutation.OpCreate, "", "", createPayload("native")))
+				if created.Outcome.Outcome != mutation.OutcomeCompleted {
+					t.Fatalf("native create: %+v", created)
+				}
+				c.entries[1][2] = strings.TrimPrefix(created.Ticket, "ticket:acme:main:")
+			}
 			before := storeDigest(t, repo)
 			report := amendImportMap(t, repo, operator(), "amend", wire.Sum(current), importMapBytes(fixture.QueueID, c.entries...))
 			refusedWith(t, report, mutation.OutcomeValidationFailed, wire.CodeDuplicateID)

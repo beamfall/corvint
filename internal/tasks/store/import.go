@@ -195,6 +195,13 @@ func auditImport(repo *intent.Repository, head *snapshot.Head) (*importAudit, er
 	if a.store.Policy, err = intent.DecodePolicy(proof.Records["intent/policy.json"].Raw); err != nil {
 		return nil, err
 	}
+	// The planner reads the journaled map only to admit a mapped renamed
+	// source (CTS-V0-023); the IMPORT_APPLY model binds it to the queue.
+	if raw := proof.Records["intent/import-map.json"].Raw; raw != nil && a.store.Queue.ImportMapSha256 != nil {
+		if a.store.ImportMap, err = intent.DecodeImportMap(raw); err != nil {
+			return nil, err
+		}
+	}
 	a.store.Tickets, err = ticket.NewInventory(a.store.Queue.QueueID, recs)
 	return a, err
 }

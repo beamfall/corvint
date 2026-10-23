@@ -70,6 +70,8 @@ func importMapCommand(env Env, args []string) *wire.Result {
 		return errorResult(cmd, err)
 	}
 	res := mutateResult(cmd, report)
-	res.Items[0].Obj.Set("newImportMapSha256", wire.String(string(wire.Sum(raw))))
+	if report.Outcome.Outcome == mutation.OutcomeCompleted && len(res.Items) == 1 {
+		res.Items[0].Obj.Set("newImportMapSha256", wire.String(string(wire.Sum(raw))))
+	}
 	return res
 }

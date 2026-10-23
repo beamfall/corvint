@@ -2003,7 +2003,8 @@ reassign.
   in the other safe phases. The new owner's `program cleanup`, or its `OpenWorkflow` before a claim
   or reassign, MUST settle that removal first and return the program to the phase the removal left
   (`FINISHED` behind a terminal proved attempt, `ADMITTED` with no attempt). A checkout already gone
-  is settled as removed; one that still binds (recorded identities, recorded commit, clean tree) is
+  is settled as removed only when its repository no longer holds the recorded private worktree
+  administration directory (a moved checkout keeps it); one that still binds (recorded identities, recorded commit, clean tree) is
   removed now; anything else keeps its record and returns the phase. The settled item MUST carry
   `takeover`: `FINISHED` when the removal completed, `ROLLED_BACK` when the record was kept, with its
   `reason`. Cleanup then continues with the other records as ATR-V0-296 requires.
@@ -2019,9 +2020,11 @@ leaves the program in `WORKTREE_REMOVE` for the next owner.
 Acceptance evidence (`internal/tasks/store`): `TestCALV0365_TakeoverSettlesInterruptedWorktreeRemove`
 stops `program cleanup` in a child process after the `WORKTREE_REMOVE` write (before and after git
 removed the checkout) and settles it from a new owner, `FINISHED`, and rolled back for a dirtied
-checkout, `ROLLED_BACK`; `TestCALV0365_ReassignSettlesInterruptedWorktreeRemove` settles it through
-`OpenWorkflow` and reassigns; `TestCALV0366_CleanupDropsRemovedWorktreeRecords` runs cleanup three
-times within one assignment and the records stay empty. On the tree before this change the takeover
+or `git worktree move`d checkout, `ROLLED_BACK`; `TestCALV0365_ReassignSettlesInterruptedWorktreeRemove`
+settles it through `OpenWorkflow` and reassigns; `TestCALV0365_IdleReopenSettlesInterruptedWorktreeRemove`
+settles an idle program's removal through `OpenWorkflow` back to `ADMITTED`;
+`TestCALV0366_CleanupDropsRemovedWorktreeRecords` adds a record kept marked removed by an earlier
+version, then runs cleanup three times within one assignment and the records stay empty. On the tree before this change the takeover
 tests fail with `ATTEMPT_LIVE` and the compaction test with every record kept `removed: true`.
 Rollback: revert the commit. An interrupted removal again stays stuck, and new removals are again
 kept marked removed; records already dropped are not needed by any reader.
@@ -2333,5 +2336,5 @@ receipt or wire shape changes.
 | ATR-V0-296 | `internal/tasks/store/workflow.go` (`CleanupProgram`, `CleanupWorktrees`, `cleanupPhase`), `internal/tasks/cli/program_cleanup.go` (`programCleanup`) | `TestATRV0297_ReassignRemovesPriorStageWorktrees`, `TestATRV0296_CleanupRefusesLiveAttempt` (`internal/tasks/store`), `TestATRV0296_ProgramCleanupRefusalsDoNotMutate` (`internal/tasks/cli`) |
 | ATR-V0-297 | `internal/tasks/store/workflow.go` (`OpenWorkflow` reassign) | `TestATRV0297_ReassignRemovesPriorStageWorktrees` (`internal/tasks/store`) |
 | ATR-V0-298 | `internal/tasks/transaction/program.go` (`idleRemove`) | `TestATRV0297_ReassignRemovesPriorStageWorktrees` (`internal/tasks/store`) |
-| CAL-V0-365 | `internal/tasks/transaction/program.go` (`safePhase`), `internal/tasks/store/workflow.go` (`cleanupPhase`, `settleRemoval`, `CleanupWorktrees`, `OpenWorkflow`) | `TestCALV0365_TakeoverSettlesInterruptedWorktreeRemove`, `TestCALV0365_ReassignSettlesInterruptedWorktreeRemove` (`internal/tasks/store`) |
+| CAL-V0-365 | `internal/tasks/transaction/program.go` (`safePhase`), `internal/tasks/store/workflow.go` (`cleanupPhase`, `settleRemoval`, `privateGitDirRemains`, `CleanupWorktrees`, `OpenWorkflow`) | `TestCALV0365_TakeoverSettlesInterruptedWorktreeRemove`, `TestCALV0365_ReassignSettlesInterruptedWorktreeRemove`, `TestCALV0365_IdleReopenSettlesInterruptedWorktreeRemove` (`internal/tasks/store`) |
 | CAL-V0-366 | `internal/tasks/store/workflow.go` (`dropWorktree`, `compactWorktrees`) | `TestCALV0366_CleanupDropsRemovedWorktreeRecords`, `TestATRV0297_ReassignRemovesPriorStageWorktrees` (`internal/tasks/store`) |

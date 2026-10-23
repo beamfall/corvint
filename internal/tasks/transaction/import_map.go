@@ -207,7 +207,9 @@ func importMapAmendConflicts(current, next *intent.ImportMap, tickets *ticket.In
 		}
 		nextByTicket[e.TicketID.Raw] = e
 	}
+	currentByTicket := map[string]intent.ImportEntry{}
 	for _, e := range current.Entries {
+		currentByTicket[e.TicketID.Raw] = e
 		if n, ok := nextByKey[key(e)]; ok && n.TicketID.Raw != e.TicketID.Raw {
 			conflicts = append(conflicts, fmt.Sprintf("%s moves from %s to %s", name(e), e.TicketID.Raw, n.TicketID.Raw))
 		}
@@ -217,7 +219,15 @@ func importMapAmendConflicts(current, next *intent.ImportMap, tickets *ticket.In
 	}
 	for _, id := range tickets.IDs() {
 		rec, _ := tickets.Get(id)
-		if rec == nil || rec.Source.SourceItemID == nil {
+		if rec == nil {
+			continue
+		}
+		if n, ok := nextByTicket[rec.TicketID.Raw]; ok && rec.Source.Kind != "IMPORT" {
+			if c, kept := currentByTicket[rec.TicketID.Raw]; !kept || key(c) != key(n) {
+				conflicts = append(conflicts, fmt.Sprintf("%s is mapped to ticket %s, which is a %s record", name(n), rec.TicketID.Raw, rec.Source.Kind))
+			}
+		}
+		if rec.Source.SourceItemID == nil {
 			continue
 		}
 		e := intent.ImportEntry{SourceQueueID: rec.Source.SourceQueueID, SourceItemID: *rec.Source.SourceItemID}

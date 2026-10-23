@@ -2107,6 +2107,7 @@ CTS-V0-018	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's
 CTS-V0-020	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2400) The verb	standing	2026-10-11; V1-2400
 CTS-V0-021	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2400) The amen	standing	2026-10-11; V1-2400
 CTS-V0-022	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2400) The amen	standing	2026-10-11; V1-2400
+CTS-V0-023	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2400) An `impo	standing	2026-10-11; V1-2400
 TRL-V0-001	docs/specs/corvint-tasks-store-relocation-v0.md	`corvint-tasks relocate --from OLD --request-id ID [--role OWNER|OPERATOR]	unrecorded	-
 TRL-V0-002	docs/specs/corvint-tasks-store-relocation-v0.md	A completed relocation commits one RELOCATE receipt that posts exactly one pinne	unrecorded	-
 TRL-V0-003	docs/specs/corvint-tasks-store-relocation-v0.md	Relocation refuses `QUIESCENCE_UNPROVED`, writing nothing, while any attempt hol	unrecorded	-

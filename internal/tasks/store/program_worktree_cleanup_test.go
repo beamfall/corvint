@@ -12,7 +12,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -118,11 +121,13 @@ func TestCALV0365_TakeoverSettlesInterruptedWorktreeRemove(t *testing.T) {
 	for _, tc := range []struct {
 		name, stage string
 		dirty       bool
+		moved       bool
 		want        string
 	}{
-		{"before-git-remove", "persisted", false, "FINISHED"},
-		{"after-git-remove", "removed", false, "FINISHED"},
-		{"rolled-back", "persisted", true, "ROLLED_BACK"},
+		{"before-git-remove", "persisted", false, false, "FINISHED"},
+		{"after-git-remove", "removed", false, false, "FINISHED"},
+		{"rolled-back", "persisted", true, false, "ROLLED_BACK"},
+		{"moved", "persisted", false, true, "ROLLED_BACK"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -143,6 +148,11 @@ func TestCALV0365_TakeoverSettlesInterruptedWorktreeRemove(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
+			if tc.moved {
+				// A moved checkout keeps its git registration elsewhere; it
+				// is not a finished removal.
+				multiGit(t, f.s.repo.PrimaryWorktree, "worktree", "move", pending, pending+"-moved")
+			}
 			results, err := store.CleanupProgram(context.Background(), f.s.repo, operator(), "program", f.config)
 			if err != nil {
 				t.Fatalf("takeover cleanup: %v", err)
@@ -150,7 +160,8 @@ func TestCALV0365_TakeoverSettlesInterruptedWorktreeRemove(t *testing.T) {
 			if len(results) != len(before) || results[0].Path != pending || results[0].Takeover != tc.want {
 				t.Fatalf("takeover cleanup results %+v, want %d items led by %s %s", results, len(before), pending, tc.want)
 			}
-			if removed := results[0].Removed; removed == tc.dirty || (!removed && results[0].Reason == "") {
+			kept := tc.dirty || tc.moved
+			if removed := results[0].Removed; removed == kept || (!removed && results[0].Reason == "") {
 				t.Fatalf("settled item %+v", results[0])
 			}
 			for _, r := range results[1:] {
@@ -163,7 +174,10 @@ func TestCALV0365_TakeoverSettlesInterruptedWorktreeRemove(t *testing.T) {
 				t.Fatalf("settled program phase %s epoch %d", p.Phase, p.Epoch)
 			}
 			_, statErr := os.Lstat(pending)
-			if tc.dirty {
+			if tc.moved {
+				_, statErr = os.Lstat(pending + "-moved")
+			}
+			if kept {
 				if len(p.Worktrees) != 1 || p.Worktrees[0].Path != pending || statErr != nil {
 					t.Fatalf("rolled-back removal kept %+v (checkout %v)", p.Worktrees, statErr)
 				}
@@ -199,8 +213,54 @@ func TestCALV0365_ReassignSettlesInterruptedWorktreeRemove(t *testing.T) {
 	}
 }
 
+// TestCALV0365_IdleReopenSettlesInterruptedWorktreeRemove proves an idle
+// program (ADMITTED, no attempt) left in WORKTREE_REMOVE by a stopped cleanup
+// is settled back to ADMITTED by the next OpenWorkflow before it claims
+// (CAL-V0-365).
+func TestCALV0365_IdleReopenSettlesInterruptedWorktreeRemove(t *testing.T) {
+	t.Parallel()
+	f := designatedFixture(t)
+	completedProgram(t, f)
+	kept := ""
+	for _, r := range programRecord(t, f).Worktrees {
+		if r.Repository == "docs" {
+			kept = r.Path
+		}
+	}
+	note := filepath.Join(kept, "note.txt")
+	if err := os.WriteFile(note, []byte("operator edit\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	// The reassign runs in a child too, so no owner of the program lives.
+	interruptedCleanup(t, f, "reopen")
+	if p := programRecord(t, f); p.Phase != "ADMITTED" || p.CurrentAttempt != "" || len(p.Worktrees) != 1 {
+		t.Fatalf("reassign recorded phase %s attempt %q worktrees %+v", p.Phase, p.CurrentAttempt, p.Worktrees)
+	}
+	multiGit(t, kept, "checkout", "--", "note.txt")
+	interruptedCleanup(t, f, "persisted")
+	if p := programRecord(t, f); p.Phase != "WORKTREE_REMOVE" || p.CurrentAttempt != "" || p.Worktree != kept {
+		t.Fatalf("interrupted idle cleanup left phase %s attempt %q worktree %s", p.Phase, p.CurrentAttempt, p.Worktree)
+	}
+	if _, err := store.OpenWorkflow(ctx, f.s.repo, operator(), "program", self, f.config, ""); !errors.Is(err, store.ErrProgramIdle) {
+		t.Fatalf("reopen after the interrupted idle cleanup: %v, want the idle refusal", err)
+	}
+	p := programRecord(t, f)
+	if p.Phase != "ADMITTED" || len(p.Worktrees) != 0 {
+		t.Fatalf("idle settlement recorded phase %s worktrees %+v", p.Phase, p.Worktrees)
+	}
+	if _, err := os.Lstat(kept); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("idle settlement left the checkout: %v", err)
+	}
+}
+
 // interruptedCleanup runs program cleanup in a child test process that exits
-// at the named removal step, as a killed operator command would.
+// at the named removal step, as a killed operator command would; stage
+// "reopen" instead runs one OpenWorkflow reassign there and exits.
 func interruptedCleanup(t *testing.T, f *multiFixture, stage string) {
 	t.Helper()
 	raw, err := json.Marshal(f.config)
@@ -239,6 +299,16 @@ func TestCALV0365Child(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if stage == "reopen" {
+		self, err := os.Executable()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := store.OpenWorkflow(context.Background(), repo, operator(), "program", self, config, ""); !errors.Is(err, store.ErrProgramIdle) {
+			t.Fatalf("child reassign: %v", err)
+		}
+		os.Exit(3)
+	}
 	store.SetWorktreeRemoveHookForTest(func(s string) {
 		if s == stage {
 			os.Exit(3)
@@ -259,6 +329,12 @@ func TestCALV0366_CleanupDropsRemovedWorktreeRecords(t *testing.T) {
 	p := programRecord(t, f)
 	if len(p.Worktrees) < 2 {
 		t.Fatalf("fixture registered %d worktrees, want at least 2", len(p.Worktrees))
+	}
+	// A record an earlier version kept marked removed is dropped too.
+	legacy := p
+	legacy.Worktrees = append([]snapshot.WorktreeRecord{{Path: filepath.Join(t.TempDir(), "removed-earlier"), Identity: "1:1", PrivateIdentity: "1:2", Commit: p.Worktrees[0].Commit, Removed: true}}, p.Worktrees...)
+	if r, err := store.ProgramTransition(context.Background(), f.s.repo, operator(), fixture.QueueID, "legacy-removed", legacy); err != nil || r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("legacy record: %+v %v", r, err)
 	}
 	assignment := p.Assignment
 	for round := 0; round < 3; round++ {

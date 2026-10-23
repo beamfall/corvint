@@ -69,3 +69,17 @@ func DecodeImportMap(data []byte) (*ImportMap, error) {
 	}
 	return m, nil
 }
+
+// Maps reports whether m maps the source item (sourceQueueID, sourceItemID)
+// to ticketID. A nil map maps nothing.
+func (m *ImportMap) Maps(sourceQueueID, sourceItemID, ticketID string) bool {
+	if m == nil {
+		return false
+	}
+	for _, e := range m.Entries {
+		if e.SourceQueueID == sourceQueueID && e.SourceItemID == sourceItemID {
+			return e.TicketID.Raw == ticketID
+		}
+	}
+	return false
+}
