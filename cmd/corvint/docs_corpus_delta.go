@@ -14,6 +14,9 @@ func compileCorpusDelta(ctx context.Context, o corpusOptions) ([]byte, error) {
 	if (o.artifact == "") == (o.manifest == "") {
 		return nil, argumentError("docs corpus " + o.op + " requires exactly one of --artifact or --manifest")
 	}
+	if err := corpusDeltaViewError(o); err != nil {
+		return nil, err
+	}
 	raw, err := doccorpus.ReadCorpusFile(o.root, o.previous)
 	if err != nil {
 		return nil, err
@@ -33,11 +36,31 @@ func compileCorpusDelta(ctx context.Context, o corpusOptions) ([]byte, error) {
 		}
 		return doccorpus.Encode(record)
 	}
-	receipt, err := doccorpus.Delta(ctx, o.root, previous, current, source, o.offset, o.limit)
+	options := doccorpus.DeltaOptions{Offset: o.offset, Limit: o.limit, Uncovered: o.uncovered, Anchorless: o.anchorless}
+	if o.legacyCases.format == "jsonl" {
+		return doccorpus.DeltaStream(ctx, o.root, previous, current, source, options)
+	}
+	receipt, err := doccorpus.DeltaWith(ctx, o.root, previous, current, source, options)
 	if err != nil {
 		return nil, err
 	}
 	return doccorpus.Encode(receipt)
+}
+
+// corpusDeltaViewError refuses an invalid delta view before any read (DCP-V1-421..423): the
+// uncovered and anchorless modes, the output format, and paging options with the jsonl stream.
+func corpusDeltaViewError(o corpusOptions) error {
+	switch {
+	case o.uncovered != "" && o.uncovered != doccorpus.DeltaUncoveredAll && o.uncovered != doccorpus.DeltaUncoveredChanged:
+		return argumentError("delta --uncovered must be changed or all")
+	case o.anchorless != "" && o.anchorless != doccorpus.DeltaAnchorlessSummary && o.anchorless != doccorpus.DeltaAnchorlessList:
+		return argumentError("delta --anchorless must be summary or list")
+	case o.legacyCases.format != "" && o.legacyCases.format != "json" && o.legacyCases.format != "jsonl":
+		return argumentError("delta --format must be json or jsonl")
+	case o.legacyCases.format == "jsonl" && o.paged:
+		return argumentError("delta --format jsonl streams the whole worklist and admits no --limit or --offset")
+	}
+	return nil
 }
 
 func openCorpusDeltaCurrent(ctx context.Context, o corpusOptions) (*doccorpus.Artifact, string, error) {

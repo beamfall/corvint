@@ -66,3 +66,58 @@ func TestDCPV1360DeltaCLI(t *testing.T) {
 		}
 	}
 }
+
+// TestDCPV1421DeltaViewsCLI drives the delta views through the CLI: --uncovered changed keeps
+// only changed regions and counts the uncited subjects, --anchorless list and --format jsonl
+// are admitted, and an invalid mode, a jsonl stream with paging, and a view option on
+// carry-forward are refused (DCP-V1-421..423).
+func TestDCPV1421DeltaViewsCLI(t *testing.T) {
+	root := taskContextRepository(t)
+	writeCorpusFixture(t, root, cemGit(t, root, "rev-parse", "HEAD"), "cache")
+	run := func(args ...string) string {
+		t.Helper()
+		code, out, stderr := corpusCLI(t, root, append([]string{"docs", "corpus", "delta", "--previous", "corpus.json", "--artifact", "corpus.json"}, args...)...)
+		if code != 0 {
+			t.Fatalf("%v: %d %s", args, code, stderr)
+		}
+		return out
+	}
+	var all, changed doccorpus.DeltaReceipt
+	if err := json.Unmarshal([]byte(run("--limit", "256", "--anchorless", "list")), &all); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(run("--limit", "256", "--uncovered", "changed")), &changed); err != nil {
+		t.Fatal(err)
+	}
+	subjects := 0
+	for _, e := range all.Entries {
+		if e.Class == doccorpus.DeltaUncovered && e.RecordKind == "subject" {
+			subjects++
+		}
+	}
+	for _, e := range changed.Entries {
+		if e.Class == doccorpus.DeltaUncovered {
+			t.Fatalf("no-op delta under --uncovered changed listed %+v", e)
+		}
+	}
+	if changed.UncoveredSubjectsOmitted != subjects {
+		t.Fatalf("uncited subjects: listed %d, omitted %d", subjects, changed.UncoveredSubjectsOmitted)
+	}
+	lines := strings.Split(strings.TrimSuffix(run("--format", "jsonl", "--anchorless", "list"), "\n"), "\n")
+	var header doccorpus.DeltaStreamHeader
+	if err := json.Unmarshal([]byte(lines[0]), &header); err != nil || header.Schema != doccorpus.DeltaStreamSchema || header.Total != all.Total || len(lines) != all.Total+1 {
+		t.Fatalf("jsonl stream: %+v %v (%d lines, paged total %d)", header, err, len(lines), all.Total)
+	}
+	for _, refused := range [][]string{
+		{"delta", "--previous", "corpus.json", "--artifact", "corpus.json", "--format", "jsonl", "--limit", "1"},
+		{"delta", "--previous", "corpus.json", "--artifact", "corpus.json", "--format", "jsonl", "--offset", "0"},
+		{"delta", "--previous", "corpus.json", "--artifact", "corpus.json", "--format", "csv"},
+		{"delta", "--previous", "corpus.json", "--artifact", "corpus.json", "--uncovered", "some"},
+		{"delta", "--previous", "corpus.json", "--artifact", "corpus.json", "--anchorless", "none"},
+		{"carry-forward", "--previous", "corpus.json", "--artifact", "corpus.json", "--provider", "adapter", "--uncovered", "changed"},
+	} {
+		if code, out, _ := corpusCLI(t, root, append([]string{"docs", "corpus"}, refused...)...); code != 2 || out != "" {
+			t.Fatalf("%v accepted: %d %s", refused, code, out)
+		}
+	}
+}

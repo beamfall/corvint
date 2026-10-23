@@ -2604,6 +2604,12 @@ DCP-V1-366	docs/specs/documentation-corpus-v1.md	`carry-forward --provider ID` e
 DCP-V1-367	docs/specs/documentation-corpus-v1.md	Reads are bounded and deterministic:	unrecorded	-
 DCP-V1-368	docs/specs/documentation-corpus-v1.md	Neither operation writes the repository, the index, the working tree or any	unrecorded	-
 DCP-V1-369	docs/specs/documentation-corpus-v1.md	The following are refused with exit 2 and no output; the option-form cases are	unrecorded	-
+DCP-V1-420	docs/specs/documentation-corpus-v1.md	An anchor whose repository is a declared additional repository of the current	unrecorded	-
+DCP-V1-421	docs/specs/documentation-corpus-v1.md	`--uncovered changed|all` selects the uncovered entries; the default is `all`, t	unrecorded	-
+DCP-V1-422	docs/specs/documentation-corpus-v1.md	`--anchorless summary|list` selects how records with no anchors appear; the defa	unrecorded	-
+DCP-V1-423	docs/specs/documentation-corpus-v1.md	`--format jsonl` classifies once and prints the whole worklist without paging.	unrecorded	-
+DCP-V1-424	docs/specs/documentation-corpus-v1.md	The same inputs give the same worklist whichever builder built the previous corp	unrecorded	-
+DCP-V1-425	docs/specs/documentation-corpus-v1.md	These are refused with exit 2 and no output as argument errors:	unrecorded	-
 DCP-V1-054	docs/specs/documentation-corpus-v1.md	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-

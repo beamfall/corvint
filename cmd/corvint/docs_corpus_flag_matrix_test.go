@@ -32,7 +32,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"eval":                {required: []string{"--artifact", "--cases"}, optional: []string{"--baseline", "--format"}},
 	"audit-sample":        {required: []string{"--artifact", "--seed", "--size"}, optional: []string{"--stratify", "--scope"}},
 	"audit-report":        {required: []string{"--artifact", "--sample"}, optional: []string{"--format"}},
-	"delta":               {required: []string{"--previous"}, optional: []string{"--artifact", "--manifest", "--limit", "--offset"}},
+	"delta":               {required: []string{"--previous"}, optional: []string{"--artifact", "--manifest", "--limit", "--offset", "--uncovered", "--anchorless", "--format"}},
 	"carry-forward":       {required: []string{"--previous", "--provider"}, optional: []string{"--artifact", "--manifest"}},
 	"info":                {required: []string{"--artifact"}, optional: corpusReadOptional},
 	"validate":            {required: []string{"--artifact"}, optional: corpusReadOptional},
