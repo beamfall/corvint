@@ -2701,6 +2701,10 @@ DCP-V1-461	docs/specs/documentation-corpus-v1.md	`--previous` of `delta` and `ca
 DCP-V1-462	docs/specs/documentation-corpus-v1.md	`delta` accepts `--timings` and `--verify-rederive` with the `info` help text;	unrecorded	-
 DCP-V1-463	docs/specs/documentation-corpus-v1.md	On the `PRB-V0-021` full-scale fixture (10,000 inputs, 96,350 records, a 97 MB	unrecorded	-
 DCP-V1-464	docs/specs/documentation-corpus-v1.md	Before anything is classified, the verified current side of `delta` checks, with	unrecorded	-
+DCP-V1-465	docs/specs/documentation-corpus-v1.md	A CLI query read (`corpusQueryOperation`) starts the live tree observation of it	unrecorded	-
+DCP-V1-466	docs/specs/documentation-corpus-v1.md	The started observation answers at most one freshness, and only one of the same	unrecorded	-
+DCP-V1-467	docs/specs/documentation-corpus-v1.md	Every exit of the read, a refusal before or after the header included, cancels t	unrecorded	-
+DCP-V1-468	docs/specs/documentation-corpus-v1.md	The decode's canonical check (`DCP-V1-414`) encodes each decoded record element	unrecorded	-
 DCP-V1-360	docs/specs/documentation-corpus-v1.md	`delta` prints one `corvint-corpus-delta/1` receipt: the previous and current	unrecorded	-
 DCP-V1-361	docs/specs/documentation-corpus-v1.md	The classified population is the previous corpus's subjects, claims and relation	unrecorded	-
 DCP-V1-362	docs/specs/documentation-corpus-v1.md	Every anchor is re-validated against the current revision's blobs. A blob is rea	unrecorded	-
