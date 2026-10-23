@@ -15,14 +15,13 @@ auto-accept (2026-10-11). V1-2294 and V1-2153 change tests only and add no requi
   README.md` gives no vocabulary word, and recursive reads (`find docs/`, `grep -r ... docs`)
   descend below what a token names. A script that changes to a literal directory, runs `git`
   other than with a computed `-C`, reads recursively, or runs handed commands now keeps the
-  component-run relation. A `cd` to a computed directory is placed: that is the AFP-V0-072
-  run-time-root gap Go units already accept, and the V1-1817 script is of that shape. `git -C`
-  is admitted only with a subcommand that does not match pathspecs across a tree. 69 of 140
-  shell units on 77a49dfa are placed.
+  component-run relation. `git -C` is admitted only with a subcommand that does not match
+  pathspecs across a tree. A computed `cd` was first placed (69 of 140 units). The third review
+  below refused it, which leaves 39 placed.
 - V1-1803 (AFP-V0-401): literal `filepath.Glob` patterns become a new `Unit.PathGlobs` member
   and a `PATH_GLOB_READER` witness with a `glob` member. They are not folded into `PathTokens`,
   because the lexer splits a pattern at `*` into lone fragments that name nothing. A full parse
-  runs only for files whose text contains `Glob(`. A one-component pattern after a run-time root
+  runs only for files whose text contains `Glob` (first `Glob(`, widened by the third review). A one-component pattern after a run-time root
   is not recorded. A first cut placed it like a lone token, and `filepath.Join(dir, "*")` in
   `cmd/corvint` then selected that 591-second package for almost every repository path.
 - V1-1006 (AFP-V0-402): positions are classified from the AST, and the default keeps the edge.
@@ -58,6 +57,24 @@ were fixture-file names of `script/check-host-package-versions_test.sh`. The rev
 `diff -r` missing from the list, `git -C "$root"` admitting tree-reading subcommands such as
 `ls-files`, and a parenthesized assigned map key losing its edge. All three are fixed and have
 a test. A `cd` to a loop variable over literal words is recorded as a failure mode.
+
+A third review of 18fe8e51 (PR #1622) found five soundness gaps, all fixed with regression
+tests. (1) A computed `cd` was placed, so `d=docs; cd "$d"; grep -q needle README.md` lost its
+reader. The plugin cannot prove a variable's value: a branch may skip the assignment and leave
+the environment's value. Now a `cd` is placed only with a directory form of the file itself that
+names the root or the file's own directory, and never inside a `-c` string or through `$0` in a
+bats file. `env -C` and `env -S` also keep the wider relation. Placed shell units drop from 69
+to 39 of 140. `script/check-host-package-versions_test.sh` (`cd "$test_root"`) is no longer
+narrowed. That gives up the V1-1817 example for soundness. (2) grep's `-d recurse`, `-d rec`
+and `--directories recurse`, and abbreviated long options, got past the recursive guard. Any
+`d` in a short group, and any long option that abbreviates a listed one, now keeps the
+relation. (3) Message methods counted on any receiver, and a qualifier counted even when a local
+declaration shadowed the import. A message now counts only on a parameter declared as a testing
+T, B, F or TB, and a shadowed import name resolves to nothing. (4) `errors.New` and `fmt.Errorf`
+are no longer data positions, because their result carries the text on. (5) The glob prefilter
+looks for `Glob` alone, so spacing and comments before the parenthesis no longer hide a call.
+Command edges stay at 84 over 53 consumers. No repository Go file spaces or comments a `Glob`
+call.
 
 ## Evidence
 

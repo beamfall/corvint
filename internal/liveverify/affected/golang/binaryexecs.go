@@ -119,7 +119,7 @@ func usedCommandLiterals(root *affected.Source, relative, directory string, owne
 		}
 		return used
 	}
-	names := importNames(file.Imports)
+	names := unshadowedImports(file)
 	var parents []ast.Node
 	ast.Inspect(file, func(node ast.Node) bool {
 		if node == nil {
@@ -143,13 +143,15 @@ func usedCommandLiterals(root *affected.Source, relative, directory string, owne
 
 // dataPredicates are the standard-library functions whose string arguments
 // are only compared, never built or run (AFP-V0-402): every argument of one
-// that returns a bool, an index or an error, and only the cut operand, the
-// second argument, of one that returns the remainder of its first.
+// that returns a bool or an index, and only the cut operand, the second
+// argument, of one that returns the remainder of its first. A constructor of
+// an error or a message (`errors.New`, `fmt.Errorf`) is not one, because its
+// result carries the literal on.
 var dataPredicates = map[string]bool{
 	"strings.HasPrefix": true, "strings.HasSuffix": true, "strings.Contains": true,
 	"strings.EqualFold": true, "strings.Index": true, "strings.LastIndex": true,
 	"bytes.HasPrefix": true, "bytes.HasSuffix": true, "bytes.Contains": true,
-	"path.Match": true, "path/filepath.Match": true, "errors.New": true, "fmt.Errorf": true,
+	"path.Match": true, "path/filepath.Match": true,
 }
 
 // cutPredicates return their first argument's text, so only the second is data.
@@ -157,8 +159,8 @@ var cutPredicates = map[string]bool{
 	"strings.CutPrefix": true, "strings.CutSuffix": true, "strings.TrimPrefix": true, "strings.TrimSuffix": true,
 }
 
-// testMessages are the method names whose arguments only form a test message,
-// matched on any receiver.
+// testMessages are the methods of the testing package's T, B, F and TB whose
+// arguments only form a test message.
 var testMessages = map[string]bool{
 	"Error": true, "Errorf": true, "Fatal": true, "Fatalf": true,
 	"Log": true, "Logf": true, "Skip": true, "Skipf": true,
@@ -168,9 +170,12 @@ var testMessages = map[string]bool{
 // or !=, a switch case, the index of a map or slice read (not one assigned
 // to, whose key may be iterated later), an argument of a dataPredicates
 // function, the second argument of a cutPredicates function, or an argument
-// of a test message method. Every other position, a variable initializer or
-// a helper's argument among them, may reach a build or a process and keeps
-// the edge.
+// of a testMessages method called on a parameter declared as a testing T, B,
+// F or TB (testingReceiver). A package qualifier counts only through names,
+// the file's imports that no declaration of the file shadows. Every other
+// position, a variable initializer, a helper's argument and a method of any
+// other receiver among them, may reach a build or a process and keeps the
+// edge.
 func dataOnly(parents []ast.Node, literal ast.Expr, names map[string]string) bool {
 	var child ast.Node = literal
 	for index := len(parents) - 1; index >= 0; index-- {
@@ -192,15 +197,147 @@ func dataOnly(parents []ast.Node, literal ast.Expr, names map[string]string) boo
 			if !ok {
 				return false
 			}
-			if qualifier, ok := selector.X.(*ast.Ident); ok && names[qualifier.Name] != "" {
+			qualifier, ok := selector.X.(*ast.Ident)
+			if !ok {
+				return false
+			}
+			if names[qualifier.Name] != "" {
 				name := names[qualifier.Name] + "." + selector.Sel.Name
 				return dataPredicates[name] || (cutPredicates[name] && len(parent.Args) > 1 && parent.Args[1] == child)
 			}
-			return testMessages[selector.Sel.Name]
+			return testMessages[selector.Sel.Name] && testingReceiver(parents[:index], qualifier.Name, names)
 		}
 		return false
 	}
 	return false
+}
+
+// testingReceiver reports a name that the innermost enclosing function
+// declaring it declares as a parameter (or receiver) of type *testing.T,
+// *testing.B, *testing.F or testing.TB, through the file's unshadowed import
+// of "testing", and that no declaration in that function's body redeclares.
+// A name declared nowhere in an enclosing function is not proven.
+func testingReceiver(parents []ast.Node, name string, names map[string]string) bool {
+	testing := ""
+	for local, value := range names {
+		if value == "testing" && local != "_" && local != "." {
+			testing = local
+		}
+	}
+	if testing == "" {
+		return false
+	}
+	for index := len(parents) - 1; index >= 0; index-- {
+		var fields []*ast.Field
+		var body *ast.BlockStmt
+		switch function := parents[index].(type) {
+		case *ast.FuncLit:
+			fields, body = signatureFields(nil, function.Type), function.Body
+		case *ast.FuncDecl:
+			fields, body = signatureFields(function.Recv, function.Type), function.Body
+		default:
+			continue
+		}
+		for _, field := range fields {
+			if !slices.ContainsFunc(field.Names, func(ident *ast.Ident) bool { return ident.Name == name }) {
+				continue
+			}
+			return testingType(field.Type, testing) && !redeclares(body, name)
+		}
+	}
+	return false
+}
+
+func signatureFields(receiver *ast.FieldList, signature *ast.FuncType) []*ast.Field {
+	var fields []*ast.Field
+	for _, list := range []*ast.FieldList{receiver, signature.TypeParams, signature.Params, signature.Results} {
+		if list != nil {
+			fields = append(fields, list.List...)
+		}
+	}
+	return fields
+}
+
+// testingType reports *testing.T, *testing.B, *testing.F or testing.TB.
+func testingType(expression ast.Expr, testing string) bool {
+	if star, ok := expression.(*ast.StarExpr); ok {
+		return qualifiedName(star.X, testing, "T", "B", "F")
+	}
+	return qualifiedName(expression, testing, "TB")
+}
+
+func qualifiedName(expression ast.Expr, qualifier string, names ...string) bool {
+	selector, ok := expression.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	ident, ok := selector.X.(*ast.Ident)
+	return ok && ident.Name == qualifier && slices.Contains(names, selector.Sel.Name)
+}
+
+// redeclares reports a declaration of name anywhere in node: a short variable
+// declaration, a var or const, a range variable, a function literal's
+// parameter or result, or a type, so a call on that name may not reach the
+// declaration it is checked against.
+func redeclares(node ast.Node, name string) bool {
+	if node == nil {
+		return false
+	}
+	return slices.Contains(declaredNames(node), name)
+}
+
+// declaredNames lists every name a declaration within node introduces, struct
+// fields included (an over-approximation that only keeps edges).
+func declaredNames(node ast.Node) []string {
+	var declared []string
+	add := func(idents ...*ast.Ident) {
+		for _, ident := range idents {
+			if ident != nil {
+				declared = append(declared, ident.Name)
+			}
+		}
+	}
+	ast.Inspect(node, func(node ast.Node) bool {
+		switch node := node.(type) {
+		case *ast.AssignStmt:
+			if node.Tok == token.DEFINE {
+				for _, expression := range node.Lhs {
+					if ident, ok := expression.(*ast.Ident); ok {
+						add(ident)
+					}
+				}
+			}
+		case *ast.RangeStmt:
+			if node.Tok == token.DEFINE {
+				for _, expression := range []ast.Expr{node.Key, node.Value} {
+					if ident, ok := expression.(*ast.Ident); ok {
+						add(ident)
+					}
+				}
+			}
+		case *ast.ValueSpec:
+			add(node.Names...)
+		case *ast.TypeSpec:
+			add(node.Name)
+		case *ast.Field:
+			add(node.Names...)
+		case *ast.FuncDecl:
+			add(node.Name)
+		}
+		return true
+	})
+	return declared
+}
+
+// unshadowedImports maps each local package name of a file's imports to its
+// path, leaving out a name that a declaration of the file also introduces, so
+// that a qualifier is resolved only when it can name the import alone.
+func unshadowedImports(file *ast.File) map[string]string {
+	names := importNames(file.Imports)
+	for _, name := range declaredNames(file) {
+		delete(names, name)
+	}
+	return names
 }
 
 // assigned reports an index expression that is assigned or incremented,

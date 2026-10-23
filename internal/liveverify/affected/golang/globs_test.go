@@ -56,3 +56,32 @@ func TestLiteralGlobSelectsTheReaderOfAnAddedFile_AFPV0401(t *testing.T) {
 		}
 	}
 }
+
+// AFP-V0-401: the call is found however it is spaced or commented, not only as
+// the text `Glob(`.
+func TestLiteralGlobIsFoundThroughSpacingAndComments_AFPV0401(t *testing.T) {
+	calls := map[string]string{
+		"space":   "filepath.Glob (\"../d[o]cs/[w]/*.md\")",
+		"newline": "filepath.\n\t\tGlob(\n\t\t\t\"../d[o]cs/[x]/*.md\")",
+		"block":   "filepath.Glob/* pattern */(\"../d[o]cs/[y]/*.md\")",
+		"line":    "filepath.Glob( // pattern\n\t\t\"../d[o]cs/[z]/*.md\")",
+	}
+	files := map[string]string{"go.mod": "module example.test/m\n"}
+	for name, call := range calls {
+		files[name+"/"+name+"_test.go"] = "package " + name + "\n\nimport (\n\t\"path/filepath\"\n\t\"testing\"\n)\n\nfunc TestGlob(t *testing.T) {\n\t_, _ = " + call + "\n}\n"
+	}
+	root := t.TempDir()
+	writeFiles(t, root, files)
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, directory := range map[string]string{"space": "w", "newline": "x", "block": "y", "line": "z"} {
+		dirty := "docs/" + directory + "/README.md"
+		plan := affected.Select(graph, []string{dirty})
+		unit := "go:example.test/m/" + name
+		if len(plan.Selected) != 1 || plan.Selected[0].UnitID != unit || plan.Selected[0].Witness.Kind != affected.WitnessPathGlobReader {
+			t.Fatalf("%s: %s selected %+v, want %s by its glob", name, dirty, plan.Selected, unit)
+		}
+	}
+}

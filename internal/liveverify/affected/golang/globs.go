@@ -11,9 +11,10 @@ import (
 	"unicode/utf8"
 )
 
-// globCall is the call a literal glob reader makes (AFP-V0-401): the
-// path/filepath package's Glob.
-var globCall = []byte("Glob(")
+// globName is the selector a literal glob reader calls (AFP-V0-401): the
+// path/filepath package's Glob. The prefilter looks for the name alone, since
+// a space, a line break or a comment may separate it from its parenthesis.
+var globName = []byte("Glob")
 
 // literalGlobs returns the patterns of the filepath.Glob calls in one Go file
 // whose argument is literal (AFP-V0-401), in the affected.Unit.PathGlobs form:
@@ -29,7 +30,7 @@ var globCall = []byte("Glob(")
 // repository path can be. A file that does not parse records nothing; the
 // imports-only parse already raised its frontier.
 func literalGlobs(directory string, body []byte, imports []*ast.ImportSpec) []string {
-	if !bytes.Contains(body, globCall) {
+	if !bytes.Contains(body, globName) {
 		return nil
 	}
 	name := ""
