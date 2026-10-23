@@ -53,7 +53,7 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 		return "catalog-json", true, nil
 	}
 	if len(rest) == 2 && rest[0] == "help" {
-		directTopic, _ = publicHelpTopic(rest[1])
+		directTopic = capabilityOrPublicHelpTopic(rest[1])
 		// A nested topic passed as the one argument the refusal lists it as
 		// ("docs corpus") resolves like its separate-word form (DCP-V1-057).
 		if command, subcommand, spaced := strings.Cut(rest[1], " "); directTopic == "" && spaced {
@@ -183,7 +183,7 @@ func helpText(topic string) string {
 	}
 	switch topic {
 	case "catalog-json":
-		return helpCatalogJSON()
+		return capabilityCatalogJSON()
 	case "docs-corpus":
 		return docsCorpusHelp()
 	case "docs":
@@ -287,7 +287,7 @@ func helpText(topic string) string {
 	case "test-plan":
 		return testPlanHelp
 	default:
-		panic("unknown help topic")
+		return capabilityHelpText(topic)
 	}
 }
 
@@ -299,7 +299,7 @@ const rootHelp = `Corvint extraction alpha
 
 Usage:
   corvint [--root PATH] COMMAND [OPTIONS]
-  corvint COMMAND --help | corvint help COMMAND
+  corvint COMMAND --help | corvint help COMMAND | corvint help --json|guide
   corvint --version [--json]
 
 Commands:
@@ -1080,10 +1080,14 @@ Usage:
     (--bytes START:END | --lines START:END) --relation RELATION [--output MAP]
   corvint [--root PATH] cem mark --map MAP --hunk SELECTOR
     --disposition unknown|mechanical --reason REASON [--output MAP]
-  corvint [--root PATH] cem status --map MAP [OPTIONS]
-  corvint [--root PATH] cem verify --map MAP [OPTIONS]
-  corvint [--root PATH] cem report --map MAP [--output REPORT] [OPTIONS]
-  corvint [--root PATH] cem report --map MAP --format json [--ocm OCM] [OPTIONS]
+  corvint [--root PATH] cem status --map MAP --expected-base REV --target REV
+    --artifacts DIR [OPTIONS]
+  corvint [--root PATH] cem verify --map MAP --expected-base REV --target REV
+    --artifacts DIR [OPTIONS]
+  corvint [--root PATH] cem report --map MAP --expected-base REV --target REV
+    --artifacts DIR [--output REPORT] [OPTIONS]
+  corvint [--root PATH] cem report --map MAP --format json --expected-base REV
+    --target REV --artifacts DIR [--ocm OCM] [OPTIONS]
   corvint [--root PATH] cem cover --map MAP --coverprofile PATH --test-run ID [--output MAP]
   corvint [--root PATH] cem discriminate --map MAP --target REV [--max-hunks N]
     [--max-mutants N] [--wall-time DURATION] [--output MAP]
