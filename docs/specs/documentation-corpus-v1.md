@@ -1569,7 +1569,8 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   family outranks every partial hit of both. Terms are summed in sorted
   order; only equal scores order by record ID. An optional `kind` (MCP `kind`, CLI `--kind`,
   companion `kinds`; the `DCP-V1-284` shape) keeps only subjects of those kinds and claims about
-  them. The indexed and scanning readers return the same order. Acceptance:
+  them. The indexed and scanning readers return the same order. `DCP-V1-400..403` amend the name
+  field and replace the shared bonus with a per-family normalized merge. Acceptance:
   `TestDCPV1331SearchRanking`, `TestDCPV1331ExactBonusAcrossFamilies`,
   `TestDCPV1328And331SearchArguments`, `TestDCPV1321CorpusKindAndClaimSearchCLIParity`.
 - `DCP-V1-332`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1570; V1-2329, V1-2371) Every read
@@ -1708,6 +1709,50 @@ owner's standing auto-accept (2026-10-11); GitHub #1582).
   that cannot be anchored (`fact-span-unanchored`, for example an expectation line over 64 KiB),
   which is dropped rather than emitted without an anchor. Acceptance:
   `TestDCPV1376DiscoverTestsUnknowns`.
+
+### File and claim ranking in `docs_search` (GitHub #1597)
+
+The `DCP-V1-331` weights buried two answers a caller-labelled suite expected: a file (module
+subject) lost to documentation paragraph subjects whose prose names repeat the query words, and an
+included claim lost to every subject naming one query word, because claim text weighs 1 and a
+name 3. These requirements amend `DCP-V1-331`'s name field and its cross-family merge; the IDF,
+term order, kind filter and index/scan parity stay as stated there. Status for `DCP-V1-400..404`:
+accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-2470.
+
+- `DCP-V1-400`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-2470) The name field of a `module` or `file` subject also holds the evidence terms of
+  each of its anchor paths, so a path segment weighs as a name term (3) and matches the subject
+  even when its ID, name and claim text lack it. A native file subject, whose name is its path,
+  ranks as before. Acceptance: `TestDCPV1400ModulePathSegmentsAreNameTerms`.
+- `DCP-V1-401`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-2470) A subject name holding more than 12 distinct evidence terms is prose, such as a
+  documentation paragraph, unless the subject is a `module` or `file`: its name terms weigh as
+  claim text (1) and its ID terms keep weight 3. A name of at most 12 distinct terms keeps
+  `DCP-V1-331`'s name weight. Acceptance: `TestDCPV1401ProseNameThreshold`,
+  `TestDCPV1400ModulePathSegmentsAreNameTerms`.
+- `DCP-V1-402`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-2470) Each family's score is normalized before the families merge: a subject's partial
+  score is divided by the sum over the query terms of `3 × idf` over the subjects, and a claim's
+  by the sum of `1 × idf` over the claims, so every partial hit of either family scores in
+  `[0, 1]`. An exact case-insensitive name (or trimmed claim-text) match orders before every hit
+  that is not exact, replacing `DCP-V1-331`'s shared bonus, even when tokenization leaves it no
+  query term (a subject named `SignIn` for the query `signin`); exact hits order among themselves
+  by score. Equal scores order subjects before claims, then by record ID. A claim holding every
+  query term therefore outranks a subject naming only some of them; without `include` the subject
+  order is the one `DCP-V1-400` and `DCP-V1-401` give, since one divisor never reorders one family.
+  Acceptance: `TestDCPV1402ClaimFamilyNormalizedMerge`, `TestDCPV1402ExactMatchPrecedesTermOverlap`,
+  `TestDCPV1328SearchIncludesClaims`, `TestDCPV1331ExactBonusAcrossFamilies`.
+- `DCP-V1-403`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-2470) The ranking stays deterministic and bounded: terms are summed in sorted order, the
+  path terms of `DCP-V1-400` are read per query from the artifact's subjects without modifying
+  the query index or its encoding, and the indexed and scanning readers return the same order. A
+  query keeps only its own terms of a subject's name field, so a miss retains no per-subject
+  vocabulary. `docs_claims` with `query` (`DCP-V1-313`) is unchanged. Acceptance:
+  `TestDCPV1402ClaimFamilyNormalizedMerge`, `TestDCPV1400ModulePathSegmentsAreNameTerms`,
+  `TestDCPV1331SearchRanking`, `TestDCPV1403MissRetainsNoSubjectNameTerms`.
+- `DCP-V1-404`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-2470) A committed synthetic fixture,
+  `internal/mcp/corpusbridge/testdata/search-ranking-gh1597/` (a source tree, supplied records
+  and a `corvint-corpus-eval-cases/1` case file of six file-lookup cases without `kind` and six
+  claim-lookup cases with `include: ["claims"]`, each with `limit` 1), is built into a corpus and
+  scored through `docs corpus eval`'s MCP tool path; every case passes, and twice in a row with
+  equal ranks. Ranking changes to `docs_search` run it before they ship. Acceptance:
+  `TestDCPV1404SearchRankingEvalFixture`.
 
 ### Caller-owned retrieval evaluation (`docs corpus eval`)
 
@@ -2981,6 +3026,13 @@ Every refusal `trust_envelope`, and the corpus MCP tool-failure envelope, carrie
 `verified_at: null` with the limitation that the request was refused and no verification is
 recorded (`DCP-V1-320`).
 
+`docs_search` ranking (`DCP-V1-400..403`) has no new refusal. A query without evidence terms has no
+partial hit in either family (its normalizing sum is zero) and answers only exact matches or the
+existing no-match miss. A module or file subject with no anchor path keeps its ID and name terms.
+A short subject name that holds more query terms than a file's path still outranks the file: the
+fixture of `DCP-V1-404` shows the two issue mechanisms are fixed, not that every caller suite
+recovers.
+
 ## Non-goals and simpler baseline
 
 A manually authored Markdown page remains the baseline. No cross-repository federation, remote
@@ -3034,6 +3086,11 @@ Static test discovery (`DCP-V1-370..376`) does not run tests, evaluate Ruby or J
 loops, resolve dynamic imports, judge assertion adequacy or write a corpus provider record; it is
 generated evidence for a caller to cite. Rollback removes the `discover-tests` subcommand and the
 `internal/testsource/discover_tests*.go` producer; no stored state depends on it.
+`internal/doccorpus/delta*.go`; no artifact or manifest format changes.
+The `docs_search` ranking amendment (`DCP-V1-400..404`) exposes no field weights or new arguments,
+learns no weights, and returns no separate claim list; it does not change `docs_claims` or the query
+index. Rollback restores `internal/doccorpus/search_rank.go` and the two `DCP-V1-328` assertions;
+no artifact, index or wire format changes.
 
 Extractor profiles (`DCP-V1-390..399`) are not a framework catalog, language parser or Core
 taxonomy: they add no subject kind beyond the generic `job` and `event`, run no tool, infer no
@@ -3103,6 +3160,8 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-330 | `internal/doccorpus/receipt_annotations.go`, `query.go`, `query_index.go` | `TestDCPV1330AlternateIDResolution` |
 | DCP-V1-331 | `internal/doccorpus/search_rank.go`, `query.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1331SearchRanking`, `TestDCPV1331ExactBonusAcrossFamilies`, `TestDCPV1328And331SearchArguments`, `TestDCPV1321CorpusKindAndClaimSearchCLIParity` |
 | DCP-V1-332 | `internal/doccorpus/caller_revision.go`, `query.go`, `trust.go`, `internal/cem/gitauth/ancestry.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1332RelateCallerRevision`, `TestDCPV1332CallerRevisionEnvelope`, `TestDCPV1332CallerRevisionArgument`, `TestDCPV1332HTTPCallerRevisionUnknown`, `TestDCPV1332CorpusCallerRevisionCLIParity` |
+| DCP-V1-400..403 | `internal/doccorpus/search_rank.go` | `TestDCPV1400ModulePathSegmentsAreNameTerms`, `TestDCPV1401ProseNameThreshold`, `TestDCPV1402ClaimFamilyNormalizedMerge`, `TestDCPV1402ExactMatchPrecedesTermOverlap`, `TestDCPV1403MissRetainsNoSubjectNameTerms`, `TestDCPV1328SearchIncludesClaims`, `TestDCPV1331SearchRanking`, `TestDCPV1331ExactBonusAcrossFamilies` |
+| DCP-V1-404 | `internal/mcp/corpusbridge/testdata/search-ranking-gh1597/` | `TestDCPV1404SearchRankingEvalFixture` |
 | DCP-V1-282 | `internal/doccorpus/anchor_state.go`, `internal/doccorpus/query.go`, `internal/doccorpus/trust.go` | `TestDCPV1282PerCitationAnchorState` |
 | DCP-V1-283 | `internal/doccorpus/trust.go` | `TestDCPV1283UnverifiedCorpusVerifiedAtNull` |
 | DCP-V1-284 | `internal/doccorpus/query.go`, `internal/doccorpus/anchor_state.go`, `internal/mcp/corpusbridge/corpusbridge.go` | `TestDCPV1284GapsKindFilter` |

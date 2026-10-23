@@ -1,0 +1,31 @@
+{
+  "subjects": [
+    {"id": "fixture:paragraph:cancel", "kind": "document", "path": "src/teesheet/cancel_booking.ts", "name": "When a member cancels a booking the tee sheet marks the slot as free again and the occupancy shown for that day is refreshed once the booking has gone"},
+    {"id": "fixture:paragraph:refund", "kind": "document", "path": "src/billing/refund_payment.ts", "name": "Refunds go back to the original payment method after a booking is cancelled and the payment provider confirms the refund before the member receives a receipt"},
+    {"id": "fixture:paragraph:invite", "kind": "document", "path": "src/members/invite_member.ts", "name": "A member can invite a guest by email and each invitation expires after seven days while the member list shows every pending invitation link"},
+    {"id": "fixture:paragraph:waitlist", "kind": "document", "path": "src/waitlist/promote_next.ts", "name": "When a slot is freed the waitlist promotes the next waiting member in line and notifies them so the tee sheet shows the promoted member in that slot"},
+    {"id": "fixture:paragraph:occupancy", "kind": "document", "path": "src/teesheet/occupancy_counter.ts", "name": "The occupancy counter shows how many players are booked in each slot of the tee sheet and the starter uses the counter to fill empty slots"},
+    {"id": "fixture:paragraph:invoice", "kind": "document", "path": "src/billing/invoice_export.ts", "name": "Every month the club exports invoices for each paid booking to a CSV file that the treasurer imports into the accounting package with one row per booking"},
+    {"id": "fixture:capability:refunds", "kind": "capability", "path": "src/billing/refund_payment.ts", "name": "Refund desk"},
+    {"id": "fixture:capability:occupancy", "kind": "capability", "path": "src/teesheet/occupancy_counter.ts", "name": "Occupancy dashboard"},
+    {"id": "fixture:capability:waitlist", "kind": "capability", "path": "src/waitlist/promote_next.ts", "name": "Waitlist board"},
+    {"id": "fixture:capability:invitations", "kind": "capability", "path": "src/members/invite_member.ts", "name": "Member invitations"},
+    {"id": "fixture:capability:slots", "kind": "capability", "path": "src/teesheet/cancel_booking.ts", "name": "Slot planner"},
+    {"id": "fixture:capability:booking", "kind": "capability", "path": "src/teesheet/cancel_booking.ts", "name": "Booking calendar"}
+  ],
+  "claims": [
+    {"id": "fixture:claim:cancel-occupancy", "subject": "native:file:src/teesheet/cancel_booking.ts", "path": "src/teesheet/cancel_booking.ts", "text": "Cancel refreshes occupancy once per tee sheet"},
+    {"id": "fixture:claim:refund-original", "subject": "native:file:src/billing/refund_payment.ts", "path": "src/billing/refund_payment.ts", "text": "Refund returns the payment to the original method"},
+    {"id": "fixture:claim:invite-expiry", "subject": "native:file:src/members/invite_member.ts", "path": "src/members/invite_member.ts", "text": "Invitation links expire after seven days"},
+    {"id": "fixture:claim:waitlist-promote", "subject": "native:file:src/waitlist/promote_next.ts", "path": "src/waitlist/promote_next.ts", "text": "Promote next moves the first waitlisted member into the freed slot"},
+    {"id": "fixture:claim:occupancy-count", "subject": "native:file:src/teesheet/occupancy_counter.ts", "path": "src/teesheet/occupancy_counter.ts", "text": "Occupancy counter counts booked players per slot"},
+    {"id": "fixture:claim:invoice-export", "subject": "native:file:src/billing/invoice_export.ts", "path": "src/billing/invoice_export.ts", "text": "Invoice export writes one CSV row per paid booking"},
+    {"id": "fixture:claim:refunds-queue", "subject": "fixture:capability:refunds", "path": "src/billing/refund_payment.ts", "text": "The refund desk lists refunds awaiting approval"},
+    {"id": "fixture:claim:refunds-method", "subject": "fixture:capability:refunds", "path": "src/billing/refund_payment.ts", "text": "The refund desk shows the payment method of each refund"},
+    {"id": "fixture:claim:occupancy-view", "subject": "fixture:capability:occupancy", "path": "src/teesheet/occupancy_counter.ts", "text": "The occupancy dashboard shows each slot of the tee sheet"},
+    {"id": "fixture:claim:waitlist-view", "subject": "fixture:capability:waitlist", "path": "src/waitlist/promote_next.ts", "text": "The waitlist board lists waiting members per slot"},
+    {"id": "fixture:claim:invitations-view", "subject": "fixture:capability:invitations", "path": "src/members/invite_member.ts", "text": "Member invitations show pending invitation links"},
+    {"id": "fixture:claim:slots-view", "subject": "fixture:capability:slots", "path": "src/teesheet/cancel_booking.ts", "text": "The slot planner shows free and booked slots"},
+    {"id": "fixture:claim:booking-view", "subject": "fixture:capability:booking", "path": "src/teesheet/cancel_booking.ts", "text": "The booking calendar lists each booking per member"}
+  ]
+}
