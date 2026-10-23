@@ -68,6 +68,11 @@ func TestMCPV0102HelpToolAnswersOnTheWire(t *testing.T) {
 				t.Fatal(err)
 			}
 			got, _ := responses[id]["result"].(map[string]any)
+			// corvint.help is not a corpus read, so it carries no corvint/timing (MCPV0-102).
+			transport, _ := got["_meta"].(map[string]any)
+			if _, timed := transport["corvint/timing"]; timed {
+				t.Fatalf("%s %s: help result carries corvint/timing", version, call.arguments)
+			}
 			// The transport adds these two members to every tool's result.
 			delete(got, "_meta")
 			delete(got, "resultType")
@@ -83,32 +88,46 @@ func TestMCPV0102HelpToolAnswersOnTheWire(t *testing.T) {
 }
 
 // MCPV0-102: corvint.help reads only the binary, so it still answers after
-// the repository root and its corpus artifact is gone, while the server's own tools would refuse.
+// the repository root and its corpus artifact are gone, while the same valid
+// docs_info request that succeeded before the removal now refuses with
+// corpus-input-unavailable.
 func TestMCPV0102HelpToolReadsNoRepositoryState(t *testing.T) {
 	t.Parallel()
-	handler, remove := func() (*toolHandler, func()) {
-		root := corpusRoot(t)
-		registry, err := corpusbridge.New(root, "corpus.json")
-		if err != nil {
-			t.Fatal(err)
-		}
-		return &toolHandler{registry: registry}, func() {
-			if err := os.RemoveAll(root); err != nil {
-				t.Fatal(err)
-			}
-		}
-	}()
-	remove()
+	root := corpusRoot(t)
+	registry, err := corpusbridge.New(root, "corpus.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := &toolHandler{registry: registry}
+	info := map[string]any{"name": "corvint.docs_info", "arguments": map[string]any{}}
+	if own, rpcErr := handler.call(context.Background(), info); rpcErr != nil || own["isError"] != false {
+		t.Fatalf("corvint.docs_info failed with its repository: rpc=%v result=%v", rpcErr, own)
+	}
+	if err := os.RemoveAll(root); err != nil {
+		t.Fatal(err)
+	}
 	result, rpcErr := handler.call(context.Background(), map[string]any{"name": bridge.ToolHelp, "arguments": map[string]any{"topic": "guide"}})
 	if rpcErr != nil {
 		t.Fatal(rpcErr)
 	}
 	assertHelpText(t, result, capcatalog.Guide())
-	if own, rpcErr := handler.call(context.Background(), map[string]any{"name": "corvint.docs_info", "arguments": map[string]any{}}); rpcErr == nil && own["isError"] != true {
-		t.Fatalf("%s answered without its repository", "corvint.docs_info")
-	}
+	assertOwnToolRefused(t, handler, info, "corpus-input-unavailable")
 	if _, rpcErr := handler.call(context.Background(), map[string]any{"name": bridge.ToolHelp, "arguments": map[string]any{"topic": nil}}); rpcErr == nil {
 		t.Fatal("a null topic was accepted")
+	}
+}
+
+// assertOwnToolRefused checks that the server's own tool, given a request it
+// answered before the repository was removed, now refuses with code.
+func assertOwnToolRefused(t *testing.T, handler *toolHandler, params map[string]any, code string) {
+	t.Helper()
+	own, rpcErr := handler.call(context.Background(), params)
+	if rpcErr != nil {
+		t.Fatalf("%s: rpc error %v, want tool failure %s", params["name"], rpcErr, code)
+	}
+	structured, _ := own["structuredContent"].(map[string]any)
+	if own["isError"] != true || structured["code"] != code {
+		t.Fatalf("%s answered without its repository: isError=%v code=%v, want %s", params["name"], own["isError"], structured["code"], code)
 	}
 }
 

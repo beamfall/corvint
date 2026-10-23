@@ -69,6 +69,11 @@ func TestMCPV0101HelpToolAnswersOnTheWire(t *testing.T) {
 				t.Fatal(err)
 			}
 			got, _ := responses[id]["result"].(map[string]any)
+			// corvint.help carries no corvint/timing, only the transport _meta (MCPV0-104).
+			transport, _ := got["_meta"].(map[string]any)
+			if _, timed := transport["corvint/timing"]; timed {
+				t.Fatalf("%s %s: help result carries corvint/timing", version, call.arguments)
+			}
 			// The transport adds these two members to every tool's result.
 			delete(got, "_meta")
 			delete(got, "resultType")
@@ -84,32 +89,45 @@ func TestMCPV0101HelpToolAnswersOnTheWire(t *testing.T) {
 }
 
 // MCPV0-101: corvint.help reads only the binary, so it still answers after
-// the repository root is gone, while the server's own tools would refuse.
+// the repository root is gone, while the same valid docs_draft request that
+// succeeded before the removal now refuses with repository-unavailable.
 func TestMCPV0101HelpToolReadsNoRepositoryState(t *testing.T) {
 	t.Parallel()
-	handler, remove := func() (*toolHandler, func()) {
-		root := bareGitRoot(t)
-		registry, err := docsbridge.New(root)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return &toolHandler{registry: registry}, func() {
-			if err := os.RemoveAll(root); err != nil {
-				t.Fatal(err)
-			}
-		}
-	}()
-	remove()
+	root := docsFixtureRoot(t)
+	registry, err := docsbridge.New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := &toolHandler{registry: registry}
+	draft := map[string]any{"name": docsbridge.ToolDraft, "arguments": map[string]any{"source": "owner.md", "package": "cache"}}
+	if own, rpcErr := handler.call(context.Background(), draft); rpcErr != nil || own["isError"] != false {
+		t.Fatalf("%s failed with its repository: rpc=%v result=%v", docsbridge.ToolDraft, rpcErr, own)
+	}
+	if err := os.RemoveAll(root); err != nil {
+		t.Fatal(err)
+	}
 	result, rpcErr := handler.call(context.Background(), map[string]any{"name": bridge.ToolHelp, "arguments": map[string]any{"topic": "guide"}})
 	if rpcErr != nil {
 		t.Fatal(rpcErr)
 	}
 	assertHelpText(t, result, capcatalog.Guide())
-	if own, rpcErr := handler.call(context.Background(), map[string]any{"name": docsbridge.ToolDraft, "arguments": map[string]any{}}); rpcErr == nil && own["isError"] != true {
-		t.Fatalf("%s answered without its repository", docsbridge.ToolDraft)
-	}
+	assertOwnToolRefused(t, handler, draft, "repository-unavailable")
 	if _, rpcErr := handler.call(context.Background(), map[string]any{"name": bridge.ToolHelp, "arguments": map[string]any{"topic": nil}}); rpcErr == nil {
 		t.Fatal("a null topic was accepted")
+	}
+}
+
+// assertOwnToolRefused checks that the server's own tool, given a request it
+// answered before the repository was removed, now refuses with code.
+func assertOwnToolRefused(t *testing.T, handler *toolHandler, params map[string]any, code string) {
+	t.Helper()
+	own, rpcErr := handler.call(context.Background(), params)
+	if rpcErr != nil {
+		t.Fatalf("%s: rpc error %v, want tool failure %s", params["name"], rpcErr, code)
+	}
+	structured, _ := own["structuredContent"].(map[string]any)
+	if own["isError"] != true || structured["code"] != code {
+		t.Fatalf("%s answered without its repository: isError=%v code=%v, want %s", params["name"], own["isError"], structured["code"], code)
 	}
 }
 
