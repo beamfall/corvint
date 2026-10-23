@@ -76,10 +76,15 @@ func decodeArtifactParallel(data []byte, header func(*Artifact)) (*Artifact, err
 	}
 	plains := []plain{}
 	splits := []*splitArray{}
-	headerSent := header == nil
+	// The header members are decoded during the scan even without a header callback: the
+	// output bound below depends on the decoded schema (DCP-V1-461).
+	headerSent := false
 	var headerWG sync.WaitGroup
 	sendHeader := func() {
 		headerSent = true
+		if header == nil {
+			return
+		}
 		h := a
 		headerWG.Go(func() { header(&h) })
 	}

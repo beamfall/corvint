@@ -2649,6 +2649,11 @@ DCP-V1-450	docs/specs/documentation-corpus-v1.md	Scope membership allocates noth
 DCP-V1-451	docs/specs/documentation-corpus-v1.md	The read fixture of `DCP-V1-418` has a many-scopes shape, one single-file scope	unrecorded	-
 DCP-V1-452	docs/specs/documentation-corpus-v1.md	A corpus revision pin (`BuildRevisionContext`) reads the checkout's Git index	unrecorded	-
 DCP-V1-453	docs/specs/documentation-corpus-v1.md	Routing fails closed to the hashed worktree pass: a missing, unreadable,	unrecorded	-
+DCP-V1-460	docs/specs/documentation-corpus-v1.md	`delta` admits a retained `--artifact` current side through the verified read,	unrecorded	-
+DCP-V1-461	docs/specs/documentation-corpus-v1.md	`--previous` of `delta` and `carry-forward` is admitted with the verified read's	unrecorded	-
+DCP-V1-462	docs/specs/documentation-corpus-v1.md	`delta` accepts `--timings` and `--verify-rederive` with the `info` help text;	unrecorded	-
+DCP-V1-463	docs/specs/documentation-corpus-v1.md	On the `PRB-V0-021` full-scale fixture (10,000 inputs, 96,350 records, a 97 MB	unrecorded	-
+DCP-V1-464	docs/specs/documentation-corpus-v1.md	Before anything is classified, the verified current side of `delta` checks, with	unrecorded	-
 DCP-V1-360	docs/specs/documentation-corpus-v1.md	`delta` prints one `corvint-corpus-delta/1` receipt: the previous and current	unrecorded	-
 DCP-V1-361	docs/specs/documentation-corpus-v1.md	The classified population is the previous corpus's subjects, claims and relation	unrecorded	-
 DCP-V1-362	docs/specs/documentation-corpus-v1.md	Every anchor is re-validated against the current revision's blobs. A blob is rea	unrecorded	-
@@ -3964,6 +3969,10 @@ PRB-V0-034	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted unde
 PRB-V0-035	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) An enfor	standing	2026-10-11; V1-2474
 PRB-V0-036	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) Measured	standing	2026-10-11; V1-2474
 PRB-V0-037	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) Every pr	standing	2026-10-11; V1-2474
+PRB-V0-050	docs/specs/performance-profiling-and-read-budget-v0.md	The harness MUST measure a seventh scenario after the six of `PRB-V0-024`:	unrecorded	-
+PRB-V0-051	docs/specs/performance-profiling-and-read-budget-v0.md	`unchanged-delta` MUST carry the two enforced `PRB-V0-032` ceilings, except that	unrecorded	-
+PRB-V0-052	docs/specs/performance-profiling-and-read-budget-v0.md	The baseline MUST carry the `unchanged-delta` measurement the ceilings derive fr	unrecorded	-
+PRB-V0-053	docs/specs/performance-profiling-and-read-budget-v0.md	A baseline measurement taken in another run than the baseline's own MUST carry	unrecorded	-
 PWV-V0-001	docs/specs/pi-workflow-v0.md	Pi MUST preserve original native Core receipt objects, output and exit status, i	unrecorded	-
 PWV-V0-002	docs/specs/pi-workflow-v0.md	Core read tools MUST use closed operation and argument sets for query, context,	unrecorded	-
 PWV-V0-003	docs/specs/pi-workflow-v0.md	Each command MUST use bounded argv-only local execution, one owned POSIX process	unrecorded	-

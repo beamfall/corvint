@@ -7,6 +7,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/contextindex"
@@ -165,6 +166,9 @@ type DeltaOptions struct {
 	Offset, Limit int
 	Uncovered     string
 	Anchorless    string
+	// Timings, when set, receives the comparison phase and, for the stream, the encode phase
+	// (DCP-V1-462). It never changes the result.
+	Timings *ReadTimings
 }
 
 // deltaRepo is one repository whose anchors the delta re-validates: the primary, or a declared
@@ -244,7 +248,7 @@ func DeltaWith(ctx context.Context, root string, previous, current *Artifact, so
 	if o.Limit < 1 || o.Limit > MaxResults || o.Offset < 0 {
 		return nil, fail("delta limit must be 1..256 and offset non-negative")
 	}
-	w, err := deltaWorklist(ctx, root, previous, current, o)
+	w, err := timedDeltaWorklist(ctx, root, previous, current, o)
 	if err != nil {
 		return nil, err
 	}
@@ -263,9 +267,12 @@ func DeltaWith(ctx context.Context, root string, previous, current *Artifact, so
 // DeltaStreamHeader line, then every entry in worklist order (DCP-V1-423). Paging options are
 // ignored. The stream is bounded by the 128 MiB corpus byte bound.
 func DeltaStream(ctx context.Context, root string, previous, current *Artifact, source string, o DeltaOptions) ([]byte, error) {
-	w, err := deltaWorklist(ctx, root, previous, current, o)
+	w, err := timedDeltaWorklist(ctx, root, previous, current, o)
 	if err != nil {
 		return nil, err
+	}
+	if o.Timings != nil {
+		defer func(start time.Time) { o.Timings.Encode += time.Since(start) }(time.Now())
 	}
 	header, err := Encode(DeltaStreamHeader{Schema: DeltaStreamSchema, Previous: deltaSide("artifact", previous), Current: deltaSide(source, current), Counts: w.counts, Total: len(w.entries), Limitations: w.limitations, Anchorless: w.anchorless, UncoveredSubjectsOmitted: w.subjectsOmitted})
 	if err != nil {
@@ -291,6 +298,14 @@ type deltaList struct {
 	limitations     []string
 	anchorless      []DeltaAnchorless
 	subjectsOmitted int
+}
+
+// timedDeltaWorklist is deltaWorklist, its duration added to o.Timings.Compare when set.
+func timedDeltaWorklist(ctx context.Context, root string, previous, current *Artifact, o DeltaOptions) (*deltaList, error) {
+	if o.Timings != nil {
+		defer func(start time.Time) { o.Timings.Compare += time.Since(start) }(time.Now())
+	}
+	return deltaWorklist(ctx, root, previous, current, o)
 }
 
 // deltaWorklist classifies once and orders the entries of the selected view.

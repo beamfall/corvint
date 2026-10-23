@@ -256,6 +256,7 @@ func Build(ctx context.Context, root string, m Manifest) (*Artifact, error) {
 }
 
 func build(ctx context.Context, root string, m Manifest, reuse *incrementalBuild) (*Artifact, error) {
+	builds.Add(1)
 	ctx = gitstatus.WithIsolation(ctx)
 	if _, err := Encode(m); err != nil {
 		return nil, err

@@ -39,13 +39,20 @@ type ReadOptions struct {
 type ReadTimings struct {
 	Validation                                     string
 	Parse, Verify, Freshness, Index, Query, Encode time.Duration
+	// Delta adds the delta's comparison phase, Compare, to the line (DCP-V1-462).
+	Delta   bool
+	Compare time.Duration
 }
 
 // Write renders the summary as one line for stderr.
 func (t *ReadTimings) Write(w io.Writer, total time.Duration) {
 	ms := func(d time.Duration) string { return fmt.Sprintf("%.1f", float64(d.Microseconds())/1000) }
-	fmt.Fprintf(w, "corvint docs corpus timings: validation=%s parse_ms=%s verify_ms=%s freshness_ms=%s index_ms=%s query_ms=%s encode_ms=%s total_ms=%s\n",
-		t.Validation, ms(t.Parse), ms(t.Verify), ms(t.Freshness), ms(t.Index), ms(t.Query), ms(t.Encode), ms(total))
+	compare := ""
+	if t.Delta {
+		compare = " compare_ms=" + ms(t.Compare)
+	}
+	fmt.Fprintf(w, "corvint docs corpus timings: validation=%s parse_ms=%s verify_ms=%s freshness_ms=%s index_ms=%s query_ms=%s encode_ms=%s%s total_ms=%s\n",
+		t.Validation, ms(t.Parse), ms(t.Verify), ms(t.Freshness), ms(t.Index), ms(t.Query), ms(t.Encode), compare, ms(total))
 }
 
 // OpenRead admits an artifact for a read. By default it is the verified read
@@ -140,6 +147,13 @@ var unattestedBuilderTrusted atomic.Bool
 func rebuildAttested(b Builder) bool {
 	return attestedBuilder(b) || unattestedBuilderTrusted.Load()
 }
+
+// builds counts compiler builds, rederivations included, so a test can show that a read path
+// rederived nothing (DCP-V1-461).
+var builds atomic.Int64
+
+// BuildsForTest returns how many builds this process has run. Production code never calls it.
+func BuildsForTest() int64 { return builds.Load() }
 
 // TrustUnattestedBuilderForTest lets a test binary, whose builder label is
 // always `unrecorded`, exercise the verified read; the returned function
