@@ -11,7 +11,7 @@ Authoritative inputs: owner request [issue 336](https://github.com/beamfall/corv
 
 ## Agent digest
 - Claim: `corvint-tasks init` refuses an intent store that already holds records, and works in a repository reached through a symlinked ancestor such as macOS `/tmp`.
-- Status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28); experimental. CTS-V0-001 through CTS-V0-004 are implemented; CTS-V0-002 permits only four unaudited inventory reads when the journal directory is absent; CTS-V0-005 adds tested non-fixture external-agent setup templates; CTS-V0-006 makes journal-backed reads wait out an in-flight writer (issue 433) instead of failing `REDO_PENDING` or `SNAPSHOT_MOVED` at once; CTS-V0-008 (accepted, decision 0490; V1-0825) makes an unlocked journal audit or archive export wait out a writer's descriptor-less staging slots before refusing `MALFORMED`, while an audit made under the writer lock still refuses them at once. CTS-V0-010 (V1-1379) makes a journal-absent `ticket show` miss name the stale `.taskman` snapshot and the journal it lacks instead of claiming the ticket does not exist. CTS-V0-011 (V1-0758) makes `ADOPT_FILE` compose added, changed or removed `requiresPool` and `requiredRoles` through `REFINE`. CTS-V0-012 (V1-2143) makes `ticket search --text` token-based and makes a list or search `--fields` refusal for `labels` or `effects` name the read that returns them. CTS-V0-014 to CTS-V0-017 (V1-0398) are the import-map writer: a non-fixture queue whose `importMapSha256` names `.taskman/import-map.json` initializes with the map journaled at genesis, takes every non-fixture write, keeps the map immutable, and imports only under the map's identity. CTS-V0-018 (V1-2401) checks the whole import plan against the map before the first batch and names every conflict. CTS-V0-020 and CTS-V0-021 (V1-2400) add the one amendment path for that map after genesis: an OWNER-only `import amend-map` that journals the amended map and the queue naming it under one `IMPORT_PLAN` receipt, bound to the journaled map the owner reviewed, refusing any identity conflict `DUPLICATE_ID`. CTS-V0-022 (V1-0903) charges the CTS-V0-006 budget with pauses only, so a read or export whose body takes longer than two seconds (a 10k-ticket store) still waits out a writer it meets.
+- Status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28); experimental. CTS-V0-001 through CTS-V0-004 are implemented; CTS-V0-002 permits only four unaudited inventory reads when the journal directory is absent; CTS-V0-005 adds tested non-fixture external-agent setup templates; CTS-V0-006 makes journal-backed reads wait out an in-flight writer (issue 433) instead of failing `REDO_PENDING` or `SNAPSHOT_MOVED` at once; CTS-V0-008 (accepted, decision 0490; V1-0825) makes an unlocked journal audit or archive export wait out a writer's descriptor-less staging slots before refusing `MALFORMED`, while an audit made under the writer lock still refuses them at once. CTS-V0-010 (V1-1379) makes a journal-absent `ticket show` miss name the stale `.taskman` snapshot and the journal it lacks instead of claiming the ticket does not exist. CTS-V0-011 (V1-0758) makes `ADOPT_FILE` compose added, changed or removed `requiresPool` and `requiredRoles` through `REFINE`. CTS-V0-012 (V1-2143) makes `ticket search --text` token-based and makes a list or search `--fields` refusal for `labels` or `effects` name the read that returns them. CTS-V0-014 to CTS-V0-017 (V1-0398) are the import-map writer: a non-fixture queue whose `importMapSha256` names `.taskman/import-map.json` initializes with the map journaled at genesis, takes every non-fixture write, keeps the map immutable, and imports only under the map's identity. CTS-V0-018 (V1-2401) checks the whole import plan against the map before the first batch and names every conflict. CTS-V0-020 and CTS-V0-021 (V1-2400) add the one amendment path for that map after genesis: an OWNER-only `import amend-map` that journals the amended map and the queue naming it under one `IMPORT_PLAN` receipt, bound to the journaled map the owner reviewed, refusing any identity conflict `DUPLICATE_ID`. CTS-V0-022 (V1-0903) charges the CTS-V0-006 budget with pauses only, so a read or export whose body takes longer than two seconds (a 10k-ticket store) still waits out a writer it meets. CTS-V0-023 (V1-0903) bounds the directory roots one export holds to a true peak of 16, so a 10k-ticket store no longer exhausts a low `ulimit -n`; CTS-V0-024 corrects the CTS-V0-020 rollback guidance: an `IMPORT_PLAN` receipt needs no restore.
 - Exists: journal-absent inventory reads with no audit identity, the coded init refusal, the ancestor resolution, the `corvint-tasks import` verb with its `IMPORT_APPLY` stage operation, and their store, transaction and CLI tests.
 - Blocked on: broader task-store authority recovery (V1-0310) remains open; CTS-V0-002 has narrow independent owner acceptance. For a non-fixture import writer, V1-0398.
 - Read next: Requirements; Import export and batching; Failure modes; Traceability.
@@ -235,6 +235,23 @@ on a fixture queue remain non-goals.
   a handful of times inside the budget, not once per 25 ms pause. A failure after a pause names the
   pause count and the time since the read began. The budget, attempt bound, codes and envelope are
   otherwise unchanged.
+- `CTS-V0-023`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0903) One
+  `archive export` attempt MUST hold at most 16 no-follow directory roots at once beyond its two
+  path-bound anchors (the state dir and the intent directory), counting the temporary root each
+  listing binds, as a true peak: a slot is reserved, by releasing the least recently used root that
+  is neither the one needed nor one of its ancestors, before each open. A released root MUST be
+  reopened only under its retained parent and only as the directory the listing observed; any other
+  directory there fails closed `SNAPSHOT_MOVED`. More nested roots than the bound refuse
+  `RESOURCE_EXHAUSTED`. The export stream MUST stay byte-identical to an unbounded read. Non-goals:
+  bounding file descriptors outside the export's directory roots, and the journal reader's
+  descriptors.
+- `CTS-V0-024`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2400) The CTS-V0-020
+  rollback MUST NOT require restoring a store that holds an `IMPORT_PLAN` receipt. A fully applied
+  amendment leaves only that receipt, whose kind the closed receipt set held before CTS-V0-020 and
+  which the unchanged journal reader validates as canonical intent posts; the non-fixture writer
+  stages no descriptor, so no stage decoder meets `IMPORT_PLAN`. An amendment interrupted after its
+  receipt is linked is completed by the next writer's redo, which a pre-amendment writer runs
+  unchanged. A rolled-back writer only refuses new amendment requests.
 
 ## Import export and batching
 
@@ -298,7 +315,9 @@ revision 1, a broken revision chain, and a target held by a native record or ano
 | Import-map amendment by a non-OWNER binding, or naming a map other than the journaled one | `UNAUTHORIZED`, or `REVISION_CONFLICT`; nothing is written (CTS-V0-020). |
 | Import-map amendment on a queue without a map, a fixture queue, or with a malformed or other-queue map | `MALFORMED`; nothing is written (CTS-V0-020). |
 | Import-map amendment that moves a mapped item, drops or doubles a mapped ticket, or claims a ticket that is not that item's import | `VALIDATION_FAILED` `DUPLICATE_ID` naming every conflict; nothing is written (CTS-V0-021). |
-| An older binary reads a store with an `IMPORT_PLAN` receipt | Its closed stage decoder and model refuse the operation; its journal audit validates the posts as canonical intent records. Run the amending binary. |
+| An older binary reads a store with an `IMPORT_PLAN` receipt | Its journal audit admits the receipt kind and validates the posts as canonical intent records, and its redo completes an amendment interrupted after link-in; only a new amendment request is refused (CTS-V0-024). |
+| Export of a store with more listed directories than the root bound (`requests/` shards) | Least recently used roots are released and reopened under their parent; the stream is unchanged (CTS-V0-023). |
+| A released directory root is replaced before it is reopened | `SNAPSHOT_MOVED`; the export retries or fails closed as any moved read (CTS-V0-023). |
 | Re-import of an `IMPORT` record that a `REFINE` gave `requiresPool` or `requiredRoles` | Both keys are kept byte-identical; only the changed `source` bumps `acceptanceRevision` (CTS-V0-007). |
 
 ## Acceptance and rollback
@@ -412,10 +431,27 @@ binding `UNAUTHORIZED` and an other-queue map `MALFORMED`, with the store digest
 throughout and an admissible amendment committing afterwards; when an unmapped queue refuses
 `MALFORMED`; and when the stage codec test holds the `IMPORT_PLAN` descriptor maxima exactly. On the
 tree without CTS-V0-020 the store has no amendment entry point. Rollback removes `ImportPlan`,
-`StageImportPlan`, `ImportMapAmend`, `importMapAmendConflicts` and `import amend-map`; a store that
-already holds an `IMPORT_PLAN` receipt is then refused by the rolled-back writer's stage decoder, so
-roll back only stores that never amended their map, or restore such a store from its archive
-export taken before the amendment.
+`StageImportPlan`, `ImportMapAmend`, `importMapAmendConflicts` and `import amend-map`. A store that
+already holds an `IMPORT_PLAN` receipt needs no restore (CTS-V0-024): when the amendment is fully
+applied the rolled-back writer's journal reader admits its receipt; when it was interrupted after
+link-in, the rolled-back writer's redo completes it. Earlier guidance to restore a pre-amendment
+archive confused those historical receipts with active stage descriptors, and following it would
+discard later work.
+
+CTS-V0-023 (V1-0903) is accepted by `TestCTSV0023_ExportHoldsBoundedRoots`: an export of a store
+with 200 `requests/` shards observes at most 16 held roots after every open, holds at most 24
+descriptors over its baseline, verifies, and streams the same bytes as an export with no effective
+bound; and by `TestCTSV0023_ReopenedShardMustBeTheListedDirectory`, where a released shard replaced
+before its reopening fails `SNAPSHOT_MOVED`. On the tree without the bound the export holds a root
+per shard; with the reservation moved after the open the peak test observes 17. Rollback restores
+the unbounded root map; no state format, code or envelope changes.
+
+CTS-V0-024 (V1-2400) is accepted by `TestCTSV0024_RollbackDistinguishesInterruptedAmendment`: an
+applied amendment leaves no staging descriptor and audits `CONSISTENT`, and an amendment interrupted
+before its head write is completed by an ordinary ticket `CREATE`'s redo, the map projected and the
+store `CONSISTENT`. `internal/tasks/journal` and `internal/tasks/store/redo.go` are unchanged from
+`origin/main`, so this is the pre-amendment code path; no older binary was run. It corrects guidance
+only and passes on the tree before the correction.
 
 CTS-V0-022 (V1-0903) is accepted by `TestCTSV0022_LongBodyKeepsPausePatience` (snapshot) and
 `TestCTSV0022_SlowExportStillWaitsOutWriter` (archive), with the escalating moved re-read backoff
@@ -453,6 +489,8 @@ restored byte-identical afterwards. Rollback restores the wall-clock deadline in
 | CTS-V0-020 | `internal/tasks/transaction/model.go` (`ImportPlan`, `Digest`, model posts), `internal/tasks/transaction/import_map.go` (`importMapUnchanged`), `internal/tasks/snapshot/stage.go` (`StageImportPlan`), `internal/tasks/snapshot/stage_observation.go`, `internal/tasks/store/policy.go` (`ImportMapAmend`, `administrativeWriteRound`), `internal/tasks/cli/import_map.go` | TestCTSV0020_ImportMapAmendCommitsAndReplays, TestCTSV0020_ImportMapAmendRefusesUnmappedQueue, TestTMV0002_AS10_StageCodecActualMaxima |
 | CTS-V0-021 | `internal/tasks/transaction/import_map.go` (`importMapAmendConflicts`) | TestCTSV0021_ImportMapAmendRefusesConflicts |
 | CTS-V0-022 | `internal/tasks/snapshot/probe.go` (`Reader.Read`, `AfterWait`), `internal/tasks/archive/stage_read.go` (`readArchive`) | TestCTSV0022_LongBodyKeepsPausePatience, TestCTSV0022_SlowExportStillWaitsOutWriter, TestCTSV0006_MovedReadsPauseBetweenAttempts |
+| CTS-V0-023 | `internal/tasks/archive/stage_read.go` (`maxOpenRoots`, `archiveRead.parent`, `reserve`, `binding`) | TestCTSV0023_ExportHoldsBoundedRoots, TestCTSV0023_ReopenedShardMustBeTheListedDirectory |
+| CTS-V0-024 | `docs/specs/corvint-tasks-store-init-v0.md` (rollback guidance); `internal/tasks/store/redo.go`, `internal/tasks/journal` (unchanged) | TestCTSV0024_RollbackDistinguishesInterruptedAmendment |
 | CTS-V0-010 | `internal/tasks/cli/cli.go` (`ticketShow`, `journalAbsentNotFound`) | TestCTSV0010_JournalAbsentShowNamesTheStaleSnapshot; `docs/build-log/2026-10-15-v1-1384-1379-tasks-cli-refusals.md` |
 | CTS-V0-009 | `internal/tasks/cli/attempt_detach.go` (`attemptAttach`), `internal/tasks/snapshot/probe.go` (`Reader.Read`) | TestCTSV0009_AttachWaitsForReceiptLinkBeforeHeadRename, TestCTSV0009_AttachReportsPendingAfterPatience; loaded qualification: TestATRV0008_DetachedRunSurvivesItsLauncher |
 | CTS-V0-008 | `internal/tasks/snapshot/stage_slot_wait.go` (`StageSlotWait`), `internal/tasks/journal/stage_read.go` (`readStage`, `slotsInFlight`), `internal/tasks/journal/audit.go` (`audit`, `Reader.WriterLocked`, `stageSleep`), `internal/tasks/store/guards.go` (`lockedJournalReader`) and its writer-locked call sites, `internal/tasks/archive/stage_read.go` (`readStage`, `slotsInFlight`, `readArchive`) | TestCTSV0008_StageSlotWaitBackoffAndBudget, TestCTSV0008_AuditWaitsForWriterHeldStageSlot, TestCTSV0008_OrphanStageSlotStillMalformedAfterBoundedWait, TestCTSV0008_UnassignedSlotBesideDescriptorRefusedAtOnce, TestCTSV0008_WriterLockedAuditRefusesOrphanSlotWithoutPause, TestCTSV0008_MovedObservationsAndSpentWaitCompose, TestCTSV0008_LockedReconcileRefusesOrphanSlotWithoutWaiting, TestCTSV0008_ArchiveWaitsForWriterHeldStageSlot, TestCTSV0008_ArchiveOrphanSlotMalformedAfterBoundedWait, TestCTSV0008_ArchiveSlotBesideDescriptorRefusedAtOnce, TestCTSV0008_ArchiveMovedAttemptsAndSpentWaitCompose, TestCTSV0008_ArchiveStagePauseLeavesPatienceForPending; unchanged refusal order: TestCALV0114_DivergentProjectionRefusalIsDeterministic |

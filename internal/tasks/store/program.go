@@ -105,6 +105,10 @@ func programTransition(ctx context.Context, repo *intent.Repository, actor mutat
 				if identity == old.OwnerStarted && !old.OwnerReleased {
 					return nil, wire.Errorf(wire.CodeAttemptLive, "program", "program still has a live owner")
 				}
+				// A dead owner's removal child may outlive it (CAL-V0-368).
+				if e := removerStopped(old); e != nil {
+					return nil, e
+				}
 				for path, record := range proof.Records {
 					_ = path
 					if record.Raw == nil {

@@ -2,15 +2,19 @@ package store_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
+	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -138,4 +142,55 @@ func TestCTSV0020_ImportMapAmendRefusesUnmappedQueue(t *testing.T) {
 	if code != wire.CodeMalformed || storeDigest(t, repo) != before {
 		t.Fatalf("unmapped queue: %+v %v, want MALFORMED", report, err)
 	}
+}
+
+// TestCTSV0024_RollbackDistinguishesInterruptedAmendment holds the two store
+// states the CTS-V0-020 rollback guidance separates, neither of which needs a
+// restore. A fully applied amendment leaves only an IMPORT_PLAN receipt, a
+// kind the closed receipt set held before CTS-V0-020, read by the unchanged
+// journal reader, so the store audits CONSISTENT. The non-fixture writer
+// stages no descriptor, so no reader's stage decoder ever meets IMPORT_PLAN.
+// An amendment interrupted after its receipt is linked but before its head
+// is written is completed by the redo of the next write, here an ordinary
+// ticket CREATE: redo and the journal reader are the code a pre-amendment
+// writer runs, unchanged by CTS-V0-020.
+func TestCTSV0024_RollbackDistinguishesInterruptedAmendment(t *testing.T) {
+	old := importMapBytes(fixture.QueueID, [3]string{"queue:beamfall:main", "BF-1", "BF-1"})
+	repo := mappedStore(t, "ROADMAP", old)
+	next := importMapBytes(fixture.QueueID, [3]string{"queue:beamfall:main", "BF-1", "BF-1"}, [3]string{"queue:beamfall:main", "BF-2", "BF-2"})
+	if r := amendMap(t, repo, operator(), "amend-applied", wire.Sum(old), next); r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("amend: %+v", r)
+	}
+	active := filepath.Join(repo.StateDir, "staging", "active.json")
+	if _, err := os.Lstat(active); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("applied amendment left a staging descriptor: %v", err)
+	}
+	if !slices.Contains(snapshot.ReceiptKinds, "IMPORT_PLAN") {
+		t.Fatal("IMPORT_PLAN is not a journaled receipt kind")
+	}
+	auditOK(t, repo)
+
+	third := importMapBytes(fixture.QueueID, [3]string{"queue:beamfall:main", "BF-1", "BF-1"}, [3]string{"queue:beamfall:main", "BF-2", "BF-2"}, [3]string{"queue:beamfall:main", "BF-3", "BF-3"})
+	fault := errors.New("interrupted amendment")
+	restore := store.SetPublishFaultForTest(func(a transaction.Artifact) error {
+		if a.Role == "HEAD" {
+			return fault
+		}
+		return nil
+	})
+	report, err := store.ImportMapAmend(context.Background(), repo, operator(), store.ImportMapRequest{QueueID: fixture.QueueID, RequestID: "amend-interrupted", ExpectedImportMapSha256: wire.Sum(next), ImportMap: third}, now(t))
+	restore()
+	if !errors.Is(err, fault) || report == nil || report.Receipt == "" {
+		t.Fatalf("interrupted amendment: %+v %v", report, err)
+	}
+	if _, err := os.Lstat(active); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("interrupted amendment left a staging descriptor: %v", err)
+	}
+	if created := mutate(t, repo, envelope("create-after", mutation.OpCreate, "", "", createPayload("after"))); created.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("write after the interrupted amendment: %+v", created)
+	}
+	if got, err := os.ReadFile(filepath.Join(repo.PrimaryWorktree, intent.Dir, intent.ImportMapFile)); err != nil || string(got) != string(third) {
+		t.Fatalf("import map after redo: %v", err)
+	}
+	auditOK(t, repo)
 }

@@ -149,7 +149,7 @@ one.
 | V1-1981 | CAL-V0-320 | Accepted (standing auto-accept, 2026-10-20): the standalone Tasks archive builder also cross-builds `linux/amd64` (`CGO_ENABLED=0`, reproducible, `SHA256SUMS`); the Linux runtime is `NOT_OBSERVED` until a Linux host runs the documented commands |
 | V1-2352 | CAL-V0-321 | Accepted (standing auto-accept, 2026-10-23): a read checkpoint carries a no-false-negative filter of the request paths posted at or before its sequence, so a checkpoint read refuses a duplicate request with a null pre-state through the complete audit (PSR-V0-203); a checkpoint without the filter serves no read; implemented with focused tests |
 | V1-2359 | CAL-V0-322 | Accepted (standing auto-accept, 2026-10-23): `attempt show` and `ticket show` carry `lastFailedGate`, the newest FAILED or BLOCKED gate result with the TCD-V0-165 bounded, secret-screened tail of its retained output; implemented with focused tests |
-| V1-2368 | CAL-V0-365..366 | Accepted (standing auto-accept, 2026-10-23): a cleanup or reassign interrupted after its `WORKTREE_REMOVE` write is settled by the next owner with a typed `REMOVAL_COMPLETED` or `REMOVAL_ROLLED_BACK` outcome, and a removed stage worktree's record is dropped rather than kept marked, amending ATR-V0-296..298; implemented with focused tests |
+| V1-2368 | CAL-V0-365..366 | Accepted (standing auto-accept, 2026-10-23): a cleanup or reassign interrupted after its `WORKTREE_REMOVE` write is settled by the next owner with a typed `REMOVAL_COMPLETED` or `REMOVAL_ROLLED_BACK` outcome, and a removed stage worktree's record is dropped rather than kept marked, amending ATR-V0-296..298; implemented with focused tests. CAL-V0-367..371 (PR #1631 review) hold the cleanup exclusively, record and prove the remover child, drop legacy records durably, never retry a rolled-back removal in one invocation, and keep a moved worktree's record |
 | V1-1321 | ATR-V0-210, ATR-V0-211 | Delivered as a refusal naming uncovered requested paths plus the reported scope (attempt runner spec); CAL-V0-021 unamended |
 | V1-1494 | CAL-V0-263, CAL-V0-265 | Proposed (issue 967): no lease write holds the preparation gate for a complete-history audit; the scheduled refresh walks the prefix to its captured head when the journal moves; focused tests, mutation check and an opt-in load harness |
 | V1-1512 | none (evidence; PSR-V0-052) | Accepted (standing auto-accept, 2026-10-20): issue 967 remainder; at 40,000 receipts and 15 writers heartbeat/renew p99 1,138/1,131 ms (residual: gate wait behind about 1 s widen and reap commits), no `SNAPSHOT_MOVED`; reap and pool release resume tests; proposals 2 remainder and 3 are 1.0 work per decision 0549, proposal 5 deferred past 1.0 |
@@ -7475,6 +7475,54 @@ unchanged.
 Rollback: revert the source. Programs settled or compacted by this change keep valid records; a
 program parked in `WORKTREE_REMOVE` is again stuck until manual repair.
 
+### PR #1631 review: exclusive, proved worktree removal
+
+Human-owned input: the independent reviews of PRs #1629, #1630 and #1631 (2026-10-23) found that the
+CAL-V0-365 takeover could replace a live cleanup, re-run a removal while the dead owner's Git child
+still ran, forget a moved worktree, retry a rolled-back removal in the same invocation, and keep
+legacy removed records stored. These requirements amend CAL-V0-365 and CAL-V0-366.
+
+- `CAL-V0-367`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A cleanup MUST
+  hold its program exclusively before any filesystem removal: its takeover write and the write that
+  enters `WORKTREE_REMOVE` MUST record `ownerReleased` false, whatever a completed stage left, and
+  the transition MUST refuse a `WORKTREE_REMOVE` entry that records a released owner. While that
+  owner lives, another cleanup or `OpenWorkflow` is refused `ATTEMPT_LIVE` (live owner) before it
+  inspects or removes anything.
+- `CAL-V0-368`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2368) The
+  `git worktree remove` child MUST be started gated on its stdin and released only after the
+  `WORKTREE_REMOVE` write records its process identity (`removerPid`, `removerStarted`, present only
+  in that phase), so an owner that dies first leaves a child that exits without removing anything.
+  A takeover of a `WORKTREE_REMOVE` program MUST first prove that child gone: a recorded child still
+  running is refused `ATTEMPT_LIVE` naming `REMOVER_LIVE`, and a record with no child identity (an
+  older binary's) `QUIESCENCE_UNPROVED` naming `REMOVER_UNRECORDED`; nothing is inspected or
+  written in either case. The transition MUST refuse a `WORKTREE_REMOVE` entry without the identity.
+- `CAL-V0-369`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A cleanup
+  MUST drop records an older binary kept marked removed in a durable write before any other work,
+  also when it removes nothing else or every record is removed. That write keeps the phase, and the
+  transition MUST admit it for an idle `ADMITTED` program (whose phase has no other
+  self-transition) exactly when it changes nothing but dropping those records.
+- `CAL-V0-370`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A worktree a
+  takeover settled as `REMOVAL_ROLLED_BACK` MUST NOT be removed again in the same invocation; it stays
+  recorded for the next cleanup, so one invocation never reports two outcomes for one worktree.
+- `CAL-V0-371`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A missing
+  worktree pathname MUST NOT by itself settle `REMOVAL_COMPLETED`: the record is dropped only when no
+  other existing registered worktree of that repository has the recorded directory or private
+  Git-directory identity. A match keeps the record as `REMOVAL_ROLLED_BACK` naming the new location,
+  and a registered worktree whose identity cannot be read keeps it with that reason.
+
+Non-goals: recovering a parked record written by an older binary without a remover identity (it
+stays refused, as before CAL-V0-365); following a moved worktree to its new path; supervising
+removal children beyond the gate and the recorded identity.
+
+Failure modes: a remover that cannot start or whose identity cannot be read keeps the record with a
+`worktree remove:` reason and writes nothing; a write that fails after the child started closes the
+gate and reaps it; a killed child that has not yet been reaped keeps `REMOVER_LIVE` until it is;
+an identity collision with an unrelated registered worktree keeps the record (the safe direction).
+
+Rollback: revert the source. A program left in `WORKTREE_REMOVE` with `removerPid` is refused by the
+older decoder (unknown field) until a current binary settles it, so settle parked programs first;
+every other record is unchanged.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -8333,3 +8381,8 @@ after this restore.
 | CAL-V0-322 | `TestCALV0322_ShowReportsLastFailedGateTail`, `TestCALV0322_LastFailedGateUnknowns` (`internal/tasks/cli`) |
 | CAL-V0-365 | `TestCALV0365_TakeoverSettlesInterruptedRemoval` (registered, removed, half-removed and reopen modes, with its child `TestCALV0365_InterruptedRemovalChild`) (`internal/tasks/store`) |
 | CAL-V0-366 | `TestCALV0366_CleanupDropsRemovedRecords`, `TestATRV0297_ReassignRemovesPriorStageWorktrees` (`internal/tasks/store`) |
+| CAL-V0-367 | `TestCALV0367_LiveCleanupOwnerIsNotTakenOver` (with its child `TestCALV0365_InterruptedRemovalChild`, `live` mode) (`internal/tasks/store`) |
+| CAL-V0-368 | `TestCALV0368_SurvivingRemoverRefusesTakeover` (`stopped` mode) (`internal/tasks/store`) |
+| CAL-V0-369 | `TestCALV0369_LegacyRemovedRecordsAreDroppedDurably` (FINISHED and idle ADMITTED) (`internal/tasks/store`) |
+| CAL-V0-370 | `TestCALV0365_TakeoverSettlesInterruptedRemoval` (registered and reopen modes) (`internal/tasks/store`) |
+| CAL-V0-371 | `TestCALV0371_MovedWorktreeKeepsItsRecord` (`moved` mode) (`internal/tasks/store`) |
