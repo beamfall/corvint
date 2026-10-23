@@ -168,6 +168,13 @@ func TestDCPV1450NestedScopesKeepRefusalsAndReasons(t *testing.T) {
 	if got := refusal(func(m *Manifest) { missing(m); dropReadme(m) }); !strings.Contains(got, "undeclared input in scope") {
 		t.Fatalf("an earlier scope's undeclared input must refuse first: %q", got)
 	}
+	earlierMissing := func(m *Manifest) {
+		m.Scopes = append([]Scope{{Path: "go.mod/missing", Revision: revision}}, m.Scopes...)
+		dropReadme(m)
+	}
+	if got := refusal(earlierMissing); !strings.Contains(got, "declared scope missing") {
+		t.Fatalf("an earlier empty scope must refuse first: %q", got)
+	}
 	if err := os.WriteFile(filepath.Join(root, "src", "new.md"), []byte("# new\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -183,5 +190,47 @@ func TestDCPV1450NestedScopesKeepRefusalsAndReasons(t *testing.T) {
 	}
 	if overlay.State != "stale" || !reflect.DeepEqual(notes, []string{"new working-tree input in declared scope: src/new.md"}) {
 		t.Fatalf("new live file: state %s, notes %v", overlay.State, notes)
+	}
+}
+
+// TestDCPV1450NewLiveFileNotedPerHoldingScope: a new live file under two nested
+// scopes is reported once for each, as the per-scope pass reported it.
+func TestDCPV1450NewLiveFileNotedPerHoldingScope(t *testing.T) {
+	t.Parallel()
+	root, _ := fixture(t)
+	if err := os.MkdirAll(filepath.Join(root, "src", "sub"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "src", "sub", "a.md"), []byte("# a\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	git(t, root, "add", ".")
+	git(t, root, "commit", "-qm", "sub")
+	revision := git(t, root, "rev-parse", "HEAD")
+	m, err := Inventory(context.Background(), root, revision, "src", "2026-09-19T00:00:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.Scopes = append(m.Scopes, Scope{Path: "src/sub", Revision: revision})
+	a, err := Build(context.Background(), root, m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "src", "sub", "new.md"), []byte("# new\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	overlay, err := LiveFreshness(context.Background(), root, a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "new working-tree input in declared scope: src/sub/new.md"
+	notes := 0
+	for _, reason := range overlay.Limitations {
+		if reason == want {
+			notes++
+		}
+	}
+	if notes != 2 {
+		t.Fatalf("new file under two nested scopes noted %d times, want 2: %v", notes, overlay.Limitations)
 	}
 }

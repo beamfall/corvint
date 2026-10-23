@@ -46,7 +46,12 @@ origin/main (77a49dfa2) merged in for the `CORVINT_CPUPROFILE` knob of #1608. Re
   symlinked, oversized, truncated or checksum-failing index; version other than 2, 3 or 4; a
   split index (`link`); an unknown required extension; or a platform without lstat inode and
   ctime (`index_stat_other.go`). A failed or incomplete blob batch returns its entries to the
-  hashed pass.
+  hashed pass. An all-zero `index.skipHash` trailer is parsed under the same bounds rather than
+  refused, because vouching only chooses where the tree blob is read from.
+- Independent review (one read-only reviewer pass) found no HIGH or MED issue. Its LOW items were
+  repaired: the spec and comment now say that vouching is a choice of source only; skipHash
+  indexes are accepted; tests were added for refusal precedence in both orders, for the
+  two-nested-scope reason count, and for the parser (a fuzz test).
 - Not done: a cross-pass memo of pinned bytes. The issue's "reuse between Build and
   liveFreshness" has no second consumer since #1609, and after routing the build's repeated pin
   pass costs one batched object read. No memory is retained across passes.
@@ -96,10 +101,11 @@ the same host:
   input pin was repinned by `script/analyzer-schema.sh bump`. The output digest was unchanged, so
   the schema number stays `corvint-analyzer/147`.
 - New tests: `TestDCPV1450ScopeMatchingMatchesPairwise`,
-  `TestDCPV1450NestedScopesKeepRefusalsAndReasons`,
+  `TestDCPV1450NestedScopesKeepRefusalsAndReasons`, `TestDCPV1450NewLiveFileNotedPerHoldingScope`,
   `TestDCPV1451ManyScopesReadMatchesRederivation`, `TestDCPV1452GitIndexVouchesUnchangedEntries`,
   `TestDCPV1452RacyEntryIsNotVouched`, `TestDCPV1452IndexVersionsAndFlags`,
-  `TestDCPV1453UnusableIndexVouchesNothing`, `TestDCPV1453FailedBlobBatchFallsBackToWorktree`,
+  `TestDCPV1453UnusableIndexVouchesNothing`, `FuzzParseGitIndex` (also fuzzed 15 s, about 1.05M
+  executions, no failure), `TestDCPV1453FailedBlobBatchFallsBackToWorktree`,
   `TestDCPV1453RoutedPinMatchesParityRepository`.
 
 ## Limits

@@ -234,6 +234,36 @@ func TestDCPV1452IndexVersionsAndFlags(t *testing.T) {
 	if _, present := v3.entries["go.mod"]; !present {
 		t.Error("an unflagged entry is missing from the v3 index")
 	}
+	testGit(t, root, "-c", "index.skipHash=true", "update-index", "--force-write-index")
+	data, err = os.ReadFile(gitIndexPath(t, root))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, b := range data[len(data)-20:] {
+		if b != 0 {
+			t.Skip("this Git does not write an index.skipHash trailer")
+		}
+	}
+	if skipped, ok := readGitIndex(gitIndexPath(t, root), "sha1"); !ok || len(skipped.entries) != len(v3.entries) {
+		t.Fatalf("skipHash index: ok=%v", ok)
+	}
+}
+
+// FuzzParseGitIndex: no input panics the index parser; a hostile index can
+// only vouch for nothing.
+func FuzzParseGitIndex(f *testing.F) {
+	f.Add([]byte("DIRC\x00\x00\x00\x02\x00\x00\x00\x00"))
+	f.Add(append([]byte("DIRC\x00\x00\x00\x04\x00\x00\x00\x01"), make([]byte, 120)...))
+	f.Fuzz(func(t *testing.T, data []byte) {
+		for _, format := range []string{"sha1", "sha256"} {
+			parseGitIndex(data, format)
+			hashSize := map[string]int{"sha1": 20, "sha256": 32}[format]
+			if len(data) >= hashSize {
+				zeroed := append(append([]byte{}, data[:len(data)-hashSize]...), make([]byte, hashSize)...)
+				parseGitIndex(zeroed, format)
+			}
+		}
+	})
 }
 
 // TestDCPV1453UnusableIndexVouchesNothing: a corrupt checksum, an unsupported

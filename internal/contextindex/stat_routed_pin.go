@@ -55,7 +55,9 @@ const maxGitIndexBytes = 256 << 20
 // older than the index file's own (Git's racy-clean rule). Such a file holds
 // exactly the blob the index names, so opening it could at best repeat a
 // committed object, and the blob read here is the tree entry's own: it is
-// immutable content, which is why nothing about the worktree is trusted. An
+// immutable content, which is why nothing about the worktree is trusted.
+// Vouching therefore selects only the source; an eligible entry's pinned
+// bytes are its tree blob's whichever source supplies them. An
 // unreadable, unsupported or corrupt index, a stat mismatch, a racy entry or a
 // failed batch leaves the entry to the hashed worktree pass (DCP-V1-452,
 // DCP-V1-453).
@@ -201,7 +203,10 @@ func parseGitIndex(data []byte, objectFormat string) (*gitIndex, bool) {
 		return nil, false
 	}
 	body, trailer := data[:len(data)-hashSize], data[len(data)-hashSize:]
-	if !indexChecksumMatches(body, trailer, objectFormat) {
+	// An all-zero trailer is Git's index.skipHash mode. Vouching only selects
+	// where a pinned blob is read from, never what it is, so such an index is
+	// parsed with the same bounds instead of being refused.
+	if !bytes.Equal(trailer, make([]byte, hashSize)) && !indexChecksumMatches(body, trailer, objectFormat) {
 		return nil, false
 	}
 	version := binary.BigEndian.Uint32(data[4:8])
