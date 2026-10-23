@@ -12,8 +12,9 @@ import (
 // BudgetSchema names the committed budgets file.
 const BudgetSchema = "corvint-perf-budget/0"
 
-// ScenarioIDs are the six measured reads GitHub #1602 names, in report order.
-var ScenarioIDs = []string{"cli-cold-read", "cli-warm-read", "mcp-first-call", "mcp-warm-call", "full-delta", "affected-path"}
+// ScenarioIDs are the six measured reads GitHub #1602 names, then the unchanged-pair delta of
+// GitHub #1634 (PRB-V0-050), in report order.
+var ScenarioIDs = []string{"cli-cold-read", "cli-warm-read", "mcp-first-call", "mcp-warm-call", "full-delta", "affected-path", "unchanged-delta"}
 
 // Metrics a limit may bound.
 const (
@@ -79,7 +80,7 @@ func LoadBudgets(path string) (*Budgets, error) {
 	return &b, b.Validate()
 }
 
-// Validate refuses a budgets file that does not bound exactly the six scenarios with well-formed
+// Validate refuses a budgets file that does not bound exactly the ScenarioIDs scenarios with well-formed
 // limits; a pending limit must name what it waits on, and a ceiling can never be pending.
 func (b *Budgets) Validate() error {
 	if b.Schema != BudgetSchema {
