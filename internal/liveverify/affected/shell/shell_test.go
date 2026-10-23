@@ -492,24 +492,35 @@ func write(t *testing.T, root, relative, content string) {
 
 // AFP-V0-400: a shell reader whose only naming token is a lone file name
 // (README.md) is selected only where it can place the path: at the repository
-// root, in its own subtree, or below directories its tokens name.
+// root, in its own subtree, or below directories its tokens name. A script
+// that changes to a literal directory, reads recursively or runs git keeps
+// the component-run relation; one that changes only to a computed directory
+// is placed (the AFP-V0-072 run-time-root gap).
 func TestLoneFileNameShellReaderMustPlaceThePath_AFPV0400(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "script/readme_test.sh", "#!/bin/sh\ngrep -q corvint README.md\n")
-	write(t, root, "script/specs_test.sh", "#!/bin/sh\ncd docs/specs && grep -q corvint README.md\n")
+	write(t, root, "script/specs_test.sh", "#!/bin/sh\ncd \"$(dirname \"$0\")/../docs/specs\" && grep -q corvint README.md\n")
 	write(t, root, "script/multi_test.sh", "#!/bin/sh\ngrep -q corvint specs/README.md\n")
+	write(t, root, "script/computed_test.sh", "#!/bin/sh\ncd \"$FIXTURE\" && git -C \"$FIXTURE\" add -A && grep -q corvint README.md\n")
+	write(t, root, "script/cd_test.sh", "#!/bin/sh\ncd docs; cd specs; grep -q corvint README.md\n")
+	write(t, root, "script/find_test.sh", "#!/bin/sh\nfind docs/ -name README.md | xargs grep -q corvint\n")
+	write(t, root, "script/recursive_test.sh", "#!/bin/sh\ngrep -rq corvint --include README.md docs\n")
+	write(t, root, "script/git_test.sh", "#!/bin/sh\ngit grep -q corvint -- README.md\n")
+	write(t, root, "script/string_test.sh", "#!/bin/sh\nsh -c 'cd docs && grep -q corvint README.md'\n")
 	graph := build(t, root)
+	kept := []string{"script/cd_test.sh", "script/find_test.sh", "script/git_test.sh", "script/recursive_test.sh", "script/string_test.sh"}
 	cases := []struct {
 		dirty string
 		want  []string
 	}{
-		// The V1-1817 shape: a spec index edit no longer selects the lone reader.
-		{"docs/specs/README.md", []string{"script/multi_test.sh", "script/specs_test.sh"}},
-		{"README.md", []string{"script/readme_test.sh", "script/specs_test.sh"}},
-		{"script/README.md", []string{"script/readme_test.sh", "script/specs_test.sh"}},
-		{"docs/README.md", []string{"script/specs_test.sh"}},
+		// The V1-1817 shape: a spec index edit no longer selects the lone readers.
+		{"docs/specs/README.md", append([]string{"script/multi_test.sh", "script/specs_test.sh"}, kept...)},
+		{"README.md", append([]string{"script/computed_test.sh", "script/readme_test.sh", "script/specs_test.sh"}, kept...)},
+		{"script/README.md", append([]string{"script/computed_test.sh", "script/readme_test.sh", "script/specs_test.sh"}, kept...)},
+		{"docs/README.md", append([]string{"script/specs_test.sh"}, kept...)},
 	}
 	for _, c := range cases {
+		slices.Sort(c.want)
 		plan := affected.Select(graph, []string{c.dirty})
 		if got := plan.SelectedTests(); !slices.Equal(got, c.want) {
 			t.Errorf("%s selected %v, want %v", c.dirty, got, c.want)

@@ -10,6 +10,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -140,45 +141,36 @@ func usedCommandLiterals(root *affected.Source, relative, directory string, owne
 	return used
 }
 
-// importNames maps each local package name of a file's imports to its path.
-func importNames(imports []*ast.ImportSpec) map[string]string {
-	names := map[string]string{}
-	for _, spec := range imports {
-		value, err := strconv.Unquote(spec.Path.Value)
-		if err != nil {
-			continue
-		}
-		name := path.Base(value)
-		if spec.Name != nil {
-			name = spec.Name.Name
-		}
-		names[name] = value
-	}
-	return names
-}
-
 // dataPredicates are the standard-library functions whose string arguments
-// are only compared or cut, never built or run (AFP-V0-402).
+// are only compared, never built or run (AFP-V0-402): every argument of one
+// that returns a bool, an index or an error, and only the cut operand, the
+// second argument, of one that returns the remainder of its first.
 var dataPredicates = map[string]bool{
 	"strings.HasPrefix": true, "strings.HasSuffix": true, "strings.Contains": true,
-	"strings.CutPrefix": true, "strings.CutSuffix": true, "strings.TrimPrefix": true,
-	"strings.TrimSuffix": true, "strings.EqualFold": true, "strings.Index": true,
-	"strings.LastIndex": true, "bytes.HasPrefix": true, "bytes.HasSuffix": true,
-	"bytes.Contains": true, "path.Match": true, "path/filepath.Match": true,
-	"errors.New": true, "fmt.Errorf": true,
+	"strings.EqualFold": true, "strings.Index": true, "strings.LastIndex": true,
+	"bytes.HasPrefix": true, "bytes.HasSuffix": true, "bytes.Contains": true,
+	"path.Match": true, "path/filepath.Match": true, "errors.New": true, "fmt.Errorf": true,
 }
 
-// testMessages are the testing.TB methods whose arguments only form a message.
+// cutPredicates return their first argument's text, so only the second is data.
+var cutPredicates = map[string]bool{
+	"strings.CutPrefix": true, "strings.CutSuffix": true, "strings.TrimPrefix": true, "strings.TrimSuffix": true,
+}
+
+// testMessages are the method names whose arguments only form a test message,
+// matched on any receiver.
 var testMessages = map[string]bool{
 	"Error": true, "Errorf": true, "Fatal": true, "Fatalf": true,
 	"Log": true, "Logf": true, "Skip": true, "Skipf": true,
 }
 
 // dataOnly reports a literal used only as data (AFP-V0-402): an operand of ==
-// or !=, a switch case, a map index, an argument of a dataPredicates function,
-// or an argument of a test message method. Every other position, a variable
-// initializer or a helper's argument among them, may reach a build or a
-// process and keeps the edge.
+// or !=, a switch case, the index of a map or slice read (not one assigned
+// to, whose key may be iterated later), an argument of a dataPredicates
+// function, the second argument of a cutPredicates function, or an argument
+// of a test message method. Every other position, a variable initializer or
+// a helper's argument among them, may reach a build or a process and keeps
+// the edge.
 func dataOnly(parents []ast.Node, literal ast.Expr, names map[string]string) bool {
 	var child ast.Node = literal
 	for index := len(parents) - 1; index >= 0; index-- {
@@ -191,7 +183,7 @@ func dataOnly(parents []ast.Node, literal ast.Expr, names map[string]string) boo
 		case *ast.CaseClause:
 			return true
 		case *ast.IndexExpr:
-			return parent.Index == child
+			return parent.Index == child && !assigned(parents[:index], parent)
 		case *ast.CallExpr:
 			if parent.Fun == child {
 				return false
@@ -201,7 +193,8 @@ func dataOnly(parents []ast.Node, literal ast.Expr, names map[string]string) boo
 				return false
 			}
 			if qualifier, ok := selector.X.(*ast.Ident); ok && names[qualifier.Name] != "" {
-				return dataPredicates[names[qualifier.Name]+"."+selector.Sel.Name]
+				name := names[qualifier.Name] + "." + selector.Sel.Name
+				return dataPredicates[name] || (cutPredicates[name] && len(parent.Args) > 1 && parent.Args[1] == child)
 			}
 			return testMessages[selector.Sel.Name]
 		}
@@ -209,6 +202,46 @@ func dataOnly(parents []ast.Node, literal ast.Expr, names map[string]string) boo
 	}
 	return false
 }
+
+// assigned reports an index expression that is assigned or incremented, whose
+// parent is the last of parents.
+func assigned(parents []ast.Node, index *ast.IndexExpr) bool {
+	if len(parents) == 0 {
+		return false
+	}
+	switch statement := parents[len(parents)-1].(type) {
+	case *ast.AssignStmt:
+		return slices.Contains(statement.Lhs, ast.Expr(index))
+	case *ast.IncDecStmt:
+		return statement.X == index
+	}
+	return false
+}
+
+// importNames maps each local package name of a file's imports to its path:
+// the name the import gives it, else the last path element that is not a
+// major version suffix (`math/rand/v2` is `rand`).
+func importNames(imports []*ast.ImportSpec) map[string]string {
+	names := map[string]string{}
+	for _, spec := range imports {
+		value, err := strconv.Unquote(spec.Path.Value)
+		if err != nil {
+			continue
+		}
+		name := path.Base(value)
+		if majorSuffix.MatchString(name) && path.Dir(value) != "." {
+			name = path.Base(path.Dir(value))
+		}
+		if spec.Name != nil {
+			name = spec.Name.Name
+		}
+		names[name] = value
+	}
+	return names
+}
+
+// majorSuffix is a module major version path element.
+var majorSuffix = regexp.MustCompile(`^v[0-9]+$`)
 
 // commandDirectory resolves a path token to the repository-relative directory
 // it names: an anchored token or a plain one against the module's directory

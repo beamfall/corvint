@@ -52,6 +52,10 @@ const MaxPathsPerUnit = 20_000
 // at the repository root, any other one follows a root known only at run time
 // and matches a run of a dirty path's components. A dirty path one matches
 // selects the unit with a PATH_GLOB_READER witness naming the pattern.
+// PlacesFileNames reports a non-Go unit whose plugin certifies that a lone
+// file-name token reaches a path only where namesFileOnlyWithin places it
+// (AFP-V0-400): the shell plugin sets it for a script that changes to no
+// literal directory and reads nothing recursively.
 // PathTokensBounded reports that the plugin dropped the unit's tokens at its
 // bound, so the unit's reads are unknown.
 // Embeds reports a Go package whose non-test files carry a //go:embed
@@ -93,6 +97,7 @@ type Unit struct {
 	PathTokens           []string `json:"pathTokens,omitempty"`
 	PathGlobs            []string `json:"pathGlobs,omitempty"`
 	PathTokensBounded    bool     `json:"pathTokensBounded,omitempty"`
+	PlacesFileNames      bool     `json:"placesFileNames,omitempty"`
 	Embeds               bool     `json:"embeds,omitempty"`
 	UnboundedReads       string   `json:"unboundedReads,omitempty"`
 	LocatesRoot          bool     `json:"locatesRoot,omitempty"`

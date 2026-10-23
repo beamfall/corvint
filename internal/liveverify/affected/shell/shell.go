@@ -18,6 +18,7 @@ import (
 	"context"
 	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -192,6 +193,7 @@ func observe(relative, text string, known map[string]bool) affected.Unit {
 		unit.UnboundedReads = UnboundedDynamicSource
 		unit.LocatesRoot = !test
 	}
+	unit.PlacesFileNames = placesFileNames(commands)
 	tokens := pathTokens(parsed)
 	if len(tokens) > maxPathTokens {
 		unit.PathTokensBounded = true
@@ -199,6 +201,72 @@ func observe(relative, text string, known map[string]bool) affected.Unit {
 		unit.PathTokens = sortedKeys(tokens)
 	}
 	return unit
+}
+
+// recursiveReaders are the commands that read below a directory they are
+// given, or run commands they are handed, so a lone file name they match
+// may lie at any depth (AFP-V0-400).
+var recursiveReaders = map[string]bool{
+	"find": true, "rg": true, "ag": true, "ack": true, "tree": true, "du": true, "tar": true,
+	"zip": true, "rsync": true, "xargs": true, "eval": true, "pushd": true,
+}
+
+// recursiveFlags are the commands that read recursively given one of the
+// flags: a long flag listed, or a short flag group holding one of the letters.
+var recursiveFlags = map[string]struct {
+	long    []string
+	letters string
+}{
+	"grep":  {[]string{"--recursive", "--dereference-recursive", "--directories=recurse"}, "rR"},
+	"egrep": {[]string{"--recursive", "--dereference-recursive", "--directories=recurse"}, "rR"},
+	"fgrep": {[]string{"--recursive", "--dereference-recursive", "--directories=recurse"}, "rR"},
+	"zgrep": {[]string{"--recursive", "--dereference-recursive", "--directories=recurse"}, "rR"},
+	"ls":    {[]string{"--recursive"}, "R"},
+	"cp":    {[]string{"--recursive", "--archive"}, "rRa"},
+	"scp":   {nil, "r"},
+}
+
+// placesFileNames reports a shell unit whose lone file-name tokens can be
+// placed as a Go unit's are (AFP-V0-400): none of its commands, those of its
+// command strings included, changes to a literal directory (`cd docs`), runs
+// git other than in a computed directory (`git -C "$root"`), reads
+// recursively, or runs commands it is handed. A cd or git -C to a computed
+// directory is the AFP-V0-072 run-time-root gap.
+func placesFileNames(commands []command) bool {
+	for _, cmd := range commands {
+		word, args := commandWord(plainWords(cmd.words))
+		word = path.Base(word)
+		switch {
+		case recursiveReaders[word]:
+			return false
+		case word == "cd":
+			for _, arg := range args {
+				if value := unquote(arg); !strings.HasPrefix(value, "-") && !computed(arg) {
+					return false
+				}
+			}
+		case word == "git":
+			if len(args) < 2 || unquote(args[0]) != "-C" || !computed(args[1]) {
+				return false
+			}
+		}
+		if flags, ok := recursiveFlags[word]; ok {
+			for _, arg := range args {
+				value := unquote(arg)
+				if slices.Contains(flags.long, value) ||
+					(strings.HasPrefix(value, "-") && !strings.HasPrefix(value, "--") && strings.ContainsAny(value[1:], flags.letters)) {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+// computed reports a word whose value is known only at run time: one with an
+// expansion or a command substitution.
+func computed(word string) bool {
+	return strings.ContainsAny(word, "$`")
 }
 
 // shadowed reports a call to a function the file defined earlier. A later

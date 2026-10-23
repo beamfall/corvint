@@ -98,7 +98,8 @@ func TestChangeDCWV0117RefusesARowThatRecitesACitedHunk(t *testing.T) {
 // DCW-V0-019, DCW-V0-117 (V1-2294): a staged second plan that names only a
 // hunk the map still leaves unknown is cited over the earlier plan's
 // citations: the run says the plan was added to the citations the map already
-// carried, and the map then cites both hunks, the earlier one unchanged.
+// carried, and cem cite is handed the map that still holds the earlier
+// citation.
 func TestChangeDCWV0117StagedSecondPlanIsAddedToCitations(t *testing.T) {
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
@@ -123,6 +124,7 @@ func TestChangeDCWV0117StagedSecondPlanIsAddedToCitations(t *testing.T) {
 		`{"basis": [{"evidenceId": "evidence:b", "relation": "specification"}], "disposition": "supported", "id": "hunk:b", "path": "b.txt", "reason": "evidence-backed"}]}` + "\n"
 	mapPath := filepath.Join(root, ".corvint/change.cem.json")
 	cites := [][]string{}
+	citedAtCite, keptAtCite := 0, false
 	steps := Runner{Path: "corvint", Run: func(_ context.Context, _ string, args []string, _, _ io.Writer) int {
 		switch {
 		case len(args) > 1 && args[0] == "cem" && args[1] == "prepare":
@@ -132,6 +134,11 @@ func TestChangeDCWV0117StagedSecondPlanIsAddedToCitations(t *testing.T) {
 			return 0
 		case len(args) > 1 && args[0] == "cem" && args[1] == "cite":
 			cites = append(cites, args)
+			// The map cem cite is handed must still be the earlier plan's.
+			if current, err := os.ReadFile(mapPath); err == nil {
+				citedAtCite = citedHunks(mapPath)
+				keptAtCite = strings.Contains(string(current), first)
+			}
 			if os.WriteFile(mapPath, []byte(accumulated), 0o666) != nil {
 				return 1
 			}
@@ -167,11 +174,9 @@ func TestChangeDCWV0117StagedSecondPlanIsAddedToCitations(t *testing.T) {
 	if !strings.Contains(stderr.String(), note) {
 		t.Fatalf("stderr lacks the added-to-citations note:\n%s", stderr.String())
 	}
-	if got := citedHunks(mapPath); got != 2 {
-		t.Fatalf("map cites %d hunks; want both", got)
-	}
-	data, err := os.ReadFile(mapPath)
-	if err != nil || !strings.Contains(string(data), first) {
-		t.Fatalf("earlier citation not kept: %s %v", data, err)
+	// The run cited over the earlier plan's map rather than a fresh one, so
+	// cem cite (stubbed here) adds to its citations.
+	if citedAtCite != 1 || !keptAtCite {
+		t.Fatalf("cem cite was handed a map citing %d hunks (earlier citation kept: %v); want the earlier plan's one", citedAtCite, keptAtCite)
 	}
 }

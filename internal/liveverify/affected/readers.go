@@ -249,10 +249,11 @@ func (graph *Graph) tokenBounds(reached map[string]Witness, dirty []string) []Un
 }
 
 // resolves reports whether unit id can read dirtyPath by one of its tokens.
-// A shell unit places a lone file name as a Go unit does (namesFileOnlyWithin,
-// AFP-V0-400): it runs from the repository root or below its own directory.
-// Any other non-Go unit keeps the component-run relation: its tests' working
-// directory is unknown. For the CEM sidecar and a sealed CEM
+// A non-Go unit its plugin certifies (Unit.PlacesFileNames, a shell script
+// that changes to no literal directory and reads nothing recursively) places
+// a lone file name as a Go unit does (namesFileOnlyWithin, AFP-V0-400): it runs
+// from the repository root or below its own directory. Any other non-Go unit
+// keeps the component-run relation: its tests' working directory is unknown. For the CEM sidecar and a sealed CEM
 // (resolvedEvidence), a Go unit's token must resolve against the unit's
 // directory, or against the repository root when a parent-only or anchored
 // token of the unit could put it there, to that path or one of its ancestors. An anchored token always resolves: it is anchored at
@@ -267,7 +268,7 @@ func (graph *Graph) resolves(id, dirtyPath string) bool {
 	if unit.ReadScoped && len(files) != 0 && !InReadScope(relativeDirectory(files[0]), unit.ReadScope, dirtyPath) {
 		return false
 	}
-	if strings.HasPrefix(id, "shell:") && len(files) != 0 {
+	if unit.PlacesFileNames && !strings.HasPrefix(id, "go:") && len(files) != 0 {
 		return namesFileOnlyWithin(relativeDirectory(files[0]), unit.PathTokens, dirtyPath)
 	}
 	if !strings.HasPrefix(id, "go:") {

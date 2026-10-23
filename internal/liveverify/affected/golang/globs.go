@@ -8,6 +8,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // globCall is the call a literal glob reader makes (AFP-V0-401): the
@@ -24,7 +25,8 @@ var globCall = []byte("Glob(")
 // (two or more components): one component after such a root (`"*.json"` in a
 // temporary directory) places no path and would match nearly every file name.
 // Any other argument is not recorded, so a path only it could match stays
-// unknown as before. A file that does not parse records nothing; the
+// unknown as before, and so is a literal that is not valid UTF-8, which no
+// repository path can be. A file that does not parse records nothing; the
 // imports-only parse already raised its frontier.
 func literalGlobs(directory string, body []byte, imports []*ast.ImportSpec) []string {
 	if !bytes.Contains(body, globCall) {
@@ -76,7 +78,7 @@ func globPattern(directory string, argument ast.Expr, name string) (string, bool
 			anchored = false
 			continue
 		}
-		if !ok || strings.Contains(value, "\\") {
+		if !ok || strings.Contains(value, "\\") || !utf8.ValidString(value) {
 			return "", false
 		}
 		literals = append(literals, value)

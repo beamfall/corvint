@@ -97,9 +97,10 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   names, the sorted graph frontier, and, in unit-id order, each unit's `id`, `sources`, `tests`,
   `imports`, `testImports`, `pathTokens`, `pathTokensBounded`, `embeds`, `unboundedReads`,
   `locatesRoot`, `readScoped`, `readScope` (AFP-V0-023), `execs` (AFP-V0-037), `pathGlobs`
-  (AFP-V0-401) and `frontier`, every
+  (AFP-V0-401), `placesFileNames` (AFP-V0-400) and `frontier`, every
   member always present except `readScoped` and `readScope`, which appear only for a declared unit,
-  and `execs` and `pathGlobs`, which appear only when non-empty, so that a graph without them keeps its digest (`digestBody` and `digestUnit` in
+  `execs` and `pathGlobs`, which appear only when non-empty, and `placesFileNames`, which appears
+  only when true, so that a graph without them keeps its digest (`digestBody` and `digestUnit` in
   `internal/liveverify/affected/graph.go`). The projection is fixed there, not by the internal
   `Unit` struct, so a new internal field changes the digest only when it is added to the
   projection, and a unit field left out of it fails the test. The value is an identity, not a
@@ -1861,7 +1862,7 @@ and container qualification; full fallback remains available.
   directory. (2) A token that places a directory SHALL keep the component-run relation: a run of
   two or more components (with its fragment outer components), an anchored token, or a climbing
   token. (3) A non-Go unit SHALL keep the component-run relation, because its tests' working
-  directory is unknown; AFP-V0-400 amends this for shell units. (4) Only the reader relation changes: the unit frontier (V1-0289) of a
+  directory is unknown; AFP-V0-400 amends this for a shell unit that certifies placement. (4) Only the reader relation changes: the unit frontier (V1-0289) of a
   unit that (1) keeps out of the plan is still named, so no unknown entry is added or removed and
   the plan's scope is unchanged; rule (d) unbounded readers, declared read scopes (AFP-V0-023),
   dependency and binary edges are unchanged.
@@ -2476,24 +2477,36 @@ modelled.
   graph, omits an unreached unit's site, counts a truncation entry as one, or differs between the
   two profiles. Rollback: remove `Plan.FrontierSites` and `Graph.frontierSites`.
 
-- **AFP-V0-400:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1817) A shell
-  unit (`shell:` namespace) MUST place a path it names as AFP-V0-072 (1) and (2) require of a Go
-  unit, with the unit's own directory (the directory of its file) as the subtree and the
-  repository root and, for a climbing token, every ancestor of that directory as the bases: a
-  lone file-name token such as `README.md` names `docs/specs/README.md` only when every directory
-  component below a base is a whole component of one of the unit's tokens, so
-  `cd docs/specs && grep -q x README.md` keeps it and `grep -q x README.md` alone does not. A
-  multi-component, anchored or climbing token keeps the component-run relation, and a declared
-  read scope still bounds the unit first. Every other non-Go unit keeps AFP-V0-072 (3). Design: a
-  shell test runs from the repository root (a `make` target or CI step) or below its own
-  directory (`cd "$(dirname "$0")"`); a script that reaches another directory names it in a
-  literal, which the vocabulary then holds, or computes it, which no literal index bounds.
+- **AFP-V0-400:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1817) The
+  shell plugin MUST set a unit's `placesFileNames` (part of the AFP-V0-005 projection when true)
+  exactly when none of the script's commands, a `-c` command string's included, changes to a
+  literal directory (a `cd` operand without an expansion or command substitution, or any
+  `pushd`), runs `git` other than as `git -C` with a computed directory, reads recursively
+  (`find`, `rg`, `ag`, `ack`, `tree`, `du`, `tar`, `zip`, `rsync`; `grep`, `egrep`, `fgrep` or
+  `zgrep` with `-r`, `-R`, `--recursive`, `--dereference-recursive` or `--directories=recurse`;
+  `ls -R`; `cp -r`, `-R` or `-a`; `scp -r`) or runs commands it is handed (`xargs`, `eval`). A
+  non-Go unit with `placesFileNames` MUST place a path it names as AFP-V0-072 (1) and (2) require
+  of a Go unit, with the unit's own directory as the subtree and the repository root and, for a
+  climbing token, every ancestor of that directory as the bases: a lone file-name token such as
+  `README.md` names `docs/specs/README.md` only when every directory component below a base is a
+  whole component of one of the unit's tokens, so `cd "$(dirname "$0")/../docs/specs" && grep -q
+  x README.md` keeps it and `grep -q x README.md` alone does not. A multi-component, anchored or
+  climbing token keeps the component-run relation, a declared read scope still bounds the unit
+  first, and every other non-Go unit keeps AFP-V0-072 (3). Design: a shell test runs from the
+  repository root (a `make` target or CI step) or below its own directory; the shell lexicon
+  keeps only path-shaped tokens, so a plain directory word (`cd docs`) or a recursive read below a
+  named directory cannot be placed, and such a script keeps the wider relation instead. On
+  `origin/main` 77a49dfa, 89 of the 140 shell units place file names, among them
+  `script/check-host-package-versions_test.sh`, which `docs/specs/README.md` no longer selects.
   Non-goals: modelling `cd` targets or the working directory a caller chooses. Failure modes: a
-  shell test run from a directory named only at run time (an environment variable) and reading a
-  lone file name there is no longer selected; the AFP-V0-072 run-time-root gap now covers shell
-  units too. Falsifier: a lone-file-name shell reader selected for a path whose directories none
-  of its tokens name, or one dropped for a path in its own subtree or at the root. Rollback:
-  remove the `shell:` branch from `Graph.resolves` in `internal/liveverify/affected/readers.go`.
+  placed script that changes to a computed directory (an environment variable, a substitution)
+  inside the repository and reads a lone file name there is no longer selected; this is the
+  AFP-V0-072 run-time-root gap, now shared by shell units. A recursive reader the list omits
+  (a function wrapping `find`, an unlisted tool) is placed and may be missed. Falsifier: a placed
+  unit whose script runs a listed command, or a lone-file-name reader with `placesFileNames`
+  selected for a path whose directories none of its tokens name. Rollback: remove
+  `placesFileNames` from `shell.go`, `Unit.PlacesFileNames` with its digest field, and its branch
+  in `Graph.resolves`.
 - **AFP-V0-401:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1803) The Go
   plugin MUST record, as the unit's sorted, unique `pathGlobs` (part of the AFP-V0-005 projection
   when non-empty), the pattern of every `filepath.Glob` call in the unit's files (the
@@ -2502,8 +2515,9 @@ modelled.
   with a leading `/` as a repository-root-anchored pattern; or a `filepath.Join` whose first
   argument is any other expression (a root known at run time) and whose remaining arguments are
   string literals joining to two or more components, kept unanchored. A pattern that climbs above
-  the repository root, carries a backslash or is not a valid `path.Match` pattern is not
-  recorded, and the globs share the unit's AFP-V0-021 token bound. Selection MUST then select,
+  the repository root, carries a backslash, is not valid UTF-8 or is not a valid `path.Match`
+  pattern is not recorded, and a unit with more globs than the AFP-V0-021 token bound keeps
+  neither its globs nor its tokens. Selection MUST then select,
   with witness kind `PATH_GLOB_READER`, `via` the unit and the new member `glob` naming the
   pattern, a unit not already reached when a dirty path its declared read scope (if any) allows,
   or an ancestor of it, matches one of its patterns component by component: an anchored pattern
@@ -2528,14 +2542,17 @@ modelled.
   AFP-V0-037) A path token naming a command's directory MUST create an AFP-V0-037 literal edge only
   when some string literal of the unit's files that carries it sits in a position that can reach a
   build or a process. A literal is data only, and creates no edge, when it is an operand of `==`
-  or `!=`, a `switch` case, a map or slice index, an argument of `strings.HasPrefix`, `HasSuffix`,
-  `Contains`, `CutPrefix`, `CutSuffix`, `TrimPrefix`, `TrimSuffix`, `EqualFold`, `Index` or
-  `LastIndex`, `bytes.HasPrefix`, `HasSuffix` or `Contains`, `path.Match`, `filepath.Match`,
-  `errors.New` or `fmt.Errorf` (each by its import's local name), or an argument of a test
-  message method (`Error`, `Errorf`, `Fatal`, `Fatalf`, `Log`, `Logf`, `Skip`, `Skipf`). Every other
-  position keeps the edge, among them an `exec.Command` argument, a helper's argument, a variable
-  or constant initializer, a composite literal element and a return value, because the literal
-  may flow from there to a build. A file that cannot be read or parsed in full keeps every
+  or `!=`, a `switch` case, the index of a map or slice that is read (not assigned or
+  incremented, whose key may be iterated later), any argument of `strings.HasPrefix`,
+  `HasSuffix`, `Contains`, `EqualFold`, `Index` or `LastIndex`, `bytes.HasPrefix`, `HasSuffix` or
+  `Contains`, `path.Match`, `filepath.Match`, `errors.New` or `fmt.Errorf`, the second argument
+  (the cut operand) of `strings.CutPrefix`, `CutSuffix`, `TrimPrefix` or `TrimSuffix`, whose result
+  is the first argument's text, each by its import's local name, or an argument of a method named
+  `Error`, `Errorf`, `Fatal`, `Fatalf`, `Log`, `Logf`, `Skip` or `Skipf` on any receiver. Every
+  other position keeps the edge, among them an `exec.Command` argument, a helper's argument, a
+  variable or constant initializer, a composite literal element, an assigned map key, the first
+  argument of a cut function and a return value, because the literal may flow from there to a
+  build. A file that cannot be read or parsed in full keeps every
   candidate edge. Only files of a unit with a candidate edge are parsed in full. Retained limits
   of AFP-V0-037, stated as unknowns rather than fixed: a data literal outside those positions (a
   message string returned or stored, `"cmd/x imports nothing"`) still over-selects; an exec
@@ -2746,9 +2763,9 @@ rather than selecting nothing at `BOUNDED`. A consumer still cannot read closure
 | AFP-V0-192 | `Witness.Cause`, `UnboundedCause` in `internal/liveverify/affected/select.go`; `Graph.causes`, `Graph.unboundedReaders` in `graph.go`; `Graph.unboundedReadersOf` in `readers.go` | `TestInstructionFileChangeNamesEachUnboundedReadersCause_V1_2075`; `TestGoTestOnlyChangeSelectsItsPackageButNotItsImporters_V1_0984` |
 | AFP-V0-380 | the `go-interop` script and the interop step of `go-static` in `.github/workflows/ci.yml` | `TestAFPV0380InteropTestsRunOnceInGoStatic` (the go-static step runs the module's test and vet; go-interop runs neither and keeps gofmt and the Windows build; go-product needs go-static) |
 | AFP-V0-381 | `Plan.FrontierSites` in `internal/liveverify/affected/select.go`; `Graph.frontierSites` in `graph.go`; `affectedCompactPlan.FrontierSites` in `cmd/corvint/affected_compact.go` | `TestAFPV0381PlanCountsRepositoryFrontierSites`, `TestAFPV0381CompactPlanKeepsFrontierSites`, `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan`, `TestLocatedFrontierCountsOnlyCrossedSites_RUBYAFFECTEDV0047`, `TestRepositoryWideLoadSitesStayPluginWideAndLocated_RUBYAFFECTEDV0046` |
-| AFP-V0-400 | the `shell:` branch of `Graph.resolves` in `internal/liveverify/affected/readers.go` | `TestLoneFileNameShellReaderMustPlaceThePath_AFPV0400` (a README.md-only shell test is dropped for `docs/specs/README.md`, kept at the root and in its subtree; one whose `cd` names `docs/specs` and a multi-component reader are kept; fails without the change), `TestNonGoFileNameReaderIsNotNarrowed_AFPV0072` |
-| AFP-V0-401 | `literalGlobs` and `globPattern` in `internal/liveverify/affected/golang/globs.go`; `Unit.PathGlobs` in `unit.go`; `digestUnit.PathGlobs` in `graph.go`; `Graph.globReader` and `globMatches` in `readers.go`; `WitnessPathGlobReader` and `Witness.Glob` in `select.go` | `TestLiteralGlobSelectsTheReaderOfAnAddedFile_AFPV0401` (an added `.github/workflows` file selects the package whose test globs it after a run-time root, an anchored literal glob selects from the root only, a non-literal glob leaves the path an `UNOWNED_DIRTY_PATH` unknown; fails without `globReader`) |
-| AFP-V0-402 | `literalExecs`, `usedCommandLiterals` and `dataOnly` in `internal/liveverify/affected/golang/binaryexecs.go`; `literalTokens` in `golang.go` | `TestDataOnlyCommandLiteralCreatesNoEdge_AFPV0402` (an exec argument and a helper argument keep the edge; a comparison, a switch case, a map index, `strings.HasPrefix` and a test message create none, and a change to the command's build no longer selects the data-only package; fails without the change), `TestBinaryExecConsumerIsSelectedWithTheCommandsBuild_AFPV0037` |
+| AFP-V0-400 | `placesFileNames`, `recursiveReaders` and `recursiveFlags` in `internal/liveverify/affected/shell/shell.go`; `Unit.PlacesFileNames` in `unit.go`; `digestUnit.PlacesFileNames` in `graph.go`; the `PlacesFileNames` branch of `Graph.resolves` in `readers.go` | `TestLoneFileNameShellReaderMustPlaceThePath_AFPV0400` (a README.md-only shell test and one that changes only to a computed directory are dropped for `docs/specs/README.md` and kept at the root and in their subtree; one whose computed `cd` names `docs/specs`, a multi-component reader, and scripts that `cd docs`, `find`/`xargs`, `grep -r`, `git grep` or `sh -c 'cd docs ...'` are kept; fails without the change), `TestNonGoFileNameReaderIsNotNarrowed_AFPV0072` |
+| AFP-V0-401 | `literalGlobs` and `globPattern` in `internal/liveverify/affected/golang/globs.go`; `Unit.PathGlobs` in `unit.go`; `digestUnit.PathGlobs` in `graph.go`; `Graph.globReader` and `globMatches` in `readers.go`; `WitnessPathGlobReader` and `Witness.Glob` in `select.go` | `TestLiteralGlobSelectsTheReaderOfAnAddedFile_AFPV0401` (an added `.github/workflows` file selects the package whose test globs it after a run-time root, an anchored literal glob selects from the root only, a non-literal glob leaves the path an `UNOWNED_DIRTY_PATH` unknown, a non-UTF-8 glob literal is not recorded and the graph still builds; fails without `globReader`) |
+| AFP-V0-402 | `literalExecs`, `usedCommandLiterals` and `dataOnly` in `internal/liveverify/affected/golang/binaryexecs.go`; `literalTokens` in `golang.go` | `TestDataOnlyCommandLiteralCreatesNoEdge_AFPV0402` (an exec argument, a helper argument, a `strings.TrimSuffix` first argument, a `strings.CutPrefix` initializer and an assigned map key keep the edge; a comparison, a switch case, a map read, `strings.HasPrefix`, a `TrimPrefix` cut operand and a test message create none, and a change to the command's build no longer selects the data-only package; fails without the change), `TestBinaryExecConsumerIsSelectedWithTheCommandsBuild_AFPV0037` |
 | AFP-V0-403 | `WorkspaceRefusal`, `workspaceDirectiveReason` and `workspaceReplacement` in `internal/gateselect/workspace.go`; `baseWorkspace` and `parseBaseWorkspace` in `readscopes.go` | `TestBaseWorkspaceRefusesMalformedDirectiveArguments_AFPV0403` (a typed refusal with line and reason for each of `go`, `toolchain`, `godebug`, `replace` and `use`; a valid file still lists its modules), `TestBaseReadScopesFollowCommittedReadScopes_AFPV0050` (four malformed-argument cases agree with `golang.CommittedReadScopes`; they fail without the change) |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if

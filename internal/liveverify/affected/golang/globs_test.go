@@ -21,6 +21,7 @@ func TestLiteralGlobSelectsTheReaderOfAnAddedFile_AFPV0401(t *testing.T) {
 		"cmd/tool/main.go":          "package main\n\nfunc main() {}\n",
 		"cmd/tool/workflow_test.go": "package main\n\nimport (\n\t\"path/filepath\"\n\t\"testing\"\n)\n\nfunc TestWorkflows(t *testing.T) {\n\troot := locate()\n\t_, _ = filepath.Glob(filepath.Join(root, \".github\", \"workflows\", \"*.y*ml\"))\n}\n\nfunc locate() string { return \"\" }\n",
 		"specs/specs_test.go":       "package specs\n\nimport (\n\tfp \"path/filepath\"\n\t\"testing\"\n)\n\nfunc TestIndex(t *testing.T) { _, _ = fp.Glob(\"../docs/sp*cs/*.md\") }\n",
+		"binary/binary_test.go":     "package binary\n\nimport \"path/filepath\"\n\nvar matches, _ = filepath.Glob(\"testdata/\\xff*\")\n",
 		"retired/retired_test.go":   "package retired\n\nimport (\n\t\"path/filepath\"\n\t\"testing\"\n)\n\nfunc TestRetired(t *testing.T) {\n\tfor _, pattern := range []string{\"src/*.py\"} {\n\t\t_, _ = filepath.Glob(filepath.Join(t.TempDir(), pattern))\n\t}\n}\n",
 	})
 	graph, err := affected.Build(context.Background(), root, golang.New())
