@@ -9,11 +9,11 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// CAL-V0-360: leaseWrite's unlocked pre-round guard read can see head.json
+// CAL-V0-372: leaseWrite's unlocked pre-round guard read can see head.json
 // replaced between its stat and open by a writer committing under the lock.
 // That torn observation spends the round; the next round reads the new head
 // and the verb commits. Any other guard failure still ends the write at once.
-func TestCALV0360_TornGuardReadSpendsOneRound(t *testing.T) {
+func TestCALV0372_TornGuardReadSpendsOneRound(t *testing.T) {
 	s := newLeaseStore(t)
 	id := s.ticket(t, "a")
 	var reads, torn atomic.Int32

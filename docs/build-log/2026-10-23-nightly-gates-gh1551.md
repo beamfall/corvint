@@ -2,7 +2,7 @@
 
 Date: 2026-10-23. Lane: claude/nightly-gates-gh1551 (base 0641ad2e09a6da042e144fa5ded4861637e550a9).
 Issue: GitHub #1551 (`Refs`, not closed: it closes when a scheduled run passes). Requirement
-`CAL-V0-360` (`docs/specs/corvint-tasks-agent-leases-v0.md`) is accepted under the owner's standing
+`CAL-V0-372` (`docs/specs/corvint-tasks-agent-leases-v0.md`) is accepted under the owner's standing
 auto-accept (2026-10-11). The cross-vet fix lives under the existing `PRS-V1-019`.
 
 ## Distinct failures across the runs #1551 names
@@ -10,7 +10,7 @@ auto-accept (2026-10-11). The cross-vet fix lives under the existing `PRS-V1-019
 | Run | Job | Failure | State on this base |
 | --- | --- | --- | --- |
 | 39773957842 | ubuntu-24.04 | `no-python-runtime-dependency-test`: `script/dogfood-cache_test.sh` used `python3` | fixed earlier by 699a59187 (#1533) |
-| 39773957842 | macos-15 | `internal/tasks/store` `TestCALV0019_RacingLeaseVerbsLeaveOneConsistentHead`: `racer 2: SNAPSHOT_MOVED: .../head.json: file replaced between stat and open` | fixed here, CAL-V0-360 |
+| 39773957842 | macos-15 | `internal/tasks/store` `TestCALV0019_RacingLeaseVerbsLeaveOneConsistentHead`: `racer 2: SNAPSHOT_MOVED: .../head.json: file replaced between stat and open` | fixed here, CAL-V0-372 |
 | 39797313530 | macos-15 | `internal/procgroup` `TestPWPV0030InterruptGraceEscalatesToSIGTERM` | fixed earlier by V1-2446 (9047a5bb2, a0fd61b72) |
 | 39947631092 | both | `cross-vet`: `cmd/corvint/work_materialization_unix_test.go:393:20: undefined: syscall.Flock` for `GOOS=solaris` | fixed here |
 | 39947631092 | macos-15 | `internal/tasks/store` `TestPSRRequestConflictAndOrphan/live-unknown-gone`: `unknown process proof not reached <nil> 0` | fixed earlier by 1ffbb44c4 and 7a6ee4348 (PSR-V0-204) |
@@ -47,7 +47,7 @@ keeps its disposition through `guardFailureAudit`. The seam `leaseGuardFault(sta
 `SetLeaseGuardFaultForTest` inject the torn read for a chosen store only, so parallel package
 tests on other stores are unaffected.
 
-Evidence: `TestCALV0360_TornGuardReadSpendsOneRound` passes (0.36s); with the `continue` removed
+Evidence: `TestCALV0372_TornGuardReadSpendsOneRound` passes (0.36s); with the `continue` removed
 it fails with `claim after a torn guard read: SNAPSHOT_MOVED: head.json: file replaced between
 stat and open`, the CI message. `TestCALV0019_RacingLeaseVerbsLeaveOneConsistentHead` ok at
 `-count=10` after the change (18.7s) and at `-count=20` on the base (39.0s), so the CI failure was

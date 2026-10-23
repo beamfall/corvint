@@ -20,7 +20,7 @@ import (
 )
 
 // leaseGuardFault, when set by a package test, replaces the result of the
-// unlocked pre-round guard read of the store at stateDir (CAL-V0-360).
+// unlocked pre-round guard read of the store at stateDir (CAL-V0-372).
 var leaseGuardFault func(stateDir string) error
 
 type leaseAuditKey struct {
@@ -576,7 +576,7 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 		if err != nil {
 			timing.Guards += time.Since(guards)
 			if wire.CodeOf(err) == wire.CodeSnapshotMoved {
-				// CAL-V0-360: this read holds no lock, so a writer that
+				// CAL-V0-372: this read holds no lock, so a writer that
 				// committed between its stat and open tore the observation.
 				// The round is spent and the next one reads the new head;
 				// exhaustion ends SNAPSHOT_MOVED below like every other

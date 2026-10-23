@@ -54,7 +54,7 @@ func SetPoolPreparedFaultForTest(f func() error) func() {
 // SetLeaseGuardFaultForTest replaces the result of leaseWrite's unlocked
 // pre-round guard read with f(stateDir) when the read succeeded, until the
 // returned restore is called. f sees every store's directory, so a test
-// returns nil for stores other than its own (CAL-V0-360).
+// returns nil for stores other than its own (CAL-V0-372).
 func SetLeaseGuardFaultForTest(f func(stateDir string) error) func() {
 	prev := leaseGuardFault
 	leaseGuardFault = f
