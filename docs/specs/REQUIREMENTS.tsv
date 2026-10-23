@@ -1558,19 +1558,6 @@ CAL-V0-320	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner
 CAL-V0-321	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2352) A read	standing	2026-10-11; V1-2352
 CAL-V0-322	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2359) `attempt	standing	2026-10-11; V1-2359
 CAL-V0-340	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2449) A journa	standing	2026-10-11; V1-2449
-CAL-V0-365	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A progra	standing	2026-10-11; V1-2368
-CAL-V0-366	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A cleanu	standing	2026-10-11; V1-2368
-CAL-V0-367	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A cleanu	standing	2026-10-11; V1-2368
-CAL-V0-368	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) The	standing	2026-10-11; V1-2368
-CAL-V0-369	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A cleanu	standing	2026-10-11; V1-2368
-CAL-V0-370	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A worktr	standing	2026-10-11; V1-2368
-CAL-V0-371	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A missin	standing	2026-10-11; V1-2368
-CAL-V0-350	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1715) For a	standing	2026-10-11; V1-1715
-CAL-V0-360	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2137) A test-o	standing	2026-10-11; V1-2137
-CAL-V0-361	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1634) Only the	standing	2026-10-11; V1-1634
-CAL-V0-362	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1634) The	standing	2026-10-11; V1-1634
-CAL-V0-363	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0911) On a rea	standing	2026-10-11; V1-0911
-CAL-V0-364	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0911, V1-1569)	standing	2026-10-11; V1-0911; V1-1569
 CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-
 CAL-V0-300	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted, decision 0538; V1-1508) A receipt MAY be	owner	decision 0538; V1-1508
 CAL-V0-301	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted, decision 0538; V1-1508) An elided receipt is	owner	decision 0538; V1-1508
@@ -1709,6 +1696,16 @@ ATR-V0-298	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the own
 ATR-V0-310	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2305) The	standing	2026-10-11; V1-2305
 ATR-V0-311	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1559) An attac	standing	2026-10-11; V1-1559
 ATR-V0-312	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2173) A detach	standing	2026-10-11; V1-2173
+ATR-V0-323	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A progra	standing	2026-10-11; V1-2368
+ATR-V0-324	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A cleanu	standing	2026-10-11; V1-2368
+ATR-V0-325	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A cleanu	standing	2026-10-11; V1-2368
+ATR-V0-326	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) The	standing	2026-10-11; V1-2368
+ATR-V0-327	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A cleanu	standing	2026-10-11; V1-2368
+ATR-V0-328	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A worktr	standing	2026-10-11; V1-2368
+ATR-V0-329	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A missin	standing	2026-10-11; V1-2368
+ATR-V0-320	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1634) Only the	standing	2026-10-11; V1-1634
+ATR-V0-321	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1634) The	standing	2026-10-11; V1-1634
+ATR-V0-322	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0911) On a rea	standing	2026-10-11; V1-0911
 TCD-V0-001	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]` is a	unrecorded	-
 TCD-V0-002	docs/specs/corvint-tasks-closeout-debt-v0.md	The verb reads Git only through `git rev-parse --verify`, `git config --get	unrecorded	-
 TCD-V0-003	docs/specs/corvint-tasks-closeout-debt-v0.md	The scan covers every commit reachable from the ref and not from `--since`, newe	unrecorded	-
@@ -1784,6 +1781,7 @@ TQD-V0-042	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-18, V1-1608, 
 TQD-V0-043	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-19, V1-1914, standing lane auto-accept; GitHub #1181) For each	standing	2026-10-19; V1-1914; #1181
 TQD-V0-044	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-19, V1-1916, standing lane auto-accept; GitHub #1183) From the	standing	2026-10-19; V1-1916; #1183
 TQD-V0-045	docs/specs/corvint-tasks-doctor-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1193; GitHub #	standing	2026-10-11; V1-1193; #791
+TQD-V0-046	docs/specs/corvint-tasks-doctor-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2137) A test-o	standing	2026-10-11; V1-2137
 ESC-V0-001	docs/specs/corvint-tasks-escalations-v0.md	`ticket escalate --attempt A --kind decision|infrastructure|scope|blocked --ques	unrecorded	-
 ESC-V0-002	docs/specs/corvint-tasks-escalations-v0.md	Questions MUST be stored as an optional tool-owned `escalations` reference on th	unrecorded	-
 ESC-V0-003	docs/specs/corvint-tasks-escalations-v0.md	Applicability MUST derive from the source acceptance revision versus the current	unrecorded	-
@@ -2114,6 +2112,8 @@ PSR-V0-191	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the ow
 PSR-V0-201	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1008) On Darwi	standing	2026-10-11; V1-1008
 PSR-V0-203	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2352) On a rea	standing	2026-10-11; V1-2352
 PSR-V0-204	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2425) On Linux	standing	2026-10-11; V1-2425
+PSR-V0-220	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1715) For a	standing	2026-10-11; V1-1715
+PSR-V0-221	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0911, V1-1569)	standing	2026-10-11; V1-0911; V1-1569
 SCC-V0-001	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) `store.S	standing	2026-10-11; V1-1920
 SCC-V0-002	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) An ABSEN	standing	2026-10-11; V1-1920
 SCC-V0-003	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) The patc	standing	2026-10-11; V1-1920

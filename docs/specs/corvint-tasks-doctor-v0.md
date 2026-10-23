@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-09
-Intent status: accepted (decisions 0481 and 0519; GitHub #715 and #791; TQD-V0-001..013); TQD-V0-020..033 and the TQD-V0-001 `--config`/`dispatchers` amendment accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1598, V1-1601, V1-1604, V1-1192, V1-1193, V1-1519; GitHub #1041, #1044, #1047); TQD-V0-040..042 (doctor findings honour the adopter-declared progress signal) accepted under the same standing auto-accept (V1-1608; GitHub #1050); TQD-V0-043..044 (RUNNABLE_HELD_IDLE and ROLE_QUEUE_DEEP from the dispatcher's queue observation) accepted under the same standing auto-accept (V1-1914, V1-1916; GitHub #1181, #1183); TQD-V0-045 (elided-record walks share receipt reads) accepted under the same standing auto-accept (V1-1193; GitHub #791)
+Intent status: accepted (decisions 0481 and 0519; GitHub #715 and #791; TQD-V0-001..013); TQD-V0-020..033 and the TQD-V0-001 `--config`/`dispatchers` amendment accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1598, V1-1601, V1-1604, V1-1192, V1-1193, V1-1519; GitHub #1041, #1044, #1047); TQD-V0-040..042 (doctor findings honour the adopter-declared progress signal) accepted under the same standing auto-accept (V1-1608; GitHub #1050); TQD-V0-043..044 (RUNNABLE_HELD_IDLE and ROLE_QUEUE_DEEP from the dispatcher's queue observation) accepted under the same standing auto-accept (V1-1914, V1-1916; GitHub #1181, #1183); TQD-V0-045 (elided-record walks share receipt reads) accepted under the same standing auto-accept (V1-1193; GitHub #791); TQD-V0-046 (the padded-journal fixture builder, re-homed from CAL-V0-360) accepted under the same standing auto-accept (V1-2137)
 Delivery status: experimental
 Authoritative inputs: owner request [issue 715](https://github.com/beamfall/corvint/issues/715);
 the pure-read rule TM-V0-008 and the shared journal audit CAL-V0-061; the attempt and pool
@@ -17,7 +17,7 @@ recorded in `docs/build-log/2026-10-17-V1-1598-doctor-findings.md`.
 
 ## Agent digest
 - Claim: `corvint-tasks doctor` names stuck-queue patterns from journal, pool and attempt data plus bounded plugins; `doctor --line` prints a cached status line.
-- Status: accepted (decisions 0481 and 0519; GitHub #715 and #791; TQD-V0-001..013); TQD-V0-020..033 and the TQD-V0-001 `--config`/`dispatchers` amendment accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1598, V1-1601, V1-1604, V1-1192, V1-1193, V1-1519; GitHub #1041, #1044, #1047); TQD-V0-040..042 (doctor findings honour the adopter-declared progress signal) accepted under the same standing auto-accept (V1-1608; GitHub #1050); TQD-V0-043..044 (RUNNABLE_HELD_IDLE and ROLE_QUEUE_DEEP from the dispatcher's queue observation) accepted under the same standing auto-accept (V1-1914, V1-1916; GitHub #1181, #1183); TQD-V0-045 (elided-record walks share receipt reads) accepted under the same standing auto-accept (V1-1193; GitHub #791); TQD-V0-013 (COMPLETED, ARCHIVED and HELD tickets are not NO_PROGRESS_HANDOFF) from V1-1176; experimental source implementation with focused CLI tests.
+- Status: accepted (decisions 0481 and 0519; GitHub #715 and #791; TQD-V0-001..013); TQD-V0-020..033 and the TQD-V0-001 `--config`/`dispatchers` amendment accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1598, V1-1601, V1-1604, V1-1192, V1-1193, V1-1519; GitHub #1041, #1044, #1047); TQD-V0-040..042 (doctor findings honour the adopter-declared progress signal) accepted under the same standing auto-accept (V1-1608; GitHub #1050); TQD-V0-043..044 (RUNNABLE_HELD_IDLE and ROLE_QUEUE_DEEP from the dispatcher's queue observation) accepted under the same standing auto-accept (V1-1914, V1-1916; GitHub #1181, #1183); TQD-V0-045 (elided-record walks share receipt reads) accepted under the same standing auto-accept (V1-1193; GitHub #791); TQD-V0-046 (the padded-journal fixture builder, re-homed from CAL-V0-360) accepted under the same standing auto-accept (V1-2137); TQD-V0-013 (COMPLETED, ARCHIVED and HELD tickets are not NO_PROGRESS_HANDOFF) from V1-1176; experimental source implementation with focused CLI tests.
 - Exists: built-in PARKED_WITH_OPEN_ITEMS (configured dispatchers' parked tickets with open obligation items, TOL-V0-125), NO_PROGRESS_HANDOFF, REPEAT_REFUSAL, SLOW_LANE_RECOVERY, SETUP_ONLY_PROOF and FALSE_IDLE (detached-run supervisors only) detectors; RUNNABLE_HELD_IDLE and ROLE_QUEUE_DEEP from configured dispatchers' queue observations; QUEUE_LOCK_HELD, SLOW_QUEUE_COMMAND, NO_COMPLETIONS and FD_PRESSURE; HOST_RETRY_STORM, HOST_ERRORS and EARLY_REFUSAL from configured dispatchers' worker logs; dispatcher work-state health with WORK_STATE_FAILING; a `--config` file of thresholds; a notify hook on `--refresh` with NOTIFY_FAILED; bounded plugins with PLUGIN_FAILED; `--refresh` atomic cache; `--line` lock-free cache read.
 - Blocked on: PREFLIGHT_FAILURE waits for #713's recorded preflight evidence; the Linux process walk and `/proc` lock probes are unqualified (parser tests only); darwin names a lock holder only approximately (TQD-V0-021).
 - Read next: Requirements; Detectors; Failure modes; Traceability.
@@ -71,7 +71,48 @@ evidence. Its only write is the summary cache, made by the explicit `doctor --re
 
 - `TQD-V0-043`: (accepted 2026-10-19, V1-1914, standing lane auto-accept; GitHub #1181) For each configured dispatcher the doctor MUST read the ATR-V0-150 queue observation (`admission.json`, profile `taskman-dispatch-admission/0`) from its `programDir`. A missing observation yields nothing. One that does not decode (another profile, another program, out of bounds), or that is not a regular file (a FIFO is refused without blocking, and a final symbolic link is not followed), adds a `scan` warning `queue observation unreadable` and no finding; one written more than three of its own ticks before the scan's observation time adds the warning `queue observation is stale` and no finding. Each held run-only ticket the observation records with at least `runnableHeldIdleTicks` consecutive ticks (default 3, settable in the `--config` thresholds beside TQD-V0-020's, 1..1048576) and at least one free member yields one RUNNABLE_HELD_IDLE finding: `who` is `program/role/ticket`, `firstSeen` the streak's first tick, and the detail names the fence (`PLAN_WINDOW`, `GLOBAL_CAP`, `ROLE_CAP`, `TIER_CAP`, `BUDGET` or `PRESSURE`) with its recorded reason, the tick count, the pool, its free-member count and their names. Tickets of roles not declared `runOnly`, and holds while the pool had no free member, are never recorded and so never reported.
 - `TQD-V0-044`: (accepted 2026-10-19, V1-1916, standing lane auto-accept; GitHub #1183) From the same observation, a role whose queue (running plus waiting sessions) stayed deeper than its effective cap for at least `roleQueueDeepTicks` consecutive ticks (default 3, settable like `runnableHeldIdleTicks`) yields one ROLE_QUEUE_DEEP finding when the observation's pressure is `CALM`: `who` is `program/role`, `firstSeen` the streak's first tick, and the detail names the depth with its running and waiting counts, the effective cap with `cap` and any `capMax`, the oldest waiting ticket and since when, and the headroom: the global cap's free sessions, or that the global cap is full. An observation whose pressure is `RAISED`, `UNKNOWN` or `NOT_CONFIGURED` yields no ROLE_QUEUE_DEEP finding: missing or unknown pressure abstains rather than suggesting a raise. These two thresholds extend TQD-V0-020's closed list by exactly these members.
-- `TQD-V0-045`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1193; GitHub #791) When the scan restores attempt records that elided liveness receipts omit (CAL-V0-300), walks for different attempts MUST share one read and decode of each receipt within one doctor run, so a scan reads each receipt at most twice (once in the scan, once in a walk) instead of once per attempt whose walk crosses it; a receipt's read or decode error is shared the same way, so a walk that would have failed still fails. With the observation clock fixed, the complete encoded `findings` and `scan` values are byte-identical to unshared walks. Nothing is cached between runs and the walk bound (`snapshot.MaxElidedRun`) and TQD-V0-004's scan bound are unchanged. On a synthetic compacted store of 1,009 receipts (24 live attempts x 40 heartbeats) the best of five interleaved runs measured 4.06 s CPU (3.37 s wall) unshared and 1.30 s CPU (1.03 s wall) shared at host load 29-64 on 12 CPUs. On a padded store of 30,073 receipts (24 live attempts, 29,280 elided; CAL-V0-360) the doctor, scanning its 4,096-receipt bound on a 4-vCPU Linux host, measured 38.2 s CPU (38.7 s wall) unshared and 25.5 s CPU (25.8 s wall) shared (V1-2137).
+- `TQD-V0-045`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1193; GitHub #791) When the scan restores attempt records that elided liveness receipts omit (CAL-V0-300), walks for different attempts MUST share one read and decode of each receipt within one doctor run, so a scan reads each receipt at most twice (once in the scan, once in a walk) instead of once per attempt whose walk crosses it; a receipt's read or decode error is shared the same way, so a walk that would have failed still fails. With the observation clock fixed, the complete encoded `findings` and `scan` values are byte-identical to unshared walks. Nothing is cached between runs and the walk bound (`snapshot.MaxElidedRun`) and TQD-V0-004's scan bound are unchanged. On a synthetic compacted store of 1,009 receipts (24 live attempts x 40 heartbeats) the best of five interleaved runs measured 4.06 s CPU (3.37 s wall) unshared and 1.30 s CPU (1.03 s wall) shared at host load 29-64 on 12 CPUs. On a padded store of 30,073 receipts (24 live attempts, 29,280 elided; TQD-V0-046) the doctor, scanning its 4,096-receipt bound on a 4-vCPU Linux host, measured 38.2 s CPU (38.7 s wall) unshared and 25.5 s CPU (25.8 s wall) shared (V1-2137).
+
+### V1-2137 padded-journal fixture builder
+
+Re-homed (owner rule 2026-10-17; batch 1023a): this requirement was first numbered CAL-V0-360 in the
+agent leases spec; it moved here as TQD-V0-046 with the same text, because that spec's
+`## Requirements` section is at the 256-obligation OCM bound. The old ID is a retired alias: code
+comments, messages and test names keep the old numbers.
+
+Human-owned input: native ticket V1-2137. The doctor walk cost of TQD-V0-045 could not be measured at
+30,000 receipts: a store built through the command line costs about 0.2 s per write, so 30,000
+heartbeats take about 100 minutes, and the V1-1193 before and after at that size stayed `NOT_RUN`.
+
+- `TQD-V0-046`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2137) A test-only
+  builder, `fixture.PadLiveness`, MUST append a requested number of completed heartbeat receipts
+  to an unsegmented store that has live attempts, in O(N) file writes and without running an audit,
+  so that the complete audit finds the result CONSISTENT with its projections in AGREEMENT and the
+  doctor's elided-record walk (TQD-V0-045) restores records from it. Each appended receipt MUST be
+  the attempt's latest whole liveness receipt re-sequenced, re-chained to the previous receipt's
+  original digest, re-timed and re-requested: it posts the attempt record with a new
+  `lastHeartbeatAt` and a request afterimage of its own. With elision requested, a receipt that a
+  later receipt of the attempt supersedes MUST be written in the elided form of CAL-V0-300,
+  except that a receipt whose journal sequence lies `snapshot.MaxElidedRun` or more receipts after
+  the attempt's previous whole receipt stays whole (CAL-V0-302). The distance is measured in global
+  journal sequence, across the receipts of every attempt, not in receipts of that attempt, so that
+  no more than `snapshot.MaxElidedRun` receipts ever separate an elided receipt from its attempt's
+  previous whole one and the backward walk stays bounded however many attempts interleave; an
+  attempt's last receipt is always whole. The builder MUST refuse a store it cannot extend (no
+  attempt with a lease, no whole liveness receipt among the last 4,096 receipts, a segmented head).
+  A receipt changed after it was built MUST still fail the audit. It writes only attempt files,
+  request files, receipts and `head.json`.
+
+Non-goals: product code (the builder is test support in `internal/tasks/fixture`); a duration
+assertion; a store that matches field use in anything but receipt count and elision shape; padding
+with any receipt kind but a heartbeat of a live attempt.
+
+Failure modes: a template receipt is found by reading back from the head, so a store whose attempts
+have no whole liveness receipt near the head must record one real heartbeat per attempt first; a
+retained checkpoint older than the new head is stale and the next read takes the complete audit,
+as for any store.
+
+Rollback: delete `internal/tasks/fixture/padded.go` and its tests.
 
 ## Detectors
 
@@ -207,3 +248,4 @@ The TQD-V0-045 walk sharing is additive and in-memory; rollback returns each wal
 | TQD-V0-043 | `TestTQDV0043_RunnableHeldIdle` |
 | TQD-V0-044 | `TestTQDV0044_RoleQueueDeep` |
 | TQD-V0-045 | `TestTQDV0045_ElidedWalksShareReceipts`, `TestTQDV0045_WalkCostMeasurement` |
+| TQD-V0-046 | `fixture.PadLiveness` (`internal/tasks/fixture`); `TestCALV0360_PaddedLivenessStoreAuditsAndWalks` (`internal/tasks/cli`: audit CONSISTENT at the padded head, shared doctor walk reads no receipt more than twice, a rewritten padded receipt fails the audit); opt-in `TestCALV0360_PaddedDoctorWalkCost`; measurements in `docs/build-log/2026-10-23-tasks-linux-qualification-b3-harness.md` |
