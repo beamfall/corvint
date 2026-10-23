@@ -15,11 +15,11 @@ import (
 // (DCP-V1-370) admits exactly its three required options.
 type corpusFlagExpectation struct{ required, optional []string }
 
-var corpusReadOptional = []string{"--limit", "--offset", "--retirement", "--caller-revision"} // DCP-V1-332
+var corpusReadOptional = []string{"--limit", "--offset", "--retirement", "--caller-revision", "--verify-rederive", "--timings"} // DCP-V1-332, DCP-V1-413, DCP-V1-415
 
 var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"manifest":            {required: []string{"--revision", "--scope", "--timestamp"}, optional: []string{"--schema"}},
-	"build":               {required: []string{"--manifest"}},
+	"build":               {required: []string{"--manifest"}, optional: []string{"--max-unresolved-mention-rate", "--max-pattern-rate"}}, // DCP-V1-346, DCP-V1-352
 	"render":              {required: []string{"--artifact"}},
 	"maintain":            {required: []string{"--artifact", "--page"}, optional: []string{"--apply"}},
 	"cem":                 {required: []string{"--artifact", "--cem"}, optional: []string{"--id"}},
@@ -35,8 +35,9 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"eval":                {required: []string{"--artifact", "--cases"}, optional: []string{"--baseline", "--format"}},
 	"audit-sample":        {required: []string{"--artifact", "--seed", "--size"}, optional: []string{"--stratify", "--scope"}},
 	"audit-report":        {required: []string{"--artifact", "--sample"}, optional: []string{"--format"}},
-	"delta":               {required: []string{"--previous"}, optional: []string{"--artifact", "--manifest", "--limit", "--offset", "--uncovered", "--anchorless", "--format"}},
+	"delta":               {required: []string{"--previous"}, optional: []string{"--artifact", "--manifest", "--limit", "--offset", "--uncovered", "--anchorless", "--format", "--verify-rederive", "--timings"}}, // DCP-V1-460, DCP-V1-462
 	"carry-forward":       {required: []string{"--previous", "--provider"}, optional: []string{"--artifact", "--manifest"}},
+	"patterns":            {required: []string{"--artifact"}, optional: []string{"--format"}}, // DCP-V1-348
 	"info":                {required: []string{"--artifact"}, optional: corpusReadOptional},
 	"validate":            {required: []string{"--artifact"}, optional: corpusReadOptional},
 	"inventory":           {required: []string{"--artifact"}, optional: corpusReadOptional},
@@ -61,11 +62,11 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 
 var corpusAllFlags = []string{"--revision", "--scope", "--timestamp", "--manifest", "--artifact", "--page", "--apply",
 	"--cem", "--id", "--input", "--previous", "--check", "--migration", "--config", "--playwright-list", "--receipt",
-	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match", "--schema", "--section", "--include", "--cases", "--baseline", "--seed", "--size", "--stratify", "--sample", "--repository", "--kind", "--caller-revision", "--profile"}
+	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match", "--schema", "--section", "--include", "--cases", "--baseline", "--seed", "--size", "--stratify", "--sample", "--repository", "--kind", "--caller-revision", "--max-unresolved-mention-rate", "--max-pattern-rate", "--profile", "--verify-rederive", "--timings"}
 
 func corpusFlagArgs(op, flag string) []string {
 	switch flag {
-	case "--apply", "--check":
+	case "--apply", "--check", "--verify-rederive", "--timings":
 		return []string{flag}
 	case "--limit", "--offset":
 		return []string{flag, "1"}

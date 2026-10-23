@@ -325,7 +325,7 @@ func (b *baseTable) decodeMeta(rest []byte) error {
 	if n > maxBaseCheckpointBytes || uint64(len(rest)) < n+baseAggregates*8+8 {
 		return bad("checkpoint header length")
 	}
-	cp, err := DecodeCheckpoint(rest[:n])
+	cp, err := decodeEmbeddedCheckpoint(rest[:n])
 	if err != nil {
 		return err
 	}

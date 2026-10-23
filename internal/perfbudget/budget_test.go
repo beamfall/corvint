@@ -2,6 +2,7 @@ package perfbudget
 
 import (
 	"context"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,8 +14,8 @@ import (
 
 func float(v float64) *float64 { return &v }
 
-// PRB-V0-031, PRB-V0-032, PRB-V0-033: the committed budgets file bounds exactly the six
-// scenarios, encodes the GitHub #1598 and #1601 targets at their stated numbers as pending
+// PRB-V0-031, PRB-V0-032, PRB-V0-033: the committed budgets file bounds exactly the
+// ScenarioIDs scenarios, encodes the GitHub #1598 and #1601 targets at their stated numbers as pending
 // (never loosened), enforces a ceiling on wall time and peak resident set for every scenario,
 // and carries a baseline with its host-contention record.
 func TestPRBV0031CommittedBudgets(t *testing.T) {
@@ -101,6 +102,111 @@ func TestPRBV0030BudgetsValidation(t *testing.T) {
 		edit(b)
 		if err := b.Validate(); err == nil {
 			t.Errorf("%s: admitted", name)
+		}
+	}
+}
+
+// PRB-V0-050, PRB-V0-051, PRB-V0-052: the unchanged-delta scenario streams the current
+// artifact's delta against itself, follows the six #1602 scenarios, carries its baseline and the
+// tighter wall ceiling derived from it, and that ceiling fails a delta that rederives: the
+// before-change measurement in docs/build-log/2026-10-23-corpus-delta-verified-read.md. Those
+// rederiving measurements are recorded constants, so this test cannot detect a restored
+// rederivation; TestDCPV1460DeltaCLIVerifiedRead's build counter is the deterministic guard.
+func TestPRBV0050UnchangedDeltaBudget(t *testing.T) {
+	b, err := LoadBudgets("budgets.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ScenarioIDs[len(ScenarioIDs)-1] != "unchanged-delta" || !slices.Equal(ScenarioIDs[:6], []string{"cli-cold-read", "cli-warm-read", "mcp-first-call", "mcp-warm-call", "full-delta", "affected-path"}) {
+		t.Fatalf("scenario order %v", ScenarioIDs)
+	}
+	var budget ScenarioBudget
+	for _, s := range b.Scenarios {
+		if s.ID == "unchanged-delta" {
+			budget = s
+		}
+	}
+	var baseline ScenarioMeasured
+	for _, m := range b.Baseline.Scenarios {
+		if m.ID == "unchanged-delta" {
+			baseline = m
+		}
+	}
+	want := []string{"corvint", "--root", "<fixture>/app", "docs", "corpus", "delta", "--previous", "corpus.json", "--artifact", "corpus.json", "--format", "jsonl"}
+	if !slices.Equal(baseline.Command, want) || baseline.P95WallMS == nil || baseline.PeakRSSBytes == nil || len(budget.Targets) != 0 {
+		t.Fatalf("unchanged-delta baseline %+v, budget %+v", baseline, budget)
+	}
+	ceilings := map[string]float64{}
+	for _, c := range budget.Ceilings {
+		ceilings[c.Metric] = c.Limit
+	}
+	const mib = 1 << 20
+	if wall := math.Ceil(2**baseline.P95WallMS/500) * 500; ceilings[MetricP95Wall] != wall {
+		t.Fatalf("p95 ceiling %v, want 2x baseline rounded up to 500 ms: %v", ceilings[MetricP95Wall], wall)
+	}
+	if rss := math.Ceil(1.5*float64(*baseline.PeakRSSBytes)/(64*mib)) * 64 * mib; ceilings[MetricPeakRSS] != rss {
+		t.Fatalf("RSS ceiling %v, want %v", ceilings[MetricPeakRSS], rss)
+	}
+	// The fastest and slowest before-change (rederiving) samples of the same command.
+	for _, rederived := range []float64{5998.30, 7840.0} {
+		rss := *baseline.PeakRSSBytes
+		measured := []ScenarioMeasured{}
+		for _, id := range ScenarioIDs {
+			m := ScenarioMeasured{ID: id, P50WallMS: float(1), P95WallMS: float(1), PeakRSSBytes: &rss}
+			if id == "unchanged-delta" {
+				m.P95WallMS = float(rederived)
+			}
+			measured = append(measured, m)
+		}
+		checks, ok := Evaluate(b, measured)
+		exceeded := false
+		for _, c := range checks {
+			exceeded = exceeded || c.Scenario == "unchanged-delta" && c.Limit.Metric == MetricP95Wall && c.Verdict == VerdictExceeded
+		}
+		if ok || !exceeded {
+			t.Fatalf("a rederiving delta at %v ms passed the unchanged-delta ceiling", rederived)
+		}
+	}
+}
+
+// PRB-V0-053: a committed baseline measurement taken in another run carries that run's start
+// time, measured executable and host observation, so it is not attributed to the baseline's run;
+// the six measurements of the baseline's own run carry none, and a malformed provenance is refused.
+func TestPRBV0053BaselineProvenance(t *testing.T) {
+	b, err := LoadBudgets("budgets.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range b.Baseline.Scenarios {
+		p := m.Provenance
+		if m.ID != "unchanged-delta" {
+			if p != nil {
+				t.Errorf("%s: provenance %+v on a measurement of the baseline's own run", m.ID, p)
+			}
+			continue
+		}
+		if p == nil || p.RecordedAt == b.Baseline.RecordedAt || p.ExecutableSHA256 == b.Baseline.Fixture.BuilderSHA256 || p.ExecutableRevision != "a86d556279bf004318b6fe8b0a039961fb4a2791" || p.Host.LoadBefore == nil {
+			t.Fatalf("unchanged-delta provenance %+v does not name its own run", p)
+		}
+	}
+	valid := func() *Budgets {
+		copy := *b
+		copy.Baseline = &Baseline{Scenarios: []ScenarioMeasured{{ID: "unchanged-delta", Provenance: &Provenance{RecordedAt: "2026-10-23T15:39:25Z", ExecutableRevision: strings.Repeat("a", 40), ExecutableSHA256: strings.Repeat("b", 64), Host: Host{Cores: 1, Contended: new(bool)}}}}}
+		return &copy
+	}
+	if err := valid().Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for name, edit := range map[string]func(*Provenance){
+		"time":     func(p *Provenance) { p.RecordedAt = "" },
+		"revision": func(p *Provenance) { p.ExecutableRevision += "+dirty" },
+		"sha256":   func(p *Provenance) { p.ExecutableSHA256 = "unrecorded" },
+		"host":     func(p *Provenance) { p.Host.Contended = nil },
+	} {
+		bad := valid()
+		edit(bad.Baseline.Scenarios[0].Provenance)
+		if err := bad.Validate(); err == nil || !strings.Contains(err.Error(), "provenance") {
+			t.Errorf("%s: malformed provenance admitted: %v", name, err)
 		}
 	}
 }
@@ -268,7 +374,7 @@ func TestPRBV0039ContentionWithholdsJudgement(t *testing.T) {
 }
 
 // PRB-V0-024, PRB-V0-025, PRB-V0-027, PRB-V0-028, PRB-V0-029: an end-to-end smoke run builds
-// both binaries, generates the fixture through `corvint docs corpus build`, measures all six
+// both binaries, generates the fixture through `corvint docs corpus build`, measures every
 // scenarios with wall time and peak resident set, records the host, and passes on current main
 // with every #1598/#1601 target reported pending. Then a fixture reused with a changed builder
 // identity is rebuilt rather than refused.

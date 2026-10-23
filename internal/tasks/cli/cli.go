@@ -1576,6 +1576,13 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 		default:
 			val.Obj.Set("liveAttempt", current.Value())
 		}
+		// CAL-V0-322: the newest failed gate of any of the ticket's attempts,
+		// with its retained output tail.
+		if rc.journalAbsent {
+			val.Obj.Set("lastFailedGate", wire.String("NOT_OBSERVED"))
+		} else {
+			val.Obj.Set("lastFailedGate", ticketLastFailedGate(rc.repo, attempts, id))
+		}
 		// V1-2038: the gate set complete enforces, policy-required gates included.
 		val.Obj.Set("effectiveRequiredGates", wire.Strings(transaction.RequiredGates(rc.store.Policy, v.Record)))
 		// ATR-V0-273: every grant an APPROVAL_REQUIRED ticket still needs

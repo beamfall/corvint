@@ -181,6 +181,9 @@ func Run(ctx context.Context, o Options) (*Report, error) {
 			m, err = measureCLI(ctx, id, fixture.Primary, []string{o.Corvint, "--root", fixture.Primary, "docs", "corpus", "delta", "--previous", fixture.Previous, "--artifact", fixture.Current, "--limit", "256"}, samples[id], 0, nil)
 		case "affected-path":
 			m, err = measureCLI(ctx, id, fixture.Ruby, []string{o.Corvint, "--root", fixture.Ruby, "affected", "--path", fixture.RubyPath}, samples[id], 1, nil)
+		case "unchanged-delta":
+			// The current artifact against itself: one verified read plus the stream (PRB-V0-050).
+			m, err = measureCLI(ctx, id, fixture.Primary, []string{o.Corvint, "--root", fixture.Primary, "docs", "corpus", "delta", "--previous", fixture.Current, "--artifact", fixture.Current, "--format", "jsonl"}, samples[id], 0, nil)
 		}
 		if err != nil {
 			return nil, err

@@ -24,13 +24,19 @@ import (
 
 // V1-0645 / CAL-V0-070: writer cost as a function of retained receipt history.
 // The fixture is a synthetic O(N) journal, not live API history: historyTickets
-// tickets are created through Mutate, then every further receipt posts one
+// tickets are created, then every further receipt posts one
 // request afterimage and one inline afterimage of a rotating ticket whose body
 // is padded so the mean receipt matches the observed ~6 KB. It has no evidence
 // blobs, attempts or reservations. A full audit must agree before any timing.
+//
+// Only historyRealCreates tickets go through Mutate (V1-0961): a real CREATE
+// audits the whole journal, and 50 of them per fixture were 25% of the store
+// package's CPU. The rest are cloned from the first by historyAppendCreates,
+// the receipt shape the fixture already pads with.
 const (
-	historyTickets  = 50
-	historyBodySize = 4096
+	historyTickets     = 50
+	historyRealCreates = 1
+	historyBodySize    = 4096
 )
 
 var historyActor = mutation.Binding{ID: "tester", Role: "OWNER"}
@@ -102,6 +108,13 @@ func historyMutate(tb testing.TB, repo *intent.Repository, requestID string) {
 // head. It reads only head and the touched projections, so setup is O(N).
 func historyAppend(tb testing.TB, repo *intent.Repository, posts map[string][]byte, request string) {
 	tb.Helper()
+	historyAppendFor(tb, repo, posts, request, "")
+}
+
+// historyAppendFor is historyAppend for a receipt that targets ticket, the
+// receipt target a found request reports (empty for none).
+func historyAppendFor(tb testing.TB, repo *intent.Repository, posts map[string][]byte, request, ticket string) {
+	tb.Helper()
 	headPath := filepath.Join(repo.StateDir, "head.json")
 	raw, err := os.ReadFile(headPath)
 	if err != nil {
@@ -115,6 +128,9 @@ func historyAppend(tb testing.TB, repo *intent.Repository, posts map[string][]by
 	v := fixture.ReceiptValue(seq, h.LastReceiptSha256, "MUTATION", h.Generation.Uint64())
 	v.Obj.Set("recordedAt", wire.String(string(WallClock())))
 	v.Obj.Set("requestId", wire.String(request))
+	if ticket != "" {
+		v.Obj.Set("ticketId", wire.String(ticket))
+	}
 	paths := make([]string, 0, len(posts))
 	for p := range posts {
 		paths = append(paths, p)
@@ -156,9 +172,19 @@ func historyAppend(tb testing.TB, repo *intent.Repository, posts map[string][]by
 }
 
 func historyRequest(id string, seq uint64) []byte {
+	return historyRequestFor(id, seq, wire.Sum([]byte(id)), nil)
+}
+
+// historyRequestFor is historyRequest for a request whose envelope digest is
+// digest; a create reports the new ticket's first revision and acceptance
+// revision when revisions is set.
+func historyRequestFor(id string, seq uint64, digest wire.Digest, revisions *wire.Count) []byte {
 	s := wire.SizeOf(seq)
 	out := mutation.Outcome{RequestID: id, Outcome: mutation.OutcomeCompleted, ReceiptSeq: &s, Codes: []string{}}
-	return wire.EncodeFile(historyObject("requestId", wire.String(id), "seq", wire.String(string(s)), "mutationSha256", wire.String(string(wire.Sum([]byte(id)))), "outcome", out.Value()))
+	if revisions != nil {
+		out.ResultingRevision, out.ResultingAcceptanceRevision = revisions, revisions
+	}
+	return wire.EncodeFile(historyObject("requestId", wire.String(id), "seq", wire.String(string(s)), "mutationSha256", wire.String(string(digest)), "outcome", out.Value()))
 }
 
 // historyStore returns a settled store whose head is exactly receipts, verified
@@ -191,7 +217,7 @@ func historyStoreAt(tb testing.TB, root string, tickets, receipts int) *intent.R
 	if _, err = Init(context.Background(), repo, historyActor, "history-init", WallClock()); err != nil {
 		tb.Fatal(err)
 	}
-	created := min(tickets, historyTickets)
+	created := min(tickets, historyRealCreates)
 	for i := 0; i < created; i++ {
 		historyMutate(tb, repo, fmt.Sprintf("history-create-%d", i))
 	}
@@ -255,6 +281,7 @@ func historyAppendCreates(tb testing.TB, repo *intent.Repository, created, ticke
 	if err != nil {
 		tb.Fatal(err)
 	}
+	first := wire.CountOf(1)
 	for i := created; i < tickets; i++ {
 		qraw, err := os.ReadFile(filepath.Join(dir, "queue.json"))
 		if err != nil {
@@ -272,7 +299,8 @@ func historyAppendCreates(tb testing.TB, repo *intent.Repository, created, ticke
 		}
 		local := fmt.Sprintf("%s-%04d", prefix.Str, serial)
 		queue.Obj.Set("nextSerial", wire.String(strconv.Itoa(serial+1)))
-		template.Obj.Set("ticketId", wire.String(strings.TrimSuffix(fixture.TicketID("X"), "X")+local))
+		ticket := strings.TrimSuffix(fixture.TicketID("X"), "X") + local
+		template.Obj.Set("ticketId", wire.String(ticket))
 		template.Obj.Set("title", wire.String(fmt.Sprintf("history history-create-%d", i)))
 		head, err := os.ReadFile(filepath.Join(repo.StateDir, "head.json"))
 		if err != nil {
@@ -284,11 +312,32 @@ func historyAppendCreates(tb testing.TB, repo *intent.Repository, created, ticke
 		}
 		id := fmt.Sprintf("history-create-%d", i)
 		reqPath, _ := snapshot.RequestPath(id)
-		historyAppend(tb, repo, map[string][]byte{
-			reqPath:                             historyRequest(id, h.LastSeq.Uint64()+1),
+		// The digest of the exact envelope historyMutate would submit, so
+		// resubmitting it replays as a real CREATE's request does.
+		digest := wire.Sum(historyCreate(id, "history "+id))
+		historyAppendFor(tb, repo, map[string][]byte{
+			reqPath:                             historyRequestFor(id, h.LastSeq.Uint64()+1, digest, &first),
 			"intent/queue.json":                 wire.EncodeFile(queue),
 			"intent/tickets/" + local + ".json": wire.EncodeFile(template),
-		}, id)
+		}, id, ticket)
+	}
+}
+
+// CAL-V0-070: a synthesized CREATE request records the digest of its exact
+// historyCreate envelope, so resubmitting that envelope replays the retained
+// outcome as a real CREATE's would, and different bytes still conflict.
+func TestCALV0070_SynthesizedCreateReplays(t *testing.T) {
+	t.Parallel()
+	repo := historyStore(t, historyTickets+2)
+	for _, id := range []string{"history-create-0", "history-create-3", fmt.Sprintf("history-create-%d", historyTickets-1)} {
+		rep, err := Mutate(context.Background(), repo, historyActor, historyCreate(id, "history "+id), WallClock())
+		if err != nil || rep.Kind != "Replay" || rep.Outcome.Outcome != mutation.OutcomeCompleted {
+			t.Fatalf("replay %s: %+v %v", id, rep, err)
+		}
+	}
+	rep, err := Mutate(context.Background(), repo, historyActor, historyCreate("history-create-3", "a different title"), WallClock())
+	if err != nil || rep.Outcome.Outcome == mutation.OutcomeCompleted {
+		t.Fatalf("conflict: %+v %v", rep, err)
 	}
 }
 

@@ -51,9 +51,36 @@ func ReadFileBounded(root *os.Root, name string, limit int64) ([]byte, error) {
 	if limit < 1 || limit > 128<<20 {
 		return nil, errors.New("invalid input byte bound")
 	}
+	var data []byte
+	err := walkReceiptParent(root, name, func(parent *os.Root, leaf string, before os.FileInfo) error {
+		var err error
+		data, err = readRegularBounded(parent, leaf, before, limit)
+		return err
+	})
+	return data, err
+}
 
+// StatFile is ReadFileBounded without the read: it pins every directory
+// component without following a symlink, as the read does, and returns the
+// lstat record of the leaf, which must be a regular file.
+func StatFile(root *os.Root, name string) (os.FileInfo, error) {
+	var info os.FileInfo
+	err := walkReceiptParent(root, name, func(_ *os.Root, _ string, before os.FileInfo) error {
+		if !before.Mode().IsRegular() {
+			return errors.New("receipt is not a regular file")
+		}
+		info = before
+		return nil
+	})
+	return info, err
+}
+
+// walkReceiptParent pins each directory component of the local name without
+// following a symlink and calls leaf with the pinned parent, the leaf name and
+// its lstat record.
+func walkReceiptParent(root *os.Root, name string, leaf func(parent *os.Root, leaf string, before os.FileInfo) error) error {
 	if !filepath.IsLocal(name) {
-		return nil, errors.New("receipt path is not local")
+		return errors.New("receipt path is not local")
 	}
 	parent := root
 	for _, component := range strings.Split(filepath.Dir(name), string(filepath.Separator)) {
@@ -62,17 +89,17 @@ func ReadFileBounded(root *os.Root, name string, limit int64) ([]byte, error) {
 		}
 		next, err := openReceiptDirectory(parent, component)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		defer next.Close()
 		parent = next
 	}
-	leaf := filepath.Base(name)
-	before, err := parent.Lstat(leaf)
+	base := filepath.Base(name)
+	before, err := parent.Lstat(base)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return readRegularBounded(parent, leaf, before, limit)
+	return leaf(parent, base, before)
 }
 
 func readRegular(parent *os.Root, leaf string, before os.FileInfo) ([]byte, error) {
@@ -94,9 +121,23 @@ func readRegularBounded(parent *os.Root, leaf string, before os.FileInfo, limit 
 	if !opened.Mode().IsRegular() || !os.SameFile(before, opened) {
 		return nil, errors.New("receipt file identity changed")
 	}
-	data, err := io.ReadAll(io.LimitReader(file, limit+1))
-	if err != nil {
-		return nil, err
+	// The opened file's size sizes the buffer, so a large input is read once
+	// rather than through repeated growth; a file that grows is still cut at
+	// the bound.
+	data := make([]byte, 0, min(max(opened.Size(), 0), limit)+1)
+	reader := io.LimitReader(file, limit+1)
+	for {
+		n, err := reader.Read(data[len(data):cap(data)])
+		data = data[:len(data)+n]
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if len(data) == cap(data) {
+			data = append(data, 0)[:len(data)]
+		}
 	}
 	if int64(len(data)) > limit {
 		return nil, ErrInputTooLarge

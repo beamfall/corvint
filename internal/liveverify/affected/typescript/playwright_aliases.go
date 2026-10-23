@@ -5,7 +5,9 @@ import (
 	jsonv2 "encoding/json/v2"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -18,6 +20,9 @@ type typeScriptAliases struct {
 	baseURL   bool
 	paths     map[string][]string
 	valid     bool
+	// refusal names the key or pattern that left an invalid config unresolved, for its frontier
+	// site (TJAA-V0-052).
+	refusal string
 }
 
 func readTypeScriptAliases(bodies map[string]string, frontier frontierSet) []typeScriptAliases {
@@ -28,7 +33,17 @@ func readTypeScriptAliases(bodies map[string]string, frontier frontierSet) []typ
 		}
 		config := parseTypeScriptAliases(name, bodies[name])
 		if !config.valid {
-			frontier.raise(FrontierPathAlias, name)
+			body := bodies[name]
+			offset := -1
+			if config.refusal != "" {
+				if found := regexp.MustCompile(regexp.QuoteMeta(strconv.Quote(config.refusal)) + `\s*:`).FindStringIndex(body); found != nil {
+					offset = found[0]
+				}
+			}
+			// TJAA-V0-058: a refused tsconfig explains every import it leaves unresolved.
+			site := lineSite(name, body, offset)
+			frontier.raiseToken(FrontierPathAlias, site, config.refusal)
+			frontier.pin(FrontierPathAlias, site)
 		}
 		configs = append(configs, config)
 	}
@@ -53,20 +68,31 @@ func parseTypeScriptAliases(name, body string) typeScriptAliases {
 	}
 	// Executable, inherited, or alternative module-resolution configurations are
 	// not approximated. A nearer unsupported config also blocks ancestor aliases.
-	if jsonv2.Unmarshal([]byte(clean), &raw) != nil || len(raw.Extends) != 0 || len(raw.CompilerOptions.RootDirs) != 0 || len(raw.CompilerOptions.ModuleSuffixes) != 0 {
+	if jsonv2.Unmarshal([]byte(clean), &raw) != nil {
+		return config
+	}
+	for key, value := range map[string]json.RawMessage{"extends": raw.Extends, "rootDirs": raw.CompilerOptions.RootDirs, "moduleSuffixes": raw.CompilerOptions.ModuleSuffixes} {
+		if len(value) != 0 && (config.refusal == "" || key < config.refusal) {
+			config.refusal = key
+		}
+	}
+	if config.refusal != "" {
 		return config
 	}
 	config.base = config.directory
 	if raw.CompilerOptions.BaseURL != nil {
 		base := *raw.CompilerOptions.BaseURL
 		if !playwrightRelativeDirectory(base) {
+			config.refusal = "baseUrl"
 			return config
 		}
 		config.base = path.Clean(path.Join(config.directory, base))
 		config.baseURL = true
 	}
 	config.paths = raw.CompilerOptions.Paths
-	for pattern, targets := range config.paths {
+	for _, pattern := range sortedKeys(config.paths) {
+		targets := config.paths[pattern]
+		config.refusal = pattern
 		if pattern == "" || strings.Count(pattern, "*") > 1 || len(targets) == 0 {
 			return config
 		}
@@ -76,11 +102,15 @@ func parseTypeScriptAliases(name, body string) typeScriptAliases {
 			}
 		}
 	}
+	config.refusal = ""
 	config.valid = true
 	return config
 }
 
-func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptAliases, bodies map[string]string, sites sourceSites, frontier frontierSet) []string {
+// resolveTypeScriptAliases rewrites each bare reference the nearest tsconfig resolves to the
+// relative path of its target. When keep reports true for the original reference, the target is
+// added beside it instead, so the edges the original names are kept (TJAA-V0-059).
+func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptAliases, bodies map[string]string, sites sourceSites, frontier frontierSet, keep func(string) bool) []string {
 	var nearest *typeScriptAliases
 	for index := range configs {
 		config := &configs[index]
@@ -99,17 +129,22 @@ func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptA
 		target, claimed := nearest.resolve(ref, bodies)
 		if target == "" {
 			if claimed {
-				frontier.raise(FrontierPathAlias, sites.ref(owner, ref))
+				sites.raiseRef(frontier, FrontierPathAlias, owner, ref)
 			}
 			continue
 		}
 		relative, err := filepath.Rel(filepath.FromSlash(path.Dir(owner)), filepath.FromSlash(target))
 		if err != nil {
-			frontier.raise(FrontierPathAlias, sites.ref(owner, ref))
+			sites.raiseRef(frontier, FrontierPathAlias, owner, ref)
 			continue
 		}
-		resolved[index] = "./" + filepath.ToSlash(relative)
-		sites.alias(owner, ref, resolved[index])
+		rewritten := "./" + filepath.ToSlash(relative)
+		if keep != nil && keep(ref) {
+			resolved = append(resolved, rewritten)
+		} else {
+			resolved[index] = rewritten
+		}
+		sites.alias(owner, ref, rewritten)
 	}
 	return resolved
 }

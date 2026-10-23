@@ -193,7 +193,8 @@ func observePlaywrightListMembership(root, configPath string, listed map[Playwri
 }
 
 // staticPlaywrightProjects returns the projects whose test membership the static profile decides.
-// Only an unresolved browser identity, which does not decide file membership, is tolerated, and a
+// Only an unresolved browser identity or an unverified non-identity use value (TJAA-V0-054), which
+// do not decide file membership, are tolerated, and a
 // config without projects is Playwright's one unnamed default project. When dynamicGrep is true a
 // dynamic project grep or grepInvert, which is case identity rather than file membership, is
 // tolerated as well (TJAA-V0-021).
@@ -209,7 +210,7 @@ func staticPlaywrightProjects(configPath string, configBytes []byte, dynamicGrep
 	implicit := false
 	for _, entry := range unknown {
 		switch {
-		case entry.Reason == PlaywrightUnknownBrowserIdentity:
+		case entry.Reason == PlaywrightUnknownBrowserIdentity, entry.Reason == PlaywrightUnknownUseValueUnverified:
 		case entry.Reason == PlaywrightUnknownConfigSyntax && grepDetails[entry.Detail]:
 		case entry.Reason == PlaywrightUnknownProjectSet && entry.Detail == "projects is absent" && len(projects) == 0:
 			implicit = true

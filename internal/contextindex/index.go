@@ -620,7 +620,7 @@ func pinSourcesDeferringBlobs(ctx context.Context, root string, identity reposit
 	pinned := make([]pinnedEntry, len(entries))
 	foreseen := make(chan residualBlobs, 1)
 	go func() { foreseen <- fetchResidualBlobs(ctx, root, entries, foreseenResidualEntries(entries, dirty)) }()
-	fromWorktree := pinWorktree(root, identity, entries, dirty, pinned)
+	fromWorktree := pinWorktree(ctx, root, identity, entries, dirty, pinned)
 	first := <-foreseen
 	if first.err != nil {
 		return nil, first.err
@@ -646,11 +646,18 @@ func pinSourcesDeferringBlobs(ctx context.Context, root string, identity reposit
 // keeps hitting one cached parent directory, an opener per worker because a
 // chain cannot be shared, and a fan-out scaled to the work rather than to the
 // machine. Each worker writes only its own window's positions.
-func pinWorktree(root string, identity repositoryIdentity, entries []treeEntry, dirty map[string]struct{}, pinned []pinnedEntry) []bool {
+//
+// Under withStatRoutedPins the entries Git's index vouches for are pinned
+// from their committed blobs first and the worktree pass skips them; the
+// returned set then reports every position this pass pinned (DCP-V1-452).
+func pinWorktree(ctx context.Context, root string, identity repositoryIdentity, entries []treeEntry, dirty map[string]struct{}, pinned []pinnedEntry) []bool {
 	fromWorktree := make([]bool, len(entries))
+	if statRoutedPins(ctx) {
+		pinStatVouched(ctx, root, identity, entries, dirty, pinned, fromWorktree)
+	}
 	eligible := 0
-	for _, entry := range entries {
-		if eligibleForWorktreePin(entry, dirty) {
+	for position, entry := range entries {
+		if !fromWorktree[position] && eligibleForWorktreePin(entry, dirty) {
 			eligible++
 		}
 	}
@@ -664,6 +671,9 @@ func pinWorktree(root string, identity repositoryIdentity, entries []treeEntry, 
 		}
 		defer opener.close()
 		for position := low; position < high; position++ {
+			if fromWorktree[position] {
+				continue
+			}
 			entry := entries[position]
 			disk, ok := worktreePin(opener, entry, identity, dirty)
 			if !ok {
@@ -699,12 +709,17 @@ func worktreePin(opener *cleanFileOpener, entry treeEntry, identity repositoryId
 	if !eligibleForWorktreePin(entry, dirty) {
 		return nil, false
 	}
+	worktreePinRead(entry.path)
 	disk, ok := readCleanFileUsing(opener, entry.path)
 	if !ok || gitBlobHash(disk, identity.objectFormat) != entry.oid {
 		return nil, false
 	}
 	return disk, true
 }
+
+// worktreePinRead observes each worktree file the pin pass opens; tests use it
+// to show which entries skipped the read (DCP-V1-452).
+var worktreePinRead = func(string) {}
 
 func eligibleForWorktreePin(entry treeEntry, dirty map[string]struct{}) bool {
 	if entry.mode != "100644" && entry.mode != "100755" {

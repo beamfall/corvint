@@ -209,7 +209,7 @@ type toolHandler struct {
 }
 
 func (handler *toolHandler) listedTools() []bridge.ToolDescriptor {
-	tools := handler.registry.Tools()
+	tools := append(handler.registry.Tools(), bridge.HelpDescriptor()) // MCPV0-102
 	if handler.planner != nil {
 		tools = append(tools, handler.planner.descriptor(), handler.planner.knowledgeDescriptor())
 	}
@@ -271,6 +271,9 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 	raw, err := json.Marshal(arguments)
 	if err != nil {
 		return nil, protocol.InvalidParams("Invalid params")
+	}
+	if name == bridge.ToolHelp { // MCPV0-102: reads only the binary, so no repository or corpus check applies.
+		return helpResult(ctx, name, raw)
 	}
 	if name == mapPlanTool && handler.planner != nil {
 		return handler.callMapTool(ctx, mapPlanTool, handler.planner.call, raw)
@@ -366,6 +369,22 @@ func (handler *toolHandler) callMapTool(ctx context.Context, name string,
 		"isError":           false,
 		"structuredContent": structured,
 	}, nil
+}
+
+// helpResult answers corvint.help through the shared bridge path (MCPV0-104),
+// mapping its failures as every other tool's transport failure is mapped.
+func helpResult(ctx context.Context, name string, raw []byte) (map[string]any, *protocol.RPCError) {
+	result, err := bridge.HelpToolResult(ctx, raw)
+	if err == nil {
+		return result, nil
+	}
+	if err.Code == "invalid-arguments" {
+		return nil, protocol.InvalidParams("Invalid params")
+	}
+	if err.Code == "cancelled" || ctx.Err() != nil {
+		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
+	}
+	return toolFailureResult(name, err.Code, err.Code)
 }
 
 // toolFailureResult always sets isError: true. A business or transport

@@ -3,6 +3,9 @@
 Date: 2026-09-12. Status: accepted. Authority: repository owner delegation to make owner calls
 and record them (orchestration thread, 2026-09-12).
 
+Partially superseded by [`0554-mcp-help-tool-partially-supersedes-0103-2026-10-23.md`](0554-mcp-help-tool-partially-supersedes-0103-2026-10-23.md)
+(the tool count and descendant-profile rule, for `corvint.help` only; the rest stands).
+
 `LPCV-V0-047` requires every client that presents a test-level result to project it through the
 shared `internal/testvalidity` shape, and its traceability row read the clause as open on the
 "CLI/MCP surface". Presenting test-level results over MCP would need a fourth advertised tool, which

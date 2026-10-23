@@ -520,7 +520,7 @@ func validateCoreProviders(rows map[string]InstalledEvidence) error {
 	if !sameCoreNames(names, []string{"unit-TERM", "unit-INT", "e2e-TERM", "e2e-INT", "go-TERM", "go-INT"}) {
 		return fmt.Errorf("interruption matrix incomplete")
 	}
-	if e := validateCoreCatalogue(rows["test-validity-discover"].Raw, rows["test-validity-list"].Raw, "corvint-test-validity-mcp", []string{"corvint.test_validity"}); e != nil {
+	if e := validateCoreCatalogue(rows["test-validity-discover"].Raw, rows["test-validity-list"].Raw, "corvint-test-validity-mcp", []string{"corvint.help", "corvint.test_validity"}); e != nil {
 		return e
 	}
 	return nil
@@ -618,7 +618,7 @@ func validateCoreDocs(rows map[string]InstalledEvidence) error {
 	if watch.Profile != "corvint-docmaintain-watch/0" || watch.Writes != 2 || watch.StoppedReason != "max-writes" || watch.OmittedSummaries != 0 {
 		return fmt.Errorf("automatic docs watch not observed")
 	}
-	if e := validateCoreCatalogue(rows["mcp-discover.json"].Raw, rows["mcp-list.json"].Raw, "corvint-docs-mcp", []string{"corvint.docs_consume", "corvint.docs_draft"}); e != nil {
+	if e := validateCoreCatalogue(rows["mcp-discover.json"].Raw, rows["mcp-list.json"].Raw, "corvint-docs-mcp", []string{"corvint.docs_consume", "corvint.docs_draft", "corvint.help"}); e != nil {
 		return e
 	}
 	draft, e := nativeMCP(rows["mcp-draft.json"].Raw)

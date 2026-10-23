@@ -142,14 +142,31 @@ func subjectPostings(ctx context.Context, a *Artifact, x *QueryIndex, terms []st
 		}
 		claimText[c.Subject] = append(claimText[c.Subject], c.Text)
 	}
-	for i, s := range a.Subjects {
-		if err := ctx.Err(); err != nil {
-			return nil, nil, err
+	// Subjects are tokenized in blocks on worker goroutines; each block's
+	// postings are in subject order and the blocks are appended in order
+	// (DCP-V1-419).
+	const block = 128
+	blocks := make([]map[string][]int, (len(a.Subjects)+block-1)/block)
+	parallelBlocks(ctx, len(a.Subjects), block, func(b, lo, hi int) {
+		local := map[string][]int{}
+		for i := lo; i < hi && ctx.Err() == nil; i++ {
+			s := &a.Subjects[i]
+			words := contextindex.EvidenceTerms(s.Name + " " + s.ID + " " + strings.Join(claimText[s.ID], " "))
+			for _, term := range terms {
+				if _, ok := words[term]; ok {
+					local[term] = append(local[term], i)
+				}
+			}
 		}
-		words := contextindex.EvidenceTerms(s.Name + " " + s.ID + " " + strings.Join(claimText[s.ID], " "))
+		blocks[b] = local
+	})
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
+	for _, local := range blocks {
 		for _, term := range terms {
-			if _, ok := words[term]; ok {
-				postings[term] = append(postings[term], i)
+			if list := local[term]; len(list) > 0 {
+				postings[term] = append(postings[term], list...)
 			}
 		}
 	}

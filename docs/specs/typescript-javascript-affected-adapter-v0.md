@@ -10,7 +10,7 @@ Authoritative inputs: operator task of 2026-08-29,
 
 ## Agent digest
 - Claim: Static JavaScript and TypeScript analysis conservatively maps changes to runner-addressable tests and widens on ambiguity.
-- Status: proposed/experimental; TJAA-V0-019 accepted (decision 0483) with its V1-1175 amendment and TJAA-V0-021 accepted (decision 0519); TJAA-V0-030..033 (V1-2042) and TJAA-V0-034..037 (GitHub #1575-#1578) and TJAA-V0-038..045 (GitHub #1593, #1594) under the standing lane auto-accept
+- Status: proposed/experimental; TJAA-V0-019 accepted (decision 0483) with its V1-1175 amendment and TJAA-V0-021 accepted (decision 0519); TJAA-V0-030..033 (V1-2042) and TJAA-V0-034..037 (GitHub #1575-#1578) and TJAA-V0-038..045 (GitHub #1593, #1594) and TJAA-V0-046..053 (GitHub #1604, #1605) and TJAA-V0-054..060 (GitHub #1604 re-test, #1625, PR #1628 review) under the standing lane auto-accept
 - Exists: `internal/liveverify/affected/typescript` static runner/dependency adapter and seam tests.
 - Blocked on: runtime tuple, command/config execution, cancellation, and full-CI recall qualification.
 - Read next: Requirements; Explicit unknown frontier; Traceability.
@@ -564,6 +564,187 @@ unresolved without bisecting files, and every Playwright selection widened to th
   `process.env` or a global stays outside the static model, as under `TJAA-V0-035`. A top-level
   write executes arbitrary right-hand-side code, as any top-level statement already could.
 
+- `TJAA-V0-046`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1605)
+  Amending `TJAA-V0-034` and `TJAA-V0-045`, a `/` after a `)` that closes the argument list of a
+  call, on the same line, MUST read as division, so a `//` after it opens a line comment
+  (`const now = Date.now() / 1000; // Convert to seconds for comparison` raises no frontier). A
+  line break between the `)` and the `/` keeps it ambiguous, because it may end a bodiless
+  signature (`declare function f(a)`). The `)` closes a call when its matching `(` lies at most 256 bytes before it, no quote, backtick,
+  slash, brace or non-ASCII byte lies between them, and the `(` directly follows a member name
+  (`x.now(`), an identifier that is not a reserved, contextual or operand keyword (`now(`), `)` or
+  `]`. Any other `)`, including one that closes an `if`, `while`, `for` or `with` head or follows a
+  keyword such as `typeof`, stays ambiguous under `TJAA-V0-034`.
+- `TJAA-V0-047`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1605) In a
+  Playwright config, `process.env['NAME']` and `process.env["NAME"]` with a plain string literal
+  MUST be the same read, and the same top-level write target, as `process.env.NAME`: they keep the
+  browser identity resolved exactly when the dotted form does, including in the GitHub #1605 config
+  (`baseURL: process.env['HOSTNAME'] || 'http://127.0.0.1:3000'` beside a top-level
+  `process.env.E2E_RUN_ID ??= ...` write).
+- `TJAA-V0-048`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1605) A
+  project's browser identity MUST depend only on `browserName`, `channel`, a `...devices[...]`
+  spread, `launchOptions` (whose computed `executablePath` stays the execution-axis unknown of
+  `TJAA-V0-035`), `defaultBrowserType` and the other `TJAA-V0-018` identity keys, and on the
+  `process.env` names they read. A non-identity `use` field (`baseURL`, `trace`, ...) whose value is
+  side-effect free under `TJAA-V0-018`, and a top-level `process.env.NAME` write under
+  `TJAA-V0-042` to a name no identity field reads, MUST NOT leave it unresolved when every
+  `process` occurrence on the write's right side is admitted (`TJAA-V0-049`); that includes the
+  GitHub #1605 `??=` write whose right side reads `process.pid`.
+- `TJAA-V0-049`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1605)
+  Amending `TJAA-V0-035` and `TJAA-V0-042`, an occurrence of `process` that is exactly
+  `process.pid`, `process.ppid`, `process.platform` or `process.arch` in a read-only position MUST
+  NOT refuse the `process` root, and such a read MUST be admitted as a value proven primitive. A
+  write, update, call or alias of `process` or of those members (`process.pid = 1`,
+  `process.cwd()`, `process.exit(...)`, `const p = process`, `const env = process.env`) MUST still
+  refuse it, including through enclosing bracket groups: a group that is called (`(process.pid)()`),
+  optionally called (`?.(`), tagged, constructed (`new (...)`), deleted or updated
+  (`(process.pid)++`, `++(...)`), or followed by a member chain that is an assignment or update
+  target (`(process).x = 1`, `(process.pid).x++`), or by a member chain that does not parse, MUST
+  refuse the root.
+- `TJAA-V0-050`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604)
+  Amending `TJAA-V0-037`, a runner that only a package dependency names MUST NOT block tsconfig alias
+  resolution in the general adapter: a dependency alone assigns no runner (`TJAA-V0-003`) and loads
+  no module. A recognized runner config, a configured runner (`package.json` `mocha`, `jest` or
+  `detox` member, a Deno or Bun manifest) and a test observation of another runner still block. A
+  Playwright config blocks only when `tsconfig` occurs outside its comments, or anywhere when the
+  config does not tokenize or has an ambiguous slash that could move a comment boundary. When resolution is
+  blocked, the first blocking identity in config, manifest and test-path order MUST be a
+  `typescript:path-alias-unresolved` site: the config or manifest path, or the test path, with the
+  runner as its token, or the config line of the `tsconfig` token.
+- `TJAA-V0-051`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604) When
+  aliases resolve, a `paths` target MUST be read relative to `baseUrl` when declared and otherwise
+  relative to the directory of the tsconfig that declares it, and a spec that imports a changed
+  module through such an alias, directly or through a relative import from another module, MUST be
+  selected in `--path` mode (the GitHub #1604 rows `lib/fixtures/control.ts`,
+  `lib/helpers/TestTimingLogger.ts` and `lib/api/client/ApiLogger.ts`). An alias whose target is not
+  an observed file at the observed revision MUST add no edge and MUST raise
+  `typescript:path-alias-unresolved` at the importing specifier; no target is guessed.
+- `TJAA-V0-052`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604)
+  Amending `TJAA-V0-040` and its non-goal, the general `affected-plan/0` adapter MUST name each
+  `typescript:*` frontier site as one frontier entry `reason:site`, where site is the
+  `TJAA-V0-040` `path:line` or `path`, followed by a space and the backquoted token when one is
+  known: the specifier the module spelled (the original of an alias rewrite) for an import site;
+  the identifier at the offset, or its first run of at most 24 bytes without space, for an offset
+  site (a computed loading call, an ambiguous slash, an unterminated literal, a config marker, a
+  tsconfig key); for a whole-file classification (`e2e-runtime-dependency`, `runtime-flags`,
+  `puppeteer-host`, `detox-configuration`) the line and specifier of the runner package import when
+  the module imports it, otherwise the runner; the competing runners or configs for an ambiguous
+  runner. Each reason names at most 16 sorted sites followed by one `reason:+N` entry, so AFP-V0-381
+  `frontierSites` still counts every site. The `playwright-affected/0` shared-graph detail names the
+  same token after each site. A reason without a site stays the bare reason.
+- `TJAA-V0-053`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604) A
+  `tsconfig.json` the alias reader refuses MUST name the refusing key as its site token, at the line
+  of its first quoted occurrence followed by `:` (the file alone when there is none): `extends`, `moduleSuffixes` or `rootDirs` (the first in that order),
+  `baseUrl` outside the repository, or the first `paths` pattern in sorted order that is malformed;
+  a config that does not parse names only the file.
+
+Intent and boundary (GitHub #1604, #1605): the reporter's `--path` plans selected 0 of the specs
+that import a helper through a tsconfig alias, and only reason counts said why; three Playwright
+config and lexer residuals kept every selection at the full suite.
+
+- Non-goals: no support for tsconfig `extends`, `rootDirs`, `moduleSuffixes` or a Playwright
+  `tsconfig` option (each stays a named frontier, as `TJAA-V0-012` requires); no change to the
+  `TJAA-V0-018` identity key set or to `defaultBrowserType` widening; a non-identity `use` value
+  that can call user code still blocks, because it could rewrite a `devices` descriptor
+  (superseded by `TJAA-V0-054`: it is now a selection-axis `playwright:use-value-unverified` unknown that keeps the identity); no Node
+  built-in module model for bare imports; no grammar-state lexer, so a `)` that is not a call stays
+  ambiguous.
+- Failure modes, each fail-closed: a missing alias target, an alias claimed by two patterns or
+  targets, and a blocked alias gate keep `typescript:path-alias-unresolved` at named sites; a
+  `)` whose opener is out of the window or behind a literal keeps the ambiguous slash; a write or
+  call on `process` keeps the identity unresolved.
+- Residual: the reporter's repository was not available (`NOT_OBSERVED`); its blocking identity is
+  now named by the frontier site rather than inferred. A comment-only `tsconfig` mention no longer
+  blocks, and a dependency-only runner no longer blocks, which were the two plausible causes
+  reproduced on synthetic fixtures.
+
+- `TJAA-V0-054`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1625)
+  Amending `TJAA-V0-018` and `TJAA-V0-048`, a project's browser identity MUST be derived only from
+  the `TJAA-V0-018` identity keys (`browserName`, `channel`, `defaultBrowserType`, `launchOptions`
+  with its `executablePath`, the other listed keys) and a literal `...devices[...]` spread, and from
+  the `process.env` names they read. A `use` key outside that set (`navigationTimeout`,
+  `actionTimeout`, `baseURL`, `trace`, `storageState`, ...) MUST NOT leave the identity
+  unresolved, whatever its value form. When such a value is not side-effect free under
+  `TJAA-V0-018` (a call, assignment, update, `require` or `await` may install a module-resolution
+  hook such as `tsconfig-paths` `register`, or rewrite a `devices` descriptor, outside the config's
+  view), the project keeps its recovered identity but MUST carry one selection-axis unknown
+  `playwright:use-value-unverified` per value, naming the key, the first refused token and its
+  config line, and the refused scope root as `TJAA-V0-044` does, so the plan scope is `UNKNOWN` and
+  falls back to the full suite and a discovery receipt cannot bound it. Only a provably
+  side-effect-free non-identity value is ignored entirely. A discovery listing check
+  (`TJAA-V0-019`) tolerates the unknown as it tolerates an unresolved identity, because the value
+  does not decide file membership. A computed identity key, a refused device spread, and a config
+  whose own text writes, deletes or aliases `devices` (which refuses the devices root) MUST still
+  raise `playwright:browser-identity-unresolved`.
+- `TJAA-V0-055`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1625)
+  Amending `TJAA-V0-035`, `Number.isInteger(...)` MUST be admitted beside `Number.parseInt(...)`
+  and `Number.parseFloat(...)`, with a primitive result, under the same operand and occurrence
+  rules. The member name `parseInt` or `parseFloat` of a code `Number.` read MUST be judged as an
+  occurrence of `Number` only, so it does not refuse the bare `parseInt` or `parseFloat` root. A
+  write, alias, optional call or shadowing of `Number` or of a member still refuses the root.
+- `TJAA-V0-056`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604
+  re-test) The alias reader MUST resolve the re-test comment's tree as `tsc` does: a
+  `compilerOptions` key order with `baseUrl` last after `paths`, an `include` list
+  (`**/*.ts`, `**/*.js`) that does not change module resolution, a sibling
+  `tsconfig.typecheck.json` that is not a nearest `tsconfig.json` and is not read, and the
+  `tsc --init` comment layout; `lib/configs` resolves to `lib/configs/index.ts`,
+  `lib/api/endpoints/TeetimesApiClient` to that `.ts` file and the dotted basename
+  `lib/helpers/common.helper` to `lib/helpers/common.helper.ts`, so `--path lib/fixtures/control.ts`
+  selects the specs importing it through the alias.
+- `TJAA-V0-057`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604
+  re-test) Amending `TJAA-V0-037` and `TJAA-V0-050`, when the alias gate is blocked the general
+  adapter MUST still resolve imports through the nearest `tsconfig.json` under the same rules and
+  failures as an open gate, adding each resolved edge beside the edges the gate already had
+  (`TJAA-V0-059`), and MUST keep `typescript:path-alias-unresolved`
+  at each alias-declaring tsconfig's `"paths"` or `"baseUrl"` line and at the blocking identity, so
+  the plan stays not bounded. An import tsconfig resolves MUST NOT be a site of its own; one it
+  cannot resolve stays a site under `TJAA-V0-051`.
+- `TJAA-V0-058`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604
+  re-test) Amending `TJAA-V0-052`, the sites that explain a whole reason (the alias gate's tsconfig
+  and blocker sites, and a tsconfig the reader refuses) MUST all be named, first and in sorted
+  order, in the general adapter's frontier entries (grouped by reason in sorted reason order and
+  not re-sorted afterwards) and in the `playwright-affected/0` shared-graph detail; the 16-site
+  (respectively 8-site) bound applies only to the other sites, in sorted order, and `reason:+N`
+  (respectively `and N more`) counts the rest. The language-neutral `affected-plan/0` unknown list
+  stays its canonical sorted set of those entries: every pinned site is present there, but its
+  position is not re-ordered. Repository-owned text that is a site token MUST NOT begin with a
+  NUL byte for this marking to stay exact (an import specifier with a literal NUL byte is a
+  residual).
+- `TJAA-V0-059`: (accepted under the owner's standing auto-accept (2026-10-11); PR #1628 review)
+  Under a blocked alias gate the tsconfig edges are speculative and MUST be additive: a bare
+  reference that names a workspace package (`TJAA-V0-005`) MUST keep its workspace-link edge
+  beside the tsconfig-resolved edge, so the selection under the blocked gate is a superset of the
+  selection without tsconfig resolution. An open gate (`TJAA-V0-037`) still rewrites the
+  reference, as Playwright's loader does.
+- `TJAA-V0-060`: (accepted under the owner's standing auto-accept (2026-10-11); PR #1628 review)
+  Amending `TJAA-V0-018`, a `delete`, `++` or `--` token that lies inside the value of a
+  non-identity key of a global or project `use` layer, whose text names no `devices` and has no
+  `\`, MUST NOT refuse the devices root, so a literal device spread keeps its identity; the value
+  holding the token is the `TJAA-V0-054` selection unknown instead. The token still refuses the
+  process, numeric-conversion and plain-literal roots. A layer is located only when its text occurs
+  once in the config. A token anywhere else (a statement, an identity value, a computed key, a
+  value beside a `devices` occurrence) and any `\` escape in code still refuse every root.
+
+Intent and boundary (GitHub #1604 re-test, #1625): the re-test reported 368 alias sites at the
+importing modules, resolved at none, and `affected --path lib/fixtures/control.ts` still selected
+0 of 93 specs; a Playwright config whose `use` held `Number.parseInt(...)` timeouts kept every
+project's identity unresolved.
+
+- Non-goals: no tsconfig `extends`, `rootDirs`, `moduleSuffixes`, project references or duplicate
+  key support (a duplicated key still fails the strict parse and names the file); no model of
+  another runner's loader (a Jest `moduleNameMapper`, a Vite alias), whose divergence stays the
+  gate frontier; no change to the `TJAA-V0-018` identity key set or the reporter's identity keys.
+- Failure modes, each fail-closed: a blocked gate keeps the plan not bounded while adding the
+  tsconfig edges beside the workspace links; an alias target that does not exist stays a site at
+  the importing specifier; a non-identity value that can run code is a selection-axis unknown, so
+  the plan falls back; a mutation token outside a non-identity value, a computed identity key or a
+  devices rewrite in the config keeps `playwright:browser-identity-unresolved`.
+- Root cause and residual: the reporter's repository was not available (`NOT_OBSERVED`). The
+  comment's tsconfig and imports already resolve on the base revision (`TJAA-V0-056` is a
+  regression guard, not a fix). 368 sites with none resolved is the shape of a blocked gate, where
+  each module reported its first alias import, and the bound sorted those `lib/...` sites first and
+  hid the blocker and tsconfig sites in `+352`. Which identity blocked the gate in that repository
+  is still not observed; after this change it is named, and the specs are selected regardless.
+
 ## Opt-in Playwright project profile
 
 `corvint affected --playwright-config PATH --playwright-discovery FILE` emits `playwright-affected/0`; it does not alter the
@@ -753,6 +934,16 @@ ambiguous-slash scan that raised `typescript:dynamic-import`, the fixed
 `shared TypeScript graph frontier` detail, the any-occurrence global-name and process-write
 refusals and the fixed identity detail. Only unknown details and the new reason code change; no
 persisted format, store or receipt is written.
+The GitHub #1604/#1605 extension (`TJAA-V0-046..053`) reverts independently: restore the bare
+general-adapter frontier reasons and token-free Playwright details, the dependency and any-text
+`tsconfig` alias gate, the ambiguous `)` slash and the process-root refusal of `process.pid`. The
+general graph digest changes with the located frontier entries; no persisted store is written.
+The GitHub #1604 re-test and #1625 extension (`TJAA-V0-054..060`) reverts independently: refuse
+the identity again for a non-identity value that is not side-effect free and drop
+`playwright:use-value-unverified` and the confined-mutation devices root, refuse `Number.isInteger`
+and the `Number.parseInt` member name, skip tsconfig resolution under a blocked gate, and render
+sites in plain sorted order. Only graph
+edges, frontier entries and unknown details change; no persisted store or receipt is written.
 
 ## Traceability
 
@@ -783,5 +974,18 @@ persisted format, store or receipt is written.
 | `TJAA-V0-043` (V1-2468; GitHub #1594) | `TestPlaywrightEnvDefaultForms_GH1594`, `TestPlaywrightEnvIdentityIssueConfig_GH1594` in `playwright_gh1594_test.go` | experimental |
 | `TJAA-V0-044` (V1-2468; GitHub #1594) | `TestPlaywrightBrowserIdentityNamesBlockingToken_GH1594` in `playwright_gh1594_test.go` | experimental |
 | `TJAA-V0-045` (V1-2467; PR #1596 review) | `TestUnsupportedSlashPredecessorPreservesUncertainty_PR1596` in `typescript_pr1596_test.go` | experimental |
+| `TJAA-V0-046` (GitHub #1605) | `TestDivisionAfterCallBeforeLineComment_GH1605` in `playwright_gh1605_test.go` | experimental |
+| `TJAA-V0-047..049` (GitHub #1605) | `TestPlaywrightIdentityIgnoresUnrelatedFieldsAndWrites_GH1605` in `playwright_gh1605_test.go`; `TestPlaywrightEnvWritesOutsideIdentity_GH1594`, `TestPlaywrightEnvDefaultForms_GH1594` in `playwright_gh1594_test.go` | experimental |
+| `TJAA-V0-050` (GitHub #1604) | `TestTSConfigPathAliasesSelectSpecs_GH1604`, `TestFrontierSitesNameFileLineAndToken_GH1604`, `TestPlaywrightConfigTSConfigToken_GH1604` in `typescript_gh1604_test.go`; `TestGeneralAdapterPlaywrightMembershipAndAliases_GH1578` in `playwright_gh1578_test.go` | experimental; synthetic fixtures |
+| `TJAA-V0-051` (GitHub #1604) | `TestTSConfigPathAliasesSelectSpecs_GH1604`, `TestTSConfigPathAliasMissingTargetStaysFrontier_GH1604` in `typescript_gh1604_test.go` | experimental; reporter repository `NOT_OBSERVED` |
+| `TJAA-V0-052` (GitHub #1604) | `TestFrontierSitesNameFileLineAndToken_GH1604`, `TestFrontierSitesAreBoundedPerReason_GH1604` in `typescript_gh1604_test.go`; `TestPlaywrightRegexReplaceKeepsSelectionAndNamesFrontierSites_GH1593` in `typescript_gh1593_test.go`; `TestLocatedTypeScriptFrontierKeepsE2EAnswer_TJAAV0052` in `internal/appflows/selection_frontier_test.go` | experimental |
+| `TJAA-V0-053` (GitHub #1604) | `TestFrontierSitesNameFileLineAndToken_GH1604` in `typescript_gh1604_test.go` | experimental |
+| `TJAA-V0-054` (GitHub #1625; PR #1628 review) | `TestPlaywrightNonIdentityFieldsNeverBlockIdentity_GH1625` in `playwright_gh1625_test.go`; `TestPlaywrightSideEffectUseValueKeepsSelectionUnknown_PR1628` in `typescript_pr1628_test.go`; `TestPlaywrightBrowserIdentityNamesBlockingToken_GH1594` in `playwright_gh1594_test.go`; `TestPlaywrightUseValueSideEffects_V1_1065`, `TestPlaywrightMemberReadRoots_GH709Round8` in `playwright_example_app_test.go` | experimental |
+| `TJAA-V0-055` (GitHub #1625) | `TestPlaywrightNumberMemberCallsAreAdmitted_GH1625` in `playwright_gh1625_test.go` (the issue's `use` lines and refusal message) | experimental |
+| `TJAA-V0-056` (GitHub #1604 re-test) | `TestTSConfigRetestTreeResolvesAsTsc_GH1604` in `typescript_gh1604_retest_test.go` (the comment's tsconfig, both spellings, and the four example imports) | experimental; reporter repository `NOT_OBSERVED` |
+| `TJAA-V0-057` (GitHub #1604 re-test) | `TestBlockedAliasGateSelectsAndNamesBlocker_GH1604` in `typescript_gh1604_retest_test.go`; `TestFrontierSitesNameFileLineAndToken_GH1604` in `typescript_gh1604_test.go` | experimental; synthetic blockers |
+| `TJAA-V0-058` (GitHub #1604 re-test) | `TestPinnedFrontierSitesPrecedeTheBound_GH1604`, `TestBlockedAliasGateSelectsAndNamesBlocker_GH1604` in `typescript_gh1604_retest_test.go` (entry order, not only presence) | experimental |
+| `TJAA-V0-059` (PR #1628 review) | `TestBlockedGateKeepsWorkspaceLinks_PR1628` in `typescript_pr1628_test.go` | experimental; synthetic workspace |
+| `TJAA-V0-060` (PR #1628 review) | `TestPlaywrightConfinedMutationKeepsDeviceIdentity_PR1628` in `typescript_pr1628_test.go` | experimental |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |

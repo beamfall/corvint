@@ -94,14 +94,18 @@ type config struct {
 	directory string
 	runner    string
 	// membership records that the config names test-membership or project markers the general
-	// adapter does not model (dynamicConfigMarker); tsconfig records a `tsconfig` token,
-	// which can select a module-resolution config other than the nearest tsconfig.json.
+	// adapter does not model (dynamicConfigMarker); tsconfigAt is the offset of the first
+	// `tsconfig` token outside comments, which can select a module-resolution config other than
+	// the nearest tsconfig.json, or -1 (TJAA-V0-050).
 	membership bool
-	tsconfig   bool
+	tsconfigAt int
+	body       string
 }
 
 type packageScope struct {
-	directory  string
+	directory string
+	// manifest is the package.json or runtime manifest that declared the scope.
+	manifest   string
 	name       string
 	runners    map[string]bool
 	configured map[string]bool
@@ -122,27 +126,151 @@ func (language Language) units(root string, resolveAliases bool) (affected.Resul
 	return language.observe(affected.DiskSource(root), resolveAliases)
 }
 
+// unitsSource is the general affected-plan/0 observation: its frontier entries name every site
+// and token, bounded per reason (TJAA-V0-052). The Playwright profile reads the bare reasons and
+// the site set from units instead.
 func (language Language) unitsSource(root *affected.Source, resolveAliases bool) (affected.Result, error) {
-	result, _, err := language.observe(root, resolveAliases)
-	return result, err
+	result, frontier, err := language.observe(root, resolveAliases)
+	if err != nil {
+		return result, err
+	}
+	result.Frontier = locatedFrontier(frontier)
+	return result, nil
 }
 
 // frontierSet holds, for each raised frontier reason, the sites that raised it: `path:line` when
-// one line holds the cause and `path` when only the file is known (TJAA-V0-040).
-type frontierSet map[string]map[string]bool
+// one line holds the cause and `path` when only the file is known (TJAA-V0-040), each with the
+// specifier or source token that raised it, or "" when none is known (TJAA-V0-052).
+type frontierSet map[string]map[string]string
 
 func (frontier frontierSet) raise(reason, site string) {
+	frontier.raiseToken(reason, site, "")
+}
+
+// raiseToken records token for site; of several tokens for one site the smallest non-empty one
+// is kept, so the set does not depend on raise order.
+func (frontier frontierSet) raiseToken(reason, site, token string) {
 	if frontier[reason] == nil {
-		frontier[reason] = map[string]bool{}
+		frontier[reason] = map[string]string{}
 	}
-	if site != "" {
-		frontier[reason][site] = true
+	if site == "" {
+		return
+	}
+	previous, seen := frontier[reason][site]
+	pinned := strings.HasPrefix(previous, pinnedSite)
+	previous = strings.TrimPrefix(previous, pinnedSite)
+	if !seen || previous == "" || token != "" && token < previous {
+		previous = token
+	}
+	if pinned {
+		previous = pinnedSite + previous
+	}
+	frontier[reason][site] = previous
+}
+
+// pinnedSite prefixes the stored token of a site that explains a whole reason, such as the
+// identity that blocked tsconfig alias resolution, so the site bound never hides it (TJAA-V0-058).
+const pinnedSite = "\x00"
+
+// pin marks an existing site of reason as one that every rendering names before the bound applies.
+func (frontier frontierSet) pin(reason, site string) {
+	if token, seen := frontier[reason][site]; seen && !strings.HasPrefix(token, pinnedSite) {
+		frontier[reason][site] = pinnedSite + token
 	}
 }
 
-// at raises reason at the line of offset in body, or at the file when offset is negative.
+// boundedSites returns how many of ordered (from orderedSites) to name: every pinned site, then
+// unpinned ones up to bound.
+func boundedSites(sites map[string]string, ordered []string, bound int) int {
+	pinned := 0
+	for pinned < len(ordered) && strings.HasPrefix(sites[ordered[pinned]], pinnedSite) {
+		pinned++
+	}
+	return min(len(ordered), pinned+bound)
+}
+
+// orderedSites returns the pinned sites, then the others, each group sorted.
+func orderedSites(sites map[string]string) []string {
+	ordered := sortedKeys(sites)
+	sort.SliceStable(ordered, func(left, right int) bool {
+		return strings.HasPrefix(sites[ordered[left]], pinnedSite) && !strings.HasPrefix(sites[ordered[right]], pinnedSite)
+	})
+	return ordered
+}
+
+// has reports whether reason was raised at site.
+func (frontier frontierSet) has(reason, site string) bool {
+	_, raised := frontier[reason][site]
+	return raised
+}
+
+// at raises reason at the line of offset in body with the source token there, or at the file when
+// offset is negative.
 func (frontier frontierSet) at(reason, relative, body string, offset int) {
-	frontier.raise(reason, lineSite(relative, body, offset))
+	token := ""
+	if offset >= 0 && offset < len(body) {
+		token = sourceToken(body[offset:])
+	}
+	frontier.raiseToken(reason, lineSite(relative, body, offset), token)
+}
+
+// sourceTokenBound caps a named source token in bytes.
+const sourceTokenBound = 24
+
+// sourceToken returns the identifier at the start of text, or its first run of at most
+// sourceTokenBound bytes without space or control bytes, cut back to whole UTF-8 characters.
+func sourceToken(text string) string {
+	end := 0
+	for end < len(text) && end < sourceTokenBound && isIdentifier(text[end]) {
+		end++
+	}
+	if end == 0 {
+		for end < len(text) && end < sourceTokenBound && text[end] > ' ' && text[end] != 0x7f && !unicodeLineTerminatorAt(text, end) {
+			end++
+		}
+	}
+	for end > 0 && !utf8.ValidString(text[:end]) {
+		end--
+	}
+	return text[:end]
+}
+
+// frontierSiteBound caps the unpinned sites the general adapter names for one reason; one
+// `reason:+N` entry counts the rest (TJAA-V0-052, as RUBY-AFFECTED-V0-046 bounds Ruby's). Pinned
+// sites are always named (TJAA-V0-058).
+const frontierSiteBound = 16
+
+// locatedFrontier renders frontier as the general adapter's frontier entries, grouped by reason in
+// sorted reason order: per reason, `reason:site` followed by a space and the backquoted token when
+// one is known, every pinned site first, then at most frontierSiteBound sorted sites, then
+// `reason:+N` for the rest; a reason without a site stays bare. The entries are not re-sorted, so
+// the pinned sites stay first (TJAA-V0-058).
+func locatedFrontier(frontier frontierSet) []string {
+	entries := []string{}
+	for _, reason := range sortedKeys(frontier) {
+		sites := orderedSites(frontier[reason])
+		if len(sites) == 0 {
+			entries = append(entries, reason)
+			continue
+		}
+		named := boundedSites(frontier[reason], sites, frontierSiteBound)
+		for _, site := range sites[:named] {
+			entries = append(entries, reason+":"+siteWithToken(site, frontier[reason][site]))
+		}
+		if extra := len(sites) - named; extra > 0 {
+			entries = append(entries, reason+":+"+strconv.Itoa(extra))
+		}
+	}
+	return entries
+}
+
+// siteWithToken appends the backquoted token to site when one is known.
+func siteWithToken(site, token string) string {
+	token = strings.TrimPrefix(token, pinnedSite)
+	if token == "" {
+		return site
+	}
+	return site + " `" + token + "`"
 }
 
 func lineSite(relative, body string, offset int) string {
@@ -161,6 +289,25 @@ type sourceIndex struct {
 	body    string
 	offsets map[string]int
 	starts  []int
+	// spelled maps a reference an alias rewrote to the specifier the module spelled.
+	spelled map[string]string
+}
+
+// raiseRef raises reason at ref's parsed specifier in relative, naming the specifier the module
+// spelled as the token (TJAA-V0-052).
+func (sites sourceSites) raiseRef(frontier frontierSet, reason, relative, ref string) {
+	frontier.raiseToken(reason, sites.ref(relative, ref), sites.spelling(relative, ref))
+}
+
+// spelling returns the specifier relative spelled for ref: the original of an alias rewrite, or
+// ref itself.
+func (sites sourceSites) spelling(relative, ref string) string {
+	if index := sites[relative]; index != nil {
+		if original, rewritten := index.spelled[ref]; rewritten {
+			return original
+		}
+	}
+	return ref
 }
 
 // ref names the line of ref's parsed specifier in relative, or relative alone when the scan kept
@@ -183,6 +330,13 @@ func (sites sourceSites) ref(relative, ref string) string {
 // alias records that rewritten names the specifier original spelled in relative.
 func (sites sourceSites) alias(relative, original, rewritten string) {
 	if index := sites[relative]; index != nil {
+		_, scanned := index.offsets[rewritten]
+		if _, taken := index.spelled[rewritten]; !taken && !scanned {
+			if index.spelled == nil {
+				index.spelled = map[string]string{}
+			}
+			index.spelled[rewritten] = original
+		}
 		if offset, known := index.offsets[original]; known {
 			if _, taken := index.offsets[rewritten]; !taken {
 				index.offsets[rewritten] = offset
@@ -240,11 +394,11 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 		if path.Base(relative) == "package.json" {
 			scope, parseErr := readPackageScope(relative, body)
 			if parseErr != nil {
-				frontier.raise(FrontierConfig, relative)
+				frontier.raiseToken(FrontierConfig, relative, "package.json")
 				continue
 			}
 			if scope.configured[runnerMocha] {
-				frontier.raise(FrontierConfig, relative)
+				frontier.at(FrontierConfig, relative, text, strings.Index(text, `"mocha"`))
 			}
 			if scope.name != "" || len(scope.runners) != 0 || len(scope.configured) != 0 || len(scope.packages) != 0 {
 				scopes = append(scopes, scope)
@@ -253,13 +407,16 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 		}
 		if runner, known := configRunner(relative, text); known {
 			marker := dynamicConfigMarker(text)
-			configs = append(configs, config{path: relative, directory: path.Dir(relative), runner: runner, membership: marker >= 0, tsconfig: strings.Contains(text, "tsconfig")})
-			if runner == runnerMocha || marker >= 0 {
+			configs = append(configs, config{path: relative, directory: path.Dir(relative), runner: runner, membership: marker >= 0, tsconfigAt: tsconfigToken(text), body: text})
+			switch {
+			case marker >= 0:
 				frontier.at(FrontierConfig, relative, text, marker)
+			case runner == runnerMocha:
+				frontier.raiseToken(FrontierConfig, relative, runner)
 			}
 		}
 		if manifestRunner := runtimeManifestRunner(relative); manifestRunner != "" {
-			scopes = append(scopes, packageScope{directory: path.Dir(relative), runners: map[string]bool{manifestRunner: true}, configured: map[string]bool{manifestRunner: true}})
+			scopes = append(scopes, packageScope{directory: path.Dir(relative), manifest: relative, runners: map[string]bool{manifestRunner: true}, configured: map[string]bool{manifestRunner: true}})
 		}
 		if hasPathAliases(relative, text) && !resolveAliases {
 			aliasConfigs = append(aliasConfigs, relative)
@@ -287,21 +444,33 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 		if scan.unresolved >= 0 {
 			frontier.at(FrontierScanUnresolved, relative, body, scan.unresolved)
 		}
-		observation := classify(relative, body, scan.refs, configs, scopes, frontier)
+		observation := classify(relative, body, scan.refs, configs, scopes, sites, frontier)
 		observation.refs = scan.refs
 		observations = append(observations, observation)
 	}
 	// TJAA-V0-037: the general adapter resolves tsconfig aliases as the Playwright config mode
 	// does only when Playwright is the sole runner identity observed, because another runner's
 	// loader (a Jest moduleNameMapper, a Vite resolve.alias) need not follow tsconfig paths.
+	// TJAA-V0-057: otherwise it still adds the edges tsconfig resolution names, and the frontier
+	// keeps the tsconfig and the blocking identity as pinned sites (TJAA-V0-058).
+	// Under the blocked gate the tsconfig edges are speculative: a bare reference that names a
+	// workspace package keeps its workspace link beside the tsconfig edge, so the selection is a
+	// superset of the gate's own (TJAA-V0-059).
+	var keep func(string) bool
 	if len(aliasConfigs) != 0 && !resolveAliases {
-		if playwrightOnlyRunners(configs, scopes, observations) {
-			resolveAliases = true
-		} else {
+		if blocker, only := playwrightOnlyRunners(configs, scopes, observations); !only {
+			keep = func(ref string) bool { return localPackage(importedPackage(ref), scopes) }
 			for _, relative := range aliasConfigs {
-				frontier.at(FrontierPathAlias, relative, bodies[relative], pathAliasMarker(bodies[relative]))
+				body := bodies[relative]
+				offset := pathAliasMarker(body)
+				frontier.at(FrontierPathAlias, relative, body, offset)
+				frontier.pin(FrontierPathAlias, lineSite(relative, body, offset))
 			}
+			// TJAA-V0-050: the identity that kept the aliases unresolved is a site too.
+			frontier.raiseToken(FrontierPathAlias, blocker.site, blocker.token)
+			frontier.pin(FrontierPathAlias, blocker.site)
 		}
+		resolveAliases = true
 	}
 	var aliases []typeScriptAliases
 	if resolveAliases {
@@ -310,10 +479,10 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 	for index := range observations {
 		observation := &observations[index]
 		if resolveAliases {
-			observation.refs = resolveTypeScriptAliases(observation.path, observation.refs, aliases, bodies, sites, frontier)
+			observation.refs = resolveTypeScriptAliases(observation.path, observation.refs, aliases, bodies, sites, frontier, keep)
 		}
 		if ref, unresolved := unresolvedBareImport(observation.path, observation.refs, scopes); unresolved {
-			frontier.raise(FrontierPathAlias, sites.ref(observation.path, ref))
+			sites.raiseRef(frontier, FrontierPathAlias, observation.path, ref)
 		}
 	}
 	return buildResult(observations, configs, scopes, sites, frontier), frontier, nil
@@ -330,38 +499,61 @@ func pathAliasMarker(body string) int {
 	return offset
 }
 
+// runnerBlocker names the first runner identity that kept tsconfig aliases unresolved: its site
+// and the runner or token there.
+type runnerBlocker struct{ site, token string }
+
 // playwrightOnlyRunners reports whether every runner identity the observation found is
-// Playwright: each recognized runner config, each manifest-declared or configured runner, and
-// each test observation. A Playwright config that names a tsconfig is excluded because it can
-// select a module-resolution config other than the nearest tsconfig.json.
-func playwrightOnlyRunners(configs []config, scopes []packageScope, observations []observation) bool {
+// Playwright: each recognized runner config, each configured runner (a package.json `mocha`,
+// `jest` or `detox` member, a Deno or Bun manifest), and each test observation. A package
+// dependency alone assigns no runner (TJAA-V0-003) and loads no module, so a non-Playwright one
+// does not block while every config and test is Playwright's (TJAA-V0-050). A Playwright config
+// that names a tsconfig outside comments is excluded because it can select a module-resolution
+// config other than the nearest tsconfig.json. Otherwise it returns the first blocking identity.
+func playwrightOnlyRunners(configs []config, scopes []packageScope, observations []observation) (runnerBlocker, bool) {
 	seen := false
 	for _, config := range configs {
-		if config.runner != runnerPlaywright || config.tsconfig {
-			return false
+		if config.runner != runnerPlaywright {
+			return runnerBlocker{site: config.path, token: config.runner}, false
+		}
+		if config.tsconfigAt >= 0 {
+			return runnerBlocker{site: lineSite(config.path, config.body, config.tsconfigAt), token: "tsconfig"}, false
 		}
 		seen = true
 	}
 	for _, scope := range scopes {
-		for _, runners := range []map[string]bool{scope.runners, scope.configured} {
-			for runner := range runners {
-				if runner != runnerPlaywright {
-					return false
-				}
-				seen = true
+		for _, runner := range sortedKeys(scope.configured) {
+			if runner != runnerPlaywright {
+				return runnerBlocker{site: scope.manifest, token: runner}, false
 			}
+			seen = true
 		}
+		seen = seen || scope.runners[runnerPlaywright]
 	}
 	for _, observation := range observations {
 		if !observation.test {
 			continue
 		}
 		if observation.runner != runnerPlaywright {
-			return false
+			return runnerBlocker{site: observation.path, token: observation.runner}, false
 		}
 		seen = true
 	}
-	return seen
+	return runnerBlocker{}, seen
+}
+
+// tsconfigToken returns the offset of the first `tsconfig` text outside comments, or -1. A config
+// that does not tokenize, or whose comment boundaries an ambiguous slash could move, is searched
+// whole, so a comment cannot hide a real option.
+func tsconfigToken(body string) int {
+	if !strings.Contains(body, "tsconfig") {
+		return -1
+	}
+	clean, err := stripComments(body, false)
+	if err != nil || ambiguousSlash(body, clean, false) >= 0 {
+		return strings.Index(body, "tsconfig")
+	}
+	return strings.Index(clean, "tsconfig")
 }
 
 func buildResult(observations []observation, configs []config, scopes []packageScope, sites sourceSites, frontier frontierSet) affected.Result {
@@ -422,17 +614,20 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 		owner := firstPath(*unit)
 		for ref := range refs[unit.ID] {
 			if !packages.link(ref, edges) {
-				frontier.raise(FrontierPathAlias, unitRefSite(*unit, sites, ref))
+				site, token := unitRefSite(*unit, sites, ref)
+				frontier.raiseToken(FrontierPathAlias, site, token)
 			}
 			target, local, unresolved := resolveImport(owner, ref, pathToID)
 			if target != "" && target != unit.ID {
 				edges[target] = true
 			}
 			if local && unresolved {
-				frontier.raise(FrontierUnresolvedImport, unitRefSite(*unit, sites, ref))
+				site, token := unitRefSite(*unit, sites, ref)
+				frontier.raiseToken(FrontierUnresolvedImport, site, token)
 			}
 			if !local && unresolved && looksLikeAlias(ref) {
-				frontier.raise(FrontierPathAlias, unitRefSite(*unit, sites, ref))
+				site, token := unitRefSite(*unit, sites, ref)
+				frontier.raiseToken(FrontierPathAlias, site, token)
 			}
 		}
 		for configPath := range direct[unit.ID] {
@@ -448,17 +643,17 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 }
 
 // unitRefSite names the first file of unit whose scan parsed ref, at that line, or the unit's
-// first file when none did.
-func unitRefSite(unit affected.Unit, sites sourceSites, ref string) string {
+// first file when none did, and the specifier that file spelled for ref.
+func unitRefSite(unit affected.Unit, sites sourceSites, ref string) (string, string) {
 	for _, relative := range append(append([]string(nil), unit.Sources...), unit.Tests...) {
 		if site := sites.ref(relative, ref); site != relative {
-			return site
+			return site, sites.spelling(relative, ref)
 		}
 	}
-	return firstPath(unit)
+	return firstPath(unit), sites.spelling(firstPath(unit), ref)
 }
 
-func classify(relative, body string, refs []string, configs []config, scopes []packageScope, frontier frontierSet) observation {
+func classify(relative, body string, refs []string, configs []config, scopes []packageScope, sites sourceSites, frontier frontierSet) observation {
 	observation := observation{path: relative}
 	explicit := explicitRunners(body, refs)
 	possible := possibleRunners(relative, configs, scopes)
@@ -481,20 +676,30 @@ func classify(relative, body string, refs []string, configs []config, scopes []p
 		}
 		mochaConflict = len(owners) > 1
 	}
+	// TJAA-V0-052: a runner classification names the competing runners as its token.
+	competing := func(groups ...map[string]bool) string {
+		owners := map[string]bool{}
+		for _, group := range groups {
+			for runner := range group {
+				owners[runner] = true
+			}
+		}
+		return strings.Join(sortedKeys(owners), ",")
+	}
 	if mochaConflict {
 		observation.runner = runnerUnknown
-		frontier.raise(FrontierAmbiguousRunner, relative)
+		frontier.raiseToken(FrontierAmbiguousRunner, relative, competing(explicit, possible))
 	} else if len(explicit) == 1 {
 		observation.runner = sortedKeys(explicit)[0]
 	} else if len(explicit) > 1 {
 		observation.runner = runnerUnknown
-		frontier.raise(FrontierAmbiguousRunner, relative)
+		frontier.raiseToken(FrontierAmbiguousRunner, relative, competing(explicit))
 	} else {
 		if len(possible) == 1 {
 			observation.runner = sortedKeys(possible)[0]
 		} else if len(possible) > 1 {
 			observation.runner = runnerUnknown
-			frontier.raise(FrontierAmbiguousRunner, relative)
+			frontier.raiseToken(FrontierAmbiguousRunner, relative, competing(possible))
 		} else {
 			observation.runner = runnerUnknown
 			frontier.raise(FrontierUnknownRunner, relative)
@@ -509,7 +714,7 @@ func classify(relative, body string, refs []string, configs []config, scopes []p
 		}
 	}
 	if len(observation.configs) > 1 {
-		frontier.raise(FrontierAmbiguousRunner, relative)
+		frontier.raiseToken(FrontierAmbiguousRunner, relative, strings.Join(observation.configs, ","))
 	}
 	// TJAA-V0-037: a Playwright-owned module outside the default testMatch is support code, such
 	// as a page object importing @playwright/test, not a test unit. Under a config whose
@@ -520,22 +725,50 @@ func classify(relative, body string, refs []string, configs []config, scopes []p
 		observation.test, observation.runner, observation.configs = false, "", nil
 		return observation
 	}
+	// TJAA-V0-052: a whole-file classification is named at the runner package's parsed import
+	// specifier when the module imports it, and otherwise at the file with the runner as token.
+	runnerSite := func(reason, runner string, packages ...string) {
+		for _, ref := range refs {
+			for _, name := range packages {
+				if ref == name || strings.HasPrefix(ref, name+"/") {
+					sites.raiseRef(frontier, reason, relative, ref)
+					return
+				}
+			}
+		}
+		frontier.raiseToken(reason, relative, runner)
+	}
 	if observation.puppeteer && observation.runner == runnerUnknown {
-		frontier.raise(FrontierPuppeteerHost, relative)
+		runnerSite(FrontierPuppeteerHost, "puppeteer", "puppeteer", "puppeteer-core")
 	}
 	if requiresRuntimeFlags(relative, observation.runner) {
-		frontier.raise(FrontierRuntimeFlags, relative)
+		runnerSite(FrontierRuntimeFlags, observation.runner, runnerPackages[observation.runner]...)
 	}
 	if isE2ERunner(observation.runner) || observation.puppeteer {
-		frontier.raise(FrontierE2ERuntimeDependency, relative)
+		packages := runnerPackages[observation.runner]
+		if observation.puppeteer {
+			packages = append(append([]string(nil), packages...), "puppeteer", "puppeteer-core")
+		}
+		runner := observation.runner
+		if !isE2ERunner(runner) {
+			runner = "puppeteer"
+		}
+		runnerSite(FrontierE2ERuntimeDependency, runner, packages...)
 	}
 	if observation.runner == runnerDetox {
-		frontier.raise(FrontierDetoxConfiguration, relative)
+		runnerSite(FrontierDetoxConfiguration, runnerDetox, runnerPackages[runnerDetox]...)
 	}
 	if observation.runner == runnerStorybook {
-		frontier.raise(FrontierStorybookAddressing, relative)
+		frontier.raiseToken(FrontierStorybookAddressing, relative, runnerStorybook)
 	}
 	return observation
+}
+
+// runnerPackages are the import specifiers that name each runner a whole-file frontier names.
+var runnerPackages = map[string][]string{
+	runnerPlaywright: {"@playwright/test"}, runnerCypress: {"cypress"}, runnerWebdriverIO: {"@wdio/globals"},
+	runnerTestCafe: {"testcafe"}, runnerNightwatch: {"nightwatch"}, runnerDetox: {"detox"},
+	runnerMocha: {"mocha"}, runnerNode: {"node:test"},
 }
 
 func customMembership(paths []string, configs []config) bool {
@@ -1391,10 +1624,87 @@ func regexStart[T string | []byte](body T, index int) (regex, ambiguous bool) {
 		}
 		return false, slashKeywords[word] && !operandWords[word]
 	}
+	// A line break after the `)` may end a bodiless signature (`declare function f(a)`), so only a
+	// same-line slash takes the call verdict.
+	if last == ')' && !lineTerminatorBetween(body, previous, index) && callParenthesis(body, previous-1) {
+		return false, false
+	}
 	// A non-ASCII byte may be an identifier part, a space or a line terminator, and `\` ends an
 	// identifier escape: this ASCII classifier cannot tell, so the slash is ambiguous
 	// (TJAA-V0-045).
 	return false, last >= utf8.RuneSelf || last == '\\' || strings.IndexByte(")}+-<>", last) >= 0
+}
+
+// lineTerminatorBetween reports whether body[start:end] holds LF, CR, U+2028 or U+2029.
+func lineTerminatorBetween[T string | []byte](body T, start, end int) bool {
+	for index := start; index < end; index++ {
+		if body[index] == '\n' || body[index] == '\r' || unicodeLineTerminatorAt(body, index) {
+			return true
+		}
+	}
+	return false
+}
+
+// callParenthesisWindow bounds how far callParenthesis looks back for the opening parenthesis, so
+// classifying one slash stays constant work.
+const callParenthesisWindow = 256
+
+// callParenthesis reports whether the `)` at closing ends the argument list of a call: its
+// matching `(` lies within callParenthesisWindow bytes, the text between holds no quote, backtick,
+// slash, brace or non-ASCII byte that could hide a boundary, and the `(` directly follows a member
+// name (`x.now(`), an identifier that is not a keyword (`now(`), or `)` or `]` (`f()(`, `a[0](`).
+// A slash after such a `)` is division (TJAA-V0-046). A `)` that closes an `if`, `while`, `for` or
+// `with` head, or follows any other keyword, stays ambiguous.
+func callParenthesis[T string | []byte](body T, closing int) bool {
+	depth := 0
+	open := -1
+	for index := closing; index >= 0 && closing-index <= callParenthesisWindow; index-- {
+		character := body[index]
+		if character >= utf8.RuneSelf || strings.IndexByte("'\"`/{}", character) >= 0 {
+			return false
+		}
+		if character == ')' {
+			depth++
+		} else if character == '(' {
+			depth--
+			if depth == 0 {
+				open = index
+				break
+			}
+		}
+	}
+	if open < 0 {
+		return false
+	}
+	previous := open
+	for previous > 0 && strings.IndexByte(" \t", body[previous-1]) >= 0 {
+		previous--
+	}
+	if previous == 0 {
+		return false
+	}
+	last := body[previous-1]
+	if last == ')' || last == ']' {
+		return true
+	}
+	if !isIdentifier(last) {
+		return false
+	}
+	start := previous
+	for start > 0 && isIdentifier(body[start-1]) {
+		start--
+	}
+	if start > 0 && (body[start-1] == '\\' || body[start-1] >= utf8.RuneSelf) {
+		return false
+	}
+	if body[start] >= '0' && body[start] <= '9' {
+		return false
+	}
+	if start > 0 && body[start-1] == '.' {
+		return true
+	}
+	word := string(body[start:previous])
+	return !regexKeywords[word] && !slashKeywords[word] && !operandWords[word]
 }
 
 // regexEnd returns the offset past a regular-expression literal and its flags
@@ -1618,6 +1928,7 @@ func readPackageScope(relative string, body []byte) (packageScope, error) {
 	}
 	return packageScope{
 		directory:  path.Dir(relative),
+		manifest:   relative,
 		name:       manifest.Name,
 		runners:    runners,
 		configured: configured,

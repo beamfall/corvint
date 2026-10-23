@@ -38,8 +38,8 @@ func TestPlaywrightEnvUseValuesKeepIdentity_GH1576(t *testing.T) {
 		{"other Number member", "", "{ navigationTimeout: Number.prototype }"},
 	} {
 		t.Run(row.name, func(t *testing.T) {
-			_, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(row.setup, row.global, "{ ...devices['Desktop Firefox'] }"))
-			if !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+			projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(row.setup, row.global, "{ ...devices['Desktop Firefox'] }"))
+			if !playwrightIdentityUnverified(projects, unknown) {
 				t.Fatalf("unproven value was admitted: %s / %s: %+v", row.setup, row.global, unknown)
 			}
 		})
@@ -76,7 +76,7 @@ func TestPlaywrightComputedExecutablePathIsExecutionUnknown_GH1576(t *testing.T)
 		"{ ...base, executablePath: process.env.CHROME_PATH }",
 	} {
 		source := "import { defineConfig, devices } from '@playwright/test';\nexport default defineConfig({ projects: [{ name: 'p', use: { ...devices['Desktop Chrome'], launchOptions: " + value + " } }] });\n"
-		if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", source); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+		if projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", source); !playwrightIdentityUnverified(projects, unknown) {
 			t.Fatalf("launchOptions %s was admitted: %+v", value, unknown)
 		}
 	}

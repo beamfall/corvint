@@ -30,7 +30,7 @@ byte order; a duplicate or nested scope is refused. The default `corvint-corpus-
 holds at most 4,096 files; `--schema 2` emits `corvint-corpus-input/2`, bounded by its 100,000
 records. A refused inventory names the bound, the scopes and the file count.
 
-Read operations share one rederiving reader: `info`, `validate`, `search --query TEXT`, `get`, `trace`,
+Read operations share one verified reader: `info`, `validate`, `search --query TEXT`, `get`, `trace`,
 `related`, `journey`, `stability` (each with `--id ID`), `locate --path PATH`, `coverage`,
 `gaps [--id ID]`.
 All take `--artifact FILE` and optional `--limit 1..256`. Queries report omissions, absence, valid
@@ -38,8 +38,14 @@ no-match, not-found and stale evidence separately. Coverage names its scope/deno
 claims universal behavioral coverage. A flow's `missing-asserting-e2e-tests` gap names the failed
 condition of its closest test link; a link that fails only because its review is provider-reported
 (attributed, not authenticated) reports `asserting-e2e-tests-unauthenticated-review` instead
-(`DCP-V1-150`..`152`). Every read rechecks original immutable inputs; live source
-and provider changes are reported separately from the artifact's recorded revision.
+(`DCP-V1-150`..`152`). A read verifies the artifact's canonical bytes, content digest, builder,
+manifest and profile digests and pinned revisions, then decodes it without rederiving it
+(`DCP-V1-410`); `info` reports `validation: artifact-verified`. A development binary whose builder
+label is dirty or unrecorded proves no rebuild equivalence, so it always rederives. `validate`, and `--verify-rederive`
+on any read, rederive every record from the original pinned inputs (`source-rederived`,
+`DCP-V1-413`). Live source and provider changes are observed from Git status and the tree listing
+and reported separately from the artifact's recorded revision (`DCP-V1-411`). `--timings` writes one
+phase summary (parse, verify, freshness, index, query, encode) to stderr (`DCP-V1-415`).
 
 ## Larger adoption imports
 
@@ -455,3 +461,24 @@ eight-revision bound); anchors there cite that revision, and freshness compares 
 `docs_locate` and `docs_recommend_tests` accept an optional `repository` (a declared root-commit
 identity) and otherwise name each result's repository in `result_repositories`. See
 DCP-V1-308..311.
+
+## Carrying records across revisions
+
+`docs corpus delta --previous OLD.json --artifact NEW.json` pages a worklist of the previous
+corpus's records-provider subjects, claims and relations. Each one is `carry-forward`, `moved`,
+`changed`, `removed` or `unresolved` against the current revision. `docs corpus carry-forward
+--provider ID` emits one provider's confirmed records for the next build. Adoption kinds carry
+forward like generic records:
+- flows, paragraphs and the other adoption subject kinds;
+- `asserts`, `navigates`, `retired_to`, `manual_case_for` and `migration_mapping` relations.
+
+Their typed details travel unchanged in a `corvint-corpus-adoption-provider/1` record, which needs
+a `/2` manifest. A flow with only some anchors changed is `changed`, and its entry lists each
+anchor's state. Records whose typed details join to that flow are demoted with the reason. These
+are never carried:
+- anchorless records, which are summarized as `unresolved`;
+- native or compiler-derived records;
+- journeys, observations and supplied gaps.
+
+Under the default views, a comparison of a corpus with itself lists no `unresolved` entry. See DCP-V1-360..369,
+DCP-V1-420..425 and DCP-V1-440..445.

@@ -403,6 +403,7 @@
     "internal/testplan": [
       "internal/appmap/testdata/"
     ],
+    "internal/testrunner": [],
     "internal/testrunner/dynamic": [],
     "internal/testrunner/mobile": [],
     "internal/testrunner/native": [],
@@ -415,6 +416,7 @@
     ],
     "internal/trace": [],
     "internal/unplannedread": [],
+    "internal/upgradechanges": [],
     "internal/witness": [
       "protocol/cem-1.0/stable/repository-envelope-packet/",
       "protocol/cem-1.0/structural-tuples/"

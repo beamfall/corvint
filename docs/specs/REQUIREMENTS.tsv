@@ -92,7 +92,7 @@ AFP-V0-164	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-160	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-0923); no	standing	2026-10-11; V1-0923
 AFP-V0-161	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1766, V1-2069);	standing	2026-10-11; V1-1766; V1-2069
 AFP-V0-356	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2053))	standing	2026-10-11; V1-2053
-AFP-V0-361	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-0883, V1-2217,	standing	2026-10-11; V1-0883; V1-2217; V1-2069
+AFP-V0-361	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-0883, V1-2217,	standing	2026-10-11; V1-0883; V1-2217; V1-2069; V1-2365
 AFP-V0-156	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2162))	standing	2026-10-11; V1-2162
 AFP-V0-162	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2256, V1-2252))	standing	2026-10-11; V1-2256; V1-2252
 AFP-V0-196	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2071))	standing	2026-10-11; V1-2071
@@ -355,6 +355,7 @@ AFU-V1-120	docs/specs/application-flow-understanding-v1.md	A `test-run-evidence/
 AFU-V1-122	docs/specs/application-flow-understanding-v1.md	`flows import --format extractor-inventory` accepts only a	unrecorded	-
 AFU-V1-123	docs/specs/application-flow-understanding-v1.md	It writes one proposed `api` flow per `endpoint` subject (identity from the	unrecorded	-
 AFU-V1-124	docs/specs/application-flow-understanding-v1.md	Each imported flow carries one `inferred` source link per subject anchor, with	unrecorded	-
+AFU-V1-125	docs/specs/application-flow-understanding-v1.md	Without `--flows`, `docs flows generate` MUST refuse a scope with more than	unrecorded	-
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,	unrecorded	-
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a	unrecorded	-
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	Freshness MUST come from one Git read at the evaluated revision. That read	unrecorded	-
@@ -582,6 +583,14 @@ CAP-V0-018	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-019	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1588) `interna	standing	2026-10-11
 CAP-V0-020	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1588) The cata	standing	2026-10-11
 CAP-V0-021	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1588) Root hel	standing	2026-10-11
+CAP-V0-022	docs/specs/capability-catalog-v0.md	(owner request, 2026-10-23; amends `CAP-V0-015`) The catalog MUST carry a	unrecorded	-
+CAP-V0-023	docs/specs/capability-catalog-v0.md	(owner request, 2026-10-23) The catalog builder MUST NOT derive a required optio	unrecorded	-
+CAP-V0-024	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1626; amends	standing	2026-10-11
+CAP-V0-025	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1626)	standing	2026-10-11
+CAP-V0-026	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1626) A test	standing	2026-10-11
+CAP-V0-027	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1626) The guid	standing	2026-10-11
+CAP-V0-028	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1626) The seve	standing	2026-10-11
+CAP-V0-029	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1626; owner	standing	2026-10-11
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,	unrecorded	-
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2	unrecorded	-
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa	unrecorded	-
@@ -1053,6 +1062,8 @@ CCE-V0-052	docs/specs/change-compiled-e2e-v0.md	(V1-2413) When every head repeat
 CCE-V0-053	docs/specs/change-compiled-e2e-v0.md	(V1-2412) `prove --record-coverage` MUST wrap the head pool's in-process static	unrecorded	-
 CCE-V0-054	docs/specs/change-compiled-e2e-v0.md	(V1-1685) `obligations`, `compile` and `prove` MUST accept `--module-graph`, whi	unrecorded	-
 CCE-V0-086	docs/specs/change-compiled-e2e-v0.md	A relative `--root`, including the default `.`, MUST resolve against the working	unrecorded	-
+CCE-V0-087	docs/specs/change-compiled-e2e-v0.md	A BBF control that reads `infrastructure_failed` and any of whose attempts' hook	unrecorded	-
+CCE-V0-088	docs/specs/change-compiled-e2e-v0.md	`harvest` MUST read the application map from a configured repository-relative	unrecorded	-
 CF-V1-001	docs/specs/change-frontier-profile-1.md	the profile identifier is exactly `frontier/1`; its error profile is exactly	unrecorded	-
 CF-V1-002	docs/specs/change-frontier-profile-1.md	`frontier/0` is untouched in every respect — clause text, item kinds, item IDs,	unrecorded	-
 CF-V1-003	docs/specs/change-frontier-profile-1.md	identity domain separation is deliberate and asymmetric:	unrecorded	-
@@ -1532,6 +1543,9 @@ CAL-V0-317	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner
 CAL-V0-318	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1548) A keeper	standing	2026-10-11; V1-1548
 CAL-V0-319	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2012) When the	standing	2026-10-11; V1-2012
 CAL-V0-320	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1981) The	standing	2026-10-11; V1-1981
+CAL-V0-321	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2352) A read	standing	2026-10-11; V1-2352
+CAL-V0-322	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2359) `attempt	standing	2026-10-11; V1-2359
+CAL-V0-340	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2449) A journa	standing	2026-10-11; V1-2449
 CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-
 CAL-V0-300	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted, decision 0538; V1-1508) A receipt MAY be	owner	decision 0538; V1-1508
 CAL-V0-301	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted, decision 0538; V1-1508) An elided receipt is	owner	decision 0538; V1-1508
@@ -2068,6 +2082,8 @@ PSR-V0-185	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the ow
 PSR-V0-190	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0917) On a rea	standing	2026-10-11; V1-0917
 PSR-V0-191	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0324) A read t	standing	2026-10-11; V1-0324
 PSR-V0-201	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1008) On Darwi	standing	2026-10-11; V1-1008
+PSR-V0-203	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2352) On a rea	standing	2026-10-11; V1-2352
+PSR-V0-204	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2425) On Linux	standing	2026-10-11; V1-2425
 SCC-V0-001	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) `store.S	standing	2026-10-11; V1-1920
 SCC-V0-002	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) An ABSEN	standing	2026-10-11; V1-1920
 SCC-V0-003	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) The patc	standing	2026-10-11; V1-1920
@@ -2620,6 +2636,25 @@ DCP-V1-265	docs/specs/documentation-corpus-v1.md	`audit sample` takes a seed in 
 DCP-V1-266	docs/specs/documentation-corpus-v1.md	`audit report` reads the sample strictly (closed `corvint-corpus-audit-sample/1`	unrecorded	-
 DCP-V1-267	docs/specs/documentation-corpus-v1.md	Excluded current verdicts (non-independent and generator-method counts, verdict	unrecorded	-
 DCP-V1-268	docs/specs/documentation-corpus-v1.md	`audit sample` and `audit report` are also spelled `audit-sample` and	unrecorded	-
+DCP-V1-410	docs/specs/documentation-corpus-v1.md	A read admits an artifact through the verified read, amending `DCP-V1-011`. It	unrecorded	-
+DCP-V1-411	docs/specs/documentation-corpus-v1.md	Live freshness observes each declared checkout from Git's identity, its	unrecorded	-
+DCP-V1-412	docs/specs/documentation-corpus-v1.md	Symbol re-resolution (`DCP-V1-141`) builds the full live index of the primary	unrecorded	-
+DCP-V1-413	docs/specs/documentation-corpus-v1.md	`validate`, `--verify-rederive` on any read operation, and the corpus MCP	unrecorded	-
+DCP-V1-414	docs/specs/documentation-corpus-v1.md	The verified read finds the members of the input and the elements of every	unrecorded	-
+DCP-V1-415	docs/specs/documentation-corpus-v1.md	`--timings` on a read writes one line to stderr after the result:	unrecorded	-
+DCP-V1-416	docs/specs/documentation-corpus-v1.md	The corpus MCP server's first tool call admits the artifact through the verified	unrecorded	-
+DCP-V1-417	docs/specs/documentation-corpus-v1.md	A warm corpus MCP call neither reads nor hashes the configured artifact while it	unrecorded	-
+DCP-V1-418	docs/specs/documentation-corpus-v1.md	Acceptance at scale, on a generated fixture with a 4,000-page native scope, 6,00	unrecorded	-
+DCP-V1-419	docs/specs/documentation-corpus-v1.md	A read derives the same query index, receipts and refusals with less wall time.	unrecorded	-
+DCP-V1-450	docs/specs/documentation-corpus-v1.md	Scope membership allocates nothing, and each scope check finds the scopes holdin	unrecorded	-
+DCP-V1-451	docs/specs/documentation-corpus-v1.md	The read fixture of `DCP-V1-418` has a many-scopes shape, one single-file scope	unrecorded	-
+DCP-V1-452	docs/specs/documentation-corpus-v1.md	A corpus revision pin (`BuildRevisionContext`) reads the checkout's Git index	unrecorded	-
+DCP-V1-453	docs/specs/documentation-corpus-v1.md	Routing fails closed to the hashed worktree pass: a missing, unreadable,	unrecorded	-
+DCP-V1-460	docs/specs/documentation-corpus-v1.md	`delta` admits a retained `--artifact` current side through the verified read,	unrecorded	-
+DCP-V1-461	docs/specs/documentation-corpus-v1.md	`--previous` of `delta` and `carry-forward` is admitted with the verified read's	unrecorded	-
+DCP-V1-462	docs/specs/documentation-corpus-v1.md	`delta` accepts `--timings` and `--verify-rederive` with the `info` help text;	unrecorded	-
+DCP-V1-463	docs/specs/documentation-corpus-v1.md	On the `PRB-V0-021` full-scale fixture (10,000 inputs, 96,350 records, a 97 MB	unrecorded	-
+DCP-V1-464	docs/specs/documentation-corpus-v1.md	Before anything is classified, the verified current side of `delta` checks, with	unrecorded	-
 DCP-V1-360	docs/specs/documentation-corpus-v1.md	`delta` prints one `corvint-corpus-delta/1` receipt: the previous and current	unrecorded	-
 DCP-V1-361	docs/specs/documentation-corpus-v1.md	The classified population is the previous corpus's subjects, claims and relation	unrecorded	-
 DCP-V1-362	docs/specs/documentation-corpus-v1.md	Every anchor is re-validated against the current revision's blobs. A blob is rea	unrecorded	-
@@ -2630,12 +2665,31 @@ DCP-V1-366	docs/specs/documentation-corpus-v1.md	`carry-forward --provider ID` e
 DCP-V1-367	docs/specs/documentation-corpus-v1.md	Reads are bounded and deterministic:	unrecorded	-
 DCP-V1-368	docs/specs/documentation-corpus-v1.md	Neither operation writes the repository, the index, the working tree or any	unrecorded	-
 DCP-V1-369	docs/specs/documentation-corpus-v1.md	The following are refused with exit 2 and no output; the option-form cases are	unrecorded	-
+DCP-V1-340	docs/specs/documentation-corpus-v1.md	One documented ASCII extractor (`ExtractCodeTokens`) returns a claim's distinct	unrecorded	-
+DCP-V1-341	docs/specs/documentation-corpus-v1.md	The build checks every claim of a non-native provider, except a supplied test-ru	unrecorded	-
+DCP-V1-342	docs/specs/documentation-corpus-v1.md	A token is `resolved-in-span` when the text of the claim's own cited anchor span	unrecorded	-
+DCP-V1-343	docs/specs/documentation-corpus-v1.md	`get`, `trace`, `claims` and every receipt that returns a claim attach	unrecorded	-
+DCP-V1-344	docs/specs/documentation-corpus-v1.md	`gaps` reports a `claim-mentions-unresolved` or `claim-mentions-partially-unreso	unrecorded	-
+DCP-V1-345	docs/specs/documentation-corpus-v1.md	When a check is stored, coverage adds the rows `claim_mentions:consistent`,	unrecorded	-
+DCP-V1-346	docs/specs/documentation-corpus-v1.md	`docs corpus build --max-unresolved-mention-rate R` (R a decimal in [0, 1]) refu	unrecorded	-
+DCP-V1-347	docs/specs/documentation-corpus-v1.md	A claim's subject, a relationship's source or target, a journey's subject and an	unrecorded	-
+DCP-V1-348	docs/specs/documentation-corpus-v1.md	The pattern report (`corvint-corpus-patterns/1`) binds the artifact like an audi	unrecorded	-
+DCP-V1-349	docs/specs/documentation-corpus-v1.md	`docs corpus patterns --artifact PATH` prints the JSON report (default) or, with	unrecorded	-
+DCP-V1-350	docs/specs/documentation-corpus-v1.md	`audit sample --stratify patterns` places each claim in its first flagged patter	unrecorded	-
+DCP-V1-351	docs/specs/documentation-corpus-v1.md	For a stratified sample, `audit report` adds `weighted`: the sum over populated	unrecorded	-
+DCP-V1-352	docs/specs/documentation-corpus-v1.md	`docs corpus build --max-pattern-rate R` (every pattern) or	unrecorded	-
 DCP-V1-420	docs/specs/documentation-corpus-v1.md	An anchor whose repository is a declared additional repository of the current	unrecorded	-
 DCP-V1-421	docs/specs/documentation-corpus-v1.md	`--uncovered changed|all` selects the uncovered entries; the default is `all`, t	unrecorded	-
 DCP-V1-422	docs/specs/documentation-corpus-v1.md	`--anchorless summary|list` selects how records with no anchors appear; the defa	unrecorded	-
 DCP-V1-423	docs/specs/documentation-corpus-v1.md	`--format jsonl` classifies once and prints the whole worklist without paging.	unrecorded	-
 DCP-V1-424	docs/specs/documentation-corpus-v1.md	The same inputs give the same worklist whichever builder built the previous corp	unrecorded	-
 DCP-V1-425	docs/specs/documentation-corpus-v1.md	These are refused with exit 2 and no output as argument errors:	unrecorded	-
+DCP-V1-440	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1611)	standing	2026-10-11; #1611
+DCP-V1-441	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1611)	standing	2026-10-11; #1611
+DCP-V1-442	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1611)	standing	2026-10-11; #1611
+DCP-V1-443	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1611)	standing	2026-10-11; #1611
+DCP-V1-444	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1611)	standing	2026-10-11; #1611
+DCP-V1-445	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1611)	standing	2026-10-11; #1611
 DCP-V1-390	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) A	standing	2026-10-11; #1583
 DCP-V1-391	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) Eac	standing	2026-10-11; #1583
 DCP-V1-392	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) Rel	standing	2026-10-11; #1583
@@ -3679,6 +3733,11 @@ MCPV0-041	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's sta
 MCPV0-042	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1999) A	standing	2026-10-11; V1-1999
 MCPV0-090	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1004) A	standing	2026-10-11; V1-1004
 MCPV0-100	docs/specs/mcp-server-2026-07-28-v0.md	(owner directive through the orchestrator, 2026-10-23; gh#1588; amends `MCPV0-00	unrecorded	-
+MCPV0-101	docs/specs/mcp-server-2026-07-28-v0.md	(owner request, 2026-10-23; extends `MCPV0-100`; amends `SDD-V0-006`)	unrecorded	-
+MCPV0-102	docs/specs/mcp-server-2026-07-28-v0.md	(owner request, 2026-10-23; extends `MCPV0-100`) `corvint-corpus-mcp` MUST	unrecorded	-
+MCPV0-103	docs/specs/mcp-server-2026-07-28-v0.md	(owner request, 2026-10-23; extends `MCPV0-100`; amends `MTV-V0-001`)	unrecorded	-
+MCPV0-104	docs/specs/mcp-server-2026-07-28-v0.md	(owner request, 2026-10-23) The three servers of `MCPV0-101..103` MUST answer	unrecorded	-
+MCPV0-105	docs/specs/mcp-server-2026-07-28-v0.md	(owner request, 2026-10-23) The receipt `text` that `MCPV0-104` returns MUST be,	unrecorded	-
 MCPV0-095	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2219) A `MIXED	standing	2026-10-11; V1-2219
 MTV-V0-001	docs/specs/mcp-test-validity-profile-v0.md	The profile MUST be served by the separate executable `corvint-test-validity-mcp	unrecorded	-
 MTV-V0-002	docs/specs/mcp-test-validity-profile-v0.md	The tool's input schema MUST be a closed JSON Schema 2020-12 object with two	unrecorded	-
@@ -3917,6 +3976,10 @@ PRB-V0-040	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted unde
 PRB-V0-041	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) The	standing	2026-10-11; #1602
 PRB-V0-042	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) `ma	standing	2026-10-11; #1602
 PRB-V0-043	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) `--	standing	2026-10-11; #1602
+PRB-V0-050	docs/specs/performance-profiling-and-read-budget-v0.md	The harness MUST measure a seventh scenario after the six of `PRB-V0-024`:	unrecorded	-
+PRB-V0-051	docs/specs/performance-profiling-and-read-budget-v0.md	`unchanged-delta` MUST carry the two enforced `PRB-V0-032` ceilings, except that	unrecorded	-
+PRB-V0-052	docs/specs/performance-profiling-and-read-budget-v0.md	The baseline MUST carry the `unchanged-delta` measurement the ceilings derive fr	unrecorded	-
+PRB-V0-053	docs/specs/performance-profiling-and-read-budget-v0.md	A baseline measurement taken in another run than the baseline's own MUST carry	unrecorded	-
 PWV-V0-001	docs/specs/pi-workflow-v0.md	Pi MUST preserve original native Core receipt objects, output and exit status, i	unrecorded	-
 PWV-V0-002	docs/specs/pi-workflow-v0.md	Core read tools MUST use closed operation and argument sets for query, context,	unrecorded	-
 PWV-V0-003	docs/specs/pi-workflow-v0.md	Each command MUST use bounded argv-only local execution, one owned POSIX process	unrecorded	-
@@ -4138,6 +4201,8 @@ PGO-V0-018	docs/specs/process-group-owner-v0.md	(accepted under the owner's stan
 PGO-V0-019	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1387) The deve	standing	2026-10-11; V1-1387
 PGO-V0-020	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1651) The obse	standing	2026-10-11; V1-1651
 PGO-V0-021	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0692) The POSI	standing	2026-10-11; V1-0692
+PGO-V0-022	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2399) On Linux	standing	2026-10-11; V1-2399
+PGO-V0-023	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2388) `interna	standing	2026-10-11; V1-2388
 PCCO-V0-001	docs/specs/proof-carrying-context-optimization-v0.md	An optimization trial MUST begin from one canonical Corvint packet whose exact b	unrecorded	-
 PCCO-V0-002	docs/specs/proof-carrying-context-optimization-v0.md	V0 transformations are only whole-handle omission, exact duplicate elimination,	unrecorded	-
 PCCO-V0-003	docs/specs/proof-carrying-context-optimization-v0.md	Counterfactual search MUST run outside live agent sessions using bounded hierarc	unrecorded	-
@@ -4538,6 +4603,7 @@ SPC-V0-011	docs/specs/shared-path-change-policy-v0.md	(accepted under the owner'
 SPC-V0-012	docs/specs/shared-path-change-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1710) With	standing	2026-10-11; V1-1710
 SPC-V0-013	docs/specs/shared-path-change-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1723) Each	standing	2026-10-11; V1-1723
 SPC-V0-014	docs/specs/shared-path-change-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1723) The	standing	2026-10-11; V1-1723
+SPC-V0-015	docs/specs/shared-path-change-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1726) In a	standing	2026-10-11; V1-1726
 SKH-V0-001	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1897) Every	standing	2026-10-11; V1-1897
 SKH-V0-002	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1897) Missing,	standing	2026-10-11; V1-1897
 SKH-V0-003	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1897) Learned	standing	2026-10-11; V1-1897
@@ -4676,6 +4742,7 @@ SNR-V0-013	docs/specs/sql-native-ratchet-gate-v0.md	The gate MUST run `Benchmark
 SNR-V0-014	docs/specs/sql-native-ratchet-gate-v0.md	On completing every prior requirement without refusal, the gate MUST print exact	unrecorded	-
 SNR-V0-015	docs/specs/sql-native-ratchet-gate-v0.md	Every artifact the gate creates — the `SNR-V0-001` lock directory, the `git arch	unrecorded	-
 SNR-V0-030	docs/specs/sql-native-ratchet-gate-v0.md	(V1-2120) The admitted toolchain source is the Makefile `go-version` target	unrecorded	-
+SNR-V0-031	docs/specs/sql-native-ratchet-gate-v0.md	(V1-2249) The pin table MUST carry a row for the official Go toolchain module	unrecorded	-
 SOP-V0-001	docs/specs/stable-operations-v0.md	The install-lifecycle check MUST accept either one release archive whose single	unrecorded	-
 SOP-V0-002	docs/specs/stable-operations-v0.md	The check MUST create a committed fixture repository in its own temporary direct	unrecorded	-
 SOP-V0-003	docs/specs/stable-operations-v0.md	An upgrade MUST install into a second store beside the first and run `corvint	unrecorded	-
@@ -5329,6 +5396,21 @@ TJAA-V0-042	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted un
 TJAA-V0-043	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2468; GitHub	standing	2026-10-11; V1-2468
 TJAA-V0-044	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2468; GitHub	standing	2026-10-11; V1-2468
 TJAA-V0-045	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2467; PR #1596	standing	2026-10-11; V1-2467; #1596
+TJAA-V0-046	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1605)	standing	2026-10-11; #1605
+TJAA-V0-047	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1605) In	standing	2026-10-11; #1605
+TJAA-V0-048	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1605) A	standing	2026-10-11; #1605
+TJAA-V0-049	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1605)	standing	2026-10-11; #1605
+TJAA-V0-050	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604)	standing	2026-10-11; #1604
+TJAA-V0-051	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604) Whe	standing	2026-10-11; #1604
+TJAA-V0-052	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604)	standing	2026-10-11; #1604
+TJAA-V0-053	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604) A	standing	2026-10-11; #1604
+TJAA-V0-054	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1625)	standing	2026-10-11; #1625
+TJAA-V0-055	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1625)	standing	2026-10-11; #1625
+TJAA-V0-056	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604	standing	2026-10-11; #1604
+TJAA-V0-057	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604	standing	2026-10-11; #1604
+TJAA-V0-058	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604	standing	2026-10-11; #1604
+TJAA-V0-059	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); PR #1628 review)	standing	2026-10-11; #1628
+TJAA-V0-060	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); PR #1628 review)	standing	2026-10-11; #1628
 URE-V0-001	docs/specs/unplanned-read-events-v0.md	`Classify(packetPaths, toolName, toolInput, root)` MUST return an `Event` for a	unrecorded	-
 URE-V0-002	docs/specs/unplanned-read-events-v0.md	The recognized tools are `Read` (`file_path`), `Grep` and `Glob` (`path`), and	unrecorded	-
 URE-V0-003	docs/specs/unplanned-read-events-v0.md	`Append(root, event)` MUST be a no-op returning `nil` unless the opt-in marker	unrecorded	-

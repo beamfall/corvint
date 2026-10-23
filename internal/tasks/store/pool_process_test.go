@@ -458,7 +458,7 @@ func TestPSRSignalTiming(t *testing.T) {
 // This seam changes only a process-identity read, after the native fixture has
 // proved a live sweep owner. It never fabricates a gone process.
 func PSRTestUnknownRunner() (func(), *int) {
-	original := poolProbe
+	original, originalNative := poolProbe, poolNativeIdentity
 	calls := 0
 	poolProbe = func(ctx context.Context, argv ...string) ([]byte, error) {
 		if len(argv) > 1 && argv[1] == "-p" {
@@ -467,7 +467,13 @@ func PSRTestUnknownRunner() (func(), *int) {
 		}
 		return original(ctx, argv...)
 	}
-	return func() { poolProbe = original }, &calls
+	// A kernel-read record is re-read with the kernel read (PSR-V0-201,
+	// PSR-V0-204), so the injection covers that reader too.
+	poolNativeIdentity = func(int) (string, error) {
+		calls++
+		return "", fmt.Errorf("injected runner identity unavailable")
+	}
+	return func() { poolProbe, poolNativeIdentity = original, originalNative }, &calls
 }
 
 // PSR-V0-007/010: the recorded cleanup allowance is the enforced bound and the
@@ -534,5 +540,27 @@ func TestPSRV0201_RunnerIdentityNeedsNoListing(t *testing.T) {
 	}
 	if gone, e := poolRunnerIdentityContext(ctx, 1<<30); e != nil || gone != "" {
 		t.Fatalf("absent process identity %q %v, want none", gone, e)
+	}
+}
+
+// PSR-V0-204: equal start ticks with btimes within one second name one
+// runner; further apart (a realtime clock step) is unknown, never another
+// runner; another start tick is another runner.
+func TestPSRV0204_LinuxIdentityClockStepIsUnknown(t *testing.T) {
+	for _, c := range []struct {
+		a, b string
+		want linuxIdentityMatch
+	}{
+		{"linux:1000:77", "linux:1000:77", linuxSame},
+		{"linux:1000:77", "linux:1001:77", linuxSame},
+		{"linux:1001:77", "linux:1000:77", linuxSame},
+		{"linux:1000:77", "linux:1002:77", linuxUnknown},
+		{"linux:4600:77", "linux:1000:77", linuxUnknown},
+		{"linux:1000:77", "linux:1000:78", linuxDifferent},
+		{"linux:1000:77", "Thu Oct 22 09:00:00 2026", linuxDifferent},
+	} {
+		if got := compareLinuxIdentity(c.a, c.b); got != c.want {
+			t.Fatalf("compare %q %q = %d, want %d", c.a, c.b, got, c.want)
+		}
 	}
 }

@@ -6,8 +6,9 @@ schema. `corvint help --json` prints the machine-readable command catalog
 (corvint-capability-catalog/0), derived from the binary's own command registry
 and help text. Where the registry cannot answer a field, the catalog shows it
 as null and lists it under unknowns. Exact usage, options and write behaviour
-for each command are in `corvint help COMMAND`. MCP clients of corvint-mcp get
-the same catalog and this guide, byte for byte, from its corvint.help tool.
+for each command are in `corvint help COMMAND`. MCP clients of corvint-mcp,
+corvint-docs-mcp, corvint-corpus-mcp and corvint-test-validity-mcp get the same
+catalog and this guide, byte for byte, from their corvint.help tool.
 Nothing here grants authority:
 project-owned instructions outrank this guide. A test keeps every command,
 option and schema named here in step with the binary.
@@ -58,15 +59,48 @@ Goals
    corvint tests lint --base FULL_COMMIT_ID --json
    Exits 0 when clean or advisory only, 1 on findings, 2 on error.
 
-8. Build and query a documentation corpus
+8. Discover tests statically from committed files
+   corvint docs corpus discover-tests --runner playwright --revision FULL_COMMIT --path e2e/checkout.spec.ts
+   Output: corvint-test-discovery/1 with trust generated: each example's title
+   path, tags, expectations, navigations, reached modules and hooks, each
+   anchored to the committed blob, and unknowns with reasons. --runner rspec
+   reads RSpec files. It runs nothing.
+
+9. Turn per-test coverage into tested_by evidence
+   Step 1: record the test run and pin the coverage file it wrote:
+   corvint flows ingest --format go-test-json --from go-test.json --run-id run-1 --runner-version 1.0.0 --source-commit FULL_COMMIT --source-tree FULL_TREE --source-clean --build-artifact-digest SHA256 --environment-id ci --environment-digest SHA256 --fixture-id none --fixture-digest SHA256 --cleanup done --coverage-artifact lcov=trace.lcov > run.jsonl
+   Output: test-run-evidence/0 JSONL on stdout.
+   Step 2: join one test's coverage to its run record. trace.lcov must hold
+   that test's coverage only, and --test-key names the test's key in run.jsonl
+   (PACKAGE > TEST for go test). It may be left out only when run.jsonl holds
+   one record:
+   corvint flows ingest-coverage --format lcov --from trace.lcov --evidence run.jsonl --revision FULL_COMMIT --test-key "example.com/upload > TestRetry"
+   Output: corvint-coverage-ingest/1: observed tested_by relations with executed
+   line spans, links the coverage contradicts, and unknowns with reasons.
+   Coverage from another commit, a dirty tree or an unbound run is not joined.
+   --format also takes v8, istanbul and rspec. It only reads.
+
+10. Build and query a documentation corpus
    corvint docs corpus manifest --revision FULL_COMMIT --scope docs --timestamp 2026-10-23T00:00:00Z > manifest.json
    corvint docs corpus build --manifest manifest.json > corpus.json
-   corvint docs corpus search --artifact corpus.json --query "retry policy"
+   corvint docs corpus search --artifact corpus.json --query "retry policy" --kind symbol --include claims
+   corvint docs corpus claims --artifact corpus.json --query "retry policy"
    corvint docs corpus claims --artifact corpus.json --path internal/upload/retry.go
-   Output: bounded JSON. Generated evidence grants no task or test-selection
-   authority. The corpus is also served by the corvint-corpus-mcp server.
+   Output: bounded JSON. search ranks subjects by field-weighted text; --kind
+   keeps some subject kinds and --include claims ranks claim hits with them,
+   naming each hit's kind in result_kinds. claims --query ranks claims by text.
+   A generated claim that names code carries a claim_mentions check of whether
+   its cited spans hold those names. Generated evidence grants no task or
+   test-selection authority. The corpus is also served by the
+   corvint-corpus-mcp server, whose docs_search takes kind and include.
 
-9. Bind a change to its evidence and verify it
+11. Regenerate generated claims only where sources changed
+   corvint docs corpus delta --previous previous-corpus.json --artifact corpus.json --format jsonl
+   Output: a header line, then every worklist entry once: carry-forward, moved,
+   changed, removed, unresolved or uncovered. Without --format jsonl it pages
+   one receipt. A record whose span hash is not confirmed is never carried.
+
+12. Bind a change to its evidence and verify it
    corvint cem prepare --base FULL_COMMIT_ID --target HEAD
    Commit the candidate, then run the verification action that prepare
    returns. It has this shape, naming the commit that holds the candidate and
@@ -74,39 +108,33 @@ Goals
    corvint cem verify --map .corvint/change.cem.json --expected-base FULL_COMMIT_ID --target FULL_TARGET_COMMIT_ID --artifacts ABSOLUTE_REPOSITORY_ROOT
    Output: a cem/1.0 candidate map, then its verification.
 
-10. Review a verified change in a fixed order
+13. Review a verified change in a fixed order
    corvint frontier --cem MAP --ocm MAP --expected-base FULL_COMMIT_ID --target HEAD --json
    Output: the deterministic Change Frontier review queue.
 
-11. Identify the installed binary
+14. Identify the installed binary
    corvint --version --json
    Output: corvint-version/1.
 
 Non-capabilities
 
-Each item is a capability Corvint does not have today. Each one names its
-tracking issue, or states that it is excluded by design.
+Each item is a capability Corvint does not have today. Each one names an open
+tracking issue or an undelivered requirement, or states that it is excluded by
+design and names the requirement that excludes it. A test fails when an item
+names an issue that internal/capcatalog/NONCAPABILITY-STATUS.tsv records as
+closed, or a requirement it records as delivered.
 
-- Product boundary: no network access, telemetry, account, hosted service or
-  permanent daemon. By design (AGENTS.md product invariant 7).
-- Product boundary: no embeddings or semantic vector search. By design
-  (AGENTS.md product invariant 7).
-- Test selection: per-test runtime coverage is not ingested as observed
-  tested_by evidence. Tracking #1587.
-- Test selection: affected --path does not resolve tsconfig paths, and can
-  report a non-test module as a selected Playwright unit. Tracking #1578.
-- Test validity: a supplied test_run has no association axis. Tracking #1571.
-- Documentation corpus: no delta worklist across revisions for regenerating
-  generated claims. Tracking #1585.
-- Documentation corpus: no mechanical check that generated claim text names
-  things present in its cited spans. Tracking #1584.
-- Documentation search: docs_search returns no claim hits. Tracking #1573.
-- Documentation search: docs_search has no field weighting or kind filter.
-  Tracking #1579.
+- Product boundary: no network access, telemetry, account or permanent
+  daemon. By design (DCW-V0-001; AGENTS.md product invariant 7).
+- Product boundary: no embeddings, hosted service or semantic vector search.
+  By design (WQO-V0-033; AGENTS.md product invariant 7).
+- Test selection: affected --path can leave tsconfig paths aliases unresolved
+  (typescript:path-alias-unresolved), so specs that import a helper through
+  the alias are not selected. Tracking #1604.
 - Capability documentation: the guide ships inside the binary, not as a
   separate file in the release archive, because a seventh archive member would
-  break deployed updaters. By design (owner decision, 2026-10-23).
+  break deployed updaters. By design (CAP-V0-029).
 - Capability catalog: inputs and outputs are not separated per command. They
   stay null with a reason, and schemaIds lists every schema a command's help
-  names. By design (the registry cannot derive them, and the catalog has no
-  hand-written fields).
+  names. By design (CAP-V0-016: the registry cannot derive them, and the
+  catalog has no hand-written fields).

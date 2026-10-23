@@ -126,7 +126,9 @@ on a fixture queue remain non-goals.
   writer can be publishing. An unassigned slot beside a `staging/active.json` descriptor or an
   `active.json.tmp` temp MUST still be refused at once, and neither reader may write, lock or
   remove a slot; a killed writer's orphan slots stay refused until the next writer removes them
-  (CAL-V0-019).
+  (CAL-V0-019). CAL-V0-340 amends the journal audit's spent-budget refusal: when the head that
+  audit read moved during the wait, which warrants another bounded observation but does not prove
+  the slots' holders are live, the audit refuses `SNAPSHOT_MOVED` (retryable) instead.
 
 - `CTS-V0-009`: (accepted, decision 0513) The initial journal-backed
   head read of `run --attach` (ATR-V0-008, ATR-V0-011) MUST wait out a live writer's
@@ -243,7 +245,7 @@ revision 1, a broken revision chain, and a target held by a native record or ano
 | Store commits throughout the budget so no two probes agree | `NOT_RUN`/`SNAPSHOT_MOVED` after the budget plus the unpaused TM-V0-008 attempts, naming the wait (CTS-V0-006). |
 | Unlocked journal audit or archive export sees a writer's descriptor-less staging slots | Paused with backoff and read again; succeeds once the writer removes its slots (CTS-V0-008). |
 | Audit under the writer lock (reconcile, barrier, policy, release, import, mutation, redo) sees descriptor-less staging slots | `MALFORMED` `unassigned stage slot` at once, with no pause: under the lock they can only be a killed writer's orphans (CTS-V0-008). |
-| Descriptor-less staging slots outlast the two-second budget (killed writer, or a loaded host) | `MALFORMED` `unassigned stage slot` naming the byte-smallest slot, as before; the next writer removes the orphans (CTS-V0-008, CAL-V0-019). |
+| Descriptor-less staging slots outlast the two-second budget (killed writer, or a loaded host) | `MALFORMED` `unassigned stage slot` naming the byte-smallest slot, as before; the next writer removes the orphans (CTS-V0-008, CAL-V0-019). A journal audit whose head moved during the wait refuses `SNAPSHOT_MOVED` instead (CAL-V0-340). |
 | Unassigned staging slot beside a stage descriptor or descriptor temp | `MALFORMED` at once, with no pause (CTS-V0-008). |
 | Journal already initialized | Unchanged: the existing already-initialized refusal applies first. |
 | Store already frozen by an earlier init | Not repaired here; the operator removes `.git/taskman`. CTS-V0-003 imports foreign exports only and does not adopt committed native records. |

@@ -3,6 +3,7 @@ package doccorpus
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 	"sync"
@@ -70,9 +71,8 @@ func CorpusObservation(ctx context.Context, root string, a *Artifact) (string, e
 	return checkoutsKey(a, keys), nil
 }
 
-func indexObservationKey(live *contextindex.Index) string {
-	return ObservationKey(contextindex.Observation{
-		ObjectFormat: live.ObjectFormat, CommitRevision: live.CommitRevision, Revision: live.Revision, StatusSHA256: live.StatusSHA256, DirtyPaths: live.DirtyPaths})
+func indexObservationKey(live *contextindex.TreeObservation) string {
+	return ObservationKey(live.Observation)
 }
 
 // checkoutsKey joins the primary key and each additional repository's identity and key,
@@ -102,30 +102,49 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 		err = gitCapacity(err, fmt.Sprintf("while checking freshness of %d inputs", len(a.Manifest.Inputs)))
 	}()
 	unknown := FreshnessOverlay{State: "unknown"}
-	primary := func(revision string) bool { _, ok := a.Manifest.additionalRepository(revision); return !ok }
-	drift := &anchorDrift{pinned: map[string]string{}, changed: map[string]inputDrift{}}
-	live, stale, limits, err := liveRepository(ctx, root, a, primary, "", drift)
-	if err != nil {
-		return unknown, err
+	// Every declared checkout is observed in parallel; each additional repository's inputs are
+	// checked against its own declared checkout, never the primary tree (DCP-V1-178), and that
+	// checkout's own observation joins the overlay's reuse key (DCP-V1-280, DCP-V1-411).
+	type checkout struct {
+		dir, prefix string
+		member      func(string) bool
+		live        *contextindex.TreeObservation
+		stale       bool
+		limits      []string
+		drift       *anchorDrift
+		err         error
 	}
-	limits = append(limits, "structural source binding does not prove semantic truth, test adequacy or accepted intent")
-	if a.Builder.Revision == "unrecorded" || strings.HasSuffix(a.Builder.Revision, "+dirty") {
-		limits = append(limits, "builder source revision is unrecorded or dirty; no immutable build attestation")
-	}
-	keys := []string{indexObservationKey(live)}
-	// Each additional repository's inputs are checked against its own declared checkout, never
-	// the primary tree (DCP-V1-178), and that checkout's own observation joins the overlay's
-	// reuse key (DCP-V1-280).
+	checkouts := []*checkout{{dir: root, member: func(revision string) bool { _, ok := a.Manifest.additionalRepository(revision); return !ok }}}
 	for _, r := range a.Manifest.AdditionalRepositories {
-		member := func(revision string) bool { return revision == r.Revision }
-		checkout, changed, reasons, err := liveRepository(ctx, a.Manifest.RevisionRoot(root, r.Revision), a, member, "additional repository "+r.ID+": ", drift)
-		if err != nil {
-			return unknown, err
-		}
-		stale = stale || changed
-		limits = append(limits, reasons...)
-		keys = append(keys, indexObservationKey(checkout))
+		checkouts = append(checkouts, &checkout{dir: a.Manifest.RevisionRoot(root, r.Revision), prefix: "additional repository " + r.ID + ": ", member: func(revision string) bool { return revision == r.Revision }})
 	}
+	var wg sync.WaitGroup
+	for _, c := range checkouts {
+		c.drift = &anchorDrift{pinned: map[string]string{}, changed: map[string]inputDrift{}}
+		wg.Go(func() { c.live, c.stale, c.limits, c.err = liveRepository(ctx, c.dir, a, c.member, c.prefix, c.drift) })
+	}
+	wg.Wait()
+	drift := &anchorDrift{pinned: map[string]string{}, changed: map[string]inputDrift{}}
+	stale := false
+	limits := []string{}
+	keys := []string{}
+	for i, c := range checkouts {
+		if c.err != nil {
+			return unknown, c.err
+		}
+		stale = stale || c.stale
+		limits = append(limits, c.limits...)
+		if i == 0 {
+			limits = append(limits, "structural source binding does not prove semantic truth, test adequacy or accepted intent")
+			if !attestedBuilder(a.Builder) {
+				limits = append(limits, "builder source revision is unrecorded or dirty; no immutable build attestation")
+			}
+		}
+		maps.Copy(drift.pinned, c.drift.pinned)
+		maps.Copy(drift.changed, c.drift.changed)
+		keys = append(keys, indexObservationKey(c.live))
+	}
+	live := checkouts[0].live
 	observation := checkoutsKey(a, keys)
 	state := "fresh"
 	if stale {
@@ -147,16 +166,18 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 	}
 	overlay := FreshnessOverlay{State: state, Limitations: limits, drift: drift, observation: observation, root: root}
 	if symbols {
-		overlay.symbols = &symbolOverlay{root: root, live: live, repository: a.Manifest.Repository.ID, files: &sharedSymbolFiles{files: map[string]sharedSymbolFile{}}}
+		overlay.symbols = &symbolOverlay{root: root, live: live, observation: keys[0], repository: a.Manifest.Repository.ID, files: &sharedSymbolFiles{files: map[string]sharedSymbolFile{}}}
 	}
 	return overlay, nil
 }
 
 // liveRepository compares the scopes and inputs whose revision member admits against the live
 // checkout at dir, returning whether any is stale and each reason under prefix. It records each
-// admitted input's pinned blob, and its live drift when it differs, in drift (DCP-V1-282).
-func liveRepository(ctx context.Context, dir string, a *Artifact, member func(string) bool, prefix string, drift *anchorDrift) (*contextindex.Index, bool, []string, error) {
-	live, err := contextindex.BuildContext(ctx, dir, "")
+// admitted input's pinned blob, and its live drift when it differs, in drift (DCP-V1-282). The
+// live checkout is observed from Git's identity, its stat-cached status and one tree listing;
+// no tracked file is read or indexed (DCP-V1-411).
+func liveRepository(ctx context.Context, dir string, a *Artifact, member func(string) bool, prefix string, drift *anchorDrift) (*contextindex.TreeObservation, bool, []string, error) {
+	live, err := contextindex.ObserveTree(ctx, dir)
 	if err != nil {
 		return nil, false, nil, err
 	}
@@ -186,23 +207,21 @@ func liveRepository(ctx context.Context, dir string, a *Artifact, member func(st
 			inputs = append(inputs, in)
 		}
 	}
-	for _, scope := range a.Manifest.Scopes {
-		if !member(scope.Revision) {
-			continue
-		}
+	// Each live path is noted once per admitted scope holding it, as a scope-by-path pass did;
+	// the reasons are sorted by the caller, so the visiting order is not observable (DCP-V1-450).
+	scopes := newScopeSet(a.Manifest.Scopes, member)
+	for rev := range scopes {
 		for p := range live.Tracked {
-			if inScope(p, scope.Path) && !declared[inputKey(scope.Revision, p)] {
-				note(livePath("new input in declared scope: ", p))
+			if scopes.holds(rev, p) && !declared[inputKey(rev, p)] {
+				scopes.each(rev, p, func(string) { note(livePath("new input in declared scope: ", p)) })
 			}
 		}
 		for p := range live.Skipped {
-			if inScope(p, scope.Path) {
-				note(livePath("unsupported live scope entry: ", p))
-			}
+			scopes.each(rev, p, func(string) { note(livePath("unsupported live scope entry: ", p)) })
 		}
 		for _, p := range live.DirtyPaths {
-			if inScope(p, scope.Path) && !declared[inputKey(scope.Revision, p)] {
-				note(livePath("new working-tree input in declared scope: ", p))
+			if scopes.holds(rev, p) && !declared[inputKey(rev, p)] {
+				scopes.each(rev, p, func(string) { note(livePath("new working-tree input in declared scope: ", p)) })
 			}
 		}
 	}
@@ -210,12 +229,12 @@ func liveRepository(ctx context.Context, dir string, a *Artifact, member func(st
 	for _, p := range live.DirtyPaths {
 		dirty[p] = true
 	}
-	// A clean path the live index already pinned at CommitRevision needs no
-	// further tree walk (DCP-V1-144); every other path resolves in one verified
-	// walk whose Git cost is independent of the input count (DCP-V1-155).
+	// A path the live tree listing holds needs no further tree walk (DCP-V1-144,
+	// DCP-V1-411); every other path resolves in one verified walk whose Git cost
+	// is independent of the input count (DCP-V1-155).
 	lookups := []string{}
 	for _, in := range inputs {
-		if _, ok := live.Sources[in.Path]; !ok || dirty[in.Path] {
+		if _, ok := live.Blobs[in.Path]; !ok {
 			lookups = append(lookups, in.Path)
 		}
 	}
@@ -229,8 +248,8 @@ func liveRepository(ctx context.Context, dir string, a *Artifact, member func(st
 		// Historical provider records are independent of source freshness. A live
 		// replacement of one is still visible; no HEAD equality heuristic is used.
 		entry, exists := resolved[in.Path]
-		if source, ok := live.Sources[in.Path]; ok && !dirty[in.Path] {
-			entry, exists = gitauth.TreeEntry{Type: "blob", Mode: source.Mode, OID: source.BlobHash}, true
+		if blob, ok := live.Blobs[in.Path]; ok {
+			entry, exists = gitauth.TreeEntry{Type: "blob", Mode: blob.Mode, OID: blob.OID}, true
 		}
 		regular := exists && entry.Type == "blob" && (entry.Mode == "100644" || entry.Mode == "100755")
 		if !regular || entry.OID != in.Blob {
@@ -376,7 +395,7 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	}
 	switch request.Operation {
 	case "info", "validate":
-		r.Results = append(r.Results, map[string]any{"builder": a.Builder, "manifest_sha256": a.ManifestSHA256, "profile_sha256": a.ProfileSHA256, "profile": a.Manifest.Profile, "built_at": a.Manifest.BuiltAt, "validation": "source-rederived"})
+		r.Results = append(r.Results, map[string]any{"builder": a.Builder, "manifest_sha256": a.ManifestSHA256, "profile_sha256": a.ProfileSHA256, "profile": a.Manifest.Profile, "built_at": a.Manifest.BuiltAt, "validation": validationOf(a)})
 		if a.ImportParity != nil {
 			r.Results = append(r.Results, map[string]any{"import_parity": a.ImportParity, "restricted_summaries": a.RestrictedSummaries, "scope": "supplied adoption records only; source completeness is not inferred"})
 		}
@@ -581,6 +600,7 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	}
 	attachClaimAudits(a, &r)
 	annotateVisibleResults(a, request, &r)
+	attachClaimMentions(a, &r)
 	// Citations are deduplicated and independently bounded; truncation is visible.
 	sort.Slice(r.Citations, func(i, j int) bool { return anchorKey(r.Citations[i]) < anchorKey(r.Citations[j]) })
 	citations := []Anchor{}
@@ -946,6 +966,7 @@ func coverageMetrics(a *Artifact) []any {
 	rows = append(rows, suppliedStatusCoverage(a)...)
 	rows = append(rows, suppliedDetailCoverage(a)...)
 	rows = append(rows, testKnowledgeCoverage(a)...)
+	rows = append(rows, claimMentionCoverage(a)...)
 	return append(rows, behaviorCoverage(a)...)
 }
 
