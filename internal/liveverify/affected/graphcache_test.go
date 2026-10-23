@@ -5,10 +5,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -213,6 +215,28 @@ func TestAFPV0392CacheFailsClosedOnAnyMismatch(t *testing.T) {
 		{"rechecksummed entry for another root", func(t *testing.T, _, entry string) {
 			rewriteEntry(t, entry, func(body string) string { return strings.Replace(body, `"root":"`, `"root":"/elsewhere`, 1) })
 		}, "entry key mismatch"},
+		{"rechecksummed entry with every stamp removed, then a source edited", func(t *testing.T, root, entry string) {
+			rewriteEntry(t, entry, func(body string) string {
+				return regexp.MustCompile(`"stamps":\[.*\]\}$`).ReplaceAllString(body, `"stamps":[]}`)
+			})
+			writeCacheFixture(t, root, map[string]string{"app/models/widget.rb": "class Widget < ApplicationRecorX\nend\n"})
+		}, "entry stamps incomplete"},
+		{"rechecksummed entry with a source stamp removed, then that source edited", func(t *testing.T, root, entry string) {
+			rewriteEntry(t, entry, func(body string) string {
+				return regexp.MustCompile(`\{"path":"app/models/widget\.rb","stamp":\{[^}]*\}\},`).ReplaceAllString(body, "")
+			})
+			writeCacheFixture(t, root, map[string]string{"app/models/widget.rb": "class Widget < ApplicationRecorX\nend\n"})
+		}, "entry stamps incomplete"},
+		{"rechecksummed entry with a directory stamp removed", func(t *testing.T, _, entry string) {
+			rewriteEntry(t, entry, func(body string) string {
+				return regexp.MustCompile(`\{"path":"app/models","stamp":\{[^}]*\}\},`).ReplaceAllString(body, "")
+			})
+		}, "entry stamps incomplete"},
+		{"rechecksummed entry with stamps out of order", func(t *testing.T, _, entry string) {
+			rewriteEntry(t, entry, func(body string) string {
+				return strings.Replace(body, `"stamps":[`, `"stamps":[{"path":"zz","stamp":{"present":false}},`, 1)
+			})
+		}, "entry stamps incomplete"},
 		{"entry replaced by a directory", func(t *testing.T, _, entry string) {
 			if err := os.Remove(entry); err != nil {
 				t.Fatal(err)
@@ -295,6 +319,19 @@ func TestAFPV0392UnpinnableObservationStoresNoEntry(t *testing.T) {
 			t.Fatalf("a language reading outside the recorded source must not be pinned: %+v %v", outcome, err)
 		}
 	})
+	t.Run("cache directory writable by others", func(t *testing.T) {
+		pinnable(t)
+		root := graphCacheFixture(t)
+		dir := t.TempDir()
+		if err := os.Chmod(dir, 0o777); err != nil {
+			t.Fatal(err)
+		}
+		graph, outcome := buildCached(t, root, dir, graphCacheIdentity)
+		if outcome.Hit || outcome.Stored || outcome.Reason != "cache directory is not private to this user" || outcome.NotStored != outcome.Reason {
+			t.Fatalf("a directory another user may write must neither hit nor store: %+v", outcome)
+		}
+		assertSameGraph(t, root, graph)
+	})
 	t.Run("no program identity", func(t *testing.T) {
 		pinnable(t)
 		root := graphCacheFixture(t)
@@ -314,4 +351,34 @@ func (unrecordedLanguage) Name() string     { return "zz" }
 func (unrecordedLanguage) Owns(string) bool { return false }
 func (unrecordedLanguage) Units(context.Context, string) (affected.Result, error) {
 	return affected.Result{}, nil
+}
+
+// AFP-V0-392: a read that fails for a reason its stamp does not pin (here an
+// injected I/O error) writes no entry, so once the fault clears the next call
+// builds the graph with the file instead of reusing the graph without it.
+func TestAFPV0392TransientReadFailureStoresNoEntry(t *testing.T) {
+	pinnable(t)
+	root := graphCacheFixture(t)
+	dir := t.TempDir()
+	failures := 0
+	restore := affected.SetReadSource(func(root, relative string) ([]byte, error) {
+		if relative == "app/models/widget.rb" && failures == 0 {
+			failures++
+			return nil, errors.New("injected input/output error")
+		}
+		return affected.ReadSource(root, relative)
+	})
+	graph, outcome := buildCached(t, root, dir, graphCacheIdentity)
+	restore()
+	if failures != 1 || outcome.Stored || outcome.NotStored != "unreadable path app/models/widget.rb" {
+		t.Fatalf("a transient read failure must not be pinned: failures=%d %+v", failures, outcome)
+	}
+	if _, ok := graph.Unit("ruby:source:app/models/widget"); ok {
+		t.Fatal("the faulted build was expected to miss the unreadable unit")
+	}
+	graph, outcome = buildCached(t, root, dir, graphCacheIdentity)
+	if outcome.Hit || outcome.Reason != "no entry" || !outcome.Stored {
+		t.Fatalf("after recovery the call must build fresh: %+v", outcome)
+	}
+	assertSameGraph(t, root, graph)
 }

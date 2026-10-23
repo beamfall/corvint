@@ -68,7 +68,7 @@ Scope: the table lists the steps that answer a question about one change against
 which is what a CI job, git hook or team automation asks. Other verbs that help also describes as
 read-only (`init`, `adopt`, `query`, `docs`, `harness`, `lrf` at `cmd/corvint/help.go:362-363@a54374e4`, and the
 experimental `batch`, `depsource`, `necessity`, `surprise`, `answerability`, `kernel` and `reads`
-in the command-maturity list at `cmd/corvint/help.go:1435-1447@e77a32b6`) are not classified here. They need a per-session task, packet or
+in the command-maturity list at `cmd/corvint/help.go:1436-1448@e77a32b6`) are not classified here. They need a per-session task, packet or
 request as input, or they are experimental without a stability promise. This page makes no claim
 about their safety as a triggered step.
 
@@ -82,7 +82,7 @@ about their safety as a triggered step.
 
 Where each row was verified:
 
-- `affected`: profile `cmd/corvint/affected.go:35@af9fb447`; exits `cmd/corvint/affected.go:516-546@38b82c0e`; its
+- `affected`: profile `cmd/corvint/affected.go:35@af9fb447`; exits `cmd/corvint/affected.go:519-549@38b82c0e`; its
   refusals are emitted without the ledger recorder (`cmd/corvint/main.go:1077-1082@7ed11581`); help text
   "runs no test, writes no repository state" (`cmd/corvint/help.go:712@f024c3ab`).
 - `cem verify` and `cem status`: exits `internal/cem/cli/cli.go:351-380@773eecd5` (0 when the envelope says

@@ -30,6 +30,10 @@ type Source struct {
 
 func DiskSource(root string) *Source { return &Source{root: root} }
 
+// readSourceAt is the disk read behind Source.Read; tests replace it to inject
+// a transient failure (AFP-V0-392).
+var readSourceAt = ReadSource
+
 // DiskSourceContext scopes both cancellation and cached walks to this reader.
 func DiskSourceContext(ctx context.Context, root string) *Source {
 	return &Source{root: root, ctx: ctx, walks: map[string]*sharedWalk{}}
@@ -134,7 +138,9 @@ func (s *Source) Read(relative string) (bodyOut []byte, errOut error) {
 	}
 	if s.fsys == nil {
 		s.record.path(s.root, relative, false)
-		return ReadSource(s.root, relative)
+		body, err := readSourceAt(s.root, relative)
+		s.record.failed(relative, err)
+		return body, err
 	}
 	if !ValidRelativePath(relative) {
 		return nil, ErrInvalidUnit
@@ -187,6 +193,7 @@ func (s *Source) ReadBounded(relative string, limit int) (bodyOut []byte, errOut
 		file, err = bounded.OpenBounded(relative, limit)
 	} else {
 		s.record.path(s.root, relative, false)
+		defer func() { s.record.failed(relative, errOut) }()
 		name := filepath.Join(s.root, filepath.FromSlash(relative))
 		info, statErr := os.Lstat(name)
 		if statErr != nil {
@@ -257,7 +264,9 @@ func (s *Source) Stat(relative string) (infoOut fs.FileInfo, errOut error) {
 		return info, nil
 	}
 	s.record.path(s.root, relative, true)
-	return os.Stat(filepath.Join(s.root, filepath.FromSlash(relative)))
+	info, err := os.Stat(filepath.Join(s.root, filepath.FromSlash(relative)))
+	s.record.failed(relative, err)
+	return info, err
 }
 func (s *Source) Lstat(relative string) (infoOut fs.FileInfo, errOut error) {
 	if err := s.stopped(); err != nil {
@@ -278,7 +287,9 @@ func (s *Source) Lstat(relative string) (infoOut fs.FileInfo, errOut error) {
 		return info, nil
 	}
 	s.record.path(s.root, relative, false)
-	return os.Lstat(filepath.Join(s.root, filepath.FromSlash(relative)))
+	info, err := os.Lstat(filepath.Join(s.root, filepath.FromSlash(relative)))
+	s.record.failed(relative, err)
+	return info, err
 }
 func (s *Source) Walk(relative string, visit fs.WalkDirFunc) (errOut error) {
 	if err := s.stopped(); err != nil {

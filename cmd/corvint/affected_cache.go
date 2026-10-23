@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
@@ -33,11 +35,11 @@ func setAffectedOnce(field *string, name, value string) error {
 // resolves --cache, both after --root is known.
 func resolveAffectedBatchAndCache(invocation *affectedInvocation) error {
 	if invocation.Cache != "" {
-		resolved, err := resolveAffectedCache(invocation.Root, invocation.Cache)
+		resolved, gitDirectories, err := resolveAffectedCache(invocation.Root, invocation.Cache)
 		if err != nil {
 			return err
 		}
-		invocation.Cache = resolved
+		invocation.Cache, invocation.CacheExcluded = resolved, gitDirectories
 	}
 	if invocation.PathsFrom != "" {
 		paths, err := readAffectedPathsFrom(invocation.Root, invocation.PathsFrom)
@@ -56,26 +58,26 @@ func resolveAffectedBatchAndCache(invocation *affectedInvocation) error {
 // readAffectedPathsFrom reads one bounded regular file, relative to root
 // unless absolute, of LF-separated --path values; blank lines are skipped and
 // every other line must be a canonical repository-relative path (AFP-V0-395).
-// --cache is resolved first, so a refused cache placement reads nothing. A file with no path is refused rather than planning the
-// worktree instead.
+// --cache is resolved first, so a refused cache placement reads nothing. A
+// file with no path is refused rather than planning the worktree instead.
+// The file is opened nonblocking and only the open descriptor is held to a
+// regular file, so a FIFO put in its place cannot hang the call.
 func readAffectedPathsFrom(root, name string) ([]string, error) {
 	if !filepath.IsAbs(name) {
 		name = filepath.Join(root, name)
 	}
-	info, err := os.Stat(name)
+	affectedPathsFromBeforeOpen(name)
+	file, err := os.OpenFile(name, os.O_RDONLY|affectedOpenNonblocking, 0)
+	if err != nil {
+		return nil, argumentError("--paths-from must name a readable regular file")
+	}
+	defer file.Close()
+	info, err := file.Stat()
 	if err != nil || !info.Mode().IsRegular() {
 		return nil, argumentError("--paths-from must name a readable regular file")
 	}
 	if info.Size() > affectedPathsFromMaxBytes {
 		return nil, argumentError(fmt.Sprintf("--paths-from is over the %d-byte bound", affectedPathsFromMaxBytes))
-	}
-	file, err := os.Open(name)
-	if err != nil {
-		return nil, argumentError("--paths-from must name a readable regular file")
-	}
-	defer file.Close()
-	if opened, err := file.Stat(); err != nil || !opened.Mode().IsRegular() {
-		return nil, argumentError("--paths-from must name a readable regular file")
 	}
 	body, err := io.ReadAll(io.LimitReader(file, affectedPathsFromMaxBytes+1))
 	if err != nil || len(body) > affectedPathsFromMaxBytes {
@@ -105,23 +107,67 @@ func readAffectedPathsFrom(root, name string) ([]string, error) {
 
 // resolveAffectedCache makes the --cache directory absolute, resolving the
 // symlinks of its nearest existing ancestor, and refuses one at or under the
-// repository root or under any .git directory: a read command writes no
-// repository content (AFP-V0-390, AGENTS.md invariant 4).
-func resolveAffectedCache(root, value string) (string, error) {
+// repository root, under any .git directory, or at or under the repository's
+// actual Git and common directories, which `--separate-git-dir` or a linked
+// worktree can put anywhere: a read command writes no repository content
+// (AFP-V0-390, AGENTS.md invariant 4). It returns the resolved directory and
+// the Git directories, which the cache rechecks on the directory it opens.
+func resolveAffectedCache(root, value string) (string, []string, error) {
 	absolute, err := filepath.Abs(value)
 	if err != nil {
-		return "", argumentError("invalid --cache")
+		return "", nil, argumentError("invalid --cache")
 	}
 	resolved := resolveExistingAncestor(absolute)
 	for _, component := range strings.Split(filepath.ToSlash(resolved), "/") {
 		if strings.EqualFold(component, ".git") {
-			return "", argumentError("--cache must name a directory outside the repository and outside any .git directory")
+			return "", nil, argumentError("--cache must name a directory outside the repository and outside any .git directory")
 		}
 	}
 	if within(resolved, root) || underSameFile(resolved, root) {
-		return "", argumentError("--cache must name a directory outside the repository root: a read command writes no repository content")
+		return "", nil, argumentError("--cache must name a directory outside the repository root: a read command writes no repository content")
 	}
-	return resolved, nil
+	gitDirectories, err := affectedGitDirectories(root)
+	if err != nil {
+		return "", nil, err
+	}
+	for _, directory := range gitDirectories {
+		if within(resolved, directory) || underSameFile(resolved, directory) {
+			return "", nil, argumentError("--cache must name a directory outside the repository's Git directory: a read command writes no repository content")
+		}
+	}
+	return resolved, gitDirectories, nil
+}
+
+// affectedGitDirectories asks Git for the repository's Git directory and
+// common directory, each resolved like --cache. A repository whose Git
+// directory cannot be named refuses --cache rather than risk a write into it.
+func affectedGitDirectories(root string) ([]string, error) {
+	refusal := argumentError("--cache needs the repository's Git directory, which git rev-parse could not name")
+	gitExecutable, err := exec.LookPath("git")
+	if err != nil {
+		return nil, refusal
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), affectedRevisionDeadline)
+	defer cancel()
+	output, err := hermeticGitCommand(ctx, gitExecutable, root, "rev-parse", "--absolute-git-dir", "--git-common-dir").Output()
+	if ownership := gitExitOwnershipRefusal(err); ownership != nil {
+		return nil, ownership
+	}
+	lines := strings.Split(strings.TrimSuffix(string(output), "\n"), "\n")
+	if err != nil || len(lines) != 2 {
+		return nil, refusal
+	}
+	directories := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if line == "" {
+			return nil, refusal
+		}
+		if !filepath.IsAbs(line) {
+			line = filepath.Join(root, line)
+		}
+		directories = append(directories, resolveExistingAncestor(filepath.Clean(line)))
+	}
+	return directories, nil
 }
 
 // underSameFile reports whether root is the same directory as candidate or
@@ -165,27 +211,56 @@ func within(candidate, root string) bool {
 	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) && !filepath.IsAbs(relative)
 }
 
+// affectedProcessStarted is taken at package initialization, the earliest
+// point this process can observe the clock.
+var affectedProcessStarted = time.Now()
+
 // affectedProgramIdentity is the SHA-256 of the running executable, the
 // cache key's program member: an entry written by any other build of corvint,
 // whose plugins may observe differently, is never trusted (AFP-V0-391). It is
 // empty when the executable cannot be read, which disables the cache.
 var affectedProgramIdentity = sync.OnceValue(func() string {
-	name, err := os.Executable()
-	if err != nil {
+	name, running := affectedExecutable()
+	return affectedFileIdentity(name, running, affectedProcessStarted)
+})
+
+// affectedPathsFromBeforeOpen runs just before the --paths-from file is
+// opened; tests replace it to stage a replacement race (AFP-V0-395).
+var affectedPathsFromBeforeOpen = func(string) {}
+
+// affectedFileIdentity hashes the executable at name. Unless name opens the
+// running image itself (linux's /proc/self/exe), the pathname may by now name
+// a replacement installed after this process started, whose hash would key
+// this process's observation to another build. A file whose change or
+// modification time is not strictly before started is therefore refused, as
+// is one that changes while it is hashed: no identity, so no cache.
+func affectedFileIdentity(name string, running bool, started time.Time) string {
+	if name == "" {
 		return ""
 	}
-	file, err := os.Open(name)
+	file, err := os.OpenFile(name, os.O_RDONLY|affectedOpenNonblocking, 0)
 	if err != nil {
 		return ""
 	}
 	defer file.Close()
+	before, err := file.Stat()
+	if err != nil || !before.Mode().IsRegular() {
+		return ""
+	}
+	if !running && (!affectedChangeTime(before).Before(started) || !before.ModTime().Before(started)) {
+		return ""
+	}
 	hash := sha256.New()
 	copied, err := io.Copy(hash, io.LimitReader(file, affectedProgramMaxBytes+1))
 	if err != nil || copied > affectedProgramMaxBytes {
 		return ""
 	}
+	after, err := file.Stat()
+	if err != nil || after.Size() != before.Size() || !after.ModTime().Equal(before.ModTime()) || !affectedChangeTime(after).Equal(affectedChangeTime(before)) {
+		return ""
+	}
 	return "sha256:" + hex.EncodeToString(hash.Sum(nil))
-})
+}
 
 // affectedCacheObserved receives every cache outcome; tests replace it.
 var affectedCacheObserved = func(affected.CacheOutcome) {}
@@ -196,7 +271,7 @@ func affectedBuildGraph(ctx context.Context, invocation affectedInvocation) (*af
 	if invocation.Cache == "" {
 		return affected.Build(ctx, invocation.Root, affectedLanguages()...)
 	}
-	graph, outcome, err := affected.BuildCached(ctx, invocation.Root, invocation.Cache, affectedProgramIdentity(), affectedLanguages()...)
+	graph, outcome, err := affected.BuildCachedExcluding(ctx, invocation.Root, invocation.Cache, invocation.CacheExcluded, affectedProgramIdentity(), affectedLanguages()...)
 	if err == nil {
 		affectedCacheObserved(outcome)
 	}

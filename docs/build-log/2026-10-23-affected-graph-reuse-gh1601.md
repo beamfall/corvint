@@ -98,3 +98,55 @@ decoding the entry.
   stores one.
 - On a file system whose change time only mirrors the modification time (exFAT, some FUSE mounts),
   a same-size write that restores the modification time is not detected.
+
+## Independent review repair (PR #1607)
+
+A second independent read-only review of `5078ba9df...c55ddc944` found two P1, four P2 and one P3
+issue. Each fix has a regression test. With the fix disabled, the stamp, read-failure, directory
+replacement, Git directory and FIFO entry tests were run and failed; the FIFO entry test blocked
+until its 30 s bound. The race tests use controlled hooks at the exact point a racing process
+would act.
+
+- P1, stripped stamps. `verifyObservation` accepted an empty or partial stamp list, so a
+  rechecksummed entry with `stamps: []` hit after a source edit. `completeStamps` now requires a
+  strictly ordered, unique list that stamps the root listing, the documentation declaration,
+  every unit source and test file, and every directory above one. Otherwise the entry misses.
+- P1, separate Git directory. `--cache` at or under a `--separate-git-dir` directory passed.
+  `resolveAffectedCache` now asks `git rev-parse --absolute-git-dir --git-common-dir` and refuses
+  at, under or aliased to either. A Git directory that cannot be named refuses `--cache`.
+- P2, directory replacement. Writes went through the pathname, so a directory swapped for a link
+  into `.corvint/` after validation took the write. Every read and write now goes through one
+  `os.Root` handle. The deepest existing ancestor is opened first, and each missing component is
+  created and opened inside it. Each handle is rechecked against the root and both Git
+  directories, by the kernel's path for the descriptor (`F_GETPATH` on darwin,
+  `/proc/self/fd` on linux) and by file identity. The directory must also be owned by the user
+  and not writable by group or other.
+- P2, executable identity. Linux now hashes `/proc/self/exe`. Darwin has no handle on the
+  running image, so the executable pathname is accepted only when its change and modification
+  times are strictly before package initialization, and unchanged while it is hashed. Otherwise
+  there is no identity and no cache.
+- P2, transient read failures. A read, stat or bounded read that fails for any reason the stamp
+  does not pin now leaves the observation unpinned. The pinned reasons are an absent path, a path
+  that is not a regular file, and a file over its bound. Anything else (I/O or permission errors)
+  stores no entry.
+- P2, FIFO. The `--paths-from` file and the cache entry are opened nonblocking, and only the
+  descriptor is checked. The pre-open stat is gone.
+- P3, helper reads. The Ruby source loop and the helper scan now share one read per file. The test
+  asserts exactly one open per helper, source and spec, so the requirement text did not need to
+  change.
+
+Coverage gaps closed: AFP-V0-393 parity now covers `--require-clean`, `--paths-from`, the strict
+and coverage provider forms, `--appmap-impact`, and an unwritable or uncreatable cache directory.
+AFP-V0-395 now has an over-4-MiB refusal.
+
+Retained limits:
+
+- The checksum is integrity, not authentication. A process that can write the cache directory can
+  forge a self-consistent entry. That is why the directory must be private to the user. Stamp
+  completeness also cannot cover reads outside unit files, such as a Gemfile.
+- Each handle is checked at the moment it is opened. A process that renames the already opened
+  directory into the repository afterwards is not caught, but that rename is itself a repository
+  write.
+- On darwin, a replacement installed between exec and package initialization (milliseconds) is not
+  detected.
+- The reporter's real checkout (GH #1601) is still not measured. Its warm time is `NOT_OBSERVED`.

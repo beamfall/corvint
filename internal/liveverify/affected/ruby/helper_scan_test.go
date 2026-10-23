@@ -26,9 +26,9 @@ func (tree countingTree) Open(name string) (fs.File, error) {
 }
 
 // AFP-V0-394: every spec loads the same helpers, and one observation reads
-// each helper at most twice (once as a unit, once as a loaded helper) however
-// many specs load it, where it used to read it once per loading spec. The
-// disk observation is the immutable one.
+// each file exactly once, a helper included, however many specs load it,
+// where it used to read a helper once as a source and again per loading spec.
+// The disk observation is the immutable one.
 func TestAFPV0394HelpersAreScannedOncePerObservation(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "Gemfile", "gem 'rspec'\n")
@@ -46,9 +46,9 @@ func TestAFPV0394HelpersAreScannedOncePerObservation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, helper := range []string{"spec/spec_helper.rb", "spec/rails_helper.rb", "spec/support/matchers.rb"} {
-		if opens := tree.opens[helper]; opens > 2 {
-			t.Fatalf("%s opened %d times for %d specs; want at most 2", helper, opens, specs)
+	for _, name := range []string{"spec/spec_helper.rb", "spec/rails_helper.rb", "spec/support/matchers.rb", "lib/widget7.rb", "spec/widget7_spec.rb"} {
+		if opens := tree.opens[name]; opens != 1 {
+			t.Fatalf("%s opened %d times for %d specs; want exactly 1", name, opens, specs)
 		}
 	}
 	disk, err := New().UnitsSource(affected.DiskSourceContext(context.Background(), root))

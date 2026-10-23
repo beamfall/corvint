@@ -91,6 +91,9 @@ type affectedInvocation struct {
 	// Cache is the caller-named graph cache directory, resolved outside the
 	// repository root; empty means no cache is read or written (AFP-V0-390).
 	Cache string
+	// CacheExcluded names the repository's Git and common directories, which
+	// the opened cache directory is rechecked against (AFP-V0-390).
+	CacheExcluded []string
 	// PathsFrom names a file of --path values, one per line (AFP-V0-395).
 	PathsFrom string
 }

@@ -3,6 +3,7 @@ package affected
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	json "encoding/json/v2"
@@ -11,6 +12,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -112,6 +114,19 @@ func (r *recording) refuse(reason string) {
 	if r.uncacheable == "" {
 		r.uncacheable = reason
 	}
+}
+
+// failed marks the observation uncacheable when a read of relative failed for
+// a reason its stamp does not pin. An absent path, a path that is not a
+// regular file, and a file over its bound are fixed by the stamp's presence,
+// mode and size; any other failure (an I/O error, a permission or a transient
+// fault) could clear while the stamp stays the same, and pinning it would
+// reuse an observation with that file missing (AFP-V0-391, AFP-V0-392).
+func (r *recording) failed(relative string, err error) {
+	if r == nil || err == nil || errors.Is(err, fs.ErrNotExist) || errors.Is(err, ErrInvalidUnit) || errors.Is(err, ErrWalkLimit) {
+		return
+	}
+	r.refuse("unreadable path " + relative)
 }
 
 // subtree records a plugin walk of a directory below root. Only an absent
@@ -220,11 +235,18 @@ func languageNames(languages []Language) []string {
 // empty identity never hits and never stores. A cache failure is never an
 // error: only the full build can fail.
 func BuildCached(ctx context.Context, root, dir, identity string, languages ...Language) (*Graph, CacheOutcome, error) {
+	return BuildCachedExcluding(ctx, root, dir, nil, identity, languages...)
+}
+
+// BuildCachedExcluding is BuildCached with further directories, the
+// repository's Git and common directories, that the opened cache directory
+// may not be at or under, as root may not (AFP-V0-390).
+func BuildCachedExcluding(ctx context.Context, root, dir string, excluded []string, identity string, languages ...Language) (*Graph, CacheOutcome, error) {
 	outcome := CacheOutcome{}
 	entryPath := GraphCacheEntryPath(dir, root, languages)
 	if identity == "" {
 		outcome.Reason = "no program identity"
-	} else if graph, reason := loadGraphCache(ctx, entryPath, root, identity, languages); graph != nil {
+	} else if graph, reason := loadGraphCache(ctx, entryPath, root, excluded, identity, languages); graph != nil {
 		return graph, CacheOutcome{Hit: true}, nil
 	} else {
 		outcome.Reason = reason
@@ -245,7 +267,7 @@ func BuildCached(ctx context.Context, root, dir, identity string, languages ...L
 	}
 	entry, reason := newCacheEntry(root, identity, languageNames(languages), graph, results, reader.record, started)
 	if reason == "" {
-		reason = writeGraphCache(entryPath, entry)
+		reason = writeGraphCache(entryPath, root, excluded, entry)
 	}
 	outcome.Stored, outcome.NotStored = reason == "", reason
 	return graph, outcome, nil
@@ -290,8 +312,10 @@ func newCacheEntry(root, identity string, names []string, graph *Graph, results 
 
 // writeGraphCache writes entry as one checksummed file, through a temporary
 // file in the same directory renamed over the entry, so a reader sees the old
-// entry or the new one, never a torn one.
-func writeGraphCache(entryPath string, entry cacheEntry) string {
+// entry or the new one, never a torn one. Both go through the one opened
+// directory handle, so the pathname cannot be redirected between the
+// placement check and the write (AFP-V0-390).
+func writeGraphCache(entryPath, root string, excluded []string, entry cacheEntry) string {
 	body, err := json.Marshal(entry, json.Deterministic(true), json.FormatNilSliceAsNull(true))
 	if err != nil {
 		return "encode: " + err.Error()
@@ -301,23 +325,29 @@ func writeGraphCache(entryPath string, entry cacheEntry) string {
 	if len(encoded) > graphCacheMaxBytes {
 		return fmt.Sprintf("entry over the %d-byte bound", graphCacheMaxBytes)
 	}
-	dir := filepath.Dir(entryPath)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return "cache directory: " + err.Error()
+	directory, reason := openCacheDirectory(filepath.Dir(entryPath), root, excluded, true)
+	if reason != "" {
+		return reason
 	}
-	temporary, err := os.CreateTemp(dir, ".affected-graph-*.tmp")
+	defer directory.Close()
+	graphCacheHook("write")
+	var nonce [12]byte
+	if _, err := rand.Read(nonce[:]); err != nil {
+		return "cache write: " + err.Error()
+	}
+	name := ".affected-graph-" + hex.EncodeToString(nonce[:]) + ".tmp"
+	temporary, err := directory.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return "cache write: " + err.Error()
 	}
-	name := temporary.Name()
 	_, writeErr := temporary.Write(encoded)
 	closeErr := temporary.Close()
 	if err := errors.Join(writeErr, closeErr); err != nil {
-		_ = os.Remove(name)
+		_ = directory.Remove(name)
 		return "cache write: " + err.Error()
 	}
-	if err := os.Rename(name, entryPath); err != nil {
-		_ = os.Remove(name)
+	if err := directory.Rename(name, filepath.Base(entryPath)); err != nil {
+		_ = directory.Remove(name)
 		return "cache write: " + err.Error()
 	}
 	return ""
@@ -325,23 +355,31 @@ func writeGraphCache(entryPath string, entry cacheEntry) string {
 
 // loadGraphCache returns the graph of a verified entry, or nil and the reason
 // it is not trusted. Every check fails closed to a full build (AFP-V0-392).
-func loadGraphCache(ctx context.Context, entryPath, root, identity string, languages []Language) (*Graph, string) {
-	info, err := os.Lstat(entryPath)
+func loadGraphCache(ctx context.Context, entryPath, root string, excluded []string, identity string, languages []Language) (*Graph, string) {
+	directory, reason := openCacheDirectory(filepath.Dir(entryPath), root, excluded, false)
+	if reason != "" {
+		return nil, reason
+	}
+	defer directory.Close()
+	graphCacheHook("entry")
+	// Nonblocking, so a FIFO in place of the entry cannot hang the open; the
+	// descriptor, not the pathname, is then held to a regular file.
+	file, err := directory.OpenFile(filepath.Base(entryPath), os.O_RDONLY|openNonblocking, 0)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, "no entry"
 	}
+	if err != nil {
+		return nil, "entry is not a readable regular file"
+	}
+	defer file.Close()
+	info, err := file.Stat()
 	if err != nil || !info.Mode().IsRegular() {
 		return nil, "entry is not a readable regular file"
 	}
 	if info.Size() > graphCacheMaxBytes {
 		return nil, "entry over the size bound"
 	}
-	file, err := os.Open(entryPath)
-	if err != nil {
-		return nil, "entry is not a readable regular file"
-	}
 	raw, err := io.ReadAll(io.LimitReader(file, graphCacheMaxBytes+1))
-	_ = file.Close()
 	if err != nil || len(raw) > graphCacheMaxBytes {
 		return nil, "entry unreadable"
 	}
@@ -359,6 +397,9 @@ func loadGraphCache(ctx context.Context, entryPath, root, identity string, langu
 	if entry.Profile != GraphCacheProfile || entry.Root != root || entry.Identity != identity || len(entry.Languages) != len(names) {
 		return nil, "entry key mismatch"
 	}
+	if reason := completeStamps(entry); reason != "" {
+		return nil, reason
+	}
 	if reason := verifyObservation(ctx, root, entry); reason != "" {
 		return nil, reason
 	}
@@ -370,6 +411,55 @@ func loadGraphCache(ctx context.Context, entryPath, root, identity string, langu
 		return nil, "entry graph digest mismatch"
 	}
 	return graph, ""
+}
+
+// completeStamps refuses a stamp list that cannot be the one newCacheEntry
+// wrote for this entry's graph: out of order or repeated, or missing the
+// root listing, the documentation declaration, any unit's source or test
+// file, or any directory above one. The checksum is not a signature, so
+// these are the stamps a forged or stripped list can be held to without
+// observing again: a stale graph whose stamps were removed or emptied would
+// otherwise restat nothing and pass (AFP-V0-392).
+func completeStamps(entry cacheEntry) string {
+	const incomplete = "entry stamps incomplete"
+	stamps := make(map[observedPath]pathStamp, len(entry.Stamps))
+	for index, recorded := range entry.Stamps {
+		if !fs.ValidPath(recorded.Path) {
+			return incomplete
+		}
+		if index > 0 {
+			previous := entry.Stamps[index-1]
+			if previous.Path > recorded.Path || previous.Path == recorded.Path && (previous.Follow || !recorded.Follow) {
+				return incomplete
+			}
+		}
+		stamps[observedPath{relative: recorded.Path, follow: recorded.Follow}] = recorded.Stamp
+	}
+	if stamp, ok := stamps[observedPath{relative: "."}]; !ok || !stamp.Present || !fs.FileMode(stamp.Mode).IsDir() {
+		return incomplete
+	}
+	if _, ok := stamps[observedPath{relative: DocumentationPathsPath}]; !ok {
+		return incomplete
+	}
+	directories := map[string]bool{}
+	for _, language := range entry.Languages {
+		for _, unit := range language.Units {
+			for _, list := range [][]string{unit.Sources, unit.Tests} {
+				for _, relative := range list {
+					if stamp, ok := stamps[observedPath{relative: relative}]; !ok || !stamp.Present || !fs.FileMode(stamp.Mode).IsRegular() {
+						return incomplete
+					}
+					for parent := path.Dir(relative); parent != "." && !directories[parent]; parent = path.Dir(parent) {
+						if stamp, ok := stamps[observedPath{relative: parent}]; !ok || !stamp.Present || !fs.FileMode(stamp.Mode).IsDir() {
+							return incomplete
+						}
+						directories[parent] = true
+					}
+				}
+			}
+		}
+	}
+	return ""
 }
 
 // verifyObservation restats every directory the build listed and every path

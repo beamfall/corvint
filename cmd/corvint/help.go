@@ -760,8 +760,9 @@ several changed files should batch them rather than call once per path.
 
 --cache DIR (experimental; not with --snapshot or --playwright-config) reuses
 the verified graph between calls on an unchanged checkout. DIR is a directory
-the caller names outside the repository and outside any .git directory; it is
-created if absent and holds at most one entry per repository root. An entry is
+the caller names outside the repository, outside any .git directory and outside
+the repository's Git directory wherever it lives; it must be private to the
+user, is created if absent and holds at most one entry per repository root. An entry is
 trusted only when it was written by this exact corvint executable for this
 root, and every directory the graph walked and every file it read or statted
 has the same size, mode, inode, modification and change time;
