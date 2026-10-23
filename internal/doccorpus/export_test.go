@@ -2,6 +2,11 @@ package doccorpus
 
 import "testing"
 
+// Test binaries never record version-control metadata, so their builder label is always
+// `unrecorded`; the read tests exercise the verified read as an attested build would, and
+// TestDCPV1410UnattestedBuilderRederives turns the trust off (DCP-V1-410).
+func init() { unattestedBuilderTrusted.Store(true) }
+
 // EightSectionFlowForTest exposes the DCP-V1-170 fixture to the external
 // MCP bridge test in this directory.
 var EightSectionFlowForTest = eightSectionFlow

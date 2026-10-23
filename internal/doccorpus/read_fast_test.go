@@ -331,3 +331,46 @@ func BenchmarkDCPV1418VerifiedRead(b *testing.B) {
 		}
 	}
 }
+
+// TestDCPV1410UnattestedBuilderRederives: a dirty or unrecorded builder label is shared by builds
+// of different source, so a running builder with such a label never treats an equal recorded
+// label as rebuild equivalence. It rederives instead: a record edit with a recomputed digest,
+// which stands for an artifact written by another build that shares the label and extracts
+// differently, is refused, and an untouched artifact is admitted as source-rederived. Only an
+// attested label (a recorded revision without uncommitted changes) admits the verified read.
+func TestDCPV1410UnattestedBuilderRederives(t *testing.T) {
+	for label, attested := range map[string]bool{
+		"unrecorded": false,
+		"0123456789abcdef0123456789abcdef01234567+dirty": false,
+		"0123456789abcdef0123456789abcdef01234567":       true,
+	} {
+		if attestedBuilder(Builder{Version: Schema, Revision: label}) != attested {
+			t.Errorf("attestedBuilder(%q) != %v", label, attested)
+		}
+	}
+	if attestedBuilder(currentBuilder()) {
+		t.Skip("this test binary records an attested build")
+	}
+	unattestedBuilderTrusted.Store(false)
+	t.Cleanup(func() { unattestedBuilderTrusted.Store(true) })
+	ctx := context.Background()
+	root, a, data := builtFixture(t)
+	read, err := OpenRead(ctx, root, data, ReadOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if read.validation != ValidationRederived {
+		t.Fatalf("unattested builder admitted the artifact as %s", read.validation)
+	}
+	edited := rehashed(t, a, func(c *Artifact) {
+		c.Claims = append([]Claim{}, c.Claims...)
+		c.Claims[0].Text = "behavior another build with the same label extracted"
+	})
+	if _, err := OpenRead(ctx, root, edited, ReadOptions{}); err == nil {
+		t.Fatal("an unattested builder admitted another build's records without rederiving them")
+	}
+	headers := 0
+	if _, err := OpenRead(ctx, root, data, ReadOptions{Header: func(*Artifact) { headers++ }}); err != nil || headers != 0 {
+		t.Fatalf("rederived read ran the verified read's header work: %v %d", err, headers)
+	}
+}

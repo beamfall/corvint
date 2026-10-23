@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	json "encoding/json/v2"
 	"io"
+	"io/fs"
 	"os"
 	"path"
 	"runtime"
@@ -111,6 +112,26 @@ func ReadPlaywrightFile(root, path string) ([]byte, error) {
 // enforces the original limit for /1 and for independent receipt profiles.
 func ReadCorpusFile(root, path string) ([]byte, error) {
 	return readFileBounded(root, path, MaxCorpusBytes)
+}
+
+// StatCorpusFile is ReadCorpusFile without the read: the path rule and the
+// no-follow walk of every directory component are the read's, and the leaf
+// must be a regular file. It returns the leaf's lstat record, so a caller can
+// tell an unchanged file without reading it (DCP-V1-417).
+func StatCorpusFile(root, path string) (fs.FileInfo, error) {
+	if rule := LocalInputPathRule(path); rule != "" {
+		return nil, fail("invalid local input path: input paths must be canonical and relative to the input root (" + rule + ")")
+	}
+	dir, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, fail("input root unavailable")
+	}
+	defer dir.Close()
+	info, err := testvaliditydoc.StatFile(dir, path)
+	if err != nil {
+		return nil, &Error{Code: "corpus-input-unavailable", Message: "input missing, unsafe or over bound"}
+	}
+	return info, nil
 }
 func readFileBounded(root, path string, limit int64) ([]byte, error) {
 	if rule := LocalInputPathRule(path); rule != "" {

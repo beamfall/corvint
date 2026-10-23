@@ -1844,7 +1844,7 @@ checkout in full, so one lookup cost more than a build (25 to 27 s and 1.7 to 2.
 95 MB, 9,170-input corpus with four additional repositories). The owner's targets on an unchanged
 checkout: a CLI read (`info`, `search`, `get`, `flow`, `coverage`, `locate`, `gaps`) under 1 s
 cold and under 200 ms with warm reuse, with memory close to the artifact size; a corpus MCP first
-tool call under 1 s; a warm MCP call under 100 ms. Status for `DCP-V1-410..418`: proposed,
+tool call under 1 s; a warm MCP call under 100 ms. Status for `DCP-V1-410..419`: proposed,
 experimental; GitHub #1598.
 
 - `DCP-V1-410`: A read admits an artifact through the verified read, amending `DCP-V1-011`. It
@@ -1859,16 +1859,27 @@ experimental; GitHub #1598.
   `docs corpus` operation that opens `--artifact` except `validate`, `delta` and `carry-forward`,
   and to the corpus MCP tools. The content digest is integrity, not origin: a record edit whose
   digest was deliberately recomputed passes the verified read and is refused by the rederivation
-  of `DCP-V1-413`. Acceptance: `TestDCPV1410VerifiedReadSkipsRederivation`,
-  `TestDCPV1410VerifiedReadRefusals`, `TestDCPV1413CorpusReadsWithoutRederivation`.
+  of `DCP-V1-413`. An equal builder label proves rebuild equivalence only when it is attested: a
+  recorded source revision without uncommitted changes. Binaries built from different uncommitted
+  changes share one `<revision>+dirty` label and binaries built without version-control metadata
+  share `unrecorded`, and the artifact records no executable content identity that could tell
+  them apart, so a running builder with such a label never takes the verified read: every read it
+  makes runs the `DCP-V1-011` rederivation and reports `source-rederived`. Acceptance:
+  `TestDCPV1410VerifiedReadSkipsRederivation`, `TestDCPV1410VerifiedReadRefusals`,
+  `TestDCPV1410UnattestedBuilderRederives`, `TestDCPV1413CorpusReadsWithoutRederivation`.
 - `DCP-V1-411`: Live freshness observes each declared checkout from Git's identity, its
   stat-cached status and one tree listing of blob modes and IDs, the checkouts in parallel. It
-  reads and indexes no tracked file. Git's index is the per-input stat stamp (path, size,
+  reads and indexes no tracked file. Each checkout's identity is read, then its status while the
+  identified tree is listed, then its identity again; the status is kept only when both identity
+  reads agree, so the listing, identity and status describe one checkout state. When HEAD moved
+  in between, the observation is repeated, at most three times, and then refused as a context
+  build refuses (`repository HEAD changed`), never mixing two states. Git's index is the per-input stat stamp (path, size,
   modification time, inode and blob): status re-hashes only entries whose stat changed. States,
   limitations and the `DCP-V1-144`/`DCP-V1-280` reuse key are those the full live index gave.
   The CLI observes freshness from the decoded header members while the records are still being
   decoded and verified, and uses it only after the artifact is admitted. No sidecar or stamp file
   is written. Acceptance: `TestDCPV1411ObserveTreeMatchesBuildContext`,
+  `TestDCPV1411ObserveTreeRetriesWhenHeadMoves`,
   `TestDCPV1280AdditionalRepositoryFreshnessReused`, `TestCorpusDeterministicRoundTrip`.
 - `DCP-V1-412`: Symbol re-resolution (`DCP-V1-141`) builds the full live index of the primary
   checkout only when a cited Ruby or TypeScript/JavaScript symbol anchor's pinned blob changed or
@@ -1883,10 +1894,11 @@ experimental; GitHub #1598.
   unchanged. Acceptance: `TestDCPV1410VerifiedReadSkipsRederivation`,
   `TestDCPV1413CorpusReadsWithoutRederivation`, `TestCorpusTypedCLIMCPEndToEnd`,
   `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags`.
-- `DCP-V1-414`: The verified read validates the input as JSON in one scan, then decodes the
-  elements of every always-emitted record array in parallel, each compared with its own canonical
-  encoding and separated by exactly one comma, and compares the rest with the canonical encoding
-  of the artifact with those arrays empty: together exactly canonical byte equality. The content
+- `DCP-V1-414`: The verified read finds the members of the input and the elements of every
+  always-emitted record array in one scan, decodes the elements in parallel while the scan goes
+  on, each compared with its own canonical encoding and separated by exactly one comma, and
+  compares the rest with the canonical encoding of the artifact with those arrays empty: together
+  exactly canonical byte equality. The content
   digest is hashed from the input bytes while they are decoded. It admits and refuses exactly what
   the closed decoder (`ParseArtifact`) admits and refuses. The rederivation compares its encoding
   with the input while encoding, without a second artifact-sized buffer. Acceptance:
@@ -1904,7 +1916,10 @@ experimental; GitHub #1598.
   file keeps the stat stamp (mode, size, inode, change and modification times) captured before
   the last read whose digest matched. A file changed within the `DCP-V1-314` racy window, or one
   that cannot be described, has no stamp and is read; a rewrite changes the stamp and is refused
-  as before. Acceptance: `TestDCPV1417WarmCallsSkipUnchangedArtifactRead`.
+  as before. The file is described through the artifact reader's own no-follow walk of every
+  path component, so a symlink anywhere in the path, the leaf included, leaves no stamp: the call
+  reads the file and is refused exactly as a fresh read is. Acceptance:
+  `TestDCPV1417WarmCallsSkipUnchangedArtifactRead`, `TestDCPV1417WarmStampRefusesParentSymlink`.
 - `DCP-V1-418`: Acceptance at scale, on a generated fixture with a 4,000-page native scope, 6,000
   source files outside it and four additional repositories of 1,500 pinned files each (10,001
   inputs, a 67 MB artifact): a verified read with live freshness, and a corpus MCP first call, are
@@ -1912,6 +1927,21 @@ experimental; GitHub #1598.
   peak memory before and after are recorded in the build log and pull request. Acceptance:
   `TestDCPV1418LargeFixtureVerifiedReadIsFast`, `TestDCPV1416CorpusMCPFirstAndWarmCalls`,
   `BenchmarkDCPV1418VerifiedRead`.
+- `DCP-V1-419`: A read derives the same query index, receipts and refusals with less wall time.
+  The index's record maps and term maps are built concurrently and its claim and subject terms
+  are tokenized in blocks on worker goroutines, each block in record order and the blocks joined
+  in order; its posting and unique-key-byte totals are taken from the finished maps. That
+  derivation answers only when no reference refusal is possible (no empty or duplicate identity,
+  no key over 65,536 bytes, no path at its fanout bound, both totals within their `DCP-V1-193`
+  bounds); otherwise the serial reference derivation runs, so every refusal keeps its code,
+  message and observed count (`DCP-V1-194`). Unindexed `search` tokenizes subjects in blocks the
+  same way. The CLI derives the index while the live freshness observation of `DCP-V1-411`
+  finishes, and still reports an index refusal before any freshness failure (`DCP-V1-195`). A
+  bounded input file is read into one buffer sized from its opened size. No artifact or manifest
+  format changes, nothing is persisted, and search ranking is unchanged. Acceptance:
+  `TestDCPV1419FastIndexMatchesReference`, `TestDCPV1419FastIndexDeclinesEveryRefusal`,
+  `TestDCPV1419BoundaryScanFindsStringContent`, `TestDCPV1413CorpusReadsWithoutRederivation`;
+  CLI timings before and after in docs/build-log/2026-10-23-corpus-verified-fast-reads.md.
 
 ### Cross-revision delta worklist and carry-forward (`docs corpus delta`, `docs corpus carry-forward`)
 
@@ -2471,7 +2501,9 @@ a guessed subject.
 - Verified reads (`DCP-V1-410`): a noncanonical artifact, a digest mismatch, a different
   builder, a schema pair, manifest or profile digest that does not match, an unresolvable pinned
   revision or a recorded tree that differs each refuse the read; none falls back to unverified
-  data. A live index built from another state than the freshness observation withholds symbol
+  data. A dirty or unrecorded running builder rederives instead of verifying. HEAD moving during
+  a freshness observation repeats it and, after three attempts, refuses (`DCP-V1-411`). A symlink
+  in the configured MCP artifact's path voids its warm stamp (`DCP-V1-417`). A live index built from another state than the freshness observation withholds symbol
   re-resolution (`DCP-V1-412`).
 - `DCP-V1-054`: Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
   `--input`, `--previous`, `--cem`, `--retirement`, `--migration`, `--playwright-list`, `--receipt`,
@@ -2561,7 +2593,7 @@ fuzzy or semantic match, classify journeys, observations or supplied gaps, carry
 additional repositories, or expose an MCP tool. Carry-forward writes no file and grants no trust:
 the caller commits and declares the record. Rollback removes the two operations and
 `internal/doccorpus/delta*.go`; no artifact or manifest format changes.
-Verified fast reads (`DCP-V1-410..418`) add no daemon or `--serve` mode, persist no read index
+Verified fast reads (`DCP-V1-410..419`) add no daemon or `--serve` mode, persist no read index
 or sidecar, write nothing on a read, change no search ranking or delta paging, and do not
 authenticate an artifact's origin. Rollback points the CLI and MCP readers back at `Open`; the
 artifact and manifest formats are unchanged and no stored state needs migration.
@@ -2676,7 +2708,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-205..207 | `cmd/corvint-corpus-mcp/main.go` | `TestDCPV1205AbsoluteArtifactInsideRoot`, `TestDCPV1206AbsoluteArtifactThroughSymlinkedRoot`, `TestDCPV1207AbsoluteArtifactOutsideRootRefused`, `TestDCPV1205AbsoluteMapInsideRoot` |; | DCP-V1-200..203 | `internal/mcp/corpusbridge/corpusbridge.go` | `TestDCPV1200SingleCallOverBoundPagesWithNextOffset`, `TestDCPV1202UnpagedSchemaRefusesOverBound`, `TestDCPV1143LazyLoadAndMemo` (a fitting receipt keeps its CLI bytes); docs/build-log/2026-10-19-V1-1996-corpus-mcp-output-bound.md |; | DCP-V1-193..197 | `internal/doccorpus/query_index.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1193HundredThousandRecordCorpusAnswersIndexedReads`, `TestDCPV1194IndexRefusalNamesBoundAndObservedCount`, `TestDCPV1195IndexRefusalDerivedOncePerArtifact`, `TestDCPV1195IndexDerivedOncePerArtifact`, `TestDCPV1196BuildAdmittedRefusesOverBoundIndex`, `TestFlowDocsFinalizeRefusesOverBoundIndex`, `TestRepublishRefusesOverBoundIndex`; memory, latency and byte identity measured in docs/build-log/2026-10-19-V1-1995-corpus-index-bound.md |; | DCP-V1-210..215 | `internal/doccorpus/adoption.go`, `query.go`, `query_index.go`, `providers.go`, `incremental.go` | `TestDCPV1210SuppliedTestRunReceipt`, `TestDCPV1210ResidualRecordRefusals`, `TestDCPV1212LegacyCaseIDLinksToSubject`, `TestDCPV1214SuppliedGapsInCapabilitiesAndIndex`, `TestDCPV1215IncrementalCountsSuppliedClaimKinds`; byte identity measured in docs/build-log/2026-10-19-V1-1993-adoption-residuals.md |
 | DCP-V1-146 | `internal/doccorpus/compile.go` | `TestDCPV1146OversizedParagraphStaysVerbatim`, `TestDCPV1146OversizedLineIsAGap`, `TestDCPV1146RefusalsNameTheSpan`; measured on Corvint's docs scope in docs/build-log/2026-10-19-V1-1983-docs-corpus-located-refusals.md |; | DCP-V1-150..152 | `internal/doccorpus/typed_query.go`, `docs/DOCUMENTATION-CORPUS.md` | `TestDCPV1150ProviderReportedReviewYieldsUnauthenticatedGap`, `TestDCPV1151AuthenticatedReviewClearsAssertingGap`, `TestDCPV1152AssertingGapNamesTheFailedCondition` |; | DCP-V1-165..169 | `internal/doccorpus/legacy_cases.go`, `cmd/corvint/docs_corpus_legacy_cases.go`, `cmd/corvint/docs_corpus_help.go`, `cmd/corvint-corpus-mcp/legacycases.go` | `TestDCPV1165LegacyCaseIDLookup`, `TestDCPV1166LegacyCaseAnyMatchRanks`, `TestDCPV1167LegacyCaseQueryIDRule`, `TestDCPV1168LegacyCaseAllModeBytesUnchanged`, `TestDCPV1169CorpusMCPSearchCasesModes`, `TestDCPV1165DocsCorpusSearchCasesModesCLI`, `TestDocsCorpusOperationFlagMatrix` |; | DCP-V1-160..163 | `internal/doccorpus/compile.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1160SchemaTwoManifestOfTwentyThousandFilesBuilds`, `TestDCPV1160DefaultSingleScopeUnchanged`, `TestDCPV1160SchemaFlagValues`, `TestDCPV1161ScopesSortedAndOverlapRefused`, `TestDCPV1162BoundRefusalNamesBoundScopeAndCount` |; | DCP-V1-170..174 | `internal/doccorpus/flow_filter.go`, `typed_query.go`, `query.go`, `pagination.go`, `types.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1170FlowSectionFilter`, `TestDCPV1171FlowIncludeFilter`, `TestDCPV1172FlowSelectionReceipt`, `TestDCPV1173FlowFilterPagination`, `TestDCPV1174DocsFlowToolFilters`, `TestDCPV1174CorpusFlowFilterOptions`, `TestDocsCorpusOperationFlagMatrix`; measured in docs/build-log/2026-10-19-V1-1990-docs-flow-section-filter.md |; | DCP-V1-155..159 | `internal/cem/gitauth/pathset.go`, `internal/doccorpus/batch_input.go`, `capacity.go`, `compile.go`, `query.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1155ReadFreshnessGitOpsIndependentOfInputCount` (10,000 inputs, 16 Git operations per phase, one change is `stale`), `TestDCPV1155ResolvePathsMatchesSingleLookupsWithinOneOpPerLevel`, `TestDCPV1156ManifestAndBuildBatchNonIndexedInputs`, `TestDCPV1157CapacityRefusalsAreTypedAndEarly`, `TestDCPV1158BridgeTypesGitCapacityLikeTheCLI`, `TestDCPV1158CLITypesGitCapacityLikeTheBridge`, `TestDCPV1159BatchedPinningKeepsArtifactBytes`; measured in docs/build-log/2026-10-19-V1-1984-corpus-git-budget.md |; | DCP-V1-175..179 | `internal/doccorpus/types.go`, `compile.go`, `providers.go`, `query.go`, `internal/mcp/corpusbridge/corpusbridge.go` | `TestDCPV1175AdditionalRepositoryAnchors`, `TestDCPV1176AdditionalRepositoryRefusals`, `TestDCPV1178BridgeVerifiesPinsInOwningCheckout`, `TestDCPV1179SingleRepositoryManifestUnchanged`; byte identity measured in docs/build-log/2026-10-19-V1-1986-corpus-additional-repositories.md |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
-| DCP-V1-410..418 | `internal/doccorpus/read.go`, `artifact_decode.go`, `encoding.go`, `compile.go`, `query.go`, `symbol_anchor.go`, `internal/contextindex/observe_tree.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `stamp.go`, `eval.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1410VerifiedReadSkipsRederivation`, `TestDCPV1410VerifiedReadRefusals`, `TestDCPV1411ObserveTreeMatchesBuildContext`, `TestDCPV1412SymbolIndexBuiltOnlyWhenNeeded`, `TestDCPV1413CorpusReadsWithoutRederivation`, `TestDCPV1414ParallelDecodeMatchesClosedDecode`, `TestDCPV1416CorpusMCPFirstAndWarmCalls`, `TestDCPV1417WarmCallsSkipUnchangedArtifactRead`, `TestDCPV1418LargeFixtureVerifiedReadIsFast`, `BenchmarkDCPV1418VerifiedRead`; measured in docs/build-log/2026-10-23-corpus-verified-fast-reads.md |
+| DCP-V1-410..419 | `internal/doccorpus/read.go`, `artifact_decode.go`, `encoding.go`, `compile.go`, `query.go`, `query_index.go`, `query_index_fast.go`, `search_rank.go`, `symbol_anchor.go`, `internal/contextindex/observe_tree.go`, `internal/testvaliditydoc/read.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `stamp.go`, `eval.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1410VerifiedReadSkipsRederivation`, `TestDCPV1410VerifiedReadRefusals`, `TestDCPV1410UnattestedBuilderRederives`, `TestDCPV1411ObserveTreeMatchesBuildContext`, `TestDCPV1411ObserveTreeRetriesWhenHeadMoves`, `TestDCPV1412SymbolIndexBuiltOnlyWhenNeeded`, `TestDCPV1413CorpusReadsWithoutRederivation`, `TestDCPV1414ParallelDecodeMatchesClosedDecode`, `TestDCPV1416CorpusMCPFirstAndWarmCalls`, `TestDCPV1417WarmCallsSkipUnchangedArtifactRead`, `TestDCPV1417WarmStampRefusesParentSymlink`, `TestDCPV1418LargeFixtureVerifiedReadIsFast`, `BenchmarkDCPV1418VerifiedRead`, `TestDCPV1419FastIndexMatchesReference`, `TestDCPV1419FastIndexDeclinesEveryRefusal`, `TestDCPV1419BoundaryScanFindsStringContent`; measured in docs/build-log/2026-10-23-corpus-verified-fast-reads.md |
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-216..217 | `internal/doccorpus/batch_paths.go`, `symbol_anchor.go`, `cem.go`, `behavior_legacy_discovery.go`, `behavior_playwright_discovery.go` | `TestDCPV1216SymbolAnchorsGitOpsIndependentOfAnchorCount` (5,000 moved anchors), `TestDCPV1216CEMProjectionGitOpsIndependentOfAnchorCount` (5,000 anchors), `TestDCPV1216LegacyDiscoveryGitOpsIndependentOfPathCount` (4,096 files, the record bound), `TestDCPV1216PlaywrightDiscoveryGitOpsIndependentOfPathCount` (2,000 files, 4,008 executions), each within 16 Git operations per phase and byte-identical to the per-path reads; `TestDCPV1216ProjectionKeepsPerPathTreeBound` (anchor under a tree past 4 MiB refused as per path), `TestDCPV1216SymbolFallbackBudgetWithholdsStates` (missing pinned blob, budget exhausted in the fallback, states withheld as per path), `TestDCPV1216GitHooksTravelWithTheContext` (the test budget and per-path override travel on the call's context, so the equivalence tests run under `t.Parallel` and `-race`); measured in docs/build-log/2026-10-20-v1-1991-batched-path-reads.md and docs/build-log/2026-10-21-testspeed-1021v-doccorpus-parallel-equivalence.md |
 | DCP-V1-370..376 | `internal/testsource/discover_tests.go`, `discover_tests_playwright.go`, `discover_tests_rspec.go`, `internal/doccorpus/line_anchor.go`, `cmd/corvint/docs_corpus_discover_tests.go` | `TestDCPV1370DiscoverTestsDeterministicAnchored`, `TestDCPV1370DocsCorpusDiscoverTestsCLI`, `TestDCPV1371DiscoverTestsIdentityJoins`, `TestDCPV1372DiscoverTestsExpectations`, `TestDCPV1373DiscoverTestsNavigations`, `TestDCPV1374DiscoverTestsReaches`, `TestDCPV1375DiscoverTestsHooksTagsAnnotations`, `TestDCPV1376DiscoverTestsUnknowns` |

@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
@@ -53,11 +54,14 @@ func (t *ReadTimings) Write(w io.Writer, total time.Duration) {
 // profile, pair its schema with the manifest's, and every revision it pins
 // must still resolve in the checkout that owns it, the primary one to the
 // recorded tree. The records are then decoded, never rederived. Any failed
-// check refuses the read; nothing unverified is served. opts.Rederive runs
-// Open instead.
+// check refuses the read; nothing unverified is served. opts.Rederive, or a
+// running builder whose label is dirty or unrecorded, runs Open instead.
 func OpenRead(ctx context.Context, root string, data []byte, opts ReadOptions) (*Artifact, error) {
 	t := opts.Timings
-	if opts.Rederive {
+	// A running builder whose label names no immutable build cannot show that
+	// an equal recorded label means equal extraction, so it rederives
+	// (DCP-V1-410).
+	if opts.Rederive || !rebuildAttested(currentBuilder()) {
 		start := time.Now()
 		a, err := Open(ctx, root, data)
 		if t != nil {
@@ -116,6 +120,33 @@ func OpenRead(ctx context.Context, root string, data []byte, opts ReadOptions) (
 		t.Validation = a.validation
 	}
 	return a, nil
+}
+
+// attestedBuilder reports whether b names one immutable build: a recorded
+// source revision without uncommitted changes. Binaries built from different
+// uncommitted changes share one `<revision>+dirty` label, and binaries built
+// without version-control metadata share `unrecorded`, so equal labels of
+// either kind say nothing about equal extraction behavior. No executable
+// content identity is recorded in the artifact to tell such builds apart.
+func attestedBuilder(b Builder) bool {
+	return b.Revision != "unrecorded" && !strings.HasSuffix(b.Revision, "+dirty")
+}
+
+// unattestedBuilderTrusted admits the verified read for an unattested
+// running builder. Test binaries never record version-control metadata, so
+// only tests set it, through TrustUnattestedBuilderForTest.
+var unattestedBuilderTrusted atomic.Bool
+
+func rebuildAttested(b Builder) bool {
+	return attestedBuilder(b) || unattestedBuilderTrusted.Load()
+}
+
+// TrustUnattestedBuilderForTest lets a test binary, whose builder label is
+// always `unrecorded`, exercise the verified read; the returned function
+// restores the refusal. Production code never calls it.
+func TrustUnattestedBuilderForTest() (restore func()) {
+	old := unattestedBuilderTrusted.Swap(true)
+	return func() { unattestedBuilderTrusted.Store(old) }
 }
 
 // errNotRederivable is the refusal of a verified read whose recorded identity

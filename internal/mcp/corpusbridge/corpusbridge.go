@@ -734,7 +734,7 @@ type artifactRead struct {
 }
 
 func (r *Registry) artifactReader() *artifactRead {
-	stamp := artifactFileStamp(filepath.Join(r.root, filepath.FromSlash(r.path)))
+	stamp := artifactFileStamp(r.root, r.path)
 	r.artifactFile.Lock()
 	unchanged := stamp != "" && stamp == r.artifactFile.stamp
 	r.artifactFile.Unlock()

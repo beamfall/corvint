@@ -32,6 +32,9 @@ func corpusInfoValidation(t *testing.T, out string) string {
 // docs_validate still rederive and refuse. --timings adds one stderr summary and leaves stdout
 // unchanged (DCP-V1-410, DCP-V1-413, DCP-V1-415, DCP-V1-416).
 func TestDCPV1413CorpusReadsWithoutRederivation(t *testing.T) {
+	// A test binary's builder label is always `unrecorded`; trust it as an attested build would be
+	// (DCP-V1-410).
+	defer doccorpus.TrustUnattestedBuilderForTest()()
 	root := taskContextRepository(t)
 	rev := cemGit(t, root, "rev-parse", "HEAD")
 	writeCorpusFixture(t, root, rev, "cache")

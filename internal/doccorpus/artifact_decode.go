@@ -2,11 +2,8 @@ package doccorpus
 
 import (
 	"bytes"
-	"encoding/json/jsontext"
 	json "encoding/json/v2"
-	"io"
 	"reflect"
-	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -43,7 +40,11 @@ type splitArray struct {
 	field       int
 	open, close int64 // offsets of '[' and of the byte after ']'
 	elements    []byteSpan
+	chunks      []reflect.Value // decoded elements, in order, one slice per dispatched chunk
 }
+
+// splitChunk is the number of split elements one decode job takes.
+const splitChunk = 128
 
 // decodeArtifactParallel is decodeArtifact plus verifyCanonical's canonical-form check, with
 // the elements of every split member decoded and compared with their canonical encoding in
@@ -65,8 +66,8 @@ func decodeArtifactParallel(data []byte, header func(*Artifact)) (*Artifact, err
 	invalid := fail("invalid closed JSON input")
 	var a Artifact
 	value := reflect.ValueOf(&a).Elem()
-	dec := jsontext.NewDecoder(bytes.NewReader(data))
-	if tok, err := dec.ReadToken(); err != nil || tok.Kind() != '{' {
+	sc := &boundaryScanner{data: data}
+	if !sc.consume('{') {
 		return nil, invalid
 	}
 	type plain struct {
@@ -89,44 +90,87 @@ func decodeArtifactParallel(data []byte, header func(*Artifact)) (*Artifact, err
 		}
 		return nil
 	}
-	for dec.PeekKind() != '}' {
-		tok, err := dec.ReadToken()
-		if err != nil {
+	// Split elements are decoded and compared with their canonical encoding in chunks while the
+	// scan continues (DCP-V1-414, DCP-V1-419). A decode failure refuses as the closed decoder
+	// does, before any canonical mismatch, so the refusal does not depend on which worker
+	// finishes first.
+	var undecodable, mismatched, stop atomic.Bool
+	var wg sync.WaitGroup
+	defer func() {
+		stop.Store(true)
+		wg.Wait()
+	}()
+	dispatch := func(s *splitArray, from int) {
+		spans := s.elements[from:]
+		chunk := reflect.MakeSlice(value.Field(s.field).Type(), len(spans), len(spans))
+		s.chunks = append(s.chunks, chunk)
+		wg.Go(func() {
+			for i, span := range spans {
+				if stop.Load() {
+					return
+				}
+				raw := data[span.start:span.end]
+				if json.Unmarshal(raw, chunk.Index(i).Addr().Interface(), json.RejectUnknownMembers(true)) != nil {
+					undecodable.Store(true)
+					return
+				}
+				c := encodingComparer{want: raw}
+				if _, err := EncodeTo(&c, chunk.Index(i).Interface()); err != nil || c.differ || c.n != int64(len(raw)) {
+					mismatched.Store(true)
+					return
+				}
+			}
+		})
+	}
+	seen := map[string]bool{}
+	for more := sc.peek() != '}'; more; more = sc.consume(',') {
+		if sc.peek() != '"' {
 			return nil, invalid
 		}
-		member, ok := artifactMembers[tok.String()]
-		if !ok {
+		from := sc.pos
+		if !sc.skipString() {
 			return nil, invalid
 		}
+		name, ok := memberName(data[from:sc.pos])
+		member, known := artifactMembers[name]
+		if !ok || !known || seen[name] || !sc.consume(':') {
+			return nil, invalid
+		}
+		seen[name] = true
 		if member.split && !headerSent {
 			sendHeader()
 		}
-		if member.split && dec.PeekKind() == '[' {
-			if _, err := dec.ReadToken(); err != nil {
-				return nil, invalid
-			}
-			s := &splitArray{field: member.field, open: dec.InputOffset() - 1}
-			for dec.PeekKind() != ']' {
-				raw, err := dec.ReadValue()
-				if err != nil {
+		if member.split && sc.peek() == '[' {
+			s := &splitArray{field: member.field, open: int64(sc.pos)}
+			sc.pos++
+			flushed := 0
+			for more := sc.peek() != ']'; more; more = sc.consume(',') {
+				begin := sc.pos
+				if !sc.skipValue() {
 					return nil, invalid
 				}
-				end := dec.InputOffset()
-				s.elements = append(s.elements, byteSpan{end - int64(len(raw)), end})
+				s.elements = append(s.elements, byteSpan{int64(begin), int64(sc.pos)})
+				if len(s.elements)-flushed == splitChunk {
+					dispatch(s, flushed)
+					flushed = len(s.elements)
+				}
 			}
-			if _, err := dec.ReadToken(); err != nil {
+			if !sc.consume(']') {
 				return nil, invalid
 			}
-			s.close = dec.InputOffset()
+			if flushed < len(s.elements) {
+				dispatch(s, flushed)
+			}
+			s.close = int64(sc.pos)
 			splits = append(splits, s)
 			continue
 		}
-		raw, err := dec.ReadValue()
-		if err != nil {
+		sc.peek()
+		begin := sc.pos
+		if !sc.skipValue() {
 			return nil, invalid
 		}
-		end := dec.InputOffset()
-		p := plain{member.field, byteSpan{end - int64(len(raw)), end}}
+		p := plain{member.field, byteSpan{int64(begin), int64(sc.pos)}}
 		if !headerSent {
 			// The header members precede the records in the canonical order, so the header work
 			// starts while the records are still being scanned.
@@ -137,10 +181,7 @@ func decodeArtifactParallel(data []byte, header func(*Artifact)) (*Artifact, err
 		}
 		plains = append(plains, p)
 	}
-	if _, err := dec.ReadToken(); err != nil {
-		return nil, invalid
-	}
-	if _, err := dec.ReadToken(); err != io.EOF {
+	if !sc.consume('}') || sc.peek() != 0 || sc.pos != len(data) {
 		return nil, invalid
 	}
 	if !headerSent {
@@ -150,8 +191,8 @@ func decodeArtifactParallel(data []byte, header func(*Artifact)) (*Artifact, err
 		return nil, fail("output bound exceeded")
 	}
 	noncanonical := fail("noncanonical artifact")
-	// The scan validated the syntax, so one byte between neighbours is exactly the comma, and an
-	// element starting right after '[' or ending right before ']' leaves no whitespace there.
+	// The scan consumed exactly one comma between neighbours, so an element starting one byte
+	// after its predecessor, right after '[' and ending right before ']' leaves no whitespace.
 	for _, s := range splits {
 		next := s.open + 1
 		for _, e := range s.elements {
@@ -164,10 +205,6 @@ func decodeArtifactParallel(data []byte, header func(*Artifact)) (*Artifact, err
 			return nil, noncanonical
 		}
 	}
-	// A decode failure refuses as the closed decoder does, before any canonical mismatch, so the
-	// refusal does not depend on which worker finishes first.
-	var undecodable, mismatched atomic.Bool
-	var wg sync.WaitGroup
 	for _, p := range plains {
 		wg.Go(func() {
 			if decodePlain(p) != nil {
@@ -175,35 +212,20 @@ func decodeArtifactParallel(data []byte, header func(*Artifact)) (*Artifact, err
 			}
 		})
 	}
-	workers := runtime.GOMAXPROCS(0)
-	for _, s := range splits {
-		slice := value.Field(s.field)
-		slice.Set(reflect.MakeSlice(slice.Type(), len(s.elements), len(s.elements)))
-		chunk := max(64, (len(s.elements)+workers*4-1)/(workers*4))
-		for from := 0; from < len(s.elements); from += chunk {
-			to := min(from+chunk, len(s.elements))
-			wg.Go(func() {
-				for i := from; i < to; i++ {
-					raw := data[s.elements[i].start:s.elements[i].end]
-					if json.Unmarshal(raw, slice.Index(i).Addr().Interface(), json.RejectUnknownMembers(true)) != nil {
-						undecodable.Store(true)
-						return
-					}
-					c := encodingComparer{want: raw}
-					if _, err := EncodeTo(&c, slice.Index(i).Interface()); err != nil || c.differ || c.n != int64(len(raw)) {
-						mismatched.Store(true)
-						return
-					}
-				}
-			})
-		}
-	}
 	wg.Wait()
 	if undecodable.Load() {
 		return nil, invalid
 	}
 	if mismatched.Load() {
 		return nil, noncanonical
+	}
+	for _, s := range splits {
+		slice := value.Field(s.field)
+		slice.Set(reflect.MakeSlice(slice.Type(), len(s.elements), len(s.elements)))
+		at := 0
+		for _, chunk := range s.chunks {
+			at += reflect.Copy(slice.Slice(at, len(s.elements)), chunk)
+		}
 	}
 	// The skeleton: the artifact with every split member empty must encode to the input with
 	// those members' brackets emptied.
@@ -225,4 +247,110 @@ func decodeArtifactParallel(data []byte, header func(*Artifact)) (*Artifact, err
 		return nil, noncanonical
 	}
 	return &a, nil
+}
+
+// boundaryScanner finds the byte spans of the artifact's members and of the
+// elements of its split members without validating their contents: every
+// byte it passes over is validated afterwards, by the closed decode of the
+// value that holds it or by the byte comparison of the skeleton with its
+// canonical encoding (DCP-V1-419). Strings are skipped with a vectorized
+// search for their closing quote.
+type boundaryScanner struct {
+	data []byte
+	pos  int
+}
+
+// peek skips whitespace and returns the next byte, or 0 at the end.
+func (s *boundaryScanner) peek() byte {
+	for s.pos < len(s.data) {
+		switch c := s.data[s.pos]; c {
+		case ' ', '\t', '\n', '\r':
+			s.pos++
+		default:
+			return c
+		}
+	}
+	return 0
+}
+
+// consume skips whitespace and then c, reporting whether c was next.
+func (s *boundaryScanner) consume(c byte) bool {
+	if s.peek() != c || c == 0 {
+		return false
+	}
+	s.pos++
+	return true
+}
+
+// skipString skips the string whose opening quote is at pos.
+func (s *boundaryScanner) skipString() bool {
+	open := s.pos
+	for i := open + 1; ; i++ {
+		j := bytes.IndexByte(s.data[i:], '"')
+		if j < 0 {
+			return false
+		}
+		i += j
+		k := i
+		for k > open+1 && s.data[k-1] == '\\' {
+			k--
+		}
+		if (i-k)%2 == 0 {
+			s.pos = i + 1
+			return true
+		}
+	}
+}
+
+// skipValue skips whitespace and one value: a string, a bracketed value
+// (matching only the bracket depth), or a scalar up to its delimiter.
+func (s *boundaryScanner) skipValue() bool {
+	switch s.peek() {
+	case 0:
+		return false
+	case '"':
+		return s.skipString()
+	case '{', '[':
+		depth := 0
+		for s.pos < len(s.data) {
+			switch s.data[s.pos] {
+			case '"':
+				if !s.skipString() {
+					return false
+				}
+				continue
+			case '{', '[':
+				depth++
+			case '}', ']':
+				depth--
+				if depth == 0 {
+					s.pos++
+					return true
+				}
+			}
+			s.pos++
+		}
+		return false
+	}
+	begin := s.pos
+	for s.pos < len(s.data) {
+		switch s.data[s.pos] {
+		case ',', '}', ']', ' ', '\t', '\n', '\r':
+			return s.pos > begin
+		}
+		s.pos++
+	}
+	return s.pos > begin
+}
+
+// memberName is the name a quoted member key denotes.
+func memberName(raw []byte) (string, bool) {
+	if bytes.IndexByte(raw, '\\') < 0 {
+		return string(raw[1 : len(raw)-1]), true
+	}
+	var name string
+	if json.Unmarshal(raw, &name) != nil {
+		return "", false
+	}
+	return name, true
 }

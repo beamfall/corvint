@@ -40,7 +40,8 @@ condition of its closest test link; a link that fails only because its review is
 (attributed, not authenticated) reports `asserting-e2e-tests-unauthenticated-review` instead
 (`DCP-V1-150`..`152`). A read verifies the artifact's canonical bytes, content digest, builder,
 manifest and profile digests and pinned revisions, then decodes it without rederiving it
-(`DCP-V1-410`); `info` reports `validation: artifact-verified`. `validate`, and `--verify-rederive`
+(`DCP-V1-410`); `info` reports `validation: artifact-verified`. A development binary whose builder
+label is dirty or unrecorded proves no rebuild equivalence, so it always rederives. `validate`, and `--verify-rederive`
 on any read, rederive every record from the original pinned inputs (`source-rederived`,
 `DCP-V1-413`). Live source and provider changes are observed from Git status and the tree listing
 and reported separately from the artifact's recorded revision (`DCP-V1-411`). `--timings` writes one

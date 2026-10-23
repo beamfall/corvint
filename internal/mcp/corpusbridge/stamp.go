@@ -78,9 +78,11 @@ func checkoutStamp(dirs []string) string {
 // mode, size, inode, change and modification times, or "" when the file
 // cannot be described or changed inside the racy window, so a later rewrite
 // within the same timestamp granule cannot keep the stamp (DCP-V1-417). The
-// final path element is not followed.
-func artifactFileStamp(path string) string {
-	info, err := os.Lstat(path)
+// file is reached through the artifact reader's own no-follow walk, so a
+// symlink in any path component, the leaf included, leaves no stamp and the
+// next call reads the file and is refused as a fresh read is.
+func artifactFileStamp(root, path string) string {
+	info, err := doccorpus.StatCorpusFile(root, path)
 	if err != nil || !info.Mode().IsRegular() {
 		return ""
 	}

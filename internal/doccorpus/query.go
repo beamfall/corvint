@@ -136,7 +136,7 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 		limits = append(limits, c.limits...)
 		if i == 0 {
 			limits = append(limits, "structural source binding does not prove semantic truth, test adequacy or accepted intent")
-			if a.Builder.Revision == "unrecorded" || strings.HasSuffix(a.Builder.Revision, "+dirty") {
+			if !attestedBuilder(a.Builder) {
 				limits = append(limits, "builder source revision is unrecorded or dirty; no immutable build attestation")
 			}
 		}

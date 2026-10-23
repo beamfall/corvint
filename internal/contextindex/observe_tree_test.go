@@ -2,10 +2,12 @@ package contextindex
 
 import (
 	"context"
+	"fmt"
 	"maps"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -61,5 +63,54 @@ func TestDCPV1411ObserveTreeMatchesBuildContext(t *testing.T) {
 	}
 	if observed.Blobs["tools/run.sh"].Mode != "100755" || observed.Blobs["docs/link.md"].Mode != "120000" {
 		t.Fatalf("modes not kept: %+v", observed.Blobs)
+	}
+}
+
+// TestDCPV1411ObserveTreeRetriesWhenHeadMoves: a commit that lands between the identity read and
+// the status read leaves a status of the new commit beside a listing of the old tree; the closing
+// identity read detects it and the observation is repeated, so the returned listing, identity
+// and status all describe the new commit. HEAD moving on every attempt refuses instead of mixing
+// states (documentation-corpus DCP-V1-411).
+func TestDCPV1411ObserveTreeRetriesWhenHeadMoves(t *testing.T) {
+	root := testRepository(t)
+	writeTestFile(t, root, "docs/guide.md", "# Guide\n\nOld.\n")
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-qm", "old")
+	old := testGit(t, root, "rev-parse", "HEAD")
+	commits := 0
+	saved := observeTreeStep
+	t.Cleanup(func() { observeTreeStep = saved })
+	observeTreeStep = func(attempt int) {
+		if attempt == 0 {
+			commits++
+			writeTestFile(t, root, "docs/guide.md", fmt.Sprintf("# Guide\n\nNew %d.\n", commits))
+			testGit(t, root, "commit", "-qam", "new")
+		}
+	}
+	observed, err := ObserveTree(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	head := testGit(t, root, "rev-parse", "HEAD")
+	if head == old || observed.CommitRevision != head || observed.Revision != testGit(t, root, "rev-parse", "HEAD^{tree}") {
+		t.Fatalf("observed %s/%s, HEAD moved %s -> %s", observed.CommitRevision, observed.Revision, old, head)
+	}
+	if blob := observed.Blobs["docs/guide.md"].OID; blob != testGit(t, root, "rev-parse", "HEAD:docs/guide.md") {
+		t.Fatalf("listing of the old tree: %s", blob)
+	}
+	settled, err := Observe(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if observed.StatusSHA256 != settled.StatusSHA256 || len(observed.DirtyPaths) != 0 {
+		t.Fatalf("status %s %v, settled %s", observed.StatusSHA256, observed.DirtyPaths, settled.StatusSHA256)
+	}
+	observeTreeStep = func(int) {
+		commits++
+		writeTestFile(t, root, "docs/guide.md", fmt.Sprintf("# Guide\n\nNew %d.\n", commits))
+		testGit(t, root, "commit", "-qam", "again")
+	}
+	if _, err := ObserveTree(context.Background(), root); err == nil || !strings.Contains(err.Error(), "HEAD changed") {
+		t.Fatalf("HEAD moving on every attempt: %v", err)
 	}
 }

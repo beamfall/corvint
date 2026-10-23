@@ -352,14 +352,18 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	}
 	// Reads admit the verified artifact without rederiving it; validate and --verify-rederive run
 	// the complete rederivation (DCP-V1-410, DCP-V1-413). A query's live freshness is observed
-	// while the records are decoded and verified, and used only once they are (DCP-V1-411).
+	// while the records are decoded and verified and the query index is derived, and used only
+	// once they are (DCP-V1-411, DCP-V1-419).
 	live := &corpusLiveRead{root: o.root, timings: t}
 	options := doccorpus.ReadOptions{Rederive: o.verifyRederive || o.op == "validate", Timings: t}
 	if corpusQueryOperation(o.op) {
-		options.Header = func(h *doccorpus.Artifact) { live.observe(ctx, h) }
+		options.Header = func(h *doccorpus.Artifact) { live.start(ctx, h) }
 	}
 	a, err := doccorpus.OpenRead(ctx, o.root, raw, options)
 	if err != nil {
+		if live.done != nil {
+			<-live.done
+		}
 		return nil, err
 	}
 	if o.op == "audit-sample" || o.op == "audit-report" {
@@ -428,9 +432,7 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 		}
 		a.RuntimeIndex = index
 	}
-	if !live.observed {
-		live.observe(ctx, a)
-	}
+	live.wait(ctx, a)
 	if live.err != nil {
 		return nil, live.err
 	}
@@ -474,21 +476,33 @@ func corpusQueryOperation(op string) bool {
 
 // corpusLiveRead observes a query's live freshness overlay.
 type corpusLiveRead struct {
-	root     string
-	timings  *doccorpus.ReadTimings
-	observed bool
-	overlay  doccorpus.FreshnessOverlay
-	err      error
+	root    string
+	timings *doccorpus.ReadTimings
+	done    chan struct{}
+	overlay doccorpus.FreshnessOverlay
+	err     error
 }
 
-// observe reads only the artifact's manifest, schema and builder, so it can run on the header.
-func (l *corpusLiveRead) observe(ctx context.Context, a *doccorpus.Artifact) {
-	step := time.Now()
-	l.overlay, l.err = doccorpus.LiveFreshness(ctx, l.root, a)
-	l.observed = true
-	if l.timings != nil {
-		l.timings.Freshness += time.Since(step)
+// start observes on its own goroutine. It reads only the artifact's manifest, schema and
+// builder, so it can start on the header.
+func (l *corpusLiveRead) start(ctx context.Context, a *doccorpus.Artifact) {
+	l.done = make(chan struct{})
+	go func() {
+		defer close(l.done)
+		step := time.Now()
+		l.overlay, l.err = doccorpus.LiveFreshness(ctx, l.root, a)
+		if l.timings != nil {
+			l.timings.Freshness += time.Since(step)
+		}
+	}()
+}
+
+// wait returns once the observation started on the header, or a new one of a, has finished.
+func (l *corpusLiveRead) wait(ctx context.Context, a *doccorpus.Artifact) {
+	if l.done == nil {
+		l.start(ctx, a)
 	}
+	<-l.done
 }
 
 // compileStableCorpusCEM is the explicit cem/1.0 documentation projection

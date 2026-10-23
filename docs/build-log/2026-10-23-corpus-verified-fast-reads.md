@@ -94,6 +94,75 @@ rederived read and 132 to 137 ms for a verified read.
   That is down from 640 to 754 MB, but not close to the artifact size.
 - MCP first call under 1 s: met (382 ms). MCP warm under 100 ms: met (20 to 78 ms in steady state).
 
+## Repair round (review of PR #1609)
+
+Three independent review findings, each fixed fail-closed with a regression test that fails
+without the fix:
+
+- Freshness could pair a listing and identity of one commit with the status of another
+  (`DCP-V1-411`). `ObserveTree` now reads the identity, then the status while the identified tree
+  is listed, then the identity again, and keeps the status only when both identity reads agree;
+  otherwise it observes again, at most three times, then refuses with `repository HEAD changed`.
+  `TestDCPV1411ObserveTreeRetriesWhenHeadMoves` commits inside the window through a test hook.
+- A warm MCP call trusted the artifact's stat stamp from `os.Lstat` on the joined path, which
+  follows symlinks in parent components (`DCP-V1-417`). The stamp now comes from
+  `doccorpus.StatCorpusFile`, the artifact reader's own no-follow walk without the read, so a
+  symlinked parent leaves no stamp and the call reads and is refused as a fresh read is.
+  `TestDCPV1417WarmStampRefusesParentSymlink`.
+- An equal `<revision>+dirty` or `unrecorded` builder label was taken as rebuild equivalence
+  (`DCP-V1-410`). Such labels are shared by builds of different source and the artifact records no
+  executable content identity, so a running builder with such a label now always rederives
+  (`source-rederived`). Test binaries are always `unrecorded`; tests that exercise the verified
+  read opt in through `TrustUnattestedBuilderForTest`, and
+  `TestDCPV1410UnattestedBuilderRederives` turns it off. Consequence: a development binary built
+  from a dirty tree pays the full rederivation on every read; release and clean builds do not.
+
+Faster warm reads (`DCP-V1-419`), profiled with `--timings` and a CPU profile on the fixture
+below: the query index cost 215 to 230 ms per indexed read, mostly term tokenization and
+per-posting map work, and unindexed `search` spent 52 to 58 ms tokenizing every subject.
+
+- The index's record maps and term maps are built concurrently, claims are tokenized in blocks on
+  worker goroutines and joined in order, and the posting and key-byte totals come from the
+  finished maps. This path answers only when no refusal is possible; otherwise the unchanged
+  serial derivation runs, so refusals keep their code, message and observed count.
+  `TestDCPV1419FastIndexMatchesReference` compares both derivations on four corpora;
+  `TestDCPV1419FastIndexDeclinesEveryRefusal` covers each refusal and both bounds.
+- Unindexed `search` tokenizes subjects in blocks on worker goroutines.
+- The artifact scan finds member and element boundaries without validating them (every byte is
+  still checked by the element decode or the skeleton comparison), and elements are decoded
+  while the scan continues. `TestDCPV1419BoundaryScanFindsStringContent`.
+- The CLI derives the index while live freshness finishes instead of after it.
+- The bounded file reader sizes its buffer from the opened file instead of growing it.
+
+Measured on the same fixture and host (10-core darwin/arm64, load average 5.5 to 9.9 from other
+lanes), three CLI processes per row, each artifact built by its own clean (`vcs.modified=false`)
+binary. Before is 52ae391ff; after is this change, built at 485789a02 before this entry was added. Wall time is the zsh `time` of the process,
+including about 25 ms of process start (22 ms of package `init` outside this change):
+
+| CLI read | Before wall (median, range) | After wall (median, range) | Peak RSS before / after |
+| --- | --- | --- | --- |
+| `info` | 193 ms (171-245) | 172 ms (171-180) | 193-220 / 209-210 MB |
+| `search --query ledger --limit 20` | 233 ms (231-243) | 191 ms (184-193) | 227-229 / 236-237 MB |
+| `get --id adapter:lib0-1` | 175 ms (174-191) | 179 ms (163-181) | 192-221 / 209-210 MB |
+| `flow --id adapter:lib0-1` | 403 ms (389-420) | 217 ms (210-227) | 229-266 / 248-250 MB |
+| `coverage` | 191 ms (174-201) | 171 ms (168-178) | 193-222 / 205-210 MB |
+| `locate --path docs/area01/feature00001.md` | 199 ms (197-210) | 176 ms (174-196) | 194 / 207-209 MB |
+| `gaps` | 417 ms (411-421) | 226 ms (205-233) | 230-269 / 248-264 MB |
+
+`--timings` after: parse 118 to 150 ms (read, scan, parallel decode and canonical comparison),
+index 45 to 85 ms (was 213 to 230), `search` query 16 to 17 ms (was 52 to 58), and freshness 122
+to 183 ms in parallel (was 75 to 117; the closing identity read and the no longer concurrent
+status read add one Git process each per checkout).
+
+Against the 200 ms warm target: `info`, `search`, `get`, `coverage` and `locate` now meet it on
+this fixture. `flow` and `gaps` do not: 205 to 233 ms. Their remaining critical path is the
+artifact decode and canonical verification (about 120 to 140 ms in a new process) followed by the
+query index (45 to 85 ms under this load); live freshness, which spawns Git in five checkouts,
+runs in parallel and finishes at about the same time. Memory is unchanged in kind: 205 to 264 MB
+for a 66.75 MB artifact. Within this round's limits (no daemon, no persisted index or sidecar, no
+artifact format change) the next cut would have to remove decode or freshness work rather than
+index work. The corpus MCP first and warm calls were not re-measured at the large scale.
+
 ## Verification
 
 Tests: the whole `internal/doccorpus` package, `internal/mcp/corpusbridge`,

@@ -63,3 +63,48 @@ func TestDCPV1417WarmCallsSkipUnchangedArtifactRead(t *testing.T) {
 		t.Fatal("fixture digest drifted")
 	}
 }
+
+// TestDCPV1417WarmStampRefusesParentSymlink: a warm call accepts an unchanged artifact stamp only
+// through the artifact reader's no-follow walk. Replacing the artifact's directory with a symlink
+// to the same directory keeps the file's inode, size and times, yet the next call reads the
+// artifact and is refused as a fresh read is, instead of serving the memoized artifact.
+func TestDCPV1417WarmStampRefusesParentSymlink(t *testing.T) {
+	supportedStampPlatform(t)
+	shortenStampWindow(t)
+	reads := 0
+	saved := readArtifactFile
+	t.Cleanup(func() { readArtifactFile = saved })
+	readArtifactFile = func(root, path string) ([]byte, error) {
+		reads++
+		return saved(root, path)
+	}
+	root, _ := multiRepositoryFixture(t, [3]int{3, 3, 3})
+	if err := os.Mkdir(filepath.Join(root, "artifacts"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(filepath.Join(root, "corpus.json"), filepath.Join(root, "artifacts", "corpus.json")); err != nil {
+		t.Fatal(err)
+	}
+	r, e := New(root, "artifacts/corpus.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	freshnessCall(t, r, "corvint.docs_info", `{}`)
+	freshnessCall(t, r, "corvint.docs_info", `{}`)
+	if reads != 1 {
+		t.Fatalf("warm call read an unchanged artifact: %d reads", reads)
+	}
+	if err := os.Rename(filepath.Join(root, "artifacts"), filepath.Join(root, "moved")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("moved", filepath.Join(root, "artifacts")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := doccorpus.ReadCorpusFile(root, "artifacts/corpus.json"); err == nil {
+		t.Fatal("a fresh read followed the parent symlink")
+	}
+	_, _, failure, _, _ := r.CallTimed(t.Context(), "corvint.docs_info", []byte(`{}`))
+	if failure == nil || reads != 2 {
+		t.Fatalf("parent symlink served the memoized artifact: %+v after %d reads", failure, reads)
+	}
+}
