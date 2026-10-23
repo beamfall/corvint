@@ -179,6 +179,7 @@ func TestDataOnlyCommandLiteralCreatesNoEdge_AFPV0402(t *testing.T) {
 		"trim/trim_test.go":     "package trim\n\nimport (\n\t\"os/exec\"\n\t\"strings\"\n)\n\nvar build = exec.Command(\"go\", \"build\", strings.TrimSuffix(\"./cmd/tool/\", \"/\"))\n",
 		"cut/cut_test.go":       "package cut\n\nimport \"strings\"\n\nvar target, _ = strings.CutPrefix(\"example.test/m/cmd/tool\", \"\")\n",
 		"assign/assign_test.go": "package assign\n\nfunc packages() map[string]bool {\n\tset := map[string]bool{}\n\tset[\"./cmd/tool\"] = true\n\treturn set\n}\n",
+		"paren/paren_test.go":   "package paren\n\nfunc packages() map[string]bool {\n\tset := map[string]bool{}\n\t(set[\"./cmd/tool\"]) = true\n\treturn set\n}\n",
 		"data/data_test.go":     "package data\n\nimport (\n\t\"strings\"\n\t\"testing\"\n)\n\nfunc TestBoundary(t *testing.T) {\n\tfor _, rel := range []string{\"x\"} {\n\t\tif strings.HasPrefix(rel, \"cmd/tool/\") || rel == \"./cmd/tool\" {\n\t\t\tt.Fatalf(\"%s is under cmd/tool\", rel)\n\t\t}\n\t\tswitch rel {\n\t\tcase \"cmd/tool\":\n\t\t}\n\t\t_ = map[string]bool{}[(\"example.test/m/cmd/tool\")]\n\t\t_ = strings.TrimPrefix(rel, \"cmd/tool/\")\n\t}\n}\n",
 	})
 	result, err := golang.New().Units(context.Background(), root)
@@ -193,7 +194,7 @@ func TestDataOnlyCommandLiteralCreatesNoEdge_AFPV0402(t *testing.T) {
 	}
 	tool := binaryExecModule + "cmd/tool"
 	want := map[string][]string{}
-	for _, name := range []string{"assign", "cut", "exec", "helper", "trim"} {
+	for _, name := range []string{"assign", "cut", "exec", "helper", "paren", "trim"} {
 		want[binaryExecModule+name] = []string{tool}
 	}
 	if !reflect.DeepEqual(execs, want) {

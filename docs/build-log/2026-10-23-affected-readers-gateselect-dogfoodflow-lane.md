@@ -16,8 +16,9 @@ auto-accept (2026-10-11). V1-2294 and V1-2153 change tests only and add no requi
   descend below what a token names. A script that changes to a literal directory, runs `git`
   other than with a computed `-C`, reads recursively, or runs handed commands now keeps the
   component-run relation. A `cd` to a computed directory is placed: that is the AFP-V0-072
-  run-time-root gap Go units already accept, and the V1-1817 script is of that shape. 89 of
-  140 shell units on 77a49dfa are placed.
+  run-time-root gap Go units already accept, and the V1-1817 script is of that shape. `git -C`
+  is admitted only with a subcommand that does not match pathspecs across a tree. 69 of 140
+  shell units on 77a49dfa are placed.
 - V1-1803 (AFP-V0-401): literal `filepath.Glob` patterns become a new `Unit.PathGlobs` member
   and a `PATH_GLOB_READER` witness with a `glob` member. They are not folded into `PathTokens`,
   because the lexer splits a pattern at `*` into lone fragments that name nothing. A full parse
@@ -51,7 +52,12 @@ and `m["./cmd/tool"] = true` lost their edges. Now only the cut operand and a re
 data. (3) A non-UTF-8 glob literal was recorded and made the whole graph non-canonical; such
 literals are now skipped. (4) The V1-2294 test's map assertions checked its own stub. It now
 asserts the map handed to `cem cite`. Nits fixed: `math/rand/v2`-style import names, and the
-spec wording for the glob bound and message receivers.
+spec wording for the glob bound and message receivers. A second review of the fix delta
+confirmed those fixes. Planning each of the 13,111 tracked paths alone, the only selections lost
+were fixture-file names of `script/check-host-package-versions_test.sh`. The review then found
+`diff -r` missing from the list, `git -C "$root"` admitting tree-reading subcommands such as
+`ls-files`, and a parenthesized assigned map key losing its edge. All three are fixed and have
+a test. A `cd` to a loop variable over literal words is recorded as a failure mode.
 
 ## Evidence
 

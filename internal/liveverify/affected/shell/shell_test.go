@@ -506,9 +506,11 @@ func TestLoneFileNameShellReaderMustPlaceThePath_AFPV0400(t *testing.T) {
 	write(t, root, "script/find_test.sh", "#!/bin/sh\nfind docs/ -name README.md | xargs grep -q corvint\n")
 	write(t, root, "script/recursive_test.sh", "#!/bin/sh\ngrep -rq corvint --include README.md docs\n")
 	write(t, root, "script/git_test.sh", "#!/bin/sh\ngit grep -q corvint -- README.md\n")
+	write(t, root, "script/diff_test.sh", "#!/bin/sh\ndiff -r docs \"$TMP\" || grep -q corvint README.md\n")
+	write(t, root, "script/lsfiles_test.sh", "#!/bin/sh\ngit -C \"$ROOT\" ls-files -- '*README.md' | while read -r f; do grep -q corvint \"$ROOT/$f\"; done\n")
 	write(t, root, "script/string_test.sh", "#!/bin/sh\nsh -c 'cd docs && grep -q corvint README.md'\n")
 	graph := build(t, root)
-	kept := []string{"script/cd_test.sh", "script/find_test.sh", "script/git_test.sh", "script/recursive_test.sh", "script/string_test.sh"}
+	kept := []string{"script/cd_test.sh", "script/diff_test.sh", "script/find_test.sh", "script/git_test.sh", "script/lsfiles_test.sh", "script/recursive_test.sh", "script/string_test.sh"}
 	cases := []struct {
 		dirty string
 		want  []string

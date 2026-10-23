@@ -203,17 +203,21 @@ func dataOnly(parents []ast.Node, literal ast.Expr, names map[string]string) boo
 	return false
 }
 
-// assigned reports an index expression that is assigned or incremented, whose
-// parent is the last of parents.
+// assigned reports an index expression that is assigned or incremented,
+// through any parentheses; its parent is the last of parents.
 func assigned(parents []ast.Node, index *ast.IndexExpr) bool {
-	if len(parents) == 0 {
+	var child ast.Expr = index
+	for position := len(parents) - 1; position >= 0; position-- {
+		switch statement := parents[position].(type) {
+		case *ast.ParenExpr:
+			child = statement
+			continue
+		case *ast.AssignStmt:
+			return slices.Contains(statement.Lhs, child)
+		case *ast.IncDecStmt:
+			return statement.X == child
+		}
 		return false
-	}
-	switch statement := parents[len(parents)-1].(type) {
-	case *ast.AssignStmt:
-		return slices.Contains(statement.Lhs, ast.Expr(index))
-	case *ast.IncDecStmt:
-		return statement.X == index
 	}
 	return false
 }

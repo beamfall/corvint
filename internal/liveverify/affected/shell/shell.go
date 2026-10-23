@@ -224,12 +224,24 @@ var recursiveFlags = map[string]struct {
 	"ls":    {[]string{"--recursive"}, "R"},
 	"cp":    {[]string{"--recursive", "--archive"}, "rRa"},
 	"scp":   {nil, "r"},
+	"diff":  {[]string{"--recursive"}, "r"},
+	"chmod": {[]string{"--recursive"}, "R"},
+	"chown": {[]string{"--recursive"}, "R"},
+}
+
+// treeBlindGit are the git subcommands a placed script may run in a computed
+// directory: none matches a pathspec at any depth of a tree it reads, as
+// grep, ls-files, ls-tree, archive or diff do (AFP-V0-400).
+var treeBlindGit = map[string]bool{
+	"init": true, "config": true, "add": true, "commit": true, "tag": true,
+	"rev-parse": true, "checkout": true, "switch": true,
 }
 
 // placesFileNames reports a shell unit whose lone file-name tokens can be
 // placed as a Go unit's are (AFP-V0-400): none of its commands, those of its
 // command strings included, changes to a literal directory (`cd docs`), runs
-// git other than in a computed directory (`git -C "$root"`), reads
+// git other than a treeBlindGit subcommand in a computed directory
+// (`git -C "$root" add -A`), reads
 // recursively, or runs commands it is handed. A cd or git -C to a computed
 // directory is the AFP-V0-072 run-time-root gap.
 func placesFileNames(commands []command) bool {
@@ -246,7 +258,7 @@ func placesFileNames(commands []command) bool {
 				}
 			}
 		case word == "git":
-			if len(args) < 2 || unquote(args[0]) != "-C" || !computed(args[1]) {
+			if len(args) < 3 || unquote(args[0]) != "-C" || !computed(args[1]) || !treeBlindGit[unquote(args[2])] {
 				return false
 			}
 		}

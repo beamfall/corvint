@@ -2481,10 +2481,13 @@ modelled.
   shell plugin MUST set a unit's `placesFileNames` (part of the AFP-V0-005 projection when true)
   exactly when none of the script's commands, a `-c` command string's included, changes to a
   literal directory (a `cd` operand without an expansion or command substitution, or any
-  `pushd`), runs `git` other than as `git -C` with a computed directory, reads recursively
-  (`find`, `rg`, `ag`, `ack`, `tree`, `du`, `tar`, `zip`, `rsync`; `grep`, `egrep`, `fgrep` or
-  `zgrep` with `-r`, `-R`, `--recursive`, `--dereference-recursive` or `--directories=recurse`;
-  `ls -R`; `cp -r`, `-R` or `-a`; `scp -r`) or runs commands it is handed (`xargs`, `eval`). A
+  `pushd`), runs `git` other than as `git -C` with a computed directory and one of the
+  subcommands `init`, `config`, `add`, `commit`, `tag`, `rev-parse`, `checkout` or `switch` (none
+  matches a pathspec at any depth of a tree, as `grep`, `ls-files`, `ls-tree` or `archive` do),
+  reads recursively (`find`, `rg`, `ag`, `ack`, `tree`, `du`, `tar`, `zip`, `rsync`; `grep`,
+  `egrep`, `fgrep` or `zgrep` with `-r`, `-R`, `--recursive`, `--dereference-recursive` or
+  `--directories=recurse`; `ls -R`; `cp -r`, `-R` or `-a`; `scp -r`; `diff -r`; `chmod -R`;
+  `chown -R`) or runs commands it is handed (`xargs`, `eval`). A
   non-Go unit with `placesFileNames` MUST place a path it names as AFP-V0-072 (1) and (2) require
   of a Go unit, with the unit's own directory as the subtree and the repository root and, for a
   climbing token, every ancestor of that directory as the bases: a lone file-name token such as
@@ -2496,12 +2499,13 @@ modelled.
   repository root (a `make` target or CI step) or below its own directory; the shell lexicon
   keeps only path-shaped tokens, so a plain directory word (`cd docs`) or a recursive read below a
   named directory cannot be placed, and such a script keeps the wider relation instead. On
-  `origin/main` 77a49dfa, 89 of the 140 shell units place file names, among them
+  `origin/main` 77a49dfa, 69 of the 140 shell units place file names, among them
   `script/check-host-package-versions_test.sh`, which `docs/specs/README.md` no longer selects.
   Non-goals: modelling `cd` targets or the working directory a caller chooses. Failure modes: a
   placed script that changes to a computed directory (an environment variable, a substitution)
   inside the repository and reads a lone file name there is no longer selected; this is the
-  AFP-V0-072 run-time-root gap, now shared by shell units. A recursive reader the list omits
+  AFP-V0-072 run-time-root gap, now shared by shell units; so is a `cd "$d"` whose variable a
+  `for` loop sets from literal words (`for d in docs specs`). A recursive reader the list omits
   (a function wrapping `find`, an unlisted tool) is placed and may be missed. Falsifier: a placed
   unit whose script runs a listed command, or a lone-file-name reader with `placesFileNames`
   selected for a path whose directories none of its tokens name. Rollback: remove
@@ -2763,9 +2767,9 @@ rather than selecting nothing at `BOUNDED`. A consumer still cannot read closure
 | AFP-V0-192 | `Witness.Cause`, `UnboundedCause` in `internal/liveverify/affected/select.go`; `Graph.causes`, `Graph.unboundedReaders` in `graph.go`; `Graph.unboundedReadersOf` in `readers.go` | `TestInstructionFileChangeNamesEachUnboundedReadersCause_V1_2075`; `TestGoTestOnlyChangeSelectsItsPackageButNotItsImporters_V1_0984` |
 | AFP-V0-380 | the `go-interop` script and the interop step of `go-static` in `.github/workflows/ci.yml` | `TestAFPV0380InteropTestsRunOnceInGoStatic` (the go-static step runs the module's test and vet; go-interop runs neither and keeps gofmt and the Windows build; go-product needs go-static) |
 | AFP-V0-381 | `Plan.FrontierSites` in `internal/liveverify/affected/select.go`; `Graph.frontierSites` in `graph.go`; `affectedCompactPlan.FrontierSites` in `cmd/corvint/affected_compact.go` | `TestAFPV0381PlanCountsRepositoryFrontierSites`, `TestAFPV0381CompactPlanKeepsFrontierSites`, `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan`, `TestLocatedFrontierCountsOnlyCrossedSites_RUBYAFFECTEDV0047`, `TestRepositoryWideLoadSitesStayPluginWideAndLocated_RUBYAFFECTEDV0046` |
-| AFP-V0-400 | `placesFileNames`, `recursiveReaders` and `recursiveFlags` in `internal/liveverify/affected/shell/shell.go`; `Unit.PlacesFileNames` in `unit.go`; `digestUnit.PlacesFileNames` in `graph.go`; the `PlacesFileNames` branch of `Graph.resolves` in `readers.go` | `TestLoneFileNameShellReaderMustPlaceThePath_AFPV0400` (a README.md-only shell test and one that changes only to a computed directory are dropped for `docs/specs/README.md` and kept at the root and in their subtree; one whose computed `cd` names `docs/specs`, a multi-component reader, and scripts that `cd docs`, `find`/`xargs`, `grep -r`, `git grep` or `sh -c 'cd docs ...'` are kept; fails without the change), `TestNonGoFileNameReaderIsNotNarrowed_AFPV0072` |
+| AFP-V0-400 | `placesFileNames`, `recursiveReaders` and `recursiveFlags` in `internal/liveverify/affected/shell/shell.go`; `Unit.PlacesFileNames` in `unit.go`; `digestUnit.PlacesFileNames` in `graph.go`; the `PlacesFileNames` branch of `Graph.resolves` in `readers.go` | `TestLoneFileNameShellReaderMustPlaceThePath_AFPV0400` (a README.md-only shell test and one that changes only to a computed directory are dropped for `docs/specs/README.md` and kept at the root and in their subtree; one whose computed `cd` names `docs/specs`, a multi-component reader, and scripts that `cd docs`, `find`/`xargs`, `grep -r`, `diff -r`, `git grep`, `git -C "$ROOT" ls-files` or `sh -c 'cd docs ...'` are kept; fails without the change), `TestNonGoFileNameReaderIsNotNarrowed_AFPV0072` |
 | AFP-V0-401 | `literalGlobs` and `globPattern` in `internal/liveverify/affected/golang/globs.go`; `Unit.PathGlobs` in `unit.go`; `digestUnit.PathGlobs` in `graph.go`; `Graph.globReader` and `globMatches` in `readers.go`; `WitnessPathGlobReader` and `Witness.Glob` in `select.go` | `TestLiteralGlobSelectsTheReaderOfAnAddedFile_AFPV0401` (an added `.github/workflows` file selects the package whose test globs it after a run-time root, an anchored literal glob selects from the root only, a non-literal glob leaves the path an `UNOWNED_DIRTY_PATH` unknown, a non-UTF-8 glob literal is not recorded and the graph still builds; fails without `globReader`) |
-| AFP-V0-402 | `literalExecs`, `usedCommandLiterals` and `dataOnly` in `internal/liveverify/affected/golang/binaryexecs.go`; `literalTokens` in `golang.go` | `TestDataOnlyCommandLiteralCreatesNoEdge_AFPV0402` (an exec argument, a helper argument, a `strings.TrimSuffix` first argument, a `strings.CutPrefix` initializer and an assigned map key keep the edge; a comparison, a switch case, a map read, `strings.HasPrefix`, a `TrimPrefix` cut operand and a test message create none, and a change to the command's build no longer selects the data-only package; fails without the change), `TestBinaryExecConsumerIsSelectedWithTheCommandsBuild_AFPV0037` |
+| AFP-V0-402 | `literalExecs`, `usedCommandLiterals` and `dataOnly` in `internal/liveverify/affected/golang/binaryexecs.go`; `literalTokens` in `golang.go` | `TestDataOnlyCommandLiteralCreatesNoEdge_AFPV0402` (an exec argument, a helper argument, a `strings.TrimSuffix` first argument, a `strings.CutPrefix` initializer and an assigned map key, parenthesized or not, keep the edge; a comparison, a switch case, a map read, `strings.HasPrefix`, a `TrimPrefix` cut operand and a test message create none, and a change to the command's build no longer selects the data-only package; fails without the change), `TestBinaryExecConsumerIsSelectedWithTheCommandsBuild_AFPV0037` |
 | AFP-V0-403 | `WorkspaceRefusal`, `workspaceDirectiveReason` and `workspaceReplacement` in `internal/gateselect/workspace.go`; `baseWorkspace` and `parseBaseWorkspace` in `readscopes.go` | `TestBaseWorkspaceRefusesMalformedDirectiveArguments_AFPV0403` (a typed refusal with line and reason for each of `go`, `toolchain`, `godebug`, `replace` and `use`; a valid file still lists its modules), `TestBaseReadScopesFollowCommittedReadScopes_AFPV0050` (four malformed-argument cases agree with `golang.CommittedReadScopes`; they fail without the change) |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
