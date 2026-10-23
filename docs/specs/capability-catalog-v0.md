@@ -97,7 +97,8 @@ cannot silently go missing or outlive its command.
   `flowSubcommands`, `leaseActions`, `helpSubcommands`). Per command it states purpose, maturity,
   owning spec or freeze contract, operations, nested operations, flags, required flags per usage
   form (`requiredFlags`: the options every `Usage:` line of that form names outside `[ ]` and
-  `( )`, keyed by the command plus its operation words; a form with none is omitted), schema identifiers,
+  `( )`, keyed by the command plus its operation words; a form with none is omitted; a lower
+  bound, see `CAP-V0-022`), schema identifiers,
   stated exit statuses, write class, self-observation ledger listing and write statements; at the
   top level it lists the two-word help topics (`nestedHelpTopics`); and the document names how
   each field is derived. Like every help topic it reads no stdin, opens no
@@ -135,6 +136,23 @@ cannot silently go missing or outlive its command.
 - `CAP-V0-021`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1588) Root help MUST name `corvint help --json`
   and `corvint help guide` within its existing three usage lines and its CCF-V1-009 byte bound,
   and the unknown-help-topic refusal MUST keep listing commands and nested topics only.
+- `CAP-V0-022`: (owner request, 2026-10-23; amends `CAP-V0-015`) The catalog MUST carry a
+  top-level `requiredFlagsCoverage` member, encoded between `derivation` and `globalFlags`, whose
+  only value is `partial`, and `derivation.requiredFlagsCoverage` MUST say why: `requiredFlags`
+  reads only `Usage:` synopses, and the binary declares no structured required-option table for
+  most forms. An option that help prose or the parser requires (one of two alternatives, or one
+  required only in some mode) is therefore missing, and an absent form or option does not mean
+  none is required. A consumer MUST treat `requiredFlags` as a lower bound. The only code-declared
+  required-option table, `corpusOperations` (`docs corpus` operations), already generates those
+  forms' usage lines (`DCP-V1-056`), so deriving from it would change no byte. The value can
+  become something other than `partial` only in a change that derives every form from a structured
+  source and amends this requirement. The schema stays `corvint-capability-catalog/0`, because
+  the member is additive.
+- `CAP-V0-023`: (owner request, 2026-10-23) The catalog builder MUST NOT derive a required option
+  from help prose. A sentence such as "Exactly one of --dry-run and --apply is required" adds
+  nothing to `requiredFlags`, and a form whose usage lines are alternatives with no common
+  top-level option stays omitted. `CAP-V0-022` is how a consumer learns about that gap.
+  `CAP-V0-024` to `CAP-V0-029` are reserved for this slice and unassigned.
 
 ## Boundaries and failure modes
 
@@ -162,6 +180,13 @@ check and the deployed `corvint-update` allow exactly six members, so a seventh 
 rollout: tolerant updater and checks first, then the member and its manifest pin); a CI step
 (the owner accepted on 2026-10-23 that the drift tests already run in the existing CI Go test
 shards, so no `.github` change is needed); per-command input/output separation.
+
+CAP-V0-022 and CAP-V0-023 failure modes: the marker is catalog-wide, so it does not say which
+forms are incomplete. Measured at `77a49dfa`: `migrate-traces` lists no required option while its
+help says "Exactly one of --dry-run and --apply is required", and `ocm prepare` lists `--intent`
+and `--target` while the `ocm` help also calls `--expected-base` required for a `cem/1.0` map. A consumer that ignores unknown
+members misses the marker. Rollback: remove the member, its derivation entry, its constant, the
+two requirements and their tests, and rerun `make capability-catalog`.
 
 CAP-V0-015 to CAP-V0-021 failure modes: catalog fields are read from help prose, so they are as
 complete as the help: a flag or schema the help omits is missing, an exit status stated without
@@ -207,3 +232,5 @@ entries, and the `docs/CAPABILITIES.md` pointer; no stored state depends on them
 | CAP-V0-019 | `internal/capcatalog/catalog.json`, `capcatalog.Snapshot`, `make capability-catalog`, `make capability-catalog-check` | `TestCAPV0019CommittedCatalogMatchesTheBinary` |
 | CAP-V0-020 | `capcatalog.Build`, `capcatalog.Encode` | `TestCAPV0020BuildIsDeterministicAndDerivedFromItsArgument` |
 | CAP-V0-021 | `rootHelp` usage line, `unknownHelpTopic` | `TestCAPV0021RootHelpNamesTheCatalogTopicsWithinItsBound`, `TestRootHelpIsACompactVerbIndex` |
+| CAP-V0-022 | `capcatalog.Catalog.RequiredFlagsCoverage`, `capcatalog.RequiredFlagsPartial`, `derivation`, `internal/capcatalog/catalog.json` | `TestCAPV0022RequiredFlagsCoverageIsPartial` (value, derivation reason and encoded position), `TestCAPV0022BinaryCatalogMarksRequiredFlagsPartial` (`corvint help --json`), `TestCAPV0019CommittedCatalogMatchesTheBinary` |
+| CAP-V0-023 | `capcatalog.requiredFlags` (usage forms only) | `TestCAPV0023ProseRequirementsAreNotDerived` (prose "is required" sentences and alternative usage lines add no required option) |

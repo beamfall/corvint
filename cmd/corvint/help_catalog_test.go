@@ -62,6 +62,18 @@ func TestCAPV0015HelpJSONListsEveryDispatchedCommand(t *testing.T) {
 	}
 }
 
+// CAP-V0-022: the binary's own catalog marks requiredFlags partial.
+func TestCAPV0022BinaryCatalogMarksRequiredFlagsPartial(t *testing.T) {
+	t.Parallel()
+	var catalog capcatalog.Catalog
+	if err := json.Unmarshal([]byte(runCatalogHelp(t, "help", "--json")), &catalog); err != nil {
+		t.Fatal(err)
+	}
+	if catalog.RequiredFlagsCoverage != capcatalog.RequiredFlagsPartial {
+		t.Fatalf("requiredFlagsCoverage = %q, want %q", catalog.RequiredFlagsCoverage, capcatalog.RequiredFlagsPartial)
+	}
+}
+
 func TestCAPV0016UnderivableFieldsAreUnknownWithReasons(t *testing.T) {
 	t.Parallel()
 	catalog := capcatalog.Build(capabilityRegistry())
