@@ -1998,28 +1998,49 @@ of the V1-1557 decision, `docs/build-log/2026-10-21-detach-claim-semantics-and-p
 is a transport and adds no store semantics, which nothing yet stated or tested.
 
 - `ATR-V0-310`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2305) The
-  `internal/tasks/cli` test binary MUST stop every process group that a test leaves running under a
-  child of the binary, whichever way the test or the binary ends. (1) A test that registers the
-  per-test reaper (`ReapWorkersOnCleanup`, called before the test's own cleanups) MUST have every
-  group led by a child of the binary that was not running at registration killed when it ends,
-  including after `t.Fatal`, and MUST fail with the groups named. (2) After the last test the
-  binary MUST kill any group still led by one of its children and fail the package. (3) Before any
-  test the binary MUST start a dead-man reaper as ATR-V0-213 does (a copy of itself in its own
-  session, standard input a pipe whose write end only the binary holds) that samples the
-  children of the binary leading a process group, and the members of those groups, recording each
-  with its start identity; at end of file, which the kernel delivers once the binary has exited by
-  any means, including SIGKILL and the package timeout, it MUST send SIGKILL to each recorded group
-  whose leader still carries its recorded identity and to each recorded member that still does,
-  repeating the group signal while it stays present, within a bound. It MUST NOT signal a process
-  whose identity is gone or unreadable. A test binary re-executed by a test as a helper MUST NOT arm
-  these checks unless the test clears `CORVINT_CLI_TEST_ROOT` for it.
+  `internal/tasks/cli` test binary MUST fail when a test leaves a process group running under a
+  child of the binary, whichever way the test or the binary ends, and MUST signal a worker process
+  only through a handle that pins that process incarnation against pid reuse (a pidfd on Linux);
+  no path signals a pid or a process group by number. (1) A test that registers the per-test reaper
+  (`ReapWorkersOnCleanup`, called before the test's own cleanups) MUST fail when it ends, including
+  after `t.Fatal`, naming every group led by a child of the binary that was not running at
+  registration, and MUST retire those it owns. (2) After the last test the binary MUST join,
+  within a bound and without signalling, every detached child the tests launched (a detached
+  result is readable before its child exits), then retire any group still led by one of its
+  children and fail the package. Fixtures that launch detached children MUST join them before the
+  test's cleanup ends. (3) Before any test the binary MUST start a dead-man reaper as ATR-V0-213
+  does (a copy of itself, standard input a pipe whose write end only the binary holds), as the
+  leader of its own process group held unreaped by the binary. Every sample, the reaper MUST
+  attribute a process only from a process-table row read after the process's handle is opened,
+  with the handle still pinned after the read, so the row is that process's: a group leader when
+  the row names the binary as its parent while the binary's own handle is pinned; a member when
+  the row puts it in the group of an owned leader that is still pinned, or under an owned, pinned
+  parent in that group. An owned incarnation that has been reaped MUST be forgotten, so a later
+  process under its pid is judged afresh. At end of file, which the kernel delivers once the binary
+  has exited by any means, including SIGKILL and the package timeout, it MUST stop each owned
+  leader, kill the owned members, sampling again for members forked meanwhile until none is left
+  within a bound, then kill the leader, each through its handle, and MUST exit nonzero, reporting
+  on the binary's standard error, when it killed or left anything or a sample failed. The per-test
+  and end-of-run checks retire the same way. (4) A failed process-table read, a handle that cannot
+  be opened or checked, a signal refused for any reason other than the process having been reaped
+  (`EPERM` included), a process in an owned group's number that cannot be attributed, and an
+  attributed leader that cannot be pinned MUST fail the check and MUST NOT be taken for gone or
+  signalled. Where the platform has no pinning handle (Darwin) nothing is signalled: every leak is
+  reported as not signalled and fails. (5) At shutdown the binary MUST close the pipe and wait,
+  within a bound, for the reaper; a reaper still running at the bound MUST be killed with its whole
+  group while its leader is unreaped; it MUST be reaped before the binary exits, and a reaper that
+  failed or had to be killed MUST fail the package. A test binary re-executed by a test as a helper
+  MUST NOT arm these checks unless the test clears `CORVINT_CLI_TEST_ROOT` for it.
 - `ATR-V0-311`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1559) An attach
-  of a detached `claim` or `pool acquire` MUST NOT report `LOST` while the launcher of its request
-  is starting the child. The launcher records `child.json` before it releases the launch lock, so
-  an attach MUST read the launch lock before the child's liveness, and MAY report `LOST` only when
-  the lock was free at that read, and free again at a second read that is followed by a second
-  liveness read, and no child is live at either liveness read; a launch that completes between
-  the reads is then found live. This refines ATR-V0-027 and changes no other attach state.
+  of a detached `claim` or `pool acquire` MUST NOT report `LOST` while a launcher of its request is
+  starting a child, nor while one could begin before the answer is chosen. A launcher holds the
+  launch lock exclusively from before it starts a child until `child.json` records it, so an
+  attach MUST take the launch lock shared, without waiting, before it reads the child's liveness,
+  and hold it until it has chosen its answer; when the lock is held it MUST answer `PENDING`. It
+  MAY report `LOST` only while holding the lock, with no child live at its liveness read and no
+  kept result. A missing lock file counts as no launcher (the launcher creates it before it writes
+  `request.json`); the attach opens it read-only and creates nothing. This refines ATR-V0-027 and
+  changes no other attach state.
 - `ATR-V0-312`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2173) A detached
   `claim` or `pool acquire` MUST have the store outcome of the foreground command with the same
   argv and request ID in the same store state: the kept result returned by `--detach --wait` and by
@@ -2029,17 +2050,44 @@ is a transport and adds no store semantics, which nothing yet stated or tested.
   ticket, `ATTEMPT_LIVE` on the ticket the live attempt holds, and the idempotent replay for its own
   request ID.
 
-Non-goals: worker groups a process moves out of its group; a group started within one sample
-(200 ms) of the binary's death, which only the per-test and end-of-run checks cover; other test
-packages; pruning of detached records that never finish (V1-1565). Failure modes: a group present
-30 seconds after its binary is SIGKILLed fails
-`TestATRV0310_LeakedWorkerGroupsAreReaped`; an attach that reports a launch in progress `LOST`
-fails `TestATRV0311_AttachNeverReportsALaunchCompletingBetweenItsReadsLost`; a detached outcome
-that differs from the foreground one fails `TestATRV0312_DetachedClaimOutcomeEqualsForeground`.
-Acceptance evidence: those tests, each failing on the code without the change, and the Linux run of
-the detach tests, recorded in `docs/build-log/2026-10-23-cli-test-lane-1023.md`.
+Non-goals: signalling on a platform without a pinning handle (Darwin reports and fails instead);
+worker groups a process moves out of its group; a group started within one sample (200 ms) of the
+binary's death, which only the per-test and end-of-run checks cover; a reaper that is itself
+killed; other test packages; pruning of detached records that never finish (V1-1565). Failure
+modes: a leaked group that does not fail its test, the package or the dead-man reaper, or that
+survives on Linux, fails `TestATRV0310_LeakedWorkerGroupsAreReaped`; attribution that keeps a
+reaped incarnation, reads membership from a row not bound to the handle, takes a reused group
+number for an owned group, or takes a failed read, open or `EPERM` for gone fails
+`TestATRV0310_ReusedWorkerPIDIsTrackedByIncarnation`, `TestATRV0310_MembershipIsReadFromThePinnedProcess`,
+`TestATRV0310_NoSignalWithoutAPinnedOwner` or `TestATRV0310_UnobservableCleanupFails`; a stalled
+reaper left running with its group fails `TestATRV0310_StalledReaperIsRetiredWithItsGroup`; a
+completed detached claim whose child is still exiting at the leak check fails
+`TestATRV0310_DetachedChildrenAreJoinedBeforeTheLeakCheck`; an attach that reports `LOST` while a
+launch is under way or begins during its decision fails
+`TestATRV0311_AttachNeverReportsALaunchCompletingBetweenItsReadsLost`,
+`TestATRV0311_LateRelaunchIsNeverReportedLost` or `TestATRV0311_AttachDuringARelaunchIsPending`; a
+detached outcome that differs from the foreground one fails
+`TestATRV0312_DetachedClaimOutcomeEqualsForeground`.
+Acceptance evidence, recorded in `docs/build-log/2026-10-23-cli-test-lane-1023.md`, is of three
+kinds. Regression witnesses fail on the named earlier code:
+`TestATRV0311_LateRelaunchIsNeverReportedLost` (its first case answers `SUPERVISOR_LOST` with the
+two-read attach of this change's first review round; the liveness-first attach on `origin/main`
+passes it, as it reads liveness once), `TestATRV0311_AttachNeverReportsALaunchCompletingBetweenItsReadsLost`
+(with the original liveness-first read order), `TestATRV0310_LeakedWorkerGroupsAreReaped` (with
+the reaper layers disabled) and `TestATRV0310_DetachedChildrenAreJoinedBeforeTheLeakCheck` (with
+the joins removed). Mutant checks name the defect each reaper unit test detects: keeping a
+reaped incarnation (`ReusedWorkerPIDIsTrackedByIncarnation`), reading membership from the
+pre-handle snapshot (`MembershipIsReadFromThePinnedProcess`), taking group-number presence as
+ownership (`NoSignalWithoutAPinnedOwner`), treating a failed table read or `EPERM` as gone
+(`UnobservableCleanupFails`); `StalledReaperIsRetiredWithItsGroup` is witnessed by the previous
+shutdown, which left the stalled reaper's child running. Coverage additions pass on the previous
+implementation and guard existing behaviour: `TestATRV0312_DetachedClaimOutcomeEqualsForeground`
+(mutant: a detached child that rewrites `ATTEMPT_LIVE` fails it),
+`TestATRV0311_AttachDuringChildStartupIsNeverLost` and `TestATRV0311_AttachDuringARelaunchIsPending`
+(end-to-end and state checks). Linux runs of the detach and reaper tests are recorded there too.
 Rollback: revert the commit; the attach reads liveness before the lock again, the cli test binary
-has no reaper, and ATR-V0-020..029 are otherwise unchanged.
+has no reaper or detached-child join, `groupreap.ReadProcessTable` is removed, and ATR-V0-020..029
+are otherwise unchanged.
 
 ## Outcome document
 
@@ -2337,8 +2385,8 @@ receipt or wire shape changes.
 | ATR-V0-240 | `internal/tasks/store/program.go` (`programTransition` `keepControl`), `internal/tasks/store/workflow.go` (`persistFenced`, stage journal callback), `internal/tasks/store/program_run.go` (`record`) | `TestATRV0240_PhaseWriteKeepsControlRecordedMeanwhile`; accepted under the owner's standing auto-accept (2026-10-11); Darwin focused run passes; fails with the fix reverted |
 | ATR-V0-241 | `internal/tasks/store/lease_write.go` (recorded limit; no runtime change) | `TestATRV0241_MappedWriteAfterLeaseAuditRefusedByNextWrite`; accepted under the owner's standing auto-accept (2026-10-11); Darwin focused run passes; Linux NOT_RUN |
 | ATR-V0-213 | `internal/tasks/dispatch/reap_test.go` (`TestMain` dead-man reaper) | `TestATRV0213_FixtureWorkersDieWithTheirTestBinary` (`internal/tasks/dispatch`) |
-| ATR-V0-310 | `internal/tasks/cli/worker_reap_internal_test.go` (`TestMain` dead-man reaper, `ReapWorkersOnCleanup`) | `TestATRV0310_LeakedWorkerGroupsAreReaped` (`internal/tasks/cli`) |
-| ATR-V0-311 | `internal/tasks/cli/lease_detach.go` (`leaseDetachAwait`) | `TestATRV0311_AttachNeverReportsALaunchCompletingBetweenItsReadsLost`, `TestATRV0311_AttachDuringChildStartupIsNeverLost` (`internal/tasks/cli`) |
+| ATR-V0-310 | `internal/tasks/cli/worker_reap_internal_test.go` (`TestMain` dead-man reaper, `reapTracker`, `ReapWorkersOnCleanup`), `worker_reap_linux_internal_test.go` (pidfd pins), `detach_join_internal_test.go`, `internal/tasks/cli/lease_detach.go` and `attempt_detach.go` (`detachLaunched`), `internal/groupreap/table.go` | `TestATRV0310_LeakedWorkerGroupsAreReaped`, `TestATRV0310_ReusedWorkerPIDIsTrackedByIncarnation`, `TestATRV0310_MembershipIsReadFromThePinnedProcess`, `TestATRV0310_NoSignalWithoutAPinnedOwner`, `TestATRV0310_UnobservableCleanupFails`, `TestATRV0310_StalledReaperIsRetiredWithItsGroup`, `TestATRV0310_DetachedChildrenAreJoinedBeforeTheLeakCheck` (`internal/tasks/cli`) |
+| ATR-V0-311 | `internal/tasks/cli/lease_detach.go` (`leaseDetachAwait`), `internal/tasks/cli/lease_detach_unix.go` (`leaseDetachShareLaunch`) | `TestATRV0311_AttachNeverReportsALaunchCompletingBetweenItsReadsLost`, `TestATRV0311_LateRelaunchIsNeverReportedLost`, `TestATRV0311_AttachDuringARelaunchIsPending`, `TestATRV0311_AttachDuringChildStartupIsNeverLost` (`internal/tasks/cli`) |
 | ATR-V0-312 | `internal/tasks/cli/lease_detach.go` (no detach-specific store semantics) | `TestATRV0312_DetachedClaimOutcomeEqualsForeground` (`internal/tasks/cli`) |
 | ATR-V0-270 | `internal/tasks/cli/command_help.go` | `TestATRV0270_DispatchUsageNamesGrantID` (`internal/tasks/cli`) |
 | ATR-V0-271 | `internal/tasks/transaction/lease.go` (`fenced`, `expiredRemedy`) | `TestATRV0271_GateRunAfterExpiryNamesRemedy` (`internal/tasks/cli`) |

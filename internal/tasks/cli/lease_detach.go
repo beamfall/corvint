@@ -428,7 +428,11 @@ func leaseDetachLaunch(env Env, name, dir string, want leaseDetachRecord, rest [
 		return &wire.Result{Command: cmd, Outcome: wire.OutcomeError, Codes: []string{wire.CodeNoexec}, Warnings: []string{prose("the detached " + name + " did not start: " + err.Error() + "; nothing was claimed")}}
 	}
 	// Reap the child if it ends while this caller still lives.
-	go func() { _ = c.Wait() }()
+	exited := make(chan struct{})
+	go func() { _ = c.Wait(); close(exited) }()
+	if detachLaunched != nil {
+		detachLaunched(env.Cwd, exited)
+	}
 	identity, err := leaseDetachIdentity(c.Process.Pid)
 	if err != nil || identity == "" {
 		identity = leaseDetachUnknownIdentity
@@ -557,10 +561,16 @@ func leaseDetachRunChild(env Env, name, dir string, want leaseDetachRecord, rest
 	return code
 }
 
-// leaseDetachProbeGap, when set, runs in leaseDetachAwait between its read of
-// the launch lock and its read of the child's liveness; tests use it to
-// complete a launch in that gap. It is nil outside tests.
+// leaseDetachProbeGap, when set, runs in leaseDetachAwait between its attempt
+// on the launch lock and its read of the child's liveness; tests use it to
+// complete or start a launch in that gap. It is nil outside tests.
 var leaseDetachProbeGap func()
+
+// detachLaunched, when set, receives the working directory of each detached
+// child a launcher starts and a channel closed once this process has reaped
+// it, so tests join the children they start (ATR-V0-310). It is nil outside
+// tests.
+var detachLaunched func(cwd string, exited <-chan struct{})
 
 // leaseDetachAwait answers from the kept result, or reports PENDING or LOST,
 // waiting until deadline for the result (ATR-V0-022, ATR-V0-024). It only
@@ -585,38 +595,37 @@ func leaseDetachAwait(env Env, name, dir, requestID, holder string, deadline tim
 		}
 		var child leaseDetachChild
 		state := "PENDING"
-		// A launcher that still holds the lock is starting the child. The
-		// lock is read before the child's liveness: the launcher records
-		// child.json before it releases the lock, so a lock found free
-		// means any child it started is already on record, and a child
-		// recorded between the two reads is never mistaken for none
-		// (ATR-V0-311, V1-1559). It is read again after, for a launcher that
-		// began meanwhile.
-		launching := leaseDetachLockHeld(filepath.Join(dir, leaseDetachLockName))
+		// A launcher holds the launch lock exclusively from before it starts
+		// a child until child.json records it. The attach takes the lock
+		// shared, without waiting, before it reads the child's liveness and
+		// keeps it until the answer is chosen: no launch can begin in
+		// between, and one already under way holds the lock and is PENDING
+		// (ATR-V0-311, V1-1559). The shared lock is never waited for, so a
+		// launcher is held up by at most this one read.
+		release, launching, err := leaseDetachShareLaunch(filepath.Join(dir, leaseDetachLockName))
+		if err != nil {
+			return emit(env.Stdout, errorResult(cmd, err))
+		}
 		if leaseDetachProbeGap != nil {
 			leaseDetachProbeGap()
 		}
 		live, err := leaseDetachChildLive(dir, &child, time.Now())
+		finished := false
+		if err == nil && !live && !launching {
+			if _, serr := os.Lstat(filepath.Join(dir, leaseDetachResultName)); serr == nil {
+				finished = true // it finished between the two reads
+			} else {
+				state = "LOST"
+			}
+		}
+		release()
 		if err != nil {
 			return emit(env.Stdout, errorResult(cmd, err))
 		}
-		if !live && !launching {
-			// A launch that began after the first read may have recorded
-			// its child since: a lock found free now means any launch has
-			// finished, so the liveness read that follows is conclusive.
-			if launching = leaseDetachLockHeld(filepath.Join(dir, leaseDetachLockName)); !launching {
-				if live, err = leaseDetachChildLive(dir, &child, time.Now()); err != nil {
-					return emit(env.Stdout, errorResult(cmd, err))
-				}
-			}
-		}
-		if !live && !launching {
-			state = "LOST"
+		if finished {
+			continue
 		}
 		if state == "LOST" {
-			if _, err := os.Lstat(filepath.Join(dir, leaseDetachResultName)); err == nil {
-				continue // it finished between the two reads
-			}
 			return emit(env.Stdout, &wire.Result{Command: cmd, Outcome: wire.OutcomeRefused, Codes: []string{wire.CodeSupervisorLost}, NotRetryable: true,
 				Warnings: []string{prose("the detached " + name + " ended without keeping a result; nothing was signalled; repeat " + name + " --detach with the same arguments and request id: the store replays a committed request and otherwise runs it once")},
 				Items:    []wire.Value{leaseDetachItem(name, dir, requestID, holder, state, &child)}})
