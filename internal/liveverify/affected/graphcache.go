@@ -186,7 +186,9 @@ type cachedUnit struct {
 	AdvisoryImports      []string `json:"advisoryImports"`
 	RouteDispatchImports []string `json:"routeDispatchImports"`
 	PathTokens           []string `json:"pathTokens"`
+	PathGlobs            []string `json:"pathGlobs"`
 	PathTokensBounded    bool     `json:"pathTokensBounded"`
+	PlacesFileNames      bool     `json:"placesFileNames"`
 	Embeds               bool     `json:"embeds"`
 	UnboundedReads       string   `json:"unboundedReads"`
 	LocatesRoot          bool     `json:"locatesRoot"`
