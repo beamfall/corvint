@@ -2,14 +2,12 @@ package cli_test
 
 import (
 	"bytes"
-	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
+	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
@@ -21,14 +19,7 @@ import (
 // it is not evidence that CAL019 ran or that a deployment is qualified.
 func TestPoolLaneUntouched_NativeFixture(t *testing.T) {
 	t.Run("CAL-V0-067", func(t *testing.T) {
-		binary := filepath.Join(t.TempDir(), "corvint-tasks")
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-		defer cancel()
-		build := exec.CommandContext(ctx, "go", "build", "-o", binary, "../../../cmd/corvint-tasks")
-		build.WaitDelay = time.Second
-		if out, err := build.CombinedOutput(); err != nil {
-			t.Fatalf("build %v %s", err, out)
-		}
+		binary := cli.CompiledTasksBinary(t)
 		r := exclusionCLIRepo(t)
 		q := fixture.QueueValue()
 		q.Obj.Set("fixture", wire.Bool(false))

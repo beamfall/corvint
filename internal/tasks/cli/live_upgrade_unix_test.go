@@ -157,6 +157,7 @@ func TestCALV0130_SurvivorCleanupSignalsOnlyAnUnreapedRunner(t *testing.T) {
 // when its runner was SIGKILLed before retiring it, once its lifetime bound
 // passes or once its directory is removed, as failed-test cleanup does.
 func TestCALV0130_SurvivorFixtureOutlivesNoKilledRunner(t *testing.T) {
+	t.Parallel() // idle-bound on fixed waits and independent of process state (V1-2366)
 	for _, tc := range []struct {
 		name    string
 		seconds string

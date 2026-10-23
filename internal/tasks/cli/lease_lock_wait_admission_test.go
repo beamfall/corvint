@@ -1,13 +1,16 @@
 package cli_test
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/authority"
+	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -20,6 +23,7 @@ import (
 // preparation gate, while a refusal (the other five verbs in this fixture)
 // is reported under the writer lock without entering it, so both are held.
 func TestCALV0216_LockWaitAdmissionVerbs(t *testing.T) {
+	t.Parallel() // idle-bound on fixed waits and independent of process state (V1-2366)
 	root, repo, _, attempt, generation := lockWaitStore(t)
 	digest := strings.Repeat("a", 64)
 	verbs := [][]string{
@@ -60,13 +64,37 @@ func TestCALV0216_LockWaitAdmissionVerbs(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer writer.Close()
+	// Every verb waits its own one-second bound against the same held locks,
+	// so the six contended commands run concurrently instead of one after the
+	// other; each is judged on its own elapsed time.
+	type contended struct {
+		x       run
+		elapsed time.Duration
+		err     error
+	}
+	results := make([]contended, len(verbs))
+	var wg sync.WaitGroup
 	for i, base := range verbs {
-		start := time.Now()
-		x := atm(t, root, nil, append(append([]string{}, base...), "--lock-wait", "1")...)
-		lockTimedOut(t, x, time.Since(start), time.Second)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var out, errb bytes.Buffer
+			start := time.Now()
+			code := cli.Run(cli.Env{Cwd: root, Args: append(append([]string{}, base...), "--lock-wait", "1"), Stdin: bytes.NewReader(nil), Stdout: &out, Stderr: &errb})
+			results[i].elapsed = time.Since(start)
+			results[i].x = run{code: code, stdout: out.Bytes(), stderr: errb.Bytes()}
+			results[i].x.res, results[i].err = wire.DecodeResult(out.Bytes())
+		}()
+	}
+	wg.Wait()
+	for i, r := range results {
+		if r.err != nil {
+			t.Fatalf("%v: envelope does not decode: %v\n%s", verbs[i][:2], r.err, r.x.stdout)
+		}
+		lockTimedOut(t, r.x, r.elapsed, time.Second)
 		// The planned renew waited on preparation admission itself.
-		if i == 1 && !strings.Contains(string(x.stdout), "preparation acquisition exceeded") {
-			t.Fatalf("renew timed out outside preparation admission: %s", x.stdout)
+		if i == 1 && !strings.Contains(string(r.x.stdout), "preparation acquisition exceeded") {
+			t.Fatalf("renew timed out outside preparation admission: %s", r.x.stdout)
 		}
 	}
 	if err := writer.Close(); err != nil {
