@@ -49,8 +49,11 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 	}
 	rest := arguments[index:]
 	directTopic := ""
+	if len(rest) == 2 && rest[0] == "help" && rest[1] == "--json" {
+		return "catalog-json", true, nil
+	}
 	if len(rest) == 2 && rest[0] == "help" {
-		directTopic, _ = publicHelpTopic(rest[1])
+		directTopic = capabilityOrPublicHelpTopic(rest[1])
 		// A nested topic passed as the one argument the refusal lists it as
 		// ("docs corpus") resolves like its separate-word form (DCP-V1-057).
 		if command, subcommand, spaced := strings.Cut(rest[1], " "); directTopic == "" && spaced {
@@ -179,6 +182,8 @@ func helpText(topic string) string {
 		return docsCorpusOperationHelp(operation)
 	}
 	switch topic {
+	case "catalog-json":
+		return capabilityCatalogJSON()
 	case "docs-corpus":
 		return docsCorpusHelp()
 	case "docs":
@@ -282,7 +287,7 @@ func helpText(topic string) string {
 	case "test-plan":
 		return testPlanHelp
 	default:
-		panic("unknown help topic")
+		return capabilityHelpText(topic)
 	}
 }
 
@@ -294,7 +299,7 @@ const rootHelp = `Corvint extraction alpha
 
 Usage:
   corvint [--root PATH] COMMAND [OPTIONS]
-  corvint COMMAND --help | corvint help COMMAND
+  corvint COMMAND --help | corvint help COMMAND | corvint help --json|guide
   corvint --version [--json]
 
 Commands:
@@ -1075,10 +1080,14 @@ Usage:
     (--bytes START:END | --lines START:END) --relation RELATION [--output MAP]
   corvint [--root PATH] cem mark --map MAP --hunk SELECTOR
     --disposition unknown|mechanical --reason REASON [--output MAP]
-  corvint [--root PATH] cem status --map MAP [OPTIONS]
-  corvint [--root PATH] cem verify --map MAP [OPTIONS]
-  corvint [--root PATH] cem report --map MAP [--output REPORT] [OPTIONS]
-  corvint [--root PATH] cem report --map MAP --format json [--ocm OCM] [OPTIONS]
+  corvint [--root PATH] cem status --map MAP --expected-base REV --target REV
+    --artifacts DIR [OPTIONS]
+  corvint [--root PATH] cem verify --map MAP --expected-base REV --target REV
+    --artifacts DIR [OPTIONS]
+  corvint [--root PATH] cem report --map MAP --expected-base REV --target REV
+    --artifacts DIR [--output REPORT] [OPTIONS]
+  corvint [--root PATH] cem report --map MAP --format json --expected-base REV
+    --target REV --artifacts DIR [--ocm OCM] [OPTIONS]
   corvint [--root PATH] cem cover --map MAP --coverprofile PATH --test-run ID [--output MAP]
   corvint [--root PATH] cem discriminate --map MAP --target REV [--max-hunks N]
     [--max-mutants N] [--wall-time DURATION] [--output MAP]
@@ -1402,16 +1411,21 @@ authority. All profiles are read-only, local-only, and emit canonical JSON.
 Mixed-worktree freshness is disclosed where applicable.
 `
 
-// cpuProfileHelpNote documents the CORVINT_CPUPROFILE env knob (V1-0051,
-// V1-1643: runtimeenv.Value("CPUPROFILE") resolves the CORVINT_ prefix): it is
-// off by default, operator-set only, and applies to this command and to
-// `context` (taskcontext.go, main.go's harness-event dispatch). It writes a
-// local pprof file and never widens what the command reads, returns, or
-// mutates (AGENTS.md invariant 4).
+// cpuProfileHelpNote documents the CORVINT_CPUPROFILE and CORVINT_MEMPROFILE env knobs
+// (V1-0051, V1-1643, PRB-V0-001..009: runtimeenv.Value resolves the CORVINT_ prefix). They are
+// off by default, operator-set only, and honoured by every command at main's single dispatch
+// bracket (profile_knobs.go) and by every MCP server's entry point. They write local pprof
+// files and never widen what a command reads, returns, or mutates (AGENTS.md invariant 4).
 const cpuProfileHelpNote = `
 CORVINT_CPUPROFILE=PATH (operator env var, off by default): writes a pprof CPU
-profile for this invocation to PATH. Diagnostic only; it does not change
-what is read, returned, or mutated.
+profile for this invocation to PATH.
+CORVINT_MEMPROFILE=PATH (operator env var, off by default): writes a pprof heap
+profile for this invocation to PATH.
+Every command and MCP server honours both, one file per process, written on exit
+and on SIGINT or SIGTERM; {pid} in PATH becomes the process ID. PATH must lie
+outside every Git worktree and Git directory (PRB-V0-013). Diagnostic only;
+they do not change what is read, returned, or mutated (corvint help --json lists
+the commands and servers).
 `
 
 const harnessEventHelp = `Compile one experimental agent-harness lifecycle event.
