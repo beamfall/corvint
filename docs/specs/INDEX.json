@@ -3895,7 +3895,7 @@
     "reqPrefix": "PRB-V0",
     "intent": "accepted (owner standing auto-accept 2026-10-11)",
     "delivery": "experimental",
-    "claim": "Every command and MCP server honours the CPU and heap profile knobs, and `make perf-budget` measures six read budgets over a generated fixture.",
+    "claim": "Every command and MCP server honours the CPU and heap profile knobs, and `make perf-budget` measures seven read budgets over a generated fixture.",
     "dependsOn": [
       "docs/specs/corvint-rebrand-v0.md",
       "docs/specs/documentation-corpus-v1.md",
