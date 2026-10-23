@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/doccompiler"
 )
 
 func docsRepository(t *testing.T) string {
@@ -451,4 +454,52 @@ func TestDocsHelpListsEveryDispatchedSubcommand(t *testing.T) {
 			t.Errorf("unlisted docs subcommand %q exit=%d stderr=%q", unlisted, code, stderr)
 		}
 	}
+}
+
+func TestSDDV0005DocsLimitRefusalNamesLimitAndSize(t *testing.T) {
+	t.Parallel()
+	limit := fmt.Sprintf("DraftMaxBytes limit of %d bytes", doccompiler.DraftMaxBytes)
+	refusal := func(t *testing.T, stderr string) string {
+		t.Helper()
+		var envelope struct{ Code, Error string }
+		if err := json.Unmarshal([]byte(stderr), &envelope); err != nil || envelope.Code != "documentation-limit-exceeded" || !strings.Contains(envelope.Error, limit) {
+			t.Fatalf("refusal %q does not name %q: %v", stderr, limit, err)
+		}
+		return envelope.Error
+	}
+	t.Run("consume input", func(t *testing.T) {
+		root := docsRepository(t)
+		exit, _, stderr := runDocsFixture(t, root, "consume", strings.Repeat("x", doccompiler.DraftMaxBytes+4096), "--task", "Split")
+		if exit != 2 {
+			t.Fatalf("exit %d: %s", exit, stderr)
+		}
+		if message := refusal(t, stderr); !strings.Contains(message, fmt.Sprintf("observed at least %d bytes on stdin", doccompiler.DraftMaxBytes+1)) {
+			t.Fatalf("input refusal %q lacks the observed size", message)
+		}
+	})
+	t.Run("encoded result", func(t *testing.T) {
+		root := docsRepository(t)
+		controls := strings.Repeat("\x01", 3800)
+		owner := "# Cache\n\n## Agent digest\nCache " + controls + "\n\n## Details\n"
+		code := "package cache\nvar One = `Cache " + controls + "`\nvar Two = `Cache " + controls + "`\n"
+		for name, text := range map[string]string{"owner.md": owner, "cache/demux.go": code} {
+			if err := os.WriteFile(filepath.Join(root, name), []byte(text), 0644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		docsCommit(t, root)
+		exit, draft, stderr := runDocsFixture(t, root, "draft", "")
+		if exit != 0 {
+			t.Fatalf("draft exit=%d: %s", exit, stderr)
+		}
+		exit, _, stderr = runDocsFixture(t, root, "consume", draft, "--task", "Cache")
+		if exit != 2 {
+			t.Fatalf("exit %d: %s", exit, stderr)
+		}
+		message := refusal(t, stderr)
+		var observed int
+		if _, err := fmt.Sscanf(message[strings.Index(message, "observed "):], "observed %d bytes including its trailing newline", &observed); err != nil || observed <= doccompiler.DraftMaxBytes {
+			t.Fatalf("result refusal %q: observed %d, %v", message, observed, err)
+		}
+	})
 }

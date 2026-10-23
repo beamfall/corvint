@@ -355,6 +355,7 @@ AFU-V1-120	docs/specs/application-flow-understanding-v1.md	A `test-run-evidence/
 AFU-V1-122	docs/specs/application-flow-understanding-v1.md	`flows import --format extractor-inventory` accepts only a	unrecorded	-
 AFU-V1-123	docs/specs/application-flow-understanding-v1.md	It writes one proposed `api` flow per `endpoint` subject (identity from the	unrecorded	-
 AFU-V1-124	docs/specs/application-flow-understanding-v1.md	Each imported flow carries one `inferred` source link per subject anchor, with	unrecorded	-
+AFU-V1-125	docs/specs/application-flow-understanding-v1.md	Without `--flows`, `docs flows generate` MUST refuse a scope with more than	unrecorded	-
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,	unrecorded	-
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a	unrecorded	-
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	Freshness MUST come from one Git read at the evaluated revision. That read	unrecorded	-
@@ -1055,6 +1056,8 @@ CCE-V0-052	docs/specs/change-compiled-e2e-v0.md	(V1-2413) When every head repeat
 CCE-V0-053	docs/specs/change-compiled-e2e-v0.md	(V1-2412) `prove --record-coverage` MUST wrap the head pool's in-process static	unrecorded	-
 CCE-V0-054	docs/specs/change-compiled-e2e-v0.md	(V1-1685) `obligations`, `compile` and `prove` MUST accept `--module-graph`, whi	unrecorded	-
 CCE-V0-086	docs/specs/change-compiled-e2e-v0.md	A relative `--root`, including the default `.`, MUST resolve against the working	unrecorded	-
+CCE-V0-087	docs/specs/change-compiled-e2e-v0.md	A BBF control that reads `infrastructure_failed` and any of whose attempts' hook	unrecorded	-
+CCE-V0-088	docs/specs/change-compiled-e2e-v0.md	`harvest` MUST read the application map from a configured repository-relative	unrecorded	-
 CF-V1-001	docs/specs/change-frontier-profile-1.md	the profile identifier is exactly `frontier/1`; its error profile is exactly	unrecorded	-
 CF-V1-002	docs/specs/change-frontier-profile-1.md	`frontier/0` is untouched in every respect — clause text, item kinds, item IDs,	unrecorded	-
 CF-V1-003	docs/specs/change-frontier-profile-1.md	identity domain separation is deliberate and asymmetric:	unrecorded	-

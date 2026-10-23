@@ -156,7 +156,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		}
 		doc = c.Encoded()
 	case "harvest":
-		p, err := changee2e.Harvest(ctx, changee2e.HarvestOptions{Root: *root, Rev: *rev})
+		p, err := changee2e.Harvest(ctx, changee2e.HarvestOptions{Root: *root, Rev: *rev, Manifest: *manifest})
 		if err != nil {
 			return err
 		}
