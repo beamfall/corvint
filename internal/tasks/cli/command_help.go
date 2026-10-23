@@ -116,6 +116,11 @@ func fullCommandHelp(cmd []string) *wire.Result {
 		o.Set("fileFormat", wire.String("Canonical UTF-8 JSON: sorted object keys, no insignificant whitespace, and exactly one trailing LF."))
 		o.Set("versionRule", wire.String("The file policyVersion must equal --expected-policy-version plus one; the flag names the current version."))
 	}
+	if name == "import-map amend" {
+		o.Set("fileFormat", wire.String("The complete amended taskman-import-map/0 as canonical UTF-8 JSON: sorted object keys, no insignificant whitespace, entries sorted by canonical bytes, and exactly one trailing LF."))
+		o.Set("identityRule", wire.String("--expected-import-map-sha256 names the queue's current importMapSha256 (REVISION_CONFLICT otherwise). Every ticket the current map names must stay mapped to the same source item, source revision and applied sequence; only its sourceQueueId may change, which records a source rename. A source item the current map assigns stays with its ticket, and an entry for a stored ticket the current map does not name must match that ticket's recorded source. A violation refuses DUPLICATE_ID naming the conflicts and writes nothing (CTS-V0-022)."))
+		o.Set("preconditions", wire.String("OWNER, no pause or write barrier, a queue still written by its foreign source, a mapped non-fixture queue, and a map that differs from the current one (CTS-V0-023). One IMPORT_MAP_AMEND receipt posts the map and the queue that binds it; an identical retry replays."))
+	}
 	if name == "queue status" || name == "roadmap" {
 		o.Set("milestoneCount", wire.String("queue status reports openWithoutMilestone, the count of OPEN tickets with a null milestone; roadmap warns with that count when it is non-zero (CAL-V0-196)."))
 	}
@@ -260,7 +265,7 @@ const lockWaitHelp = "--lock-wait SECONDS (whole seconds, 1..300; anything else 
 // probe accepts a pending receipt and whose store writer settles it
 // (CAL-V0-260, CAL-V0-261); redoPendingHelp is their help (CAL-V0-262).
 var redoSettlingVerbs = map[string]bool{
-	"pause": true, "unpause": true, "policy update": true, "import": true, "cutover": true, "relocate": true,
+	"pause": true, "unpause": true, "policy update": true, "import": true, "import-map amend": true, "cutover": true, "relocate": true,
 	"ticket escalate": true, "ticket answer": true, "run": true, "health": true, "pool cleanup": true,
 	"pool operate": true,
 }
@@ -304,6 +309,7 @@ var commandUsage = map[string]string{
 	"policy show":             "corvint-tasks policy show",
 	"policy update":           "corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR]",
 	"import":                  "corvint-tasks import --file PATH [--role OWNER|OPERATOR]",
+	"import-map amend":        "corvint-tasks import-map amend --request-id ID --expected-import-map-sha256 SHA256 --file PATH [--role OWNER|OPERATOR]",
 	"cutover":                 "corvint-tasks cutover [--execution] --decision REF [--qualification FILE]",
 	"relocate":                "corvint-tasks relocate --from OLD --request-id ID [--role OWNER|OPERATOR] [--dispatch-config FILE]   (run from the new primary worktree; OLD is the head.primaryWorktree the refusal names)",
 	"release list":            "corvint-tasks release list",

@@ -106,7 +106,7 @@ func testCALV0027_CompletedStageReceiptKinds(t *testing.T) {
 		// V1-0466: exact direct and reconciliation aliases stay bounded.
 		{StageKeepJournal, "RECONCILE"}, {StageAdoptFile, "RECONCILE"}, {StageEscalation, "TRANSITION"},
 		{StagePolicyUpdate, "POLICY_UPDATE"}, {StageImportApply, "IMPORT_APPLY"}, {StageAuthoritySwitch, "AUTHORITY_SWITCH"}, {StageQualification, "QUALIFICATION"},
-		{StageRelocate, "RELOCATE"},
+		{StageRelocate, "RELOCATE"}, {StageImportMapAmend, "IMPORT_MAP_AMEND"},
 	} {
 		t.Run(tc.op+"/"+tc.kind, func(t *testing.T) {
 			o, b := completedStageBinding(t, tc.op, tc.kind)

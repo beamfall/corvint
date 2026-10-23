@@ -1870,7 +1870,7 @@ Acceptance evidence (`internal/tasks/store`):
 - `TestATRV0241_MappedWriteAfterLeaseAuditRefusedByNextWrite` (darwin and linux) flips a mapped
   byte of the request projection and of `intent/policy.json` at the `sweep` and `lock` commit
   stages; the claim commits, the next `Mutate` refuses with the stated code and publishes nothing,
-  and a `Mutate` after the restore completes. Darwin APFS runs; Linux tmpfs NOT_RUN on this host.
+  and a `Mutate` after the restore completes. Darwin APFS runs; Linux ext4 and tmpfs runs (2026-10-23, V1-0775) commit the claim under the mapped write and refuse the next write as stated, which confirms the recorded limit on Linux (macOS APFS was not re-run in that session). Closing the window stays the owner's trade against CAL-V0-263, so V1-0775 stays open.
 
 Rollback: revert the commit. ATR-V0-241 changes no runtime code.
 
@@ -1970,15 +1970,16 @@ worktree registry with no record left that could find or remove it.
 - `ATR-V0-297`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0826) A reassign
   MUST first remove the prior assignment's stage worktrees under the ATR-V0-296 checks, and MUST keep
   the records of the worktrees it could not remove, so `program show` reports them and
-  `program cleanup` can remove them later. Removed records are dropped at the reassign.
+  `program cleanup` can remove them later. Removed records are dropped at the reassign (CAL-V0-366,
+  V1-2368, proposed, drops each at its removal instead).
 - `ATR-V0-298`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0826) The program
   transition MUST admit `ADMITTED` to `WORKTREE_REMOVE` and back only while neither the recorded nor
   the next program has a current attempt.
 Non-goals: removing a dirty, moved or re-pointed worktree; deleting candidate refs or journal
-hand-offs; resuming a removal interrupted after its `WORKTREE_REMOVE` write (the program stays in
-that phase, as before); automatic cleanup outside a reassign.
+hand-offs; resuming a removal interrupted after its `WORKTREE_REMOVE` write (CAL-V0-365,
+V1-2368, proposed, settles it); automatic cleanup outside a reassign.
 Failure modes: a kept worktree is reported, never removed by force; a refused or failed phase write
-stops the cleanup with that error, and the worktrees already removed stay marked removed.
+stops the cleanup with that error, and the worktrees already removed stay removed and, under CAL-V0-366, leave no record.
 Acceptance evidence: `TestATRV0297_ReassignRemovesPriorStageWorktrees` (covers ATR-V0-296..298) and
 `TestATRV0296_CleanupRefusesLiveAttempt` (`internal/tasks/store`), and
 `TestATRV0296_ProgramCleanupRefusalsDoNotMutate` (`internal/tasks/cli`). The reassign test fails

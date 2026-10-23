@@ -78,7 +78,7 @@ var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
 	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket delivery-screen", "ticket batch-delivered", "ticket export",
 	"queue status", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "journal seal", "journal unseal", "reconcile inspect", "reconcile intent",
-	"init", "pause", "unpause", "policy show", "policy update", "import", "cutover", "relocate",
+	"init", "pause", "unpause", "policy show", "policy update", "import", "import-map amend", "cutover", "relocate",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
 	"ticket set-gates", "ticket set-effects", "ticket hold", "ticket release-hold", "ticket reopen",
 	"ticket archive", "ticket restore", "ticket complete-manual", "ticket grant-approval",
@@ -283,6 +283,8 @@ func Run(env Env) int {
 		return emit(env.Stdout, policyCommand(env, args[1:]))
 	case "import":
 		return emit(env.Stdout, importCommand(env, args[1:]))
+	case "import-map":
+		return emit(env.Stdout, importMapCommand(env, args[1:]))
 	case "cutover":
 		return emit(env.Stdout, cutoverCommand(env, args[1:]))
 	case "relocate":
@@ -485,6 +487,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks attempt show <attemptId> [--summary | --fields KEY[.SUB],...]",
 		"corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate] [--selected-only] [--summary | --fields KEY[.SUB],...]",
 		"corvint-tasks claim --next --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate]",
+		"corvint-tasks import-map amend --request-id ID --expected-import-map-sha256 SHA256 --file PATH [--role OWNER|OPERATOR]",
 		"corvint-tasks cutover --execution --decision REF --qualification FILE",
 		"corvint-tasks relocate --from OLD --request-id ID [--role OWNER|OPERATOR] [--dispatch-config FILE]   (run from the new primary worktree)",
 		"corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID",

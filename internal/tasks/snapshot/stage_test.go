@@ -43,7 +43,7 @@ func maximalDescriptor(op string) StageDescriptor {
 	if op == StageInit {
 		requestBytes = 551
 	}
-	if op == StageKeepJournal || op == StageAdoptFile || op == StageMutate || op == StagePolicyUpdate || op == StageAuthoritySwitch || op == StageQualification || op == StageLease || op == StageEscalation || op == StageRelocate {
+	if op == StageKeepJournal || op == StageAdoptFile || op == StageMutate || op == StagePolicyUpdate || op == StageAuthoritySwitch || op == StageQualification || op == StageLease || op == StageEscalation || op == StageRelocate || op == StageImportMapAmend {
 		requestBytes = 579
 	}
 	add("POST", rp, requestBytes, hash)
@@ -74,6 +74,12 @@ func maximalDescriptor(op string) StageDescriptor {
 	case StagePolicyUpdate:
 		add("POST", "intent/policy.json", 262144, hash)
 		add("EVIDENCE", "evidence/"+string(hash), 262144, hash)
+	case StageImportMapAmend:
+		queue, importMap := wire.Sum([]byte("queue")), wire.Sum([]byte("import map"))
+		add("POST", "intent/queue.json", 1048576, queue)
+		add("EVIDENCE", "evidence/"+string(queue), 1048576, queue)
+		add("POST", "intent/import-map.json", wire.MaxImportMapBytes, importMap)
+		add("EVIDENCE", "evidence/"+string(importMap), wire.MaxImportMapBytes, importMap)
 	case StageMutate:
 		add("POST", "intent/tickets/"+strings.Repeat("t", 64)+".json", 131072, hash)
 		add("EVIDENCE", "evidence/"+string(hash), 131072, hash)
@@ -150,7 +156,7 @@ func maximalRecoveryDescriptor(op string) StageDescriptor {
 }
 
 func TestTMV0002_AS10_StageCodecActualMaxima(t *testing.T) {
-	for _, op := range []string{StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StagePolicyUpdate, StageAuthoritySwitch, StageLease, StageQualification, StageEscalation, StageRelocate} {
+	for _, op := range []string{StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StagePolicyUpdate, StageAuthoritySwitch, StageLease, StageQualification, StageEscalation, StageRelocate, StageImportMapAmend} {
 		d := maximalRecoveryDescriptor(op)
 		raw, e := d.Encode()
 		if e != nil {

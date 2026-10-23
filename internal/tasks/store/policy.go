@@ -138,6 +138,10 @@ func administrativeWriteRound(ctx context.Context, repo *intent.Repository, requ
 		return report, nil, err
 	}
 	paths := []string{"intent/queue.json", "intent/policy.json"}
+	if request.Operation == transaction.ImportMapAmend {
+		// The amendment is judged against the map the audit selected.
+		paths = append(paths, "intent/import-map.json")
+	}
 	for _, file := range inv.Files() {
 		if file.Path == "programs.json" || file.Path == "pools.json" || strings.HasPrefix(file.Path, "intent/tickets/") || strings.HasPrefix(file.Path, "intent/releases/") || (request.Operation == transaction.Lease && strings.HasPrefix(file.Path, "attempts/")) {
 			paths = append(paths, file.Path)
@@ -154,7 +158,7 @@ func administrativeWriteRound(ctx context.Context, repo *intent.Repository, requ
 	releases := [][]byte{}
 	attempts := [][]byte{}
 	for _, path := range paths[2:] {
-		if path == "pools.json" || path == "programs.json" {
+		if path == "pools.json" || path == "programs.json" || path == "intent/import-map.json" {
 			continue
 		}
 		if strings.HasPrefix(path, "attempts/") {
@@ -185,6 +189,9 @@ func administrativeWriteRound(ctx context.Context, repo *intent.Repository, requ
 		return report, nil, err
 	}
 	input := transaction.Input{Inventory: inv, Head: headRaw, HeadReceipt: headRc, Queue: proof.Records["intent/queue.json"].Raw, Policy: proof.Records["intent/policy.json"].Raw, Barrier: barrier, Reservations: reservations, Pools: proof.Records["pools.json"].Raw, Programs: proof.Records["programs.json"].Raw, CanonicalTickets: tickets, CanonicalReleases: releases, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now}
+	if request.Operation == transaction.ImportMapAmend {
+		input.ImportMap = proof.Records["intent/import-map.json"].Raw
+	}
 	if request.Operation == transaction.Lease {
 		if err = leaseInput(proof, attempts, facts, &input); err != nil {
 			return report, nil, err

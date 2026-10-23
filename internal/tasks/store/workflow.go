@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -907,6 +908,14 @@ func OpenWorkflow(ctx context.Context, repo *intent.Repository, actor mutation.B
 				}
 			}
 		}
+		if w.program.Phase == "WORKTREE_REMOVE" {
+			// An owner that died inside a stage worktree removal left the
+			// program parked there; settle it before anything else reads the
+			// phase (CAL-V0-365).
+			if _, e = w.resumeRemoval(); e != nil {
+				return nil, e
+			}
+		}
 		if w.attempt != nil && !w.attempt.Live() {
 			// The prior assignment's clean stage worktrees are removed
 			// before the reassign; any it cannot remove stay registered,
@@ -1385,16 +1394,41 @@ type WorktreeCleanup struct {
 	Repository string `json:"repository,omitempty"`
 	Removed    bool   `json:"removed"`
 	Reason     string `json:"reason,omitempty"`
+	// Resolution is set only on the item for a removal an earlier owner left
+	// in WORKTREE_REMOVE: COMPLETED when the worktree was already gone and its
+	// record is dropped, ROLLED_BACK when it is still there and the program
+	// returns to its prior phase with the record kept (CAL-V0-365).
+	Resolution string `json:"resolution,omitempty"`
+}
+
+// Resolutions of an interrupted worktree removal (CAL-V0-365).
+const (
+	RemovalCompleted  = "COMPLETED"
+	RemovalRolledBack = "ROLLED_BACK"
+)
+
+// worktreeRemoveHook, when set by a test, runs inside a stage worktree
+// removal: "recorded" after the WORKTREE_REMOVE phase is written and before
+// Git is asked to remove, "removed" after Git removed and before the phase
+// returns. It is nil in the product.
+var worktreeRemoveHook func(point string) error
+
+func worktreeRemovePoint(point string) error {
+	if worktreeRemoveHook == nil {
+		return nil
+	}
+	return worktreeRemoveHook(point)
 }
 
 // cleanupPhase is the program phase a cleanup returns to: FINISHED behind a
 // terminal attempt whose stop is proved, or ADMITTED for an idle program that
 // holds no attempt. Any other state may still reference a stage worktree.
 func (w *Workflow) cleanupPhase() (string, error) {
+	removing := w.program.Phase == "WORKTREE_REMOVE"
 	switch {
-	case w.program.Phase == "FINISHED" && w.attempt != nil && !w.attempt.Live() && w.attempt.Quiescence == "PROVED":
+	case (w.program.Phase == "FINISHED" || removing) && w.attempt != nil && !w.attempt.Live() && w.attempt.Quiescence == "PROVED":
 		return "FINISHED", nil
-	case w.program.Phase == "ADMITTED" && w.program.CurrentAttempt == "" && w.attempt == nil:
+	case (w.program.Phase == "ADMITTED" || removing) && w.program.CurrentAttempt == "" && w.attempt == nil:
 		return "ADMITTED", nil
 	}
 	return "", wire.Errorf(wire.CodeAttemptLive, "program", "cleanup requires a terminal proved attempt or an idle program")
@@ -1411,11 +1445,29 @@ func (w *Workflow) CleanupWorktrees() ([]WorktreeCleanup, error) {
 		return nil, e
 	}
 	out := []WorktreeCleanup{}
-	for i, r := range w.program.Worktrees {
+	var rolledBack *WorktreeCleanup
+	if w.program.Phase == "WORKTREE_REMOVE" {
+		item, e := w.settleRemoval(phase)
+		if e != nil {
+			return nil, e
+		}
+		// A completed removal is reported by itself; a rolled-back one is
+		// reported by the removal attempt that follows it.
+		if item != nil && item.Resolution == RemovalCompleted {
+			out = append(out, *item)
+		} else {
+			rolledBack = item
+		}
+	}
+	// The loop edits w.program.Worktrees, so it walks a copy.
+	for _, r := range slices.Clone(w.program.Worktrees) {
 		if r.Removed {
 			continue
 		}
 		item := WorktreeCleanup{Path: r.Path, Repository: r.Repository}
+		if rolledBack != nil && rolledBack.Path == r.Path && rolledBack.Repository == r.Repository {
+			item.Resolution = RemovalRolledBack
+		}
 		saved := w.program
 		root := w.repo.PrimaryWorktree
 		w.program.Worktree = r.Path
@@ -1439,8 +1491,11 @@ func (w *Workflow) CleanupWorktrees() ([]WorktreeCleanup, error) {
 			out = append(out, item)
 			continue
 		}
-		w.program.Effect = supervisor.Digest([]byte("WORKTREE_REMOVE:" + r.Path + ":" + r.Identity))
+		w.program.Effect = removalEffect(r)
 		if e := w.persist("WORKTREE_REMOVE"); e != nil {
+			return out, e
+		}
+		if e := worktreeRemovePoint("recorded"); e != nil {
 			return out, e
 		}
 		if _, e := gitOutput(root, "-c", "core.hooksPath=/dev/null", "worktree", "remove", r.Path); e != nil {
@@ -1448,7 +1503,12 @@ func (w *Workflow) CleanupWorktrees() ([]WorktreeCleanup, error) {
 			// never leaves the program parked in WORKTREE_REMOVE.
 			item.Reason = "worktree remove: " + e.Error()
 		} else {
-			w.program.Worktrees[i].Removed = true
+			if e := worktreeRemovePoint("removed"); e != nil {
+				return out, e
+			}
+			// The record goes with the phase write that settles the
+			// removal, so removed worktrees leave no record behind.
+			w.dropWorktree(r)
 			item.Removed = true
 		}
 		if e := w.persist(phase); e != nil {
@@ -1456,7 +1516,107 @@ func (w *Workflow) CleanupWorktrees() ([]WorktreeCleanup, error) {
 		}
 		out = append(out, item)
 	}
+	// A record an earlier release marked removed is dropped on the next
+	// cleanup, so repeated cleanups never grow the program record.
+	if slices.ContainsFunc(w.program.Worktrees, func(r snapshot.WorktreeRecord) bool { return r.Removed }) {
+		w.program.Worktrees = slices.DeleteFunc(slices.Clone(w.program.Worktrees), func(r snapshot.WorktreeRecord) bool { return r.Removed })
+		if e := w.persist(phase); e != nil {
+			return out, e
+		}
+	}
 	return out, nil
+}
+
+// removalEffect is the effect digest the WORKTREE_REMOVE phase records for r,
+// naming the one removal in flight.
+func removalEffect(r snapshot.WorktreeRecord) string {
+	return supervisor.Digest([]byte("WORKTREE_REMOVE:" + r.Path + ":" + r.Identity))
+}
+
+// dropWorktree removes r's record from the program.
+func (w *Workflow) dropWorktree(r snapshot.WorktreeRecord) {
+	w.program.Worktrees = slices.DeleteFunc(slices.Clone(w.program.Worktrees), func(x snapshot.WorktreeRecord) bool {
+		return x.Path == r.Path && x.Repository == r.Repository
+	})
+}
+
+// resumeRemoval settles a removal an earlier owner left in WORKTREE_REMOVE
+// and nothing else, under the same attempt checks as a cleanup.
+func (w *Workflow) resumeRemoval() (*WorktreeCleanup, error) {
+	phase, e := w.cleanupPhase()
+	if e != nil {
+		return nil, e
+	}
+	return w.settleRemoval(phase)
+}
+
+// settleRemoval resolves a removal an earlier owner left in WORKTREE_REMOVE
+// and returns the program to phase. A worktree Git already removed has its
+// record dropped (COMPLETED); one still present is left for the cleanup that
+// follows to remove or report, and its record is kept (ROLLED_BACK). It
+// writes nothing while the worktree's state cannot be observed, so a retry
+// finds the program as it was (CAL-V0-365).
+func (w *Workflow) settleRemoval(phase string) (*WorktreeCleanup, error) {
+	var item *WorktreeCleanup
+	for _, r := range w.program.Worktrees {
+		if r.Removed || removalEffect(r) != w.program.Effect {
+			continue
+		}
+		gone, e := w.removalLanded(r)
+		if e != nil {
+			return nil, e
+		}
+		item = &WorktreeCleanup{Path: r.Path, Repository: r.Repository, Resolution: RemovalRolledBack}
+		if gone {
+			w.dropWorktree(r)
+			item.Removed, item.Resolution = true, RemovalCompleted
+		}
+		break
+	}
+	if e := w.persist(phase); e != nil {
+		return nil, e
+	}
+	return item, nil
+}
+
+// removalLanded reports whether Git completed the removal of r: its path is
+// gone and its repository no longer registers it. A path that is gone but
+// still registered is not landed, so the record stays visible.
+func (w *Workflow) removalLanded(r snapshot.WorktreeRecord) (bool, error) {
+	if _, e := os.Lstat(r.Path); e == nil {
+		return false, nil
+	} else if !os.IsNotExist(e) {
+		return false, wire.Errorf(wire.CodeUnsupportedFilesystem, r.Path, "cannot observe the worktree: %v", e)
+	}
+	root := w.repo.PrimaryWorktree
+	if r.Repository != "" {
+		repo, ok := w.repository(r.Repository)
+		if !ok {
+			return false, fmt.Errorf("worktree names an undeclared repository")
+		}
+		root = repo.Checkout
+	}
+	raw, e := gitOutput(root, "worktree", "list", "--porcelain")
+	if e != nil {
+		return false, e
+	}
+	want := resolvedPath(r.Path)
+	for _, line := range strings.Split(string(raw), "\n") {
+		if path, ok := strings.CutPrefix(line, "worktree "); ok && resolvedPath(path) == want {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// resolvedPath is p with symbolic links in its directory resolved, so a path
+// whose final component is gone compares with Git's resolved listing.
+func resolvedPath(p string) string {
+	dir, err := filepath.EvalSymlinks(filepath.Dir(p))
+	if err != nil {
+		return filepath.Clean(p)
+	}
+	return filepath.Join(dir, filepath.Base(p))
 }
 
 // CleanupProgram is the operator cleanup of one recorded program's stage

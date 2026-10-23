@@ -58,6 +58,13 @@ const ImportApply = snapshot.StageImportApply
 // owner's decision.
 const AuthoritySwitch = snapshot.StageAuthoritySwitch
 
+// ImportMapAmend replaces a mapped queue's import map after genesis
+// (CTS-V0-021, proposed): one OWNER receipt posts the amended
+// intent/import-map.json and the intent/queue.json whose importMapSha256
+// binds it. Request.ImportMap carries the amended bytes and
+// Request.ExpectedImportMapSha256 the digest the caller read.
+const ImportMapAmend = snapshot.StageImportMapAmend
+
 // Qualification records the execution cutover (CAL-V0-020): one receipt
 // posts the passing CAL-V0-019 run as evidence and intent/queue.json with
 // executionCutover naming the owner's decision and the run's digest. The
@@ -106,8 +113,12 @@ type Request struct {
 	Lease *LeaseRequest
 	// ImportMap is the operator's intent/import-map.json, set only for Init
 	// of a non-fixture queue whose importMapSha256 names it (CTS-V0-014).
-	// Genesis posts it; a null-map INIT digest stays byte-identical.
+	// Genesis posts it; a null-map INIT digest stays byte-identical. An
+	// ImportMapAmend carries the amended map here instead.
 	ImportMap []byte
+	// ExpectedImportMapSha256 is the importMapSha256 the caller read, set
+	// only for ImportMapAmend (CTS-V0-021).
+	ExpectedImportMapSha256 wire.Digest
 }
 
 // ReplayObservation is mandatory; zero/unknown/error never means absence.
@@ -338,8 +349,11 @@ func Digest(r Request) (wire.Digest, error) {
 	if (r.Operation == Lease) != (r.Lease != nil) {
 		return "", malformed("inapplicable lease command")
 	}
-	if r.Operation != Init && r.ImportMap != nil {
+	if r.Operation != Init && r.Operation != ImportMapAmend && r.ImportMap != nil {
 		return "", malformed("inapplicable import map")
+	}
+	if r.Operation != ImportMapAmend && r.ExpectedImportMapSha256 != "" {
+		return "", malformed("inapplicable expected import map digest")
 	}
 	o := object("actor", object("id", s(r.Actor.ID), "role", s(r.Actor.Role)), "operation", s(r.Operation), "queueId", s(r.QueueID), "requestId", s(r.RequestID))
 	switch r.Operation {
@@ -385,6 +399,22 @@ func Digest(r Request) (wire.Digest, error) {
 		}
 		o.Obj.Set("expectedPolicyVersion", s(string(r.ExpectedPolicyVersion)))
 		o.Obj.Set("policySha256", s(string(wire.Sum(r.Policy))))
+	case ImportMapAmend:
+		if _, e = wire.ParseDigest("expectedImportMapSha256", string(r.ExpectedImportMapSha256)); e != nil {
+			return "", e
+		}
+		next, e := intent.DecodeImportMap(r.ImportMap)
+		if e != nil {
+			return "", e
+		}
+		if next.QueueID.Raw != r.QueueID {
+			return "", malformed("amended import map queue identity")
+		}
+		if e = canonical(r.ImportMap); e != nil {
+			return "", e
+		}
+		o.Obj.Set("expectedImportMapSha256", s(string(r.ExpectedImportMapSha256)))
+		o.Obj.Set("importMapSha256", s(string(wire.Sum(r.ImportMap))))
 	case ImportApply:
 		if len(r.Records) == 0 {
 			return "", malformed("empty import batch")
@@ -622,7 +652,7 @@ func model(r Request, in Input, sequence *ImportSequence) Result {
 	if r.Operation == Unpause && state.barrier == nil {
 		return noChange(r.RequestID)
 	}
-	if (r.Operation == Init || r.Operation == KeepJournal || r.Operation == AdoptFile || r.Operation == Mutate || r.Operation == Release || r.Operation == PolicyUpdate || r.Operation == ImportApply || r.Operation == AuthoritySwitch || r.Operation == Qualification || r.Operation == Lease || r.Operation == Relocate) && in.Branch != state.queue.IntentBranch {
+	if (r.Operation == Init || r.Operation == KeepJournal || r.Operation == AdoptFile || r.Operation == Mutate || r.Operation == Release || r.Operation == PolicyUpdate || r.Operation == ImportMapAmend || r.Operation == ImportApply || r.Operation == AuthoritySwitch || r.Operation == Qualification || r.Operation == Lease || r.Operation == Relocate) && in.Branch != state.queue.IntentBranch {
 		return refused(r.RequestID, mutation.OutcomeBlocked, wire.CodeIntentBranchMismatch, "primary intent branch differs")
 	}
 	posts := map[string][]byte{}
@@ -708,6 +738,10 @@ func model(r Request, in Input, sequence *ImportSequence) Result {
 		next.CanonicalWriter, next.ForeignAdapterID = "NATIVE", nil
 		next.WriteBarrier = intent.WriteBarrier{Reason: "CUTOVER", Since: &since}
 		posts["intent/queue.json"] = wire.EncodeFile(next.Value())
+	case ImportMapAmend:
+		if refusal := importMapAmendPosts(r, state, posts); refusal != nil {
+			return *refusal
+		}
 	case Relocate:
 		// TRL-V0-003: relocation is explicit about where it moves from, and
 		// an empty reservation set is the quiescence it requires; a live
@@ -1252,6 +1286,7 @@ func cloneRequest(r Request) Request {
 	r.Policy = bytes.Clone(r.Policy)
 	r.File = bytes.Clone(r.File)
 	r.Envelope = bytes.Clone(r.Envelope)
+	r.ImportMap = bytes.Clone(r.ImportMap)
 	if r.Records != nil {
 		records := make([][]byte, len(r.Records))
 		for i, raw := range r.Records {

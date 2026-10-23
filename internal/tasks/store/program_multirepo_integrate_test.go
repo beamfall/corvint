@@ -183,10 +183,11 @@ func TestCALV0087_ExtraWorktreeCleanup(t *testing.T) {
 	if _, err := w.CleanupWorktrees(); err != nil {
 		t.Fatalf("cleanup: %v", err)
 	}
-	for _, r := range programRecord(t, f).Worktrees {
-		if !r.Removed {
-			t.Fatalf("worktree %s not removed", r.Path)
-		}
+	// A removed worktree leaves no record (CAL-V0-366).
+	if kept := programRecord(t, f).Worktrees; len(kept) != 0 {
+		t.Fatalf("cleanup kept records %+v", kept)
+	}
+	for _, r := range before {
 		if _, err := os.Lstat(r.Path); !os.IsNotExist(err) {
 			t.Fatalf("worktree %s still exists: %v", r.Path, err)
 		}

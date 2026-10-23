@@ -39,18 +39,30 @@ func (n archiveNative) path(p string) (string, error) {
 	return filepath.Join(n.StateDir, p), nil
 }
 
-// archiveRead lives for exactly one export attempt. It retains every listed
-// no-follow parent; file reads never reopen the original absolute parent.
+// maxOpenRoots bounds the no-follow directory descriptors one export attempt
+// holds at once (CTS-V0-020). The state dir's `requests/` index has up to 256
+// two-character shard directories, so retaining every listed parent put the
+// descriptor count at the shard count and failed `RESOURCE_EXHAUSTED` under a
+// 256 soft limit such as macOS's default.
+const maxOpenRoots = 32
+
+// archiveRead lives for exactly one export attempt. It retains no-follow
+// parents, at most maxOpenRoots directories beyond the two path-bound roots;
+// file reads never reopen the original absolute parent. A parent closed for
+// the bound is reopened through its retained ancestor and must be the same
+// directory the listing observed.
 type archiveRead struct {
 	native   archiveNative
 	roots    map[string]*os.Root
 	absent   map[string]bool
 	listed   map[string]os.FileInfo
+	used     map[string]uint64
+	clock    uint64
 	closeErr error
 }
 
 func newArchiveRead(n archiveNative) *archiveRead {
-	return &archiveRead{n, map[string]*os.Root{}, map[string]bool{}, map[string]os.FileInfo{}, nil}
+	return &archiveRead{native: n, roots: map[string]*os.Root{}, absent: map[string]bool{}, listed: map[string]os.FileInfo{}, used: map[string]uint64{}}
 }
 
 var afterReadNames func(string) // deterministic enumeration/metadata race witness
@@ -70,6 +82,7 @@ func archiveMoved(p string) error {
 }
 func (s *archiveRead) parent(p string) (*os.Root, error) {
 	if r := s.roots[p]; r != nil {
+		s.touch(p)
 		return r, nil
 	}
 	abs, e := s.native.path(p)
@@ -92,8 +105,54 @@ func (s *archiveRead) parent(p string) (*os.Root, error) {
 		}
 		return nil, e
 	}
+	// A reopened parent is the directory the listing observed, or the store
+	// moved; the path-bound roots have no listed identity and are never
+	// closed for the bound.
+	if old := s.listed[p]; old != nil {
+		info, e := root.Stat(".")
+		if e == nil && !os.SameFile(old, info) {
+			e = archiveMoved(p)
+		}
+		if e != nil {
+			return nil, s.closed(e, closeReadRoot(root))
+		}
+	}
 	s.roots[p] = root
+	s.touch(p)
+	s.evict(p)
 	return root, nil
+}
+
+func (s *archiveRead) touch(p string) {
+	s.clock++
+	s.used[p] = s.clock
+}
+
+// pathBound reports a root opened from an absolute path rather than through
+// a retained parent; it has no listed identity to recheck on reopening.
+func pathBound(p string) bool { return p == "." || p == "intent" }
+
+// evict closes the least recently used reopenable roots beyond maxOpenRoots,
+// never keep or one of its ancestors. A close error is kept for close().
+func (s *archiveRead) evict(keep string) {
+	for len(s.roots) > maxOpenRoots {
+		victim := ""
+		for p := range s.roots {
+			if pathBound(p) || p == keep || strings.HasPrefix(keep, p+"/") {
+				continue
+			}
+			if victim == "" || s.used[p] < s.used[victim] {
+				victim = p
+			}
+		}
+		if victim == "" {
+			return
+		}
+		root := s.roots[victim]
+		delete(s.roots, victim)
+		delete(s.used, victim)
+		s.closeErr = errors.Join(s.closeErr, closeReadRoot(root))
+	}
 }
 func (s *archiveRead) binding(p string, root *os.Root) (err error) {
 	abs, e := s.native.path(p)

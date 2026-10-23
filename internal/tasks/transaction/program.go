@@ -101,6 +101,14 @@ func planProgram(c leaseContext) leaseOutcome {
 		}
 		if recovering {
 			safePhase := (old.Phase == "FINISHED" || old.Phase == "ADMITTED" || old.Phase == "WORKTREE_ADD" || old.Phase == "READY") && next.Phase == old.Phase
+			// An interrupted stage worktree removal is settled by the
+			// replacement owner, but only where no attempt can still use
+			// the worktree: none, or a terminal one with a proved stop
+			// (CAL-V0-365).
+			if old.Phase == "WORKTREE_REMOVE" && next.Phase == old.Phase {
+				a := c.st.attempts[old.CurrentAttempt]
+				safePhase = old.CurrentAttempt == "" || a != nil && !a.Live() && a.Quiescence == "PROVED"
+			}
 			recovered := change.PreviousWorkerClean && next.Phase == "FINISHED" && next.Quiescence == "PROVED"
 			settled := (old.Phase == "SPAWNING" || old.Phase == "STOPPING") && next.Phase == "FINISHED" && next.Quiescence == "PROVED" && BoundStoppedAttempt(c.st.attempts[old.CurrentAttempt], old)
 			if !change.PreviousOwnerGone || next.Epoch != old.Epoch+1 || (!safePhase && !recovered && !settled) || old.Worktree != next.Worktree {
