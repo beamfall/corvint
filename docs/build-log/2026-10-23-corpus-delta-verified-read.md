@@ -18,7 +18,12 @@ called `Open` and so `Build` on every run: a full rederivation that #1609's veri
   additional checkout is unavailable. In that case the `DCP-V1-425` path runs as before. That
   checkout observation runs as `OpenRead`'s header callback, so it overlaps the record decode. The
   branch is chosen from the checkouts alone. A failed verified read is never retried on the
-  unverified path. `OpenDeltaCurrent` stays as the rederiving form.
+  unverified path. `OpenDeltaCurrent` stays as the rederiving form. Independent review found
+  that the rederiving branch (also taken by an unattested build) examined the checkouts of an
+  unvalidated manifest, and could then admit it through the `DCP-V1-425` path. The verified branch
+  refused the same bytes. The rederiving branch now validates the manifest first.
+  `TestDCPV1460DeltaVerifiedReadUnavailableCheckout` fails without the fix. It also covers the
+  `DCP-V1-425` path reached from the verified branch, which no earlier test did.
 - `DCP-V1-461`: the issue asked for the previous side to use the same verified path. Its
   builder and pin checks would contradict `DCP-V1-424`: a previous corpus built by another builder
   must still give the same worklist, and today such a delta succeeds. So the previous side uses
@@ -49,7 +54,9 @@ called `Open` and so `Build` on every run: a full rederivation that #1609's veri
 Host: darwin/arm64, 12 cores, go1.27.2. The PRB-V0-021 full fixture (10,000 inputs, 96,350
 records, 97,045,592-byte current artifact, 3 additional repositories) was a clone of an existing
 generator `/1` fixture. "Before" is origin/main c652d1639 (`git archive`, builder `unrecorded`).
-"After" is a86d55627, built from a clean checkout, so the builder is attested. Each binary built
+"After" is a86d55627, built from a clean checkout, so the builder is attested. The later review
+repair only adds a manifest validation to the rederiving branch, so the default path measured
+here is unchanged. Each binary built
 its own artifacts. Wall time and peak RSS are from `/usr/bin/time -l`. These numbers are host
 diagnostics; the issue's 15.7 s host figure was not reproduced or claimed.
 
@@ -87,6 +94,7 @@ investigated; this change does not touch the MCP server.
 ## Tests
 
 - `go test -count=1 -timeout 30m ./internal/doccorpus`: ok (519 s).
-- `go test -count=1 -race -run 'Delta|DCPV141|DCPV1460' ./internal/doccorpus`: ok.
+- `go test -count=1 -race -run 'Delta|DCPV141|DCPV1460' ./internal/doccorpus`: ok; after the
+  review repair, `-race -run 'TestDCPV146|TestDCPV1425'`: ok.
 - `go test -count=1 -run 'TestDCPV1460|TestDCPV1360DeltaCLI|TestDCPV1421|TestDCPV1425|TestDocsCorpusOperationFlagMatrix|TestDocsCorpusOperationHelpPrintsFlags|TestDCPV1413|TestDocsCorpusHelp' ./cmd/corvint`: ok.
 - `go test -count=1 -timeout 30m ./internal/perfbudget/...`: ok, including the smoke harness run.

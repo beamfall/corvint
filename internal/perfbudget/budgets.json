@@ -165,7 +165,7 @@
           "metric": "p95_wall_ms",
           "limit": 5500,
           "status": "enforced",
-          "reason": "regression ceiling (PRB-V0-051): 2x the unchanged-delta baseline p95 (2510 ms, recorded 2026-10-23T15:39:25Z with corvint a86d5562 on an uncontended host), rounded up to 500 ms; a delta that rederives measured 6.0 to 7.7 s and exceeds it; not a product target"
+          "reason": "regression ceiling (PRB-V0-051): 2x the unchanged-delta baseline p95 (2510 ms, recorded 2026-10-23T15:39:25Z with corvint a86d5562 on an uncontended host), rounded up to 500 ms; a delta that rederives measured 6.0 to 7.8 s and exceeds it on that host; not a product target"
         },
         {
           "metric": "peak_rss_bytes",

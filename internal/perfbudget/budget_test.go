@@ -144,8 +144,8 @@ func TestPRBV0050UnchangedDeltaBudget(t *testing.T) {
 	if rss := math.Ceil(1.5*float64(*baseline.PeakRSSBytes)/(64*mib)) * 64 * mib; ceilings[MetricPeakRSS] != rss {
 		t.Fatalf("RSS ceiling %v, want %v", ceilings[MetricPeakRSS], rss)
 	}
-	// The slowest and fastest before-change (rederiving) samples of the same command.
-	for _, rederived := range []float64{6130.0, 7840.0} {
+	// The fastest and slowest before-change (rederiving) samples of the same command.
+	for _, rederived := range []float64{5998.30, 7840.0} {
 		rss := *baseline.PeakRSSBytes
 		measured := []ScenarioMeasured{}
 		for _, id := range ScenarioIDs {

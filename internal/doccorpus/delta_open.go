@@ -47,6 +47,11 @@ func OpenDeltaRead(ctx context.Context, root string, data []byte, opts ReadOptio
 		if err != nil {
 			return nil, err
 		}
+		// Git runs in the checkouts the manifest names only once the manifest is valid, as on
+		// the verified read.
+		if err := validateManifest(a.Manifest); err != nil {
+			return nil, err
+		}
 		missing, err := unavailableCheckouts(ctx, root, a.Manifest)
 		if err != nil {
 			return nil, err

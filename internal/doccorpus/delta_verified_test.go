@@ -3,6 +3,8 @@ package doccorpus
 import (
 	"bytes"
 	"context"
+	"os"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -159,5 +161,72 @@ func TestDCPV1461PreviousOverDefaultBound(t *testing.T) {
 	}
 	if !EncodedEqual(got, data) || got.SHA256 != closed.SHA256 {
 		t.Fatal("previous side decoded a different artifact")
+	}
+}
+
+// TestDCPV1460DeltaVerifiedReadUnavailableCheckout: on the default verified branch, an
+// unavailable additional checkout still takes the DCP-V1-425 path, observed from the header
+// members, and an available input that does not name its blob is still refused; an invalid
+// manifest is refused on both branches before any checkout is examined (DCP-V1-460).
+func TestDCPV1460DeltaVerifiedReadUnavailableCheckout(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	f := newDeltaAddRepoFixture(t)
+	encode := func(a Artifact) []byte {
+		t.Helper()
+		a.SHA256 = ""
+		a.SHA256 = testHash(t, a)
+		data, err := Encode(a)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return data
+	}
+	retained, err := Encode(f.previous)
+	if err != nil {
+		t.Fatal(err)
+	}
+	timings := &ReadTimings{}
+	if a, err := OpenDeltaRead(ctx, f.root, retained, ReadOptions{Timings: timings}); err != nil || a.deltaUnverified != nil || timings.Validation != ValidationVerified {
+		t.Fatalf("available checkout not verified: %v %q", err, timings.Validation)
+	}
+	invalid := *f.previous
+	invalid.Manifest.Profile.Format = "bogus"
+	if err := os.Rename(f.lib, f.lib+"-gone"); err != nil {
+		t.Fatal(err)
+	}
+	timings = &ReadTimings{}
+	a, err := OpenDeltaRead(ctx, f.root, retained, ReadOptions{Timings: timings})
+	if err != nil || len(a.deltaUnverified) != 1 || !strings.Contains(a.deltaUnverified[0], f.extra.ID) || timings.Validation != ValidationUnrederived {
+		t.Fatalf("unavailable checkout on the verified branch: %v %v %q", err, a, timings.Validation)
+	}
+	rederived, err := OpenDeltaCurrent(ctx, f.root, retained)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, current := range []*Artifact{a, rederived} {
+		receipt, err := DeltaWith(ctx, f.root, f.previous, current, "artifact", DeltaOptions{Limit: MaxResults})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Contains(receipt.Limitations, a.deltaUnverified[0]) || entriesByID(receipt)["adapter:lib"].Class != DeltaUnresolved {
+			t.Fatalf("unavailable checkout not disclosed: %+v", receipt)
+		}
+	}
+	tampered := *f.previous
+	tampered.Manifest.Inputs = slices.Clone(tampered.Manifest.Inputs)
+	for i, in := range tampered.Manifest.Inputs {
+		if in.Revision == tampered.Manifest.Repository.Revision {
+			tampered.Manifest.Inputs[i].Blob = f.extra.ID
+			break
+		}
+	}
+	for _, rederive := range []bool{false, true} {
+		if _, err := OpenDeltaRead(ctx, f.root, encode(tampered), ReadOptions{Rederive: rederive}); err == nil || !strings.Contains(err.Error(), "does not name the blob its path holds") {
+			t.Fatalf("rederive=%t: tampered primary input admitted: %v", rederive, err)
+		}
+		if _, err := OpenDeltaRead(ctx, f.root, encode(invalid), ReadOptions{Rederive: rederive}); err == nil || !strings.Contains(err.Error(), "unsupported render profile") {
+			t.Fatalf("rederive=%t: invalid manifest not refused first: %v", rederive, err)
+		}
 	}
 }

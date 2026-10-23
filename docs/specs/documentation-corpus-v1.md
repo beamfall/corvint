@@ -2013,14 +2013,17 @@ verified read of `DCP-V1-410` landed: on a 95 MB, 9,170-input corpus the rederiv
   `--verify-rederive` (`DCP-V1-413`), or a running builder that is not attested, it runs the
   complete `DCP-V1-011` rederivation instead. Every refusal of the verified read or the
   rederivation refuses the delta (`corpus-refused`, or the native typed failure), with no output;
-  a delta never falls back to serving an artifact the read refused. The `DCP-V1-425` path for an
-  unavailable additional checkout is unchanged, and whether it runs depends only on that
-  checkout, observed from the header members while the records are decoded, never on whether
-  the verified read succeeded. The receipt and the jsonl stream are byte-identical on the verified
+  a delta never falls back to serving an artifact the read refused. The one exception is the
+  unchanged `DCP-V1-425` path for an unavailable additional checkout, which checks canonical
+  bytes, the digest, a valid manifest, the primary identity and the available inputs' blobs, not
+  the builder or the manifest and profile digests. Whether it runs depends only on that checkout,
+  observed from the header members of a valid manifest while the records are decoded, never on
+  whether the verified read succeeded; with `--verify-rederive` the manifest is validated before
+  any checkout is examined. The receipt and the jsonl stream are byte-identical on the verified
   and the rederived path. `carry-forward` keeps the rederivation, and a `--manifest` current side is
   still built (`--verify-rederive` changes nothing there). Acceptance:
   `TestDCPV1460DeltaVerifiedReadMatchesRederived`, `TestDCPV1460DeltaVerifiedReadRefusesClosed`,
-  `TestDCPV1460DeltaCLIVerifiedRead`.
+  `TestDCPV1460DeltaVerifiedReadUnavailableCheckout`, `TestDCPV1460DeltaCLIVerifiedRead`.
 - `DCP-V1-461`: `--previous` of `delta` and `carry-forward` is admitted with the verified read's
   decode (`DCP-V1-414`): canonical bytes and the recorded content digest, exactly what
   `ParseArtifact` admits and refuses. It is not checked against the running builder or the pinned
@@ -2035,7 +2038,8 @@ verified read of `DCP-V1-410` landed: on a 95 MB, 9,170-input corpus the rederiv
   `carry-forward` accepts neither. `--timings` writes the `DCP-V1-415` line to stderr after the
   result, with `compare_ms=` (classification and worklist) before `total_ms=`: `parse_ms` holds
   both file reads and decodes, `verify_ms` the current side's verification or rederivation (or
-  the `--manifest` build), and `encode_ms` the receipt or stream encoding. `validation` is
+  the `--manifest` build), and `encode_ms` the receipt or stream encoding. The previous side is
+  decoded while the current side opens, so `parse_ms` may exceed `total_ms`. `validation` is
   `artifact-verified`, `source-rederived`, `checkout-unavailable` (`DCP-V1-425`) or
   `manifest-built`. stdout is byte-identical with and without the flag. Acceptance:
   `TestDCPV1460DeltaCLIVerifiedRead`, `TestDocsCorpusOperationFlagMatrix`,
@@ -2992,8 +2996,8 @@ Verified fast reads (`DCP-V1-410..419`) add no daemon or `--serve` mode, persist
 or sidecar, write nothing on a read, change no search ranking or delta paging, and do not
 authenticate an artifact's origin. Rollback points the CLI and MCP readers back at `Open`; the
 artifact and manifest formats are unchanged and no stored state needs migration.
-Verified delta reads (`DCP-V1-460..463`) change no receipt, stream, class, reason, refusal or
-artifact format, verify no builder identity or pin of the previous corpus, make `carry-forward`
+Verified delta reads (`DCP-V1-460..463`) change no receipt, stream, class, reason, admission or
+artifact format (a malformed `--previous` may be refused with another `corpus-refused` message), verify no builder identity or pin of the previous corpus, make `carry-forward`
 or a `--manifest` current side no faster, and do not speed up classification itself. Rollback
 points the delta current side back at `OpenDeltaCurrent` and the previous side at
 `ParseArtifact`, and removes the two delta flags; nothing is stored.
@@ -3126,7 +3130,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-420..425 | `internal/doccorpus/delta.go`, `delta_open.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1420DeltaAdditionalRepositoryAnchors`, `TestDCPV1420DeltaSharedReadBound`, `TestDCPV1424DeltaHistoricalPins`, `TestDCPV1425OpenDeltaCurrentUnavailableCheckout`, `TestDCPV1425DeltaUnavailableCheckoutCLI`, `TestDCPV1421DeltaViewsCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-440..445 | `internal/doccorpus/delta.go`, `adoption.go`, `cmd/corvint/docs_corpus_help.go`, `internal/capcatalog/catalog.json` | `TestDCPV1440DeltaAdoptionRecords`, `TestDCPV1442DeltaExactTestJoinNeedsItsFile`, `TestDCPV1444SelfDeltaSharedSpanChargedOnce`, `TestCAPV0019CommittedCatalogMatchesTheBinary`, `TestMCPV0100HelpToolMatchesTheCLI`, `TestDocsCorpusHelpListsOperations` |
-| DCP-V1-460..462 | `internal/doccorpus/delta_open.go`, `delta.go`, `read.go`, `artifact_decode.go`, `compile.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus_help.go` | `TestDCPV1460DeltaVerifiedReadMatchesRederived`, `TestDCPV1460DeltaVerifiedReadRefusesClosed`, `TestDCPV1460DeltaCLIVerifiedRead`, `TestDCPV1461PreviousOverDefaultBound`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
+| DCP-V1-460..462 | `internal/doccorpus/delta_open.go`, `delta.go`, `read.go`, `artifact_decode.go`, `compile.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus_help.go` | `TestDCPV1460DeltaVerifiedReadMatchesRederived`, `TestDCPV1460DeltaVerifiedReadRefusesClosed`, `TestDCPV1460DeltaVerifiedReadUnavailableCheckout`, `TestDCPV1460DeltaCLIVerifiedRead`, `TestDCPV1461PreviousOverDefaultBound`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-463 | `internal/perfbudget/budgets.json`, `harness.go` | `TestPRBV0050UnchangedDeltaBudget`; measured in docs/build-log/2026-10-23-corpus-delta-verified-read.md |
 | DCP-V1-450 | `internal/doccorpus/compile.go`, `query.go` | `TestDCPV1450ScopeMatchingMatchesPairwise`, `TestDCPV1450NestedScopesKeepRefusalsAndReasons`, `TestDCPV1450NewLiveFileNotedPerHoldingScope` |
 | DCP-V1-451 | `internal/doccorpus/read_fast_fixture_test.go`, `many_scopes_test.go` | `TestDCPV1451ManyScopesReadMatchesRederivation`, `BenchmarkDCPV1451ManyScopesVerifiedRead`, `BenchmarkDCPV1451ManyScopesRederivedRead`; profiles in docs/build-log/2026-10-23-read-hotspots-scope-and-pin.md |
