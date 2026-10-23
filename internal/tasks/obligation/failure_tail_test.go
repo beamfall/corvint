@@ -28,4 +28,39 @@ func TestTCDV0165_FailureTail(t *testing.T) {
 	if tail, _ := FailureTail(long, 1); len(tail) != 1 || tail[0] != ExcerptWithheld {
 		t.Fatalf("long secret line: %q", tail)
 	}
+
+}
+
+// TestTCDV0165_FailureTailKeyBlockBeforeTail: a private-key block whose
+// BEGIN line lies before the tail window withholds every body line in the
+// tail, terminated or cut off, and quotes the lines after its END marker.
+func TestTCDV0165_FailureTailKeyBlockBeforeTail(t *testing.T) {
+	body := "MIIEkeyBODY" + strings.Repeat("Q", 52)
+	block := "-----BEGIN " + "RSA PRIVATE KEY-----\n" + strings.Repeat(body+"\n", 30)
+	end := "-----END " + "RSA PRIVATE KEY-----\n"
+	for name, c := range map[string]struct {
+		log      string
+		withheld int
+		failing  string
+	}{
+		"terminated":   {"build\n" + block + end + "after\nFAIL x\n", 18, "FAIL x"},
+		"unterminated": {"build\n" + block, 20, ExcerptWithheld},
+	} {
+		tail, failing := FailureTail(c.log, 20)
+		if len(tail) != 20 || failing != c.failing {
+			t.Fatalf("%s: tail %q failing %q", name, tail, failing)
+		}
+		withheld := 0
+		for _, line := range tail {
+			if strings.Contains(line, "keyBODY") || strings.Contains(line, "PRIVATE KEY") {
+				t.Fatalf("%s: key material emitted: %q", name, tail)
+			}
+			if line == ExcerptWithheld {
+				withheld++
+			}
+		}
+		if withheld != c.withheld {
+			t.Fatalf("%s: %d withheld lines, want %d: %q", name, withheld, c.withheld, tail)
+		}
+	}
 }

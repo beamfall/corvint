@@ -76,9 +76,20 @@ var closureUnknowns = map[string]bool{affected.UnknownUnownedDirtyPath: true, af
 // prove, and the executable runner config is a global path reconciled through discovery.
 var e2eFrontiers = map[string]bool{typescript.FrontierE2ERuntimeDependency: true, typescript.FrontierConfig: true}
 
-// unbounded reports a plan unknown that leaves the obligation closure unbounded.
+// unbounded reports a plan unknown that leaves the obligation closure unbounded. A TypeScript
+// frontier entry may name its site after the reason (`reason:path:line`, TJAA-V0-052), so the
+// reason is its first two colon-separated fields.
 func unbounded(u affected.Unknown) bool {
-	return !closureUnknowns[u.Reason] && !(u.Reason == affected.UnknownLanguageFrontier && e2eFrontiers[u.Detail])
+	return !closureUnknowns[u.Reason] && !(u.Reason == affected.UnknownLanguageFrontier && e2eFrontiers[frontierReason(u.Detail)])
+}
+
+// frontierReason returns the `namespace:reason` prefix of a frontier entry.
+func frontierReason(entry string) string {
+	fields := strings.SplitN(entry, ":", 3)
+	if len(fields) < 2 {
+		return entry
+	}
+	return fields[0] + ":" + fields[1]
 }
 
 // SelectionProvider is one closed application-flow-selection-provider/1 document.

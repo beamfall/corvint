@@ -123,7 +123,8 @@ func loadManifest(t *testing.T) manifest {
 }
 
 // MTV-V0-001/MTV-V0-002/MTV-V0-009: the profile advertises exactly one read-only,
-// closed-world tool with a closed input schema.
+// closed-world projection tool with a closed input schema, beside the shared
+// corvint.help tool (MCPV0-103), and nothing else.
 func TestToolCatalogueIsExactlyOneReadOnlyTool(t *testing.T) {
 	t.Run("MTV-V0-001 exactly one read-only tool", toolCatalogueIsExactlyOneReadOnlyTool)
 }
@@ -134,14 +135,21 @@ func toolCatalogueIsExactlyOneReadOnlyTool(t *testing.T) {
 	defer client.close(t)
 	result := successResult(t, client.call(t, 1, "tools/list", map[string]any{"_meta": requestMeta()}))
 	tools, ok := result["tools"].([]any)
-	if !ok || len(tools) != len(cases.Tools) {
-		t.Fatalf("tools=%v", result["tools"])
+	names := []string{}
+	var tool map[string]any
+	for _, item := range tools {
+		names = append(names, item.(map[string]any)["name"].(string))
+		if item.(map[string]any)["name"] == "corvint.test_validity" {
+			tool = item.(map[string]any)
+		}
 	}
-	tool := tools[0].(map[string]any)
+	if !ok || !reflect.DeepEqual(names, cases.Tools) || tool == nil {
+		t.Fatalf("tools=%v, want %v", names, cases.Tools)
+	}
 	annotations := tool["annotations"].(map[string]any)
 	schema := tool["inputSchema"].(map[string]any)
 	properties := schema["properties"].(map[string]any)
-	if tool["name"] != cases.Tools[0] || annotations["readOnlyHint"] != true || annotations["destructiveHint"] != false ||
+	if annotations["readOnlyHint"] != true || annotations["destructiveHint"] != false ||
 		annotations["openWorldHint"] != false || schema["additionalProperties"] != false ||
 		len(properties) != 2 || properties["receipt"] == nil || properties["discover"] == nil || len(schema["required"].([]any)) != 0 {
 		t.Fatalf("tool=%v", tool)
@@ -179,7 +187,7 @@ func vectorsAndReadOnly(t *testing.T, version string) {
 				}
 				meta = map[string]any{}
 			}
-			response := client.call(t, 100+index, "tools/call", map[string]any{"_meta": meta, "name": cases.Tools[0], "arguments": item.Arguments})
+			response := client.call(t, 100+index, "tools/call", map[string]any{"_meta": meta, "name": "corvint.test_validity", "arguments": item.Arguments})
 			checkVector(t, item, response)
 			if after := treeDigest(t, root); after != before {
 				t.Fatalf("repository changed: before=%s after=%s", before, after)

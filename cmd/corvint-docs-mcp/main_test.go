@@ -143,11 +143,14 @@ func roundTripDocs(t *testing.T, version string) {
 		t.Fatalf("tools/list response: %#v", listResponse)
 	}
 	tools, ok := listResult["tools"].([]any)
-	if !ok || len(tools) != 2 {
+	if !ok || len(tools) != 3 {
 		t.Fatalf("tools/list tools: %#v", listResult["tools"])
 	}
-	names := []string{tools[0].(map[string]any)["name"].(string), tools[1].(map[string]any)["name"].(string)}
-	if want := []string{"corvint.docs_consume", "corvint.docs_draft"}; !reflect.DeepEqual(names, want) {
+	names := []string{}
+	for _, tool := range tools {
+		names = append(names, tool.(map[string]any)["name"].(string))
+	}
+	if want := []string{"corvint.docs_consume", "corvint.docs_draft", "corvint.help"}; !reflect.DeepEqual(names, want) { // MCPV0-101
 		t.Fatalf("tools = %v, want %v", names, want)
 	}
 

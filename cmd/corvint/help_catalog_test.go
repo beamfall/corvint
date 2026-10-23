@@ -62,6 +62,18 @@ func TestCAPV0015HelpJSONListsEveryDispatchedCommand(t *testing.T) {
 	}
 }
 
+// CAP-V0-022: the binary's own catalog marks requiredFlags partial.
+func TestCAPV0022BinaryCatalogMarksRequiredFlagsPartial(t *testing.T) {
+	t.Parallel()
+	var catalog capcatalog.Catalog
+	if err := json.Unmarshal([]byte(runCatalogHelp(t, "help", "--json")), &catalog); err != nil {
+		t.Fatal(err)
+	}
+	if catalog.RequiredFlagsCoverage != capcatalog.RequiredFlagsPartial {
+		t.Fatalf("requiredFlagsCoverage = %q, want %q", catalog.RequiredFlagsCoverage, capcatalog.RequiredFlagsPartial)
+	}
+}
+
 func TestCAPV0016UnderivableFieldsAreUnknownWithReasons(t *testing.T) {
 	t.Parallel()
 	catalog := capcatalog.Build(capabilityRegistry())
@@ -117,6 +129,25 @@ func TestCAPV0021RootHelpNamesTheCatalogTopicsWithinItsBound(t *testing.T) {
 	err := unknownHelpTopic([]string{"nope"})
 	if strings.Contains(err.Error(), "--json") || strings.Contains(err.Error(), "'guide'") {
 		t.Fatalf("the unknown-topic refusal must keep listing commands and nested topics only: %v", err)
+	}
+}
+
+// MCPV0-105: the corvint.help answer that corvint-docs-mcp, corvint-corpus-mcp
+// and corvint-test-validity-mcp return through bridge.HelpToolResult carries the
+// CLI's own stdout byte for byte, for both topics, in structuredContent. Each
+// server's wire test holds its answer equal to bridge.HelpToolResult's.
+func TestMCPV0105CompanionHelpMatchesTheCLI(t *testing.T) {
+	t.Parallel()
+	for arguments, cli := range map[string][]string{`{}`: {"help", "--json"}, `{"topic":"guide"}`: {"help", "guide"}} {
+		answer, callErr := bridge.HelpToolResult(context.Background(), []byte(arguments))
+		if callErr != nil {
+			t.Fatal(callErr)
+		}
+		structured, _ := answer["structuredContent"].(map[string]any)
+		receipt, _ := structured["receipt"].(map[string]any)
+		if text, _ := receipt["text"].(string); text != runCatalogHelp(t, cli...) {
+			t.Fatalf("companion corvint.help %s differs from corvint %s", arguments, strings.Join(cli, " "))
+		}
 	}
 }
 

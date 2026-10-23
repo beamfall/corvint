@@ -192,3 +192,34 @@ func intStrings(values []int) []string {
 	}
 	return texts
 }
+
+// CAP-V0-022: every catalog states, right after derivation, that requiredFlags
+// is partial, and the derivation map says why.
+func TestCAPV0022RequiredFlagsCoverageIsPartial(t *testing.T) {
+	t.Parallel()
+	catalog := Build(syntheticRegistry())
+	if catalog.RequiredFlagsCoverage != RequiredFlagsPartial || !strings.Contains(catalog.Derivation["requiredFlagsCoverage"], "lower bound") {
+		t.Fatalf("requiredFlagsCoverage = %q, derivation %q", catalog.RequiredFlagsCoverage, catalog.Derivation["requiredFlagsCoverage"])
+	}
+	encoded, err := Encode(catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(encoded, []byte("\n  },\n  \"requiredFlagsCoverage\": \"partial\",\n  \"globalFlags\": [")) {
+		t.Fatal("requiredFlagsCoverage is not encoded between derivation and globalFlags")
+	}
+}
+
+// CAP-V0-023: an option the help requires only in prose, or through
+// alternative usage lines, is never derived: the form stays omitted and the
+// catalog still says requiredFlags is partial.
+func TestCAPV0023ProseRequirementsAreNotDerived(t *testing.T) {
+	t.Parallel()
+	registry := syntheticRegistry()
+	registry.Topics["gamma"] = "Gamma.\n\nUsage:\n  corvint gamma --dry-run\n  corvint gamma --apply --digest D\n\n" +
+		"Exactly one of --dry-run and --apply is required. --digest is required with --apply; --mode is required.\n"
+	catalog := Build(registry)
+	if gamma := catalog.Commands[2]; len(gamma.RequiredFlags) != 0 || catalog.RequiredFlagsCoverage != RequiredFlagsPartial {
+		t.Fatalf("gamma requiredFlags = %v, coverage %q", gamma.RequiredFlags, catalog.RequiredFlagsCoverage)
+	}
+}

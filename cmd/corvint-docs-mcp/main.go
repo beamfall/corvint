@@ -1,6 +1,7 @@
 // Command corvint-docs-mcp is a separate local stdio MCP 2026-07-28 server that
 // exposes only the experimental source-documentation draft/consume tools
-// (docs/specs/source-documentation-draft-v0.md). It is intentionally not part
+// (docs/specs/source-documentation-draft-v0.md), plus the binary-only
+// corvint.help tool every Corvint MCP server shares (MCPV0-101). It is intentionally not part
 // of cmd/corvint-mcp: that server's tool set is frozen exactly by
 // docs/specs/mcp-server-2026-07-28-v0.md requirement MCPV0-008, and this
 // slice is proposed/experimental, not delivered V0. Both binaries reuse the
@@ -17,6 +18,7 @@ import (
 	"os/signal"
 	"sort"
 
+	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/docsbridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/mcp/server"
@@ -103,7 +105,7 @@ func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request
 				return nil, protocol.InvalidParams("Invalid params")
 			}
 		}
-		tools := handler.registry.Tools()
+		tools := append(handler.registry.Tools(), bridge.HelpDescriptor()) // MCPV0-101
 		sort.Slice(tools, func(left, right int) bool { return tools[left].Name < tools[right].Name })
 		return map[string]any{
 			"cacheScope": "private", "tools": tools, "ttlMs": 300_000,
@@ -135,6 +137,9 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 	if err != nil {
 		return nil, protocol.InvalidParams("Invalid params")
 	}
+	if name == bridge.ToolHelp { // MCPV0-101: reads only the binary, so no repository check applies.
+		return helpResult(ctx, name, raw)
+	}
 	structured, text, toolFailure, transportErr := handler.registry.Call(ctx, name, raw)
 	if transportErr != nil {
 		if transportErr.Code == "invalid-arguments" || transportErr.Code == "unsupported-tool" {
@@ -160,6 +165,22 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 		"isError":           false,
 		"structuredContent": structured,
 	}, nil
+}
+
+// helpResult answers corvint.help through the shared bridge path (MCPV0-104),
+// mapping its failures as every other tool's transport failure is mapped.
+func helpResult(ctx context.Context, name string, raw []byte) (map[string]any, *protocol.RPCError) {
+	result, err := bridge.HelpToolResult(ctx, raw)
+	if err == nil {
+		return result, nil
+	}
+	if err.Code == "invalid-arguments" {
+		return nil, protocol.InvalidParams("Invalid params")
+	}
+	if err.Code == "cancelled" || ctx.Err() != nil {
+		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
+	}
+	return toolFailureResult(name, err.Code, err.Code)
 }
 
 // toolFailureResult always sets isError: true. A business or transport

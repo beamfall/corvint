@@ -23,6 +23,11 @@ import (
 // Schema names the catalog document.
 const Schema = "corvint-capability-catalog/0"
 
+// RequiredFlagsPartial is the only requiredFlagsCoverage value (CAP-V0-022):
+// the binary declares no structured required-option table for most usage
+// forms, so requiredFlags is a lower bound read from Usage synopses.
+const RequiredFlagsPartial = "partial"
+
 //go:embed AGENT-GUIDE.md
 var guide string
 
@@ -82,14 +87,17 @@ type Command struct {
 
 // Catalog is the corvint-capability-catalog/0 document.
 type Catalog struct {
-	Schema           string            `json:"schema"`
-	Source           string            `json:"source"`
-	Derivation       map[string]string `json:"derivation"`
-	GlobalFlags      []string          `json:"globalFlags"`
-	GlobalSchemaIDs  []string          `json:"globalSchemaIds"`
-	NestedHelpTopics []string          `json:"nestedHelpTopics"`
-	Guide            GuideRef          `json:"guide"`
-	Commands         []Command         `json:"commands"`
+	Schema     string            `json:"schema"`
+	Source     string            `json:"source"`
+	Derivation map[string]string `json:"derivation"`
+	// RequiredFlagsCoverage tells a consumer that requiredFlags is partial,
+	// so an omitted form or option is not evidence that none is required.
+	RequiredFlagsCoverage string    `json:"requiredFlagsCoverage"`
+	GlobalFlags           []string  `json:"globalFlags"`
+	GlobalSchemaIDs       []string  `json:"globalSchemaIds"`
+	NestedHelpTopics      []string  `json:"nestedHelpTopics"`
+	Guide                 GuideRef  `json:"guide"`
+	Commands              []Command `json:"commands"`
 	// Profiling is the PRB-V0-009 profile-knob member, supplied by the binary and carried unchanged.
 	Profiling map[string]any `json:"profiling,omitempty"`
 }
@@ -105,7 +113,8 @@ var derivation = map[string]string{
 	"globalSchemaIds":       "every NAME/VERSION schema identifier the root help Global options block names",
 	"nestedOperations":      "the code-declared operation tables one level below an operation, such as docs corpus",
 	"nestedHelpTopics":      "the two-word corvint help COMMAND SUBCOMMAND topics the help dispatcher accepts",
-	"requiredFlags":         "per usage form (the command and its catalogued operation words), the --options every Usage block line of that form names outside [ ] and ( ); a form whose lines require none is omitted, and options a help text states as required only in prose are not derived",
+	"requiredFlags":         "per usage form (the command and its catalogued operation words), the --options every Usage block line of that form names outside [ ] and ( ); a form whose lines require none is omitted, and options a help text states as required only in prose are not derived; see requiredFlagsCoverage",
+	"requiredFlagsCoverage": "always partial: requiredFlags reads only Usage synopses, and the binary declares no structured required-option table for most forms, so an option that help prose or the parser requires (one of two alternatives, or one required only in some mode) is missing; an absent form or option does not mean none is required, so treat requiredFlags as a lower bound and read corvint help COMMAND before relying on an omission",
 	"purpose":               "the command's label in the root help Commands block",
 	"maturity":              "core under the root help Core header, experimental under the Experimental header",
 	"owningSpec":            "the parenthesized spec code ending the command's root help line",
@@ -139,14 +148,17 @@ func Build(registry Registry) Catalog {
 	entries, freeze := parseRootCommands(registry.RootHelp)
 	readOnly, writers, ledger := parseSupportBoundary(registry.RootHelp)
 	catalog := Catalog{
-		Schema:           Schema,
-		Source:           "corvint help: the topLevelCommands dispatch list, the root help and each COMMAND --help topic",
-		Derivation:       derivation,
-		GlobalFlags:      flags(globalBlock(registry.RootHelp), true),
-		GlobalSchemaIDs:  schemaIDs(globalBlock(registry.RootHelp)),
-		NestedHelpTopics: sortedTopics(registry.NestedHelpTopics),
-		Guide:            GuideRef{Topic: "corvint help guide", SHA256: digest(guide)},
-		Commands:         make([]Command, 0, len(registry.Commands)),
+		Schema:     Schema,
+		Source:     "corvint help: the topLevelCommands dispatch list, the root help and each COMMAND --help topic",
+		Derivation: derivation,
+		// Never derived from prose: help sentences that call an option required
+		// are not parsed, so the list stays a lower bound (CAP-V0-023).
+		RequiredFlagsCoverage: RequiredFlagsPartial,
+		GlobalFlags:           flags(globalBlock(registry.RootHelp), true),
+		GlobalSchemaIDs:       schemaIDs(globalBlock(registry.RootHelp)),
+		NestedHelpTopics:      sortedTopics(registry.NestedHelpTopics),
+		Guide:                 GuideRef{Topic: "corvint help guide", SHA256: digest(guide)},
+		Commands:              make([]Command, 0, len(registry.Commands)),
 	}
 	for _, name := range registry.Commands {
 		text := registry.Topics[name]

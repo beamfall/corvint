@@ -81,7 +81,10 @@ For tool scope, that server's exact three-tool surface is frozen by
 `docs/specs/mcp-server-2026-07-28-v0.md` requirement `MCPV0-008` ("V0 advertises exactly
 these tools") and enforced by the closed `conformance/mcp-2026-07-28` suite, and this
 docs-tool slice remains proposed/experimental, not delivered V0; it must not extend or
-alter that frozen surface. `docs_draft`'s Markdown output and `docs_consume`'s canonical
+alter that frozen surface. Amendment (2026-10-23, `MCPV0-101` in
+`mcp-server-2026-07-28-v0.md`): `corvint-docs-mcp` also advertises the shared binary-only
+`corvint.help` tool of `MCPV0-100`, which reads no repository state and changes neither docs tool.
+`docs_draft`'s Markdown output and `docs_consume`'s canonical
 JSON output — the `structuredContent` returned alongside each tool result — must be
 byte-identical to the CLI's stdout on the same fixture. Repository-authored source
 excerpts and owner prose reach a model only through the MCP `content[0].text` block, so

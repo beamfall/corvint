@@ -762,7 +762,8 @@ Each row cites the first emitting site and states only the condition checked the
   text is 105,424 bytes and the guide 5,804 bytes; after the review fixes added `requiredFlags`
   and `nestedHelpTopics` they are 116,793 and 6,085 bytes. Non-goals: no per-command filter or search
   argument, no other MCP server (`corvint-docs-mcp`, `corvint-corpus-mcp`,
-  `corvint-test-validity-mcp`) gains the tool, no MCP resource or prompt, no change to the
+  `corvint-test-validity-mcp`) gains the tool (amended 2026-10-23 by `MCPV0-101..105`, which add
+  it to those three servers), no MCP resource or prompt, no change to the
   existing tools' bytes, and no wider exception to decision 0103 for any other tool. Failure modes:
   a catalog that drifts from the CLI (caught by the parity tests below and `make capability-catalog-check`);
   a catalog that outgrows the budget (bounded abstention); a client that hard-codes three tools
@@ -772,6 +773,42 @@ Each row cites the first emitting site and states only the condition checked the
   outside the closed set. Rollback: remove the `corvint.help` descriptor, `callHelp` and its
   validator, restore the three-tool goldens and conformance lists, and restore this amendment's
   "three tools" wording in `MCPV0-008`; no stored state depends on the tool.
+- `MCPV0-101`: (owner request, 2026-10-23; extends `MCPV0-100`; amends `SDD-V0-006`)
+  `corvint-docs-mcp` MUST advertise `corvint.help` with exactly the `MCPV0-100` descriptor,
+  beside `corvint.docs_consume` and `corvint.docs_draft`, so its `tools/list` holds three tools,
+  under either protocol version. A call MUST answer as `MCPV0-104` describes. Falsifier: a
+  `tools/list` without the tool, or a descriptor or result that differs from the shared one.
+- `MCPV0-102`: (owner request, 2026-10-23; extends `MCPV0-100`) `corvint-corpus-mcp` MUST
+  advertise `corvint.help` with exactly the `MCPV0-100` descriptor in every argv configuration,
+  beside the tools the artifact's capabilities and the `--map`, `--consolidation` and
+  `--legacy-cases` selectors list, under either protocol version. A call MUST answer as
+  `MCPV0-104` describes. It is not a corpus read, so the `DCP-V1-145` call deadline and the
+  `corvint/timing` result `_meta` do not apply to it; an `--outcome-log` records it like any other
+  listed tool. Falsifier: a configuration without the tool, or a help result carrying corpus
+  timing or trust-envelope members.
+- `MCPV0-103`: (owner request, 2026-10-23; extends `MCPV0-100`; amends `MTV-V0-001`)
+  `corvint-test-validity-mcp` MUST advertise `corvint.help` with exactly the `MCPV0-100`
+  descriptor beside `corvint.test_validity`, so its `tools/list` holds two tools, under either
+  protocol version. A call MUST answer as `MCPV0-104` describes. The help tool presents no
+  test-level result, so `LPCV-V0-047` places nothing on it. Falsifier: a `tools/list` without the
+  tool, or a descriptor or result that differs from the shared one.
+- `MCPV0-104`: (owner request, 2026-10-23) The three servers of `MCPV0-101..103` MUST answer
+  `corvint.help` through one shared path, `bridge.HelpToolResult`, which applies
+  `Registry.Call`'s argument bounds (at most 4 KiB of valid UTF-8) and the `MCPV0-100` closed
+  arguments, receipt, result validator, 393,216-byte budget and cancellation order. It MUST return
+  the same `CallToolResult` that `corvint-mcp` emits for that call: the bridge object as
+  `structuredContent`, and its canonical JSON inside the `MCPV0-008` envelope as the one text
+  block. The transport's `_meta` and `resultType` are the same as on every other result. Invalid
+  arguments are JSON-RPC `-32602`, and a cancelled call is a JSON-RPC internal error, as each server
+  maps its own tools' failures. The call reads no repository, index, Git, corpus artifact,
+  application map or trace state, and skips each server's repository identity check, so it answers
+  the same after the root is removed. Each server still needs its usual `--root` (and
+  `--artifact`) to start. Falsifier: a wire result that differs from `bridge.HelpToolResult`'s,
+  a copied descriptor or receipt builder, or a help answer that depends on repository state.
+- `MCPV0-105`: (owner request, 2026-10-23) The receipt `text` that `MCPV0-104` returns MUST be,
+  byte for byte, the stdout of `corvint help --json` (topic `catalog` or none) or
+  `corvint help guide` (topic `guide`) from the same build. Falsifier: one differing byte.
+  `MCPV0-106` to `MCPV0-109` are reserved for this slice and unassigned.
 - `MCPV0-095`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2219) A `MIXED`
   bridge `repository` binding MUST stay exactly the seven members of the closed
   `corvint-mcp-bridge-result/0` object above: it names no dirty path, only `dirtyPathCount` and
@@ -889,6 +926,11 @@ cleanup remain outside that receipt.
 | `MCPV0-090` | `callContext` (deferred `Index.Release`), `detachedContext`, `compileContext` retry release | `internal/contextindex/bridge_release_test.go`'s `TestMCPV0090ContextCallReleasesItsSnapshotMapping`: one task-review bridge answers 1 sequential and 24 concurrent (6x4) `corvint.context` calls from a mapped pack; the ring holds exactly 1 mapping, 0 stay live after it is evicted, and every result encodes to the first result's bytes after the unmap; fails with 1 live mapping when the release is removed; passes under `-race` |
 | `MCPV0-095` | `RepositoryBinding`, `snapshotIndex`, `bindingFromRepository` (no path member) | `internal/mcp/bridge/worktree_test.go`'s `TestMCPV0095MixedBindingIsCountAndDigestOnly`: `corvint.status` and `corvint.query` over a worktree with one untracked file bind `MIXED` with count 1, exactly the seven members, and no byte of the dirty path's name |
 | `MCPV0-100` | `internal/mcp/bridge` (`ToolHelp`, `callHelp`, `validHelpReceipt`, `allTools`), `internal/capcatalog` | `internal/mcp/bridge/help_test.go`'s `TestMCPV0100HelpToolReturnsTheEmbeddedCatalogAndGuide` (all four profiles: advertised, exact catalog and guide text with matching `byteCount` and `sha256`, under half the budget and inside the frame, deterministic, closed-argument refusals, cancellation, and an empty `.git` that would fail any repository read); `cmd/corvint-mcp/help_test.go`'s `TestMCPV0100HelpToolAnswersOnEveryProfile` (compiled `run` per profile: `structuredContent` and the enveloped text block both carry the embedded bytes); `cmd/corvint/help_catalog_test.go`'s `TestMCPV0100HelpToolMatchesTheCLI` (bridge receipt text equals `corvint help --json` and `corvint help guide` stdout byte for byte); the same test's receipt-validator tampers (text, recomputed hash, missing or other-topic command, cross-topic text, wrong or float `byteCount`, extra member, missing schema); `TestMCPV0100HelpCancellationPrecedesTheBudget` (oversized text with a cancelled context fails `cancelled`, live context abstains `OUTPUT_BUDGET_EXCEEDED`); `cmd/corvint-mcp/help_test.go`'s `TestMCPV0100HelpToolSkipsFollowRefBinding` (compiled `run --follow-ref` carries no follow-ref block; handler calls with the ref current, moved and deleted answer the embedded catalog without refreshing or moving the lane HEAD); repinned `cmd/corvint-mcp/testdata/tools-list-*.golden.jsonl` and conformance tool lists |
+| `MCPV0-101` | `cmd/corvint-docs-mcp` (`Handle`, `call`, `helpResult`) | `cmd/corvint-docs-mcp/help_test.go`'s `TestMCPV0101HelpToolAnswersOnTheWire` (both protocol versions: shared descriptor listed, wire result equal to `bridge.HelpToolResult`, embedded bytes in `structuredContent` and the enveloped text, unknown topic `-32602`) and `TestMCPV0101HelpToolReadsNoRepositoryState` (a valid `corvint.docs_draft` succeeds before the root is removed and refuses with `repository-unavailable` after); `cmd/corvint-docs-mcp/main_test.go`'s three-tool `tools/list` |
+| `MCPV0-102` | `cmd/corvint-corpus-mcp` (`listedTools`, `call`, `helpResult`) | `cmd/corvint-corpus-mcp/help_test.go`'s `TestMCPV0102HelpToolAnswersOnTheWire` (the same checks; no corpus timing `_meta`) and `TestMCPV0102HelpToolReadsNoRepositoryState` (root and artifact removed; a valid `corvint.docs_info` succeeds before and refuses with `corpus-input-unavailable` after) |
+| `MCPV0-103` | `cmd/corvint-test-validity-mcp` (`Handle`, `call`, `helpResult`) | `cmd/corvint-test-validity-mcp/help_test.go`'s `TestMCPV0103HelpToolAnswersOnTheWire` and `TestMCPV0103HelpToolReadsNoRepositoryState` (a valid `corvint.test_validity` succeeds before the root is removed and refuses with `repository-unavailable` after); `conformance/mcp-test-validity-v0` (`cases.json` tools, `TestToolCatalogueIsExactlyOneReadOnlyTool`); `internal/companionrelease` workflow smoke tool list |
+| `MCPV0-104` | `internal/mcp/bridge` (`HelpDescriptor`, `HelpToolResult`) | `internal/mcp/bridge/help_test.go`'s `TestMCPV0104HelpToolResultIsTheRegistryAnswer` (equal to `Registry.Call`'s object and framed text, same descriptor, oversized, non-UTF-8 and closed-argument refusals, cancellation); the three wire tests above |
+| `MCPV0-105` | `internal/mcp/bridge` (`HelpToolResult`), `internal/capcatalog` | `cmd/corvint/help_catalog_test.go`'s `TestMCPV0105CompanionHelpMatchesTheCLI` (receipt text equals `corvint help --json` and `corvint help guide` stdout) |
 | `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |
 
 ## Unresolved decisions and promotion/kill criteria

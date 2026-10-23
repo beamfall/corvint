@@ -72,7 +72,7 @@ func decodeAnchor(raw []byte) (*WriterCheckpoint, error) {
 	if n > MaxCheckpointBytes || n > uint64(len(rest)) {
 		return nil, bad("embedded checkpoint length")
 	}
-	cp, err := DecodeCheckpoint(rest[:n])
+	cp, err := decodeEmbeddedCheckpoint(rest[:n])
 	if err != nil {
 		return nil, err
 	}
