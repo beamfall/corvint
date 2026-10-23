@@ -1974,8 +1974,9 @@ tracked file of each checkout. Status for `DCP-V1-450..453`: proposed, experimen
   `index.skipHash` trailer). An eligible entry whose index
   record is stage 0, carries no assume-valid, skip-worktree or intent-to-add flag, and whose
   worktree file's lstat matches the record's size, modification and change times, inode, owner
-  and executable bit, with the recorded modification time strictly older than the index file's
-  (Git's racy-clean rule), is vouched: it is pinned from the tree entry's committed blob in one
+  and executable bit, with the recorded modification time in a whole second strictly before the
+  index file's modification second (Git's racy-clean rule with a one-second racy window, so no
+  nanosecond timestamp is assumed), is vouched: it is pinned from the tree entry's committed blob in one
   batched object read and its worktree file is never opened. Every other eligible entry is
   opened and hashed as before and, when its bytes do not hash to the tree entry's blob, pinned
   from that blob. Worktree bytes are therefore used only when they hash to the pinned blob, and
@@ -1986,11 +1987,17 @@ tracked file of each checkout. Status for `DCP-V1-450..453`: proposed, experimen
   `TestDCPV1452RacyEntryIsNotVouched`, `TestDCPV1452IndexVersionsAndFlags`,
   `TestDCPV1453RoutedPinMatchesParityRepository`.
 - `DCP-V1-453`: Routing fails closed to the hashed worktree pass: a missing, unreadable,
-  symlinked, oversized, truncated or corrupt (checksum mismatch) index, an unsupported version, a split index
+  symlinked, oversized, truncated or corrupt (checksum mismatch) index, an unsupported version,
+  an entry with an extended flag other than skip-worktree or intent-to-add (Git refuses such an
+  index), a decoded pathname longer than 4,096 bytes, decoded pathnames together exceeding eight
+  times the index size (checked before each name is allocated, so version 4 prefix compression
+  cannot expand without bound), a split index
   (`link`) or an unknown required extension vouches for nothing; a stat mismatch, a racy entry or
   a platform without lstat inode and change times leaves that entry unvouched; and a failed or
   incomplete blob batch returns its entries to the hashed worktree pass. No unverified worktree
-  file is ever pinned. Acceptance: `TestDCPV1453UnusableIndexVouchesNothing`, `FuzzParseGitIndex`,
+  file is ever pinned. Acceptance: `TestDCPV1453UnusableIndexVouchesNothing` (including the
+  unknown-extended-flag, long-pathname and expanded-pathnames cases),
+  `TestDCPV1453IndexPathnameBounds`, `FuzzParseGitIndex`,
   `TestDCPV1453FailedBlobBatchFallsBackToWorktree`,
   `TestDCPV1453RoutedPinMatchesParityRepository`.
 
@@ -2742,7 +2749,8 @@ a guessed subject.
   a freshness observation repeats it and, after three attempts, refuses (`DCP-V1-411`). A symlink
   in the configured MCP artifact's path voids its warm stamp (`DCP-V1-417`). A live index built from another state than the freshness observation withholds symbol
   re-resolution (`DCP-V1-412`).
-- Stat-routed revision pins (`DCP-V1-452`, `DCP-V1-453`): an unusable Git index, a stat
+- Stat-routed revision pins (`DCP-V1-452`, `DCP-V1-453`): an unusable Git index (including an
+  unknown extended entry flag or pathnames past the length and expansion bounds), a stat
   mismatch, a racy entry or a failed blob batch never refuses a build; the entry is opened and
   hashed, and a worktree copy that does not hash to the pinned blob is replaced by that blob.
 - `DCP-V1-054`: Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
@@ -2985,7 +2993,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-420..425 | `internal/doccorpus/delta.go`, `delta_open.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1420DeltaAdditionalRepositoryAnchors`, `TestDCPV1420DeltaSharedReadBound`, `TestDCPV1424DeltaHistoricalPins`, `TestDCPV1425OpenDeltaCurrentUnavailableCheckout`, `TestDCPV1425DeltaUnavailableCheckoutCLI`, `TestDCPV1421DeltaViewsCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-450 | `internal/doccorpus/compile.go`, `query.go` | `TestDCPV1450ScopeMatchingMatchesPairwise`, `TestDCPV1450NestedScopesKeepRefusalsAndReasons`, `TestDCPV1450NewLiveFileNotedPerHoldingScope` |
 | DCP-V1-451 | `internal/doccorpus/read_fast_fixture_test.go`, `many_scopes_test.go` | `TestDCPV1451ManyScopesReadMatchesRederivation`, `BenchmarkDCPV1451ManyScopesVerifiedRead`, `BenchmarkDCPV1451ManyScopesRederivedRead`; profiles in docs/build-log/2026-10-23-read-hotspots-scope-and-pin.md |
-| DCP-V1-452..453 | `internal/contextindex/stat_routed_pin.go`, `index_stat_darwin.go`, `index_stat_linux.go`, `index_stat_unix.go`, `index_stat_other.go`, `index.go`, `corpus.go` | `TestDCPV1452GitIndexVouchesUnchangedEntries`, `TestDCPV1452RacyEntryIsNotVouched`, `TestDCPV1452IndexVersionsAndFlags`, `TestDCPV1453UnusableIndexVouchesNothing`, `FuzzParseGitIndex`, `TestDCPV1453FailedBlobBatchFallsBackToWorktree`, `TestDCPV1453RoutedPinMatchesParityRepository` |
+| DCP-V1-452..453 | `internal/contextindex/stat_routed_pin.go`, `index_stat_darwin.go`, `index_stat_linux.go`, `index_stat_unix.go`, `index_stat_other.go`, `index.go`, `corpus.go` | `TestDCPV1452GitIndexVouchesUnchangedEntries`, `TestDCPV1452RacyEntryIsNotVouched`, `TestDCPV1452IndexVersionsAndFlags`, `TestDCPV1453UnusableIndexVouchesNothing`, `TestDCPV1453IndexPathnameBounds`, `FuzzParseGitIndex`, `TestDCPV1453FailedBlobBatchFallsBackToWorktree`, `TestDCPV1453RoutedPinMatchesParityRepository` |
 | DCP-V1-216..217 | `internal/doccorpus/batch_paths.go`, `symbol_anchor.go`, `cem.go`, `behavior_legacy_discovery.go`, `behavior_playwright_discovery.go` | `TestDCPV1216SymbolAnchorsGitOpsIndependentOfAnchorCount` (5,000 moved anchors), `TestDCPV1216CEMProjectionGitOpsIndependentOfAnchorCount` (5,000 anchors), `TestDCPV1216LegacyDiscoveryGitOpsIndependentOfPathCount` (4,096 files, the record bound), `TestDCPV1216PlaywrightDiscoveryGitOpsIndependentOfPathCount` (2,000 files, 4,008 executions), each within 16 Git operations per phase and byte-identical to the per-path reads; `TestDCPV1216ProjectionKeepsPerPathTreeBound` (anchor under a tree past 4 MiB refused as per path), `TestDCPV1216SymbolFallbackBudgetWithholdsStates` (missing pinned blob, budget exhausted in the fallback, states withheld as per path), `TestDCPV1216GitHooksTravelWithTheContext` (the test budget and per-path override travel on the call's context, so the equivalence tests run under `t.Parallel` and `-race`); measured in docs/build-log/2026-10-20-v1-1991-batched-path-reads.md and docs/build-log/2026-10-21-testspeed-1021v-doccorpus-parallel-equivalence.md |
 | DCP-V1-340..352 | `internal/doccorpus/claim_mentions.go`, `claim_patterns.go`, `claim_audit_report.go`, `compile.go`, `query.go`, `pagination.go`, `typed_query.go`, `types.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_audit.go`, `docs_corpus_help.go` | `TestDCPV1340ExtractCodeTokens`, `TestDCPV1341ClaimMentionCheckIsBuiltAndPinned`, `TestDCPV1343ClaimMentionsAreServedWithTheClaim`, `TestDCPV1344ClaimMentionGapsAndCoverage`, `TestDCPV1346UnresolvedMentionThreshold`, `TestDCPV1347DanglingReferencesRefuse`, `TestDCPV1348CorpusPatternReport`, `TestDCPV1349CorpusPatternsCLI`, `TestDCPV1350StratifyPatternsOverSamples`, `TestDCPV1351WeightedAuditFigure`, `TestDCPV1352PatternRateThresholds`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-370..376 | `internal/testsource/discover_tests.go`, `discover_tests_playwright.go`, `discover_tests_rspec.go`, `internal/doccorpus/line_anchor.go`, `cmd/corvint/docs_corpus_discover_tests.go` | `TestDCPV1370DiscoverTestsDeterministicAnchored`, `TestDCPV1370DocsCorpusDiscoverTestsCLI`, `TestDCPV1371DiscoverTestsIdentityJoins`, `TestDCPV1372DiscoverTestsExpectations`, `TestDCPV1373DiscoverTestsNavigations`, `TestDCPV1374DiscoverTestsReaches`, `TestDCPV1375DiscoverTestsHooksTagsAnnotations`, `TestDCPV1376DiscoverTestsUnknowns` |

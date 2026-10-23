@@ -31,8 +31,8 @@ origin/main (77a49dfa2) merged in for the `CORVINT_CPUPROFILE` knob of #1608. Re
   `/` ("a", "a-b", "a.b", "a/b").
 - `DCP-V1-452`: the Git index is used to route each entry to a source, never to trust a worktree
   file. When an entry's index record is stage 0 and unflagged, and its lstat matches the record
-  (size, mtime, ctime, inode, uid, gid, executable bit) and is not racy (mtime strictly older than
-  the index file's), Git vouches that the file holds the indexed blob. Opening that file could
+  (size, mtime, ctime, inode, uid, gid, executable bit) and is not racy (mtime in a whole second
+  before the index file's), Git vouches that the file holds the indexed blob. Opening that file could
   at best repeat a committed object. So the entry is pinned from the tree entry's own committed
   blob in one batched `cat-file`, which is immutable content. Every other eligible entry takes
   the unchanged open-and-hash pass. As a result, worktree bytes are still used only when they
@@ -52,6 +52,15 @@ origin/main (77a49dfa2) merged in for the `CORVINT_CPUPROFILE` knob of #1608. Re
   repaired: the spec and comment now say that vouching is a choice of source only; skipHash
   indexes are accepted; tests were added for refusal precedence in both orders, for the
   two-nested-scope reason count, and for the parser (a fuzz test).
+- Second independent review (PR #1618) found three MED issues, repaired: a version 4 index's
+  prefix compression could expand into unbounded memory (about 5 GB of names for 100k entries),
+  so each decoded pathname is now capped at 4,096 bytes and all decoded pathnames at eight times
+  the index size, checked before allocation, and an index past either bound vouches for nothing;
+  an extended flag bit other than skip-worktree or intent-to-add left the entry trusted, so such
+  an index is now refused as Git refuses it; and the racy boundary compared nanoseconds, which a
+  seconds-only filesystem or Git build cannot order, so the racy window is now a whole second.
+  The test fixtures now backdate tracked files past that window instead of sleeping. Traceability
+  claims stay `DCP-V1-450..453`; no other ID is claimed.
 - Not done: a cross-pass memo of pinned bytes. The issue's "reuse between Build and
   liveFreshness" has no second consumer since #1609, and after routing the build's repeated pin
   pass costs one batched object read. No memory is retained across passes.
@@ -104,8 +113,9 @@ the same host:
   `TestDCPV1450NestedScopesKeepRefusalsAndReasons`, `TestDCPV1450NewLiveFileNotedPerHoldingScope`,
   `TestDCPV1451ManyScopesReadMatchesRederivation`, `TestDCPV1452GitIndexVouchesUnchangedEntries`,
   `TestDCPV1452RacyEntryIsNotVouched`, `TestDCPV1452IndexVersionsAndFlags`,
-  `TestDCPV1453UnusableIndexVouchesNothing`, `FuzzParseGitIndex` (also fuzzed 15 s, about 1.05M
-  executions, no failure), `TestDCPV1453FailedBlobBatchFallsBackToWorktree`,
+  `TestDCPV1453UnusableIndexVouchesNothing` (with unknown-extended-flag, long-pathname and
+  expanded-pathnames cases), `TestDCPV1453IndexPathnameBounds`, `FuzzParseGitIndex` (fuzzed 15 s,
+  about 1.05M executions, and again 15 s, about 0.83M, after the repair; no failure), `TestDCPV1453FailedBlobBatchFallsBackToWorktree`,
   `TestDCPV1453RoutedPinMatchesParityRepository`.
 
 ## Limits
