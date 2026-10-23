@@ -146,7 +146,7 @@ func OpenDeltaPrevious(data []byte, t *ReadTimings) (*Artifact, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := digest.verify(a, data); err != nil {
+	if err := digest.verify(a); err != nil {
 		return nil, err
 	}
 	return a, nil

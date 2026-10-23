@@ -88,6 +88,14 @@ type affectedInvocation struct {
 	// RequireClean refuses to plan over a worktree with any status entry
 	// (AFP-V0-045).
 	RequireClean bool
+	// Cache is the caller-named graph cache directory, resolved outside the
+	// repository root; empty means no cache is read or written (AFP-V0-390).
+	Cache string
+	// CacheExcluded names the repository's Git and common directories, which
+	// the opened cache directory is rechecked against (AFP-V0-390).
+	CacheExcluded []string
+	// PathsFrom names a file of --path values, one per line (AFP-V0-395).
+	PathsFrom string
 }
 
 type playwrightAffectedReceipt struct {
@@ -209,12 +217,15 @@ func parseAffectedInvocation(arguments []string) (affectedInvocation, bool, erro
 		return affectedInvocation{}, true, err
 	}
 	invocation.Root = resolved
+	if err := resolveAffectedBatchAndCache(&invocation); err != nil {
+		return affectedInvocation{}, true, err
+	}
 	return invocation, true, nil
 }
 
 // affectedOptionNames are the flags `affected` accepts, each taking one value
 // as `--flag VALUE` or `--flag=VALUE`.
-var affectedOptionNames = map[string]bool{"--path": true, "--snapshot": true, "--base": true, "--appmap-impact": true, "--playwright-config": true, "--playwright-discovery": true, "--provider": true, "--provider-command": true, "--repository": true, "--repository-base": true, "--selection-profile": true}
+var affectedOptionNames = map[string]bool{"--path": true, "--snapshot": true, "--base": true, "--appmap-impact": true, "--playwright-config": true, "--playwright-discovery": true, "--provider": true, "--provider-command": true, "--repository": true, "--repository-base": true, "--selection-profile": true, "--cache": true, "--paths-from": true}
 
 // affectedFormatRefusal names why `--format` is refused and every option
 // `affected` accepts (AFP-V0-201): the command has one output, JSON.
@@ -267,8 +278,8 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 				return affectedInvocation{}, argumentError(name + " requires exactly one value")
 			}
 			value = rest[index+1]
-			if name == "--path" && strings.HasPrefix(value, "-") {
-				return affectedInvocation{}, argumentError("--path requires a path value, got option " + pythonRepr(value) + "; write --path=VALUE for a name that begins with -")
+			if (name == "--path" || name == "--paths-from") && strings.HasPrefix(value, "-") {
+				return affectedInvocation{}, argumentError(name + " requires a path value, got option " + pythonRepr(value) + "; write " + name + "=VALUE for a name that begins with -")
 			}
 			index++
 		}
@@ -277,6 +288,10 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 		switch name {
 		case "--path":
 			err = addAffectedPath(&invocation, value)
+		case "--paths-from":
+			err = setAffectedOnce(&invocation.PathsFrom, name, value)
+		case "--cache":
+			err = setAffectedOnce(&invocation.Cache, name, value)
 		case "--snapshot":
 			if invocation.Snapshot != "" || value == "" {
 				err = argumentError("--snapshot requires exactly one nonempty value")
@@ -308,8 +323,11 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 			return affectedInvocation{}, err
 		}
 	}
-	if len(invocation.PathList) != 0 && (invocation.Snapshot != "" || invocation.Base != "" || len(invocation.Providers) != 0 || invocation.PlaywrightConfig != "" || invocation.PlaywrightDiscovery != "" || len(invocation.AppmapImpacts) != 0) {
-		return affectedInvocation{}, argumentError("--path cannot be combined with --snapshot, --base, --provider, --playwright-config, --playwright-discovery or --appmap-impact")
+	if invocation.Cache != "" && (invocation.Snapshot != "" || invocation.PlaywrightConfig != "") {
+		return affectedInvocation{}, argumentError("--cache cannot be combined with --snapshot or --playwright-config")
+	}
+	if (len(invocation.PathList) != 0 || invocation.PathsFrom != "") && (invocation.Snapshot != "" || invocation.Base != "" || len(invocation.Providers) != 0 || invocation.PlaywrightConfig != "" || invocation.PlaywrightDiscovery != "" || len(invocation.AppmapImpacts) != 0) {
+		return affectedInvocation{}, argumentError("--path and --paths-from cannot be combined with --snapshot, --base, --provider, --playwright-config, --playwright-discovery or --appmap-impact")
 	}
 	if invocation.Snapshot != "" && (invocation.Base != "" || len(invocation.Providers) != 0 || invocation.PlaywrightDiscovery != "") {
 		return affectedInvocation{}, argumentError("--snapshot cannot be combined with --base, --provider or --playwright-discovery")
@@ -730,7 +748,7 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if err != nil {
 		return affectedReceipt{}, nil, err
 	}
-	graph, err := affected.Build(affectedGraphContext(ctx), root, affectedLanguages()...)
+	graph, err := affectedBuildGraph(affectedGraphContext(ctx), invocation)
 	if err != nil {
 		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-graph", Message: err.Error()}
 	}

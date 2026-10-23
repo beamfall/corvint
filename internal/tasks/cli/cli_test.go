@@ -10,6 +10,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -23,8 +24,17 @@ type run struct {
 
 func atm(t *testing.T, cwd string, stdin []byte, args ...string) run {
 	t.Helper()
+	return atmWith(t, cwd, stdin, nil, args...)
+}
+
+// atmWith is atm with a claim scope deriver in the CLI environment, the seam
+// that lets claim --next run NextClaimTicket's candidate through a deriver
+// end to end (V1-1715). A nil deriver is the default the binary has without
+// the pack opt-in.
+func atmWith(t *testing.T, cwd string, stdin []byte, derive store.ScopeDeriver, args ...string) run {
+	t.Helper()
 	var out, errb bytes.Buffer
-	code := cli.Run(cli.Env{Cwd: cwd, Args: args, Stdin: bytes.NewReader(stdin), Stdout: &out, Stderr: &errb})
+	code := cli.Run(cli.Env{Cwd: cwd, Args: args, Stdin: bytes.NewReader(stdin), Stdout: &out, Stderr: &errb, ScopeDeriver: derive})
 	r := run{code: code, stdout: out.Bytes(), stderr: errb.Bytes()}
 	env := r.stdout
 	if len(args) >= 2 && args[0] == "archive" && args[1] == "export" {

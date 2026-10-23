@@ -43,7 +43,7 @@ func maximalDescriptor(op string) StageDescriptor {
 	if op == StageInit {
 		requestBytes = 551
 	}
-	if op == StageKeepJournal || op == StageAdoptFile || op == StageMutate || op == StagePolicyUpdate || op == StageAuthoritySwitch || op == StageQualification || op == StageLease || op == StageEscalation || op == StageRelocate {
+	if op == StageKeepJournal || op == StageAdoptFile || op == StageMutate || op == StagePolicyUpdate || op == StageAuthoritySwitch || op == StageQualification || op == StageLease || op == StageEscalation || op == StageRelocate || op == StageImportPlan {
 		requestBytes = 579
 	}
 	add("POST", rp, requestBytes, hash)
@@ -66,6 +66,13 @@ func maximalDescriptor(op string) StageDescriptor {
 	case StageAuthoritySwitch:
 		add("POST", "intent/queue.json", 1048576, hash)
 		add("EVIDENCE", "evidence/"+string(hash), 1048576, hash)
+	case StageImportPlan:
+		// Both blobs share the import map's evidence bound.
+		add("POST", "intent/queue.json", 1048576, hash)
+		add("EVIDENCE", "evidence/"+string(hash), wire.MaxImportMapBytes, hash)
+		mapHash := wire.Sum([]byte("map"))
+		add("POST", "intent/import-map.json", wire.MaxImportMapBytes, mapHash)
+		add("EVIDENCE", "evidence/"+string(mapHash), wire.MaxImportMapBytes, mapHash)
 	case StageQualification:
 		add("POST", "intent/queue.json", 1048576, hash)
 		run := wire.Sum([]byte("run"))
@@ -150,7 +157,7 @@ func maximalRecoveryDescriptor(op string) StageDescriptor {
 }
 
 func TestTMV0002_AS10_StageCodecActualMaxima(t *testing.T) {
-	for _, op := range []string{StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StagePolicyUpdate, StageAuthoritySwitch, StageLease, StageQualification, StageEscalation, StageRelocate} {
+	for _, op := range []string{StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StagePolicyUpdate, StageAuthoritySwitch, StageLease, StageQualification, StageEscalation, StageRelocate, StageImportPlan} {
 		d := maximalRecoveryDescriptor(op)
 		raw, e := d.Encode()
 		if e != nil {

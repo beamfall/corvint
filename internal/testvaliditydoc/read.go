@@ -63,6 +63,37 @@ func ReadFileBounded(root *os.Root, name string, limit int64) ([]byte, error) {
 // StatFile is ReadFileBounded without the read: it pins every directory
 // component without following a symlink, as the read does, and returns the
 // lstat record of the leaf, which must be a regular file.
+// StreamFileBounded is ReadFileBounded without holding the file: the same walk,
+// regular-file and identity checks, then read(r) consumes the opened file through r,
+// which ends after limit+1 bytes. A file whose opened size exceeds limit is refused
+// before read runs. read's error is returned as it is.
+func StreamFileBounded(root *os.Root, name string, limit int64, read func(r io.Reader) error) error {
+	if limit < 1 || limit > 128<<20 {
+		return errors.New("invalid input byte bound")
+	}
+	return walkReceiptParent(root, name, func(parent *os.Root, leaf string, before os.FileInfo) error {
+		if !before.Mode().IsRegular() {
+			return errors.New("receipt is not a regular file")
+		}
+		file, err := openReceiptFile(parent, leaf)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		opened, err := file.Stat()
+		if err != nil {
+			return err
+		}
+		if !opened.Mode().IsRegular() || !os.SameFile(before, opened) {
+			return errors.New("receipt file identity changed")
+		}
+		if opened.Size() > limit {
+			return ErrInputTooLarge
+		}
+		return read(io.LimitReader(file, limit+1))
+	})
+}
+
 func StatFile(root *os.Root, name string) (os.FileInfo, error) {
 	var info os.FileInfo
 	err := walkReceiptParent(root, name, func(_ *os.Root, _ string, before os.FileInfo) error {

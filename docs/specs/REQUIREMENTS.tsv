@@ -108,6 +108,18 @@ AFP-V0-189	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-201	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2348))	standing	2026-10-11; V1-2348
 AFP-V0-380	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1103))	standing	2026-10-11; V1-1103
 AFP-V0-381	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2363, GH #1519)	standing	2026-10-11; V1-2363; #1519
+AFP-V0-400	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1817) The	standing	2026-10-11; V1-1817
+AFP-V0-401	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1803) The Go	standing	2026-10-11; V1-1803
+AFP-V0-402	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1006; amends	standing	2026-10-11; V1-1006
+AFP-V0-403	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2370; amends	standing	2026-10-11; V1-2370
+AFP-V0-390	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
+AFP-V0-391	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
+AFP-V0-392	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
+AFP-V0-393	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
+AFP-V0-394	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
+AFP-V0-395	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
+AFP-V0-396	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
+AFP-V0-397	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
 AHI-003	docs/specs/agent-harness-integration-v0.md	On session/task start, the adapter MUST resolve repository identity, exact Git	unrecorded	-
@@ -1681,6 +1693,19 @@ ATR-V0-275	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the own
 ATR-V0-296	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0826)	standing	2026-10-11; V1-0826
 ATR-V0-297	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0826) A reassi	standing	2026-10-11; V1-0826
 ATR-V0-298	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0826) The prog	standing	2026-10-11; V1-0826
+ATR-V0-310	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2305) The	standing	2026-10-11; V1-2305
+ATR-V0-311	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1559) An attac	standing	2026-10-11; V1-1559
+ATR-V0-312	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2173) A detach	standing	2026-10-11; V1-2173
+ATR-V0-323	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A progra	standing	2026-10-11; V1-2368
+ATR-V0-324	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A cleanu	standing	2026-10-11; V1-2368
+ATR-V0-325	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A cleanu	standing	2026-10-11; V1-2368
+ATR-V0-326	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) The	standing	2026-10-11; V1-2368
+ATR-V0-327	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A cleanu	standing	2026-10-11; V1-2368
+ATR-V0-328	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A worktr	standing	2026-10-11; V1-2368
+ATR-V0-329	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A missin	standing	2026-10-11; V1-2368
+ATR-V0-320	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1634) Only the	standing	2026-10-11; V1-1634
+ATR-V0-321	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1634) The	standing	2026-10-11; V1-1634
+ATR-V0-322	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0911) On a rea	standing	2026-10-11; V1-0911
 TCD-V0-001	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]` is a	unrecorded	-
 TCD-V0-002	docs/specs/corvint-tasks-closeout-debt-v0.md	The verb reads Git only through `git rev-parse --verify`, `git config --get	unrecorded	-
 TCD-V0-003	docs/specs/corvint-tasks-closeout-debt-v0.md	The scan covers every commit reachable from the ref and not from `--since`, newe	unrecorded	-
@@ -1756,6 +1781,7 @@ TQD-V0-042	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-18, V1-1608, 
 TQD-V0-043	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-19, V1-1914, standing lane auto-accept; GitHub #1181) For each	standing	2026-10-19; V1-1914; #1181
 TQD-V0-044	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-19, V1-1916, standing lane auto-accept; GitHub #1183) From the	standing	2026-10-19; V1-1916; #1183
 TQD-V0-045	docs/specs/corvint-tasks-doctor-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1193; GitHub #	standing	2026-10-11; V1-1193; #791
+TQD-V0-046	docs/specs/corvint-tasks-doctor-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2137) A test-o	standing	2026-10-11; V1-2137
 ESC-V0-001	docs/specs/corvint-tasks-escalations-v0.md	`ticket escalate --attempt A --kind decision|infrastructure|scope|blocked --ques	unrecorded	-
 ESC-V0-002	docs/specs/corvint-tasks-escalations-v0.md	Questions MUST be stored as an optional tool-owned `escalations` reference on th	unrecorded	-
 ESC-V0-003	docs/specs/corvint-tasks-escalations-v0.md	Applicability MUST derive from the source acceptance revision versus the current	unrecorded	-
@@ -1833,6 +1859,8 @@ JSG-V0-012	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0
 JSG-V0-013	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R13, amended 2026-10-21 in slice S4) `corvint-tasks jou	owner	decision 0549; 2026-10-21
 JSG-V0-014	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R14) Maintained tests assert counts, not durations, at	owner	decision 0549
 JSG-V0-015	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted under the owner's standing auto-accept, 2026-10-11; V1-0850) A complet	standing	2026-10-11; V1-0850
+JSG-V0-020	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2204, V1-2278)	standing	2026-10-11; V1-2204; V1-2278
+JSG-V0-021	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2204) The B2 r	standing	2026-10-11; V1-2204
 KHN-V0-001	docs/specs/corvint-tasks-know-how-notes-v0.md	`ticket know-how add` MUST pin every `--anchor PATH` to the Git blob that path	unrecorded	-
 KHN-V0-002	docs/specs/corvint-tasks-know-how-notes-v0.md	A ticket record MAY carry the optional member `knowHow`. When present it is a	unrecorded	-
 KHN-V0-003	docs/specs/corvint-tasks-know-how-notes-v0.md	`KNOWHOW_ADD` (`{text, anchors, routes, commit, supersedes, reason, attempt,	unrecorded	-
@@ -2084,6 +2112,8 @@ PSR-V0-191	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the ow
 PSR-V0-201	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1008) On Darwi	standing	2026-10-11; V1-1008
 PSR-V0-203	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2352) On a rea	standing	2026-10-11; V1-2352
 PSR-V0-204	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2425) On Linux	standing	2026-10-11; V1-2425
+PSR-V0-220	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1715) For a	standing	2026-10-11; V1-1715
+PSR-V0-221	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0911, V1-1569)	standing	2026-10-11; V1-0911; V1-1569
 SCC-V0-001	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) `store.S	standing	2026-10-11; V1-1920
 SCC-V0-002	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) An ABSEN	standing	2026-10-11; V1-1920
 SCC-V0-003	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) The patc	standing	2026-10-11; V1-1920
@@ -2112,6 +2142,11 @@ CTS-V0-015	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's
 CTS-V0-016	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0398) After ge	standing	2026-10-11; V1-0398
 CTS-V0-017	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0398) `import`	standing	2026-10-11; V1-0398
 CTS-V0-018	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2401) `import`	standing	2026-10-11; V1-2401
+CTS-V0-020	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2400)	standing	2026-10-11; V1-2400
+CTS-V0-021	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2400) An	standing	2026-10-11; V1-2400
+CTS-V0-022	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0903) The	standing	2026-10-11; V1-0903
+CTS-V0-023	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0903) One	standing	2026-10-11; V1-0903
+CTS-V0-024	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2400) The CTS-	standing	2026-10-11; V1-2400
 TRL-V0-001	docs/specs/corvint-tasks-store-relocation-v0.md	`corvint-tasks relocate --from OLD --request-id ID [--role OWNER|OPERATOR]	unrecorded	-
 TRL-V0-002	docs/specs/corvint-tasks-store-relocation-v0.md	A completed relocation commits one RELOCATE receipt that posts exactly one pinne	unrecorded	-
 TRL-V0-003	docs/specs/corvint-tasks-store-relocation-v0.md	Relocation refuses `QUIESCENCE_UNPROVED`, writing nothing, while any attempt hol	unrecorded	-
@@ -2263,6 +2298,7 @@ DCW-V0-160	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the o
 DCW-V0-161	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2355, V1-2343;	standing	2026-10-11; V1-2355; V1-2343
 DCW-V0-165	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2367, V1-2379;	standing	2026-10-11; V1-2367; V1-2379
 DCW-V0-166	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2404) Every	standing	2026-10-11; V1-2404
+DCW-V0-333	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2423; amends	standing	2026-10-11; V1-2423
 DCW-V0-170	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2344) When	standing	2026-10-11; V1-2344
 DCW-V0-171	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2171) A	standing	2026-10-11; V1-2171
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
@@ -2619,6 +2655,11 @@ DCP-V1-373	docs/specs/documentation-corpus-v1.md	(accepted under the owner's sta
 DCP-V1-374	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582)	standing	2026-10-11; #1582
 DCP-V1-375	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) The	standing	2026-10-11; #1582
 DCP-V1-376	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Wha	standing	2026-10-11; #1582
+DCP-V1-400	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-	standing	2026-10-11; #1597; V1-2470
+DCP-V1-401	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-	standing	2026-10-11; #1597; V1-2470
+DCP-V1-402	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-	standing	2026-10-11; #1597; V1-2470
+DCP-V1-403	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-	standing	2026-10-11; #1597; V1-2470
+DCP-V1-404	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-	standing	2026-10-11; #1597; V1-2470
 DCP-V1-250	docs/specs/documentation-corpus-v1.md	The case file is a closed `corvint-corpus-eval-cases/1` document with a file	unrecorded	-
 DCP-V1-251	docs/specs/documentation-corpus-v1.md	Each case runs through `corpusbridge.Registry.CallTimed`, the code path that ser	unrecorded	-
 DCP-V1-252	docs/specs/documentation-corpus-v1.md	Each case reports `hit`, the 1-based `rank` of the first relevant row, `k` (the	unrecorded	-
@@ -2646,6 +2687,11 @@ DCP-V1-416	docs/specs/documentation-corpus-v1.md	The corpus MCP server's first t
 DCP-V1-417	docs/specs/documentation-corpus-v1.md	A warm corpus MCP call neither reads nor hashes the configured artifact while it	unrecorded	-
 DCP-V1-418	docs/specs/documentation-corpus-v1.md	Acceptance at scale, on a generated fixture with a 4,000-page native scope, 6,00	unrecorded	-
 DCP-V1-419	docs/specs/documentation-corpus-v1.md	A read derives the same query index, receipts and refusals with less wall time.	unrecorded	-
+DCP-V1-430	docs/specs/documentation-corpus-v1.md	Residual acceptance. On the `DCP-V1-418` fixture the seven CLI reads (`info`,	unrecorded	-
+DCP-V1-431	docs/specs/documentation-corpus-v1.md	The CLI's verified read, and a native read joined with `--corpus=FILE`, stream t	unrecorded	-
+DCP-V1-432	docs/specs/documentation-corpus-v1.md	Every remaining reader of a retained artifact either takes the verified read of	unrecorded	-
+DCP-V1-433	docs/specs/documentation-corpus-v1.md	A read persists and consumes no read index, posting set, identity map, sidecar o	unrecorded	-
+DCP-V1-434	docs/specs/documentation-corpus-v1.md	An indexed CLI read (`IndexedOperation`) derives the claim terms of its query	unrecorded	-
 DCP-V1-450	docs/specs/documentation-corpus-v1.md	Scope membership allocates nothing, and each scope check finds the scopes holdin	unrecorded	-
 DCP-V1-451	docs/specs/documentation-corpus-v1.md	The read fixture of `DCP-V1-418` has a many-scopes shape, one single-file scope	unrecorded	-
 DCP-V1-452	docs/specs/documentation-corpus-v1.md	A corpus revision pin (`BuildRevisionContext`) reads the checkout's Git index	unrecorded	-

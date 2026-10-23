@@ -6,7 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
@@ -112,5 +114,105 @@ func TestDCPV1413CorpusReadsWithoutRederivation(t *testing.T) {
 	}
 	if _, _, failure, _ := registry.Call(context.Background(), "corvint.docs_validate", []byte(`{}`)); failure == nil {
 		t.Fatal("docs_validate read a deleted pinned blob")
+	}
+}
+
+// TestDCPV1432JoinedCorpusReusesVerifiedArtifact: a native read joined with --corpus admits the
+// corpus through the verified read (DCP-V1-432); the delta current side is DCP-V1-460's. No read
+// writes a file, persisted index or sidecar beside the artifact (DCP-V1-433).
+func TestDCPV1432JoinedCorpusReusesVerifiedArtifact(t *testing.T) {
+	defer doccorpus.TrustUnattestedBuilderForTest()()
+	root := taskContextRepository(t)
+	rev := cemGit(t, root, "rev-parse", "HEAD")
+	writeCorpusFixture(t, root, rev, "cache")
+	listing := func() string {
+		t.Helper()
+		entries, err := os.ReadDir(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		names := []string{}
+		for _, entry := range entries {
+			if entry.Name() == ".git" {
+				continue
+			}
+			info, err := entry.Info()
+			if err != nil {
+				t.Fatal(err)
+			}
+			names = append(names, entry.Name()+" "+info.ModTime().String())
+		}
+		return strings.Join(names, "\n")
+	}
+	files := listing()
+	defer func() {
+		if after := listing(); after != files {
+			t.Errorf("reads changed the repository root:\n%s\nwant\n%s", after, files)
+		}
+	}()
+	code, joined, stderr := corpusCLI(t, root, "affected", "--corpus=corpus.json")
+	if code != 0 {
+		t.Fatalf("joined read: %d %s", code, stderr)
+	}
+	var native struct {
+		Documentation struct {
+			Receipt json.RawMessage `json:"receipt"`
+		} `json:"documentation"`
+	}
+	if err := json.Unmarshal([]byte(joined), &native); err != nil {
+		t.Fatal(err)
+	}
+	if got := corpusInfoValidation(t, string(native.Documentation.Receipt)); got != doccorpus.ValidationVerified {
+		t.Fatalf("joined corpus validation %q", got)
+	}
+}
+
+// TestDCPV1431CorpusRefusalJoinsFreshness: a query read refused after its live freshness
+// observation started, by its query index or by its arguments, cancels and joins the observation
+// before it returns, so no observation outlives the read or writes its timing after the --timings
+// summary. The observation blocks until it is cancelled. Run under -race.
+func TestDCPV1431CorpusRefusalJoinsFreshness(t *testing.T) {
+	defer doccorpus.TrustUnattestedBuilderForTest()()
+	root := taskContextRepository(t)
+	rev := cemGit(t, root, "rev-parse", "HEAD")
+	writeCorpusFixture(t, root, rev, "cache")
+	var started, finished, cancelled atomic.Int32
+	defer func(saved func(context.Context, string, *doccorpus.Artifact) (doccorpus.FreshnessOverlay, error)) {
+		corpusLiveFreshness = saved
+	}(corpusLiveFreshness)
+	corpusLiveFreshness = func(ctx context.Context, _ string, _ *doccorpus.Artifact) (doccorpus.FreshnessOverlay, error) {
+		started.Add(1)
+		defer finished.Add(1)
+		select {
+		case <-ctx.Done():
+			cancelled.Add(1)
+			return doccorpus.FreshnessOverlay{}, ctx.Err()
+		case <-time.After(time.Minute):
+			return doccorpus.FreshnessOverlay{}, nil
+		}
+	}
+	refusals := []struct {
+		name  string
+		args  []string
+		lower bool
+	}{
+		{"index refusal", []string{"concept", "--query", "cache"}, true},
+		{"claims argument error", []string{"claims"}, false},
+		{"claims status filter", []string{"claims", "--state", "bogus"}, false},
+	}
+	for _, refusal := range refusals {
+		restore := func() {}
+		if refusal.lower {
+			restore = doccorpus.SetIndexBoundsForTest(1, 1)
+		}
+		before := started.Load()
+		code, out, stderr := corpusCLI(t, root, append(append([]string{"docs", "corpus"}, refusal.args...), "--artifact", "corpus.json", "--timings")...)
+		restore()
+		if code == 0 || out != "" {
+			t.Fatalf("%s: %d %s", refusal.name, code, out)
+		}
+		if started.Load() != before+1 || finished.Load() != started.Load() || cancelled.Load() != started.Load() {
+			t.Fatalf("%s: observation started %d, finished %d, cancelled %d before the read returned: %s", refusal.name, started.Load(), finished.Load(), cancelled.Load(), stderr)
+		}
 	}
 }

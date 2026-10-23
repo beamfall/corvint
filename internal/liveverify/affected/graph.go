@@ -85,8 +85,9 @@ type digestBody struct {
 // declared read scope, which appears only for a declared unit, and the
 // command edges, which appear only for a unit that runs a command, and the
 // advisory and route-dispatch edges, which appear only for a unit that has
-// one (RUBY-AFFECTED-V0-009, RUBY-AFFECTED-V0-049), so that graphs without
-// them keep their digest.
+// one (RUBY-AFFECTED-V0-009, RUBY-AFFECTED-V0-049), the literal globs
+// (AFP-V0-401) and the file-name placement certificate (AFP-V0-400), so that
+// graphs without them keep their digest.
 type digestUnit struct {
 	ID                   string   `json:"id"`
 	Sources              []string `json:"sources"`
@@ -97,7 +98,9 @@ type digestUnit struct {
 	AdvisoryImports      []string `json:"advisoryImports,omitempty"`
 	RouteDispatchImports []string `json:"routeDispatchImports,omitempty"`
 	PathTokens           []string `json:"pathTokens"`
+	PathGlobs            []string `json:"pathGlobs,omitempty"`
 	PathTokensBounded    bool     `json:"pathTokensBounded"`
+	PlacesFileNames      bool     `json:"placesFileNames,omitzero"`
 	Embeds               bool     `json:"embeds"`
 	UnboundedReads       string   `json:"unboundedReads"`
 	LocatesRoot          bool     `json:"locatesRoot"`
@@ -124,7 +127,7 @@ func BuildFS(source fs.FS, languages ...Language) (*Graph, error) {
 		return nil, ErrInvalidLanguage
 	}
 	reader := FSSource(source)
-	return build(context.Background(), languages, reader, func(language Language) (Result, error) {
+	return build(context.Background(), languages, documentationOf(reader), func(language Language) (Result, error) {
 		explicit, ok := language.(SourceLanguage)
 		if !ok {
 			return Result{}, fmt.Errorf("%w: no source reader for %s", ErrInvalidLanguage, language.Name())
@@ -138,8 +141,17 @@ func BuildFS(source fs.FS, languages ...Language) (*Graph, error) {
 }
 
 func Build(ctx context.Context, root string, languages ...Language) (*Graph, error) {
-	reader := DiskSourceContext(ctx, root)
-	return build(ctx, languages, reader, func(language Language) (Result, error) {
+	graph, _, err := buildDisk(ctx, DiskSourceContext(ctx, root), languages)
+	return graph, err
+}
+
+// buildDisk is Build over an explicit disk reader, which may record what the
+// observation read (AFP-V0-391). It also returns each plugin's result in
+// language order, the input a cached graph is restored from.
+func buildDisk(ctx context.Context, reader *Source, languages []Language) (*Graph, []Result, error) {
+	root := reader.root
+	results := make([]Result, 0, len(languages))
+	graph, err := build(ctx, languages, documentationOf(reader), func(language Language) (Result, error) {
 		if err := ctx.Err(); err != nil {
 			return Result{}, err
 		}
@@ -148,16 +160,27 @@ func Build(ctx context.Context, root string, languages ...Language) (*Graph, err
 		if explicit, ok := language.(SourceLanguage); ok {
 			result, err = explicit.UnitsSource(reader)
 		} else {
+			// Its reads bypass reader, so no stamp could pin them.
+			reader.record.refuse("language " + language.Name() + " reads outside the recorded source")
 			result, err = language.Units(ctx, root)
 		}
 		if cancelled := ctx.Err(); cancelled != nil {
 			return Result{}, cancelled
 		}
+		if err == nil {
+			results = append(results, result)
+		}
 		return result, err
 	})
+	return graph, results, err
 }
 
-func build(ctx context.Context, languages []Language, reader *Source, observe func(Language) (Result, error)) (*Graph, error) {
+// documentationOf reads the documentation declaration through reader.
+func documentationOf(reader *Source) func() ([]string, error) {
+	return func() ([]string, error) { return readDocumentationPaths(reader) }
+}
+
+func build(ctx context.Context, languages []Language, documentationPaths func() ([]string, error), observe func(Language) (Result, error)) (*Graph, error) {
 	if len(languages) == 0 {
 		return nil, fmt.Errorf("%w: no language plugins", ErrInvalidLanguage)
 	}
@@ -199,7 +222,7 @@ func build(ctx context.Context, languages []Language, reader *Source, observe fu
 	sort.Strings(graph.languages)
 	graph.frontier = sortedKeys(frontier)
 	graph.sites = graph.frontierSites()
-	documentation, err := readDocumentationPaths(reader)
+	documentation, err := documentationPaths()
 	if err != nil {
 		return nil, err
 	}
@@ -435,7 +458,9 @@ func projectUnit(unit Unit) digestUnit {
 		AdvisoryImports:      unit.AdvisoryImports,
 		RouteDispatchImports: unit.RouteDispatchImports,
 		PathTokens:           unit.PathTokens,
+		PathGlobs:            unit.PathGlobs,
 		PathTokensBounded:    unit.PathTokensBounded,
+		PlacesFileNames:      unit.PlacesFileNames,
 		Embeds:               unit.Embeds,
 		UnboundedReads:       unit.UnboundedReads,
 		LocatesRoot:          unit.LocatesRoot,

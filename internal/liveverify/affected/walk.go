@@ -136,10 +136,14 @@ func acceptEveryName(string) bool { return true }
 
 // walkSourceFiles is one traversal of root for SourceFilesIncluding.
 func walkSourceFiles(root string, accept func(name string) bool, includedDirectories []string) ([]string, bool, error) {
-	return walkSourceFilesContext(context.Background(), root, accept, includedDirectories)
+	return walkSourceFilesContext(context.Background(), root, accept, includedDirectories, nil)
 }
 
-func walkSourceFilesContext(ctx context.Context, root string, accept func(name string) bool, includedDirectories []string) ([]string, bool, error) {
+// walkSourceFilesContext is one traversal of root. visitDirectory, when set,
+// is called with each directory's repository-relative path ("." for root)
+// before its entries are read, so a graph cache can stamp every directory
+// whose listing the walk observed (AFP-V0-391).
+func walkSourceFilesContext(ctx context.Context, root string, accept func(name string) bool, includedDirectories []string, visitDirectory func(string)) ([]string, bool, error) {
 	if root == "" || !filepath.IsAbs(root) {
 		return nil, false, fmt.Errorf("%w: root %q is not absolute", ErrInvalidLanguage, root)
 	}
@@ -153,6 +157,14 @@ func walkSourceFilesContext(ctx context.Context, root string, accept func(name s
 	files := make([]string, 0, 1024)
 	entries := 0
 	bounded := false
+	visit := func(current string) {
+		if visitDirectory == nil {
+			return
+		}
+		if relative, err := filepath.Rel(root, current); err == nil {
+			visitDirectory(filepath.ToSlash(relative))
+		}
+	}
 	// recordFile refuses an accepted file it cannot name: dropping it would
 	// silently narrow the unit set while Select still reported BOUNDED scope.
 	recordFile := func(current string, entry fs.DirEntry) error {
@@ -182,6 +194,7 @@ func walkSourceFilesContext(ctx context.Context, root string, accept func(name s
 				return fmt.Errorf("%w: %s", ErrWalkUnreadable, current)
 			}
 			if current == includedRoot {
+				visit(current)
 				return nil
 			}
 			entries++
@@ -209,6 +222,7 @@ func walkSourceFilesContext(ctx context.Context, root string, accept func(name s
 					}
 					return fs.SkipDir
 				}
+				visit(current)
 				return nil
 			}
 			return recordFile(current, entry)
@@ -231,6 +245,7 @@ func walkSourceFilesContext(ctx context.Context, root string, accept func(name s
 		name := entry.Name()
 		if entry.IsDir() {
 			if current == root {
+				visit(current)
 				return nil
 			}
 			if strings.HasPrefix(name, ".") {
@@ -247,6 +262,7 @@ func walkSourceFilesContext(ctx context.Context, root string, accept func(name s
 				}
 				return fs.SkipDir
 			}
+			visit(current)
 			return nil
 		}
 		return recordFile(current, entry)

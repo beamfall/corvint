@@ -401,7 +401,7 @@ func packageRepository(t *testing.T, files map[string]string) string {
 	t.Helper()
 	// The selector's sources and its one in-module import, the stdlib-only
 	// internal/taskprojection leaf, rebased onto the fixture module.
-	for _, name := range []string{"gateselect/select.go", "gateselect/readers.go", "gateselect/readscopes.go", "taskprojection/taskprojection.go"} {
+	for _, name := range []string{"gateselect/select.go", "gateselect/readers.go", "gateselect/readscopes.go", "gateselect/workspace.go", "taskprojection/taskprojection.go"} {
 		data, err := os.ReadFile(filepath.Join("..", "..", "internal", filepath.FromSlash(name)))
 		if err != nil {
 			t.Fatal(err)

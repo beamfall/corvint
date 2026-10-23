@@ -46,6 +46,11 @@ on any read, rederive every record from the original pinned inputs (`source-rede
 `DCP-V1-413`). Live source and provider changes are observed from Git status and the tree listing
 and reported separately from the artifact's recorded revision (`DCP-V1-411`). `--timings` writes one
 phase summary (parse, verify, freshness, index, query, encode) to stderr (`DCP-V1-415`).
+The CLI streams the artifact file through that check instead of holding it whole (`DCP-V1-431`).
+A native read joined with `--corpus=FILE` takes the same verified read (`DCP-V1-432`), as does
+the current side of `delta` unless `delta --verify-rederive` rederives it (`DCP-V1-460`).
+Producers that write records onward (`docs flows generate`, flow coverage,
+the indexed companion build, republish and `carry-forward`) still rederive.
 
 ## Larger adoption imports
 

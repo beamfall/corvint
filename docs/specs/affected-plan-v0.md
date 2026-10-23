@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-01
 Requirement prefix: `AFP-V0`
-Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-009 amended by the owner (decision 0531; V1-0682); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361); AFP-V0-049 accepted under the owner's standing auto-accept (2026-10-11; V1-1371); AFP-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-1298); AFP-V0-023 and AFP-V0-050 amended by the owner (decision 0528; V1-1399, V1-1400), and (3) reworded by the owner (decision 0529; V1-1425); AFP-V0-051 accepted under the owner's standing auto-accept (2026-10-11; V1-1351); AFP-V0-053 accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat); AFP-V0-029/030 amended by the owner for the `INFRA` row class (decision 0537; V1-1514); AFP-V0-029 shadow bar amended by the owner to count the whole epoch (owner chat, 2026-10-20; V1-0812); AFP-V0-052 accepted under the owner's standing auto-accept (2026-10-11; V1-1514); AFP-V0-054 accepted under the owner's standing auto-accept (2026-10-11; V1-1719); AFP-V0-066 accepted under the owner's standing auto-accept (2026-10-11; V1-1796; GitHub #1130); AFP-V0-072 accepted under the owner's standing auto-accept (2026-10-11; V1-1806); AFP-V0-079/080/081/082 accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); AFP-V0-060 accepted by the owner (owner chat, 2026-10-18; V1-1096); AFP-V0-088 accepted under the owner's standing auto-accept (2026-10-11; V1-2049); AFP-V0-016/024/027/028 amended by them; AFP-V0-150/151/152/153/154/155 accepted under the owner's standing auto-accept (2026-10-11; V1-1087, V1-0875, V1-1820, V1-2070, V1-0996, V1-1005); AFP-V0-029/030 amended and AFP-V0-097/098/099 decided by the orchestrator under owner delegation (owner chat, 2026-10-20; V1-0812); AFP-V0-316 accepted under the owner's standing auto-accept (2026-10-11; V1-2169); AFP-V0-160/161 accepted, and AFP-V0-023 amended for rule (c) by AFP-V0-161, under the owner's standing auto-accept (2026-10-11; V1-0923, V1-1766/V1-2069); AFP-V0-356 accepted under the owner's standing auto-accept (2026-10-11; V1-2053); AFP-V0-156 accepted under the owner's standing auto-accept (2026-10-11; V1-2162); AFP-V0-162 accepted under the owner's standing auto-accept (2026-10-11; V1-2256, V1-2252); AFP-V0-196 accepted, amending AFP-V0-009, under the owner's standing auto-accept (2026-10-11; V1-2071); AFP-V0-181 to AFP-V0-186 accepted under the owner's standing auto-accept (2026-10-11; V1-2050); AFP-V0-187 to AFP-V0-191 accepted, and AFP-V0-008, AFP-V0-031 and AFP-V0-182 amended by them, under the owner's standing auto-accept (2026-10-11; V1-2297, V1-2296, V1-0874, V1-0922); AFP-V0-163/164 accepted under the owner's standing auto-accept (2026-10-11; V1-2113, V1-1752); AFP-V0-201 accepted under the owner's standing auto-accept (2026-10-11; V1-2348); AFP-V0-192 accepted, and rule (d) of AFP-V0-012 amended by it, under the owner's standing auto-accept (2026-10-11; V1-2075); AFP-V0-361 accepted under the owner's standing auto-accept (2026-10-11; V1-0883, V1-2217, V1-2069); AFP-V0-380 accepted, and AFP-V0-027 amended (V1-2265), under the owner's standing auto-accept (2026-10-11; V1-1103, V1-2265); AFP-V0-186 amended to a tracked fixture corpus under the owner's standing auto-accept (2026-10-11; V1-2298); AFP-V0-381 accepted under the owner's standing auto-accept (2026-10-11; V1-2363, GH #1519)
+Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-009 amended by the owner (decision 0531; V1-0682); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361); AFP-V0-049 accepted under the owner's standing auto-accept (2026-10-11; V1-1371); AFP-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-1298); AFP-V0-023 and AFP-V0-050 amended by the owner (decision 0528; V1-1399, V1-1400), and (3) reworded by the owner (decision 0529; V1-1425); AFP-V0-051 accepted under the owner's standing auto-accept (2026-10-11; V1-1351); AFP-V0-053 accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat); AFP-V0-029/030 amended by the owner for the `INFRA` row class (decision 0537; V1-1514); AFP-V0-029 shadow bar amended by the owner to count the whole epoch (owner chat, 2026-10-20; V1-0812); AFP-V0-052 accepted under the owner's standing auto-accept (2026-10-11; V1-1514); AFP-V0-054 accepted under the owner's standing auto-accept (2026-10-11; V1-1719); AFP-V0-066 accepted under the owner's standing auto-accept (2026-10-11; V1-1796; GitHub #1130); AFP-V0-072 accepted under the owner's standing auto-accept (2026-10-11; V1-1806); AFP-V0-079/080/081/082 accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); AFP-V0-060 accepted by the owner (owner chat, 2026-10-18; V1-1096); AFP-V0-088 accepted under the owner's standing auto-accept (2026-10-11; V1-2049); AFP-V0-016/024/027/028 amended by them; AFP-V0-150/151/152/153/154/155 accepted under the owner's standing auto-accept (2026-10-11; V1-1087, V1-0875, V1-1820, V1-2070, V1-0996, V1-1005); AFP-V0-029/030 amended and AFP-V0-097/098/099 decided by the orchestrator under owner delegation (owner chat, 2026-10-20; V1-0812); AFP-V0-316 accepted under the owner's standing auto-accept (2026-10-11; V1-2169); AFP-V0-160/161 accepted, and AFP-V0-023 amended for rule (c) by AFP-V0-161, under the owner's standing auto-accept (2026-10-11; V1-0923, V1-1766/V1-2069); AFP-V0-356 accepted under the owner's standing auto-accept (2026-10-11; V1-2053); AFP-V0-156 accepted under the owner's standing auto-accept (2026-10-11; V1-2162); AFP-V0-162 accepted under the owner's standing auto-accept (2026-10-11; V1-2256, V1-2252); AFP-V0-196 accepted, amending AFP-V0-009, under the owner's standing auto-accept (2026-10-11; V1-2071); AFP-V0-181 to AFP-V0-186 accepted under the owner's standing auto-accept (2026-10-11; V1-2050); AFP-V0-187 to AFP-V0-191 accepted, and AFP-V0-008, AFP-V0-031 and AFP-V0-182 amended by them, under the owner's standing auto-accept (2026-10-11; V1-2297, V1-2296, V1-0874, V1-0922); AFP-V0-163/164 accepted under the owner's standing auto-accept (2026-10-11; V1-2113, V1-1752); AFP-V0-201 accepted under the owner's standing auto-accept (2026-10-11; V1-2348); AFP-V0-192 accepted, and rule (d) of AFP-V0-012 amended by it, under the owner's standing auto-accept (2026-10-11; V1-2075); AFP-V0-361 accepted under the owner's standing auto-accept (2026-10-11; V1-0883, V1-2217, V1-2069); AFP-V0-380 accepted, and AFP-V0-027 amended (V1-2265), under the owner's standing auto-accept (2026-10-11; V1-1103, V1-2265); AFP-V0-186 amended to a tracked fixture corpus under the owner's standing auto-accept (2026-10-11; V1-2298); AFP-V0-381 accepted under the owner's standing auto-accept (2026-10-11; V1-2363, GH #1519); AFP-V0-400 to AFP-V0-403 accepted, and AFP-V0-037, AFP-V0-050 (3) and AFP-V0-072 (3) amended by them, under the owner's standing auto-accept (2026-10-11; V1-1817, V1-1803, V1-1006, V1-2370)
 Delivery status: experimental
 Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wire and non-goals),
 `docs/specs/live-proof-carrying-verification-v0.md` (future composer, not-started),
@@ -11,7 +11,7 @@ Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wi
 
 ## Agent digest
 - Claim: `corvint affected` emits a read-only, non-authoritative affected-test selection plan with provider-ready Go package paths.
-- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-009 amended by the owner (decision 0531; V1-0682); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361); AFP-V0-049 accepted under the owner's standing auto-accept (2026-10-11; V1-1371); AFP-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-1298); AFP-V0-023 and AFP-V0-050 amended by the owner (decision 0528; V1-1399, V1-1400), and (3) reworded by the owner (decision 0529; V1-1425); AFP-V0-051 accepted under the owner's standing auto-accept (2026-10-11; V1-1351); AFP-V0-053 accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat); AFP-V0-029/030 amended by the owner for the `INFRA` row class (decision 0537; V1-1514); AFP-V0-029 shadow bar amended by the owner to count the whole epoch (owner chat, 2026-10-20; V1-0812); AFP-V0-052 accepted under the owner's standing auto-accept (2026-10-11; V1-1514); AFP-V0-054 accepted under the owner's standing auto-accept (2026-10-11; V1-1719); AFP-V0-066 accepted under the owner's standing auto-accept (2026-10-11; V1-1796; GitHub #1130); AFP-V0-072 accepted under the owner's standing auto-accept (2026-10-11; V1-1806); AFP-V0-079/080/081/082 accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); AFP-V0-060 accepted by the owner (owner chat, 2026-10-18; V1-1096); AFP-V0-088 accepted under the owner's standing auto-accept (2026-10-11; V1-2049); AFP-V0-016/024/027/028 amended by them; AFP-V0-150/151/152/153/154/155 accepted under the owner's standing auto-accept (2026-10-11; V1-1087, V1-0875, V1-1820, V1-2070, V1-0996, V1-1005); AFP-V0-029/030 amended and AFP-V0-097/098/099 decided by the orchestrator under owner delegation (owner chat, 2026-10-20; V1-0812); AFP-V0-316 accepted under the owner's standing auto-accept (2026-10-11; V1-2169); AFP-V0-160/161 accepted, and AFP-V0-023 amended for rule (c) by AFP-V0-161, under the owner's standing auto-accept (2026-10-11; V1-0923, V1-1766/V1-2069); AFP-V0-356 accepted under the owner's standing auto-accept (2026-10-11; V1-2053); AFP-V0-156 accepted under the owner's standing auto-accept (2026-10-11; V1-2162); AFP-V0-162 accepted under the owner's standing auto-accept (2026-10-11; V1-2256, V1-2252); AFP-V0-196 accepted, amending AFP-V0-009, under the owner's standing auto-accept (2026-10-11; V1-2071); AFP-V0-181 to AFP-V0-186 accepted under the owner's standing auto-accept (2026-10-11; V1-2050); AFP-V0-187 to AFP-V0-191 accepted, and AFP-V0-008, AFP-V0-031 and AFP-V0-182 amended by them, under the owner's standing auto-accept (2026-10-11; V1-2297, V1-2296, V1-0874, V1-0922); AFP-V0-163/164 accepted under the owner's standing auto-accept (2026-10-11; V1-2113, V1-1752); AFP-V0-201 accepted under the owner's standing auto-accept (2026-10-11; V1-2348); AFP-V0-192 accepted, and rule (d) of AFP-V0-012 amended by it, under the owner's standing auto-accept (2026-10-11; V1-2075); AFP-V0-361 accepted under the owner's standing auto-accept (2026-10-11; V1-0883, V1-2217, V1-2069); AFP-V0-380 accepted, and AFP-V0-027 amended (V1-2265), under the owner's standing auto-accept (2026-10-11; V1-1103, V1-2265); AFP-V0-186 amended to a tracked fixture corpus under the owner's standing auto-accept (2026-10-11; V1-2298); AFP-V0-381 accepted under the owner's standing auto-accept (2026-10-11; V1-2363, GH #1519)/experimental
+- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-009 amended by the owner (decision 0531; V1-0682); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361); AFP-V0-049 accepted under the owner's standing auto-accept (2026-10-11; V1-1371); AFP-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-1298); AFP-V0-023 and AFP-V0-050 amended by the owner (decision 0528; V1-1399, V1-1400), and (3) reworded by the owner (decision 0529; V1-1425); AFP-V0-051 accepted under the owner's standing auto-accept (2026-10-11; V1-1351); AFP-V0-053 accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat); AFP-V0-029/030 amended by the owner for the `INFRA` row class (decision 0537; V1-1514); AFP-V0-029 shadow bar amended by the owner to count the whole epoch (owner chat, 2026-10-20; V1-0812); AFP-V0-052 accepted under the owner's standing auto-accept (2026-10-11; V1-1514); AFP-V0-054 accepted under the owner's standing auto-accept (2026-10-11; V1-1719); AFP-V0-066 accepted under the owner's standing auto-accept (2026-10-11; V1-1796; GitHub #1130); AFP-V0-072 accepted under the owner's standing auto-accept (2026-10-11; V1-1806); AFP-V0-079/080/081/082 accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); AFP-V0-060 accepted by the owner (owner chat, 2026-10-18; V1-1096); AFP-V0-088 accepted under the owner's standing auto-accept (2026-10-11; V1-2049); AFP-V0-016/024/027/028 amended by them; AFP-V0-150/151/152/153/154/155 accepted under the owner's standing auto-accept (2026-10-11; V1-1087, V1-0875, V1-1820, V1-2070, V1-0996, V1-1005); AFP-V0-029/030 amended and AFP-V0-097/098/099 decided by the orchestrator under owner delegation (owner chat, 2026-10-20; V1-0812); AFP-V0-316 accepted under the owner's standing auto-accept (2026-10-11; V1-2169); AFP-V0-160/161 accepted, and AFP-V0-023 amended for rule (c) by AFP-V0-161, under the owner's standing auto-accept (2026-10-11; V1-0923, V1-1766/V1-2069); AFP-V0-356 accepted under the owner's standing auto-accept (2026-10-11; V1-2053); AFP-V0-156 accepted under the owner's standing auto-accept (2026-10-11; V1-2162); AFP-V0-162 accepted under the owner's standing auto-accept (2026-10-11; V1-2256, V1-2252); AFP-V0-196 accepted, amending AFP-V0-009, under the owner's standing auto-accept (2026-10-11; V1-2071); AFP-V0-181 to AFP-V0-186 accepted under the owner's standing auto-accept (2026-10-11; V1-2050); AFP-V0-187 to AFP-V0-191 accepted, and AFP-V0-008, AFP-V0-031 and AFP-V0-182 amended by them, under the owner's standing auto-accept (2026-10-11; V1-2297, V1-2296, V1-0874, V1-0922); AFP-V0-163/164 accepted under the owner's standing auto-accept (2026-10-11; V1-2113, V1-1752); AFP-V0-201 accepted under the owner's standing auto-accept (2026-10-11; V1-2348); AFP-V0-192 accepted, and rule (d) of AFP-V0-012 amended by it, under the owner's standing auto-accept (2026-10-11; V1-2075); AFP-V0-361 accepted under the owner's standing auto-accept (2026-10-11; V1-0883, V1-2217, V1-2069); AFP-V0-380 accepted, and AFP-V0-027 amended (V1-2265), under the owner's standing auto-accept (2026-10-11; V1-1103, V1-2265); AFP-V0-186 amended to a tracked fixture corpus under the owner's standing auto-accept (2026-10-11; V1-2298); AFP-V0-381 accepted under the owner's standing auto-accept (2026-10-11; V1-2363, GH #1519); AFP-V0-400 to AFP-V0-403 accepted, and AFP-V0-037, AFP-V0-050 (3) and AFP-V0-072 (3) amended by them, under the owner's standing auto-accept (2026-10-11; V1-1817, V1-1803, V1-1006, V1-2370)/experimental
 - Exists: `internal/liveverify/affected`, `corvint affected`, `cmd/corvint/affected_test.go`, the `advice` member (AFP-V0-009: repository-declared mandatory checks, conditional when the AGENTS.md Verify section scopes them, one advisory Go command, the unknown frontier), the `--base FULL_COMMIT_ID` range form and `range` member (AFP-V0-010), and the `make gate-affected` fast tier over the receipt (AFP-V0-011: `script/gate-affected.sh`, fail-closed to the full `go-test` run; not the push gate), whose union is attributed per dirty path from a static repository index of imports and path literals (AFP-V0-012), whose literal-reader rule also adds, in the plan itself, selections for every dirty path a package names, without narrowing an unowned path's `UNKNOWN` scope (AFP-V0-021); `tools/corvint-pr-tests` and `.github/workflows/ci.yml` remain full until separately pinned AFP-V0-014 qualification; AFP-V0-022 adds complete advisory CI partitions and a digest-bound experimental sharded PR profile, and AFP-V0-041 (accepted, decision 0488) lets the full run split an owner-allowed package into test slices across those shards, and AFP-V0-048 makes the sharded PR driver run each slice on the shard the same helper assigns; AFP-V0-023 lets a project-owned `.corvint/test-read-scopes.json` take a root-locating package off the rule (d) floor, enforced in full CI by the Landlock wrapper `.github/testconfine`.
 - Blocked on: the LPCV-V0 composer accepting or replacing this wire; for queue-backed narrowing, AFP-V0-028/029 shadow admission, the owner setting the repository variable `CORVINT_PR_NARROWING` to `on`, a `CORVINT_PR_TOOL_SOURCE` pin carrying `narrow.sh` and the driver's plan mode, a scheduled `ci-forward-bar` verdict saying MET (AFP-V0-097 to AFP-V0-099; `docs/build-log/2026-10-20-v1-0812-narrowing-decisions.md`), reviewed tool pins and hosted observation of the V1-0760 queue-run reuse (AFP-V0-024; hosted enablement `NOT_OBSERVED`); the optional historical profile still requires genuine 200-row qualification and matching reviewed pins (AFP-V0-014/017), and its 201-commit prerequisite is met at `adf8358220769b8d6724ad27d27625602b8a7c62`, but no campaign PASS is implied.
 - Read next: Requirements; Non-goals and authority; Failure modes.
@@ -96,9 +96,11 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   deterministic JSON projection `{"languages","frontier","units"}`: the sorted participating plugin
   names, the sorted graph frontier, and, in unit-id order, each unit's `id`, `sources`, `tests`,
   `imports`, `testImports`, `pathTokens`, `pathTokensBounded`, `embeds`, `unboundedReads`,
-  `locatesRoot`, `readScoped`, `readScope` (AFP-V0-023), `execs` (AFP-V0-037) and `frontier`, every
+  `locatesRoot`, `readScoped`, `readScope` (AFP-V0-023), `execs` (AFP-V0-037), `pathGlobs`
+  (AFP-V0-401), `placesFileNames` (AFP-V0-400) and `frontier`, every
   member always present except `readScoped` and `readScope`, which appear only for a declared unit,
-  and `execs`, which appears only when non-empty, so that a graph without them keeps its digest (`digestBody` and `digestUnit` in
+  `execs` and `pathGlobs`, which appear only when non-empty, and `placesFileNames`, which appears
+  only when true, so that a graph without them keeps its digest (`digestBody` and `digestUnit` in
   `internal/liveverify/affected/graph.go`). The projection is fixed there, not by the internal
   `Unit` struct, so a new internal field changes the digest only when it is added to the
   projection, and a unit field left out of it fails the test. The value is an identity, not a
@@ -1145,7 +1147,8 @@ and container qualification; full fallback remains available.
   (traverse) or the enclosing-package rule, before the read-path rules; the consumer is selected
   one edge past the command and not traversed further, like `testUsersOf`. A command reached only
   as a test user, or a change that reaches no command, selects no consumer. Limits: a literal that
-  names a command directory as data over-selects; a command at the module root (`.`) is never a
+  names a command directory as data over-selects, except in the data-only positions of
+  AFP-V0-402; a command at the module root (`.`) is never a
   literal target; an exec consumer's importers are not selected through it; a dirty
   `.corvint/test-binary-execs.json` is an unowned path and widens the plan to `UNKNOWN`; a
   `_test.go`-only change to a command still counts as reaching its build. Intent: `corvint affected`
@@ -1859,7 +1862,7 @@ and container qualification; full fallback remains available.
   directory. (2) A token that places a directory SHALL keep the component-run relation: a run of
   two or more components (with its fragment outer components), an anchored token, or a climbing
   token. (3) A non-Go unit SHALL keep the component-run relation, because its tests' working
-  directory is unknown. (4) Only the reader relation changes: the unit frontier (V1-0289) of a
+  directory is unknown; AFP-V0-400 amends this for a shell unit that certifies placement. (4) Only the reader relation changes: the unit frontier (V1-0289) of a
   unit that (1) keeps out of the plan is still named, so no unknown entry is added or removed and
   the plan's scope is unchanged; rule (d) unbounded readers, declared read scopes (AFP-V0-023),
   dependency and binary edges are unchanged.
@@ -2480,6 +2483,281 @@ modelled.
   graph, omits an unreached unit's site, counts a truncation entry as one, or differs between the
   two profiles. Rollback: remove `Plan.FrontierSites` and `Graph.frontierSites`.
 
+- **AFP-V0-400:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1817) The
+  shell plugin MUST set a unit's `placesFileNames` (part of the AFP-V0-005 projection when true)
+  exactly when none of the script's commands, a `-c` command string's included, changes directory
+  other than by a placed `cd` (below), runs `pushd`, runs `env` with `-C`, `-S`, `--chdir` or
+  `--split-string` (in any short group or accepted abbreviation), runs `git` other than as
+  `git -C` with a computed directory and one of the
+  subcommands `init`, `config`, `add`, `commit`, `tag`, `rev-parse`, `checkout` or `switch` (none
+  matches a pathspec at any depth of a tree, as `grep`, `ls-files`, `ls-tree` or `archive` do),
+  reads recursively (`find`, `rg`, `ag`, `ack`, `tree`, `du`, `tar`, `zip`, `rsync`; `grep`,
+  `egrep`, `fgrep` or `zgrep` with a short option group holding `r`, `R` or `d` (`-rq`, `-qr`,
+  `-d recurse`, `-drecurse`, `-d rec`, since grep accepts an abbreviated action) or a long
+  option naming, or abbreviating, `--recursive`, `--dereference-recursive` or `--directories`
+  with any value (`--directories recurse`, `--directories=recurse`, `--recur`); `ls -R`; `cp -r`,
+  `-R` or `-a`; `scp -r`; `diff -r`; `chmod -R`; `chown -R`; each long option also by
+  abbreviation) or runs commands it is handed (`xargs`, `eval`). A `cd` is placed only in the
+  file's own commands (not a `-c` command string, whose `$0` and variables are another shell's)
+  and only with exactly one operand, after `-L`, `-P`, `-e`, `-@` and `--`, that is a directory
+  form of the file itself (`"$(dirname "$0")/.."`, `"${BASH_SOURCE[0]%/*}"`,
+  `"$BATS_TEST_DIRNAME"`, `$(git rev-parse --show-toplevel)`, as the shell plugin resolves
+  them) naming the repository root or the file's own directory or one below it; a `$0` form
+  counts only in a test script that is not a bats file, since `$0` names the caller in a
+  sourced helper and the runner under bats. Every other `cd` (a variable operand, assigned in the
+  file or not, any other command substitution, a literal or climbing directory, `cd -`, a bare
+  `cd`) keeps the wider relation. A
+  non-Go unit with `placesFileNames` MUST place a path it names as AFP-V0-072 (1) and (2) require
+  of a Go unit, with the unit's own directory as the subtree and the repository root and, for a
+  climbing token, every ancestor of that directory as the bases: a lone file-name token such as
+  `README.md` names `docs/specs/README.md` only when every directory component below a base is a
+  whole component of one of the unit's tokens, so `cd "$(dirname "$0")/.." && grep -q x
+  README.md` in `script/` does not select it and `cd "$(dirname "$0")/../docs/specs"` (a
+  directory below neither base) keeps the wider relation. A multi-component, anchored or
+  climbing token keeps the component-run relation, a declared read scope still bounds the unit
+  first, and every other non-Go unit keeps AFP-V0-072 (3). Design: a shell test runs from the
+  repository root (a `make` target or CI step) or below its own directory; the shell lexicon
+  keeps only path-shaped tokens and the plugin does not evaluate a variable's run-time value (a
+  branch may skip its assignment and leave the environment's), so no `cd` that is not proven to
+  stay at a base is placed, and a recursive read below a named directory cannot be placed; such
+  a script keeps the wider relation instead. On the PR #1622 tree (base `origin/main` 77a49dfa,
+  no shell file changed), 39 of the 140 shell units place file names (69 before the variable and
+  computed `cd` were refused); `script/check-host-package-versions_test.sh` changes to the
+  `mktemp` directory held in `$test_root` and is no longer placed, so `docs/specs/README.md`
+  still selects it. Non-goals: modelling `cd` targets beyond the file's own directory forms,
+  proving a variable's value, and the working directory a caller chooses. Failure modes: a
+  script that changes directory only to its own directory or the root and reads there is
+  placed, though an exported `CDPATH` could send a relative form elsewhere, and a `$0` form is
+  wrong for a test script that another script sources; a recursive reader or directory-changing
+  command the lists omit (a function wrapping `find`, an unlisted tool, `make -C` in a unit
+  whose toolchain rule does not already widen it) is placed and may be missed; scripts that
+  change to a temporary directory are no longer narrowed, which over-selects rather than
+  misses. Falsifier: a placed unit whose script runs a listed command or an unplaced `cd`, or a
+  lone-file-name reader with `placesFileNames` selected for a path whose directories none of
+  its tokens name. Rollback: remove `placesFileNames` from `shell.go`, `Unit.PlacesFileNames`
+  with its digest field, and its branch in `Graph.resolves`.
+- **AFP-V0-401:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1803) The Go
+  plugin MUST record, as the unit's sorted, unique `pathGlobs` (part of the AFP-V0-005 projection
+  when non-empty), the pattern of every `filepath.Glob` call in the unit's files (the
+  `path/filepath` import under its local name, found from the parsed file however the call is
+  spaced, broken across lines or commented, so a text prefilter may skip only a file without the
+  word `Glob`) whose one argument is literal: a string literal, or
+  a `filepath.Join` of string literals, resolved against the file's package directory and kept
+  with a leading `/` as a repository-root-anchored pattern; or a `filepath.Join` whose first
+  argument is any other expression (a root known at run time) and whose remaining arguments are
+  string literals joining to two or more components, kept unanchored. A pattern that climbs above
+  the repository root, carries a backslash, is not valid UTF-8 or is not a valid `path.Match`
+  pattern is not recorded, and a unit with more globs than the AFP-V0-021 token bound keeps
+  neither its globs nor its tokens. Selection MUST then select,
+  with witness kind `PATH_GLOB_READER`, `via` the unit and the new member `glob` naming the
+  pattern, a unit not already reached when a dirty path its declared read scope (if any) allows,
+  or an ancestor of it, matches one of its patterns component by component: an anchored pattern
+  from the repository root, an unanchored one at any run of the path's components, as a
+  multi-component token does. A glob reader is not traversed. Any other argument (a variable, a
+  computed pattern, a one-component pattern after a run-time root such as `"*.json"` joined to a
+  temporary directory) records nothing, so a path only it could match stays the
+  `UNOWNED_DIRTY_PATH` unknown it was, never silently excluded. Design: `corvint affected` listed
+  `.github/workflows/spec-toolchain-conformance.yml` only as an unknown though
+  `TestGoOnlySourceAndVersion` globs `filepath.Join(root, ".github", "workflows", "*.y*ml")`
+  (beamfall/corvint#1100). Non-goals: `os.ReadDir`, `fs.Glob` and `fs.WalkDir` patterns, globs
+  passed through a variable, and `**`. Failure modes: an unanchored pattern whose run-time root is
+  a temporary fixture selects the unit for a repository path with the same components, as a
+  multi-component literal does; over the 3433 paths the last 39 merges of `main` changed, each
+  planned alone, the repository's own globs added no `PATH_GLOB_READER` selection, and a new
+  `.github/workflows/*.yml` path selects `cmd/corvint` by its glob. Falsifier: a unit whose literal
+  glob matches a dirty path and is not selected, a `PATH_GLOB_READER` witness whose `glob` does not
+  match its `dirtyPath`, or a non-literal glob that removes an unknown. Rollback: remove
+  `golang/globs.go`, `Unit.PathGlobs` and its digest field, `Graph.globReader` and
+  `WitnessPathGlobReader` with `Witness.Glob`.
+- **AFP-V0-402:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1006; amends
+  AFP-V0-037) A path token naming a command's directory MUST create an AFP-V0-037 literal edge only
+  when some string literal of the unit's files that carries it sits in a position that can reach a
+  build or a process. A literal is data only, and creates no edge, when it is an operand of `==`
+  or `!=`, a `switch` case, the index of a map or slice that is read (not assigned or
+  incremented, whose key may be iterated later), any argument of `strings.HasPrefix`,
+  `HasSuffix`, `Contains`, `EqualFold`, `Index` or `LastIndex`, `bytes.HasPrefix`, `HasSuffix` or
+  `Contains`, `path.Match` or `filepath.Match`, the second argument
+  (the cut operand) of `strings.CutPrefix`, `CutSuffix`, `TrimPrefix` or `TrimSuffix`, whose result
+  is the first argument's text, each by its import's local name in that file when no declaration
+  of the file (a variable, constant, type, function, parameter, result or field) reuses the name,
+  or an argument of a method named `Error`, `Errorf`, `Fatal`, `Fatalf`, `Log`, `Logf`, `Skip` or
+  `Skipf` whose receiver is an identifier that the innermost enclosing function declaring it
+  declares as a parameter or receiver of type `*testing.T`, `*testing.B`, `*testing.F` or
+  `testing.TB` (through the file's unshadowed `testing` import) and that no declaration in that
+  function's body redeclares. Every
+  other position keeps the edge, among them an `exec.Command` argument, a helper's argument, a
+  variable or constant initializer, a composite literal element, an assigned map key, the first
+  argument of a cut function, a return value, an `errors.New` or `fmt.Errorf` argument (the
+  error carries the text on, as in `errors.New(x).Error()` handed to exec), a message method on
+  any other receiver (`builder.Log`, a field such as `s.t.Log`, a redeclared `t`), and a call
+  through a shadowed package name, because the literal may flow from there to a
+  build. A file that cannot be read or parsed in full keeps every
+  candidate edge. Only files of a unit with a candidate edge are parsed in full. Retained limits
+  of AFP-V0-037, stated as unknowns rather than fixed: a data literal outside those positions (a
+  message string returned or stored, `"cmd/x imports nothing"`) still over-selects; an exec
+  consumer's importers are not selected through it; a test that takes the binary from an
+  environment variable or flag and names no literal is selected only through the declaration.
+  Evidence on this repository (`origin/main` 77a49dfa): the rule drops 3 of 87 command edges,
+  all data (`release-artifact-v0/archivebuild` comparing a `../` prefix,
+  `internal/releasecandidate` comparing a module path, and `internal/tasks` matching
+  `cmd/corvint-tasks/` with `strings.HasPrefix`); 53 of the 55 consumer packages keep an edge,
+  unchanged when `errors.New`, `fmt.Errorf` and message methods of unproven receivers became
+  positions that keep the edge. Failure modes: resolution is syntactic, so a receiver typed
+  through an alias or a named type (`type tb = testing.TB`) or a struct field is not proven and
+  keeps the edge, which over-selects and never misses.
+  Falsifier: a data-only literal that creates an edge, or an exec or helper
+  argument that loses one. Rollback: restore the token-only `literalExecs` in
+  `golang/binaryexecs.go`.
+- **AFP-V0-403:** (accepted under the owner's standing auto-accept (2026-10-11); V1-2370; amends
+  AFP-V0-050 (3)) The selector's base `go.work` reader (`baseWorkspace` in
+  `internal/gateselect/readscopes.go`) MUST check each directive's arguments as the planner's
+  `parsedManifest.add` does, and refuse the file with a typed `WorkspaceRefusal` (line and
+  reason), leaving the base declaration unknown, for: an unquoted punctuation argument or an
+  unquoted argument with a quote character (any directive); a `go` or `toolchain` directive that
+  repeats, has not exactly one unquoted non-empty argument, or whose argument is not a go version
+  (`GO_WORK_MALFORMED_GO`) or a `default`/`go1` toolchain (`GO_WORK_MALFORMED_TOOLCHAIN`); a
+  `godebug` entry that is not one unquoted `key=value` with a non-empty key and no quote or comma
+  (`GO_WORK_MALFORMED_GODEBUG`); a `use` without exactly one non-empty argument
+  (`GO_WORK_MALFORMED_USE`); and a `replace` that is not `old [version] => new [version]` with
+  canonical versions, a valid major suffix that matches the old version, and a directory target
+  exactly when the target has no version (`GO_WORK_MALFORMED_REPLACE`). The earlier refusals keep
+  their own reasons (`GO_WORK_LEXICAL`, `GO_WORK_UNKNOWN_DIRECTIVE`, `GO_WORK_BLOCK`,
+  `GO_WORK_UNTERMINATED_BLOCK`, `GO_WORK_UNREADABLE`). The selector and
+  `golang.CommittedReadScopes` then agree on every such file. Non-goals: a new wire member; the
+  refusal stays internal to the selector, whose output for an unknown base is unchanged.
+  Falsifier: a malformed argument the planner refuses that the selector accepts, or a valid one
+  it refuses. Rollback: remove `internal/gateselect/workspace.go` and restore the boolean
+  `baseWorkspace`.
+
+### Cross-call graph reuse and batch paths
+
+GitHub #1601 (V1-2473): on a Rails checkout of about 12,100 tracked files (4,200 Ruby) each
+`affected --path P` cost about 11 s and 300 MB on a busy host, and repeated calls shared nothing.
+A profile of a generated tree of that shape (build log `2026-10-23-affected-graph-reuse-gh1601`)
+put the cost in the graph build: one open per Ruby file, and every spec re-reading and re-scanning
+the helpers it loads, about 60% of all opens. These requirements are proposed (owner auto-accept
+pending); they do not change any plan, wire member or exit code.
+
+- **AFP-V0-390:** (proposed; V1-2473, GH #1601)
+  `affected --cache DIR` MUST be the only way the plan path reads or writes a graph cache: without
+  it nothing is read from or written to any cache location. DIR is named by the caller; it is made
+  absolute, the symlinks of its nearest existing ancestor are resolved, and it MUST be refused
+  with `invalid-arguments` before any worktree read (`--paths-from` included) when it is at or
+  under the repository root, textually or because the root is the same file as it or one of its
+  existing ancestors (a case-insensitive file system, a firmlink), has a `.git` component in any
+  case, is at or under (textually or by the same-file test) the repository's Git directory or
+  common directory as `git rev-parse --absolute-git-dir --git-common-dir` names them (a
+  `--separate-git-dir` or linked worktree can put them anywhere; a Git directory that cannot be
+  named also refuses), is empty or given twice, or is combined with `--snapshot` or
+  `--playwright-config`. Every entry read and write MUST go through one opened handle on DIR:
+  the deepest existing ancestor is opened, each missing component is created (mode 0700) and
+  opened inside the handle above it, and every handle is rechecked, by the path the kernel reports
+  for the open directory and by the file identity of that path and its ancestors, against the
+  root and both Git directories, so a DIR replaced by a symbolic link into the repository after
+  the argument check is refused and a replacement after the open cannot redirect the write. DIR
+  MUST belong to the calling user and be writable by no other user, or the cache is neither read
+  nor written. DIR holds at most one entry per repository root and language set, written mode
+  0600 through a temporary file renamed over the entry, so a reader sees a whole old or new
+  entry. Failure mode: a process that renames the already opened and checked directory itself
+  into the repository (itself a repository write) is outside the check, which holds only at the
+  moment each handle is opened. Invariant analysis (AGENTS.md invariant 4):
+  `affected` stays a read command. The entry is derived state at a location the caller named
+  outside repository content, never under `.corvint/` (whose private ledgers are fixed by
+  `SOL-V0-001`, `SOL-V0-007` and `SOL-V0-010`), never in Git or trace state, never evidence, and
+  never an input to ranking, authority or learning; it can only reproduce a graph a full build
+  would produce (AFP-V0-391 to AFP-V0-393). No user cache directory is used by default and no
+  daemon or watcher is started (invariant 7).
+- **AFP-V0-391:** (proposed; V1-2473, GH #1601)
+  An entry (profile `corvint-affected-graph-cache/0`) MUST bind: the absolute repository root; the
+  SHA-256 of the running corvint executable, so a build whose plugins may observe differently never
+  reuses another build's entry (on linux `/proc/self/exe`, the running image itself; on darwin the
+  executable pathname, accepted only when its change and modification times are strictly before
+  the process's start and unchanged while it is hashed, so a replacement installed after the
+  start yields no identity rather than its own; a replacement installed between exec and package
+  initialization, the earliest clock reading, is a darwin failure mode); the ordered language set; each plugin's observed units, frontier
+  and unobserved directories with nil and empty lists kept distinct; the documentation
+  declaration; the graph digest; and a stat stamp (presence, mode, size, inode, device,
+  modification and change time, nanoseconds), taken just before the read, for every directory a
+  source walk listed and every path a plugin read, statted or found absent. A directory's times
+  move whenever an entry in it is added, removed, renamed or replaced, so its stamp pins the listing
+  the walk saw, including a skipped directory appearing and a file becoming a symbolic link. A
+  header line carries the profile and the SHA-256 of the body. A program identity that cannot be
+  read disables the cache. A read, stat or bounded read that fails for a reason its stamp does
+  not pin (anything but an absent path, a path that is not a regular file, or a file over its
+  bound, e.g. an I/O or permission error) MUST leave the observation unpinned, so a transient
+  fault never becomes a reused graph missing that file.
+- **AFP-V0-392:** (proposed; V1-2473, GH #1601)
+  An entry MUST be trusted only when it is opened nonblocking and the open descriptor is a
+  regular file within the size bound (a FIFO swapped in cannot block), its header checksum and
+  profile match, its body decodes with no unknown member, its root, program identity and language
+  set equal this call's, its stamp list is complete for its graph (strictly ordered and unique, and
+  stamping the root listing, the documentation declaration, every unit source and test file as a
+  present regular file, and every directory above one as a present directory, so an emptied or
+  stripped list cannot restat nothing and pass), every recorded directory and path restats to the
+  identical stamp, and the graph rebuilt from the recorded plugin results through the same
+  admission, reverse edges and digest computation as a full build has the recorded digest. Any
+  other outcome (a missing, oversized, non-regular, truncated, corrupt, forged or foreign entry, an
+  incomplete stamp list, a cache directory that is not private to the user, or any changed stamp)
+  MUST fall back to a full build and replace the entry; a cache
+  failure is never a command failure. No entry is written when a recorded path changed during the
+  build, any recorded path changed less than two seconds before the build started (the window
+  inside which a timestamp cannot separate two contents), a plugin walked a present subtree it
+  does not stamp (the Swift `.maestro` walk), a language observed through `Units` rather than the
+  recorded source took part, or the platform exposes no change time (anything but darwin and
+  linux, where an entry is also never trusted). Failure mode: a write that restores both
+  modification and change time and inode is outside the stamp; change time cannot be set by an
+  unprivileged process, but a file system whose change time only mirrors the modification time
+  (exFAT, some FUSE mounts) lets a same-size write that restores the modification time pass, and
+  a clock set backwards is the operator's own fault, as for Git's index. The checksum is integrity,
+  not authentication: a process that can write DIR can forge a self-consistent entry for a stale
+  graph whose stamps match the present tree; that is why DIR must be private to the user, and the
+  stamp completeness rule only bounds what a stripped list can omit (stamps of reads outside the
+  unit source and test files, such as a Gemfile, are not derivable from the graph).
+- **AFP-V0-393:** (proposed; V1-2473, GH #1601)
+  With `--cache`, every plan form it admits (default, `--full`, `--require-clean`, `--base`,
+  `--path`, `--paths-from`, provider and app-map forms) MUST write stdout byte-identical to the same
+  call without `--cache`, whether the entry hit, missed or could not be written, and MUST leave
+  `git status --porcelain --ignored` unchanged. The cache replaces only `affected.Build`: the
+  worktree status, HEAD, range, ignored-path check (AFP-V0-094), prior read scopes, advice,
+  selection and the AFP-V0-150 drift rechecks still run on every call. Nothing about the cache
+  reaches the receipt.
+- **AFP-V0-394:** (proposed; V1-2473, GH #1601)
+  The Ruby plugin MUST read and scan each Ruby file exactly once per observation, a loaded helper
+  included, however many specs load it: the source loop and the helper scan share one read, with
+  units, edges, frontier and digest unchanged. Non-goal: concurrent Ruby
+  reads; on the profiled host a pool of eight readers cut wall time by under 10% for three times the
+  kernel CPU, which a busy host pays (build log `2026-10-23-affected-graph-reuse-gh1601`).
+- **AFP-V0-395:** (proposed; V1-2473, GH #1601)
+  `affected --paths-from FILE` MUST add to the `--path` set every nonblank LF-separated line of
+  FILE (relative to the root unless absolute, opened nonblocking with the open descriptor held to
+  a regular file of at most 4 MiB, so a FIFO swapped in cannot block), each held to the
+  `--path` canonical-path rule and the 4,096-path bound, joined with any `--path` values, and MUST
+  then plan exactly as `--path` with those values does: the same bytes, including `path_list`. A
+  missing or non-regular file (a FIFO included), an oversize file, a leading byte order mark, a line ending in a
+  carriage return, an invalid
+  line, a file with no path, a repeated flag, a separated value beginning with `-`, or any
+  combination `--path` refuses MUST refuse with `invalid-arguments`.
+- **AFP-V0-396:** (proposed; V1-2473, GH #1601)
+  `corvint help affected` MUST document `--paths-from FILE` and `--cache DIR`, state that one call
+  with many paths builds the graph once so callers should batch, and state the cache's location
+  rule, verification, two-second window, platforms and byte-identical output; the `affected` row of
+  `docs/CAPABILITIES.md` MUST name the batch form and the cache.
+- **AFP-V0-397:** (proposed; V1-2473, GH #1601)
+  A repeated single-path call on an unchanged Rails-shaped tree MUST restore the verified graph
+  instead of building it, and write the cold call's bytes. Acceptance evidence is measured, not
+  asserted by a timer in tests: on the generated tree of the issue's shape (11,808 tracked files,
+  4,000 Ruby) a warm `--path` call MUST be sub-second on the build host, with the cold and warm
+  times, peak memory and host load recorded in the build log and the PR. The reporter's real
+  checkout (GH #1601) is not measured here; its warm time is `NOT_OBSERVED` until rerun there.
+
+Non-goals: no default cache location, no cache for `--snapshot` (already immutable Git input) or
+the Playwright profile, no incremental graph update after a change (a changed input rebuilds the
+whole graph), no cache of the status, advice or selection, no background process, and no change to
+the plan, its digest or any exit code. Rollback: drop `--cache` and `--paths-from` from
+`parseAffectedOptions`, delete `cmd/corvint/affected_cache.go`,
+`cmd/corvint/affected_identity_*.go` and `internal/liveverify/affected/graphcache*.go`, remove the `Source.record` hooks and restore
+`affected.Build`'s direct call; the Ruby helper memo reverts independently.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -2552,6 +2830,17 @@ or an ignored untracked file the list names or the graph reads, is
 graph; a listed path no language claims widens to `UNKNOWN`
 rather than selecting nothing at `BOUNDED`. A consumer still cannot read closure depth from an
 `impact` receipt; only the help says so (AFP-V0-096).
+
+Graph cache failure modes (AFP-V0-390 to AFP-V0-392): a `--cache` inside the repository, a
+`.git` directory (in any case, or reached through a case-insensitive or firmlinked path) or the
+repository's actual Git or common directory, a Git directory that cannot be named, or an
+unsupported combination, is `invalid-arguments`; a missing, damaged, forged, foreign, stale or
+incompletely stamped entry, a FIFO or other non-regular entry, a cache directory replaced by a
+link into the repository or not private to the user, an unwritable cache directory, an
+unreadable or replaced executable or an unsupported platform is a full build with the same
+receipt, never a refusal and never a reused graph; an observation that cannot be pinned,
+including one with a transient read failure, writes no entry. `--paths-from` refusals are `invalid-arguments`
+(AFP-V0-395).
 
 ## Acceptance evidence and traceability
 
@@ -2658,6 +2947,18 @@ rather than selecting nothing at `BOUNDED`. A consumer still cannot read closure
 | AFP-V0-192 | `Witness.Cause`, `UnboundedCause` in `internal/liveverify/affected/select.go`; `Graph.causes`, `Graph.unboundedReaders` in `graph.go`; `Graph.unboundedReadersOf` in `readers.go` | `TestInstructionFileChangeNamesEachUnboundedReadersCause_V1_2075`; `TestGoTestOnlyChangeSelectsItsPackageButNotItsImporters_V1_0984` |
 | AFP-V0-380 | the `go-interop` script and the interop step of `go-static` in `.github/workflows/ci.yml` | `TestAFPV0380InteropTestsRunOnceInGoStatic` (the go-static step runs the module's test and vet; go-interop runs neither and keeps gofmt and the Windows build; go-product needs go-static) |
 | AFP-V0-381 | `Plan.FrontierSites` in `internal/liveverify/affected/select.go`; `Graph.frontierSites` in `graph.go`; `affectedCompactPlan.FrontierSites` in `cmd/corvint/affected_compact.go` | `TestAFPV0381PlanCountsRepositoryFrontierSites`, `TestAFPV0381CompactPlanKeepsFrontierSites`, `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan`, `TestLocatedFrontierCountsOnlyCrossedSites_RUBYAFFECTEDV0047`, `TestRepositoryWideLoadSitesStayPluginWideAndLocated_RUBYAFFECTEDV0046` |
+| AFP-V0-400 | `placesFileNames`, `placedDirectory`, `placement`, `runsEnvOption`, `recursiveReaders`, `recursiveFlags` and `optionSet.matches` in `internal/liveverify/affected/shell/shell.go`; `Unit.PlacesFileNames` in `unit.go`; `digestUnit.PlacesFileNames` in `graph.go`; the `PlacesFileNames` branch of `Graph.resolves` in `readers.go` | `TestLoneFileNameShellReaderMustPlaceThePath_AFPV0400` (a README.md-only shell test and ones that `cd -P -- "$(dirname "$0")/.."` or `cd "${BASH_SOURCE[0]%/*}"` are dropped for `docs/specs/README.md` and kept at the root and in their subtree; one whose computed `cd` names `docs/specs`, a multi-component reader, and scripts that `cd "$FIXTURE"`, `d=docs; cd "$d"`, `cd -`, a bare `cd`, a bats `cd "$(dirname "$0")"`, an `sh -c` `cd "$(dirname "$0")"`, `env -C docs`, `env --split-string`, `cd docs`, `find`/`xargs`, `grep -r`, grep with `-d recurse`, `-drecurse`, `-d rec`, `--directories recurse`, `--directories=recurse`, `--recursive`, `--recur`, `-R`, `--dereference-recursive`, `-qr` or `-rq`, `diff -r`, `git grep`, `git -C "$ROOT" ls-files` or `sh -c 'cd docs ...'` are kept; fails without the change), `TestNonGoFileNameReaderIsNotNarrowed_AFPV0072` |
+| AFP-V0-401 | `literalGlobs` and `globPattern` in `internal/liveverify/affected/golang/globs.go`; `Unit.PathGlobs` in `unit.go`; `digestUnit.PathGlobs` in `graph.go`; `Graph.globReader` and `globMatches` in `readers.go`; `WitnessPathGlobReader` and `Witness.Glob` in `select.go` | `TestLiteralGlobSelectsTheReaderOfAnAddedFile_AFPV0401` (an added `.github/workflows` file selects the package whose test globs it after a run-time root, an anchored literal glob selects from the root only, a non-literal glob leaves the path an `UNOWNED_DIRTY_PATH` unknown, a non-UTF-8 glob literal is not recorded and the graph still builds; fails without `globReader`), `TestLiteralGlobIsFoundThroughSpacingAndComments_AFPV0401` (a `Glob` call with a space, a line break or a block comment before its parenthesis, or a line comment inside it, selects its reader by the glob; fails with the `Glob(` text prefilter) |
+| AFP-V0-402 | `literalExecs`, `usedCommandLiterals`, `dataOnly`, `testingReceiver`, `declaredNames` and `unshadowedImports` in `internal/liveverify/affected/golang/binaryexecs.go`; `literalTokens` in `golang.go` | `TestDataOnlyCommandLiteralCreatesNoEdge_AFPV0402` (an exec argument, a helper argument, a `strings.TrimSuffix` first argument, a `strings.CutPrefix` initializer and an assigned map key, parenthesized or not, an `errors.New`/`fmt.Errorf` result handed to exec, a `builder.Log` helper, a `Log` on a `t` redeclared as a builder, and `strings`, `errors` and `fmt` names shadowed by local variables keep the edge; a comparison, a switch case, a map read, `strings.HasPrefix`, a `TrimPrefix` cut operand and test messages on `*testing.T`, an aliased `*t.T` in a subtest closure and a `testing.TB` helper parameter create none, and a change to the command's build no longer selects the data-only package; fails without the change), `TestBinaryExecConsumerIsSelectedWithTheCommandsBuild_AFPV0037` |
+| AFP-V0-403 | `WorkspaceRefusal`, `workspaceDirectiveReason` and `workspaceReplacement` in `internal/gateselect/workspace.go`; `baseWorkspace` and `parseBaseWorkspace` in `readscopes.go` | `TestBaseWorkspaceRefusesMalformedDirectiveArguments_AFPV0403` (a typed refusal with line and reason for each of `go`, `toolchain`, `godebug`, `replace` and `use`; a valid file still lists its modules), `TestBaseReadScopesFollowCommittedReadScopes_AFPV0050` (four malformed-argument cases agree with `golang.CommittedReadScopes`; they fail without the change) |
+| AFP-V0-390 | `setAffectedOnce`, `resolveAffectedBatchAndCache`, `resolveAffectedCache`, `affectedGitDirectories`, `resolveExistingAncestor` and `within` in `cmd/corvint/affected_cache.go`; the `--cache` combination check in `parseAffectedOptions`; `writeGraphCache` and `BuildCachedExcluding` in `internal/liveverify/affected/graphcache.go`; `openCacheDirectory` and `admitCacheHandle` in `graphcache_dir.go`; `directoryPath` and `privateDirectory` in `graphcache_dir_darwin.go`, `graphcache_dir_linux.go` and `graphcache_dir_unix.go` | `TestAFPV0390CacheDirectoryMustBeOutsideTheRepository` (root, `.corvint/`, a package directory, a symlink into the root, a `.git` or `.GIT` component, the root under another case on a case-insensitive file system, empty, repeated, `--snapshot`, `--playwright-config` refuse with no stdout, no repository change and no cache write), `TestAFPV0390CacheRefusesTheSeparateGitDirectory` (a `--separate-git-dir` directory, a directory under it, one under a symlink alias of it and one under its `objects/` refuse and leave it unchanged; a sibling is accepted), `TestAFPV0390CacheDirectoryReplacementCannotRedirectWrites` (a cache directory replaced by a link into `.corvint/` just before the open is refused for read and write; one replaced after the open receives the entry in the opened directory, not the repository; the Git directory passed as excluded is never written), `TestAFPV0392UnpinnableObservationStoresNoEntry` (a 0777 cache directory is neither read nor written), `TestAFPV0391CachedGraphIsRestoredExactly` (one 0600 entry per root; a new identity replaces it) |
+| AFP-V0-391 | `cacheEntry`, `cachedLanguage`, `cachedUnit`, `recording`, `pathStamp`, `stampPath`, `newCacheEntry`, `GraphCacheEntryPath` in `internal/liveverify/affected/graphcache.go`; `statStamp` in `graphcache_stamp_darwin.go` and `graphcache_stamp_linux.go`; the `Source.record` hooks in `source.go`; `buildDisk` in `graph.go`; `recording.failed` in `graphcache.go`; `affectedProgramIdentity` and `affectedFileIdentity` in `cmd/corvint/affected_cache.go`; `affectedExecutable` and `affectedChangeTime` in `cmd/corvint/affected_identity_darwin.go` and `affected_identity_linux.go` | `TestAFPV0391CachedGraphIsRestoredExactly` (the restored graph's canonical body, every unit with its nil lists, and the plans over six dirty sets equal the fresh build), `TestAFPV0391ProgramIdentityRefusesAReplacedExecutable` (a pathname replaced at the process start yields no identity, one installed before it hashes to its content, the running image hashes whatever its times, linux hashes `/proc/self/exe`), `TestAFPV0392TransientReadFailureStoresNoEntry` (one injected I/O error stores no entry; after recovery the call builds the fresh graph with the unit) |
+| AFP-V0-392 | `loadGraphCache`, `completeStamps`, `verifyObservation`, `restoreGraph`, `BuildCached`, `GraphCacheRacyWindow` in `internal/liveverify/affected/graphcache.go`; `openNonblocking` in `graphcache_dir_unix.go`; `graphcache_stamp_other.go` and `graphcache_dir_other.go` | `TestAFPV0392CacheFailsClosedOnAnyMismatch` (same-size edit, added and removed source, a file replaced by a symbolic link, a skipped `build/` directory appearing, a declaration appearing where one was read absent, a flipped byte, truncation, a rechecksummed forged digest, unit or root, a rechecksummed entry with every stamp removed or one source stamp removed and that source then edited, a directory stamp removed, stamps out of order, and a directory in place of the entry each miss with their reason and yield the fresh graph), `TestAFPV0392FIFOEntryCannotBlock` (an entry replaced by a FIFO just before the open misses within the bound), `TestAFPV0392UnpinnableObservationStoresNoEntry` (racy window, a present `.maestro` walk, a language observed through `Units`, a cache directory others may write, no program identity), `TestAFPV0392TransientReadFailureStoresNoEntry` |
+| AFP-V0-393 | `affectedBuildGraph` in `cmd/corvint/affected_cache.go`, called from `compileAffectedGraph` in `cmd/corvint/affected.go` | `TestAFPV0393ReceiptsAreByteIdenticalWithAndWithoutTheCache` (default, `--full`, `--path`, two-path `--full --path`, `--base`: no cache, cold and warm write identical bytes, the second call hits, `git status --porcelain --ignored` unchanged; a dirty edit misses with `path changed`), `TestAFPV0393CacheParityAcrossTheRemainingForms` (`--require-clean`, `--paths-from`, the strict `--full` and coverage provider forms cold and warm, and an unwritable or uncreatable cache directory that stores nothing, all write the uncached bytes), `TestAFPV0393CacheParityWithAnAppMapImpact` (`--base --appmap-impact` cold and warm) |
+| AFP-V0-394 | `helperScan`, `helperScans`, the `UnitsSource` source loop and `helperFramework` in `internal/liveverify/affected/ruby/ruby.go` | `TestAFPV0394HelpersAreScannedOncePerObservation` (40 specs: each helper, a source and a spec are opened exactly once, where the previous code opened `spec/spec_helper.rb` 42 times; the disk observation equals the immutable one) |
+| AFP-V0-395 | `readAffectedPathsFrom` and `resolveAffectedBatchAndCache` in `cmd/corvint/affected_cache.go`; the `--paths-from` cases in `parseAffectedOptions` | `TestAFPV0395PathsFromBatchesPathsIntoOnePlan` (a list with a blank line and a repeat, alone or joined with `--path`, writes the `--path` bytes; empty, absolute, parent, CRLF, byte order mark, 4,097-path, over-4-MiB, missing, directory, repeated, `--base` and `-x` refuse), `TestAFPV0395PathsFromFIFOCannotBlock` (a list replaced by a FIFO just before the open refuses within the bound) |
+| AFP-V0-396 | `affectedHelp` in `cmd/corvint/help.go`; the `corvint affected` row of `docs/CAPABILITIES.md` | `TestAFPV0396HelpDocumentsTheBatchFormAndTheCache`; `make capabilities-check` |
+| AFP-V0-397 | `BuildCached` hit path | `TestAFPV0397RepeatedPathCallOnALargeRubyTreeReusesTheGraph` (1,200 Ruby files: the warm call hits and writes the cold and uncached bytes); measured cold and warm numbers in build log `2026-10-23-affected-graph-reuse-gh1601` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`
