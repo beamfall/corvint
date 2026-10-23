@@ -240,21 +240,24 @@ type Artifact struct {
 	TestKnowledge       []TestKnowledgeJoin      `json:"test_knowledge,omitempty"`
 	FlowRelations       []FlowRelationJoin       `json:"flow_relations,omitempty"`
 	ClaimAudits         []ClaimAuditJoin         `json:"claim_audits,omitempty"`
-	SuppliedGaps        []SuppliedGap            `json:"supplied_gaps,omitempty"`
-	Schema              string                   `json:"schema"`
-	Builder             Builder                  `json:"builder"`
-	Manifest            Manifest                 `json:"manifest"`
-	ManifestSHA256      string                   `json:"manifest_sha256"`
-	ProfileSHA256       string                   `json:"profile_sha256"`
-	Tree                string                   `json:"tree"`
-	Subjects            []Subject                `json:"subjects"`
-	Claims              []Claim                  `json:"claims"`
-	Relations           []Relation               `json:"relations"`
-	Journeys            []Journey                `json:"journeys"`
-	Observations        []Observation            `json:"observations"`
-	Capabilities        []Capability             `json:"capabilities"`
-	Gaps                []Gap                    `json:"gaps"`
-	SHA256              string                   `json:"sha256"`
+	// ClaimMentions is the build-time mention check of every non-native claim with a code-like
+	// token, sorted by claim ID (DCP-V1-341).
+	ClaimMentions  []ClaimMentionCheck `json:"claim_mentions,omitempty"`
+	SuppliedGaps   []SuppliedGap       `json:"supplied_gaps,omitempty"`
+	Schema         string              `json:"schema"`
+	Builder        Builder             `json:"builder"`
+	Manifest       Manifest            `json:"manifest"`
+	ManifestSHA256 string              `json:"manifest_sha256"`
+	ProfileSHA256  string              `json:"profile_sha256"`
+	Tree           string              `json:"tree"`
+	Subjects       []Subject           `json:"subjects"`
+	Claims         []Claim             `json:"claims"`
+	Relations      []Relation          `json:"relations"`
+	Journeys       []Journey           `json:"journeys"`
+	Observations   []Observation       `json:"observations"`
+	Capabilities   []Capability        `json:"capabilities"`
+	Gaps           []Gap               `json:"gaps"`
+	SHA256         string              `json:"sha256"`
 	// deltaUnverified is set only by OpenDeltaCurrent when the artifact could not be rederived
 	// because a declared additional checkout is unavailable; the delta reports it (DCP-V1-425).
 	deltaUnverified []string
@@ -317,6 +320,9 @@ type Receipt struct {
 	// ClaimAudits shows each visible claim's audit verdicts, present only when the corpus
 	// holds claim-audit records (DCP-V1-263).
 	ClaimAudits map[string][]ClaimAuditView `json:"claim_audits,omitempty"`
+	// ClaimMentions serves each visible claim's mention check, present only when the corpus
+	// stores one for it (DCP-V1-343).
+	ClaimMentions map[string]ClaimMentionCheck `json:"claim_mentions,omitempty"`
 	// SymbolAnchors is the live re-resolution of each cited symbol anchor,
 	// present only from a live reader (DCP-V1-141).
 	SymbolAnchors []SymbolAnchorCheck `json:"symbol_anchors,omitempty"`

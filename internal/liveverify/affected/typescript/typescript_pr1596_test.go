@@ -34,7 +34,7 @@ func TestUnsupportedSlashPredecessorPreservesUncertainty_PR1596(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Contains(result.Frontier, FrontierScanUnresolved) {
+	if !frontierHas(result, FrontierScanUnresolved) {
 		edge := false
 		for _, unit := range result.Units {
 			if slices.Contains(unit.Sources, "tests/pages/helper.ts") && slices.Contains(unit.Imports, "typescript:tests/pages/b.ts") {
@@ -77,7 +77,7 @@ func TestFrontierSitesAreLinear_PR1596(t *testing.T) {
 	case <-time.After(60 * time.Second):
 		t.Fatal("frontier site naming did not finish within 60s for 100,000 unresolved imports")
 	}
-	if len(sites[FrontierUnresolvedImport]) != 100000 || !sites[FrontierUnresolvedImport]["src/many.ts:100000"] {
+	if len(sites[FrontierUnresolvedImport]) != 100000 || !sites.has(FrontierUnresolvedImport, "src/many.ts:100000") {
 		t.Fatalf("sites=%d", len(sites[FrontierUnresolvedImport]))
 	}
 }
@@ -92,10 +92,10 @@ func TestFrontierSiteIsTheParsedSpecifier_PR1596(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !sites[FrontierUnresolvedImport]["src/a.ts:2"] || len(sites[FrontierUnresolvedImport]) != 1 {
+	if !sites.has(FrontierUnresolvedImport, "src/a.ts:2") || len(sites[FrontierUnresolvedImport]) != 1 {
 		t.Fatalf("relative import site: %v", sites[FrontierUnresolvedImport])
 	}
-	if !sites[FrontierPathAlias]["src/a.ts:4"] || len(sites[FrontierPathAlias]) != 1 {
+	if !sites.has(FrontierPathAlias, "src/a.ts:4") || len(sites[FrontierPathAlias]) != 1 {
 		t.Fatalf("bare import site: %v", sites[FrontierPathAlias])
 	}
 }

@@ -31,7 +31,7 @@ func TestGeneralAdapterPlaywrightMembershipAndAliases_GH1578(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if slices.Contains(result.Frontier, FrontierPathAlias) {
+	if frontierHas(result, FrontierPathAlias) {
 		t.Fatalf("Playwright-only tsconfig aliases were not resolved: %v", result.Frontier)
 	}
 	page := unitWithPath(result, "lib/pages/area/SomePage.ts")
@@ -46,13 +46,18 @@ func TestGeneralAdapterPlaywrightMembershipAndAliases_GH1578(t *testing.T) {
 	}
 
 	// Another runner identity, or a Playwright config that can name another tsconfig, keeps the
-	// alias frontier.
-	for _, row := range []struct{ name, manifest, config string }{
-		{"second runner", `{"devDependencies":{"@playwright/test":"1.61.0","vitest":"3"}}`, plain},
-		{"config names a tsconfig", manifest, "import { defineConfig } from '@playwright/test'\nexport default defineConfig({ tsconfig: './tsconfig.e2e.json' })\n"},
+	// alias frontier. A second runner counts once a test it owns is observed: a dependency alone
+	// owns no test and loads no module (TJAA-V0-050).
+	for _, row := range []struct{ name, manifest, config, extra string }{
+		{"second runner", `{"devDependencies":{"@playwright/test":"1.61.0","vitest":"3"}}`, plain, "import { test } from 'vitest'\ntest('u', () => {})\n"},
+		{"config names a tsconfig", manifest, "import { defineConfig } from '@playwright/test'\nexport default defineConfig({ tsconfig: './tsconfig.e2e.json' })\n", ""},
 	} {
 		t.Run(row.name, func(t *testing.T) {
-			result, err := New().Units(context.Background(), fixture(t, row.manifest, row.config))
+			root := fixture(t, row.manifest, row.config)
+			if row.extra != "" {
+				write(t, root, "lib/unit/helper.test.ts", row.extra)
+			}
+			result, err := New().Units(context.Background(), root)
 			if err != nil {
 				t.Fatal(err)
 			}
