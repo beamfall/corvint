@@ -335,8 +335,11 @@ func TestAMAPV0024InjectedStringEnum(t *testing.T) {
 	// initializer is absent, the others still resolve.
 	router := "import { Areas } from './consts/areas';\n$stateProvider.state(Areas.REPORTS, { url: 'ledger' });\n"
 	_, _, m, err := injectRepo(t, "", router, map[string]string{"app/consts/areas.ts": "export enum Areas {\n  REPORTS = 'ledger',\n  COUNT,\n}\n"})
-	if err != nil || m.screen(screenID(m.App, "ledger")) == nil {
-		t.Fatalf("AMAP-V0-016 enum: %v %+v", err, m.Unknowns)
+	if err != nil {
+		t.Fatalf("AMAP-V0-016 enum: %v", err)
+	}
+	if m.screen(screenID(m.App, "ledger")) == nil {
+		t.Fatalf("AMAP-V0-016 enum: %+v", m.Unknowns)
 	}
 }
 
@@ -1153,8 +1156,11 @@ func TestAMAPV0070DirectoryStarEnum(t *testing.T) {
 	star := "export * from './routes.constants';\n"
 	files := map[string]string{diRegAt: reg, index: star, decl: enum}
 	_, _, m, err := injectRepo(t, `["app/setup"]`, diRouter, files)
-	if err != nil || !diResolved(t, m) || len(diUnknown(m)) != 0 {
-		t.Fatalf("directory star enum: %v %+v", err, m.Unknowns)
+	if err != nil {
+		t.Fatalf("directory star enum: %v", err)
+	}
+	if !diResolved(t, m) || len(diUnknown(m)) != 0 {
+		t.Fatalf("directory star enum: %+v", m.Unknowns)
 	}
 	files[index], files[copy] = star+"export * from './copy';\n", enum
 	_, _, m, err = injectRepo(t, `["app/setup"]`, diRouter, files)

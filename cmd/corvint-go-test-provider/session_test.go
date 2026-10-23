@@ -140,9 +140,14 @@ func TestSessionIgnoresTheUserGoEnvFile(t *testing.T) {
 	// os.UserConfigDir prefers XDG_CONFIG_HOME on Linux (GitHub runners set it); without
 	// this the poisoned go env file lands in the real user config and outlives the test.
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "home", ".config"))
+	// Windows resolves os.UserConfigDir from AppData instead.
+	t.Setenv("AppData", filepath.Join(root, "home", "AppData"))
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		t.Fatal(err)
+	}
+	if rel, err := filepath.Rel(root, configDir); err != nil || !filepath.IsLocal(rel) {
+		t.Fatalf("user config dir %q escapes the test root; refusing to write a go env file there", configDir)
 	}
 	if err := os.MkdirAll(filepath.Join(configDir, "go"), 0o700); err != nil {
 		t.Fatal(err)

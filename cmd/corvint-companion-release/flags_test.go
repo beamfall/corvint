@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -69,6 +70,9 @@ func TestGateScriptsPassOnlyDefinedFlags(t *testing.T) {
 // caller's working directory. A fake go on PATH records where it ran and stops
 // the gate before any real build.
 func TestLocalConsoleGateBuildsFromRepositoryRoot(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake go toolchain is a POSIX shell script")
+	}
 	root, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatal(err)

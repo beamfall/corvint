@@ -17,11 +17,12 @@ func Read(name string) ([]byte, error) {
 	if e != nil {
 		return nil, e
 	}
-	relative := strings.TrimPrefix(filepath.ToSlash(absolute), "/")
+	volume := filepath.VolumeName(absolute)
+	relative := strings.TrimPrefix(filepath.ToSlash(absolute[len(volume):]), "/")
 	if !literal(relative) {
 		return nil, fmt.Errorf("unsafe input path")
 	}
-	root, e := publish.OpenRoot(string(filepath.Separator))
+	root, e := publish.OpenRoot(volume + string(filepath.Separator))
 	if e != nil {
 		return nil, e
 	}
