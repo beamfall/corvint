@@ -149,7 +149,7 @@ refusals on tamper or corruption, receipts and ordering stay the same.
   CPU per waiting acquirer does not grow with retries. The documented acquire bound is under 2
   minutes for 8 acquirers and a writer every 3 seconds, measured at 10,000 receipts on a loaded
   12-CPU Darwin host (the opt-in load harness). Qualification at 45,000 receipts remains NOT_RUN,
-  and by linear extrapolation the prefix walk alone would take about 3 minutes at host load 60.
+  and by linear extrapolation the prefix walk alone would take about 3 minutes at host load 60. The Linux 45,000-receipt run is in the same build log.
   `Timing.Resumed` counts resumed rounds.
 - `PSR-V0-056`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560 review
   amendment) No change guard watches a resumed write, so the PSR-V0-052 checks MUST hold up to the
@@ -203,7 +203,7 @@ Acceptance evidence:
   - after the change: 18 of 18 completed, all resumed, with at most 3 rounds, p50 42.9 s and
     max 65.2 s.
   See `docs/build-log/2026-10-17-v1-1560-pool-acquire-starvation.md`.
-- Linux, quiet-host and 45,000-receipt qualification remain NOT_RUN.
+- Linux, 45,000 receipts (V1-1569, 2026-10-23, 4 vCPU Firecracker VM, UNQUALIFIED at load 7 to 17): the first run failed with `no space left on device` from the inotify change guard (fixed by CAL-V0-364); after the fix all 20 acquire cycles completed with no error code, acquire p50 81.7 s and max 86.9 s, under the 2-minute bound (`docs/build-log/2026-10-23-tasks-linux-qualification-b3-harness.md`). A quiet-host run (load at or below 4) is still NOT_RUN.
 
 Rollback: revert the resume route in `prepareLease`/`leaseWrite`, `observeWriter` and `leaseWriter`,
 the journal `PrefixFallback`/`ResumeBase`/`AuditForResume`/`RecheckResume`, their tests and this amendment. A
@@ -1068,7 +1068,7 @@ Shared allocations (PSR-V0-016..021; V1-0946, GitHub #653): focused CLI, transac
 Sweep prepare (PSR-V0-024..026; V1-1551, GitHub #1009): focused intent and store tests cover the policy shape, bound and safeReuse requirement; a prepare observed mid-run while the member is CLEANING under the owned sweep, chained after the passed verify, digest-only evidence with no output bytes, then FREE and an exact replay that does not rerun it; EXIT_NONZERO and shared-deadline TIMEOUT failures that stay QUARANTINED with the recorded reason and no retry; a lost prepare response whose replay stays pending without re-execution; and an ALL barrier that never launches prepare. Failure modes: a failed, timed-out, over-limit or source-changed prepare, a lost response and an ALL barrier each leave the member quarantined or owned, never free. Existing sweep tests run unchanged for members without prepare.
 Capacity slots (PSR-V0-030..043; V1-1550, GitHub #1008): focused intent, snapshot, store and CLI tests cover the policy and pools.json codecs with every refusal; grant, wait and free after an attempt ends and after a crashed holder's lease expires (reaped by the next poll, acceptance 1); an exclusive request granted under continuing shared demand (acceptance 2); priority wait order; a reserved class granted past a higher-priority unreserved waiter (acceptance 3); request-id replay and no-change polls (acceptance 4); and the `slot` result and `queue status` `slots` view as a pure read (acceptance 5). Concurrency between two slot writers relies on the existing store lock and was not separately stress-tested. An independent review found five defects before landing; each has a regression test that fails on the reviewed head 19f66b4e4: supervisor attach with held or waiting slots is refused (PSR-V0-039); an exclusive granted after a capacity cut takes the new capacity and a stale shared waiter neither is granted nor blocks a later one (PSR-V0-040); two alternating higher-priority exclusive requesters cannot starve a reserved-class waiter (PSR-V0-041); no-change release and poll requests replay (PSR-V0-042); and a replay carries no slot (PSR-V0-043). An older binary reading a store with slots was inferred from the closed decoders at landing; PSR-V0-080 (V1-1572) later executed a `v1.0.0-rc.2` binary against such stores and observed the `MALFORMED` refusal.
 
-Lease write resume (PSR-V0-050..057; V1-1560, GitHub #1010): the focused journal and store tests and the opt-in load harness named in that subsection and in Traceability (PSR-V0-050..057); Linux, quiet-host and 45,000-receipt qualification NOT_RUN.
+Lease write resume (PSR-V0-050..057; V1-1560, GitHub #1010): the focused journal and store tests and the opt-in load harness named in that subsection and in Traceability (PSR-V0-050..057); quiet-host qualification NOT_RUN; Linux 45,000-receipt run in the 2026-10-23 build log.
 
 Bounded acquire calls (PSR-V0-110..116; V1-1617, issue 1010 follow-up, issue 1063): the focused store and CLI tests and the opt-in load harness named in that subsection and in Traceability (PSR-V0-110..116); 47,000-receipt, quiet-host and Linux qualification NOT_RUN.
 

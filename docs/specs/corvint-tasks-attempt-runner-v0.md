@@ -676,6 +676,9 @@ suspend, report it once, and keep it out of the dispatcher's own timers.
 Non-goals: extending or renewing a store lease for the gap (a lease that expired during the
 suspend is left to the reaper's grace, counted from the wake), a doctor finding for suspends, and a
 keep-awake service option; the last two are residuals of issue 1040.
+The other lease-reap paths at a wake, and the Linux clock basis of the detector, are stated by
+CAL-V0-361 and CAL-V0-362 (V1-1634): only the reap of a running worker's expired lease and the
+worker's own timers exclude a gap.
 
 Failure modes: detection needs two ticks of one process, so a suspend across a dispatcher restart
 is not seen; a wall-clock step of at least 30 seconds is indistinguishable from a suspend and is
@@ -2216,7 +2219,7 @@ receipt or wire shape changes.
 | ATR-V0-061 | `internal/tasks/dispatch/session_churn.go`, `internal/tasks/cli/dispatch.go` (`dispatchSessionChurnValue`), `internal/tasks/cli/cli.go` (`LiveFormats`) | `TestATRV0061_RecordVersions` (`internal/tasks/dispatch`), `TestATRV0061_DispatchStatusShowsShortSessionHold` (`internal/tasks/cli`) |
 | ATR-V0-062 | `internal/tasks/cli/doctor_churn.go`, `internal/tasks/cli/doctor.go` (`doctorStoreFindings`) | `TestATRV0062_DoctorSessionChurn` (`internal/tasks/cli`) |
 | ATR-V0-063 | `internal/tasks/dispatch/host_sleep.go` (`noteHostSleep`), `internal/tasks/dispatch/loop.go` (`tick`), `internal/tasks/cli/cli.go` (`LiveFormats`) | `TestATRV0063_SuspendIsRecordedAndExcludedFromTimers`, `TestATRV0063_NoGapLeavesTimersUnchanged`, `TestATRV0063_RecordVersions` (`internal/tasks/dispatch`) |
-| ATR-V0-064 | `internal/tasks/dispatch/host_sleep.go` (`slept`), `internal/tasks/dispatch/loop.go` (caps, `reapRunningExpired`), `internal/tasks/dispatch/keeper.go` | `TestATRV0063_SuspendIsRecordedAndExcludedFromTimers`, `TestATRV0063_NoGapLeavesTimersUnchanged` (`internal/tasks/dispatch`) |
+| ATR-V0-064 | `internal/tasks/dispatch/host_sleep.go` (`slept`), `internal/tasks/dispatch/loop.go` (caps, `reapRunningExpired`), `internal/tasks/dispatch/keeper.go` | `TestATRV0063_SuspendIsRecordedAndExcludedFromTimers`, `TestATRV0063_NoGapLeavesTimersUnchanged`, `TestATRV0064_KeeperIdleCheckExcludesSuspend` (the lease keeper's `maxIdleSeconds`, V1-1634), `TestATRV0064_ExitRecoveryActsAtWake` (the exit recovery excludes no gap, CAL-V0-361) (`internal/tasks/dispatch`) |
 | ATR-V0-065 | `internal/tasks/cli/dispatch.go` (`dispatchHostSleepValue`) | `TestATRV0065_DispatchStatusShowsLastHostSleep` (`internal/tasks/cli`) |
 | ATR-V0-080 | `internal/tasks/intent/policy.go` (`ProgressSignal`, `DecodePolicy`), `internal/tasks/cli/command_help.go` | `TestATRV0080_PolicyProgressSignal` (`internal/tasks/intent`) |
 | ATR-V0-081 | `internal/tasks/snapshot/attempt.go` (`LoopProgress`, `LoopEvidenceWith`, `readPriorLoop`), `internal/tasks/transaction/lease_claim.go` | `TestATRV0081_LoopEvidenceProgressRoundTrip`, `TestATRV0081_LoopEvidenceWith` (`internal/tasks/snapshot`), `TestATRV0081_ClaimRecordsProgressFingerprint` (`internal/tasks/transaction`) |
