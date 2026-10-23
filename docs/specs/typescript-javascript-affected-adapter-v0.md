@@ -595,7 +595,11 @@ unresolved without bisecting files, and every Playwright selection widened to th
   NOT refuse the `process` root, and such a read MUST be admitted as a value proven primitive. A
   write, update, call or alias of `process` or of those members (`process.pid = 1`,
   `process.cwd()`, `process.exit(...)`, `const p = process`, `const env = process.env`) MUST still
-  refuse it.
+  refuse it, including through enclosing bracket groups: a group that is called (`(process.pid)()`),
+  optionally called (`?.(`), tagged, constructed (`new (...)`), deleted or updated
+  (`(process.pid)++`, `++(...)`), or followed by a member chain that is an assignment or update
+  target (`(process).x = 1`, `(process.pid).x++`), or by a member chain that does not parse, MUST
+  refuse the root.
 - `TJAA-V0-050`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604)
   Amending `TJAA-V0-037`, a runner that only a package dependency names MUST NOT block tsconfig alias
   resolution in the general adapter: a dependency alone assigns no runner (`TJAA-V0-003`) and loads

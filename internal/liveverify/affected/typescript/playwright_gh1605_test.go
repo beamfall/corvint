@@ -93,6 +93,13 @@ func TestPlaywrightIdentityIgnoresUnrelatedFieldsAndWrites_GH1605(t *testing.T) 
 	if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", gh1605Config("baseURL: `http://host-${process.pid}`,", "")); len(unknown) != 0 {
 		t.Fatalf("process.pid value: %+v", unknown)
 	}
+	// Grouped reads that are only read stay admitted.
+	for _, setup := range []string{"const n = (process.pid) + 1;", "const h = (process.env.HOSTNAME || '').length;", "const s = (process.env.HOSTNAME || '').split(',');", "const w = Number(process.env.WORKERS);"} {
+		source := strings.Replace(gh1605Config("baseURL: process.env['HOSTNAME'],", ""), gh1605Write, gh1605Write+"\n"+setup, 1)
+		if projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", source); len(unknown) != 0 || len(projects) != 1 || projects[0].Browser != "chromium" {
+			t.Fatalf("%q: projects=%+v unknown=%+v", setup, projects, unknown)
+		}
+	}
 	// An identity field that reads the written name, a call or write on process, and a computed
 	// identity value still leave the identity unresolved.
 	for _, row := range []struct{ baseURL, extra string }{
@@ -114,6 +121,22 @@ func TestPlaywrightIdentityIgnoresUnrelatedFieldsAndWrites_GH1605(t *testing.T) 
 		"process.exit(process.pid);",
 		"const p = process;",
 		"const env = process.env;",
+		// Calls, tags, constructions and writes through grouping parentheses.
+		"const n = (process.pid)();",
+		"const n = ((process.pid))();",
+		"const n = (process.pid)?.();",
+		"const n = (process.pid)`x`;",
+		"const n = new (process.pid)();",
+		"const n = new (process.pid);",
+		"(process).x = 1;",
+		"(process.pid)++;",
+		"(process.pid)--;",
+		"++(process.pid);",
+		"(process.pid).x = 1;",
+		"(process.pid)['x'] = 1;",
+		"(process.pid).x++;",
+		"delete (process.pid).x;",
+		"const n = (process.env.HOSTNAME)();",
 	} {
 		source := strings.Replace(gh1605Config("baseURL: process.env['HOSTNAME'],", ""), gh1605Write, gh1605Write+"\n"+setup, 1)
 		_, _, unknown := parsePlaywrightConfig("playwright.config.ts", source)
