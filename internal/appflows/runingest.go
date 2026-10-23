@@ -37,6 +37,8 @@ type RunHeader struct {
 	Fixture             RunDigestRef
 	Cleanup             string
 	Controls            []RunControl
+	// CoverageArtifacts are the coverage files the run wrote, pinned by sha256 (AFU-V1-120).
+	CoverageArtifacts []RunDigestRef
 }
 
 // RunControl declares that TestKey is a negative control of Subject and must show Expected.
@@ -200,7 +202,8 @@ func runRecords(runner string, tests []*runTest, header RunHeader) ([]TestRunEvi
 		}
 		r := TestRunEvidence{Schema: RunEvidenceSchema, Authority: AuthorityIngested, RunID: header.RunID, Runner: RunRunner{Name: runner, Version: header.RunnerVersion},
 			Source: header.Source, BuildArtifactDigest: header.BuildArtifactDigest, Environment: header.Environment, Fixture: header.Fixture,
-			TestKey: t.key, Project: t.project, Attempts: t.attempts, Cleanup: header.Cleanup, NegativeControls: controlsFor(t, header.Controls, results)}
+			TestKey: t.key, Project: t.project, Attempts: t.attempts, Cleanup: header.Cleanup, NegativeControls: controlsFor(t, header.Controls, results),
+			CoverageArtifacts: header.CoverageArtifacts}
 		if _, err := EncodeRunEvidence(r); err != nil {
 			return nil, fmt.Errorf("test %q: %w", t.key, err)
 		}

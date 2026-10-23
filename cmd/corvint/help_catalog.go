@@ -74,9 +74,12 @@ func capabilityHelpText(topic string) string {
 	}
 }
 
-// capabilityCatalogJSON is `corvint help --json` (CAP-V0-015, CAP-V0-016).
+// capabilityCatalogJSON is `corvint help --json` (CAP-V0-015, CAP-V0-016); it carries the
+// profiling member unchanged (PRB-V0-009).
 func capabilityCatalogJSON() string {
-	encoded, err := capcatalog.Encode(capcatalog.Build(capabilityRegistry()))
+	catalog := capcatalog.Build(capabilityRegistry())
+	catalog.Profiling = profileKnobCatalog()
+	encoded, err := capcatalog.Encode(catalog)
 	if err != nil {
 		panic("capability catalog encoding: " + err.Error())
 	}

@@ -26,11 +26,11 @@ arm64, Go 1.27.1, at `01b6804`); the worked example at the end is that run.
   console "carries no authority" (line 25), and decision 0373 took formal host FULL and protected
   authority off the Core path (row 6, line 19); a CI or hook invocation of the same binary gains
   nothing either path lacks. In particular: `affected` never claims omitted tests are safe to skip
-  (`cmd/corvint/help.go:711-712@d5d6e05c`); a valid CEM establishes provenance completeness, not semantic
+  (`cmd/corvint/help.go:716-717@d5d6e05c`); a valid CEM establishes provenance completeness, not semantic
   correctness ([Change Evidence Map](CHANGE-EVIDENCE-MAP.md)); and `witness` exits 0 on a
   report whose obligations are all unproven (worked example below).
 - **Network.** "Local-only; no network or telemetry" (root help support boundary)
-  (`cmd/corvint/help.go:360@f1b66bd9`). Fetching the commits a step needs is the runner's job.
+  (`cmd/corvint/help.go:365@f1b66bd9`). Fetching the commits a step needs is the runner's job.
 
 ## Mutation classes (AGENTS.md invariant 4)
 
@@ -49,7 +49,7 @@ The self-observation append happens only when that ledger path is gitignored by 
 At `01b6804` the root `.gitignore` names the ledger but not its temporaries, so in a fresh clone
 with no `.corvint/.gitignore` (which `corvint index` creates) no row is written; the worked example
 and a forced `unsupported-impact-path-suffix` refusal both left `.corvint/` unchanged. A ledger
-storage failure never alters the response (`cmd/corvint/help.go:366-367@3c9a8d56`).
+storage failure never alters the response (`cmd/corvint/help.go:371-372@3c9a8d56`).
 
 The second ledger, `.corvint/unplanned-reads.jsonl`, is written only by host-adapter hook paths
 while the operator marker `.corvint/unplanned-reads.enabled` exists
@@ -61,14 +61,14 @@ either file.
 
 Each takes `--root PATH` (default: the current directory) and reads the checkout at `HEAD`. Every
 base must be a full 40-hex commit id that is present in the clone, so a shallow CI checkout must
-fetch enough history to contain it (`cmd/corvint/help.go:693@a892984d`). On an argument or input refusal each
+fetch enough history to contain it (`cmd/corvint/help.go:698@a892984d`). On an argument or input refusal each
 prints one JSON object with `"ok": false` to stderr and exits 2.
 
 Scope: the table lists the steps that answer a question about one change against a fixed base,
 which is what a CI job, git hook or team automation asks. Other verbs that help also describes as
-read-only (`init`, `adopt`, `query`, `docs`, `harness`, `lrf` at `cmd/corvint/help.go:362-363@a54374e4`, and the
+read-only (`init`, `adopt`, `query`, `docs`, `harness`, `lrf` at `cmd/corvint/help.go:367-368@a54374e4`, and the
 experimental `batch`, `depsource`, `necessity`, `surprise`, `answerability`, `kernel` and `reads`
-in the command-maturity list at `cmd/corvint/help.go:1417-1429@e77a32b6`) are not classified here. They need a per-session task, packet or
+in the command-maturity list at `cmd/corvint/help.go:341-350@80dd8f06`) are not classified here. They need a per-session task, packet or
 request as input, or they are experimental without a stability promise. This page makes no claim
 about their safety as a triggered step.
 
@@ -83,20 +83,20 @@ about their safety as a triggered step.
 Where each row was verified:
 
 - `affected`: profile `cmd/corvint/affected.go:35@af9fb447`; exits `cmd/corvint/affected.go:501-531@38b82c0e`; its
-  refusals are emitted without the ledger recorder (`cmd/corvint/main.go:1077-1082@7ed11581`); help text
-  "runs no test, writes no repository state" (`cmd/corvint/help.go:711@f024c3ab`).
+  refusals are emitted without the ledger recorder (`cmd/corvint/main.go:1076-1081@7ed11581`); help text
+  "runs no test, writes no repository state" (`cmd/corvint/help.go:716@f024c3ab`).
 - `cem verify` and `cem status`: exits `internal/cem/cli/cli.go:351-380@773eecd5` (0 when the envelope says
   `"ok": true`, 1 when it says false, 2 on a dispatch error); `ok`, `mutates` and `state`
   `internal/cem/workflow/stable_read.go:130-158@247aec24`; refusals pass through the ledger recorder
-  (`cmd/corvint/main.go:1203@760ae507`, `cmd/corvint/main.go:1650-1665@7a65d7e8`).
+  (`cmd/corvint/main.go:1202@760ae507`, `cmd/corvint/main.go:1630-1645@7a65d7e8`).
 - `witness`: profile `internal/witness/witness.go:27@9d3c5f4c`; exits `cmd/corvint/witness.go:115-152@3d5450e7`;
-  recorder `cmd/corvint/main.go:1165@acb85656`; help "does not mutate repository or trace state"
-  (`cmd/corvint/help.go:399-400@5aaa537c`). It builds the index in memory when no snapshot exists
+  recorder `cmd/corvint/main.go:1164@acb85656`; help "does not mutate repository or trace state"
+  (`cmd/corvint/help.go:404-405@5aaa537c`). It builds the index in memory when no snapshot exists
   (`cmd/corvint/index_snapshot.go:101-106@15aca3d7`); the fresh-clone run wrote no snapshot store (`.git/corvint/index`).
 - `impact --base`: profile `internal/contextindex/range_impact.go:24@49493543`; exits and ledger calls
-  `cmd/corvint/main.go:1207-1212@53443dcf` and `cmd/corvint/main.go:1236-1319@07059a41`; envelope
-  `cmd/corvint/main.go:1467@dedd82e3`; range capacity from `corvint impact --help`. With no snapshot it builds
-  the index in memory (`cmd/corvint/main.go:1240@7219f23e`) and writes no snapshot store (`.git/corvint/index`).
+  `cmd/corvint/main.go:1206-1211@53443dcf` and `cmd/corvint/main.go:1235-1318@07059a41`; envelope
+  `cmd/corvint/main.go:1447@dedd82e3`; range capacity from `corvint impact --help`. With no snapshot it builds
+  the index in memory (`cmd/corvint/main.go:1239@7219f23e`) and writes no snapshot store (`.git/corvint/index`).
 - 1.0 labels: `docs/specs/corvint-1.0-product-and-release-v1.md` classification table.
 - Every exit code in the table was also observed: 0 in the worked example, 1 from `cem verify`
   with `--target` set to the base, 2 from `affected`, `witness` and `impact` given a short base and
@@ -115,7 +115,7 @@ deadline and fail the command when it expires: the index build and the range-imp
 (`internal/contextindex/git.go:26@8f4f0b4d`, `internal/contextindex/index.go:335@09a263a5`,
 `internal/contextindex/range_impact.go:79@09a263a5`), and `affected` reads `git status` under 10 s
 (`internal/liveverify/affected/dirty.go:34@bb3abea6`, `internal/liveverify/affected/dirty.go:50@d3f19770`). Otherwise
-the process cancels only on `SIGINT` or `SIGTERM` (`cmd/corvint/main.go:1725@f5ddb576`,
+the process cancels only on `SIGINT` or `SIGTERM` (`cmd/corvint/main.go:1705@5434511f`,
 `cmd/corvint/signals_unix.go:12-13@4a4dfd65`); the exit code a signal produces is not documented here
 (unknown). The automation host must set its own step timeout. No timeout has been qualified; 5
 minutes per step is a suggestion that leaves more than 20 times the loaded measurements as
@@ -127,7 +127,7 @@ headroom, and it is a hang detector, not a budget.
 |---|---|---|
 | `corvint cem report` | Writes the review report, by default to `$GIT_DIR/corvint/cem-review.md` (or to `--output`: repository-relative, or absolute outside the repository), and returns `"mutates": true`. | `internal/cem/workflow/workflow.go:25@c21ea11c`, `internal/cem/workflow/stable_read.go:237-253@19c5c7be` |
 | `make dogfood-check BASE=...` | Once its preconditions pass it rewrites `.corvint/dogfood-report.json`, builds verifier binaries into `$GIT_DIR/corvint/`, and uses `/tmp/corvint-go-build-cache`. It is an authoring-time step, not a gate prerequisite, because it needs untracked `.corvint/` artifacts a clean checkout never has. Its wrapper builds the verifiers first; in a fresh clone the check then fails before the report rewrite (below). | `script/dogfood-check.sh:43-61@f7f12d2b`, `internal/dogfoodflow/check.go:289-298@8edfe182`, `Makefile:35-38@6362815e` |
-| `make dogfood-change`, `make dogfood-seal`, `corvint index`, `cem begin`, `prepare`, `cite`, `mark`, `cover`, `discriminate`, `anchor` | Write the dogfood report, a commit, the index snapshot, CEM maps, the patch cache or a Git note by design. | `script/dogfood-change.sh:29@f8f6aa02`, `script/dogfood-seal.sh:26-29@5c2ac3f4`, `SOP-V0-002` for `index`, `cmd/corvint/help.go:367-369@bfe2edf4` and `corvint cem --help` |
+| `make dogfood-change`, `make dogfood-seal`, `corvint index`, `cem begin`, `prepare`, `cite`, `mark`, `cover`, `discriminate`, `anchor` | Write the dogfood report, a commit, the index snapshot, CEM maps, the patch cache or a Git note by design. | `script/dogfood-change.sh:29@f8f6aa02`, `script/dogfood-seal.sh:26-29@5c2ac3f4`, `SOP-V0-002` for `index`, `cmd/corvint/help.go:372-374@bfe2edf4` and `corvint cem --help` |
 
 `corvint dogfood check`, and so `script/dogfood-check.sh`, exits 0 on `PASS`, 1 on `FAIL`, 2 on
 `REFUSE` or a Git error, and 129, 130 or 143 on `HUP`, `INT` or `TERM`

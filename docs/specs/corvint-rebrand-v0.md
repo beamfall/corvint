@@ -110,7 +110,7 @@ The user needs the unreleased product to acquire one coherent public identity be
   focused implementation checks MUST NOT claim that qualification.
 
 - `CRB-V0-018`: Runtime settings are read from exactly `CORVINT_CPUPROFILE`,
-  `CORVINT_HARNESS_SHARED_OBSERVATION`, `CORVINT_QUERY_SHARED_OBSERVATION`,
+  `CORVINT_MEMPROFILE` (amendment 2026-10-23, PRB-V0-003), `CORVINT_HARNESS_SHARED_OBSERVATION`, `CORVINT_QUERY_SHARED_OBSERVATION`,
   `CORVINT_SNAPSHOT_FORMAT`, `CORVINT_INDEX_SHARDS`, `CORVINT_CONTEXT_TERMS`,
   `CORVINT_CONTEXT_FRAME_RELATION`, `CORVINT_EXPERIMENTAL_COMPACTION_KERNEL`, and
   `CORVINT_BENCH_SNAPSHOT_TRACE`; no counterpart names exist (amendment 2026-09-17). An
@@ -195,7 +195,7 @@ compatibility identities.
 | CRB-V0-013 | `extensions/vscode`, `conformance/vscode-extension-v0` | native executable/MCP/config fixtures, extension check, package listing, conformance runner; installed host remains `NOT_RUN` |
 | CRB-V0-014 | `assets/brand/corvint-{lockup,mark}-{light,dark,universal}.{svg,png}`, root `README.md`, and `extensions/vscode/media/corvint.svg` | SVG parse and reference checks, matching geometry across variants, PNG format/dimensions, README theme selection, and independent visual review; PNG binary patches remain unsupported by native CEM |
 | CRB-V0-015 | `cmd/corvint-console`, `cmd/corvint-dashboard-snapshot`, `internal/console` | focused compatibility/default tests and the isolated standalone console proof |
-| CRB-V0-018 | `internal/runtimeenv`, `cmd/corvint`, `internal/contextindex`, `internal/localcompletion`, dogfood helpers and CEM example | `TestResolveNamespace`, `TestRuntimeEnvironmentCurrentSnapshotSettings`, `TestDogfoodFinishRunsFromBinaryInForeignRepository`, and `script/runtime-environment_test.sh` |
+| CRB-V0-018 | `internal/runtimeenv`, `cmd/corvint`, `internal/contextindex`, `internal/localcompletion`, dogfood helpers and CEM example | `TestResolveNamespace`, `TestRuntimeEnvironmentCurrentSnapshotSettings`, `TestDogfoodFinishRunsFromBinaryInForeignRepository`, `TestPRBV0011KnobsInExactSettingsList`, and `script/runtime-environment_test.sh` |
 | CRB-V0-020 | `internal/companionrelease` (`inventory.go`, `companionrelease.go`, `retained.go`, `workflow_smoke.go`, `core_evidence.go`) | `TestRubyProviderBundleProfileThree`, `TestRubyProviderUsageAdmitsTheBuiltProvider`, `TestCoreBundleRejectsProfileDowngrade`; two-build and installed `/3` qualification `NOT_RUN` |
 | CRB-V0-016 | three retained MCP command packages, two retained live-provider command packages, and `extensions/vscode/src/mcp.ts` | isolated five-binary handshake proof, MCP conformance, provider regressions, and current/unknown/drift client fixtures |
 

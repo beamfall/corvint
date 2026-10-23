@@ -3888,5 +3888,29 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/performance-profiling-and-read-budget-v0.md",
+    "title": "Performance Profiling and Read Budget V0",
+    "reqPrefix": "PRB-V0",
+    "intent": "accepted (owner standing auto-accept 2026-10-11)",
+    "delivery": "experimental",
+    "claim": "Every command and MCP server honours the CPU and heap profile knobs, and `make perf-budget` measures six read budgets over a generated fixture.",
+    "dependsOn": [
+      "docs/specs/corvint-rebrand-v0.md",
+      "docs/specs/documentation-corpus-v1.md",
+      "docs/specs/task-context-packet-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint",
+      "cmd/corvint-corpus-mcp",
+      "cmd/corvint-docs-mcp",
+      "cmd/corvint-mcp",
+      "cmd/corvint-test-validity-mcp",
+      "internal/perfbudget",
+      "internal/procprofile"
+    ]
   }
 ]

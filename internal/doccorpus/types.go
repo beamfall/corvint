@@ -255,6 +255,9 @@ type Artifact struct {
 	Capabilities        []Capability             `json:"capabilities"`
 	Gaps                []Gap                    `json:"gaps"`
 	SHA256              string                   `json:"sha256"`
+	// deltaUnverified is set only by OpenDeltaCurrent when the artifact could not be rederived
+	// because a declared additional checkout is unavailable; the delta reports it (DCP-V1-425).
+	deltaUnverified []string
 }
 type Request struct {
 	Retirement *RetirementPolicy `json:"retirement,omitempty"`

@@ -101,7 +101,8 @@ cannot silently go missing or outlive its command.
   stated exit statuses, write class, self-observation ledger listing and write statements; at the
   top level it lists the two-word help topics (`nestedHelpTopics`); and the document names how
   each field is derived. Like every help topic it reads no stdin, opens no
-  repository and writes nothing.
+  repository and writes nothing. It also carries the `profiling` member (`corvint-profile-knobs/0`)
+  exactly as `PRB-V0-009` defines it.
 - `CAP-V0-016`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1588) A field the registry cannot answer MUST be
   `null` with an `unknowns` entry naming the field and a reason, never a hand-written claim:
   `inputs` and `outputs` always (help does not separate them; `schemaIds` lists every schema the

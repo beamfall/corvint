@@ -505,6 +505,7 @@
         "--host",
         "--host-version",
         "--input",
+        "--json",
         "--surface"
       ],
       "schemaIds": [
@@ -518,7 +519,9 @@
       "writeStatements": [
         "The command is read-only apart from that one bounded local self-observation row, and local-only, and emits one canonical corvint-harness-event/0 FALLBACK receipt on stdout.",
         "CORVINT_CPUPROFILE=PATH (operator env var, off by default): writes a pprof CPU profile for this invocation to PATH.",
-        "Diagnostic only; it does not change what is read, returned, or mutated."
+        "CORVINT_MEMPROFILE=PATH (operator env var, off by default): writes a pprof heap profile for this invocation to PATH.",
+        "Every command and MCP server honours both, one file per process, written on exit and on SIGINT or SIGTERM; {pid} in PATH becomes the process ID.",
+        "Diagnostic only; they do not change what is read, returned, or mutated (corvint help --json lists the commands and servers)."
       ],
       "unknowns": [
         {
@@ -890,6 +893,7 @@
         "--instruction-host",
         "--instruction-host-version",
         "--instruction-profile",
+        "--json",
         "--limit",
         "--lsp",
         "--max-bytes",
@@ -909,7 +913,9 @@
         "Writes nothing; Go-only (task-context-packet-v0, experimental).",
         "Structural lookups (experimental, TCP-V0-017 proposed), read-only, JSON:",
         "CORVINT_CPUPROFILE=PATH (operator env var, off by default): writes a pprof CPU profile for this invocation to PATH.",
-        "Diagnostic only; it does not change what is read, returned, or mutated."
+        "CORVINT_MEMPROFILE=PATH (operator env var, off by default): writes a pprof heap profile for this invocation to PATH.",
+        "Every command and MCP server honours both, one file per process, written on exit and on SIGINT or SIGTERM; {pid} in PATH becomes the process ID.",
+        "Diagnostic only; they do not change what is read, returned, or mutated (corvint help --json lists the commands and servers)."
       ],
       "unknowns": [
         {
@@ -1616,6 +1622,7 @@
           "dependencies",
           "discover-legacy",
           "discover-playwright",
+          "discover-tests",
           "eval",
           "extract",
           "flow",
@@ -1707,6 +1714,11 @@
           "--config",
           "--migration",
           "--playwright-list"
+        ],
+        "docs corpus discover-tests": [
+          "--path",
+          "--revision",
+          "--runner"
         ],
         "docs corpus eval": [
           "--artifact",
@@ -1812,6 +1824,7 @@
         ]
       },
       "flags": [
+        "--anchorless",
         "--app-identity",
         "--apply",
         "--artifact",
@@ -1881,6 +1894,7 @@
         "--test-file",
         "--timestamp",
         "--trusted-project",
+        "--uncovered",
         "--watch"
       ],
       "schemaIds": [
@@ -1892,7 +1906,8 @@
         "corvint-extractor-inventory/1",
         "corvint-extractor-profile/1",
         "corvint-legacy-cases/1",
-        "corvint-legacy-inventory/1"
+        "corvint-legacy-inventory/1",
+        "corvint-test-discovery/1"
       ],
       "inputs": null,
       "outputs": null,
@@ -1910,7 +1925,7 @@
         "Unrelated commits and dirty source bytes do not trigger generated-block writes.",
         "Generate exclusively writes a new output directory: eight Markdown pages per flow, provider.json and generation.json.",
         "Check and finalize are read-only.",
-        "Operations: manifest inventory one or more scopes at a full commit as a corpus manifest build build the immutable corpus artifact from a manifest render emit a deterministic filename-to-content documentation plan; writes nothing maintain preview, or with --apply write, generated blocks of one human page cem emit CEM citation arguments and a corpus/CEM binding sidecar cem-stable project claims through a verified cem/1.0 map; read-only, refuses any other outcome behavior-adapter map a behavior-adapter request to a provider bundle, or --check it behavior-provider build a corvint-corpus-behavior-provider/2 declaration from a request discover-playwright produce Playwright test discovery from a listing and migration witness-playwright import qualified Playwright witnesses from a committed receipt and report discover-legacy inventory Jasmine or Mocha/Cypress legacy cases statically from Git blobs extract extract generic subjects and relations with a repository-declared extractor profile from Git blobs import-cases import manual legacy cases from a caller-exported TestRail JSON or CSV file search-cases search a caller-exported TestRail JSON or CSV file for legacy cases info artifact identity, capabilities and freshness validate recheck the artifact against its original inputs inventory page through every subject, claim and relation ID search rank subjects by text, optionally of some kinds or with claim hits get one subject by ID trace source citations of one subject related subjects related to one subject journey one recorded journey and its observations stability repeated-run stability evidence of one subject locate subjects that cite one path coverage scoped coverage with its denominator gaps reported gaps, optionally for one subject or some kinds concept typed subjects matching a concept claims typed claims about one path, claims ranked by --query text, or supplied status claims in one --state (exactly one) flow one typed flow, optionally only some sections or record kinds dependencies typed dependency relations of one subject recommend-tests tests related to one path; grants no test-selection authority navigation typed navigation subject vocabulary typed vocabulary matching a term intent typed intent comparisons of one subject, or every intent comparison without --id delta page a cross-revision worklist: carry-forward, moved, changed, removed, unresolved and uncovered carry-forward emit a provider record of one provider's records whose span hashes still hold eval score caller-labelled cases through the corpus MCP tool path; --baseline ratchets audit-sample draw a reproducible claim sample to audit; also spelled audit sample audit-report measure sampled-claim accuracy from independent verdicts; also spelled audit report",
+        "Operations: manifest inventory one or more scopes at a full commit as a corpus manifest build build the immutable corpus artifact from a manifest render emit a deterministic filename-to-content documentation plan; writes nothing maintain preview, or with --apply write, generated blocks of one human page cem emit CEM citation arguments and a corpus/CEM binding sidecar cem-stable project claims through a verified cem/1.0 map; read-only, refuses any other outcome behavior-adapter map a behavior-adapter request to a provider bundle, or --check it behavior-provider build a corvint-corpus-behavior-provider/2 declaration from a request discover-playwright produce Playwright test discovery from a listing and migration witness-playwright import qualified Playwright witnesses from a committed receipt and report discover-legacy inventory Jasmine or Mocha/Cypress legacy cases statically from Git blobs discover-tests read Playwright or RSpec examples, expectations, navigations, reaches and hooks statically from Git blobs extract extract generic subjects and relations with a repository-declared extractor profile from Git blobs import-cases import manual legacy cases from a caller-exported TestRail JSON or CSV file search-cases search a caller-exported TestRail JSON or CSV file for legacy cases info artifact identity, capabilities and freshness validate recheck the artifact against its original inputs inventory page through every subject, claim and relation ID search rank subjects by text, optionally of some kinds or with claim hits get one subject by ID trace source citations of one subject related subjects related to one subject journey one recorded journey and its observations stability repeated-run stability evidence of one subject locate subjects that cite one path coverage scoped coverage with its denominator gaps reported gaps, optionally for one subject or some kinds concept typed subjects matching a concept claims typed claims about one path, claims ranked by --query text, or supplied status claims in one --state (exactly one) flow one typed flow, optionally only some sections or record kinds dependencies typed dependency relations of one subject recommend-tests tests related to one path; grants no test-selection authority navigation typed navigation subject vocabulary typed vocabulary matching a term intent typed intent comparisons of one subject, or every intent comparison without --id delta page a cross-revision worklist: carry-forward, moved, changed, removed, unresolved and uncovered carry-forward emit a provider record of one provider's records whose span hashes still hold eval score caller-labelled cases through the corpus MCP tool path; --baseline ratchets audit-sample draw a reproducible claim sample to audit; also spelled audit sample audit-report measure sampled-claim accuracy from independent verdicts; also spelled audit report",
         "Generate exclusively writes a new output directory: eight Markdown pages per flow, provider.json and generation.json.",
         "Check and finalize are read-only.",
         "Usage: corvint [--root PATH] docs maintain --page PATH --source PATH --package DIRECTORY --enable (--preview|--apply) [--max-writes N] [--max-wall-clock DURATION] [--watch]",
@@ -2690,6 +2705,7 @@
         "impact",
         "import",
         "ingest",
+        "ingest-coverage",
         "map",
         "navigate",
         "record",
@@ -2719,6 +2735,7 @@
         "--claims",
         "--cleanup",
         "--control",
+        "--coverage-artifact",
         "--declarations",
         "--denominator",
         "--docs-root",
@@ -2742,6 +2759,7 @@
         "--handler",
         "--ledger",
         "--limit",
+        "--links",
         "--manifest",
         "--manifest-repo",
         "--map",
@@ -2770,6 +2788,7 @@
         "--source-commit",
         "--source-tree",
         "--step",
+        "--strip-prefix",
         "--test-key",
         "--text",
         "--trace",
@@ -2794,6 +2813,7 @@
         "application-navigation-observation/0",
         "application-navigation-packet/0",
         "corvint-behavior-adapter-request/1",
+        "corvint-coverage-ingest/1",
         "corvint-request-path/0",
         "flow-doc-check/0",
         "flow-doc-claims/0",
@@ -2826,9 +2846,10 @@
         "gaps writes application-flow-gaps/1; any gap makes a flow incomplete.",
         "impact writes application-flow-impact/1: flows, variations and test keys reached from base..HEAD changes, with the path of each hop.",
         "stability writes flows-run-stability/0: per aggregate of the flows-run-registry/0 FILE committed at HEAD, the raw repeated-run counts, the applied threshold and a clean or not-stable verdict.",
-        "ingest writes test-run-evidence/0 JSONL to stdout; header flags are --run-id, --runner-version, --source-commit, --source-tree, --source-clean, --build-artifact-digest, --environment-id, --environment-digest, --fixture-id, --fixture-digest, --cleanup and repeatable --control \"SUBJECT<TAB>CONTROL<TAB>EXPECTED\".",
+        "ingest writes test-run-evidence/0 JSONL to stdout; header flags are --run-id, --runner-version, --source-commit, --source-tree, --source-clean, --build-artifact-digest, --environment-id, --environment-digest, --fixture-id, --fixture-digest, --cleanup, repeatable --control \"SUBJECT<TAB>CONTROL<TAB>EXPECTED\" and repeatable --coverage-artifact ID=FILE, which pins a coverage file the run wrote by sha256.",
         "A bound exceeded exits nonzero with the incomplete code and writes nothing.",
         "None of these writes to the repository.",
+        "ingest-coverage writes corvint-coverage-ingest/1 to stdout: the coverage, run-evidence and links inputs pinned by digest; each covered test bound to its one run record, and joined only when that record ran clean at the revision and pins the coverage input's sha256 as a --coverage-artifact; observed tested_by relations from executed source files with executed line spans anchored to the committed blobs; links the coverage contradicts as coverage-contradiction conflicts; and every path or test it cannot classify as an unknown with a reason.",
         "docs renders the page from the committed intents with a fixed template, marks every claim that is not PROVEN, and writes the flow-doc-claims/0 sidecar; both paths are repository-relative and each is replaced through a temporary file and a rename.",
         "--check writes flow-doc-check/0 to stdout and writes nothing: it fails when a committed PROVEN claim is no longer PROVEN or the committed bytes differ from regeneration, unless an unexpired entry of the committed flow-doc-waivers/0 file names the claim, and it fails on an unknown or invalid anchor.",
         "Experimental maintenance (FDM-V0, proposed): corvint [--root PATH] flows docs maintain --flows DIR --page FILE --claims FILE --preview | --apply --expected-proposal SHA256 [--receipt FILE | --adopt] preview writes nothing and prints a digest-bound proposal; apply rederives it, refuses drift, publishes the pair without clobbering and prints a receipt to save and commit.",
@@ -3412,5 +3433,96 @@
         }
       ]
     }
-  ]
+  ],
+  "profiling": {
+    "authority": "diagnostic only; never changes what a command reads, returns, or mutates",
+    "commands": [
+      "init",
+      "adopt",
+      "query",
+      "feature",
+      "impact",
+      "eval",
+      "lrf",
+      "record",
+      "migrate-traces",
+      "harness",
+      "cem",
+      "ocm",
+      "work",
+      "context",
+      "adapter",
+      "dogfood",
+      "dogfood-ocm",
+      "frontier",
+      "observations",
+      "affected",
+      "obligations",
+      "prove",
+      "prove-observe",
+      "index",
+      "batch",
+      "docs",
+      "depsource",
+      "necessity",
+      "surprise",
+      "answerability",
+      "kernel",
+      "lease",
+      "reads",
+      "calibrate",
+      "witness",
+      "test-validity",
+      "test-plan",
+      "features",
+      "overview",
+      "review",
+      "migration-ratchet",
+      "flows",
+      "skill-export",
+      "breakage",
+      "step",
+      "delta",
+      "changes",
+      "runs",
+      "test",
+      "tests"
+    ],
+    "default": "off",
+    "knobs": [
+      {
+        "format": "pprof",
+        "name": "CORVINT_CPUPROFILE",
+        "profile": "cpu"
+      },
+      {
+        "format": "pprof",
+        "name": "CORVINT_MEMPROFILE",
+        "profile": "heap"
+      }
+    ],
+    "not_honoured": {
+      "entries": [
+        "dogfood-outcome-worker",
+        "dogfood-verifier-worker",
+        "index-refresh-worker (CORVINT_INTERNAL_INDEX_REFRESH)"
+      ],
+      "reason": "internal child workers whose startup verification precedes every goroutine"
+    },
+    "pid_placeholder": "{pid}",
+    "plumbing": [
+      "native-hook",
+      "authority-event",
+      "qualified-event"
+    ],
+    "schema": "corvint-profile-knobs/0",
+    "scope": "every command dispatched by the corvint binary, and every listed MCP server, one profile per process",
+    "servers": [
+      "corvint-corpus-mcp",
+      "corvint-docs-mcp",
+      "corvint-mcp",
+      "corvint-test-validity-mcp"
+    ],
+    "written": "on process exit, and on SIGINT or SIGTERM"
+  }
 }

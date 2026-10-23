@@ -11,7 +11,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
-	"runtime/pprof"
 	"strconv"
 	"strings"
 	"time"
@@ -1329,25 +1328,6 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		emitError(stderr, &gokernel.Error{Code: code, Message: message})
 		return 2
 	}
-	// CPUPROFILE (V1-0051): operator env var, off by default, documented in
-	// cpuProfileHelpNote (help.go, appended to harnessEventHelp) and
-	// task-context-packet-v0.md's Non-goals and authority section.
-	if profilePath := runtimeenv.Value("CPUPROFILE"); profilePath != "" {
-		profile, err := os.Create(profilePath)
-		if err != nil {
-			emitError(stderr, err)
-			return 2
-		}
-		if err := pprof.StartCPUProfile(profile); err != nil {
-			profile.Close()
-			emitError(stderr, err)
-			return 2
-		}
-		defer func() {
-			pprof.StopCPUProfile()
-			profile.Close()
-		}()
-	}
 	result, err := gokernel.HandleEventContext(ctx, gokernel.EventRequest{
 		Root: options.root, Host: options.host, HostVersion: options.hostVersion,
 		Surface: options.surface, AdapterVersion: options.adapterVersion,
@@ -1722,11 +1702,11 @@ func main() {
 		os.Exit(runDogfoodVerifierWorker(os.Args[2:], os.Stdout, os.Stderr))
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), terminationSignals()...)
+	signalled, cancel := signal.NotifyContext(context.Background(), terminationSignals()...)
 	defer cancel()
-	ctx, release := adapterHostKillContext(ctx, os.Args[1:], adapterProcessStart)
+	ctx, release := adapterHostKillContext(signalled, os.Args[1:], adapterProcessStart)
 	defer release()
-	exitProcess(runContext(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
+	exitProcess(runProfiledContext(signalled, ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr, os.LookupEnv))
 }
 
 // sharedIndexedContextFromEnvironment enables the shared bracket only under

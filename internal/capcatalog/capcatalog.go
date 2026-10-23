@@ -90,6 +90,8 @@ type Catalog struct {
 	NestedHelpTopics []string          `json:"nestedHelpTopics"`
 	Guide            GuideRef          `json:"guide"`
 	Commands         []Command         `json:"commands"`
+	// Profiling is the PRB-V0-009 profile-knob member, supplied by the binary and carried unchanged.
+	Profiling map[string]any `json:"profiling,omitempty"`
 }
 
 // GuideRef binds the shipped guide by digest.
