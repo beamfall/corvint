@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -257,14 +258,15 @@ func distinctNonEmpty(list []string) bool {
 
 // loadedArtifact returns the memoized, rederived artifact the tools answer from.
 func (r *Registry) loadedArtifact(ctx context.Context) (*doccorpus.Artifact, error) {
-	raw, err := doccorpus.ReadCorpusFile(r.root, r.path)
-	if err != nil {
-		return nil, err
+	read := r.artifactReader()
+	if !read.unchanged {
+		if _, err := read.bytes(); errors.Is(err, errArtifactChanged) {
+			return nil, evalRefused("configured artifact changed")
+		} else if err != nil {
+			return nil, err
+		}
 	}
-	if doccorpus.Digest(raw) != r.digest {
-		return nil, evalRefused("configured artifact changed")
-	}
-	a, _, err := r.artifactFor(ctx, raw, &Timing{})
+	a, _, err := r.artifactFor(ctx, read.bytes, &Timing{})
 	return a, err
 }
 

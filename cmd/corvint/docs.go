@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"slices"
 	"strings"
@@ -120,7 +121,7 @@ func compileDocs(ctx context.Context, options docsOptions, stdin io.Reader) ([]b
 			return nil, err
 		}
 		if len(input) > doccompiler.DraftMaxBytes {
-			return nil, &doccompiler.Error{Code: "documentation-limit-exceeded", Message: "draft exceeds 64 KiB"}
+			return nil, &doccompiler.Error{Code: "documentation-limit-exceeded", Message: fmt.Sprintf("consume input exceeds the DraftMaxBytes limit of %d bytes (64 KiB): observed at least %d bytes on stdin", doccompiler.DraftMaxBytes, len(input))}
 		}
 		provided = input
 	}
@@ -147,7 +148,7 @@ func compileDocs(ctx context.Context, options docsOptions, stdin io.Reader) ([]b
 		return nil, err
 	}
 	if len(encoded)+1 > doccompiler.DraftMaxBytes {
-		return nil, &doccompiler.Error{Code: "documentation-limit-exceeded", Message: "encoded consumption result exceeds 64 KiB"}
+		return nil, &doccompiler.Error{Code: "documentation-limit-exceeded", Message: fmt.Sprintf("encoded consumption result exceeds the DraftMaxBytes limit of %d bytes (64 KiB): observed %d bytes including its trailing newline", doccompiler.DraftMaxBytes, len(encoded)+1)}
 	}
 	return append(encoded, '\n'), nil
 }
