@@ -1975,8 +1975,8 @@ proposed, experimental; GitHub #1598.
   before it. A rederived read reads the whole file as before. The corpus MCP server keeps reading
   the artifact bytes it hashes for its stamp (`DCP-V1-417`) and decodes them through the same
   scanner as one window. Acceptance: `TestDCPV1431StreamedDecodeMatchesInMemory`,
-  `TestDCPV1431StreamedReadReusesBlocks`, `TestDCPV1431OpenReadFile`,
-  `TestDCPV1414ParallelDecodeMatchesClosedDecode`, `TestDCPV1413CorpusReadsWithoutRederivation`.
+  `TestDCPV1431StreamedReadReusesBlocks`, `TestDCPV1431StreamedLongValue`,
+  `TestDCPV1431OpenReadFile`, `TestDCPV1414ParallelDecodeMatchesClosedDecode`, `TestDCPV1413CorpusReadsWithoutRederivation`.
 - `DCP-V1-432`: Every remaining reader of a retained artifact either takes the verified read of
   `DCP-V1-410` or rederives for a recorded reason, amending the `delta` exception of
   `DCP-V1-410`:

@@ -97,6 +97,23 @@ func decodeArtifactBlocks(r io.Reader, window, headroom int, header func(*Artifa
 	}()
 	s := &artifactStream{blocks: blocks, headroom: headroom}
 	a, tail, err := decodeArtifactStream(s, header, true, claims)
+	if err != nil && !s.eof {
+		// A refusal of the bytes read so far does not hide a later read error: the rest of the
+		// input is read, bounded as before, before the refusal is reported (DCP-V1-431).
+		var total int64 = s.base + int64(len(s.buf))
+		for b := range blocks {
+			total += int64(b.n)
+			b.ref.release()
+			b.ref.release()
+			if b.err != nil && b.err != io.EOF && s.readErr == nil {
+				s.readErr = b.err
+			}
+			if total > MaxCorpusBytes {
+				s.overBound = true
+				break
+			}
+		}
+	}
 	switch {
 	case s.readErr != nil:
 		return nil, artifactTail{}, s.readErr
@@ -257,12 +274,16 @@ func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, 
 						verified = false
 						break
 					}
+					// A mismatch stops only the comparisons: every element is still decoded, so an
+					// undecodable element anywhere refuses first whatever the batches and their
+					// order (DCP-V1-431).
+					if !verified {
+						continue
+					}
 					c := encodingComparer{want: raw}
 					if _, err := EncodeTo(&c, element.Interface()); err != nil || c.differ || c.n != int64(len(raw)) {
 						mismatched.Store(true)
-						stop.Store(true)
 						verified = false
-						break
 					}
 				}
 				job.ref.release()
@@ -462,7 +483,10 @@ func (s *artifactStream) offset() int64 { return s.base + int64(s.pos) }
 
 // refill drops the window before keep and appends the next block read ahead after the rest,
 // in a new window, so every slice of an earlier window that a decode job holds stays intact.
-// It reports whether any byte was read.
+// A carry longer than the room before a block (a value longer than a window) is copied into an
+// unpooled window that takes blocks until it is at least twice the carry, so a value of any
+// length is rescanned only a logarithmic number of times and copied a bounded number of times
+// per byte. It reports whether any byte was read.
 func (s *artifactStream) refill(keep int) bool {
 	if s.eof {
 		return false
@@ -473,23 +497,49 @@ func (s *artifactStream) refill(keep int) bool {
 		return false
 	}
 	kept := len(s.buf) - keep
-	data := b.ref.buf[s.headroom : s.headroom+b.n]
-	var next []byte
+	read := b.n
 	previous := s.cur
 	if kept <= s.headroom {
-		next = b.ref.buf[s.headroom-kept : s.headroom+b.n]
+		next := b.ref.buf[s.headroom-kept : s.headroom+b.n]
+		copy(next, s.buf[keep:])
 		s.cur = b.ref
+		s.buf = next
+		s.take(b, false)
 	} else {
-		next = make([]byte, kept+b.n)
-		copy(next[kept:], data)
+		next := make([]byte, kept, max(2*kept, kept+b.n))
+		copy(next, s.buf[keep:])
 		s.cur = nil
-		b.ref.release()
+		s.buf = next
+		s.take(b, true)
+		for !s.eof && len(s.buf) < 2*kept {
+			more, ok := <-s.blocks
+			if !ok {
+				s.eof = true
+				break
+			}
+			read += more.n
+			s.take(more, true)
+		}
 	}
-	copy(next, s.buf[keep:])
 	previous.release()
 	s.base += int64(keep)
 	s.pos -= keep
-	s.buf = next
+	if s.base+int64(len(s.buf)) > MaxCorpusBytes {
+		// Past the bound the scan stops as at the end of the input, and the read refuses.
+		s.eof, s.overBound = true, true
+		s.buf = s.buf[:MaxCorpusBytes+1-s.base]
+	}
+	return read > 0
+}
+
+// take hashes block b, records its end or read error, and when copy is set appends its data to
+// the window and releases the block's window hold.
+func (s *artifactStream) take(b streamBlock, copied bool) {
+	data := b.ref.buf[s.headroom : s.headroom+b.n]
+	if copied {
+		s.buf = append(s.buf, data...)
+		b.ref.release()
+	}
 	if s.onRead != nil {
 		s.onRead(data, b.ref)
 	} else {
@@ -501,12 +551,6 @@ func (s *artifactStream) refill(keep int) bool {
 	case b.err != nil:
 		s.eof, s.readErr = true, b.err
 	}
-	if s.base+int64(len(s.buf)) > MaxCorpusBytes {
-		// Past the bound the scan stops as at the end of the input, and the read refuses.
-		s.eof, s.overBound = true, true
-		s.buf = s.buf[:MaxCorpusBytes+1-s.base]
-	}
-	return b.n > 0
 }
 
 // artifactDecoder scans an artifactStream. It copies the skeleton bytes, the bytes outside every

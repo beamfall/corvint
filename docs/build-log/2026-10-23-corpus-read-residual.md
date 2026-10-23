@@ -31,7 +31,13 @@ Profiles of a read in a test process (same fixture) showed:
   in headroom before the next block, so the block is not copied. The in-memory reader (corpus
   MCP) uses the same scanner as one window. One decoder means one set of refusals. The tests
   split the fixture at block sizes from 1 byte to 1 MiB, with carries that fit the headroom and
-  carries that overflow it.
+  carries that overflow it. Review repairs: a carry longer than the headroom grows its window to
+  at least twice the carry, so a value longer than a window is rescanned only a logarithmic
+  number of times; a canonical mismatch no longer stops decoding, so an undecodable element
+  refuses with the same text as the in-memory decoder whatever the batch order; a refusal drains
+  the rest of the input (still bounded at 128 MiB) so a later read error is reported instead;
+  and decode-time claim terms are kept only for an indexed read and voided if the claims slice
+  is replaced.
 - `DCP-V1-432`: the delta current side and the joined `--corpus` read take the verified read.
   Delta gains `--verify-rederive` and names its verified current side in a limitation. Flow docs
   generate, flow coverage, the indexed companion build, republish and carry-forward keep

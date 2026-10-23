@@ -37,7 +37,10 @@ func buildQueryIndexFast(parent context.Context, a *Artifact) (x *QueryIndex, ok
 	}
 	terms := make([]map[string]bool, len(a.Subjects))
 	pre := a.claimTerms
-	a.claimTerms = nil
+	if len(a.claimTermsOf) != len(a.Claims) || len(a.Claims) > 0 && &a.claimTermsOf[0] != &a.Claims[0] {
+		pre = nil
+	}
+	a.claimTerms, a.claimTermsOf = nil, nil
 	var wg sync.WaitGroup
 	for _, derive := range []func() bool{
 		func() bool { return indexRecordsFast(a, x, stored) },

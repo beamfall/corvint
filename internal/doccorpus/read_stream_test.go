@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"testing/iotest"
@@ -51,6 +52,8 @@ func streamCases(t *testing.T, data []byte) map[string][]byte {
 		"stray comma":                 replace(`"claims":[`, `"claims":[,`),
 		"empty":                       {},
 		"truncated":                   data[:len(data)/2],
+		"mismatch then undecodable":   bytes.Replace(replace(`"start_line":1`, `"start_line":1.0`), []byte(`"end_line":`), []byte(`"end_line":"x",`), 1),
+		"tail past the held bytes":    append(bytes.Clone(data[:len(data)-2]), append(bytes.Repeat([]byte(" "), 5000), "}\n"...)...),
 	}
 }
 
@@ -88,19 +91,41 @@ func TestDCPV1431StreamedDecodeMatchesInMemory(t *testing.T) {
 			if header == nil || header.Schema != want.Schema || header.Manifest.Repository != want.Manifest.Repository || header.Claims != nil {
 				t.Fatalf("window %d room %d: header members %+v", window, headroom, header)
 			}
-			if window > 7 && window < 1<<20 {
-				for name, bad := range cases {
-					_, closed := ParseArtifact(bad)
-					decoded, tail, err := decodeArtifactBlocks(bytes.NewReader(bad), window, headroom, nil, nil, nil)
-					if err == nil {
-						err = tail.verify(decoded)
-					}
-					if err == nil || closed == nil {
-						t.Errorf("window %d room %d %s: streamed=%v closed=%v; both must refuse", window, headroom, name, err, closed)
-					}
+			for name, bad := range cases {
+				_, closed := ParseArtifact(bad)
+				decoded, err := decodeArtifactParallel(bad, nil)
+				if err == nil {
+					err = hashArtifactTail(bad).verify(decoded)
+				}
+				decoded, tail, streamed := decodeArtifactBlocks(bytes.NewReader(bad), window, headroom, nil, nil, nil)
+				if streamed == nil {
+					streamed = tail.verify(decoded)
+				}
+				if streamed == nil || closed == nil || err == nil || streamed.Error() != err.Error() {
+					t.Errorf("window %d room %d %s: streamed=%v in memory=%v closed=%v; all must refuse, the two decoders alike", window, headroom, name, streamed, err, closed)
 				}
 			}
 		}
+	}
+}
+
+// TestDCPV1431StreamedLongValue: a value much longer than a window (one claim of 3 MiB) decodes
+// as in memory; the window grows geometrically while the value is scanned.
+func TestDCPV1431StreamedLongValue(t *testing.T) {
+	t.Parallel()
+	_, a, _ := builtFixture(t)
+	data := rehashed(t, a, func(c *Artifact) {
+		c.Claims = append([]Claim{}, c.Claims...)
+		c.Claims[0].Text = strings.Repeat("long paragraph text ", 3<<20/20)
+	})
+	want, err := decodeArtifactParallel(data, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stats blockStats
+	got, _, err := decodeArtifactBlocks(bytes.NewReader(data), 4096, 1024, nil, nil, &stats)
+	if err != nil || !reflect.DeepEqual(got, want) {
+		t.Fatalf("streamed long value differs: %v", err)
 	}
 }
 
@@ -172,10 +197,27 @@ func TestDCPV1431OpenReadFile(t *testing.T) {
 		}
 	}
 	broken := errors.New("disk gone")
-	reader := io.MultiReader(bytes.NewReader(data[:len(data)/3]), iotest.ErrReader(broken))
-	if _, _, err := decodeArtifactBlocks(reader, 512, 64, nil, nil, nil); !errors.Is(err, broken) {
-		t.Fatalf("read error reported as %v", err)
+	for name, prefix := range map[string][]byte{"valid prefix": data[:len(data)/3], "refused prefix": append([]byte(`{"extra":1,`), data[1:len(data)/3]...)} {
+		reader := io.MultiReader(bytes.NewReader(prefix), iotest.ErrReader(broken))
+		if _, _, err := decodeArtifactBlocks(reader, 512, 64, nil, nil, nil); !errors.Is(err, broken) {
+			t.Fatalf("%s: read error reported as %v", name, err)
+		}
 	}
+	// Bytes past the 128 MiB bound during the read refuse with the bound, whatever they are.
+	endless := io.MultiReader(strings.NewReader("{"), spaces{})
+	if _, _, err := decodeArtifactBlocks(endless, 1<<20, 64, nil, nil, nil); err == nil || err.Error() != fail("input bound exceeded").Error() {
+		t.Fatalf("over-bound stream: %v", err)
+	}
+}
+
+// spaces is an endless reader of spaces.
+type spaces struct{}
+
+func (spaces) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = ' '
+	}
+	return len(p), nil
 }
 
 // TestDCPV1434DecodeTimeClaimTermsMatchIndex: claim terms derived on the decode workers while a
@@ -221,7 +263,7 @@ func TestDCPV1434DecodeTimeClaimTermsMatchIndex(t *testing.T) {
 				t.Fatalf("%s window %d: blocks do not cover the claims", name, window)
 			}
 			for _, pre := range [][]*claimTermBlock{blocks, blocks[min(1, len(blocks)):]} {
-				decoded.claimTerms = pre
+				decoded.claimTerms, decoded.claimTermsOf = pre, decoded.Claims
 				index, err := BuildQueryIndex(ctx, decoded)
 				if err != nil || !reflect.DeepEqual(index, reference) || decoded.claimTerms != nil {
 					t.Fatalf("%s window %d (%d blocks): index from decode-time terms differs: %v", name, window, len(pre), err)

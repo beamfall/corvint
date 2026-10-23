@@ -263,7 +263,9 @@ type Artifact struct {
 	deltaUnverified []string
 	// claimTerms is the claim-term derivation a read made while decoding, for the next query
 	// index derivation to take instead of tokenizing again (DCP-V1-434); never serialized.
-	claimTerms []*claimTermBlock
+	// claimTermsOf is the claims slice it was derived from: a replaced slice voids it.
+	claimTerms   []*claimTermBlock
+	claimTermsOf []Claim
 }
 type Request struct {
 	Retirement *RetirementPolicy `json:"retirement,omitempty"`
