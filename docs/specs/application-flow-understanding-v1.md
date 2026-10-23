@@ -177,7 +177,7 @@ This subsection fixes the S1 wire and argv shapes. It adds no requirement and no
   otherwise, including a link that was `inferred` at the anchor). Target comparison is by content
   identity, so a target changed and then restored (A to B to A) is unchanged. An `evidence` target is `evidence-unavailable`, never `reviewed`, until S2 supplies a
   run-evidence store that shows it exists at the evaluated revision.
-- `corvint [--root PATH] flows import --flows DIR --from FILE --format behavior-adapter-request|openapi|playwright-list`
+- `corvint [--root PATH] flows import --flows DIR --from FILE --format behavior-adapter-request|extractor-inventory|openapi|playwright-list`
   is all-or-nothing. It refuses the whole set before writing when any ID exists (a `.json` name in any
   letter case counts), is retired or repeats, or when existing plus imported flows exceed the flow
   bound. It creates each file with `O_EXCL`; when a write fails it removes the files it created,
@@ -1436,3 +1436,32 @@ shifted relation; an over-bound input is refused before decode. Rollback: revert
 `internal/appflows/coverage_ingest.go`, `cmd/corvint/flows_ingest_coverage.go`, the
 `ingest-coverage` entry and help block in `cmd/corvint/flows.go` and `LineIndex.Bytes`; no stored
 state depends on the report.
+
+## Extractor inventory flow import (issue 1583)
+
+Human-owned intent: an adopter who ran a repository-declared extractor profile
+(`DCP-V1-390..399`) can seed proposed flow intents from its endpoints and UI surfaces instead of
+typing them, while every imported flow stays `proposed` with `inferred` links until review.
+Requirements accepted under the owner's standing auto-accept (2026-10-11).
+
+- **AFU-V1-122**: `flows import --format extractor-inventory` accepts only a
+  `corvint-extractor-inventory/1` document, bounded and secret-screened like the other import
+  sources; another schema is refused naming the accepted one, and the `--format` refusal lists
+  every format. The import keeps AFU-V1-004's all-or-nothing write rules
+  (`TestAFUV1122ImportExtractorInventoryRefusals`).
+- **AFU-V1-123**: It writes one proposed `api` flow per `endpoint` subject (identity from the
+  `METHOD path` name, one `call` step and variation) and one proposed `ui` flow per `ui_surface`
+  subject (identity `ui-` plus the path, one `visit` step and variation). Job, event, data-entity,
+  symbol and interaction subjects, relations and the inventory's gaps are not flows and are not
+  imported (`TestAFUV1122ImportExtractorInventory`).
+- **AFU-V1-124**: Each imported flow carries one `inferred` source link per subject anchor, with
+  the anchor's path and exact line span; a flow subject without an anchor or a derivable identity
+  refuses the whole import (`TestAFUV1122ImportExtractorInventory`,
+  `TestAFUV1122ImportExtractorInventoryRefusals`).
+
+Non-goals: no outcomes, actors, preconditions or test links are invented from an extracted route,
+and the import does not re-verify the inventory against Git; `flows check` and review do.
+Failure modes: two subjects whose names normalize to one flow ID refuse the import as a repeated ID;
+an inventory with no endpoint or UI subject imports nothing. Rollback: revert this section, the
+`extractor-inventory` importer in `internal/appflows/import.go` and its help text; the other
+formats are unchanged.

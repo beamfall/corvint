@@ -29,6 +29,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"witness-playwright":  {required: []string{"--input", "--receipt-input", "--report"}},
 	"discover-legacy":     {required: []string{"--runner", "--revision", "--path"}, optional: []string{"--input"}},
 	"discover-tests":      {required: []string{"--runner", "--revision", "--path"}},
+	"extract":             {required: []string{"--profile", "--revision"}}, // DCP-V1-399
 	"import-cases":        {required: []string{"--format", "--input"}, optional: []string{"--content"}},
 	"search-cases":        {required: []string{"--format", "--input"}, optional: []string{"--query", "--id", "--match", "--limit"}},
 	"eval":                {required: []string{"--artifact", "--cases"}, optional: []string{"--baseline", "--format"}},
@@ -60,7 +61,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 
 var corpusAllFlags = []string{"--revision", "--scope", "--timestamp", "--manifest", "--artifact", "--page", "--apply",
 	"--cem", "--id", "--input", "--previous", "--check", "--migration", "--config", "--playwright-list", "--receipt",
-	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match", "--schema", "--section", "--include", "--cases", "--baseline", "--seed", "--size", "--stratify", "--sample", "--repository", "--kind", "--caller-revision"}
+	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match", "--schema", "--section", "--include", "--cases", "--baseline", "--seed", "--size", "--stratify", "--sample", "--repository", "--kind", "--caller-revision", "--profile"}
 
 func corpusFlagArgs(op, flag string) []string {
 	switch flag {
@@ -143,7 +144,7 @@ func TestDocsCorpusOperationFlagMatrix(t *testing.T) {
 			}
 			// An inapplicable option is refused before the missing required one.
 			stray := "--revision"
-			if op == "manifest" || op == "discover-legacy" || op == "discover-tests" {
+			if op == "manifest" || op == "discover-legacy" || op == "discover-tests" || op == "extract" {
 				stray = "--artifact"
 			}
 			if got := corpusParseError(append(args, corpusFlagArgs(op, stray)...)); got != "option does not apply to corpus operation" {
