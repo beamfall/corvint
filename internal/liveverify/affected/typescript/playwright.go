@@ -294,13 +294,18 @@ func classifyPlaywrightFrontier(frontier []string, sites frontierSet) (selection
 const playwrightFrontierSiteBound = 8
 
 // frontierDetail names the sorted sites that raised one shared TypeScript graph frontier reason,
-// `path:line` or `path`, at most playwrightFrontierSiteBound of them (TJAA-V0-040).
-func frontierDetail(sites map[string]bool) string {
+// `path:line` or `path`, each followed by its backquoted token when one is known, at most
+// playwrightFrontierSiteBound of them (TJAA-V0-040, TJAA-V0-052).
+func frontierDetail(sites map[string]string) string {
 	ordered := sortedKeys(sites)
 	if len(ordered) == 0 {
 		return "shared TypeScript graph frontier"
 	}
-	detail := "shared TypeScript graph frontier at " + strings.Join(ordered[:min(len(ordered), playwrightFrontierSiteBound)], ", ")
+	named := make([]string, 0, min(len(ordered), playwrightFrontierSiteBound))
+	for _, site := range ordered[:min(len(ordered), playwrightFrontierSiteBound)] {
+		named = append(named, siteWithToken(site, sites[site]))
+	}
+	detail := "shared TypeScript graph frontier at " + strings.Join(named, ", ")
 	if extra := len(ordered) - playwrightFrontierSiteBound; extra > 0 {
 		detail += " and " + strconv.Itoa(extra) + " more"
 	}

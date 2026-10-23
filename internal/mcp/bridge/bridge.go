@@ -415,6 +415,7 @@ func (registry *Registry) allTools() []ToolDescriptor {
 				"limit": map[string]any{"type": "integer", "minimum": 1, "maximum": maxContextLimit, "default": defaultContextLimit},
 			}, []any{"task"}),
 		},
+		helpDescriptor(),
 		{
 			Name:        ToolImpact,
 			Description: "Compile revision-bound impact evidence without source bodies. Capabilities: Go (.go): path, package imports; Ruby (.rb): path, markers, advisory autoload constant references, reverse imports unknown; JavaScript (.js/.jsx/.mjs/.cjs) and TypeScript (.ts/.tsx): path, literal relative/profile/tsconfig-alias imports, unresolved bare imports unknown. Non-Go paths name experimental non-go-syntax-v0. Dynamic dispatch and test closure remain unknown. CLI --base also admits these languages; MCP accepts paths only.",
@@ -463,6 +464,9 @@ func (registry *Registry) Call(ctx context.Context, name string, arguments []byt
 	}
 	if !registry.advertises(name) {
 		return Result{}, failure("unsupported-tool")
+	}
+	if name == ToolHelp {
+		return callHelp(ctx, arguments) // MCPV0-100: binary-only, no root identity check.
 	}
 	ctx = gitstatus.WithIsolation(ctx)
 	var result Result
@@ -1017,8 +1021,11 @@ func validResult(result Result) bool {
 		!knownTool(result.Tool) ||
 		(result.State != "READY" && result.State != "ABSTAINED") ||
 		(result.EpistemicClass != "OBSERVED" && result.EpistemicClass != "NOT_OBSERVED") ||
-		(result.AuthorityClass != "REPOSITORY_EVIDENCE" && result.AuthorityClass != "GIT_REPOSITORY" && result.AuthorityClass != "NONE") {
+		(result.AuthorityClass != "REPOSITORY_EVIDENCE" && result.AuthorityClass != "GIT_REPOSITORY" && result.AuthorityClass != "NONE" && result.AuthorityClass != "CORVINT_BINARY") {
 		return false
+	}
+	if (result.State == "READY" && result.Tool == ToolHelp) || result.AuthorityClass == "CORVINT_BINARY" {
+		return validHelpResult(result)
 	}
 	if result.State == "READY" {
 		if !validBinding(result.Repository) || result.Abstention.Active || result.Abstention.Reason != "NONE" || result.EpistemicClass != "OBSERVED" {
@@ -1041,7 +1048,7 @@ func validResult(result Result) bool {
 
 func knownTool(tool string) bool {
 	switch tool {
-	case ToolQuery, ToolImpact, ToolStatus, ToolContext, ToolCEMReport:
+	case ToolQuery, ToolImpact, ToolStatus, ToolContext, ToolCEMReport, ToolHelp:
 		return true
 	}
 	return flowsTools[tool]

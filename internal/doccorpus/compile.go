@@ -245,6 +245,9 @@ func build(ctx context.Context, root string, m Manifest, reuse *incrementalBuild
 	if err := c.joinClaimAudits(c.claimAudits); err != nil {
 		return nil, err
 	}
+	if err := c.checkClaimMentions(); err != nil {
+		return nil, err
+	}
 	if err := validateAlternateIDsAfterJoins(c.artifact); err != nil {
 		return nil, err
 	}

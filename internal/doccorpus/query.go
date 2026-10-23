@@ -602,6 +602,7 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	}
 	attachClaimAudits(a, &r)
 	annotateVisibleResults(a, request, &r)
+	attachClaimMentions(a, &r)
 	// Citations are deduplicated and independently bounded; truncation is visible.
 	sort.Slice(r.Citations, func(i, j int) bool { return anchorKey(r.Citations[i]) < anchorKey(r.Citations[j]) })
 	citations := []Anchor{}
@@ -967,6 +968,7 @@ func coverageMetrics(a *Artifact) []any {
 	rows = append(rows, suppliedStatusCoverage(a)...)
 	rows = append(rows, suppliedDetailCoverage(a)...)
 	rows = append(rows, testKnowledgeCoverage(a)...)
+	rows = append(rows, claimMentionCoverage(a)...)
 	return append(rows, behaviorCoverage(a)...)
 }
 

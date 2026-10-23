@@ -319,7 +319,7 @@ func (scope playwrightPureScope) memberRead(root string, keys []string) (admitte
 	case "devices":
 		return scope.devices && playwrightDeviceRead(keys), false
 	case "process":
-		admitted = scope.env && playwrightEnvRead(keys)
+		admitted = scope.env && (playwrightEnvRead(keys) || playwrightProcessScalarRead(keys))
 		return admitted, admitted
 	}
 	literal, ok := scope.literals[root]
@@ -332,6 +332,16 @@ func playwrightEnvRead(keys []string) bool {
 	return len(keys) == 2 && keys[0] == "env" && keys[1] != "" && !strings.HasPrefix(keys[1], "__") && !slices.Contains(playwrightObjectPrototypeKeys, keys[1])
 }
 
+// playwrightProcessScalars are the process properties Node defines as primitive data that a read
+// cannot turn into a write of process.env: the process and parent ids, the platform and the CPU
+// architecture (TJAA-V0-049).
+var playwrightProcessScalars = []string{"pid", "ppid", "platform", "arch"}
+
+// playwrightProcessScalarRead admits exactly one playwrightProcessScalars key.
+func playwrightProcessScalarRead(keys []string) bool {
+	return len(keys) == 1 && slices.Contains(playwrightProcessScalars, keys[0])
+}
+
 // playwrightEnvBlock checks that every occurrence of `process` is a read-only `process.env.NAME`
 // chain or the target of a top-level `process.env.NAME =`, `??=`, `||=` or `&&=` statement
 // (TJAA-V0-042). It returns the written names and the offset of the first other occurrence, or -1.
@@ -342,6 +352,9 @@ func playwrightEnvBlock(raw string, lexed playwrightLexed) (map[string]bool, int
 			return written, at
 		}
 		keys, end, ok := playwrightMemberChain(raw, at+len("process"))
+		if ok && playwrightProcessScalarRead(keys) && playwrightReadContext(raw, lexed, at, end) {
+			continue
+		}
 		if !ok || !playwrightEnvRead(keys) {
 			return written, at
 		}
@@ -583,11 +596,52 @@ func playwrightReadContext(raw string, lexed playwrightLexed, start, end int) bo
 		if strings.IndexByte("([{", raw[group]) < 0 {
 			continue
 		}
+		if !playwrightGroupRead(raw, group, lexed.closes[group]) {
+			return false
+		}
 		next := skipPlaywrightSpace(raw, lexed.closes[group]+1)
 		if next < len(raw) && (raw[next] >= utf8.RuneSelf || playwrightAssignmentNext(raw[next:])) {
 			return false
 		}
 		if word, _ := playwrightIdentifier(raw, next); word == "of" || word == "in" {
+			return false
+		}
+	}
+	return true
+}
+
+// playwrightGroupRead reports whether the bracket group raw[open:close+1] that encloses a read is
+// itself only read: it is not constructed, deleted or updated, the code after it does not call,
+// optionally call, tag or update it, and a member chain after it is not an assignment or update
+// target (TJAA-V0-049). A member chain that does not parse refuses.
+func playwrightGroupRead(raw string, open, close int) bool {
+	if previous := playwrightPreviousCode(raw, open); previous >= 0 {
+		from := previous
+		for from >= 0 && raw[from] < utf8.RuneSelf && isIdentifier(raw[from]) {
+			from--
+		}
+		if word := raw[from+1 : previous+1]; word == "new" || word == "delete" {
+			return false
+		}
+		if previous > 0 && (raw[previous-1:previous+1] == "++" || raw[previous-1:previous+1] == "--") {
+			return false
+		}
+	}
+	next := skipPlaywrightSpace(raw, close+1)
+	if next == len(raw) {
+		return true
+	}
+	rest := raw[next:]
+	if rest[0] == '(' || rest[0] == '`' || strings.HasPrefix(rest, "++") || strings.HasPrefix(rest, "--") {
+		return false
+	}
+	if rest[0] == '[' || rest[0] == '.' || strings.HasPrefix(rest, "?.") && !(len(rest) > 2 && rest[2] >= '0' && rest[2] <= '9') {
+		keys, end, ok := playwrightMemberChain(raw, next)
+		if !ok || len(keys) == 0 {
+			return false
+		}
+		after := raw[skipPlaywrightSpace(raw, end):]
+		if playwrightAssignmentNext(after) || strings.HasPrefix(after, "++") || strings.HasPrefix(after, "--") {
 			return false
 		}
 	}

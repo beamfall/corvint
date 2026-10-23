@@ -18,7 +18,7 @@ GO_TEST_TIMEOUT ?= 30m
 GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)
 GO_TEST_COMMAND = GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) -count=1
 
-.PHONY: build gate instruction-conflicts gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet windows-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-resolve spec-requirements-check spec-requirements-test spec-acceptance-audit requirement-definitions-check requirement-definitions-test traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test analyzer-schema-check analyzer-schema-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check capabilities-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-finish dogfood-batch-check dogfood-bind-range dogfood-bind-range-test lane-scripts-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test host-package-versions-check host-package-versions-test host-package-version-bump host-package-version-verify diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test goos-filenames-check goos-filenames-test go-cache-trim go-cache-trim-test scratch-sweep scratch-sweep-test pre-push-windows-vet-test cem-stable-regen cem-stable-regen-capture cem-stable-regen-replace cem-stable-regen-check spec-toolchain-conformance spec-toolchain-latest-test
+.PHONY: build gate capability-catalog capability-catalog-check instruction-conflicts gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet windows-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-resolve spec-requirements-check spec-requirements-test spec-acceptance-audit requirement-definitions-check requirement-definitions-test traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test analyzer-schema-check analyzer-schema-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check capabilities-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-finish dogfood-batch-check dogfood-bind-range dogfood-bind-range-test lane-scripts-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test host-package-versions-check host-package-versions-test host-package-version-bump host-package-version-verify diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test goos-filenames-check goos-filenames-test go-cache-trim go-cache-trim-test scratch-sweep scratch-sweep-test pre-push-windows-vet-test cem-stable-regen cem-stable-regen-capture cem-stable-regen-replace cem-stable-regen-check spec-toolchain-conformance spec-toolchain-latest-test
 
 build: go-version
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_BIN) ./cmd/corvint
@@ -348,6 +348,15 @@ test-commands-check:
 capabilities-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/capabilities-check
 
+# capability-catalog regenerates internal/capcatalog/catalog.json from the binary's own
+# `corvint help --json`; capability-catalog-check fails when that snapshot or the shipped agent
+# guide drifts from the command registry (CAP-V0-019, docs/specs/capability-catalog-v0.md).
+capability-catalog:
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint help --json > internal/capcatalog/catalog.json
+
+capability-catalog-check:
+	$(GO_TEST_COMMAND) -run '^TestCAPV0(015|016|017|018|019|020|021)' ./cmd/corvint ./internal/capcatalog
+
 # host-package-versions-check fails when a host package manifest's version field (AHI-020,
 # docs/specs/agent-harness-integration-v0.md) was last bumped in a commit older than the last
 # commit that changed any other shipped file in that package.
@@ -585,3 +594,16 @@ WINDOWS_VET_ENV = GOCACHE=$(CORVINT_GOCACHE) GOENV=off GOTOOLCHAIN=local GOWORK=
 windows-vet: go-version
 	$(WINDOWS_VET_ENV) go vet ./...
 	cd interop/cem01-go && $(WINDOWS_VET_ENV) go vet ./...
+
+# Read-latency and memory budgets over a generated realistic-size fixture (PRB-V0-029,
+# docs/specs/performance-profiling-and-read-budget-v0.md). It builds corvint and
+# corvint-corpus-mcp, generates the fixture in a temporary directory (minutes, several GiB of
+# memory) and measures six scenarios. The harness exits 1 when an enforced ceiling is exceeded or
+# unknown and 2 when it cannot run; it is run as a built binary, not `go run`, so make's
+# "Error 1" or "Error 2" line keeps the two apart. The #1598 and #1601 targets report as pending. PERF_BUDGET_ARGS passes options, for example
+# --fixture DIR to reuse a fixture or --scale smoke.
+.PHONY: perf-budget
+perf-budget: go-version
+	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT INT TERM; \
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -o "$$tmp/perf-budget" ./internal/perfbudget/cmd/perf-budget && \
+	"$$tmp/perf-budget" $(PERF_BUDGET_ARGS)

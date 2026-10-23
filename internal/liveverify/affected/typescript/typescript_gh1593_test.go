@@ -94,7 +94,7 @@ func TestAmbiguousSlashIsScanUnresolved_GH1593(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertFrontier(t, result, FrontierScanUnresolved)
-	if slices.Contains(result.Frontier, FrontierDynamicImport) || !sites[FrontierScanUnresolved]["src/a.ts:3"] {
+	if slices.Contains(result.Frontier, FrontierDynamicImport) || !sites.has(FrontierScanUnresolved, "src/a.ts:3") {
 		t.Fatalf("frontier=%v sites=%v", result.Frontier, sites)
 	}
 }
@@ -109,7 +109,7 @@ func TestPlaywrightRegexReplaceKeepsSelectionAndNamesFrontierSites_GH1593(t *tes
 		if err != nil {
 			t.Fatal(err)
 		}
-		if slices.Contains(result.Frontier, FrontierDynamicImport) || slices.Contains(result.Frontier, FrontierScanUnresolved) {
+		if frontierHas(result, FrontierDynamicImport) || frontierHas(result, FrontierScanUnresolved) {
 			t.Fatalf("%s: frontier=%v", line, result.Frontier)
 		}
 	}
@@ -122,7 +122,7 @@ func TestPlaywrightRegexReplaceKeepsSelectionAndNamesFrontierSites_GH1593(t *tes
 	found := false
 	for _, unknown := range plan.Unknown {
 		if unknown.Reason == FrontierDynamicImport {
-			found = unknown.Detail == "shared TypeScript graph frontier at tests/login.spec.ts:3"
+			found = unknown.Detail == "shared TypeScript graph frontier at tests/login.spec.ts:3 `import`"
 		}
 	}
 	if !found {
@@ -151,11 +151,11 @@ func TestFrontierSitesNameEveryReason_GH1593(t *testing.T) {
 		FrontierUnparsedSource:   "src/b.ts:2",
 	}
 	for reason, site := range want {
-		if !slices.Contains(result.Frontier, reason) || !sites[reason][site] {
+		if !slices.Contains(result.Frontier, reason) || !sites.has(reason, site) {
 			t.Fatalf("%s: want site %s, frontier=%v sites=%v", reason, site, result.Frontier, sites)
 		}
 	}
-	if !sites[FrontierUnparsedSource]["src/c.mts"] {
+	if !sites.has(FrontierUnparsedSource, "src/c.mts") {
 		t.Fatalf("an unread module is named by path: %v", sites[FrontierUnparsedSource])
 	}
 	for _, reason := range result.Frontier {
@@ -163,9 +163,9 @@ func TestFrontierSitesNameEveryReason_GH1593(t *testing.T) {
 			t.Fatalf("%s has no site: %v", reason, sites)
 		}
 	}
-	many := map[string]bool{}
+	many := map[string]string{}
 	for index := range 10 {
-		many["src/f"+string(rune('a'+index))+".ts:1"] = true
+		many["src/f"+string(rune('a'+index))+".ts:1"] = ""
 	}
 	if detail := frontierDetail(many); !strings.HasSuffix(detail, " and 2 more") || strings.Count(detail, ".ts:1") != playwrightFrontierSiteBound {
 		t.Fatalf("unbounded detail: %s", detail)
