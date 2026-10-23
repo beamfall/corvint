@@ -17,7 +17,9 @@ import (
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/mcp/server"
+	"github.com/Beamfall/corvint/internal/procprofile"
 	"github.com/Beamfall/corvint/internal/repoenvelope"
+	"github.com/Beamfall/corvint/internal/runtimeenv"
 )
 
 const (
@@ -33,7 +35,15 @@ const (
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), terminationSignals()...)
 	defer cancel()
-	os.Exit(run(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
+	os.Exit(runProfiled(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr, os.LookupEnv))
+}
+
+// runProfiled is run under the CORVINT_CPUPROFILE and CORVINT_MEMPROFILE bracket (PRB-V0-010):
+// one profile per server process, written when the server exits and on SIGINT or SIGTERM.
+func runProfiled(ctx context.Context, arguments []string, stdin io.Reader, stdout, stderr io.Writer, lookup runtimeenv.Lookup) int {
+	return procprofile.Run(ctx, lookup, procprofile.Reporter(stderr, "corvint-corpus-mcp"), func() int {
+		return run(ctx, arguments, stdin, stdout, stderr)
+	})
 }
 
 func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {

@@ -3837,6 +3837,35 @@ OCL-V0-005	docs/specs/outcome-calibration-v0.md	Where records carry a relevance 
 OCL-V0-006	docs/specs/outcome-calibration-v0.md	When a proposal is emitted it MUST report the decile edge that would have	unrecorded	-
 OCL-V0-007	docs/specs/outcome-calibration-v0.md	A joined sample smaller than 20 rows MUST set `insufficient_sample: true` and	unrecorded	-
 OCL-V0-008	docs/specs/outcome-calibration-v0.md	Output MUST be deterministic for a fixed store and invocation in both formats:	unrecorded	-
+PRB-V0-001	docs/specs/performance-profiling-and-read-budget-v0.md	The `corvint` binary MUST apply one profile bracket at its entry point, around t	unrecorded	-
+PRB-V0-002	docs/specs/performance-profiling-and-read-budget-v0.md	Both knobs MUST be off when unset or empty and MUST be read only through	unrecorded	-
+PRB-V0-003	docs/specs/performance-profiling-and-read-budget-v0.md	`CORVINT_MEMPROFILE` MUST write a pprof heap profile (after a collection) at the	unrecorded	-
+PRB-V0-004	docs/specs/performance-profiling-and-read-budget-v0.md	The profiles MUST be written when the process body returns and as soon as the	unrecorded	-
+PRB-V0-005	docs/specs/performance-profiling-and-read-budget-v0.md	The token `{pid}` in either path MUST be replaced by the process ID, so a child	unrecorded	-
+PRB-V0-006	docs/specs/performance-profiling-and-read-budget-v0.md	A knob that cannot be honoured MUST refuse before the command runs, with status	unrecorded	-
+PRB-V0-007	docs/specs/performance-profiling-and-read-budget-v0.md	A profile write that fails at exit MUST be reported (`profile-write-failed`) and	unrecorded	-
+PRB-V0-008	docs/specs/performance-profiling-and-read-budget-v0.md	Setting the knobs MUST NOT change any stdout byte or exit status of a command.	unrecorded	-
+PRB-V0-009	docs/specs/performance-profiling-and-read-budget-v0.md	`corvint help --json` MUST carry a `profiling` member (`corvint-profile-knobs/0`	unrecorded	-
+PRB-V0-010	docs/specs/performance-profiling-and-read-budget-v0.md	Every MCP server binary (`corvint-mcp`, `corvint-corpus-mcp`, `corvint-docs-mcp`	unrecorded	-
+PRB-V0-011	docs/specs/performance-profiling-and-read-budget-v0.md	`CRB-V0-018`'s exact runtime-settings list MUST name `CORVINT_CPUPROFILE` and	unrecorded	-
+PRB-V0-012	docs/specs/performance-profiling-and-read-budget-v0.md	The internal child workers that `corvint` starts before the bracket (the dogfood	unrecorded	-
+PRB-V0-020	docs/specs/performance-profiling-and-read-budget-v0.md	A generator MUST produce the budget fixture at run time, never committed: a prim	unrecorded	-
+PRB-V0-021	docs/specs/performance-profiling-and-read-budget-v0.md	The full scale MUST hold 10,000 corpus inputs (7,000 primary Markdown pages and	unrecorded	-
+PRB-V0-022	docs/specs/performance-profiling-and-read-budget-v0.md	The current artifact MUST declare the three additional repositories	unrecorded	-
+PRB-V0-023	docs/specs/performance-profiling-and-read-budget-v0.md	An invalid scale or a non-empty fixture directory MUST be refused before anythin	unrecorded	-
+PRB-V0-024	docs/specs/performance-profiling-and-read-budget-v0.md	The harness MUST measure six scenarios: `cli-cold-read` (`docs corpus search` wi	unrecorded	-
+PRB-V0-025	docs/specs/performance-profiling-and-read-budget-v0.md	The measured `corvint` binary MUST build the artifacts it reads, because a read	unrecorded	-
+PRB-V0-026	docs/specs/performance-profiling-and-read-budget-v0.md	Each scenario MUST report every sample's wall time, nearest-rank p50 and p95, an	unrecorded	-
+PRB-V0-027	docs/specs/performance-profiling-and-read-budget-v0.md	Peak resident set MUST come from the exited process's own resource usage (bytes	unrecorded	-
+PRB-V0-028	docs/specs/performance-profiling-and-read-budget-v0.md	Every report and baseline MUST carry the host-contention record (GitHub #1406):	unrecorded	-
+PRB-V0-029	docs/specs/performance-profiling-and-read-budget-v0.md	`make perf-budget` MUST build both binaries from the tree, run the harness, prin	unrecorded	-
+PRB-V0-030	docs/specs/performance-profiling-and-read-budget-v0.md	The committed budgets file (`internal/perfbudget/budgets.json`,	unrecorded	-
+PRB-V0-031	docs/specs/performance-profiling-and-read-budget-v0.md	The budgets MUST encode the GitHub #1598 targets (cold CLI read p95 under 1,000	unrecorded	-
+PRB-V0-032	docs/specs/performance-profiling-and-read-budget-v0.md	Every scenario MUST carry enforced regression ceilings on p95 wall time and peak	unrecorded	-
+PRB-V0-033	docs/specs/performance-profiling-and-read-budget-v0.md	The budgets file MUST carry the baseline the ceilings derive from: the measured	unrecorded	-
+PRB-V0-034	docs/specs/performance-profiling-and-read-budget-v0.md	A pending target MUST be reported (`pending-pass`, `pending-exceeded` or	unrecorded	-
+PRB-V0-035	docs/specs/performance-profiling-and-read-budget-v0.md	An enforced limit whose metric was not observed, or whose scenario failed or was	unrecorded	-
+PRB-V0-036	docs/specs/performance-profiling-and-read-budget-v0.md	Measured processes MUST NOT inherit any `CORVINT_` setting, the profile knobs	unrecorded	-
 PWV-V0-001	docs/specs/pi-workflow-v0.md	Pi MUST preserve original native Core receipt objects, output and exit status, i	unrecorded	-
 PWV-V0-002	docs/specs/pi-workflow-v0.md	Core read tools MUST use closed operation and argument sets for query, context,	unrecorded	-
 PWV-V0-003	docs/specs/pi-workflow-v0.md	Each command MUST use bounded argv-only local execution, one owned POSIX process	unrecorded	-
