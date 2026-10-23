@@ -3470,13 +3470,13 @@ func openStableArtifact(root, path string) (*os.File, error) {
 	if !filepath.IsAbs(root) || !candidatePath(path) || path == sidecar03 {
 		return nil, errNotRegular
 	}
-	parent, e := os.OpenRoot("/")
+	parts := append(strings.Split(strings.TrimPrefix(filepath.Clean(root), "/"), "/"), strings.Split(path, "/")...)
+	parent, e := openStableTop(parts[0])
 	if e != nil {
 		return nil, e
 	}
-	parts := append(strings.Split(strings.TrimPrefix(filepath.Clean(root), "/"), "/"), strings.Split(path, "/")...)
 	for i, part := range parts {
-		if part == "" && i == 0 {
+		if i == 0 {
 			continue
 		}
 		if part == "" || part == "." || part == ".." {
@@ -3533,6 +3533,38 @@ func openStableArtifact(root, path string) (*os.File, error) {
 	parent.Close()
 	return nil, errNotRegular
 }
+// openStableTop opens the first component below / by its absolute path, with
+// the same Lstat, open and SameFile admission every later directory gets, so /
+// is opened for reading only when root is / itself: a sandbox such as Landlock
+// cannot grant that read (V1-2365, AFP-V0-361).
+func openStableTop(part string) (*os.Root, error) {
+	if part == "" {
+		return openStableRoot("/")
+	}
+	if part == "." || part == ".." {
+		return nil, errNotRegular
+	}
+	name := "/" + part
+	prior, e := os.Lstat(name)
+	if e != nil || prior.Mode()&os.ModeSymlink != 0 || !prior.IsDir() {
+		return nil, errNotRegular
+	}
+	top, e := openStableRoot(name)
+	if e != nil {
+		return nil, e
+	}
+	opened, e1 := top.Stat(".")
+	observed, e2 := os.Lstat(name)
+	if e1 != nil || e2 != nil || observed.Mode()&os.ModeSymlink != 0 || !observed.IsDir() || !os.SameFile(prior, opened) || !os.SameFile(prior, observed) {
+		top.Close()
+		return nil, errNotRegular
+	}
+	return top, nil
+}
+
+// openStableRoot is os.OpenRoot; a test observes the absolute names it opens.
+var openStableRoot = os.OpenRoot
+
 func readStableArtifact(ctx context.Context, root string, a stableArtifact) ([]byte, *cemError) {
 	if ctx.Err() != nil {
 		return nil, operational("verification-timeout")

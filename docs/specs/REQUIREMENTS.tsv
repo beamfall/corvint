@@ -92,7 +92,7 @@ AFP-V0-164	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-160	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-0923); no	standing	2026-10-11; V1-0923
 AFP-V0-161	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1766, V1-2069);	standing	2026-10-11; V1-1766; V1-2069
 AFP-V0-356	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2053))	standing	2026-10-11; V1-2053
-AFP-V0-361	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-0883, V1-2217,	standing	2026-10-11; V1-0883; V1-2217; V1-2069
+AFP-V0-361	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-0883, V1-2217,	standing	2026-10-11; V1-0883; V1-2217; V1-2069; V1-2365
 AFP-V0-156	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2162))	standing	2026-10-11; V1-2162
 AFP-V0-162	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2256, V1-2252))	standing	2026-10-11; V1-2256; V1-2252
 AFP-V0-196	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2071))	standing	2026-10-11; V1-2071
@@ -4132,6 +4132,8 @@ PGO-V0-018	docs/specs/process-group-owner-v0.md	(accepted under the owner's stan
 PGO-V0-019	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1387) The deve	standing	2026-10-11; V1-1387
 PGO-V0-020	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1651) The obse	standing	2026-10-11; V1-1651
 PGO-V0-021	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0692) The POSI	standing	2026-10-11; V1-0692
+PGO-V0-022	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2399) On Linux	standing	2026-10-11; V1-2399
+PGO-V0-023	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2388) `interna	standing	2026-10-11; V1-2388
 PCCO-V0-001	docs/specs/proof-carrying-context-optimization-v0.md	An optimization trial MUST begin from one canonical Corvint packet whose exact b	unrecorded	-
 PCCO-V0-002	docs/specs/proof-carrying-context-optimization-v0.md	V0 transformations are only whole-handle omission, exact duplicate elimination,	unrecorded	-
 PCCO-V0-003	docs/specs/proof-carrying-context-optimization-v0.md	Counterfactual search MUST run outside live agent sessions using bounded hierarc	unrecorded	-
@@ -4532,6 +4534,7 @@ SPC-V0-011	docs/specs/shared-path-change-policy-v0.md	(accepted under the owner'
 SPC-V0-012	docs/specs/shared-path-change-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1710) With	standing	2026-10-11; V1-1710
 SPC-V0-013	docs/specs/shared-path-change-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1723) Each	standing	2026-10-11; V1-1723
 SPC-V0-014	docs/specs/shared-path-change-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1723) The	standing	2026-10-11; V1-1723
+SPC-V0-015	docs/specs/shared-path-change-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1726) In a	standing	2026-10-11; V1-1726
 SKH-V0-001	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1897) Every	standing	2026-10-11; V1-1897
 SKH-V0-002	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1897) Missing,	standing	2026-10-11; V1-1897
 SKH-V0-003	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1897) Learned	standing	2026-10-11; V1-1897
@@ -4670,6 +4673,7 @@ SNR-V0-013	docs/specs/sql-native-ratchet-gate-v0.md	The gate MUST run `Benchmark
 SNR-V0-014	docs/specs/sql-native-ratchet-gate-v0.md	On completing every prior requirement without refusal, the gate MUST print exact	unrecorded	-
 SNR-V0-015	docs/specs/sql-native-ratchet-gate-v0.md	Every artifact the gate creates — the `SNR-V0-001` lock directory, the `git arch	unrecorded	-
 SNR-V0-030	docs/specs/sql-native-ratchet-gate-v0.md	(V1-2120) The admitted toolchain source is the Makefile `go-version` target	unrecorded	-
+SNR-V0-031	docs/specs/sql-native-ratchet-gate-v0.md	(V1-2249) The pin table MUST carry a row for the official Go toolchain module	unrecorded	-
 SOP-V0-001	docs/specs/stable-operations-v0.md	The install-lifecycle check MUST accept either one release archive whose single	unrecorded	-
 SOP-V0-002	docs/specs/stable-operations-v0.md	The check MUST create a committed fixture repository in its own temporary direct	unrecorded	-
 SOP-V0-003	docs/specs/stable-operations-v0.md	An upgrade MUST install into a second store beside the first and run `corvint	unrecorded	-

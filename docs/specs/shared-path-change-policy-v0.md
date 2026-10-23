@@ -3,13 +3,13 @@
 Owner: Russell Lewis
 Date: 2026-10-17
 Requirement prefix: `SPC-V0`
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1591); SPC-V0-013/014 accepted under the owner's standing auto-accept (2026-10-11; V1-1723)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1591); SPC-V0-013/014 accepted under the owner's standing auto-accept (2026-10-11; V1-1723); SPC-V0-015 accepted under the owner's standing auto-accept (2026-10-11; V1-1726)
 Delivery status: experimental
 Authoritative inputs: V1-1591 / GitHub #1034 owner request; `../../AGENTS.md` invariants 2, 4, 7 and 8; `../DOGFOOD.md`.
 
 ## Agent digest
 - Claim: Names unlabelled commits that change shared test infrastructure, splits them out, and reports the shared-path base commits a branch lacks.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1591); SPC-V0-013/014 accepted under the owner's standing auto-accept (2026-10-11; V1-1723)/experimental
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1591); SPC-V0-013/014 accepted under the owner's standing auto-accept (2026-10-11; V1-1723); SPC-V0-015 accepted under the owner's standing auto-accept (2026-10-11; V1-1726)/experimental
 - Exists: `internal/sharedpath` and the experimental `corvint changes check-shared`, `corvint changes split-shared` and `corvint changes behind` subcommands; `behind --format doctor-plugin` feeds the `corvint-tasks doctor --plugins` surface.
 - Blocked on: no repository ships a `.corvint/shared-paths.json` yet; the notes listing and the run citation stay manual follow-ups; live-session detection sees only configured markers and Git's own in-progress state; a built-in doctor or dispatch detector that discovers live ticket worktrees itself, and a claim-result notice, are not delivered (V1-1710 residual).
 - Read next: Requirements; Boundaries and failure modes; Traceability.
@@ -156,6 +156,25 @@ that names what is missing, plus a mechanical split that a user runs on a local 
   remote-tracking base whose last fetch is older than its reflog or `FETCH_HEAD` says, reported
   without that time, or any write by the observation. Rollback: drop `observeBase`,
   `baseObservationDetail` and the member.
+- `SPC-V0-015`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1726) In a
+  shallow repository (`git rev-parse --is-shallow-repository` is `true`), `check-shared` and
+  `behind` MUST, after resolving base and head and before listing any commit or running the dry
+  merge, refuse with `changes-shared-shallow-merge-base` when the merge base may lie beyond the
+  shallow boundary: `git merge-base --all` finds no merge base, or one of them is a commit the
+  repository's `shallow` file lists (a boundary commit, whose parents the clone lacks) other than
+  base or head themselves. A merge base that is base or head is exact even at the boundary,
+  because shallow ancestry is a subset of the full ancestry. Otherwise the reports are those of a
+  full clone; the dry merge's private repository reads the same `shallow` file through
+  `GIT_SHALLOW_FILE` (SPC-V0-003), without which `merge-tree` cannot walk a boundary commit and
+  refuses `changes-git-unavailable`. A full repository is unaffected. The check fetches nothing
+  and writes nothing. Failure modes: before this a merge base beyond the boundary refused as
+  `changes-shared-range-unavailable` (`behind`) or `changes-git-unavailable` (`check-shared`),
+  or, at a boundary merge base, returned a report computed from a merge base the clone could not
+  prove. Limit: a second merge base reachable only past the boundary, while every visible merge
+  base keeps its parents, is beyond what a shallow repository can show and is not detected.
+  Falsifier: a shallow clone whose merge base is beyond its boundary yielding a report, or one
+  whose merge base keeps its parents yielding a report different from a full clone's. Rollback:
+  drop `refuseShallowMergeBase`, its two calls and the code.
 
 ## Boundaries and failure modes
 
@@ -211,3 +230,4 @@ head back while the old commits are still reachable from the reflog. Removing th
 | SPC-V0-012 | `staleFinding`, `runChangesBehind` | `TestSPCV0012StaleFindingNamesTicketOldestCommitAndAge`, `TestSPCV0012ChangesBehindCLI` |
 | SPC-V0-013 | `arrivalCommits`, `arrivalTime`, `staleFinding` | `TestSPCV0013AgeIsArrivalOnBase` (a side-branch commit committed 60 days before the merge that brought it onto base is aged from the merge; fails when every commit arrives as itself) |
 | SPC-V0-014 | `observeBase`, `baseObservationDetail` | `TestSPCV0014BaseObservationRecordsRefAndLastObservedTime` (local branch reflog, remote-tracking reflog, a newer `FETCH_HEAD`, a commit-ID base and an expired reflog; fails when the observation is absent), `TestSPCV0009BehindIsReadOnly` |
+| SPC-V0-015 | `refuseShallowMergeBase`, `Check`, `Behind`, `privateMergeRepository` | `TestSPCV0015ShallowMergeBaseBeyondBoundaryRefuses` (no visible merge base and a boundary merge base: both commands refuse with the code; the full clone's dry merge is `conflict`; fails without the check, as a report or `changes-shared-range-unavailable`), `TestSPCV0015ShallowMergeBaseInsideBoundaryMatchesFullClone` (behind and check-shared equal the full clone's reports, and a boundary commit as base is exact; fails with `changes-git-unavailable` when `GIT_SHALLOW_FILE` is not passed) |

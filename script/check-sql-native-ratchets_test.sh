@@ -14,7 +14,8 @@ set -eu
 # repository, "Verified current state") and true for a commit that exists. The toolchain-identity,
 # build, and benchmark ratchets (SNR-V0-003, 004, 006-012, 014) and the Core binary comparison are exercised only by a real
 # invocation (`make sql-native-ratchets`): they rebuild cmd/corvint twice and run 30 benchmark
-# samples, which this fast harness must not do.
+# samples, which this fast harness must not do. Case 9 builds only the small receipt tool to check
+# the host toolchain's pin row (SNR-V0-031).
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-sql-native-ratchets-test.XXXXXX")
@@ -164,5 +165,32 @@ pinned=$(awk '/^toolchain_pins='"'"'$/{p=1;next} p&&/^'"'"'$/{exit} p&&NF{print 
 for version in $pinned; do
 	printf '%s\n' "$admitted" | grep -qx "$version" || fail "pin $version is not admitted by the Makefile go-version target"
 done
+
+# 9. SNR-V0-031: no two real pin rows share a version and go binary digest, and a host whose GOROOT
+# is the official golang.org/toolchain module of an admitted version matches a real row in all
+# three digests, the receipt tool built with the gate's own flags. Any other host toolchain that
+# matches a row is checked the same way; one that matches none is reported, not failed.
+rows=$(awk '/^toolchain_pins='"'"'$/{p=1;next} p&&/^'"'"'$/{exit} p&&NF{print}' "$source_root/script/check-sql-native-ratchets.sh")
+[ -z "$(printf '%s\n' "$rows" | awk '{print $1, $2}' | sort | uniq -d)" ] || fail "two pin rows share a version and go binary digest"
+row=$(printf '%s\n' "$rows" | awk -v v="$host_go_version" -v d="$host_go_sha" '$1==v&&$2==d{print;exit}')
+case $host_go_root in
+*/golang.org/toolchain@v0.0.1-"$host_go_version".*)
+	printf '%s\n' "$admitted" | grep -qx "$host_go_version" && [ -z "$row" ] \
+		&& fail "the official toolchain module $host_go_version at $host_go_root ($host_go_sha) has no pin row"
+	;;
+esac
+if [ -n "$row" ]; then
+	# shellcheck disable=SC2086
+	set -- $row
+	state="$test_root/receipt"
+	mkdir -p "$state/home" "$state/gopath" "$state/modcache" "$state/cache"
+	(cd "$source_root" && env -i PATH=/usr/bin:/bin HOME="$state/home" GOPATH="$state/gopath" GOMODCACHE="$state/modcache" GOCACHE="$state/cache" GOROOT="$host_go_root" GOENV=off GOWORK=off GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local CGO_ENABLED=0 GOMAXPROCS=1 "$host_go_root/bin/go" build -trimpath -buildvcs=false -ldflags='-s -w -buildid=' -o "$state/toolchain-receipt" ./cmd/corvint-go-toolchain-receipt) \
+		|| fail "the receipt tool did not build on the host toolchain"
+	[ "$(shasum -a 256 "$state/toolchain-receipt" | awk '{print $1}')" = "$3" ] || fail "the host toolchain's receipt tool digest differs from its pin row: $row"
+	[ "$("$state/toolchain-receipt" "$host_go_root")" = "{\"Entries\":$4,\"SHA256\":\"$5\"}" ] || fail "the host GOROOT receipt differs from its pin row: $row"
+	echo "check-sql-native-ratchets_test.sh: host toolchain $host_go_version $host_go_sha matches its pin row"
+else
+	echo "check-sql-native-ratchets_test.sh: host toolchain $host_go_version $host_go_sha has no pin row (NOT_OBSERVED)"
+fi
 
 echo "check-sql-native-ratchets_test.sh: ok"

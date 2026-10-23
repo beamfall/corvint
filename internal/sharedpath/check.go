@@ -79,6 +79,9 @@ func Check(ctx context.Context, request CheckRequest) (Report, error) {
 	if err != nil {
 		return Report{}, err
 	}
+	if err := refuseShallowMergeBase(g, base, head); err != nil {
+		return Report{}, err
+	}
 	var notes []byte
 	r := Report{Profile: CheckProfile, Base: base, Head: head, Shared: []SharedCommit{}, Findings: []Finding{}, ExemptConflicts: []string{}, SkippedMerges: []string{}, NotObserved: []string{}}
 	if request.NotesFile != "" {
@@ -174,6 +177,62 @@ func mergeProbe(g git, c Config, base, head string, r *Report) error {
 		r.Findings = append(r.Findings, Finding{Code: "shared-path-merge-conflict", Path: p, Missing: missingMerge, Detail: "merging head into base conflicts outside the generated files"})
 	}
 	sort.Strings(r.ExemptConflicts)
+	return nil
+}
+
+// refuseShallowMergeBase refuses a shallow repository in which the merge base
+// of base and head is not provably inside the shallow boundary (SPC-V0-015,
+// V1-1726): no merge base is visible, or one of them is a boundary commit,
+// whose parents the clone does not have, other than base or head itself.
+// Either way the true merge base may lie past the boundary, so the range
+// listing and the dry merge, which reads the same shallow file
+// (privateMergeRepository), could report a wrong clean result. A merge base
+// that is base or head is exact: shallow ancestry is a subset of the full
+// ancestry. A full repository, and a shallow one whose merge bases all keep
+// their parents, are unaffected.
+func refuseShallowMergeBase(g git, base, head string) error {
+	out, err := g.ok("rev-parse", "--is-shallow-repository", "--path-format=absolute", "--git-path", "shallow")
+	if err != nil {
+		return err
+	}
+	lines := strings.Split(strings.TrimSuffix(string(out), "\n"), "\n")
+	if len(lines) != 2 || !filepath.IsAbs(lines[1]) {
+		return errors.New(CodeGitUnavailable)
+	}
+	if lines[0] != "true" {
+		return nil
+	}
+	raw, err := readRegular(lines[1], maxGitBytes)
+	if err != nil {
+		return errors.New(CodeGitUnavailable)
+	}
+	boundary := map[string]bool{}
+	for _, sha := range strings.Fields(string(raw)) {
+		boundary[sha] = true
+	}
+	out, code, err := g.run(nil, nil, "merge-base", "--all", base, head)
+	if err != nil {
+		return err
+	}
+	switch code {
+	case 0:
+	case 1:
+		return errors.New(CodeShallowMergeBase)
+	default:
+		return errors.New(CodeGitUnavailable)
+	}
+	bases := strings.Fields(string(out))
+	if len(bases) == 0 {
+		return errors.New(CodeShallowMergeBase)
+	}
+	for _, sha := range bases {
+		if !fullSHA.MatchString(sha) {
+			return errors.New(CodeGitUnavailable)
+		}
+		if boundary[sha] && sha != base && sha != head {
+			return errors.New(CodeShallowMergeBase)
+		}
+	}
 	return nil
 }
 

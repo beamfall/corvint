@@ -324,7 +324,7 @@ measurement-specific group cleanup but not this runner's observation/adjudicatio
     inconclusive state compilation/setup failure and zero records, per `CRR-V0-007`(a), and the
     acceptance table below is evaluated only once this extraction has landed.
   - (e) Joined-group scope: a `Spec.JoinAncestorProcessGroup` leader inherits its starter's
-    process group instead of creating one (`internal/procgroup/process_posix.go:211-216`), so it
+    process group instead of creating one (`internal/procgroup/process_posix.go:222-227@74cdac62`), so it
     signals and probes only its own pid and holds no evidence about its descendants. Its
     `Observation` MUST report `DescendantCleanupStatus` `ancestor-process-group`, qualification
     `PARTIAL`, and `OwnedProcessGroupCleanup` false (`internal/procgroup/process.go:309-312@f7bfcd05`,

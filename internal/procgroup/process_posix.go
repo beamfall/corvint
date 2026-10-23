@@ -102,7 +102,7 @@ func terminateProcessGroup(pid int, leaderExited, joinAncestorGroup bool, overri
 	return err == nil, err
 }
 
-func cleanupProcessGroupBeforeReap(pid int, groupPresent, leaderExited, joinAncestorGroup bool, override func(int, syscall.Signal) error, grace time.Duration, deadline time.Time) error {
+func cleanupProcessGroupBeforeReap(pid int, groupPresent, leaderExited, joinAncestorGroup bool, override func(int, syscall.Signal) error, heldQuiet func(int) bool, grace time.Duration, deadline time.Time) error {
 	if pid <= 0 {
 		return errors.New("process group has no leader")
 	}
@@ -120,7 +120,7 @@ func cleanupProcessGroupBeforeReap(pid int, groupPresent, leaderExited, joinAnce
 		graceDeadline = deadline
 	}
 	signal := groupSignal(override, joinAncestorGroup)
-	if processGroupQuiescentBy(pid, graceDeadline, signal) {
+	if processGroupQuiescentBy(pid, graceDeadline, signal, heldQuiet) {
 		return nil
 	}
 	err := signal(pid, syscall.SIGKILL)
@@ -161,10 +161,21 @@ func proveProcessGroupQuiescent(pid int, joinAncestorGroup bool, quietProof func
 
 // processGroupQuiescentBy polls the live leader's group with signal 0 during
 // the pre-reap grace period; ESRCH held for the quiet period is quiescence.
-func processGroupQuiescentBy(pid int, deadline time.Time, groupProbe func(int, syscall.Signal) error) bool {
+// While signal 0 still reaches the group, heldQuiet (graceHeldQuiet, nil off
+// Linux) may prove it quiet; its proofs back off as proveProcessGroupQuiescent's
+// do, because each one scans /proc.
+func processGroupQuiescentBy(pid int, deadline time.Time, groupProbe func(int, syscall.Signal) error, heldQuiet func(int) bool) bool {
 	quietSince := time.Time{}
+	proofInterval, nextProof := processGroupPollInterval, time.Time{}
 	for {
 		err := groupProbe(pid, 0)
+		if heldQuiet != nil && (err == nil || errors.Is(err, syscall.EPERM)) && !time.Now().Before(nextProof) {
+			if heldQuiet(pid) {
+				return true
+			}
+			nextProof = time.Now().Add(proofInterval)
+			proofInterval = min(2*proofInterval, processGroupProofBackoffCap)
+		}
 		if errors.Is(err, syscall.ESRCH) {
 			if quietSince.IsZero() {
 				quietSince = time.Now()

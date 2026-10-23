@@ -2274,7 +2274,7 @@ and container qualification; full fallback remains available.
   digest; `overview` already names the cause (RGV-V0-050). Falsifier: a MIXED refusal or warning
   caused only by a globally excluded path that does not name the path and the fix, or that lists
   more than 8 paths. Rollback: drop `affectedDirtyDetail` from the three messages.
-- **AFP-V0-361:** (accepted under the owner's standing auto-accept (2026-10-11; V1-0883, V1-2217, V1-2069))
+- **AFP-V0-361:** (accepted under the owner's standing auto-accept (2026-10-11; V1-0883, V1-2217, V1-2069); amended under it for V1-2365)
   A test-reached reader that resolves an absolute directory or file component by component MUST
   NOT open the filesystem root `/` for reading unless the target is `/` itself, so the AFP-V0-023
   Landlock confinement, which grants nothing on the repository root's ancestors, can admit its
@@ -2285,7 +2285,13 @@ and container qualification; full fallback remains available.
   nothing in the repository is declared with an empty AFP-V0-023 scope, so a ticket-only diff no
   longer selects it as a path-literal reader; this declares `internal/tasks/transaction`,
   `internal/flowdocs`, `internal/flowcoverage` and `internal/testrunner/sql` and removes the last
-  three from the AFP-V0-025 unbounded-reader ratchet. Non-goals: the remaining unbounded readers
+  three from the AFP-V0-025 unbounded-reader ratchet. V1-2365 applies the same rule to
+  `openRefs` in `internal/upgradechanges` (the first component opened by absolute path with
+  `O_NOFOLLOW`, then `openat` as before) and `openStableArtifact` in `interop/cem01-go`
+  (`openStableTop`), declares `internal/upgradechanges` and `internal/testrunner` with empty
+  scopes, and removes `internal/testrunner` from the ratchet: its read of `/` was already gone
+  (V1-0624) and its confined run passes; `interop/cem01-go` runs in its own unconfined CI job
+  (AFP-V0-380), so no scope applies to it. Non-goals: the remaining unbounded readers
   and path-literal readers, and the replay counts of V1-0868, which need a Linux host. Failure
   modes: a symlinked or replaced first component is refused as before; on macOS `O_PATH` is
   unavailable and the walk keeps `O_RDONLY|O_DIRECTORY`. Falsifier: a nested absolute read through
@@ -2634,7 +2640,7 @@ rather than selecting nothing at `BOUNDED`. A consumer still cannot read closure
 | AFP-V0-160 | `readDocumentationPaths`, `declaredDocumentation` and `documentationPaths` in `internal/liveverify/affected/documentation.go`; the `documentation` graph field and digest member in `graph.go`; the `Select` call in `select.go`; `.corvint/documentation-paths.json` | `TestDeclaredDocumentationIsNonSourceNotUnknown_AFPV0160`, `TestDeclaredDocumentationKeepsEveryReader_AFPV0160`, `TestDeclaredDocumentationLeavesTaskStateAndSourceAlone_AFPV0160`, `TestDocumentationDeclarationIsValidated_AFPV0160`, `TestDocumentationDeclarationIsInTheDigest_AFPV0160`, `TestRepositoryDeclaresBuildLogDocumentation_AFPV0160` |
 | AFP-V0-161 | the read-scope guard in `resolves`, `internal/liveverify/affected/readers.go` | `TestDeclaredReadScopeBoundsPathLiteralReaders_AFPV0161`, `TestDeclaredReadScopeKeepsEveryInScopeLiteralReader_AFPV0161`, `TestDeclaredReadScopeDropsOutOfScopeFixtureNamers_AFPV0161` |
 | AFP-V0-356 | `affectedDirtyDetail`, `affectedMixedWarning`, `affectedMixedWorktreeRefusal` and `affectedPathListMixedRefusal` in `cmd/corvint/affected_freshness.go` | `TestAFPV0356MixedNamesGloballyExcludedPath` (a path excluded only through `GIT_CONFIG_GLOBAL`'s `core.excludesFile` is named, with the cause and fix, by the `--require-clean` and `--path` refusals and the `--base` warning), `TestAFPV0356DirtyDetailIsBounded` |
-| AFP-V0-361 | `openDirectory` and `openVerified` in `internal/flowdocs/files.go`; `ReadAbsoluteFileBounded` and `openTopDirectory` in `internal/testvaliditydoc`; `readConnection` in `internal/testrunner/sql/sql.go`; `traversalFlags` and `Root` in `internal/stepverify/safeopen`; the four empty scopes in `.corvint/test-read-scopes.json` | `TestAFPV0361_OpenDirectoryNeverReadsFilesystemRoot`, `TestAFPV0361_ReadAbsoluteFileBoundedSkipsFilesystemRoot`, `TestAFPV0361_TraversalOnlyAncestors` (Linux only; CI evidence); Landlock-confined CI runs of the declared packages |
+| AFP-V0-361 | `openDirectory` and `openVerified` in `internal/flowdocs/files.go`; `ReadAbsoluteFileBounded` and `openTopDirectory` in `internal/testvaliditydoc`; `readConnection` in `internal/testrunner/sql/sql.go`; `traversalFlags` and `Root` in `internal/stepverify/safeopen`; `openRefs` in `internal/upgradechanges/refs_unix.go`; `openStableTop` in `interop/cem01-go/cem.go`; the six empty scopes in `.corvint/test-read-scopes.json` | `TestAFPV0361_OpenDirectoryNeverReadsFilesystemRoot`, `TestAFPV0361_ReadAbsoluteFileBoundedSkipsFilesystemRoot`, `TestAFPV0361_TraversalOnlyAncestors` (Linux only; CI evidence), `TestAFPV0361_OpenRefsNeverReadsFilesystemRoot`, `TestAFPV0361_OpenStableArtifactNeverReadsFilesystemRoot` (both fail on the old `/` open); Landlock-confined CI runs of the declared packages; V1-2365: `internal/upgradechanges` fails four tests confined with the old `openRefs` and passes with the new one, and `internal/testrunner` passes confined (2026-10-23, Landlock ABI 7, this change's host) |
 | AFP-V0-156 | the `--is-inside-work-tree --show-prefix` checks in `openRoot` (`internal/appmap/gitread.go`), `bindRepository` (`internal/appflows/repositories.go`) and `resolveCheckout` (`internal/extevidence/repository.go`) | `TestAFPV0156AppmapCarriesNoRootLocator` and the `git dir` case of `TestAMAPV0017RootUnavailable`; `TestAFPV0156BindRepositoryTopLevel`; `TestAFPV0156CheckoutTopLevelWithoutLocator` and the `git directory` case of `TestCheckoutBinding` (each locator assertion failing before the change) |
 | AFP-V0-196 | `VerifyCommands`, `inlineVerifyCommands` (`internal/projectprofile/verify.go`); `agentsCheck` (`cmd/corvint/affected.go`) | `TestAFPV0196InlineVerifyLine`, `TestAFPV0196AffectedInlineVerifyIsMandatory` |
 | AFP-V0-181 | `Language.Owns`, `primaryModuleName`, `isTestFile` in `internal/liveverify/affected/python/python.go` | `TestUnitsGivesEachFileOneIdentity`; `TestIsTestFileMatchesDiscoveryConventions` |
