@@ -355,7 +355,7 @@ capability-catalog:
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint help --json > internal/capcatalog/catalog.json
 
 capability-catalog-check:
-	$(GO_TEST_COMMAND) -run '^TestCAPV0(015|016|017|018|019|020|021|022|023)' ./cmd/corvint ./internal/capcatalog
+	$(GO_TEST_COMMAND) -run '^TestCAPV0(015|016|017|018|019|020|021|022|023|024|025|026|027|028|029)' ./cmd/corvint ./internal/capcatalog
 
 # host-package-versions-check fails when a host package manifest's version field (AHI-020,
 # docs/specs/agent-harness-integration-v0.md) was last bumped in a commit older than the last
