@@ -21,6 +21,8 @@ type corpusOptions struct {
 	repository string
 	// state, qualifier and run select claims' supplied status claims (DCP-V1-318).
 	state, qualifier, run string
+	// provider is the carry-forward records provider ID (DCP-V1-366).
+	provider string
 	// scopes holds every repeated manifest --scope in argument order (DCP-V1-161).
 	scopes []string
 	// section and include are the flow filters as comma-separated lists (DCP-V1-170, DCP-V1-171).
@@ -36,7 +38,7 @@ type corpusOptions struct {
 
 // stringFlags maps each value-taking corpus option to its field.
 func (o *corpusOptions) stringFlags() map[string]*string {
-	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner, "--schema": &o.schema, "--section": &o.section, "--include": &o.include, "--cases": &o.cases, "--baseline": &o.baseline, "--repository": &o.repository, "--state": &o.state, "--qualifier": &o.qualifier, "--run": &o.run,
+	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner, "--schema": &o.schema, "--section": &o.section, "--include": &o.include, "--cases": &o.cases, "--baseline": &o.baseline, "--repository": &o.repository, "--state": &o.state, "--qualifier": &o.qualifier, "--run": &o.run, "--provider": &o.provider,
 		"--expected-base": &o.stable.ExpectedBase, "--target": &o.stable.Target, "--stable-artifact-root": &o.stable.ArtifactRoot}
 	o.playwright.addFlags(flags)
 	o.legacyCases.addFlags(flags)
@@ -297,6 +299,9 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	}
 	if o.op == "eval" {
 		return compileCorpusEval(ctx, o)
+	}
+	if o.op == "delta" || o.op == "carry-forward" {
+		return compileCorpusDelta(ctx, o)
 	}
 	raw, err := doccorpus.ReadCorpusFile(o.root, o.artifact)
 	if err != nil {

@@ -2581,6 +2581,16 @@ DCP-V1-265	docs/specs/documentation-corpus-v1.md	`audit sample` takes a seed in 
 DCP-V1-266	docs/specs/documentation-corpus-v1.md	`audit report` reads the sample strictly (closed `corvint-corpus-audit-sample/1`	unrecorded	-
 DCP-V1-267	docs/specs/documentation-corpus-v1.md	Excluded current verdicts (non-independent and generator-method counts, verdict	unrecorded	-
 DCP-V1-268	docs/specs/documentation-corpus-v1.md	`audit sample` and `audit report` are also spelled `audit-sample` and	unrecorded	-
+DCP-V1-360	docs/specs/documentation-corpus-v1.md	`delta` prints one `corvint-corpus-delta/1` receipt: the previous and current	unrecorded	-
+DCP-V1-361	docs/specs/documentation-corpus-v1.md	The classified population is the previous corpus's subjects, claims and relation	unrecorded	-
+DCP-V1-362	docs/specs/documentation-corpus-v1.md	Every anchor is re-validated against the current revision's blobs. A blob is rea	unrecorded	-
+DCP-V1-363	docs/specs/documentation-corpus-v1.md	A `changed` anchor carries:	unrecorded	-
+DCP-V1-364	docs/specs/documentation-corpus-v1.md	For each current `source` input whose blob is new or changed, the inserted or	unrecorded	-
+DCP-V1-365	docs/specs/documentation-corpus-v1.md	Carry-forward and moved records are demoted to `unresolved`, with a reason namin	unrecorded	-
+DCP-V1-366	docs/specs/documentation-corpus-v1.md	`carry-forward --provider ID` emits a `corvint-corpus-provider/1` record. It nam	unrecorded	-
+DCP-V1-367	docs/specs/documentation-corpus-v1.md	Reads are bounded and deterministic:	unrecorded	-
+DCP-V1-368	docs/specs/documentation-corpus-v1.md	Neither operation writes the repository, the index, the working tree or any	unrecorded	-
+DCP-V1-369	docs/specs/documentation-corpus-v1.md	The following are refused with exit 2 and no output; the option-form cases are	unrecorded	-
 DCP-V1-054	docs/specs/documentation-corpus-v1.md	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-
