@@ -61,12 +61,19 @@ func poolNativePrefix() string {
 // recorded, so a listed identity (an earlier binary's, or one recorded after
 // a failed kernel read) is never compared with a kernel identity, or the
 // reverse, and a live runner never looks gone (PSR-V0-201). A Linux read
-// that names the recorded process returns recorded itself (PSR-V0-204).
+// that names the recorded process returns recorded itself; one whose start
+// tick matches but whose btime is further off is an error, never a gone
+// runner (PSR-V0-204).
 func poolRecordedIdentity(pid int, recorded string) (string, error) {
 	if prefix := poolNativePrefix(); prefix != "" && strings.HasPrefix(recorded, prefix) {
 		identity, e := poolNativeIdentity(pid)
-		if e == nil && prefix == "linux:" && sameLinuxIdentity(identity, recorded) {
-			return recorded, nil
+		if e == nil && prefix == "linux:" {
+			switch compareLinuxIdentity(identity, recorded) {
+			case linuxSame:
+				return recorded, nil
+			case linuxUnknown:
+				return "", wire.Errorf(wire.CodeQuiescenceUnproved, "pool", "runner identity uncertain: start tick matches but boot time differs")
+			}
 		}
 		return identity, e
 	}
@@ -75,19 +82,32 @@ func poolRecordedIdentity(pid int, recorded string) (string, error) {
 	return poolListedIdentity(ctx, pid)
 }
 
-// sameLinuxIdentity reports whether two `linux:<btime>:<starttime>`
-// identities name one process. The kernel recomputes btime on every read, so
-// one recorded by another process can differ by one second (V1-1091); the
-// start tick must match exactly. A reused PID in the same boot has another
-// start tick, and another boot would need a reboot within that second at the
-// same tick.
-func sameLinuxIdentity(a, b string) bool {
+type linuxIdentityMatch int
+
+const (
+	linuxDifferent linuxIdentityMatch = iota
+	linuxSame
+	linuxUnknown
+)
+
+// compareLinuxIdentity compares two `linux:<btime>:<starttime>` identities.
+// The kernel recomputes btime on every read, so one recorded by another
+// process can differ by one second (V1-1091): equal start ticks with btimes
+// within one second name one process. Another start tick is another process
+// (a reused PID in the same boot has another tick). Equal start ticks with
+// btimes further apart are unknown, never different: a realtime clock step
+// (settimeofday) shifts btime by any amount while the runner lives, and the
+// record carries no stable boot identity to tell that from a reboot.
+func compareLinuxIdentity(a, b string) linuxIdentityMatch {
 	ab, as, ok1 := splitLinuxIdentity(a)
 	bb, bs, ok2 := splitLinuxIdentity(b)
 	if !ok1 || !ok2 || as != bs {
-		return false
+		return linuxDifferent
 	}
-	return ab == bb || ab == bb+1 || bb == ab+1
+	if ab == bb || ab == bb+1 || bb == ab+1 {
+		return linuxSame
+	}
+	return linuxUnknown
 }
 
 func splitLinuxIdentity(s string) (boot uint64, start string, ok bool) {

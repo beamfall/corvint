@@ -10,13 +10,16 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 // PSR-V0-204 (V1-2425): on Linux the pool runner identity comes from
 // /proc/<pid>/stat and /proc/stat without a process listing. Recovery
 // re-reads a `linux:` record from /proc and treats a btime one second off
-// (another process's read, V1-1091) as the same runner, never a different
-// start tick; a listed record keeps the listing, and a failed /proc read
+// (another process's read, V1-1091) as the same runner, a btime further off
+// with the same start tick (a clock step) as unknown, and another start tick
+// as a different runner; a listed record keeps the listing, and a failed /proc read
 // falls back to the listing at preparation but stays an error at recovery.
 func TestPSRV0204_LinuxRunnerIdentityNeedsNoListing(t *testing.T) {
 	original, originalNative := poolProbe, poolNativeIdentity
@@ -50,9 +53,15 @@ func TestPSRV0204_LinuxRunnerIdentityNeedsNoListing(t *testing.T) {
 			t.Fatalf("a record with btime %+d re-read as %q %v, want the same runner", d, again, e)
 		}
 	}
-	for name, recorded := range map[string]string{"btime +2": shifted(2, start), "another start tick": shifted(0, start+"0")} {
-		if again, e := poolRecordedIdentity(os.Getpid(), recorded); e != nil || again == recorded {
-			t.Fatalf("%s: record %q re-read as %q %v, want a different runner", name, recorded, again, e)
+	if again, e := poolRecordedIdentity(os.Getpid(), shifted(0, start+"0")); e != nil || again == shifted(0, start+"0") || again == "" {
+		t.Fatalf("another start tick re-read as %q %v, want a different runner", again, e)
+	}
+	// A clock step shifts btime while the runner lives: the same start tick
+	// with btime further off is unknown, never gone (fail closed).
+	for _, d := range []int64{-2, 2, 3600} {
+		again, e := poolRecordedIdentity(os.Getpid(), shifted(d, start))
+		if e == nil || wire.CodeOf(e) != wire.CodeQuiescenceUnproved || again != "" {
+			t.Fatalf("a record with btime %+d re-read as %q %v, want an unknown runner, not gone", d, again, e)
 		}
 	}
 	if listings != 0 {

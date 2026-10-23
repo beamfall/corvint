@@ -17,7 +17,13 @@ import (
 // reports output.observed NOT_OBSERVED with null tail and failing line; a
 // PASSED result is never the last failed gate.
 func TestCALV0322_LastFailedGateUnknowns(t *testing.T) {
-	repo := &intent.Repository{StateDir: t.TempDir()}
+	// The state directory is resolved: intent.ReadFile refuses a symlinked
+	// path, and macOS's temporary directory sits under /var -> /private/var.
+	stateDir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := &intent.Repository{StateDir: stateDir}
 	put := func(raw []byte) wire.Digest {
 		t.Helper()
 		d := wire.Sum(raw)
@@ -103,5 +109,15 @@ func TestCALV0322_LastFailedGateUnknowns(t *testing.T) {
 		if v := show(wire.Sum([]byte("absent record")), order[0], order[1]); v.Str != "NOT_OBSERVED" {
 			t.Fatalf("an absent record before the failed ones: %s", wire.EncodeFile(v))
 		}
+	}
+
+	// A private-key block whose BEGIN line lies before the 20-line tail
+	// quotes none of its body (TCD-V0-165 shared screen).
+	body := "MIIEkeyBODY" + strings.Repeat("Q", 52)
+	pem := "-----BEGIN " + "PRIVATE KEY-----\n" + strings.Repeat(body+"\n", 30) + "-----END " + "PRIVATE KEY-----\nFAIL: x\n"
+	put([]byte(pem))
+	v = show(record("FAILED", []byte(pem), "pem", "2026-10-23T00:00:20Z"))
+	if encoded := string(wire.EncodeFile(v)); observed(v) != "OBSERVED" || strings.Contains(encoded, "keyBODY") || !strings.Contains(encoded, "FAIL: x") {
+		t.Fatalf("a key block across the tail boundary: %s", encoded)
 	}
 }

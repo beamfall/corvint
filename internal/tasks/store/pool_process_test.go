@@ -542,3 +542,25 @@ func TestPSRV0201_RunnerIdentityNeedsNoListing(t *testing.T) {
 		t.Fatalf("absent process identity %q %v, want none", gone, e)
 	}
 }
+
+// PSR-V0-204: equal start ticks with btimes within one second name one
+// runner; further apart (a realtime clock step) is unknown, never another
+// runner; another start tick is another runner.
+func TestPSRV0204_LinuxIdentityClockStepIsUnknown(t *testing.T) {
+	for _, c := range []struct {
+		a, b string
+		want linuxIdentityMatch
+	}{
+		{"linux:1000:77", "linux:1000:77", linuxSame},
+		{"linux:1000:77", "linux:1001:77", linuxSame},
+		{"linux:1001:77", "linux:1000:77", linuxSame},
+		{"linux:1000:77", "linux:1002:77", linuxUnknown},
+		{"linux:4600:77", "linux:1000:77", linuxUnknown},
+		{"linux:1000:77", "linux:1000:78", linuxDifferent},
+		{"linux:1000:77", "Thu Oct 22 09:00:00 2026", linuxDifferent},
+	} {
+		if got := compareLinuxIdentity(c.a, c.b); got != c.want {
+			t.Fatalf("compare %q %q = %d, want %d", c.a, c.b, got, c.want)
+		}
+	}
+}

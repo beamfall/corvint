@@ -1032,8 +1032,11 @@ to 11.90 us after.
   `darwin:`. Because the kernel recomputes `btime` on every read, an identity another process
   recorded can differ by one second (V1-1091): a fresh read whose start tick equals the record's
   and whose `btime` is within one second of it MUST count as the recorded runner, and any other
-  start tick as a different process. A `/proc` read failure while re-reading a `linux:` record MUST
-  stay an error and MUST NOT make the runner count as gone.
+  start tick as a different process. A fresh read whose start tick equals the record's but whose
+  `btime` differs by more than one second MUST be unknown (`QUIESCENCE_UNPROVED`), never gone: a
+  realtime clock step (`settimeofday`) shifts `btime` while the runner lives, so recovery MUST NOT
+  clear the runner's ownership on that evidence. A `/proc` read failure while re-reading a `linux:`
+  record MUST stay an error and MUST NOT make the runner count as gone.
 
 Non-goals: no `boot_id` identity format, no tolerance for any other identity or call site (the
 V1-1091 residual elsewhere stays open), and no change to the listing, the group cleanup proof or
@@ -1047,7 +1050,10 @@ hidden (`hidepid`) or the recorded PID belongs to another PID namespace, the rea
 the runner reads as gone, as the `ps` listing reports it; the runner is always the recording
 process itself, so this needs the store shared across namespaces. A reboot within one second of
 the recording, landing on the same start tick, would read as the same runner; that needs both
-coincidences at once.
+coincidences at once. A real reboot that lands on the recorded start tick with a `btime` more than
+one second away reads as unknown, not gone, so that entry's recovery is refused until an operator
+resolves it; the record carries no stable boot identity (`boot_id`) to tell a reboot from a clock
+step, and adding one would change the `runnerStarted` format older records use.
 
 Rollback: revert the source. Records written as `linux:` are then compared with a listed identity,
 so recovery reports such a runner gone; drain pool allocations (no `PREPARING`, `CLEANING` or swept
@@ -1215,4 +1221,4 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | Requirement | Evidence |
 | --- | --- |
 | PSR-V0-203 | `TestPSRV0203_CheckpointTailRefusesNullPreStateDuplicate`, `TestPSRV0190_CheckpointTailRefusesPrefixRequestDuplicate`, `TestCALV0321_CheckpointRequestFilter` (`internal/tasks/journal`) |
-| PSR-V0-204 | `TestPSRV0204_LinuxRunnerIdentityNeedsNoListing`, `BenchmarkPSRV0204_RunnerIdentity` (`internal/tasks/store`, Linux only); `docs/build-log/2026-10-23-tasks-lane-1023.md` |
+| PSR-V0-204 | `TestPSRV0204_LinuxRunnerIdentityNeedsNoListing`, `TestPSRV0204_LinuxIdentityClockStepIsUnknown`, `BenchmarkPSRV0204_RunnerIdentity` (`internal/tasks/store`, Linux only); `docs/build-log/2026-10-23-tasks-lane-1023.md` |
