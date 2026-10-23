@@ -89,10 +89,24 @@ func SetIndexBoundsForTest(postings, keyBytes int) (restore func()) {
 	return func() { indexPostingBound, indexKeyByteBound = oldPostings, oldKeyBytes }
 }
 
+// BuildQueryIndex derives the query index of a. buildQueryIndexReference is
+// the reference derivation: buildQueryIndexFast answers whenever it can show
+// the reference stores the same index and refuses nothing (DCP-V1-419), and
+// the reference runs otherwise, so every refusal keeps its code, message and
+// observed count.
 func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
 	if len(a.Subjects) > MaxCorpusRecords || len(a.Claims) > MaxCorpusRecords || len(a.Relations) > MaxCorpusRecords || len(a.Journeys) > MaxCorpusJourneys || len(a.Observations) > MaxCorpusRecords || len(a.SuppliedGaps) > MaxCorpusRecords {
 		return nil, fail("indexed record family bound exceeded")
 	}
+	if x, ok, err := buildQueryIndexFast(ctx, a); ok || err != nil {
+		return x, err
+	}
+	return buildQueryIndexReference(ctx, a)
+}
+
+// buildQueryIndexReference is the serial derivation: each posting is charged
+// as it is stored, in artifact order.
+func buildQueryIndexReference(ctx context.Context, a *Artifact) (*QueryIndex, error) {
 	x := &QueryIndex{IDs: map[string]RecordRef{}, Paths: map[string][]RecordRef{}, Terms: map[string][]int{}, Claims: map[string][]int{}, Edges: map[string][]int{}, ClaimTerms: map[string][]int{}, Aliases: map[string][]int{}}
 	// Each posting is charged once. Past a bound the index stops storing
 	// postings but keeps counting, so the refusal names the observed totals
@@ -254,6 +268,12 @@ func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
 			x.Terms[term] = append(x.Terms[term], i)
 		}
 	}
+	sortPathRefs(x)
+	return x, nil
+}
+
+// sortPathRefs orders each path's references by kind, then offset.
+func sortPathRefs(x *QueryIndex) {
 	for key, refs := range x.Paths {
 		sort.Slice(refs, func(i, j int) bool {
 			if refs[i].Kind != refs[j].Kind {
@@ -263,7 +283,6 @@ func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
 		})
 		x.Paths[key] = refs
 	}
-	return x, nil
 }
 func (a *Artifact) indexedRecord(ref RecordRef) any {
 	switch ref.Kind {

@@ -59,7 +59,10 @@ Refusals: changes-shared-config-unavailable, changes-shared-notes-unavailable,
 changes-shared-range-unavailable, changes-shared-dirty-tree,
 changes-shared-detached-head, changes-shared-branch-mismatch,
 changes-shared-merge-in-range, changes-shared-live-session,
-changes-shared-head-mismatch, changes-shared-tree-mismatch.
+changes-shared-head-mismatch, changes-shared-tree-mismatch,
+changes-shared-shallow-merge-base (check-shared and behind in a shallow clone
+whose merge base may lie past the shallow boundary, or with several merge
+bases).
 Contract: docs/specs/shared-path-change-policy-v0.md.
 
 Shared-path commits a branch is missing (SPC-V0-009..014, V1-1710, V1-1723):

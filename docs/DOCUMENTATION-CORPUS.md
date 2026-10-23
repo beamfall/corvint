@@ -30,7 +30,7 @@ byte order; a duplicate or nested scope is refused. The default `corvint-corpus-
 holds at most 4,096 files; `--schema 2` emits `corvint-corpus-input/2`, bounded by its 100,000
 records. A refused inventory names the bound, the scopes and the file count.
 
-Read operations share one rederiving reader: `info`, `validate`, `search --query TEXT`, `get`, `trace`,
+Read operations share one verified reader: `info`, `validate`, `search --query TEXT`, `get`, `trace`,
 `related`, `journey`, `stability` (each with `--id ID`), `locate --path PATH`, `coverage`,
 `gaps [--id ID]`.
 All take `--artifact FILE` and optional `--limit 1..256`. Queries report omissions, absence, valid
@@ -38,8 +38,14 @@ no-match, not-found and stale evidence separately. Coverage names its scope/deno
 claims universal behavioral coverage. A flow's `missing-asserting-e2e-tests` gap names the failed
 condition of its closest test link; a link that fails only because its review is provider-reported
 (attributed, not authenticated) reports `asserting-e2e-tests-unauthenticated-review` instead
-(`DCP-V1-150`..`152`). Every read rechecks original immutable inputs; live source
-and provider changes are reported separately from the artifact's recorded revision.
+(`DCP-V1-150`..`152`). A read verifies the artifact's canonical bytes, content digest, builder,
+manifest and profile digests and pinned revisions, then decodes it without rederiving it
+(`DCP-V1-410`); `info` reports `validation: artifact-verified`. A development binary whose builder
+label is dirty or unrecorded proves no rebuild equivalence, so it always rederives. `validate`, and `--verify-rederive`
+on any read, rederive every record from the original pinned inputs (`source-rederived`,
+`DCP-V1-413`). Live source and provider changes are observed from Git status and the tree listing
+and reported separately from the artifact's recorded revision (`DCP-V1-411`). `--timings` writes one
+phase summary (parse, verify, freshness, index, query, encode) to stderr (`DCP-V1-415`).
 
 ## Larger adoption imports
 
