@@ -466,3 +466,24 @@ eight-revision bound); anchors there cite that revision, and freshness compares 
 `docs_locate` and `docs_recommend_tests` accept an optional `repository` (a declared root-commit
 identity) and otherwise name each result's repository in `result_repositories`. See
 DCP-V1-308..311.
+
+## Carrying records across revisions
+
+`docs corpus delta --previous OLD.json --artifact NEW.json` pages a worklist of the previous
+corpus's records-provider subjects, claims and relations. Each one is `carry-forward`, `moved`,
+`changed`, `removed` or `unresolved` against the current revision. `docs corpus carry-forward
+--provider ID` emits one provider's confirmed records for the next build. Adoption kinds carry
+forward like generic records:
+- flows, paragraphs and the other adoption subject kinds;
+- `asserts`, `navigates`, `retired_to`, `manual_case_for` and `migration_mapping` relations.
+
+Their typed details travel unchanged in a `corvint-corpus-adoption-provider/1` record, which needs
+a `/2` manifest. A flow with only some anchors changed is `changed`, and its entry lists each
+anchor's state. Records whose typed details join to that flow are demoted with the reason. These
+are never carried:
+- anchorless records, which are summarized as `unresolved`;
+- native or compiler-derived records;
+- journeys, observations and supplied gaps.
+
+Under the default views, a comparison of a corpus with itself lists no `unresolved` entry. See DCP-V1-360..369,
+DCP-V1-420..425 and DCP-V1-440..445.

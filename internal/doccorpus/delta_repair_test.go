@@ -242,11 +242,11 @@ func TestDCPV1360DeltaRepairs(t *testing.T) {
 			}
 		}
 		width := len("Counts a value.\n")
-		run.hashed, run.hashLimit = 0, width-1
+		run.hashed, run.hashLimit, run.verified = 0, width-1, nil
 		if da, _, err := run.classifyAnchor(ctx, readme); err != nil || da.State != DeltaUnresolved || da.Reason != deltaHashBoundReason {
 			t.Fatalf("unchanged-blob confirmation skipped the hashing bound: %+v %v", da, err)
 		}
-		run.hashed, run.hashLimit = 0, width
+		run.hashed, run.hashLimit, run.verified = 0, width, nil
 		if da, _, err := run.classifyAnchor(ctx, readme); err != nil || da.State != DeltaCarryForward || run.hashed != width {
 			t.Fatalf("unchanged-blob confirmation at the exact bound: %+v %v hashed=%d", da, err, run.hashed)
 		}
