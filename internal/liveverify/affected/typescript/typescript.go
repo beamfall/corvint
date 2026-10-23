@@ -534,6 +534,13 @@ func scanImports(relative, body string) ([]string, bool, error) {
 	if !requiresParsed {
 		parseErr = strconv.ErrSyntax
 	}
+	// A slash the lexer keeps as division although it may open a regular expression can
+	// misplace string, comment and code boundaries after it, hiding an import, require or
+	// comment-stripped static import. Then any loading word keeps computed loading
+	// (TJAA-V0-034): the frontier stays rather than an edge being dropped.
+	if parseErr == nil && !computedLoading && loadingWord.MatchString(body) && ambiguousSlash(body, jsxSource(relative)) {
+		computedLoading = true
+	}
 	for _, ref := range requires {
 		refs[ref] = true
 	}
@@ -541,6 +548,43 @@ func scanImports(relative, body string) ([]string, bool, error) {
 		refs[relativeReference(match[1])] = true
 	}
 	return sortedKeys(refs), computedLoading, parseErr
+}
+
+// loadingWord matches a word that can begin module loading anywhere, literal text included.
+var loadingWord = regexp.MustCompile(`\b(?:import|require)\b`)
+
+// ambiguousSlash reports whether body has a `/` that regexStart keeps as an
+// ambiguous division although reading it as a regular-expression literal that
+// closes on the same line would change where literals, substitutions or comments
+// end: the literal holds a quote, backtick or brace, or its closing slash is
+// followed by `/` or `*`. A slash that opens a comment is skipped, and in a JSX
+// source so is the slash of a `</` or `/>` tag. The scan is over raw text, so a
+// slash inside a literal or comment can only widen it.
+func ambiguousSlash(body string, jsx bool) bool {
+	for index := strings.IndexByte(body, '/'); index >= 0; {
+		after := byte(0)
+		if index+1 < len(body) {
+			after = body[index+1]
+		}
+		tag := jsx && (after == '>' || index > 0 && body[index-1] == '<')
+		if _, ambiguous := regexStart(body, index); ambiguous && after != '/' && after != '*' && !tag {
+			if end, closed := regexLiteralEnd(body, index); closed {
+				closing := end - 1
+				for body[closing] != '/' {
+					closing--
+				}
+				if strings.ContainsAny(body[index+1:closing], "'\"`{}") || closing+1 < len(body) && (body[closing+1] == '/' || body[closing+1] == '*') {
+					return true
+				}
+			}
+		}
+		next := strings.IndexByte(body[index+1:], '/')
+		if next < 0 {
+			break
+		}
+		index += next + 1
+	}
+	return false
 }
 
 // unicodeLineTerminators maps U+2028 and U+2029 to LF, so the line-anchored reference pattern
@@ -1005,27 +1049,66 @@ func jsxQuoteStartsLiteral(body []byte, index int) bool {
 
 // regexOpeners are the bytes after which an expression must begin, so a `/`
 // there opens a regular expression and cannot be division; the start of text
-// counts as one. It mirrors the documented jsresolve rule (FPK-V0-018). Every
-// other predecessor keeps `/` as division: a word, a literal, `)`, `]`, and `}`
-// need grammar state, `+` and `-` may end `++` or `--`, `!` may be a non-null
-// assertion, and `<` and `>` may be JSX or type arguments.
+// counts as one. It mirrors the documented jsresolve rule (FPK-V0-018), and
+// regexStart adds `=>` and the expression-leading keywords (TJAA-V0-034).
 const regexOpeners = "(,=:[&|?{;~^%*"
 
-// regexEnd returns the offset past a regular-expression literal and its flags
-// when the `/` at index follows a regexOpeners byte (ignoring whitespace) and
-// closes before any line terminator. Otherwise it reports false and the `/`
-// stays division. Callers check for a comment start first.
-func regexEnd[T string | []byte](body T, index int) (int, bool) {
-	if body[index] != '/' {
-		return 0, false
-	}
+// regexKeywords are the keywords after which an expression must begin. They count
+// only as a whole word that is not a property name (`x.return / 2` is division).
+var regexKeywords = map[string]bool{"return": true, "typeof": true, "instanceof": true, "in": true, "new": true, "delete": true, "void": true, "throw": true, "case": true, "do": true, "else": true}
+
+// regexStart reports whether the `/` at index opens a regular expression. It is
+// ambiguous, and kept as division, when the predecessor needs grammar state: `)`
+// and `}` may close a condition or block, `+` and `-` may end `++` or `--`, `!`
+// may be a non-null assertion, `<` and `>` may be JSX or type arguments, and
+// `of`, `yield` and `await` may be identifiers. A word, a literal and `]` are
+// division.
+func regexStart[T string | []byte](body T, index int) (regex, ambiguous bool) {
 	previous := index
 	for previous > 0 && strings.IndexByte(" \t\r\n", body[previous-1]) >= 0 {
 		previous--
 	}
-	if previous > 0 && strings.IndexByte(regexOpeners, body[previous-1]) < 0 {
+	if previous == 0 || strings.IndexByte(regexOpeners, body[previous-1]) >= 0 {
+		return true, false
+	}
+	last := body[previous-1]
+	if last == '>' && previous > 1 && body[previous-2] == '=' {
+		return true, false
+	}
+	if isIdentifier(last) {
+		start := previous
+		for start > 0 && isIdentifier(body[start-1]) {
+			start--
+		}
+		if start > 0 && body[start-1] == '.' {
+			return false, false
+		}
+		word := string(body[start:previous])
+		if regexKeywords[word] {
+			return true, false
+		}
+		return false, word == "of" || word == "yield" || word == "await"
+	}
+	return false, strings.IndexByte(")}+-!<>", last) >= 0
+}
+
+// regexEnd returns the offset past a regular-expression literal and its flags
+// when regexStart admits the `/` at index and the literal closes before any line
+// terminator. Otherwise it reports false and the `/` stays division. Callers
+// check for a comment start first.
+func regexEnd[T string | []byte](body T, index int) (int, bool) {
+	if body[index] != '/' {
 		return 0, false
 	}
+	if regex, _ := regexStart(body, index); !regex {
+		return 0, false
+	}
+	return regexLiteralEnd(body, index)
+}
+
+// regexLiteralEnd returns the offset past the regular-expression-shaped text that
+// starts with the `/` at index, when it closes before any line terminator.
+func regexLiteralEnd[T string | []byte](body T, index int) (int, bool) {
 	escaped, inClass := false, false
 	for position := index + 1; position < len(body); {
 		character, width := utf8.DecodeRuneInString(string(body[position:min(position+utf8.UTFMax, len(body))]))

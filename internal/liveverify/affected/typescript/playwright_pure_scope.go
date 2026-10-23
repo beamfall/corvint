@@ -628,8 +628,8 @@ var playwrightConstArray = regexp.MustCompile(`(?m)^[\t ]*const[\t ]+([A-Za-z_$]
 // playwrightConstArrays binds each top-level const, declared once, whose initializer is a
 // string-array literal, a parenthesized one or a conditional `test ? A : B` of them, to the
 // sorted union of the branches: a conservative superset of the value the config evaluates
-// (TJAA-V0-036). Every other occurrence of the name must be a property value (`key: NAME`
-// followed by `,` or `}`), so the array is never written, called, aliased, spread or shadowed.
+// (TJAA-V0-036). Every other occurrence of the name must be a project's `dependencies: NAME`
+// (playwrightConstArraySound), so the array is never written, called, aliased, spread or shadowed.
 func playwrightConstArrays(clean string, lexed playwrightLexed) map[string][]string {
 	arrays := map[string][]string{}
 	matches := playwrightConstArray.FindAllStringSubmatchIndex(clean, -1)
@@ -723,17 +723,61 @@ func playwrightConditionalTest(raw string, lexed playwrightLexed, start int) (in
 }
 
 // playwrightConstArraySound reports whether every occurrence of name other than its declaration
-// is a property value.
+// is the whole value of a `dependencies` key of a project object literal: an element of the
+// `projects` array literal of the exported config object. Any other use, including the value of
+// another object's property, could alias the array to a mutating receiver (TJAA-V0-036).
 func playwrightConstArraySound(raw string, lexed playwrightLexed, name string, declaration int) bool {
 	for _, at := range playwrightTokenOffsets(raw, name) {
 		if at == declaration {
 			continue
 		}
-		previous := playwrightPreviousCode(raw, at)
 		next := skipPlaywrightSpace(raw, at+len(name))
-		if !lexed.code[at] || previous < 0 || raw[previous] != ':' || previous > 0 && raw[previous-1] == ':' || next >= len(raw) || raw[next] != ',' && raw[next] != '}' {
+		if !lexed.code[at] || next >= len(raw) || raw[next] != ',' && raw[next] != '}' || !playwrightKeyValue(raw, lexed, at, "dependencies") {
+			return false
+		}
+		project := lexed.parent[at]
+		if project < 0 || raw[project] != '{' {
+			return false
+		}
+		element := playwrightPreviousCode(raw, project)
+		list := lexed.parent[project]
+		if element < 0 || raw[element] != '[' && raw[element] != ',' || list < 0 || raw[list] != '[' || !playwrightKeyValue(raw, lexed, list, "projects") {
+			return false
+		}
+		if config := lexed.parent[list]; config < 0 || raw[config] != '{' || !playwrightExportedConfig(raw, lexed, config) {
 			return false
 		}
 	}
 	return true
+}
+
+// playwrightKeyValue reports whether the code at index directly follows `key:` in an object
+// literal, with the unquoted key itself following `{` or `,` in the same object.
+func playwrightKeyValue(raw string, lexed playwrightLexed, index int, key string) bool {
+	colon := playwrightPreviousCode(raw, index)
+	if colon < 0 || raw[colon] != ':' || !lexed.code[colon] {
+		return false
+	}
+	end := playwrightPreviousCode(raw, colon) + 1
+	start := end - len(key)
+	if start < 0 || raw[start:end] != key || !lexed.code[start] || lexed.parent[start] != lexed.parent[index] {
+		return false
+	}
+	before := playwrightPreviousCode(raw, start)
+	return before >= 0 && (raw[before] == '{' || raw[before] == ',') && (before == start-1 || !isIdentifier(raw[start-1]))
+}
+
+// playwrightExportedConfig reports whether the object literal opening at index is the module's
+// `export default` value, directly or as the sole argument of `defineConfig(`.
+func playwrightExportedConfig(raw string, lexed playwrightLexed, index int) bool {
+	before := index
+	if open := lexed.parent[index]; open >= 0 {
+		call := strings.TrimRight(raw[:open], " \t\r\n")
+		if raw[open] != '(' || lexed.parent[open] >= 0 || playwrightPreviousCode(raw, index) != open || !strings.HasSuffix(call, "defineConfig") {
+			return false
+		}
+		before = len(call) - len("defineConfig")
+	}
+	prefix := strings.TrimRight(raw[:before], " \t\r\n")
+	return strings.HasSuffix(prefix, "export default") && (len(prefix) == len("export default") || !isIdentifier(prefix[len(prefix)-len("export default")-1]))
 }

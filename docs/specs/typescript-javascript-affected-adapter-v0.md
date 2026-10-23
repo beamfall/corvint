@@ -415,7 +415,14 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   `(`, a backtick, `!` or `?.`, contains no `then`, `catch` or `finally` member and does not follow
   `await`. Such an import type records the literal as a static reference. Every other `import(`
   call, including any call in a `.js`/`.jsx`/`.mjs`/`.cjs` source and any computed or template
-  argument, MUST stay computed loading and raise `typescript:dynamic-import`.
+  argument, MUST stay computed loading and raise `typescript:dynamic-import`. A `/` opens a
+  regular expression after an expression-opening punctuator, `=>`, or one of the keywords `return`,
+  `typeof`, `instanceof`, `in`, `new`, `delete`, `void`, `throw`, `case`, `do` or `else` that is not
+  a member name. After `)`, `}`, `+`, `-`, `!`, `<`, another `>`, `of`, `yield` or `await` the slash
+  is ambiguous: when reading it as a same-line regular expression would change a literal,
+  substitution or comment boundary and the source contains the word `import` or `require`, the file
+  MUST stay computed loading rather than drop an edge. A comment opener, and in a JSX source the
+  slash of a `</` or `/>` tag, is not ambiguous; an unparsed file keeps `typescript:unparsed-source`.
 - `TJAA-V0-035`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2456; GitHub
   #1576) For `TJAA-V0-018`, `process.env.NAME` (a dotted name that is not an `Object.prototype`
   name and does not start with `__`) MUST be admitted and proven primitive, and `Number(...)`,
@@ -438,8 +445,10 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   once, whose initializer is a literal string array, a parenthesized one, or a conditional
   `test ? A : B` whose branches are such values recursively, MUST resolve to the sorted union of
   the branch arrays for selection and for `--playwright-discovery-from-list`. Every other
-  occurrence of the name MUST be a `key: NAME` property value; any other use (`let`, a write,
-  `push`, an alias, a call argument, a second declaration) or a non-literal element MUST keep
+  occurrence of the name MUST be the whole `dependencies: NAME` value of a project object literal
+  in the `projects` array literal of the `export default` (or `export default defineConfig(...)`)
+  config object; any other use (`let`, a write, `push`, an alias, a call argument, another object's
+  property value, a second declaration) or a non-literal element MUST keep
   `playwright:project-dependency-unresolved`.
 - `TJAA-V0-037`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2458; GitHub
   #1578) In the general `affected-plan/0` adapter, an owned file whose runner resolves to

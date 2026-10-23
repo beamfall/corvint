@@ -115,6 +115,10 @@ func TestPlaywrightConstDependenciesResolveToBranchUnion_GH1577(t *testing.T) {
 		"const deps = compute();",
 		"const deps = ['setup'];\nconst deps2 = ['auth'];\n{ const deps = ['auth']; }",
 		"export const deps = ['setup'];\nmutate(deps);",
+		"const deps = ['setup'];\nconst holder = { value: deps };\nholder.value.push('auth');",
+		"const deps = ['setup'];\nconst holder = { dependencies: deps };\nholder.dependencies.push('auth');",
+		"const deps = ['setup'];\nconst other = { projects: [{ dependencies: deps }] };\nother.projects[0].dependencies.push('auth');",
+		"const deps = ['setup'];\nconst pick = flag ? dependencies : deps;",
 		"",
 	} {
 		source := config(setup)

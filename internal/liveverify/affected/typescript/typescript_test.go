@@ -55,11 +55,16 @@ func TestScanImportsSeparatesImportTypesAndLiteralTextFromDynamicImports(t *test
 		"typeof alias":  "type Module = typeof import('./module');\nconst k: Map<string, import('./kind').Kind> = new Map()",
 		"literal text":  "const a = 'import (x)'; const b = \"import('./y')\"; const c = `await import(\"./z\")`; const d = /import\\(/",
 		"member call":   "loader.import('./x'); const reimport = 1",
+		"division":      "import a from './a';\nconst half = (a + 1) / 2 / 3; const s = total / 2; const t = x.return / 2 / 'import(y)'.length",
+		"keyword regex": "import a from './a';\nconst f = () => /\"/; function g() { return /'/ } const h = typeof /`/",
 	}
 	for name, body := range static {
 		if refs, dynamic, err := scanImports("pages/login.ts", body); err != nil || dynamic {
 			t.Fatalf("%s: refs=%v dynamic=%v err=%v", name, refs, dynamic, err)
 		}
+	}
+	if refs, dynamic, err := scanImports("pages/view.tsx", "import a from './a';\nconst v = <><p>{a}</p><A b={a} /><B c={a} /></>"); err != nil || dynamic || !slices.Equal(refs, []string{"./a"}) {
+		t.Fatalf("JSX tag slashes are not ambiguous: refs=%v dynamic=%v err=%v", refs, dynamic, err)
 	}
 	if refs, _, _ := scanImports("pages/login.ts", static["type position"]); !slices.Equal(refs, []string{"./pages", "@playwright/test"}) {
 		t.Fatalf("import-type specifiers must stay static references: %v", refs)
@@ -72,6 +77,15 @@ func TestScanImportsSeparatesImportTypesAndLiteralTextFromDynamicImports(t *test
 		"const p = `${import('./x')}`",
 		"const p = import(name).Page",
 		"const p = import('./' + name)",
+		// A regular expression after `=>` or a keyword must not open a string that hides the import (TJAA-V0-034).
+		"const before = () => /\"/; const pending = import('./lazy'); const after = () => /\"/;",
+		"function f() { return /\"/ }\nconst pending = import('./lazy');\nfunction g() { return /\"/ }",
+		"switch (k) { case /'/: break } const pending = import('./lazy'); typeof /'/",
+		// An ambiguous slash that could hide loading keeps the frontier.
+		"if (x) /\"/.test(y); const pending = import('./lazy'); if (x) /\"/.test(y)",
+		"if (x) /'/.test(y); const u = '//'; import('./lazy')",
+		"if (x) /'/.test(y); const u = '//'; const m = require('./lazy')",
+		"if (x) /'/.test(y); const u = '//'; import a from './lazy'",
 	}
 	for _, body := range dynamicBodies {
 		if _, dynamic, err := scanImports("spec/a.ts", body); err != nil || !dynamic {
