@@ -23,6 +23,10 @@ type corpusOptions struct {
 	state, qualifier, run string
 	// provider is the carry-forward records provider ID (DCP-V1-366).
 	provider string
+	// uncovered and anchorless select the delta worklist view; paged reports whether --limit or
+	// --offset was given (DCP-V1-421..423).
+	uncovered, anchorless string
+	paged                 bool
 	// callerRevision is the caller's checkout commit compared with the corpus source revision
 	// (DCP-V1-332).
 	callerRevision string
@@ -46,7 +50,7 @@ type corpusOptions struct {
 
 // stringFlags maps each value-taking corpus option to its field.
 func (o *corpusOptions) stringFlags() map[string]*string {
-	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner, "--schema": &o.schema, "--section": &o.section, "--include": &o.include, "--cases": &o.cases, "--baseline": &o.baseline, "--repository": &o.repository, "--state": &o.state, "--qualifier": &o.qualifier, "--run": &o.run, "--provider": &o.provider, "--caller-revision": &o.callerRevision, "--kind": &o.kind,
+	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner, "--schema": &o.schema, "--section": &o.section, "--include": &o.include, "--cases": &o.cases, "--baseline": &o.baseline, "--repository": &o.repository, "--state": &o.state, "--qualifier": &o.qualifier, "--run": &o.run, "--provider": &o.provider, "--caller-revision": &o.callerRevision, "--kind": &o.kind, "--uncovered": &o.uncovered, "--anchorless": &o.anchorless,
 		"--expected-base": &o.stable.ExpectedBase, "--target": &o.stable.Target, "--stable-artifact-root": &o.stable.ArtifactRoot}
 	o.playwright.addFlags(flags)
 	o.legacyCases.addFlags(flags)
@@ -128,6 +132,7 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 			o.scopes = append(o.scopes, value)
 		}
 	}
+	o.paged = seen["--limit"] || seen["--offset"]
 	operation, ok := lookupCorpusOperation(o.op)
 	if !ok {
 		return o, true, argumentError("unsupported corpus operation")

@@ -67,7 +67,10 @@ type DeltaSpan struct {
 
 // DeltaAnchor is one previous anchor re-validated at the current revision.
 type DeltaAnchor struct {
-	Anchor           string      `json:"anchor"`
+	Anchor string `json:"anchor"`
+	// Repository names a declared additional repository the anchor belongs to (DCP-V1-420);
+	// it is omitted for the primary repository, whose receipts keep their bytes.
+	Repository       string      `json:"repository,omitempty"`
 	State            string      `json:"state"`
 	Reason           string      `json:"reason"`
 	Previous         DeltaSpan   `json:"previous"`
@@ -113,6 +116,72 @@ type DeltaReceipt struct {
 	NextOffset  int            `json:"next_offset,omitempty"`
 	Entries     []DeltaEntry   `json:"entries"`
 	Limitations []string       `json:"limitations"`
+	// Anchorless summarizes the records with no anchor by provider and record kind instead of
+	// listing each as an unresolved entry (DCP-V1-422).
+	Anchorless []DeltaAnchorless `json:"anchorless,omitempty"`
+	// UncoveredSubjectsOmitted counts the subject-level uncovered entries that the `changed`
+	// uncovered mode leaves out of the worklist (DCP-V1-421).
+	UncoveredSubjectsOmitted int `json:"uncovered_subjects_omitted,omitempty"`
+}
+
+// DeltaAnchorless is one provider and record kind's count of previous records that have no
+// anchor, so no span hash can be confirmed (DCP-V1-422).
+type DeltaAnchorless struct {
+	Provider   string `json:"provider"`
+	RecordKind string `json:"record_kind"`
+	Count      int    `json:"count"`
+	Reason     string `json:"reason"`
+}
+
+// DeltaStreamSchema is the header line of the whole-worklist `--format jsonl` stream
+// (DCP-V1-423); every later line is one DeltaEntry.
+const DeltaStreamSchema = "corvint-corpus-delta-stream/1"
+
+// DeltaStreamHeader is the first line of the jsonl stream: the receipt without paging.
+type DeltaStreamHeader struct {
+	Schema                   string            `json:"schema"`
+	Previous                 DeltaSide         `json:"previous"`
+	Current                  DeltaSide         `json:"current"`
+	Counts                   map[string]int    `json:"counts"`
+	Total                    int               `json:"total"`
+	Limitations              []string          `json:"limitations"`
+	Anchorless               []DeltaAnchorless `json:"anchorless,omitempty"`
+	UncoveredSubjectsOmitted int               `json:"uncovered_subjects_omitted,omitempty"`
+}
+
+// Delta worklist modes (DCP-V1-421, DCP-V1-422).
+const (
+	DeltaUncoveredAll      = "all"
+	DeltaUncoveredChanged  = "changed"
+	DeltaAnchorlessSummary = "summary"
+	DeltaAnchorlessList    = "list"
+
+	deltaAnchorlessReason = "record has no anchored span whose hash could be confirmed"
+)
+
+// DeltaOptions selects the worklist view. Empty modes take their defaults: uncovered `all`
+// and anchorless `summary`.
+type DeltaOptions struct {
+	Offset, Limit int
+	Uncovered     string
+	Anchorless    string
+}
+
+// deltaRepo is one repository whose anchors the delta re-validates: the primary, or a declared
+// additional repository read from its own checkout at one of its pinned revisions (DCP-V1-420,
+// DCP-V1-424).
+type deltaRepo struct {
+	id, revision, dir string
+	primary           bool
+	auth              *gitauth.Repository
+	pre               *pathPrefetch
+	inputs            map[string]Input
+	index             *contextindex.Index
+	unavailable       string
+	// pins is, for a declared additional repository, one view per pinned revision in the
+	// manifest's order: its current revision first, then its further pinned revisions.
+	pins     map[string]*deltaRepo
+	pinOrder []string
 }
 
 // deltaRecord is one classified previous record with its re-pinned evidence.
@@ -144,29 +213,125 @@ type deltaRun struct {
 	regions       []DeltaEntry
 	limitations   []string
 	skippedNative int
+	// extra holds the declared additional repositories previous anchors name (DCP-V1-420).
+	extra map[string]*deltaRepo
 }
 
 // Delta classifies previous against current (DCP-V1-360..365) and returns one
 // page of the worklist. current is the opened or freshly built current corpus;
 // source is "artifact" or "manifest". It reads Git objects only.
 func Delta(ctx context.Context, root string, previous, current *Artifact, source string, offset, limit int) (*DeltaReceipt, error) {
-	if limit == 0 {
-		limit = DeltaDefaultLimit
+	return DeltaWith(ctx, root, previous, current, source, DeltaOptions{Offset: offset, Limit: limit})
+}
+
+// DeltaWith is Delta with the uncovered and anchorless modes (DCP-V1-421, DCP-V1-422).
+func DeltaWith(ctx context.Context, root string, previous, current *Artifact, source string, o DeltaOptions) (*DeltaReceipt, error) {
+	if o.Limit == 0 {
+		o.Limit = DeltaDefaultLimit
 	}
-	if limit < 1 || limit > MaxResults || offset < 0 {
+	if o.Limit < 1 || o.Limit > MaxResults || o.Offset < 0 {
 		return nil, fail("delta limit must be 1..256 and offset non-negative")
+	}
+	w, err := deltaWorklist(ctx, root, previous, current, o)
+	if err != nil {
+		return nil, err
+	}
+	receipt := &DeltaReceipt{Schema: DeltaSchema, Previous: deltaSide("artifact", previous), Current: deltaSide(source, current), Counts: w.counts, Total: len(w.entries), Offset: o.Offset, Limit: o.Limit, Entries: []DeltaEntry{}, Limitations: w.limitations, Anchorless: w.anchorless, UncoveredSubjectsOmitted: w.subjectsOmitted}
+	if o.Offset < len(w.entries) {
+		end := min(len(w.entries), o.Offset+o.Limit)
+		receipt.Entries = w.entries[o.Offset:end]
+		if end < len(w.entries) {
+			receipt.NextOffset = end
+		}
+	}
+	return receipt, nil
+}
+
+// DeltaStream classifies once and returns the whole worklist as JSON lines: one
+// DeltaStreamHeader line, then every entry in worklist order (DCP-V1-423). Paging options are
+// ignored. The stream is bounded by the 128 MiB corpus byte bound.
+func DeltaStream(ctx context.Context, root string, previous, current *Artifact, source string, o DeltaOptions) ([]byte, error) {
+	w, err := deltaWorklist(ctx, root, previous, current, o)
+	if err != nil {
+		return nil, err
+	}
+	header, err := Encode(DeltaStreamHeader{Schema: DeltaStreamSchema, Previous: deltaSide("artifact", previous), Current: deltaSide(source, current), Counts: w.counts, Total: len(w.entries), Limitations: w.limitations, Anchorless: w.anchorless, UncoveredSubjectsOmitted: w.subjectsOmitted})
+	if err != nil {
+		return nil, err
+	}
+	out := header
+	for _, e := range w.entries {
+		line, err := Encode(e)
+		if err != nil {
+			return nil, err
+		}
+		if len(out)+len(line) > MaxCorpusBytes {
+			return nil, capacityExceeded("delta stream bytes", len(out)+len(line), MaxCorpusBytes)
+		}
+		out = append(out, line...)
+	}
+	return out, nil
+}
+
+type deltaList struct {
+	entries         []DeltaEntry
+	counts          map[string]int
+	limitations     []string
+	anchorless      []DeltaAnchorless
+	subjectsOmitted int
+}
+
+// deltaWorklist classifies once and orders the entries of the selected view.
+func deltaWorklist(ctx context.Context, root string, previous, current *Artifact, o DeltaOptions) (*deltaList, error) {
+	switch o.Uncovered {
+	case "":
+		o.Uncovered = DeltaUncoveredAll
+	case DeltaUncoveredAll, DeltaUncoveredChanged:
+	default:
+		return nil, fail("delta uncovered mode must be changed or all")
+	}
+	switch o.Anchorless {
+	case "":
+		o.Anchorless = DeltaAnchorlessSummary
+	case DeltaAnchorlessSummary, DeltaAnchorlessList:
+	default:
+		return nil, fail("delta anchorless mode must be summary or list")
 	}
 	run, err := classifyDelta(ctx, root, previous, current)
 	if err != nil {
 		return nil, err
 	}
-	entries := []DeltaEntry{}
+	w := &deltaList{entries: []DeltaEntry{}, limitations: run.limitations}
+	anchorless := map[[2]string]int{}
 	for _, r := range run.records {
-		entries = append(entries, r.entry)
+		if o.Anchorless == DeltaAnchorlessSummary && len(r.entry.Anchors) == 0 && r.entry.Class == DeltaUnresolved && r.entry.Reason == deltaAnchorlessReason {
+			anchorless[[2]string{r.entry.Provider, r.kind}]++
+			continue
+		}
+		w.entries = append(w.entries, r.entry)
 	}
-	entries = append(entries, run.regions...)
-	sort.SliceStable(entries, func(i, j int) bool {
-		a, b := entries[i], entries[j]
+	for _, e := range run.regions {
+		if o.Uncovered == DeltaUncoveredChanged && e.RecordKind == "subject" {
+			w.subjectsOmitted++
+			continue
+		}
+		w.entries = append(w.entries, e)
+	}
+	keys := make([][2]string, 0, len(anchorless))
+	for k := range anchorless {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		if keys[i][0] != keys[j][0] {
+			return keys[i][0] < keys[j][0]
+		}
+		return deltaKindOrder[keys[i][1]] < deltaKindOrder[keys[j][1]]
+	})
+	for _, k := range keys {
+		w.anchorless = append(w.anchorless, DeltaAnchorless{Provider: k[0], RecordKind: k[1], Count: anchorless[k], Reason: deltaAnchorlessReason})
+	}
+	sort.SliceStable(w.entries, func(i, j int) bool {
+		a, b := w.entries[i], w.entries[j]
 		if deltaClassOrder[a.Class] != deltaClassOrder[b.Class] {
 			return deltaClassOrder[a.Class] < deltaClassOrder[b.Class]
 		}
@@ -175,19 +340,11 @@ func Delta(ctx context.Context, root string, previous, current *Artifact, source
 		}
 		return a.ID < b.ID
 	})
-	counts := map[string]int{DeltaCarryForward: 0, DeltaMoved: 0, DeltaChanged: 0, DeltaRemoved: 0, DeltaUnresolved: 0, DeltaUncovered: 0}
-	for _, e := range entries {
-		counts[e.Class]++
+	w.counts = map[string]int{DeltaCarryForward: 0, DeltaMoved: 0, DeltaChanged: 0, DeltaRemoved: 0, DeltaUnresolved: 0, DeltaUncovered: 0}
+	for _, e := range w.entries {
+		w.counts[e.Class]++
 	}
-	receipt := &DeltaReceipt{Schema: DeltaSchema, Previous: deltaSide("artifact", previous), Current: deltaSide(source, current), Counts: counts, Total: len(entries), Offset: offset, Limit: limit, Entries: []DeltaEntry{}, Limitations: run.limitations}
-	if offset < len(entries) {
-		end := min(len(entries), offset+limit)
-		receipt.Entries = entries[offset:end]
-		if end < len(entries) {
-			receipt.NextOffset = end
-		}
-	}
-	return receipt, nil
+	return w, nil
 }
 
 // CarryForward returns a corvint-corpus-provider/1 record holding provider's
@@ -314,7 +471,13 @@ func deltaSide(source string, a *Artifact) DeltaSide {
 	return DeltaSide{Source: source, SHA256: a.SHA256, ManifestSHA256: a.ManifestSHA256, Repository: a.Manifest.Repository, Tree: a.Tree, Builder: a.Builder}
 }
 
-func classifyDelta(ctx context.Context, root string, previous, current *Artifact) (_ *deltaRun, err error) {
+func classifyDelta(ctx context.Context, root string, previous, current *Artifact) (*deltaRun, error) {
+	return classifyDeltaWithin(ctx, root, previous, current, deltaReadMaxBytes)
+}
+
+// classifyDeltaWithin is classifyDelta under readLimit bytes read from every repository's object
+// store together, prefetch included (DCP-V1-367, DCP-V1-420).
+func classifyDeltaWithin(ctx context.Context, root string, previous, current *Artifact, readLimit int) (_ *deltaRun, err error) {
 	defer func() { err = gitCapacity(err, "while classifying the corpus delta") }()
 	if previous.Manifest.Repository.ID != current.Manifest.Repository.ID {
 		return nil, fail("previous and current corpora name different repositories")
@@ -326,7 +489,7 @@ func classifyDelta(ctx context.Context, root string, previous, current *Artifact
 	}
 	release := auth.BeginObjectSession()
 	defer release()
-	d := &deltaRun{root: root, previous: previous, current: current, auth: auth, pre: newPathPrefetch(current.Manifest.Repository.Revision), hashLimit: deltaHashMaxBytes, readLimit: deltaReadMaxBytes, newInputs: map[string]Input{}, oldInputs: map[string]Input{}, blobs: map[string][]byte{}, blobReasons: map[string]string{}}
+	d := &deltaRun{root: root, previous: previous, current: current, auth: auth, pre: newPathPrefetch(current.Manifest.Repository.Revision), hashLimit: deltaHashMaxBytes, readLimit: readLimit, newInputs: map[string]Input{}, oldInputs: map[string]Input{}, blobs: map[string][]byte{}, blobReasons: map[string]string{}}
 	for _, in := range current.Manifest.Inputs {
 		if in.Revision == current.Manifest.Repository.Revision {
 			d.newInputs[in.Path] = in
@@ -337,6 +500,8 @@ func classifyDelta(ctx context.Context, root string, previous, current *Artifact
 			d.oldInputs[in.Path] = in
 		}
 	}
+	releaseExtra := d.openAdditional(ctx)
+	defer releaseExtra()
 	if err := d.prefetch(ctx); err != nil {
 		return nil, err
 	}
@@ -346,9 +511,10 @@ func classifyDelta(ctx context.Context, root string, previous, current *Artifact
 	if err := d.uncovered(ctx); err != nil {
 		return nil, err
 	}
+	d.limitations = append(d.limitations, current.deltaUnverified...)
 	d.limitations = append(d.limitations,
 		"journeys, observations and supplied gaps of the previous corpus are not classified",
-		"anchors in additional repositories are reported unresolved and never carried",
+		"uncovered regions cover the primary repository's changed source inputs only; additional repository anchors are re-validated but their changed lines are not listed",
 		"symbol re-resolution across paths covers the languages the symbol resolver normalizes; other symbol anchors are placed by span hash in their own path only")
 	if d.skippedNative > 0 {
 		d.limitations = append(d.limitations, fmt.Sprintf("%d native or compiler-derived previous records are rebuilt by the compiler and not classified", d.skippedNative))
@@ -356,14 +522,112 @@ func classifyDelta(ctx context.Context, root string, previous, current *Artifact
 	return d, nil
 }
 
-// prefetch batches the tree lookups and blob reads the classification needs,
-// so the Git operation count does not grow with the record count.
-func (d *deltaRun) prefetch(ctx context.Context) error {
-	oids, paths := []string{}, []string{}
+// openAdditional opens, read-only, the checkout of every declared additional repository that a
+// previous anchor names, exactly as the build reads it (DCP-V1-176, DCP-V1-420): the current
+// manifest must declare the repository, its checkout must open, and its root commit must equal
+// the declared identity. A repository that fails any of these keeps the reason, and its anchors
+// are unresolved with it. The returned function releases every object session.
+func (d *deltaRun) openAdditional(ctx context.Context) func() {
+	d.extra = map[string]*deltaRepo{}
+	releases := []func(){}
+	named := map[string]bool{}
 	for _, list := range [][]Evidence{subjectEvidence(d.previous.Subjects), claimEvidence(d.previous.Claims), relationEvidence(d.previous.Relations)} {
 		for _, e := range list {
 			for _, a := range e.Anchors {
 				if a.Repository != d.previous.Manifest.Repository.ID {
+					named[a.Repository] = true
+				}
+			}
+		}
+	}
+	for _, id := range sortedKeys(named) {
+		repo := &deltaRepo{id: id, inputs: map[string]Input{}}
+		d.extra[id] = repo
+		var declared *AdditionalRepository
+		for i, r := range d.current.Manifest.AdditionalRepositories {
+			if r.ID == id {
+				declared = &d.current.Manifest.AdditionalRepositories[i]
+			}
+		}
+		if declared == nil {
+			repo.unavailable = "anchor names repository " + id + ", which the current manifest does not declare"
+			continue
+		}
+		repo.revision = declared.Revision
+		dir := d.current.Manifest.RevisionRoot(d.root, declared.Revision)
+		if got, err := contextindex.CorpusRepositoryID(ctx, dir, declared.Revision); err != nil || got != id {
+			repo.unavailable = "additional repository " + id + " checkout is unavailable or does not hold its declared identity and revision"
+			continue
+		}
+		auth, err := gitauth.Open(dir, newGitBudget(ctx))
+		if err != nil {
+			repo.unavailable = "additional repository checkout unavailable: " + id
+			continue
+		}
+		releases = append(releases, auth.BeginObjectSession())
+		repo.auth, repo.dir, repo.pins, repo.pinOrder = auth, dir, map[string]*deltaRepo{}, declared.pinned()
+		// Each pinned revision keeps its own inputs, so an anchor is resolved at the revision it
+		// was pinned to while the current manifest still pins it (DCP-V1-424).
+		for _, revision := range repo.pinOrder {
+			pin := &deltaRepo{id: id, revision: revision, dir: dir, auth: auth, pre: newPathPrefetch(revision), inputs: map[string]Input{}}
+			if revision != declared.Revision {
+				if got, err := contextindex.CorpusRepositoryID(ctx, dir, revision); err != nil || got != id {
+					pin.unavailable = "additional repository " + id + " checkout does not hold its pinned revision " + revision
+				}
+			}
+			for _, in := range d.current.Manifest.Inputs {
+				if in.Revision == revision {
+					pin.inputs[in.Path] = in
+				}
+			}
+			repo.pins[revision] = pin
+		}
+	}
+	return func() {
+		for _, release := range releases {
+			release()
+		}
+	}
+}
+
+// repoOf is the repository a previous anchor belongs to: the primary, or a declared additional
+// repository opened by openAdditional, at the anchor's own revision while the current manifest
+// still pins it and otherwise at the repository's current revision (DCP-V1-424).
+func (d *deltaRun) repoOf(a Anchor) *deltaRepo {
+	if a.Repository == d.previous.Manifest.Repository.ID {
+		return &deltaRepo{id: a.Repository, revision: d.current.Manifest.Repository.Revision, primary: true, auth: d.auth, pre: d.pre, inputs: d.newInputs}
+	}
+	if repo, ok := d.extra[a.Repository]; ok {
+		if repo.unavailable != "" {
+			return repo
+		}
+		if pin, ok := repo.pins[a.Revision]; ok {
+			return pin
+		}
+		return repo.pins[repo.revision]
+	}
+	return &deltaRepo{id: a.Repository, unavailable: "anchor names repository " + a.Repository + ", which the current manifest does not declare"}
+}
+
+// prefetch batches the tree lookups and blob reads the classification needs,
+// so the Git operation count does not grow with the record count. Every batch draws on the one
+// delta read bound shared by all repositories, so prefetch never reads past it (DCP-V1-367,
+// DCP-V1-420).
+func (d *deltaRun) prefetch(ctx context.Context) error {
+	oids, paths := []string{}, []string{}
+	extraOIDs, extraPaths := map[*deltaRepo][]string{}, map[*deltaRepo][]string{}
+	for _, list := range [][]Evidence{subjectEvidence(d.previous.Subjects), claimEvidence(d.previous.Claims), relationEvidence(d.previous.Relations)} {
+		for _, e := range list {
+			for _, a := range e.Anchors {
+				if a.Repository != d.previous.Manifest.Repository.ID {
+					if repo := d.repoOf(a); repo.unavailable == "" {
+						extraOIDs[repo] = append(extraOIDs[repo], a.Blob)
+						if in, ok := repo.inputs[a.Path]; ok {
+							extraOIDs[repo] = append(extraOIDs[repo], in.Blob)
+						} else {
+							extraPaths[repo] = append(extraPaths[repo], a.Path)
+						}
+					}
 					continue
 				}
 				oids = append(oids, a.Blob)
@@ -390,7 +654,50 @@ func (d *deltaRun) prefetch(ctx context.Context) error {
 	if err := d.pre.resolve(ctx, d.auth, paths); err != nil {
 		return err
 	}
-	return d.pre.read(ctx, d.auth, oids, deltaFileMaxBytes, d.readLimit)
+	if err := d.prefetchBodies(ctx, d.pre, d.auth, oids); err != nil {
+		return err
+	}
+	for _, id := range sortedKeys(d.extra) {
+		repo := d.extra[id]
+		if repo.unavailable != "" {
+			continue
+		}
+		for _, revision := range repo.pinOrder {
+			pin := repo.pins[revision]
+			if pin.unavailable != "" {
+				continue
+			}
+			if err := pin.pre.resolve(ctx, pin.auth, extraPaths[pin]); err != nil {
+				return err
+			}
+			if err := d.prefetchBodies(ctx, pin.pre, pin.auth, extraOIDs[pin]); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// prefetchBodies batch-reads oids within what is left of the shared read bound and charges the
+// bodies read to it; blobIn serves them without charging again.
+func (d *deltaRun) prefetchBodies(ctx context.Context, pre *pathPrefetch, auth *gitauth.Repository, oids []string) error {
+	left := d.readBudget() - d.read
+	if left < 1 || len(oids) == 0 {
+		return nil
+	}
+	before := pre.heldBytes()
+	if err := pre.read(ctx, auth, oids, deltaFileMaxBytes, left); err != nil {
+		return err
+	}
+	d.read += pre.heldBytes() - before
+	return nil
+}
+
+func (d *deltaRun) readBudget() int {
+	if d.readLimit == 0 {
+		return deltaReadMaxBytes
+	}
+	return d.readLimit
 }
 
 func subjectEvidence(list []Subject) []Evidence {
@@ -427,24 +734,36 @@ func sortedKeys[V any](m map[string]V) []string {
 // blob returns a bounded, digest-verified blob body, or the reason it is
 // unavailable. Only a cancelled context or a Git capacity failure is an error.
 func (d *deltaRun) blob(ctx context.Context, oid, sha string) ([]byte, string, error) {
-	if data, ok := d.blobs[oid]; ok {
+	return d.blobIn(ctx, &deltaRepo{primary: true, auth: d.auth, pre: d.pre}, oid, sha)
+}
+
+// blobIn is blob read from one repository's object store. Every repository shares the read
+// bound, which prefetched bodies were already charged to; an additional repository's bodies and
+// reasons are cached under its identity.
+func (d *deltaRun) blobIn(ctx context.Context, repo *deltaRepo, oid, sha string) ([]byte, string, error) {
+	key := oid
+	if !repo.primary {
+		key = repo.id + "\x00" + oid
+	}
+	if data, ok := d.blobs[key]; ok {
 		return data, "", nil
 	}
-	if reason, ok := d.blobReasons[oid]; ok {
+	if reason, ok := d.blobReasons[key]; ok {
 		return nil, reason, nil
 	}
-	budget := d.readLimit
-	if budget == 0 {
-		budget = deltaReadMaxBytes
-	}
-	limit := min(deltaFileMaxBytes, budget-d.read)
-	if limit < 1 {
+	limit := min(deltaFileMaxBytes, d.readBudget()-d.read)
+	data, held := repo.pre.held(oid)
+	if !held && limit < 1 {
 		reason := "the 64 MiB delta read bound was reached before blob " + oid
-		d.blobReasons[oid] = reason
+		d.blobReasons[key] = reason
 		return nil, reason, nil
 	}
-	// The limit is checked against the object header before any body is read.
-	data, over, err := d.pre.blobWithin(ctx, d.auth, oid, limit)
+	var over bool
+	var err error
+	if !held {
+		// The limit is checked against the object header before any body is read.
+		data, over, err = repo.pre.blobWithin(ctx, repo.auth, oid, limit)
+	}
 	reason := ""
 	switch {
 	case err != nil:
@@ -464,11 +783,13 @@ func (d *deltaRun) blob(ctx context.Context, oid, sha string) ([]byte, string, e
 		reason = "blob " + oid + " does not hash to its recorded sha256"
 	}
 	if reason != "" {
-		d.blobReasons[oid] = reason
+		d.blobReasons[key] = reason
 		return nil, reason, nil
 	}
-	d.read += len(data)
-	d.blobs[oid] = data
+	if !held {
+		d.read += len(data)
+	}
+	d.blobs[key] = data
 	return data, "", nil
 }
 
@@ -561,7 +882,7 @@ func (d *deltaRun) demoteDependencies(present map[string]bool) {
 // severe anchor state: removed, changed, unresolved, moved, carry-forward.
 func (d *deltaRun) classifyEvidence(ctx context.Context, r *deltaRecord, e Evidence) error {
 	if len(e.Anchors) == 0 {
-		r.entry.Class, r.entry.Reason = DeltaUnresolved, "record has no anchored span whose hash could be confirmed"
+		r.entry.Class, r.entry.Reason = DeltaUnresolved, deltaAnchorlessReason
 		return nil
 	}
 	rank := map[string]int{DeltaRemoved: 0, DeltaChanged: 1, DeltaUnresolved: 2, DeltaMoved: 3, DeltaCarryForward: 4}
@@ -597,26 +918,30 @@ func (d *deltaRun) classifyAnchor(ctx context.Context, a Anchor) (DeltaAnchor, A
 		da.State, da.Reason = s, reason
 		return da, Anchor{}, nil
 	}
+	repo := d.repoOf(a)
+	if !repo.primary {
+		da.Repository = repo.id
+	}
 	switch {
-	case a.Repository != d.previous.Manifest.Repository.ID:
-		return state(DeltaUnresolved, "anchor names an additional repository; the delta re-validates the primary repository only")
+	case repo.unavailable != "":
+		return state(DeltaUnresolved, repo.unavailable)
 	case a.Authority != "external-provider":
 		return state(DeltaUnresolved, "anchor authority is "+a.Authority+"; only imported external-provider evidence is carried")
 	case a.Start < 1 || a.End < a.Start || a.SpanSHA256 == "":
 		return state(DeltaUnresolved, "anchor has no valid span hash to confirm")
 	}
-	in, declared := d.newInputs[a.Path]
+	in, declared := repo.inputs[a.Path]
 	if !declared {
-		entry, exists, err := d.pre.lookup(ctx, d.auth, d.current.Manifest.Repository.Revision, a.Path)
+		entry, exists, err := repo.pre.lookup(ctx, repo.auth, repo.revision, a.Path)
 		if err != nil {
 			return da, Anchor{}, err
 		}
-		if moved, ok, err := d.symbolMove(ctx, a, &da); err != nil || ok {
+		if moved, ok, err := d.symbolMove(ctx, repo, a, &da); err != nil || ok {
 			return da, moved, err
 		}
 		switch {
 		case da.State == DeltaChanged:
-			return d.changedLines(ctx, a, da)
+			return d.changedLines(ctx, repo, a, da)
 		case da.State != "":
 			return da, Anchor{}, nil
 		case exists && regularBlob(entry):
@@ -626,7 +951,7 @@ func (d *deltaRun) classifyAnchor(ctx context.Context, a Anchor) (DeltaAnchor, A
 		}
 		return state(DeltaRemoved, "anchored path is absent at the current revision")
 	}
-	data, reason, err := d.blob(ctx, in.Blob, in.SHA256)
+	data, reason, err := d.blobIn(ctx, repo, in.Blob, in.SHA256)
 	if err != nil {
 		return da, Anchor{}, err
 	}
@@ -635,7 +960,7 @@ func (d *deltaRun) classifyAnchor(ctx context.Context, a Anchor) (DeltaAnchor, A
 	}
 	pin := func(s, e int) Anchor {
 		p := a
-		p.Revision, p.Blob, p.SHA256, p.Start, p.End = d.current.Manifest.Repository.Revision, in.Blob, in.SHA256, s, e
+		p.Revision, p.Blob, p.SHA256, p.Start, p.End = repo.revision, in.Blob, in.SHA256, s, e
 		da.Current = &DeltaSpan{Path: a.Path, Blob: in.Blob, SHA256: in.SHA256, Start: s, End: e, SpanSHA256: a.SpanSHA256}
 		return p
 	}
@@ -649,7 +974,7 @@ func (d *deltaRun) classifyAnchor(ctx context.Context, a Anchor) (DeltaAnchor, A
 			return da, pin(a.Start, a.End), nil
 		}
 	}
-	oldData, oldReason, err := d.blob(ctx, a.Blob, a.SHA256)
+	oldData, oldReason, err := d.blobIn(ctx, repo, a.Blob, a.SHA256)
 	if err != nil {
 		return da, Anchor{}, err
 	}
@@ -669,14 +994,14 @@ func (d *deltaRun) classifyAnchor(ctx context.Context, a Anchor) (DeltaAnchor, A
 	case bounded:
 		return state(DeltaUnresolved, deltaHashBoundReason)
 	case same:
-		if err := d.confirmSymbol(ctx, a, a.Path, a.Start, a.End); err != "" {
+		if err := d.confirmSymbol(ctx, repo, a, a.Path, a.Start, a.End); err != "" {
 			return state(DeltaUnresolved, err)
 		}
 		da.State, da.Reason = DeltaCarryForward, "span hash confirmed at its pinned lines in the current blob"
 		return da, pin(a.Start, a.End), nil
 	case len(others) == 1:
 		end := others[0] + a.End - a.Start
-		if err := d.confirmSymbol(ctx, a, a.Path, others[0], end); err != "" {
+		if err := d.confirmSymbol(ctx, repo, a, a.Path, others[0], end); err != "" {
 			return state(DeltaUnresolved, err)
 		}
 		da.State, da.Reason = DeltaMoved, "span hash confirmed at new lines in the same path"
@@ -684,12 +1009,12 @@ func (d *deltaRun) classifyAnchor(ctx context.Context, a Anchor) (DeltaAnchor, A
 	case len(others) > 1:
 		return state(DeltaUnresolved, "span hash matches more than one window in the current blob")
 	}
-	if moved, ok, err := d.symbolMove(ctx, a, &da); err != nil || ok {
+	if moved, ok, err := d.symbolMove(ctx, repo, a, &da); err != nil || ok {
 		return da, moved, err
 	}
 	switch da.State {
 	case DeltaChanged:
-		return d.changedLines(ctx, a, da)
+		return d.changedLines(ctx, repo, a, da)
 	case DeltaRemoved, DeltaUnresolved:
 		return da, Anchor{}, nil
 	}
@@ -719,20 +1044,20 @@ func (d *deltaRun) classifyAnchor(ctx context.Context, a Anchor) (DeltaAnchor, A
 // changedLines fills the changed-line hunks of an anchor the symbol resolver
 // reported changed, diffing the previous blob against the current blob of the
 // re-resolved path while keeping the resolver's estimated current span.
-func (d *deltaRun) changedLines(ctx context.Context, a Anchor, da DeltaAnchor) (DeltaAnchor, Anchor, error) {
+func (d *deltaRun) changedLines(ctx context.Context, repo *deltaRepo, a Anchor, da DeltaAnchor) (DeltaAnchor, Anchor, error) {
 	path := a.Path
 	if da.Current != nil {
 		path = da.Current.Path
 	}
-	in, declared := d.newInputs[path]
+	in, declared := repo.inputs[path]
 	if !declared {
 		da.Reason += "; changed lines not computed: " + path + " is not a declared input of the current manifest"
 		return da, Anchor{}, nil
 	}
-	data, reason, err := d.blob(ctx, in.Blob, in.SHA256)
+	data, reason, err := d.blobIn(ctx, repo, in.Blob, in.SHA256)
 	if err == nil && reason == "" {
 		var oldData []byte
-		oldData, reason, err = d.blob(ctx, a.Blob, a.SHA256)
+		oldData, reason, err = d.blobIn(ctx, repo, a.Blob, a.SHA256)
 		if err == nil && reason == "" {
 			hunks := lineDiff(splitLines(oldData), splitLines(data), deltaMaxEdits)
 			da.ChangedLines, da.ChangedTruncated = overlappingHunks(hunks, a.Start, a.End, deltaHunksPerAnchor)
@@ -822,14 +1147,30 @@ func (d *deltaRun) liveIndex(ctx context.Context) (*contextindex.Index, error) {
 	return d.index, nil
 }
 
+// repoIndex is the context index of repo's current pinned revision: the primary's live index,
+// or an additional repository's index built once from its own checkout, as the build does.
+func (d *deltaRun) repoIndex(ctx context.Context, repo *deltaRepo) (*contextindex.Index, error) {
+	if repo.primary {
+		return d.liveIndex(ctx)
+	}
+	if repo.index == nil {
+		index, err := contextindex.BuildRevisionContext(ctx, repo.dir, repo.revision)
+		if err != nil {
+			return nil, err
+		}
+		repo.index = index
+	}
+	return repo.index, nil
+}
+
 // confirmSymbol returns a reason when a symbol anchor's symbol is not declared
 // inside its re-pinned span at the current revision, the condition the next
 // build's anchor check enforces.
-func (d *deltaRun) confirmSymbol(ctx context.Context, a Anchor, path string, start, end int) string {
+func (d *deltaRun) confirmSymbol(ctx context.Context, repo *deltaRepo, a Anchor, path string, start, end int) string {
 	if a.Symbol == "" {
 		return ""
 	}
-	index, err := d.liveIndex(ctx)
+	index, err := d.repoIndex(ctx, repo)
 	if err != nil {
 		return "current revision symbol index unavailable: " + err.Error()
 	}
@@ -846,8 +1187,8 @@ func (d *deltaRun) confirmSymbol(ctx context.Context, a Anchor, path string, sta
 // moved anchor with a confirmed exact span hash; otherwise da may carry a
 // removed, changed or unresolved state, or stay empty when the resolver does
 // not apply.
-func (d *deltaRun) symbolMove(ctx context.Context, a Anchor, da *DeltaAnchor) (Anchor, bool, error) {
-	if a.Symbol == "" || contextindex.SymbolRegionLanguage(a.Path) == "" {
+func (d *deltaRun) symbolMove(ctx context.Context, repo *deltaRepo, a Anchor, da *DeltaAnchor) (Anchor, bool, error) {
+	if !repo.primary || a.Symbol == "" || contextindex.SymbolRegionLanguage(a.Path) == "" {
 		return Anchor{}, false, nil
 	}
 	if d.resolver == nil {
@@ -902,7 +1243,7 @@ func (d *deltaRun) symbolMove(ctx context.Context, a Anchor, da *DeltaAnchor) (A
 		da.Current = &DeltaSpan{Path: l.Path, Blob: l.Blob, SHA256: l.SHA256, Start: l.Start, End: l.End, SpanSHA256: digest, Estimated: true}
 		return Anchor{}, false, nil
 	}
-	if reason := d.confirmSymbol(ctx, a, l.Path, l.Start, l.End); reason != "" {
+	if reason := d.confirmSymbol(ctx, repo, a, l.Path, l.Start, l.End); reason != "" {
 		da.State, da.Reason = DeltaUnresolved, reason
 		return Anchor{}, false, nil
 	}
@@ -942,7 +1283,7 @@ func (d *deltaRun) uncovered(ctx context.Context) error {
 			continue
 		}
 		for _, a := range r.entry.Anchors {
-			if a.Current != nil {
+			if a.Current != nil && a.Repository == "" {
 				cover(a.Current.Path, a.Current.Start, a.Current.End)
 			}
 		}

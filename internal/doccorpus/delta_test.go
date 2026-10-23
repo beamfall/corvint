@@ -221,8 +221,8 @@ func TestDCPV1360DeltaWorklistClasses(t *testing.T) {
 			}
 		}
 		got := deltaEntries(t, root, mutated, current)
-		if got["adapter:readme"].Class != DeltaUnresolved || !strings.Contains(got["adapter:readme"].Reason, "additional repository") {
-			t.Fatalf("additional-repository anchor: %+v", got["adapter:readme"])
+		if got["adapter:readme"].Class != DeltaUnresolved || !strings.Contains(got["adapter:readme"].Reason, "which the current manifest does not declare") {
+			t.Fatalf("undeclared-repository anchor (DCP-V1-425): %+v", got["adapter:readme"])
 		}
 		if got["adapter:count"].Class != DeltaChanged {
 			t.Fatalf("an unconfirmable span hash was not changed: %+v", got["adapter:count"])
