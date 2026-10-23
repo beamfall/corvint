@@ -63,6 +63,8 @@ func buildCorpusOperations() []corpusOperation {
 		typed("navigation", "typed navigation subject"),
 		typed("vocabulary", "typed vocabulary matching a term"),
 		read("intent", "typed intent comparisons of one subject, or every intent comparison without --id", nil, "--id"),
+		{name: "delta", purpose: "page a cross-revision worklist: carry-forward, moved, changed, removed, unresolved and uncovered", required: []string{"--previous"}, optional: []string{"--artifact", "--manifest", "--limit", "--offset"}},
+		{name: "carry-forward", purpose: "emit a provider record of one provider's records whose span hashes still hold", required: []string{"--previous", "--provider"}, optional: []string{"--artifact", "--manifest"}},
 		{name: "eval", purpose: "score caller-labelled cases through the corpus MCP tool path; --baseline ratchets", required: []string{"--artifact", "--cases"}, optional: []string{"--baseline", "--format"}},
 		{name: "audit-sample", purpose: "draw a reproducible claim sample to audit; also spelled audit sample", required: []string{"--artifact", "--seed", "--size"}, optional: []string{"--stratify", "--scope"}},
 		{name: "audit-report", purpose: "measure sampled-claim accuracy from independent verdicts; also spelled audit report", required: []string{"--artifact", "--sample"}, optional: []string{"--format"}},
@@ -142,6 +144,7 @@ var corpusFlagHelp = map[string][2]string{
 	"--size":                 {"N", "claims to sample, 1.." + strconv.Itoa(doccorpus.MaxAuditSample)},
 	"--stratify":             {"provider|kind|flow|trust", "proportionally allocate the sample across strata"},
 	"--sample":               {"SAMPLE.json", doccorpus.AuditSampleSchema + " sample from docs corpus audit sample"},
+	"--provider":             {"PROVIDER", "records provider ID declared in the previous corpus manifest"},
 }
 
 // corpusOperationFlagHelp overrides a shared option's help for one operation: eval's --format
@@ -150,6 +153,13 @@ var corpusOperationFlagHelp = map[string]map[string][2]string{
 	"eval":         {"--format": {"json|table", "report view (default json)"}},
 	"audit-sample": {"--scope": {"PATH", "sample only claims citing this path or directory"}},
 	"audit-report": {"--format": {"json|table", "report view (default json)"}},
+	"delta": {"--previous": {"CORPUS.json", "previous corpus artifact the worklist compares from"},
+		"--artifact": {"CORPUS.json", "current corpus artifact (or --manifest; exactly one)"},
+		"--manifest": {"INPUT.json", "current manifest, built in memory (or --artifact; exactly one)"},
+		"--limit":    {"N", "1.." + strconv.Itoa(doccorpus.MaxResults) + " entries (default 20)"}},
+	"carry-forward": {"--previous": {"CORPUS.json", "previous corpus artifact whose records are carried"},
+		"--artifact": {"CORPUS.json", "current corpus artifact (or --manifest; exactly one)"},
+		"--manifest": {"INPUT.json", "current manifest, built in memory (or --artifact; exactly one)"}},
 }
 
 // corpusFlagHelpFor is the help entry of flag for operation.
