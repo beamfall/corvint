@@ -87,6 +87,10 @@ func TestDCPV1349CorpusPatternsCLI(t *testing.T) {
 	}
 	for _, bad := range [][]string{
 		{"build", "--manifest", "corpus-input.json", "--max-unresolved-mention-rate", "2"},
+		{"build", "--manifest", "corpus-input.json", "--max-unresolved-mention-rate="},
+		{"build", "--manifest", "corpus-input.json", "--max-unresolved-mention-rate", ""},
+		{"build", "--manifest", "corpus-input.json", "--max-pattern-rate="},
+		{"build", "--manifest", "corpus-input.json", "--max-pattern-rate", " "},
 		{"build", "--manifest", "corpus-input.json", "--max-pattern-rate", "nope=0.1"},
 		{"build", "--manifest", "corpus-input.json", "--max-pattern-rate", "anchor-cluster=0.1,anchor-cluster=0.2"},
 		{"patterns", "--artifact", "corpus.json", "--format", "yaml"},

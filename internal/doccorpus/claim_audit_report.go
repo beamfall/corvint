@@ -323,6 +323,33 @@ func ParseAuditSample(raw []byte) (*AuditSample, error) {
 		}
 		seen[c.ClaimID] = true
 	}
+	// Strata reconcile with the claims and totals (DCP-V1-351): unique names, each sampled claim in
+	// exactly one listed stratum, per-stratum sampled counts equal to its claims, and population and
+	// sampled totals equal to the design's.
+	sampled := map[string]int{}
+	population, total := 0, 0
+	for _, st := range s.Strata {
+		if _, dup := sampled[st.Name]; dup {
+			return nil, fail("audit report: sample strata names must be unique")
+		}
+		sampled[st.Name] = 0
+		population += st.Population
+		total += st.Sampled
+	}
+	for _, c := range s.Claims {
+		if _, ok := sampled[c.Stratum]; !ok {
+			return nil, fail("audit report: sample claim " + c.ClaimID + " names unlisted stratum " + strconv.Quote(c.Stratum))
+		}
+		sampled[c.Stratum]++
+	}
+	for _, st := range s.Strata {
+		if sampled[st.Name] != st.Sampled {
+			return nil, fail(fmt.Sprintf("audit report: stratum %q lists %d sampled claims but the sample has %d", st.Name, st.Sampled, sampled[st.Name]))
+		}
+	}
+	if population != s.Design.Population || total != s.Design.Sampled {
+		return nil, fail(fmt.Sprintf("audit report: strata total population %d and sampled %d differ from the design's %d and %d", population, total, s.Design.Population, s.Design.Sampled))
+	}
 	return &s, nil
 }
 

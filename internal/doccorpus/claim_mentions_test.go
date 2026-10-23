@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
 
 // mentionClaimText names tokens that resolve in the cited span (`Count()`), to a provider subject
@@ -32,6 +33,8 @@ func TestDCPV1340ExtractCodeTokens(t *testing.T) {
 		{"Plain prose: Count is one. See https://example.invalid/a.go and e.g. 3.5 or Count.", ""},
 		{"`showCount` then showCount again", "showCount:identifier"},
 		{"unterminated `showCount", "showCount:identifier"},
+		{"`os.stat`, `main.go`, `app.config.json`, `os.stat()`, `a.go` and `ab.cd`", "os.stat:member main.go:path app.config.json:path os.stat():member a.go:path ab.cd:member"},
+		{"Calls (renderAll) and f(x)) then [list]] and Map<K>>.", "renderAll:identifier"},
 	}
 	for _, c := range cases {
 		tokens, omitted := ExtractCodeTokens(c.text)
@@ -57,6 +60,24 @@ func TestDCPV1340ExtractCodeTokens(t *testing.T) {
 	}
 	if tokens, _ := ExtractCodeTokens("`" + strings.Repeat("a", MaxMentionBytes+1) + "`"); len(tokens) != 0 {
 		t.Fatal("over-long token admitted")
+	}
+	// Adversarial closing-bracket runs trim in linear time: a quadratic rescan of a 1 MiB chunk
+	// would not finish within the bound.
+	for _, c := range []struct{ chunk, want string }{
+		{"x" + strings.Repeat(")", 65536), "x"},
+		{"f(" + strings.Repeat(")", 65536), "f(" + strings.Repeat(")", 65536)},
+		{"'(" + strings.Repeat("])}>.", 13107) + "'", ""},
+	} {
+		if got := trimChunk(c.chunk); got != c.want {
+			t.Fatalf("trimChunk(%.12q...) = %.12q... (%d bytes), want %d bytes", c.chunk, got, len(got), len(c.want))
+		}
+	}
+	start := time.Now()
+	if tokens, _ := ExtractCodeTokens("run_all" + strings.Repeat(")", 1<<20)); len(tokens) != 1 || tokens[0].Token != "run_all" {
+		t.Fatalf("closing-bracket run tokens = %+v", tokens)
+	}
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Fatalf("1 MiB closing-bracket run took %s; trimming is not linear", elapsed)
 	}
 }
 
@@ -132,12 +153,28 @@ func TestDCPV1341ClaimMentionCheckIsBuiltAndPinned(t *testing.T) {
 	if _, err := Open(context.Background(), root, data); err != nil {
 		t.Fatalf("rederived artifact refused: %v", err)
 	}
-	tampered := bytes.Replace(data, []byte(`"state":"partially-unresolved"`), []byte(`"state":"consistent"`), 1)
-	if bytes.Equal(tampered, data) {
-		t.Fatal("fixture has no stored state")
+	// A tampered check with a recomputed digest parses, so only Open's rederivation refuses it.
+	forged, err := ParseArtifact(data)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := Open(context.Background(), root, tampered); err == nil {
-		t.Fatal("tampered mention check was admitted")
+	if len(forged.ClaimMentions) == 0 || forged.ClaimMentions[0].State == MentionsConsistent {
+		t.Fatalf("fixture has no non-consistent stored state: %+v", forged.ClaimMentions)
+	}
+	forged.ClaimMentions[0].State = MentionsConsistent
+	forged.SHA256 = ""
+	if forged.SHA256, err = hashValue(*forged); err != nil {
+		t.Fatal(err)
+	}
+	tampered, err := Encode(forged)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ParseArtifact(tampered); err != nil {
+		t.Fatalf("re-digested tampered artifact does not parse: %v", err)
+	}
+	if _, err := Open(context.Background(), root, tampered); err == nil || !strings.Contains(err.Error(), "cannot be rederived") {
+		t.Fatalf("tampered mention check: Open err = %v, want rederivation refusal", err)
 	}
 	plainRoot, plainManifest := providerFixture(t, nil)
 	plain, err := Build(context.Background(), plainRoot, plainManifest)

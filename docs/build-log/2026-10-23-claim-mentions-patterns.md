@@ -56,3 +56,29 @@ Focused runs, GOTOOLCHAIN=local (go1.27.2), all PASS:
 - The weighted figure has no interval. Stratum populations come from the sample document, which is
   validated but not re-counted against the corpus.
 - The HTTP companion shares the `Query`/page readers but has no separate claim-mentions test.
+
+## Independent review fixes
+
+A single Codex review round on PR #1592 found five issues. All are fixed, each with a test.
+
+- **Linear trimming** (`DCP-V1-340`): `trimChunk` now works out once which openers the chunk
+  contains, then trims from the right in one pass. The old version rescanned the chunk for every
+  closing bracket it stripped, which was quadratic. A test runs a 1 MiB closing-bracket run.
+- **Members before file names** (`DCP-V1-340`): dotted members now take precedence over paths. A
+  backticked dotted name counts as a file name only when its last part is in a fixed extension
+  list, so `os.stat` is a member and `main.go` is a path.
+- **Strata reconciliation** (`DCP-V1-351`): `audit report` now refuses a sample whose strata do not
+  reconcile with its claims and totals. This closes the dropped-stratum case, where a forged sample
+  still produced a defined weighted figure.
+- **Empty threshold values** (`DCP-V1-346`, `DCP-V1-352`): an empty value for either threshold
+  flag is now an argument error. It used to be treated as an absent threshold.
+- **Tamper test** (`DCP-V1-341`): the test now recomputes the artifact digest, so the refusal it
+  sees comes from `Open`'s rederivation, not from the digest check.
+
+After the fixes, these focused runs pass:
+
+| Package | Scope | Result |
+| --- | --- | --- |
+| `./internal/doccorpus/` | `-run '^TestDCPV1'` | ok, 437.8 s |
+| `./internal/doccorpus/` | `-skip '^TestDCPV1'` | ok, 79.5 s |
+| `./cmd/corvint/` | `-run 'TestDCPV1349\|TestDocsCorpus\|TestDCPV1268'` | ok, 5.7 s |

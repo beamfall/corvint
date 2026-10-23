@@ -1677,14 +1677,18 @@ under the owner's standing auto-accept (2026-10-11); GitHub #1584, #1586.
   code-like tokens in order of first appearance. A single-backtick span on one line is one
   candidate (its trimmed content). Outside backticks, text splits on whitespace; each chunk loses
   leading quotes and opening brackets, trailing quotes and sentence punctuation (`.,;:!?`), and a
-  trailing `)`, `]`, `}` or `>` whose opener does not occur in the chunk. An uppercase HTTP method
+  trailing `)`, `]`, `}` or `>` whose opener does not occur in the chunk, in time linear in the
+  chunk. An uppercase HTTP method
   chunk (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`) followed by a chunk starting
   with `/` is one candidate. A candidate is then, in order: `route` (`METHOD /path`), `scope`
   (`A::B`), `member` (`A#b`, or dotted parts that are identifiers of two or more bytes and are
   backticked, called with `()`, contain a snake_case/camelCase/internally cased part, or have an
-  uppercase later part), `path` (a slash path of `[A-Za-z0-9_./@-]` without `//` or a scheme whose
-  last segment has an extension of 1 to 8 letters or digits, or a backticked `stem.ext` with a
-  lowercase extension of at most 5 bytes), `identifier` (snake_case, camelCase, PascalCase with an
+  uppercase later part, unless it is a file name), `path` (a slash path of `[A-Za-z0-9_./@-]`
+  without `//` or a scheme whose last segment has an extension of 1 to 8 letters or digits, or a
+  file name: a backticked, uncalled dotted name of identifier parts whose last part is one of the
+  fixed extensions `bash c cc cfg conf cpp cs css csv go gradle h hpp htm html ini java js json jsx
+  kt lock md mjs mod php proto py rb rs scss sh sql sum svg swift toml ts tsx txt vue xml yaml yml`,
+  so `main.go` is a path and `os.stat` a member), `identifier` (snake_case, camelCase, PascalCase with an
   internal lower-to-upper transition, or `name()`), else `code` when backticked; anything else is
   not a mention. A candidate over 256 bytes (`MaxMentionBytes`) is not a mention; at most 64 tokens
   per claim (`MaxClaimMentions`) are checked and the rest are counted as `omitted`. The pattern
@@ -1725,7 +1729,9 @@ under the owner's standing auto-accept (2026-10-11); GitHub #1584, #1586.
   a corpus whose checked claims with an unresolved mention, over checked claims with any mention,
   exceed R. The refusal is `corpus-refused` with `corpus build threshold exceeded:` naming the
   numerator, denominator, rate and threshold; nothing is written. A rate with no token-bearing claim
-  is undefined and never refuses. Without the flag, the build is unchanged. Acceptance:
+  is undefined and never refuses. Without the flag, the build is unchanged; a given flag with an
+  empty value (`--max-unresolved-mention-rate=`) is an argument error (exit 2), never an absent
+  threshold. Acceptance:
   `TestDCPV1346UnresolvedMentionThreshold`, `TestDCPV1349CorpusPatternsCLI`.
 - `DCP-V1-347`: A claim's subject, a relationship's source or target, a journey's subject and an
   observation's test subject that names no corpus record refuse the build with `corpus-refused`;
@@ -1756,12 +1762,14 @@ under the owner's standing auto-accept (2026-10-11); GitHub #1584, #1586.
   strata of (stratum population / population) times stratum accuracy, with its population and
   definition and no interval. It abstains, naming the undefined strata, when any populated
   stratum's accuracy is undefined. `audit report` refuses a sample whose strata counts are not
-  `0 <= sampled <= population` within the corpus record bound. Acceptance:
+  `0 <= sampled <= population` within the corpus record bound, whose strata names repeat, with a
+  claim naming an unlisted stratum, whose stratum sampled count differs from its claims, or whose
+  strata population and sampled totals differ from the design's. Acceptance:
   `TestDCPV1351WeightedAuditFigure`.
 - `DCP-V1-352`: `docs corpus build --max-pattern-rate R` (every pattern) or
   `--max-pattern-rate NAME=R[,NAME=R]` refuses a corpus whose named pattern rates exceed their
   thresholds, as in `DCP-V1-346`, naming every exceeded threshold. An unknown or repeated pattern
-  name or a rate outside [0, 1] is an argument error (exit 2). Acceptance:
+  name, an empty value or a rate outside [0, 1] is an argument error (exit 2). Acceptance:
   `TestDCPV1352PatternRateThresholds`, `TestDCPV1349CorpusPatternsCLI`.
 
 ## Input and authority boundary

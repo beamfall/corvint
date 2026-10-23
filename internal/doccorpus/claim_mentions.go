@@ -119,20 +119,20 @@ func casedIdent(s string) bool {
 // stripCall removes one trailing "()" call marker.
 func stripCall(s string) string { return strings.TrimSuffix(s, "()") }
 
+// trimChunk strips leading quotes and opening brackets, then, from the right, quotes, sentence
+// punctuation and any closing bracket whose opener does not occur in the chunk. Right trimming
+// removes no opener, so opener presence is computed once and the trim is linear in the chunk.
 func trimChunk(s string) string {
-	for {
-		t := strings.TrimLeft(s, "\"'([{<")
-		t = strings.TrimRight(t, "\"'.,;:!?")
-		for _, pair := range []string{"()", "[]", "{}", "<>"} {
-			if strings.HasSuffix(t, pair[1:]) && !strings.Contains(t, pair[:1]) {
-				t = strings.TrimSuffix(t, pair[1:])
-			}
-		}
-		if t == s {
-			return s
-		}
-		s = t
+	s = strings.TrimLeft(s, "\"'([{<")
+	unopened := map[byte]bool{}
+	for _, pair := range []string{"()", "[]", "{}", "<>"} {
+		unopened[pair[1]] = strings.IndexByte(s, pair[0]) < 0
 	}
+	end := len(s)
+	for end > 0 && (strings.IndexByte("\"'.,;:!?", s[end-1]) >= 0 || unopened[s[end-1]]) {
+		end--
+	}
+	return s[:end]
 }
 
 // pathChunk reports a slash path whose last segment has a dot extension of 1..8 letters or
@@ -160,6 +160,23 @@ func extension(base string, max int) bool {
 		}
 	}
 	return true
+}
+
+// fileExtensions are the extensions that make a backticked dotted name a file name rather than a
+// member access (DCP-V1-340).
+var fileExtensions = func() map[string]bool {
+	m := map[string]bool{}
+	for _, e := range strings.Fields("bash c cc cfg conf cpp cs css csv go gradle h hpp htm html ini java js json jsx kt lock md mjs mod php proto py rb rs scss sh sql sum svg swift toml ts tsx txt vue xml yaml yml") {
+		m[e] = true
+	}
+	return m
+}()
+
+// fileName reports a backticked, uncalled dotted name of identifier parts whose last part is a
+// listed file extension, such as `main.go` or `app.config.json`; `os.stat` is not one.
+func fileName(s string, backtick bool) bool {
+	i := strings.LastIndex(s, ".")
+	return backtick && i > 0 && fileExtensions[s[i+1:]] && allIdent(strings.Split(s, "."), 1)
 }
 
 func allIdent(parts []string, minLen int) bool {
@@ -190,12 +207,10 @@ func classifyToken(s string, backtick bool) string {
 		if isIdent(right) && left != "" && allIdent(strings.FieldsFunc(left, func(r rune) bool { return r == '.' || r == ':' }), 1) || isIdent(right) && isIdent(left) {
 			return "member"
 		}
-	case pathChunk(s):
-		return "path"
-	case backtick && !strings.Contains(s, " ") && strings.Count(s, ".") == 1 && isIdent(s[:strings.Index(s, ".")]) && extension(s, 5) && strings.ToLower(s[strings.Index(s, ".")+1:]) == s[strings.Index(s, ".")+1:]:
-		return "path"
-	case strings.Contains(bare, ".") && allIdent(strings.Split(bare, "."), 2) && (backtick || s != bare || anyCased(strings.Split(bare, ".")) || mixedParts(strings.Split(bare, "."))):
+	case strings.Contains(bare, ".") && allIdent(strings.Split(bare, "."), 2) && !fileName(s, backtick) && (backtick || s != bare || anyCased(strings.Split(bare, ".")) || mixedParts(strings.Split(bare, "."))):
 		return "member"
+	case pathChunk(s), fileName(s, backtick):
+		return "path"
 	case casedIdent(bare) || s != bare && isIdent(bare) && hasLetter(bare):
 		return "identifier"
 	}
@@ -234,9 +249,10 @@ func mixedParts(parts []string) bool {
 //  3. An uppercase HTTP method chunk followed by a chunk starting with "/" is one route token.
 //  4. A candidate is then route (METHOD /path), scope (A::B), member (A#b, or dotted a.b parts
 //     that are identifiers of two or more bytes and either backticked, called, cased or with an
-//     uppercase later part), path (a slash path whose last segment has an extension; backticked
-//     stem.ext with a lowercase extension of at most five bytes), identifier (snake_case,
-//     camelCase, PascalCase with an internal transition, or name()), else code when backticked.
+//     uppercase later part, unless it is a file name), path (a slash path whose last segment has
+//     an extension, or a file name: a backticked dotted name whose last part is in
+//     fileExtensions), identifier (snake_case, camelCase, PascalCase with an internal
+//     transition, or name()), else code when backticked.
 //
 // At most MaxClaimMentions tokens are returned; omitted counts the rest.
 func ExtractCodeTokens(text string) (tokens []CodeToken, omitted int) {

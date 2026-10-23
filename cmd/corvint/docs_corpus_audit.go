@@ -75,14 +75,15 @@ func compileCorpusAudit(a *doccorpus.Artifact, o corpusOptions) ([]byte, error) 
 // corpusBuildThresholds parses the opt-in build refusals (DCP-V1-346, DCP-V1-352).
 func corpusBuildThresholds(o corpusOptions) (doccorpus.BuildThresholds, error) {
 	var t doccorpus.BuildThresholds
-	if o.maxMentionRate != "" {
+	// A given flag is parsed even when empty, so `--flag=` is refused instead of disabling it.
+	if o.given["--max-unresolved-mention-rate"] {
 		r, err := doccorpus.ParseRate(o.maxMentionRate)
 		if err != nil {
 			return t, argumentError("--max-unresolved-mention-rate must be a decimal in [0, 1]")
 		}
 		t.MaxUnresolvedMentionRate = &r
 	}
-	if o.maxPatternRate != "" {
+	if o.given["--max-pattern-rate"] {
 		rates, err := doccorpus.ParsePatternRates(o.maxPatternRate)
 		if err != nil {
 			return t, argumentError(err.(*doccorpus.Error).Message)

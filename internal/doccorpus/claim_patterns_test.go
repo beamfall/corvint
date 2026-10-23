@@ -242,11 +242,43 @@ func TestDCPV1351WeightedAuditFigure(t *testing.T) {
 	if plain := report(""); plain.Weighted != nil {
 		t.Fatalf("unstratified report has a weighted figure: %+v", plain.Weighted)
 	}
-	s, _ := SampleClaims(a, AuditSampleOptions{Seed: 1, Size: 1, Stratify: "kind"})
-	s.Strata[0].Sampled = s.Strata[0].Population + 1
-	forged, _ := Encode(s)
-	if _, err := ParseAuditSample(forged); err == nil {
-		t.Fatal("stratum with sampled above population admitted")
+	// Forged strata are refused: sampled above population, and strata that do not reconcile with
+	// the sampled claims or the design totals. The last case is a sample whose second stratum is
+	// dropped, which would otherwise yield a defined weighted figure from one stratum.
+	for _, c := range []struct {
+		name string
+		edit func(*AuditSample)
+		want string
+	}{
+		{"sampled above population", func(s *AuditSample) { s.Strata[0].Sampled = s.Strata[0].Population + 1 }, "sampled <= population"},
+		{"duplicate stratum", func(s *AuditSample) { s.Strata = append(s.Strata, s.Strata[0]) }, "names must be unique"},
+		{"claim in unlisted stratum", func(s *AuditSample) { s.Claims[0].Stratum = "forged" }, "unlisted stratum"},
+		{"sampled count mismatch", func(s *AuditSample) { s.Strata[0].Sampled--; s.Strata[1].Sampled++ }, "sampled claims but the sample has"},
+		{"population total mismatch", func(s *AuditSample) { s.Strata[0].Population++ }, "differ from the design"},
+		{"dropped stratum", func(s *AuditSample) {
+			drop := s.Strata[1].Name
+			s.Strata = s.Strata[:1]
+			claims := []AuditSampleClaim{}
+			for _, cl := range s.Claims {
+				if cl.Stratum != drop {
+					claims = append(claims, cl)
+				}
+			}
+			s.Claims, s.Design.Sampled = claims, len(claims)
+		}, "differ from the design"},
+	} {
+		s, err := SampleClaims(a, AuditSampleOptions{Seed: 1, Size: 6, Stratify: "kind"})
+		if err != nil || len(s.Strata) < 2 || s.Strata[0].Sampled == 0 || s.Strata[1].Sampled == 0 {
+			t.Fatalf("fixture sample = %+v %v", s, err)
+		}
+		if raw, _ := Encode(s); func() error { _, err := ParseAuditSample(raw); return err }() != nil {
+			t.Fatal("unforged sample refused")
+		}
+		c.edit(s)
+		forged, _ := Encode(s)
+		if _, err := ParseAuditSample(forged); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Fatalf("%s: err = %v, want %q", c.name, err, c.want)
+		}
 	}
 }
 

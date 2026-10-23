@@ -25,6 +25,9 @@ type corpusOptions struct {
 	scopes []string
 	// maxMentionRate and maxPatternRate are the opt-in build thresholds (DCP-V1-346, DCP-V1-352).
 	maxMentionRate, maxPatternRate string
+	// given records every option present on the command line, so an empty value is refused
+	// rather than read as absent.
+	given map[string]bool
 	// section and include are the flow filters as comma-separated lists (DCP-V1-170, DCP-V1-171).
 	section, include string
 	// stable is the cem-stable verifier binding; its artifact root is not a --root-relative input.
@@ -120,6 +123,7 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 			o.scopes = append(o.scopes, value)
 		}
 	}
+	o.given = seen
 	operation, ok := lookupCorpusOperation(o.op)
 	if !ok {
 		return o, true, argumentError("unsupported corpus operation")
