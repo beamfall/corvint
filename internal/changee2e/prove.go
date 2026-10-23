@@ -1036,7 +1036,6 @@ func verdict(head, base sideProof, controls []controlProof) (string, string) {
 			return VerdictControlSurvived, "control-survived:" + c.ID
 		}
 	}
-	// A control run whose own teardown failed reads like a side's (CCE-V0-048, CCE-V0-087).
 	for _, c := range controls {
 		if c.Status != string(behaviorfalsify.StatusInfrastructureFailed) {
 			continue
@@ -1132,9 +1131,6 @@ func (e *proveEnv) runControls(ctx context.Context, head string, sc Scenario, tr
 	return controlResults(controlSpecs(sc), plan.Digest, report)
 }
 
-// controlResults reads each control's BBF result. An infrastructure_failed control keeps the
-// `teardown-failed at <path>:<line>` detail its hook receipt recorded (CCE-V0-087), which BBF's
-// aggregate reasons drop.
 func controlResults(specs []controlSpec, digest string, report behaviorfalsify.Report) []controlProof {
 	out := []controlProof{}
 	for _, spec := range specs {
@@ -1153,7 +1149,6 @@ func controlResults(specs []controlSpec, digest string, report behaviorfalsify.R
 	return out
 }
 
-// controlTeardown is the distinct teardown attributions of a control's attempts, in attempt order.
 func controlTeardown(r behaviorfalsify.ControlResult) []string {
 	var out []string
 	for _, a := range r.Attempts {

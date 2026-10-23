@@ -60,8 +60,6 @@ func TestCCEV0050HarvestBinding(t *testing.T) {
 	}
 }
 
-// CCE-V0-088 (V1-2428): harvest binds through the configured application-map manifest, as the
-// catalog does; the default appmap.json is only the default.
 func TestCCEV0088HarvestConfiguredManifest(t *testing.T) {
 	root, _ := fixtureRepo(t)
 	data, err := os.ReadFile(filepath.Join(root, "appmap.json"))
@@ -87,7 +85,6 @@ func TestCCEV0088HarvestConfiguredManifest(t *testing.T) {
 	if b := outcome(p); b.Flow != "book-tee-time" || b.Basis != "flow-outcome-locator" {
 		t.Fatalf("configured manifest binding %+v", b)
 	}
-	// The default name is absent at this revision, so only the configured manifest can bind.
 	p, err = Harvest(bg, HarvestOptions{Root: root, Rev: rev})
 	if err != nil {
 		t.Fatal(err)

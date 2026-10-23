@@ -846,9 +846,6 @@ func TestFlowDocsWebMemberCallsAreNotDeclarations(t *testing.T) {
 	}
 }
 
-// TestAFUV1125FlowLimitIsTyped (AFU-V1-125, V1-2414): a scope over MaxFlows flow candidates is
-// refused with the owned FlowLimitCode, whose message names the limit and the observed count of
-// the whole scope, not only the candidate that crossed it; exactly MaxFlows still generates.
 func TestAFUV1125FlowLimitIsTyped(t *testing.T) {
 	functions := func(prefix string, n int) string {
 		var b strings.Builder

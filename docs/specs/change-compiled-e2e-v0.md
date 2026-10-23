@@ -668,9 +668,9 @@ left free for parallel lanes.
 The 2026-10-23 flowdocs/appmap/CCE fix lane (V1-2427, V1-2428) adds CCE-V0-087 and 088, accepted
 under the standing auto-accept of 2026-10-11:
 
-- `CCE-V0-087`: A BBF control whose hook run's only failure is a CCE-V0-048 teardown (its hook
-  receipt is `infrastructure_failed` with detail `teardown-failed at <tree-relative file>:<line>`)
-  MUST keep that detail among its control-proof `reasons`, after BBF's own aggregate reasons, and
+- `CCE-V0-087`: A BBF control that reads `infrastructure_failed` and any of whose attempts' hook
+  receipts records a CCE-V0-048 teardown (detail `teardown-failed at <tree-relative file>:<line>`)
+  MUST keep each distinct such detail among its control-proof `reasons`, after BBF's own aggregate reasons, and
   MUST make the verdict `INCONCLUSIVE` with note `teardown-failed at <file>:<line> (control <id>)`,
   never `control-not-killed:<id>`. The BBF status stays `infrastructure_failed`; BBF's vocabulary is
   unchanged. A surviving control still reads `CONTROL_SURVIVED` first, since a survivor is evidence

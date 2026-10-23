@@ -456,8 +456,6 @@ func TestDocsHelpListsEveryDispatchedSubcommand(t *testing.T) {
 	}
 }
 
-// SDD-V0-005 (V1-2416): each CLI documentation-limit-exceeded refusal names the bound, its value
-// and the observed size, so the operator can tell which input to shrink.
 func TestSDDV0005DocsLimitRefusalNamesLimitAndSize(t *testing.T) {
 	t.Parallel()
 	limit := fmt.Sprintf("DraftMaxBytes limit of %d bytes", doccompiler.DraftMaxBytes)
@@ -475,7 +473,6 @@ func TestSDDV0005DocsLimitRefusalNamesLimitAndSize(t *testing.T) {
 		if exit != 2 {
 			t.Fatalf("exit %d: %s", exit, stderr)
 		}
-		// The bounded read stops one byte past the limit, so that is all it can observe.
 		if message := refusal(t, stderr); !strings.Contains(message, fmt.Sprintf("observed at least %d bytes on stdin", doccompiler.DraftMaxBytes+1)) {
 			t.Fatalf("input refusal %q lacks the observed size", message)
 		}

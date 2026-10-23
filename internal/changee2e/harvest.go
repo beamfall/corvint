@@ -75,7 +75,7 @@ var (
 // HarvestOptions are the harvester inputs.
 type HarvestOptions struct {
 	Root, Rev string
-	Manifest  string // repository-relative application-map manifest; default appmap.json (CCE-V0-088)
+	Manifest  string
 }
 
 // Harvest proposes outcome and path blocks from the literal assertions and navigations of the
@@ -94,7 +94,6 @@ func Harvest(ctx context.Context, o HarvestOptions) (*Proposals, error) {
 		return nil, err
 	}
 	// The map is read only to bind proposals; without it every proposal is unbound (CCE-V0-050).
-	// It is the configured manifest, as for the catalog (CCE-V0-088).
 	manifest := o.Manifest
 	if manifest == "" {
 		manifest = "appmap.json"

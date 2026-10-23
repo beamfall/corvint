@@ -1492,5 +1492,6 @@ Failure modes: the CLI's `docs flows generate` error path lifts only `flowdocs-g
 its own wire code (`cmd/corvint/docs_flows.go:147@aae464eb`); any other `doccorpus.Error`, this code
 included, still reaches stderr as `internal-error` whose `error` text begins with
 `flowdocs-flow-limit-exceeded:`. Counting past the limit extracts every in-scope source file once,
-as a generation under the limit already does. Rollback: revert this section,
+as a generation under the limit already does, but skips anchor and symbol lookup for candidates
+past the limit. Rollback: revert this section,
 `FlowLimitCode` and the candidate count; the refusal returns to the untyped message.

@@ -36,8 +36,6 @@ const StaleGeneratorCode = "flowdocs-generator-stale"
 // generation source, before the corpus is rederived against --root (AFU-V1-091).
 const CorpusRepositoryMismatchCode = "flowdocs-corpus-repository-mismatch"
 
-// FlowLimitCode refuses a scope with more than MaxFlows flow candidates; its message names the
-// limit and the observed candidate count of the whole scope (AFU-V1-125).
 const FlowLimitCode = "flowdocs-flow-limit-exceeded"
 const MaxFlows = 256
 const MaxBytes = 64 << 20
@@ -217,8 +215,6 @@ func Generate(ctx context.Context, root string, o Options) (*Result, error) {
 	sort.Strings(names)
 	decls := []memberDecl{}
 	ambiguous := map[string]bool{}
-	// candidates counts every flow candidate, including those past MaxFlows, so the refusal can
-	// name the observed count; no flow is built once the limit is exceeded.
 	candidates := 0
 	for _, name := range names {
 		s := index.Sources[name]
@@ -248,6 +244,11 @@ func Generate(ctx context.Context, root string, o Options) (*Result, error) {
 				ambiguous[name+":"+d.name] = true
 				continue
 			}
+			if inv == nil {
+				if candidates++; candidates > MaxFlows {
+					continue
+				}
+			}
 			a := anchor(m.Source, s, d.line)
 			for _, symbol := range index.Symbols {
 				if symbol.Path == name && symbol.Line == d.line {
@@ -263,9 +264,6 @@ func Generate(ctx context.Context, root string, o Options) (*Result, error) {
 					return nil, fail("in-scope declarations exceed 16384; narrow scope")
 				}
 				decls = append(decls, md)
-				continue
-			}
-			if candidates++; candidates > MaxFlows {
 				continue
 			}
 			b := &flowBuilder{m: &m, p: &p, f: Flow{ID: identity("flow", name+":"+d.name), Name: d.name, Path: name, Paragraphs: []Paragraph{}}, calls: map[string]bool{}}

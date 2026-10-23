@@ -30,9 +30,8 @@ type fakeSide struct {
 
 // fakeRunner scripts the pools by application revision and records each staged tree's files.
 type fakeRunner struct {
-	sides    map[string]fakeSide
-	controls string // the status every control reads when the ladder reaches them
-	// controlReasons are the reasons every control reads; nil leaves them nil.
+	sides          map[string]fakeSide
+	controls       string // the status every control reads when the ladder reaches them
 	controlReasons []string
 	staged         map[string]map[string]string
 	called         int

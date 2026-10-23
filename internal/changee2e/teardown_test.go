@@ -40,9 +40,6 @@ func TestCCEV0048TeardownAttribution(t *testing.T) {
 	}
 }
 
-// CCE-V0-087 (V1-2427): a BBF control whose hook run failed in its own teardown reads like a side
-// with the same failure: the verdict is INCONCLUSIVE with the `teardown-failed at` reason the hook
-// receipt recorded, not control-not-killed. Other infrastructure stays control-not-killed.
 func TestCCEV0087ControlTeardownAttribution(t *testing.T) {
 	root, base := fixtureRepo(t)
 	head := commitBehaviourChange(t, root)
@@ -51,8 +48,6 @@ func TestCCEV0087ControlTeardownAttribution(t *testing.T) {
 	if len(specs) == 0 {
 		t.Fatal("the compiled scenario has no controls")
 	}
-	// hookAttempt is the attempt BBF records for a hook receipt runControl returns on an
-	// unqualified run: infrastructure_failed with the qualify reason as its detail.
 	hookAttempt := func(detail string) behaviorfalsify.AttemptResult {
 		return behaviorfalsify.AttemptResult{Attempt: 1, Status: behaviorfalsify.StatusInfrastructureFailed, Reasons: []string{"playwright-infrastructure"},
 			Receipt: &behaviorfalsify.HookReceipt{TestOutcome: "infrastructure_failed",
@@ -88,7 +83,6 @@ func TestCCEV0087ControlTeardownAttribution(t *testing.T) {
 			}
 		})
 	}
-	// A survivor is still evidence about the test, whatever another control's teardown did.
 	controls := controlResults(specs, "sha256:plan", report(teardown))
 	controls = append([]controlProof{{ID: "control:other", Status: string(behaviorfalsify.StatusSurvived)}}, controls...)
 	if v, note := verdict(sideProof{Qualified: true, Outcomes: []repeatOutcome{{State: "passed"}}}, sideProof{Qualified: true, Outcomes: []repeatOutcome{{State: "passed"}}}, controls); v != VerdictControlSurvived {
