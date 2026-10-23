@@ -10,7 +10,7 @@ Authoritative inputs: operator task of 2026-08-29,
 
 ## Agent digest
 - Claim: Static JavaScript and TypeScript analysis conservatively maps changes to runner-addressable tests and widens on ambiguity.
-- Status: proposed/experimental; TJAA-V0-019 accepted (decision 0483) with its V1-1175 amendment and TJAA-V0-021 accepted (decision 0519); TJAA-V0-030..033 (V1-2042) under the standing lane auto-accept
+- Status: proposed/experimental; TJAA-V0-019 accepted (decision 0483) with its V1-1175 amendment and TJAA-V0-021 accepted (decision 0519); TJAA-V0-030..033 (V1-2042) and TJAA-V0-034..037 (GitHub #1575-#1578) under the standing lane auto-accept
 - Exists: `internal/liveverify/affected/typescript` static runner/dependency adapter and seam tests.
 - Blocked on: runtime tuple, command/config execution, cancellation, and full-CI recall qualification.
 - Read next: Requirements; Explicit unknown frontier; Traceability.
@@ -52,7 +52,8 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   explicit-extension, and directory-index forms to observed file units. Missing relative edges,
   computed loading, path aliases, executable discovery configuration, and unparsed source MUST add a
   deterministic language frontier. A dynamic `import` call MUST count as computed loading whatever
-  whitespace or comments separate `import` from its parenthesis. When scanning for comments and
+  whitespace or comments separate `import` from its parenthesis, except as `TJAA-V0-034` scopes
+  type-position import types and literal text. When scanning for comments and
   `require`, each `${...}` substitution in a template literal MUST be scanned as code while the
   template's literal text stays opaque. A plain `'`- or `"`-quoted token that crosses a line in a
   `.jsx` or `.tsx` source, or whose delimiter does not follow a statically recognized JavaScript or
@@ -117,7 +118,8 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   Resolution MUST stay inside the observed repository, and MUST
   widen on missing declared targets, ambiguous source candidates, config inheritance, unsupported
   root-directory/module-suffix resolution, or explicit Playwright `tsconfig` overrides. The general
-  `affected-plan/0` adapter MUST retain its existing unresolved-alias frontier.
+  `affected-plan/0` adapter MUST retain its existing unresolved-alias frontier, except as
+  `TJAA-V0-037` admits when Playwright is the only runner identity it observes.
   Imported/computed projects, generated test
   lists, functions, environment branches, feature flags, unknown device descriptors, unresolved
   browser identity, malformed regular expressions, and dependency cycles MUST widen to
@@ -207,10 +209,10 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   division after any other operand; after `of`, `yield` or `await`, which may be identifiers, and
   directly after a non-ASCII character or an identifier escape (`\u0061`, `\u{61}`), it is
   ambiguous and the source is refused as unparsed. Every other
-  member read (`process.env.NAME`, `this.x`, a member of an import from another module, a function
-  result or a numeric literal such as `1..x`) MUST keep the identity unresolved. No member read is
-  proven primitive: an admitted one is accepted only as a whole value and under the non-coercing
-  operators. Numeric literals MUST be lexed
+  member read (`this.x`, a member of an import from another module, a function result or a
+  numeric literal such as `1..x`, and `process.env.NAME` outside `TJAA-V0-035`) MUST keep the
+  identity unresolved. No other member read is proven primitive: an admitted one is accepted only
+  as a whole value and under the non-coercing operators. Numeric literals MUST be lexed
   to the ECMAScript grammar (decimal with fraction and exponent, `0x`/`0o`/`0b`, `_` between digits,
   the BigInt `n` suffix on integers); a legacy octal, a malformed literal or one followed directly by
   an identifier character is refused, and a dot after a complete literal starts a member read. `++`
@@ -404,6 +406,61 @@ exact command execution, config interpretation, cancellation, and full-CI recall
     the base is a new file, and a non-blob or oversize object stays unread.
   - Limits: symbols are syntactic evidence only. They MUST NOT narrow, widen or remove a candidate,
     because an added export can still run code at load time.
+
+- `TJAA-V0-034`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2455; GitHub
+  #1575) The `import(` scan MUST skip string, template-literal and regular-expression text and the
+  member name `x.import(`. In a `.ts`, `.tsx`, `.mts` or `.cts` source, `import('<literal>')` with
+  exactly one quoted-literal argument is a type-position import type, not computed loading, when it
+  directly follows `typeof`, or when it is followed by a `.Name` member chain that is not followed by
+  `(`, a backtick, `!` or `?.`, contains no `then`, `catch` or `finally` member and does not follow
+  `await`. Such an import type records the literal as a static reference. Every other `import(`
+  call, including any call in a `.js`/`.jsx`/`.mjs`/`.cjs` source and any computed or template
+  argument, MUST stay computed loading and raise `typescript:dynamic-import`. A `/` opens a
+  regular expression after an expression-opening punctuator, `=>`, or one of the keywords `return`,
+  `typeof`, `instanceof`, `in`, `new`, `delete`, `void`, `throw`, `case`, `do` or `else` that is not
+  a member name. After `)`, `}`, `+`, `-`, `!`, `<`, another `>`, `of`, `yield` or `await` the slash
+  is ambiguous: when reading it as a same-line regular expression would change a literal,
+  substitution or comment boundary and the source contains the word `import` or `require`, the file
+  MUST stay computed loading rather than drop an edge. A comment opener, and in a JSX source the
+  slash of a `</` or `/>` tag, is not ambiguous; an unparsed file keeps `typescript:unparsed-source`.
+- `TJAA-V0-035`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2456; GitHub
+  #1576) For `TJAA-V0-018`, `process.env.NAME` (a dotted name that is not an `Object.prototype`
+  name and does not start with `__`) MUST be admitted and proven primitive, and `Number(...)`,
+  `Number.parseInt(...)`, `Number.parseFloat(...)`, `parseInt(...)` and `parseFloat(...)` calls
+  whose arguments are all proven primitive MUST be admitted with a primitive result that takes no
+  further member, call or template, when: the file contains none of the tokens `globalThis`,
+  `global`, `window` or `self`, nothing else admits a root under the existing `eval`, `delete`,
+  `++`, `--` and escape guards, and every occurrence of `process` (respectively of each numeric
+  callee), strings included, is that exact read (respectively call) in a read-only position. A
+  shadowing declaration, write, alias or call argument of either root therefore refuses it. A
+  trailing comma MUST be accepted in array literals as in object literals. A `launchOptions` value
+  whose only computed property is a pure `executablePath` MUST NOT leave the browser identity
+  unresolved; the project instead carries an execution-axis unknown
+  `playwright:browser-executable-unresolved`. Every other identity key, including any other
+  computed `launchOptions` property, MUST stay a static literal. Residual: an imported module or
+  runtime preload that replaces `process.env` or `Number` is outside the static model, as one that
+  mutates a `devices` descriptor already is.
+- `TJAA-V0-036`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2457; GitHub
+  #1577) A project `dependencies` value that is the identifier of a top-level `const` declared
+  once, whose initializer is a literal string array, a parenthesized one, or a conditional
+  `test ? A : B` whose branches are such values recursively, MUST resolve to the sorted union of
+  the branch arrays for selection and for `--playwright-discovery-from-list`. Every other
+  occurrence of the name MUST be the whole `dependencies: NAME` value of a project object literal
+  in the `projects` array literal of the `export default` (or `export default defineConfig(...)`)
+  config object; any other use (`let`, a write, `push`, an alias, a call argument, another object's
+  property value, a second declaration) or a non-literal element MUST keep
+  `playwright:project-dependency-unresolved`.
+- `TJAA-V0-037`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2458; GitHub
+  #1578) In the general `affected-plan/0` adapter, an owned file whose runner resolves to
+  Playwright Test MUST be a source, not a test unit, unless its name matches Playwright's default
+  `testMatch` (`.spec.` or `.test.` with a loadable extension) or a recognized Playwright config
+  governing it names membership markers the adapter does not model (which already raises
+  `typescript:executable-config-unresolved`) and the path is a conventional test candidate. When a
+  `tsconfig.json` declares `baseUrl` or `paths` and every runner identity observed (each recognized
+  runner config, each manifest-declared or configured runner, each test observation) is Playwright
+  Test, with at least one present and no Playwright config containing a `tsconfig` token, the
+  adapter MUST resolve aliases exactly as `TJAA-V0-012` does for the opt-in profile, widening on the
+  same failures; otherwise it MUST keep `typescript:path-alias-unresolved`.
 
 ## Opt-in Playwright project profile
 
@@ -607,5 +664,9 @@ The fallback, selection and every bounded plan are unchanged, and no store or re
 | `TJAA-V0-021` (accepted, decision 0519; V1-1175) | `TestPlaywrightDiscoveryGrepOmission_TJAA_V0_021` (GitHub #790 three-project repro, unexplained and no-grep refusals, dynamic and non-partwise grep, title-derived and explicit tags, `unverifiedUnits` validation), `TestPlaywrightRegexBodyPartwise_TJAA_V0_021`, `TestPlaywrightTitleTags_TJAA_V0_021` in `playwright_grep_omission_test.go`; grep-title construction checked against Playwright 1.63 source, not a live run | experimental; hand-built listings, `NOT_RUN` live |
 | `TJAA-V0-030..032` (V1-2042) | `TestPlaywrightNarrowingSharedFixture_TJAA_V0_030` (GitHub #1294 repro, determinism), `TestPlaywrightNarrowingAbsentFromBoundedPlan_TJAA_V0_030`, `TestPlaywrightNarrowingRefusals_TJAA_V0_031` (application, unowned, dirty-config and global-config refusals), `TestPlaywrightNarrowingPerProject_TJAA_V0_032` (unknown dependency, dynamic-import taint, application dynamic import, discovery matched, differing and undeclared project) in `playwright_narrowing_test.go`; `TestAffectedPlaywrightNarrowedSymbols_TJAA_V0_033` in `cmd/corvint/affected_playwright_test.go` | experimental; synthetic fixtures, live recall `NOT_RUN` |
 | `TJAA-V0-033` (V1-2042) | `TestChangedSymbols_TJAA_V0_033`, `TestChangedSymbolsUnresolved_TJAA_V0_033`, `TestPlaywrightNarrowingReportsSymbols_TJAA_V0_033` in `playwright_symbols_test.go`; `TestAffectedPlaywrightNarrowedSymbols_TJAA_V0_033` (HEAD and `--base` comparison) | experimental; syntactic only |
+| `TJAA-V0-034` (V1-2455; GitHub #1575) | `TestScanImportsSeparatesImportTypesAndLiteralTextFromDynamicImports` in `typescript_test.go` | experimental |
+| `TJAA-V0-035` (V1-2456; GitHub #1576) | `TestPlaywrightEnvUseValuesKeepIdentity_GH1576`, `TestPlaywrightComputedExecutablePathIsExecutionUnknown_GH1576` in `playwright_gh1576_test.go`; `TestPlaywrightUseValueSideEffects_V1_1065`, `TestPlaywrightMemberReadRoots_GH709Round8` in `playwright_example_app_test.go` | experimental |
+| `TJAA-V0-036` (V1-2457; GitHub #1577) | `TestPlaywrightConstDependenciesResolveToBranchUnion_GH1577` in `playwright_gh1576_test.go` | experimental |
+| `TJAA-V0-037` (V1-2458; GitHub #1578) | `TestGeneralAdapterPlaywrightMembershipAndAliases_GH1578` in `playwright_gh1578_test.go`; `TestPlaywrightExampleAppQualification`, `TestUnitsDetectsEverySupportedRunnerFromImportsOrConfiguration` | experimental; synthetic fixtures |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |
