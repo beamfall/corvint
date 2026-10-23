@@ -2,8 +2,10 @@ package changee2e
 
 import (
 	"path/filepath"
+	"slices"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/behaviorfalsify"
 	"github.com/Beamfall/corvint/internal/jstestprovider"
 )
 
@@ -35,5 +37,55 @@ func TestCCEV0048TeardownAttribution(t *testing.T) {
 				t.Fatalf("qualify reason %q, want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestCCEV0087ControlTeardownAttribution(t *testing.T) {
+	root, base := fixtureRepo(t)
+	head := commitBehaviourChange(t, root)
+	sc := compiledScenario(t, root, base, head)
+	specs := controlSpecs(sc)
+	if len(specs) == 0 {
+		t.Fatal("the compiled scenario has no controls")
+	}
+	hookAttempt := func(detail string) behaviorfalsify.AttemptResult {
+		return behaviorfalsify.AttemptResult{Attempt: 1, Status: behaviorfalsify.StatusInfrastructureFailed, Reasons: []string{"playwright-infrastructure"},
+			Receipt: &behaviorfalsify.HookReceipt{TestOutcome: "infrastructure_failed",
+				TargetObservation: behaviorfalsify.CriterionObservation{State: "not_run"},
+				Infrastructure:    &behaviorfalsify.InfrastructureFailure{Reason: "environment-unavailable", Detail: detail}}}
+	}
+	report := func(detail string) behaviorfalsify.Report {
+		var results []behaviorfalsify.ControlResult
+		for _, s := range specs {
+			results = append(results, behaviorfalsify.ControlResult{ID: s.id, Kind: s.kind, Status: behaviorfalsify.StatusInfrastructureFailed,
+				Reasons: []string{"one-or-more-attempts-lost-to-infrastructure"}, Attempts: []behaviorfalsify.AttemptResult{hookAttempt(detail)}})
+		}
+		return behaviorfalsify.Report{Results: results}
+	}
+	teardown := FailureTeardownFailed + " at e2e/fixtures.ts:9"
+	mismatch := assertionMessage(sc, `"Pending"`)
+	for _, tc := range []struct {
+		name, detail, want string
+	}{
+		{"teardown located in a fixture", teardown, teardown + " (control " + specs[0].id + ")"},
+		{"other infrastructure", "infrastructure:server-not-ready", "control-not-killed:" + specs[0].id},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			controls := controlResults(specs, "sha256:plan", report(tc.detail))
+			if got := controls[0].Reasons; slices.Contains(got, teardown) != (tc.detail == teardown) {
+				t.Fatalf("control reasons %q for detail %q", got, tc.detail)
+			}
+			f := &fakeRunner{sides: map[string]fakeSide{head: {states: repeat("passed")}, base: {states: repeat("failed"), message: mismatch, line: sc.AssertionLine}},
+				controls: string(behaviorfalsify.StatusInfrastructureFailed), controlReasons: controls[0].Reasons}
+			p := f.env(root).proveScenario(bg, base, head, sc, 3)
+			if p.Verdict != VerdictInconclusive || p.Note != tc.want {
+				t.Fatalf("verdict %s (%s), want %s (%s)", p.Verdict, p.Note, VerdictInconclusive, tc.want)
+			}
+		})
+	}
+	controls := controlResults(specs, "sha256:plan", report(teardown))
+	controls = append([]controlProof{{ID: "control:other", Status: string(behaviorfalsify.StatusSurvived)}}, controls...)
+	if v, note := verdict(sideProof{Qualified: true, Outcomes: []repeatOutcome{{State: "passed"}}}, sideProof{Qualified: true, Outcomes: []repeatOutcome{{State: "passed"}}}, controls); v != VerdictControlSurvived {
+		t.Fatalf("survivor with a teardown control: %s (%s)", v, note)
 	}
 }

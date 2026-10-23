@@ -52,6 +52,7 @@ const (
 	CodeLiveSession       = "changes-shared-live-session"
 	CodeHeadMismatch      = "changes-shared-head-mismatch"
 	CodeTreeMismatch      = "changes-shared-tree-mismatch"
+	CodeShallowMergeBase  = "changes-shared-shallow-merge-base"
 )
 
 // Config is the closed shared-path policy configuration.

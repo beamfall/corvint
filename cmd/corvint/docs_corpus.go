@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -42,12 +43,17 @@ type corpusOptions struct {
 	// kind is the docs gaps kind filter as a comma-separated list (DCP-V1-321).
 	kind string
 	// stable is the cem-stable verifier binding; its artifact root is not a --root-relative input.
-	stable        doccorpus.StableCEMInputs
-	playwright    playwrightCorpusOptions
-	legacyCases   legacyCasesCorpusOptions
-	audit         corpusAuditOptions
-	apply, check  bool
-	limit, offset int
+	stable       doccorpus.StableCEMInputs
+	playwright   playwrightCorpusOptions
+	legacyCases  legacyCasesCorpusOptions
+	audit        corpusAuditOptions
+	apply, check bool
+	// verifyRederive reads with the complete DCP-V1-011 rederivation and timings writes the read
+	// phase summary to stderr (DCP-V1-413, DCP-V1-415).
+	verifyRederive, timings bool
+	limit, offset           int
+	// readTimings collects the phases when timings is set.
+	readTimings *doccorpus.ReadTimings
 	// profile is the extract operation's repository path of its extractor profile at --revision
 	// (DCP-V1-399); it is read from Git, not from --root.
 	profile string
@@ -95,12 +101,14 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 			return o, true, argumentError("duplicate corpus option")
 		}
 		seen[flag] = true
-		if flag == "--apply" || flag == "--check" {
+		if flag == "--apply" || flag == "--check" || flag == "--verify-rederive" || flag == "--timings" {
 			if inline {
 				return o, true, argumentError(flag + " takes no value")
 			}
 			o.apply = o.apply || flag == "--apply"
 			o.check = o.check || flag == "--check"
+			o.verifyRederive = o.verifyRederive || flag == "--verify-rederive"
+			o.timings = o.timings || flag == "--timings"
 			continue
 		}
 		if flag == "--limit" || flag == "--offset" {
@@ -199,6 +207,12 @@ func corpusList(value string) []string {
 var errCorpusCheckRefused = errors.New("behavior adapter check refused")
 
 func runCorpus(ctx context.Context, o corpusOptions, stdout, stderr io.Writer) int {
+	start := time.Now()
+	if o.timings {
+		o.readTimings = &doccorpus.ReadTimings{}
+		// The summary is diagnostics on stderr after the result; stdout is unchanged (DCP-V1-415).
+		defer func() { o.readTimings.Write(stderr, time.Since(start)) }()
+	}
 	data, err := compileCorpus(ctx, o)
 	if errors.Is(err, errCorpusCheckRefused) || errors.Is(err, errCorpusEvalRegressed) {
 		// DCP-V1-044: a refused check still prints its full report; so does a failed eval
@@ -346,12 +360,29 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	if o.op == "delta" || o.op == "carry-forward" {
 		return compileCorpusDelta(ctx, o)
 	}
+	t := o.readTimings
+	step := time.Now()
 	raw, err := doccorpus.ReadCorpusFile(o.root, o.artifact)
+	if t != nil {
+		t.Parse += time.Since(step)
+	}
 	if err != nil {
 		return nil, err
 	}
-	a, err := doccorpus.Open(ctx, o.root, raw)
+	// Reads admit the verified artifact without rederiving it; validate and --verify-rederive run
+	// the complete rederivation (DCP-V1-410, DCP-V1-413). A query's live freshness is observed
+	// while the records are decoded and verified and the query index is derived, and used only
+	// once they are (DCP-V1-411, DCP-V1-419).
+	live := &corpusLiveRead{root: o.root, timings: t}
+	options := doccorpus.ReadOptions{Rederive: o.verifyRederive || o.op == "validate", Timings: t}
+	if corpusQueryOperation(o.op) {
+		options.Header = func(h *doccorpus.Artifact) { live.start(ctx, h) }
+	}
+	a, err := doccorpus.OpenRead(ctx, o.root, raw, options)
 	if err != nil {
+		if live.done != nil {
+			<-live.done
+		}
 		return nil, err
 	}
 	if o.op == "audit-sample" || o.op == "audit-report" {
@@ -410,10 +441,24 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 			return nil, argumentError("invalid corpus claims status filter")
 		}
 	}
-	overlay, err := doccorpus.LiveFreshness(ctx, o.root, a)
-	if err != nil {
-		return nil, err
+	// An indexed read answers from, or is refused by, its query index before any freshness
+	// failure, as the corpus MCP server does (DCP-V1-195).
+	if doccorpus.IndexedOperation(o.op) {
+		step = time.Now()
+		index, err := doccorpus.BuildQueryIndex(ctx, a)
+		if t != nil {
+			t.Index += time.Since(step)
+		}
+		if err != nil {
+			return nil, err
+		}
+		a.RuntimeIndex = index
 	}
+	live.wait(ctx, a)
+	if live.err != nil {
+		return nil, live.err
+	}
+	overlay := live.overlay
 	var retirement *doccorpus.RetirementPolicy
 	if o.retirement != "" {
 		raw, e := doccorpus.ReadFile(o.root, o.retirement)
@@ -425,11 +470,61 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 			return nil, e
 		}
 	}
+	step = time.Now()
 	receipt, err := doccorpus.QueryLive(ctx, a, doccorpus.Request{Operation: o.op, Retirement: retirement, Query: o.query, ID: o.id, Path: o.path, Limit: o.limit, Offset: o.offset, Sections: corpusList(o.section), Include: corpusList(o.include), Kinds: corpusList(o.kind), Repository: o.repository, State: o.state, Qualifier: o.qualifier, Run: o.run, CallerRevision: o.callerRevision}, overlay)
+	if t != nil {
+		t.Query += time.Since(step)
+	}
 	if err != nil {
 		return nil, err
 	}
-	return doccorpus.Encode(receipt)
+	step = time.Now()
+	data, err := doccorpus.Encode(receipt)
+	if t != nil {
+		t.Encode += time.Since(step)
+	}
+	return data, err
+}
+
+// corpusQueryOperation reports whether op answers a query receipt under live freshness, rather
+// than auditing, rendering, maintaining or projecting the artifact.
+func corpusQueryOperation(op string) bool {
+	switch op {
+	case "audit-sample", "audit-report", "render", "maintain", "cem-stable", "cem":
+		return false
+	}
+	return true
+}
+
+// corpusLiveRead observes a query's live freshness overlay.
+type corpusLiveRead struct {
+	root    string
+	timings *doccorpus.ReadTimings
+	done    chan struct{}
+	overlay doccorpus.FreshnessOverlay
+	err     error
+}
+
+// start observes on its own goroutine. It reads only the artifact's manifest, schema and
+// builder, so it can start on the header.
+func (l *corpusLiveRead) start(ctx context.Context, a *doccorpus.Artifact) {
+	l.done = make(chan struct{})
+	go func() {
+		defer close(l.done)
+		step := time.Now()
+		l.overlay, l.err = doccorpus.LiveFreshness(ctx, l.root, a)
+		if l.timings != nil {
+			l.timings.Freshness += time.Since(step)
+		}
+	}()
+}
+
+// wait returns once the observation started on the header, or a new one of a, has finished.
+func (l *corpusLiveRead) wait(ctx context.Context, a *doccorpus.Artifact) {
+	if l.done == nil {
+		l.start(ctx, a)
+	}
+	<-l.done
 }
 
 // compileStableCorpusCEM is the explicit cem/1.0 documentation projection

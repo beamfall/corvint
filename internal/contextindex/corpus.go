@@ -32,7 +32,7 @@ func BuildRevisionContext(ctx context.Context, root, revision string) (*Index, e
 	if !validObjectID(identity.treeRevision, identity.objectFormat) {
 		return nil, &Error{Code: "corpus-invalid-revision", Message: "invalid corpus tree"}
 	}
-	index, err := buildEvidence(ctx, root, identity, nil, "")
+	index, err := buildEvidence(withStatRoutedPins(ctx), root, identity, nil, "")
 	if err != nil {
 		return nil, err
 	}

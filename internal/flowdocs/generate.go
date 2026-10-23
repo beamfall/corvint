@@ -3,6 +3,7 @@ package flowdocs
 import (
 	"context"
 	json "encoding/json/v2"
+	"fmt"
 	"path"
 	"sort"
 	"strings"
@@ -34,6 +35,8 @@ const StaleGeneratorCode = "flowdocs-generator-stale"
 // CorpusRepositoryMismatchCode refuses a --corpus whose primary repository or revision is not the
 // generation source, before the corpus is rederived against --root (AFU-V1-091).
 const CorpusRepositoryMismatchCode = "flowdocs-corpus-repository-mismatch"
+
+const FlowLimitCode = "flowdocs-flow-limit-exceeded"
 const MaxFlows = 256
 const MaxBytes = 64 << 20
 const MaxManifestBytes = 256 << 20
@@ -212,6 +215,7 @@ func Generate(ctx context.Context, root string, o Options) (*Result, error) {
 	sort.Strings(names)
 	decls := []memberDecl{}
 	ambiguous := map[string]bool{}
+	candidates := 0
 	for _, name := range names {
 		s := index.Sources[name]
 		ext := path.Ext(name)
@@ -240,6 +244,11 @@ func Generate(ctx context.Context, root string, o Options) (*Result, error) {
 				ambiguous[name+":"+d.name] = true
 				continue
 			}
+			if inv == nil {
+				if candidates++; candidates > MaxFlows {
+					continue
+				}
+			}
 			a := anchor(m.Source, s, d.line)
 			for _, symbol := range index.Symbols {
 				if symbol.Path == name && symbol.Line == d.line {
@@ -257,9 +266,6 @@ func Generate(ctx context.Context, root string, o Options) (*Result, error) {
 				decls = append(decls, md)
 				continue
 			}
-			if len(m.Flows) >= MaxFlows {
-				return nil, fail("flow limit exceeds 256; narrow scope")
-			}
 			b := &flowBuilder{m: &m, p: &p, f: Flow{ID: identity("flow", name+":"+d.name), Name: d.name, Path: name, Paragraphs: []Paragraph{}}, calls: map[string]bool{}}
 			b.summaries(map[string]string{
 				"entry-points":        "Source declares " + d.name + ". Entry dispatch and callers are unresolved.",
@@ -270,6 +276,9 @@ func Generate(ctx context.Context, root string, o Options) (*Result, error) {
 			}
 			b.finish(a)
 		}
+	}
+	if candidates > MaxFlows {
+		return nil, &doccorpus.Error{Code: FlowLimitCode, Message: fmt.Sprintf("scope %q has %d flow candidates, over the MaxFlows limit of %d; narrow --scope", o.Scope, candidates, MaxFlows)}
 	}
 	if inv != nil {
 		if m.Inventory, err = buildInventory(&m, &p, inv, decls, ambiguous); err != nil {

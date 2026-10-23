@@ -78,7 +78,7 @@ func TestDCPV1216SymbolAnchorsGitOpsIndependentOfAnchorCount(t *testing.T) {
 	run := func(t *testing.T, ctx context.Context) []byte {
 		t.Helper()
 		receipt := Receipt{Citations: citations}
-		checker := &symbolChecker{overlay: &symbolOverlay{root: root, repository: id, live: live, files: &sharedSymbolFiles{files: map[string]sharedSymbolFile{}}}, checks: map[string]SymbolAnchorCheck{}}
+		checker := &symbolChecker{overlay: indexedSymbolOverlay(root, id, live), checks: map[string]SymbolAnchorCheck{}}
 		defer checker.close()
 		if err := attachSymbolAnchors(ctx, &receipt, checker); err != nil {
 			t.Fatal(err)
@@ -239,7 +239,7 @@ func TestDCPV1216PlaywrightDiscoveryGitOpsIndependentOfPathCount(t *testing.T) {
 func symbolAnchorReceipt(ctx context.Context, t *testing.T, root, id string, live *contextindex.Index, citations []Anchor) []byte {
 	t.Helper()
 	receipt := Receipt{Citations: citations}
-	checker := &symbolChecker{overlay: &symbolOverlay{root: root, repository: id, live: live, files: &sharedSymbolFiles{files: map[string]sharedSymbolFile{}}}, checks: map[string]SymbolAnchorCheck{}}
+	checker := &symbolChecker{overlay: indexedSymbolOverlay(root, id, live), checks: map[string]SymbolAnchorCheck{}}
 	defer checker.close()
 	if err := attachSymbolAnchors(ctx, &receipt, checker); err != nil {
 		t.Fatal(err)
@@ -427,4 +427,11 @@ func TestDCPV1216GitHooksTravelWithTheContext(t *testing.T) {
 	if _, _, err := projectClaims(perPathReads(ctx), root, a, "", base, nil); err != nil {
 		t.Fatalf("per-path projection under the default budget: %v", err)
 	}
+}
+
+// indexedSymbolOverlay is an overlay over a prebuilt live index, as one whose
+// re-resolution has already built it (DCP-V1-412).
+func indexedSymbolOverlay(root, id string, live *contextindex.Index) *symbolOverlay {
+	observed := contextindex.Observation{ObjectFormat: live.ObjectFormat, CommitRevision: live.CommitRevision, Revision: live.Revision, StatusSHA256: live.StatusSHA256, DirtyPaths: live.DirtyPaths}
+	return &symbolOverlay{root: root, repository: id, live: &contextindex.TreeObservation{Observation: observed}, observation: ObservationKey(observed), index: live, files: &sharedSymbolFiles{files: map[string]sharedSymbolFile{}}}
 }
