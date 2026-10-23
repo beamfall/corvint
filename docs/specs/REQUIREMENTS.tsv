@@ -585,6 +585,12 @@ CAP-V0-020	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-021	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1588) Root hel	standing	2026-10-11
 CAP-V0-022	docs/specs/capability-catalog-v0.md	(owner request, 2026-10-23; amends `CAP-V0-015`) The catalog MUST carry a	unrecorded	-
 CAP-V0-023	docs/specs/capability-catalog-v0.md	(owner request, 2026-10-23) The catalog builder MUST NOT derive a required optio	unrecorded	-
+CAP-V0-024	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1626; amends	standing	2026-10-11
+CAP-V0-025	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1626)	standing	2026-10-11
+CAP-V0-026	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1626) A test	standing	2026-10-11
+CAP-V0-027	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1626) The guid	standing	2026-10-11
+CAP-V0-028	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1626) The seve	standing	2026-10-11
+CAP-V0-029	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1626; owner	standing	2026-10-11
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,	unrecorded	-
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2	unrecorded	-
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa	unrecorded	-
@@ -5389,6 +5395,13 @@ TJAA-V0-050	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted un
 TJAA-V0-051	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604) Whe	standing	2026-10-11; #1604
 TJAA-V0-052	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604)	standing	2026-10-11; #1604
 TJAA-V0-053	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604) A	standing	2026-10-11; #1604
+TJAA-V0-054	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1625)	standing	2026-10-11; #1625
+TJAA-V0-055	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1625)	standing	2026-10-11; #1625
+TJAA-V0-056	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604	standing	2026-10-11; #1604
+TJAA-V0-057	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604	standing	2026-10-11; #1604
+TJAA-V0-058	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604	standing	2026-10-11; #1604
+TJAA-V0-059	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); PR #1628 review)	standing	2026-10-11; #1628
+TJAA-V0-060	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); PR #1628 review)	standing	2026-10-11; #1628
 URE-V0-001	docs/specs/unplanned-read-events-v0.md	`Classify(packetPaths, toolName, toolInput, root)` MUST return an `Event` for a	unrecorded	-
 URE-V0-002	docs/specs/unplanned-read-events-v0.md	The recognized tools are `Read` (`file_path`), `Grep` and `Glob` (`path`), and	unrecorded	-
 URE-V0-003	docs/specs/unplanned-read-events-v0.md	`Append(root, event)` MUST be a no-op returning `nil` unless the opt-in marker	unrecorded	-
