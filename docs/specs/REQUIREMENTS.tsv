@@ -351,6 +351,7 @@ AFU-V1-116	docs/specs/application-flow-understanding-v1.md	For a joined test, ea
 AFU-V1-117	docs/specs/application-flow-understanding-v1.md	Coverage whose run record is from another commit or tree is `stale`	unrecorded	-
 AFU-V1-118	docs/specs/application-flow-understanding-v1.md	An unknown format, a missing input, a revision that is not a full commit, an	unrecorded	-
 AFU-V1-119	docs/specs/application-flow-understanding-v1.md	`flows ingest-coverage` with a missing required flag exits 2 with its usage line	unrecorded	-
+AFU-V1-120	docs/specs/application-flow-understanding-v1.md	A `test-run-evidence/0` record MAY carry `coverage_artifacts`, the SHA-256 of	unrecorded	-
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,	unrecorded	-
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a	unrecorded	-
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	Freshness MUST come from one Git read at the evaluated revision. That read	unrecorded	-
@@ -2565,6 +2566,19 @@ DCP-V1-316	docs/specs/documentation-corpus-v1.md	(accepted under the owner's sta
 DCP-V1-317	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1554;	standing	2026-10-11; #1554
 DCP-V1-318	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1556;	standing	2026-10-11; #1556
 DCP-V1-319	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1556;	standing	2026-10-11; #1556
+DCP-V1-320	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1570; V1-	standing	2026-10-11; #1570; V1-2329; V1-2371
+DCP-V1-321	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1570; V1-	standing	2026-10-11; #1570; V1-2329; V1-2371
+DCP-V1-322	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1570; V1-	standing	2026-10-11; #1570; V1-2329; V1-2371
+DCP-V1-323	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1571; V1-	standing	2026-10-11; #1571; V1-2451
+DCP-V1-324	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1572; V1-	standing	2026-10-11; #1572; V1-2452
+DCP-V1-325	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1572; V1-	standing	2026-10-11; #1572; V1-2452
+DCP-V1-326	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1572; V1-	standing	2026-10-11; #1572; V1-2452
+DCP-V1-327	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1572; V1-	standing	2026-10-11; #1572; V1-2452
+DCP-V1-328	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1573; V1-	standing	2026-10-11; #1573; V1-2453
+DCP-V1-329	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1574; V1-	standing	2026-10-11; #1574; V1-2454
+DCP-V1-330	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1574; V1-	standing	2026-10-11; #1574; V1-2454
+DCP-V1-331	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1579; V1-	standing	2026-10-11; #1579; V1-2459
+DCP-V1-332	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1570; V1-	standing	2026-10-11; #1570; V1-2329; V1-2371
 DCP-V1-282	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1492;	standing	2026-10-11; #1492
 DCP-V1-283	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1492;	standing	2026-10-11; #1492
 DCP-V1-284	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1492;	standing	2026-10-11; #1492

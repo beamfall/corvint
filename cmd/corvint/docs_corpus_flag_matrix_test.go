@@ -3,6 +3,7 @@ package main
 import (
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -14,7 +15,7 @@ import (
 // (DCP-V1-370) admits exactly its three required options.
 type corpusFlagExpectation struct{ required, optional []string }
 
-var corpusReadOptional = []string{"--limit", "--offset", "--retirement"}
+var corpusReadOptional = []string{"--limit", "--offset", "--retirement", "--caller-revision"} // DCP-V1-332
 
 var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"manifest":            {required: []string{"--revision", "--scope", "--timestamp"}, optional: []string{"--schema"}},
@@ -37,8 +38,8 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"validate":            {required: []string{"--artifact"}, optional: corpusReadOptional},
 	"inventory":           {required: []string{"--artifact"}, optional: corpusReadOptional},
 	"coverage":            {required: []string{"--artifact"}, optional: corpusReadOptional},
-	"gaps":                {required: []string{"--artifact"}, optional: append([]string{"--id"}, corpusReadOptional...)},
-	"search":              {required: []string{"--artifact", "--query"}, optional: corpusReadOptional},
+	"gaps":                {required: []string{"--artifact"}, optional: append([]string{"--id", "--kind"}, corpusReadOptional...)},                 // DCP-V1-321
+	"search":              {required: []string{"--artifact", "--query"}, optional: append([]string{"--include", "--kind"}, corpusReadOptional...)}, // DCP-V1-328, DCP-V1-331
 	"concept":             {required: []string{"--artifact", "--query"}, optional: corpusReadOptional},
 	"vocabulary":          {required: []string{"--artifact", "--query"}, optional: corpusReadOptional},
 	"locate":              {required: []string{"--artifact", "--path"}, optional: append([]string{"--repository"}, corpusReadOptional...)},
@@ -57,9 +58,9 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 
 var corpusAllFlags = []string{"--revision", "--scope", "--timestamp", "--manifest", "--artifact", "--page", "--apply",
 	"--cem", "--id", "--input", "--previous", "--check", "--migration", "--config", "--playwright-list", "--receipt",
-	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match", "--schema", "--section", "--include", "--cases", "--baseline", "--seed", "--size", "--stratify", "--sample", "--repository"}
+	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match", "--schema", "--section", "--include", "--cases", "--baseline", "--seed", "--size", "--stratify", "--sample", "--repository", "--kind", "--caller-revision"}
 
-func corpusFlagArgs(flag string) []string {
+func corpusFlagArgs(op, flag string) []string {
 	switch flag {
 	case "--apply", "--check":
 		return []string{flag}
@@ -69,7 +70,12 @@ func corpusFlagArgs(flag string) []string {
 		return []string{flag, "2"}
 	case "--section":
 		return []string{flag, "readme"}
+	case "--caller-revision":
+		return []string{flag, strings.Repeat("a", 40)}
 	case "--include":
+		if op == "search" {
+			return []string{flag, "claims"}
+		}
 		return []string{flag, "paragraphs"}
 	}
 	return []string{flag, "x.json"}
@@ -105,7 +111,7 @@ func TestDocsCorpusOperationFlagMatrix(t *testing.T) {
 		}
 		base := []string{op}
 		for _, flag := range want.required {
-			base = append(base, corpusFlagArgs(flag)...)
+			base = append(base, corpusFlagArgs(op, flag)...)
 		}
 		if got := corpusParseError(base); got != "" {
 			t.Errorf("%s with required options refused: %s", op, got)
@@ -114,7 +120,7 @@ func TestDocsCorpusOperationFlagMatrix(t *testing.T) {
 			if slices.Contains(want.required, flag) {
 				continue
 			}
-			got := corpusParseError(append(slices.Clone(base), corpusFlagArgs(flag)...))
+			got := corpusParseError(append(slices.Clone(base), corpusFlagArgs(op, flag)...))
 			if slices.Contains(want.optional, flag) {
 				if got != "" {
 					t.Errorf("%s %s refused: %s", op, flag, got)
@@ -127,7 +133,7 @@ func TestDocsCorpusOperationFlagMatrix(t *testing.T) {
 			args := []string{op}
 			for other, kept := range want.required {
 				if other != index {
-					args = append(args, corpusFlagArgs(kept)...)
+					args = append(args, corpusFlagArgs(op, kept)...)
 				}
 			}
 			if got := corpusParseError(args); got != "missing required corpus option" {
@@ -138,7 +144,7 @@ func TestDocsCorpusOperationFlagMatrix(t *testing.T) {
 			if op == "manifest" || op == "discover-legacy" || op == "discover-tests" {
 				stray = "--artifact"
 			}
-			if got := corpusParseError(append(args, corpusFlagArgs(stray)...)); got != "option does not apply to corpus operation" {
+			if got := corpusParseError(append(args, corpusFlagArgs(op, stray)...)); got != "option does not apply to corpus operation" {
 				t.Errorf("%s without %s plus %s = %q", op, flag, stray, got)
 			}
 		}

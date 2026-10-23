@@ -42,7 +42,7 @@ func multiRevisionFixture(t *testing.T) (string, Manifest, AdditionalRepository,
 		return Evidence{Derivation: "declared", Trust: "generated", State: "supported", Freshness: "fresh", Anchors: []Anchor{{Repository: id, Revision: revision, Path: "src/value.go", Blob: blob, SHA256: Digest(doc), Start: 3, End: 3, SpanSHA256: Digest(excerpt), Authority: "external-provider", Kind: "declared", Reason: "explicit fixture provider assertion"}}, Limitations: []string{"provider declaration; structural anchor does not prove behavior"}}
 	}
 	root, m := providerFixture(t, func(r *ProviderRecord) {
-		r.Subjects = append(r.Subjects, Subject{"adapter:lib", "capability", "Lib quokka parser", "adapter", evidence(newRevision, newDoc)}, Subject{"adapter:lib-old", "capability", "Lib quokka parser before", "adapter", evidence(oldRevision, oldDoc)})
+		r.Subjects = append(r.Subjects, Subject{"adapter:lib", "capability", "Lib quokka parser", "adapter", evidence(newRevision, newDoc), nil}, Subject{"adapter:lib-old", "capability", "Lib quokka parser before", "adapter", evidence(oldRevision, oldDoc), nil})
 	})
 	rel, err := filepath.Rel(root, lib)
 	if err != nil {

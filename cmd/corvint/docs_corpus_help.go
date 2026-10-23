@@ -21,7 +21,7 @@ type corpusOperation struct {
 var corpusOperations = buildCorpusOperations()
 
 func buildCorpusOperations() []corpusOperation {
-	reads := []string{"--limit", "--offset", "--retirement"}
+	reads := []string{"--limit", "--offset", "--retirement", "--caller-revision"}
 	read := func(name, purpose string, required []string, optional ...string) corpusOperation {
 		return corpusOperation{name: name, purpose: purpose, required: append([]string{"--artifact"}, required...), optional: append(optional, reads...)}
 	}
@@ -47,7 +47,7 @@ func buildCorpusOperations() []corpusOperation {
 		read("info", "artifact identity, capabilities and freshness", nil),
 		read("validate", "recheck the artifact against its original inputs", nil),
 		read("inventory", "page through every subject, claim and relation ID", nil),
-		read("search", "search subjects by text", []string{"--query"}),
+		read("search", "rank subjects by text, optionally of some kinds or with claim hits", []string{"--query"}, "--include", "--kind"),
 		read("get", "one subject by ID", []string{"--id"}),
 		read("trace", "source citations of one subject", []string{"--id"}),
 		read("related", "subjects related to one subject", []string{"--id"}),
@@ -55,7 +55,7 @@ func buildCorpusOperations() []corpusOperation {
 		read("stability", "repeated-run stability evidence of one subject", []string{"--id"}),
 		read("locate", "subjects that cite one path", []string{"--path"}, "--repository"),
 		read("coverage", "scoped coverage with its denominator", nil),
-		read("gaps", "reported gaps, optionally for one subject", nil, "--id"),
+		read("gaps", "reported gaps, optionally for one subject or some kinds", nil, "--id", "--kind"),
 		typed("concept", "typed subjects matching a concept"),
 		read("claims", "typed claims about one path, claims ranked by --query text, or supplied status claims in one --state (exactly one)", nil, "--path", "--query", "--state", "--qualifier", "--run"),
 		read("flow", "one typed flow, optionally only some sections or record kinds", []string{"--id"}, "--section", "--include"),
@@ -128,8 +128,10 @@ var corpusFlagHelp = map[string][2]string{
 	"--run":                  {"RUN", "keep claims whose subject a migration_mapping of this run names (requires --state)"},
 	"--limit":                {"N", "1.." + strconv.Itoa(doccorpus.MaxResults) + " results (default 20)"},
 	"--offset":               {"N", "results to skip"},
+	"--caller-revision":      {"FULL_COMMIT", "caller's checkout commit; the trust envelope relates it to the source revision"},
 	"--section":              {"NAME[,NAME]", "flow sections whose paragraphs to return"},
-	"--include":              {"KIND[,KIND]", "flow record kinds: claims, relations, test_knowledge, paragraphs"},
+	"--include":              {"KIND[,KIND]", "flow record kinds: claims, relations, test_knowledge, paragraphs; search admits only claims"},
+	"--kind":                 {"KIND[,KIND]", "gaps: gap kinds to keep, each totalled before paging; search: subject kinds to keep"},
 	"--retirement":           {"POLICY.json", "retirement policy"},
 	"--runner":               {"jasmine|mocha", "legacy test runner"},
 	"--expected-base":        {"FULL_COMMIT", "base the cem/1.0 map must bind"},

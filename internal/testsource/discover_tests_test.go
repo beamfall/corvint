@@ -277,8 +277,8 @@ func TestDCPV1371DiscoverTestsIdentityJoins(t *testing.T) {
 	// An inline inclusion adds one slot per runtime child of the shared body: a loop there makes
 	// the count, and every later sibling's id, unknown; a nested inline inclusion adds its own.
 	shared := map[string]string{
-		"spec/shared_loop_spec.rb": "RSpec.describe Calc do\n  shared_examples 'looped' do\n    [1, 2].each do |n|\n      it \"handles #{n}\" do\n        expect(n).to be_positive\n      end\n    end\n  end\n\n  include_examples 'looped'\n  it 'follows' do\n    expect(1).to eq(1)\n  end\nend\n",
-		"spec/shared_nest_spec.rb": "RSpec.describe Calc do\n  shared_examples 'inner' do\n    it('a') { expect(1).to eq(1) }\n    it('b') { expect(2).to eq(2) }\n  end\n  shared_examples 'outer' do\n    include_examples 'inner'\n  end\n\n  include_examples 'outer'\n  it 'follows' do\n    expect(1).to eq(1)\n  end\nend\n",
+		"spec/shared_loop_spec.rb":  "RSpec.describe Calc do\n  shared_examples 'looped' do\n    [1, 2].each do |n|\n      it \"handles #{n}\" do\n        expect(n).to be_positive\n      end\n    end\n  end\n\n  include_examples 'looped'\n  it 'follows' do\n    expect(1).to eq(1)\n  end\nend\n",
+		"spec/shared_nest_spec.rb":  "RSpec.describe Calc do\n  shared_examples 'inner' do\n    it('a') { expect(1).to eq(1) }\n    it('b') { expect(2).to eq(2) }\n  end\n  shared_examples 'outer' do\n    include_examples 'inner'\n  end\n\n  include_examples 'outer'\n  it 'follows' do\n    expect(1).to eq(1)\n  end\nend\n",
 		"spec/shared_cycle_spec.rb": "RSpec.describe Calc do\n  shared_examples 'self' do\n    include_examples 'self'\n  end\n  include_examples 'self'\n  it 'follows' do\n    expect(1).to eq(1)\n  end\nend\n",
 	}
 	scommit := commitFiles(t, root, shared)

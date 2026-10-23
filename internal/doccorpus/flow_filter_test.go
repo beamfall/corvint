@@ -19,7 +19,7 @@ func eightSectionFlow(t *testing.T) (string, Manifest, *Artifact) {
 		for i := range flow.Sections {
 			for j := range 8 {
 				id := fmt.Sprintf("adapter:p-%d-%d", i, j)
-				p.Subjects = append(p.Subjects, Subject{id, "paragraph", fmt.Sprintf("Paragraph %d of section %s describes one documented step", j, flow.Sections[i].Name), "adapter", ev})
+				p.Subjects = append(p.Subjects, Subject{id, "paragraph", fmt.Sprintf("Paragraph %d of section %s describes one documented step", j, flow.Sections[i].Name), "adapter", ev, nil})
 				p.Details[id] = RecordDetails{Paragraph: &ParagraphDetails{Flow: "adapter:flow", Section: flow.Sections[i].Name, StableID: fmt.Sprintf("adapter:s-%d-%d", i, j)}}
 				flow.Sections[i].Paragraphs = append(flow.Sections[i].Paragraphs, id)
 			}
