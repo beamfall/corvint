@@ -150,6 +150,7 @@ one.
 | V1-2352 | CAL-V0-321 | Accepted (standing auto-accept, 2026-10-23): a read checkpoint carries a no-false-negative filter of the request paths posted at or before its sequence, so a checkpoint read refuses a duplicate request with a null pre-state through the complete audit (PSR-V0-203); a checkpoint without the filter serves no read; implemented with focused tests |
 | V1-2359 | CAL-V0-322 | Accepted (standing auto-accept, 2026-10-23): `attempt show` and `ticket show` carry `lastFailedGate`, the newest FAILED or BLOCKED gate result with the TCD-V0-165 bounded, secret-screened tail of its retained output; implemented with focused tests |
 | V1-2449 | CAL-V0-340 | Accepted (standing auto-accept, 2026-10-23): an unlocked journal audit whose two-second stage-slot wait (CTS-V0-008) is spent with the head advanced since it first saw the slots refuses the retryable `SNAPSHOT_MOVED`, not `MALFORMED` (head movement warrants another bounded observation, it does not prove the slots' holders live); a head that never moved keeps the unchanged `MALFORMED`; implemented with focused tests |
+| #1551 | CAL-V0-360 | Accepted (standing auto-accept, 2026-10-23): the lease write's unlocked pre-round guard read that ends `SNAPSHOT_MOVED` spends that one of its sixteen rounds instead of ending the write; a non-retryable guard failure still ends it at once |
 | V1-1321 | ATR-V0-210, ATR-V0-211 | Delivered as a refusal naming uncovered requested paths plus the reported scope (attempt runner spec); CAL-V0-021 unamended |
 | V1-1494 | CAL-V0-263, CAL-V0-265 | Proposed (issue 967): no lease write holds the preparation gate for a complete-history audit; the scheduled refresh walks the prefix to its captured head when the journal moves; focused tests, mutation check and an opt-in load harness |
 | V1-1512 | none (evidence; PSR-V0-052) | Accepted (standing auto-accept, 2026-10-20): issue 967 remainder; at 40,000 receipts and 15 writers heartbeat/renew p99 1,138/1,131 ms (residual: gate wait behind about 1 s widen and reap commits), no `SNAPSHOT_MOVED`; reap and pool release resume tests; proposals 2 remainder and 3 are 1.0 work per decision 0549, proposal 5 deferred past 1.0 |
@@ -7472,6 +7473,48 @@ the same slots under an unchanged head, refuses `MALFORMED`.
 
 Rollback: revert the source; the audit again refuses `MALFORMED` after the budget whatever the head
 did.
+
+### #1551 torn guard read in the lease write rounds
+
+Human-owned input: GitHub issue #1551 (nightly `release-gates` on main), run 39773957842 on
+macos-15, where `TestCALV0019_RacingLeaseVerbsLeaveOneConsistentHead` failed with
+`racer 2: SNAPSHOT_MOVED: .../head.json: file replaced between stat and open`. Racer 2 is `gate run`,
+whose unlocked proof read (`readLeaseProof`) already retries `SNAPSHOT_MOVED` for sixteen rounds, and
+whose write then enters `leaseWrite`. Each of that write's sixteen rounds starts with an unlocked
+guard read (`writerGuards`, `readHead`) before it prepares or takes the lock. The bounded file read
+refuses `SNAPSHOT_MOVED` when the inode it opened is not the one it stat'ed, which is exactly what a
+writer committing `head.json` under the lock does to a reader between those two calls. The
+preparation and commit steps of the same round retry that code; the guard read returned it to the
+caller, so one torn observation ended a write that had fifteen rounds left.
+
+- `CAL-V0-360`: (accepted under the owner's standing auto-accept (2026-10-11), #1551) When the
+  lease write's unlocked pre-round guard read ends `SNAPSHOT_MOVED`, that observation MUST spend
+  the current round, counted in the write's round total, and the next round MUST read the store
+  again; the write MUST NOT return that code from the guard read while rounds remain. Every other
+  guard refusal (`PAUSED`, `INTENT_BRANCH_MISMATCH`, a forked journal, a different queue) keeps its
+  present disposition and ends the write at once. Exhaustion of the sixteen rounds keeps the
+  existing `SNAPSHOT_MOVED` `store changed during all preparation attempts` refusal, a code the
+  CAL-V0-078 retryable set already names.
+
+Non-goals: the locked guard read under the writer lock (`commitLease`) is not changed; no round
+count, wait or bound is lengthened; the other unlocked `readHead` callers outside the lease write
+(`compact`, `retire`, segment sealing) are not changed here; no stored state, wire format or
+receipt changes.
+
+Failure modes: a store whose head keeps being replaced between stat and open on every one of the
+sixteen rounds still ends `SNAPSHOT_MOVED`, now after sixteen observations instead of one. A torn
+read that hides a non-retryable guard failure is impossible: the guard read either returns the
+head it opened, on which every other guard then runs, or the torn code.
+
+Acceptance evidence: `TestCALV0360_TornGuardReadSpendsOneRound`
+(`internal/tasks/store/lease_write_guard_test.go`) injects one `SNAPSHOT_MOVED` into the guard read
+through `SetLeaseGuardFaultForTest` and sees the claim commit on the next round with the fault
+observed once and the read taken at least twice, then injects `JOURNAL_FORKED` and sees the write
+end with that code; with the retry removed the same test fails with the CI message. The CI
+failure itself was not reproduced locally: twenty runs of the racing test on the base passed, so the
+cause is the code reading above, with the retry as the mechanism that removes it.
+
+Rollback: revert the source; a torn guard read again ends the write at once.
 
 ## Amendments to TCP-00
 
