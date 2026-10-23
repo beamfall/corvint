@@ -171,14 +171,21 @@ cannot silently go missing or outlive its command.
   `closed` or a requirement recorded `delivered`; when a "By design" item names no requirement
   recorded `excludes`; or when any other item names no `open` issue and no `undelivered`
   requirement. `capcatalog.NonCapabilityProblems` returns one line per problem and reads nothing
-  but its two arguments.
+  but its two arguments. The section parse MUST fail closed: apart from one intro paragraph before
+  the first item, every non-blank line MUST be a `- ` item or a two-space continuation directly
+  under one, and any other line (another bullet style such as `* `, an indented or numbered item,
+  or stray prose) is a problem reported by both `NonCapabilityProblems` and `GuideProblems`, never
+  skipped.
 - `CAP-V0-027`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1626) The guide's
   Goals MUST carry one runnable example each for static test discovery (`docs corpus
   discover-tests`), per-test coverage ingest (`flows ingest --coverage-artifact` then `flows
   ingest-coverage`), the subject-kind filter and claim hits of `docs corpus search` (`--kind`,
   `--include claims`), ranked claim search (`docs corpus claims --query`) and the delta worklist
   stream (`docs corpus delta --format jsonl`). The CAP-V0-018 check keeps each against the live
-  catalog.
+  catalog. The `flows ingest-coverage` example MUST pass `--test-key` with a key of the run
+  evidence and say the coverage file holds only that test's coverage, because a run with more
+  than one record refuses a single-test format without it. A shell redirection inside a quoted
+  argument does not end a checked command line.
 - `CAP-V0-028`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1626) The seven
   items GH-1626 found delivered (tracked by #1571, #1573, #1578, #1579, #1584, #1585 and #1587, each
   verified against the binary at `7b3a8e55f`) MUST NOT stay listed, and the status table MUST
@@ -290,7 +297,7 @@ entries, and the `docs/CAPABILITIES.md` pointer; no stored state depends on them
 | CAP-V0-023 | `capcatalog.requiredFlags` (usage forms only) | `TestCAPV0023ProseRequirementsAreNotDerived` (prose "is required" sentences and alternative usage lines add no required option) |
 | CAP-V0-024 | `capcatalog.GuideProblems`, `nonCapabilityIDs`, `requirementPattern` | `TestCAPV0024NonCapabilitiesNameAnIssueOrRequirement`, `TestCAPV0018GuideProblemsRejectsDrift` |
 | CAP-V0-025 | `internal/capcatalog/NONCAPABILITY-STATUS.tsv`, `capcatalog.NonCapabilityStatus`, `parseNonCapabilityStatus` | `TestCAPV0025StatusTableIsWellFormed` |
-| CAP-V0-026 | `capcatalog.NonCapabilityProblems` | `TestCAPV0026NonCapabilityProblemsRejectsStaleItems`, `TestCAPV0026ShippedNonCapabilitiesAreCurrent` |
-| CAP-V0-027 | `internal/capcatalog/AGENT-GUIDE.md` goals 8 to 11 | `TestCAPV0027GuideTeachesDeliveredCapabilities`, `TestCAPV0018ShippedGuideMatchesTheLiveCatalog`; live runs recorded in `docs/build-log/2026-10-23-help-guide-noncapabilities.md` |
+| CAP-V0-026 | `capcatalog.NonCapabilityProblems`, `nonCapabilities`, `plainText` | `TestCAPV0026NonCapabilityProblemsRejectsStaleItems`, `TestCAPV0026ShippedNonCapabilitiesAreCurrent`, `TestCAPV0026UnrecognisedNonCapabilityLinesFailClosed` |
+| CAP-V0-027 | `internal/capcatalog/AGENT-GUIDE.md` goals 8 to 11, `guideCommandLines` | `TestCAPV0027GuideTeachesDeliveredCapabilities`, `TestCAPV0018ShippedGuideMatchesTheLiveCatalog`; live runs recorded in `docs/build-log/2026-10-23-help-guide-noncapabilities.md` |
 | CAP-V0-028 | `internal/capcatalog/AGENT-GUIDE.md` Non-capabilities, `NONCAPABILITY-STATUS.tsv` | `TestCAPV0028DeliveredItemsLeftTheNonCapabilities` |
 | CAP-V0-029 | `capcatalog.Guide` (embedded), `NONCAPABILITY-STATUS.tsv` row | `TestCAPV0029GuideIsNotAnArchiveMember`, `TestCAPV0017HelpGuideServesTheShippedGuide` |

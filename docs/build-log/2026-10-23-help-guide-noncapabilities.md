@@ -44,3 +44,20 @@ owning focused tests.
 - Observed outside this slice: `corvint docs corpus discover-tests --help` describes `--runner` as
   `jasmine|mocha` (the legacy runner text), but the operation accepts `playwright` and `rspec`. That
   help text lives in `cmd/corvint`. It is reported in the PR, not changed here.
+
+## Review repair (PR #1627)
+
+- The Non-capabilities parse now fails closed (`CAP-V0-026`). It took only unindented `- `
+  bullets, so a `* ` item, or an indented or numbered one, skipped the closed-issue,
+  delivered-requirement and missing-row checks. Now every non-blank line after the one intro
+  paragraph must be a `- ` item or a two-space continuation directly under one. Any other line is
+  reported by `NonCapabilityProblems` and `GuideProblems`
+  (`TestCAPV0026UnrecognisedNonCapabilityLinesFailClosed`).
+- The coverage-ingest example now passes `--test-key` and says the LCOV file holds only that test's
+  coverage (`CAP-V0-027`). Without the key, a run with two records is refused. Live run with a
+  binary from this branch: a two-test `go-test-json` run plus `ingest-coverage` without `--test-key`
+  printed `coverage-refused`, "--test-key is required when the run evidence holds 2 records". With
+  `--test-key "example.com/upload > TestRetry"`, the run was `joined` with one `tested_by` relation
+  and no unknowns. The guide check used to cut a line at the ` > ` inside that quoted key. It now
+  cuts only at a redirection outside quotes, so the whole example is checked
+  (`TestCAPV0027GuideTeachesDeliveredCapabilities`).

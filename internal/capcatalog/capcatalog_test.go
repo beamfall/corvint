@@ -3,6 +3,7 @@ package capcatalog
 import (
 	"bytes"
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -242,7 +243,7 @@ func TestCAPV0024NonCapabilitiesNameAnIssueOrRequirement(t *testing.T) {
 			t.Fatalf("item %q problems = %v, want %d", item, problems, want)
 		}
 	}
-	for _, item := range nonCapabilities(Guide()) {
+	for _, item := range shippedNonCapabilities(t) {
 		if len(nonCapabilityIDs(item)) == 0 {
 			t.Fatalf("shipped non-capability names no issue or requirement: %s", item)
 		}
@@ -307,6 +308,56 @@ func TestCAPV0026NonCapabilityProblemsRejectsStaleItems(t *testing.T) {
 	}
 }
 
+// CAP-V0-026: the Non-capabilities parse fails closed. Every non-blank line
+// after the one intro paragraph must be a "- " item or its two-space
+// continuation, so another bullet style, an indented or numbered item, or
+// stray prose is reported instead of bypassing the status checks.
+func TestCAPV0026UnrecognisedNonCapabilityLinesFailClosed(t *testing.T) {
+	t.Parallel()
+	status := "id\tstate\tevidence\n#1\topen\tx\n#2\tclosed\tx\n"
+	catalog := Build(syntheticRegistry())
+	base := "Goals\n  corvint --version\n\nNon-capabilities\n\nEach item is a capability\nCorvint lacks.\n\n- A. Tracking\n  #1.\n"
+	if problems := NonCapabilityProblems(base, status); len(problems) != 0 {
+		t.Fatalf("intro, item and continuation problems = %v", problems)
+	}
+	if problems := GuideProblems(catalog, base); len(problems) != 0 {
+		t.Fatalf("intro, item and continuation guide problems = %v", problems)
+	}
+	for _, line := range []string{
+		"* No delta worklist. Tracking #2.",
+		"+ No delta worklist. Tracking #2.",
+		"  - No delta worklist. Tracking #2.",
+		"\t- No delta worklist. Tracking #2.",
+		"1. No delta worklist. Tracking #2.",
+		"2) No delta worklist. Tracking #2.",
+		"No delta worklist. Tracking #2.",
+		"-No delta worklist. Tracking #2.",
+		"-  No delta worklist. Tracking #2.",
+		"   No delta worklist. Tracking #2.",
+		"Non-capabilities",
+	} {
+		for _, guide := range []string{base + line + "\n", base + "\n" + line + "\n", strings.Replace(base, "- A.", line+"\n- A.", 1)} {
+			problems := NonCapabilityProblems(guide, status)
+			if !slices.ContainsFunc(problems, func(p string) bool { return strings.Contains(p, "not a recognised") }) {
+				t.Fatalf("guide %q: problems = %v, want an unrecognised-line problem", guide, problems)
+			}
+			if guideProblems := GuideProblems(catalog, guide); !slices.ContainsFunc(guideProblems, func(p string) bool { return strings.Contains(p, "not a recognised") }) {
+				t.Fatalf("guide %q: guide problems = %v, want an unrecognised-line problem", guide, guideProblems)
+			}
+		}
+	}
+	// A continuation after a blank line, or before any item, is not one.
+	for _, guide := range []string{
+		base + "\n  #1 again.\n",
+		"Goals\n\nNon-capabilities\n\n  Tracking #1.\n- A. Tracking #1.\n",
+		"Goals\n\nNon-capabilities\n\nIntro.\n\nSecond intro paragraph.\n- A. Tracking #1.\n",
+	} {
+		if problems := NonCapabilityProblems(guide, status); len(problems) != 1 || !strings.Contains(problems[0], "not a recognised") {
+			t.Fatalf("guide %q: problems = %v", guide, problems)
+		}
+	}
+}
+
 func TestCAPV0026ShippedNonCapabilitiesAreCurrent(t *testing.T) {
 	t.Parallel()
 	if problems := NonCapabilityProblems(Guide(), NonCapabilityStatus()); len(problems) != 0 {
@@ -329,7 +380,8 @@ func TestCAPV0027GuideTeachesDeliveredCapabilities(t *testing.T) {
 	for _, example := range []string{
 		"\n   corvint docs corpus discover-tests --runner playwright --revision FULL_COMMIT --path ",
 		" --coverage-artifact lcov=trace.lcov > run.jsonl\n",
-		"\n   corvint flows ingest-coverage --format lcov --from trace.lcov --evidence run.jsonl --revision FULL_COMMIT\n",
+		"\n   corvint flows ingest-coverage --format lcov --from trace.lcov --evidence run.jsonl --revision FULL_COMMIT --test-key \"example.com/upload > TestRetry\"\n",
+		"trace.lcov must hold\n   that test's coverage only, and --test-key names the test's key in run.jsonl",
 		"\n   corvint docs corpus search --artifact corpus.json --query \"retry policy\" --kind symbol --include claims\n",
 		"\n   corvint docs corpus claims --artifact corpus.json --query \"retry policy\"\n",
 		"\n   corvint docs corpus delta --previous previous-corpus.json --artifact corpus.json --format jsonl\n",
@@ -345,6 +397,14 @@ func TestCAPV0027GuideTeachesDeliveredCapabilities(t *testing.T) {
 	if problems := GuideProblems(catalog, goals+"\nNon-capabilities\n\n- A. Tracking #1.\n"); len(problems) != 0 {
 		t.Fatalf("goal examples drifted from the catalog: %v", problems)
 	}
+	// The quoted go test key's " > " must not cut the checked command line,
+	// so an option after it is still checked against the catalog.
+	if !slices.Contains(guideCommandLines(goals), "corvint flows ingest-coverage --format lcov --from trace.lcov --evidence run.jsonl --revision FULL_COMMIT --test-key \"example.com/upload > TestRetry\"") {
+		t.Fatal("the ingest-coverage example must be checked whole, with its --test-key")
+	}
+	if problems := GuideProblems(catalog, "  corvint flows ingest-coverage --test-key \"a > b\" --no-such-option\n\nNon-capabilities\n\n- A. Tracking #1.\n"); !slices.ContainsFunc(problems, func(p string) bool { return strings.Contains(p, "--no-such-option") }) {
+		t.Fatalf("an option after a quoted redirection must be checked: %v", problems)
+	}
 }
 
 // CAP-V0-028: the seven delivered items left the Non-capabilities section,
@@ -352,7 +412,7 @@ func TestCAPV0027GuideTeachesDeliveredCapabilities(t *testing.T) {
 func TestCAPV0028DeliveredItemsLeftTheNonCapabilities(t *testing.T) {
 	t.Parallel()
 	states, _ := parseNonCapabilityStatus(NonCapabilityStatus())
-	items := strings.Join(nonCapabilities(Guide()), "\n")
+	items := strings.Join(shippedNonCapabilities(t), "\n")
 	for _, issue := range []string{"#1571", "#1573", "#1578", "#1579", "#1584", "#1585", "#1587"} {
 		if states[issue] != "closed" || strings.Contains(items, issue) {
 			t.Fatalf("%s: status %q, still listed %v", issue, states[issue], strings.Contains(items, issue))
@@ -368,10 +428,19 @@ func TestCAPV0028DeliveredItemsLeftTheNonCapabilities(t *testing.T) {
 func TestCAPV0029GuideIsNotAnArchiveMember(t *testing.T) {
 	t.Parallel()
 	states, _ := parseNonCapabilityStatus(NonCapabilityStatus())
-	if states["CAP-V0-029"] != "excludes" || !strings.Contains(strings.Join(nonCapabilities(Guide()), "\n"), "release archive, because a seventh archive member would break deployed updaters. By design (CAP-V0-029).") {
+	if states["CAP-V0-029"] != "excludes" || !strings.Contains(strings.Join(shippedNonCapabilities(t), "\n"), "release archive, because a seventh archive member would break deployed updaters. By design (CAP-V0-029).") {
 		t.Fatal("the guide's archive non-capability must cite CAP-V0-029, recorded as excludes")
 	}
 	if Guide() != guide || !strings.HasPrefix(Guide(), "Corvint agent guide (corvint help guide)\n") {
 		t.Fatal("Guide must return the embedded guide")
 	}
+}
+
+func shippedNonCapabilities(t *testing.T) []string {
+	t.Helper()
+	items, problems := nonCapabilities(Guide())
+	if len(problems) != 0 {
+		t.Fatalf("shipped Non-capabilities lines are not recognised: %v", problems)
+	}
+	return items
 }

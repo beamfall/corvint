@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
 )
 
 var (
@@ -14,6 +15,9 @@ var (
 	// requirementPattern matches a requirement ID such as CAP-V0-016, MCPV0-100
 	// or PNC-009: a three-digit number after an uppercase prefix.
 	requirementPattern = regexp.MustCompile(`\b[A-Z][A-Z0-9]*(?:-[A-Z][A-Z0-9]*)*-[0-9]{3}\b`)
+	// listMarkerPattern matches the start of a list item in any bullet or
+	// numbering style.
+	listMarkerPattern = regexp.MustCompile(`^(?:[-*+]|[0-9]+[.)])`)
 )
 
 //go:embed NONCAPABILITY-STATUS.tsv
@@ -53,7 +57,8 @@ func GuideProblems(catalog Catalog, guide string) []string {
 			problems = append(problems, "schema "+id+" is not named by any command's help")
 		}
 	}
-	items := nonCapabilities(guide)
+	items, lineProblems := nonCapabilities(guide)
+	problems = append(problems, lineProblems...)
 	if len(items) == 0 {
 		problems = append(problems, "the guide has no Non-capabilities items")
 	}
@@ -80,8 +85,13 @@ func guideCommandLines(guide string) []string {
 		}
 	}
 	for index, line := range lines {
+		// A redirection inside a quoted argument, such as a go test key
+		// "PACKAGE > TEST", does not end the command.
+		masked := quotedPattern.ReplaceAllStringFunc(line, func(quoted string) string { return strings.Repeat("x", len(quoted)) })
 		for _, redirect := range []string{" > ", " < ", " | "} {
-			line, _, _ = strings.Cut(line, redirect)
+			if at := strings.Index(masked, redirect); at >= 0 {
+				line, masked = line[:at], masked[:at]
+			}
 		}
 		lines[index] = line
 	}
@@ -161,22 +171,43 @@ func helpTopicProblems(catalog Catalog, commands map[string]Command, words []str
 }
 
 // nonCapabilities returns each "- " item of the Non-capabilities section with
-// its continuation lines joined.
-func nonCapabilities(guide string) []string {
+// its continuation lines joined. It fails closed (CAP-V0-026): besides one
+// intro paragraph before the first item, every non-blank line must be a "- "
+// item or a two-space continuation directly under one, and any other line,
+// such as another bullet style or an indented or numbered item, is returned
+// as a problem rather than skipped.
+func nonCapabilities(guide string) ([]string, []string) {
 	_, section, found := strings.Cut(guide, "\nNon-capabilities\n")
 	if !found {
-		return nil
+		return nil, nil
 	}
-	var items []string
+	var items, problems []string
+	// intro is open until the intro paragraph ends or an item starts.
+	introOpen, introSeen, inItem := true, false, false
 	for _, line := range strings.Split(section, "\n") {
+		text, indented := strings.CutPrefix(line, "  ")
 		switch {
-		case strings.HasPrefix(line, "- "):
-			items = append(items, strings.TrimPrefix(line, "- "))
-		case strings.HasPrefix(line, "  ") && len(items) > 0:
-			items[len(items)-1] += " " + strings.TrimSpace(line)
+		case strings.TrimSpace(line) == "":
+			introOpen = introOpen && !introSeen
+			inItem = false
+		case strings.HasPrefix(line, "- ") && plainText(line[2:]):
+			items = append(items, line[2:])
+			introOpen, inItem = false, true
+		case indented && inItem && plainText(text):
+			items[len(items)-1] += " " + text
+		case introOpen && plainText(line):
+			introSeen = true
+		default:
+			problems = append(problems, "Non-capabilities line is not a recognised item or continuation: "+line)
 		}
 	}
-	return items
+	return items, problems
+}
+
+// plainText reports whether text starts with a non-space character and is not
+// itself a list item such as "* x", "- x", "+ x", "1. x" or "2) x".
+func plainText(text string) bool {
+	return text != "" && !unicode.IsSpace(rune(text[0])) && !listMarkerPattern.MatchString(text)
 }
 
 // nonCapabilityIDs returns the issue numbers (#N) and requirement IDs an item
@@ -193,7 +224,9 @@ func nonCapabilityIDs(item string) []string {
 // reads nothing but its arguments and returns one line per problem.
 func NonCapabilityProblems(guide, status string) []string {
 	states, problems := parseNonCapabilityStatus(status)
-	for _, item := range nonCapabilities(guide) {
+	items, lineProblems := nonCapabilities(guide)
+	problems = append(problems, lineProblems...)
+	for _, item := range items {
 		byDesign, standing := strings.Contains(item, "By design"), false
 		for _, id := range nonCapabilityIDs(item) {
 			state, ok := states[id]

@@ -70,8 +70,11 @@ Goals
    Step 1: record the test run and pin the coverage file it wrote:
    corvint flows ingest --format go-test-json --from go-test.json --run-id run-1 --runner-version 1.0.0 --source-commit FULL_COMMIT --source-tree FULL_TREE --source-clean --build-artifact-digest SHA256 --environment-id ci --environment-digest SHA256 --fixture-id none --fixture-digest SHA256 --cleanup done --coverage-artifact lcov=trace.lcov > run.jsonl
    Output: test-run-evidence/0 JSONL on stdout.
-   Step 2: join the coverage to that run:
-   corvint flows ingest-coverage --format lcov --from trace.lcov --evidence run.jsonl --revision FULL_COMMIT
+   Step 2: join one test's coverage to its run record. trace.lcov must hold
+   that test's coverage only, and --test-key names the test's key in run.jsonl
+   (PACKAGE > TEST for go test). It may be left out only when run.jsonl holds
+   one record:
+   corvint flows ingest-coverage --format lcov --from trace.lcov --evidence run.jsonl --revision FULL_COMMIT --test-key "example.com/upload > TestRetry"
    Output: corvint-coverage-ingest/1: observed tested_by relations with executed
    line spans, links the coverage contradicts, and unknowns with reasons.
    Coverage from another commit, a dirty tree or an unbound run is not joined.
