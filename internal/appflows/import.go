@@ -20,6 +20,7 @@ const (
 	FormatAdapterRequest = "behavior-adapter-request"
 	FormatOpenAPI        = "openapi"
 	FormatPlaywrightList = "playwright-list"
+	FormatExtractor      = "extractor-inventory"
 	maxImportedID        = 100
 )
 
@@ -27,7 +28,11 @@ var importers = map[string]func(raw []byte, source string) ([]FlowIntent, error)
 	FormatAdapterRequest: importAdapterRequest,
 	FormatOpenAPI:        importOpenAPI,
 	FormatPlaywrightList: importPlaywrightList,
+	FormatExtractor:      importExtractorInventory,
 }
+
+// ImportFormats is the --format list in refusal and help text.
+const ImportFormats = "behavior-adapter-request, extractor-inventory, openapi or playwright-list"
 
 // Import compiles raw into new proposed intents with inferred links and writes each as a new file under
 // dir. It is all-or-nothing: the combined set is bounded and validated before any write, every file is
@@ -50,7 +55,7 @@ var writeIntentFile = WriteConfined
 func planImport(root, dir string, raw []byte, format, source string) (IntentSet, []FlowIntent, error) {
 	importer, ok := importers[format]
 	if !ok {
-		return IntentSet{}, nil, errors.New("--format must be behavior-adapter-request, openapi or playwright-list")
+		return IntentSet{}, nil, errors.New("--format must be " + ImportFormats)
 	}
 	set, err := LoadIntents(root, dir)
 	if err != nil {
@@ -362,6 +367,65 @@ func playwrightIntent(spec playwrightSpec) FlowIntent {
 	intent.Variations = []FlowVariation{variation}
 	intent.Links = []FlowLink{inferredTestLink(variation.VariationID, key, spec.File)}
 	return intent
+}
+
+// importExtractorInventory makes one proposed api flow per endpoint subject and one proposed ui flow
+// per ui_surface subject of a corvint-extractor-inventory/1 document, with one inferred source link
+// per exact subject anchor. Other subject kinds, relations and the inventory's gaps are not flows
+// and are not imported (AFU-V1-122..AFU-V1-124).
+func importExtractorInventory(raw []byte, _ string) ([]FlowIntent, error) {
+	var inventory doccorpus.ExtractorInventory
+	if err := lenientDecode(raw, &inventory); err != nil {
+		return nil, err
+	}
+	if inventory.Schema != doccorpus.ExtractorInventorySchema {
+		return nil, errors.New("extractor-inventory import accepts " + doccorpus.ExtractorInventorySchema)
+	}
+	intents := []FlowIntent{}
+	for _, subject := range inventory.Provider.Subjects {
+		kind, verb := "", ""
+		switch subject.Kind {
+		case "endpoint":
+			kind, verb = "api", "call"
+		case "ui_surface":
+			kind, verb = "ui", "visit"
+		default:
+			continue
+		}
+		if len(intents) == MaxFlows {
+			return nil, fmt.Errorf("extractor inventory exceeds %d flow subjects", MaxFlows)
+		}
+		intent, err := extractorIntent(subject, kind, verb)
+		if err != nil {
+			return nil, err
+		}
+		intents = append(intents, intent)
+	}
+	return intents, nil
+}
+
+func extractorIntent(subject doccorpus.Subject, kind, verb string) (FlowIntent, error) {
+	name := subject.Name
+	if kind == "ui" {
+		name = "ui " + name
+	}
+	id := importedID(name)
+	if id == "" || len(subject.Evidence.Anchors) == 0 {
+		return FlowIntent{}, fmt.Errorf("extractor subject %q has no flow identity or anchor", subject.ID)
+	}
+	intent := proposedIntent(id, kind)
+	action := subject.Name
+	if kind == "ui" {
+		action = "visit " + subject.Name
+	}
+	intent.Steps = []FlowStep{{StepID: verb, Action: action}}
+	variation := FlowVariation{VariationID: id + "." + verb, Preconditions: []string{}, Steps: []string{verb}, ObservableFacts: []string{}, Outcomes: []string{}, Projects: []string{}}
+	intent.Variations = []FlowVariation{variation}
+	for _, anchor := range subject.Evidence.Anchors {
+		target := LinkTarget{Type: "source", Path: anchor.Path, StartLine: anchor.Start, EndLine: anchor.End}
+		intent.Links = append(intent.Links, FlowLink{From: variation.VariationID, Basis: "inferred", Target: target})
+	}
+	return intent, nil
 }
 
 // importedID derives a flow-ID-shaped identity from third-party text, or "" when nothing remains.

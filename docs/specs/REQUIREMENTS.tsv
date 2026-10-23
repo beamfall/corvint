@@ -343,6 +343,9 @@ AFU-V1-103	docs/specs/application-flow-understanding-v1.md	A member that does no
 AFU-V1-104	docs/specs/application-flow-understanding-v1.md	In-scope unambiguous declarations that belong to no declared flow are listed in	unrecorded	-
 AFU-V1-105	docs/specs/application-flow-understanding-v1.md	The manifest retains the declared inventory, so `Open`, `finalize`,	unrecorded	-
 AFU-V1-106	docs/specs/application-flow-understanding-v1.md	The inventory file is a bounded regular file of at most 4 MiB with 1 to 256 flow	unrecorded	-
+AFU-V1-122	docs/specs/application-flow-understanding-v1.md	`flows import --format extractor-inventory` accepts only a	unrecorded	-
+AFU-V1-123	docs/specs/application-flow-understanding-v1.md	It writes one proposed `api` flow per `endpoint` subject (identity from the	unrecorded	-
+AFU-V1-124	docs/specs/application-flow-understanding-v1.md	Each imported flow carries one `inferred` source link per subject anchor, with	unrecorded	-
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,	unrecorded	-
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a	unrecorded	-
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	Freshness MUST come from one Git read at the evaluated revision. That read	unrecorded	-
@@ -2581,6 +2584,16 @@ DCP-V1-265	docs/specs/documentation-corpus-v1.md	`audit sample` takes a seed in 
 DCP-V1-266	docs/specs/documentation-corpus-v1.md	`audit report` reads the sample strictly (closed `corvint-corpus-audit-sample/1`	unrecorded	-
 DCP-V1-267	docs/specs/documentation-corpus-v1.md	Excluded current verdicts (non-independent and generator-method counts, verdict	unrecorded	-
 DCP-V1-268	docs/specs/documentation-corpus-v1.md	`audit sample` and `audit report` are also spelled `audit-sample` and	unrecorded	-
+DCP-V1-390	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) A	standing	2026-10-11; #1583
+DCP-V1-391	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) Eac	standing	2026-10-11; #1583
+DCP-V1-392	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) Rel	standing	2026-10-11; #1583
+DCP-V1-393	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) The	standing	2026-10-11; #1583
+DCP-V1-394	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) A	standing	2026-10-11; #1583
+DCP-V1-395	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) Wha	standing	2026-10-11; #1583
+DCP-V1-396	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) `jo	standing	2026-10-11; #1583
+DCP-V1-397	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) Whe	standing	2026-10-11; #1583
+DCP-V1-398	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583)	standing	2026-10-11; #1583
+DCP-V1-399	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583)	standing	2026-10-11; #1583
 DCP-V1-054	docs/specs/documentation-corpus-v1.md	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-
