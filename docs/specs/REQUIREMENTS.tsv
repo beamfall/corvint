@@ -2623,6 +2623,11 @@ DCP-V1-416	docs/specs/documentation-corpus-v1.md	The corpus MCP server's first t
 DCP-V1-417	docs/specs/documentation-corpus-v1.md	A warm corpus MCP call neither reads nor hashes the configured artifact while it	unrecorded	-
 DCP-V1-418	docs/specs/documentation-corpus-v1.md	Acceptance at scale, on a generated fixture with a 4,000-page native scope, 6,00	unrecorded	-
 DCP-V1-419	docs/specs/documentation-corpus-v1.md	A read derives the same query index, receipts and refusals with less wall time.	unrecorded	-
+DCP-V1-430	docs/specs/documentation-corpus-v1.md	Residual acceptance. On the `DCP-V1-418` fixture the seven CLI reads (`info`,	unrecorded	-
+DCP-V1-431	docs/specs/documentation-corpus-v1.md	The CLI's verified read, and a native read joined with `--corpus=FILE`, stream t	unrecorded	-
+DCP-V1-432	docs/specs/documentation-corpus-v1.md	Every remaining reader of a retained artifact either takes the verified read of	unrecorded	-
+DCP-V1-433	docs/specs/documentation-corpus-v1.md	A read persists and consumes no read index, posting set, identity map, sidecar o	unrecorded	-
+DCP-V1-434	docs/specs/documentation-corpus-v1.md	An indexed CLI read (`IndexedOperation`) derives the claim terms of its query	unrecorded	-
 DCP-V1-360	docs/specs/documentation-corpus-v1.md	`delta` prints one `corvint-corpus-delta/1` receipt: the previous and current	unrecorded	-
 DCP-V1-361	docs/specs/documentation-corpus-v1.md	The classified population is the previous corpus's subjects, claims and relation	unrecorded	-
 DCP-V1-362	docs/specs/documentation-corpus-v1.md	Every anchor is re-validated against the current revision's blobs. A blob is rea	unrecorded	-
