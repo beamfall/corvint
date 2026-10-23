@@ -255,6 +255,9 @@ type Artifact struct {
 	Capabilities        []Capability             `json:"capabilities"`
 	Gaps                []Gap                    `json:"gaps"`
 	SHA256              string                   `json:"sha256"`
+
+	// validation is how a reader admitted the artifact (DCP-V1-413); never serialized.
+	validation string
 }
 type Request struct {
 	Retirement *RetirementPolicy `json:"retirement,omitempty"`

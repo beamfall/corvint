@@ -809,14 +809,27 @@ func Open(ctx context.Context, root string, data []byte) (*Artifact, error) {
 	if err != nil {
 		return nil, err
 	}
-	canonical, err := Encode(rebuilt)
-	if err != nil {
+	if err := rederivedEqual(rebuilt, data); err != nil {
 		return nil, err
 	}
-	if !bytes.Equal(data, canonical) {
-		return nil, fail("artifact cannot be rederived from current builder and pinned inputs")
-	}
 	return rebuilt, nil
+}
+
+// rederivedEqual compares the canonical encoding of rebuilt with data while the encoder writes,
+// so a read never holds a second artifact-sized copy and its growth slack (DCP-V1-414). The
+// output bound and the refusal are the ones encoding into a buffer applied.
+func rederivedEqual(rebuilt *Artifact, data []byte) error {
+	c := encodingComparer{want: data}
+	if _, err := EncodeTo(&c, rebuilt); err != nil {
+		return err
+	}
+	if c.n+1 > int64(encodingLimit(rebuilt)) {
+		return fail("output bound exceeded")
+	}
+	if !c.equal() {
+		return fail("artifact cannot be rederived from current builder and pinned inputs")
+	}
+	return nil
 }
 
 func (c *compiler) nativeImports(provider Provider) error {

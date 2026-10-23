@@ -14,7 +14,7 @@ import (
 // claude/issue-811-legacy-inventory parser (DCP-V1-060..069); both predate the table.
 type corpusFlagExpectation struct{ required, optional []string }
 
-var corpusReadOptional = []string{"--limit", "--offset", "--retirement", "--caller-revision"} // DCP-V1-332
+var corpusReadOptional = []string{"--limit", "--offset", "--retirement", "--caller-revision", "--verify-rederive", "--timings"} // DCP-V1-332, DCP-V1-413, DCP-V1-415
 
 var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"manifest":            {required: []string{"--revision", "--scope", "--timestamp"}, optional: []string{"--schema"}},
@@ -58,11 +58,11 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 
 var corpusAllFlags = []string{"--revision", "--scope", "--timestamp", "--manifest", "--artifact", "--page", "--apply",
 	"--cem", "--id", "--input", "--previous", "--check", "--migration", "--config", "--playwright-list", "--receipt",
-	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match", "--schema", "--section", "--include", "--cases", "--baseline", "--seed", "--size", "--stratify", "--sample", "--repository", "--kind", "--caller-revision"}
+	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match", "--schema", "--section", "--include", "--cases", "--baseline", "--seed", "--size", "--stratify", "--sample", "--repository", "--kind", "--caller-revision", "--verify-rederive", "--timings"}
 
 func corpusFlagArgs(op, flag string) []string {
 	switch flag {
-	case "--apply", "--check":
+	case "--apply", "--check", "--verify-rederive", "--timings":
 		return []string{flag}
 	case "--limit", "--offset":
 		return []string{flag, "1"}
