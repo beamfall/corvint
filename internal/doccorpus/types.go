@@ -261,6 +261,9 @@ type Artifact struct {
 	// deltaUnverified is set only by OpenDeltaCurrent when the artifact could not be rederived
 	// because a declared additional checkout is unavailable; the delta reports it (DCP-V1-425).
 	deltaUnverified []string
+	// claimTerms is the claim-term derivation a read made while decoding, for the next query
+	// index derivation to take instead of tokenizing again (DCP-V1-434); never serialized.
+	claimTerms []*claimTermBlock
 }
 type Request struct {
 	Retirement *RetirementPolicy `json:"retirement,omitempty"`

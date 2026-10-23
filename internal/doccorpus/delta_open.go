@@ -11,12 +11,15 @@ import (
 )
 
 // OpenDeltaCurrent opens a retained artifact as the current side of `docs corpus delta`
-// (DCP-V1-425). It is Open while every declared additional checkout holds its identity at each
-// pinned revision. When one does not, the artifact cannot be rederived, so it is taken from its
-// canonical, digest-checked bytes instead: every input of an available repository must still
-// name the blob its path holds at its pinned revision, the unavailable repositories' anchors
-// classify unresolved with the reason, and the receipt says the current side was not rederived.
-func OpenDeltaCurrent(ctx context.Context, root string, data []byte) (*Artifact, error) {
+// (DCP-V1-425). While every declared additional checkout holds its identity at each pinned
+// revision it is the verified read of OpenRead, without decoding the artifact twice, and the
+// receipt says the current side was verified rather than rederived (DCP-V1-432); rederive, or a
+// running builder whose label names no immutable build, runs Open instead. When a checkout does
+// not hold its identity, the artifact cannot be rederived, so it is taken from its canonical,
+// digest-checked bytes instead: every input of an available repository must still name the blob
+// its path holds at its pinned revision, the unavailable repositories' anchors classify
+// unresolved with the reason, and the receipt says the current side was not rederived.
+func OpenDeltaCurrent(ctx context.Context, root string, data []byte, rederive bool) (*Artifact, error) {
 	a, err := ParseArtifact(data)
 	if err != nil {
 		return nil, err
@@ -26,7 +29,15 @@ func OpenDeltaCurrent(ctx context.Context, root string, data []byte) (*Artifact,
 		return nil, err
 	}
 	if len(missing) == 0 {
-		return Open(ctx, root, data)
+		if rederives(ReadOptions{Rederive: rederive}) {
+			return Open(ctx, root, data)
+		}
+		if err := verifyRecorded(ctx, root, a); err != nil {
+			return nil, err
+		}
+		a.validation = ValidationVerified
+		a.deltaUnverified = []string{deltaVerifiedCurrent}
+		return a, nil
 	}
 	if err := verifyAvailableInputs(ctx, root, a.Manifest, missing); err != nil {
 		return nil, err
@@ -35,6 +46,10 @@ func OpenDeltaCurrent(ctx context.Context, root string, data []byte) (*Artifact,
 	a.deltaUnverified = []string{"current artifact was not rederived because the checkout of additional repository " + strings.Join(ids, ", ") + " is unavailable; its records are taken from the canonical artifact bytes, every input of an available repository was checked against its pinned Git tree, and anchors in the unavailable repository are unresolved"}
 	return a, nil
 }
+
+// deltaVerifiedCurrent is the delta receipt's limitation for a current side admitted by the
+// verified read (DCP-V1-432).
+const deltaVerifiedCurrent = "current artifact was admitted by the verified read: its canonical bytes, recorded digest, builder, manifest and profile digests and pinned revisions were checked; its records were not rederived from the pinned inputs"
 
 // unavailableCheckouts maps each declared additional repository whose checkout does not hold its
 // declared identity at every pinned revision to the reason. Only cancellation is an error.

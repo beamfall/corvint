@@ -347,24 +347,18 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 		return compileCorpusDelta(ctx, o)
 	}
 	t := o.readTimings
-	step := time.Now()
-	raw, err := doccorpus.ReadCorpusFile(o.root, o.artifact)
-	if t != nil {
-		t.Parse += time.Since(step)
-	}
-	if err != nil {
-		return nil, err
-	}
-	// Reads admit the verified artifact without rederiving it; validate and --verify-rederive run
-	// the complete rederivation (DCP-V1-410, DCP-V1-413). A query's live freshness is observed
-	// while the records are decoded and verified and the query index is derived, and used only
-	// once they are (DCP-V1-411, DCP-V1-419).
+	var step time.Time
+	// Reads admit the verified artifact without rederiving it, streaming the file rather than
+	// holding it whole; validate and --verify-rederive run the complete rederivation
+	// (DCP-V1-410, DCP-V1-413, DCP-V1-431). A query's live freshness is observed while the
+	// records are decoded and verified and the query index is derived, and used only once they
+	// are (DCP-V1-411, DCP-V1-419).
 	live := &corpusLiveRead{root: o.root, timings: t}
-	options := doccorpus.ReadOptions{Rederive: o.verifyRederive || o.op == "validate", Timings: t}
+	options := doccorpus.ReadOptions{Rederive: o.verifyRederive || o.op == "validate", Timings: t, Index: doccorpus.IndexedOperation(o.op)}
 	if corpusQueryOperation(o.op) {
 		options.Header = func(h *doccorpus.Artifact) { live.start(ctx, h) }
 	}
-	a, err := doccorpus.OpenRead(ctx, o.root, raw, options)
+	a, err := doccorpus.OpenReadFile(ctx, o.root, o.artifact, options)
 	if err != nil {
 		if live.done != nil {
 			<-live.done

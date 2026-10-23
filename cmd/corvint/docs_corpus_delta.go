@@ -63,9 +63,10 @@ func corpusDeltaViewError(o corpusOptions) error {
 	return nil
 }
 
-// openCorpusDeltaCurrent opens the current side. A delta over a retained artifact still reaches
-// classification when a declared additional checkout is unavailable (DCP-V1-425); carry-forward
-// emits records for the next build, so it keeps requiring a rederived artifact.
+// openCorpusDeltaCurrent opens the current side. A delta over a retained artifact is a read: it
+// is admitted by the verified read unless --verify-rederive is given (DCP-V1-432), and still
+// reaches classification when a declared additional checkout is unavailable (DCP-V1-425);
+// carry-forward emits records for the next build, so it keeps requiring a rederived artifact.
 func openCorpusDeltaCurrent(ctx context.Context, o corpusOptions) (*doccorpus.Artifact, string, error) {
 	if o.artifact != "" {
 		raw, err := doccorpus.ReadCorpusFile(o.root, o.artifact)
@@ -73,7 +74,7 @@ func openCorpusDeltaCurrent(ctx context.Context, o corpusOptions) (*doccorpus.Ar
 			return nil, "", err
 		}
 		if o.op == "delta" {
-			a, err := doccorpus.OpenDeltaCurrent(ctx, o.root, raw)
+			a, err := doccorpus.OpenDeltaCurrent(ctx, o.root, raw, o.verifyRederive)
 			return a, "artifact", err
 		}
 		a, err := doccorpus.Open(ctx, o.root, raw)

@@ -32,6 +32,11 @@ type ReadOptions struct {
 	// result must not be used unless OpenRead succeeds. Header is not run on a
 	// rederived read.
 	Header func(*Artifact)
+	// Index derives the claim terms of the query index on the decode workers
+	// while the records are decoded, for BuildQueryIndex to take
+	// (DCP-V1-434). It only moves work: the index, its bounds and refusals are
+	// unchanged.
+	Index bool
 }
 
 // ReadTimings is one read's phase summary. It is diagnostics only: it never
@@ -57,35 +62,96 @@ func (t *ReadTimings) Write(w io.Writer, total time.Duration) {
 // check refuses the read; nothing unverified is served. opts.Rederive, or a
 // running builder whose label is dirty or unrecorded, runs Open instead.
 func OpenRead(ctx context.Context, root string, data []byte, opts ReadOptions) (*Artifact, error) {
-	t := opts.Timings
-	// A running builder whose label names no immutable build cannot show that
-	// an equal recorded label means equal extraction, so it rederives
-	// (DCP-V1-410).
-	if opts.Rederive || !rebuildAttested(currentBuilder()) {
-		start := time.Now()
-		a, err := Open(ctx, root, data)
-		if t != nil {
-			t.Verify += time.Since(start)
-		}
-		if err != nil {
-			return nil, err
-		}
-		a.validation = ValidationRederived
-		if t != nil {
-			t.Validation = a.validation
-		}
-		return a, nil
+	if rederives(opts) {
+		return openRederived(ctx, root, data, opts.Timings)
 	}
-	// The digest hashes the input while it is decoded; the recorded identity is verified, and the
-	// caller's header work runs, from the header members while the records are decoded and
-	// compared with their canonical encoding; the first failure in that order refuses (DCP-V1-414).
 	start := time.Now()
 	var digest artifactTail
 	var digestWG sync.WaitGroup
 	digestWG.Go(func() { digest = hashArtifactTail(data) })
+	a, err := openVerified(ctx, root, opts, start, func(header func(*Artifact), claims func(int, []Claim)) (*Artifact, artifactTail, error) {
+		a, err := decodeArtifactBytes(data, header, claims)
+		digestWG.Wait()
+		return a, digest, err
+	})
+	digestWG.Wait()
+	return a, err
+}
+
+// OpenReadFile is OpenRead of the artifact at path under root, read as
+// ReadCorpusFile reads it. The verified read streams the file: it is hashed,
+// scanned and decoded window by window, so the artifact bytes are never held
+// whole beside the records they decode to (DCP-V1-431). A rederived read reads
+// the whole file, as before.
+func OpenReadFile(ctx context.Context, root, path string, opts ReadOptions) (*Artifact, error) {
+	t := opts.Timings
+	if rederives(opts) {
+		start := time.Now()
+		data, err := ReadCorpusFile(root, path)
+		if t != nil {
+			t.Parse += time.Since(start)
+		}
+		if err != nil {
+			return nil, err
+		}
+		return openRederived(ctx, root, data, t)
+	}
+	start := time.Now()
+	var a *Artifact
+	err := streamCorpusFile(root, path, func(r io.Reader) error {
+		var err error
+		a, err = openVerified(ctx, root, opts, start, func(header func(*Artifact), claims func(int, []Claim)) (*Artifact, artifactTail, error) {
+			return decodeArtifactReader(r, header, claims)
+		})
+		return err
+	})
+	return a, err
+}
+
+// rederives reports whether a read runs the complete rederivation: on request, or for a running
+// builder whose label names no immutable build, which cannot show that an equal recorded label
+// means equal extraction (DCP-V1-410).
+func rederives(opts ReadOptions) bool {
+	return opts.Rederive || !rebuildAttested(currentBuilder())
+}
+
+func openRederived(ctx context.Context, root string, data []byte, t *ReadTimings) (*Artifact, error) {
+	start := time.Now()
+	a, err := Open(ctx, root, data)
+	if t != nil {
+		t.Verify += time.Since(start)
+	}
+	if err != nil {
+		return nil, err
+	}
+	a.validation = ValidationRederived
+	if t != nil {
+		t.Validation = a.validation
+	}
+	return a, nil
+}
+
+// openVerified is the verified read over decode, which decodes and verifies the canonical
+// artifact, runs header on its header members and returns its digest tail. The recorded
+// identity is verified, and the caller's header work runs, from the header members while the
+// records are decoded and compared with their canonical encoding; the first failure in the
+// order decode, digest, recorded identity refuses (DCP-V1-414).
+func openVerified(ctx context.Context, root string, opts ReadOptions, start time.Time, decode func(header func(*Artifact), claims func(int, []Claim)) (*Artifact, artifactTail, error)) (*Artifact, error) {
+	t := opts.Timings
 	var recorded error
 	var verified time.Duration
-	a, err := decodeArtifactParallel(data, func(h *Artifact) {
+	var claims func(int, []Claim)
+	var blocksMu sync.Mutex
+	var blocks []*claimTermBlock
+	if opts.Index {
+		claims = func(lo int, chunk []Claim) {
+			b := deriveClaimTerms(chunk, lo)
+			blocksMu.Lock()
+			blocks = append(blocks, b)
+			blocksMu.Unlock()
+		}
+	}
+	a, digest, err := decode(func(h *Artifact) {
 		step := time.Now()
 		// The header work runs Git in the checkouts the manifest names, so only once the manifest
 		// is valid and every additional repository root is admitted.
@@ -100,8 +166,7 @@ func OpenRead(ctx context.Context, root string, data []byte, opts ReadOptions) (
 		recorded = verifyRecorded(ctx, root, h)
 		verified = time.Since(step)
 		wg.Wait()
-	})
-	digestWG.Wait()
+	}, claims)
 	if t != nil {
 		t.Parse += time.Since(start)
 		t.Verify += verified
@@ -109,13 +174,15 @@ func OpenRead(ctx context.Context, root string, data []byte, opts ReadOptions) (
 	if err != nil {
 		return nil, err
 	}
-	if err := digest.verify(a, data); err != nil {
+	if err := digest.verify(a); err != nil {
 		return nil, err
 	}
 	if recorded != nil {
 		return nil, recorded
 	}
 	a.validation = ValidationVerified
+	sort.Slice(blocks, func(i, j int) bool { return blocks[i].lo < blocks[j].lo })
+	a.claimTerms = blocks
 	if t != nil {
 		t.Validation = a.validation
 	}

@@ -114,3 +114,79 @@ func TestDCPV1413CorpusReadsWithoutRederivation(t *testing.T) {
 		t.Fatal("docs_validate read a deleted pinned blob")
 	}
 }
+
+// TestDCPV1432JoinedCorpusAndDeltaReuseVerifiedArtifact: a native read joined with --corpus
+// admits the corpus through the verified read, and the current side of docs corpus delta answers
+// from the verified artifact, so deleting a pinned input blob, which any rederivation must read,
+// changes no delta byte, while delta --verify-rederive still rederives and refuses (DCP-V1-432).
+// No read writes a file, persisted index or sidecar beside the artifact (DCP-V1-433).
+func TestDCPV1432JoinedCorpusAndDeltaReuseVerifiedArtifact(t *testing.T) {
+	defer doccorpus.TrustUnattestedBuilderForTest()()
+	root := taskContextRepository(t)
+	rev := cemGit(t, root, "rev-parse", "HEAD")
+	artifact := writeCorpusFixture(t, root, rev, "cache")
+	cemWrite(t, root, "previous.json", artifact)
+	listing := func() string {
+		t.Helper()
+		entries, err := os.ReadDir(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		names := []string{}
+		for _, entry := range entries {
+			if entry.Name() == ".git" {
+				continue
+			}
+			info, err := entry.Info()
+			if err != nil {
+				t.Fatal(err)
+			}
+			names = append(names, entry.Name()+" "+info.ModTime().String())
+		}
+		return strings.Join(names, "\n")
+	}
+	files := listing()
+	defer func() {
+		if after := listing(); after != files {
+			t.Errorf("reads changed the repository root:\n%s\nwant\n%s", after, files)
+		}
+	}()
+	code, joined, stderr := corpusCLI(t, root, "affected", "--corpus=corpus.json")
+	if code != 0 {
+		t.Fatalf("joined read: %d %s", code, stderr)
+	}
+	var native struct {
+		Documentation struct {
+			Receipt json.RawMessage `json:"receipt"`
+		} `json:"documentation"`
+	}
+	if err := json.Unmarshal([]byte(joined), &native); err != nil {
+		t.Fatal(err)
+	}
+	if got := corpusInfoValidation(t, string(native.Documentation.Receipt)); got != doccorpus.ValidationVerified {
+		t.Fatalf("joined corpus validation %q", got)
+	}
+	delta := []string{"docs", "corpus", "delta", "--previous", "previous.json", "--artifact", "corpus.json"}
+	code, before, stderr := corpusCLI(t, root, delta...)
+	if code != 0 || !strings.Contains(before, "current artifact was admitted by the verified read") {
+		t.Fatalf("delta: %d %s %s", code, stderr, before)
+	}
+	raw, err := os.ReadFile(filepath.Join(root, "corpus-input.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := doccorpus.ParseManifest(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	blob := m.Inputs[0].Blob
+	if err := os.Remove(filepath.Join(root, ".git", "objects", blob[:2], blob[2:])); err != nil {
+		t.Fatal(err)
+	}
+	if code, after, stderr := corpusCLI(t, root, delta...); code != 0 || after != before {
+		t.Fatalf("delta after deleting a pinned blob: %d %s", code, stderr)
+	}
+	if code, _, _ := corpusCLI(t, root, append(delta, "--verify-rederive")...); code != 2 {
+		t.Fatalf("delta --verify-rederive read a deleted pinned blob: %d", code)
+	}
+}
