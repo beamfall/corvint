@@ -85,8 +85,8 @@ type digestBody struct {
 // declared read scope, which appears only for a declared unit, and the
 // command edges, which appear only for a unit that runs a command, and the
 // advisory and route-dispatch edges, which appear only for a unit that has
-// one (RUBY-AFFECTED-V0-009, RUBY-AFFECTED-V0-049), so that graphs without
-// them keep their digest.
+// one (RUBY-AFFECTED-V0-009, RUBY-AFFECTED-V0-049), and the literal globs
+// (AFP-V0-401), so that graphs without them keep their digest.
 type digestUnit struct {
 	ID                   string   `json:"id"`
 	Sources              []string `json:"sources"`
@@ -97,6 +97,7 @@ type digestUnit struct {
 	AdvisoryImports      []string `json:"advisoryImports,omitempty"`
 	RouteDispatchImports []string `json:"routeDispatchImports,omitempty"`
 	PathTokens           []string `json:"pathTokens"`
+	PathGlobs            []string `json:"pathGlobs,omitempty"`
 	PathTokensBounded    bool     `json:"pathTokensBounded"`
 	Embeds               bool     `json:"embeds"`
 	UnboundedReads       string   `json:"unboundedReads"`
@@ -435,6 +436,7 @@ func projectUnit(unit Unit) digestUnit {
 		AdvisoryImports:      unit.AdvisoryImports,
 		RouteDispatchImports: unit.RouteDispatchImports,
 		PathTokens:           unit.PathTokens,
+		PathGlobs:            unit.PathGlobs,
 		PathTokensBounded:    unit.PathTokensBounded,
 		Embeds:               unit.Embeds,
 		UnboundedReads:       unit.UnboundedReads,

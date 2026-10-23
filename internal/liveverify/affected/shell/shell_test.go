@@ -489,3 +489,30 @@ func write(t *testing.T, root, relative, content string) {
 		t.Fatal(err)
 	}
 }
+
+// AFP-V0-400: a shell reader whose only naming token is a lone file name
+// (README.md) is selected only where it can place the path: at the repository
+// root, in its own subtree, or below directories its tokens name.
+func TestLoneFileNameShellReaderMustPlaceThePath_AFPV0400(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "script/readme_test.sh", "#!/bin/sh\ngrep -q corvint README.md\n")
+	write(t, root, "script/specs_test.sh", "#!/bin/sh\ncd docs/specs && grep -q corvint README.md\n")
+	write(t, root, "script/multi_test.sh", "#!/bin/sh\ngrep -q corvint specs/README.md\n")
+	graph := build(t, root)
+	cases := []struct {
+		dirty string
+		want  []string
+	}{
+		// The V1-1817 shape: a spec index edit no longer selects the lone reader.
+		{"docs/specs/README.md", []string{"script/multi_test.sh", "script/specs_test.sh"}},
+		{"README.md", []string{"script/readme_test.sh", "script/specs_test.sh"}},
+		{"script/README.md", []string{"script/readme_test.sh", "script/specs_test.sh"}},
+		{"docs/README.md", []string{"script/specs_test.sh"}},
+	}
+	for _, c := range cases {
+		plan := affected.Select(graph, []string{c.dirty})
+		if got := plan.SelectedTests(); !slices.Equal(got, c.want) {
+			t.Errorf("%s selected %v, want %v", c.dirty, got, c.want)
+		}
+	}
+}

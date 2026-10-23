@@ -30,6 +30,10 @@ func TestWorkQueueSpecEnumeratesEveryObligation(t *testing.T) {
 	}
 }
 
+// The expected SOL-V0 clauses come from docs/specs/REQUIREMENTS.tsv, which
+// script/gen-spec-requirements.sh derives from the spec independently of the
+// OCM parser (V1-2153): a new clause and its regenerated index row pass with no
+// count to edit, and a clause the OCM no longer enumerates still fails.
 func TestSelfObservationSpecEnumeratesEveryObligation(t *testing.T) {
 	path := "docs/specs/self-observation-ledger-v0.md"
 	data, err := os.ReadFile("../../" + path)
@@ -40,23 +44,35 @@ func TestSelfObservationSpecEnumeratesEveryObligation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cases := []struct{ name string }{
-		{name: "SOL-V0-001"}, {name: "SOL-V0-002"}, {name: "SOL-V0-003"},
-		{name: "SOL-V0-004"}, {name: "SOL-V0-005"}, {name: "SOL-V0-006"},
-		{name: "SOL-V0-007"}, {name: "SOL-V0-008"}, {name: "SOL-V0-009"},
-		{name: "SOL-V0-010"}, {name: "SOL-V0-011"}, {name: "SOL-V0-012"},
-		{name: "SOL-V0-013"}, {name: "SOL-V0-030"},
+	want := indexedRequirements(t, path)
+	if len(want) == 0 || !slices.Equal(slices.Sorted(slices.Values(requirements)), want) {
+		t.Fatalf("OCM enumerates %v; REQUIREMENTS.tsv lists %v", requirements, want)
 	}
-	if len(requirements) != len(cases) {
-		t.Fatalf("OCM enumerates %v; want all fourteen SOL-V0 clauses", requirements)
-	}
-	for i, test := range cases {
-		t.Run("registry lists "+test.name, func(t *testing.T) {
-			if requirements[i] != test.name {
-				t.Errorf("obligation %d = %s, want %s", i, requirements[i], test.name)
+	for _, id := range want {
+		t.Run("registry lists "+id, func(t *testing.T) {
+			if !slices.Contains(requirements, id) {
+				t.Errorf("OCM does not enumerate %s", id)
 			}
 		})
 	}
+}
+
+// indexedRequirements returns, sorted, the requirement IDs that
+// docs/specs/REQUIREMENTS.tsv defines in path.
+func indexedRequirements(t *testing.T, path string) []string {
+	t.Helper()
+	index, err := os.ReadFile("../../docs/specs/REQUIREMENTS.tsv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := []string{}
+	for _, row := range strings.Split(string(index), "\n")[1:] {
+		if fields := strings.Split(row, "\t"); len(fields) > 1 && fields[1] == path {
+			ids = append(ids, fields[0])
+		}
+	}
+	slices.Sort(ids)
+	return ids
 }
 
 func TestImprovementLoopSpecsEnumerateEveryObligation(t *testing.T) {

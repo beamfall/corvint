@@ -108,6 +108,10 @@ AFP-V0-189	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-201	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2348))	standing	2026-10-11; V1-2348
 AFP-V0-380	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1103))	standing	2026-10-11; V1-1103
 AFP-V0-381	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2363, GH #1519)	standing	2026-10-11; V1-2363; #1519
+AFP-V0-400	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1817) A shell	standing	2026-10-11; V1-1817
+AFP-V0-401	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1803) The Go	standing	2026-10-11; V1-1803
+AFP-V0-402	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1006; amends	standing	2026-10-11; V1-1006
+AFP-V0-403	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2370; amends	standing	2026-10-11; V1-2370
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
 AHI-003	docs/specs/agent-harness-integration-v0.md	On session/task start, the adapter MUST resolve repository identity, exact Git	unrecorded	-
@@ -2247,6 +2251,7 @@ DCW-V0-160	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the o
 DCW-V0-161	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2355, V1-2343;	standing	2026-10-11; V1-2355; V1-2343
 DCW-V0-165	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2367, V1-2379;	standing	2026-10-11; V1-2367; V1-2379
 DCW-V0-166	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2404) Every	standing	2026-10-11; V1-2404
+DCW-V0-333	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2423; amends	standing	2026-10-11; V1-2423
 DCW-V0-170	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2344) When	standing	2026-10-11; V1-2344
 DCW-V0-171	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2171) A	standing	2026-10-11; V1-2171
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-

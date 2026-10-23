@@ -161,3 +161,48 @@ func selected(plan affected.Plan, id string) (affected.Selection, bool) {
 	}
 	return affected.Selection{}, false
 }
+
+// AFP-V0-402: only a literal that some position can carry to a build or a
+// process creates a command edge. A command directory named only as data (a
+// comparison, a switch case, a map index, a strings predicate or a test
+// message) creates none; an exec argument, a helper's argument and a variable
+// initializer keep the edge.
+func TestDataOnlyCommandLiteralCreatesNoEdge_AFPV0402(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                "module example.test/m\n",
+		"lib/lib.go":            "package lib\n\nfunc Help() string { return \"help\" }\n",
+		"cmd/tool/main.go":      "package main\n\nimport \"example.test/m/lib\"\n\nfunc main() { println(lib.Help()) }\n",
+		"exec/exec_test.go":     "package exec\n\nimport (\n\t\"os/exec\"\n\t\"testing\"\n)\n\nfunc TestBuild(t *testing.T) { _ = exec.Command(\"go\", \"build\", \"-o\", t.TempDir(), \"./cmd/tool\") }\n",
+		"helper/helper_test.go": "package helper\n\nimport \"testing\"\n\nfunc TestBuild(t *testing.T) { build(t, \"example.test/m/cmd/tool\") }\n\nfunc build(t *testing.T, pkg string) {}\n",
+		"data/data_test.go":     "package data\n\nimport (\n\t\"strings\"\n\t\"testing\"\n)\n\nfunc TestBoundary(t *testing.T) {\n\tfor _, rel := range []string{\"x\"} {\n\t\tif strings.HasPrefix(rel, \"cmd/tool/\") || rel == \"./cmd/tool\" {\n\t\t\tt.Fatalf(\"%s is under cmd/tool\", rel)\n\t\t}\n\t\tswitch rel {\n\t\tcase \"cmd/tool\":\n\t\t}\n\t\t_ = map[string]bool{}[(\"example.test/m/cmd/tool\")]\n\t}\n}\n",
+	})
+	result, err := golang.New().Units(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	execs := map[string][]string{}
+	for _, unit := range result.Units {
+		if unit.Execs != nil {
+			execs[unit.ID] = unit.Execs
+		}
+	}
+	tool := binaryExecModule + "cmd/tool"
+	want := map[string][]string{binaryExecModule + "exec": {tool}, binaryExecModule + "helper": {tool}}
+	if !reflect.DeepEqual(execs, want) {
+		t.Fatalf("execs = %v, want %v", execs, want)
+	}
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"lib/lib.go"})
+	if _, ok := selected(plan, binaryExecModule+"data"); ok {
+		t.Fatalf("data-only literal selected a consumer: %v", plan.SelectedTests())
+	}
+	for _, name := range []string{"exec", "helper"} {
+		if selection, ok := selected(plan, binaryExecModule+name); !ok || selection.Witness.Kind != affected.WitnessBinaryExec {
+			t.Fatalf("%s: selection %+v in %v", name, selection, plan.SelectedTests())
+		}
+	}
+}

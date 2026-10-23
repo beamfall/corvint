@@ -5,8 +5,13 @@ import (
 	json "encoding/json/v2"
 	"errors"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io/fs"
 	"path"
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -45,7 +50,7 @@ type binaryExecsFile struct {
 func applyBinaryExecs(root *affected.Source, units []affected.Unit, directories []string, owners map[string]module, commands map[string]string, frontier map[string]bool) {
 	edges := make([]map[string]bool, len(units))
 	for index := range units {
-		edges[index] = literalExecs(units[index], directories[index], owners[directories[index]].dir, commands)
+		edges[index] = literalExecs(root, units[index], directories[index], owners[directories[index]], commands)
 	}
 	declared, err := readBinaryExecs(root)
 	var declaredEdges map[int][]string
@@ -66,19 +71,143 @@ func applyBinaryExecs(root *affected.Source, units []affected.Unit, directories 
 }
 
 // literalExecs names the commands, other than the unit itself, whose directory
-// one of the unit's path tokens names exactly.
-func literalExecs(unit affected.Unit, directory, moduleDir string, commands map[string]string) map[string]bool {
-	edges := map[string]bool{}
+// one of the unit's path tokens names exactly, in a literal that some file of
+// the unit uses in a position that can reach a build or a process
+// (AFP-V0-402). Only files that name a command are parsed in full.
+func literalExecs(root *affected.Source, unit affected.Unit, directory string, owner module, commands map[string]string) map[string]bool {
+	candidates := map[string]string{}
 	for _, value := range unit.PathTokens {
-		target, ok := commandDirectory(value, directory, moduleDir)
+		target, ok := commandDirectory(value, directory, owner.dir)
 		if !ok {
 			continue
 		}
 		if id, command := commands[target]; command && id != unit.ID {
-			edges[id] = true
+			candidates[target] = id
+		}
+	}
+	edges := map[string]bool{}
+	if len(candidates) == 0 {
+		return edges
+	}
+	for _, relative := range slices.Concat(unit.Sources, unit.Tests) {
+		for target := range usedCommandLiterals(root, relative, directory, owner, candidates) {
+			edges[candidates[target]] = true
+			delete(candidates, target)
+		}
+		if len(candidates) == 0 {
+			break
 		}
 	}
 	return edges
+}
+
+// usedCommandLiterals returns the candidate command directories that a string
+// literal of one file names outside a data-only position (dataOnly). A file
+// that cannot be read or parsed in full names every candidate, so no edge is
+// lost to an unparsed file.
+func usedCommandLiterals(root *affected.Source, relative, directory string, owner module, candidates map[string]string) map[string]bool {
+	used := map[string]bool{}
+	body, err := root.Read(relative)
+	var file *ast.File
+	if err == nil {
+		file, err = parser.ParseFile(token.NewFileSet(), relative, body, parser.SkipObjectResolution)
+	}
+	if err != nil {
+		for target := range candidates {
+			used[target] = true
+		}
+		return used
+	}
+	names := importNames(file.Imports)
+	var parents []ast.Node
+	ast.Inspect(file, func(node ast.Node) bool {
+		if node == nil {
+			parents = parents[:len(parents)-1]
+			return false
+		}
+		if literal, ok := node.(*ast.BasicLit); ok && literal.Kind == token.STRING && !dataOnly(parents, literal, names) {
+			if value, err := strconv.Unquote(literal.Value); err == nil {
+				for _, name := range literalTokens(value, owner.path) {
+					if target, ok := commandDirectory(name, directory, owner.dir); ok && candidates[target] != "" {
+						used[target] = true
+					}
+				}
+			}
+		}
+		parents = append(parents, node)
+		return true
+	})
+	return used
+}
+
+// importNames maps each local package name of a file's imports to its path.
+func importNames(imports []*ast.ImportSpec) map[string]string {
+	names := map[string]string{}
+	for _, spec := range imports {
+		value, err := strconv.Unquote(spec.Path.Value)
+		if err != nil {
+			continue
+		}
+		name := path.Base(value)
+		if spec.Name != nil {
+			name = spec.Name.Name
+		}
+		names[name] = value
+	}
+	return names
+}
+
+// dataPredicates are the standard-library functions whose string arguments
+// are only compared or cut, never built or run (AFP-V0-402).
+var dataPredicates = map[string]bool{
+	"strings.HasPrefix": true, "strings.HasSuffix": true, "strings.Contains": true,
+	"strings.CutPrefix": true, "strings.CutSuffix": true, "strings.TrimPrefix": true,
+	"strings.TrimSuffix": true, "strings.EqualFold": true, "strings.Index": true,
+	"strings.LastIndex": true, "bytes.HasPrefix": true, "bytes.HasSuffix": true,
+	"bytes.Contains": true, "path.Match": true, "path/filepath.Match": true,
+	"errors.New": true, "fmt.Errorf": true,
+}
+
+// testMessages are the testing.TB methods whose arguments only form a message.
+var testMessages = map[string]bool{
+	"Error": true, "Errorf": true, "Fatal": true, "Fatalf": true,
+	"Log": true, "Logf": true, "Skip": true, "Skipf": true,
+}
+
+// dataOnly reports a literal used only as data (AFP-V0-402): an operand of ==
+// or !=, a switch case, a map index, an argument of a dataPredicates function,
+// or an argument of a test message method. Every other position, a variable
+// initializer or a helper's argument among them, may reach a build or a
+// process and keeps the edge.
+func dataOnly(parents []ast.Node, literal ast.Expr, names map[string]string) bool {
+	var child ast.Node = literal
+	for index := len(parents) - 1; index >= 0; index-- {
+		switch parent := parents[index].(type) {
+		case *ast.ParenExpr:
+			child = parent
+			continue
+		case *ast.BinaryExpr:
+			return parent.Op == token.EQL || parent.Op == token.NEQ
+		case *ast.CaseClause:
+			return true
+		case *ast.IndexExpr:
+			return parent.Index == child
+		case *ast.CallExpr:
+			if parent.Fun == child {
+				return false
+			}
+			selector, ok := parent.Fun.(*ast.SelectorExpr)
+			if !ok {
+				return false
+			}
+			if qualifier, ok := selector.X.(*ast.Ident); ok && names[qualifier.Name] != "" {
+				return dataPredicates[names[qualifier.Name]+"."+selector.Sel.Name]
+			}
+			return testMessages[selector.Sel.Name]
+		}
+		return false
+	}
+	return false
 }
 
 // commandDirectory resolves a path token to the repository-relative directory

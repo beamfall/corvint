@@ -83,8 +83,65 @@ func (graph *Graph) readers(reached map[string]Witness, dirty []string) map[stri
 				narrowed[reason] = true
 			}
 		}
+		if _, seen := reached[id]; !seen {
+			graph.globReader(reached, id, dirty)
+		}
 	}
 	return narrowed
+}
+
+// globReader selects unit id when one of its literal glob patterns matches a
+// dirty path, or an ancestor of it, that its declared read scope (if any)
+// allows, witnessed by the smallest such path and the first pattern
+// (AFP-V0-401). An anchored pattern matches from the repository root. An
+// unanchored one (always two or more components) follows a root known only at
+// run time, so it matches any run of the path's components, as a
+// multi-component path token does (AFP-V0-021).
+func (graph *Graph) globReader(reached map[string]Witness, id string, dirty []string) {
+	unit := graph.units[id]
+	if len(unit.PathGlobs) == 0 {
+		return
+	}
+	files := append(append([]string(nil), unit.Sources...), unit.Tests...)
+	if len(files) == 0 {
+		return
+	}
+	directory := relativeDirectory(files[0])
+	for _, dirtyPath := range dirty {
+		if unit.ReadScoped && !InReadScope(directory, unit.ReadScope, dirtyPath) {
+			continue
+		}
+		parts := strings.Split(dirtyPath, "/")
+		for _, glob := range unit.PathGlobs {
+			if globMatches(glob, parts) {
+				reached[id] = Witness{Kind: WitnessPathGlobReader, DirtyPath: dirtyPath, Via: []string{id}, Glob: glob}
+				return
+			}
+		}
+	}
+}
+
+// globMatches reports whether glob matches the path parts or one of their
+// ancestors, component by component (path.Match never crosses a "/").
+func globMatches(glob string, parts []string) bool {
+	anchored := strings.HasPrefix(glob, "/")
+	components := strings.Split(strings.TrimPrefix(glob, "/"), "/")
+	for offset := 0; offset+len(components) <= len(parts); offset++ {
+		matched := true
+		for index, component := range components {
+			if ok, err := path.Match(component, parts[offset+index]); err != nil || !ok {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return true
+		}
+		if anchored {
+			return false
+		}
+	}
+	return false
 }
 
 // unboundedReadersOf selects, on any dirty path, each unit not already reached
@@ -192,8 +249,10 @@ func (graph *Graph) tokenBounds(reached map[string]Witness, dirty []string) []Un
 }
 
 // resolves reports whether unit id can read dirtyPath by one of its tokens.
-// A non-Go unit keeps the component-run relation: a shell or other test's
-// working directory is unknown. For the CEM sidecar and a sealed CEM
+// A shell unit places a lone file name as a Go unit does (namesFileOnlyWithin,
+// AFP-V0-400): it runs from the repository root or below its own directory.
+// Any other non-Go unit keeps the component-run relation: its tests' working
+// directory is unknown. For the CEM sidecar and a sealed CEM
 // (resolvedEvidence), a Go unit's token must resolve against the unit's
 // directory, or against the repository root when a parent-only or anchored
 // token of the unit could put it there, to that path or one of its ancestors. An anchored token always resolves: it is anchored at
@@ -207,6 +266,9 @@ func (graph *Graph) resolves(id, dirtyPath string) bool {
 	files := append(append([]string(nil), unit.Sources...), unit.Tests...)
 	if unit.ReadScoped && len(files) != 0 && !InReadScope(relativeDirectory(files[0]), unit.ReadScope, dirtyPath) {
 		return false
+	}
+	if strings.HasPrefix(id, "shell:") && len(files) != 0 {
+		return namesFileOnlyWithin(relativeDirectory(files[0]), unit.PathTokens, dirtyPath)
 	}
 	if !strings.HasPrefix(id, "go:") {
 		return true

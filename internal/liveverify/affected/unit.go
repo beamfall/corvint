@@ -47,6 +47,11 @@ const MaxPathsPerUnit = 20_000
 // PathTokens are the sorted, unique path-shaped tokens of the string literals
 // the unit's own files carry; every dirty path selects the units whose tokens
 // name it (AFP-V0-021). A plugin that reads no literals leaves it empty.
+// PathGlobs are the sorted, unique literal glob patterns the unit's files pass
+// to a file-system glob (AFP-V0-401): a pattern with a leading "/" is anchored
+// at the repository root, any other one follows a root known only at run time
+// and matches a run of a dirty path's components. A dirty path one matches
+// selects the unit with a PATH_GLOB_READER witness naming the pattern.
 // PathTokensBounded reports that the plugin dropped the unit's tokens at its
 // bound, so the unit's reads are unknown.
 // Embeds reports a Go package whose non-test files carry a //go:embed
@@ -86,6 +91,7 @@ type Unit struct {
 	AdvisoryImports      []string `json:"advisoryImports,omitempty"`
 	RouteDispatchImports []string `json:"routeDispatchImports,omitempty"`
 	PathTokens           []string `json:"pathTokens,omitempty"`
+	PathGlobs            []string `json:"pathGlobs,omitempty"`
 	PathTokensBounded    bool     `json:"pathTokensBounded,omitempty"`
 	Embeds               bool     `json:"embeds,omitempty"`
 	UnboundedReads       string   `json:"unboundedReads,omitempty"`
@@ -170,6 +176,9 @@ func validUnit(unit Unit, namespace string) error {
 		return err
 	}
 	if err := validIdentifierList(unit.Frontier); err != nil {
+		return err
+	}
+	if err := validIdentifierList(unit.PathGlobs); err != nil {
 		return err
 	}
 	return validIdentifierList(unit.PathTokens)
