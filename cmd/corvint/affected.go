@@ -77,6 +77,8 @@ type affectedInvocation struct {
 	SelectionProfile    string
 	PlaywrightConfig    string
 	PlaywrightDiscovery string
+	// PlaywrightEnv holds each --playwright-env value, NAME=VALUE or NAME, in order (AFP-V0-382).
+	PlaywrightEnv []string
 	// PlaywrightList is set only by `affected discovery`: the Playwright JSON listing converted
 	// into a playwright-discovery/0 receipt (TJAA-V0-019).
 	PlaywrightList string
@@ -225,7 +227,7 @@ func parseAffectedInvocation(arguments []string) (affectedInvocation, bool, erro
 
 // affectedOptionNames are the flags `affected` accepts, each taking one value
 // as `--flag VALUE` or `--flag=VALUE`.
-var affectedOptionNames = map[string]bool{"--path": true, "--snapshot": true, "--base": true, "--appmap-impact": true, "--playwright-config": true, "--playwright-discovery": true, "--provider": true, "--provider-command": true, "--repository": true, "--repository-base": true, "--selection-profile": true, "--cache": true, "--paths-from": true}
+var affectedOptionNames = map[string]bool{"--path": true, "--snapshot": true, "--base": true, "--appmap-impact": true, "--playwright-config": true, "--playwright-discovery": true, "--playwright-env": true, "--provider": true, "--provider-command": true, "--repository": true, "--repository-base": true, "--selection-profile": true, "--cache": true, "--paths-from": true}
 
 // affectedFormatRefusal names why `--format` is refused and every option
 // `affected` accepts (AFP-V0-201): the command has one output, JSON.
@@ -310,6 +312,8 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 			err = addAffectedRepositoryBase(&invocation, value)
 		case "--playwright-config":
 			err = setAffectedPlaywrightConfig(&invocation, value)
+		case "--playwright-env":
+			err = addAffectedPlaywrightEnv(&invocation, value)
 		case "--playwright-discovery":
 			if invocation.PlaywrightDiscovery != "" || value == "" {
 				err = argumentError("--playwright-discovery requires exactly one nonempty value")
@@ -346,6 +350,13 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	}
 	if invocation.PlaywrightConfig != "" && len(invocation.Providers) != 0 {
 		return affectedInvocation{}, argumentError("--playwright-config cannot be combined with --provider")
+	}
+	if len(invocation.PlaywrightEnv) != 0 && invocation.PlaywrightConfig == "" {
+		return affectedInvocation{}, argumentError("--playwright-env requires --playwright-config")
+	}
+	if len(invocation.PlaywrightEnv) != 0 && invocation.Snapshot != "" {
+		// A snapshot plan reads only the snapshot, never the invoking environment.
+		return affectedInvocation{}, argumentError("--playwright-env cannot be combined with --snapshot")
 	}
 	if invocation.SelectionProfile == appflows.E2ESafeProfile {
 		return invocation, checkAffectedE2ESafe(invocation)
@@ -449,6 +460,39 @@ func addAffectedPath(invocation *affectedInvocation, value string) error {
 		return argumentError(fmt.Sprintf("--path accepts at most %d paths", affectedMaxPathList))
 	}
 	return nil
+}
+
+// addAffectedPlaywrightEnv records one --playwright-env value: NAME=VALUE is a caller-supplied
+// value and NAME reads that one variable from the invoking environment. A name is accepted once
+// (AFP-V0-382).
+func addAffectedPlaywrightEnv(invocation *affectedInvocation, value string) error {
+	name, _, _ := strings.Cut(value, "=")
+	if !typescript.ValidPlaywrightEnvironmentName(name) {
+		return argumentError("--playwright-env requires NAME=VALUE or NAME, where NAME is letters, digits and underscores not starting with a digit")
+	}
+	for _, existing := range invocation.PlaywrightEnv {
+		if previous, _, _ := strings.Cut(existing, "="); previous == name {
+			return argumentError("--playwright-env names " + name + " more than once")
+		}
+	}
+	invocation.PlaywrightEnv = append(invocation.PlaywrightEnv, value)
+	return nil
+}
+
+// affectedPlaywrightEnvironment resolves each --playwright-env value. Only a variable the caller
+// named is read from the invoking environment; no other variable is (AFP-V0-382).
+func affectedPlaywrightEnvironment(values []string) []typescript.PlaywrightEnvironmentInput {
+	inputs := make([]typescript.PlaywrightEnvironmentInput, 0, len(values))
+	for _, value := range values {
+		name, supplied, explicit := strings.Cut(value, "=")
+		if explicit {
+			inputs = append(inputs, typescript.NewPlaywrightEnvironmentInput(name, typescript.PlaywrightEnvironmentArgument, supplied, true))
+			continue
+		}
+		observed, set := os.LookupEnv(name)
+		inputs = append(inputs, typescript.NewPlaywrightEnvironmentInput(name, typescript.PlaywrightEnvironmentInvocation, observed, set))
+	}
+	return inputs
 }
 
 func setAffectedPlaywrightConfig(invocation *affectedInvocation, value string) error {
@@ -578,7 +622,7 @@ func compilePlaywrightAffected(ctx context.Context, invocation affectedInvocatio
 		}
 	}
 	before := playwrightBaseContent(ctx, gitExecutable, root, comparison, allDirty)
-	plan, err := typescript.SelectPlaywrightWithBase(root, invocation.PlaywrightConfig, revision, allDirty, discovery, before)
+	plan, err := typescript.SelectPlaywrightWithEnvironment(root, invocation.PlaywrightConfig, revision, allDirty, discovery, before, affectedPlaywrightEnvironment(invocation.PlaywrightEnv))
 	if err != nil {
 		return playwrightAffectedReceipt{}, &gokernel.Error{Code: "unsupported-playwright-affected", Message: err.Error()}
 	}

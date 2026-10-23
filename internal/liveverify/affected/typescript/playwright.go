@@ -71,6 +71,11 @@ type PlaywrightProject struct {
 	// execution holds EXECUTION-axis unknowns of this project's `use`, such as a computed
 	// launchOptions.executablePath, which change the binary but not test membership (TJAA-V0-035).
 	execution []PlaywrightUnknown
+	// executable is the computed executablePath expression behind execution, or "" (AFP-V0-384).
+	executable string
+	// Executable records how a caller-observed environment variable resolved the computed
+	// executablePath; it is absent unless --playwright-env resolved it (AFP-V0-385).
+	Executable *PlaywrightExecutable `json:"executable,omitzero"`
 }
 
 type PlaywrightWitness struct {
@@ -118,6 +123,9 @@ type PlaywrightPlan struct {
 	// Narrowed is advisory evidence present only beside FULL_RELEVANT_SUITE; it never changes
 	// Scope, Fallback, Selected or Excluded (TJAA-V0-030).
 	Narrowed *PlaywrightNarrowing `json:"narrowed,omitzero"`
+	// Environment holds the variables the caller named with --playwright-env, present only when
+	// it named one (AFP-V0-383).
+	Environment []PlaywrightEnvironmentInput `json:"environment,omitzero"`
 }
 
 type playwrightMatcher struct {
@@ -138,13 +146,13 @@ func (language observedTypeScript) Units(context.Context, string) (affected.Resu
 // selectPlaywrightStatic computes candidates; only receipt reconciliation may
 // expose these candidates through the public selection API.
 func selectPlaywrightStatic(root, configPath string, dirty []string) (PlaywrightPlan, error) {
-	plan, _, err := selectPlaywrightStaticDraft(root, configPath, dirty)
+	plan, _, err := selectPlaywrightStaticDraft(root, configPath, dirty, nil)
 	return plan, err
 }
 
 // selectPlaywrightStaticDraft also returns the advisory narrowing draft that SelectPlaywright
 // publishes only when the final plan falls back to the full suite (TJAA-V0-030).
-func selectPlaywrightStaticDraft(root, configPath string, dirty []string) (PlaywrightPlan, playwrightNarrowingDraft, error) {
+func selectPlaywrightStaticDraft(root, configPath string, dirty []string, environment []PlaywrightEnvironmentInput) (PlaywrightPlan, playwrightNarrowingDraft, error) {
 	none := playwrightNarrowingDraft{}
 	if !affected.ValidRelativePath(configPath) || !hasSourceExtension(configPath) {
 		return PlaywrightPlan{}, none, errors.New("playwright config path is not canonical TypeScript/JavaScript source")
@@ -159,6 +167,7 @@ func selectPlaywrightStaticDraft(root, configPath string, dirty []string) (Playw
 	}
 	configSum := sha256.Sum256(configBytes)
 	projects, globalTestDir, configUnknown := parsePlaywrightConfig(configPath, string(configBytes))
+	resolvePlaywrightExecutables(projects, environment, configPath, string(configBytes))
 	result, sites, err := New().units(root, true)
 	if err != nil {
 		return PlaywrightPlan{}, none, err
@@ -214,6 +223,9 @@ func selectPlaywrightStaticDraft(root, configPath string, dirty []string) (Playw
 		Projects: publicPlaywrightProjects(projects), Scope: affected.ScopeBounded,
 		Selected: selected, SourceDigest: sourceDigest, Unknown: unknown,
 		FallbackArgv: []string{},
+	}
+	if len(environment) != 0 {
+		plan.Environment = canonicalPlaywrightEnvironment(environment)
 	}
 	if len(selectionUnknown) != 0 {
 		plan.Scope = affected.ScopeUnknown
@@ -708,11 +720,13 @@ func parsePlaywrightProject(scope playwrightPureScope, configPath, globalTestDir
 			project.Metadata = hex.EncodeToString(sum[:])
 		}
 	}
-	var computedExecutable bool
 	var block playwrightUseBlock
 	var unverified []playwrightUseBlock
-	project.Browser, project.Device, computedExecutable, ok, block, unverified = playwrightInheritedUse(scope, globalUse, properties["use"])
-	if ok && computedExecutable {
+	project.Browser, project.Device, project.executable, ok, block, unverified = playwrightInheritedUse(scope, globalUse, properties["use"])
+	if !ok {
+		project.executable = ""
+	}
+	if project.executable != "" {
 		project.execution = []PlaywrightUnknown{{Axis: PlaywrightAxisExecution, Reason: PlaywrightUnknownBrowserExecutable, Detail: name + " use.launchOptions.executablePath is computed, so the browser binary that runs is not observed"}}
 	}
 	if ok {
@@ -779,18 +793,19 @@ func playwrightStaticIdentity(project, member string, properties map[string]stri
 }
 
 func playwrightInheritedUseIdentity(scope playwrightPureScope, global, raw string) (browser, device string, computedExecutable, ok bool) {
-	browser, device, computedExecutable, ok, _, _ = playwrightInheritedUse(scope, global, raw)
-	return browser, device, computedExecutable, ok
+	browser, device, executable, ok, _, _ := playwrightInheritedUse(scope, global, raw)
+	return browser, device, executable != "", ok
 }
 
 // playwrightInheritedUse also returns the block that left the identity unresolved, and the
-// non-identity values of both layers that are not side-effect free (TJAA-V0-054).
-func playwrightInheritedUse(scope playwrightPureScope, global, raw string) (browser, device string, computedExecutable, ok bool, block playwrightUseBlock, unverified []playwrightUseBlock) {
-	browser, device, computedExecutable, ok, block, unverified = playwrightUseLayer(scope, global, "", "")
+// non-identity values of both layers that are not side-effect free (TJAA-V0-054). executable is
+// the computed launchOptions.executablePath expression that applies, or "" (AFP-V0-384).
+func playwrightInheritedUse(scope playwrightPureScope, global, raw string) (browser, device, executable string, ok bool, block playwrightUseBlock, unverified []playwrightUseBlock) {
+	browser, device, executable, ok, block, unverified = playwrightUseLayer(scope, global, "", "")
 	if !ok {
-		return "", "", false, false, block, nil
+		return "", "", "", false, block, nil
 	}
-	var localExecutable bool
+	var localExecutable string
 	var local []playwrightUseBlock
 	browser, device, localExecutable, ok, block, local = playwrightUseLayer(scope, raw, browser, device)
 	unverified = append(unverified, local...)
@@ -801,10 +816,10 @@ func playwrightInheritedUse(scope playwrightPureScope, global, raw string) (brow
 		browser = "chromium"
 	}
 	// A local launchOptions replaces the inherited one, executablePath included.
-	if localExecutable || playwrightUseDeclares(raw, "launchOptions") {
-		computedExecutable = localExecutable
+	if localExecutable != "" || playwrightUseDeclares(raw, "launchOptions") {
+		executable = localExecutable
 	}
-	return browser, device, computedExecutable, ok, block, unverified
+	return browser, device, executable, ok, block, unverified
 }
 
 // playwrightUseDeclares reports whether the `use` object literal raw declares key.
@@ -825,32 +840,35 @@ type playwrightUseBlock struct {
 // playwrightUseLayer reads one `use` layer. A device spread keeps its identity only when the
 // devices import is sound in scope: any other occurrence of `devices` may rewrite a descriptor.
 // A launchOptions whose only computed property is a side-effect-free executablePath keeps the
-// identity and reports computedExecutable, an EXECUTION-axis unknown (TJAA-V0-035).
-func playwrightUseLayer(scope playwrightPureScope, raw, browser, device string) (string, string, bool, bool, playwrightUseBlock, []playwrightUseBlock) {
-	browser, device, computedExecutable, block, unverified := playwrightUseLayerItems(scope, raw, browser, device)
+// identity and reports its expression, an EXECUTION-axis unknown (TJAA-V0-035).
+func playwrightUseLayer(scope playwrightPureScope, raw, browser, device string) (string, string, string, bool, playwrightUseBlock, []playwrightUseBlock) {
+	browser, device, executable, block, unverified := playwrightUseLayerItems(scope, raw, browser, device)
 	ok := block.why == ""
 	block.raw = strings.TrimSpace(raw)
 	for index := range unverified {
 		unverified[index].raw = block.raw
 	}
-	return browser, device, computedExecutable && ok, ok, block, unverified
+	if !ok {
+		executable = ""
+	}
+	return browser, device, executable, ok, block, unverified
 }
 
-func playwrightUseLayerItems(scope playwrightPureScope, raw, browser, device string) (_, _ string, computedExecutable bool, block playwrightUseBlock, unverified []playwrightUseBlock) {
+func playwrightUseLayerItems(scope playwrightPureScope, raw, browser, device string) (_, _, executable string, block playwrightUseBlock, unverified []playwrightUseBlock) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return browser, device, false, block, nil
+		return browser, device, "", block, nil
 	}
 	refuse := func(fragment string, offset int, why string) playwrightUseBlock {
 		return playwrightUseBlock{fragment: fragment, offset: offset, why: why, root: playwrightScopeRoot(fragment)}
 	}
 	object, exact := playwrightObject(raw)
 	if !exact {
-		return "", "", false, refuse(raw, 0, "use is not one static object literal"), nil
+		return "", "", "", refuse(raw, 0, "use is not one static object literal"), nil
 	}
 	items, split := playwrightSplitTopLevel(object[1 : len(object)-1])
 	if !split {
-		return "", "", false, refuse(raw, 0, "use does not split into properties"), nil
+		return "", "", "", refuse(raw, 0, "use does not split into properties"), nil
 	}
 	seenBrowser := false
 	seenDevice := false
@@ -863,24 +881,24 @@ func playwrightUseLayerItems(scope playwrightPureScope, raw, browser, device str
 			name, literal := playwrightDeviceSpread(strings.TrimSpace(strings.TrimPrefix(item, "...")))
 			switch {
 			case !literal:
-				return "", "", false, refuse(item, 0, "a spread is not one literal devices[...] descriptor"), nil
+				return "", "", "", refuse(item, 0, "a spread is not one literal devices[...] descriptor"), nil
 			case seenDevice:
-				return "", "", false, refuse(item, 0, "a second device spread"), nil
+				return "", "", "", refuse(item, 0, "a second device spread"), nil
 			case !scope.devices:
 				block := refuse(item, 0, "the devices import is not sound")
 				block.root = "devices"
-				return "", "", false, block, nil
+				return "", "", "", block, nil
 			}
 			device = name
 			seenDevice = true
 			if playwrightDeviceBrowser(device) == "" {
-				return "", device, false, refuse(item, 0, "device "+strconv.Quote(device)+" has no modelled browser"), nil
+				return "", device, "", refuse(item, 0, "device "+strconv.Quote(device)+" has no modelled browser"), nil
 			}
 			continue
 		}
 		colon := playwrightTopLevelColon(item)
 		if colon < 0 {
-			return "", device, false, refuse(item, 0, "a property is not `key: value`"), nil
+			return "", device, "", refuse(item, 0, "a property is not `key: value`"), nil
 		}
 		key := strings.TrimSpace(item[:colon])
 		if quoted, literal := playwrightString(key); literal {
@@ -888,15 +906,15 @@ func playwrightUseLayerItems(scope playwrightPureScope, raw, browser, device str
 		} else {
 			for index, character := range key {
 				if character != '_' && character != '$' && !unicode.IsLetter(character) && (index == 0 || !unicode.IsDigit(character)) {
-					return "", device, false, refuse(item, 0, "a property key is computed or not an identifier"), nil
+					return "", device, "", refuse(item, 0, "a property key is computed or not an identifier"), nil
 				}
 			}
 			if key == "" {
-				return "", device, false, refuse(item, 0, "a property key is empty"), nil
+				return "", device, "", refuse(item, 0, "a property key is empty"), nil
 			}
 		}
 		if key == "defaultBrowserType" {
-			return "", device, false, refuse(item, 0, "defaultBrowserType is not modelled"), nil
+			return "", device, "", refuse(item, 0, "defaultBrowserType is not modelled"), nil
 		}
 		value := strings.TrimSpace(item[colon+1:])
 		valueAt := colon + 1 + strings.Index(item[colon+1:], value)
@@ -906,11 +924,11 @@ func playwrightUseLayerItems(scope playwrightPureScope, raw, browser, device str
 			// code or write state is the selection unknown playwright:use-value-unverified
 			// (TJAA-V0-054).
 			if key == "launchOptions" && !playwrightStaticValue(value) && playwrightComputedExecutableOnly(scope, value) {
-				computedExecutable = true
+				executable = strings.TrimSpace(playwrightLaunchExecutable(value))
 				continue
 			}
 			if slices.Contains(PlaywrightUseIdentityKeys, key) && !playwrightStaticValue(value) {
-				return "", device, false, refuse(item, valueAt, "identity key "+key+" is not a static literal"), nil
+				return "", device, "", refuse(item, valueAt, "identity key "+key+" is not a static literal"), nil
 			}
 			// TJAA-V0-054: a non-identity value never decides the identity, whatever its form. One
 			// that is not side-effect free is a selection unknown, because it could run code.
@@ -921,11 +939,11 @@ func playwrightUseLayerItems(scope playwrightPureScope, raw, browser, device str
 		}
 		literalValue, literal := playwrightString(value)
 		if !literal || seenBrowser || literalValue != "chromium" && literalValue != "firefox" && literalValue != "webkit" {
-			return "", device, false, refuse(item, valueAt, "browserName is not one literal chromium, firefox or webkit"), nil
+			return "", device, "", refuse(item, valueAt, "browserName is not one literal chromium, firefox or webkit"), nil
 		}
 		browser, seenBrowser = literalValue, true
 	}
-	return browser, device, computedExecutable, block, unverified
+	return browser, device, executable, block, unverified
 }
 
 // playwrightScopeRoot returns the first scope root fragment names: process, a numeric conversion
