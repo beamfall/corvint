@@ -95,9 +95,12 @@ cannot silently go missing or outlive its command.
   command's help topics (for `docs`, also its corpus, flows and maintain topics and every corpus
   operation topic) and the code-declared operation tables (`docsSubcommands`, `corpusOperations`,
   `flowSubcommands`, `leaseActions`, `helpSubcommands`). Per command it states purpose, maturity,
-  owning spec or freeze contract, operations, nested operations, flags, schema identifiers,
-  stated exit statuses, write class, self-observation ledger listing and write statements, and
-  the document names how each field is derived. Like every help topic it reads no stdin, opens no
+  owning spec or freeze contract, operations, nested operations, flags, required flags per usage
+  form (`requiredFlags`: the options every `Usage:` line of that form names outside `[ ]` and
+  `( )`, keyed by the command plus its operation words; a form with none is omitted), schema identifiers,
+  stated exit statuses, write class, self-observation ledger listing and write statements; at the
+  top level it lists the two-word help topics (`nestedHelpTopics`); and the document names how
+  each field is derived. Like every help topic it reads no stdin, opens no
   repository and writes nothing.
 - `CAP-V0-016`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1588) A field the registry cannot answer MUST be
   `null` with an `unknowns` entry naming the field and a reason, never a hand-written claim:
@@ -110,12 +113,16 @@ cannot silently go missing or outlive its command.
   task-indexed agent guide embedded in the binary (`internal/capcatalog/AGENT-GUIDE.md`): goals
   mapped to command sequences, each with one runnable example and its output schema, including
   the two-step `corvint affected discovery --playwright-list` then
-  `corvint affected --playwright-discovery` workflow, and a Non-capabilities section. The catalog
-  binds the guide by SHA-256.
+  `corvint affected --playwright-discovery` workflow, and a Non-capabilities section. Every
+  example carries the required options of its usage form (`requiredFlags`), or points to the
+  action another command returns and shows its full shape. The catalog binds the guide by SHA-256.
 - `CAP-V0-018`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1588) A test MUST fail when the shipped guide
   names a command, operation, nested operation or option that the live catalog does not list for
   that command (or as a global option), names a schema identifier no help topic names, or lists a
-  non-capability without a tracking issue (`#N`) or a "By design" reason.
+  non-capability without a tracking issue (`#N`) or a "By design" reason. The check parses a
+  leading `--root PATH` or `--root=PATH` preamble before the command (a `--root` without a path is a
+  problem), accepts `corvint help` only with no topic, `--json`, `guide`, a catalogued command or
+  a `nestedHelpTopics` entry, and fails an example that omits a required option of its form.
 - `CAP-V0-019`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1588) `internal/capcatalog/catalog.json` MUST
   equal the bytes of `corvint help --json`; a test fails with the regeneration command when it
   does not. `make capability-catalog` regenerates it and `make capability-catalog-check` runs the
@@ -194,8 +201,8 @@ entries, and the `docs/CAPABILITIES.md` pointer; no stored state depends on them
 | CAP-V0-009 | `ScanWords`, `refusalCode`, `checkRefusals` | `TestCAPV0009RemovedRefusalCodeFails`, `TestCAPV0002RepositoryCatalogMatchesInventory` |
 | CAP-V0-015 | `capabilityRegistry`, `capabilityCatalogJSON`, `capcatalog.Build`, `capabilityHelpTopics` | `TestCAPV0015HelpJSONListsEveryDispatchedCommand` |
 | CAP-V0-016 | `capcatalog.Build` unknowns | `TestCAPV0016UnderivableFieldsAreUnknownWithReasons`, `TestCAPV0016UnknownFieldsAreNullWithReasons` |
-| CAP-V0-017 | `internal/capcatalog/AGENT-GUIDE.md`, `capcatalog.Guide`, `helpText("guide")` | `TestCAPV0017HelpGuideServesTheShippedGuide`, `TestCAPV0017ShippedGuideDocumentsThePlaywrightTwoStep` |
-| CAP-V0-018 | `capcatalog.GuideProblems` | `TestCAPV0018ShippedGuideMatchesTheLiveCatalog`, `TestCAPV0018GuideProblemsRejectsDrift` |
+| CAP-V0-017 | `internal/capcatalog/AGENT-GUIDE.md`, `capcatalog.Guide`, `helpText("guide")`, `capcatalog.requiredFlags`, `capcatalog.FormKey` | `TestCAPV0017HelpGuideServesTheShippedGuide`, `TestCAPV0017ShippedGuideDocumentsThePlaywrightTwoStep`, `TestCAPV0017RequiredFlagsAreDerivedFromUsageForms`, `TestCAPV0017GuideExamplesCarryRequiredOptions` |
+| CAP-V0-018 | `capcatalog.GuideProblems`, `commandLineProblems`, `helpTopicProblems` | `TestCAPV0018ShippedGuideMatchesTheLiveCatalog`, `TestCAPV0018GuideProblemsRejectsDrift` (preamble, nested help topic and required-option negatives), `TestCAPV0017GuideExamplesCarryRequiredOptions` |
 | CAP-V0-019 | `internal/capcatalog/catalog.json`, `capcatalog.Snapshot`, `make capability-catalog`, `make capability-catalog-check` | `TestCAPV0019CommittedCatalogMatchesTheBinary` |
 | CAP-V0-020 | `capcatalog.Build`, `capcatalog.Encode` | `TestCAPV0020BuildIsDeterministicAndDerivedFromItsArgument` |
 | CAP-V0-021 | `rootHelp` usage line, `unknownHelpTopic` | `TestCAPV0021RootHelpNamesTheCatalogTopicsWithinItsBound`, `TestRootHelpIsACompactVerbIndex` |

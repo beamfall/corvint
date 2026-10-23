@@ -8,10 +8,12 @@
     "globalFlags": "every --option the root help Global options block names, including the --json modifier of --version",
     "globalSchemaIds": "every NAME/VERSION schema identifier the root help Global options block names",
     "maturity": "core under the root help Core header, experimental under the Experimental header",
+    "nestedHelpTopics": "the two-word corvint help COMMAND SUBCOMMAND topics the help dispatcher accepts",
     "nestedOperations": "the code-declared operation tables one level below an operation, such as docs corpus",
     "operations": "the code-declared subcommand tables plus the lowercase word after the command in each help usage line",
     "owningSpec": "the parenthesized spec code ending the command's root help line",
     "purpose": "the command's label in the root help Commands block",
+    "requiredFlags": "per usage form (the command and its catalogued operation words), the --options every Usage block line of that form names outside [ ] and ( ); a form whose lines require none is omitted, and options a help text states as required only in prose are not derived",
     "schemaIds": "every NAME/VERSION schema identifier the command's help text names; input and output are not separated",
     "selfObservationLedger": "best-effort-append when the root help Support boundary lists the command as appending to .corvint/self-observations.jsonl",
     "writeStatements": "sentences of the command's help text that mention writing, mutation or read-only behaviour",
@@ -26,9 +28,29 @@
   "globalSchemaIds": [
     "corvint-version/1"
   ],
+  "nestedHelpTopics": [
+    "cem anchor",
+    "cem begin",
+    "cem cite",
+    "cem cover",
+    "cem discriminate",
+    "cem export",
+    "cem gate-verdict",
+    "cem mark",
+    "cem prepare",
+    "cem provenance",
+    "cem report",
+    "cem status",
+    "cem verify",
+    "cem verify-stable",
+    "docs corpus",
+    "docs flows",
+    "docs maintain",
+    "harness event"
+  ],
   "guide": {
     "topic": "corvint help guide",
-    "sha256": "34e1716ab9a8390b0c75b2f90242a9d19e06aefcf8f7abcfa505eeea99d774e9"
+    "sha256": "a6edb25b53c00059687640ae76f9c7fe7a8993436124f5a7aff211d1cf4acbbc"
   },
   "commands": [
     {
@@ -40,6 +62,7 @@
       "freezeContract": "CCF-V1",
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [
         "--authority-id",
         "--exclude-prefix",
@@ -85,6 +108,11 @@
       "freezeContract": "CCF-V1",
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {
+        "adopt": [
+          "--setup"
+        ]
+      },
       "flags": [
         "--authority-id",
         "--exclude-prefix",
@@ -130,6 +158,11 @@
       "freezeContract": "CCF-V1",
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {
+        "query": [
+          "--task"
+        ]
+      },
       "flags": [
         "--budget-bytes",
         "--limit",
@@ -170,6 +203,7 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [
         "--budget-bytes",
         "--limit"
@@ -211,6 +245,7 @@
       "freezeContract": "CCF-V1",
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [
         "--base",
         "--budget-bytes",
@@ -267,6 +302,7 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [
         "--admit",
         "--exclude-producer",
@@ -315,6 +351,11 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {
+        "lrf": [
+          "--cem"
+        ]
+      },
       "flags": [
         "--cem",
         "--expected-base",
@@ -357,6 +398,13 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {
+        "record": [
+          "--changed",
+          "--outcome",
+          "--task"
+        ]
+      },
       "flags": [
         "--changed",
         "--opened",
@@ -399,6 +447,7 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [
         "--apply",
         "--dry-run",
@@ -439,6 +488,16 @@
         "event"
       ],
       "nestedOperations": {},
+      "requiredFlags": {
+        "harness event": [
+          "--adapter-version",
+          "--event",
+          "--host",
+          "--host-version",
+          "--input",
+          "--surface"
+        ]
+      },
       "flags": [
         "--adapter-version",
         "--budget-bytes",
@@ -500,6 +559,75 @@
         "verify-stable"
       ],
       "nestedOperations": {},
+      "requiredFlags": {
+        "cem anchor": [
+          "--map"
+        ],
+        "cem begin": [
+          "--output",
+          "--patch"
+        ],
+        "cem cite": [
+          "--evidence-path",
+          "--hunk",
+          "--map",
+          "--relation"
+        ],
+        "cem cover": [
+          "--coverprofile",
+          "--map",
+          "--test-run"
+        ],
+        "cem discriminate": [
+          "--map",
+          "--target"
+        ],
+        "cem export": [
+          "--artifacts",
+          "--expected-base",
+          "--map",
+          "--output",
+          "--target"
+        ],
+        "cem mark": [
+          "--disposition",
+          "--hunk",
+          "--map",
+          "--reason"
+        ],
+        "cem prepare": [
+          "--base",
+          "--target"
+        ],
+        "cem provenance": [
+          "--commit"
+        ],
+        "cem report": [
+          "--artifacts",
+          "--expected-base",
+          "--map",
+          "--target"
+        ],
+        "cem status": [
+          "--artifacts",
+          "--expected-base",
+          "--map",
+          "--target"
+        ],
+        "cem verify": [
+          "--artifacts",
+          "--expected-base",
+          "--map",
+          "--target"
+        ],
+        "cem verify-stable": [
+          "--artifacts",
+          "--expected-base",
+          "--map",
+          "--repository",
+          "--target"
+        ]
+      },
       "flags": [
         "--artifacts",
         "--base",
@@ -601,6 +729,33 @@
         "verify"
       ],
       "nestedOperations": {},
+      "requiredFlags": {
+        "ocm link": [
+          "--claim",
+          "--hunk",
+          "--map",
+          "--obligation",
+          "--test-path"
+        ],
+        "ocm mark": [
+          "--map",
+          "--obligation",
+          "--reason"
+        ],
+        "ocm prepare": [
+          "--intent",
+          "--target"
+        ],
+        "ocm report": [
+          "--map"
+        ],
+        "ocm status": [
+          "--map"
+        ],
+        "ocm verify": [
+          "--map"
+        ]
+      },
       "flags": [
         "--cem",
         "--claim",
@@ -666,6 +821,19 @@
         "rebind"
       ],
       "nestedOperations": {},
+      "requiredFlags": {
+        "work init": [
+          "--corvint-executable",
+          "--repository"
+        ],
+        "work propose-wave": [
+          "--envelope",
+          "--limit"
+        ],
+        "work rebind": [
+          "--corvint-executable"
+        ]
+      },
       "flags": [
         "--corvint-executable",
         "--envelope",
@@ -715,6 +883,7 @@
         "refs"
       ],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [
         "--expand",
         "--instruction-cwd",
@@ -774,6 +943,7 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [],
       "schemaIds": [],
       "inputs": null,
@@ -826,6 +996,21 @@
         "verify"
       ],
       "nestedOperations": {},
+      "requiredFlags": {
+        "dogfood begin": [
+          "--plan"
+        ],
+        "dogfood finish-lane": [
+          "--base",
+          "--citations"
+        ],
+        "dogfood review": [
+          "--report-set"
+        ],
+        "dogfood verify": [
+          "--check"
+        ]
+      },
       "flags": [
         "--anchors",
         "--base",
@@ -893,6 +1078,12 @@
         "status"
       ],
       "nestedOperations": {},
+      "requiredFlags": {
+        "dogfood-ocm status": [
+          "--expected-base",
+          "--target"
+        ]
+      },
       "flags": [
         "--expected-base",
         "--target"
@@ -934,6 +1125,14 @@
       "freezeContract": "CCF-V1",
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {
+        "frontier": [
+          "--cem",
+          "--expected-base",
+          "--ocm",
+          "--target"
+        ]
+      },
       "flags": [
         "--artifacts",
         "--cem",
@@ -989,6 +1188,7 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [
         "--limit"
       ],
@@ -1031,6 +1231,12 @@
         "discovery"
       ],
       "nestedOperations": {},
+      "requiredFlags": {
+        "affected discovery": [
+          "--playwright-config",
+          "--playwright-list"
+        ]
+      },
       "flags": [
         "--appmap-impact",
         "--base",
@@ -1103,6 +1309,16 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {
+        "obligations": [
+          "--cem",
+          "--expected-base",
+          "--impact",
+          "--repository",
+          "--stable-artifact-root",
+          "--target"
+        ]
+      },
       "flags": [
         "--cem",
         "--expected-base",
@@ -1156,6 +1372,7 @@
       "freezeContract": "CCF-V1",
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [
         "--artifacts",
         "--attack-tests",
@@ -1251,6 +1468,7 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [],
       "schemaIds": [
         "falsifiable-packet/0"
@@ -1287,6 +1505,7 @@
       "freezeContract": "CCF-V1",
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [
         "--if-stale"
       ],
@@ -1331,6 +1550,7 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [],
       "schemaIds": [
         "snapshot-batch/0"
@@ -1417,6 +1637,164 @@
           "validate",
           "vocabulary",
           "witness-playwright"
+        ]
+      },
+      "requiredFlags": {
+        "docs consume": [
+          "--package",
+          "--source",
+          "--task"
+        ],
+        "docs corpus audit-report": [
+          "--artifact",
+          "--sample"
+        ],
+        "docs corpus audit-sample": [
+          "--artifact",
+          "--seed",
+          "--size"
+        ],
+        "docs corpus behavior-adapter": [
+          "--input"
+        ],
+        "docs corpus behavior-provider": [
+          "--input"
+        ],
+        "docs corpus build": [
+          "--manifest"
+        ],
+        "docs corpus cem": [
+          "--artifact",
+          "--cem"
+        ],
+        "docs corpus cem-stable": [
+          "--artifact",
+          "--cem",
+          "--expected-base",
+          "--stable-artifact-root",
+          "--target"
+        ],
+        "docs corpus claims": [
+          "--artifact"
+        ],
+        "docs corpus concept": [
+          "--artifact",
+          "--query"
+        ],
+        "docs corpus coverage": [
+          "--artifact"
+        ],
+        "docs corpus dependencies": [
+          "--artifact",
+          "--id"
+        ],
+        "docs corpus discover-legacy": [
+          "--path",
+          "--revision",
+          "--runner"
+        ],
+        "docs corpus discover-playwright": [
+          "--config",
+          "--migration",
+          "--playwright-list"
+        ],
+        "docs corpus eval": [
+          "--artifact",
+          "--cases"
+        ],
+        "docs corpus flow": [
+          "--artifact",
+          "--id"
+        ],
+        "docs corpus gaps": [
+          "--artifact"
+        ],
+        "docs corpus get": [
+          "--artifact",
+          "--id"
+        ],
+        "docs corpus import-cases": [
+          "--format",
+          "--input"
+        ],
+        "docs corpus info": [
+          "--artifact"
+        ],
+        "docs corpus intent": [
+          "--artifact"
+        ],
+        "docs corpus inventory": [
+          "--artifact"
+        ],
+        "docs corpus journey": [
+          "--artifact",
+          "--id"
+        ],
+        "docs corpus locate": [
+          "--artifact",
+          "--path"
+        ],
+        "docs corpus maintain": [
+          "--artifact",
+          "--page"
+        ],
+        "docs corpus manifest": [
+          "--revision",
+          "--scope",
+          "--timestamp"
+        ],
+        "docs corpus navigation": [
+          "--artifact",
+          "--id"
+        ],
+        "docs corpus recommend-tests": [
+          "--artifact",
+          "--path"
+        ],
+        "docs corpus related": [
+          "--artifact",
+          "--id"
+        ],
+        "docs corpus render": [
+          "--artifact"
+        ],
+        "docs corpus search": [
+          "--artifact",
+          "--query"
+        ],
+        "docs corpus search-cases": [
+          "--format",
+          "--input"
+        ],
+        "docs corpus stability": [
+          "--artifact",
+          "--id"
+        ],
+        "docs corpus trace": [
+          "--artifact",
+          "--id"
+        ],
+        "docs corpus validate": [
+          "--artifact"
+        ],
+        "docs corpus vocabulary": [
+          "--artifact",
+          "--query"
+        ],
+        "docs corpus witness-playwright": [
+          "--input",
+          "--receipt-input",
+          "--report"
+        ],
+        "docs draft": [
+          "--package",
+          "--source"
+        ],
+        "docs maintain": [
+          "--page"
+        ],
+        "docs nav": [
+          "--trusted-project"
         ]
       },
       "flags": [
@@ -1544,6 +1922,7 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [
         "--file",
         "--limit"
@@ -1586,6 +1965,11 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {
+        "necessity": [
+          "--task"
+        ]
+      },
       "flags": [
         "--limit",
         "--subject",
@@ -1628,6 +2012,7 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [
         "--base",
         "--limit",
@@ -1672,6 +2057,7 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [
         "--limit",
         "--subject",
@@ -1716,6 +2102,7 @@
         "verify"
       ],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [
         "--requirements"
       ],
@@ -1761,6 +2148,7 @@
         "status"
       ],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [
         "--holder",
         "--id",
@@ -1807,6 +2195,7 @@
         "enable"
       ],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [
         "--learn-slot-weights",
         "--limit"
@@ -1849,6 +2238,7 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [
         "--exclude-producer",
         "--format",
@@ -1893,6 +2283,11 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {
+        "witness": [
+          "--base"
+        ]
+      },
       "flags": [
         "--base",
         "--cem",
@@ -1940,6 +2335,13 @@
         "negate"
       ],
       "nestedOperations": {},
+      "requiredFlags": {
+        "test-validity negate": [
+          "--provider",
+          "--spec",
+          "--test"
+        ]
+      },
       "flags": [
         "--all-steps",
         "--baseline-repeat",
@@ -2003,6 +2405,15 @@
         "prefixes"
       ],
       "nestedOperations": {},
+      "requiredFlags": {
+        "test-plan check": [
+          "--input",
+          "--plan"
+        ],
+        "test-plan consolidate": [
+          "--input"
+        ]
+      },
       "flags": [
         "--baseline",
         "--budget",
@@ -2062,6 +2473,7 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [
         "--base",
         "--max-refs"
@@ -2107,6 +2519,7 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [
         "--base",
         "--max-refs"
@@ -2152,6 +2565,11 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {
+        "review": [
+          "--base"
+        ]
+      },
       "flags": [
         "--base",
         "--max-refs"
@@ -2197,6 +2615,11 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {
+        "migration-ratchet": [
+          "--profile"
+        ]
+      },
       "flags": [
         "--profile"
       ],
@@ -2253,6 +2676,16 @@
         "stability"
       ],
       "nestedOperations": {},
+      "requiredFlags": {
+        "flows": [
+          "--manifest"
+        ],
+        "flows record": [
+          "--evidence",
+          "--manifest",
+          "--output"
+        ]
+      },
       "flags": [
         "--adopt",
         "--apply",
@@ -2417,6 +2850,7 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [
         "--out"
       ],
@@ -2459,6 +2893,13 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {
+        "breakage": [
+          "--api",
+          "--manifest",
+          "--repository"
+        ]
+      },
       "flags": [
         "--api",
         "--base",
@@ -2506,6 +2947,21 @@
         "verify"
       ],
       "nestedOperations": {},
+      "requiredFlags": {
+        "step env-check": [
+          "--declaration",
+          "--host"
+        ],
+        "step snapshot": [
+          "--declaration",
+          "--host"
+        ],
+        "step verify": [
+          "--before",
+          "--declaration",
+          "--host"
+        ]
+      },
       "flags": [
         "--before",
         "--declaration",
@@ -2549,6 +3005,12 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {
+        "delta": [
+          "--base",
+          "--head"
+        ]
+      },
       "flags": [
         "--base",
         "--checkout",
@@ -2596,6 +3058,7 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
+      "requiredFlags": {},
       "flags": [
         "--apply",
         "--base",
@@ -2661,6 +3124,31 @@
         "stability"
       ],
       "nestedOperations": {},
+      "requiredFlags": {
+        "runs compare": [
+          "--baseline",
+          "--candidate"
+        ],
+        "runs fresh": [
+          "--new",
+          "--old"
+        ],
+        "runs redundancy": [
+          "--runs"
+        ],
+        "runs response-wait": [
+          "--log",
+          "--timeout-ms",
+          "--url-contains",
+          "--wait-start"
+        ],
+        "runs reusable": [
+          "--selection"
+        ],
+        "runs stability": [
+          "--runs"
+        ]
+      },
       "flags": [
         "--base",
         "--baseline",
@@ -2730,6 +3218,18 @@
         "verify-shards"
       ],
       "nestedOperations": {},
+      "requiredFlags": {
+        "test": [
+          "--base"
+        ],
+        "test shards": [
+          "--count",
+          "--files"
+        ],
+        "test verify-shards": [
+          "--manifest"
+        ]
+      },
       "flags": [
         "--base",
         "--confine",
@@ -2802,6 +3302,30 @@
         "validity"
       ],
       "nestedOperations": {},
+      "requiredFlags": {
+        "tests citations": [
+          "--docs"
+        ],
+        "tests env": [
+          "--profile"
+        ],
+        "tests example-join": [
+          "--receipt"
+        ],
+        "tests lint": [
+          "--base"
+        ],
+        "tests setup-select": [
+          "--specs"
+        ],
+        "tests teardown": [
+          "--declaration",
+          "--files"
+        ],
+        "tests validity": [
+          "--files"
+        ]
+      },
       "flags": [
         "--all-lines",
         "--base",

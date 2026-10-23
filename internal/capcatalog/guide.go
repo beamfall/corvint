@@ -13,8 +13,10 @@ var (
 )
 
 // GuideProblems checks a guide against a catalog (CAP-V0-018): every corvint
-// command line in it names a catalogued command, a catalogued operation and
-// options that command or the global block names; every schema identifier it
+// command line in it, after any --root preamble, names a catalogued command or
+// help topic, a catalogued operation, every option its usage form requires
+// (CAP-V0-017), and only options that command or the global block names;
+// every schema identifier it
 // names is in the catalog; and every non-capability names a tracking issue or
 // states that it is excluded by design. It returns one line per problem.
 func GuideProblems(catalog Catalog, guide string) []string {
@@ -77,6 +79,16 @@ func guideCommandLines(guide string) []string {
 
 func commandLineProblems(catalog Catalog, commands map[string]Command, line string) []string {
 	fields := strings.Fields(quotedPattern.ReplaceAllString(line, "TEXT"))[1:]
+	// The global-option preamble: --root PATH or --root=PATH, before the command.
+	for len(fields) > 0 && (fields[0] == "--root" || strings.HasPrefix(fields[0], "--root=")) {
+		if fields[0] == "--root" {
+			if len(fields) < 2 || strings.HasPrefix(fields[1], "--") {
+				return []string{"--root without a PATH in: " + line}
+			}
+			fields = fields[1:]
+		}
+		fields = fields[1:]
+	}
 	if len(fields) == 0 {
 		return []string{"empty command line: " + line}
 	}
@@ -87,11 +99,7 @@ func commandLineProblems(catalog Catalog, commands map[string]Command, line stri
 	case strings.HasPrefix(verb, "--"):
 		// A global invocation such as --version: every option is a global one.
 	case verb == "help":
-		if len(fields) > 1 && fields[1] != "--json" && fields[1] != "guide" && fields[1] != "COMMAND" {
-			if _, ok := commands[fields[1]]; !ok {
-				problems = append(problems, "unknown help topic in: "+line)
-			}
-		}
+		problems = append(problems, helpTopicProblems(catalog, commands, fields[1:], line)...)
 		fields = fields[1:]
 	default:
 		command, ok := commands[verb]
@@ -107,6 +115,12 @@ func commandLineProblems(catalog Catalog, commands map[string]Command, line stri
 				problems = append(problems, "unknown "+verb+" "+fields[1]+" operation "+fields[2]+" in: "+line)
 			}
 		}
+		form := FormKey(command, fields[1:])
+		for _, flag := range command.RequiredFlags[form] {
+			if !slices.ContainsFunc(fields[1:], func(field string) bool { return field == flag || strings.HasPrefix(field, flag+"=") }) {
+				problems = append(problems, "required option "+flag+" of "+form+" is missing in: "+line)
+			}
+		}
 		fields = fields[1:]
 	}
 	for _, field := range fields {
@@ -116,6 +130,23 @@ func commandLineProblems(catalog Catalog, commands map[string]Command, line stri
 		}
 	}
 	return problems
+}
+
+// helpTopicProblems checks the words after `corvint help`: --json, guide, the
+// COMMAND placeholder, a catalogued command, or one of the catalogued
+// two-word topics.
+func helpTopicProblems(catalog Catalog, commands map[string]Command, words []string, line string) []string {
+	switch {
+	case len(words) == 0, len(words) == 1 && (words[0] == "--json" || words[0] == "guide" || words[0] == "COMMAND"):
+		return nil
+	case len(words) == 1:
+		if _, ok := commands[words[0]]; ok {
+			return nil
+		}
+	case len(words) == 2 && slices.Contains(catalog.NestedHelpTopics, words[0]+" "+words[1]):
+		return nil
+	}
+	return []string{"unknown help topic in: " + line}
 }
 
 // nonCapabilities returns each "- " item of the Non-capabilities section with

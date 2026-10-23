@@ -68,7 +68,10 @@ Goals
 
 9. Bind a change to its evidence and verify it
    corvint cem prepare --base FULL_COMMIT_ID --target HEAD
-   corvint cem verify --map .corvint/change.cem.json
+   Commit the candidate, then run the verification action that prepare
+   returns. It has this shape, naming the commit that holds the candidate and
+   the absolute repository root:
+   corvint cem verify --map .corvint/change.cem.json --expected-base FULL_COMMIT_ID --target FULL_TARGET_COMMIT_ID --artifacts ABSOLUTE_REPOSITORY_ROOT
    Output: a cem/1.0 candidate map, then its verification.
 
 10. Review a verified change in a fixed order

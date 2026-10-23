@@ -47,6 +47,9 @@ type Registry struct {
 	// NestedOperations holds code-declared tables one level below an
 	// operation: NestedOperations["docs"]["corpus"] lists the corpus operations.
 	NestedOperations map[string]map[string][]string
+	// NestedHelpTopics are the two-word `corvint help COMMAND SUBCOMMAND`
+	// topics the help dispatcher accepts, such as "docs corpus".
+	NestedHelpTopics []string
 }
 
 // Unknown names a field the registry cannot answer and why.
@@ -65,6 +68,7 @@ type Command struct {
 	FreezeContract        *string             `json:"freezeContract"`
 	Operations            []string            `json:"operations"`
 	NestedOperations      map[string][]string `json:"nestedOperations"`
+	RequiredFlags         map[string][]string `json:"requiredFlags"`
 	Flags                 []string            `json:"flags"`
 	SchemaIDs             []string            `json:"schemaIds"`
 	Inputs                *[]string           `json:"inputs"`
@@ -78,13 +82,14 @@ type Command struct {
 
 // Catalog is the corvint-capability-catalog/0 document.
 type Catalog struct {
-	Schema          string            `json:"schema"`
-	Source          string            `json:"source"`
-	Derivation      map[string]string `json:"derivation"`
-	GlobalFlags     []string          `json:"globalFlags"`
-	GlobalSchemaIDs []string          `json:"globalSchemaIds"`
-	Guide           GuideRef          `json:"guide"`
-	Commands        []Command         `json:"commands"`
+	Schema           string            `json:"schema"`
+	Source           string            `json:"source"`
+	Derivation       map[string]string `json:"derivation"`
+	GlobalFlags      []string          `json:"globalFlags"`
+	GlobalSchemaIDs  []string          `json:"globalSchemaIds"`
+	NestedHelpTopics []string          `json:"nestedHelpTopics"`
+	Guide            GuideRef          `json:"guide"`
+	Commands         []Command         `json:"commands"`
 }
 
 // GuideRef binds the shipped guide by digest.
@@ -97,6 +102,8 @@ var derivation = map[string]string{
 	"globalFlags":           "every --option the root help Global options block names, including the --json modifier of --version",
 	"globalSchemaIds":       "every NAME/VERSION schema identifier the root help Global options block names",
 	"nestedOperations":      "the code-declared operation tables one level below an operation, such as docs corpus",
+	"nestedHelpTopics":      "the two-word corvint help COMMAND SUBCOMMAND topics the help dispatcher accepts",
+	"requiredFlags":         "per usage form (the command and its catalogued operation words), the --options every Usage block line of that form names outside [ ] and ( ); a form whose lines require none is omitted, and options a help text states as required only in prose are not derived",
 	"purpose":               "the command's label in the root help Commands block",
 	"maturity":              "core under the root help Core header, experimental under the Experimental header",
 	"owningSpec":            "the parenthesized spec code ending the command's root help line",
@@ -130,13 +137,14 @@ func Build(registry Registry) Catalog {
 	entries, freeze := parseRootCommands(registry.RootHelp)
 	readOnly, writers, ledger := parseSupportBoundary(registry.RootHelp)
 	catalog := Catalog{
-		Schema:          Schema,
-		Source:          "corvint help: the topLevelCommands dispatch list, the root help and each COMMAND --help topic",
-		Derivation:      derivation,
-		GlobalFlags:     flags(globalBlock(registry.RootHelp), true),
-		GlobalSchemaIDs: schemaIDs(globalBlock(registry.RootHelp)),
-		Guide:           GuideRef{Topic: "corvint help guide", SHA256: digest(guide)},
-		Commands:        make([]Command, 0, len(registry.Commands)),
+		Schema:           Schema,
+		Source:           "corvint help: the topLevelCommands dispatch list, the root help and each COMMAND --help topic",
+		Derivation:       derivation,
+		GlobalFlags:      flags(globalBlock(registry.RootHelp), true),
+		GlobalSchemaIDs:  schemaIDs(globalBlock(registry.RootHelp)),
+		NestedHelpTopics: sortedTopics(registry.NestedHelpTopics),
+		Guide:            GuideRef{Topic: "corvint help guide", SHA256: digest(guide)},
+		Commands:         make([]Command, 0, len(registry.Commands)),
 	}
 	for _, name := range registry.Commands {
 		text := registry.Topics[name]
@@ -152,6 +160,7 @@ func Build(registry Registry) Catalog {
 			WriteStatements:       writeStatements(text),
 			Unknowns:              []Unknown{},
 		}
+		command.RequiredFlags = requiredFlags(command, text)
 		if entry, ok := entries[name]; ok {
 			command.Purpose, command.Maturity = stringPointer(entry.purpose), stringPointer(entry.maturity)
 			if entry.spec != "" {
@@ -351,6 +360,115 @@ func operations(name, text string, declared []string) []string {
 		found = []string{}
 	}
 	return found
+}
+
+func sortedTopics(topics []string) []string {
+	sorted := slices.Clone(topics)
+	slices.Sort(sorted)
+	sorted = slices.Compact(sorted)
+	if sorted == nil {
+		sorted = []string{}
+	}
+	return sorted
+}
+
+// FormKey is the usage form a command line names: the command followed by the
+// leading words of words that are its catalogued operation and nested
+// operation, such as "cem verify" or "docs corpus build".
+func FormKey(command Command, words []string) string {
+	key := command.Name
+	if len(words) > 0 && slices.Contains(command.Operations, words[0]) {
+		key += " " + words[0]
+		if nested, ok := command.NestedOperations[words[0]]; ok && len(words) > 1 && slices.Contains(nested, words[1]) {
+			key += " " + words[1]
+		}
+	}
+	return key
+}
+
+// requiredFlags derives, per usage form, the options every line of that form
+// in the command's Usage blocks names outside brackets and parentheses.
+func requiredFlags(command Command, text string) map[string][]string {
+	forms := map[string][]string{}
+	seen := map[string]bool{}
+	for _, form := range usageForms(text) {
+		fields := strings.Fields(form)[1:]
+		if len(fields) >= 2 && fields[0] == "[--root" && fields[1] == "PATH]" {
+			fields = fields[2:]
+		}
+		if len(fields) == 0 || fields[0] != command.Name {
+			continue
+		}
+		key := FormKey(command, fields[1:])
+		required := topLevelFlags(strings.Join(fields[1:], " "))
+		if !seen[key] {
+			seen[key], forms[key] = true, required
+			continue
+		}
+		forms[key] = slices.DeleteFunc(forms[key], func(flag string) bool { return !slices.Contains(required, flag) })
+	}
+	for key, required := range forms {
+		if len(required) == 0 {
+			delete(forms, key)
+		}
+	}
+	return forms
+}
+
+// usageForms returns each "corvint ..." line of every Usage: block, with its
+// indented continuation lines joined.
+func usageForms(text string) []string {
+	var forms []string
+	inUsage := false
+	for _, line := range strings.Split(text, "\n") {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case line == "Usage:":
+			inUsage = true
+		case !inUsage:
+		case trimmed == "":
+			inUsage = false
+		case strings.HasPrefix(trimmed, "corvint "):
+			forms = append(forms, trimmed)
+		case len(forms) > 0 && strings.HasPrefix(line, " "):
+			forms[len(forms)-1] += " " + trimmed
+		default:
+			inUsage = false
+		}
+	}
+	return forms
+}
+
+// topLevelFlags lists the --option tokens of a usage form outside every
+// bracket and parenthesis, and before any "|" alternative at that level.
+func topLevelFlags(form string) []string {
+	var outside strings.Builder
+	depth := 0
+	for _, character := range form {
+		switch {
+		case character == '[' || character == '(':
+			depth++
+		case (character == ']' || character == ')') && depth > 0:
+			depth--
+		case depth == 0:
+			outside.WriteRune(character)
+		}
+	}
+	found := []string{}
+	for _, token := range strings.Fields(outside.String()) {
+		if token == "|" {
+			return []string{}
+		}
+		flag, _, _ := strings.Cut(token, "=")
+		if before, _, alternative := strings.Cut(flag, "|"); alternative {
+			flag = before
+		}
+		if flagPattern.MatchString(flag) && flagPattern.FindString(flag) == flag && flag != "--root" && flag != "--help" {
+			found = append(found, flag)
+		}
+	}
+	slices.Sort(found)
+	return slices.Compact(found)
 }
 
 func operationWord(word string) bool {

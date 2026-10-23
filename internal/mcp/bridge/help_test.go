@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/capcatalog"
@@ -70,18 +71,52 @@ func assertHelpTool(t *testing.T, profile string, registry *Registry) {
 	ready, _ := registry.Call(context.Background(), ToolHelp, []byte(`{}`))
 	borrowed := ready
 	borrowed.Tool = ToolStatus
-	tampered := ready
-	tampered.Receipt = map[string]any{}
-	for key, value := range ready.Receipt {
-		tampered.Receipt[key] = value
+	if !validResult(ready) || validResult(borrowed) {
+		t.Fatalf("%s: validResult refuses a READY corvint.help or accepts CORVINT_BINARY on another tool", profile)
 	}
-	tampered.Receipt["text"] = "x"
-	if !validResult(ready) || validResult(borrowed) || validResult(tampered) {
-		t.Fatalf("%s: validResult accepts a CORVINT_BINARY result outside a READY corvint.help or with a mismatched digest", profile)
+	catalogText := string(capcatalog.Snapshot())
+	replaced := catalogText + " "
+	replacedDigest := sha256.Sum256([]byte(replaced))
+	for name, tamper := range map[string]func(map[string]any){
+		"text replaced":                      func(receipt map[string]any) { receipt["text"] = "x" },
+		"text replaced with recomputed hash": func(receipt map[string]any) { receipt["text"], receipt["sha256"], receipt["byteCount"] = replaced, hex.EncodeToString(replacedDigest[:]), len(replaced) },
+		"command missing":                    func(receipt map[string]any) { delete(receipt, "command") },
+		"command of the other topic":         func(receipt map[string]any) { receipt["command"] = "corvint help guide" },
+		"guide topic with catalog text":      func(receipt map[string]any) { receipt["topic"], receipt["command"] = "guide", "corvint help guide" },
+		"negative byteCount":                 func(receipt map[string]any) { receipt["byteCount"] = -1 },
+		"byteCount not an integer":           func(receipt map[string]any) { receipt["byteCount"] = float64(len(catalogText)) },
+		"extra member":                       func(receipt map[string]any) { receipt["note"] = "x" },
+		"schema missing":                     func(receipt map[string]any) { delete(receipt, "schema") },
+	} {
+		tampered := ready
+		tampered.Receipt = map[string]any{}
+		for key, value := range ready.Receipt {
+			tampered.Receipt[key] = value
+		}
+		tamper(tampered.Receipt)
+		if validResult(tampered) {
+			t.Fatalf("%s: validResult keeps CORVINT_BINARY authority for a receipt with its %s", profile, name)
+		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if _, callErr := registry.Call(ctx, ToolHelp, []byte(`{}`)); callErr == nil || callErr.Code != "cancelled" {
 		t.Fatalf("%s cancelled call error = %#v", profile, callErr)
+	}
+}
+
+// MCPV0-100: cancellation is checked before the budget, so an oversized text
+// under a cancelled context fails cancelled, and only a live call abstains.
+func TestMCPV0100HelpCancellationPrecedesTheBudget(t *testing.T) {
+	t.Parallel()
+	oversized := strings.Repeat("x", maxResultBytes+1)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, callErr := helpResult(ctx, helpTopicCatalog, "corvint help --json", oversized); callErr == nil || callErr.Code != "cancelled" {
+		t.Fatalf("cancelled oversized call error = %#v", callErr)
+	}
+	result, callErr := helpResult(context.Background(), helpTopicCatalog, "corvint help --json", oversized)
+	if callErr != nil || result.State != "ABSTAINED" || result.Abstention.Reason != "OUTPUT_BUDGET_EXCEEDED" || result.Receipt != nil {
+		t.Fatalf("live oversized call = %+v, %#v", result, callErr)
 	}
 }

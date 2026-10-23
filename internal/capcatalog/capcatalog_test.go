@@ -2,6 +2,7 @@ package capcatalog
 
 import (
 	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -38,6 +39,7 @@ func syntheticRegistry() Registry {
 		},
 		Operations:       map[string][]string{"alpha": {"stop"}},
 		NestedOperations: map[string]map[string][]string{"alpha": {"run": {"b", "a"}}},
+		NestedHelpTopics: []string{"alpha run"},
 	}
 }
 
@@ -100,17 +102,23 @@ func TestCAPV0016UnknownFieldsAreNullWithReasons(t *testing.T) {
 func TestCAPV0018GuideProblemsRejectsDrift(t *testing.T) {
 	t.Parallel()
 	catalog := Build(syntheticRegistry())
-	clean := "Goals\n  corvint alpha run --mode M > out.json\n  corvint --version --json\n  `corvint help guide`\nOutput: alpha-out/2 and tool-version/1.\n\nNon-capabilities\n\n- No network. By design.\n- No beta mode. Tracking\n  #12.\n"
+	clean := "Goals\n  corvint alpha run --mode M > out.json\n  corvint --root /repo alpha run --mode=M\n  corvint --version --json\n  `corvint help guide`\n  `corvint help alpha run`\nOutput: alpha-out/2 and tool-version/1.\n\nNon-capabilities\n\n- No network. By design.\n- No beta mode. Tracking\n  #12.\n"
 	if problems := GuideProblems(catalog, clean); len(problems) != 0 {
 		t.Fatalf("clean guide problems: %v", problems)
 	}
 	for _, drift := range []string{
 		"  corvint omega\n",
 		"  corvint alpha jump\n",
-		"  corvint alpha run --speed 2\n",
-		"  corvint alpha run c\n",
+		"  corvint alpha run --mode M --speed 2\n",
+		"  corvint alpha run c --mode M\n",
 		"Output: alpha-out/9.\n",
 		"  `corvint help omega`\n",
+		"  corvint --root /repo omega\n",
+		"  corvint --root=/repo alpha jump --mode M\n",
+		"  corvint --root\n",
+		"  `corvint help alpha nope`\n",
+		"  `corvint help alpha run extra`\n",
+		"  corvint alpha run\n",
 	} {
 		if problems := GuideProblems(catalog, drift+clean); len(problems) != 1 {
 			t.Fatalf("drift %q problems = %v", drift, problems)
@@ -118,6 +126,52 @@ func TestCAPV0018GuideProblemsRejectsDrift(t *testing.T) {
 	}
 	if problems := GuideProblems(catalog, clean+"- No gamma.\n"); len(problems) != 1 {
 		t.Fatalf("untracked non-capability problems = %v", problems)
+	}
+}
+
+func TestCAPV0017RequiredFlagsAreDerivedFromUsageForms(t *testing.T) {
+	t.Parallel()
+	registry := syntheticRegistry()
+	registry.Commands = append(registry.Commands, "delta")
+	registry.Operations["delta"] = []string{"show"}
+	registry.Topics["delta"] = "Delta.\n\nUsage:\n" +
+		"  corvint [--root PATH] delta show --a A --b B\n    --c C [--d D] (--e E | --f F)\n" +
+		"  corvint [--root PATH] delta show --a A --c C --g G\n" +
+		"  corvint delta --x X | --y Y\n\nExamples:\n  corvint delta show --z Z\n"
+	catalog := Build(registry)
+	delta := catalog.Commands[3]
+	if len(delta.RequiredFlags) != 1 || strings.Join(delta.RequiredFlags["delta show"], ",") != "--a,--c" {
+		t.Fatalf("delta required flags = %v", delta.RequiredFlags)
+	}
+	if strings.Join(catalog.Commands[0].RequiredFlags["alpha run"], ",") != "--mode" || strings.Join(catalog.NestedHelpTopics, ",") != "alpha run" {
+		t.Fatalf("alpha required flags %v, nested help topics %v", catalog.Commands[0].RequiredFlags, catalog.NestedHelpTopics)
+	}
+}
+
+// The shipped catalog requires the verification options of cem verify, so the
+// guide's example must carry them (gh#1590 review).
+func TestCAPV0017GuideExamplesCarryRequiredOptions(t *testing.T) {
+	t.Parallel()
+	var catalog Catalog
+	if err := json.Unmarshal(Snapshot(), &catalog); err != nil {
+		t.Fatal(err)
+	}
+	if problems := GuideProblems(catalog, Guide()); len(problems) != 0 {
+		t.Fatalf("shipped guide problems: %v", problems)
+	}
+	problems := GuideProblems(catalog, "  corvint cem verify --map .corvint/change.cem.json\n"+Guide())
+	if len(problems) != 3 || !strings.Contains(strings.Join(problems, "\n"), "required option --expected-base of cem verify") {
+		t.Fatalf("a cem verify example with only --map: problems = %v", problems)
+	}
+	// CAP-V0-018 against the shipped catalog: the --root preamble and nested
+	// help topics are checked, not skipped.
+	for _, drift := range []string{"  corvint --root /repo nonexistent-command\n", "  `corvint help docs nonexistent-operation`\n"} {
+		if problems := GuideProblems(catalog, drift+Guide()); len(problems) != 1 {
+			t.Fatalf("drift %q problems = %v", drift, problems)
+		}
+	}
+	if problems := GuideProblems(catalog, "  `corvint help docs corpus`\n  `corvint help cem verify`\n  corvint --root /repo witness --base FULL\n"+Guide()); len(problems) != 0 {
+		t.Fatalf("catalogued nested topics and a --root preamble: problems = %v", problems)
 	}
 }
 

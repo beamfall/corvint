@@ -59,6 +59,28 @@ the stdout of `corvint help --json` and `corvint help guide`. `TestMCPV0100HelpT
 in `cmd/corvint-mcp` checks the wire result in both `structuredContent` and the enveloped text
 block on each profile.
 
+## Review fixes (Codex, PR #1590)
+
+The single review round found five issues. All five are fixed, each with a test.
+
+- `corvint.help` under `--follow-ref` skips ref binding entirely. Before the fix, a deleted ref
+  turned a binary-only answer into `follow-ref-missing`, and a moved ref could check out and
+  reindex the lane for a call that reads nothing. `MCPV0-041` now names the exception.
+- The receipt validator is closed. It admits only the six-member receipt whose topic, CLI
+  command, text, integer `byteCount` and digest all match that topic's embedded text, so a
+  receipt with recomputed hashes over other text is still refused.
+- The guide check parses the `--root` preamble, validates two-word help topics against the new
+  `nestedHelpTopics` list, and requires each usage form's required options. Those options are
+  derived from the `Usage:` synopses into the new `requiredFlags` catalog field.
+- The `cem verify` example in the guide was not runnable: it lacked `--target` and `--artifacts`.
+  It now shows the full shape of the verification action that `cem prepare` returns. The `cem`
+  status, verify and report usage lines now list `--target` and `--artifacts` as required, since
+  the verifier refuses without them.
+- `callHelp` checks cancellation before the budget abstention.
+
+`requiredFlags` derives only from usage synopses. An option that only prose calls required is
+not derived, so the guide check cannot see it.
+
 ## Not done, with reasons
 
 - Guide as a separate release-archive member. The owner accepted (2026-10-23) the embedded guide as

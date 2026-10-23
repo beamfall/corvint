@@ -31,15 +31,37 @@ func callHelp(ctx context.Context, arguments []byte) (Result, *Error) {
 		(input.Topic == nil && members["topic"] == nil && len(members) != 0) {
 		return Result{}, failure("invalid-arguments")
 	}
-	topic, command, text := helpTopicCatalog, "corvint help --json", string(capcatalog.Snapshot())
+	topic := helpTopicCatalog
 	if input.Topic != nil {
-		switch *input.Topic {
-		case helpTopicCatalog:
-		case helpTopicGuide:
-			topic, command, text = helpTopicGuide, "corvint help guide", capcatalog.Guide()
-		default:
-			return Result{}, failure("invalid-arguments")
-		}
+		topic = *input.Topic
+	}
+	command, text, known := helpTopicText(topic)
+	if !known {
+		return Result{}, failure("invalid-arguments")
+	}
+	return helpResult(ctx, topic, command, text)
+}
+
+// helpTopicText is the CLI form and embedded text of one corvint.help topic.
+func helpTopicText(topic string) (command, text string, known bool) {
+	switch topic {
+	case helpTopicCatalog:
+		return "corvint help --json", string(capcatalog.Snapshot()), true
+	case helpTopicGuide:
+		return "corvint help guide", capcatalog.Guide(), true
+	}
+	return "", "", false
+}
+
+// helpResult binds text into the READY result. Cancellation is checked before
+// the budget, so a cancelled call fails cancelled whatever the text's size; a
+// text that alone exceeds the budget abstains before the result is encoded.
+func helpResult(ctx context.Context, topic, command, text string) (Result, *Error) {
+	if ctx.Err() != nil {
+		return Result{}, failure("cancelled")
+	}
+	if len(text) > maxResultBytes {
+		return abstained(ToolHelp, "OUTPUT_BUDGET_EXCEEDED", nil), nil
 	}
 	digest := sha256.Sum256([]byte(text))
 	result := Result{
@@ -58,17 +80,24 @@ func callHelp(ctx context.Context, arguments []byte) (Result, *Error) {
 	if len(encoded) > maxResultBytes || !fitsMCPFrame(encoded, result) {
 		return abstained(ToolHelp, "OUTPUT_BUDGET_EXCEEDED", nil), nil
 	}
-	if ctx.Err() != nil {
-		return Result{}, failure("cancelled")
-	}
 	return result, nil
 }
 
+// validHelpReceipt holds a receipt to exactly the six closed members, the CLI
+// form of its topic, and the embedded text of that topic: byteCount and
+// sha256 must describe that text, so neither a relabelled topic nor replaced
+// text with a recomputed digest keeps CORVINT_BINARY authority.
 func validHelpReceipt(receipt map[string]any) bool {
+	if len(receipt) != 6 {
+		return false
+	}
+	topic, _ := receipt["topic"].(string)
+	command, embedded, known := helpTopicText(topic)
 	text, textOK := receipt["text"].(string)
-	digest := sha256.Sum256([]byte(text))
-	return receipt["schema"] == helpSchema && textOK && receipt["sha256"] == hex.EncodeToString(digest[:]) &&
-		(receipt["topic"] == helpTopicCatalog || receipt["topic"] == helpTopicGuide)
+	byteCount, countOK := receipt["byteCount"].(int)
+	digest := sha256.Sum256([]byte(embedded))
+	return known && textOK && countOK && receipt["schema"] == helpSchema && receipt["command"] == command &&
+		text == embedded && byteCount == len(embedded) && receipt["sha256"] == hex.EncodeToString(digest[:])
 }
 
 // helpDescriptor is corvint.help's closed tools/list entry, advertised on

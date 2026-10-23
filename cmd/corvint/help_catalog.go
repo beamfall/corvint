@@ -35,6 +35,12 @@ func capabilityRegistry() capcatalog.Registry {
 	for name := range flowSubcommands {
 		registry.Operations["flows"] = append(registry.Operations["flows"], name)
 	}
+	for _, nested := range nestedHelpTopics {
+		registry.NestedHelpTopics = append(registry.NestedHelpTopics, nested[0])
+	}
+	for action := range cemHelpActions {
+		registry.NestedHelpTopics = append(registry.NestedHelpTopics, "cem "+action)
+	}
 	for command, choices := range helpSubcommands {
 		for choice := range choices {
 			registry.Operations[command] = append(registry.Operations[command], choice)

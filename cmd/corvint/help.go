@@ -1075,10 +1075,14 @@ Usage:
     (--bytes START:END | --lines START:END) --relation RELATION [--output MAP]
   corvint [--root PATH] cem mark --map MAP --hunk SELECTOR
     --disposition unknown|mechanical --reason REASON [--output MAP]
-  corvint [--root PATH] cem status --map MAP [OPTIONS]
-  corvint [--root PATH] cem verify --map MAP [OPTIONS]
-  corvint [--root PATH] cem report --map MAP [--output REPORT] [OPTIONS]
-  corvint [--root PATH] cem report --map MAP --format json [--ocm OCM] [OPTIONS]
+  corvint [--root PATH] cem status --map MAP --expected-base REV --target REV
+    --artifacts DIR [OPTIONS]
+  corvint [--root PATH] cem verify --map MAP --expected-base REV --target REV
+    --artifacts DIR [OPTIONS]
+  corvint [--root PATH] cem report --map MAP --expected-base REV --target REV
+    --artifacts DIR [--output REPORT] [OPTIONS]
+  corvint [--root PATH] cem report --map MAP --format json --expected-base REV
+    --target REV --artifacts DIR [--ocm OCM] [OPTIONS]
   corvint [--root PATH] cem cover --map MAP --coverprofile PATH --test-run ID [--output MAP]
   corvint [--root PATH] cem discriminate --map MAP --target REV [--max-hunks N]
     [--max-mutants N] [--wall-time DURATION] [--output MAP]

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/capcatalog"
+	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/repoenvelope"
 )
 
@@ -75,4 +76,53 @@ func TestMCPV0100HelpToolAnswersOnEveryProfile(t *testing.T) {
 			}
 		}
 	}
+}
+
+// MCPV0-100: under --follow-ref, corvint.help never resolves, checks out or
+// reindexes the followed ref, and appends no follow-ref block: it answers from
+// the binary when the ref is current, moved or deleted.
+func TestMCPV0100HelpToolSkipsFollowRefBinding(t *testing.T) {
+	main, lane := followFixture(t)
+	head := gitTest(t, main, "rev-parse", "HEAD")
+	gitTest(t, main, "update-ref", "refs/heads/follow", head)
+
+	// Over stdio: a fresh server started with --follow-ref.
+	meta := `"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}`
+	input := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{` + meta + `,"name":"corvint.help","arguments":{"topic":"guide"}}}` + "\n"
+	var stdout, stderr bytes.Buffer
+	if exit := run(context.Background(), []string{"--root", lane, "--follow-ref", "follow"}, strings.NewReader(input), &stdout, &stderr); exit != 0 {
+		t.Fatalf("exit=%d stderr=%q", exit, stderr.String())
+	}
+	if strings.Contains(stdout.String(), followRefSchema) || !strings.Contains(stdout.String(), `"isError":false`) {
+		t.Fatalf("help under --follow-ref carried a follow-ref block or a tool error (%d bytes)", stdout.Len())
+	}
+
+	handler := followHandler(t, lane, "follow")
+	handler.follow.refresh = func(context.Context, string) (bool, error) {
+		t.Error("corvint.help refreshed the index of the followed ref")
+		return false, nil
+	}
+	answer := func(state string) {
+		t.Helper()
+		result, failure := handler.Handle(context.Background(), protocol.Request{Method: "tools/call", Params: map[string]any{
+			"_meta": map[string]any{}, "name": "corvint.help", "arguments": map[string]any{},
+		}}, nil)
+		if failure != nil {
+			t.Fatalf("%s: protocol failure %#v", state, failure)
+		}
+		structured, _ := result["structuredContent"].(map[string]any)
+		receipt, _ := structured["receipt"].(map[string]any)
+		content, _ := result["content"].([]any)
+		if result["isError"] != false || receipt["text"] != string(capcatalog.Snapshot()) || len(content) != 1 {
+			t.Fatalf("%s ref: help answer isError=%v blocks=%d differs from the embedded catalog", state, result["isError"], len(content))
+		}
+		if got := gitTest(t, lane, "rev-parse", "HEAD"); got != head {
+			t.Fatalf("%s ref: help moved the followed worktree to %s", state, got)
+		}
+	}
+	answer("current")
+	gitTest(t, main, "update-ref", "refs/heads/follow", commitFile(t, main, "NEW.md", "moved\n"))
+	answer("moved")
+	gitTest(t, main, "update-ref", "-d", "refs/heads/follow")
+	answer("deleted")
 }

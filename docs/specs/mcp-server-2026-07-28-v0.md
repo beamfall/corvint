@@ -708,8 +708,9 @@ Each row cites the first emitting site and states only the condition checked the
   later Git read inside the tool is answered by the tool's own revision binding; a slow index
   build delays the answer within the request's own bounds. Falsifier: an answer after a ref move
   that still describes the old commit on a clean worktree; a dirty worktree modified; a response
-  without the block. Rollback: remove `--follow-ref` and `cmd/corvint-mcp/follow_ref.go`; the
-  default server and its bytes never changed.
+  without the block. Exception (2026-10-23, `MCPV0-100`): a `corvint.help` call never binds the
+  ref and carries no block, because it reads only the binary. Rollback: remove `--follow-ref` and
+  `cmd/corvint-mcp/follow_ref.go`; the default server and its bytes never changed.
 - `MCPV0-042`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1999) A
   `tools/call` result that cannot fit one MCP message on any server built on
   `internal/mcp/server` (both the `2026-07-28` and the legacy `2025-11-25` path) MUST be answered
@@ -744,14 +745,22 @@ Each row cites the first emitting site and states only the condition checked the
   (`guide`, `CAP-V0-016`) print from the same build, `command` names that CLI form, and `byteCount`
   and `sha256` describe `text`. Both texts come from `internal/capcatalog` in the binary: the call
   reads no repository, index, Git or trace state, needs no index, and is deterministic for a build.
+  Under `--follow-ref` the call skips ref binding entirely: no `corvint-mcp-follow-ref/0` block, no
+  checkout or reindex, and the same answer when the ref is current, moved or deleted. The result
+  validator admits only the closed six-member receipt whose `topic` is known, whose `command` is
+  that topic's CLI form, whose `text` is that topic's embedded text, whose `byteCount` is an
+  integer equal to its length and whose `sha256` is the embedded digest; any other shape is an
+  internal error rather than a forged receipt.
   The result stays under the 393,216-byte bridge budget and the framed `tools/call` check; if a
   future catalog does not fit, the call returns `ABSTAINED` with `OUTPUT_BUDGET_EXCEEDED` and a null
-  receipt rather than truncated text. The text block carries the receipt inside the `MCPV0-008`
+  receipt rather than truncated text. Cancellation is checked first, so a cancelled call fails
+  `cancelled` even when its text would exceed the budget. The text block carries the receipt inside the `MCPV0-008`
   envelope like every other tool, so a text that contained the terminator would be refused as
   `corvint-envelope-terminator-collision`. A call cancelled before it returns fails `cancelled`. In
   the multi-root profile the tool takes the required `repository` alias like every tool except
   `corvint.status`; it still reads nothing from that repository. Measured at delivery: the catalog
-  text is 105,424 bytes and the guide 5,804 bytes. Non-goals: no per-command filter or search
+  text is 105,424 bytes and the guide 5,804 bytes; after the review fixes added `requiredFlags`
+  and `nestedHelpTopics` they are 116,689 and 6,085 bytes. Non-goals: no per-command filter or search
   argument, no other MCP server (`corvint-docs-mcp`, `corvint-corpus-mcp`,
   `corvint-test-validity-mcp`) gains the tool, no MCP resource or prompt, no change to the
   existing tools' bytes, and no wider exception to decision 0103 for any other tool. Failure modes:
@@ -876,10 +885,10 @@ cleanup remain outside that receipt.
 | `MCPV0-038` | `normalizeFailure` | `internal/mcp/bridge/probe_timeout_test.go`'s `TestMCPV0038ProbeTimeoutHasDistinctCode` injects a probe overrun with `gokernel.WithProbeBound` at one nanosecond on a live request context and asserts `repository-probe-timeout` with no typed class; restoring the `repository-unavailable` mapping fails it; `internal/mcp/bridge/git_timeout_test.go`'s `TestMCPV0038CEMGitTimeoutHasDistinctCode` and `TestMCPV0038IndexDeadlineHasDistinctCode` pin the CEM Git timeouts and the index Git deadline to `repository-probe-timeout`, a plain Git failure to `repository-unavailable`, and caller cancellation or deadline to `cancelled` (decision 0533) |
 | `MCPV0-039` | `extractFollowRef`, `newFollowRef`, `followRef.run`, `followRef.bound`, `followRef.sync`, `refreshIndex`, `Registry.SameRoot` | `TestMCPV0039InheritedGitEnvironmentCannotRedirectMove`, `TestMCPV0039FollowRefPinnedToCanonicalRootIdentity`, `TestMCPV0039AnswerHoldsTheFollowLock`: inherited Git variables, a retargeted root path, a replaced root (`ROOT_CHANGED`) and a concurrent call never move another checkout or move under an answer; `TestMCPV0039FollowRefRefreshesTreeAndIndexBeforeAnswer`: a moved branch is checked out on the detached linked worktree and its index snapshot is fresh before the next status answer, which reports the moved commit; startup refusals for a main checkout, an attached worktree, a missing ref, an aliased root, a duplicate or option-like ref and `--version` |
 | `MCPV0-040` | `followRef.sync` dirty and attached guards | `TestMCPV0040DirtyTreeNeverModifiedAndFlaggedStale`: untracked and tracked edits survive, head unchanged, `DIRTY` and `stale`; a checked-out branch is `NOT_DETACHED`; an injected index failure is `INDEX_FAILED`; `TestMCPV0040ChecksRunWhenHeadAlreadyCurrent`: dirty and attached at the current head are stale with no index write; `TestMCPV0040MoveNeverOverwritesIgnoredFiles`: an ignored file the new commit tracks survives as `CHECKOUT_FAILED` |
-| `MCPV0-041` | `withFollowRef`, `followState.block`, `toolFailure` | `TestMCPV0041MissingRefIsTypedErrorAndCommitEchoed`: the commit is echoed; a deleted ref is tool error `follow-ref-missing` with `reasonClass` `unclassified`, `state` `MISSING` and the worktree unchanged |
+| `MCPV0-041` | `withFollowRef`, `followState.block`, `toolFailure` | `TestMCPV0041MissingRefIsTypedErrorAndCommitEchoed`: the commit is echoed; a deleted ref is tool error `follow-ref-missing` with `reasonClass` `unclassified`, `state` `MISSING` and the worktree unchanged; the `corvint.help` exception: `TestMCPV0100HelpToolSkipsFollowRefBinding` |
 | `MCPV0-090` | `callContext` (deferred `Index.Release`), `detachedContext`, `compileContext` retry release | `internal/contextindex/bridge_release_test.go`'s `TestMCPV0090ContextCallReleasesItsSnapshotMapping`: one task-review bridge answers 1 sequential and 24 concurrent (6x4) `corvint.context` calls from a mapped pack; the ring holds exactly 1 mapping, 0 stay live after it is evicted, and every result encodes to the first result's bytes after the unmap; fails with 1 live mapping when the release is removed; passes under `-race` |
 | `MCPV0-095` | `RepositoryBinding`, `snapshotIndex`, `bindingFromRepository` (no path member) | `internal/mcp/bridge/worktree_test.go`'s `TestMCPV0095MixedBindingIsCountAndDigestOnly`: `corvint.status` and `corvint.query` over a worktree with one untracked file bind `MIXED` with count 1, exactly the seven members, and no byte of the dirty path's name |
-| `MCPV0-100` | `internal/mcp/bridge` (`ToolHelp`, `callHelp`, `validHelpReceipt`, `allTools`), `internal/capcatalog` | `internal/mcp/bridge/help_test.go`'s `TestMCPV0100HelpToolReturnsTheEmbeddedCatalogAndGuide` (all four profiles: advertised, exact catalog and guide text with matching `byteCount` and `sha256`, under half the budget and inside the frame, deterministic, closed-argument refusals, cancellation, and an empty `.git` that would fail any repository read); `cmd/corvint-mcp/help_test.go`'s `TestMCPV0100HelpToolAnswersOnEveryProfile` (compiled `run` per profile: `structuredContent` and the enveloped text block both carry the embedded bytes); `cmd/corvint/help_catalog_test.go`'s `TestMCPV0100HelpToolMatchesTheCLI` (bridge receipt text equals `corvint help --json` and `corvint help guide` stdout byte for byte); repinned `cmd/corvint-mcp/testdata/tools-list-*.golden.jsonl` and conformance tool lists |
+| `MCPV0-100` | `internal/mcp/bridge` (`ToolHelp`, `callHelp`, `validHelpReceipt`, `allTools`), `internal/capcatalog` | `internal/mcp/bridge/help_test.go`'s `TestMCPV0100HelpToolReturnsTheEmbeddedCatalogAndGuide` (all four profiles: advertised, exact catalog and guide text with matching `byteCount` and `sha256`, under half the budget and inside the frame, deterministic, closed-argument refusals, cancellation, and an empty `.git` that would fail any repository read); `cmd/corvint-mcp/help_test.go`'s `TestMCPV0100HelpToolAnswersOnEveryProfile` (compiled `run` per profile: `structuredContent` and the enveloped text block both carry the embedded bytes); `cmd/corvint/help_catalog_test.go`'s `TestMCPV0100HelpToolMatchesTheCLI` (bridge receipt text equals `corvint help --json` and `corvint help guide` stdout byte for byte); the same test's receipt-validator tampers (text, recomputed hash, missing or other-topic command, cross-topic text, wrong or float `byteCount`, extra member, missing schema); `TestMCPV0100HelpCancellationPrecedesTheBudget` (oversized text with a cancelled context fails `cancelled`, live context abstains `OUTPUT_BUDGET_EXCEEDED`); `cmd/corvint-mcp/help_test.go`'s `TestMCPV0100HelpToolSkipsFollowRefBinding` (compiled `run --follow-ref` carries no follow-ref block; handler calls with the ref current, moved and deleted answer the embedded catalog without refreshing or moving the lane HEAD); repinned `cmd/corvint-mcp/testdata/tools-list-*.golden.jsonl` and conformance tool lists |
 | `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |
 
 ## Unresolved decisions and promotion/kill criteria
