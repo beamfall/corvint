@@ -48,6 +48,14 @@ func importViolation(rel, path string) string {
 	if (rel == "internal/tasks/cli/attempt_run.go" || rel == "internal/tasks/cli/attempt_run_test.go") && path == modulePrefix+"internal/groupreap" {
 		return ""
 	}
+	// The same edge admits the attempt runner's test-only worker reapers
+	// (V1-2305), which read the process table to reap leaked workers.
+	switch rel {
+	case "internal/tasks/cli/export_reap_internal_test.go", "internal/tasks/cli/worker_reap_internal_test.go", "internal/tasks/cli/worker_reap_unit_internal_test.go":
+		if path == modulePrefix+"internal/groupreap" {
+			return ""
+		}
+	}
 	// The SERVICE500-007 helper wrapper's process-group Owner edge (decision
 	// 0397's V1-0804 addendum) admits only its Linux descendant files.
 	if (rel == "internal/tasks/service/descendants_linux.go" || rel == "internal/tasks/service/descendants_linux_test.go") && path == modulePrefix+"internal/groupreap" {
