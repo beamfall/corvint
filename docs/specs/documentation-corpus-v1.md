@@ -1702,7 +1702,9 @@ owner's standing auto-accept (2026-10-11); GitHub #1582).
   the readers cannot classify is an unknown with a reason and an anchor where one exists, never a
   guess or a silent drop: a non-literal metadata value, a project name that is not static, a file
   the reader cannot balance, a file over the reader's byte bound (`source-too-large`), a fact list
-  over 512 entries (`fact-bound-exceeded`), an example span that cannot be excerpted and a fact span
+  over 512 entries (`fact-bound-exceeded`), a Playwright hook whose callback is not a literal
+  function (`hook-body-not-literal`), an example span that cannot be excerpted
+  (`example-span-unanchored`) and a fact span
   that cannot be anchored (`fact-span-unanchored`, for example an expectation line over 64 KiB),
   which is dropped rather than emitted without an anchor. Acceptance:
   `TestDCPV1376DiscoverTestsUnknowns`.
