@@ -2046,12 +2046,14 @@ records. Which records carry forward:
 | Native or compiler-derived record | no: rebuilt by the compiler and counted in a limitation |
 | Journey, observation or supplied gap | no: not classified, stated in `limitations` |
 
-- `DCP-V1-440`: A previous record of an adoption-only subject kind or relation type is classified
+- `DCP-V1-440`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1611)
+  A previous record of an adoption-only subject kind or relation type is classified
   exactly as a generic record (`DCP-V1-362`, `DCP-V1-363`, `DCP-V1-420`). When every anchor is
   confirmed it is `carry-forward` or `moved`. When only some anchors changed it is `changed`, and
   its entry lists every anchor with its own state, so the changed anchors carry their spans and
   `changed_lines`. Acceptance: `TestDCPV1440DeltaAdoptionRecords`.
-- `DCP-V1-441`: Missing evidence is never guessed. An adoption record whose kind requires typed
+- `DCP-V1-441`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1611)
+  Missing evidence is never guessed. An adoption record whose kind requires typed
   details (every adoption subject kind except `variation`, `inventory` and `manual_case`, and
   `asserts`, `navigates` and `migration_mapping` relations) is `unresolved` with the reason
   `adoption record kind KIND requires typed details that the previous corpus does not hold` when
@@ -2059,7 +2061,8 @@ records. Which records carry forward:
   adoption vocabulary is `unresolved` with that reason. A record with no anchors stays
   `unresolved` (`DCP-V1-422`).
   Acceptance: `TestDCPV1440DeltaAdoptionRecords`.
-- `DCP-V1-442`: The `DCP-V1-365` dependencies of a carried record include every record ID its
+- `DCP-V1-442`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1611)
+  The `DCP-V1-365` dependencies of a carried record include every record ID its
   typed details join to: a flow's section paragraphs, variations and entrypoints; a paragraph's
   flow and `retired_to` target; a coverage denominator; an intent comparison's lists; and a
   supplied status's supporting records. A carried record with such an ID neither in the current
@@ -2073,7 +2076,8 @@ records. Which records carry forward:
   (paragraph section and stable ID, referenced kinds) still governs a record that joins carried
   and current typed records. Acceptance: `TestDCPV1440DeltaAdoptionRecords`,
   `TestDCPV1442DeltaExactTestJoinNeedsItsFile`.
-- `DCP-V1-443`: When the provider imported as an adoption provider (its previous `import_parity`
+- `DCP-V1-443`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1611)
+  When the provider imported as an adoption provider (its previous `import_parity`
   has a `typed_detail` row), or its carried records include an adoption kind or a record with
   typed details, `carry-forward` emits a `corvint-corpus-adoption-provider/1` record. It holds those
   records under the `DCP-V1-366` rules, plus each carried record's typed details unchanged under
@@ -2083,13 +2087,20 @@ records. Which records carry forward:
   `corvint-corpus-provider/1` record of `DCP-V1-366`. Committed and declared, the adoption record
   builds with the same typed details, and a second carry-forward against that build carries
   nothing. Acceptance: `TestDCPV1440DeltaAdoptionRecords`.
-- `DCP-V1-444`: A delta of a corpus with itself (`--previous` equal to `--artifact`) lists no
+- `DCP-V1-444`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1611)
+  A delta of a corpus with itself (`--previous` equal to `--artifact`) lists no
   `unresolved` entry under the default views, in both the paged receipt and the jsonl stream.
   Every anchored records-provider record is `carry-forward`, including flows, paragraphs and their
   relations, with anchors in the primary repository, in a declared additional repository, or at an
-  additional repository's further pinned revision. Acceptance: `TestDCPV1440DeltaAdoptionRecords`
-  over the additional-repository and multi-revision fixtures.
-- `DCP-V1-445`: The `docs corpus delta` and `carry-forward` help purposes, and so `help --json`
+  additional repository's further pinned revision. This holds however many records share one
+  span. Each distinct verified span (repository, path, blob, lines) is charged to the `DCP-V1-367`
+  hashing bound once, and its digest is reused from a cache of at most 65,536 spans. Only a digest
+  actually computed is cached, and each anchor's own span hash must still equal it, so a span that
+  was never hashed is never confirmed. Acceptance: `TestDCPV1440DeltaAdoptionRecords` over the
+  additional-repository and multi-revision fixtures, and
+  `TestDCPV1444SelfDeltaSharedSpanChargedOnce` (1,025 records sharing one 64 KiB span).
+- `DCP-V1-445`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1611)
+  The `docs corpus delta` and `carry-forward` help purposes, and so `help --json`
   and the capability catalog, state that adoption kinds such as flows and paragraphs carry forward
   with their typed details. Acceptance: `TestCAPV0019CommittedCatalogMatchesTheBinary`,
   `TestMCPV0100HelpToolMatchesTheCLI`, `TestDocsCorpusHelpListsOperations`.
@@ -2750,7 +2761,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-420..425 | `internal/doccorpus/delta.go`, `delta_open.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1420DeltaAdditionalRepositoryAnchors`, `TestDCPV1420DeltaSharedReadBound`, `TestDCPV1424DeltaHistoricalPins`, `TestDCPV1425OpenDeltaCurrentUnavailableCheckout`, `TestDCPV1425DeltaUnavailableCheckoutCLI`, `TestDCPV1421DeltaViewsCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
-| DCP-V1-440..445 | `internal/doccorpus/delta.go`, `adoption.go`, `cmd/corvint/docs_corpus_help.go`, `internal/capcatalog/catalog.json` | `TestDCPV1440DeltaAdoptionRecords`, `TestDCPV1442DeltaExactTestJoinNeedsItsFile`, `TestCAPV0019CommittedCatalogMatchesTheBinary`, `TestMCPV0100HelpToolMatchesTheCLI`, `TestDocsCorpusHelpListsOperations` |
+| DCP-V1-440..445 | `internal/doccorpus/delta.go`, `adoption.go`, `cmd/corvint/docs_corpus_help.go`, `internal/capcatalog/catalog.json` | `TestDCPV1440DeltaAdoptionRecords`, `TestDCPV1442DeltaExactTestJoinNeedsItsFile`, `TestDCPV1444SelfDeltaSharedSpanChargedOnce`, `TestCAPV0019CommittedCatalogMatchesTheBinary`, `TestMCPV0100HelpToolMatchesTheCLI`, `TestDocsCorpusHelpListsOperations` |
 | DCP-V1-216..217 | `internal/doccorpus/batch_paths.go`, `symbol_anchor.go`, `cem.go`, `behavior_legacy_discovery.go`, `behavior_playwright_discovery.go` | `TestDCPV1216SymbolAnchorsGitOpsIndependentOfAnchorCount` (5,000 moved anchors), `TestDCPV1216CEMProjectionGitOpsIndependentOfAnchorCount` (5,000 anchors), `TestDCPV1216LegacyDiscoveryGitOpsIndependentOfPathCount` (4,096 files, the record bound), `TestDCPV1216PlaywrightDiscoveryGitOpsIndependentOfPathCount` (2,000 files, 4,008 executions), each within 16 Git operations per phase and byte-identical to the per-path reads; `TestDCPV1216ProjectionKeepsPerPathTreeBound` (anchor under a tree past 4 MiB refused as per path), `TestDCPV1216SymbolFallbackBudgetWithholdsStates` (missing pinned blob, budget exhausted in the fallback, states withheld as per path), `TestDCPV1216GitHooksTravelWithTheContext` (the test budget and per-path override travel on the call's context, so the equivalence tests run under `t.Parallel` and `-race`); measured in docs/build-log/2026-10-20-v1-1991-batched-path-reads.md and docs/build-log/2026-10-21-testspeed-1021v-doccorpus-parallel-equivalence.md |
 | DCP-V1-370..376 | `internal/testsource/discover_tests.go`, `discover_tests_playwright.go`, `discover_tests_rspec.go`, `internal/doccorpus/line_anchor.go`, `cmd/corvint/docs_corpus_discover_tests.go` | `TestDCPV1370DiscoverTestsDeterministicAnchored`, `TestDCPV1370DocsCorpusDiscoverTestsCLI`, `TestDCPV1371DiscoverTestsIdentityJoins`, `TestDCPV1372DiscoverTestsExpectations`, `TestDCPV1373DiscoverTestsNavigations`, `TestDCPV1374DiscoverTestsReaches`, `TestDCPV1375DiscoverTestsHooksTagsAnnotations`, `TestDCPV1376DiscoverTestsUnknowns` |
 | DCP-V1-390..392 | `internal/doccorpus/extractor.go` | `TestDCPV1390ExtractorProfileIsClosed`, `TestDCPV1390ExtractorGlobMatchIsLinear`, `TestDCPV1391ExtractorEmitsGenericSubjectsWithExactAnchors`, `TestDCPV1392ExtractorDerivesImplementsAndCallsRelations`, `TestDCPV1392ExtractorRelationsCiteBothEnds` |

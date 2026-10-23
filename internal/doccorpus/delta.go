@@ -204,16 +204,19 @@ func (r *deltaRecord) carried() bool {
 }
 
 type deltaRun struct {
-	root          string
-	previous      *Artifact
-	current       *Artifact
-	auth          *gitauth.Repository
-	pre           *pathPrefetch
-	newInputs     map[string]Input
-	oldInputs     map[string]Input
-	blobs         map[string][]byte
-	blobReasons   map[string]string
-	read, hashed  int
+	root         string
+	previous     *Artifact
+	current      *Artifact
+	auth         *gitauth.Repository
+	pre          *pathPrefetch
+	newInputs    map[string]Input
+	oldInputs    map[string]Input
+	blobs        map[string][]byte
+	blobReasons  map[string]string
+	read, hashed int
+	// verified caches span digests by deltaSpanKey so a repeated span is
+	// charged to the hashing bound once (DCP-V1-444).
+	verified      map[deltaSpanKey]string
 	hashLimit     int // deltaHashMaxBytes; zero means the default
 	readLimit     int // deltaReadMaxBytes; zero means the default
 	index         *contextindex.Index
@@ -1118,7 +1121,7 @@ func (d *deltaRun) classifyAnchor(ctx context.Context, a Anchor) (DeltaAnchor, A
 		return p
 	}
 	if in.Blob == a.Blob {
-		digest, ok := d.spanHash(spanLines(data), a.Start, a.End)
+		digest, ok := d.cachedSpanHash(deltaSpanKey{repo.id, a.Path, in.Blob, a.Start, a.End}, data)
 		if !ok {
 			return state(DeltaUnresolved, deltaHashBoundReason)
 		}
@@ -1134,7 +1137,7 @@ func (d *deltaRun) classifyAnchor(ctx context.Context, a Anchor) (DeltaAnchor, A
 	var oldSpan []byte
 	if oldReason == "" {
 		lines := spanLines(oldData)
-		digest, ok := d.spanHash(lines, a.Start, a.End)
+		digest, ok := d.cachedSpanHash(deltaSpanKey{repo.id, a.Path, a.Blob, a.Start, a.End}, oldData)
 		if !ok {
 			return state(DeltaUnresolved, deltaHashBoundReason)
 		}
@@ -1286,6 +1289,33 @@ func (d *deltaRun) spanHash(lines []string, start, end int) (string, bool) {
 	}
 	d.hashed += len(joined)
 	return Digest([]byte(joined)), true
+}
+
+// deltaSpanCacheMax bounds the verified-span cache; spans past it are hashed
+// and charged each time.
+const deltaSpanCacheMax = 1 << 16
+
+// deltaSpanKey names one span of one blob read for one path and repository.
+type deltaSpanKey struct {
+	repo, path, blob string
+	start, end       int
+}
+
+// cachedSpanHash is spanHash over data's lines, reusing the digest of a span
+// already hashed under key. Only a digest actually computed is cached, so a
+// span never hashed is never confirmed; callers still compare the digest.
+func (d *deltaRun) cachedSpanHash(key deltaSpanKey, data []byte) (string, bool) {
+	if digest, ok := d.verified[key]; ok {
+		return digest, true
+	}
+	digest, ok := d.spanHash(spanLines(data), key.start, key.end)
+	if ok && digest != "" && len(d.verified) < deltaSpanCacheMax {
+		if d.verified == nil {
+			d.verified = map[deltaSpanKey]string{}
+		}
+		d.verified[key] = digest
+	}
+	return digest, ok
 }
 
 // liveIndex is the current revision's context index, built once on demand.

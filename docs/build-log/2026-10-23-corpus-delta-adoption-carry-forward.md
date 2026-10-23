@@ -52,6 +52,19 @@ typed details.
 | Independent read-only review (subagent) | No HIGH findings. MED: a moved test subject could leave a carried exact test join the build refuses (fixed, demoted with reason). LOW: a demoted record the current corpus holds re-queued its dependents (fixed); an adoption provider whose carried records were all generic got the generic 4,096 bound (fixed by keying on the import-parity row); existence-only join checks against current records (documented in `DCP-V1-442`). |
 | `TestCAPV00*`, `TestMCPV0100*`, `TestDocsCorpus*`, `TestDCPV1360DeltaCLI`, `TestDCPV142*` (focused) | PASS |
 
+## Review repair (PR #1615)
+
+- MEDIUM: unchanged anchors each charged the shared 64 MiB hashing bound, so a self-delta with
+  1,025 records sharing one 64 KiB span listed the last one `unresolved` even though the corpora
+  are identical, breaking `DCP-V1-444`. The delta now verifies each distinct (repository, path,
+  blob, lines) span once and reuses the digest from a cache bounded at 65,536 spans. Only
+  computed digests are cached and each anchor's span hash is still compared, so an unverified
+  span never passes. Spans past the cache bound are hashed and charged each time as before.
+  `TestDCPV1444SelfDeltaSharedSpanChargedOnce` failed on the previous code (`unresolved:1`) and
+  passes after the fix. It also checks that a forged span hash over a cached span is not carried.
+- LOW: `DCP-V1-440..445` now carry the leading standing-acceptance parenthetical, so
+  `REQUIREMENTS.tsv` records them as accepted instead of `unrecorded`.
+
 ## Limits
 
 - The fix was not re-measured on the reporter's 109,289-entry corpus. The fixtures exercise the
@@ -63,3 +76,6 @@ typed details.
   which then refuses it.
 - A partly changed flow is listed `changed` and is not partly carried. Paragraphs whose flow
   changed are demoted rather than re-attached.
+- The verified-span cache covers the unchanged-blob and previous-blob confirmations. Placement
+  scans over a changed blob still charge every window they hash, so more than 64 MiB of distinct
+  window hashing still ends in `unresolved` with the bound reason.

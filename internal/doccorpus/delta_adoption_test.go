@@ -3,6 +3,7 @@ package doccorpus
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -290,4 +291,45 @@ func recordEntries(receipt *DeltaReceipt) map[string]DeltaEntry {
 		}
 	}
 	return out
+}
+
+// TestDCPV1444SelfDeltaSharedSpanChargedOnce pins that a self-delta stays free of unresolved
+// entries when more records share one large span than the 64 MiB hashing bound could hash one
+// by one: each distinct verified span is charged once, and a cached digest still has to match.
+func TestDCPV1444SelfDeltaSharedSpanChargedOnce(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	root, m := fixture(t)
+	line := strings.Repeat("x", 63) + "\n"
+	m = commitEdits(t, root, map[string]string{"src/large.md": strings.Repeat(line, 1024)})
+	rev := m.Repository.Revision
+	shared := tkAnchor(t, root, m, rev, "src/large.md", 1, 1024)
+	records := deltaHashMaxBytes/(64<<10) + 1
+	subjects := make([]Subject, 0, records)
+	for i := range records {
+		subjects = append(subjects, Subject{fmt.Sprintf("adapter:shared-%04d", i), "document", "Shared", "adapter", deltaEvidence(shared), nil})
+	}
+	a, err := Build(ctx, root, commitProvider(t, root, m, deltaProviderRecord(m, "adapter", subjects, nil), "evidence/provider.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := DeltaWith(ctx, root, a, a, "artifact", DeltaOptions{Limit: MaxResults})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Counts[DeltaUnresolved] != 0 || receipt.Counts[DeltaCarryForward] < records {
+		t.Fatalf("self-delta over one shared span: %+v", receipt.Counts)
+	}
+	run, err := classifyDelta(ctx, root, a, a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run.hashed > 64<<10 {
+		t.Fatalf("shared span charged %d bytes, want one span", run.hashed)
+	}
+	forged := subjectAnchor(t, a, "adapter:shared-0000")
+	forged.SpanSHA256 = Digest([]byte("not the span"))
+	if da, _, err := run.classifyAnchor(ctx, forged); err != nil || da.State == DeltaCarryForward || da.State == DeltaMoved {
+		t.Fatalf("cached span digest confirmed a forged span hash: %+v %v", da, err)
+	}
 }
