@@ -98,3 +98,50 @@ investigated; this change does not touch the MCP server.
   review repair, `-race -run 'TestDCPV146|TestDCPV1425'`: ok.
 - `go test -count=1 -run 'TestDCPV1460|TestDCPV1360DeltaCLI|TestDCPV1421|TestDCPV1425|TestDocsCorpusOperationFlagMatrix|TestDocsCorpusOperationHelpPrintsFlags|TestDCPV1413|TestDocsCorpusHelp' ./cmd/corvint`: ok.
 - `go test -count=1 -timeout 30m ./internal/perfbudget/...`: ok, including the smoke harness run.
+
+## Second review repair
+
+Independent review of 8c9a8dbd8 found two issues.
+
+- P1, `DCP-V1-464`: with every checkout available, the verified current side checked only the
+  pins, tree and digests, never each input's `(revision, path) -> blob` binding. A current artifact
+  whose changed input `src/report.py` named the previous blob and SHA-256, with its manifest and
+  content digests recomputed, was admitted and classified `carry-forward` ("anchored blob is
+  unchanged at the current revision"); `--verify-rederive` refused it. `OpenDeltaRead` now runs
+  `verifyAvailableInputs` (the `DCP-V1-425` batched per-revision path walk: path present, regular
+  file, blob ID, primary identity; each additional repository's identity is already checked at
+  every pin by `unavailableCheckouts`) in the header callback when no checkout is missing, so it
+  overlaps the record decode, and refuses before classification. `TestDCPV1464DeltaVerifiedReadChecksInputBindings`
+  failed on 8c9a8dbd8 (`verified delta current side admitted a swapped input blob: <nil>`) and
+  passes now. A recorded input SHA-256 is still not rehashed from its blob; only
+  `--verify-rederive` catches an artifact whose SHA-256 alone is wrong.
+- P3, `PRB-V0-053`: the `unchanged-delta` baseline samples sat under a baseline whose revision,
+  time, host and `fixture.builder_sha256` belong to the 03:08 dd0d09db run. A full
+  `--record-baseline` regeneration was not done: on this host the two MCP scenarios return
+  `corpus-refused` for binaries passed with `--corvint` (unchanged from the first measurement, cause
+  not investigated), and `--record-baseline` refuses a run with an unmeasured scenario; it would
+  also re-derive the six existing ceilings. Instead each baseline measurement may carry
+  `provenance` (start time, the measured executable's clean revision and SHA-256, host
+  observation), validated on load. The `unchanged-delta` entry now names its own run from that
+  run's report: 2026-10-23T15:39:25Z, executable a86d55627 (`vcs.modified=false`, SHA-256
+  `9763911a…3fde1`, which also built the fixture artifacts it read), load 7.01/11.49/16.8,
+  uncontended. The harness labelled that run `a86d55627…+dirty` because it ran from a dirty
+  checkout with `--corvint`; the executable's embedded revision is recorded instead.
+- `TestPRBV0050UnchangedDeltaBudget` cannot detect a restored rederivation, because its rederiving
+  measurements are constants. The spec now names the build counter of
+  `TestDCPV1460DeltaCLIVerifiedRead` as the deterministic guard.
+
+Unchanged-pair `--format jsonl --timings` on the same full fixture, each binary built from a clean
+checkout and building its own artifact, runs alternated, 1-minute load 5.8 to 6.1:
+
+| Binary | verify_ms | compare_ms | total_ms | wall | peak memory |
+|---|---|---|---|---|---|
+| before repair, 8c9a8dbd8 | 135.7, 138.1, 208.7 | 1171.4, 1352.9, 2272.9 | 1510.5, 1704.2, 2769.5 | 1.54, 1.74, 2.87 s | 680 to 702 MB |
+| after repair, a374f21f9 (also merges origin/main) | 334.7, 350.1, 362.7 | 1146.9, 1195.7, 1207.7 | 1662.6, 1746.5, 1752.2 | 1.69, 1.78, 1.82 s | 665 to 684 MB |
+
+The binding check adds about 200 ms to `verify_ms`, partly hidden behind the record decode; the
+median wall time went from 1.74 s to 1.78 s, under the 5,500 ms `unchanged-delta` ceiling. The six
+outputs' entry lines are byte-identical. The committed baseline and ceilings were not re-recorded.
+
+Repair tests: `go test -count=1 -timeout 30m ./internal/doccorpus`: ok (405 s);
+`go test -count=1 -run 'TestPRBV005|TestPRBV003' ./internal/perfbudget`: ok.
