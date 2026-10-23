@@ -3698,6 +3698,11 @@ MCPV0-041	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's sta
 MCPV0-042	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1999) A	standing	2026-10-11; V1-1999
 MCPV0-090	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1004) A	standing	2026-10-11; V1-1004
 MCPV0-100	docs/specs/mcp-server-2026-07-28-v0.md	(owner directive through the orchestrator, 2026-10-23; gh#1588; amends `MCPV0-00	unrecorded	-
+MCPV0-101	docs/specs/mcp-server-2026-07-28-v0.md	(owner request, 2026-10-23; extends `MCPV0-100`; amends `SDD-V0-006`)	unrecorded	-
+MCPV0-102	docs/specs/mcp-server-2026-07-28-v0.md	(owner request, 2026-10-23; extends `MCPV0-100`) `corvint-corpus-mcp` MUST	unrecorded	-
+MCPV0-103	docs/specs/mcp-server-2026-07-28-v0.md	(owner request, 2026-10-23; extends `MCPV0-100`; amends `MTV-V0-001`)	unrecorded	-
+MCPV0-104	docs/specs/mcp-server-2026-07-28-v0.md	(owner request, 2026-10-23) The three servers of `MCPV0-101..103` MUST answer	unrecorded	-
+MCPV0-105	docs/specs/mcp-server-2026-07-28-v0.md	(owner request, 2026-10-23) The receipt `text` that `MCPV0-104` returns MUST be,	unrecorded	-
 MCPV0-095	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2219) A `MIXED	standing	2026-10-11; V1-2219
 MTV-V0-001	docs/specs/mcp-test-validity-profile-v0.md	The profile MUST be served by the separate executable `corvint-test-validity-mcp	unrecorded	-
 MTV-V0-002	docs/specs/mcp-test-validity-profile-v0.md	The tool's input schema MUST be a closed JSON Schema 2020-12 object with two	unrecorded	-

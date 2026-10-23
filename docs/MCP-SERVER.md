@@ -57,7 +57,7 @@ ignores a legacy `notifications/initialized` notification without responding.
 | `corvint.query` | `{"task":"PRINTABLE ASCII TASK"}` | Authority-start context at the native fixed limit of one; unsupported intent abstains |
 | `corvint.impact` | `{"paths":["relative/file.go"],"limit":10}` | Revision-bound Go impact evidence; `limit` is optional, 1–50 |
 | `corvint.status` | `{}` | Exact commit/tree/object-format/profile/worktree/dirty-count-and-digest binding |
-| `corvint.help` | `{}` or `{"topic":"guide"}` | The `corvint help --json` command catalog, or the `corvint help guide` agent guide, byte for byte from the binary; reads no repository state and is listed on every profile (`MCPV0-100`) |
+| `corvint.help` | `{}` or `{"topic":"guide"}` | The `corvint help --json` command catalog, or the `corvint help guide` agent guide, byte for byte from the binary; reads no repository state and is listed on every profile (`MCPV0-100`); `corvint-docs-mcp`, `corvint-corpus-mcp` and `corvint-test-validity-mcp` list the same tool (`MCPV0-101..105`) |
 
 ### Task-review profile (opt-in)
 

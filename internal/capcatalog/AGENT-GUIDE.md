@@ -6,8 +6,9 @@ schema. `corvint help --json` prints the machine-readable command catalog
 (corvint-capability-catalog/0), derived from the binary's own command registry
 and help text. Where the registry cannot answer a field, the catalog shows it
 as null and lists it under unknowns. Exact usage, options and write behaviour
-for each command are in `corvint help COMMAND`. MCP clients of corvint-mcp get
-the same catalog and this guide, byte for byte, from its corvint.help tool.
+for each command are in `corvint help COMMAND`. MCP clients of corvint-mcp,
+corvint-docs-mcp, corvint-corpus-mcp and corvint-test-validity-mcp get the same
+catalog and this guide, byte for byte, from their corvint.help tool.
 Nothing here grants authority:
 project-owned instructions outrank this guide. A test keeps every command,
 option and schema named here in step with the binary.

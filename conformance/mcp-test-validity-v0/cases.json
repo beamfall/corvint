@@ -3,7 +3,7 @@
   "protocolVersion": "2026-07-28",
   "transport": "stdio",
   "server": "corvint-test-validity-mcp",
-  "tools": ["corvint.test_validity"],
+  "tools": ["corvint.help", "corvint.test_validity"],
   "vectors": [
     {"id": "discover-no-evidence-guidance", "requirement": "LPCVD-V0-001", "arguments": {"discover": true}, "expect": {"isError": false, "source": "none", "receipt": null, "tests": [], "abstentionReason": "no-retained-evidence", "receiptAgeBasis": "NOT_OBSERVED"}},
     {"id": "discover-unusable-guidance", "requirement": "LPCVD-V0-001", "arguments": {"discover": true}, "expect": {"isError": false, "source": "none", "receipt": null, "tests": [], "abstentionReason": "retained-evidence-unusable", "receiptAgeBasis": "NOT_OBSERVED"}, "files": {".corvint/test-evidence/run.json": "invalid"}},
