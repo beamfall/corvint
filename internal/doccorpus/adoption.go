@@ -343,14 +343,14 @@ func (c *compiler) validateAdoption(p ProviderRecord) error {
 		}
 	}
 	for _, s := range p.Subjects {
-		if adoptionSubjectKinds[s.Kind] && s.Kind != "variation" && s.Kind != "inventory" && s.Kind != "manual_case" {
+		if typedSubjectNeedsDetails(s.Kind) {
 			if _, ok := p.Details[s.ID]; !ok {
 				return fail("typed subject requires details")
 			}
 		}
 	}
 	for _, r := range p.Relations {
-		if adoptionRelationKinds[r.Type] && r.Type != "retired_to" && r.Type != "manual_case_for" {
+		if typedRelationNeedsDetails(r.Type) {
 			if _, ok := p.Details[r.ID]; !ok && r.Type == "migration_mapping" {
 				return fail("migration mapping requires typed details")
 			} else if !ok {
@@ -359,6 +359,16 @@ func (c *compiler) validateAdoption(p ProviderRecord) error {
 		}
 	}
 	return nil
+}
+
+// typedSubjectNeedsDetails and typedRelationNeedsDetails name the adoption kinds an adoption
+// provider must give typed details; the delta applies the same rule (DCP-V1-441).
+func typedSubjectNeedsDetails(kind string) bool {
+	return adoptionSubjectKinds[kind] && kind != "variation" && kind != "inventory" && kind != "manual_case"
+}
+
+func typedRelationNeedsDetails(kind string) bool {
+	return adoptionRelationKinds[kind] && kind != "retired_to" && kind != "manual_case_for"
 }
 
 func validateRecordDetails(kind string, d RecordDetails, rel Relation) error {

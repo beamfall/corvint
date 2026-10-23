@@ -2649,6 +2649,12 @@ DCP-V1-422	docs/specs/documentation-corpus-v1.md	`--anchorless summary|list` sel
 DCP-V1-423	docs/specs/documentation-corpus-v1.md	`--format jsonl` classifies once and prints the whole worklist without paging.	unrecorded	-
 DCP-V1-424	docs/specs/documentation-corpus-v1.md	The same inputs give the same worklist whichever builder built the previous corp	unrecorded	-
 DCP-V1-425	docs/specs/documentation-corpus-v1.md	These are refused with exit 2 and no output as argument errors:	unrecorded	-
+DCP-V1-440	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1611)	standing	2026-10-11; #1611
+DCP-V1-441	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1611)	standing	2026-10-11; #1611
+DCP-V1-442	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1611)	standing	2026-10-11; #1611
+DCP-V1-443	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1611)	standing	2026-10-11; #1611
+DCP-V1-444	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1611)	standing	2026-10-11; #1611
+DCP-V1-445	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1611)	standing	2026-10-11; #1611
 DCP-V1-390	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) A	standing	2026-10-11; #1583
 DCP-V1-391	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) Eac	standing	2026-10-11; #1583
 DCP-V1-392	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) Rel	standing	2026-10-11; #1583

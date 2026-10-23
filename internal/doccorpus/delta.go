@@ -192,19 +192,31 @@ type deltaRecord struct {
 	claim    Claim
 	relation Relation
 	anchors  []Anchor
+	// details are the record's typed adoption details in the previous corpus, if any; a carried
+	// record re-applies them unchanged (DCP-V1-443).
+	details *RecordDetails
+	// adoption reports an adoption-only subject kind or relation type (DCP-V1-440).
+	adoption bool
+}
+
+func (r *deltaRecord) carried() bool {
+	return r.entry.Class == DeltaCarryForward || r.entry.Class == DeltaMoved
 }
 
 type deltaRun struct {
-	root          string
-	previous      *Artifact
-	current       *Artifact
-	auth          *gitauth.Repository
-	pre           *pathPrefetch
-	newInputs     map[string]Input
-	oldInputs     map[string]Input
-	blobs         map[string][]byte
-	blobReasons   map[string]string
-	read, hashed  int
+	root         string
+	previous     *Artifact
+	current      *Artifact
+	auth         *gitauth.Repository
+	pre          *pathPrefetch
+	newInputs    map[string]Input
+	oldInputs    map[string]Input
+	blobs        map[string][]byte
+	blobReasons  map[string]string
+	read, hashed int
+	// verified caches span digests by deltaSpanKey so a repeated span is
+	// charged to the hashing bound once (DCP-V1-444).
+	verified      map[deltaSpanKey]string
 	hashLimit     int // deltaHashMaxBytes; zero means the default
 	readLimit     int // deltaReadMaxBytes; zero means the default
 	index         *contextindex.Index
@@ -351,7 +363,9 @@ func deltaWorklist(ctx context.Context, root string, previous, current *Artifact
 // previous records that the delta classes carry-forward or moved and that the
 // current corpus does not already hold, each anchor re-pinned to the current
 // revision with its span hash unchanged (DCP-V1-366). The record is meant to be
-// committed and declared as a records provider of the next build.
+// committed and declared as a records provider of the next build. A record that
+// carries adoption kinds or typed details is a corvint-corpus-adoption-provider/1
+// record holding those details unchanged (DCP-V1-443).
 func CarryForward(ctx context.Context, root string, previous, current *Artifact, provider string) (*ProviderRecord, error) {
 	declared, ok := Provider{}, false
 	for _, p := range previous.Manifest.Providers {
@@ -367,9 +381,18 @@ func CarryForward(ctx context.Context, root string, previous, current *Artifact,
 		return nil, err
 	}
 	record := &ProviderRecord{Schema: ProviderSchema, ID: provider, Version: declared.Version, Source: current.Manifest.Repository, Subjects: []Subject{}, Claims: []Claim{}, Relations: []Relation{}, Journeys: []Journey{}, Observations: []ObservationLink{}, Capabilities: []CapabilityDeclaration{}}
+	// An adoption provider's records go back as the adoption record they came from, under its
+	// record bound; every adoption import leaves a typed_detail parity row (DCP-V1-443).
+	adoption, details := slices.ContainsFunc(previous.ImportParity, func(p ImportParity) bool {
+		return p.Provider == provider && p.SourceKind == "typed_detail"
+	}), map[string]RecordDetails{}
 	for _, r := range run.records {
-		if r.entry.Provider != provider || r.entry.PresentInCurrent || r.entry.Class != DeltaCarryForward && r.entry.Class != DeltaMoved {
+		if r.entry.Provider != provider || r.entry.PresentInCurrent || !r.carried() {
 			continue
+		}
+		adoption = adoption || r.adoption
+		if r.details != nil {
+			details[r.entry.ID] = *r.details
 		}
 		switch r.kind {
 		case "subject":
@@ -386,11 +409,20 @@ func CarryForward(ctx context.Context, root string, previous, current *Artifact,
 			record.Relations = append(record.Relations, rel)
 		}
 	}
+	// Adoption kinds and typed details re-apply only through the adoption schema, which only a /2
+	// manifest admits (DCP-V1-443).
+	limit := MaxRecords
+	if adoption || len(details) > 0 {
+		if current.Manifest.Schema != ManifestSchemaV2 {
+			return nil, fail("carry-forward of adoption provider " + provider + " emits a " + AdoptionProviderSchema + " record, which only a " + ManifestSchemaV2 + " current manifest admits")
+		}
+		record.Schema, record.Details, limit = AdoptionProviderSchema, details, MaxCorpusRecords
+	}
 	if err := carriedClosure(run, record, provider); err != nil {
 		return nil, err
 	}
-	if len(record.Subjects) > MaxRecords || len(record.Claims) > MaxRecords || len(record.Relations) > MaxRecords {
-		return nil, capacityExceeded("carried records of one kind", max(len(record.Subjects), len(record.Claims), len(record.Relations)), MaxRecords)
+	if len(record.Subjects) > limit || len(record.Claims) > limit || len(record.Relations) > limit {
+		return nil, capacityExceeded("carried records of one kind", max(len(record.Subjects), len(record.Claims), len(record.Relations)), limit)
 	}
 	reason := "carried forward from corpus " + previous.SHA256 + " with every span hash confirmed at the current revision"
 	for _, kind := range []struct {
@@ -429,7 +461,7 @@ func carriedClosure(run *deltaRun, record *ProviderRecord, provider string) erro
 	}
 	carriedBy := map[string]string{}
 	for _, r := range run.records {
-		if r.entry.Class == DeltaCarryForward || r.entry.Class == DeltaMoved {
+		if r.carried() {
 			carriedBy[r.entry.ID] = r.entry.Provider
 		}
 	}
@@ -445,6 +477,18 @@ func carriedClosure(run *deltaRun, record *ProviderRecord, provider string) erro
 	for _, r := range record.Relations {
 		need(r.ID, r.From)
 		need(r.ID, r.To)
+	}
+	// A typed detail may also join to a relation (DCP-V1-442).
+	for _, r := range run.current.Relations {
+		present[r.ID] = true
+	}
+	for _, r := range record.Relations {
+		present[r.ID] = true
+	}
+	for _, id := range sortedKeys(record.Details) {
+		for _, ref := range detailReferences(record.Details[id]) {
+			need(id, ref)
+		}
 	}
 	if len(missing) == 0 {
 		return nil
@@ -810,34 +854,48 @@ func (d *deltaRun) classifyRecords(ctx context.Context) error {
 	for _, r := range d.current.Relations {
 		present[r.ID] = true
 	}
-	add := func(kind, id, provider string, e Evidence, kindOK bool, r *deltaRecord) error {
+	// Adoption-only kinds are classified like generic records (DCP-V1-440); one whose kind needs
+	// typed details the previous corpus does not hold stays unresolved (DCP-V1-441).
+	add := func(kind, id, provider string, e Evidence, known bool, typed string, needsDetails bool, r *deltaRecord) error {
 		if !recordsProviders[provider] {
 			d.skippedNative++
 			return nil
 		}
-		r.kind = kind
+		r.kind, r.adoption = kind, typed != ""
 		r.entry = DeltaEntry{RecordKind: kind, ID: id, Provider: provider, PresentInCurrent: present[id]}
+		if details, ok := d.previous.Details[id]; ok {
+			r.details = &details
+		}
 		if err := d.classifyEvidence(ctx, r, e); err != nil {
 			return err
 		}
-		if !kindOK && (r.entry.Class == DeltaCarryForward || r.entry.Class == DeltaMoved) {
-			r.entry.Class, r.entry.Reason = DeltaUnresolved, "record kind is adoption-only; carry-forward emits generic provider records only"
+		switch {
+		case !known && r.carried():
+			r.entry.Class, r.entry.Reason = DeltaUnresolved, "record kind is in neither the generic nor the adoption vocabulary"
+		case needsDetails && r.details == nil && r.carried():
+			r.entry.Class, r.entry.Reason = DeltaUnresolved, "adoption record kind "+typed+" requires typed details that the previous corpus does not hold"
 		}
 		d.records = append(d.records, r)
 		return nil
 	}
+	adoptionKind := func(generic, adoption map[string]bool, kind string) string {
+		if !generic[kind] && adoption[kind] {
+			return kind
+		}
+		return ""
+	}
 	for _, s := range d.previous.Subjects {
-		if err := add("subject", s.ID, s.Provider, s.Evidence, subjectKinds[s.Kind], &deltaRecord{subject: s}); err != nil {
+		if err := add("subject", s.ID, s.Provider, s.Evidence, subjectKinds[s.Kind] || adoptionSubjectKinds[s.Kind], adoptionKind(subjectKinds, adoptionSubjectKinds, s.Kind), typedSubjectNeedsDetails(s.Kind), &deltaRecord{subject: s}); err != nil {
 			return err
 		}
 	}
 	for _, c := range d.previous.Claims {
-		if err := add("claim", c.ID, c.Provider, c.Evidence, true, &deltaRecord{claim: c}); err != nil {
+		if err := add("claim", c.ID, c.Provider, c.Evidence, true, "", false, &deltaRecord{claim: c}); err != nil {
 			return err
 		}
 	}
 	for _, r := range d.previous.Relations {
-		if err := add("relation", r.ID, r.Provider, r.Evidence, relationKinds[r.Type], &deltaRecord{relation: r}); err != nil {
+		if err := add("relation", r.ID, r.Provider, r.Evidence, relationKinds[r.Type] || adoptionRelationKinds[r.Type], adoptionKind(relationKinds, adoptionRelationKinds, r.Type), typedRelationNeedsDetails(r.Type), &deltaRecord{relation: r}); err != nil {
 			return err
 		}
 	}
@@ -845,35 +903,133 @@ func (d *deltaRun) classifyRecords(ctx context.Context) error {
 	return nil
 }
 
-// demoteDependencies keeps the carried set closed: a carried claim needs its
-// subject, and a carried relation its endpoints, in the current corpus or
-// carried with it (DCP-V1-365).
+// deltaDependency is one ID a carried record needs in the current corpus or carried with it,
+// carried under one of kinds (any record kind when kinds is nil).
+type deltaDependency struct {
+	id, what string
+	kinds    []string
+}
+
+// dependencies are a claim's subject, a relation's endpoints, and every ID the record's typed
+// details reference (DCP-V1-365, DCP-V1-442).
+func (r *deltaRecord) dependencies() []deltaDependency {
+	deps := []deltaDependency{}
+	switch r.kind {
+	case "claim":
+		deps = append(deps, deltaDependency{r.claim.Subject, "claim subject", []string{"subject"}})
+	case "relation":
+		for _, end := range []string{r.relation.From, r.relation.To} {
+			deps = append(deps, deltaDependency{end, "relation endpoint", []string{"subject", "claim"}})
+		}
+	}
+	if r.details != nil {
+		for _, id := range detailReferences(*r.details) {
+			deps = append(deps, deltaDependency{id, "typed detail reference", nil})
+		}
+	}
+	return deps
+}
+
+// detailReferences lists the record IDs typed details join to, as validateAdoptionJoins checks
+// them; a test link's target is its relation's endpoint.
+func detailReferences(d RecordDetails) []string {
+	refs := []string{}
+	if f := d.Flow; f != nil {
+		for _, s := range f.Sections {
+			refs = append(refs, s.Paragraphs...)
+		}
+		refs = append(append(refs, f.Variations...), f.Entrypoints...)
+	}
+	if p := d.Paragraph; p != nil {
+		refs = append(refs, p.Flow)
+		if p.RetiredTo != "" {
+			refs = append(refs, p.RetiredTo)
+		}
+	}
+	if c := d.Coverage; c != nil {
+		refs = append(refs, c.Denominator...)
+	}
+	if x := d.IntentComparison; x != nil {
+		refs = append(append(append(append(refs, x.ReportedIntent...), x.ObservedClaims...), x.Missing...), x.Conflicts...)
+	}
+	if s := d.Status; s != nil {
+		refs = append(refs, s.Supporting...)
+	}
+	return refs
+}
+
+// demoteDependencies keeps the carried set closed: every dependency of a carried record is in
+// the current corpus or carried with it (DCP-V1-365, DCP-V1-442). A demotion re-checks the records
+// that depend on the demoted ID, so the set is stable when the queue drains.
 func (d *deltaRun) demoteDependencies(present map[string]bool) {
-	carried := func(kind string) map[string]bool {
-		out := map[string]bool{}
-		for _, r := range d.records {
-			if r.kind == kind && (r.entry.Class == DeltaCarryForward || r.entry.Class == DeltaMoved) {
-				out[r.entry.ID] = true
-			}
-		}
-		return out
-	}
-	subjects := carried("subject")
-	for _, r := range d.records {
-		if r.kind == "claim" && (r.entry.Class == DeltaCarryForward || r.entry.Class == DeltaMoved) && !present[r.claim.Subject] && !subjects[r.claim.Subject] {
-			r.entry.Class, r.entry.Reason = DeltaUnresolved, "claim subject "+r.claim.Subject+" is neither in the current corpus nor carried forward"
-		}
-	}
-	claims := carried("claim")
-	for _, r := range d.records {
-		if r.kind != "relation" || r.entry.Class != DeltaCarryForward && r.entry.Class != DeltaMoved {
+	carried := map[string]int{}
+	dependents := map[string][]int{}
+	deps := make([][]deltaDependency, len(d.records))
+	for i, r := range d.records {
+		if !r.carried() {
 			continue
 		}
-		for _, end := range []string{r.relation.From, r.relation.To} {
-			if !present[end] && !subjects[end] && !claims[end] {
-				r.entry.Class, r.entry.Reason = DeltaUnresolved, "relation endpoint "+end+" is neither in the current corpus nor carried forward"
+		carried[r.kind+"\x00"+r.entry.ID]++
+		deps[i] = r.dependencies()
+		for _, dep := range deps[i] {
+			dependents[dep.id] = append(dependents[dep.id], i)
+		}
+	}
+	have := func(dep deltaDependency) bool {
+		if present[dep.id] {
+			return true
+		}
+		kinds := dep.kinds
+		if kinds == nil {
+			kinds = []string{"subject", "claim", "relation"}
+		}
+		for _, kind := range kinds {
+			if carried[kind+"\x00"+dep.id] > 0 {
+				return true
+			}
+		}
+		return false
+	}
+	// An exact test join needs its file among the anchors its target test has in the next build:
+	// the current subject's, or the carried subject's re-pinned anchors (DCP-V1-442).
+	testPaths := map[string][]string{}
+	for _, s := range d.current.Subjects {
+		for _, a := range s.Evidence.Anchors {
+			testPaths[s.ID] = append(testPaths[s.ID], a.Path)
+		}
+	}
+	for _, r := range d.records {
+		if r.kind == "subject" && !present[r.entry.ID] {
+			for _, a := range r.anchors {
+				testPaths[r.entry.ID] = append(testPaths[r.entry.ID], a.Path)
+			}
+		}
+	}
+	demote := func(r *deltaRecord, reason string) {
+		r.entry.Class, r.entry.Reason = DeltaUnresolved, reason
+		carried[r.kind+"\x00"+r.entry.ID]--
+	}
+	queue := make([]int, len(d.records))
+	for i := range queue {
+		queue[i] = i
+	}
+	for next := 0; next < len(queue); next++ {
+		r := d.records[queue[next]]
+		if !r.carried() {
+			continue
+		}
+		for _, dep := range deps[queue[next]] {
+			if !have(dep) {
+				demote(r, dep.what+" "+dep.id+" is neither in the current corpus nor carried forward")
 				break
 			}
+		}
+		if x := r.details; r.carried() && !r.entry.PresentInCurrent && r.kind == "relation" && x != nil && x.TestLink != nil && x.TestLink.JoinConfidence == "exact" && !slices.Contains(testPaths[r.relation.To], x.TestLink.File) {
+			demote(r, "exact test join file "+x.TestLink.File+" is not anchored by test "+r.relation.To+" at the current revision")
+		}
+		// A record the current corpus holds still satisfies its dependents.
+		if !r.carried() && !present[r.entry.ID] {
+			queue = append(queue, dependents[r.entry.ID]...)
 		}
 	}
 }
@@ -965,7 +1121,7 @@ func (d *deltaRun) classifyAnchor(ctx context.Context, a Anchor) (DeltaAnchor, A
 		return p
 	}
 	if in.Blob == a.Blob {
-		digest, ok := d.spanHash(spanLines(data), a.Start, a.End)
+		digest, ok := d.cachedSpanHash(deltaSpanKey{repo.id, a.Path, in.Blob, a.Start, a.End}, data)
 		if !ok {
 			return state(DeltaUnresolved, deltaHashBoundReason)
 		}
@@ -981,7 +1137,7 @@ func (d *deltaRun) classifyAnchor(ctx context.Context, a Anchor) (DeltaAnchor, A
 	var oldSpan []byte
 	if oldReason == "" {
 		lines := spanLines(oldData)
-		digest, ok := d.spanHash(lines, a.Start, a.End)
+		digest, ok := d.cachedSpanHash(deltaSpanKey{repo.id, a.Path, a.Blob, a.Start, a.End}, oldData)
 		if !ok {
 			return state(DeltaUnresolved, deltaHashBoundReason)
 		}
@@ -1133,6 +1289,33 @@ func (d *deltaRun) spanHash(lines []string, start, end int) (string, bool) {
 	}
 	d.hashed += len(joined)
 	return Digest([]byte(joined)), true
+}
+
+// deltaSpanCacheMax bounds the verified-span cache; spans past it are hashed
+// and charged each time.
+const deltaSpanCacheMax = 1 << 16
+
+// deltaSpanKey names one span of one blob read for one path and repository.
+type deltaSpanKey struct {
+	repo, path, blob string
+	start, end       int
+}
+
+// cachedSpanHash is spanHash over data's lines, reusing the digest of a span
+// already hashed under key. Only a digest actually computed is cached, so a
+// span never hashed is never confirmed; callers still compare the digest.
+func (d *deltaRun) cachedSpanHash(key deltaSpanKey, data []byte) (string, bool) {
+	if digest, ok := d.verified[key]; ok {
+		return digest, true
+	}
+	digest, ok := d.spanHash(spanLines(data), key.start, key.end)
+	if ok && digest != "" && len(d.verified) < deltaSpanCacheMax {
+		if d.verified == nil {
+			d.verified = map[deltaSpanKey]string{}
+		}
+		d.verified[key] = digest
+	}
+	return digest, ok
 }
 
 // liveIndex is the current revision's context index, built once on demand.
