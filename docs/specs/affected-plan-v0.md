@@ -2474,6 +2474,101 @@ modelled.
   graph, omits an unreached unit's site, counts a truncation entry as one, or differs between the
   two profiles. Rollback: remove `Plan.FrontierSites` and `Graph.frontierSites`.
 
+### Cross-call graph reuse and batch paths
+
+GitHub #1601 (V1-2473): on a Rails checkout of about 12,100 tracked files (4,200 Ruby) each
+`affected --path P` cost about 11 s and 300 MB on a busy host, and repeated calls shared nothing.
+A profile of a generated tree of that shape (build log `2026-10-23-affected-graph-reuse-gh1601`)
+put the cost in the graph build: one open per Ruby file, and every spec re-reading and re-scanning
+the helpers it loads, about 60% of all opens. These requirements are proposed (owner auto-accept
+pending); they do not change any plan, wire member or exit code.
+
+- **AFP-V0-390:** (proposed; V1-2473, GH #1601)
+  `affected --cache DIR` MUST be the only way the plan path reads or writes a graph cache: without
+  it nothing is read from or written to any cache location. DIR is named by the caller; it is made
+  absolute, the symlinks of its nearest existing ancestor are resolved, and it MUST be refused
+  with `invalid-arguments` before any repository read (`--paths-from` included) when it is at or
+  under the repository root, textually or because the root is the same file as it or one of its
+  existing ancestors (a case-insensitive file system, a firmlink), has a `.git` component in any
+  case, is empty or given twice, or is combined with `--snapshot` or `--playwright-config`. DIR is created (mode 0700) if absent and holds at most one entry per
+  repository root and language set, written mode 0600 through a temporary file renamed over the
+  entry, so a reader sees a whole old or new entry. Invariant analysis (AGENTS.md invariant 4):
+  `affected` stays a read command. The entry is derived state at a location the caller named
+  outside repository content, never under `.corvint/` (whose private ledgers are fixed by
+  `SOL-V0-001`, `SOL-V0-007` and `SOL-V0-010`), never in Git or trace state, never evidence, and
+  never an input to ranking, authority or learning; it can only reproduce a graph a full build
+  would produce (AFP-V0-391 to AFP-V0-393). No user cache directory is used by default and no
+  daemon or watcher is started (invariant 7).
+- **AFP-V0-391:** (proposed; V1-2473, GH #1601)
+  An entry (profile `corvint-affected-graph-cache/0`) MUST bind: the absolute repository root; the
+  SHA-256 of the running corvint executable, so a build whose plugins may observe differently never
+  reuses another build's entry; the ordered language set; each plugin's observed units, frontier
+  and unobserved directories with nil and empty lists kept distinct; the documentation
+  declaration; the graph digest; and a stat stamp (presence, mode, size, inode, device,
+  modification and change time, nanoseconds), taken just before the read, for every directory a
+  source walk listed and every path a plugin read, statted or found absent. A directory's times
+  move whenever an entry in it is added, removed, renamed or replaced, so its stamp pins the listing
+  the walk saw, including a skipped directory appearing and a file becoming a symbolic link. A header line carries the profile and the SHA-256 of the body. A program
+  identity that cannot be read disables the cache.
+- **AFP-V0-392:** (proposed; V1-2473, GH #1601)
+  An entry MUST be trusted only when its header checksum and profile match, its body decodes with
+  no unknown member, its root, program identity and language set equal this call's, every recorded
+  directory and path restats to the identical stamp, and the graph rebuilt from the recorded plugin results through the same
+  admission, reverse edges and digest computation as a full build has the recorded digest. Any
+  other outcome (a missing, oversized, non-regular, truncated, corrupt, forged or foreign entry, or
+  any changed stamp) MUST fall back to a full build and replace the entry; a cache
+  failure is never a command failure. No entry is written when a recorded path changed during the
+  build, any recorded path changed less than two seconds before the build started (the window
+  inside which a timestamp cannot separate two contents), a plugin walked a present subtree it
+  does not stamp (the Swift `.maestro` walk), a language observed through `Units` rather than the
+  recorded source took part, or the platform exposes no change time (anything but darwin and
+  linux, where an entry is also never trusted). Failure mode: a write that restores both
+  modification and change time and inode is outside the stamp; change time cannot be set by an
+  unprivileged process, but a file system whose change time only mirrors the modification time
+  (exFAT, some FUSE mounts) lets a same-size write that restores the modification time pass, and
+  a clock set backwards is the operator's own fault, as for Git's index.
+- **AFP-V0-393:** (proposed; V1-2473, GH #1601)
+  With `--cache`, every plan form it admits (default, `--full`, `--require-clean`, `--base`,
+  `--path`, `--paths-from`, provider and app-map forms) MUST write stdout byte-identical to the same
+  call without `--cache`, whether the entry hit, missed or could not be written, and MUST leave
+  `git status --porcelain --ignored` unchanged. The cache replaces only `affected.Build`: the
+  worktree status, HEAD, range, ignored-path check (AFP-V0-094), prior read scopes, advice,
+  selection and the AFP-V0-150 drift rechecks still run on every call. Nothing about the cache
+  reaches the receipt.
+- **AFP-V0-394:** (proposed; V1-2473, GH #1601)
+  The Ruby plugin MUST read and scan each loaded helper at most once per observation, however many
+  specs load it, with units, edges, frontier and digest unchanged. Non-goal: concurrent Ruby
+  reads; on the profiled host a pool of eight readers cut wall time by under 10% for three times the
+  kernel CPU, which a busy host pays (build log `2026-10-23-affected-graph-reuse-gh1601`).
+- **AFP-V0-395:** (proposed; V1-2473, GH #1601)
+  `affected --paths-from FILE` MUST add to the `--path` set every nonblank LF-separated line of
+  FILE (relative to the root unless absolute, a regular file of at most 4 MiB), each held to the
+  `--path` canonical-path rule and the 4,096-path bound, joined with any `--path` values, and MUST
+  then plan exactly as `--path` with those values does: the same bytes, including `path_list`. A
+  missing or non-regular file, an oversize file, a leading byte order mark, a line ending in a
+  carriage return, an invalid
+  line, a file with no path, a repeated flag, a separated value beginning with `-`, or any
+  combination `--path` refuses MUST refuse with `invalid-arguments`.
+- **AFP-V0-396:** (proposed; V1-2473, GH #1601)
+  `corvint help affected` MUST document `--paths-from FILE` and `--cache DIR`, state that one call
+  with many paths builds the graph once so callers should batch, and state the cache's location
+  rule, verification, two-second window, platforms and byte-identical output; the `affected` row of
+  `docs/CAPABILITIES.md` MUST name the batch form and the cache.
+- **AFP-V0-397:** (proposed; V1-2473, GH #1601)
+  A repeated single-path call on an unchanged Rails-shaped tree MUST restore the verified graph
+  instead of building it, and write the cold call's bytes. Acceptance evidence is measured, not
+  asserted by a timer in tests: on the generated tree of the issue's shape (11,808 tracked files,
+  4,000 Ruby) a warm `--path` call MUST be sub-second on the build host, with the cold and warm
+  times, peak memory and host load recorded in the build log and the PR.
+
+Non-goals: no default cache location, no cache for `--snapshot` (already immutable Git input) or
+the Playwright profile, no incremental graph update after a change (a changed input rebuilds the
+whole graph), no cache of the status, advice or selection, no background process, and no change to
+the plan, its digest or any exit code. Rollback: drop `--cache` and `--paths-from` from
+`parseAffectedOptions`, delete `cmd/corvint/affected_cache.go` and
+`internal/liveverify/affected/graphcache*.go`, remove the `Source.record` hooks and restore
+`affected.Build`'s direct call; the Ruby helper memo reverts independently.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -2546,6 +2641,14 @@ or an ignored untracked file the list names or the graph reads, is
 graph; a listed path no language claims widens to `UNKNOWN`
 rather than selecting nothing at `BOUNDED`. A consumer still cannot read closure depth from an
 `impact` receipt; only the help says so (AFP-V0-096).
+
+Graph cache failure modes (AFP-V0-390 to AFP-V0-392): a `--cache` inside the repository or a
+`.git` directory (in any case, or reached through a case-insensitive or firmlinked path), or an
+unsupported combination, is `invalid-arguments`; a missing, damaged, forged,
+foreign or stale entry, an unwritable cache directory, an unreadable executable or an unsupported
+platform is a full build with the same receipt, never a refusal and never a reused graph; an
+observation that cannot be pinned writes no entry. `--paths-from` refusals are `invalid-arguments`
+(AFP-V0-395).
 
 ## Acceptance evidence and traceability
 
@@ -2652,6 +2755,14 @@ rather than selecting nothing at `BOUNDED`. A consumer still cannot read closure
 | AFP-V0-192 | `Witness.Cause`, `UnboundedCause` in `internal/liveverify/affected/select.go`; `Graph.causes`, `Graph.unboundedReaders` in `graph.go`; `Graph.unboundedReadersOf` in `readers.go` | `TestInstructionFileChangeNamesEachUnboundedReadersCause_V1_2075`; `TestGoTestOnlyChangeSelectsItsPackageButNotItsImporters_V1_0984` |
 | AFP-V0-380 | the `go-interop` script and the interop step of `go-static` in `.github/workflows/ci.yml` | `TestAFPV0380InteropTestsRunOnceInGoStatic` (the go-static step runs the module's test and vet; go-interop runs neither and keeps gofmt and the Windows build; go-product needs go-static) |
 | AFP-V0-381 | `Plan.FrontierSites` in `internal/liveverify/affected/select.go`; `Graph.frontierSites` in `graph.go`; `affectedCompactPlan.FrontierSites` in `cmd/corvint/affected_compact.go` | `TestAFPV0381PlanCountsRepositoryFrontierSites`, `TestAFPV0381CompactPlanKeepsFrontierSites`, `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan`, `TestLocatedFrontierCountsOnlyCrossedSites_RUBYAFFECTEDV0047`, `TestRepositoryWideLoadSitesStayPluginWideAndLocated_RUBYAFFECTEDV0046` |
+| AFP-V0-390 | `setAffectedOnce`, `resolveAffectedBatchAndCache`, `resolveAffectedCache`, `resolveExistingAncestor` and `within` in `cmd/corvint/affected_cache.go`; the `--cache` combination check in `parseAffectedOptions`; `writeGraphCache` in `internal/liveverify/affected/graphcache.go` | `TestAFPV0390CacheDirectoryMustBeOutsideTheRepository` (root, `.corvint/`, a package directory, a symlink into the root, a `.git` or `.GIT` component, the root under another case on a case-insensitive file system, empty, repeated, `--snapshot`, `--playwright-config` refuse with no stdout, no repository change and no cache write), `TestAFPV0391CachedGraphIsRestoredExactly` (one 0600 entry per root; a new identity replaces it) |
+| AFP-V0-391 | `cacheEntry`, `cachedLanguage`, `cachedUnit`, `recording`, `pathStamp`, `stampPath`, `newCacheEntry`, `GraphCacheEntryPath` in `internal/liveverify/affected/graphcache.go`; `statStamp` in `graphcache_stamp_darwin.go` and `graphcache_stamp_linux.go`; the `Source.record` hooks in `source.go`; `buildDisk` in `graph.go`; `affectedProgramIdentity` in `cmd/corvint/affected_cache.go` | `TestAFPV0391CachedGraphIsRestoredExactly` (the restored graph's canonical body, every unit with its nil lists, and the plans over six dirty sets equal the fresh build) |
+| AFP-V0-392 | `loadGraphCache`, `verifyObservation`, `restoreGraph`, `BuildCached`, `GraphCacheRacyWindow` in `internal/liveverify/affected/graphcache.go`; `graphcache_stamp_other.go` | `TestAFPV0392CacheFailsClosedOnAnyMismatch` (same-size edit, added and removed source, a file replaced by a symbolic link, a skipped `build/` directory appearing, a declaration appearing where one was read absent, a flipped byte, truncation, a rechecksummed forged digest, unit or root, and a directory in place of the entry each miss with their reason and yield the fresh graph), `TestAFPV0392UnpinnableObservationStoresNoEntry` (racy window, a present `.maestro` walk, a language observed through `Units`, no program identity) |
+| AFP-V0-393 | `affectedBuildGraph` in `cmd/corvint/affected_cache.go`, called from `compileAffectedGraph` in `cmd/corvint/affected.go` | `TestAFPV0393ReceiptsAreByteIdenticalWithAndWithoutTheCache` (default, `--full`, `--path`, two-path `--full --path`, `--base`: no cache, cold and warm write identical bytes, the second call hits, `git status --porcelain --ignored` unchanged; a dirty edit misses with `path changed`) |
+| AFP-V0-394 | `helperScan`, `helperScans` and `helperFramework` in `internal/liveverify/affected/ruby/ruby.go` | `TestAFPV0394HelpersAreScannedOncePerObservation` (40 specs open each helper at most twice, where the previous code opened `spec/spec_helper.rb` 42 times; the disk observation equals the immutable one) |
+| AFP-V0-395 | `readAffectedPathsFrom` and `resolveAffectedBatchAndCache` in `cmd/corvint/affected_cache.go`; the `--paths-from` cases in `parseAffectedOptions` | `TestAFPV0395PathsFromBatchesPathsIntoOnePlan` (a list with a blank line and a repeat, alone or joined with `--path`, writes the `--path` bytes; empty, absolute, parent, CRLF, byte order mark, 4,097-path, missing, directory, repeated, `--base` and `-x` refuse) |
+| AFP-V0-396 | `affectedHelp` in `cmd/corvint/help.go`; the `corvint affected` row of `docs/CAPABILITIES.md` | `TestAFPV0396HelpDocumentsTheBatchFormAndTheCache`; `make capabilities-check` |
+| AFP-V0-397 | `BuildCached` hit path | `TestAFPV0397RepeatedPathCallOnALargeRubyTreeReusesTheGraph` (1,200 Ruby files: the warm call hits and writes the cold and uncached bytes); measured cold and warm numbers in build log `2026-10-23-affected-graph-reuse-gh1601` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`

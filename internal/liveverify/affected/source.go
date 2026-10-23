@@ -23,6 +23,9 @@ type Source struct {
 	mu    sync.Mutex
 	walks map[string]*sharedWalk
 	fatal error
+	// record, when set, notes every disk observation for a graph cache
+	// stamp (AFP-V0-391).
+	record *recording
 }
 
 func DiskSource(root string) *Source { return &Source{root: root} }
@@ -93,7 +96,11 @@ func (s *Source) FilesIncluding(accept func(string) bool, included ...string) (f
 	s.mu.Unlock()
 	shared.once.Do(func() {
 		if s.fsys == nil {
-			shared.files, shared.bounded, shared.err = walkSourceFilesContext(s.ctx, s.root, acceptEveryName, included)
+			var visit func(string)
+			if s.record != nil {
+				visit = func(relative string) { s.record.path(s.root, relative, false) }
+			}
+			shared.files, shared.bounded, shared.err = walkSourceFilesContext(s.ctx, s.root, acceptEveryName, included, visit)
 		} else {
 			shared.files, shared.bounded, shared.err = walkSourceFS(s.fsys, acceptEveryName, included)
 		}
@@ -126,6 +133,7 @@ func (s *Source) Read(relative string) (bodyOut []byte, errOut error) {
 		return nil, ErrInvalidLanguage
 	}
 	if s.fsys == nil {
+		s.record.path(s.root, relative, false)
 		return ReadSource(s.root, relative)
 	}
 	if !ValidRelativePath(relative) {
@@ -178,6 +186,7 @@ func (s *Source) ReadBounded(relative string, limit int) (bodyOut []byte, errOut
 		}
 		file, err = bounded.OpenBounded(relative, limit)
 	} else {
+		s.record.path(s.root, relative, false)
 		name := filepath.Join(s.root, filepath.FromSlash(relative))
 		info, statErr := os.Lstat(name)
 		if statErr != nil {
@@ -247,6 +256,7 @@ func (s *Source) Stat(relative string) (infoOut fs.FileInfo, errOut error) {
 		}
 		return info, nil
 	}
+	s.record.path(s.root, relative, true)
 	return os.Stat(filepath.Join(s.root, filepath.FromSlash(relative)))
 }
 func (s *Source) Lstat(relative string) (infoOut fs.FileInfo, errOut error) {
@@ -267,6 +277,7 @@ func (s *Source) Lstat(relative string) (infoOut fs.FileInfo, errOut error) {
 		}
 		return info, nil
 	}
+	s.record.path(s.root, relative, false)
 	return os.Lstat(filepath.Join(s.root, filepath.FromSlash(relative)))
 }
 func (s *Source) Walk(relative string, visit fs.WalkDirFunc) (errOut error) {
@@ -294,6 +305,7 @@ func (s *Source) Walk(relative string, visit fs.WalkDirFunc) (errOut error) {
 			return visit(current, entry, err)
 		})
 	}
+	s.record.subtree(s.root, relative)
 	return filepath.WalkDir(filepath.Join(s.root, filepath.FromSlash(relative)), func(current string, entry fs.DirEntry, err error) error {
 		if cancelled := s.cancelled(); cancelled != nil {
 			return cancelled

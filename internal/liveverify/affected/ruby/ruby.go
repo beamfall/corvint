@@ -161,6 +161,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	observed := make([]observation, 0, len(files))
 	autoloadSites := make(map[string][]int)
 	var railsTests []string
+	scans := helperScans{}
 	for _, relative := range files {
 		body, readErr := root.Read(relative)
 		if readErr != nil || !utf8.Valid(body) {
@@ -179,7 +180,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 			frontier[located(site.reason, relative, site.line)] = true
 		}
 		kind := classify(relative, code, rails)
-		hint, hintConflict, helperRails := helperFramework(root, relative, loads, fileSet, loadRoots)
+		hint, hintConflict, helperRails := helperFramework(root, scans, relative, loads, fileSet, loadRoots)
 		railsObserved = railsObserved || helperRails
 		if hintConflict {
 			local[located(FrontierAmbiguousFramework, relative, 0)] = true
@@ -398,7 +399,33 @@ func hasDirectFramework(body string) bool {
 	return explicitMinitest(body) || rspecQualified.MatchString(body) || railsTestClass.MatchString(body)
 }
 
-func helperFramework(root *affected.Source, owner string, loads []loadRef, files map[string]bool, loadRoots []string) (framework, bool, bool) {
+// helperScan is what helperFramework derives from one loaded helper file.
+// Every spec of a suite loads the same helpers, so one Build scans each helper
+// once instead of once per spec (AFP-V0-394); readable is false for a file that
+// could not be read or decoded, which contributes nothing either way.
+type helperScan struct {
+	readable bool
+	hints    map[framework]bool
+	nested   []loadRef
+}
+
+// helperScans memoizes helperScan by repository path within one observation.
+type helperScans map[string]helperScan
+
+func (scans helperScans) scan(root *affected.Source, candidate string) helperScan {
+	if scanned, ok := scans[candidate]; ok {
+		return scanned
+	}
+	scanned := helperScan{}
+	if body, err := root.Read(candidate); err == nil && utf8.Valid(body) {
+		nested, _ := scanLoads(candidate, string(body))
+		scanned = helperScan{readable: true, hints: frameworkHints(codeForDetection(string(body))), nested: nested}
+	}
+	scans[candidate] = scanned
+	return scanned
+}
+
+func helperFramework(root *affected.Source, scans helperScans, owner string, loads []loadRef, files map[string]bool, loadRoots []string) (framework, bool, bool) {
 	runnerHints := make(map[framework]bool, 2)
 	rails := false
 	visited := make(map[string]bool)
@@ -413,20 +440,18 @@ func helperFramework(root *affected.Source, owner string, loads []loadRef, files
 					continue
 				}
 				visited[candidate] = true
-				body, err := root.Read(candidate)
-				if err != nil || !utf8.Valid(body) {
+				scanned := scans.scan(root, candidate)
+				if !scanned.readable {
 					continue
 				}
-				code := codeForDetection(string(body))
-				for hint := range frameworkHints(code) {
+				for hint := range scanned.hints {
 					if hint == frameworkRailsTest {
 						rails = true
 						continue
 					}
 					runnerHints[hint] = true
 				}
-				nested, _ := scanLoads(candidate, string(body))
-				visit(candidate, nested)
+				visit(candidate, scanned.nested)
 			}
 		}
 	}

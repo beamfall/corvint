@@ -108,6 +108,14 @@ AFP-V0-189	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-201	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2348))	standing	2026-10-11; V1-2348
 AFP-V0-380	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1103))	standing	2026-10-11; V1-1103
 AFP-V0-381	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2363, GH #1519)	standing	2026-10-11; V1-2363; #1519
+AFP-V0-390	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
+AFP-V0-391	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
+AFP-V0-392	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
+AFP-V0-393	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
+AFP-V0-394	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
+AFP-V0-395	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
+AFP-V0-396	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
+AFP-V0-397	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
 AHI-003	docs/specs/agent-harness-integration-v0.md	On session/task start, the adapter MUST resolve repository identity, exact Git	unrecorded	-
