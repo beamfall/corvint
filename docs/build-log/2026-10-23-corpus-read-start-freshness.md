@@ -132,3 +132,17 @@ Focused tests:
   pass.
 - `cmd/corvint` with `-short -run 'DocsCorpus|TestDCPV14|CorpusMCP|CorpusTimings'`: pass.
 - `TestDCPV1416CorpusMCPFirstAndWarmCalls` on the large fixture: pass.
+
+## Review repair
+
+Independent review of #1643 found two gaps, both repaired in the same PR:
+
+- A freshness that took the started primary observation waited on it unconditionally, so a caller
+  deriving a shorter deadline stayed blocked until the read's own observation ended. It now
+  selects on its own context and returns that context's error, as a new observation would.
+  `TestDCPV1467ShorterDeadlineStopsWaitingForPrimary` holds the observation open and times out
+  after 30 s against the old wait.
+- No CLI test witnessed that the primary observation itself is cancelled and joined. The cited
+  test observed the header-started freshness only. `TestDCPV1467CorpusPreHeaderRefusalJoinsPrimary`
+  holds the primary observation and refuses the read before its header (missing and malformed
+  artifact). It fails when the deferred `joinPrimary()` is removed.

@@ -2,11 +2,14 @@ package doccorpus
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
 // sameFreshness reports whether two overlays describe the same observed state.
@@ -129,5 +132,55 @@ func TestDCPV1467CancelledPrimaryObservationJoins(t *testing.T) {
 		if early && p.err == nil && p.live == nil {
 			t.Fatal("cancelled observation ended with neither a result nor an error")
 		}
+	}
+}
+
+// TestDCPV1467ShorterDeadlineStopsWaitingForPrimary: a freshness whose context ends before the
+// started primary observation does returns that context's error at once rather than waiting
+// for the observation, and the read's cancel and join still end the observation. It is serial
+// because it replaces the package's primary observation.
+func TestDCPV1467ShorterDeadlineStopsWaitingForPrimary(t *testing.T) {
+	root, a, _ := builtFixture(t)
+	held := make(chan struct{})
+	defer SetPrimaryObservationForTest(func(ctx context.Context, _ string) (*contextindex.TreeObservation, error) {
+		close(held)
+		<-ctx.Done()
+		return nil, ctx.Err()
+	})()
+	read, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	read, join := WithPrimaryObservation(read, root)
+	<-held
+	short, stop := context.WithTimeout(read, 20*time.Millisecond)
+	defer stop()
+	type result struct{ err error }
+	returned := make(chan result, 1)
+	go func() {
+		_, err := LiveFreshness(short, root, a)
+		returned <- result{err}
+	}()
+	select {
+	case r := <-returned:
+		if !errors.Is(r.err, context.DeadlineExceeded) {
+			t.Fatalf("freshness under a shorter deadline returned %v, want its deadline error", r.err)
+		}
+	case <-time.After(30 * time.Second):
+		cancel()
+		join()
+		t.Fatal("freshness under a shorter deadline waited for the held primary observation")
+	}
+	p := read.Value(primaryObservationKey{}).(*primaryObservation)
+	if p.take() {
+		t.Fatal("freshness returned without reaching the started primary observation")
+	}
+	select {
+	case <-p.done:
+		t.Fatal("the primary observation ended before the read cancelled it")
+	default:
+	}
+	cancel()
+	join()
+	if !errors.Is(p.err, context.Canceled) {
+		t.Fatalf("joined primary observation ended with %v, want the read's cancellation", p.err)
 	}
 }
