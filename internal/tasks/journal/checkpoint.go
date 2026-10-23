@@ -46,6 +46,10 @@ type Checkpoint struct {
 	InitSha256       wire.Digest
 	SemanticCoverage string
 	Entries          []CheckpointEntry
+	// Requests is the request filter a read checkpoint carries (CAL-V0-321).
+	// The "requests" key is written only when set, so a seal anchor or a
+	// writer checkpoint header, which embed this codec, keep their bytes.
+	Requests *RequestFilter
 }
 
 func maxCheckpointEntries() int {
@@ -102,6 +106,9 @@ func (c *Checkpoint) Encode() []byte {
 	o.Set("initSha256", wire.String(string(c.InitSha256)))
 	o.Set("semanticCoverage", wire.String(c.SemanticCoverage))
 	o.Set("entries", wire.Array(entries...))
+	if c.Requests != nil {
+		o.Set("requests", c.Requests.value())
+	}
 	return wire.EncodeFile(wire.ObjectValue(o))
 }
 
@@ -120,7 +127,7 @@ func DecodeCheckpoint(raw []byte) (*Checkpoint, error) {
 	if err := wire.ProfileVersion("/profile", v, ProfileCheckpoint); err != nil {
 		return nil, err
 	}
-	r.Closed("profile", "queueId", "primaryWorktree", "seq", "receiptSha256", "generation", "initSha256", "semanticCoverage", "entries")
+	r.Closed(wire.OptionalKeys(v, []string{"profile", "queueId", "primaryWorktree", "seq", "receiptSha256", "generation", "initSha256", "semanticCoverage", "entries"}, "requests")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -136,6 +143,9 @@ func DecodeCheckpoint(raw []byte) (*Checkpoint, error) {
 	c.InitSha256 = r.Field("initSha256").Digest()
 	c.SemanticCoverage = r.Field("semanticCoverage").Enum("KNOWN_CODECS", "UNKNOWN")
 	entries := r.Field("entries").Array(max, true)
+	if wire.Has(v, "requests") {
+		c.Requests = readRequestFilter(r.Field("requests"))
+	}
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -161,4 +171,18 @@ func DecodeCheckpoint(raw []byte) (*Checkpoint, error) {
 		c.Entries = append(c.Entries, entry)
 	}
 	return c, nil
+}
+
+// decodeEmbeddedCheckpoint decodes the checkpoint header a seal anchor or a
+// writer checkpoint embeds. Those headers never carry a request filter, so
+// the key that a read checkpoint may carry is refused here (CAL-V0-321).
+func decodeEmbeddedCheckpoint(raw []byte) (*Checkpoint, error) {
+	cp, err := DecodeCheckpoint(raw)
+	if err != nil {
+		return nil, err
+	}
+	if cp.Requests != nil {
+		return nil, wire.Errorf(wire.CodeMalformed, "/requests", "an embedded checkpoint header carries no request filter")
+	}
+	return cp, nil
 }
