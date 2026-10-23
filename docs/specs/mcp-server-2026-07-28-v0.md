@@ -751,7 +751,7 @@ Each row cites the first emitting site and states only the condition checked the
   `corvint-envelope-terminator-collision`. A call cancelled before it returns fails `cancelled`. In
   the multi-root profile the tool takes the required `repository` alias like every tool except
   `corvint.status`; it still reads nothing from that repository. Measured at delivery: the catalog
-  text is 105,424 bytes and the guide 5,569 bytes. Non-goals: no per-command filter or search
+  text is 105,424 bytes and the guide 5,804 bytes. Non-goals: no per-command filter or search
   argument, no other MCP server (`corvint-docs-mcp`, `corvint-corpus-mcp`,
   `corvint-test-validity-mcp`) gains the tool, no MCP resource or prompt, no change to the
   existing tools' bytes, and no wider exception to decision 0103 for any other tool. Failure modes:

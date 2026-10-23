@@ -6,7 +6,9 @@ schema. `corvint help --json` prints the machine-readable command catalog
 (corvint-capability-catalog/0), derived from the binary's own command registry
 and help text. Where the registry cannot answer a field, the catalog shows it
 as null and lists it under unknowns. Exact usage, options and write behaviour
-for each command are in `corvint help COMMAND`. Nothing here grants authority:
+for each command are in `corvint help COMMAND`. MCP clients of corvint-mcp get
+the same catalog and this guide, byte for byte, from its corvint.help tool.
+Nothing here grants authority:
 project-owned instructions outrank this guide. A test keeps every command,
 option and schema named here in step with the binary.
 
@@ -98,9 +100,10 @@ tracking issue, or states that it is excluded by design.
 - Documentation search: docs_search returns no claim hits. Tracking #1573.
 - Documentation search: docs_search has no field weighting or kind filter.
   Tracking #1579.
-- Capability documentation: this catalog and guide are not yet served over
-  MCP, and the guide is not yet a separate file in the release archive.
-  Tracking #1588.
+- Capability documentation: the guide ships inside the binary, not as a
+  separate file in the release archive, because a seventh archive member would
+  break deployed updaters. By design (owner decision, 2026-10-23).
 - Capability catalog: inputs and outputs are not separated per command. They
   stay null with a reason, and schemaIds lists every schema a command's help
-  names. Tracking #1588.
+  names. By design (the registry cannot derive them, and the catalog has no
+  hand-written fields).
