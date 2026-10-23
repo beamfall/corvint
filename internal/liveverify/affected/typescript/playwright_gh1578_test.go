@@ -47,9 +47,10 @@ func TestGeneralAdapterPlaywrightMembershipAndAliases_GH1578(t *testing.T) {
 
 	// Another runner identity, or a Playwright config that can name another tsconfig, keeps the
 	// alias frontier. A second runner counts once a test it owns is observed: a dependency alone
-	// owns no test and loads no module (TJAA-V0-050).
+	// owns no test and loads no module (TJAA-V0-050), and that test's loader must meet an alias
+	// (AFP-V0-389).
 	for _, row := range []struct{ name, manifest, config, extra string }{
-		{"second runner", `{"devDependencies":{"@playwright/test":"1.61.0","vitest":"3"}}`, plain, "import { test } from 'vitest'\ntest('u', () => {})\n"},
+		{"second runner", `{"devDependencies":{"@playwright/test":"1.61.0","vitest":"3"}}`, plain, "import { test } from 'vitest'\nimport { SomePage } from 'lib/pages/area/SomePage'\ntest('u', () => { void SomePage })\n"},
 		{"config names a tsconfig", manifest, "import { defineConfig } from '@playwright/test'\nexport default defineConfig({ tsconfig: './tsconfig.e2e.json' })\n", ""},
 	} {
 		t.Run(row.name, func(t *testing.T) {

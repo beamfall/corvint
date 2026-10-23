@@ -103,8 +103,8 @@ func TestTSConfigPathAliasMissingTargetStaysFrontier_GH1604(t *testing.T) {
 // e2e-runtime-dependency, executable-config-unresolved and scan-unresolved; the identity that kept
 // aliases unresolved and an unsupported tsconfig key are sites too (TJAA-V0-057).
 func TestFrontierSitesNameFileLineAndToken_GH1604(t *testing.T) {
-	root := gh1604Repository(t, "", `{ "paths": { "lib/*": ["./lib/*"] } }`, "import { defineConfig } from '@playwright/test';\nexport default defineConfig({\n  testDir: './tests',\n  projects: [{ name: 'chromium' }],\n});\n", `{"devDependencies":{"@playwright/test":"1.61.0","vitest":"3"}}`)
-	write(t, root, "lib/unit/math.test.ts", "import { test } from 'vitest';\ntest('u', () => {});\n")
+	root := gh1604Repository(t, "", `{ "paths": { "lib/*": ["./lib/*"] } }`, "import { defineConfig } from '@playwright/test';\nexport default defineConfig({\n  testDir: './tests', testMatch: '**/*.spec.ts',\n  projects: [{ name: 'chromium' }],\n});\n", `{"devDependencies":{"@playwright/test":"1.61.0","vitest":"3"}}`)
+	write(t, root, "lib/unit/math.test.ts", "import { test } from 'vitest';\nimport { TestTimingLogger } from 'lib/helpers/TestTimingLogger';\ntest('u', () => { void TestTimingLogger; });\n")
 	write(t, root, "lib/helpers/slash.ts", "import x from './x';\nif (c) {}\n/'/.test(s); const u = '//'; const b = require('./b');\n")
 	write(t, root, "nested/tsconfig.json", "{\n  \"extends\": \"../tsconfig.json\"\n}\n")
 	result, err := New().Units(context.Background(), root)
