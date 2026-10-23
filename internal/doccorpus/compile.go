@@ -38,7 +38,69 @@ type compiler struct {
 }
 
 func inputKey(rev, p string) string { return rev + ":" + p }
-func inScope(p, s string) bool      { return p == s || strings.HasPrefix(p, s+"/") }
+
+// inScope reports whether path p is scope s or lies beneath it, without building s+"/"
+// (DCP-V1-450).
+func inScope(p, s string) bool {
+	return len(p) >= len(s) && p[:len(s)] == s && (len(p) == len(s) || p[len(s)] == '/')
+}
+
+// scopeSet holds a manifest's scope paths by revision. The scopes holding a path are its
+// ancestors, so they are found by walking the path's prefixes instead of comparing the path with
+// every scope; the walk visits exactly the scopes inScope admits, so every caller's result is the
+// one a scope-by-path comparison gave (DCP-V1-450).
+type scopeSet map[string]map[string]struct{}
+
+// newScopeSet collects the scopes whose revision member admits; a nil member admits all.
+func newScopeSet(scopes []Scope, member func(string) bool) scopeSet {
+	set := scopeSet{}
+	for _, scope := range scopes {
+		if member != nil && !member(scope.Revision) {
+			continue
+		}
+		if set[scope.Revision] == nil {
+			set[scope.Revision] = map[string]struct{}{}
+		}
+		set[scope.Revision][scope.Path] = struct{}{}
+	}
+	return set
+}
+
+// each calls visit once for every scope of revision that holds p, deepest first.
+func (set scopeSet) each(revision, p string, visit func(scope string)) {
+	paths := set[revision]
+	if len(paths) == 0 {
+		return
+	}
+	for candidate := p; ; {
+		if _, ok := paths[candidate]; ok {
+			visit(candidate)
+		}
+		i := strings.LastIndexByte(candidate, '/')
+		if i < 0 {
+			return
+		}
+		candidate = candidate[:i]
+	}
+}
+
+// holds reports whether any scope of revision holds p.
+func (set scopeSet) holds(revision, p string) bool {
+	paths := set[revision]
+	if len(paths) == 0 {
+		return false
+	}
+	for candidate := p; ; {
+		if _, ok := paths[candidate]; ok {
+			return true
+		}
+		i := strings.LastIndexByte(candidate, '/')
+		if i < 0 {
+			return false
+		}
+		candidate = candidate[:i]
+	}
+}
 
 // Inventory creates an explicit corvint-corpus-input/1 manifest candidate for one scope; it grants
 // no authority.
@@ -135,12 +197,22 @@ func inventoryScopeSet(requested []string, schema string) ([]string, error) {
 			return nil, fail("duplicate scope " + scope)
 		}
 	}
-	for _, outer := range scopes {
-		for _, inner := range scopes {
-			if outer != inner && inScope(inner, outer) {
-				return nil, fail("overlapping scopes: " + outer + " contains " + inner)
+	// The refusal names the byte-least containing scope and, under it, the byte-least contained
+	// one, as comparing every pair in sorted order did (DCP-V1-450).
+	set := map[string]struct{}{}
+	for _, scope := range scopes {
+		set[scope] = struct{}{}
+	}
+	outer, inner := "", ""
+	for _, scope := range scopes {
+		for i := strings.LastIndexByte(scope, '/'); i >= 0; i = strings.LastIndexByte(scope[:i], '/') {
+			if _, ok := set[scope[:i]]; ok && (inner == "" || scope[:i] < outer) {
+				outer, inner = scope[:i], scope
 			}
 		}
+	}
+	if inner != "" {
+		return nil, fail("overlapping scopes: " + outer + " contains " + inner)
 	}
 	return scopes, nil
 }
@@ -371,6 +443,7 @@ func validateManifest(m Manifest) error {
 		scopes[key] = true
 		revisions[s.Revision] = true
 	}
+	scoped := newScopeSet(m.Scopes, nil)
 	inputs := map[string]bool{}
 	for _, in := range m.Inputs {
 		if !validPath(in.Path) || !wire.IsGitOid(in.Revision) || !wire.IsGitOid(in.Blob) || !wire.IsSha256(in.SHA256) {
@@ -394,13 +467,7 @@ func validateManifest(m Manifest) error {
 			return fail("multiply claimed input without merge rule")
 		}
 		inputs[key] = true
-		admitted := false
-		for _, s := range m.Scopes {
-			if s.Revision == in.Revision && inScope(in.Path, s.Path) {
-				admitted = true
-			}
-		}
-		if !admitted {
+		if !scoped.holds(in.Revision, in.Path) {
 			return fail("input outside declared scopes")
 		}
 		revisions[in.Revision] = true
@@ -536,26 +603,46 @@ func (c *compiler) pin(ctx context.Context) (err error) {
 		}
 		indexes[rev] = index
 	}
-	declared := map[string]bool{}
+	declared := map[string]map[string]bool{}
 	for _, in := range c.manifest.Inputs {
-		declared[inputKey(in.Revision, in.Path)] = true
+		if declared[in.Revision] == nil {
+			declared[in.Revision] = map[string]bool{}
+		}
+		declared[in.Revision][in.Path] = true
+	}
+	// Each tracked and skipped path is charged to the scopes holding it, then the scopes are
+	// checked in manifest order with the precedence a per-scope pass had: an undeclared input,
+	// then an unsupported entry, then an empty scope (DCP-V1-450).
+	type scopeTally struct {
+		count                   int
+		undeclared, unsupported bool
+	}
+	scopes := newScopeSet(c.manifest.Scopes, nil)
+	tallies := map[string]map[string]*scopeTally{}
+	for rev, paths := range scopes {
+		tallies[rev] = make(map[string]*scopeTally, len(paths))
+		for p := range paths {
+			tallies[rev][p] = &scopeTally{}
+		}
+		for p := range indexes[rev].Tracked {
+			scopes.each(rev, p, func(scope string) {
+				tally := tallies[rev][scope]
+				tally.count++
+				tally.undeclared = tally.undeclared || !declared[rev][p]
+			})
+		}
+		for p := range indexes[rev].Skipped {
+			scopes.each(rev, p, func(scope string) { tallies[rev][scope].unsupported = true })
+		}
 	}
 	for _, s := range c.manifest.Scopes {
-		count := 0
-		for p := range indexes[s.Revision].Tracked {
-			if inScope(p, s.Path) {
-				count++
-				if !declared[inputKey(s.Revision, p)] {
-					return fail("undeclared input in scope")
-				}
-			}
-		}
-		for p := range indexes[s.Revision].Skipped {
-			if inScope(p, s.Path) {
-				return fail("scope contains unsupported tree entry")
-			}
-		}
-		if count == 0 {
+		tally := tallies[s.Revision][s.Path]
+		switch {
+		case tally.undeclared:
+			return fail("undeclared input in scope")
+		case tally.unsupported:
+			return fail("scope contains unsupported tree entry")
+		case tally.count == 0:
 			return fail("declared scope missing")
 		}
 	}
@@ -812,14 +899,27 @@ func Open(ctx context.Context, root string, data []byte) (*Artifact, error) {
 	if err != nil {
 		return nil, err
 	}
-	canonical, err := Encode(rebuilt)
-	if err != nil {
+	if err := rederivedEqual(rebuilt, data); err != nil {
 		return nil, err
 	}
-	if !bytes.Equal(data, canonical) {
-		return nil, fail("artifact cannot be rederived from current builder and pinned inputs")
-	}
 	return rebuilt, nil
+}
+
+// rederivedEqual compares the canonical encoding of rebuilt with data while the encoder writes,
+// so a read never holds a second artifact-sized copy and its growth slack (DCP-V1-414). The
+// output bound and the refusal are the ones encoding into a buffer applied.
+func rederivedEqual(rebuilt *Artifact, data []byte) error {
+	c := encodingComparer{want: data}
+	if _, err := EncodeTo(&c, rebuilt); err != nil {
+		return err
+	}
+	if c.n+1 > int64(encodingLimit(rebuilt)) {
+		return fail("output bound exceeded")
+	}
+	if !c.equal() {
+		return fail("artifact cannot be rederived from current builder and pinned inputs")
+	}
+	return nil
 }
 
 func (c *compiler) nativeImports(provider Provider) error {

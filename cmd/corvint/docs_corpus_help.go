@@ -21,7 +21,7 @@ type corpusOperation struct {
 var corpusOperations = buildCorpusOperations()
 
 func buildCorpusOperations() []corpusOperation {
-	reads := []string{"--limit", "--offset", "--retirement", "--caller-revision"}
+	reads := []string{"--limit", "--offset", "--retirement", "--caller-revision", "--verify-rederive", "--timings"}
 	read := func(name, purpose string, required []string, optional ...string) corpusOperation {
 		return corpusOperation{name: name, purpose: purpose, required: append([]string{"--artifact"}, required...), optional: append(optional, reads...)}
 	}
@@ -137,6 +137,8 @@ var corpusFlagHelp = map[string][2]string{
 	"--include":                     {"KIND[,KIND]", "flow record kinds: claims, relations, test_knowledge, paragraphs; search admits only claims"},
 	"--kind":                        {"KIND[,KIND]", "gaps: gap kinds to keep, each totalled before paging; search: subject kinds to keep"},
 	"--retirement":                  {"POLICY.json", "retirement policy"},
+	"--verify-rederive":             {"", "rederive the artifact from its pinned inputs before answering, as validate does"},
+	"--timings":                     {"", "write the read phase durations to stderr; stdout is unchanged"},
 	"--runner":                      {"jasmine|mocha", "legacy test runner"},
 	"--expected-base":               {"FULL_COMMIT", "base the cem/1.0 map must bind"},
 	"--target":                      {"FULL_COMMIT", "target commit holding the map as its sidecar"},
