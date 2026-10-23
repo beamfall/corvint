@@ -7389,13 +7389,16 @@ a few bytes per request.
   records too and yields the same bytes as a complete audit at the same head. The decoder is closed:
   any other key, a size outside the bound or a non-canonical encoding makes the checkpoint
   unusable. The key is optional in the codec, so a seal anchor and a writer checkpoint header,
-  which embed it, keep their bytes; the read route requires it (PSR-V0-203).
+  which embed it, keep their bytes, and their decoders refuse a header that carries it; the read
+  route requires it (PSR-V0-203).
 
 Non-goals: no profile change (an older binary's closed decoder refuses the key and runs the complete
 audit), no exact request set, no change to the writer checkpoint, seal anchor or any journal file.
 
 Failure modes: the filter adds 2 to 4 bytes per request (about 2.7 to 5.4 once base64-encoded);
-a checkpoint past 16 MiB is unusable as before (CAL-V0-059), and a full-size filter is 8 MiB of bits.
+a checkpoint past 16 MiB is unusable as before (CAL-V0-059), and a full-size filter is 8 MiB of
+bits (about 11.2 MiB encoded), so a store near 2.1 M requests with a large entry list can pass
+the bound; the writer still retains it and every read runs the complete audit, without a warning.
 
 Rollback: revert the source; see PSR-V0-203.
 
@@ -7406,24 +7409,26 @@ Human-owned input: native ticket V1-2359, the residual of V1-2196 (TCD-V0-165..1
 only through the gate record, so an agent reran the gate to diagnose it.
 
 - `CAL-V0-322`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2359) `attempt
-  show` MUST carry `lastFailedGate`: the attempt's newest gate result whose state is `FAILED` or
-  `BLOCKED`, searched newest first, as `attemptId`, `gateId`, `resultSha256`, `state`,
+  show` MUST carry `lastFailedGate`: of the attempt's gate results (one per gate, kept in digest
+  order), the one whose state is `FAILED` or `BLOCKED` that ended last (ties by gate ID), as
+  `attemptId`, `gateId`, `resultSha256`, `state`,
   `outcomeClass`, `exitCode`, `signal`, `endedAt`, `output` (`sha256`, `bytes`, `path`
   `evidence/<sha256>`, `observed`), `failingLine` and `tail`, the last two derived from the retained
   output exactly as TCD-V0-165 derives them (at most 20 lines of at most 240 bytes, secret-screened).
   `ticket show` MUST carry the same value for the result that ended last across the ticket's
-  attempts (ties by attempt ID). It is null when no such result exists and `NOT_OBSERVED` when a
-  newer gate record is absent or differs from its digest, or when the journal is absent. The output
-  is quoted only when the evidence blob still has the recorded digest and size; otherwise
-  `observed` is `NOT_OBSERVED` and `tail` and `failingLine` are null. A later passing result does
-  not hide the failed one. Both are pure reads; nothing is written.
+  attempts (ties by the later attempt ID). It is null when no such result exists and
+  `NOT_OBSERVED` when any gate record the attempt names is absent or differs from its digest, or
+  when the journal is absent. The output is quoted only when the evidence blob still has the
+  recorded digest and size; otherwise `observed` is `NOT_OBSERVED` and `tail` and `failingLine`
+  are null. A later passing result of another gate does not hide the failed one; a later run of
+  the same gate replaces its result, and a new submission clears the attempt's results, as before.
+  Both are pure reads; nothing is written.
 
 Non-goals: no new store state or result field in `gate run`, no tail for `PENDING`, `RUNNING`,
 `NOT_RUN` or `STALE` results, and no full output in the result (it stays at `output.path`).
 
-Failure modes: a gate output blob is read and hashed in full (at most 16 MiB) for each show; a show
-on an attempt with many gate results reads each gate record (64 KiB bound) until it finds a failed
-one.
+Failure modes: a gate output blob is read and hashed in full (at most 16 MiB) for each show, and
+every gate record the attempt names (one per gate, 64 KiB bound each) is read.
 
 Rollback: revert the source; the field disappears and nothing stored changes.
 
@@ -8281,5 +8286,5 @@ after this restore.
 | CAL-V0-318 | `TestCALV0318_ReplayedRenewalAfterRestartWritesAgain` (`internal/tasks/dispatch`); `TestCALV0313_NativeKeeperRenewsAndHeartbeatsFenced` (`internal/tasks/cli`) |
 | CAL-V0-319 | `TestCALV0319_InterruptedGateRunRecordsItsResult` (`internal/tasks/store`); `TestCALV0319_HangupInterruptsGateRun` (`internal/tasks/cli`, V1-2033); `docs/build-log/2026-10-20-V1-2012-gate-interrupt-retention.md`; `docs/build-log/2026-10-21-gate-run-hangup.md` |
 | CAL-V0-320 | `TestTasksArchiveCrossTargetIsLinuxAmd64Only`, `TestTasksArchiveCrossManifestStatesTheLimit`, `TestTasksArchiveRefusesOtherTargets` (`internal/companionrelease`); `docs/build-log/2026-10-20-v1-1981-tasks-linux-amd64-archive.md` (cross-build, ELF check, checksum; Linux runtime `NOT_OBSERVED`) |
-| CAL-V0-321 | `TestCALV0321_CheckpointRequestFilter`, `TestCALV0321_RequestFilterHasNoFalseNegatives`, `TestPSRV0203_CheckpointTailRefusesNullPreStateDuplicate` (`internal/tasks/journal`) |
+| CAL-V0-321 | `TestCALV0321_CheckpointRequestFilter`, `TestCALV0321_RequestFilterHasNoFalseNegatives`, `TestCALV0321_EmbeddedHeadersRefuseRequestFilter`, `TestPSRV0203_CheckpointTailRefusesNullPreStateDuplicate` (`internal/tasks/journal`) |
 | CAL-V0-322 | `TestCALV0322_ShowReportsLastFailedGateTail`, `TestCALV0322_LastFailedGateUnknowns` (`internal/tasks/cli`) |

@@ -1040,10 +1040,14 @@ V1-1091 residual elsewhere stays open), and no change to the listing, the group 
 `runnerStarted`'s schema.
 
 Failure modes: a runner recorded by an earlier binary has a listed identity and keeps the listing on
-recovery. A host that mounts `/proc` with `hidepid` or another PID namespace fails the read: the
-listing serves preparation and recovery of a `linux:` record is an error, as on Darwin. A reboot
-within one second of the recording, landing on the same start tick, would read as the same runner;
-that needs both coincidences at once.
+recovery. An older binary that recovers a `linux:` record compares it with a listed identity and
+reports a live runner gone, so older binaries must not run pool recovery against the store while
+an entry carries a `linux:` runner (as for `darwin:`, PSR-V0-201). Where `/proc/<pid>/stat` is
+hidden (`hidepid`) or the recorded PID belongs to another PID namespace, the read returns no file:
+the runner reads as gone, as the `ps` listing reports it; the runner is always the recording
+process itself, so this needs the store shared across namespaces. A reboot within one second of
+the recording, landing on the same start tick, would read as the same runner; that needs both
+coincidences at once.
 
 Rollback: revert the source. Records written as `linux:` are then compared with a listed identity,
 so recovery reports such a runner gone; drain pool allocations (no `PREPARING`, `CLEANING` or swept

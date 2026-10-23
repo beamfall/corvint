@@ -17,30 +17,35 @@ type failedGate struct {
 	result    *snapshot.GateResult
 }
 
-// lastFailedGate returns the newest gate result of a that ran and did not
-// pass (state FAILED or BLOCKED), searching a's results newest first. A
-// result record that is absent or differs from its digest leaves the answer
-// unknown, so ok is false (CAL-V0-322). found is false when a has none.
+// lastFailedGate returns the gate result of a that ran and did not pass
+// (state FAILED or BLOCKED) and ended last, ties broken by gate ID. An
+// attempt keeps one result per gate, ordered by digest rather than time, so
+// every record is read; one that is absent or differs from its digest leaves
+// the answer unknown, so ok is false (CAL-V0-322). found is false when a has
+// no such result.
 func lastFailedGate(repo *intent.Repository, a *snapshot.Attempt) (g failedGate, found, ok bool) {
-	for i := len(a.GateResults) - 1; i >= 0; i-- {
-		d := wire.Digest(a.GateResults[i])
-		raw, err := intent.ReadFile(filepath.Join(repo.StateDir, "evidence", string(d)), snapshot.MaxGateRecordBytes)
-		if err != nil || wire.Sum(raw) != d {
+	for _, raw := range a.GateResults {
+		d := wire.Digest(raw)
+		rec, err := intent.ReadFile(filepath.Join(repo.StateDir, "evidence", string(d)), snapshot.MaxGateRecordBytes)
+		if err != nil || wire.Sum(rec) != d {
 			return failedGate{}, false, false
 		}
-		r, err := snapshot.DecodeGateResult(raw)
+		r, err := snapshot.DecodeGateResult(rec)
 		if err != nil {
 			return failedGate{}, false, false
 		}
-		if r.State == "FAILED" || r.State == "BLOCKED" {
-			return failedGate{attemptID: a.AttemptID, digest: d, result: r}, true, true
+		if r.State != "FAILED" && r.State != "BLOCKED" {
+			continue
+		}
+		if !found || r.EndedAt > g.result.EndedAt || (r.EndedAt == g.result.EndedAt && r.GateID > g.result.GateID) {
+			g, found = failedGate{attemptID: a.AttemptID, digest: d, result: r}, true
 		}
 	}
-	return failedGate{}, false, true
+	return g, found, true
 }
 
 // ticketLastFailedGate is lastFailedGate over every attempt of ticket id:
-// the result that ended last, ties broken by attempt ID.
+// the result that ended last, ties broken by the later attempt ID.
 func ticketLastFailedGate(repo *intent.Repository, attempts map[string]*snapshot.Attempt, id string) wire.Value {
 	ids := []string{}
 	for aid, a := range attempts {

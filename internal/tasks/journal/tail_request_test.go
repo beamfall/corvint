@@ -150,3 +150,44 @@ func TestCALV0321_RequestFilterHasNoFalseNegatives(t *testing.T) {
 		}
 	}
 }
+
+// CAL-V0-321: a seal anchor and a writer checkpoint, which embed the
+// checkpoint codec as their header, never carry the read checkpoint's request
+// filter; one that does is refused rather than decoded.
+func TestCALV0321_EmbeddedHeadersRefuseRequestFilter(t *testing.T) {
+	_, r := refreshStore(t)
+	full, observed, err := r.AuditForWriteObserved()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wc, err := full.WriterCheckpoint(observed.Files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	anchor, err := encodeAnchor(wc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := decodeAnchor(anchor); err != nil {
+		t.Fatalf("plain anchor: %v", err)
+	}
+	base, delta, err := wc.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := DecodeWriterCheckpoint(delta, base); err != nil {
+		t.Fatalf("plain writer checkpoint: %v", err)
+	}
+	filtered := *wc
+	filtered.Checkpoint.Requests = newRequestFilter(1)
+	if anchor, err := encodeAnchor(&filtered); err == nil {
+		if _, err := decodeAnchor(anchor); err == nil {
+			t.Fatal("a seal anchor carrying a request filter decoded")
+		}
+	}
+	if base, delta, err := filtered.Encode(); err == nil {
+		if _, err := DecodeWriterCheckpoint(delta, base); err == nil {
+			t.Fatal("a writer checkpoint carrying a request filter decoded")
+		}
+	}
+}

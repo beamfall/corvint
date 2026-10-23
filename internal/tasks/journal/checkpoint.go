@@ -172,3 +172,17 @@ func DecodeCheckpoint(raw []byte) (*Checkpoint, error) {
 	}
 	return c, nil
 }
+
+// decodeEmbeddedCheckpoint decodes the checkpoint header a seal anchor or a
+// writer checkpoint embeds. Those headers never carry a request filter, so
+// the key that a read checkpoint may carry is refused here (CAL-V0-321).
+func decodeEmbeddedCheckpoint(raw []byte) (*Checkpoint, error) {
+	cp, err := DecodeCheckpoint(raw)
+	if err != nil {
+		return nil, err
+	}
+	if cp.Requests != nil {
+		return nil, wire.Errorf(wire.CodeMalformed, "/requests", "an embedded checkpoint header carries no request filter")
+	}
+	return cp, nil
+}
