@@ -274,6 +274,23 @@ func TestDCPV1371DiscoverTestsIdentityJoins(t *testing.T) {
 	if e := discoveredExample(t, d, 5); e.Identity.Unknown != discoverReasonSharedDefinition || e.TitleUnknown != discoverReasonSharedDefinition {
 		t.Fatalf("shared definition example = %+v", e)
 	}
+	// An inline inclusion adds one slot per runtime child of the shared body: a loop there makes
+	// the count, and every later sibling's id, unknown; a nested inline inclusion adds its own.
+	shared := map[string]string{
+		"spec/shared_loop_spec.rb": "RSpec.describe Calc do\n  shared_examples 'looped' do\n    [1, 2].each do |n|\n      it \"handles #{n}\" do\n        expect(n).to be_positive\n      end\n    end\n  end\n\n  include_examples 'looped'\n  it 'follows' do\n    expect(1).to eq(1)\n  end\nend\n",
+		"spec/shared_nest_spec.rb": "RSpec.describe Calc do\n  shared_examples 'inner' do\n    it('a') { expect(1).to eq(1) }\n    it('b') { expect(2).to eq(2) }\n  end\n  shared_examples 'outer' do\n    include_examples 'inner'\n  end\n\n  include_examples 'outer'\n  it 'follows' do\n    expect(1).to eq(1)\n  end\nend\n",
+		"spec/shared_cycle_spec.rb": "RSpec.describe Calc do\n  shared_examples 'self' do\n    include_examples 'self'\n  end\n  include_examples 'self'\n  it 'follows' do\n    expect(1).to eq(1)\n  end\nend\n",
+	}
+	scommit := commitFiles(t, root, shared)
+	if e := discoveredExample(t, discover(t, root, "rspec", scommit, "spec/shared_loop_spec.rb"), 11); e.Identity.Unknown != discoverReasonScopedLoop || e.Identity.Example != "" {
+		t.Fatalf("after an inline include with a loop = %+v", e.Identity)
+	}
+	if e := discoveredExample(t, discover(t, root, "rspec", scommit, "spec/shared_nest_spec.rb"), 11); e.Identity.Unknown != "" || e.Identity.Example != "spec/shared_nest_spec.rb[1:3]" {
+		t.Fatalf("after a nested inline include = %+v", e.Identity)
+	}
+	if e := discoveredExample(t, discover(t, root, "rspec", scommit, "spec/shared_cycle_spec.rb"), 6); e.Identity.Unknown != discoverReasonScopedInline || e.Identity.Example != "" {
+		t.Fatalf("after a cyclic inline include = %+v", e.Identity)
+	}
 }
 
 type expectationRow struct {
@@ -316,6 +333,14 @@ func TestDCPV1372DiscoverTestsExpectations(t *testing.T) {
 	}
 	if x := discoveredExample(t, discover(t, root, "rspec", odd, "spec/odd_spec.rb"), 2).Expectations[0]; x.Unknown != discoverReasonMatcherUnread {
 		t.Fatalf("unread matcher = %+v", x)
+	}
+	// A nested block expectation: each matcher is the one after the line closing its own block.
+	nested := commitFiles(t, root, map[string]string{
+		"spec/nested_spec.rb": "RSpec.describe Nested do\n  it 'checks' do\n    expect do\n      expect do\n        Y.create\n      end.to raise_error(A)\n      [1].each { |v| v }\n    end.to change(Y, :count)\n    expect do\n      x\n    end\n    y.call\n  end\nend\n",
+	})
+	rows = expectationRows(discoveredExample(t, discover(t, root, "rspec", nested, "spec/nested_spec.rb"), 2))
+	if want := []expectationRow{{"change", "block", false, [2]int{3, 8}}, {"raise_error", "block", false, [2]int{4, 6}}}; len(rows) != 3 || !slices.Equal(rows[:2], want) || rows[2].matcher != "" {
+		t.Fatalf("nested ruby expectations = %+v", rows)
 	}
 	jsOdd := discoveredExample(t, discover(t, root, "playwright", odd, "tests/odd.spec.ts"), 2)
 	if len(jsOdd.Expectations) != 2 || jsOdd.Expectations[0].Unknown != discoverReasonMatcherUnread || jsOdd.Expectations[1].Matcher != "notEqual" || !jsOdd.Expectations[1].Negated || jsOdd.Expectations[1].Receiver != "a" {
@@ -496,6 +521,25 @@ func TestDCPV1376DiscoverTestsUnknowns(t *testing.T) {
 	}
 	if e := discoveredExample(t, d, 2); len(e.Expectations) != maxDiscoveryFacts {
 		t.Fatalf("bounded expectations = %d", len(e.Expectations))
+	}
+	// A fact whose span cannot be anchored (a line over the 64 KiB excerpt bound) is dropped with
+	// an explicit unknown, never emitted with a zero-valued anchor.
+	long := strings.Repeat("y", 70<<10)
+	wide := commitFiles(t, root, map[string]string{
+		"tests/wide.spec.ts": "import { test, expect } from '@playwright/test';\ntest('wide', async () => {\n  expect(x).toBe('" + long + "');\n  expect(y).toBe(1);\n});\n",
+		"spec/wide_spec.rb":  "RSpec.describe Wide do\n  it 'checks' do\n    expect(x).to eq('" + long + "')\n    expect(y).to eq(1)\n  end\nend\n",
+	})
+	for _, c := range []struct{ runner, path string }{{"playwright", "tests/wide.spec.ts"}, {"rspec", "spec/wide_spec.rb"}} {
+		w := discover(t, root, c.runner, wide, c.path)
+		e := discoveredExample(t, w, 2)
+		if len(e.Expectations) != 1 || e.Expectations[0].Evidence.Start != 4 || !slices.Contains(discoveryReasons(w), discoverReasonFactUnanchored) {
+			t.Fatalf("%s unanchorable expectation = %+v unknown %v", c.runner, e.Expectations, w.Unknown)
+		}
+		for _, x := range e.Expectations {
+			if x.Evidence == (doccorpus.Anchor{}) {
+				t.Fatalf("%s zero-valued anchor emitted: %+v", c.runner, x)
+			}
+		}
 	}
 	js := discover(t, root, "playwright", bad, "tests/broken.spec.ts")
 	if len(js.Examples) != 0 || js.Files[0].Read != validitySourceUnparsed || !slices.Contains(discoveryReasons(js), validitySourceUnparsed) {

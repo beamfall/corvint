@@ -56,6 +56,9 @@ type TestRunEvidence struct {
 	Attempts            []RunAttempt      `json:"attempts"`
 	Cleanup             string            `json:"cleanup"`
 	NegativeControls    []NegativeControl `json:"negative_controls"`
+	// CoverageArtifacts pins the coverage files this run wrote by sha256, so a coverage
+	// ingest can prove a coverage input belongs to this run (AFU-V1-120).
+	CoverageArtifacts []RunDigestRef `json:"coverage_artifacts,omitempty"`
 }
 
 type RunRunner struct {
@@ -142,7 +145,7 @@ func validateStatic(r TestRunEvidence) error {
 	if r.RunID != "" || r.Runner != (RunRunner{}) || r.Source != (RunSource{}) || r.BuildArtifactDigest != "" {
 		return bad
 	}
-	if r.Environment != (RunDigestRef{}) || r.Fixture != (RunDigestRef{}) {
+	if r.Environment != (RunDigestRef{}) || r.Fixture != (RunDigestRef{}) || len(r.CoverageArtifacts) != 0 {
 		return bad
 	}
 	return nil
@@ -166,6 +169,26 @@ func validateRunHeader(r TestRunEvidence) error {
 	}
 	if !slices.Contains(cleanupStates, r.Cleanup) {
 		return errors.New("cleanup must be done, failed or not-declared")
+	}
+	return validateCoverageArtifacts(r.CoverageArtifacts)
+}
+
+// maxCoverageArtifacts bounds the coverage files one run record may pin (AFU-V1-120).
+const maxCoverageArtifacts = 64
+
+func validateCoverageArtifacts(refs []RunDigestRef) error {
+	if len(refs) > maxCoverageArtifacts {
+		return fmt.Errorf("more than %d coverage_artifacts", maxCoverageArtifacts)
+	}
+	seen := map[string]bool{}
+	for _, d := range refs {
+		if !validDigestRef(d) {
+			return errors.New("invalid coverage_artifacts entry")
+		}
+		if seen[d.ID] {
+			return fmt.Errorf("coverage artifact %q repeats", d.ID)
+		}
+		seen[d.ID] = true
 	}
 	return nil
 }

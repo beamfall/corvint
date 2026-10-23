@@ -57,10 +57,30 @@ func (fx coverageFixture) write(t *testing.T, name string, data []byte) string {
 	return p
 }
 
+// evidence encodes the records as run evidence. A record with no coverage artifacts pins every
+// input already written to the fixture directory, as a run would pin the coverage it wrote.
 func (fx coverageFixture) evidence(t *testing.T, records ...TestRunEvidence) string {
 	t.Helper()
+	entries, err := os.ReadDir(fx.dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifacts := []RunDigestRef{}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "evidence-") || len(artifacts) == maxCoverageArtifacts {
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join(fx.dir, e.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		artifacts = append(artifacts, RunDigestRef{ID: fmt.Sprintf("artifact-%d", len(artifacts)), Digest: Digest(raw)})
+	}
 	var b bytes.Buffer
 	for _, r := range records {
+		if r.CoverageArtifacts == nil {
+			r.CoverageArtifacts = artifacts
+		}
 		line, err := EncodeRunEvidence(r)
 		if err != nil {
 			t.Fatal(err)
@@ -215,6 +235,29 @@ func TestAFUV1113CoverageIngestV8(t *testing.T) {
 	if r := relationFor(ingestJSON(t, CoverageIngestInput{Root: fx.root, Format: "v8", From: noSource, Evidence: []string{fx.evidence(t, fx.run(coverageKey, "passed"))}, Revision: fx.commit}), "src/pay.js", coverageKey); r == nil {
 		t.Fatal("plain JavaScript without source did not join")
 	}
+	// Identical entries for one script are painted once, so repeating them costs no blob rescans:
+	// many duplicates fit a work bound that admits about six units per blob unit.
+	defer func(old int) { maxCoverageWork = old }(maxCoverageWork)
+	maxCoverageWork = 6 * len(coveragePayJS)
+	dups := []any{}
+	for range 1000 {
+		dups = append(dups, payV8(fx, nil))
+	}
+	dupFile := fx.write(t, "v8-dups.json", mustJSON(t, dups))
+	if r := relationFor(ingestJSON(t, CoverageIngestInput{Root: fx.root, Format: "v8", From: dupFile, Evidence: []string{fx.evidence(t, fx.run(coverageKey, "passed"))}, Revision: fx.commit}), "src/pay.js", coverageKey); r == nil ||
+		!slices.Equal(r.ExecutedSpans, [][2]int{{1, 4}, {6, 6}, {8, 8}}) {
+		t.Fatalf("duplicate V8 entries changed the relation: %+v", r)
+	}
+	// Distinct scripts each cost a scan, and past the aggregate bound the file is an unknown.
+	distinct := []any{}
+	for i := range 8 {
+		distinct = append(distinct, map[string]any{"url": "src/pay.js", "functions": []any{map[string]any{"ranges": []any{map[string]any{"startOffset": 0, "endOffset": 1, "count": i + 1}}}}})
+	}
+	distinctFile := fx.write(t, "v8-distinct.json", mustJSON(t, distinct))
+	report = ingestJSON(t, CoverageIngestInput{Root: fx.root, Format: "v8", From: distinctFile, Evidence: []string{fx.evidence(t, fx.run(coverageKey, "passed"))}, Revision: fx.commit})
+	if len(report.Relations) != 0 || !slices.Equal(unknownReasons(report), []string{coverageKey + "|src/pay.js|" + coverageReasonPaintBound}) {
+		t.Fatalf("work bound report = %+v", report)
+	}
 }
 
 // AFU-V1-114
@@ -226,19 +269,28 @@ func TestAFUV1114CoverageIngestIstanbulAndLCOV(t *testing.T) {
 		"s":            map[string]any{"0": 1, "1": 1, "2": 0},
 		"fnMap":        map[string]any{}, "f": map[string]any{}, "branchMap": map[string]any{}, "b": map[string]any{},
 	}}
+	lcov := "TN:pays\nSF:/build/checkout/src/unused.js\nFN:1,unused\nDA:1,1\nDA:2,3\nTN:pays\nDA:4,0\nend_of_record\n"
+	istanbulFile, lcovFile := fx.write(t, "istanbul.json", mustJSON(t, istanbul)), fx.write(t, "trace.lcov", []byte(lcov))
 	evidence := fx.evidence(t, fx.run(coverageKey, "passed"))
-	report := ingestJSON(t, CoverageIngestInput{Root: fx.root, Format: "istanbul", From: fx.write(t, "istanbul.json", mustJSON(t, istanbul)), Evidence: []string{evidence}, Revision: fx.commit, TestKey: coverageKey})
+	report := ingestJSON(t, CoverageIngestInput{Root: fx.root, Format: "istanbul", From: istanbulFile, Evidence: []string{evidence}, Revision: fx.commit, TestKey: coverageKey})
 	if r := relationFor(report, "src/pay.js", coverageKey); r == nil || !slices.Equal(r.ExecutedSpans, [][2]int{{2, 3}}) || r.Instrumented != 3 {
 		t.Fatalf("istanbul relation = %+v", report.Relations)
 	} else {
 		checkCoverageAnchors(t, fx, r.Evidence)
 	}
-	lcov := "TN:pays\nSF:/build/checkout/src/unused.js\nFN:1,unused\nDA:1,1\nDA:2,3\nDA:4,0\nend_of_record\n"
-	report = ingestJSON(t, CoverageIngestInput{Root: fx.root, Format: "lcov", From: fx.write(t, "trace.lcov", []byte(lcov)), Evidence: []string{evidence}, Revision: fx.commit, StripPrefix: "/build/checkout/"})
+	report = ingestJSON(t, CoverageIngestInput{Root: fx.root, Format: "lcov", From: lcovFile, Evidence: []string{evidence}, Revision: fx.commit, StripPrefix: "/build/checkout/"})
 	if r := relationFor(report, "src/unused.js", coverageKey); r == nil || !slices.Equal(r.ExecutedSpans, [][2]int{{1, 2}}) || r.Instrumented != 3 {
 		t.Fatalf("lcov relation = %+v", report.Relations)
 	} else {
 		checkCoverageAnchors(t, fx, r.Evidence)
+	}
+	// TN names a test: a trace whose TN records name two tests cannot be bound to one test key, so
+	// test A's unexecuted line 1 is never reported as executed by B's count.
+	multi := fx.write(t, "multi.lcov", []byte("TN:A\nSF:src/pay.js\nDA:1,0\nend_of_record\nTN:B\nSF:src/pay.js\nDA:1,1\nend_of_record\n"))
+	_, err := IngestCoverage(context.Background(), CoverageIngestInput{Root: fx.root, Format: "lcov", From: multi, Evidence: []string{fx.evidence(t, fx.run("A", "passed"))}, Revision: fx.commit, TestKey: "A"})
+	var coded *gokernel.Error
+	if !errors.As(err, &coded) || coded.Code != "coverage-refused" {
+		t.Fatalf("multi-test LCOV err = %v, want coverage-refused", err)
 	}
 }
 
@@ -251,8 +303,9 @@ func TestAFUV1115CoverageIngestRSpec(t *testing.T) {
 		"spec/order_spec.rb[1:2]":   map[string]any{"app/models/order.rb": map[string]any{"lines": []any{1, 1, 0, nil, nil, 1, 2, nil, nil}}},
 		"spec/order_spec.rb[1:3]":   map[string]any{"app/models/order.rb": lines},
 	}
+	from := fx.write(t, "rspec.json", mustJSON(t, examples))
 	evidence := fx.evidence(t, fx.run("spec/order_spec.rb[1:1]", "passed"), fx.run("spec/order_spec.rb[1:2]", "failed"))
-	report := ingestJSON(t, CoverageIngestInput{Root: fx.root, Format: "rspec", From: fx.write(t, "rspec.json", mustJSON(t, examples)), Evidence: []string{evidence}, Revision: fx.commit})
+	report := ingestJSON(t, CoverageIngestInput{Root: fx.root, Format: "rspec", From: from, Evidence: []string{evidence}, Revision: fx.commit})
 	first, second := relationFor(report, "app/models/order.rb", "spec/order_spec.rb[1:1]"), relationFor(report, "app/models/order.rb", "spec/order_spec.rb[1:2]")
 	if first == nil || second == nil || !slices.Equal(first.ExecutedSpans, [][2]int{{1, 3}, {6, 6}}) || !slices.Equal(second.ExecutedSpans, [][2]int{{1, 2}, {6, 7}}) {
 		t.Fatalf("rspec relations = %+v", report.Relations)
@@ -301,6 +354,27 @@ func TestAFUV1116CoverageIngestContradictedLinks(t *testing.T) {
 	}
 }
 
+// AFU-V1-116: an executed or instrumented line that cannot be anchored (one minified line over the
+// 64 KiB span bound) supports neither a relation, a corroboration nor a conflict.
+func TestAFUV1116CoverageIngestUnanchorableLines(t *testing.T) {
+	fx := coverageRepo(t)
+	writeRaw(t, fx.root, "src/min.js", []byte("var a="+strings.Repeat("1", 70<<10)+";\n"))
+	fx.commit = commitAll(t, fx.root, "minified")
+	fx.tree = gitOut(t, fx.root, "rev-parse", fx.commit+"^{tree}")
+	links := fx.write(t, "links.json", mustJSON(t, CoverageLinks{Schema: CoverageLinksSchema, Links: []CoverageLink{{Subject: "src/min.js", Test: coverageKey, Source: "declared"}}}))
+	for name, count := range map[string]string{"executed": "1", "unexecuted": "0"} {
+		trace := fx.write(t, name+".lcov", []byte("SF:src/min.js\nDA:1,"+count+"\nend_of_record\n"))
+		report := ingestJSON(t, CoverageIngestInput{Root: fx.root, Format: "lcov", From: trace, Evidence: []string{fx.evidence(t, fx.run(coverageKey, "passed"))}, Revision: fx.commit, Links: links})
+		if report.Runs[0].State != "joined" || len(report.Relations) != 0 || len(report.Conflicts) != 0 ||
+			len(report.Links) != 1 || report.Links[0].State != "unknown" || report.Links[0].Reason != coverageReasonUnanchorable {
+			t.Fatalf("%s: report = %+v", name, report)
+		}
+		if name == "executed" && !slices.Equal(unknownReasons(report), []string{coverageKey + "|src/min.js|" + coverageReasonUnanchorable}) {
+			t.Fatalf("%s: unknowns = %q", name, unknownReasons(report))
+		}
+	}
+}
+
 // AFU-V1-117
 func TestAFUV1117CoverageIngestStaleNotJoined(t *testing.T) {
 	fx := coverageRepo(t)
@@ -310,6 +384,14 @@ func TestAFUV1117CoverageIngestStaleNotJoined(t *testing.T) {
 	other.Source.Commit = strings.Repeat("a", 40)
 	dirty := fx.run(coverageKey, "passed")
 	dirty.Source.Clean = false
+	// A clean record at the revision that pins another coverage file (today's) next to an older
+	// coverage file: nothing binds the older file to the run, so it never joins.
+	today := fx.write(t, "today.lcov", []byte("SF:src/pay.js\nDA:1,0\nend_of_record\n"))
+	todayRaw, _ := os.ReadFile(today)
+	unbound := fx.run(coverageKey, "passed")
+	unbound.CoverageArtifacts = []RunDigestRef{{ID: "today", Digest: Digest(todayRaw)}}
+	unpinned := fx.run(coverageKey, "passed")
+	unpinned.CoverageArtifacts = []RunDigestRef{}
 	for _, tc := range []struct {
 		record        TestRunEvidence
 		state, reason string
@@ -317,6 +399,8 @@ func TestAFUV1117CoverageIngestStaleNotJoined(t *testing.T) {
 		{other, "stale", coverageReasonStale},
 		{dirty, "stale", coverageReasonDirty},
 		{fx.run(coverageKey, "skipped"), "unjoined", coverageReasonNotRun},
+		{unbound, "unjoined", coverageReasonUnbound},
+		{unpinned, "unjoined", coverageReasonUnbound},
 	} {
 		report := ingestJSON(t, CoverageIngestInput{Root: fx.root, Format: "lcov", From: lcov, Evidence: []string{fx.evidence(t, tc.record)}, Revision: fx.commit, Links: links})
 		if len(report.Relations) != 0 || len(report.Conflicts) != 0 || report.Runs[0].State != tc.state || report.Runs[0].Reason != tc.reason ||
@@ -339,6 +423,10 @@ func TestAFUV1118CoverageIngestRefusals(t *testing.T) {
 	lcov := fx.write(t, "trace.lcov", []byte("SF:src/pay.js\nDA:1,1\nend_of_record\n"))
 	one := fx.evidence(t, fx.run(coverageKey, "passed"))
 	two := fx.evidence(t, fx.run(coverageKey, "passed"), fx.run("other", "passed"))
+	// One byte over the 5 MiB input bound is a bound, not a refusal; exactly 5 MiB is read (and
+	// here refused only because the padding is no LCOV record).
+	big := fx.write(t, "big.lcov", bytes.Repeat([]byte("x"), MaxBytes+1))
+	atLimit := fx.write(t, "limit.lcov", bytes.Repeat([]byte("x"), MaxBytes))
 	many := map[string]any{}
 	for i := range maxCoverageTests + 1 {
 		many[fmt.Sprintf("spec/a_spec.rb[1:%d]", i)] = map[string]any{"app/models/order.rb": []any{1}}
@@ -347,13 +435,18 @@ func TestAFUV1118CoverageIngestRefusals(t *testing.T) {
 		in   CoverageIngestInput
 		code string
 	}{
-		"format":         {CoverageIngestInput{Format: "clover", From: lcov, Evidence: []string{one}, Revision: fx.commit}, "coverage-refused"},
-		"short revision": {CoverageIngestInput{Format: "lcov", From: lcov, Evidence: []string{one}, Revision: "HEAD"}, "coverage-refused"},
-		"unknown commit": {CoverageIngestInput{Format: "lcov", From: lcov, Evidence: []string{one}, Revision: strings.Repeat("b", 40)}, "coverage-invalid-revision"},
-		"ambiguous test": {CoverageIngestInput{Format: "lcov", From: lcov, Evidence: []string{two}, Revision: fx.commit}, "coverage-refused"},
-		"malformed lcov": {CoverageIngestInput{Format: "lcov", From: fx.write(t, "bad.lcov", []byte("DA:1,1\n")), Evidence: []string{one}, Revision: fx.commit}, "coverage-refused"},
-		"links schema":   {CoverageIngestInput{Format: "lcov", From: lcov, Evidence: []string{one}, Revision: fx.commit, Links: fx.write(t, "links.json", []byte(`{"schema":"x","links":[]}`))}, "coverage-refused"},
-		"test bound":     {CoverageIngestInput{Format: "rspec", From: fx.write(t, "many.json", mustJSON(t, many)), Evidence: []string{one}, Revision: fx.commit}, "coverage-bound-exceeded"},
+		"format":          {CoverageIngestInput{Format: "clover", From: lcov, Evidence: []string{one}, Revision: fx.commit}, "coverage-refused"},
+		"short revision":  {CoverageIngestInput{Format: "lcov", From: lcov, Evidence: []string{one}, Revision: "HEAD"}, "coverage-refused"},
+		"unknown commit":  {CoverageIngestInput{Format: "lcov", From: lcov, Evidence: []string{one}, Revision: strings.Repeat("b", 40)}, "coverage-invalid-revision"},
+		"ambiguous test":  {CoverageIngestInput{Format: "lcov", From: lcov, Evidence: []string{two}, Revision: fx.commit}, "coverage-refused"},
+		"malformed lcov":  {CoverageIngestInput{Format: "lcov", From: fx.write(t, "bad.lcov", []byte("DA:1,1\n")), Evidence: []string{one}, Revision: fx.commit}, "coverage-refused"},
+		"links schema":    {CoverageIngestInput{Format: "lcov", From: lcov, Evidence: []string{one}, Revision: fx.commit, Links: fx.write(t, "links.json", []byte(`{"schema":"x","links":[]}`))}, "coverage-refused"},
+		"test bound":      {CoverageIngestInput{Format: "rspec", From: fx.write(t, "many.json", mustJSON(t, many)), Evidence: []string{one}, Revision: fx.commit}, "coverage-bound-exceeded"},
+		"multi-test lcov": {CoverageIngestInput{Format: "lcov", From: fx.write(t, "multi.lcov", []byte("TN:A\nSF:src/pay.js\nDA:1,0\nTN:B\nDA:1,1\nend_of_record\n")), Evidence: []string{one}, Revision: fx.commit, TestKey: coverageKey}, "coverage-refused"},
+		"coverage bytes":  {CoverageIngestInput{Format: "lcov", From: big, Evidence: []string{one}, Revision: fx.commit}, "coverage-bound-exceeded"},
+		"evidence bytes":  {CoverageIngestInput{Format: "lcov", From: lcov, Evidence: []string{big}, Revision: fx.commit}, "coverage-bound-exceeded"},
+		"links bytes":     {CoverageIngestInput{Format: "lcov", From: lcov, Evidence: []string{one}, Revision: fx.commit, Links: big}, "coverage-bound-exceeded"},
+		"at byte limit":   {CoverageIngestInput{Format: "lcov", From: atLimit, Evidence: []string{one}, Revision: fx.commit}, "coverage-refused"},
 	} {
 		tc.in.Root = fx.root
 		_, err := IngestCoverage(context.Background(), tc.in)
@@ -361,5 +454,48 @@ func TestAFUV1118CoverageIngestRefusals(t *testing.T) {
 		if !errors.As(err, &coded) || coded.Code != tc.code {
 			t.Fatalf("%s: err = %v, want %s", name, err, tc.code)
 		}
+	}
+}
+
+// AFU-V1-120
+func TestAFUV1120RunEvidenceCoverageArtifacts(t *testing.T) {
+	digest := strings.Repeat("d", 64)
+	header := runHeader()
+	header.CoverageArtifacts = []RunDigestRef{{ID: "v8", Digest: digest}}
+	r := ingest(t, FormatGoTestJSON, "{\"Action\":\"run\",\"Package\":\"shop\",\"Test\":\"TestPay\"}\n{\"Action\":\"pass\",\"Package\":\"shop\",\"Test\":\"TestPay\",\"Elapsed\":0.1}\n", header)["shop > TestPay"]
+	if !slices.Equal(r.CoverageArtifacts, header.CoverageArtifacts) {
+		t.Fatalf("record coverage artifacts = %+v", r.CoverageArtifacts)
+	}
+	line, err := EncodeRunEvidence(r)
+	if err != nil || !bytes.Contains(line, []byte(`"coverage_artifacts":[{"id":"v8","digest":"`+digest+`"}]`)) {
+		t.Fatalf("encode = %s %v", line, err)
+	}
+	if back, err := DecodeRunEvidence(line); err != nil || !slices.Equal(back.CoverageArtifacts, r.CoverageArtifacts) {
+		t.Fatalf("decode = %+v %v", back, err)
+	}
+	// A record without artifacts keeps its prior encoding: the member is omitted.
+	r.CoverageArtifacts = nil
+	if line, err = EncodeRunEvidence(r); err != nil || bytes.Contains(line, []byte("coverage_artifacts")) {
+		t.Fatalf("encode without artifacts = %s %v", line, err)
+	}
+	many := []RunDigestRef{}
+	for i := range maxCoverageArtifacts + 1 {
+		many = append(many, RunDigestRef{ID: fmt.Sprintf("c%d", i), Digest: digest})
+	}
+	static := TestRunEvidence{Schema: RunEvidenceSchema, Authority: AuthorityStatic, TestKey: "k", Attempts: []RunAttempt{}, Cleanup: "not-declared", NegativeControls: []NegativeControl{},
+		CoverageArtifacts: []RunDigestRef{{ID: "v8", Digest: digest}}}
+	for name, bad := range map[string][]RunDigestRef{
+		"short digest": {{ID: "v8", Digest: "abc"}},
+		"bad id":       {{ID: "", Digest: digest}},
+		"repeated id":  {{ID: "v8", Digest: digest}, {ID: "v8", Digest: strings.Repeat("e", 64)}},
+		"over bound":   many,
+	} {
+		r.CoverageArtifacts = bad
+		if _, err := EncodeRunEvidence(r); err == nil {
+			t.Fatalf("%s: encoded", name)
+		}
+	}
+	if _, err := EncodeRunEvidence(static); err == nil {
+		t.Fatal("a STATIC record carried coverage artifacts")
 	}
 }

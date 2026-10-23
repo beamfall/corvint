@@ -1551,7 +1551,9 @@ owner's standing auto-accept (2026-10-11); GitHub #1582).
   and SHA-256, and lists examples sorted by path, line and identity. Every title, tag, annotation,
   expectation, navigation, reach and hook carries an `external-provider` anchor whose blob, file
   digest and span digest are those of the committed lines, under the compiler's `maxSpanBytes`
-  excerpt rule. The bytes are identical across runs at the same revision. A runner other than
+  excerpt rule; a fact whose span cannot be anchored is not emitted with a zero-valued anchor but
+  dropped with the example unknown `fact-span-unanchored` (DCP-V1-376). The bytes are identical
+  across runs at the same revision. A runner other than
   `playwright` or `rspec`, an unsafe path or a missing argument is refused with `corpus-refused`, and
   a revision that is not a full commit with `corpus-invalid-revision`; the encoded document is
   bounded at 32 MiB. Acceptance: `TestDCPV1370DiscoverTestsDeterministicAnchored`,
@@ -1561,10 +1563,16 @@ owner's standing auto-accept (2026-10-11); GitHub #1582).
   scoped id `spec/x_spec.rb[1:1]`, for Playwright the file and full title path, which form the
   `js-title-path` key once a run receipt supplies the project. An identity the source does not fix
   (a loop-generated, inline-included, shared-body or unplaced scoped id, or a non-literal title) is
-  empty with its reason. Acceptance: `TestDCPV1371DiscoverTestsIdentityJoins`.
+  empty with its reason. An inline inclusion advances the scoped ids of its later siblings by the
+  shared body's runtime slots, counted through nested inline inclusions; a loop in that body, or an
+  inclusion that is unresolved or includes itself, leaves those later ids empty with
+  `scoped-id-loop-generated` or `scoped-id-inline-include` rather than a guessed `[1:N]`. Acceptance:
+  `TestDCPV1371DiscoverTestsIdentityJoins`.
 - `DCP-V1-372`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Each
   expectation names its matcher, negation, receiver and line span, including multi-line RSpec block
-  expectations. An expectation whose matcher or shape the reader cannot classify is kept with
+  expectations, whose matcher is read only from the `}` or `end` line that closes the expectation's
+  own block (nested blocks are counted), never from an inner block's closing line. An expectation
+  whose matcher or shape the reader cannot classify is kept with
   `matcher-not-read` or `assertion-shape-not-read`, never dropped. Acceptance:
   `TestDCPV1372DiscoverTestsExpectations`.
 - `DCP-V1-373`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582)
@@ -1588,7 +1596,9 @@ owner's standing auto-accept (2026-10-11); GitHub #1582).
   the readers cannot classify is an unknown with a reason and an anchor where one exists, never a
   guess or a silent drop: a non-literal metadata value, a project name that is not static, a file
   the reader cannot balance, a file over the reader's byte bound (`source-too-large`), a fact list
-  over 512 entries (`fact-bound-exceeded`) and an example span that cannot be excerpted. Acceptance:
+  over 512 entries (`fact-bound-exceeded`), an example span that cannot be excerpted and a fact span
+  that cannot be anchored (`fact-span-unanchored`, for example an expectation line over 64 KiB),
+  which is dropped rather than emitted without an anchor. Acceptance:
   `TestDCPV1376DiscoverTestsUnknowns`.
 
 ### Caller-owned retrieval evaluation (`docs corpus eval`)

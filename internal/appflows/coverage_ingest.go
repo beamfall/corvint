@@ -3,6 +3,8 @@ package appflows
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -43,8 +45,6 @@ const (
 	maxCoverageLines = 1 << 22
 	// maxCoverageRanges bounds the V8 block ranges across the input.
 	maxCoverageRanges = 1 << 20
-	// maxCoveragePaint bounds the UTF-16 units V8 range painting may touch in one script.
-	maxCoveragePaint = 1 << 26
 	// maxCoverageLinks bounds the declared or supplied links one links file may carry.
 	maxCoverageLinks = 4096
 	// maxCoverageUnknowns bounds the reported unknowns; the overflow is counted, not listed.
@@ -71,7 +71,13 @@ const (
 	coverageReasonPaintBound      = "coverage-bound-exceeded"
 	coverageReasonNotInstrumented = "subject-not-instrumented"
 	coverageReasonContradiction   = "coverage-contradiction"
+	coverageReasonUnbound         = "coverage-not-bound-to-run"
+	coverageReasonUnanchorable    = "coverage-unanchorable"
 )
+
+// maxCoverageWork bounds the UTF-16 units that V8 painting scans and paints across one ingest:
+// each distinct script costs the blob's units plus its painted range widths (AFU-V1-113).
+var maxCoverageWork = 1 << 26
 
 var coverageLimitations = []string{
 	"coverage is generated, observed evidence: it shows which lines one test executed in one run, not that the test asserts their behavior",
@@ -193,9 +199,12 @@ type fileCoverage struct {
 	v8    []v8Script
 }
 
+// v8Script is one V8 entry for a file. key identifies its source and ranges, so identical
+// entries are painted once; sourceKey identifies its source alone.
 type v8Script struct {
-	source *string
-	ranges []v8Range
+	source         *string
+	ranges         []v8Range
+	key, sourceKey string
 }
 
 type v8Range struct {
@@ -307,6 +316,11 @@ func (s *coverageSet) parseV8(raw []byte) error {
 	} else if err := decodeLoose(raw, &entries); err != nil {
 		return err
 	}
+	type v8Seen struct {
+		f   *fileCoverage
+		key string
+	}
+	seen := map[v8Seen]bool{}
 	for _, e := range entries {
 		if e.URL == nil {
 			return coverageFail("V8 coverage entry has no url")
@@ -315,14 +329,26 @@ func (s *coverageSet) parseV8(raw []byte) error {
 		if err != nil {
 			return err
 		}
-		sc := v8Script{source: e.Source}
+		sc := v8Script{source: e.Source, sourceKey: "none"}
+		if e.Source != nil {
+			sc.sourceKey = Digest([]byte(*e.Source))
+		}
 		for _, fn := range e.Functions {
 			if s.rs += len(fn.Ranges); s.rs > maxCoverageRanges {
 				return coverageBound("V8 range")
 			}
 			sc.ranges = append(sc.ranges, fn.Ranges...)
 		}
-		f.v8 = append(f.v8, sc)
+		h := sha256.New()
+		h.Write([]byte(sc.sourceKey))
+		for _, r := range sc.ranges {
+			fmt.Fprintf(h, ";%d,%d,%d", r.StartOffset, r.EndOffset, r.Count)
+		}
+		sc.key = hex.EncodeToString(h.Sum(nil))
+		if !seen[v8Seen{f, sc.key}] {
+			seen[v8Seen{f, sc.key}] = true
+			f.v8 = append(f.v8, sc)
+		}
 	}
 	return nil
 }
@@ -368,12 +394,21 @@ func (s *coverageSet) parseIstanbul(raw []byte) error {
 	return nil
 }
 
-// parseLCOV reads SF/DA records of a single-test LCOV trace; other record types are ignored.
+// parseLCOV reads SF/DA records of a single-test LCOV trace; other record types are ignored. A
+// trace whose TN records name more than one test is refused, because its per-test lines cannot be
+// told apart once bound to one test key.
 func (s *coverageSet) parseLCOV(raw []byte) error {
 	var f *fileCoverage
+	testName, named := "", false
 	for n, line := range strings.Split(string(raw), "\n") {
 		line = strings.TrimRight(line, "\r")
 		switch {
+		case strings.HasPrefix(line, "TN:"):
+			name := strings.TrimSpace(strings.TrimPrefix(line, "TN:"))
+			if named && name != testName {
+				return coverageFail("LCOV line %d starts a second test (TN) in a single-test trace", n+1)
+			}
+			testName, named = name, true
 		case strings.HasPrefix(line, "SF:"):
 			var err error
 			if f, err = s.file("", strings.TrimPrefix(line, "SF:")); err != nil {
@@ -463,6 +498,7 @@ type coverageIngest struct {
 	report      *CoverageReport
 	blobs       map[string]*doccorpus.LineIndex
 	blobReasons map[string]CoverageUnknown
+	work        int // V8 painting work spent, against maxCoverageWork
 }
 
 func (c *coverageIngest) unknown(u CoverageUnknown) {
@@ -499,9 +535,9 @@ func IngestCoverage(ctx context.Context, in CoverageIngestInput) ([]byte, error)
 	report := &CoverageReport{Schema: CoverageIngestSchema, Status: "generated", Trust: "generated", Format: in.Format, Repository: repository,
 		Revision: commit, Tree: strings.TrimSpace(string(treeOut)), Inputs: []CoverageInput{}, Runs: []CoverageRun{}, Relations: []CoverageRelation{},
 		Conflicts: []CoverageConflict{}, Links: []CoverageLinkPlan{}, Unknowns: []CoverageUnknown{}, Limitations: coverageLimitations}
-	raw, err := ReadFile(in.From)
+	raw, err := readCoverageInput("coverage input", in.From)
 	if err != nil {
-		return nil, coverageFail("coverage input: %v", err)
+		return nil, err
 	}
 	report.Inputs = append(report.Inputs, CoverageInput{Role: "coverage", SHA256: Digest(raw), Bytes: len(raw)})
 	set, err := parseCoverage(in.Format, raw)
@@ -570,13 +606,25 @@ func IngestCoverage(ctx context.Context, in CoverageIngestInput) ([]byte, error)
 	return doccorpus.Encode(report)
 }
 
+// readCoverageInput reads one input; an input over the byte bound is coverage-bound-exceeded.
+func readCoverageInput(role, name string) ([]byte, error) {
+	raw, err := ReadFile(name)
+	if errors.Is(err, errInputBytes) {
+		return nil, coverageBound(role + " byte")
+	}
+	if err != nil {
+		return nil, coverageFail("%s: %v", role, err)
+	}
+	return raw, nil
+}
+
 // readCoverageRuns reads every run-evidence file once, pinning each by digest before decoding.
 func readCoverageRuns(files []string, report *CoverageReport) ([]TestRunEvidence, error) {
 	records := []TestRunEvidence{}
 	for _, name := range files {
-		raw, err := ReadFile(name)
+		raw, err := readCoverageInput("run evidence", name)
 		if err != nil {
-			return nil, coverageFail("run evidence: %v", err)
+			return nil, err
 		}
 		report.Inputs = append(report.Inputs, CoverageInput{Role: "run-evidence", SHA256: Digest(raw), Bytes: len(raw)})
 		for line := range bytes.Lines(raw) {
@@ -594,9 +642,9 @@ func readCoverageRuns(files []string, report *CoverageReport) ([]TestRunEvidence
 }
 
 func readCoverageLinks(name string, report *CoverageReport) ([]CoverageLink, error) {
-	raw, err := ReadFile(name)
+	raw, err := readCoverageInput("coverage links", name)
 	if err != nil {
-		return nil, coverageFail("coverage links: %v", err)
+		return nil, err
 	}
 	report.Inputs = append(report.Inputs, CoverageInput{Role: "links", SHA256: Digest(raw), Bytes: len(raw)})
 	var doc CoverageLinks
@@ -671,6 +719,8 @@ func (c *coverageIngest) bind(test string, records []TestRunEvidence) CoverageRu
 		run.State, run.Reason = "stale", coverageReasonStale
 	case !r.Source.Clean:
 		run.State, run.Reason = "stale", coverageReasonDirty
+	case !slices.ContainsFunc(r.CoverageArtifacts, func(a RunDigestRef) bool { return a.Digest == c.report.Inputs[0].SHA256 }):
+		run.Reason = coverageReasonUnbound
 	case !slices.ContainsFunc(r.Attempts, func(a RunAttempt) bool { return a.Outcome != "skipped" }):
 		run.Reason = coverageReasonNotRun
 	default:
@@ -764,6 +814,7 @@ type joinedFile struct {
 	x            *doccorpus.LineIndex
 	instrumented []int
 	executed     int
+	unanchored   bool // executed lines exist but none could be anchored
 }
 
 // joinFile turns one covered file of a joined test into a tested_by relation or an unknown.
@@ -777,7 +828,7 @@ func (c *coverageIngest) joinFile(test string, run CoverageRun, name string, f *
 	lines := f.lines
 	if len(f.v8) > 0 {
 		var reason, detail string
-		if lines, reason, detail = v8Lines(name, x, f.v8); reason != "" {
+		if lines, reason, detail = v8Lines(name, x, f.v8, &c.work); reason != "" {
 			c.unknown(CoverageUnknown{TestKey: test, Path: name, Reason: reason, Detail: detail})
 			return nil
 		}
@@ -797,8 +848,8 @@ func (c *coverageIngest) joinFile(test string, run CoverageRun, name string, f *
 			executed = append(executed, line)
 		}
 	}
-	seen[name] = joinedFile{x: x, instrumented: instrumented, executed: len(executed)}
 	if len(executed) == 0 {
+		seen[name] = joinedFile{x: x, instrumented: instrumented}
 		return nil
 	}
 	spans := lineSpans(executed)
@@ -806,6 +857,12 @@ func (c *coverageIngest) joinFile(test string, run CoverageRun, name string, f *
 	if err != nil {
 		return err
 	}
+	if len(evidence.Anchors) == 0 {
+		seen[name] = joinedFile{x: x, instrumented: instrumented, executed: len(executed), unanchored: true}
+		c.unknown(CoverageUnknown{TestKey: test, Path: name, Reason: coverageReasonUnanchorable, Detail: "no executed line could be anchored to the committed blob"})
+		return nil
+	}
+	seen[name] = joinedFile{x: x, instrumented: instrumented, executed: len(executed)}
 	c.report.Relations = append(c.report.Relations, CoverageRelation{ID: "coverage:" + name + " -> " + test, Type: "tested_by", From: "source:" + name,
 		To: "test:" + test, Path: name, TestKey: test, RunID: run.RunID, Instrumented: len(instrumented), ExecutedLines: len(executed), ExecutedSpans: spans, Evidence: evidence})
 	return nil
@@ -894,19 +951,37 @@ var errAnchorsFull = errors.New("anchor bound reached")
 
 // v8Lines paints V8 block ranges over the committed blob's UTF-16 units and returns each non-blank
 // line's largest count. Nested ranges are narrower and later in (start, -end) order, so they win.
-func v8Lines(name string, x *doccorpus.LineIndex, scripts []v8Script) (map[int]int64, string, string) {
+func v8Lines(name string, x *doccorpus.LineIndex, scripts []v8Script, work *int) (map[int]int64, string, string) {
 	text := string(x.Bytes())
+	textKey := Digest(x.Bytes())
 	lines := map[int]int64{}
+	painted := map[string]bool{}
+	var units int
+	var lineOf []int32
+	var blank []bool
+	var counts []int64
 	for _, sc := range scripts {
+		if painted[sc.key] {
+			continue
+		}
+		painted[sc.key] = true
 		if sc.source != nil {
-			if *sc.source != text {
+			if sc.sourceKey != textKey {
 				return nil, coverageReasonSourceMismatch, "the entry's source differs from the committed blob"
 			}
 		} else if !slices.Contains([]string{".js", ".mjs", ".cjs"}, path.Ext(name)) {
 			return nil, coverageReasonTranspiled, "the entry carries no source and the file is not plain JavaScript"
 		}
-		units, lineOf, blank := utf16Units(text)
-		counts := make([]int64, units)
+		if lineOf == nil {
+			if *work += len(text); *work > maxCoverageWork {
+				return nil, coverageReasonPaintBound, "the V8 coverage exceeds the painting work bound"
+			}
+			units, lineOf, blank = utf16Units(text)
+			counts = make([]int64, units)
+		}
+		if *work += units; *work > maxCoverageWork {
+			return nil, coverageReasonPaintBound, "the V8 coverage exceeds the painting work bound"
+		}
 		for i := range counts {
 			counts[i] = -1
 		}
@@ -917,13 +992,12 @@ func v8Lines(name string, x *doccorpus.LineIndex, scripts []v8Script) (map[int]i
 			}
 			return b.EndOffset - a.EndOffset
 		})
-		painted := 0
 		for _, r := range ranges {
 			if r.StartOffset < 0 || r.EndOffset > units || r.StartOffset > r.EndOffset || r.Count < 0 {
 				return nil, coverageReasonOutOfRange, fmt.Sprintf("range %d..%d is outside the blob's %d UTF-16 units", r.StartOffset, r.EndOffset, units)
 			}
-			if painted += r.EndOffset - r.StartOffset; painted > maxCoveragePaint {
-				return nil, coverageReasonPaintBound, "the V8 ranges exceed the painting bound"
+			if *work += r.EndOffset - r.StartOffset; *work > maxCoverageWork {
+				return nil, coverageReasonPaintBound, "the V8 coverage exceeds the painting work bound"
 			}
 			for i := r.StartOffset; i < r.EndOffset; i++ {
 				counts[i] = r.Count
@@ -980,15 +1054,20 @@ func (c *coverageIngest) checkLink(l CoverageLink, set *coverageSet, runs map[st
 		plan.Reason = coverageReasonNotInstrumented
 		return
 	}
+	if file.unanchored {
+		plan.Reason = coverageReasonUnanchorable
+		return
+	}
 	if file.executed > 0 {
 		plan.State = "corroborated"
 		return
 	}
-	plan.State, plan.Reason = "conflicted", coverageReasonContradiction
 	evidence, err := c.evidence(file.x, lineSpans(file.instrumented), "conflicted", "instrumented line not executed by test "+l.Test+" in run "+run.RunID)
-	if err != nil {
-		evidence = doccorpus.Evidence{Derivation: "observed", Trust: "generated", State: "unknown", Freshness: "fresh", Anchors: []doccorpus.Anchor{}, Limitations: []string{}, Unknown: "the instrumented lines could not be anchored"}
+	if err != nil || len(evidence.Anchors) == 0 {
+		plan.Reason = coverageReasonUnanchorable
+		return
 	}
+	plan.State, plan.Reason = "conflicted", coverageReasonContradiction
 	c.report.Conflicts = append(c.report.Conflicts, CoverageConflict{ID: "coverage-conflict:" + l.Subject + " -> " + l.Test + " (" + l.Source + ")", Type: "conflicts_with",
 		Subject: "source:" + l.Subject, TestKey: l.Test, LinkSource: l.Source, Reference: l.Reference, Reason: coverageReasonContradiction, RunID: run.RunID,
 		Instrumented: len(file.instrumented), Evidence: evidence})

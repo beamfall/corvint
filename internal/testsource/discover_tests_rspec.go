@@ -123,19 +123,49 @@ func (d *rspecDiscovery) assignGroup(g int, prefix, blocked string) {
 			blocked = discoverReasonScopedLoop
 		}
 		if kid.include >= 0 && !r.includes[kid.include].nests() {
-			def, ok := d.definition(r.includes[kid.include])
-			if !ok {
+			slots, reason := d.sharedSlots(r.includes[kid.include], map[int]bool{})
+			if reason != "" {
 				if blocked == "" {
-					blocked = discoverReasonScopedInline
+					blocked = reason
 				}
 				continue
 			}
-			n += len(r.children(def))
+			n += slots
 			continue
 		}
 		n++
 		d.assignItem(kid, prefix+":"+strconv.Itoa(n), blocked)
 	}
+}
+
+// sharedSlots is how many scoped-id slots an inline inclusion adds to its group: one per example,
+// group or nesting inclusion in the shared body, and an inline inclusion's own slots, counted
+// through the same rule. A loop-generated child, or an inclusion whose definition is not one
+// same-file group (or includes itself), leaves the count unknown, with its reason.
+func (d *rspecDiscovery) sharedSlots(inc rspecInclude, active map[int]bool) (int, string) {
+	r := d.r
+	def, ok := d.definition(inc)
+	if !ok || active[def] {
+		return 0, discoverReasonScopedInline
+	}
+	active[def] = true
+	defer delete(active, def)
+	n := 0
+	for _, kid := range r.children(def) {
+		if kid.loop {
+			return 0, discoverReasonScopedLoop
+		}
+		if kid.include >= 0 && !r.includes[kid.include].nests() {
+			slots, reason := d.sharedSlots(r.includes[kid.include], active)
+			if reason != "" {
+				return 0, reason
+			}
+			n += slots
+			continue
+		}
+		n++
+	}
+	return n, ""
 }
 
 // headArgs is a declaring line's text after its declarator word.
@@ -406,14 +436,14 @@ func (d *rspecDiscovery) expectations(out *DiscoveredExample, index int, body []
 					d.matcher(&x, masked[close+1:])
 					break
 				}
-				// A block expectation spanning lines: its matcher follows the closing `}` or `end`.
+				// A block expectation spanning lines: its matcher follows the `}` or `end` that
+				// closes this block, not one closing a block nested inside it.
 				x.Receiver = "block"
 				x.Unknown = discoverReasonMatcherUnread
-				for j := k + 1; j < len(body); j++ {
+				if j := blockClose(body, k); j >= 0 {
 					if c := rspecBlockClosing.FindStringSubmatch(maskRubyStrings(body[j].text)); c != nil {
 						x.Matcher, x.Negated, x.Unknown = c[2], c[1] != "to", ""
 						endIndex = index + j
-						break
 					}
 				}
 			case strings.HasPrefix(masked[loc[0]:], "is_expected"):
@@ -441,6 +471,25 @@ func (d *rspecDiscovery) expectations(out *DiscoveredExample, index int, body []
 			out.Expectations = append(out.Expectations, x)
 		}
 	}
+}
+
+// blockClose is the index of the body line that closes the block opened on line k, counting the
+// `do`/`end` and brace blocks opened and closed in between, or -1 when no line closes it.
+func blockClose(body []rubyLine, k int) int {
+	depth := 1
+	for j := k + 1; j < len(body); j++ {
+		masked := maskRubyStrings(body[j].text)
+		if strings.HasPrefix(masked, "}") || rubyEnd.MatchString(masked) {
+			if depth--; depth == 0 {
+				return j
+			}
+			continue
+		}
+		if rubyOpens(masked) || strings.Count(masked, "{") > strings.Count(masked, "}") {
+			depth++
+		}
+	}
+	return -1
 }
 
 // matcher reads `.to MATCHER`, `.not_to MATCHER` or `.to_not MATCHER` after a receiver.

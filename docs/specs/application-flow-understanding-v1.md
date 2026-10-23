@@ -221,7 +221,9 @@ This subsection fixes the S2 wire shape. It adds no requirement and no root verb
 - Record: the closed members are `schema` (`test-run-evidence/0`), `authority`, `run_id`, `runner`
   (`name`, `version`), `source` (`commit`, `tree`, `clean`), `build_artifact_digest`, `environment`
   and `fixture` (`id`, `digest`), `test_key`, the optional `project`, `attempts`, `cleanup` and
-  `negative_controls` (`test_key`, `expected`, `observed`). An attempt has `ordinal` (1..n in run
+  `negative_controls` (`test_key`, `expected`, `observed`), and the optional `coverage_artifacts`
+  (`id`, `digest`: at most 64, unique IDs, each digest a SHA-256 of a coverage file the run wrote;
+  none on a `STATIC` record, AFU-V1-120). An attempt has `ordinal` (1..n in run
   order), `outcome`, `duration_ms`, `assertion_anchors` (`path`, `line`), the optional `failure` and
   `attachments` (`name`, `path`; a path pointer, never content). The encoding is compact JSON with a
   trailing newline, and decode accepts only that canonical encoding. A `STATIC` record carries only
@@ -839,7 +841,7 @@ without the `e2e-safe` value, so neither S4 nor a companion slice blocks it (dec
 | AFU-V1-019..024, 040 | implemented: `internal/appflows/selection.go` (`SelectE2E`), `cmd/corvint/affected.go`, `internal/liveverify/affected/typescript/playwright_discovery.go` (`VerifyPlaywrightDiscovery`), `internal/extevidence/selection.go` (`SelectionNote`); corpus `cmd/corvint/testdata/e2e-safe-corpus.json` |
 | AFU-V1-059 | accepted, decision 0512: `internal/liveverify/affected/graph.go`, `source.go`, `walk.go`, the eight language adapters, `internal/appflows/impact.go` and its CLI/MCP callers |
 | AFU-V1-034..035 | implemented and locally qualified: `internal/mcp/bridge/flows.go`, `bridge.go`, `cmd/corvint-mcp/main.go`, `internal/appflows/impact.go` (`FlowImpactAt`) |
-| AFU-V1-112..119 | implemented (GitHub #1587): `internal/appflows/coverage_ingest.go` (`IngestCoverage`, `parseV8`, `parseIstanbul`, `parseLCOV`, `parseRSpec`, `bind`, `joinFile`, `v8Lines`, `checkLink`), `internal/doccorpus/line_anchor.go` (`LineIndex.Bytes`), `cmd/corvint/flows_ingest_coverage.go`, `cmd/corvint/flows.go` |
+| AFU-V1-112..120 | implemented (GitHub #1587): `internal/appflows/coverage_ingest.go` (`IngestCoverage`, `parseV8`, `parseIstanbul`, `parseLCOV`, `parseRSpec`, `bind`, `joinFile`, `v8Lines`, `checkLink`), `internal/doccorpus/line_anchor.go` (`LineIndex.Bytes`), `cmd/corvint/flows_ingest_coverage.go`, `cmd/corvint/flows.go`, `internal/appflows/runevidence.go` (`validateCoverageArtifacts`) |
 
 ## Unresolved decisions and promotion or kill criteria
 
@@ -1365,11 +1367,16 @@ PREFIX]` prints one `corvint-coverage-ingest/1` report on standard output.
   no source is given, the file is plain JavaScript (`.js`, `.mjs`, `.cjs`). An `http(s)` URL is
   `v8-url-needs-source-map`, a non-file scheme such as `node:` is `path-outside-repository`, a
   differing source is `v8-source-mismatch`, and a transpiled file without its source is
-  `v8-transpiled-without-source`. Source maps are not resolved (`TestAFUV1113CoverageIngestV8`).
+  `v8-transpiled-without-source`. Source maps are not resolved. Identical script entries for one
+  file (same source digest and ranges) are applied once, and the aggregate source scanning and
+  painting work across all scripts is bounded: past it the file is the unknown
+  `coverage-bound-exceeded` with no relation (`TestAFUV1113CoverageIngestV8`).
 - **AFU-V1-114**: A single-test Istanbul `coverage-final.json` (statement map and counts) or LCOV
   file (`SF`, `DA`, `end_of_record`) is accepted with `--test-key`, or without it when the run
   evidence holds exactly one record. Absolute paths under the checkout, its resolved real path or
-  `--strip-prefix` map to repository paths; any other path is `path-outside-repository`
+  `--strip-prefix` map to repository paths; any other path is `path-outside-repository`. LCOV
+  `TN:` sections must name one test: a trace with a second distinct `TN:` name is refused with
+  `coverage-refused` rather than attributing another test's lines to the key
   (`TestAFUV1114CoverageIngestIstanbulAndLCOV`).
 - **AFU-V1-115**: RSpec per-example coverage is a JSON object from example ID (`./` trimmed, for
   example `spec/x_spec.rb[1:1]`) to path to a line-count array, or to `{"lines": [...]}` as
@@ -1383,25 +1390,38 @@ PREFIX]` prints one `corvint-coverage-ingest/1` report on standard output.
   and reference) gets a plan: `corroborated` when the test executed a subject line, `conflicted`
   with a typed `conflicts_with` record (`coverage-contradiction`, anchored to the instrumented lines)
   when the subject was instrumented but none of its lines ran, and `unknown` with
-  `subject-not-instrumented`, `test-not-covered` or the run's reason otherwise
-  (`TestAFUV1116CoverageIngestContradictedLinks`).
+  `subject-not-instrumented`, `test-not-covered` or the run's reason otherwise. A covered file
+  whose executed lines cannot be anchored to the blob (for example a minified line over the 64 KiB
+  excerpt bound), or a subject whose instrumented lines cannot be anchored, is the unknown
+  `coverage-unanchorable`: no relation, corroboration or conflict is emitted from it
+  (`TestAFUV1116CoverageIngestContradictedLinks`, `TestAFUV1116CoverageIngestUnanchorableLines`).
 - **AFU-V1-117**: Coverage whose run record is from another commit or tree is `stale`
   (`coverage-stale`), and from a dirty worktree is `stale` (`run-source-dirty`); a test whose every
-  attempt was skipped is `test-not-run`. None of these joins: no relation or conflict is emitted for
+  attempt was skipped is `test-not-run`. A record whose `coverage_artifacts` (AFU-V1-120) do not pin
+  the coverage input's SHA-256 is `unjoined` (`coverage-not-bound-to-run`), so an older or foreign
+  coverage file next to a valid record yields no relation. None of these joins: no relation or conflict is emitted for
   them. A covered line past the end of the committed file is `coverage-line-out-of-range`, an
   executed blank line is `coverage-line-blank`, and a file absent at the revision is
   `source-not-at-revision`; each is an unknown with a reason, never a guess
   (`TestAFUV1117CoverageIngestStaleNotJoined`).
 - **AFU-V1-118**: An unknown format, a missing input, a revision that is not a full commit, an
   ambiguous single-test binding, malformed coverage, another links schema or an invalid link is
-  refused with `coverage-refused`; a revision that is not a commit of the repository with
+  refused with `coverage-refused`, as is an LCOV trace naming a second `TN:` test; a revision that is not a commit of the repository with
   `coverage-invalid-revision`; and a bound with `coverage-bound-exceeded`: each input is a regular
-  file of at most 5 MiB, at most 2,048 tests, 4,096 files, 4,194,304 lines, 1,048,576 V8 ranges and
+  file of at most 5 MiB (a larger coverage, evidence or links input is `coverage-bound-exceeded`,
+  never `coverage-refused`), at most 2,048 tests, 4,096 files, 4,194,304 lines, 1,048,576 V8 ranges and
   4,096 links. Unknowns past 4,096 are counted in `unknowns_omitted`, and an anchor list past 64
   anchors is truncated with a limitation (`TestAFUV1118CoverageIngestRefusals`).
 - **AFU-V1-119**: `flows ingest-coverage` with a missing required flag exits 2 with its usage line,
   `corvint flows --help` lists the command, and a refusal is printed as its typed diagnostic
   (`TestAFUV1112FlowsIngestCoverageCLI`).
+- **AFU-V1-120**: A `test-run-evidence/0` record MAY carry `coverage_artifacts`, the SHA-256 of
+  each coverage file its run wrote, and `flows ingest` sets them from a repeatable
+  `--coverage-artifact ID=FILE` flag (a malformed value exits 2 with the usage line). Decode accepts
+  at most 64 entries with unique IDs and valid digests, never on a `STATIC` record, and omits the
+  member when empty, so existing records keep their bytes. Coverage ingest joins a test only through
+  a record that pins its coverage input this way (`TestAFUV1120RunEvidenceCoverageArtifacts`,
+  `TestAFUV1112FlowsIngestCoverageCLI`).
 
 Non-goals: source-map resolution for bundled or transpiled V8 coverage, so V1-1182 (Playwright V8
 via pinned source maps, `AFU-V1-021`) is not satisfied by this slice; branch or function coverage;
@@ -1409,7 +1429,8 @@ writing the relations into a corpus provider record or a flow store; joining a t
 its exact run-record key; treating executed lines as asserted behavior.
 
 Failure modes: coverage for a test with no or several run records, from another revision or a dirty
-worktree, or for a skipped test is reported but not joined; coverage that does not line up with the
+worktree, without a pinned link from its run record, or for a skipped test is reported but not
+joined; coverage that does not line up with the
 committed blob (a mismatched V8 source, an out-of-range or blank line) is an unknown rather than a
 shifted relation; an over-bound input is refused before decode. Rollback: revert this section,
 `internal/appflows/coverage_ingest.go`, `cmd/corvint/flows_ingest_coverage.go`, the

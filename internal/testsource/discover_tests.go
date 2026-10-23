@@ -60,6 +60,7 @@ const (
 	discoverReasonScopedInline     = "scoped-id-inline-include"
 	discoverReasonScopedShared     = "scoped-id-shared-body"
 	discoverReasonSharedDefinition = "shared-definition-example"
+	discoverReasonFactUnanchored   = "fact-span-unanchored"
 )
 
 var testDiscoveryLimitations = []string{
@@ -384,9 +385,10 @@ func (f *discoveryFile) newExample(line, end int) (DiscoveredExample, bool) {
 		Read: discoveryLocated, Review: "unreviewed", Evidence: a}, true
 }
 
-// capFacts keeps at most maxDiscoveryFacts facts of each kind on e, recording one unknown for
-// each list it cuts.
+// capFacts drops every fact whose source span could not be anchored, then keeps at most
+// maxDiscoveryFacts facts of each kind on e, recording one unknown for each list it changes.
 func (f *discoveryFile) capFacts(e *DiscoveredExample) {
+	f.dropUnanchored(e)
 	cut := func(n int, kind string) bool {
 		if n <= maxDiscoveryFacts {
 			return false
@@ -412,6 +414,65 @@ func (f *discoveryFile) capFacts(e *DiscoveredExample) {
 	if cut(len(e.Hooks), "hooks") {
 		e.Hooks = e.Hooks[:maxDiscoveryFacts]
 	}
+}
+
+// dropUnanchored removes facts whose anchor failed (a span that is empty or over the excerpt
+// bound), so no fact is reported with zero-valued evidence: each kind it cuts is one unknown, and
+// an unanchored title empties the title path (DCP-V1-370, DCP-V1-376).
+func (f *discoveryFile) dropUnanchored(e *DiscoveredExample) {
+	note := func(n int, kind string) {
+		if n > 0 {
+			f.unknown(e.ID, discoverReasonFactUnanchored, fmt.Sprintf("%d %s on the example could not be anchored to the source and are not reported", n, kind), 0, 0)
+		}
+	}
+	unanchored := func(a doccorpus.Anchor) bool { return a == (doccorpus.Anchor{}) }
+	if n := countFunc(e.TitlePath, func(t DiscoveredTitle) bool { return unanchored(t.Evidence) }); n > 0 {
+		note(n, "titles")
+		e.TitlePath = []DiscoveredTitle{}
+		if e.TitleUnknown == "" {
+			e.TitleUnknown = discoverReasonFactUnanchored
+		}
+	}
+	var n int
+	n, e.Tags = dropFunc(e.Tags, func(t DiscoveredTag) bool { return unanchored(t.Evidence) })
+	note(n, "tags")
+	n, e.Annotations = dropFunc(e.Annotations, func(a DiscoveredAnnotation) bool { return unanchored(a.Evidence) })
+	note(n, "annotations")
+	n, e.Expectations = dropFunc(e.Expectations, func(x DiscoveredExpectation) bool { return unanchored(x.Evidence) })
+	note(n, "expectations")
+	n, e.Navigations = dropFunc(e.Navigations, func(x DiscoveredNavigation) bool { return unanchored(x.Evidence) })
+	note(n, "navigations")
+	n, e.Reaches = dropFunc(e.Reaches, func(x DiscoveredReach) bool { return unanchored(x.Evidence) })
+	note(n, "reaches")
+	n, e.Hooks = dropFunc(e.Hooks, func(x DiscoveredHook) bool { return unanchored(x.Evidence) })
+	note(n, "hooks")
+	declarations := 0
+	for i := range e.Reaches {
+		if d := e.Reaches[i].Declaration; d != nil && unanchored(*d) {
+			e.Reaches[i].Declaration = nil
+			declarations++
+		}
+	}
+	note(declarations, "reach declarations")
+}
+
+func countFunc[T any](facts []T, drop func(T) bool) int {
+	n := 0
+	for _, x := range facts {
+		if drop(x) {
+			n++
+		}
+	}
+	return n
+}
+
+// dropFunc returns how many facts drop selects and the facts it keeps, in order.
+func dropFunc[T any](facts []T, drop func(T) bool) (int, []T) {
+	n := countFunc(facts, drop)
+	if n == 0 {
+		return 0, facts
+	}
+	return n, slices.DeleteFunc(slices.Clone(facts), drop)
 }
 
 func boundText(text string) string {

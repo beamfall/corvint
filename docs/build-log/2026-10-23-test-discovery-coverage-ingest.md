@@ -37,10 +37,34 @@ contradicted by what the test executed.
   lines ran. A subject the coverage did not instrument is `unknown`, because absence of
   instrumentation is not evidence that the test missed it.
 
+## Independent review fixes (PR #1595)
+
+One Codex round found 1 P1, 6 P2 and 1 P3; each fix has a test.
+
+- P1: a clean record at the right commit did not prove that the coverage file came from that run.
+  `test-run-evidence/0` now carries optional `coverage_artifacts` (SHA-256 pins, set by `flows
+  ingest --coverage-artifact ID=FILE`), and a record that does not pin the coverage input stays
+  unjoined with `coverage-not-bound-to-run` (AFU-V1-117, AFU-V1-120). The member is omitted when
+  empty, so existing records keep their canonical bytes. A record produced without the flag can no
+  longer back a coverage relation.
+- P2: a multi-test LCOV trace (a second distinct `TN:`) is refused instead of merged under one key
+  (AFU-V1-114).
+- P2: identical V8 entries are applied once, and the scanning and painting work across all scripts
+  shares one aggregate bound (AFU-V1-113).
+- P2: an inline RSpec inclusion counts its shared body's runtime slots through nested inclusions.
+  A loop, or an unresolved or cyclic inclusion, makes later scoped IDs unknown (DCP-V1-371).
+- P2: covered files or link subjects with no anchorable lines are the unknown
+  `coverage-unanchorable`, with no relation, corroboration or conflict (AFU-V1-116).
+- P2: discovery facts whose anchors fail are dropped with `fact-span-unanchored`, never emitted
+  with zero-valued anchors (DCP-V1-370, DCP-V1-376).
+- P2: a multi-line RSpec block expectation reads its matcher from the line that closes its own
+  block, counting nested blocks, or abstains with `matcher-not-read` (DCP-V1-372).
+- P3: an input over 5 MiB is `coverage-bound-exceeded`, not `coverage-refused` (AFU-V1-118).
+
 ## Evidence
 
 Focused tests: `TestDCPV1370..1376` (internal/testsource), `TestDCPV1370DocsCorpusDiscoverTestsCLI`,
-`TestAFUV1112..1118` (internal/appflows) and `TestAFUV1112FlowsIngestCoverageCLI`. They cover
+`TestAFUV1112..1118` and `TestAFUV1120RunEvidenceCoverageArtifacts` (internal/appflows) and `TestAFUV1112FlowsIngestCoverageCLI`. They cover
 byte-identical reruns, no repository mutation, anchor validity, V8 nesting and refusals, Istanbul,
 LCOV and RSpec parsing, corroborated and conflicted links, stale, dirty and skipped runs, and the
 bounds.
@@ -51,5 +75,7 @@ bounds.
 - The coverage report is not compiled into a corpus artifact. Joining it into `docs corpus build`
   needs a provider schema change.
 - Coverage is line-granular; each input is bounded at 5 MiB.
+- Coverage joins only through a run record that pins the coverage file's SHA-256. The producer
+  must pass `--coverage-artifact` to `flows ingest` when it writes the record.
 - A Playwright example's identity needs the project from a run receipt before it forms the
   `js-title-path` key. RSpec example IDs must equal run-record test keys exactly.
