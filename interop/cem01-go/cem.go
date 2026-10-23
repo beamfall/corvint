@@ -3533,6 +3533,7 @@ func openStableArtifact(root, path string) (*os.File, error) {
 	parent.Close()
 	return nil, errNotRegular
 }
+
 // openStableTop opens the first component below / by its absolute path, with
 // the same Lstat, open and SameFile admission every later directory gets, so /
 // is opened for reading only when root is / itself: a sandbox such as Landlock
