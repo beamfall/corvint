@@ -28,6 +28,10 @@ refusal text of `cmd/corvint/docs.go`.
   into the control proof and the verdict note. A survivor in another control still wins, since it
   is evidence about the test.
 - V1-2428 is CCE-V0-088: `HarvestOptions.Manifest` with the catalog's `appmap.json` default.
+  Review repair: `corvint-test e2e harvest --manifest` now reaches `HarvestOptions`
+  (`TestCCEV0088HarvestManifestFlag`), and `docs flows` lifts `flowdocs-flow-limit-exceeded` to its
+  own stderr wire code like `flowdocs-generator-stale` (`TestAFUV1125FlowLimitCLICode`). Both CLI
+  tests failed on the prior code.
 - V1-2416 governs `docs consume`, whose contract is SDD-V0-005 in
   `docs/specs/source-documentation-draft-v0.md`. The lane's reserved FDM-V0-008..012 belong to the
   `flows docs maintain` profile, which never emits this code, so no FDM ID was used. SDD-V0-005 is
@@ -43,11 +47,6 @@ refusal text of `cmd/corvint/docs.go`.
 
 ## Residuals
 
-- `cmd/corvint/docs_flows.go:147` lifts only `flowdocs-generator-stale` to its own wire code. Every
-  other `doccorpus.Error`, `flowdocs-flow-limit-exceeded` included, still reaches stderr as
-  `internal-error` whose text begins with the typed code.
-- `cmd/corvint-test/main.go:159` does not pass `--manifest` to `HarvestOptions`, so the CLI harvest
-  still binds through `appmap.json`.
 - The `internal/doccompiler/draft.go` limit refusals, which `docs draft` and `docs maintain` return,
   name their bound but not the observed size.
 - The declared-inventory bounds in flowdocs (`in-scope declarations exceed 16384`, `flow inventory

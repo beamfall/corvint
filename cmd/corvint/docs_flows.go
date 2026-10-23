@@ -141,11 +141,12 @@ func runDocsFlows(ctx context.Context, o docsFlowsOptions, stdout, stderr io.Wri
 		}
 	}
 	if err != nil {
-		// A predecessor generator's manifest keeps its typed code on the wire
-		// so callers can regenerate instead of treating it as a crash.
-		var stale *doccorpus.Error
-		if errors.As(err, &stale) && stale.Code == flowdocs.StaleGeneratorCode {
-			err = &gokernel.Error{Code: stale.Code, Message: stale.Message}
+		// A predecessor generator's manifest and an over-limit scope keep their
+		// typed codes on the wire so callers can regenerate or narrow --scope
+		// instead of treating them as a crash.
+		var typed *doccorpus.Error
+		if errors.As(err, &typed) && (typed.Code == flowdocs.StaleGeneratorCode || typed.Code == flowdocs.FlowLimitCode) {
+			err = &gokernel.Error{Code: typed.Code, Message: typed.Message}
 		}
 		emitError(stderr, err)
 		return 2

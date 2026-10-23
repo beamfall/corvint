@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -146,6 +147,47 @@ func TestFlowDocsCLIPredecessorManifestTypedStale(t *testing.T) {
 	var out, stderr bytes.Buffer
 	code := runContext(context.Background(), []string{"--root", root, "docs", "flows", "check", "--revision", strings.Repeat("a", 40), "--previous", previous}, strings.NewReader(""), &out, &stderr)
 	if code != 2 || !strings.Contains(stderr.String(), `"code": "`+flowdocs.StaleGeneratorCode+`"`) {
+		t.Fatalf("code=%d stderr=%s", code, stderr.String())
+	}
+}
+
+// TestAFUV1125FlowLimitCLICode (AFU-V1-125, V1-2414): the CLI reports an
+// over-limit scope with the owned flowdocs-flow-limit-exceeded code and exit 2.
+func TestAFUV1125FlowLimitCLICode(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	git := func(args ...string) string {
+		t.Helper()
+		out, e := exec.Command("git", append([]string{"-C", root}, args...)...).CombinedOutput()
+		if e != nil {
+			t.Fatalf("git: %v %s", e, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	git("init", "-q")
+	git("config", "user.name", "Fixture")
+	git("config", "user.email", "fixture@example.invalid")
+	if err = os.Mkdir(filepath.Join(root, "app"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	var b strings.Builder
+	for i := 0; i <= flowdocs.MaxFlows; i++ {
+		b.WriteString("function f" + strconv.Itoa(i) + "() {\n  load();\n}\n")
+	}
+	if err = os.WriteFile(filepath.Join(root, "app", "a.js"), []byte(b.String()), 0600); err != nil {
+		t.Fatal(err)
+	}
+	git("add", ".")
+	git("commit", "-qm", "source")
+	rev := git("rev-parse", "HEAD")
+	var out, stderr bytes.Buffer
+	code := runContext(context.Background(), []string{"--root", root, "docs", "flows", "generate", "--revision", rev, "--scope", "app", "--output-dir", filepath.Join(root, "generated")}, strings.NewReader(""), &out, &stderr)
+	var envelope struct {
+		Code string `json:"code"`
+	}
+	if code != 2 || json.Unmarshal(stderr.Bytes(), &envelope) != nil || envelope.Code != flowdocs.FlowLimitCode {
 		t.Fatalf("code=%d stderr=%s", code, stderr.String())
 	}
 }
