@@ -33,6 +33,7 @@ func detachClaimStore(t *testing.T) (string, *intent.Repository, string) {
 	id := planTicket(t, root, "detach", "P1", `["src/"]`)
 	detachedEnv(t)
 	t.Cleanup(cli.SetLeaseDetachPoll(20 * time.Millisecond))
+	cli.JoinDetachedChildren(t, root)
 	return root, repo, id
 }
 

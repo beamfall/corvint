@@ -485,6 +485,9 @@ func (r *attemptRunner) launch(argv []string) int {
 	// Reap the supervisor if it ends while this launcher still lives.
 	exited := make(chan struct{})
 	go func() { _ = c.Wait(); close(exited) }()
+	if detachLaunched != nil {
+		detachLaunched(r.env.Cwd, exited)
+	}
 	ready := make(chan struct{})
 	go func() { _, _ = io.Copy(io.Discard, readyR); _ = readyR.Close(); close(ready) }()
 	bound := time.NewTimer(runReadyBound)

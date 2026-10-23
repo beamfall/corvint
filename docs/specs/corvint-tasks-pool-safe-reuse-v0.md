@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-202 accepted (standing auto-accept 2026-10-11; V1-2361); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); PSR-V0-201 accepted (standing auto-accept 2026-10-11; V1-1008); PSR-V0-203..204 accepted (standing auto-accept 2026-10-11; V1-2352, V1-2425)
+Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-202 accepted (standing auto-accept 2026-10-11; V1-2361); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); PSR-V0-201 accepted (standing auto-accept 2026-10-11; V1-1008); PSR-V0-203..204 accepted (standing auto-accept 2026-10-11; V1-2352, V1-2425); PSR-V0-220..221 accepted (standing auto-accept 2026-10-11; V1-1715, V1-0911, V1-1569; re-homed from CAL-V0-350 and CAL-V0-364)
 Delivery status: experimental
 Authoritative inputs: https://github.com/beamfall/corvint/issues/498; CAL-V0-028..034 in corvint-tasks-agent-leases-v0.md; independent Gate A packet-r2/GATE-A.md PASS with no HIGH, MED findings incorporated before implementation.
 Native ticket: V1-0695, original creation receipt2436.
 
 ## Agent digest
 - Claim: Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.
-- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-202 accepted (standing auto-accept 2026-10-11; V1-2361); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); PSR-V0-201 accepted (standing auto-accept 2026-10-11; V1-1008); PSR-V0-203..204 accepted (standing auto-accept 2026-10-11; V1-2352, V1-2425); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
+- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-202 accepted (standing auto-accept 2026-10-11; V1-2361); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); PSR-V0-201 accepted (standing auto-accept 2026-10-11; V1-1008); PSR-V0-203..204 accepted (standing auto-accept 2026-10-11; V1-2352, V1-2425); PSR-V0-220..221 accepted (standing auto-accept 2026-10-11; V1-1715, V1-0911, V1-1569; re-homed from CAL-V0-350 and CAL-V0-364); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
 - Exists: Foreground sweep, optional dispatcher integration and focused fixtures are implemented in source. Earlier source-bound repair evidence is retained separately from current integrated qualification.
 - Blocked on: Current integrated native binary, mandatory selected tests, exact-target review, terminal evidence, hosted integration and native completion. Linux runtime and physical external cleanup remain unqualified.
 - Read next: Requirements; Acceptance evidence; Non-goals and simpler baseline; Compatibility and rollback.
@@ -149,7 +149,7 @@ refusals on tamper or corruption, receipts and ordering stay the same.
   CPU per waiting acquirer does not grow with retries. The documented acquire bound is under 2
   minutes for 8 acquirers and a writer every 3 seconds, measured at 10,000 receipts on a loaded
   12-CPU Darwin host (the opt-in load harness). Qualification at 45,000 receipts remains NOT_RUN,
-  and by linear extrapolation the prefix walk alone would take about 3 minutes at host load 60.
+  and by linear extrapolation the prefix walk alone would take about 3 minutes at host load 60. The Linux 45,000-receipt run is in the same build log.
   `Timing.Resumed` counts resumed rounds.
 - `PSR-V0-056`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560 review
   amendment) No change guard watches a resumed write, so the PSR-V0-052 checks MUST hold up to the
@@ -203,7 +203,7 @@ Acceptance evidence:
   - after the change: 18 of 18 completed, all resumed, with at most 3 rounds, p50 42.9 s and
     max 65.2 s.
   See `docs/build-log/2026-10-17-v1-1560-pool-acquire-starvation.md`.
-- Linux, quiet-host and 45,000-receipt qualification remain NOT_RUN.
+- Linux, 45,000 receipts (V1-1569, 2026-10-23, 4 vCPU Firecracker VM, UNQUALIFIED at load 7 to 17): the first run failed with `no space left on device` from the inotify change guard (fixed by PSR-V0-221); after the fix all 20 acquire cycles completed with no error code, acquire p50 81.7 s and max 86.9 s, under the 2-minute bound (`docs/build-log/2026-10-23-tasks-linux-qualification-b3-harness.md`). A quiet-host run (load at or below 4) is still NOT_RUN.
 
 Rollback: revert the resume route in `prepareLease`/`leaseWrite`, `observeWriter` and `leaseWriter`,
 the journal `PrefixFallback`/`ResumeBase`/`AuditForResume`/`RecheckResume`, their tests and this amendment. A
@@ -1059,6 +1059,84 @@ Rollback: revert the source. Records written as `linux:` are then compared with 
 so recovery reports such a runner gone; drain pool allocations (no `PREPARING`, `CLEANING` or swept
 entry with a `linux:` runner) before rolling back.
 
+### V1-1715 claim --next scope derivation through the CLI
+
+Re-homed (owner rule 2026-10-17; batch 1023a): this requirement was first numbered CAL-V0-350 in the
+agent leases spec; it moved here as PSR-V0-220 with the same text, because that spec's
+`## Requirements` section is at the 256-obligation OCM bound. The old ID is a retired alias: code
+comments, messages and test names keep the old numbers. CAL-V0-350 is also the retired alias of
+ATR-V0-180 (re-homed 2026-10-17), so `TestCALV0350_ClaimNextDerivesScopeForThePreviewedWaiterCLI`
+(`internal/tasks/cli`) names PSR-V0-220 while the `internal/tasks/dispatch` `TestCALV0350_*` tests
+name ATR-V0-180.
+
+Human-owned input: native ticket V1-1715, the gap left by the PSR-V0-132 review round. The CLI test
+fixtures ran without a scope deriver, so the candidate `claim --next` hands to the deriver
+(`NextClaimTicket`) was checked only by construction (both it and the claim select from
+`claimNextInput`) and by a transaction-level test; a divergence in the CLI wiring of the inputs the
+selection reads (the recorded time that honours the waitlist, the barrier) went undetected.
+
+- `PSR-V0-220`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1715) For a
+  ticket that declares no scope, `claim --next --pool P --stage S` MUST ask the CLI's scope
+  deriver (`Env.ScopeDeriver`) about the ticket that `plan preview --pool P --stage S` marks
+  `SELECTED` in the same store state, with waiters on the pool's waitlist present, and about no
+  other; the claim MUST take that ticket and its result's `scope` MUST be the `DERIVED` scope the
+  deriver returned for it.
+
+Non-goals: no change to selection, to the deriver contract (CAL-V0-022) or to the default deriver.
+Failure mode: a CLI that gives the claim's candidate selection other inputs than the preview, or
+that does not pass `Env.ScopeDeriver`, fails `TestCALV0350_ClaimNextDerivesScopeForThePreviewedWaiterCLI`
+(the second case fails with a deriver asked about no ticket; the first with a refused claim, as
+`TestPSRV0132_ClaimNextPoolClaimsTheWaiterCLI` also does). Rollback: revert the test and fixture
+change; no product code changed.
+
+### V1-0911 Linux qualification of the Tasks scale work: the change guard
+
+Re-homed (owner rule 2026-10-17; batch 1023a): this requirement was first numbered CAL-V0-364 in the
+agent leases spec; it moved here as PSR-V0-221 with the same text, because that spec's
+`## Requirements` section is at the 256-obligation OCM bound. The old ID is a retired alias: code
+comments, messages and test names keep the old numbers.
+
+Human-owned input: native ticket V1-0911. The scale work (V1-0893, V1-0645; CAL-V0-135..142) was
+measured on Darwin only; the `/proc` process reader (CAL-V0-136), the idle CPU of the supervisor and
+dispatcher (CAL-V0-137, CAL-V0-139) and the `ReadDir` listing that relies on directory-entry types
+(CAL-V0-138) were not run on Linux.
+
+- `PSR-V0-221`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0911, V1-1569) On
+  Linux the change guard (CAL-V0-026, CAL-V0-219) MUST register the directories of an observation
+  with inotify first, and then regular files with inotify only up to a per-guard ceiling of a
+  32nd of the user's `fs.inotify.max_user_watches` allowance, at most 4,096 (256 when the allowance
+  cannot be read). Every other regular file, and any regular file whose watch the kernel refuses
+  with `ENOSPC`, MUST be tracked by the stat identity taken when the file was visited (device,
+  inode, mode, size, modification and change time) and re-read in `Sweep`, as Darwin tracks a
+  file beyond its descriptor budget, so that a difference or a failed read reports
+  `SNAPSHOT_MOVED` at the next check, and registration MUST NOT fail for want of a file watch. A
+  directory whose watch the kernel refuses MUST still fail the registration, as
+  `UNSUPPORTED_FILESYSTEM` naming the allowance, because directory events are what report an
+  entry created, removed or renamed at any time. The ceiling bounds the regular-file watches of
+  one guard independently of the store's receipt count; it does not bound the guard's directory
+  watches, and it does not bound the sum over guards: concurrent writers, each with up to its
+  ceiling of file watches plus every mandatory directory watch, can still spend the per-user
+  allowance that all of them share (32 populated guards take the whole allowance in file watches
+  alone), and a directory refused then fails the registration as above.
+
+Non-goals: a change to the host's watch allowance, or a per-process total across guards (a guard
+is short-lived and the ceiling bounds each); watching every file on a host whose allowance would
+allow it, which is the coverage this requirement gives up for files beyond the ceiling, on the
+terms CAL-V0-219 already accepts for Darwin: only an in-place write or mode change to such a file
+by an actor outside the writer lock, made after the sweep read it, goes unreported, and no Tasks
+writer edits a watched file in place.
+
+Failure modes: a host whose allowance other software or concurrent guards have already spent (an
+editor watching a large tree, or 32 or more live guards on populated stores) refuses a directory
+with a message that names the sysctl, and the remedy is to raise it; a store whose directories
+alone exceed the allowance cannot register on that host at all;
+`inotify_init1` is bounded by `fs.inotify.max_user_instances` (128 on the qualification host) and
+fails the registration with its own error when that many guards are live. The sweep re-reads every
+file beyond the ceiling once per complete-route commit, before the lock.
+
+Rollback: revert `change_guard_linux.go`, the `finish` hook in `change_guard.go` and the tests; a
+store with more files than the allowance then fails as before.
+
 ## Acceptance evidence
 
 Initial fixture must initialize and canonically roundtrip policy/pool state, claim/release exact allocation and show QUARANTINED before fault injection. Positive reset+verify and optional cleanup-first produce bounded observation/log evidence, delegated confirmation and FREE readback; subsequent claim has fresh allocation. Exact replay after env deletion/current config change/successor allocation returns original evidence without execution. Barrier tests afterreset/beforeconfirm refuse competing sweep, ordinary cleanup and manual confirmation. Retry max2, combined deadline, total budget, exit/stdout/stderr predicates, overflow/source drift/private env syntax/permissions/symlinks/races, receipt publication failure and request conflict controls retain quarantine. Blocked identity/group probes are bounded. Actual foreground subprocess INT/TERM retirement observes PID/start identities and descendant absence; killed-host explicit recovery refuses live/unknown runner and retains quarantine. Large pool projection, descriptor/count maxima, duplicated evidence digest and archive evidence retention must be checked. PSR-V0-011/012 (issue628) add policy-validation tests for the 1..3600 bound and the pinned cwd shape, an injected-clock health timeout at 3600, and pinned health/sweep fixtures that run in the external worktree and refuse mismatched revision, dirty tracked or untracked input, alias, subdirectory and non-worktree paths without executing; hook-driven tests show a revision swapped between HEAD and status and a directory swapped after the proof run nothing, and post-exit bounded probes keep the command's terminal class. Current integrated tests/runtimes are NOT_RUN at this source phase; Linux and physical external cleanup remain NOT_OBSERVED. The earlier broad source run failed on historical replay timing and the clock fixture; the repaired five-cell run and focused vet passed at their original source binding. Required next evidence is a fresh integrated binary plus all 58 mandatory PASS observations (21 PSR/repair, 27 CAL dispatcher/CLI, nine issue503 and the clock witness), scoped race/vet and docs/specindex checks. Historical repair PASS is not a current broad PASS. The original enrollment (BASE211916, key a2284577) is retained as NON_SUCCESS. The successor enrollment at that seal, with the original single intent and both original selected checks unchanged, its CEM/OCM, report review, seal, hosted landing and native completion remain pending; actual receipts must replace pending claims only after execution.
@@ -1068,7 +1146,7 @@ Shared allocations (PSR-V0-016..021; V1-0946, GitHub #653): focused CLI, transac
 Sweep prepare (PSR-V0-024..026; V1-1551, GitHub #1009): focused intent and store tests cover the policy shape, bound and safeReuse requirement; a prepare observed mid-run while the member is CLEANING under the owned sweep, chained after the passed verify, digest-only evidence with no output bytes, then FREE and an exact replay that does not rerun it; EXIT_NONZERO and shared-deadline TIMEOUT failures that stay QUARANTINED with the recorded reason and no retry; a lost prepare response whose replay stays pending without re-execution; and an ALL barrier that never launches prepare. Failure modes: a failed, timed-out, over-limit or source-changed prepare, a lost response and an ALL barrier each leave the member quarantined or owned, never free. Existing sweep tests run unchanged for members without prepare.
 Capacity slots (PSR-V0-030..043; V1-1550, GitHub #1008): focused intent, snapshot, store and CLI tests cover the policy and pools.json codecs with every refusal; grant, wait and free after an attempt ends and after a crashed holder's lease expires (reaped by the next poll, acceptance 1); an exclusive request granted under continuing shared demand (acceptance 2); priority wait order; a reserved class granted past a higher-priority unreserved waiter (acceptance 3); request-id replay and no-change polls (acceptance 4); and the `slot` result and `queue status` `slots` view as a pure read (acceptance 5). Concurrency between two slot writers relies on the existing store lock and was not separately stress-tested. An independent review found five defects before landing; each has a regression test that fails on the reviewed head 19f66b4e4: supervisor attach with held or waiting slots is refused (PSR-V0-039); an exclusive granted after a capacity cut takes the new capacity and a stale shared waiter neither is granted nor blocks a later one (PSR-V0-040); two alternating higher-priority exclusive requesters cannot starve a reserved-class waiter (PSR-V0-041); no-change release and poll requests replay (PSR-V0-042); and a replay carries no slot (PSR-V0-043). An older binary reading a store with slots was inferred from the closed decoders at landing; PSR-V0-080 (V1-1572) later executed a `v1.0.0-rc.2` binary against such stores and observed the `MALFORMED` refusal.
 
-Lease write resume (PSR-V0-050..057; V1-1560, GitHub #1010): the focused journal and store tests and the opt-in load harness named in that subsection and in Traceability (PSR-V0-050..057); Linux, quiet-host and 45,000-receipt qualification NOT_RUN.
+Lease write resume (PSR-V0-050..057; V1-1560, GitHub #1010): the focused journal and store tests and the opt-in load harness named in that subsection and in Traceability (PSR-V0-050..057); quiet-host qualification NOT_RUN; Linux 45,000-receipt run in the 2026-10-23 build log.
 
 Bounded acquire calls (PSR-V0-110..116; V1-1617, issue 1010 follow-up, issue 1063): the focused store and CLI tests and the opt-in load harness named in that subsection and in Traceability (PSR-V0-110..116); 47,000-receipt, quiet-host and Linux qualification NOT_RUN.
 
@@ -1222,3 +1300,10 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | --- | --- |
 | PSR-V0-203 | `TestPSRV0203_CheckpointTailRefusesNullPreStateDuplicate`, `TestPSRV0190_CheckpointTailRefusesPrefixRequestDuplicate`, `TestCALV0321_CheckpointRequestFilter` (`internal/tasks/journal`) |
 | PSR-V0-204 | `TestPSRV0204_LinuxRunnerIdentityNeedsNoListing`, `TestPSRV0204_LinuxIdentityClockStepIsUnknown`, `BenchmarkPSRV0204_RunnerIdentity` (`internal/tasks/store`, Linux only); `docs/build-log/2026-10-23-tasks-lane-1023.md` |
+
+## Traceability (PSR-V0-220..221)
+
+| Requirement | Evidence |
+| --- | --- |
+| PSR-V0-220 | `TestCALV0350_ClaimNextDerivesScopeForThePreviewedWaiterCLI`, `TestPSRV0132_ClaimNextPoolClaimsTheWaiterCLI` (`internal/tasks/cli`); implementation `internal/tasks/cli/lease.go` (`Derive: env.ScopeDeriver`), `internal/tasks/transaction/claim_next.go` |
+| PSR-V0-221 | `TestCALV0364_ChangeGuardTracksFilesBeyondTheInotifyLimit` (every mutation class on a file beyond the ceiling and on one the kernel refuses, at two sizes each), `TestCALV0364_FileCeilingFollowsTheAllowance`, `TestCALV0364_ChangeGuardRefusesADirectoryBeyondTheInotifyLimit`, `TestCALV0364_DirectoriesRegisterBeforeFiles`, opt-in `TestCALV0364_ChangeGuardUnderTheRealInotifyLimit` (`CORVINT_TASKS_INOTIFY_LIMIT=1`, root; a `ceiling` case asserts the kernel refused no file watch, and a `kernel-refusal` case lowers the real sysctl to this user's measured headroom plus the guard's directories and eight files and asserts the kernel actually refused file watches with `ENOSPC`) (`internal/tasks/authority`) |

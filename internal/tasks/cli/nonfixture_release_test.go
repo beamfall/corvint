@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -19,11 +20,7 @@ func TestCALV0027_CompiledNonfixtureReleaseLifecycle(t *testing.T) {
 }
 
 func testCALV0027_CompiledNonfixtureReleaseLifecycle(t *testing.T) {
-	binary := filepath.Join(t.TempDir(), "corvint-tasks")
-	build := exec.Command("go", "build", "-o", binary, "../../../cmd/corvint-tasks")
-	if out, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build: %v %s", err, out)
-	}
+	binary := cli.CompiledTasksBinary(t)
 	r := fixture.TempRepo(t)
 	q := fixture.QueueValue()
 	q.Obj.Set("fixture", wire.Bool(false))

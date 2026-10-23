@@ -161,3 +161,66 @@ func selected(plan affected.Plan, id string) (affected.Selection, bool) {
 	}
 	return affected.Selection{}, false
 }
+
+// AFP-V0-402: only a literal that some position can carry to a build or a
+// process creates a command edge. A command directory named only as data (a
+// comparison, a switch case, a map index, a strings predicate or a test
+// message on a parameter declared as a testing T, B, F or TB) creates none;
+// an exec argument, a helper's argument, a variable initializer, the operand a
+// Trim or Cut returns, an assigned map key, an errors.New or fmt.Errorf
+// argument, a message method of any other receiver (a builder, a redeclared
+// t) and a call through a package name a local declaration shadows keep the
+// edge.
+func TestDataOnlyCommandLiteralCreatesNoEdge_AFPV0402(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                  "module example.test/m\n",
+		"lib/lib.go":              "package lib\n\nfunc Help() string { return \"help\" }\n",
+		"cmd/tool/main.go":        "package main\n\nimport \"example.test/m/lib\"\n\nfunc main() { println(lib.Help()) }\n",
+		"exec/exec_test.go":       "package exec\n\nimport (\n\t\"os/exec\"\n\t\"testing\"\n)\n\nfunc TestBuild(t *testing.T) { _ = exec.Command(\"go\", \"build\", \"-o\", t.TempDir(), \"./cmd/tool\") }\n",
+		"helper/helper_test.go":   "package helper\n\nimport \"testing\"\n\nfunc TestBuild(t *testing.T) { build(t, \"example.test/m/cmd/tool\") }\n\nfunc build(t *testing.T, pkg string) {}\n",
+		"trim/trim_test.go":       "package trim\n\nimport (\n\t\"os/exec\"\n\t\"strings\"\n)\n\nvar build = exec.Command(\"go\", \"build\", strings.TrimSuffix(\"./cmd/tool/\", \"/\"))\n",
+		"cut/cut_test.go":         "package cut\n\nimport \"strings\"\n\nvar target, _ = strings.CutPrefix(\"example.test/m/cmd/tool\", \"\")\n",
+		"assign/assign_test.go":   "package assign\n\nfunc packages() map[string]bool {\n\tset := map[string]bool{}\n\tset[\"./cmd/tool\"] = true\n\treturn set\n}\n",
+		"paren/paren_test.go":     "package paren\n\nfunc packages() map[string]bool {\n\tset := map[string]bool{}\n\t(set[\"./cmd/tool\"]) = true\n\treturn set\n}\n",
+		"builder/builder_test.go": "package builder\n\nimport \"testing\"\n\ntype builder struct{}\n\nfunc (builder) Log(pkg string) {}\n\nfunc TestBuild(t *testing.T) {\n\tvar b builder\n\tb.Log(\"example.test/m/cmd/tool\")\n}\n",
+		"rebind/rebind_test.go":   "package rebind\n\nimport \"testing\"\n\ntype builder struct{}\n\nfunc (builder) Log(pkg string) {}\n\nfunc TestBuild(t *testing.T) {\n\tt.Run(\"x\", func(*testing.T) {\n\t\tt := builder{}\n\t\tt.Log(\"./cmd/tool\")\n\t})\n}\n",
+		"shadow/shadow_test.go":   "package shadow\n\nimport \"strings\"\n\ntype runner struct{}\n\nfunc (runner) Contains(pkg string) bool { return true }\n\nfunc build() bool {\n\tstrings := runner{}\n\treturn strings.Contains(\"./cmd/tool\")\n}\n\nvar _ = strings.ToUpper\n",
+		"errshadow/err_test.go":   "package errshadow\n\nimport (\n\t\"errors\"\n\t\"fmt\"\n)\n\ntype runner struct{}\n\nfunc (runner) New(pkg string) error { return nil }\n\nfunc (runner) Errorf(pkg string) error { return nil }\n\nfunc build() {\n\terrors, fmt := runner{}, runner{}\n\t_ = errors.New(\"./cmd/tool\")\n\t_ = fmt.Errorf(\"./cmd/tool\")\n}\n\nvar _, _ = errors.Is, fmt.Sprint\n",
+		"errnew/errnew_test.go":   "package errnew\n\nimport (\n\t\"errors\"\n\t\"os/exec\"\n)\n\nvar build = exec.Command(\"go\", \"build\", errors.New(\"./cmd/tool\").Error())\n",
+		"errorf/errorf_test.go":   "package errorf\n\nimport (\n\t\"fmt\"\n\t\"os/exec\"\n)\n\nvar build = exec.Command(\"go\", \"build\", fmt.Errorf(\"./cmd/tool\").Error())\n",
+		"message/message_test.go": "package message\n\nimport (\n\tt \"testing\"\n)\n\nfunc TestMessage(tb *t.T) {\n\ttb.Run(\"x\", func(tb *t.T) { tb.Log(\"./cmd/tool\") })\n\thelp(tb)\n}\n\nfunc help(tb t.TB) { tb.Skipf(\"cmd/tool %d\", 1) }\n",
+		"data/data_test.go":       "package data\n\nimport (\n\t\"strings\"\n\t\"testing\"\n)\n\nfunc TestBoundary(t *testing.T) {\n\tfor _, rel := range []string{\"x\"} {\n\t\tif strings.HasPrefix(rel, \"cmd/tool/\") || rel == \"./cmd/tool\" {\n\t\t\tt.Fatalf(\"%s is under cmd/tool\", rel)\n\t\t}\n\t\tswitch rel {\n\t\tcase \"cmd/tool\":\n\t\t}\n\t\t_ = map[string]bool{}[(\"example.test/m/cmd/tool\")]\n\t\t_ = strings.TrimPrefix(rel, \"cmd/tool/\")\n\t}\n}\n",
+	})
+	result, err := golang.New().Units(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	execs := map[string][]string{}
+	for _, unit := range result.Units {
+		if unit.Execs != nil {
+			execs[unit.ID] = unit.Execs
+		}
+	}
+	tool := binaryExecModule + "cmd/tool"
+	want := map[string][]string{}
+	for _, name := range []string{"assign", "builder", "cut", "errnew", "errorf", "errshadow", "exec", "helper", "paren", "rebind", "shadow", "trim"} {
+		want[binaryExecModule+name] = []string{tool}
+	}
+	if !reflect.DeepEqual(execs, want) {
+		t.Fatalf("execs = %v, want %v", execs, want)
+	}
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"lib/lib.go"})
+	if _, ok := selected(plan, binaryExecModule+"data"); ok {
+		t.Fatalf("data-only literal selected a consumer: %v", plan.SelectedTests())
+	}
+	for _, name := range []string{"exec", "helper"} {
+		if selection, ok := selected(plan, binaryExecModule+name); !ok || selection.Witness.Kind != affected.WitnessBinaryExec {
+			t.Fatalf("%s: selection %+v in %v", name, selection, plan.SelectedTests())
+		}
+	}
+}

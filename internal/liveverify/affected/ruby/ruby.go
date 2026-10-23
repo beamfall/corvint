@@ -161,16 +161,17 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	observed := make([]observation, 0, len(files))
 	autoloadSites := make(map[string][]int)
 	var railsTests []string
+	scans := helperScans{}
 	for _, relative := range files {
-		body, readErr := root.Read(relative)
-		if readErr != nil || !utf8.Valid(body) {
+		scanned := scans.scan(root, relative)
+		if !scanned.readable {
 			frontier[located(FrontierUnreadableSource, relative, 0)] = true
 			continue
 		}
-		text := string(body)
+		text := scanned.text
 		code := codeForDetection(text)
 		local := map[string]bool{}
-		loads, sites := scanLoads(relative, text)
+		loads, sites := scanned.loads, scanned.sites
 		for _, site := range sites {
 			if site.scope == siteAutoload {
 				autoloadSites[relative] = append(autoloadSites[relative], site.line)
@@ -179,7 +180,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 			frontier[located(site.reason, relative, site.line)] = true
 		}
 		kind := classify(relative, code, rails)
-		hint, hintConflict, helperRails := helperFramework(root, relative, loads, fileSet, loadRoots)
+		hint, hintConflict, helperRails := helperFramework(root, scans, relative, loads, fileSet, loadRoots)
 		railsObserved = railsObserved || helperRails
 		if hintConflict {
 			local[located(FrontierAmbiguousFramework, relative, 0)] = true
@@ -398,7 +399,46 @@ func hasDirectFramework(body string) bool {
 	return explicitMinitest(body) || rspecQualified.MatchString(body) || railsTestClass.MatchString(body)
 }
 
-func helperFramework(root *affected.Source, owner string, loads []loadRef, files map[string]bool, loadRoots []string) (framework, bool, bool) {
+// helperScan is one observation's single read of a Ruby file, shared by the
+// source loop and helperFramework: every spec of a suite loads the same
+// helpers, and a helper is also a source file, so one Build reads and scans
+// each file once instead of once as a source and once per loading spec
+// (AFP-V0-394). readable is false for a file that could not be read or
+// decoded, which contributes nothing either way. hints is derived on first
+// use as a helper.
+type helperScan struct {
+	readable bool
+	text     string
+	loads    []loadRef
+	sites    []loadSite
+	hinted   bool
+	hints    map[framework]bool
+}
+
+// helperScans memoizes helperScan by repository path within one observation.
+type helperScans map[string]*helperScan
+
+func (scans helperScans) scan(root *affected.Source, candidate string) *helperScan {
+	if scanned, ok := scans[candidate]; ok {
+		return scanned
+	}
+	scanned := &helperScan{}
+	if body, err := root.Read(candidate); err == nil && utf8.Valid(body) {
+		scanned.readable, scanned.text = true, string(body)
+		scanned.loads, scanned.sites = scanLoads(candidate, scanned.text)
+	}
+	scans[candidate] = scanned
+	return scanned
+}
+
+func (scanned *helperScan) frameworkHints() map[framework]bool {
+	if !scanned.hinted {
+		scanned.hints, scanned.hinted = frameworkHints(codeForDetection(scanned.text)), true
+	}
+	return scanned.hints
+}
+
+func helperFramework(root *affected.Source, scans helperScans, owner string, loads []loadRef, files map[string]bool, loadRoots []string) (framework, bool, bool) {
 	runnerHints := make(map[framework]bool, 2)
 	rails := false
 	visited := make(map[string]bool)
@@ -413,20 +453,18 @@ func helperFramework(root *affected.Source, owner string, loads []loadRef, files
 					continue
 				}
 				visited[candidate] = true
-				body, err := root.Read(candidate)
-				if err != nil || !utf8.Valid(body) {
+				scanned := scans.scan(root, candidate)
+				if !scanned.readable {
 					continue
 				}
-				code := codeForDetection(string(body))
-				for hint := range frameworkHints(code) {
+				for hint := range scanned.frameworkHints() {
 					if hint == frameworkRailsTest {
 						rails = true
 						continue
 					}
 					runnerHints[hint] = true
 				}
-				nested, _ := scanLoads(candidate, string(body))
-				visit(candidate, nested)
+				visit(candidate, scanned.loads)
 			}
 		}
 	}

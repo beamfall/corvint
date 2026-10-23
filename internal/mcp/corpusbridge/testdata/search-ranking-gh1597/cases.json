@@ -1,0 +1,14 @@
+{"schema":"corvint-corpus-eval-cases/1","origin":"synthetic","cases":[
+{"id":"file-cancel","operation":"search","arguments":{"query":"cancel refreshes occupancy once per tee sheet","limit":1},"expect":{"subjects":["native:file:src/teesheet/cancel_booking.ts"]},"tags":["file-lookup"]},
+{"id":"file-refund","operation":"search","arguments":{"query":"refund returns the payment to the original method","limit":1},"expect":{"subjects":["native:file:src/billing/refund_payment.ts"]},"tags":["file-lookup"]},
+{"id":"file-invite","operation":"search","arguments":{"query":"invitation links expire after seven days","limit":1},"expect":{"subjects":["native:file:src/members/invite_member.ts"]},"tags":["file-lookup"]},
+{"id":"file-waitlist","operation":"search","arguments":{"query":"promote the next waitlisted member into the freed slot","limit":1},"expect":{"subjects":["native:file:src/waitlist/promote_next.ts"]},"tags":["file-lookup"]},
+{"id":"file-occupancy","operation":"search","arguments":{"query":"occupancy counter counts booked players per slot","limit":1},"expect":{"subjects":["native:file:src/teesheet/occupancy_counter.ts"]},"tags":["file-lookup"]},
+{"id":"file-invoice","operation":"search","arguments":{"query":"invoice export writes one csv row per paid booking","limit":1},"expect":{"subjects":["native:file:src/billing/invoice_export.ts"]},"tags":["file-lookup"]},
+{"id":"claim-cancel","operation":"search","arguments":{"query":"cancel refreshes occupancy","include":["claims"],"limit":1},"expect":{"claims":["fixture:claim:cancel-occupancy"]},"tags":["claim-lookup"]},
+{"id":"claim-refund","operation":"search","arguments":{"query":"refund to the original method","include":["claims"],"limit":1},"expect":{"claims":["fixture:claim:refund-original"]},"tags":["claim-lookup"]},
+{"id":"claim-invite","operation":"search","arguments":{"query":"invitation links expire seven days","include":["claims"],"limit":1},"expect":{"claims":["fixture:claim:invite-expiry"]},"tags":["claim-lookup"]},
+{"id":"claim-waitlist","operation":"search","arguments":{"query":"first waitlisted member freed slot","include":["claims"],"limit":1},"expect":{"claims":["fixture:claim:waitlist-promote"]},"tags":["claim-lookup"]},
+{"id":"claim-occupancy","operation":"search","arguments":{"query":"counts booked players per slot","include":["claims"],"limit":1},"expect":{"claims":["fixture:claim:occupancy-count"]},"tags":["claim-lookup"]},
+{"id":"claim-invoice","operation":"search","arguments":{"query":"one csv row per paid booking","include":["claims"],"limit":1},"expect":{"claims":["fixture:claim:invoice-export"]},"tags":["claim-lookup"]}
+]}

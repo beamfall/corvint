@@ -1,7 +1,7 @@
 # Playwright env-read executablePath and the #1604 alias remainder
 
 Date: 2026-10-23. Lane: claude/affected-gh1640-1604 (base 0641ad2e0). Issues: GitHub #1640 and
-#1604. Requirements `AFP-V0-382..390` (`docs/specs/affected-plan-v0.md`) are accepted under the
+#1604. Requirements `AFP-V0-382..389` and `AFP-V0-404` (`docs/specs/affected-plan-v0.md`) are accepted under the
 owner's standing auto-accept (2026-10-11).
 
 ## #1640: a Playwright executablePath read from process.env
@@ -71,7 +71,7 @@ Decisions:
   reference that the nearest `tsconfig.json` claims. The check fails closed: any opaque closure
   module, workspace package or invalid tsconfig keeps the blocker. Runner configs block as
   before.
-- AFP-V0-390 defers the Playwright config frontier until the tests are classified. It drops the
+- AFP-V0-404 defers the Playwright config frontier until the tests are classified. It drops the
   frontier only when both of these hold:
   - The profile's parse leaves no membership unknown, with no `testMatch` or `testIgnore`.
   - Every file the profile assigns to a project is that config's Playwright test in the general

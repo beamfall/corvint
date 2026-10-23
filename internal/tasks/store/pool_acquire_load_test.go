@@ -283,6 +283,11 @@ func TestPSRV0055_PoolAcquireLoad(t *testing.T) {
 		"hostLoad": map[string]string{"before": loadBefore, "after": loadAfter},
 		"summary":  verbs, "samples": samples,
 	}
+	// V1-1569: the run names its host and is labelled by the loads around it,
+	// as the B2 and B3 reports are (JSG-V0-021).
+	for k, v := range b3Report(loadBefore, loadAfter) {
+		report[k] = v
+	}
 	raw, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
 		t.Fatal(err)
@@ -383,7 +388,7 @@ func TestPSRV0055_PoolAcquireLoadWorker(t *testing.T) {
 		case ctx.Err() != nil && !finished:
 			s.Unfinished, s.Code = true, "UNFINISHED"
 		case err != nil:
-			s.Code = string(wire.CodeOf(err))
+			s.Code, s.Detail = string(wire.CodeOf(err)), fmt.Sprintf("%.300s", err.Error())
 			if s.Code == "" {
 				s.Code = "ERROR"
 			}

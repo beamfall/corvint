@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04 (first drafted 2026-10-02 as a private Gate A proposal; detached runs added 2026-10-06)
-Intent status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 and ATR-V0-066 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600); ATR-V0-060..062 accepted (standing auto-accept 2026-10-11; V1-1595); ATR-V0-063..065 accepted (standing auto-accept 2026-10-11; V1-1597); ATR-V0-080..084 accepted (standing auto-accept 2026-10-11; V1-1608, V1-1673); ATR-V0-085..089 accepted (standing auto-accept 2026-10-11; V1-1647); ATR-V0-095 accepted (standing auto-accept 2026-10-11; V1-1671); ATR-V0-101..107 accepted (standing auto-accept 2026-10-11; V1-1763, issue 1109); ATR-V0-110..114 accepted (standing auto-accept 2026-10-11; V1-1782, issue 1122); ATR-V0-120..124 accepted (standing auto-accept 2026-10-11; V1-1833, issue 1147); ATR-V0-125..127 accepted (standing auto-accept 2026-10-11; V1-1834, issue 1148); ATR-V0-133..135 accepted (standing auto-accept 2026-10-11; V1-1852, issue 1157); ATR-V0-150..152 accepted (standing auto-accept 2026-10-11; V1-1914 and V1-1916, issues 1181 and 1183); ATR-V0-153 accepted (standing auto-accept 2026-10-11; V1-2103, issue 1116); ATR-V0-154 accepted (standing auto-accept 2026-10-11; V1-0934); ATR-V0-160..162 accepted (standing auto-accept 2026-10-11; V1-2123, V1-0951, V1-1767); ATR-V0-163..166 accepted (standing auto-accept 2026-10-11; V1-1857, V1-1853, V1-1854, V1-0748); ATR-V0-167..169 accepted (standing auto-accept 2026-10-11; V1-0769, V1-1793, V1-1792); ATR-V0-170 accepted (standing auto-accept 2026-10-11; V1-0832); ATR-V0-171 accepted (standing auto-accept 2026-10-11; V1-0933); ATR-V0-180..183 accepted (standing auto-accept 2026-10-11; V1-0925, V1-0924, V1-0934, V1-0948; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-190..192 accepted (standing auto-accept 2026-10-11; V1-2263, V1-1964); ATR-V0-193 accepted (standing auto-accept 2026-10-11; V1-1692); ATR-V0-210..212 accepted (standing auto-accept 2026-10-11; V1-1321, V1-1237, V1-1441); ATR-V0-213 accepted (standing auto-accept 2026-10-11; V1-2189); ATR-V0-240..241 accepted (standing auto-accept 2026-10-11; V1-0831, V1-0775); ATR-V0-270..275 accepted (standing auto-accept 2026-10-11; V1-0830, V1-0828, V1-1874, V1-1438); ATR-V0-280..281 accepted (standing auto-accept 2026-10-11; V1-1964 as narrowed by decision 0552); ATR-V0-296..298 accepted (standing auto-accept 2026-10-11; V1-0826)
+Intent status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 and ATR-V0-066 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600); ATR-V0-060..062 accepted (standing auto-accept 2026-10-11; V1-1595); ATR-V0-063..065 accepted (standing auto-accept 2026-10-11; V1-1597); ATR-V0-080..084 accepted (standing auto-accept 2026-10-11; V1-1608, V1-1673); ATR-V0-085..089 accepted (standing auto-accept 2026-10-11; V1-1647); ATR-V0-095 accepted (standing auto-accept 2026-10-11; V1-1671); ATR-V0-101..107 accepted (standing auto-accept 2026-10-11; V1-1763, issue 1109); ATR-V0-110..114 accepted (standing auto-accept 2026-10-11; V1-1782, issue 1122); ATR-V0-120..124 accepted (standing auto-accept 2026-10-11; V1-1833, issue 1147); ATR-V0-125..127 accepted (standing auto-accept 2026-10-11; V1-1834, issue 1148); ATR-V0-133..135 accepted (standing auto-accept 2026-10-11; V1-1852, issue 1157); ATR-V0-150..152 accepted (standing auto-accept 2026-10-11; V1-1914 and V1-1916, issues 1181 and 1183); ATR-V0-153 accepted (standing auto-accept 2026-10-11; V1-2103, issue 1116); ATR-V0-154 accepted (standing auto-accept 2026-10-11; V1-0934); ATR-V0-160..162 accepted (standing auto-accept 2026-10-11; V1-2123, V1-0951, V1-1767); ATR-V0-163..166 accepted (standing auto-accept 2026-10-11; V1-1857, V1-1853, V1-1854, V1-0748); ATR-V0-167..169 accepted (standing auto-accept 2026-10-11; V1-0769, V1-1793, V1-1792); ATR-V0-170 accepted (standing auto-accept 2026-10-11; V1-0832); ATR-V0-171 accepted (standing auto-accept 2026-10-11; V1-0933); ATR-V0-180..183 accepted (standing auto-accept 2026-10-11; V1-0925, V1-0924, V1-0934, V1-0948; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-190..192 accepted (standing auto-accept 2026-10-11; V1-2263, V1-1964); ATR-V0-193 accepted (standing auto-accept 2026-10-11; V1-1692); ATR-V0-210..212 accepted (standing auto-accept 2026-10-11; V1-1321, V1-1237, V1-1441); ATR-V0-213 accepted (standing auto-accept 2026-10-11; V1-2189); ATR-V0-240..241 accepted (standing auto-accept 2026-10-11; V1-0831, V1-0775); ATR-V0-270..275 accepted (standing auto-accept 2026-10-11; V1-0830, V1-0828, V1-1874, V1-1438); ATR-V0-280..281 accepted (standing auto-accept 2026-10-11; V1-1964 as narrowed by decision 0552); ATR-V0-296..298 accepted (standing auto-accept 2026-10-11; V1-0826); ATR-V0-310..312 accepted (standing auto-accept 2026-10-11; V1-2305, V1-1559, V1-2173); ATR-V0-320..329 accepted (standing auto-accept 2026-10-11; V1-1634, V1-0911, V1-2368; re-homed from CAL-V0-361..363 and CAL-V0-365..371)
 Delivery status: experimental
 Authoritative inputs: owner request [issue 481](https://github.com/beamfall/corvint/issues/481); native ticket V1-0677;
 owner request [issue 627](https://github.com/beamfall/corvint/issues/627) and native ticket V1-0856 (detached runs);
@@ -31,7 +31,7 @@ native ticket V1-0933 (ATR-V0-171);
 native tickets V1-0925, V1-0924, V1-0934 and V1-0948 (ATR-V0-180..183, re-homed from CAL-V0-350..353);
 native tickets V1-2263 and V1-1964 (ATR-V0-190..192);
 native ticket V1-1692 (ATR-V0-193);
-native tickets V1-1321, V1-1237 and V1-1441 (ATR-V0-210..212); native ticket V1-2189 (ATR-V0-213); native tickets V1-0830, V1-0828, V1-1874 and V1-1438 (ATR-V0-270..275); native ticket V1-0826 (ATR-V0-296..298);
+native tickets V1-1321, V1-1237 and V1-1441 (ATR-V0-210..212); native ticket V1-2189 (ATR-V0-213); native tickets V1-2305, V1-1559 and V1-2173 (ATR-V0-310..312); native tickets V1-1634, V1-0911 and V1-2368 (ATR-V0-320..329, re-homed from CAL-V0-361..363 and CAL-V0-365..371); native tickets V1-0830, V1-0828, V1-1874 and V1-1438 (ATR-V0-270..275); native ticket V1-0826 (ATR-V0-296..298);
 `docs/specs/corvint-tasks-agent-leases-v0.md` (external leases, heartbeat and renewal); the creation-owned
 process-group API in `internal/groupreap/owner.go`; the process start identity in
 `internal/tasks/supervisor` (`ProcessIdentity`); the in-tree sources under `internal/tasks/transaction`,
@@ -39,7 +39,7 @@ process-group API in `internal/groupreap/owner.go`; the process start identity i
 
 ## Agent digest
 - Claim: An experimental attempt runner keeps an externally leased attempt's heartbeat current, retires its owned process group and records an observational outcome.
-- Status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 and ATR-V0-066 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600); ATR-V0-060..062 accepted (standing auto-accept 2026-10-11; V1-1595); ATR-V0-063..065 accepted (standing auto-accept 2026-10-11; V1-1597); ATR-V0-080..084 accepted (standing auto-accept 2026-10-11; V1-1608, V1-1673); ATR-V0-085..089 accepted (standing auto-accept 2026-10-11; V1-1647); ATR-V0-095 accepted (standing auto-accept 2026-10-11; V1-1671); ATR-V0-101..107 accepted (standing auto-accept 2026-10-11; V1-1763, issue 1109); ATR-V0-110..114 accepted (standing auto-accept 2026-10-11; V1-1782, issue 1122); ATR-V0-120..124 accepted (standing auto-accept 2026-10-11; V1-1833, issue 1147); ATR-V0-125..127 accepted (standing auto-accept 2026-10-11; V1-1834, issue 1148); ATR-V0-133..135 accepted (standing auto-accept 2026-10-11; V1-1852, issue 1157); ATR-V0-150..152 accepted (standing auto-accept 2026-10-11; V1-1914 and V1-1916, issues 1181 and 1183); ATR-V0-153 accepted (standing auto-accept 2026-10-11; V1-2103, issue 1116); ATR-V0-154 accepted (standing auto-accept 2026-10-11; V1-0934); ATR-V0-160..162 accepted (standing auto-accept 2026-10-11; V1-2123, V1-0951, V1-1767); ATR-V0-163..166 accepted (standing auto-accept 2026-10-11; V1-1857, V1-1853, V1-1854, V1-0748); ATR-V0-167..169 accepted (standing auto-accept 2026-10-11; V1-0769, V1-1793, V1-1792); ATR-V0-170 accepted (standing auto-accept 2026-10-11; V1-0832); ATR-V0-171 accepted (standing auto-accept 2026-10-11; V1-0933); ATR-V0-180..183 accepted (standing auto-accept 2026-10-11; V1-0925, V1-0924, V1-0934, V1-0948; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-190..192 accepted (standing auto-accept 2026-10-11; V1-2263, V1-1964); ATR-V0-193 accepted (standing auto-accept 2026-10-11; V1-1692); ATR-V0-210..212 accepted (standing auto-accept 2026-10-11; V1-1321, V1-1237, V1-1441); ATR-V0-213 accepted (standing auto-accept 2026-10-11; V1-2189); ATR-V0-240..241 accepted (standing auto-accept 2026-10-11; V1-0831, V1-0775); ATR-V0-270..275 accepted (standing auto-accept 2026-10-11; V1-0830, V1-0828, V1-1874, V1-1438); ATR-V0-280..281 accepted (standing auto-accept 2026-10-11; V1-1964 as narrowed by decision 0552); ATR-V0-296..298 accepted (standing auto-accept 2026-10-11; V1-0826); experimental. ATR-V0-001..007 are implemented with focused tests on Darwin; ATR-V0-008..013 (detached runs) are implemented with focused tests on Darwin; ATR-V0-014 is implemented without a test; ATR-V0-015 (retirement of ended runs of terminal attempts, V1-0931) is accepted by decision 0440 and implemented with a focused test on Darwin. Dispatcher integration of detached runs (V1-0936, V1-0858) is proposed as CAL-V0-145..154 in the agent leases spec and implemented with focused tests on Darwin; the run side is unchanged. V1-1549 ATR-V0-030..039 (dispatch context thresholds: per-role warn, hand-off and hard token thresholds over recognised host usage events, a per-worker context record and notice, and a hard-stop hand-off, issue 1007) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests, live host qualification NOT_RUN; V1-1547 ATR-V0-020..029 (detached `claim` and `pool acquire` under the request id with attach, verbatim kept result and a 600-second ceiling, issue 1005) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests on Darwin, Linux NOT_RUN (re-homed from the agent leases spec, owner-approved 2026-10-17). V1-1558 ATR-V0-050..053 and ATR-V0-066 (contended or interrupted store writes report retryable `LOCK_TIMEOUT`, never `MALFORMED`; outcome-write retry; one run item once started; a kept detached `LOCK_TIMEOUT` is retried by a same-id `--detach`, issue 1026) accepted under the owner's standing auto-accept, implemented with focused writer-contention tests on Darwin, Linux NOT_RUN. V1-1575 ATR-V0-054..055 (a context record of another profile version is preserved, never overwritten, and shows `UNKNOWN`; a damaged record alerts once and is replaced) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1562 ATR-V0-056..057 (`dispatch status --worker ID` shows a worker's context notice from its record; the detached-run marker, now `taskman-dispatch-detached-run/1`, carries the `CONTEXT` hand-off detail across a restart) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1600 ATR-V0-058..059 (a controlled dispatcher writes a drain-pending signal, named to every worker as `CORVINT_DISPATCH_DRAIN_FILE`, while its service control is `DRAINING`, and removes it when the drain lifts; a claim result carries the drain notice while the signal is present, issue 1043) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1595 ATR-V0-060..062 (opt-in `shortSessions` holds a ticket's next launch after repeated short dispatcher sessions, kept in a session-churn record, shown in events and `dispatch status`, and a doctor SESSION_CHURN finding, issue 1038) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1597 ATR-V0-063..065 (host suspend gaps detected from wall-over-monotonic jumps, recorded once with an alert, excluded from wall and idle caps, the lease keeper's idle check and the expired-lease grace, and shown in `dispatch status`, issue 1040) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; keep-awake and a doctor finding are residuals. V1-1608 and V1-1673 ATR-V0-080..084 (an opt-in policy `progressSignal` `HANDOFF_EVIDENCE`: a changed hand-off `--evidence` reference is progress for loop detection, the dispatcher's no-progress backoff and the doctor, recorded as loop evidence and named in holds, issues 1050 and 1068) and V1-1647 ATR-V0-085..089 (`ticketBudget.overrides` per ticket, label or kind with precedence and the effective limit and selector in `dispatch status`, issue 1066) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live qualification NOT_RUN. V1-1671 ATR-V0-095 (a repeat `--detach` after a kept `LOCK_TIMEOUT` waits out the finishing child and relaunches even while its exiting process is still visible) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin, Linux NOT_RUN. V1-1763 ATR-V0-101..107 (warn and hand-off notices delivered into a claude-code session through a dispatcher-written PostToolUse hook, delivery mode in `dispatch status` with UNSUPPORTED for opencode, a bounded secret-screened hand-off note salvaged at the hard stop and offered to the next launch on the ticket, and a CONTEXT_EXHAUSTED state with one alert after `exhaustedAfter` consecutive hard stops, issue 1109) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live host qualification NOT_RUN (V1-1563). V1-1782 ATR-V0-110..114 (per-role `carryOver`: a no-progress session's screened final-message tail and end reason recorded per ticket, removed on progress, and appended to the next launch's prompt on the ticket as a bounded block labelled untrusted prior-session output, with `carryOver` members in the `launched` and `finished` events, issue 1122) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live host qualification NOT_RUN. V1-1833 ATR-V0-120..124 (opt-in `holdPool`: the dispatcher claims a pool ticket with its member before launch, names the hold record to the session, returns the allocation when the worker ends or a launch fails, sweeps orphaned claims and shows `poolHold` in `dispatch status`, issue 1147) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live qualification NOT_RUN. V1-1834 ATR-V0-125..127 (a host-neutral polled context-notice file for any host that declares `contextNotices: "file"`, reported as delivery `FILE`; `dispatch salvage --attempt A` writes the secret-screened hand-off note of a running or externally stopped session; `launched` and `finished` events record the delivery mode, the levels delivered, the offered note and the salvage, issue 1148) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live host qualification NOT_RUN. V1-1852 ATR-V0-133..135 (a carryOver host argv may hold any argv placeholder after argv[0], store-derived ones included, rechecked as rendered at each launch; `dispatch status` exits 1 on an INVALID config file; a restart on an invalid file refuses and runs no dispatcher, issue 1157) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live host qualification NOT_RUN. V1-1914 and V1-1916 ATR-V0-150..152 (a per-tick queue observation `admission.json` naming each run-only hold's fence and each role's queue depth; opt-in `runOnly`/`bypassFocus` and `capMax` at calm pressure, issues 1181 and 1183) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live dispatcher qualification NOT_RUN. V1-2103 ATR-V0-153 (the runner's owned group repeats its SIGKILL while a member forked alongside the stop stays live, issue 1116) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; Linux NOT_RUN.
+- Status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 and ATR-V0-066 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600); ATR-V0-060..062 accepted (standing auto-accept 2026-10-11; V1-1595); ATR-V0-063..065 accepted (standing auto-accept 2026-10-11; V1-1597); ATR-V0-080..084 accepted (standing auto-accept 2026-10-11; V1-1608, V1-1673); ATR-V0-085..089 accepted (standing auto-accept 2026-10-11; V1-1647); ATR-V0-095 accepted (standing auto-accept 2026-10-11; V1-1671); ATR-V0-101..107 accepted (standing auto-accept 2026-10-11; V1-1763, issue 1109); ATR-V0-110..114 accepted (standing auto-accept 2026-10-11; V1-1782, issue 1122); ATR-V0-120..124 accepted (standing auto-accept 2026-10-11; V1-1833, issue 1147); ATR-V0-125..127 accepted (standing auto-accept 2026-10-11; V1-1834, issue 1148); ATR-V0-133..135 accepted (standing auto-accept 2026-10-11; V1-1852, issue 1157); ATR-V0-150..152 accepted (standing auto-accept 2026-10-11; V1-1914 and V1-1916, issues 1181 and 1183); ATR-V0-153 accepted (standing auto-accept 2026-10-11; V1-2103, issue 1116); ATR-V0-154 accepted (standing auto-accept 2026-10-11; V1-0934); ATR-V0-160..162 accepted (standing auto-accept 2026-10-11; V1-2123, V1-0951, V1-1767); ATR-V0-163..166 accepted (standing auto-accept 2026-10-11; V1-1857, V1-1853, V1-1854, V1-0748); ATR-V0-167..169 accepted (standing auto-accept 2026-10-11; V1-0769, V1-1793, V1-1792); ATR-V0-170 accepted (standing auto-accept 2026-10-11; V1-0832); ATR-V0-171 accepted (standing auto-accept 2026-10-11; V1-0933); ATR-V0-180..183 accepted (standing auto-accept 2026-10-11; V1-0925, V1-0924, V1-0934, V1-0948; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-190..192 accepted (standing auto-accept 2026-10-11; V1-2263, V1-1964); ATR-V0-193 accepted (standing auto-accept 2026-10-11; V1-1692); ATR-V0-210..212 accepted (standing auto-accept 2026-10-11; V1-1321, V1-1237, V1-1441); ATR-V0-213 accepted (standing auto-accept 2026-10-11; V1-2189); ATR-V0-240..241 accepted (standing auto-accept 2026-10-11; V1-0831, V1-0775); ATR-V0-270..275 accepted (standing auto-accept 2026-10-11; V1-0830, V1-0828, V1-1874, V1-1438); ATR-V0-280..281 accepted (standing auto-accept 2026-10-11; V1-1964 as narrowed by decision 0552); ATR-V0-296..298 accepted (standing auto-accept 2026-10-11; V1-0826); ATR-V0-310..312 accepted (standing auto-accept 2026-10-11; V1-2305, V1-1559, V1-2173); ATR-V0-320..329 accepted (standing auto-accept 2026-10-11; V1-1634, V1-0911, V1-2368; re-homed from CAL-V0-361..363 and CAL-V0-365..371); experimental. ATR-V0-001..007 are implemented with focused tests on Darwin; ATR-V0-008..013 (detached runs) are implemented with focused tests on Darwin; ATR-V0-014 is implemented without a test; ATR-V0-015 (retirement of ended runs of terminal attempts, V1-0931) is accepted by decision 0440 and implemented with a focused test on Darwin. Dispatcher integration of detached runs (V1-0936, V1-0858) is proposed as CAL-V0-145..154 in the agent leases spec and implemented with focused tests on Darwin; the run side is unchanged. V1-1549 ATR-V0-030..039 (dispatch context thresholds: per-role warn, hand-off and hard token thresholds over recognised host usage events, a per-worker context record and notice, and a hard-stop hand-off, issue 1007) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests, live host qualification NOT_RUN; V1-1547 ATR-V0-020..029 (detached `claim` and `pool acquire` under the request id with attach, verbatim kept result and a 600-second ceiling, issue 1005) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests on Darwin and, since V1-1559, Linux (re-homed from the agent leases spec, owner-approved 2026-10-17). V1-1558 ATR-V0-050..053 and ATR-V0-066 (contended or interrupted store writes report retryable `LOCK_TIMEOUT`, never `MALFORMED`; outcome-write retry; one run item once started; a kept detached `LOCK_TIMEOUT` is retried by a same-id `--detach`, issue 1026) accepted under the owner's standing auto-accept, implemented with focused writer-contention tests on Darwin, Linux NOT_RUN. V1-1575 ATR-V0-054..055 (a context record of another profile version is preserved, never overwritten, and shows `UNKNOWN`; a damaged record alerts once and is replaced) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1562 ATR-V0-056..057 (`dispatch status --worker ID` shows a worker's context notice from its record; the detached-run marker, now `taskman-dispatch-detached-run/1`, carries the `CONTEXT` hand-off detail across a restart) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1600 ATR-V0-058..059 (a controlled dispatcher writes a drain-pending signal, named to every worker as `CORVINT_DISPATCH_DRAIN_FILE`, while its service control is `DRAINING`, and removes it when the drain lifts; a claim result carries the drain notice while the signal is present, issue 1043) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1595 ATR-V0-060..062 (opt-in `shortSessions` holds a ticket's next launch after repeated short dispatcher sessions, kept in a session-churn record, shown in events and `dispatch status`, and a doctor SESSION_CHURN finding, issue 1038) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1597 ATR-V0-063..065 (host suspend gaps detected from wall-over-monotonic jumps, recorded once with an alert, excluded from wall and idle caps, the lease keeper's idle check and the expired-lease grace, and shown in `dispatch status`, issue 1040) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; keep-awake and a doctor finding are residuals. V1-1608 and V1-1673 ATR-V0-080..084 (an opt-in policy `progressSignal` `HANDOFF_EVIDENCE`: a changed hand-off `--evidence` reference is progress for loop detection, the dispatcher's no-progress backoff and the doctor, recorded as loop evidence and named in holds, issues 1050 and 1068) and V1-1647 ATR-V0-085..089 (`ticketBudget.overrides` per ticket, label or kind with precedence and the effective limit and selector in `dispatch status`, issue 1066) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live qualification NOT_RUN. V1-1671 ATR-V0-095 (a repeat `--detach` after a kept `LOCK_TIMEOUT` waits out the finishing child and relaunches even while its exiting process is still visible) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin, Linux NOT_RUN. V1-1763 ATR-V0-101..107 (warn and hand-off notices delivered into a claude-code session through a dispatcher-written PostToolUse hook, delivery mode in `dispatch status` with UNSUPPORTED for opencode, a bounded secret-screened hand-off note salvaged at the hard stop and offered to the next launch on the ticket, and a CONTEXT_EXHAUSTED state with one alert after `exhaustedAfter` consecutive hard stops, issue 1109) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live host qualification NOT_RUN (V1-1563). V1-1782 ATR-V0-110..114 (per-role `carryOver`: a no-progress session's screened final-message tail and end reason recorded per ticket, removed on progress, and appended to the next launch's prompt on the ticket as a bounded block labelled untrusted prior-session output, with `carryOver` members in the `launched` and `finished` events, issue 1122) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live host qualification NOT_RUN. V1-1833 ATR-V0-120..124 (opt-in `holdPool`: the dispatcher claims a pool ticket with its member before launch, names the hold record to the session, returns the allocation when the worker ends or a launch fails, sweeps orphaned claims and shows `poolHold` in `dispatch status`, issue 1147) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live qualification NOT_RUN. V1-1834 ATR-V0-125..127 (a host-neutral polled context-notice file for any host that declares `contextNotices: "file"`, reported as delivery `FILE`; `dispatch salvage --attempt A` writes the secret-screened hand-off note of a running or externally stopped session; `launched` and `finished` events record the delivery mode, the levels delivered, the offered note and the salvage, issue 1148) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live host qualification NOT_RUN. V1-1852 ATR-V0-133..135 (a carryOver host argv may hold any argv placeholder after argv[0], store-derived ones included, rechecked as rendered at each launch; `dispatch status` exits 1 on an INVALID config file; a restart on an invalid file refuses and runs no dispatcher, issue 1157) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live host qualification NOT_RUN. V1-1914 and V1-1916 ATR-V0-150..152 (a per-tick queue observation `admission.json` naming each run-only hold's fence and each role's queue depth; opt-in `runOnly`/`bypassFocus` and `capMax` at calm pressure, issues 1181 and 1183) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live dispatcher qualification NOT_RUN. V1-2103 ATR-V0-153 (the runner's owned group repeats its SIGKILL while a member forked alongside the stop stays live, issue 1116) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; Linux NOT_RUN.
 - Exists: `corvint-tasks run --attempt ID --generation G --timeout SECONDS [--detach] -- COMMAND...` (detached: survives the launching session), `corvint-tasks run --attach --attempt ID [--run RUN] [--wait SECONDS]`, the `RUN_OUTCOME` lease verb and its closed outcome document, the private run record of a detached run, and CLI, store and transaction tests.
 - Blocked on: owner acceptance of this technical profile, Linux and composed native qualification, required CI, integration and native completion of V1-0677 and V1-0856; owner acceptance of the dispatcher integration CAL-V0-145..154 (V1-0936, see "Detached runs").
 - Read next: Requirements; Exit status and envelope; Failure modes; Traceability.
@@ -676,6 +676,9 @@ suspend, report it once, and keep it out of the dispatcher's own timers.
 Non-goals: extending or renewing a store lease for the gap (a lease that expired during the
 suspend is left to the reaper's grace, counted from the wake), a doctor finding for suspends, and a
 keep-awake service option; the last two are residuals of issue 1040.
+The other lease-reap paths at a wake, and the Linux clock basis of the detector, are stated by
+ATR-V0-320 and ATR-V0-321 (V1-1634): only the reap of a running worker's expired lease and the
+worker's own timers exclude a gap.
 
 Failure modes: detection needs two ticks of one process, so a suspend across a dispatcher restart
 is not seen; a wall-clock step of at least 30 seconds is indistinguishable from a suspend and is
@@ -1870,7 +1873,10 @@ Acceptance evidence (`internal/tasks/store`):
 - `TestATRV0241_MappedWriteAfterLeaseAuditRefusedByNextWrite` (darwin and linux) flips a mapped
   byte of the request projection and of `intent/policy.json` at the `sweep` and `lock` commit
   stages; the claim commits, the next `Mutate` refuses with the stated code and publishes nothing,
-  and a `Mutate` after the restore completes. Darwin APFS runs; Linux tmpfs NOT_RUN on this host.
+  and a `Mutate` after the restore completes. Darwin APFS runs; on Linux (go1.27.2, 2026-10-23,
+  V1-0775 lane) it passes on ext4 and on tmpfs (`TMPDIR=/dev/shm`), with the claim committing
+  under the mapped write in all four cases, which confirms the limit on Linux. The fix remains the
+  owner's trade named above.
 
 Rollback: revert the commit. ATR-V0-241 changes no runtime code.
 
@@ -1890,8 +1896,8 @@ CI step timeout, an operator, an out-of-memory kill) leaves every worker group i
   within a bound, so a child forked during delivery is also stopped. It never signals a group whose
   leader is gone or unreadable. After a normal run the binary closes the pipe once its own leak check
   has reaped every group, and waits, bounded, for the reaper.
-Non-goals: worker groups launched by other test packages (the `internal/tasks/cli` dispatch tests
-keep only their cleanups); processes a worker moves out of its group; a reaper that is itself
+Non-goals: worker groups launched by other test packages (`internal/tasks/cli` is covered by
+ATR-V0-310); processes a worker moves out of its group; a reaper that is itself
 killed. Failure mode: a worker group still present 30 seconds after its binary is SIGKILLed fails
 `TestATRV0213_FixtureWorkersDieWithTheirTestBinary`. Acceptance evidence: that test, which fails
 with the reaper start disabled, and its bounded repeat run recorded in
@@ -1975,8 +1981,10 @@ worktree registry with no record left that could find or remove it.
   transition MUST admit `ADMITTED` to `WORKTREE_REMOVE` and back only while neither the recorded nor
   the next program has a current attempt.
 Non-goals: removing a dirty, moved or re-pointed worktree; deleting candidate refs or journal
-hand-offs; resuming a removal interrupted after its `WORKTREE_REMOVE` write (the program stays in
-that phase, as before); automatic cleanup outside a reassign.
+hand-offs; resuming a removal interrupted after its `WORKTREE_REMOVE` write (the program stayed in
+that phase; V1-2368 adds that settlement as ATR-V0-323, and ATR-V0-324
+drops removed records at each cleanup rather than only at the reassign); automatic cleanup outside
+a reassign.
 Failure modes: a kept worktree is reported, never removed by force; a refused or failed phase write
 stops the cleanup with that error, and the worktrees already removed stay marked removed.
 Acceptance evidence: `TestATRV0297_ReassignRemovesPriorStageWorktrees` (covers ATR-V0-296..298) and
@@ -1987,6 +1995,276 @@ with the reassign change reverted (no record kept) and with the ATR-V0-298 trans
 Rollback: revert the commit. A reassign again drops every worktree record, `program cleanup`
 disappears, and the idle-removal transition is refused; worktree records already kept stay valid
 program records.
+
+### V1-2305, V1-1559 and V1-2173 cli test workers, the attach race and detached equivalence
+
+V1-2305: the dead-man reaper of ATR-V0-213 covers only the `internal/tasks/dispatch` test binary, and
+two `host.sh` workers launched by tests of `internal/tasks/cli` survived 9 to 12 hours with parent 1.
+V1-1559: the detach tests had run on Darwin only, and an attach was seen to report a detached claim
+`LOST` for a brief moment while its launcher was still starting the child. V1-2173 (the follow-up
+of the V1-1557 decision, `docs/build-log/2026-10-21-detach-claim-semantics-and-prune.md`): `--detach`
+is a transport and adds no store semantics, which nothing yet stated or tested.
+
+- `ATR-V0-310`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2305) The
+  `internal/tasks/cli` test binary MUST fail when a test leaves a process group running under a
+  child of the binary, whichever way the test or the binary ends, and MUST signal a worker process
+  only through a handle that pins that process incarnation against pid reuse (a pidfd on Linux);
+  no path signals a pid or a process group by number. (1) A test that registers the per-test reaper
+  (`ReapWorkersOnCleanup`, called before the test's own cleanups) MUST fail when it ends, including
+  after `t.Fatal`, naming every group led by a child of the binary that was not running at
+  registration, and MUST retire those it owns. (2) After the last test the binary MUST join,
+  within a bound and without signalling, every detached child the tests launched (a detached
+  result is readable before its child exits), then retire any group still led by one of its
+  children and fail the package. Fixtures that launch detached children MUST join them before the
+  test's cleanup ends. (3) Before any test the binary MUST start a dead-man reaper as ATR-V0-213
+  does (a copy of itself, standard input a pipe whose write end only the binary holds), as the
+  leader of its own process group held unreaped by the binary. Every sample, the reaper MUST
+  attribute a process only from a process-table row read after the process's handle is opened,
+  with the handle still pinned after the read, so the row is that process's: a group leader when
+  the row names the binary as its parent while the binary's own handle is pinned; a member when
+  the row puts it in the group of an owned leader that is still pinned, or under an owned, pinned
+  parent in that group. An owned incarnation that has been reaped MUST be forgotten, so a later
+  process under its pid is judged afresh. At end of file, which the kernel delivers once the binary
+  has exited by any means, including SIGKILL and the package timeout, it MUST stop each owned
+  leader, kill the owned members, sampling again for members forked meanwhile until none is left
+  within a bound, then kill the leader, each through its handle, and MUST exit nonzero, reporting
+  on the binary's standard error, when it killed or left anything or a sample failed. The per-test
+  and end-of-run checks retire the same way. (4) A failed process-table read, a handle that cannot
+  be opened or checked, a signal refused for any reason other than the process having been reaped
+  (`EPERM` included), a process in an owned group's number that cannot be attributed, and an
+  attributed leader that cannot be pinned MUST fail the check and MUST NOT be taken for gone or
+  signalled. Where the platform has no pinning handle (Darwin) nothing is signalled: every leak is
+  reported as not signalled and fails. (5) At shutdown the binary MUST close the pipe and wait,
+  within a bound, for the reaper; a reaper still running at the bound MUST be killed with its whole
+  group while its leader is unreaped; it MUST be reaped before the binary exits, and a reaper that
+  failed or had to be killed MUST fail the package. A test binary re-executed by a test as a helper
+  MUST NOT arm these checks unless the test clears `CORVINT_CLI_TEST_ROOT` for it.
+- `ATR-V0-311`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1559) An attach
+  of a detached `claim` or `pool acquire` MUST NOT report `LOST` while a launcher of its request is
+  starting a child, nor while one could begin before the answer is chosen. A launcher holds the
+  launch lock exclusively from before it starts a child until `child.json` records it, so an
+  attach MUST take the launch lock shared, without waiting, before it reads the child's liveness,
+  and hold it until it has chosen its answer; when the lock is held it MUST answer `PENDING`. It
+  MAY report `LOST` only while holding the lock, with no child live at its liveness read and no
+  kept result. A missing lock file counts as no launcher (the launcher creates it before it writes
+  `request.json`); the attach opens it read-only and creates nothing. This refines ATR-V0-027 and
+  changes no other attach state.
+- `ATR-V0-312`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2173) A detached
+  `claim` or `pool acquire` MUST have the store outcome of the foreground command with the same
+  argv and request ID in the same store state: the kept result returned by `--detach --wait` and by
+  `--attach` MUST be the same exit code and envelope (outcome, codes, warnings and items), and
+  `--detach` MUST add no store semantics. For a holder whose live attempt has a different request
+  ID, a detached claim therefore gets what the foreground claim gets: a second attempt on another
+  ticket, `ATTEMPT_LIVE` on the ticket the live attempt holds, and the idempotent replay for its own
+  request ID.
+
+Non-goals: signalling on a platform without a pinning handle (Darwin reports and fails instead);
+worker groups a process moves out of its group; a group started within one sample (200 ms) of the
+binary's death, which only the per-test and end-of-run checks cover; a reaper that is itself
+killed; other test packages; pruning of detached records that never finish (V1-1565). Failure
+modes: a leaked group that does not fail its test, the package or the dead-man reaper, or that
+survives on Linux, fails `TestATRV0310_LeakedWorkerGroupsAreReaped`; attribution that keeps a
+reaped incarnation, reads membership from a row not bound to the handle, takes a reused group
+number for an owned group, or takes a failed read, open or `EPERM` for gone fails
+`TestATRV0310_ReusedWorkerPIDIsTrackedByIncarnation`, `TestATRV0310_MembershipIsReadFromThePinnedProcess`,
+`TestATRV0310_NoSignalWithoutAPinnedOwner` or `TestATRV0310_UnobservableCleanupFails`; a stalled
+reaper left running with its group fails `TestATRV0310_StalledReaperIsRetiredWithItsGroup`; a
+completed detached claim whose child is still exiting at the leak check fails
+`TestATRV0310_DetachedChildrenAreJoinedBeforeTheLeakCheck`; an attach that reports `LOST` while a
+launch is under way or begins during its decision fails
+`TestATRV0311_AttachNeverReportsALaunchCompletingBetweenItsReadsLost`,
+`TestATRV0311_LateRelaunchIsNeverReportedLost` or `TestATRV0311_AttachDuringARelaunchIsPending`; a
+detached outcome that differs from the foreground one fails
+`TestATRV0312_DetachedClaimOutcomeEqualsForeground`.
+Acceptance evidence, recorded in `docs/build-log/2026-10-23-cli-test-lane-1023.md`, is of three
+kinds. Regression witnesses fail on the named earlier code:
+`TestATRV0311_LateRelaunchIsNeverReportedLost` (its first case answers `SUPERVISOR_LOST` with the
+two-read attach of this change's first review round; the liveness-first attach on `origin/main`
+passes it, as it reads liveness once), `TestATRV0311_AttachNeverReportsALaunchCompletingBetweenItsReadsLost`
+(with the original liveness-first read order), `TestATRV0310_LeakedWorkerGroupsAreReaped` (with
+the reaper layers disabled) and `TestATRV0310_DetachedChildrenAreJoinedBeforeTheLeakCheck` (with
+the joins removed). Mutant checks name the defect each reaper unit test detects: keeping a
+reaped incarnation (`ReusedWorkerPIDIsTrackedByIncarnation`), reading membership from the
+pre-handle snapshot (`MembershipIsReadFromThePinnedProcess`), taking group-number presence as
+ownership (`NoSignalWithoutAPinnedOwner`), treating a failed table read or `EPERM` as gone
+(`UnobservableCleanupFails`); `StalledReaperIsRetiredWithItsGroup` is witnessed by the previous
+shutdown, which left the stalled reaper's child running. Coverage additions pass on the previous
+implementation and guard existing behaviour: `TestATRV0312_DetachedClaimOutcomeEqualsForeground`
+(mutant: a detached child that rewrites `ATTEMPT_LIVE` fails it),
+`TestATRV0311_AttachDuringChildStartupIsNeverLost` and `TestATRV0311_AttachDuringARelaunchIsPending`
+(end-to-end and state checks). Linux runs of the detach and reaper tests are recorded there too.
+Rollback: revert the commit; the attach reads liveness before the lock again, the cli test binary
+has no reaper or detached-child join, `groupreap.ReadProcessTable` is removed, and ATR-V0-020..029
+are otherwise unchanged.
+
+### V1-2368 interrupted worktree removal and removed-worktree records
+
+Re-homed (owner rule 2026-10-17; batch 1023a): these requirements were first numbered
+CAL-V0-365..366 in the agent leases spec; they moved here as ATR-V0-323..324 with the same text,
+because that spec's `## Requirements` section is at the 256-obligation OCM bound. The old IDs are
+retired aliases: code comments, messages and test names keep the old numbers.
+
+Human-owned input: native ticket V1-2368, the residual of V1-0826 (ATR-V0-296..298, PR #1531). A
+`program cleanup` or reassign interrupted after its `WORKTREE_REMOVE` write left the program in
+that phase: `cleanupPhase` refused it `ATTEMPT_LIVE`, and a replacement owner's takeover was refused
+`FENCED` (prior program owner not proved stopped) because `WORKTREE_REMOVE` was not a safe takeover
+phase, so the program stayed stuck until manual repair. Each removed worktree also kept its record,
+marked removed, for the rest of the assignment.
+
+- `ATR-V0-323`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A program
+  recorded in `WORKTREE_REMOVE` behind a terminal attempt with proved quiescence, or with no
+  current attempt, MUST be settled by the next `program cleanup` or `OpenWorkflow` (reassign or
+  run) before anything else: when the worktree path the program names is gone, the removal ran and
+  its record is dropped (`REMOVAL_COMPLETED`, `removed` true, with a reason naming `git worktree
+  prune` when Git still lists the worktree, since `git worktree remove` deletes the work tree before
+  its registration); otherwise nothing was removed and the record stays for the ATR-V0-296 checked
+  retry (`REMOVAL_ROLLED_BACK`, with a reason when Git no longer lists the remaining path). Git's
+  listing is matched against the recorded path and against it with its parent's symlinks resolved. The settling write
+  returns the program to `FINISHED` or `ADMITTED` and, when the recorded owner is gone, is the
+  takeover itself: the program transition MUST admit an owner change from `WORKTREE_REMOVE` to
+  `FINISHED` (proved terminal attempt, unchanged worktree) or `ADMITTED` (no attempt) with the epoch
+  advanced by one. `program cleanup` reports the settled worktree first, with `takeover` set to the
+  outcome; every other item has no `takeover`. Any other phase is refused as before.
+- `ATR-V0-324`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A cleanup
+  MUST drop the record of each worktree it removes instead of marking it removed, and MUST drop
+  records an older binary marked removed at its first phase write, so a program's worktree records
+  hold only worktrees that may still exist and repeated cleanups within one assignment neither grow
+  them nor report a removed worktree again. This amends ATR-V0-297, which dropped removed records
+  only at the reassign.
+
+Non-goals: settling a removal while a live attempt may still reference the worktree; removing a
+worktree that fails the ATR-V0-296 checks; a typed outcome for an interrupted `WORKTREE_ADD`.
+
+Failure modes: a `git worktree list` that fails refuses the settlement with its error and the
+program stays in `WORKTREE_REMOVE`; a worktree whose path remains but which Git no longer registers
+is rolled back with a reason and then kept by the checked retry, never removed by force. A binary
+without ATR-V0-323 still refuses a parked program; one without ATR-V0-324 reads the shorter records
+unchanged.
+
+Rollback: revert the source. Programs settled or compacted by this change keep valid records; a
+program parked in `WORKTREE_REMOVE` is again stuck until manual repair.
+
+### PR #1631 review: exclusive, proved worktree removal
+
+Re-homed (owner rule 2026-10-17; batch 1023a): these requirements were first numbered
+CAL-V0-367..371 in the agent leases spec; they moved here as ATR-V0-325..329 with the same text,
+because that spec's `## Requirements` section is at the 256-obligation OCM bound. The old IDs are
+retired aliases: code comments, messages and test names keep the old numbers.
+
+Human-owned input: the independent reviews of PRs #1629, #1630 and #1631 (2026-10-23) found that the
+ATR-V0-323 takeover could replace a live cleanup, re-run a removal while the dead owner's Git child
+still ran, forget a moved worktree, retry a rolled-back removal in the same invocation, and keep
+legacy removed records stored. These requirements amend ATR-V0-323 and ATR-V0-324.
+
+- `ATR-V0-325`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A cleanup MUST
+  hold its program exclusively before any filesystem removal: its takeover write and the write that
+  enters `WORKTREE_REMOVE` MUST record `ownerReleased` false, whatever a completed stage left, and
+  the transition MUST refuse a `WORKTREE_REMOVE` entry that records a released owner. While that
+  owner lives, another cleanup or `OpenWorkflow` is refused `ATTEMPT_LIVE` (live owner) before it
+  inspects or removes anything.
+- `ATR-V0-326`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2368) The
+  `git worktree remove` child MUST be started gated on its stdin and released only after the
+  `WORKTREE_REMOVE` write records its process identity (`removerPid`, `removerStarted`, present only
+  in that phase), so an owner that dies first leaves a child that exits without removing anything.
+  A takeover of a `WORKTREE_REMOVE` program MUST first prove that child gone: a recorded child still
+  running is refused `ATTEMPT_LIVE` naming `REMOVER_LIVE`, and a record with no child identity (an
+  older binary's) `QUIESCENCE_UNPROVED` naming `REMOVER_UNRECORDED`; nothing is inspected or
+  written in either case. The transition MUST refuse a `WORKTREE_REMOVE` entry without the identity.
+- `ATR-V0-327`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A cleanup
+  MUST drop records an older binary kept marked removed in a durable write before any other work,
+  also when it removes nothing else or every record is removed. That write keeps the phase, and the
+  transition MUST admit it for an idle `ADMITTED` program (whose phase has no other
+  self-transition) exactly when it changes nothing but dropping those records.
+- `ATR-V0-328`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A worktree a
+  takeover settled as `REMOVAL_ROLLED_BACK` MUST NOT be removed again in the same invocation; it stays
+  recorded for the next cleanup, so one invocation never reports two outcomes for one worktree.
+- `ATR-V0-329`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A missing
+  worktree pathname MUST NOT by itself settle `REMOVAL_COMPLETED`: the record is dropped only when no
+  other existing registered worktree of that repository has the recorded directory or private
+  Git-directory identity. A match keeps the record as `REMOVAL_ROLLED_BACK` naming the new location,
+  and a registered worktree whose identity cannot be read keeps it with that reason.
+
+Non-goals: recovering a parked record written by an older binary without a remover identity (it
+stays refused, as before ATR-V0-323); following a moved worktree to its new path; supervising
+removal children beyond the gate and the recorded identity.
+
+Failure modes: a remover that cannot start or whose identity cannot be read keeps the record with a
+`worktree remove:` reason and writes nothing; a write that fails after the child started closes the
+gate and reaps it; a killed child that has not yet been reaped keeps `REMOVER_LIVE` until it is;
+an identity collision with an unrelated registered worktree keeps the record (the safe direction).
+
+Rollback: revert the source. A program left in `WORKTREE_REMOVE` with `removerPid` is refused by the
+older decoder (unknown field) until a current binary settles it, so settle parked programs first;
+every other record is unchanged.
+
+### V1-1634 host sleep on Linux and the other lease-reap paths at a wake
+
+Re-homed (owner rule 2026-10-17; batch 1023a): these requirements were first numbered
+CAL-V0-361..362 in the agent leases spec; they moved here as ATR-V0-320..321 with the same text,
+because that spec's `## Requirements` section is at the 256-obligation OCM bound. The old IDs are
+retired aliases: code comments, messages and test names keep the old numbers.
+
+Human-owned input: native ticket V1-1634, the residual of V1-1597 (ATR-V0-063..065), which was tested
+with an injectable clock on macOS only.
+
+- `ATR-V0-320`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1634) Only the
+  dispatcher's CAL-V0-191 reap of a running worker's expired lease, and the worker's wall,
+  idle and lease-keeper `maxIdleSeconds` timers, exclude a recorded suspend gap (ATR-V0-064). Every
+  other lease-reap path acts on the clock as it reads at the first tick or write after a wake and
+  MUST NOT be gap-aware: the exit recovery of CAL-V0-104, which retries a refused hand-off at the
+  first tick after the wake (its backoff is a wall-clock deadline that the suspend passed) and
+  reaps at once an attempt whose lease ran out, because no worker is left to use the time; the
+  dispatcher's reap of an expired lease that no worker of its own holds; and the store's own
+  expiry judgement, the lease timestamp against the clock of the writing call, which a colliding
+  claim, `claim-next` and the `reap` verb apply, so that a lease that ran out while its holder's
+  host slept is reaped by the first such writer after the wake and the holder's later `renew` or
+  `heartbeat` is `FENCED`. The store keeps no suspend record: a gap is one dispatcher's local
+  observation of its own ticks (ATR-V0-063). A holder that needs its lease to survive a suspend
+  renews before it (`keepLease`, CAL-V0-311) or accepts the reap.
+- `ATR-V0-321`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1634) The
+  host-sleep detector (ATR-V0-063) MUST rest on a monotonic clock that does not count suspended
+  time. On Linux the Go runtime's monotonic clock, the reading `time.Now` carries, is
+  `CLOCK_MONOTONIC`, which stops during a suspend, and not `CLOCK_BOOTTIME`, which runs through
+  it; a forward step of `CLOCK_REALTIME` that leaves that reading behind, the signature of a suspend
+  to the detector, MUST be recorded once, by a dispatcher on the real clocks, as one gap of the
+  step's size.
+
+Non-goals: extending a lease for a gap (ATR-V0-063 already declines it), a store-side suspend record,
+a doctor finding or a keep-awake option. A real suspend is not qualified here: the container has no
+suspend state (`/sys/power/state` reads empty and there is no RTC), so the Linux qualification is a time-namespace proof
+of the clock choice and, with `CORVINT_TASKS_CLOCK_STEP=1`, a wall-clock step of the same signature.
+
+Failure modes: a suspend that ends before a second tick of the same dispatcher process is not seen
+(ATR-V0-063); an armed idle gate (CAL-V0-139, only a dispatcher with no live worker arms) measures
+its 60 s safety net in monotonic time, so the first full tick after a wake, which records the gap,
+can come up to 60 s of awake time late, while a lease expiry that the suspend crossed is a
+wall-clock deadline and ends the skip at once.
+
+Rollback: revert the tests and this subsection; no behaviour changes.
+
+### V1-0911 Linux qualification of the Tasks scale work: the process table
+
+Re-homed (owner rule 2026-10-17; batch 1023a): this requirement was first numbered CAL-V0-363 in the
+agent leases spec; it moved here as ATR-V0-322 with the same text, because that spec's
+`## Requirements` section is at the 256-obligation OCM bound. The old ID is a retired alias: code
+comments, messages and test names keep the old numbers.
+
+Human-owned input: native ticket V1-0911. The scale work (V1-0893, V1-0645; CAL-V0-135..142) was
+measured on Darwin only; the `/proc` process reader (CAL-V0-136), the idle CPU of the supervisor and
+dispatcher (CAL-V0-137, CAL-V0-139) and the `ReadDir` listing that relies on directory-entry types
+(CAL-V0-138) were not run on Linux.
+
+- `ATR-V0-322`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0911) On a real
+  Linux `/proc` the process-table reader of CAL-V0-136 MUST return the pid, parent, process group
+  and zombie state that `ps -axo pid=,ppid=,pgid=,stat=` returns for a live tree: a worker in its
+  own process group, an unreaped zombie child and an orphan reparented after its parent exited.
+
+Non-goals (ATR-V0-322): new product behaviour. The other Linux measurements (idle CPU, scan cost,
+listing cost) are build-log evidence, not obligations, because a duration is not asserted.
+
+Failure modes (ATR-V0-322): a host without `ps` or without `/proc` skips the comparison.
+
+Rollback (ATR-V0-322): revert the test.
 
 ## Outcome document
 
@@ -2216,7 +2494,7 @@ receipt or wire shape changes.
 | ATR-V0-061 | `internal/tasks/dispatch/session_churn.go`, `internal/tasks/cli/dispatch.go` (`dispatchSessionChurnValue`), `internal/tasks/cli/cli.go` (`LiveFormats`) | `TestATRV0061_RecordVersions` (`internal/tasks/dispatch`), `TestATRV0061_DispatchStatusShowsShortSessionHold` (`internal/tasks/cli`) |
 | ATR-V0-062 | `internal/tasks/cli/doctor_churn.go`, `internal/tasks/cli/doctor.go` (`doctorStoreFindings`) | `TestATRV0062_DoctorSessionChurn` (`internal/tasks/cli`) |
 | ATR-V0-063 | `internal/tasks/dispatch/host_sleep.go` (`noteHostSleep`), `internal/tasks/dispatch/loop.go` (`tick`), `internal/tasks/cli/cli.go` (`LiveFormats`) | `TestATRV0063_SuspendIsRecordedAndExcludedFromTimers`, `TestATRV0063_NoGapLeavesTimersUnchanged`, `TestATRV0063_RecordVersions` (`internal/tasks/dispatch`) |
-| ATR-V0-064 | `internal/tasks/dispatch/host_sleep.go` (`slept`), `internal/tasks/dispatch/loop.go` (caps, `reapRunningExpired`), `internal/tasks/dispatch/keeper.go` | `TestATRV0063_SuspendIsRecordedAndExcludedFromTimers`, `TestATRV0063_NoGapLeavesTimersUnchanged` (`internal/tasks/dispatch`) |
+| ATR-V0-064 | `internal/tasks/dispatch/host_sleep.go` (`slept`), `internal/tasks/dispatch/loop.go` (caps, `reapRunningExpired`), `internal/tasks/dispatch/keeper.go` | `TestATRV0063_SuspendIsRecordedAndExcludedFromTimers`, `TestATRV0063_NoGapLeavesTimersUnchanged`, `TestATRV0064_KeeperIdleCheckExcludesSuspend` (the lease keeper's `maxIdleSeconds`, V1-1634), `TestATRV0064_ExitRecoveryActsAtWake` (the exit recovery excludes no gap, ATR-V0-320) (`internal/tasks/dispatch`) |
 | ATR-V0-065 | `internal/tasks/cli/dispatch.go` (`dispatchHostSleepValue`) | `TestATRV0065_DispatchStatusShowsLastHostSleep` (`internal/tasks/cli`) |
 | ATR-V0-080 | `internal/tasks/intent/policy.go` (`ProgressSignal`, `DecodePolicy`), `internal/tasks/cli/command_help.go` | `TestATRV0080_PolicyProgressSignal` (`internal/tasks/intent`) |
 | ATR-V0-081 | `internal/tasks/snapshot/attempt.go` (`LoopProgress`, `LoopEvidenceWith`, `readPriorLoop`), `internal/tasks/transaction/lease_claim.go` | `TestATRV0081_LoopEvidenceProgressRoundTrip`, `TestATRV0081_LoopEvidenceWith` (`internal/tasks/snapshot`), `TestATRV0081_ClaimRecordsProgressFingerprint` (`internal/tasks/transaction`) |
@@ -2284,6 +2562,9 @@ receipt or wire shape changes.
 | ATR-V0-240 | `internal/tasks/store/program.go` (`programTransition` `keepControl`), `internal/tasks/store/workflow.go` (`persistFenced`, stage journal callback), `internal/tasks/store/program_run.go` (`record`) | `TestATRV0240_PhaseWriteKeepsControlRecordedMeanwhile`; accepted under the owner's standing auto-accept (2026-10-11); Darwin focused run passes; fails with the fix reverted |
 | ATR-V0-241 | `internal/tasks/store/lease_write.go` (recorded limit; no runtime change) | `TestATRV0241_MappedWriteAfterLeaseAuditRefusedByNextWrite`; accepted under the owner's standing auto-accept (2026-10-11); Darwin focused run passes; Linux NOT_RUN |
 | ATR-V0-213 | `internal/tasks/dispatch/reap_test.go` (`TestMain` dead-man reaper) | `TestATRV0213_FixtureWorkersDieWithTheirTestBinary` (`internal/tasks/dispatch`) |
+| ATR-V0-310 | `internal/tasks/cli/worker_reap_internal_test.go` (`TestMain` dead-man reaper, `reapTracker`, `ReapWorkersOnCleanup`), `worker_reap_linux_internal_test.go` (pidfd pins), `detach_join_internal_test.go`, `internal/tasks/cli/lease_detach.go` and `attempt_detach.go` (`detachLaunched`), `internal/groupreap/table.go` | `TestATRV0310_LeakedWorkerGroupsAreReaped`, `TestATRV0310_ReusedWorkerPIDIsTrackedByIncarnation`, `TestATRV0310_MembershipIsReadFromThePinnedProcess`, `TestATRV0310_NoSignalWithoutAPinnedOwner`, `TestATRV0310_UnobservableCleanupFails`, `TestATRV0310_StalledReaperIsRetiredWithItsGroup`, `TestATRV0310_DetachedChildrenAreJoinedBeforeTheLeakCheck` (`internal/tasks/cli`) |
+| ATR-V0-311 | `internal/tasks/cli/lease_detach.go` (`leaseDetachAwait`), `internal/tasks/cli/lease_detach_unix.go` (`leaseDetachShareLaunch`) | `TestATRV0311_AttachNeverReportsALaunchCompletingBetweenItsReadsLost`, `TestATRV0311_LateRelaunchIsNeverReportedLost`, `TestATRV0311_AttachDuringARelaunchIsPending`, `TestATRV0311_AttachDuringChildStartupIsNeverLost` (`internal/tasks/cli`) |
+| ATR-V0-312 | `internal/tasks/cli/lease_detach.go` (no detach-specific store semantics) | `TestATRV0312_DetachedClaimOutcomeEqualsForeground` (`internal/tasks/cli`) |
 | ATR-V0-270 | `internal/tasks/cli/command_help.go` | `TestATRV0270_DispatchUsageNamesGrantID` (`internal/tasks/cli`) |
 | ATR-V0-271 | `internal/tasks/transaction/lease.go` (`fenced`, `expiredRemedy`) | `TestATRV0271_GateRunAfterExpiryNamesRemedy` (`internal/tasks/cli`) |
 | ATR-V0-272 | `internal/tasks/ticket/view.go` (`grantState`, `MissingGrants`) | `TestATRV0272_ApprovalGrantsNamedUpFront` (`internal/tasks/cli`) |
@@ -2295,3 +2576,13 @@ receipt or wire shape changes.
 | ATR-V0-296 | `internal/tasks/store/workflow.go` (`CleanupProgram`, `CleanupWorktrees`, `cleanupPhase`), `internal/tasks/cli/program_cleanup.go` (`programCleanup`) | `TestATRV0297_ReassignRemovesPriorStageWorktrees`, `TestATRV0296_CleanupRefusesLiveAttempt` (`internal/tasks/store`), `TestATRV0296_ProgramCleanupRefusalsDoNotMutate` (`internal/tasks/cli`) |
 | ATR-V0-297 | `internal/tasks/store/workflow.go` (`OpenWorkflow` reassign) | `TestATRV0297_ReassignRemovesPriorStageWorktrees` (`internal/tasks/store`) |
 | ATR-V0-298 | `internal/tasks/transaction/program.go` (`idleRemove`) | `TestATRV0297_ReassignRemovesPriorStageWorktrees` (`internal/tasks/store`) |
+| ATR-V0-320 | none (tests pin the existing reap paths) | `TestCALV0361_UnownedExpiredLeaseIsReapedAtWake`, `TestATRV0064_ExitRecoveryActsAtWake` (`internal/tasks/dispatch`), `TestCALV0361_StoreReapAfterWakeIsNotGapAware` (`internal/tasks/store`: colliding claim and `reap`, then a fenced renew and heartbeat) |
+| ATR-V0-321 | none (tests pin the clock basis of `internal/tasks/dispatch/host_sleep.go`) | `TestCALV0362_GoMonotonicClockIsNotBoottime` (Linux, in a time namespace whose boot time runs three hours further ahead than the host's own boot-time separation), opt-in `TestCALV0362_RealWallClockStepIsRecordedAsASuspendGap` (`CORVINT_TASKS_CLOCK_STEP=1`, `CAP_SYS_TIME`) (`internal/tasks/dispatch`) |
+| ATR-V0-322 | `internal/tasks/supervisor` (`/proc` reader of CAL-V0-136; test only) | `TestCALV0363_ProcRowsAgreeWithPsOnLinux` (asserts the controlled fixture processes; unrelated host processes are logged), `BenchmarkCALV0136_ProcRowsOfThisHost`, `BenchmarkCALV0363_PsFork`, opt-in `TestCALV0137_HostWaitIdleCPU` (accepted only when the fixture outlives the window, the deadline interrupts the run and the stop is clean with the detached server gone) (`internal/tasks/supervisor`) |
+| ATR-V0-323 | `internal/tasks/store/workflow.go` (`CleanupProgram`, `OpenWorkflow` settlement), `internal/tasks/transaction/program.go` | `TestCALV0365_TakeoverSettlesInterruptedRemoval` (registered, removed, half-removed and reopen modes, with its child `TestCALV0365_InterruptedRemovalChild`) (`internal/tasks/store`) |
+| ATR-V0-324 | `internal/tasks/store/workflow.go` (`CleanupWorktrees`) | `TestCALV0366_CleanupDropsRemovedRecords`, `TestATRV0297_ReassignRemovesPriorStageWorktrees` (`internal/tasks/store`) |
+| ATR-V0-325 | `internal/tasks/store/workflow.go`, `internal/tasks/transaction/program.go` | `TestCALV0367_LiveCleanupOwnerIsNotTakenOver` (with its child `TestCALV0365_InterruptedRemovalChild`, `live` mode) (`internal/tasks/store`) |
+| ATR-V0-326 | `internal/tasks/store/workflow.go` (`worktreeRemover`), `internal/tasks/store/program.go`, `internal/tasks/snapshot/programs.go` | `TestCALV0368_SurvivingRemoverRefusesTakeover` (`stopped` mode) (`internal/tasks/store`) |
+| ATR-V0-327 | `internal/tasks/store/workflow.go`, `internal/tasks/transaction/program.go` | `TestCALV0369_LegacyRemovedRecordsAreDroppedDurably` (FINISHED and idle ADMITTED) (`internal/tasks/store`) |
+| ATR-V0-328 | `internal/tasks/store/workflow.go` | `TestCALV0365_TakeoverSettlesInterruptedRemoval` (registered and reopen modes) (`internal/tasks/store`) |
+| ATR-V0-329 | `internal/tasks/store/workflow.go` | `TestCALV0371_MovedWorktreeKeepsItsRecord` (`moved` mode) (`internal/tasks/store`) |

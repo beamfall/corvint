@@ -124,12 +124,20 @@ func TestTQDV0045_WalkCostMeasurement(t *testing.T) {
 	built := time.Now()
 	root := walkStore(t, attempts, max(1, n/attempts))
 	t.Logf("built %d attempts x %d heartbeats in %v", attempts, max(1, n/attempts), time.Since(built))
+	measureDoctorWalk(t, root, built)
+}
+
+// measureDoctorWalk runs ten interleaved doctor scans of root, five per walk
+// mode, with the doctor clock frozen at now, and logs the best wall and CPU
+// time of each mode and the scan.
+func measureDoctorWalk(t *testing.T, root string, now time.Time) {
+	t.Helper()
 	cpu := func() time.Duration {
 		var ru syscall.Rusage
 		_ = syscall.Getrusage(syscall.RUSAGE_SELF, &ru)
 		return time.Duration(ru.Utime.Nano() + ru.Stime.Nano())
 	}
-	restoreClock := cli.SetDoctorClock(func() time.Time { return built })
+	restoreClock := cli.SetDoctorClock(func() time.Time { return now })
 	defer restoreClock()
 	var wall, used [2]time.Duration
 	var items [2]wire.Value

@@ -233,7 +233,8 @@ the existing agent-memory convention.
 ## Acceptance evidence and traceability
 
 `TestSelfObservationSpecEnumeratesEveryObligation` in `internal/lrfrepo/ocm_spec_test.go` checks
-that OCM enumerates all thirteen clauses from this document; it does not validate their runtime behavior.
+that OCM enumerates exactly the clauses `docs/specs/REQUIREMENTS.tsv` lists for this document, so a
+new clause needs no count edit (V1-2153); it does not validate their runtime behavior.
 
 | Requirement | Evidence |
 |---|---|

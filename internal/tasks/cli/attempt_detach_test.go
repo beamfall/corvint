@@ -67,7 +67,13 @@ func TestATRV0009_DetachedSupervisorHelper(t *testing.T) {
 	if err != nil {
 		os.Exit(1)
 	}
-	os.Exit(cli.Run(cli.Env{Cwd: cwd, Args: args, Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr}))
+	code := cli.Run(cli.Env{Cwd: cwd, Args: args, Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr})
+	// The child keeps running for a while after its result is kept, as a
+	// slow exit on a loaded host does (ATR-V0-310).
+	if ms, err := strconv.Atoi(os.Getenv("CORVINT_TEST_LEASE_DETACH_EXIT_MS")); err == nil && ms > 0 {
+		time.Sleep(time.Duration(ms) * time.Millisecond)
+	}
+	os.Exit(code)
 }
 
 // detachedEnv makes a detached launcher re-run this test binary as its

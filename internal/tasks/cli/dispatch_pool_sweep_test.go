@@ -77,6 +77,7 @@ func TestPSRDispatchNativeAdapter(t *testing.T) {
 	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
 	t.Setenv("ATM_ACTOR", "tester")
 	t.Run("bounded-native-writer-join", func(t *testing.T) {
+		ReapWorkersOnCleanup(t)
 		scratch := t.TempDir()
 		marker := filepath.Join(scratch, "started")
 		repo, root := psrCLIReady(t, "echo reached > '"+marker+"'; sleep 60")
@@ -132,6 +133,7 @@ func TestPSRDispatchNativeAdapter(t *testing.T) {
 		}
 	})
 	t.Run("compiled-worker-overlap", func(t *testing.T) {
+		ReapWorkersOnCleanup(t)
 		_ = psrBinary(t)
 		scratch := t.TempDir()
 		worker := filepath.Join(scratch, "worker")

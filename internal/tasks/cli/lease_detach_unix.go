@@ -4,6 +4,7 @@ package cli
 
 import (
 	"errors"
+	"io/fs"
 	"os"
 	"syscall"
 	"time"
@@ -40,6 +41,28 @@ func lockLeaseDetach(p string, bound time.Duration) (func(), error) {
 			return nil, wire.Errorf(wire.CodeLockTimeout, "detach", "another caller is still starting this detached request")
 		}
 	}
+}
+
+// leaseDetachShareLaunch takes the launch lock file p shared, without
+// waiting, and returns its release. launching reports a launcher holding it,
+// with nothing taken. A missing file has no launcher: the launcher creates it
+// before it writes request.json. It opens p read-only and creates nothing.
+func leaseDetachShareLaunch(p string) (release func(), launching bool, err error) {
+	f, err := os.OpenFile(p, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if errors.Is(err, fs.ErrNotExist) {
+		return func() {}, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_SH|syscall.LOCK_NB); err != nil {
+		_ = f.Close()
+		if errors.Is(err, syscall.EWOULDBLOCK) {
+			return func() {}, true, nil
+		}
+		return nil, false, err
+	}
+	return func() { _ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN); _ = f.Close() }, false, nil
 }
 
 // leaseDetachLockHeld reports whether another process holds the lock file p.

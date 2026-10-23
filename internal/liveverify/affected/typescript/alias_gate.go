@@ -96,7 +96,7 @@ func nearestTypeScriptAliases(owner string, configs []typeScriptAliases) *typeSc
 // the closed static profile resolves (testDir and projects only, with no testMatch or
 // testIgnore), and every file the profile assigns to a project is a Playwright test of that
 // config in the general adapter. The general adapter's membership is then the config's, so the
-// markers raise no executable-config frontier (AFP-V0-390). files is every observed file name.
+// markers raise no executable-config frontier (AFP-V0-404). files is every observed file name.
 func playwrightStaticMembership(config config, files []string, observations []observation) bool {
 	for _, marker := range dynamicConfigMarkers {
 		if marker != "testDir" && marker != "projects:" && strings.Contains(config.body, marker) {

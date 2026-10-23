@@ -412,7 +412,7 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 			configs = append(configs, config{path: relative, directory: path.Dir(relative), runner: runner, membership: marker >= 0, tsconfigAt: tsconfigToken(text), body: text})
 			switch {
 			case marker >= 0 && runner == runnerPlaywright:
-				// AFP-V0-390: decided once the tests are classified, below.
+				// AFP-V0-404: decided once the tests are classified, below.
 			case marker >= 0:
 				frontier.at(FrontierConfig, relative, text, marker)
 			case runner == runnerMocha:

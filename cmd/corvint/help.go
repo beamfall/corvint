@@ -679,8 +679,9 @@ a non-cem/1.0 document, a stable verifier refusal, or a non-impact receipt.
 const affectedHelp = `Compile the affected-test selection plan for the dirty worktree.
 
 Usage:
-  corvint [--root PATH] affected [--full] [--require-clean]
+  corvint [--root PATH] affected [--full] [--require-clean] [--cache DIR]
   corvint [--root PATH] affected [--full] --path PATH [--path PATH ...]
+          [--paths-from FILE] [--cache DIR]
   corvint [--root PATH] affected [--full] --snapshot RECEIPT
   corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH
   corvint [--root PATH] affected [--full] [--require-clean]
@@ -755,6 +756,28 @@ graph reads, refuses with unsupported-affected-mixed-worktree, since the graph
 would not be HEAD's. Write --path=VALUE for a name that begins with -. It does
 not combine with --snapshot, --base, --provider, --playwright-config,
 --playwright-discovery or --appmap-impact.
+
+--paths-from FILE (experimental) adds the --path values listed in FILE, one
+per LF-separated line, blank lines skipped; FILE is relative to the root unless
+absolute, and is held to the same canonical-path rule and 4096-path bound as
+--path. It joins any --path values and takes the same refusals. One call with
+many paths builds the graph once and plans their union, so a caller with
+several changed files should batch them rather than call once per path.
+
+--cache DIR (experimental; not with --snapshot or --playwright-config) reuses
+the verified graph between calls on an unchanged checkout. DIR is a directory
+the caller names outside the repository, outside any .git directory and outside
+the repository's Git directory wherever it lives; it must be private to the
+user, is created if absent and holds at most one entry per repository root. An entry is
+trusted only when it was written by this exact corvint executable for this
+root, and every directory the graph walked and every file it read or statted
+has the same size, mode, inode, modification and change time;
+otherwise, or when the entry is damaged, the graph is built in full and the
+entry replaced. Files changed within two seconds of a build are not pinned, and
+platforms other than darwin and linux never use an entry. The receipt is
+byte-identical with and without --cache, hit or miss; the worktree status,
+HEAD and drift checks run on every call, and nothing is written inside the
+repository.
 
 advice reads the repository's own declarations - a Makefile gate target and the
 AGENTS.md Verify block - and lists them as mandatory checks, followed by one

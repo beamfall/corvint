@@ -36,7 +36,7 @@ func gh1604RemainderRepository(t *testing.T, config, script, scriptHelper string
 
 const gh1604NodeTest = "import test from 'node:test';\nimport { assemble } from './assemble.mjs';\ntest('assemble', () => { assemble(); });\n"
 
-// AFP-V0-389, AFP-V0-390: a node:test script whose loader never meets an alias does not keep the
+// AFP-V0-389, AFP-V0-404: a node:test script whose loader never meets an alias does not keep the
 // aliases unresolved, and a literal testDir/projects config whose profile-owned files are all
 // Playwright tests of that config raises no executable-config frontier. The aliased edge selects
 // the spec and no tsconfig, blocker or config site remains.
@@ -76,7 +76,7 @@ func TestAliasReachingRunnerStillBlocks_GH1604(t *testing.T) {
 	}
 }
 
-// AFP-V0-390: any marker the profile does not resolve statically, a globalSetup, or a
+// AFP-V0-404: any marker the profile does not resolve statically, a globalSetup, or a
 // profile-owned file the general adapter does not classify as that config's Playwright test keeps
 // the executable-config frontier.
 func TestPlaywrightConfigFrontierKeptWhenMembershipDiffers_GH1604(t *testing.T) {

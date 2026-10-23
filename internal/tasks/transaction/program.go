@@ -6,6 +6,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
+	"slices"
 	"sort"
 	"time"
 )
@@ -103,7 +104,16 @@ func planProgram(c leaseContext) leaseOutcome {
 			safePhase := (old.Phase == "FINISHED" || old.Phase == "ADMITTED" || old.Phase == "WORKTREE_ADD" || old.Phase == "READY") && next.Phase == old.Phase
 			recovered := change.PreviousWorkerClean && next.Phase == "FINISHED" && next.Quiescence == "PROVED"
 			settled := (old.Phase == "SPAWNING" || old.Phase == "STOPPING") && next.Phase == "FINISHED" && next.Quiescence == "PROVED" && BoundStoppedAttempt(c.st.attempts[old.CurrentAttempt], old)
-			if !change.PreviousOwnerGone || next.Epoch != old.Epoch+1 || (!safePhase && !recovered && !settled) || old.Worktree != next.Worktree {
+			// A cleanup interrupted after its WORKTREE_REMOVE write returns
+			// to the phase it left: FINISHED behind a terminal proved
+			// attempt, or ADMITTED with no attempt (CAL-V0-365).
+			removal := false
+			if old.Phase == "WORKTREE_REMOVE" && old.CurrentAttempt == next.CurrentAttempt {
+				a := c.st.attempts[old.CurrentAttempt]
+				removal = next.Phase == "FINISHED" && next.Quiescence == "PROVED" && a != nil && !a.Live() && a.Quiescence == "PROVED" ||
+					next.Phase == "ADMITTED" && old.CurrentAttempt == ""
+			}
+			if !change.PreviousOwnerGone || next.Epoch != old.Epoch+1 || (!safePhase && !recovered && !settled && !removal) || old.Worktree != next.Worktree {
 				return c.recordProgramRefusal("prior program owner not proved stopped")
 			}
 		} else if old.Epoch != next.Epoch {
@@ -129,7 +139,12 @@ func planProgram(c leaseContext) leaseOutcome {
 		// An idle program with no attempt removes a kept stage worktree
 		// and returns to ADMITTED (ATR-V0-298).
 		idleRemove := old.CurrentAttempt == "" && next.CurrentAttempt == "" && (old.Phase == "ADMITTED" && next.Phase == "WORKTREE_REMOVE" || old.Phase == "WORKTREE_REMOVE" && next.Phase == "ADMITTED")
-		ok := recovering || controlOnly || binding || reassign || idleRemove
+		// The write that starts a removal names its remover before that
+		// child may act, so a takeover can prove it stopped (CAL-V0-368).
+		if next.Phase == "WORKTREE_REMOVE" && old.Phase != "WORKTREE_REMOVE" && (next.RemoverPID <= 0 || next.RemoverStarted == "" || next.OwnerReleased) {
+			return c.fail(malformed("worktree removal lacks its remover identity or exclusive owner"))
+		}
+		ok := recovering || controlOnly || binding || reassign || idleRemove || compactsRemoved(old, next)
 		for _, phase := range transitions[old.Phase] {
 			ok = ok || phase == next.Phase
 		}
@@ -219,6 +234,30 @@ func planProgram(c leaseContext) leaseOutcome {
 func BoundStoppedAttempt(a *snapshot.Attempt, p snapshot.Program) bool {
 	return a != nil && p.CurrentAttempt != "" && a.AttemptID == p.CurrentAttempt && string(a.Generation) == p.CurrentGeneration &&
 		a.Supervision != nil && a.Supervision.ProgramID == p.ID && !a.Supervision.Worker && a.Lane == nil && a.Quiescence == "PROVED"
+}
+
+// compactsRemoved reports whether next is old with only the worktree records
+// an older binary kept marked removed dropped, in the same phase: the one
+// write that compacts an idle ADMITTED program, whose phase admits no other
+// self-transition (CAL-V0-369).
+func compactsRemoved(old, next snapshot.Program) bool {
+	if old.Phase != next.Phase || len(next.Worktrees) >= len(old.Worktrees) {
+		return false
+	}
+	kept := []snapshot.WorktreeRecord{}
+	for _, r := range old.Worktrees {
+		if !r.Removed {
+			kept = append(kept, r)
+		}
+	}
+	if !slices.Equal(kept, next.Worktrees) {
+		return false
+	}
+	a, e1 := snapshot.EncodeProgramJSON(old)
+	copy := next
+	copy.Worktrees = old.Worktrees
+	b, e2 := snapshot.EncodeProgramJSON(copy)
+	return e1 == nil && e2 == nil && bytes.Equal(a, b)
 }
 
 func (c leaseContext) recordProgramRefusal(reason string) leaseOutcome {

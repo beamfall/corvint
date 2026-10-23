@@ -41,6 +41,7 @@ func TestDispatchHelperCLI(t *testing.T) {
 // with a live attempt, hands it off with evidence, accounts a no-progress
 // run, and cools the ticket down. Status reads never touch the store.
 func TestCALV0052_DispatchCLIClaimHandoffAndStatus(t *testing.T) {
+	cli.ReapWorkersOnCleanup(t)
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	id := planTicket(t, root, "dispatch", "P1", `["src/"]`)
 	repo, err := intent.Resolve(root)

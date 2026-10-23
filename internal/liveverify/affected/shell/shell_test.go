@@ -2,6 +2,7 @@ package shell
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -487,5 +488,69 @@ func write(t *testing.T, root, relative, content string) {
 	}
 	if err := os.WriteFile(target, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// AFP-V0-400: a shell reader whose only naming token is a lone file name
+// (README.md) is selected only where it can place the path: at the repository
+// root, in its own subtree, or below directories its tokens name. A script
+// that changes to any directory not proven to be the root or its own, reads
+// recursively or runs git keeps the component-run relation; one that changes
+// only to the root or its own directory through a form of the file itself is
+// placed.
+func TestLoneFileNameShellReaderMustPlaceThePath_AFPV0400(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "script/readme_test.sh", "#!/bin/sh\ngrep -q corvint README.md\n")
+	write(t, root, "script/specs_test.sh", "#!/bin/sh\ncd \"$(dirname \"$0\")/../docs/specs\" && grep -q corvint README.md\n")
+	write(t, root, "script/multi_test.sh", "#!/bin/sh\ngrep -q corvint specs/README.md\n")
+	write(t, root, "script/computed_test.sh", "#!/bin/sh\ncd \"$FIXTURE\" && git -C \"$FIXTURE\" add -A && grep -q corvint README.md\n")
+	write(t, root, "script/cd_test.sh", "#!/bin/sh\ncd docs; cd specs; grep -q corvint README.md\n")
+	write(t, root, "script/find_test.sh", "#!/bin/sh\nfind docs/ -name README.md | xargs grep -q corvint\n")
+	write(t, root, "script/recursive_test.sh", "#!/bin/sh\ngrep -rq corvint --include README.md docs\n")
+	write(t, root, "script/git_test.sh", "#!/bin/sh\ngit grep -q corvint -- README.md\n")
+	write(t, root, "script/diff_test.sh", "#!/bin/sh\ndiff -r docs \"$TMP\" || grep -q corvint README.md\n")
+	write(t, root, "script/lsfiles_test.sh", "#!/bin/sh\ngit -C \"$ROOT\" ls-files -- '*README.md' | while read -r f; do grep -q corvint \"$ROOT/$f\"; done\n")
+	write(t, root, "script/string_test.sh", "#!/bin/sh\nsh -c 'cd docs && grep -q corvint README.md'\n")
+	// A cd whose target is not proven to be the root or the file's own
+	// directory keeps the wider relation: a variable, a computed or climbing
+	// directory, `cd -`, a bare cd, a `$0` form where `$0` is not the file,
+	// and env's directory and command-string options.
+	write(t, root, "script/variable_test.sh", "#!/bin/sh\nd=docs; cd \"$d\"; grep -q needle README.md\n")
+	write(t, root, "script/back_test.sh", "#!/bin/sh\ncd -; grep -q needle README.md\n")
+	write(t, root, "script/home_test.sh", "#!/bin/sh\ncd; grep -q needle README.md\n")
+	write(t, root, "script/zero.bats", "@test x {\n  cd \"$(dirname \"$0\")\" && grep -q needle README.md\n}\n")
+	write(t, root, "script/child_test.sh", "#!/bin/sh\nsh -c 'cd \"$(dirname \"$0\")\" && grep -q needle README.md' docs/x\n")
+	write(t, root, "script/env_test.sh", "#!/bin/sh\nenv -C docs grep -q needle README.md\n")
+	write(t, root, "script/split_test.sh", "#!/bin/sh\nenv --split-string='grep -rq needle --include README.md docs'\n")
+	// grep reads recursively through any spelling of -r, -R or -d recurse.
+	var kept []string
+	for index, options := range []string{"-d recurse", "-drecurse", "-d rec", "--directories recurse", "--directories=recurse", "--recursive", "--recur", "-R", "--dereference-recursive", "-qr", "-rq"} {
+		write(t, root, fmt.Sprintf("script/grep%d_test.sh", index), "#!/bin/sh\ngrep "+options+" needle --include README.md docs\n")
+		kept = append(kept, fmt.Sprintf("script/grep%d_test.sh", index))
+	}
+	// A cd to the repository root or into the file's own directory, through a
+	// form of the file itself, still places.
+	write(t, root, "script/up_test.sh", "#!/bin/sh\ncd -P -- \"$(dirname \"$0\")/..\" && grep -q needle README.md\n")
+	write(t, root, "script/source_test.sh", "#!/bin/bash\ncd \"${BASH_SOURCE[0]%/*}\" && grep -q needle README.md\n")
+	graph := build(t, root)
+	kept = append(kept, "script/back_test.sh", "script/cd_test.sh", "script/child_test.sh", "script/computed_test.sh", "script/diff_test.sh", "script/env_test.sh", "script/find_test.sh",
+		"script/git_test.sh", "script/home_test.sh", "script/lsfiles_test.sh", "script/recursive_test.sh", "script/split_test.sh", "script/string_test.sh", "script/variable_test.sh", "script/zero.bats")
+	placed := []string{"script/readme_test.sh", "script/source_test.sh", "script/up_test.sh"}
+	cases := []struct {
+		dirty string
+		want  []string
+	}{
+		// The V1-1817 shape: a spec index edit no longer selects the lone readers.
+		{"docs/specs/README.md", append([]string{"script/multi_test.sh", "script/specs_test.sh"}, kept...)},
+		{"README.md", append(append([]string{"script/specs_test.sh"}, placed...), kept...)},
+		{"script/README.md", append(append([]string{"script/specs_test.sh"}, placed...), kept...)},
+		{"docs/README.md", append([]string{"script/specs_test.sh"}, kept...)},
+	}
+	for _, c := range cases {
+		slices.Sort(c.want)
+		plan := affected.Select(graph, []string{c.dirty})
+		if got := plan.SelectedTests(); !slices.Equal(got, c.want) {
+			t.Errorf("%s selected %v, want %v", c.dirty, got, c.want)
+		}
 	}
 }
