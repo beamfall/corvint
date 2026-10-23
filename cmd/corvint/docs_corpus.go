@@ -21,6 +21,8 @@ type corpusOptions struct {
 	repository string
 	// state, qualifier and run select claims' supplied status claims (DCP-V1-318).
 	state, qualifier, run string
+	// provider is the carry-forward records provider ID (DCP-V1-366).
+	provider string
 	// callerRevision is the caller's checkout commit compared with the corpus source revision
 	// (DCP-V1-332).
 	callerRevision string
@@ -41,7 +43,7 @@ type corpusOptions struct {
 
 // stringFlags maps each value-taking corpus option to its field.
 func (o *corpusOptions) stringFlags() map[string]*string {
-	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner, "--schema": &o.schema, "--section": &o.section, "--include": &o.include, "--cases": &o.cases, "--baseline": &o.baseline, "--repository": &o.repository, "--state": &o.state, "--qualifier": &o.qualifier, "--run": &o.run, "--kind": &o.kind, "--caller-revision": &o.callerRevision,
+	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner, "--schema": &o.schema, "--section": &o.section, "--include": &o.include, "--cases": &o.cases, "--baseline": &o.baseline, "--repository": &o.repository, "--state": &o.state, "--qualifier": &o.qualifier, "--run": &o.run, "--provider": &o.provider, "--caller-revision": &o.callerRevision, "--kind": &o.kind,
 		"--expected-base": &o.stable.ExpectedBase, "--target": &o.stable.Target, "--stable-artifact-root": &o.stable.ArtifactRoot}
 	o.playwright.addFlags(flags)
 	o.legacyCases.addFlags(flags)
@@ -314,6 +316,9 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	}
 	if o.op == "eval" {
 		return compileCorpusEval(ctx, o)
+	}
+	if o.op == "delta" || o.op == "carry-forward" {
+		return compileCorpusDelta(ctx, o)
 	}
 	raw, err := doccorpus.ReadCorpusFile(o.root, o.artifact)
 	if err != nil {
