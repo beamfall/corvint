@@ -72,3 +72,6 @@ func (x *LineIndex) Anchor(start, end int, kind, reason string) (Anchor, error) 
 	return Anchor{Repository: x.repository, Revision: x.revision, Path: x.path, Blob: x.blob, SHA256: x.sha, Start: start, End: end,
 		SpanSHA256: Digest(excerpt), Authority: "external-provider", Kind: kind, Reason: reason}, nil
 }
+
+// Bytes is the indexed blob's content; callers must not modify it.
+func (x *LineIndex) Bytes() []byte { return x.data }

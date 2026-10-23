@@ -17,7 +17,7 @@ import (
 )
 
 // The static test-evidence producer behind `corvint docs corpus discover-tests`
-// (DCP-V1-370..379, GitHub #1582). It reads committed Playwright or RSpec test files at one full
+// (DCP-V1-370..376, GitHub #1582). It reads committed Playwright or RSpec test files at one full
 // commit through the TSA-V0 readers and emits, per example, its title path, tags, annotations,
 // expectations, navigations and requests, statically reached modules, fixtures and shared
 // groups, and the hooks that apply to it. Every fact carries a line anchor pinned to the blob;

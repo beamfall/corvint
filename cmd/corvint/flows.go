@@ -110,7 +110,7 @@ type flowSubcommand func(ctx context.Context, root string, args []string, out io
 
 var flowSubcommands = map[string]flowSubcommand{"export": runFlowsExport, "import": runFlowsImport, "map": runFlowsMap,
 	"gaps": runFlowsGaps, "impact": runFlowsImpact, "ingest": runFlowsIngest, "docs": runFlowsDocs,
-	"stability": runFlowsStability}
+	"stability": runFlowsStability, "ingest-coverage": runFlowsIngestCoverage}
 
 // flowExports maps each --emit value to the one document it writes to stdout.
 var flowExports = map[string]func(ctx context.Context, root string, set appflows.IntentSet, envelope string) ([]byte, error){
@@ -407,6 +407,17 @@ stdout; header flags are --run-id, --runner-version, --source-commit, --source-t
 --fixture-id, --fixture-digest, --cleanup and repeatable
 --control "SUBJECT<TAB>CONTROL<TAB>EXPECTED". A bound exceeded exits nonzero with
 the incomplete code and writes nothing. None of these writes to the repository.
+
+Coverage usage:
+  corvint [--root PATH] flows ingest-coverage --format v8|istanbul|rspec|lcov --from FILE
+    --evidence FILE... --revision FULL_COMMIT [--test-key KEY] [--links FILE] [--strip-prefix P]
+
+ingest-coverage writes corvint-coverage-ingest/1 to stdout: the coverage, run-evidence
+and links inputs pinned by digest; each covered test bound to its one run record, and
+joined only when that record ran clean at the revision; observed tested_by relations
+from executed source files with executed line spans anchored to the committed blobs;
+links the coverage contradicts as coverage-contradiction conflicts; and every path or
+test it cannot classify as an unknown with a reason. Source maps are not resolved.
 
 Documentation usage:
   corvint [--root PATH] flows docs --flows DIR --page FILE --claims FILE [--docs-root DIR] [--evidence FILE]...
