@@ -1034,14 +1034,74 @@ func (res *Result) chainHead() Checkpoint {
 }
 
 // chainCheckpoint is the read checkpoint body for this result's chain: every
-// latest entry, request paths excluded.
+// latest entry, request paths excluded, and the filter of every request path
+// the chain posted (CAL-V0-321).
 func (res *Result) chainCheckpoint() (Checkpoint, error) {
 	cp := res.chainHead()
 	err := res.chain.each([]string{"requests/"}, func(p string, l latest) error {
 		cp.Entries = append(cp.Entries, CheckpointEntry{Path: p, Seq: l.seq, Sha256: l.digest})
 		return nil
 	})
+	if err != nil {
+		return cp, err
+	}
+	cp.Requests, err = res.chain.requestFilter()
 	return cp, err
+}
+
+// requestFilter is the filter of every request path the chain holds: the
+// walk's own and, on a view walk, the writer checkpoint's.
+func (st *chain) requestFilter() (*RequestFilter, error) {
+	digests := [][]byte{}
+	for p := range st.canonical {
+		if !strings.HasPrefix(p, "requests/") {
+			continue
+		}
+		d, ok := requestDigest(p)
+		if !ok {
+			return nil, errCheckpoint(p, "request path is not canonical")
+		}
+		digests = append(digests, d)
+	}
+	n := len(digests)
+	if st.view {
+		n += st.elided.requestCount()
+	}
+	f := newRequestFilter(n)
+	for _, d := range digests {
+		f.add(d)
+	}
+	if st.view {
+		st.elided.eachRequest(f.add)
+	}
+	return f, nil
+}
+
+// requestCount is the number of request records w and its base carry; a
+// path both carry counts twice, which only sizes a filter up.
+func (w *WriterCheckpoint) requestCount() int {
+	n := len(w.requests) / writerRequestBytes
+	if w.base != nil {
+		n += len(w.base.reqs) / writerRequestBytes
+	}
+	return n
+}
+
+// eachRequest calls fn with the path digest of every request record w and
+// its base carry.
+func (w *WriterCheckpoint) eachRequest(fn func([]byte)) {
+	for _, reqs := range [][]byte{w.requests, w.baseRequests()} {
+		for i := 0; i+writerRequestBytes <= len(reqs); i += writerRequestBytes {
+			fn(reqs[i : i+sha256.Size])
+		}
+	}
+}
+
+func (w *WriterCheckpoint) baseRequests() []byte {
+	if w.base == nil {
+		return nil
+	}
+	return w.base.reqs
 }
 
 // WriterBase is the checkpoint a ModeWriter result resumed from, or nil.

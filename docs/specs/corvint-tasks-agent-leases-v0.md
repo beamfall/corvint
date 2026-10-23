@@ -147,6 +147,8 @@ one.
 | V1-1548 | CAL-V0-311..318 | Accepted (standing auto-accept, 2026-10-17): a role's optional `keepLease {intervalSeconds, leaseMinutes, maxIdleSeconds}` has the dispatcher heartbeat, or renew when the lease would not cover two intervals, the attempt each live, active worker holds; it stops once on a fence, a lost or regenerated attempt, and never writes for an exited or idle worker; ledger `taskman-dispatch-state/6`, `lease-keeper` events and the status `keeper` object; a worker whose tree this tick did not observe is not kept (CAL-V0-317) and a replayed write is followed by one fresh write (CAL-V0-318); implemented with focused tests |
 | V1-2012 | CAL-V0-319 | Accepted (standing auto-accept, 2026-10-20): an interrupted `gate run` (SIGINT/SIGTERM after the gate started) stops the gate's process group and records the run as an ordinary `FAILED` gate result with its captured output instead of discarding it; implemented with a focused test and a retained reproduction |
 | V1-1981 | CAL-V0-320 | Accepted (standing auto-accept, 2026-10-20): the standalone Tasks archive builder also cross-builds `linux/amd64` (`CGO_ENABLED=0`, reproducible, `SHA256SUMS`); the Linux runtime is `NOT_OBSERVED` until a Linux host runs the documented commands |
+| V1-2352 | CAL-V0-321 | Accepted (standing auto-accept, 2026-10-23): a read checkpoint carries a no-false-negative filter of the request paths posted at or before its sequence, so a checkpoint read refuses a duplicate request with a null pre-state through the complete audit (PSR-V0-203); a checkpoint without the filter serves no read; implemented with focused tests |
+| V1-2359 | CAL-V0-322 | Accepted (standing auto-accept, 2026-10-23): `attempt show` and `ticket show` carry `lastFailedGate`, the newest FAILED or BLOCKED gate result with the TCD-V0-165 bounded, secret-screened tail of its retained output; implemented with focused tests |
 | V1-1321 | ATR-V0-210, ATR-V0-211 | Delivered as a refusal naming uncovered requested paths plus the reported scope (attempt runner spec); CAL-V0-021 unamended |
 | V1-1494 | CAL-V0-263, CAL-V0-265 | Proposed (issue 967): no lease write holds the preparation gate for a complete-history audit; the scheduled refresh walks the prefix to its captured head when the journal moves; focused tests, mutation check and an opt-in load harness |
 | V1-1512 | none (evidence; PSR-V0-052) | Accepted (standing auto-accept, 2026-10-20): issue 967 remainder; at 40,000 receipts and 15 writers heartbeat/renew p99 1,138/1,131 ms (residual: gate wait behind about 1 s widen and reap commits), no `SNAPSHOT_MOVED`; reap and pool release resume tests; proposals 2 remainder and 3 are 1.0 work per decision 0549, proposal 5 deferred past 1.0 |
@@ -1068,6 +1070,8 @@ how much of it a read must replay, never what a read may conclude.
   and never over a pending receipt. It carries no request, evidence or receipt bytes, is never
   posted by a receipt, and is never an input to authority, ranking or archive content.
   Deleting it costs the next read one complete audit and nothing else.
+  CAL-V0-321 amends this: a read checkpoint also carries a filter of its request paths (not
+  their bytes).
 - `CAL-V0-060`: Only a writer retains a checkpoint: after its complete settled audit, while it
   holds the writer lock and the head is still the audited one, by one fixed temporary file and
   rename, best-effort. Audits that read verbs share with writers MUST NOT retain one. A failure to retain it MUST
@@ -7366,6 +7370,63 @@ after the change is in `docs/build-log/2026-10-20-V1-2012-gate-interrupt-retenti
 Rollback: revert the change; a recorded interrupted result is an ordinary §7.1 gate result that an
 earlier build reads unchanged, and a later `gate run` replaces it.
 
+### V1-2352 read checkpoint request filter
+
+Human-owned input: native ticket V1-2352 (PSR-V0-203 states the read-route behavior). The read
+checkpoint omitted request paths (CAL-V0-059), so a resumed read could not prove that a tail
+request with a null pre-state was a first post. An exact request set is up to 2.1 M digests
+(67 MB raw, 134 MB in hex), past the 16 MiB checkpoint bound; a filter without false negatives is
+a few bytes per request.
+
+- `CAL-V0-321`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2352) A read
+  checkpoint derived from a complete or writer-resumed audit (CAL-V0-059, CAL-V0-119) MUST carry
+  `requests`, `{bits, data}`: a Bloom filter of every request path that receipts 1..`seq` posted,
+  keyed by the path's SHA-256 digest (the 64 hex digits the path names). `bits` is a power of two in
+  64..2^26, at least 16 per request when that fits; `data` is the canonical standard base64 of
+  `bits`/8 bytes. Each path sets 11 bits at `(h1 + k*h2) mod bits` for k = 0..10, where h1 and h2
+  are the digest's first two little-endian 64-bit words (h2 with its low bit set). The filter
+  never omits a posted path; a writer-resumed derivation covers the writer checkpoint's request
+  records too and yields the same bytes as a complete audit at the same head. The decoder is closed:
+  any other key, a size outside the bound or a non-canonical encoding makes the checkpoint
+  unusable. The key is optional in the codec, so a seal anchor and a writer checkpoint header,
+  which embed it, keep their bytes; the read route requires it (PSR-V0-203).
+
+Non-goals: no profile change (an older binary's closed decoder refuses the key and runs the complete
+audit), no exact request set, no change to the writer checkpoint, seal anchor or any journal file.
+
+Failure modes: the filter adds 2 to 4 bytes per request (about 2.7 to 5.4 once base64-encoded);
+a checkpoint past 16 MiB is unusable as before (CAL-V0-059), and a full-size filter is 8 MiB of bits.
+
+Rollback: revert the source; see PSR-V0-203.
+
+### V1-2359 failed-gate tail in attempt show and ticket show
+
+Human-owned input: native ticket V1-2359, the residual of V1-2196 (TCD-V0-165..166). A failed
+`gate run` quoted its tail only in the executing call; afterwards the retained output was reachable
+only through the gate record, so an agent reran the gate to diagnose it.
+
+- `CAL-V0-322`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2359) `attempt
+  show` MUST carry `lastFailedGate`: the attempt's newest gate result whose state is `FAILED` or
+  `BLOCKED`, searched newest first, as `attemptId`, `gateId`, `resultSha256`, `state`,
+  `outcomeClass`, `exitCode`, `signal`, `endedAt`, `output` (`sha256`, `bytes`, `path`
+  `evidence/<sha256>`, `observed`), `failingLine` and `tail`, the last two derived from the retained
+  output exactly as TCD-V0-165 derives them (at most 20 lines of at most 240 bytes, secret-screened).
+  `ticket show` MUST carry the same value for the result that ended last across the ticket's
+  attempts (ties by attempt ID). It is null when no such result exists and `NOT_OBSERVED` when a
+  newer gate record is absent or differs from its digest, or when the journal is absent. The output
+  is quoted only when the evidence blob still has the recorded digest and size; otherwise
+  `observed` is `NOT_OBSERVED` and `tail` and `failingLine` are null. A later passing result does
+  not hide the failed one. Both are pure reads; nothing is written.
+
+Non-goals: no new store state or result field in `gate run`, no tail for `PENDING`, `RUNNING`,
+`NOT_RUN` or `STALE` results, and no full output in the result (it stays at `output.path`).
+
+Failure modes: a gate output blob is read and hashed in full (at most 16 MiB) for each show; a show
+on an attempt with many gate results reads each gate record (64 KiB bound) until it finds a failed
+one.
+
+Rollback: revert the source; the field disappears and nothing stored changes.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -8220,3 +8281,5 @@ after this restore.
 | CAL-V0-318 | `TestCALV0318_ReplayedRenewalAfterRestartWritesAgain` (`internal/tasks/dispatch`); `TestCALV0313_NativeKeeperRenewsAndHeartbeatsFenced` (`internal/tasks/cli`) |
 | CAL-V0-319 | `TestCALV0319_InterruptedGateRunRecordsItsResult` (`internal/tasks/store`); `TestCALV0319_HangupInterruptsGateRun` (`internal/tasks/cli`, V1-2033); `docs/build-log/2026-10-20-V1-2012-gate-interrupt-retention.md`; `docs/build-log/2026-10-21-gate-run-hangup.md` |
 | CAL-V0-320 | `TestTasksArchiveCrossTargetIsLinuxAmd64Only`, `TestTasksArchiveCrossManifestStatesTheLimit`, `TestTasksArchiveRefusesOtherTargets` (`internal/companionrelease`); `docs/build-log/2026-10-20-v1-1981-tasks-linux-amd64-archive.md` (cross-build, ELF check, checksum; Linux runtime `NOT_OBSERVED`) |
+| CAL-V0-321 | `TestCALV0321_CheckpointRequestFilter`, `TestCALV0321_RequestFilterHasNoFalseNegatives`, `TestPSRV0203_CheckpointTailRefusesNullPreStateDuplicate` (`internal/tasks/journal`) |
+| CAL-V0-322 | `TestCALV0322_ShowReportsLastFailedGateTail`, `TestCALV0322_LastFailedGateUnknowns` (`internal/tasks/cli`) |

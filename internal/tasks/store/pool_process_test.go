@@ -458,7 +458,7 @@ func TestPSRSignalTiming(t *testing.T) {
 // This seam changes only a process-identity read, after the native fixture has
 // proved a live sweep owner. It never fabricates a gone process.
 func PSRTestUnknownRunner() (func(), *int) {
-	original := poolProbe
+	original, originalNative := poolProbe, poolNativeIdentity
 	calls := 0
 	poolProbe = func(ctx context.Context, argv ...string) ([]byte, error) {
 		if len(argv) > 1 && argv[1] == "-p" {
@@ -467,7 +467,13 @@ func PSRTestUnknownRunner() (func(), *int) {
 		}
 		return original(ctx, argv...)
 	}
-	return func() { poolProbe = original }, &calls
+	// A kernel-read record is re-read with the kernel read (PSR-V0-201,
+	// PSR-V0-204), so the injection covers that reader too.
+	poolNativeIdentity = func(int) (string, error) {
+		calls++
+		return "", fmt.Errorf("injected runner identity unavailable")
+	}
+	return func() { poolProbe, poolNativeIdentity = original, originalNative }, &calls
 }
 
 // PSR-V0-007/010: the recorded cleanup allowance is the enforced bound and the

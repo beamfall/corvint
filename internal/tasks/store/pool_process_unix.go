@@ -29,15 +29,17 @@ func poolRunnerIdentity(pid int) (string, error) {
 }
 
 // poolNativeIdentity reads a process start identity from the kernel without
-// listing processes; tests replace it to reach the listing.
+// listing processes (Darwin and Linux); tests replace it to reach the
+// listing.
 var poolNativeIdentity = supervisor.ProcessIdentity
 
-// poolRunnerIdentityContext answers from Darwin's kern.proc.pid when the
-// kernel read succeeds, so a loaded host's slow process listing cannot fail a
-// pool preparation (PSR-V0-201, V1-1008). A failed kernel read, and every
-// other host, keeps the bounded listing.
+// poolRunnerIdentityContext answers from Darwin's kern.proc.pid, or from
+// Linux's /proc/<pid>/stat and /proc/stat btime, when that kernel read
+// succeeds, so a loaded host's slow process listing cannot fail a pool
+// preparation (PSR-V0-201, V1-1008; PSR-V0-204, V1-2425). A failed kernel
+// read, and every other host, keeps the bounded listing.
 func poolRunnerIdentityContext(ctx context.Context, pid int) (string, error) {
-	if runtime.GOOS == "darwin" {
+	if runtime.GOOS == "darwin" || runtime.GOOS == "linux" {
 		if identity, e := poolNativeIdentity(pid); e == nil {
 			return identity, nil
 		}
@@ -45,17 +47,66 @@ func poolRunnerIdentityContext(ctx context.Context, pid int) (string, error) {
 	return poolListedIdentity(ctx, pid)
 }
 
+// poolNativePrefix is the identity prefix poolNativeIdentity writes on this
+// host, or "" where pool identities are always listed.
+func poolNativePrefix() string {
+	switch runtime.GOOS {
+	case "darwin", "linux":
+		return runtime.GOOS + ":"
+	}
+	return ""
+}
+
 // poolRecordedIdentity re-reads pid's identity with the reader that produced
 // recorded, so a listed identity (an earlier binary's, or one recorded after
 // a failed kernel read) is never compared with a kernel identity, or the
-// reverse, and a live runner never looks gone (PSR-V0-201).
+// reverse, and a live runner never looks gone (PSR-V0-201). A Linux read
+// that names the recorded process returns recorded itself (PSR-V0-204).
 func poolRecordedIdentity(pid int, recorded string) (string, error) {
-	if runtime.GOOS == "darwin" && strings.HasPrefix(recorded, "darwin:") {
-		return poolNativeIdentity(pid)
+	if prefix := poolNativePrefix(); prefix != "" && strings.HasPrefix(recorded, prefix) {
+		identity, e := poolNativeIdentity(pid)
+		if e == nil && prefix == "linux:" && sameLinuxIdentity(identity, recorded) {
+			return recorded, nil
+		}
+		return identity, e
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	return poolListedIdentity(ctx, pid)
+}
+
+// sameLinuxIdentity reports whether two `linux:<btime>:<starttime>`
+// identities name one process. The kernel recomputes btime on every read, so
+// one recorded by another process can differ by one second (V1-1091); the
+// start tick must match exactly. A reused PID in the same boot has another
+// start tick, and another boot would need a reboot within that second at the
+// same tick.
+func sameLinuxIdentity(a, b string) bool {
+	ab, as, ok1 := splitLinuxIdentity(a)
+	bb, bs, ok2 := splitLinuxIdentity(b)
+	if !ok1 || !ok2 || as != bs {
+		return false
+	}
+	return ab == bb || ab == bb+1 || bb == ab+1
+}
+
+func splitLinuxIdentity(s string) (boot uint64, start string, ok bool) {
+	rest, found := strings.CutPrefix(s, "linux:")
+	if !found {
+		return 0, "", false
+	}
+	b, start, found := strings.Cut(rest, ":")
+	if !found || start == "" {
+		return 0, "", false
+	}
+	boot, e := strconv.ParseUint(b, 10, 64)
+	if e != nil || boot == 0 || boot == ^uint64(0) {
+		return 0, "", false
+	}
+	if _, e := strconv.ParseUint(start, 10, 64); e != nil {
+		return 0, "", false
+	}
+	return boot, start, true
 }
 
 func poolListedIdentity(ctx context.Context, pid int) (string, error) {

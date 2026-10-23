@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-202 accepted (standing auto-accept 2026-10-11; V1-2361); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); PSR-V0-201 accepted (standing auto-accept 2026-10-11; V1-1008)
+Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-202 accepted (standing auto-accept 2026-10-11; V1-2361); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); PSR-V0-201 accepted (standing auto-accept 2026-10-11; V1-1008); PSR-V0-203..204 accepted (standing auto-accept 2026-10-11; V1-2352, V1-2425)
 Delivery status: experimental
 Authoritative inputs: https://github.com/beamfall/corvint/issues/498; CAL-V0-028..034 in corvint-tasks-agent-leases-v0.md; independent Gate A packet-r2/GATE-A.md PASS with no HIGH, MED findings incorporated before implementation.
 Native ticket: V1-0695, original creation receipt2436.
 
 ## Agent digest
 - Claim: Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.
-- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-202 accepted (standing auto-accept 2026-10-11; V1-2361); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); PSR-V0-201 accepted (standing auto-accept 2026-10-11; V1-1008); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
+- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-202 accepted (standing auto-accept 2026-10-11; V1-2361); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); PSR-V0-201 accepted (standing auto-accept 2026-10-11; V1-1008); PSR-V0-203..204 accepted (standing auto-accept 2026-10-11; V1-2352, V1-2425); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
 - Exists: Foreground sweep, optional dispatcher integration and focused fixtures are implemented in source. Earlier source-bound repair evidence is retained separately from current integrated qualification.
 - Blocked on: Current integrated native binary, mandatory selected tests, exact-target review, terminal evidence, hosted integration and native completion. Linux runtime and physical external cleanup remain unqualified.
 - Read next: Requirements; Acceptance evidence; Non-goals and simpler baseline; Compatibility and rollback.
@@ -937,7 +937,7 @@ orchestrator on 2026-10-21 (decision 0552): reads stay non-blocking and warn.
   reads nothing beyond the tail receipt it already decoded, so the route stays bounded by the tail.
   Residual: a forged duplicate whose receipt declares a null pre-state passes this check; the
   writer route (its request index) and the complete audit (`receipt audit`, the writer refresh)
-  still refuse it.
+  still refuse it. PSR-V0-203 closes this residual on the read route.
 - `PSR-V0-191`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0324) A read that
   does not audit the journal still serves the intent projection without blocking (TCP-00 §3.3). It
   compares each `intent/` afterimage the head receipt posts with the projected file's digest, from
@@ -970,9 +970,9 @@ busy. CAL-V0-188 left this as a non-goal.
   failure while re-reading a `darwin:` record MUST stay an error and MUST NOT make the runner count
   as gone.
 
-Non-goals: a Linux `/proc` identity for the pool (the Linux path keeps the listing); any change to
-the listing bound, the group cleanup proof (CAL-V0-188) or the recorded field's schema
-(`runnerStarted` stays prose of at most 128 bytes).
+Non-goals: any change to the listing bound, the group cleanup proof (CAL-V0-188) or the recorded
+field's schema (`runnerStarted` stays prose of at most 128 bytes). The earlier non-goal "a Linux
+`/proc` identity for the pool" is withdrawn by PSR-V0-204.
 
 Failure modes: a runner recorded by an earlier binary keeps the listing on recovery, so it is never
 compared with a kernel identity. A kernel layout the reader does not accept fails the read, which
@@ -981,6 +981,73 @@ falls back to the listing at preparation and is an error at recovery.
 Rollback: revert the source. Records written as `darwin:` are then compared with a listed identity,
 so recovery reports such a runner gone; drain pool allocations (no `ALLOCATED` entry with a
 `darwin:` runner) before rolling back.
+
+### V1-2352 null request pre-state on the read checkpoint route
+
+Human-owned input: native ticket V1-2352, the PSR-V0-190 residual (journal-1021s lane, PR #1508).
+Observed before this change: a tail receipt that re-posts a request already posted before the read
+checkpoint, declaring a null pre-state (the request file removed first), passed a checkpoint read,
+while the complete audit refused it `JOURNAL_FORKED`. The read checkpoint carried no request
+paths (CAL-V0-059), so the read could not tell the duplicate from a first post. An earlier lane
+(`docs/build-log/2026-10-22-tasks-oc-1022.md`) recorded that a fix needs a request set or a
+filter without false negatives in the checkpoint; CAL-V0-321 adds that filter.
+
+- `PSR-V0-203`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2352) On a read
+  resumed from the read checkpoint, a tail receipt that posts a `requests/` path with a null
+  pre-state, which no earlier tail receipt posted, MUST decline the checkpoint route when the
+  checkpoint's request filter (CAL-V0-321) may hold that path; the complete audit then classifies
+  the history, and a request ID already posted refuses `JOURNAL_FORKED`, exactly as for a non-null
+  pre-state (PSR-V0-190). A path the filter does not hold was not posted at or before the
+  checkpoint, so the route continues. A checkpoint without a filter MUST NOT serve a read. The
+  check reads nothing beyond the tail receipt and the decoded checkpoint, so the route stays
+  bounded by the tail. A false positive (about 0.05% per tail request at the filter's sizing)
+  costs that read one complete audit and changes no conclusion.
+
+Non-goals: no change to the complete audit, the writer route, the writer checkpoint or any
+journal file; no exact request set in the read checkpoint.
+
+Failure modes: a checkpoint written by an earlier binary has no filter, so reads run the complete
+audit until the next writer retains a checkpoint (CAL-V0-060); a forged filter that drops a path
+can only make the route accept what the complete audit would refuse, the same trust a forged
+checkpoint entry already has (the checkpoint stays derived state that every read rebinds to the
+retained receipt, CAL-V0-061).
+
+Rollback: revert the source. Checkpoints that carry `requests` are then refused by the older closed
+decoder, so reads run the complete audit until a writer retains a checkpoint without it.
+
+### V1-2425 Linux pool runner identity from /proc
+
+Human-owned input: native ticket V1-2425, the residual of PSR-V0-201 (lane perf-1022s, PR #1552).
+PSR-V0-201 made the Darwin runner identity a kernel query; Linux still ran a bounded `ps -o lstart`
+listing on every pool preparation. Measured on this lane's Linux host
+(`BenchmarkPSRV0204_RunnerIdentity`, `internal/tasks/store`): 3.61 to 4.14 ms per call before, 8.98
+to 11.90 us after.
+
+- `PSR-V0-204`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2425) On Linux
+  the runner identity recorded for a pool health, cleanup, operation or sweep command MUST come from
+  `/proc/<pid>/stat` (start tick) and `/proc/stat` (`btime`), as `linux:<btime>:<starttime>` (the
+  supervisor's process identity), with no process listing, whenever that read succeeds. A failed
+  read MUST keep the bounded `ps` listing with unchanged rules. Recovery MUST re-read a `linux:`
+  record from `/proc` and every other record with the listing, as PSR-V0-201 requires for
+  `darwin:`. Because the kernel recomputes `btime` on every read, an identity another process
+  recorded can differ by one second (V1-1091): a fresh read whose start tick equals the record's
+  and whose `btime` is within one second of it MUST count as the recorded runner, and any other
+  start tick as a different process. A `/proc` read failure while re-reading a `linux:` record MUST
+  stay an error and MUST NOT make the runner count as gone.
+
+Non-goals: no `boot_id` identity format, no tolerance for any other identity or call site (the
+V1-1091 residual elsewhere stays open), and no change to the listing, the group cleanup proof or
+`runnerStarted`'s schema.
+
+Failure modes: a runner recorded by an earlier binary has a listed identity and keeps the listing on
+recovery. A host that mounts `/proc` with `hidepid` or another PID namespace fails the read: the
+listing serves preparation and recovery of a `linux:` record is an error, as on Darwin. A reboot
+within one second of the recording, landing on the same start tick, would read as the same runner;
+that needs both coincidences at once.
+
+Rollback: revert the source. Records written as `linux:` are then compared with a listed identity,
+so recovery reports such a runner gone; drain pool allocations (no `PREPARING`, `CLEANING` or swept
+entry with a `linux:` runner) before rolling back.
 
 ## Acceptance evidence
 
@@ -1138,3 +1205,10 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | Requirement | Evidence |
 | --- | --- |
 | PSR-V0-201 | `TestPSRV0201_RunnerIdentityNeedsNoListing`, `TestPSRBoundedProbes` (`internal/tasks/store`); `docs/build-log/2026-10-22-perf-1022s-store-test-parallelism.md` |
+
+## Traceability (PSR-V0-203..204)
+
+| Requirement | Evidence |
+| --- | --- |
+| PSR-V0-203 | `TestPSRV0203_CheckpointTailRefusesNullPreStateDuplicate`, `TestPSRV0190_CheckpointTailRefusesPrefixRequestDuplicate`, `TestCALV0321_CheckpointRequestFilter` (`internal/tasks/journal`) |
+| PSR-V0-204 | `TestPSRV0204_LinuxRunnerIdentityNeedsNoListing`, `BenchmarkPSRV0204_RunnerIdentity` (`internal/tasks/store`, Linux only); `docs/build-log/2026-10-23-tasks-lane-1023.md` |
