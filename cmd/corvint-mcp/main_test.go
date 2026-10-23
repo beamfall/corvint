@@ -302,8 +302,8 @@ func TestMCPV0026ToolProfileSelectorIsClosed(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	v0 := []string{"corvint.impact", "corvint.query", "corvint.status"}
-	taskReview := []string{"corvint.cem.report", "corvint.context", "corvint.impact", "corvint.query", "corvint.status"}
+	v0 := []string{"corvint.help", "corvint.impact", "corvint.query", "corvint.status"}
+	taskReview := []string{"corvint.cem.report", "corvint.context", "corvint.help", "corvint.impact", "corvint.query", "corvint.status"}
 	for _, test := range []struct {
 		arguments []string
 		want      []string
@@ -381,8 +381,8 @@ func TestMCPV0027ErrorProfileSelectorIsClosed(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	v0 := []string{"corvint.impact", "corvint.query", "corvint.status"}
-	taskReview := []string{"corvint.cem.report", "corvint.context", "corvint.impact", "corvint.query", "corvint.status"}
+	v0 := []string{"corvint.help", "corvint.impact", "corvint.query", "corvint.status"}
+	taskReview := []string{"corvint.cem.report", "corvint.context", "corvint.help", "corvint.impact", "corvint.query", "corvint.status"}
 	for _, test := range []struct {
 		arguments []string
 		want      []string
@@ -510,7 +510,7 @@ func TestAFUV1034FlowsToolProfile(t *testing.T) {
 			t.Errorf("%s annotations=%+v", tool.Name, tool.Annotations)
 		}
 	}
-	want := []string{"corvint.flows.coverage", "corvint.flows.gaps", "corvint.flows.impact", "corvint.flows.map", "corvint.flows.navigate", "corvint.impact", "corvint.query", "corvint.status"}
+	want := []string{"corvint.flows.coverage", "corvint.flows.gaps", "corvint.flows.impact", "corvint.flows.map", "corvint.flows.navigate", "corvint.help", "corvint.impact", "corvint.query", "corvint.status"}
 	if !reflect.DeepEqual(names, want) {
 		t.Fatalf("flows tools=%v want %v", names, want)
 	}

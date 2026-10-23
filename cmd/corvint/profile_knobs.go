@@ -80,13 +80,3 @@ func profileKnobCatalog() map[string]any {
 		"authority": "diagnostic only; never changes what a command reads, returns, or mutates",
 	}
 }
-
-// helpCatalogJSON is `corvint help --json`. Until the capability catalog (GitHub #1588) lands it
-// carries only the profiling member; that catalog absorbs the member unchanged.
-func helpCatalogJSON() string {
-	encoded, err := gokernel.CanonicalJSON(map[string]any{"profiling": profileKnobCatalog()})
-	if err != nil {
-		panic(err) // a fixed literal map always encodes
-	}
-	return string(escapeASCIIJSON(encoded)) + "\n"
-}

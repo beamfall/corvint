@@ -22,8 +22,8 @@ The runner builds `./cmd/corvint-mcp`, launches it as
 delimited JSON-RPC on stdin/stdout. It verifies:
 
 - exact discovery/version metadata and truthful tools-only capabilities;
-- deterministic, closed tool catalogues for `corvint.query`, `corvint.impact`, and
-  `corvint.status`, with no resources or unimplemented tools;
+- deterministic, closed tool catalogues for `corvint.help`, `corvint.query`,
+  `corvint.impact`, and `corvint.status`, with no resources or unimplemented tools;
 - stateless per-request metadata and unsupported-version errors;
 - rejection of removed legacy methods;
 - strict duplicate-key, invalid-UTF-8, malformed-JSON, 1 MiB frame, and depth-64
