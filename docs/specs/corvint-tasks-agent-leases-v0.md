@@ -152,6 +152,10 @@ one.
 | V1-2449 | CAL-V0-340 | Accepted (standing auto-accept, 2026-10-23): an unlocked journal audit whose two-second stage-slot wait (CTS-V0-008) is spent with the head advanced since it first saw the slots refuses the retryable `SNAPSHOT_MOVED`, not `MALFORMED` (head movement warrants another bounded observation, it does not prove the slots' holders live); a head that never moved keeps the unchanged `MALFORMED`; implemented with focused tests |
 | V1-2368 | CAL-V0-365..366 | Accepted (standing auto-accept, 2026-10-23): a cleanup or reassign interrupted after its `WORKTREE_REMOVE` write is settled by the next owner with a typed `REMOVAL_COMPLETED` or `REMOVAL_ROLLED_BACK` outcome, and a removed stage worktree's record is dropped rather than kept marked, amending ATR-V0-296..298; implemented with focused tests. CAL-V0-367..371 (PR #1631 review) hold the cleanup exclusively, record and prove the remover child, drop legacy records durably, never retry a rolled-back removal in one invocation, and keep a moved worktree's record |
 | V1-1715 | CAL-V0-350 | Accepted (standing auto-accept, 2026-10-23): `claim --next` derives scope through the CLI's scope deriver for the ticket `plan preview --pool` selects with waiters present, so the deriver is asked about, and the claim takes, the previewed ticket; the CLI test fixture takes a deriver; focused test and a mutant check |
+| V1-2137 | CAL-V0-360 | Accepted (standing auto-accept, 2026-10-23): a test-only padded-journal builder appends N synthetic heartbeat receipts, elided as liveness compaction elides them, to a store with live attempts in O(N) file writes and no audit; the complete audit finds the result CONSISTENT and AGREES, so a doctor walk at 30,000 receipts is measurable; implemented with focused tests |
+| V1-1634 | CAL-V0-361, CAL-V0-362 | Accepted (standing auto-accept, 2026-10-23): host-sleep handling on Linux and the other lease-reap paths at a wake. Only the CAL-V0-191 reap of a running worker excludes a recorded gap (ATR-V0-064); the exit recovery, the unowned-lease reap and the store's own claim and reap are not gap-aware, stated as an accepted limit. A time-namespace test shows the Go monotonic clock is `CLOCK_MONOTONIC`, not `CLOCK_BOOTTIME`, and an opt-in wall-clock step records one gap. A real suspend: `NOT_RUN` (the VM advertises no suspend state) |
+| V1-0911 | CAL-V0-363, CAL-V0-364 | Accepted (standing auto-accept, 2026-10-23): Linux qualification of the Tasks scale work. The `/proc` process-table reader agrees with `ps` on a live tree; idle CPU, scan cost and `ReadDir` measurements are in the build log. The qualification found a Linux-only failure and fixed it: the change guard watched every file with inotify, so a store with more files than the user's `fs.inotify.max_user_watches` allowance (or a few concurrent writers on a large one) ended `claim` and `pool acquire` as `MALFORMED` (`no space left on device`); a guard now watches at most a 32nd of the allowance (4,096) of its files and tracks the rest by stat, as on Darwin |
+| V1-1569 | none (evidence; PSR-V0-055, CAL-V0-364) | Accepted (standing auto-accept, 2026-10-23): the 45,000-receipt pool acquire load run on Linux, with the host, load and Go version retained. The first run ended in `no space left on device` from inotify, which CAL-V0-364 fixes; the bound of PSR-V0-055 is updated with the measured values of the run after the fix |
 | V1-1321 | ATR-V0-210, ATR-V0-211 | Delivered as a refusal naming uncovered requested paths plus the reported scope (attempt runner spec); CAL-V0-021 unamended |
 | V1-1494 | CAL-V0-263, CAL-V0-265 | Proposed (issue 967): no lease write holds the preparation gate for a complete-history audit; the scheduled refresh walks the prefix to its captured head when the journal moves; focused tests, mutation check and an opt-in load harness |
 | V1-1512 | none (evidence; PSR-V0-052) | Accepted (standing auto-accept, 2026-10-20): issue 967 remainder; at 40,000 receipts and 15 writers heartbeat/renew p99 1,138/1,131 ms (residual: gate wait behind about 1 s widen and reap commits), no `SNAPSHOT_MOVED`; reap and pool release resume tests; proposals 2 remainder and 3 are 1.0 work per decision 0549, proposal 5 deferred past 1.0 |
@@ -5785,7 +5789,7 @@ descriptor exhaustion and the existing traversal bounds still refuse.
   (`internal/tasks/authority/change_guard_darwin.go`) shall hold at most 16 regular-file vnode
   descriptors process-wide, one kqueue descriptor per live guard, and one vnode descriptor per
   watched directory; directory descriptors scale with directory count, never with receipt count.
-  Linux retains one inotify descriptor. Regular files beyond the budget keep the existing stat
+  Linux retains one inotify descriptor (CAL-V0-364 amends its per-file watches). Regular files beyond the budget keep the existing stat
   sweep and locked event-check semantics, directory event coverage is never dropped, and no
   additional directory-count admission cap applies (descriptor exhaustion and existing traversal
   bounds still refuse).
@@ -7587,6 +7591,137 @@ that does not pass `Env.ScopeDeriver`, fails `TestCALV0350_ClaimNextDerivesScope
 `TestPSRV0132_ClaimNextPoolClaimsTheWaiterCLI` also does). Rollback: revert the test and fixture
 change; no product code changed.
 
+### V1-2137 padded-journal fixture builder
+
+Human-owned input: native ticket V1-2137. The doctor walk cost of TQD-V0-045 could not be measured at
+30,000 receipts: a store built through the command line costs about 0.2 s per write, so 30,000
+heartbeats take about 100 minutes, and the V1-1193 before and after at that size stayed `NOT_RUN`.
+
+- `CAL-V0-360`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2137) A test-only
+  builder, `fixture.PadLiveness`, MUST append a requested number of completed heartbeat receipts
+  to an unsegmented store that has live attempts, in O(N) file writes and without running an audit,
+  so that the complete audit finds the result CONSISTENT with its projections in AGREEMENT and the
+  doctor's elided-record walk (TQD-V0-045) restores records from it. Each appended receipt MUST be
+  the attempt's latest whole liveness receipt re-sequenced, re-chained to the previous receipt's
+  original digest, re-timed and re-requested: it posts the attempt record with a new
+  `lastHeartbeatAt` and a request afterimage of its own. With elision requested, a receipt that a
+  later receipt of the attempt supersedes MUST be written in the elided form of CAL-V0-300,
+  except that a receipt whose journal sequence lies `snapshot.MaxElidedRun` or more receipts after
+  the attempt's previous whole receipt stays whole (CAL-V0-302). The distance is measured in global
+  journal sequence, across the receipts of every attempt, not in receipts of that attempt, so that
+  no more than `snapshot.MaxElidedRun` receipts ever separate an elided receipt from its attempt's
+  previous whole one and the backward walk stays bounded however many attempts interleave; an
+  attempt's last receipt is always whole. The builder MUST refuse a store it cannot extend (no
+  attempt with a lease, no whole liveness receipt among the last 4,096 receipts, a segmented head).
+  A receipt changed after it was built MUST still fail the audit. It writes only attempt files,
+  request files, receipts and `head.json`.
+
+Non-goals: product code (the builder is test support in `internal/tasks/fixture`); a duration
+assertion; a store that matches field use in anything but receipt count and elision shape; padding
+with any receipt kind but a heartbeat of a live attempt.
+
+Failure modes: a template receipt is found by reading back from the head, so a store whose attempts
+have no whole liveness receipt near the head must record one real heartbeat per attempt first; a
+retained checkpoint older than the new head is stale and the next read takes the complete audit,
+as for any store.
+
+Rollback: delete `internal/tasks/fixture/padded.go` and its tests.
+
+### V1-1634 host sleep on Linux and the other lease-reap paths at a wake
+
+Human-owned input: native ticket V1-1634, the residual of V1-1597 (ATR-V0-063..065), which was tested
+with an injectable clock on macOS only.
+
+- `CAL-V0-361`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1634) Only the
+  dispatcher's CAL-V0-191 reap of a running worker's expired lease, and the worker's wall,
+  idle and lease-keeper `maxIdleSeconds` timers, exclude a recorded suspend gap (ATR-V0-064). Every
+  other lease-reap path acts on the clock as it reads at the first tick or write after a wake and
+  MUST NOT be gap-aware: the exit recovery of CAL-V0-104, which retries a refused hand-off at the
+  first tick after the wake (its backoff is a wall-clock deadline that the suspend passed) and
+  reaps at once an attempt whose lease ran out, because no worker is left to use the time; the
+  dispatcher's reap of an expired lease that no worker of its own holds; and the store's own
+  expiry judgement, the lease timestamp against the clock of the writing call, which a colliding
+  claim, `claim-next` and the `reap` verb apply, so that a lease that ran out while its holder's
+  host slept is reaped by the first such writer after the wake and the holder's later `renew` or
+  `heartbeat` is `FENCED`. The store keeps no suspend record: a gap is one dispatcher's local
+  observation of its own ticks (ATR-V0-063). A holder that needs its lease to survive a suspend
+  renews before it (`keepLease`, CAL-V0-311) or accepts the reap.
+- `CAL-V0-362`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1634) The
+  host-sleep detector (ATR-V0-063) MUST rest on a monotonic clock that does not count suspended
+  time. On Linux the Go runtime's monotonic clock, the reading `time.Now` carries, is
+  `CLOCK_MONOTONIC`, which stops during a suspend, and not `CLOCK_BOOTTIME`, which runs through
+  it; a forward step of `CLOCK_REALTIME` that leaves that reading behind, the signature of a suspend
+  to the detector, MUST be recorded once, by a dispatcher on the real clocks, as one gap of the
+  step's size.
+
+Non-goals: extending a lease for a gap (ATR-V0-063 already declines it), a store-side suspend record,
+a doctor finding or a keep-awake option. A real suspend is not qualified here: the container has no
+suspend state (`/sys/power/state` reads empty and there is no RTC), so the Linux qualification is a time-namespace proof
+of the clock choice and, with `CORVINT_TASKS_CLOCK_STEP=1`, a wall-clock step of the same signature.
+
+Failure modes: a suspend that ends before a second tick of the same dispatcher process is not seen
+(ATR-V0-063); an armed idle gate (CAL-V0-139, only a dispatcher with no live worker arms) measures
+its 60 s safety net in monotonic time, so the first full tick after a wake, which records the gap,
+can come up to 60 s of awake time late, while a lease expiry that the suspend crossed is a
+wall-clock deadline and ends the skip at once.
+
+Rollback: revert the tests and this subsection; no behaviour changes.
+
+### V1-0911 Linux qualification of the Tasks scale work
+
+Human-owned input: native ticket V1-0911. The scale work (V1-0893, V1-0645; CAL-V0-135..142) was
+measured on Darwin only; the `/proc` process reader (CAL-V0-136), the idle CPU of the supervisor and
+dispatcher (CAL-V0-137, CAL-V0-139) and the `ReadDir` listing that relies on directory-entry types
+(CAL-V0-138) were not run on Linux.
+
+- `CAL-V0-363`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0911) On a real
+  Linux `/proc` the process-table reader of CAL-V0-136 MUST return the pid, parent, process group
+  and zombie state that `ps -axo pid=,ppid=,pgid=,stat=` returns for a live tree: a worker in its
+  own process group, an unreaped zombie child and an orphan reparented after its parent exited.
+
+- `CAL-V0-364`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0911, V1-1569) On
+  Linux the change guard (CAL-V0-026, CAL-V0-219) MUST register the directories of an observation
+  with inotify first, and then regular files with inotify only up to a per-guard ceiling of a
+  32nd of the user's `fs.inotify.max_user_watches` allowance, at most 4,096 (256 when the allowance
+  cannot be read). Every other regular file, and any regular file whose watch the kernel refuses
+  with `ENOSPC`, MUST be tracked by the stat identity taken when the file was visited (device,
+  inode, mode, size, modification and change time) and re-read in `Sweep`, as Darwin tracks a
+  file beyond its descriptor budget, so that a difference or a failed read reports
+  `SNAPSHOT_MOVED` at the next check, and registration MUST NOT fail for want of a file watch. A
+  directory whose watch the kernel refuses MUST still fail the registration, as
+  `UNSUPPORTED_FILESYSTEM` naming the allowance, because directory events are what report an
+  entry created, removed or renamed at any time. The ceiling bounds the regular-file watches of
+  one guard independently of the store's receipt count; it does not bound the guard's directory
+  watches, and it does not bound the sum over guards: concurrent writers, each with up to its
+  ceiling of file watches plus every mandatory directory watch, can still spend the per-user
+  allowance that all of them share (32 populated guards take the whole allowance in file watches
+  alone), and a directory refused then fails the registration as above.
+
+Non-goals: a change to the host's watch allowance, or a per-process total across guards (a guard
+is short-lived and the ceiling bounds each); watching every file on a host whose allowance would
+allow it, which is the coverage this requirement gives up for files beyond the ceiling, on the
+terms CAL-V0-219 already accepts for Darwin: only an in-place write or mode change to such a file
+by an actor outside the writer lock, made after the sweep read it, goes unreported, and no Tasks
+writer edits a watched file in place.
+
+Failure modes: a host whose allowance other software or concurrent guards have already spent (an
+editor watching a large tree, or 32 or more live guards on populated stores) refuses a directory
+with a message that names the sysctl, and the remedy is to raise it; a store whose directories
+alone exceed the allowance cannot register on that host at all;
+`inotify_init1` is bounded by `fs.inotify.max_user_instances` (128 on the qualification host) and
+fails the registration with its own error when that many guards are live. The sweep re-reads every
+file beyond the ceiling once per complete-route commit, before the lock.
+
+Rollback: revert `change_guard_linux.go`, the `finish` hook in `change_guard.go` and the tests; a
+store with more files than the allowance then fails as before.
+
+Non-goals (CAL-V0-363): new product behaviour. The other Linux measurements (idle CPU, scan cost,
+listing cost) are build-log evidence, not obligations, because a duration is not asserted.
+
+Failure modes (CAL-V0-363): a host without `ps` or without `/proc` skips the comparison.
+
+Rollback (CAL-V0-363): revert the test.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -8451,3 +8586,8 @@ after this restore.
 | CAL-V0-370 | `TestCALV0365_TakeoverSettlesInterruptedRemoval` (registered and reopen modes) (`internal/tasks/store`) |
 | CAL-V0-371 | `TestCALV0371_MovedWorktreeKeepsItsRecord` (`moved` mode) (`internal/tasks/store`) |
 | CAL-V0-350 | `internal/tasks/cli/lease.go` (`Derive: env.ScopeDeriver`), `internal/tasks/transaction/claim_next.go` | `TestCALV0350_ClaimNextDerivesScopeForThePreviewedWaiterCLI`, `TestPSRV0132_ClaimNextPoolClaimsTheWaiterCLI` (`internal/tasks/cli`) |
+| CAL-V0-360 | `fixture.PadLiveness` (`internal/tasks/fixture`); `TestCALV0360_PaddedLivenessStoreAuditsAndWalks` (`internal/tasks/cli`: audit CONSISTENT at the padded head, shared doctor walk reads no receipt more than twice, a rewritten padded receipt fails the audit); opt-in `TestCALV0360_PaddedDoctorWalkCost`; measurements in `docs/build-log/2026-10-23-tasks-linux-qualification-b3-harness.md` |
+| CAL-V0-361 | `TestCALV0361_UnownedExpiredLeaseIsReapedAtWake`, `TestATRV0064_ExitRecoveryActsAtWake` (`internal/tasks/dispatch`), `TestCALV0361_StoreReapAfterWakeIsNotGapAware` (`internal/tasks/store`: colliding claim and `reap`, then a fenced renew and heartbeat) |
+| CAL-V0-362 | `TestCALV0362_GoMonotonicClockIsNotBoottime` (Linux, in a time namespace whose boot time runs three hours further ahead than the host's own boot-time separation), opt-in `TestCALV0362_RealWallClockStepIsRecordedAsASuspendGap` (`CORVINT_TASKS_CLOCK_STEP=1`, `CAP_SYS_TIME`) (`internal/tasks/dispatch`) |
+| CAL-V0-363 | `TestCALV0363_ProcRowsAgreeWithPsOnLinux` (asserts the controlled fixture processes; unrelated host processes are logged), `BenchmarkCALV0136_ProcRowsOfThisHost`, `BenchmarkCALV0363_PsFork`, opt-in `TestCALV0137_HostWaitIdleCPU` (accepted only when the fixture outlives the window, the deadline interrupts the run and the stop is clean with the detached server gone) (`internal/tasks/supervisor`) |
+| CAL-V0-364 | `TestCALV0364_ChangeGuardTracksFilesBeyondTheInotifyLimit` (every mutation class on a file beyond the ceiling and on one the kernel refuses, at two sizes each), `TestCALV0364_FileCeilingFollowsTheAllowance`, `TestCALV0364_ChangeGuardRefusesADirectoryBeyondTheInotifyLimit`, `TestCALV0364_DirectoriesRegisterBeforeFiles`, opt-in `TestCALV0364_ChangeGuardUnderTheRealInotifyLimit` (`CORVINT_TASKS_INOTIFY_LIMIT=1`, root; a `ceiling` case asserts the kernel refused no file watch, and a `kernel-refusal` case lowers the real sysctl to this user's measured headroom plus the guard's directories and eight files and asserts the kernel actually refused file watches with `ENOSPC`) (`internal/tasks/authority`) |

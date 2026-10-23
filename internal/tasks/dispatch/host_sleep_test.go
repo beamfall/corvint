@@ -113,3 +113,103 @@ func TestATRV0063_RecordVersions(t *testing.T) {
 		})
 	}
 }
+
+// ATR-V0-064, V1-1634: the lease keeper's idle check (CAL-V0-312) counts a
+// recorded suspend as no idle time. A quiet worker kept before a three-hour
+// suspend is kept again at the first tick after the wake, not stopped being
+// kept as idle; idle time that really passes after the wake still counts.
+func TestATRV0064_KeeperIdleCheckExcludesSuspend(t *testing.T) {
+	start := time.Date(2026, 10, 17, 9, 0, 0, 0, time.UTC)
+	now, mono := start, time.Duration(0)
+	q := &keeperQueue{fakeQueue: &fakeQueue{}, now: &now}
+	d, w := keeperRig(t, q, q.fakeQueue, &now, start.Add(5*time.Minute), &KeepLease{IntervalSeconds: 30, LeaseMinutes: 5, MaxIdleSeconds: 120})
+	d.Mono = func() time.Duration { return mono }
+
+	now, mono = start.Add(60*time.Second), 60*time.Second
+	tick(t, d)
+	if len(q.ids) != 1 || w.Keeper.State != keeperKeeping {
+		t.Fatalf("awake: %d writes, keeper %+v", len(q.ids), w.Keeper)
+	}
+
+	// Three hours pass on the wall clock and 30 s on the monotonic clock.
+	now, mono = now.Add(3*time.Hour+30*time.Second), mono+30*time.Second
+	tick(t, d)
+	if n := len(sleptAlerts(t, d)); n != 1 {
+		t.Fatalf("%d suspend alerts, want one", n)
+	}
+	if w.Keeper.State != keeperKeeping || len(q.ids) != 2 || count(keeperActions(t, d), "idle:") != 0 {
+		t.Fatalf("the suspend counted as idle time: %d writes, keeper %+v, events %v", len(q.ids), w.Keeper, keeperActions(t, d))
+	}
+	if w.State != "RUNNING" || len(q.reaped) != 0 {
+		t.Fatalf("worker %q after the wake, reaped %v", w.State, q.reaped)
+	}
+
+	// 90 s of real idleness so far; 40 s more passes the 120 s bound.
+	now, mono = now.Add(40*time.Second), mono+40*time.Second
+	tick(t, d)
+	if w.Keeper.State != keeperIdle || count(keeperActions(t, d), "idle:") != 1 {
+		t.Fatalf("real idle time after the wake was not counted: keeper %+v, events %v", w.Keeper, keeperActions(t, d))
+	}
+}
+
+// ATR-V0-064, V1-1634: the CAL-V0-104 exit recovery of an ended worker's
+// attempt keeps no grace and so excludes no gap. A hand-off refused before a
+// suspend is retried at the first tick after the wake rather than after a
+// further backoff, and an attempt whose lease ran out during the suspend is
+// reaped at once, because no worker is left to use the time.
+func TestATRV0064_ExitRecoveryActsAtWake(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		lease     time.Duration
+		released  []string
+		reaped    []string
+		recovered string
+	}{
+		{"lease-expired-in-gap", time.Hour, []string{"refused:a1"}, []string{"a1"}, "REAPED"},
+		{"lease-live-after-wake", 24 * time.Hour, []string{"refused:a1", "a1"}, nil, "RELEASED"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			start := time.Date(2026, 10, 17, 9, 0, 0, 0, time.UTC)
+			now, mono := start, time.Duration(0)
+			q := &refusingQueue{fakeQueue: &fakeQueue{}, releaseFails: 1}
+			d := exitRig(t, q, start.Add(tc.lease), &now, nil)
+			d.Mono = func() time.Duration { return mono }
+			tick(t, d) // first refusal: next retry is one backoff away
+			if !reflect.DeepEqual(q.released, []string{"refused:a1"}) {
+				t.Fatalf("released %v", q.released)
+			}
+			now, mono = now.Add(3*time.Hour+time.Second), mono+time.Second
+			tick(t, d)
+			if n := len(sleptAlerts(t, d)); n != 1 {
+				t.Fatalf("%d suspend alerts, want one", n)
+			}
+			if !reflect.DeepEqual(q.released, tc.released) || !reflect.DeepEqual(q.reaped, tc.reaped) {
+				t.Fatalf("at the wake: released %v reaped %v, want %v and %v", q.released, q.reaped, tc.released, tc.reaped)
+			}
+			kind := map[string]string{"REAPED": "reaped", "RELEASED": "handoff"}[tc.recovered]
+			if got := recoveryOf(t, d, kind); !reflect.DeepEqual(got, []string{tc.recovered}) || len(d.recoveries) != 0 {
+				t.Fatalf("recoveries %v (%s), pending %v", got, kind, d.recoveries)
+			}
+		})
+	}
+}
+
+// CAL-V0-361, V1-1634: the dispatcher's heal reaps an expired lease that no
+// worker of this dispatcher holds on the first tick after a wake, because
+// the ATR-V0-064 grace belongs to a running worker's lease and no gap
+// extends another holder's. The running worker's own lease, expired inside
+// the same gap, stays within its grace.
+func TestCALV0361_UnownedExpiredLeaseIsReapedAtWake(t *testing.T) {
+	start := time.Date(2026, 10, 17, 9, 0, 0, 0, time.UTC)
+	now, mono := start, time.Duration(0)
+	d, w, q := sleepRig(t, &now, &mono, start.Add(time.Minute))
+	q.obs.Attempts = append(q.obs.Attempts, Attempt{ID: "a2", Ticket: "t2", Holder: "stranger", Phase: "RUNNING", Generation: "1", Live: true, LeaseExpires: start.Add(2 * time.Minute)})
+	now, mono = start.Add(3*time.Hour+10*time.Second), 10*time.Second
+	tick(t, d)
+	if n := len(sleptAlerts(t, d)); n != 1 {
+		t.Fatalf("%d suspend alerts, want one", n)
+	}
+	if !reflect.DeepEqual(q.reaped, []string{"a2"}) || w.State == "KILLING" {
+		t.Fatalf("at the wake: reaped %v, worker %q (%q)", q.reaped, w.State, w.KillReason)
+	}
+}
