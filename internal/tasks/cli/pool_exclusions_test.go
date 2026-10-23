@@ -1,14 +1,12 @@
 package cli_test
 
 import (
-	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"testing"
-	"time"
 
+	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -87,14 +85,7 @@ func TestCALV0065_CLIExclusionsAndPreviewPurity(t *testing.T) {
 // Git/store lifecycle. Excluded reserved health never runs; preview is pure;
 // ordinary release still quarantines, and request replay returns its old tuple.
 func TestCALV0065_NativeFixture(t *testing.T) {
-	binary := filepath.Join(t.TempDir(), "corvint-tasks")
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-	build := exec.CommandContext(ctx, "go", "build", "-o", binary, "../../../cmd/corvint-tasks")
-	build.WaitDelay = time.Second
-	if out, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build: %v %s", err, out)
-	}
+	binary := cli.CompiledTasksBinary(t)
 	r := exclusionCLIRepo(t)
 	markers := t.TempDir()
 	excluded := filepath.Join(markers, "excluded")

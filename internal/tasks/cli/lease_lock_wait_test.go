@@ -115,6 +115,7 @@ func TestCALV0111_LockWaitFlag(t *testing.T) {
 // release or heartbeat waits for the caller's bound on preparation admission
 // and on the store lock, and a holder that leaves within the bound admits it.
 func TestCALV0111_LockWaitBoundsContendedRelease(t *testing.T) {
+	t.Parallel() // idle-bound on fixed waits and independent of process state (V1-2366)
 	root, repo, _, attempt, generation := lockWaitStore(t)
 	before := fixture.TreeSnapshot(t, repo.StateDir)
 	held := holdPreparation(t, repo)

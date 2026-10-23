@@ -48,6 +48,7 @@ func claudeUsage(tokens int) string {
 // {contextHookSettings}; the fake host calls the registered command after
 // every "tool use" as Claude Code would.
 func TestATRV0101_WorkerWithoutDispatcherVerbReceivesNoticesThroughHook(t *testing.T) {
+	ReapWorkersOnCleanup(t)
 	t.Setenv(contextHookHelperEnv, "1")
 	root := t.TempDir()
 	out, done, pidFile := filepath.Join(root, "hook.out"), filepath.Join(root, "done"), filepath.Join(root, "pid")

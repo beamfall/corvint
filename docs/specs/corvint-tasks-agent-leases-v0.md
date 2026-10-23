@@ -149,6 +149,7 @@ one.
 | V1-1981 | CAL-V0-320 | Accepted (standing auto-accept, 2026-10-20): the standalone Tasks archive builder also cross-builds `linux/amd64` (`CGO_ENABLED=0`, reproducible, `SHA256SUMS`); the Linux runtime is `NOT_OBSERVED` until a Linux host runs the documented commands |
 | V1-2352 | CAL-V0-321 | Accepted (standing auto-accept, 2026-10-23): a read checkpoint carries a no-false-negative filter of the request paths posted at or before its sequence, so a checkpoint read refuses a duplicate request with a null pre-state through the complete audit (PSR-V0-203); a checkpoint without the filter serves no read; implemented with focused tests |
 | V1-2359 | CAL-V0-322 | Accepted (standing auto-accept, 2026-10-23): `attempt show` and `ticket show` carry `lastFailedGate`, the newest FAILED or BLOCKED gate result with the TCD-V0-165 bounded, secret-screened tail of its retained output; implemented with focused tests |
+| V1-1715 | CAL-V0-350 | Accepted (standing auto-accept, 2026-10-23): `claim --next` derives scope through the CLI's scope deriver for the ticket `plan preview --pool` selects with waiters present, so the deriver is asked about, and the claim takes, the previewed ticket; the CLI test fixture takes a deriver; focused test and a mutant check |
 | V1-1321 | ATR-V0-210, ATR-V0-211 | Delivered as a refusal naming uncovered requested paths plus the reported scope (attempt runner spec); CAL-V0-021 unamended |
 | V1-1494 | CAL-V0-263, CAL-V0-265 | Proposed (issue 967): no lease write holds the preparation gate for a complete-history audit; the scheduled refresh walks the prefix to its captured head when the journal moves; focused tests, mutation check and an opt-in load harness |
 | V1-1512 | none (evidence; PSR-V0-052) | Accepted (standing auto-accept, 2026-10-20): issue 967 remainder; at 40,000 receipts and 15 writers heartbeat/renew p99 1,138/1,131 ms (residual: gate wait behind about 1 s widen and reap commits), no `SNAPSHOT_MOVED`; reap and pool release resume tests; proposals 2 remainder and 3 are 1.0 work per decision 0549, proposal 5 deferred past 1.0 |
@@ -7432,6 +7433,28 @@ every gate record the attempt names (one per gate, 64 KiB bound each) is read.
 
 Rollback: revert the source; the field disappears and nothing stored changes.
 
+### V1-1715 claim --next scope derivation through the CLI
+
+Human-owned input: native ticket V1-1715, the gap left by the PSR-V0-132 review round. The CLI test
+fixtures ran without a scope deriver, so the candidate `claim --next` hands to the deriver
+(`NextClaimTicket`) was checked only by construction (both it and the claim select from
+`claimNextInput`) and by a transaction-level test; a divergence in the CLI wiring of the inputs the
+selection reads (the recorded time that honours the waitlist, the barrier) went undetected.
+
+- `CAL-V0-350`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1715) For a
+  ticket that declares no scope, `claim --next --pool P --stage S` MUST ask the CLI's scope
+  deriver (`Env.ScopeDeriver`) about the ticket that `plan preview --pool P --stage S` marks
+  `SELECTED` in the same store state, with waiters on the pool's waitlist present, and about no
+  other; the claim MUST take that ticket and its result's `scope` MUST be the `DERIVED` scope the
+  deriver returned for it.
+
+Non-goals: no change to selection, to the deriver contract (CAL-V0-022) or to the default deriver.
+Failure mode: a CLI that gives the claim's candidate selection other inputs than the preview, or
+that does not pass `Env.ScopeDeriver`, fails `TestCALV0350_ClaimNextDerivesScopeForThePreviewedWaiterCLI`
+(the second case fails with a deriver asked about no ticket; the first with a refused claim, as
+`TestPSRV0132_ClaimNextPoolClaimsTheWaiterCLI` also does). Rollback: revert the test and fixture
+change; no product code changed.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -8288,3 +8311,4 @@ after this restore.
 | CAL-V0-320 | `TestTasksArchiveCrossTargetIsLinuxAmd64Only`, `TestTasksArchiveCrossManifestStatesTheLimit`, `TestTasksArchiveRefusesOtherTargets` (`internal/companionrelease`); `docs/build-log/2026-10-20-v1-1981-tasks-linux-amd64-archive.md` (cross-build, ELF check, checksum; Linux runtime `NOT_OBSERVED`) |
 | CAL-V0-321 | `TestCALV0321_CheckpointRequestFilter`, `TestCALV0321_RequestFilterHasNoFalseNegatives`, `TestCALV0321_EmbeddedHeadersRefuseRequestFilter`, `TestPSRV0203_CheckpointTailRefusesNullPreStateDuplicate` (`internal/tasks/journal`) |
 | CAL-V0-322 | `TestCALV0322_ShowReportsLastFailedGateTail`, `TestCALV0322_LastFailedGateUnknowns` (`internal/tasks/cli`) |
+| CAL-V0-350 | `internal/tasks/cli/lease.go` (`Derive: env.ScopeDeriver`), `internal/tasks/transaction/claim_next.go` | `TestCALV0350_ClaimNextDerivesScopeForThePreviewedWaiterCLI`, `TestPSRV0132_ClaimNextPoolClaimsTheWaiterCLI` (`internal/tasks/cli`) |

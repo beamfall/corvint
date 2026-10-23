@@ -74,6 +74,7 @@ func TestCALV0250_DefaultedIssuedAtRetryNamesTheDifference(t *testing.T) {
 // the original issuedAt from the recordedAt of the receipt the request-index
 // entry names, and the retry with that --issued-at replays.
 func TestATRV0275_LostOutputRetryAfterLaterUpdateRecovers(t *testing.T) {
+	t.Parallel() // idle-bound on fixed waits and independent of process state (V1-2366)
 	r := fixture.TempRepo(t)
 	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
 	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())

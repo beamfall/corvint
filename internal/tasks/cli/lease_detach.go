@@ -557,6 +557,11 @@ func leaseDetachRunChild(env Env, name, dir string, want leaseDetachRecord, rest
 	return code
 }
 
+// leaseDetachProbeGap, when set, runs in leaseDetachAwait between its read of
+// the launch lock and its read of the child's liveness; tests use it to
+// complete a launch in that gap. It is nil outside tests.
+var leaseDetachProbeGap func()
+
 // leaseDetachAwait answers from the kept result, or reports PENDING or LOST,
 // waiting until deadline for the result (ATR-V0-022, ATR-V0-024). It only
 // reads.
@@ -580,12 +585,32 @@ func leaseDetachAwait(env Env, name, dir, requestID, holder string, deadline tim
 		}
 		var child leaseDetachChild
 		state := "PENDING"
+		// A launcher that still holds the lock is starting the child. The
+		// lock is read before the child's liveness: the launcher records
+		// child.json before it releases the lock, so a lock found free
+		// means any child it started is already on record, and a child
+		// recorded between the two reads is never mistaken for none
+		// (ATR-V0-311, V1-1559). It is read again after, for a launcher that
+		// began meanwhile.
+		launching := leaseDetachLockHeld(filepath.Join(dir, leaseDetachLockName))
+		if leaseDetachProbeGap != nil {
+			leaseDetachProbeGap()
+		}
 		live, err := leaseDetachChildLive(dir, &child, time.Now())
 		if err != nil {
 			return emit(env.Stdout, errorResult(cmd, err))
 		}
-		// A launcher that still holds the lock is starting the child.
-		if !live && !leaseDetachLockHeld(filepath.Join(dir, leaseDetachLockName)) {
+		if !live && !launching {
+			// A launch that began after the first read may have recorded
+			// its child since: a lock found free now means any launch has
+			// finished, so the liveness read that follows is conclusive.
+			if launching = leaseDetachLockHeld(filepath.Join(dir, leaseDetachLockName)); !launching {
+				if live, err = leaseDetachChildLive(dir, &child, time.Now()); err != nil {
+					return emit(env.Stdout, errorResult(cmd, err))
+				}
+			}
+		}
+		if !live && !launching {
 			state = "LOST"
 		}
 		if state == "LOST" {
