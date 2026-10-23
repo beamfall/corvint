@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"path"
 	"regexp"
 	"sort"
@@ -28,6 +29,7 @@ const (
 	FrontierUnreadableSource       = "typescript:unreadable-source"
 	FrontierUnparsedSource         = "typescript:unparsed-source"
 	FrontierDynamicImport          = "typescript:dynamic-import"
+	FrontierScanUnresolved         = "typescript:scan-unresolved"
 	FrontierUnresolvedImport       = "typescript:relative-import-unresolved"
 	FrontierPathAlias              = "typescript:path-alias-unresolved"
 	FrontierAmbiguousRunner        = "typescript:test-runner-ambiguous"
@@ -92,7 +94,7 @@ type config struct {
 	directory string
 	runner    string
 	// membership records that the config names test-membership or project markers the general
-	// adapter does not model (executableConfigIsDynamic); tsconfig records a `tsconfig` token,
+	// adapter does not model (dynamicConfigMarker); tsconfig records a `tsconfig` token,
 	// which can select a module-resolution config other than the nearest tsconfig.json.
 	membership bool
 	tsconfig   bool
@@ -116,46 +118,133 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	return language.unitsSource(root, false)
 }
 
-func (language Language) units(root string, resolveAliases bool) (affected.Result, error) {
-	return language.unitsSource(affected.DiskSource(root), resolveAliases)
+func (language Language) units(root string, resolveAliases bool) (affected.Result, frontierSet, error) {
+	return language.observe(affected.DiskSource(root), resolveAliases)
 }
 
 func (language Language) unitsSource(root *affected.Source, resolveAliases bool) (affected.Result, error) {
+	result, _, err := language.observe(root, resolveAliases)
+	return result, err
+}
+
+// frontierSet holds, for each raised frontier reason, the sites that raised it: `path:line` when
+// one line holds the cause and `path` when only the file is known (TJAA-V0-040).
+type frontierSet map[string]map[string]bool
+
+func (frontier frontierSet) raise(reason, site string) {
+	if frontier[reason] == nil {
+		frontier[reason] = map[string]bool{}
+	}
+	if site != "" {
+		frontier[reason][site] = true
+	}
+}
+
+// at raises reason at the line of offset in body, or at the file when offset is negative.
+func (frontier frontierSet) at(reason, relative, body string, offset int) {
+	frontier.raise(reason, lineSite(relative, body, offset))
+}
+
+func lineSite(relative, body string, offset int) string {
+	if offset < 0 {
+		return relative
+	}
+	return relative + ":" + strconv.Itoa(lineAt(body, offset))
+}
+
+// sourceSites locates parsed import specifiers: for each owned file, the offsets its import scan
+// kept and its line starts, indexed once, so naming any number of sites stays linear in the
+// file (TJAA-V0-040).
+type sourceSites map[string]*sourceIndex
+
+type sourceIndex struct {
+	body    string
+	offsets map[string]int
+	starts  []int
+}
+
+// ref names the line of ref's parsed specifier in relative, or relative alone when the scan kept
+// no offset for it (an alias rewritten to a path the module never spelled, for example).
+func (sites sourceSites) ref(relative, ref string) string {
+	index := sites[relative]
+	if index == nil {
+		return relative
+	}
+	offset, known := index.offsets[ref]
+	if !known {
+		return relative
+	}
+	if index.starts == nil {
+		index.starts = lineStarts(index.body)
+	}
+	return relative + ":" + strconv.Itoa(sort.SearchInts(index.starts, offset+1)+1)
+}
+
+// alias records that rewritten names the specifier original spelled in relative.
+func (sites sourceSites) alias(relative, original, rewritten string) {
+	if index := sites[relative]; index != nil {
+		if offset, known := index.offsets[original]; known {
+			if _, taken := index.offsets[rewritten]; !taken {
+				index.offsets[rewritten] = offset
+			}
+		}
+	}
+}
+
+// lineStarts returns the offsets where lines 2, 3, ... begin, with the terminators of lineAt.
+func lineStarts(body string) []int {
+	starts := []int{}
+	for index := 0; index < len(body); index++ {
+		switch {
+		case body[index] == '\n':
+			starts = append(starts, index+1)
+		case body[index] == '\r' && (index+1 == len(body) || body[index+1] != '\n'):
+			starts = append(starts, index+1)
+		case unicodeLineTerminatorAt(body, index):
+			index += 2
+			starts = append(starts, index+1)
+		}
+	}
+	return starts
+}
+
+func (language Language) observe(root *affected.Source, resolveAliases bool) (affected.Result, frontierSet, error) {
 	files, err := root.Files(observedName)
 	if err != nil {
-		return affected.Result{}, err
+		return affected.Result{}, nil, err
 	}
-	frontier := map[string]bool{}
+	frontier := frontierSet{}
 	bodies := make(map[string]string, len(files))
 	configs := make([]config, 0, 16)
 	scopes := make([]packageScope, 0, 16)
 	owned := make([]string, 0, len(files))
-	aliasConfig := false
+	aliasConfigs := []string{}
+	sites := sourceSites{}
 	for _, relative := range files {
 		if unreadModuleSource(relative) {
-			frontier[FrontierUnparsedSource] = true
+			frontier.raise(FrontierUnparsedSource, relative)
 			continue
 		}
 		body, readErr := root.Read(relative)
 		if readErr != nil || !utf8.Valid(body) {
-			frontier[FrontierUnreadableSource] = true
+			frontier.raise(FrontierUnreadableSource, relative)
 			continue
 		}
 		text := string(body)
 		bodies[relative] = text
 		configIdentity, _ := configRunner(relative, text)
 		if ambiguousTestAsset(relative) && configIdentity != runnerMocha {
-			frontier[FrontierCrossLanguageTestAsset] = true
+			frontier.raise(FrontierCrossLanguageTestAsset, relative)
 			continue
 		}
 		if path.Base(relative) == "package.json" {
 			scope, parseErr := readPackageScope(relative, body)
 			if parseErr != nil {
-				frontier[FrontierConfig] = true
+				frontier.raise(FrontierConfig, relative)
 				continue
 			}
 			if scope.configured[runnerMocha] {
-				frontier[FrontierConfig] = true
+				frontier.raise(FrontierConfig, relative)
 			}
 			if scope.name != "" || len(scope.runners) != 0 || len(scope.configured) != 0 || len(scope.packages) != 0 {
 				scopes = append(scopes, scope)
@@ -163,16 +252,17 @@ func (language Language) unitsSource(root *affected.Source, resolveAliases bool)
 			continue
 		}
 		if runner, known := configRunner(relative, text); known {
-			configs = append(configs, config{path: relative, directory: path.Dir(relative), runner: runner, membership: executableConfigIsDynamic(text), tsconfig: strings.Contains(text, "tsconfig")})
-			if runner == runnerMocha || executableConfigIsDynamic(text) {
-				frontier[FrontierConfig] = true
+			marker := dynamicConfigMarker(text)
+			configs = append(configs, config{path: relative, directory: path.Dir(relative), runner: runner, membership: marker >= 0, tsconfig: strings.Contains(text, "tsconfig")})
+			if runner == runnerMocha || marker >= 0 {
+				frontier.at(FrontierConfig, relative, text, marker)
 			}
 		}
 		if manifestRunner := runtimeManifestRunner(relative); manifestRunner != "" {
 			scopes = append(scopes, packageScope{directory: path.Dir(relative), runners: map[string]bool{manifestRunner: true}, configured: map[string]bool{manifestRunner: true}})
 		}
 		if hasPathAliases(relative, text) && !resolveAliases {
-			aliasConfig = true
+			aliasConfigs = append(aliasConfigs, relative)
 		}
 		if language.Owns(relative) {
 			owned = append(owned, relative)
@@ -186,25 +276,31 @@ func (language Language) unitsSource(root *affected.Source, resolveAliases bool)
 		if !readable {
 			continue
 		}
-		refs, dynamic, parseErr := scanImports(relative, body)
-		if parseErr != nil {
-			frontier[FrontierUnparsedSource] = true
+		scan := scanImportSites(relative, body)
+		sites[relative] = &sourceIndex{body: body, offsets: scan.offsets}
+		if scan.err != nil {
+			frontier.at(FrontierUnparsedSource, relative, body, scan.syntax)
 		}
-		if dynamic {
-			frontier[FrontierDynamicImport] = true
+		if scan.dynamic >= 0 {
+			frontier.at(FrontierDynamicImport, relative, body, scan.dynamic)
 		}
-		observation := classify(relative, body, refs, configs, scopes, frontier)
-		observation.refs = refs
+		if scan.unresolved >= 0 {
+			frontier.at(FrontierScanUnresolved, relative, body, scan.unresolved)
+		}
+		observation := classify(relative, body, scan.refs, configs, scopes, frontier)
+		observation.refs = scan.refs
 		observations = append(observations, observation)
 	}
 	// TJAA-V0-037: the general adapter resolves tsconfig aliases as the Playwright config mode
 	// does only when Playwright is the sole runner identity observed, because another runner's
 	// loader (a Jest moduleNameMapper, a Vite resolve.alias) need not follow tsconfig paths.
-	if aliasConfig && !resolveAliases {
+	if len(aliasConfigs) != 0 && !resolveAliases {
 		if playwrightOnlyRunners(configs, scopes, observations) {
 			resolveAliases = true
 		} else {
-			frontier[FrontierPathAlias] = true
+			for _, relative := range aliasConfigs {
+				frontier.at(FrontierPathAlias, relative, bodies[relative], pathAliasMarker(bodies[relative]))
+			}
 		}
 	}
 	var aliases []typeScriptAliases
@@ -214,13 +310,24 @@ func (language Language) unitsSource(root *affected.Source, resolveAliases bool)
 	for index := range observations {
 		observation := &observations[index]
 		if resolveAliases {
-			observation.refs = resolveTypeScriptAliases(observation.path, observation.refs, aliases, bodies, frontier)
+			observation.refs = resolveTypeScriptAliases(observation.path, observation.refs, aliases, bodies, sites, frontier)
 		}
-		if hasUnresolvedBareImport(observation.path, observation.refs, scopes) {
-			frontier[FrontierPathAlias] = true
+		if ref, unresolved := unresolvedBareImport(observation.path, observation.refs, scopes); unresolved {
+			frontier.raise(FrontierPathAlias, sites.ref(observation.path, ref))
 		}
 	}
-	return buildResult(observations, configs, scopes, frontier), nil
+	return buildResult(observations, configs, scopes, sites, frontier), frontier, nil
+}
+
+// pathAliasMarker returns the offset of the first `"paths"` or `"baseUrl"` key in a tsconfig.
+func pathAliasMarker(body string) int {
+	offset := -1
+	for _, key := range []string{`"paths"`, `"baseUrl"`} {
+		if found := strings.Index(body, key); found >= 0 && (offset < 0 || found < offset) {
+			offset = found
+		}
+	}
+	return offset
 }
 
 // playwrightOnlyRunners reports whether every runner identity the observation found is
@@ -257,7 +364,7 @@ func playwrightOnlyRunners(configs []config, scopes []packageScope, observations
 	return seen
 }
 
-func buildResult(observations []observation, configs []config, scopes []packageScope, frontier map[string]bool) affected.Result {
+func buildResult(observations []observation, configs []config, scopes []packageScope, sites sourceSites, frontier frontierSet) affected.Result {
 	units := make([]affected.Unit, 0, len(observations))
 	pathToID := make(map[string]string, len(observations))
 	refs := make(map[string]map[string]bool, len(observations))
@@ -315,17 +422,17 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 		owner := firstPath(*unit)
 		for ref := range refs[unit.ID] {
 			if !packages.link(ref, edges) {
-				frontier[FrontierPathAlias] = true
+				frontier.raise(FrontierPathAlias, unitRefSite(*unit, sites, ref))
 			}
 			target, local, unresolved := resolveImport(owner, ref, pathToID)
 			if target != "" && target != unit.ID {
 				edges[target] = true
 			}
 			if local && unresolved {
-				frontier[FrontierUnresolvedImport] = true
+				frontier.raise(FrontierUnresolvedImport, unitRefSite(*unit, sites, ref))
 			}
 			if !local && unresolved && looksLikeAlias(ref) {
-				frontier[FrontierPathAlias] = true
+				frontier.raise(FrontierPathAlias, unitRefSite(*unit, sites, ref))
 			}
 		}
 		for configPath := range direct[unit.ID] {
@@ -340,7 +447,18 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}
 }
 
-func classify(relative, body string, refs []string, configs []config, scopes []packageScope, frontier map[string]bool) observation {
+// unitRefSite names the first file of unit whose scan parsed ref, at that line, or the unit's
+// first file when none did.
+func unitRefSite(unit affected.Unit, sites sourceSites, ref string) string {
+	for _, relative := range append(append([]string(nil), unit.Sources...), unit.Tests...) {
+		if site := sites.ref(relative, ref); site != relative {
+			return site
+		}
+	}
+	return firstPath(unit)
+}
+
+func classify(relative, body string, refs []string, configs []config, scopes []packageScope, frontier frontierSet) observation {
 	observation := observation{path: relative}
 	explicit := explicitRunners(body, refs)
 	possible := possibleRunners(relative, configs, scopes)
@@ -365,21 +483,21 @@ func classify(relative, body string, refs []string, configs []config, scopes []p
 	}
 	if mochaConflict {
 		observation.runner = runnerUnknown
-		frontier[FrontierAmbiguousRunner] = true
+		frontier.raise(FrontierAmbiguousRunner, relative)
 	} else if len(explicit) == 1 {
 		observation.runner = sortedKeys(explicit)[0]
 	} else if len(explicit) > 1 {
 		observation.runner = runnerUnknown
-		frontier[FrontierAmbiguousRunner] = true
+		frontier.raise(FrontierAmbiguousRunner, relative)
 	} else {
 		if len(possible) == 1 {
 			observation.runner = sortedKeys(possible)[0]
 		} else if len(possible) > 1 {
 			observation.runner = runnerUnknown
-			frontier[FrontierAmbiguousRunner] = true
+			frontier.raise(FrontierAmbiguousRunner, relative)
 		} else {
 			observation.runner = runnerUnknown
-			frontier[FrontierUnknownRunner] = true
+			frontier.raise(FrontierUnknownRunner, relative)
 		}
 	}
 	observation.configs = nearestConfigs(relative, observation.runner, configs)
@@ -391,7 +509,7 @@ func classify(relative, body string, refs []string, configs []config, scopes []p
 		}
 	}
 	if len(observation.configs) > 1 {
-		frontier[FrontierAmbiguousRunner] = true
+		frontier.raise(FrontierAmbiguousRunner, relative)
 	}
 	// TJAA-V0-037: a Playwright-owned module outside the default testMatch is support code, such
 	// as a page object importing @playwright/test, not a test unit. Under a config whose
@@ -403,19 +521,19 @@ func classify(relative, body string, refs []string, configs []config, scopes []p
 		return observation
 	}
 	if observation.puppeteer && observation.runner == runnerUnknown {
-		frontier[FrontierPuppeteerHost] = true
+		frontier.raise(FrontierPuppeteerHost, relative)
 	}
 	if requiresRuntimeFlags(relative, observation.runner) {
-		frontier[FrontierRuntimeFlags] = true
+		frontier.raise(FrontierRuntimeFlags, relative)
 	}
 	if isE2ERunner(observation.runner) || observation.puppeteer {
-		frontier[FrontierE2ERuntimeDependency] = true
+		frontier.raise(FrontierE2ERuntimeDependency, relative)
 	}
 	if observation.runner == runnerDetox {
-		frontier[FrontierDetoxConfiguration] = true
+		frontier.raise(FrontierDetoxConfiguration, relative)
 	}
 	if observation.runner == runnerStorybook {
-		frontier[FrontierStorybookAddressing] = true
+		frontier.raise(FrontierStorybookAddressing, relative)
 	}
 	return observation
 }
@@ -523,73 +641,204 @@ func nearestConfigs(relative, runner string, configs []config) []string {
 }
 
 func scanImports(relative, body string) ([]string, bool, error) {
+	scan := scanImportSites(relative, body)
+	return scan.refs, scan.dynamic >= 0, scan.err
+}
+
+// importScan is what one module's import scan observed. dynamic, unresolved and syntax are byte
+// offsets into the module of the first computed loading call, the first ambiguous slash and the
+// tokenization failure, or -1 when there is none or the offset is not known (TJAA-V0-039).
+//
+// offsets holds, for each reference, the byte offset of its first parsed specifier, so a site is
+// the specifier's own line, found without searching the text again (TJAA-V0-040).
+type importScan struct {
+	refs       []string
+	offsets    map[string]int
+	dynamic    int
+	unresolved int
+	syntax     int
+	err        error
+}
+
+func scanImportSites(relative, body string) importScan {
+	scan := importScan{dynamic: -1, unresolved: -1, syntax: -1}
 	withoutComments, parseErr := stripComments(body, jsxSource(relative))
-	refs := make(map[string]bool)
+	var located sourceSyntaxError
+	if errors.As(parseErr, &located) {
+		scan.syntax = located.offset
+	}
+	offsets := make(map[string]int)
+	add := func(ref string, offset int) {
+		if previous, seen := offsets[ref]; !seen || offset < previous {
+			offsets[ref] = offset
+		}
+	}
 	for _, pattern := range staticImportPatterns {
-		for _, match := range pattern.FindAllStringSubmatch(withoutComments, -1) {
-			refs[match[1]] = true
+		for _, match := range pattern.FindAllStringSubmatchIndex(withoutComments, -1) {
+			add(withoutComments[match[2]:match[3]], match[2])
 		}
 	}
 	requires, computedLoading, requiresParsed := scanRequires(withoutComments, typedSource(relative))
-	if !requiresParsed {
+	if !requiresParsed && parseErr == nil {
 		parseErr = strconv.ErrSyntax
 	}
+	scan.dynamic = computedLoading
 	// A slash the lexer keeps as division although it may open a regular expression can
 	// misplace string, comment and code boundaries after it, hiding an import, require or
-	// comment-stripped static import. Then any loading word keeps computed loading
-	// (TJAA-V0-034): the frontier stays rather than an edge being dropped.
-	if parseErr == nil && !computedLoading && loadingWord.MatchString(body) && ambiguousSlash(body, jsxSource(relative)) {
-		computedLoading = true
+	// comment-stripped static import. Then any loading word keeps the module unresolved
+	// (TJAA-V0-034, TJAA-V0-038): the frontier stays rather than an edge being dropped.
+	if parseErr == nil && computedLoading < 0 && loadingWord.MatchString(body) {
+		scan.unresolved = ambiguousSlash(body, withoutComments, jsxSource(relative))
 	}
 	for _, ref := range requires {
-		refs[ref] = true
+		add(ref.text, ref.offset)
 	}
-	for _, match := range referencePathPattern.FindAllStringSubmatch(unicodeLineTerminators.Replace(body), -1) {
-		refs[relativeReference(match[1])] = true
+	unified := unicodeLineTerminators.Replace(body)
+	for _, match := range referencePathPattern.FindAllStringSubmatchIndex(unified, -1) {
+		add(relativeReference(unified[match[2]:match[3]]), match[2])
 	}
-	return sortedKeys(refs), computedLoading, parseErr
+	scan.refs, scan.offsets, scan.err = sortedKeys(offsets), offsets, parseErr
+	return scan
 }
 
 // loadingWord matches a word that can begin module loading anywhere, literal text included.
 var loadingWord = regexp.MustCompile(`\b(?:import|require)\b`)
 
-// ambiguousSlash reports whether body has a `/` that regexStart keeps as an
-// ambiguous division although reading it as a regular-expression literal that
-// closes on the same line would change where literals, substitutions or comments
-// end: the literal holds a quote, backtick or brace, or its closing slash is
-// followed by `/` or `*`. A slash that opens a comment is skipped, and in a JSX
-// source so is the slash of a `</` or `/>` tag. The scan is over raw text, so a
-// slash inside a literal or comment can only widen it.
-func ambiguousSlash(body string, jsx bool) bool {
-	for index := strings.IndexByte(body, '/'); index >= 0; {
-		after := byte(0)
-		if index+1 < len(body) {
-			after = body[index+1]
-		}
-		tag := jsx && (after == '>' || index > 0 && body[index-1] == '<')
-		if _, ambiguous := regexStart(body, index); ambiguous && after != '/' && after != '*' && !tag {
-			if end, closed := regexLiteralEnd(body, index); closed {
-				closing := end - 1
-				for body[closing] != '/' {
-					closing--
-				}
-				if strings.ContainsAny(body[index+1:closing], "'\"`{}") || closing+1 < len(body) && (body[closing+1] == '/' || body[closing+1] == '*') {
-					return true
-				}
-			}
-		}
-		next := strings.IndexByte(body[index+1:], '/')
-		if next < 0 {
-			break
-		}
-		index += next + 1
-	}
-	return false
+// ambiguousSlash returns the offset of the first code `/` that regexStart keeps as an ambiguous
+// division although reading it as a regular-expression literal that closes on the same line would
+// change where literals, substitutions or comments end: the literal holds a quote, backtick or
+// brace, or its closing slash is followed by `/` or `*`. It returns -1 when there is none.
+// The walk follows the import scan's lexer over clean, the comment-stripped text the scanners
+// read, so a slash inside a string, template text, a comment or a regular-expression literal that
+// regexStart admits is not a token and is skipped (TJAA-V0-038). Up to the first ambiguous slash
+// that lexer reads the boundaries the language does, so that slash is the first place the two
+// readings can diverge. The regular-expression reading is taken over the raw body, where the
+// division reading may have blanked a comment. A comment opener, and in a JSX source the slash of
+// a `</` or `/>` tag, is not ambiguous.
+func ambiguousSlash(body, clean string, jsx bool) int {
+	_, found := ambiguousSlashCode(body, clean, 0, false, 0, jsx)
+	return found
 }
 
-// unicodeLineTerminators maps U+2028 and U+2029 to LF, so the line-anchored reference pattern
-// sees the lines ECMAScript and TypeScript see.
-var unicodeLineTerminators = strings.NewReplacer("\u2028", "\n", "\u2029", "\n")
+func ambiguousSlashCode(body, clean string, index int, stopAtBrace bool, nesting int, jsx bool) (int, int) {
+	depth := 0
+	for index < len(clean) {
+		switch character := clean[index]; {
+		case character == '\'' || character == '"':
+			index = quotedEnd(clean, index)
+		case character == '`':
+			end, found := ambiguousSlashTemplate(body, clean, index+1, nesting, jsx)
+			if found >= 0 {
+				return end, found
+			}
+			index = end
+		case character == '/':
+			if end, regex := regexEnd(clean, index); regex {
+				index = end
+				continue
+			}
+			if slashRereads(body, clean, index, jsx) {
+				return index, index
+			}
+			index++
+		case character == '{':
+			depth++
+			index++
+		case character == '}':
+			if stopAtBrace && depth == 0 {
+				return index + 1, -1
+			}
+			if depth > 0 {
+				depth--
+			}
+			index++
+		default:
+			index++
+		}
+	}
+	return len(clean), -1
+}
+
+func ambiguousSlashTemplate(body, clean string, index, nesting int, jsx bool) (int, int) {
+	for index < len(clean) {
+		switch {
+		case clean[index] == '\\':
+			index += 2
+		case strings.HasPrefix(clean[index:], "${"):
+			if nesting == jsTemplateMaxDepth {
+				return len(clean), -1
+			}
+			end, found := ambiguousSlashCode(body, clean, index+2, true, nesting+1, jsx)
+			if found >= 0 {
+				return end, found
+			}
+			index = end
+		case clean[index] == '`':
+			return index + 1, -1
+		default:
+			index++
+		}
+	}
+	return len(clean), -1
+}
+
+// slashRereads reports whether the division slash at index of clean is ambiguous and reading it
+// as a same-line regular-expression literal of the raw body would move a literal, substitution or
+// comment boundary.
+func slashRereads(body, clean string, index int, jsx bool) bool {
+	after := byte(0)
+	if index+1 < len(body) {
+		after = body[index+1]
+	}
+	tag := jsx && (after == '>' || index > 0 && clean[index-1] == '<')
+	if _, ambiguous := regexStart(clean, index); !ambiguous || after == '/' || after == '*' || tag {
+		return false
+	}
+	end, closed := regexLiteralEnd(body, index)
+	if !closed {
+		return false
+	}
+	closing := end - 1
+	for body[closing] != '/' {
+		closing--
+	}
+	// The division reading turns an inner `/` next to another `/` or `*` (the closing slash
+	// included, as in `/a\//`) into a comment opener.
+	span := body[index+1 : min(closing+2, len(body))]
+	return strings.ContainsAny(body[index+1:closing], "'\"`{}") || strings.Contains(span, "//") || strings.Contains(span, "/*")
+}
+
+// sourceSyntaxError is a tokenization failure at a byte offset of the scanned text.
+type sourceSyntaxError struct{ offset int }
+
+func (failure sourceSyntaxError) Error() string {
+	return "invalid syntax at byte offset " + strconv.Itoa(failure.offset)
+}
+
+func (sourceSyntaxError) Unwrap() error { return strconv.ErrSyntax }
+
+// lineAt returns the 1-based line holding offset. CR LF, a lone CR, LF, U+2028 and U+2029 each
+// end a line, as in ECMAScript.
+func lineAt(body string, offset int) int {
+	line := 1
+	for index := 0; index < offset && index < len(body); index++ {
+		switch {
+		case body[index] == '\n':
+			line++
+		case body[index] == '\r' && (index+1 == len(body) || body[index+1] != '\n'):
+			line++
+		case unicodeLineTerminatorAt(body, index):
+			line++
+			index += 2
+		}
+	}
+	return line
+}
+
+// unicodeLineTerminators maps U+2028 and U+2029 to LF plus two spaces (the same three bytes), so
+// the line-anchored reference pattern sees the lines ECMAScript and TypeScript see at unchanged
+// offsets.
+var unicodeLineTerminators = strings.NewReplacer("\u2028", "\n  ", "\u2029", "\n  ")
 
 // typedSource reports whether relative is TypeScript, the only source where `import('x')` can be
 // a type-position import type rather than a runtime dynamic import.
@@ -618,16 +867,29 @@ var staticImportPatterns = []*regexp.Regexp{
 // `import(` call in code position (TJAA-V0-005). String and template text is skipped, while `${}`
 // substitutions are scanned as code. In TypeScript (typed) a type-position import type with a
 // literal specifier is recorded as a static reference instead (TJAA-V0-034).
-func scanRequires(body string, typed bool) ([]string, bool, bool) {
-	refs := make([]string, 0, 4)
-	dynamic := false
+func scanRequires(body string, typed bool) ([]importRef, int, bool) {
+	refs := make([]importRef, 0, 4)
+	dynamic := -1
 	_, parsed := scanRequireCode(body, 0, false, 0, typed, &refs, &dynamic)
 	return refs, dynamic, parsed
 }
 
+// importRef is one literal specifier and the byte offset where it starts.
+type importRef struct {
+	text   string
+	offset int
+}
+
+// markDynamic records the offset of the first computed loading call.
+func markDynamic(dynamic *int, offset int) {
+	if *dynamic < 0 {
+		*dynamic = offset
+	}
+}
+
 // scanRequireCode scans code, recursing into templates; nesting counts the enclosing `${`
 // substitutions and is bounded by jsTemplateMaxDepth.
-func scanRequireCode(body string, index int, stopAtBrace bool, nesting int, typed bool, refs *[]string, dynamic *bool) (int, bool) {
+func scanRequireCode(body string, index int, stopAtBrace bool, nesting int, typed bool, refs *[]importRef, dynamic *int) (int, bool) {
 	depth := 0
 	for index < len(body) {
 		if body[index] == '\'' || body[index] == '"' {
@@ -693,7 +955,7 @@ func scanRequireCode(body string, index int, stopAtBrace bool, nesting int, type
 		}
 		after = skipSpace(body, after+1)
 		if after == len(body) || body[after] != '\'' && body[after] != '"' {
-			*dynamic = true
+			markDynamic(dynamic, index)
 			index = after
 			continue
 		}
@@ -701,7 +963,7 @@ func scanRequireCode(body string, index int, stopAtBrace bool, nesting int, type
 		if end > len(body) {
 			return len(body), false
 		}
-		*refs = append(*refs, body[after+1:end-1])
+		*refs = append(*refs, importRef{text: body[after+1 : end-1], offset: after + 1})
 		index = end
 	}
 	return len(body), !stopAtBrace
@@ -713,7 +975,7 @@ func scanRequireCode(body string, index int, stopAtBrace bool, nesting int, type
 // specifier followed by a qualified type name (`import('x').Page`, not then/catch/finally, not
 // called, tagged or awaited) or preceded by `typeof`. That specifier is kept as a static
 // reference, so the edge survives even if the position was in fact a runtime member read.
-func scanImportCall(body string, index int, typed bool, refs *[]string, dynamic *bool) (int, bool) {
+func scanImportCall(body string, index int, typed bool, refs *[]importRef, dynamic *int) (int, bool) {
 	after := index + len("import")
 	if after < len(body) && isIdentifier(body[after]) {
 		return after, true
@@ -724,7 +986,7 @@ func scanImportCall(body string, index int, typed bool, refs *[]string, dynamic 
 	}
 	literal := skipSpace(body, open+1)
 	if !typed || literal == len(body) || body[literal] != '\'' && body[literal] != '"' {
-		*dynamic = true
+		markDynamic(dynamic, index)
 		return open + 1, true
 	}
 	end := quotedEnd(body, literal)
@@ -733,13 +995,13 @@ func scanImportCall(body string, index int, typed bool, refs *[]string, dynamic 
 	}
 	closeParen := skipSpace(body, end)
 	if closeParen == len(body) || body[closeParen] != ')' {
-		*dynamic = true
+		markDynamic(dynamic, index)
 		return end, true
 	}
 	if importTypeQualified(body, closeParen+1) && !previousWordIs(body, index, "await") || previousWordIs(body, index, "typeof") {
-		*refs = append(*refs, body[literal+1:end-1])
+		*refs = append(*refs, importRef{text: body[literal+1 : end-1], offset: literal + 1})
 	} else {
-		*dynamic = true
+		markDynamic(dynamic, index)
 	}
 	return closeParen + 1, true
 }
@@ -785,7 +1047,7 @@ func previousWordIs(body string, index int, word string) bool {
 	return start >= 0 && body[start:end] == word && (start == 0 || !isIdentifier(body[start-1]) && body[start-1] != '.')
 }
 
-func scanRequireTemplate(body string, index, nesting int, typed bool, refs *[]string, dynamic *bool) (int, bool) {
+func scanRequireTemplate(body string, index, nesting int, typed bool, refs *[]importRef, dynamic *int) (int, bool) {
 	for index < len(body) {
 		switch {
 		case body[index] == '\\':
@@ -920,6 +1182,7 @@ func substitutionCodeEnd(body string, index int, depth *int) (int, bool) {
 func stripComments(body string, rejectAmbiguousJSXQuotes bool) (string, error) {
 	clean := []byte(body)
 	substitutions := []int{}
+	openedAt := []int{}
 	for index := 0; index < len(clean); {
 		if unicodeLineTerminatorAt(clean, index) {
 			copy(clean[index:], "\n  ")
@@ -929,17 +1192,17 @@ func stripComments(body string, rejectAmbiguousJSXQuotes bool) (string, error) {
 		top := len(substitutions) - 1
 		if clean[index] == '`' || clean[index] == '}' && top >= 0 && substitutions[top] == 0 {
 			if clean[index] == '}' {
-				substitutions = substitutions[:top]
+				substitutions, openedAt = substitutions[:top], openedAt[:top]
 			}
 			end, opened := templateChunkEnd(clean, index+1)
 			if end > len(clean) {
-				return string(clean), strconv.ErrSyntax
+				return string(clean), sourceSyntaxError{index}
 			}
 			if opened {
 				if len(substitutions) == jsTemplateMaxDepth {
-					return string(clean), strconv.ErrSyntax
+					return string(clean), sourceSyntaxError{end - 2}
 				}
-				substitutions = append(substitutions, 0)
+				substitutions, openedAt = append(substitutions, 0), append(openedAt, end-2)
 			}
 			index = end
 			continue
@@ -952,10 +1215,10 @@ func stripComments(body string, rejectAmbiguousJSXQuotes bool) (string, error) {
 		if clean[index] == '\'' || clean[index] == '"' {
 			end := quotedEnd(clean, index)
 			if end > len(clean) {
-				return string(clean), strconv.ErrSyntax
+				return string(clean), sourceSyntaxError{index}
 			}
 			if rejectAmbiguousJSXQuotes && (!jsxQuoteStartsLiteral(clean, index) || jsxQuotedTokenCouldHideRequire(clean[index:end]) || strings.ContainsAny(string(clean[index:end]), "\r\n\u2028\u2029")) {
-				return string(clean), strconv.ErrSyntax
+				return string(clean), sourceSyntaxError{index}
 			}
 			index = end
 			continue
@@ -968,7 +1231,7 @@ func stripComments(body string, rejectAmbiguousJSXQuotes bool) (string, error) {
 			index++
 			continue
 		}
-		line := clean[index+1] == '/'
+		line, opener := clean[index+1] == '/', index
 		clean[index], clean[index+1] = ' ', ' '
 		index += 2
 		for index < len(clean) {
@@ -994,11 +1257,11 @@ func stripComments(body string, rejectAmbiguousJSXQuotes bool) (string, error) {
 			index++
 		}
 		if !line && index == len(clean) {
-			return string(clean), strconv.ErrSyntax
+			return string(clean), sourceSyntaxError{opener}
 		}
 	}
 	if len(substitutions) != 0 {
-		return string(clean), strconv.ErrSyntax
+		return string(clean), sourceSyntaxError{openedAt[len(openedAt)-1]}
 	}
 	return string(clean), nil
 }
@@ -1057,16 +1320,51 @@ const regexOpeners = "(,=:[&|?{;~^%*"
 // only as a whole word that is not a property name (`x.return / 2` is division).
 var regexKeywords = map[string]bool{"return": true, "typeof": true, "instanceof": true, "in": true, "new": true, "delete": true, "void": true, "throw": true, "case": true, "do": true, "else": true}
 
+// operandWords are the reserved words that are complete operands, so a `/` after them is division
+// like after an identifier. Every other reserved or contextual keyword (`debugger`, `break`,
+// `continue`, `yield`, `await`, `of`, `let`, ...) may end a statement that automatic semicolon
+// insertion closes, or start one, so the slash after it is ambiguous (TJAA-V0-045).
+var operandWords = map[string]bool{"this": true, "super": true, "null": true, "true": true, "false": true}
+
+// slashKeywords are the reserved and contextual keywords that are not operands.
+var slashKeywords = map[string]bool{
+	"async": true, "await": true, "break": true, "catch": true, "class": true, "const": true, "continue": true,
+	"debugger": true, "default": true, "enum": true, "export": true, "extends": true, "finally": true, "for": true,
+	"function": true, "if": true, "implements": true, "import": true, "interface": true, "let": true, "of": true,
+	"package": true, "private": true, "protected": true, "public": true, "static": true, "switch": true, "try": true,
+	"var": true, "while": true, "with": true, "yield": true,
+}
+
 // regexStart reports whether the `/` at index opens a regular expression. It is
 // ambiguous, and kept as division, when the predecessor needs grammar state: `)`
-// and `}` may close a condition or block, `+` and `-` may end `++` or `--`, `!`
-// may be a non-null assertion, `<` and `>` may be JSX or type arguments, and
-// `of`, `yield` and `await` may be identifiers. A word, a literal and `]` are
-// division.
+// and `}` may close a condition or block, `+` and `-` may end `++` or `--`, `<`
+// and `>` may be JSX or type arguments, and `of`, `yield` and `await` may be
+// identifiers. A `!` takes the verdict of the position it stands in. A reserved word
+// that is not an operand, a non-ASCII byte and `\` are ambiguous. An identifier,
+// an operand keyword, a literal and `]` are division.
 func regexStart[T string | []byte](body T, index int) (regex, ambiguous bool) {
 	previous := index
-	for previous > 0 && strings.IndexByte(" \t\r\n", body[previous-1]) >= 0 {
+	for {
+		for previous > 0 && strings.IndexByte(" \t\r\n", body[previous-1]) >= 0 {
+			previous--
+		}
+		// A `!` is the prefix negation exactly when an operand may begin where it stands, and then
+		// the slash after it opens a regular expression; otherwise it is a non-null assertion that
+		// ends an operand (TJAA-V0-038). The same rule applies at the `!` itself.
+		if previous == 0 || body[previous-1] != '!' {
+			break
+		}
 		previous--
+		// No line terminator may precede a non-null assertion, and JavaScript has none, so a `!`
+		// that starts a line is the prefix negation.
+		bang := previous
+		for previous > 0 && strings.IndexByte(" \t", body[previous-1]) >= 0 {
+			previous--
+		}
+		if previous == 0 || body[previous-1] == '\n' || body[previous-1] == '\r' || unicodeLineTerminatorAt(body, max(previous-3, 0)) && previous >= 3 {
+			return true, false
+		}
+		previous = bang
 	}
 	if previous == 0 || strings.IndexByte(regexOpeners, body[previous-1]) >= 0 {
 		return true, false
@@ -1087,9 +1385,16 @@ func regexStart[T string | []byte](body T, index int) (regex, ambiguous bool) {
 		if regexKeywords[word] {
 			return true, false
 		}
-		return false, word == "of" || word == "yield" || word == "await"
+		// An identifier escape or a non-ASCII identifier part before the word is not read here.
+		if start > 0 && (body[start-1] == '\\' || body[start-1] >= utf8.RuneSelf) {
+			return false, true
+		}
+		return false, slashKeywords[word] && !operandWords[word]
 	}
-	return false, strings.IndexByte(")}+-!<>", last) >= 0
+	// A non-ASCII byte may be an identifier part, a space or a line terminator, and `\` ends an
+	// identifier escape: this ASCII classifier cannot tell, so the slash is ambiguous
+	// (TJAA-V0-045).
+	return false, last >= utf8.RuneSelf || last == '\\' || strings.IndexByte(")}+-<>", last) >= 0
 }
 
 // regexEnd returns the offset past a regular-expression literal and its flags
@@ -1320,13 +1625,16 @@ func readPackageScope(relative string, body []byte) (packageScope, error) {
 	}, nil
 }
 
-func executableConfigIsDynamic(body string) bool {
+// dynamicConfigMarker returns the offset of the first membership or project marker the adapter does
+// not model, or -1.
+func dynamicConfigMarker(body string) int {
+	offset := -1
 	for _, marker := range []string{"testMatch", "testRegex", "testDir", "specPattern", "specs:", "src:", "projects:", "include:", "exclude:", "setupFiles", "globalSetup", "capabilities:", "browsers:"} {
-		if strings.Contains(body, marker) {
-			return true
+		if found := strings.Index(body, marker); found >= 0 && (offset < 0 || found < offset) {
+			offset = found
 		}
 	}
-	return false
+	return offset
 }
 
 func hasPathAliases(relative, body string) bool {
@@ -1449,7 +1757,9 @@ func looksLikeAlias(reference string) bool {
 	return strings.HasPrefix(reference, "@/") || strings.HasPrefix(reference, "~/") || strings.HasPrefix(reference, "#")
 }
 
-func hasUnresolvedBareImport(relative string, refs []string, scopes []packageScope) bool {
+// unresolvedBareImport returns the first bare import specifier that names neither a workspace
+// package nor a dependency declared for relative.
+func unresolvedBareImport(relative string, refs []string, scopes []packageScope) (string, bool) {
 	for _, ref := range refs {
 		if strings.HasPrefix(ref, ".") || externalScheme(ref) {
 			continue
@@ -1464,9 +1774,9 @@ func hasUnresolvedBareImport(relative string, refs []string, scopes []packageSco
 		if declaredPackage(relative, packageName, scopes) {
 			continue
 		}
-		return true
+		return ref, true
 	}
-	return false
+	return "", false
 }
 
 func importedPackage(reference string) string {

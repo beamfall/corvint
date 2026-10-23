@@ -20,7 +20,7 @@ type typeScriptAliases struct {
 	valid     bool
 }
 
-func readTypeScriptAliases(bodies map[string]string, frontier map[string]bool) []typeScriptAliases {
+func readTypeScriptAliases(bodies map[string]string, frontier frontierSet) []typeScriptAliases {
 	var configs []typeScriptAliases
 	for _, name := range sortedKeys(bodies) {
 		if path.Base(name) != "tsconfig.json" {
@@ -28,7 +28,7 @@ func readTypeScriptAliases(bodies map[string]string, frontier map[string]bool) [
 		}
 		config := parseTypeScriptAliases(name, bodies[name])
 		if !config.valid {
-			frontier[FrontierPathAlias] = true
+			frontier.raise(FrontierPathAlias, name)
 		}
 		configs = append(configs, config)
 	}
@@ -80,7 +80,7 @@ func parseTypeScriptAliases(name, body string) typeScriptAliases {
 	return config
 }
 
-func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptAliases, bodies map[string]string, frontier map[string]bool) []string {
+func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptAliases, bodies map[string]string, sites sourceSites, frontier frontierSet) []string {
 	var nearest *typeScriptAliases
 	for index := range configs {
 		config := &configs[index]
@@ -99,16 +99,17 @@ func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptA
 		target, claimed := nearest.resolve(ref, bodies)
 		if target == "" {
 			if claimed {
-				frontier[FrontierPathAlias] = true
+				frontier.raise(FrontierPathAlias, sites.ref(owner, ref))
 			}
 			continue
 		}
 		relative, err := filepath.Rel(filepath.FromSlash(path.Dir(owner)), filepath.FromSlash(target))
 		if err != nil {
-			frontier[FrontierPathAlias] = true
+			frontier.raise(FrontierPathAlias, sites.ref(owner, ref))
 			continue
 		}
 		resolved[index] = "./" + filepath.ToSlash(relative)
+		sites.alias(owner, ref, resolved[index])
 	}
 	return resolved
 }
