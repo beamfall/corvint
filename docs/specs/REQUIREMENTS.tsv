@@ -2630,6 +2630,10 @@ DCP-V1-416	docs/specs/documentation-corpus-v1.md	The corpus MCP server's first t
 DCP-V1-417	docs/specs/documentation-corpus-v1.md	A warm corpus MCP call neither reads nor hashes the configured artifact while it	unrecorded	-
 DCP-V1-418	docs/specs/documentation-corpus-v1.md	Acceptance at scale, on a generated fixture with a 4,000-page native scope, 6,00	unrecorded	-
 DCP-V1-419	docs/specs/documentation-corpus-v1.md	A read derives the same query index, receipts and refusals with less wall time.	unrecorded	-
+DCP-V1-450	docs/specs/documentation-corpus-v1.md	Scope membership allocates nothing, and each scope check finds the scopes holdin	unrecorded	-
+DCP-V1-451	docs/specs/documentation-corpus-v1.md	The read fixture of `DCP-V1-418` has a many-scopes shape, one single-file scope	unrecorded	-
+DCP-V1-452	docs/specs/documentation-corpus-v1.md	A corpus revision pin (`BuildRevisionContext`) reads the checkout's Git index	unrecorded	-
+DCP-V1-453	docs/specs/documentation-corpus-v1.md	Routing fails closed to the hashed worktree pass: a missing, unreadable,	unrecorded	-
 DCP-V1-360	docs/specs/documentation-corpus-v1.md	`delta` prints one `corvint-corpus-delta/1` receipt: the previous and current	unrecorded	-
 DCP-V1-361	docs/specs/documentation-corpus-v1.md	The classified population is the previous corpus's subjects, claims and relation	unrecorded	-
 DCP-V1-362	docs/specs/documentation-corpus-v1.md	Every anchor is re-validated against the current revision's blobs. A blob is rea	unrecorded	-

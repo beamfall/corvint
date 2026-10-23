@@ -1943,6 +1943,53 @@ experimental; GitHub #1598.
   `TestDCPV1419BoundaryScanFindsStringContent`, `TestDCPV1413CorpusReadsWithoutRederivation`;
   CLI timings before and after in docs/build-log/2026-10-23-corpus-verified-fast-reads.md.
 
+### Read hot spots: scope matching and stat-routed revision pins (GitHub #1610)
+
+A CPU profile of one read of a 9,170-input corpus with one single-file scope per input put about
+half of the read in two places: every scope check compared each scope with each path, building
+`scope + "/"` on every comparison, and every pin of a revision opened, read and hashed each
+tracked file of each checkout. Status for `DCP-V1-450..453`: proposed, experimental; GitHub #1610.
+
+- `DCP-V1-450`: Scope membership allocates nothing, and each scope check finds the scopes holding
+  a path by walking the path's ancestors through a per-revision scope set instead of comparing
+  the path with every scope: the manifest's input admission, the compiler's scope check (an
+  undeclared input, then an unsupported entry, then an empty scope, scopes in manifest order),
+  live freshness's new-input and unsupported-entry reasons (once per holding scope) and the
+  inventory's nested-scope refusal (the byte-least containing scope, then the byte-least
+  contained one). The walk visits exactly the scopes the pairwise comparison admitted, so every
+  artifact, receipt, reason and refusal is byte-identical. Acceptance:
+  `TestDCPV1450ScopeMatchingMatchesPairwise`, `TestDCPV1450NestedScopesKeepRefusalsAndReasons`.
+- `DCP-V1-451`: The read fixture of `DCP-V1-418` has a many-scopes shape, one single-file scope
+  per native page and per additional-repository file, and its verified read answers exactly as
+  its rederivation, fresh on the unchanged checkout. Benchmarks measure the verified and the
+  rederived read over it, and CPU profiles before and after over the 10,000-scope persisted
+  fixture (`CORVINT_READ_FIXTURE_SCOPES=many`) are recorded in the build log and pull request.
+  Acceptance: `TestDCPV1451ManyScopesReadMatchesRederivation`,
+  `BenchmarkDCPV1451ManyScopesVerifiedRead`, `BenchmarkDCPV1451ManyScopesRederivedRead`.
+- `DCP-V1-452`: A corpus revision pin (`BuildRevisionContext`) reads the checkout's Git index
+  (located by `git rev-parse --git-path index`, opened without following a symlink or blocking,
+  at most 256 MiB, version 2, 3 or 4, trailing checksum verified). An eligible entry whose index
+  record is stage 0, carries no assume-valid, skip-worktree or intent-to-add flag, and whose
+  worktree file's lstat matches the record's size, modification and change times, inode, owner
+  and executable bit, with the recorded modification time strictly older than the index file's
+  (Git's racy-clean rule), is vouched: it is pinned from the tree entry's committed blob in one
+  batched object read and its worktree file is never opened. Every other eligible entry is
+  opened and hashed as before and, when its bytes do not hash to the tree entry's blob, pinned
+  from that blob. Worktree bytes are therefore used only when they hash to the pinned blob, and
+  the pinned bytes, exclusions and records are byte-identical to an unrouted pin. Other index
+  builds (`Build`, `BuildContext`, `BuildEval`) are unchanged and still read no committed blob
+  for a clean repository. Acceptance: `TestDCPV1452GitIndexVouchesUnchangedEntries`,
+  `TestDCPV1452RacyEntryIsNotVouched`, `TestDCPV1452IndexVersionsAndFlags`,
+  `TestDCPV1453RoutedPinMatchesParityRepository`.
+- `DCP-V1-453`: Routing fails closed to the hashed worktree pass: a missing, unreadable,
+  symlinked, oversized, truncated or corrupt index, an unsupported version, a split index
+  (`link`) or an unknown required extension vouches for nothing; a stat mismatch, a racy entry or
+  a platform without lstat inode and change times leaves that entry unvouched; and a failed or
+  incomplete blob batch returns its entries to the hashed worktree pass. No unverified worktree
+  file is ever pinned. Acceptance: `TestDCPV1453UnusableIndexVouchesNothing`,
+  `TestDCPV1453FailedBlobBatchFallsBackToWorktree`,
+  `TestDCPV1453RoutedPinMatchesParityRepository`.
+
 ### Cross-revision delta worklist and carry-forward (`docs corpus delta`, `docs corpus carry-forward`)
 
 `corvint docs corpus delta --previous OLD.json (--artifact NEW.json | --manifest NEW.json) [--limit N] [--offset N] [--uncovered changed|all] [--anchorless summary|list] [--format json|jsonl]`
@@ -2583,6 +2630,9 @@ a guessed subject.
   a freshness observation repeats it and, after three attempts, refuses (`DCP-V1-411`). A symlink
   in the configured MCP artifact's path voids its warm stamp (`DCP-V1-417`). A live index built from another state than the freshness observation withholds symbol
   re-resolution (`DCP-V1-412`).
+- Stat-routed revision pins (`DCP-V1-452`, `DCP-V1-453`): an unusable Git index, a stat
+  mismatch, a racy entry or a failed blob batch never refuses a build; the entry is opened and
+  hashed, and a worktree copy that does not hash to the pinned blob is replaced by that blob.
 - `DCP-V1-054`: Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
   `--input`, `--previous`, `--cem`, `--retirement`, `--migration`, `--playwright-list`, `--receipt`,
   `--report`) is a canonical path relative to `--root` that sits under it: no leading `/`, no `..`
@@ -2685,6 +2735,12 @@ Verified fast reads (`DCP-V1-410..419`) add no daemon or `--serve` mode, persist
 or sidecar, write nothing on a read, change no search ranking or delta paging, and do not
 authenticate an artifact's origin. Rollback points the CLI and MCP readers back at `Open`; the
 artifact and manifest formats are unchanged and no stored state needs migration.
+The read hot-spot fixes (`DCP-V1-450..453`) change no artifact, receipt, reason, refusal or
+format, persist nothing and write nothing (the Git index is only read). They do not trust a
+worktree file by its stat (a vouched entry is pinned from its committed blob), do not route the
+pins of `Build`, `BuildContext` or `BuildEval`, and do not remove the second pin pass of a build.
+Rollback restores the pairwise scope loops and drops the `withStatRoutedPins` context mark from
+`BuildRevisionContext`; no stored state needs migration.
 
 Static test discovery (`DCP-V1-370..376`) does not run tests, evaluate Ruby or JavaScript, expand
 loops, resolve dynamic imports, judge assertion adequacy or write a corpus provider record; it is
@@ -2799,6 +2855,9 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-410..419 | `internal/doccorpus/read.go`, `artifact_decode.go`, `encoding.go`, `compile.go`, `query.go`, `query_index.go`, `query_index_fast.go`, `search_rank.go`, `symbol_anchor.go`, `internal/contextindex/observe_tree.go`, `internal/testvaliditydoc/read.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `stamp.go`, `eval.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1410VerifiedReadSkipsRederivation`, `TestDCPV1410VerifiedReadRefusals`, `TestDCPV1410UnattestedBuilderRederives`, `TestDCPV1411ObserveTreeMatchesBuildContext`, `TestDCPV1411ObserveTreeRetriesWhenHeadMoves`, `TestDCPV1412SymbolIndexBuiltOnlyWhenNeeded`, `TestDCPV1413CorpusReadsWithoutRederivation`, `TestDCPV1414ParallelDecodeMatchesClosedDecode`, `TestDCPV1416CorpusMCPFirstAndWarmCalls`, `TestDCPV1417WarmCallsSkipUnchangedArtifactRead`, `TestDCPV1417WarmStampRefusesParentSymlink`, `TestDCPV1418LargeFixtureVerifiedReadIsFast`, `BenchmarkDCPV1418VerifiedRead`, `TestDCPV1419FastIndexMatchesReference`, `TestDCPV1419FastIndexDeclinesEveryRefusal`, `TestDCPV1419BoundaryScanFindsStringContent`; measured in docs/build-log/2026-10-23-corpus-verified-fast-reads.md |
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-420..425 | `internal/doccorpus/delta.go`, `delta_open.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1420DeltaAdditionalRepositoryAnchors`, `TestDCPV1420DeltaSharedReadBound`, `TestDCPV1424DeltaHistoricalPins`, `TestDCPV1425OpenDeltaCurrentUnavailableCheckout`, `TestDCPV1425DeltaUnavailableCheckoutCLI`, `TestDCPV1421DeltaViewsCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
+| DCP-V1-450 | `internal/doccorpus/compile.go`, `query.go` | `TestDCPV1450ScopeMatchingMatchesPairwise`, `TestDCPV1450NestedScopesKeepRefusalsAndReasons` |
+| DCP-V1-451 | `internal/doccorpus/read_fast_fixture_test.go`, `many_scopes_test.go` | `TestDCPV1451ManyScopesReadMatchesRederivation`, `BenchmarkDCPV1451ManyScopesVerifiedRead`, `BenchmarkDCPV1451ManyScopesRederivedRead`; profiles in docs/build-log/2026-10-23-read-hotspots-scope-and-pin.md |
+| DCP-V1-452..453 | `internal/contextindex/stat_routed_pin.go`, `index_stat_darwin.go`, `index_stat_linux.go`, `index_stat_unix.go`, `index_stat_other.go`, `index.go`, `corpus.go` | `TestDCPV1452GitIndexVouchesUnchangedEntries`, `TestDCPV1452RacyEntryIsNotVouched`, `TestDCPV1452IndexVersionsAndFlags`, `TestDCPV1453UnusableIndexVouchesNothing`, `TestDCPV1453FailedBlobBatchFallsBackToWorktree`, `TestDCPV1453RoutedPinMatchesParityRepository` |
 | DCP-V1-216..217 | `internal/doccorpus/batch_paths.go`, `symbol_anchor.go`, `cem.go`, `behavior_legacy_discovery.go`, `behavior_playwright_discovery.go` | `TestDCPV1216SymbolAnchorsGitOpsIndependentOfAnchorCount` (5,000 moved anchors), `TestDCPV1216CEMProjectionGitOpsIndependentOfAnchorCount` (5,000 anchors), `TestDCPV1216LegacyDiscoveryGitOpsIndependentOfPathCount` (4,096 files, the record bound), `TestDCPV1216PlaywrightDiscoveryGitOpsIndependentOfPathCount` (2,000 files, 4,008 executions), each within 16 Git operations per phase and byte-identical to the per-path reads; `TestDCPV1216ProjectionKeepsPerPathTreeBound` (anchor under a tree past 4 MiB refused as per path), `TestDCPV1216SymbolFallbackBudgetWithholdsStates` (missing pinned blob, budget exhausted in the fallback, states withheld as per path), `TestDCPV1216GitHooksTravelWithTheContext` (the test budget and per-path override travel on the call's context, so the equivalence tests run under `t.Parallel` and `-race`); measured in docs/build-log/2026-10-20-v1-1991-batched-path-reads.md and docs/build-log/2026-10-21-testspeed-1021v-doccorpus-parallel-equivalence.md |
 | DCP-V1-370..376 | `internal/testsource/discover_tests.go`, `discover_tests_playwright.go`, `discover_tests_rspec.go`, `internal/doccorpus/line_anchor.go`, `cmd/corvint/docs_corpus_discover_tests.go` | `TestDCPV1370DiscoverTestsDeterministicAnchored`, `TestDCPV1370DocsCorpusDiscoverTestsCLI`, `TestDCPV1371DiscoverTestsIdentityJoins`, `TestDCPV1372DiscoverTestsExpectations`, `TestDCPV1373DiscoverTestsNavigations`, `TestDCPV1374DiscoverTestsReaches`, `TestDCPV1375DiscoverTestsHooksTagsAnnotations`, `TestDCPV1376DiscoverTestsUnknowns` |
 | DCP-V1-390..392 | `internal/doccorpus/extractor.go` | `TestDCPV1390ExtractorProfileIsClosed`, `TestDCPV1390ExtractorGlobMatchIsLinear`, `TestDCPV1391ExtractorEmitsGenericSubjectsWithExactAnchors`, `TestDCPV1392ExtractorDerivesImplementsAndCallsRelations`, `TestDCPV1392ExtractorRelationsCiteBothEnds` |

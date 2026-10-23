@@ -207,23 +207,21 @@ func liveRepository(ctx context.Context, dir string, a *Artifact, member func(st
 			inputs = append(inputs, in)
 		}
 	}
-	for _, scope := range a.Manifest.Scopes {
-		if !member(scope.Revision) {
-			continue
-		}
+	// Each live path is noted once per admitted scope holding it, as a scope-by-path pass did;
+	// the reasons are sorted by the caller, so the visiting order is not observable (DCP-V1-450).
+	scopes := newScopeSet(a.Manifest.Scopes, member)
+	for rev := range scopes {
 		for p := range live.Tracked {
-			if inScope(p, scope.Path) && !declared[inputKey(scope.Revision, p)] {
-				note(livePath("new input in declared scope: ", p))
+			if scopes.holds(rev, p) && !declared[inputKey(rev, p)] {
+				scopes.each(rev, p, func(string) { note(livePath("new input in declared scope: ", p)) })
 			}
 		}
 		for p := range live.Skipped {
-			if inScope(p, scope.Path) {
-				note(livePath("unsupported live scope entry: ", p))
-			}
+			scopes.each(rev, p, func(string) { note(livePath("unsupported live scope entry: ", p)) })
 		}
 		for _, p := range live.DirtyPaths {
-			if inScope(p, scope.Path) && !declared[inputKey(scope.Revision, p)] {
-				note(livePath("new working-tree input in declared scope: ", p))
+			if scopes.holds(rev, p) && !declared[inputKey(rev, p)] {
+				scopes.each(rev, p, func(string) { note(livePath("new working-tree input in declared scope: ", p)) })
 			}
 		}
 	}
