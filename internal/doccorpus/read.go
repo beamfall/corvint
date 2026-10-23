@@ -183,7 +183,7 @@ func openVerified(ctx context.Context, root string, opts ReadOptions, start time
 	a.validation = ValidationVerified
 	if opts.Index {
 		sort.Slice(blocks, func(i, j int) bool { return blocks[i].lo < blocks[j].lo })
-		a.claimTerms, a.claimTermsOf = blocks, a.Claims
+		a.claimTerms = &claimTermHandoff{blocks: blocks, of: a.Claims}
 	}
 	if t != nil {
 		t.Validation = a.validation

@@ -645,7 +645,10 @@ func (d *artifactDecoder) scan() (begin, end int, ok bool) {
 			d.pos = end
 			return begin, end, true
 		case scanShort:
-			if d.more(begin) {
+			// A refill moves the window even when it reads nothing, so the value is rescanned
+			// from the moved scan position; only once the input has ended is a short scalar whole.
+			if !d.eof {
+				d.more(begin)
 				continue
 			}
 			if end > begin && scalarStart(d.buf[begin]) {

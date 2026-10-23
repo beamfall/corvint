@@ -263,12 +263,83 @@ func TestDCPV1434DecodeTimeClaimTermsMatchIndex(t *testing.T) {
 				t.Fatalf("%s window %d: blocks do not cover the claims", name, window)
 			}
 			for _, pre := range [][]*claimTermBlock{blocks, blocks[min(1, len(blocks)):]} {
-				decoded.claimTerms, decoded.claimTermsOf = pre, decoded.Claims
+				decoded.claimTerms = &claimTermHandoff{blocks: pre, of: decoded.Claims}
 				index, err := BuildQueryIndex(ctx, decoded)
-				if err != nil || !reflect.DeepEqual(index, reference) || decoded.claimTerms != nil {
+				if err != nil || !reflect.DeepEqual(index, reference) || decoded.claimTerms.blocks != nil {
 					t.Fatalf("%s window %d (%d blocks): index from decode-time terms differs: %v", name, window, len(pre), err)
 				}
 			}
 		}
+	}
+}
+
+// TestDCPV1431StreamedTruncationAtWindowEnd: input that ends exactly at a window boundary, in the
+// middle of a value or right after a scalar, refuses as a truncated artifact instead of panicking,
+// whatever the window is; the refill at the end of the input moves the window without reading.
+func TestDCPV1431StreamedTruncationAtWindowEnd(t *testing.T) {
+	t.Parallel()
+	_, _, data := builtFixture(t)
+	cases := map[string][]byte{"schema scalar": []byte(`{"schema":1`), "schema scalar with space": []byte(`{"schema": 12`)}
+	// A scalar of the artifact truncated where the window ends.
+	at := bytes.Index(data, []byte(`"schema":`)) + len(`"schema":`)
+	cases["artifact scalar"] = data[:at+1]
+	for name, input := range cases {
+		for _, window := range []int{len(input), len(input) - 1, 1, 64} {
+			for _, headroom := range []int{0, 1, 64} {
+				_, _, err := decodeArtifactBlocks(bytes.NewReader(input), window, headroom, nil, nil, nil)
+				if err == nil || err.Error() != fail("invalid closed JSON input").Error() {
+					t.Fatalf("%s window %d room %d: %v", name, window, headroom, err)
+				}
+			}
+		}
+	}
+}
+
+// TestDCPV1434ConcurrentQueriesShareClaimTerms: concurrent queries of one verified artifact
+// derive their query indexes without racing on the decode-time claim terms; exactly one takes
+// them, the others tokenize, and every receipt is the serial one. Run under -race.
+func TestDCPV1434ConcurrentQueriesShareClaimTerms(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	root, _, data := builtFixture(t)
+	serial, err := OpenRead(ctx, root, data, ReadOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	requests := []Request{{Operation: "claims", Query: "cache"}, {Operation: "concept", Query: "cache"}, {Operation: "gaps"}, {Operation: "flow", Query: "cache"}}
+	want := make([]Receipt, len(requests))
+	for i, request := range requests {
+		if want[i], err = QueryContext(ctx, serial, request, "fresh", nil); err != nil {
+			t.Fatalf("%s: %v", request.Operation, err)
+		}
+	}
+	a, err := OpenRead(ctx, root, data, ReadOptions{Index: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.claimTerms == nil || a.claimTerms.blocks == nil {
+		t.Fatal("the indexed read derived no claim terms")
+	}
+	var wg sync.WaitGroup
+	got := make([]Receipt, 4*len(requests))
+	errs := make([]error, len(got))
+	for i := range got {
+		wg.Go(func() {
+			if i%2 == 0 {
+				_, errs[i] = BuildQueryIndex(ctx, a)
+			}
+			if errs[i] == nil {
+				got[i], errs[i] = QueryContext(ctx, a, requests[i%len(requests)], "fresh", nil)
+			}
+		})
+	}
+	wg.Wait()
+	for i := range got {
+		if errs[i] != nil || !reflect.DeepEqual(got[i], want[i%len(requests)]) {
+			t.Fatalf("query %d (%s): %v; receipt differs from the serial one", i, requests[i%len(requests)].Operation, errs[i])
+		}
+	}
+	if a.claimTerms.blocks != nil || a.RuntimeIndex != nil {
+		t.Fatal("the claim terms were not taken, or a query changed the shared artifact")
 	}
 }

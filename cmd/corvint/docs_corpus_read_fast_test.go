@@ -6,7 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
@@ -188,5 +190,55 @@ func TestDCPV1432JoinedCorpusAndDeltaReuseVerifiedArtifact(t *testing.T) {
 	}
 	if code, _, _ := corpusCLI(t, root, append(delta, "--verify-rederive")...); code != 2 {
 		t.Fatalf("delta --verify-rederive read a deleted pinned blob: %d", code)
+	}
+}
+
+// TestDCPV1431CorpusRefusalJoinsFreshness: a query read refused after its live freshness
+// observation started, by its query index or by its arguments, cancels and joins the observation
+// before it returns, so no observation outlives the read or writes its timing after the --timings
+// summary. The observation blocks until it is cancelled. Run under -race.
+func TestDCPV1431CorpusRefusalJoinsFreshness(t *testing.T) {
+	defer doccorpus.TrustUnattestedBuilderForTest()()
+	root := taskContextRepository(t)
+	rev := cemGit(t, root, "rev-parse", "HEAD")
+	writeCorpusFixture(t, root, rev, "cache")
+	var started, finished, cancelled atomic.Int32
+	defer func(saved func(context.Context, string, *doccorpus.Artifact) (doccorpus.FreshnessOverlay, error)) {
+		corpusLiveFreshness = saved
+	}(corpusLiveFreshness)
+	corpusLiveFreshness = func(ctx context.Context, _ string, _ *doccorpus.Artifact) (doccorpus.FreshnessOverlay, error) {
+		started.Add(1)
+		defer finished.Add(1)
+		select {
+		case <-ctx.Done():
+			cancelled.Add(1)
+			return doccorpus.FreshnessOverlay{}, ctx.Err()
+		case <-time.After(time.Minute):
+			return doccorpus.FreshnessOverlay{}, nil
+		}
+	}
+	refusals := []struct {
+		name  string
+		args  []string
+		lower bool
+	}{
+		{"index refusal", []string{"concept", "--query", "cache"}, true},
+		{"claims argument error", []string{"claims"}, false},
+		{"claims status filter", []string{"claims", "--state", "bogus"}, false},
+	}
+	for _, refusal := range refusals {
+		restore := func() {}
+		if refusal.lower {
+			restore = doccorpus.SetIndexBoundsForTest(1, 1)
+		}
+		before := started.Load()
+		code, out, stderr := corpusCLI(t, root, append(append([]string{"docs", "corpus"}, refusal.args...), "--artifact", "corpus.json", "--timings")...)
+		restore()
+		if code == 0 || out != "" {
+			t.Fatalf("%s: %d %s", refusal.name, code, out)
+		}
+		if started.Load() != before+1 || finished.Load() != started.Load() || cancelled.Load() != started.Load() {
+			t.Fatalf("%s: observation started %d, finished %d, cancelled %d before the read returned: %s", refusal.name, started.Load(), finished.Load(), cancelled.Load(), stderr)
+		}
 	}
 }

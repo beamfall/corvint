@@ -367,16 +367,20 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	// (DCP-V1-410, DCP-V1-413, DCP-V1-431). A query's live freshness is observed while the
 	// records are decoded and verified and the query index is derived, and used only once they
 	// are (DCP-V1-411, DCP-V1-419).
+	// Every exit, a refusal included, cancels and joins a started observation, so none outlives
+	// the read or writes its timing after the summary is printed.
+	liveCtx, cancelLive := context.WithCancel(ctx)
 	live := &corpusLiveRead{root: o.root, timings: t}
+	defer func() {
+		cancelLive()
+		live.join()
+	}()
 	options := doccorpus.ReadOptions{Rederive: o.verifyRederive || o.op == "validate", Timings: t, Index: doccorpus.IndexedOperation(o.op)}
 	if corpusQueryOperation(o.op) {
-		options.Header = func(h *doccorpus.Artifact) { live.start(ctx, h) }
+		options.Header = func(h *doccorpus.Artifact) { live.start(liveCtx, h) }
 	}
 	a, err := doccorpus.OpenReadFile(ctx, o.root, o.artifact, options)
 	if err != nil {
-		if live.done != nil {
-			<-live.done
-		}
 		return nil, err
 	}
 	if o.op == "audit-sample" || o.op == "audit-report" {
@@ -448,7 +452,7 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 		}
 		a.RuntimeIndex = index
 	}
-	live.wait(ctx, a)
+	live.wait(liveCtx, a)
 	if live.err != nil {
 		return nil, live.err
 	}
@@ -490,6 +494,9 @@ func corpusQueryOperation(op string) bool {
 	return true
 }
 
+// corpusLiveFreshness is the live observation a query read starts; tests replace it.
+var corpusLiveFreshness = doccorpus.LiveFreshness
+
 // corpusLiveRead observes a query's live freshness overlay.
 type corpusLiveRead struct {
 	root    string
@@ -506,7 +513,7 @@ func (l *corpusLiveRead) start(ctx context.Context, a *doccorpus.Artifact) {
 	go func() {
 		defer close(l.done)
 		step := time.Now()
-		l.overlay, l.err = doccorpus.LiveFreshness(ctx, l.root, a)
+		l.overlay, l.err = corpusLiveFreshness(ctx, l.root, a)
 		if l.timings != nil {
 			l.timings.Freshness += time.Since(step)
 		}
@@ -519,6 +526,13 @@ func (l *corpusLiveRead) wait(ctx context.Context, a *doccorpus.Artifact) {
 		l.start(ctx, a)
 	}
 	<-l.done
+}
+
+// join waits for a started observation, if any, to finish.
+func (l *corpusLiveRead) join() {
+	if l.done != nil {
+		<-l.done
+	}
 }
 
 // compileStableCorpusCEM is the explicit cem/1.0 documentation projection

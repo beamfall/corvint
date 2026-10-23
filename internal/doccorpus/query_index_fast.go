@@ -36,11 +36,7 @@ func buildQueryIndexFast(parent context.Context, a *Artifact) (x *QueryIndex, ok
 		return ctx.Err() == nil
 	}
 	terms := make([]map[string]bool, len(a.Subjects))
-	pre := a.claimTerms
-	if len(a.claimTermsOf) != len(a.Claims) || len(a.Claims) > 0 && &a.claimTermsOf[0] != &a.Claims[0] {
-		pre = nil
-	}
-	a.claimTerms, a.claimTermsOf = nil, nil
+	pre := a.claimTerms.take(a.Claims)
 	var wg sync.WaitGroup
 	for _, derive := range []func() bool{
 		func() bool { return indexRecordsFast(a, x, stored) },
@@ -215,6 +211,31 @@ type claimTermBlock struct {
 	postings map[string][]int
 	n        int
 	subjects map[string]map[string]struct{}
+}
+
+// claimTermHandoff passes the claim-term blocks a read derived to exactly one query index
+// derivation of the artifact. Concurrent derivations of one artifact share it, so the blocks
+// are taken under its lock; every other derivation tokenizes, and every derivation stores the
+// same index. The blocks themselves are only read.
+type claimTermHandoff struct {
+	mu     sync.Mutex
+	blocks []*claimTermBlock
+	of     []Claim // the claims slice the blocks were derived from: a replaced slice voids them
+}
+
+// take returns the blocks, at most once, when they were derived from claims.
+func (h *claimTermHandoff) take(claims []Claim) []*claimTermBlock {
+	if h == nil {
+		return nil
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	blocks, of := h.blocks, h.of
+	h.blocks, h.of = nil, nil
+	if len(of) != len(claims) || len(claims) > 0 && &of[0] != &claims[0] {
+		return nil
+	}
+	return blocks
 }
 
 // deriveClaimTerms derives the claim-term block of claims, the first of

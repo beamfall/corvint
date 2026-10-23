@@ -130,3 +130,21 @@ Focused tests: `internal/doccorpus` (whole package), `internal/testvaliditydoc`,
 `internal/corpusindex`, `internal/corpusrepublish`, `internal/flowdocs`, `internal/flowcoverage`,
 `internal/delta`, and `cmd/corvint` with `-run 'Corpus|DCPV1|DocsCorpus|DocsFlows'`. The new
 streaming and decode-time term tests also ran under `-race`. Results are in the pull request.
+
+## Review repair
+
+An independent review of the pull request found three concurrency and boundary faults; each is
+fixed with a regression test and folded into `DCP-V1-431` or `DCP-V1-434`.
+
+- A scalar truncated exactly at a window boundary could panic: a refill at the end of the input
+  moves the window without reading, and the scan kept the old offsets. The scan now refills until
+  the input has ended and rescans from the moved position, so such input refuses as invalid input
+  (`TestDCPV1431StreamedTruncationAtWindowEnd`, which panicked before the fix).
+- Concurrent query index derivations of one artifact read and cleared its decode-time claim terms
+  without synchronization. The terms now sit behind a handoff taken at most once under a lock, set
+  before the read returns and never reassigned; other derivations tokenize, and no query changes
+  the shared artifact (`TestDCPV1434ConcurrentQueriesShareClaimTerms`, under `-race`).
+- A CLI query read refused by its query index or its arguments returned before joining its live
+  freshness observation, which then raced the `--timings` summary. Every exit now cancels and
+  joins the observation (`TestDCPV1431CorpusRefusalJoinsFreshness`, under `-race`; it reported a
+  data race with the join removed).
