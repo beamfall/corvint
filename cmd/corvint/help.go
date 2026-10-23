@@ -50,7 +50,7 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 	rest := arguments[index:]
 	directTopic := ""
 	if len(rest) == 2 && rest[0] == "help" {
-		directTopic, _ = publicHelpTopic(rest[1])
+		directTopic = capabilityOrPublicHelpTopic(rest[1])
 		// A nested topic passed as the one argument the refusal lists it as
 		// ("docs corpus") resolves like its separate-word form (DCP-V1-057).
 		if command, subcommand, spaced := strings.Cut(rest[1], " "); directTopic == "" && spaced {
@@ -282,7 +282,7 @@ func helpText(topic string) string {
 	case "test-plan":
 		return testPlanHelp
 	default:
-		panic("unknown help topic")
+		return capabilityHelpText(topic)
 	}
 }
 
@@ -294,7 +294,7 @@ const rootHelp = `Corvint extraction alpha
 
 Usage:
   corvint [--root PATH] COMMAND [OPTIONS]
-  corvint COMMAND --help | corvint help COMMAND
+  corvint COMMAND --help | corvint help COMMAND | corvint help --json|guide
   corvint --version [--json]
 
 Commands:

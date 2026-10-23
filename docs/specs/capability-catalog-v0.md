@@ -3,15 +3,15 @@
 Owner: Russell Lewis
 Date: 2026-10-20
 Requirement prefix: `CAP-V0`
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020); CAP-V0-015 to CAP-V0-021 accepted under the same standing auto-accept (beamfall/corvint#1588)
 Delivery status: experimental
-Authoritative inputs: V1-2008 owner request (2026-10-20) "make sure corvints capabilities are properly documented so agents can fully understand what it can do", and the same-day scope addition for a README capability section; `../../AGENTS.md` invariants 2 and 8; `../AGENT-ROUTES.md`.
+Authoritative inputs: V1-2008 owner request (2026-10-20) "make sure corvints capabilities are properly documented so agents can fully understand what it can do", and the same-day scope addition for a README capability section; `../../AGENTS.md` invariants 2 and 8; `../AGENT-ROUTES.md`; beamfall/corvint#1588 (2026-10-23), a machine-readable command catalog generated from the command registry and a task-indexed guide shipped with the install.
 
 ## Agent digest
-- Claim: `docs/CAPABILITIES.md` lists every command, binary and MCP tool with its use, invocation, maturity and refusals; a Go test fails on drift.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020)/experimental
-- Exists: `docs/CAPABILITIES.md`, the README "What Corvint can do" section, `tools/capabilities-check` (its `go test` and `make capabilities-check`), and catalog pointers in `AGENTS.md`, `docs/AGENT-ROUTES.md`, `docs/README.md` and the shipped Claude Code, Codex, Gemini CLI, OpenCode and OpenSpec skills.
-- Blocked on: subcommands outside the declared tables, flags, profile membership and prose claims are not gated (see Failure modes); the Pi package text is not routed yet (its qualified adapter tuple pins the package bytes).
+- Claim: `docs/CAPABILITIES.md`, `corvint help --json` and `corvint help guide` describe every command; tests fail when any drifts from the binary.
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020); CAP-V0-015 to CAP-V0-021 accepted under the same standing auto-accept (beamfall/corvint#1588)/experimental
+- Exists: `docs/CAPABILITIES.md`, the README "What Corvint can do" section, `tools/capabilities-check` (its `go test` and `make capabilities-check`), and `internal/capcatalog` (`corvint help --json`, `corvint help guide`, `make capability-catalog`, `make capability-catalog-check`), and catalog pointers in `AGENTS.md`, `docs/AGENT-ROUTES.md`, `docs/README.md` and the shipped Claude Code, Codex, Gemini CLI, OpenCode and OpenSpec skills.
+- Blocked on: subcommands outside the declared tables, flags, profile membership and prose claims are not gated in `docs/CAPABILITIES.md` (see Failure modes); the catalog and guide are not served over MCP or shipped as a release-archive member, and `capability-catalog-check` is not a CI step (owner ci-control-plane approval); the Pi package text is not routed yet (its qualified adapter tuple pins the package bytes).
 - Read next: Requirements; Boundaries and failure modes; Traceability.
 
 ## User and baseline
@@ -89,10 +89,48 @@ cannot silently go missing or outlive its command.
   digits, `_` and `-`) of some string literal in non-test Go source under `cmd/` or `internal/`,
   outside `testdata/`; otherwise the check reports `refusal-unknown`, so a code removed or
   renamed in the code cannot stay listed.
+- `CAP-V0-015`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1588) `corvint help --json` MUST print one
+  `corvint-capability-catalog/0` JSON document derived only from the binary's command registry:
+  the `topLevelCommands` dispatch list (every entry once, in dispatch order), the root help, each
+  command's help topics (for `docs`, also its corpus, flows and maintain topics and every corpus
+  operation topic) and the code-declared operation tables (`docsSubcommands`, `corpusOperations`,
+  `flowSubcommands`, `leaseActions`, `helpSubcommands`). Per command it states purpose, maturity,
+  owning spec or freeze contract, operations, nested operations, flags, schema identifiers,
+  stated exit statuses, write class, self-observation ledger listing and write statements, and
+  the document names how each field is derived. Like every help topic it reads no stdin, opens no
+  repository and writes nothing.
+- `CAP-V0-016`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1588) A field the registry cannot answer MUST be
+  `null` with an `unknowns` entry naming the field and a reason, never a hand-written claim:
+  `inputs` and `outputs` always (help does not separate them; `schemaIds` lists every schema the
+  help names); `owningSpec` for a Core verb (its `freezeContract` names the root help's freeze
+  codes instead) or a verb whose root line names none; `purpose` and `maturity` for a command
+  without a root help line; `writes` for a command the root help Support boundary does not
+  classify; and `exitCodesMentioned` (an empty list) when the help states no exit status.
+- `CAP-V0-017`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1588) `corvint help guide` MUST print the
+  task-indexed agent guide embedded in the binary (`internal/capcatalog/AGENT-GUIDE.md`): goals
+  mapped to command sequences, each with one runnable example and its output schema, including
+  the two-step `corvint affected discovery --playwright-list` then
+  `corvint affected --playwright-discovery` workflow, and a Non-capabilities section. The catalog
+  binds the guide by SHA-256.
+- `CAP-V0-018`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1588) A test MUST fail when the shipped guide
+  names a command, operation, nested operation or option that the live catalog does not list for
+  that command (or as a global option), names a schema identifier no help topic names, or lists a
+  non-capability without a tracking issue (`#N`) or a "By design" reason.
+- `CAP-V0-019`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1588) `internal/capcatalog/catalog.json` MUST
+  equal the bytes of `corvint help --json`; a test fails with the regeneration command when it
+  does not. `make capability-catalog` regenerates it and `make capability-catalog-check` runs the
+  CAP-V0-015 to CAP-V0-021 tests.
+- `CAP-V0-020`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1588) The catalog builder MUST read nothing but
+  its registry argument and MUST encode the same registry to the same bytes: two-space indented
+  JSON in a fixed field order, with sorted map keys, sorted operation, flag, schema-identifier and
+  exit-status lists, no HTML escaping and a terminal LF.
+- `CAP-V0-021`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1588) Root help MUST name `corvint help --json`
+  and `corvint help guide` within its existing three usage lines and its CCF-V1-009 byte bound,
+  and the unknown-help-topic refusal MUST keep listing commands and nested topics only.
 
 ## Boundaries and failure modes
 
-Non-goals: generating the catalog from code; checking subcommands outside the declared tables, a
+Non-goals: generating `docs/CAPABILITIES.md` from code (the CAP-V0-015 catalog is a separate generated document; the page stays hand-written and checked); checking subcommands outside the declared tables, a
 row naming a subcommand the code no longer declares, flags, output schemas or the prose of a row; running any listed command; ranking capabilities; replacing a spec, a help page or
 the deep guides the catalog links to.
 
@@ -109,6 +147,24 @@ backticks or without a separator is not checked; a row naming the right thing wi
 passes. A catalog edit
 that the check rejects is fixed by editing the row, never by widening the gate.
 
+CAP-V0-015 to CAP-V0-021 non-goals: an MCP help tool or resource (MCPV0-008 freezes the V0 tool
+list and byte goldens pin every profile's `tools/list`; a follow-up needs that contract amended);
+a separate guide member in the release archive (the archive, its verifier, the release-candidate
+check and the deployed `corvint-update` allow exactly six members, so a seventh needs a staged
+rollout: tolerant updater and checks first, then the member and its manifest pin); a CI step
+(`.github` changes need owner ci-control-plane approval; the Makefile target and Go tests enforce
+drift locally); per-command input/output separation.
+
+CAP-V0-015 to CAP-V0-021 failure modes: catalog fields are read from help prose, so they are as
+complete as the help: a flag or schema the help omits is missing, an exit status stated without
+the word "exit" is not listed (the field is named `exitCodesMentioned`), an operation dispatched
+only in a switch and absent from usage lines is missing, `writeStatements` copies sentences
+without judging them, and `writes` classifies only commands the root Support boundary names.
+`local-state` means the command writes local state in at least one mode. A help text change in
+any lane changes `catalog.json`, so a merge that changes help without regenerating fails
+CAP-V0-019 until `make capability-catalog` is rerun. The guide check verifies names, not claims:
+a correct command with a wrong description passes, and a closed tracking issue is not detected.
+
 ## Rollback
 
 Delete `docs/CAPABILITIES.md`, `tools/capabilities-check`, the `capabilities-check` Makefile target
@@ -118,7 +174,10 @@ depends on them. Reverting a skill text change needs its own version bump, becau
 version gate refuses a content change at an unchanged version. To roll back only CAP-V0-007 to
 CAP-V0-009, remove `parseSubcommands`, `ScanWords`, `checkSubcommands`, `checkRefusals` and the
 Experimental maturity case with their tests, and narrow the test read scope back to `internal/mcp/`;
-the catalog row edits stay correct.
+the catalog row edits stay correct. To roll back only CAP-V0-015 to CAP-V0-021, delete
+`internal/capcatalog`, `cmd/corvint/help_catalog.go` and its test, the `capabilityOrPublicHelpTopic`
+and `capabilityHelpText` calls and the root usage words in `cmd/corvint/help.go`, the two Makefile targets and `.PHONY`
+entries, and the `docs/CAPABILITIES.md` pointer; no stored state depends on them.
 
 ## Traceability
 
@@ -133,3 +192,10 @@ the catalog row edits stay correct.
 | CAP-V0-007 | `subcommandTables`, `parseSubcommands`, `literalKeys`, `checkSubcommands` | `TestCAPV0007UndocumentedSubcommandFails`, `TestCAPV0007SubcommandTablesParse`, `TestCAPV0002RepositoryCatalogMatchesInventory` |
 | CAP-V0-008 | `parseCommands` experimental set, `Check` maturity switch | `TestCAPV0008ExperimentalMaturityMismatchFails`, `TestCAPV0002GroupedRootHelp` |
 | CAP-V0-009 | `ScanWords`, `refusalCode`, `checkRefusals` | `TestCAPV0009RemovedRefusalCodeFails`, `TestCAPV0002RepositoryCatalogMatchesInventory` |
+| CAP-V0-015 | `capabilityRegistry`, `capabilityCatalogJSON`, `capcatalog.Build`, `capabilityHelpTopics` | `TestCAPV0015HelpJSONListsEveryDispatchedCommand` |
+| CAP-V0-016 | `capcatalog.Build` unknowns | `TestCAPV0016UnderivableFieldsAreUnknownWithReasons`, `TestCAPV0016UnknownFieldsAreNullWithReasons` |
+| CAP-V0-017 | `internal/capcatalog/AGENT-GUIDE.md`, `capcatalog.Guide`, `helpText("guide")` | `TestCAPV0017HelpGuideServesTheShippedGuide`, `TestCAPV0017ShippedGuideDocumentsThePlaywrightTwoStep` |
+| CAP-V0-018 | `capcatalog.GuideProblems` | `TestCAPV0018ShippedGuideMatchesTheLiveCatalog`, `TestCAPV0018GuideProblemsRejectsDrift` |
+| CAP-V0-019 | `internal/capcatalog/catalog.json`, `capcatalog.Snapshot`, `make capability-catalog`, `make capability-catalog-check` | `TestCAPV0019CommittedCatalogMatchesTheBinary` |
+| CAP-V0-020 | `capcatalog.Build`, `capcatalog.Encode` | `TestCAPV0020BuildIsDeterministicAndDerivedFromItsArgument` |
+| CAP-V0-021 | `rootHelp` usage line, `unknownHelpTopic` | `TestCAPV0021RootHelpNamesTheCatalogTopicsWithinItsBound`, `TestRootHelpIsACompactVerbIndex` |

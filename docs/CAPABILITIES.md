@@ -10,6 +10,12 @@ has no row, when a row names something that no longer exists, when a code-declar
 missing from its command's row, when a command's maturity disagrees with its root help group, or
 when a listed refusal code no longer appears in the source.
 
+The binary carries two more views of the same surface. `corvint help --json` prints a
+machine-readable command catalog (`corvint-capability-catalog/0`) derived from the command
+registry: fields the registry cannot answer are `null` and named under `unknowns`. `corvint help
+guide` prints a task-indexed guide with runnable examples and the non-capabilities each tracked
+by an issue (CAP-V0-015 to CAP-V0-021).
+
 How to read maturity:
 
 - **core**: the verbs `corvint help` lists as Core (decision 0332). Only the modes and profiles
