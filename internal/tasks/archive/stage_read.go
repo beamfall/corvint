@@ -39,18 +39,91 @@ func (n archiveNative) path(p string) (string, error) {
 	return filepath.Join(n.StateDir, p), nil
 }
 
-// archiveRead lives for exactly one export attempt. It retains every listed
-// no-follow parent; file reads never reopen the original absolute parent.
+// maxOpenRoots is the true peak of directory roots one export attempt holds
+// beyond its two path-bound anchors, counting the temporary root each listing
+// binds (CTS-V0-023). Retaining every listed parent held one descriptor per
+// `requests/` shard, 262 on a 10,000-ticket store, and failed
+// RESOURCE_EXHAUSTED under a low `ulimit -n`.
+var maxOpenRoots = 16
+
+// archiveRead lives for exactly one export attempt. It retains at most
+// maxOpenRoots no-follow parents besides the anchors, reserving a slot before
+// each open; file reads never reopen the original absolute parent. A parent
+// released for the bound is reopened under its own retained parent and must
+// be the directory the listing observed, or the read is SNAPSHOT_MOVED.
 type archiveRead struct {
-	native   archiveNative
-	roots    map[string]*os.Root
-	absent   map[string]bool
-	listed   map[string]os.FileInfo
-	closeErr error
+	native    archiveNative
+	roots     map[string]*os.Root
+	absent    map[string]bool
+	listed    map[string]os.FileInfo
+	used      map[string]uint64
+	clock     uint64
+	transient int
+	peak      int
+	closeErr  error
 }
 
 func newArchiveRead(n archiveNative) *archiveRead {
-	return &archiveRead{n, map[string]*os.Root{}, map[string]bool{}, map[string]os.FileInfo{}, nil}
+	return &archiveRead{native: n, roots: map[string]*os.Root{}, absent: map[string]bool{}, listed: map[string]os.FileInfo{}, used: map[string]uint64{}}
+}
+
+// anchorRoot reports a root opened from its absolute path, never released
+// for the bound: it has no listed identity to recheck on reopening.
+func anchorRoot(p string) bool { return p == "." || p == "intent" }
+
+// held counts the open non-anchor roots, temporary binding roots included.
+func (s *archiveRead) held() int {
+	n := s.transient
+	for p := range s.roots {
+		if !anchorRoot(p) {
+			n++
+		}
+	}
+	return n
+}
+
+// reserve releases least recently used roots until one more fits under
+// maxOpenRoots, never keep or one of its ancestors, which the caller is
+// using. A close error is kept for close().
+func (s *archiveRead) reserve(keep string) error {
+	for s.held() >= maxOpenRoots {
+		victim := ""
+		for p := range s.roots {
+			if anchorRoot(p) || p == keep || strings.HasPrefix(keep, p+"/") {
+				continue
+			}
+			if victim == "" || s.used[p] < s.used[victim] {
+				victim = p
+			}
+		}
+		if victim == "" {
+			return wire.Errorf(wire.CodeResourceExhausted, keep, "more than %d nested directory roots", maxOpenRoots)
+		}
+		root := s.roots[victim]
+		delete(s.roots, victim)
+		delete(s.used, victim)
+		s.closeErr = errors.Join(s.closeErr, closeReadRoot(root))
+	}
+	return nil
+}
+
+// afterRootOpen, when a test sets it, observes the held count after each open.
+var afterRootOpen func(held int)
+
+// opened records one more open root against the observed peak.
+func (s *archiveRead) opened() {
+	n := s.held()
+	if n > s.peak {
+		s.peak = n
+	}
+	if afterRootOpen != nil {
+		afterRootOpen(n)
+	}
+}
+
+func (s *archiveRead) touch(p string) {
+	s.clock++
+	s.used[p] = s.clock
 }
 
 var afterReadNames func(string) // deterministic enumeration/metadata race witness
@@ -70,6 +143,7 @@ func archiveMoved(p string) error {
 }
 func (s *archiveRead) parent(p string) (*os.Root, error) {
 	if r := s.roots[p]; r != nil {
+		s.touch(p)
 		return r, nil
 	}
 	abs, e := s.native.path(p)
@@ -77,11 +151,14 @@ func (s *archiveRead) parent(p string) (*os.Root, error) {
 		return nil, e
 	}
 	var root *os.Root
-	if p == "." || p == "intent" {
+	if anchorRoot(p) {
 		root, e = safeopen.Root(abs)
 	} else {
 		parent, e2 := s.parent(filepath.ToSlash(filepath.Dir(p)))
 		if e2 != nil {
+			return nil, e2
+		}
+		if e2 = s.reserve(p); e2 != nil {
 			return nil, e2
 		}
 		root, e = safeopen.SubRoot(parent, filepath.Base(p))
@@ -92,12 +169,28 @@ func (s *archiveRead) parent(p string) (*os.Root, error) {
 		}
 		return nil, e
 	}
+	// A reopened parent is the directory the listing observed, or the
+	// store moved (CTS-V0-023).
+	if old := s.listed[p]; old != nil {
+		info, e := root.Stat(".")
+		if e == nil && !os.SameFile(old, info) {
+			e = archiveMoved(p)
+		}
+		if e != nil {
+			return nil, s.closed(e, closeReadRoot(root))
+		}
+	}
 	s.roots[p] = root
+	s.touch(p)
+	s.opened()
 	return root, nil
 }
 func (s *archiveRead) binding(p string, root *os.Root) (err error) {
 	abs, e := s.native.path(p)
 	if e != nil {
+		return e
+	}
+	if e = s.reserve(p); e != nil {
 		return e
 	}
 	named, e := safeopen.Root(abs)
@@ -107,7 +200,12 @@ func (s *archiveRead) binding(p string, root *os.Root) (err error) {
 	if e != nil {
 		return e
 	}
-	defer func() { err = s.closed(err, closeReadRoot(named)) }()
+	s.transient++
+	s.opened()
+	defer func() {
+		s.transient--
+		err = s.closed(err, closeReadRoot(named))
+	}()
 	a, e := named.Stat(".")
 	if e != nil {
 		return e
@@ -453,12 +551,13 @@ func sameLayout(a, b *scan) bool {
 }
 
 // One retry owner for movement the body detects; the inner header probe is
-// always one-shot. Every attempt draws on one patience deadline, so the
-// export pauses no longer in total than a single read would (CTS-V0-006),
+// always one-shot. Every attempt draws on one pause budget, so the export
+// pauses no longer in total than a single read would (CTS-V0-006), however
+// long its bodies run (CTS-V0-022),
 // and a failure after any pause names the wait and says it is retryable.
 // A writer's descriptor-less staging slots are waited for separately, under
 // the journal audit's backoff and budget, and neither spend an attempt nor
-// draw on that deadline; once that budget is spent the slot's MALFORMED is
+// draw on that pause budget; once that budget is spent the slot's MALFORMED is
 // returned unchanged (CTS-V0-008).
 func readArchive(rd snapshot.Reader, attempt func(*snapshot.Snapshot) error) (*snapshot.Snapshot, error) {
 	rd.Retries = -1
@@ -467,24 +566,27 @@ func readArchive(rd snapshot.Reader, attempt func(*snapshot.Snapshot) error) (*s
 		patience = snapshot.DefaultPatience
 	}
 	start := time.Now()
-	deadline := start.Add(patience)
 	sleep := rd.Sleep
 	if sleep == nil {
 		sleep = patienceSleep
 	}
 	// waits counts every pause; callWaits those of the current Read, which
-	// already names its own wait on the error it returns.
+	// already names its own wait on the error it returns. paused is the
+	// budget the attempts have spent: pauses only, never body time
+	// (CTS-V0-022).
 	waits, callWaits := 0, 0
+	var paused time.Duration
 	rd.Sleep = func(d time.Duration) {
 		waits++
 		callWaits++
+		paused += d
 		sleep(d)
 	}
 	var snap *snapshot.Snapshot
 	var err error
 	var slotWait snapshot.StageSlotWait
 	for n := 0; n < 4; {
-		rd.Patience = time.Until(deadline)
+		rd.Patience = patience - paused
 		if rd.Patience <= 0 {
 			rd.Patience = snapshot.NoPatience
 		}
@@ -496,11 +598,9 @@ func readArchive(rd snapshot.Reader, attempt func(*snapshot.Snapshot) error) (*s
 			if !ok {
 				return snap, slots.error
 			}
-			// The pause is pushed onto the deadline, so it never spends the
-			// CTS-V0-006 patience a later pending or moved attempt needs.
-			paused := time.Now()
+			// The pause is not charged to the CTS-V0-006 patience, so it
+			// never spends what a later pending or moved attempt needs.
 			stageSleep(step)
-			deadline = deadline.Add(time.Since(paused))
 			continue
 		}
 		if wire.CodeOf(err) != wire.CodeSnapshotMoved {

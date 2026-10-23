@@ -138,3 +138,6 @@ func SetProgramWriteHookForTest(f func()) func() {
 
 // PersistForTest records the workflow's program at phase.
 func (w *Workflow) PersistForTest(phase string) error { return w.persist(phase) }
+
+// RemoverStoppedForTest is removerStopped (CAL-V0-368).
+var RemoverStoppedForTest = removerStopped

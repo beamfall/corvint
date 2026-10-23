@@ -51,6 +51,12 @@ const PolicyUpdate = snapshot.StagePolicyUpdate
 // differently sourced ticket.
 const ImportApply = snapshot.StageImportApply
 
+// ImportPlan amends a mapped queue's import map after genesis (CTS-V0-020):
+// one IMPORT_PLAN receipt posts the OWNER-reviewed intent/import-map.json and
+// intent/queue.json naming its digest. Request.ImportMap carries the new map
+// and ExpectedImportMapSha256 the journaled map the owner reviewed.
+const ImportPlan = snapshot.StageImportPlan
+
 // AuthoritySwitch makes the queue natively written (TCP-00 §5.4 A5,
 // CAL-V0-004): one receipt posts intent/queue.json with canonicalWriter NATIVE
 // and a CUTOVER write barrier on the old source, which is the single
@@ -106,8 +112,12 @@ type Request struct {
 	Lease *LeaseRequest
 	// ImportMap is the operator's intent/import-map.json, set only for Init
 	// of a non-fixture queue whose importMapSha256 names it (CTS-V0-014).
-	// Genesis posts it; a null-map INIT digest stays byte-identical.
+	// Genesis posts it; a null-map INIT digest stays byte-identical. For
+	// ImportPlan it is the amended map (CTS-V0-020).
 	ImportMap []byte
+	// ExpectedImportMapSha256 is the journaled map an ImportPlan amends, set
+	// only for ImportPlan (CTS-V0-020).
+	ExpectedImportMapSha256 wire.Digest
 }
 
 // ReplayObservation is mandatory; zero/unknown/error never means absence.
@@ -338,8 +348,11 @@ func Digest(r Request) (wire.Digest, error) {
 	if (r.Operation == Lease) != (r.Lease != nil) {
 		return "", malformed("inapplicable lease command")
 	}
-	if r.Operation != Init && r.ImportMap != nil {
+	if r.Operation != Init && r.Operation != ImportPlan && r.ImportMap != nil {
 		return "", malformed("inapplicable import map")
+	}
+	if r.Operation != ImportPlan && r.ExpectedImportMapSha256 != "" {
+		return "", malformed("inapplicable expected import map")
 	}
 	o := object("actor", object("id", s(r.Actor.ID), "role", s(r.Actor.Role)), "operation", s(r.Operation), "queueId", s(r.QueueID), "requestId", s(r.RequestID))
 	switch r.Operation {
@@ -410,6 +423,22 @@ func Digest(r Request) (wire.Digest, error) {
 		}
 		o.Obj.Set("recordSha256s", wire.Array(digests...))
 	case AuthoritySwitch:
+	case ImportPlan:
+		if _, e = wire.ParseDigest("expectedImportMapSha256", string(r.ExpectedImportMapSha256)); e != nil {
+			return "", e
+		}
+		m, e := intent.DecodeImportMap(r.ImportMap)
+		if e != nil {
+			return "", e
+		}
+		if e = canonical(r.ImportMap); e != nil {
+			return "", e
+		}
+		if m.QueueID != q {
+			return "", malformed("import map queue identity")
+		}
+		o.Obj.Set("expectedImportMapSha256", s(string(r.ExpectedImportMapSha256)))
+		o.Obj.Set("importMapSha256", s(string(wire.Sum(r.ImportMap))))
 	case Relocate:
 		if _, e = wire.ParsePathText("fromPrimaryWorktree", r.FromPrimaryWorktree); e != nil {
 			return "", e
@@ -622,7 +651,7 @@ func model(r Request, in Input, sequence *ImportSequence) Result {
 	if r.Operation == Unpause && state.barrier == nil {
 		return noChange(r.RequestID)
 	}
-	if (r.Operation == Init || r.Operation == KeepJournal || r.Operation == AdoptFile || r.Operation == Mutate || r.Operation == Release || r.Operation == PolicyUpdate || r.Operation == ImportApply || r.Operation == AuthoritySwitch || r.Operation == Qualification || r.Operation == Lease || r.Operation == Relocate) && in.Branch != state.queue.IntentBranch {
+	if (r.Operation == Init || r.Operation == KeepJournal || r.Operation == AdoptFile || r.Operation == Mutate || r.Operation == Release || r.Operation == PolicyUpdate || r.Operation == ImportApply || r.Operation == ImportPlan || r.Operation == AuthoritySwitch || r.Operation == Qualification || r.Operation == Lease || r.Operation == Relocate) && in.Branch != state.queue.IntentBranch {
 		return refused(r.RequestID, mutation.OutcomeBlocked, wire.CodeIntentBranchMismatch, "primary intent branch differs")
 	}
 	posts := map[string][]byte{}
@@ -688,6 +717,31 @@ func model(r Request, in Input, sequence *ImportSequence) Result {
 		if e != nil {
 			return failed(r.RequestID, e)
 		}
+	case ImportPlan:
+		if r.Actor.Role != "OWNER" {
+			return refused(r.RequestID, mutation.OutcomeUnauthorized, "", "an import map amendment needs an OWNER binding")
+		}
+		if state.queue.ImportMapSha256 == nil || state.importMap == nil {
+			return failed(r.RequestID, malformed("an import map amendment needs the queue's journaled import map"))
+		}
+		if r.ExpectedImportMapSha256 != *state.queue.ImportMapSha256 {
+			return refused(r.RequestID, mutation.OutcomeRevisionConflict, "", "expectedImportMapSha256 "+string(r.ExpectedImportMapSha256)+" but the journaled import map is "+string(*state.queue.ImportMapSha256))
+		}
+		if wire.Sum(r.ImportMap) == r.ExpectedImportMapSha256 {
+			return noChange(r.RequestID)
+		}
+		next, e := intent.DecodeImportMap(r.ImportMap)
+		if e != nil {
+			return failed(r.RequestID, e)
+		}
+		if conflict := importMapAmendConflicts(state.importMap, next, state.tickets); conflict != nil {
+			return refused(r.RequestID, mutation.OutcomeValidationFailed, wire.CodeDuplicateID, conflict.Error())
+		}
+		queue := *state.queue
+		digest := wire.Sum(r.ImportMap)
+		queue.ImportMapSha256 = &digest
+		posts["intent/queue.json"] = wire.EncodeFile(queue.Value())
+		posts[importMapPath] = bytes.Clone(r.ImportMap)
 	case AuthoritySwitch:
 		if r.Actor.Role != "OWNER" {
 			return refused(r.RequestID, mutation.OutcomeUnauthorized, "", "an authority switch needs an OWNER binding")

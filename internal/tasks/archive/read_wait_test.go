@@ -159,3 +159,56 @@ func commitWithWindow(stateDir string, n int, window, gap time.Duration, more fu
 	}
 	return nil
 }
+
+// TestCTSV0022_SlowExportStillWaitsOutWriter: the CTS-V0-006 budget bounds
+// pauses, not the export body. An export whose body alone outlasts the
+// budget (a 10k-ticket store takes seconds) and that meets a writer between
+// receipt link-in and head rename at its re-probe must still pause, see the
+// writer finish and re-read, instead of failing REDO_PENDING at once
+// (V1-0903). Before the fix the body spent the wall-clock deadline, so the
+// export exited 1 whenever its re-probe met the writer's window.
+func TestCTSV0022_SlowExportStillWaitsOutWriter(t *testing.T) {
+	_, repo := repoWithStore(t)
+	const patience = 300 * time.Millisecond
+	old := snapshot.DefaultPatience
+	snapshot.DefaultPatience = patience
+	defer func() { snapshot.DefaultPatience = old }()
+	bodies := 0
+	writer := make(chan error, 1)
+	var out bytes.Buffer
+	res, err := Export(ExportOptions{Repo: repo, Staging: fixture.TempDirOutside(t), Stdout: &out, afterProbe: func() {
+		bodies++
+		if bodies != 1 {
+			return
+		}
+		time.Sleep(patience + 100*time.Millisecond)
+		hraw, err := os.ReadFile(filepath.Join(repo.StateDir, "head.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		h, err := snapshot.DecodeHead(hraw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		next, _ := snapshot.ReceiptName(h.LastSeq.Uint64() + 1)
+		go func() { writer <- commitWithWindow(repo.StateDir, 1, 150*time.Millisecond, 0, nil) }()
+		for start := time.Now(); time.Since(start) < 5*time.Second; time.Sleep(time.Millisecond) {
+			if _, err := os.Lstat(filepath.Join(repo.StateDir, "receipts", next)); err == nil {
+				return
+			}
+		}
+		t.Fatal("writer never linked its receipt in")
+	}})
+	if werr := <-writer; werr != nil {
+		t.Fatalf("writer: %v", werr)
+	}
+	if err != nil {
+		t.Fatalf("slow export meeting a writer in flight: %v (bodies %d)", err, bodies)
+	}
+	if bodies < 2 || res.Manifest.ExportedAtSeq != "4" {
+		t.Fatalf("export ran %d bodies at seq %s, want a re-read at the writer's receipt 4", bodies, res.Manifest.ExportedAtSeq)
+	}
+	if _, err := Verify(bytes.NewReader(out.Bytes())); err != nil {
+		t.Fatal(err)
+	}
+}
