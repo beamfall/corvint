@@ -71,7 +71,13 @@ func SelectPlaywright(root, configPath, revision string, dirty []string, receipt
 // symbols against the content that before reads at the comparison base; a nil reader reports every
 // owned dirty path's symbols as UNRESOLVED (TJAA-V0-033).
 func SelectPlaywrightWithBase(root, configPath, revision string, dirty []string, receipt []byte, before PlaywrightBaseReader) (PlaywrightPlan, error) {
-	plan, draft, err := selectPlaywrightStaticDraft(root, configPath, dirty)
+	return SelectPlaywrightWithEnvironment(root, configPath, revision, dirty, receipt, before, nil)
+}
+
+// SelectPlaywrightWithEnvironment is SelectPlaywrightWithBase that also records the caller-named
+// environment variables and resolves a computed executablePath that reads one (AFP-V0-382).
+func SelectPlaywrightWithEnvironment(root, configPath, revision string, dirty []string, receipt []byte, before PlaywrightBaseReader, environment []PlaywrightEnvironmentInput) (PlaywrightPlan, error) {
+	plan, draft, err := selectPlaywrightStaticDraft(root, configPath, dirty, environment)
 	if err != nil {
 		return PlaywrightPlan{}, err
 	}
@@ -91,7 +97,12 @@ func SelectPlaywrightWithBase(root, configPath, revision string, dirty []string,
 		plan.FallbackArgv = []string{"npx", "playwright", "test", "--config=" + configPath}
 		plan.Selected = []PlaywrightSelection{}
 		plan.Excluded = []PlaywrightExclusion{}
-		plan.Unknown = canonicalPlaywrightUnknowns(append(plan.Unknown, selectionUnknown("playwright:discovery-unproven", plan.Discovery.State)))
+		detail := plan.Discovery.State
+		if detail == "MISSING" {
+			// AFP-V0-388: name the absent input, because it alone empties the selection.
+			detail = "MISSING: no --playwright-discovery receipt was given, so no file selection is proven; write one with `corvint affected discovery --playwright-config PATH --playwright-list FILE`"
+		}
+		plan.Unknown = canonicalPlaywrightUnknowns(append(plan.Unknown, selectionUnknown("playwright:discovery-unproven", detail)))
 	}
 	if plan.Fallback == PlaywrightFallbackFullSuite {
 		narrowing := finishPlaywrightNarrowing(draft, plan.Discovery, listed)

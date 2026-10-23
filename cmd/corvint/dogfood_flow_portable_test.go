@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -81,6 +82,9 @@ type portableRun struct {
 func portableDogfoodRunner(t *testing.T) portableRun {
 	t.Helper()
 	binary := filepath.Join(t.TempDir(), "bin", "corvint")
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
 	if err := workBuildCorvintWithoutVCS(binary); err != nil {
 		t.Fatal(err)
 	}

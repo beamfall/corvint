@@ -371,12 +371,17 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	// the read or writes its timing after the summary is printed.
 	liveCtx, cancelLive := context.WithCancel(ctx)
 	live := &corpusLiveRead{root: o.root, timings: t}
+	joinPrimary := func() {}
 	defer func() {
 		cancelLive()
 		live.join()
+		joinPrimary()
 	}()
 	options := doccorpus.ReadOptions{Rederive: o.verifyRederive || o.op == "validate", Timings: t, Index: doccorpus.IndexedOperation(o.op)}
 	if corpusQueryOperation(o.op) {
+		// The primary checkout is observed from the read's start, before the header arrives
+		// (DCP-V1-465); the deferred cancel and join above end it on every exit (DCP-V1-467).
+		liveCtx, joinPrimary = doccorpus.WithPrimaryObservation(liveCtx, o.root)
 		options.Header = func(h *doccorpus.Artifact) { live.start(liveCtx, h) }
 	}
 	a, err := doccorpus.OpenReadFile(ctx, o.root, o.artifact, options)

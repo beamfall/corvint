@@ -38,6 +38,9 @@ const exceptListVectorOutput = `{"profile":"corvint-analyzer-candidate/experimen
 func buildCLI(t testing.TB) string {
 	t.Helper()
 	binary := filepath.Join(t.TempDir(), "corvint-analyzer-python")
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
 	command := exec.Command("go", "build", "-trimpath", "-o", binary, ".")
 	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOCACHE="+filepath.Join(t.TempDir(), "gocache"))
 	if output, err := command.CombinedOutput(); err != nil {

@@ -374,6 +374,8 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 	owned := make([]string, 0, len(files))
 	aliasConfigs := []string{}
 	sites := sourceSites{}
+	// opaque holds the owned modules whose imports are not all statically observed (AFP-V0-389).
+	opaque := map[string]bool{}
 	for _, relative := range files {
 		if unreadModuleSource(relative) {
 			frontier.raise(FrontierUnparsedSource, relative)
@@ -409,6 +411,8 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 			marker := dynamicConfigMarker(text)
 			configs = append(configs, config{path: relative, directory: path.Dir(relative), runner: runner, membership: marker >= 0, tsconfigAt: tsconfigToken(text), body: text})
 			switch {
+			case marker >= 0 && runner == runnerPlaywright:
+				// AFP-V0-404: decided once the tests are classified, below.
 			case marker >= 0:
 				frontier.at(FrontierConfig, relative, text, marker)
 			case runner == runnerMocha:
@@ -435,6 +439,7 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 		}
 		scan := scanImportSites(relative, body)
 		sites[relative] = &sourceIndex{body: body, offsets: scan.offsets}
+		opaque[relative] = scan.err != nil || scan.dynamic >= 0 || scan.unresolved >= 0
 		if scan.err != nil {
 			frontier.at(FrontierUnparsedSource, relative, body, scan.syntax)
 		}
@@ -448,6 +453,11 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 		observation.refs = scan.refs
 		observations = append(observations, observation)
 	}
+	for _, config := range configs {
+		if config.runner == runnerPlaywright && config.membership && !playwrightStaticMembership(config, files, observations) {
+			frontier.at(FrontierConfig, config.path, config.body, dynamicConfigMarker(config.body))
+		}
+	}
 	// TJAA-V0-037: the general adapter resolves tsconfig aliases as the Playwright config mode
 	// does only when Playwright is the sole runner identity observed, because another runner's
 	// loader (a Jest moduleNameMapper, a Vite resolve.alias) need not follow tsconfig paths.
@@ -458,7 +468,7 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 	// superset of the gate's own (TJAA-V0-059).
 	var keep func(string) bool
 	if len(aliasConfigs) != 0 && !resolveAliases {
-		if blocker, only := playwrightOnlyRunners(configs, scopes, observations); !only {
+		if blocker, only := playwrightOnlyRunners(configs, scopes, observations, aliasFreeTests(observations, bodies, scopes, opaque)); !only {
 			keep = func(ref string) bool { return localPackage(importedPackage(ref), scopes) }
 			for _, relative := range aliasConfigs {
 				body := bodies[relative]
@@ -509,8 +519,10 @@ type runnerBlocker struct{ site, token string }
 // dependency alone assigns no runner (TJAA-V0-003) and loads no module, so a non-Playwright one
 // does not block while every config and test is Playwright's (TJAA-V0-050). A Playwright config
 // that names a tsconfig outside comments is excluded because it can select a module-resolution
-// config other than the nearest tsconfig.json. Otherwise it returns the first blocking identity.
-func playwrightOnlyRunners(configs []config, scopes []packageScope, observations []observation) (runnerBlocker, bool) {
+// config other than the nearest tsconfig.json. A test of another runner in aliasFree, whose
+// import closure meets no tsconfig alias, does not block once a Playwright identity is seen
+// (AFP-V0-389). Otherwise it returns the first blocking identity.
+func playwrightOnlyRunners(configs []config, scopes []packageScope, observations []observation, aliasFree map[string]bool) (runnerBlocker, bool) {
 	seen := false
 	for _, config := range configs {
 		if config.runner != runnerPlaywright {
@@ -530,14 +542,24 @@ func playwrightOnlyRunners(configs []config, scopes []packageScope, observations
 		}
 		seen = seen || scope.runners[runnerPlaywright]
 	}
+	exempt := runnerBlocker{}
 	for _, observation := range observations {
 		if !observation.test {
 			continue
 		}
 		if observation.runner != runnerPlaywright {
+			if aliasFree[observation.path] {
+				if exempt.site == "" {
+					exempt = runnerBlocker{site: observation.path, token: observation.runner}
+				}
+				continue
+			}
 			return runnerBlocker{site: observation.path, token: observation.runner}, false
 		}
 		seen = true
+	}
+	if !seen && exempt.site != "" {
+		return exempt, false
 	}
 	return runnerBlocker{}, seen
 }
@@ -1936,11 +1958,14 @@ func readPackageScope(relative string, body []byte) (packageScope, error) {
 	}, nil
 }
 
+// dynamicConfigMarkers are the membership and project markers dynamicConfigMarker searches for.
+var dynamicConfigMarkers = []string{"testMatch", "testRegex", "testDir", "specPattern", "specs:", "src:", "projects:", "include:", "exclude:", "setupFiles", "globalSetup", "capabilities:", "browsers:"}
+
 // dynamicConfigMarker returns the offset of the first membership or project marker the adapter does
 // not model, or -1.
 func dynamicConfigMarker(body string) int {
 	offset := -1
-	for _, marker := range []string{"testMatch", "testRegex", "testDir", "specPattern", "specs:", "src:", "projects:", "include:", "exclude:", "setupFiles", "globalSetup", "capabilities:", "browsers:"} {
+	for _, marker := range dynamicConfigMarkers {
 		if found := strings.Index(body, marker); found >= 0 && (offset < 0 || found < offset) {
 			offset = found
 		}

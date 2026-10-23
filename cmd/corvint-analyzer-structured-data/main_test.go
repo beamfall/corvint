@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/analyzerstructured"
@@ -35,6 +36,9 @@ func buildCandidate(t *testing.T) string {
 		t.Fatal(err)
 	}
 	binary := filepath.Join(t.TempDir(), "corvint-analyzer-structured-data")
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
 	command := exec.Command("go", "build", "-trimpath", "-buildvcs=false", "-o", binary, "./cmd/corvint-analyzer-structured-data")
 	command.Dir = root
 	command.Env = append(os.Environ(), "GOTOOLCHAIN=local")

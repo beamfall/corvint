@@ -350,6 +350,9 @@ func buildCompiledCLIWithOptions(t testing.TB, options ...string) string {
 	t.Helper()
 	root := t.TempDir()
 	path := filepath.Join(root, "corvint-analyzer-go")
+	if runtime.GOOS == "windows" {
+		path += ".exe"
+	}
 	tool, env := pinnedGoBuildEnvironment(t, root)
 	args := []string{"build", "-trimpath", "-buildvcs=false", "-o", path}
 	args = append(args, options...)

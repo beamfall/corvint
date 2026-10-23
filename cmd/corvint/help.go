@@ -688,6 +688,7 @@ Usage:
           --base FULL_COMMIT_ID
   corvint [--root PATH] affected [--base FULL_COMMIT_ID]
           --playwright-config PATH [--playwright-discovery FILE]
+          [--playwright-env NAME[=VALUE] ...]
   corvint [--root PATH] affected discovery --playwright-config PATH
           --playwright-list FILE
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider RECORD
@@ -808,6 +809,19 @@ source bytes to the complete unfiltered project/file listing. Missing or mismatc
 discovery emits no file commands and one complete-config fallbackArgv; a MALFORMED
 receipt names its reason and a one-line detail. It executes no config or test and
 cannot be combined with --provider.
+--playwright-env (repeatable, requires --playwright-config, not with --snapshot)
+records one environment variable in plan.environment with its value and SHA-256:
+NAME=VALUE is a value the caller supplies, and NAME reads only that variable from
+the invoking environment, SET or UNSET. A use.launchOptions.executablePath of the
+form process.env.NAME, optionally with ?? or || and a string literal without
+escapes, then resolves: UNSET is undefined, so the project records the bundled
+browser, and a value records that binary path. The
+playwright:browser-executable-unresolved unknown stays when the variable is not
+named, the value is empty, or the config loads a module other than
+@playwright/test or the path, os, url and fs built-ins, names a module loader or
+evaluator such as require, createRequire, module, loadEnvFile, eval or Function,
+or declares globalSetup, any of which can set the variable first. No other
+variable is read.
 
 affected discovery converts the JSON report of an unfiltered
 ` + "`playwright test --list --reporter=json`" + ` run (--playwright-list FILE) into that

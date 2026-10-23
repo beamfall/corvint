@@ -198,6 +198,9 @@ func TestRunRawRequestBoundary(t *testing.T) {
 func builtCLI(t *testing.T) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "corvint-analyzer-js")
+	if runtime.GOOS == "windows" {
+		path += ".exe"
+	}
 	command := exec.Command("go", "build", "-o", path, ".")
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("build CLI: %v: %s", err, output)

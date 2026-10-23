@@ -1255,6 +1255,7 @@
         "--paths-from",
         "--playwright-config",
         "--playwright-discovery",
+        "--playwright-env",
         "--playwright-list",
         "--provider",
         "--provider-command",

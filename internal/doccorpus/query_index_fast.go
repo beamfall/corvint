@@ -241,7 +241,7 @@ func (h *claimTermHandoff) take(claims []Claim) []*claimTermBlock {
 // deriveClaimTerms derives the claim-term block of claims, the first of
 // which is claim lo.
 func deriveClaimTerms(claims []Claim, lo int) *claimTermBlock {
-	b := &claimTermBlock{lo: lo, hi: lo + len(claims), postings: map[string][]int{}, subjects: map[string]map[string]struct{}{}}
+	b := &claimTermBlock{lo: lo, hi: lo + len(claims), postings: make(map[string][]int, len(claims)), subjects: map[string]map[string]struct{}{}}
 	text, id := map[string]struct{}{}, map[string]struct{}{}
 	for k := range claims {
 		c := &claims[k]
@@ -336,9 +336,30 @@ func indexTermsFast(ctx context.Context, a *Artifact, x *QueryIndex, terms []map
 	if ctx.Err() != nil {
 		return false
 	}
+	// Each term's postings are allocated once at their final length, and a term that only one
+	// block holds keeps that block's list; the blocks are not read again (DCP-V1-468).
+	hint := 0
+	if len(blocks) > 0 {
+		hint = len(blocks[0].postings)
+	}
+	total := make(map[string]int, hint)
 	for _, b := range blocks {
 		for term, list := range b.postings {
-			x.ClaimTerms[term] = append(x.ClaimTerms[term], list...)
+			total[term] += len(list)
+		}
+	}
+	x.ClaimTerms = make(map[string][]int, len(total))
+	for _, b := range blocks {
+		for term, list := range b.postings {
+			held, ok := x.ClaimTerms[term]
+			switch {
+			case ok:
+				x.ClaimTerms[term] = append(held, list...)
+			case total[term] == len(list):
+				x.ClaimTerms[term] = list
+			default:
+				x.ClaimTerms[term] = append(make([]int, 0, total[term]), list...)
+			}
 		}
 		if !stored(b.n) {
 			return false

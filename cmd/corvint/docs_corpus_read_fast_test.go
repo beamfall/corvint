@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
 )
@@ -213,6 +214,52 @@ func TestDCPV1431CorpusRefusalJoinsFreshness(t *testing.T) {
 		}
 		if started.Load() != before+1 || finished.Load() != started.Load() || cancelled.Load() != started.Load() {
 			t.Fatalf("%s: observation started %d, finished %d, cancelled %d before the read returned: %s", refusal.name, started.Load(), finished.Load(), cancelled.Load(), stderr)
+		}
+	}
+}
+
+// TestDCPV1467CorpusPreHeaderRefusalJoinsPrimary: a read refused before its artifact header
+// arrives, because the artifact is missing or malformed, cancels and joins the primary
+// observation it started at read start before the command returns, and starts no header
+// freshness. It is serial because it replaces the package's primary observation.
+func TestDCPV1467CorpusPreHeaderRefusalJoinsPrimary(t *testing.T) {
+	root := taskContextRepository(t)
+	if err := os.WriteFile(filepath.Join(root, "malformed.json"), []byte("{\"schema\": "), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var started, finished, cancelled, header atomic.Int32
+	defer doccorpus.SetPrimaryObservationForTest(func(ctx context.Context, _ string) (*contextindex.TreeObservation, error) {
+		started.Add(1)
+		defer finished.Add(1)
+		select {
+		case <-ctx.Done():
+			cancelled.Add(1)
+			// Ending slowly after the cancel makes a read that cancels without joining
+			// return before finished is counted.
+			time.Sleep(200 * time.Millisecond)
+			return nil, ctx.Err()
+		case <-time.After(time.Minute):
+			return nil, nil
+		}
+	})()
+	defer func(saved func(context.Context, string, *doccorpus.Artifact) (doccorpus.FreshnessOverlay, error)) {
+		corpusLiveFreshness = saved
+	}(corpusLiveFreshness)
+	corpusLiveFreshness = func(context.Context, string, *doccorpus.Artifact) (doccorpus.FreshnessOverlay, error) {
+		header.Add(1)
+		return doccorpus.FreshnessOverlay{}, nil
+	}
+	for _, artifact := range []string{"missing.json", "malformed.json"} {
+		before := started.Load()
+		code, out, stderr := corpusCLI(t, root, "docs", "corpus", "concept", "--query", "cache", "--artifact", artifact)
+		if code == 0 || out != "" {
+			t.Fatalf("%s: %d %s", artifact, code, out)
+		}
+		if started.Load() != before+1 || finished.Load() != started.Load() || cancelled.Load() != started.Load() {
+			t.Fatalf("%s: primary observation started %d, finished %d, cancelled %d before the read returned: %s", artifact, started.Load(), finished.Load(), cancelled.Load(), stderr)
+		}
+		if header.Load() != 0 {
+			t.Fatalf("%s: header freshness started %d times on a pre-header refusal", artifact, header.Load())
 		}
 	}
 }

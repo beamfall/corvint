@@ -112,6 +112,15 @@ AFP-V0-400	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-401	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1803) The Go	standing	2026-10-11; V1-1803
 AFP-V0-402	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1006; amends	standing	2026-10-11; V1-1006
 AFP-V0-403	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2370; amends	standing	2026-10-11; V1-2370
+AFP-V0-382	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
+AFP-V0-383	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
+AFP-V0-384	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
+AFP-V0-385	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
+AFP-V0-386	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
+AFP-V0-387	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
+AFP-V0-388	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
+AFP-V0-389	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1604))	standing	2026-10-11; #1604
+AFP-V0-404	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1604))	standing	2026-10-11; #1604
 AFP-V0-390	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
 AFP-V0-391	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
 AFP-V0-392	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
@@ -1558,6 +1567,7 @@ CAL-V0-320	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner
 CAL-V0-321	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2352) A read	standing	2026-10-11; V1-2352
 CAL-V0-322	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2359) `attempt	standing	2026-10-11; V1-2359
 CAL-V0-340	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2449) A journa	standing	2026-10-11; V1-2449
+CAL-V0-372	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), #1551) When the	standing	2026-10-11; #1551
 CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-
 CAL-V0-300	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted, decision 0538; V1-1508) A receipt MAY be	owner	decision 0538; V1-1508
 CAL-V0-301	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted, decision 0538; V1-1508) An elided receipt is	owner	decision 0538; V1-1508
@@ -2701,6 +2711,10 @@ DCP-V1-461	docs/specs/documentation-corpus-v1.md	`--previous` of `delta` and `ca
 DCP-V1-462	docs/specs/documentation-corpus-v1.md	`delta` accepts `--timings` and `--verify-rederive` with the `info` help text;	unrecorded	-
 DCP-V1-463	docs/specs/documentation-corpus-v1.md	On the `PRB-V0-021` full-scale fixture (10,000 inputs, 96,350 records, a 97 MB	unrecorded	-
 DCP-V1-464	docs/specs/documentation-corpus-v1.md	Before anything is classified, the verified current side of `delta` checks, with	unrecorded	-
+DCP-V1-465	docs/specs/documentation-corpus-v1.md	A CLI query read (`corpusQueryOperation`) starts the live tree observation of it	unrecorded	-
+DCP-V1-466	docs/specs/documentation-corpus-v1.md	The started observation answers at most one freshness, and only one of the same	unrecorded	-
+DCP-V1-467	docs/specs/documentation-corpus-v1.md	Every exit of the read, a refusal before or after the header included, cancels t	unrecorded	-
+DCP-V1-468	docs/specs/documentation-corpus-v1.md	The decode's canonical check (`DCP-V1-414`) encodes each decoded record element	unrecorded	-
 DCP-V1-360	docs/specs/documentation-corpus-v1.md	`delta` prints one `corvint-corpus-delta/1` receipt: the previous and current	unrecorded	-
 DCP-V1-361	docs/specs/documentation-corpus-v1.md	The classified population is the previous corpus's subjects, claims and relation	unrecorded	-
 DCP-V1-362	docs/specs/documentation-corpus-v1.md	Every anchor is re-validated against the current revision's blobs. A blob is rea	unrecorded	-
