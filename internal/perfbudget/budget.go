@@ -108,10 +108,15 @@ func (b *Budgets) Validate() error {
 				return fmt.Errorf("budgets: %s: %s needs a reason, and pending_on exactly when pending", s.ID, l.Metric)
 			}
 		}
+		ceilings := map[string]bool{}
 		for _, l := range s.Ceilings {
 			if l.Status != StatusEnforced {
 				return fmt.Errorf("budgets: %s: ceiling %s must be enforced", s.ID, l.Metric)
 			}
+			ceilings[l.Metric] = true
+		}
+		if !ceilings[MetricP95Wall] || !ceilings[MetricPeakRSS] {
+			return fmt.Errorf("budgets: %s: needs enforced p95_wall_ms and peak_rss_bytes ceilings", s.ID)
 		}
 	}
 	if !slices.Equal(ids, ScenarioIDs) {

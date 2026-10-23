@@ -1,5 +1,5 @@
 // Package perfbudget generates the realistic-size read-budget fixture and measures the read
-// budgets over it (performance-profiling-and-read-budget-v0.md, PRB-V0-020..039). The fixture
+// budgets over it (performance-profiling-and-read-budget-v0.md, PRB-V0-020..036). The fixture
 // is generated at run time, deterministically, and never committed.
 package perfbudget
 
@@ -43,8 +43,12 @@ var (
 	Smoke = Scale{Name: "smoke", PrimaryPages: 40, AdditionalRepositories: 3, AdditionalPages: 10, ParagraphsPerPage: 6, ClaimsPerPage: 10, ChangedPages: 4, RubyFiles: 60}
 )
 
+// FixtureGenerator versions the generator; a reused fixture from another version is refused.
+const FixtureGenerator = "corvint-perf-budget-fixture/1"
+
 // Fixture is a generated fixture. Paths are absolute; artifacts are relative to Primary.
 type Fixture struct {
+	Generator  string   `json:"generator"`
 	Scale      Scale    `json:"scale"`
 	Primary    string   `json:"-"`
 	Additional []string `json:"-"`
@@ -87,7 +91,7 @@ func Generate(ctx context.Context, dir string, s Scale, build Builder) (*Fixture
 	if entries, err := os.ReadDir(dir); err == nil && len(entries) > 0 {
 		return nil, fmt.Errorf("perf-budget fixture: %s is not empty", dir)
 	}
-	f := &Fixture{Scale: s, Primary: filepath.Join(dir, "app"), Ruby: filepath.Join(dir, "ruby-app"), Previous: "previous.json", PreviousManifest: "previous-manifest.json", Current: "corpus.json", Manifest: "manifest.json", SearchQuery: "invoice ledger", GetID: "adapter-lib1:lib1-0", RubyPath: "app/models/model_00001.rb"}
+	f := &Fixture{Generator: FixtureGenerator, Scale: s, Primary: filepath.Join(dir, "app"), Ruby: filepath.Join(dir, "ruby-app"), Previous: "previous.json", PreviousManifest: "previous-manifest.json", Current: "corpus.json", Manifest: "manifest.json", SearchQuery: "invoice ledger", GetID: "adapter-lib1:lib1-0", RubyPath: "app/models/model_00001.rb"}
 	// Primary pages, first revision.
 	for n := range s.PrimaryPages {
 		if err := writeFile(filepath.Join(f.Primary, "docs", fmt.Sprintf("area%02d", n%50), fmt.Sprintf("page%05d.md", n)), primaryPage(n, s.ParagraphsPerPage, false)); err != nil {

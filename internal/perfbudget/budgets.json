@@ -178,6 +178,7 @@
       "contended": true
     },
     "fixture": {
+      "generator": "corvint-perf-budget-fixture/1",
       "scale": {
         "name": "full",
         "primary_pages": 7000,

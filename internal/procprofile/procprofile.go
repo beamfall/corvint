@@ -59,8 +59,10 @@ type Session struct {
 }
 
 // Start opens the files the knobs name and starts the CPU profile. An unset or empty knob is
-// off. Both files are created before anything runs, so an unwritable path refuses up front
-// instead of losing the profile at exit.
+// off. Both files are opened before anything runs, so an unwritable path refuses up front
+// instead of losing the profile at exit. Files are opened without truncation and truncated only
+// once both are open and the profiler has started, so a refusal leaves an existing file intact
+// and removes a file it created.
 func Start(lookup runtimeenv.Lookup) (*Session, error) {
 	cpuPath, err := knobPath(lookup, CPUSuffix)
 	if err != nil {
@@ -70,23 +72,60 @@ func Start(lookup runtimeenv.Lookup) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	if cpuPath != "" && memPath != "" && filepath.Clean(cpuPath) == filepath.Clean(memPath) {
-		return nil, fail("profile-invalid", "CORVINT_CPUPROFILE and CORVINT_MEMPROFILE name the same file %q", cpuPath)
+	if cpuPath != "" && memPath != "" {
+		cpuAbs, cpuErr := filepath.Abs(cpuPath)
+		memAbs, memErr := filepath.Abs(memPath)
+		if cpuErr == nil && memErr == nil && cpuAbs == memAbs {
+			return nil, fail("profile-invalid", "CORVINT_CPUPROFILE and CORVINT_MEMPROFILE name the same file %q", cpuPath)
+		}
 	}
 	s := &Session{done: make(chan struct{})}
+	var created []string
+	refuse := func(err error) (*Session, error) {
+		s.closeFiles()
+		for _, path := range created {
+			_ = os.Remove(path)
+		}
+		return nil, err
+	}
+	open := func(path, knob string) (*os.File, error) {
+		_, statErr := os.Stat(path)
+		file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0o666)
+		if err != nil {
+			return nil, fail("profile-unavailable", "%s: %w", knob, err)
+		}
+		if errors.Is(statErr, os.ErrNotExist) {
+			created = append(created, path)
+		}
+		return file, nil
+	}
 	if memPath != "" {
-		if s.mem, err = os.Create(memPath); err != nil {
-			return nil, fail("profile-unavailable", "CORVINT_MEMPROFILE: %w", err)
+		if s.mem, err = open(memPath, "CORVINT_MEMPROFILE"); err != nil {
+			return refuse(err)
 		}
 	}
 	if cpuPath != "" {
-		if s.cpu, err = os.Create(cpuPath); err != nil {
-			s.closeFiles()
-			return nil, fail("profile-unavailable", "CORVINT_CPUPROFILE: %w", err)
+		if s.cpu, err = open(cpuPath, "CORVINT_CPUPROFILE"); err != nil {
+			return refuse(err)
 		}
+	}
+	if s.cpu != nil && s.mem != nil {
+		cpuInfo, cpuErr := s.cpu.Stat()
+		memInfo, memErr := s.mem.Stat()
+		if cpuErr == nil && memErr == nil && os.SameFile(cpuInfo, memInfo) {
+			return refuse(fail("profile-invalid", "CORVINT_CPUPROFILE and CORVINT_MEMPROFILE name the same file %q", cpuPath))
+		}
+	}
+	for _, f := range []*os.File{s.mem, s.cpu} {
+		if f != nil {
+			if err := f.Truncate(0); err != nil {
+				return refuse(fail("profile-unavailable", "%s: %w", f.Name(), err))
+			}
+		}
+	}
+	if s.cpu != nil {
 		if err = pprof.StartCPUProfile(s.cpu); err != nil {
-			s.closeFiles()
-			return nil, fail("profile-unavailable", "CORVINT_CPUPROFILE: %w", err)
+			return refuse(fail("profile-unavailable", "CORVINT_CPUPROFILE: %w", err))
 		}
 	}
 	return s, nil
@@ -170,11 +209,13 @@ func Run(ctx context.Context, lookup runtimeenv.Lookup, report func(error), body
 		return 2
 	}
 	session.StopOnDone(ctx)
-	status := body()
-	if err := session.Stop(); err != nil {
-		report(err)
-	}
-	return status
+	// Deferred, so a panicking body still leaves complete profiles behind.
+	defer func() {
+		if err := session.Stop(); err != nil {
+			report(err)
+		}
+	}()
+	return body()
 }
 
 // Reporter writes one "<name>: <error>" line to w.

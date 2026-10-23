@@ -3858,7 +3858,7 @@ PRB-V0-025	docs/specs/performance-profiling-and-read-budget-v0.md	The measured `
 PRB-V0-026	docs/specs/performance-profiling-and-read-budget-v0.md	Each scenario MUST report every sample's wall time, nearest-rank p50 and p95, an	unrecorded	-
 PRB-V0-027	docs/specs/performance-profiling-and-read-budget-v0.md	Peak resident set MUST come from the exited process's own resource usage (bytes	unrecorded	-
 PRB-V0-028	docs/specs/performance-profiling-and-read-budget-v0.md	Every report and baseline MUST carry the host-contention record (GitHub #1406):	unrecorded	-
-PRB-V0-029	docs/specs/performance-profiling-and-read-budget-v0.md	`make perf-budget` MUST build both binaries from the tree, run the harness, prin	unrecorded	-
+PRB-V0-029	docs/specs/performance-profiling-and-read-budget-v0.md	`make perf-budget` MUST build the harness and both binaries from the tree, run t	unrecorded	-
 PRB-V0-030	docs/specs/performance-profiling-and-read-budget-v0.md	The committed budgets file (`internal/perfbudget/budgets.json`,	unrecorded	-
 PRB-V0-031	docs/specs/performance-profiling-and-read-budget-v0.md	The budgets MUST encode the GitHub #1598 targets (cold CLI read p95 under 1,000	unrecorded	-
 PRB-V0-032	docs/specs/performance-profiling-and-read-budget-v0.md	Every scenario MUST carry enforced regression ceilings on p95 wall time and peak	unrecorded	-

@@ -48,7 +48,8 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
   of the same bracket. `CRB-V0-018`'s exact runtime-settings list names it.
 - `PRB-V0-004`: The profiles MUST be written when the process body returns and as soon as the
   process's signal context ends on SIGINT or SIGTERM, even if the body is still running; a later
-  exit does not write them again.
+  exit does not write them again. A context that ends for another reason (an adapter's host-kill
+  deadline) MUST NOT stop the profiles, and a panicking body still writes them.
 - `PRB-V0-005`: The token `{pid}` in either path MUST be replaced by the process ID, so a child that
   inherits the environment writes its own file instead of truncating its parent's. Without the
   token the path is used as given; one process writes one CPU and one heap file.
@@ -56,12 +57,15 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
   `profile-unavailable` when a file cannot be created or the profiler cannot start,
   `profile-invalid` when both knobs name the same file or a value holds a NUL byte. `corvint`
   reports the refusal as its JSON error envelope; servers write one `<server>: <error>` stderr line.
+  Two names that reach one file (a relative and an absolute path, a symbolic link) are the same
+  file. A refusal MUST NOT truncate an existing file and MUST remove a file it created.
 - `PRB-V0-007`: A profile write that fails at exit MUST be reported (`profile-write-failed`) and MUST
   keep the command's own exit status.
 - `PRB-V0-008`: Setting the knobs MUST NOT change any stdout byte or exit status of a command.
 - `PRB-V0-009`: `corvint help --json` MUST carry a `profiling` member (`corvint-profile-knobs/0`)
   naming both knobs, the default, the `{pid}` token, when files are written, every command that
-  honours them (the dispatcher's own top-level command list), every MCP server that honours them,
+  honours them (the dispatcher's own top-level command list, and the hidden plumbing verbs
+  `native-hook`, `authority-event` and `qualified-event`), every MCP server that honours them,
   and the entries that do not. Until the capability catalog of GitHub #1588 lands, `help --json`
   prints only this member; the catalog absorbs it unchanged.
 - `PRB-V0-010`: Every MCP server binary (`corvint-mcp`, `corvint-corpus-mcp`, `corvint-docs-mcp`,
@@ -97,7 +101,8 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
   `affected-path` (`affected --path` on the Ruby tree after one unmeasured run).
 - `PRB-V0-025`: The measured `corvint` binary MUST build the artifacts it reads, because a read
   rederives the artifact and refuses another builder's. A reused fixture whose recorded builder
-  SHA-256 differs MUST be rebuilt from its manifests; a reused fixture of another scale is refused.
+  SHA-256 differs MUST be rebuilt from its manifests; a reused fixture of another scale or another
+  generator version (`corvint-perf-budget-fixture/1`) is refused.
 - `PRB-V0-026`: Each scenario MUST report every sample's wall time, nearest-rank p50 and p95, and
   the maximum peak resident set of the processes that served it. A refused read (non-zero exit or
   MCP error result) MUST record the scenario as failed, never as a fast sample.
@@ -108,14 +113,18 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
   OS, architecture, Go version, core count, the 1, 5 and 15 minute load averages before and after
   the run (null with a reason where unavailable), and `contended` when either 1-minute load reached
   the core count.
-- `PRB-V0-029`: `make perf-budget` MUST build both binaries from the tree, run the harness, print
-  the report JSON, and exit 0 when every enforced limit holds, 1 when an enforced limit is exceeded
-  or unknown, and 2 when the harness cannot run. `PERF_BUDGET_ARGS` passes `--fixture`, `--scale`,
-  `--corvint`, `--corpus-mcp`, `--out` and `--record-baseline`.
+- `PRB-V0-029`: `make perf-budget` MUST build the harness and both binaries from the tree, run the
+  harness as a built binary (not `go run`, which flattens exit statuses), and print the report
+  JSON. The harness MUST exit 0 when every enforced limit holds, 1 when an enforced limit is
+  exceeded or unknown, and 2 when it cannot run, including a `--scale` other than the budgets
+  file's; `make` fails on either non-zero status and names it in its `Error N` line. `PERF_BUDGET_ARGS`
+  passes `--budgets`, `--fixture`, `--scale`, `--corvint`, `--corpus-mcp`, `--out` and
+  `--record-baseline`; a baseline is not recorded when any scenario failed or measured nothing.
 - `PRB-V0-030`: The committed budgets file (`internal/perfbudget/budgets.json`,
   `corvint-perf-budget/0`) MUST bound exactly the six scenarios in order with positive limits on
   `p50_wall_ms`, `p95_wall_ms` or `peak_rss_bytes`, each with a reason; a pending limit MUST name
-  what it waits on. A file that departs from this is refused.
+  what it waits on, and every scenario MUST carry the two `PRB-V0-032` ceilings. A file that
+  departs from this is refused.
 - `PRB-V0-031`: The budgets MUST encode the GitHub #1598 targets (cold CLI read p95 under 1,000 ms,
   warm CLI read under 200 ms, MCP first call under 1,000 ms, MCP warm call under 100 ms) and the
   GitHub #1601 target (warm `affected --path` under 1,000 ms) at exactly those numbers, as
@@ -169,7 +178,8 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
   through the entry bracket on a committed fixture, checks both profiles parse as gzip pprof,
   and checks stdout and exit are identical without the knobs.
   `TestPRBV0010CorpusServerHonoursProfileKnobs` serves a corpus MCP session and exits at end of
-  input; `TestPRBV0010ServerHonoursProfileKnobs` covers the other three servers.
+  input; `TestPRBV0010ServerHonoursProfileKnobs` runs the other three servers' entry function
+  (`--version`) under the knobs.
   `TestPRBV0004SignalWritesProfiles` delivers SIGINT and SIGTERM to a real process.
 - #1602: `TestPRBV0024HarnessSmokeRun` builds both binaries and runs all six scenarios end to end;
   `TestPRBV0031CommittedBudgets` checks the committed targets, ceilings and baseline. The recorded
@@ -185,7 +195,7 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
 | `PRB-V0-003` | `internal/procprofile` | `TestPRBV0001BothKnobsWriteProfiles`, `TestPRBV0008EveryNamedCommandWritesProfiles` |
 | `PRB-V0-004` | `internal/procprofile` | `TestPRBV0004ContextEndWritesProfilesBeforeExit`, `TestPRBV0004SignalWritesProfiles` |
 | `PRB-V0-005` | `internal/procprofile` | `TestPRBV0005PIDPlaceholder` |
-| `PRB-V0-006` | `internal/procprofile`, `cmd/corvint/profile_knobs.go` | `TestPRBV0006UnusableKnobRefusesBeforeBody`, `TestPRBV0006UnusableKnobRefusesCommand` |
+| `PRB-V0-006` | `internal/procprofile`, `cmd/corvint/profile_knobs.go` | `TestPRBV0006UnusableKnobRefusesBeforeBody`, `TestPRBV0006RefusalWritesNothing`, `TestPRBV0006UnusableKnobRefusesCommand` |
 | `PRB-V0-007` | `internal/procprofile` | `TestPRBV0007WriteFailureReported` |
 | `PRB-V0-008` | `cmd/corvint/profile_knobs.go`, `cmd/corvint/main.go`, `cmd/corvint/taskcontext.go` | `TestPRBV0008EveryNamedCommandWritesProfiles`, `TestPRBV0008NoNestedProfilerStart` |
 | `PRB-V0-009` | `cmd/corvint/profile_knobs.go`, `cmd/corvint/help.go` | `TestPRBV0009HelpJSONListsProfileKnobScope` |
@@ -201,7 +211,7 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
 | `PRB-V0-026` | `internal/perfbudget/measure.go` | `TestPRBV0026Percentiles`, `TestPRBV0024HarnessSmokeRun` |
 | `PRB-V0-027` | `internal/perfbudget/rusage_unix.go`, `internal/perfbudget/rusage_other.go` | `TestPRBV0026Percentiles`, `TestPRBV0024HarnessSmokeRun` |
 | `PRB-V0-028` | `internal/perfbudget/host.go` | `TestPRBV0024HarnessSmokeRun`, `TestPRBV0031CommittedBudgets` |
-| `PRB-V0-029` | `Makefile`, `internal/perfbudget/cmd/perf-budget` | `TestPRBV0024HarnessSmokeRun` |
+| `PRB-V0-029` | `Makefile`, `internal/perfbudget/cmd/perf-budget` | `TestPRBV0029HarnessCannotRunExitsTwo`, `TestPRBV0024HarnessSmokeRun` |
 | `PRB-V0-030` | `internal/perfbudget/budget.go` | `TestPRBV0030BudgetsValidation` |
 | `PRB-V0-031` | `internal/perfbudget/budgets.json` | `TestPRBV0031CommittedBudgets` |
 | `PRB-V0-032` | `internal/perfbudget/budgets.json`, `internal/perfbudget/budget.go` | `TestPRBV0031CommittedBudgets`, `TestPRBV0030BudgetsValidation` |

@@ -55,6 +55,9 @@ func LoadOrGenerate(ctx context.Context, dir string, s Scale, build Builder, bui
 		if err := json.Unmarshal(data, &f); err != nil {
 			return nil, fmt.Errorf("perf-budget fixture record: %w", err)
 		}
+		if f.Generator != FixtureGenerator {
+			return nil, fmt.Errorf("perf-budget fixture in %s was made by generator %q, not %q; remove it", dir, f.Generator, FixtureGenerator)
+		}
 		if f.Scale != s {
 			return nil, fmt.Errorf("perf-budget fixture in %s has scale %q, want %q; remove it or choose another directory", dir, f.Scale.Name, s.Name)
 		}

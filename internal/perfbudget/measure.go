@@ -201,7 +201,8 @@ func (s *mcpSession) call(tool string, arguments map[string]any) (time.Duration,
 	if err != nil {
 		return 0, err
 	}
-	if result, _ := response["result"].(map[string]any); result == nil || result["isError"] != false {
+	result, _ := response["result"].(map[string]any)
+	if isError, _ := result["isError"].(bool); result == nil || isError {
 		return 0, fmt.Errorf("%s returned an error result", tool)
 	}
 	return wall, nil

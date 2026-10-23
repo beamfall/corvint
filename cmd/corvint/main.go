@@ -1702,11 +1702,11 @@ func main() {
 		os.Exit(runDogfoodVerifierWorker(os.Args[2:], os.Stdout, os.Stderr))
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), terminationSignals()...)
+	signalled, cancel := signal.NotifyContext(context.Background(), terminationSignals()...)
 	defer cancel()
-	ctx, release := adapterHostKillContext(ctx, os.Args[1:], adapterProcessStart)
+	ctx, release := adapterHostKillContext(signalled, os.Args[1:], adapterProcessStart)
 	defer release()
-	exitProcess(runProfiledContext(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr, os.LookupEnv))
+	exitProcess(runProfiledContext(signalled, ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr, os.LookupEnv))
 }
 
 // sharedIndexedContextFromEnvironment enables the shared bracket only under

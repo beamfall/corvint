@@ -115,7 +115,7 @@ deadline and fail the command when it expires: the index build and the range-imp
 (`internal/contextindex/git.go:26@8f4f0b4d`, `internal/contextindex/index.go:335@09a263a5`,
 `internal/contextindex/range_impact.go:79@09a263a5`), and `affected` reads `git status` under 10 s
 (`internal/liveverify/affected/dirty.go:34@bb3abea6`, `internal/liveverify/affected/dirty.go:50@d3f19770`). Otherwise
-the process cancels only on `SIGINT` or `SIGTERM` (`cmd/corvint/main.go:1705@f5ddb576`,
+the process cancels only on `SIGINT` or `SIGTERM` (`cmd/corvint/main.go:1705@5434511f`,
 `cmd/corvint/signals_unix.go:12-13@4a4dfd65`); the exit code a signal produces is not documented here
 (unknown). The automation host must set its own step timeout. No timeout has been qualified; 5
 minutes per step is a suggestion that leaves more than 20 times the loaded measurements as

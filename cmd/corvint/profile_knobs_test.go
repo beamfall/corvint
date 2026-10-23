@@ -97,7 +97,7 @@ func TestPRBV0008EveryNamedCommandWritesProfiles(t *testing.T) {
 		dir := t.TempDir()
 		cpu, mem := filepath.Join(dir, "cpu.pprof"), filepath.Join(dir, "heap.pprof")
 		var profiled, plain, profiledErr, plainErr bytes.Buffer
-		code := runProfiledContext(context.Background(), arguments, strings.NewReader(""), &profiled, &profiledErr, profileKnobLookup(map[string]string{"CORVINT_CPUPROFILE": cpu, "CORVINT_MEMPROFILE": mem}))
+		code := runProfiledContext(context.Background(), context.Background(), arguments, strings.NewReader(""), &profiled, &profiledErr, profileKnobLookup(map[string]string{"CORVINT_CPUPROFILE": cpu, "CORVINT_MEMPROFILE": mem}))
 		for _, path := range []string{cpu, mem} {
 			if err := procprofile.Verify(path); err != nil {
 				t.Fatalf("%s: %v", name, err)
@@ -106,7 +106,7 @@ func TestPRBV0008EveryNamedCommandWritesProfiles(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("%s: exit %d stderr %.300s", name, code, profiledErr.String())
 		}
-		plainCode := runProfiledContext(context.Background(), arguments, strings.NewReader(""), &plain, &plainErr, profileKnobLookup(nil))
+		plainCode := runProfiledContext(context.Background(), context.Background(), arguments, strings.NewReader(""), &plain, &plainErr, profileKnobLookup(nil))
 		if code != plainCode || !bytes.Equal(profiled.Bytes(), plain.Bytes()) {
 			t.Fatalf("%s: knobs changed the result: exit %d vs %d, stdout %d vs %d bytes", name, code, plainCode, profiled.Len(), plain.Len())
 		}
@@ -120,7 +120,7 @@ func TestPRBV0008EveryNamedCommandWritesProfiles(t *testing.T) {
 func TestPRBV0006UnusableKnobRefusesCommand(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	missing := filepath.Join(t.TempDir(), "absent", "cpu.pprof")
-	code := runProfiledContext(context.Background(), []string{"help", "--json"}, strings.NewReader(""), &stdout, &stderr, profileKnobLookup(map[string]string{"CORVINT_CPUPROFILE": missing}))
+	code := runProfiledContext(context.Background(), context.Background(), []string{"help", "--json"}, strings.NewReader(""), &stdout, &stderr, profileKnobLookup(map[string]string{"CORVINT_CPUPROFILE": missing}))
 	var refusal struct {
 		Code string `json:"code"`
 		OK   bool   `json:"ok"`
@@ -167,6 +167,7 @@ func TestPRBV0009HelpJSONListsProfileKnobScope(t *testing.T) {
 			} `json:"knobs"`
 			Default     string   `json:"default"`
 			Commands    []string `json:"commands"`
+			Plumbing    []string `json:"plumbing"`
 			Servers     []string `json:"servers"`
 			NotHonoured struct {
 				Entries []string `json:"entries"`
@@ -184,6 +185,9 @@ func TestPRBV0009HelpJSONListsProfileKnobScope(t *testing.T) {
 	if !slices.Equal(p.Commands, topLevelCommands) || !slices.Contains(p.Commands, "docs") || !slices.Contains(p.Commands, "affected") {
 		t.Fatalf("commands %v, want every dispatched command %v", p.Commands, topLevelCommands)
 	}
+	if !slices.Equal(p.Plumbing, hookPlumbingVerbs) {
+		t.Fatalf("plumbing %v, want the dispatched plumbing verbs %v", p.Plumbing, hookPlumbingVerbs)
+	}
 	// PRB-V0-012: the workers main runs before the bracket are named as not honouring the knobs.
 	if !slices.Equal(p.NotHonoured.Entries, profileKnobWorkers) || p.NotHonoured.Reason == "" {
 		t.Fatalf("not_honoured %+v", p.NotHonoured)
@@ -192,7 +196,7 @@ func TestPRBV0009HelpJSONListsProfileKnobScope(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bracket := bytes.Index(main, []byte("runProfiledContext(ctx, os.Args[1:]"))
+	bracket := bytes.Index(main, []byte("runProfiledContext(signalled, ctx, os.Args[1:]"))
 	for _, worker := range []string{"runSnapshotRefreshWorker(", "runDogfoodOutcomeWorker(", "runDogfoodVerifierWorker("} {
 		if at := bytes.Index(main, []byte(worker)); at < 0 || bracket < 0 || at > bracket {
 			t.Errorf("%s is not dispatched before the profile bracket", worker)

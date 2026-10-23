@@ -68,7 +68,7 @@ func TestPRBV0030BudgetsValidation(t *testing.T) {
 	valid := func() *Budgets {
 		b := &Budgets{Schema: BudgetSchema, Scale: "full"}
 		for _, id := range ScenarioIDs {
-			b.Scenarios = append(b.Scenarios, ScenarioBudget{ID: id, Samples: 3, Ceilings: []Limit{{Metric: MetricP95Wall, Limit: 1, Status: StatusEnforced, Reason: "r"}}})
+			b.Scenarios = append(b.Scenarios, ScenarioBudget{ID: id, Samples: 3, Ceilings: []Limit{{Metric: MetricP95Wall, Limit: 1, Status: StatusEnforced, Reason: "r"}, {Metric: MetricPeakRSS, Limit: 1, Status: StatusEnforced, Reason: "r"}}})
 		}
 		return b
 	}
@@ -94,6 +94,7 @@ func TestPRBV0030BudgetsValidation(t *testing.T) {
 		"too many samples":     func(b *Budgets) { b.Scenarios[0].Samples = 101 },
 		"negative limit":       func(b *Budgets) { b.Scenarios[0].Ceilings[0].Limit = -1 },
 		"unknown status value": func(b *Budgets) { b.Scenarios[0].Ceilings[0].Status = "advisory" },
+		"no rss ceiling":       func(b *Budgets) { b.Scenarios[0].Ceilings = b.Scenarios[0].Ceilings[:1] },
 	} {
 		b := valid()
 		edit(b)

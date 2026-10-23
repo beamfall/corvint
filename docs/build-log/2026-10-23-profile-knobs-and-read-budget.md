@@ -67,3 +67,29 @@ is also a memory problem on a large Ruby tree.
 - The ceilings are relative to this host. A CI host needs its own `--record-baseline` run before
   its ceilings mean anything; the contention record says how far to trust a verdict.
 - A full harness run takes about 5 minutes and several GiB of memory on this host.
+
+## Independent review
+
+One read-only review found no HIGH issues. Every MED finding was fixed in this change:
+- `go run` flattened the harness's exit status 2 to 1, so `make perf-budget` now builds the
+  harness and runs the binary.
+- The adapter host-kill deadline stopped the profiles early. The bracket now watches only the
+  signal context.
+- A refusal could truncate or leave behind a heap file. Files are now opened without truncation,
+  and a file the refusal created is removed.
+- A smoke run could be judged or baselined against the full-scale ceilings. A scale mismatch now
+  refuses, and a baseline with a failed scenario is not recorded.
+
+LOW findings fixed:
+- `help --json` now lists the plumbing verbs.
+- Stopping the profiles is deferred, so a panic still writes them.
+- The same-file check now compares absolute paths and uses `os.SameFile`.
+- `Validate` requires both ceilings.
+- Reused fixtures are now refused unless they carry the current generator version.
+- An MCP response with no `isError` field is accepted.
+- The determinism test now compares every repository's HEAD.
+
+LOW findings left open:
+- `TestPRBV0008NoNestedProfilerStart` scans only `cmd/corvint`. No package that `corvint`
+  imports starts a profile today; `internal/tasks/scale` does, but it is a separate binary.
+- The three non-corpus server tests drive only `--version` through the entry function.

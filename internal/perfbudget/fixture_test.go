@@ -40,6 +40,16 @@ func TestPRBV0020FixtureIsDeterministicAndShaped(t *testing.T) {
 			t.Fatalf("%s differs between identical generations", name)
 		}
 	}
+	// Every repository's commit is identical, not only the primary's: additional-repository
+	// commits are anchor identities, and the Ruby commit is what affected plans at.
+	for i, dir := range append(append([]string{}, first.Additional...), first.Ruby) {
+		other := append(append([]string{}, second.Additional...), second.Ruby)[i]
+		a, errA := gitOutput(ctx, dir, "rev-parse", "HEAD")
+		b, errB := gitOutput(ctx, other, "rev-parse", "HEAD")
+		if errA != nil || errB != nil || a != b {
+			t.Fatalf("%s HEAD differs between identical generations: %s vs %s (%v %v)", filepath.Base(dir), a, b, errA, errB)
+		}
+	}
 	if len(first.Additional) < 3 || first.Inputs != Smoke.PrimaryPages+Smoke.AdditionalRepositories*Smoke.AdditionalPages {
 		t.Fatalf("shape: %d additional repositories, %d inputs", len(first.Additional), first.Inputs)
 	}

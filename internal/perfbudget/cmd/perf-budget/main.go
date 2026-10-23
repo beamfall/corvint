@@ -1,5 +1,5 @@
 // Command perf-budget measures the read budgets of performance-profiling-and-read-budget-v0.md
-// (PRB-V0-020..039) over a generated realistic-size fixture: `make perf-budget`.
+// (PRB-V0-020..036) over a generated realistic-size fixture: `make perf-budget`.
 //
 //	perf-budget [--budgets FILE] [--scale full|smoke] [--fixture DIR] [--corvint BIN]
 //	            [--corpus-mcp BIN] [--out FILE] [--record-baseline]
@@ -63,6 +63,11 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	default:
 		return fail(fmt.Errorf("unknown scale %q", *scaleName))
 	}
+	// Ceilings are derived at one scale; judging or baselining another scale against them would
+	// report a meaningless verdict.
+	if scale.Name != budgets.Scale {
+		return fail(fmt.Errorf("budgets %s bound scale %q, not %q; use a budgets file of that scale", *budgetsPath, budgets.Scale, scale.Name))
+	}
 	work, err := os.MkdirTemp("", "corvint-perf-budget-")
 	if err != nil {
 		return fail(err)
@@ -120,6 +125,11 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		}
 	}
 	if *record {
+		for _, m := range report.Scenarios {
+			if m.Error != "" || len(m.Samples) == 0 {
+				return fail(fmt.Errorf("baseline not recorded: scenario %s measured nothing (%s)", m.ID, m.Error))
+			}
+		}
 		budgets.Baseline = &perfbudget.Baseline{RecordedAt: report.StartedAt, Revision: report.Revision, Host: report.Host, Fixture: report.Fixture, Scenarios: report.Scenarios}
 		encoded, err := json.MarshalIndent(budgets, "", "  ")
 		if err != nil {

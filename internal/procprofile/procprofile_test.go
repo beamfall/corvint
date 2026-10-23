@@ -3,6 +3,7 @@ package procprofile
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -139,5 +140,40 @@ func TestPRBV0011KnobsInExactSettingsList(t *testing.T) {
 		if !found || !strings.Contains(paragraph, "`"+knob+"`") {
 			t.Errorf("CRB-V0-018 does not list %s", knob)
 		}
+	}
+}
+
+// PRB-V0-006: a refusal leaves an existing profile file intact, removes a file it created, and
+// catches two names that reach one file.
+func TestPRBV0006RefusalWritesNothing(t *testing.T) {
+	dir := t.TempDir()
+	badCPU := filepath.Join(dir, "absent", "cpu.pprof")
+	existing := filepath.Join(dir, "existing.pprof")
+	if err := os.WriteFile(existing, []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	fresh := filepath.Join(dir, "fresh.pprof")
+	for _, mem := range []string{existing, fresh} {
+		if _, err := Start(lookupOf(map[string]string{"CORVINT_CPUPROFILE": badCPU, "CORVINT_MEMPROFILE": mem})); err == nil {
+			t.Fatal("unwritable CPU path admitted")
+		}
+	}
+	if data, _ := os.ReadFile(existing); string(data) != "keep" {
+		t.Fatalf("refusal truncated an existing file: %q", data)
+	}
+	if _, err := os.Stat(fresh); !os.IsNotExist(err) {
+		t.Fatalf("refusal left a created file behind: %v", err)
+	}
+	link := filepath.Join(dir, "link.pprof")
+	if err := os.Symlink(existing, link); err != nil {
+		t.Skip("no symlinks:", err)
+	}
+	_, err := Start(lookupOf(map[string]string{"CORVINT_CPUPROFILE": link, "CORVINT_MEMPROFILE": existing}))
+	var knob *Error
+	if !errors.As(err, &knob) || knob.Code != "profile-invalid" {
+		t.Fatalf("two names for one file: %v", err)
+	}
+	if data, _ := os.ReadFile(existing); string(data) != "keep" {
+		t.Fatalf("same-file refusal truncated the file: %q", data)
 	}
 }
