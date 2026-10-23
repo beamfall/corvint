@@ -109,7 +109,7 @@ func TestPlaywrightIdentityIgnoresUnrelatedFieldsAndWrites_GH1605(t *testing.T) 
 		{"baseURL: process.env['HOSTNAME'],", "    defaultBrowserType: 'firefox',\n"},
 		{"baseURL: process.env['HOSTNAME'],", "    browserName: process.platform === 'darwin' ? 'webkit' : 'chromium',\n"},
 	} {
-		if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", gh1605Config(row.baseURL, row.extra)); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+		if projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", gh1605Config(row.baseURL, row.extra)); !playwrightIdentityUnverified(projects, unknown) {
 			t.Fatalf("%s was admitted: %+v", row.extra, unknown)
 		}
 	}
@@ -139,10 +139,16 @@ func TestPlaywrightIdentityIgnoresUnrelatedFieldsAndWrites_GH1605(t *testing.T) 
 		"const n = (process.env.HOSTNAME)();",
 	} {
 		source := strings.Replace(gh1605Config("baseURL: process.env['HOSTNAME'],", ""), gh1605Write, gh1605Write+"\n"+setup, 1)
-		_, _, unknown := parsePlaywrightConfig("playwright.config.ts", source)
+		projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", source)
 		found := false
-		for _, entry := range unknown {
-			found = found || entry.Reason == PlaywrightUnknownBrowserIdentity && strings.Contains(entry.Detail, "process is not admitted")
+		for _, entry := range append(unknown, playwrightExecution(projects)...) {
+			// A delete or update token refuses every root, so the devices spread blocks first;
+			// otherwise the refused process root marks baseURL unverified (TJAA-V0-054).
+			if strings.Contains(setup, "delete") || strings.Contains(setup, "++") || strings.Contains(setup, "--") {
+				found = found || entry.Reason == PlaywrightUnknownBrowserIdentity && strings.Contains(entry.Detail, "devices is not admitted: the config has a delete, ++, -- or escape token")
+			} else {
+				found = found || entry.Reason == PlaywrightUnknownUseValueUnverified && strings.Contains(entry.Detail, "process is not admitted")
+			}
 		}
 		if !found {
 			t.Fatalf("%q was admitted: %+v", setup, unknown)

@@ -1,6 +1,8 @@
 package changee2e
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -55,5 +57,39 @@ func TestCCEV0050HarvestBinding(t *testing.T) {
 		if pr.Binding != (Binding{Unbound: "app-map-unavailable"}) {
 			t.Fatalf("proposal %s without a map: %+v", pr.ID, pr.Binding)
 		}
+	}
+}
+
+func TestCCEV0088HarvestConfiguredManifest(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	data, err := os.ReadFile(filepath.Join(root, "appmap.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const manifest = "config/club.appmap.json"
+	rev := commitFiles(t, root, map[string]*string{"appmap.json": nil, manifest: text(string(data)),
+		"e2e/specs/zz-binding.spec.ts": text(bindingSpec)}, "map at a configured path")
+	outcome := func(p *Proposals) Binding {
+		for _, pr := range p.Proposals {
+			if pr.Block.Kind == KindOutcome && pr.Block.Locator == "slot-status" {
+				return pr.Binding
+			}
+		}
+		t.Fatalf("no slot-status proposal in %+v", p.Proposals)
+		return Binding{}
+	}
+	p, err := Harvest(bg, HarvestOptions{Root: root, Rev: rev, Manifest: manifest})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b := outcome(p); b.Flow != "book-tee-time" || b.Basis != "flow-outcome-locator" {
+		t.Fatalf("configured manifest binding %+v", b)
+	}
+	p, err = Harvest(bg, HarvestOptions{Root: root, Rev: rev})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b := outcome(p); b != (Binding{Unbound: "app-map-unavailable"}) {
+		t.Fatalf("default manifest binding %+v", b)
 	}
 }

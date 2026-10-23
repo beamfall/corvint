@@ -5,8 +5,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json/v2"
+	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/capcatalog"
+	"github.com/Beamfall/corvint/internal/repoenvelope"
 )
 
 const (
@@ -40,6 +42,45 @@ func callHelp(ctx context.Context, arguments []byte) (Result, *Error) {
 		return Result{}, failure("invalid-arguments")
 	}
 	return helpResult(ctx, topic, command, text)
+}
+
+// HelpDescriptor is corvint.help's tools/list entry for the companion MCP
+// servers, which have no bridge Registry (MCPV0-101..103).
+func HelpDescriptor() ToolDescriptor { return helpDescriptor() }
+
+// HelpToolResult answers corvint.help for a companion MCP server
+// (MCPV0-101..104) with Registry.Call's argument bounds and callHelp, and
+// returns the CallToolResult that cmd/corvint-mcp emits for the same call: the
+// bridge object as structuredContent and its canonical JSON inside the AHI-004
+// envelope. It reads only the binary, so it takes no root.
+func HelpToolResult(ctx context.Context, arguments []byte) (map[string]any, *Error) {
+	if ctx.Err() != nil {
+		return nil, failure("cancelled")
+	}
+	if len(arguments) == 0 || len(arguments) > maxArgumentSize || !utf8.Valid(arguments) {
+		return nil, failure("invalid-arguments")
+	}
+	result, err := callHelp(ctx, arguments)
+	if err != nil {
+		return nil, err
+	}
+	structured, err := result.Object()
+	if err != nil {
+		return nil, err
+	}
+	text, err := result.TextJSON()
+	if err != nil {
+		return nil, err
+	}
+	framed, frameErr := repoenvelope.Frame(string(text))
+	if frameErr != nil {
+		return nil, failure(repoenvelope.CollisionCode)
+	}
+	return map[string]any{
+		"content":           []any{map[string]any{"type": "text", "text": framed}},
+		"isError":           false,
+		"structuredContent": structured,
+	}, nil
 }
 
 // helpTopicText is the CLI form and embedded text of one corvint.help topic.

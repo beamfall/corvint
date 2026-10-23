@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-10-20
 Requirement prefix: `CAP-V0`
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020); CAP-V0-015 to CAP-V0-021 accepted under the same standing auto-accept (beamfall/corvint#1588)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020); CAP-V0-015 to CAP-V0-021 accepted under the same standing auto-accept (beamfall/corvint#1588); CAP-V0-024 to CAP-V0-029 accepted under the same standing auto-accept (beamfall/corvint#1626)
 Delivery status: experimental
 Authoritative inputs: V1-2008 owner request (2026-10-20) "make sure corvints capabilities are properly documented so agents can fully understand what it can do", and the same-day scope addition for a README capability section; `../../AGENTS.md` invariants 2 and 8; `../AGENT-ROUTES.md`; beamfall/corvint#1588 (2026-10-23), a machine-readable command catalog generated from the command registry and a task-indexed guide shipped with the install.
 
 ## Agent digest
 - Claim: `docs/CAPABILITIES.md`, `corvint help --json` and `corvint help guide` describe every command; tests fail when any drifts from the binary.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020); CAP-V0-015 to CAP-V0-021 accepted under the same standing auto-accept (beamfall/corvint#1588)/experimental
-- Exists: `docs/CAPABILITIES.md`, the README "What Corvint can do" section, `tools/capabilities-check` (its `go test` and `make capabilities-check`), and `internal/capcatalog` (`corvint help --json`, `corvint help guide`, `make capability-catalog`, `make capability-catalog-check`), and catalog pointers in `AGENTS.md`, `docs/AGENT-ROUTES.md`, `docs/README.md` and the shipped Claude Code, Codex, Gemini CLI, OpenCode and OpenSpec skills.
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020); CAP-V0-015 to CAP-V0-021 accepted under the same standing auto-accept (beamfall/corvint#1588); CAP-V0-024 to CAP-V0-029 accepted under the same standing auto-accept (beamfall/corvint#1626)/experimental
+- Exists: `docs/CAPABILITIES.md`, the README "What Corvint can do" section, `tools/capabilities-check` (its `go test` and `make capabilities-check`), and `internal/capcatalog` (`corvint help --json`, `corvint help guide`, `make capability-catalog`, `make capability-catalog-check`, and the offline Non-capabilities status guard `NONCAPABILITY-STATUS.tsv`), and catalog pointers in `AGENTS.md`, `docs/AGENT-ROUTES.md`, `docs/README.md` and the shipped Claude Code, Codex, Gemini CLI, OpenCode and OpenSpec skills.
 - Blocked on: subcommands outside the declared tables, flags, profile membership and prose claims are not gated in `docs/CAPABILITIES.md` (see Failure modes); the guide ships inside the binary rather than as a release-archive member (owner-accepted as shipped with the install, 2026-10-23: a seventh member would break deployed updaters); the drift tests run in the existing Go test shards, and `capability-catalog-check` is not a separate CI step; `corvint-mcp` serves both through `corvint.help` (`MCPV0-100`), the other MCP servers do not; the Pi package text is not routed yet (its qualified adapter tuple pins the package bytes).
 - Read next: Requirements; Boundaries and failure modes; Traceability.
 
@@ -97,7 +97,8 @@ cannot silently go missing or outlive its command.
   `flowSubcommands`, `leaseActions`, `helpSubcommands`). Per command it states purpose, maturity,
   owning spec or freeze contract, operations, nested operations, flags, required flags per usage
   form (`requiredFlags`: the options every `Usage:` line of that form names outside `[ ]` and
-  `( )`, keyed by the command plus its operation words; a form with none is omitted), schema identifiers,
+  `( )`, keyed by the command plus its operation words; a form with none is omitted; a lower
+  bound, see `CAP-V0-022`), schema identifiers,
   stated exit statuses, write class, self-observation ledger listing and write statements; at the
   top level it lists the two-word help topics (`nestedHelpTopics`); and the document names how
   each field is derived. Like every help topic it reads no stdin, opens no
@@ -120,7 +121,8 @@ cannot silently go missing or outlive its command.
 - `CAP-V0-018`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1588) A test MUST fail when the shipped guide
   names a command, operation, nested operation or option that the live catalog does not list for
   that command (or as a global option), names a schema identifier no help topic names, or lists a
-  non-capability without a tracking issue (`#N`) or a "By design" reason. The check parses a
+  non-capability without a tracking issue (`#N`) or a requirement ID (amended by `CAP-V0-024`;
+  a "By design" reason alone no longer passes). The check parses a
   leading `--root PATH` or `--root=PATH` preamble before the command (a `--root` without a path is a
   problem), accepts `corvint help` only with no topic, `--json`, `guide`, a catalogued command or
   a `nestedHelpTopics` entry, and fails an example that omits a required option of its form.
@@ -135,6 +137,67 @@ cannot silently go missing or outlive its command.
 - `CAP-V0-021`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1588) Root help MUST name `corvint help --json`
   and `corvint help guide` within its existing three usage lines and its CCF-V1-009 byte bound,
   and the unknown-help-topic refusal MUST keep listing commands and nested topics only.
+- `CAP-V0-022`: (owner request, 2026-10-23; amends `CAP-V0-015`) The catalog MUST carry a
+  top-level `requiredFlagsCoverage` member, encoded between `derivation` and `globalFlags`, whose
+  only value is `partial`, and `derivation.requiredFlagsCoverage` MUST say why: `requiredFlags`
+  reads only `Usage:` synopses, and the binary declares no structured required-option table for
+  most forms. An option that help prose or the parser requires (one of two alternatives, or one
+  required only in some mode) is therefore missing, and an absent form or option does not mean
+  none is required. A consumer MUST treat `requiredFlags` as a lower bound. The only code-declared
+  required-option table, `corpusOperations` (`docs corpus` operations), already generates those
+  forms' usage lines (`DCP-V1-056`), so deriving from it would change no byte. The value can
+  become something other than `partial` only in a change that derives every form from a structured
+  source and amends this requirement. The schema stays `corvint-capability-catalog/0`, because
+  the member is additive.
+- `CAP-V0-023`: (owner request, 2026-10-23) The catalog builder MUST NOT derive a required option
+  from help prose. A sentence such as "Exactly one of --dry-run and --apply is required" adds
+  nothing to `requiredFlags`, and a form whose usage lines are alternatives with no common
+  top-level option stays omitted. `CAP-V0-022` is how a consumer learns about that gap.
+- `CAP-V0-024`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1626; amends
+  `CAP-V0-018`) Every item of the guide's Non-capabilities section MUST name at least one issue
+  number (`#N`) or requirement ID (an uppercase prefix and a three-digit number, such as
+  `CAP-V0-016` or `MCPV0-100`). A "By design" item MUST name the requirement that excludes the
+  capability; the words alone fail the CAP-V0-018 check.
+- `CAP-V0-025`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1626)
+  `internal/capcatalog/NONCAPABILITY-STATUS.tsv`, embedded in the package, MUST record the status
+  of every ID a non-capability names: a header `id`, `state`, `evidence`, then one row per ID with
+  non-empty evidence. An issue is `open` or `closed`; a requirement is `undelivered`, `delivered`
+  or `excludes` (in force, and the reason the capability is absent by design). A malformed row, an
+  unknown state or a repeated ID is a problem, never read as some state. The change that closes a
+  named issue or delivers a named requirement MUST update its row in the same change. The check
+  reads only this table and the guide: no network access at build or test time.
+- `CAP-V0-026`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1626) A test
+  MUST fail when a shipped non-capability names an ID that has no status row, an issue recorded
+  `closed` or a requirement recorded `delivered`; when a "By design" item names no requirement
+  recorded `excludes`; or when any other item names no `open` issue and no `undelivered`
+  requirement. `capcatalog.NonCapabilityProblems` returns one line per problem and reads nothing
+  but its two arguments. The section parse MUST fail closed: apart from one intro paragraph before
+  the first item, every non-blank line MUST be a `- ` item or a two-space continuation directly
+  under one, and any other line (another bullet style such as `* `, an indented or numbered item,
+  or stray prose) is a problem reported by both `NonCapabilityProblems` and `GuideProblems`, never
+  skipped.
+- `CAP-V0-027`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1626) The guide's
+  Goals MUST carry one runnable example each for static test discovery (`docs corpus
+  discover-tests`), per-test coverage ingest (`flows ingest --coverage-artifact` then `flows
+  ingest-coverage`), the subject-kind filter and claim hits of `docs corpus search` (`--kind`,
+  `--include claims`), ranked claim search (`docs corpus claims --query`) and the delta worklist
+  stream (`docs corpus delta --format jsonl`). The CAP-V0-018 check keeps each against the live
+  catalog. The `flows ingest-coverage` example MUST pass `--test-key` with a key of the run
+  evidence and say the coverage file holds only that test's coverage, because a run with more
+  than one record refuses a single-test format without it. A shell redirection inside a quoted
+  argument does not end a checked command line.
+- `CAP-V0-028`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1626) The seven
+  items GH-1626 found delivered (tracked by #1571, #1573, #1578, #1579, #1584, #1585 and #1587, each
+  verified against the binary at `7b3a8e55f`) MUST NOT stay listed, and the status table MUST
+  record those issues `closed`. The undelivered tsconfig `paths` residual MUST name the open issue
+  #1604, not the closed #1578.
+- `CAP-V0-029`: (accepted under the owner's standing auto-accept (2026-10-11); GH-1626; owner
+  decision 2026-10-23) The guide MUST stay inside the binary (`corvint help guide` and
+  `corvint.help`) and MUST NOT be added as a release-archive member, because the archive, its
+  verifier, the release-candidate check and the deployed `corvint-update` allow exactly six
+  members. Adding one needs its own change with the staged rollout named under the CAP-V0-015 to
+  CAP-V0-021 non-goals. Its Non-capability names this requirement, recorded `excludes`.
+  `CAP-V0-030` to `CAP-V0-033` are reserved for this slice and unassigned.
 
 ## Boundaries and failure modes
 
@@ -163,6 +226,28 @@ rollout: tolerant updater and checks first, then the member and its manifest pin
 (the owner accepted on 2026-10-23 that the drift tests already run in the existing CI Go test
 shards, so no `.github` change is needed); per-command input/output separation.
 
+CAP-V0-022 and CAP-V0-023 failure modes: the marker is catalog-wide, so it does not say which
+forms are incomplete. Measured at `77a49dfa`: `migrate-traces` lists no required option while its
+help says "Exactly one of --dry-run and --apply is required", and `ocm prepare` lists `--intent`
+and `--target` while the `ocm` help also calls `--expected-base` required for a `cem/1.0` map. A consumer that ignores unknown
+members misses the marker. Rollback: remove the member, its derivation entry, its constant, the
+two requirements and their tests, and rerun `make capability-catalog`.
+
+CAP-V0-024 to CAP-V0-029 non-goals: querying GitHub or any network service at build, test or run
+time; checking that a named requirement ID exists in `docs/specs/REQUIREMENTS.tsv`; judging whether
+a Non-capability's prose is true; listing every undelivered capability.
+
+CAP-V0-024 to CAP-V0-029 failure modes: the status table is caller-maintained evidence. A PR that
+closes a named issue or delivers a named requirement without updating its row leaves a stale item
+that the test does not catch; an issue closed by hand outside a PR is likewise missed. The
+requirement pattern is lexical: a three-digit tracker ID shaped like a requirement would be read as
+one and then fail for lack of a status row (fail closed), and a four-digit tracker ID such as
+`V1-2458` is not a requirement ID. A delivered capability that no item names is not detected
+either way. Rollback: remove `NONCAPABILITY-STATUS.tsv`, `NonCapabilityProblems`,
+`NonCapabilityStatus`, `nonCapabilityIDs`, `parseNonCapabilityStatus` and their tests, restore the
+"By design" allowance in `GuideProblems`, and rerun `make capability-catalog`; the guide's Goals
+additions can stay, since CAP-V0-018 already checks them.
+
 CAP-V0-015 to CAP-V0-021 failure modes: catalog fields are read from help prose, so they are as
 complete as the help: a flag or schema the help omits is missing, an exit status stated without
 the word "exit" is not listed (the field is named `exitCodesMentioned`), an operation dispatched
@@ -171,7 +256,8 @@ without judging them, and `writes` classifies only commands the root Support bou
 `local-state` means the command writes local state in at least one mode. A help text change in
 any lane changes `catalog.json`, so a merge that changes help without regenerating fails
 CAP-V0-019 until `make capability-catalog` is rerun. The guide check verifies names, not claims:
-a correct command with a wrong description passes, and a closed tracking issue is not detected.
+a correct command with a wrong description passes. A closed tracking issue is detected only
+through the CAP-V0-025 status table.
 
 ## Rollback
 
@@ -207,3 +293,11 @@ entries, and the `docs/CAPABILITIES.md` pointer; no stored state depends on them
 | CAP-V0-019 | `internal/capcatalog/catalog.json`, `capcatalog.Snapshot`, `make capability-catalog`, `make capability-catalog-check` | `TestCAPV0019CommittedCatalogMatchesTheBinary` |
 | CAP-V0-020 | `capcatalog.Build`, `capcatalog.Encode` | `TestCAPV0020BuildIsDeterministicAndDerivedFromItsArgument` |
 | CAP-V0-021 | `rootHelp` usage line, `unknownHelpTopic` | `TestCAPV0021RootHelpNamesTheCatalogTopicsWithinItsBound`, `TestRootHelpIsACompactVerbIndex` |
+| CAP-V0-022 | `capcatalog.Catalog.RequiredFlagsCoverage`, `capcatalog.RequiredFlagsPartial`, `derivation`, `internal/capcatalog/catalog.json` | `TestCAPV0022RequiredFlagsCoverageIsPartial` (value, derivation reason and encoded position), `TestCAPV0022BinaryCatalogMarksRequiredFlagsPartial` (`corvint help --json`), `TestCAPV0019CommittedCatalogMatchesTheBinary` |
+| CAP-V0-023 | `capcatalog.requiredFlags` (usage forms only) | `TestCAPV0023ProseRequirementsAreNotDerived` (prose "is required" sentences and alternative usage lines add no required option) |
+| CAP-V0-024 | `capcatalog.GuideProblems`, `nonCapabilityIDs`, `requirementPattern` | `TestCAPV0024NonCapabilitiesNameAnIssueOrRequirement`, `TestCAPV0018GuideProblemsRejectsDrift` |
+| CAP-V0-025 | `internal/capcatalog/NONCAPABILITY-STATUS.tsv`, `capcatalog.NonCapabilityStatus`, `parseNonCapabilityStatus` | `TestCAPV0025StatusTableIsWellFormed` |
+| CAP-V0-026 | `capcatalog.NonCapabilityProblems`, `nonCapabilities`, `plainText` | `TestCAPV0026NonCapabilityProblemsRejectsStaleItems`, `TestCAPV0026ShippedNonCapabilitiesAreCurrent`, `TestCAPV0026UnrecognisedNonCapabilityLinesFailClosed` |
+| CAP-V0-027 | `internal/capcatalog/AGENT-GUIDE.md` goals 8 to 11, `guideCommandLines` | `TestCAPV0027GuideTeachesDeliveredCapabilities`, `TestCAPV0018ShippedGuideMatchesTheLiveCatalog`; live runs recorded in `docs/build-log/2026-10-23-help-guide-noncapabilities.md` |
+| CAP-V0-028 | `internal/capcatalog/AGENT-GUIDE.md` Non-capabilities, `NONCAPABILITY-STATUS.tsv` | `TestCAPV0028DeliveredItemsLeftTheNonCapabilities` |
+| CAP-V0-029 | `capcatalog.Guide` (embedded), `NONCAPABILITY-STATUS.tsv` row | `TestCAPV0029GuideIsNotAnArchiveMember`, `TestCAPV0017HelpGuideServesTheShippedGuide` |

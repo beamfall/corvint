@@ -252,7 +252,7 @@ func TestATRV0006_LostLeaseKillsTheRun(t *testing.T) {
 			return
 		}
 		lease := transaction.LeaseRequest{Verb: transaction.LeaseRelease, AttemptID: a.AttemptID, Generation: a.Generation}
-		report, err := store.Lease(context.Background(), repo, mutation.Binding{ID: "tester", Role: "OWNER"}, store.LeaseChoice{QueueID: fixture.QueueID, RequestID: "release-under-run", Root: root, Lease: lease, Derive: store.NoScopeDeriver}, wire.Timestamp(time.Now().UTC().Format("2006-01-02T15:04:05Z")))
+		report, err := store.Lease(liveClockContext(), repo, mutation.Binding{ID: "tester", Role: "OWNER"}, store.LeaseChoice{QueueID: fixture.QueueID, RequestID: "release-under-run", Root: root, Lease: lease, Derive: store.NoScopeDeriver}, wire.Timestamp(time.Now().UTC().Format("2006-01-02T15:04:05Z")))
 		if err == nil && report.Outcome.Outcome != mutation.OutcomeCompleted {
 			err = errors.New("release refused: " + report.Detail)
 		}

@@ -35,7 +35,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"eval":                {required: []string{"--artifact", "--cases"}, optional: []string{"--baseline", "--format"}},
 	"audit-sample":        {required: []string{"--artifact", "--seed", "--size"}, optional: []string{"--stratify", "--scope"}},
 	"audit-report":        {required: []string{"--artifact", "--sample"}, optional: []string{"--format"}},
-	"delta":               {required: []string{"--previous"}, optional: []string{"--artifact", "--manifest", "--limit", "--offset", "--uncovered", "--anchorless", "--format", "--verify-rederive"}}, // DCP-V1-432
+	"delta":               {required: []string{"--previous"}, optional: []string{"--artifact", "--manifest", "--limit", "--offset", "--uncovered", "--anchorless", "--format", "--verify-rederive", "--timings"}}, // DCP-V1-460, DCP-V1-462
 	"carry-forward":       {required: []string{"--previous", "--provider"}, optional: []string{"--artifact", "--manifest"}},
 	"patterns":            {required: []string{"--artifact"}, optional: []string{"--format"}}, // DCP-V1-348
 	"info":                {required: []string{"--artifact"}, optional: corpusReadOptional},

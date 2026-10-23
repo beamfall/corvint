@@ -38,8 +38,9 @@ Profiles of a read in a test process (same fixture) showed:
   the rest of the input (still bounded at 128 MiB) so a later read error is reported instead;
   and decode-time claim terms are kept only for an indexed read and voided if the claims slice
   is replaced.
-- `DCP-V1-432`: the delta current side and the joined `--corpus` read take the verified read.
-  Delta gains `--verify-rederive` and names its verified current side in a limitation. Flow docs
+- `DCP-V1-432`: the joined `--corpus` read takes the verified read. The delta current side
+  (with `--verify-rederive`) was first delivered here too, but is superseded by
+  `DCP-V1-460..464` (#1635); see "Refresh against #1635" below. Flow docs
   generate, flow coverage, the indexed companion build, republish and carry-forward keep
   rederiving. Each writes records onward or issues a verdict that is consumed as source-validated,
   and the content digest proves integrity, not origin.
@@ -148,3 +149,15 @@ fixed with a regression test and folded into `DCP-V1-431` or `DCP-V1-434`.
   freshness observation, which then raced the `--timings` summary. Every exit now cancels and
   joins the observation (`TestDCPV1431CorpusRefusalJoinsFreshness`, under `-race`; it reported a
   data race with the join removed).
+
+## Refresh against #1635
+
+Main took PR #1635 (GitHub #1634), which delivered the verified delta current side independently
+as `DCP-V1-460..464`: `OpenDeltaRead(ctx, root, data, ReadOptions{...})`, `--verify-rederive` and
+`--timings` for `delta`, an input blob binding check, and a receipt byte-identical on the verified
+and the rederived path. Merging main kept main's delta API, flags and tests and dropped this
+lane's duplicate: `OpenDeltaCurrent(..., rederive bool)`, the `deltaVerifiedCurrent` limitation
+and the delta half of the `DCP-V1-432` CLI test (now `TestDCPV1432JoinedCorpusReusesVerifiedArtifact`).
+The `DCP-V1-432` delta bullet now states that it is superseded by `DCP-V1-460..464`. The streamed
+decode, decode-time claim terms and their review repairs are kept; `OpenDeltaPrevious` calls this
+lane's `artifactTail.verify(a)`, whose tail already holds the bytes main's `verify(a, data)` reads.

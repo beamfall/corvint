@@ -233,6 +233,8 @@ func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, 
 	}
 	plains := []plain{}
 	splits := []*splitArray{}
+	// The header members are decoded during the scan even without a header callback: the
+	// output bound below depends on the decoded schema (DCP-V1-461).
 	headerSent := false
 	var headerWG sync.WaitGroup
 	sendHeader := func() {

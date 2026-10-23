@@ -322,7 +322,11 @@ func TestV11055NoGroupOperationAfterConcurrentRelease(t *testing.T) {
 
 // V1-2319: a positive TerminateGrace gives a slow SIGTERM handler that long
 // before SIGKILL, so a handler delayed past the 100 ms default still completes;
-// a negative grace is refused before any process starts.
+// a negative grace is refused before any process starts. The shell waits in
+// short foreground sleeps rather than on a background `sleep 30`: a SIGTERM that
+// reached that child between its fork and its exec ran the inherited trap
+// instead of ending it, so a third of loaded Linux runs kept a live member
+// until the 10 s grace's SIGKILL (V1-2388).
 func TestTerminateGraceLetsSlowTermHandlerFinish(t *testing.T) {
 	fixture := t.TempDir()
 	ready, handled := filepath.Join(fixture, "ready"), filepath.Join(fixture, "handled")
@@ -333,7 +337,7 @@ func TestTerminateGraceLetsSlowTermHandlerFinish(t *testing.T) {
 		cancel()
 	}()
 	observation := Run(ctx, Spec{
-		Argv: []string{"/bin/sh", "-c", `trap 'sleep 0.5; echo >"$1/handled"; exit 0' TERM; sleep 30 & echo >"$1/ready"; wait`, "sh", fixture},
+		Argv: []string{"/bin/sh", "-c", `trap 'sleep 0.5; echo >"$1/handled"; exit 0' TERM; echo >"$1/ready"; while :; do sleep 0.05; done`, "sh", fixture},
 		Dir:  fixture, Env: []string{"PATH=/usr/bin:/bin"}, Timeout: time.Minute, ShutdownTimeout: 20 * time.Second, TerminateGrace: 10 * time.Second,
 	})
 	if _, err := os.Stat(handled); err != nil || !observation.Cancelled || observation.StopSignal != "SIGTERM" {

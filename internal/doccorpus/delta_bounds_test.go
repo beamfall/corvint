@@ -122,18 +122,13 @@ func TestDCPV1425OpenDeltaCurrentUnavailableCheckout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// DCP-V1-432: with every checkout available the current side is the verified read, and says
-	// so; rederive runs the complete rederivation.
-	if a, err := OpenDeltaCurrent(ctx, f.root, retained, false); err != nil || a.validation != ValidationVerified || len(a.deltaUnverified) != 1 || a.deltaUnverified[0] != deltaVerifiedCurrent {
-		t.Fatalf("available checkout not verified: %v", err)
-	}
-	if a, err := OpenDeltaCurrent(ctx, f.root, retained, true); err != nil || a.deltaUnverified != nil || validationOf(a) != ValidationRederived {
-		t.Fatalf("available checkout not rederived on request: %v", err)
+	if a, err := OpenDeltaCurrent(ctx, f.root, retained); err != nil || a.deltaUnverified != nil {
+		t.Fatalf("available checkout not rederived: %v", err)
 	}
 	if err := os.Rename(f.lib, f.lib+"-gone"); err != nil {
 		t.Fatal(err)
 	}
-	a, err := OpenDeltaCurrent(ctx, f.root, retained, false)
+	a, err := OpenDeltaCurrent(ctx, f.root, retained)
 	if err != nil || len(a.deltaUnverified) != 1 || !strings.Contains(a.deltaUnverified[0], f.extra.ID) {
 		t.Fatalf("unavailable checkout: %v %v", err, a)
 	}
@@ -156,7 +151,7 @@ func TestDCPV1425OpenDeltaCurrentUnavailableCheckout(t *testing.T) {
 			break
 		}
 	}
-	if _, err := OpenDeltaCurrent(ctx, f.root, encode(tampered), false); err == nil || !strings.Contains(err.Error(), "does not name the blob its path holds") {
+	if _, err := OpenDeltaCurrent(ctx, f.root, encode(tampered)); err == nil || !strings.Contains(err.Error(), "does not name the blob its path holds") {
 		t.Fatalf("tampered primary input admitted: %v", err)
 	}
 }

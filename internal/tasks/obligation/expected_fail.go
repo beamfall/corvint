@@ -90,9 +90,12 @@ func FirstActionableLine(log string) string {
 // of them that names an error, failure, mismatch or violation, else of the
 // last non-blank line (TCD-V0-165). A line is ExcerptWithheld when its
 // cleaned or raw text matches the secret screen, or when it overlaps a
-// secret-screen match over the raw text of the whole tail, so a match that
-// spans lines or the excerpt bound is withheld too. It reads log from the
-// end, so a large log costs only its tail.
+// secret-screen match over the raw text of the whole log, so a match that
+// spans lines, the excerpt bound or the tail boundary is withheld too. A
+// private-key BEGIN marker with no END marker after it withholds every line
+// to the end of the log. Callers bound log (the gate output bound), and the
+// screen covers all of it, so a key block whose BEGIN line lies before the
+// tail never leaks its body.
 func FailureTail(log string, n int) (tail []string, failing string) {
 	type picked struct {
 		start, end int
@@ -109,8 +112,12 @@ func FailureTail(log string, n int) (tail []string, failing string) {
 	if len(picks) == 0 {
 		return nil, ""
 	}
-	base := picks[len(picks)-1].start
-	spans := secretscreen.MatchIndexes(log[base:])
+	spans := secretscreen.MatchIndexes(log)
+	for i, sp := range spans {
+		if unterminatedKeyBlock(log[sp[0]:sp[1]]) {
+			spans[i][1] = len(log)
+		}
+	}
 	tail = make([]string, len(picks))
 	for i, p := range picks {
 		text := screened(p.text)
@@ -118,7 +125,7 @@ func FailureTail(log string, n int) (tail []string, failing string) {
 			text = ExcerptWithheld
 		}
 		for _, sp := range spans {
-			if sp[0]+base < p.end && sp[1]+base > p.start {
+			if sp[0] < p.end && sp[1] > p.start {
 				text = ExcerptWithheld
 			}
 		}
@@ -131,6 +138,14 @@ func FailureTail(log string, n int) (tail []string, failing string) {
 		failing = tail[len(tail)-1]
 	}
 	return tail, failing
+}
+
+// unterminatedKeyBlock reports whether a secret-screen match is a bare
+// private-key BEGIN marker: the screen matches the whole block only when its
+// END marker follows, so a bare marker means the key body runs on unmatched.
+func unterminatedKeyBlock(match string) bool {
+	upper := strings.ToUpper(match)
+	return strings.HasPrefix(upper, "-----BEGIN ") && !strings.Contains(upper, "-----END ")
 }
 
 func cleanLine(line string) string {

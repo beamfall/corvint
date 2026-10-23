@@ -68,6 +68,13 @@ entry excerpts to 4 KiB, draft output and consume input to 64 KiB, encoded consu
 its trailing newline to 64 KiB, and query to 1024 UTF-8 bytes. Refuse unsupported
 sources and overflow; do not silently omit due to limits. Deterministic ranking uses case-insensitive
 alphanumeric term overlap, then entry ID. No matches yields NO_CANDIDATES with explicit uncertainty.
+The CLI `docs consume` refusals at the consume-input and encoded-result bounds name the bound
+(`DraftMaxBytes`), its value in bytes and the observed size; the input size is a lower bound, since
+the bounded stdin read stops one byte past the limit (V1-2416,
+`TestSDDV0005DocsLimitRefusalNamesLimitAndSize`, which failed against the earlier `draft exceeds
+64 KiB` and `encoded consumption result exceeds 64 KiB` messages). The library refusals in
+`internal/doccompiler/draft.go`, which `docs draft`, `docs consume` and `docs maintain` also return,
+name their bound but not the observed size.
 
 - `SDD-V0-006`: An MCP client can call `corvint.docs_draft` and `corvint.docs_consume`
 (`cmd/corvint-docs-mcp`, package `internal/mcp/docsbridge`) and receive the same claims,
@@ -81,7 +88,10 @@ For tool scope, that server's exact three-tool surface is frozen by
 `docs/specs/mcp-server-2026-07-28-v0.md` requirement `MCPV0-008` ("V0 advertises exactly
 these tools") and enforced by the closed `conformance/mcp-2026-07-28` suite, and this
 docs-tool slice remains proposed/experimental, not delivered V0; it must not extend or
-alter that frozen surface. `docs_draft`'s Markdown output and `docs_consume`'s canonical
+alter that frozen surface. Amendment (2026-10-23, `MCPV0-101` in
+`mcp-server-2026-07-28-v0.md`): `corvint-docs-mcp` also advertises the shared binary-only
+`corvint.help` tool of `MCPV0-100`, which reads no repository state and changes neither docs tool.
+`docs_draft`'s Markdown output and `docs_consume`'s canonical
 JSON output — the `structuredContent` returned alongside each tool result — must be
 byte-identical to the CLI's stdout on the same fixture. Repository-authored source
 excerpts and owner prose reach a model only through the MCP `content[0].text` block, so

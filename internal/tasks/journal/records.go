@@ -44,6 +44,9 @@ type chain struct {
 	// that checkpoint's receipt digest (ON-V0-015).
 	resumed    uint64
 	resumedSha wire.Digest
+	// requests is the read checkpoint's filter of request paths posted at or
+	// before resumed (CAL-V0-321); nil on every other walk.
+	requests *RequestFilter
 	// restore rebuilds elided liveness receipts (taskman-receipt/1,
 	// CAL-V0-301) on a complete walk from receipt 1. A walk resumed from a
 	// checkpoint has none: it refuses a tombstone as an unusable checkpoint so
@@ -360,6 +363,13 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 			// held a request: one the read checkpoint does not retain. The
 			// complete audit classifies it (PSR-V0-190, V1-0917).
 			return errCheckpoint(p.Path, "request post names a pre-state the checkpoint does not retain")
+		}
+		if strings.HasPrefix(p.Path, "requests/") && st.requests != nil && prior.seq == "" && st.requests.mayHold(p.Path) {
+			// A null pre-state proves nothing: the request may have been
+			// posted before the checkpoint. The filter has no false
+			// negatives, so a miss proves it was not; a hit is classified
+			// by the complete audit (PSR-V0-203, V1-2352).
+			return errCheckpoint(p.Path, "request post may repeat one posted before the checkpoint")
 		}
 		if !found && st.count() >= lim.scan+intent.MaxIntentRootEntries+wire.MaxTicketsPerQueue+wire.MaxReleasesPerQueue {
 			return wire.Errorf(wire.CodeLimitExceeded, p.Path, "latest metadata exceeds store scan bound")
@@ -1028,7 +1038,12 @@ func (r Reader) walkTail(o *observation, cp *Checkpoint, selected map[string]boo
 		}
 		return result, inFlight{errCheckpoint(next, "receipt beyond head")}
 	}
-	st := &chain{canonical: make(map[string]latest, len(cp.Entries)), prev: &cp.ReceiptSha256, generation: cp.Generation.Uint64(), resumed: from, resumedSha: cp.ReceiptSha256, primary: cp.PrimaryWorktree}
+	if cp.Requests == nil {
+		// Without the filter a null request pre-state is unprovable; the
+		// next writer retains a checkpoint that carries one (CAL-V0-321).
+		return result, errCheckpoint("/requests", "checkpoint carries no request filter")
+	}
+	st := &chain{canonical: make(map[string]latest, len(cp.Entries)), prev: &cp.ReceiptSha256, generation: cp.Generation.Uint64(), resumed: from, resumedSha: cp.ReceiptSha256, primary: cp.PrimaryWorktree, requests: cp.Requests}
 	for _, e := range cp.Entries {
 		st.canonical[e.Path] = latest{seq: e.Seq, digest: e.Sha256, bytes: -1}
 	}

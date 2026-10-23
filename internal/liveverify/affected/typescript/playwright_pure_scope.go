@@ -83,6 +83,15 @@ var (
 
 // newPlaywrightPureScope derives the admitted member-read roots of a comment-stripped config.
 func newPlaywrightPureScope(clean string) playwrightPureScope {
+	return newPlaywrightPureScopeConfined(clean, nil)
+}
+
+// newPlaywrightPureScopeConfined is newPlaywrightPureScope where confined names the spans of
+// non-identity `use` values (TJAA-V0-060). When every `delete`, `++` and `--` token lies in such a
+// span that names no `devices` and has no `\` escape, the tokens refuse every root except
+// devices: playwrightDevicesBlock still refuses any update, delete or alias of a devices
+// occurrence, and the value holding the token is a selection unknown (TJAA-V0-054).
+func newPlaywrightPureScopeConfined(clean string, confined [][2]int) playwrightPureScope {
 	scope := playwrightPureScope{literals: map[string]playwrightPlainValue{}, envWritten: map[string]bool{}, source: clean}
 	refuse := func(block playwrightScopeBlock) {
 		scope.devicesBlock, scope.envBlock, scope.numericBlock = block, block, block
@@ -97,27 +106,14 @@ func newPlaywrightPureScope(clean string) playwrightPureScope {
 		return scope
 	}
 	if at := playwrightCodeMutationToken(clean, lexed); at >= 0 {
-		refuse(playwrightScopeBlock{offset: at, why: "the config has a delete, ++, -- or escape token"})
+		block := playwrightScopeBlock{offset: at, why: "the config has a delete, ++, -- or escape token"}
+		refuse(block)
+		if playwrightMutationsConfined(clean, lexed, confined) {
+			scope.devices, scope.devicesBlock = playwrightDevicesRoot(clean, lexed)
+		}
 		return scope
 	}
-	scope.devicesBlock = playwrightScopeBlock{offset: -1, why: "devices is not imported from @playwright/test at top level"}
-	if match := playwrightDevicesImport.FindStringSubmatchIndex(clean); match != nil && lexed.topLevel(match[0]) {
-		specifier := -1
-		offset := match[2]
-		for _, item := range strings.Split(clean[match[2]:match[3]], ",") {
-			if strings.TrimSpace(item) == "devices" {
-				specifier = offset + strings.Index(item, "devices")
-			}
-			offset += len(item) + 1
-		}
-		if specifier >= 0 {
-			block := playwrightDevicesBlock(clean, lexed, specifier)
-			scope.devices, scope.devicesBlock = block < 0, playwrightScopeBlock{}
-			if block >= 0 {
-				scope.devicesBlock = playwrightScopeBlock{offset: block, why: "devices is used other than as a spread or descriptor read"}
-			}
-		}
-	}
+	scope.devices, scope.devicesBlock = playwrightDevicesRoot(clean, lexed)
 	if at, why := playwrightGlobalNameToken(clean, lexed); at >= 0 {
 		block := playwrightScopeBlock{offset: at, why: why}
 		scope.envBlock, scope.numericBlock = block, block
@@ -154,6 +150,66 @@ func newPlaywrightPureScope(clean string) playwrightPureScope {
 		}
 	}
 	return scope
+}
+
+// playwrightDevicesRoot reports whether the devices import is sound, or the token that refused it.
+func playwrightDevicesRoot(clean string, lexed playwrightLexed) (bool, playwrightScopeBlock) {
+	match := playwrightDevicesImport.FindStringSubmatchIndex(clean)
+	if match == nil || !lexed.topLevel(match[0]) {
+		return false, playwrightScopeBlock{offset: -1, why: "devices is not imported from @playwright/test at top level"}
+	}
+	specifier := -1
+	offset := match[2]
+	for _, item := range strings.Split(clean[match[2]:match[3]], ",") {
+		if strings.TrimSpace(item) == "devices" {
+			specifier = offset + strings.Index(item, "devices")
+		}
+		offset += len(item) + 1
+	}
+	if specifier < 0 {
+		return false, playwrightScopeBlock{offset: -1, why: "devices is not imported from @playwright/test at top level"}
+	}
+	if block := playwrightDevicesBlock(clean, lexed, specifier); block >= 0 {
+		return false, playwrightScopeBlock{offset: block, why: "devices is used other than as a spread or descriptor read"}
+	}
+	return true, playwrightScopeBlock{}
+}
+
+// playwrightMutationsConfined reports whether the config has no `\` escape in code and every
+// `delete`, `++` and `--` token in code lies inside one of spans whose text names no `devices`
+// and has no `\` (TJAA-V0-060).
+func playwrightMutationsConfined(clean string, lexed playwrightLexed, spans [][2]int) bool {
+	inside := func(at int) bool {
+		for _, span := range spans {
+			if span[0] <= at && at < span[1] && span[1] <= len(clean) {
+				text := clean[span[0]:span[1]]
+				return len(playwrightTokenOffsets(text, "devices")) == 0 && !strings.Contains(text, `\`)
+			}
+		}
+		return false
+	}
+	for index := 0; index < len(clean); index++ {
+		if !lexed.code[index] {
+			continue
+		}
+		switch clean[index] {
+		case '\\':
+			return false
+		case '+', '-':
+			if index+1 < len(clean) && clean[index+1] == clean[index] && lexed.code[index+1] {
+				if !inside(index) {
+					return false
+				}
+				index++
+			}
+		}
+	}
+	for _, at := range playwrightTokenOffsets(clean, "delete") {
+		if lexed.code[at] && !inside(at) {
+			return false
+		}
+	}
+	return true
 }
 
 // playwrightCodeMutationToken returns the offset of the first `\` (an escaped identifier), `++`,
@@ -397,7 +453,7 @@ func playwrightEnvWrite(raw string, lexed playwrightLexed, start, end int) bool 
 func playwrightNumericCallee(root string, keys []string) bool {
 	switch root {
 	case "Number":
-		return len(keys) == 0 || len(keys) == 1 && (keys[0] == "parseInt" || keys[0] == "parseFloat")
+		return len(keys) == 0 || len(keys) == 1 && (keys[0] == "parseInt" || keys[0] == "parseFloat" || keys[0] == "isInteger")
 	case "parseInt", "parseFloat":
 		return len(keys) == 0
 	}
@@ -413,6 +469,10 @@ func playwrightNumericSound(raw string, lexed playwrightLexed) (map[string]bool,
 	for _, name := range []string{"Number", "parseInt", "parseFloat"} {
 		sound[name] = true
 		for _, at := range playwrightTokenOffsets(raw, name) {
+			if name != "Number" && playwrightNumberMember(raw, lexed, at) {
+				// TJAA-V0-055: `Number.parseInt` is an occurrence of Number, judged as its callee.
+				continue
+			}
 			keys, end, ok := playwrightMemberChain(raw, at+len(name))
 			if next := skipPlaywrightSpace(raw, end); !lexed.code[at] || !playwrightReadBefore(raw, at) || !ok || !playwrightNumericCallee(name, keys) || next == len(raw) || raw[next] != '(' {
 				sound[name] = false
@@ -424,6 +484,22 @@ func playwrightNumericSound(raw string, lexed playwrightLexed) (map[string]bool,
 		}
 	}
 	return sound, first
+}
+
+// playwrightNumberMember reports whether the name at offset at is the member name of a code
+// `Number.` read: a plain `.` after the `Number` token, so the occurrence belongs to that chain.
+func playwrightNumberMember(raw string, lexed playwrightLexed, at int) bool {
+	dot := playwrightPreviousCode(raw, at)
+	if dot < 1 || raw[dot] != '.' || raw[dot-1] == '?' || !lexed.code[at] {
+		return false
+	}
+	end := playwrightPreviousCode(raw, dot) + 1
+	start := end - len("Number")
+	if start < 0 || raw[start:end] != "Number" || !lexed.code[start] {
+		return false
+	}
+	before, _ := utf8.DecodeLastRuneInString(raw[:start])
+	return start == 0 || before != '_' && before != '$' && before != '\\' && before != utf8.RuneError && !unicode.IsLetter(before) && !unicode.IsDigit(before)
 }
 
 // resolves reports whether keys name own properties down to a primitive value.

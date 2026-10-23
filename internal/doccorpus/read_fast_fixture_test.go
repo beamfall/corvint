@@ -14,9 +14,12 @@ import (
 
 // readFixtureScale sizes the large read fixture (DCP-V1-418): native documentation pages in the
 // declared scope, source files outside it that a full live re-index would read, and the pinned
-// evidence files of each additional repository.
+// evidence files of each additional repository. manyScopes declares one single-file scope per
+// documentation page and per additional-repository file instead of one directory scope each
+// (DCP-V1-450), the shape an export of thousands of individually scoped files produces.
 type readFixtureScale struct {
 	docs, sections, sources, additional, additionalFiles int
+	manyScopes                                           bool
 }
 
 // largeReadFixture writes, under parent, a primary repository with a native docs scope and a
@@ -62,7 +65,14 @@ func largeReadFixture(t testing.TB, parent string, scale readFixtureScale) (stri
 	run(root, "commit", "-qm", "app")
 	revision := run(root, "rev-parse", "HEAD")
 	ctx := context.Background()
-	m, err := InventoryScopes(ctx, root, revision, []string{"docs"}, ManifestSchemaV2, "2026-10-23T00:00:00Z")
+	scopes := []string{"docs"}
+	if scale.manyScopes {
+		scopes = scopes[:0]
+		for n := range scale.docs {
+			scopes = append(scopes, fmt.Sprintf("docs/area%02d/feature%05d.md", n%50, n))
+		}
+	}
+	m, err := InventoryScopes(ctx, root, revision, scopes, ManifestSchemaV2, "2026-10-23T00:00:00Z")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,9 +91,14 @@ func largeReadFixture(t testing.TB, parent string, scale readFixtureScale) (stri
 		rev := run(dir, "rev-parse", "HEAD")
 		dirs = append(dirs, dir)
 		extra = append(extra, AdditionalRepository{ID: rev, Revision: rev, Root: fmt.Sprintf("../lib%d", i)})
-		m.Scopes = append(m.Scopes, Scope{Path: "guide", Revision: rev})
+		if !scale.manyScopes {
+			m.Scopes = append(m.Scopes, Scope{Path: "guide", Revision: rev})
+		}
 		for n := range scale.additionalFiles {
 			path := fmt.Sprintf("guide/p%05d.md", n)
+			if scale.manyScopes {
+				m.Scopes = append(m.Scopes, Scope{Path: path, Revision: rev})
+			}
 			raw, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(path)))
 			if err != nil {
 				t.Fatal(err)
@@ -145,7 +160,11 @@ func TestWriteLargeReadFixture(t *testing.T) {
 	if dir == "" {
 		t.Skip("CORVINT_READ_FIXTURE_DIR not set")
 	}
-	root, _ := largeReadFixture(t, dir, readFixtureScale{docs: 4000, sections: 6, sources: 6000, additional: 4, additionalFiles: 1500})
+	scale := readFixtureScale{docs: 4000, sections: 6, sources: 6000, additional: 4, additionalFiles: 1500}
+	if os.Getenv("CORVINT_READ_FIXTURE_SCOPES") == "many" {
+		scale.manyScopes = true
+	}
+	root, _ := largeReadFixture(t, dir, scale)
 	info, err := os.Stat(filepath.Join(root, "corpus.json"))
 	if err != nil {
 		t.Fatal(err)

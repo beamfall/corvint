@@ -386,7 +386,7 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 	}
 	go func() {
 		observed := exitWait(command.Process.Pid)
-		stopSignals.leaderGone.Store(true)
+		stopSignals.exited(observed)
 		if observed != nil {
 			// Another reaper may have collected the leader, so its group ID
 			// no longer names this group: forget it for the exit kill now,
@@ -468,7 +468,7 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 		if terminationErr != nil {
 			terminationErr = fmt.Errorf("terminate owned process group: %w", terminationErr)
 		}
-		cleanupErr = cleanupProcessGroupBeforeReap(command.Process.Pid, groupPresent, leaderExited, spec.JoinAncestorProcessGroup, groupProbe, spec.TerminateGrace, shutdownDeadline)
+		cleanupErr = cleanupProcessGroupBeforeReap(command.Process.Pid, groupPresent, leaderExited, spec.JoinAncestorProcessGroup, groupProbe, graceHeldQuiet(&stopSignals.leaderHeld, quietProof), spec.TerminateGrace, shutdownDeadline)
 		if cleanupErr != nil {
 			cleanupErr = fmt.Errorf("force owned process group before reap: %w", cleanupErr)
 		}
