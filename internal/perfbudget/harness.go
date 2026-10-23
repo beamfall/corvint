@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -152,21 +153,28 @@ func Run(ctx context.Context, o Options) (*Report, error) {
 	for _, id := range ScenarioIDs {
 		progress("scenario: " + id)
 		var m ScenarioMeasured
+		var err error
 		switch id {
 		case "cli-cold-read":
-			m = measureCLI(ctx, id, fixture.Primary, search, samples[id], 0, func() error { return os.RemoveAll(filepath.Join(fixture.Primary, ".corvint")) })
+			m, err = measureCLI(ctx, id, fixture.Primary, search, samples[id], 0, func() error { return os.RemoveAll(filepath.Join(fixture.Primary, ".corvint")) })
 		case "cli-warm-read":
-			m = measureCLI(ctx, id, fixture.Primary, search, samples[id], 1, nil)
+			m, err = measureCLI(ctx, id, fixture.Primary, search, samples[id], 1, nil)
 		case "mcp-first-call":
-			first, warm := measureMCP(ctx, o.CorpusMCP, fixture, samples["mcp-first-call"], samples["mcp-warm-call"])
+			first, warm, err := measureMCP(ctx, o.CorpusMCP, fixture, samples["mcp-first-call"], samples["mcp-warm-call"])
+			if err != nil {
+				return nil, err
+			}
 			r.Scenarios = append(r.Scenarios, first, warm)
 			continue
 		case "mcp-warm-call":
 			continue
 		case "full-delta":
-			m = measureCLI(ctx, id, fixture.Primary, []string{o.Corvint, "--root", fixture.Primary, "docs", "corpus", "delta", "--previous", fixture.Previous, "--artifact", fixture.Current, "--limit", "256"}, samples[id], 0, nil)
+			m, err = measureCLI(ctx, id, fixture.Primary, []string{o.Corvint, "--root", fixture.Primary, "docs", "corpus", "delta", "--previous", fixture.Previous, "--artifact", fixture.Current, "--limit", "256"}, samples[id], 0, nil)
 		case "affected-path":
-			m = measureCLI(ctx, id, fixture.Ruby, []string{o.Corvint, "--root", fixture.Ruby, "affected", "--path", fixture.RubyPath}, samples[id], 1, nil)
+			m, err = measureCLI(ctx, id, fixture.Ruby, []string{o.Corvint, "--root", fixture.Ruby, "affected", "--path", fixture.RubyPath}, samples[id], 1, nil)
+		}
+		if err != nil {
+			return nil, err
 		}
 		r.Scenarios = append(r.Scenarios, m)
 	}
@@ -181,42 +189,54 @@ func Run(ctx context.Context, o Options) (*Report, error) {
 	return r, nil
 }
 
-// measureCLI runs warmups unmeasured, then samples measured runs; before runs ahead of each.
-func measureCLI(ctx context.Context, id, dir string, argv []string, samples, warmups int, before func() error) ScenarioMeasured {
+// measureCLI runs warmups unmeasured, then samples measured runs; before runs ahead of each. A
+// run that executed and refused is the scenario's error; an executable that could not start is
+// returned as the harness's *StartError.
+func measureCLI(ctx context.Context, id, dir string, argv []string, samples, warmups int, before func() error) (ScenarioMeasured, error) {
 	m := ScenarioMeasured{ID: id, Command: displayCommand(argv), Samples: []Sample{}}
 	for i := range warmups + samples {
 		if before != nil {
 			if err := before(); err != nil {
 				m.Error = err.Error()
-				return m
+				return m, nil
 			}
 		}
 		sample, err := runOnce(ctx, dir, argv)
+		var notStarted *StartError
+		if errors.As(err, &notStarted) {
+			return m, err
+		}
 		if err != nil {
 			m.Error = err.Error()
-			return m
+			return m, nil
 		}
 		if i >= warmups {
 			m.Samples = append(m.Samples, sample)
 		}
 	}
 	m.summarize()
-	return m
+	return m, nil
 }
 
 // measureMCP starts firstSamples corpus MCP servers. Each first call is timed from process start
 // to its response; warmSamples further calls on the first server, alternating search and get,
-// are timed per call. Each scenario's peak resident set is its servers' maximum.
-func measureMCP(ctx context.Context, binary string, f *Fixture, firstSamples, warmSamples int) (ScenarioMeasured, ScenarioMeasured) {
+// are timed per call. Each scenario's peak resident set is its servers' maximum. A server that
+// started and refused fails both scenarios; one that could not start is returned as the
+// harness's *StartError (PRB-V0-029).
+func measureMCP(ctx context.Context, binary string, f *Fixture, firstSamples, warmSamples int) (ScenarioMeasured, ScenarioMeasured, error) {
 	argv := []string{binary, "--root", f.Primary, "--artifact", f.Current, "--protocol-version", mcpProtocolVersion}
 	first := ScenarioMeasured{ID: "mcp-first-call", Command: displayCommand(argv), Samples: []Sample{}}
 	warm := ScenarioMeasured{ID: "mcp-warm-call", Command: displayCommand(argv), Samples: []Sample{}}
-	failBoth := func(err error) (ScenarioMeasured, ScenarioMeasured) {
+	failBoth := func(err error) (ScenarioMeasured, ScenarioMeasured, error) {
 		first.Error, warm.Error = err.Error(), err.Error()
-		return first, warm
+		return first, warm, nil
 	}
 	for i := range firstSamples {
 		session, start, err := startMCP(ctx, f.Primary, argv)
+		var notStarted *StartError
+		if errors.As(err, &notStarted) {
+			return first, warm, err
+		}
 		if err != nil {
 			return failBoth(err)
 		}
@@ -235,7 +255,7 @@ func measureMCP(ctx context.Context, binary string, f *Fixture, firstSamples, wa
 				if err != nil {
 					warm.Error = session.fail(err).Error()
 					first.Error = warm.Error
-					return first, warm
+					return first, warm, nil
 				}
 				warmWalls = append(warmWalls, wall)
 			}
@@ -251,7 +271,7 @@ func measureMCP(ctx context.Context, binary string, f *Fixture, firstSamples, wa
 	}
 	first.summarize()
 	warm.summarize()
-	return first, warm
+	return first, warm, nil
 }
 
 // displayCommand names the binary by its base name so reports do not carry host paths.

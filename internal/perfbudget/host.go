@@ -54,7 +54,7 @@ func loadAverage(ctx context.Context) ([]float64, string) {
 	} else if runtime.GOOS == "darwin" || strings.HasSuffix(runtime.GOOS, "bsd") {
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
-		out, err := exec.CommandContext(ctx, "sysctl", "-n", "vm.loadavg").Output()
+		out, err := outputContained(exec.CommandContext(ctx, "sysctl", "-n", "vm.loadavg"))
 		if err != nil {
 			return nil, "load average NOT_OBSERVED: sysctl vm.loadavg failed"
 		}

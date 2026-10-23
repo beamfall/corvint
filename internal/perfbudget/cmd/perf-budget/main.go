@@ -10,6 +10,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
@@ -96,14 +97,16 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		progress("build: " + b.pkg)
 		build := exec.CommandContext(ctx, "go", "build", "-o", *b.path, b.pkg)
 		build.Stdout, build.Stderr = stderr, stderr
-		if err := build.Run(); err != nil {
+		// Owned: an interrupt retires the compiler and linker descendants too, before the
+		// deferred removal of the scratch directory they write into (PRB-V0-037).
+		if err := perfbudget.RunOwned(build); err != nil {
 			return fail(fmt.Errorf("go build %s: %w", b.pkg, err))
 		}
 	}
 	revision := "NOT_OBSERVED"
-	if head, err := exec.CommandContext(ctx, "git", "rev-parse", "HEAD").Output(); err == nil {
+	if head, err := ownedOutput(ctx, "git", "rev-parse", "HEAD"); err == nil {
 		revision = strings.TrimSpace(string(head))
-		if status, err := exec.CommandContext(ctx, "git", "status", "--porcelain", "--untracked-files=no").Output(); err == nil && len(status) > 0 {
+		if status, err := ownedOutput(ctx, "git", "status", "--porcelain", "--untracked-files=no"); err == nil && len(status) > 0 {
 			revision += "+dirty"
 		}
 	}
@@ -147,4 +150,13 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	return 0
+}
+
+// ownedOutput is exec's Output for name and args under perfbudget.RunOwned.
+func ownedOutput(ctx context.Context, name string, args ...string) ([]byte, error) {
+	var stdout bytes.Buffer
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Stdout = &stdout
+	err := perfbudget.RunOwned(cmd)
+	return stdout.Bytes(), err
 }

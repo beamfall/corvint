@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"slices"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
 // Sample is one measured wall time and the peak resident set of the process that served it.
@@ -81,7 +83,8 @@ func (m *ScenarioMeasured) summarize() {
 }
 
 // runOnce runs one CLI read to completion and measures it; a non-zero exit is an error, because
-// a refused read measures nothing the budget means.
+// a refused read measures nothing the budget means. An executable that cannot start is a
+// *StartError.
 func runOnce(ctx context.Context, dir string, argv []string) (Sample, error) {
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	cmd.Dir = dir
@@ -89,8 +92,11 @@ func runOnce(ctx context.Context, dir string, argv []string) (Sample, error) {
 	var stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = io.Discard, &stderr
 	start := time.Now()
-	err := cmd.Run()
+	err := runContained(cmd)
 	wall := time.Since(start)
+	if failed := startFailure(cmd, err); failed != nil {
+		return Sample{}, failed
+	}
 	if err != nil {
 		return Sample{}, fmt.Errorf("%s: %v: %.400s", filepath.Base(argv[0]), err, stderr.String())
 	}
@@ -135,8 +141,12 @@ func startMCP(ctx context.Context, dir string, argv []string) (*mcpSession, time
 		return nil, time.Time{}, err
 	}
 	s.stdin, s.stdout = stdin, bufio.NewReaderSize(stdout, 1<<20)
+	groupreap.Contain(s.cmd)
 	start := time.Now()
-	if err := s.cmd.Start(); err != nil {
+	if err := groupreap.StartLive(s.cmd); err != nil {
+		if failed := startFailure(s.cmd, err); failed != nil {
+			return nil, time.Time{}, failed
+		}
 		return nil, time.Time{}, err
 	}
 	if _, err := s.request("initialize", map[string]any{"protocolVersion": mcpProtocolVersion, "capabilities": map[string]any{}, "clientInfo": map[string]any{"name": "corvint-perf-budget", "version": "0"}}); err != nil {
@@ -208,10 +218,11 @@ func (s *mcpSession) call(tool string, arguments map[string]any) (time.Duration,
 	return wall, nil
 }
 
-// close ends the session at end of input and returns the server's peak resident set.
+// close ends the session at end of input and returns the server's peak resident set. The
+// server's process group is swept before it is reaped (groupreap.Wait).
 func (s *mcpSession) close() (*int64, error) {
 	_ = s.stdin.Close()
-	if err := s.cmd.Wait(); err != nil {
+	if err := groupreap.Wait(s.cmd); err != nil {
 		return nil, fmt.Errorf("corpus MCP server exit: %v: %.400s", err, s.stderr.String())
 	}
 	return peakRSS(s.cmd.ProcessState), nil
@@ -219,7 +230,7 @@ func (s *mcpSession) close() (*int64, error) {
 
 func (s *mcpSession) fail(err error) error {
 	_ = s.stdin.Close()
-	_ = s.cmd.Process.Kill()
-	_ = s.cmd.Wait()
+	_ = s.cmd.Process.Kill() // the leader's exit triggers groupreap.Wait's group sweep
+	_ = groupreap.Wait(s.cmd)
 	return fmt.Errorf("%v: %.400s", err, s.stderr.String())
 }

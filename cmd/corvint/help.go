@@ -1418,7 +1418,8 @@ profile for this invocation to PATH.
 CORVINT_MEMPROFILE=PATH (operator env var, off by default): writes a pprof heap
 profile for this invocation to PATH.
 Every command and MCP server honours both, one file per process, written on exit
-and on SIGINT or SIGTERM; {pid} in PATH becomes the process ID. Diagnostic only;
+and on SIGINT or SIGTERM; {pid} in PATH becomes the process ID. PATH must lie
+outside every Git worktree and Git directory (PRB-V0-013). Diagnostic only;
 they do not change what is read, returned, or mutated (corvint help --json lists
 the commands and servers).
 `

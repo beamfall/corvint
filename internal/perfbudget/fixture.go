@@ -7,7 +7,9 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -88,7 +90,14 @@ func Generate(ctx context.Context, dir string, s Scale, build Builder) (*Fixture
 	if s.PrimaryPages < 1 || s.AdditionalRepositories < 1 || s.AdditionalRepositories > 7 || s.AdditionalPages < 1 || s.ChangedPages > s.PrimaryPages || s.RubyFiles < 2 {
 		return nil, fmt.Errorf("perf-budget fixture: invalid scale %+v", s)
 	}
-	if entries, err := os.ReadDir(dir); err == nil && len(entries) > 0 {
+	// Generation proceeds only into a directory proved absent or empty; any other inspection
+	// failure (an unreadable directory may hold paths generation would overwrite) refuses.
+	entries, err := os.ReadDir(dir)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+	case err != nil:
+		return nil, fmt.Errorf("perf-budget fixture: cannot prove %s empty: %w", dir, err)
+	case len(entries) > 0:
 		return nil, fmt.Errorf("perf-budget fixture: %s is not empty", dir)
 	}
 	f := &Fixture{Generator: FixtureGenerator, Scale: s, Primary: filepath.Join(dir, "app"), Ruby: filepath.Join(dir, "ruby-app"), Previous: "previous.json", PreviousManifest: "previous-manifest.json", Current: "corpus.json", Manifest: "manifest.json", SearchQuery: "invoice ledger", GetID: "adapter-lib1:lib1-0", RubyPath: "app/models/model_00001.rb"}
@@ -252,7 +261,7 @@ func CLIBuilder(corvint string) Builder {
 		cmd.Env = measuredEnv()
 		var stderr strings.Builder
 		cmd.Stderr = &stderr
-		out, err := cmd.Output()
+		out, err := outputContained(cmd)
 		if err != nil {
 			return nil, fmt.Errorf("corvint docs corpus build: %v: %.400s", err, stderr.String())
 		}
@@ -386,7 +395,7 @@ func gitCommand(ctx context.Context, dir string, args ...string) *exec.Cmd {
 }
 
 func gitOutput(ctx context.Context, dir string, args ...string) (string, error) {
-	out, err := gitCommand(ctx, dir, args...).Output()
+	out, err := outputContained(gitCommand(ctx, dir, args...))
 	if err != nil {
 		return "", fmt.Errorf("perf-budget fixture: git %s: %w", strings.Join(args, " "), err)
 	}
@@ -395,12 +404,12 @@ func gitOutput(ctx context.Context, dir string, args ...string) (string, error) 
 
 func commitAll(ctx context.Context, dir, message string) error {
 	if _, err := os.Stat(filepath.Join(dir, ".git")); err != nil {
-		if out, err := gitCommand(ctx, dir, "init", "-q").CombinedOutput(); err != nil {
+		if out, err := combinedContained(gitCommand(ctx, dir, "init", "-q")); err != nil {
 			return fmt.Errorf("perf-budget fixture: git init %s: %v %s", dir, err, out)
 		}
 	}
 	for _, args := range [][]string{{"add", "-A"}, {"commit", "-qm", message}} {
-		if out, err := gitCommand(ctx, dir, args...).CombinedOutput(); err != nil {
+		if out, err := combinedContained(gitCommand(ctx, dir, args...)); err != nil {
 			return fmt.Errorf("perf-budget fixture: git %s: %v %s", strings.Join(args, " "), err, out)
 		}
 	}

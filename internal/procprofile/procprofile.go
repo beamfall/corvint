@@ -55,14 +55,57 @@ type Session struct {
 	once     sync.Once
 	done     chan struct{}
 	cpu, mem *os.File
+	cpuOut   *recordingWriter
 	err      error
 }
 
+// recordingWriter is the CPU profiler's destination. runtime/pprof drops its writer's errors,
+// so the first one is kept here for Stop to report (PRB-V0-007). While Start holds mu the
+// profiler cannot write; a refused start sets discard so the profiler's final flush never
+// reaches the file it is leaving intact.
+type recordingWriter struct {
+	mu      sync.Mutex
+	w       io.Writer
+	discard bool
+	err     error
+}
+
+func (r *recordingWriter) Write(p []byte) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.discard {
+		return len(p), nil
+	}
+	if r.err != nil {
+		return 0, r.err
+	}
+	n, err := r.w.Write(p)
+	if err == nil && n < len(p) {
+		err = io.ErrShortWrite
+	}
+	r.err = err
+	return n, err
+}
+
+func (r *recordingWriter) failure() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.err
+}
+
+// Test hooks: truncateFile is (*os.File).Truncate and startCPUProfile is pprof.StartCPUProfile.
+var (
+	truncateFile    = func(f *os.File, size int64) error { return f.Truncate(size) }
+	startCPUProfile = pprof.StartCPUProfile
+)
+
 // Start opens the files the knobs name and starts the CPU profile. An unset or empty knob is
-// off. Both files are opened before anything runs, so an unwritable path refuses up front
-// instead of losing the profile at exit. Files are opened without truncation and truncated only
-// once both are open and the profiler has started, so a refusal leaves an existing file intact
-// and removes a file it created.
+// off. A destination inside a Git worktree or Git metadata is refused before either file is
+// opened, so profiling never creates or truncates repository content. Both files are opened
+// before anything runs, so an unwritable path refuses up front instead of losing the profile
+// at exit. Every fallible startup step (opening, the same-file check, starting the profiler,
+// and a size-preserving truncation probe) precedes the first truncation, so a refusal leaves
+// an existing file intact and removes a file it created.
 func Start(lookup runtimeenv.Lookup) (*Session, error) {
 	cpuPath, err := knobPath(lookup, CPUSuffix)
 	if err != nil {
@@ -77,6 +120,13 @@ func Start(lookup runtimeenv.Lookup) (*Session, error) {
 		memAbs, memErr := filepath.Abs(memPath)
 		if cpuErr == nil && memErr == nil && cpuAbs == memAbs {
 			return nil, fail("profile-invalid", "CORVINT_CPUPROFILE and CORVINT_MEMPROFILE name the same file %q", cpuPath)
+		}
+	}
+	for _, knob := range []struct{ name, path string }{{"CORVINT_MEMPROFILE", memPath}, {"CORVINT_CPUPROFILE", cpuPath}} {
+		if knob.path != "" {
+			if err := checkOutsideRepository(knob.name, knob.path); err != nil {
+				return nil, err
+			}
 		}
 	}
 	s := &Session{done: make(chan struct{})}
@@ -116,19 +166,136 @@ func Start(lookup runtimeenv.Lookup) (*Session, error) {
 			return refuse(fail("profile-invalid", "CORVINT_CPUPROFILE and CORVINT_MEMPROFILE name the same file %q", cpuPath))
 		}
 	}
-	for _, f := range []*os.File{s.mem, s.cpu} {
-		if f != nil {
-			if err := f.Truncate(0); err != nil {
-				return refuse(fail("profile-unavailable", "%s: %w", f.Name(), err))
-			}
-		}
-	}
 	if s.cpu != nil {
-		if err = pprof.StartCPUProfile(s.cpu); err != nil {
+		// Held until truncation ends: the profiler cannot write into a file not yet truncated.
+		s.cpuOut = &recordingWriter{w: s.cpu}
+		s.cpuOut.mu.Lock()
+		if err := startCPUProfile(s.cpuOut); err != nil {
+			s.cpuOut.mu.Unlock()
 			return refuse(fail("profile-unavailable", "CORVINT_CPUPROFILE: %w", err))
 		}
 	}
+	err = s.truncate()
+	if s.cpuOut != nil {
+		s.cpuOut.discard = err != nil
+		s.cpuOut.mu.Unlock()
+		if err != nil {
+			pprof.StopCPUProfile()
+		}
+	}
+	if err != nil {
+		return refuse(err)
+	}
 	return s, nil
+}
+
+// truncate empties the open regular files. Each is first truncated to its own size, a
+// non-destructive probe of the same permission, so a file that cannot be truncated refuses
+// before any file loses content. A device or pipe (such as /dev/null) has nothing to truncate.
+func (s *Session) truncate() error {
+	var regular []*os.File
+	for _, file := range []struct {
+		f    *os.File
+		knob string
+	}{{s.mem, "CORVINT_MEMPROFILE"}, {s.cpu, "CORVINT_CPUPROFILE"}} {
+		if file.f == nil {
+			continue
+		}
+		info, err := file.f.Stat()
+		if err != nil {
+			return fail("profile-unavailable", "%s: %w", file.knob, err)
+		}
+		if !info.Mode().IsRegular() {
+			continue
+		}
+		if err := truncateFile(file.f, info.Size()); err != nil {
+			return fail("profile-unavailable", "%s: %w", file.knob, err)
+		}
+		regular = append(regular, file.f)
+	}
+	for _, f := range regular {
+		if err := truncateFile(f, 0); err != nil {
+			return fail("profile-unavailable", "%s: %w", f.Name(), err)
+		}
+	}
+	return nil
+}
+
+// checkOutsideRepository refuses a destination inside a Git worktree or Git metadata
+// (PRB-V0-013): a profile written there would create or truncate repository content before a
+// read runs and could turn a clean read into a refusal. The destination is resolved through
+// symbolic links, including a dangling final link that opening would follow, and every
+// ancestor of the resolved file is checked.
+func checkOutsideRepository(knob, path string) error {
+	resolved, err := resolveDestination(path)
+	if err != nil {
+		return fail("profile-unavailable", "%s: %w", knob, err)
+	}
+	for dir := filepath.Dir(resolved); ; {
+		if filepath.Base(dir) == ".git" || isGitDir(dir) {
+			return fail("profile-invalid", "%s %q is inside Git metadata %q; choose a path outside every repository", knob, path, dir)
+		}
+		if _, err := os.Lstat(filepath.Join(dir, ".git")); err == nil {
+			return fail("profile-invalid", "%s %q is inside the Git worktree %q; choose a path outside every repository", knob, path, dir)
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return nil
+		}
+		dir = parent
+	}
+}
+
+// isGitDir reports whether dir has a Git directory's layout (a bare or separated Git dir).
+func isGitDir(dir string) bool {
+	head, err := os.Lstat(filepath.Join(dir, "HEAD"))
+	if err != nil || !head.Mode().IsRegular() {
+		return false
+	}
+	for _, sub := range []string{"objects", "refs"} {
+		if info, err := os.Stat(filepath.Join(dir, sub)); err != nil || !info.IsDir() {
+			return false
+		}
+	}
+	return true
+}
+
+// maxDestinationLinks bounds link resolution, as the kernel's own loop limit does.
+const maxDestinationLinks = 40
+
+// resolveDestination is the absolute, symlink-free path that opening path would write.
+func resolveDestination(path string) (string, error) {
+	current, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	for range maxDestinationLinks {
+		if resolved, err := filepath.EvalSymlinks(current); err == nil {
+			return resolved, nil
+		}
+		info, err := os.Lstat(current)
+		switch {
+		case err == nil && info.Mode()&os.ModeSymlink != 0:
+			target, err := os.Readlink(current)
+			if err != nil {
+				return "", err
+			}
+			if !filepath.IsAbs(target) {
+				target = filepath.Join(filepath.Dir(current), target)
+			}
+			current = target
+			continue
+		case err != nil && !errors.Is(err, os.ErrNotExist):
+			return "", err
+		}
+		// A file not yet created: its directory must resolve.
+		dir, err := filepath.EvalSymlinks(filepath.Dir(current))
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(dir, filepath.Base(current)), nil
+	}
+	return "", fmt.Errorf("%s: too many symbolic links", path)
 }
 
 func knobPath(lookup runtimeenv.Lookup, suffix string) (string, error) {
@@ -155,7 +322,10 @@ func (s *Session) Stop() error {
 		defer close(s.done)
 		var errs []error
 		if s.cpu != nil {
-			pprof.StopCPUProfile()
+			pprof.StopCPUProfile() // returns once the profiler has written its last byte
+			if err := s.cpuOut.failure(); err != nil {
+				errs = append(errs, fail("profile-write-failed", "CORVINT_CPUPROFILE: %w", err))
+			}
 			if err := s.cpu.Close(); err != nil {
 				errs = append(errs, fail("profile-write-failed", "CORVINT_CPUPROFILE: %w", err))
 			}

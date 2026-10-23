@@ -226,3 +226,39 @@ func TestPRBV0009HelpJSONListsProfileKnobScope(t *testing.T) {
 		t.Fatal("help --json is not the deterministic catalog")
 	}
 }
+
+// PRB-V0-013 (review of GitHub #1600): a profile destination inside the inspected worktree is
+// refused before the read runs, so it can neither create an untracked file that turns a clean
+// `affected --path` into a refusal nor truncate a tracked file; the read itself still succeeds.
+func TestPRBV0013ProfileInsideWorktreeRefusesBeforeRead(t *testing.T) {
+	root := profileCorpusFixture(t)
+	arguments := []string{"--root", root, "affected", "--path", "source.md"}
+	var plain, plainErr bytes.Buffer
+	if code := runProfiledContext(context.Background(), context.Background(), arguments, strings.NewReader(""), &plain, &plainErr, profileKnobLookup(nil)); code != 0 {
+		t.Fatalf("unprofiled read: exit %d stderr %.300s", code, plainErr.String())
+	}
+	tracked, err := os.ReadFile(filepath.Join(root, "source.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for knob, destination := range map[string]string{"CORVINT_CPUPROFILE": filepath.Join(root, "cpu.pprof"), "CORVINT_MEMPROFILE": filepath.Join(root, "source.md")} {
+		var stdout, stderr bytes.Buffer
+		code := runProfiledContext(context.Background(), context.Background(), arguments, strings.NewReader(""), &stdout, &stderr, profileKnobLookup(map[string]string{knob: destination}))
+		var refusal struct {
+			Code string `json:"code"`
+		}
+		if code != 2 || stdout.Len() != 0 || json.Unmarshal(stderr.Bytes(), &refusal) != nil || refusal.Code != "profile-invalid" {
+			t.Fatalf("%s=%s: exit=%d stdout=%.200q stderr=%.300q", knob, destination, code, &stdout, &stderr)
+		}
+	}
+	if _, err := os.Lstat(filepath.Join(root, "cpu.pprof")); !os.IsNotExist(err) {
+		t.Fatalf("refused profile created an untracked file: %v", err)
+	}
+	if after, _ := os.ReadFile(filepath.Join(root, "source.md")); !bytes.Equal(after, tracked) {
+		t.Fatal("refused profile truncated a tracked file")
+	}
+	var again, againErr bytes.Buffer
+	if code := runProfiledContext(context.Background(), context.Background(), arguments, strings.NewReader(""), &again, &againErr, profileKnobLookup(nil)); code != 0 || !bytes.Equal(again.Bytes(), plain.Bytes()) {
+		t.Fatalf("read after refusals: exit %d stderr %.300s", code, againErr.String())
+	}
+}
