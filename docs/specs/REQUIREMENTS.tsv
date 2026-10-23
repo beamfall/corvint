@@ -584,6 +584,12 @@ CAP-V0-020	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-021	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1588) Root hel	standing	2026-10-11
 CAP-V0-022	docs/specs/capability-catalog-v0.md	(owner request, 2026-10-23; amends `CAP-V0-015`) The catalog MUST carry a	unrecorded	-
 CAP-V0-023	docs/specs/capability-catalog-v0.md	(owner request, 2026-10-23) The catalog builder MUST NOT derive a required optio	unrecorded	-
+CAP-V0-024	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1626; amends	standing	2026-10-11
+CAP-V0-025	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1626)	standing	2026-10-11
+CAP-V0-026	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1626) A test	standing	2026-10-11
+CAP-V0-027	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1626) The guid	standing	2026-10-11
+CAP-V0-028	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1626) The seve	standing	2026-10-11
+CAP-V0-029	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1626; owner	standing	2026-10-11
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,	unrecorded	-
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2	unrecorded	-
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa	unrecorded	-

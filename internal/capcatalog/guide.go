@@ -1,6 +1,7 @@
 package capcatalog
 
 import (
+	_ "embed"
 	"regexp"
 	"slices"
 	"strings"
@@ -10,7 +11,17 @@ var (
 	quotedPattern   = regexp.MustCompile(`"[^"]*"`)
 	backtickPattern = regexp.MustCompile("`([^`]+)`")
 	issuePattern    = regexp.MustCompile(`#[0-9]+\b`)
+	// requirementPattern matches a requirement ID such as CAP-V0-016, MCPV0-100
+	// or PNC-009: a three-digit number after an uppercase prefix.
+	requirementPattern = regexp.MustCompile(`\b[A-Z][A-Z0-9]*(?:-[A-Z][A-Z0-9]*)*-[0-9]{3}\b`)
 )
+
+//go:embed NONCAPABILITY-STATUS.tsv
+var nonCapabilityStatus string
+
+// NonCapabilityStatus returns the checked-in status of every issue and
+// requirement the guide's Non-capabilities section may name (CAP-V0-025).
+func NonCapabilityStatus() string { return nonCapabilityStatus }
 
 // GuideProblems checks a guide against a catalog (CAP-V0-018): every corvint
 // command line in it, after any --root preamble, names a catalogued command or
@@ -18,7 +29,7 @@ var (
 // (CAP-V0-017), and only options that command or the global block names;
 // every schema identifier it
 // names is in the catalog; and every non-capability names a tracking issue or
-// states that it is excluded by design. It returns one line per problem.
+// a requirement ID (CAP-V0-024). It returns one line per problem.
 func GuideProblems(catalog Catalog, guide string) []string {
 	var problems []string
 	commands := map[string]Command{}
@@ -47,8 +58,8 @@ func GuideProblems(catalog Catalog, guide string) []string {
 		problems = append(problems, "the guide has no Non-capabilities items")
 	}
 	for _, item := range items {
-		if !issuePattern.MatchString(item) && !strings.Contains(item, "By design") {
-			problems = append(problems, "non-capability names no tracking issue and no By design reason: "+item)
+		if len(nonCapabilityIDs(item)) == 0 {
+			problems = append(problems, "non-capability names no tracking issue and no requirement ID: "+item)
 		}
 	}
 	return problems
@@ -166,4 +177,75 @@ func nonCapabilities(guide string) []string {
 		}
 	}
 	return items
+}
+
+// nonCapabilityIDs returns the issue numbers (#N) and requirement IDs an item
+// names, in order of appearance.
+func nonCapabilityIDs(item string) []string {
+	return append(issuePattern.FindAllString(item, -1), requirementPattern.FindAllString(item, -1)...)
+}
+
+// NonCapabilityProblems checks every non-capability of a guide against a
+// status table (CAP-V0-025, CAP-V0-026). Every ID an item names must have a
+// status row, and none may be a closed issue or a delivered requirement. An
+// item that says "By design" must name a requirement recorded as excludes;
+// any other item must name an open issue or an undelivered requirement. It
+// reads nothing but its arguments and returns one line per problem.
+func NonCapabilityProblems(guide, status string) []string {
+	states, problems := parseNonCapabilityStatus(status)
+	for _, item := range nonCapabilities(guide) {
+		byDesign, standing := strings.Contains(item, "By design"), false
+		for _, id := range nonCapabilityIDs(item) {
+			state, ok := states[id]
+			switch {
+			case !ok:
+				problems = append(problems, "non-capability names "+id+", which has no row in NONCAPABILITY-STATUS.tsv: "+item)
+			case state == "closed" || state == "delivered":
+				problems = append(problems, "non-capability names "+id+", recorded as "+state+"; remove the item or name the open residual: "+item)
+			case byDesign == (state == "excludes"):
+				standing = true
+			}
+		}
+		switch {
+		case standing:
+		case byDesign:
+			problems = append(problems, "By design non-capability names no requirement recorded as excludes: "+item)
+		default:
+			problems = append(problems, "non-capability names no open issue and no undelivered requirement: "+item)
+		}
+	}
+	return problems
+}
+
+// parseNonCapabilityStatus reads the id, state and evidence table. An issue
+// is open or closed; a requirement is undelivered, delivered or excludes.
+func parseNonCapabilityStatus(status string) (map[string]string, []string) {
+	states := map[string]string{}
+	lines := strings.Split(strings.TrimSuffix(status, "\n"), "\n")
+	if lines[0] != "id\tstate\tevidence" {
+		return states, []string{"NONCAPABILITY-STATUS.tsv must start with the header id, state, evidence"}
+	}
+	var problems []string
+	for _, line := range lines[1:] {
+		fields := strings.Split(line, "\t")
+		if len(fields) != 3 || strings.TrimSpace(fields[2]) == "" {
+			problems = append(problems, "status row needs an id, a state and evidence: "+line)
+			continue
+		}
+		id, state := fields[0], fields[1]
+		issue := id != "" && issuePattern.FindString(id) == id
+		requirement := id != "" && requirementPattern.FindString(id) == id
+		switch {
+		case issue && (state == "open" || state == "closed"), requirement && (state == "undelivered" || state == "delivered" || state == "excludes"):
+		default:
+			problems = append(problems, "status row has an unknown id or state: "+line)
+			continue
+		}
+		if _, ok := states[id]; ok {
+			problems = append(problems, "status row repeats "+id)
+			continue
+		}
+		states[id] = state
+	}
+	return states, problems
 }
