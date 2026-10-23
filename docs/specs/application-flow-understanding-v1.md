@@ -841,6 +841,7 @@ without the `e2e-safe` value, so neither S4 nor a companion slice blocks it (dec
 | AFU-V1-019..024, 040 | implemented: `internal/appflows/selection.go` (`SelectE2E`), `cmd/corvint/affected.go`, `internal/liveverify/affected/typescript/playwright_discovery.go` (`VerifyPlaywrightDiscovery`), `internal/extevidence/selection.go` (`SelectionNote`); corpus `cmd/corvint/testdata/e2e-safe-corpus.json` |
 | AFU-V1-059 | accepted, decision 0512: `internal/liveverify/affected/graph.go`, `source.go`, `walk.go`, the eight language adapters, `internal/appflows/impact.go` and its CLI/MCP callers |
 | AFU-V1-034..035 | implemented and locally qualified: `internal/mcp/bridge/flows.go`, `bridge.go`, `cmd/corvint-mcp/main.go`, `internal/appflows/impact.go` (`FlowImpactAt`) |
+| AFU-V1-125 | implemented (V1-2414): `internal/flowdocs/generate.go` (`FlowLimitCode`, the whole-scope `candidates` count), `cmd/corvint/docs_flows.go` (wire-code lift); `TestAFUV1125FlowLimitIsTyped`, `TestAFUV1125FlowLimitCLICode` |
 | AFU-V1-112..120 | implemented (GitHub #1587): `internal/appflows/coverage_ingest.go` (`IngestCoverage`, `parseV8`, `parseIstanbul`, `parseLCOV`, `parseRSpec`, `bind`, `joinFile`, `v8Lines`, `checkLink`), `internal/doccorpus/line_anchor.go` (`LineIndex.Bytes`), `cmd/corvint/flows_ingest_coverage.go`, `cmd/corvint/flows.go`, `internal/appflows/runevidence.go` (`validateCoverageArtifacts`) |
 
 ## Unresolved decisions and promotion or kill criteria
@@ -935,7 +936,7 @@ accepted variation, or a replacement for independent application/browser qualifi
   including missing/extra/changed files, without writing anything. Exit 1 means drift; exit 2 refusal.
 - **AFU-V1-046**: Materialization requires a new directory under existing nonsymlink parents and
   exclusively creates confined files. Refuse human-file overwrite, symlinks, malformed paths and
-  bounds above 256 flows, 2,048 Markdown pages plus two metadata files, 64 MiB rendered payload and
+  bounds above 256 flows (refused with the typed code of AFU-V1-125), 2,048 Markdown pages plus two metadata files, 64 MiB rendered payload and
   256 MiB generation manifest (including an existing corpus up to 128 MiB), for a 320 MiB total
   output ceiling. Corpus input retains the corpus profile's 128 MiB bound. Render escaped prose and local generated links; diagrams use fixed
   Mermaid syntax labelled static/unresolved. Never dump arbitrary source bodies or literals.
@@ -1465,3 +1466,33 @@ Failure modes: two subjects whose names normalize to one flow ID refuse the impo
 an inventory with no endpoint or UI subject imports nothing. Rollback: revert this section, the
 `extractor-inventory` importer in `internal/appflows/import.go` and its help text; the other
 formats are unchanged.
+
+## Typed flow-limit refusal (V1-2414)
+
+Human-owned intent: an operator whose generation scope declares too many flows learns which bound
+refused it and by how much, from a code they can match, instead of an untyped `flowdocs-refused`.
+Accepted under the owner's standing auto-accept (2026-10-11).
+
+- **AFU-V1-125**: Without `--flows`, `docs flows generate` MUST refuse a scope with more than
+  `MaxFlows` (256) flow candidates with the owned code `flowdocs-flow-limit-exceeded`. Its message
+  names the scope, the `MaxFlows` limit and its value, and the observed candidate count of the whole
+  scope: generation keeps counting candidates past the limit, without building their flows, so the
+  count is exact rather than the first candidate over the bound. Exactly 256 candidates still
+  generate. A candidate is an in-scope declaration that is not a duplicate within its file, the same
+  set that becomes a flow below the limit.
+
+Acceptance: `TestAFUV1125FlowLimitIsTyped` (300 candidates over two files are refused with the
+typed code naming `300 flow candidates` and the limit; a 256-candidate scope generates 256 flows);
+`TestAFUV1125FlowLimitCLICode` (a 257-candidate scope exits 2 with stderr `code`
+`flowdocs-flow-limit-exceeded`; it failed with `internal-error` before the CLI lift).
+It failed before the change with `flowdocs-refused: flow limit exceeds 256; narrow scope`.
+
+Non-goals: raising the limit; typing the declared-inventory bounds (`in-scope declarations exceed
+16384`, `flow inventory must declare 1 to 256 flows`), which keep `flowdocs-refused`.
+
+Failure modes: the CLI's `docs flows` error path lifts this code, like `flowdocs-generator-stale`,
+to its own stderr wire `code` (`cmd/corvint/docs_flows.go`); any other `doccorpus.Error` still
+reaches stderr as `internal-error`. Counting past the limit extracts every in-scope source file once,
+as a generation under the limit already does, but skips anchor and symbol lookup for candidates
+past the limit. Rollback: revert this section,
+`FlowLimitCode` and the candidate count; the refusal returns to the untyped message.

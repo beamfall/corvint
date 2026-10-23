@@ -132,7 +132,6 @@ docs/specs/compat-replay-runner-v0.md	internal/procgroup/process.go:19-20
 docs/specs/compat-replay-runner-v0.md	internal/procgroup/process.go:21
 docs/specs/compat-replay-runner-v0.md	internal/procgroup/process.go:21
 docs/specs/compat-replay-runner-v0.md	internal/procgroup/process.go:103-123
-docs/specs/compat-replay-runner-v0.md	internal/procgroup/process_posix.go:211-216
 docs/specs/compat-replay-runner-v0.md	internal/procgroup/process_test.go:102
 docs/specs/compat-replay-runner-v0.md	internal/procgroup/process_test.go:115
 docs/specs/compat-replay-runner-v0.md	internal/procgroup/process_test.go:132

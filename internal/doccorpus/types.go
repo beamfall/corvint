@@ -258,6 +258,9 @@ type Artifact struct {
 	Capabilities   []Capability        `json:"capabilities"`
 	Gaps           []Gap               `json:"gaps"`
 	SHA256         string              `json:"sha256"`
+
+	// validation is how a reader admitted the artifact (DCP-V1-413); never serialized.
+	validation string
 	// deltaUnverified is set only by OpenDeltaCurrent when the artifact could not be rederived
 	// because a declared additional checkout is unavailable; the delta reports it (DCP-V1-425).
 	deltaUnverified []string

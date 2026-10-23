@@ -2,14 +2,17 @@ package main
 
 import (
 	"context"
+	"sync"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
 )
 
 // compileCorpusDelta runs `docs corpus delta` and `docs corpus carry-forward` (DCP-V1-360,
 // DCP-V1-366): --previous is a committed corpus artifact read canonically, and the current side
-// is exactly one of --artifact (reopened and rederived) or --manifest (built in memory, never
-// written). Both read Git objects only.
+// is exactly one of --artifact or --manifest (built in memory, never written). A delta admits
+// --artifact through the verified read and rederives it only with --verify-rederive; carry-forward
+// rederives it (DCP-V1-460). Both read Git objects only.
 func compileCorpusDelta(ctx context.Context, o corpusOptions) ([]byte, error) {
 	if (o.artifact == "") == (o.manifest == "") {
 		return nil, argumentError("docs corpus " + o.op + " requires exactly one of --artifact or --manifest")
@@ -17,17 +20,34 @@ func compileCorpusDelta(ctx context.Context, o corpusOptions) ([]byte, error) {
 	if err := corpusDeltaViewError(o); err != nil {
 		return nil, err
 	}
+	t := o.readTimings
+	if t != nil {
+		t.Delta = true
+	}
+	step := time.Now()
 	raw, err := doccorpus.ReadCorpusFile(o.root, o.previous)
+	if t != nil {
+		t.Parse += time.Since(step)
+	}
 	if err != nil {
 		return nil, err
 	}
-	previous, err := doccorpus.ParseArtifact(raw)
+	// The previous side decodes while the current side opens; a previous refusal still wins
+	// (DCP-V1-461). Its own timings are added after the join.
+	var previous *doccorpus.Artifact
+	var previousTimings doccorpus.ReadTimings
+	var wg sync.WaitGroup
+	wg.Go(func() { previous, err = doccorpus.OpenDeltaPrevious(raw, &previousTimings) })
+	current, source, currentErr := openCorpusDeltaCurrent(ctx, o)
+	wg.Wait()
+	if t != nil {
+		t.Parse += previousTimings.Parse
+	}
 	if err != nil {
 		return nil, err
 	}
-	current, source, err := openCorpusDeltaCurrent(ctx, o)
-	if err != nil {
-		return nil, err
+	if currentErr != nil {
+		return nil, currentErr
 	}
 	if o.op == "carry-forward" {
 		record, err := doccorpus.CarryForward(ctx, o.root, previous, current, o.provider)
@@ -36,7 +56,7 @@ func compileCorpusDelta(ctx context.Context, o corpusOptions) ([]byte, error) {
 		}
 		return doccorpus.Encode(record)
 	}
-	options := doccorpus.DeltaOptions{Offset: o.offset, Limit: o.limit, Uncovered: o.uncovered, Anchorless: o.anchorless}
+	options := doccorpus.DeltaOptions{Offset: o.offset, Limit: o.limit, Uncovered: o.uncovered, Anchorless: o.anchorless, Timings: t}
 	if o.legacyCases.format == "jsonl" {
 		return doccorpus.DeltaStream(ctx, o.root, previous, current, source, options)
 	}
@@ -44,7 +64,12 @@ func compileCorpusDelta(ctx context.Context, o corpusOptions) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return doccorpus.Encode(receipt)
+	step = time.Now()
+	data, err := doccorpus.Encode(receipt)
+	if t != nil {
+		t.Encode += time.Since(step)
+	}
+	return data, err
 }
 
 // corpusDeltaViewError refuses an invalid delta view before any read (DCP-V1-421..423): the
@@ -63,17 +88,22 @@ func corpusDeltaViewError(o corpusOptions) error {
 	return nil
 }
 
-// openCorpusDeltaCurrent opens the current side. A delta over a retained artifact still reaches
+// openCorpusDeltaCurrent opens the current side. A delta over a retained artifact takes the
+// verified read, or the rederivation with --verify-rederive (DCP-V1-460), and still reaches
 // classification when a declared additional checkout is unavailable (DCP-V1-425); carry-forward
 // emits records for the next build, so it keeps requiring a rederived artifact.
 func openCorpusDeltaCurrent(ctx context.Context, o corpusOptions) (*doccorpus.Artifact, string, error) {
 	if o.artifact != "" {
+		step := time.Now()
 		raw, err := doccorpus.ReadCorpusFile(o.root, o.artifact)
+		if o.readTimings != nil {
+			o.readTimings.Parse += time.Since(step)
+		}
 		if err != nil {
 			return nil, "", err
 		}
 		if o.op == "delta" {
-			a, err := doccorpus.OpenDeltaCurrent(ctx, o.root, raw)
+			a, err := doccorpus.OpenDeltaRead(ctx, o.root, raw, doccorpus.ReadOptions{Rederive: o.verifyRederive, Timings: o.readTimings})
 			return a, "artifact", err
 		}
 		a, err := doccorpus.Open(ctx, o.root, raw)
@@ -87,6 +117,11 @@ func openCorpusDeltaCurrent(ctx context.Context, o corpusOptions) (*doccorpus.Ar
 	if err != nil {
 		return nil, "", err
 	}
+	step := time.Now()
 	a, err := doccorpus.BuildAdmitted(ctx, o.root, m)
+	if o.readTimings != nil {
+		o.readTimings.Verify += time.Since(step)
+		o.readTimings.Validation = doccorpus.ValidationManifestBuilt
+	}
 	return a, "manifest", err
 }

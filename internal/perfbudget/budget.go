@@ -7,13 +7,15 @@ import (
 	"math"
 	"os"
 	"slices"
+	"time"
 )
 
 // BudgetSchema names the committed budgets file.
 const BudgetSchema = "corvint-perf-budget/0"
 
-// ScenarioIDs are the six measured reads GitHub #1602 names, in report order.
-var ScenarioIDs = []string{"cli-cold-read", "cli-warm-read", "mcp-first-call", "mcp-warm-call", "full-delta", "affected-path"}
+// ScenarioIDs are the six measured reads GitHub #1602 names, then the unchanged-pair delta of
+// GitHub #1634 (PRB-V0-050), in report order.
+var ScenarioIDs = []string{"cli-cold-read", "cli-warm-read", "mcp-first-call", "mcp-warm-call", "full-delta", "affected-path", "unchanged-delta"}
 
 // Metrics a limit may bound.
 const (
@@ -79,7 +81,7 @@ func LoadBudgets(path string) (*Budgets, error) {
 	return &b, b.Validate()
 }
 
-// Validate refuses a budgets file that does not bound exactly the six scenarios with well-formed
+// Validate refuses a budgets file that does not bound exactly the ScenarioIDs scenarios with well-formed
 // limits; a pending limit must name what it waits on, and a ceiling can never be pending.
 func (b *Budgets) Validate() error {
 	if b.Schema != BudgetSchema {
@@ -122,7 +124,36 @@ func (b *Budgets) Validate() error {
 	if !slices.Equal(ids, ScenarioIDs) {
 		return fmt.Errorf("budgets: scenarios %v, want exactly %v", ids, ScenarioIDs)
 	}
+	if b.Baseline != nil {
+		for _, m := range b.Baseline.Scenarios {
+			if p := m.Provenance; p != nil && (!timestampOK(p.RecordedAt) || !gitRevisionOK(p.ExecutableRevision) || !sha256OK(p.ExecutableSHA256) || p.Host.Cores < 1 || p.Host.Contended == nil) {
+				return fmt.Errorf("budgets: baseline %s: provenance needs its run's start time, clean executable revision and SHA-256, and host observation", m.ID)
+			}
+		}
+	}
 	return nil
+}
+
+func timestampOK(s string) bool {
+	_, err := time.Parse(time.RFC3339, s)
+	return err == nil
+}
+
+func gitRevisionOK(s string) bool {
+	return len(s) == 40 && hexOK(s)
+}
+
+func sha256OK(s string) bool {
+	return len(s) == 64 && hexOK(s)
+}
+
+func hexOK(s string) bool {
+	for _, c := range s {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 // Verdicts of one limit.

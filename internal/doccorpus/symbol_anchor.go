@@ -472,8 +472,38 @@ func SymbolAnchorKey(a Anchor) string {
 // request still resolves under its own budget (symbolChecker).
 type symbolOverlay struct {
 	root, repository string
-	live             *contextindex.Index
-	files            *sharedSymbolFiles
+	// live is the observed primary checkout: its commit and dirty paths decide
+	// every anchor whose pinned blob is unchanged without an index.
+	live *contextindex.TreeObservation
+	// observation is live's ObservationKey; the full index a re-resolution
+	// needs is admitted only when it was built from that same state.
+	observation string
+	files       *sharedSymbolFiles
+	mu          sync.Mutex
+	index       *contextindex.Index
+}
+
+// liveIndex returns the full live index a symbol re-resolution reads, building
+// it on the first anchor whose pinned blob changed and keeping it for later
+// requests under this overlay (DCP-V1-412). An index built from another state
+// than the overlay observed is refused, so a re-resolution never mixes two
+// checkout states; a failure is not kept.
+func (o *symbolOverlay) liveIndex(ctx context.Context) (*contextindex.Index, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.index != nil {
+		return o.index, nil
+	}
+	index, err := contextindex.BuildContext(ctx, o.root, "")
+	if err != nil {
+		return nil, err
+	}
+	key := ObservationKey(contextindex.Observation{ObjectFormat: index.ObjectFormat, CommitRevision: index.CommitRevision, Revision: index.Revision, StatusSHA256: index.StatusSHA256, DirtyPaths: index.DirtyPaths})
+	if key != o.observation {
+		return nil, fail("live checkout changed after its freshness observation")
+	}
+	o.index = index
+	return index, nil
 }
 
 // sharedSymbolFiles keeps parsed source files across requests. A request that
@@ -525,6 +555,7 @@ type symbolChecker struct {
 	checks   map[string]SymbolAnchorCheck
 	withheld string
 	anchors  *anchorStates
+	indexErr error
 }
 
 func (c *symbolChecker) close() {
@@ -575,7 +606,30 @@ func (c *symbolChecker) resolve(ctx context.Context, anchor Anchor) (SymbolAncho
 		return SymbolAnchorCheck{Anchor: FormatSymbolAnchor(anchor), State: SymbolAnchorLive, Reason: "pinned blob is unchanged at the live path",
 			Live: &SymbolLocation{Revision: live.CommitRevision, Path: anchor.Path, Blob: blob, SHA256: anchor.SHA256, Start: anchor.Start, End: anchor.End, SpanSHA256: anchor.SpanSHA256}}, nil
 	}
+	// Resolve answers an anchor it cannot re-resolve without reading the index.
+	if anchor.Symbol != "" && contextindex.SymbolRegionLanguage(anchor.Path) != "" && anchor.Repository == c.resolver.repository.ID {
+		if err := c.bindIndex(ctx); err != nil {
+			return SymbolAnchorCheck{}, err
+		}
+	}
 	return c.resolver.Resolve(ctx, anchor)
+}
+
+// bindIndex gives the request's resolver the overlay's full live index. A
+// failed build is kept for the request, so it is attempted once.
+func (c *symbolChecker) bindIndex(ctx context.Context) error {
+	if c.resolver.index != nil || c.indexErr != nil {
+		return c.indexErr
+	}
+	index, err := c.overlay.liveIndex(ctx)
+	if err != nil {
+		if ctx.Err() == nil {
+			c.indexErr = err
+		}
+		return err
+	}
+	c.resolver.index = index
+	return nil
 }
 
 // open binds the request's resolver and Git budget on first use.
@@ -589,7 +643,7 @@ func (c *symbolChecker) open(ctx context.Context) error {
 		return err
 	}
 	c.release = auth.BeginObjectSession()
-	c.resolver = NewSymbolResolver(auth, live, Repository{ID: c.overlay.repository, Revision: live.CommitRevision}, live.DirtyPaths)
+	c.resolver = NewSymbolResolver(auth, nil, Repository{ID: c.overlay.repository, Revision: live.CommitRevision}, live.DirtyPaths)
 	c.resolver.shared = c.overlay.files
 	c.resolver.prefetched = newPathPrefetch(live.CommitRevision)
 	c.blobs = map[string]string{}
@@ -628,6 +682,7 @@ func (c *symbolChecker) prefetch(ctx context.Context, citations []Anchor) error 
 		return err
 	}
 	oids, candidates := []string{}, []string{}
+	indexed := true
 	for _, anchor := range anchors {
 		family := contextindex.SymbolRegionLanguage(anchor.Path)
 		entry, exists := p.entries[anchor.Path]
@@ -638,6 +693,15 @@ func (c *symbolChecker) prefetch(ctx context.Context, citations []Anchor) error 
 		oids = append(oids, anchor.Blob)
 		if exists && regularBlob(entry) && !r.dirty[anchor.Path] {
 			oids = append(oids, entry.OID)
+		}
+		if indexed && c.bindIndex(ctx) != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			indexed = false // check reports the failed index build
+		}
+		if !indexed {
+			continue
 		}
 		if found := r.candidates(anchor, family); len(found) <= symbolCandidateMaxPaths {
 			candidates = append(candidates, found...)

@@ -6,11 +6,13 @@ import (
 	"encoding/hex"
 	json "encoding/json/v2"
 	"io"
+	"io/fs"
 	"os"
 	"path"
 	"runtime"
 	"runtime/debug"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/testvaliditydoc"
@@ -111,6 +113,26 @@ func ReadPlaywrightFile(root, path string) ([]byte, error) {
 func ReadCorpusFile(root, path string) ([]byte, error) {
 	return readFileBounded(root, path, MaxCorpusBytes)
 }
+
+// StatCorpusFile is ReadCorpusFile without the read: the path rule and the
+// no-follow walk of every directory component are the read's, and the leaf
+// must be a regular file. It returns the leaf's lstat record, so a caller can
+// tell an unchanged file without reading it (DCP-V1-417).
+func StatCorpusFile(root, path string) (fs.FileInfo, error) {
+	if rule := LocalInputPathRule(path); rule != "" {
+		return nil, fail("invalid local input path: input paths must be canonical and relative to the input root (" + rule + ")")
+	}
+	dir, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, fail("input root unavailable")
+	}
+	defer dir.Close()
+	info, err := testvaliditydoc.StatFile(dir, path)
+	if err != nil {
+		return nil, &Error{Code: "corpus-input-unavailable", Message: "input missing, unsafe or over bound"}
+	}
+	return info, nil
+}
 func readFileBounded(root, path string, limit int64) ([]byte, error) {
 	if rule := LocalInputPathRule(path); rule != "" {
 		return nil, fail("invalid local input path: input paths must be canonical and relative to the input root (" + rule + ")")
@@ -135,31 +157,108 @@ func ParseManifest(data []byte) (Manifest, error) {
 	return m, err
 }
 func ParseArtifact(data []byte) (*Artifact, error) {
+	a, err := decodeArtifact(data)
+	if err != nil {
+		return nil, err
+	}
+	if err := verifyCanonical(a, data); err != nil {
+		return nil, err
+	}
+	return a, nil
+}
+
+// decodeArtifact is ParseArtifact's bounded closed decode alone.
+func decodeArtifact(data []byte) (*Artifact, error) {
 	var a Artifact
 	if err := decodeBounded(data, &a, MaxCorpusBytes); err != nil {
 		return nil, err
 	}
+	return &a, nil
+}
+
+// verifyCanonical refuses data that is not exactly the canonical encoding of a, whose recorded
+// digest differs, or whose schema is unsupported. The digest is hashed from data while the
+// canonical comparison encodes a, so neither waits for the other (DCP-V1-414).
+func verifyCanonical(a *Artifact, data []byte) error {
+	var digest string
+	var digestErr error
+	var wg sync.WaitGroup
+	wg.Go(func() { digest, digestErr = canonicalArtifactDigest(a, data) })
 	c := encodingComparer{want: data}
-	if _, err := EncodeTo(&c, a); err != nil {
-		return nil, err
+	_, err := EncodeTo(&c, *a)
+	wg.Wait()
+	if err != nil {
+		return err
 	}
-	if c.n+1 > int64(encodingLimit(a)) {
-		return nil, fail("output bound exceeded")
+	if c.n+1 > int64(encodingLimit(*a)) {
+		return fail("output bound exceeded")
 	}
 	if !c.equal() {
-		return nil, fail("noncanonical artifact")
+		return fail("noncanonical artifact")
 	}
-	digest := a.SHA256
-	a.SHA256 = ""
-	expected, err := hashValue(a)
-	if err != nil || digest != expected {
-		return nil, fail("artifact digest mismatch")
+	if digestErr != nil || a.SHA256 != digest {
+		return fail("artifact digest mismatch")
 	}
-	a.SHA256 = digest
 	if a.Schema != Schema && a.Schema != SchemaV2 {
-		return nil, fail("unsupported artifact schema")
+		return fail("unsupported artifact schema")
 	}
-	return &a, nil
+	return nil
+}
+
+// canonicalArtifactDigest is hashValue of a with its sha256 field empty, computed from data, the
+// canonical encoding of a, without encoding a again (DCP-V1-414). a is only read.
+func canonicalArtifactDigest(a *Artifact, data []byte) (string, error) {
+	tail := hashArtifactTail(data)
+	if err := tail.suffix(a, data); err != nil {
+		return "", err
+	}
+	return tail.digest, nil
+}
+
+// artifactTail locates the sha256 member that ends canonical artifact bytes and hashes the
+// bytes before it followed by an empty sha256 member: exactly the empty-field encoding hashValue
+// hashes, because sha256 is the last member of the canonical object.
+type artifactTail struct {
+	at     int
+	digest string
+}
+
+func hashArtifactTail(data []byte) artifactTail {
+	at := bytes.LastIndex(data, []byte(`,"sha256":`))
+	if at < 0 {
+		return artifactTail{at: -1}
+	}
+	h := sha256.New()
+	h.Write(data[:at])
+	h.Write([]byte(`,"sha256":""}` + "\n"))
+	return artifactTail{at, hex.EncodeToString(h.Sum(nil))}
+}
+
+// suffix refuses data whose bytes after the located member are not a's sha256 member and the
+// closing brace; such data is not canonical.
+func (t artifactTail) suffix(a *Artifact, data []byte) error {
+	value, err := json.Marshal(a.SHA256)
+	if err != nil {
+		return err
+	}
+	if t.at < 0 || !bytes.Equal(data[t.at:], append(append([]byte(`,"sha256":`), value...), "}\n"...)) {
+		return fail("noncanonical artifact")
+	}
+	return nil
+}
+
+// verify refuses a mismatched recorded digest or an unsupported schema.
+func (t artifactTail) verify(a *Artifact, data []byte) error {
+	if err := t.suffix(a, data); err != nil {
+		return err
+	}
+	if a.SHA256 != t.digest {
+		return fail("artifact digest mismatch")
+	}
+	if a.Schema != Schema && a.Schema != SchemaV2 {
+		return fail("unsupported artifact schema")
+	}
+	return nil
 }
 
 // EncodeTo streams the Encode bytes of value, without the trailing newline, to w and returns
