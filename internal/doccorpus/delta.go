@@ -168,7 +168,8 @@ type DeltaOptions struct {
 }
 
 // deltaRepo is one repository whose anchors the delta re-validates: the primary, or a declared
-// additional repository read from its own checkout at its current pinned revision (DCP-V1-420).
+// additional repository read from its own checkout at one of its pinned revisions (DCP-V1-420,
+// DCP-V1-424).
 type deltaRepo struct {
 	id, revision, dir string
 	primary           bool
@@ -177,6 +178,10 @@ type deltaRepo struct {
 	inputs            map[string]Input
 	index             *contextindex.Index
 	unavailable       string
+	// pins is, for a declared additional repository, one view per pinned revision in the
+	// manifest's order: its current revision first, then its further pinned revisions.
+	pins     map[string]*deltaRepo
+	pinOrder []string
 }
 
 // deltaRecord is one classified previous record with its re-pinned evidence.
@@ -466,7 +471,13 @@ func deltaSide(source string, a *Artifact) DeltaSide {
 	return DeltaSide{Source: source, SHA256: a.SHA256, ManifestSHA256: a.ManifestSHA256, Repository: a.Manifest.Repository, Tree: a.Tree, Builder: a.Builder}
 }
 
-func classifyDelta(ctx context.Context, root string, previous, current *Artifact) (_ *deltaRun, err error) {
+func classifyDelta(ctx context.Context, root string, previous, current *Artifact) (*deltaRun, error) {
+	return classifyDeltaWithin(ctx, root, previous, current, deltaReadMaxBytes)
+}
+
+// classifyDeltaWithin is classifyDelta under readLimit bytes read from every repository's object
+// store together, prefetch included (DCP-V1-367, DCP-V1-420).
+func classifyDeltaWithin(ctx context.Context, root string, previous, current *Artifact, readLimit int) (_ *deltaRun, err error) {
 	defer func() { err = gitCapacity(err, "while classifying the corpus delta") }()
 	if previous.Manifest.Repository.ID != current.Manifest.Repository.ID {
 		return nil, fail("previous and current corpora name different repositories")
@@ -478,7 +489,7 @@ func classifyDelta(ctx context.Context, root string, previous, current *Artifact
 	}
 	release := auth.BeginObjectSession()
 	defer release()
-	d := &deltaRun{root: root, previous: previous, current: current, auth: auth, pre: newPathPrefetch(current.Manifest.Repository.Revision), hashLimit: deltaHashMaxBytes, readLimit: deltaReadMaxBytes, newInputs: map[string]Input{}, oldInputs: map[string]Input{}, blobs: map[string][]byte{}, blobReasons: map[string]string{}}
+	d := &deltaRun{root: root, previous: previous, current: current, auth: auth, pre: newPathPrefetch(current.Manifest.Repository.Revision), hashLimit: deltaHashMaxBytes, readLimit: readLimit, newInputs: map[string]Input{}, oldInputs: map[string]Input{}, blobs: map[string][]byte{}, blobReasons: map[string]string{}}
 	for _, in := range current.Manifest.Inputs {
 		if in.Revision == current.Manifest.Repository.Revision {
 			d.newInputs[in.Path] = in
@@ -500,6 +511,7 @@ func classifyDelta(ctx context.Context, root string, previous, current *Artifact
 	if err := d.uncovered(ctx); err != nil {
 		return nil, err
 	}
+	d.limitations = append(d.limitations, current.deltaUnverified...)
 	d.limitations = append(d.limitations,
 		"journeys, observations and supplied gaps of the previous corpus are not classified",
 		"uncovered regions cover the primary repository's changed source inputs only; additional repository anchors are re-validated but their changed lines are not listed",
@@ -553,11 +565,22 @@ func (d *deltaRun) openAdditional(ctx context.Context) func() {
 			continue
 		}
 		releases = append(releases, auth.BeginObjectSession())
-		repo.auth, repo.pre, repo.dir = auth, newPathPrefetch(declared.Revision), dir
-		for _, in := range d.current.Manifest.Inputs {
-			if in.Revision == declared.Revision {
-				repo.inputs[in.Path] = in
+		repo.auth, repo.dir, repo.pins, repo.pinOrder = auth, dir, map[string]*deltaRepo{}, declared.pinned()
+		// Each pinned revision keeps its own inputs, so an anchor is resolved at the revision it
+		// was pinned to while the current manifest still pins it (DCP-V1-424).
+		for _, revision := range repo.pinOrder {
+			pin := &deltaRepo{id: id, revision: revision, dir: dir, auth: auth, pre: newPathPrefetch(revision), inputs: map[string]Input{}}
+			if revision != declared.Revision {
+				if got, err := contextindex.CorpusRepositoryID(ctx, dir, revision); err != nil || got != id {
+					pin.unavailable = "additional repository " + id + " checkout does not hold its pinned revision " + revision
+				}
 			}
+			for _, in := range d.current.Manifest.Inputs {
+				if in.Revision == revision {
+					pin.inputs[in.Path] = in
+				}
+			}
+			repo.pins[revision] = pin
 		}
 	}
 	return func() {
@@ -568,32 +591,41 @@ func (d *deltaRun) openAdditional(ctx context.Context) func() {
 }
 
 // repoOf is the repository a previous anchor belongs to: the primary, or a declared additional
-// repository opened by openAdditional.
+// repository opened by openAdditional, at the anchor's own revision while the current manifest
+// still pins it and otherwise at the repository's current revision (DCP-V1-424).
 func (d *deltaRun) repoOf(a Anchor) *deltaRepo {
 	if a.Repository == d.previous.Manifest.Repository.ID {
 		return &deltaRepo{id: a.Repository, revision: d.current.Manifest.Repository.Revision, primary: true, auth: d.auth, pre: d.pre, inputs: d.newInputs}
 	}
 	if repo, ok := d.extra[a.Repository]; ok {
-		return repo
+		if repo.unavailable != "" {
+			return repo
+		}
+		if pin, ok := repo.pins[a.Revision]; ok {
+			return pin
+		}
+		return repo.pins[repo.revision]
 	}
 	return &deltaRepo{id: a.Repository, unavailable: "anchor names repository " + a.Repository + ", which the current manifest does not declare"}
 }
 
 // prefetch batches the tree lookups and blob reads the classification needs,
-// so the Git operation count does not grow with the record count.
+// so the Git operation count does not grow with the record count. Every batch draws on the one
+// delta read bound shared by all repositories, so prefetch never reads past it (DCP-V1-367,
+// DCP-V1-420).
 func (d *deltaRun) prefetch(ctx context.Context) error {
 	oids, paths := []string{}, []string{}
-	extraOIDs, extraPaths := map[string][]string{}, map[string][]string{}
+	extraOIDs, extraPaths := map[*deltaRepo][]string{}, map[*deltaRepo][]string{}
 	for _, list := range [][]Evidence{subjectEvidence(d.previous.Subjects), claimEvidence(d.previous.Claims), relationEvidence(d.previous.Relations)} {
 		for _, e := range list {
 			for _, a := range e.Anchors {
 				if a.Repository != d.previous.Manifest.Repository.ID {
-					if repo := d.extra[a.Repository]; repo != nil && repo.unavailable == "" {
-						extraOIDs[repo.id] = append(extraOIDs[repo.id], a.Blob)
+					if repo := d.repoOf(a); repo.unavailable == "" {
+						extraOIDs[repo] = append(extraOIDs[repo], a.Blob)
 						if in, ok := repo.inputs[a.Path]; ok {
-							extraOIDs[repo.id] = append(extraOIDs[repo.id], in.Blob)
+							extraOIDs[repo] = append(extraOIDs[repo], in.Blob)
 						} else {
-							extraPaths[repo.id] = append(extraPaths[repo.id], a.Path)
+							extraPaths[repo] = append(extraPaths[repo], a.Path)
 						}
 					}
 					continue
@@ -622,7 +654,7 @@ func (d *deltaRun) prefetch(ctx context.Context) error {
 	if err := d.pre.resolve(ctx, d.auth, paths); err != nil {
 		return err
 	}
-	if err := d.pre.read(ctx, d.auth, oids, deltaFileMaxBytes, d.readLimit); err != nil {
+	if err := d.prefetchBodies(ctx, d.pre, d.auth, oids); err != nil {
 		return err
 	}
 	for _, id := range sortedKeys(d.extra) {
@@ -630,14 +662,42 @@ func (d *deltaRun) prefetch(ctx context.Context) error {
 		if repo.unavailable != "" {
 			continue
 		}
-		if err := repo.pre.resolve(ctx, repo.auth, extraPaths[id]); err != nil {
-			return err
-		}
-		if err := repo.pre.read(ctx, repo.auth, extraOIDs[id], deltaFileMaxBytes, d.readLimit); err != nil {
-			return err
+		for _, revision := range repo.pinOrder {
+			pin := repo.pins[revision]
+			if pin.unavailable != "" {
+				continue
+			}
+			if err := pin.pre.resolve(ctx, pin.auth, extraPaths[pin]); err != nil {
+				return err
+			}
+			if err := d.prefetchBodies(ctx, pin.pre, pin.auth, extraOIDs[pin]); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
+}
+
+// prefetchBodies batch-reads oids within what is left of the shared read bound and charges the
+// bodies read to it; blobIn serves them without charging again.
+func (d *deltaRun) prefetchBodies(ctx context.Context, pre *pathPrefetch, auth *gitauth.Repository, oids []string) error {
+	left := d.readBudget() - d.read
+	if left < 1 || len(oids) == 0 {
+		return nil
+	}
+	before := pre.heldBytes()
+	if err := pre.read(ctx, auth, oids, deltaFileMaxBytes, left); err != nil {
+		return err
+	}
+	d.read += pre.heldBytes() - before
+	return nil
+}
+
+func (d *deltaRun) readBudget() int {
+	if d.readLimit == 0 {
+		return deltaReadMaxBytes
+	}
+	return d.readLimit
 }
 
 func subjectEvidence(list []Subject) []Evidence {
@@ -678,7 +738,8 @@ func (d *deltaRun) blob(ctx context.Context, oid, sha string) ([]byte, string, e
 }
 
 // blobIn is blob read from one repository's object store. Every repository shares the read
-// bound; an additional repository's bodies and reasons are cached under its identity.
+// bound, which prefetched bodies were already charged to; an additional repository's bodies and
+// reasons are cached under its identity.
 func (d *deltaRun) blobIn(ctx context.Context, repo *deltaRepo, oid, sha string) ([]byte, string, error) {
 	key := oid
 	if !repo.primary {
@@ -690,18 +751,19 @@ func (d *deltaRun) blobIn(ctx context.Context, repo *deltaRepo, oid, sha string)
 	if reason, ok := d.blobReasons[key]; ok {
 		return nil, reason, nil
 	}
-	budget := d.readLimit
-	if budget == 0 {
-		budget = deltaReadMaxBytes
-	}
-	limit := min(deltaFileMaxBytes, budget-d.read)
-	if limit < 1 {
+	limit := min(deltaFileMaxBytes, d.readBudget()-d.read)
+	data, held := repo.pre.held(oid)
+	if !held && limit < 1 {
 		reason := "the 64 MiB delta read bound was reached before blob " + oid
 		d.blobReasons[key] = reason
 		return nil, reason, nil
 	}
-	// The limit is checked against the object header before any body is read.
-	data, over, err := repo.pre.blobWithin(ctx, repo.auth, oid, limit)
+	var over bool
+	var err error
+	if !held {
+		// The limit is checked against the object header before any body is read.
+		data, over, err = repo.pre.blobWithin(ctx, repo.auth, oid, limit)
+	}
 	reason := ""
 	switch {
 	case err != nil:
@@ -724,7 +786,9 @@ func (d *deltaRun) blobIn(ctx context.Context, repo *deltaRepo, oid, sha string)
 		d.blobReasons[key] = reason
 		return nil, reason, nil
 	}
-	d.read += len(data)
+	if !held {
+		d.read += len(data)
+	}
 	d.blobs[key] = data
 	return data, "", nil
 }

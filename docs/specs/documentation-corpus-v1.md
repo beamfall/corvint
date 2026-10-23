@@ -1897,8 +1897,10 @@ over a corpus whose sources live in `DCP-V1-175` additional repositories carries
 and a comparison of identical inputs is empty apart from carry-forward.
 
 - `DCP-V1-420`: An anchor whose repository is a declared additional repository of the current
-  manifest is re-validated exactly as a primary anchor (`DCP-V1-362`, `DCP-V1-363`), against that
-  repository's current declared `revision`. Its blobs and tree entries are read only from the
+  manifest is re-validated exactly as a primary anchor (`DCP-V1-362`, `DCP-V1-363`), against the
+  revision it was pinned to while the current manifest still pins that revision for the
+  repository (`revision` or `revisions`, `DCP-V1-308`), and otherwise against the repository's
+  current declared `revision`. Its blobs and tree entries are read only from the
   repository's declared checkout, as the build reads them (`DCP-V1-176`); its declared inputs are
   the current manifest's inputs at that revision; the checkout's root commit must equal the
   declared identity. Each such anchor names its `repository` in the delta entry; primary anchors
@@ -1907,8 +1909,12 @@ and a comparison of identical inputs is empty apart from carry-forward.
   emits it and the next build imports it. A symbol anchor must find its symbol inside the re-pinned
   span in that repository's index; cross-path symbol re-resolution stays primary-only
   (`DCP-V1-179`). Every repository shares the `DCP-V1-367` read and hashing bounds, and blobs are
-  batched per repository. A re-pinned additional-repository span never counts as coverage of a
-  primary path. Acceptance: `TestDCPV1420DeltaAdditionalRepositoryAnchors`.
+  batched per repository and pinned revision. The read bound counts the bytes actually read across
+  all repositories together, batched prefetch included: each batch admits bodies only within what
+  is left of the one shared 64 MiB bound, and a body a batch read is not charged again when the
+  classification uses it. An anchor whose blob no longer fits is `unresolved` with the bound reason.
+  A re-pinned additional-repository span never counts as coverage of a primary path. Acceptance:
+  `TestDCPV1420DeltaAdditionalRepositoryAnchors`, `TestDCPV1420DeltaSharedReadBound`.
 - `DCP-V1-421`: `--uncovered changed|all` selects the uncovered entries; the default is `all`, the
   `DCP-V1-364` worklist. `changed` lists only the changed-region entries and reports the number of
   subject-level entries it left out as `uncovered_subjects_omitted`. A comparison of identical
@@ -1931,7 +1937,10 @@ and a comparison of identical inputs is empty apart from carry-forward.
 - `DCP-V1-424`: The same inputs give the same worklist whichever builder built the previous corpus:
   only the anchors, records and current blobs decide a class, never the builder identity. A
   corpus rebuilt by a newer builder from identical pinned inputs is therefore all carry-forward.
-  Acceptance: `TestDCPV1420DeltaAdditionalRepositoryAnchors`.
+  This holds for an additional repository pinned at more than one revision: an anchor at a
+  further pinned revision is resolved at that revision (`DCP-V1-420`), so a comparison of such a
+  corpus with itself is all carry-forward. Acceptance:
+  `TestDCPV1420DeltaAdditionalRepositoryAnchors`, `TestDCPV1424DeltaHistoricalPins`.
 - `DCP-V1-425`: These are refused with exit 2 and no output as argument errors:
   - `--uncovered` other than `changed` or `all`;
   - `--anchorless` other than `summary` or `list`;
@@ -1944,8 +1953,18 @@ and a comparison of identical inputs is empty apart from carry-forward.
   - an anchor whose declared checkout cannot be opened or does not hold the declared identity and
     revision.
 
-  Acceptance: `TestDCPV1420DeltaAdditionalRepositoryAnchors`, `TestDCPV1421DeltaViewsCLI`,
-  `TestDocsCorpusOperationFlagMatrix`.
+  A missing checkout does not stop `delta` before classification. When a declared additional
+  checkout of a retained `--artifact` current side does not hold its identity at every pinned
+  revision, the artifact cannot be rederived, so `delta` takes it from its canonical,
+  digest-checked bytes instead. The primary checkout must still hold its declared identity, and
+  every input of an available repository must name the regular blob its path holds at its pinned
+  revision, or the operation is `corpus-refused`. The unavailable repository's anchors are then
+  `unresolved` with the reason, other repositories classify as usual, and `limitations` states
+  that the current side was not rederived. `carry-forward` and a `--manifest` current side still
+  require the checkout, because they emit or build records for the next build. Acceptance:
+  `TestDCPV1420DeltaAdditionalRepositoryAnchors`, `TestDCPV1421DeltaViewsCLI`,
+  `TestDocsCorpusOperationFlagMatrix`, `TestDCPV1425DeltaUnavailableCheckoutCLI`,
+  `TestDCPV1425OpenDeltaCurrentUnavailableCheckout`.
 
 ## Input and authority boundary
 
@@ -2329,8 +2348,11 @@ another provider's carried record is refused with the missing dependencies named
 cross-repository comparison, an undeclared carry-forward provider or an ambiguous current side is
 refused (`DCP-V1-369`). An anchor in an additional repository that the current manifest does not
 declare, or whose checkout is unavailable or holds another identity, is `unresolved` with that
-reason; an invalid delta view or a paged jsonl stream is refused (`DCP-V1-425`); a stream past
-128 MiB is `corpus-capacity-exceeded` (`DCP-V1-423`).
+reason, and a retained current artifact that cannot be rederived for that reason is classified
+from its canonical bytes with the limitation stated, unless an available repository's input does
+not name the blob its path holds, which is refused (`DCP-V1-425`); an invalid delta view or a
+paged jsonl stream is refused (`DCP-V1-425`); a stream past 128 MiB is
+`corpus-capacity-exceeded` (`DCP-V1-423`).
 A test-knowledge record refuses with `corpus-refused` for an unknown member or enum value, a
 broken field rule, a secret-shaped free-text value, a malformed or unpinned anchor, a bound
 breach, use under manifest `/1`, or a forged binding (any anchor mismatch at the corpus
@@ -2486,7 +2508,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-146 | `internal/doccorpus/compile.go` | `TestDCPV1146OversizedParagraphStaysVerbatim`, `TestDCPV1146OversizedLineIsAGap`, `TestDCPV1146RefusalsNameTheSpan`; measured on Corvint's docs scope in docs/build-log/2026-10-19-V1-1983-docs-corpus-located-refusals.md |; | DCP-V1-150..152 | `internal/doccorpus/typed_query.go`, `docs/DOCUMENTATION-CORPUS.md` | `TestDCPV1150ProviderReportedReviewYieldsUnauthenticatedGap`, `TestDCPV1151AuthenticatedReviewClearsAssertingGap`, `TestDCPV1152AssertingGapNamesTheFailedCondition` |; | DCP-V1-165..169 | `internal/doccorpus/legacy_cases.go`, `cmd/corvint/docs_corpus_legacy_cases.go`, `cmd/corvint/docs_corpus_help.go`, `cmd/corvint-corpus-mcp/legacycases.go` | `TestDCPV1165LegacyCaseIDLookup`, `TestDCPV1166LegacyCaseAnyMatchRanks`, `TestDCPV1167LegacyCaseQueryIDRule`, `TestDCPV1168LegacyCaseAllModeBytesUnchanged`, `TestDCPV1169CorpusMCPSearchCasesModes`, `TestDCPV1165DocsCorpusSearchCasesModesCLI`, `TestDocsCorpusOperationFlagMatrix` |; | DCP-V1-160..163 | `internal/doccorpus/compile.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1160SchemaTwoManifestOfTwentyThousandFilesBuilds`, `TestDCPV1160DefaultSingleScopeUnchanged`, `TestDCPV1160SchemaFlagValues`, `TestDCPV1161ScopesSortedAndOverlapRefused`, `TestDCPV1162BoundRefusalNamesBoundScopeAndCount` |; | DCP-V1-170..174 | `internal/doccorpus/flow_filter.go`, `typed_query.go`, `query.go`, `pagination.go`, `types.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1170FlowSectionFilter`, `TestDCPV1171FlowIncludeFilter`, `TestDCPV1172FlowSelectionReceipt`, `TestDCPV1173FlowFilterPagination`, `TestDCPV1174DocsFlowToolFilters`, `TestDCPV1174CorpusFlowFilterOptions`, `TestDocsCorpusOperationFlagMatrix`; measured in docs/build-log/2026-10-19-V1-1990-docs-flow-section-filter.md |; | DCP-V1-155..159 | `internal/cem/gitauth/pathset.go`, `internal/doccorpus/batch_input.go`, `capacity.go`, `compile.go`, `query.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1155ReadFreshnessGitOpsIndependentOfInputCount` (10,000 inputs, 16 Git operations per phase, one change is `stale`), `TestDCPV1155ResolvePathsMatchesSingleLookupsWithinOneOpPerLevel`, `TestDCPV1156ManifestAndBuildBatchNonIndexedInputs`, `TestDCPV1157CapacityRefusalsAreTypedAndEarly`, `TestDCPV1158BridgeTypesGitCapacityLikeTheCLI`, `TestDCPV1158CLITypesGitCapacityLikeTheBridge`, `TestDCPV1159BatchedPinningKeepsArtifactBytes`; measured in docs/build-log/2026-10-19-V1-1984-corpus-git-budget.md |; | DCP-V1-175..179 | `internal/doccorpus/types.go`, `compile.go`, `providers.go`, `query.go`, `internal/mcp/corpusbridge/corpusbridge.go` | `TestDCPV1175AdditionalRepositoryAnchors`, `TestDCPV1176AdditionalRepositoryRefusals`, `TestDCPV1178BridgeVerifiesPinsInOwningCheckout`, `TestDCPV1179SingleRepositoryManifestUnchanged`; byte identity measured in docs/build-log/2026-10-19-V1-1986-corpus-additional-repositories.md |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
-| DCP-V1-420..425 | `internal/doccorpus/delta.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1420DeltaAdditionalRepositoryAnchors`, `TestDCPV1421DeltaViewsCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
+| DCP-V1-420..425 | `internal/doccorpus/delta.go`, `delta_open.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1420DeltaAdditionalRepositoryAnchors`, `TestDCPV1420DeltaSharedReadBound`, `TestDCPV1424DeltaHistoricalPins`, `TestDCPV1425OpenDeltaCurrentUnavailableCheckout`, `TestDCPV1425DeltaUnavailableCheckoutCLI`, `TestDCPV1421DeltaViewsCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-216..217 | `internal/doccorpus/batch_paths.go`, `symbol_anchor.go`, `cem.go`, `behavior_legacy_discovery.go`, `behavior_playwright_discovery.go` | `TestDCPV1216SymbolAnchorsGitOpsIndependentOfAnchorCount` (5,000 moved anchors), `TestDCPV1216CEMProjectionGitOpsIndependentOfAnchorCount` (5,000 anchors), `TestDCPV1216LegacyDiscoveryGitOpsIndependentOfPathCount` (4,096 files, the record bound), `TestDCPV1216PlaywrightDiscoveryGitOpsIndependentOfPathCount` (2,000 files, 4,008 executions), each within 16 Git operations per phase and byte-identical to the per-path reads; `TestDCPV1216ProjectionKeepsPerPathTreeBound` (anchor under a tree past 4 MiB refused as per path), `TestDCPV1216SymbolFallbackBudgetWithholdsStates` (missing pinned blob, budget exhausted in the fallback, states withheld as per path), `TestDCPV1216GitHooksTravelWithTheContext` (the test budget and per-path override travel on the call's context, so the equivalence tests run under `t.Parallel` and `-race`); measured in docs/build-log/2026-10-20-v1-1991-batched-path-reads.md and docs/build-log/2026-10-21-testspeed-1021v-doccorpus-parallel-equivalence.md |
 
 ## Open decisions

@@ -73,8 +73,22 @@ and
 `go test -run 'TestDCPV1360DeltaCLI|TestDCPV1421|TestDocsCorpusOperationFlagMatrix|Help' ./cmd/corvint/`.
 Both PASS.
 
+## Review repair
+
+Independent review found three P2 defects. Each now has a regression test, and each test failed
+against the first commit:
+
+| Defect | Fix | Test |
+| --- | --- | --- |
+| Each repository's prefetch counted from zero against the full 64 MiB, so two 40 MiB repositories prefetched 80 MiB (`DCP-V1-367`, `DCP-V1-420`) | Every batch draws from one shared bound and charges the bodies it reads. Classification does not charge those bodies again. | `TestDCPV1420DeltaSharedReadBound` (before: 8456 bytes prefetched under a 6144-byte bound) |
+| The CLI rederived the current artifact before classification, so a missing additional checkout refused the whole delta (`DCP-V1-425`) | `OpenDeltaCurrent` falls back to the canonical artifact bytes. It first checks the primary identity and every available repository's input blobs, then states the limitation. Carry-forward and `--manifest` still refuse. | `TestDCPV1425DeltaUnavailableCheckoutCLI` (before: exit 2 `corpus-input-unavailable`), `TestDCPV1425OpenDeltaCurrentUnavailableCheckout` |
+| Anchors at an additional repository's further pinned revision were resolved at its current revision, so a self-delta of `multiRevisionFixture` listed `adapter:lib-old` as `changed` (`DCP-V1-424`) | Resolve each anchor at its own pinned revision while the current manifest still pins it. | `TestDCPV1424DeltaHistoricalPins` (before: `changed`) |
+
 ## Limits
 
+- When the current side falls back, its records come from the artifact bytes and are not
+  rederived. Only input pinning is re-checked, so a claim edited in the artifact could still
+  hide an uncovered region. The receipt's limitations state this.
 - The real 166k-entry corpus from #1599 was not re-measured. The counts above are fixture
   evidence, and the production no-op count stays `NOT_OBSERVED` until the reporter reruns it.
 - Changed source lines in additional repositories are not listed as uncovered regions. Symbol
