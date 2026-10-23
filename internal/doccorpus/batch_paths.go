@@ -153,6 +153,27 @@ func (p *pathPrefetch) blobWithin(ctx context.Context, auth *gitauth.Repository,
 	return auth.BlobBytesWithin(ctx, oid, limit)
 }
 
+// held returns the body a batch already read for oid.
+func (p *pathPrefetch) held(oid string) ([]byte, bool) {
+	if p == nil {
+		return nil, false
+	}
+	body, ok := p.bodies[oid]
+	return body, ok
+}
+
+// heldBytes is the total of the bodies the batches have read.
+func (p *pathPrefetch) heldBytes() int {
+	if p == nil {
+		return 0
+	}
+	total := 0
+	for _, body := range p.bodies {
+		total += len(body)
+	}
+	return total
+}
+
 // blob is auth.BlobBytes answered from the batches when they hold oid.
 func (p *pathPrefetch) blob(ctx context.Context, auth *gitauth.Repository, oid string) ([]byte, error) {
 	if p != nil {
