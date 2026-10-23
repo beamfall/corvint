@@ -2581,6 +2581,19 @@ DCP-V1-265	docs/specs/documentation-corpus-v1.md	`audit sample` takes a seed in 
 DCP-V1-266	docs/specs/documentation-corpus-v1.md	`audit report` reads the sample strictly (closed `corvint-corpus-audit-sample/1`	unrecorded	-
 DCP-V1-267	docs/specs/documentation-corpus-v1.md	Excluded current verdicts (non-independent and generator-method counts, verdict	unrecorded	-
 DCP-V1-268	docs/specs/documentation-corpus-v1.md	`audit sample` and `audit report` are also spelled `audit-sample` and	unrecorded	-
+DCP-V1-340	docs/specs/documentation-corpus-v1.md	One documented ASCII extractor (`ExtractCodeTokens`) returns a claim's distinct	unrecorded	-
+DCP-V1-341	docs/specs/documentation-corpus-v1.md	The build checks every claim of a non-native provider, except a supplied test-ru	unrecorded	-
+DCP-V1-342	docs/specs/documentation-corpus-v1.md	A token is `resolved-in-span` when the text of the claim's own cited anchor span	unrecorded	-
+DCP-V1-343	docs/specs/documentation-corpus-v1.md	`get`, `trace`, `claims` and every receipt that returns a claim attach	unrecorded	-
+DCP-V1-344	docs/specs/documentation-corpus-v1.md	`gaps` reports a `claim-mentions-unresolved` or `claim-mentions-partially-unreso	unrecorded	-
+DCP-V1-345	docs/specs/documentation-corpus-v1.md	When a check is stored, coverage adds the rows `claim_mentions:consistent`,	unrecorded	-
+DCP-V1-346	docs/specs/documentation-corpus-v1.md	`docs corpus build --max-unresolved-mention-rate R` (R a decimal in [0, 1]) refu	unrecorded	-
+DCP-V1-347	docs/specs/documentation-corpus-v1.md	A claim's subject, a relationship's source or target, a journey's subject and an	unrecorded	-
+DCP-V1-348	docs/specs/documentation-corpus-v1.md	The pattern report (`corvint-corpus-patterns/1`) binds the artifact like an audi	unrecorded	-
+DCP-V1-349	docs/specs/documentation-corpus-v1.md	`docs corpus patterns --artifact PATH` prints the JSON report (default) or, with	unrecorded	-
+DCP-V1-350	docs/specs/documentation-corpus-v1.md	`audit sample --stratify patterns` places each claim in its first flagged patter	unrecorded	-
+DCP-V1-351	docs/specs/documentation-corpus-v1.md	For a stratified sample, `audit report` adds `weighted`: the sum over populated	unrecorded	-
+DCP-V1-352	docs/specs/documentation-corpus-v1.md	`docs corpus build --max-pattern-rate R` (every pattern) or	unrecorded	-
 DCP-V1-054	docs/specs/documentation-corpus-v1.md	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-

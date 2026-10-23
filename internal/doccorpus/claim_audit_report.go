@@ -23,9 +23,15 @@ const (
 )
 
 // AuditStratifications are the admitted --stratify values; "" is an unstratified sample.
-var AuditStratifications = []string{"provider", "kind", "flow", "trust"}
+var AuditStratifications = []string{"provider", "kind", "flow", "trust", "patterns"}
 
 const auditSampleMethod = "per-stratum rank by sha256(seed, claim id); proportional allocation by largest remainder, ties by stratum name"
+
+// AuditPatternWeight is the over-sampling weight of a flagged pattern stratum relative to the
+// unflagged stratum under --stratify patterns (DCP-V1-350).
+const AuditPatternWeight = 4
+
+const auditPatternSampleMethod = "per-stratum rank by sha256(seed, claim id); stratum is the first flagged pattern in report order, else unflagged; weighted largest-remainder allocation with each flagged stratum weighted 4 per claim and unflagged 1, capped at stratum population, ties by stratum name"
 
 type AuditSampleOptions struct {
 	Seed     uint64
@@ -110,6 +116,74 @@ func auditStratum(a *Artifact, subjects map[string]Subject, claim Claim, by stri
 	return "all"
 }
 
+// auditPatternStrata maps each flagged claim to its first flagged pattern (DCP-V1-350).
+func auditPatternStrata(a *Artifact) map[string]string {
+	flags, _, _ := corpusPatternFlags(a)
+	out := map[string]string{}
+	for i := len(CorpusPatternNames) - 1; i >= 0; i-- {
+		for id := range flags[CorpusPatternNames[i]] {
+			out[id] = CorpusPatternNames[i]
+		}
+	}
+	return out
+}
+
+// weightedAllocation allocates size across strata in proportion to population times weight,
+// capping each at its population and redistributing the rest, then by largest remainder with
+// ties by stratum name (DCP-V1-350).
+func weightedAllocation(names []string, population map[string]int, weight func(string) int, size int) map[string]int {
+	alloc := map[string]int{}
+	open := append([]string{}, names...)
+	remaining := size
+	for {
+		total := 0
+		for _, name := range open {
+			total += population[name] * weight(name)
+		}
+		next := open[:0:0]
+		capped := false
+		for _, name := range open {
+			if total > 0 && remaining*weight(name) >= total {
+				alloc[name] = population[name]
+				remaining -= population[name]
+				capped = true
+				continue
+			}
+			next = append(next, name)
+		}
+		open = next
+		if !capped || len(open) == 0 {
+			break
+		}
+	}
+	total := 0
+	for _, name := range open {
+		total += population[name] * weight(name)
+	}
+	if total == 0 {
+		return alloc
+	}
+	type rem struct {
+		name string
+		num  int
+	}
+	rems, given := []rem{}, 0
+	for _, name := range open {
+		n := remaining * population[name] * weight(name)
+		alloc[name] = n / total
+		given += alloc[name]
+		rems = append(rems, rem{name, n % total})
+	}
+	sort.SliceStable(rems, func(i, k int) bool { return rems[i].num > rems[k].num })
+	for i := 0; given < remaining && i < len(rems); i++ {
+		if alloc[rems[i].name] < population[rems[i].name] {
+			alloc[rems[i].name]++
+			given++
+		}
+	}
+	return alloc
+}
+
 func auditInScope(claim Claim, scope string) bool {
 	if scope == "" {
 		return true
@@ -137,6 +211,10 @@ func SampleClaims(a *Artifact, o AuditSampleOptions) (*AuditSample, error) {
 	for _, s := range a.Subjects {
 		subjects[s.ID] = s
 	}
+	var patterns map[string]string
+	if o.Stratify == "patterns" {
+		patterns = auditPatternStrata(a)
+	}
 	strata := map[string][]Claim{}
 	population := 0
 	for _, claim := range a.Claims {
@@ -144,6 +222,12 @@ func SampleClaims(a *Artifact, o AuditSampleOptions) (*AuditSample, error) {
 			continue
 		}
 		name := auditStratum(a, subjects, claim, o.Stratify)
+		if patterns != nil {
+			name = patterns[claim.ID]
+			if name == "" {
+				name = "unflagged"
+			}
+		}
 		strata[name] = append(strata[name], claim)
 		population++
 	}
@@ -157,6 +241,17 @@ func SampleClaims(a *Artifact, o AuditSampleOptions) (*AuditSample, error) {
 		for _, name := range names {
 			alloc[name] = len(strata[name])
 		}
+	} else if o.Stratify == "patterns" {
+		counts := map[string]int{}
+		for _, name := range names {
+			counts[name] = len(strata[name])
+		}
+		alloc = weightedAllocation(names, counts, func(name string) int {
+			if name == "unflagged" {
+				return 1
+			}
+			return AuditPatternWeight
+		}, o.Size)
 	} else {
 		type rem struct {
 			name string
@@ -183,6 +278,10 @@ func SampleClaims(a *Artifact, o AuditSampleOptions) (*AuditSample, error) {
 	}
 	out := &AuditSample{Schema: AuditSampleSchema, Corpus: auditCorpus(a), Design: AuditDesign{Seed: o.Seed, Size: o.Size, Stratify: stratify, Scope: o.Scope, Population: population, Method: auditSampleMethod}, Strata: []AuditStratum{}, Claims: []AuditSampleClaim{},
 		Limitations: []string{"a sample measures only the sampled claims; strata are proportionally allocated and the pooled figure is not population-weighted", "claim identity and span hashes come from this artifact; a rebuilt corpus can stale a verdict"}}
+	if patterns != nil {
+		out.Design.Method = auditPatternSampleMethod
+		out.Limitations[0] = "a sample measures only the sampled claims; flagged pattern strata are over-sampled, so only the report's population-weighted figure estimates the population"
+	}
 	for _, name := range names {
 		claims := append([]Claim{}, strata[name]...)
 		sort.Slice(claims, func(i, k int) bool {
@@ -211,6 +310,11 @@ func ParseAuditSample(raw []byte) (*AuditSample, error) {
 	var s AuditSample
 	if err := decode(raw, &s); err != nil || s.Schema != AuditSampleSchema || s.Claims == nil || s.Strata == nil || len(s.Claims) > MaxAuditSample || s.Design.Sampled != len(s.Claims) {
 		return nil, fail("audit report: invalid " + AuditSampleSchema + " sample")
+	}
+	for _, st := range s.Strata {
+		if st.Sampled < 0 || st.Population < st.Sampled || st.Population > MaxCorpusRecords*4 {
+			return nil, fail("audit report: sample strata need 0 <= sampled <= population <= " + strconv.Itoa(MaxCorpusRecords*4))
+		}
 	}
 	seen := map[string]bool{}
 	for _, c := range s.Claims {
@@ -322,11 +426,26 @@ type AuditSampleBinding struct {
 	Design AuditDesign `json:"design"`
 }
 
+// AuditWeighted is the population-weighted accuracy sum over strata of (N_h / N) * p_h, where
+// N_h is a stratum's sampled-from population and p_h its accuracy; it abstains unless every
+// populated stratum's accuracy is defined (DCP-V1-351).
+type AuditWeighted struct {
+	Population      int      `json:"population"`
+	Defined         bool     `json:"defined"`
+	Value           *float64 `json:"value"`
+	UndefinedStrata []string `json:"undefined_strata"`
+	Definition      string   `json:"definition"`
+}
+
+const auditWeightedDefinition = "sum over populated strata of (stratum population / population) * stratum accuracy; no interval; abstains when any populated stratum's accuracy is undefined"
+
 type AuditReport struct {
-	Schema      string              `json:"schema"`
-	Sample      AuditSampleBinding  `json:"sample"`
-	Corpus      AuditCorpus         `json:"corpus"`
-	Overall     AuditGroup          `json:"overall"`
+	Schema  string             `json:"schema"`
+	Sample  AuditSampleBinding `json:"sample"`
+	Corpus  AuditCorpus        `json:"corpus"`
+	Overall AuditGroup         `json:"overall"`
+	// Weighted is present only for a stratified sample (DCP-V1-351).
+	Weighted    *AuditWeighted      `json:"weighted,omitempty"`
 	ByStratum   []AuditGroup        `json:"by_stratum"`
 	ByMethod    []AuditMethodGroup  `json:"by_method"`
 	Claims      []AuditClaimOutcome `json:"claims"`
@@ -443,6 +562,12 @@ func ReportAudit(a *Artifact, sample *AuditSample, samplePath string, sampleRaw 
 		finish(strata[name])
 		r.ByStratum = append(r.ByStratum, *strata[name])
 	}
+	if sample.Design.Stratify != "" && sample.Design.Stratify != "none" {
+		r.Weighted = auditWeighted(sample.Strata, strata)
+		if !r.Weighted.Defined {
+			r.Limitations = append(r.Limitations, "the population-weighted figure abstained: a populated stratum has no defined accuracy")
+		}
+	}
 	for _, m := range []string{"human", "model", "test"} {
 		if c := methods[m]; c != nil {
 			r.ByMethod = append(r.ByMethod, AuditMethodGroup{m, *c, auditRatio(*c)})
@@ -475,6 +600,13 @@ func RenderAuditTable(r *AuditReport) []byte {
 		fmt.Fprintf(&b, "%-32s %7d %7d %9d %9d %7d %6d  %s\n", g.Name, g.Sampled, g.Audited, g.Unaudited, g.Conflicted, g.Missing, g.StaleVerdicts, ratio(g.Accuracy))
 		fmt.Fprintf(&b, "%-32s excluded: %d non-independent, %d generator-method, accuracy %s\n", "", g.Excluded.NonIndependent, g.Excluded.GeneratorMethod, ratio(g.Excluded.Accuracy))
 	}
+	if w := r.Weighted; w != nil {
+		value := "abstain (undefined strata: " + strings.Join(w.UndefinedStrata, ", ") + ")"
+		if w.Defined {
+			value = fmt.Sprintf("%.4f over population %d", *w.Value, w.Population)
+		}
+		fmt.Fprintf(&b, "%-32s %s\n", "population-weighted", value)
+	}
 	for _, m := range r.ByMethod {
 		fmt.Fprintf(&b, "method %-25s accuracy %s\n", m.Method, ratio(m.Accuracy))
 	}
@@ -482,4 +614,29 @@ func RenderAuditTable(r *AuditReport) []byte {
 		fmt.Fprintf(&b, "limitation: %s\n", l)
 	}
 	return b.Bytes()
+}
+
+func auditWeighted(sampled []AuditStratum, groups map[string]*AuditGroup) *AuditWeighted {
+	w := &AuditWeighted{UndefinedStrata: []string{}, Definition: auditWeightedDefinition}
+	for _, st := range sampled {
+		w.Population += st.Population
+	}
+	sum := 0.0
+	for _, st := range sampled {
+		if st.Population == 0 {
+			continue
+		}
+		g := groups[st.Name]
+		if g == nil || !g.Accuracy.Defined {
+			w.UndefinedStrata = append(w.UndefinedStrata, st.Name)
+			continue
+		}
+		sum += float64(st.Population) / float64(w.Population) * float64(g.Accuracy.Numerator) / float64(g.Accuracy.Denominator)
+	}
+	sort.Strings(w.UndefinedStrata)
+	if w.Population > 0 && len(w.UndefinedStrata) == 0 {
+		v := math.Round(sum*1e6) / 1e6
+		w.Defined, w.Value = true, &v
+	}
+	return w
 }

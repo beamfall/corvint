@@ -39,7 +39,7 @@ func compileCorpusAudit(a *doccorpus.Artifact, o corpusOptions) ([]byte, error) 
 			return nil, argumentError("audit sample --size must be 1.." + strconv.Itoa(doccorpus.MaxAuditSample))
 		}
 		if !doccorpus.ValidAuditStratify(o.audit.stratify) {
-			return nil, argumentError("audit sample --stratify must be provider, kind, flow or trust")
+			return nil, argumentError("audit sample --stratify must be provider, kind, flow, trust or patterns")
 		}
 		if len(o.scopes) > 1 {
 			return nil, argumentError("audit sample takes one --scope")
@@ -68,6 +68,39 @@ func compileCorpusAudit(a *doccorpus.Artifact, o corpusOptions) ([]byte, error) 
 	}
 	if format == "table" {
 		return doccorpus.RenderAuditTable(report), nil
+	}
+	return doccorpus.Encode(report)
+}
+
+// corpusBuildThresholds parses the opt-in build refusals (DCP-V1-346, DCP-V1-352).
+func corpusBuildThresholds(o corpusOptions) (doccorpus.BuildThresholds, error) {
+	var t doccorpus.BuildThresholds
+	if o.maxMentionRate != "" {
+		r, err := doccorpus.ParseRate(o.maxMentionRate)
+		if err != nil {
+			return t, argumentError("--max-unresolved-mention-rate must be a decimal in [0, 1]")
+		}
+		t.MaxUnresolvedMentionRate = &r
+	}
+	if o.maxPatternRate != "" {
+		rates, err := doccorpus.ParsePatternRates(o.maxPatternRate)
+		if err != nil {
+			return t, argumentError(err.(*doccorpus.Error).Message)
+		}
+		t.MaxPatternRates = rates
+	}
+	return t, nil
+}
+
+// compileCorpusPatterns reports the corpus patterns of a rederived corpus (DCP-V1-349).
+func compileCorpusPatterns(a *doccorpus.Artifact, o corpusOptions) ([]byte, error) {
+	format := o.legacyCases.format
+	if format != "" && format != "json" && format != "table" {
+		return nil, argumentError("patterns --format must be json or table")
+	}
+	report := doccorpus.PatternReport(a)
+	if format == "table" {
+		return doccorpus.RenderPatternTable(report), nil
 	}
 	return doccorpus.Encode(report)
 }

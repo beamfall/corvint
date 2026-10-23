@@ -87,6 +87,7 @@ func pageReceipt(ctx context.Context, a *Artifact, original Receipt, request Req
 		r.Results = original.Results[start:end]
 		r.Details = nil
 		r.ClaimAudits = nil
+		r.ClaimMentions = nil
 		r.Citations = []Anchor{}
 		r.Limitations = append([]string{}, original.Limitations...)
 		r.Omitted = total - len(r.Results)
@@ -128,6 +129,7 @@ func pageReceipt(ctx context.Context, a *Artifact, original Receipt, request Req
 			r.Citations = append(r.Citations, unique[key])
 		}
 		attachClaimAudits(a, &r)
+		attachClaimMentions(a, &r)
 		if err := attachSymbolAnchors(ctx, &r, symbols); err != nil {
 			return Receipt{}, err
 		}
