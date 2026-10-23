@@ -319,7 +319,7 @@ func (scope playwrightPureScope) memberRead(root string, keys []string) (admitte
 	case "devices":
 		return scope.devices && playwrightDeviceRead(keys), false
 	case "process":
-		admitted = scope.env && playwrightEnvRead(keys)
+		admitted = scope.env && (playwrightEnvRead(keys) || playwrightProcessScalarRead(keys))
 		return admitted, admitted
 	}
 	literal, ok := scope.literals[root]
@@ -332,6 +332,16 @@ func playwrightEnvRead(keys []string) bool {
 	return len(keys) == 2 && keys[0] == "env" && keys[1] != "" && !strings.HasPrefix(keys[1], "__") && !slices.Contains(playwrightObjectPrototypeKeys, keys[1])
 }
 
+// playwrightProcessScalars are the process properties Node defines as primitive data that a read
+// cannot turn into a write of process.env: the process and parent ids, the platform and the CPU
+// architecture (TJAA-V0-049).
+var playwrightProcessScalars = []string{"pid", "ppid", "platform", "arch"}
+
+// playwrightProcessScalarRead admits exactly one playwrightProcessScalars key.
+func playwrightProcessScalarRead(keys []string) bool {
+	return len(keys) == 1 && slices.Contains(playwrightProcessScalars, keys[0])
+}
+
 // playwrightEnvBlock checks that every occurrence of `process` is a read-only `process.env.NAME`
 // chain or the target of a top-level `process.env.NAME =`, `??=`, `||=` or `&&=` statement
 // (TJAA-V0-042). It returns the written names and the offset of the first other occurrence, or -1.
@@ -342,6 +352,9 @@ func playwrightEnvBlock(raw string, lexed playwrightLexed) (map[string]bool, int
 			return written, at
 		}
 		keys, end, ok := playwrightMemberChain(raw, at+len("process"))
+		if ok && playwrightProcessScalarRead(keys) && playwrightReadContext(raw, lexed, at, end) {
+			continue
+		}
 		if !ok || !playwrightEnvRead(keys) {
 			return written, at
 		}
