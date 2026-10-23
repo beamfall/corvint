@@ -44,6 +44,9 @@ type QueryIndex struct {
 	// claim offsets holding it, in artifact order (DCP-V1-313). It is
 	// derived on every admission and is not part of the companion encoding.
 	ClaimTerms map[string][]int `json:"-"`
+	// Aliases maps each subject alternate id to the subject offsets declaring
+	// it (DCP-V1-330); derived like ClaimTerms.
+	Aliases map[string][]int `json:"-"`
 }
 
 // BuildAdmitted is Build for an artifact that will be written: a corpus whose
@@ -90,7 +93,7 @@ func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
 	if len(a.Subjects) > MaxCorpusRecords || len(a.Claims) > MaxCorpusRecords || len(a.Relations) > MaxCorpusRecords || len(a.Journeys) > MaxCorpusJourneys || len(a.Observations) > MaxCorpusRecords || len(a.SuppliedGaps) > MaxCorpusRecords {
 		return nil, fail("indexed record family bound exceeded")
 	}
-	x := &QueryIndex{IDs: map[string]RecordRef{}, Paths: map[string][]RecordRef{}, Terms: map[string][]int{}, Claims: map[string][]int{}, Edges: map[string][]int{}, ClaimTerms: map[string][]int{}}
+	x := &QueryIndex{IDs: map[string]RecordRef{}, Paths: map[string][]RecordRef{}, Terms: map[string][]int{}, Claims: map[string][]int{}, Edges: map[string][]int{}, ClaimTerms: map[string][]int{}, Aliases: map[string][]int{}}
 	// Each posting is charged once. Past a bound the index stops storing
 	// postings but keeps counting, so the refusal names the observed totals
 	// (DCP-V1-194).
@@ -149,6 +152,14 @@ func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
 			return nil, err
 		}
 		subjectIDs[s.ID] = i
+		for _, alias := range s.AlternateIDs {
+			if err := charge(alias); err != nil {
+				return nil, err
+			}
+			if !over {
+				x.Aliases[alias] = append(x.Aliases[alias], i)
+			}
+		}
 		terms[i] = map[string]bool{}
 		for term := range contextindex.EvidenceTerms(s.ID + " " + s.Name) {
 			if err := charge(term); err != nil {

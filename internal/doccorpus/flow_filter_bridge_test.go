@@ -28,7 +28,8 @@ func TestDCPV1174DocsFlowToolFilters(t *testing.T) {
 	}
 	for _, tool := range r.Tools() {
 		props := tool.InputSchema["properties"].(map[string]any)
-		if (props["section"] != nil) != (tool.Name == "corvint.docs_flow") || (props["include"] != nil) != (tool.Name == "corvint.docs_flow") {
+		if (props["section"] != nil) != (tool.Name == "corvint.docs_flow") || (props["include"] != nil) != (tool.Name == "corvint.docs_flow" || tool.Name == "corvint.docs_search") {
+			// DCP-V1-328: docs_search admits include:["claims"] only.
 			t.Fatalf("filter schema on %s", tool.Name)
 		}
 	}

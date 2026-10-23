@@ -110,6 +110,9 @@ type Subject struct {
 	Name     string   `json:"name"`
 	Provider string   `json:"provider"`
 	Evidence Evidence `json:"evidence"`
+	// AlternateIDs are a supplied subject's producer identifiers, each resolved
+	// exactly to this subject by the id readers (DCP-V1-329, DCP-V1-330).
+	AlternateIDs []string `json:"alternate_ids,omitempty"`
 }
 type Claim struct {
 	ID       string   `json:"id"`
@@ -265,7 +268,9 @@ type Request struct {
 	// Sections and Include filter a flow query (DCP-V1-170, DCP-V1-171);
 	// nil means absent.
 	Sections []string `json:"sections,omitempty"`
-	Include  []string `json:"include,omitempty"`
+	// Include is also ["claims"] on a search, which then ranks claim hits with
+	// subject hits (DCP-V1-328).
+	Include []string `json:"include,omitempty"`
 	// Repository optionally restricts locate and recommend-tests to one declared repository's
 	// root-commit identity (DCP-V1-310).
 	Repository string `json:"repository,omitempty"`
@@ -276,6 +281,9 @@ type Request struct {
 	State     string `json:"state,omitempty"`
 	Qualifier string `json:"qualifier,omitempty"`
 	Run       string `json:"run,omitempty"`
+	// CallerRevision is the caller's checkout commit, compared with the corpus
+	// source revision (DCP-V1-332); empty means absent.
+	CallerRevision string `json:"caller_revision,omitempty"`
 }
 type Receipt struct {
 	Envelope  *TrustEnvelope      `json:"trust_envelope,omitempty"`
@@ -312,6 +320,29 @@ type Receipt struct {
 	// ResultRepositories names the repository of each locate or recommend-tests result when the
 	// artifact spans more than one repository (DCP-V1-311); absent otherwise.
 	ResultRepositories map[string]string `json:"result_repositories,omitempty"`
+	// TextOrigins marks each visible record's provider-supplied free text as
+	// untrusted, with its byte cap; absent when no visible record carries
+	// supplied text (DCP-V1-322).
+	TextOrigins map[string]map[string]TextOrigin `json:"text_origins,omitempty"`
+	// ResultKinds tags each visible result of a search that includes claims with
+	// its record kind (DCP-V1-328).
+	ResultKinds map[string]string `json:"result_kinds,omitempty"`
+	// AliasResolution records that the requested id was a subject's alternate
+	// id (DCP-V1-330).
+	AliasResolution *AliasResolution `json:"alias_resolution,omitempty"`
+}
+
+// TextOrigin is the origin and byte cap of one free-text field (DCP-V1-322).
+type TextOrigin struct {
+	Origin   string `json:"origin"`
+	MaxBytes int    `json:"max_bytes"`
+}
+
+// AliasResolution names the alternate id a request used and the subject it
+// resolved to (DCP-V1-330).
+type AliasResolution struct {
+	AlternateID string `json:"alternate_id"`
+	ID          string `json:"id"`
 }
 type Error struct {
 	Code    string
