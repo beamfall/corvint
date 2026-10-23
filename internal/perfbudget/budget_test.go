@@ -108,7 +108,9 @@ func TestPRBV0030BudgetsValidation(t *testing.T) {
 // PRB-V0-050, PRB-V0-051, PRB-V0-052: the unchanged-delta scenario streams the current
 // artifact's delta against itself, follows the six #1602 scenarios, carries its baseline and the
 // tighter wall ceiling derived from it, and that ceiling fails a delta that rederives: the
-// before-change measurement in docs/build-log/2026-10-23-corpus-delta-verified-read.md.
+// before-change measurement in docs/build-log/2026-10-23-corpus-delta-verified-read.md. Those
+// rederiving measurements are recorded constants, so this test cannot detect a restored
+// rederivation; TestDCPV1460DeltaCLIVerifiedRead's build counter is the deterministic guard.
 func TestPRBV0050UnchangedDeltaBudget(t *testing.T) {
 	b, err := LoadBudgets("budgets.json")
 	if err != nil {
@@ -162,6 +164,48 @@ func TestPRBV0050UnchangedDeltaBudget(t *testing.T) {
 		}
 		if ok || !exceeded {
 			t.Fatalf("a rederiving delta at %v ms passed the unchanged-delta ceiling", rederived)
+		}
+	}
+}
+
+// PRB-V0-053: a committed baseline measurement taken in another run carries that run's start
+// time, measured executable and host observation, so it is not attributed to the baseline's run;
+// the six measurements of the baseline's own run carry none, and a malformed provenance is refused.
+func TestPRBV0053BaselineProvenance(t *testing.T) {
+	b, err := LoadBudgets("budgets.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range b.Baseline.Scenarios {
+		p := m.Provenance
+		if m.ID != "unchanged-delta" {
+			if p != nil {
+				t.Errorf("%s: provenance %+v on a measurement of the baseline's own run", m.ID, p)
+			}
+			continue
+		}
+		if p == nil || p.RecordedAt == b.Baseline.RecordedAt || p.ExecutableSHA256 == b.Baseline.Fixture.BuilderSHA256 || p.ExecutableRevision != "a86d556279bf004318b6fe8b0a039961fb4a2791" || p.Host.LoadBefore == nil {
+			t.Fatalf("unchanged-delta provenance %+v does not name its own run", p)
+		}
+	}
+	valid := func() *Budgets {
+		copy := *b
+		copy.Baseline = &Baseline{Scenarios: []ScenarioMeasured{{ID: "unchanged-delta", Provenance: &Provenance{RecordedAt: "2026-10-23T15:39:25Z", ExecutableRevision: strings.Repeat("a", 40), ExecutableSHA256: strings.Repeat("b", 64), Host: Host{Cores: 1, Contended: new(bool)}}}}}
+		return &copy
+	}
+	if err := valid().Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for name, edit := range map[string]func(*Provenance){
+		"time":     func(p *Provenance) { p.RecordedAt = "" },
+		"revision": func(p *Provenance) { p.ExecutableRevision += "+dirty" },
+		"sha256":   func(p *Provenance) { p.ExecutableSHA256 = "unrecorded" },
+		"host":     func(p *Provenance) { p.Host.Contended = nil },
+	} {
+		bad := valid()
+		edit(bad.Baseline.Scenarios[0].Provenance)
+		if err := bad.Validate(); err == nil || !strings.Contains(err.Error(), "provenance") {
+			t.Errorf("%s: malformed provenance admitted: %v", name, err)
 		}
 	}
 }

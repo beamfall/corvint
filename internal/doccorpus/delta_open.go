@@ -30,7 +30,9 @@ func OpenDeltaCurrent(ctx context.Context, root string, data []byte) (*Artifact,
 // OpenDeltaRead opens a retained artifact as the current side of `docs corpus delta`
 // (DCP-V1-425, DCP-V1-460). While every declared additional checkout holds its identity at each
 // pinned revision it is OpenRead: the verified read by default, the complete rederivation with
-// opts.Rederive or an unattested running builder, and every failure refuses. When one does not,
+// opts.Rederive or an unattested running builder, and every failure refuses; the verified read
+// also checks that every input names the regular blob its path holds at its pinned revision
+// before anything is classified (DCP-V1-464). When one does not,
 // the artifact cannot be verified or rederived, so it is taken from its canonical, digest-checked
 // bytes instead: every input of an available repository must still name the blob its path holds
 // at its pinned revision, the unavailable repositories' anchors classify unresolved with the
@@ -64,15 +66,34 @@ func OpenDeltaRead(ctx context.Context, root string, data []byte, opts ReadOptio
 	}
 	// The checkouts are observed from the header members while the records are decoded and
 	// verified, as a read's freshness is (DCP-V1-411).
+	// With every checkout available, each input's (revision, path) -> blob binding is checked
+	// against its pinned tree there too, because the verified read checks only the pins and the
+	// classification trusts the recorded blobs (DCP-V1-464).
 	var missing map[string]string
-	var missingErr error
-	opts.Header = func(h *Artifact) { missing, missingErr = unavailableCheckouts(ctx, root, h.Manifest) }
+	var missingErr, bindingErr error
+	var bindingTime time.Duration
+	opts.Header = func(h *Artifact) {
+		if missing, missingErr = unavailableCheckouts(ctx, root, h.Manifest); missingErr == nil && len(missing) == 0 {
+			start := time.Now()
+			bindingErr = verifyAvailableInputs(ctx, root, h.Manifest, nil)
+			bindingTime = time.Since(start)
+		}
+	}
 	a, err := OpenRead(ctx, root, data, opts)
 	if missingErr != nil {
 		return nil, missingErr
 	}
 	if len(missing) == 0 {
-		return a, err
+		if t != nil {
+			t.Verify += bindingTime
+		}
+		if err != nil {
+			return nil, err
+		}
+		if bindingErr != nil {
+			return nil, bindingErr
+		}
+		return a, nil
 	}
 	start := time.Now()
 	a, err = ParseArtifact(data)

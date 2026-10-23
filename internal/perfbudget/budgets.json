@@ -483,7 +483,29 @@
         ],
         "p50_wall_ms": 1520.91,
         "p95_wall_ms": 2510.3,
-        "peak_rss_bytes": 729956352
+        "peak_rss_bytes": 729956352,
+        "provenance": {
+          "recorded_at": "2026-10-23T15:39:25Z",
+          "executable_revision": "a86d556279bf004318b6fe8b0a039961fb4a2791",
+          "executable_sha256": "9763911a3c74527e6720849208451a8511b5ec13d998ce31c42599e5dbb3fde1",
+          "host": {
+            "goos": "darwin",
+            "goarch": "arm64",
+            "go_version": "go1.27.2",
+            "cores": 12,
+            "load_before": [
+              7.01,
+              11.49,
+              16.8
+            ],
+            "load_after": [
+              7.42,
+              10.55,
+              15.94
+            ],
+            "contended": false
+          }
+        }
       }
     ]
   }

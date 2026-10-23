@@ -168,7 +168,7 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
 
 ### Unchanged-pair delta budget (GitHub #1634)
 
-Status for `PRB-V0-050..052`: proposed, experimental; GitHub #1634. They amend `PRB-V0-024`,
+Status for `PRB-V0-050..053`: proposed, experimental; GitHub #1634. They amend `PRB-V0-024`,
 `PRB-V0-030` and `PRB-V0-032` for one added scenario.
 
 - `PRB-V0-050`: The harness MUST measure a seventh scenario after the six of `PRB-V0-024`:
@@ -183,6 +183,13 @@ Status for `PRB-V0-050..052`: proposed, experimental; GitHub #1634. They amend `
   Until the next `--record-baseline` run it was recorded in a separate run from the other six,
   whose revision, time and host load are named in its ceiling reasons and in
   docs/build-log/2026-10-23-corpus-delta-verified-read.md.
+- `PRB-V0-053`: A baseline measurement taken in another run than the baseline's own MUST carry
+  that run's `provenance`: its start time, the measured corvint executable's clean source revision
+  and SHA-256 (the same executable built the artifacts it read), and the run's host observation.
+  It is attributed to that provenance, never to the baseline's `revision`, `host` or
+  `fixture.builder_sha256`; a measurement without one belongs to the baseline's run. The budgets
+  file refuses a provenance missing any of those fields, and `--record-baseline` writes none,
+  because every measurement then comes from one run.
 
 ## Non-goals
 
@@ -222,6 +229,10 @@ Status for `PRB-V0-050..052`: proposed, experimental; GitHub #1634. They amend `
   before the scratch directory is removed (PRB-V0-037).
 - A `docs corpus delta` that rederives its current artifact exceeds the `unchanged-delta` wall
   ceiling and fails the run (PRB-V0-051); one that only slows by less than the headroom passes.
+- A baseline measurement's provenance missing its start time, clean executable revision,
+  executable SHA-256 or host observation: refused when the budgets file is loaded (PRB-V0-053).
+  A measurement from another run committed without any provenance cannot be detected by loading;
+  `TestPRBV0053BaselineProvenance` pins the one such measurement committed today.
 - Contended hosts inflate latency: the run still judges ceilings and records `contended` so a
   reader can discount the verdict; the baseline itself was recorded under heavy contention.
 
@@ -241,7 +252,10 @@ Status for `PRB-V0-050..052`: proposed, experimental; GitHub #1634. They amend `
   records over 10,000 inputs on a 12-core host at load 137 (contended).
 - #1634: `TestPRBV0050UnchangedDeltaBudget` checks the seventh scenario, its derived ceilings and
   that the before-change delta exceeds the wall ceiling; a harness run with the before-change
-  binary fails on `unchanged-delta` (build-log entry 2026-10-23-corpus-delta-verified-read).
+  binary fails on `unchanged-delta` (build-log entry 2026-10-23-corpus-delta-verified-read). Its
+  rederiving measurements are recorded constants, so it cannot detect a restored rederivation;
+  `TestDCPV1460DeltaCLIVerifiedRead`'s build counter (`DCP-V1-461`) is the deterministic guard.
+  `TestPRBV0053BaselineProvenance` checks that the separately recorded measurement names its run.
 
 ## Traceability
 
@@ -280,6 +294,7 @@ Status for `PRB-V0-050..052`: proposed, experimental; GitHub #1634. They amend `
 | `PRB-V0-050` | `internal/perfbudget/budget.go`, `internal/perfbudget/harness.go` | `TestPRBV0050UnchangedDeltaBudget`, `TestPRBV0024HarnessSmokeRun`, `TestPRBV0030BudgetsValidation` |
 | `PRB-V0-051` | `internal/perfbudget/budgets.json` | `TestPRBV0050UnchangedDeltaBudget`, `TestPRBV0031CommittedBudgets` |
 | `PRB-V0-052` | `internal/perfbudget/budgets.json` | `TestPRBV0050UnchangedDeltaBudget`, `TestPRBV0031CommittedBudgets` |
+| `PRB-V0-053` | `internal/perfbudget/measure.go`, `internal/perfbudget/budget.go`, `internal/perfbudget/budgets.json` | `TestPRBV0053BaselineProvenance` |
 | `PRB-V0-037` | `internal/perfbudget/process.go`, `internal/perfbudget/measure.go`, `internal/perfbudget/cmd/perf-budget/main.go` | `TestPRBV0037InterruptRetiresBuildDescendants`, `TestPRBV0024HarnessSmokeRun` |
 
 ## Rollback

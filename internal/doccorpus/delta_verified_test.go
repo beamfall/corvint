@@ -230,3 +230,41 @@ func TestDCPV1460DeltaVerifiedReadUnavailableCheckout(t *testing.T) {
 		}
 	}
 }
+
+// TestDCPV1464DeltaVerifiedReadChecksInputBindings: with every checkout available, a current
+// artifact whose changed input names the previous blob and SHA-256, with its manifest and artifact
+// digests recomputed, is refused by the verified delta current side before any classification, as
+// by the rederivation, and never classified carry-forward (DCP-V1-464).
+func TestDCPV1464DeltaVerifiedReadChecksInputBindings(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	root, previous, m := deltaFixture(t)
+	current, err := Build(ctx, root, m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := map[string]Input{}
+	for _, in := range previous.Manifest.Inputs {
+		old[in.Path] = in
+	}
+	swapped := ""
+	data := rehashed(t, current, func(c *Artifact) {
+		c.Manifest.Inputs = slices.Clone(c.Manifest.Inputs)
+		for i, in := range c.Manifest.Inputs {
+			if prior, ok := old[in.Path]; ok && in.Path == "src/report.py" && prior.Blob != in.Blob {
+				c.Manifest.Inputs[i].Blob, c.Manifest.Inputs[i].SHA256 = prior.Blob, prior.SHA256
+				swapped = in.Path
+			}
+		}
+		c.ManifestSHA256 = testHash(t, c.Manifest)
+	})
+	if swapped == "" {
+		t.Fatal("fixture lacks a changed input to swap")
+	}
+	if _, err := OpenDeltaRead(ctx, root, data, ReadOptions{}); err == nil || !strings.Contains(err.Error(), "input "+swapped+" at ") || !strings.Contains(err.Error(), "does not name the blob its path holds") {
+		t.Fatalf("verified delta current side admitted a swapped input blob: %v", err)
+	}
+	if _, err := OpenDeltaRead(ctx, root, data, ReadOptions{Rederive: true}); err == nil {
+		t.Fatal("rederived delta current side admitted a swapped input blob")
+	}
+}

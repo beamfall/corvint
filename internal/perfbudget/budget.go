@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"slices"
+	"time"
 )
 
 // BudgetSchema names the committed budgets file.
@@ -123,7 +124,36 @@ func (b *Budgets) Validate() error {
 	if !slices.Equal(ids, ScenarioIDs) {
 		return fmt.Errorf("budgets: scenarios %v, want exactly %v", ids, ScenarioIDs)
 	}
+	if b.Baseline != nil {
+		for _, m := range b.Baseline.Scenarios {
+			if p := m.Provenance; p != nil && (!timestampOK(p.RecordedAt) || !gitRevisionOK(p.ExecutableRevision) || !sha256OK(p.ExecutableSHA256) || p.Host.Cores < 1 || p.Host.Contended == nil) {
+				return fmt.Errorf("budgets: baseline %s: provenance needs its run's start time, clean executable revision and SHA-256, and host observation", m.ID)
+			}
+		}
+	}
 	return nil
+}
+
+func timestampOK(s string) bool {
+	_, err := time.Parse(time.RFC3339, s)
+	return err == nil
+}
+
+func gitRevisionOK(s string) bool {
+	return len(s) == 40 && hexOK(s)
+}
+
+func sha256OK(s string) bool {
+	return len(s) == 64 && hexOK(s)
+}
+
+func hexOK(s string) bool {
+	for _, c := range s {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 // Verdicts of one limit.
