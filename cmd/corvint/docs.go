@@ -205,6 +205,7 @@ Separate experimental corpus profile:
   corvint [--root PATH] docs corpus discover-playwright --migration MIGRATION.json --config PATH --playwright-list LIST.json [--receipt RECEIPT.json]
   corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json
   corvint [--root PATH] docs corpus discover-legacy --runner jasmine|mocha --revision FULL_COMMIT --path PATH [--input REGISTRY.json]
+  corvint [--root PATH] docs corpus discover-tests --runner playwright|rspec --revision FULL_COMMIT --path PATH
   corvint [--root PATH] docs corpus import-cases --format testrail-json|csv --input EXPORT [--content ids-paths-titles|full]
   corvint [--root PATH] docs corpus search-cases --format testrail-json|csv --input EXPORT (--query TEXT [--match all|any] | --id C<digits>) [--limit N]
   corvint [--root PATH] docs corpus search --artifact CORPUS.json --query TEXT
@@ -267,6 +268,14 @@ End-to-end example, run at the repository root:
     git add evidence/receipt.json && git commit -m "retain playwright receipt"
     corvint docs corpus witness-playwright --input evidence/request.json --receipt-input receipt --report evidence/report.json
 REQUEST.json names the committed receipt as input "receipt", beside the migration and discovery.
+
+Test discovery (DCP-V1-370..376): discover-tests reads Playwright or RSpec test files from Git
+at --revision (one file, or the test files under a directory; --path . for all) and prints a
+generated corvint-test-discovery/1 record without running a test. Each example carries its
+example-join identity, title path, tags, annotations, expectations (matcher, negation, receiver),
+navigations and requests, the imports, fixtures and shared groups it reaches, and the hooks that
+apply with whether each asserts. Every fact is anchored to its committed lines; whatever the
+reader cannot classify is listed under unknown with a reason.
 
 Legacy inventory (DCP-V1-060..069): discover-legacy reads Jasmine or Mocha/Cypress test files
 from Git at --revision (one file, or the test-named files under a directory; --path . for all)

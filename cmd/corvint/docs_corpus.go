@@ -255,6 +255,9 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	if o.op == "discover-legacy" {
 		return compileLegacyCorpus(ctx, o)
 	}
+	if o.op == "discover-tests" {
+		return compileTestDiscovery(ctx, o)
+	}
 	if o.op == "import-cases" || o.op == "search-cases" {
 		return compileLegacyCasesCorpus(o)
 	}
