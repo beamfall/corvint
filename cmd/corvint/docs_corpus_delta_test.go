@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -60,6 +61,161 @@ func TestDCPV1360DeltaCLI(t *testing.T) {
 		{"carry-forward", "--previous", "previous.json", "--artifact", "corpus.json"},
 		{"carry-forward", "--previous", "previous.json", "--artifact", "corpus.json", "--provider", "missing"},
 		{"carry-forward", "--previous", "previous.json", "--artifact", "corpus.json", "--provider", "missing", "--limit", "1"},
+	} {
+		if code, out, _ := corpusCLI(t, root, append([]string{"docs", "corpus"}, refused...)...); code != 2 || out != "" {
+			t.Fatalf("%v accepted: %d %s", refused, code, out)
+		}
+	}
+}
+
+// TestDCPV1425DeltaUnavailableCheckoutCLI drives `docs corpus delta` over a retained artifact
+// whose declared additional checkout has disappeared: the delta still classifies, the missing
+// repository's anchors are unresolved with the reason, the primary repository's anchors carry
+// forward, and the receipt says the current side was not rederived (DCP-V1-425).
+func TestDCPV1425DeltaUnavailableCheckoutCLI(t *testing.T) {
+	root := taskContextRepository(t)
+	rev := cemGit(t, root, "rev-parse", "HEAD")
+	m, err := doccorpus.Inventory(context.Background(), root, rev, "cache", "2026-09-19T00:00:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lib := filepath.Join(t.TempDir(), "lib")
+	libDoc := "# Lib\n\nThe lib parses quokka values.\n"
+	cemWrite(t, lib, "doc.md", libDoc)
+	cemGit(t, lib, "init", "-q")
+	cemGit(t, lib, "add", ".")
+	cemGit(t, lib, "commit", "-qm", "lib")
+	libRev := cemGit(t, lib, "rev-parse", "HEAD")
+	rel, err := filepath.Rel(root, lib)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rootDoc := "package cache\n\nfunc Split(key string) string { return key }\n"
+	anchor := func(repository, revision, path, blob, text string, line int) doccorpus.Anchor {
+		excerpt := strings.SplitAfter(text, "\n")[line-1]
+		return doccorpus.Anchor{Repository: repository, Revision: revision, Path: path, Blob: blob, SHA256: doccorpus.Digest([]byte(text)), Start: line, End: line, SpanSHA256: doccorpus.Digest([]byte(excerpt)), Authority: "external-provider", Kind: "declared", Reason: "explicit fixture provider assertion"}
+	}
+	evidence := func(a doccorpus.Anchor) doccorpus.Evidence {
+		return doccorpus.Evidence{Derivation: "declared", Trust: "generated", State: "supported", Freshness: "fresh", Anchors: []doccorpus.Anchor{a}, Limitations: []string{"delta fixture assertion"}}
+	}
+	libBlob := cemGit(t, lib, "rev-parse", libRev+":doc.md")
+	record := doccorpus.ProviderRecord{Schema: doccorpus.ProviderSchema, ID: "adapter", Version: "1", Source: m.Repository,
+		Subjects: []doccorpus.Subject{
+			{ID: "adapter:lib", Kind: "capability", Name: "Lib quokka parser", Provider: "adapter", Evidence: evidence(anchor(libRev, libRev, "doc.md", libBlob, libDoc, 3))},
+			{ID: "adapter:split", Kind: "capability", Name: "Cache split", Provider: "adapter", Evidence: evidence(anchor(m.Repository.ID, rev, "cache/demux.go", cemGit(t, root, "rev-parse", rev+":cache/demux.go"), rootDoc, 3))},
+		},
+		Claims: []doccorpus.Claim{}, Relations: []doccorpus.Relation{}, Journeys: []doccorpus.Journey{}, Observations: []doccorpus.ObservationLink{},
+		Capabilities: []doccorpus.CapabilityDeclaration{{Name: "subjects", State: "present", Reason: "fixture"}},
+	}
+	data, err := doccorpus.Encode(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cemWrite(t, root, "evidence/provider.json", string(data))
+	cemGit(t, root, "add", "evidence")
+	cemGit(t, root, "commit", "-qm", "provider")
+	providerRev := cemGit(t, root, "rev-parse", "HEAD")
+	m.AdditionalRepositories = []doccorpus.AdditionalRepository{{ID: libRev, Revision: libRev, Root: filepath.ToSlash(rel)}}
+	m.Providers = append(m.Providers, doccorpus.Provider{ID: "adapter", Kind: "records", Version: "1", Revision: providerRev, Record: "evidence/provider.json"})
+	m.Scopes = append(m.Scopes, doccorpus.Scope{Path: "evidence/provider.json", Revision: providerRev}, doccorpus.Scope{Path: "doc.md", Revision: libRev})
+	m.Inputs = append(m.Inputs,
+		doccorpus.Input{Path: "evidence/provider.json", Revision: providerRev, Blob: cemGit(t, root, "rev-parse", providerRev+":evidence/provider.json"), SHA256: doccorpus.Digest(data), Provider: "adapter", Purpose: "provider"},
+		doccorpus.Input{Path: "doc.md", Revision: libRev, Blob: libBlob, SHA256: doccorpus.Digest([]byte(libDoc)), Provider: "adapter", Purpose: "evidence"})
+	manifest, err := doccorpus.Encode(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cemWrite(t, root, "corpus-input.json", string(manifest))
+	code, out, stderr := corpusCLI(t, root, "docs", "corpus", "build", "--manifest", "corpus-input.json")
+	if code != 0 {
+		t.Fatalf("build: %d %s", code, stderr)
+	}
+	cemWrite(t, root, "corpus.json", out)
+	if err := os.Rename(lib, lib+"-gone"); err != nil {
+		t.Fatal(err)
+	}
+
+	code, out, stderr = corpusCLI(t, root, "docs", "corpus", "delta", "--previous", "corpus.json", "--artifact", "corpus.json", "--limit", "256", "--uncovered", "changed")
+	if code != 0 {
+		t.Fatalf("delta with an unavailable checkout: %d %s", code, stderr)
+	}
+	var receipt doccorpus.DeltaReceipt
+	if err := json.Unmarshal([]byte(out), &receipt); err != nil {
+		t.Fatal(err)
+	}
+	entries := map[string]doccorpus.DeltaEntry{}
+	for _, e := range receipt.Entries {
+		entries[e.ID] = e
+	}
+	if e := entries["adapter:lib"]; e.Class != doccorpus.DeltaUnresolved || len(e.Anchors) != 1 || e.Anchors[0].Repository != libRev || e.Anchors[0].Current != nil || !strings.Contains(e.Reason, "checkout is unavailable") {
+		t.Fatalf("anchor in the unavailable checkout: %+v", e)
+	}
+	if e := entries["adapter:split"]; e.Class != doccorpus.DeltaCarryForward || len(e.Anchors) != 1 || e.Anchors[0].Current == nil {
+		t.Fatalf("primary anchor did not classify: %+v", e)
+	}
+	if !strings.Contains(strings.Join(receipt.Limitations, "\n"), "current artifact was not rederived because the checkout of additional repository "+libRev+" is unavailable") {
+		t.Fatalf("receipt does not disclose the unverified current side: %v", receipt.Limitations)
+	}
+	// Carry-forward emits records for the next build, and a manifest cannot be built without the
+	// checkout, so both still refuse.
+	for _, refused := range [][]string{
+		{"carry-forward", "--previous", "corpus.json", "--artifact", "corpus.json", "--provider", "adapter"},
+		{"delta", "--previous", "corpus.json", "--manifest", "corpus-input.json"},
+	} {
+		if code, out, _ := corpusCLI(t, root, append([]string{"docs", "corpus"}, refused...)...); code == 0 || out != "" {
+			t.Fatalf("%v accepted without the checkout: %d %s", refused, code, out)
+		}
+	}
+}
+
+// TestDCPV1421DeltaViewsCLI drives the delta views through the CLI: --uncovered changed keeps
+// only changed regions and counts the uncited subjects, --anchorless list and --format jsonl
+// are admitted, and an invalid mode, a jsonl stream with paging, and a view option on
+// carry-forward are refused (DCP-V1-421..423).
+func TestDCPV1421DeltaViewsCLI(t *testing.T) {
+	root := taskContextRepository(t)
+	writeCorpusFixture(t, root, cemGit(t, root, "rev-parse", "HEAD"), "cache")
+	run := func(args ...string) string {
+		t.Helper()
+		code, out, stderr := corpusCLI(t, root, append([]string{"docs", "corpus", "delta", "--previous", "corpus.json", "--artifact", "corpus.json"}, args...)...)
+		if code != 0 {
+			t.Fatalf("%v: %d %s", args, code, stderr)
+		}
+		return out
+	}
+	var all, changed doccorpus.DeltaReceipt
+	if err := json.Unmarshal([]byte(run("--limit", "256", "--anchorless", "list")), &all); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(run("--limit", "256", "--uncovered", "changed")), &changed); err != nil {
+		t.Fatal(err)
+	}
+	subjects := 0
+	for _, e := range all.Entries {
+		if e.Class == doccorpus.DeltaUncovered && e.RecordKind == "subject" {
+			subjects++
+		}
+	}
+	for _, e := range changed.Entries {
+		if e.Class == doccorpus.DeltaUncovered {
+			t.Fatalf("no-op delta under --uncovered changed listed %+v", e)
+		}
+	}
+	if changed.UncoveredSubjectsOmitted != subjects {
+		t.Fatalf("uncited subjects: listed %d, omitted %d", subjects, changed.UncoveredSubjectsOmitted)
+	}
+	lines := strings.Split(strings.TrimSuffix(run("--format", "jsonl", "--anchorless", "list"), "\n"), "\n")
+	var header doccorpus.DeltaStreamHeader
+	if err := json.Unmarshal([]byte(lines[0]), &header); err != nil || header.Schema != doccorpus.DeltaStreamSchema || header.Total != all.Total || len(lines) != all.Total+1 {
+		t.Fatalf("jsonl stream: %+v %v (%d lines, paged total %d)", header, err, len(lines), all.Total)
+	}
+	for _, refused := range [][]string{
+		{"delta", "--previous", "corpus.json", "--artifact", "corpus.json", "--format", "jsonl", "--limit", "1"},
+		{"delta", "--previous", "corpus.json", "--artifact", "corpus.json", "--format", "jsonl", "--offset", "0"},
+		{"delta", "--previous", "corpus.json", "--artifact", "corpus.json", "--format", "csv"},
+		{"delta", "--previous", "corpus.json", "--artifact", "corpus.json", "--uncovered", "some"},
+		{"delta", "--previous", "corpus.json", "--artifact", "corpus.json", "--anchorless", "none"},
+		{"carry-forward", "--previous", "corpus.json", "--artifact", "corpus.json", "--provider", "adapter", "--uncovered", "changed"},
 	} {
 		if code, out, _ := corpusCLI(t, root, append([]string{"docs", "corpus"}, refused...)...); code != 2 || out != "" {
 			t.Fatalf("%v accepted: %d %s", refused, code, out)

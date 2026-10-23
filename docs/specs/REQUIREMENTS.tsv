@@ -2636,6 +2636,12 @@ DCP-V1-349	docs/specs/documentation-corpus-v1.md	`docs corpus patterns --artifac
 DCP-V1-350	docs/specs/documentation-corpus-v1.md	`audit sample --stratify patterns` places each claim in its first flagged patter	unrecorded	-
 DCP-V1-351	docs/specs/documentation-corpus-v1.md	For a stratified sample, `audit report` adds `weighted`: the sum over populated	unrecorded	-
 DCP-V1-352	docs/specs/documentation-corpus-v1.md	`docs corpus build --max-pattern-rate R` (every pattern) or	unrecorded	-
+DCP-V1-420	docs/specs/documentation-corpus-v1.md	An anchor whose repository is a declared additional repository of the current	unrecorded	-
+DCP-V1-421	docs/specs/documentation-corpus-v1.md	`--uncovered changed|all` selects the uncovered entries; the default is `all`, t	unrecorded	-
+DCP-V1-422	docs/specs/documentation-corpus-v1.md	`--anchorless summary|list` selects how records with no anchors appear; the defa	unrecorded	-
+DCP-V1-423	docs/specs/documentation-corpus-v1.md	`--format jsonl` classifies once and prints the whole worklist without paging.	unrecorded	-
+DCP-V1-424	docs/specs/documentation-corpus-v1.md	The same inputs give the same worklist whichever builder built the previous corp	unrecorded	-
+DCP-V1-425	docs/specs/documentation-corpus-v1.md	These are refused with exit 2 and no output as argument errors:	unrecorded	-
 DCP-V1-390	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) A	standing	2026-10-11; #1583
 DCP-V1-391	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) Eac	standing	2026-10-11; #1583
 DCP-V1-392	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) Rel	standing	2026-10-11; #1583

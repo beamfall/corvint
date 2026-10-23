@@ -65,7 +65,7 @@ func buildCorpusOperations() []corpusOperation {
 		typed("navigation", "typed navigation subject"),
 		typed("vocabulary", "typed vocabulary matching a term"),
 		read("intent", "typed intent comparisons of one subject, or every intent comparison without --id", nil, "--id"),
-		{name: "delta", purpose: "page a cross-revision worklist: carry-forward, moved, changed, removed, unresolved and uncovered", required: []string{"--previous"}, optional: []string{"--artifact", "--manifest", "--limit", "--offset"}},
+		{name: "delta", purpose: "page a cross-revision worklist: carry-forward, moved, changed, removed, unresolved and uncovered", required: []string{"--previous"}, optional: []string{"--artifact", "--manifest", "--limit", "--offset", "--uncovered", "--anchorless", "--format"}},
 		{name: "carry-forward", purpose: "emit a provider record of one provider's records whose span hashes still hold", required: []string{"--previous", "--provider"}, optional: []string{"--artifact", "--manifest"}},
 		{name: "eval", purpose: "score caller-labelled cases through the corpus MCP tool path; --baseline ratchets", required: []string{"--artifact", "--cases"}, optional: []string{"--baseline", "--format"}},
 		{name: "audit-sample", purpose: "draw a reproducible claim sample to audit; also spelled audit sample", required: []string{"--artifact", "--seed", "--size"}, optional: []string{"--stratify", "--scope"}},
@@ -151,6 +151,8 @@ var corpusFlagHelp = map[string][2]string{
 	"--sample":                      {"SAMPLE.json", doccorpus.AuditSampleSchema + " sample from docs corpus audit sample"},
 	"--provider":                    {"PROVIDER", "records provider ID declared in the previous corpus manifest"},
 	"--profile":                     {"PATH", "repository path of the " + doccorpus.ExtractorProfileSchema + " profile, read from Git at --revision"},
+	"--uncovered":                   {"changed|all", "delta uncovered entries: changed regions only, or also uncited subjects (default all)"},
+	"--anchorless":                  {"summary|list", "delta anchorless records: counted by provider and kind, or listed (default summary)"},
 }
 
 // corpusOperationFlagHelp overrides a shared option's help for one operation: eval's --format
@@ -160,9 +162,12 @@ var corpusOperationFlagHelp = map[string]map[string][2]string{
 	"audit-sample": {"--scope": {"PATH", "sample only claims citing this path or directory"}},
 	"audit-report": {"--format": {"json|table", "report view (default json)"}},
 	"delta": {"--previous": {"CORPUS.json", "previous corpus artifact the worklist compares from"},
-		"--artifact": {"CORPUS.json", "current corpus artifact (or --manifest; exactly one)"},
-		"--manifest": {"INPUT.json", "current manifest, built in memory (or --artifact; exactly one)"},
-		"--limit":    {"N", "1.." + strconv.Itoa(doccorpus.MaxResults) + " entries (default 20)"}},
+		"--artifact":   {"CORPUS.json", "current corpus artifact (or --manifest; exactly one)"},
+		"--manifest":   {"INPUT.json", "current manifest, built in memory (or --artifact; exactly one)"},
+		"--limit":      {"N", "1.." + strconv.Itoa(doccorpus.MaxResults) + " entries (default 20)"},
+		"--uncovered":  {"changed|all", "all (default) also lists every uncited subject; changed lists changed regions only and counts the subjects"},
+		"--anchorless": {"summary|list", "summary (default) counts anchorless records by provider and kind; list gives each its own entry"},
+		"--format":     {"json|jsonl", "json (default) pages one receipt; jsonl streams a header line and every entry once, without --limit or --offset"}},
 	"carry-forward": {"--previous": {"CORPUS.json", "previous corpus artifact whose records are carried"},
 		"--artifact": {"CORPUS.json", "current corpus artifact (or --manifest; exactly one)"},
 		"--manifest": {"INPUT.json", "current manifest, built in memory (or --artifact; exactly one)"}},
