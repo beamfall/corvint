@@ -58,3 +58,53 @@ func TestAFPV0361_OpenStableArtifactNeverReadsFilesystemRoot(t *testing.T) {
 		t.Fatal("symlinked component accepted")
 	}
 }
+
+// TestAFPV0361_OpenStableTopRefusesSymlinkAndSwappedFirstComponent witnesses
+// the first-component admission itself, through stableTopPath: a symlinked
+// first component is refused before any open, and a first component whose
+// opened directory is not the one Lstat observed is refused (independent
+// review of V1-2365). The test swaps package hooks, so it does not run in
+// parallel.
+func TestAFPV0361_OpenStableTopRefusesSymlinkAndSwappedFirstComponent(t *testing.T) {
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	realDir, other, link := filepath.Join(dir, "real"), filepath.Join(dir, "other"), filepath.Join(dir, "link")
+	for _, d := range []string{realDir, other} {
+		if err := os.Mkdir(d, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Symlink(realDir, link); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		openStableRoot = os.OpenRoot
+		stableTopPath = func(part string) string { return "/" + part }
+	})
+	var opened []string
+	openStableRoot = func(name string) (*os.Root, error) {
+		opened = append(opened, name)
+		return os.OpenRoot(name)
+	}
+	stableTopPath = func(part string) string { return filepath.Join(dir, part) }
+	top, err := openStableTop("real")
+	if err != nil {
+		t.Fatalf("real first component: %v", err)
+	}
+	top.Close()
+	opened = nil
+	if top, err := openStableTop("link"); err == nil {
+		top.Close()
+		t.Fatal("symlinked first component accepted")
+	}
+	if len(opened) != 0 {
+		t.Fatalf("symlinked first component opened %q before refusal", opened)
+	}
+	openStableRoot = func(string) (*os.Root, error) { return os.OpenRoot(other) }
+	if top, err := openStableTop("real"); err == nil {
+		top.Close()
+		t.Fatal("first component opened as a different directory accepted")
+	}
+}

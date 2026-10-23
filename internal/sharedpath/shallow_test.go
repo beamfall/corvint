@@ -116,6 +116,52 @@ func TestSPCV0015ShallowRangeCutByBoundaryRefuses(t *testing.T) {
 	}
 }
 
+// SPC-V0-015: a shallow criss-cross merge refuses. R deletes cmd/f.go on
+// side A (A0 A1) and leaves it on side B (B0 B1); main and feature both merge
+// A1 and B1, main restoring cmd/f.go unchanged and feature changing it. Git's
+// virtual base merges A1 and B1 through their own merge base R: the full clone
+// lacks cmd/f.go there and reports an add/add conflict, while a depth-3 clone,
+// cut at A0 and B0, keeps it and merges cleanly. Both visible merge bases keep
+// their parents and main...feature is only the two merges, so only the
+// several-merge-bases rule refuses (independent review of V1-1726).
+func TestSPCV0015ShallowCrissCrossMergeRefuses(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	root := f.commit("root", map[string]string{"cmd/f.go": "r\n"})
+	a1 := func() string {
+		f.commit("a0", map[string]string{"cmd/f.go": ""})
+		return f.commit("a1", map[string]string{"cmd/a.go": "a\n"})
+	}()
+	f.git("checkout", "-q", "-b", "side", root)
+	f.commit("b0", map[string]string{"cmd/b0.go": "b\n"})
+	b1 := f.commit("b1", map[string]string{"cmd/b1.go": "b\n"})
+	merge := func(branch, content string) {
+		f.git("checkout", "-q", "-B", branch, a1)
+		f.git("-c", "user.useConfigOnly=false", "merge", "-q", "--no-ff", "--no-commit", b1)
+		f.commit("merge "+branch, map[string]string{"cmd/f.go": content})
+	}
+	merge("main", "r\n")
+	merge("feature", "y\n")
+	f.git("branch", "-q", "-D", "side")
+	full, shallow := cloneOf(t, f, 0), cloneOf(t, f, 3)
+	if bases := strings.Fields(gitIn(t, shallow, "merge-base", "--all", "origin/main", "origin/feature")); len(bases) != 2 {
+		t.Fatalf("shallow merge bases = %v, want a1 and b1", bases)
+	}
+	if got := strings.Fields(gitIn(t, shallow, "rev-list", "origin/main...origin/feature")); len(got) != 2 {
+		t.Fatalf("shallow main...feature = %v, want the two merges", got)
+	}
+	r, err := Check(ctx, CheckRequest{Root: full, Base: "origin/main", Head: "origin/feature", Config: testConfig()})
+	if err != nil || len(r.Findings) != 1 || r.Findings[0].Code != "shared-path-merge-conflict" || r.Findings[0].Path != "cmd/f.go" {
+		t.Fatalf("full clone check-shared = %+v, %v", r.Findings, err)
+	}
+	if _, err := Check(ctx, CheckRequest{Root: shallow, Base: "origin/main", Head: "origin/feature", Config: testConfig()}); err == nil || err.Error() != CodeShallowMergeBase {
+		t.Fatalf("check-shared over a shallow criss-cross = %v, want %s", err, CodeShallowMergeBase)
+	}
+	if _, err := Behind(ctx, BehindRequest{Root: shallow, Base: "origin/main", Head: "origin/feature", Config: testConfig()}); err == nil || err.Error() != CodeShallowMergeBase {
+		t.Fatalf("behind over a shallow criss-cross = %v, want %s", err, CodeShallowMergeBase)
+	}
+}
+
 // SPC-V0-015: a shallow clone whose merge base keeps its parents gives the
 // same behind and check-shared reports as a full clone, with the dry merge
 // reading the clone's shallow file; a merge base that is base itself is exact

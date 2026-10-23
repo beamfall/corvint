@@ -3545,7 +3545,7 @@ func openStableTop(part string) (*os.Root, error) {
 	if part == "." || part == ".." {
 		return nil, errNotRegular
 	}
-	name := "/" + part
+	name := stableTopPath(part)
 	prior, e := os.Lstat(name)
 	if e != nil || prior.Mode()&os.ModeSymlink != 0 || !prior.IsDir() {
 		return nil, errNotRegular
@@ -3565,6 +3565,10 @@ func openStableTop(part string) (*os.Root, error) {
 
 // openStableRoot is os.OpenRoot; a test observes the absolute names it opens.
 var openStableRoot = os.OpenRoot
+
+// stableTopPath is the absolute path of a first component; a test points it
+// at a symlink or directory it owns.
+var stableTopPath = func(part string) string { return "/" + part }
 
 func readStableArtifact(ctx context.Context, root string, a stableArtifact) ([]byte, *cemError) {
 	if ctx.Err() != nil {

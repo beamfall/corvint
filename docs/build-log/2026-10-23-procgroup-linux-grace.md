@@ -106,3 +106,23 @@ and put first on `PATH`, so every `GOTOOLCHAIN=local` command below ran go1.27.2
   linux/amd64 module SNR-V0-031 names and reports other unmatched hosts `NOT_OBSERVED`.
 - Not changed: a repository path containing a newline makes the shallow check's `rev-parse`
   output unparseable (`changes-git-unavailable`), as `privateMergeRepository` already does.
+
+## Independent review of PR #1623 (repair round)
+
+- Finding (P2, fixed): a shallow criss-cross merge could report clean. With main and feature both
+  merging A1 and B1 and a depth-3 clone cut at A0 and B0, both visible merge bases keep their
+  parents and `main...feature` is only the two merges, yet Git's recursive virtual base differs
+  from the full clone's (a delete/restore file: add/add conflict in the full clone, clean in the
+  shallow one). `refuseShallowMergeBase` now refuses `changes-shared-shallow-merge-base` whenever a
+  shallow repository has more than one merge base, rather than proving recursive ancestry; this
+  also refuses criss-cross ranges a full clone would merge identically, deliberately.
+  `TestSPCV0015ShallowCrissCrossMergeRefuses` uses a real `--depth 3` clone and fails on the
+  previous rule (check-shared returned no error).
+- Finding (P3, fixed): the AFP-V0-361 symlink tests linked beneath the temp directory, so they
+  exercised later components only. `TestAFPV0361_OpenRefsRefusesSymlinkedFirstComponent` points
+  `openRefsTop` at a test-owned symlink with the flags `openRefs` passes, and
+  `TestAFPV0361_OpenStableTopRefusesSymlinkAndSwappedFirstComponent` uses a new `stableTopPath`
+  seam. Scratch mutations, each restored: dropping `O_NOFOLLOW` from the `openRefsTop` call,
+  removing `openStableTop`'s pre-open symlink and directory admission, removing its
+  `SameFile(prior, opened)` check, and removing every post-open check each fail the new tests;
+  the earlier tests did not catch the `O_NOFOLLOW` removal.

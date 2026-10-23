@@ -182,7 +182,9 @@ func mergeProbe(g git, c Config, base, head string, r *Report) error {
 
 // refuseShallowMergeBase refuses a shallow repository whose history between
 // base and head is not provably inside the shallow boundary (SPC-V0-015,
-// V1-1726): no merge base is visible; a merge base is a boundary commit, whose
+// V1-1726): no merge base is visible; more than one merge base is visible,
+// because Git merges several merge bases recursively through their own
+// ancestry, which this check does not prove complete; a merge base is a boundary commit, whose
 // parents the clone does not have, other than base or head itself; or a commit
 // of the symmetric difference base...head is a boundary commit, so a side
 // branch of the range is cut off. Each of these can make the range listing and
@@ -221,7 +223,7 @@ func refuseShallowMergeBase(g git, base, head string) error {
 		return errors.New(CodeGitUnavailable)
 	}
 	bases := strings.Fields(string(out))
-	if len(bases) == 0 {
+	if len(bases) != 1 {
 		return errors.New(CodeShallowMergeBase)
 	}
 	for _, sha := range bases {
