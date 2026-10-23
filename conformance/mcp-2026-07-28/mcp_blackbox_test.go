@@ -279,7 +279,7 @@ func TestToolCatalogueAndResourceOmission(t *testing.T) {
 		t.Fatalf("tool ttlMs=%#v", result["ttlMs"])
 	}
 	tools, ok := result["tools"].([]any)
-	if !ok || len(tools) != 3 {
+	if !ok || len(tools) != 4 {
 		t.Fatalf("tools=%#v", result["tools"])
 	}
 	names := make([]string, 0, len(tools))
@@ -303,7 +303,7 @@ func TestToolCatalogueAndResourceOmission(t *testing.T) {
 			t.Fatalf("tool %s annotations=%s", name, canonicalJSON(annotations))
 		}
 	}
-	if want := []string{"corvint.impact", "corvint.query", "corvint.status"}; !reflect.DeepEqual(names, want) {
+	if want := []string{"corvint.help", "corvint.impact", "corvint.query", "corvint.status"}; !reflect.DeepEqual(names, want) {
 		t.Fatalf("tool order/names=%v want=%v", names, want)
 	}
 	assertServerInfo(t, result)

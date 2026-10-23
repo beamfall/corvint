@@ -12,7 +12,7 @@ import (
 )
 
 var flowsArguments = []string{"--tool-profile", "flows"}
-var flowsToolNames = []string{"corvint.flows.coverage", "corvint.flows.gaps", "corvint.flows.impact", "corvint.flows.map", "corvint.flows.navigate", "corvint.impact", "corvint.query", "corvint.status"}
+var flowsToolNames = []string{"corvint.flows.coverage", "corvint.flows.gaps", "corvint.flows.impact", "corvint.flows.map", "corvint.flows.navigate", "corvint.help", "corvint.impact", "corvint.query", "corvint.status"}
 
 func flowsFixture(t *testing.T) string {
 	t.Helper()

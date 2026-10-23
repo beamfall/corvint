@@ -271,7 +271,7 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 	if !nameOK || name == "" {
 		return nil, protocol.InvalidParams("Invalid params")
 	}
-	if handler.follow != nil {
+	if handler.follow != nil && name != bridge.ToolHelp { // MCPV0-100: help reads only the binary, so it never binds the ref.
 		return handler.follow.bound(ctx, func(state followState, code string) (map[string]any, *protocol.RPCError) {
 			echo := withFollowRef(&state, handler.follow.ref)
 			if code != "" {

@@ -222,7 +222,7 @@ func TestPRBV0009HelpJSONListsProfileKnobScope(t *testing.T) {
 	if !slices.Equal(p.Servers, want) {
 		t.Fatalf("servers %v, want every MCP server %v", p.Servers, want)
 	}
-	if stdout.String() != helpCatalogJSON() || !strings.HasSuffix(stdout.String(), "}\n") {
+	if stdout.String() != capabilityCatalogJSON() || !strings.HasSuffix(stdout.String(), "}\n") {
 		t.Fatal("help --json is not the deterministic catalog")
 	}
 }
