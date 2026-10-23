@@ -4,8 +4,10 @@ package supervisor
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -17,7 +19,9 @@ import (
 // detached OpenCode host whose escape scan runs every escapeScanEvery
 // (CAL-V0-136, CAL-V0-137). The waiting loop runs in this process, so its
 // cost is this process's user plus system time over the window, reported per
-// minute; the host is `sleep`, which spends none.
+// minute; the host is `sleep`, which spends none. A measurement is accepted
+// only when the host outlives the window, the deadline is what stopped it,
+// and the stop was clean with the detached server gone.
 func TestCALV0137_HostWaitIdleCPU(t *testing.T) {
 	seconds, err := strconv.Atoi(os.Getenv("CORVINT_SUPERVISOR_IDLE_SECONDS"))
 	if err != nil || seconds < 1 {
@@ -30,20 +34,40 @@ func TestCALV0137_HostWaitIdleCPU(t *testing.T) {
 		}
 		return time.Duration(ru.Utime.Nano() + ru.Stime.Nano())
 	}
+	window := time.Duration(seconds) * time.Second
+	// The fixture outlives the window by ten minutes, so only the deadline
+	// ends it.
+	lifetime := "sleep " + strconv.Itoa(seconds+600)
+	if !strings.Contains(detachedServer, "sleep 300") {
+		t.Fatal("the detached server fixture no longer sleeps 300 seconds")
+	}
 	for _, mode := range []string{"normal", "detached"} {
 		t.Run(mode, func(t *testing.T) {
 			var c Capsule
+			var pidf string
 			if mode == "detached" {
-				c, _ = detachedCapsule(t, detachedServer+" & wait")
+				c, pidf = detachedCapsule(t, strings.Replace(detachedServer, "sleep 300", lifetime, 1)+" & wait")
 			} else {
-				c, _ = detachedCapsule(t, "sleep 600")
+				c, _ = detachedCapsule(t, lifetime)
 				c.Host = ""
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(seconds)*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), window)
 			defer cancel()
 			start, before := time.Now(), cpu()
-			out, _ := Run(ctx, os.Args[0], t.TempDir(), c, func(string, Boot, *Outcome) error { return nil })
+			out, err := Run(ctx, os.Args[0], t.TempDir(), c, func(string, Boot, *Outcome) error { return nil })
 			wall, used := time.Since(start), cpu()-before
+			if !errors.Is(err, context.DeadlineExceeded) || out.Class != "INTERRUPTED" {
+				t.Fatalf("the run ended as %s (%v) after %v, not at the %v deadline", out.Class, err, wall, window)
+			}
+			if wall < window {
+				t.Fatalf("the run ended after %v, before the %v window", wall, window)
+			}
+			if !out.Clean {
+				t.Fatalf("the stop at the deadline was not clean: %+v", out)
+			}
+			if pidf != "" && !serverGone(t, pidf) {
+				t.Fatal("the detached server survived the stop")
+			}
 			t.Logf("%s host: %s over %v wall: %.3f CPU s per minute (class %s)", mode, used, wall.Round(time.Millisecond), used.Seconds()/wall.Minutes(), out.Class)
 		})
 	}

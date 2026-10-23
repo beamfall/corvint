@@ -123,3 +123,34 @@ Real suspend (no suspend state); macOS; the wall-clock step test; idle CPU per m
 the supervisor host-wait run (`TestCALV0137_HostWaitIdleCPU` and `tools`-free commands exist, 3 s smoke only:
 0.23 CPU s/min normal, 1.7 detached, including startup); `ReadDir` d_type benchmark and strace counts;
 `corvint affected`, `dogfood-*`, `heavy.sh`, `corvint-tasks` writes. Budget ran out.
+
+## Independent review repair (PR #1637)
+
+An independent review found five test or measurement defects and two spec mismatches; all are fixed
+without product-code changes.
+
+- CAL-V0-362: the time-namespace test now expects the three-hour offset plus the host's own
+  `CLOCK_BOOTTIME`-`CLOCK_MONOTONIC` separation, measured by the parent before `unshare`, so a host
+  that suspended earlier no longer fails it.
+- CAL-V0-363: the `/proc`-versus-`ps` test asserts only the controlled sleeper, zombie, orphan and
+  self rows; unrelated host processes, observed at two different instants, are logged, not asserted.
+- CAL-V0-364: the opt-in real-limit test no longer counts watches across every process and user. It
+  measures this user's headroom by adding watches until the kernel returns `ENOSPC`, derives the limit
+  from it, and runs two separate cases: `ceiling` (the host allowance; asserts no kernel refusal and
+  exactly the files beyond the ceiling tracked by stat) and `kernel-refusal` (ceiling disabled; asserts
+  the kernel actually refused file watches and each refused file is tracked by stat).
+- CAL-V0-364 spec text: the ceiling is a per-guard regular-file bound; directory watches and the sum
+  over concurrent guards remain unbounded, so concurrent or directory exhaustion still refuses a
+  registration.
+- CAL-V0-360 spec text: the whole-receipt interval is the global journal-sequence distance from the
+  attempt's previous whole receipt, as `fixture.PadLiveness` implements, not a count of that attempt's
+  receipts.
+- JSG-V0-020: a B3 series' qualification is derived from its recorded `LoadBefore` and `LoadAfter`,
+  never from extra readings.
+- CAL-V0-137: the idle-CPU measurement is accepted only when `Run` ends `INTERRUPTED` with
+  `context.DeadlineExceeded` no earlier than the window, the stop is clean, and the detached server is
+  gone; the fixture now sleeps the window plus 600 s.
+
+Not run here (the repair host is macOS): every `//go:build linux` test, including the
+time-namespace, `/proc`, inotify and real-limit tests (`NOT_RUN`); those files type-check under
+`GOOS=linux go vet`.

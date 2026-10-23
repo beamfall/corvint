@@ -116,9 +116,6 @@ func b3Qualification(load1 []float64, cpus int) string {
 	return fmt.Sprintf("QUALIFIED: 1-minute load %.2f at or below %.0f", worst, limit)
 }
 
-// b3Load1 is the host's current 1-minute load, or -1 when not observed.
-func b3Load1() float64 { return b3ParseLoad1(hostLoad()) }
-
 // b3ParseLoad1 is the 1-minute load in a hostLoad string, or -1.
 func b3ParseLoad1(load string) float64 {
 	f := strings.Fields(load)
@@ -326,10 +323,11 @@ func b3Fixture(t *testing.T, base string, receipts, tickets int) func() (*intent
 func b3Measure(t *testing.T, repo *intent.Repository, root string, receipts, iterations int, mode string) b3Series {
 	t.Helper()
 	series := b3Series{Receipts: receipts, Mode: mode, Iterations: iterations, LoadBefore: hostLoad()}
-	before := b3Load1()
 	series.Samples = b3Run(t, repo, root, iterations, mode == "moved")
 	series.LoadAfter = hostLoad()
-	series.Qualification = b3Qualification([]float64{before, b3Load1()}, runtime.NumCPU())
+	// The label comes from the recorded loads themselves, never from a
+	// further reading that could fall on the other side of the threshold.
+	series.Qualification = b3Qualification([]float64{b3ParseLoad1(series.LoadBefore), b3ParseLoad1(series.LoadAfter)}, runtime.NumCPU())
 	series.Stats = map[string]b3Stats{}
 	for _, verb := range b3Verbs {
 		var own []b3Sample
@@ -500,8 +498,8 @@ func TestJSGV0020_HarnessRunsBothModes(t *testing.T) {
 	for _, mode := range []string{"quiet", "moved"} {
 		repo, root := restore()
 		s := b3Measure(t, repo, root, segmentHistory, iterations, mode)
-		if !strings.HasPrefix(s.Qualification, "QUALIFIED") && !strings.HasPrefix(s.Qualification, "UNQUALIFIED") {
-			t.Errorf("%s: qualification %q", mode, s.Qualification)
+		if want := b3Qualification([]float64{b3ParseLoad1(s.LoadBefore), b3ParseLoad1(s.LoadAfter)}, runtime.NumCPU()); s.Qualification != want {
+			t.Errorf("%s: qualification %q, but the recorded loads %q and %q give %q", mode, s.Qualification, s.LoadBefore, s.LoadAfter, want)
 		}
 		for _, verb := range b3Verbs {
 			st := s.Stats[verb]

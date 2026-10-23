@@ -3,6 +3,7 @@
 package authority
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -217,51 +219,83 @@ func TestCALV0364_DirectoriesRegisterBeforeFiles(t *testing.T) {
 	}
 }
 
-// inotifyWatchesInUse counts the inotify watches of every process, the
-// allowance fs.inotify.max_user_watches limits per user.
-func inotifyWatchesInUse(t *testing.T) int {
+// watchHeadroom is how many more inotify watches the kernel grants this user
+// now: it adds watches on distinct files of a scratch directory until the
+// kernel refuses with ENOSPC, then closes the instance, which releases them.
+// It measures the per-user charge the kernel applies, whatever other
+// processes or users hold, and gives up beyond limit.
+func watchHeadroom(t *testing.T, scratch string, limit int) int {
 	t.Helper()
-	paths, _ := filepath.Glob("/proc/[0-9]*/fdinfo/*")
-	n := 0
-	for _, p := range paths {
-		raw, err := os.ReadFile(p)
-		if err == nil && strings.Contains(string(raw), "inotify wd:") {
-			n += strings.Count(string(raw), "inotify wd:")
-		}
-	}
-	return n
-}
-
-// CAL-V0-364: the same through the real kernel limit. It lowers
-// fs.inotify.max_user_watches for the host while it runs and restores it,
-// so it is opt-in (CORVINT_TASKS_INOTIFY_LIMIT=1) and needs root.
-func TestCALV0364_ChangeGuardUnderTheRealInotifyLimit(t *testing.T) {
-	if os.Getenv("CORVINT_TASKS_INOTIFY_LIMIT") != "1" {
-		t.Skip("set CORVINT_TASKS_INOTIFY_LIMIT=1 to lower fs.inotify.max_user_watches while this test runs")
-	}
-	const sysctl = "/proc/sys/fs/inotify/max_user_watches"
-	original, err := os.ReadFile(sysctl)
+	fd, err := syscall.InotifyInit1(syscall.IN_CLOEXEC)
 	if err != nil {
-		t.Skipf("inotify limit is not readable: %v", err)
+		t.Fatal(err)
 	}
-	repo, file := guardRepo(t)
-	dir := filepath.Dir(file)
-	for i := 0; i < 60; i++ {
-		if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("%03d", i)), []byte("x"), 0600); err != nil {
+	defer syscall.Close(fd)
+	for n := 0; ; n++ {
+		if n > limit {
+			t.Fatalf("the kernel granted more than %d watches at a limit of %d", n, limit)
+		}
+		path := filepath.Join(scratch, strconv.Itoa(n))
+		if _, err := os.Lstat(path); err != nil {
+			if err := os.WriteFile(path, nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if _, err := syscall.InotifyAddWatch(fd, path, syscall.IN_ATTRIB); err != nil {
+			if errors.Is(err, syscall.ENOSPC) {
+				return n
+			}
 			t.Fatal(err)
 		}
 	}
-	// Room for the directories and a handful of files, not for all 61.
-	limit := inotifyWatchesInUse(t) + 24
-	if err := os.WriteFile(sysctl, []byte(strconv.Itoa(limit)), 0o644); err != nil {
-		t.Skipf("cannot lower the inotify limit: %v", err)
+}
+
+// guardWatches counts the directory and regular-file watches a registration
+// of repo asks for, with no allowance or ceiling in its way.
+func guardWatches(t *testing.T, repo *intent.Repository) (dirs, files int) {
+	t.Helper()
+	original := inotifyAddWatch
+	inotifyAddWatch = func(fd int, path string, mask uint32) (int, error) {
+		if info, err := os.Lstat(path); err == nil && info.IsDir() {
+			dirs++
+		} else if err == nil && info.Mode().IsRegular() {
+			files++
+		}
+		return original(fd, path, mask)
 	}
-	t.Cleanup(func() { os.WriteFile(sysctl, original, 0o644) })
+	defer func() { inotifyAddWatch = original }()
+	setFileCeiling(t, 1<<30)
 	g, err := WatchChanges(repo)
 	if err != nil {
-		t.Fatalf("registration at a limit of %d watches: %v", limit, err)
+		t.Fatal(err)
 	}
-	defer g.Close()
+	g.Close()
+	return dirs, files
+}
+
+// recordFileRefusals counts the regular-file watches the real kernel refuses
+// with ENOSPC.
+func recordFileRefusals(t *testing.T) *int {
+	t.Helper()
+	original := inotifyAddWatch
+	refused := 0
+	inotifyAddWatch = func(fd int, path string, mask uint32) (int, error) {
+		wd, err := original(fd, path, mask)
+		if errors.Is(err, syscall.ENOSPC) {
+			if info, lerr := os.Lstat(path); lerr == nil && info.Mode().IsRegular() {
+				refused++
+			}
+		}
+		return wd, err
+	}
+	t.Cleanup(func() { inotifyAddWatch = original })
+	return &refused
+}
+
+// checkGuardSeesAWrite requires a quiet registration to pass and a write to
+// the stat-tracked file to be reported.
+func checkGuardSeesAWrite(t *testing.T, g *ChangeGuard, file string) {
+	t.Helper()
 	if err := g.Check(); err != nil {
 		t.Fatalf("a quiet store: %v", err)
 	}
@@ -271,4 +305,103 @@ func TestCALV0364_ChangeGuardUnderTheRealInotifyLimit(t *testing.T) {
 	if got := wire.CodeOf(g.Check()); got != wire.CodeSnapshotMoved {
 		t.Fatalf("check after a write = %q", got)
 	}
+}
+
+// CAL-V0-364: the same through the real kernel. The kernel-refusal case
+// lowers fs.inotify.max_user_watches for the host while it runs and restores
+// it, so the test is opt-in (CORVINT_TASKS_INOTIFY_LIMIT=1) and needs root.
+// The kernel charges watches per user, so the limit is derived from this
+// user's measured headroom rather than from a count over every process, and
+// each case asserts that its own refusal, and only it, happened.
+func TestCALV0364_ChangeGuardUnderTheRealInotifyLimit(t *testing.T) {
+	if os.Getenv("CORVINT_TASKS_INOTIFY_LIMIT") != "1" {
+		t.Skip("set CORVINT_TASKS_INOTIFY_LIMIT=1 to lower fs.inotify.max_user_watches while this test runs")
+	}
+	const sysctl = "/proc/sys/fs/inotify/max_user_watches"
+	raw, err := os.ReadFile(sysctl)
+	if err != nil {
+		t.Skipf("inotify limit is not readable: %v", err)
+	}
+	original, err := strconv.Atoi(strings.TrimSpace(string(raw)))
+	if err != nil {
+		t.Fatalf("inotify limit %q", raw)
+	}
+	repo, file := guardRepo(t)
+	dir := filepath.Dir(file)
+	for i := 0; i < 60; i++ {
+		if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("%03d", i)), []byte("x"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dirs, files := guardWatches(t, repo)
+	const granted = 8 // the regular files the kernel-refusal case lets the guard watch
+	if files <= granted {
+		t.Fatalf("%d regular files, want more than %d", files, granted)
+	}
+
+	t.Run("ceiling", func(t *testing.T) {
+		// The host's own allowance, which the ceiling keeps the guard far below.
+		setFileCeiling(t, granted)
+		refused := recordFileRefusals(t)
+		g, err := WatchChanges(repo)
+		if err != nil {
+			t.Fatalf("registration under a ceiling of %d files: %v", granted, err)
+		}
+		defer g.Close()
+		if *refused != 0 {
+			t.Fatalf("the kernel refused %d file watches, so the ceiling was not what bound the guard", *refused)
+		}
+		if n := len(g.watch.(*notifyWatch).stats); n != files-granted {
+			t.Fatalf("%d files tracked by stat, want the %d beyond the ceiling", n, files-granted)
+		}
+		checkGuardSeesAWrite(t, g, file)
+	})
+
+	t.Run("kernel-refusal", func(t *testing.T) {
+		setFileCeiling(t, 1<<30) // the ceiling never binds: only the kernel refuses
+		scratch := t.TempDir()
+		t.Cleanup(func() { os.WriteFile(sysctl, raw, 0o644) })
+		setLimit := func(n int) {
+			if err := os.WriteFile(sysctl, []byte(strconv.Itoa(n)), 0o644); err != nil {
+				t.Skipf("cannot set the inotify limit: %v", err)
+			}
+		}
+		// The watches this user holds now, from its headroom under a limit
+		// small enough to probe. Another process of the user may add or drop
+		// watches meanwhile; the limit is re-derived until two probes agree.
+		probe := min(original, 1<<16)
+		for attempt := 0; ; attempt++ {
+			if attempt == 5 {
+				t.Skip("this user's inotify watch count kept changing while the test measured it")
+			}
+			setLimit(probe)
+			free := watchHeadroom(t, scratch, probe)
+			if free == 0 {
+				t.Skipf("this user already holds %d or more watches, beyond what the test probes", probe)
+			}
+			used := probe - free
+			limit := used + dirs + granted
+			setLimit(limit)
+			if h := watchHeadroom(t, scratch, limit); h != dirs+granted {
+				t.Logf("headroom %d at limit %d, want %d; measuring again", h, limit, dirs+granted)
+				continue
+			}
+			t.Logf("this user holds %d watches; limit %d leaves %d directories and %d files", used, limit, dirs, granted)
+			break
+		}
+		refused := recordFileRefusals(t)
+		g, err := WatchChanges(repo)
+		if err != nil {
+			t.Fatalf("registration with room for every directory and %d files: %v", granted, err)
+		}
+		defer g.Close()
+		if *refused == 0 {
+			t.Fatal("the kernel refused no file watch, so its exhaustion was not exercised")
+		}
+		if n := len(g.watch.(*notifyWatch).stats); n != *refused {
+			t.Fatalf("%d files tracked by stat, want the %d the kernel refused", n, *refused)
+		}
+		t.Logf("the kernel refused %d of %d file watches with ENOSPC", *refused, files)
+		checkGuardSeesAWrite(t, g, file)
+	})
 }

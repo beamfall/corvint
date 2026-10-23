@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -36,7 +37,10 @@ func clockNanos(tb testing.TB, clock uintptr) int64 {
 	return ts.Nano()
 }
 
-const timensChild = "CORVINT_TEST_TIMENS_CHILD"
+const (
+	timensChild = "CORVINT_TEST_TIMENS_CHILD"
+	timensBase  = "CORVINT_TEST_TIMENS_BASE_NS"
+)
 
 // CAL-V0-362, V1-1634: on Linux the monotonic reading that the host-sleep
 // detector (ATR-V0-063) subtracts from the wall clock is CLOCK_MONOTONIC,
@@ -45,26 +49,37 @@ const timensChild = "CORVINT_TEST_TIMENS_CHILD"
 // in a time namespace whose CLOCK_BOOTTIME runs three hours ahead of
 // CLOCK_MONOTONIC, the separation a suspend leaves, and requires the Go
 // runtime's monotonic clock to agree with CLOCK_MONOTONIC and to be three
-// hours away from CLOCK_BOOTTIME.
+// hours further from CLOCK_BOOTTIME than the host's own clocks already are.
+// A host that suspended before the test starts with CLOCK_BOOTTIME ahead of
+// CLOCK_MONOTONIC by its earlier suspends; the namespace offset adds to that
+// separation and does not erase it, so the parent measures it and the child
+// expects the sum.
 func TestCALV0362_GoMonotonicClockIsNotBoottime(t *testing.T) {
 	const ahead = 3 * time.Hour
 	if os.Getenv(timensChild) == "1" {
+		base, err := strconv.ParseInt(os.Getenv(timensBase), 10, 64)
+		if err != nil {
+			t.Fatalf("%s: %v", timensBase, err)
+		}
 		mono, boot, rt := clockNanos(t, clockMonotonic), clockNanos(t, clockBoottime), runtimeNanotime()
 		if d := time.Duration(rt - mono); d < -time.Second || d > time.Second {
 			t.Fatalf("runtime monotonic %d differs from CLOCK_MONOTONIC %d by %v", rt, mono, d)
 		}
-		if d := time.Duration(boot - rt); d < ahead-time.Second || d > ahead+time.Second {
-			t.Fatalf("CLOCK_BOOTTIME %d is %v from the runtime monotonic clock, want about %v", boot, d, ahead)
+		want := ahead + time.Duration(base)
+		if d := time.Duration(boot - rt); d < want-time.Second || d > want+time.Second {
+			t.Fatalf("CLOCK_BOOTTIME %d is %v from the runtime monotonic clock, want about %v (offset %v plus the host's existing separation %v)", boot, d, want, ahead, time.Duration(base))
 		}
-		fmt.Printf("TIMENS-OK CLOCK_MONOTONIC=%d CLOCK_BOOTTIME=%d runtime.nanotime=%d\n", mono, boot, rt)
+		fmt.Printf("TIMENS-OK CLOCK_MONOTONIC=%d CLOCK_BOOTTIME=%d runtime.nanotime=%d host-separation=%v\n", mono, boot, rt, time.Duration(base))
 		return
 	}
 	unshare, err := exec.LookPath("unshare")
 	if err != nil {
 		t.Skip("unshare is not installed: " + err.Error())
 	}
-	cmd := exec.Command(unshare, "--time", "--boottime="+"10800", "--", os.Args[0], "-test.run=^TestCALV0362_GoMonotonicClockIsNotBoottime$", "-test.count=1", "-test.v")
-	cmd.Env = append(os.Environ(), timensChild+"=1")
+	// The separation BOOTTIME-MONOTONIC accumulated by earlier host suspends.
+	base := clockNanos(t, clockBoottime) - clockNanos(t, clockMonotonic)
+	cmd := exec.Command(unshare, "--time", "--boottime="+strconv.Itoa(int(ahead/time.Second)), "--", os.Args[0], "-test.run=^TestCALV0362_GoMonotonicClockIsNotBoottime$", "-test.count=1", "-test.v")
+	cmd.Env = append(os.Environ(), timensChild+"=1", timensBase+"="+strconv.FormatInt(base, 10))
 	var out bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &out
 	err = cmd.Run()

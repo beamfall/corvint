@@ -7451,8 +7451,12 @@ heartbeats take about 100 minutes, and the V1-1193 before and after at that size
   original digest, re-timed and re-requested: it posts the attempt record with a new
   `lastHeartbeatAt` and a request afterimage of its own. With elision requested, a receipt that a
   later receipt of the attempt supersedes MUST be written in the elided form of CAL-V0-300,
-  except that every `snapshot.MaxElidedRun`-th receipt of an attempt stays whole (CAL-V0-302);
-  an attempt's last receipt is always whole. The builder MUST refuse a store it cannot extend (no
+  except that a receipt whose journal sequence lies `snapshot.MaxElidedRun` or more receipts after
+  the attempt's previous whole receipt stays whole (CAL-V0-302). The distance is measured in global
+  journal sequence, across the receipts of every attempt, not in receipts of that attempt, so that
+  no more than `snapshot.MaxElidedRun` receipts ever separate an elided receipt from its attempt's
+  previous whole one and the backward walk stays bounded however many attempts interleave; an
+  attempt's last receipt is always whole. The builder MUST refuse a store it cannot extend (no
   attempt with a lease, no whole liveness receipt among the last 4,096 receipts, a segmented head).
   A receipt changed after it was built MUST still fail the audit. It writes only attempt files,
   request files, receipts and `head.json`.
@@ -7531,9 +7535,12 @@ dispatcher (CAL-V0-137, CAL-V0-139) and the `ReadDir` listing that relies on dir
   `SNAPSHOT_MOVED` at the next check, and registration MUST NOT fail for want of a file watch. A
   directory whose watch the kernel refuses MUST still fail the registration, as
   `UNSUPPORTED_FILESYSTEM` naming the allowance, because directory events are what report an
-  entry created, removed or renamed at any time. The ceiling keeps the number of watches one
-  guard takes independent of the store's receipt count, so that concurrent writers on a store of any
-  size cannot spend the per-user allowance that all of them share.
+  entry created, removed or renamed at any time. The ceiling bounds the regular-file watches of
+  one guard independently of the store's receipt count; it does not bound the guard's directory
+  watches, and it does not bound the sum over guards: concurrent writers, each with up to its
+  ceiling of file watches plus every mandatory directory watch, can still spend the per-user
+  allowance that all of them share (32 populated guards take the whole allowance in file watches
+  alone), and a directory refused then fails the registration as above.
 
 Non-goals: a change to the host's watch allowance, or a per-process total across guards (a guard
 is short-lived and the ceiling bounds each); watching every file on a host whose allowance would
@@ -7542,8 +7549,10 @@ terms CAL-V0-219 already accepts for Darwin: only an in-place write or mode chan
 by an actor outside the writer lock, made after the sweep read it, goes unreported, and no Tasks
 writer edits a watched file in place.
 
-Failure modes: a host whose allowance other software has already spent (an editor watching a large
-tree) refuses a directory with a message that names the sysctl, and the remedy is to raise it;
+Failure modes: a host whose allowance other software or concurrent guards have already spent (an
+editor watching a large tree, or 32 or more live guards on populated stores) refuses a directory
+with a message that names the sysctl, and the remedy is to raise it; a store whose directories
+alone exceed the allowance cannot register on that host at all;
 `inotify_init1` is bounded by `fs.inotify.max_user_instances` (128 on the qualification host) and
 fails the registration with its own error when that many guards are live. The sweep re-reads every
 file beyond the ceiling once per complete-route commit, before the lock.
@@ -8416,6 +8425,6 @@ after this restore.
 | CAL-V0-322 | `TestCALV0322_ShowReportsLastFailedGateTail`, `TestCALV0322_LastFailedGateUnknowns` (`internal/tasks/cli`) |
 | CAL-V0-360 | `fixture.PadLiveness` (`internal/tasks/fixture`); `TestCALV0360_PaddedLivenessStoreAuditsAndWalks` (`internal/tasks/cli`: audit CONSISTENT at the padded head, shared doctor walk reads no receipt more than twice, a rewritten padded receipt fails the audit); opt-in `TestCALV0360_PaddedDoctorWalkCost`; measurements in `docs/build-log/2026-10-23-tasks-linux-qualification-b3-harness.md` |
 | CAL-V0-361 | `TestCALV0361_UnownedExpiredLeaseIsReapedAtWake`, `TestATRV0064_ExitRecoveryActsAtWake` (`internal/tasks/dispatch`), `TestCALV0361_StoreReapAfterWakeIsNotGapAware` (`internal/tasks/store`: colliding claim and `reap`, then a fenced renew and heartbeat) |
-| CAL-V0-362 | `TestCALV0362_GoMonotonicClockIsNotBoottime` (Linux, in a time namespace whose boot time runs three hours ahead), opt-in `TestCALV0362_RealWallClockStepIsRecordedAsASuspendGap` (`CORVINT_TASKS_CLOCK_STEP=1`, `CAP_SYS_TIME`) (`internal/tasks/dispatch`) |
-| CAL-V0-363 | `TestCALV0363_ProcRowsAgreeWithPsOnLinux`, `BenchmarkCALV0136_ProcRowsOfThisHost`, `BenchmarkCALV0363_PsFork`, opt-in `TestCALV0137_HostWaitIdleCPU` (`internal/tasks/supervisor`) |
-| CAL-V0-364 | `TestCALV0364_ChangeGuardTracksFilesBeyondTheInotifyLimit` (every mutation class on a file beyond the ceiling and on one the kernel refuses, at two sizes each), `TestCALV0364_FileCeilingFollowsTheAllowance`, `TestCALV0364_ChangeGuardRefusesADirectoryBeyondTheInotifyLimit`, `TestCALV0364_DirectoriesRegisterBeforeFiles`, opt-in `TestCALV0364_ChangeGuardUnderTheRealInotifyLimit` (`CORVINT_TASKS_INOTIFY_LIMIT=1`, root, lowers the real sysctl while it runs) (`internal/tasks/authority`) |
+| CAL-V0-362 | `TestCALV0362_GoMonotonicClockIsNotBoottime` (Linux, in a time namespace whose boot time runs three hours further ahead than the host's own boot-time separation), opt-in `TestCALV0362_RealWallClockStepIsRecordedAsASuspendGap` (`CORVINT_TASKS_CLOCK_STEP=1`, `CAP_SYS_TIME`) (`internal/tasks/dispatch`) |
+| CAL-V0-363 | `TestCALV0363_ProcRowsAgreeWithPsOnLinux` (asserts the controlled fixture processes; unrelated host processes are logged), `BenchmarkCALV0136_ProcRowsOfThisHost`, `BenchmarkCALV0363_PsFork`, opt-in `TestCALV0137_HostWaitIdleCPU` (accepted only when the fixture outlives the window, the deadline interrupts the run and the stop is clean with the detached server gone) (`internal/tasks/supervisor`) |
+| CAL-V0-364 | `TestCALV0364_ChangeGuardTracksFilesBeyondTheInotifyLimit` (every mutation class on a file beyond the ceiling and on one the kernel refuses, at two sizes each), `TestCALV0364_FileCeilingFollowsTheAllowance`, `TestCALV0364_ChangeGuardRefusesADirectoryBeyondTheInotifyLimit`, `TestCALV0364_DirectoriesRegisterBeforeFiles`, opt-in `TestCALV0364_ChangeGuardUnderTheRealInotifyLimit` (`CORVINT_TASKS_INOTIFY_LIMIT=1`, root; a `ceiling` case asserts the kernel refused no file watch, and a `kernel-refusal` case lowers the real sysctl to this user's measured headroom plus the guard's directories and eight files and asserts the kernel actually refused file watches with `ENOSPC`) (`internal/tasks/authority`) |
