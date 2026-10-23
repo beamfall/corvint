@@ -575,6 +575,13 @@ CAP-V0-006	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-007	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2020) The chec	standing	2026-10-11; V1-2020
 CAP-V0-008	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2020) When the	standing	2026-10-11; V1-2020
 CAP-V0-009	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2020) Each	standing	2026-10-11; V1-2020
+CAP-V0-015	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1588) `corvint	standing	2026-10-11
+CAP-V0-016	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1588) A field	standing	2026-10-11
+CAP-V0-017	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1588) `corvint	standing	2026-10-11
+CAP-V0-018	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1588) A test M	standing	2026-10-11
+CAP-V0-019	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1588) `interna	standing	2026-10-11
+CAP-V0-020	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1588) The cata	standing	2026-10-11
+CAP-V0-021	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1588) Root hel	standing	2026-10-11
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,	unrecorded	-
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2	unrecorded	-
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa	unrecorded	-
@@ -3649,7 +3656,7 @@ MCPV0-004	docs/specs/mcp-server-2026-07-28-v0.md	A valid request has exactly JSO
 MCPV0-005	docs/specs/mcp-server-2026-07-28-v0.md	The only supported protocol version is exactly `2026-07-28`. Every request, incl	unrecorded	-
 MCPV0-006	docs/specs/mcp-server-2026-07-28-v0.md	`server/discover` MUST return only the implemented surface:	unrecorded	-
 MCPV0-007	docs/specs/mcp-server-2026-07-28-v0.md	`tools/list` is paginated even when one page currently contains all tools. Its c	unrecorded	-
-MCPV0-008	docs/specs/mcp-server-2026-07-28-v0.md	V0 advertises exactly these three tools, subject to the implementation schemas f	unrecorded	-
+MCPV0-008	docs/specs/mcp-server-2026-07-28-v0.md	V0 advertises exactly these four tools, subject to the implementation schemas fr	unrecorded	-
 MCPV0-009	docs/specs/mcp-server-2026-07-28-v0.md	Query `task` contains 1 through 2,000 printable ASCII characters and has no `lim	unrecorded	-
 MCPV0-010	docs/specs/mcp-server-2026-07-28-v0.md	`corvint.status` reports only the exact repository binding already defined by th	unrecorded	-
 MCPV0-011	docs/specs/mcp-server-2026-07-28-v0.md	The dispatcher MUST continue reading frames while a tool request runs. A valid	unrecorded	-
@@ -3684,6 +3691,7 @@ MCPV0-040	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's sta
 MCPV0-041	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603) Every	standing	2026-10-11; V1-1603
 MCPV0-042	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1999) A	standing	2026-10-11; V1-1999
 MCPV0-090	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1004) A	standing	2026-10-11; V1-1004
+MCPV0-100	docs/specs/mcp-server-2026-07-28-v0.md	(owner directive through the orchestrator, 2026-10-23; gh#1588; amends `MCPV0-00	unrecorded	-
 MCPV0-095	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2219) A `MIXED	standing	2026-10-11; V1-2219
 MTV-V0-001	docs/specs/mcp-test-validity-profile-v0.md	The profile MUST be served by the separate executable `corvint-test-validity-mcp	unrecorded	-
 MTV-V0-002	docs/specs/mcp-test-validity-profile-v0.md	The tool's input schema MUST be a closed JSON Schema 2020-12 object with two	unrecorded	-
@@ -3885,6 +3893,37 @@ OCL-V0-005	docs/specs/outcome-calibration-v0.md	Where records carry a relevance 
 OCL-V0-006	docs/specs/outcome-calibration-v0.md	When a proposal is emitted it MUST report the decile edge that would have	unrecorded	-
 OCL-V0-007	docs/specs/outcome-calibration-v0.md	A joined sample smaller than 20 rows MUST set `insufficient_sample: true` and	unrecorded	-
 OCL-V0-008	docs/specs/outcome-calibration-v0.md	Output MUST be deterministic for a fixed store and invocation in both formats:	unrecorded	-
+PRB-V0-001	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2475) The `cor	standing	2026-10-11; V1-2475
+PRB-V0-002	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2475) Both kno	standing	2026-10-11; V1-2475
+PRB-V0-003	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2475) `CORVINT	standing	2026-10-11; V1-2475
+PRB-V0-004	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2475) The prof	standing	2026-10-11; V1-2475
+PRB-V0-005	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2475) The toke	standing	2026-10-11; V1-2475
+PRB-V0-006	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2475) A knob t	standing	2026-10-11; V1-2475
+PRB-V0-007	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2475) A profil	standing	2026-10-11; V1-2475
+PRB-V0-008	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2475) Setting	standing	2026-10-11; V1-2475
+PRB-V0-009	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2475) `corvint	standing	2026-10-11; V1-2475
+PRB-V0-010	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2475) Every MC	standing	2026-10-11; V1-2475
+PRB-V0-011	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2475) `CRB-V0-	standing	2026-10-11; V1-2475
+PRB-V0-012	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2475) The inte	standing	2026-10-11; V1-2475
+PRB-V0-013	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2475) A knob w	standing	2026-10-11; V1-2475
+PRB-V0-020	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) A genera	standing	2026-10-11; V1-2474
+PRB-V0-021	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) The full	standing	2026-10-11; V1-2474
+PRB-V0-022	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) The curr	standing	2026-10-11; V1-2474
+PRB-V0-023	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) An inval	standing	2026-10-11; V1-2474
+PRB-V0-024	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) The harn	standing	2026-10-11; V1-2474
+PRB-V0-025	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) The meas	standing	2026-10-11; V1-2474
+PRB-V0-026	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) Each sce	standing	2026-10-11; V1-2474
+PRB-V0-027	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) Peak res	standing	2026-10-11; V1-2474
+PRB-V0-028	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) Every re	standing	2026-10-11; V1-2474
+PRB-V0-029	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) `make pe	standing	2026-10-11; V1-2474
+PRB-V0-030	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) The comm	standing	2026-10-11; V1-2474
+PRB-V0-031	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) The budg	standing	2026-10-11; V1-2474
+PRB-V0-032	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) Every sc	standing	2026-10-11; V1-2474
+PRB-V0-033	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) The budg	standing	2026-10-11; V1-2474
+PRB-V0-034	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) A pendin	standing	2026-10-11; V1-2474
+PRB-V0-035	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) An enfor	standing	2026-10-11; V1-2474
+PRB-V0-036	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) Measured	standing	2026-10-11; V1-2474
+PRB-V0-037	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) Every pr	standing	2026-10-11; V1-2474
 PWV-V0-001	docs/specs/pi-workflow-v0.md	Pi MUST preserve original native Core receipt objects, output and exit status, i	unrecorded	-
 PWV-V0-002	docs/specs/pi-workflow-v0.md	Core read tools MUST use closed operation and argument sets for query, context,	unrecorded	-
 PWV-V0-003	docs/specs/pi-workflow-v0.md	Each command MUST use bounded argv-only local execution, one owned POSIX process	unrecorded	-

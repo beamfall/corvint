@@ -1251,7 +1251,10 @@ Operational note (V1-0051): `corvint context` and the generic harness-event disp
 (`cmd/corvint/taskcontext.go`, `cmd/corvint/main.go`) write a local pprof CPU profile when the
 operator sets `CORVINT_CPUPROFILE=PATH` in the process environment (V1-1643: the code resolves the
 `CORVINT_` prefix through `internal/runtimeenv`; a bare `CPUPROFILE` is ignored). It is off by default, diagnostic only,
-and does not widen what either read-only path reads, returns, or mutates (AGENTS.md invariant 4).
+and does not widen what either read-only path reads, returns, or mutates (AGENTS.md invariant 4). Amendment 2026-10-23
+(GitHub #1600): the knob, with the heap knob `CORVINT_MEMPROFILE`, now applies to every command at
+the binary's entry point and to every MCP server; `docs/specs/performance-profiling-and-read-budget-v0.md`
+(PRB-V0-001..012) owns it.
 
 The recency features (TCP-V0-035..038) add no index, snapshot or pack change, no clock read and
 no new root verb. They do not make recency a relation (a recent file is not admitted for being recent), do not rerank

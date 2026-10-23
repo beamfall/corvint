@@ -17,8 +17,8 @@ import (
 var taskReviewArguments = []string{"--tool-profile", "task-review"}
 
 var (
-	v0ToolNames         = []string{"corvint.impact", "corvint.query", "corvint.status"}
-	taskReviewToolNames = []string{"corvint.cem.report", "corvint.context", "corvint.impact", "corvint.query", "corvint.status"}
+	v0ToolNames         = []string{"corvint.help", "corvint.impact", "corvint.query", "corvint.status"}
+	taskReviewToolNames = []string{"corvint.cem.report", "corvint.context", "corvint.help", "corvint.impact", "corvint.query", "corvint.status"}
 )
 
 func TestTaskReviewCaseInventoryIsClosed(t *testing.T) {

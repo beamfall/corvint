@@ -92,6 +92,7 @@
       "internal/"
     ],
     "cmd/corvint-test-runner": [],
+    "cmd/corvint-test-validity-mcp": [],
     "cmd/corvint-tests-accept": [],
     "cmd/corvint-web-flows": [],
     "cmd/corvint-work-queue": [
@@ -321,6 +322,9 @@
       "docs/decisions/0519-w6-batch-acceptances-2026-10-11.md",
       "internal/cem/"
     ],
+    "internal/perfbudget/cmd/perf-budget": [
+      "internal/perfbudget/budgets.json"
+    ],
     "internal/plansnapshot": [],
     "internal/playwrightminimize": [],
     "internal/postmergeconnector": [],
@@ -331,6 +335,9 @@
       "conformance/postmerge-runtime-v2/process-preimages.schema.json",
       "conformance/postmerge-runtime-v2/process-proof.schema.json",
       "conformance/postmerge-runtime-v2/process-qualification.schema.json"
+    ],
+    "internal/procprofile": [
+      "docs/specs/corvint-rebrand-v0.md"
     ],
     "internal/projectpath": [],
     "internal/projectprofile": [],

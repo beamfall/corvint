@@ -25,8 +25,8 @@ func TestToolsExposeOnlyDeliveredClosedReadSurface(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := toolNames(t, registry.Tools()); !reflect.DeepEqual(got, []string{ToolImpact, ToolQuery, ToolStatus}) {
-		t.Fatalf("default V0 tools = %v, want exactly query, impact and status", got)
+	if got := toolNames(t, registry.Tools()); !reflect.DeepEqual(got, []string{ToolHelp, ToolImpact, ToolQuery, ToolStatus}) {
+		t.Fatalf("default V0 tools = %v, want exactly help (MCPV0-100), query, impact and status", got)
 	}
 	// MCPV0-026: the default registry neither advertises nor dispatches the
 	// task-review tools; a call fails exactly like any other unknown tool.
@@ -40,10 +40,10 @@ func TestToolsExposeOnlyDeliveredClosedReadSurface(t *testing.T) {
 		t.Fatal(err)
 	}
 	tools := registry.Tools()
-	if got := toolNames(t, tools); !reflect.DeepEqual(got, []string{ToolCEMReport, ToolContext, ToolImpact, ToolQuery, ToolStatus}) {
+	if got := toolNames(t, tools); !reflect.DeepEqual(got, []string{ToolCEMReport, ToolContext, ToolHelp, ToolImpact, ToolQuery, ToolStatus}) {
 		t.Fatalf("task-review tools = %v", got)
 	}
-	querySchema := tools[3].InputSchema["properties"].(map[string]any)["task"].(map[string]any)
+	querySchema := tools[4].InputSchema["properties"].(map[string]any)["task"].(map[string]any)
 	if querySchema["pattern"] != `^[ -~]*[!-~][ -~]*$` {
 		t.Fatalf("query task schema admits runtime-invalid whitespace: %#v", querySchema)
 	}
