@@ -205,6 +205,8 @@ Separate experimental corpus profile:
   corvint [--root PATH] docs corpus discover-playwright --migration MIGRATION.json --config PATH --playwright-list LIST.json [--receipt RECEIPT.json]
   corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json
   corvint [--root PATH] docs corpus discover-legacy --runner jasmine|mocha --revision FULL_COMMIT --path PATH [--input REGISTRY.json]
+  corvint [--root PATH] docs corpus discover-tests --runner playwright|rspec --revision FULL_COMMIT --path PATH
+  corvint [--root PATH] docs corpus extract --profile PATH --revision FULL_COMMIT
   corvint [--root PATH] docs corpus import-cases --format testrail-json|csv --input EXPORT [--content ids-paths-titles|full]
   corvint [--root PATH] docs corpus search-cases --format testrail-json|csv --input EXPORT (--query TEXT [--match all|any] | --id C<digits>) [--limit N]
   corvint [--root PATH] docs corpus search --artifact CORPUS.json --query TEXT
@@ -268,6 +270,14 @@ End-to-end example, run at the repository root:
     corvint docs corpus witness-playwright --input evidence/request.json --receipt-input receipt --report evidence/report.json
 REQUEST.json names the committed receipt as input "receipt", beside the migration and discovery.
 
+Test discovery (DCP-V1-370..376): discover-tests reads Playwright or RSpec test files from Git
+at --revision (one file, or the test files under a directory; --path . for all) and prints a
+generated corvint-test-discovery/1 record without running a test. Each example carries its
+example-join identity, title path, tags, annotations, expectations (matcher, negation, receiver),
+navigations and requests, the imports, fixtures and shared groups it reaches, and the hooks that
+apply with whether each asserts. Every fact is anchored to its committed lines; whatever the
+reader cannot classify is listed under unknown with a reason.
+
 Legacy inventory (DCP-V1-060..069): discover-legacy reads Jasmine or Mocha/Cypress test files
 from Git at --revision (one file, or the test-named files under a directory; --path . for all)
 and prints a generated corvint-legacy-inventory/1 record without running a test. Cases use the
@@ -276,6 +286,14 @@ precondition fixtures carry the digest of their call text, and every unparsed as
 under unknown. --input REGISTRY.json adds a generated crosswalk of candidate flows and tests and
 re-checks the registry's reviewed legacy_criteria; a refused same/stronger mapping exits 1 with
 the report printed. Nothing it emits is a reviewed legacy_criteria relation.
+
+Extractor profiles (DCP-V1-390..399): extract reads a committed corvint-extractor-profile/1 file
+and the files its line-oriented patterns name from Git at --revision and prints a generated
+corvint-extractor-inventory/1 record. Its provider member is a corvint-corpus-provider/1 record
+of endpoint, ui_surface, data_entity, job, event, symbol and interaction subjects with exact line
+anchors and implements, calls, depends_on and related_to relations; unreadable files, unsupported
+shapes and unresolved references are listed under gaps. Tool output is read only as a committed
+file whose SHA-256 the profile pins; no tool runs.
 `
 
 // legacyCasesHelp is the DCP-V1-070..079 test-management export guidance that docs help and the

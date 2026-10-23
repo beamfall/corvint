@@ -110,6 +110,17 @@ type rspecReader struct {
 	// excluded are the filter_run_excluding metadata filters of the bound support files
 	// (TSA-V0-450).
 	excluded []rspecExclusion
+	// hookSites are every before, after and around hook with its group, for the static test
+	// discovery (DCP-V1-375); the rules above read hooks only through groups[].hooks.
+	hookSites []rspecHookSite
+}
+
+// rspecHookSite is one hook block: the group it is declared in, its index in lines, its block
+// lines and whether it sits inside a non-group block.
+type rspecHookSite struct {
+	group, index int
+	body         []rubyLine
+	loop         bool
 }
 
 // rspecValidity reports every `expect { NAME }` block expectation whose NAME is the subject or a
@@ -305,6 +316,7 @@ func (r *rspecReader) read() string {
 			if !ok {
 				return r.blockFailure()
 			}
+			r.hookSites = append(r.hookSites, rspecHookSite{group: group, index: i, body: body, loop: inLoop()})
 			switch rspecHookLine.FindStringSubmatch(text)[1] {
 			case "", "each", "example":
 				r.groups[group].hooks = append(r.groups[group].hooks, rspecHook{path: r.lines[i].path, line: r.lines[i].line, kind: "before", names: invokedNames(body), body: body})
@@ -316,6 +328,9 @@ func (r *rspecReader) read() string {
 			body, end, ok := r.block(i)
 			if !ok {
 				return r.blockFailure()
+			}
+			if !strings.HasPrefix(text, "def") {
+				r.hookSites = append(r.hookSites, rspecHookSite{group: group, index: i, body: body, loop: inLoop()})
 			}
 			// A def directly in an example group or at file level is a helper an example can call;
 			// one inside a class, module or other block is not read (TSA-V0-053).

@@ -343,6 +343,18 @@ AFU-V1-103	docs/specs/application-flow-understanding-v1.md	A member that does no
 AFU-V1-104	docs/specs/application-flow-understanding-v1.md	In-scope unambiguous declarations that belong to no declared flow are listed in	unrecorded	-
 AFU-V1-105	docs/specs/application-flow-understanding-v1.md	The manifest retains the declared inventory, so `Open`, `finalize`,	unrecorded	-
 AFU-V1-106	docs/specs/application-flow-understanding-v1.md	The inventory file is a bounded regular file of at most 4 MiB with 1 to 256 flow	unrecorded	-
+AFU-V1-112	docs/specs/application-flow-understanding-v1.md	The report names the repository, the full revision and its tree, and pins every	unrecorded	-
+AFU-V1-113	docs/specs/application-flow-understanding-v1.md	V8 coverage (an array of script entries, or `{"result": [...]}` as Playwright an	unrecorded	-
+AFU-V1-114	docs/specs/application-flow-understanding-v1.md	A single-test Istanbul `coverage-final.json` (statement map and counts) or LCOV	unrecorded	-
+AFU-V1-115	docs/specs/application-flow-understanding-v1.md	RSpec per-example coverage is a JSON object from example ID (`./` trimmed, for	unrecorded	-
+AFU-V1-116	docs/specs/application-flow-understanding-v1.md	For a joined test, each covered file at the revision with at least one executed	unrecorded	-
+AFU-V1-117	docs/specs/application-flow-understanding-v1.md	Coverage whose run record is from another commit or tree is `stale`	unrecorded	-
+AFU-V1-118	docs/specs/application-flow-understanding-v1.md	An unknown format, a missing input, a revision that is not a full commit, an	unrecorded	-
+AFU-V1-119	docs/specs/application-flow-understanding-v1.md	`flows ingest-coverage` with a missing required flag exits 2 with its usage line	unrecorded	-
+AFU-V1-120	docs/specs/application-flow-understanding-v1.md	A `test-run-evidence/0` record MAY carry `coverage_artifacts`, the SHA-256 of	unrecorded	-
+AFU-V1-122	docs/specs/application-flow-understanding-v1.md	`flows import --format extractor-inventory` accepts only a	unrecorded	-
+AFU-V1-123	docs/specs/application-flow-understanding-v1.md	It writes one proposed `api` flow per `endpoint` subject (identity from the	unrecorded	-
+AFU-V1-124	docs/specs/application-flow-understanding-v1.md	Each imported flow carries one `inferred` source link per subject anchor, with	unrecorded	-
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,	unrecorded	-
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a	unrecorded	-
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	Freshness MUST come from one Git read at the evaluated revision. That read	unrecorded	-
@@ -2577,6 +2589,13 @@ DCP-V1-285	docs/specs/documentation-corpus-v1.md	(accepted under the owner's sta
 DCP-V1-286	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1493;	standing	2026-10-11; #1493
 DCP-V1-217	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1991)) Legacy	standing	2026-10-11; V1-1991
 DCP-V1-241	docs/specs/documentation-corpus-v1.md	`corvint docs corpus maintain --page` names the flag and the broken rule when it	unrecorded	-
+DCP-V1-370	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) The	standing	2026-10-11; #1582
+DCP-V1-371	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Eac	standing	2026-10-11; #1582
+DCP-V1-372	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Eac	standing	2026-10-11; #1582
+DCP-V1-373	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582)	standing	2026-10-11; #1582
+DCP-V1-374	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582)	standing	2026-10-11; #1582
+DCP-V1-375	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) The	standing	2026-10-11; #1582
+DCP-V1-376	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Wha	standing	2026-10-11; #1582
 DCP-V1-250	docs/specs/documentation-corpus-v1.md	The case file is a closed `corvint-corpus-eval-cases/1` document with a file	unrecorded	-
 DCP-V1-251	docs/specs/documentation-corpus-v1.md	Each case runs through `corpusbridge.Registry.CallTimed`, the code path that ser	unrecorded	-
 DCP-V1-252	docs/specs/documentation-corpus-v1.md	Each case reports `hit`, the 1-based `rank` of the first relevant row, `k` (the	unrecorded	-
@@ -2613,6 +2632,16 @@ DCP-V1-366	docs/specs/documentation-corpus-v1.md	`carry-forward --provider ID` e
 DCP-V1-367	docs/specs/documentation-corpus-v1.md	Reads are bounded and deterministic:	unrecorded	-
 DCP-V1-368	docs/specs/documentation-corpus-v1.md	Neither operation writes the repository, the index, the working tree or any	unrecorded	-
 DCP-V1-369	docs/specs/documentation-corpus-v1.md	The following are refused with exit 2 and no output; the option-form cases are	unrecorded	-
+DCP-V1-390	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) A	standing	2026-10-11; #1583
+DCP-V1-391	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) Eac	standing	2026-10-11; #1583
+DCP-V1-392	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) Rel	standing	2026-10-11; #1583
+DCP-V1-393	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) The	standing	2026-10-11; #1583
+DCP-V1-394	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) A	standing	2026-10-11; #1583
+DCP-V1-395	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) Wha	standing	2026-10-11; #1583
+DCP-V1-396	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) `jo	standing	2026-10-11; #1583
+DCP-V1-397	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) Whe	standing	2026-10-11; #1583
+DCP-V1-398	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583)	standing	2026-10-11; #1583
+DCP-V1-399	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583)	standing	2026-10-11; #1583
 DCP-V1-054	docs/specs/documentation-corpus-v1.md	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-

@@ -110,7 +110,7 @@ type flowSubcommand func(ctx context.Context, root string, args []string, out io
 
 var flowSubcommands = map[string]flowSubcommand{"export": runFlowsExport, "import": runFlowsImport, "map": runFlowsMap,
 	"gaps": runFlowsGaps, "impact": runFlowsImpact, "ingest": runFlowsIngest, "docs": runFlowsDocs,
-	"stability": runFlowsStability}
+	"stability": runFlowsStability, "ingest-coverage": runFlowsIngestCoverage}
 
 // flowExports maps each --emit value to the one document it writes to stdout.
 var flowExports = map[string]func(ctx context.Context, root string, set appflows.IntentSet, envelope string) ([]byte, error){
@@ -186,9 +186,9 @@ func runFlowsImport(_ context.Context, root string, args []string, out io.Writer
 	f.SetOutput(io.Discard)
 	dir := f.String("flows", "", "intent directory inside the root")
 	from := f.String("from", "", "source document")
-	format := f.String("format", "", "behavior-adapter-request, openapi or playwright-list")
+	format := f.String("format", "", appflows.ImportFormats)
 	if f.Parse(args) != nil || *dir == "" || *from == "" || *format == "" || f.NArg() != 0 {
-		return errors.New("flows import requires --flows DIR --from FILE --format behavior-adapter-request|openapi|playwright-list")
+		return errors.New("flows import requires --flows DIR --from FILE --format behavior-adapter-request|extractor-inventory|openapi|playwright-list")
 	}
 	raw, err := appflows.ReadFile(*from)
 	if err != nil {
@@ -344,6 +344,18 @@ func runFlowsIngest(_ context.Context, _ string, args []string, out io.Writer) e
 		h.Controls = append(h.Controls, appflows.RunControl{Subject: parts[0], TestKey: parts[1], Expected: parts[2]})
 		return nil
 	})
+	f.Func("coverage-artifact", "ID=FILE coverage file the run wrote", func(s string) error {
+		id, file, ok := strings.Cut(s, "=")
+		if !ok || id == "" || file == "" {
+			return errors.New("--coverage-artifact needs ID=FILE")
+		}
+		raw, err := appflows.ReadFile(file)
+		if err != nil {
+			return err
+		}
+		h.CoverageArtifacts = append(h.CoverageArtifacts, appflows.RunDigestRef{ID: id, Digest: appflows.Digest(raw)})
+		return nil
+	})
 	if f.Parse(args) != nil || *format == "" || *from == "" || f.NArg() != 0 {
 		return errors.New("flows ingest requires --format playwright-json|playwright-receipt|junit-xml|go-test-json --from FILE and the run header flags")
 	}
@@ -376,7 +388,7 @@ PROVEN binds immutable bytes and declared app identity, not attested deployment 
 
 Intent usage:
   corvint [--root PATH] flows export --flows DIR --emit inventory|provider|request [--envelope FILE]
-  corvint [--root PATH] flows import --flows DIR --from FILE --format behavior-adapter-request|openapi|playwright-list
+  corvint [--root PATH] flows import --flows DIR --from FILE --format behavior-adapter-request|extractor-inventory|openapi|playwright-list
 
 export reads application-flow-intent/1 files from DIR (one <flow_id>.json each, plus
 retired.json) and writes one document to stdout: the application-flow-inventory/1
@@ -404,9 +416,22 @@ aggregate of the flows-run-registry/0 FILE committed at HEAD, the raw repeated-r
 counts, the applied threshold and a clean or not-stable verdict. ingest writes test-run-evidence/0 JSONL to
 stdout; header flags are --run-id, --runner-version, --source-commit, --source-tree,
 --source-clean, --build-artifact-digest, --environment-id, --environment-digest,
---fixture-id, --fixture-digest, --cleanup and repeatable
---control "SUBJECT<TAB>CONTROL<TAB>EXPECTED". A bound exceeded exits nonzero with
+--fixture-id, --fixture-digest, --cleanup, repeatable
+--control "SUBJECT<TAB>CONTROL<TAB>EXPECTED" and repeatable --coverage-artifact
+ID=FILE, which pins a coverage file the run wrote by sha256. A bound exceeded exits nonzero with
 the incomplete code and writes nothing. None of these writes to the repository.
+
+Coverage usage:
+  corvint [--root PATH] flows ingest-coverage --format v8|istanbul|rspec|lcov --from FILE
+    --evidence FILE... --revision FULL_COMMIT [--test-key KEY] [--links FILE] [--strip-prefix P]
+
+ingest-coverage writes corvint-coverage-ingest/1 to stdout: the coverage, run-evidence
+and links inputs pinned by digest; each covered test bound to its one run record, and
+joined only when that record ran clean at the revision and pins the coverage input's
+sha256 as a --coverage-artifact; observed tested_by relations
+from executed source files with executed line spans anchored to the committed blobs;
+links the coverage contradicts as coverage-contradiction conflicts; and every path or
+test it cannot classify as an unknown with a reason. Source maps are not resolved.
 
 Documentation usage:
   corvint [--root PATH] flows docs --flows DIR --page FILE --claims FILE [--docs-root DIR] [--evidence FILE]...

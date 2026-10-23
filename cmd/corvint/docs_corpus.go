@@ -45,6 +45,9 @@ type corpusOptions struct {
 	limit, offset           int
 	// readTimings collects the phases when timings is set.
 	readTimings *doccorpus.ReadTimings
+	// profile is the extract operation's repository path of its extractor profile at --revision
+	// (DCP-V1-399); it is read from Git, not from --root.
+	profile string
 }
 
 // stringFlags maps each value-taking corpus option to its field.
@@ -54,6 +57,7 @@ func (o *corpusOptions) stringFlags() map[string]*string {
 	o.playwright.addFlags(flags)
 	o.legacyCases.addFlags(flags)
 	o.audit.addFlags(flags)
+	flags["--profile"] = &o.profile
 	return flags
 }
 
@@ -284,6 +288,12 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	}
 	if o.op == "discover-legacy" {
 		return compileLegacyCorpus(ctx, o)
+	}
+	if o.op == "discover-tests" {
+		return compileTestDiscovery(ctx, o)
+	}
+	if o.op == "extract" {
+		return doccorpus.BuildExtractorInventory(ctx, doccorpus.ExtractorInput{Root: o.root, Revision: o.revision, Profile: o.profile})
 	}
 	if o.op == "import-cases" || o.op == "search-cases" {
 		return compileLegacyCasesCorpus(o)
