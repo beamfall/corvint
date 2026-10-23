@@ -10,7 +10,7 @@ Authoritative inputs: operator task of 2026-08-29,
 
 ## Agent digest
 - Claim: Static JavaScript and TypeScript analysis conservatively maps changes to runner-addressable tests and widens on ambiguity.
-- Status: proposed/experimental; TJAA-V0-019 accepted (decision 0483) with its V1-1175 amendment and TJAA-V0-021 accepted (decision 0519); TJAA-V0-030..033 (V1-2042) and TJAA-V0-034..037 (GitHub #1575-#1578) and TJAA-V0-038..044 (GitHub #1593, #1594) under the standing lane auto-accept
+- Status: proposed/experimental; TJAA-V0-019 accepted (decision 0483) with its V1-1175 amendment and TJAA-V0-021 accepted (decision 0519); TJAA-V0-030..033 (V1-2042) and TJAA-V0-034..037 (GitHub #1575-#1578) and TJAA-V0-038..045 (GitHub #1593, #1594) under the standing lane auto-accept
 - Exists: `internal/liveverify/affected/typescript` static runner/dependency adapter and seam tests.
 - Blocked on: runtime tuple, command/config execution, cancellation, and full-CI recall qualification.
 - Read next: Requirements; Explicit unknown frontier; Traceability.
@@ -472,7 +472,8 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   regular expression. A `!` takes the verdict of the position it stands in: where an operand may
   begin, or when a line terminator precedes it, it is the prefix negation and the slash after it
   opens a regular expression; after an operand on the same line it is a non-null assertion and
-  the slash is division. The GitHub #1593 rows
+  the slash is division; `TJAA-V0-045` keeps every other unsupported predecessor ambiguous. The
+  GitHub #1593 rows
   (`s.replace(/[^/]+/, '').replace('/x', '')` and its `[^x]` and `[^\/]` variants, and
   `url.replace(/^https?:\/\/[^/]+/, '')`) MUST raise no frontier.
 - `TJAA-V0-039`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2467; GitHub
@@ -485,12 +486,15 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   #1593) Every `typescript:*` frontier reason MUST record the sites that raised it:
   `path:line` (1-based; LF, CR, CR LF, U+2028 and U+2029 end a line) when one line holds the cause
   (a computed loading call, an ambiguous slash, the opening token of an unterminated literal or
-  comment, the quoted specifier of an unresolved or undeclared import, the first unmodelled config
+  comment, the specifier of an unresolved or undeclared import at the offset the import scan
+  parsed it (never a text search that could match a comment or string), the first unmodelled config
   marker, the first tsconfig `"paths"` or `"baseUrl"` key), and the repository-relative `path`
   when only the file is known (an unreadable or unread module, a runner or E2E classification of
   the whole file, an invalid tsconfig or `package.json`, a `package.json` `mocha` member, or a
-  specifier whose text no longer occurs after alias rewriting). In the `playwright-affected/0` plan the `detail` of each unknown raised from the
-  shared TypeScript graph MUST be `shared TypeScript graph frontier at ` followed by at most 8
+  specifier the scan did not parse, such as a path an alias rewrote). Naming sites MUST cost one
+  line index per file plus a binary search per site, so the work stays linear in the observed
+  source. In the `playwright-affected/0` plan the `detail` of each unknown raised from the shared
+  TypeScript graph MUST be `shared TypeScript graph frontier at ` followed by at most 8
   sorted sites joined by `, `, plus ` and N more` when more exist.
 - `TJAA-V0-041`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2468; GitHub
   #1594) Amending `TJAA-V0-035`, a `globalThis`, `global`, `window` or `self` token MUST refuse
@@ -498,8 +502,13 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   substitution included) or as the whole content of a string literal that directly follows a code
   `[` (a computed member key). Its occurrence inside string, template or regular-expression text,
   or in a comment, MUST NOT refuse them (`'global-setup'`, `testMatch: 'setup/global-setup.ts'`).
-  Because such text could still become code, a `Function` token in code and a `constructor` token
-  anywhere MUST refuse them, as `eval` already refuses every root.
+  That exemption holds only while no text can become code or reach a property the scan cannot
+  see, so the config MUST refuse both roots when it has any of: a `Function`, `constructor` or `vm`
+  token anywhere; a `\` escape in string or template text; a dynamic `import(`; a `require(` whose
+  argument is not one escape-free string literal; or a computed member key (a `[` after an
+  identifier that is not a keyword, `)`, `]`, `.` or a literal) other than empty (a type such as
+  `string[]`), a decimal integer or one escape-free string literal. `eval` already refuses every
+  root.
 - `TJAA-V0-042`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2468; GitHub
   #1594) Amending `TJAA-V0-035`, an occurrence of `process` that is the whole target of an `=`,
   `??=`, `||=` or `&&=` expression statement at the top level of the config,
@@ -526,6 +535,15 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   conversion or `devices` that the config refused, the detail MUST append `; <root> is not
   admitted: `, the reason, and the same token-and-line form for the first token that refused it (a global object name, a non-read `process`, `eval`, a `delete`/`++`/`--`/escape
   token, or a non-call conversion).
+- `TJAA-V0-045`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2467; PR #1596
+  review) Where regexStart cannot classify a `/` lexically it MUST keep the slash ambiguous, so
+  `TJAA-V0-034` and `TJAA-V0-039` widen instead of a misread literal hiding an import. That covers
+  a slash after a reserved or contextual keyword that is not an operand (`debugger`, `break`,
+  `continue`, `yield`, `await`, `of`, `let` and the rest; `this`, `super`, `null`, `true` and
+  `false` stay division), after a non-ASCII byte, after `\`, and after a word that an identifier
+  escape or a non-ASCII identifier part precedes. A regular-expression reading also moves a
+  boundary when the division reading would form `//` or `/*` from its inner or closing slash
+  (`/a\//`).
 
 Intent and boundary (GitHub #1593, #1594): the reporter could find neither the four files that
 raised a false `typescript:dynamic-import` nor the config tokens that kept browser identity
@@ -730,7 +748,7 @@ never carried the member are unchanged.
 The GitHub #1294 extension (`TJAA-V0-030..033`) reverts independently. Revert it by removing the
 optional `narrowed` plan member, the per-project unknown attribution and the comparison-base read.
 The fallback, selection and every bounded plan are unchanged, and no store or receipt is written.
-The GitHub #1593/#1594 extension (`TJAA-V0-038..044`) reverts independently: restore the raw-text
+The GitHub #1593/#1594 extension (`TJAA-V0-038..045`) reverts independently: restore the raw-text
 ambiguous-slash scan that raised `typescript:dynamic-import`, the fixed
 `shared TypeScript graph frontier` detail, the any-occurrence global-name and process-write
 refusals and the fixed identity detail. Only unknown details and the new reason code change; no
@@ -759,10 +777,11 @@ persisted format, store or receipt is written.
 | `TJAA-V0-037` (V1-2458; GitHub #1578) | `TestGeneralAdapterPlaywrightMembershipAndAliases_GH1578` in `playwright_gh1578_test.go`; `TestPlaywrightExampleAppQualification`, `TestUnitsDetectsEverySupportedRunnerFromImportsOrConfiguration` | experimental; synthetic fixtures |
 | `TJAA-V0-038` (V1-2467; GitHub #1593) | `TestRegexLiteralAfterOpenerIsNotDivision_GH1593`, `TestPlaywrightRegexReplaceKeepsSelectionAndNamesFrontierSites_GH1593` in `typescript_gh1593_test.go`; `TestScanImportsSeparatesImportTypesAndLiteralTextFromDynamicImports` in `typescript_test.go` | experimental |
 | `TJAA-V0-039` (V1-2467; GitHub #1593) | `TestAmbiguousSlashIsScanUnresolved_GH1593` in `typescript_gh1593_test.go`; `TestScanImportsSeparatesImportTypesAndLiteralTextFromDynamicImports` in `typescript_test.go` | experimental |
-| `TJAA-V0-040` (V1-2467; GitHub #1593) | `TestFrontierSitesNameEveryReason_GH1593`, `TestPlaywrightRegexReplaceKeepsSelectionAndNamesFrontierSites_GH1593`, `TestAmbiguousSlashIsScanUnresolved_GH1593` in `typescript_gh1593_test.go` | experimental |
-| `TJAA-V0-041` (V1-2468; GitHub #1594) | `TestPlaywrightGlobalNamesInLiteralsKeepEnvReads_GH1594`, `TestPlaywrightEnvIdentityIssueConfig_GH1594` in `playwright_gh1594_test.go` | experimental |
+| `TJAA-V0-040` (V1-2467; GitHub #1593) | `TestFrontierSitesAreLinear_PR1596`, `TestFrontierSiteIsTheParsedSpecifier_PR1596` in `typescript_pr1596_test.go`; `TestFrontierSitesNameEveryReason_GH1593`, `TestPlaywrightRegexReplaceKeepsSelectionAndNamesFrontierSites_GH1593`, `TestAmbiguousSlashIsScanUnresolved_GH1593` in `typescript_gh1593_test.go` | experimental |
+| `TJAA-V0-041` (V1-2468; GitHub #1594) | `TestPlaywrightReflectiveAccessRefusesEnvAndNumericRoots_PR1596`, `TestPlaywrightGlobalNamesInLiteralsKeepEnvReads_GH1594`, `TestPlaywrightEnvIdentityIssueConfig_GH1594` in `playwright_gh1594_test.go` | experimental |
 | `TJAA-V0-042` (V1-2468; GitHub #1594) | `TestPlaywrightEnvWritesOutsideIdentity_GH1594`, `TestPlaywrightEnvIdentityIssueConfig_GH1594` in `playwright_gh1594_test.go`; `TestPlaywrightEnvUseValuesKeepIdentity_GH1576` in `playwright_gh1576_test.go` | experimental |
 | `TJAA-V0-043` (V1-2468; GitHub #1594) | `TestPlaywrightEnvDefaultForms_GH1594`, `TestPlaywrightEnvIdentityIssueConfig_GH1594` in `playwright_gh1594_test.go` | experimental |
 | `TJAA-V0-044` (V1-2468; GitHub #1594) | `TestPlaywrightBrowserIdentityNamesBlockingToken_GH1594` in `playwright_gh1594_test.go` | experimental |
+| `TJAA-V0-045` (V1-2467; PR #1596 review) | `TestUnsupportedSlashPredecessorPreservesUncertainty_PR1596` in `typescript_pr1596_test.go` | experimental |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |

@@ -164,3 +164,52 @@ func TestPlaywrightBrowserIdentityNamesBlockingToken_GH1594(t *testing.T) {
 		}
 	}
 }
+
+// PR #1596 review, finding 2 (TJAA-V0-041): reflective access spelled without a raw token (an
+// escaped or computed key, a non-literal require, a dynamic import, vm) could turn string text
+// that names the global object into code, so string text no longer exempts the env and numeric
+// roots in such a config.
+func TestPlaywrightReflectiveAccessRefusesEnvAndNumericRoots_PR1596(t *testing.T) {
+	escaped := `import { defineConfig, devices } from '@playwright/test';
+import * as pw from '@playwright/test';
+
+const g = (() => {})['construc\u0074or']('return globalThis')();
+g['Num' + 'ber'] = () => {
+  pw['devi' + 'ces']['Desktop Chrome'].defaultBrowserType = 'firefox';
+  return 1;
+};
+
+export default defineConfig({
+  use: { navigationTimeout: Number('1') },
+  projects: [{ name: 'p', use: { ...devices['Desktop Chrome'] } }],
+});
+`
+	if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", escaped); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+		t.Fatalf("escaped constructor access was admitted: %+v", unknown)
+	}
+	config := func(setup string) string {
+		return "import { defineConfig } from '@playwright/test';\n" + setup + "\nexport default defineConfig({ use: { baseURL: process.env.BASE_URL || 'http://x', navigationTimeout: Number(process.env.T || '1') }, projects: [{ name: 'p' }] });\n"
+	}
+	for _, setup := range []string{
+		"const h = (() => {})['constr' + 'uctor']('return globalThis')();",
+		"const h = o[key]('return globalThis');",
+		"const h = o['a\\x62'];",
+		"const k = `return global\\u0054his`;",
+		"require('node:' + 'vm').runInThisContext('globalThis.Number = String');",
+		"require('node:vm').runInThisContext('globalThis.Number = String');",
+		"await import('data:text/javascript,globalThis.Number=String');",
+	} {
+		if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(setup)); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+			t.Fatalf("%q was admitted: %+v", setup, unknown)
+		}
+	}
+	// Literal keys, type annotations, array literals and a literal require stay admitted.
+	for _, setup := range []string{
+		"require('dotenv').config(); const name = 'global-setup';",
+		"const list: string[] = ['window.ts', 'self']; const first = list[0]; const k = cfg['name'];",
+	} {
+		if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(setup)); len(unknown) != 0 {
+			t.Fatalf("%q: %+v", setup, unknown)
+		}
+	}
+}

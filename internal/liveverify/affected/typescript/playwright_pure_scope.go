@@ -188,34 +188,114 @@ func playwrightCodeMutationToken(clean string, lexed playwrightLexed) int {
 // playwrightGlobalNameToken returns the offset of the first token through which the config could
 // reach the global object, and why, or -1. A global object name counts in code and as a whole
 // string literal that is a computed member key (`x['globalThis']`); inside other string, template
-// or regular-expression text it is data (TJAA-V0-041). Because such text could still become code,
-// a `Function` token in code and a `constructor` token anywhere (which reaches Function through any
-// function value) refuse too, as `eval` already does.
+// or regular-expression text it is data (TJAA-V0-041). That exemption holds only while no text can
+// become code or reach a constructor, so playwrightReflectiveChannel refuses too.
 func playwrightGlobalNameToken(clean string, lexed playwrightLexed) (int, string) {
-	first, why := -1, ""
-	consider := func(at int, reason string) {
-		if first < 0 || at < first {
-			first, why = at, reason
-		}
-	}
+	first, why := playwrightReflectiveChannel(clean, lexed)
 	for _, name := range playwrightGlobalNames {
 		for _, at := range playwrightTokenOffsets(clean, name) {
 			if lexed.code[at] || playwrightComputedKeyString(clean, lexed, at, len(name)) {
-				consider(at, "the config names the global object")
+				if first < 0 || at < first {
+					first, why = at, "the config names the global object"
+				}
 				break
 			}
 		}
 	}
-	for _, at := range playwrightTokenOffsets(clean, "Function") {
-		if lexed.code[at] {
-			consider(at, "the config names the Function constructor")
+	return first, why
+}
+
+// playwrightReflectiveChannel returns the offset of the first construct that could turn text into
+// code or read a property whose name the scan cannot see, and why, or -1: a `Function`,
+// `constructor` or `vm` token anywhere; a `\` escape in string or template text; a dynamic
+// `import(`; a `require(` whose argument is not one plain string literal; or a computed member key
+// that is not empty (a type such as `string[]`), a decimal integer or one plain string literal
+// (TJAA-V0-041). `eval` already refuses every root.
+func playwrightReflectiveChannel(clean string, lexed playwrightLexed) (int, string) {
+	first, why := -1, ""
+	consider := func(at int, reason string) {
+		if at >= 0 && (first < 0 || at < first) {
+			first, why = at, reason
+		}
+	}
+	for _, name := range []string{"Function", "constructor", "vm"} {
+		if at := playwrightTokenOffsets(clean, name); len(at) != 0 {
+			consider(at[0], "the config names "+name)
+		}
+	}
+	for index, inString := 0, false; index < len(clean); index++ {
+		switch {
+		case lexed.code[index]:
+			inString = false
+		case index == 0 || lexed.code[index-1]:
+			// A literal run opens with its delimiter; a `/` run is a regular expression.
+			inString = clean[index] != '/'
+		case inString && clean[index] == '\\':
+			consider(index, "a string escape can spell a name the scan cannot see")
+			index = len(clean)
+		}
+	}
+	for _, at := range playwrightTokenOffsets(clean, "import") {
+		if next := skipPlaywrightSpace(clean, at+len("import")); lexed.code[at] && next < len(clean) && clean[next] == '(' {
+			consider(at, "the config has a dynamic import")
 			break
 		}
 	}
-	if at := playwrightTokenOffsets(clean, "constructor"); len(at) != 0 {
-		consider(at[0], "the config names a constructor property")
+	for _, at := range playwrightTokenOffsets(clean, "require") {
+		open := skipPlaywrightSpace(clean, at+len("require"))
+		if !lexed.code[at] || open >= len(clean) || clean[open] != '(' {
+			continue
+		}
+		if close, ok := lexed.closes[open]; !ok || !playwrightPlainStringLiteral(clean[open+1:close]) {
+			consider(at, "a require argument is not one plain string literal")
+			break
+		}
+	}
+	for index := 0; index < len(clean); index++ {
+		if clean[index] != '[' || !lexed.code[index] || !playwrightMemberBracket(clean, lexed, index) {
+			continue
+		}
+		close, ok := lexed.closes[index]
+		key := ""
+		if ok {
+			key = strings.TrimSpace(clean[index+1 : close])
+		}
+		if !ok || key != "" && strings.Trim(key, "0123456789") != "" && !playwrightPlainStringLiteral(key) {
+			consider(index, "a computed member key is not one plain literal")
+			break
+		}
 	}
 	return first, why
+}
+
+// playwrightPlainStringLiteral reports one quoted string literal without escapes.
+func playwrightPlainStringLiteral(raw string) bool {
+	raw = strings.TrimSpace(raw)
+	_, literal := playwrightString(raw)
+	return literal && !strings.Contains(raw, "\\")
+}
+
+// playwrightMemberBracket reports whether the code `[` at index follows an operand, so it opens a
+// computed member access rather than an array literal.
+func playwrightMemberBracket(raw string, lexed playwrightLexed, index int) bool {
+	previous := playwrightPreviousCode(raw, index)
+	if previous < 0 {
+		return false
+	}
+	switch character := raw[previous]; {
+	case character == ')' || character == ']' || character == '.':
+		return true
+	case !lexed.code[previous]:
+		return strings.IndexByte("'\"`", character) >= 0 // the end of a literal
+	case isIdentifier(character):
+		from := previous
+		for from > 0 && isIdentifier(raw[from-1]) {
+			from--
+		}
+		word := raw[from : previous+1]
+		return !playwrightImpureKeywords[word] && word != "of"
+	}
+	return false
 }
 
 // playwrightComputedKeyString reports whether raw[at:at+size] is the whole content of a quoted

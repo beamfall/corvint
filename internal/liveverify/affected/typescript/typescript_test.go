@@ -716,7 +716,7 @@ func TestNestedTemplateLiteralsKeepContent(t *testing.T) {
 	if clean, err := stripComments(shallow, false); err != nil || clean != shallow {
 		t.Fatalf("bounded template nesting refused: %v", err)
 	}
-	if refs, _, parsed := scanRequires(shallow, false); !parsed || !slices.Equal(refs, []string{"./d"}) {
+	if refs, _, parsed := scanRequires(shallow, false); !parsed || !slices.Equal(refs, []importRef{{text: "./d", offset: strings.Index(shallow, "./d")}}) {
 		t.Fatalf("bounded template nesting: refs=%v parsed=%v", refs, parsed)
 	}
 }

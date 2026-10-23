@@ -80,7 +80,7 @@ func parseTypeScriptAliases(name, body string) typeScriptAliases {
 	return config
 }
 
-func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptAliases, bodies map[string]string, frontier frontierSet) []string {
+func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptAliases, bodies map[string]string, sites sourceSites, frontier frontierSet) []string {
 	var nearest *typeScriptAliases
 	for index := range configs {
 		config := &configs[index]
@@ -99,16 +99,17 @@ func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptA
 		target, claimed := nearest.resolve(ref, bodies)
 		if target == "" {
 			if claimed {
-				frontier.raise(FrontierPathAlias, refSite(owner, bodies[owner], ref))
+				frontier.raise(FrontierPathAlias, sites.ref(owner, ref))
 			}
 			continue
 		}
 		relative, err := filepath.Rel(filepath.FromSlash(path.Dir(owner)), filepath.FromSlash(target))
 		if err != nil {
-			frontier.raise(FrontierPathAlias, refSite(owner, bodies[owner], ref))
+			frontier.raise(FrontierPathAlias, sites.ref(owner, ref))
 			continue
 		}
 		resolved[index] = "./" + filepath.ToSlash(relative)
+		sites.alias(owner, ref, resolved[index])
 	}
 	return resolved
 }
