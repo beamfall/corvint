@@ -21,7 +21,8 @@ import (
 //     chain that resolves through own keys to a primitive value, never written, updated,
 //     deleted, called, destructured into, spread, aliased as an object or shadowed; or
 //   - the `process` global, through exactly `env` and one variable name (TJAA-V0-035), when every
-//     occurrence of `process` in the config is such a read: the config can then neither replace
+//     occurrence of `process` in the config is such a read or the target of a top-level
+//     `process.env.NAME` write statement (TJAA-V0-042): the config can then neither replace
 //     process.env nor shadow `process`, and Node's process.env yields a string or undefined, so
 //     the read is proven primitive.
 //
@@ -29,14 +30,15 @@ import (
 // `Number.parseFloat`, `parseInt` and `parseFloat` over operands proven primitive, when every
 // occurrence of each callee name in the config is such a call, so it is neither shadowed nor
 // written (TJAA-V0-035). The process root and the conversions are refused in a config that names
-// a global object (`globalThis`, `global`, `window`, `self`), which could reach them without
-// their names. A module the config imports or a runtime preload that rewrites these globals is
+// a global object (`globalThis`, `global`, `window`, `self`) in code or as a computed string key,
+// which could reach them without their names (TJAA-V0-041). A module the config imports or a runtime preload that rewrites these globals is
 // outside the static model, as one that rewrites a devices descriptor is.
 //
 // Every other root (other imports, globals, `this`, call results) is refused. A
 // config that names `eval`, has a `delete`, `++` or `--` token or a `\` escape in code (only an
-// escaped identifier can hold one there) has no admitted roots, whatever the token's operand. Occurrences are found in the comment-stripped
-// text, string and template contents included, so an unrecognized one fails closed.
+// escaped identifier can hold one there) has no admitted roots, whatever the token's operand.
+// Occurrences of a root name are found in the comment-stripped text, string and template contents
+// included, so an unrecognized one fails closed.
 type playwrightPureScope struct {
 	devices  bool
 	env      bool
@@ -45,7 +47,24 @@ type playwrightPureScope struct {
 	// arrays binds a top-level const whose initializer is a string-array literal or a conditional
 	// of them to the union of its branches (TJAA-V0-036).
 	arrays map[string][]string
+	// envWritten names the process.env keys a top-level statement writes (TJAA-V0-042).
+	envWritten map[string]bool
+	// source is the comment-stripped config, and the blocks name the first token that refused
+	// the devices root, the process root and the numeric conversions (TJAA-V0-044).
+	source                               string
+	devicesBlock, envBlock, numericBlock playwrightScopeBlock
 }
+
+// playwrightScopeBlock names the token at offset of source that refused a root; why is empty
+// when nothing refused it.
+type playwrightScopeBlock struct {
+	offset int
+	why    string
+}
+
+// playwrightGlobalNames name the global object, through which a config could reach process.env or
+// a numeric conversion without naming it.
+var playwrightGlobalNames = []string{"globalThis", "global", "window", "self"}
 
 // playwrightPlainValue is one property value of a plain const literal: a nested plain literal
 // (object non-nil) or a value proven primitive.
@@ -64,11 +83,24 @@ var (
 
 // newPlaywrightPureScope derives the admitted member-read roots of a comment-stripped config.
 func newPlaywrightPureScope(clean string) playwrightPureScope {
-	scope := playwrightPureScope{literals: map[string]playwrightPlainValue{}}
+	scope := playwrightPureScope{literals: map[string]playwrightPlainValue{}, envWritten: map[string]bool{}, source: clean}
+	refuse := func(block playwrightScopeBlock) {
+		scope.devicesBlock, scope.envBlock, scope.numericBlock = block, block, block
+	}
 	lexed, ok := playwrightLex(clean)
-	if !ok || playwrightHasToken(clean, "eval") || playwrightCodeMutationToken(clean, lexed) {
+	if !ok {
+		refuse(playwrightScopeBlock{offset: -1, why: "the config does not tokenize"})
 		return scope
 	}
+	if at := playwrightTokenOffsets(clean, "eval"); len(at) != 0 {
+		refuse(playwrightScopeBlock{offset: at[0], why: "the config names eval"})
+		return scope
+	}
+	if at := playwrightCodeMutationToken(clean, lexed); at >= 0 {
+		refuse(playwrightScopeBlock{offset: at, why: "the config has a delete, ++, -- or escape token"})
+		return scope
+	}
+	scope.devicesBlock = playwrightScopeBlock{offset: -1, why: "devices is not imported from @playwright/test at top level"}
 	if match := playwrightDevicesImport.FindStringSubmatchIndex(clean); match != nil && lexed.topLevel(match[0]) {
 		specifier := -1
 		offset := match[2]
@@ -78,11 +110,29 @@ func newPlaywrightPureScope(clean string) playwrightPureScope {
 			}
 			offset += len(item) + 1
 		}
-		scope.devices = specifier >= 0 && playwrightDevicesSound(clean, lexed, specifier)
+		if specifier >= 0 {
+			block := playwrightDevicesBlock(clean, lexed, specifier)
+			scope.devices, scope.devicesBlock = block < 0, playwrightScopeBlock{}
+			if block >= 0 {
+				scope.devicesBlock = playwrightScopeBlock{offset: block, why: "devices is used other than as a spread or descriptor read"}
+			}
+		}
 	}
-	if !slices.ContainsFunc([]string{"globalThis", "global", "window", "self"}, func(name string) bool { return playwrightHasToken(clean, name) }) {
-		scope.env = playwrightEnvSound(clean, lexed)
-		scope.numeric = playwrightNumericSound(clean, lexed)
+	if at, why := playwrightGlobalNameToken(clean, lexed); at >= 0 {
+		block := playwrightScopeBlock{offset: at, why: why}
+		scope.envBlock, scope.numericBlock = block, block
+	} else {
+		var envAt int
+		scope.envWritten, envAt = playwrightEnvBlock(clean, lexed)
+		scope.env = envAt < 0
+		if envAt >= 0 {
+			scope.envBlock = playwrightScopeBlock{offset: envAt, why: "process is used other than as a process.env.NAME read or a top-level process.env.NAME write"}
+		}
+		var numericAt int
+		scope.numeric, numericAt = playwrightNumericSound(clean, lexed)
+		if numericAt >= 0 {
+			scope.numericBlock = playwrightScopeBlock{offset: numericAt, why: "a numeric conversion name is used other than as a direct call"}
+		}
 	}
 	scope.arrays = playwrightConstArrays(clean, lexed)
 	declared := map[string]int{}
@@ -106,28 +156,160 @@ func newPlaywrightPureScope(clean string) playwrightPureScope {
 	return scope
 }
 
-// playwrightCodeMutationToken reports a `\` (an escaped identifier), `++`, `--` or `delete` in
-// code, outside string, template and regular-expression content.
-func playwrightCodeMutationToken(clean string, lexed playwrightLexed) bool {
+// playwrightCodeMutationToken returns the offset of the first `\` (an escaped identifier), `++`,
+// `--` or `delete` in code, outside string, template and regular-expression content, or -1.
+func playwrightCodeMutationToken(clean string, lexed playwrightLexed) int {
+	first := -1
 	for index := 0; index < len(clean); index++ {
 		if !lexed.code[index] {
 			continue
 		}
 		switch clean[index] {
 		case '\\':
-			return true
+			first = index
 		case '+', '-':
 			if index+1 < len(clean) && clean[index+1] == clean[index] && lexed.code[index+1] {
-				return true
+				first = index
 			}
+		}
+		if first >= 0 {
+			break
 		}
 	}
 	for _, at := range playwrightTokenOffsets(clean, "delete") {
-		if lexed.code[at] {
-			return true
+		if lexed.code[at] && (first < 0 || at < first) {
+			first = at
+			break
 		}
 	}
+	return first
+}
+
+// playwrightGlobalNameToken returns the offset of the first token through which the config could
+// reach the global object, and why, or -1. A global object name counts in code and as a whole
+// string literal that is a computed member key (`x['globalThis']`); inside other string, template
+// or regular-expression text it is data (TJAA-V0-041). That exemption holds only while no text can
+// become code or reach a constructor, so playwrightReflectiveChannel refuses too.
+func playwrightGlobalNameToken(clean string, lexed playwrightLexed) (int, string) {
+	first, why := playwrightReflectiveChannel(clean, lexed)
+	for _, name := range playwrightGlobalNames {
+		for _, at := range playwrightTokenOffsets(clean, name) {
+			if lexed.code[at] || playwrightComputedKeyString(clean, lexed, at, len(name)) {
+				if first < 0 || at < first {
+					first, why = at, "the config names the global object"
+				}
+				break
+			}
+		}
+	}
+	return first, why
+}
+
+// playwrightReflectiveChannel returns the offset of the first construct that could turn text into
+// code or read a property whose name the scan cannot see, and why, or -1: a `Function`,
+// `constructor` or `vm` token anywhere; a `\` escape in string or template text; a dynamic
+// `import(`; a `require(` whose argument is not one plain string literal; or a computed member key
+// that is not empty (a type such as `string[]`), a decimal integer or one plain string literal
+// (TJAA-V0-041). `eval` already refuses every root.
+func playwrightReflectiveChannel(clean string, lexed playwrightLexed) (int, string) {
+	first, why := -1, ""
+	consider := func(at int, reason string) {
+		if at >= 0 && (first < 0 || at < first) {
+			first, why = at, reason
+		}
+	}
+	for _, name := range []string{"Function", "constructor", "vm"} {
+		if at := playwrightTokenOffsets(clean, name); len(at) != 0 {
+			consider(at[0], "the config names "+name)
+		}
+	}
+	for index, inString := 0, false; index < len(clean); index++ {
+		switch {
+		case lexed.code[index]:
+			inString = false
+		case index == 0 || lexed.code[index-1]:
+			// A literal run opens with its delimiter; a `/` run is a regular expression.
+			inString = clean[index] != '/'
+		case inString && clean[index] == '\\':
+			consider(index, "a string escape can spell a name the scan cannot see")
+			index = len(clean)
+		}
+	}
+	for _, at := range playwrightTokenOffsets(clean, "import") {
+		if next := skipPlaywrightSpace(clean, at+len("import")); lexed.code[at] && next < len(clean) && clean[next] == '(' {
+			consider(at, "the config has a dynamic import")
+			break
+		}
+	}
+	for _, at := range playwrightTokenOffsets(clean, "require") {
+		open := skipPlaywrightSpace(clean, at+len("require"))
+		if !lexed.code[at] || open >= len(clean) || clean[open] != '(' {
+			continue
+		}
+		if close, ok := lexed.closes[open]; !ok || !playwrightPlainStringLiteral(clean[open+1:close]) {
+			consider(at, "a require argument is not one plain string literal")
+			break
+		}
+	}
+	for index := 0; index < len(clean); index++ {
+		if clean[index] != '[' || !lexed.code[index] || !playwrightMemberBracket(clean, lexed, index) {
+			continue
+		}
+		close, ok := lexed.closes[index]
+		key := ""
+		if ok {
+			key = strings.TrimSpace(clean[index+1 : close])
+		}
+		if !ok || key != "" && strings.Trim(key, "0123456789") != "" && !playwrightPlainStringLiteral(key) {
+			consider(index, "a computed member key is not one plain literal")
+			break
+		}
+	}
+	return first, why
+}
+
+// playwrightPlainStringLiteral reports one quoted string literal without escapes.
+func playwrightPlainStringLiteral(raw string) bool {
+	raw = strings.TrimSpace(raw)
+	_, literal := playwrightString(raw)
+	return literal && !strings.Contains(raw, "\\")
+}
+
+// playwrightMemberBracket reports whether the code `[` at index follows an operand, so it opens a
+// computed member access rather than an array literal.
+func playwrightMemberBracket(raw string, lexed playwrightLexed, index int) bool {
+	previous := playwrightPreviousCode(raw, index)
+	if previous < 0 {
+		return false
+	}
+	switch character := raw[previous]; {
+	case character == ')' || character == ']' || character == '.':
+		return true
+	case !lexed.code[previous]:
+		return strings.IndexByte("'\"`", character) >= 0 // the end of a literal
+	case isIdentifier(character):
+		from := previous
+		for from > 0 && isIdentifier(raw[from-1]) {
+			from--
+		}
+		word := raw[from : previous+1]
+		return !playwrightImpureKeywords[word] && word != "of"
+	}
 	return false
+}
+
+// playwrightComputedKeyString reports whether raw[at:at+size] is the whole content of a quoted
+// string literal that directly follows a code `[`.
+func playwrightComputedKeyString(raw string, lexed playwrightLexed, at, size int) bool {
+	if at == 0 || at+size >= len(raw) || lexed.code[at-1] {
+		return false
+	}
+	quote := raw[at-1]
+	if strings.IndexByte("'\"`", quote) < 0 || raw[at+size] != quote {
+		return false
+	}
+	previous := playwrightPreviousCode(raw, at-1)
+	return previous >= 0 && raw[previous] == '[' && lexed.code[previous]
 }
 
 // memberRead reports whether reading keys from root is admitted and whether the value read is
@@ -150,19 +332,51 @@ func playwrightEnvRead(keys []string) bool {
 	return len(keys) == 2 && keys[0] == "env" && keys[1] != "" && !strings.HasPrefix(keys[1], "__") && !slices.Contains(playwrightObjectPrototypeKeys, keys[1])
 }
 
-// playwrightEnvSound reports whether every occurrence of `process` is a read-only
-// `process.env.NAME` chain.
-func playwrightEnvSound(raw string, lexed playwrightLexed) bool {
+// playwrightEnvBlock checks that every occurrence of `process` is a read-only `process.env.NAME`
+// chain or the target of a top-level `process.env.NAME =`, `??=`, `||=` or `&&=` statement
+// (TJAA-V0-042). It returns the written names and the offset of the first other occurrence, or -1.
+func playwrightEnvBlock(raw string, lexed playwrightLexed) (map[string]bool, int) {
+	written := map[string]bool{}
 	for _, at := range playwrightTokenOffsets(raw, "process") {
 		if !lexed.code[at] {
-			return false
+			return written, at
 		}
 		keys, end, ok := playwrightMemberChain(raw, at+len("process"))
-		if !ok || !playwrightEnvRead(keys) || !playwrightReadContext(raw, lexed, at, end) {
+		if !ok || !playwrightEnvRead(keys) {
+			return written, at
+		}
+		if playwrightEnvWrite(raw, lexed, at, end) {
+			written[keys[1]] = true
+			continue
+		}
+		if !playwrightReadContext(raw, lexed, at, end) {
+			return written, at
+		}
+	}
+	return written, -1
+}
+
+// playwrightEnvWrite reports whether raw[start:end] is the whole target of an `=`, `??=`, `||=`
+// or `&&=` expression statement at the top level of the module. Node coerces the value it stores
+// to a string, so a later process.env read still yields a string or undefined.
+func playwrightEnvWrite(raw string, lexed playwrightLexed, start, end int) bool {
+	if !lexed.topLevel(start) {
+		return false
+	}
+	if previous := playwrightPreviousCode(raw, start); previous >= 0 {
+		character := raw[previous]
+		newline := strings.ContainsAny(raw[previous+1:start], "\r\n")
+		if character != ';' && character != '}' && !(newline && (isIdentifier(character) || strings.IndexByte(")]'\"`", character) >= 0)) {
 			return false
 		}
 	}
-	return true
+	rest := raw[skipPlaywrightSpace(raw, end):]
+	for _, operator := range []string{"??=", "||=", "&&="} {
+		if strings.HasPrefix(rest, operator) {
+			return true
+		}
+	}
+	return strings.HasPrefix(rest, "=") && !strings.HasPrefix(rest, "==") && !strings.HasPrefix(rest, "=>")
 }
 
 // playwrightNumericCallee reports whether root followed by keys names an admitted numeric
@@ -178,24 +392,25 @@ func playwrightNumericCallee(root string, keys []string) bool {
 }
 
 // playwrightNumericSound returns the conversion callee names every occurrence of which is a
-// direct call: not a property name, a binding, an assignment target or an operand.
-func playwrightNumericSound(raw string, lexed playwrightLexed) map[string]bool {
+// direct call: not a property name, a binding, an assignment target or an operand. It also
+// returns the offset of the first occurrence that refused a name, or -1.
+func playwrightNumericSound(raw string, lexed playwrightLexed) (map[string]bool, int) {
 	sound := map[string]bool{}
+	first := -1
 	for _, name := range []string{"Number", "parseInt", "parseFloat"} {
 		sound[name] = true
 		for _, at := range playwrightTokenOffsets(raw, name) {
-			if !lexed.code[at] || !playwrightReadBefore(raw, at) {
-				sound[name] = false
-				break
-			}
 			keys, end, ok := playwrightMemberChain(raw, at+len(name))
-			if next := skipPlaywrightSpace(raw, end); !ok || !playwrightNumericCallee(name, keys) || next == len(raw) || raw[next] != '(' {
+			if next := skipPlaywrightSpace(raw, end); !lexed.code[at] || !playwrightReadBefore(raw, at) || !ok || !playwrightNumericCallee(name, keys) || next == len(raw) || raw[next] != '(' {
 				sound[name] = false
+				if first < 0 || at < first {
+					first = at
+				}
 				break
 			}
 		}
 	}
-	return sound
+	return sound, first
 }
 
 // resolves reports whether keys name own properties down to a primitive value.
@@ -319,32 +534,32 @@ func playwrightLiteralSound(raw string, lexed playwrightLexed, name string, decl
 	return true
 }
 
-// playwrightDevicesSound reports whether every occurrence of `devices` other than the import
-// specifier is a `...devices[...]` spread or an admitted read.
-func playwrightDevicesSound(raw string, lexed playwrightLexed, specifier int) bool {
+// playwrightDevicesBlock returns the offset of the first occurrence of `devices` other than the
+// import specifier that is neither a `...devices[...]` spread nor an admitted read, or -1.
+func playwrightDevicesBlock(raw string, lexed playwrightLexed, specifier int) int {
 	for _, at := range playwrightTokenOffsets(raw, "devices") {
 		if at == specifier {
 			continue
 		}
 		if !lexed.code[at] {
-			return false
+			return at
 		}
 		keys, end, ok := playwrightMemberChain(raw, at+len("devices"))
 		if !ok {
-			return false
+			return at
 		}
 		previous := playwrightPreviousCode(raw, at)
 		if previous >= 2 && raw[previous-2:previous+1] == "..." {
 			if len(keys) != 1 || !playwrightReadContext(raw, lexed, previous-2, end) {
-				return false
+				return at
 			}
 			continue
 		}
 		if !playwrightDeviceRead(keys) || !playwrightReadContext(raw, lexed, at, end) {
-			return false
+			return at
 		}
 	}
-	return true
+	return -1
 }
 
 // playwrightReadContext reports whether the expression raw[start:end] is only read: the code
@@ -495,10 +710,6 @@ func playwrightTokenOffsets(raw, name string) []int {
 		}
 		offsets = append(offsets, at)
 	}
-}
-
-func playwrightHasToken(raw, name string) bool {
-	return len(playwrightTokenOffsets(raw, name)) != 0
 }
 
 // playwrightPreviousCode returns the index of the last non-space byte before index, or -1.

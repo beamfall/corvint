@@ -17,6 +17,13 @@ import (
 // unreviewed D depends-on A.
 func flowRelationFixture(t *testing.T, edit func(root string, m Manifest, p *ProviderRecord), raw func([]byte) []byte) (string, Manifest) {
 	t.Helper()
+	return flowRelationFixtureWith(t, nil, edit, raw)
+}
+
+// flowRelationFixtureWith also lets a test edit the adoption provider, for example to declare
+// job or event subjects.
+func flowRelationFixtureWith(t *testing.T, adopt func(*ProviderRecord), edit func(root string, m Manifest, p *ProviderRecord), raw func([]byte) []byte) (string, Manifest) {
+	t.Helper()
 	root, m := adoptionFixture(t, func(p *ProviderRecord) {
 		ev := p.Subjects[0].Evidence
 		for _, id := range []string{"adapter:flow-b", "adapter:flow-c", "adapter:flow-d"} {
@@ -26,6 +33,9 @@ func flowRelationFixture(t *testing.T, edit func(root string, m Manifest, p *Pro
 			}
 			p.Subjects = append(p.Subjects, Subject{ID: id, Kind: "flow", Name: id, Provider: p.ID, Evidence: ev})
 			p.Details[id] = RecordDetails{Flow: &FlowDetails{Sections: sections, Actors: []string{"operator"}, Entrypoints: []string{"adapter:count"}, Variations: []string{}}}
+		}
+		if adopt != nil {
+			adopt(p)
 		}
 	})
 	rev := m.Repository.Revision
@@ -368,5 +378,59 @@ func TestDCPV1099FlowRelationDeterministicAndBounded(t *testing.T) {
 			}
 		}, nil)
 		tkRefused(t, err, "record bound")
+	})
+}
+
+func TestDCPV1397FlowRelationNamesCheckDeclaredJobAndEventSubjects(t *testing.T) {
+	t.Parallel()
+	declare := func(names ...string) func(*ProviderRecord) {
+		return func(p *ProviderRecord) {
+			for i, name := range names {
+				p.Subjects = append(p.Subjects, Subject{ID: "adapter:declared-" + string(rune('a'+i)), Kind: []string{"job", "event"}[i%2], Name: name, Provider: p.ID, Evidence: p.Subjects[0].Evidence})
+			}
+		}
+	}
+	t.Run("matched names join and name their subjects", func(t *testing.T) {
+		t.Parallel()
+		root, m := flowRelationFixtureWith(t, declare("job:J"), nil, nil)
+		a, err := Build(context.Background(), root, m)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, id := range []string{"fr:a-produces-j", "fr:b-consumes-j"} {
+			j := frJoin(t, a, id)
+			if j.Status != "joined" || !j.Traversable || len(j.NameSubjects) != 1 || j.NameSubjects[0] != "adapter:declared-a" {
+				t.Fatalf("%s: %+v", id, j)
+			}
+		}
+		if j := frJoin(t, a, "fr:c-depends-b"); j.NameSubjects != nil {
+			t.Fatalf("depends-on carries name subjects: %+v", j)
+		}
+	})
+	t.Run("an undeclared name is unresolved, never traversed", func(t *testing.T) {
+		t.Parallel()
+		root, m := flowRelationFixtureWith(t, declare("job:Other", "order.created"), nil, nil)
+		a, err := Build(context.Background(), root, m)
+		if err != nil {
+			t.Fatal(err)
+		}
+		j := frJoin(t, a, "fr:a-produces-j")
+		if j.Status != "unresolved" || j.Traversable || !slices.Contains(j.Reasons, "unresolved: no declared job or event subject is named job:J") {
+			t.Fatalf("undeclared name joined: %+v", j)
+		}
+	})
+	t.Run("without declared jobs or events the join is unchanged", func(t *testing.T) {
+		t.Parallel()
+		a, err := frBuild(t, nil, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, err := Encode(a)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if j := frJoin(t, a, "fr:a-produces-j"); j.Status != "joined" || j.NameSubjects != nil || strings.Contains(string(raw), "name_subjects") {
+			t.Fatalf("legacy join changed: %+v", j)
+		}
 	})
 }

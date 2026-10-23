@@ -41,6 +41,7 @@ func buildCorpusOperations() []corpusOperation {
 		{name: "discover-playwright", purpose: "produce Playwright test discovery from a listing and migration", required: []string{"--migration", "--config", "--playwright-list"}, optional: []string{"--receipt"}},
 		{name: "witness-playwright", purpose: "import qualified Playwright witnesses from a committed receipt and report", required: []string{"--input", "--receipt-input", "--report"}},
 		{name: "discover-legacy", purpose: "inventory Jasmine or Mocha/Cypress legacy cases statically from Git blobs", required: []string{"--runner", "--revision", "--path"}, optional: []string{"--input"}},
+		{name: "extract", purpose: "extract generic subjects and relations with a repository-declared extractor profile from Git blobs", required: []string{"--profile", "--revision"}},
 		{name: "import-cases", purpose: "import manual legacy cases from a caller-exported TestRail JSON or CSV file", required: []string{"--format", "--input"}, optional: []string{"--content"}},
 		{name: "search-cases", purpose: "search a caller-exported TestRail JSON or CSV file for legacy cases", required: []string{"--format", "--input"}, optional: []string{"--query", "--id", "--match", "--limit"}},
 		read("info", "artifact identity, capabilities and freshness", nil),
@@ -148,6 +149,7 @@ var corpusFlagHelp = map[string][2]string{
 	"--max-pattern-rate":            {"R|NAME=R[,NAME=R]", "refuse the build when a corpus pattern's rate exceeds R in [0, 1]; bare R applies to every pattern"},
 	"--sample":                      {"SAMPLE.json", doccorpus.AuditSampleSchema + " sample from docs corpus audit sample"},
 	"--provider":                    {"PROVIDER", "records provider ID declared in the previous corpus manifest"},
+	"--profile":                     {"PATH", "repository path of the " + doccorpus.ExtractorProfileSchema + " profile, read from Git at --revision"},
 }
 
 // corpusOperationFlagHelp overrides a shared option's help for one operation: eval's --format
