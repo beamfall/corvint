@@ -13,10 +13,21 @@ import (
 // process group while the leader's exit was not yet observed (PWP-V0-029).
 // Signal 0 probes and signals sent after the exit (straggler kills) are not
 // stop signals and are not recorded.
+//
+// leaderHeld is set only when the exit was observed successfully, so the
+// leader is held unreaped and pins the group ID; only then may the pre-reap
+// grace consult the held-group proof (PGO-V0-022).
 type stopSignalRecorder struct {
 	leaderGone atomic.Bool
+	leaderHeld atomic.Bool
 	mu         sync.Mutex
 	last       syscall.Signal
+}
+
+// exited records the leader's exit observation; observed is its error.
+func (r *stopSignalRecorder) exited(observed error) {
+	r.leaderHeld.Store(observed == nil)
+	r.leaderGone.Store(true)
 }
 
 func (r *stopSignalRecorder) wrap(send func(int, syscall.Signal) error) func(int, syscall.Signal) error {
