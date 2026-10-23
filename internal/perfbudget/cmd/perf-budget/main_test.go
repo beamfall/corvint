@@ -92,6 +92,9 @@ func TestPRBV0043NotJudgedRunIsNotBaselined(t *testing.T) {
 	}
 	report := func(verdict string, failed bool) *perfbudget.Report {
 		r := &perfbudget.Report{Verdict: verdict, NotJudgedReason: "host contended", StartedAt: "2026-10-23T00:00:00Z", Revision: "r", Host: perfbudget.Host{Cores: 4}, Fixture: budgets.Baseline.Fixture}
+		if verdict == perfbudget.RunPass {
+			r.NotJudgedReason = ""
+		}
 		for _, id := range perfbudget.ScenarioIDs {
 			m := perfbudget.ScenarioMeasured{ID: id, Samples: []perfbudget.Sample{{WallMS: 1}}}
 			if failed {
@@ -105,6 +108,7 @@ func TestPRBV0043NotJudgedRunIsNotBaselined(t *testing.T) {
 	for name, r := range map[string]*perfbudget.Report{
 		"not judged":      report(perfbudget.RunNotJudged, false),
 		"failed scenario": report(perfbudget.RunFail, true),
+		"contended fail":  report(perfbudget.RunFail, false),
 	} {
 		if err := os.WriteFile(path, committed, 0o600); err != nil {
 			t.Fatal(err)

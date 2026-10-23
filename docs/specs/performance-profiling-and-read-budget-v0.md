@@ -191,7 +191,7 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
 - `PRB-V0-042`: (accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) `make perf-budget` MUST pass `--require-judgement`
   exactly when `PERF_BUDGET_REQUIRE_JUDGEMENT=1`, so one make step either tolerates or fails an
   unjudged run without wrapping the harness.
-- `PRB-V0-043`: (accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) `--record-baseline` MUST refuse a `NOT_JUDGED` run
+- `PRB-V0-043`: (accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) `--record-baseline` MUST refuse a `NOT_JUDGED` run, or any run that kept a contention reason,
   with status 2 and leave the budgets file byte-identical, as it already refuses a run in which a
   scenario failed or measured nothing (`PRB-V0-029`); a contended baseline would become every
   later run's ceiling. A committed baseline recorded before this rule stays valid until re-recorded.
@@ -201,8 +201,8 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
 - No per-phase timing for `docs corpus` (`--timings` is GitHub #1598's lane) and no profile
   analysis, upload or retention; the knobs write files and nothing reads them.
 - No required CI check: `.github/workflows/perf-budget.yml` (owner-approved 2026-10-23) runs
-  `make perf-budget PERF_BUDGET_ARGS="--out perf-budget-report.json"` on `ubuntu-24.04` for
-  read-path changes and main pushes and uploads the report, but it is not a required status check;
+  `make perf-budget PERF_BUDGET_ARGS="--out perf-budget-report.json"` on `ubuntu-24.04` for Go,
+  module and Makefile changes and main pushes and uploads the report, but it is not a required status check;
   a contended runner reports `NOT_JUDGED` and the job still passes.
 - No configurable contention threshold and no waiting for a quiet host: `PRB-V0-039` uses the
   `PRB-V0-028` record as measured, and a busy host yields `NOT_JUDGED` instead of a retry.

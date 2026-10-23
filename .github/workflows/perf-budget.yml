@@ -6,15 +6,11 @@ name: Perf budget
 on:
   pull_request:
     paths:
-      - "cmd/corvint/**"
-      - "cmd/corvint-corpus-mcp/**"
-      - "internal/contextindex/**"
-      - "internal/corpusindex/**"
-      - "internal/doccorpus/**"
-      - "internal/liveverify/affected/**"
-      - "internal/mcp/corpusbridge/**"
-      - "internal/perfbudget/**"
+      - "**.go"
+      - "go.mod"
+      - "go.sum"
       - "Makefile"
+      - "internal/perfbudget/**"
       - ".github/workflows/perf-budget.yml"
   push:
     branches: [main]

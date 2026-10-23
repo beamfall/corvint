@@ -163,15 +163,16 @@ func verdictStatus(verdict string, requireJudgement bool) int {
 
 // recordBaseline writes report as the budgets file's baseline. It refuses, leaving the file
 // untouched, when a scenario measured nothing (PRB-V0-029) or the run could not be judged
-// (PRB-V0-043): a contended or unobserved host would become every later run's ceiling.
+// (PRB-V0-043), including a FAIL that kept a contention reason: a contended or unobserved host
+// would become every later run's ceiling.
 func recordBaseline(path string, budgets *perfbudget.Budgets, report *perfbudget.Report) error {
 	for _, m := range report.Scenarios {
 		if m.Error != "" || len(m.Samples) == 0 {
 			return fmt.Errorf("baseline not recorded: scenario %s measured nothing (%s)", m.ID, m.Error)
 		}
 	}
-	if report.Verdict == perfbudget.RunNotJudged {
-		return fmt.Errorf("baseline not recorded: run NOT_JUDGED: %s", report.NotJudgedReason)
+	if report.Verdict == perfbudget.RunNotJudged || report.NotJudgedReason != "" {
+		return fmt.Errorf("baseline not recorded: run %s on an unjudged host: %s", report.Verdict, report.NotJudgedReason)
 	}
 	recorded := *budgets
 	recorded.Baseline = &perfbudget.Baseline{RecordedAt: report.StartedAt, Revision: report.Revision, Host: report.Host, Fixture: report.Fixture, Scenarios: report.Scenarios}
