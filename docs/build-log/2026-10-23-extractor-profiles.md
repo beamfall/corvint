@@ -50,6 +50,26 @@ responsibility. Extracted subjects carry no authority. Real-framework qualificat
 repository is `NOT_OBSERVED`. The full `cmd/corvint` package and `make gate` were not run
 (lane policy).
 
+## Review repair (PR #1591)
+
+An independent Codex review found five defects, and all five were confirmed against the code:
+
+- `**` glob matching backtracked exponentially. It is now a segment dynamic program, linear in
+  pattern times path segments (`TestDCPV1390ExtractorGlobMatchIsLinear`: 32 `**` segments
+  against a 257-segment path).
+- Each line materialized every match before ambiguity was detected. Each line now evaluates at most
+  two matches, and profile admission refuses a pattern with more than 16 capture groups.
+- The record bound was checked only after a whole file, and each anchor re-split and re-hashed
+  the file. Lines and the file digest are now computed once per file, and the bound is checked
+  per line (`TestDCPV1395ExtractorDenseFileIsRefusedWhileScanning`: 600,000 declarations in
+  3.6 MiB are refused quickly; the old code ran past 60 s).
+- Relations carried only the deriving site's anchor. They now also carry the other end's subject
+  anchors (`TestDCPV1392ExtractorRelationsCiteBothEnds`).
+- An ambiguous or over-bound entity declaration left the previous entity open. It now closes the
+  entity (`TestDCPV1395AmbiguousEntityDeclarationClosesTheEntity`).
+
+Each new test was run against the pre-repair extractor, and each one failed there.
+
 ## Rollback
 
 Revert `internal/doccorpus/extractor.go`, the `job`/`event` subject kinds, the

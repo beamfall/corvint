@@ -1671,12 +1671,15 @@ auto-accept (2026-10-11); GitHub #1481; V1-2316.
   the requested revision: `provider` and `version`, and 1 to 64 extractors, each with an `id`, a
   generic `subject` (`endpoint`, `job`, `event`, `data_entity`, `ui_surface` or `symbol`), 1 to 64
   repository path or glob `files` (`*`, `?` and `**`; `node_modules` is never walked), an RE2
-  line `pattern` of at most 4,096 bytes with the named groups its subject needs, and optionally a
+  line `pattern` of at most 4,096 bytes and 16 capture groups with the named groups its subject
+  needs, and optionally a
   `candidate` pattern, a `field_pattern`/`end_pattern` pair (data entities only), a `role`
   (`declares`, `produces` or `consumes`, required for and only for `job` and `event`) and a
   `tool_output` pin. Profiles are configuration: they add no subject kind, authority or Core
   taxonomy, and an unknown member, duplicate id, missing or extra group, or invalid pattern is
-  refused before any source file is read. Acceptance: `TestDCPV1390ExtractorProfileIsClosed`.
+  refused before any source file is read. A `**` file glob matches in time linear in the pattern and
+  path segment counts, however many `**` segments it has. Acceptance:
+  `TestDCPV1390ExtractorProfileIsClosed`, `TestDCPV1390ExtractorGlobMatchIsLinear`.
 - `DCP-V1-391`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) Each
   matched line becomes one generic subject `PROVIDER:KIND:NAME` (an endpoint is named `METHOD
   path`, a data-entity field `entity.field` with kind `data_entity`, and a produce or consume site
@@ -1688,7 +1691,10 @@ auto-accept (2026-10-11); GitHub #1481; V1-2316.
   surface when exactly one `symbol` subject with one site carries that name, `calls` from a
   produce interaction to its declared job or event, `depends_on` from a consume interaction to its
   declared job or event, and `related_to` from a data-entity field to its entity. A relation
-  carries both ends' anchors. Acceptance: `TestDCPV1392ExtractorDerivesImplementsAndCallsRelations`.
+  carries both ends' anchors: the site that derives it and the other end's subject anchors (the
+  handler definition, the job or event declaration, or the entity declaration), at most 64.
+  Acceptance: `TestDCPV1392ExtractorDerivesImplementsAndCallsRelations`,
+  `TestDCPV1392ExtractorRelationsCiteBothEnds`.
 - `DCP-V1-393`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) The
   inventory's `provider` member is a `corvint-corpus-provider/1` record with `generated` trust whose
   source is the extracted revision. Committed unchanged and declared as a provider input, it builds
@@ -1706,8 +1712,13 @@ auto-accept (2026-10-11); GitHub #1481; V1-2316.
   `not-utf8`, `no-files-matched`, `line-over-bound`, `unsupported-shape` (a `candidate` line the
   pattern does not match), `multiple-matches`, `invalid-capture`, `field-outside-entity`,
   `unresolved-handler`, `ambiguous-handler`, `undeclared-reference` (a produce or consume of a name
-  no extractor declares) and `anchor-bound`. Acceptance:
-  `TestDCPV1395ExtractorReportsUnreadableFilesAndShapesAsGaps`.
+  no extractor declares) and `anchor-bound`. A `multiple-matches` or `line-over-bound` entity
+  declaration ends the open entity, so later fields are `field-outside-entity` gaps rather than
+  fields of the previous entity. At most two matches per line are evaluated, and the record bound is
+  enforced as each line is scanned, so a dense file is refused without anchoring all of it.
+  Acceptance: `TestDCPV1395ExtractorReportsUnreadableFilesAndShapesAsGaps`,
+  `TestDCPV1395AmbiguousEntityDeclarationClosesTheEntity`,
+  `TestDCPV1395ExtractorDenseFileIsRefusedWhileScanning`.
 - `DCP-V1-396`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) `job` and
   `event` join the generic provider subject kinds; a record using them is otherwise admitted
   unchanged. Acceptance: `TestDCPV1396JobAndEventAreGenericSubjectKinds`.
@@ -2250,8 +2261,8 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-146 | `internal/doccorpus/compile.go` | `TestDCPV1146OversizedParagraphStaysVerbatim`, `TestDCPV1146OversizedLineIsAGap`, `TestDCPV1146RefusalsNameTheSpan`; measured on Corvint's docs scope in docs/build-log/2026-10-19-V1-1983-docs-corpus-located-refusals.md |; | DCP-V1-150..152 | `internal/doccorpus/typed_query.go`, `docs/DOCUMENTATION-CORPUS.md` | `TestDCPV1150ProviderReportedReviewYieldsUnauthenticatedGap`, `TestDCPV1151AuthenticatedReviewClearsAssertingGap`, `TestDCPV1152AssertingGapNamesTheFailedCondition` |; | DCP-V1-165..169 | `internal/doccorpus/legacy_cases.go`, `cmd/corvint/docs_corpus_legacy_cases.go`, `cmd/corvint/docs_corpus_help.go`, `cmd/corvint-corpus-mcp/legacycases.go` | `TestDCPV1165LegacyCaseIDLookup`, `TestDCPV1166LegacyCaseAnyMatchRanks`, `TestDCPV1167LegacyCaseQueryIDRule`, `TestDCPV1168LegacyCaseAllModeBytesUnchanged`, `TestDCPV1169CorpusMCPSearchCasesModes`, `TestDCPV1165DocsCorpusSearchCasesModesCLI`, `TestDocsCorpusOperationFlagMatrix` |; | DCP-V1-160..163 | `internal/doccorpus/compile.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1160SchemaTwoManifestOfTwentyThousandFilesBuilds`, `TestDCPV1160DefaultSingleScopeUnchanged`, `TestDCPV1160SchemaFlagValues`, `TestDCPV1161ScopesSortedAndOverlapRefused`, `TestDCPV1162BoundRefusalNamesBoundScopeAndCount` |; | DCP-V1-170..174 | `internal/doccorpus/flow_filter.go`, `typed_query.go`, `query.go`, `pagination.go`, `types.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1170FlowSectionFilter`, `TestDCPV1171FlowIncludeFilter`, `TestDCPV1172FlowSelectionReceipt`, `TestDCPV1173FlowFilterPagination`, `TestDCPV1174DocsFlowToolFilters`, `TestDCPV1174CorpusFlowFilterOptions`, `TestDocsCorpusOperationFlagMatrix`; measured in docs/build-log/2026-10-19-V1-1990-docs-flow-section-filter.md |; | DCP-V1-155..159 | `internal/cem/gitauth/pathset.go`, `internal/doccorpus/batch_input.go`, `capacity.go`, `compile.go`, `query.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1155ReadFreshnessGitOpsIndependentOfInputCount` (10,000 inputs, 16 Git operations per phase, one change is `stale`), `TestDCPV1155ResolvePathsMatchesSingleLookupsWithinOneOpPerLevel`, `TestDCPV1156ManifestAndBuildBatchNonIndexedInputs`, `TestDCPV1157CapacityRefusalsAreTypedAndEarly`, `TestDCPV1158BridgeTypesGitCapacityLikeTheCLI`, `TestDCPV1158CLITypesGitCapacityLikeTheBridge`, `TestDCPV1159BatchedPinningKeepsArtifactBytes`; measured in docs/build-log/2026-10-19-V1-1984-corpus-git-budget.md |; | DCP-V1-175..179 | `internal/doccorpus/types.go`, `compile.go`, `providers.go`, `query.go`, `internal/mcp/corpusbridge/corpusbridge.go` | `TestDCPV1175AdditionalRepositoryAnchors`, `TestDCPV1176AdditionalRepositoryRefusals`, `TestDCPV1178BridgeVerifiesPinsInOwningCheckout`, `TestDCPV1179SingleRepositoryManifestUnchanged`; byte identity measured in docs/build-log/2026-10-19-V1-1986-corpus-additional-repositories.md |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 | DCP-V1-216..217 | `internal/doccorpus/batch_paths.go`, `symbol_anchor.go`, `cem.go`, `behavior_legacy_discovery.go`, `behavior_playwright_discovery.go` | `TestDCPV1216SymbolAnchorsGitOpsIndependentOfAnchorCount` (5,000 moved anchors), `TestDCPV1216CEMProjectionGitOpsIndependentOfAnchorCount` (5,000 anchors), `TestDCPV1216LegacyDiscoveryGitOpsIndependentOfPathCount` (4,096 files, the record bound), `TestDCPV1216PlaywrightDiscoveryGitOpsIndependentOfPathCount` (2,000 files, 4,008 executions), each within 16 Git operations per phase and byte-identical to the per-path reads; `TestDCPV1216ProjectionKeepsPerPathTreeBound` (anchor under a tree past 4 MiB refused as per path), `TestDCPV1216SymbolFallbackBudgetWithholdsStates` (missing pinned blob, budget exhausted in the fallback, states withheld as per path), `TestDCPV1216GitHooksTravelWithTheContext` (the test budget and per-path override travel on the call's context, so the equivalence tests run under `t.Parallel` and `-race`); measured in docs/build-log/2026-10-20-v1-1991-batched-path-reads.md and docs/build-log/2026-10-21-testspeed-1021v-doccorpus-parallel-equivalence.md |
-| DCP-V1-390..392 | `internal/doccorpus/extractor.go` | `TestDCPV1390ExtractorProfileIsClosed`, `TestDCPV1391ExtractorEmitsGenericSubjectsWithExactAnchors`, `TestDCPV1392ExtractorDerivesImplementsAndCallsRelations` |
-| DCP-V1-393..395 | `internal/doccorpus/extractor.go`, `providers.go` | `TestDCPV1393ExtractorProviderRecordBuildsUnchanged`, `TestDCPV1394ExtractorReadsOnlyPinnedToolOutput`, `TestDCPV1395ExtractorReportsUnreadableFilesAndShapesAsGaps` |
+| DCP-V1-390..392 | `internal/doccorpus/extractor.go` | `TestDCPV1390ExtractorProfileIsClosed`, `TestDCPV1390ExtractorGlobMatchIsLinear`, `TestDCPV1391ExtractorEmitsGenericSubjectsWithExactAnchors`, `TestDCPV1392ExtractorDerivesImplementsAndCallsRelations`, `TestDCPV1392ExtractorRelationsCiteBothEnds` |
+| DCP-V1-393..395 | `internal/doccorpus/extractor.go`, `providers.go` | `TestDCPV1393ExtractorProviderRecordBuildsUnchanged`, `TestDCPV1394ExtractorReadsOnlyPinnedToolOutput`, `TestDCPV1395ExtractorReportsUnreadableFilesAndShapesAsGaps`, `TestDCPV1395AmbiguousEntityDeclarationClosesTheEntity`, `TestDCPV1395ExtractorDenseFileIsRefusedWhileScanning` |
 | DCP-V1-396 | `internal/doccorpus/providers.go` | `TestDCPV1396JobAndEventAreGenericSubjectKinds` |
 | DCP-V1-397 | `internal/doccorpus/flow_relations.go` | `TestDCPV1397FlowRelationNamesCheckDeclaredJobAndEventSubjects` |
 | DCP-V1-398 | `internal/doccorpus/extractor.go` | `TestDCPV1398ExtractorIsDeterministicAndReadOnly` |

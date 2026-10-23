@@ -5,8 +5,10 @@ import (
 	json "encoding/json/v2"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 var extractFiles = map[string]string{
@@ -50,6 +52,12 @@ func extractProfile(toolDigest string) map[string]any {
 // symlink under a matched glob.
 func extractFixture(t *testing.T, extras bool, edit func(map[string]any)) (string, string) {
 	t.Helper()
+	return extractFixtureFiles(t, extras, nil, edit)
+}
+
+// extractFixtureFiles is extractFixture with additional committed source files.
+func extractFixtureFiles(t *testing.T, extras bool, more map[string]string, edit func(map[string]any)) (string, string) {
+	t.Helper()
 	root := t.TempDir()
 	git(t, root, "init", "-q")
 	git(t, root, "config", "user.name", "Corpus test")
@@ -63,6 +71,9 @@ func extractFixture(t *testing.T, extras bool, edit func(map[string]any)) (strin
 		}
 	}
 	for p, data := range extractFiles {
+		write(p, []byte(data))
+	}
+	for p, data := range more {
 		write(p, []byte(data))
 	}
 	if extras {
@@ -156,6 +167,7 @@ func TestDCPV1390ExtractorProfileIsClosed(t *testing.T) {
 		{"partial double star", extractEdit(1, "files", []string{"app/**x/*.rb"}), "invalid file pattern"},
 		{"tool output glob", extractEdit(10, "files", []string{"app/tool/*.txt"}), "tool_output needs one literal file"},
 		{"field option", extractEdit(1, "field_pattern", `(?P<field>\w+)`), "data_entity options"},
+		{"capture groups", extractEdit(1, "pattern", `^def (?P<name>\w+)`+strings.Repeat(`(x)?`, maxExtractorGroups)), "capture groups"},
 		{"duplicate id", extractEdit(1, "id", "routes"), "unique lowercase identifiers"},
 		{"too many", func(p map[string]any) {
 			list := p["extractors"].([]any)
@@ -386,5 +398,135 @@ func TestDCPV1398ExtractorIsDeterministicAndReadOnly(t *testing.T) {
 	}
 	if after := git(t, root, "status", "--porcelain", "--ignored"); after != before {
 		t.Fatalf("extraction wrote files: %q -> %q", before, after)
+	}
+}
+
+// extractWithin fails the test when f does not return within a generous wall-clock bound, so an
+// exponential or quadratic regression fails instead of hanging the package.
+func extractWithin(t *testing.T, f func()) {
+	t.Helper()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		f()
+	}()
+	select {
+	case <-done:
+	case <-time.After(60 * time.Second):
+		t.Fatal("extraction did not finish within its bound")
+	}
+}
+
+func extractAnchored(anchors []Anchor, path string, line int) bool {
+	return slices.ContainsFunc(anchors, func(a Anchor) bool { return a.Path == path && a.Start == line })
+}
+
+func TestDCPV1390ExtractorGlobMatchIsLinear(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		pattern, name string
+		want          bool
+	}{
+		{"app/**/*.rb", "app/x.rb", true},
+		{"app/**/*.rb", "app/a/b/x.rb", true},
+		{"app/**/*.rb", "lib/x.rb", false},
+		{"app/*.rb", "app/a/x.rb", false},
+		{"**/x.rb", "x.rb", true},
+		{"**", "a/b/c", true},
+		{"app/**/jobs/**/*.rb", "app/a/jobs/b/c.rb", true},
+		{"app/**/jobs/**/*.rb", "app/a/b/c.rb", false},
+	} {
+		if got := extractorMatch(c.pattern, c.name); got != c.want {
+			t.Fatalf("extractorMatch(%q, %q) = %v", c.pattern, c.name, got)
+		}
+	}
+	// 32 `**` segments against a deep path with a nonexistent filename backtracked exponentially.
+	pattern := strings.Repeat("**/", 32) + "absent.rb"
+	name := strings.Repeat("d/", 256) + "present.rb"
+	extractWithin(t, func() {
+		if extractorMatch(pattern, name) {
+			t.Error("an adversarial pattern matched a different filename")
+		}
+	})
+}
+
+func TestDCPV1395ExtractorDenseFileIsRefusedWhileScanning(t *testing.T) {
+	t.Parallel()
+	// About 3.6 MiB of declarations: under the byte bound, far over the record bound. Anchoring
+	// each site used to re-split and re-hash the whole file, and the bound was checked only after it.
+	dense := strings.Repeat("def a\n", 600000)
+	root, rev := extractFixtureFiles(t, false, map[string]string{"app/dense.rb": dense}, nil)
+	extractWithin(t, func() {
+		_, err := BuildExtractorInventory(context.Background(), ExtractorInput{Root: root, Revision: rev, Profile: "corvint/extract.json"})
+		tkRefused(t, err, "exceeds the record bound")
+	})
+}
+
+func TestDCPV1392ExtractorRelationsCiteBothEnds(t *testing.T) {
+	t.Parallel()
+	root, rev := extractFixture(t, false, nil)
+	inv, _ := extractInventory(t, root, rev)
+	want := []struct {
+		from, kind, to string
+		ends           [2][2]any
+	}{
+		{"app:symbol:list_orders", "implements", "app:endpoint:GET /orders", [2][2]any{{"app/config/routes.rb", 2}, {"app/handlers.rb", 1}}},
+		{"app:interaction:enqueue:app/handlers.rb:4", "calls", "app:job:OrderMailerJob", [2][2]any{{"app/handlers.rb", 4}, {"app/jobs/order_mailer_job.rb", 1}}},
+		{"app:interaction:publish:app/handlers.rb:5", "calls", "app:event:order.created", [2][2]any{{"app/handlers.rb", 5}, {"app/config/events.yml", 1}}},
+		{"app:data_entity:orders.status", "related_to", "app:data_entity:orders", [2][2]any{{"app/db/schema.rb", 2}, {"app/db/schema.rb", 1}}},
+	}
+	for _, w := range want {
+		found := false
+		for _, r := range inv.Provider.Relations {
+			if r.From != w.from || r.Type != w.kind || r.To != w.to {
+				continue
+			}
+			found = true
+			for _, end := range w.ends {
+				if !extractAnchored(r.Evidence.Anchors, end[0].(string), end[1].(int)) {
+					t.Fatalf("relation %s %s %s lacks the anchor %v: %+v", w.from, w.kind, w.to, end, r.Evidence.Anchors)
+				}
+			}
+		}
+		if !found {
+			t.Fatalf("missing relation %+v", w)
+		}
+	}
+}
+
+func TestDCPV1395AmbiguousEntityDeclarationClosesTheEntity(t *testing.T) {
+	t.Parallel()
+	more := "create_table \"users\"\n" +
+		"  t.string \"name\"\n" +
+		"create_table \"a\" create_table \"b\"\n" +
+		"  t.string \"ghost\"\n" +
+		"create_table \"people\"\n" +
+		"  t.string \"age\"\n" +
+		"create_table \"huge\" " + strings.Repeat("x", maxSpanBytes) + "\n" +
+		"  t.string \"phantom\"\n" +
+		"end\n"
+	root, rev := extractFixtureFiles(t, false, map[string]string{"app/db/more.rb": more}, func(p map[string]any) {
+		ex := p["extractors"].([]any)[8].(map[string]any)
+		ex["files"] = []string{"app/db/*.rb"}
+		ex["pattern"] = `create_table "(?P<entity>\w+)"`
+	})
+	inv, _ := extractInventory(t, root, rev)
+	for _, id := range []string{"app:data_entity:users.name", "app:data_entity:people.age", "app:data_entity:orders.status"} {
+		if _, ok := extractSubject(inv, id); !ok {
+			t.Fatalf("missing field %s", id)
+		}
+	}
+	for _, id := range []string{"app:data_entity:users.ghost", "app:data_entity:people.phantom"} {
+		if _, ok := extractSubject(inv, id); ok {
+			t.Fatalf("a field after an unread declaration was guessed into the previous entity: %s", id)
+		}
+	}
+	for _, g := range []struct {
+		kind string
+		line int
+	}{{"multiple-matches", 3}, {"field-outside-entity", 4}, {"line-over-bound", 0}, {"field-outside-entity", 8}} {
+		if !extractGap(inv, "schema", g.kind, "app/db/more.rb", g.line) {
+			t.Fatalf("missing gap %+v in %+v", g, inv.Gaps)
+		}
 	}
 }

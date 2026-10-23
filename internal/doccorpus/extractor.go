@@ -31,6 +31,8 @@ const (
 	MaxExtractorFiles   = 64
 	MaxExtractorPattern = 4096
 	maxExtractorCapture = 512
+	// maxExtractorGroups bounds each pattern's capture groups, so a line's matches stay small.
+	maxExtractorGroups = 16
 )
 
 // ExtractorProfile is project-owned configuration read from a Git blob at the extracted revision.
@@ -144,6 +146,8 @@ type extractorSite struct {
 type extractorFile struct {
 	path, blob string
 	data       []byte
+	digest     string   // SHA-256 of data, computed once per file
+	lines      []string // data split after each newline, computed once per file
 }
 
 type extractorProducer struct {
@@ -227,13 +231,12 @@ func BuildExtractorInventory(ctx context.Context, input ExtractorInput) ([]byte,
 				p.inv.Gaps = append(p.inv.Gaps, ExtractorGap{Extractor: ex.ID, Path: current, Kind: kind, Reason: reason})
 				continue
 			}
-			if ex.ToolOutput != nil && Digest(file.data) != ex.ToolOutput.SHA256 {
+			if ex.ToolOutput != nil && file.digest != ex.ToolOutput.SHA256 {
 				p.gap(ex, file, 0, "tool-output-digest-mismatch", "the committed tool output does not match the profile's pinned SHA-256; it is not read")
 				continue
 			}
-			p.file(ex, file)
-			if len(p.sites) > MaxRecords || len(p.inv.Gaps) > MaxRecords {
-				return nil, fail("extractor inventory exceeds the record bound")
+			if err := p.file(ex, file); err != nil {
+				return nil, err
 			}
 		}
 	}
@@ -328,6 +331,9 @@ func extractorRegexp(pattern string, required, optional []string) (*regexp.Regex
 	if err != nil {
 		return nil, fail("is not a valid RE2 pattern")
 	}
+	if re.NumSubexp() > maxExtractorGroups {
+		return nil, fail("has more than " + strconv.Itoa(maxExtractorGroups) + " capture groups")
+	}
 	named := map[string]bool{}
 	for _, name := range re.SubexpNames() {
 		if name == "" {
@@ -380,23 +386,31 @@ func extractorMatch(pattern, name string) bool {
 	return extractorMatchParts(strings.Split(pattern, "/"), strings.Split(name, "/"))
 }
 
+// extractorMatchParts is a dynamic program over pattern and name segments, so any number of `**`
+// segments costs O(len(pattern)*len(name)) segment matches instead of backtracking.
+// reach[j] reports whether the pattern prefix consumed so far matches name[:j].
 func extractorMatchParts(pattern, name []string) bool {
-	if len(pattern) == 0 {
-		return len(name) == 0
-	}
-	if pattern[0] == "**" {
-		for skip := 0; skip <= len(name); skip++ {
-			if extractorMatchParts(pattern[1:], name[skip:]) {
-				return true
+	reach := make([]bool, len(name)+1)
+	reach[0] = true
+	next := make([]bool, len(name)+1)
+	for _, segment := range pattern {
+		clear(next)
+		if segment == "**" {
+			seen := false
+			for j := range reach {
+				seen = seen || reach[j]
+				next[j] = seen
+			}
+		} else {
+			for j := 1; j <= len(name); j++ {
+				if reach[j-1] {
+					next[j], _ = path.Match(segment, name[j-1])
+				}
 			}
 		}
-		return false
+		reach, next = next, reach
 	}
-	if len(name) == 0 {
-		return false
-	}
-	ok, _ := path.Match(pattern[0], name[0])
-	return ok && extractorMatchParts(pattern[1:], name[1:])
+	return reach[len(name)]
 }
 
 // extractorPaths resolves each extractor's files in path order: literal paths are kept as named
@@ -486,19 +500,24 @@ func extractorRead(ctx context.Context, auth *gitauth.Repository, batched *pathP
 	if !utf8.Valid(data) || bytes.IndexByte(data, 0) >= 0 {
 		return nil, "not-utf8", "the file is not NUL-free UTF-8 text", nil
 	}
-	return &extractorFile{path: current, blob: entry.OID, data: data}, "", "", nil
+	return &extractorFile{path: current, blob: entry.OID, data: data, digest: Digest(data), lines: strings.SplitAfter(string(data), "\n")}, "", "", nil
 }
 
+// anchor pins one line of f. It reuses the file's precomputed lines and digest, so anchoring
+// costs the line, not the file (the same bytes span() would select).
 func (p *extractorProducer) anchor(ex *compiledExtractor, f *extractorFile, line int, reason string) (Anchor, error) {
-	excerpt, err := span(f.data, line, line)
-	if err != nil {
-		return Anchor{}, err
+	if line < 1 || line > len(f.lines) {
+		return Anchor{}, fail("anchor span out of range")
+	}
+	excerpt := []byte(f.lines[line-1])
+	if len(excerpt) > maxSpanBytes || len(bytes.TrimSpace(excerpt)) == 0 {
+		return Anchor{}, fail("vacuous or oversized anchor")
 	}
 	kind := "source"
 	if ex.ToolOutput != nil {
 		kind = "imported"
 	}
-	return Anchor{Repository: p.repository, Revision: p.revision, Path: f.path, Blob: f.blob, SHA256: Digest(f.data), Start: line, End: line, SpanSHA256: Digest(excerpt), Authority: "external-provider", Kind: kind, Reason: reason}, nil
+	return Anchor{Repository: p.repository, Revision: p.revision, Path: f.path, Blob: f.blob, SHA256: f.digest, Start: line, End: line, SpanSHA256: Digest(excerpt), Authority: "external-provider", Kind: kind, Reason: reason}, nil
 }
 
 // gap records one gap; a positive line anchors it when that line is not vacuous.
@@ -527,24 +546,34 @@ func extractorCapture(re *regexp.Regexp, match []string, name string) (string, b
 	return value, safeText(value, maxExtractorCapture) && identifier(value)
 }
 
-// file applies one extractor to one file line by line (DCP-V1-391, DCP-V1-395).
-func (p *extractorProducer) file(ex *compiledExtractor, f *extractorFile) {
-	lines := strings.SplitAfter(string(f.data), "\n")
+// file applies one extractor to one file line by line (DCP-V1-391, DCP-V1-395). The record bound
+// is enforced as each line is scanned, so a dense file is refused without materializing it.
+func (p *extractorProducer) file(ex *compiledExtractor, f *extractorFile) error {
 	entity, entityOpen := "", false
-	for n, raw := range lines {
+	for n, raw := range f.lines {
+		if len(p.sites) > MaxRecords || len(p.inv.Gaps) > MaxRecords {
+			return fail("extractor inventory exceeds the record bound")
+		}
 		line := n + 1
 		text := strings.TrimRight(raw, "\r\n")
 		if strings.TrimSpace(text) == "" {
 			continue
 		}
 		if len(raw) > maxSpanBytes {
+			if ex.pattern.MatchString(text) {
+				entityOpen = false // an unread declaration ends the open entity rather than extending it
+			}
 			if ex.pattern.MatchString(text) || ex.candidate != nil && ex.candidate.MatchString(text) {
 				p.gap(ex, f, 0, "line-over-bound", "line "+strconv.Itoa(line)+" exceeds the anchor span bound")
 			}
 			continue
 		}
-		matches := ex.pattern.FindAllStringSubmatch(text, -1)
+		// Two matches are enough to detect ambiguity; never materialize the rest.
+		matches := ex.pattern.FindAllStringSubmatch(text, 2)
 		if len(matches) > 1 {
+			// An ambiguous entity declaration ends the open entity, so later fields are not
+			// attached to the previous one (a guess).
+			entityOpen = false
 			p.gap(ex, f, line, "multiple-matches", "the line matches the pattern more than once; one match per line is admitted")
 			continue
 		}
@@ -568,7 +597,7 @@ func (p *extractorProducer) file(ex *compiledExtractor, f *extractorFile) {
 				entityOpen = false
 				continue
 			}
-			if fields := ex.field.FindAllStringSubmatch(text, -1); len(fields) > 0 {
+			if fields := ex.field.FindAllStringSubmatch(text, 2); len(fields) > 0 {
 				switch {
 				case !entityOpen:
 					p.gap(ex, f, line, "field-outside-entity", "a field line matches outside any entity")
@@ -588,6 +617,10 @@ func (p *extractorProducer) file(ex *compiledExtractor, f *extractorFile) {
 			p.gap(ex, f, line, "unsupported-shape", "the line looks like a declaration but does not match the supported pattern")
 		}
 	}
+	if len(p.sites) > MaxRecords || len(p.inv.Gaps) > MaxRecords {
+		return fail("extractor inventory exceeds the record bound")
+	}
+	return nil
 }
 
 func (p *extractorProducer) match(ex *compiledExtractor, f *extractorFile, line int, match []string) {
@@ -676,16 +709,30 @@ func (p *extractorProducer) record(source Repository, version string) (ProviderR
 		}
 	}
 	relations := map[string]Relation{}
-	relate := func(from, to, kind string, s *extractorSite) {
+	// relate records a relation whose site s anchors one end; other is the subject at the other
+	// end, whose anchors the relation also carries, so it cites both ends (DCP-V1-392).
+	relate := func(from, to, kind string, s *extractorSite, other *extractorSubject) {
 		id := p.provider + ":relation:" + Digest([]byte(from + "\x00" + kind + "\x00" + to))[:32]
 		if r, ok := relations[id]; ok {
-			if len(r.Evidence.Anchors) < 64 {
+			if len(r.Evidence.Anchors) < 64 && !slices.Contains(r.Evidence.Anchors, s.anchor) {
 				r.Evidence.Anchors = append(r.Evidence.Anchors, s.anchor)
 				relations[id] = r
 			}
 			return
 		}
-		relations[id] = Relation{ID: id, From: from, To: to, Type: kind, Provider: p.provider, Evidence: Evidence{Derivation: s.derived, Trust: "generated", State: "supported", Freshness: "fresh", Anchors: []Anchor{s.anchor}, Limitations: []string{}}}
+		ev := Evidence{Derivation: s.derived, Trust: "generated", State: "supported", Freshness: "fresh", Anchors: []Anchor{s.anchor}, Limitations: []string{}}
+		if other.subject.Evidence.Derivation != s.derived {
+			ev.Derivation = "generated"
+		}
+		for _, a := range other.subject.Evidence.Anchors {
+			if len(ev.Anchors) == 64 {
+				break
+			}
+			if !slices.Contains(ev.Anchors, a) {
+				ev.Anchors = append(ev.Anchors, a)
+			}
+		}
+		relations[id] = Relation{ID: id, From: from, To: to, Type: kind, Provider: p.provider, Evidence: ev}
 	}
 	for i := range p.sites {
 		s := &p.sites[i]
@@ -701,10 +748,10 @@ func (p *extractorProducer) record(source Repository, version string) (ProviderR
 			if s.ex.Role == "consumes" {
 				kind = "depends_on"
 			}
-			relate(site.subject.ID, target[0], kind, s)
+			relate(site.subject.ID, target[0], kind, s, subjects[target[0]])
 		case s.parent != "":
 			if entity := byName["data_entity\x00"+s.parent]; len(entity) == 1 {
-				relate(p.provider+":data_entity:"+s.name, entity[0], "related_to", s)
+				relate(p.provider+":data_entity:"+s.name, entity[0], "related_to", s, subjects[entity[0]])
 			}
 		case s.handler != "":
 			handlers := byName["symbol\x00"+s.handler]
@@ -714,7 +761,7 @@ func (p *extractorProducer) record(source Repository, version string) (ProviderR
 			case len(subjects[handlers[0]].sites) > 1:
 				p.inv.Gaps = append(p.inv.Gaps, ExtractorGap{Extractor: s.ex.ID, Path: s.anchor.Path, Line: s.anchor.Start, Kind: "ambiguous-handler", Reason: "symbol " + s.handler + " is defined at more than one site", Evidence: &s.anchor})
 			default:
-				relate(handlers[0], p.provider+":"+s.kind+":"+s.name, "implements", s)
+				relate(handlers[0], p.provider+":"+s.kind+":"+s.name, "implements", s, subjects[handlers[0]])
 			}
 		}
 	}
