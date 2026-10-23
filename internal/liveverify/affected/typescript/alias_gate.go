@@ -9,8 +9,9 @@ import (
 // never meets a tsconfig path alias: no module in the test's relative-import closure names a bare
 // reference the nearest tsconfig.json can claim. Such a runner's resolution of aliases decides no
 // edge, so it does not keep the aliases unresolved (AFP-V0-389). A closure module whose imports
-// are not all statically observed, a bare reference under an invalid nearest tsconfig, or one that
-// names a workspace package (whose sources the closure does not follow) keeps the test blocking.
+// are not all statically observed, a relative import that resolves to no observed module, a bare
+// reference under an invalid nearest tsconfig, or one that names a workspace package (whose
+// sources the closure does not follow) keeps the test blocking.
 func aliasFreeTests(observations []observation, bodies map[string]string, scopes []packageScope, opaque map[string]bool) map[string]bool {
 	var aliases []typeScriptAliases
 	for _, name := range sortedKeys(bodies) {
@@ -48,7 +49,12 @@ func aliasFreeClosure(start string, byPath map[string]*observation, paths map[st
 		nearest := nearestTypeScriptAliases(current, aliases)
 		for _, ref := range byPath[current].refs {
 			if strings.HasPrefix(ref, ".") {
-				if target, _, _ := resolveImport(current, ref, paths); target != "" && !seen[target] {
+				target, _, _ := resolveImport(current, ref, paths)
+				if target == "" {
+					// An import the closure cannot follow may reach an alias.
+					return false
+				}
+				if !seen[target] {
 					seen[target] = true
 					queue = append(queue, target)
 				}

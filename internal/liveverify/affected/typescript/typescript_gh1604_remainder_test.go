@@ -110,3 +110,15 @@ func gh1604RemainderRepositoryWith(t *testing.T, config, scriptHelper, extraPath
 	}
 	return result
 }
+
+// AFP-V0-389: a relative import that resolves to no observed module, such as a generated helper
+// that is not checked in, may reach an alias, so the script keeps the named blocker.
+func TestUnresolvedRelativeImportStillBlocks_GH1604(t *testing.T) {
+	script := "import test from 'node:test';\nimport { make } from './generated-helper.mjs';\ntest('make', () => { make(); });\n"
+	result := gh1604RemainderRepository(t, gh1604RemainderConfig, script, "export const assemble = () => 1;\n")
+	for _, want := range []string{FrontierPathAlias + ":scripts/assemble.test.mjs `node-test`", FrontierPathAlias + ":tsconfig.json:3 `\"baseUrl\":`"} {
+		if !slices.Contains(result.Frontier, want) {
+			t.Fatalf("frontier lacks %q:\n%s", want, strings.Join(result.Frontier, "\n"))
+		}
+	}
+}

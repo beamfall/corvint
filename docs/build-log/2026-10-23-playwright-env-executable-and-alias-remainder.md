@@ -98,3 +98,43 @@ this change.
 - A dotenv or `globalSetup` config keeps the executable unknown.
 - The alias blocker token stays the runner name.
 - The `e2e-runtime-dependency` frontier still holds the #1604 plan at `UNKNOWN`.
+
+## Review fixes (Codex review of #1641 at bb0b1437f)
+
+Each finding was checked as a hypothesis before it was fixed.
+
+1. **JavaScript escapes are decoded with Go rules.** Confirmed in the parser only:
+   `playwrightEnvExecutable` decoded `process.env['\U00000041']` as `A`. The config-level pure
+   scope already refuses any string escape as a SELECTION unknown, so the whole-config path was
+   not reachable. The parser now treats an expression with any backslash as unmodelled.
+   Regression test: `TestPlaywrightExecutableEscapedLiteralKeepsUnknown_GH1640`, which fails
+   before the fix.
+2. **Aliased Node loaders bypass the writer guard.** Confirmed: `createRequire` from
+   `node:module`, an aliased `require` and `module.require` resolved to `bundled: true`.
+   - Only `@playwright/test` and the `path`, `os`, `url` and `fs` built-ins (with or without
+     `node:`) stay exempt.
+   - Any reference to `require`, `createRequire`, `module`, `loadEnvFile`, `eval`, `Function`,
+     `globalThis` or `global` keeps the unknown, however it is aliased.
+   - `process.loadEnvFile()` was already refused by the pure scope.
+
+   Regression test: `TestPlaywrightExecutableLoaderWriterKeepsUnknown_GH1640`.
+3. **An unresolved relative import counts as alias-free.** Confirmed: a node test importing a
+   missing `./generated-helper.mjs` dropped the alias blocker. Its own
+   `relative-import-unresolved` frontier remained. `aliasFreeClosure` now returns false for a
+   relative import that resolves to no observed module. Regression test:
+   `TestUnresolvedRelativeImportStillBlocks_GH1604`.
+4. **No CLI integration test.** Confirmed. `TestAffectedPlaywrightEnvResolvesExecutableEndToEnd_GH1640`
+   runs `affected --playwright-config ... --playwright-env NAME=VALUE` on a git fixture. It checks
+   `plan.environment` and each project's `executable.path`, then checks that the member is
+   absent without the flag. Reverting to `SelectPlaywrightWithBase` drops both.
+5. **AFP-V0-383 "byte-identical" wording.** Confirmed. It now promises only that
+   `plan.environment` is absent, and that nothing else changes beyond what AFP-V0-387/388 require.
+
+Two defects were found while fixing these:
+
+- **Bundled browser under a channel.** An `UNSET` read under a `channel` was recorded as the
+  bundled browser, but the channel picks an installed binary. Now any `channel` token in the
+  config keeps the unknown. Regression test:
+  `TestPlaywrightExecutableUndefinedWithChannelKeepsUnknown_GH1640`.
+- **Silently ignored flag.** `--playwright-env` with `--snapshot` was ignored, because the
+  snapshot path reads no environment. It is now `invalid-arguments` (AFP-V0-382).

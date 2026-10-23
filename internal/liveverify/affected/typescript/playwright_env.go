@@ -60,7 +60,9 @@ func playwrightLaunchExecutable(raw string) string {
 // modelled.
 func playwrightEnvExecutable(expression string) (name, operator, fallback string, ok bool) {
 	expression = strings.TrimSpace(expression)
-	if !strings.HasPrefix(expression, "process") {
+	// Go and JavaScript decode string escapes differently ('\U00000041' is "U00000041" and '\a'
+	// is "a" in JavaScript), so a literal with any escape sequence is not modelled.
+	if !strings.HasPrefix(expression, "process") || strings.ContainsRune(expression, '\\') {
 		return "", "", "", false
 	}
 	keys, end, chained := playwrightMemberChain(expression, len("process"))
@@ -84,28 +86,44 @@ func playwrightEnvExecutable(expression string) (name, operator, fallback string
 
 // playwrightEnvironmentWriter returns why something other than the caller's environment may set a
 // variable before the config is evaluated, or "". The config's own writes already refuse the
-// identity (TJAA-V0-042). A module other than @playwright/test or a Node built-in can load a
-// dotenv file, and a globalSetup runs before the workers that evaluate the config again
-// (AFP-V0-386).
+// identity (TJAA-V0-042). Any module other than @playwright/test or a neutral Node built-in can
+// load a dotenv file. A module loader or code evaluator reached under any name (require,
+// module.require, createRequire, eval, Function, globalThis) and process.loadEnvFile can do the
+// same, so the name alone keeps the unknown, however it is aliased. A globalSetup runs before the
+// workers that evaluate the config again (AFP-V0-386).
 func playwrightEnvironmentWriter(configPath, source string) string {
 	scan := scanImportSites(configPath, source)
 	if scan.err != nil || scan.dynamic >= 0 || scan.unresolved >= 0 {
 		return "the config's module loads are not all static"
 	}
 	for _, ref := range scan.refs {
-		if ref == "@playwright/test" || strings.HasPrefix(ref, "node:") || playwrightEnvNeutralBuiltins[ref] {
+		if ref == "@playwright/test" || playwrightEnvNeutralBuiltins[strings.TrimPrefix(ref, "node:")] {
 			continue
 		}
 		return "the config loads " + strconv.Quote(ref) + ", which can set the variable before the config reads it"
 	}
-	if clean, err := stripComments(source, false); err != nil || strings.Contains(clean, "globalSetup") {
+	clean, err := stripComments(source, false)
+	if err != nil {
+		return "the config's module loads are not all static"
+	}
+	for _, name := range playwrightEnvLoaderNames {
+		if len(playwrightTokenOffsets(clean, name)) != 0 {
+			return "the config references " + name + ", which can load a module or file that sets the variable before the config reads it"
+		}
+	}
+	if strings.Contains(clean, "globalSetup") {
 		return "the config declares globalSetup, which can set the variable before workers evaluate the config"
 	}
 	return ""
 }
 
-// playwrightEnvNeutralBuiltins are Node built-ins whose import does not write process.env.
+// playwrightEnvNeutralBuiltins are Node built-ins, with or without the node: prefix, whose import
+// does not write process.env.
 var playwrightEnvNeutralBuiltins = map[string]bool{"path": true, "os": true, "url": true, "fs": true}
+
+// playwrightEnvLoaderNames are the globals through which a config can load a module or an env
+// file or evaluate code that does (AFP-V0-386).
+var playwrightEnvLoaderNames = []string{"require", "createRequire", "module", "loadEnvFile", "eval", "Function", "globalThis", "global"}
 
 // resolvePlaywrightExecutables replaces a project's computed-executablePath unknown with the
 // recorded resolution when the expression is a modelled process.env read of a variable the caller
@@ -116,7 +134,7 @@ func resolvePlaywrightExecutables(projects []PlaywrightProject, inputs []Playwri
 	for _, input := range inputs {
 		byName[input.Name] = input
 	}
-	writer := ""
+	writer, channelled := "", len(playwrightTokenOffsets(source, "channel")) != 0
 	if len(inputs) != 0 {
 		writer = playwrightEnvironmentWriter(configPath, source)
 	}
@@ -143,8 +161,13 @@ func resolvePlaywrightExecutables(projects []PlaywrightProject, inputs []Playwri
 			case operator == "??" && !defined, operator == "||" && value == "":
 				value, defined = fallback, true
 			}
-			if defined && value == "" {
+			switch {
+			case defined && value == "":
 				detail = "reads process.env." + name + ", which evaluates to an empty string, a value the static profile does not model"
+			case !defined && channelled:
+				// Undefined launches the bundled browser only without a channel; a channel names an
+				// installed browser whose binary the static profile does not resolve.
+				detail = "reads process.env." + name + ", which evaluates to undefined, so the config's channel decides the browser binary, which the static profile does not resolve"
 			}
 		}
 		if detail != "" {

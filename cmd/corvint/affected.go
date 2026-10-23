@@ -336,6 +336,10 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	if len(invocation.PlaywrightEnv) != 0 && invocation.PlaywrightConfig == "" {
 		return affectedInvocation{}, argumentError("--playwright-env requires --playwright-config")
 	}
+	if len(invocation.PlaywrightEnv) != 0 && invocation.Snapshot != "" {
+		// A snapshot plan reads only the snapshot, never the invoking environment.
+		return affectedInvocation{}, argumentError("--playwright-env cannot be combined with --snapshot")
+	}
 	if invocation.SelectionProfile == appflows.E2ESafeProfile {
 		return invocation, checkAffectedE2ESafe(invocation)
 	}

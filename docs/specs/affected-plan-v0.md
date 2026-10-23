@@ -2487,26 +2487,31 @@ modelled.
   `--playwright-env NAME`, repeatable, each `NAME` (letters, digits and underscores, not starting
   with a digit) at most once. `NAME=VALUE` is a caller-supplied value (`source` `ARGUMENT`);
   `NAME` reads that one variable from the invoking environment (`source` `ENVIRONMENT`). No
-  variable the caller did not name is read. The flag without `--playwright-config`, a repeated
-  name, or an invalid name is `invalid-arguments`. Falsifier: a plan that resolves a variable
+  variable the caller did not name is read. The flag without `--playwright-config` or with
+  `--snapshot` (a snapshot plan reads no invoking environment), a repeated name, or an invalid
+  name is `invalid-arguments`. Falsifier: a plan that resolves a variable
   the caller did not name, or a parser that accepts a repeated or invalid name. Rollback: remove
   the `--playwright-env` branch and `affectedPlaywrightEnvironment` from `cmd/corvint/affected.go`.
 - **AFP-V0-383:** (accepted under the owner's standing auto-accept (2026-10-11; GH #1640))
   A Playwright plan whose invocation named a variable MUST carry `plan.environment`, sorted by
   name, with each variable's `name`, `source`, `state` (`SET` or `UNSET`), `value` and the
   value's lowercase hex SHA-256 `sha256`; an `UNSET` variable has an empty `value` and `sha256`.
-  A plan that named none omits the member, so it is byte-identical to the one before this change.
+  A plan that named none omits `plan.environment`; nothing else in it changes beyond the details
+  AFP-V0-387 and AFP-V0-388 require.
   The recorded value is the caller's observation, not repository evidence: a different value is
   visibly a different plan input. Falsifier: a plan under a named variable without its record, a
   digest that is not the value's, or a plan with the member when none was named.
 - **AFP-V0-384:** (accepted under the owner's standing auto-accept (2026-10-11; GH #1640))
   The modelled `use.launchOptions.executablePath` expressions are `process.env.NAME` and
   `process.env['NAME']` (either quote), alone or followed by `?? 'literal'` or `|| 'literal'`.
-  Every other computed expression keeps the TJAA-V0-035 EXECUTION unknown unchanged.
+  A key or fallback literal with any escape sequence is not modelled, since its JavaScript value
+  is not decoded here. Every other computed expression keeps the TJAA-V0-035 EXECUTION unknown
+  unchanged.
 - **AFP-V0-385:** (accepted under the owner's standing auto-accept (2026-10-11; GH #1640))
   For a modelled expression over a recorded variable, each project's executable MUST resolve as
   JavaScript evaluates it: an `UNSET` bare read is `undefined`, recorded as
-  `executable.bundled: true` (Playwright launches its bundled browser); a `SET` value is
+  `executable.bundled: true` (Playwright launches its bundled browser) only when the config names
+  no `channel`, which otherwise decides the installed binary and keeps the unknown; a `SET` value is
   `executable.path`; `??` takes the literal only for `UNSET`, and `||` takes it for `UNSET` or an
   empty value. A resolved project carries `executable` (`bundled`, `path`, `variable`) and no
   computed-executable EXECUTION unknown. The resolution never changes selection: the EXECUTION
@@ -2515,9 +2520,11 @@ modelled.
 - **AFP-V0-386:** (accepted under the owner's standing auto-accept (2026-10-11; GH #1640))
   The resolution MUST NOT apply when something other than the caller's environment can set the
   variable before Playwright evaluates the config: the config writes `process.env` (TJAA-V0-042
-  already refuses the identity), loads any module other than `@playwright/test`, a `node:`
-  built-in or `path`/`os`/`url`/`fs` (a dotenv loader is the common case), has module loads that
-  are not all static, or names `globalSetup`. The EXECUTION unknown stays and its detail names
+  already refuses the identity), loads any module other than `@playwright/test` or the
+  `path`/`os`/`url`/`fs` built-ins (with or without `node:`; a dotenv loader is the common case),
+  has module loads that are not all static, names a module loader or evaluator under any alias
+  (`require`, `createRequire`, `module`, `loadEnvFile`, `eval`, `Function`, `globalThis`,
+  `global`), or names `globalSetup`. The EXECUTION unknown stays and its detail names
   the variable and the writer.
 - **AFP-V0-387:** (accepted under the owner's standing auto-accept (2026-10-11; GH #1640))
   A modelled read of a variable the plan did not record, or one that evaluates to an empty string
@@ -2533,8 +2540,8 @@ modelled.
   In the general TypeScript adapter (no `--playwright-config`), a test of a runner other than
   Playwright MUST NOT keep tsconfig `paths` aliases unresolved (TJAA-V0-037/050) when no module
   in its relative-import closure names a bare reference the nearest `tsconfig.json` can claim.
-  The test stays a blocker when any closure module has an unparsed, dynamic or unresolved load,
-  names a workspace package, or sits under an invalid nearest `tsconfig.json`, and a runner
+  The test stays a blocker when any closure module has an unparsed, dynamic or unresolved load
+  (including a relative import that resolves to no observed module), names a workspace package, or sits under an invalid nearest `tsconfig.json`, and a runner
   config (such as a Jest config) still blocks as before. Falsifier: an exempt test whose closure
   names a claimed alias, or an exemption under an opaque closure module.
 - **AFP-V0-390:** (accepted under the owner's standing auto-accept (2026-10-11; GH #1604))
@@ -2629,8 +2636,9 @@ graph; a listed path no language claims widens to `UNKNOWN`
 rather than selecting nothing at `BOUNDED`.
 
 `--playwright-env` failure modes (AFP-V0-382 to AFP-V0-387): a repeated or invalid name, or the
-flag without `--playwright-config`, is `invalid-arguments`; an unrecorded variable, an empty
-value, an unmodelled expression or a possible writer keeps the EXECUTION unknown with a detail
+flag without `--playwright-config` or with `--snapshot`, is `invalid-arguments`; an unrecorded
+variable, an empty value, an undefined value under a `channel`, an escaped literal, an
+unmodelled expression or a possible writer keeps the EXECUTION unknown with a detail
 that names the variable. A caller-supplied value that differs from the runtime's is the caller's
 observation and is visible in `plan.environment`; it moves no test, because the executable is on
 the EXECUTION axis. AFP-V0-389/390 fail closed: any unobserved load, workspace package, invalid
@@ -2743,14 +2751,14 @@ existing frontier. A consumer still cannot read closure depth from an
 | AFP-V0-192 | `Witness.Cause`, `UnboundedCause` in `internal/liveverify/affected/select.go`; `Graph.causes`, `Graph.unboundedReaders` in `graph.go`; `Graph.unboundedReadersOf` in `readers.go` | `TestInstructionFileChangeNamesEachUnboundedReadersCause_V1_2075`; `TestGoTestOnlyChangeSelectsItsPackageButNotItsImporters_V1_0984` |
 | AFP-V0-380 | the `go-interop` script and the interop step of `go-static` in `.github/workflows/ci.yml` | `TestAFPV0380InteropTestsRunOnceInGoStatic` (the go-static step runs the module's test and vet; go-interop runs neither and keeps gofmt and the Windows build; go-product needs go-static) |
 | AFP-V0-381 | `Plan.FrontierSites` in `internal/liveverify/affected/select.go`; `Graph.frontierSites` in `graph.go`; `affectedCompactPlan.FrontierSites` in `cmd/corvint/affected_compact.go` | `TestAFPV0381PlanCountsRepositoryFrontierSites`, `TestAFPV0381CompactPlanKeepsFrontierSites`, `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan`, `TestLocatedFrontierCountsOnlyCrossedSites_RUBYAFFECTEDV0047`, `TestRepositoryWideLoadSitesStayPluginWideAndLocated_RUBYAFFECTEDV0046` |
-| AFP-V0-382 | `--playwright-env` in `parseAffectedOptions`, `addAffectedPlaywrightEnv`, `affectedPlaywrightEnvironment` in `cmd/corvint/affected.go` | `TestAffectedPlaywrightEnvFlag_GH1640` |
-| AFP-V0-383 | `PlaywrightEnvironmentInput`, `NewPlaywrightEnvironmentInput`, `canonicalPlaywrightEnvironment` in `internal/liveverify/affected/typescript/playwright_env.go`; `PlaywrightPlan.Environment` | `TestPlaywrightEnvironmentInputRecord_GH1640`, `TestPlaywrightStaticPlanRecordsEnvironment_GH1640` |
-| AFP-V0-384 | `playwrightEnvExecutable` | `TestPlaywrightExecutableResolvesFromRecordedEnvironment_GH1640`, `TestPlaywrightExecutableUnknownKeepsReason_GH1640` (unmodelled expression) |
-| AFP-V0-385 | `resolvePlaywrightExecutables`, `PlaywrightExecutable`, `PlaywrightProject.Executable` | `TestPlaywrightExecutableResolvesFromRecordedEnvironment_GH1640`, `TestPlaywrightStaticPlanRecordsEnvironment_GH1640` |
-| AFP-V0-386 | `playwrightEnvironmentWriter` | `TestPlaywrightExecutableUnknownKeepsReason_GH1640` (dotenv module, global setup) |
+| AFP-V0-382 | `--playwright-env` in `parseAffectedOptions`, `addAffectedPlaywrightEnv`, `affectedPlaywrightEnvironment` in `cmd/corvint/affected.go` | `TestAffectedPlaywrightEnvFlag_GH1640`, `TestAffectedPlaywrightEnvResolvesExecutableEndToEnd_GH1640` |
+| AFP-V0-383 | `PlaywrightEnvironmentInput`, `NewPlaywrightEnvironmentInput`, `canonicalPlaywrightEnvironment` in `internal/liveverify/affected/typescript/playwright_env.go`; `PlaywrightPlan.Environment` | `TestPlaywrightEnvironmentInputRecord_GH1640`, `TestPlaywrightStaticPlanRecordsEnvironment_GH1640`, `TestAffectedPlaywrightEnvResolvesExecutableEndToEnd_GH1640` |
+| AFP-V0-384 | `playwrightEnvExecutable` | `TestPlaywrightExecutableResolvesFromRecordedEnvironment_GH1640`, `TestPlaywrightExecutableUnknownKeepsReason_GH1640` (unmodelled expression), `TestPlaywrightExecutableEscapedLiteralKeepsUnknown_GH1640` |
+| AFP-V0-385 | `resolvePlaywrightExecutables`, `PlaywrightExecutable`, `PlaywrightProject.Executable` | `TestPlaywrightExecutableResolvesFromRecordedEnvironment_GH1640`, `TestPlaywrightStaticPlanRecordsEnvironment_GH1640`, `TestPlaywrightExecutableUndefinedWithChannelKeepsUnknown_GH1640`, `TestAffectedPlaywrightEnvResolvesExecutableEndToEnd_GH1640` |
+| AFP-V0-386 | `playwrightEnvironmentWriter`, `playwrightEnvLoaderNames` | `TestPlaywrightExecutableUnknownKeepsReason_GH1640` (dotenv module, global setup), `TestPlaywrightExecutableLoaderWriterKeepsUnknown_GH1640` |
 | AFP-V0-387 | `resolvePlaywrightExecutables` details | `TestPlaywrightExecutableUnknownKeepsReason_GH1640`, `TestPlaywrightStaticPlanRecordsEnvironment_GH1640` |
 | AFP-V0-388 | the `MISSING` detail in `SelectPlaywrightWithEnvironment` (`playwright_discovery.go`) | `TestPlaywrightMissingDiscoveryNamesInput_GH1640` |
-| AFP-V0-389 | `aliasFreeTests`, `aliasFreeClosure` in `internal/liveverify/affected/typescript/alias_gate.go`; `playwrightOnlyRunners` in `typescript.go` | `TestAliasFreeRunnerAndStaticPlaywrightMembership_GH1604`, `TestAliasReachingRunnerStillBlocks_GH1604`, `TestBlockedAliasGateSelectsAndNamesBlocker_GH1604`, `TestGeneralAdapterPlaywrightMembershipAndAliases_GH1578` |
+| AFP-V0-389 | `aliasFreeTests`, `aliasFreeClosure` in `internal/liveverify/affected/typescript/alias_gate.go`; `playwrightOnlyRunners` in `typescript.go` | `TestAliasFreeRunnerAndStaticPlaywrightMembership_GH1604`, `TestAliasReachingRunnerStillBlocks_GH1604`, `TestUnresolvedRelativeImportStillBlocks_GH1604`, `TestBlockedAliasGateSelectsAndNamesBlocker_GH1604`, `TestGeneralAdapterPlaywrightMembershipAndAliases_GH1578` |
 | AFP-V0-390 | `playwrightStaticMembership` in `alias_gate.go`; the deferred `FrontierConfig` raise in `observe` | `TestAliasFreeRunnerAndStaticPlaywrightMembership_GH1604`, `TestPlaywrightConfigFrontierKeptWhenMembershipDiffers_GH1604`, `TestFrontierSitesNameFileLineAndToken_GH1604` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
