@@ -2630,6 +2630,19 @@ DCP-V1-366	docs/specs/documentation-corpus-v1.md	`carry-forward --provider ID` e
 DCP-V1-367	docs/specs/documentation-corpus-v1.md	Reads are bounded and deterministic:	unrecorded	-
 DCP-V1-368	docs/specs/documentation-corpus-v1.md	Neither operation writes the repository, the index, the working tree or any	unrecorded	-
 DCP-V1-369	docs/specs/documentation-corpus-v1.md	The following are refused with exit 2 and no output; the option-form cases are	unrecorded	-
+DCP-V1-340	docs/specs/documentation-corpus-v1.md	One documented ASCII extractor (`ExtractCodeTokens`) returns a claim's distinct	unrecorded	-
+DCP-V1-341	docs/specs/documentation-corpus-v1.md	The build checks every claim of a non-native provider, except a supplied test-ru	unrecorded	-
+DCP-V1-342	docs/specs/documentation-corpus-v1.md	A token is `resolved-in-span` when the text of the claim's own cited anchor span	unrecorded	-
+DCP-V1-343	docs/specs/documentation-corpus-v1.md	`get`, `trace`, `claims` and every receipt that returns a claim attach	unrecorded	-
+DCP-V1-344	docs/specs/documentation-corpus-v1.md	`gaps` reports a `claim-mentions-unresolved` or `claim-mentions-partially-unreso	unrecorded	-
+DCP-V1-345	docs/specs/documentation-corpus-v1.md	When a check is stored, coverage adds the rows `claim_mentions:consistent`,	unrecorded	-
+DCP-V1-346	docs/specs/documentation-corpus-v1.md	`docs corpus build --max-unresolved-mention-rate R` (R a decimal in [0, 1]) refu	unrecorded	-
+DCP-V1-347	docs/specs/documentation-corpus-v1.md	A claim's subject, a relationship's source or target, a journey's subject and an	unrecorded	-
+DCP-V1-348	docs/specs/documentation-corpus-v1.md	The pattern report (`corvint-corpus-patterns/1`) binds the artifact like an audi	unrecorded	-
+DCP-V1-349	docs/specs/documentation-corpus-v1.md	`docs corpus patterns --artifact PATH` prints the JSON report (default) or, with	unrecorded	-
+DCP-V1-350	docs/specs/documentation-corpus-v1.md	`audit sample --stratify patterns` places each claim in its first flagged patter	unrecorded	-
+DCP-V1-351	docs/specs/documentation-corpus-v1.md	For a stratified sample, `audit report` adds `weighted`: the sum over populated	unrecorded	-
+DCP-V1-352	docs/specs/documentation-corpus-v1.md	`docs corpus build --max-pattern-rate R` (every pattern) or	unrecorded	-
 DCP-V1-420	docs/specs/documentation-corpus-v1.md	An anchor whose repository is a declared additional repository of the current	unrecorded	-
 DCP-V1-421	docs/specs/documentation-corpus-v1.md	`--uncovered changed|all` selects the uncovered entries; the default is `all`, t	unrecorded	-
 DCP-V1-422	docs/specs/documentation-corpus-v1.md	`--anchorless summary|list` selects how records with no anchors appear; the defa	unrecorded	-

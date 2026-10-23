@@ -409,7 +409,7 @@ func typedKey(v any) string {
 	return recordID(v)
 }
 func typedGaps(ctx context.Context, a *Artifact, freshness string) ([]Gap, error) {
-	out := append(append(testKnowledgeGaps(a), flowRelationGaps(a)...), claimAuditGaps(a)...)
+	out := append(append(append(testKnowledgeGaps(a), flowRelationGaps(a)...), claimAuditGaps(a)...), claimMentionGaps(a)...)
 	counted := map[string]bool{}
 	for _, j := range a.TestKnowledge {
 		for _, f := range j.Flows {
