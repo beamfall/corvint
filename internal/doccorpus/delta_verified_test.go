@@ -134,3 +134,30 @@ func TestDCPV1460DeltaVerifiedReadRefusesClosed(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// TestDCPV1461PreviousOverDefaultBound: a schema /2 previous artifact larger than the default
+// 4 MiB bound is admitted by OpenDeltaPrevious exactly as by ParseArtifact; the parallel decode
+// reads the schema before it applies the bound even without a header callback (DCP-V1-461).
+func TestDCPV1461PreviousOverDefaultBound(t *testing.T) {
+	t.Parallel()
+	_, a, _ := builtFixture(t)
+	data := rehashed(t, a, func(b *Artifact) {
+		b.Schema = SchemaV2
+		b.Subjects = append([]Subject(nil), b.Subjects...)
+		b.Subjects[0].Name = strings.Repeat("x", MaxBytes)
+	})
+	if len(data) <= MaxBytes {
+		t.Fatalf("fixture artifact is %d bytes, not over the default bound", len(data))
+	}
+	closed, err := ParseArtifact(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := OpenDeltaPrevious(data, nil)
+	if err != nil {
+		t.Fatalf("previous side refused what ParseArtifact admits: %v", err)
+	}
+	if !EncodedEqual(got, data) || got.SHA256 != closed.SHA256 {
+		t.Fatal("previous side decoded a different artifact")
+	}
+}
