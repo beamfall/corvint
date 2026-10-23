@@ -1617,6 +1617,7 @@
           "discover-legacy",
           "discover-playwright",
           "eval",
+          "extract",
           "flow",
           "gaps",
           "get",
@@ -1710,6 +1711,10 @@
         "docs corpus eval": [
           "--artifact",
           "--cases"
+        ],
+        "docs corpus extract": [
+          "--profile",
+          "--revision"
         ],
         "docs corpus flow": [
           "--artifact",
@@ -1843,6 +1848,7 @@
         "--playwright-list",
         "--preview",
         "--previous",
+        "--profile",
         "--provider",
         "--provider-path",
         "--provider-revision",
@@ -1882,6 +1888,9 @@
         "corvint-corpus-audit-sample/1",
         "corvint-corpus-behavior-provider/2",
         "corvint-corpus-eval-cases/1",
+        "corvint-corpus-provider/1",
+        "corvint-extractor-inventory/1",
+        "corvint-extractor-profile/1",
         "corvint-legacy-cases/1",
         "corvint-legacy-inventory/1"
       ],
@@ -1901,7 +1910,7 @@
         "Unrelated commits and dirty source bytes do not trigger generated-block writes.",
         "Generate exclusively writes a new output directory: eight Markdown pages per flow, provider.json and generation.json.",
         "Check and finalize are read-only.",
-        "Operations: manifest inventory one or more scopes at a full commit as a corpus manifest build build the immutable corpus artifact from a manifest render emit a deterministic filename-to-content documentation plan; writes nothing maintain preview, or with --apply write, generated blocks of one human page cem emit CEM citation arguments and a corpus/CEM binding sidecar cem-stable project claims through a verified cem/1.0 map; read-only, refuses any other outcome behavior-adapter map a behavior-adapter request to a provider bundle, or --check it behavior-provider build a corvint-corpus-behavior-provider/2 declaration from a request discover-playwright produce Playwright test discovery from a listing and migration witness-playwright import qualified Playwright witnesses from a committed receipt and report discover-legacy inventory Jasmine or Mocha/Cypress legacy cases statically from Git blobs import-cases import manual legacy cases from a caller-exported TestRail JSON or CSV file search-cases search a caller-exported TestRail JSON or CSV file for legacy cases info artifact identity, capabilities and freshness validate recheck the artifact against its original inputs inventory page through every subject, claim and relation ID search rank subjects by text, optionally of some kinds or with claim hits get one subject by ID trace source citations of one subject related subjects related to one subject journey one recorded journey and its observations stability repeated-run stability evidence of one subject locate subjects that cite one path coverage scoped coverage with its denominator gaps reported gaps, optionally for one subject or some kinds concept typed subjects matching a concept claims typed claims about one path, claims ranked by --query text, or supplied status claims in one --state (exactly one) flow one typed flow, optionally only some sections or record kinds dependencies typed dependency relations of one subject recommend-tests tests related to one path; grants no test-selection authority navigation typed navigation subject vocabulary typed vocabulary matching a term intent typed intent comparisons of one subject, or every intent comparison without --id delta page a cross-revision worklist: carry-forward, moved, changed, removed, unresolved and uncovered carry-forward emit a provider record of one provider's records whose span hashes still hold eval score caller-labelled cases through the corpus MCP tool path; --baseline ratchets audit-sample draw a reproducible claim sample to audit; also spelled audit sample audit-report measure sampled-claim accuracy from independent verdicts; also spelled audit report",
+        "Operations: manifest inventory one or more scopes at a full commit as a corpus manifest build build the immutable corpus artifact from a manifest render emit a deterministic filename-to-content documentation plan; writes nothing maintain preview, or with --apply write, generated blocks of one human page cem emit CEM citation arguments and a corpus/CEM binding sidecar cem-stable project claims through a verified cem/1.0 map; read-only, refuses any other outcome behavior-adapter map a behavior-adapter request to a provider bundle, or --check it behavior-provider build a corvint-corpus-behavior-provider/2 declaration from a request discover-playwright produce Playwright test discovery from a listing and migration witness-playwright import qualified Playwright witnesses from a committed receipt and report discover-legacy inventory Jasmine or Mocha/Cypress legacy cases statically from Git blobs extract extract generic subjects and relations with a repository-declared extractor profile from Git blobs import-cases import manual legacy cases from a caller-exported TestRail JSON or CSV file search-cases search a caller-exported TestRail JSON or CSV file for legacy cases info artifact identity, capabilities and freshness validate recheck the artifact against its original inputs inventory page through every subject, claim and relation ID search rank subjects by text, optionally of some kinds or with claim hits get one subject by ID trace source citations of one subject related subjects related to one subject journey one recorded journey and its observations stability repeated-run stability evidence of one subject locate subjects that cite one path coverage scoped coverage with its denominator gaps reported gaps, optionally for one subject or some kinds concept typed subjects matching a concept claims typed claims about one path, claims ranked by --query text, or supplied status claims in one --state (exactly one) flow one typed flow, optionally only some sections or record kinds dependencies typed dependency relations of one subject recommend-tests tests related to one path; grants no test-selection authority navigation typed navigation subject vocabulary typed vocabulary matching a term intent typed intent comparisons of one subject, or every intent comparison without --id delta page a cross-revision worklist: carry-forward, moved, changed, removed, unresolved and uncovered carry-forward emit a provider record of one provider's records whose span hashes still hold eval score caller-labelled cases through the corpus MCP tool path; --baseline ratchets audit-sample draw a reproducible claim sample to audit; also spelled audit sample audit-report measure sampled-claim accuracy from independent verdicts; also spelled audit report",
         "Generate exclusively writes a new output directory: eight Markdown pages per flow, provider.json and generation.json.",
         "Check and finalize are read-only.",
         "Usage: corvint [--root PATH] docs maintain --page PATH --source PATH --package DIRECTORY --enable (--preview|--apply) [--max-writes N] [--max-wall-clock DURATION] [--watch]",
