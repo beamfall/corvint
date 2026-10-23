@@ -453,12 +453,13 @@ func sameLayout(a, b *scan) bool {
 }
 
 // One retry owner for movement the body detects; the inner header probe is
-// always one-shot. Every attempt draws on one patience deadline, so the
-// export pauses no longer in total than a single read would (CTS-V0-006),
+// always one-shot. Every attempt draws on one pause budget, so the export
+// pauses no longer in total than a single read would (CTS-V0-006), however
+// long its bodies run (CTS-V0-022),
 // and a failure after any pause names the wait and says it is retryable.
 // A writer's descriptor-less staging slots are waited for separately, under
 // the journal audit's backoff and budget, and neither spend an attempt nor
-// draw on that deadline; once that budget is spent the slot's MALFORMED is
+// draw on that pause budget; once that budget is spent the slot's MALFORMED is
 // returned unchanged (CTS-V0-008).
 func readArchive(rd snapshot.Reader, attempt func(*snapshot.Snapshot) error) (*snapshot.Snapshot, error) {
 	rd.Retries = -1
@@ -467,24 +468,27 @@ func readArchive(rd snapshot.Reader, attempt func(*snapshot.Snapshot) error) (*s
 		patience = snapshot.DefaultPatience
 	}
 	start := time.Now()
-	deadline := start.Add(patience)
 	sleep := rd.Sleep
 	if sleep == nil {
 		sleep = patienceSleep
 	}
 	// waits counts every pause; callWaits those of the current Read, which
-	// already names its own wait on the error it returns.
+	// already names its own wait on the error it returns. paused is the
+	// budget the attempts have spent: pauses only, never body time
+	// (CTS-V0-022).
 	waits, callWaits := 0, 0
+	var paused time.Duration
 	rd.Sleep = func(d time.Duration) {
 		waits++
 		callWaits++
+		paused += d
 		sleep(d)
 	}
 	var snap *snapshot.Snapshot
 	var err error
 	var slotWait snapshot.StageSlotWait
 	for n := 0; n < 4; {
-		rd.Patience = time.Until(deadline)
+		rd.Patience = patience - paused
 		if rd.Patience <= 0 {
 			rd.Patience = snapshot.NoPatience
 		}
@@ -496,11 +500,9 @@ func readArchive(rd snapshot.Reader, attempt func(*snapshot.Snapshot) error) (*s
 			if !ok {
 				return snap, slots.error
 			}
-			// The pause is pushed onto the deadline, so it never spends the
-			// CTS-V0-006 patience a later pending or moved attempt needs.
-			paused := time.Now()
+			// The pause is not charged to the CTS-V0-006 patience, so it
+			// never spends what a later pending or moved attempt needs.
 			stageSleep(step)
-			deadline = deadline.Add(time.Since(paused))
 			continue
 		}
 		if wire.CodeOf(err) != wire.CodeSnapshotMoved {

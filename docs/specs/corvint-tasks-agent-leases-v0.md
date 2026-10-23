@@ -58,7 +58,7 @@ supervisor: `admit` reserves the ticket, a supervisor forks a `lane-leader`, a `
 handshake proves whether the runtime ran, and process-group liveness decides when a reservation may
 be released (§6.2 to §6.4). None of that is built in tree: the only reservations are S3's
 `external-agent` leases, `cutover` requires an empty reservation set
-(`internal/tasks/transaction/model.go:700@afae0d34`), and until S1 the writer refused every queue
+(`internal/tasks/transaction/model.go:754@afae0d34`), and until S1 the writer refused every queue
 that was not a fixture.
 
 The agents that use these queues are not processes corvint-tasks starts. They are interactive or
@@ -149,6 +149,7 @@ one.
 | V1-1981 | CAL-V0-320 | Accepted (standing auto-accept, 2026-10-20): the standalone Tasks archive builder also cross-builds `linux/amd64` (`CGO_ENABLED=0`, reproducible, `SHA256SUMS`); the Linux runtime is `NOT_OBSERVED` until a Linux host runs the documented commands |
 | V1-2352 | CAL-V0-321 | Accepted (standing auto-accept, 2026-10-23): a read checkpoint carries a no-false-negative filter of the request paths posted at or before its sequence, so a checkpoint read refuses a duplicate request with a null pre-state through the complete audit (PSR-V0-203); a checkpoint without the filter serves no read; implemented with focused tests |
 | V1-2359 | CAL-V0-322 | Accepted (standing auto-accept, 2026-10-23): `attempt show` and `ticket show` carry `lastFailedGate`, the newest FAILED or BLOCKED gate result with the TCD-V0-165 bounded, secret-screened tail of its retained output; implemented with focused tests |
+| V1-2368 | CAL-V0-365..366 | Accepted (standing auto-accept, 2026-10-23): a cleanup or reassign interrupted after its `WORKTREE_REMOVE` write is settled by the next owner with a typed `REMOVAL_COMPLETED` or `REMOVAL_ROLLED_BACK` outcome, and a removed stage worktree's record is dropped rather than kept marked, amending ATR-V0-296..298; implemented with focused tests |
 | V1-1321 | ATR-V0-210, ATR-V0-211 | Delivered as a refusal naming uncovered requested paths plus the reported scope (attempt runner spec); CAL-V0-021 unamended |
 | V1-1494 | CAL-V0-263, CAL-V0-265 | Proposed (issue 967): no lease write holds the preparation gate for a complete-history audit; the scheduled refresh walks the prefix to its captured head when the journal moves; focused tests, mutation check and an opt-in load harness |
 | V1-1512 | none (evidence; PSR-V0-052) | Accepted (standing auto-accept, 2026-10-20): issue 967 remainder; at 40,000 receipts and 15 writers heartbeat/renew p99 1,138/1,131 ms (residual: gate wait behind about 1 s widen and reap commits), no `SNAPSHOT_MOVED`; reap and pool release resume tests; proposals 2 remainder and 3 are 1.0 work per decision 0549, proposal 5 deferred past 1.0 |
@@ -7432,6 +7433,48 @@ every gate record the attempt names (one per gate, 64 KiB bound each) is read.
 
 Rollback: revert the source; the field disappears and nothing stored changes.
 
+### V1-2368 interrupted worktree removal and removed-worktree records
+
+Human-owned input: native ticket V1-2368, the residual of V1-0826 (ATR-V0-296..298, PR #1531). A
+`program cleanup` or reassign interrupted after its `WORKTREE_REMOVE` write left the program in
+that phase: `cleanupPhase` refused it `ATTEMPT_LIVE`, and a replacement owner's takeover was refused
+`FENCED` (prior program owner not proved stopped) because `WORKTREE_REMOVE` was not a safe takeover
+phase, so the program stayed stuck until manual repair. Each removed worktree also kept its record,
+marked removed, for the rest of the assignment.
+
+- `CAL-V0-365`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A program
+  recorded in `WORKTREE_REMOVE` behind a terminal attempt with proved quiescence, or with no
+  current attempt, MUST be settled by the next `program cleanup` or `OpenWorkflow` (reassign or
+  run) before anything else: when the worktree path the program names is gone, the removal ran and
+  its record is dropped (`REMOVAL_COMPLETED`, `removed` true, with a reason naming `git worktree
+  prune` when Git still lists the worktree, since `git worktree remove` deletes the work tree before
+  its registration); otherwise nothing was removed and the record stays for the ATR-V0-296 checked
+  retry (`REMOVAL_ROLLED_BACK`, with a reason when Git no longer lists the remaining path). Git's
+  listing is matched against the recorded path and against it with its parent's symlinks resolved. The settling write
+  returns the program to `FINISHED` or `ADMITTED` and, when the recorded owner is gone, is the
+  takeover itself: the program transition MUST admit an owner change from `WORKTREE_REMOVE` to
+  `FINISHED` (proved terminal attempt, unchanged worktree) or `ADMITTED` (no attempt) with the epoch
+  advanced by one. `program cleanup` reports the settled worktree first, with `takeover` set to the
+  outcome; every other item has no `takeover`. Any other phase is refused as before.
+- `CAL-V0-366`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A cleanup
+  MUST drop the record of each worktree it removes instead of marking it removed, and MUST drop
+  records an older binary marked removed at its first phase write, so a program's worktree records
+  hold only worktrees that may still exist and repeated cleanups within one assignment neither grow
+  them nor report a removed worktree again. This amends ATR-V0-297, which dropped removed records
+  only at the reassign.
+
+Non-goals: settling a removal while a live attempt may still reference the worktree; removing a
+worktree that fails the ATR-V0-296 checks; a typed outcome for an interrupted `WORKTREE_ADD`.
+
+Failure modes: a `git worktree list` that fails refuses the settlement with its error and the
+program stays in `WORKTREE_REMOVE`; a worktree whose path remains but which Git no longer registers
+is rolled back with a reason and then kept by the checked retry, never removed by force. A binary
+without CAL-V0-365 still refuses a parked program; one without CAL-V0-366 reads the shorter records
+unchanged.
+
+Rollback: revert the source. Programs settled or compacted by this change keep valid records; a
+program parked in `WORKTREE_REMOVE` is again stuck until manual repair.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -8288,3 +8331,5 @@ after this restore.
 | CAL-V0-320 | `TestTasksArchiveCrossTargetIsLinuxAmd64Only`, `TestTasksArchiveCrossManifestStatesTheLimit`, `TestTasksArchiveRefusesOtherTargets` (`internal/companionrelease`); `docs/build-log/2026-10-20-v1-1981-tasks-linux-amd64-archive.md` (cross-build, ELF check, checksum; Linux runtime `NOT_OBSERVED`) |
 | CAL-V0-321 | `TestCALV0321_CheckpointRequestFilter`, `TestCALV0321_RequestFilterHasNoFalseNegatives`, `TestCALV0321_EmbeddedHeadersRefuseRequestFilter`, `TestPSRV0203_CheckpointTailRefusesNullPreStateDuplicate` (`internal/tasks/journal`) |
 | CAL-V0-322 | `TestCALV0322_ShowReportsLastFailedGateTail`, `TestCALV0322_LastFailedGateUnknowns` (`internal/tasks/cli`) |
+| CAL-V0-365 | `TestCALV0365_TakeoverSettlesInterruptedRemoval` (registered, removed, half-removed and reopen modes, with its child `TestCALV0365_InterruptedRemovalChild`) (`internal/tasks/store`) |
+| CAL-V0-366 | `TestCALV0366_CleanupDropsRemovedRecords`, `TestATRV0297_ReassignRemovesPriorStageWorktrees` (`internal/tasks/store`) |

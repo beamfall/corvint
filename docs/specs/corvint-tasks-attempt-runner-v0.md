@@ -1870,7 +1870,10 @@ Acceptance evidence (`internal/tasks/store`):
 - `TestATRV0241_MappedWriteAfterLeaseAuditRefusedByNextWrite` (darwin and linux) flips a mapped
   byte of the request projection and of `intent/policy.json` at the `sweep` and `lock` commit
   stages; the claim commits, the next `Mutate` refuses with the stated code and publishes nothing,
-  and a `Mutate` after the restore completes. Darwin APFS runs; Linux tmpfs NOT_RUN on this host.
+  and a `Mutate` after the restore completes. Darwin APFS runs; on Linux (go1.27.2, 2026-10-23,
+  V1-0775 lane) it passes on ext4 and on tmpfs (`TMPDIR=/dev/shm`), with the claim committing
+  under the mapped write in all four cases, which confirms the limit on Linux. The fix remains the
+  owner's trade named above.
 
 Rollback: revert the commit. ATR-V0-241 changes no runtime code.
 
@@ -1975,8 +1978,10 @@ worktree registry with no record left that could find or remove it.
   transition MUST admit `ADMITTED` to `WORKTREE_REMOVE` and back only while neither the recorded nor
   the next program has a current attempt.
 Non-goals: removing a dirty, moved or re-pointed worktree; deleting candidate refs or journal
-hand-offs; resuming a removal interrupted after its `WORKTREE_REMOVE` write (the program stays in
-that phase, as before); automatic cleanup outside a reassign.
+hand-offs; resuming a removal interrupted after its `WORKTREE_REMOVE` write (the program stayed in
+that phase; V1-2368 adds that settlement as CAL-V0-365 in the agent leases spec, and CAL-V0-366
+drops removed records at each cleanup rather than only at the reassign); automatic cleanup outside
+a reassign.
 Failure modes: a kept worktree is reported, never removed by force; a refused or failed phase write
 stops the cleanup with that error, and the worktrees already removed stay marked removed.
 Acceptance evidence: `TestATRV0297_ReassignRemovesPriorStageWorktrees` (covers ATR-V0-296..298) and

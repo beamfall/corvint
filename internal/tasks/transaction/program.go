@@ -103,7 +103,16 @@ func planProgram(c leaseContext) leaseOutcome {
 			safePhase := (old.Phase == "FINISHED" || old.Phase == "ADMITTED" || old.Phase == "WORKTREE_ADD" || old.Phase == "READY") && next.Phase == old.Phase
 			recovered := change.PreviousWorkerClean && next.Phase == "FINISHED" && next.Quiescence == "PROVED"
 			settled := (old.Phase == "SPAWNING" || old.Phase == "STOPPING") && next.Phase == "FINISHED" && next.Quiescence == "PROVED" && BoundStoppedAttempt(c.st.attempts[old.CurrentAttempt], old)
-			if !change.PreviousOwnerGone || next.Epoch != old.Epoch+1 || (!safePhase && !recovered && !settled) || old.Worktree != next.Worktree {
+			// A cleanup interrupted after its WORKTREE_REMOVE write returns
+			// to the phase it left: FINISHED behind a terminal proved
+			// attempt, or ADMITTED with no attempt (CAL-V0-365).
+			removal := false
+			if old.Phase == "WORKTREE_REMOVE" && old.CurrentAttempt == next.CurrentAttempt {
+				a := c.st.attempts[old.CurrentAttempt]
+				removal = next.Phase == "FINISHED" && next.Quiescence == "PROVED" && a != nil && !a.Live() && a.Quiescence == "PROVED" ||
+					next.Phase == "ADMITTED" && old.CurrentAttempt == ""
+			}
+			if !change.PreviousOwnerGone || next.Epoch != old.Epoch+1 || (!safePhase && !recovered && !settled && !removal) || old.Worktree != next.Worktree {
 				return c.recordProgramRefusal("prior program owner not proved stopped")
 			}
 		} else if old.Epoch != next.Epoch {

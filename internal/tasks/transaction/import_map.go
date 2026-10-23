@@ -50,7 +50,8 @@ func bindImportMap(r Request, in Input, q *intent.Queue) (*intent.ImportMap, err
 // (CTS-V0-016): no later transaction posts it, and a queue post keeps the
 // queue's importMapSha256.
 func importMapUnchanged(r Request, state inputState, posts map[string][]byte) error {
-	if r.Operation == Init {
+	// IMPORT_PLAN is the one amendment path; its model checks it (CTS-V0-020).
+	if r.Operation == Init || r.Operation == ImportPlan {
 		return nil
 	}
 	if _, ok := posts[importMapPath]; ok {
@@ -134,4 +135,60 @@ func ImportMapConflicts(importMap []byte, records [][]byte) error {
 		return nil
 	}
 	return wire.Errorf(wire.CodeDuplicateID, "/tickets", "%d import-map conflicts: %s", len(conflicts), strings.Join(conflicts, "; "))
+}
+
+// importMapAmendConflicts is the CTS-V0-021 identity check of an amended map
+// against the journaled one and the store's tickets. Every ticket the old map
+// names stays mapped, possibly under a renamed source item; a source item the
+// old map names keeps its ticket; a source item an existing ticket imports
+// stays on that ticket; no ticket is mapped twice; and an entry for a ticket
+// the old map did not name may only name a store ticket that is an import of
+// exactly that source item. It names every conflict, or nil.
+func importMapAmendConflicts(old, next *intent.ImportMap, tickets *ticket.Inventory) error {
+	key := func(e intent.ImportEntry) string { return e.SourceQueueID + "\x00" + e.SourceItemID }
+	oldByKey, oldTickets := map[string]string{}, map[string]bool{}
+	for _, e := range old.Entries {
+		oldByKey[key(e)] = e.TicketID.Raw
+		oldTickets[e.TicketID.Raw] = true
+	}
+	imported := map[string]string{}
+	if tickets != nil {
+		for _, id := range tickets.IDs() {
+			if rec, ok := tickets.Get(id); ok && rec.Source.SourceItemID != nil {
+				imported[rec.Source.SourceQueueID+"\x00"+*rec.Source.SourceItemID] = id
+			}
+		}
+	}
+	var conflicts []string
+	nextTickets := map[string]bool{}
+	for _, e := range next.Entries {
+		item := fmt.Sprintf("source item %s of %s", e.SourceItemID, e.SourceQueueID)
+		if nextTickets[e.TicketID.Raw] {
+			conflicts = append(conflicts, fmt.Sprintf("%s: ticket %s is mapped twice", item, e.TicketID.Raw))
+		}
+		nextTickets[e.TicketID.Raw] = true
+		if was, ok := oldByKey[key(e)]; ok && was != e.TicketID.Raw {
+			conflicts = append(conflicts, fmt.Sprintf("%s: moves from ticket %s to %s", item, was, e.TicketID.Raw))
+			continue
+		}
+		if held, ok := imported[key(e)]; ok && held != e.TicketID.Raw {
+			conflicts = append(conflicts, fmt.Sprintf("%s: is imported as ticket %s, not %s", item, held, e.TicketID.Raw))
+			continue
+		}
+		if oldTickets[e.TicketID.Raw] || tickets == nil {
+			continue
+		}
+		if rec, ok := tickets.Get(e.TicketID.Raw); ok && (rec.Source.SourceItemID == nil || rec.Source.SourceQueueID != e.SourceQueueID || *rec.Source.SourceItemID != e.SourceItemID) {
+			conflicts = append(conflicts, fmt.Sprintf("%s: ticket %s exists and is not that item's import", item, e.TicketID.Raw))
+		}
+	}
+	for _, e := range old.Entries {
+		if !nextTickets[e.TicketID.Raw] {
+			conflicts = append(conflicts, fmt.Sprintf("ticket %s loses its mapping (source item %s of %s)", e.TicketID.Raw, e.SourceItemID, e.SourceQueueID))
+		}
+	}
+	if len(conflicts) == 0 {
+		return nil
+	}
+	return fmt.Errorf("%d import-map amendment conflicts: %s", len(conflicts), strings.Join(conflicts, "; "))
 }
