@@ -397,7 +397,7 @@ func playwrightEnvWrite(raw string, lexed playwrightLexed, start, end int) bool 
 func playwrightNumericCallee(root string, keys []string) bool {
 	switch root {
 	case "Number":
-		return len(keys) == 0 || len(keys) == 1 && (keys[0] == "parseInt" || keys[0] == "parseFloat")
+		return len(keys) == 0 || len(keys) == 1 && (keys[0] == "parseInt" || keys[0] == "parseFloat" || keys[0] == "isInteger")
 	case "parseInt", "parseFloat":
 		return len(keys) == 0
 	}
@@ -413,6 +413,10 @@ func playwrightNumericSound(raw string, lexed playwrightLexed) (map[string]bool,
 	for _, name := range []string{"Number", "parseInt", "parseFloat"} {
 		sound[name] = true
 		for _, at := range playwrightTokenOffsets(raw, name) {
+			if name != "Number" && playwrightNumberMember(raw, lexed, at) {
+				// TJAA-V0-055: `Number.parseInt` is an occurrence of Number, judged as its callee.
+				continue
+			}
 			keys, end, ok := playwrightMemberChain(raw, at+len(name))
 			if next := skipPlaywrightSpace(raw, end); !lexed.code[at] || !playwrightReadBefore(raw, at) || !ok || !playwrightNumericCallee(name, keys) || next == len(raw) || raw[next] != '(' {
 				sound[name] = false
@@ -424,6 +428,22 @@ func playwrightNumericSound(raw string, lexed playwrightLexed) (map[string]bool,
 		}
 	}
 	return sound, first
+}
+
+// playwrightNumberMember reports whether the name at offset at is the member name of a code
+// `Number.` read: a plain `.` after the `Number` token, so the occurrence belongs to that chain.
+func playwrightNumberMember(raw string, lexed playwrightLexed, at int) bool {
+	dot := playwrightPreviousCode(raw, at)
+	if dot < 1 || raw[dot] != '.' || raw[dot-1] == '?' || !lexed.code[at] {
+		return false
+	}
+	end := playwrightPreviousCode(raw, dot) + 1
+	start := end - len("Number")
+	if start < 0 || raw[start:end] != "Number" || !lexed.code[start] {
+		return false
+	}
+	before, _ := utf8.DecodeLastRuneInString(raw[:start])
+	return start == 0 || before != '_' && before != '$' && before != '\\' && before != utf8.RuneError && !unicode.IsLetter(before) && !unicode.IsDigit(before)
 }
 
 // resolves reports whether keys name own properties down to a primitive value.

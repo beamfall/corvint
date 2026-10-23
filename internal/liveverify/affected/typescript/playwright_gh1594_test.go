@@ -75,7 +75,7 @@ func TestPlaywrightGlobalNamesInLiteralsKeepEnvReads_GH1594(t *testing.T) {
 		"const F = [].constructor;",
 		"const k = 'constructor';",
 	} {
-		if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(setup)); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+		if projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(setup)); !playwrightIdentityUnverified(projects, unknown) {
 			t.Fatalf("%q was admitted: %+v", setup, unknown)
 		}
 	}
@@ -105,7 +105,7 @@ func TestPlaywrightEnvWritesOutsideIdentity_GH1594(t *testing.T) {
 		{"Object.assign(process.env, { TZ: 'UTC' });", "{ baseURL: process.env.BASE_URL }"},
 		{"process.env = {};", "{ baseURL: process.env.BASE_URL }"},
 	} {
-		if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(row.setup, row.use)); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+		if projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(row.setup, row.use)); !playwrightIdentityUnverified(projects, unknown) {
 			t.Fatalf("%q / %s was admitted: %+v", row.setup, row.use, unknown)
 		}
 	}
@@ -131,16 +131,17 @@ func TestPlaywrightEnvDefaultForms_GH1594(t *testing.T) {
 }
 
 // TJAA-V0-044: browser-identity-unresolved names the blocking token and its config line, and the
-// scope token that refused a root the value needs.
+// scope token that refused a root the value needs. Under TJAA-V0-054 a non-identity value is named
+// the same way by the execution-axis playwright:use-value-unverified unknown instead.
 func TestPlaywrightBrowserIdentityNamesBlockingToken_GH1594(t *testing.T) {
 	rows := []struct{ source, want string }{
 		{
 			"import { defineConfig } from '@playwright/test';\nexport default defineConfig({\n  use: {\n    trace: compute(),\n  },\n  projects: [{ name: 'p' }],\n});\n",
-			"p use.browserName/device is dynamic or unsupported: trace is not a side-effect-free value at `compute` (playwright.config.ts:4)",
+			"p browser identity assumes a non-identity use value leaves devices descriptors unchanged: trace is not a side-effect-free value at `compute` (playwright.config.ts:4)",
 		},
 		{
 			"import { defineConfig } from '@playwright/test';\nconst g = globalThis;\nexport default defineConfig({\n  projects: [{ name: 'p', use: { baseURL: process.env.URL } }],\n});\n",
-			"p use.browserName/device is dynamic or unsupported: baseURL is not a side-effect-free value at `process` (playwright.config.ts:4); process is not admitted: the config names the global object at `globalThis` (playwright.config.ts:2)",
+			"p browser identity assumes a non-identity use value leaves devices descriptors unchanged: baseURL is not a side-effect-free value at `process` (playwright.config.ts:4); process is not admitted: the config names the global object at `globalThis` (playwright.config.ts:2)",
 		},
 		{
 			"import { defineConfig } from '@playwright/test';\nexport default defineConfig({\n  projects: [{ name: 'p', use: { channel: process.env.CHANNEL } }],\n});\n",
@@ -152,10 +153,10 @@ func TestPlaywrightBrowserIdentityNamesBlockingToken_GH1594(t *testing.T) {
 		},
 	}
 	for _, row := range rows {
-		_, _, unknown := parsePlaywrightConfig("playwright.config.ts", row.source)
+		projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", row.source)
 		found := false
-		for _, entry := range unknown {
-			if entry.Reason == PlaywrightUnknownBrowserIdentity && strings.HasSuffix(entry.Detail, row.want) {
+		for _, entry := range append(unknown, playwrightExecution(projects)...) {
+			if (entry.Reason == PlaywrightUnknownBrowserIdentity || entry.Reason == PlaywrightUnknownUseValueUnverified) && strings.HasSuffix(entry.Detail, row.want) {
 				found = true
 			}
 		}
@@ -184,7 +185,7 @@ export default defineConfig({
   projects: [{ name: 'p', use: { ...devices['Desktop Chrome'] } }],
 });
 `
-	if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", escaped); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+	if projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", escaped); !playwrightIdentityUnverified(projects, unknown) {
 		t.Fatalf("escaped constructor access was admitted: %+v", unknown)
 	}
 	config := func(setup string) string {
@@ -199,7 +200,7 @@ export default defineConfig({
 		"require('node:vm').runInThisContext('globalThis.Number = String');",
 		"await import('data:text/javascript,globalThis.Number=String');",
 	} {
-		if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(setup)); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+		if projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(setup)); !playwrightIdentityUnverified(projects, unknown) {
 			t.Fatalf("%q was admitted: %+v", setup, unknown)
 		}
 	}

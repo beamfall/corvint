@@ -200,9 +200,11 @@ func TestPlaywrightDeviceSpreadBesideRuntimeUseValues_V1_1065(t *testing.T) {
 	}
 }
 
-// GitHub #709 review: a non-identity `use` value is ignorable only when evaluating it cannot run
-// code or write state, so it cannot rewrite a devices descriptor; quoted literal identity keys
-// are the same keys (TJAA-V0-018).
+// GitHub #709 review: a non-identity `use` value is ignorable without a trace only when evaluating
+// it cannot run code or write state, so it cannot rewrite a devices descriptor; quoted literal
+// identity keys are the same keys (TJAA-V0-018). Since TJAA-V0-054 another value no longer blocks
+// the identity: it is named by the execution-axis playwright:use-value-unverified unknown, and a
+// value that rewrites a descriptor in the config still refuses the devices root.
 func TestPlaywrightUseValueSideEffects_V1_1065(t *testing.T) {
 	config := func(global, local string) string {
 		return "import { defineConfig, devices } from '@playwright/test';\nconst options = { base: 'http://localhost:3000', ci: true };\nexport default defineConfig({\n  use: " + global + ",\n  projects: [{ name: 'p', use: " + local + " }],\n});\n"
@@ -282,8 +284,8 @@ func TestPlaywrightUseValueSideEffects_V1_1065(t *testing.T) {
 		"--process.env.COUNTER",
 	} {
 		for _, layer := range [][2]string{{"{ baseURL: " + value + " }", "{ ...devices['Desktop Chrome'] }"}, {"{}", "{ ...devices['Desktop Chrome'], storageState: " + value + " }"}} {
-			_, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(layer[0], layer[1]))
-			if !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+			projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(layer[0], layer[1]))
+			if !playwrightIdentityUnverified(projects, unknown) {
 				t.Fatalf("value that can run code or write state was ignored: use %s / %s: %+v", layer[0], layer[1], unknown)
 			}
 		}
@@ -361,7 +363,8 @@ func TestPlaywrightStaticValueNestingIsBounded_V1_1065(t *testing.T) {
 // GitHub #709 review round 8: a member read can invoke a getter, so a non-identity `use` value
 // reads a member only of the Playwright devices import (a scalar descriptor field) or of a
 // top-level const bound to a plain object literal that is never written, aliased or spread
-// (TJAA-V0-018). Every other root, process.env included, is refused.
+// (TJAA-V0-018). Every other root, process.env included, is refused: the identity is unresolved
+// or, under TJAA-V0-054, marked unverified on the execution axis.
 func TestPlaywrightMemberReadRoots_GH709Round8(t *testing.T) {
 	const header = "import { defineConfig, devices } from '@playwright/test';\n"
 	config := func(setup, value string) string {
@@ -408,7 +411,7 @@ func TestPlaywrightMemberReadRoots_GH709Round8(t *testing.T) {
 		{"devices written", "devices['Desktop Chrome'].defaultBrowserType = 'firefox';", "devices['Desktop Chrome'].userAgent"},
 	} {
 		t.Run(row.name, func(t *testing.T) {
-			if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(row.setup, row.value)); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+			if projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(row.setup, row.value)); !playwrightIdentityUnverified(projects, unknown) {
 				t.Fatalf("member read %s under %q was ignored: %+v", row.value, row.setup, unknown)
 			}
 		})
@@ -450,7 +453,7 @@ func TestPlaywrightMemberReadRoots_GH709Round8(t *testing.T) {
 		{"slash after a contextual keyword", "const of = 4; const half = of / 2; devic\\u0065s['Desktop Chrome'].isMobile = true; const third = half / 3;", "'http://x'"},
 	} {
 		t.Run(row.name, func(t *testing.T) {
-			if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(row.setup, row.value)); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+			if projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(row.setup, row.value)); !playwrightIdentityUnverified(projects, unknown) {
 				t.Fatalf("value %s under %q was resolved: %+v", row.value, row.setup, unknown)
 			}
 		})
@@ -483,4 +486,28 @@ func TestPlaywrightMemberReadRoots_GH709Round8(t *testing.T) {
 			}
 		})
 	}
+}
+
+// playwrightIdentityUnverified reports a browser identity that is unresolved, or resolved with an
+// execution-axis unknown naming a non-identity value that is not side-effect free (TJAA-V0-054):
+// such a value is never silently ignored.
+func playwrightIdentityUnverified(projects []PlaywrightProject, unknown []PlaywrightUnknown) bool {
+	if hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+		return true
+	}
+	for _, project := range projects {
+		if hasPlaywrightUnknownReason(project.execution, PlaywrightUnknownUseValueUnverified) {
+			return true
+		}
+	}
+	return false
+}
+
+// playwrightExecution collects the execution-axis unknowns every project carries.
+func playwrightExecution(projects []PlaywrightProject) []PlaywrightUnknown {
+	execution := []PlaywrightUnknown{}
+	for _, project := range projects {
+		execution = append(execution, project.execution...)
+	}
+	return execution
 }

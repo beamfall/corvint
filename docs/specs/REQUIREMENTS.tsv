@@ -5361,6 +5361,11 @@ TJAA-V0-050	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted un
 TJAA-V0-051	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604) Whe	standing	2026-10-11; #1604
 TJAA-V0-052	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604)	standing	2026-10-11; #1604
 TJAA-V0-053	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604) A	standing	2026-10-11; #1604
+TJAA-V0-054	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1625)	standing	2026-10-11; #1625
+TJAA-V0-055	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1625)	standing	2026-10-11; #1625
+TJAA-V0-056	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604	standing	2026-10-11; #1604
+TJAA-V0-057	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604	standing	2026-10-11; #1604
+TJAA-V0-058	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1604	standing	2026-10-11; #1604
 URE-V0-001	docs/specs/unplanned-read-events-v0.md	`Classify(packetPaths, toolName, toolInput, root)` MUST return an `Event` for a	unrecorded	-
 URE-V0-002	docs/specs/unplanned-read-events-v0.md	The recognized tools are `Read` (`file_path`), `Grep` and `Glob` (`path`), and	unrecorded	-
 URE-V0-003	docs/specs/unplanned-read-events-v0.md	`Append(root, event)` MUST be a no-op returning `nil` unless the opt-in marker	unrecorded	-

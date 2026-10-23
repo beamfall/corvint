@@ -156,9 +156,46 @@ func (frontier frontierSet) raiseToken(reason, site, token string) {
 	if site == "" {
 		return
 	}
-	if previous, seen := frontier[reason][site]; !seen || previous == "" || token != "" && token < previous {
-		frontier[reason][site] = token
+	previous, seen := frontier[reason][site]
+	pinned := strings.HasPrefix(previous, pinnedSite)
+	previous = strings.TrimPrefix(previous, pinnedSite)
+	if !seen || previous == "" || token != "" && token < previous {
+		previous = token
 	}
+	if pinned {
+		previous = pinnedSite + previous
+	}
+	frontier[reason][site] = previous
+}
+
+// pinnedSite prefixes the stored token of a site that explains a whole reason, such as the
+// identity that blocked tsconfig alias resolution, so the site bound never hides it (TJAA-V0-058).
+const pinnedSite = "\x00"
+
+// pin marks an existing site of reason as one that every rendering names before the bound applies.
+func (frontier frontierSet) pin(reason, site string) {
+	if token, seen := frontier[reason][site]; seen && !strings.HasPrefix(token, pinnedSite) {
+		frontier[reason][site] = pinnedSite + token
+	}
+}
+
+// boundedSites returns how many of ordered (from orderedSites) to name: every pinned site, then
+// unpinned ones up to bound.
+func boundedSites(sites map[string]string, ordered []string, bound int) int {
+	pinned := 0
+	for pinned < len(ordered) && strings.HasPrefix(sites[ordered[pinned]], pinnedSite) {
+		pinned++
+	}
+	return min(len(ordered), pinned+bound)
+}
+
+// orderedSites returns the pinned sites, then the others, each group sorted.
+func orderedSites(sites map[string]string) []string {
+	ordered := sortedKeys(sites)
+	sort.SliceStable(ordered, func(left, right int) bool {
+		return strings.HasPrefix(sites[ordered[left]], pinnedSite) && !strings.HasPrefix(sites[ordered[right]], pinnedSite)
+	})
+	return ordered
 }
 
 // has reports whether reason was raised at site.
@@ -198,8 +235,9 @@ func sourceToken(text string) string {
 	return text[:end]
 }
 
-// frontierSiteBound caps the sites the general adapter names for one reason; one `reason:+N`
-// entry counts the rest (TJAA-V0-052, as RUBY-AFFECTED-V0-046 bounds Ruby's).
+// frontierSiteBound caps the unpinned sites the general adapter names for one reason; one
+// `reason:+N` entry counts the rest (TJAA-V0-052, as RUBY-AFFECTED-V0-046 bounds Ruby's). Pinned
+// sites are always named (TJAA-V0-058).
 const frontierSiteBound = 16
 
 // locatedFrontier renders frontier as the general adapter's sorted frontier entries: per reason,
@@ -208,15 +246,16 @@ const frontierSiteBound = 16
 func locatedFrontier(frontier frontierSet) []string {
 	entries := []string{}
 	for _, reason := range sortedKeys(frontier) {
-		sites := sortedKeys(frontier[reason])
+		sites := orderedSites(frontier[reason])
 		if len(sites) == 0 {
 			entries = append(entries, reason)
 			continue
 		}
-		for _, site := range sites[:min(len(sites), frontierSiteBound)] {
+		named := boundedSites(frontier[reason], sites, frontierSiteBound)
+		for _, site := range sites[:named] {
 			entries = append(entries, reason+":"+siteWithToken(site, frontier[reason][site]))
 		}
-		if extra := len(sites) - frontierSiteBound; extra > 0 {
+		if extra := len(sites) - named; extra > 0 {
 			entries = append(entries, reason+":+"+strconv.Itoa(extra))
 		}
 	}
@@ -226,6 +265,7 @@ func locatedFrontier(frontier frontierSet) []string {
 
 // siteWithToken appends the backquoted token to site when one is known.
 func siteWithToken(site, token string) string {
+	token = strings.TrimPrefix(token, pinnedSite)
 	if token == "" {
 		return site
 	}
@@ -410,16 +450,21 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 	// TJAA-V0-037: the general adapter resolves tsconfig aliases as the Playwright config mode
 	// does only when Playwright is the sole runner identity observed, because another runner's
 	// loader (a Jest moduleNameMapper, a Vite resolve.alias) need not follow tsconfig paths.
+	// TJAA-V0-057: otherwise it still adds the edges tsconfig resolution names, and the frontier
+	// keeps the tsconfig and the blocking identity as pinned sites (TJAA-V0-058).
 	if len(aliasConfigs) != 0 && !resolveAliases {
-		if blocker, only := playwrightOnlyRunners(configs, scopes, observations); only {
-			resolveAliases = true
-		} else {
+		if blocker, only := playwrightOnlyRunners(configs, scopes, observations); !only {
 			for _, relative := range aliasConfigs {
-				frontier.at(FrontierPathAlias, relative, bodies[relative], pathAliasMarker(bodies[relative]))
+				body := bodies[relative]
+				offset := pathAliasMarker(body)
+				frontier.at(FrontierPathAlias, relative, body, offset)
+				frontier.pin(FrontierPathAlias, lineSite(relative, body, offset))
 			}
 			// TJAA-V0-050: the identity that kept the aliases unresolved is a site too.
 			frontier.raiseToken(FrontierPathAlias, blocker.site, blocker.token)
+			frontier.pin(FrontierPathAlias, blocker.site)
 		}
+		resolveAliases = true
 	}
 	var aliases []typeScriptAliases
 	if resolveAliases {

@@ -40,11 +40,10 @@ func readTypeScriptAliases(bodies map[string]string, frontier frontierSet) []typ
 					offset = found[0]
 				}
 			}
-			if offset < 0 {
-				frontier.raiseToken(FrontierPathAlias, name, config.refusal)
-			} else {
-				frontier.raiseToken(FrontierPathAlias, lineSite(name, body, offset), config.refusal)
-			}
+			// TJAA-V0-058: a refused tsconfig explains every import it leaves unresolved.
+			site := lineSite(name, body, offset)
+			frontier.raiseToken(FrontierPathAlias, site, config.refusal)
+			frontier.pin(FrontierPathAlias, site)
 		}
 		configs = append(configs, config)
 	}
