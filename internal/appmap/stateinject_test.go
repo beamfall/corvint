@@ -335,8 +335,11 @@ func TestAMAPV0024InjectedStringEnum(t *testing.T) {
 	// initializer is absent, the others still resolve.
 	router := "import { Areas } from './consts/areas';\n$stateProvider.state(Areas.REPORTS, { url: 'ledger' });\n"
 	_, _, m, err := injectRepo(t, "", router, map[string]string{"app/consts/areas.ts": "export enum Areas {\n  REPORTS = 'ledger',\n  COUNT,\n}\n"})
-	if err != nil || m.screen(screenID(m.App, "ledger")) == nil {
-		t.Fatalf("AMAP-V0-016 enum: %v %+v", err, m.Unknowns)
+	if err != nil {
+		t.Fatalf("AMAP-V0-016 enum: %v", err)
+	}
+	if m.screen(screenID(m.App, "ledger")) == nil {
+		t.Fatalf("AMAP-V0-016 enum: %+v", m.Unknowns)
 	}
 }
 
