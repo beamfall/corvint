@@ -84,6 +84,38 @@ func TestSPCV0015ShallowMergeBaseBeyondBoundaryRefuses(t *testing.T) {
 	}
 }
 
+// SPC-V0-015: a merge base that is base itself is exact, but a side branch of
+// the range cut by the shallow boundary still refuses: feature forks from main
+// c1, adds f1..f6 and merges main, and a depth-3 clone has main as the merge
+// base while f4 is a boundary commit inside main..feature (independent review
+// of V1-1726).
+func TestSPCV0015ShallowRangeCutByBoundaryRefuses(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	c1 := f.commit("main 1", map[string]string{"cmd/x.go": "x\n"})
+	f.commit("main 2", map[string]string{"cmd/y.go": "y\n"})
+	f.commit("main 3", map[string]string{"cmd/z.go": "z\n"})
+	f.git("checkout", "-q", "-b", "feature", c1)
+	for i := 1; i <= 6; i++ {
+		f.commit("shared-path: f"+strconv.Itoa(i), map[string]string{"internal/testutil/f" + strconv.Itoa(i) + ".go": "f\n"})
+	}
+	f.git("-c", "user.useConfigOnly=false", "merge", "-q", "--no-ff", "--no-edit", "main")
+	full, shallow := cloneOf(t, f, 0), cloneOf(t, f, 3)
+	if base := strings.TrimSpace(gitIn(t, shallow, "merge-base", "origin/main", "origin/feature")); base != strings.TrimSpace(gitIn(t, shallow, "rev-parse", "origin/main")) {
+		t.Fatalf("shallow merge base %s is not main", base)
+	}
+	r, err := Check(ctx, CheckRequest{Root: full, Base: "origin/main", Head: "origin/feature", Config: testConfig()})
+	if err != nil || r.Commits != 7 {
+		t.Fatalf("full clone check-shared = %d commits, %v", r.Commits, err)
+	}
+	if _, err := Check(ctx, CheckRequest{Root: shallow, Base: "origin/main", Head: "origin/feature", Config: testConfig()}); err == nil || err.Error() != CodeShallowMergeBase {
+		t.Fatalf("check-shared over a cut range = %v, want %s", err, CodeShallowMergeBase)
+	}
+	if _, err := Behind(ctx, BehindRequest{Root: shallow, Base: "origin/feature", Head: "origin/main", Config: testConfig()}); err == nil || err.Error() != CodeShallowMergeBase {
+		t.Fatalf("behind over a cut range = %v, want %s", err, CodeShallowMergeBase)
+	}
+}
+
 // SPC-V0-015: a shallow clone whose merge base keeps its parents gives the
 // same behind and check-shared reports as a full clone, with the dry merge
 // reading the clone's shallow file; a merge base that is base itself is exact

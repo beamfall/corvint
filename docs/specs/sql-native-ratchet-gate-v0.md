@@ -209,9 +209,13 @@ the pinned `causal_parent` commit, the
   `874295bf91fbb9801685232e798ccb4e1726789e1e2c5369add4b822575f6d8c` (built with the gate's own
   `run_go` flags from this tree), and GOROOT receipt 13474 entries,
   `5d9a61679c596804cec287f48714f3808fb1e52ae87db7d9b0736ee4dfa56ecb`. No two rows MAY share a
-  version and go binary digest, and on a host whose GOROOT is the official toolchain module of an
-  admitted version that toolchain MUST match a row in all three digests
-  (`script/check-sql-native-ratchets_test.sh` case 9, which builds only the receipt tool). Non-goal:
+  version and go binary digest, and on a host whose GOROOT is that linux/amd64 module the
+  toolchain MUST match a row in all three digests; any other host toolchain that matches a row by
+  version and go binary digest MUST match its other two, and one that matches none is reported
+  `NOT_OBSERVED`, not failed (`script/check-sql-native-ratchets_test.sh` case 9, which builds only
+  the receipt tool). A full `make sql-native-ratchets` run on that host passed on 2026-10-23
+  (`core_base=d56eb2c9`, `core_binary=identical core_deps=identical`, `goroot_entries=13474`,
+  `candidate_max_allocs_op=393`, `causal=NOT_RUN-causal-parent-unavailable`). Non-goal:
   the go.dev `go1.27.2.linux-amd64.tar.gz` installation that `actions/setup-go` unpacks, and
   linux/arm64, are `NOT_OBSERVED` (go.dev and dl.google.com refused this host's proxy), so they
   still refuse with `TOOLCHAIN_MISMATCH` until a row is measured on them. A receipt tool source

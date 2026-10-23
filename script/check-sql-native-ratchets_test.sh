@@ -167,16 +167,15 @@ for version in $pinned; do
 done
 
 # 9. SNR-V0-031: no two real pin rows share a version and go binary digest, and a host whose GOROOT
-# is the official golang.org/toolchain module of an admitted version matches a real row in all
-# three digests, the receipt tool built with the gate's own flags. Any other host toolchain that
-# matches a row is checked the same way; one that matches none is reported, not failed.
+# is the official golang.org/toolchain module of go1.27.2 for linux/amd64 matches a real row in
+# all three digests, the receipt tool built with the gate's own flags. Any other host toolchain
+# that matches a row is checked the same way; one that matches none is reported, not failed.
 rows=$(awk '/^toolchain_pins='"'"'$/{p=1;next} p&&/^'"'"'$/{exit} p&&NF{print}' "$source_root/script/check-sql-native-ratchets.sh")
 [ -z "$(printf '%s\n' "$rows" | awk '{print $1, $2}' | sort | uniq -d)" ] || fail "two pin rows share a version and go binary digest"
 row=$(printf '%s\n' "$rows" | awk -v v="$host_go_version" -v d="$host_go_sha" '$1==v&&$2==d{print;exit}')
 case $host_go_root in
-*/golang.org/toolchain@v0.0.1-"$host_go_version".*)
-	printf '%s\n' "$admitted" | grep -qx "$host_go_version" && [ -z "$row" ] \
-		&& fail "the official toolchain module $host_go_version at $host_go_root ($host_go_sha) has no pin row"
+*/golang.org/toolchain@v0.0.1-go1.27.2.linux-amd64)
+	[ -n "$row" ] || fail "the official go1.27.2 linux/amd64 toolchain module at $host_go_root ($host_go_sha) has no pin row"
 	;;
 esac
 if [ -n "$row" ]; then

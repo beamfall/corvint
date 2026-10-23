@@ -162,16 +162,20 @@ that names what is missing, plus a mechanical split that a user runs on a local 
   merge, refuse with `changes-shared-shallow-merge-base` when the merge base may lie beyond the
   shallow boundary: `git merge-base --all` finds no merge base, or one of them is a commit the
   repository's `shallow` file lists (a boundary commit, whose parents the clone lacks) other than
-  base or head themselves. A merge base that is base or head is exact even at the boundary,
-  because shallow ancestry is a subset of the full ancestry. Otherwise the reports are those of a
-  full clone; the dry merge's private repository reads the same `shallow` file through
+  base or head themselves, or a commit of the symmetric difference `base...head` is a boundary
+  commit, so a side branch of the range is cut off even though the merge base is exact. A merge
+  base that is base or head is exact even at the boundary, because shallow ancestry is a subset
+  of the full ancestry. Otherwise the reports are those of a full clone; the dry merge's private repository reads the same `shallow` file through
   `GIT_SHALLOW_FILE` (SPC-V0-003), without which `merge-tree` cannot walk a boundary commit and
   refuses `changes-git-unavailable`. A full repository is unaffected. The check fetches nothing
   and writes nothing. Failure modes: before this a merge base beyond the boundary refused as
   `changes-shared-range-unavailable` (`behind`) or `changes-git-unavailable` (`check-shared`),
   or, at a boundary merge base, returned a report computed from a merge base the clone could not
-  prove. Limit: a second merge base reachable only past the boundary, while every visible merge
-  base keeps its parents, is beyond what a shallow repository can show and is not detected.
+  prove, or (independent review of V1-1726) a range listing that silently omitted the commits
+  behind a boundary commit inside the range. Limit: a second merge base reachable only past the
+  boundary, while every visible merge base and every commit of `base...head` keeps its parents,
+  is beyond what a shallow repository can show and is not detected; the symmetric difference is
+  listed once, bounded by the 32 MiB Git output bound.
   Falsifier: a shallow clone whose merge base is beyond its boundary yielding a report, or one
   whose merge base keeps its parents yielding a report different from a full clone's. Rollback:
   drop `refuseShallowMergeBase`, its two calls and the code.
@@ -230,4 +234,4 @@ head back while the old commits are still reachable from the reflog. Removing th
 | SPC-V0-012 | `staleFinding`, `runChangesBehind` | `TestSPCV0012StaleFindingNamesTicketOldestCommitAndAge`, `TestSPCV0012ChangesBehindCLI` |
 | SPC-V0-013 | `arrivalCommits`, `arrivalTime`, `staleFinding` | `TestSPCV0013AgeIsArrivalOnBase` (a side-branch commit committed 60 days before the merge that brought it onto base is aged from the merge; fails when every commit arrives as itself) |
 | SPC-V0-014 | `observeBase`, `baseObservationDetail` | `TestSPCV0014BaseObservationRecordsRefAndLastObservedTime` (local branch reflog, remote-tracking reflog, a newer `FETCH_HEAD`, a commit-ID base and an expired reflog; fails when the observation is absent), `TestSPCV0009BehindIsReadOnly` |
-| SPC-V0-015 | `refuseShallowMergeBase`, `Check`, `Behind`, `privateMergeRepository` | `TestSPCV0015ShallowMergeBaseBeyondBoundaryRefuses` (no visible merge base and a boundary merge base: both commands refuse with the code; the full clone's dry merge is `conflict`; fails without the check, as a report or `changes-shared-range-unavailable`), `TestSPCV0015ShallowMergeBaseInsideBoundaryMatchesFullClone` (behind and check-shared equal the full clone's reports, and a boundary commit as base is exact; fails with `changes-git-unavailable` when `GIT_SHALLOW_FILE` is not passed) |
+| SPC-V0-015 | `refuseShallowMergeBase`, `Check`, `Behind`, `privateMergeRepository` | `TestSPCV0015ShallowMergeBaseBeyondBoundaryRefuses` (no visible merge base and a boundary merge base: both commands refuse with the code; the full clone's dry merge is `conflict`; fails without the check, as a report or `changes-shared-range-unavailable`), `TestSPCV0015ShallowRangeCutByBoundaryRefuses` (merge base is base, a boundary commit inside `main..feature`: both commands refuse; check-shared returned 3 of the full clone's 7 commits without the symmetric-difference check), `TestSPCV0015ShallowMergeBaseInsideBoundaryMatchesFullClone` (behind and check-shared equal the full clone's reports, and a boundary commit as base is exact; fails with `changes-git-unavailable` when `GIT_SHALLOW_FILE` is not passed) |

@@ -162,19 +162,13 @@ func proveProcessGroupQuiescent(pid int, joinAncestorGroup bool, quietProof func
 // processGroupQuiescentBy polls the live leader's group with signal 0 during
 // the pre-reap grace period; ESRCH held for the quiet period is quiescence.
 // While signal 0 still reaches the group, heldQuiet (graceHeldQuiet, nil off
-// Linux) may prove it quiet; its proofs back off as proveProcessGroupQuiescent's
-// do, because each one scans /proc.
+// Linux) may prove it quiet.
 func processGroupQuiescentBy(pid int, deadline time.Time, groupProbe func(int, syscall.Signal) error, heldQuiet func(int) bool) bool {
 	quietSince := time.Time{}
-	proofInterval, nextProof := processGroupPollInterval, time.Time{}
 	for {
 		err := groupProbe(pid, 0)
-		if heldQuiet != nil && (err == nil || errors.Is(err, syscall.EPERM)) && !time.Now().Before(nextProof) {
-			if heldQuiet(pid) {
-				return true
-			}
-			nextProof = time.Now().Add(proofInterval)
-			proofInterval = min(2*proofInterval, processGroupProofBackoffCap)
+		if heldQuiet != nil && (err == nil || errors.Is(err, syscall.EPERM)) && heldQuiet(pid) {
+			return true
 		}
 		if errors.Is(err, syscall.ESRCH) {
 			if quietSince.IsZero() {

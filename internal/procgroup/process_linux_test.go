@@ -86,8 +86,9 @@ func TestPGOV0022LinuxTermObeyingGroupEndsGraceEarly(t *testing.T) {
 }
 
 // PGO-V0-022: the grace probe proves quiet from the held-group proof while
-// signal 0 still reaches the group, backs its proofs off, and without a proof
-// or with a failing one keeps waiting until the grace deadline.
+// signal 0 still reaches the group; graceHeldQuiet backs its proofs off only
+// once it runs them; without a proof or with a failing one the grace waits
+// until its deadline.
 func TestPGOV0022GraceProbeUsesHeldGroupProof(t *testing.T) {
 	reachable := func(int, syscall.Signal) error { return nil }
 	var proofs atomic.Int64
@@ -99,14 +100,22 @@ func TestPGOV0022GraceProbeUsesHeldGroupProof(t *testing.T) {
 	if elapsed := time.Since(started); elapsed >= time.Second {
 		t.Fatalf("grace ended after %s, want under 1 s", elapsed)
 	}
+	var leaderHeld atomic.Bool
 	proofs.Store(0)
-	never := func(int) bool { proofs.Add(1); return false }
-	started = time.Now()
-	if processGroupQuiescentBy(1, started.Add(300*time.Millisecond), reachable, never) {
+	never := graceHeldQuiet(&leaderHeld, func(int) (bool, error) { proofs.Add(1); return false, nil })
+	// Polls while the leader still runs neither prove nor widen the backoff.
+	if processGroupQuiescentBy(1, time.Now().Add(100*time.Millisecond), reachable, never) || proofs.Load() != 0 {
+		t.Fatalf("proof ran before the leader's exit: %d", proofs.Load())
+	}
+	leaderHeld.Store(true)
+	if never(1) || proofs.Load() != 1 {
+		t.Fatalf("first proof after the exit did not run at once: %d", proofs.Load())
+	}
+	if processGroupQuiescentBy(1, time.Now().Add(300*time.Millisecond), reachable, never) {
 		t.Fatal("an unproved group read quiet")
 	}
 	// 300 ms of 5 ms polls is about 60 probes; backed-off proofs are far fewer.
-	if n := proofs.Load(); n < 2 || n > 20 {
+	if n := proofs.Load(); n < 3 || n > 20 {
 		t.Fatalf("%d held-group proofs in 300 ms, want a backed-off few", n)
 	}
 	if processGroupQuiescentBy(1, time.Now().Add(50*time.Millisecond), reachable, nil) {

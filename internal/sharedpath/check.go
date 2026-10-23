@@ -180,16 +180,15 @@ func mergeProbe(g git, c Config, base, head string, r *Report) error {
 	return nil
 }
 
-// refuseShallowMergeBase refuses a shallow repository in which the merge base
-// of base and head is not provably inside the shallow boundary (SPC-V0-015,
-// V1-1726): no merge base is visible, or one of them is a boundary commit,
-// whose parents the clone does not have, other than base or head itself.
-// Either way the true merge base may lie past the boundary, so the range
-// listing and the dry merge, which reads the same shallow file
-// (privateMergeRepository), could report a wrong clean result. A merge base
-// that is base or head is exact: shallow ancestry is a subset of the full
-// ancestry. A full repository, and a shallow one whose merge bases all keep
-// their parents, are unaffected.
+// refuseShallowMergeBase refuses a shallow repository whose history between
+// base and head is not provably inside the shallow boundary (SPC-V0-015,
+// V1-1726): no merge base is visible; a merge base is a boundary commit, whose
+// parents the clone does not have, other than base or head itself; or a commit
+// of the symmetric difference base...head is a boundary commit, so a side
+// branch of the range is cut off. Each of these can make the range listing and
+// the dry merge, which reads the same shallow file (privateMergeRepository),
+// report a wrong result. A merge base that is base or head is exact: shallow
+// ancestry is a subset of the full ancestry. A full repository is unaffected.
 func refuseShallowMergeBase(g git, base, head string) error {
 	out, err := g.ok("rev-parse", "--is-shallow-repository", "--path-format=absolute", "--git-path", "shallow")
 	if err != nil {
@@ -230,6 +229,15 @@ func refuseShallowMergeBase(g git, base, head string) error {
 			return errors.New(CodeGitUnavailable)
 		}
 		if boundary[sha] && sha != base && sha != head {
+			return errors.New(CodeShallowMergeBase)
+		}
+	}
+	out, err = g.ok("rev-list", "--end-of-options", base+"..."+head)
+	if err != nil {
+		return err
+	}
+	for _, sha := range strings.Fields(string(out)) {
+		if boundary[sha] {
 			return errors.New(CodeShallowMergeBase)
 		}
 	}
