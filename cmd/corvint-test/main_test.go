@@ -449,3 +449,45 @@ func TestCCEV0054ModuleGraphFlag(t *testing.T) {
 		}
 	}
 }
+
+// CCE-V0-088: `e2e harvest --manifest` binds proposals through the configured map path; without
+// it the default appmap.json is absent and every proposal reads app-map-unavailable.
+func TestCCEV0088HarvestManifestFlag(t *testing.T) {
+	root, _, _ := fixture(t)
+	const manifest = "config/club.appmap.json"
+	if err := os.MkdirAll(filepath.Join(root, "config"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(filepath.Join(root, "appmap.json"), filepath.Join(root, manifest)); err != nil {
+		t.Fatal(err)
+	}
+	gitTest(t, root, "add", "-A")
+	gitTest(t, root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "move map")
+	rev := gitTest(t, root, "rev-parse", "HEAD")
+	harvest := func(extra ...string) (bound, unavailable int) {
+		t.Helper()
+		var out bytes.Buffer
+		if err := run(context.Background(), append([]string{"e2e", "harvest", "--root", root, "--rev", rev}, extra...), &out); err != nil {
+			t.Fatal(err)
+		}
+		var doc changee2e.Proposals
+		if err := json.Unmarshal(out.Bytes(), &doc); err != nil || len(doc.Proposals) == 0 {
+			t.Fatalf("%v %s", err, out.Bytes())
+		}
+		for _, p := range doc.Proposals {
+			switch {
+			case p.Binding.Basis != "":
+				bound++
+			case p.Binding.Unbound == "app-map-unavailable":
+				unavailable++
+			}
+		}
+		return bound, unavailable
+	}
+	if bound, _ := harvest("--manifest", manifest); bound == 0 {
+		t.Fatal("no proposal bound through --manifest")
+	}
+	if bound, unavailable := harvest(); bound != 0 || unavailable == 0 {
+		t.Fatalf("default manifest: bound=%d unavailable=%d", bound, unavailable)
+	}
+}

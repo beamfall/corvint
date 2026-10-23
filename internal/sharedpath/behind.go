@@ -132,6 +132,9 @@ func Behind(ctx context.Context, request BehindRequest) (BehindReport, error) {
 	if err != nil {
 		return BehindReport{}, err
 	}
+	if err := refuseShallowMergeBase(g, base, head); err != nil {
+		return BehindReport{}, err
+	}
 	counted, err := countBehind(g, base, head)
 	if err != nil {
 		return BehindReport{}, err

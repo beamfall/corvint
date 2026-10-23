@@ -11,7 +11,7 @@ budgets encode); GitHub #1406 (host-latency limits need a baseline and a content
 `docs/specs/task-context-packet-v0.md` operational note V1-0051 (the original CPU profile knob).
 
 ## Agent digest
-- Claim: Every command and MCP server honours the CPU and heap profile knobs, and `make perf-budget` measures six read budgets over a generated fixture.
+- Claim: Every command and MCP server honours the CPU and heap profile knobs, and `make perf-budget` measures seven read budgets over a generated fixture.
 - Status: accepted (owner standing auto-accept 2026-10-11)/experimental; checked by `TestPRBV0008EveryNamedCommandWritesProfiles` and `TestPRBV0024HarnessSmokeRun`.
 - Exists: `internal/procprofile`, `cmd/corvint/profile_knobs.go`, each MCP server's `runProfiled`, `internal/perfbudget`, `internal/perfbudget/budgets.json`, `make perf-budget`.
 - Blocked on: CI wiring of `make perf-budget` needs owner approval of a `.github/` change; the #1598 and #1601 targets stay pending until those changes land.
@@ -166,6 +166,31 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
   retirement, so a descendant that left the group is killed and awaited too. The harness removes
   its scratch directory only after that cleanup returns.
 
+### Unchanged-pair delta budget (GitHub #1634)
+
+Status for `PRB-V0-050..053`: proposed, experimental; GitHub #1634. They amend `PRB-V0-024`,
+`PRB-V0-030` and `PRB-V0-032` for one added scenario.
+
+- `PRB-V0-050`: The harness MUST measure a seventh scenario after the six of `PRB-V0-024`:
+  `unchanged-delta`, `docs corpus delta --previous corpus.json --artifact corpus.json --format
+  jsonl` over the current artifact against itself, with no unmeasured run. The budgets file MUST
+  bound exactly the seven scenarios in that order.
+- `PRB-V0-051`: `unchanged-delta` MUST carry the two enforced `PRB-V0-032` ceilings, except that
+  its p95 wall ceiling is 2x its baseline p95 rounded up to 500 ms, so a delta that rederives the
+  artifact (`DCP-V1-460`) exceeds it on the baseline host; the margin depends on the host, and it
+  has no target, because GitHub #1634 states no number.
+- `PRB-V0-052`: The baseline MUST carry the `unchanged-delta` measurement the ceilings derive from.
+  Until the next `--record-baseline` run it was recorded in a separate run from the other six,
+  whose revision, time and host load are named in its ceiling reasons and in
+  docs/build-log/2026-10-23-corpus-delta-verified-read.md.
+- `PRB-V0-053`: A baseline measurement taken in another run than the baseline's own MUST carry
+  that run's `provenance`: its start time, the measured corvint executable's clean source revision
+  and SHA-256 (the same executable built the artifacts it read), and the run's host observation.
+  It is attributed to that provenance, never to the baseline's `revision`, `host` or
+  `fixture.builder_sha256`; a measurement without one belongs to the baseline's run. The budgets
+  file refuses a provenance missing any of those fields, and `--record-baseline` writes none,
+  because every measurement then comes from one run.
+
 ## Non-goals
 
 - No per-phase timing for `docs corpus` (`--timings` is GitHub #1598's lane) and no profile
@@ -178,6 +203,9 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
 - No Windows peak resident set (PRB-V0-027 reports it `NOT_OBSERVED`, and an enforced RSS ceiling
   then fails closed); the harness targets Unix hosts.
 - No committed large fixture, no network, no new storage root, and no change to any read path.
+- The `unchanged-delta` scenario does not measure `--verify-rederive`, a changed pair (that is
+  `full-delta`) or classification cost; it bounds wall time, not the read path, so a regression
+  smaller than its headroom passes.
 
 ## Failure modes
 
@@ -199,6 +227,12 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
 - An unreadable fixture directory: refused before anything is written (PRB-V0-023).
 - An interrupted harness: every started process group is swept, and owned descendants retired,
   before the scratch directory is removed (PRB-V0-037).
+- A `docs corpus delta` that rederives its current artifact exceeds the `unchanged-delta` wall
+  ceiling and fails the run (PRB-V0-051); one that only slows by less than the headroom passes.
+- A baseline measurement's provenance missing its start time, clean executable revision,
+  executable SHA-256 or host observation: refused when the budgets file is loaded (PRB-V0-053).
+  A measurement from another run committed without any provenance cannot be detected by loading;
+  `TestPRBV0053BaselineProvenance` pins the one such measurement committed today.
 - Contended hosts inflate latency: the run still judges ceilings and records `contended` so a
   reader can discount the verdict; the baseline itself was recorded under heavy contention.
 
@@ -216,6 +250,12 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
   `TestPRBV0031CommittedBudgets` checks the committed targets, ceilings and baseline. The recorded
   full-scale baseline (build-log entry 2026-10-23-profile-knobs-and-read-budget) measured 96,350
   records over 10,000 inputs on a 12-core host at load 137 (contended).
+- #1634: `TestPRBV0050UnchangedDeltaBudget` checks the seventh scenario, its derived ceilings and
+  that the before-change delta exceeds the wall ceiling; a harness run with the before-change
+  binary fails on `unchanged-delta` (build-log entry 2026-10-23-corpus-delta-verified-read). Its
+  rederiving measurements are recorded constants, so it cannot detect a restored rederivation;
+  `TestDCPV1460DeltaCLIVerifiedRead`'s build counter (`DCP-V1-461`) is the deterministic guard.
+  `TestPRBV0053BaselineProvenance` checks that the separately recorded measurement names its run.
 
 ## Traceability
 
@@ -251,6 +291,10 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
 | `PRB-V0-034` | `internal/perfbudget/budget.go` | `TestPRBV0034EvaluateVerdicts` |
 | `PRB-V0-035` | `internal/perfbudget/budget.go` | `TestPRBV0034EvaluateVerdicts` |
 | `PRB-V0-036` | `internal/perfbudget/measure.go`, `internal/perfbudget/harness.go` | `TestPRBV0036MeasuredEnvironmentStripsSettings`, `TestPRBV0024HarnessSmokeRun` |
+| `PRB-V0-050` | `internal/perfbudget/budget.go`, `internal/perfbudget/harness.go` | `TestPRBV0050UnchangedDeltaBudget`, `TestPRBV0024HarnessSmokeRun`, `TestPRBV0030BudgetsValidation` |
+| `PRB-V0-051` | `internal/perfbudget/budgets.json` | `TestPRBV0050UnchangedDeltaBudget`, `TestPRBV0031CommittedBudgets` |
+| `PRB-V0-052` | `internal/perfbudget/budgets.json` | `TestPRBV0050UnchangedDeltaBudget`, `TestPRBV0031CommittedBudgets` |
+| `PRB-V0-053` | `internal/perfbudget/measure.go`, `internal/perfbudget/budget.go`, `internal/perfbudget/budgets.json` | `TestPRBV0053BaselineProvenance` |
 | `PRB-V0-037` | `internal/perfbudget/process.go`, `internal/perfbudget/measure.go`, `internal/perfbudget/cmd/perf-budget/main.go` | `TestPRBV0037InterruptRetiresBuildDescendants`, `TestPRBV0024HarnessSmokeRun` |
 
 ## Rollback

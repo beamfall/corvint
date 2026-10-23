@@ -34,6 +34,19 @@ type ScenarioMeasured struct {
 	PeakRSSBytes *int64   `json:"peak_rss_bytes"`
 	RSSUnknown   string   `json:"rss_unknown,omitempty"`
 	Error        string   `json:"error,omitempty"`
+	// Provenance is set only on a committed baseline measurement taken in another run than the
+	// baseline's own; that measurement is attributed to it, not to the baseline (PRB-V0-053).
+	Provenance *Provenance `json:"provenance,omitempty"`
+}
+
+// Provenance names the run one baseline measurement came from: when it started, the measured
+// corvint executable (which also built the fixture artifacts it read) by source revision and
+// SHA-256, and the host observation of that run (PRB-V0-053).
+type Provenance struct {
+	RecordedAt         string `json:"recorded_at"`
+	ExecutableRevision string `json:"executable_revision"`
+	ExecutableSHA256   string `json:"executable_sha256"`
+	Host               Host   `json:"host"`
 }
 
 func (m ScenarioMeasured) metric(name string) *float64 {

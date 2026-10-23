@@ -101,7 +101,7 @@ func TestTSConfigPathAliasMissingTargetStaysFrontier_GH1604(t *testing.T) {
 // TJAA-V0-050, TJAA-V0-052, TJAA-V0-053 (GitHub #1604): every typescript:* frontier site names
 // file:line (or the file) and the specifier or token, including path-alias-unresolved,
 // e2e-runtime-dependency, executable-config-unresolved and scan-unresolved; the identity that kept
-// aliases unresolved and an unsupported tsconfig key are sites too.
+// aliases unresolved and an unsupported tsconfig key are sites too (TJAA-V0-057).
 func TestFrontierSitesNameFileLineAndToken_GH1604(t *testing.T) {
 	root := gh1604Repository(t, "", `{ "paths": { "lib/*": ["./lib/*"] } }`, "import { defineConfig } from '@playwright/test';\nexport default defineConfig({\n  testDir: './tests',\n  projects: [{ name: 'chromium' }],\n});\n", `{"devDependencies":{"@playwright/test":"1.61.0","vitest":"3"}}`)
 	write(t, root, "lib/unit/math.test.ts", "import { test } from 'vitest';\ntest('u', () => {});\n")
@@ -114,8 +114,7 @@ func TestFrontierSitesNameFileLineAndToken_GH1604(t *testing.T) {
 	for _, want := range []string{
 		FrontierPathAlias + ":tsconfig.json:2 `\"paths\":`",
 		FrontierPathAlias + ":lib/unit/math.test.ts `vitest`",
-		FrontierPathAlias + ":tests/control.spec.ts:1 `lib/fixtures/control`",
-		FrontierPathAlias + ":tests/client.spec.ts:2 `lib/api/client/ApiClient`",
+		FrontierPathAlias + ":nested/tsconfig.json:2 `extends`",
 		FrontierE2ERuntimeDependency + ":tests/other.spec.ts:1 `@playwright/test`",
 		FrontierConfig + ":playwright.config.ts:3 `testDir`",
 		FrontierScanUnresolved + ":lib/helpers/slash.ts:3 `/'/.test(s);`",
@@ -124,6 +123,15 @@ func TestFrontierSitesNameFileLineAndToken_GH1604(t *testing.T) {
 		if !slices.Contains(result.Frontier, want) {
 			t.Fatalf("frontier lacks %q:\n%s", want, strings.Join(result.Frontier, "\n"))
 		}
+	}
+	// TJAA-V0-057: under the blocked gate the imports tsconfig resolves are edges, not sites.
+	for _, resolved := range []string{FrontierPathAlias + ":tests/control.spec.ts:1 `lib/fixtures/control`", FrontierPathAlias + ":tests/client.spec.ts:2 `lib/api/client/ApiClient`"} {
+		if slices.Contains(result.Frontier, resolved) {
+			t.Fatalf("resolved alias import is still a site: %q", resolved)
+		}
+	}
+	if spec := testUnit(result, "tests/control.spec.ts"); !slices.Contains(spec.Imports, "typescript:lib/fixtures/control.ts") {
+		t.Fatalf("blocked gate dropped the tsconfig edge: %+v", spec)
 	}
 	for _, entry := range result.Frontier {
 		if !strings.Contains(entry, ":") || strings.Count(entry, ":") < 2 {

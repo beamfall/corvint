@@ -21,7 +21,7 @@ type corpusOperation struct {
 var corpusOperations = buildCorpusOperations()
 
 func buildCorpusOperations() []corpusOperation {
-	reads := []string{"--limit", "--offset", "--retirement", "--caller-revision"}
+	reads := []string{"--limit", "--offset", "--retirement", "--caller-revision", "--verify-rederive", "--timings"}
 	read := func(name, purpose string, required []string, optional ...string) corpusOperation {
 		return corpusOperation{name: name, purpose: purpose, required: append([]string{"--artifact"}, required...), optional: append(optional, reads...)}
 	}
@@ -65,7 +65,7 @@ func buildCorpusOperations() []corpusOperation {
 		typed("navigation", "typed navigation subject"),
 		typed("vocabulary", "typed vocabulary matching a term"),
 		read("intent", "typed intent comparisons of one subject, or every intent comparison without --id", nil, "--id"),
-		{name: "delta", purpose: "page a cross-revision worklist: carry-forward, moved, changed, removed, unresolved and uncovered; records-provider subjects, claims and relations, adoption kinds such as flows and paragraphs included, can carry forward", required: []string{"--previous"}, optional: []string{"--artifact", "--manifest", "--limit", "--offset", "--uncovered", "--anchorless", "--format"}},
+		{name: "delta", purpose: "page a cross-revision worklist: carry-forward, moved, changed, removed, unresolved and uncovered; records-provider subjects, claims and relations, adoption kinds such as flows and paragraphs included, can carry forward", required: []string{"--previous"}, optional: []string{"--artifact", "--manifest", "--limit", "--offset", "--uncovered", "--anchorless", "--format", "--verify-rederive", "--timings"}},
 		{name: "carry-forward", purpose: "emit a provider record of one provider's records whose span hashes still hold; adoption kinds keep their typed details in an adoption provider record", required: []string{"--previous", "--provider"}, optional: []string{"--artifact", "--manifest"}},
 		{name: "eval", purpose: "score caller-labelled cases through the corpus MCP tool path; --baseline ratchets", required: []string{"--artifact", "--cases"}, optional: []string{"--baseline", "--format"}},
 		{name: "audit-sample", purpose: "draw a reproducible claim sample to audit; also spelled audit sample", required: []string{"--artifact", "--seed", "--size"}, optional: []string{"--stratify", "--scope"}},
@@ -137,6 +137,8 @@ var corpusFlagHelp = map[string][2]string{
 	"--include":                     {"KIND[,KIND]", "flow record kinds: claims, relations, test_knowledge, paragraphs; search admits only claims"},
 	"--kind":                        {"KIND[,KIND]", "gaps: gap kinds to keep, each totalled before paging; search: subject kinds to keep"},
 	"--retirement":                  {"POLICY.json", "retirement policy"},
+	"--verify-rederive":             {"", "rederive the artifact from its pinned inputs before answering, as validate does"},
+	"--timings":                     {"", "write the read phase durations to stderr; stdout is unchanged"},
 	"--runner":                      {"jasmine|mocha", "legacy test runner"},
 	"--expected-base":               {"FULL_COMMIT", "base the cem/1.0 map must bind"},
 	"--target":                      {"FULL_COMMIT", "target commit holding the map as its sidecar"},

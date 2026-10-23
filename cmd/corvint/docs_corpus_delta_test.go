@@ -222,3 +222,75 @@ func TestDCPV1421DeltaViewsCLI(t *testing.T) {
 		}
 	}
 }
+
+// TestDCPV1460DeltaCLIVerifiedRead drives `docs corpus delta --artifact` through the CLI: the
+// default path admits the current artifact through the verified read and runs no build, its
+// paged and jsonl output is byte-identical to --verify-rederive, --timings writes one phase line
+// with the comparison and encode phases to stderr and leaves stdout unchanged, and a current
+// artifact the verified read refuses is refused (DCP-V1-460..462).
+func TestDCPV1460DeltaCLIVerifiedRead(t *testing.T) {
+	// A test binary's builder label is always `unrecorded`; trust it as an attested build would be
+	// (DCP-V1-410). Not parallel: it counts builds.
+	defer doccorpus.TrustUnattestedBuilderForTest()()
+	root := taskContextRepository(t)
+	writeCorpusFixture(t, root, cemGit(t, root, "rev-parse", "HEAD"), "cache")
+	if err := os.Rename(filepath.Join(root, "corpus.json"), filepath.Join(root, "previous.json")); err != nil {
+		t.Fatal(err)
+	}
+	cemWrite(t, root, "cache/demux.go", "package cache\n\n// Split returns key.\nfunc Split(key string) string { return key }\n")
+	cemGit(t, root, "add", "cache")
+	cemGit(t, root, "commit", "-qm", "change")
+	writeCorpusFixture(t, root, cemGit(t, root, "rev-parse", "HEAD"), "cache")
+	delta := func(args ...string) (string, string, int64) {
+		t.Helper()
+		before := doccorpus.BuildsForTest()
+		code, out, stderr := corpusCLI(t, root, append([]string{"docs", "corpus", "delta", "--previous", "previous.json", "--artifact", "corpus.json"}, args...)...)
+		if code != 0 {
+			t.Fatalf("%v: %d %s", args, code, stderr)
+		}
+		return out, stderr, doccorpus.BuildsForTest() - before
+	}
+	for _, view := range [][]string{{"--limit", "256"}, {"--format", "jsonl"}, {"--format", "jsonl", "--anchorless", "list", "--uncovered", "changed"}} {
+		verified, _, builds := delta(view...)
+		if builds != 0 {
+			t.Fatalf("%v: delta ran %d builds on the verified path", view, builds)
+		}
+		rederived, _, builds := delta(append(view, "--verify-rederive")...)
+		if builds == 0 {
+			t.Fatalf("%v: --verify-rederive ran no build", view)
+		}
+		if verified != rederived || !strings.Contains(verified, `"uncovered"`) {
+			t.Fatalf("%v: verified delta differs from --verify-rederive:\n%s\n%s", view, verified, rederived)
+		}
+		for _, mode := range [][]string{nil, {"--verify-rederive"}} {
+			timed, stderr, _ := delta(append(append(view, mode...), "--timings")...)
+			validation := doccorpus.ValidationVerified
+			if mode != nil {
+				validation = doccorpus.ValidationRederived
+			}
+			if timed != verified || !strings.HasPrefix(stderr, "corvint docs corpus timings: validation="+validation+" ") || strings.Count(stderr, "\n") != 1 {
+				t.Fatalf("%v %v --timings: stdout changed or summary %q", view, mode, stderr)
+			}
+			for _, phase := range []string{"parse_ms=", "verify_ms=", "freshness_ms=", "index_ms=", "query_ms=", "encode_ms=", "compare_ms=", "total_ms="} {
+				if !strings.Contains(stderr, phase) {
+					t.Fatalf("timings summary lacks %s: %q", phase, stderr)
+				}
+			}
+		}
+	}
+	raw, err := os.ReadFile(filepath.Join(root, "corpus.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cemWrite(t, root, "corpus.json", " "+string(raw))
+	for _, mode := range [][]string{nil, {"--verify-rederive"}} {
+		if code, out, stderr := corpusCLI(t, root, append([]string{"docs", "corpus", "delta", "--previous", "previous.json", "--artifact", "corpus.json"}, mode...)...); code != 2 || out != "" || !strings.Contains(stderr, "corpus-refused") {
+			t.Fatalf("%v: tampered current side not refused: %d %s %s", mode, code, out, stderr)
+		}
+	}
+	for _, flag := range []string{"--verify-rederive", "--timings"} {
+		if code, out, _ := corpusCLI(t, root, "docs", "corpus", "carry-forward", "--previous", "previous.json", "--artifact", "previous.json", "--provider", "adapter", flag); code != 2 || out != "" {
+			t.Fatalf("carry-forward accepted %s: %d %s", flag, code, out)
+		}
+	}
+}
