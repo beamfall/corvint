@@ -69,7 +69,7 @@ func TestPlaywrightNumberMemberCallsAreAdmitted_GH1625(t *testing.T) {
 // TJAA-V0-054 (GitHub #1625 part 1): browser identity is derived only from the identity fields and
 // the env names they read. A non-identity field (navigationTimeout, actionTimeout, baseURL, trace,
 // ...) never leaves it unresolved, whatever its value form; one that is not side-effect free is
-// named by an execution-axis playwright:use-value-unverified unknown at its key and line.
+// named by a selection-axis playwright:use-value-unverified unknown at its key and line.
 func TestPlaywrightNonIdentityFieldsNeverBlockIdentity_GH1625(t *testing.T) {
 	// The issue's refusal before TJAA-V0-055 came from Number; any other value form is now
 	// ignored for identity too.
@@ -82,13 +82,16 @@ func TestPlaywrightNonIdentityFieldsNeverBlockIdentity_GH1625(t *testing.T) {
 		"    video: process.env.CI ? (await mode()) : 'off',\n",
 	} {
 		projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", gh1625Config(extra))
-		if len(unknown) != 0 || len(projects) != 2 || projects[0].Browser != "chromium" || projects[0].Device != "Desktop Chrome" || projects[1].Browser != "firefox" {
+		if hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) || len(projects) != 2 || projects[0].Browser != "chromium" || projects[0].Device != "Desktop Chrome" || projects[1].Browser != "firefox" {
 			t.Fatalf("%q blocked identity: projects=%+v unknown=%+v", extra, projects, unknown)
 		}
 		key := strings.TrimSpace(extra[:strings.Index(extra, ":")])
-		notes := gh1625Unknowns(projects, nil, PlaywrightUnknownUseValueUnverified)
-		if len(notes) != 2 || notes[0].Axis != PlaywrightAxisExecution || !strings.Contains(notes[0].Detail, key+" is not a side-effect-free value at `") || !strings.Contains(notes[0].Detail, "(playwright.config.ts:11)") {
+		notes := gh1625Unknowns(nil, unknown, PlaywrightUnknownUseValueUnverified)
+		if len(notes) != 2 || len(unknown) != 2 || notes[0].Axis != PlaywrightAxisSelection || !strings.Contains(notes[0].Detail, key+" is not a side-effect-free value at `") || !strings.Contains(notes[0].Detail, "(playwright.config.ts:11)") {
 			t.Fatalf("%q: notes=%+v", extra, notes)
+		}
+		if execution := playwrightExecution(projects); len(execution) != 0 {
+			t.Fatalf("%q: unverified value is only an execution note: %+v", extra, execution)
 		}
 	}
 	// Identity fields still decide: a computed one leaves the identity unresolved.

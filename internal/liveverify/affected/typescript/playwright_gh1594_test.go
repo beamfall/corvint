@@ -132,16 +132,16 @@ func TestPlaywrightEnvDefaultForms_GH1594(t *testing.T) {
 
 // TJAA-V0-044: browser-identity-unresolved names the blocking token and its config line, and the
 // scope token that refused a root the value needs. Under TJAA-V0-054 a non-identity value is named
-// the same way by the execution-axis playwright:use-value-unverified unknown instead.
+// the same way by the selection-axis playwright:use-value-unverified unknown instead.
 func TestPlaywrightBrowserIdentityNamesBlockingToken_GH1594(t *testing.T) {
 	rows := []struct{ source, want string }{
 		{
 			"import { defineConfig } from '@playwright/test';\nexport default defineConfig({\n  use: {\n    trace: compute(),\n  },\n  projects: [{ name: 'p' }],\n});\n",
-			"p browser identity assumes a non-identity use value leaves devices descriptors unchanged: trace is not a side-effect-free value at `compute` (playwright.config.ts:4)",
+			"p use value can run code the static selection does not model: trace is not a side-effect-free value at `compute` (playwright.config.ts:4)",
 		},
 		{
 			"import { defineConfig } from '@playwright/test';\nconst g = globalThis;\nexport default defineConfig({\n  projects: [{ name: 'p', use: { baseURL: process.env.URL } }],\n});\n",
-			"p browser identity assumes a non-identity use value leaves devices descriptors unchanged: baseURL is not a side-effect-free value at `process` (playwright.config.ts:4); process is not admitted: the config names the global object at `globalThis` (playwright.config.ts:2)",
+			"p use value can run code the static selection does not model: baseURL is not a side-effect-free value at `process` (playwright.config.ts:4); process is not admitted: the config names the global object at `globalThis` (playwright.config.ts:2)",
 		},
 		{
 			"import { defineConfig } from '@playwright/test';\nexport default defineConfig({\n  projects: [{ name: 'p', use: { channel: process.env.CHANNEL } }],\n});\n",
@@ -153,10 +153,10 @@ func TestPlaywrightBrowserIdentityNamesBlockingToken_GH1594(t *testing.T) {
 		},
 	}
 	for _, row := range rows {
-		projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", row.source)
+		_, _, unknown := parsePlaywrightConfig("playwright.config.ts", row.source)
 		found := false
-		for _, entry := range append(unknown, playwrightExecution(projects)...) {
-			if (entry.Reason == PlaywrightUnknownBrowserIdentity || entry.Reason == PlaywrightUnknownUseValueUnverified) && strings.HasSuffix(entry.Detail, row.want) {
+		for _, entry := range unknown {
+			if (entry.Reason == PlaywrightUnknownBrowserIdentity || entry.Reason == PlaywrightUnknownUseValueUnverified) && entry.Axis == PlaywrightAxisSelection && strings.HasSuffix(entry.Detail, row.want) {
 				found = true
 			}
 		}

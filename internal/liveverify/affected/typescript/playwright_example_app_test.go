@@ -142,7 +142,7 @@ func TestPlaywrightAliasResolutionBoundaries(t *testing.T) {
 		}
 		child := parseTypeScriptAliases("a/tsconfig.json", `{"compilerOptions":{"paths":{"@x":["local.ts"]}}}`)
 		frontier := frontierSet{}
-		got := resolveTypeScriptAliases("a/example.spec.ts", []string{"@x"}, []typeScriptAliases{config, child}, bodies, nil, frontier)
+		got := resolveTypeScriptAliases("a/example.spec.ts", []string{"@x"}, []typeScriptAliases{config, child}, bodies, nil, frontier, nil)
 		if !slices.Equal(got, []string{"./local.ts"}) || len(frontier) != 0 {
 			t.Fatalf("nearest config: %v %v", got, frontier)
 		}
@@ -488,18 +488,17 @@ func TestPlaywrightMemberReadRoots_GH709Round8(t *testing.T) {
 	}
 }
 
-// playwrightIdentityUnverified reports a browser identity that is unresolved, or resolved with an
-// execution-axis unknown naming a non-identity value that is not side-effect free (TJAA-V0-054):
-// such a value is never silently ignored.
+// playwrightIdentityUnverified reports a browser identity that is unresolved, or resolved with a
+// selection-axis unknown naming a non-identity value that is not side-effect free (TJAA-V0-054):
+// such a value is never silently ignored, and it always keeps the selection uncertain.
 func playwrightIdentityUnverified(projects []PlaywrightProject, unknown []PlaywrightUnknown) bool {
-	if hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
-		return true
-	}
-	for _, project := range projects {
-		if hasPlaywrightUnknownReason(project.execution, PlaywrightUnknownUseValueUnverified) {
+	for _, entry := range unknown {
+		if entry.Reason == PlaywrightUnknownBrowserIdentity || entry.Reason == PlaywrightUnknownUseValueUnverified && entry.Axis == PlaywrightAxisSelection {
 			return true
 		}
 	}
+	// An execution-axis note alone would let the plan stay bounded, so it does not count.
+	_ = projects
 	return false
 }
 

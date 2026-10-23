@@ -240,9 +240,11 @@ func sourceToken(text string) string {
 // sites are always named (TJAA-V0-058).
 const frontierSiteBound = 16
 
-// locatedFrontier renders frontier as the general adapter's sorted frontier entries: per reason,
-// `reason:site` followed by a space and the backquoted token when one is known, for at most
-// frontierSiteBound sorted sites, then `reason:+N` for the rest; a reason without a site stays bare.
+// locatedFrontier renders frontier as the general adapter's frontier entries, grouped by reason in
+// sorted reason order: per reason, `reason:site` followed by a space and the backquoted token when
+// one is known, every pinned site first, then at most frontierSiteBound sorted sites, then
+// `reason:+N` for the rest; a reason without a site stays bare. The entries are not re-sorted, so
+// the pinned sites stay first (TJAA-V0-058).
 func locatedFrontier(frontier frontierSet) []string {
 	entries := []string{}
 	for _, reason := range sortedKeys(frontier) {
@@ -259,7 +261,6 @@ func locatedFrontier(frontier frontierSet) []string {
 			entries = append(entries, reason+":+"+strconv.Itoa(extra))
 		}
 	}
-	sort.Strings(entries)
 	return entries
 }
 
@@ -452,8 +453,13 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 	// loader (a Jest moduleNameMapper, a Vite resolve.alias) need not follow tsconfig paths.
 	// TJAA-V0-057: otherwise it still adds the edges tsconfig resolution names, and the frontier
 	// keeps the tsconfig and the blocking identity as pinned sites (TJAA-V0-058).
+	// Under the blocked gate the tsconfig edges are speculative: a bare reference that names a
+	// workspace package keeps its workspace link beside the tsconfig edge, so the selection is a
+	// superset of the gate's own (TJAA-V0-059).
+	var keep func(string) bool
 	if len(aliasConfigs) != 0 && !resolveAliases {
 		if blocker, only := playwrightOnlyRunners(configs, scopes, observations); !only {
+			keep = func(ref string) bool { return localPackage(importedPackage(ref), scopes) }
 			for _, relative := range aliasConfigs {
 				body := bodies[relative]
 				offset := pathAliasMarker(body)
@@ -473,7 +479,7 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 	for index := range observations {
 		observation := &observations[index]
 		if resolveAliases {
-			observation.refs = resolveTypeScriptAliases(observation.path, observation.refs, aliases, bodies, sites, frontier)
+			observation.refs = resolveTypeScriptAliases(observation.path, observation.refs, aliases, bodies, sites, frontier, keep)
 		}
 		if ref, unresolved := unresolvedBareImport(observation.path, observation.refs, scopes); unresolved {
 			sites.raiseRef(frontier, FrontierPathAlias, observation.path, ref)

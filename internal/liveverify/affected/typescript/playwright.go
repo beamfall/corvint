@@ -531,7 +531,15 @@ func parsePlaywrightConfig(configPath, source string) ([]PlaywrightProject, stri
 	if !ok {
 		return nil, "", []PlaywrightUnknown{selectionUnknown(PlaywrightUnknownConfigSyntax, "top-level config object is dynamic")}
 	}
-	scope := newPlaywrightPureScope(clean)
+	uses := []string{properties["use"]}
+	if items, ok := playwrightArrayItems(properties["projects"]); ok {
+		for _, item := range items {
+			if project, ok := playwrightObjectProperties(item); ok {
+				uses = append(uses, project["use"])
+			}
+		}
+	}
+	scope := newPlaywrightPureScopeConfined(clean, playwrightNonIdentityUseSpans(clean, uses))
 	globalTestDir := "."
 	unknown := []PlaywrightUnknown{}
 	if raw, exists := properties["testDir"]; exists {
@@ -591,6 +599,54 @@ func parsePlaywrightConfig(configPath, source string) ([]PlaywrightProject, stri
 		unknown = append(unknown, selectionUnknown(PlaywrightUnknownProjectSet, "no static project identity was recovered"))
 	}
 	return projects, globalTestDir, canonicalPlaywrightUnknowns(unknown)
+}
+
+// playwrightNonIdentityUseSpans returns the spans of clean that hold one value of a non-identity
+// key of a `use` layer in uses (TJAA-V0-060). A layer is located only when its text occurs once in
+// clean, so each span is exact; any other layer contributes none.
+func playwrightNonIdentityUseSpans(clean string, uses []string) [][2]int {
+	spans := [][2]int{}
+	for _, raw := range uses {
+		raw = strings.TrimSpace(raw)
+		if raw == "" || strings.Count(clean, raw) != 1 {
+			continue
+		}
+		if _, exact := playwrightObject(raw); !exact || len(raw) < 2 || raw[len(raw)-1] != '}' {
+			continue
+		}
+		inner := raw[1 : len(raw)-1]
+		innerAt := strings.Index(clean, raw) + 1
+		items, split := playwrightSplitTopLevel(inner)
+		if !split {
+			continue
+		}
+		cursor := 0
+		for _, item := range items {
+			found := strings.Index(inner[cursor:], item)
+			if found < 0 {
+				break
+			}
+			itemAt := cursor + found
+			cursor = itemAt + len(item)
+			trimmed := strings.TrimSpace(item)
+			colon := playwrightTopLevelColon(trimmed)
+			if trimmed == "" || strings.HasPrefix(trimmed, "...") || colon < 0 {
+				continue
+			}
+			key := strings.TrimSpace(trimmed[:colon])
+			if quoted, literal := playwrightString(key); literal {
+				key = quoted
+			} else if _, end := playwrightIdentifier(key, 0); key == "" || end != len(key) {
+				continue
+			}
+			if key == "browserName" || slices.Contains(PlaywrightUseIdentityKeys, key) {
+				continue
+			}
+			start := innerAt + itemAt + strings.Index(item, trimmed)
+			spans = append(spans, [2]int{start + colon + 1, start + len(trimmed)})
+		}
+	}
+	return spans
 }
 
 func parsePlaywrightProject(scope playwrightPureScope, configPath, globalTestDir, raw, globalUse string) (PlaywrightProject, []PlaywrightUnknown) {
@@ -661,9 +717,10 @@ func parsePlaywrightProject(scope playwrightPureScope, configPath, globalTestDir
 	}
 	if ok {
 		// TJAA-V0-054: a non-identity value that is not side-effect free does not block the
-		// identity; it is named as an execution-axis unknown instead.
+		// identity, but its evaluation can run code the static model does not observe (a
+		// module-resolution hook, a descriptor rewrite), so it keeps the selection uncertain.
 		for _, value := range unverified {
-			project.execution = append(project.execution, PlaywrightUnknown{Axis: PlaywrightAxisExecution, Reason: PlaywrightUnknownUseValueUnverified, Detail: name + " browser identity assumes a non-identity use value leaves devices descriptors unchanged" + value.detail(scope, configPath)})
+			unknown = append(unknown, selectionUnknown(PlaywrightUnknownUseValueUnverified, name+" use value can run code the static selection does not model"+value.detail(scope, configPath)))
 		}
 	}
 	if !ok {
@@ -846,7 +903,8 @@ func playwrightUseLayerItems(scope playwrightPureScope, raw, browser, device str
 		if key != "browserName" {
 			// An identity value must be a static literal. Another option's value (baseURL,
 			// storageState, trace, ...) never decides the identity; one whose evaluation can run
-			// code or write state is reported as playwright:use-value-unverified (TJAA-V0-054).
+			// code or write state is the selection unknown playwright:use-value-unverified
+			// (TJAA-V0-054).
 			if key == "launchOptions" && !playwrightStaticValue(value) && playwrightComputedExecutableOnly(scope, value) {
 				computedExecutable = true
 				continue
@@ -855,7 +913,7 @@ func playwrightUseLayerItems(scope playwrightPureScope, raw, browser, device str
 				return "", device, false, refuse(item, valueAt, "identity key "+key+" is not a static literal"), nil
 			}
 			// TJAA-V0-054: a non-identity value never decides the identity, whatever its form. One
-			// that is not side-effect free is reported, because its evaluation could run code.
+			// that is not side-effect free is a selection unknown, because it could run code.
 			if failure := playwrightPureFailure(value, scope); failure >= 0 {
 				unverified = append(unverified, refuse(item, valueAt+failure, key+" is not a side-effect-free value"))
 			}

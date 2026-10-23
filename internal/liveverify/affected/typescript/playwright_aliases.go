@@ -107,7 +107,10 @@ func parseTypeScriptAliases(name, body string) typeScriptAliases {
 	return config
 }
 
-func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptAliases, bodies map[string]string, sites sourceSites, frontier frontierSet) []string {
+// resolveTypeScriptAliases rewrites each bare reference the nearest tsconfig resolves to the
+// relative path of its target. When keep reports true for the original reference, the target is
+// added beside it instead, so the edges the original names are kept (TJAA-V0-059).
+func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptAliases, bodies map[string]string, sites sourceSites, frontier frontierSet, keep func(string) bool) []string {
 	var nearest *typeScriptAliases
 	for index := range configs {
 		config := &configs[index]
@@ -135,8 +138,13 @@ func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptA
 			sites.raiseRef(frontier, FrontierPathAlias, owner, ref)
 			continue
 		}
-		resolved[index] = "./" + filepath.ToSlash(relative)
-		sites.alias(owner, ref, resolved[index])
+		rewritten := "./" + filepath.ToSlash(relative)
+		if keep != nil && keep(ref) {
+			resolved = append(resolved, rewritten)
+		} else {
+			resolved[index] = rewritten
+		}
+		sites.alias(owner, ref, rewritten)
 	}
 	return resolved
 }

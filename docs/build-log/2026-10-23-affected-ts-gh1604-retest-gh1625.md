@@ -1,7 +1,7 @@
 # Blocked tsconfig alias gate and non-identity Playwright use values for GitHub #1604 re-test, #1625
 
 Date: 2026-10-23. Lane: opencode/affected-ts-gh1604-1625 (base 7b3a8e55f). Requirements
-`TJAA-V0-054..058` in `docs/specs/typescript-javascript-affected-adapter-v0.md` are accepted under
+`TJAA-V0-054..060` in `docs/specs/typescript-javascript-affected-adapter-v0.md` are accepted under
 the owner's standing auto-accept (2026-10-11). They amend `TJAA-V0-018`/`035`/`048` (Playwright
 identity and numeric conversions) and `TJAA-V0-037`/`050`/`052` (the alias gate and site bound).
 
@@ -30,7 +30,8 @@ identity and numeric conversions) and `TJAA-V0-037`/`050`/`052` (the alias gate 
   blocks the identity, whatever its value. This supersedes the #1605 lane's non-goal at the owner's
   direction in the issue. Invariant 2 still requires the uncertainty to be reported: a value that
   is not side-effect free could run code that rewrites a `devices` descriptor outside the config's
-  view. It is named as an execution-axis `playwright:use-value-unverified` unknown, with the same
+  view. It is named as a `playwright:use-value-unverified` unknown (execution-axis here, made
+  selection-axis by the review repair below), with the same
   token, line and refused-root detail as `TJAA-V0-044`. A rewrite inside the config still refuses
   the devices root, so the GitHub #709 repros still block. The #709 purity tests now assert
   "unresolved or unverified" rather than "unresolved".
@@ -49,6 +50,35 @@ now cite `TJAA-V0-054`, the #1605 process rows assert the exact refused root, an
 member check is a constant-time boundary test. Not changed: the pin is a NUL prefix on the
 stored token. Real tokens stop at control bytes, and an import specifier containing a literal NUL
 byte is recorded as a residual in `TJAA-V0-058`.
+
+## PR #1628 review repair (`TJAA-V0-059`, `TJAA-V0-060`)
+
+A second independent review found one P1, two P2 and one P3 issue. Each fix has a test that fails
+on the reviewed head (ff3cddad7 + merge e8d743509).
+
+- P1: an execution-axis `playwright:use-value-unverified` could not trigger a fallback. A
+  `trace: (register({...}), 'on')` call from `tsconfig-paths` changes runtime module resolution, so
+  a change the static graph does not connect could exclude its importing spec under a `BOUNDED`
+  scope. `TJAA-V0-054` now makes the unknown selection-axis: the recovered identity is kept, the
+  plan is `UNKNOWN` with the full-suite fallback, and a discovery receipt cannot bound it. The
+  listing membership check tolerates it as it tolerates an unresolved identity. This supersedes
+  the "unresolved or unverified" test relaxation above: the helper now requires a selection-axis
+  unknown. Test: `TestPlaywrightSideEffectUseValueKeepsSelectionUnknown_PR1628`.
+- P2 (workspace): under a blocked gate the tsconfig resolver replaced a bare reference, so a
+  workspace package that tsconfig also maps lost its workspace-link edge. `TJAA-V0-059` keeps the
+  original reference beside the tsconfig edge when it names a workspace package, so the selection
+  is a superset of the gate's own. Test: `TestBlockedGateKeepsWorkspaceLinks_PR1628`.
+- P2 (purity): a `++`, `--` or `delete` anywhere refused every root, the devices root included, so
+  `navigationTimeout: counter++` blocked a device spread. `TJAA-V0-060` exempts the devices root
+  when every such token lies in a non-identity `use` value that names no `devices` and has no `\`;
+  `playwrightDevicesBlock` still refuses any update, delete or alias of a devices occurrence. The
+  other roots stay refused, so the mutating value is the `TJAA-V0-054` selection unknown. Test:
+  `TestPlaywrightConfinedMutationKeepsDeviceIdentity_PR1628`.
+- P3: `locatedFrontier` re-sorted the rendered entries, putting the pinned sites back behind
+  `lib/...` sites. Entries are now grouped by reason in sorted reason order and not re-sorted.
+  The tests now assert positions. The language-neutral `affected-plan/0` unknown list remains its
+  canonical sorted set, where every pinned site is present but not reordered; this is recorded in
+  `TJAA-V0-058`.
 
 ## Evidence
 

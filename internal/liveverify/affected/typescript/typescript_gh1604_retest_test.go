@@ -165,6 +165,13 @@ func TestBlockedAliasGateSelectsAndNamesBlocker_GH1604(t *testing.T) {
 					t.Fatalf("frontier lacks %q:\n%s", want, strings.Join(result.Frontier, "\n"))
 				}
 			}
+			// The blocker and tsconfig sites precede every ordinary `lib/...` site (TJAA-V0-058).
+			firstOrdinary := slices.IndexFunc(result.Frontier, func(entry string) bool {
+				return strings.HasPrefix(entry, FrontierPathAlias+":lib/")
+			})
+			if blocker, tsconfig := slices.Index(result.Frontier, row.blocker), slices.Index(result.Frontier, FrontierPathAlias+":tsconfig.json:4 `\"paths\":`"); firstOrdinary < 0 || blocker > firstOrdinary || tsconfig > firstOrdinary {
+				t.Fatalf("pinned sites are not first:\n%s", strings.Join(result.Frontier, "\n"))
+			}
 			if slices.Contains(result.Frontier, FrontierPathAlias+":lib/api/client/BaseApiClient.ts:14 `lib/configs`") {
 				t.Fatalf("resolvable alias import is a site: %v", result.Frontier)
 			}
@@ -197,7 +204,8 @@ func TestPinnedFrontierSitesPrecedeTheBound_GH1604(t *testing.T) {
 	frontier.raiseToken(FrontierPathAlias, "z.json:2", "baseUrl")
 	frontier.pin(FrontierPathAlias, "missing")
 	entries := locatedFrontier(frontier)
-	if entries[0] != FrontierPathAlias+":+4" || !slices.Contains(entries, FrontierPathAlias+":z.json:2 `baseUrl`") || !slices.Contains(entries, FrontierPathAlias+":a/m15.ts:1 `lib/x`") || slices.Contains(entries, FrontierPathAlias+":a/m16.ts:1 `lib/x`") {
+	// The pinned site is first, then the 16 sorted unpinned sites, then the count.
+	if len(entries) != 18 || entries[0] != FrontierPathAlias+":z.json:2 `baseUrl`" || entries[1] != FrontierPathAlias+":a/m00.ts:1 `lib/x`" || entries[16] != FrontierPathAlias+":a/m15.ts:1 `lib/x`" || entries[17] != FrontierPathAlias+":+4" {
 		t.Fatalf("entries %v", entries)
 	}
 	if detail := frontierDetail(frontier[FrontierPathAlias]); !strings.HasPrefix(detail, "shared TypeScript graph frontier at z.json:2 `baseUrl`, a/m00.ts:1") || !strings.HasSuffix(detail, " and 12 more") {
@@ -211,7 +219,12 @@ func TestPinnedFrontierSitesPrecedeTheBound_GH1604(t *testing.T) {
 		frontier.pin(FrontierPathAlias, site)
 	}
 	entries = locatedFrontier(frontier)
-	if !slices.Contains(entries, FrontierPathAlias+":apps/a16/tsconfig.json:3 `\"paths\":`") || !slices.Contains(entries, FrontierPathAlias+":z.json:2 `baseUrl`") || !slices.Contains(entries, FrontierPathAlias+":+4") || len(entries) != 18+16+1 || slices.Contains(entries, FrontierPathAlias+":a/m16.ts:1 `lib/x`") {
+	if len(entries) != 18+16+1 || entries[0] != FrontierPathAlias+":apps/a00/tsconfig.json:3 `\"paths\":`" || entries[16] != FrontierPathAlias+":apps/a16/tsconfig.json:3 `\"paths\":`" || entries[17] != FrontierPathAlias+":z.json:2 `baseUrl`" || entries[18] != FrontierPathAlias+":a/m00.ts:1 `lib/x`" || entries[34] != FrontierPathAlias+":+4" || slices.Contains(entries, FrontierPathAlias+":a/m16.ts:1 `lib/x`") {
+		t.Fatalf("entries %v", entries)
+	}
+	// Another reason keeps its own group, in sorted reason order.
+	frontier.raiseToken(FrontierDynamicImport, "b.ts:1", "import(")
+	if entries = locatedFrontier(frontier); entries[0] != FrontierDynamicImport+":b.ts:1 `import(`" || entries[1] != FrontierPathAlias+":apps/a00/tsconfig.json:3 `\"paths\":`" {
 		t.Fatalf("entries %v", entries)
 	}
 	if detail := frontierDetail(frontier[FrontierPathAlias]); !strings.Contains(detail, "z.json:2 `baseUrl`") || !strings.HasSuffix(detail, " and 12 more") {
