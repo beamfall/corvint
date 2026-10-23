@@ -11,7 +11,8 @@ import (
 // parser at a0e56f3c1 (its allowed and required maps) rather than read from corpusOperations, so
 // the shared table cannot vouch for itself. import-cases and search-cases come from the
 // claude/issues-812-813-legacy-cases parser (DCP-V1-070..079), and discover-legacy from the
-// claude/issue-811-legacy-inventory parser (DCP-V1-060..069); both predate the table.
+// claude/issue-811-legacy-inventory parser (DCP-V1-060..069); both predate the table. discover-tests
+// (DCP-V1-370) admits exactly its three required options.
 type corpusFlagExpectation struct{ required, optional []string }
 
 var corpusReadOptional = []string{"--limit", "--offset", "--retirement", "--caller-revision"} // DCP-V1-332
@@ -27,6 +28,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"discover-playwright": {required: []string{"--migration", "--config", "--playwright-list"}, optional: []string{"--receipt"}},
 	"witness-playwright":  {required: []string{"--input", "--receipt-input", "--report"}},
 	"discover-legacy":     {required: []string{"--runner", "--revision", "--path"}, optional: []string{"--input"}},
+	"discover-tests":      {required: []string{"--runner", "--revision", "--path"}},
 	"extract":             {required: []string{"--profile", "--revision"}}, // DCP-V1-399
 	"import-cases":        {required: []string{"--format", "--input"}, optional: []string{"--content"}},
 	"search-cases":        {required: []string{"--format", "--input"}, optional: []string{"--query", "--id", "--match", "--limit"}},
@@ -143,7 +145,7 @@ func TestDocsCorpusOperationFlagMatrix(t *testing.T) {
 			}
 			// An inapplicable option is refused before the missing required one.
 			stray := "--revision"
-			if op == "manifest" || op == "discover-legacy" || op == "extract" {
+			if op == "manifest" || op == "discover-legacy" || op == "discover-tests" || op == "extract" {
 				stray = "--artifact"
 			}
 			if got := corpusParseError(append(args, corpusFlagArgs(op, stray)...)); got != "option does not apply to corpus operation" {
