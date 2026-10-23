@@ -57,9 +57,9 @@ func TestDCPV1360DeltaRepairs(t *testing.T) {
 		view := tkAnchor(t, root, m, rev, "src/view.ts", 1, 1)
 		view.Symbol = "showCount"
 		record := deltaProviderRecord(m, "adapter", []Subject{
-			{"adapter:eof", "capability", "Count", "adapter", deltaEvidence(eof)},
-			{"adapter:eof-changed", "document", "Readme", "adapter", deltaEvidence(eofChanged)},
-			{"adapter:view", "ui_surface", "View", "adapter", deltaEvidence(view)},
+			{"adapter:eof", "capability", "Count", "adapter", deltaEvidence(eof), nil},
+			{"adapter:eof-changed", "document", "Readme", "adapter", deltaEvidence(eofChanged), nil},
+			{"adapter:view", "ui_surface", "View", "adapter", deltaEvidence(view), nil},
 		}, nil)
 		previous, err := Build(ctx, root, commitProvider(t, root, m, record, "evidence/provider.json"))
 		if err != nil {
@@ -95,8 +95,8 @@ func TestDCPV1360DeltaRepairs(t *testing.T) {
 		line := tkAnchor(t, root, m, m.Repository.Revision, "src/extra.go", 1, 1)
 		lonely := tkAnchor(t, root, m, m.Repository.Revision, "src/extra.go", 3, 3)
 		record := deltaProviderRecord(m, "cover", []Subject{
-			{"cover:extra", "capability", "Extra", "cover", deltaEvidence(line)},
-			{"cover:lonely", "capability", "Lonely", "cover", deltaEvidence(lonely)},
+			{"cover:extra", "capability", "Extra", "cover", deltaEvidence(line), nil},
+			{"cover:lonely", "capability", "Lonely", "cover", deltaEvidence(lonely), nil},
 		}, []Claim{{"cover:extra-claim", "cover:extra", "Extra package line", "cover", deltaEvidence(line)}})
 		current, err := Build(ctx, root, commitProvider(t, root, m, record, "evidence/cover.json"))
 		if err != nil {
@@ -135,7 +135,7 @@ func TestDCPV1360DeltaRepairs(t *testing.T) {
 		root, m := fixture(t)
 		rev := m.Repository.Revision
 		a := tkAnchor(t, root, m, rev, "src/readme.md", 1, 1)
-		m = commitProvider(t, root, m, deltaProviderRecord(m, "other", []Subject{{"other:s", "document", "Readme", "other", deltaEvidence(a)}}, nil), "evidence/other.json")
+		m = commitProvider(t, root, m, deltaProviderRecord(m, "other", []Subject{{"other:s", "document", "Readme", "other", deltaEvidence(a), nil}}, nil), "evidence/other.json")
 		m = commitProvider(t, root, m, deltaProviderRecord(m, "adapter", nil, []Claim{{"adapter:c", "other:s", "Readme names the count", "adapter", deltaEvidence(a)}}), "evidence/adapter.json")
 		previous, err := Build(ctx, root, m)
 		if err != nil {

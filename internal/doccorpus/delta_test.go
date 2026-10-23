@@ -30,11 +30,11 @@ func deltaFixture(t *testing.T) (string, *Artifact, Manifest) {
 	reviewed.Trust = "reviewed"
 	record := ProviderRecord{Schema: ProviderSchema, ID: "adapter", Version: "1", Source: m.Repository,
 		Subjects: []Subject{
-			{"adapter:count", "capability", "Count", "adapter", ev(countAnchor)},
-			{"adapter:readme", "document", "Readme", "adapter", ev(anchor("src/readme.md", 3))},
-			{"adapter:report", "capability", "Report", "adapter", ev(anchor("src/report.py", 2))},
-			{"adapter:test", "test", "Count test", "adapter", ev(anchor("src/value_test.go", 3))},
-			{"adapter:view", "ui_surface", "View", "adapter", ev(viewAnchor)},
+			{"adapter:count", "capability", "Count", "adapter", ev(countAnchor), nil},
+			{"adapter:readme", "document", "Readme", "adapter", ev(anchor("src/readme.md", 3)), nil},
+			{"adapter:report", "capability", "Report", "adapter", ev(anchor("src/report.py", 2)), nil},
+			{"adapter:test", "test", "Count test", "adapter", ev(anchor("src/value_test.go", 3)), nil},
+			{"adapter:view", "ui_surface", "View", "adapter", ev(viewAnchor), nil},
 		},
 		Claims: []Claim{
 			{"adapter:count-claim", "adapter:count", "Count returns one", "adapter", reviewed},

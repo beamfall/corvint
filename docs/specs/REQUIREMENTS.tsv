@@ -2557,6 +2557,19 @@ DCP-V1-316	docs/specs/documentation-corpus-v1.md	(accepted under the owner's sta
 DCP-V1-317	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1554;	standing	2026-10-11; #1554
 DCP-V1-318	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1556;	standing	2026-10-11; #1556
 DCP-V1-319	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1556;	standing	2026-10-11; #1556
+DCP-V1-320	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1570; V1-	standing	2026-10-11; #1570; V1-2329; V1-2371
+DCP-V1-321	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1570; V1-	standing	2026-10-11; #1570; V1-2329; V1-2371
+DCP-V1-322	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1570; V1-	standing	2026-10-11; #1570; V1-2329; V1-2371
+DCP-V1-323	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1571; V1-	standing	2026-10-11; #1571; V1-2451
+DCP-V1-324	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1572; V1-	standing	2026-10-11; #1572; V1-2452
+DCP-V1-325	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1572; V1-	standing	2026-10-11; #1572; V1-2452
+DCP-V1-326	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1572; V1-	standing	2026-10-11; #1572; V1-2452
+DCP-V1-327	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1572; V1-	standing	2026-10-11; #1572; V1-2452
+DCP-V1-328	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1573; V1-	standing	2026-10-11; #1573; V1-2453
+DCP-V1-329	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1574; V1-	standing	2026-10-11; #1574; V1-2454
+DCP-V1-330	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1574; V1-	standing	2026-10-11; #1574; V1-2454
+DCP-V1-331	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1579; V1-	standing	2026-10-11; #1579; V1-2459
+DCP-V1-332	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1570; V1-	standing	2026-10-11; #1570; V1-2329; V1-2371
 DCP-V1-282	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1492;	standing	2026-10-11; #1492
 DCP-V1-283	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1492;	standing	2026-10-11; #1492
 DCP-V1-284	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1492;	standing	2026-10-11; #1492
@@ -5224,6 +5237,10 @@ TJAA-V0-030	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted un
 TJAA-V0-031	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2042) The stat	standing	2026-10-11; V1-2042
 TJAA-V0-032	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2042) Narrowin	standing	2026-10-11; V1-2042
 TJAA-V0-033	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2042) `symbols	standing	2026-10-11; V1-2042
+TJAA-V0-034	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2455; GitHub	standing	2026-10-11; V1-2455
+TJAA-V0-035	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2456; GitHub	standing	2026-10-11; V1-2456
+TJAA-V0-036	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2457; GitHub	standing	2026-10-11; V1-2457
+TJAA-V0-037	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2458; GitHub	standing	2026-10-11; V1-2458
 URE-V0-001	docs/specs/unplanned-read-events-v0.md	`Classify(packetPaths, toolName, toolInput, root)` MUST return an `Event` for a	unrecorded	-
 URE-V0-002	docs/specs/unplanned-read-events-v0.md	The recognized tools are `Read` (`file_path`), `Grep` and `Glob` (`path`), and	unrecorded	-
 URE-V0-003	docs/specs/unplanned-read-events-v0.md	`Append(root, event)` MUST be a no-op returning `nil` unless the opt-in marker	unrecorded	-
