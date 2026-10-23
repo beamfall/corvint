@@ -68,6 +68,13 @@ entry excerpts to 4 KiB, draft output and consume input to 64 KiB, encoded consu
 its trailing newline to 64 KiB, and query to 1024 UTF-8 bytes. Refuse unsupported
 sources and overflow; do not silently omit due to limits. Deterministic ranking uses case-insensitive
 alphanumeric term overlap, then entry ID. No matches yields NO_CANDIDATES with explicit uncertainty.
+The CLI `docs consume` refusals at the consume-input and encoded-result bounds name the bound
+(`DraftMaxBytes`), its value in bytes and the observed size; the input size is a lower bound, since
+the bounded stdin read stops one byte past the limit (V1-2416,
+`TestSDDV0005DocsLimitRefusalNamesLimitAndSize`, which failed against the earlier `draft exceeds
+64 KiB` and `encoded consumption result exceeds 64 KiB` messages). The library refusals in
+`internal/doccompiler/draft.go`, which `docs draft`, `docs consume` and `docs maintain` also return,
+name their bound but not the observed size.
 
 - `SDD-V0-006`: An MCP client can call `corvint.docs_draft` and `corvint.docs_consume`
 (`cmd/corvint-docs-mcp`, package `internal/mcp/docsbridge`) and receive the same claims,

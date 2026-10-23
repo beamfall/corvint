@@ -845,3 +845,30 @@ func TestFlowDocsWebMemberCallsAreNotDeclarations(t *testing.T) {
 		t.Fatalf("declarations=%v want=%v", got, want)
 	}
 }
+
+// TestAFUV1125FlowLimitIsTyped (AFU-V1-125, V1-2414): a scope over MaxFlows flow candidates is
+// refused with the owned FlowLimitCode, whose message names the limit and the observed count of
+// the whole scope, not only the candidate that crossed it; exactly MaxFlows still generates.
+func TestAFUV1125FlowLimitIsTyped(t *testing.T) {
+	functions := func(prefix string, n int) string {
+		var b strings.Builder
+		for i := 0; i < n; i++ {
+			fmt.Fprintf(&b, "function %s%d() {\n  load();\n}\n", prefix, i)
+		}
+		return b.String()
+	}
+	root, rev := fixture(t, map[string]string{"app/a.js": functions("a", 200), "app/b.js": functions("b", 100), "edge/a.js": functions("e", MaxFlows)})
+	_, e := Generate(context.Background(), root, Options{Revision: rev, Scope: "app"})
+	var coded *doccorpus.Error
+	if !errors.As(e, &coded) || coded.Code != FlowLimitCode {
+		t.Fatalf("over the limit: %v", e)
+	}
+	for _, want := range []string{"300 flow candidates", fmt.Sprintf("MaxFlows limit of %d", MaxFlows), `scope "app"`} {
+		if !strings.Contains(coded.Message, want) {
+			t.Fatalf("message %q lacks %q", coded.Message, want)
+		}
+	}
+	if r, e := Generate(context.Background(), root, Options{Revision: rev, Scope: "edge"}); e != nil || len(r.Manifest.Flows) != MaxFlows {
+		t.Fatalf("exactly MaxFlows: %v", e)
+	}
+}

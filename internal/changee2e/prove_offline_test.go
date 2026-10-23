@@ -32,8 +32,10 @@ type fakeSide struct {
 type fakeRunner struct {
 	sides    map[string]fakeSide
 	controls string // the status every control reads when the ladder reaches them
-	staged   map[string]map[string]string
-	called   int
+	// controlReasons are the reasons every control reads; nil leaves them nil.
+	controlReasons []string
+	staged         map[string]map[string]string
+	called         int
 }
 
 func (f *fakeRunner) env(root string) *proveEnv {
@@ -91,7 +93,7 @@ func (f *fakeRunner) env(root string) *proveEnv {
 	e.controls = func(_ context.Context, _ string, sc Scenario, _ testTree, _ jstestprovider.Receipt) []controlProof {
 		out := notRunControls(sc, "")
 		for i := range out {
-			out[i].Status, out[i].Reasons = f.controls, nil
+			out[i].Status, out[i].Reasons = f.controls, f.controlReasons
 		}
 		return out
 	}

@@ -1036,6 +1036,17 @@ func verdict(head, base sideProof, controls []controlProof) (string, string) {
 			return VerdictControlSurvived, "control-survived:" + c.ID
 		}
 	}
+	// A control run whose own teardown failed reads like a side's (CCE-V0-048, CCE-V0-087).
+	for _, c := range controls {
+		if c.Status != string(behaviorfalsify.StatusInfrastructureFailed) {
+			continue
+		}
+		for _, r := range c.Reasons {
+			if strings.HasPrefix(r, FailureTeardownFailed+" at ") {
+				return VerdictInconclusive, r + " (control " + c.ID + ")"
+			}
+		}
+	}
 	for _, c := range controls {
 		if c.Status != string(behaviorfalsify.StatusKilled) {
 			return VerdictInconclusive, "control-not-killed:" + c.ID
@@ -1118,16 +1129,40 @@ func (e *proveEnv) runControls(ctx context.Context, head string, sc Scenario, tr
 		}
 		return out
 	}
+	return controlResults(controlSpecs(sc), plan.Digest, report)
+}
+
+// controlResults reads each control's BBF result. An infrastructure_failed control keeps the
+// `teardown-failed at <path>:<line>` detail its hook receipt recorded (CCE-V0-087), which BBF's
+// aggregate reasons drop.
+func controlResults(specs []controlSpec, digest string, report behaviorfalsify.Report) []controlProof {
 	out := []controlProof{}
-	for _, spec := range controlSpecs(sc) {
+	for _, spec := range specs {
 		c := controlProof{ID: spec.id, Kind: string(spec.kind), Status: string(behaviorfalsify.StatusNotRun),
-			PlanDigest: plan.Digest, Reasons: []string{"control-result-missing"}}
+			PlanDigest: digest, Reasons: []string{"control-result-missing"}}
 		for _, r := range report.Results {
 			if r.ID == spec.id && r.Kind == spec.kind {
 				c.Status, c.Reasons = string(r.Status), append([]string{}, r.Reasons...)
+				if r.Status == behaviorfalsify.StatusInfrastructureFailed {
+					c.Reasons = append(c.Reasons, controlTeardown(r)...)
+				}
 			}
 		}
 		out = append(out, c)
+	}
+	return out
+}
+
+// controlTeardown is the distinct teardown attributions of a control's attempts, in attempt order.
+func controlTeardown(r behaviorfalsify.ControlResult) []string {
+	var out []string
+	for _, a := range r.Attempts {
+		if a.Receipt == nil || a.Receipt.Infrastructure == nil {
+			continue
+		}
+		if d := a.Receipt.Infrastructure.Detail; strings.HasPrefix(d, FailureTeardownFailed+" at ") && !slices.Contains(out, d) {
+			out = append(out, d)
+		}
 	}
 	return out
 }
