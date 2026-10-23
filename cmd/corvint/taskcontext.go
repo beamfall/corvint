@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
-	"runtime/pprof"
 	"strconv"
 	"strings"
 	"time"
@@ -193,26 +191,6 @@ func checkContextViewArguments(options taskContextOptions, taskSet bool) error {
 func runTaskContext(ctx context.Context, options taskContextOptions, stdout, stderr io.Writer) int {
 	if options.expandSet {
 		return runContextExpand(ctx, options, stdout, stderr)
-	}
-	// CPUPROFILE (V1-0051): operator env var, off by default, documented in
-	// cpuProfileHelpNote (help.go) and task-context-packet-v0.md's Non-goals
-	// and authority section; it writes a local diagnostic file and does not
-	// widen what this read-only command reads, returns, or mutates.
-	if profilePath := runtimeenv.Value("CPUPROFILE"); profilePath != "" {
-		profile, err := os.Create(profilePath)
-		if err != nil {
-			emitError(stderr, err)
-			return 2
-		}
-		if err := pprof.StartCPUProfile(profile); err != nil {
-			profile.Close()
-			emitError(stderr, err)
-			return 2
-		}
-		defer func() {
-			pprof.StopCPUProfile()
-			profile.Close()
-		}()
 	}
 	packet, hit, built, err := compileTaskContext(ctx, options, loadContextSnapshot)
 	if errors.Is(err, contextindex.ErrSnapshotRefused) {
