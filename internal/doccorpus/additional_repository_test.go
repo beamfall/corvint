@@ -37,7 +37,7 @@ func additionalRepositoryFixture(t *testing.T, anchor func(*ProviderRecord, *Anc
 		if anchor != nil {
 			anchor(r, &ev.Anchors[0])
 		}
-		r.Subjects = append(r.Subjects, Subject{"adapter:lib", "capability", "Lib quokka parser", "adapter", ev})
+		r.Subjects = append(r.Subjects, Subject{"adapter:lib", "capability", "Lib quokka parser", "adapter", ev, nil})
 		r.Claims = append(r.Claims, Claim{"adapter:lib-claim", "adapter:lib", "The lib parses quokka values", "adapter", ev})
 	})
 	rel, err := filepath.Rel(root, lib)

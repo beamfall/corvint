@@ -517,6 +517,7 @@ func (s *sharedSymbolFiles) put(key string, f *symbolFile, cost int) {
 // every symbol state and names the failure as a limitation rather than
 // refusing the read; only a cancelled context is an error.
 type symbolChecker struct {
+	root     string // primary checkout of a live reader (DCP-V1-332)
 	overlay  *symbolOverlay
 	resolver *SymbolResolver
 	release  func()

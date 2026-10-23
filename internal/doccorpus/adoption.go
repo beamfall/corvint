@@ -22,6 +22,50 @@ type RecordDetails struct {
 	TestRun          *SuppliedTestRunDetails  `json:"test_run,omitempty"`
 	LegacyCase       *LegacyCaseLinkDetails   `json:"legacy_case,omitempty"`
 	MigrationMapping *MigrationMappingDetails `json:"migration_mapping,omitempty"`
+	// CoverageLedger, FlowCompleteness and UnresolvedConcept are supplied
+	// claim details about the claim's subject (DCP-V1-324 to DCP-V1-326).
+	CoverageLedger    *CoverageLedgerDetails    `json:"coverage_ledger,omitempty"`
+	FlowCompleteness  *FlowCompletenessDetails  `json:"flow_completeness,omitempty"`
+	UnresolvedConcept *UnresolvedConceptDetails `json:"unresolved_concept,omitempty"`
+}
+
+// CoverageLedgerDetails is a producer's coverage-ledger status for the claim's
+// subject (DCP-V1-324). It is supplied, not derived, and grants no trust.
+type CoverageLedgerDetails struct {
+	Scope           string   `json:"scope"`
+	LedgerStatus    string   `json:"ledger_status"`
+	BrowserEvidence string   `json:"browser_evidence,omitempty"`
+	Journeys        *int     `json:"journeys,omitempty"`
+	OrderedSteps    *int     `json:"ordered_steps,omitempty"`
+	Verification    string   `json:"verification,omitempty"`
+	Limitations     []string `json:"limitations,omitempty"`
+}
+
+// FlowCompletenessDetails is a producer's coverage and audit completeness
+// flags for the claim's subject, with the revision and path that back them
+// (DCP-V1-325). A true flag is supplied, never derived, and grants no trust.
+type FlowCompletenessDetails struct {
+	TargetStatus     string           `json:"target_status"`
+	CoverageComplete CompletenessFlag `json:"coverage_complete"`
+	AuditComplete    CompletenessFlag `json:"audit_complete"`
+	Revision         string           `json:"revision"`
+	Path             string           `json:"path"`
+}
+
+// CompletenessFlag is one supplied completeness boolean and its reason. Value
+// is a pointer so an omitted or null value is refused rather than read as
+// false (DCP-V1-325).
+type CompletenessFlag struct {
+	Value  *bool  `json:"value"`
+	Reason string `json:"reason"`
+}
+
+// UnresolvedConceptDetails is a concept the producer anchored and reviewed but
+// has not yet placed in the named targets (DCP-V1-326). It is not a gap.
+type UnresolvedConceptDetails struct {
+	Concept  string   `json:"concept"`
+	Unplaced []string `json:"unplaced"`
+	Reason   string   `json:"reason"`
 }
 type FlowDetails struct {
 	Sections    []FlowSection `json:"sections"`
@@ -169,7 +213,7 @@ func ValidStatusFilter(state, qualifier, run string) bool {
 var (
 	suppliedFlakeVerdicts  = words("stable flaky unqualified unknown")
 	suppliedRunCleanups    = words("passed failed partial not-run unknown")
-	suppliedValidityAxes   = words("revision environment isolation oracle determinism")
+	suppliedValidityAxes   = words("revision environment isolation oracle determinism association")
 	suppliedValidityStatus = words("passed failed unknown not-applicable")
 )
 
@@ -187,6 +231,23 @@ const (
 	maxSuppliedRunIdentifier = 1024
 )
 
+// Closed supplied coverage-detail vocabularies and bounds (DCP-V1-324 to
+// DCP-V1-326).
+var (
+	suppliedLedgerScopes        = words("ui non_ui")
+	suppliedLedgerStatuses      = words("confirmed partial not-browser")
+	suppliedLedgerVerifications = words("verified partial unverified unknown")
+	suppliedUnplacedTargets     = words("ui-location flow")
+)
+
+const (
+	maxSuppliedLabel           = 128
+	maxSuppliedLedgerCount     = 1 << 20
+	maxSuppliedLedgerLimits    = 64
+	maxSuppliedConcept         = 1024
+	maxSuppliedLimitationBytes = 4096
+)
+
 // suppliedTestRunOutcomes is the closed test-run outcome vocabulary (DCP-V1-210).
 var suppliedTestRunOutcomes = words("passed failed skipped errored")
 
@@ -198,6 +259,12 @@ func claimParityKind(d RecordDetails) string {
 		return "status"
 	case d.TestRun != nil:
 		return "test_run"
+	case d.CoverageLedger != nil:
+		return "coverage_ledger"
+	case d.FlowCompleteness != nil:
+		return "flow_completeness"
+	case d.UnresolvedConcept != nil:
+		return "unresolved_concept"
 	case d.ClaimKind != "":
 		return d.ClaimKind
 	}
@@ -399,11 +466,48 @@ func validateRecordDetails(kind string, d RecordDetails, rel Relation) error {
 			return fail("invalid migration mapping")
 		}
 	}
+	if d.CoverageLedger != nil {
+		count++
+		x := d.CoverageLedger
+		if kind != "claim" || !suppliedLedgerScopes[x.Scope] || !suppliedLedgerStatuses[x.LedgerStatus] || x.BrowserEvidence != "" && !suppliedLabel(x.BrowserEvidence) || !ledgerCount(x.Journeys) || !ledgerCount(x.OrderedSteps) || x.Verification != "" && !suppliedLedgerVerifications[x.Verification] || x.Limitations != nil && (len(x.Limitations) == 0 || !boundedUnique(x.Limitations, maxSuppliedLedgerLimits)) {
+			return fail("invalid supplied coverage ledger")
+		}
+		for _, l := range x.Limitations {
+			if len(l) > maxSuppliedLimitationBytes {
+				return fail("invalid supplied coverage ledger")
+			}
+		}
+	}
+	if d.FlowCompleteness != nil {
+		count++
+		x := d.FlowCompleteness
+		if kind != "claim" || !suppliedLabel(x.TargetStatus) || x.CoverageComplete.Value == nil || x.AuditComplete.Value == nil || !textOK(x.CoverageComplete.Reason) || !textOK(x.AuditComplete.Reason) || !wire.IsGitOid(x.Revision) || !validPath(x.Path) {
+			return fail("invalid supplied flow completeness")
+		}
+	}
+	if d.UnresolvedConcept != nil {
+		count++
+		x := d.UnresolvedConcept
+		if kind != "claim" || !textOK(x.Concept) || len(x.Concept) > maxSuppliedConcept || !textOK(x.Reason) || len(x.Unplaced) == 0 || !boundedUnique(x.Unplaced, len(suppliedUnplacedTargets)) {
+			return fail("invalid supplied unresolved concept")
+		}
+		for _, t := range x.Unplaced {
+			if !suppliedUnplacedTargets[t] {
+				return fail("invalid supplied unresolved concept")
+			}
+		}
+	}
 	if count != 1 {
 		return fail("typed detail must name exactly one record family")
 	}
 	return nil
 }
+
+// suppliedLabel admits a supplied open-vocabulary label of at most 128 bytes.
+func suppliedLabel(v string) bool { return textOK(v) && len(v) <= maxSuppliedLabel }
+
+// ledgerCount admits an absent count or one in [0, 2^20].
+func ledgerCount(n *int) bool { return n == nil || *n >= 0 && *n <= maxSuppliedLedgerCount }
 
 // validRunLedger admits the optional test-run ledger fields only from their
 // closed sets (DCP-V1-303): retries in [0, 2^20], each validity axis at most
@@ -449,8 +553,10 @@ func (c *compiler) validateAdoptionJoins() error {
 		kinds[s.ID] = s.Kind
 		subjects[s.ID] = s
 	}
+	anchored := map[string]bool{}
 	for _, x := range c.artifact.Claims {
 		kinds[x.ID] = "claim"
+		anchored[x.ID] = len(x.Evidence.Anchors) > 0
 	}
 	for _, x := range c.artifact.Relations {
 		kinds[x.ID] = "relation"
@@ -516,6 +622,10 @@ func (c *compiler) validateAdoptionJoins() error {
 					return fail("exact test join has no file anchor")
 				}
 			}
+		}
+		// DCP-V1-326: an unresolved concept is anchored in source.
+		if d.UnresolvedConcept != nil && !anchored[id] {
+			return fail("supplied unresolved concept has no anchor")
 		}
 		if x := d.Status; x != nil && !require(x.Supporting, "") {
 			return fail("supplied status supporting record missing")

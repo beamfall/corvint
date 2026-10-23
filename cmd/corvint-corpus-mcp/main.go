@@ -362,7 +362,7 @@ func (handler *toolHandler) callMapTool(ctx context.Context, name string,
 // refusal from the native docs compiler must never be reported as success.
 func toolFailureResult(name, code, message string) (map[string]any, *protocol.RPCError) {
 	value := map[string]any{
-		"trust_envelope": map[string]any{"content_status": "unknown", "source_revision": "unknown", "corpus_revision": "unknown", "freshness": "unknown", "retirement": "unknown", "citations": []any{}, "limitations": []string{"operation failed; no evidence answer"}},
+		"trust_envelope": map[string]any{"content_status": "unknown", "source_revision": "unknown", "corpus_revision": "unknown", "freshness": "unknown", "retirement": "unknown", "verified_at": nil, "citations": []any{}, "limitations": []string{"operation failed; no evidence answer", doccorpus.RefusalUnverifiedLimitation}},
 		"abstention":     map[string]any{"active": true, "reason": "OPERATION_FAILED"},
 		"code":           code, "error": message, "mutates": false, "profile": toolError, "tool": name,
 	}
