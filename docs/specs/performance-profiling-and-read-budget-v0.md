@@ -14,7 +14,7 @@ budgets encode); GitHub #1406 (host-latency limits need a baseline and a content
 - Claim: Every command and MCP server honours the CPU and heap profile knobs, and `make perf-budget` measures six read budgets over a generated fixture.
 - Status: accepted (owner standing auto-accept 2026-10-11)/experimental; checked by `TestPRBV0008EveryNamedCommandWritesProfiles`, `TestPRBV0024HarnessSmokeRun` and `TestPRBV0039ContentionWithholdsJudgement`; a contended host is `NOT_JUDGED`, not failed.
 - Exists: `internal/procprofile`, `cmd/corvint/profile_knobs.go`, each MCP server's `runProfiled`, `internal/perfbudget`, `internal/perfbudget/budgets.json`, `make perf-budget`.
-- Blocked on: CI wiring of `make perf-budget` needs owner approval of a `.github/` change; the #1598 and #1601 targets stay pending until those changes land.
+- Blocked on: the #1598 and #1601 targets stay pending until those changes land; CI runs `make perf-budget` in `.github/workflows/perf-budget.yml` (owner-approved 2026-10-23).
 - Read next: Requirements; Failure modes; Acceptance.
 
 PRB-V0-001..013 (GitHub #1600; V1-2475), PRB-V0-020..037 (GitHub #1602; V1-2474) and
@@ -200,10 +200,10 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
 
 - No per-phase timing for `docs corpus` (`--timings` is GitHub #1598's lane) and no profile
   analysis, upload or retention; the knobs write files and nothing reads them.
-- No CI job: wiring `make perf-budget` into `.github/` needs owner approval. GitHub #1602 stays open
-  for that step. The proposed step (text only): job `perf-budget`, `runs-on: ubuntu-24.04`,
-  `timeout-minutes: 45`, after the pinned `actions/setup-go` with Go 1.27.2 as the other jobs, run
-  `make perf-budget PERF_BUDGET_ARGS="--out perf-budget-report.json"` and upload the report.
+- No required CI check: `.github/workflows/perf-budget.yml` (owner-approved 2026-10-23) runs
+  `make perf-budget PERF_BUDGET_ARGS="--out perf-budget-report.json"` on `ubuntu-24.04` for
+  read-path changes and main pushes and uploads the report, but it is not a required status check;
+  a contended runner reports `NOT_JUDGED` and the job still passes.
 - No configurable contention threshold and no waiting for a quiet host: `PRB-V0-039` uses the
   `PRB-V0-028` record as measured, and a busy host yields `NOT_JUDGED` instead of a retry.
 - No re-recorded baseline: the committed baseline (load 137 on 12 cores) predates `PRB-V0-043`
