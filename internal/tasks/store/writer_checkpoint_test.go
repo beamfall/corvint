@@ -770,28 +770,36 @@ func TestCALV0190_WriterRouteServesReplaysAndRefusals(t *testing.T) {
 		return filepath.Join(repo.StateDir, rp)
 	}
 	declined := []struct {
-		name, reason string
-		write        func(context.Context) (*Report, error)
-		change       func(t *testing.T) func()
+		name, reason, refusal string
+		write                 func(context.Context) (*Report, error)
+		change                func(t *testing.T) func()
 	}{
-		{"prefix-afterimage-tampered", "differs from the checkpoint", writerEnvelope(repo, historyCreate("history-create-2", "history history-create-2"), WallClock()), func(t *testing.T) func() {
+		{"prefix-afterimage-tampered", "differs from the checkpoint", wire.CodeJournalForked, writerEnvelope(repo, historyCreate("history-create-2", "history history-create-2"), WallClock()), func(t *testing.T) func() {
 			return rewriteFile(t, request("history-create-2"), appendLF)
 		}},
-		{"prefix-receipt-forked", "not on the checkpoint's chain", writerEnvelope(repo, historyCreate("history-create-3", "history history-create-3"), WallClock()), func(t *testing.T) func() {
+		{"prefix-receipt-forked", "not on the checkpoint's chain", wire.CodeJournalForked, writerEnvelope(repo, historyCreate("history-create-3", "history history-create-3"), WallClock()), func(t *testing.T) func() {
 			return forkReceipt(t, repo, retainedRequestSeq(t, repo, "history-create-3")+1)
 		}},
-		{"prefix-receipt-torn", "not on the checkpoint's chain", writerEnvelope(repo, historyCreate("history-create-3", "history history-create-3"), WallClock()), func(t *testing.T) func() {
+		{"prefix-receipt-torn", "not on the checkpoint's chain", wire.CodeMalformed, writerEnvelope(repo, historyCreate("history-create-3", "history history-create-3"), WallClock()), func(t *testing.T) func() {
 			return rewriteFile(t, receipt(retainedRequestSeq(t, repo, "history-create-3")), appendLF)
 		}},
 	}
 	for _, tc := range declined {
 		t.Run(tc.name, func(t *testing.T) {
+			// The uncorrupted envelope is a valid replay, so the decline
+			// below is caused by the corruption alone.
+			if clean := stagedWrite(tc.write, nil); !clean.completed() || clean.rep.Kind != "Replay" || clean.servedWithoutWrite() != "fast.replay" {
+				t.Fatalf("clean replay: %+v %v %v", clean.rep, clean.err, clean.stages)
+			}
 			undo := tc.change(t)
 			defer undo()
 			before := mutationPublished(t, repo)
 			run := stagedWrite(tc.write, nil)
 			if run.fast() || run.servedWithoutWrite() != "" || !strings.Contains(run.declined(), tc.reason) {
 				t.Fatalf("route: %+v %v %v", run.rep, run.err, run.stages)
+			}
+			if run.completed() || wire.CodeOf(run.err) != tc.refusal {
+				t.Fatalf("decided %+v %v, want %s", run.rep, run.err, tc.refusal)
 			}
 			if after := mutationPublished(t, repo); after != before {
 				t.Fatalf("published %s, before %s", after, before)

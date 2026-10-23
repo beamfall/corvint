@@ -71,8 +71,9 @@ func (r Reader) readStage(o *observation) (files []snapshot.StageFile, validatio
 // for its lifetime and a killed writer leaves until the next writer clears
 // it. audit waits for it (snapshot.StageSlotWait) and then returns the wrapped
 // MALFORMED unchanged (CTS-V0-008), unless the head the observation read moved
-// while it waited, which a live writer's back-to-back publishes cause and an
-// orphan never does (CAL-V0-340). head is that observation's head.json.
+// while it waited, which warrants another bounded observation but does not
+// prove the slots' holders are live (CAL-V0-340). head is that observation's
+// head.json.
 type slotsInFlight struct {
 	error
 	head []byte

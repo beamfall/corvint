@@ -172,18 +172,19 @@ func historyAppendFor(tb testing.TB, repo *intent.Repository, posts map[string][
 }
 
 func historyRequest(id string, seq uint64) []byte {
-	return historyRequestFor(id, seq, nil)
+	return historyRequestFor(id, seq, wire.Sum([]byte(id)), nil)
 }
 
-// historyRequestFor is historyRequest for a create, which reports the new
-// ticket's first revision and acceptance revision when revisions is set.
-func historyRequestFor(id string, seq uint64, revisions *wire.Count) []byte {
+// historyRequestFor is historyRequest for a request whose envelope digest is
+// digest; a create reports the new ticket's first revision and acceptance
+// revision when revisions is set.
+func historyRequestFor(id string, seq uint64, digest wire.Digest, revisions *wire.Count) []byte {
 	s := wire.SizeOf(seq)
 	out := mutation.Outcome{RequestID: id, Outcome: mutation.OutcomeCompleted, ReceiptSeq: &s, Codes: []string{}}
 	if revisions != nil {
 		out.ResultingRevision, out.ResultingAcceptanceRevision = revisions, revisions
 	}
-	return wire.EncodeFile(historyObject("requestId", wire.String(id), "seq", wire.String(string(s)), "mutationSha256", wire.String(string(wire.Sum([]byte(id)))), "outcome", out.Value()))
+	return wire.EncodeFile(historyObject("requestId", wire.String(id), "seq", wire.String(string(s)), "mutationSha256", wire.String(string(digest)), "outcome", out.Value()))
 }
 
 // historyStore returns a settled store whose head is exactly receipts, verified
@@ -311,11 +312,32 @@ func historyAppendCreates(tb testing.TB, repo *intent.Repository, created, ticke
 		}
 		id := fmt.Sprintf("history-create-%d", i)
 		reqPath, _ := snapshot.RequestPath(id)
+		// The digest of the exact envelope historyMutate would submit, so
+		// resubmitting it replays as a real CREATE's request does.
+		digest := wire.Sum(historyCreate(id, "history "+id))
 		historyAppendFor(tb, repo, map[string][]byte{
-			reqPath:                             historyRequestFor(id, h.LastSeq.Uint64()+1, &first),
+			reqPath:                             historyRequestFor(id, h.LastSeq.Uint64()+1, digest, &first),
 			"intent/queue.json":                 wire.EncodeFile(queue),
 			"intent/tickets/" + local + ".json": wire.EncodeFile(template),
 		}, id, ticket)
+	}
+}
+
+// CAL-V0-070: a synthesized CREATE request records the digest of its exact
+// historyCreate envelope, so resubmitting that envelope replays the retained
+// outcome as a real CREATE's would, and different bytes still conflict.
+func TestCALV0070_SynthesizedCreateReplays(t *testing.T) {
+	t.Parallel()
+	repo := historyStore(t, historyTickets+2)
+	for _, id := range []string{"history-create-0", "history-create-3", fmt.Sprintf("history-create-%d", historyTickets-1)} {
+		rep, err := Mutate(context.Background(), repo, historyActor, historyCreate(id, "history "+id), WallClock())
+		if err != nil || rep.Kind != "Replay" || rep.Outcome.Outcome != mutation.OutcomeCompleted {
+			t.Fatalf("replay %s: %+v %v", id, rep, err)
+		}
+	}
+	rep, err := Mutate(context.Background(), repo, historyActor, historyCreate("history-create-3", "a different title"), WallClock())
+	if err != nil || rep.Outcome.Outcome == mutation.OutcomeCompleted {
+		t.Fatalf("conflict: %+v %v", rep, err)
 	}
 }
 

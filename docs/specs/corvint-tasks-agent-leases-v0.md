@@ -149,7 +149,7 @@ one.
 | V1-1981 | CAL-V0-320 | Accepted (standing auto-accept, 2026-10-20): the standalone Tasks archive builder also cross-builds `linux/amd64` (`CGO_ENABLED=0`, reproducible, `SHA256SUMS`); the Linux runtime is `NOT_OBSERVED` until a Linux host runs the documented commands |
 | V1-2352 | CAL-V0-321 | Accepted (standing auto-accept, 2026-10-23): a read checkpoint carries a no-false-negative filter of the request paths posted at or before its sequence, so a checkpoint read refuses a duplicate request with a null pre-state through the complete audit (PSR-V0-203); a checkpoint without the filter serves no read; implemented with focused tests |
 | V1-2359 | CAL-V0-322 | Accepted (standing auto-accept, 2026-10-23): `attempt show` and `ticket show` carry `lastFailedGate`, the newest FAILED or BLOCKED gate result with the TCD-V0-165 bounded, secret-screened tail of its retained output; implemented with focused tests |
-| V1-2449 | CAL-V0-340 | Accepted (standing auto-accept, 2026-10-23): an unlocked journal audit whose two-second stage-slot wait (CTS-V0-008) is spent with the head advanced since it first saw the slots refuses the retryable `SNAPSHOT_MOVED`, not `MALFORMED`; a head that never moved keeps the unchanged `MALFORMED`; implemented with focused tests |
+| V1-2449 | CAL-V0-340 | Accepted (standing auto-accept, 2026-10-23): an unlocked journal audit whose two-second stage-slot wait (CTS-V0-008) is spent with the head advanced since it first saw the slots refuses the retryable `SNAPSHOT_MOVED`, not `MALFORMED` (head movement warrants another bounded observation, it does not prove the slots' holders live); a head that never moved keeps the unchanged `MALFORMED`; implemented with focused tests |
 | V1-1321 | ATR-V0-210, ATR-V0-211 | Delivered as a refusal naming uncovered requested paths plus the reported scope (attempt runner spec); CAL-V0-021 unamended |
 | V1-1494 | CAL-V0-263, CAL-V0-265 | Proposed (issue 967): no lease write holds the preparation gate for a complete-history audit; the scheduled refresh walks the prefix to its captured head when the journal moves; focused tests, mutation check and an opt-in load harness |
 | V1-1512 | none (evidence; PSR-V0-052) | Accepted (standing auto-accept, 2026-10-20): issue 967 remainder; at 40,000 receipts and 15 writers heartbeat/renew p99 1,138/1,131 ms (residual: gate wait behind about 1 s widen and reap commits), no `SNAPSHOT_MOVED`; reap and pool release resume tests; proposals 2 remainder and 3 are 1.0 work per decision 0549, proposal 5 deferred past 1.0 |
@@ -7449,11 +7449,14 @@ failed with `racer 2: MALFORMED: staging/a00: unassigned stage slot`; the counts
 - `CAL-V0-340`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2449) A journal
   audit that does not hold the writer lock, and that has spent the whole CTS-V0-008 stage-slot
   wait, MUST compare the `head.json` of its last observation with the `head.json` of its first
-  observation of those slots. When they differ, a writer committed while the slots stayed, so
-  they are live writers' slots: the audit MUST refuse `SNAPSHOT_MOVED` at `staging`, a retryable
-  code the lease read's rounds retry, in place of the `MALFORMED`. When they are the same, the
-  audit MUST refuse the unchanged `MALFORMED` `unassigned stage slot` naming the byte-smallest
-  slot (CTS-V0-008). The pauses and their exact two-second sum, the four `SNAPSHOT_MOVED`
+  observation of those slots. When they differ, a writer committed while the slots stayed. That is
+  evidence that the slots may belong to writers still publishing, which warrants another bounded
+  observation; it is not proof that their holders are live, since a writer can advance the head and
+  then die before removing its slot. The audit MUST then refuse `SNAPSHOT_MOVED` at `staging`, a
+  retryable code the lease read's rounds retry, in place of the `MALFORMED`. When they are the
+  same, the audit MUST refuse the unchanged `MALFORMED` `unassigned stage slot` naming the
+  byte-smallest slot (CTS-V0-008), so a later audit that sees the same slots under an unchanged
+  head refuses `MALFORMED`. The pauses and their exact two-second sum, the four `SNAPSHOT_MOVED`
   attempts, and the refusal at once of an audit under the writer lock stay as CTS-V0-008 states
   them.
 
@@ -7463,7 +7466,9 @@ changed here; the wait budget is not lengthened; no stored state, wire format or
 Failure modes: a store that keeps committing for longer than the lease read's sixteen rounds, each
 with its own two-second wait, still ends `SNAPSHOT_MOVED`, now retryable by the caller. An orphan
 slot on a store that other writers keep advancing is cleared by the first of those writers
-(CAL-V0-019), so the head moves once and the next read succeeds.
+(CAL-V0-019), so the head moves once and the next read succeeds. A writer that advances the head
+and then dies leaves an orphan the first spent wait reports `SNAPSHOT_MOVED`; the retry, which sees
+the same slots under an unchanged head, refuses `MALFORMED`.
 
 Rollback: revert the source; the audit again refuses `MALFORMED` after the budget whatever the head
 did.

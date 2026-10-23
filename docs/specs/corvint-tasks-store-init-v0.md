@@ -127,8 +127,8 @@ on a fixture queue remain non-goals.
   `active.json.tmp` temp MUST still be refused at once, and neither reader may write, lock or
   remove a slot; a killed writer's orphan slots stay refused until the next writer removes them
   (CAL-V0-019). CAL-V0-340 amends the journal audit's spent-budget refusal: when the head that
-  audit read moved during the wait, the slots belong to live writers and the audit refuses
-  `SNAPSHOT_MOVED` (retryable) instead.
+  audit read moved during the wait, which warrants another bounded observation but does not prove
+  the slots' holders are live, the audit refuses `SNAPSHOT_MOVED` (retryable) instead.
 
 - `CTS-V0-009`: (accepted, decision 0513) The initial journal-backed
   head read of `run --attach` (ATR-V0-008, ATR-V0-011) MUST wait out a live writer's

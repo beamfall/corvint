@@ -31,6 +31,17 @@ campaign below is partial; every unfinished item is named as NOT_RUN.
   settings, so that count alone does not separate the two; the unit test is the proof.
 - Spec: CAL-V0-340 in `corvint-tasks-agent-leases-v0.md`; CTS-V0-008 and its failure-mode row in
   `corvint-tasks-store-init-v0.md` point to it.
+- Review repair. Head movement is evidence that warrants another bounded observation, not proof
+  that the slots' holders are live: a writer can advance the head and die before removing its slot.
+  The requirement, the CTS-V0-008 cross-reference and the code comments now say so, and the test
+  runs a second audit with head and slot unchanged and requires `MALFORMED` `staging/a00`.
+- Review repair (fixture). The synthesized CREATE requests of the history fixture recorded
+  `SHA256(requestId)` as `mutationSha256`, so resubmitting `historyCreate("history-create-N", ...)`
+  refused `REQUEST_ID_CONFLICT` where a real CREATE's request replays. They now record the digest of
+  that exact envelope. `TestCALV0070_SynthesizedCreateReplays` failed on the previous head with
+  `REQUEST_ID_CONFLICT` and passes now; the CAL-V0-190 corruption cases assert the clean replay
+  before corrupting and the expected refusal (`JOURNAL_FORKED`, `JOURNAL_FORKED`, `MALFORMED`)
+  after.
 
 ## V1-0961, V1-1499, V1-1516: package time
 

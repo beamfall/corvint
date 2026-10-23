@@ -387,9 +387,10 @@ func (r Reader) audit(paths []string, request string, lim limits, checkIntent bo
 			step, ok := wait.Next()
 			if r.WriterLocked || !ok {
 				if !r.WriterLocked && !bytes.Equal(slotsHead, slots.head) {
-					// Writers committed while the slots stayed: they are live
-					// writers' slots, not an orphan's, so the read is retryable
-					// rather than malformed (CAL-V0-340).
+					// Writers committed while the slots stayed. That warrants
+					// another bounded observation, not proof that the holders
+					// are live: a retry under an unchanged head still refuses
+					// MALFORMED (CAL-V0-340).
 					return nil, wire.Errorf(wire.CodeSnapshotMoved, "staging", "ledger advanced during the %s wait for a writer's staging slots; the read is retryable", snapshot.StageSlotPatience)
 				}
 				return result, slots.error
