@@ -16,7 +16,7 @@ func TestCorpusTypedQueryConformance(t *testing.T) {
 			for i := range flow.Sections {
 				flow.Sections[i].Paragraphs = []string{}
 			}
-			p.Subjects = append(p.Subjects, Subject{"adapter:flow2", "flow", "Checkout completion", "adapter", ev}, Subject{"adapter:term", "business_term", "purchase checkout", "adapter", ev}, Subject{"adapter:screen", "ui_surface", "Checkout screen", "adapter", ev})
+			p.Subjects = append(p.Subjects, Subject{"adapter:flow2", "flow", "Checkout completion", "adapter", ev, nil}, Subject{"adapter:term", "business_term", "purchase checkout", "adapter", ev, nil}, Subject{"adapter:screen", "ui_surface", "Checkout screen", "adapter", ev, nil})
 			p.Details["adapter:flow2"] = RecordDetails{Flow: &flow}
 			for _, rel := range []Relation{{"adapter:down", "adapter:flow", "adapter:flow2", "depends_on", "adapter", ev}, {"adapter:cycle", "adapter:flow2", "adapter:flow", "depends_on", "adapter", ev}, {"adapter:alias", "adapter:term", "adapter:flow", "related_to", "adapter", ev}, {"adapter:route", "adapter:screen", "adapter:flow", "related_to", "adapter", ev}} {
 				p.Relations = append(p.Relations, rel)

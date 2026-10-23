@@ -57,8 +57,9 @@ const playwrightPureMaxDepth = 128
 // and numeric literals, templates whose substitutions are proven primitive, `true`, `false`, `null`
 // and the results of operators over those, or of `typeof`, `void`, `!`, `===` and `!==`, which
 // always yield a primitive. A member read can invoke a getter or Proxy trap, so one on any other
-// root (`process.env.NAME`, `this`, an import, a call result, a number literal such as `1..x`) is
-// refused, and an admitted one is never proven primitive. Numbers are lexed to the ECMAScript numeric grammar. It refuses every
+// root (`this`, an import, a call result, a number literal such as `1..x`) is refused, and an
+// admitted one is proven primitive only for `process.env.NAME`; an admitted numeric conversion
+// call is proven primitive (TJAA-V0-035). Numbers are lexed to the ECMAScript numeric grammar. It refuses every
 // call (including tagged templates and optional calls), assignment, update, delete, new, await,
 // yield, import, function, arrow and class expressions, spread, method or accessor definitions, the
 // comma operator, regular expression literals and anything it does not recognize.
@@ -204,17 +205,43 @@ func (p *playwrightPureParser) postfix() (primitive, ok bool) {
 	if !chained {
 		return false, false // non-literal computed key, optional call, private name or malformed member
 	}
+	if p.scope.numeric[root] && playwrightNumericCallee(root, keys) && strings.HasPrefix(p.raw[skipPlaywrightSpace(p.raw, end):], "(") {
+		p.pos = end
+		return p.numericCall()
+	}
 	if len(keys) != 0 {
-		if root == "" || !p.scope.memberRead(root, keys) {
+		admitted, read := false, false
+		if root != "" {
+			admitted, read = p.scope.memberRead(root, keys)
+		}
+		if !admitted {
 			return false, false
 		}
-		p.pos, primitive = end, false
+		p.pos, primitive = end, read
 	}
 	rest := p.raw[p.skip():]
 	if strings.HasPrefix(rest, "(") || strings.HasPrefix(rest, "`") || strings.HasPrefix(rest, "'") || strings.HasPrefix(rest, "\"") {
 		return false, false // call or tagged template
 	}
 	return primitive, true
+}
+
+// numericCall parses the arguments of an admitted numeric conversion; each must be proven
+// primitive, so converting it cannot call user code, and the number result is not read further.
+func (p *playwrightPureParser) numericCall() (primitive, ok bool) {
+	p.accept("(")
+	for !p.accept(")") {
+		argument, ok := p.expression()
+		if !ok || !argument || !p.accept(",") && !p.peek(")") {
+			return false, false
+		}
+	}
+	keys, _, chained := playwrightMemberChain(p.raw, p.pos)
+	rest := p.raw[p.skip():]
+	if !chained || len(keys) != 0 || strings.HasPrefix(rest, "(") || strings.HasPrefix(rest, "`") {
+		return false, false
+	}
+	return true, true
 }
 
 // computedKey parses `[expr]`; converting the key to a property key can call user code, so the

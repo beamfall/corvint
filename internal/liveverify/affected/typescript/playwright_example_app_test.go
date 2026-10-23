@@ -44,8 +44,10 @@ func TestPlaywrightExampleAppQualification(t *testing.T) {
 			}
 		}
 		shared, err := New().Units(context.Background(), root)
-		if err != nil || !slices.Contains(shared.Frontier, FrontierPathAlias) {
-			t.Fatal("general adapter alias boundary changed", err)
+		// TJAA-V0-037: with Playwright as the only runner identity, the general adapter resolves
+		// the same tsconfig aliases instead of retaining the alias frontier.
+		if err != nil || slices.Contains(shared.Frontier, FrontierPathAlias) {
+			t.Fatal("general adapter did not resolve Playwright-only aliases", err, shared.Frontier)
 		}
 	})
 	t.Run("TJAA-V0-013 setup helper and config closure", func(t *testing.T) {
@@ -103,7 +105,7 @@ func TestPlaywrightGlobalUseInheritance(t *testing.T) {
 		{`{ ...devices["Desktop Firefox"] }`, `{ ...devices["Desktop Chrome"] }`, "chromium", "Desktop Chrome"},
 		{`{ ...devices["Desktop Firefox"] }`, `{ browserName: "webkit" }`, "webkit", "Desktop Firefox"},
 	} {
-		browser, device, ok := playwrightInheritedUseIdentity(playwrightPureScope{devices: true}, row.global, row.local)
+		browser, device, _, ok := playwrightInheritedUseIdentity(playwrightPureScope{devices: true}, row.global, row.local)
 		if !ok || browser != row.browser || device != row.device {
 			t.Fatalf("%+v: %s %s %v", row, browser, device, ok)
 		}
@@ -214,6 +216,14 @@ func TestPlaywrightUseValueSideEffects_V1_1065(t *testing.T) {
 		"-2 * 2 + 1 > 0 ? options['base'] : options.base",
 		"url",
 		"options?.base ?? (fallback)",
+		// TJAA-V0-035 (GitHub #1576): when every process token in the config is a plain
+		// process.env.NAME read, the read is a primitive string or undefined and cannot run code.
+		"`http://${process.env.HOST ?? 'localhost'}:${process.env.PORT ?? 3000}/`",
+		"process.env.BASE_URL ?? 'http://localhost:3000'",
+		"process.env.CI ? 'on' : 'off'",
+		"{ 'X-Token': process.env.TOKEN }",
+		"process.env.BASE + '/login'",
+		"Number.parseInt(process.env.T || '60000')",
 	} {
 		projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", config("{ baseURL: "+value+" }", "{ ...devices['Desktop Firefox'] }"))
 		if len(unknown) != 0 || len(projects) != 1 || projects[0].Browser != "firefox" {
@@ -259,19 +269,14 @@ func TestPlaywrightUseValueSideEffects_V1_1065(t *testing.T) {
 		"{ [key]: 'x' }",
 		"'k' in env",
 		"env instanceof Object",
-		// process.env.NAME is not proven primitive, a number's member read is not either, and
-		// update operators are refused
-		"`http://${process.env.HOST ?? 'localhost'}:${process.env.PORT ?? 3000}/`",
-		// GitHub #709 review round 8: a member read of any root other than the devices import or
-		// an unwritten plain const literal can invoke a getter or Proxy trap.
-		"process.env.BASE_URL ?? 'http://localhost:3000'",
-		"process.env.CI ? 'on' : 'off'",
-		"{ 'X-Token': process.env.TOKEN }",
+		// a number's member read is not proven primitive, and update operators are refused.
+		// GitHub #709 review round 8: a member read of any root other than the devices import,
+		// an unwritten plain const literal or a sound process.env read can invoke a getter or
+		// Proxy trap.
 		"settings?.trace ?? (fallback)",
 		"1..payload",
 		"options[0]",
 		"-process.env.RETRIES * 2 + 1 > 0 ? options['base'] : options[0]",
-		"process.env.BASE + '/login'",
 		"1..payload + ''",
 		"++process.env.COUNTER",
 		"--process.env.COUNTER",
@@ -394,7 +399,9 @@ func TestPlaywrightMemberReadRoots_GH709Round8(t *testing.T) {
 		{"read through a leaf", "const options = { baseURL: 'http://x' };", "options.baseURL.length"},
 		{"called member", "const options = { baseURL: 'http://x' };", "options.baseURL()"},
 		{"undeclared root", "", "options.baseURL"},
-		{"process.env", "", "process.env.BASE_URL ?? 'http://localhost:3000'"},
+		{"process.env written", "process.env = proxy;", "process.env.BASE_URL ?? 'http://localhost:3000'"},
+		{"process.env prototype key", "", "process.env.constructor"},
+		{"process.env through globalThis", "globalThis.process = proxy;", "process.env.BASE_URL"},
 		{"this", "", "this.baseURL"},
 		{"devices without the read rule", "", "devices['Desktop Chrome'].viewport"},
 		{"devices prototype key", "", "devices['constructor'].userAgent"},
