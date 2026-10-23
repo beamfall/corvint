@@ -14,3 +14,5 @@ func lockLeaseDetach(string, time.Duration) (func(), error) {
 }
 
 func leaseDetachLockHeld(string) bool { return false }
+
+func leaseDetachShareLaunch(string) (func(), bool, error) { return func() {}, false, nil }

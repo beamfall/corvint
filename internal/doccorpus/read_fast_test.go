@@ -207,7 +207,7 @@ func TestDCPV1414ParallelDecodeMatchesClosedDecode(t *testing.T) {
 		_, closed := ParseArtifact(bad)
 		decoded, err := decodeArtifactParallel(bad, nil)
 		if err == nil {
-			err = hashArtifactTail(bad).verify(decoded, bad)
+			err = hashArtifactTail(bad).verify(decoded)
 		}
 		if err == nil || closed == nil {
 			t.Errorf("%s: parallel=%v closed=%v; both must refuse", name, err, closed)

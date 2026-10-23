@@ -15,6 +15,9 @@ const (
 	// WitnessPathLiteralReader names a unit whose own files carry a string
 	// literal naming a dirty path no plugin owns (AFP-V0-021).
 	WitnessPathLiteralReader = "PATH_LITERAL_READER"
+	// WitnessPathGlobReader names a unit whose own files pass a literal glob
+	// pattern, named in Witness.Glob, that matches a dirty path (AFP-V0-401).
+	WitnessPathGlobReader = "PATH_GLOB_READER"
 	// WitnessEnclosingPackage names a Go package whose directory encloses a
 	// dirty path no Go file of it declares: a fixture, an embedded asset, or
 	// other data its tests or build may read (V1-0340, AFP-V0-012 rule (b)).
@@ -81,6 +84,9 @@ type Witness struct {
 	// Cause is set on an UNBOUNDED_READER witness only: the unit whose own
 	// file makes the selected unit's reads unbounded, and why (AFP-V0-192).
 	Cause *UnboundedCause `json:"cause,omitempty"`
+	// Glob is set on a PATH_GLOB_READER witness only: the unit's literal glob
+	// pattern that matches DirtyPath (AFP-V0-401).
+	Glob string `json:"glob,omitempty"`
 }
 
 // UnboundedCause names why an UNBOUNDED_READER unit can read any dirty path:

@@ -478,6 +478,7 @@
       "internal/gateselect/readers.go",
       "internal/gateselect/readscopes.go",
       "internal/gateselect/select.go",
+      "internal/gateselect/workspace.go",
       "internal/taskprojection/taskprojection.go",
       "tools/gate-affected-select/main.go"
     ],

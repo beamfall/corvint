@@ -67,6 +67,12 @@ type Program struct {
 	// Repositories are the extra repositories of a multi-repository program
 	// (CAL-V0-071), sorted by name; absent keeps single-repository bytes.
 	Repositories []RepositoryRecord `json:"repositories,omitempty"`
+
+	// RemoverPID and RemoverStarted identify the `git worktree remove`
+	// child of a WORKTREE_REMOVE write, recorded before that child may act
+	// (CAL-V0-368); absent in every other phase.
+	RemoverPID     int    `json:"removerPid,string,omitempty"`
+	RemoverStarted string `json:"removerStarted,omitempty"`
 }
 type Programs struct {
 	Profile string    `json:"profile"`
@@ -134,6 +140,9 @@ func DecodePrograms(raw []byte) (*Programs, error) {
 		case "ADMITTED", "WORKTREE_ADD", "WORKTREE_REMOVE", "READY", "SPAWNING", "RUNNING", "STOPPING", "FINISHED", "BLOCKED_RECOVERY":
 		default:
 			return nil, fmt.Errorf("program phase")
+		}
+		if (x.RemoverPID != 0) != (x.RemoverStarted != "") || x.RemoverPID < 0 || x.RemoverPID != 0 && x.Phase != "WORKTREE_REMOVE" {
+			return nil, fmt.Errorf("program worktree remover identity")
 		}
 		if e := checkRepositoryRecords(x); e != nil {
 			return nil, e

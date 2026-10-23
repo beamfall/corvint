@@ -225,6 +225,10 @@ func TestCALV0263_LeaseGateLoad(t *testing.T) {
 		"hostLoad": map[string]string{"before": loadBefore, "after": loadAfter},
 		"summary":  verbs, "samples": samples,
 	}
+	// JSG-V0-021: the run is labelled by the loads around it, as B3 is.
+	for k, v := range b3Report(loadBefore, loadAfter) {
+		report[k] = v
+	}
 	raw, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
 		t.Fatal(err)

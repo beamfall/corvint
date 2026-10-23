@@ -91,7 +91,7 @@ func TempDirOutside(t *testing.T) string {
 }
 
 // Write writes a file, creating parents, with mode 0644.
-func Write(t *testing.T, path string, data []byte) {
+func Write(t testing.TB, path string, data []byte) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)

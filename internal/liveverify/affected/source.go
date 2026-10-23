@@ -23,9 +23,16 @@ type Source struct {
 	mu    sync.Mutex
 	walks map[string]*sharedWalk
 	fatal error
+	// record, when set, notes every disk observation for a graph cache
+	// stamp (AFP-V0-391).
+	record *recording
 }
 
 func DiskSource(root string) *Source { return &Source{root: root} }
+
+// readSourceAt is the disk read behind Source.Read; tests replace it to inject
+// a transient failure (AFP-V0-392).
+var readSourceAt = ReadSource
 
 // DiskSourceContext scopes both cancellation and cached walks to this reader.
 func DiskSourceContext(ctx context.Context, root string) *Source {
@@ -93,7 +100,11 @@ func (s *Source) FilesIncluding(accept func(string) bool, included ...string) (f
 	s.mu.Unlock()
 	shared.once.Do(func() {
 		if s.fsys == nil {
-			shared.files, shared.bounded, shared.err = walkSourceFilesContext(s.ctx, s.root, acceptEveryName, included)
+			var visit func(string)
+			if s.record != nil {
+				visit = func(relative string) { s.record.path(s.root, relative, false) }
+			}
+			shared.files, shared.bounded, shared.err = walkSourceFilesContext(s.ctx, s.root, acceptEveryName, included, visit)
 		} else {
 			shared.files, shared.bounded, shared.err = walkSourceFS(s.fsys, acceptEveryName, included)
 		}
@@ -126,7 +137,10 @@ func (s *Source) Read(relative string) (bodyOut []byte, errOut error) {
 		return nil, ErrInvalidLanguage
 	}
 	if s.fsys == nil {
-		return ReadSource(s.root, relative)
+		s.record.path(s.root, relative, false)
+		body, err := readSourceAt(s.root, relative)
+		s.record.failed(relative, err)
+		return body, err
 	}
 	if !ValidRelativePath(relative) {
 		return nil, ErrInvalidUnit
@@ -178,6 +192,8 @@ func (s *Source) ReadBounded(relative string, limit int) (bodyOut []byte, errOut
 		}
 		file, err = bounded.OpenBounded(relative, limit)
 	} else {
+		s.record.path(s.root, relative, false)
+		defer func() { s.record.failed(relative, errOut) }()
 		name := filepath.Join(s.root, filepath.FromSlash(relative))
 		info, statErr := os.Lstat(name)
 		if statErr != nil {
@@ -247,7 +263,10 @@ func (s *Source) Stat(relative string) (infoOut fs.FileInfo, errOut error) {
 		}
 		return info, nil
 	}
-	return os.Stat(filepath.Join(s.root, filepath.FromSlash(relative)))
+	s.record.path(s.root, relative, true)
+	info, err := os.Stat(filepath.Join(s.root, filepath.FromSlash(relative)))
+	s.record.failed(relative, err)
+	return info, err
 }
 func (s *Source) Lstat(relative string) (infoOut fs.FileInfo, errOut error) {
 	if err := s.stopped(); err != nil {
@@ -267,7 +286,10 @@ func (s *Source) Lstat(relative string) (infoOut fs.FileInfo, errOut error) {
 		}
 		return info, nil
 	}
-	return os.Lstat(filepath.Join(s.root, filepath.FromSlash(relative)))
+	s.record.path(s.root, relative, false)
+	info, err := os.Lstat(filepath.Join(s.root, filepath.FromSlash(relative)))
+	s.record.failed(relative, err)
+	return info, err
 }
 func (s *Source) Walk(relative string, visit fs.WalkDirFunc) (errOut error) {
 	if err := s.stopped(); err != nil {
@@ -294,6 +316,7 @@ func (s *Source) Walk(relative string, visit fs.WalkDirFunc) (errOut error) {
 			return visit(current, entry, err)
 		})
 	}
+	s.record.subtree(s.root, relative)
 	return filepath.WalkDir(filepath.Join(s.root, filepath.FromSlash(relative)), func(current string, entry fs.DirEntry, err error) error {
 		if cancelled := s.cancelled(); cancelled != nil {
 			return cancelled

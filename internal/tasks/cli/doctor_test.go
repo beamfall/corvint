@@ -885,6 +885,7 @@ func TestTQDV0009_FalseIdleSkipsRunsFIFO(t *testing.T) {
 // that never releases it makes the refresh refuse LOCK_TIMEOUT, writing
 // nothing, instead of hanging.
 func TestTQDV0011_RefreshLockWaitIsBounded(t *testing.T) {
+	t.Parallel() // idle-bound on fixed waits and independent of process state (V1-2366)
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	doctorOK(t, root, "--refresh")
 	dir := doctorCacheDir(t, root)

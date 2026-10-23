@@ -35,12 +35,15 @@ type Reader struct {
 	// Retries bounds the re-reads after a moved snapshot: zero means three,
 	// negative means none.
 	Retries int
-	// Patience bounds the wall-clock time one read waits for an in-flight
-	// writer (CTS-V0-006): a committed receipt that head.json does not name
-	// yet (REDO_PENDING) is re-probed with backoff until it is applied or the
-	// budget is spent, and the pause before each moved re-read is charged to
-	// the same budget. Zero means DefaultPatience; negative means no waiting,
-	// so a pending redo is reported at once and moved re-reads do not pause.
+	// Patience bounds the total pause one read spends waiting for an
+	// in-flight writer (CTS-V0-006): a committed receipt that head.json does
+	// not name yet (REDO_PENDING) is re-probed with backoff until it is
+	// applied or the budget is spent, and the pause before each moved re-read
+	// is charged to the same budget. Only pauses are charged, never the
+	// body's own run time, so a read whose body takes longer than the budget
+	// still waits out a writer it meets (CTS-V0-022). Zero means
+	// DefaultPatience; negative means no waiting, so a pending redo is
+	// reported at once and moved re-reads do not pause.
 	Patience time.Duration
 	// Sleep is the wait primitive; nil means time.Sleep. Tests use it to
 	// finish a simulated writer during the wait.
@@ -247,12 +250,12 @@ func (r Reader) Read(body func(s *Snapshot) error) (*Snapshot, error) {
 		sleep = time.Sleep
 	}
 	start := time.Now()
-	deadline := start.Add(patience)
+	var paused time.Duration
 	waits, stall := 0, 0
 	// wait pauses for the next backoff step of the current stall, clipped
-	// to the remaining budget, and reports false once the budget is spent.
+	// to the remaining pause budget, and reports false once it is spent.
 	wait := func() bool {
-		remaining := time.Until(deadline)
+		remaining := patience - paused
 		if remaining <= 0 {
 			return false
 		}
@@ -262,6 +265,7 @@ func (r Reader) Read(body func(s *Snapshot) error) (*Snapshot, error) {
 		}
 		waits++
 		stall++
+		paused += d
 		sleep(d)
 		return true
 	}
@@ -275,7 +279,13 @@ func (r Reader) Read(body func(s *Snapshot) error) (*Snapshot, error) {
 			}
 			return s, AfterWait(err, start, waits)
 		}
-		stall = 0
+		// The backoff restarts after a clean probe only before the first
+		// body: across re-reads it keeps growing, so a body that runs longer
+		// than the budget is re-read a handful of times, not once per 25 ms
+		// pause (CTS-V0-022).
+		if attempts == 0 {
+			stall = 0
+		}
 		attempts++
 		bodyErr := body(s)
 		again, err := r.probe()
@@ -312,7 +322,7 @@ func AfterWait(err error, start time.Time, waits int) error {
 		return err
 	}
 	out := *e
-	out.Msg = fmt.Sprintf("%s; still so after %d pauses totalling %s for a concurrent writer; the read is retryable", e.Msg, waits, time.Since(start).Round(time.Millisecond))
+	out.Msg = fmt.Sprintf("%s; still so after %d pauses for a concurrent writer, %s after the read began; the read is retryable", e.Msg, waits, time.Since(start).Round(time.Millisecond))
 	return &out
 }
 

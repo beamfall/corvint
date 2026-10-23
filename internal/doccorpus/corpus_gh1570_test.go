@@ -271,9 +271,15 @@ func TestDCPV1328SearchIncludesClaims(t *testing.T) {
 		if r.ResultKinds["adapter:claim"] != "claim" || r.ResultKinds["adapter:count"] != "subject" {
 			t.Fatalf("result kinds: %v", r.ResultKinds)
 		}
-		// DCP-V1-331: a name match outranks a claim-text match of the same term.
-		if recordID(r.Results[0]) != "adapter:count" {
-			t.Fatalf("subject name hit should rank first: %v", recordID(r.Results[0]))
+		// DCP-V1-402: the claim holding every query term is the better match
+		// and outranks the subject whose name holds only one of them.
+		if recordID(r.Results[0]) != "adapter:claim" {
+			t.Fatalf("claim holding every query term should rank first: %v", recordID(r.Results[0]))
+		}
+		// DCP-V1-402: when both families match every term, the subject leads.
+		named := queryResults(t, b, Request{Operation: "search", Query: "count capability", Include: []string{"claims"}})
+		if recordID(named.Results[0]) != "adapter:count" {
+			t.Fatalf("subject name hit should rank first on a tie: %v", recordID(named.Results[0]))
 		}
 		// An exact claim text outranks every partial match.
 		exact := queryResults(t, b, Request{Operation: "search", Query: "Count is a provider-declared capability", Include: []string{"claims"}})

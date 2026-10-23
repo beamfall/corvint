@@ -42,6 +42,24 @@ func policyUpdate(ctx context.Context, repo *intent.Repository, actor mutation.B
 	return report, nil
 }
 
+// ImportMapRequest is one OWNER amendment of a mapped queue's import map
+// (CTS-V0-020): ImportMap is the complete new canonical map and
+// ExpectedImportMapSha256 the journaled map the owner reviewed.
+type ImportMapRequest struct {
+	QueueID, RequestID      string
+	ExpectedImportMapSha256 wire.Digest
+	ImportMap               []byte
+}
+
+// ImportMapAmend commits an amended import map and the queue naming it under
+// one IMPORT_PLAN receipt through the §5.2 writer (CTS-V0-020, CTS-V0-021).
+func ImportMapAmend(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice ImportMapRequest, now wire.Timestamp) (out *Report, outErr error) {
+	defer func() { out, outErr = intentFix(repo, out, outErr) }()
+	request := transaction.Request{Operation: transaction.ImportPlan, QueueID: choice.QueueID, RequestID: choice.RequestID, Actor: actor, ImportMap: choice.ImportMap, ExpectedImportMapSha256: choice.ExpectedImportMapSha256}
+	report, _, err := administrativeWrite(ctx, repo, request, now, nil)
+	return report, err
+}
+
 // administrativeWrite commits one whole-store administrative request through
 // the §5.2 writer: guards, redo, request-index replay, a fresh audit of every
 // intent record, the model, the branch and observation checks, and apply. It
@@ -143,6 +161,10 @@ func administrativeWriteRound(ctx context.Context, repo *intent.Repository, requ
 			paths = append(paths, file.Path)
 		}
 	}
+	if request.Operation == transaction.ImportPlan {
+		// The amendment is checked against the journaled map (CTS-V0-020).
+		paths = append(paths, "intent/import-map.json")
+	}
 	proof, err := reader.Audit(paths...)
 	if err != nil {
 		return report, nil, err
@@ -154,7 +176,7 @@ func administrativeWriteRound(ctx context.Context, repo *intent.Repository, requ
 	releases := [][]byte{}
 	attempts := [][]byte{}
 	for _, path := range paths[2:] {
-		if path == "pools.json" || path == "programs.json" {
+		if path == "pools.json" || path == "programs.json" || path == "intent/import-map.json" {
 			continue
 		}
 		if strings.HasPrefix(path, "attempts/") {
@@ -189,6 +211,9 @@ func administrativeWriteRound(ctx context.Context, repo *intent.Repository, requ
 		if err = leaseInput(proof, attempts, facts, &input); err != nil {
 			return report, nil, err
 		}
+	}
+	if request.Operation == transaction.ImportPlan {
+		input.ImportMap = proof.Records["intent/import-map.json"].Raw
 	}
 	result := transaction.Model(request, input)
 	report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind

@@ -18,6 +18,7 @@ import (
 	"context"
 	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -192,6 +193,7 @@ func observe(relative, text string, known map[string]bool) affected.Unit {
 		unit.UnboundedReads = UnboundedDynamicSource
 		unit.LocatesRoot = !test
 	}
+	unit.PlacesFileNames = placesFileNames(commands, len(parsed.commands), resolve.placement(test && !strings.HasSuffix(relative, ".bats")))
 	tokens := pathTokens(parsed)
 	if len(tokens) > maxPathTokens {
 		unit.PathTokensBounded = true
@@ -199,6 +201,163 @@ func observe(relative, text string, known map[string]bool) affected.Unit {
 		unit.PathTokens = sortedKeys(tokens)
 	}
 	return unit
+}
+
+// recursiveReaders are the commands that read below a directory they are
+// given, or run commands they are handed, so a lone file name they match
+// may lie at any depth (AFP-V0-400).
+var recursiveReaders = map[string]bool{
+	"find": true, "rg": true, "ag": true, "ack": true, "tree": true, "du": true, "tar": true,
+	"zip": true, "rsync": true, "xargs": true, "eval": true, "pushd": true,
+}
+
+// optionSet names the options that make a command read recursively, change
+// its directory or run a command it is handed: a long option whose name, or
+// any abbreviation of it that getopt_long accepts, is listed, with or without
+// a value, or a short option group holding one of the letters anywhere.
+type optionSet struct {
+	long    []string
+	letters string
+}
+
+// grepOptions include every `-d`/`--directories` action, because grep
+// accepts an abbreviated action (`-d rec`) as well as `-drecurse`.
+var grepOptions = optionSet{[]string{"recursive", "dereference-recursive", "directories"}, "rRd"}
+
+// recursiveFlags are the commands that read recursively given one of their
+// options.
+var recursiveFlags = map[string]optionSet{
+	"grep": grepOptions, "egrep": grepOptions, "fgrep": grepOptions, "zgrep": grepOptions,
+	"ls":    {[]string{"recursive"}, "R"},
+	"cp":    {[]string{"recursive", "archive"}, "rRa"},
+	"scp":   {nil, "r"},
+	"diff":  {[]string{"recursive"}, "r"},
+	"chmod": {[]string{"recursive"}, "R"},
+	"chown": {[]string{"recursive"}, "R"},
+}
+
+// envOptions are env's options that change the directory (`-C`, `--chdir`)
+// or split a string into the command to run (`-S`, `--split-string`).
+var envOptions = optionSet{[]string{"chdir", "split-string"}, "CS"}
+
+// matches reports an option word in the set. A bare `--` matches nothing.
+func (set optionSet) matches(value string) bool {
+	if name, ok := strings.CutPrefix(value, "--"); ok {
+		name, _, _ = strings.Cut(name, "=")
+		if name == "" {
+			return false
+		}
+		return slices.ContainsFunc(set.long, func(long string) bool { return strings.HasPrefix(long, name) })
+	}
+	return strings.HasPrefix(value, "-") && strings.ContainsAny(value[1:], set.letters)
+}
+
+// treeBlindGit are the git subcommands a placed script may run in a computed
+// directory: none matches a pathspec at any depth of a tree it reads, as
+// grep, ls-files, ls-tree, archive or diff do (AFP-V0-400).
+var treeBlindGit = map[string]bool{
+	"init": true, "config": true, "add": true, "commit": true, "tag": true,
+	"rev-parse": true, "checkout": true, "switch": true,
+}
+
+// placesFileNames reports a shell unit whose lone file-name tokens can be
+// placed as a Go unit's are (AFP-V0-400): none of its commands, those of its
+// command strings included, changes directory other than by a placedDirectory
+// `cd` in the file's own commands (the first own of them), runs env with an
+// option that changes directory or splits a command string, runs git other
+// than a treeBlindGit subcommand in a computed directory
+// (`git -C "$root" add -A`), reads recursively, or runs commands it is
+// handed. A `cd` to a variable, a computed or literal directory, `cd -` or a
+// bare `cd` keeps the wider relation: its target is not proven to be a base.
+func placesFileNames(commands []command, own int, literal *resolver) bool {
+	for index, cmd := range commands {
+		words := plainWords(cmd.words)
+		if runsEnvOption(words) {
+			return false
+		}
+		word, args := commandWord(words)
+		word = path.Base(word)
+		switch {
+		case recursiveReaders[word]:
+			return false
+		case word == "cd":
+			if index >= own || !literal.placedDirectory(args) {
+				return false
+			}
+		case word == "git":
+			if len(args) < 3 || unquote(args[0]) != "-C" || !computed(args[1]) || !treeBlindGit[unquote(args[2])] {
+				return false
+			}
+		}
+		if flags, ok := recursiveFlags[word]; ok {
+			for _, arg := range args {
+				if flags.matches(unquote(arg)) {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+// runsEnvOption reports a command that runs env, as its command or through a
+// prefix, with an envOptions option.
+func runsEnvOption(words []string) bool {
+	for index, raw := range words {
+		if path.Base(unquote(raw)) != "env" {
+			continue
+		}
+		for _, option := range words[index+1:] {
+			value := unquote(option)
+			if !strings.HasPrefix(value, "-") {
+				break
+			}
+			if envOptions.matches(value) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// placement returns the resolver a `cd` target is placed with: no variable
+// resolves, since a value assigned in the file may be skipped by a branch
+// and taken from the environment, and `$0` names the file only in an
+// executed test (scriptZero), not in a sourced helper or a bats file.
+func (r *resolver) placement(scriptZero bool) *resolver {
+	return &resolver{directory: r.directory, values: map[string]string{}, counts: map[string]int{}, resolving: map[string]bool{}, noZero: !scriptZero}
+}
+
+// placedDirectory reports a `cd` operand list that changes to a directory
+// whose lone file names the unit's placement already covers: exactly one
+// operand after `-L`/`-P`/`-e`/`-@` options and `--`, a directory form of
+// the file itself (`"$(dirname "$0")/.."`, `"${BASH_SOURCE%/*}"`) that
+// resolves to the repository root or into the file's own directory.
+func (r *resolver) placedDirectory(args []string) bool {
+	var operands []string
+	options := true
+	for _, arg := range args {
+		value := unquote(arg)
+		switch {
+		case options && value == "--":
+			options = false
+		case options && len(value) > 1 && strings.HasPrefix(value, "-") && strings.Trim(value[1:], "LPe@") == "":
+		default:
+			options = false
+			operands = append(operands, value)
+		}
+	}
+	if len(operands) != 1 {
+		return false
+	}
+	directory, ok := r.pathOf(operands[0], 0)
+	return ok && (directory == "" || r.directory == "" || directory == r.directory || strings.HasPrefix(directory, r.directory+"/"))
+}
+
+// computed reports a word whose value is known only at run time: one with an
+// expansion or a command substitution.
+func computed(word string) bool {
+	return strings.ContainsAny(word, "$`")
 }
 
 // shadowed reports a call to a function the file defined earlier. A later
@@ -373,6 +532,9 @@ type resolver struct {
 	values    map[string]string
 	counts    map[string]int
 	resolving map[string]bool
+	// noZero refuses `$0` forms, which name the running script rather than
+	// this file when it is sourced or run by bats.
+	noZero bool
 }
 
 func newResolver(relative string, commands []command) *resolver {
@@ -506,6 +668,9 @@ func (r *resolver) base(target string, depth int) (string, string, bool) {
 	}
 	for _, form := range directoryForms {
 		if strings.HasPrefix(target, form) && !nameContinues(target[len(form):], form) {
+			if r.noZero && strings.HasPrefix(form, "${0") {
+				return "", "", false
+			}
 			return r.directory, target[len(form):], true
 		}
 	}
@@ -608,7 +773,7 @@ func (r *resolver) substituted(inner string, depth int) (string, bool) {
 // or through realpath or readlink.
 func (r *resolver) scriptPath(text string, depth int) bool {
 	if scriptPaths[text] {
-		return true
+		return !r.noZero || (text != "$0" && text != "${0}")
 	}
 	inner, rest, ok := substitution(text)
 	if !ok || rest != "" || depth > 8 {

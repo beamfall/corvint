@@ -226,8 +226,8 @@ func baseReadScopes(plan Receipt, root string) map[string][]string {
 			return nil
 		}
 	}
-	listed, ok := baseWorkspace(root, entries)
-	if !ok {
+	listed, err := baseWorkspace(root, entries)
+	if err != nil {
 		return nil
 	}
 	goDirectories := map[string]bool{}
@@ -291,51 +291,62 @@ func baseBlob(root string, entries map[string]baseTreeEntry, name string, limit 
 // strict manifest grammar (readManifest in
 // internal/liveverify/affected/golang/nested.go): a raw string, a block
 // comment, an invalid quoted string, an unknown or quoted directive, a block
-// of a verb that admits none, text after a block close, a use without exactly
-// one argument or an unterminated block refuses the file, and the base is
-// unknown, where the planner observes the root alone and raises its
-// workspace frontier (V1-2317).
-func baseWorkspace(root string, entries map[string]baseTreeEntry) (map[string]bool, bool) {
+// of a verb that admits none, text after a block close, an unterminated block,
+// or a go, toolchain, godebug, use or replace directive whose arguments the
+// planner refuses (AFP-V0-403) refuses the file with a WorkspaceRefusal, and
+// the base is unknown, where the planner observes the root alone and raises
+// its workspace frontier (V1-2317).
+func baseWorkspace(root string, entries map[string]baseTreeEntry) (map[string]bool, error) {
 	body, present, ok := baseBlob(root, entries, workspaceManifest, maxWorkspaceBytes)
 	if !ok {
-		return nil, false
+		return nil, &WorkspaceRefusal{Reason: WorkspaceUnreadable}
 	}
+	return parseBaseWorkspace(body, present)
+}
+
+// parseBaseWorkspace reads one base go.work body for baseWorkspace; an absent
+// file lists the root alone.
+func parseBaseWorkspace(body []byte, present bool) (map[string]bool, error) {
 	listed := map[string]bool{}
+	seen := map[string]bool{}
 	block := ""
-	for _, line := range strings.Split(string(body), "\n") {
+	for number, line := range strings.Split(string(body), "\n") {
+		refuse := func(reason string) (map[string]bool, error) {
+			return nil, &WorkspaceRefusal{Line: number + 1, Reason: reason}
+		}
 		tokens, quoted, ok := workspaceTokens(line)
 		if !ok {
-			return nil, false
+			return refuse(WorkspaceLexical)
 		}
 		if len(tokens) == 0 {
 			continue
 		}
-		verb, args := block, tokens
+		verb, args, argsQuoted := block, tokens, quoted
 		switch {
 		case block != "" && tokens[0] == ")" && !quoted[0]:
 			if len(tokens) != 1 {
-				return nil, false
+				return refuse(WorkspaceBlock)
 			}
 			block = ""
 			continue
 		case block == "":
 			if quoted[0] || !workspaceVerbs[tokens[0]] {
-				return nil, false
+				return refuse(WorkspaceUnknownDirective)
 			}
-			verb, args = tokens[0], tokens[1:]
-			if len(args) == 1 && args[0] == "(" && !quoted[1] {
+			verb, args, argsQuoted = tokens[0], tokens[1:], quoted[1:]
+			if len(args) == 1 && args[0] == "(" && !argsQuoted[0] {
 				if !workspaceBlocks[verb] {
-					return nil, false
+					return refuse(WorkspaceBlock)
 				}
 				block = verb
 				continue
 			}
 		}
+		if reason := workspaceDirectiveReason(verb, args, argsQuoted, seen); reason != "" {
+			return refuse(reason)
+		}
 		if verb != "use" {
 			continue
-		}
-		if len(args) != 1 || args[0] == "" {
-			return nil, false
 		}
 		cleaned := path.Clean(filepath.ToSlash(args[0]))
 		if cleaned == "." || validRelativePath(cleaned) {
@@ -343,12 +354,12 @@ func baseWorkspace(root string, entries map[string]baseTreeEntry) (map[string]bo
 		}
 	}
 	if block != "" {
-		return nil, false
+		return nil, &WorkspaceRefusal{Reason: WorkspaceUnterminated}
 	}
 	if !present || len(listed) == 0 {
 		listed["."] = true
 	}
-	return listed, true
+	return listed, nil
 }
 
 // workspaceVerbs and workspaceBlocks mirror the planner's workVerbs and
