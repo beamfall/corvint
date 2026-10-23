@@ -78,15 +78,17 @@ func assertHelpTool(t *testing.T, profile string, registry *Registry) {
 	replaced := catalogText + " "
 	replacedDigest := sha256.Sum256([]byte(replaced))
 	for name, tamper := range map[string]func(map[string]any){
-		"text replaced":                      func(receipt map[string]any) { receipt["text"] = "x" },
-		"text replaced with recomputed hash": func(receipt map[string]any) { receipt["text"], receipt["sha256"], receipt["byteCount"] = replaced, hex.EncodeToString(replacedDigest[:]), len(replaced) },
-		"command missing":                    func(receipt map[string]any) { delete(receipt, "command") },
-		"command of the other topic":         func(receipt map[string]any) { receipt["command"] = "corvint help guide" },
-		"guide topic with catalog text":      func(receipt map[string]any) { receipt["topic"], receipt["command"] = "guide", "corvint help guide" },
-		"negative byteCount":                 func(receipt map[string]any) { receipt["byteCount"] = -1 },
-		"byteCount not an integer":           func(receipt map[string]any) { receipt["byteCount"] = float64(len(catalogText)) },
-		"extra member":                       func(receipt map[string]any) { receipt["note"] = "x" },
-		"schema missing":                     func(receipt map[string]any) { delete(receipt, "schema") },
+		"text replaced": func(receipt map[string]any) { receipt["text"] = "x" },
+		"text replaced with recomputed hash": func(receipt map[string]any) {
+			receipt["text"], receipt["sha256"], receipt["byteCount"] = replaced, hex.EncodeToString(replacedDigest[:]), len(replaced)
+		},
+		"command missing":               func(receipt map[string]any) { delete(receipt, "command") },
+		"command of the other topic":    func(receipt map[string]any) { receipt["command"] = "corvint help guide" },
+		"guide topic with catalog text": func(receipt map[string]any) { receipt["topic"], receipt["command"] = "guide", "corvint help guide" },
+		"negative byteCount":            func(receipt map[string]any) { receipt["byteCount"] = -1 },
+		"byteCount not an integer":      func(receipt map[string]any) { receipt["byteCount"] = float64(len(catalogText)) },
+		"extra member":                  func(receipt map[string]any) { receipt["note"] = "x" },
+		"schema missing":                func(receipt map[string]any) { delete(receipt, "schema") },
 	} {
 		tampered := ready
 		tampered.Receipt = map[string]any{}
