@@ -248,6 +248,9 @@ func build(ctx context.Context, root string, m Manifest, reuse *incrementalBuild
 	if err := c.checkClaimMentions(); err != nil {
 		return nil, err
 	}
+	if err := validateAlternateIDsAfterJoins(c.artifact); err != nil {
+		return nil, err
+	}
 	if m.Schema == ManifestSchemaV2 {
 		if err := validateReadableRecords(c.artifact); err != nil {
 			return nil, err
@@ -681,7 +684,7 @@ func (c *compiler) native(provider Provider) error {
 			return err
 		}
 		ev := Evidence{Derivation: "source-derived", Trust: "generated", State: "supported", Freshness: "fresh", Anchors: []Anchor{anchor}, Limitations: []string{"file presence and exact excerpt only; behavior unknown"}}
-		c.artifact.Subjects = append(c.artifact.Subjects, Subject{id, kind, in.Path, provider.ID, ev})
+		c.artifact.Subjects = append(c.artifact.Subjects, Subject{id, kind, in.Path, provider.ID, ev, nil})
 		c.artifact.Claims = append(c.artifact.Claims, Claim{id + ":excerpt", id, lineText(text, line), provider.ID, ev})
 		if !contextindex.ImpactPathAdmitted(in.Path) {
 			c.artifact.Gaps = append(c.artifact.Gaps, Gap{id, "unsupported", "native analyzer unavailable; text only"})
@@ -714,7 +717,7 @@ func (c *compiler) native(provider Provider) error {
 				sk = "test"
 			}
 			sid := fmt.Sprintf("%s:symbol:%s:%d:%s", provider.ID, in.Path, s.Line, s.Name)
-			c.artifact.Subjects = append(c.artifact.Subjects, Subject{sid, sk, s.Name, provider.ID, se})
+			c.artifact.Subjects = append(c.artifact.Subjects, Subject{sid, sk, s.Name, provider.ID, se, nil})
 			c.artifact.Claims = append(c.artifact.Claims, Claim{sid + ":declaration", sid, lineText(text, s.Line), provider.ID, se})
 		}
 	}
@@ -852,7 +855,7 @@ func (c *compiler) nativeImports(provider Provider) error {
 			ev := Evidence{Derivation: "source-derived", Trust: "generated", State: "supported", Freshness: "fresh", Anchors: []Anchor{anchor}, Limitations: []string{"syntactic import only; runtime applicability and dependency contents unknown"}}
 			to := provider.ID + ":package:" + imported
 			if !packages[to] {
-				c.artifact.Subjects = append(c.artifact.Subjects, Subject{to, "package", imported, provider.ID, ev})
+				c.artifact.Subjects = append(c.artifact.Subjects, Subject{to, "package", imported, provider.ID, ev, nil})
 				packages[to] = true
 			}
 			c.artifact.Relations = append(c.artifact.Relations, Relation{provider.ID + ":imports:" + in.Path + ":" + imported, from, to, "imports", provider.ID, ev})

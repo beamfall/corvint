@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"strconv"
 	"sync"
@@ -190,6 +191,8 @@ func (r *Registry) Tools() []bridge.ToolDescriptor {
 			properties["offset"] = map[string]any{"type": "integer", "minimum": 0, "maximum": doccorpus.MaxCorpusRecords * 4}
 		}
 		properties["retirement"] = doccorpus.RetirementInputSchema()
+		// DCP-V1-332: every tool takes an optional caller revision.
+		properties["caller_revision"] = map[string]any{"type": "string", "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"}
 		required := []any{}
 		if doccorpus.OperationInput(op) == "query" {
 			properties["query"] = map[string]any{"type": "string", "minLength": 1, "maxLength": 1024}
@@ -230,6 +233,13 @@ func (r *Registry) Tools() []bridge.ToolDescriptor {
 			name := map[string]any{"type": "string", "minLength": 1, "maxLength": 1024}
 			properties["section"] = map[string]any{"oneOf": []any{name, map[string]any{"type": "array", "minItems": 1, "maxItems": doccorpus.MaxFlowSections, "uniqueItems": true, "items": name}}}
 			properties["include"] = map[string]any{"type": "array", "minItems": 1, "maxItems": len(doccorpus.FlowRecordKinds), "uniqueItems": true, "items": map[string]any{"type": "string", "enum": doccorpus.FlowRecordKinds}}
+		}
+		if op == "search" {
+			// DCP-V1-328: opt-in claim hits ranked with the subject hits.
+			properties["include"] = map[string]any{"type": "array", "minItems": 1, "maxItems": 1, "items": map[string]any{"type": "string", "enum": []string{"claims"}}}
+			// DCP-V1-331: optional subject kind filter, one kind or a list.
+			kind := map[string]any{"type": "string", "minLength": 1, "maxLength": 128}
+			properties["kind"] = map[string]any{"oneOf": []any{kind, map[string]any{"type": "array", "minItems": 1, "maxItems": doccorpus.MaxGapKinds, "uniqueItems": true, "items": kind}}}
 		}
 		if op == "trace" {
 			// DCP-V1-098: downstream flow-relation depth for a flow subject.
@@ -283,6 +293,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 		State      string                      `json:"state"`
 		Qualifier  string                      `json:"qualifier"`
 		Run        string                      `json:"run"`
+		Caller     string                      `json:"caller_revision"`
 	}
 	if len(arguments) > 16<<10 || json.Unmarshal(arguments, &input, json.RejectUnknownMembers(true)) != nil {
 		return nil, "", nil, &Error{"invalid-arguments"}, finish()
@@ -293,7 +304,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	}
 	kind := doccorpus.OperationInput(op)
 	for key, value := range members {
-		allowed := key == "retirement" || key == "offset" && r.header.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && (kind == "query" || op == "claims") || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow" || key == "repository" && (op == "locate" || op == "recommend-tests") || key == "kind" && op == "gaps" || (key == "state" || key == "qualifier" || key == "run") && op == "claims"
+		allowed := key == "retirement" || key == "caller_revision" || key == "offset" && r.header.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && (kind == "query" || op == "claims") || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow" || key == "include" && op == "search" || key == "repository" && (op == "locate" || op == "recommend-tests") || key == "kind" && (op == "gaps" || op == "search") || (key == "state" || key == "qualifier" || key == "run") && op == "claims"
 		if !allowed || value == nil {
 			return nil, "", nil, &Error{"invalid-arguments"}, finish()
 		}
@@ -334,6 +345,10 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	if batch && !validBatch(input.Paths) {
 		return nil, "", nil, &Error{"invalid-arguments"}, finish()
 	}
+	// DCP-V1-332: a present caller revision is a full lowercase Git object ID.
+	if _, has := members["caller_revision"]; has && (input.Caller == "" || !doccorpus.ValidCallerRevision(input.Caller)) {
+		return nil, "", nil, &Error{"invalid-arguments"}, finish()
+	}
 	identity, err := os.Lstat(r.root)
 	if err != nil || !os.SameFile(identity, r.identity) {
 		return nil, "", &ToolFailure{"corpus-input-unavailable", "repository root changed"}, nil, finish()
@@ -349,11 +364,15 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	if !ok || !doccorpus.ValidFlowFilter(sections, input.Include) {
 		return nil, "", nil, &Error{"invalid-arguments"}, finish()
 	}
+	// DCP-V1-328: docs_search admits include only as exactly ["claims"].
+	if op == "search" && input.Include != nil && !slices.Equal(input.Include, []string{"claims"}) {
+		return nil, "", nil, &Error{"invalid-arguments"}, finish()
+	}
 	kinds, ok := flowSections(input.Kind)
 	if !ok || !doccorpus.ValidGapKinds(kinds) {
 		return nil, "", nil, &Error{"invalid-arguments"}, finish()
 	}
-	request := doccorpus.Request{Operation: op, Retirement: input.Retirement, Query: input.Query, ID: input.ID, Path: input.Path, Limit: limit, Offset: input.Offset, Depth: input.Depth, Sections: sections, Include: input.Include, Repository: input.Repository, Kinds: kinds, State: input.State, Qualifier: input.Qualifier, Run: input.Run}
+	request := doccorpus.Request{Operation: op, Retirement: input.Retirement, Query: input.Query, ID: input.ID, Path: input.Path, Limit: limit, Offset: input.Offset, Depth: input.Depth, Sections: sections, Include: input.Include, Repository: input.Repository, Kinds: kinds, State: input.State, Qualifier: input.Qualifier, Run: input.Run, CallerRevision: input.Caller}
 	// A batch whose deadline passes while the artifact or freshness is still
 	// being prepared names every path unresolved (DCP-V1-145).
 	prepared := func(err error) (map[string]any, string, *ToolFailure, *Error, Timing) {

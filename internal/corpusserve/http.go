@@ -21,7 +21,7 @@ func Handler(reader *corpusindex.Reader) http.Handler {
 		w.Header().Set("Cache-Control", "no-store")
 		refusal := func(status int, code string) {
 			w.WriteHeader(status)
-			_ = json.MarshalWrite(w, map[string]any{"profile": "corvint-corpus-http-refusal/1", "code": code, "state": "abstained", "trust_envelope": map[string]any{"content_status": "unknown", "source_revision": "unknown", "corpus_revision": reader.Digest(), "freshness": "unknown", "retirement": "unknown", "citations": []any{}, "limitations": []string{"request refused; no evidence answer"}}}, json.Deterministic(true))
+			_ = json.MarshalWrite(w, map[string]any{"profile": "corvint-corpus-http-refusal/1", "code": code, "state": "abstained", "trust_envelope": map[string]any{"content_status": "unknown", "source_revision": "unknown", "corpus_revision": reader.Digest(), "freshness": "unknown", "retirement": "unknown", "verified_at": nil, "citations": []any{}, "limitations": []string{"request refused; no evidence answer", doccorpus.RefusalUnverifiedLimitation}}}, json.Deterministic(true))
 		}
 		if r.URL.Path != "/query" || r.URL.RawQuery != "" {
 			refusal(404, "unknown-operation")

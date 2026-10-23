@@ -129,6 +129,7 @@ func pageReceipt(ctx context.Context, a *Artifact, original Receipt, request Req
 			r.Citations = append(r.Citations, unique[key])
 		}
 		attachClaimAudits(a, &r)
+		annotateVisibleResults(a, request, &r)
 		attachClaimMentions(a, &r)
 		if err := attachSymbolAnchors(ctx, &r, symbols); err != nil {
 			return Receipt{}, err
