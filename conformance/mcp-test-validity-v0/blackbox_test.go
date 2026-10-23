@@ -187,7 +187,7 @@ func vectorsAndReadOnly(t *testing.T, version string) {
 				}
 				meta = map[string]any{}
 			}
-			response := client.call(t, 100+index, "tools/call", map[string]any{"_meta": meta, "name": cases.Tools[0], "arguments": item.Arguments})
+			response := client.call(t, 100+index, "tools/call", map[string]any{"_meta": meta, "name": "corvint.test_validity", "arguments": item.Arguments})
 			checkVector(t, item, response)
 			if after := treeDigest(t, root); after != before {
 				t.Fatalf("repository changed: before=%s after=%s", before, after)
