@@ -177,7 +177,7 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 // live checkout is observed from Git's identity, its stat-cached status and one tree listing;
 // no tracked file is read or indexed (DCP-V1-411).
 func liveRepository(ctx context.Context, dir string, a *Artifact, member func(string) bool, prefix string, drift *anchorDrift) (*contextindex.TreeObservation, bool, []string, error) {
-	live, err := contextindex.ObserveTree(ctx, dir)
+	live, err := observeTree(ctx, dir)
 	if err != nil {
 		return nil, false, nil, err
 	}

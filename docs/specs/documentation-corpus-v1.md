@@ -2198,6 +2198,49 @@ verified read of `DCP-V1-410` landed: on a 95 MB, 9,170-input corpus the rederiv
   SHA-256 alone differs is caught only by `--verify-rederive`. Acceptance:
   `TestDCPV1464DeltaVerifiedReadChecksInputBindings`.
 
+### Read-start freshness and decode allocation (GitHub #1598 residual)
+
+After `DCP-V1-430..434` the warm CLI `flow` and `gaps` reads on the `DCP-V1-418` fixture still
+took 205 to 248 ms median at host load 11 to 24, above the 200 ms owner target. The read's
+freshness observation of the primary checkout only started when the artifact header had been
+decoded, about 16 ms in, and then ran 150 to 210 ms, so it ended after the decode on most runs and
+set the read's wall time. The decode's canonical check copied every record element before encoding
+it, and the index join regrew every claim term's postings. Status for `DCP-V1-465..468`: proposed,
+experimental; GitHub #1598 (ticket V1-2477).
+
+- `DCP-V1-465`: A CLI query read (`corpusQueryOperation`) starts the live tree observation of its
+  primary checkout, the read's own `--root`, when the read starts, before the artifact is opened
+  (`WithPrimaryObservation`). The primary checkout needs nothing the artifact records, so the
+  observation is the same `contextindex.ObserveTree` the freshness of `DCP-V1-411` runs; additional
+  checkouts are still observed from the header's repository list. The freshness overlay, receipt
+  and refusals are those of a freshness that observes the checkout itself; the checkout state is
+  observed at the read's start instead of at its header, which is no earlier than the artifact
+  decode it is paired with. `freshness_ms` still counts from the header callback, so it may
+  understate the observation's wall time. Acceptance:
+  `TestDCPV1465PrimaryObservationMatchesFreshRead`, `TestDCPV1413CorpusReadsWithoutRederivation`;
+  CLI timings in docs/build-log/2026-10-23-corpus-read-start-freshness.md.
+- `DCP-V1-466`: The started observation answers at most one freshness, and only one of the same
+  root; a later freshness under the same read, or one of another root, observes the checkout
+  again, so no freshness reuses an observation older than the read. Acceptance:
+  `TestDCPV1466PrimaryObservationUsedOnce`.
+- `DCP-V1-467`: Every exit of the read, a refusal before or after the header included, cancels the
+  started observation and joins it, after the header-started freshness of `DCP-V1-431` is joined,
+  so no observation or Git process outlives the read or writes after the `--timings` summary.
+  A freshness whose own context ends before the started observation does, such as one under a
+  shorter derived deadline, stops waiting and fails with its context's error as a new
+  observation would, while the read's cancel and join still end the observation. Acceptance:
+  `TestDCPV1467CancelledPrimaryObservationJoins`,
+  `TestDCPV1467ShorterDeadlineStopsWaitingForPrimary`,
+  `TestDCPV1467CorpusPreHeaderRefusalJoinsPrimary`, `TestDCPV1431CorpusRefusalJoinsFreshness`.
+- `DCP-V1-468`: The decode's canonical check (`DCP-V1-414`) encodes each decoded record element
+  through its address instead of a boxed copy; the bytes compared, and every admission and refusal,
+  are unchanged. Each batch's term map is sized from its claim count, and decode-time claim
+  terms (`DCP-V1-434`) are joined with each term's postings
+  allocated once at their final length, and a term only one batch holds keeps that batch's list;
+  the index equals the reference derivation. Acceptance:
+  `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`,
+  `TestDCPV1419FastIndexMatchesReference`.
+
 ### Cross-revision delta worklist and carry-forward (`docs corpus delta`, `docs corpus carry-forward`)
 
 `corvint docs corpus delta --previous OLD.json (--artifact NEW.json | --manifest NEW.json) [--limit N] [--offset N] [--uncovered changed|all] [--anchorless summary|list] [--format json|jsonl]`
@@ -3026,6 +3069,10 @@ a guessed subject.
   panic. A refused query read joins its started freshness observation before returning
   (`DCP-V1-431`). A refused or interrupted decode discards the claim terms it derived, and
   concurrent queries of one artifact take them at most once (`DCP-V1-434`).
+- Read-start freshness (`DCP-V1-465..467`): a primary observation that fails, or is cancelled
+  by a refused read, fails the freshness that takes it exactly as a new observation would; it is
+  never taken by a second freshness or by a freshness of another root, and a refusal before the
+  header still cancels and joins it.
 - Stat-routed revision pins (`DCP-V1-452`, `DCP-V1-453`): an unusable Git index (including an
   unknown extended entry flag or pathnames past the length and expansion bounds), a stat
   mismatch, a racy entry or a failed blob batch never refuses a build; the entry is opened and
@@ -3175,6 +3222,11 @@ cache or memory-limit setting, change no artifact, manifest, receipt or index co
 make producers trust a rehashed artifact. Rollback points the CLI read and the joined `--corpus`
 read back at `ReadCorpusFile` plus `OpenRead` and drops the decode-time claim terms; the delta
 current side is `DCP-V1-460`'s and rolls back with it. No stored state needs migration.
+Read-start freshness and decode allocation (`DCP-V1-465..468`) add no cache, daemon or
+persisted observation, observe no additional checkout before its header, change no overlay,
+receipt, refusal, index or timing field, and do not shorten the decode itself. Rollback removes
+`WithPrimaryObservation` from the CLI read and restores the boxed element encode and the
+append-grown postings; nothing is stored.
 
 The claim mention check and pattern report (`DCP-V1-340..352`) make no semantic or correctness
 judgment, do not parse non-ASCII identifiers, compare templates only exactly after
@@ -3298,6 +3350,8 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 | DCP-V1-410..419 | `internal/doccorpus/read.go`, `artifact_decode.go`, `encoding.go`, `compile.go`, `query.go`, `query_index.go`, `query_index_fast.go`, `search_rank.go`, `symbol_anchor.go`, `internal/contextindex/observe_tree.go`, `internal/testvaliditydoc/read.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `stamp.go`, `eval.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1410VerifiedReadSkipsRederivation`, `TestDCPV1410VerifiedReadRefusals`, `TestDCPV1410UnattestedBuilderRederives`, `TestDCPV1411ObserveTreeMatchesBuildContext`, `TestDCPV1411ObserveTreeRetriesWhenHeadMoves`, `TestDCPV1412SymbolIndexBuiltOnlyWhenNeeded`, `TestDCPV1413CorpusReadsWithoutRederivation`, `TestDCPV1414ParallelDecodeMatchesClosedDecode`, `TestDCPV1416CorpusMCPFirstAndWarmCalls`, `TestDCPV1417WarmCallsSkipUnchangedArtifactRead`, `TestDCPV1417WarmStampRefusesParentSymlink`, `TestDCPV1418LargeFixtureVerifiedReadIsFast`, `BenchmarkDCPV1418VerifiedRead`, `TestDCPV1419FastIndexMatchesReference`, `TestDCPV1419FastIndexDeclinesEveryRefusal`, `TestDCPV1419BoundaryScanFindsStringContent`; measured in docs/build-log/2026-10-23-corpus-verified-fast-reads.md |
 | DCP-V1-430..434 | `internal/doccorpus/artifact_decode.go`, `read.go`, `encoding.go`, `query_index_fast.go`, `types.go`, `internal/testvaliditydoc/read.go`, `cmd/corvint/docs_corpus.go`, `corpus_integration.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1431StreamedReadReusesBlocks`, `TestDCPV1431OpenReadFile`, `TestDCPV1431StreamedTruncationAtWindowEnd`, `TestDCPV1431CorpusRefusalJoinsFreshness`, `TestDCPV1432JoinedCorpusReusesVerifiedArtifact`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1434ConcurrentQueriesShareClaimTerms`, `TestDCPV1416CorpusMCPFirstAndWarmCalls`; measured in docs/build-log/2026-10-23-corpus-read-residual.md |
+| DCP-V1-465..467 | `internal/doccorpus/primary_observation.go`, `query.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1465PrimaryObservationMatchesFreshRead`, `TestDCPV1466PrimaryObservationUsedOnce`, `TestDCPV1467CancelledPrimaryObservationJoins`, `TestDCPV1467ShorterDeadlineStopsWaitingForPrimary`, `TestDCPV1467CorpusPreHeaderRefusalJoinsPrimary`, `TestDCPV1431CorpusRefusalJoinsFreshness`, `TestDCPV1413CorpusReadsWithoutRederivation`; measured in docs/build-log/2026-10-23-corpus-read-start-freshness.md |
+| DCP-V1-468 | `internal/doccorpus/artifact_decode.go`, `query_index_fast.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1419FastIndexMatchesReference` |
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-420..425 | `internal/doccorpus/delta.go`, `delta_open.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1420DeltaAdditionalRepositoryAnchors`, `TestDCPV1420DeltaSharedReadBound`, `TestDCPV1424DeltaHistoricalPins`, `TestDCPV1425OpenDeltaCurrentUnavailableCheckout`, `TestDCPV1425DeltaUnavailableCheckoutCLI`, `TestDCPV1421DeltaViewsCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-440..445 | `internal/doccorpus/delta.go`, `adoption.go`, `cmd/corvint/docs_corpus_help.go`, `internal/capcatalog/catalog.json` | `TestDCPV1440DeltaAdoptionRecords`, `TestDCPV1442DeltaExactTestJoinNeedsItsFile`, `TestDCPV1444SelfDeltaSharedSpanChargedOnce`, `TestCAPV0019CommittedCatalogMatchesTheBinary`, `TestMCPV0100HelpToolMatchesTheCLI`, `TestDocsCorpusHelpListsOperations` |

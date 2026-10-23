@@ -283,7 +283,7 @@ func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, 
 						continue
 					}
 					c := encodingComparer{want: raw}
-					if _, err := EncodeTo(&c, element.Interface()); err != nil || c.differ || c.n != int64(len(raw)) {
+					if _, err := EncodeTo(&c, element.Addr().Interface()); err != nil || c.differ || c.n != int64(len(raw)) {
 						mismatched.Store(true)
 						verified = false
 					}
