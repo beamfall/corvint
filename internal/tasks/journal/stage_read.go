@@ -58,7 +58,7 @@ func (r Reader) readStage(o *observation) (files []snapshot.StageFile, validatio
 			if d == nil && o.files["staging/active.json.tmp"] == nil {
 				// A native writer holds descriptor-less slots under its lock
 				// while it publishes; audit waits a bounded time (CTS-V0-008).
-				return files, slotsInFlight{refusal}, nil
+				return files, slotsInFlight{error: refusal, head: o.headRaw}, nil
 			}
 			return files, refusal, nil
 		}
@@ -70,8 +70,14 @@ func (r Reader) readStage(o *observation) (files []snapshot.StageFile, validatio
 // descriptor or descriptor temp: the shape a native writer's publish leaves
 // for its lifetime and a killed writer leaves until the next writer clears
 // it. audit waits for it (snapshot.StageSlotWait) and then returns the wrapped
-// MALFORMED unchanged (CTS-V0-008).
-type slotsInFlight struct{ error }
+// MALFORMED unchanged (CTS-V0-008), unless the head the observation read moved
+// while it waited, which warrants another bounded observation but does not
+// prove the slots' holders are live (CAL-V0-340). head is that observation's
+// head.json.
+type slotsInFlight struct {
+	error
+	head []byte
+}
 
 func (e slotsInFlight) Unwrap() error { return e.error }
 

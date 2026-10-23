@@ -3,6 +3,7 @@
 package journal
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -74,6 +75,56 @@ func TestCTSV0008_OrphanStageSlotStillMalformedAfterBoundedWait(t *testing.T) {
 	}
 	_, err = r.Audit(ticketPath("A"))
 	requireRefusal(t, err, wire.CodeMalformed, "staging/a00")
+}
+
+// CAL-V0-340: staging slots that stay across the whole wait while the head
+// advances may belong to writers publishing back to back (on a host whose
+// fsync is slow every writer holds a slot for most of its turn). That is
+// evidence warranting another bounded observation, not proof the holders are
+// live: the spent wait reports the retryable SNAPSHOT_MOVED, which the lease
+// read's rounds retry, instead of the MALFORMED that rejected a live store
+// (V1-0467, V1-2449). Here the slot is in fact an orphan (no writer removes
+// it), so the retry, which sees it under an unchanged head, refuses
+// MALFORMED. The interleaving is driven by the sleep hook, not by timing.
+func TestCALV0340_SpentStageWaitOnAnAdvancingHeadIsRetryable(t *testing.T) {
+	repo, r := setup(t)
+	appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath("A"): fixture.Ticket("A").Encode()}, "", true, true, false)
+	fixture.Write(t, filepath.Join(repo.StateDir, "staging", "a00"), []byte("x"))
+	headBefore := read(t, filepath.Join(repo.StateDir, "head.json"))
+	pauses := stubStageSleep(t, func(n int) {
+		if n == 3 {
+			appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath("B"): fixture.Ticket("B").Encode()}, "", true, true, false)
+		}
+	})
+	_, err := r.Audit()
+	requireRefusal(t, err, wire.CodeSnapshotMoved, "staging")
+	if !wire.RetryOf(wire.CodeOf(err)).Retryable {
+		t.Fatalf("SNAPSHOT_MOVED after a spent stage wait is not retryable: %v", err)
+	}
+	if bytes.Equal(headBefore, read(t, filepath.Join(repo.StateDir, "head.json"))) {
+		t.Fatal("the head never advanced during the wait")
+	}
+	var total time.Duration
+	for _, d := range *pauses {
+		total += d
+	}
+	if total != snapshot.StageSlotPatience {
+		t.Fatalf("waited %v in %v; want the whole %v before giving up", total, *pauses, snapshot.StageSlotPatience)
+	}
+	// The retry: head and slot unchanged across its whole wait.
+	headAfter, first := read(t, filepath.Join(repo.StateDir, "head.json")), len(*pauses)
+	_, err = r.Audit()
+	requireRefusal(t, err, wire.CodeMalformed, "staging/a00")
+	if !bytes.Equal(headAfter, read(t, filepath.Join(repo.StateDir, "head.json"))) {
+		t.Fatal("the head moved during the retry")
+	}
+	total = 0
+	for _, d := range (*pauses)[first:] {
+		total += d
+	}
+	if total != snapshot.StageSlotPatience {
+		t.Fatalf("retry waited %v in %v; want the whole %v", total, (*pauses)[first:], snapshot.StageSlotPatience)
+	}
 }
 
 // CTS-V0-008: only the descriptor-less shape is waited for. A slot beside a

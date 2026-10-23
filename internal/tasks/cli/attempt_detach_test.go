@@ -110,6 +110,16 @@ func readPid(t *testing.T, p string) int {
 	return pid
 }
 
+// liveClockContext is the context of a test writer that races a running
+// supervisor's heartbeats. A timestamp sampled before the writer's lock wait
+// is stale once a heartbeat commits during the wait: the head receipt then
+// reads later than the sample and the write is refused "recordedAt is earlier
+// than the head receipt's" (CAL-V0-012). Under a live clock the writer samples
+// again once it holds the head (V1-1566).
+func liveClockContext() context.Context {
+	return store.WithClock(context.Background(), store.WallClock)
+}
+
 func releaseAttempt(t *testing.T, root string, a *store.Report, requestID string) {
 	t.Helper()
 	repo, err := intent.Resolve(root)
@@ -117,7 +127,7 @@ func releaseAttempt(t *testing.T, root string, a *store.Report, requestID string
 		t.Fatal(err)
 	}
 	lease := transaction.LeaseRequest{Verb: transaction.LeaseRelease, AttemptID: a.AttemptID, Generation: a.Generation}
-	report, err := store.Lease(context.Background(), repo, mutation.Binding{ID: "tester", Role: "OWNER"}, store.LeaseChoice{QueueID: fixture.QueueID, RequestID: requestID, Root: root, Lease: lease, Derive: store.NoScopeDeriver}, wire.Timestamp(time.Now().UTC().Format("2006-01-02T15:04:05Z")))
+	report, err := store.Lease(liveClockContext(), repo, mutation.Binding{ID: "tester", Role: "OWNER"}, store.LeaseChoice{QueueID: fixture.QueueID, RequestID: requestID, Root: root, Lease: lease, Derive: store.NoScopeDeriver}, wire.Timestamp(time.Now().UTC().Format("2006-01-02T15:04:05Z")))
 	if err != nil || report.Outcome.Outcome != mutation.OutcomeCompleted {
 		t.Fatalf("release: %+v %v", report, err)
 	}
