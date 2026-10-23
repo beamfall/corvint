@@ -1,6 +1,7 @@
 package doccorpus
 
 import (
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -44,12 +45,15 @@ type FlowRelationRecord struct {
 // FlowRelationJoin is the build-time join of one record, kept as a separate artifact
 // member. Only a joined reviewed record is traversable.
 type FlowRelationJoin struct {
-	ID          string             `json:"id"`
-	Provider    string             `json:"provider"`
-	Status      string             `json:"status"`
-	Traversable bool               `json:"traversable"`
-	Reasons     []string           `json:"reasons"`
-	Record      FlowRelationRecord `json:"record"`
+	ID          string   `json:"id"`
+	Provider    string   `json:"provider"`
+	Status      string   `json:"status"`
+	Traversable bool     `json:"traversable"`
+	Reasons     []string `json:"reasons"`
+	// NameSubjects are the job or event subjects a produces or consumes record's name matches,
+	// set only when the corpus declares job or event subjects (DCP-V1-397).
+	NameSubjects []string           `json:"name_subjects,omitempty"`
+	Record       FlowRelationRecord `json:"record"`
 }
 
 // FlowReach attributes one reached flow or external system to its relation path.
@@ -146,9 +150,15 @@ func (c *compiler) admitFlowRelations(p Provider, record ProviderRecord) error {
 func (c *compiler) joinFlowRelations(sets []providerFlowRelations) error {
 	revision := c.manifest.Repository.Revision
 	flows := map[string]bool{}
+	// names holds declared job and event subjects by name; when the corpus declares any, a
+	// produces or consumes record must name one of them (DCP-V1-397).
+	names := map[string][]string{}
 	for _, s := range c.artifact.Subjects {
 		if s.Kind == "flow" || s.Kind == "variation" {
 			flows[s.ID] = true
+		}
+		if s.Kind == "job" || s.Kind == "event" {
+			names[s.Name] = append(names[s.Name], s.ID)
 		}
 	}
 	seen := map[string]bool{}
@@ -179,6 +189,14 @@ func (c *compiler) joinFlowRelations(sets []providerFlowRelations) error {
 				if status != "joined" {
 					j.Status = status
 					j.Reasons = append(j.Reasons, status+": "+r.Source.Path)
+				}
+			}
+			if j.Status == "joined" && len(names) > 0 && (r.Kind == "produces" || r.Kind == "consumes") {
+				if matched := names[r.Name]; len(matched) > 0 {
+					j.NameSubjects = slices.Sorted(slices.Values(matched))
+				} else {
+					j.Status = "unresolved"
+					j.Reasons = append(j.Reasons, "unresolved: no declared job or event subject is named "+r.Name)
 				}
 			}
 			if r.Review != "reviewed" {
