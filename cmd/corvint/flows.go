@@ -186,9 +186,9 @@ func runFlowsImport(_ context.Context, root string, args []string, out io.Writer
 	f.SetOutput(io.Discard)
 	dir := f.String("flows", "", "intent directory inside the root")
 	from := f.String("from", "", "source document")
-	format := f.String("format", "", "behavior-adapter-request, openapi or playwright-list")
+	format := f.String("format", "", appflows.ImportFormats)
 	if f.Parse(args) != nil || *dir == "" || *from == "" || *format == "" || f.NArg() != 0 {
-		return errors.New("flows import requires --flows DIR --from FILE --format behavior-adapter-request|openapi|playwright-list")
+		return errors.New("flows import requires --flows DIR --from FILE --format behavior-adapter-request|extractor-inventory|openapi|playwright-list")
 	}
 	raw, err := appflows.ReadFile(*from)
 	if err != nil {
@@ -376,7 +376,7 @@ PROVEN binds immutable bytes and declared app identity, not attested deployment 
 
 Intent usage:
   corvint [--root PATH] flows export --flows DIR --emit inventory|provider|request [--envelope FILE]
-  corvint [--root PATH] flows import --flows DIR --from FILE --format behavior-adapter-request|openapi|playwright-list
+  corvint [--root PATH] flows import --flows DIR --from FILE --format behavior-adapter-request|extractor-inventory|openapi|playwright-list
 
 export reads application-flow-intent/1 files from DIR (one <flow_id>.json each, plus
 retired.json) and writes one document to stdout: the application-flow-inventory/1

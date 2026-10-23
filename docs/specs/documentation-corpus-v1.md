@@ -8,13 +8,13 @@ Authoritative inputs: owner request [issue 31](https://github.com/beamfall/corvi
 owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
 [issue 42](https://github.com/beamfall/corvint/issues/42) and
 [issue 53](https://github.com/beamfall/corvint/issues/53), and the owner-authorized adoption slice
-[issue 339](https://github.com/beamfall/corvint/issues/339), [issue 399](https://github.com/beamfall/corvint/issues/399), [issue 1162](https://github.com/beamfall/corvint/issues/1162) and [issue 1225](https://github.com/beamfall/corvint/issues/1225),
+[issue 339](https://github.com/beamfall/corvint/issues/339), [issue 399](https://github.com/beamfall/corvint/issues/399), [issue 1162](https://github.com/beamfall/corvint/issues/1162), [issue 1225](https://github.com/beamfall/corvint/issues/1225) and [issue 1583](https://github.com/beamfall/corvint/issues/1583),
 `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/specs/deployment-neutral-index-platform-v0.md`,
 `docs/specs/source-documentation-draft-v0.md`, `docs/specs/external-evidence-provider-v0.md`.
 
 ## Agent digest
 - Claim: A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.
-- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-080..082 (behavior annotation contract, producer and missing annotations, GitHub #835; V1-1222) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-083..084 (valueless state matchers, GitHub #845; V1-1318) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-085 (encoder-pool-independent allocation, V1-1380) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-086..092 (test-knowledge records, GitHub #1162; V1-1868) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-093..099 (flow-level relations, GitHub #1225; V1-1973) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-140..142 (symbol-anchor re-resolution, GitHub #1223; V1-1971) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-143..145 (lazy corpus MCP load, reused freshness and path batches, GitHub #1236 and #1237; V1-1982) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-146 (verbatim oversized paragraphs, over-bound line gaps and located refusals, GitHub #1242; V1-1983) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-150..152 (asserting E2E gap conditions and unauthenticated review, GitHub #1245; V1-1988) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-165..169 (case search by ID and ranked any-word match, GitHub #1246; V1-1989) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-160..163 (multi-scope /2 manifest inventory, GitHub #1241; V1-1985) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-170..174 (flow section and record-kind filters, GitHub #1247; V1-1990) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-155..159 (constant-cost Git reads and typed capacity refusals, GitHub #1240; V1-1984) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-185..192 (typed homes for supplied gaps, readiness status and manual case links, GitHub #1244; V1-1987) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-175..179 (additional repository anchors, GitHub #1243; V1-1986) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-205..207 (absolute corpus MCP `--artifact` paths, GitHub #1256; V1-1997) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-200..203 (single-call MCP output bound pages or refuses, never -32603, GitHub #1255; V1-1996) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-193..197 (scaled query-index bounds, per-artifact index memo and build-time index refusal, GitHub #1254; V1-1995) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-210..215 (supplied test-run receipts, legacy case links, and supplied gaps in capabilities and the query index, GitHub #1244; V1-1993) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-216..217 (batched symbol-anchor, CEM projection and discovery path reads, V1-1991) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-175..179 (additional repository anchors, GitHub #1243; V1-1986) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-240 (bounded behavior-adapter reconciliation frontier; V1-1089) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-241 (`maintain --page` refusals name the flag and rule; V1-1227) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-242 (corpus MCP `--artifact` path refusals name the argument and rule; V1-1228) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-243 (per-path tree bound for query freshness and batch input walks; V1-2151) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-244 (build-time index check refuses every derivation refusal; V1-2002) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-250..257 (caller-owned retrieval evaluation `docs corpus eval`, GitHub #1480; V1-2315) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-260..268 (claim audit sampling, verdicts and measured accuracy `docs corpus audit`, GitHub #1481; V1-2316) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-280..281 (corpus MCP freshness reuse across additional repositories, GitHub #1487; V1-2328) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-282..284 (per-citation anchor state, null `verified_at` and the `docs_gaps` kind filter, GitHub #1492; V1-2329) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-285..286 (opt-in aggregate corpus MCP outcome counters and the floor summary, GitHub #1493; V1-2330) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-300..311 (widened supplied status, test-run ledger fields, claim-targeted gaps, migration mappings and multi-revision additional repositories; GitHub #1488, #1489, #1490, #1491; V1-2331..V1-2334) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-313 (searchable claim text, GitHub #1555; V1-2435) and DCP-V1-314..317 (stat-stamped corpus MCP freshness and pin reuse, GitHub #1554; V1-2434) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-318..319 (supplied status claim and intent comparison listings, GitHub #1556; V1-2436) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-320..322 (refusal `verified_at`, gap kind filters on the CLI and HTTP companion, supplied text origins; GitHub #1570; V1-2329, V1-2371), DCP-V1-323 (test-run `association` axis, GitHub #1571; V1-2451), DCP-V1-324..327 (coverage-ledger, flow-completeness and unresolved-concept details, GitHub #1572; V1-2452), DCP-V1-328 (claim hits in `docs_search`, GitHub #1573; V1-2453), DCP-V1-329..330 (subject alternate ids, GitHub #1574; V1-2454) DCP-V1-331 (field-weighted search ranking and kind filter, GitHub #1579; V1-2459) DCP-V1-332 (caller-revision comparison in the trust envelope, GitHub #1570; V1-2329, V1-2371) and DCP-V1-360..369 (cross-revision delta worklist and carry-forward, GitHub #1585) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
+- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-080..082 (behavior annotation contract, producer and missing annotations, GitHub #835; V1-1222) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-083..084 (valueless state matchers, GitHub #845; V1-1318) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-085 (encoder-pool-independent allocation, V1-1380) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-086..092 (test-knowledge records, GitHub #1162; V1-1868) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-093..099 (flow-level relations, GitHub #1225; V1-1973) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-140..142 (symbol-anchor re-resolution, GitHub #1223; V1-1971) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-143..145 (lazy corpus MCP load, reused freshness and path batches, GitHub #1236 and #1237; V1-1982) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-146 (verbatim oversized paragraphs, over-bound line gaps and located refusals, GitHub #1242; V1-1983) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-150..152 (asserting E2E gap conditions and unauthenticated review, GitHub #1245; V1-1988) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-165..169 (case search by ID and ranked any-word match, GitHub #1246; V1-1989) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-160..163 (multi-scope /2 manifest inventory, GitHub #1241; V1-1985) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-170..174 (flow section and record-kind filters, GitHub #1247; V1-1990) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-155..159 (constant-cost Git reads and typed capacity refusals, GitHub #1240; V1-1984) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-185..192 (typed homes for supplied gaps, readiness status and manual case links, GitHub #1244; V1-1987) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-175..179 (additional repository anchors, GitHub #1243; V1-1986) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-205..207 (absolute corpus MCP `--artifact` paths, GitHub #1256; V1-1997) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-200..203 (single-call MCP output bound pages or refuses, never -32603, GitHub #1255; V1-1996) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-193..197 (scaled query-index bounds, per-artifact index memo and build-time index refusal, GitHub #1254; V1-1995) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-210..215 (supplied test-run receipts, legacy case links, and supplied gaps in capabilities and the query index, GitHub #1244; V1-1993) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-216..217 (batched symbol-anchor, CEM projection and discovery path reads, V1-1991) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-175..179 (additional repository anchors, GitHub #1243; V1-1986) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-240 (bounded behavior-adapter reconciliation frontier; V1-1089) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-241 (`maintain --page` refusals name the flag and rule; V1-1227) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-242 (corpus MCP `--artifact` path refusals name the argument and rule; V1-1228) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-243 (per-path tree bound for query freshness and batch input walks; V1-2151) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-244 (build-time index check refuses every derivation refusal; V1-2002) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-250..257 (caller-owned retrieval evaluation `docs corpus eval`, GitHub #1480; V1-2315) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-260..268 (claim audit sampling, verdicts and measured accuracy `docs corpus audit`, GitHub #1481; V1-2316) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-280..281 (corpus MCP freshness reuse across additional repositories, GitHub #1487; V1-2328) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-282..284 (per-citation anchor state, null `verified_at` and the `docs_gaps` kind filter, GitHub #1492; V1-2329) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-285..286 (opt-in aggregate corpus MCP outcome counters and the floor summary, GitHub #1493; V1-2330) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-300..311 (widened supplied status, test-run ledger fields, claim-targeted gaps, migration mappings and multi-revision additional repositories; GitHub #1488, #1489, #1490, #1491; V1-2331..V1-2334) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-313 (searchable claim text, GitHub #1555; V1-2435) and DCP-V1-314..317 (stat-stamped corpus MCP freshness and pin reuse, GitHub #1554; V1-2434) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-318..319 (supplied status claim and intent comparison listings, GitHub #1556; V1-2436) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-320..322 (refusal `verified_at`, gap kind filters on the CLI and HTTP companion, supplied text origins; GitHub #1570; V1-2329, V1-2371), DCP-V1-323 (test-run `association` axis, GitHub #1571; V1-2451), DCP-V1-324..327 (coverage-ledger, flow-completeness and unresolved-concept details, GitHub #1572; V1-2452), DCP-V1-328 (claim hits in `docs_search`, GitHub #1573; V1-2453), DCP-V1-329..330 (subject alternate ids, GitHub #1574; V1-2454) DCP-V1-331 (field-weighted search ranking and kind filter, GitHub #1579; V1-2459) DCP-V1-332 (caller-revision comparison in the trust envelope, GitHub #1570; V1-2329, V1-2371) and DCP-V1-360..369 (cross-revision delta worklist and carry-forward, GitHub #1585) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-390..399 (repository-declared extractor profiles, GitHub #1583) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
 - Exists: native compiler/reader, explicit integrations, separate MCP, renderer, independent adapter and labelled evaluation.
 - Blocked on: owner acceptance and independent external utility qualification; local completion requires the gates below.
 - Read next: Requirements; Input and authority boundary; Acceptance and rollback.
@@ -1888,6 +1888,80 @@ only standard output. Neither changes a claim's text, trust or limitations. Stat
   carried. Acceptance: `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1360DeltaCLI`,
   `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags`.
 
+### Repository-declared extractor profiles (issue 1583)
+
+- `DCP-V1-390`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) A
+  repository declares extractors in a closed `corvint-extractor-profile/1` JSON file committed at
+  the requested revision: `provider` and `version`, and 1 to 64 extractors, each with an `id`, a
+  generic `subject` (`endpoint`, `job`, `event`, `data_entity`, `ui_surface` or `symbol`), 1 to 64
+  repository path or glob `files` (`*`, `?` and `**`; `node_modules` is never walked), an RE2
+  line `pattern` of at most 4,096 bytes and 16 capture groups with the named groups its subject
+  needs, and optionally a
+  `candidate` pattern, a `field_pattern`/`end_pattern` pair (data entities only), a `role`
+  (`declares`, `produces` or `consumes`, required for and only for `job` and `event`) and a
+  `tool_output` pin. Profiles are configuration: they add no subject kind, authority or Core
+  taxonomy, and an unknown member, duplicate id, missing or extra group, or invalid pattern is
+  refused before any source file is read. A `**` file glob matches in time linear in the pattern and
+  path segment counts, however many `**` segments it has. Acceptance:
+  `TestDCPV1390ExtractorProfileIsClosed`, `TestDCPV1390ExtractorGlobMatchIsLinear`.
+- `DCP-V1-391`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) Each
+  matched line becomes one generic subject `PROVIDER:KIND:NAME` (an endpoint is named `METHOD
+  path`, a data-entity field `entity.field` with kind `data_entity`, and a produce or consume site
+  an `interaction` subject), carrying one exact anchor per site: repository, revision, path, Git
+  blob, file SHA-256, the matched line span and its span SHA-256, authority `external-provider`
+  and evidence kind `source`. Acceptance: `TestDCPV1391ExtractorEmitsGenericSubjectsWithExactAnchors`.
+- `DCP-V1-392`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) Relations
+  are derived only from exact names: `implements` from a `handler` symbol to its endpoint or UI
+  surface when exactly one `symbol` subject with one site carries that name, `calls` from a
+  produce interaction to its declared job or event, `depends_on` from a consume interaction to its
+  declared job or event, and `related_to` from a data-entity field to its entity. A relation
+  carries both ends' anchors: the site that derives it and the other end's subject anchors (the
+  handler definition, the job or event declaration, or the entity declaration), at most 64.
+  Acceptance: `TestDCPV1392ExtractorDerivesImplementsAndCallsRelations`,
+  `TestDCPV1392ExtractorRelationsCiteBothEnds`.
+- `DCP-V1-393`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) The
+  inventory's `provider` member is a `corvint-corpus-provider/1` record with `generated` trust whose
+  source is the extracted revision. Committed unchanged and declared as a provider input, it builds
+  through the existing provider admission with every anchor resolving to a declared input;
+  claims, journeys and observations are `unsupported` and gaps `not-collected`. Acceptance:
+  `TestDCPV1393ExtractorProviderRecordBuildsUnchanged`.
+- `DCP-V1-394`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) A
+  `tool_output` extractor names its `tool` and the SHA-256 of one committed output file; it never
+  runs the tool. A file whose bytes match the pin yields subjects with evidence kind `imported`
+  and derivation `imported`; a mismatch yields a `tool-output-digest-mismatch` gap and no subject.
+  Acceptance: `TestDCPV1394ExtractorReadsOnlyPinnedToolOutput`.
+- `DCP-V1-395`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) What an
+  extractor cannot read or recognize is an explicit inventory gap with extractor, path, line and
+  reason, never a guess: `missing-file`, `not-regular-blob` (a symlink or submodule), `file-over-bound`,
+  `not-utf8`, `no-files-matched`, `line-over-bound`, `unsupported-shape` (a `candidate` line the
+  pattern does not match), `multiple-matches`, `invalid-capture`, `field-outside-entity`,
+  `unresolved-handler`, `ambiguous-handler`, `undeclared-reference` (a produce or consume of a name
+  no extractor declares) and `anchor-bound`. A `multiple-matches` or `line-over-bound` entity
+  declaration ends the open entity, so later fields are `field-outside-entity` gaps rather than
+  fields of the previous entity. At most two matches per line are evaluated, and the record bound is
+  enforced as each line is scanned, so a dense file is refused without anchoring all of it.
+  Acceptance: `TestDCPV1395ExtractorReportsUnreadableFilesAndShapesAsGaps`,
+  `TestDCPV1395AmbiguousEntityDeclarationClosesTheEntity`,
+  `TestDCPV1395ExtractorDenseFileIsRefusedWhileScanning`.
+- `DCP-V1-396`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) `job` and
+  `event` join the generic provider subject kinds; a record using them is otherwise admitted
+  unchanged. Acceptance: `TestDCPV1396JobAndEventAreGenericSubjectKinds`.
+- `DCP-V1-397`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) When a
+  corpus declares any `job` or `event` subject, a flow relation of kind `produces` or `consumes`
+  that otherwise joins also checks its `name` against those subjects: a match records the sorted
+  `name_subjects`, and no match makes the join `unresolved` with the reason naming the undeclared
+  name. A corpus without job or event subjects joins byte-for-byte as before. Acceptance:
+  `TestDCPV1397FlowRelationNamesCheckDeclaredJobAndEventSubjects`.
+- `DCP-V1-398`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583)
+  Extraction reads only Git objects at the full revision through the verified object session,
+  within the existing per-file and walk bounds, writes nothing, and returns identical bytes for
+  identical inputs. Acceptance: `TestDCPV1398ExtractorIsDeterministicAndReadOnly`.
+- `DCP-V1-399`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583)
+  `corvint docs corpus extract --profile PATH --revision FULL_COMMIT` prints exactly the producer's
+  `corvint-extractor-inventory/1` bytes; a missing profile or a non-full revision is refused with
+  no output. Acceptance: `TestDCPV1399DocsCorpusExtractCLI`, `TestDocsCorpusOperationFlagMatrix`,
+  `TestDocsCorpusHelpListsOperations`.
+
 ## Input and authority boundary
 
 ### Experimental behavior contracts (issue 40)
@@ -2227,6 +2301,18 @@ Acceptance: `TestLegacyDiscoveryInventory`, `TestLegacyDiscoveryDeterministicRea
 `TestLegacyDiscoveryStaticEdgeCases`, `TestLegacyLexerCanonicalAndEscapes` and
 `TestDocsCorpusDiscoverLegacyCLI`.
 
+### Experimental extractor profile limits (issue 1583)
+
+`docs corpus extract` (`DCP-V1-390..399`) is line-oriented: one RE2 match per line, no
+multi-line constructs except the bounded `field_pattern`/`end_pattern` entity block, no language
+parser, and no framework convention is assumed beyond what a profile declares. A handler join is an
+exact name match within the profile; overloaded, namespaced or dynamically dispatched handlers are
+`unresolved-handler` or `ambiguous-handler` gaps. Framework tool output is read only as a committed
+file whose digest the profile pins; Corvint never runs the tool, so a stale committed output is
+the producer's responsibility. Extracted subjects and relations stay `generated` trust and carry no
+authority; inventory gaps are reported in the inventory, not as supplied corpus gaps, because a
+supplied gap must name a subject.
+
 ## Failure modes
 
 `corpus-refused` covers malformed/canonical/digest/closure/authority/span/bound failures.
@@ -2234,6 +2320,10 @@ Acceptance: `TestLegacyDiscoveryInventory`, `TestLegacyDiscoveryDeterministicRea
 `corpus-capacity-exceeded` covers a corpus over a named capacity limit and an exhausted Git
 operation budget or output bound during inventory, build or freshness (`DCP-V1-157`, `DCP-V1-158`),
 and a query index over its posting or key-byte bound (`DCP-V1-194`).
+`docs corpus extract` refuses a non-full revision, a missing, non-regular, oversized or invalid
+profile, and an inventory over the record bound with `corpus-refused` and no output; a source
+file, shape or reference it cannot resolve is an inventory gap (`DCP-V1-395`), never a refusal or
+a guessed subject.
 
 - `DCP-V1-054`: Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
   `--input`, `--previous`, `--cem`, `--retirement`, `--migration`, `--playwright-list`, `--receipt`,
@@ -2317,6 +2407,10 @@ fuzzy or semantic match, classify journeys, observations or supplied gaps, carry
 additional repositories, or expose an MCP tool. Carry-forward writes no file and grants no trust:
 the caller commits and declares the record. Rollback removes the two operations and
 `internal/doccorpus/delta*.go`; no artifact or manifest format changes.
+
+Extractor profiles (`DCP-V1-390..399`) are not a framework catalog, language parser or Core
+taxonomy: they add no subject kind beyond the generic `job` and `event`, run no tool, infer no
+handler by convention and promote no extracted subject past `generated` trust.
 
 ## Acceptance and rollback
 
@@ -2421,6 +2515,12 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-216..217 | `internal/doccorpus/batch_paths.go`, `symbol_anchor.go`, `cem.go`, `behavior_legacy_discovery.go`, `behavior_playwright_discovery.go` | `TestDCPV1216SymbolAnchorsGitOpsIndependentOfAnchorCount` (5,000 moved anchors), `TestDCPV1216CEMProjectionGitOpsIndependentOfAnchorCount` (5,000 anchors), `TestDCPV1216LegacyDiscoveryGitOpsIndependentOfPathCount` (4,096 files, the record bound), `TestDCPV1216PlaywrightDiscoveryGitOpsIndependentOfPathCount` (2,000 files, 4,008 executions), each within 16 Git operations per phase and byte-identical to the per-path reads; `TestDCPV1216ProjectionKeepsPerPathTreeBound` (anchor under a tree past 4 MiB refused as per path), `TestDCPV1216SymbolFallbackBudgetWithholdsStates` (missing pinned blob, budget exhausted in the fallback, states withheld as per path), `TestDCPV1216GitHooksTravelWithTheContext` (the test budget and per-path override travel on the call's context, so the equivalence tests run under `t.Parallel` and `-race`); measured in docs/build-log/2026-10-20-v1-1991-batched-path-reads.md and docs/build-log/2026-10-21-testspeed-1021v-doccorpus-parallel-equivalence.md |
+| DCP-V1-390..392 | `internal/doccorpus/extractor.go` | `TestDCPV1390ExtractorProfileIsClosed`, `TestDCPV1390ExtractorGlobMatchIsLinear`, `TestDCPV1391ExtractorEmitsGenericSubjectsWithExactAnchors`, `TestDCPV1392ExtractorDerivesImplementsAndCallsRelations`, `TestDCPV1392ExtractorRelationsCiteBothEnds` |
+| DCP-V1-393..395 | `internal/doccorpus/extractor.go`, `providers.go` | `TestDCPV1393ExtractorProviderRecordBuildsUnchanged`, `TestDCPV1394ExtractorReadsOnlyPinnedToolOutput`, `TestDCPV1395ExtractorReportsUnreadableFilesAndShapesAsGaps`, `TestDCPV1395AmbiguousEntityDeclarationClosesTheEntity`, `TestDCPV1395ExtractorDenseFileIsRefusedWhileScanning` |
+| DCP-V1-396 | `internal/doccorpus/providers.go` | `TestDCPV1396JobAndEventAreGenericSubjectKinds` |
+| DCP-V1-397 | `internal/doccorpus/flow_relations.go` | `TestDCPV1397FlowRelationNamesCheckDeclaredJobAndEventSubjects` |
+| DCP-V1-398 | `internal/doccorpus/extractor.go` | `TestDCPV1398ExtractorIsDeterministicAndReadOnly` |
+| DCP-V1-399 | `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `docs.go` | `TestDCPV1399DocsCorpusExtractCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusHelpListsOperations` |
 
 ## Open decisions
 
