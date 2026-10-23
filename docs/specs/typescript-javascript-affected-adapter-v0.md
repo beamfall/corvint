@@ -10,7 +10,7 @@ Authoritative inputs: operator task of 2026-08-29,
 
 ## Agent digest
 - Claim: Static JavaScript and TypeScript analysis conservatively maps changes to runner-addressable tests and widens on ambiguity.
-- Status: proposed/experimental; TJAA-V0-019 accepted (decision 0483) with its V1-1175 amendment and TJAA-V0-021 accepted (decision 0519); TJAA-V0-030..033 (V1-2042) and TJAA-V0-034..037 (GitHub #1575-#1578) under the standing lane auto-accept
+- Status: proposed/experimental; TJAA-V0-019 accepted (decision 0483) with its V1-1175 amendment and TJAA-V0-021 accepted (decision 0519); TJAA-V0-030..033 (V1-2042) and TJAA-V0-034..037 (GitHub #1575-#1578) and TJAA-V0-038..044 (GitHub #1593, #1594) under the standing lane auto-accept
 - Exists: `internal/liveverify/affected/typescript` static runner/dependency adapter and seam tests.
 - Blocked on: runtime tuple, command/config execution, cancellation, and full-CI recall qualification.
 - Read next: Requirements; Explicit unknown frontier; Traceability.
@@ -418,10 +418,10 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   argument, MUST stay computed loading and raise `typescript:dynamic-import`. A `/` opens a
   regular expression after an expression-opening punctuator, `=>`, or one of the keywords `return`,
   `typeof`, `instanceof`, `in`, `new`, `delete`, `void`, `throw`, `case`, `do` or `else` that is not
-  a member name. After `)`, `}`, `+`, `-`, `!`, `<`, another `>`, `of`, `yield` or `await` the slash
-  is ambiguous: when reading it as a same-line regular expression would change a literal,
+  a member name; `TJAA-V0-038` settles `!`. After `)`, `}`, `+`, `-`, `<`, another `>`, `of`, `yield`
+  or `await` the slash is ambiguous: when reading it as a same-line regular expression would change a literal,
   substitution or comment boundary and the source contains the word `import` or `require`, the file
-  MUST stay computed loading rather than drop an edge. A comment opener, and in a JSX source the
+  MUST keep a frontier rather than drop an edge (`typescript:scan-unresolved` under `TJAA-V0-039`). A comment opener, and in a JSX source the
   slash of a `</` or `/>` tag, is not ambiguous; an unparsed file keeps `typescript:unparsed-source`.
 - `TJAA-V0-035`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2456; GitHub
   #1576) For `TJAA-V0-018`, `process.env.NAME` (a dotted name that is not an `Object.prototype`
@@ -461,6 +461,90 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   Test, with at least one present and no Playwright config containing a `tsconfig` token, the
   adapter MUST resolve aliases exactly as `TJAA-V0-012` does for the opt-in profile, widening on the
   same failures; otherwise it MUST keep `typescript:path-alias-unresolved`.
+
+- `TJAA-V0-038`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2467; GitHub
+  #1593) The ambiguous-slash check of `TJAA-V0-034` MUST read tokens with the same lexer as the
+  import scan over the comment-stripped text the scanners read, so a `/` inside a string, template
+  text, a comment or a regular-expression literal that the lexer admits (its closing slash
+  included) is never a candidate, and a comment before a slash is whitespace to its verdict; the
+  regular-expression reading of a candidate is still taken over the raw text. A `/` after `(`, `,`,
+  `=`, `:`, `[`, `&`, `|`, `?`, `{`, `;`, `=>`, a listed keyword or at the start of the text opens a
+  regular expression. A `!` takes the verdict of the position it stands in: where an operand may
+  begin, or when a line terminator precedes it, it is the prefix negation and the slash after it
+  opens a regular expression; after an operand on the same line it is a non-null assertion and
+  the slash is division. The GitHub #1593 rows
+  (`s.replace(/[^/]+/, '').replace('/x', '')` and its `[^x]` and `[^\/]` variants, and
+  `url.replace(/^https?:\/\/[^/]+/, '')`) MUST raise no frontier.
+- `TJAA-V0-039`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2467; GitHub
+  #1593) A module whose import scan finds no computed loading but an ambiguous slash that
+  `TJAA-V0-034` keeps MUST raise `typescript:scan-unresolved`, not `typescript:dynamic-import`.
+  `typescript:dynamic-import` MUST mean that a `require` or `import(` call with a computed argument
+  was read in code. In the Playwright profile `typescript:scan-unresolved` is a selection unknown
+  and, like any frontier other than a dynamic import, keeps advisory narrowing `NOT_NARROWED`.
+- `TJAA-V0-040`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2467; GitHub
+  #1593) Every `typescript:*` frontier reason MUST record the sites that raised it:
+  `path:line` (1-based; LF, CR, CR LF, U+2028 and U+2029 end a line) when one line holds the cause
+  (a computed loading call, an ambiguous slash, the opening token of an unterminated literal or
+  comment, the quoted specifier of an unresolved or undeclared import, the first unmodelled config
+  marker, the first tsconfig `"paths"` or `"baseUrl"` key), and the repository-relative `path`
+  when only the file is known (an unreadable or unread module, a runner or E2E classification of
+  the whole file, an invalid tsconfig or `package.json`, a `package.json` `mocha` member, or a
+  specifier whose text no longer occurs after alias rewriting). In the `playwright-affected/0` plan the `detail` of each unknown raised from the
+  shared TypeScript graph MUST be `shared TypeScript graph frontier at ` followed by at most 8
+  sorted sites joined by `, `, plus ` and N more` when more exist.
+- `TJAA-V0-041`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2468; GitHub
+  #1594) Amending `TJAA-V0-035`, a `globalThis`, `global`, `window` or `self` token MUST refuse
+  the `process` root and the numeric conversions only when it occurs in code (a template
+  substitution included) or as the whole content of a string literal that directly follows a code
+  `[` (a computed member key). Its occurrence inside string, template or regular-expression text,
+  or in a comment, MUST NOT refuse them (`'global-setup'`, `testMatch: 'setup/global-setup.ts'`).
+  Because such text could still become code, a `Function` token in code and a `constructor` token
+  anywhere MUST refuse them, as `eval` already refuses every root.
+- `TJAA-V0-042`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2468; GitHub
+  #1594) Amending `TJAA-V0-035`, an occurrence of `process` that is the whole target of an `=`,
+  `??=`, `||=` or `&&=` expression statement at the top level of the config,
+  `process.env.NAME` or `process.env['NAME']` with a name `TJAA-V0-035` admits, MUST NOT refuse
+  the `process` root. The statement MUST start the text, follow `;` or `}`, or follow a line break
+  after an operand. Node stores the value as a string, so a later read of NAME stays proven
+  primitive in a non-identity key. A computed `launchOptions.executablePath` that reads a written
+  NAME MUST leave the browser identity unresolved, because `launchOptions` is an identity key. A
+  write in a nested block or function, as part of another expression, with any other operator, a
+  replacement of `process.env`, or `process.env` passed to a call MUST still refuse the root.
+- `TJAA-V0-043`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2468; GitHub
+  #1594) In a non-identity `use` key, `process.env.X || 'literal'`, `process.env.X ?? 'literal'`,
+  `process.env['X']`, `process.env.X === 'lit' ? 'a' : 'b'` and
+  `Number.parseInt(process.env.X || 'lit')` MUST keep the browser identity resolved under
+  `TJAA-V0-035`, including in the GitHub #1594 config shape with a top-level
+  `require('dotenv').config()` call.
+- `TJAA-V0-044`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2468; GitHub
+  #1594) The `playwright:browser-identity-unresolved` detail MUST keep its
+  `<project> use.browserName/device is dynamic or unsupported` prefix and append, for the first `use`
+  property that blocked it, `: `, the reason, ` at `, the blocking token in backticks and
+  `(<config path>:<line>)`. The token is the identifier at the refusing position, or its first
+  non-space run of at most 24 bytes, and the line is where that text occurs in the config. When the same `use` text occurs more than
+  once, every occurrence is named, at most 4. When the value needs the `process` root, a numeric
+  conversion or `devices` that the config refused, the detail MUST append `; <root> is not
+  admitted: `, the reason, and the same token-and-line form for the first token that refused it (a global object name, a non-read `process`, `eval`, a `delete`/`++`/`--`/escape
+  token, or a non-call conversion).
+
+Intent and boundary (GitHub #1593, #1594): the reporter could find neither the four files that
+raised a false `typescript:dynamic-import` nor the config tokens that kept browser identity
+unresolved without bisecting files, and every Playwright selection widened to the full suite.
+
+- Non-goals: the general `affected-plan/0` frontier and its `LANGUAGE_FRONTIER` details stay the
+  bare reason codes; only the Playwright plan names sites. `}` and `)` stay ambiguous predecessors,
+  because a block and an object literal (or a condition and a call) need grammar state; their
+  ambiguity is now named `typescript:scan-unresolved` at its line. No runtime evaluation of the
+  config, and no model of what `dotenv` or another imported module writes.
+- Failure modes, each fail-closed: a slash the lexer cannot classify keeps
+  `typescript:scan-unresolved`; an unterminated literal keeps `typescript:unparsed-source`; a
+  global object name in code, a computed `['globalThis']` key, a nested or compound
+  `process.env` write, and a written key read by `executablePath` keep
+  `playwright:browser-identity-unresolved`; a `use` text the config does not contain verbatim says
+  `line not observed` rather than guessing a line.
+- Residual: a module the config imports (such as `dotenv`) or a runtime preload that replaces
+  `process.env` or a global stays outside the static model, as under `TJAA-V0-035`. A top-level
+  write executes arbitrary right-hand-side code, as any top-level statement already could.
 
 ## Opt-in Playwright project profile
 
@@ -567,7 +651,7 @@ which is outside this plugin-only slice.
 ## Explicit unknown frontier
 
 The adapter reports fixed frontier reasons for unreadable/unparsed files, dynamic `import`/computed
-`require`, unresolved relative imports, undeclared/path-aliased bare imports, ambiguous or unknown
+`require`, an ambiguous slash the scan cannot classify (`TJAA-V0-039`), unresolved relative imports, undeclared/path-aliased bare imports, ambiguous or unknown
 runners, executable config, TypeScript `node:test` loader flags, black-box E2E reachability,
 Puppeteer without a host, Detox device/build configuration, legacy Storybook addressing, and
 observed cross-language test assets. A test file that generates cases with `test.each`, loops, or
@@ -646,6 +730,11 @@ never carried the member are unchanged.
 The GitHub #1294 extension (`TJAA-V0-030..033`) reverts independently. Revert it by removing the
 optional `narrowed` plan member, the per-project unknown attribution and the comparison-base read.
 The fallback, selection and every bounded plan are unchanged, and no store or receipt is written.
+The GitHub #1593/#1594 extension (`TJAA-V0-038..044`) reverts independently: restore the raw-text
+ambiguous-slash scan that raised `typescript:dynamic-import`, the fixed
+`shared TypeScript graph frontier` detail, the any-occurrence global-name and process-write
+refusals and the fixed identity detail. Only unknown details and the new reason code change; no
+persisted format, store or receipt is written.
 
 ## Traceability
 
@@ -668,5 +757,12 @@ The fallback, selection and every bounded plan are unchanged, and no store or re
 | `TJAA-V0-035` (V1-2456; GitHub #1576) | `TestPlaywrightEnvUseValuesKeepIdentity_GH1576`, `TestPlaywrightComputedExecutablePathIsExecutionUnknown_GH1576` in `playwright_gh1576_test.go`; `TestPlaywrightUseValueSideEffects_V1_1065`, `TestPlaywrightMemberReadRoots_GH709Round8` in `playwright_example_app_test.go` | experimental |
 | `TJAA-V0-036` (V1-2457; GitHub #1577) | `TestPlaywrightConstDependenciesResolveToBranchUnion_GH1577` in `playwright_gh1576_test.go` | experimental |
 | `TJAA-V0-037` (V1-2458; GitHub #1578) | `TestGeneralAdapterPlaywrightMembershipAndAliases_GH1578` in `playwright_gh1578_test.go`; `TestPlaywrightExampleAppQualification`, `TestUnitsDetectsEverySupportedRunnerFromImportsOrConfiguration` | experimental; synthetic fixtures |
+| `TJAA-V0-038` (V1-2467; GitHub #1593) | `TestRegexLiteralAfterOpenerIsNotDivision_GH1593`, `TestPlaywrightRegexReplaceKeepsSelectionAndNamesFrontierSites_GH1593` in `typescript_gh1593_test.go`; `TestScanImportsSeparatesImportTypesAndLiteralTextFromDynamicImports` in `typescript_test.go` | experimental |
+| `TJAA-V0-039` (V1-2467; GitHub #1593) | `TestAmbiguousSlashIsScanUnresolved_GH1593` in `typescript_gh1593_test.go`; `TestScanImportsSeparatesImportTypesAndLiteralTextFromDynamicImports` in `typescript_test.go` | experimental |
+| `TJAA-V0-040` (V1-2467; GitHub #1593) | `TestFrontierSitesNameEveryReason_GH1593`, `TestPlaywrightRegexReplaceKeepsSelectionAndNamesFrontierSites_GH1593`, `TestAmbiguousSlashIsScanUnresolved_GH1593` in `typescript_gh1593_test.go` | experimental |
+| `TJAA-V0-041` (V1-2468; GitHub #1594) | `TestPlaywrightGlobalNamesInLiteralsKeepEnvReads_GH1594`, `TestPlaywrightEnvIdentityIssueConfig_GH1594` in `playwright_gh1594_test.go` | experimental |
+| `TJAA-V0-042` (V1-2468; GitHub #1594) | `TestPlaywrightEnvWritesOutsideIdentity_GH1594`, `TestPlaywrightEnvIdentityIssueConfig_GH1594` in `playwright_gh1594_test.go`; `TestPlaywrightEnvUseValuesKeepIdentity_GH1576` in `playwright_gh1576_test.go` | experimental |
+| `TJAA-V0-043` (V1-2468; GitHub #1594) | `TestPlaywrightEnvDefaultForms_GH1594`, `TestPlaywrightEnvIdentityIssueConfig_GH1594` in `playwright_gh1594_test.go` | experimental |
+| `TJAA-V0-044` (V1-2468; GitHub #1594) | `TestPlaywrightBrowserIdentityNamesBlockingToken_GH1594` in `playwright_gh1594_test.go` | experimental |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |

@@ -81,15 +81,22 @@ func TestScanImportsSeparatesImportTypesAndLiteralTextFromDynamicImports(t *test
 		"const before = () => /\"/; const pending = import('./lazy'); const after = () => /\"/;",
 		"function f() { return /\"/ }\nconst pending = import('./lazy');\nfunction g() { return /\"/ }",
 		"switch (k) { case /'/: break } const pending = import('./lazy'); typeof /'/",
-		// An ambiguous slash that could hide loading keeps the frontier.
-		"if (x) /\"/.test(y); const pending = import('./lazy'); if (x) /\"/.test(y)",
-		"if (x) /'/.test(y); const u = '//'; import('./lazy')",
-		"if (x) /'/.test(y); const u = '//'; const m = require('./lazy')",
-		"if (x) /'/.test(y); const u = '//'; import a from './lazy'",
 	}
 	for _, body := range dynamicBodies {
 		if _, dynamic, err := scanImports("spec/a.ts", body); err != nil || !dynamic {
 			t.Fatalf("%q must stay computed loading: dynamic=%v err=%v", body, dynamic, err)
+		}
+	}
+	// An ambiguous slash that could hide loading keeps its own scan-unresolved frontier
+	// (TJAA-V0-034, TJAA-V0-038).
+	for _, body := range []string{
+		"if (x) /\"/.test(y); const pending = import('./lazy'); if (x) /\"/.test(y)",
+		"if (x) /'/.test(y); const u = '//'; import('./lazy')",
+		"if (x) /'/.test(y); const u = '//'; const m = require('./lazy')",
+		"if (x) /'/.test(y); const u = '//'; import a from './lazy'",
+	} {
+		if scan := scanImportSites("spec/a.ts", body); scan.err != nil || scan.dynamic >= 0 || scan.unresolved != strings.Index(body, "/") {
+			t.Fatalf("%q must stay scan-unresolved at its first slash: %+v", body, scan)
 		}
 	}
 	if _, dynamic, _ := scanImports("spec/a.js", "const p = import('./x').Page"); !dynamic {

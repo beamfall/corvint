@@ -141,7 +141,7 @@ func TestPlaywrightAliasResolutionBoundaries(t *testing.T) {
 			}
 		}
 		child := parseTypeScriptAliases("a/tsconfig.json", `{"compilerOptions":{"paths":{"@x":["local.ts"]}}}`)
-		frontier := map[string]bool{}
+		frontier := frontierSet{}
 		got := resolveTypeScriptAliases("a/example.spec.ts", []string{"@x"}, []typeScriptAliases{config, child}, bodies, frontier)
 		if !slices.Equal(got, []string{"./local.ts"}) || len(frontier) != 0 {
 			t.Fatalf("nearest config: %v %v", got, frontier)

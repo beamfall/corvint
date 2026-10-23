@@ -64,15 +64,28 @@ const playwrightPureMaxDepth = 128
 // yield, import, function, arrow and class expressions, spread, method or accessor definitions, the
 // comma operator, regular expression literals and anything it does not recognize.
 func playwrightPureExpression(raw string, scope playwrightPureScope) bool {
-	parser := &playwrightPureParser{raw: raw, scope: scope}
-	_, ok := parser.expression()
-	return ok && parser.skip() == len(raw)
+	return playwrightPureFailure(raw, scope) < 0
+}
+
+// playwrightPureFailure returns -1 for an expression playwrightPureExpression admits. Otherwise it
+// returns the offset of the token that refused it: trailing text after a complete expression, or
+// the start of the last primary expression the parser read (TJAA-V0-044).
+func playwrightPureFailure(raw string, scope playwrightPureScope) int {
+	parser := &playwrightPureParser{raw: raw, scope: scope, last: -1}
+	if _, ok := parser.expression(); ok {
+		if end := parser.skip(); end != len(raw) {
+			return end
+		}
+		return -1
+	}
+	return max(parser.last, 0)
 }
 
 type playwrightPureParser struct {
 	raw   string
 	pos   int
 	depth int
+	last  int
 	scope playwrightPureScope
 }
 
@@ -256,7 +269,8 @@ func (p *playwrightPureParser) computedKey() bool {
 
 // primary parses a primary expression; root is the identifier it names, if any.
 func (p *playwrightPureParser) primary() (primitive bool, root string, ok bool) {
-	rest := p.raw[p.skip():]
+	p.last = p.skip()
+	rest := p.raw[p.pos:]
 	if rest == "" {
 		return false, "", false
 	}
