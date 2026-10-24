@@ -24,8 +24,9 @@ type playwrightTagSources struct {
 	root, configPath string
 	bound            map[string]bool
 	files            map[string]playwrightTagFile
-	// names holds every bound file name (with no body) for tsconfig alias resolution, and aliases
-	// the parsed tsconfig.json files among them (AFP-V0-418).
+	// names holds every bound file name (with no body) for alias resolution, and aliases the
+	// parsed alias configs among them: each tsconfig.json, and each jsconfig.json with no
+	// tsconfig.json beside it, which Playwright reads first (AFP-V0-418).
 	names   map[string]string
 	aliases []typeScriptAliases
 }
@@ -47,22 +48,27 @@ func newPlaywrightTagSources(root, configPath string) *playwrightTagSources {
 // or nil when they cannot be listed.
 func (sources *playwrightTagSources) boundFiles() map[string]bool {
 	if sources.bound == nil {
-		files, err := affected.SourceFiles(sources.root, observedName)
+		files, err := affected.SourceFiles(sources.root, playwrightObservedName)
 		if err != nil {
 			return nil
 		}
 		sources.bound = map[string]bool{sources.configPath: true}
 		sources.names = map[string]string{sources.configPath: ""}
-		bodies := map[string]string{}
 		for _, file := range files {
 			sources.bound[file] = true
 			sources.names[file] = ""
-			if path.Base(file) == "tsconfig.json" {
-				if body, err := affected.ReadSource(sources.root, file); err == nil && utf8.Valid(body) {
-					bodies[file] = string(body)
-				} else {
-					bodies[file] = "" // an unreadable tsconfig parses as invalid and blocks its aliases
-				}
+		}
+		// Playwright reads the nearest folder holding tsconfig.json or jsconfig.json, and
+		// tsconfig.json first within one folder (AFP-V0-418).
+		bodies := map[string]string{}
+		for _, file := range files {
+			if base := path.Base(file); base != "tsconfig.json" && (base != "jsconfig.json" || sources.bound[path.Join(path.Dir(file), "tsconfig.json")]) {
+				continue
+			}
+			if body, err := affected.ReadSource(sources.root, file); err == nil && utf8.Valid(body) {
+				bodies[file] = string(body)
+			} else {
+				bodies[file] = "" // an unreadable config parses as invalid and blocks its aliases
 			}
 		}
 		// A config naming `tsconfig` can point Playwright at another file than the nearest one, so
@@ -120,13 +126,16 @@ func (sources *playwrightTagSources) exactOrStop(entries ...string) (map[string]
 	return tags, ""
 }
 
-// resolveAlias resolves a bare specifier of owner through the nearest tsconfig.json paths or
-// baseUrl to the one bound repository file it names, as the dependency graph does (TJAA-V0-037).
-// A specifier the nearest config does not claim, a config that is not valid, a Playwright config
-// that names `tsconfig`, and an ambiguous or missing target all leave it unresolved (AFP-V0-418).
+// resolveAlias resolves a bare specifier of owner through the nearest tsconfig.json or
+// jsconfig.json paths or baseUrl to the one bound repository file it names, as the dependency
+// graph does (TJAA-V0-037). A specifier the nearest config does not claim, a config that is not
+// valid, an owner that is not .ts or .tsx under a config without allowJs (Playwright then maps
+// nothing), a Playwright config that names `tsconfig`, and an ambiguous or missing target all
+// leave it unresolved (AFP-V0-418).
 func (sources *playwrightTagSources) resolveAlias(owner, ref string) (string, bool) {
 	nearest := nearestTypeScriptAliases(owner, sources.aliases)
-	if nearest == nil || !nearest.valid || externalScheme(ref) {
+	typeScript := strings.HasSuffix(owner, ".ts") || strings.HasSuffix(owner, ".tsx")
+	if nearest == nil || !nearest.valid || !typeScript && !nearest.allowJS || externalScheme(ref) {
 		return "", false
 	}
 	target, _ := nearest.resolve(ref, sources.names)

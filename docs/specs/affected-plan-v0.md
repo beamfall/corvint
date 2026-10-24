@@ -2801,23 +2801,32 @@ modelled.
 - **AFP-V0-417:** (accepted under the owner's standing auto-accept (2026-10-11; GH #1660);
   amends AFP-V0-386) A loader name of AFP-V0-386 MUST count as a writer when it occurs as a whole
   identifier in the config's code, in a template substitution, or as a whole string literal that
-  is a computed member key (`box['global']`). Inside other string, template or regular-expression
-  text it MUST be data, such as a project or dependency named `'global-setup'`, but only while the
+  is a property key through which the config can read that property: a computed member key
+  (`box['global']`), a computed property key (`{ ['loadEnvFile']: load }`) or a quoted property
+  key (`{ 'loadEnvFile': load }`), since a destructuring pattern reads through either. Inside other
+  string, template or regular-expression text, an array literal element (`['loadEnvFile']`)
+  included, it MUST be data, such as a project or dependency named `'global-setup'`, but only while the
   config tokenizes and holds no reflective channel through which text could become code or reach
   a property the scan cannot see; otherwise every occurrence counts, as before. The writer detail
   MUST name the matched name and its `CONFIG:LINE` site. `globalSetup` stays a writer wherever the
   config names it. Falsifier: a config whose only `global` words are string data keeping the
-  EXECUTION unknown, or a code reference to `global`, `globalThis` or another loader name
-  resolving the executable.
+  EXECUTION unknown, or a code reference to `global`, `globalThis` or another loader name, or a
+  quoted or computed destructuring key naming one, resolving the executable.
 - **AFP-V0-418:** (accepted under the owner's standing auto-accept (2026-10-11; GH #1660);
-  amends AFP-V0-409) A static load in the tag closure whose bare specifier the nearest bound
-  `tsconfig.json` resolves through `paths` or `baseUrl` to exactly one bound repository file MUST
-  be followed into that file, with the resolution the dependency graph uses (TJAA-V0-012,
-  TJAA-V0-037). It MUST stay unresolved, and the closure not literal, when no bound tsconfig claims
-  the specifier, the nearest one is not valid (unreadable, malformed or using `extends`), the
-  target is missing or ambiguous, or the Playwright config names `tsconfig` (Playwright may then
-  read another file). Falsifier: a verified omission whose alias target holds a tag that is not
-  literal, or one followed through a tsconfig Playwright does not read.
+  amends AFP-V0-409) A static load in the tag closure whose bare specifier the nearest bound alias
+  config resolves through `paths` or `baseUrl` to exactly one bound repository file MUST be
+  followed into that file, with the resolution the dependency graph uses (TJAA-V0-012,
+  TJAA-V0-037). The nearest alias config is the one Playwright reads: the `tsconfig.json` or
+  `jsconfig.json` of the nearest folder above the importing file that holds either, the
+  `tsconfig.json` when a folder holds both. Every `jsconfig.json` MUST be in the source set the
+  discovery receipt binds, so editing one invalidates the receipt. It MUST stay unresolved, and the
+  closure not literal, when no bound alias config claims the specifier, the nearest one is not
+  valid (unreadable, malformed or using `extends`), the importing file is not `.ts` or `.tsx` and
+  the nearest config does not set `allowJs` to `true` (a `jsconfig.json` defaults it to `true`),
+  since Playwright then maps nothing, the target is missing or ambiguous, or the Playwright config
+  names `tsconfig` (Playwright may then read another file). Falsifier: a verified omission whose
+  alias target holds a tag that is not literal, or one followed through an alias config
+  Playwright does not read or applies to that importer.
 - **AFP-V0-419:** (accepted under the owner's standing auto-accept (2026-10-11; GH #1660);
   amends AFP-V0-411) When the tag closure of the first unverified unit is not literal, the
   `playwright:discovery-omission-unverified` detail MUST append where it stopped: the file and
@@ -2826,7 +2835,8 @@ modelled.
   tag or construct is not literal. The receipt and the `playwright-discovery/0` profile are
   unchanged; the reason is recomputed at plan time from the bound sources. Rollback for
   AFP-V0-417 to AFP-V0-419: restore the loader-name loop in `playwrightEnvironmentWriter`, drop
-  `playwrightEnvLoaderReference`, the alias argument of `playwrightTagFileExact`, `resolveAlias`,
+  `playwrightEnvLoaderReference`, `playwrightEnvKeyString`, `playwrightObservedName`, the
+  `allowJS` field, the alias argument of `playwrightTagFileExact`, `resolveAlias`,
   `exactOrStop` and the `stop` field, and the appended detail in `SelectPlaywrightWithEnvironment`.
 
 ### Cross-call graph reuse and batch paths
@@ -3195,8 +3205,8 @@ including one with a transient read failure, writes no entry. `--paths-from` ref
 | AFP-V0-412 | `playwrightBindingMismatch` in `playwright_discovery.go` | `TestPlaywrightBindingMismatchNamesBinding_GH1647` |
 | AFP-V0-413 | `playwrightTitleMatchers` refusal in `classifyPlaywrightGrepOmission` | `TestPlaywrightGrepOmissionJavaScriptOnlyRegex_GH1647`, `TestPlaywrightDiscoveryGrepOmission_TJAA_V0_021` (static grepInvert outside the partwise model) |
 | AFP-V0-414 | `omitzero` on `PlaywrightPlan.EnvironmentFiles` and `PlaywrightEnvironmentInput.Resolved` | `TestPlaywrightStaticPlanRecordsEnvironment_GH1640`, `TestPlaywrightDiscoveryGrepOmission_TJAA_V0_021` (receipt unverifiedUnits) |
-| AFP-V0-417 | `playwrightEnvLoaderReference`, `playwrightEnvironmentWriter` in `playwright_env.go` | `TestPlaywrightEnvLoaderNameInStringIsData_GH1660` (string, template and regex data resolve; code, template substitution, computed key and escaped text keep the writer with its line) |
-| AFP-V0-418 | `resolveAlias`, `boundFiles` in `playwright_tag_sources.go`; the alias argument of `playwrightTagFileExact` | `TestPlaywrightGrepOmissionFollowsTypeScriptAliases_GH1660` (paths and baseUrl verified; hidden tag, no tsconfig, `extends`, missing target and a config naming `tsconfig` stay unverified) |
+| AFP-V0-417 | `playwrightEnvLoaderReference`, `playwrightEnvKeyString`, `playwrightEnvironmentWriter` in `playwright_env.go` | `TestPlaywrightEnvLoaderNameInStringIsData_GH1660` (string, template, regex and array-literal data resolve; code, template substitution, computed member key, quoted and computed destructuring keys and escaped text keep the writer with its line) |
+| AFP-V0-418 | `resolveAlias`, `boundFiles` in `playwright_tag_sources.go`; `allowJS` in `parseTypeScriptAliases`; `playwrightObservedName` in `playwright.go`; the alias argument of `playwrightTagFileExact` | `TestPlaywrightGrepOmissionFollowsTypeScriptAliases_GH1660` (paths, baseUrl, a nearer jsconfig, a tsconfig beside a jsconfig and a `.js` importer under `allowJs` or a jsconfig verified; hidden tag, no tsconfig, `extends`, missing target, a nearer jsconfig redirecting to a hidden tag, a `.js` importer without `allowJs` and a config naming `tsconfig` stay unverified), `TestPlaywrightSourcesBindJSConfig_GH1660` (a jsconfig.json edit changes the source identity) |
 | AFP-V0-419 | `exactOrStop` and `playwrightTagFile.stop` in `playwright_tag_sources.go`; the stop detail in `SelectPlaywrightWithEnvironment` | `TestPlaywrightGrepOmissionFollowsTypeScriptAliases_GH1660` (each stop names the file and specifier) |
 | AFP-V0-390 | `setAffectedOnce`, `resolveAffectedBatchAndCache`, `resolveAffectedCache`, `affectedGitDirectories`, `resolveExistingAncestor` and `within` in `cmd/corvint/affected_cache.go`; the `--cache` combination check in `parseAffectedOptions`; `writeGraphCache` and `BuildCachedExcluding` in `internal/liveverify/affected/graphcache.go`; `openCacheDirectory` and `admitCacheHandle` in `graphcache_dir.go`; `directoryPath` and `privateDirectory` in `graphcache_dir_darwin.go`, `graphcache_dir_linux.go` and `graphcache_dir_unix.go` | `TestAFPV0390CacheDirectoryMustBeOutsideTheRepository` (root, `.corvint/`, a package directory, a symlink into the root, a `.git` or `.GIT` component, the root under another case on a case-insensitive file system, empty, repeated, `--snapshot`, `--playwright-config` refuse with no stdout, no repository change and no cache write), `TestAFPV0390CacheRefusesTheSeparateGitDirectory` (a `--separate-git-dir` directory, a directory under it, one under a symlink alias of it and one under its `objects/` refuse and leave it unchanged; a sibling is accepted), `TestAFPV0390CacheDirectoryReplacementCannotRedirectWrites` (a cache directory replaced by a link into `.corvint/` just before the open is refused for read and write; one replaced after the open receives the entry in the opened directory, not the repository; the Git directory passed as excluded is never written), `TestAFPV0392UnpinnableObservationStoresNoEntry` (a 0777 cache directory is neither read nor written), `TestAFPV0391CachedGraphIsRestoredExactly` (one 0600 entry per root; a new identity replaces it) |
 | AFP-V0-391 | `cacheEntry`, `cachedLanguage`, `cachedUnit`, `recording`, `pathStamp`, `stampPath`, `newCacheEntry`, `GraphCacheEntryPath` in `internal/liveverify/affected/graphcache.go`; `statStamp` in `graphcache_stamp_darwin.go` and `graphcache_stamp_linux.go`; the `Source.record` hooks in `source.go`; `buildDisk` in `graph.go`; `recording.failed` in `graphcache.go`; `affectedProgramIdentity` and `affectedFileIdentity` in `cmd/corvint/affected_cache.go`; `affectedExecutable` and `affectedChangeTime` in `cmd/corvint/affected_identity_darwin.go` and `affected_identity_linux.go` | `TestAFPV0391CachedGraphIsRestoredExactly` (the restored graph's canonical body, every unit with its nil lists, and the plans over six dirty sets equal the fresh build), `TestAFPV0391ProgramIdentityRefusesAReplacedExecutable` (a pathname replaced at the process start yields no identity, one installed before it hashes to its content, the running image hashes whatever its times, linux hashes `/proc/self/exe`), `TestAFPV0392TransientReadFailureStoresNoEntry` (one injected I/O error stores no entry; after recovery the call builds the fresh graph with the unit) |
