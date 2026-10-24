@@ -270,37 +270,40 @@ func (res *Result) ResumeBase(obs PhysicalObservation) (*ResumeBase, error) {
 // Nothing here is trusted until AuditForResume's base check re-hashes every
 // one of those files (or PrecheckResume did, with the stamps still the
 // ones recorded here) and the resumed walk reads receipts S+1..head by
-// bytes. Every error is a decline: the caller keeps the complete audit.
-func (r Reader) SealedResumeBase(w *WriterCheckpoint, head *snapshot.Head) (*ResumeBase, error) {
+// bytes. Every decline leaves the caller on the complete audit. A failed
+// close of the base's read lifetime is cleanup, not a decline: cleanup is
+// UNSUPPORTED_FILESYSTEM (`read lifetime`) and the command terminates on
+// it (PSR-V0-057).
+func (r Reader) SealedResumeBase(w *WriterCheckpoint, head *snapshot.Head) (base *ResumeBase, decline, cleanup error) {
 	if !haveChangeTime {
-		return nil, errCheckpoint("resume", "platform reports no change time")
+		return nil, errCheckpoint("resume", "platform reports no change time"), nil
 	}
 	n, ok := r.Source.(Native)
 	if !ok {
-		return nil, errCheckpoint("resume", "sealed base needs a native source")
+		return nil, errCheckpoint("resume", "sealed base needs a native source"), nil
 	}
 	if head == nil || head.Segments == nil || head.QueueID != r.QueueID {
-		return nil, errCheckpoint(snapshot.SegmentsDir, "store has no sealed prefix")
+		return nil, errCheckpoint(snapshot.SegmentsDir, "store has no sealed prefix"), nil
 	}
 	s := head.Segments.Through.Uint64()
 	if w == nil || w.base == nil || w.FullSeq != s || w.base.seq != s || w.Seq.Uint64() < s || w.QueueID != r.QueueID {
-		return nil, errCheckpoint("writer checkpoint", "no base at the sealed sequence")
+		return nil, errCheckpoint("writer checkpoint", "no base at the sealed sequence"), nil
 	}
 	m := &w.base.meta
 	bc := &WriterCheckpoint{Checkpoint: m.header, FullSeq: s, ReceiptBytes: m.receiptBytes, Cost: m.cost, Intent: m.intent, Invalidation: w.Invalidation, base: w.base, total: w.base.n}
 	bc.Entries = nil
 	if bc.Seq.Uint64() != s || bc.QueueID != w.QueueID || bc.PrimaryWorktree != w.PrimaryWorktree || bc.InitSha256 != w.InitSha256 {
-		return nil, errCheckpoint("writer checkpoint", "base header differs from the checkpoint")
+		return nil, errCheckpoint("writer checkpoint", "base header differs from the checkpoint"), nil
 	}
 	rd := newNativeRead(n)
-	b, err := sealedBase(rd, bc, head)
-	if cleanup := rd.close(); cleanup != nil && err == nil {
-		err = errCheckpoint("resume", "sealed base read close: "+cleanup.Error())
+	b, decline := sealedBase(rd, bc, head)
+	if cleanup = rd.close(); cleanup != nil {
+		return nil, nil, wire.Errorf(wire.CodeUnsupportedFilesystem, "read lifetime", "sealed base: %v; close: %v", decline, cleanup)
 	}
-	if err != nil {
-		return nil, err
+	if decline != nil {
+		return nil, decline, nil
 	}
-	return b, nil
+	return b, nil, nil
 }
 
 // sealedBase is SealedResumeBase's body over its own read lifetime.

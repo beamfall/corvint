@@ -122,20 +122,22 @@ func sealedResumeVerb(request transaction.Request) bool {
 // writer checkpoint at head, with the invalidation token read before it, or
 // nil when the store has no sealed base to resume from (LGL-V0-010). It
 // grants nothing: the resumed route re-hashes the sealed base under the
-// preparation gate and every decline prepares the complete route.
-func sealedResume(repo *intent.Repository, head *snapshot.Head) *leaseResume {
+// preparation gate and every decline prepares the complete route. cleanup
+// is a failed close of the base's read lifetime, which terminates the
+// command (PSR-V0-057).
+func sealedResume(repo *intent.Repository, head *snapshot.Head) (resume *leaseResume, cleanup error) {
 	if head == nil || head.Segments == nil || head.LastSeq.Uint64() < writerCheckpointMin(repo) {
-		return nil
+		return nil, nil
 	}
 	wc, token := boundWriterCheckpoint(repo)
 	if wc == nil {
-		return nil
+		return nil, nil
 	}
-	base, err := journalReader(repo, head).SealedResumeBase(wc, head)
-	if err != nil {
-		return nil
+	base, decline, cleanup := journalReader(repo, head).SealedResumeBase(wc, head)
+	if cleanup != nil || decline != nil {
+		return nil, cleanup
 	}
-	return &leaseResume{base: base, token: token}
+	return &leaseResume{base: base, token: token}, nil
 }
 
 // resumeFrom returns the resume base of a round that ended SNAPSHOT_MOVED,
@@ -656,7 +658,10 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 		}
 		if !sealedTried && resume == nil && !noResume {
 			sealedTried = true
-			resume = sealedResume(repo, head)
+			var cleanup error
+			if resume, cleanup = sealedResume(repo, head); cleanup != nil {
+				return guardFailureAudit(report, request.RequestID, cleanup)
+			}
 		}
 		if resume != nil {
 			from := resume

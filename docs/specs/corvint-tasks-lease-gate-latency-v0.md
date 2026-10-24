@@ -105,7 +105,9 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   segment, by its chain digest, sequence and head generation against the checkpoint. Any stamp,
   digest, manifest, request-file, tail-receipt or checkpoint change MUST decline the resume, and the
   command MUST keep the complete route and its decision; the resumed write MUST produce the same
-  report and the same store bytes as the complete route on the same pre-state.
+  report and the same store bytes as the complete route on the same pre-state. A failed close of
+  the base's read lifetime MUST terminate the command as cleanup (`UNSUPPORTED_FILESYSTEM`,
+  PSR-V0-057), never decline.
 - `LGL-V0-010`: (proposed; V1-1702; decision 0549 R11/F3) Only `POOL_ACQUIRE` and `POOL_RELEASE`
   MUST try the sealed base, once, in the command's first round, and only when the checkpoint's
   `FullSeq` is S; widen, reap and every other verb keep their route. Acquire is included because a
@@ -207,7 +209,10 @@ checkpoint; with the gate forced off it fails (resumed 0, audits 1).
 writer lock, add a stray request file, rewrite a tail receipt or invalidate the checkpoint: each
 declines, never commits over the change, and reports the complete route's decision.
 `TestLGLV0010_SealedBaseGate` (same file) keeps a widen and an acquire whose checkpoint's `FullSeq`
-is past S on the complete route. LGL-V0-011 is evidenced by the before/after reports in the
+is past S on the complete route. `TestLGLV0009_SealedBaseCloseFailureIsCleanup`
+(`internal/tasks/journal/sealed_base_close_test.go`) fails the base read lifetime's close over a
+declining manifest and gets `UNSUPPORTED_FILESYSTEM` cleanup, not a decline; against the pre-review
+code it fails with a decline. LGL-V0-011 is evidenced by the before/after reports in the
 build-log entry `docs/build-log/2026-10-24-pool-release-sealed-resume.md` (linux/WSL2 ext4,
 47,000 receipts: release p50 20.3 s, n=3, before; p50 0.68 s, p99 1.03 s, n=20, after).
 
