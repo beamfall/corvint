@@ -206,6 +206,10 @@ the checkout, and a root that does not resolve (or is `/`) is refused. Worktrees
   renames a sibling copy over the target, keeps one `<tool>.corvint-prev-<n>` rollback (more with
   `--keep N`), prunes older ones, and `--rollback` restores it. It never removes other backup names;
   existing ad-hoc `.bak*` files are the operator's to review and delete.
+- CEM verifier pair (TCB-V0-046, V1-1761): rebuild and install `corvint` and `cem01-go` together
+  from one clean checkout with `script/install-cem-verifiers.sh` (default `~/.local/bin`), so the
+  cem-verdict gate's two legs share their source; `--check` reads the installed pair without
+  building and names a stale consumer `MISMATCH`.
 
 ### Lane build-log entry shape
 

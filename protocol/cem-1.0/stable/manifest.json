@@ -3,7 +3,7 @@
   "status": "IMPLEMENTED_CONTRACT_PROPOSED_NOT_PROMOTED",
   "repositoryEnvelope": "canonical-repository-bounded/1",
   "license": "Apache-2.0 public specifications/data only; no native code",
-  "publicAmendmentManifestSHA256": "c6a5cbe0899fe31968f42e740db00da6005989c3e7ce1954c1e832e5045834f4",
+  "publicAmendmentManifestSHA256": "c3b7a8e6db645267b71f24e16a18f7f109e6050199f5591cf62d45efb5542d6f",
   "note": "Recursive hashes of every regular file under protocol/cem-1.0/stable except this manifest.",
   "files": [
     {
@@ -48,18 +48,18 @@
     },
     {
       "path": "REPOSITORY-ENVELOPE.cells.json",
-      "sha256": "bf8244b77897400fbb8c28a463d24d190bba98cadbc38627af23639d6609dd60",
+      "sha256": "39cf062fe8cd02b062583a691f920746f2c55b5a629adf45f7f932f6e51cad74",
       "bytes": 318355
     },
     {
       "path": "REPOSITORY-ENVELOPE.md",
-      "sha256": "d667043b39855fbe4933c428be7e18e8630b3e84a122bc91438ba028e3c3aad8",
+      "sha256": "8c9fa6c855a069cd037b1f7b018cad88013b219a40f6d2548809e0e1236b475b",
       "bytes": 10003
     },
     {
       "path": "RESULT.schema.json",
-      "sha256": "2334f05dfbc4cb226ae53b5df22eba4ba0f94f3f7136b13e04b610e37bc14f2a",
-      "bytes": 29300
+      "sha256": "5849832edd23b92c8cc70aa7ea20f26f51dd8d0cfb8f288b5518515b56aa2fdb",
+      "bytes": 29349
     },
     {
       "path": "citation-vectors/EXPECTED.json",
@@ -423,8 +423,8 @@
     },
     {
       "path": "repository-envelope-packet/CHANGES.md",
-      "sha256": "6bde75e56857096345bb59c6ba484c9c1155c213d6c446cec63d3469ce8afc82",
-      "bytes": 43690
+      "sha256": "d0de35ab6b06ec23e36bfaa781e1f1ee390a86f542bb8c039030859839bf0b9e",
+      "bytes": 47015
     },
     {
       "path": "repository-envelope-packet/FULL-RESULT-CASES.json",
@@ -478,8 +478,8 @@
     },
     {
       "path": "repository-envelope-packet/README.md",
-      "sha256": "47febbf4da14a86b2733015731ed91d916817a2b1d3a5818f46838cdb5f93f96",
-      "bytes": 5482
+      "sha256": "dd48c32b5b8ca50ce0f7d345fc9b43c70d4b58f45a1b5cf5a89ee0c24f534de6",
+      "bytes": 5794
     },
     {
       "path": "repository-envelope-packet/REQUIRED-REPAIRS.json",
@@ -488,8 +488,8 @@
     },
     {
       "path": "repository-envelope-packet/RESULT.schema.json",
-      "sha256": "2334f05dfbc4cb226ae53b5df22eba4ba0f94f3f7136b13e04b610e37bc14f2a",
-      "bytes": 29300
+      "sha256": "5849832edd23b92c8cc70aa7ea20f26f51dd8d0cfb8f288b5518515b56aa2fdb",
+      "bytes": 29349
     },
     {
       "path": "repository-envelope-packet/REVIEW-DISPOSITIONS.json",
@@ -578,8 +578,8 @@
     },
     {
       "path": "repository-envelope-packet/manifest.json",
-      "sha256": "c6a5cbe0899fe31968f42e740db00da6005989c3e7ce1954c1e832e5045834f4",
-      "bytes": 6630
+      "sha256": "c3b7a8e6db645267b71f24e16a18f7f109e6050199f5591cf62d45efb5542d6f",
+      "bytes": 6627
     },
     {
       "path": "repository-envelope-packet/sha1-ledger-336-evidence.json",
