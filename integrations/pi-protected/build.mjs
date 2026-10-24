@@ -4,6 +4,7 @@ import {dirname,join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {run} from './process.mjs';
+import {PROTECTED_PI_VERSION} from './host-version.mjs';
 const here=dirname(fileURLToPath(import.meta.url)),root=resolve(here,'../..');
 const sdk=join(here,'node_modules/@earendil-works/pi-coding-agent');
 const out=join(here,'build'),release=join(out,'release');
@@ -24,7 +25,7 @@ async function main(){
  if(process.platform!=='darwin'||process.arch!=='arm64'||Bun.version!=='1.3.11')throw Error('build-requires-macos-arm64-bun-1.3.11');
  const archive=process.env.CORVINT_PI_NODE_ARCHIVE;
  if(!archive||digest(readFileSync(archive))!==archiveSHA)throw Error('pinned-node-archive-required');
- if(JSON.parse(readFileSync(join(sdk,'package.json'))).version!=='0.85.1')throw Error('pinned-pi-required');
+ if(JSON.parse(readFileSync(join(sdk,'package.json'))).version!==PROTECTED_PI_VERSION)throw Error('pinned-pi-required');
  mkdirSync(release,{recursive:true});
  await checked('go',['build','-trimpath','-o',join(release,'corvint'),'./cmd/corvint'],{cwd:root,env:{...process.env,GOTOOLCHAIN:'local',GOCACHE:process.env.CORVINT_GOCACHE??'/tmp/corvint-go-build-cache'},timeout:180000});
  const consumerSHA256=digest(readFileSync(join(release,'corvint')));
@@ -75,7 +76,7 @@ async function main(){
  await checked(node,[join(here,'node_modules/postject/dist/cli.js'),binary,'NODE_SEA_BLOB',blob,'--sentinel-fuse','NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2','--macho-segment-name','NODE_SEA']);
  await checked('/usr/bin/codesign',['--sign','-','--options','runtime','--entitlements',join(here,'runtime-entitlements.plist'),binary]);
  await checked('/usr/bin/codesign',['--verify','--strict',binary]);
- const manifest={schema:'corvint-pi-protected-build/0',status:'EXPERIMENTAL_UNQUALIFIED',pi:'0.85.1',node:nodeVersion,bun:Bun.version,nodeArchiveSHA256:archiveSHA,lockSHA256:digest(readFileSync(join(here,'package-lock.json'))),bundleSHA256:digest(source),workerSHA256:digest(worker),photonSHA256:digest(Buffer.from(wasm,'base64')),entitlementsSHA256:digest(readFileSync(join(here,'runtime-entitlements.plist'))),assets:Object.fromEntries(Object.entries(assets).map(([k,v])=>[k,digest(Buffer.from(v,'base64'))])),images:Object.fromEntries(['pi-protected','corvint'].map(k=>[k,digest(readFileSync(join(release,k)))]))};
+ const manifest={schema:'corvint-pi-protected-build/0',status:'EXPERIMENTAL_UNQUALIFIED',pi:PROTECTED_PI_VERSION,node:nodeVersion,bun:Bun.version,nodeArchiveSHA256:archiveSHA,lockSHA256:digest(readFileSync(join(here,'package-lock.json'))),bundleSHA256:digest(source),workerSHA256:digest(worker),photonSHA256:digest(Buffer.from(wasm,'base64')),entitlementsSHA256:digest(readFileSync(join(here,'runtime-entitlements.plist'))),assets:Object.fromEntries(Object.entries(assets).map(([k,v])=>[k,digest(Buffer.from(v,'base64'))])),images:Object.fromEntries(['pi-protected','corvint'].map(k=>[k,digest(readFileSync(join(release,k)))]))};
  writeFileSync(join(release,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');
  console.log(JSON.stringify({release,sha256:manifest.images['pi-protected'],status:manifest.status}));
 }

@@ -86,6 +86,29 @@ test('PWV native claim binds current acceptance revision, not adapter requested-
  t.diagnostic('ATOMIC_REQUESTED_REVISION_CAS=UNSUPPORTED: native admission binds current acceptanceRevision; adapter expectedRevision is preflight only.');
 });
 
+test('PWV-V0-013 native search and list on an initialized store return tickets, page and warnings without mutation',async t=>{
+ const f=await interruptionFixture(t);
+ const payload=JSON.parse(await readFile(join(templates,'ticket-create.json'),'utf8'));
+ Object.assign(payload,{title:'Pi search fixture',kind:'BUG',priority:'P1',labels:['needs review'],milestone:'v1 0'});
+ const created=await f.run({args:['ticket','create','--request-id','create-search','--payload-stdin'],input:canonical(payload)+'\n'});assert.equal(created.exitCode,0,created.stdout);
+ const labelled=JSON.parse(created.stdout).items[0].ticketId;await f.git(['add','.taskman']);await f.git(['commit','-qm','search ticket']);
+ async function tree(dir){const out={};for(const name of (await readdir(dir)).sort()){const path=join(dir,name),st=await stat(path);out[name]=st.isDirectory()?await tree(path):[st.mtimeMs,digest(await readFile(path,'utf8'))]}return out}
+ const service=createTasksService({runner:f.runner});t.after(()=>service.close());
+ const before=await tree(f.cwd);
+ const ok=result=>{assert.equal(result.ok,true,JSON.stringify(result).slice(0,2000));assert.equal(result.raw.outcome,'OK');assert.ok(Array.isArray(result.raw.warnings),'native warnings are retained');assert.ok(result.raw.page&&typeof result.raw.page==='object','native page is retained');return result.raw};
+ const found=ok(await service.read('search',{label:'needs review',kind:'BUG',milestone:'v1 0',limit:5},f.ctx));
+ assert.deepEqual(found.items.map(i=>i.ticketId),[labelled],'the label with a space matches natively');
+ assert.equal(found.page.total,'1');
+ const page=ok(await service.read('list',{limit:1,offset:0},f.ctx));
+ assert.equal(page.items.length,1);assert.equal(page.page.total,'2');assert.equal(page.page.truncated,true,'the native page bound is reported');
+ const all=ok(await service.read('list',{limit:100},f.ctx));
+ assert.deepEqual(all.items.map(i=>i.ticketId).sort(),[f.ticketId,labelled].sort());
+ const none=ok(await service.read('search',{label:'absent label',summary:true},f.ctx));
+ assert.deepEqual(none.items,[]);
+ assert.deepEqual(await tree(f.cwd),before,'search and list leave the store, worktree and Git directory unchanged');
+ t.diagnostic(`search page=${JSON.stringify(found.page)} list page=${JSON.stringify(page.page)} warnings=${JSON.stringify(found.warnings)}`);
+});
+
 test('PWV actual native gate interruption retains uncertainty; native same-ID gate replay reruns execution',async t=>{
  const f=await interruptionFixture(t);
  const claim=await f.native(['claim',f.ticketId,'--holder','fixture-owner','--request-id','claim','--branch','main']);

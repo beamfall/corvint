@@ -6,7 +6,9 @@ executable. Native TUI and RPC remain upstream Pi. Ordinary extensible Pi uses
 `../pi`; this distribution has a fixed extension set.
 
 The executable currently delivers **FALLBACK** context and tools. It is not an
-accepted execution root or independently qualified FULL installation. The governing
+accepted execution root or independently qualified FULL installation. Core admits only
+Pi 0.99.1, so while this image embeds 0.85.1 (`host-version.mjs`) its fallback refuses with a
+visible `unsupported-host-version` notice before starting Corvint and injects no context. The governing
 contract is `docs/specs/protected-pi-runtime-v0.md`.
 
 ## Build and verify

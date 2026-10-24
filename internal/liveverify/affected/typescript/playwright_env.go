@@ -114,10 +114,9 @@ func playwrightEnvironmentWriter(configPath, source string) (string, []playwrigh
 	if frontier != "" {
 		return frontier, nil
 	}
-	for _, name := range playwrightEnvLoaderNames {
-		if len(playwrightTokenOffsets(residual, name)) != 0 {
-			return "the config references " + name + ", which can load a module or file that sets the variable before the config reads it", nil
-		}
+	if name, at := playwrightEnvLoaderReference(residual); at >= 0 {
+		site := configPath + ":" + strconv.Itoa(1+strings.Count(residual[:at], "\n"))
+		return "the config references " + name + " at " + site + ", which can load a module or file that sets the variable before the config reads it", nil
 	}
 	if strings.Contains(clean, "globalSetup") {
 		return "the config declares globalSetup, which can set the variable before workers evaluate the config", nil
@@ -132,6 +131,62 @@ var playwrightEnvNeutralBuiltins = map[string]bool{"path": true, "os": true, "ur
 // playwrightEnvLoaderNames are the globals through which a config can load a module or an env
 // file or evaluate code that does (AFP-V0-386).
 var playwrightEnvLoaderNames = []string{"require", "createRequire", "module", "loadEnvFile", "eval", "Function", "globalThis", "global"}
+
+// playwrightEnvLoaderReference returns the first loader name, in playwrightEnvLoaderNames order,
+// that the comment-stripped config references and the offset of its first reference, or -1. A
+// name counts in code and as a whole string literal that is a property key
+// (playwrightEnvKeyString); inside other string, template or regular-expression text, an array
+// literal element included, it is data, such as a project named 'global-setup' (AFP-V0-417). That exemption holds only while
+// the module tokenizes and no text can become code or reach a property the scan cannot see
+// (playwrightReflectiveChannel); otherwise every occurrence counts, as before.
+func playwrightEnvLoaderReference(clean string) (string, int) {
+	lexed, ok := playwrightLex(clean)
+	textIsData := ok
+	if ok {
+		at, _ := playwrightReflectiveChannel(clean, lexed)
+		textIsData = at < 0
+	}
+	for _, candidate := range playwrightEnvLoaderNames {
+		for _, at := range playwrightTokenOffsets(clean, candidate) {
+			if !textIsData || lexed.code[at] || playwrightEnvKeyString(clean, lexed, at, len(candidate)) {
+				return candidate, at
+			}
+		}
+	}
+	return "", -1
+}
+
+// playwrightEnvKeyString reports whether raw[at:at+size] is the whole content of a quoted string
+// literal through which the config can read a property of that name: a computed member key
+// (`box['global']`), a computed property key (`{ ['loadEnvFile']: load }`) or a quoted property
+// key (`{ 'loadEnvFile': load }`), since a destructuring pattern reads through either. A whole
+// string that is an array literal element (`['loadEnvFile']`) or any other operand is data
+// (AFP-V0-417).
+func playwrightEnvKeyString(raw string, lexed playwrightLexed, at, size int) bool {
+	if at == 0 || at+size >= len(raw) || lexed.code[at-1] {
+		return false
+	}
+	quote := raw[at-1]
+	if strings.IndexByte("'\"`", quote) < 0 || raw[at+size] != quote {
+		return false
+	}
+	previous := playwrightPreviousCode(raw, at-1)
+	if previous >= 0 && raw[previous] == '[' && lexed.code[previous] {
+		if playwrightMemberBracket(raw, lexed, previous) {
+			return true
+		}
+		closeAt, closed := lexed.closes[previous]
+		return !closed || playwrightPropertyKey(raw, previous, closeAt+1)
+	}
+	return playwrightPropertyKey(raw, at-1, at+size+1)
+}
+
+// playwrightPropertyKey reports whether raw[start:end] sits where an object literal or pattern
+// key does: after a code `{` or `,` and before `:`.
+func playwrightPropertyKey(raw string, start, end int) bool {
+	before, after := playwrightPreviousCode(raw, start), playwrightNextCode(raw, end)
+	return before >= 0 && (raw[before] == '{' || raw[before] == ',') && after < len(raw) && raw[after] == ':'
+}
 
 // resolvePlaywrightExecutables replaces a project's computed-executablePath unknown with the
 // recorded resolution when the expression is a modelled process.env read of a variable the caller

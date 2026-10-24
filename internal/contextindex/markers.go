@@ -38,7 +38,7 @@ var markerComments = map[string]commentSyntax{
 	".rs": rustComments, ".swift": {line: []string{"//"}, block: [2]string{"/*", "*/"}, quotes: `"`, multiline: []multilineString{{`"""`, true}}},
 	".cs": tripleComments, ".kt": tripleComments, ".kts": tripleComments, ".m": cComments,
 	".py": pyComments, ".toml": pyComments,
-	".sh": hashComments, ".yaml": hashComments, ".yml": hashComments, ".rb": hashComments,
+	".sh": hashComments, ".yaml": hashComments, ".yml": hashComments, ".rb": hashComments, ".rake": hashComments,
 	".sql": {line: []string{"--"}, block: [2]string{"/*", "*/"}, quotes: `"'`},
 	".md":  {block: [2]string{"<!--", "-->"}}, ".mdx": {block: [2]string{"<!--", "-->"}},
 }

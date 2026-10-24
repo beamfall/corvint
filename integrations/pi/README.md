@@ -1,7 +1,7 @@
 # Corvint for Pi — experimental FALLBACK
 
-Pi **0.99.1**, Corvint Pi adapter **0.3.3**, macOS arm64: tested with the real host and an
-offline fixture provider in print, RPC and interactive TUI modes. Other Pi versions refuse visibly; Linux has not been qualified and
+Pi **0.99.1**, Corvint Pi adapter **0.3.4**, macOS arm64. The last recorded live-host conformance
+(adapter 0.3.3) used the real host and an offline fixture provider in print, RPC and interactive TUI modes. Other Pi versions refuse visibly; Linux has not been qualified and
 Windows is unsupported because descendant cleanup requires POSIX process groups.
 
 Use a Corvint build containing the matching `adapter pi` version. Set `CORVINT_BIN` to its
@@ -27,8 +27,8 @@ CORVINT_BIN=/absolute/path/corvint pi -e /absolute/path/integrations/pi/index.ts
 
 The package declares the Pi host as a wildcard peer so Pi supplies its own modules; this is
 packaging policy, not runtime compatibility. The closed native/runtime guards admit only 0.99.1.
-The older 0.85.1 adapter remains historical qualification and is not admitted by adapter 0.3.3; adapter 0.3.2 is superseded
-by 0.3.3 (decision 0550) and refuses visibly.
+The older 0.85.1 adapter remains historical qualification and is not admitted by adapter 0.3.4; adapters 0.3.2 and 0.3.3 are superseded
+(decisions 0550 and 0556) and refuse visibly.
 The package uses `pi.extensions` discovery and the host's runtime `VERSION`. Untrusted projects
 refuse native reads. Startup, reload, new/resumed/forked sessions and tree navigation refresh
 context. Successful compaction supplies recovery to the next model request, including an automatic
@@ -93,11 +93,23 @@ remain required. The explicit tool result bound is 65536 bytes; automatic contex
 ## Native workflow and cockpit
 
 `corvint_core_read` exposes closed native query/context/impact/affected/review/prove,
-CEM/OCM status, Frontier and local-policy status operations. It retains original receipt,
+overview/features (clean HEAD only), witness (`base`, optional `head`), CEM/OCM status,
+Frontier and local-policy status operations. It retains original receipt,
 exit status and raw output. It does not index, execute suggested tests or write reports.
-`corvint_tasks` exposes native Tasks reads; set `CORVINT_TASKS_BIN` to a compatible
+`corvint_tasks` exposes native Tasks reads, including closed-selector `search` and `list`;
+set `CORVINT_TASKS_BIN` to a compatible
 native binary when PATH selection is unsuitable. Current qualification uses developer
 build202, not a stable release or qualification of the application's queue policy.
+
+Every model tool declares Pi `annotations` (read-only, or the explicit outcome record), which
+permission extensions can read through `getAllTools`; they are hints, not authority. The
+package also ships the `corvint-context`, `corvint-impact`, `corvint-review` and
+`corvint-tasks` skills, loaded on demand or with `/skill:<name>`; `--no-skills` disables them.
+
+Pi 0.99.1 also has a native MCP client. To add the `corvint-mcp` companion, register it with
+the legacy protocol Pi speaks: `pi mcp add corvint -- corvint-mcp --protocol-version 2025-11-25
+--root <repo>`, then check it with `pi mcp list`. Without the flag Pi reports `Method not found`
+(V1-2507). The extension does not register it for you.
 
 `/corvint` opens Evidence, Changes, Tasks, Verification and Gaps. Use left/right or
 1–5 to select a view, `r` to refresh, arrows/PageUp/PageDown to scroll and `q`/Escape

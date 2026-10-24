@@ -25,3 +25,12 @@ test('registration exposes one read tool and structured failures',async()=>{
 test('explicit generation invalidation rejects an inflight view',async()=>{
  let resolve;const service=createCoreService({runner:{run:()=>new Promise(r=>resolve=r),close:async()=>{}}});const pending=service.read('affected',{},ctx);service.clear();resolve({exitCode:0,stdout:'{}',stderr:''});assert.equal((await pending).fault,'stale-context');
 });
+test('PWV-V0-014 overview, features and witness map to closed native reads; witness never applies a CEM',async()=>{
+ const {service,calls}=fixture({exitCode:0,stdout:'{"profile":"corvint-witness/0"}',stderr:''});const head='c'.repeat(40);
+ await service.read('overview',{},ctx);await service.read('features',{},ctx);await service.read('witness',{base:sha},ctx);await service.read('witness',{base:sha,head},ctx);
+ assert.deepEqual(calls.map(c=>c.args),[['overview'],['features'],['witness','--base',sha,'--json'],['witness','--base',sha,'--head',head,'--json']]);
+ for(const [op,input] of [['overview',{task:'x'}],['features',{limit:1}],['witness',{}],['witness',{base:'HEAD'}],['witness',{base:sha,head:'main'}],['witness',{base:sha,cem:'x.json'}],['witness',{base:sha,stableArtifactRoot:'x'}],['witness',{base:'--cem'}]])assert.equal((await service.read(op,input,ctx)).fault,'invalid-input',`${op} ${JSON.stringify(input)}`);
+ assert.equal(calls.length,4);
+ const dirty=fixture({exitCode:0,stdout:'{"code":"unsupported-repository-guidance","ok":false}',stderr:''});const r=await dirty.service.read('overview',{},ctx);assert.equal(r.fault,undefined);assert.equal(r.receipt.code,'unsupported-repository-guidance');
+ const refused=fixture({exitCode:2,stdout:'',stderr:'corvint witness: dirty worktree'});assert.equal((await refused.service.read('witness',{base:sha},ctx)).fault,'native-command-failed');
+});
