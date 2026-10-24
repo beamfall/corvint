@@ -11,7 +11,9 @@ func TestSingleAlternateAdmitsWindowsVolumes(t *testing.T) {
 			t.Errorf("Windows object store %q refused", store)
 		}
 	}
-	if singleAlternate(`C:/cv/.git/objects;D:/other`) {
-		t.Error("two alternates admitted")
+	for _, store := range []string{`C:/cv/.git/objects;D:/other`, `\\a;b\share\.git\objects`} {
+		if singleAlternate(store) {
+			t.Errorf("%q admitted; Git splits it at ';'", store)
+		}
 	}
 }

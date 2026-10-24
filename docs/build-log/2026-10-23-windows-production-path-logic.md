@@ -24,6 +24,11 @@ first failure the code reaches when read, not an observed log line, and the Wind
 - Kept as refusals (AFP-V0-416): every `//go:build !darwin && !linux` stub and `procgroup`'s
   `process-platform-unsupported`. Tasks `PathText` stays a POSIX absolute path: admitting `C:\`
   changes the persisted head and manifest wire format and waits on V1-2485.
+- Independent review (no blocking finding) led to three repairs before the PR: the alternates
+  guard now checks the whole store, so a `;` inside a UNC volume name is refused too; a dangling
+  link to a rooted target without a volume (`\x`) resolves on the link's volume instead of below
+  its parent (a pre-existing containment gap in the same walk); and a helper no longer takes over
+  a requirement comment.
 - Rejected: memoising `gitstatus.Executable` per `PATHEXT`. `internal/gitstatus` is an
   IDX-SNAP-V0-017 analyzer input, so the change forced an analyzer schema bump (audit pins and
   use-case receipts) for a cache-key edge case outside the ticket; `TestAnalyzerSchemaInputs`
@@ -37,9 +42,9 @@ assumption in a test (V1-2491); U = unknown without the log.
 
 | Package | Class | Root cause (first failure reached) |
 |---|---|---|
-| `internal/projectpath` | P | `resolve` trimmed only `\`, so `missing/child` and a `missing/child` link target split into an empty component |
+| `internal/projectpath` | P | `resolve` trimmed only `\`, so `missing/child` and a `missing/child` link target split into an empty component; a rooted `\x` link target was joined below the link's parent |
 | `internal/flowdocs` | P, R | `openDirectory` dropped the volume; reads then refuse in `open_other.go` (no `O_NOFOLLOW`) |
-| `internal/sharedpath` | P, H | `privateMergeRepository` refused `:` anywhere in the store; `behind_test.go` merge driver passes an unquoted Windows path to `sh` |
+| `internal/sharedpath` | P, H | `privateMergeRepository` refused `:` anywhere in the store, though `;` is Git for Windows' separator; `behind_test.go` merge driver passes an unquoted Windows path to `sh` |
 | `internal/breakagemap` | R, P | `read.go` runs Git through `procgroup` (refuses); behind it, the top-level comparison ignored `C:/` spelling |
 | `internal/gitstatus` | T | fixture named `git`, which `exec.LookPath` never matches on Windows |
 | `internal/specindex` | T | `TrimPrefix("../../")` before `ToSlash` on a `..\..\docs\specs\x.md` glob match |

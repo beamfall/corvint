@@ -82,7 +82,6 @@ func TestPWRV0041_RecordKnownNeedsBothRuns(t *testing.T) {
 	}
 }
 
-// PWR-V0-041: ReadBaseline round-trips a recorded document and refuses malformed ones.
 // jsonString encodes s as a JSON string literal: a raw Windows path such as
 // C:\Users would put invalid escapes into the fixture (V1-2488).
 func jsonString(s string) string {
@@ -93,6 +92,7 @@ func jsonString(s string) string {
 	return string(encoded)
 }
 
+// PWR-V0-041: ReadBaseline round-trips a recorded document and refuses malformed ones.
 func TestPWRV0041_ReadBaselineShape(t *testing.T) {
 	dir := t.TempDir()
 	full := named(t, dir, "full.json", bt("a.spec.ts", "both", "unexpected"))

@@ -323,10 +323,10 @@ func privateMergeRepository(g git) ([]string, func(), error) {
 }
 
 // singleAlternate reports whether store is one GIT_ALTERNATE_OBJECT_DIRECTORIES
-// entry: no list separator (':' on POSIX, ';' on Windows), quote or line break.
-// A volume name is not part of the list syntax, so Git for Windows' C:/... passes.
+// entry: no list separator (':' on POSIX, ';' on Windows, Git's PATH_SEP), quote
+// or line break anywhere. Git for Windows' C:/... passes: ':' is not its separator.
 func singleAlternate(store string) bool {
-	return !strings.ContainsAny(store[len(filepath.VolumeName(store)):], string(filepath.ListSeparator)+"\"\n\r")
+	return !strings.ContainsAny(store, string(filepath.ListSeparator)+"\"\n\r")
 }
 
 // conflictPaths parses `merge-tree --write-tree --name-only -z` output: the

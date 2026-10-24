@@ -61,7 +61,12 @@ func resolve(root, path string, linksLeft int) (string, bool) {
 					return "", false
 				}
 				target = filepath.FromSlash(target)
-				if !filepath.IsAbs(target) {
+				switch {
+				case filepath.IsAbs(target):
+				case filepath.VolumeName(target) == "" && strings.HasPrefix(target, string(filepath.Separator)):
+					// Windows resolves a rooted \x on the link's own volume, not below its parent.
+					target = filepath.VolumeName(path) + target
+				default:
 					parent, _ := filepath.Split(path)
 					target = parent + target
 				}
