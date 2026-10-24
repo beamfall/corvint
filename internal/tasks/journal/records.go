@@ -210,6 +210,7 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 		}
 	}
 	result.StagingPresent = o.staging || len(o.stageDigests) > 0
+	result.OrphanStageSlots = o.orphanSlots
 	headSeq := uint64(0)
 	if o.head != nil {
 		headSeq = o.head.LastSeq.Uint64()

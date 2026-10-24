@@ -2,6 +2,7 @@ package cli
 
 import (
 	"path/filepath"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
@@ -57,6 +58,11 @@ func receiptAudit(env Env, args []string) *wire.Result {
 	item.Set("retiredThrough", wire.String(string(wire.SizeOf(retired))))
 	result := success(cmd, rc)
 	result.Items = []wire.Value{wire.ObjectValue(item)}
+	if len(observed.OrphanStageSlots) > 0 {
+		// CTS-V0-026: a killed writer's orphans, set aside under a free
+		// writer lock; the next writer removes them.
+		result.Warnings = append(result.Warnings, prose("staging holds a killed writer's orphan slot(s) the audit set aside; the next writer removes them: "+strings.Join(observed.OrphanStageSlots, ", ")))
+	}
 	return result
 }
 

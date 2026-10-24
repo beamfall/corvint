@@ -1,6 +1,8 @@
 package journal
 
 import (
+	"os"
+
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"strings"
@@ -52,16 +54,31 @@ func (r Reader) readStage(o *observation) (files []snapshot.StageFile, validatio
 			}
 		}
 	}
+	descriptorless := d == nil && o.files["staging/active.json.tmp"] == nil
+	var inFlight *slotsInFlight
 	for _, p := range sortedPaths(o.files) {
 		if strings.HasPrefix(p, "staging/a") && p != "staging/active.json" && p != "staging/active.json.tmp" && !assigned[strings.TrimPrefix(p, "staging/")] {
-			refusal := wire.Errorf(wire.CodeMalformed, p, "unassigned stage slot")
-			if d == nil && o.files["staging/active.json.tmp"] == nil {
+			if !descriptorless {
+				return files, wire.Errorf(wire.CodeMalformed, p, "unassigned stage slot"), nil
+			}
+			if granted := r.orphanSlots[p]; granted != nil && sameSlot(granted, o.files[p]) {
+				// A free writer lock proved this exact slot a killed
+				// writer's orphan (CTS-V0-026): set it aside unread. Its
+				// metadata stays in the inventory and staging stays present.
+				o.staging = true
+				o.orphanSlots = append(o.orphanSlots, p)
+				continue
+			}
+			if inFlight == nil {
 				// A native writer holds descriptor-less slots under its lock
 				// while it publishes; audit waits a bounded time (CTS-V0-008).
-				return files, slotsInFlight{error: refusal, head: o.headRaw}, nil
+				inFlight = &slotsInFlight{error: wire.Errorf(wire.CodeMalformed, p, "unassigned stage slot"), head: o.headRaw, slots: map[string]os.FileInfo{}}
 			}
-			return files, refusal, nil
+			inFlight.slots[p] = o.files[p]
 		}
+	}
+	if inFlight != nil {
+		return files, *inFlight, nil
 	}
 	return files, nil, nil
 }
@@ -73,10 +90,18 @@ func (r Reader) readStage(o *observation) (files []snapshot.StageFile, validatio
 // MALFORMED unchanged (CTS-V0-008), unless the head the observation read moved
 // while it waited, which warrants another bounded observation but does not
 // prove the slots' holders are live (CAL-V0-340). head is that observation's
-// head.json.
+// head.json. slots binds every descriptor-less slot the observation listed to
+// its listed metadata, for the CTS-V0-026 orphan proof.
 type slotsInFlight struct {
 	error
-	head []byte
+	head  []byte
+	slots map[string]os.FileInfo
+}
+
+// sameSlot reports that a granted orphan is still the very file the refused
+// observation listed: same file identity, mode, size and modification time.
+func sameSlot(granted, now os.FileInfo) bool {
+	return now != nil && os.SameFile(granted, now) && granted.Mode() == now.Mode() && granted.Size() == now.Size() && granted.ModTime().Equal(now.ModTime())
 }
 
 func (e slotsInFlight) Unwrap() error { return e.error }

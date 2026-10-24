@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
@@ -45,17 +46,23 @@ func TestCTSV0008_UnlockedLeaseReadWaitsOutWriterHeldSlot(t *testing.T) {
 	}
 }
 
-// A slot that outlasts the budget, as a killed writer's orphan does, is
+// A slot that outlasts the budget while the writer lock stays held is
 // still refused MALFORMED at its path, but only after the full budget; the
 // bound is one-sided because every pause sleeps at least its requested
-// length.
+// length. A killed writer's orphan beside a free lock reads instead
+// (CTS-V0-026, TestCTSV0026_KilledGateRunLeavesAReadableStore).
 func TestCTSV0008_UnlockedLeaseReadWaitsForStageSlot(t *testing.T) {
 	t.Parallel()
 	s := newGateStore(t)
 	a := s.claim(t, "claim-a", s.ticket(t, "a"), 1, "src/")
 	fixture.Write(t, filepath.Join(s.repo.StateDir, "staging", "a00"), []byte("x"))
+	held, err := authority.AcquireLock(context.Background(), s.repo, authority.LockOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer held.Close()
 	started := time.Now()
-	_, err := store.AttemptRecord(context.Background(), s.repo, a.AttemptID)
+	_, err = store.AttemptRecord(context.Background(), s.repo, a.AttemptID)
 	elapsed := time.Since(started)
 	if e, ok := err.(*wire.Error); !ok || e.Code != wire.CodeMalformed || e.Where != "staging/a00" {
 		t.Fatalf("lease read beside a held slot: %v", err)

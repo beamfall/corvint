@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strconv"
@@ -58,12 +59,17 @@ type HandoffPolicyHistory struct {
 // Result claims only structural consistency and current projection agreement.
 // Even known record codecs do not validate historical acceptance decisions.
 type Result struct {
-	Identity              Identity
-	Head                  *snapshot.Head
-	LastSeq               wire.Size
-	LastReceiptSha256     wire.Digest
-	Pending               bool
-	StagingPresent        bool
+	Identity          Identity
+	Head              *snapshot.Head
+	LastSeq           wire.Size
+	LastReceiptSha256 wire.Digest
+	Pending           bool
+	StagingPresent    bool
+	// OrphanStageSlots names the descriptor-less staging slots this audit
+	// set aside as a killed writer's orphans after a free writer lock proved
+	// no writer live (CTS-V0-026). StagingPresent is then true; the next
+	// writer removes them under its lock.
+	OrphanStageSlots      []string
 	StructuralConsistency string
 	ProjectionAgreement   string
 	SemanticCoverage      string
@@ -182,6 +188,11 @@ type Reader struct {
 	abortMoved      bool              // PrefixFallback's complete attempt: stop once head.json moves
 	resume          *ResumeBase       // AuditForResume only
 	walks           *WalkStats        // AuditForWriteObserved, AuditForResume: per-walk accounting, outlives the physical reset
+	// orphanSlots are the descriptor-less staging slots, bound to the
+	// metadata the refused observation listed, that a free writer lock
+	// proved a killed writer's orphans (CTS-V0-026). Set only by audit on
+	// its value copy after a spent CTS-V0-008 wait.
+	orphanSlots map[string]os.FileInfo
 }
 
 // AuditForWrite carries one verified snapshot through request lookup and
@@ -231,6 +242,7 @@ type observation struct {
 	receipts      []string
 	identity      Identity
 	staging       bool
+	orphanSlots   []string // CTS-V0-026: granted orphan slots this capture set aside
 	stage         *snapshot.StageObservation
 	stageDigests  []stageDigest
 	stageErr      error
@@ -384,6 +396,12 @@ func (r Reader) audit(paths []string, request string, lim limits, checkIntent bo
 			if !waited {
 				waited, slotsHead = true, slots.head
 			}
+			if r.orphanSlots != nil {
+				// Descriptor-less slots other than the granted orphans
+				// appeared after the writer lock proved free: a writer is
+				// live again (CTS-V0-026).
+				return nil, wire.Errorf(wire.CodeSnapshotMoved, "staging", "a writer staged new slots after the writer lock proved free; the read is retryable")
+			}
 			step, ok := wait.Next()
 			if r.WriterLocked || !ok {
 				if !r.WriterLocked && !bytes.Equal(slotsHead, slots.head) {
@@ -392,6 +410,14 @@ func (r Reader) audit(paths []string, request string, lim limits, checkIntent bo
 					// are live: a retry under an unchanged head still refuses
 					// MALFORMED (CAL-V0-340).
 					return nil, wire.Errorf(wire.CodeSnapshotMoved, "staging", "ledger advanced during the %s wait for a writer's staging slots; the read is retryable", snapshot.StageSlotPatience)
+				}
+				if !r.WriterLocked && r.writerLockFree() {
+					// Every writer holds the writer lock while it owns a
+					// slot, so a free lock after the spent wait proves these
+					// slots a killed writer's orphans: observe again with
+					// exactly them set aside (CTS-V0-026).
+					r.orphanSlots = slots.slots
+					continue
 				}
 				return result, slots.error
 			}
@@ -402,6 +428,30 @@ func (r Reader) audit(paths []string, request string, lim limits, checkIntent bo
 	}
 	return nil, wire.Errorf(wire.CodeSnapshotMoved, "/", "ledger moved during all four observations")
 }
+
+// writerLockFree is the CTS-V0-026 proof for a native source: the writer
+// lock `<common>/taskman.lock` beside the `<common>/taskman` state directory
+// is free this instant. Any other source, or a state directory not so named,
+// proves nothing.
+func (r Reader) writerLockFree() bool {
+	var stateDir string
+	switch n := r.Source.(type) {
+	case Native:
+		stateDir = n.StateDir
+	case *Native:
+		if n != nil {
+			stateDir = n.StateDir
+		}
+	}
+	stateDir = filepath.Clean(stateDir)
+	if !filepath.IsAbs(stateDir) || filepath.Base(stateDir) != "taskman" {
+		return false
+	}
+	return probeWriterLock(filepath.Dir(stateDir))
+}
+
+// probeWriterLock is writerLockFree; tests replace it.
+var probeWriterLock = writerLockFree
 
 // stageSleep is the CTS-V0-008 wait's pause (snapshot.StageSlotWait). A
 // WriterLocked audit never waits. A pause is not one of the four
