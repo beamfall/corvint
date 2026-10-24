@@ -631,3 +631,10 @@ perf-budget: go-version
 # HEAVY_NICE=0 opts out; a host without nice(1) runs them unchanged.
 HEAVY_NICE ?= 10
 HEAVY_NICE_PREFIX = $(if $(filter-out 0,$(HEAVY_NICE)),$(if $(shell command -v nice 2> /dev/null),nice -n $(HEAVY_NICE)))
+
+# cce-live runs the live CCE prove tests and fails, rather than skips, when the Playwright
+# toolchain (CORVINT_PLAYWRIGHT_MODULES, node) is missing (CCE-V0-102). A CI lane calls it on a
+# macOS arm64 runner with a qualified Playwright tuple; the ordinary lane does not.
+.PHONY: cce-live
+cce-live:
+	CORVINT_CCE_LIVE=required GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test -count=1 -timeout $(GO_TEST_TIMEOUT) ./internal/changee2e -run '^TestCCEV[0-9]+Live'

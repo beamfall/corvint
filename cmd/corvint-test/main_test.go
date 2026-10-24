@@ -139,6 +139,7 @@ func TestCCEV0034HostedTestFlag(t *testing.T) {
 		{[]string{"--hosted-test", "app/components/teesheet.html"}, "e2e-hosted-test-invalid"},
 		{[]string{"--hosted-test", "e2e/specs/teesheet-click.spec.ts", "--hosted-title", "no such test"}, "e2e-hosted-test-invalid"},
 		{[]string{"--hosted-test", "e2e/specs/teesheet-click.spec.ts", "--coverage", "coverage.json"}, "e2e-hosted-test-invalid"},
+		{[]string{"--hosted-test", "e2e/specs/teesheet-click.spec.ts", "--ledger", "ledger.json"}, "e2e-hosted-test-invalid"},
 	} {
 		out := t.TempDir()
 		args := append([]string{"e2e", "prove", "--root", root, "--base", base, "--head", head, "--out", out}, tc.args...)
@@ -166,6 +167,25 @@ func TestCCEV0045CoverageFlag(t *testing.T) {
 		}
 		var r *changee2e.Refusal
 		if err := run(context.Background(), args, &bytes.Buffer{}); !errors.As(err, &r) || r.Code != "e2e-coverage-invalid" {
+			t.Fatalf("%s: %v", sub, err)
+		}
+	}
+}
+
+// CCE-V0-103: --ledger reaches obligations and compile, which refuse a ledger not bound to the head map.
+func TestCCEV0103LedgerFlag(t *testing.T) {
+	root, base, head := fixture(t)
+	doc := filepath.Join(t.TempDir(), "ledger.json")
+	if err := os.WriteFile(doc, []byte(`{"schema":"application-edge-ledger/0","app":"other","revision":"`+head+`","map_digest":"sha256:x","edges":[],"omitted":{}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, sub := range []string{"obligations", "compile"} {
+		args := []string{"e2e", sub, "--root", root, "--base", base, "--head", head, "--ledger", doc}
+		if sub == "compile" {
+			args = append(args, "--out", t.TempDir())
+		}
+		var r *changee2e.Refusal
+		if err := run(context.Background(), args, &bytes.Buffer{}); !errors.As(err, &r) || r.Code != "e2e-ledger-invalid" {
 			t.Fatalf("%s: %v", sub, err)
 		}
 	}
