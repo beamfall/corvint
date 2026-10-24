@@ -3030,13 +3030,18 @@ without a code change. Security rationale and host setup: build-log entry
   every other job stay hosted; the runner never posts or changes `ci-control-plane` or any commit
   status, which stay with `ci-control-plane.yml`. The routing expression does not defend against a
   fork pull request that edits `ci.yml` itself, because a `pull_request` run uses the pull request's
-  own workflow file. The repository's fork-PR approval policy is that boundary (the build-log entry
-  recommends requiring approval for all external contributors). Failure modes: with the box offline
-  or busy, the routed shards wait in the queue until their 75-minute timeout or cancellation, and
-  `go-product` fails. The operator then unsets the variable, and the next run is hosted. Falsifier:
-  a push, fork or variable-off run whose shard job runs on a self-hosted runner, or a renamed
-  required check. Rollback: unset `CORVINT_SELF_HOSTED`, which needs no commit, or revert the
-  `runs-on` line.
+  own workflow file, and the variable does not gate that run: it can target the labels whenever the
+  runner is registered, even with the variable unset. The repository's fork-PR approval policy and
+  the runner's repository access are that boundary, so the owner sets approval for all external
+  contributors before registering the runner (build-log entry). Failure modes: with the box offline
+  or busy, the routed shards wait in the queue, for up to GitHub's 24-hour queue limit; the job's
+  75-minute timeout starts only when a runner picks the job up. `go-product` stays pending. The
+  operator then unsets the variable, cancels the queued run and starts a new one (a new push or
+  queue entry), which is hosted. Falsifier: a push, fork or variable-off run whose shard job runs on
+  a self-hosted runner, or a renamed required check. Rollback: unset `CORVINT_SELF_HOSTED`, which
+  needs no commit, or revert the `runs-on` line. That routes this repository's own runs back to the
+  cloud but does not revoke the runner: the security rollback is to remove the runner registration
+  or its access to this repository.
 - **AFP-V0-421:** (accepted under the owner's standing auto-accept (2026-10-11; owner request
   2026-10-24; no ticket)) On `runner.environment == 'self-hosted'` the shard MUST provision nothing.
   It MUST NOT use `sudo`, the package manager or a download into a system path. It MUST only verify
@@ -3047,9 +3052,14 @@ without a code change. Security rationale and host setup: build-log entry
   provisioning step MUST stay byte-identical and run only off the self-hosted runner. Because the
   host persists between jobs, the shard MUST first empty `GITHUB_WORKSPACE`, never restore or save the
   shared Actions Go build cache, and build with `GOENV=off` in a `GOCACHE` under `RUNNER_TEMP`. The
-  runner empties `RUNNER_TEMP` for every job, so no earlier job's build output, a pull request's
-  included, reaches a merge-queue run. The runner's own job-end cleanup ends processes the job
-  started, and `maintenance.auto false` keeps Git from detaching any. Host prerequisites: the four
+  runner empties `RUNNER_TEMP` for every job, so no earlier job's Go build cache, a pull request's
+  included, reaches a merge-queue run. The runner's own job-end cleanup ends the processes it
+  tracks, and `maintenance.auto false` keeps Git from detaching any. This is hygiene, not isolation:
+  code a job runs can still write to the runner account's home, tool cache or runner installation,
+  or leave a process that escapes tracking, and so affect a later job. A persistent box is
+  therefore trusted only as far as every run that reaches it is trusted. Isolation needs a fresh
+  environment per job that is destroyed afterwards, such as a just-in-time runner in a disposable VM
+  or container, which is outside these requirements. Host prerequisites: the four
   labels; the pinned Go at `/usr/local/go`; ripgrep 15.2.0 at `/usr/local/bin/rg`; a C toolchain
   for `-race` with `CGO_ENABLED=1`; `jq`, `git` and `bash`; and Landlock ABI 2 or later for the
   AFP-V0-023 wrapper (`test-confine -probe`). Failure modes: host drift, such as a Go or ripgrep
@@ -3095,7 +3105,8 @@ AFP-V0-389/404 do not change the `--playwright-config` mode or alias resolution 
 runner's loader.
 AFP-V0-420 to AFP-V0-422 move no job other than `go-product-shard`, never run a fork pull request,
 a push or `pull_request_target` on the self-hosted runner, never let it post a commit status, and
-never provision the host; registering the runner and setting `CORVINT_SELF_HOSTED` stay owner steps.
+never provision the host, and do not isolate jobs from one another on a persistent host;
+registering the runner and setting `CORVINT_SELF_HOSTED` stay owner steps.
 
 ## Failure modes
 
@@ -3184,8 +3195,9 @@ receipt, never a refusal and never a reused graph; an observation that cannot be
 including one with a transient read failure, writes no entry. `--paths-from` refusals are `invalid-arguments`
 (AFP-V0-395).
 Self-hosted shard runner (AFP-V0-420 to AFP-V0-422): an offline or busy box leaves the routed
-shards queued until timeout or cancellation, and the operator recovers by unsetting
-`CORVINT_SELF_HOSTED`; host drift fails the verification step with the named prerequisite; a
+shards queued for up to GitHub's 24-hour queue limit, and the operator recovers by unsetting
+`CORVINT_SELF_HOSTED`, cancelling the queued run and starting a new one; a registered runner stays
+reachable by an approved fork pull request until it is removed; host drift fails the verification step with the named prerequisite; a
 self-hosted run makes the cost-drift report abstain.
 
 ## Acceptance evidence and traceability

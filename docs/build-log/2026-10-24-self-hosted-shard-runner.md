@@ -39,12 +39,16 @@ people with write access create those.
 can therefore edit `ci.yml` and write `runs-on: [self-hosted, corvint-box]` on any job. The
 expression in `main` never sees that run.
 
+The variable does not gate that run either. A fork pull request can target the labels whenever the
+runner is registered, even with `CORVINT_SELF_HOSTED` unset.
+
 What stops that run is the repository's fork-approval policy. It is currently
 `first_time_contributors`: a contributor whose first pull request was approved runs later
-workflows with no approval. **Before setting `CORVINT_SELF_HOSTED=on`, the owner should set
+workflows with no approval. **Before registering the runner, the owner should set
 Settings → Actions → General → "Require approval for all external contributors"**, and should
 read every fork change to `.github/` before approving its run. A runner group limited to this
-repository, with public-repository access refused where the plan allows, is further defense.
+repository is further defense. Unsetting the variable is an operational rollback only. The security
+rollback is to remove the runner registration, or its access to this repository.
 
 Hardening of the host itself, with the reasons:
 
@@ -54,17 +58,25 @@ Hardening of the host itself, with the reasons:
   not a trusted cloud build. It builds in `$RUNNER_TEMP/go-build` with `GOENV=off`, so neither an
   earlier pull request's build output nor the host `go.env` reaches a later run. The runner empties
   `RUNNER_TEMP` for every job, so the merge-queue shards always start with a cold cache.
-- **Processes.** The runner's orphan-process cleanup ends processes the job started. The tests
-  already run under the product's sandbox.
+- **Processes.** The runner's orphan-process cleanup ends the processes it tracks. A hostile
+  process can escape that tracking, so it is not an adversarial boundary.
 - **Privileges.** Nothing in the job runs `sudo`, `apt` or a network install on the box. A test
   asserts this.
 - **Statuses.** The box never posts commit statuses. Only the owner posts `ci-control-plane`.
 
+This is hygiene, not isolation. Code that a job runs can still write to the runner account's home,
+the tool cache or the runner installation, and so affect a later merge-queue result. The test
+sandbox's Landlock rules confine reads, not writes, and an undeclared package runs unconfined. A
+persistent box is therefore trusted only as far as every run that reaches it is trusted: code from
+the repository's writers, and fork code the owner approved. Real isolation needs a fresh
+environment for each job that is destroyed afterwards, such as a just-in-time runner in a
+disposable VM or container. `--ephemeral` registration alone does not reset the machine. That is
+outside this change.
+
 Recommended, not enforced by the workflow:
 
 - run the runner as a dedicated unprivileged user that holds no credentials;
-- prefer `--ephemeral` registration, or several runner instances so the eight shards do not run
-  one after another.
+- register several runner instances, so the eight shards do not run one after another.
 
 ## Host prerequisites
 
@@ -85,12 +97,29 @@ against the cloud table. If a marker is lost, the missing stream still makes the
 
 ## Failure modes and rollback
 
-- If the box is offline, the shard jobs queue until it returns or the operator unsets the
-  variable.
+- If the box is offline, the shard jobs stay queued, for up to GitHub's 24-hour queue limit. The
+  job's 75-minute timeout starts only when a runner picks the job up. The operator unsets the
+  variable, cancels the queued run and starts a new one (a new push or queue entry).
 - If the host drifts, verification fails with a named prerequisite.
 
-Rollback is to unset `CORVINT_SELF_HOSTED`, or set it to anything but `on`, which returns every run
-to the cloud with no code change. A revert of this change is also safe.
+The operational rollback is to unset `CORVINT_SELF_HOSTED`, or set it to anything but `on`. That
+returns this repository's runs to the cloud with no code change. A revert of this change is also
+safe. The security rollback is to remove the runner registration, because a registered runner
+stays reachable by an approved fork pull request.
+
+## Review
+
+One Codex review round (gpt-6-astra, read-only) raised three findings, all accepted as
+documentation corrections:
+
+- **The variable does not gate fork access.** The approval policy must be set before the runner is
+  registered. Removing the runner, not unsetting the variable, is the security rollback.
+- **Workspace clearing is not isolation.** This is now stated, with fresh per-job environments
+  named as the isolation route.
+- **Queue timing.** A queued job waits up to 24 hours, not 75 minutes. Recovery is cancel and
+  re-run.
+
+No workflow logic changed in response.
 
 ## Evidence
 
