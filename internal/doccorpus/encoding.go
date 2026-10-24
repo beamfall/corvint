@@ -45,11 +45,11 @@ func decodeBounded(data []byte, target any, limit int) error {
 // JSON input" prefix and, when name is set, appends the input name, the JSON pointer of the first
 // invalid value, the enclosing record id when one is readable, the reason and the byte offset
 // (DCP-V1-470). An artifact keeps the bare message, which its streamed decoder must match.
-func decodeNamed(name string, data []byte, target any, limit int) error {
+func decodeNamed(name string, data []byte, target any, limit int, opts ...json.Options) error {
 	if len(data) > limit {
 		return fail("input bound exceeded")
 	}
-	if err := json.Unmarshal(data, target, json.RejectUnknownMembers(true)); err != nil {
+	if err := json.Unmarshal(data, target, append([]json.Options{json.RejectUnknownMembers(true)}, opts...)...); err != nil {
 		if name == "" {
 			return fail("invalid closed JSON input")
 		}
@@ -64,10 +64,13 @@ func locateDecodeError(name string, data []byte, err error) string {
 	pointer, reason, offset := "", "invalid JSON", int64(-1)
 	var semantic *json.SemanticError
 	var syntactic *jsontext.SyntacticError
+	var compact compactAnchorError
 	switch {
 	case errors.As(err, &semantic):
 		pointer, offset = string(semantic.JSONPointer), semantic.ByteOffset
 		switch {
+		case errors.As(semantic.Err, &compact):
+			reason = string(compact)
 		case errors.Is(semantic.Err, json.ErrUnknownName):
 			reason = "unknown member"
 		case semantic.GoType != nil:
