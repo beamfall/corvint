@@ -108,6 +108,10 @@ type fixtureSession struct {
 	closeFile func(*os.File) error
 	closeRoot func(*os.Root) error
 	observe   func(*os.File, fixtureMount) (fixtureMount, error)
+	// fdinfo retains, per pinned descriptor, the open procfs fdinfo file the
+	// Linux mount observation re-reads on every check (LGL-V0-002,
+	// proposed); closeHandles closes it. Other platforms leave it empty.
+	fdinfo map[*os.File]*os.File
 	// syncTime sums the session's file and directory sync calls (issue 494
 	// diagnostics only); guarded by mu like every other session field.
 	syncTime time.Duration
@@ -268,7 +272,8 @@ func newFixtureSession(repo *intent.Repository, lock *Lock) (_ *fixtureSession, 
 	if again.CommonDir != repo.CommonDir || again.StateDir != repo.StateDir || again.LockPath != repo.LockPath || again.PrimaryWorktree != repo.PrimaryWorktree || again.IntentRoot() != repo.IntentRoot() || again.IntentHEAD() != repo.IntentHEAD() {
 		return nil, fixtureRefused
 	}
-	s := &fixtureSession{lock: lock, repo: *again, parents: map[string]*fixtureParent{}, stages: map[*fixtureStage]bool{}, write: (*os.File).Write, closeFile: (*os.File).Close, closeRoot: (*os.Root).Close, observe: fixtureObserveMount, worktree: "primary"}
+	s := &fixtureSession{lock: lock, repo: *again, parents: map[string]*fixtureParent{}, stages: map[*fixtureStage]bool{}, write: (*os.File).Write, closeFile: (*os.File).Close, closeRoot: (*os.Root).Close, worktree: "primary"}
+	s.observe = s.observeMount
 	defer func() {
 		if err != nil {
 			err = errors.Join(err, s.closeHandles())
@@ -509,6 +514,10 @@ func (s *fixtureSession) closeHandles() error {
 	var err error
 	for _, p := range s.parents {
 		err = errors.Join(err, s.closeFile(p.file), s.closeRoot(p.root))
+	}
+	for f, info := range s.fdinfo {
+		err = errors.Join(err, info.Close())
+		delete(s.fdinfo, f)
 	}
 	return err
 }

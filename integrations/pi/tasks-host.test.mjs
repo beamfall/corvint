@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
-import {mkdtemp,mkdir,readFile,writeFile,rm,readdir,stat} from 'node:fs/promises';
+import {mkdtemp,mkdir,readFile,writeFile,rm,readdir,stat,rename} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
 import {createTasksService} from './tasks.js';
@@ -149,4 +149,36 @@ test('PWV real minimum-duration native lease expiry refuses stale commands', {sk
  const raw=JSON.parse(native.stdout);assert.ok(raw.codes.includes('FENCED'),native.stdout);assert.match(raw.warnings.join('\n'),/lease expired/);
  assert.equal((await f.native(['attempt','show',attemptId])).items[0].lease.expiresAt,attempt.lease.expiresAt,'no automatic lease renewal');
  await f.native(['receipt','audit']);
+});
+
+// PWV-V0-019 (V1-2573): a native gate run SIGKILLed after its receipt commit and before its head
+// apply leaves REDO_PENDING. The real native run completes here and the test then restores the
+// head.json it replaced: that is the store a SIGKILL leaves just before the head rename, the last
+// §5.2 effect, with the receipt and post files written. The wrapper must report pending-operation.
+test('PWV-V0-019 native gate run killed after its receipt commit reconciles as pending-operation',{timeout:240000},async t=>{
+ const f=await interruptionFixture(t);
+ const claim=await f.native(['claim',f.ticketId,'--holder','fixture-owner','--request-id','claim','--branch','main']);
+ const attemptId=claim.items[0].attemptId,generation=claim.items[0].generation;
+ await f.native(['submit','--attempt',attemptId,'--generation',generation,'--request-id','submit','--tree',await f.git(['rev-parse','HEAD^{tree}'])]);
+ const head=join(f.cwd,'.git','taskman','head.json');
+ let dispatches=0;const runner={run:async call=>{
+  if(call.args[0]!=='gate')return f.run(call);
+  dispatches++;const prior=await readFile(head);const r=await f.run(call);assert.equal(r.exitCode,0,r.stdout);
+  await writeFile(head+'.crash',prior);await rename(head+'.crash',head);
+  return {exitCode:null,stdout:'',stderr:'',fault:'aborted'};
+ }};
+ const service=createTasksService({runner});t.after(()=>service.close());
+ const input={ticketId:f.ticketId,expectedRevision:'1',holder:'fixture-owner',attemptId,generation,gate:'verify'},request={operation:'gate run',requestId:'committed-gate',input};
+ const first=await service.command(request,f.ctx);assert.equal(first.ok,false);assert.equal(first.mutation,'unknown',JSON.stringify(first));
+ const audit=await f.run({args:['receipt','audit']});assert.notEqual(audit.exitCode,0);assert.ok(JSON.parse(audit.stdout).codes.includes('REDO_PENDING'),'the restored head leaves the designed crash state: '+audit.stdout);
+ for(const next of [{...request,requestId:'replacement-gate'},{...request,resume:true}]){
+  const r=await service.command(next,f.ctx);
+  assert.equal(r.fault,'pending-operation',JSON.stringify(r).slice(0,2000));assert.equal(r.mutation,'not-attempted');
+  assert.ok(r.reconciliation.audit.raw.codes.includes('REDO_PENDING'),'the native receipt is retained');
+ }
+ assert.equal(dispatches,1,'no writer is dispatched while the receipt is pending');
+ // Reads never redo (TM-V0-008); the next native writer settles the receipt, then reads succeed.
+ const redo=await f.run({args:['renew','--attempt',attemptId,'--generation',generation,'--request-id','redo-writer']});t.diagnostic(`redo writer exit=${redo.exitCode} outcome=${JSON.parse(redo.stdout).outcome}`);
+ assert.equal((await service.read('audit',{},f.ctx)).ok,true);
+ const ticket=await service.read('ticket',{id:f.ticketId},f.ctx);assert.equal(ticket.ok,true);
 });

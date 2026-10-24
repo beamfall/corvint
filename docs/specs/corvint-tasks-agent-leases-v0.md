@@ -7527,6 +7527,13 @@ release-gates signature.
 
 Rollback: revert the source; a torn guard read again ends the write at once.
 
+## V1-2531 lease-gate latency amendment
+
+The V1-2531 lease-gate latency requirements (orphan-cleanup lock on a ready writer route, retained
+fdinfo files, single canonical ticket parse, claim latency target) are LGL-V0-001..004 in
+[`corvint-tasks-lease-gate-latency-v0.md`](corvint-tasks-lease-gate-latency-v0.md), because this
+spec's Requirements section is at the 256-obligation OCM limit.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.

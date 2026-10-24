@@ -75,7 +75,10 @@ Non-goals:
   `policy/rollback-exercise`, `policy/signing` and `policy/native-performance`; and
   `owner/toolchain-security-review`, `owner/tag`, `owner/publication` and `owner/promotion`. An
   unsupplied row MUST be recorded as NOT_RUN "evidence not supplied", or as FALLBACK for a platform
-  row. Evidence for an unknown or builder-owned row MUST be refused.
+  row. Evidence for an unknown or builder-owned row MUST be refused. For every version except
+  `1.0.0-rc.1` and `1.0.0-rc.2`, the catalogue ends with `gate/cem-release-gate`, which must be PASS
+  over a READY cem-release-gate outcome for the candidate commit (amended by cross-reference,
+  `CEM-V1-614` in `docs/specs/cem-stable-v1.md`, proposed).
 - `SRR-V1-006`: PASS and FAIL MUST carry the SHA-256 of an operator-named regular file. NOT_RUN MUST
   carry no digest, and MUST carry an accepting four-digit decision or a reason. FALLBACK is admitted
   only on platform rows, with a decision or a reason. The verifier MUST recompute every recorded
@@ -170,6 +173,7 @@ Non-goals:
 | Candidate fails `VerifyContext` | Builder and verifier refuse; no record (SRR-V1-002). |
 | Source root lacks the commit, or its VERSION or build number differs | Builder refuses (SRR-V1-002). |
 | Gate log not supplied | Row is NOT_RUN "evidence not supplied"; never PASS (SRR-V1-005). |
+| cem-release-gate outcome missing, REFUSED, for another commit or malformed | Builder and verifier refuse the candidate (CEM-V1-614, after rc.2). |
 | Evidence file changed after the record was built | Verifier refuses on the digest mismatch (SRR-V1-006). |
 | Core `go.mod` gains a `require`, or the local toolchain drifts | Vulnerability status FAIL (SRR-V1-008). |
 | Record edited to claim a tag, signing or PASS without evidence | Verifier refuses (SRR-V1-006, 009, 010). |

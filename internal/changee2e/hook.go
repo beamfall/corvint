@@ -102,7 +102,7 @@ func runControl(ctx context.Context, inv behaviorfalsify.Invocation) (behaviorfa
 	if err != nil {
 		return r, err
 	}
-	perturbed, err := perturbLine(text, line, inv.Control.Kind, def["locator"], def["matcher"], def["value"], def["replacement"])
+	perturbed, err := perturbLine(text, line, inv.Control.Kind, def["locator_form"], def["locator"], def["matcher"], def["value"], def["replacement"])
 	if err != nil {
 		return r, err
 	}
@@ -116,7 +116,7 @@ func runControl(ctx context.Context, inv behaviorfalsify.Invocation) (behaviorfa
 	receipt, runErr := runPlaywright(ctx, runInput{Tree: tree, AppIdentity: inv.Target.ApplicationRevision, Placement: def["file"],
 		Repeats: 1, NodeModules: resolvedModules, RunnerVersion: inv.Runner.RunnerVersion,
 		PackageJSON: def["package_json"], Lockfile: def["lockfile"], Timeout: hookRunTimeout, Environment: environment,
-		ServeBin: def["serve_bin"], ServePath: def["serve_path"], Grep: def["grep"]})
+		ServeBin: def["serve_bin"], ServePath: def["serve_path"], Grep: def["grep"], SessionEnv: def["session_env"]})
 	digest, reason := qualify(receipt, runErr, 1, treeRoots(tree))
 	if reason != "" {
 		r.TestOutcome = "infrastructure_failed"
@@ -161,10 +161,11 @@ func infrastructureReason(ctx context.Context, r jstestprovider.Receipt) string 
 }
 
 // perturbLine replaces exactly one quoted locator (wrong-locator) or expected value
-// (wrong-expected-value) on the 1-based line, keeping the literal's quote style. For
+// (wrong-expected-value) on the 1-based line, keeping the literal's quote style; a typed locator's
+// accessible name is its locator, and a count is unquoted (CCE-V0-109, CCE-V0-110). For
 // omitted-event it replaces the awaited statement on the line with a comment, so every later
 // line, including the outcome assertion, keeps its number.
-func perturbLine(text []byte, line int, kind behaviorfalsify.ControlKind, locator, matcher, value, replacement string) ([]byte, error) {
+func perturbLine(text []byte, line int, kind behaviorfalsify.ControlKind, form, locator, matcher, value, replacement string) ([]byte, error) {
 	lines := strings.SplitAfter(string(text), "\n")
 	if line < 1 || line > len(lines) {
 		return nil, errors.New("e2e-hook-line-out-of-range")
@@ -174,21 +175,34 @@ func perturbLine(text []byte, line int, kind behaviorfalsify.ControlKind, locato
 	case behaviorfalsify.OmittedEvent:
 		l := lines[line-1]
 		body := strings.TrimLeft(l, " ")
+		indent := l[:len(l)-len(body)]
 		if !strings.HasPrefix(body, "await ") || strings.Contains(body, "expect(") {
 			return nil, errors.New("e2e-hook-event-not-found")
 		}
-		indent := l[:len(l)-len(body)]
 		lines[line-1] = indent + "// corvint-test e2e prove: omitted-event control\n"
 		return []byte(strings.Join(lines, "")), nil
 	case behaviorfalsify.WrongLocator:
 		prefix, original = "getByTestId(", locator
+		switch form {
+		case "role":
+			prefix = "name: "
+		case "label":
+			prefix = "getByLabel("
+		case "":
+		default:
+			return nil, fmt.Errorf("e2e-hook-locator-form-unsupported: %s", form)
+		}
 	case behaviorfalsify.WrongExpectedValue:
 		prefix, original = "."+matcher+"(", value
 	default:
 		return nil, fmt.Errorf("e2e-hook-kind-unsupported: %s", kind)
 	}
 	l := lines[line-1]
-	for _, quote := range []func(string) string{jsString, jsonQuoted} {
+	quotes := []func(string) string{jsString, jsonQuoted}
+	if kind == behaviorfalsify.WrongExpectedValue && matcher == MatcherCount {
+		quotes = []func(string) string{func(s string) string { return s + ")" }}
+	}
+	for _, quote := range quotes {
 		old, repl := prefix+quote(original), prefix+quote(replacement)
 		if strings.Count(l, old) == 1 {
 			lines[line-1] = strings.Replace(l, old, repl, 1)

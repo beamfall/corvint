@@ -3912,5 +3912,17 @@
       "internal/perfbudget",
       "internal/procprofile"
     ]
+  },
+  {
+    "path": "docs/specs/corvint-tasks-lease-gate-latency-v0.md",
+    "title": "Corvint Tasks lease-gate latency V0",
+    "reqPrefix": "LGL-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Lease rounds skip the cleanup lock on a ready writer route, keep fdinfo files open and parse each canonical ticket once.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

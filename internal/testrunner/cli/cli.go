@@ -20,7 +20,7 @@ import (
 )
 
 // PlanProfile is the plan document profile ID; it is unchanged by the fold (CTF-V0-003).
-const PlanProfile = "corvint-test-runner-plan/0"
+const PlanProfile = tr.PlanProfile
 
 type plan = tr.PlanDocument
 type receipt = tr.ReceiptDocument

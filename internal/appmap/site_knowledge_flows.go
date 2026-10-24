@@ -219,7 +219,11 @@ func (k *SKModel) flowTest(t SKTest, idx *screenIndex, records map[string]bool) 
 			if s.Kind == StepAssert {
 				o := SKFlowOutcome{Matcher: s.Matcher, Expected: s.Expected, Target: s.Target, Slotted: len(s.Slots) > 0}
 				if s.Locator != nil {
+					// The full selector identity: a name distinguishes two locators of one role (SKH-V0-140).
 					o.Locator = s.Locator.Kind + "=" + s.Locator.Value
+					if s.Locator.Name != "" {
+						o.Locator += " name=" + s.Locator.Name
+					}
 				}
 				ft.outcomes = append(ft.outcomes, o)
 			}

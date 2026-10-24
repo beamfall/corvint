@@ -20,7 +20,7 @@ solution that is a perfect additional and use case for corvint".
 
 ## Agent digest
 - Claim: Reviewed E2E blocks compile into change-specific scenarios that must discriminate the change; hosted tests retire only after a shadow evaluation.
-- Status: accepted (owner, 2026-10-22); experimental; CCE-V0-026..054 accepted under the standing auto-accept (2026-10-11). First slice V1-1665 implements CCE-V0-001, 002, 004..009 and 015 in `internal/changee2e` behind `corvint-test e2e` with focused tests and a live Playwright qualification (Node v22.23.2); CCE-V0-003 is partial (one hand-written declarations file). The 2026-10-17 panel amendment adds CCE-V0-016..025 and amends 003, 004, 009, 011 and 012. Implemented: the CCE-V0-021 environment block (V1-1681 serve part), the obligations soundness of CCE-V0-019/020 with the amended 004 base join (V1-1678), and (2026-10-22 lane) the amended 009 ladder, 016 `oracle_origin`, 017 head test tree, 018 structure controls, 024 `outcome-vacuous`, the offline fake runner and the 011/012 shadow report over a recorded window (CCE-V0-026..033; V1-1679, V1-1680, V1-1682, V1-1687). The 2026-10-22 lane 1022k implements the hosted-test prover CCE-V0-034..036 (offline and live), receipt-located assertions (PWP-V3-008), `cleanup-failed`, the 037 usefulness exclusion of `PRESERVES`, CCE-V0-010, 013 and the 014 byte cap (CCE-V0-039, 040), and the first V1 authoring slice (V1-1683): `e2e harvest`, the `.corvint/e2e-acceptances.json` ledger and the in-diff flag (CCE-V0-041..044), and the runtime-coverage reach source of V1-1685 (CCE-V0-045..047). Not implemented: CCE-V0-022/023/025 and the rest of 024; NOT_RUN: the 038 actualbudget rerun and any adopter window. Lane cce2-1022u attributes a located worker teardown failure as `teardown-failed` (CCE-V0-048, PWP-V3-009) and records how a hosted run's config differs from the adopter's (CCE-V0-049), binds harvested proposals to a map flow or screen (CCE-V0-050), lifts the edited-oracle cap only through a recorded independent acceptance (CCE-V0-051) proposes, never applies, a locator repair (CCE-V0-052), records the head pool's served paths per screen for `--coverage` (CCE-V0-053) and widens reach through the head tree's TJAA module graph behind `--module-graph` (CCE-V0-054). CCE-V0-086 (V1-1711) resolves a relative `--root`. CCE-V0-087 (V1-2427) attributes a control run's teardown failure like a side's; CCE-V0-088 (V1-2428) lets `e2e harvest --manifest` read a configured map path. The 2026-10-24 lane p1-cce proposes CCE-V0-100..104: offline replay of recorded side receipts and a live-required switch (V1-1687), `--ledger` bound to the impact relation (V1-1685) and path synthesis over proven ledger edges (V1-1684). Everything ships as the `e2e` group of one experimental companion, `corvint-test`; V0 adds nothing to core `corvint`.
+- Status: accepted (owner, 2026-10-22); experimental; CCE-V0-026..054 accepted under the standing auto-accept (2026-10-11). First slice V1-1665 implements CCE-V0-001, 002, 004..009 and 015 in `internal/changee2e` behind `corvint-test e2e` with focused tests and a live Playwright qualification (Node v22.23.2); CCE-V0-003 is partial (one hand-written declarations file). The 2026-10-17 panel amendment adds CCE-V0-016..025 and amends 003, 004, 009, 011 and 012. Implemented: the CCE-V0-021 environment block (V1-1681 serve part), the obligations soundness of CCE-V0-019/020 with the amended 004 base join (V1-1678), and (2026-10-22 lane) the amended 009 ladder, 016 `oracle_origin`, 017 head test tree, 018 structure controls, 024 `outcome-vacuous`, the offline fake runner and the 011/012 shadow report over a recorded window (CCE-V0-026..033; V1-1679, V1-1680, V1-1682, V1-1687). The 2026-10-22 lane 1022k implements the hosted-test prover CCE-V0-034..036 (offline and live), receipt-located assertions (PWP-V3-008), `cleanup-failed`, the 037 usefulness exclusion of `PRESERVES`, CCE-V0-010, 013 and the 014 byte cap (CCE-V0-039, 040), and the first V1 authoring slice (V1-1683): `e2e harvest`, the `.corvint/e2e-acceptances.json` ledger and the in-diff flag (CCE-V0-041..044), and the runtime-coverage reach source of V1-1685 (CCE-V0-045..047). Not implemented: CCE-V0-022/023/025 and the rest of 024; NOT_RUN: the 038 actualbudget rerun and any adopter window. Lane cce2-1022u attributes a located worker teardown failure as `teardown-failed` (CCE-V0-048, PWP-V3-009) and records how a hosted run's config differs from the adopter's (CCE-V0-049), binds harvested proposals to a map flow or screen (CCE-V0-050), lifts the edited-oracle cap only through a recorded independent acceptance (CCE-V0-051) proposes, never applies, a locator repair (CCE-V0-052), records the head pool's served paths per screen for `--coverage` (CCE-V0-053) and widens reach through the head tree's TJAA module graph behind `--module-graph` (CCE-V0-054). CCE-V0-086 (V1-1711) resolves a relative `--root`. CCE-V0-087 (V1-2427) attributes a control run's teardown failure like a side's; CCE-V0-088 (V1-2428) lets `e2e harvest --manifest` read a configured map path. The 2026-10-24 lane p1-cce proposes CCE-V0-100..104: offline replay of recorded side receipts and a live-required switch (V1-1687), `--ledger` bound to the impact relation (V1-1685) and path synthesis over proven ledger edges (V1-1684). Lane p1-cce-2 proposes CCE-V0-105..115: the rest of the V1-1684 block vocabulary (fixture outputs and data flow, sessions, `base.extend` teardown, role and label locators, accessible-name and count assertions, declared routes, `test.step` with trace, goldens at `corvint-test-e2e-compile/1`) and the V1-1685 API contract join with the no-`UNKNOWN`-to-`NONE` property. Everything ships as the `e2e` group of one experimental companion, `corvint-test`; V0 adds nothing to core `corvint`.
 - Exists: `cmd/corvint-test` (`e2e catalog|harvest|obligations|compile|prove|shadow`) over `internal/changee2e`. It composes the existing AMAP-V0 map and scaffold, AMSP-V0 planner, AFU-V1 declared outcomes, ANL-V0 proven edges, RVN-V0 run verification, PWR-V0 run comparison and NEA-V0/BBF-V0 negative controls.
 - Blocked on: the CCE-V0-038 external rerun (V1-1733); an adopter shadow window of at least 30 recorded entries (external; umbrella V1-1666); the rest of the companion fold (V1-1667, planned in `docs/specs/corvint-test-fold-v0.md`; groups 1 to 3 have moved and groups 4 to 6 remain).
 - Read next: User and measurable job; Definitions; Requirements (016..033); Shadow evaluation and retirement; Beyond V0; Owner questions.
@@ -749,6 +749,108 @@ the new members reads as before.
   receipt-less edge; a generated navigation statement; a hop whose crossing ran under a fixture the
   scenario does not set up.
 
+The 2026-10-24 CCE V1 lane p1-cce-2 (V1-1684 block vocabulary, V1-1685 API contract reach) adds
+CCE-V0-105..115, proposed and experimental under the standing auto-accept of 2026-10-11 until the
+owner accepts them. Every new declarations member is optional: a `.corvint/e2e-blocks.json` without
+them reads exactly as before, and a binary without this slice refuses a file that uses them
+(`e2e-blocks-invalid`, closed decoding), never silently ignores it. Compiled scenarios are never
+committed, so no stored state migrates; rollback is to remove the members' code and tests and
+restore `CompilerVersion` `corvint-test-e2e-compile/0`, after which a recording made under `/1`
+refuses as CCE-V0-100 defines.
+
+- `CCE-V0-105`: A declared fixture MAY name `outputs`, at most eight lower-camel identifiers, each
+  once. Its setup method's return value is the fixture value: the compiled fixture throws
+  `corvint-e2e fixture-output-missing NAME` before the test body runs when an output is undefined,
+  and otherwise passes the value to the test. A name outside the identifier form, a repeat, an empty
+  name or a ninth output refuses `e2e-blocks-invalid`. Failure mode: a later block reads an output
+  the setup never produced and the scenario fails for a seeding reason that reads as behaviour.
+  Acceptance: `TestCCEV0105FixtureOutputs`.
+- `CCE-V0-106`: Data MUST flow between blocks only through a declared output: a route parameter
+  bound to `fixture` and `output` renders `encodeURIComponent(String(fxN.output))` in the entry URL,
+  where `fxN` is that fixture as the scenario sets it up. A scenario whose flow does not set the
+  fixture's precondition misses its path block with `route-param-unbound:NAME`; a route naming an
+  unadmitted fixture keeps its entry unadmitted with `route-fixture-unadmitted`, and one naming an
+  output the fixture does not declare with `route-output-undeclared`. Failure mode: a URL reads a
+  value no block in the scenario produces. Acceptance: `TestCCEV0106OutputDataFlow`.
+- `CCE-V0-107`: A declared `session` (`session_id` in the `session:` namespace, non-empty
+  `satisfies`, `storage_state_env`) satisfies a flow precondition no fixture satisfies. The compiled
+  scenario runs under `test.use({ storageState: process.env.VAR })` and a file-level
+  `test.skip(!process.env.VAR, 'corvint-e2e session-unset VAR')`, its blocks name the session, and
+  the run environment declares `VAR` (its value recorded in the receipt) only when it is set, so a
+  storage-state path never enters the scenario text. Two sessions in one scenario miss with
+  `session-conflict`. A variable outside `^[A-Z_][A-Z0-9_]{0,63}$`, a reserved runner variable, a
+  `CORVINT_` name, a repeated or non-`session:` ID and an empty `satisfies` refuse
+  `e2e-blocks-invalid`. Failure modes: a signed-in scenario runs signed out and fails for that
+  reason; a session path or secret is written into a generated file. Acceptance:
+  `TestCCEV0107Session`.
+- `CCE-V0-108`: Every fixture MUST compile to a Playwright `base.extend` fixture: setup before
+  `use`, the declared cleanup method (callable, so with no parameters, reading its state from the
+  page object) after it, so teardown runs whatever the test body does; for a setup with outputs the
+  output check and `use` sit in a `try` whose `finally` runs cleanup, so a missing output still
+  tears down. One test-scoped `po` fixture builds each page-object class once, and every fixture
+  and the test body read their instances from it, so setup, actions and cleanup share one instance
+  per class. A failure located at the
+  cleanup call reads `cleanup-failed`, not an assertion. Only a setup without outputs is an
+  omitted-event control: removing a setup whose outputs later blocks read fails by construction,
+  which would not show the setup's effect is load-bearing, so that control is not generated and
+  the prove limitations say so. Failure modes: a teardown is skipped after a failing step; a vacuous
+  kill counts as control evidence. Acceptance: `TestCCEV0108Teardown`.
+- `CCE-V0-109`: A declared locator (`block` an outcome or input ID; `by` `role` with a lower-case
+  ARIA `role` and accessible `name`, or `label` with a `name` and no role) replaces the block's test
+  ID: `page.getByRole(ROLE, { name: NAME, exact: true })` or `page.getByLabel(NAME, { exact: true })`.
+  The wrong-locator control perturbs the accessible name in the declared form, and an unknown form
+  refuses the perturbation. A locator for a block the catalog does not admit is withheld with
+  `locator-block-unadmitted`; a malformed locator refuses `e2e-blocks-invalid` and a secret-shaped
+  name `e2e-input-secret`. The typed locator is part of the oracle: `oracle_origin` (CCE-V0-016)
+  compares the base declarations' locator for the outcome too, so adding, changing or removing one
+  in the diff reads `CHANGED_IN_DIFF`. Failure modes: a role locator silently falls back to a test
+  ID, or its control perturbs nothing; a diff rewrites an assertion's locator and keeps
+  `ADMITTED_AT_BASE`. Acceptance: `TestCCEV0109TypedLocators`.
+- `CCE-V0-110`: `toHaveAccessibleName` and `toHaveCount` MUST be admitted outcome matchers. A count
+  is a positive integer below one million rendered unquoted; its wrong-expected-value control is
+  the next integer. A zero count reads `outcome-vacuous` and a non-integer or negative count
+  `outcome-not-compilable`. Failure mode: a count assertion compares a string, or a zero count
+  passes on an empty page. Acceptance: `TestCCEV0110TypedAssertions`.
+- `CCE-V0-111`: A declared `route` MAY bind every required URL parameter of an entry whose only
+  catalog reason is `requires-parent-params`; each parameter is a constant `value` or a fixture
+  output, its names equal the entry's in order-free comparison, and constants are URI-encoded.
+  Without a route the entry keeps `requires-parent-params` and nothing is synthesized from an
+  unproven edge (CCE-V0-104 remains the only path synthesis). An entry that is deep-linkable or not
+  in the map reads `route-not-parameterised`, a guarded or otherwise unadmitted entry keeps its own
+  reason, and a name mismatch reads `route-params-mismatch`; each replaces the entry's earlier reason
+  rather than joining it. A parameter with both or neither binding, a non-identifier name or an
+  over-long value refuses `e2e-blocks-invalid`, and a secret-shaped value `e2e-input-secret`.
+  Failure mode: a guarded or unproven screen compiles as directly reachable. Acceptance:
+  `TestCCEV0111ParameterisedRoutes`.
+- `CCE-V0-112`: Every compiled action MUST be a `test.step` named by its block ID, the scenario MUST
+  set `trace: 'retain-on-failure'`, and the compile entry MUST list each step's line and block
+  (`steps`). Failure mode: a failing action cannot be traced to the block that emitted it.
+  Acceptance: `TestCCEV0112StepsAndTrace`.
+- `CCE-V0-113`: Each vocabulary addition MUST have a golden compile output under
+  `internal/changee2e/testdata/golden/` (plain, fixture output, count, and session plus route plus
+  role locator) whose `compiler` header equals `CompilerVersion` (`corvint-test-e2e-compile/1`),
+  with only the revision and digest header lines normalised; `go test -cce-write-golden` regenerates
+  them. A golden made by another compiler fails until regenerated, as a CCE-V0-100 recording does.
+  Failure mode: a rendering change ships without a reviewed output diff. Acceptance:
+  `TestCCEV0113GoldenCompile`.
+- `CCE-V0-114`: `api_contracts` at base (each a `contract:` ID, one or more relative path globs and
+  an absolute endpoint literal of at most 256 bytes without quotes or whitespace) MUST join a changed
+  path matching a glob to each screen that places a head-tree file naming the endpoint (not followed
+  by an identifier byte), with basis `api-contract:CONTRACT:FILE` in the chain and
+  `e2e-blocks:api_contracts@base` among the consulted relations. The join only widens reach: hits
+  are not counted as placed, a pair impact or another source already reached is not repeated, a hit
+  on a screen without an outcome adds no span, a contract the diff itself declares joins nothing,
+  and over 512 placed files the join adds nothing. A malformed contract refuses
+  `e2e-blocks-invalid`. Failure modes: a backend change reads `NONE` because no file imports it; a
+  diff widens or narrows its own reach. Acceptance: `TestCCEV0114APIContractWidensReach`.
+- `CCE-V0-115`: A reach source MUST NOT turn `UNKNOWN` into `NONE`: with runtime coverage naming a
+  changed path on every screen, the module graph and an API contract join all on, every unknown span
+  of the report without them is still an unknown span (its one reason may be restated by the ranked
+  CCE-V0-020 order, never dropped) and the state reads `UNKNOWN`. Failure mode: a widening source
+  that also places a path removes the span that kept the report honest. Acceptance:
+  `TestCCEV0115NoReachSourceTurnsUnknownToNone`, with `TestCCEV0046CoverageOnlyWidensReach` and
+  `TestCCEV0054ModuleGraphWidensReach` for each source alone.
+
 ## Shadow evaluation and retirement
 
 The frozen V0 gate values, which only an owner decision may change:
@@ -869,6 +971,17 @@ row's status says what is delivered.
 | CCE-V0-102 | a required live run fails without its toolchain | V1-1687 | PASS: `TestCCEV0102LiveRequiredFails` (unset and `1` skip, `required` fails); `make cce-live` is NOT_RUN. CI job: NEEDS-OWNER (`.github`) |
 | CCE-V0-103 | bound ledger consulted without changing reach; each binding mismatch refuses | V1-1685 | PASS: `TestCCEV0103LedgerBoundToImpact` (library and compile), `TestCCEV0103LedgerFlag` (CLI `obligations` and `compile`), `TestCCEV0034HostedTestFlag` (hosted `--ledger` refusal) |
 | CCE-V0-104 | path synthesis over proven ledger edges only; every hop abstention named | V1-1684 | PASS: `TestCCEV0104ProvenPathSynthesis` (a tee-sheet flow compiles from `/#!/home` through `goToTeeSheets`; without a ledger or a set precondition it stays `INCOMPLETE`; the existing scenario is byte-identical; evidence, prefix, entry and edge abstentions) |
+| CCE-V0-105 | fixture outputs checked and handed on; malformed outputs refuse | V1-1684 | PASS offline (darwin/arm64 and linux/WSL2): `TestCCEV0105FixtureOutputs` |
+| CCE-V0-106 | entry URL reads a fixture output; unbound, unadmitted and undeclared bindings named | V1-1684 | PASS offline: `TestCCEV0106OutputDataFlow` |
+| CCE-V0-107 | session storage state and skip; conflict; env declared only when set; malformed sessions refuse | V1-1684 | PASS offline: `TestCCEV0107Session`; live storage-state run NOT_RUN |
+| CCE-V0-108 | `base.extend` teardown after `use`, in `finally` past an output check; shared `po` page objects; cleanup failure attributed; output setup not a control | V1-1684 | PASS offline: `TestCCEV0108Teardown`, `TestCCEV0018OmittedEventControls`; live teardown NOT_RUN |
+| CCE-V0-109 | role and label locators and their wrong-locator controls; locator change reads `CHANGED_IN_DIFF`; unadmitted and malformed locators | V1-1684 | PASS offline: `TestCCEV0109TypedLocators` |
+| CCE-V0-110 | accessible-name and count matchers; count control; vacuous and non-integer counts | V1-1684 | PASS offline: `TestCCEV0110TypedAssertions` |
+| CCE-V0-111 | declared routes bind parameterised entries; no synthesis without a proven edge; each mismatch named | V1-1684 | PASS offline: `TestCCEV0111ParameterisedRoutes` |
+| CCE-V0-112 | named `test.step` per action, trace on failure, `steps` in the entry | V1-1684 | PASS offline: `TestCCEV0112StepsAndTrace` |
+| CCE-V0-113 | golden compile outputs pinned to `CompilerVersion` | V1-1684 | PASS offline: `TestCCEV0113GoldenCompile` (four goldens at `corvint-test-e2e-compile/1`); recordings regenerated at `/1` (`TestCCEV0100ReplayRecordedReceipts`) |
+| CCE-V0-114 | base-declared API contract widens reach only | V1-1685 | PASS offline: `TestCCEV0114APIContractWidensReach` |
+| CCE-V0-115 | no reach source, alone or combined, turns `UNKNOWN` into `NONE` | V1-1685 | PASS offline: `TestCCEV0115NoReachSourceTurnsUnknownToNone`, `TestCCEV0046CoverageOnlyWidensReach`, `TestCCEV0054ModuleGraphWidensReach` |
 | CCE-V0-049 | hosted proof lists the adopter-config keys the prove config does not apply | V1-2409 | PASS: `TestCCEV0049HostedRunnerConfigDeviation` (an adopter config with `retries: 2`, `workers: 4`, `globalSetup`, `storageState`, a `baseURL` and projects; Playwright defaults when no config exists; a spread config read partially; failed with the proof wiring removed) |
 | CCE-V0-051 | a CHANGED_IN_DIFF verdict lifts the cap only through an independent, digest-bound acceptance recorded outside the repository | V1-2413 | PASS: `TestCCEV0051OracleAcceptance` (independent acceptance lifts DISCRIMINATES unscored; head author by name or email, a stale digest and no document keep the cap; an admitted scenario ignores it; failed with the lift removed), `TestCCEV0051OracleAcceptanceRefusals`, `TestCCEV0051OracleAcceptanceFlag` |
 | CCE-V0-052 | an unresolved outcome locator gets a proposed, never applied, data-testid rename with diff evidence | V1-2413 | PASS: `TestCCEV0052LocatorRepairProposal` (proposed `slot-state` with the line pair, verdict unchanged; value mismatch proposes nothing; ambiguous and no-rename; failed with the proposal removed) |

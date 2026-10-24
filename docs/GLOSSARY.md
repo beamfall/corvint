@@ -377,7 +377,7 @@ declared relations are those involving rank 30, which no surface previously orde
 
 The first two are enumerable and bounded by exactly one declared input. The third is a standing
 property of the repository, is not enumerable as items, and is also a programme name
-(`docs/specs/README.md:76@b5ba0a4e`, "Unknown Frontier outcome gate"). `docs/ARCHITECTURE.md:82@311e28e5` and `:198@16bd8a01`
+(`docs/specs/README.md:77@b5ba0a4e`, "Unknown Frontier outcome gate"). `docs/ARCHITECTURE.md:82@311e28e5` and `:198@16bd8a01`
 are not the same set either: `:82@311e28e5` is the complement of one certificate, `:198@16bd8a01` is the repository
 residue.
 

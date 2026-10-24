@@ -268,12 +268,39 @@ func rubyTarget(arg string) (string, string, bool) {
 		return arg[1 : len(arg)-1], "url", false
 	}
 	if m := skHelper.FindStringSubmatch(arg); m != nil {
+		// The helper call must be the whole argument: `order_path(o) + '/edit'` is dynamic (SKH-V0-141).
 		rest := strings.TrimSpace(arg[len(m[0]):])
-		if rest == "" || strings.HasPrefix(rest, "(") {
+		if rest == "" || strings.HasPrefix(rest, "(") && rubyCloseParen(rest) == len(rest)-1 {
 			return m[1], "helper", false
 		}
 	}
 	return "", "", true
+}
+
+// rubyCloseParen returns the index of the parenthesis that closes s[0], skipping quoted strings,
+// or -1 when it is unbalanced.
+func rubyCloseParen(s string) int {
+	depth := 0
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; c {
+		case '"', '\'':
+			for i++; i < len(s) && s[i] != c; i++ {
+				if s[i] == '\\' {
+					i++
+				}
+			}
+			if i >= len(s) {
+				return -1
+			}
+		case '(':
+			depth++
+		case ')':
+			if depth--; depth == 0 {
+				return i
+			}
+		}
+	}
+	return -1
 }
 
 // rubyLinks reads link_to, button_to, redirect_to, form_with url: and form_tag in Ruby or ERB.
@@ -334,6 +361,57 @@ func rubyLinks(code, raw []string) []skLinkSite {
 	return out
 }
 
+// maskComments blanks every open..close comment span, keeping newlines so that line numbers
+// still match the committed bytes; an unclosed span runs to the end of the text.
+func maskComments(text, open, close string) string {
+	b := []byte(text)
+	for i := 0; ; {
+		start := strings.Index(text[i:], open)
+		if start < 0 {
+			return string(b)
+		}
+		start += i
+		end := len(text)
+		if e := strings.Index(text[start+len(open):], close); e >= 0 {
+			end = start + len(open) + e + len(close)
+		}
+		for j := start; j < end; j++ {
+			if b[j] != '\n' {
+				b[j] = ' '
+			}
+		}
+		i = end
+	}
+}
+
+// jsCodeAt reports whether byte pos of one source line is code: not inside a string literal or
+// a comment opened earlier on the line.
+func jsCodeAt(line string, pos int) bool {
+	var quote byte
+	for i := 0; i < pos && i < len(line); i++ {
+		c := line[i]
+		switch {
+		case quote != 0:
+			if c == '\\' {
+				i++
+			} else if c == quote {
+				quote = 0
+			}
+		case c == '"' || c == '\'' || c == '`':
+			quote = c
+		case c == '/' && i+1 < len(line) && line[i+1] == '/':
+			return false
+		case c == '/' && i+1 < len(line) && line[i+1] == '*':
+			e := strings.Index(line[i+2:], "*/")
+			if e < 0 || i+2+e+2 > pos {
+				return false
+			}
+			i += 2 + e + 1
+		}
+	}
+	return quote == 0
+}
+
 // scriptLinks reads programmatic navigation from JavaScript and TypeScript tokens' source lines.
 func scriptLinks(text string) []skLinkSite {
 	out := []skLinkSite{}
@@ -343,6 +421,9 @@ func scriptLinks(text string) []skLinkSite {
 			continue
 		}
 		for _, mm := range skNavCall.FindAllStringSubmatchIndex(line, -1) {
+			if !jsCodeAt(line, mm[1]-1) {
+				continue // inside a string literal or after a comment opener
+			}
 			if strings.HasSuffix(strings.TrimSpace(line[:mm[0]+1]), "function") {
 				continue // a declaration, not a call
 			}
@@ -472,7 +553,49 @@ func Links(ctx context.Context, m *Map, sources []string, o Options) ([]byte, er
 	if err != nil {
 		return nil, err
 	}
-	unsupported := []SKUnknown{}
+	static, edges, unsupported, files, skipped, err := buildLinks(ctx, m, sources, o)
+	if err != nil {
+		return nil, err
+	}
+	kinds, reasons, resolved, fromBound, alsoObserved := map[string]int{}, map[string]int{}, 0, 0, 0
+	for _, e := range static {
+		kinds[e.Kind]++
+		if e.Status == StatusResolved {
+			resolved++
+		} else {
+			reasons[e.Reason]++
+		}
+		if e.FromStatus == StatusResolved {
+			fromBound++
+		}
+		if e.Observed {
+			alsoObserved++
+		}
+	}
+	provenance := map[string]int{ProvenanceStatic: len(static)}
+	for _, e := range edges {
+		provenance[e.Provenance]++
+	}
+	items := make([]any, 0, len(static)+len(edges))
+	for _, e := range append(static, edges...) {
+		items = append(items, e)
+	}
+	unknowns := make([]any, len(unsupported))
+	for i, u := range unsupported {
+		unknowns[i] = u
+	}
+	head := []field{{"schema", EdgesSchema}, {"app", m.App}, {"map_revision", m.Revision}, {"map_digest", m.Digest},
+		{"budget", budget}, {"full", o.Full}, {"authority", skAuthority}, {"limits", staticEdgesLimit}, {"sources", sources},
+		{"files_read", files}, {"files_skipped", skipped}, {"provenance", provenance}, {"static_kinds", kinds},
+		{"static_resolved", resolved}, {"static_from_bound", fromBound}, {"static_unknown_reasons", reasons},
+		{"static_also_observed", alsoObserved}, {"ledger", "flows appmap edges"}, {"unknowns_total", len(unsupported)}}
+	return render(head, []section{{"edges", items}, {"unknowns", unknowns}}, budget)
+}
+
+// buildLinks reads the declared sources' static links and the map's test-observed and
+// flow-declared edges (SKH-V0-110..116); Links prints them and How admits them (SKH-V0-145).
+func buildLinks(ctx context.Context, m *Map, sources []string, o Options) (static, edges []SKEdge, unsupported []SKUnknown, files, skipped int, err error) {
+	unsupported = []SKUnknown{}
 	in, _, skipped, err := readSKSources(ctx, m, sources, o, func(p string) bool {
 		ext := strings.ToLower(path.Ext(p))
 		if skUnsupportedTemplate[ext] {
@@ -482,16 +605,16 @@ func Links(ctx context.Context, m *Map, sources []string, o Options) ([]byte, er
 		return (webSuffix[ext] || skTemplateSuffix[ext]) && !strings.HasSuffix(p, ".d.ts")
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, 0, 0, err
 	}
 	r := repo{ctx: ctx, root: o.Root}
 	views, err := readViewScreens(r, m)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, 0, 0, err
 	}
 	idx := newScreenIndex(m.HashPrefix, m.Screens)
 	observed := map[string]bool{}
-	edges := []SKEdge{}
+	edges = []SKEdge{}
 	for _, e := range m.Edges {
 		prov := ProvenanceTestObserved
 		if e.Basis == "flow-step" {
@@ -504,10 +627,16 @@ func Links(ctx context.Context, m *Map, sources []string, o Options) ([]byte, er
 			Provenance: prov, Kind: e.Basis, From: e.From, FromStatus: StatusResolved, To: e.To, Status: StatusResolved,
 			Source: e.Source, Authority: skAuthority, Anchor: e.Anchor})
 	}
-	static := []SKEdge{}
+	static = []SKEdge{}
 	for _, src := range in {
 		p, text := src.entry.path, string(src.data)
 		ext := strings.ToLower(path.Ext(p))
+		if ext == ".html" || ext == ".htm" || ext == ".erb" || ext == ".vue" {
+			text = maskComments(text, "<!--", "-->")
+		}
+		if ext == ".erb" {
+			text = maskComments(text, "<%#", "%>")
+		}
 		sites := []skLinkSite{}
 		var defs []*rubyDef
 		switch {
@@ -555,43 +684,11 @@ func Links(ctx context.Context, m *Map, sources []string, o Options) ([]byte, er
 			e.ID = "edge:" + skDigest(e.Provenance, e.Kind, p, strconv.Itoa(site.line), e.Target, strconv.Itoa(len(static)))
 			static = append(static, e)
 			if len(static) > maxStaticEdges {
-				return nil, bound("declared sources hold more than " + strconv.Itoa(maxStaticEdges) + " static links")
+				return nil, nil, nil, 0, 0, bound("declared sources hold more than " + strconv.Itoa(maxStaticEdges) + " static links")
 			}
 		}
 	}
-	kinds, reasons, resolved, fromBound, alsoObserved := map[string]int{}, map[string]int{}, 0, 0, 0
-	for _, e := range static {
-		kinds[e.Kind]++
-		if e.Status == StatusResolved {
-			resolved++
-		} else {
-			reasons[e.Reason]++
-		}
-		if e.FromStatus == StatusResolved {
-			fromBound++
-		}
-		if e.Observed {
-			alsoObserved++
-		}
-	}
-	provenance := map[string]int{ProvenanceStatic: len(static)}
-	for _, e := range edges {
-		provenance[e.Provenance]++
-	}
-	items := make([]any, 0, len(static)+len(edges))
-	for _, e := range append(static, edges...) {
-		items = append(items, e)
-	}
-	unknowns := make([]any, len(unsupported))
-	for i, u := range unsupported {
-		unknowns[i] = u
-	}
-	head := []field{{"schema", EdgesSchema}, {"app", m.App}, {"map_revision", m.Revision}, {"map_digest", m.Digest},
-		{"budget", budget}, {"full", o.Full}, {"authority", skAuthority}, {"limits", staticEdgesLimit}, {"sources", sources},
-		{"files_read", len(in)}, {"files_skipped", skipped}, {"provenance", provenance}, {"static_kinds", kinds},
-		{"static_resolved", resolved}, {"static_from_bound", fromBound}, {"static_unknown_reasons", reasons},
-		{"static_also_observed", alsoObserved}, {"ledger", "flows appmap edges"}, {"unknowns_total", len(unsupported)}}
-	return render(head, []section{{"edges", items}, {"unknowns", unknowns}}, budget)
+	return static, edges, unsupported, len(in), skipped, nil
 }
 
 // fromScreen names the screen a source file renders: a Rails view by its path, a controller line

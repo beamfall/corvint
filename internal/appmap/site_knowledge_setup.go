@@ -126,6 +126,10 @@ type skSetupReader struct {
 	// directory of the config that declares the project, which scopes what it selects.
 	projectRegex map[string]bool
 	projectDir   map[string]string
+	// projectTestDir is the directory a setup project selects its files under; projectFilter
+	// marks one whose testIgnore or non-literal testDir the reader does not evaluate (SKH-V0-142).
+	projectTestDir map[string]string
+	projectFilter  map[string]bool
 }
 
 // extractSetup reads the setup records of every read TS/JS file and links each test to them.
@@ -717,10 +721,15 @@ func (r *skSetupReader) link(sf *skSetupFile) []SKSetupUse {
 			}
 		}
 		// A setup project runs before every test of a dependent project that does not narrow its
-		// tests; the setup files themselves are not arranged by it.
+		// tests; the setup files themselves are not arranged by it. A project whose file selection
+		// is UNKNOWN still arranges each test, so the dependency stays a gap rather than vanishing
+		// (SKH-V0-179).
 		for i := range r.out {
-			if s := r.out[i]; s.Kind == SetupProject && r.unrestricted[s.ID] && r.projectFiles[s.ID] != nil && !r.projectFiles[s.ID][f.path] &&
-				skUnder(f.path, r.projectDir[s.ID]) {
+			s := r.out[i]
+			if s.Kind != SetupProject || !r.unrestricted[s.ID] || !skUnder(f.path, r.projectDir[s.ID]) {
+				continue
+			}
+			if files := r.projectFiles[s.ID]; files != nil && !files[f.path] || files == nil && s.Status == StatusUnknown {
 				follow(s.ID, 0)
 			}
 		}
@@ -784,6 +793,8 @@ type skProject struct {
 	name, match, teardown string
 	regex, dynamic        bool
 	restricted            bool // testMatch, testDir, testIgnore or grep narrows the tests it runs
+	testDir               string
+	filtered              bool // a testIgnore or non-literal testDir narrows its files
 	deps                  []string
 	tok                   int
 }
@@ -835,13 +846,23 @@ func (r *skSetupReader) projects(sf *skSetupFile, open int) {
 				default:
 					p.dynamic = true
 				}
-			case "testDir", "testIgnore", "grep", "grepInvert":
+			case "testDir":
+				p.restricted = true
+				if literal(v) && next(toks, q+3, ",", "}") {
+					p.testDir = v.text
+				} else {
+					p.filtered = true
+				}
+			case "testIgnore":
+				p.restricted, p.filtered = true, true
+			case "grep", "grepInvert":
 				p.restricted = true
 			}
 		}
 		list = append(list, p)
 		k = close
 	}
+	topDir, topFiltered := skConfigTestDir(toks, open, end)
 	arranges, unrestricted := map[string][]string{}, map[string]bool{}
 	for _, p := range list {
 		for _, d := range p.deps {
@@ -870,9 +891,46 @@ func (r *skSetupReader) projects(sf *skSetupFile, open int) {
 		if r.unrestricted == nil {
 			r.unrestricted, r.projectRegex, r.projectDir = map[string]bool{}, map[string]bool{}, map[string]string{}
 		}
+		if r.projectTestDir == nil {
+			r.projectTestDir, r.projectFilter = map[string]string{}, map[string]bool{}
+		}
 		id := r.out[i].ID
 		r.unrestricted[id], r.projectRegex[id], r.projectDir[id] = unrestricted[p.name], p.regex, path.Dir(sf.f.path)
+		dir, filtered := p.testDir, p.filtered
+		if dir == "" && !filtered {
+			dir = topDir
+		}
+		dir = path.Join(path.Dir(sf.f.path), dir)
+		r.projectTestDir[id] = dir
+		r.projectFilter[id] = filtered || topFiltered || dir == ".." || strings.HasPrefix(dir, "../") || path.IsAbs(dir)
 	}
+}
+
+// skConfigTestDir reads the top-level testDir and testIgnore of a Playwright config outside its
+// projects list [open, end]: the literal testDir ("" when there is none), and whether a
+// testIgnore or non-literal testDir narrows the files of every project (SKH-V0-142).
+func skConfigTestDir(toks []token, open, end int) (string, bool) {
+	dir, filtered := "", false
+	for q := 1; q+2 < len(toks); q++ {
+		if q == open {
+			q = end
+			continue
+		}
+		if toks[q].kind != tokIdent || !next(toks, q+1, ":") || !next(toks, q-1, "{", ",") {
+			continue
+		}
+		switch toks[q].text {
+		case "testDir":
+			if v := toks[q+2]; literal(v) && next(toks, q+3, ",", "}") && dir == "" {
+				dir = v.text
+			} else {
+				filtered = true
+			}
+		case "testIgnore":
+			filtered = true
+		}
+	}
+	return dir, filtered
 }
 
 // skTestMatch compiles a setup project's testMatch: a flag-free or `i` regular expression literal,
@@ -923,6 +981,10 @@ func (r *skSetupReader) resolveProjects(paths []string) {
 		if s.Kind != SetupProject || s.Target == "" {
 			continue
 		}
+		if r.projectFilter[s.ID] {
+			s.Status, s.Reason = StatusUnknown, "unsupported-test-filter"
+			continue
+		}
 		match, ok := skTestMatch(s.Target, r.projectRegex[s.ID])
 		if !ok {
 			s.Status, s.Reason = StatusUnknown, "unsupported-test-match"
@@ -930,7 +992,7 @@ func (r *skSetupReader) resolveProjects(paths []string) {
 		}
 		files := map[string]bool{}
 		for _, p := range paths {
-			if skUnder(p, r.projectDir[s.ID]) && match(p) {
+			if skUnder(p, r.projectTestDir[s.ID]) && match(p) {
 				files[p] = true
 			}
 		}

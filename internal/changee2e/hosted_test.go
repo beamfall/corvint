@@ -122,7 +122,7 @@ func TestCCEV0036HostedControls(t *testing.T) {
 	if len(specs) != 1 || specs[0].id != "control:omitted-event:step-1" || specs[0].kind != behaviorfalsify.OmittedEvent || specs[0].line != 14 {
 		t.Fatalf("controls %+v", specs)
 	}
-	out, err := perturbLine(sc.Text, specs[0].line, specs[0].kind, "", "", "", specs[0].replacement)
+	out, err := perturbLine(sc.Text, specs[0].line, specs[0].kind, "", "", "", "", specs[0].replacement)
 	if err != nil || strings.Contains(string(out), "await sheet.book();\n  await expect(page.getByTestId('slot-status'))") {
 		t.Fatalf("perturb: %v", err)
 	}
