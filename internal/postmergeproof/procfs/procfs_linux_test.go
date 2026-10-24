@@ -73,6 +73,10 @@ func TestPMRV2011SweepBoundCountsOnlyListedEntries(t *testing.T) {
 		t.Fatalf("bound 2 over two listed PIDs: %v", err)
 	}
 	s = Sweep{}
+	if err := sweepNames(context.Background(), &s, []string{"1", "3", "2"}, 2, readStat, lstat); err != nil {
+		t.Fatalf("bound 2 with a trailing vanished PID: %v", err)
+	}
+	s = Sweep{}
 	if err := sweepNames(context.Background(), &s, []string{"1", "2", "3", "4"}, 2, readStat, lstat); err == nil || !errors.Is(err, errSweepBound) {
 		t.Fatalf("bound 2 over three listed PIDs = %v, want the bound refusal", err)
 	}

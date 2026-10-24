@@ -142,12 +142,12 @@ func sweepNames(ctx context.Context, s *Sweep, names []string, limit int, readSt
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if len(s.Processes)+len(s.ReadFailures) >= limit {
-			return errSweepBound
-		}
 		stat, err := readStat(name)
 		if err != nil && vanished(err) && errors.Is(lstat(name), fs.ErrNotExist) {
 			continue
+		}
+		if len(s.Processes)+len(s.ReadFailures) >= limit {
+			return errSweepBound
 		}
 		s.PIDDirectory = append(s.PIDDirectory, name+"\n"...)
 		if err != nil {
