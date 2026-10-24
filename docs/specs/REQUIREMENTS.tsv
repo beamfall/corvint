@@ -3803,6 +3803,7 @@ LQP-V0-018	docs/specs/lsp-quality-platform-v0.md	Rollback MUST preserve default 
 LQP-V0-019	docs/specs/lsp-quality-platform-v0.md	The tuples in the frozen qualification record are the only candidate support tup	unrecorded	-
 LQP-V0-020	docs/specs/lsp-quality-platform-v0.md	The frozen record MUST mirror every hard, quality and resource floor of the acce	unrecorded	-
 LQP-V0-021	docs/specs/lsp-quality-platform-v0.md	The protected held-out manifest MUST be produced by an independent custodian out	unrecorded	-
+LQP-V0-022	docs/specs/lsp-quality-platform-v0.md	(V1-2536) The public harness MUST classify every combined-arm expected relation	unrecorded	-
 LSO-V0-001	docs/specs/lsp-snapshot-overlay-v0.md	Git identity MUST contain repository, lexical root URI, object format, commit, t	unrecorded	-
 LSO-V0-002	docs/specs/lsp-snapshot-overlay-v0.md	Client text MUST be stored as immutable full-text captures with session, lexical	unrecorded	-
 LSO-V0-003	docs/specs/lsp-snapshot-overlay-v0.md	Close/reopen and explicit reset MUST invalidate old captures even when version a	unrecorded	-
