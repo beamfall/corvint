@@ -10,7 +10,7 @@ Authoritative inputs: operator task of 2026-08-29,
 
 ## Agent digest
 - Claim: Static JavaScript and TypeScript analysis conservatively maps changes to runner-addressable tests and widens on ambiguity.
-- Status: proposed/experimental; TJAA-V0-019 accepted (decision 0483) with its V1-1175 amendment and TJAA-V0-021 accepted (decision 0519); TJAA-V0-030..033 (V1-2042) and TJAA-V0-034..037 (GitHub #1575-#1578) and TJAA-V0-038..045 (GitHub #1593, #1594) and TJAA-V0-046..053 (GitHub #1604, #1605) and TJAA-V0-054..060 (GitHub #1604 re-test, #1625, PR #1628 review) under the standing lane auto-accept
+- Status: proposed/experimental; TJAA-V0-019 accepted (decision 0483) with its V1-1175 amendment and TJAA-V0-021 accepted (decision 0519); TJAA-V0-030..033 (V1-2042) and TJAA-V0-034..037 (GitHub #1575-#1578) and TJAA-V0-038..045 (GitHub #1593, #1594) and TJAA-V0-046..053 (GitHub #1604, #1605) and TJAA-V0-054..060 (GitHub #1604 re-test, #1625, PR #1628 review) and TJAA-V0-090/091 (GitHub #1701) under the standing lane auto-accept
 - Exists: `internal/liveverify/affected/typescript` static runner/dependency adapter and seam tests.
 - Blocked on: runtime tuple, command/config execution, cancellation, and full-CI recall qualification.
 - Read next: Requirements; Explicit unknown frontier; Traceability.
@@ -748,6 +748,51 @@ project's identity unresolved.
   hid the blocker and tsconfig sites in `+352`. Which identity blocked the gate in that repository
   is still not observed; after this change it is named, and the specs are selected regardless.
 
+- `TJAA-V0-090`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1701)
+  Amending `AFP-V0-409` and `AFP-V0-425`, a `JSON` token in the tag closure MUST NOT make its file
+  inexact when it begins a direct call `JSON.stringify(value)`, `JSON.stringify(value, null)` or
+  `JSON.stringify(value, null, space)`: the token is not a member (`x.JSON`, `JSON?.`) and no
+  argument is empty or a spread. Its value is a string, which reaches a test only as a title (the
+  listing shows titles exactly) or as a `tag` value (the tag rule already refuses a non-literal
+  one), and without a replacer function the call runs only its argument's own `toJSON` methods
+  and getters, user code under the same rules. Every other `JSON` use stays inexact and names its
+  line: a replacer that is not `null`, `JSON.stringify` read without a direct call, `JSON.parse`,
+  whose value can become a details object or a `tag` key, and any declaration or import of `JSON`
+  (which is itself a `JSON` token outside such a call). The other reflective names are unchanged.
+- `TJAA-V0-091`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1701)
+  Amending `AFP-V0-404`, a project `testMatch` MUST NOT raise
+  `typescript:executable-config-unresolved` in the general adapter when every `testMatch` in the
+  config text is the `testMatch` of one parsed project and each of its items is an escape-free
+  quoted string glob with no globstar beyond Playwright's own leading `**/`, no brace, class,
+  extglob or negation, and no empty, `.` or `..` segment; no observed path inside that project's
+  test directory is shorter than such a glob while its own segments match the glob's tail, so the
+  match Playwright applies to the absolute path never depends on directories above the
+  repository; and, as before, every observed file the profile assigns to a project is a
+  Playwright test of that config. A computed, template, regular-expression, global, nested,
+  spread or commented `testMatch`, or a glob whose tail a shorter test path matches, keeps the
+  frontier at the first `testMatch` line (`AFP-V0-423`); any `testIgnore` still keeps it; and a
+  profile-owned file the adapter classifies otherwise is still named as `owns <file>`.
+
+Intent and boundary (GitHub #1701): on `a681846` a reporter's Playwright mode was bounded, but 33
+specs whose module-level helpers built a request body with
+`Buffer.from(JSON.stringify(payload)).toString('base64')` kept 303 units "omission unverified",
+and `affected --path` stayed unknown for every change because a setup project's
+`testMatch: 'setup/global-setup.ts'` raised the executable-config frontier.
+
+- Non-goals: no general value-flow analysis of reflective calls; no deferral of test or hook
+  bodies (Playwright's listing never runs them, but recognizing a callback as a Playwright body
+  needs the test binding's provenance and a guard against a rewritten `test` member across the
+  closure); no regular-expression `testMatch` in path mode; no `testIgnore`.
+- Failure modes, each fail-closed: a `JSON` use that is not a plain stringify call still stops
+  the tag closure and names its line, so the omission stays unverified; a `testMatch` the rule
+  does not accept, or whose glob a test path is too short to decide, names the first `testMatch`
+  line; a literal glob that assigns a file the adapter classifies as another runner's test or
+  as support code names `owns <file>`.
+- Residual: a patch of the global `JSON.stringify` from a file outside the closure, as for every
+  other global, is outside the static model (`AFP-V0-409`). Membership markers other than
+  `testMatch` that the reporter's config may hold (such as `globalSetup`) still raise the frontier
+  at their own line; the reporter's config was not available (`NOT_OBSERVED`).
+
 ## Opt-in Playwright project profile
 
 `corvint affected --playwright-config PATH --playwright-discovery FILE` emits `playwright-affected/0`; it does not alter the
@@ -947,6 +992,11 @@ the identity again for a non-identity value that is not side-effect free and dro
 and the `Number.parseInt` member name, skip tsconfig resolution under a blocked gate, and render
 sites in plain sorted order. Only graph
 edges, frontier entries and unknown details change; no persisted store or receipt is written.
+The GitHub #1701 extension (`TJAA-V0-090`, `TJAA-V0-091`) reverts independently: drop
+`playwrightPlainStringify` so every `JSON` token stops the tag closure again, and restore the
+`testMatch` marker refusal and the any-matcher project refusal in `playwrightStaticMembership`.
+Only the omission verdict and executable-config frontier entries change; no persisted store or
+receipt is written.
 
 ## Traceability
 
@@ -990,5 +1040,7 @@ edges, frontier entries and unknown details change; no persisted store or receip
 | `TJAA-V0-058` (GitHub #1604 re-test) | `TestPinnedFrontierSitesPrecedeTheBound_GH1604`, `TestBlockedAliasGateSelectsAndNamesBlocker_GH1604` in `typescript_gh1604_retest_test.go` (entry order, not only presence) | experimental |
 | `TJAA-V0-059` (PR #1628 review) | `TestBlockedGateKeepsWorkspaceLinks_PR1628` in `typescript_pr1628_test.go` | experimental; synthetic workspace |
 | `TJAA-V0-060` (PR #1628 review) | `TestPlaywrightConfinedMutationKeepsDeviceIdentity_PR1628` in `typescript_pr1628_test.go` | experimental |
+| `TJAA-V0-090` (GitHub #1701) | `TestPlaywrightTagClosurePlainStringify_GH1701` in `playwright_gh1701_test.go` (the issue's helper shape); `TestPlaywrightTagClosureDetailsWithoutTag_GH1688` in `playwright_gh1688_test.go` | experimental; reporter repository `NOT_OBSERVED` |
+| `TJAA-V0-091` (GitHub #1701) | `TestPlaywrightPathModeLiteralTestMatch_GH1701`, `TestPlaywrightPathModeLiteralTestMatchOwnsSupport_GH1701` in `playwright_gh1701_test.go`; `TestPlaywrightConfigFrontierNamesBlocker_GH1688` in `playwright_gh1688_test.go` | experimental; reporter repository `NOT_OBSERVED` |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |
