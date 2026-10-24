@@ -72,7 +72,7 @@ func compileCorpusAudit(a *doccorpus.Artifact, o corpusOptions) ([]byte, error) 
 	return doccorpus.Encode(report)
 }
 
-// corpusBuildThresholds parses the opt-in build refusals (DCP-V1-346, DCP-V1-352).
+// corpusBuildThresholds parses the opt-in build refusals (DCX-V1-346, DCX-V1-352).
 func corpusBuildThresholds(o corpusOptions) (doccorpus.BuildThresholds, error) {
 	var t doccorpus.BuildThresholds
 	// A given flag is parsed even when empty, so `--flag=` is refused instead of disabling it.
@@ -93,7 +93,7 @@ func corpusBuildThresholds(o corpusOptions) (doccorpus.BuildThresholds, error) {
 	return t, nil
 }
 
-// compileCorpusPatterns reports the corpus patterns of a rederived corpus (DCP-V1-349).
+// compileCorpusPatterns reports the corpus patterns of a rederived corpus (DCX-V1-349).
 func compileCorpusPatterns(a *doccorpus.Artifact, o corpusOptions) ([]byte, error) {
 	format := o.legacyCases.format
 	if format != "" && format != "json" && format != "table" {

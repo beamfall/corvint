@@ -8,7 +8,7 @@ import (
 )
 
 // suppliedModuleCorpus is n supplied module subjects whose anchor path is not
-// their name, so each one has DCP-V1-400 path terms, indexed as the runtime
+// their name, so each one has DCS-V1-400 path terms, indexed as the runtime
 // reader holds it.
 func suppliedModuleCorpus(tb testing.TB, n int) *Artifact {
 	tb.Helper()
@@ -25,11 +25,11 @@ func suppliedModuleCorpus(tb testing.TB, n int) *Artifact {
 	return a
 }
 
-// DCP-V1-403 (review P3): a query that matches no subject retains no
+// DCS-V1-403 (review P3): a query that matches no subject retains no
 // per-subject name terms. The name-field function returned for scoring keeps
 // only query terms, and only for subjects it is asked about, so the heap held
 // after a miss over thousands of supplied modules stays flat.
-func TestDCPV1403MissRetainsNoSubjectNameTerms(t *testing.T) {
+func TestDCSV1403MissRetainsNoSubjectNameTerms(t *testing.T) {
 	a := suppliedModuleCorpus(t, 4000)
 	terms := []string{"zzunmatched"}
 	var before, after runtime.MemStats
@@ -61,9 +61,9 @@ func TestDCPV1403MissRetainsNoSubjectNameTerms(t *testing.T) {
 	}
 }
 
-// BenchmarkDCPV1403SearchMissSuppliedModules measures a docs_search miss over
-// 4000 supplied module subjects with path terms (DCP-V1-403).
-func BenchmarkDCPV1403SearchMissSuppliedModules(b *testing.B) {
+// BenchmarkDCSV1403SearchMissSuppliedModules measures a docs_search miss over
+// 4000 supplied module subjects with path terms (DCS-V1-403).
+func BenchmarkDCSV1403SearchMissSuppliedModules(b *testing.B) {
 	a := suppliedModuleCorpus(b, 4000)
 	request := Request{Operation: "search", Query: "zzunmatched"}
 	b.ReportAllocs()

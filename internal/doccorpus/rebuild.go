@@ -12,11 +12,11 @@ import (
 )
 
 // ManifestOfArtifact returns the manifest an artifact embeds, for docs corpus build --artifact to
-// rebuild it from (DCP-V1-495). It reads only the members it needs, so an artifact whose records
+// rebuild it from (DCX-V1-495). It reads only the members it needs, so an artifact whose records
 // a later derivation no longer decodes still yields its manifest, and it checks no builder,
 // derivation or pin: that is the refusal the rebuild repairs. It refuses bytes whose recorded
 // content digest or manifest digest does not hold, that exceed the size bound of their schema,
-// or whose manifest does not decode closed (DCP-V1-496). Build then verifies every pinned input against Git.
+// or whose manifest does not decode closed (DCX-V1-496). Build then verifies every pinned input against Git.
 func ManifestOfArtifact(data []byte) (Manifest, error) {
 	if len(data) > MaxCorpusBytes {
 		return Manifest{}, fail("input bound exceeded")
@@ -58,11 +58,11 @@ func ManifestOfArtifact(data []byte) (Manifest, error) {
 }
 
 // RebuildArtifact is docs corpus build --artifact: the admitted artifact m, the manifest data
-// embeds as ManifestOfArtifact returns it, builds to (DCP-V1-495). When the running builder is attested and data is a canonical artifact
-// whose recorded builder the verified read admits, its derivation equal to this one (DCP-V1-471),
+// embeds as ManifestOfArtifact returns it, builds to (DCX-V1-495). When the running builder is attested and data is a canonical artifact
+// whose recorded builder the verified read admits, its derivation equal to this one (DCX-V1-471),
 // the build reuses data's derived records instead of rederiving them: every pinned input is
 // still reread from Git and verified once, and only the builder and content digest are rewritten,
-// to the bytes a full build prints (DCP-V1-532, DCP-V1-533). Any other artifact, an unrecorded
+// to the bytes a full build prints (DCX-V1-532, DCX-V1-533). Any other artifact, an unrecorded
 // derivation included, is built in full. reused reports which path ran.
 func RebuildArtifact(ctx context.Context, root string, m Manifest, data []byte) (a *Artifact, reused bool, err error) {
 	if a, ok, err := reuseArtifact(ctx, root, m, data); err != nil || ok {

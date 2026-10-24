@@ -11,9 +11,9 @@ import (
 // question words, and identifier queries a short feature name ties.
 const searchRankingFixture1665Leftovers = "testdata/search-ranking-gh1665-leftovers"
 
-// DCP-V1-546 (GitHub #1665): every case of the leftovers fixture passes
+// DCS-V1-546 (GitHub #1665): every case of the leftovers fixture passes
 // through the MCP tool path, deterministically.
-func TestDCPV1546GH1665LeftoversRankingEvalFixture(t *testing.T) {
+func TestDCSV1546GH1665LeftoversRankingEvalFixture(t *testing.T) {
 	root := searchRankingCorpus(t, searchRankingFixture1665Leftovers)
 	cases, err := os.ReadFile(filepath.Join(searchRankingFixture1665Leftovers, "cases.json"))
 	if err != nil {

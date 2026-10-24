@@ -8,7 +8,7 @@ import (
 )
 
 // searchOrders returns the docs_search order of the scanning reader and of the
-// indexed reader for one request, failing when they differ (DCP-V1-403).
+// indexed reader for one request, failing when they differ (DCS-V1-403).
 func searchOrders(t *testing.T, a *Artifact, q Request) []string {
 	t.Helper()
 	index, err := BuildQueryIndex(context.Background(), a)
@@ -51,11 +51,11 @@ func teeSheetCorpus(p *ProviderRecord) {
 	}
 }
 
-// DCP-V1-400, DCP-V1-401 (GitHub #1597 row 1): file lookup needs no kind
+// DCS-V1-400, DCS-V1-401 (GitHub #1597 row 1): file lookup needs no kind
 // filter. A module subject's anchor path segments are name terms, and a prose
 // subject name weighs as text, so the implementing file outranks the
 // documentation paragraph that repeats the query words.
-func TestDCPV1400ModulePathSegmentsAreNameTerms(t *testing.T) {
+func TestDCSV1400ModulePathSegmentsAreNameTerms(t *testing.T) {
 	t.Parallel()
 	a := buildAdoption(t, teeSheetCorpus)
 	query := Request{Operation: "search", Query: "cancel refreshes occupancy once per tee sheet"}
@@ -80,10 +80,10 @@ func TestDCPV1400ModulePathSegmentsAreNameTerms(t *testing.T) {
 	}
 }
 
-// DCP-V1-401: a name of at most twelve distinct terms keeps name weight, so
+// DCS-V1-401: a name of at most twelve distinct terms keeps name weight, so
 // a short title still outranks a claim-text-only match; only a longer, prose
 // name weighs as text.
-func TestDCPV1401ProseNameThreshold(t *testing.T) {
+func TestDCSV1401ProseNameThreshold(t *testing.T) {
 	t.Parallel()
 	a := buildAdoption(t, func(p *ProviderRecord) {
 		ev := p.Subjects[0].Evidence
@@ -101,11 +101,11 @@ func TestDCPV1401ProseNameThreshold(t *testing.T) {
 	}
 }
 
-// DCP-V1-402 (review P2): an exact case-insensitive name match ranks first
+// DCS-V1-402 (review P2): an exact case-insensitive name match ranks first
 // even when tokenization gives it no query term. "SignIn" splits into "sign"
 // and "in", so it shares no term with the query "signin", while the helper's
 // name holds every query term.
-func TestDCPV1402ExactMatchPrecedesTermOverlap(t *testing.T) {
+func TestDCSV1402ExactMatchPrecedesTermOverlap(t *testing.T) {
 	t.Parallel()
 	a := buildAdoption(t, func(p *ProviderRecord) {
 		ev := p.Subjects[0].Evidence
@@ -143,12 +143,12 @@ func claimBurialCorpus(p *ProviderRecord) {
 	p.Claims = append(p.Claims, Claim{ID: p.ID + ":zz-target", Subject: p.ID + ":filler-00", Text: "A refund issues one credit note and voids the receipt", Provider: p.ID, Evidence: ev})
 }
 
-// DCP-V1-402 (GitHub #1597 row 2): with include:["claims"] each family's
+// DCS-V1-402 (GitHub #1597 row 2): with include:["claims"] each family's
 // score is normalized by its largest possible partial score, so the claim
 // that holds every query term outranks subjects naming one of them; without
 // include the subject order is unchanged, and docs corpus claims --query
-// still ranks the claim (DCP-V1-403).
-func TestDCPV1402ClaimFamilyNormalizedMerge(t *testing.T) {
+// still ranks the claim (DCS-V1-403).
+func TestDCSV1402ClaimFamilyNormalizedMerge(t *testing.T) {
 	t.Parallel()
 	a := buildAdoption(t, claimBurialCorpus)
 	query := Request{Operation: "search", Query: "refund voids the receipt", Include: []string{"claims"}}

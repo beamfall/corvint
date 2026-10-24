@@ -8,7 +8,7 @@ import (
 	"strconv"
 )
 
-// AdoptionProviderSchemaV2 is the compact adoption provider record (DCP-V1-487): a
+// AdoptionProviderSchemaV2 is the compact adoption provider record (DCX-V1-487): a
 // corvint-corpus-adoption-provider/1 record whose anchors name a per-record file table entry by
 // index instead of repeating the file's identity, and may take their authority, evidence kind
 // and reason from the record's anchor defaults. The build expands every compact anchor to the
@@ -61,14 +61,14 @@ type compactRecord struct {
 const maxAnchorFiles = MaxCorpusRecords
 
 // compactAnchorError is the reason a compact anchor cannot be expanded; a located refusal
-// reports it verbatim (DCP-V1-488).
+// reports it verbatim (DCX-V1-488).
 type compactAnchorError string
 
 func (e compactAnchorError) Error() string { return string(e) }
 
 // decodeProviderRecord decodes one provider record or shard. Every schema but the compact
 // adoption schema decodes exactly as before, in one pass. A compact record is expanded to the
-// /1 adoption record it stands for (DCP-V1-487, DCP-V1-488).
+// /1 adoption record it stands for (DCX-V1-487, DCX-V1-488).
 func decodeProviderRecord(name string, data []byte, record *ProviderRecord) error {
 	err := decodeNamed(name, data, record, MaxProviderBytes)
 	if err == nil && record.Schema != AdoptionProviderSchemaV2 || len(data) > MaxProviderBytes {
@@ -168,7 +168,7 @@ func scanTopLevel(data []byte, visit func(member string, dec *jsontext.Decoder) 
 }
 
 // EncodeCompactProvider writes record, a corvint-corpus-adoption-provider/1 record, as the
-// compact /2 record that expands to it (DCP-V1-530): its anchors index a file table built in
+// compact /2 record that expands to it (DCX-V1-530): its anchors index a file table built in
 // first-appearance order, a file omits its repository and revision when they are the record's
 // source ones, and an anchor omits its authority, kind and reason when they equal defaults
 // (every member is written when defaults is nil).
@@ -220,7 +220,7 @@ func EncodeCompactProvider(record ProviderRecord, defaults *AnchorDefaults) ([]b
 	return append(raw, '\n'), nil
 }
 
-// CompactProvider is docs corpus compact-provider (DCP-V1-531): it rewrites the /1 adoption
+// CompactProvider is docs corpus compact-provider (DCX-V1-531): it rewrites the /1 adoption
 // provider record or shard data, read from the input name, as its compact /2 encoding, with the most frequent anchor
 // authority, kind and reason as the defaults (ties to the smallest value), and refuses unless
 // the result decodes back to exactly the record data holds.

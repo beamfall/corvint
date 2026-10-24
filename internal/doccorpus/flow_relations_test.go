@@ -381,7 +381,7 @@ func TestDCPV1099FlowRelationDeterministicAndBounded(t *testing.T) {
 	})
 }
 
-func TestDCPV1397FlowRelationNamesCheckDeclaredJobAndEventSubjects(t *testing.T) {
+func TestDCXV1397FlowRelationNamesCheckDeclaredJobAndEventSubjects(t *testing.T) {
 	t.Parallel()
 	declare := func(names ...string) func(*ProviderRecord) {
 		return func(p *ProviderRecord) {

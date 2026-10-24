@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// compactEncode is the test-side producer of the compact adoption encoding (DCP-V1-487): it
+// compactEncode is the test-side producer of the compact adoption encoding (DCX-V1-487): it
 // writes record as a corvint-corpus-adoption-provider/2 record whose anchors index a file table
 // built in first-appearance order, omitting a file's repository and revision when they are the
 // record's source and an anchor's authority, kind and reason when they equal defaults.
@@ -120,7 +120,7 @@ func corpusRecords(t *testing.T, a *Artifact) []byte {
 	return raw
 }
 
-func TestDCPV1487CompactAnchorTableEquivalent(t *testing.T) {
+func TestDCXV1487CompactAnchorTableEquivalent(t *testing.T) {
 	t.Parallel()
 	root, m := adoptionFixture(t, nil)
 	legacy, err := Build(context.Background(), root, m)
@@ -173,7 +173,7 @@ func TestDCPV1487CompactAnchorTableEquivalent(t *testing.T) {
 	})
 }
 
-func TestDCPV1488CompactAnchorRefusals(t *testing.T) {
+func TestDCXV1488CompactAnchorRefusals(t *testing.T) {
 	t.Parallel()
 	base := func(t *testing.T) (string, Manifest, ProviderRecord, map[string]any) {
 		root, m := adoptionFixture(t, nil)
@@ -299,13 +299,13 @@ func syntheticAnchoredRecord(subjects, files int, anchored bool) ProviderRecord 
 	return record
 }
 
-// TestDCPV1489CompactAnchorSizeMeasured measures the anchor bytes of #1664's shape (about 28,500
+// TestDCXV1489CompactAnchorSizeMeasured measures the anchor bytes of #1664's shape (about 28,500
 // anchored inventory subjects over about 17,400 files) in both encodings and checks the /2 form
 // expands to exactly the /1 records.
-func TestDCPV1489CompactAnchorSizeMeasured(t *testing.T) {
+func TestDCXV1489CompactAnchorSizeMeasured(t *testing.T) {
 	t.Parallel()
 	if maxPinnedInputBytes != 128<<20 || maxProviderRecordBytes != 128<<20 {
-		t.Fatal("DCP-V1-489 keeps both aggregate bounds at 128 MiB")
+		t.Fatal("DCX-V1-489 keeps both aggregate bounds at 128 MiB")
 	}
 	for _, shape := range []struct {
 		subjects, files int

@@ -110,7 +110,7 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 		return 2, true
 	}
 	// The joined corpus is a read: it is admitted by the verified read, streamed from the file,
-	// as `docs corpus` reads are (DCP-V1-410, DCP-V1-432).
+	// as `docs corpus` reads are (DCR-V1-410, DCR-V1-432).
 	corpus, err := doccorpus.OpenReadFile(ctx, root, artifact, doccorpus.ReadOptions{})
 	if err != nil {
 		emitCorpusError(stderr, err)

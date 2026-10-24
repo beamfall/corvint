@@ -14,11 +14,11 @@ import (
 // case file tagged by the issue row each case reproduces.
 const searchRankingFixture1665 = "testdata/search-ranking-gh1665"
 
-// DCP-V1-486 (GitHub #1665): every case of the fixture passes through the MCP
+// DCS-V1-486 (GitHub #1665): every case of the fixture passes through the MCP
 // tool path, deterministically, and the served docs_search and docs_claims
 // rows carry their rank groups, so a tie the issue showed as an ID-ordered
 // run is visible to the caller.
-func TestDCPV1486GH1665RankingEvalFixture(t *testing.T) {
+func TestDCSV1486GH1665RankingEvalFixture(t *testing.T) {
 	root := searchRankingCorpus(t, searchRankingFixture1665)
 	cases, err := os.ReadFile(filepath.Join(searchRankingFixture1665, "cases.json"))
 	if err != nil {

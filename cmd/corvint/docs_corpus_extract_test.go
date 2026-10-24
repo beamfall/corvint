@@ -26,9 +26,9 @@ func extractCLIRepository(t *testing.T) (string, string) {
 	return root, cemGit(t, root, "rev-parse", "HEAD")
 }
 
-// DCP-V1-399: `docs corpus extract` prints exactly the producer's inventory bytes and refuses a
+// DCX-V1-399: `docs corpus extract` prints exactly the producer's inventory bytes and refuses a
 // missing profile or an unpinned revision without output.
-func TestDCPV1399DocsCorpusExtractCLI(t *testing.T) {
+func TestDCXV1399DocsCorpusExtractCLI(t *testing.T) {
 	root, revision := extractCLIRepository(t)
 	code, out, stderr := corpusCLI(t, root, "docs", "corpus", "extract", "--profile", "corvint/extract.json", "--revision", revision)
 	if code != 0 {
@@ -54,10 +54,10 @@ func TestDCPV1399DocsCorpusExtractCLI(t *testing.T) {
 	}
 }
 
-// DCP-V1-506: `docs corpus extract --profile ABS --profile-sha256 HEX` prints exactly the
+// DCX-V1-506: `docs corpus extract --profile ABS --profile-sha256 HEX` prints exactly the
 // producer's caller-profile inventory bytes; a missing or mismatched digest is refused with no
 // output.
-func TestDCPV1506DocsCorpusExtractCallerProfileCLI(t *testing.T) {
+func TestDCXV1506DocsCorpusExtractCallerProfileCLI(t *testing.T) {
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("caller-owned extractor profiles need the darwin/linux no-follow reader")
 	}
@@ -96,9 +96,9 @@ func TestDCPV1506DocsCorpusExtractCallerProfileCLI(t *testing.T) {
 	}
 }
 
-// DCP-V1-560: `docs corpus extract --schema 2` prints exactly the producer's adoption-provider
+// DCX-V1-560: `docs corpus extract --schema 2` prints exactly the producer's adoption-provider
 // inventory; --schema 1 prints the default bytes and another value is refused with no output.
-func TestDCPV1560DocsCorpusExtractSchemaCLI(t *testing.T) {
+func TestDCXV1560DocsCorpusExtractSchemaCLI(t *testing.T) {
 	root, revision := extractCLIRepository(t)
 	base := []string{"docs", "corpus", "extract", "--profile", "corvint/extract.json", "--revision", revision}
 	_, plain, _ := corpusCLI(t, root, base...)

@@ -29,11 +29,11 @@ func manyDirectoryFixture(t *testing.T, dirs int) (string, string) {
 	return root, writeBulkFixture(t, root, files)
 }
 
-// TestDCPV1520ExtractionEnumeratesMoreThan1024Directories pins DCP-V1-520 and DCP-V1-521
+// TestDCXV1520ExtractionEnumeratesMoreThan1024Directories pins DCX-V1-520 and DCX-V1-521
 // (GitHub #1662): a revision with more directories than the default 1,024-operation Git budget
 // extracts under that default budget and under the small phase bound, and the vendor
 // directories no glob reaches contribute nothing.
-func TestDCPV1520ExtractionEnumeratesMoreThan1024Directories(t *testing.T) {
+func TestDCXV1520ExtractionEnumeratesMoreThan1024Directories(t *testing.T) {
 	t.Parallel()
 	const dirs = 1100
 	root, rev := manyDirectoryFixture(t, dirs)
@@ -60,9 +60,9 @@ func TestDCPV1520ExtractionEnumeratesMoreThan1024Directories(t *testing.T) {
 	}
 }
 
-// TestDCPV1521ExtractorGlobPruningIsSound pins DCP-V1-521: every directory above a path a glob
+// TestDCXV1521ExtractorGlobPruningIsSound pins DCX-V1-521: every directory above a path a glob
 // matches is descended, and directories no glob can reach are pruned.
-func TestDCPV1521ExtractorGlobPruningIsSound(t *testing.T) {
+func TestDCXV1521ExtractorGlobPruningIsSound(t *testing.T) {
 	t.Parallel()
 	globs := []string{"app/**/*.rb", "app/*.rb", "lib/**", "*/models/*.rb", "a/b/c.rb", "**/*.ts", "[ab]/x/*.go"}
 	names := []string{"app/a.rb", "app/x/y/z.rb", "lib/q", "lib/q/r/s.txt", "app/models/m.rb", "pkg/models/m.rb",

@@ -17,7 +17,7 @@ type TreeBlob struct {
 // Skipped hold exactly the paths an Index built from the same state holds;
 // Blobs holds the mode and object ID of every tracked blob whose path is valid
 // UTF-8, so a display path that replaced invalid bytes never stands for
-// another entry (DCP-V1-411).
+// another entry (DCR-V1-411).
 type TreeObservation struct {
 	Observation
 	Tracked map[string]struct{}
@@ -33,7 +33,7 @@ var observeTreeStep = func(attempt int) {}
 // identified tree is listed, then the identity again. The status is kept only
 // when both identity reads agree, so it was read while HEAD named the listed
 // tree; otherwise the observation is repeated, at most three times, as a
-// context build retries (DCP-V1-411).
+// context build retries (DCR-V1-411).
 func ObserveTree(ctx context.Context, root string) (*TreeObservation, error) {
 	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
 	defer cancel()

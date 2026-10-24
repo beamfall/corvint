@@ -24,13 +24,13 @@ import (
 )
 
 // ExtractorProfileSchema names a repository-declared extractor profile and
-// ExtractorInventorySchema the generated inventory it produces (DCP-V1-390).
+// ExtractorInventorySchema the generated inventory it produces (DCX-V1-390).
 const (
 	ExtractorProfileSchema   = "corvint-extractor-profile/1"
 	ExtractorInventorySchema = "corvint-extractor-inventory/1"
 )
 
-// Extractor profile bounds (DCP-V1-390).
+// Extractor profile bounds (DCX-V1-390).
 const (
 	MaxExtractors       = 64
 	MaxExtractorFiles   = 64
@@ -41,7 +41,7 @@ const (
 )
 
 // ExtractorProfile is project-owned configuration read from a Git blob at the extracted revision.
-// Its subjects use only Core's generic subject kinds; a profile adds no taxonomy (DCP-V1-390).
+// Its subjects use only Core's generic subject kinds; a profile adds no taxonomy (DCX-V1-390).
 type ExtractorProfile struct {
 	Schema     string      `json:"schema"`
 	Provider   string      `json:"provider"`
@@ -63,7 +63,7 @@ type Extractor struct {
 }
 
 // ExtractorToolOutput pins framework tool output committed to the repository: the tool that
-// produced it and the SHA-256 of its exact bytes (DCP-V1-394). The tool is never run.
+// produced it and the SHA-256 of its exact bytes (DCX-V1-394). The tool is never run.
 type ExtractorToolOutput struct {
 	Tool   string `json:"tool"`
 	SHA256 string `json:"sha256"`
@@ -72,13 +72,13 @@ type ExtractorToolOutput struct {
 // ExtractorInput is one extraction: the repository root, the full commit whose blobs are read and
 // the repository path of the profile at that commit. With ProfileSHA256 set, Profile is instead
 // the absolute local path of a caller-owned profile outside the repository, admitted only when its
-// bytes hash to ProfileSHA256 (DCP-V1-478).
+// bytes hash to ProfileSHA256 (DCX-V1-478).
 type ExtractorInput struct {
 	Root, Revision, Profile string
 	ProfileSHA256           string
 	// Schema "2" emits the provider member as a corvint-corpus-adoption-provider/1 record for a
 	// corvint-corpus-input/2 manifest, bounded by MaxCorpusRecords and MaxProviderBytes instead
-	// of MaxRecords and MaxBytes (DCP-V1-560). Empty or "1" keeps the provider/1 record.
+	// of MaxRecords and MaxBytes (DCX-V1-560). Empty or "1" keeps the provider/1 record.
 	Schema string
 }
 
@@ -87,7 +87,7 @@ const ExtractorProfileOriginCaller = "caller"
 
 // ExtractorProfileRef pins the profile the inventory was produced from: a repository profile by
 // its path and Git blob, a caller-owned one by its origin, the SHA-256 of its exact bytes, its
-// canonical document and that document's canonical SHA-256 (DCP-V1-503). The local path of a
+// canonical document and that document's canonical SHA-256 (DCX-V1-503). The local path of a
 // caller-owned profile is never recorded.
 type ExtractorProfileRef struct {
 	Origin          string            `json:"origin,omitempty"`
@@ -100,8 +100,8 @@ type ExtractorProfileRef struct {
 
 // ExtractorInventory is generated, never reviewed. Provider is a complete
 // corvint-corpus-provider/1 record, or under --schema 2 a corvint-corpus-adoption-provider/1
-// record (DCP-V1-560), a project can commit and declare; Gaps lists everything the profile could
-// not turn into evidence (DCP-V1-395).
+// record (DCX-V1-560), a project can commit and declare; Gaps lists everything the profile could
+// not turn into evidence (DCX-V1-395).
 type ExtractorInventory struct {
 	Schema      string              `json:"schema"`
 	Status      string              `json:"status"`
@@ -176,19 +176,19 @@ type extractorProducer struct {
 	provider, repository, revision string
 	// callerProfile names a caller-owned profile's digest in the subjects capability, present or
 	// absent, so the provider record a corpus admits still names the profile it was produced
-	// from (DCP-V1-503).
+	// from (DCX-V1-503).
 	callerProfile string
 	inv           *ExtractorInventory
 	sites         []extractorSite
 	// limit bounds sites, gaps, matched files per extractor, subjects and relations; schema is
-	// the emitted provider record schema (DCP-V1-560).
+	// the emitted provider record schema (DCX-V1-560).
 	limit  int
 	schema string
 }
 
 // bound refuses an inventory whose count of what has crossed the record bound, naming the count
 // reached, the bound and the extractor and path that crossed it, and for the provider/1 family
-// the --schema 2 bound that admits more (DCP-V1-561).
+// the --schema 2 bound that admits more (DCX-V1-561).
 func (p *extractorProducer) bound(what string, count int, extractor, path string) error {
 	at := ""
 	if extractor != "" {
@@ -221,7 +221,7 @@ func (p *extractorProducer) over(ex *compiledExtractor, f *extractorFile) error 
 
 // BuildExtractorInventory reads a repository-declared extractor profile and the files it names
 // from Git at a full commit and emits the generated corvint-extractor-inventory/1 record
-// (DCP-V1-390..398). It never runs a tool, never reads the working tree and writes nothing.
+// (DCX-V1-390..398). It never runs a tool, never reads the working tree and writes nothing.
 func BuildExtractorInventory(ctx context.Context, input ExtractorInput) ([]byte, error) {
 	if !wire.IsGitOid(input.Revision) {
 		return nil, fail("extraction requires a full commit revision")
@@ -355,7 +355,7 @@ func BuildExtractorInventory(ctx context.Context, input ExtractorInput) ([]byte,
 	if len(inv.Gaps) > p.limit {
 		return nil, p.bound("gaps", len(inv.Gaps), "", "")
 	}
-	// DCP-V1-560: the provider member is committed unchanged as one provider input, so it must
+	// DCX-V1-560: the provider member is committed unchanged as one provider input, so it must
 	// fit the input bound build admits for its schema.
 	encoded, err := json.Marshal(record, json.Deterministic(true))
 	if err != nil {
@@ -374,14 +374,14 @@ func BuildExtractorInventory(ctx context.Context, input ExtractorInput) ([]byte,
 const callerProfileLimitation = "the extractor profile is caller-owned configuration pinned by SHA-256, not declared by the repository; sources are still read only from Git at the revision"
 
 // callerProfileSupported reports whether this platform has the no-follow component reader a
-// caller-owned profile is read through; elsewhere it is refused (DCP-V1-478).
+// caller-owned profile is read through; elsewhere it is refused (DCX-V1-478).
 var callerProfileSupported = runtime.GOOS == "darwin" || runtime.GOOS == "linux"
 
 // readCallerProfileFile is the pinned no-follow read; tests observe the window after the check.
 var readCallerProfileFile = testvaliditydoc.ReadAbsoluteFileBounded
 
 // readCallerProfile reads a caller-owned profile outside the repository root, no larger than the
-// input bound, and admits it only when its exact bytes hash to digest (DCP-V1-478, DCP-V1-504).
+// input bound, and admits it only when its exact bytes hash to digest (DCX-V1-478, DCX-V1-504).
 // The path is resolved once; every ancestor of the resolved directory is compared with the
 // repository root by filesystem identity, so a case or hard-link alias of the root is still
 // inside, and the file is then read along that symlink-free path with every directory component
@@ -422,7 +422,7 @@ func readCallerProfile(repositoryRoot, name, digest string) ([]byte, error) {
 	return raw, nil
 }
 
-// compileExtractorProfile admits the closed profile shape and compiles its patterns (DCP-V1-390).
+// compileExtractorProfile admits the closed profile shape and compiles its patterns (DCX-V1-390).
 func compileExtractorProfile(profile ExtractorProfile) ([]compiledExtractor, error) {
 	if profile.Schema != ExtractorProfileSchema {
 		return nil, fail("extractor profile schema must be " + ExtractorProfileSchema)
@@ -629,8 +629,8 @@ func extractorPaths(ctx context.Context, auth *gitauth.Repository, revision stri
 }
 
 // extractorTree lists the revision's non-tree paths in one verified walk whose Git operations
-// grow with directory depth, not directory count (DCP-V1-520), pruning every directory below
-// which no glob can match (DCP-V1-521) within the entry and tree-byte bounds (DCP-V1-522).
+// grow with directory depth, not directory count (DCX-V1-520), pruning every directory below
+// which no glob can match (DCX-V1-521) within the entry and tree-byte bounds (DCX-V1-522).
 func extractorTree(ctx context.Context, auth *gitauth.Repository, revision string, globs [][]string) ([]string, error) {
 	names, err := auth.RevisionPaths(ctx, revision, affected.MaxWalkEntries, func(dir string) bool {
 		if path.Base(dir) == "node_modules" {
@@ -669,7 +669,7 @@ func extractorGlobBelow(glob, dir []string) bool {
 }
 
 // extractorRead reads one file as a regular UTF-8 Git blob within the input bound, or names the
-// gap that kept it unread (DCP-V1-395).
+// gap that kept it unread (DCX-V1-395).
 func extractorRead(ctx context.Context, auth *gitauth.Repository, batched *pathPrefetch, revision, current string) (*extractorFile, string, string, error) {
 	entry, ok, err := batched.lookup(ctx, auth, revision, current)
 	if err != nil {
@@ -737,7 +737,7 @@ func extractorCapture(re *regexp.Regexp, match []string, name string) (string, b
 	return value, safeText(value, maxExtractorCapture) && identifier(value)
 }
 
-// file applies one extractor to one file line by line (DCP-V1-391, DCP-V1-395). The record bound
+// file applies one extractor to one file line by line (DCX-V1-391, DCX-V1-395). The record bound
 // is enforced as each line is scanned, so a dense file is refused without materializing it.
 func (p *extractorProducer) file(ex *compiledExtractor, f *extractorFile) error {
 	entity, entityOpen := "", false
@@ -860,7 +860,7 @@ type extractorSubject struct {
 	sites   []*extractorSite
 }
 
-// record turns the matched sites into one corvint-corpus-provider/1 record (DCP-V1-391..393).
+// record turns the matched sites into one corvint-corpus-provider/1 record (DCX-V1-391..393).
 func (p *extractorProducer) record(source Repository, version string) (ProviderRecord, error) {
 	subjects := map[string]*extractorSubject{}
 	byName := map[string][]string{} // kind+"\x00"+name → subject IDs
@@ -898,7 +898,7 @@ func (p *extractorProducer) record(source Repository, version string) (ProviderR
 	}
 	relations := map[string]Relation{}
 	// relate records a relation whose site s anchors one end; other is the subject at the other
-	// end, whose anchors the relation also carries, so it cites both ends (DCP-V1-392).
+	// end, whose anchors the relation also carries, so it cites both ends (DCX-V1-392).
 	relate := func(from, to, kind string, s *extractorSite, other *extractorSubject) {
 		id := p.provider + ":relation:" + Digest([]byte(from + "\x00" + kind + "\x00" + to))[:32]
 		if r, ok := relations[id]; ok {

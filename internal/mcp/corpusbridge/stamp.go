@@ -77,7 +77,7 @@ func checkoutStamp(dirs []string) string {
 // artifactFileStamp is the stat record of the configured artifact file, by
 // mode, size, inode, change and modification times, or "" when the file
 // cannot be described or changed inside the racy window, so a later rewrite
-// within the same timestamp granule cannot keep the stamp (DCP-V1-417). The
+// within the same timestamp granule cannot keep the stamp (DCR-V1-417). The
 // file is reached through the artifact reader's own no-follow walk, so a
 // symlink in any path component, the leaf included, leaves no stamp and the
 // next call reads the file and is refused as a fresh read is.

@@ -55,10 +55,10 @@ func extractEncoded(t *testing.T, value any) string {
 	return string(data)
 }
 
-// DCP-V1-478: a caller-owned profile outside the repository, pinned by a matching digest, extracts
+// DCX-V1-478: a caller-owned profile outside the repository, pinned by a matching digest, extracts
 // the same subjects, relations and gaps from Git at the revision as the same profile committed in
 // the repository; the repository-declared inventory keeps its bytes.
-func TestDCPV1478CallerProfileExtractsLikeTheCommittedProfile(t *testing.T) {
+func TestDCXV1478CallerProfileExtractsLikeTheCommittedProfile(t *testing.T) {
 	t.Parallel()
 	root, rev := extractFixture(t, true, nil)
 	repo, repoBytes := extractInventory(t, root, rev)
@@ -85,9 +85,9 @@ func TestDCPV1478CallerProfileExtractsLikeTheCommittedProfile(t *testing.T) {
 	}
 }
 
-// DCP-V1-478: without a matching, well-formed digest, a caller-owned profile is refused with no
+// DCX-V1-478: without a matching, well-formed digest, a caller-owned profile is refused with no
 // output, and a profile inside the extracted repository is never a caller profile.
-func TestDCPV1478CallerProfileRequiresAMatchingDigest(t *testing.T) {
+func TestDCXV1478CallerProfileRequiresAMatchingDigest(t *testing.T) {
 	t.Parallel()
 	root, rev := extractFixture(t, false, nil)
 	name, digest, raw := extractCallerProfile(t, root, rev)
@@ -163,9 +163,9 @@ func TestDCPV1478CallerProfileRequiresAMatchingDigest(t *testing.T) {
 	}
 }
 
-// DCP-V1-478: a directory of the checked path replaced by a symlink into the repository after the
+// DCX-V1-478: a directory of the checked path replaced by a symlink into the repository after the
 // containment check is refused by the pinned no-follow read, not read through.
-func TestDCPV1478CallerProfileDirectorySwapIsRefused(t *testing.T) {
+func TestDCXV1478CallerProfileDirectorySwapIsRefused(t *testing.T) {
 	root, rev := extractFixture(t, false, nil)
 	_, digest, raw := extractCallerProfile(t, root, rev)
 	parent := t.TempDir()
@@ -197,9 +197,9 @@ func TestDCPV1478CallerProfileDirectorySwapIsRefused(t *testing.T) {
 	}
 }
 
-// DCP-V1-478: a platform without the no-follow component reader refuses a caller-owned profile
+// DCX-V1-478: a platform without the no-follow component reader refuses a caller-owned profile
 // before reading it.
-func TestDCPV1478CallerProfileUnsupportedPlatformIsRefused(t *testing.T) {
+func TestDCXV1478CallerProfileUnsupportedPlatformIsRefused(t *testing.T) {
 	root, rev := extractFixture(t, false, nil)
 	supported := callerProfileSupported
 	t.Cleanup(func() { callerProfileSupported = supported })
@@ -212,9 +212,9 @@ func TestDCPV1478CallerProfileUnsupportedPlatformIsRefused(t *testing.T) {
 	}
 }
 
-// DCP-V1-503: a caller profile whose patterns match nothing still names its digest in the
+// DCX-V1-503: a caller profile whose patterns match nothing still names its digest in the
 // absent subjects capability.
-func TestDCPV1503CallerProfileWithNoSubjectsKeepsItsDigest(t *testing.T) {
+func TestDCXV1503CallerProfileWithNoSubjectsKeepsItsDigest(t *testing.T) {
 	t.Parallel()
 	root, rev := extractFixture(t, false, nil)
 	if !callerProfileSupported {
@@ -232,10 +232,10 @@ func TestDCPV1503CallerProfileWithNoSubjectsKeepsItsDigest(t *testing.T) {
 	}
 }
 
-// DCP-V1-503: a caller inventory records the origin, the exact-byte digest, the canonical profile
+// DCX-V1-503: a caller inventory records the origin, the exact-byte digest, the canonical profile
 // document and its digest, a limitation and the digest in the subjects capability, and never the
 // caller's local path.
-func TestDCPV1503CallerProfileProvenanceIsRecorded(t *testing.T) {
+func TestDCXV1503CallerProfileProvenanceIsRecorded(t *testing.T) {
 	t.Parallel()
 	root, rev := extractFixture(t, false, nil)
 	_, _, raw := extractCallerProfile(t, root, rev)
@@ -267,10 +267,10 @@ func TestDCPV1503CallerProfileProvenanceIsRecorded(t *testing.T) {
 	}
 }
 
-// DCP-V1-504: the provider record of a caller inventory, committed unchanged and declared as a
+// DCX-V1-504: the provider record of a caller inventory, committed unchanged and declared as a
 // provider input, builds through the existing provider admission, and the built corpus still
 // names the profile digest.
-func TestDCPV1504CallerProfileProviderRecordBuildsUnchanged(t *testing.T) {
+func TestDCXV1504CallerProfileProviderRecordBuildsUnchanged(t *testing.T) {
 	t.Parallel()
 	root, rev := extractFixture(t, false, nil)
 	name, digest, _ := extractCallerProfile(t, root, rev)
@@ -317,9 +317,9 @@ func TestDCPV1504CallerProfileProviderRecordBuildsUnchanged(t *testing.T) {
 	}
 }
 
-// DCP-V1-505: a caller extraction reads sources only from Git at the revision, writes neither the
+// DCX-V1-505: a caller extraction reads sources only from Git at the revision, writes neither the
 // repository nor the profile, and returns identical bytes for identical inputs.
-func TestDCPV1505CallerProfileExtractionIsReadOnly(t *testing.T) {
+func TestDCXV1505CallerProfileExtractionIsReadOnly(t *testing.T) {
 	t.Parallel()
 	root, rev := extractFixture(t, true, nil)
 	name, digest, raw := extractCallerProfile(t, root, rev)

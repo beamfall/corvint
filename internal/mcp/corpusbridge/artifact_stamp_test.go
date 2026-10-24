@@ -10,11 +10,11 @@ import (
 	"github.com/Beamfall/corvint/internal/doccorpus"
 )
 
-// TestDCPV1417WarmCallsSkipUnchangedArtifactRead: once a call has read the configured artifact
+// TestDCRV1417WarmCallsSkipUnchangedArtifactRead: once a call has read the configured artifact
 // and matched the startup digest, later calls do not read or hash it again while its file keeps
 // the same stat stamp; a rewrite changes the stamp and is refused as before, and a stamp inside
 // the racy window always reads.
-func TestDCPV1417WarmCallsSkipUnchangedArtifactRead(t *testing.T) {
+func TestDCRV1417WarmCallsSkipUnchangedArtifactRead(t *testing.T) {
 	supportedStampPlatform(t)
 	shortenStampWindow(t)
 	reads := 0
@@ -64,11 +64,11 @@ func TestDCPV1417WarmCallsSkipUnchangedArtifactRead(t *testing.T) {
 	}
 }
 
-// TestDCPV1417WarmStampRefusesParentSymlink: a warm call accepts an unchanged artifact stamp only
+// TestDCRV1417WarmStampRefusesParentSymlink: a warm call accepts an unchanged artifact stamp only
 // through the artifact reader's no-follow walk. Replacing the artifact's directory with a symlink
 // to the same directory keeps the file's inode, size and times, yet the next call reads the
 // artifact and is refused as a fresh read is, instead of serving the memoized artifact.
-func TestDCPV1417WarmStampRefusesParentSymlink(t *testing.T) {
+func TestDCRV1417WarmStampRefusesParentSymlink(t *testing.T) {
 	supportedStampPlatform(t)
 	shortenStampWindow(t)
 	reads := 0

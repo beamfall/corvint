@@ -111,7 +111,7 @@ type rspecReader struct {
 	// (TSA-V0-450).
 	excluded []rspecExclusion
 	// hookSites are every before, after and around hook with its group, for the static test
-	// discovery (DCP-V1-375); the rules above read hooks only through groups[].hooks.
+	// discovery (DCX-V1-375); the rules above read hooks only through groups[].hooks.
 	hookSites []rspecHookSite
 }
 

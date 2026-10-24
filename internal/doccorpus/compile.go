@@ -24,7 +24,7 @@ import (
 type compiler struct {
 	// derivation bounds the declarations one compile derives, derived counts the declarations
 	// it attempted to derive and outputBytes is the encoded size of a compile the output byte
-	// bound refused (DCP-V1-484, DCP-V1-568, DCP-V1-569).
+	// bound refused (DCS-V1-484, DCS-V1-568, DCS-V1-569).
 	derivation        derivationPlan
 	derived           int
 	outputBytes       int64
@@ -47,7 +47,7 @@ type compiler struct {
 func inputKey(rev, p string) string { return rev + ":" + p }
 
 // inScope reports whether path p is scope s or lies beneath it, without building s+"/"
-// (DCP-V1-450).
+// (DCR-V1-450).
 func inScope(p, s string) bool {
 	return len(p) >= len(s) && p[:len(s)] == s && (len(p) == len(s) || p[len(s)] == '/')
 }
@@ -55,7 +55,7 @@ func inScope(p, s string) bool {
 // scopeSet holds a manifest's scope paths by revision. The scopes holding a path are its
 // ancestors, so they are found by walking the path's prefixes instead of comparing the path with
 // every scope; the walk visits exactly the scopes inScope admits, so every caller's result is the
-// one a scope-by-path comparison gave (DCP-V1-450).
+// one a scope-by-path comparison gave (DCR-V1-450).
 type scopeSet map[string]map[string]struct{}
 
 // newScopeSet collects the scopes whose revision member admits; a nil member admits all.
@@ -205,7 +205,7 @@ func inventoryScopeSet(requested []string, schema string) ([]string, error) {
 		}
 	}
 	// The refusal names the byte-least containing scope and, under it, the byte-least contained
-	// one, as comparing every pair in sorted order did (DCP-V1-450).
+	// one, as comparing every pair in sorted order did (DCR-V1-450).
 	set := map[string]struct{}{}
 	for _, scope := range scopes {
 		set[scope] = struct{}{}
@@ -262,12 +262,12 @@ func Build(ctx context.Context, root string, m Manifest) (*Artifact, error) {
 	return build(ctx, root, m, nil)
 }
 
-// build compiles m and, when the compile derived declarations (DCP-V1-482) and was then refused
+// build compiles m and, when the compile derived declarations (DCS-V1-482) and was then refused
 // by a corpus bound or check, compiles it again with fewer, so derivation never refuses a
-// manifest the compiler built before it (DCP-V1-484). A refusal by the output byte bound is
-// retried with the prefix of the declarations that fits under it (DCP-V1-569); any other
+// manifest the compiler built before it (DCS-V1-484). A refusal by the output byte bound is
+// retried with the prefix of the declarations that fits under it (DCS-V1-569); any other
 // refusal, or a second one, is retried without derived declarations. The record bound needs no
-// retry: the first compile derives only what it admits (DCP-V1-568). So a build compiles at
+// retry: the first compile derives only what it admits (DCS-V1-568). So a build compiles at
 // most three times. Each retry restores the incremental reuse state the refused compile
 // recorded.
 func build(ctx context.Context, root string, m Manifest, reuse *incrementalBuild) (*Artifact, error) {
@@ -291,8 +291,8 @@ func build(ctx context.Context, root string, m Manifest, reuse *incrementalBuild
 	}
 }
 
-// derivationPlan bounds the declarations one compile derives (DCP-V1-484, DCP-V1-568,
-// DCP-V1-569). The zero plan derives every declaration the record bound admits. The retry of
+// derivationPlan bounds the declarations one compile derives (DCS-V1-484, DCS-V1-568,
+// DCS-V1-569). The zero plan derives every declaration the record bound admits. The retry of
 // a compile the output byte bound refused carries that compile's encoded size, and derives the
 // prefix whose estimated bytes fit under the bound; the retry of any other refusal derives none.
 type derivationPlan struct {
@@ -322,7 +322,7 @@ func retryPlan(plan derivationPlan, result compileResult, err error) derivationP
 
 // retryWithoutDerived reports whether a compile that attempted derived declarations failed
 // with a corpus refusal (a bound or check), the only failure a retry with fewer declarations
-// answers; a Git, capacity or input-availability error is returned as it is (DCP-V1-484).
+// answers; a Git, capacity or input-availability error is returned as it is (DCS-V1-484).
 func retryWithoutDerived(derived int, err error) bool {
 	var refused *Error
 	return err != nil && derived > 0 && errors.As(err, &refused) && refused.Code == "corpus-refused"
@@ -421,7 +421,7 @@ func compileOnce(ctx context.Context, root string, m Manifest, reuse *incrementa
 	})
 	digest, size, err := hashSized(a)
 	if err != nil {
-		// size is set only when the output byte bound refused the artifact (DCP-V1-569).
+		// size is set only when the output byte bound refused the artifact (DCS-V1-569).
 		c.outputBytes = size
 		return nil, c.result(), err
 	}
@@ -693,7 +693,7 @@ func (c *compiler) pin(ctx context.Context) (err error) {
 	}
 	// Each tracked and skipped path is charged to the scopes holding it, then the scopes are
 	// checked in manifest order with the precedence a per-scope pass had: an undeclared input,
-	// then an unsupported entry, then an empty scope (DCP-V1-450).
+	// then an unsupported entry, then an empty scope (DCR-V1-450).
 	type scopeTally struct {
 		count                   int
 		undeclared, unsupported bool
@@ -895,13 +895,13 @@ func (c *compiler) native(provider Provider) error {
 // derivedDeclarations gives the first native provider a declaration subject, and its
 // declaration claim, for each symbol the native index holds in a source input that only
 // non-native providers claim, so an identifier declared there is searchable whoever produced the
-// input's records (DCP-V1-482, DCP-V1-483). Inputs at the primary revision and at each
+// input's records (DCS-V1-482, DCS-V1-483). Inputs at the primary revision and at each
 // additional repository's declared revision are derived; an additional repository's
-// declaration IDs name the repository after the kind (DCP-V1-549). IDs and evidence follow the
+// declaration IDs name the repository after the kind (DCS-V1-549). IDs and evidence follow the
 // native provider's own declarations; no file subject or excerpt is added. It runs after every
-// provider. It derives at most what the corpus record bound admits (DCP-V1-568) and, on the
+// provider. It derives at most what the corpus record bound admits (DCS-V1-568) and, on the
 // retry of a compile the output byte bound refused, the prefix that fits under it
-// (DCP-V1-569); on the retry of any other refusal it derives nothing (DCP-V1-484). Declarations
+// (DCS-V1-569); on the retry of any other refusal it derives nothing (DCS-V1-484). Declarations
 // are kept in manifest input order and symbol order, and one gap names each bound that dropped
 // any, the counts and the first declaration dropped.
 func (c *compiler) derivedDeclarations() error {
@@ -1032,7 +1032,7 @@ func (c *compiler) derivedDeclarations() error {
 
 // derivedByteReserve is the slack a byte-bounded derivation retry leaves under the output byte
 // bound for the bytes declarationBytes does not count, such as the bound gap itself
-// (DCP-V1-569).
+// (DCS-V1-569).
 const derivedByteReserve = 4096
 
 // declarationBytes is a lower bound on the encoded bytes one derived declaration adds to the
@@ -1040,7 +1040,7 @@ const derivedByteReserve = 4096
 // records, the array separators, and for a test subject its unobserved test gap with its
 // separator and the shortest quoted gap offset in the gaps capability record. The retry keeps
 // a prefix only while the bytes it drops reach the overshoot, so an overestimate could keep
-// too many and be refused again (DCP-V1-569).
+// too many and be refused again (DCS-V1-569).
 func declarationBytes(s Subject, claim Claim) int64 {
 	size := func(value any) int64 {
 		n, _ := EncodeTo(io.Discard, value)
@@ -1148,7 +1148,7 @@ func Open(ctx context.Context, root string, data []byte) (*Artifact, error) {
 }
 
 // rederivedEqual compares the canonical encoding of rebuilt with data while the encoder writes,
-// so a read never holds a second artifact-sized copy and its growth slack (DCP-V1-414). The
+// so a read never holds a second artifact-sized copy and its growth slack (DCR-V1-414). The
 // output bound and the refusal are the ones encoding into a buffer applied.
 func rederivedEqual(rebuilt *Artifact, data []byte) error {
 	c := encodingComparer{want: data}

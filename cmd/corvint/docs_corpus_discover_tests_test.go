@@ -16,10 +16,10 @@ const discoverTestsCLISpec = `RSpec.describe Cart do
 end
 `
 
-// TestDCPV1370DocsCorpusDiscoverTestsCLI pins DCP-V1-370 at the command: `docs corpus
+// TestDCXV1370DocsCorpusDiscoverTestsCLI pins DCX-V1-370 at the command: `docs corpus
 // discover-tests` prints the generated, revision-pinned record byte-identically across runs,
 // refuses an invalid runner or revision with a typed corpus code, and is named in docs help.
-func TestDCPV1370DocsCorpusDiscoverTestsCLI(t *testing.T) {
+func TestDCXV1370DocsCorpusDiscoverTestsCLI(t *testing.T) {
 	root := t.TempDir()
 	cemGit(t, root, "init", "-q")
 	cemWrite(t, root, "spec/cart_spec.rb", discoverTestsCLISpec)
@@ -57,7 +57,7 @@ func TestDCPV1370DocsCorpusDiscoverTestsCLI(t *testing.T) {
 			t.Fatalf("%v = %d %q %q, want %s", args, code, out, stderr, want)
 		}
 	}
-	if !strings.Contains(docsHelp, "docs corpus discover-tests --runner playwright|rspec --revision FULL_COMMIT --path PATH") || !strings.Contains(docsHelp, "DCP-V1-370..376") {
+	if !strings.Contains(docsHelp, "docs corpus discover-tests --runner playwright|rspec --revision FULL_COMMIT --path PATH") || !strings.Contains(docsHelp, "DCX-V1-370..376") {
 		t.Fatal("docs help does not name discover-tests")
 	}
 }

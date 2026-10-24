@@ -6,10 +6,10 @@ import (
 	"testing"
 )
 
-// TestDCPV1472ProviderRecordBytesChargedApart pins that provider record shards and the other
+// TestDCXV1472ProviderRecordBytesChargedApart pins that provider record shards and the other
 // pinned inputs are charged to separate 128 MiB bounds, and that a refusal names both totals and
-// the largest inputs of the class that is over (DCP-V1-472).
-func TestDCPV1472ProviderRecordBytesChargedApart(t *testing.T) {
+// the largest inputs of the class that is over (DCX-V1-472).
+func TestDCXV1472ProviderRecordBytesChargedApart(t *testing.T) {
 	t.Parallel()
 	source := func(p string) Input { return Input{Path: p, Purpose: "source"} }
 	shard := func(p string) Input { return Input{Path: p, Purpose: "provider"} }

@@ -11,7 +11,7 @@ import (
 )
 
 // extractBuild commits an inventory's provider member and builds it through a manifest of the
-// given schema (DCP-V1-393, DCP-V1-560).
+// given schema (DCX-V1-393, DCX-V1-560).
 func extractBuild(t *testing.T, root, rev, schema string, inv ExtractorInventory) *Artifact {
 	t.Helper()
 	m, err := InventoryScopes(context.Background(), root, rev, []string{"app"}, schema, "2026-10-24T00:00:00Z")
@@ -53,10 +53,10 @@ func extractSchema(t *testing.T, root, rev, schema string) (ExtractorInventory, 
 	return inv, err
 }
 
-// DCP-V1-560, DCP-V1-561 (GitHub #1700): 14,000 distinct definitions, past #1700's 13,051, cross the provider/1 record
+// DCX-V1-560, DCX-V1-561 (GitHub #1700): 14,000 distinct definitions, past #1700's 13,051, cross the provider/1 record
 // bound. The default refusal names the count reached, the bound, the extractor and the path, and
 // the --schema 2 bound; --schema 2 emits an adoption provider record a manifest /2 builds.
-func TestDCPV1560ExtractorSchemaTwoAdmitsMoreThanTheRecordBound(t *testing.T) {
+func TestDCXV1560ExtractorSchemaTwoAdmitsMoreThanTheRecordBound(t *testing.T) {
 	t.Parallel()
 	more := map[string]string{}
 	for f := 0; f < 14; f++ {
@@ -111,10 +111,10 @@ func TestDCPV1560ExtractorSchemaTwoAdmitsMoreThanTheRecordBound(t *testing.T) {
 	}
 }
 
-// DCP-V1-562: a provider record within the record bound but over its schema's input bound is
+// DCX-V1-562: a provider record within the record bound but over its schema's input bound is
 // refused at extraction, naming its bytes and the bound, instead of emitting a record build
 // refuses; --schema 2 admits it. 200 enqueue sites each cite the job's 64 declaration anchors.
-func TestDCPV1562ExtractorRefusesARecordOverTheInputBound(t *testing.T) {
+func TestDCXV1562ExtractorRefusesARecordOverTheInputBound(t *testing.T) {
 	t.Parallel()
 	more := map[string]string{
 		"app/jobs/bulk_job.rb": strings.Repeat("class BulkJob\n", 64),

@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Claim mention check (DCP-V1-340..346; references DCP-V1-347). One deterministic, documented extractor finds
+// Claim mention check (DCX-V1-340..346; references DCX-V1-347). One deterministic, documented extractor finds
 // code-like tokens in claim text; the build resolves each against the claim's cited spans and
 // then against the corpus inventory. It makes no semantic judgment and never raises trust: it only
 // marks claims whose named code cannot be found.
@@ -29,7 +29,7 @@ const (
 	MentionsNone = "no-mentions"
 )
 
-// CodeToken is one code-like mention in claim text (DCP-V1-340). Kind is one of code, route,
+// CodeToken is one code-like mention in claim text (DCX-V1-340). Kind is one of code, route,
 // scope, member, path or identifier.
 type CodeToken struct {
 	Token string `json:"token"`
@@ -163,7 +163,7 @@ func extension(base string, max int) bool {
 }
 
 // fileExtensions are the extensions that make a backticked dotted name a file name rather than a
-// member access (DCP-V1-340).
+// member access (DCX-V1-340).
 var fileExtensions = func() map[string]bool {
 	m := map[string]bool{}
 	for _, e := range strings.Fields("bash c cc cfg conf cpp cs css csv go gradle h hpp htm html ini java js json jsx kt lock md mjs mod php proto py rb rs scss sh sql sum svg swift toml ts tsx txt vue xml yaml yml") {
@@ -240,7 +240,7 @@ func mixedParts(parts []string) bool {
 }
 
 // ExtractCodeTokens returns the distinct code-like tokens of text in order of first appearance
-// (DCP-V1-340). The rules are ASCII and deterministic:
+// (DCX-V1-340). The rules are ASCII and deterministic:
 //
 //  1. A single-backtick span on one line is one candidate (its trimmed content).
 //  2. Outside backticks, text splits on whitespace; each chunk is trimmed of leading quotes and
@@ -460,7 +460,7 @@ func (x *mentionIndex) resolve(t CodeToken) (target, kind string) {
 	return "", ""
 }
 
-// checkClaimMentions resolves every non-native claim's code-like tokens (DCP-V1-341, DCP-V1-342).
+// checkClaimMentions resolves every non-native claim's code-like tokens (DCX-V1-341, DCX-V1-342).
 func (c *compiler) checkClaimMentions() error {
 	native := map[string]bool{}
 	for _, p := range c.manifest.Providers {
@@ -533,7 +533,7 @@ func claimMentionCheck(a *Artifact, id string) (ClaimMentionCheck, bool) {
 	return ClaimMentionCheck{}, false
 }
 
-// attachClaimMentions serves each visible claim's mention check with the claim (DCP-V1-343).
+// attachClaimMentions serves each visible claim's mention check with the claim (DCX-V1-343).
 func attachClaimMentions(a *Artifact, r *Receipt) {
 	r.ClaimMentions = nil
 	if len(a.ClaimMentions) == 0 {
@@ -553,7 +553,7 @@ func attachClaimMentions(a *Artifact, r *Receipt) {
 	}
 }
 
-// claimMentionGaps reports every claim with an unresolved mention (DCP-V1-344).
+// claimMentionGaps reports every claim with an unresolved mention (DCX-V1-344).
 func claimMentionGaps(a *Artifact) []Gap {
 	out := []Gap{}
 	for _, check := range a.ClaimMentions {
@@ -599,7 +599,7 @@ func mentionChecked(a *Artifact, native map[string]bool, claim Claim) bool {
 const claimMentionCoverageLimitation = "mechanical token resolution only; a resolved mention is not a correct claim and no trust is raised"
 
 // claimMentionCoverage counts non-native claims by mention state, present only when a check is
-// stored (DCP-V1-345).
+// stored (DCX-V1-345).
 func claimMentionCoverage(a *Artifact) []any {
 	if len(a.ClaimMentions) == 0 {
 		return nil

@@ -1,6 +1,6 @@
 package doccorpus
 
-// DeltaHunk is one changed line range between two blobs (DCP-V1-363): 1-based
+// DeltaHunk is one changed line range between two blobs (DCX-V1-363): 1-based
 // starts and counts on each side. A pure insertion has OldCount 0 and OldStart
 // at the old line it precedes; a pure deletion has NewCount 0. Coarse marks a
 // hunk that stands for every line between the common prefix and suffix because

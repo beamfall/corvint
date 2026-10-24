@@ -272,7 +272,7 @@ End-to-end example, run at the repository root:
     corvint docs corpus witness-playwright --input evidence/request.json --receipt-input receipt --report evidence/report.json
 REQUEST.json names the committed receipt as input "receipt", beside the migration and discovery.
 
-Test discovery (DCP-V1-370..376): discover-tests reads Playwright or RSpec test files from Git
+Test discovery (DCX-V1-370..376): discover-tests reads Playwright or RSpec test files from Git
 at --revision (one file, or the test files under a directory; --path . for all) and prints a
 generated corvint-test-discovery/1 record without running a test. Each example carries its
 example-join identity, title path, tags, annotations, expectations (matcher, negation, receiver),
@@ -289,13 +289,13 @@ under unknown. --input REGISTRY.json adds a generated crosswalk of candidate flo
 re-checks the registry's reviewed legacy_criteria; a refused same/stronger mapping exits 1 with
 the report printed. Nothing it emits is a reviewed legacy_criteria relation.
 
-Extractor profiles (DCP-V1-390..399): extract reads a committed corvint-extractor-profile/1 file
+Extractor profiles (DCX-V1-390..399): extract reads a committed corvint-extractor-profile/1 file
 and the files its line-oriented patterns name from Git at --revision and prints a generated
 corvint-extractor-inventory/1 record. Its provider member is a corvint-corpus-provider/1 record
 of endpoint, ui_surface, data_entity, job, event, symbol and interaction subjects with exact line
 anchors and implements, calls, depends_on and related_to relations; unreadable files, unsupported
 shapes and unresolved references are listed under gaps. Tool output is read only as a committed
-file whose SHA-256 the profile pins; no tool runs. With --profile-sha256 HEX (DCP-V1-478), --profile
+file whose SHA-256 the profile pins; no tool runs. With --profile-sha256 HEX (DCX-V1-478), --profile
 is the absolute path of a caller-owned profile outside the repository, admitted only when its
 bytes hash to HEX; the inventory records origin caller, the digest and the canonical profile, and
 sources are still read only from Git at --revision.

@@ -21,13 +21,13 @@ func lsTreeFiles(t *testing.T, root, commit string) []string {
 	return paths
 }
 
-// TestDCPV1520RevisionPathsMatchesLsTreeWithinOneOpPerLevel pins DCP-V1-520:
+// TestDCXV1520RevisionPathsMatchesLsTreeWithinOneOpPerLevel pins DCX-V1-520:
 // the verified walk lists exactly ls-tree -r's non-tree paths (symlinks and
 // gitlinks included) in one pinning operation plus one per directory level.
-func TestDCPV1520RevisionPathsMatchesLsTreeWithinOneOpPerLevel(t *testing.T) {
+func TestDCXV1520RevisionPathsMatchesLsTreeWithinOneOpPerLevel(t *testing.T) {
 	t.Parallel()
 	for _, format := range []string{"sha1", "sha256"} {
-		t.Run("DCP-V1-520 "+format, func(t *testing.T) {
+		t.Run("DCX-V1-520 "+format, func(t *testing.T) {
 			root, commit := pathsRepo(t, format)
 			// pkg, pkg/d and pkg/d/deeper are three levels below the root.
 			repo, err := Open(root, gitrun.NewBudget(4, gitrun.DefaultTotalBudget))
@@ -45,10 +45,10 @@ func TestDCPV1520RevisionPathsMatchesLsTreeWithinOneOpPerLevel(t *testing.T) {
 	}
 }
 
-// TestDCPV1520RevisionPathsOpsIndependentOfDirectoryCount pins DCP-V1-520 for
+// TestDCXV1520RevisionPathsOpsIndependentOfDirectoryCount pins DCX-V1-520 for
 // a tree with more directories than the default 1,024-operation budget: two
 // levels below the root list in three Git operations.
-func TestDCPV1520RevisionPathsOpsIndependentOfDirectoryCount(t *testing.T) {
+func TestDCXV1520RevisionPathsOpsIndependentOfDirectoryCount(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
 	integrityGit(t, root, "init", "-q")
@@ -74,9 +74,9 @@ func TestDCPV1520RevisionPathsOpsIndependentOfDirectoryCount(t *testing.T) {
 	}
 }
 
-// TestDCPV1521RevisionPathsPrunesRejectedSubtrees pins DCP-V1-521: a subtree
+// TestDCXV1521RevisionPathsPrunesRejectedSubtrees pins DCX-V1-521: a subtree
 // descend rejects is never read, so pruning pkg leaves one Git operation.
-func TestDCPV1521RevisionPathsPrunesRejectedSubtrees(t *testing.T) {
+func TestDCXV1521RevisionPathsPrunesRejectedSubtrees(t *testing.T) {
 	t.Parallel()
 	root, commit := pathsRepo(t, "sha1")
 	repo, err := Open(root, gitrun.NewBudget(1, gitrun.DefaultTotalBudget))
@@ -107,10 +107,10 @@ func TestDCPV1521RevisionPathsPrunesRejectedSubtrees(t *testing.T) {
 	}
 }
 
-// TestDCPV1522RevisionPathsRefusesPastItsBounds pins DCP-V1-522: the entry
+// TestDCXV1522RevisionPathsRefusesPastItsBounds pins DCX-V1-522: the entry
 // bound refuses before the next level is read (so within the operations already
 // spent), and an unpinned revision is refused before any Git operation.
-func TestDCPV1522RevisionPathsRefusesPastItsBounds(t *testing.T) {
+func TestDCXV1522RevisionPathsRefusesPastItsBounds(t *testing.T) {
 	t.Parallel()
 	root, commit := pathsRepo(t, "sha1")
 	// The root lists two entries and pkg nine; a bound of two refuses on pkg's
@@ -133,11 +133,11 @@ func TestDCPV1522RevisionPathsRefusesPastItsBounds(t *testing.T) {
 	}
 }
 
-// TestDCPV1520RevisionPathsListsGitSafeNamesUnfiltered pins DCP-V1-520: the
+// TestDCXV1520RevisionPathsListsGitSafeNamesUnfiltered pins DCX-V1-520: the
 // walk lists every name Git's tree grammar admits, as the per-tree walk it
 // replaces did, leaving wire-path policy to the caller's selected paths, so an
 // unrelated backslash-containing name does not refuse the listing.
-func TestDCPV1520RevisionPathsListsGitSafeNamesUnfiltered(t *testing.T) {
+func TestDCXV1520RevisionPathsListsGitSafeNamesUnfiltered(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
 	integrityGit(t, root, "init", "-q")

@@ -40,23 +40,23 @@ condition of its closest test link; a link that fails only because its review is
 (attributed, not authenticated) reports `asserting-e2e-tests-unauthenticated-review` instead
 (`DCP-V1-150`..`152`). A read verifies the artifact's canonical bytes, content digest, builder,
 manifest and profile digests and pinned revisions, then decodes it without rederiving it
-(`DCP-V1-410`); `info` reports `validation: artifact-verified`. A development binary whose builder
+(`DCR-V1-410`); `info` reports `validation: artifact-verified`. A development binary whose builder
 label is dirty or unrecorded proves no rebuild equivalence, so it always rederives. An artifact built by
 another attested Corvint revision stays readable while the builder schema, derivation version and Go
 toolchain in its builder engine match the running binary's; when the derivation version changed, the
-refusal names both versions and the corpus must be rebuilt (`DCP-V1-471`). Rebuild it from the manifest
+refusal names both versions and the corpus must be rebuilt (`DCX-V1-471`). Rebuild it from the manifest
 it embeds, without re-supplying inputs: `corvint docs corpus build --artifact corpus.json > corpus.new.json`
 then `mv corpus.new.json corpus.json` (redirecting onto the file being read truncates it first). The
 rebuild checks the artifact's content and manifest digests and every pinned input's blob and SHA-256
 in Git; a read never rebuilds, and a running corpus MCP server asks to be restarted on the new file
-(`DCP-V1-495`..`498`). `validate`, and `--verify-rederive`
+(`DCX-V1-495`..`498`). `validate`, and `--verify-rederive`
 on any read, rederive every record from the original pinned inputs (`source-rederived`,
-`DCP-V1-413`). Live source and provider changes are observed from Git status and the tree listing
-and reported separately from the artifact's recorded revision (`DCP-V1-411`). `--timings` writes one
-phase summary (parse, verify, freshness, index, query, encode) to stderr (`DCP-V1-415`).
-The CLI streams the artifact file through that check instead of holding it whole (`DCP-V1-431`).
-A native read joined with `--corpus=FILE` takes the same verified read (`DCP-V1-432`), as does
-the current side of `delta` unless `delta --verify-rederive` rederives it (`DCP-V1-460`).
+`DCR-V1-413`). Live source and provider changes are observed from Git status and the tree listing
+and reported separately from the artifact's recorded revision (`DCR-V1-411`). `--timings` writes one
+phase summary (parse, verify, freshness, index, query, encode) to stderr (`DCR-V1-415`).
+The CLI streams the artifact file through that check instead of holding it whole (`DCR-V1-431`).
+A native read joined with `--corpus=FILE` takes the same verified read (`DCR-V1-432`), as does
+the current side of `delta` unless `delta --verify-rederive` rederives it (`DCR-V1-460`).
 Producers that write records onward (`docs flows generate`, flow coverage,
 the indexed companion build, republish and `carry-forward`) still rederive.
 
@@ -74,7 +74,7 @@ A record or shard with many anchors may use the experimental compact
 `source`), each anchor names its entry by zero-based `file` index with only its span, span hash
 and optional `symbol` or `region`, and optional `anchor_defaults` supply a shared `authority`,
 `evidence_kind` and `reason`. The build expands it to the `/1` record and admits that unchanged;
-on #1664's shape the anchors cost about half the bytes (`DCP-V1-487..489`).
+on #1664's shape the anchors cost about half the bytes (`DCX-V1-487..489`).
 
 The profile preserves typed claims, eight-section flows, stable paragraphs and retirement redirects,
 test-link roles/confidence, explicit coverage membership, ticket history and intent comparisons.
@@ -502,5 +502,5 @@ are never carried:
 - native or compiler-derived records;
 - journeys, observations and supplied gaps.
 
-Under the default views, a comparison of a corpus with itself lists no `unresolved` entry. See DCP-V1-360..369,
-DCP-V1-420..425 and DCP-V1-440..445.
+Under the default views, a comparison of a corpus with itself lists no `unresolved` entry. See DCX-V1-360..369,
+DCX-V1-420..425 and DCX-V1-440..445.

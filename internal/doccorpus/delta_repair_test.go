@@ -43,10 +43,10 @@ func commitEdits(t *testing.T, root string, edits map[string]string) Manifest {
 	return m
 }
 
-func TestDCPV1360DeltaRepairs(t *testing.T) {
+func TestDCXV1360DeltaRepairs(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	t.Run("DCP-V1-362 DCP-V1-363 end-of-file spans and changed symbol lines", func(t *testing.T) {
+	t.Run("DCX-V1-362 DCX-V1-363 end-of-file spans and changed symbol lines", func(t *testing.T) {
 		t.Parallel()
 		root, m := fixture(t)
 		rev := m.Repository.Revision
@@ -89,7 +89,7 @@ func TestDCPV1360DeltaRepairs(t *testing.T) {
 			t.Fatalf("changed symbol anchor lacks changed lines: %+v", a)
 		}
 	})
-	t.Run("DCP-V1-364 uncovered sub-ranges and uncited subjects", func(t *testing.T) {
+	t.Run("DCX-V1-364 uncovered sub-ranges and uncited subjects", func(t *testing.T) {
 		t.Parallel()
 		root, previous, m := deltaFixture(t)
 		line := tkAnchor(t, root, m, m.Repository.Revision, "src/extra.go", 1, 1)
@@ -130,7 +130,7 @@ func TestDCPV1360DeltaRepairs(t *testing.T) {
 			}
 		}
 	})
-	t.Run("DCP-V1-365 DCP-V1-366 cross-provider dependency refused until built", func(t *testing.T) {
+	t.Run("DCX-V1-365 DCX-V1-366 cross-provider dependency refused until built", func(t *testing.T) {
 		t.Parallel()
 		root, m := fixture(t)
 		rev := m.Repository.Revision
@@ -169,7 +169,7 @@ func TestDCPV1360DeltaRepairs(t *testing.T) {
 			t.Fatalf("carried claim does not import: %v", err)
 		}
 	})
-	t.Run("DCP-V1-367 read bound checked before the body is read", func(t *testing.T) {
+	t.Run("DCX-V1-367 read bound checked before the body is read", func(t *testing.T) {
 		t.Parallel()
 		root, m := fixture(t)
 		inputs := map[string]Input{}
@@ -200,7 +200,7 @@ func TestDCPV1360DeltaRepairs(t *testing.T) {
 			t.Fatalf("blob after an exhausted budget admitted: %q %v read=%d", reason, err, d.read)
 		}
 	})
-	t.Run("DCP-V1-367 hashing bound on the unchanged path and placement windows", func(t *testing.T) {
+	t.Run("DCX-V1-367 hashing bound on the unchanged path and placement windows", func(t *testing.T) {
 		t.Parallel()
 		d := &deltaRun{hashLimit: 4}
 		lines := spanLines([]byte("dup\nx\n"))

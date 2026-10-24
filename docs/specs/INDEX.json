@@ -3912,5 +3912,59 @@
       "internal/perfbudget",
       "internal/procprofile"
     ]
+  },
+  {
+    "path": "docs/specs/documentation-corpus-search-ranking-v1.md",
+    "title": "Documentation corpus search ranking V1",
+    "reqPrefix": "DCS-V1",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Corpus docs_search ranks files and claims by served rank groups, query-word coverage, identifier tokens, named subjects and derived declarations.",
+    "dependsOn": [
+      "docs/specs/documentation-corpus-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/doccorpus",
+      "internal/mcp/corpusbridge"
+    ]
+  },
+  {
+    "path": "docs/specs/documentation-corpus-verified-reads-v1.md",
+    "title": "Documentation corpus verified reads V1",
+    "reqPrefix": "DCR-V1",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Corpus reads verify streamed, reused, parallel-scanned and delta members once, with stat-routed revision pins and bounded read-start freshness.",
+    "dependsOn": [
+      "docs/specs/documentation-corpus-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/doccorpus",
+      "internal/contextindex",
+      "cmd/corvint"
+    ]
+  },
+  {
+    "path": "docs/specs/documentation-corpus-extraction-delta-v1.md",
+    "title": "Documentation corpus extraction, delta and rebuild V1",
+    "reqPrefix": "DCX-V1",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Corpus extraction discovers tests, applies declared extractor profiles, computes revision deltas and claim patterns, and rebuilds from the embedded manifest.",
+    "dependsOn": [
+      "docs/specs/documentation-corpus-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/doccorpus",
+      "internal/testsource",
+      "internal/cem/gitauth",
+      "cmd/corvint"
+    ]
   }
 ]

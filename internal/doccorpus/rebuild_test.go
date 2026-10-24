@@ -25,11 +25,11 @@ func resigned(data []byte) []byte {
 	return append(append(bytes.Clone(data[:at]), `,"sha256":"`+digest+`"}`...), '\n')
 }
 
-// TestDCPV1495RebuildFromEmbeddedManifest: the manifest an artifact embeds rebuilds it. A stale
+// TestDCXV1495RebuildFromEmbeddedManifest: the manifest an artifact embeds rebuilds it. A stale
 // artifact, recorded by another derivation and holding a member this builder does not decode,
 // yields its manifest without a build, and building that manifest reproduces the bytes a current
-// build of the same inputs produces (DCP-V1-495).
-func TestDCPV1495RebuildFromEmbeddedManifest(t *testing.T) {
+// build of the same inputs produces (DCX-V1-495).
+func TestDCXV1495RebuildFromEmbeddedManifest(t *testing.T) {
 	t.Parallel()
 	root, a, data := builtFixture(t)
 	stale := rehashed(t, a, staleDerivation)
@@ -59,11 +59,11 @@ func TestDCPV1495RebuildFromEmbeddedManifest(t *testing.T) {
 	}
 }
 
-// TestDCPV1496RebuildRefusesUnverifiedManifest: the rebuild refuses bytes whose content digest,
+// TestDCXV1496RebuildRefusesUnverifiedManifest: the rebuild refuses bytes whose content digest,
 // canonical tail, schema, embedded manifest or manifest digest does not hold before any build,
 // bytes over their schema's size bound, and a pinned input that no longer matches Git at build
-// (DCP-V1-496). Not parallel: it counts the process's builds.
-func TestDCPV1496RebuildRefusesUnverifiedManifest(t *testing.T) {
+// (DCX-V1-496). Not parallel: it counts the process's builds.
+func TestDCXV1496RebuildRefusesUnverifiedManifest(t *testing.T) {
 	root, a, data := builtFixture(t)
 	changed := *a
 	changed.Manifest.Inputs = append([]Input(nil), a.Manifest.Inputs...)
@@ -104,10 +104,10 @@ func TestDCPV1496RebuildRefusesUnverifiedManifest(t *testing.T) {
 	}
 }
 
-// TestDCPV1497ReadNeverRebuilds: a verified read of a stale artifact refuses, names the explicit
-// rebuild, runs no build and leaves the artifact file unchanged (DCP-V1-497). Not parallel: it
+// TestDCXV1497ReadNeverRebuilds: a verified read of a stale artifact refuses, names the explicit
+// rebuild, runs no build and leaves the artifact file unchanged (DCX-V1-497). Not parallel: it
 // counts the process's builds.
-func TestDCPV1497ReadNeverRebuilds(t *testing.T) {
+func TestDCXV1497ReadNeverRebuilds(t *testing.T) {
 	root, a, _ := builtFixture(t)
 	stale := rehashed(t, a, staleDerivation)
 	if err := os.WriteFile(filepath.Join(root, "stale-corpus.json"), stale, 0o600); err != nil {

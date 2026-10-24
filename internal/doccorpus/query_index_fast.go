@@ -12,7 +12,7 @@ import (
 // buildQueryIndexFast derives the query index BuildQueryIndex's reference
 // derivation stores, with the record maps and the term maps built
 // concurrently and the posting and unique-key-byte totals taken from the
-// finished maps instead of charged one posting at a time (DCP-V1-419). While
+// finished maps instead of charged one posting at a time (DCR-V1-419). While
 // no bound is crossed the reference derivation stores every posting it
 // charges, so each map then holds exactly the reference map and the totals
 // are the reference totals. ok is false whenever the reference derivation
@@ -292,7 +292,7 @@ func claimTermBlocksCover(blocks []*claimTermBlock, n int) bool {
 // and from the text of every claim about it, and stores each claim's own
 // term postings in claim order. Claims are derived in blocks on worker
 // goroutines, or taken from pre when a read derived blocks covering every
-// claim while it decoded them (DCP-V1-434); each block's postings are in
+// claim while it decoded them (DCR-V1-434); each block's postings are in
 // claim order, and the blocks are appended in order.
 func indexTermsFast(ctx context.Context, a *Artifact, x *QueryIndex, terms []map[string]bool, stored func(int) bool, pre []*claimTermBlock) bool {
 	subjectIDs := make(map[string]int, len(a.Subjects))
@@ -337,7 +337,7 @@ func indexTermsFast(ctx context.Context, a *Artifact, x *QueryIndex, terms []map
 		return false
 	}
 	// Each term's postings are allocated once at their final length, and a term that only one
-	// block holds keeps that block's list; the blocks are not read again (DCP-V1-468).
+	// block holds keeps that block's list; the blocks are not read again (DCR-V1-468).
 	hint := 0
 	if len(blocks) > 0 {
 		hint = len(blocks[0].postings)

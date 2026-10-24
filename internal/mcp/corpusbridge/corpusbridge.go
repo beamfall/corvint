@@ -59,7 +59,7 @@ type Registry struct {
 	}
 	// artifactFile is the stat stamp of the configured artifact file captured
 	// before the last read whose digest matched; while the file keeps that
-	// stamp a call neither reads nor hashes it again (DCP-V1-417).
+	// stamp a call neither reads nor hashes it again (DCR-V1-417).
 	artifactFile struct {
 		sync.Mutex
 		stamp string
@@ -403,7 +403,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	queried := a
 	// docs_validate rederives the artifact from its pinned inputs on every call,
 	// as the CLI validate does; other tools answer from the verified read
-	// (DCP-V1-413). The memo and its freshness stay keyed by the verified read.
+	// (DCR-V1-413). The memo and its freshness stay keyed by the verified read.
 	if op == "validate" {
 		step := time.Now()
 		raw, err := read.bytes()
@@ -603,7 +603,7 @@ func writeJSON(out *bytes.Buffer, value any) {
 }
 
 // artifactFor returns the verified artifact. The first call runs the verified
-// read (DCP-V1-410, DCP-V1-416); later calls reuse it while every pinned
+// read (DCR-V1-410, DCR-V1-416); later calls reuse it while every pinned
 // revision still resolves to a commit and tree. A failed check drops the memo
 // and reads again, so a missing revision reports the native typed failure
 // (DCP-V1-011, DCP-V1-143).
@@ -619,7 +619,7 @@ func (r *Registry) artifactFor(ctx context.Context, read func() ([]byte, error),
 	}
 	defer func() { <-r.load }()
 	// An evaluation suite answers every case from the artifact its session opened, and checks
-	// the checkout once after the last case instead of before each (DCP-V1-474).
+	// the checkout once after the last case instead of before each (DCX-V1-474).
 	if s := sessionOf(ctx); s != nil && r.artifact == s.artifact {
 		return r.artifact, s.stamp, nil
 	}
@@ -726,7 +726,7 @@ func (r *Registry) freshness(ctx context.Context, a *doccorpus.Artifact, stamp s
 }
 
 // readArtifactFile reads the configured artifact; tests replace it to count
-// reads (DCP-V1-417).
+// reads (DCR-V1-417).
 var readArtifactFile = doccorpus.ReadCorpusFile
 
 // errArtifactChanged is a configured artifact whose bytes no longer match the
@@ -735,7 +735,7 @@ var errArtifactChanged = errors.New("configured artifact changed")
 
 // artifactRead reads the configured artifact at most once per call, and not
 // at all while its file keeps the stat stamp captured before the last read
-// whose digest matched (DCP-V1-417).
+// whose digest matched (DCR-V1-417).
 type artifactRead struct {
 	r         *Registry
 	stamp     string

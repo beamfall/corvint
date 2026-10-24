@@ -115,12 +115,12 @@ var statRoutedFiles = map[string]string{
 	"docs/guide.md":             "# Guide\n\nSee internal/auth/session.go.\n",
 }
 
-// TestDCPV1452GitIndexVouchesUnchangedEntries: on an unchanged checkout every
+// TestDCRV1452GitIndexVouchesUnchangedEntries: on an unchanged checkout every
 // eligible entry is vouched by Git's index stat data and pinned from its
 // committed blob, so the routed pass opens no worktree file; the unrouted pass
 // still opens every one. A file whose stat changed (same bytes, new times) or
 // whose content changed is opened and hashed.
-func TestDCPV1452GitIndexVouchesUnchangedEntries(t *testing.T) {
+func TestDCRV1452GitIndexVouchesUnchangedEntries(t *testing.T) {
 	requireIndexStat(t)
 	root := statRoutedRepository(t, statRoutedFiles)
 	reads := captureWorktreeReads(t)
@@ -151,11 +151,11 @@ func TestDCPV1452GitIndexVouchesUnchangedEntries(t *testing.T) {
 	}
 }
 
-// TestDCPV1452RacyEntryIsNotVouched: an entry whose recorded modification time
+// TestDCRV1452RacyEntryIsNotVouched: an entry whose recorded modification time
 // falls in the index file's second or later is not vouched even when every
 // stat field matches (Git's racy-clean rule with a whole-second window), and
 // one in an earlier second is.
-func TestDCPV1452RacyEntryIsNotVouched(t *testing.T) {
+func TestDCRV1452RacyEntryIsNotVouched(t *testing.T) {
 	requireIndexStat(t)
 	path := filepath.Join(t.TempDir(), "file.go")
 	if err := os.WriteFile(path, []byte("package file\n"), 0o644); err != nil {
@@ -202,10 +202,10 @@ func TestDCPV1452RacyEntryIsNotVouched(t *testing.T) {
 	}
 }
 
-// TestDCPV1452IndexVersionsAndFlags: version 2, 3 and 4 indexes parse to the
+// TestDCRV1452IndexVersionsAndFlags: version 2, 3 and 4 indexes parse to the
 // same stage-0 stat data; a skip-worktree, assume-unchanged or intent-to-add
 // entry, and a conflicted path, are left out so they are never vouched.
-func TestDCPV1452IndexVersionsAndFlags(t *testing.T) {
+func TestDCRV1452IndexVersionsAndFlags(t *testing.T) {
 	requireIndexStat(t)
 	root := statRoutedRepository(t, statRoutedFiles)
 	index, ok := readGitIndex(gitIndexPath(t, root), "sha1")
@@ -278,11 +278,11 @@ func FuzzParseGitIndex(f *testing.F) {
 	})
 }
 
-// TestDCPV1453UnusableIndexVouchesNothing: a corrupt checksum, an unsupported
+// TestDCRV1453UnusableIndexVouchesNothing: a corrupt checksum, an unsupported
 // version, a truncated file, a split index and a missing index each vouch for
 // nothing, and the routed build then opens and hashes every eligible file and
 // pins exactly what the unrouted build pins.
-func TestDCPV1453UnusableIndexVouchesNothing(t *testing.T) {
+func TestDCRV1453UnusableIndexVouchesNothing(t *testing.T) {
 	requireIndexStat(t)
 	resum := func(data []byte) []byte {
 		sum := sha1.Sum(data[:len(data)-20])
@@ -363,11 +363,11 @@ func TestDCPV1453UnusableIndexVouchesNothing(t *testing.T) {
 	}
 }
 
-// TestDCPV1453IndexPathnameBounds: a version 4 index whose prefix compression
+// TestDCRV1453IndexPathnameBounds: a version 4 index whose prefix compression
 // stays within the pathname bounds parses; one pathname past PATH_MAX, or
 // decoded pathnames past the expansion bound, refuse the whole index before
 // the names are allocated.
-func TestDCPV1453IndexPathnameBounds(t *testing.T) {
+func TestDCRV1453IndexPathnameBounds(t *testing.T) {
 	chain := func(first, count int) []string {
 		names := []string{strings.Repeat("a", first)}
 		for range count {
@@ -440,10 +440,10 @@ func writeIndex(t *testing.T, path string, data []byte) {
 	}
 }
 
-// TestDCPV1453FailedBlobBatchFallsBackToWorktree: when the committed blobs of
+// TestDCRV1453FailedBlobBatchFallsBackToWorktree: when the committed blobs of
 // vouched entries cannot be read, the entries take the hashed worktree pass
 // instead, so the routed build still pins every source the unrouted one does.
-func TestDCPV1453FailedBlobBatchFallsBackToWorktree(t *testing.T) {
+func TestDCRV1453FailedBlobBatchFallsBackToWorktree(t *testing.T) {
 	requireIndexStat(t)
 	root := statRoutedRepository(t, statRoutedFiles)
 	original := fetchVouchedBlobs
@@ -462,10 +462,10 @@ func TestDCPV1453FailedBlobBatchFallsBackToWorktree(t *testing.T) {
 	}
 }
 
-// TestDCPV1453RoutedPinMatchesParityRepository: over the pin parity fixture
+// TestDCRV1453RoutedPinMatchesParityRepository: over the pin parity fixture
 // (dirty, deleted, unreadable, symlinked, executable, shared-blob, empty and
 // generated entries) the routed pass pins byte-identical evidence.
-func TestDCPV1453RoutedPinMatchesParityRepository(t *testing.T) {
+func TestDCRV1453RoutedPinMatchesParityRepository(t *testing.T) {
 	requireIndexStat(t)
 	root, _ := pinParityRepository(t)
 	assertIndexEvidenceEqual(t, root, revisionEvidence(t, root, false), revisionEvidence(t, root, true))

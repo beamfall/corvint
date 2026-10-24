@@ -22,11 +22,11 @@ const (
 
 // proseNameTerms is the most distinct terms a subject name may hold and still
 // weigh as a name; a longer name is prose, such as a documentation paragraph,
-// and its terms weigh as claim text (DCP-V1-401).
+// and its terms weigh as claim text (DCS-V1-401).
 const proseNameTerms = 12
 
 // pathSubject reports whether a subject's anchor paths are part of its name
-// field: module and file subjects (DCP-V1-400).
+// field: module and file subjects (DCS-V1-400).
 func pathSubject(s Subject) bool { return s.Kind == "module" || s.Kind == "file" }
 
 // searchIDF is the BM25 inverse document frequency of a term held by df of n
@@ -40,24 +40,24 @@ type searchHit struct {
 	id    string
 	score float64
 	// tier is the hit's ranking tier, tierExact to tierTerms: an exact name
-	// or claim-text match (DCP-V1-402), an identifier token (DCP-V1-541), a
-	// phrase in a path, a name or only the ID (DCP-V1-475, DCP-V1-542), a
-	// name a question holds (DCP-V1-543), or terms alone. An earlier tier
+	// or claim-text match (DCS-V1-402), an identifier token (DCS-V1-541), a
+	// phrase in a path, a name or only the ID (DCX-V1-475, DCS-V1-542), a
+	// name a question holds (DCS-V1-543), or terms alone. An earlier tier
 	// orders first, whatever the scores.
 	tier int
-	// terms counts the query words whose terms the hit holds (DCP-V1-540),
-	// in a question only its content words (DCP-V1-565).
+	// terms counts the query words whose terms the hit holds (DCS-V1-540),
+	// in a question only its content words (DCS-V1-565).
 	terms int
-	// claim orders a claim after a subject of equal score (DCP-V1-402).
+	// claim orders a claim after a subject of equal score (DCS-V1-402).
 	claim bool
 	// text is the subject name or claim text whose length breaks a score
-	// tie before the natural ID order (DCP-V1-477).
+	// tie before the natural ID order (DCX-V1-477).
 	text string
 }
 
 // normalized divides a family's raw score by the family's largest possible
 // partial score for the query, so each family's partial hits score in [0, 1]
-// and compare across families (DCP-V1-402). A query without terms has no
+// and compare across families (DCS-V1-402). A query without terms has no
 // partial hits.
 func normalized(score, maximum float64) float64 {
 	if maximum <= 0 {
@@ -69,19 +69,19 @@ func normalized(score, maximum float64) float64 {
 // search ranks subjects, and with include:["claims"] claims, by a binary-tf
 // BM25 score over their name and claim-text fields (DCP-V1-331, DCP-V1-328),
 // with module and file path segments in the name field and prose names
-// weighed as text (DCP-V1-400, DCP-V1-401). Each family's score is
+// weighed as text (DCS-V1-400, DCS-V1-401). Each family's score is
 // normalized by its largest possible partial score before the families merge
-// (DCP-V1-402). Exact matches order first whatever their term overlap,
-// then subjects whose name field holds the query as a phrase (DCP-V1-475).
+// (DCS-V1-402). Exact matches order first whatever their term overlap,
+// then subjects whose name field holds the query as a phrase (DCX-V1-475).
 // Claim text also matches regular inflections of a query term
-// (DCP-V1-476). A query word counts once, by the best of the terms it yields
-// (DCP-V1-540), and the tiers of DCP-V1-541 to DCP-V1-543 order identifier
+// (DCX-V1-476). A query word counts once, by the best of the terms it yields
+// (DCS-V1-540), and the tiers of DCS-V1-541 to DCS-V1-543 order identifier
 // tokens, path phrases, ID-only phrases and names a question holds. Groups
 // are summed in sorted order so the floating-point score is deterministic.
-// Inside tier terms a hit holding more query words orders first (DCP-V1-547),
-// counting in a question only its content words (DCP-V1-565);
+// Inside tier terms a hit holding more query words orders first (DCS-V1-547),
+// counting in a question only its content words (DCS-V1-565);
 // equal scores order subjects before claims, then
-// the shorter name or text, then by natural record ID order (DCP-V1-477). A kind filter keeps only subjects of the named kinds and claims about
+// the shorter name or text, then by natural record ID order (DCX-V1-477). A kind filter keeps only subjects of the named kinds and claims about
 // them.
 func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error {
 	terms := slices.Sorted(maps.Keys(contextindex.EvidenceTerms(request.Query)))
@@ -201,7 +201,7 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 		}
 		if hits[i].tier == tierTerms && hits[i].terms != hits[j].terms {
 			// Inside tier terms a hit holding more query words orders first,
-			// whatever the per-word scores (DCP-V1-547).
+			// whatever the per-word scores (DCS-V1-547).
 			return hits[i].terms > hits[j].terms
 		}
 		if hits[i].score != hits[j].score {
@@ -229,7 +229,7 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 
 // servedScore rounds a normalized score to six decimals for a receipt, so
 // the served value does not depend on the last bits of a float sum
-// (DCP-V1-479).
+// (DCS-V1-479).
 func servedScore(score float64) float64 {
 	return math.Round(score*1e6) / 1e6
 }
@@ -238,9 +238,9 @@ func servedScore(score float64) float64 {
 // name, id, claim text or (for a module or file subject) anchor path holds
 // it, and a function naming the query terms in one subject's name field: its
 // id, its name unless the name is prose, and a module or file subject's
-// anchor paths (DCP-V1-400, DCP-V1-401). Only query terms are kept, and only
+// anchor paths (DCS-V1-400, DCS-V1-401). Only query terms are kept, and only
 // for subjects the function is asked about, so a miss retains no subject
-// vocabulary (DCP-V1-403). With an index the name, id and claim-text
+// vocabulary (DCS-V1-403). With an index the name, id and claim-text
 // postings are the index's; without one every subject is read once. The
 // index is never modified.
 func subjectPostings(ctx context.Context, a *Artifact, x *QueryIndex, terms []string) (map[string][]int, func(int) map[string]bool, error) {
@@ -297,7 +297,7 @@ func subjectPostings(ctx context.Context, a *Artifact, x *QueryIndex, terms []st
 		}
 		// Subjects are tokenized in blocks on worker goroutines; each block's
 		// postings are in subject order and the blocks are appended in order
-		// (DCP-V1-419).
+		// (DCR-V1-419).
 		const block = 128
 		blocks := make([]map[string][]int, (len(a.Subjects)+block-1)/block)
 		parallelBlocks(ctx, len(a.Subjects), block, func(b, lo, hi int) {
@@ -324,7 +324,7 @@ func subjectPostings(ctx context.Context, a *Artifact, x *QueryIndex, terms []st
 			}
 		}
 	}
-	// DCP-V1-400: a module or file subject also matches the terms of an
+	// DCS-V1-400: a module or file subject also matches the terms of an
 	// anchor path that is not its name.
 	extra := map[string][]int{}
 	for i, s := range a.Subjects {
@@ -365,11 +365,11 @@ func extraPaths(s Subject) []string {
 }
 
 // claimSearchHits scores claims by their ID and text terms, and regular
-// inflections of them (DCP-V1-476), with claim-text weight, a query word
-// counting once by its best term (DCP-V1-540) and, in a question, as covered
-// only when it is a content word (DCP-V1-565), normalized by the claim
+// inflections of them (DCX-V1-476), with claim-text weight, a query word
+// counting once by its best term (DCS-V1-540) and, in a question, as covered
+// only when it is a content word (DCS-V1-565), normalized by the claim
 // family's largest possible partial score; an exact-text match orders first
-// (DCP-V1-328, DCP-V1-402).
+// (DCP-V1-328, DCS-V1-402).
 func claimSearchHits(ctx context.Context, a *Artifact, x *QueryIndex, request Request, groups [][]string, covered []bool, keep func(string) bool) ([]searchHit, error) {
 	about := func(c Claim) bool {
 		if request.Kinds == nil {

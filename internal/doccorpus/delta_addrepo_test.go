@@ -111,10 +111,10 @@ func entriesByID(receipt *DeltaReceipt) map[string]DeltaEntry {
 	return out
 }
 
-func TestDCPV1420DeltaAdditionalRepositoryAnchors(t *testing.T) {
+func TestDCXV1420DeltaAdditionalRepositoryAnchors(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	t.Run("DCP-V1-420 DCP-V1-421 DCP-V1-422 a same-input delta carries every anchored record and lists nothing else", func(t *testing.T) {
+	t.Run("DCX-V1-420 DCX-V1-421 DCX-V1-422 a same-input delta carries every anchored record and lists nothing else", func(t *testing.T) {
 		t.Parallel()
 		f := newDeltaAddRepoFixture(t)
 		receipt, err := DeltaWith(ctx, f.root, f.previous, f.previous, "artifact", DeltaOptions{Limit: MaxResults, Uncovered: DeltaUncoveredChanged})
@@ -173,7 +173,7 @@ func TestDCPV1420DeltaAdditionalRepositoryAnchors(t *testing.T) {
 			t.Fatalf("builder upgrade changed the worklist: %+v", upgrade.Counts)
 		}
 	})
-	t.Run("DCP-V1-420 DCP-V1-424 moved and changed anchors in the additional repository and a carry-forward that builds", func(t *testing.T) {
+	t.Run("DCX-V1-420 DCX-V1-424 moved and changed anchors in the additional repository and a carry-forward that builds", func(t *testing.T) {
 		t.Parallel()
 		f := newDeltaAddRepoFixture(t)
 		changed := "# Lib\n\nIntro.\nThe lib parses quokka values.\n\nIt also formats them.\n"
@@ -215,7 +215,7 @@ func TestDCPV1420DeltaAdditionalRepositoryAnchors(t *testing.T) {
 			t.Fatalf("second carry-forward carried again: %+v %v", again, err)
 		}
 	})
-	t.Run("DCP-V1-425 an undeclared or unreadable additional repository leaves its anchors unresolved with the reason", func(t *testing.T) {
+	t.Run("DCX-V1-425 an undeclared or unreadable additional repository leaves its anchors unresolved with the reason", func(t *testing.T) {
 		t.Parallel()
 		f := newDeltaAddRepoFixture(t)
 		undeclared, err := Build(ctx, f.root, f.base)
@@ -240,7 +240,7 @@ func TestDCPV1420DeltaAdditionalRepositoryAnchors(t *testing.T) {
 			t.Fatalf("missing checkout: %+v", e)
 		}
 	})
-	t.Run("DCP-V1-423 the jsonl stream is the whole worklist once, equal to every page", func(t *testing.T) {
+	t.Run("DCX-V1-423 the jsonl stream is the whole worklist once, equal to every page", func(t *testing.T) {
 		t.Parallel()
 		f := newDeltaAddRepoFixture(t)
 		options := DeltaOptions{Anchorless: DeltaAnchorlessList}
@@ -283,7 +283,7 @@ func TestDCPV1420DeltaAdditionalRepositoryAnchors(t *testing.T) {
 			t.Fatalf("paged %d, stream %d", len(paged), header.Total)
 		}
 	})
-	t.Run("DCP-V1-421 DCP-V1-422 an invalid view mode is refused", func(t *testing.T) {
+	t.Run("DCX-V1-421 DCX-V1-422 an invalid view mode is refused", func(t *testing.T) {
 		t.Parallel()
 		for _, o := range []DeltaOptions{{Uncovered: "some"}, {Anchorless: "none"}} {
 			if _, err := deltaWorklist(ctx, "", nil, nil, o); err == nil {
