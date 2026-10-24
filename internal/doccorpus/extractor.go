@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"io/fs"
+	"os"
 	"path"
+	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"sort"
 	"strconv"
@@ -16,6 +19,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/testvaliditydoc"
 )
 
 // ExtractorProfileSchema names a repository-declared extractor profile and
@@ -65,16 +69,28 @@ type ExtractorToolOutput struct {
 }
 
 // ExtractorInput is one extraction: the repository root, the full commit whose blobs are read and
-// the repository path of the profile at that commit.
+// the repository path of the profile at that commit. With ProfileSHA256 set, Profile is instead
+// the absolute local path of a caller-owned profile outside the repository, admitted only when its
+// bytes hash to ProfileSHA256 (DCP-V1-478).
 type ExtractorInput struct {
 	Root, Revision, Profile string
+	ProfileSHA256           string
 }
 
-// ExtractorProfileRef pins the profile blob the inventory was produced from.
+// ExtractorProfileOriginCaller marks an inventory produced from a caller-owned profile.
+const ExtractorProfileOriginCaller = "caller"
+
+// ExtractorProfileRef pins the profile the inventory was produced from: a repository profile by
+// its path and Git blob, a caller-owned one by its origin, the SHA-256 of its exact bytes, its
+// canonical document and that document's canonical SHA-256 (DCP-V1-503). The local path of a
+// caller-owned profile is never recorded.
 type ExtractorProfileRef struct {
-	Path   string `json:"path"`
-	Blob   string `json:"blob"`
-	SHA256 string `json:"sha256"`
+	Origin          string            `json:"origin,omitempty"`
+	Path            string            `json:"path,omitempty"`
+	Blob            string            `json:"blob,omitempty"`
+	SHA256          string            `json:"sha256"`
+	CanonicalSHA256 string            `json:"canonical_sha256,omitempty"`
+	Document        *ExtractorProfile `json:"document,omitempty"`
 }
 
 // ExtractorInventory is generated, never reviewed. Provider is a complete
@@ -152,8 +168,12 @@ type extractorFile struct {
 
 type extractorProducer struct {
 	provider, repository, revision string
-	inv                            *ExtractorInventory
-	sites                          []extractorSite
+	// callerProfile names a caller-owned profile's digest in the subjects capability, present or
+	// absent, so the provider record a corpus admits still names the profile it was produced
+	// from (DCP-V1-503).
+	callerProfile string
+	inv           *ExtractorInventory
+	sites         []extractorSite
 }
 
 // BuildExtractorInventory reads a repository-declared extractor profile and the files it names
@@ -163,8 +183,18 @@ func BuildExtractorInventory(ctx context.Context, input ExtractorInput) ([]byte,
 	if !wire.IsGitOid(input.Revision) {
 		return nil, fail("extraction requires a full commit revision")
 	}
-	if !affected.ValidRelativePath(input.Profile) {
-		return nil, fail("extractor profile is not a canonical repository-relative path")
+	caller := input.ProfileSHA256 != ""
+	switch {
+	case caller && !extractorDigest.MatchString(input.ProfileSHA256):
+		return nil, fail("--profile-sha256 must be 64 lowercase hexadecimal digits")
+	case caller && (!filepath.IsAbs(input.Profile) || filepath.Clean(input.Profile) != input.Profile):
+		return nil, fail("a caller-owned extractor profile must be a clean absolute path outside the repository")
+	case !caller && !affected.ValidRelativePath(input.Profile):
+		message := "extractor profile is not a canonical repository-relative path"
+		if filepath.IsAbs(input.Profile) {
+			message += "; a caller-owned profile outside the repository also needs --profile-sha256"
+		}
+		return nil, fail(message)
 	}
 	repository, err := contextindex.CorpusRepositoryID(ctx, input.Root, input.Revision)
 	if err != nil {
@@ -176,27 +206,49 @@ func BuildExtractorInventory(ctx context.Context, input ExtractorInput) ([]byte,
 	}
 	release := auth.BeginObjectSession()
 	defer release()
-	entry, ok, err := auth.LookupTreeEntry(ctx, input.Revision, input.Profile)
-	if err != nil {
-		return nil, err
-	}
-	if !ok || !regularBlob(entry) {
-		return nil, fail("extractor profile is not a regular Git blob at the revision: " + input.Profile)
-	}
-	raw, over, err := auth.BlobBytesWithin(ctx, entry.OID, MaxBytes)
-	if err != nil {
-		return nil, err
-	}
-	if over {
-		return nil, fail("extractor profile exceeds the input bound")
+	var raw []byte
+	var ref ExtractorProfileRef
+	name := input.Profile
+	if caller {
+		name = "caller extractor profile"
+		if raw, err = readCallerProfile(auth.Root, input.Profile, input.ProfileSHA256); err != nil {
+			return nil, err
+		}
+		ref = ExtractorProfileRef{Origin: ExtractorProfileOriginCaller, SHA256: input.ProfileSHA256}
+	} else {
+		entry, ok, err := auth.LookupTreeEntry(ctx, input.Revision, input.Profile)
+		if err != nil {
+			return nil, err
+		}
+		if !ok || !regularBlob(entry) {
+			return nil, fail("extractor profile is not a regular Git blob at the revision: " + input.Profile)
+		}
+		var over bool
+		raw, over, err = auth.BlobBytesWithin(ctx, entry.OID, MaxBytes)
+		if err != nil {
+			return nil, err
+		}
+		if over {
+			return nil, fail("extractor profile exceeds the input bound")
+		}
+		ref = ExtractorProfileRef{Path: input.Profile, Blob: entry.OID, SHA256: Digest(raw)}
 	}
 	var profile ExtractorProfile
-	if err := decodeNamed(input.Profile, raw, &profile, MaxBytes); err != nil {
+	if err := decodeNamed(name, raw, &profile, MaxBytes); err != nil {
 		return nil, err
 	}
 	extractors, err := compileExtractorProfile(profile)
 	if err != nil {
 		return nil, err
+	}
+	limitations := extractorLimitations
+	if caller {
+		canonical, err := Encode(profile)
+		if err != nil {
+			return nil, err
+		}
+		ref.CanonicalSHA256, ref.Document = Digest(canonical), &profile
+		limitations = append(slices.Clone(extractorLimitations), callerProfileLimitation)
 	}
 	paths, err := extractorPaths(ctx, auth, input.Revision, extractors)
 	if err != nil {
@@ -214,8 +266,11 @@ func BuildExtractorInventory(ctx context.Context, input ExtractorInput) ([]byte,
 		return nil, err
 	}
 	source := Repository{ID: repository, Revision: input.Revision}
-	inv := &ExtractorInventory{Schema: ExtractorInventorySchema, Status: "generated", Repository: repository, Revision: input.Revision, Profile: ExtractorProfileRef{Path: input.Profile, Blob: entry.OID, SHA256: Digest(raw)}, Gaps: []ExtractorGap{}, Limitations: extractorLimitations}
+	inv := &ExtractorInventory{Schema: ExtractorInventorySchema, Status: "generated", Repository: repository, Revision: input.Revision, Profile: ref, Gaps: []ExtractorGap{}, Limitations: limitations}
 	p := &extractorProducer{provider: profile.Provider, repository: repository, revision: input.Revision, inv: inv}
+	if caller {
+		p.callerProfile = "caller-owned extractor profile sha256:" + input.ProfileSHA256
+	}
 	for i := range extractors {
 		ex := &extractors[i]
 		if len(paths[i]) == 0 {
@@ -249,6 +304,57 @@ func BuildExtractorInventory(ctx context.Context, input ExtractorInput) ([]byte,
 		return nil, fail("extractor inventory exceeds the record bound")
 	}
 	return Encode(inv)
+}
+
+const callerProfileLimitation = "the extractor profile is caller-owned configuration pinned by SHA-256, not declared by the repository; sources are still read only from Git at the revision"
+
+// callerProfileSupported reports whether this platform has the no-follow component reader a
+// caller-owned profile is read through; elsewhere it is refused (DCP-V1-478).
+var callerProfileSupported = runtime.GOOS == "darwin" || runtime.GOOS == "linux"
+
+// readCallerProfileFile is the pinned no-follow read; tests observe the window after the check.
+var readCallerProfileFile = testvaliditydoc.ReadAbsoluteFileBounded
+
+// readCallerProfile reads a caller-owned profile outside the repository root, no larger than the
+// input bound, and admits it only when its exact bytes hash to digest (DCP-V1-478, DCP-V1-504).
+// The path is resolved once; every ancestor of the resolved directory is compared with the
+// repository root by filesystem identity, so a case or hard-link alias of the root is still
+// inside, and the file is then read along that symlink-free path with every directory component
+// pinned and no symlink followed, so a component replaced by a symlink after the check is
+// refused. Nothing is written.
+func readCallerProfile(repositoryRoot, name, digest string) ([]byte, error) {
+	if !callerProfileSupported {
+		return nil, fail("caller-owned extractor profiles need the no-follow file reader, which this platform lacks; commit the profile and pass its repository path")
+	}
+	unavailable := &Error{Code: "corpus-input-unavailable", Message: "caller-owned extractor profile missing, unsafe or over bound"}
+	dir, err := filepath.EvalSymlinks(filepath.Dir(name))
+	if err != nil {
+		return nil, unavailable
+	}
+	repository, err := os.Stat(repositoryRoot)
+	if err != nil {
+		return nil, err
+	}
+	for ancestor := dir; ; ancestor = filepath.Dir(ancestor) {
+		info, err := os.Lstat(ancestor)
+		if err != nil {
+			return nil, unavailable
+		}
+		if os.SameFile(info, repository) {
+			return nil, fail("a caller-owned extractor profile must lie outside the extracted repository; commit it and pass its repository path without --profile-sha256")
+		}
+		if parent := filepath.Dir(ancestor); parent == ancestor {
+			break
+		}
+	}
+	raw, err := readCallerProfileFile(filepath.Join(dir, filepath.Base(name)), MaxBytes)
+	if err != nil {
+		return nil, unavailable
+	}
+	if got := Digest(raw); got != digest {
+		return nil, fail("caller-owned extractor profile does not match --profile-sha256 (file sha256 " + got + ")")
+	}
+	return raw, nil
 }
 
 // compileExtractorProfile admits the closed profile shape and compiles its patterns (DCP-V1-390).
@@ -781,8 +887,14 @@ func (p *extractorProducer) record(source Repository, version string) (ProviderR
 		return ProviderRecord{}, fail("extractor inventory exceeds the record bound")
 	}
 	subjectsState, subjectsReason := "present", "subjects matched by the repository-declared extractor profile"
+	if p.callerProfile != "" {
+		subjectsReason = "subjects matched by the " + p.callerProfile
+	}
 	if len(record.Subjects) == 0 {
 		subjectsState, subjectsReason = "absent", "no extractor pattern matched a readable file"
+		if p.callerProfile != "" {
+			subjectsReason = "no pattern of the " + p.callerProfile + " matched a readable file"
+		}
 	}
 	record.Capabilities = []CapabilityDeclaration{
 		{Name: "subjects", State: subjectsState, Reason: subjectsReason},
