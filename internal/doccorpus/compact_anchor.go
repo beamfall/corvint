@@ -19,8 +19,8 @@ const AdoptionProviderSchemaV2 = "corvint-corpus-adoption-provider/2"
 // AnchorFile is one entry of a compact record's file table. An absent repository or revision is
 // the record's source repository or revision; a present one, even empty, is kept.
 type AnchorFile struct {
-	Repository *string `json:"repository,omitempty"`
-	Revision   *string `json:"revision,omitempty"`
+	Repository *string `json:"repository,omitzero"`
+	Revision   *string `json:"revision,omitzero"`
 	Path       string  `json:"path"`
 	Blob       string  `json:"blob"`
 	SHA256     string  `json:"sha256"`
@@ -44,9 +44,9 @@ type CompactAnchor struct {
 	SpanSHA256 string  `json:"span_sha256"`
 	Symbol     string  `json:"symbol,omitempty"`
 	Region     string  `json:"region,omitempty"`
-	Authority  *string `json:"authority,omitempty"`
-	Kind       *string `json:"evidence_kind,omitempty"`
-	Reason     *string `json:"reason,omitempty"`
+	Authority  *string `json:"authority,omitzero"`
+	Kind       *string `json:"evidence_kind,omitzero"`
+	Reason     *string `json:"reason,omitzero"`
 }
 
 // compactRecord is the closed wire form of a compact record: a ProviderRecord plus its file
@@ -165,4 +165,131 @@ func scanTopLevel(data []byte, visit func(member string, dec *jsontext.Decoder) 
 		}
 	}
 	return nil
+}
+
+// EncodeCompactProvider writes record, a corvint-corpus-adoption-provider/1 record, as the
+// compact /2 record that expands to it (DCP-V1-530): its anchors index a file table built in
+// first-appearance order, a file omits its repository and revision when they are the record's
+// source ones, and an anchor omits its authority, kind and reason when they equal defaults
+// (every member is written when defaults is nil).
+func EncodeCompactProvider(record ProviderRecord, defaults *AnchorDefaults) ([]byte, error) {
+	if record.Schema != AdoptionProviderSchema {
+		return nil, fail("compact encoding needs a " + AdoptionProviderSchema + " record")
+	}
+	type fileKey struct{ repository, revision, path, blob, sha256 string }
+	index := map[fileKey]int{}
+	files := []AnchorFile{}
+	unlessEqual := func(value, implied string) *string {
+		if value == implied {
+			return nil
+		}
+		return &value
+	}
+	var d AnchorDefaults
+	if defaults != nil {
+		d = *defaults
+	}
+	compact := json.MarshalToFunc(func(enc *jsontext.Encoder, a Anchor) error {
+		key := fileKey{a.Repository, a.Revision, a.Path, a.Blob, a.SHA256}
+		i, ok := index[key]
+		if !ok {
+			if len(files) == maxAnchorFiles {
+				return errors.New("anchor file table bound exceeded")
+			}
+			i = len(files)
+			index[key] = i
+			files = append(files, AnchorFile{Repository: unlessEqual(a.Repository, record.Source.ID), Revision: unlessEqual(a.Revision, record.Source.Revision), Path: a.Path, Blob: a.Blob, SHA256: a.SHA256})
+		}
+		c := CompactAnchor{File: &i, Start: a.Start, End: a.End, SpanSHA256: a.SpanSHA256, Symbol: a.Symbol, Region: a.Region,
+			Authority: &a.Authority, Kind: &a.Kind, Reason: &a.Reason}
+		if defaults != nil {
+			c.Authority, c.Kind, c.Reason = unlessEqual(a.Authority, d.Authority), unlessEqual(a.Kind, d.Kind), unlessEqual(a.Reason, d.Reason)
+		}
+		return json.MarshalEncode(enc, c)
+	})
+	options := json.JoinOptions(json.Deterministic(true), json.WithMarshalers(compact))
+	// The first pass fills the file table; the second writes the record with it.
+	if _, err := json.Marshal(record, options); err != nil {
+		return nil, fail("compact encoding failed: " + boundedText(err.Error(), 256))
+	}
+	record.Schema = AdoptionProviderSchemaV2
+	raw, err := json.Marshal(compactRecord{ProviderRecord: record, Files: files, AnchorDefaults: defaults}, options)
+	if err != nil {
+		return nil, fail("compact encoding failed: " + boundedText(err.Error(), 256))
+	}
+	return append(raw, '\n'), nil
+}
+
+// CompactProvider is docs corpus compact-provider (DCP-V1-531): it rewrites the /1 adoption
+// provider record or shard data, read from the input name, as its compact /2 encoding, with the most frequent anchor
+// authority, kind and reason as the defaults (ties to the smallest value), and refuses unless
+// the result decodes back to exactly the record data holds.
+func CompactProvider(name string, data []byte) ([]byte, error) {
+	var record ProviderRecord
+	if err := decodeProviderRecord(name, data, &record); err != nil {
+		return nil, err
+	}
+	var schema string
+	if scanTopLevel(data, func(member string, dec *jsontext.Decoder) error {
+		if member == "schema" {
+			return json.UnmarshalDecode(dec, &schema)
+		}
+		return dec.SkipValue()
+	}) != nil || schema != AdoptionProviderSchema {
+		return nil, fail("compact-provider input must be a " + AdoptionProviderSchema + " record")
+	}
+	defaults, err := frequentAnchorDefaults(record)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := EncodeCompactProvider(record, defaults)
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) > MaxProviderBytes {
+		return nil, fail("output bound exceeded")
+	}
+	var expanded ProviderRecord
+	if err := decodeProviderRecord(name, raw, &expanded); err != nil {
+		return nil, fail("compact record does not expand to the input record")
+	}
+	want, err := json.Marshal(record, json.Deterministic(true))
+	if err != nil {
+		return nil, err
+	}
+	got, err := json.Marshal(expanded, json.Deterministic(true))
+	if err != nil || !bytes.Equal(got, want) {
+		return nil, fail("compact record does not expand to the input record")
+	}
+	return raw, nil
+}
+
+// frequentAnchorDefaults is the most frequent authority, kind and reason over every anchor of
+// record, each tie going to the smallest value, or nil when record has no anchor.
+func frequentAnchorDefaults(record ProviderRecord) (*AnchorDefaults, error) {
+	counts := [3]map[string]int{{}, {}, {}}
+	anchors := 0
+	count := json.MarshalToFunc(func(enc *jsontext.Encoder, a Anchor) error {
+		anchors++
+		for i, v := range [3]string{a.Authority, a.Kind, a.Reason} {
+			counts[i][v]++
+		}
+		return enc.WriteToken(jsontext.Null)
+	})
+	if _, err := json.Marshal(record, json.WithMarshalers(count)); err != nil {
+		return nil, fail("compact encoding failed: " + boundedText(err.Error(), 256))
+	}
+	if anchors == 0 {
+		return nil, nil
+	}
+	var top [3]string
+	for i, values := range counts {
+		best := -1
+		for v, n := range values {
+			if n > best || n == best && v < top[i] {
+				top[i], best = v, n
+			}
+		}
+	}
+	return &AnchorDefaults{Authority: top[0], Kind: top[1], Reason: top[2]}, nil
 }

@@ -38,6 +38,7 @@ func buildCorpusOperations() []corpusOperation {
 		{name: "cem-stable", purpose: "project claims through a verified cem/1.0 map; read-only, refuses any other outcome", required: []string{"--artifact", "--cem", "--expected-base", "--target", "--stable-artifact-root"}, optional: []string{"--id"}},
 		{name: "behavior-adapter", purpose: "map a behavior-adapter request to a provider bundle, or --check it", required: []string{"--input"}, optional: []string{"--previous", "--check"}},
 		{name: "behavior-provider", purpose: "build a corvint-corpus-behavior-provider/2 declaration from a request", required: []string{"--input"}},
+		{name: "compact-provider", purpose: "rewrite a corvint-corpus-adoption-provider/1 record or shard as its compact /2 encoding", required: []string{"--input"}},
 		{name: "discover-playwright", purpose: "produce Playwright test discovery from a listing and migration", required: []string{"--migration", "--config", "--playwright-list"}, optional: []string{"--receipt"}},
 		{name: "witness-playwright", purpose: "import qualified Playwright witnesses from a committed receipt and report", required: []string{"--input", "--receipt-input", "--report"}},
 		{name: "discover-legacy", purpose: "inventory Jasmine or Mocha/Cypress legacy cases statically from Git blobs", required: []string{"--runner", "--revision", "--path"}, optional: []string{"--input"}},
@@ -258,14 +259,16 @@ func docsCorpusOperationHelp(name string) string {
 	return text.String()
 }
 
-// corpusRebuildHelp is the build topic's note on rebuilding a stale artifact (DCP-V1-495, DCP-V1-497).
+// corpusRebuildHelp is the build topic's note on rebuilding a stale artifact (DCP-V1-495, DCP-V1-497, DCP-V1-532).
 const corpusRebuildHelp = "Rebuild: a verified read refuses an artifact whose builder differs (`builder differs:`): the\n" +
 	"derivation version (derivation-N in builder.engine), the builder schema, the Go toolchain in the\n" +
 	"engine, or an unattested revision. Another attested revision with the same derivation is read as\n" +
 	"is. A derivation version changes only with a merge that can alter the records built from the same\n" +
 	"pinned inputs. --artifact rebuilds from the artifact's own embedded manifest: its content and\n" +
 	"manifest digests are checked, every pinned input is reread from Git and must match its recorded\n" +
-	"blob and SHA-256, and the new artifact goes to stdout. Write it to a new file and rename it over\n" +
+	"blob and SHA-256, and the new artifact goes to stdout. When an attested builder rebuilds an\n" +
+	"artifact of its own derivation, it reuses the artifact's records instead of rederiving them and\n" +
+	"prints the bytes a full build would. Write it to a new file and rename it over\n" +
 	"the old one; redirecting onto the artifact being read truncates it first. Reads never rebuild.\n"
 
 // corpusHelpTopic names the help topic of `docs corpus` arguments, or "" when the operation is
