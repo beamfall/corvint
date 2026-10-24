@@ -4854,6 +4854,7 @@ SKH-V0-102	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's sta
 SKH-V0-103	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1900) `flows a	standing	2026-10-11; V1-1900
 SKH-V0-104	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1900) Playwrig	standing	2026-10-11; V1-1900
 SKH-V0-105	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1900) The setu	standing	2026-10-11; V1-1900
+SKH-V0-142	docs/specs/site-knowledge-howto-v0.md	(experimental; #1705 review fix, V1-1900) A setup project MUST select its files	unrecorded	-
 SKH-V0-040	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1901) Static e	standing	2026-10-11; V1-1901
 SKH-V0-041	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1901) Router	standing	2026-10-11; V1-1901
 SKH-V0-042	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1901) Observed	standing	2026-10-11; V1-1901
@@ -4864,6 +4865,7 @@ SKH-V0-112	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's sta
 SKH-V0-113	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1901) A litera	standing	2026-10-11; V1-1901
 SKH-V0-114	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1901) These ta	standing	2026-10-11; V1-1901
 SKH-V0-115	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1901) The link	standing	2026-10-11; V1-1901
+SKH-V0-141	docs/specs/site-knowledge-howto-v0.md	(experimental; #1705 review fix, V1-1901) A Ruby `*_path` or `*_url` helper MUST	unrecorded	-
 SKH-V0-050	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Step-IR	standing	2026-10-11; V1-1902
 SKH-V0-051	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Flow	standing	2026-10-11; V1-1902
 SKH-V0-052	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Candidat	standing	2026-10-11; V1-1902
@@ -4876,16 +4878,37 @@ SKH-V0-123	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's sta
 SKH-V0-124	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Each can	standing	2026-10-11; V1-1902
 SKH-V0-125	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1902) `--emit	standing	2026-10-11; V1-1902
 SKH-V0-126	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1902) `--corpu	standing	2026-10-11; V1-1902
+SKH-V0-140	docs/specs/site-knowledge-howto-v0.md	(experimental; #1705 review fix, V1-1902) An outcome's locator MUST keep the ful	unrecorded	-
 SKH-V0-060	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1903)	standing	2026-10-11; V1-1903
 SKH-V0-061	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1903) Resoluti	standing	2026-10-11; V1-1903
 SKH-V0-062	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1903) An ambig	standing	2026-10-11; V1-1903
 SKH-V0-063	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1903) A plan w	standing	2026-10-11; V1-1903
 SKH-V0-064	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1903) The plan	standing	2026-10-11; V1-1903
+SKH-V0-143	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1903) `corvint flows appmap how --map FILE --source DIR...	unrecorded	-
+SKH-V0-144	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1903) The answer MUST carry one of `COMPLETE`, `INCOMPLETE`,	unrecorded	-
+SKH-V0-145	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1903) The steps MUST be the primary variation's first source	unrecorded	-
+SKH-V0-146	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1903) A hop's admitted edges MUST be the stage 4 static edges,	unrecorded	-
+SKH-V0-147	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1903) The setup MUST list the stage 3 records that arrange the	unrecorded	-
+SKH-V0-148	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1903) The oracle MUST be the trailing assertions of the primar	unrecorded	-
+SKH-V0-149	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1903) A tie for the highest coverage MUST be `ABSTAINED` with	unrecorded	-
+SKH-V0-150	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1903) The answer MUST be labelled a proposal with learned	unrecorded	-
+SKH-V0-151	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1903) Freshness MUST be evaluated over every cited anchor at t	unrecorded	-
+SKH-V0-152	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1903) A goal MUST be 1 to 256 bytes of one line with no	unrecorded	-
 SKH-V0-070	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1904) From a	standing	2026-10-11; V1-1904
 SKH-V0-071	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1904) Every	standing	2026-10-11; V1-1904
 SKH-V0-072	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1904) A line	standing	2026-10-11; V1-1904
 SKH-V0-073	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1904) The	standing	2026-10-11; V1-1904
 SKH-V0-074	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1904) Generati	standing	2026-10-11; V1-1904
+SKH-V0-153	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1904) With `--draft`, the how answer MUST carry a `draft` head	unrecorded	-
+SKH-V0-154	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1904) The draft MUST insert exactly one `test.fixme(true, ...)	unrecorded	-
+SKH-V0-155	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1904) The draft's proposed path MUST sit in the primary test's	unrecorded	-
+SKH-V0-156	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1904) Each answer gap MUST become a marked	unrecorded	-
+SKH-V0-157	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1904) A source line that is secret-shaped (`secretscreen`) or	unrecorded	-
+SKH-V0-158	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1904) A condition with setup candidates MUST become an	unrecorded	-
+SKH-V0-159	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1904) An `ABSTAINED` answer MUST draft no lines and carry the	unrecorded	-
+SKH-V0-160	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1904) Each draft line MUST carry one evidence row: `copied` wi	unrecorded	-
+SKH-V0-161	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1904) `corvint flows appmap plan --map FILE --request GOAL	unrecorded	-
+SKH-V0-162	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1904) The `corvint.map_plan` MCP tool MUST accept `sources`,	unrecorded	-
 SKH-V0-080	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) One	standing	2026-10-11; V1-1905
 SKH-V0-081	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) The rece	standing	2026-10-11; V1-1905
 SKH-V0-082	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) The live	standing	2026-10-11; V1-1905
@@ -4896,6 +4919,23 @@ SKH-V0-086	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's sta
 SKH-V0-087	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) Before a	standing	2026-10-11; V1-1905
 SKH-V0-088	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) Only the	standing	2026-10-11; V1-1905
 SKH-V0-089	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) A select	standing	2026-10-11; V1-1905
+SKH-V0-163	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) The stage 8 pipeline MUST live in	unrecorded	-
+SKH-V0-164	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) The one recorded transform MUST remove exactly the draft	unrecorded	-
+SKH-V0-165	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) A draft that is not `COMPLETE` has no candidate and read	unrecorded	-
+SKH-V0-166	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) V0 reads recorded live-run evidence	unrecorded	-
+SKH-V0-167	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) Condition 1 MUST hold only for 2 to 100 repeats	unrecorded	-
+SKH-V0-168	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) Condition 2 MUST hold only for exactly one `LOCATED`	unrecorded	-
+SKH-V0-169	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) Condition 3 MUST hold only when the association, hygiene	unrecorded	-
+SKH-V0-170	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) Until the `SKH-V0-089` PWP-V0, RVN-V0 and AMSP-V0	unrecorded	-
+SKH-V0-171	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) The receipt MUST read `control-survived` unless at least	unrecorded	-
+SKH-V0-172	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) The prover verdict MUST map by the `SKH-V0-085`	unrecorded	-
+SKH-V0-173	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) Condition 6 MUST compare the candidate's recorded outcom	unrecorded	-
+SKH-V0-174	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) `corvint-test e2e how-accept --answer FILE [--write PATH	unrecorded	-
+SKH-V0-175	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) Recorded evidence and oracles MUST decode strictly: the	unrecorded	-
+SKH-V0-176	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) The receipt (`site-knowledge-acceptance/0`) MUST be	unrecorded	-
+SKH-V0-177	docs/specs/site-knowledge-howto-v0.md	(experimental; Codex review fix, V1-1903) `how` MUST answer with the flow	unrecorded	-
+SKH-V0-178	docs/specs/site-knowledge-howto-v0.md	(experimental; Codex review fix, V1-1904) The draft guard MUST go directly after	unrecorded	-
+SKH-V0-179	docs/specs/site-knowledge-howto-v0.md	(experimental; Codex review fix, V1-1900) A setup project whose file selection i	unrecorded	-
 SBQ-V0-001	docs/specs/snapshot-batch-v0.md	`corvint [--root PATH] batch` MUST read one canonical JSON request object from	unrecorded	-
 SBQ-V0-002	docs/specs/snapshot-batch-v0.md	The verb MUST load the current snapshot exactly once through	unrecorded	-
 SBQ-V0-003	docs/specs/snapshot-batch-v0.md	Each operation MUST run the standalone verb's own code path over the loaded	unrecorded	-

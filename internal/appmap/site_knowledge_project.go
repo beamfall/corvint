@@ -168,28 +168,17 @@ func SetupQuery(ctx context.Context, m *Map, sources, conditions []string, o Opt
 	if err != nil {
 		return nil, err
 	}
-	if len(conditions) > MaxSetupConditions {
-		return nil, &gokernel.Error{Code: "appmap-invalid-query", Message: fmt.Sprintf("setup accepts at most %d --condition values", MaxSetupConditions)}
-	}
-	for _, c := range conditions {
-		if strings.TrimSpace(c) == "" || len(c) > maxConditionBytes || strings.ContainsAny(c, "\x00\n") {
-			return nil, &gokernel.Error{Code: "appmap-invalid-query", Message: fmt.Sprintf("--condition must be 1 to %d bytes of one line", maxConditionBytes)}
-		}
-		if secretscreen.MatchString(c) {
-			return nil, &gokernel.Error{Code: "appmap-invalid-query", Message: "--condition holds secret-shaped text"}
-		}
+	if err := checkConditions(conditions); err != nil {
+		return nil, err
 	}
 	k, read, skipped, err := readSiteKnowledge(ctx, m, sources, o)
 	if err != nil {
 		return nil, err
 	}
-	records, uses := k.extractSetup(k.blobs)
-	rails, notRead, err := readRailsSetup(repo{ctx: ctx, root: o.Root}, m)
+	records, uses, notRead, err := k.allSetup(repo{ctx: ctx, root: o.Root}, m)
 	if err != nil {
 		return nil, err
 	}
-	records = append(records, rails...)
-	uses = append(uses, k.linkRuby(records)...)
 	kinds, unknown, mocked := map[string]int{}, 0, 0
 	items := make([]any, len(records))
 	for i, s := range records {
@@ -234,6 +223,33 @@ func SetupQuery(ctx context.Context, m *Map, sources, conditions []string, o Opt
 		field{"tests_unresolved_fixtures", unresolved}, field{"preconditions_total", len(pre)},
 		field{"preconditions_linked", preLinked}, field{"not_read", notRead})
 	return render(head, []section{{"conditions", asked}, {"preconditions", pre}, {"setup", items}, {"tests", tests}}, budget)
+}
+
+// checkConditions bounds the --condition values of a setup or how query (SKH-V0-103).
+func checkConditions(conditions []string) error {
+	if len(conditions) > MaxSetupConditions {
+		return &gokernel.Error{Code: "appmap-invalid-query", Message: fmt.Sprintf("setup accepts at most %d --condition values", MaxSetupConditions)}
+	}
+	for _, c := range conditions {
+		if strings.TrimSpace(c) == "" || len(c) > maxConditionBytes || strings.ContainsAny(c, "\x00\n") {
+			return &gokernel.Error{Code: "appmap-invalid-query", Message: fmt.Sprintf("--condition must be 1 to %d bytes of one line", maxConditionBytes)}
+		}
+		if secretscreen.MatchString(c) {
+			return &gokernel.Error{Code: "appmap-invalid-query", Message: "--condition holds secret-shaped text"}
+		}
+	}
+	return nil
+}
+
+// allSetup is every stage-3 setup record, Playwright and Rails, with the tests each arranges.
+func (k *SKModel) allSetup(r repo, m *Map) ([]SKSetup, []SKSetupUse, []SetupNotRead, error) {
+	records, uses := k.extractSetup(k.blobs)
+	rails, notRead, err := readRailsSetup(r, m)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	records = append(records, rails...)
+	return records, append(uses, k.linkRuby(records)...), notRead, nil
 }
 
 // Steps reports the test bodies of the declared sources in the closed step IR, with
