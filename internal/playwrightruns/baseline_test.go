@@ -1,6 +1,7 @@
 package playwrightruns
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -81,13 +82,23 @@ func TestPWRV0041_RecordKnownNeedsBothRuns(t *testing.T) {
 	}
 }
 
+// jsonString encodes s as a JSON string literal: a raw Windows path such as
+// C:\Users would put invalid escapes into the fixture (V1-2488).
+func jsonString(s string) string {
+	encoded, err := json.Marshal(s)
+	if err != nil {
+		panic(err)
+	}
+	return string(encoded)
+}
+
 // PWR-V0-041: ReadBaseline round-trips a recorded document and refuses malformed ones.
 func TestPWRV0041_ReadBaselineShape(t *testing.T) {
 	dir := t.TempDir()
 	full := named(t, dir, "full.json", bt("a.spec.ts", "both", "unexpected"))
 	iso := named(t, dir, "iso.json", bt("a.spec.ts", "both", "unexpected"))
 	good := `{"profile":"corvint-run-baseline/0","revision":"` + baselineRev + `","known":[{"project":"chromium","file":"a.spec.ts","titlePath":["both"],` +
-		`"full":{"path":"` + full.Path + `","sha256":"` + full.Run.Sha256 + `"},"isolated":{"path":"` + iso.Path + `","sha256":"` + iso.Run.Sha256 + `"}}],"flaky":[]}`
+		`"full":{"path":` + jsonString(full.Path) + `,"sha256":"` + full.Run.Sha256 + `"},"isolated":{"path":` + jsonString(iso.Path) + `,"sha256":"` + iso.Run.Sha256 + `"}}],"flaky":[]}`
 	write := func(body string) string {
 		p := filepath.Join(dir, "b.json")
 		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
@@ -103,7 +114,7 @@ func TestPWRV0041_ReadBaselineShape(t *testing.T) {
 		"unknown member": strings.Replace(good, `"flaky":[]`, `"flaky":[],"extra":1`, 1),
 		"profile":        strings.Replace(good, "corvint-run-baseline/0", "corvint-run-baseline/9", 1),
 		"short revision": strings.Replace(good, baselineRev, "0123abc", 1),
-		"known no iso":   strings.Replace(good, `,"isolated":{"path":"`+iso.Path+`","sha256":"`+iso.Run.Sha256+`"}`, ``, 1),
+		"known no iso":   strings.Replace(good, `,"isolated":{"path":`+jsonString(iso.Path)+`,"sha256":"`+iso.Run.Sha256+`"}`, ``, 1),
 		"bad digest":     strings.Replace(good, full.Run.Sha256, "nothex", 1),
 		"no flaky list":  strings.Replace(good, `,"flaky":[]`, ``, 1),
 		"trailing doc":   good + `{}`,

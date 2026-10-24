@@ -1,7 +1,7 @@
 # Corvint for OpenCode
 
-This adapter (its version is `version` in `package.json`) supports unmodified OpenCode releases from
-2.0.18 through the end of the 2.0 series.
+This adapter (its version is `version` in `package.json`) admits unmodified OpenCode releases from
+2.0.18 through the end of the 2.1 series for qualification; 2.1.3 is the tested host version.
 It supplies awaited task context, on-demand
 query and exact source expansion, edit/evidence/verification observations, explicit outcomes, and
 compaction recovery from current Git state. OpenCode 1.x requires the older 0.2.9 adapter.
@@ -10,8 +10,8 @@ Call `corvint_status` to check the installed package, host executable, Corvint e
 architecture against `../opencode-qualification.json`. Only an exact passing tuple reports
 `integrationSupport: FULL`; changed or untested builds report `UNQUALIFIED` and tell the operator
 to run `tools/qualify-opencode` for that installation. The range is producer admission, not reused
-evidence: each 2.0.x host must pass the campaign and receive its own record, including its exact
-version and executable digest. Releases before 2.0.18 and 2.1.0 or later fail closed as unsupported.
+evidence: each 2.0.x or 2.1.x host must pass the campaign and receive its own record, including its exact
+version and executable digest. Releases before 2.0.18 and 2.2.0 or later fail closed as unsupported.
 Qualification is
 maintainer test evidence, not execution attestation. Its scope is the stock native integration
 under AHI-032, including the retained functional, latency and critical-evidence recall checks.
@@ -139,7 +139,7 @@ receives only context/evidence views and hashed-session update notices, not tran
 or disabling the plugin disposes the view and its subscriptions. Desktop/web custom panels, revision comparisons, review mode and portable handoff remain outside this slice.
 
 `go run ./tools/qualify-opencode --inspector --host /absolute/opencode --corvint /absolute/corvint
---output /absolute/evidence` exercises the actual 2.0.x terminal in isolated temporary Git and XDG
+--output /absolute/evidence` exercises the actual 2.x terminal in isolated temporary Git and XDG
 locations, without a model call. It requires Python 3, Git, a POSIX PTY and permission to start the
 host's temporary loopback server, plus Go for the recorded fixture test. Its UI witness is separate from full native integration
 qualification; it never writes `opencode-qualification.json` or grants execution authority.
@@ -168,8 +168,8 @@ remove the checkout only when it is no longer needed.
 ## Qualify this installation
 
 From a clean, committed Corvint checkout, run the first-party command below. It requires Git,
-Node.js 20 or later, Go 1.27.2, the real Corvint executable, and the actual
-OpenCode 2.0.18 or later 2.0.x executable on macOS or Linux. If `opencode2` is a shell launcher, pass the
+Node.js 20 or later, Go 1.27.2 or 1.27.3 (decision 0547), the real Corvint executable, and the actual
+OpenCode 2.0.18 or later 2.0.x, or any 2.1.x, executable on macOS or Linux. If `opencode2` is a shell launcher, pass the
 executable it launches; the command rejects shell launchers rather than recording the wrong image.
 
 ```sh
@@ -217,9 +217,19 @@ a connected status alone does not verify a tool call or qualify native lifecycle
 Development probes with OpenCode CLI 1.17.18 and 1.18.31 connected the core, test-validity and
 docs servers built from this checkout and completed one call per tool through this selector; both
 clients send `notifications/cancelled` after each completed call, which the server ignores. These
-probes are transport evidence only, not a host-version support claim. No MCP probe has been retained
-for OpenCode 2.x (`mcp.servers` with `corvint-mcp` is untested there), and the manifest's
-`testedHostVersions` stays empty until retained live OpenCode 2 evidence is committed (V1-0453).
+probes are transport evidence only, not a host-version support claim. On OpenCode 2.1.3 a retained
+live probe (`conformance/opencode-native-v1/results/2.1.3-darwin-arm64/mcp-probe.json`) loaded the
+core server from a project `opencode.json` `mcp.servers` entry and completed a `corvint_status` call
+returning `READY`; a global-configuration probe (`mcp-probe-global-config.json`) listed the tools the
+model sees only through Code Mode: `tools.corvint.corvint_status`, `corvint_help`, `corvint_impact`
+and `corvint_query`. OpenCode 2.1 connects MCP
+servers asynchronously, so the first model turn may report `Unknown tool namespace 'corvint'`; a
+later turn sees them. OpenCode 2.1 defaults to its `legacy` MCP protocol (revisions up to
+2025-11-25), so keep the selector above; an entry may instead set `"protocol": "2026-07-28"` and
+omit the selector, which a retained global-configuration probe also completed
+(`mcp-probe-protocol-2026-07-28.json`). The test-validity and docs servers were not
+probed on 2.x. The manifest's `testedHostVersions` names only versions whose native campaign and MCP
+probe are retained under `conformance/opencode-native-v1/results/`; it is not a qualification record.
 The optional docs and experimental corpus servers accept the same selector, but remain separately
 configured companions with their existing prerequisites. Disabling a server uses `disabled: true`;
 uninstalling it removes its `mcp.servers` entry.
@@ -234,8 +244,12 @@ server supplies repository status, narrow workflow-authority queries and tracked
 separate test-validity server reads retained test evidence. Installing both surfaces makes these
 complementary tools available without expanding either server's frozen registry.
 
-Copy `skills/corvint/` into your project's `.opencode/skills/` (or your global
-`~/.config/opencode/skills/`) to let OpenCode discover the `corvint` skill. It explains which tool
+The plugin registers the bundled `corvint` skill through OpenCode's native skill registry at
+startup, so OpenCode lists it in the model's available skills with no copy step. A project, user or
+earlier plugin skill named `corvint` takes precedence and is never replaced; a skill denied by
+permission stays hidden. An unreadable bundled skill or a failed registration is reported as a
+warning and leaves the tools and hooks running. Copying `skills/corvint/` into `.opencode/skills/`
+remains a way to pin or edit the guidance. It explains which tool
 answers each question, how to interpret unsupported/missing evidence, and when to use the CLI.
 The skill is loaded on demand through OpenCode's native skill tool. The optional documentation
 servers are useful when working with their supported draft or corpus artifacts; they are not

@@ -27,6 +27,7 @@
   "checks": {
     "native-discovery": true,
     "awaited-current-prompt": true,
+    "native-bundled-skill": true,
     "native-query": true,
     "native-exact-expansion": true,
     "native-edit": true,

@@ -1833,8 +1833,10 @@ Acceptance evidence: `TestATRV0210_ClaimRefusesRequestedPathsOutsideDeclaredScop
 `TestATRV0211_RequestedScopeWithoutDeclaredPathsIsReported` (`internal/tasks/store`);
 `TestATRV0211_ClaimResultListsEffectiveScope` and `TestATRV0212_ReadOnlySessionRefusesMutations`
 (`internal/tasks/cli`); each fails with its fix removed. The Codex probe is recorded in the build
-log; a live `codex exec` review is NOT_RUN (network service). V1-1441's owner review of the V1-1375
-operator note stays with the owner.
+log; a live `codex exec -p corvint-review` run (Codex 0.162.0) refused `ticket create` with the store
+unchanged (V1-2326, `AHI-206`, 2026-10-23 Codex matrix entry); reviews repeat the profile keys as the
+Codex README's `-c` overrides. V1-1441's owner review of the V1-1375 operator note stays with the
+owner.
 Rollback: revert the commit. Claims again drop uncovered requested paths silently, the `scope`
 member disappears from claim results, and the variable has no effect; no stored record changes.
 ### A program control beside a phase write, and mapped writes after a lease audit (ATR-V0-240..241)

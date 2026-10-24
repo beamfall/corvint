@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -259,12 +261,20 @@ func TestAFPV0040AdvisoryAbstainsOnPartialOrUnusableInput(t *testing.T) {
 	table := write(t, "costs.json", `{"profile":"corvint-ci-package-costs/0","source":{"revision":"`+revision+`","runURL":"`+runURL+`","goVersion":"go1.27.1"},"milliseconds":{"example.org/a":1000}}`)
 	pass := write(t, "shard-0.json", passed("example.org/a", "900"))
 	b := passed("example.org/b", "1")
+	// The platform's own not-exist text: Windows says "The system cannot find
+	// the file specified." rather than "no such file" (V1-2488).
+	missing := filepath.Join(t.TempDir(), "shard-1.json")
+	notExist := "no such file"
+	var pathErr *fs.PathError
+	if _, err := os.Open(missing); errors.As(err, &pathErr) {
+		notExist = pathErr.Err.Error()
+	}
 	for name, tc := range map[string]struct {
 		args   []string
 		reason string
 	}{
 		"partial-run":      {[]string{"--table", table, pass}, "1 of 2 shard logs present"},
-		"missing-artifact": {[]string{"--table", table, pass, filepath.Join(t.TempDir(), "shard-1.json")}, "no such file"},
+		"missing-artifact": {[]string{"--table", table, pass, missing}, notExist},
 		"failed-package":   {[]string{"--table", table, pass, write(t, "shard-1.json", `{"Action":"fail","Package":"example.org/b","Elapsed":1}`+"\n")}, "package example.org/b failed"},
 		"invalid-table":    {[]string{"--table", write(t, "bad.json", `{"profile":"bad"}`), pass, write(t, "shard-1.json", b)}, "cost table is invalid"},
 		// Each of these has a valid table and a valid other shard, so only the stream decides.

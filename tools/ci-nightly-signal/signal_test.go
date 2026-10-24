@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // The fixtures are `gh run view RUN --attempt 1 --json jobs` of two scheduled release-gates runs
@@ -84,6 +86,7 @@ esac
 // runner's GITHUB_* and GH_* variables never reach a fixture run.
 func signal(t *testing.T, dir, run string) (string, error) {
 	t.Helper()
+	testplatform.SkipPOSIXShell(t, "signal.sh runs under sh with a #!/bin/sh gh spy")
 	for _, tool := range []string{"sh", "jq"} {
 		if _, err := exec.LookPath(tool); err != nil {
 			t.Fatalf("the nightly signal needs %s on PATH: %v", tool, err)

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 func TestEnvelopedReceipt(t *testing.T) {
@@ -168,6 +170,7 @@ func TestMissingEnvelopeRetainsDiagnostic(t *testing.T) {
 
 func TestContextHookRetainsRejectedText(t *testing.T) {
 	t.Run("HLQ-V1-002 fallback reaches the case report", func(t *testing.T) {
+		testplatform.SkipPOSIXShell(t, "the context hook is the POSIX cat tool")
 		text := "Corvint FALLBACK degraded: adapter-host-kill-deadline; coding continues."
 		output, _ := json.Marshal(map[string]any{"hookSpecificOutput": map[string]any{"additionalContext": text}})
 		directory := t.TempDir()
@@ -197,6 +200,7 @@ func TestContextHookRetainsRejectedText(t *testing.T) {
 // blocks; the unenrolled and recursive Stops release.
 func fakeFrontierRunner(t *testing.T, degraded int, degradation string) (*runner, string) {
 	t.Helper()
+	testplatform.SkipPOSIXShell(t, "the Stop hook and the fake corvint are #!/bin/sh scripts")
 	work := t.TempDir()
 	r := &runner{host: "codex", work: work, bin: filepath.Join(work, "bin"), fixture: filepath.Join(work, "fixture")}
 	if err := os.MkdirAll(r.bin, 0o755); err != nil {

@@ -14,6 +14,8 @@ func Relative(root, path string) (string, bool) {
 	if path == "" {
 		return "", false
 	}
+	// Callers pass slash paths; Windows splitting below trims only the native separator.
+	path = filepath.FromSlash(path)
 	resolvedRoot, err := filepath.EvalSymlinks(root)
 	if err != nil {
 		return "", false
@@ -58,7 +60,13 @@ func resolve(root, path string, linksLeft int) (string, bool) {
 				if err != nil {
 					return "", false
 				}
-				if !filepath.IsAbs(target) {
+				target = filepath.FromSlash(target)
+				switch {
+				case filepath.IsAbs(target):
+				case filepath.VolumeName(target) == "" && strings.HasPrefix(target, string(filepath.Separator)):
+					// Windows resolves a rooted \x on the link's own volume, not below its parent.
+					target = filepath.VolumeName(path) + target
+				default:
 					parent, _ := filepath.Split(path)
 					target = parent + target
 				}

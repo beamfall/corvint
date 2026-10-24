@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // V1-1094: the reuse step, the advisory drift report, the qualification campaign, the
@@ -176,6 +178,7 @@ func TestAFPV0079ControlPlaneReportsEveryCompletedRun(t *testing.T) {
 // ci-control-plane status yet, and each status step, run with a stub gh, posts one. Neither step
 // reads the conclusion, so the job condition above is the only thing that could suppress it.
 func TestAFPV0079CancelledRunStillPostsTheStatus(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the status step runs under bash with a #!/bin/sh gh spy")
 	if _, err := exec.LookPath("bash"); err != nil {
 		t.Fatalf("the status steps need bash on PATH: %v", err)
 	}
@@ -282,6 +285,7 @@ func runScript(t *testing.T, b string) string {
 // commit, branch and repository whose latest go-static, artifact-integrity and go-interop jobs all
 // passed on that commit; every other listing, and every unreadable one, leaves mode empty.
 func TestAFPV0080StaticReuseDecidesOnlyForAPassedQueueRunOfThisCommit(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the static-reuse step runs under bash with a #!/bin/sh gh spy")
 	for _, tool := range []string{"bash", "jq"} {
 		if _, err := exec.LookPath(tool); err != nil {
 			t.Fatalf("the static-reuse step needs %s on PATH: %v", tool, err)
@@ -426,6 +430,7 @@ func TestAFPV0081BatchedConstituentSkipsOnlyRerunJobs(t *testing.T) {
 // ci:batched whose shards and go-static were both skipped; every other skipped or failed shard or
 // static result still fails it, and the label never stands in for a failed docs-plan.
 func TestAFPV0027BatchedSkipPassesGoProductWithANotice(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the go-product step runs under bash")
 	ci := readWorkflow(t, "ci.yml")
 	b := jobBlock(t, ci, "go-product")
 	wantLine(t, "go-product", b,
@@ -590,6 +595,7 @@ func TestAFPV0163RecordJobRunsNoRepositoryCode(t *testing.T) {
 // served here is the record script's own output, so the two steps agree on the line. Every other
 // listing or log, an unreadable one, or a non-merge commit leaves mode empty and the gate runs.
 func TestAFPV0163IntegrityReuseDecidesOnlyForAPassedPullRequestRunOfThisTree(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the record and reuse steps run under bash with a #!/bin/sh gh spy")
 	for _, tool := range []string{"bash", "jq", "git", "grep", "sed", "tr"} {
 		if _, err := exec.LookPath(tool); err != nil {
 			t.Fatalf("the integrity reuse step needs %s on PATH: %v", tool, err)

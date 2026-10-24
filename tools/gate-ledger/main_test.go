@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // fixtureRepository is one committed git worktree the test runs inside, with a
@@ -83,6 +85,7 @@ var counting = []string{"--", "sh", "-c", "echo ran >> COUNT"}
 // hits, a failure and an undeclared step leave no record, and plan reports
 // without running.
 func TestRunStepSkipsOnlyRecordedIdenticalInputs(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
 	root := fixtureRepository(t)
 	step := append([]string{"run", "decision-numbers-check"}, counting...)
 	if code, out := ledgerRun(t, step...); code != 0 || !strings.Contains(out, "RUN decision-numbers-check") || !strings.Contains(out, "RECORD decision-numbers-check") {
@@ -128,6 +131,7 @@ func TestRunStepSkipsOnlyRecordedIdenticalInputs(t *testing.T) {
 // and a ledger directory another user could read all run the step and record
 // nothing; CORVINT_GATE_LEDGER=off runs it silently.
 func TestRunStepRefusesWhatItCannotDigest(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
 	root := fixtureRepository(t)
 	step := append([]string{"run", "decision-numbers-check"}, counting...)
 	git(t, root, "update-index", "--skip-worktree", "main.go")
@@ -174,6 +178,7 @@ func TestRunStepRefusesWhatItCannotDigest(t *testing.T) {
 // and an identical tree hits. The log lives outside the worktree because the
 // tree key sees every untracked file.
 func TestGoTestFallsBackToOneUncachedRun(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
 	fixtureRepository(t)
 	log := filepath.Join(t.TempDir(), "ARGS")
 	args := []string{"go-test", "--", "sh", "-c", `echo "$@" >> "$0"`, log}
@@ -194,6 +199,7 @@ func TestGoTestFallsBackToOneUncachedRun(t *testing.T) {
 // promise: a pass recorded in a `git worktree add` checkout, whose index lives
 // under the main repository's `.git/worktrees/`, is hit from the main worktree.
 func TestRunStepRecordsFromLinkedWorktree(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
 	root := fixtureRepository(t)
 	linked := filepath.Join(t.TempDir(), "linked")
 	git(t, root, "worktree", "add", "-q", "--detach", linked, "HEAD")
@@ -209,6 +215,7 @@ func TestRunStepRecordsFromLinkedWorktree(t *testing.T) {
 }
 
 func TestWorktreeDigestIgnoresCachedStat(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
 	t.Run("GL-V0-001 exact content", func(t *testing.T) {
 		for _, newerIndex := range []bool{false, true} {
 			t.Run(fmt.Sprintf("newer-index-%t", newerIndex), func(t *testing.T) {
@@ -361,6 +368,7 @@ func TestWorktreeDigestWithoutIndex(t *testing.T) {
 }
 
 func TestWorktreeDigestImportFailureRunsWithoutRecord(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the git spy is a #!/bin/sh script and the ledger step is an sh -c command")
 	t.Run("GL-V0-005 import failure", func(t *testing.T) {
 		root := fixtureRepository(t)
 		actualGit, err := exec.LookPath("git")
@@ -430,6 +438,7 @@ func packageRepository(t *testing.T, files map[string]string) string {
 // resolved batch still runs the unresolved packages, records their pass, and
 // the step exits with the resolved batch's status.
 func TestGoTestRunsUnresolvedAfterResolvedFailure(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
 	packageRepository(t, map[string]string{
 		"go.mod":            "module example.com/fixture\n\ngo 1.27\n",
 		"core/core.go":      "package core\n",
@@ -454,6 +463,7 @@ func TestGoTestRunsUnresolvedAfterResolvedFailure(t *testing.T) {
 // declaration, not the tree: an unrelated edit hits its record, and an edit
 // under a declared entry or to the declaration reruns it.
 func TestGoTestKeysDeclaredPackagesByTheirScope(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
 	root := packageRepository(t, map[string]string{
 		"go.mod":                         "module example.com/fixture\n\ngo 1.27\n",
 		"walker/walker_test.go":          "package walker\n\nimport (\n\t\"os\"\n\t\"testing\"\n)\n\nfunc TestWalk(t *testing.T) { os.Getwd() }\n",
@@ -486,6 +496,7 @@ func TestGoTestKeysDeclaredPackagesByTheirScope(t *testing.T) {
 }
 
 func TestGoTestKeysResolvedPackagesPerPackage(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
 	files := map[string]string{
 		"go.mod":                "module example.com/fixture\n\ngo 1.27\n",
 		"core/core.go":          "package core\n",
@@ -885,6 +896,7 @@ func TestPackageOutcomesAcceptsNonTerminalEvents(t *testing.T) {
 
 // GL-V0-002: stream refusal also reaches the record-writing boundary.
 func TestRunPackagesRefusesPartialOutput(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the go test stand-in is an sh -c command")
 	for _, ending := range []string{"", "garbled\n", `{"Action":"start","Package":"bad"}
 {"Action":"pass","Package":"bad","Elapsed":"invalid"}
 `} {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
@@ -61,7 +62,7 @@ func TestObserveSubtestParallelMetadataSkipAndBench(t *testing.T) {
 		`{"Action":"start","Package":"example/p"}`,
 		`{"Action":"run","Package":"example/p","Test":"TestParent"}`,
 		`{"Action":"attr","Package":"example/p","Test":"TestParent","Key":"owner","Value":"corvint"}`,
-		`{"Action":"artifacts","Package":"example/p","Test":"TestParent","Path":"`+artifactDir+`"}`,
+		`{"Action":"artifacts","Package":"example/p","Test":"TestParent","Path":`+jsonString(artifactDir)+`}`,
 		`{"Action":"run","Package":"example/p","Test":"TestParent/sub"}`,
 		`{"Action":"pause","Package":"example/p","Test":"TestParent/sub"}`,
 		`{"Action":"cont","Package":"example/p","Test":"TestParent/sub"}`,
@@ -333,7 +334,7 @@ func TestArtifactContainmentAndNormalizedDigest(t *testing.T) {
 	input := lines(
 		`{"Action":"start","Package":"p"}`,
 		`{"Action":"run","Package":"p","Test":"TestX"}`,
-		`{"Action":"artifacts","Package":"p","Test":"TestX","Path":"`+inside+`"}`,
+		`{"Action":"artifacts","Package":"p","Test":"TestX","Path":`+jsonString(inside)+`}`,
 		`{"Action":"pass","Package":"p","Test":"TestX","Elapsed":0}`,
 		`{"Action":"pass","Package":"p","Elapsed":0}`,
 	)
@@ -372,12 +373,22 @@ func TestConfigFailsClosed(t *testing.T) {
 	}
 }
 
+// jsonString encodes s as a JSON string literal: a raw Windows path such as
+// C:\Users would put invalid escapes into the fixture (V1-2488).
+func jsonString(s string) string {
+	encoded, err := json.Marshal(s)
+	if err != nil {
+		panic(err)
+	}
+	return string(encoded)
+}
+
 func rejectArtifactPath(t *testing.T, config Config, path string) {
 	t.Helper()
 	input := lines(
 		`{"Action":"start","Package":"p"}`,
 		`{"Action":"run","Package":"p","Test":"TestX"}`,
-		`{"Action":"artifacts","Package":"p","Test":"TestX","Path":"`+path+`"}`,
+		`{"Action":"artifacts","Package":"p","Test":"TestX","Path":`+jsonString(path)+`}`,
 	)
 	_, err := Observe(strings.NewReader(input), config)
 	var got *Error

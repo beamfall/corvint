@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 var startedAt = time.Now()
@@ -98,6 +100,7 @@ func fakeAffected(answers map[string]arm) affectedRetriever {
 
 func fixtureOptions(t *testing.T, snapshot string) options {
 	t.Helper()
+	testplatform.SkipPOSIXShell(t, "the corvint stand-in is a #!/bin/sh script")
 	samples := filepath.Join(t.TempDir(), "samples.jsonl")
 	if err := os.WriteFile(samples, []byte(fixtureSamples), 0o644); err != nil {
 		t.Fatal(err)
