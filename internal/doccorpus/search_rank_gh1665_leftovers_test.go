@@ -27,6 +27,8 @@ func leftoversCorpus(t *testing.T) *Artifact {
 		add("symbol:src/app/controllers/club/on_deck_controller.rb:1:OnDeckController", "symbol", "OnDeckController")
 		add("symbol:src/app/controllers/club/on_deck_controller.rb:2:index", "symbol", "index")
 		add("counter", "use_case", "Occupancy Counter")
+		add("conditions", "business_term", "conditions")
+		add("refund", "business_term", "refund")
 		for i := range 10 {
 			add(fmt.Sprintf("filler-%02d", i), "use_case", fmt.Sprintf("member profile screen %02d", i))
 		}
@@ -51,6 +53,19 @@ func TestDCPV1540QueryWordCountsOnce(t *testing.T) {
 	groups := queryGroups("What breaks, Cancellations", []string{"break", "breaks", "cancellation", "cancellations"})
 	if !slices.EqualFunc(groups, [][]string{{"break", "breaks"}, {"cancellation", "cancellations"}}, slices.Equal) {
 		t.Fatalf("groups: %v", groups)
+	}
+	// The grouping, and so the order, does not depend on word order: a word
+	// and its plural in either order are one group (Codex review, P2).
+	terms := []string{"condition", "conditions", "refund"}
+	for _, query := range []string{"conditions condition refund", "condition conditions refund"} {
+		if got := queryGroups(query, terms); !slices.EqualFunc(got, [][]string{{"condition", "conditions"}, {"refund"}}, slices.Equal) {
+			t.Fatalf("%q groups: %v", query, got)
+		}
+	}
+	first := searchOrders(t, a, Request{Operation: "search", Query: "condition conditions refund", Limit: 10})
+	second := searchOrders(t, a, Request{Operation: "search", Query: "conditions condition refund", Limit: 10})
+	if !slices.Equal(first, second) {
+		t.Fatalf("word order changed the ranking: %v vs %v", first, second)
 	}
 }
 

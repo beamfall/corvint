@@ -25,35 +25,53 @@ const (
 // tierNames are the served tier values (DCP-V1-544).
 var tierNames = [...]string{"exact", "identifier", "path-phrase", "phrase", "id-phrase", "named", "terms"}
 
-// queryGroups groups a query's evidence terms by the query word that yields
+// queryGroups groups a query's evidence terms by the query words that yield
 // them, so "conditions" and its singular "condition" are one group and the
-// word counts once (DCP-V1-540). Each term joins the first word that yields
-// it; a term no single word yields, such as an identifier's compound, is a
-// group of its own. Terms within a group and the groups by their first term
-// are sorted, so the score sums in a fixed order.
+// word counts once (DCP-V1-540). Terms that one word yields join one group,
+// and groups sharing a term merge, so the grouping does not depend on word
+// order: "condition conditions" and "conditions condition" both give one
+// group. A term no word yields, such as an identifier's compound, is a group
+// of its own. Terms within a group and the groups by their first term are
+// sorted, so the score sums in a fixed order.
 func queryGroups(query string, terms []string) [][]string {
-	open := make(map[string]bool, len(terms))
+	parent := make(map[string]string, len(terms))
 	for _, term := range terms {
-		open[term] = true
+		parent[term] = term
 	}
-	var groups [][]string
+	root := func(term string) string {
+		for parent[term] != term {
+			term = parent[term]
+		}
+		return term
+	}
 	for _, word := range identifierWords(query) {
-		var group []string
+		first := ""
 		for term := range contextindex.EvidenceTerms(word) {
-			if open[term] {
-				group = append(group, term)
-				delete(open, term)
+			if _, ok := parent[term]; !ok {
+				continue
+			}
+			if first == "" {
+				first = root(term)
+				continue
+			}
+			if r := root(term); r != first {
+				// Link the larger root under the smaller, so the forest's
+				// shape does not depend on map iteration order.
+				lo, hi := min(r, first), max(r, first)
+				parent[hi] = lo
+				first = lo
 			}
 		}
-		if len(group) > 0 {
-			slices.Sort(group)
-			groups = append(groups, group)
-		}
 	}
+	byRoot := map[string][]string{}
 	for _, term := range terms {
-		if open[term] {
-			groups = append(groups, []string{term})
-		}
+		r := root(term)
+		byRoot[r] = append(byRoot[r], term)
+	}
+	groups := make([][]string, 0, len(byRoot))
+	for _, group := range byRoot {
+		slices.Sort(group)
+		groups = append(groups, group)
 	}
 	slices.SortFunc(groups, func(a, b []string) int { return strings.Compare(a[0], b[0]) })
 	return groups

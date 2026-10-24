@@ -1842,11 +1842,12 @@ flow's name, so a short name holding that word ranked first. Status for `DCP-V1-
 proposed, experimental; GitHub #1665.
 
 - `DCP-V1-540`: Amending `DCP-V1-400` and `DCP-V1-402`, `docs_search` groups the query's evidence
-  terms by the query word (`DCP-V1-475` words) that yields them; a term no single word yields is a
-  group of its own. A subject or merged claim scores, per group, the best weighted idf among the
+  terms by the query word (`DCP-V1-475` words) that yields them, merging groups that share a term
+  so word order never changes the grouping; a term no word yields is a group of its own. A subject or merged claim scores, per group, the best weighted idf among the
   group's terms it holds, and the family maximum adds the group's largest idf once, so a word and
   its singular count once. Groups and their terms are summed in sorted order. Failure modes: a
-  plural word never counts twice; the score stays in [0, 1]. Acceptance:
+  plural word never counts twice; "condition conditions" and "conditions condition" rank alike;
+  the score stays in [0, 1]. Acceptance:
   `TestDCPV1540QueryWordCountsOnce`.
 - `DCP-V1-541`: A query that is one identifier of at least two words ranks, in tier `identifier`
   after `exact`, a subject one of whose name tokens, or of a module or file subject's anchor-path
