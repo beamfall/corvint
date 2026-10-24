@@ -52,7 +52,7 @@
   ],
   "guide": {
     "topic": "corvint help guide",
-    "sha256": "5473d3c6a02a89d71b5b4cdc1d3e56a1702d9ac91d68dc88947968bff2b331bf"
+    "sha256": "7c369f37e8016936fd8445c74cc2eac8aa74c53165c5d7128a9c7c3c266fa552"
   },
   "commands": [
     {
@@ -1237,6 +1237,7 @@
       "owningSpec": null,
       "freezeContract": "CCF-V1",
       "operations": [
+        "cache",
         "discovery"
       ],
       "nestedOperations": {},
@@ -1250,8 +1251,10 @@
         "--appmap-impact",
         "--base",
         "--cache",
+        "--format",
         "--full",
         "--list",
+        "--no-cache",
         "--path",
         "--paths-from",
         "--playwright-config",
@@ -1292,7 +1295,8 @@
         "It runs no test, writes no repository state, and never claims that omitted tests are safe to skip; the provider keeps its own NO_AFFECTED_SELECTION_PROOF unknown.",
         "Write --path=VALUE for a name that begins with -.",
         "An entry is trusted only when it was written by this exact corvint executable for this root, and every directory the graph walked and every file it read or statted has the same size, mode, inode, modification and change time; otherwise, or when the entry is damaged, the graph is built in full and the entry replaced.",
-        "The receipt is byte-identical with and without --cache, hit or miss; the worktree status, HEAD and drift checks run on every call, and nothing is written inside the repository.",
+        "The receipt is byte-identical with and without the cache, cold, hit or miss; the worktree status, HEAD and drift checks run on every call, and nothing is written inside the repository.",
+        "affected cache (experimental) reports the default cache's location, state (PRESENT, ABSENT, UNAVAILABLE or INCOMPLETE), entry count and bytes as one JSON object, or with --format doctor-plugin as one AFFECTED_CACHE item for a corvint-tasks doctor plugin; it creates and writes nothing.",
         "--selection-profile e2e-safe reads one repository-relative application-flow-selection-provider/1 FILE (flows directory, runner config, discovery record, global paths, E2E inventory, per-flow coverage tiers and a coverage file) and writes an e2e-safe-selection/1 advice.test_selection."
       ],
       "unknowns": [

@@ -188,6 +188,7 @@ func TestCAPV0017ShippedGuideDocumentsThePlaywrightTwoStep(t *testing.T) {
 
 // AFP-V0-431: the guide's test-selection goal tells callers to batch changed paths into one call
 // and to pass --cache DIR on a large tree, since every uncached call builds the graph again.
+// AFP-V0-432 amends the goal: the cache is on by default.
 func TestAFPV0431ShippedGuideAdvisesBatchingAndTheAffectedCache(t *testing.T) {
 	t.Parallel()
 	guide := Guide()
@@ -197,7 +198,7 @@ func TestAFPV0431ShippedGuideAdvisesBatchingAndTheAffectedCache(t *testing.T) {
 		t.Fatal("the guide must keep its test-selection goal before the Playwright goal")
 	}
 	goal := guide[from:to]
-	for _, want := range []string{"--path", "--paths-from FILE", "one call builds the graph", "--cache DIR", "outside\n   the repository", "unchanged checkout", "Without --cache"} {
+	for _, want := range []string{"--path", "--paths-from FILE", "one call builds the graph", "--cache DIR", "outside\n   the repository", "unchanged checkout", "under the user cache directory", "--no-cache", "corvint affected cache"} {
 		if !strings.Contains(goal, want) {
 			t.Errorf("the test-selection goal does not say %q:\n%s", want, goal)
 		}

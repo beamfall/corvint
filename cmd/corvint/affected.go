@@ -90,9 +90,17 @@ type affectedInvocation struct {
 	// RequireClean refuses to plan over a worktree with any status entry
 	// (AFP-V0-045).
 	RequireClean bool
-	// Cache is the caller-named graph cache directory, resolved outside the
-	// repository root; empty means no cache is read or written (AFP-V0-390).
+	// Cache is the graph cache directory, caller-named or the AFP-V0-432
+	// default, resolved outside the repository root; empty means no cache is
+	// read or written (AFP-V0-390).
 	Cache string
+	// NoCache turns off the default graph cache (AFP-V0-433).
+	NoCache bool
+	// CacheStatus is set only by `affected cache`, which reports the default
+	// cache's location and size; CacheStatusFormat is json or doctor-plugin
+	// (AFP-V0-435).
+	CacheStatus       bool
+	CacheStatusFormat string
 	// CacheExcluded names the repository's Git and common directories, which
 	// the opened cache directory is rechecked against (AFP-V0-390).
 	CacheExcluded []string
@@ -232,7 +240,7 @@ var affectedOptionNames = map[string]bool{"--path": true, "--snapshot": true, "-
 // affectedFormatRefusal names why `--format` is refused and every option
 // `affected` accepts (AFP-V0-201): the command has one output, JSON.
 func affectedFormatRefusal() error {
-	names := []string{"--full", "--require-clean"}
+	names := []string{"--full", "--no-cache", "--require-clean"}
 	for name := range affectedOptionNames {
 		names = append(names, name)
 	}
@@ -249,6 +257,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	if len(rest) != 0 && rest[0] == "discovery" {
 		return parseAffectedDiscoveryOptions(rest[1:])
 	}
+	if len(rest) != 0 && rest[0] == "cache" {
+		return parseAffectedCacheStatusOptions(rest[1:])
+	}
 	invocation := affectedInvocation{}
 	baseSet := false
 	for index := 0; index < len(rest); {
@@ -257,6 +268,14 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 				return affectedInvocation{}, argumentError("--full may be given once")
 			}
 			invocation.Full = true
+			index++
+			continue
+		}
+		if rest[index] == "--no-cache" || strings.HasPrefix(rest[index], "--no-cache=") {
+			if invocation.NoCache || rest[index] != "--no-cache" {
+				return affectedInvocation{}, argumentError("argument --no-cache: does not accept a value or repetition")
+			}
+			invocation.NoCache = true
 			index++
 			continue
 		}
@@ -326,6 +345,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 		if err != nil {
 			return affectedInvocation{}, err
 		}
+	}
+	if invocation.Cache != "" && invocation.NoCache {
+		return affectedInvocation{}, argumentError("--cache and --no-cache cannot be combined")
 	}
 	if invocation.Cache != "" && (invocation.Snapshot != "" || invocation.PlaywrightConfig != "") {
 		return affectedInvocation{}, argumentError("--cache cannot be combined with --snapshot or --playwright-config")
@@ -563,6 +585,9 @@ func setAffectedSelectionProfile(invocation *affectedInvocation, value string) e
 func runAffected(ctx context.Context, invocation affectedInvocation, stdout, stderr io.Writer) int {
 	if invocation.PlaywrightList != "" {
 		return runAffectedDiscovery(ctx, invocation, stdout, stderr)
+	}
+	if invocation.CacheStatus {
+		return runAffectedCacheStatus(invocation, stdout, stderr)
 	}
 	var receipt any
 	var err error

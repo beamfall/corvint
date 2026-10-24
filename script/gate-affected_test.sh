@@ -27,9 +27,11 @@ fail() {
   exit 1
 }
 
+# The planner's default graph cache (AFP-V0-432) lives under the test root, never the
+# real user cache directory.
 run_gate() {
   status=0
-  output=$(cd "$repository" && CORVINT_PLANNER="$test_root/corvint" GO_TEST_COMMAND='printf "%s\n" go-test' \
+  output=$(cd "$repository" && CORVINT_PLANNER="env HOME=$test_root/home XDG_CACHE_HOME=$test_root/cache $test_root/corvint" GO_TEST_COMMAND='printf "%s\n" go-test' \
     "$source_root/script/gate-affected.sh" "$@" 2> "$test_root/stderr") || status=$?
   test "$status" -eq 0 || fail "gate-affected.sh $* exited $status"
 }
