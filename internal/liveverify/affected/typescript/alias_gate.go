@@ -114,9 +114,17 @@ func playwrightStaticMembership(config config, files []string, observations []ob
 	}
 	projects, globalTestDir, unknown := parsePlaywrightConfig(config.path, config.body)
 	testMatchSite := func() (string, string, bool) {
+		if testMatchAt < 0 {
+			// An escaped key such as "test\u004datch" parses to a testMatch the raw body never names.
+			return config.path, "testMatch", false
+		}
 		return lineSite(config.path, config.body, testMatchAt), sourceToken(config.body[testMatchAt:]), false
 	}
-	if testMatchAt >= 0 && !playwrightLiteralTestMatches(config.body, projects, unknown) {
+	parsedTestMatch := false
+	for _, project := range projects {
+		parsedTestMatch = parsedTestMatch || len(project.TestMatch) != 0
+	}
+	if (testMatchAt >= 0 || parsedTestMatch) && !playwrightLiteralTestMatches(config.body, projects, unknown) {
 		return testMatchSite()
 	}
 	if unmodelled >= 0 {
@@ -153,9 +161,11 @@ func playwrightStaticMembership(config config, files []string, observations []ob
 		owned := false
 		for _, project := range projects {
 			// Playwright matches the absolute path, so a glob longer than a path whose own
-			// segments match the glob's tail is decided by the checkout's directories (TJAA-V0-091).
+			// segments match the glob's tail is decided by the checkout's directories, and a path
+			// outside the matcher model (a non-BMP character or a line break) can match in minimatch
+			// where the Go matcher does not (TJAA-V0-091).
 			for _, glob := range project.TestMatch {
-				if playwrightInsideTestDir(project, globalTestDir, name) && playwrightGlobReachesRoot(glob, name) {
+				if playwrightInsideTestDir(project, globalTestDir, name) && (playwrightPathOutsideMatcherModel(name) || playwrightGlobReachesRoot(glob, name)) {
 					return testMatchSite()
 				}
 			}

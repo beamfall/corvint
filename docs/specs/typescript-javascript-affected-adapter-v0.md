@@ -786,8 +786,10 @@ and `affected --path` stayed unknown for every change because a setup project's
 - Failure modes, each fail-closed: a `JSON` use that is not a plain stringify call still stops
   the tag closure and names its line, so the omission stays unverified; a `testMatch` the rule
   does not accept, or whose glob a test path is too short to decide, names the first `testMatch`
-  line; a literal glob that assigns a file the adapter classifies as another runner's test or
-  as support code names `owns <file>`.
+  line; a test path outside the matcher model (a non-BMP character or a line break) inside a
+  literal-testMatch project's testDir also names that line; a testMatch reached only through an
+  escaped key names the config as `testMatch`; a literal glob that assigns a file the adapter
+  classifies as another runner's test or as support code names `owns <file>`.
 - Residual: a patch of the global `JSON.stringify` from a file outside the closure, as for every
   other global, is outside the static model (`AFP-V0-409`). Membership markers other than
   `testMatch` that the reporter's config may hold (such as `globalSetup`) still raise the frontier
@@ -1041,6 +1043,6 @@ receipt is written.
 | `TJAA-V0-059` (PR #1628 review) | `TestBlockedGateKeepsWorkspaceLinks_PR1628` in `typescript_pr1628_test.go` | experimental; synthetic workspace |
 | `TJAA-V0-060` (PR #1628 review) | `TestPlaywrightConfinedMutationKeepsDeviceIdentity_PR1628` in `typescript_pr1628_test.go` | experimental |
 | `TJAA-V0-090` (GitHub #1701) | `TestPlaywrightTagClosurePlainStringify_GH1701` in `playwright_gh1701_test.go` (the issue's helper shape); `TestPlaywrightTagClosureDetailsWithoutTag_GH1688` in `playwright_gh1688_test.go` | experimental; reporter repository `NOT_OBSERVED` |
-| `TJAA-V0-091` (GitHub #1701) | `TestPlaywrightPathModeLiteralTestMatch_GH1701`, `TestPlaywrightPathModeLiteralTestMatchOwnsSupport_GH1701` in `playwright_gh1701_test.go`; `TestPlaywrightConfigFrontierNamesBlocker_GH1688` in `playwright_gh1688_test.go` | experimental; reporter repository `NOT_OBSERVED` |
+| `TJAA-V0-091` (GitHub #1701) | `TestPlaywrightPathModeLiteralTestMatch_GH1701`, `TestPlaywrightPathModeLiteralTestMatchOutsideMatcherModel_GH1701`, `TestPlaywrightPathModeLiteralTestMatchOwnsSupport_GH1701` in `playwright_gh1701_test.go`; `TestPlaywrightConfigFrontierNamesBlocker_GH1688` in `playwright_gh1688_test.go` | experimental; reporter repository `NOT_OBSERVED` |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |

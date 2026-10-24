@@ -66,6 +66,10 @@ func TestPlaywrightPathModeLiteralTestMatch_GH1701(t *testing.T) {
 		{"longer than a test path", "    { name: 'auth', testMatch: 'repo/tests/setup/global-setup.ts' },\n" + gh1688Projects, at, ""},
 		{"global literal", gh1688Projects, FrontierConfig + ":playwright.config.ts:5 `testMatch`", "import { defineConfig, devices } from '@playwright/test';\nconst deps = process.env.X === '1' ? ['setup'] : ['setup'];\nexport default defineConfig({\n  testDir: './tests',\n  testMatch: 'setup/global-setup.ts',\n  projects: [\n" + gh1688Projects + "  ],\n});\n"},
 		{"spread project", "    { ...{ testMatch: 'setup/global-setup.ts' }, name: 'auth' },\n" + gh1688Projects, at, ""},
+		// Codex review: an escaped key parses to a testMatch the raw body never names; it stays
+		// unresolved at the config instead of slicing an absent site.
+		{"escaped key regular expression", "    { name: 'auth', \"test\\u004datch\": /global-setup/ },\n" + gh1688Projects, FrontierConfig + ":playwright.config.ts `testMatch`", ""},
+		{"escaped key literal", "    { name: 'auth', \"test\\u004datch\": 'setup/global-setup.ts' },\n" + gh1688Projects, FrontierConfig + ":playwright.config.ts `testMatch`", ""},
 	} {
 		t.Run(row.label, func(t *testing.T) {
 			root := gh1688Repository(t, row.projects)
@@ -88,6 +92,22 @@ func TestPlaywrightPathModeLiteralTestMatch_GH1701(t *testing.T) {
 
 // TJAA-V0-091: a literal testMatch that assigns a file the general adapter does not observe as a
 // Playwright test of the config, here a Vitest test, stays unresolved and names that file.
+// TJAA-V0-091 (Codex review): minimatch reads `??` as two UTF-16 code units, which match one
+// non-BMP character, while the Go matcher reads one rune, so a path outside the matcher model
+// keeps the testMatch site instead of being classified as support code.
+func TestPlaywrightPathModeLiteralTestMatchOutsideMatcherModel_GH1701(t *testing.T) {
+	root := gh1688Repository(t, "    { name: 'auth', testMatch: 'cases/??.ts' },\n"+gh1688Projects)
+	write(t, root, "tests/cases/\U0001F600.ts", "import { test } from '@playwright/test';\ntest('emoji', async () => {});\n")
+	result, err := New().Units(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := FrontierConfig + ":playwright.config.ts:6 `testMatch`"
+	if !slices.Contains(result.Frontier, want) {
+		t.Fatalf("frontier %q lacks %q", result.Frontier, want)
+	}
+}
+
 func TestPlaywrightPathModeLiteralTestMatchOwnsSupport_GH1701(t *testing.T) {
 	root := gh1688Repository(t, "    { name: 'auth', testMatch: 'setup/global-setup.ts' },\n"+gh1688Projects)
 	write(t, root, "tests/setup/global-setup.ts", "import { it } from 'vitest';\nit('ready', () => {});\n")
