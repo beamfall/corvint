@@ -94,19 +94,27 @@ func TestAFPV0432CEMReleaseGateRunsOnBothPlatformsAndRetainsOutput(t *testing.T)
 		wantLine(t, "cem-release-gate", b, line)
 	}
 	script := runScript(t, b)
+	passed := `{"profile":"cem-release-run/1","runner":{"cem01-go:repository-envelope":"PASSED","corvint:tamper-matrix":"PASSED"},"platforms":{"linux/amd64":"PASSED"}}`
+	unrun := `{"profile":"cem-release-run/1","runner":{"cem01-go:repository-envelope":"NOT_RUN","corvint:tamper-matrix":"PASSED"},"platforms":{"linux/amd64":"PASSED"}}`
 	for _, tc := range []struct {
-		name, exit, writes string
+		name, exit, record string
+		outcome            bool
 		want               int
 	}{
-		{"ready", "0", "record outcome", 0},
-		{"host readiness refusal after the suites", "2", "record outcome", 0},
-		{"suite failure", "2", "", 2},
-		{"record without outcome", "2", "record", 2},
+		{"ready", "0", passed, true, 0},
+		{"host readiness refusal after the suites", "2", passed, true, 0},
+		{"suite failure", "2", "", false, 2},
+		{"record without outcome", "2", passed, false, 2},
+		{"envelope suite recorded NOT_RUN", "2", unrun, true, 2},
+		{"record without runner rows", "2", `{"runner":{}}`, true, 2},
 	} {
 		dir := t.TempDir()
 		spy := "echo \"cem-release-suites: readiness: REFUSED (spy $1)\"\n"
-		for _, f := range strings.Fields(tc.writes) {
-			spy += "for a; do case $a in CEM_RELEASE_" + strings.ToUpper(f) + "=*) echo '{}' > \"${a#*=}\";; esac; done\n"
+		if tc.record != "" {
+			spy += "for a; do case $a in CEM_RELEASE_RECORD=*) echo '" + tc.record + "' > \"${a#*=}\";; esac; done\n"
+		}
+		if tc.outcome {
+			spy += "for a; do case $a in CEM_RELEASE_OUTCOME=*) echo '{}' > \"${a#*=}\";; esac; done\n"
 		}
 		writeExecutable(t, filepath.Join(dir, "bin", "make"), spy+"exit "+tc.exit+"\n")
 		summary := filepath.Join(dir, "summary.md")
@@ -135,7 +143,8 @@ func TestAFPV0432CEMReleaseGateRunsOnBothPlatformsAndRetainsOutput(t *testing.T)
 		"    runs-on: ubuntu-24.04",
 		`          go-version: "1.27.3"`,
 		"          pattern: cem-release-gate-*",
-		`          go run ./tools/cem-release-suites --aggregate --readiness tools/cem-release-suites/READINESS.json --outcome "$out/outcome.json" "$records/cem-release-gate-ubuntu-24.04/record.json" "$records/cem-release-gate-macos-15/record.json" > "$out/output.txt" 2>&1 || code=$?`,
+		`          go build -o "$RUNNER_TEMP/cem-release-suites" ./tools/cem-release-suites`,
+		`          "$RUNNER_TEMP/cem-release-suites" --aggregate --readiness tools/cem-release-suites/READINESS.json --outcome "$out/outcome.json" "$records/cem-release-gate-ubuntu-24.04/record.json" "$records/cem-release-gate-macos-15/record.json" > "$out/output.txt" 2>&1 || code=$?`,
 		`          exit "$code"`,
 		"        if: always()",
 		"          name: cem-release-readiness",
@@ -146,8 +155,10 @@ func TestAFPV0432CEMReleaseGateRunsOnBothPlatformsAndRetainsOutput(t *testing.T)
 	script = runScript(t, r)
 	for _, exit := range []string{"0", "3"} {
 		dir := t.TempDir()
+		// The go spy builds a tool spy that reports its arguments and exits with the tool's code.
+		tool := "#!/bin/sh\necho \"cem-release-suites: readiness: REFUSED (spy $1 $(basename $(dirname $6)) $(basename $(dirname $7)))\"\nexit " + exit + "\n"
 		writeExecutable(t, filepath.Join(dir, "bin", "go"),
-			"echo \"cem-release-suites: readiness: REFUSED (spy $3 $(basename $(dirname $8)) $(basename $(dirname $9)))\"\nexit "+exit+"\n")
+			"test \"$1 $2 $4\" = \"build -o ./tools/cem-release-suites\" || exit 9\nprintf '%s' '"+tool+"' > \"$3\" && chmod +x \"$3\"\n")
 		summary := filepath.Join(dir, "summary.md")
 		code, out := runBash(t, dir, script,
 			"PATH="+filepath.Join(dir, "bin")+string(os.PathListSeparator)+os.Getenv("PATH"),

@@ -46,7 +46,13 @@ judges those records together (CEM-V1-611, CEM-V1-612). The workflow did not use
   - host refusal after the suites;
   - suite failure;
   - a record without an outcome;
-  - aggregate exit 0 and exit 3.
+  - a record whose envelope runner row is `NOT_RUN`, and one with no runner rows (both fail);
+  - aggregate exit 0 and exit 3, through the built tool.
+- Codex (one read-only round) found two issues on `a04a46feb`, both fixed here:
+  - P2: the host job accepted any written record, so an envelope suite recorded `NOT_RUN` could
+    pass. The host job now also requires every runner row in `record.json` to be `PASSED`.
+  - P3: `go run` reports any nonzero exit as 1, which hid the refusal's exit 3. The aggregate job
+    now builds the tool into `$RUNNER_TEMP` and runs the binary.
 - Live CI evidence is the first run on this PR and its merge-queue entry.
 
 Rollback: revert the workflow to the single `cem-release-gate` job.

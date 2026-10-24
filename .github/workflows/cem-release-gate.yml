@@ -28,8 +28,8 @@ jobs:
     # The target builds corvint and interop/cem01-go from this clean checkout into one private
     # directory, runs the sealed suites over both binaries and writes this host's run record and
     # outcome (CEM-V1-611, CEM-V1-613). The job passes when the target exits 0, or when it exits
-    # nonzero after writing both: every suite passed and only this host's readiness view refused,
-    # which the aggregate job judges again across hosts. A suite failure writes no record and fails
+    # nonzero after writing both with every recorded runner row PASSED: every suite passed and
+    # only this host's readiness view refused, which the aggregate job judges again across hosts. A suite failure writes no record and fails
     # the job. Its output, record and outcome are retained per platform. Not a required check; a
     # ci:batched constituent never starts it (AFP-V0-081), as its batch pull request and queue entry
     # run it.
@@ -68,7 +68,12 @@ jobs:
           if [ "$code" = 0 ]; then
             verdict=ready
           elif [ -s "$out/record.json" ] && [ -s "$out/outcome.json" ]; then
-            verdict=recorded
+            # The record's runner rows must all be PASSED: an envelope suite whose report is
+            # missing or short is recorded NOT_RUN, which is not a passing suite (CEM-V1-610).
+            rows=$(grep -o '"runner":{[^}]*}' "$out/record.json" | grep -Eo '"[^"]*":"[A-Z_]+"' || true)
+            if [ -n "$rows" ] && ! printf '%s\n' "$rows" | grep -vq '":"PASSED"$'; then
+              verdict=recorded
+            fi
           fi
           {
             printf '### CEM release suites (AFP-V0-432)\n\nmake cem-release-gate exited %s; host verdict %s.\n\n```\n' "$code" "$verdict"
@@ -76,7 +81,7 @@ jobs:
             printf '```\n'
           } >> "$GITHUB_STEP_SUMMARY"
           if [ "$verdict" = failed ]; then
-            echo "::error::make cem-release-gate exited $code without a run record; the retained output names the failed suite."
+            echo "::error::make cem-release-gate exited $code without a run record whose every runner row PASSED; the retained output names the failed or unrun suite."
             exit "$code"
           fi
       - name: Retain the CEM release gate output
@@ -121,7 +126,9 @@ jobs:
           out="$RUNNER_TEMP/cem-release-readiness"
           mkdir -p "$out"
           code=0
-          go run ./tools/cem-release-suites --aggregate --readiness tools/cem-release-suites/READINESS.json --outcome "$out/outcome.json" "$records/cem-release-gate-ubuntu-24.04/record.json" "$records/cem-release-gate-macos-15/record.json" > "$out/output.txt" 2>&1 || code=$?
+          # Built, not `go run`: go run reports any nonzero exit as 1 and would hide the refusal's 3.
+          go build -o "$RUNNER_TEMP/cem-release-suites" ./tools/cem-release-suites
+          "$RUNNER_TEMP/cem-release-suites" --aggregate --readiness tools/cem-release-suites/READINESS.json --outcome "$out/outcome.json" "$records/cem-release-gate-ubuntu-24.04/record.json" "$records/cem-release-gate-macos-15/record.json" > "$out/output.txt" 2>&1 || code=$?
           cat "$out/output.txt"
           {
             printf '### CEM release readiness (AFP-V0-432)\n\ncem-release-suites --aggregate exited %s.\n\n```\n' "$code"
