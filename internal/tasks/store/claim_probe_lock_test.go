@@ -29,12 +29,6 @@ func claimDeclines(run writerRun) int {
 	return n
 }
 
-// V1-2138: the writer route never runs a claim's scope deriver or Git
-// observation under the writer lock. With the deriver blocked mid-run, a
-// concurrent writer commits. That write moved the audited snapshot the base
-// observation is bound to, so the retried writer route declines once more and
-// the complete route commits the claim with the derivation already made: the
-// deriver ran exactly once.
 // claimTargetStore is a writer-route store whose policy enforces no budget
 // fields, a separate Git checkout for the claim to observe, and one ticket.
 func claimTargetStore(t *testing.T) (*intent.Repository, string, string) {
@@ -58,6 +52,13 @@ func claimTargetStore(t *testing.T) (*intent.Repository, string, string) {
 	return repo, root, created.rep.Ticket
 }
 
+// V1-2138: the writer route never runs a claim's scope deriver or Git
+// observation under the writer lock. With the deriver blocked mid-run, a
+// concurrent writer commits. That write moved the audited snapshot but not
+// the claim root's HEAD, and the base observation is bound to the ref files
+// (PSR-V0-224), so the retried writer route serves the base and the
+// derivation already made and commits the claim after one decline: the
+// deriver ran exactly once.
 func TestV12138_ClaimDerivationOutsideWriterLock(t *testing.T) {
 	t.Parallel()
 	repo, root, ticketID := claimTargetStore(t)
@@ -110,11 +111,11 @@ func TestV12138_ClaimDerivationOutsideWriterLock(t *testing.T) {
 	case <-time.After(2 * time.Minute):
 		t.Fatal("claim never returned after release (hang guard)")
 	}
-	if !run.completed() || run.fast() {
-		t.Fatalf("claim not committed on the complete route: %+v %v %v", run.rep, run.err, run.stages)
+	if !run.completed() || !run.fast() {
+		t.Fatalf("claim not committed on the writer route: %+v %v %v", run.rep, run.err, run.stages)
 	}
-	if n := claimDeclines(run); n != 2 {
-		t.Fatalf("writer route deferred the claim observation %d times, want 2: %v", n, run.stages)
+	if n := claimDeclines(run); n != 1 {
+		t.Fatalf("writer route deferred the claim observation %d times, want 1: %v", n, run.stages)
 	}
 	if n := runs.Load(); n != 1 {
 		t.Fatalf("deriver ran %d times, want once", n)
