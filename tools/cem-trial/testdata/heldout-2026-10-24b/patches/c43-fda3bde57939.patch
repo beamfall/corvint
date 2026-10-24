@@ -1,0 +1,251 @@
+diff --git a/internal/app/integration_worker.go b/internal/app/integration_worker.go
+index 025f154e7..4042cb628 100644
+--- a/internal/app/integration_worker.go
++++ b/internal/app/integration_worker.go
+@@ -12,6 +12,7 @@ import (
+ 	"sync"
+ 	"time"
+ 
++	"github.com/beamfall/core/internal/causation"
+ 	"github.com/beamfall/core/internal/integrationhost"
+ 	"github.com/beamfall/core/internal/plugin"
+ 	"github.com/beamfall/core/internal/store"
+@@ -148,19 +149,24 @@ func (l integrationProfileLinker) LinkProfile(ctx context.Context, pluginID stri
+ 
+ // IntegrationHostDeps builds the Host dependency seams from *store.Store and the
+ // 0600 secret store. Profiles, catalog, events, secrets, audit, status writes,
+-// and profile links are wired; the ingest/file-mutation/outbound/jobs seams are
+-// left nil until their Core
+-// handoff paths are promoted (the Host returns permission-denied for an
++// profile links, and the shared causation cap are wired; the ingest/file-
++// mutation/outbound/jobs seams are left nil until their Core handoff paths are
++// promoted (the Host returns permission-denied for an
+ // unavailable capability even when granted — the dormant-capability posture).
+ // Exported so a worker-install/launch path (and its tests) constructs the Host
+ // without re-deriving the adapters.
+ func IntegrationHostDeps(st *store.Store, secrets secretFiles) integrationhost.Deps {
++	return integrationHostDeps(st, secrets, causation.NewCausationCap(causation.DefaultLimits(), time.Now))
++}
++
++func integrationHostDeps(st *store.Store, secrets secretFiles, cap *causation.CausationCap) integrationhost.Deps {
+ 	return integrationhost.Deps{
+-		Catalog:  st,
+-		Events:   IntegrationEventReader{Store: st},
+-		Profiles: st,
+-		Secrets:  secrets,
+-		Audit:    st,
++		Catalog:   st,
++		Events:    IntegrationEventReader{Store: st},
++		Profiles:  st,
++		Secrets:   secrets,
++		Audit:     st,
++		Causation: cap,
+ 		// Empty first-party-trust set: no first-party Integration Worker ships in
+ 		// v1, so declared-outbound is grantable but never *carriable* for a
+ 		// third-party plugin until the SSRF-hardened proxy adapter lands (PLUGIN-8
+@@ -210,8 +216,9 @@ func buildIntegrationManager(ctx context.Context, st *store.Store, plugins *plug
+ 	if plugins == nil {
+ 		return nil, nil
+ 	}
++	cap := causation.NewCausationCap(causation.DefaultLimits(), time.Now)
+ 	for _, id := range plugins.IDs() {
+-		m, err := buildIntegrationManagerFor(ctx, st, string(id), secrets, logger, shimPath)
++		m, err := buildIntegrationManagerForWithCausation(ctx, st, string(id), secrets, logger, shimPath, cap)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+@@ -227,6 +234,11 @@ func buildIntegrationManager(ctx context.Context, st *store.Store, plugins *plug
+ // launch it (ADR-0058: install/verify by hash or signing key). A worker that is
+ // disabled, unverifiable, or missing its pinned source is not launched.
+ func buildIntegrationManagerFor(ctx context.Context, st *store.Store, pluginID string, secrets secretFiles, logger *slog.Logger, shimPath string) (*integrationManager, error) {
++	cap := causation.NewCausationCap(causation.DefaultLimits(), time.Now)
++	return buildIntegrationManagerForWithCausation(ctx, st, pluginID, secrets, logger, shimPath, cap)
++}
++
++func buildIntegrationManagerForWithCausation(ctx context.Context, st *store.Store, pluginID string, secrets secretFiles, logger *slog.Logger, shimPath string, cap *causation.CausationCap) (*integrationManager, error) {
+ 	worker, ok, err := st.IntegrationWorker(ctx, pluginID)
+ 	if err != nil {
+ 		return nil, err
+@@ -280,7 +292,7 @@ func buildIntegrationManagerFor(ctx context.Context, st *store.Store, pluginID s
+ 	}
+ 	return &integrationManager{
+ 		st:       st,
+-		deps:     IntegrationHostDeps(st, secrets),
++		deps:     integrationHostDeps(st, secrets, cap),
+ 		pluginID: pluginID,
+ 		artifact: artifact,
+ 		logger:   logger,
+diff --git a/internal/integrationhost/hostapi.go b/internal/integrationhost/hostapi.go
+index a720a53d9..e228139ae 100644
+--- a/internal/integrationhost/hostapi.go
++++ b/internal/integrationhost/hostapi.go
+@@ -7,6 +7,7 @@ import (
+ 	"fmt"
+ 	"time"
+ 
++	"github.com/beamfall/core/internal/causation"
+ 	"github.com/beamfall/core/internal/store"
+ )
+ 
+@@ -30,6 +31,10 @@ type Deps struct {
+ 	Ingest   IngestRequester
+ 	FileMut  FileMutationRequester
+ 	Outbound OutboundProxy
++	// Causation is the structural ADR-0125 promotion marker and the shared
++	// server-owned guard every mutating Host method spends through. A non-nil
++	// mutation seam with a nil cap still fails closed at runtime.
++	Causation *causation.CausationCap
+ 	// Trust gates outbound *execution* on first-party trust. A nil source denies
+ 	// all (deny-all fail-closed), matching the production empty-set posture.
+ 	Trust  FirstPartyTrust
+@@ -154,7 +159,7 @@ func (h *Host) ReadCatalog(ctx context.Context) ([]store.Library, error) {
+ // filtering of event payloads is the SSE-surface model; here the binding gates
+ // which events a worker may observe — restricted-Library events are withheld
+ // from a worker whose filter excludes that Library.)
+-func (h *Host) SubscribeEvents(ctx context.Context, afterSeq int64, limit int) ([]store.OutboxEvent, error) {
++func (h *Host) SubscribeEvents(ctx context.Context, afterSeq int64, limit int) ([]SubscribedEvent, error) {
+ 	grant, err := h.authorize(ctx, PermEventSubscribe)
+ 	if err != nil {
+ 		return nil, err
+@@ -166,7 +171,40 @@ func (h *Host) SubscribeEvents(ctx context.Context, afterSeq int64, limit int) (
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return h.deps.Events.ReadEventOutboxFiltered(ctx, afterSeq, limit, filter)
++	events, err := h.deps.Events.ReadEventOutboxFiltered(ctx, afterSeq, limit, filter)
++	if err != nil {
++		return nil, err
++	}
++	out := make([]SubscribedEvent, 0, len(events))
++	for _, event := range events {
++		token, err := h.causationTokenFor(fmt.Sprintf("outbox:%d", event.Seq), event.OccurredAt)
++		if err != nil {
++			return nil, err
++		}
++		out = append(out, SubscribedEvent{OutboxEvent: event, CausationToken: token})
++	}
++	return out, nil
++}
++
++// SubscribedEvent preserves the existing outbox event JSON fields and adds the
++// opaque server-issued token a worker must echo on any resulting mutation.
++type SubscribedEvent struct {
++	store.OutboxEvent
++	CausationToken causation.Token `json:"causationToken"`
++}
++
++func (h *Host) causationTokenFor(root string, startedAt time.Time) (causation.Token, error) {
++	if h.deps.Causation == nil {
++		return "", nil
++	}
++	return h.deps.Causation.TokenFor(root, startedAt)
++}
++
++func (h *Host) admitMutation(ctx context.Context, action string) error {
++	if h.deps.Causation == nil {
++		return fmt.Errorf("%w: %s containment unavailable", ErrPermissionDenied, action)
++	}
++	return h.deps.Causation.Admit(h.pluginID, causation.TokenFromContext(ctx), action)
+ }
+ 
+ // resolveFilter turns a read grant into a store.LibraryFilter, reading the bound
+@@ -227,6 +265,9 @@ func (h *Host) EnqueueJob(ctx context.Context, kind string, payload []byte, runA
+ 	if h.deps.Jobs == nil {
+ 		return "", fmt.Errorf("%w: plugin-job unavailable", ErrPermissionDenied)
+ 	}
++	if err := h.admitMutation(ctx, methodEnqueueJob); err != nil {
++		return "", err
++	}
+ 	return h.deps.Jobs.EnqueuePluginJob(ctx, h.pluginID, kind, payload, runAfter)
+ }
+ 
+@@ -238,6 +279,9 @@ func (h *Host) RequestIngest(ctx context.Context, libraryID store.LibraryID) err
+ 	if h.deps.Ingest == nil {
+ 		return fmt.Errorf("%w: request-ingest unavailable", ErrPermissionDenied)
+ 	}
++	if err := h.admitMutation(ctx, methodRequestIngest); err != nil {
++		return err
++	}
+ 	if err := h.auditHighRisk(ctx, store.ActivityPluginIngestRequest, "plugin", h.pluginID); err != nil {
+ 		return err
+ 	}
+@@ -253,6 +297,9 @@ func (h *Host) RequestFileMutation(ctx context.Context, req FileMutationRequest)
+ 	if h.deps.FileMut == nil {
+ 		return fmt.Errorf("%w: request-file-mutation unavailable", ErrPermissionDenied)
+ 	}
++	if err := h.admitMutation(ctx, methodRequestFileMutation); err != nil {
++		return err
++	}
+ 	if err := h.auditHighRisk(ctx, store.ActivityPluginFileMutationRequest, "plugin", h.pluginID); err != nil {
+ 		return err
+ 	}
+@@ -334,6 +381,9 @@ func (h *Host) RequestOutbound(ctx context.Context, req OutboundRequest) (Outbou
+ 	if len(req.Body) > maxOutboundBodyBytes {
+ 		return OutboundResponse{}, fmt.Errorf("integrationhost: outbound request body too large (%d)", len(req.Body))
+ 	}
++	if err := h.admitMutation(ctx, methodRequestOutbound); err != nil {
++		return OutboundResponse{}, err
++	}
+ 	// Ledger first: the plugin-attributed audit row (no URL/host/header/body — they
+ 	// may carry secrets, invariant 5) must be written before the proxy is invoked.
+ 	if err := h.deps.Audit.AppendActivity(ctx, store.ActivityEntry{
+diff --git a/internal/integrationhost/protocol.go b/internal/integrationhost/protocol.go
+index b93ee2d12..4482b3b92 100644
+--- a/internal/integrationhost/protocol.go
++++ b/internal/integrationhost/protocol.go
+@@ -10,6 +10,7 @@ import (
+ 	"net"
+ 	"time"
+ 
++	"github.com/beamfall/core/internal/causation"
+ 	"github.com/beamfall/core/internal/store"
+ )
+ 
+@@ -46,6 +47,7 @@ type hostRequest struct {
+ 	LibraryID string              `json:"libraryID,omitempty"`
+ 	FileMut   FileMutationRequest `json:"fileMutation,omitempty"`
+ 	Outbound  OutboundRequest     `json:"outbound,omitempty"`
++	Causation causation.Token     `json:"causationToken,omitempty"`
+ }
+ 
+ // hostResponse is the supervisor's reply. Err is the permission-denied (or other)
+@@ -140,7 +142,14 @@ func (s *Supervisor) RunAction(ctx context.Context, pluginID, actionID string) e
+ 	s.pendingActions[requestID] = ch
+ 	s.actionMu.Unlock()
+ 
+-	payload, err := json.Marshal(hostRequest{Method: methodRunAction, RequestID: requestID, ActionID: actionID})
++	causationToken, err := s.host.causationTokenFor("action:"+requestID, s.host.now().UTC())
++	if err != nil {
++		s.dropAction(requestID)
++		return err
++	}
++	payload, err := json.Marshal(hostRequest{
++		Method: methodRunAction, RequestID: requestID, ActionID: actionID, Causation: causationToken,
++	})
+ 	if err != nil {
+ 		s.dropAction(requestID)
+ 		return err
+@@ -219,6 +228,7 @@ func (s *Supervisor) dispatch(ctx context.Context, req hostRequest) hostResponse
+ 		err := s.host.SetSecret(ctx, req.Ref, req.Value)
+ 		return jsonResp(struct{}{}, err)
+ 	case methodEnqueueJob:
++		ctx = causation.WithToken(ctx, req.Causation)
+ 		runAfter := time.Time{}
+ 		if req.RunAfter != nil {
+ 			runAfter = *req.RunAfter
+@@ -226,12 +236,15 @@ func (s *Supervisor) dispatch(ctx context.Context, req hostRequest) hostResponse
+ 		id, err := s.host.EnqueueJob(ctx, req.Kind, req.Payload, runAfter)
+ 		return jsonResp(id, err)
+ 	case methodRequestIngest:
++		ctx = causation.WithToken(ctx, req.Causation)
+ 		err := s.host.RequestIngest(ctx, libraryIDOf(req.LibraryID))
+ 		return jsonResp(struct{}{}, err)
+ 	case methodRequestFileMutation:
++		ctx = causation.WithToken(ctx, req.Causation)
+ 		err := s.host.RequestFileMutation(ctx, req.FileMut)
+ 		return jsonResp(struct{}{}, err)
+ 	case methodRequestOutbound:
++		ctx = causation.WithToken(ctx, req.Causation)
+ 		resp, err := s.host.RequestOutbound(ctx, req.Outbound)
+ 		return jsonResp(resp, err)
+ 	case methodWriteStatus:

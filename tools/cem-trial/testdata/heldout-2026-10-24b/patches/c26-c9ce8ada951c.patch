@@ -1,0 +1,62 @@
+diff --git a/internal/graph/graph_consoleconfig.go b/internal/graph/graph_consoleconfig.go
+index 76798de38..f0077cb89 100644
+--- a/internal/graph/graph_consoleconfig.go
++++ b/internal/graph/graph_consoleconfig.go
+@@ -516,9 +516,8 @@ func (h *Handler) setPluginActive(ctx context.Context, scope auth.Scope, req req
+ // data. It is the explicit, operator-confirmed purge — distinct from
+ // deactivation, which leaves data inert and reversible (ADR-0104 §1) — so it
+ // requires `confirm: true` (invariant #6: destructive ops are confirmed). The
+-// plugin must be loaded (active) so its declared Entity Kinds are resolvable
+-// from the registry; uninstalling an already-deactivated plugin would need its
+-// bundle reloaded (deferred — reactivate first). Admin-Session-gated in execute.
++// plugin must be present in the loaded registry so its declared Entity Kinds are
++// resolvable; it may already be deactivated. Admin-Session-gated in execute.
+ func (h *Handler) uninstallPluginData(ctx context.Context, scope auth.Scope, req request) (ConsoleConfigInfo, error) {
+ 	pluginID := trimmedVariable(req, "pluginID")
+ 	if pluginID == "" {
+@@ -532,7 +531,7 @@ func (h *Handler) uninstallPluginData(ctx context.Context, scope auth.Scope, req
+ 	}
+ 	bundle, found := h.plugins.Bundle(plugin.ID(pluginID))
+ 	if !found {
+-		return ConsoleConfigInfo{}, clientError("unknown plugin (activate it before uninstalling)")
++		return ConsoleConfigInfo{}, clientError("unknown plugin")
+ 	}
+ 	kinds := make([]string, 0, len(bundle.EntityKinds))
+ 	for _, k := range bundle.EntityKinds {
+diff --git a/internal/web/app/src/areas/console/sections/Plugins.tsx b/internal/web/app/src/areas/console/sections/Plugins.tsx
+index be604a814..110cd2c59 100644
+--- a/internal/web/app/src/areas/console/sections/Plugins.tsx
++++ b/internal/web/app/src/areas/console/sections/Plugins.tsx
+@@ -456,8 +456,8 @@ function PluginDetail({
+ // toggle's path). Uninstall is the explicit, operator-confirmed purge — the
+ // only path that permanently removes the plugin's stored Entity data — so it
+ // routes through ConfirmButton (HARD invariant #6) and names the irreversibility
+-// in the dialog. Both require the plugin to be active: Deactivate is a no-op
+-// otherwise, and Uninstall needs the loaded bundle to resolve its Entity Kinds.
++// in the dialog. Deactivate is a no-op when already inactive; Uninstall remains
++// available for inactive plugins because their stored data can still be purged.
+ function PluginLifecycle({
+   plugin,
+   displayLocale,
+@@ -538,7 +538,7 @@ function PluginLifecycle({
+               variant="destructive"
+               label={t("pluginUninstall")}
+               confirm="pluginUninstallConfirm"
+-              disabled={!plugin.active || busy}
++              disabled={busy}
+               onConfirm={uninstall}
+             >
+               {t("pluginUninstallConfirmBody", { name })}
+diff --git a/internal/web/app/src/strings.ts b/internal/web/app/src/strings.ts
+index 5f0ac7a0e..baeecf9a2 100644
+--- a/internal/web/app/src/strings.ts
++++ b/internal/web/app/src/strings.ts
+@@ -644,7 +644,7 @@ const en = {
+   pluginLifecycleReversible: "Reversible",
+   pluginUninstall: "Uninstall (purge data)",
+   pluginUninstallHelp:
+-    "Permanently remove every item this plugin stored, then deactivate it. Irreversible — purged items are not routed to Trash, but are re-derivable by re-scraping. The plugin must be active to uninstall.",
++    "Permanently remove every item this plugin stored, then leave it deactivated. Irreversible — purged items are not routed to Trash, but are re-derivable by re-scraping.",
+   pluginLifecycleIrreversible: "Irreversible",
+   pluginUninstallConfirm: "Uninstall this plugin and purge its data?",
+   pluginUninstallConfirmBody:

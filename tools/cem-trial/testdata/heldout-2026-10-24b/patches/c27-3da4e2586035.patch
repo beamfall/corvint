@@ -1,0 +1,130 @@
+diff --git a/internal/app/secrets.go b/internal/app/secrets.go
+index 9eaafe91f..3e1ee3ef5 100644
+--- a/internal/app/secrets.go
++++ b/internal/app/secrets.go
+@@ -46,11 +46,10 @@ func bootstrapAdminPassword(ctx context.Context, st *store.Store, logger *slog.L
+ 
+ // bootstrapSetupToken generates and installs the one-time setup token when the
+ // server has no owner Profile yet (ADR-0007 §2 / feature:first-run-setup-token).
+-// The token is logged once at Info level so an operator starting the server for
+-// the first time can copy it into the /setup page. The plaintext token is a
+-// credential — it is logged exactly once and never stored on disk. On
+-// subsequent starts where setup is complete, this is a no-op so the log stays
+-// clean on every normal restart.
++// The token is emitted only at Debug level. The plaintext token is a credential
++// — it is generated once and never stored on disk. On subsequent starts where
++// setup is complete, this is a no-op so the log stays clean on every normal
++// restart.
+ func bootstrapSetupToken(ctx context.Context, st *store.Store, svc *pairing.Service, logger *slog.Logger) error {
+ 	profiles, err := st.Profiles(ctx)
+ 	if err != nil {
+@@ -71,7 +70,7 @@ func bootstrapSetupToken(ctx context.Context, st *store.Store, svc *pairing.Serv
+ 	}
+ 	token := hex.EncodeToString(raw[:])
+ 	svc.SetBootstrapToken(token)
+-	logger.Info(
++	logger.Debug(
+ 		"first-run setup token generated — open the web UI and enter this token at /api/setup",
+ 		"token", token,
+ 	)
+diff --git a/internal/graph/graph.go b/internal/graph/graph.go
+index 571cf6d55..cac72067f 100644
+--- a/internal/graph/graph.go
++++ b/internal/graph/graph.go
+@@ -2430,6 +2430,9 @@ func (h *Handler) execute(ctx context.Context, scope auth.Scope, req request, fi
+ 		if scope.DeviceRole != store.DeviceRoleManager {
+ 			return response{Errors: []graphError{{Message: "manager role required"}}}
+ 		}
++		if !scope.Admin {
++			return response{Errors: []graphError{{Message: "admin session required"}}}
++		}
+ 		if fields["browseserverfolders"] {
+ 			tree, err := h.browseServerFolders(ctx, scope, req)
+ 			readField(data, &errs, "browseServerFolders", "browseServerFolders", tree, err)
+@@ -6391,6 +6394,11 @@ var adminFields = map[string]bool{
+ 	"settranscodeconfig":  true,
+ 	"backup":              true,
+ 	"purgetrash":          true,
++	// Server filesystem enumeration/root registration is an Admin-Session
++	// surface (CAUDIT-28 SEC-02): manager role alone must not list host paths.
++	"browseserverfolders": true,
++	"pathpicker":          true,
++	"addpathpickerroot":   true,
+ 	// Retention rules (ADR-0051, RET-2): Console-authored leaving-soon rules.
+ 	"retentionrules":      true,
+ 	"createretentionrule": true,
+diff --git a/internal/mediahttp/mediahttp.go b/internal/mediahttp/mediahttp.go
+index a752b3d46..39f1e0cd5 100644
+--- a/internal/mediahttp/mediahttp.go
++++ b/internal/mediahttp/mediahttp.go
+@@ -902,7 +902,7 @@ func (h *Handler) Direct(w http.ResponseWriter, r *http.Request) {
+ 		}
+ 		if status >= http.StatusInternalServerError {
+ 			slog.Error("media byte serve failed", "status", status)
+-			slog.Debug("media byte serve failure detail", "error", err.Error())
++			slog.Debug("media byte serve failure detail", "error", redactMediaPathError(err, file.Path))
+ 		}
+ 		http.Error(w, "media file unavailable", status)
+ 		return
+@@ -911,7 +911,7 @@ func (h *Handler) Direct(w http.ResponseWriter, r *http.Request) {
+ 	info, err := f.Stat()
+ 	if err != nil {
+ 		slog.Error("media byte serve failed", "status", http.StatusInternalServerError)
+-		slog.Debug("media byte serve failure detail", "error", err.Error())
++		slog.Debug("media byte serve failure detail", "error", redactMediaPathError(err, file.Path))
+ 		http.Error(w, "media file unavailable", http.StatusInternalServerError)
+ 		return
+ 	}
+@@ -919,6 +919,17 @@ func (h *Handler) Direct(w http.ResponseWriter, r *http.Request) {
+ 	http.ServeContent(w, r, info.Name(), info.ModTime(), f)
+ }
+ 
++func redactMediaPathError(err error, path string) string {
++	if err == nil {
++		return ""
++	}
++	msg := err.Error()
++	if path != "" {
++		msg = strings.ReplaceAll(msg, path, "[media-path]")
++	}
++	return msg
++}
++
+ func (h *Handler) mediaLibrary(ctx context.Context, libraryID store.LibraryID, filter store.LibraryFilter) (store.Library, error) {
+ 	libraries, err := h.store.Libraries(ctx, filter)
+ 	if err != nil {
+diff --git a/internal/remoteaccess/relay.go b/internal/remoteaccess/relay.go
+index 7c1a2bc33..c7add6af5 100644
+--- a/internal/remoteaccess/relay.go
++++ b/internal/remoteaccess/relay.go
+@@ -348,25 +348,25 @@ func (c *RelayClient) currentState() RelayState {
+ 
+ // resolveToken reads the carrier token from <secretDir>/relay-token. It refuses
+ // a group/other-readable file (invariant 5) and an empty file. The returned
+-// error never contains the token's contents — only the path and the problem.
++// error never contains the token's contents or secret path.
+ // The token is opaque bytes (the relay passes them to its verifier seam); the
+ // trailing newline a 0600 secret file commonly carries is trimmed.
+ func (c *RelayClient) resolveToken() ([]byte, error) {
+ 	path := filepath.Join(c.secretDir, relayTokenFile)
+ 	info, err := os.Stat(path)
+ 	if err != nil {
+-		return nil, fmt.Errorf("relay token unavailable: %w", err)
++		return nil, errors.New("relay token unavailable")
+ 	}
+ 	if info.Mode().Perm()&0o077 != 0 {
+-		return nil, fmt.Errorf("relay token file %s must be mode 0600 — refusing group/other-accessible secret", path)
++		return nil, errors.New("relay token file must be mode 0600 — refusing group/other-accessible secret")
+ 	}
+ 	data, err := os.ReadFile(path)
+ 	if err != nil {
+-		return nil, err
++		return nil, errors.New("relay token file unreadable")
+ 	}
+ 	token := []byte(strings.TrimSpace(string(data)))
+ 	if len(token) == 0 {
+-		return nil, fmt.Errorf("relay token file %s is empty", path)
++		return nil, errors.New("relay token file is empty")
+ 	}
+ 	return token, nil
+ }

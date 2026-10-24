@@ -1,0 +1,363 @@
+diff --git a/internal/graph/graph.go b/internal/graph/graph.go
+index 1d0325c84..ed0772a6d 100644
+--- a/internal/graph/graph.go
++++ b/internal/graph/graph.go
+@@ -67,6 +67,15 @@ type SourceItem struct {
+ 	// clients render the fallback frame on absence instead of probing
+ 	// by-convention URLs for 404s (ADR-0014).
+ 	Artwork *SourceItemArtwork `json:"artwork,omitempty"`
++	// Restricted marks that the item's owning Library is restricted (ADR-0004
++	// §4 — Library-level granularity, NOT a per-item secret flag). It is
++	// emitted ONLY to a Revealed scope; an unrevealed/locked session never
++	// receives this key at all (the absence is the privacy enforcement — no
++	// count or placement of restricted titles leaks to an unauthorized
++	// viewer). With omitempty, even a Revealed response carries the key only on
++	// actually-restricted items: ABSENT MEANS false (clients decode missing as
++	// not-restricted).
++	Restricted bool `json:"restricted,omitempty"`
+ }
+ 
+ // SourceItemArtwork describes an item's stored artwork. Poster is the
+@@ -569,13 +578,23 @@ func (h *Handler) SetUpdateChecker(checker UpdateChecker, serverVersion string)
+ // sourceItem maps one store item onto the wire shape, attaching artwork only
+ // when a poster really exists. The item is already reveal-filtered by the
+ // store read, so presence here leaks nothing the response doesn't.
+-func (h *Handler) sourceItem(item store.SourceItem) SourceItem {
++//
++// revealed gates the Restricted flag: it is set on the wire ONLY for a Revealed
++// scope. An unrevealed/locked caller passes revealed=false and the field stays
++// absent (ADR-0004 — no restricted count/placement signal reaches a locked
++// session). Locked sessions are never served restricted-Library items anyway,
++// so item.Restricted is false for them regardless; gating here is belt-and-
++// suspenders against any future caller that forgets the upstream filter.
++func (h *Handler) sourceItem(item store.SourceItem, revealed bool) SourceItem {
+ 	resp := SourceItem{
+ 		ID:      string(item.ID),
+ 		Kind:    item.Kind,
+ 		Title:   item.Title,
+ 		Summary: item.Summary,
+ 	}
++	if revealed {
++		resp.Restricted = item.Restricted
++	}
+ 	if h.artwork == nil {
+ 		return resp
+ 	}
+@@ -2560,7 +2579,7 @@ func (h *Handler) sourceItems(ctx context.Context, scope auth.Scope, req request
+ 	}
+ 	resp := make([]SourceItem, len(items))
+ 	for i, item := range items {
+-		resp[i] = h.sourceItem(item)
++		resp[i] = h.sourceItem(item, scope.Revealed)
+ 	}
+ 	return resp, nil
+ }
+@@ -3689,7 +3708,7 @@ func (h *Handler) search(ctx context.Context, scope auth.Scope, req request) ([]
+ 	}
+ 	resp := make([]SourceItem, len(items))
+ 	for i, item := range items {
+-		resp[i] = h.sourceItem(item)
++		resp[i] = h.sourceItem(item, scope.Revealed)
+ 	}
+ 	return resp, nil
+ }
+@@ -3733,7 +3752,7 @@ func (h *Handler) searchEntities(ctx context.Context, scope auth.Scope, req requ
+ 	}
+ 	resp := make([]SourceItem, len(items))
+ 	for i, item := range items {
+-		resp[i] = h.sourceItem(item)
++		resp[i] = h.sourceItem(item, scope.Revealed)
+ 	}
+ 	return resp, nil
+ }
+@@ -4438,7 +4457,7 @@ func (h *Handler) queueItems(ctx context.Context, scope auth.Scope) ([]SourceIte
+ 	}
+ 	resp := make([]SourceItem, len(items))
+ 	for i, item := range items {
+-		resp[i] = h.sourceItem(item)
++		resp[i] = h.sourceItem(item, scope.Revealed)
+ 	}
+ 	return resp, nil
+ }
+@@ -5092,7 +5111,7 @@ func (h *Handler) mediaForEntity(ctx context.Context, scope auth.Scope, req requ
+ 	}
+ 	resp := make([]SourceItem, len(items))
+ 	for i, item := range items {
+-		resp[i] = h.sourceItem(item)
++		resp[i] = h.sourceItem(item, scope.Revealed)
+ 	}
+ 	return resp, nil
+ }
+diff --git a/internal/graph/graph_enrichment.go b/internal/graph/graph_enrichment.go
+index f316a5ecb..a67a9db2c 100644
+--- a/internal/graph/graph_enrichment.go
++++ b/internal/graph/graph_enrichment.go
+@@ -167,7 +167,7 @@ func (h *Handler) searchResult(ctx context.Context, scope auth.Scope, req reques
+ 	}
+ 	items := make([]SearchResultItem, len(results))
+ 	for i, item := range results {
+-		items[i] = SearchResultItem{SourceItem: h.sourceItem(item), Mode: SearchModeKeyword}
++		items[i] = SearchResultItem{SourceItem: h.sourceItem(item, scope.Revealed), Mode: SearchModeKeyword}
+ 	}
+ 	return SearchResultResponse{
+ 		Mode:                     SearchModeKeyword,
+@@ -209,8 +209,19 @@ func (h *Handler) semanticItems(ctx context.Context, filter store.LibraryFilter,
+ 			Title:   media.Title,
+ 			Summary: media.Summary,
+ 		}
++		// Library-level restricted flag (ADR-0004 §4) for the per-poster tag.
++		// Only consulted on a Revealed filter — an unrevealed filter never
++		// reaches a restricted-Library Media (the reveal-filtered Media read
++		// above drops it), and h.sourceItem suppresses the wire field anyway.
++		if filter.Revealed {
++			restricted, err := h.store.LibraryRestricted(ctx, media.LibraryID)
++			if err != nil {
++				return nil, err
++			}
++			source.Restricted = restricted
++		}
+ 		items = append(items, SearchResultItem{
+-			SourceItem: h.sourceItem(source),
++			SourceItem: h.sourceItem(source, filter.Revealed),
+ 			Mode:       SearchModeSemantic,
+ 			Score:      r.Score,
+ 		})
+@@ -263,8 +274,17 @@ func (h *Handler) recommendItems(ctx context.Context, profileID store.ProfileID,
+ 			Title:   media.Title,
+ 			Summary: media.Summary,
+ 		}
++		// Library-level restricted flag (ADR-0004 §4) — Revealed-only, see
++		// semanticItems for the rationale.
++		if filter.Revealed {
++			restricted, err := h.store.LibraryRestricted(ctx, media.LibraryID)
++			if err != nil {
++				return nil, err
++			}
++			source.Restricted = restricted
++		}
+ 		items = append(items, SearchResultItem{
+-			SourceItem: h.sourceItem(source),
++			SourceItem: h.sourceItem(source, filter.Revealed),
+ 			Mode:       SearchModeRecommend,
+ 			Score:      r.Score,
+ 		})
+diff --git a/internal/store/entity.go b/internal/store/entity.go
+index b90de46b8..499301bf9 100644
+--- a/internal/store/entity.go
++++ b/internal/store/entity.go
+@@ -477,7 +477,11 @@ func (s *Store) mediaForEntitySQL(ctx context.Context, entityID EntityID, filter
+ 		return nil, err
+ 	}
+ 	var visible []LibraryID
++	restricted := map[LibraryID]bool{}
+ 	for _, library := range libraries {
++		if library.IsRestricted {
++			restricted[library.ID] = true
++		}
+ 		if libraryVisible(library, filter) {
+ 			visible = append(visible, library.ID)
+ 		}
+@@ -496,7 +500,7 @@ func (s *Store) mediaForEntitySQL(ctx context.Context, entityID EntityID, filter
+ 	args = append(args, certArgs...)
+ 	args = append(args, limit, offset)
+ 	rows, err := s.catalogR.QueryContext(ctx, `
+-		SELECT m.id, m.title, m.duration_seconds
++		SELECT m.id, m.title, m.duration_seconds, m.library_id
+ 		FROM entity_relation r
+ 		JOIN media m ON m.id = r.to_media_id
+ 		WHERE r.from_entity_id = ? AND m.trashed_at_ms IS NULL
+@@ -513,14 +517,19 @@ func (s *Store) mediaForEntitySQL(ctx context.Context, entityID EntityID, filter
+ 		var id MediaID
+ 		var title string
+ 		var durationSeconds int
+-		if err := rows.Scan(&id, &title, &durationSeconds); err != nil {
++		var libraryID LibraryID
++		if err := rows.Scan(&id, &title, &durationSeconds, &libraryID); err != nil {
+ 			return nil, err
+ 		}
++		// Library-level restricted flag (ADR-0004 §4): annotated on items this
++		// reveal-filtered query already lawfully returns; the graph layer
++		// suppresses it on the wire unless the scope is Revealed.
+ 		items = append(items, SourceItem{
+-			ID:      id,
+-			Kind:    "media",
+-			Title:   title,
+-			Summary: mediaDurationSummary(durationSeconds),
++			ID:         id,
++			Kind:       "media",
++			Title:      title,
++			Summary:    mediaDurationSummary(durationSeconds),
++			Restricted: restricted[libraryID],
+ 		})
+ 	}
+ 	return items, rows.Err()
+diff --git a/internal/store/entity_index.go b/internal/store/entity_index.go
+index f0abd7313..6b2832a01 100644
+--- a/internal/store/entity_index.go
++++ b/internal/store/entity_index.go
+@@ -426,7 +426,11 @@ func (s *Store) SearchEntities(ctx context.Context, filter LibraryFilter, query
+ 		return nil, err
+ 	}
+ 	var visible []LibraryID
++	restricted := map[LibraryID]bool{}
+ 	for _, library := range libraries {
++		if library.IsRestricted {
++			restricted[library.ID] = true
++		}
+ 		if libraryVisible(library, filter) {
+ 			visible = append(visible, library.ID)
+ 		}
+@@ -443,7 +447,7 @@ func (s *Store) SearchEntities(ctx context.Context, filter LibraryFilter, query
+ 	}
+ 	args = append(args, limit)
+ 	rows, err := s.catalogR.QueryContext(ctx, `
+-		SELECT e.id, e.title
++		SELECT e.id, e.title, e.library_id
+ 		FROM entity_fts f
+ 		JOIN entity e ON e.id = f.entity_id
+ 		WHERE entity_fts MATCH ?
+@@ -460,10 +464,14 @@ func (s *Store) SearchEntities(ctx context.Context, filter LibraryFilter, query
+ 	for rows.Next() {
+ 		var id EntityID
+ 		var title string
+-		if err := rows.Scan(&id, &title); err != nil {
++		var libraryID LibraryID
++		if err := rows.Scan(&id, &title, &libraryID); err != nil {
+ 			return nil, err
+ 		}
+-		items = append(items, SourceItem{ID: MediaID(id), Kind: "entity", Title: title})
++		// Library-level restricted flag (ADR-0004 §4): annotated on items this
++		// reveal-filtered search already lawfully returns; the graph layer
++		// suppresses it on the wire unless the scope is Revealed.
++		items = append(items, SourceItem{ID: MediaID(id), Kind: "entity", Title: title, Restricted: restricted[libraryID]})
+ 	}
+ 	return items, rows.Err()
+ }
+diff --git a/internal/store/store.go b/internal/store/store.go
+index 4753bb730..54a5b7834 100644
+--- a/internal/store/store.go
++++ b/internal/store/store.go
+@@ -569,11 +569,21 @@ type EntityFilter struct {
+ }
+ 
+ // SourceItem is one generic item returned to hydrate a manifest Section.
++//
++// Restricted records whether the item's owning Library is restricted
++// (ADR-0004 §4: Library-level granularity — there is no per-item secret flag).
++// It is descriptive metadata on an item the store has ALREADY reveal-filtered
++// in (libraryVisible), so it is only ever non-false for an item a Revealed
++// scope is lawfully being served. An unrevealed scope never receives a
++// restricted-Library item in the first place, so its items carry Restricted
++// false. The graph layer additionally suppresses the field on the wire unless
++// the scope is Revealed — the absence is the privacy enforcement.
+ type SourceItem struct {
+-	ID      MediaID
+-	Kind    string
+-	Title   string
+-	Summary string
++	ID         MediaID
++	Kind       string
++	Title      string
++	Summary    string
++	Restricted bool
+ }
+ 
+ // PairingCode is a short-lived enrollment grant.
+@@ -2112,6 +2122,9 @@ func (s *Store) SourceItems(ctx context.Context, filter LibraryFilter, query Sou
+ 			return nil, err
+ 		}
+ 	}
++	if err := s.annotateRestrictedLocked(ctx, nil, items); err != nil {
++		return nil, err
++	}
+ 	return items, nil
+ }
+ 
+@@ -2199,6 +2212,71 @@ func libraryVisible(library Library, filter LibraryFilter) bool {
+ 	return true
+ }
+ 
++// restrictedLibraryIDsLocked returns the set of restricted-Library IDs. Library
++// metadata (including is_restricted) lives in the catalog plane even for
++// encrypted Libraries, so a single catalog read is authoritative.
++func (s *Store) restrictedLibraryIDsLocked(ctx context.Context) (map[LibraryID]bool, error) {
++	libraries, err := loadLibraries(ctx, s.catalogR)
++	if err != nil {
++		return nil, err
++	}
++	out := make(map[LibraryID]bool)
++	for _, library := range libraries {
++		if library.IsRestricted {
++			out[library.ID] = true
++		}
++	}
++	return out, nil
++}
++
++// annotateRestrictedLocked stamps SourceItem.Restricted from the owning
++// Library's is_restricted flag. It is the single shared tail-pass used by every
++// store method that returns []SourceItem to a browse/search path
++// (SourceItems, SearchMedia, SearchEntities, MediaForEntity), so no emitter is
++// missed. Items are resolved to their Library across ALL planes (catalog +
++// encrypted) via the existing plane routers, so encrypted-Library items are
++// covered. It is additive: it never changes which items are returned (reveal
++// filtering already happened upstream in libraryVisible) — it only annotates
++// items the caller is already lawfully serving. Pass a pre-loaded restricted
++// set when the caller already has one; pass nil to load it here.
++func (s *Store) annotateRestrictedLocked(ctx context.Context, restricted map[LibraryID]bool, items []SourceItem) error {
++	if len(items) == 0 {
++		return nil
++	}
++	if restricted == nil {
++		var err error
++		restricted, err = s.restrictedLibraryIDsLocked(ctx)
++		if err != nil {
++			return err
++		}
++	}
++	if len(restricted) == 0 {
++		return nil
++	}
++	for i := range items {
++		var libraryID LibraryID
++		if items[i].Kind == "entity" {
++			plane, err := s.catalogPlaneForEntityLocked(ctx, EntityID(items[i].ID))
++			if err != nil {
++				// A just-returned item that can't be re-resolved is defensive:
++				// leave Restricted false rather than fail the whole read.
++				continue
++			}
++			libraryID = plane.libraryID
++		} else {
++			plane, err := s.catalogPlaneForMediaLocked(ctx, items[i].ID)
++			if err != nil {
++				continue
++			}
++			libraryID = plane.libraryID
++		}
++		if restricted[libraryID] {
++			items[i].Restricted = true
++		}
++	}
++	return nil
++}
++
+ func mediaDurationSummary(seconds int) string {
+ 	if seconds <= 0 {
+ 		return ""
+@@ -2325,7 +2403,14 @@ func (s *Store) SearchMedia(ctx context.Context, filter LibraryFilter, query str
+ 	if err := s.guardLocked(); err != nil {
+ 		return nil, err
+ 	}
+-	return s.searchMediaSQL(ctx, filter, query, limit)
++	items, err := s.searchMediaSQL(ctx, filter, query, limit)
++	if err != nil {
++		return nil, err
++	}
++	if err := s.annotateRestrictedLocked(ctx, nil, items); err != nil {
++		return nil, err
++	}
++	return items, nil
+ }
+ 
+ // ftsPrefixQuery quotes each word and appends * so user text can never inject

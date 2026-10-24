@@ -1,0 +1,131 @@
+diff --git a/internal/app/app.go b/internal/app/app.go
+index b823bb9f0..298242114 100644
+--- a/internal/app/app.go
++++ b/internal/app/app.go
+@@ -190,6 +190,13 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger, bundles []
+ 		if err == nil {
+ 			enqueueArtworkSweep(ctx, st, logger)
+ 			enqueueAssetSweep(ctx, st, logger)
++			// Pre-compute library health counts so the Console dashboard reads
++			// from a single cached row per Library rather than 5 live COUNT
++			// queries per Library (ADR-0042). Best-effort: a failure is logged
++			// but never blocks the scan result.
++			if cacheErr := st.RefreshLibraryHealthCache(ctx, time.Now().UTC()); cacheErr != nil {
++				logger.Warn("library health cache refresh failed", "error", cacheErr)
++			}
+ 		}
+ 		return result, err
+ 	})
+diff --git a/internal/store/library_health.go b/internal/store/library_health.go
+index ddacc55bc..34223bcd3 100644
+--- a/internal/store/library_health.go
++++ b/internal/store/library_health.go
+@@ -2,6 +2,7 @@ package store
+ 
+ import (
+ 	"context"
++	"time"
+ )
+ 
+ // Library Health (ADR-0042): operator-only library-quality reporting over the
+@@ -108,6 +109,11 @@ func dimensionPredicate(dim HealthDimension) string {
+ // caller can see, ordered by Library ID. The aggregate summary row is the
+ // element-wise sum across the returned slice (the caller owns that fold so the
+ // reveal-filtered Library set is never inferred from a server-side total).
++//
++// Counts are served from the library_health_cache table when a cached row
++// exists for a Library (refreshed by RefreshLibraryHealthCache after each
++// scan). A Library with no cache row yet — pre-first-scan or post-migration —
++// falls back to the 5 live COUNT queries so the dashboard is always correct.
+ func (s *Store) LibraryHealthCounts(ctx context.Context, filter LibraryFilter) ([]LibraryHealth, error) {
+ 	s.mu.RLock()
+ 	defer s.mu.RUnlock()
+@@ -118,6 +124,30 @@ func (s *Store) LibraryHealthCounts(ctx context.Context, filter LibraryFilter) (
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	// Load all cached rows once — avoids per-Library per-dimension queries when
++	// the cache is warm. Keyed by (libraryID, dimension).
++	type cacheKey struct {
++		libraryID LibraryID
++		dim       HealthDimension
++	}
++	cached := map[cacheKey]int{}
++	cacheRows, err := s.catalogR.QueryContext(ctx, `
++		SELECT library_id, dimension, count FROM library_health_cache
++	`)
++	if err != nil {
++		return nil, err
++	}
++	func() {
++		defer cacheRows.Close()
++		for cacheRows.Next() {
++			var libID, dim string
++			var n int
++			if scanErr := cacheRows.Scan(&libID, &dim, &n); scanErr == nil {
++				cached[cacheKey{LibraryID(libID), HealthDimension(dim)}] = n
++			}
++		}
++	}()
++
+ 	out := make([]LibraryHealth, 0, len(libraries))
+ 	for _, library := range libraries {
+ 		if !libraryVisible(library, filter) {
+@@ -125,6 +155,11 @@ func (s *Store) LibraryHealthCounts(ctx context.Context, filter LibraryFilter) (
+ 		}
+ 		counts := make(map[HealthDimension]int, len(HealthDimensions))
+ 		for _, dim := range HealthDimensions {
++			if n, ok := cached[cacheKey{library.ID, dim}]; ok {
++				counts[dim] = n
++				continue
++			}
++			// Cache miss: fall back to a live COUNT query for this dimension.
+ 			n, err := s.dimensionCountLocked(ctx, library.ID, dim)
+ 			if err != nil {
+ 				return nil, err
+@@ -152,6 +187,45 @@ func (s *Store) dimensionCountLocked(ctx context.Context, libraryID LibraryID, d
+ 	return n, nil
+ }
+ 
++// RefreshLibraryHealthCache pre-computes and persists the per-Library,
++// per-dimension health counts (ADR-0042). Call this after a scan completes so
++// that subsequent LibraryHealthCounts calls read a single cached row per
++// Library rather than running 5 live COUNT queries per Library.
++//
++// The refresh is a best-effort write: it runs every dimension for every
++// Library and upserts the result into library_health_cache. Callers tolerate
++// a failure here — the dashboard falls back to live queries for any Library
++// that lacks a cache row.
++func (s *Store) RefreshLibraryHealthCache(ctx context.Context, now time.Time) error {
++	nowMS := now.UTC().UnixMilli()
++	s.mu.RLock()
++	defer s.mu.RUnlock()
++	if err := s.guardLocked(); err != nil {
++		return err
++	}
++	libraries, err := loadLibraries(ctx, s.catalogR)
++	if err != nil {
++		return err
++	}
++	for _, library := range libraries {
++		for _, dim := range HealthDimensions {
++			n, err := s.dimensionCountLocked(ctx, library.ID, dim)
++			if err != nil {
++				return err
++			}
++			if _, err := s.catalogW.ExecContext(ctx, `
++				INSERT INTO library_health_cache (library_id, dimension, count, refreshed_at_ms)
++				VALUES (?, ?, ?, ?)
++				ON CONFLICT (library_id, dimension) DO UPDATE
++				  SET count = excluded.count, refreshed_at_ms = excluded.refreshed_at_ms
++			`, library.ID, string(dim), n, nowMS); err != nil {
++				return err
++			}
++		}
++	}
++	return nil
++}
++
+ // LibraryHealthItems lists the live Media in one Library exhibiting a dimension,
+ // ordered by Media ID, capped by limit (<=0 falls back to 200). The Library
+ // must be visible to the caller; an invisible or unknown Library yields an
