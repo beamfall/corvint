@@ -10,7 +10,7 @@ AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: Read-only analysis of committed tests selects setup, lints, finds duplicates, flags validity defects, reports teardown dependents and checks source citations.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040, V1-2041, V1-2104, V1-2108, V1-2114, V1-2124, V1-1908, V1-1925)/experimental
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040, V1-2041, V1-2104, V1-2108, V1-2114, V1-2124, V1-1908, V1-1925, V1-1478)/experimental
 - Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates`, `corvint tests validity`, `corvint tests teardown`, `corvint tests citations` and `corvint tests example-join` commands.
 - Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
@@ -114,6 +114,13 @@ baseline is running every setup project for every spec, reviewing by eye, and gr
   shared-constant read is reached, an unselected setup file holding such a read itself MUST return
   ALL with `shared-constant-key-unresolved` naming that setup file and line, and an unreadable setup
   file adds `source-unreadable`. Reaching an analysis bound is never the same as "not a constant".
+- `TSA-V0-646`: (standing auto-accept, 2026-10-11; decision 0552; V1-1478) A spec's literal key
+  passed to a registry accessor called inside a template substitution MUST select the setup file
+  that key's module reaches, as TSA-V0-001 does for any other call site (NGI-V0-065). A registry
+  written after its declaration (NGI-V0-066), or a matched entry whose constructor arguments are
+  open (NGI-V0-067), does not close: the selector MUST return ALL with reason
+  `registry-unresolved` naming the call site, never `selected`. Rollback: the NGI-V0-065..067
+  rollbacks.
 
 ### Lint (V1-1589)
 
@@ -3157,6 +3164,7 @@ No live qualification on a real suite or real Playwright run was performed.
 | TSA-V0-005 | `internal/contextindex/setup_select.go`, `cmd/corvint/tests.go` | `TestSelectSetupDigest`, `TestTestsCLI` | experimental |
 | TSA-V0-006 | `internal/contextindex/setup_shared.go`, `internal/contextindex/setup_select.go` | `TestSelectSetupSharedConstantKeys`, `TestSelectSetupSharedConstantReviewForms` | experimental |
 | TSA-V0-007 | `internal/contextindex/setup_shared.go` | `TestSelectSetupSharedConstantFailsClosed`, `TestSelectSetupSharedConstantReviewForms`, `TestSelectSetupSharedConstantOpenSetups` | experimental |
+| TSA-V0-646 | `internal/contextindex/setup_select.go`, `internal/contextindex/registry_dialect.go` | `TestSelectSetupRegistryKeyInSubstitution` | experimental |
 | TSA-V0-010 | `internal/testsource`, `internal/appmap/jslex_api.go` | `TestSourceModel`, `TestChangedPathsIgnoreAttributesAndDecodeNames` | experimental |
 | TSA-V0-011 | `internal/appmap/jslex.go` | `TestLexJSComments` | experimental |
 | TSA-V0-012 | `internal/testsource/lint.go` | `TestLintChangedLinesOnly`, `TestLintAllLinesReadsUnchangedFiles` | experimental |

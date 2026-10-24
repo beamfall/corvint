@@ -157,19 +157,49 @@ type registryToken struct {
 }
 
 func registryTokens(text string) ([]registryToken, bool) {
+	return registryLexTokens(text, false)
+}
+
+// registryCallTokens is registryTokens plus the tokens of every `${...}`
+// substitution, placed just after the template that holds them, so an
+// accessor called inside one is a call site and a write there is seen
+// (NGI-V0-065, NGI-V0-066). The template token stays first, so a template
+// passed as an argument is still that argument and stays non-literal.
+func registryCallTokens(text string) ([]registryToken, bool) {
+	return registryLexTokens(text, true)
+}
+
+func registryLexTokens(text string, substitutions bool) ([]registryToken, bool) {
 	lexer := &webLexer{text: text}
+	var inner []webPlacedToken
+	if substitutions {
+		lexer.substitutions = &inner
+	}
 	tokens := make([]registryToken, 0)
-	line, counted := 1, 0
+	// breaks holds every newline offset, so a token's line is found by its
+	// own end offset whatever order the tokens are placed in.
+	breaks := make([]int, 0)
+	for at := strings.IndexByte(text, '\n'); at >= 0; {
+		breaks = append(breaks, at)
+		next := strings.IndexByte(text[at+1:], '\n')
+		if next < 0 {
+			break
+		}
+		at += next + 1
+	}
+	place := func(token webToken, position int) {
+		tokens = append(tokens, registryToken{token, 1 + sort.SearchInts(breaks, position-1)})
+	}
 	for {
 		token, ok := lexer.next()
 		if !ok {
 			break
 		}
-		if end := lexer.position - 1; end > counted {
-			line += strings.Count(text[counted:end], "\n")
-			counted = end
+		place(token, lexer.position)
+		for _, nested := range inner {
+			place(nested.token, nested.position)
 		}
-		tokens = append(tokens, registryToken{token, line})
+		inner = inner[:0]
 	}
 	return tokens, lexer.unterminated == ""
 }
@@ -369,13 +399,16 @@ func registryExportedOtherwise(tokens []registryToken, name string) bool {
 // registryEntry is one resolved `key -> imported binding` edge of a registry.
 // A lazy entry (NGI-V0-013) names its module only by the specifier of a
 // require() or import() inside an arrow; target is that specifier resolved
-// by the reverse-import rule, without its suffix.
+// by the reverse-import rule, without its suffix. arguments marks an eager
+// `new X(args)` whose arguments may reach a module other than X's
+// (NGI-V0-067).
 type registryEntry struct {
-	key     string
-	line    int
-	binding registryBinding
-	lazy    bool
-	target  string
+	key       string
+	line      int
+	binding   registryBinding
+	lazy      bool
+	target    string
+	arguments bool
 }
 
 // registryFacts is one declared registry as read at the evaluated revision.
@@ -383,12 +416,15 @@ type registryEntry struct {
 // computed key, a spread, a method, or a value that is not an imported
 // binding. missing marks a declared export that is not an object literal in a
 // readable declared file, such as a re-export; none of its keys are known.
+// written counts the writes to the registry object after its declaration
+// (NGI-V0-066), which may add or replace any key.
 type registryFacts struct {
 	declaration RegistryDeclaration
 	blob        string
 	entries     []registryEntry
 	unresolved  int
 	missing     bool
+	written     int
 }
 
 func parseRegistry(index *Index, declaration RegistryDeclaration) registryFacts {
@@ -467,8 +503,8 @@ func registryEntryOf(property []registryToken, bindings map[string]registryBindi
 	if binding, ok := registryLazyBinding(value, loader); ok {
 		return registryEntry{key: key, line: first.line, binding: binding, lazy: true}, true
 	}
-	binding, ok := registryValueBinding(value, bindings)
-	return registryEntry{key: key, line: first.line, binding: binding}, ok
+	binding, arguments, ok := registryValueBinding(value, bindings)
+	return registryEntry{key: key, line: first.line, binding: binding, arguments: arguments}, ok
 }
 
 // registryLazyBinding reads a lazy loader value (NGI-V0-013): an arrow with
@@ -636,23 +672,51 @@ func registryLazyTarget(index *Index, from, specifier string) (string, bool) {
 	return "", false
 }
 
-func registryValueBinding(value []registryToken, bindings map[string]registryBinding) (registryBinding, bool) {
+// registryValueBinding reads `X`, `ns.X`, `new X(...)` or `new ns.X(...)`
+// and reports, for a constructed value, whether its arguments may reach
+// another module (NGI-V0-067).
+func registryValueBinding(value []registryToken, bindings map[string]registryBinding) (registryBinding, bool, bool) {
 	at := 0
 	constructed := len(value) > 0 && isRegistryWord(value[0], "new")
 	if constructed {
 		at++
 	}
 	if at >= len(value) || value[at].kind != webWord {
-		return registryBinding{}, false
+		return registryBinding{}, false, false
 	}
 	head := value[at].text
 	for at++; at+1 < len(value) && isRegistryPunct(value[at], ".") && value[at+1].kind == webWord; at += 2 {
 	}
+	arguments := false
 	if constructed && at < len(value) && isRegistryPunct(value[at], "(") {
-		at = registryClose(value, at) + 1
+		close := registryClose(value, at)
+		arguments = registryArgumentsOpen(value[at+1 : min(close, len(value))])
+		at = close + 1
 	}
 	binding, imported := bindings[head]
-	return binding, imported && registryAssertionTail(value, at)
+	return binding, arguments, imported && registryAssertionTail(value, at)
+}
+
+// registryClosedArgument is the only words a constructor argument may hold
+// without possibly naming a binding from another module.
+var registryClosedArgument = map[string]bool{"true": true, "false": true, "null": true, "undefined": true}
+
+// registryArgumentsOpen reports whether constructor arguments may reach a
+// module other than the constructed one (NGI-V0-067): any word but a
+// literal keyword may name an imported or derived binding, and a string
+// token that is neither a quoted literal nor a substitution-free template
+// may hold a `${...}` substitution (the lexer also yields a regular
+// expression that way, which is counted too).
+func registryArgumentsOpen(arguments []registryToken) bool {
+	for _, token := range arguments {
+		switch {
+		case token.kind == webWord && !registryClosedArgument[token.text]:
+			return true
+		case token.kind == webString && !token.quoted && !token.template:
+			return true
+		}
+	}
+	return false
 }
 
 // registrySite is one call of a declared accessor: literal when its first
@@ -696,7 +760,7 @@ func registryCallSites(index *Index, accessors map[string]bool) ([]registrySite,
 		if !mentioned {
 			continue
 		}
-		tokens, complete := registryTokens(text)
+		tokens, complete := registryCallTokens(text)
 		if !complete {
 			unavailable++
 		}
@@ -857,7 +921,173 @@ func loadRegistryDialect(index *Index) *registryDialect {
 	if len(accessors) != 0 {
 		dialect.sites, dialect.unavailable = registryCallSites(index, accessors)
 	}
+	registryWrites(index, dialect.registries)
 	return dialect
+}
+
+// registryWriteCalls are the `Object.M(R, ...)` and `Reflect.M(R, ...)` calls
+// that write R's own properties.
+var registryWriteCalls = map[string]map[string]bool{
+	"Object":  {"assign": true, "defineProperty": true, "defineProperties": true, "setPrototypeOf": true},
+	"Reflect": {"set": true, "defineProperty": true, "deleteProperty": true, "setPrototypeOf": true},
+}
+
+// registryWrites counts, for every readable registry, the writes to its
+// object after the declaration (NGI-V0-066): in the declaring file through
+// its own name, and in any indexed JS/TS source through a value import of
+// it, a named import of the export whose module is unresolved included. A
+// write is an assignment (compound included), `++`/`--` or `delete` through
+// the object or a member chain on it, or a write call of registryWriteCalls
+// with it as the first argument. An alias (`const r = registry`) or a
+// destructuring target is not followed (a retained limit).
+func registryWrites(index *Index, registries []registryFacts) {
+	exports := map[string]bool{}
+	for _, registry := range registries {
+		if !registry.missing {
+			exports[registry.declaration.Export] = true
+		}
+	}
+	if len(exports) == 0 {
+		return
+	}
+	names := make([]string, 0)
+	for name := range index.Sources {
+		if language := NonGoImpactLanguage(name); language == "javascript" || language == "typescript" {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	var resolver *WebImportResolver
+	for _, name := range names {
+		text, valid, loaded := index.Sources[name].Text()
+		mentioned := false
+		for export := range exports {
+			mentioned = mentioned || strings.Contains(text, export)
+		}
+		if !valid || !loaded || !mentioned {
+			continue
+		}
+		tokens, _ := registryCallTokens(text)
+		bindings := registryImports(tokens)
+		for at := range registries {
+			registry := &registries[at]
+			if registry.missing {
+				continue
+			}
+			roots := [][]string{}
+			if name == registry.declaration.Path {
+				roots = append(roots, []string{registry.declaration.Export})
+			}
+			for alias, binding := range bindings {
+				named := binding.imported == registry.declaration.Export
+				if !named && binding.imported != "default" && binding.imported != "*" {
+					continue
+				}
+				if resolver == nil {
+					resolver = NewWebImportResolver(index)
+				}
+				resolution := resolver.Resolve(name, binding.specifier)
+				if !(resolution.State == WebImportRepository && resolution.Target == registry.declaration.Path) &&
+					!(named && resolution.State == WebImportUnresolved) {
+					continue
+				}
+				if binding.imported == "*" {
+					roots = append(roots, []string{alias, registry.declaration.Export})
+				} else {
+					roots = append(roots, []string{alias})
+				}
+			}
+			for _, root := range roots {
+				registry.written += registryWriteCount(tokens, root)
+			}
+		}
+	}
+}
+
+// registryWriteCount counts the writes to root, a dotted name path, in tokens.
+func registryWriteCount(tokens []registryToken, root []string) int {
+	count := 0
+	for at := range tokens {
+		if registryMember(tokens, at) {
+			continue
+		}
+		end, matched := at, true
+		for part, word := range root {
+			if part > 0 {
+				matched = matched && end < len(tokens) && isRegistryPunct(tokens[end], ".")
+				end++
+			}
+			matched = matched && end < len(tokens) && isRegistryWord(tokens[end], word)
+			end++
+		}
+		if matched && registryWriteAt(tokens, at, end) {
+			count++
+		}
+	}
+	return count
+}
+
+// registryWriteAt reports whether the root occupying tokens[at:end] is
+// written: see registryWrites. A declaration of the name, a `typeof` or
+// `keyof` type query and a comparison are not writes.
+func registryWriteAt(tokens []registryToken, at, end int) bool {
+	before := func(back int) registryToken {
+		if at-back < 0 {
+			return registryToken{}
+		}
+		return tokens[at-back]
+	}
+	if previous := before(1); previous.kind == webWord {
+		switch previous.text {
+		case "const", "let", "var", "typeof", "keyof":
+			return false
+		case "delete":
+			return true
+		}
+	}
+	if isRegistryPunct(before(1), "(") && isRegistryPunct(before(3), ".") && registryWriteCalls[before(4).text][before(2).text] &&
+		before(2).kind == webWord && before(4).kind == webWord && !registryMember(tokens, at-4) {
+		return true
+	}
+	if (isRegistryPunct(before(1), "+") && isRegistryPunct(before(2), "+")) || (isRegistryPunct(before(1), "-") && isRegistryPunct(before(2), "-")) {
+		return true
+	}
+	for end < len(tokens) {
+		switch {
+		case isRegistryPunct(tokens[end], "!") && end+1 < len(tokens) && (isRegistryPunct(tokens[end+1], ".") || isRegistryPunct(tokens[end+1], "[")):
+			end++
+		case isRegistryPunct(tokens[end], ".") && end+1 < len(tokens) && tokens[end+1].kind == webWord:
+			end += 2
+		case isRegistryPunct(tokens[end], "["):
+			end = registryClose(tokens, end) + 1
+		default:
+			return registryAssignmentAt(tokens, end)
+		}
+	}
+	return false
+}
+
+// registryAssignmentAt reports whether tokens[at:] opens an assignment
+// operator (`=`, a compound `op=` other than `<=` and `>=`) or a postfix
+// `++`/`--`. The lexer yields every punctuator character as its own token.
+func registryAssignmentAt(tokens []registryToken, at int) bool {
+	punct := func(offset int) string {
+		if at+offset >= len(tokens) || tokens[at+offset].kind != webPunct {
+			return ""
+		}
+		return tokens[at+offset].text
+	}
+	if (punct(0) == "+" && punct(1) == "+") || (punct(0) == "-" && punct(1) == "-") {
+		return true
+	}
+	operators := 0
+	for operators < 3 && punct(operators) != "" && strings.Contains("+-*/%&|^<>?", punct(operators)) {
+		operators++
+	}
+	if punct(operators) != "=" || punct(operators+1) == "=" || punct(operators+1) == ">" {
+		return false
+	}
+	return !(operators == 1 && (punct(0) == "<" || punct(0) == ">"))
 }
 
 func (dialect *registryDialect) declared() bool {
@@ -923,25 +1153,42 @@ func (dialect *registryDialect) impact(index *Index, changedPath string, importe
 			lazy = lazy || bound(entry)
 		}
 		changedRegistry := changedPath == declaration.Path
-		// A registry whose export cannot be read, or that holds an entry
-		// whose module is not closed, may map a key to any JS/TS path, so it
-		// applies to every JS/TS changed path, widened (NGI-V0-010,
-		// NGI-V0-012), and to no other language's path (V1-1479).
+		// A registry whose export cannot be read, that holds an entry whose
+		// module is not closed, or that is written after its declaration may
+		// map a key to any JS/TS path, so it applies to every JS/TS changed
+		// path, widened (NGI-V0-010, NGI-V0-012, NGI-V0-066), and to no other
+		// language's path (V1-1479).
 		webPath := language == "javascript" || language == "typescript"
-		openEntry := (registry.unresolved != 0 || registry.missing) && webPath
-		if !changedRegistry && len(specifiers) == 0 && !lazy && !openEntry {
+		openEntry := (registry.unresolved != 0 || registry.missing || registry.written != 0) && webPath
+		// An eager `new X(args)` entry whose arguments may reach another
+		// module may reach any JS/TS path through its key (NGI-V0-067).
+		argumentKeys, arguments := map[string]bool{}, 0
+		for _, entry := range registry.entries {
+			if entry.arguments {
+				argumentKeys[entry.key] = true
+				arguments++
+			}
+		}
+		openArguments := arguments != 0 && webPath
+		if !changedRegistry && len(specifiers) == 0 && !lazy && !openEntry && !openArguments {
 			continue
 		}
 		accessors := map[string]bool{}
 		for _, accessor := range declaration.Accessors {
 			accessors[accessor] = true
 		}
-		widen := changedRegistry || registry.missing || registry.unresolved != 0
+		widen := changedRegistry || registry.missing || registry.unresolved != 0 || registry.written != 0
 		if registry.missing {
 			unknown("registry-export-unresolved", 1, "registry", declaration.Path)
 		}
 		if registry.unresolved != 0 {
 			unknown("registry-key-unresolved", registry.unresolved, "registry", declaration.Path)
+		}
+		if registry.written != 0 {
+			unknown("registry-written-after-declaration", registry.written, "registry", declaration.Path)
+		}
+		if arguments != 0 {
+			unknown("registry-constructor-arguments-open", arguments, "registry", declaration.Path)
 		}
 		nonLiteral := map[string]int{}
 		for _, site := range dialect.sites {
@@ -979,7 +1226,8 @@ func (dialect *registryDialect) impact(index *Index, changedPath string, importe
 				}
 				continue
 			}
-			if !widen {
+			argument := site.literal && argumentKeys[site.key]
+			if !widen && !argument {
 				continue
 			}
 			reason := "calls accessor " + site.accessor + " of changed registry " + declaration.Path
@@ -991,6 +1239,11 @@ func (dialect *registryDialect) impact(index *Index, changedPath string, importe
 				reason = "calls accessor " + site.accessor + " with a non-literal key"
 			case registry.unresolved != 0:
 				reason = "calls accessor " + site.accessor + " while registry " + declaration.Path + " keys are not closed"
+			case registry.written != 0:
+				reason = "calls accessor " + site.accessor + " while registry " + declaration.Path + " is written after its declaration"
+			case argument:
+				reason = "calls accessor " + site.accessor + " with key " + site.key + " whose " + declaration.Path +
+					" entry passes constructor arguments that may reach another module"
 			default:
 				reason = "calls accessor " + site.accessor + " while another call of a " + declaration.Path + " accessor passes a non-literal key"
 			}

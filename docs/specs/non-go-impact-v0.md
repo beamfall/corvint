@@ -10,7 +10,7 @@ semantics; issue intent does not accept generated implementation detail.
 
 ## Agent digest
 - Claim: Ruby, JavaScript and TypeScript path/range impact binds syntax evidence and explicitly names unresolved dynamic dispatch.
-- Status: proposed/experimental; local source and focused conformance implemented; human acceptance and integration pending. NGI-V0-007..011 (declared `string-key-registry/0` dialect: literal registry keys to the tests passing them) are accepted under the owner's standing auto-accept (2026-10-11; V1-1365) and implemented over synthetic repositories. NGI-V0-012..015 (an unresolved entry widens every JS/TS path; lazy `require()`/`import()` entries; a non-exported top-level registry; a same-file top-level `const` key) are accepted under the same standing auto-accept (V1-1455, V1-1456, V1-1457). NGI-V0-016..021 (Ruby named-constant reverse references by autoload path convention: path-to-constant mapping, default roots or a declared `ruby-autoload/0` file, literal inflections, a reference class ranked below imports, metaprogrammed names kept unknown, and a report of the roots and inflections applied) are accepted under the same standing auto-accept (V1-1674). NGI-V0-027 (`bundle exec rspec` named for a Ruby path when the tree tracks a root Gemfile and `.rspec` or `spec/`) is accepted under the same standing auto-accept (V1-1796; GitHub #1130). NGI-V0-051..053 (the Ruby command in committed-range receipts; RSpec gated on an rspec gem in the committed Gemfile or Gemfile.lock; `bin/rails test` or `bundle exec rake test` for a proved Minitest suite) are accepted under the same standing auto-accept (V1-1804, V1-1805; GitHub #1128, #1130). NGI-V0-059 (the unknown-language line in a Ruby range receipt whose plan names no language command) is accepted under the same standing auto-accept (V1-1827; GitHub #1130). NGI-V0-060..062 (the root AGENTS.md declared verify commands close path and range plans, a `verification_authority` label separating them from inferred commands, and one closing-gate rule for path and range impact) are accepted under the same standing auto-accept (V1-2071, V1-1848). NGI-V0-033..040 (Ruby autoload reverse references on by default for any request naming a Ruby path, a bounded second hop, advisory marking, no `reverse-import-rule-unavailable` for a mapped path, range impact, RSpec test paths in the Ruby reading's test rule, the reusable `internal/rubyautoload` mapper, and a bounded reference index) are accepted under the same standing auto-accept (V1-1794, V1-1700; GitHub #1129). NGI-V0-063..064 (the RSpec test rule in every row of a Ruby request, and the bounded unknown counted only on paths a cut could reach) are accepted under the same standing auto-accept (V1-1823).
+- Status: proposed/experimental; local source and focused conformance implemented; human acceptance and integration pending. NGI-V0-007..011 (declared `string-key-registry/0` dialect: literal registry keys to the tests passing them) are accepted under the owner's standing auto-accept (2026-10-11; V1-1365) and implemented over synthetic repositories. NGI-V0-012..015 (an unresolved entry widens every JS/TS path; lazy `require()`/`import()` entries; a non-exported top-level registry; a same-file top-level `const` key) are accepted under the same standing auto-accept (V1-1455, V1-1456, V1-1457). NGI-V0-016..021 (Ruby named-constant reverse references by autoload path convention: path-to-constant mapping, default roots or a declared `ruby-autoload/0` file, literal inflections, a reference class ranked below imports, metaprogrammed names kept unknown, and a report of the roots and inflections applied) are accepted under the same standing auto-accept (V1-1674). NGI-V0-027 (`bundle exec rspec` named for a Ruby path when the tree tracks a root Gemfile and `.rspec` or `spec/`) is accepted under the same standing auto-accept (V1-1796; GitHub #1130). NGI-V0-051..053 (the Ruby command in committed-range receipts; RSpec gated on an rspec gem in the committed Gemfile or Gemfile.lock; `bin/rails test` or `bundle exec rake test` for a proved Minitest suite) are accepted under the same standing auto-accept (V1-1804, V1-1805; GitHub #1128, #1130). NGI-V0-059 (the unknown-language line in a Ruby range receipt whose plan names no language command) is accepted under the same standing auto-accept (V1-1827; GitHub #1130). NGI-V0-060..062 (the root AGENTS.md declared verify commands close path and range plans, a `verification_authority` label separating them from inferred commands, and one closing-gate rule for path and range impact) are accepted under the same standing auto-accept (V1-2071, V1-1848). NGI-V0-033..040 (Ruby autoload reverse references on by default for any request naming a Ruby path, a bounded second hop, advisory marking, no `reverse-import-rule-unavailable` for a mapped path, range impact, RSpec test paths in the Ruby reading's test rule, the reusable `internal/rubyautoload` mapper, and a bounded reference index) are accepted under the same standing auto-accept (V1-1794, V1-1700; GitHub #1129). NGI-V0-063..064 (the RSpec test rule in every row of a Ruby request, and the bounded unknown counted only on paths a cut could reach) are accepted under the same standing auto-accept (V1-1823). NGI-V0-065..067 (an accessor call inside a template substitution, a registry written after its declaration, and an eager entry with open constructor arguments; NGI-V0-067 amends NGI-V0-008) are accepted under the same standing auto-accept and decision 0552 (V1-1478).
 - Exists: Ruby/JS/TS versioned positional, committed-range and MCP admission; bounded structured unknowns; existing JS/TS import rules; a declared string-keyed registry dialect and advisory Ruby named-constant reverse references by autoload convention, two hops deep, for default, syntax-profile and range impact.
 - Blocked on: shared registry/CEM closeout, draft publication, integration and owner acceptance; no runtime-dispatch qualification.
 - Read next: Requirements; Trust and failure boundaries; Acceptance and traceability.
@@ -176,6 +176,45 @@ stays counted and widened under NGI-V0-010 (GitHub #945, #946, #947).
   binding, a template with a substitution, a concatenation, a binding continued past the literal,
   and any file containing a `with (...)` statement or an identifier escape (`\`) keep the key
   non-literal. A rest or spread `...NAME` is an occurrence, not a member access.
+
+The following rows close three shapes decision 0552 found open in V1-1478. NGI-V0-067 amends
+NGI-V0-008: an eager `new X(...)` entry keeps its key -> X edge only when its arguments are
+closed.
+
+- `NGI-V0-065`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1478) A call
+  of a declared accessor inside a template substitution (`` `${dp.accessor('k')}` ``) MUST be a
+  call site like any other, with its own line, and its key is read by NGI-V0-009 and NGI-V0-015.
+  The template token precedes the tokens of its own substitutions, so a template passed as an
+  accessor argument whose substitution supplies part or all of the key (`` `ctx:${n}` ``,
+  `` `${'k'}` ``) stays non-literal, nested or not. The registry object reader does not see
+  substitution tokens. Failure mode: before this row the substitution body was one opaque token,
+  so a spec reaching a registry key only inside one was never selected for the key's module.
+  Rollback: revert the substitution tokens in `registryCallTokens`; the call sites drop out.
+- `NGI-V0-066`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1478) A write
+  to a readable registry after its declaration MUST widen like an unresolved entry: the
+  registry's `registry-written-after-declaration` unknown, with the count of writes, applies to
+  every JS/TS changed path, and every caller of its accessors is selected with the reason that
+  the registry is written after its declaration. A write is an assignment or compound assignment
+  (`=`, `op=`, `??=`, `||=`, `&&=`), a prefix or postfix `++`/`--`, or `delete` through the
+  object or a member chain on it, or `Object.assign|defineProperty|defineProperties|
+  setPrototypeOf` or `Reflect.set|defineProperty|deleteProperty|setPrototypeOf` with it as the
+  first argument. Writes are counted in the declaring file through the declared name and in any
+  indexed JS/TS source through a value import of it (named, default, or a namespace member),
+  including a named import of the export whose module is unresolved. A declaration of the name,
+  a `typeof`/`keyof` query, a comparison, an arrow and a read are not writes. Retained limits:
+  an alias (`const r = registry`), a destructuring target and a write through a function the
+  registry is passed to are not followed. Failure mode: before this row a spec that relied on a
+  key a setup file added at run time was treated as closed. Rollback: drop `registryWrites`.
+- `NGI-V0-067`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1478) An eager
+  `new X(args)` or `new ns.X(args)` entry whose arguments are not all closed literals (quoted
+  strings, substitution-free templates, numbers, `true`, `false`, `null`, `undefined`) MAY hand
+  any module to the instance, so the registry's `registry-constructor-arguments-open` unknown,
+  with the count of such entries, MUST apply to every JS/TS changed path, and each caller
+  passing such an entry's literal key is selected with the reason that the entry passes
+  constructor arguments that may reach another module. The key -> X edge stays precise. Callers
+  of other keys are not widened by this row. Failure mode: before this row a change to a module
+  reached only through a constructor argument selected no spec. Rollback: drop the `arguments`
+  flag in `registryValueBinding`.
 
 ### Ruby named-constant reverse references (V1-1674; GitHub #1077)
 
@@ -533,6 +572,8 @@ for languages not admitted by this new range capability.
 | `registry-declaration-invalid` | A manifest `registries` member does not decode or validate; `count` is the number of such manifests (`NGI-V0-007`). |
 | `registry-key-unresolved` | Entries of the declared registry `registry` have no literal key or imported-binding value; selection is widened (`NGI-V0-008`, `NGI-V0-010`) on every JS/TS changed path (`NGI-V0-012`); a lazy entry counts unless `NGI-V0-013` resolves it. |
 | `registry-export-unresolved` | The declared export of `registry` is not a readable object literal, so none of its keys are known; selection is widened (`NGI-V0-008`, `NGI-V0-010`) on every JS/TS changed path only. |
+| `registry-written-after-declaration` | `count` writes to the declared registry `registry` follow its declaration, so its keys are not closed; every caller is selected on every JS/TS changed path (`NGI-V0-066`). |
+| `registry-constructor-arguments-open` | `count` eager `new X(args)` entries of `registry` pass arguments that are not closed literals; callers passing those keys are selected on every JS/TS changed path (`NGI-V0-067`). |
 | `accessor-key-nonliteral` | `count` calls of `accessor` pass a key that is not a literal; selection is widened to every caller (`NGI-V0-010`). |
 | `registry-caller-unavailable` | Sources naming a declared accessor could not be read or lexed completely (`NGI-V0-010`). |
 | `ruby-constant-unmapped` | The changed Ruby path is below no autoload root, below an ignored directory, or its path does not camelize to a constant (`NGI-V0-016`). |
@@ -567,6 +608,9 @@ and a validated declared identifier, never source text.
 | `NGI-V0-013` | `registryLazyBinding`, `registryThenCallback`, `registryAssertionTail`, `registryRequireFree`, `registryAmbientDeclaration`, `registryLazyTarget`, `parseRegistry`; `bound` in `registryDialect.impact` | `TestRegistryDialectLazyEntriesResolve`, `TestRegistryDialectLazyEntriesStayClosed`, `TestRegistryDialectAmbientRequireIsLoader` |
 | `NGI-V0-014` | `registryObject`, `registryExportedOtherwise` | `TestRegistryDialectNonExportedRegistry` |
 | `NGI-V0-015` | `registryCallSites`, `registryConstants`, `registryMember` | `TestRegistryDialectConstAccessorKey`, `TestRegistryDialectConstAccessorKeyStaysNonLiteral`, `TestRegistryDialectNonLiteralKeyWidens`; real CLI output in `../build-log/2026-10-15-registry-dialect-lazy-const.md` |
+| `NGI-V0-065` | `registryCallTokens`, `registryLexTokens` (`registry_dialect.go`); `substitutions` in `skipSubstitution` (`webimports.go`) | `TestRegistryDialectAccessorInsideSubstitution`, `TestSelectSetupRegistryKeyInSubstitution` |
+| `NGI-V0-066` | `registryWrites`, `registryWriteCount`, `registryWriteAt`, `registryAssignmentAt`; `written` in `registryDialect.impact` and `setupSelector.lookup` | `TestRegistryDialectWrittenAfterDeclarationWidens`, `TestSelectSetupRegistryKeyInSubstitution` |
+| `NGI-V0-067` | `registryValueBinding`, `registryArgumentsOpen`; `argumentKeys` in `registryDialect.impact`; `arguments` in `setupSelector.lookup` | `TestRegistryDialectConstructorArgumentsOpen`, `TestSelectSetupRegistryKeyInSubstitution` |
 | `NGI-V0-016` | `Mapper.Constant`, `Mapper.Camelize` (`internal/rubyautoload/rubyautoload.go`) | `TestRubyAutoloadConstantMapping` (`internal/rubyautoload`), `TestRubyAutoloadNamedConstantReverseReference` |
 | `NGI-V0-017` | `loadRubyAutoload`, `rubyAutoloadDeclaration` (`internal/contextindex/ruby_autoload.go`); `New`, `DefaultRoots`, declaration decoding and `readConfiguredInflections` (`internal/rubyautoload`) | `TestRubyAutoloadConstantMapping`, `TestRubyAutoloadMapperDeclaration` (`internal/rubyautoload`), `TestRubyAutoloadInflections`, `TestRubyAutoloadDeclaration` |
 | `NGI-V0-018` | `scanRubyConstantSource`, `rubyDefinedConstant`, `rubyAssignsConstant`, `resolutions`, `rubyAutoload.impact`; wiring in `impact` | `TestRubyAutoloadNamedConstantReverseReference`, `TestRubyAutoloadNamespacedConstant`, `TestRubyAutoloadMetaprogrammingStaysUnknown`, `TestRubyAutoloadNestingBound`, `TestRubyAutoloadQualifiedClassInNamespace`, `TestRubyAutoloadLocalConstantShadows`, `TestRubyAutoloadQualifiedAndOrAssignmentsDefine` |

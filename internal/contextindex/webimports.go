@@ -2,6 +2,7 @@ package contextindex
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -125,6 +126,16 @@ type webLexer struct {
 	// unterminated names the construct the file ended inside, empty when the
 	// scan completed. It is the refusal the caller files in Index.Unparsed.
 	unterminated string
+	// substitutions, when set, receives every token of each `${...}` body,
+	// without the closing `}`, with the offset just past it, each template
+	// ahead of its own substitutions (NGI-V0-065). Only the registry dialect's call-site reader sets it.
+	substitutions *[]webPlacedToken
+}
+
+// webPlacedToken is a token and the offset just past it.
+type webPlacedToken struct {
+	token    webToken
+	position int
 }
 
 // next yields the next code token, reporting false at end of input.
@@ -317,21 +328,30 @@ func webRegexBodyEnd(text string, position int) (int, bool) {
 func (lexer *webLexer) skipSubstitution() {
 	depth := 1
 	for {
+		// A nested template appends its own substitution tokens while it is
+		// read; it is inserted ahead of them, so a template always precedes
+		// the tokens of its substitutions.
+		mark := 0
+		if lexer.substitutions != nil {
+			mark = len(*lexer.substitutions)
+		}
 		token, ok := lexer.next()
 		if !ok {
 			return
 		}
-		if token.kind != webPunct {
-			continue
-		}
-		switch token.text {
-		case "{":
-			depth++
-		case "}":
-			depth--
+		if token.kind == webPunct {
+			switch token.text {
+			case "{":
+				depth++
+			case "}":
+				depth--
+			}
 		}
 		if depth == 0 {
 			return
+		}
+		if lexer.substitutions != nil {
+			*lexer.substitutions = slices.Insert(*lexer.substitutions, mark, webPlacedToken{token, lexer.position})
 		}
 	}
 }
