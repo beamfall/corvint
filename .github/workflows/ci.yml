@@ -422,10 +422,27 @@ jobs:
             exit 1
           fi
           printf 'GOENV=off\nGOCACHE=%s\n' "$RUNNER_TEMP/go-build" >> "$GITHUB_ENV"
-          # AFP-V0-430: the box's /tmp is a RAM-backed tmpfs; temporary files, t.TempDir() among
-          # them, go to the per-job ext4 RUNNER_TEMP instead, outside the confined checkout.
-          mkdir -p -- "$RUNNER_TEMP/tmp"
-          printf 'TMPDIR=%s\n' "$RUNNER_TEMP/tmp" >> "$GITHUB_ENV"
+          # AFP-V0-430: the box's /tmp is a RAM-backed tmpfs, so temporary files, t.TempDir()
+          # among them, go to this runner's directory on the ext4 /var/tmp. Not RUNNER_TEMP: it is
+          # under /home/russell, an ancestor of the confined checkout, which test-confine never
+          # lets a test open (AFP-V0-023). Emptied here, so no file of an earlier job survives.
+          case "$RUNNER_NAME" in
+            '' | *[!A-Za-z0-9_-]*)
+              echo "::error::AFP-V0-430: runner name '$RUNNER_NAME' is not a plain directory name"
+              exit 1
+              ;;
+          esac
+          tmp_root=/var/tmp/corvint-ci
+          mkdir -m 0700 -- "$tmp_root" 2> /dev/null || true
+          if [ -L "$tmp_root" ] || [ ! -d "$tmp_root" ] || [ ! -O "$tmp_root" ]; then
+            echo "::error::AFP-V0-430: $tmp_root must be a directory this account owns, not a link"
+            exit 1
+          fi
+          chmod 0700 -- "$tmp_root"
+          job_tmp="$tmp_root/$RUNNER_NAME"
+          rm -rf -- "$job_tmp"
+          mkdir -m 0700 -- "$job_tmp"
+          printf 'TMPDIR=%s\n' "$job_tmp" >> "$GITHUB_ENV"
           git config --global user.name corvint-ci
           git config --global user.email corvint-ci@users.noreply.github.com
           git config --global maintenance.auto false

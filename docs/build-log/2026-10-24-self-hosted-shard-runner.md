@@ -220,10 +220,58 @@ The box's `/tmp` is a 16 GiB tmpfs, while `/` is ext4. Nothing in `ci.yml` set `
 concurrent `-race` shards would put every `t.TempDir()` and Go work directory in RAM on a 31 GB host.
 Filesystem-dependent tests would also differ from the hosted ext4 runners (V1-2554, V1-2563).
 
-The self-hosted verification step now creates `$RUNNER_TEMP/tmp` and exports `TMPDIR` to it through
-`$GITHUB_ENV`. `RUNNER_TEMP` is ext4 and the runner empties it for every job. Hosted steps are
-unchanged and never set `TMPDIR`. The test-confine wrapper needs no change, because it grants reads
-everywhere outside the confined checkout, and `RUNNER_TEMP` is a sibling of that checkout.
+The first version exported `TMPDIR=$RUNNER_TEMP/tmp`. That was wrong. It claimed the test-confine
+wrapper needed no change because `RUNNER_TEMP` is a sibling of the checkout. But `Rules` in
+`.github/testconfine/scopes.go` grants only the siblings along the checkout's ancestor chain, never
+the ancestors themselves. `RUNNER_TEMP` (`/home/russell/actions-runner*/_work/_temp`) shares
+`/home`, `/home/russell`, the runner directory and `_work` with the checkout. So a confined test that
+opens each ancestor of a temporary path was refused at `/home`. On the hosted image
+`TMPDIR=/tmp`, whose only ancestor is `/`, which those tests skip.
 
-This is per-job cleanup, not isolation. Rollback is removing the two lines. A box run is
+Box run 40101041311 (corvint-box-1..8, WSL2) failed shards 0, 1, 2 and 4. Shards 3, 5, 6 and 7
+passed in 27 to 30 minutes. The failures sort into three causes:
+
+- **`TMPDIR` under the checkout's ancestors.** This fixed `testvaliditydoc`, `flowdocs`, the
+  `doccorpus` caller-profile tests, `flowcoverage` (its STALE "binding changed" reasons),
+  `testrunner/sql`, and `upgradechanges` (`open /home: permission denied`). It also fixed
+  `tasks/cli` `TestSERVICE500_CLIRoutesRefusalsAndPureReads`, which expects a profile under
+  `t.TempDir()` to count as a "temporary production path". `internal/tasks/service/profile.go`
+  recognises `/tmp` and `/var/tmp` but not `/home`.
+- **`bwrap` under Landlock** (`cem/workflow` `TestDiscriminateRecordsWitnessAndReportDowngrades`). This
+  is a host difference that `TMPDIR` does not cause. The box has bubblewrap 0.11.1 installed at
+  `/usr/bin/bwrap`, so `mutate.HostSandbox` finds it and the test does not skip. Under test-confine,
+  Landlock refuses mount changes, so bwrap exits with `bwrap: Failed to make / slave: Operation not
+  permitted`. `inconclusive` in `internal/liveverify/mutate/gotest.go` recognises only the
+  sandbox-exec refusal line, so the run becomes "run ended without a verdict" and the test fails
+  instead of skipping. Box evidence: the test passes unconfined and fails confined with either
+  `TMPDIR`. The hosted image is assumed to have no `bwrap`, so the test skips there; this is
+  inferred, not observed. The smallest product fix is to recognise bwrap's fixed refusal line as
+  `ErrSandboxUnavailable`. The owner could instead remove bubblewrap from the box.
+- **Shared PID namespace** (`postmergeproof` `TestLinuxProcfsOwnedExecution`,
+  `TestLinuxProcfsSweepFindsSurvivor`, `TestHostCollectorV2OwnedExecution`). This is a host
+  difference that `TMPDIR` does not cause. `procfs.SweepProcesses` lists all of `/proc` and records
+  any PID whose `stat` it cannot read as a read failure. A process that exits between the listing
+  and the read therefore blocks the proof as `process-sweep-incomplete`. Eight runners on one WSL
+  kernel share one PID namespace, and other shards keep starting short-lived processes, so the race
+  is likely. A hosted VM runs one job. Box evidence: idle, confined, `-count=3` passes; with a
+  `/bin/true` churn loop running alongside, all nine runs fail with that reason. Fixing this needs a
+  product decision outside `ci.yml`. Either re-check a failed PID and drop it when `/proc/<pid>` is
+  gone, which amends the "never an absent process" rule, or run those tests where no other job
+  shares the PID namespace.
+
+The verification step now refuses a runner name that is not a plain directory name. It creates
+`/var/tmp/corvint-ci` mode 0700 and refuses it unless it is a directory this account owns and not a
+link. It then removes and recreates `/var/tmp/corvint-ci/$RUNNER_NAME` mode 0700 and exports
+`TMPDIR` to it. `/var/tmp` is on the box's ext4 root, with 914 GB free. Its only ancestor shared with
+the checkout is `/`. Hosted steps are unchanged and never set `TMPDIR`.
+
+Box reproduction used the branch tree under `/home/russell/tmpdir-repro/_work/corvint/corvint`, with
+test-confine built as CI builds it and `-race`. With `TMPDIR` under that tree's `_work/_temp`,
+`testvaliditydoc`, `flowdocs`, `doccorpus`, `flowcoverage`, `cem/workflow`, `testrunner/sql`,
+`upgradechanges` and the `tasks/cli` SERVICE500 test failed as in the run. With `TMPDIR` under
+`/var/tmp`, all of them passed except `cem/workflow` (the bwrap cause). The step's block itself also
+ran on the box. It refused `RUNNER_NAME=../x` before creating anything. For a plain name it created
+both directories mode 0700, removed a planted stale file, and wrote the `TMPDIR` line.
+
+This is per-job cleanup, not isolation. Rollback is removing the block. A runner run is
 `NOT_OBSERVED`.

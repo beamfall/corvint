@@ -3054,7 +3054,7 @@ without a code change. Security rationale and host setup: build-log entry
   prerequisite. It keeps the hosted step's user-global Git configuration lines. The hosted
   provisioning step MUST stay byte-identical and run only off the self-hosted runner. Because the
   host persists between jobs, the shard MUST first empty `GITHUB_WORKSPACE`, never restore or save the
-  shared Actions Go build cache, and build with `GOENV=off` in a `GOCACHE` and, by AFP-V0-430, a `TMPDIR` under `RUNNER_TEMP`. The
+  shared Actions Go build cache, and build with `GOENV=off` in a `GOCACHE` under `RUNNER_TEMP` and, by AFP-V0-430, a per-runner `TMPDIR` under `/var/tmp`. The
   runner empties `RUNNER_TEMP` for every job; as amended by AFP-V0-427 to AFP-V0-429, only the
   host-local seed, which only a passing merge-queue shard on `main` refreshes, carries Go build
   output from an earlier job into a later one. The runner's own job-end cleanup ends the processes it
@@ -3142,17 +3142,25 @@ without a code change. Security rationale and host setup: build-log entry
   image, no seed is a cache of test results, and the seed adds no isolation. Falsifier: a document
   or comment that calls the seed's event gating an isolation or security boundary.
 - **AFP-V0-430:** (accepted under the owner's standing auto-accept (2026-10-11; owner request
-  2026-10-24; no ticket); amends AFP-V0-421) On the self-hosted runner only, the verification step
-  MUST create `$RUNNER_TEMP/tmp` and export `TMPDIR` to it through `$GITHUB_ENV` before the tests
-  step, so Go's work directories and every `t.TempDir()` land on the box's ext4 work disk rather
-  than its 16 GiB RAM-backed `/tmp` tmpfs, matching the hosted runners' ext4 temporary directory.
-  No hosted step sets `TMPDIR`. The directory is outside the confined checkout, which AFP-V0-023
-  grants as a path outside the confinement root. Cleanup and trust boundary: the runner empties
-  `RUNNER_TEMP` for every job and runs one job at a time, so a file a test leaves is removed before
-  the next job on that runner; this is per-job hygiene, not isolation, since every job runs as the
-  same account (AFP-V0-429). Falsifier: a self-hosted shard whose `TMPDIR` is unset or under `/tmp`, or a
-  hosted step that sets `TMPDIR`. Rollback: remove the
-  two lines; temporary files return to `/tmp`.
+  2026-10-24; no ticket); amends AFP-V0-421; amended after box run 40101041311) On the self-hosted
+  runner only, the verification step MUST, before the tests step, refuse a `RUNNER_NAME` that is not
+  a plain directory name, create `/var/tmp/corvint-ci` mode 0700 and refuse it unless it is a
+  directory this account owns and not a link, remove and recreate `/var/tmp/corvint-ci/$RUNNER_NAME`
+  mode 0700, and export `TMPDIR` to it through `$GITHUB_ENV`. Go's work directories and every
+  `t.TempDir()` then land on the box's ext4 root rather than its 16 GiB RAM-backed `/tmp` tmpfs,
+  matching the hosted runners' ext4 temporary directory. No hosted step sets `TMPDIR`. The directory
+  MUST NOT share an ancestor below `/` with the confined checkout: AFP-V0-023's wrapper grants every
+  path beside the checkout's ancestor chain but never the ancestors themselves, so a test that opens
+  each ancestor of a temporary path (the AFP-V0-361 root-skipping walks) is refused at `/home` when
+  `TMPDIR` is under `RUNNER_TEMP` (`/home/russell/actions-runner*/_work/_temp`); under `/var/tmp` the
+  only shared ancestor is `/`, as with the hosted `/tmp`. `/var/tmp` is also one of the temporary
+  roots product code recognises, as `/tmp` is on the hosted image. Cleanup and trust boundary: each
+  runner runs one job at a time and empties its own directory at the start of every job, so a file a
+  test leaves is removed before the next job on that runner; this is per-job hygiene, not isolation,
+  since every job runs as the same account (AFP-V0-429). Falsifier: a self-hosted shard whose
+  `TMPDIR` is unset, under `/tmp`, or under an ancestor of the checkout other than `/`; a removal
+  that runs before the runner-name or root checks; or a hosted step that sets `TMPDIR`. Rollback:
+  remove the block; temporary files return to `/tmp`.
 
 ## Non-goals and authority
 
@@ -3275,8 +3283,10 @@ reachable by an approved fork pull request until it is removed; host drift fails
 self-hosted run makes the cost-drift report abstain. A missing, unsafe or unreadable host-local seed
 (AFP-V0-427) leaves a cold cache with a notice; a refresh above the cap removes the seed; a corrupt
 seed may fail that runner's shards or pass silently, and the operator deletes the seed root on any
-doubt (AFP-V0-429). A test that fills the per-job `TMPDIR` (AFP-V0-430) fills the box's work disk
-rather than its memory, and the runner removes it with `RUNNER_TEMP` at the next job.
+doubt (AFP-V0-429). A test that fills the per-runner `TMPDIR` (AFP-V0-430) fills the box's root disk
+rather than its memory, and the next job on that runner removes it; a removed runner's directory
+stays until the operator deletes it. A link, foreign owner or non-directory at `/var/tmp/corvint-ci`
+fails the verification step before anything is removed.
 
 ## Acceptance evidence and traceability
 
@@ -3415,7 +3425,7 @@ rather than its memory, and the runner removes it with `RUNNER_TEMP` at the next
 | AFP-V0-422 | the marker steps of `go-product-shard`; the self-hosted branch of `ci-shard-cost-drift`'s outcome check | `TestAFPV0422SelfHostedShardsMakeTheDriftReportAbstain` (runs the outcome check: eight streams report, one marker abstains with the runner reason) |
 | AFP-V0-427 | the `CORVINT_BOX_GOCACHE_ROOT` job env and the seed restore step of `go-product-shard` | `TestAFPV0427SelfHostedSeedRestoreAndRefreshEvents` (exact events, copy not link, never fails, step order, `-count=1`, hosted cache steps unchanged); `TestAFPV0428SelfHostedSeedRefreshSwapsAndRestoreCopies` (linux: missing seed is cold, restore is an independent copy, another runner reads nothing, unsafe root and path-like runner name refused); box cold/warm timing in build-log entry `2026-10-24-self-hosted-shard-runner`; a runner run is `NOT_OBSERVED` |
 | AFP-V0-428 | the seed refresh step of `go-product-shard` | `TestAFPV0427SelfHostedSeedRestoreAndRefreshEvents` (merge-queue on `main` with tests success only, explicit cap); `TestAFPV0428SelfHostedSeedRefreshSwapsAndRestoreCopies` (relative link swap, replaced copy and leftovers removed, a failed copy removes abandoned and partial copies and keeps the live seed, test results expired, over-cap removes the seed, unsafe root refused) |
-| AFP-V0-430 | the self-hosted verification step of `go-product-shard` | `TestAFPV0430SelfHostedTMPDIRIsPerJobUnderRunnerTemp` (self-hosted only, under `RUNNER_TEMP`, before the tests, no other `TMPDIR` writer); a box run is `NOT_OBSERVED` |
+| AFP-V0-430 | the self-hosted verification step of `go-product-shard` | `TestAFPV0430SelfHostedTMPDIRIsPerRunnerOffTheCheckoutAncestors` (self-hosted only, per-runner under `/var/tmp/corvint-ci`, checks before the removal, never under `RUNNER_TEMP`, before the tests, no other `TMPDIR` writer); box reproduction in build-log entry `2026-10-24-self-hosted-shard-runner`; a runner run is `NOT_OBSERVED` |
 | AFP-V0-429 | this spec and build-log entry `2026-10-24-self-hosted-shard-runner` (trust boundary, corrupt-seed recovery) | the step comments state the boundary; review evidence in the build-log entry |
 | AFP-V0-419 | `exactOrStop` and `playwrightTagFile.stop` in `playwright_tag_sources.go`; the stop detail in `SelectPlaywrightWithEnvironment` | `TestPlaywrightGrepOmissionFollowsTypeScriptAliases_GH1660` (each stop names the file and specifier) |
 | AFP-V0-390 | `setAffectedOnce`, `resolveAffectedBatchAndCache`, `resolveAffectedCache`, `affectedGitDirectories`, `resolveExistingAncestor` and `within` in `cmd/corvint/affected_cache.go`; the `--cache` combination check in `parseAffectedOptions`; `writeGraphCache` and `BuildCachedExcluding` in `internal/liveverify/affected/graphcache.go`; `openCacheDirectory` and `admitCacheHandle` in `graphcache_dir.go`; `directoryPath` and `privateDirectory` in `graphcache_dir_darwin.go`, `graphcache_dir_linux.go` and `graphcache_dir_unix.go` | `TestAFPV0390CacheDirectoryMustBeOutsideTheRepository` (root, `.corvint/`, a package directory, a symlink into the root, a `.git` or `.GIT` component, the root under another case on a case-insensitive file system, empty, repeated, `--snapshot`, `--playwright-config` refuse with no stdout, no repository change and no cache write), `TestAFPV0390CacheRefusesTheSeparateGitDirectory` (a `--separate-git-dir` directory, a directory under it, one under a symlink alias of it and one under its `objects/` refuse and leave it unchanged; a sibling is accepted), `TestAFPV0390CacheDirectoryReplacementCannotRedirectWrites` (a cache directory replaced by a link into `.corvint/` just before the open is refused for read and write; one replaced after the open receives the entry in the opened directory, not the repository; the Git directory passed as excluded is never written), `TestAFPV0392UnpinnableObservationStoresNoEntry` (a 0777 cache directory is neither read nor written), `TestAFPV0391CachedGraphIsRestoredExactly` (one 0600 entry per root; a new identity replaces it) |

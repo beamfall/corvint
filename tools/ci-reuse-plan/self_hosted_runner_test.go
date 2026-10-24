@@ -374,16 +374,35 @@ func TestAFPV0428SelfHostedSeedRefreshSwapsAndRestoreCopies(t *testing.T) {
 	}
 }
 
-// AFP-V0-430: on the self-hosted runner only, the verification step points TMPDIR at a per-job
-// directory under RUNNER_TEMP (ext4, emptied by the runner for every job) before the tests run, so
-// t.TempDir() never lands on the box's RAM-backed /tmp; no other step and no hosted step sets it.
-func TestAFPV0430SelfHostedTMPDIRIsPerJobUnderRunnerTemp(t *testing.T) {
+// AFP-V0-430: on the self-hosted runner only, the verification step points TMPDIR at a per-runner
+// directory on the ext4 /var/tmp, emptied for every job, before the tests run, so t.TempDir() never
+// lands on the box's RAM-backed /tmp nor under an ancestor of the confined checkout (RUNNER_TEMP is
+// under /home/russell, which test-confine never lets a test open); no other step and no hosted
+// step sets it.
+func TestAFPV0430SelfHostedTMPDIRIsPerRunnerOffTheCheckoutAncestors(t *testing.T) {
 	ci := readWorkflow(t, "ci.yml")
 	shard := jobBlock(t, ci, "go-product-shard")
 	verify := stepBlock(t, shard, "Verify the host tools the product's fixed PATH resolves (self-hosted runner, AFP-V0-421)")
 	wantLine(t, "self-hosted verification", verify, "        if: runner.environment == 'self-hosted'")
-	wantLine(t, "self-hosted verification", verify, `          mkdir -p -- "$RUNNER_TEMP/tmp"`)
-	wantLine(t, "self-hosted verification", verify, `          printf 'TMPDIR=%s\n' "$RUNNER_TEMP/tmp" >> "$GITHUB_ENV"`)
+	for _, line := range []string{
+		`            '' | *[!A-Za-z0-9_-]*)`,
+		`          tmp_root=/var/tmp/corvint-ci`,
+		`          mkdir -m 0700 -- "$tmp_root" 2> /dev/null || true`,
+		`          if [ -L "$tmp_root" ] || [ ! -d "$tmp_root" ] || [ ! -O "$tmp_root" ]; then`,
+		`          job_tmp="$tmp_root/$RUNNER_NAME"`,
+		`          rm -rf -- "$job_tmp"`,
+		`          mkdir -m 0700 -- "$job_tmp"`,
+		`          printf 'TMPDIR=%s\n' "$job_tmp" >> "$GITHUB_ENV"`,
+	} {
+		wantLine(t, "self-hosted verification", verify, line)
+	}
+	name, guard, clear := strings.Index(verify, `case "$RUNNER_NAME" in`), strings.Index(verify, `[ ! -O "$tmp_root" ]`), strings.Index(verify, `rm -rf -- "$job_tmp"`)
+	if name < 0 || guard < name || clear < guard {
+		t.Errorf("the runner-name check and the root guard must precede the removal: name %d, guard %d, rm %d", name, guard, clear)
+	}
+	if strings.Contains(verify, `"$RUNNER_TEMP/tmp"`) {
+		t.Error("TMPDIR must not be under RUNNER_TEMP, whose ancestors are the confined checkout's")
+	}
 	if all, here := strings.Count(ci, "TMPDIR"), strings.Count(verify, "TMPDIR"); all != here {
 		t.Errorf("ci.yml names TMPDIR %d times, %d of them outside the self-hosted verification step", all, all-here)
 	}
