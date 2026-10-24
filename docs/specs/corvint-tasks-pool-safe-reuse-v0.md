@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-202 accepted (standing auto-accept 2026-10-11; V1-2361); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); PSR-V0-201 accepted (standing auto-accept 2026-10-11; V1-1008); PSR-V0-203..204 accepted (standing auto-accept 2026-10-11; V1-2352, V1-2425); PSR-V0-220..221 accepted (standing auto-accept 2026-10-11; V1-1715, V1-0911, V1-1569; re-homed from CAL-V0-350 and CAL-V0-364); PSR-V0-222 accepted (standing auto-accept 2026-10-11; V1-2482)
+Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-202 accepted (standing auto-accept 2026-10-11; V1-2361); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); PSR-V0-201 accepted (standing auto-accept 2026-10-11; V1-1008); PSR-V0-203..204 accepted (standing auto-accept 2026-10-11; V1-2352, V1-2425); PSR-V0-220..221 accepted (standing auto-accept 2026-10-11; V1-1715, V1-0911, V1-1569; re-homed from CAL-V0-350 and CAL-V0-364); PSR-V0-222..223 accepted (standing auto-accept 2026-10-11; V1-2482)
 Delivery status: experimental
 Authoritative inputs: https://github.com/beamfall/corvint/issues/498; CAL-V0-028..034 in corvint-tasks-agent-leases-v0.md; independent Gate A packet-r2/GATE-A.md PASS with no HIGH, MED findings incorporated before implementation.
 Native ticket: V1-0695, original creation receipt2436.
 
 ## Agent digest
 - Claim: Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.
-- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-202 accepted (standing auto-accept 2026-10-11; V1-2361); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); PSR-V0-201 accepted (standing auto-accept 2026-10-11; V1-1008); PSR-V0-203..204 accepted (standing auto-accept 2026-10-11; V1-2352, V1-2425); PSR-V0-220..221 accepted (standing auto-accept 2026-10-11; V1-1715, V1-0911, V1-1569; re-homed from CAL-V0-350 and CAL-V0-364); PSR-V0-222 accepted (standing auto-accept 2026-10-11; V1-2482); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
+- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-202 accepted (standing auto-accept 2026-10-11; V1-2361); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); PSR-V0-201 accepted (standing auto-accept 2026-10-11; V1-1008); PSR-V0-203..204 accepted (standing auto-accept 2026-10-11; V1-2352, V1-2425); PSR-V0-220..221 accepted (standing auto-accept 2026-10-11; V1-1715, V1-0911, V1-1569; re-homed from CAL-V0-350 and CAL-V0-364); PSR-V0-222..223 accepted (standing auto-accept 2026-10-11; V1-2482); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
 - Exists: Foreground sweep, optional dispatcher integration and focused fixtures are implemented in source. Earlier source-bound repair evidence is retained separately from current integrated qualification.
 - Blocked on: Current integrated native binary, mandatory selected tests, exact-target review, terminal evidence, hosted integration and native completion. Linux runtime and physical external cleanup remain unqualified.
 - Read next: Requirements; Acceptance evidence; Non-goals and simpler baseline; Compatibility and rollback.
@@ -1154,21 +1154,44 @@ measured on a 4 vCPU Linux VM with an allowance of 130,016, one guard still held
   content mask reports `IN_MODIFY`, `IN_ATTRIB` and `IN_CLOSE_WRITE` for every entry in it, as
   well as entries created, removed or renamed, so every mutation class CAL-V0-026 lists for such a
   file MUST still report `SNAPSHOT_MOVED` at the next check, including `CheckEvents` under the
-  writer lock, without a sweep. A regular file with more than one link (through which a write
-  would not pass the watched directory) or whose parent is not watched with the content mask MUST
-  be tracked by the stat identity taken when it was visited and re-read by `Sweep`, as PSR-V0-221
-  tracks a file beyond its ceiling. This supersedes PSR-V0-221's per-guard file-watch ceiling,
-  which no longer exists; PSR-V0-221's directory refusal (`UNSUPPORTED_FILESYSTEM` naming the
-  allowance) is unchanged.
+  writer lock, without a sweep. Every regular file MUST also be tracked by its stat identity
+  (PSR-V0-223). This supersedes PSR-V0-221's per-guard file-watch ceiling, which no longer exists;
+  PSR-V0-221's directory refusal (`UNSUPPORTED_FILESYSTEM` naming the allowance) is unchanged.
+- `PSR-V0-223`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2482) On Linux
+  the change guard MUST record, for every regular file it visits, the stat identity read when it
+  was visited: device, inode, mode, link count, size, modification time and change time. `Check`
+  and `Sweep` MUST re-read the identity of every such file and report `SNAPSHOT_MOVED` at that and
+  every later check when one differs or cannot be read, so a hard link made to the file after
+  registration, and a write, truncation or mode change through such a link or through a descriptor
+  opened through another link before registration, made before the re-read, is reported even
+  though no watched directory sees it. A file with more than one link at registration, or whose
+  parent is not watched with the content mask, is uncovered: every poll, including `CheckEvents`
+  under the writer lock, MUST re-read it as well, so a write through its other link after `Sweep`
+  is reported under the lock. The guard MUST NOT add an inotify watch for any of this, so its
+  watch count stays the PSR-V0-222 bound, and the work under the writer lock grows only with the
+  uncovered files, none of which a Tasks writer makes (CAL-V0-026).
 
-Change in guarantees: a singly linked file gains coverage of an in-place write or mode change at
-any time, which PSR-V0-221 lost for a file beyond the ceiling after the sweep read it. A singly
-linked file loses the cases a per-file watch covered and its directory does not, because the
-kernel reports an entry's events to its directory only through that entry: an actor outside Tasks
-that writes or changes the mode through a hard link it creates outside the observed tree after
-registration (the link-count change is reported to the file's own watch only), or through a
-descriptor it opened through another link (since removed) or as an `O_TMPFILE` before
-registration, goes unreported. Writes through `mmap` were never reported by either watch.
+Change in guarantees: against PSR-V0-221, every file a directory watch covers gains an in-place
+write or mode change at any time, which PSR-V0-221 lost for a file beyond the ceiling after the
+sweep read it, and every other change keeps the coverage PSR-V0-221 gave a file beyond the
+ceiling. The kernel reports an entry's events to its directory only through that entry, so a
+change through another path is seen by the PSR-V0-223 stat identity instead: a link made outside
+the observed tree changes the link count and change time, and a write or mode change through it,
+or through a descriptor opened through a since-removed link or as an `O_TMPFILE` before
+registration, changes the size, modification or change time. Residual limits, each by an actor
+outside Tasks:
+
+- a link made to a singly linked file after `Sweep` read it, and a write or mode change through
+  that link or through such a descriptor in the same interval, are not reported by `CheckEvents`
+  under the writer lock; that interval is the one Darwin already leaves for a file beyond its
+  descriptor budget (CAL-V0-219), and a later `Check` or `Sweep` reports it unless the change is
+  undone first;
+- a change that restores the link count and size, and whose times fall within the filesystem's
+  timestamp granularity of the file's previous change, is not seen by the stat identity; kernels
+  with multigrain timestamps (Linux 6.13 and later on ext4, XFS, btrfs and tmpfs) give a change
+  made after a stat read a distinct change time;
+- writes through `mmap` were never reported by either watch.
+
 No Tasks writer edits a store file in place or links one outside the store, and no store file had
 more than one link in the 45,000-receipt fixture.
 
@@ -1179,8 +1202,11 @@ guards; `fs.inotify.max_user_instances`.
 
 Failure modes: a host whose allowance is already spent refuses a directory, as under PSR-V0-221; a
 kernel that did not report child events on a directory watch would miss in-place writes to
-singly linked files, which `TestPSRV0222_ChangeGuardSeesFileMutationsThroughItsDirectory`
-detects with no file watch registered.
+singly linked files under the writer lock, which
+`TestPSRV0222_ChangeGuardSeesFileMutationsThroughItsDirectory` detects with no file watch
+registered. A file that disappears or cannot be read when re-read reports `SNAPSHOT_MOVED`, never
+success. The re-read of every file costs about as much as PSR-V0-221's sweep of the files beyond
+its ceiling, which at 45,000 receipts was nearly all of them.
 
 Acceptance evidence: `TestPSRV0222_ChangeGuardWatchCountIsBoundedByDirectories` counts the
 `inotify wd:` lines of `/proc/self/fdinfo` while a guard is live and requires the same count over
@@ -1190,9 +1216,21 @@ store fixture (`historyStoreAt`, 4 vCPU Linux VM): 265 watches per guard at 1,00
 `max_user_watches` lowered to the host's existing use plus 4,000, completed every call with no
 error code, so the peak over all nine processes stayed below 4,000 watches (UNQUALIFIED: load
 9.35 on 4 CPUs). The 45,000-receipt, 8-acquirer, 600 s run on the WSL2 quiet host is NEEDS-HOST.
+For PSR-V0-223, `TestPSRV0223_ChangeGuardSeesAWriteThroughAnAliasLink` (a link made after
+registration, alone, with a same-size write, with a resizing write then removed, with a mode
+change, and a resizing write through a descriptor opened through a link removed before
+registration) and `TestPSRV0223_ChangeGuardSeesASecondLinkWriteAfterTheSweep` (a resizing write,
+a truncation and a mode change through a second link after `Sweep`, seen by `CheckEvents`) fail
+on the PSR-V0-222-only code and pass with it (WSL2, Linux 6.18). Opt-in
+`TestPSRV0223_ChangeGuardSweepCost` (`CORVINT_TASKS_GUARD_SWEEP_COST=10000,45000`, ext4, WSL2
+Linux 6.18, 32 vCPU, load below 2.1) measured the median `Check` and `Sweep` at 47 ms over 20,057
+files (10,000 receipts) and 250 ms over 90,057 (45,000), against 42 ms and 256 ms for
+PSR-V0-221 on origin/main; `CheckEvents` stayed under 1 µs median, 15 µs maximum.
 
 Rollback: revert `change_guard_linux.go`, `change_guard.go` and their tests to PSR-V0-221; the
-guard then holds up to its file ceiling of file watches again. A directory already watched
+guard then holds up to its file ceiling of file watches again. Reverting PSR-V0-223 alone restores
+the PSR-V0-222 code, whose `Check` costs nothing per singly linked file and does not see a change
+through a link outside the observed tree. A directory already watched
 with the content mask is not re-registered, so a later add of it as an ancestor cannot replace
 its mask (`TestPSRV0222_AncestorAddKeepsTheContentMask`).
 
@@ -1360,10 +1398,11 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-203 | `TestPSRV0203_CheckpointTailRefusesNullPreStateDuplicate`, `TestPSRV0190_CheckpointTailRefusesPrefixRequestDuplicate`, `TestCALV0321_CheckpointRequestFilter` (`internal/tasks/journal`) |
 | PSR-V0-204 | `TestPSRV0204_LinuxRunnerIdentityNeedsNoListing`, `TestPSRV0204_LinuxIdentityClockStepIsUnknown`, `BenchmarkPSRV0204_RunnerIdentity` (`internal/tasks/store`, Linux only); `docs/build-log/2026-10-23-tasks-lane-1023.md` |
 
-## Traceability (PSR-V0-220..222)
+## Traceability (PSR-V0-220..223)
 
 | Requirement | Evidence |
 | --- | --- |
 | PSR-V0-220 | `TestCALV0350_ClaimNextDerivesScopeForThePreviewedWaiterCLI`, `TestPSRV0132_ClaimNextPoolClaimsTheWaiterCLI` (`internal/tasks/cli`); implementation `internal/tasks/cli/lease.go` (`Derive: env.ScopeDeriver`), `internal/tasks/transaction/claim_next.go` |
 | PSR-V0-221 | `TestCALV0364_ChangeGuardRefusesADirectoryBeyondTheInotifyLimit`, opt-in `TestCALV0364_ChangeGuardUnderTheRealInotifyLimit` (`CORVINT_TASKS_INOTIFY_LIMIT=1`, root; lowers the real sysctl to this user's measured headroom plus exactly the guard's directory watches and requires registration and a reported write) (`internal/tasks/authority`); its file ceiling is superseded by PSR-V0-222 |
 | PSR-V0-222 | `TestPSRV0222_ChangeGuardWatchCountIsBoundedByDirectories` (`/proc/self/fdinfo` count), `TestPSRV0222_ChangeGuardSeesFileMutationsThroughItsDirectory` (every mutation class with no file watch, via `CheckEvents`), `TestPSRV0222_ChangeGuardTracksAMultiplyLinkedFileByStat`, `TestPSRV0222_AncestorAddKeepsTheContentMask` (`internal/tasks/authority`, Linux only); `docs/build-log/2026-10-23-linux-change-guard-directory-watches.md` |
+| PSR-V0-223 | `TestPSRV0223_ChangeGuardSeesAWriteThroughAnAliasLink`, `TestPSRV0223_ChangeGuardSeesASecondLinkWriteAfterTheSweep`, `TestPSRV0222_ChangeGuardWatchCountIsBoundedByDirectories` (every file stat-tracked, none uncovered, watch count unchanged), `TestPSRV0222_ChangeGuardTracksAMultiplyLinkedFileByStat` (`internal/tasks/authority`, Linux only); opt-in `TestPSRV0223_ChangeGuardSweepCost` (`internal/tasks/store`, Linux only); `docs/build-log/2026-10-23-linux-change-guard-directory-watches.md` |

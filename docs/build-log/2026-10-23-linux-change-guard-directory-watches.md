@@ -1,7 +1,7 @@
-# Linux change guard watches directories, not files (V1-2482, PSR-V0-222)
+# Linux change guard watches directories, not files (V1-2482, PSR-V0-222..223)
 
 Date: 2026-10-23 lane (written 2026-10-24). Ticket: V1-2482. Spec:
-`docs/specs/corvint-tasks-pool-safe-reuse-v0.md` PSR-V0-222.
+`docs/specs/corvint-tasks-pool-safe-reuse-v0.md` PSR-V0-222 and PSR-V0-223.
 
 ## Cause
 
@@ -43,22 +43,65 @@ Rejected:
 
 ## Change in guarantees
 
-Gained: an in-place write or mode change to any singly linked file is reported at any time.
-Under PSR-V0-221, a file beyond the ceiling was reported only up to the sweep.
-
-Lost: the kernel reports an entry's events to its directory only when they go through that
-entry. So a non-Tasks actor's write or mode change goes unreported in two cases:
-- through a hard link the actor creates outside the observed tree after registration;
-- through a descriptor the actor opened before registration, via another link since removed or as
-  an `O_TMPFILE`.
-
-The independent review confirmed both on Linux 6.18 with a probe: a per-file watch saw them and
-the parent watch did not. No Tasks writer does either. The 45,000-receipt fixture had no file with
-more than one link. Writes through `mmap` are reported by neither kind of watch.
+The first version of this change accepted a regression: the kernel reports an entry's events to
+its directory only when they go through that entry, so a non-Tasks actor's write or mode change
+through a hard link made outside the observed tree after registration, or through a descriptor
+opened before registration via a since-removed link or as an `O_TMPFILE`, went unreported. The
+independent review confirmed this on Linux 6.18 with a probe: a per-file watch saw it and the
+parent watch did not. Writes through `mmap` are reported by neither kind of watch.
 
 The review also found a latent mask downgrade. Re-adding a content-watched directory as an
 ancestor would have replaced its mask, and its entries' events would have stopped. A directory
 already watched with the content mask is now not registered again.
+
+## Review repair (PR #1657, PSR-V0-223)
+
+The Codex review raised the accepted regression as two P2 findings: a singly linked file had
+neither a watch nor a stat record, and a multiply linked file was re-read only by `Sweep`, so a
+write through its other link after the sweep and before the writer-lock `CheckEvents` went
+unreported. The orchestrator ruled both must be fixed without giving up the bounded watch count.
+
+Decision: record a stat identity (device, inode, mode, link count, size, mtime, ctime) for every
+regular file, add none of them as an inotify watch, and re-read every identity in `Check` and
+`Sweep`. A link made to a file changes its link count and ctime, and a write through any link or
+descriptor changes its size, mtime or ctime, so both findings' cases now report `SNAPSHOT_MOVED`.
+Files with another link at registration, or with a parent not content-watched, are also re-read
+by every poll, including `CheckEvents` under the writer lock; Tasks makes no such files, so the
+lock's cost stays independent of the store (CAL-V0-026). The first repair commit returned from
+`poll` on `EAGAIN` before that re-read; the new second-link test caught it.
+
+Rejected: per-file watches for every file (the unbounded count this ticket removes); re-reading
+every file under the writer lock (cost grows with receipts, CAL-V0-026); `fstatat` through a
+directory descriptor, about 30% cheaper per file (1.6 µs against 2.3 µs on WSL2) but it needs
+per-architecture raw syscalls without `golang.org/x/sys`.
+
+Cost, opt-in `TestPSRV0223_ChangeGuardSweepCost` on WSL2 (Linux 6.18.33, 32 vCPU, ext4, medians
+of 21 calls):
+
+| Code | Receipts / files | Register | `Check` | `Sweep` | `CheckEvents` (max) |
+| --- | --- | --- | --- | --- | --- |
+| This repair | 10,000 / 20,057 | 135 ms | 47 ms | 47 ms | 540 ns (13 µs) |
+| This repair | 45,000 / 90,057 | 690 ms | 258 ms | 250 ms | 550 ns (15 µs) |
+| origin/main `368b80d4` (PSR-V0-221) | 10,000 | 189 ms | 42 ms | 45 ms | 560 ns |
+| origin/main `368b80d4` (PSR-V0-221) | 45,000 | 956 ms | 256 ms | 256 ms | 590 ns |
+| PSR-V0-222 alone (`0ff27432`) | 10,000 | 96 ms | 0.6 µs | 20 ns | 550 ns |
+| PSR-V0-222 alone (`0ff27432`) | 45,000 | 409 ms | 0.6 µs | 20 ns | 550 ns |
+
+So the full re-read costs what PSR-V0-221 already paid to sweep the files beyond its ceiling,
+which at 45,000 receipts was nearly every file; the cost under the lock is unchanged. The watch
+count is unchanged: 9 watches over 11 files and 9 over 5,001 in
+`TestPSRV0222_ChangeGuardWatchCountIsBoundedByDirectories`. Both new tests
+(`TestPSRV0223_ChangeGuardSeesAWriteThroughAnAliasLink`,
+`TestPSRV0223_ChangeGuardSeesASecondLinkWriteAfterTheSweep`) fail at `0ff27432` in every mutation
+case and pass with the repair (WSL2).
+
+Residual limits, each by an actor outside Tasks: a link made after `Sweep` read the file, and a
+write through it before `CheckEvents`, are not seen under the lock (a later `Check` sees them),
+the interval Darwin leaves for a file beyond its descriptor budget; a change that restores size and
+link count within the filesystem's timestamp granularity is not seen on kernels without multigrain
+timestamps (before 6.13); `mmap` writes are not seen. Creating a link alone now reports
+`SNAPSHOT_MOVED`, which is conservative. Inference, not measured: a lease command runs several
+`Check` calls, each now a full re-read, as under PSR-V0-221.
 
 ## Load run
 
