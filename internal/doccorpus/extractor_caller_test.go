@@ -15,6 +15,9 @@ import (
 // repository and returns its path and SHA-256.
 func extractCallerProfile(t *testing.T, root, rev string) (string, string, []byte) {
 	t.Helper()
+	if !callerProfileSupported {
+		t.Skip("caller-owned extractor profiles need the darwin/linux no-follow reader")
+	}
 	raw := []byte(git(t, root, "show", rev+":corvint/extract.json"))
 	committed, err := os.ReadFile(filepath.Join(root, "corvint/extract.json"))
 	if err != nil {
@@ -96,6 +99,14 @@ func TestDCPV1478CallerProfileRequiresAMatchingDigest(t *testing.T) {
 		t.Fatal(err)
 	}
 	inside := filepath.Join(root, "corvint", "extract.json")
+	// A directory symlink into the repository resolves inside it.
+	if err := os.Symlink(filepath.Join(root, "corvint"), filepath.Join(outside, "into")); err != nil {
+		t.Fatal(err)
+	}
+	over := filepath.Join(outside, "over.json")
+	if err := os.WriteFile(over, bytes.Repeat([]byte(" "), MaxBytes+1), 0600); err != nil {
+		t.Fatal(err)
+	}
 	other := Digest(append(raw, ' '))
 	for _, tc := range []struct {
 		profile, digest, code, message string
@@ -107,6 +118,8 @@ func TestDCPV1478CallerProfileRequiresAMatchingDigest(t *testing.T) {
 		{"corvint/extract.json", digest, "corpus-refused", "a caller-owned extractor profile must be a clean absolute path outside the repository"},
 		{outside + "/./caller-profile.json", digest, "corpus-refused", "a caller-owned extractor profile must be a clean absolute path outside the repository"},
 		{inside, digest, "corpus-refused", "a caller-owned extractor profile must lie outside the extracted repository; commit it and pass its repository path without --profile-sha256"},
+		{filepath.Join(outside, "into", "extract.json"), digest, "corpus-refused", "a caller-owned extractor profile must lie outside the extracted repository; commit it and pass its repository path without --profile-sha256"},
+		{over, digest, "corpus-input-unavailable", "caller-owned extractor profile missing, unsafe or over bound"},
 		{filepath.Join(outside, "absent.json"), digest, "corpus-input-unavailable", "caller-owned extractor profile missing, unsafe or over bound"},
 		{filepath.Join(outside, "dir.json"), digest, "corpus-input-unavailable", "caller-owned extractor profile missing, unsafe or over bound"},
 		{filepath.Join(outside, "link.json"), digest, "corpus-input-unavailable", "caller-owned extractor profile missing, unsafe or over bound"},
@@ -117,6 +130,28 @@ func TestDCPV1478CallerProfileRequiresAMatchingDigest(t *testing.T) {
 			t.Errorf("%s %q: data=%d err=%v, want %s: %s", tc.profile, tc.digest, len(data), err, tc.code, tc.message)
 		}
 	}
+	// A case alias of the repository root is the same directory on a case-insensitive filesystem.
+	alias := filepath.Join(strings.ToUpper(root), "corvint", "extract.json")
+	if a, errA := os.Stat(filepath.Dir(alias)); errA == nil && alias != inside {
+		if b, errB := os.Stat(filepath.Dir(inside)); errB == nil && os.SameFile(a, b) {
+			data, err := BuildExtractorInventory(context.Background(), ExtractorInput{Root: root, Revision: rev, Profile: alias, ProfileSHA256: digest})
+			if data != nil || err == nil || !strings.Contains(err.Error(), "must lie outside the extracted repository") {
+				t.Errorf("case alias of the repository: data=%d err=%v", len(data), err)
+			}
+		}
+	}
+	// A sibling whose name extends the repository's is outside it.
+	sibling := filepath.Clean(root) + "-sibling"
+	if err := os.Mkdir(sibling, 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(sibling) })
+	if err := os.WriteFile(filepath.Join(sibling, "profile.json"), raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := BuildExtractorInventory(context.Background(), ExtractorInput{Root: root, Revision: rev, Profile: filepath.Join(sibling, "profile.json"), ProfileSHA256: digest}); err != nil {
+		t.Errorf("sibling of the repository: %v", err)
+	}
 	// A matching digest still admits only a valid closed profile.
 	bad := filepath.Join(outside, "bad.json")
 	badRaw := []byte(`{"schema":"corvint-extractor-profile/1","provider":"app","version":"1","extractors":[],"extra":1}`)
@@ -125,6 +160,75 @@ func TestDCPV1478CallerProfileRequiresAMatchingDigest(t *testing.T) {
 	}
 	if data, err := BuildExtractorInventory(context.Background(), ExtractorInput{Root: root, Revision: rev, Profile: bad, ProfileSHA256: Digest(badRaw)}); data != nil || err == nil || !strings.Contains(err.Error(), "caller extractor profile") || strings.Contains(err.Error(), outside) {
 		t.Fatalf("invalid caller profile: data=%d err=%v", len(data), err)
+	}
+}
+
+// DCP-V1-478: a directory of the checked path replaced by a symlink into the repository after the
+// containment check is refused by the pinned no-follow read, not read through.
+func TestDCPV1478CallerProfileDirectorySwapIsRefused(t *testing.T) {
+	root, rev := extractFixture(t, false, nil)
+	_, digest, raw := extractCallerProfile(t, root, rev)
+	parent := t.TempDir()
+	dir := filepath.Join(parent, "profiles")
+	if err := os.Mkdir(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "corvint", "extract.json"), raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "extract.json"), raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	read := readCallerProfileFile
+	t.Cleanup(func() { readCallerProfileFile = read })
+	readCallerProfileFile = func(name string, limit int64) ([]byte, error) {
+		if err := os.Rename(dir, dir+".old"); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(filepath.Join(root, "corvint"), dir); err != nil {
+			t.Fatal(err)
+		}
+		return read(name, limit)
+	}
+	data, err := BuildExtractorInventory(context.Background(), ExtractorInput{Root: root, Revision: rev, Profile: filepath.Join(dir, "extract.json"), ProfileSHA256: digest})
+	var refusal *Error
+	if data != nil || !errors.As(err, &refusal) || refusal.Code != "corpus-input-unavailable" {
+		t.Fatalf("swapped directory: data=%d err=%v", len(data), err)
+	}
+}
+
+// DCP-V1-478: a platform without the no-follow component reader refuses a caller-owned profile
+// before reading it.
+func TestDCPV1478CallerProfileUnsupportedPlatformIsRefused(t *testing.T) {
+	root, rev := extractFixture(t, false, nil)
+	supported := callerProfileSupported
+	t.Cleanup(func() { callerProfileSupported = supported })
+	callerProfileSupported = false
+	name := filepath.Join(t.TempDir(), "profile.json")
+	data, err := BuildExtractorInventory(context.Background(), ExtractorInput{Root: root, Revision: rev, Profile: name, ProfileSHA256: strings.Repeat("0", 64)})
+	var refusal *Error
+	if data != nil || !errors.As(err, &refusal) || refusal.Code != "corpus-refused" || !strings.Contains(refusal.Message, "this platform lacks") {
+		t.Fatalf("unsupported platform: data=%d err=%v", len(data), err)
+	}
+}
+
+// DCP-V1-503: a caller profile whose patterns match nothing still names its digest in the
+// absent subjects capability.
+func TestDCPV1503CallerProfileWithNoSubjectsKeepsItsDigest(t *testing.T) {
+	t.Parallel()
+	root, rev := extractFixture(t, false, nil)
+	if !callerProfileSupported {
+		t.Skip("caller-owned extractor profiles need the darwin/linux no-follow reader")
+	}
+	raw := []byte(`{"schema":"corvint-extractor-profile/1","provider":"app","version":"1","extractors":[{"id":"nomatch","subject":"symbol","files":["app/none/**/*.go"],"pattern":"^func (?P<name>\\w+)"}]}`)
+	name := filepath.Join(t.TempDir(), "profile.json")
+	if err := os.WriteFile(name, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	inv, _ := extractCaller(t, root, rev, name, Digest(raw))
+	got := inv.Provider.Capabilities[0]
+	if len(inv.Provider.Subjects) != 0 || got.State != "absent" || got.Reason != "no pattern of the caller-owned extractor profile sha256:"+Digest(raw)+" matched a readable file" {
+		t.Fatalf("subjects capability = %+v (%d subjects)", got, len(inv.Provider.Subjects))
 	}
 }
 

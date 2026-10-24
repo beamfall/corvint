@@ -167,8 +167,8 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 	if seen["--repository"] && o.repository == "" {
 		return o, true, argumentError("--repository must name a repository")
 	}
-	// DCP-V1-318, DCP-V1-319: a present status filter or intent --id is non-empty.
-	for _, flag := range []string{"--state", "--qualifier", "--run"} {
+	// DCP-V1-318, DCP-V1-319, DCP-V1-506: a present status filter, --profile-sha256 or intent --id is non-empty.
+	for _, flag := range []string{"--state", "--qualifier", "--run", "--profile-sha256"} {
 		if seen[flag] && strings.TrimSpace(*flags[flag]) == "" {
 			return o, true, argumentError(flag + " must not be empty")
 		}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -57,6 +58,9 @@ func TestDCPV1399DocsCorpusExtractCLI(t *testing.T) {
 // producer's caller-profile inventory bytes; a missing or mismatched digest is refused with no
 // output.
 func TestDCPV1506DocsCorpusExtractCallerProfileCLI(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("caller-owned extractor profiles need the darwin/linux no-follow reader")
+	}
 	root, revision := extractCLIRepository(t)
 	profile := filepath.Join(t.TempDir(), "profile.json")
 	if err := os.WriteFile(profile, []byte(extractCLIProfile), 0600); err != nil {
@@ -84,5 +88,10 @@ func TestDCPV1506DocsCorpusExtractCallerProfileCLI(t *testing.T) {
 		if code == 0 || out != "" || !strings.Contains(stderr, "corpus-refused") {
 			t.Fatalf("%q: exit=%d out=%q stderr=%q", args, code, out, stderr)
 		}
+	}
+	// An explicitly empty digest is refused, never read as the repository-profile route.
+	code, out, stderr = corpusCLI(t, root, "docs", "corpus", "extract", "--profile", "corvint/extract.json", "--profile-sha256=", "--revision", revision)
+	if code == 0 || out != "" || !strings.Contains(stderr, "invalid-arguments") || !strings.Contains(stderr, "--profile-sha256 must not be empty") {
+		t.Fatalf("empty --profile-sha256: exit=%d out=%q stderr=%q", code, out, stderr)
 	}
 }

@@ -2787,8 +2787,12 @@ owner acceptance open.
   extract --profile PATH --profile-sha256 HEX --revision FULL_COMMIT` admits a caller-owned
   `corvint-extractor-profile/1` file outside the extracted repository. With `--profile-sha256`,
   `PATH` must be a clean absolute path whose directory, with symlinks resolved, lies outside the
-  repository root; the leaf is opened without following a symlink, must be a regular file within
-  the input bound, and its exact bytes must hash to `HEX` (64 lowercase hex digits). It is then
+  repository root, compared by filesystem identity of every ancestor so a case alias of the root is
+  still inside. The file is read along that resolved path with every directory component pinned
+  and no symlink followed, so a component replaced by a symlink after the check is refused; it
+  must be a regular file within the input bound, and its exact bytes must hash to `HEX` (64
+  lowercase hex digits). This needs the darwin/linux no-follow reader; on other platforms a
+  caller-owned profile is refused before it is read. It is then
   admitted exactly as a committed profile (`DCP-V1-390`), and every source file is still read only
   from Git at the revision (`DCP-V1-398`), so the same profile bytes yield the same subjects,
   relations and gaps as when committed. Without `--profile-sha256` an absolute or otherwise
@@ -2800,15 +2804,19 @@ owner acceptance open.
   the same `generated` trust and `external-provider` authority: a profile is configuration and
   grants no authority (`DCP-V1-390`). Acceptance:
   `TestDCPV1478CallerProfileExtractsLikeTheCommittedProfile`,
-  `TestDCPV1478CallerProfileRequiresAMatchingDigest`.
+  `TestDCPV1478CallerProfileRequiresAMatchingDigest`,
+  `TestDCPV1478CallerProfileDirectorySwapIsRefused`,
+  `TestDCPV1478CallerProfileUnsupportedPlatformIsRefused`.
 - `DCP-V1-503`: (proposed, experimental; GitHub #1662; owner acceptance open) A caller-profile
   inventory's `profile` member records `origin: caller`, `sha256` (the digest of the file's exact
   bytes, as pinned), `document` (the admitted profile) and `canonical_sha256` (the digest of that
   document's canonical encoding), and never the caller's local path; `path` and `blob` are
   omitted. Its limitations add that the profile is caller-owned and not declared by the
   repository, and the provider record's `subjects` capability reason names
-  `sha256:HEX`. A repository-declared inventory omits `origin`, `document` and `canonical_sha256`
-  and keeps its bytes. Acceptance: `TestDCPV1503CallerProfileProvenanceIsRecorded`,
+  `sha256:HEX`, also when no pattern matched and the capability is `absent`. A
+  repository-declared inventory omits `origin`, `document` and `canonical_sha256` and keeps its
+  bytes. Acceptance: `TestDCPV1503CallerProfileProvenanceIsRecorded`,
+  `TestDCPV1503CallerProfileWithNoSubjectsKeepsItsDigest`,
   `TestDCPV1478CallerProfileExtractsLikeTheCommittedProfile`.
 - `DCP-V1-504`: (proposed, experimental; GitHub #1662; owner acceptance open) The provider record
   of a caller-profile inventory, committed unchanged and declared as a provider input, builds
@@ -2822,6 +2830,8 @@ owner acceptance open.
 - `DCP-V1-506`: (proposed, experimental; GitHub #1662; owner acceptance open) `extract` takes
   `--profile-sha256` as its one optional option, in `help --json` and the capability catalog; the
   CLI prints exactly the producer's caller-profile inventory bytes and a refusal prints nothing.
+  A present but empty `--profile-sha256` is an argument error, never the repository-profile
+  route.
   Acceptance: `TestDCPV1506DocsCorpusExtractCallerProfileCLI`, `TestDocsCorpusOperationFlagMatrix`,
   `TestDocsCorpusHelpListsOperations`, `TestCAPV0019CommittedCatalogMatchesTheBinary`.
 
@@ -3523,7 +3533,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-473 | `internal/mcp/corpusbridge/eval.go` | `TestDCPV1473FailingCasesListReturnedRows` |
 | DCP-V1-474 | `internal/mcp/corpusbridge/eval.go`, `corpusbridge.go` | `TestDCPV1474EvalSuiteObservesOnce`, `TestDCPV1251EvalScoresThroughTheMCPToolPath`; measured in docs/build-log/2026-10-24-corpus-diagnostics-and-ranking.md |
 | DCP-V1-475..477 | `internal/doccorpus/search_rank.go`, `search_phrase.go`, `typed_query.go` | `TestDCPV1475PhraseAndIdentifierMatchesRankFirst`, `TestDCPV1476ClaimTextMatchesInflections`, `TestDCPV1477MeaningfulTieBreaks`, `TestDCPV1404SearchRankingEvalFixture` |
-| DCP-V1-478, DCP-V1-503..506 | `internal/doccorpus/extractor.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `docs.go` | `TestDCPV1478CallerProfileExtractsLikeTheCommittedProfile`, `TestDCPV1478CallerProfileRequiresAMatchingDigest`, `TestDCPV1503CallerProfileProvenanceIsRecorded`, `TestDCPV1504CallerProfileProviderRecordBuildsUnchanged`, `TestDCPV1505CallerProfileExtractionIsReadOnly`, `TestDCPV1506DocsCorpusExtractCallerProfileCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusHelpListsOperations`, `TestCAPV0019CommittedCatalogMatchesTheBinary` |
+| DCP-V1-478, DCP-V1-503..506 | `internal/doccorpus/extractor.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `docs.go` | `TestDCPV1478CallerProfileExtractsLikeTheCommittedProfile`, `TestDCPV1478CallerProfileRequiresAMatchingDigest`, `TestDCPV1478CallerProfileDirectorySwapIsRefused`, `TestDCPV1478CallerProfileUnsupportedPlatformIsRefused`, `TestDCPV1503CallerProfileProvenanceIsRecorded`, `TestDCPV1503CallerProfileWithNoSubjectsKeepsItsDigest`, `TestDCPV1504CallerProfileProviderRecordBuildsUnchanged`, `TestDCPV1505CallerProfileExtractionIsReadOnly`, `TestDCPV1506DocsCorpusExtractCallerProfileCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusHelpListsOperations`, `TestCAPV0019CommittedCatalogMatchesTheBinary` |
 | DCP-V1-468 | `internal/doccorpus/artifact_decode.go`, `query_index_fast.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1419FastIndexMatchesReference` |
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-420..425 | `internal/doccorpus/delta.go`, `delta_open.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1420DeltaAdditionalRepositoryAnchors`, `TestDCPV1420DeltaSharedReadBound`, `TestDCPV1424DeltaHistoricalPins`, `TestDCPV1425OpenDeltaCurrentUnavailableCheckout`, `TestDCPV1425DeltaUnavailableCheckoutCLI`, `TestDCPV1421DeltaViewsCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |

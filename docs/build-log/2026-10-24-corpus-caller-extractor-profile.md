@@ -19,16 +19,26 @@ the extracted repository, such as a third-party checkout, had no way to extract.
   digest, the existing refusal stays and now names the flag. A digest with a relative path, a
   non-clean or relative path, or a path inside the repository's resolved root is refused.
   Committed profiles keep their Git-blob route.
-- **Reading the file.** The directory is resolved with `EvalSymlinks` before the inside-repository
-  check. The file is read through `os.OpenRoot` with the bounded no-follow regular-file reader. A
-  missing, unsafe or oversized file is reported as `corpus-input-unavailable` without echoing the
-  local path.
+- **Reading the file.** The directory is resolved once with `EvalSymlinks`. Every ancestor of the
+  resolved directory is compared with the repository root by filesystem identity, not by string,
+  so a case alias of the root on a case-insensitive filesystem is still inside. The file is then
+  read along that symlink-free path by `ReadAbsoluteFileBounded`, which pins each directory
+  component and follows no symlink, so a component swapped for a symlink into the repository
+  after the check is refused. A concurrent directory rename remains outside the model; the bytes
+  are pinned by digest either way. A missing, unsafe or oversized file is reported as
+  `corpus-input-unavailable` without echoing the local path.
+- **Platform scope.** The no-follow component reader exists only on darwin and linux. Elsewhere,
+  including Windows, a caller-owned profile is refused before it is read, and committed profiles
+  are unaffected.
+- **Empty digest.** A present but empty `--profile-sha256` is an argument error, so it can never
+  fall through to the repository-profile route.
 - **Evidence pinning.** Sources are still read only from Git blobs at the full revision. For the
   profile, the inventory records `origin: "caller"`, the file `sha256`, the `canonical_sha256` of
   the canonical encoding, and the canonical profile document itself. The local path is never
   recorded. A fixed limitation says the profile is caller-owned configuration. The provider
-  record's `subjects` capability reason names `sha256:<digest>`, so built artifact provenance
-  carries the digest with no schema change.
+  record's `subjects` capability reason names `sha256:<digest>`, including when no pattern
+  matched and the capability is `absent`. Built artifact provenance therefore carries the digest
+  with no schema change.
 - **Authority.** A caller profile gets the same generated trust and external-provider authority as
   a committed one. It is usable whether or not the repository commits its own profile.
 
@@ -44,6 +54,18 @@ in-tree inventory consumer, the `extractor-inventory` flow import (`internal/app
 leniently and reads only the schema and the provider subjects, so it is unaffected by the new
 members. No benchmark applies, because the extract hot path is unchanged for committed
 profiles and the caller read is one bounded file.
+
+## Review
+
+One Codex round found four P2 issues and one P3, and all five are fixed with tests:
+
+- case-alias containment, fixed by the identity check;
+- a directory swap after the check, fixed by the pinned no-follow path read
+  (`TestDCPV1478CallerProfileDirectorySwapIsRefused`);
+- Windows having no no-follow reader, fixed by the explicit platform refusal
+  (`TestDCPV1478CallerProfileUnsupportedPlatformIsRefused`);
+- a zero-subject record losing the digest (`TestDCPV1503CallerProfileWithNoSubjectsKeepsItsDigest`);
+- an explicitly empty digest taking the repository route (`TestDCPV1506DocsCorpusExtractCallerProfileCLI`).
 
 ## Rollback
 
