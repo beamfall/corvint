@@ -44,10 +44,10 @@ its own owner decision on the store format.
 It still crosses the same boundaries and runs the same checks. Every file sync and every
 destination directory sync still runs, so each published artifact is as durable at its commit point
 as before. Staging entries are never published state. The only new post-crash shape is a slot name
-the crash restored, holding a second link to the receipt or head. That is the orphan a killed
+the crash restored, holding a second link to the receipt, request entry, attempt or head. That is the orphan a killed
 writer already leaves (CAL-V0-019): the audit sets it aside once the writer lock is free
 (CTS-V0-026), and the next writer removes it. `TestLGLV0007_LivenessStagingResidueIsAnOrphan`
-injects exactly that residue after a heartbeat and checks:
+injects exactly that residue after a heartbeat and after a renew, on both lease routes, and checks:
 
 - the audit verifies;
 - the lease reads as acknowledged;
@@ -55,7 +55,9 @@ injects exactly that residue after a heartbeat and checks:
 - a second holder is not granted the lease.
 
 Claim, submit, gate, complete, release and every other write keep every sync
-(`TestLGLV0006_OnlyLivenessWritesSkipStagingSync`).
+(`TestLGLV0006_OnlyLivenessWritesSkipStagingSync`). So does another write's pending redo, even when
+a heartbeat is the request that finds it (`TestLGLV0005_LivenessRequestRedoesPendingWriteWithFullSyncs`,
+added for the independent review's P2 finding).
 
 **Decision 0549 F2.** F2 kept "the current 4 to 5 `F_FULLFSYNC` calls". The owner decision amends
 F2 for heartbeat and renew. This change uses that amendment only for the staging directory, and

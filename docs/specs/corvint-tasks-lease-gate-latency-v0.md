@@ -67,8 +67,9 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   unlink, and after a replace's rename out of `staging/`. It MUST still cross the same
   `sync:staging` boundary and run the same checks there. Every file sync, every destination
   directory sync and every mkdir parent sync MUST still run, so each artifact the session publishes
-  is as durable at its commit point as before. Every other verb MUST make every sync it made before.
-  The owner decision of 2026-10-24 for V1-2203 authorizes this for heartbeat and renew only, and
+  is as durable at its commit point as before. Every other verb MUST make every sync it made before,
+  and a heartbeat or renew that first redoes another write's pending post effects MUST make every
+  sync for that redo. The owner decision of 2026-10-24 for V1-2203 authorizes this for heartbeat and renew only, and
   amends decision 0549 F2 for those two verbs.
 - `LGL-V0-006`: (proposed; V1-2203) A session MUST count the file and directory sync calls it makes
   (`Session.SyncCalls`), and a lease write's `LeaseTiming.Syncs` MUST sum them over the write's
@@ -77,7 +78,8 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   (8, or 10 when it creates a request shard), and a claim or release four per artifact.
 - `LGL-V0-007`: (proposed; V1-2203) The only state a crash after a heartbeat or renew can leave that
   a full-sync session could not is staging residue: a slot name whose unsynced removal or rename
-  the crash undid, holding a second link to the receipt the session linked or the head it renamed.
+  the crash undid, holding a second link to an artifact the session linked (the receipt, the request
+  entry) or replaced (the attempt, the head).
   That residue MUST read as the orphan a killed writer leaves (CAL-V0-019). With the writer lock free
   the audit sets it aside and verifies (CTS-V0-026); the lease reads as the acknowledged write left
   it; the next writer clears the residue and commits; and no other holder is granted the lease.
@@ -152,9 +154,12 @@ and the same published bytes, and `SyncCalls` equals the calls observed (LGL-V0-
 (`internal/tasks/store/lease_staging_sync_test.go`) counts 8 or 10 sync calls for a heartbeat and a
 renew and at least 16, four per artifact, for a claim and a release on both lease routes, with the
 audit passing; without the store wiring it fails with an 18-call heartbeat.
-`TestLGLV0007_LivenessStagingResidueIsAnOrphan` (same file) is the crash injection: after a
-heartbeat it restores the two slot names a crash can undo, as second links to the last receipt and
-to `head.json`, and shows that the audit verifies, the lease reads as acknowledged, the next heartbeat
+`TestLGLV0005_LivenessRequestRedoesPendingWriteWithFullSyncs` (same file) leaves a claim's head
+advance pending and redoes it once through a replayed heartbeat and once through a replayed claim:
+both make the same sync calls and the audit passes; with the skip set before the redo it fails, 2
+calls against 4. `TestLGLV0007_LivenessStagingResidueIsAnOrphan` (same file) is the crash injection:
+after a heartbeat and after a renew, on both lease routes, it restores every slot name a crash can
+undo, as second links to the last receipt, its request entry, the attempt and `head.json`, and shows that the audit verifies, the lease reads as acknowledged, the next heartbeat
 clears the residue and commits on the same attempt and generation, and a second holder's claim is
 not granted. `TestLGLV0008_LostLivenessTailIsRefusedNotAdopted` (same file) deletes or tears the
 heartbeat's receipt, or restores the pre-heartbeat head, and pins the `JOURNAL_FORKED`, `MALFORMED`
