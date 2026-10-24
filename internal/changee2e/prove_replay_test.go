@@ -130,12 +130,13 @@ func replaySide(rec *recordedSide, sc Scenario, in runInput) (jstestprovider.Rec
 func replayEnv(root, head string, sc Scenario, sides map[string]*recordedSide, controls string) *proveEnv {
 	f := &fakeRunner{controls: controls}
 	e := f.env(root)
-	e.side = func(_ context.Context, in runInput) (jstestprovider.Receipt, string, string) {
+	e.side = func(_ context.Context, in runInput) (jstestprovider.Receipt, string, string, error) {
 		role := "base"
 		if in.AppIdentity == head {
 			role = "head"
 		}
-		return replaySide(sides[role], sc, in)
+		r, digest, reason := replaySide(sides[role], sc, in)
+		return r, digest, reason, nil
 	}
 	return e
 }
@@ -263,8 +264,8 @@ func TestCCEV0101LiveRecord(t *testing.T) {
 			t.Fatal(err)
 		}
 		toolchain := "playwright " + e.runnerVersion
-		e.side = func(ctx context.Context, in runInput) (jstestprovider.Receipt, string, string) {
-			r, digest, reason := runQualified(ctx, in)
+		e.side = func(ctx context.Context, in runInput) (jstestprovider.Receipt, string, string, error) {
+			r, digest, reason, runErr := runQualified(ctx, in)
 			if reason != "" {
 				t.Fatalf("%s: live side unqualified: %s", c.name, reason)
 			}
@@ -279,7 +280,7 @@ func TestCCEV0101LiveRecord(t *testing.T) {
 			}
 			writeRecording(t, filepath.Join(dir, c.name+"."+role+".json"), recordedSide{Schema: recordingSchema, Provenance: provenanceLive,
 				Toolchain: toolchain + " node " + r.Identity.NodeVersion, Compiler: CompilerVersion, Scenario: scenarioPin(c.sc), Tree: tree, Receipt: string(raw)})
-			return r, digest, reason
+			return r, digest, reason, runErr
 		}
 		p := e.proveScenario(bg, c.base, c.head, c.sc, DefaultRepeats)
 		t.Logf("%s: %s (%s)", c.name, p.Verdict, p.Note)
