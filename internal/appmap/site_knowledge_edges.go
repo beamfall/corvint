@@ -268,12 +268,39 @@ func rubyTarget(arg string) (string, string, bool) {
 		return arg[1 : len(arg)-1], "url", false
 	}
 	if m := skHelper.FindStringSubmatch(arg); m != nil {
+		// The helper call must be the whole argument: `order_path(o) + '/edit'` is dynamic (SKH-V0-141).
 		rest := strings.TrimSpace(arg[len(m[0]):])
-		if rest == "" || strings.HasPrefix(rest, "(") {
+		if rest == "" || strings.HasPrefix(rest, "(") && rubyCloseParen(rest) == len(rest)-1 {
 			return m[1], "helper", false
 		}
 	}
 	return "", "", true
+}
+
+// rubyCloseParen returns the index of the parenthesis that closes s[0], skipping quoted strings,
+// or -1 when it is unbalanced.
+func rubyCloseParen(s string) int {
+	depth := 0
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; c {
+		case '"', '\'':
+			for i++; i < len(s) && s[i] != c; i++ {
+				if s[i] == '\\' {
+					i++
+				}
+			}
+			if i >= len(s) {
+				return -1
+			}
+		case '(':
+			depth++
+		case ')':
+			if depth--; depth == 0 {
+				return i
+			}
+		}
+	}
+	return -1
 }
 
 // rubyLinks reads link_to, button_to, redirect_to, form_with url: and form_tag in Ruby or ERB.

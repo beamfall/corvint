@@ -382,6 +382,12 @@ Each stage extends the named point. None of these contracts is restated here.
   and setup-project kinds, `basis`, `arranges`, the reasoned `not_read` list and the `conditions`
   and `preconditions` sections. No command reads `/0` or `/1` back, so no `/0` reader is kept. A
   later reader MUST refuse any other version by name (`SKH-V0-007`).
+- `SKH-V0-142`: (experimental; #1705 review fix, V1-1900) A setup project MUST select its files
+  only under its test directory: its own literal `testDir`, else the config's top-level literal
+  `testDir`, else the config's directory, each joined to the config's directory. A `testIgnore`
+  on the project or at the top level, a non-literal `testDir`, or a test directory outside the
+  repository leaves the record `UNKNOWN` with reason `unsupported-test-filter`; the reader never
+  selects files a filter it cannot evaluate might exclude (`SKH-V0-104`).
 
 Implementation status (V1-1900): `flows appmap setup` and the `setup` view of
 `corvint.map_knowledge` print `site-knowledge-setup/1`. For Playwright and Cypress TypeScript the
@@ -486,6 +492,10 @@ condition query follows `SKH-V0-103`. Two parts of `SKH-V0-032` remain open:
 - `SKH-V0-115`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1901) The links report MUST use the site-knowledge file and byte bounds. It refuses
   more than 8192 static links with `appmap-bound-exceeded`, is byte-capped like the other reports,
   reruns byte-identically and writes nothing.
+- `SKH-V0-141`: (experimental; #1705 review fix, V1-1901) A Ruby `*_path` or `*_url` helper MUST
+  resolve a link target only when the helper name, with at most one balanced argument list, is
+  the whole argument. Any trailing expression (`order_path(o) + '/edit'`, a method call on the
+  result, a second argument list) or an unbalanced list makes the target dynamic (`SKH-V0-110`).
 
 Implementation status (V1-1901): `flows appmap links` and the `links` view implement
 `SKH-V0-040`, `042`, `043` and `110`..`115` over inline committed fixtures (Rails views and
@@ -582,6 +592,10 @@ ANL-V0 producer.
   repository are read, and at most `MaxTestKnowledge` of them. The MCP `flow_candidates` view
   reads no corpus. A missing or unreadable artifact, an `--emit` other than `report` or
   `request`, and every other flag error exit 2.
+- `SKH-V0-140`: (experimental; #1705 review fix, V1-1902) An outcome's locator MUST keep the full
+  selector identity: `kind=value`, plus ` name=NAME` when the selector has an accessible name.
+  Two assertions that differ only by name are distinct outcomes, so neither a shared outcome nor
+  an exported assertion is weakened to the bare role (`SKH-V0-122`, `SKH-V0-125`).
 
 Implementation status (V1-1902): `flows appmap infer`, its `--emit request`, and the
 `flow_candidates` MCP view implement `SKH-V0-050`..`054` and `120`..`126` over inline committed
@@ -854,6 +868,7 @@ Stage dependencies (each stage also reads the contracts named for it above):
 | `SKH-V0-030`..`034`, `SKH-V0-100`..`105` | V1-1900, V1-2408 | `internal/appmap/site_knowledge_setup.go`, `internal/appmap/site_knowledge_setup_rails.go`, `internal/appmap/setup_writers.go`, `internal/appmap/site_knowledge_project.go`, `cmd/corvint/flows_appmap_knowledge.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: 030, 031, 033, 034 and 100..105 by `TestSKHV0_030_031_SetupRecordsAndTestLinks`, `TestSKHV0_100_105_RailsSetupProjectsAndConditions`, `TestSKHV0_103_SetupConditionCLI`, `TestSKHV0_013_PageObjectsAndStepsCLI` and `TestSKHV0013CorpusMCPMapKnowledge` over inline committed fixtures; 032 partial (V1-1891 reused; V1-1883 name rule only; TSA-V0 setup-select not joined); no real-adopter sample (NOT_RUN: cloud) |
 | `SKH-V0-040`..`043`, `SKH-V0-110`..`115` | V1-1901 | `internal/appmap/site_knowledge_edges.go`, `cmd/corvint/flows_appmap_knowledge.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: 040, 042, 043 and 110..115 by `TestSKHV0_110_115_StaticNavigationEdges`, `TestSKHV0_114_StaticLinkRegressions`, `TestSKHV0_013_PageObjectsAndStepsCLI` and `TestSKHV0013CorpusMCPMapKnowledge` over inline committed fixtures; 041 dialect widening NOT MET (NEEDS-HOST: no adopter in the cloud lane); no real-adopter sample (NOT_RUN: cloud) |
 | `SKH-V0-050`..`054`, `SKH-V0-120`..`126` | V1-1902 | `internal/appmap/site_knowledge_flows.go`, `cmd/corvint/flows_appmap_infer.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: 050..054 and 120..126 by `TestSKHV0_050_054_FlowInferenceTrustAndImport`, `TestSKHV0_121_125_FlowInferenceRegressions`, `TestSKHV0_126_InferCLIAndImport`, `TestSKHV0_126_TrustFromJoins` and `TestSKHV0013CorpusMCPMapKnowledge` over inline committed fixtures; the corpus join is fixture-tested at its conversion boundary; no real-adopter sample (NOT_RUN: cloud) |
+| `SKH-V0-140`..`142` | V1-1900..V1-1902 (#1705 review fixes) | `internal/appmap/site_knowledge_flows.go`, `internal/appmap/site_knowledge_edges.go`, `internal/appmap/site_knowledge_setup.go` | experimental: `TestSKHV0_140_OutcomeKeepsSelectorName`, `TestSKHV0_141_RubyHelperConsumesWholeArgument`, `TestSKHV0_142_SetupProjectHonorsTestDir` (each failing first) over inline committed fixtures |
 | `SKH-V0-060`..`064` | V1-1903 | none | NOT_STARTED |
 | `SKH-V0-070`..`074` | V1-1904 | none | NOT_STARTED |
 | `SKH-V0-080`..`089` | V1-1905 | none | NOT_STARTED |
