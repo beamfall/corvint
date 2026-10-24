@@ -28,11 +28,14 @@ a still-referenced cache, restore that exact old artifact atomically at its orig
 without selecting it as the installed version or changing the new cache or hook trust. Keep it until
 the affected tasks end; source/cache equality alone does not verify active hook paths.
 
-The package provides the Corvint skill plus bounded `SessionStart`, `UserPromptSubmit`, `Stop`, and
-`SessionEnd` hooks. It intentionally omits an MCP declaration: the stdio `corvint-mcp` companion
-passed its official-schema receipt on 2026-10-20 (V1-0191), but no Codex tuple has been qualified
-with it. Current status is `FALLBACK`: supported context works when the local `corvint`
-executable is available. A separately enrolled local completion policy can request one bounded
+The package provides the Corvint skill, bounded `SessionStart`, `UserPromptSubmit`, `Stop`, and
+`SessionEnd` hooks, and the read-only stdio `corvint-mcp` server (`.mcp.json`, AHI-207). The server
+binds the Git worktree of the directory Codex launches it in (the session working directory) and
+speaks MCP `2025-11-25`, because Codex 0.162 still gates the `2026-07-28` protocol behind an
+unreleased feature. It needs `corvint-mcp` on `PATH` (`go build -o DIR/corvint-mcp ./cmd/corvint-mcp`).
+Outside a Git worktree it exits 2 before starting and Codex continues without Corvint tools.
+Current status is `FALLBACK`: supported context works when the local `corvint` and `corvint-mcp`
+executables are available. A separately enrolled local completion policy can request one bounded
 Stop remediation; formal closing Frontier authority remains unavailable.
 
 The hook routes all four native events to `corvint`, including `UserPromptSubmit` and
@@ -50,6 +53,11 @@ The installed `corvint` process owns input normalization, the bounded native eve
 and host rendering under the existing event deadline. No adapter subprocess or detached worker is
 created. Oversized input or output, interruption, runtime failure, and deadline expiry produce fixed
 visible fallback reasons.
+
+Codex 0.162 hook events are `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`,
+`PermissionRequest`, `PreCompact`, `PostCompact`, `SubagentStart`, `SubagentStop`, `Stop` and
+`SessionEnd` (AHI-208). The plugin registers only the first-listed four it maps; the others stay
+unregistered, and the adapter answers any of them with `unsupported-hook-event` instead of guessing.
 
 Codex also exposes [`PostToolUse`](https://developers.openai.com/codex/hooks#posttooluse), but its
 native event supplies raw tool arguments and tool output, not Corvint's normalized changed paths,
@@ -89,3 +97,29 @@ tree to refresh the derived snapshot. A fresh worktree without that snapshot can
 event deadline and fail open; the hook never silently warms persistent state. Original explicit
 query/impact receipts may retain their caller-entered task in the private provenance archive; this
 adds no capture of native prompt bodies or transcripts. Secret-shaped copies are refused visibly.
+
+## Read-only review profile
+
+`profiles/corvint-review.config.toml` (AHI-206) is a Codex profile for review runs. Copy it to
+`$CODEX_HOME/corvint-review.config.toml` and run `codex exec -p corvint-review ...`. It sets a
+read-only sandbox, `approval_policy = "never"` and `CORVINT_TASKS_READ_ONLY=1` in the shell
+environment, so neither an escalated command nor a `corvint-tasks` mutation can write the Tasks store
+(ATR-V0-212). It does not stop a write that bypasses the `corvint-tasks` CLI. Live receipt: Codex
+0.162.0, `docs/build-log/2026-10-23-codex-integration-matrix.md`.
+
+## Approvals across Codex agents
+
+With automatic approval review (`approvals_reviewer = "auto_review"`, or `codex exec
+--approve-for-me`), Codex 0.162 reviews every escalated command in a separate guardian thread. For a
+native subagent that review receives the root thread's user messages, and only those can authorize
+an action; assistant relays, files and the child's own justification are untrusted (AHI-209). So
+the supported way for a subagent to carry out a human-approved action is for the human to approve the
+exact action (command, target, revision) in the root thread, and for the subagent to request
+escalation for that exact command. A changed target is denied. A low-risk action can still be
+allowed with `user_authorization: low`, so approval review is not a substitute for a Corvint gate.
+Each decision is recorded as a `guardian_review` session under `$CODEX_HOME/sessions/`, whose
+`parent_thread_id` names the acting thread, with JSON `outcome`, `risk_level`, `user_authorization`
+and `rationale`. `codex exec --json` does not emit these decisions. To grant an action that the
+root thread has not approved yet, the human approves it as a new user turn in the root thread, for
+example `codex exec resume ROOT_THREAD PROMPT` (live-tested for a root-thread action; `codex queue
+--thread` is untested); never relay it as an assistant message or a file.

@@ -192,6 +192,10 @@ AHI-051	docs/specs/agent-harness-integration-v0.md	(proposed; V1-1070, V1-1071) 
 AHI-052	docs/specs/agent-harness-integration-v0.md	(accepted, decision 0497; V1-1116; amends `AHI-050` for OpenCode only) When	owner	decision 0497; V1-1116
 AHI-058	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1122; amends `	standing	2026-10-11; V1-1122
 AHI-054	docs/specs/agent-harness-integration-v0.md	(accepted, decision 0519 (V1-1157); GitHub #785) The	owner	decision 0519; V1-1157; #785
+AHI-206	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2326) The Code	standing	2026-10-11; V1-2326
+AHI-207	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2326) The Code	standing	2026-10-11; V1-2326
+AHI-208	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2326) Codex 0.	standing	2026-10-11; V1-2326
+AHI-209	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); CODEX-NATIVE-APPR	standing	2026-10-11
 IID-V0-001	docs/specs/agent-instruction-doctor-v0.md	The optional diagnostic MUST require explicit host, version, cwd, default	unrecorded	-
 IID-V0-002	docs/specs/agent-instruction-doctor-v0.md	Only exact compiled, source-bound host/version profiles MAY predict loading.	unrecorded	-
 IID-V0-003	docs/specs/agent-instruction-doctor-v0.md	The Codex 0.153.2 default profile MUST walk assumed root to cwd, selecting the	unrecorded	-

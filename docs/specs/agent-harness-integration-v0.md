@@ -1115,8 +1115,9 @@ separate exact extension tuple remains governed by AHI-024.
   `source=compact`, and never on UserPromptSubmit or another event; a blocked Stop names only its
   `Next:` recovery argv. A Claude Code hook payload with a
   non-empty `agent_id` is a subagent: its SessionStart gets no guidance and the `AHI-046` rule
-  instead of the full projection. Codex exposes no subagent signal, so every Codex SessionStart
-  projects in full.
+  instead of the full projection. The Codex plugin registers no subagent signal (Codex 0.162 has
+  `SubagentStart`/`SubagentStop` events, left unregistered by `AHI-208`), so every Codex
+  SessionStart projects in full.
   Failure modes: a host that omits `agent_id` in a subagent gets the main-thread packet (the former
   cost, not a loss); a host that sets it on the main thread loses the guidance until the next
   SessionStart without it. `agent_id` semantics are read from the Claude Code 2.1.267 binary's
@@ -1375,6 +1376,52 @@ separate exact extension tuple remains governed by AHI-024.
   `DR-0043` declaration, validator and runner branch, and the register entry; the frozen row passes
   again unchanged. No store, ledger or receipt identity changes.
 
+### Codex CLI 0.162 surfaces (2026-10-23)
+
+Live receipts for every requirement below are in
+`docs/build-log/2026-10-23-codex-integration-matrix.md` (Codex CLI 0.162.0, model `gpt-6-astra`,
+isolated `CODEX_HOME`, branch-built binaries).
+
+- `AHI-206`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) The Codex
+  package MUST ship `integrations/codex/profiles/corvint-review.config.toml`, a Codex profile with
+  exactly `sandbox_mode = "read-only"`, `approval_policy = "never"` and
+  `shell_environment_policy.set.CORVINT_TASKS_READ_ONLY = "1"`, so a review run under
+  `codex exec -p corvint-review` can neither escalate out of the sandbox nor mutate the Tasks store
+  through `corvint-tasks` (`ATR-V0-212`).
+  Failure modes: a write that bypasses the `corvint-tasks` CLI is not stopped; a user config that
+  forces another approval policy after profile layering is not detected.
+  Rollback: delete the profile; reviews fall back to the documented flag recipe.
+- `AHI-207`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) The Codex
+  plugin MUST declare exactly one MCP server, `corvint`, through `"mcpServers": "./.mcp.json"`. It
+  runs `corvint-mcp --protocol-version 2025-11-25 --root R` from `PATH`, where `R` is the Git
+  top level of the directory Codex launches it in, and exits 2 with a fixed stderr line, without
+  starting `corvint-mcp`, when that directory is not inside a Git worktree. The server stays
+  read-only (`MCPV0`), and the compatibility surface is `FALLBACK`.
+  Failure modes: a missing `corvint-mcp` or a non-worktree launch leaves the session without Corvint
+  tools (Codex continues); a session whose working directory is another worktree than the task's
+  binds that worktree, which `MMR-V0-009` notices label.
+  Rollback: remove `.mcp.json` and the manifest key and bump the package.
+- `AHI-208`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) Codex 0.162
+  exposes `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PermissionRequest`,
+  `PreCompact`, `PostCompact`, `SubagentStart`, `SubagentStop`, `Stop` and `SessionEnd`. The plugin
+  MUST register only `SessionStart`, `UserPromptSubmit`, `Stop` and `SessionEnd`, each as the
+  bounded `corvint adapter codex` command hook (timeout at most 2 s); every other event stays
+  unregistered and the adapter answers it with `unsupported-hook-event`.
+  Failure modes: compaction pins, subagent context and permission guards stay unavailable on Codex
+  until they are mapped under their own requirements.
+  Rollback: none needed; the registration is unchanged from adapter 0.2.9.
+- `AHI-209`: (accepted under the owner's standing auto-accept (2026-10-11); CODEX-NATIVE-APPROVAL-RELAY-VISIBILITY-1)
+  The Codex skill and README MUST state that a human approval reaches Codex automatic approval review only as a root-thread user message, that the
+  approved action must be requested exactly (no rewording or retargeting), that approval review is
+  not a Corvint gate, and that each decision is recorded as a `guardian_review` session under
+  `$CODEX_HOME/sessions/`, not in `codex exec --json`. Observed on 0.162: a subagent's review
+  receives the root user messages; the exact approved ref update was allowed
+  (`user_authorization: high`), the same update retargeted by an untrusted file was denied, and an
+  unapproved low-risk write was allowed with `user_authorization: low`.
+  Failure modes: the reviewer is a model and its risk threshold is not Corvint-controlled; Codex
+  Desktop and `codex queue` grants are NOT_RUN.
+  Rollback: remove the guidance paragraphs.
+
 ## Native platform profiles
 
 | Platform | Embedded host-admission key | Maintained Corvint package | Native surfaces | Stability rule |
@@ -1620,6 +1667,10 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-171` (accepted under the owner's standing auto-accept (2026-10-11); V1-2192) | `internal/opencodequalification/contention.go`, `native.go` (window readings, `latencyOutcome`, `RETRY_LATER`), `tools/qualify-opencode` exit 75 | `TestAHI171LatencyHostContention` (a latency-only miss at load 11.5 on 12 CPUs is `LATENCY_HOST_CONTENDED` and retry-later with a hint; the same miss on a quiet host, with unobserved contention, with another failed check or with a short sample is not; absent readings are `NOT_OBSERVED`; a live host reading) |
 | `AHI-172` (accepted under the owner's standing auto-accept (2026-10-11); V1-2201) | `internal/opencodequalification/baseline.go` (`sampleBaseline`, `baselineComparison`, `baselineEvidence`), `contention.go` (`latencyOutcome`, `retryHint`, `procLoadavgPath`), `native.go` window sampling | `TestAHI172SameWindowBaseline` (both slow under contention is host-contended with the comparison recorded; a candidate beyond its slowdown-scaled limits is a regression under load; a slow probe on a quiet host excuses nothing; an unobserved baseline keeps the AHI-171 rule with `NOT_OBSERVED` fields; a live sampler), `TestAHI172ProcLoadavgFixture` (the Linux reader from a fixture, malformed lines unobserved) |
 | `AHI-173` (accepted under the owner's standing auto-accept (2026-10-11); V1-2145) | `script/host-package-version.sh`, `Makefile` (`host-package-version-bump`, `host-package-version-verify`) | `script/host-package-version_test.sh` (every package bumped against copies of the real manifests, one line per location, evidence versions untouched, explicit version, disagreement named and bump refused, unknown package exit 2); the failure-message case in `script/check-host-package-versions_test.sh` |
+| `AHI-206` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/profiles/corvint-review.config.toml` | `TestAHI206CodexReviewProfileClosesBothWriteDoors` (exactly the three keys); live receipt in the 2026-10-23 Codex matrix entry |
+| `AHI-207` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/plugins/corvint/.mcp.json`, `.codex-plugin/plugin.json` | `TestAHI207CodexPluginMCPServerBindsLaunchWorktree` (nested launch binds the top level with the legacy protocol; a non-worktree launch exits 2 before exec); live receipt in the 2026-10-23 Codex matrix entry |
+| `AHI-208` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/plugins/corvint/hooks/hooks.json` | `TestAHI208CodexHooksRegisterOnlyMappedEvents`; live hook-invocation log in the 2026-10-23 Codex matrix entry |
+| `AHI-209` (accepted under the owner's standing auto-accept (2026-10-11); CODEX-NATIVE-APPROVAL-RELAY-VISIBILITY-1) | `integrations/codex/plugins/corvint/skills/corvint/SKILL.md`, `integrations/codex/README.md` | `TestAHI209CodexApprovalGuidanceNamesRootGrantAndRecord`; live guardian verdicts in the 2026-10-23 Codex matrix entry |
 | `AHI-055` (accepted under the owner's standing auto-accept (2026-10-11); V1-1280) | `cmd/corvint/host_adapter.go` (`deadlineRemediation`, `withDeadlineRemediation`), `cmd/corvint/host_adapter_compaction.go` | `TestClaudeAdapterStopDeadlineFailsOpenVisibly`, `TestClaudeCompactionDeadlineNamesRemediation`, `TestDeadlineRemediationKeepsFrameWithinLimit`, `TestClaudeAdapterDogfoodEventDeadlineCarriesNoNotice`, `TestCodexAdapterDeadlineNamesRemediation`, `TestClaudeAdapterStaleSnapshotNamesRemediation`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
 | `AHI-054` (accepted, decision 0519; V1-1157) | `internal/gokernel/harness.go` `HandleEvent` stop frontier, `FrontierCauseNoClosingAuthority`; `conformance/cli-parity-v0` `validFrontierCauseDivergence`, `outOfPacketKnownDivergence`; `integrations/testfixture/main.go` | `TestAHI054StopFrontierCarriesFixedCause`, `TestAHI054FrontierCauseDivergenceIsPinnedAndOutOfPacket`, `TestGPKV0002ManifestReplay` (`DR-0043`), Gemini CLI and OpenCode stop cases and the `AHI-054` with-and-without-cause case under `TestHostAdapterJavaScriptHosts` |
 | `AHI-004` | native adapter renderers, shared lifecycle command, `internal/repoenvelope`, and the JavaScript envelope builders | byte-identical untrusted-data envelope with hidden-character escaping and terminator refusal (`internal/repoenvelope`, `cmd/corvint`, `tools/native-hook-observer` and `integrations/host-adapters.test.mjs` tests), injection bounds, authority order, and query fixtures |
