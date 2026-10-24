@@ -24,12 +24,12 @@ func scopedLiteralPlan(t *testing.T, tokens []string, declared bool, scope []str
 }
 
 // AFP-V0-161 (1), (3); V1-2069: a unit whose declared read scope does not hold
-// a Tasks store projection path is not its path-literal reader, so its generic
-// directory literal no longer keeps the path unknown; undeclared, the same
+// a Tasks store projection path is not its path-literal reader, so its
+// literal no longer keeps the path unknown; undeclared, the same whole-name
 // literal still selects the unit and keeps the AFP-V0-088 unknown.
 func TestDeclaredReadScopeBoundsPathLiteralReaders_AFPV0161(t *testing.T) {
 	ticket := ".taskman/tickets/V1-0001.json"
-	tokens := []string{"/tickets/"}
+	tokens := []string{".taskman/tickets/V1-0001.json"}
 	undeclared := scopedLiteralPlan(t, tokens, false, nil, ticket)
 	if got := witnesses(undeclared)["x:solo"]; got.Kind != WitnessPathLiteralReader || !slices.Contains(unknownDetails(undeclared), "UNOWNED_DIRTY_PATH "+ticket) {
 		t.Fatalf("undeclared: selected=%+v unknown=%v", undeclared.Selected, unknownDetails(undeclared))
