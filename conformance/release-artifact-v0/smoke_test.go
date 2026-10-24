@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // TestWriteChecksumsUsesCanonicalSHA256SUMSFormat is a GOC-V0-006 falsifying
@@ -136,6 +138,7 @@ func TestSmokeTestExecutesRealSubprocessAndDetectsFailures(t *testing.T) {
 
 func writeStubBinary(t *testing.T) string {
 	t.Helper()
+	testplatform.SkipPOSIXShell(t, "the stub corvint binary is a #!/bin/sh script")
 	dir := t.TempDir()
 	path := filepath.Join(dir, "stub-corvint")
 	script := `#!/bin/sh

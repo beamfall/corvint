@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 const hostDir = "../../protocol/postmerge-host"
@@ -277,6 +279,7 @@ func TestShellCommands(t *testing.T) {
 
 // PCH-V0-006: the installer is valid POSIX shell and refuses an unpinned binary.
 func TestInstallPinnedSyntax(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the installer is a POSIX sh script run with sh")
 	script := filepath.Join(hostDir, "install-pinned.sh")
 	if out, err := exec.Command("sh", "-n", script).CombinedOutput(); err != nil {
 		t.Fatalf("sh -n: %v %s", err, out)
@@ -312,6 +315,7 @@ func TestInstallPinnedSyntax(t *testing.T) {
 // (bash -e) and under POSIX sh, calling check after each run.
 func runStep(t *testing.T, name, job string, step int, check func(shell string, err error), env ...string) {
 	t.Helper()
+	testplatform.SkipPOSIXShell(t, "template steps run under bash -e and POSIX sh")
 	root, err := ParseYAML([]byte(template(t, name)))
 	if err != nil {
 		t.Fatal(err)
@@ -376,6 +380,7 @@ func TestResolveRefusesInjectedChange(t *testing.T) {
 
 // PCH-V0-005: a replay line is dispatched only when it is one whole change id.
 func TestReplayRefusesMalformedChange(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the gh spy on PATH is a #!/bin/sh script and the step runs under sh")
 	hex40 := strings.Repeat("ab", 20)
 	bin := t.TempDir()
 	if err := os.WriteFile(filepath.Join(bin, "gh"), []byte("#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$GH_LOG\"\n"), 0o755); err != nil {

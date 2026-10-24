@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // benchRequest is the four-input shape the allocation ceiling is measured
@@ -61,7 +63,7 @@ func buildCLI(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	binary := filepath.Join(t.TempDir(), "corvint-analyzer-ruby")
+	binary := filepath.Join(t.TempDir(), testplatform.Executable("corvint-analyzer-ruby"))
 	build := exec.Command(filepath.Join(runtime.GOROOT(), "bin", "go"),
 		"build", "-trimpath", "-buildvcs=false", "-ldflags=-s -w -buildid=", "-o", binary, "./cmd/corvint-analyzer-ruby")
 	build.Dir = root

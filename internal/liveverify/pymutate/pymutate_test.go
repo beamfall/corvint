@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/liveverify/mutate"
+	"github.com/Beamfall/corvint/internal/testplatform"
 	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
@@ -347,26 +348,35 @@ func TestRunRejectsCallerMistakes(t *testing.T) {
 }
 
 func TestClassifyRunSeparatesACollectionErrorFromARedTest(t *testing.T) {
-	exitWith := func(code int) error {
-		return exec.Command("sh", "-c", "exit "+string(rune('0'+code))).Run()
-	}
+	// exit is the subprocess exit status a row needs (0: none). Each exit
+	// error is built inside its own subtest, so on a host without a POSIX
+	// shell only those subtests skip and the nil and ordinary-error rows run.
 	for _, test := range []struct {
+		name     string
+		exit     int
 		err      error
 		timedOut bool
 		want     runOutcome
 	}{
-		{nil, false, runPassed},
-		{exitWith(1), false, runFailed},
-		{exitWith(2), false, runUncollectable},
-		{exitWith(5), false, runUncollectable},
-		{exitWith(3), false, runBroken},
-		{exitWith(4), false, runUsage},
-		{errors.New("sandbox did not start"), false, runBroken},
-		{exitWith(1), true, runTimedOut},
+		{"passed", 0, nil, false, runPassed},
+		{"exit 1", 1, nil, false, runFailed},
+		{"exit 2", 2, nil, false, runUncollectable},
+		{"exit 5", 5, nil, false, runUncollectable},
+		{"exit 3", 3, nil, false, runBroken},
+		{"exit 4", 4, nil, false, runUsage},
+		{"sandbox did not start", 0, errors.New("sandbox did not start"), false, runBroken},
+		{"timed out", 1, nil, true, runTimedOut},
 	} {
-		if got := classifyRun(test.err, test.timedOut, ""); got != test.want {
-			t.Errorf("err=%v timedOut=%v: got %d want %d", test.err, test.timedOut, got, test.want)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			err := test.err
+			if test.exit != 0 {
+				testplatform.SkipPOSIXShell(t, "the exit statuses come from sh -c \"exit N\"")
+				err = exec.Command("sh", "-c", "exit "+string(rune('0'+test.exit))).Run()
+			}
+			if got := classifyRun(err, test.timedOut, ""); got != test.want {
+				t.Errorf("err=%v timedOut=%v: got %d want %d", err, test.timedOut, got, test.want)
+			}
+		})
 	}
 }
 
