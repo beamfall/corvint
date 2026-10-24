@@ -1399,7 +1399,11 @@ func (r Reader) walkWriter(o *observation, wc *WriterCheckpoint, selected map[st
 	if head.Segments != nil {
 		bound = WriterSegmentedBound
 	}
-	if headSeq-from > MaxWriterTail || headSeq-wc.FullSeq >= bound {
+	// A walk resumed from a sealed base starts at the sealed receipt S that
+	// head binds and walks every active receipt S+1..head, at most
+	// WriterSegmentedBound-1 of them (LGL-V0-009).
+	sealedFrom := r.resume != nil && r.resume.sealedBase && head.Segments != nil && from == head.Segments.Through.Uint64() && from == r.resume.through && from == wc.FullSeq
+	if !sealedFrom && headSeq-from > MaxWriterTail || headSeq-wc.FullSeq >= bound {
 		return result, errCheckpoint("/seq", "tail exceeds the writer bound")
 	}
 	if o.segErr != nil {
@@ -1413,7 +1417,7 @@ func (r Reader) walkWriter(o *observation, wc *WriterCheckpoint, selected map[st
 	if head.Segments != nil {
 		low = head.Segments.Through.Uint64() + 1
 	}
-	if from < low {
+	if from < low && !(sealedFrom && from+1 == low) {
 		return result, errCheckpoint("/seq", "checkpoint receipt is sealed")
 	}
 	if uint64(len(o.receipts)) != headSeq-low+1 {
@@ -1435,10 +1439,17 @@ func (r Reader) walkWriter(o *observation, wc *WriterCheckpoint, selected map[st
 	if err != nil {
 		return result, err
 	}
-	if wire.Sum(raw) != wc.ReceiptSha256 {
+	if sealedFrom {
+		// Receipt S is served from the last bound segment, whose bytes and
+		// digest the segment view checked against the manifest; its chain
+		// digest is the one receipt S+1 must name.
+		rc, digest, _, err := snapshot.DecodeRetainedReceipt(raw)
+		if err != nil || digest != wc.ReceiptSha256 || rc.Seq.Uint64() != from || rc.HeadGeneration != wc.Generation {
+			return result, errCheckpoint(name, "sealed base receipt differs")
+		}
+	} else if wire.Sum(raw) != wc.ReceiptSha256 {
 		return result, errCheckpoint(name, "retained receipt differs")
-	}
-	if rc, err := snapshot.DecodeReceipt(raw); err != nil || rc.Seq.Uint64() != from || rc.HeadGeneration != wc.Generation {
+	} else if rc, err := snapshot.DecodeReceipt(raw); err != nil || rc.Seq.Uint64() != from || rc.HeadGeneration != wc.Generation {
 		return result, errCheckpoint(name, "retained receipt sequence/generation differs")
 	}
 	if from == headSeq && (*head.LastReceiptSha256 != wc.ReceiptSha256 || head.Generation != wc.Generation) {

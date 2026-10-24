@@ -1,6 +1,7 @@
 package journal
 
 import (
+	"encoding/hex"
 	"os"
 	"strings"
 	"time"
@@ -109,6 +110,11 @@ type ResumeBase struct {
 	through  uint64
 	segments []string
 	pre      *resumePre
+	// sealedBase says the base is a retained writer checkpoint's sealed
+	// base, which no audit of this command read (LGL-V0-009): every
+	// segment, the manifest and every evidence and pinned blob it holds is
+	// re-hashed before the resumed walk is trusted.
+	sealedBase bool
 }
 
 // resumePre is what PrecheckResume established before the preparation gate
@@ -251,6 +257,146 @@ func (res *Result) ResumeBase(obs PhysicalObservation) (*ResumeBase, error) {
 	return b, nil
 }
 
+// SealedResumeBase derives a resume base, without an audit from receipt 1,
+// from w's sealed base: the writer checkpoint a seal rebased at the sealed
+// sequence S that head binds (LGL-V0-009, proposed; decision 0549 R11/F3).
+// w must be the retained checkpoint with FullSeq S and a base at S whose
+// segment digests are exactly the bound manifest's, and the manifest must
+// have the digest head binds. The base files are every bound segment, the
+// manifest, and every evidence and pinned blob latest at S, stat'ed now;
+// their digests are the manifest's, the head's and the checkpoint's. It
+// holds no receipt or request file: a seal removed those of receipts 1..S.
+//
+// Nothing here is trusted until AuditForResume's base check re-hashes every
+// one of those files (or PrecheckResume did, with the stamps still the
+// ones recorded here) and the resumed walk reads receipts S+1..head by
+// bytes. Every decline leaves the caller on the complete audit. A failed
+// close of the base's read lifetime is cleanup, not a decline: cleanup is
+// UNSUPPORTED_FILESYSTEM (`read lifetime`) and the command terminates on
+// it (PSR-V0-057).
+func (r Reader) SealedResumeBase(w *WriterCheckpoint, head *snapshot.Head) (base *ResumeBase, decline, cleanup error) {
+	if !haveChangeTime {
+		return nil, errCheckpoint("resume", "platform reports no change time"), nil
+	}
+	n, ok := r.Source.(Native)
+	if !ok {
+		return nil, errCheckpoint("resume", "sealed base needs a native source"), nil
+	}
+	if head == nil || head.Segments == nil || head.QueueID != r.QueueID {
+		return nil, errCheckpoint(snapshot.SegmentsDir, "store has no sealed prefix"), nil
+	}
+	s := head.Segments.Through.Uint64()
+	if w == nil || w.base == nil || w.FullSeq != s || w.base.seq != s || w.Seq.Uint64() < s || w.QueueID != r.QueueID {
+		return nil, errCheckpoint("writer checkpoint", "no base at the sealed sequence"), nil
+	}
+	m := &w.base.meta
+	bc := &WriterCheckpoint{Checkpoint: m.header, FullSeq: s, ReceiptBytes: m.receiptBytes, Cost: m.cost, Intent: m.intent, Invalidation: w.Invalidation, base: w.base, total: w.base.n}
+	bc.Entries = nil
+	if bc.Seq.Uint64() != s || bc.QueueID != w.QueueID || bc.PrimaryWorktree != w.PrimaryWorktree || bc.InitSha256 != w.InitSha256 {
+		return nil, errCheckpoint("writer checkpoint", "base header differs from the checkpoint"), nil
+	}
+	rd := newNativeRead(n)
+	b, decline := sealedBase(rd, bc, head)
+	if cleanup = rd.close(); cleanup != nil {
+		return nil, nil, wire.Errorf(wire.CodeUnsupportedFilesystem, "read lifetime", "sealed base: %v; close: %v", decline, cleanup)
+	}
+	if decline != nil {
+		return nil, decline, nil
+	}
+	return b, nil, nil
+}
+
+// sealedBase is SealedResumeBase's body over its own read lifetime.
+func sealedBase(rd *nativeRead, bc *WriterCheckpoint, head *snapshot.Head) (*ResumeBase, error) {
+	s := head.Segments.Through.Uint64()
+	bound := time.Now().Add(-resumeQuiescence)
+	b := &ResumeBase{wc: bc, seq: s, through: s, files: map[string]resumeFile{}, sealedBase: true}
+	stamp := func(p string, sum wire.Digest, size int64) error {
+		full, err := rd.native.path(p)
+		if err != nil {
+			return errCheckpoint(p, err.Error())
+		}
+		info, err := os.Lstat(full)
+		if err != nil || !info.Mode().IsRegular() || size >= 0 && info.Size() != size {
+			return errCheckpoint(p, "sealed base file is absent or differs in size")
+		}
+		if _, ok := changeTime(info); !ok {
+			return errCheckpoint(p, "no change time")
+		}
+		b.files[p] = resumeFile{info: info, sum: sum, bytes: info.Size(), quiet: settledBefore(info, bound)}
+		return nil
+	}
+	name := snapshot.SegmentManifestName(s)
+	// Stamped before it is read: the base check re-hashes it either way.
+	if err := stamp(name, head.Segments.ManifestSha256, -1); err != nil {
+		return nil, err
+	}
+	raw, err := rd.Read(name, snapshot.MaxSegmentManifestBytes)
+	if err != nil || wire.Sum(raw) != head.Segments.ManifestSha256 {
+		return nil, errCheckpoint(name, "segment manifest differs from the digest the head binds")
+	}
+	man, err := snapshot.DecodeSegmentManifest(raw, 1)
+	if err != nil || man.Through != s || man.QueueID != head.QueueID || len(man.Segments) == 0 || len(man.Segments) != len(bc.base.meta.segments) {
+		return nil, errCheckpoint(name, "segment manifest differs from the sealed base")
+	}
+	for i, e := range man.Segments {
+		if hex.EncodeToString(bc.base.meta.segments[i][:]) != string(e.Sha256) {
+			return nil, errCheckpoint(name, "sealed base covers other segments than the manifest binds")
+		}
+		p := snapshot.SegmentName(e.First, e.Last)
+		if err := stamp(p, e.Sha256, int64(e.Bytes)); err != nil {
+			return nil, err
+		}
+		b.segments = append(b.segments, p)
+	}
+	b.segments = append(b.segments, name)
+	err = bc.each(nil, func(p string, l latest) error {
+		if l.digest == nil || !blobFamily(p) {
+			return nil
+		}
+		return stamp(p, *l.digest, -1)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func blobFamily(p string) bool {
+	return strings.HasPrefix(p, "evidence/") || strings.HasPrefix(p, "pinned/")
+}
+
+// blobSame says base evidence or pinned blob p is still the file the base
+// recorded (same) and, when rehash is set, that its bytes still have the
+// digest the sealed base holds for it (LGL-V0-009).
+func (b *ResumeBase) blobSame(s *nativeRead, p string, rehash bool) error {
+	full, err := s.native.path(p)
+	if err != nil {
+		return errCheckpoint(p, err.Error())
+	}
+	info, err := os.Lstat(full)
+	if err != nil {
+		info = nil
+	}
+	if err := b.same(s, p, info); err != nil {
+		return err
+	}
+	f := b.files[p]
+	if !rehash || !f.quiet {
+		// same read an unsettled file's bytes already.
+		return nil
+	}
+	bound, err := snapshot.PostBound(p)
+	if err != nil {
+		return err
+	}
+	raw, err := s.Read(p, bound)
+	if err != nil || int64(len(raw)) != f.bytes || wire.Sum(raw) != f.sum {
+		return errCheckpoint(p, "blob bytes differ from the digest the sealed base holds")
+	}
+	return nil
+}
+
 // sealed says p is a receipt or request a segment of the base holds: a
 // receipt at or below through, or a request without a file of its own that
 // a sealed receipt posted.
@@ -336,6 +482,14 @@ func (b *ResumeBase) precheck(s *nativeRead, lim limits) *resumePre {
 	for _, p := range b.segments {
 		if b.files[p].quiet && b.segmentSame(s, p, true) == nil {
 			pre.hashed[p] = true
+		}
+	}
+	if b.sealedBase {
+		// A sealed base's blobs are re-hashed here too (LGL-V0-009).
+		for _, p := range sortedPaths(b.files) {
+			if blobFamily(p) && b.files[p].quiet && b.blobSame(s, p, true) == nil {
+				pre.hashed[p] = true
+			}
 		}
 	}
 	bound := time.Now().Add(-resumeQuiescence)
@@ -451,6 +605,9 @@ func (b *ResumeBase) held(s *nativeRead, result *Result, lim limits, rehash bool
 		// audit is a new base.
 		return errCheckpoint(snapshot.SegmentsDir, "the sealed prefix changed since the base audit")
 	}
+	if b.sealedBase && result.Head.Segments.ManifestSha256 != b.files[snapshot.SegmentManifestName(b.through)].sum {
+		return errCheckpoint(snapshot.SegmentsDir, "the bound manifest changed since the sealed base")
+	}
 	for _, p := range b.segments {
 		// A segment PrecheckResume re-hashed is stat'ed only (PSR-V0-225).
 		if err := b.segmentSame(s, p, rehash && !b.pre.rehashed(p)); err != nil {
@@ -516,18 +673,16 @@ func (b *ResumeBase) held(s *nativeRead, result *Result, lim limits, rehash bool
 		}
 	}
 	for _, p := range sortedPaths(b.files) {
-		if !strings.HasPrefix(p, "evidence/") && !strings.HasPrefix(p, "pinned/") {
+		if !blobFamily(p) {
 			continue
 		}
-		full, err := s.native.path(p)
-		if err != nil {
-			return errCheckpoint(p, err.Error())
+		if l, ok := result.chain.canonical[p]; b.sealedBase && ok && l.seq.Uint64() > b.seq && l.digest == nil {
+			// The walked tail removed it; the walk checked it is absent.
+			continue
 		}
-		info, err := os.Lstat(full)
-		if err != nil {
-			info = nil
-		}
-		if err := b.same(s, p, info); err != nil {
+		// No audit of this command read a sealed base's blobs: its resumed
+		// audit re-hashes each one PrecheckResume did not (LGL-V0-009).
+		if err := b.blobSame(s, p, b.sealedBase && rehash && !b.pre.rehashed(p)); err != nil {
 			return err
 		}
 	}
