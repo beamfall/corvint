@@ -7527,7 +7527,7 @@ release-gates signature.
 
 Rollback: revert the source; a torn guard read again ends the write at once.
 
-### V1-2531 lease-gate latency: guards cleanup lock and mount observation
+## V1-2531 lease-gate latency: guards cleanup lock and mount observation
 
 Human-owned input: native tickets V1-2531, V1-2537, V1-2539 and V1-2203 (owner rule: performance
 issues are 1.0 work, V1-0887 targets a heartbeat median of at most 50 ms and a p99 of at most
