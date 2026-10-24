@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
 // Stage 4 static navigation edges (SKH-V0-040..043, SKH-V0-110..115). Links in templates and
@@ -125,6 +127,9 @@ func templateLinks(text string) []skLinkSite {
 				value = line[mm[14]:mm[15]]
 			}
 			bound := mm[14] >= 0 || strings.HasPrefix(attr, ":") || strings.HasPrefix(attr, "v-bind:") || strings.HasPrefix(line[mm[2]:mm[3]], "[")
+			if tag == "" {
+				continue // not an element attribute: a script assignment, or a tag opened on an earlier line
+			}
 			site := skLinkSite{line: n + 1}
 			switch strings.TrimPrefix(strings.TrimPrefix(attr, "v-bind"), ":") {
 			case "href":
@@ -184,7 +189,9 @@ func skAngularLink(v string) (string, bool, bool) {
 		if len(p) < 2 || (p[0] != '\'' && p[0] != '"') || p[len(p)-1] != p[0] || strings.ContainsAny(p[1:len(p)-1], `'"\`) {
 			return "", false, true
 		}
-		segs = append(segs, strings.Trim(p[1:len(p)-1], "/"))
+		if seg := strings.Trim(p[1:len(p)-1], "/"); seg != "" {
+			segs = append(segs, seg)
+		}
 	}
 	out := "/" + strings.Join(segs, "/")
 	if !strings.HasPrefix(strings.Trim(parts[0], `'" `), "/") {
@@ -196,7 +203,7 @@ func skAngularLink(v string) (string, bool, bool) {
 // rubyArgs splits a Ruby call's top-level arguments, quote and bracket aware, up to the end of
 // the call, an ERB `%>` or a `do` block, which it reports.
 func rubyArgs(s string) ([]string, bool) {
-	out, depth, quote, start, end := []string{}, 0, byte(0), 0, len(s)
+	out, depth, quote, start, end, closed := []string{}, 0, byte(0), 0, len(s), false
 scan:
 	for i := 0; i < len(s); i++ {
 		c := s[i]
@@ -209,14 +216,14 @@ scan:
 			}
 		case c == '"' || c == '\'':
 			quote = c
-		case c == '%' && i+1 < len(s) && s[i+1] == '>':
-			end = i
+		case c == '%' && i+1 < len(s) && s[i+1] == '>', c == '#':
+			end = i // an ERB close, or an unquoted `#` that starts a Ruby comment
 			break scan
 		case c == '(' || c == '[' || c == '{':
 			depth++
 		case c == ')' || c == ']' || c == '}':
 			if depth == 0 {
-				end = i
+				end, closed = i, c == ')'
 				break scan
 			}
 			depth--
@@ -227,6 +234,12 @@ scan:
 	}
 	rest := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(s[start:end]), "-"))
 	block := skOpensBlock(rest)
+	if closed {
+		// `link_to(target, ...) do`: the block opens after the closing parenthesis.
+		after, _, _ := strings.Cut(s[end+1:], "%>")
+		after = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(after), "-"))
+		block = block || after == "do" || strings.HasPrefix(after, "do |") || strings.HasPrefix(after, "do|")
+	}
 	if block {
 		rest = strings.TrimSpace(strings.TrimSuffix(rest, "do"))
 		if i := strings.LastIndex(rest, " do |"); i >= 0 {
@@ -264,12 +277,21 @@ func rubyTarget(arg string) (string, string, bool) {
 }
 
 // rubyLinks reads link_to, button_to, redirect_to, form_with url: and form_tag in Ruby or ERB.
-func rubyLinks(code []string) []skLinkSite {
+// Calls are found in code (masked Ruby lines, so comments and strings hold no call); arguments are
+// read from raw, the same lines unmasked, so literal targets keep their text.
+func rubyLinks(code, raw []string) []skLinkSite {
 	out := []skLinkSite{}
 	for n, line := range code {
 		for _, mm := range skRubyLink.FindAllStringSubmatchIndex(line, -1) {
 			call := line[mm[2]:mm[3]]
-			args, block := rubyArgs(line[mm[1]:])
+			text := line
+			if n < len(raw) && len(raw[n]) == len(line) {
+				text = raw[n]
+			}
+			// Arguments start after the call name: in masked code the blanked literal reads as spaces.
+			rest := strings.TrimLeft(text[mm[3]:], " \t")
+			rest = strings.TrimPrefix(rest, "(")
+			args, block := rubyArgs(rest)
 			pick := ""
 			switch call {
 			case "link_to", "button_to":
@@ -492,9 +514,10 @@ func Links(ctx context.Context, m *Map, sources []string, o Options) ([]byte, er
 		case ext == ".rb":
 			rb := parseRubyStructure(p, src.data)
 			defs = rb.defs
-			sites = rubyLinks(rb.code)
+			sites = rubyLinks(rb.code, rb.raw)
 		case ext == ".erb":
-			sites = append(templateLinks(text), rubyLinks(strings.Split(text, "\n"))...)
+			lines := strings.Split(text, "\n")
+			sites = append(templateLinks(text), rubyLinks(lines, lines)...)
 		default:
 			sites = templateLinks(text)
 			if webSuffix[ext] || ext == ".vue" || ext == ".html" || ext == ".htm" {
@@ -506,6 +529,9 @@ func Links(ctx context.Context, m *Map, sources []string, o Options) ([]byte, er
 				Anchor: spanOf(src.entry, src.data, site.line, site.line)}
 			e.From, e.FromStatus, e.FromReason = views.fromScreen(p, site.line, defs)
 			switch {
+			case secretscreen.MatchString(site.target):
+				// A secret-shaped literal is never printed (SKH-V0-006).
+				e.Target, e.Status, e.Reason = "", StatusUnknown, "screened-target"
 			case site.dynamic:
 				e.Status, e.Reason = StatusUnknown, "dynamic-target"
 			case site.space == "state" || site.space == "helper":
@@ -526,7 +552,7 @@ func Links(ctx context.Context, m *Map, sources []string, o Options) ([]byte, er
 				}
 			}
 			e.Observed = e.FromStatus == StatusResolved && e.Status == StatusResolved && observed[e.From+"\x00"+e.To]
-			e.ID = "edge:" + skDigest(e.Provenance, e.Kind, p, strconv.Itoa(site.line), site.target, strconv.Itoa(len(static)))
+			e.ID = "edge:" + skDigest(e.Provenance, e.Kind, p, strconv.Itoa(site.line), e.Target, strconv.Itoa(len(static)))
 			static = append(static, e)
 			if len(static) > maxStaticEdges {
 				return nil, bound("declared sources hold more than " + strconv.Itoa(maxStaticEdges) + " static links")
@@ -578,6 +604,9 @@ func (v *skViewScreens) fromScreen(p string, line int, defs []*rubyDef) (string,
 		for _, root := range v.roots {
 			rel := p
 			if root != "." {
+				if !strings.HasPrefix(p, root+"/") {
+					continue
+				}
 				rel = strings.TrimPrefix(p, root+"/")
 			}
 			ctrl, ok := strings.CutPrefix(strings.TrimSuffix(rel, "_controller.rb"), "app/controllers/")

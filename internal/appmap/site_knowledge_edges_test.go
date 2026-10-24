@@ -184,3 +184,34 @@ function go($state) { $state.go('orders'); $state.go('.child'); router.navigate(
 		t.Fatalf("unknowns = %+v (SKH-V0-114)", doc.Unknowns)
 	}
 }
+
+// SKH-V0-111 SKH-V0-113 SKH-V0-114: review regressions. A literal Ruby target in a .rb file keeps
+// its text; `link_to(...) do` takes the block-form target; a routerLink array with a root segment
+// resolves instead of being dropped; a script `href` assignment is no anchor; and a secret-shaped
+// literal target is screened, never printed.
+func TestSKHV0_114_StaticLinkRegressions(t *testing.T) {
+	rb := parseRubyStructure("app/controllers/a_controller.rb", []byte("class AController\n  def show\n    redirect_to \"/orders\" # \"/nope\"\n  end\nend\n"))
+	sites := rubyLinks(rb.code, rb.raw)
+	if len(sites) != 1 || sites[0].dynamic || sites[0].target != "/orders" || sites[0].space != "url" {
+		t.Fatalf("ruby literal = %+v", sites)
+	}
+	erb := []string{`<%= link_to(order_path(o), class: "btn") do %>Open<% end %>`}
+	if s := rubyLinks(erb, erb); len(s) != 1 || s[0].dynamic || s[0].target != "order" || s[0].space != "helper" {
+		t.Fatalf("parenthesised block form = %+v", s)
+	}
+	if s := templateLinks(`<a [routerLink]="['/', 'orders']">x</a>`); len(s) != 1 || s[0].target != "/orders" {
+		t.Fatalf("root-segment routerLink = %+v", s)
+	}
+	if s := templateLinks("const href = '/orders';\n"); len(s) != 0 {
+		t.Fatalf("script assignment read as an anchor: %+v", s)
+	}
+	secret := "/reset?token=ghp_" + strings.Repeat("a", 36)
+	root, m := railsFixture(t, func(files map[string]string) {
+		files["config/routes.rb"] = skEdgeRoutes
+		files["app/views/orders/index.html.erb"] = `<a href="` + secret + `">Reset</a>` + "\n"
+	})
+	doc, raw := skLinksOf(t, root, m, "app/views")
+	if strings.Contains(string(raw), "ghp_") || len(doc.Edges) != 1 || doc.Edges[0].Reason != "screened-target" || doc.Edges[0].Target != "" {
+		t.Fatalf("secret target printed or unscreened: %s (SKH-V0-006)", raw)
+	}
+}

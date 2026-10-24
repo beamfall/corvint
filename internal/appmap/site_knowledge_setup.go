@@ -122,6 +122,10 @@ type skSetupReader struct {
 	// projectFiles holds the declared files each setup project's testMatch selects.
 	unrestricted map[string]bool
 	projectFiles map[string]map[string]bool
+	// projectRegex marks a testMatch written as a regular expression; projectDir is the
+	// directory of the config that declares the project, which scopes what it selects.
+	projectRegex map[string]bool
+	projectDir   map[string]string
 }
 
 // extractSetup reads the setup records of every read TS/JS file and links each test to them.
@@ -715,7 +719,8 @@ func (r *skSetupReader) link(sf *skSetupFile) []SKSetupUse {
 		// A setup project runs before every test of a dependent project that does not narrow its
 		// tests; the setup files themselves are not arranged by it.
 		for i := range r.out {
-			if s := r.out[i]; s.Kind == SetupProject && r.unrestricted[s.ID] && r.projectFiles[s.ID] != nil && !r.projectFiles[s.ID][f.path] {
+			if s := r.out[i]; s.Kind == SetupProject && r.unrestricted[s.ID] && r.projectFiles[s.ID] != nil && !r.projectFiles[s.ID][f.path] &&
+				skUnder(f.path, r.projectDir[s.ID]) {
 				follow(s.ID, 0)
 			}
 		}
@@ -863,9 +868,10 @@ func (r *skSetupReader) projects(sf *skSetupFile, open int) {
 		}
 		i := r.add(sf, p.tok, s)
 		if r.unrestricted == nil {
-			r.unrestricted = map[string]bool{}
+			r.unrestricted, r.projectRegex, r.projectDir = map[string]bool{}, map[string]bool{}, map[string]string{}
 		}
-		r.unrestricted[r.out[i].ID] = unrestricted[p.name]
+		id := r.out[i].ID
+		r.unrestricted[id], r.projectRegex[id], r.projectDir[id] = unrestricted[p.name], p.regex, path.Dir(sf.f.path)
 	}
 }
 
@@ -905,8 +911,11 @@ func skTestMatch(match string, regex bool) (func(string) bool, bool) {
 	}, true
 }
 
-// resolveProjects binds each setup project to the records of the declared files its testMatch
-// selects. A testMatch that selects no file, or one the reader cannot evaluate, is UNKNOWN.
+// skUnder reports whether p lies in dir ("." holds every path).
+func skUnder(p, dir string) bool { return dir == "." || strings.HasPrefix(p, dir+"/") }
+
+// resolveProjects binds each setup project to the records of the declared files under its
+// config's directory that its testMatch selects. A testMatch that selects no file, or one the reader cannot evaluate, is UNKNOWN.
 func (r *skSetupReader) resolveProjects(paths []string) {
 	r.projectFiles = map[string]map[string]bool{}
 	for i := range r.out {
@@ -914,14 +923,14 @@ func (r *skSetupReader) resolveProjects(paths []string) {
 		if s.Kind != SetupProject || s.Target == "" {
 			continue
 		}
-		match, ok := skTestMatch(s.Target, strings.HasPrefix(s.Target, "/"))
+		match, ok := skTestMatch(s.Target, r.projectRegex[s.ID])
 		if !ok {
 			s.Status, s.Reason = StatusUnknown, "unsupported-test-match"
 			continue
 		}
 		files := map[string]bool{}
 		for _, p := range paths {
-			if match(p) {
+			if skUnder(p, r.projectDir[s.ID]) && match(p) {
 				files[p] = true
 			}
 		}

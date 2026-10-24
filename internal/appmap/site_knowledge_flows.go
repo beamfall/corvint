@@ -80,6 +80,9 @@ type SKFlowOutcome struct {
 	Locator  string `json:"locator,omitempty"`
 	Expected string `json:"expected,omitempty"`
 	Target   string `json:"target,omitempty"`
+	// Slotted marks an expected value that interpolates an unbound parameter slot: it is not a
+	// literal and is never emitted (SKH-V0-125).
+	Slotted bool `json:"slotted,omitempty"`
 }
 
 // SKFlowConflict names the tests of a variation that diverge from the primary at one step.
@@ -141,7 +144,7 @@ type skFlowTest struct {
 	start    string
 	end      string
 	rank     int
-	trust    *TestTrust
+	trust    []*TestTrust
 }
 
 // skActionLabel is a short, value-free description of one step for an intent action.
@@ -194,23 +197,27 @@ func (k *SKModel) flowTest(t SKTest, idx *screenIndex, records map[string]bool) 
 			lastAction = i
 		}
 	}
+	// Screens come from every visit, including those inside a page-object run (SKH-V0-121).
 	firstVisit := true
+	for _, s := range t.Steps {
+		if s.Kind != StepVisit {
+			continue
+		}
+		id, why := skVisitScreen(idx, s)
+		if firstVisit {
+			if id == "" {
+				return ft, "start-screen-unresolved", why
+			}
+			ft.start = id
+			firstVisit = false
+		}
+		ft.end = id
+	}
 	for i := 0; i < len(t.Steps); i++ {
 		s := t.Steps[i]
-		if s.Kind == StepVisit {
-			id, why := skVisitScreen(idx, s)
-			if firstVisit {
-				if id == "" {
-					return ft, "start-screen-unresolved", why
-				}
-				ft.start = id
-				firstVisit = false
-			}
-			ft.end = id
-		}
 		if i > lastAction {
 			if s.Kind == StepAssert {
-				o := SKFlowOutcome{Matcher: s.Matcher, Expected: s.Expected, Target: s.Target}
+				o := SKFlowOutcome{Matcher: s.Matcher, Expected: s.Expected, Target: s.Target, Slotted: len(s.Slots) > 0}
 				if s.Locator != nil {
 					o.Locator = s.Locator.Kind + "=" + s.Locator.Value
 				}
@@ -254,16 +261,18 @@ func (k *SKModel) flowTest(t SKTest, idx *screenIndex, records map[string]bool) 
 	return ft, "", ""
 }
 
-// joinTrust finds the joined test-knowledge record whose test anchor overlaps the test's span.
-func joinTrust(t SKTest, trust []TestTrust) *TestTrust {
-	var best *TestTrust
+// joinTrust returns every joined test-knowledge record whose test anchor shares the test's path
+// and overlaps its span, ordered by ID. Each one's verdict and selection apply (SKH-V0-123).
+func joinTrust(t SKTest, trust []TestTrust) []*TestTrust {
+	out := []*TestTrust{}
 	for i := range trust {
 		tr := &trust[i]
-		if tr.Path == t.Path && tr.Start <= t.Anchor.End && t.Anchor.Start <= tr.End && (best == nil || tr.ID < best.ID) {
-			best = tr
+		if tr.Path == t.Path && tr.Start <= t.Anchor.End && t.Anchor.Start <= tr.End {
+			out = append(out, tr)
 		}
 	}
-	return best
+	sort.SliceStable(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
 }
 
 func intersectOutcomes(lists [][]SKFlowOutcome) []SKFlowOutcome {
@@ -296,16 +305,23 @@ func (k *SKModel) inferFlows(m *Map, trust []TestTrust) ([]SKCandidateFlow, []SK
 		ft, why, detail := k.flowTest(t, idx, records)
 		ft.trust = joinTrust(t, trust)
 		ft.rank = rankUnreviewed
-		if tr := ft.trust; tr != nil {
+		unrelated := ""
+		for _, tr := range ft.trust {
 			switch {
 			case tr.Verdict == "unrelated":
-				unclustered = append(unclustered, SKUnclustered{Test: t.ID, Path: t.Path, Reason: "unrelated-verdict", Detail: tr.ID})
-				continue
+				if unrelated == "" {
+					unrelated = tr.ID
+				}
 			case tr.Selection == "candidate":
 				ft.rank = rankCandidate
 			case tr.TrustLevel == "run-unreviewed":
-				ft.rank = rankRunUnreviewed
+				ft.rank = min(ft.rank, rankRunUnreviewed)
 			}
+		}
+		// Any unrelated verdict removes the test, whatever else is joined to it.
+		if unrelated != "" {
+			unclustered = append(unclustered, SKUnclustered{Test: t.ID, Path: t.Path, Reason: "unrelated-verdict", Detail: unrelated})
+			continue
 		}
 		if why != "" {
 			unclustered = append(unclustered, SKUnclustered{Test: t.ID, Path: t.Path, Reason: why, Detail: detail})
@@ -344,14 +360,25 @@ func (k *SKModel) inferFlows(m *Map, trust []TestTrust) ([]SKCandidateFlow, []SK
 			bestRank[v.ID] = rankUnreviewed
 			for _, ft := range vt {
 				src := SKFlowSource{Test: ft.t.ID, Title: ft.t.Title, Path: ft.t.Path, Record: ft.t.Record, Rank: trustRankNames[ft.rank], Complete: ft.t.Complete}
-				if tr := ft.trust; tr != nil {
-					src.TrustLevel, src.Verdict, src.Selection, src.Knowledge = tr.TrustLevel, tr.Verdict, tr.Selection, tr.ID
+				ids := []string{}
+				for _, tr := range ft.trust {
+					ids = append(ids, tr.ID)
+					// A blocking record wins over any other record on the same test (fail closed).
 					if tr.Selection == "blocks" {
 						blocked, src.Rank = append(blocked, tr.ID), "blocked"
 					}
 					if tr.Verdict == "partial" && tr.Gap != "" {
 						gaps = append(gaps, tr.ID+": "+tr.Gap)
 					}
+				}
+				if len(ft.trust) > 0 {
+					tr := ft.trust[0]
+					for _, o := range ft.trust {
+						if o.Selection == "blocks" || (tr.Selection != "blocks" && o.Selection == "candidate") {
+							tr = o
+						}
+					}
+					src.TrustLevel, src.Verdict, src.Selection, src.Knowledge = tr.TrustLevel, tr.Verdict, tr.Selection, strings.Join(ids, ",")
 				}
 				allComplete = allComplete && ft.t.Complete
 				bestRank[v.ID] = min(bestRank[v.ID], ft.rank)
@@ -428,6 +455,9 @@ var skValueless = map[string]string{"toBeVisible": "visible", "toBeHidden": "hid
 // outcomeValue is the value an emitted outcome states: the literal expected value, or the
 // canonical state of a valueless matcher; anything else cannot be emitted.
 func outcomeValue(o SKFlowOutcome) (string, bool) {
+	if o.Slotted {
+		return "", false
+	}
 	if o.Expected != "" {
 		return o.Expected, true
 	}

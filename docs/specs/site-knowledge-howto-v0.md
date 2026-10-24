@@ -372,11 +372,11 @@ Each stage extends the named point. None of these contracts is restated here.
   `dependencies` or `teardown` is a `setup-project` record. The record keeps its `testMatch` as
   written, the projects it `arranges`, and cleanup `teardown:NAME`. A regular-expression
   `testMatch` with no flag or the `i` flag, or a glob without `**`, binds the record's `requires`
-  to the records of the declared files it selects. These cases are `UNKNOWN` instead:
+  to the records of the declared files it selects under the config's directory. These cases are `UNKNOWN` instead:
   `dynamic-value` for a non-literal `testMatch`, `no-test-match` when there is none,
   `unsupported-test-match` for any other pattern, and `no-matching-setup-file` when no declared
-  file matches. A test outside the selected files is arranged by the setup project when a
-  dependent project does not narrow its tests (no `testMatch`, `testDir`, `testIgnore`, `grep` or
+  file matches. A test under the config's directory and outside the selected files is arranged
+  by the setup project when a dependent project does not narrow its tests (no `testMatch`, `testDir`, `testIgnore`, `grep` or
   `grepInvert`).
 - `SKH-V0-105`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1900) The setup report profile MUST be `site-knowledge-setup/1`. It adds the Rails
   and setup-project kinds, `basis`, `arranges`, the reasoned `not_read` list and the `conditions`
@@ -457,7 +457,10 @@ condition query follows `SKH-V0-103`. Two parts of `SKH-V0-032` remain open:
   - `navigate`: `router` or `history` `push`, `replace`, `navigate` or `navigateByUrl`,
     `location.assign` and a bare `navigate(...)` call.
 
-  A script line that starts with `//` or `*` is skipped. A link that leaves the application or
+  An attribute is read only when its element opens on the same line, so a script assignment
+  such as `const href = '/x'` is not a link. In Ruby, calls are found in masked code and their
+  arguments are read from the same line unmasked, up to an unquoted `#`. A script line that
+  starts with `//` or `*` is skipped. A link that leaves the application or
   stays on the page is skipped: a URL with a scheme, or one starting with `//`, `#`, `mailto:`,
   `tel:` or `javascript:`.
 - `SKH-V0-112`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1901) The source screen of a static edge MUST come only from Rails conventions,
@@ -478,7 +481,8 @@ condition query follows `SKH-V0-103`. Two parts of `SKH-V0-032` remain open:
   call argument, and a Ruby argument that is neither a literal nor a route helper. Files in an
   unsupported template language (`.haml`, `.slim`, `.pug`, `.jade`, `.hbs`, `.handlebars`,
   `.mustache`, `.twig`, `.njk`, `.liquid`, `.svelte`) are named unknowns with reason
-  `unsupported-template-language`. They are never read.
+  `unsupported-template-language`. They are never read. A secret-shaped literal target
+  (`SKH-V0-006`) is `UNKNOWN` with reason `screened-target`, and its text is never printed.
 - `SKH-V0-115`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1901) The links report MUST use the site-knowledge file and byte bounds. It refuses
   more than 8192 static links with `appmap-bound-exceeded`, is byte-capped like the other reports,
   reruns byte-identically and writes nothing.
@@ -539,11 +543,11 @@ ANL-V0 producer.
   source test of the variation makes. A candidate's outcomes are those every variation shares.
   A candidate with none has `outcome_status` `UNKNOWN`. A candidate with an opaque step in any
   source is `incomplete` (`SKH-V0-021`).
-- `SKH-V0-123`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Each source test MUST join the test-knowledge record whose test anchor shares
-  its path and overlaps its span. The rules are:
-  - A joined `unrelated` verdict removes the test, which is listed as `unclustered` with reason
+- `SKH-V0-123`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Each source test MUST join every test-knowledge record whose test anchor
+  shares its path and overlaps its span, and every joined record applies. The rules are:
+  - Any joined `unrelated` verdict removes the test, whatever else is joined, which is listed as `unclustered` with reason
     `unrelated-verdict` and the record ID.
-  - A joined selection `blocks` makes the candidate `blocked`, with the record IDs in
+  - Any joined selection `blocks` makes the candidate `blocked`, with the record IDs in
     `blocked_by` and the source labelled `blocked`, whatever its trust level.
   - Sources rank `candidate` (selection `candidate`), then `run-unreviewed`, then `unreviewed`.
   - The primary variation is the one with the best-ranked source, then the most support, then the
@@ -556,8 +560,9 @@ ANL-V0 producer.
   `end-of-sequence`), and its tests.
 - `SKH-V0-125`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1902) `--emit request` MUST print one `corvint-behavior-adapter-request/1` holding
   every candidate whose `emit` is `emitted`. A candidate is emitted only when it is `proposed`
-  and every variation has an outcome with a value: the literal expected value, or the
-  `DCP-V1-084` canonical value of a valueless state matcher. Otherwise `emit` is the candidate
+  and every variation has an outcome with a value: the literal expected value (not one that
+  interpolates an unbound parameter slot, which is marked `slotted`), or the `DCP-V1-084`
+  canonical value of a valueless state matcher. Otherwise `emit` is the candidate
   status or `no-emittable-outcome`. Each emitted candidate becomes one proposed intent:
   - flow ID `sk-` plus 12 hex digits of the candidate ID;
   - derivation `source-derived`, with the primary test's anchor as evidence;
@@ -847,8 +852,8 @@ Stage dependencies (each stage also reads the contracts named for it above):
 | `SKH-V0-015`, `016` | V1-2407 | `internal/appmap/site_knowledge.go`, `internal/appmap/site_knowledge_project.go` | experimental: `TestSKHV0_015_016_URLJoinAndNamedEffects`; core-history sample: 0 of 10 joined, every unjoined page object and unknown effect named |
 | `SKH-V0-020`..`024` | V1-1899, V1-2406 | `internal/appmap/site_knowledge*.go` | experimental: `TestSKHV0_020_OpaqueStepsAreKept`, `TestSKHV0_021_InlinesCallsWithBoundArguments`, `TestSKHV0_022_DeduplicatesSequencesWithUsage`, `TestSKHV0_023_StrictStepDecoderRefusesOutsideTheClosedIR`, `TestSKHV0_024_PressFocusAndHoverAreTyped`; core-history sample for Playwright; Cypress and Capybara fixture-only |
 | `SKH-V0-030`..`034`, `SKH-V0-100`..`105` | V1-1900, V1-2408 | `internal/appmap/site_knowledge_setup.go`, `internal/appmap/site_knowledge_setup_rails.go`, `internal/appmap/setup_writers.go`, `internal/appmap/site_knowledge_project.go`, `cmd/corvint/flows_appmap_knowledge.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: 030, 031, 033, 034 and 100..105 by `TestSKHV0_030_031_SetupRecordsAndTestLinks`, `TestSKHV0_100_105_RailsSetupProjectsAndConditions`, `TestSKHV0_103_SetupConditionCLI`, `TestSKHV0_013_PageObjectsAndStepsCLI` and `TestSKHV0013CorpusMCPMapKnowledge` over inline committed fixtures; 032 partial (V1-1891 reused; V1-1883 name rule only; TSA-V0 setup-select not joined); no real-adopter sample (NOT_RUN: cloud) |
-| `SKH-V0-040`..`043`, `SKH-V0-110`..`115` | V1-1901 | `internal/appmap/site_knowledge_edges.go`, `cmd/corvint/flows_appmap_knowledge.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: 040, 042, 043 and 110..115 by `TestSKHV0_110_115_StaticNavigationEdges`, `TestSKHV0_013_PageObjectsAndStepsCLI` and `TestSKHV0013CorpusMCPMapKnowledge` over inline committed fixtures; 041 dialect widening NOT MET (NEEDS-HOST: no adopter in the cloud lane); no real-adopter sample (NOT_RUN: cloud) |
-| `SKH-V0-050`..`054`, `SKH-V0-120`..`126` | V1-1902 | `internal/appmap/site_knowledge_flows.go`, `cmd/corvint/flows_appmap_infer.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: 050..054 and 120..126 by `TestSKHV0_050_054_FlowInferenceTrustAndImport`, `TestSKHV0_126_InferCLIAndImport`, `TestSKHV0_126_TrustFromJoins` and `TestSKHV0013CorpusMCPMapKnowledge` over inline committed fixtures; the corpus join is fixture-tested at its conversion boundary; no real-adopter sample (NOT_RUN: cloud) |
+| `SKH-V0-040`..`043`, `SKH-V0-110`..`115` | V1-1901 | `internal/appmap/site_knowledge_edges.go`, `cmd/corvint/flows_appmap_knowledge.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: 040, 042, 043 and 110..115 by `TestSKHV0_110_115_StaticNavigationEdges`, `TestSKHV0_114_StaticLinkRegressions`, `TestSKHV0_013_PageObjectsAndStepsCLI` and `TestSKHV0013CorpusMCPMapKnowledge` over inline committed fixtures; 041 dialect widening NOT MET (NEEDS-HOST: no adopter in the cloud lane); no real-adopter sample (NOT_RUN: cloud) |
+| `SKH-V0-050`..`054`, `SKH-V0-120`..`126` | V1-1902 | `internal/appmap/site_knowledge_flows.go`, `cmd/corvint/flows_appmap_infer.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: 050..054 and 120..126 by `TestSKHV0_050_054_FlowInferenceTrustAndImport`, `TestSKHV0_121_125_FlowInferenceRegressions`, `TestSKHV0_126_InferCLIAndImport`, `TestSKHV0_126_TrustFromJoins` and `TestSKHV0013CorpusMCPMapKnowledge` over inline committed fixtures; the corpus join is fixture-tested at its conversion boundary; no real-adopter sample (NOT_RUN: cloud) |
 | `SKH-V0-060`..`064` | V1-1903 | none | NOT_STARTED |
 | `SKH-V0-070`..`074` | V1-1904 | none | NOT_STARTED |
 | `SKH-V0-080`..`089` | V1-1905 | none | NOT_STARTED |

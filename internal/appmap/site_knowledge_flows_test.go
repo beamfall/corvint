@@ -232,3 +232,34 @@ func TestSKHV0_050_054_FlowInferenceTrustAndImport(t *testing.T) {
 		}
 	}
 }
+
+// SKH-V0-121 SKH-V0-123 SKH-V0-125: review regressions. A visit inside a page-object run sets the
+// end screen; when two records join one test, a blocking or unrelated record wins over a
+// candidate one; and an expected value that interpolates an unbound slot is never emitted.
+func TestSKHV0_121_125_FlowInferenceRegressions(t *testing.T) {
+	_, m := skFlowsFixture(t)
+	at := Anchor{Path: "e2e/a.spec.ts", Start: 1, End: 9, Blob: strings.Repeat("1", 40)}
+	shown := SKStep{Kind: StepAssert, Matcher: "toHaveText", Expected: "Welcome ${user}", Slots: []string{"user"}}
+	k := &SKModel{Tests: []SKTest{{ID: "test:a", Title: "a", Path: "e2e/a.spec.ts", Complete: true, Anchor: at, Steps: []SKStep{
+		{Kind: StepVisit, Target: "/orders"},
+		{Kind: StepClick, Via: []string{"function:e2e/po.ts#Po.open"}},
+		{Kind: StepVisit, Target: "/invoices", Via: []string{"function:e2e/po.ts#Po.open"}},
+		shown,
+	}}}}
+	flows, _ := k.inferFlows(m, nil)
+	if len(flows) != 1 || flows[0].End != screenID(m.App, "invoices") || flows[0].Emit != "no-emittable-outcome" || !flows[0].Outcomes[0].Slotted {
+		t.Fatalf("flows = %+v", flows)
+	}
+	both := []TestTrust{
+		{ID: "tk-a", Path: at.Path, Start: 1, End: 9, TrustLevel: "run+reviewed", Verdict: "bound", Selection: "candidate"},
+		{ID: "tk-b", Path: at.Path, Start: 1, End: 9, TrustLevel: "run+reviewed", Verdict: "defect", Selection: "blocks"},
+	}
+	if flows, _ = k.inferFlows(m, both); flows[0].Status != CandidateBlocked || !reflect.DeepEqual(flows[0].BlockedBy, []string{"tk-b"}) ||
+		flows[0].Variations[0].Sources[0].Rank != "blocked" {
+		t.Fatalf("blocking record lost to a candidate one: %+v", flows[0])
+	}
+	both[1].Verdict, both[1].Selection = "unrelated", "excluded"
+	if flows, rest := k.inferFlows(m, both); len(flows) != 0 || len(rest) != 1 || rest[0].Detail != "tk-b" {
+		t.Fatalf("unrelated record lost to a candidate one: %+v %+v", flows, rest)
+	}
+}
