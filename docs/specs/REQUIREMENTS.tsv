@@ -4871,6 +4871,20 @@ SKH-V0-086	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's sta
 SKH-V0-087	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) Before a	standing	2026-10-11; V1-1905
 SKH-V0-088	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) Only the	standing	2026-10-11; V1-1905
 SKH-V0-089	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) A select	standing	2026-10-11; V1-1905
+SKH-V0-163	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) The stage 8 pipeline MUST live in	unrecorded	-
+SKH-V0-164	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) The one recorded transform MUST remove exactly the draft	unrecorded	-
+SKH-V0-165	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) A draft that is not `COMPLETE` has no candidate and read	unrecorded	-
+SKH-V0-166	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) V0 reads recorded live-run evidence	unrecorded	-
+SKH-V0-167	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) Condition 1 MUST hold only for 2 to 100 repeats	unrecorded	-
+SKH-V0-168	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) Condition 2 MUST hold only for exactly one `LOCATED`	unrecorded	-
+SKH-V0-169	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) Condition 3 MUST hold only when the association, hygiene	unrecorded	-
+SKH-V0-170	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) Until the `SKH-V0-089` PWP-V0, RVN-V0 and AMSP-V0	unrecorded	-
+SKH-V0-171	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) The receipt MUST read `control-survived` unless at least	unrecorded	-
+SKH-V0-172	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) The prover verdict MUST map by the `SKH-V0-085`	unrecorded	-
+SKH-V0-173	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) Condition 6 MUST compare the candidate's recorded outcom	unrecorded	-
+SKH-V0-174	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) `corvint-test e2e how-accept --answer FILE [--write PATH	unrecorded	-
+SKH-V0-175	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) Recorded evidence and oracles MUST decode strictly: the	unrecorded	-
+SKH-V0-176	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) The receipt (`site-knowledge-acceptance/0`) MUST be	unrecorded	-
 SBQ-V0-001	docs/specs/snapshot-batch-v0.md	`corvint [--root PATH] batch` MUST read one canonical JSON request object from	unrecorded	-
 SBQ-V0-002	docs/specs/snapshot-batch-v0.md	The verb MUST load the current snapshot exactly once through	unrecorded	-
 SBQ-V0-003	docs/specs/snapshot-batch-v0.md	Each operation MUST run the standalone verb's own code path over the loaded	unrecorded	-

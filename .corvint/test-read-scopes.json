@@ -361,6 +361,7 @@
       ".github/cishards/",
       ".github/workflows/ci.yml"
     ],
+    "internal/skhproof": [],
     "internal/skillexport": [],
     "internal/specindex": [
       ".corvint/test-read-scopes.json",

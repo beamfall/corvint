@@ -34,6 +34,7 @@ const proveReport = "e2e-prove.json"
 const proveCoverage = "e2e-runtime-coverage.json"
 
 const usage = "usage: corvint-test e2e <catalog|harvest|obligations|compile|prove|shadow> [flags]\n" +
+	"       corvint-test e2e how-accept --answer FILE [--write PATH] [--evidence FILE] [--oracle FILE] (SKH-V0 stage 8)\n" +
 	"       corvint-test runner <command> [flags] (folded corvint-test-runner, CTF-V0)\n" +
 	"       corvint-test falsify <plan|execute|execute-receipt|verify-receipt> --experimental [flags] < input.json (folded corvint-behavior-falsify, CTF-V0)\n" +
 	"       corvint-test minimize <plan|execute> --experimental [flags] < input.json (folded corvint-playwright-minimize, CTF-V0)\n" +
@@ -89,6 +90,9 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		return errors.New(usage)
 	}
 	sub := args[1]
+	if sub == "how-accept" {
+		return howAccept(args[2:], stdout)
+	}
 	fs := flag.NewFlagSet("corvint-test e2e "+sub, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	root := fs.String("root", ".", "repository root")

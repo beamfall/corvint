@@ -11,7 +11,7 @@ points", read through `docs/specs/INDEX.json` and their Agent digests.
 
 ## Agent digest
 - Claim: Page objects, steps, setup and edges mined from tests answer "how do I X" with a live-proven E2E test, or abstain naming the missing knowledge.
-- Status: accepted (owner intent 2026-10-19; V1-1897); experimental. SKH-V0-001..089 for stages 1..8 (V1-1898..V1-1905) are accepted under the owner's standing auto-accept (2026-10-11). Stages 1 and 2 are implemented as `flows appmap pageobjects` and `flows appmap steps` and the corpus MCP tool `corvint.map_knowledge` (V1-1898, V1-1899). Stage 3 (V1-1900, SKH-V0-100..105) is implemented as `flows appmap setup`: Playwright and Cypress fixtures, hooks, `storageState`, route mocks, API seeding, `cy.task` and setup projects, Rails factories, traits, fixture files, seeds and setup endpoints through the AMAP-V0-114 writer index, Ruby test links and the `--condition` query; the V1-1883 normaliser and TSA-V0 setup-select reuse in `SKH-V0-032` stay partial. Stage 4 (V1-1901, SKH-V0-110..115) is implemented as `flows appmap links`: static edges from templates and components with provenance `static` beside the map's test-observed edges; no router dialect is widened. Stage 5 (V1-1902, SKH-V0-120..126) is implemented as `flows appmap infer`: candidate flows and variations from test step sequences, ranked and blocked by DCP-V1 test knowledge, emitted as a proposed behavior-adapter request for `flows import`. Stage 6 (V1-1903, SKH-V0-143..152) is implemented as `flows appmap how` and the `how` view of `corvint.map_knowledge`; the top-level `corvint how` alias is a follow-up. Stage 7 (V1-1904, SKH-V0-153..162) is implemented as the guarded copy-only draft of `flows appmap plan --request GOAL --draft --source DIR` and `corvint.map_plan` with `sources`. Stage 8 is not started.
+- Status: accepted (owner intent 2026-10-19; V1-1897); experimental. SKH-V0-001..089 for stages 1..8 (V1-1898..V1-1905) are accepted under the owner's standing auto-accept (2026-10-11). Stages 1 and 2 are implemented as `flows appmap pageobjects` and `flows appmap steps` and the corpus MCP tool `corvint.map_knowledge` (V1-1898, V1-1899). Stage 3 (V1-1900, SKH-V0-100..105) is implemented as `flows appmap setup`: Playwright and Cypress fixtures, hooks, `storageState`, route mocks, API seeding, `cy.task` and setup projects, Rails factories, traits, fixture files, seeds and setup endpoints through the AMAP-V0-114 writer index, Ruby test links and the `--condition` query; the V1-1883 normaliser and TSA-V0 setup-select reuse in `SKH-V0-032` stay partial. Stage 4 (V1-1901, SKH-V0-110..115) is implemented as `flows appmap links`: static edges from templates and components with provenance `static` beside the map's test-observed edges; no router dialect is widened. Stage 5 (V1-1902, SKH-V0-120..126) is implemented as `flows appmap infer`: candidate flows and variations from test step sequences, ranked and blocked by DCP-V1 test knowledge, emitted as a proposed behavior-adapter request for `flows import`. Stage 6 (V1-1903, SKH-V0-143..152) is implemented as `flows appmap how` and the `how` view of `corvint.map_knowledge`; the top-level `corvint how` alias is a follow-up. Stage 7 (V1-1904, SKH-V0-153..162) is implemented as the guarded copy-only draft of `flows appmap plan --request GOAL --draft --source DIR` and `corvint.map_plan` with `sources`. Stage 8 (V1-1905, SKH-V0-163..176) is implemented offline as `corvint-test e2e how-accept` over recorded evidence; its live run is NEEDS-HOST, selectors and methods stay `binding-unverified`, and nothing reads `PROVEN` until the V1-1733 prover contract is accepted.
 - Exists: `flows appmap pageobjects`, `flows appmap steps`, `flows appmap setup` and `corvint.map_knowledge` (stages 1 and 2, partial stage 3, experimental), plus the contracts this extends: AMAP-V0 map and selectors, ANL-V0 edges, AFU-V1 intents, DCP-V1 inventories and test knowledge, AMSP-V0 planner draft, CCE-V0 prover, NEA-V0 controls, RVN-V0 binding, PWP-V0 receipts and TSA-V0 validity.
 - Blocked on: nothing for stage 4 (V1-1901) or stage 5 (V1-1902); a measured adopter need for any new router dialect (`SKH-V0-041`). First adopter core-history (owner 2026-10-22); N = 10.
 - Read next: Owner intent; Definition of "confidently"; Requirements; Preregistered measure; Owner questions.
@@ -824,6 +824,73 @@ the copied lines' own imports and calls.
   PWP-V0, RVN-V0 and AMSP-V0 to carry these observations in the same change; until then each such
   element stays `unverified` and the receipt reads `binding-unverified`. Fixtures cover a method
   never called, a branch not taken and a locator never exercised; each stays `unverified`.
+- `SKH-V0-163`: (experimental; V1-1905) The stage 8 pipeline MUST live in
+  `internal/skhproof`, linked into the `corvint-test` companion; neither core `corvint` nor
+  `corvint-corpus-mcp` links it, so core can only read its receipt (`SKH-V0-083`).
+- `SKH-V0-164`: (experimental; V1-1905) The one recorded transform MUST remove exactly the draft's
+  guard line, which must equal the `SKH-V0-154` guard, and change nothing else. The transform
+  records its kind `remove-guard-line`, the removed line number and SHA-256, the draft digest, and
+  the candidate's SHA-256 and Git blob ID, which is the identity TSA-V0 validity reads
+  (`SKH-V0-088`).
+- `SKH-V0-165`: (experimental; V1-1905) A draft that is not `COMPLETE` has no candidate and reads
+  `generate-incomplete`. A draft whose digest does not match its lines, whose guard line is not the
+  guard, or which holds a second `test.fixme`, is refused with `skh-answer-invalid`.
+- `SKH-V0-166`: (experimental; V1-1905) V0 reads recorded live-run evidence
+  (`site-knowledge-proof-evidence/0`) and starts no browser. With no evidence the receipt reads
+  `infrastructure` with `live-run-not-recorded` and evidence `none`. Evidence naming other bytes
+  than the candidate's SHA-256, or a recorded infrastructure failure, reads `infrastructure`: a
+  byte difference voids the receipt (`SKH-V0-088`).
+- `SKH-V0-167`: (experimental; V1-1905) Condition 1 MUST hold only for 2 to 100 repeats
+  (`NEA-V0-002`) that all read `passed` with retries zero, at a pinned application revision. A
+  `fixme` or `skipped` repeat, a retried or failed repeat, or no revision reads `run-failed`.
+- `SKH-V0-168`: (experimental; V1-1905) Condition 2 MUST hold only for exactly one `LOCATED`
+  example with a callee line, in the candidate's exact Git blob, with hygiene `ELIGIBLE`, in a
+  file that is not uncertain and has no defect finding. A defect reads `validity-defect`; any other
+  shortfall reads `validity-unestablished` (`SKH-V0-086`).
+- `SKH-V0-169`: (experimental; V1-1905) Condition 3 MUST hold only when the association, hygiene,
+  freshness, execution and cleanup axes each read `OBSERVED`. Otherwise the receipt reads
+  `acceptance-blocked` and lists each blocked axis with its value, a missing axis as `UNKNOWN`
+  (`SKH-V0-082`).
+- `SKH-V0-170`: (experimental; V1-1905) Until the `SKH-V0-089` PWP-V0, RVN-V0 and AMSP-V0
+  amendments land, every recorded selector or method element MUST read unverified whatever witness
+  is recorded, as MUST a step with no witness, an element of another kind, and an empty binding
+  list. Any unverified element reads `binding-unverified` and is listed in the receipt.
+- `SKH-V0-171`: (experimental; V1-1905) The receipt MUST read `control-survived` unless at least
+  one approved negative control is recorded and every control reads `killed`; each control's
+  identity and result stay in the receipt.
+- `SKH-V0-172`: (experimental; V1-1905) The prover verdict MUST map by the `SKH-V0-085`
+  allowlist; `DISCRIMINATES` or `NEW_REACH` naming no mutant reads `discrimination-inconclusive`.
+  While the V1-1733 prover contract is unaccepted, every qualifying verdict also reads
+  `discrimination-inconclusive` with `prover-contract-unaccepted (V1-1733)`, and the receipt
+  carries `prover_accepted: false`.
+- `SKH-V0-173`: (experimental; V1-1905) Condition 6 MUST compare the candidate's recorded outcome
+  assertion with an accepted oracle (`site-knowledge-accepted-oracle/0`, origin
+  `owner-request-set` or `afu-v1-flow-intent`, with its accepting commit) on screen, locator,
+  matcher and expected value. No oracle, another origin or no commit reads `EXECUTION_VERIFIED`
+  with `oracle-unaccepted`; any field difference or a missing assertion reads
+  `EXECUTION_VERIFIED` with `oracle-mismatch` (`SKH-V0-087`).
+- `SKH-V0-174`: (experimental; V1-1905) `corvint-test e2e how-accept --answer FILE [--write PATH]
+  [--evidence FILE] [--oracle FILE]` MUST print the receipt. It writes the candidate only with
+  `--write`, only by exclusive creation of that caller-named path; an existing file or a symlink is
+  refused with `e2e-out-unsafe`, and `--write` for a draft that is not `COMPLETE` is refused with
+  `generate-incomplete`. It runs no test and writes nothing else.
+- `SKH-V0-175`: (experimental; V1-1905) Recorded evidence and oracles MUST decode strictly: the
+  exact schema, no unknown field, at most 1 MiB, and at most 256 entries in each recorded list;
+  anything else is refused with `skh-evidence-invalid` or `skh-oracle-invalid`.
+- `SKH-V0-176`: (experimental; V1-1905) The receipt (`site-knowledge-acceptance/0`) MUST be
+  canonical bytes with a final newline, the same for the same inputs, and MUST carry the evidence
+  origin (`recorded` or `none`), the transform, the application revision, each assessed condition
+  with its code, blocked axes, unverified elements, the verdict, mutants and controls.
+
+Implementation status (V1-1905): `SKH-V0-163`..`176` are implemented offline in
+`internal/skhproof` and `corvint-test e2e how-accept` over inline test fixtures, so
+`SKH-V0-080`, `081`, `083`, `085`..`088` hold over recorded evidence. The live run of `SKH-V0-080`
+and `082` is NEEDS-HOST: neither the lane host nor its WSL2 runner carries the pinned tuple
+(Playwright 1.64.0, Node v24.11.1, headless shell 1248), so no evidence file is recorded and every
+shipped receipt reads `infrastructure`. The `SKH-V0-089` witness amendments are not made, so
+selectors and methods read `binding-unverified`; the V1-1733 prover contract is unaccepted, so
+nothing reads `PROVEN`; and the `SKH-V0-084` adopter qualification is NOT_RUN.
+`SKH-V0-177`..`179` are reserved.
 
 ## Preregistered measure
 
@@ -901,6 +968,9 @@ and 8 may stop there.
 | A required NEA-V0 axis is unknown | `acceptance-blocked`, with the axis kept in the receipt (`SKH-V0-082`) |
 | Passing, discriminating test for a different goal | `EXECUTION_VERIFIED` with `oracle-mismatch`, never `PROVEN` (`SKH-V0-087`) |
 | Guarded draft run, or candidate bytes changed after proof | `run-failed`; a byte change voids the receipt (`SKH-V0-088`) |
+| Live run not recorded on the pinned Playwright host | `infrastructure` with `live-run-not-recorded`; never `PROVEN` (`SKH-V0-166`) |
+| Draft edited after generation, or a second guard added | refused with `skh-answer-invalid` before any transform (`SKH-V0-165`) |
+| Candidate path already exists or is a symlink | refused with `e2e-out-unsafe`; nothing written (`SKH-V0-174`) |
 | Method or locator in the source but not exercised | `unverified`; `binding-unverified` (`SKH-V0-089`) |
 | Reviewed source test with a `defect` verdict | blocks its flow and oracle (`SKH-V0-052`) |
 | Plan element mined only from a non-Playwright test | `source-framework-unsupported` (`SKH-V0-070`) |
@@ -973,7 +1043,7 @@ Stage dependencies (each stage also reads the contracts named for it above):
 | `SKH-V0-140`..`142` | V1-1900..V1-1902 (#1705 review fixes) | `internal/appmap/site_knowledge_flows.go`, `internal/appmap/site_knowledge_edges.go`, `internal/appmap/site_knowledge_setup.go` | experimental: `TestSKHV0_140_OutcomeKeepsSelectorName`, `TestSKHV0_141_RubyHelperConsumesWholeArgument`, `TestSKHV0_142_SetupProjectHonorsTestDir` (each failing first) over inline committed fixtures |
 | `SKH-V0-060`..`064`, `SKH-V0-143`..`152` | V1-1903 | `internal/appmap/site_knowledge_how.go`, `cmd/corvint/flows_appmap_how.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: `TestSKHV0_143_HowAnswersGoal`, `TestSKHV0_144_HowAbstains`, `TestSKHV0_146_HowAdmitsLedgerEdges`, `TestSKHV0_147_HowSetupAndGaps`, `TestSKHV0_151_HowStale`, `TestSKHV0_152_HowBoundsAndBudget`, `TestSKHV0_143_HowCLI`, `TestSKHV0_143_MapKnowledgeHowView`; the top-level `corvint how` alias is PARTIAL |
 | `SKH-V0-070`..`074`, `SKH-V0-153`..`162` | V1-1904 | `internal/appmap/site_knowledge_draft.go`, `cmd/corvint/flows_appmap_plan.go`, `cmd/corvint-corpus-mcp/mapplan.go` | experimental: `TestSKHV0_153_HowDraftCopiesPrimaryTest`, `TestSKHV0_156_HowDraftMarksTodos`, `TestSKHV0_157_HowDraftScreensSecrets`, `TestSKHV0_159_HowDraftAbstains`, `TestSKHV0_161_PlanDraftCLI`, `TestSKHV0_162_MapPlanHowDraft` |
-| `SKH-V0-080`..`089` | V1-1905 | none | NOT_STARTED |
+| `SKH-V0-080`..`089`, `SKH-V0-163`..`176` | V1-1905 | `internal/skhproof/skhproof.go`, `cmd/corvint-test/howaccept.go` | experimental, offline over recorded evidence: `TestSKHV0_163_OnlyTheCompanionImportsThePipeline`, `TestSKHV0_164_TransformRemovesOnlyTheGuard`, `TestSKHV0_165_DraftMustVerify`, `TestSKHV0_166_EvidenceBindsTheCandidateBytes`, `TestSKHV0_167_RunsMustPassEveryRepeat`, `TestSKHV0_168_ValidityOfTheCandidateBlob`, `TestSKHV0_169_AcceptanceNeedsEveryAxis`, `TestSKHV0_170_SelectorsAndMethodsStayUnverified`, `TestSKHV0_171_EveryControlKilled`, `TestSKHV0_172_VerdictLadder`, `TestSKHV0_173_OracleSeparatesProvenFromExecution`, `TestSKHV0_174_HowAcceptCLI`, `TestSKHV0_175_StrictRecordedInputs`, `TestSKHV0_176_ReceiptIsStable`; the 080/082 live run is NEEDS-HOST (pinned Playwright tuple absent), 084 adopter qualification NOT_RUN, 089 witness amendments NOT_STARTED |
 
 ## Promotion and kill criteria
 
