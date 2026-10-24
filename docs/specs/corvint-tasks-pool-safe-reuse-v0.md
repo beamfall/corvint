@@ -1190,7 +1190,10 @@ outside Tasks:
   timestamp granularity of the file's previous change, is not seen by the stat identity; kernels
   with multigrain timestamps (Linux 6.13 and later on ext4, XFS, btrfs and tmpfs) give a change
   made after a stat read a distinct change time;
-- writes through `mmap` were never reported by either watch.
+- a write through a shared `mmap` raises no inotify event; the stat identity sees only a write that
+  faults its page writable, which updates the modification and change times, and not a later
+  write to a page already mapped writable, which only CAL-V0-070's content digests show
+  (`TestCALV0070_MutateRefusesMappedWriteAfterMergedAudit` witnesses both on Linux).
 
 No Tasks writer edits a store file in place or links one outside the store, and no store file had
 more than one link in the 45,000-receipt fixture.

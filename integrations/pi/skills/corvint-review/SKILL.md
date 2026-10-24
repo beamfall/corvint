@@ -17,3 +17,7 @@ All calls use `corvint_core_read`; `base` is a full 40-character commit ID.
 
 Quote each receipt's open items, refusals and `NOT_RUN` entries. A tool success is not a review
 verdict, and no read grants completion or authority.
+
+Other Corvint capabilities: the catalog at
+https://github.com/beamfall/corvint/blob/main/docs/CAPABILITIES.md gives each command, binary and
+MCP tool with its maturity and refusals.

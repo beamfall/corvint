@@ -16,3 +16,7 @@ license: AGPL-3.0-or-later
 
 Report unknowns, omissions and refusals as they appear in the receipt. Missing evidence is
 uncertainty, never a reason to invent an answer. Project-owned specs outrank code and history.
+
+Other Corvint capabilities: the catalog at
+https://github.com/beamfall/corvint/blob/main/docs/CAPABILITIES.md gives each command, binary and
+MCP tool with its maturity and refusals.

@@ -17,3 +17,7 @@ Reads use `corvint_tasks` with an `operation` and `input`:
 The model cannot write the task store. Claims, renewals, submissions, gate runs and completion go
 only through the operator's explicit `/corvint-tasks` command, which checks native capability and
 reconciles before it dispatches. Suggest that command to the user; never claim a ticket is done.
+
+Other Corvint capabilities: the catalog at
+https://github.com/beamfall/corvint/blob/main/docs/CAPABILITIES.md gives each command, binary and
+MCP tool with its maturity and refusals.

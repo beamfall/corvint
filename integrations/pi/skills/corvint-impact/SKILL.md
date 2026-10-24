@@ -14,3 +14,7 @@ Base values are full 40-character commit IDs, such as a `revision` an earlier re
 an abbreviated or symbolic name is refused. The plan is advice: it lists the selected tests and
 the unknowns it could not resolve, and Corvint executes nothing. Report both to the user as the
 verification still owed, quoting every unknown; a selection is not a passing result.
+
+Other Corvint capabilities: the catalog at
+https://github.com/beamfall/corvint/blob/main/docs/CAPABILITIES.md gives each command, binary and
+MCP tool with its maturity and refusals.
