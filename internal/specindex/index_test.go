@@ -30,11 +30,25 @@ var requiredFields = []string{
 	"intent", "path", "reqPrefix", "supersededBy", "title",
 }
 
+// TestIndexCoversSpecsAndHeaders is the index/digest/README contract check over the repository:
+// INDEX.json, every spec's headers and Agent digest, and the docs/specs/README.md table must agree.
+// The requirements-only generator check does not replace it (SRG-V0-045).
 func TestIndexCoversSpecsAndHeaders(t *testing.T) {
-	b := mustRead(t, "../../docs/specs/INDEX.json")
+	checkIndex("../..", t.Errorf)
+}
+
+// checkIndex reports, through report, every disagreement between docs/specs/INDEX.json, the spec
+// headers and Agent digests, and the docs/specs/README.md table of the repository at root.
+func checkIndex(root string, report func(format string, args ...any)) {
+	b, err := os.ReadFile(filepath.Join(root, "docs/specs/INDEX.json"))
+	if err != nil {
+		report("%v", err)
+		return
+	}
 	var objects []map[string]json.RawMessage
 	if err := json.Unmarshal(b, &objects); err != nil {
-		t.Fatal(err)
+		report("%v", err)
+		return
 	}
 	for i, object := range objects {
 		keys := make([]string, 0, len(object))
@@ -43,81 +57,92 @@ func TestIndexCoversSpecsAndHeaders(t *testing.T) {
 		}
 		sort.Strings(keys)
 		if !reflect.DeepEqual(keys, requiredFields) {
-			t.Errorf("INDEX entry %d fields %v, want exactly %v", i, keys, requiredFields)
+			report("INDEX entry %d fields %v, want exactly %v", i, keys, requiredFields)
 		}
 	}
 
 	var entries []entry
 	if err := json.Unmarshal(b, &entries); err != nil {
-		t.Fatal(err)
+		report("%v", err)
+		return
 	}
-	readme := readREADME(t)
+	readme, err := readREADME(root)
+	if err != nil {
+		report("%v", err)
+		return
+	}
 	seen := map[string]bool{}
 	for _, e := range entries {
 		if seen[e.Path] {
-			t.Errorf("duplicate INDEX path %s", e.Path)
+			report("duplicate INDEX path %s", e.Path)
 		}
 		seen[e.Path] = true
 		claimLength := utf8.RuneCountInString(e.Claim)
 		if claimLength == 0 || claimLength > 160 {
-			t.Errorf("%s claim length is %d, want 1..160 characters", e.Path, claimLength)
+			report("%s claim length is %d, want 1..160 characters", e.Path, claimLength)
 		} else if !strings.ContainsAny(e.Claim[len(e.Claim)-1:], ".?!") {
-			t.Errorf("%s claim is not a sentence: %q", e.Path, e.Claim)
+			report("%s claim is not a sentence: %q", e.Path, e.Claim)
 		}
 
-		body, err := os.ReadFile(filepath.Join("../..", e.Path))
+		body, err := os.ReadFile(filepath.Join(root, e.Path))
 		if err != nil {
-			t.Errorf("%s: %v", e.Path, err)
+			report("%s: %v", e.Path, err)
 			continue
 		}
 		text := string(body)
 		intent := header(text, "Intent status:")
 		delivery := header(text, "Delivery status:")
 		if intent == "" || delivery == "" {
-			t.Errorf("%s must declare Intent status and Delivery status", e.Path)
+			report("%s must declare Intent status and Delivery status", e.Path)
 		}
 		if e.Intent != intent {
-			t.Errorf("%s intent %q != header %q", e.Path, e.Intent, intent)
+			report("%s intent %q != header %q", e.Path, e.Intent, intent)
 		}
 		if e.Delivery != delivery {
-			t.Errorf("%s delivery %q != header %q", e.Path, e.Delivery, delivery)
+			report("%s delivery %q != header %q", e.Path, e.Delivery, delivery)
 		}
-		checkDigest(t, e, text)
+		checkDigest(report, e, text)
 
 		rows := readme[e.Path]
 		if len(rows) != 1 {
-			t.Errorf("%s has %d unanchored README rows, want exactly 1", e.Path, len(rows))
+			report("%s has %d unanchored README rows, want exactly 1", e.Path, len(rows))
 			continue
 		}
 		row := rows[0]
 		if row.intent != e.Intent || row.delivery != e.Delivery {
-			t.Errorf("%s README status %q/%q != INDEX %q/%q", e.Path, row.intent, row.delivery, e.Intent, e.Delivery)
+			report("%s README status %q/%q != INDEX %q/%q", e.Path, row.intent, row.delivery, e.Intent, e.Delivery)
 		}
 		if !claimStarts(row.description, e.Claim) {
-			t.Errorf("%s README first clause %q does not start with claim %q", e.Path, row.description, e.Claim)
+			report("%s README first clause %q does not start with claim %q", e.Path, row.description, e.Claim)
 		}
 	}
 
-	files, err := filepath.Glob("../../docs/specs/*.md")
+	files, err := filepath.Glob(filepath.Join(root, "docs/specs/*.md"))
 	if err != nil {
-		t.Fatal(err)
+		report("%v", err)
+		return
 	}
 	for _, file := range files {
 		if filepath.Base(file) == "README.md" {
 			continue
 		}
-		path := filepath.ToSlash(strings.TrimPrefix(file, "../../"))
+		path := "docs/specs/" + filepath.Base(file)
 		if !seen[path] {
-			t.Errorf("missing INDEX entry %s", path)
+			report("missing INDEX entry %s", path)
 		}
 	}
 	if len(seen) != len(files)-1 {
-		t.Errorf("INDEX has %d unique entries, want %d specification files", len(seen), len(files)-1)
+		report("INDEX has %d unique entries, want %d specification files", len(seen), len(files)-1)
 	}
 }
 
-func checkDigest(t *testing.T, e entry, text string) {
-	t.Helper()
+// indexKey turns a glob match under ../../ into its INDEX.json path. It converts
+// separators before trimming, since a Windows glob returns ..\..\docs\specs\x.md.
+func indexKey(file string) string {
+	return strings.TrimPrefix(filepath.ToSlash(file), "../../")
+}
+
+func checkDigest(report func(format string, args ...any), e entry, text string) {
 	lines := strings.Split(text, "\n")
 	start := -1
 	for i, line := range lines {
@@ -127,11 +152,11 @@ func checkDigest(t *testing.T, e entry, text string) {
 		}
 	}
 	if start < 0 {
-		t.Errorf("%s has no Agent digest", e.Path)
+		report("%s has no Agent digest", e.Path)
 		return
 	}
 	if start >= 40 {
-		t.Errorf("%s Agent digest starts at line %d, want within first 40", e.Path, start+1)
+		report("%s Agent digest starts at line %d, want within first 40", e.Path, start+1)
 	}
 	block := []string{lines[start]}
 	values := map[string]string{}
@@ -139,29 +164,29 @@ func checkDigest(t *testing.T, e entry, text string) {
 		block = append(block, lines[i])
 		line := strings.TrimSpace(lines[i])
 		if !strings.HasPrefix(line, "- ") {
-			t.Errorf("%s malformed digest line %q", e.Path, line)
+			report("%s malformed digest line %q", e.Path, line)
 			continue
 		}
 		parts := strings.SplitN(strings.TrimPrefix(line, "- "), ": ", 2)
 		if len(parts) != 2 {
-			t.Errorf("%s malformed digest field %q", e.Path, line)
+			report("%s malformed digest field %q", e.Path, line)
 			continue
 		}
 		values[parts[0]] = parts[1]
 	}
 	if len(block) > 8 {
-		t.Errorf("%s Agent digest is %d lines, want at most 8", e.Path, len(block))
+		report("%s Agent digest is %d lines, want at most 8", e.Path, len(block))
 	}
 
 	superseded := e.Delivery == "superseded" || strings.HasPrefix(e.Intent, "superseded")
 	if superseded {
 		if len(block) != 3 || values["Successor"] == "" || values["Why"] == "" {
-			t.Errorf("%s superseded digest must contain only Successor and Why", e.Path)
+			report("%s superseded digest must contain only Successor and Why", e.Path)
 		}
 		if e.SupersededBy == nil || *e.SupersededBy == "" {
-			t.Errorf("%s superseded INDEX entry must name supersededBy", e.Path)
+			report("%s superseded INDEX entry must name supersededBy", e.Path)
 		} else if !strings.Contains(values["Successor"], filepath.Base(*e.SupersededBy)) {
-			t.Errorf("%s digest successor %q != INDEX supersededBy %q", e.Path, values["Successor"], *e.SupersededBy)
+			report("%s digest successor %q != INDEX supersededBy %q", e.Path, values["Successor"], *e.SupersededBy)
 		}
 		return
 	}
@@ -173,17 +198,17 @@ func checkDigest(t *testing.T, e entry, text string) {
 	}
 	sort.Strings(keys)
 	if !reflect.DeepEqual(keys, want) {
-		t.Errorf("%s digest fields %v, want %v", e.Path, keys, want)
+		report("%s digest fields %v, want %v", e.Path, keys, want)
 	}
 	if values["Claim"] != e.Claim {
-		t.Errorf("%s digest claim %q != INDEX claim %q", e.Path, values["Claim"], e.Claim)
+		report("%s digest claim %q != INDEX claim %q", e.Path, values["Claim"], e.Claim)
 	}
 	status := normalize(values["Status"])
 	if !strings.Contains(status, normalize(e.Intent)) || !strings.Contains(status, normalize(e.Delivery)) {
-		t.Errorf("%s digest status %q does not agree with %q/%q", e.Path, values["Status"], e.Intent, e.Delivery)
+		report("%s digest status %q does not agree with %q/%q", e.Path, values["Status"], e.Intent, e.Delivery)
 	}
 	if problem := deliveryClauseProblem(values["Status"], e.Delivery); problem != "" {
-		t.Errorf("%s digest status %q %s %q", e.Path, values["Status"], problem, e.Delivery)
+		report("%s digest status %q %s %q", e.Path, values["Status"], problem, e.Delivery)
 	}
 }
 
@@ -195,10 +220,13 @@ type readmeRow struct {
 
 var contractLink = regexp.MustCompile(`\]\(([^)#]+\.md)(#[^)]*)?\)`)
 
-func readREADME(t *testing.T) map[string][]readmeRow {
-	t.Helper()
+func readREADME(root string) (map[string][]readmeRow, error) {
+	body, err := os.ReadFile(filepath.Join(root, "docs/specs/README.md"))
+	if err != nil {
+		return nil, err
+	}
 	rows := map[string][]readmeRow{}
-	for _, line := range strings.Split(string(mustRead(t, "../../docs/specs/README.md")), "\n") {
+	for _, line := range strings.Split(string(body), "\n") {
 		if !strings.HasPrefix(line, "|") {
 			continue
 		}
@@ -220,7 +248,7 @@ func readREADME(t *testing.T) map[string][]readmeRow {
 			description: strings.TrimSpace(columns[5]),
 		})
 	}
-	return rows
+	return rows, nil
 }
 
 func header(text, key string) string {

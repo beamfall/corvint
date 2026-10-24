@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -373,6 +374,9 @@ func TestCandidateNormativePacket(t *testing.T) {
 		t.Fatal(err)
 	}
 	exe := filepath.Join(t.TempDir(), "consumer")
+	if runtime.GOOS == "windows" {
+		exe += ".exe"
+	}
 	cmd := exec.Command("go", "build", "-o", exe, ".")
 	if b, e := cmd.CombinedOutput(); e != nil {
 		t.Fatalf("build: %v %s", e, b)

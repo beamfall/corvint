@@ -20,12 +20,12 @@ import (
 
 const Profile = "opencode-native-integration/1"
 const recordLimit = 131072
-const SupportedHostRange = ">=2.0.18 <2.1.0"
+const SupportedHostRange = ">=2.0.18 <2.2.0"
 
 var focusedTests = []string{"TestHostAdapterJavaScriptHarnessInterruption", "TestHostAdapterJavaScriptHosts"}
 var cases = map[string][]string{
 	"install":  {"native-discovery", "native-host-image", "direct-install", "uninstall"},
-	"snapshot": {"snapshot", "oversized-exclusion"}, "context": {"awaited-current-prompt", "native-query", "bounded-prompt", "governance"},
+	"snapshot": {"snapshot", "oversized-exclusion"}, "context": {"awaited-current-prompt", "native-bundled-skill", "native-query", "bounded-prompt", "governance"},
 	"expansion": {"native-exact-expansion"}, "observations": {"native-edit", "verification-observation", "explicit-outcome", "supplied-evidence"},
 	"frontier": {"advisory-completion", "bounded-stops"}, "degradation": {}, "privacy": {"environment-filter"}, "normalization": {},
 	"recursion": {"bounded-stops"}, "compaction": {"native-compaction", "dirty-path-recovery"}, "latency": {"timed-delivery", "latency"},
@@ -67,10 +67,10 @@ func ParseSupportedHostVersion(output string) (string, error) {
 	version := strings.TrimSpace(output)
 	version = strings.TrimPrefix(version, "opencode v")
 	parts := strings.Split(version, ".")
-	if len(parts) != 3 || parts[0] != "2" || parts[1] != "0" || !canonicalDecimal(parts[2]) || len(parts[2]) > 18 {
+	if len(parts) != 3 || parts[0] != "2" || (parts[1] != "0" && parts[1] != "1") || !canonicalDecimal(parts[2]) || len(parts[2]) > 18 {
 		return "", fmt.Errorf("unsupported OpenCode version %q; supported range is %s", strings.TrimSpace(output), SupportedHostRange)
 	}
-	if len(parts[2]) < 2 || (len(parts[2]) == 2 && parts[2] < "18") {
+	if parts[1] == "0" && (len(parts[2]) < 2 || (len(parts[2]) == 2 && parts[2] < "18")) {
 		return "", fmt.Errorf("unsupported OpenCode version %q; supported range is %s", strings.TrimSpace(output), SupportedHostRange)
 	}
 	return version, nil

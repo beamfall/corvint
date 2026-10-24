@@ -24,16 +24,19 @@ func openDirectory(dir string) (*os.Root, error) {
 	if err != nil {
 		return nil, fail("invalid directory")
 	}
+	// The volume (C: or \\host\share on Windows, empty elsewhere) stays on
+	// every absolute open; dropping it would open \C: instead of C:\.
+	volume := filepath.VolumeName(abs)
+	volumeRoot := volume + string(filepath.Separator)
 	var current *os.Root
-	for _, part := range strings.Split(strings.TrimPrefix(abs, string(filepath.Separator)), string(filepath.Separator)) {
+	for _, part := range strings.Split(strings.TrimPrefix(abs[len(volume):], string(filepath.Separator)), string(filepath.Separator)) {
 		if part == "" {
 			continue
 		}
 		var next *os.Root
 		var e error
 		if current == nil {
-			top := string(filepath.Separator) + part
-			next, e = openVerified(os.Lstat, openAbsoluteRoot, top)
+			next, e = openVerified(os.Lstat, openAbsoluteRoot, volumeRoot+part)
 		} else {
 			next, e = openComponent(current, part)
 			current.Close()
@@ -44,7 +47,7 @@ func openDirectory(dir string) (*os.Root, error) {
 		current = next
 	}
 	if current == nil {
-		if current, err = openAbsoluteRoot(string(filepath.Separator)); err != nil {
+		if current, err = openAbsoluteRoot(volumeRoot); err != nil {
 			return nil, fail("cannot open filesystem root")
 		}
 	}

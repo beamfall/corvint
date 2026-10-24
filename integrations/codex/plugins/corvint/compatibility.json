@@ -4,7 +4,7 @@
   "adapter": {
     "host": "codex",
     "surface": "plugin",
-    "version": "0.2.9"
+    "version": "0.2.11"
   },
   "host": {
     "minimumStaticallyValidatedVersion": "0.149.0",
@@ -16,7 +16,7 @@
   "surfaces": {
     "hooks": "FALLBACK",
     "skills": "FALLBACK",
-    "mcp": "UNAVAILABLE"
+    "mcp": "FALLBACK"
   },
   "lastConformance": {
     "status": "NOT_RUN",

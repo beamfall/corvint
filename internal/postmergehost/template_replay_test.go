@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // PCH-V0-015: the reference pipeline's resolve and delta scripts, run
@@ -32,7 +34,7 @@ func TestTemplateDeltaReplayConformance(t *testing.T) {
 		}
 		return strings.TrimSpace(string(out))
 	}
-	build := exec.Command("go", "build", "-o", filepath.Join(bin, "corvint"), "./cmd/corvint")
+	build := exec.Command("go", "build", "-o", filepath.Join(bin, testplatform.Executable("corvint")), "./cmd/corvint")
 	build.Dir = repo
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build corvint: %v %s", err, out)
@@ -66,7 +68,7 @@ func TestTemplateDeltaReplayConformance(t *testing.T) {
 
 	direct := func(base, head, paths string) []byte {
 		t.Helper()
-		out, err := exec.Command(filepath.Join(bin, "corvint"), "--root", product, "delta", "--base", base, "--head", head).Output()
+		out, err := exec.Command(filepath.Join(bin, testplatform.Executable("corvint")), "--root", product, "delta", "--base", base, "--head", head).Output()
 		if err != nil {
 			t.Fatalf("direct corvint delta %s..%s: %v", base, head, err)
 		}

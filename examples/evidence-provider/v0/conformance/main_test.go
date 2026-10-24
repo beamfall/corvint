@@ -9,13 +9,16 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // The runner is exercised against a Corvint binary built from this checkout;
 // the offline provider build inside it sees only a copy of ../main.go.
 func TestProviderKitConformanceRunner(t *testing.T) {
 	t.Run("EEP-V0-021 two-transport conformance", func(t *testing.T) {
-		corvint := filepath.Join(t.TempDir(), "corvint")
+		testplatform.SkipPOSIXShell(t, "the runner replays edited provider records through /bin/cat")
+		corvint := filepath.Join(t.TempDir(), testplatform.Executable("corvint"))
 		build := exec.CommandContext(t.Context(), "go", "build", "-o", corvint, "../../../../cmd/corvint")
 		if output, err := build.CombinedOutput(); err != nil {
 			t.Fatalf("build corvint: %v\n%s", err, output)
@@ -36,6 +39,7 @@ func TestProviderKitConformanceRunner(t *testing.T) {
 // A provider that never exits is reported as a timeout refusal within the
 // probe's bound rather than hanging the runner (V1-0136).
 func TestRefusalBoundsNeverExitingProvider(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the never-exiting provider is a #!/bin/sh script")
 	provider := filepath.Join(t.TempDir(), "provider")
 	if err := os.WriteFile(provider, []byte("#!/bin/sh\nexec sleep 3600\n"), 0o755); err != nil {
 		t.Fatal(err)

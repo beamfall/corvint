@@ -13,6 +13,8 @@ import (
 	"time"
 
 	connector "github.com/Beamfall/corvint/internal/postmergeconnector"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // This helper is a synthetic protocol adapter, never positive workflow evidence.
@@ -325,7 +327,7 @@ func TestPinsAndSelector(t *testing.T) {
 
 func TestCLIReplay(t *testing.T) {
 	root, ff, pf, fixture, _ := setup(t, "ok")
-	tool := filepath.Join(t.TempDir(), "corvint-postmerge-workflow")
+	tool := filepath.Join(t.TempDir(), testplatform.Executable("corvint-postmerge-workflow"))
 	build := exec.Command("go", "build", "-o", tool, "../../cmd/corvint-postmerge-workflow")
 	build.Env = append(os.Environ(), "GOTOOLCHAIN=local")
 	if b, err := build.CombinedOutput(); err != nil {

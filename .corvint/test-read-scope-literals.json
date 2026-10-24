@@ -21,6 +21,9 @@
     "internal/playwrightminimize": {
       "internal/jstestprovider/testdata/application-attestation": "read only by the live Docker qualification, which skips unless CORVINT_MINIMIZER_LIVE_QUALIFICATION=1 and never runs in the confined shard"
     },
+    "internal/specindex": {
+      "cmd/corvint/main.go": "a read-scope control path passed to the InReadScope predicate; the file is never read"
+    },
     "internal/taskman": {
       "docs/specs": "a scope-verdict fixture key; nothing is read",
       "internal/tasks/store/lease_gate.go": "a scope-verdict fixture key; nothing is read"

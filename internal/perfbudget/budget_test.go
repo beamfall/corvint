@@ -10,6 +10,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 func float(v float64) *float64 { return &v }
@@ -385,7 +387,7 @@ func TestPRBV0024HarnessSmokeRun(t *testing.T) {
 	dir := t.TempDir()
 	bin := map[string]string{}
 	for _, pkg := range []string{"corvint", "corvint-corpus-mcp"} {
-		bin[pkg] = filepath.Join(dir, pkg)
+		bin[pkg] = filepath.Join(dir, testplatform.Executable(pkg))
 		build := exec.Command("go", "build", "-o", bin[pkg], "../../cmd/"+pkg)
 		if out, err := build.CombinedOutput(); err != nil {
 			t.Fatalf("go build %s: %v %s", pkg, err, out)
