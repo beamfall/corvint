@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
-	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // ATR-V0-032: dispatch status shows each worker's context estimate, its age,
@@ -174,7 +174,7 @@ func TestATRV0056_DispatchStatusWorkerShowsContextNotice(t *testing.T) {
 		t.Helper()
 		var out, errb bytes.Buffer
 		// Off darwin and linux Tasks refuses the command up front (CTS-V0-025).
-		testplatform.SkipWindowsRefusal(t, wire.PlatformRefusal())
+		fixture.SkipUnsupportedPlatform(t)
 		Run(Env{Cwd: stateDir, Args: args, Stdin: bytes.NewReader(nil), Stdout: &out, Stderr: &errb})
 		res, err := wire.DecodeResult(out.Bytes())
 		if err != nil {

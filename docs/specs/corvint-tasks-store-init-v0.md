@@ -475,9 +475,10 @@ the worktree untouched, `version` still exit 0), which `make windows-vet` type-c
 Windows host runs (`NEEDS-HOST`). `TestCTSV0025_ParserHelpAnswersOnEveryPlatform` proves
 parser-level help still answers, and the unsupported-platform test proves a `--help` that is a
 flag's value stays refused. `fixture.TempRepo`, the `atm` CLI test helper and the internal tests
-that call `Run` directly skip a Windows test on exactly this refusal through
-`testplatform.SkipWindowsRefusal`, which `TestCEMLockAndTasksRefusalsSkipOnlyOnWindows` proves does
-not skip on darwin or linux. On a Windows host (2026-10-24, batch 1024c) the CTS-V0-025 tests,
+that call `Run` directly skip a Windows test on exactly this refusal through the Tasks-side
+`fixture.SkipUnsupportedPlatform` (Tasks imports no Core package, decision 0397, so it does not call
+`internal/testplatform`), which `TestCTSV0025_UnsupportedPlatformSkipsOnlyOnWindows` proves does not
+skip on darwin or linux. On a Windows host (2026-10-24, batch 1024c) the CTS-V0-025 tests,
 `TestCriterionBindingOfflineVerify` (skips) and the help tests passed; 13 other
 `internal/tasks/cli` tests that do not reach this refusal still fail there, out of this scope. Rollback is a revert; no state format or code changes.
 

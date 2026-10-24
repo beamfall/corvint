@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
-	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // CAL-V0-176: `dispatch status` decodes a fragment configuration through the
@@ -31,7 +31,7 @@ func TestCALV0176_DispatchStatusReadsFragmentConfig(t *testing.T) {
 		t.Helper()
 		var out, errb bytes.Buffer
 		// Off darwin and linux Tasks refuses the command up front (CTS-V0-025).
-		testplatform.SkipWindowsRefusal(t, wire.PlatformRefusal())
+		fixture.SkipUnsupportedPlatform(t)
 		Run(Env{Cwd: stateDir, Args: []string{"dispatch", "status", "--program", "prog", "--config", path}, Stdin: bytes.NewReader(nil), Stdout: &out, Stderr: &errb})
 		res, err := wire.DecodeResult(out.Bytes())
 		if err != nil || res.Outcome != want {

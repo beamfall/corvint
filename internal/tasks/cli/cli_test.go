@@ -13,7 +13,6 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
-	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 type run struct {
@@ -37,7 +36,7 @@ func atmWith(t *testing.T, cwd string, stdin []byte, derive store.ScopeDeriver, 
 	// Off darwin and linux every command but help and version is refused up
 	// front, so a test driving one through atm skips on that exact refusal
 	// (CTS-V0-025); help and the refusal itself are tested with cli.Run.
-	testplatform.SkipWindowsRefusal(t, wire.PlatformRefusal())
+	fixture.SkipUnsupportedPlatform(t)
 	var out, errb bytes.Buffer
 	code := cli.Run(cli.Env{Cwd: cwd, Args: args, Stdin: bytes.NewReader(stdin), Stdout: &out, Stderr: &errb, ScopeDeriver: derive})
 	r := run{code: code, stdout: out.Bytes(), stderr: errb.Bytes()}

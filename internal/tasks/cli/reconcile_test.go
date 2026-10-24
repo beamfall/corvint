@@ -12,7 +12,6 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
-	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 type reconciliationInput struct{ reads int }
@@ -24,7 +23,7 @@ func (r *reconciliationInput) Read([]byte) (int, error) {
 
 func TestTMV0007_AS35_InapplicableReconcileFlagRefusesBeforeInput(t *testing.T) {
 	// Off darwin and linux Tasks refuses the command up front (CTS-V0-025).
-	testplatform.SkipWindowsRefusal(t, wire.PlatformRefusal())
+	fixture.SkipUnsupportedPlatform(t)
 	for _, digest := range []string{"", string(wire.Sum([]byte("inapplicable")))} {
 		var output bytes.Buffer
 		input := &reconciliationInput{}
