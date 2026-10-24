@@ -2428,6 +2428,8 @@ DCW-V0-166	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the o
 DCW-V0-333	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2423; amends	standing	2026-10-11; V1-2423
 DCW-V0-334	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2541; extends	standing	2026-10-11; V1-2541
 DCW-V0-335	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2541; refines	standing	2026-10-11; V1-2541; V1-1724
+DCW-V0-340	docs/specs/daily-change-evidence-workflow-v0.md	(accepted 2026-10-24; V1-1638; refines `DCW-V0-066`)	owner	2026-10-24; V1-1638
+DCW-V0-341	docs/specs/daily-change-evidence-workflow-v0.md	(accepted 2026-10-24; V1-1638; refines `DCW-V0-042`)	owner	2026-10-24; V1-1638
 DCW-V0-170	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2344) When	standing	2026-10-11; V1-2344
 DCW-V0-171	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2171) A	standing	2026-10-11; V1-2171
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
@@ -2438,6 +2440,7 @@ DNG-V0-005	docs/specs/decision-number-gate-v0.md	A collision candidate MUST be t
 DNG-V0-006	docs/specs/decision-number-gate-v0.md	On a non-exempt collision the gate MUST report, for every colliding number found	unrecorded	-
 DNG-V0-007	docs/specs/decision-number-gate-v0.md	The gate MUST exit 0 when no non-exempt collision exists (including the case whe	unrecorded	-
 DNG-V0-008	docs/specs/decision-number-gate-v0.md	The gate MUST perform no write to any file and MUST produce the same result	unrecorded	-
+DNG-V0-009	docs/specs/decision-number-gate-v0.md	(accepted 2026-10-24; V1-0332) `.gitattributes` MUST give	owner	2026-10-24; V1-0332
 DSE-V0-001	docs/specs/dependency-source-evidence-v0.md	`corvint [--root PATH] depsource <module-path>[@version] [--file REL] [--limit N	unrecorded	-
 DSE-V0-002	docs/specs/dependency-source-evidence-v0.md	Version resolution MUST read `go.mod` and `go.sum` as blobs of the committed	unrecorded	-
 DSE-V0-003	docs/specs/dependency-source-evidence-v0.md	The module cache location MUST be `<cache>/<escaped-path>@<escaped-version>`,	unrecorded	-

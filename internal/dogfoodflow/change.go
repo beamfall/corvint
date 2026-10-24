@@ -89,6 +89,13 @@ type change struct {
 	// staleBinding names the row whose hunk moved since the citation-plan
 	// binding was recorded against an earlier map (DCW-V0-066).
 	staleBinding string
+	// remappedPlan is the plan with its ordinal rows moved through the
+	// recorded binding when only inserted admitted sealed-CEM hunks shifted
+	// them (DCW-V0-340); the plan file itself is never rewritten.
+	remappedPlan []byte
+	// sealCiteRows cite each unknown admitted sealed-CEM hunk the plan does
+	// not name against the DCW-V0-042 admission span at BASE (DCW-V0-341).
+	sealCiteRows []string
 	// citationFailedMap is the map the failing cite command read: the staged
 	// citation map after the first row (DCW-V0-068).
 	citationFailedMap string
@@ -665,6 +672,10 @@ func (c *change) citeStep() {
 	mismatch := ""
 	if valid {
 		mismatch = c.citationPlanMismatch(plan)
+		if mismatch == "" && c.remappedPlan != nil {
+			plan = c.remappedPlan
+		}
+		c.citationCount += len(c.sealCiteRows)
 	}
 	switch {
 	case !valid && c.citationCount > 256:
@@ -673,7 +684,9 @@ func (c *change) citeStep() {
 		status, reason = "NOT_PRODUCED", "invalid-citation-plan"
 	case mismatch != "":
 		status, reason = "NOT_PRODUCED", mismatch
-	case c.uniformPlan(plan):
+	// Appended sealed-hunk rows count toward uniformity, so they cannot
+	// complete a plan whose own rows all cite their span (DCW-V0-341).
+	case c.uniformPlan(plan) || len(plan) > 0 && len(c.sealCiteRows) > 0 && c.uniformPlan(withRows(plan, c.sealCiteRows)):
 		status, reason = "NOT_PRODUCED", "citation-plan-uniform"
 	case c.recitesCitedHunk(plan):
 		status, reason = "NOT_PRODUCED", "citation-plan-recites-cited-hunk"
@@ -682,10 +695,14 @@ func (c *change) citeStep() {
 	case c.prepareUnknownReasons(plan) != nil:
 		status, reason = "NOT_PRODUCED", "unknown-reasons-not-recorded"
 	default:
-		c.recordCitationBinding(plan)
+		// A remapped plan keeps the binding it was remapped through, so a
+		// rerun of the same bytes remaps the same way (DCW-V0-340).
+		if c.remappedPlan == nil {
+			c.recordCitationBinding(plan)
+		}
 		cited := citedHunks(c.path(".corvint/change.cem.json"))
 		before, _ := readPrefix(c.path(".corvint/change.cem.json"), maxPlanBytes)
-		status, reason = c.cite(plan, citeOutput)
+		status, reason = c.cite(withRows(plan, c.sealCiteRows), citeOutput)
 		c.citedOver = cited > 0 && status == "PRODUCED"
 		c.keepMapEncoding(before)
 		if status == "PRODUCED" && c.publishUnknownReasons() != nil {
@@ -1387,8 +1404,13 @@ func (c *change) citationPlanMismatch(plan []byte) string {
 		return mismatch
 	}
 	hunks := mapHunks(data)
-	if c.ordinalsMoved(plan, hunks) {
+	c.remappedPlan, c.sealCiteRows = nil, nil
+	sealed := c.admittedSealHunks(hunks)
+	if c.ordinalsMoved(plan, hunks, sealed) {
 		return mismatch
+	}
+	if c.remappedPlan != nil {
+		plan = c.remappedPlan
 	}
 	named := map[string]bool{}
 	for _, line := range textLines(plan) {
@@ -1404,16 +1426,42 @@ func (c *change) citationPlanMismatch(plan []byte) string {
 			return mismatch
 		}
 	}
+	// An unknown admitted sealed-CEM hunk the plan does not name counts as
+	// cited by its verified admission while the admission span resolves at
+	// BASE and the plan has room for its row (DCW-V0-341).
+	citation := ""
+	if len(sealed) > 0 {
+		citation = c.sealCitation()
+	}
+	seals := []string{}
+	for index, hunk := range hunks {
+		if citation != "" && sealed[hunk["id"]] && hunk["disposition"] == "unknown" && !recordedUnknownReasons[hunk["reason"]] &&
+			!named[strconv.Itoa(index+1)] && !named[hunk["id"]] {
+			seals = append(seals, hunk["id"]+"\t"+citation)
+		}
+	}
+	if len(textLines(plan))+len(seals) <= 256 {
+		c.sealCiteRows = seals
+	}
+	selfCited := map[string]bool{}
+	for _, row := range c.sealCiteRows {
+		id, _, _ := strings.Cut(row, "\t")
+		selfCited[id] = true
+	}
 	// A hunk an earlier plan kept unknown with a recorded reason is marked,
 	// so, like a cited one, it needs no row (DCW-V0-019).
-	owed := []int{}
+	owed, unmarked := []int{}, 0
 	for index, hunk := range hunks {
 		if hunk["disposition"] == "unknown" && !bootstrap[hunk["path"]] && !recordedUnknownReasons[hunk["reason"]] {
-			owed = append(owed, index+1)
+			unmarked++
+			if !selfCited[hunk["id"]] {
+				owed = append(owed, index+1)
+			}
 		}
 	}
 	// More owed hunks than one plan has rows: split plans stay admissible.
-	if len(owed) > 256 && len(plan) > 0 {
+	// Appended sealed-hunk rows share the 256-row budget, so they count.
+	if unmarked > 256 && len(plan) > 0 {
 		return ""
 	}
 	for _, index := range owed {
@@ -1441,27 +1489,122 @@ func (c *change) recordCitationBinding(plan []byte) {
 
 // ordinalsMoved reports a plan whose ordinal row named a hunk that the map now
 // holds at another ordinal, so the row would cite the wrong hunk (V1-0239).
-func (c *change) ordinalsMoved(plan []byte, hunks []map[string]string) bool {
+// When every such shift comes only from admitted sealed-CEM hunks the
+// recorded map lacked, and every ordinal row's recorded hunk is still in the
+// map, it remaps those rows through the recorded hunk IDs into remappedPlan
+// and prints one NOTE instead (DCW-V0-340); any other shift still refuses.
+func (c *change) ordinalsMoved(plan []byte, hunks []map[string]string, sealed map[string]bool) bool {
 	recorded := readLines(readFile(c.evidence + citationBinding))
 	if len(recorded) == 0 || recorded[0] != sha256Hex(plan) {
 		return false
 	}
-	current := map[string]int{}
+	known := map[string]bool{}
+	for _, id := range recorded[1:] {
+		known[id] = true
+	}
+	current, withoutSeals := map[string]int{}, map[string]int{}
+	inserted := 0
 	for index, hunk := range hunks {
 		current[hunk["id"]] = index + 1
+		if sealed[hunk["id"]] && !known[hunk["id"]] {
+			inserted++
+			continue
+		}
+		withoutSeals[hunk["id"]] = index + 1 - inserted
 	}
-	for index, line := range textLines(plan) {
-		selector, _, _ := strings.Cut(line, "\t")
+	lines := textLines(plan)
+	remapped := append([]string(nil), lines...)
+	moved, absent := 0, ""
+	for index, line := range lines {
+		selector, rest, _ := strings.Cut(line, "\t")
 		value, err := strconv.Atoi(selector)
 		if !ordinal.MatchString(selector) || err != nil || value >= len(recorded) {
 			continue
 		}
-		if now, found := current[recorded[value]]; found && now != value {
+		now, found := current[recorded[value]]
+		if !found {
+			if absent == "" {
+				absent = fmt.Sprintf("plan row %d (ordinal %d) named hunk %s, which the current map no longer holds, so its ordinals cannot be remapped past the admitted sealed-CEM hunks", index+1, value, recorded[value])
+			}
+			continue
+		}
+		if now == value {
+			continue
+		}
+		if withoutSeals[recorded[value]] != value {
 			c.staleBinding = fmt.Sprintf("plan row %d (ordinal %d) named hunk %s, which the current map holds at ordinal %d", index+1, value, recorded[value], now)
 			return true
 		}
+		moved++
+		remapped[index] = strconv.Itoa(now) + "\t" + rest
 	}
+	if moved == 0 {
+		return false
+	}
+	if absent != "" {
+		c.staleBinding = absent
+		return true
+	}
+	c.remappedPlan = []byte(strings.Join(remapped, "\n") + "\n")
+	c.say("%s: NOTE citation-plan-remapped rows=%d sealedHunks=%d binding=%s/citation-plan-binding (DCW-V0-340)\n", c.prefix, moved, inserted, c.evidence)
 	return false
+}
+
+// admittedSealHunks is the set of the map's hunk IDs on a sealed CEM path that
+// dogfood change admitted as an unmodified, re-verified merged seal
+// (DCW-V0-042); a retired or migrated seal is not in it.
+func (c *change) admittedSealHunks(hunks []map[string]string) map[string]bool {
+	paths := map[string]bool{}
+	for _, path := range c.mergedSeals {
+		paths[path] = true
+	}
+	sealed := map[string]bool{}
+	for _, hunk := range hunks {
+		if paths[hunk["path"]] {
+			sealed[hunk["id"]] = true
+		}
+	}
+	return sealed
+}
+
+// sealAuthority and sealAuthorityAnchor locate, at BASE, the DCW-V0-042
+// requirement that admits a merged sealed CEM: the pinned span an admitted
+// sealed-CEM hunk is cited against (DCW-V0-341).
+const (
+	sealAuthority       = "docs/specs/daily-change-evidence-workflow-v0.md"
+	sealAuthorityAnchor = "- `DCW-V0-042`:"
+)
+
+// sealCitation returns the EVIDENCE<TAB>START:END<TAB>specification fields
+// citing the DCW-V0-042 bullet as BASE holds it: its anchor line through its
+// last two-space continuation line. A BASE without that spec, without the
+// anchor, or whose spec read exceeds the flow's Git bound returns "", and the
+// sealed hunks stay owed by the plan.
+func (c *change) sealCitation() string {
+	text, status, bounded := c.boundedGit("cat-file", "blob", c.base+":"+sealAuthority)
+	if status != 0 || !bounded {
+		return ""
+	}
+	lines := textLines([]byte(text))
+	for start, line := range lines {
+		if !strings.HasPrefix(line, sealAuthorityAnchor) {
+			continue
+		}
+		end := start + 1
+		for end < len(lines) && strings.HasPrefix(lines[end], "  ") {
+			end++
+		}
+		return fmt.Sprintf("%s\t%d:%d\tspecification", sealAuthority, start+1, end)
+	}
+	return ""
+}
+
+// withRows is plan with rows appended, each LF-terminated.
+func withRows(plan []byte, rows []string) []byte {
+	if len(rows) == 0 {
+		return plan
+	}
+	return append(append([]byte(nil), plan...), []byte(strings.Join(rows, "\n")+"\n")...)
 }
 
 // mapHunks decodes the disposition, id and path of each hunk of a map in map
