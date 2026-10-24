@@ -232,3 +232,28 @@ func TestDCPV1569DerivationStopsAtTheOutputBound(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// DCP-V1-569: the byte estimate of a test declaration is a lower bound, so a
+// test-heavy corpus over the output byte bound still keeps the prefix that
+// fits in one retry instead of a second refusal that derives none.
+func TestDCPV1569TestDeclarationsStopAtTheOutputBound(t *testing.T) {
+	// Not parallel: BuildsForTest counts every compile of the package.
+	var big strings.Builder
+	for i := range MaxRecords + 8 {
+		fmt.Fprintf(&big, "def test_f%05d():\n    assert %d\n", i, i)
+	}
+	files := map[string]string{"src/test_big.py": big.String(), "src/readme.md": "# Big\n\nMany tests.\n"}
+	root, m := ownedSourceCorpus(t, files, []string{"src/test_big.py"}, false)
+	before := BuildsForTest()
+	a := buildOwned(t, root, m)
+	if got := BuildsForTest() - before; got != 2 {
+		t.Fatalf("one retry should fit the output bound: %d compiles", got)
+	}
+	derived := len(subjectsWithPrefix(a, "native:symbol:src/test_big.py:"))
+	if derived == 0 || derived >= MaxRecords {
+		t.Fatalf("the retry should derive the prefix that fits: %d derived", derived)
+	}
+	if gap := derivedBoundGap(t, a); !strings.Contains(gap.Reason, fmt.Sprintf("derived %d of %d", derived, MaxRecords+8)) {
+		t.Fatalf("the gap should name the counts: %s", gap.Reason)
+	}
+}

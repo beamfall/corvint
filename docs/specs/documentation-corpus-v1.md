@@ -2005,17 +2005,19 @@ proposed, experimental; GitHub #1665.
   `TestDCPV1484RefusedFirstDeclarationRestoresShardCache`,
   `TestDCPV1484RetryAnswersOnlyCorpusRefusals`.
 - `DCP-V1-569`: Amending `DCP-V1-484`, a compile the output byte bound refused is retried once
-  deriving the prefix of the same declarations whose estimated encoded bytes (subject, claim, their
-  capability IDs and, for a test declaration, its unobserved-test gap) fit under the bound with a
-  4096-byte reserve, not none; if that retry is refused too, the next derives none. The byte bound
-  is known only after the whole artifact is encoded, so an over-bound corpus compiles twice
-  (three times at most). `DerivationVersion` is `4` (`DCP-V1-471`, amending `DCP-V1-550`): the
+  deriving the prefix of the same declarations that fits under the bound with a 4096-byte reserve,
+  not none. It drops declarations until a lower bound on their encoded bytes (subject, claim, their
+  quoted capability IDs and, for a test declaration, its unobserved-test gap and shortest gap
+  offset) reaches the overshoot, since an overestimate would keep too many. If that retry is
+  refused too, the next derives none. The byte bound is known only after the whole artifact is
+  encoded, so an over-bound corpus compiles twice (three times at most). `DerivationVersion` is `4` (`DCP-V1-471`, amending `DCP-V1-550`): the
   same over-bound inputs now build declarations and a different gap, so the verified read refuses a
   derivation 3 artifact with `derivation version differs (artifact 3, running builder 4); rebuild
   the corpus`; the single-repository fixture digest of derivation 4 equals derivation 3's.
   Failure modes: the retry never exceeds the bound it answers; an artifact of an earlier derivation
   is refused, never read with a stale gap. Acceptance:
-  `TestDCPV1569DerivationStopsAtTheOutputBound` (before the change the retry derived 0, which
+  `TestDCPV1569DerivationStopsAtTheOutputBound` and `TestDCPV1569TestDeclarationsStopAtTheOutputBound`
+  (before the change the retry derived 0, which
   `TestDCPV1484DerivationNeverRefusesABuildableManifest` then asserted),
   `TestDCPV1484DerivationNeverRefusesABuildableManifest`, `TestDCPV1471DerivationVersionGuard`,
   `TestDCPV1564ReleaseNotesListEveryDerivation`.
@@ -4105,7 +4107,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-540..546 | `internal/doccorpus/search_rank.go`, `search_tier.go`, `search_phrase.go`, `types.go`, `internal/mcp/corpusbridge/testdata/search-ranking-gh1665-leftovers/` | `TestDCPV1540QueryWordCountsOnce`, `TestDCPV1541IdentifierTokenTier`, `TestDCPV1542PathPhraseBeforeDeclarations`, `TestDCPV1543QuestionNamesASubject`, `TestDCPV1544ServedTiersAndTerms`, `TestDCPV1404SearchRankingEvalFixture`, `TestDCPV1546GH1665LeftoversRankingEvalFixture`, `TestDCPV1486GH1665RankingEvalFixture`; measured in docs/build-log/2026-10-24-gh1665-rank-leftovers.md |
 | DCP-V1-547..550 | `internal/doccorpus/search_rank.go`, `search_tier.go`, `compile.go`, `encoding.go` | `TestDCPV1547TermsTierOrdersByCoverage`, `TestDCPV1548QuestionNamesAOneWordSubject`, `TestDCPV1549DerivedDeclarationsInAdditionalRepository`, `TestDCPV1485DerivationTwoRefusesDerivationOneArtifacts`, `TestDCPV1471DerivationVersionGuard`; measured in docs/build-log/2026-10-24-corpus-coverage-multirepo-derivation.md |
 | DCP-V1-560..564 | `internal/doccorpus/extractor.go`, `capacity.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `docs_corpus_delta.go`, `docs/RELEASE-NOTES.md` | `TestDCPV1560ExtractorSchemaTwoAdmitsMoreThanTheRecordBound`, `TestDCPV1560DocsCorpusExtractSchemaCLI`, `TestDCPV1562ExtractorRefusesARecordOverTheInputBound`, `TestDCPV1563DeltaCurrentSideIsDecidedByPresence`, `TestDCPV1564ReleaseNotesListEveryDerivation`, `TestDocsCorpusOperationFlagMatrix`; measured in docs/build-log/2026-10-24-corpus-coverage-multirepo-derivation.md |
-| DCP-V1-565..569 | `internal/doccorpus/search_rank.go`, `search_tier.go`, `compile.go`, `encoding.go`, `docs/RELEASE-NOTES.md` | `TestDCPV1565QuestionCoverageCountsContentWords`, `TestDCPV1566QuestionNamesAnIDSlug`, `TestDCPV1567NamedTierNeedsTheWholeName`, `TestDCPV1568DerivationStopsAtTheRecordBound`, `TestDCPV1569DerivationStopsAtTheOutputBound`, `TestDCPV1484DerivationNeverRefusesABuildableManifest`, `TestDCPV1471DerivationVersionGuard`, `TestDCPV1564ReleaseNotesListEveryDerivation`; measured in docs/build-log/2026-10-24-gh1665-coverage-slug-derivation-bound.md |
+| DCP-V1-565..569 | `internal/doccorpus/search_rank.go`, `search_tier.go`, `compile.go`, `encoding.go`, `docs/RELEASE-NOTES.md` | `TestDCPV1565QuestionCoverageCountsContentWords`, `TestDCPV1566QuestionNamesAnIDSlug`, `TestDCPV1567NamedTierNeedsTheWholeName`, `TestDCPV1568DerivationStopsAtTheRecordBound`, `TestDCPV1569DerivationStopsAtTheOutputBound`, `TestDCPV1569TestDeclarationsStopAtTheOutputBound`, `TestDCPV1484DerivationNeverRefusesABuildableManifest`, `TestDCPV1471DerivationVersionGuard`, `TestDCPV1564ReleaseNotesListEveryDerivation`; measured in docs/build-log/2026-10-24-gh1665-coverage-slug-derivation-bound.md |
 | DCP-V1-468 | `internal/doccorpus/artifact_decode.go`, `query_index_fast.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1419FastIndexMatchesReference` |
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-487..489 | `internal/doccorpus/compact_anchor.go`, `shards.go`, `encoding.go` | `TestDCPV1487CompactAnchorTableEquivalent`, `TestDCPV1488CompactAnchorRefusals`, `TestDCPV1489CompactAnchorSizeMeasured`; measured in docs/build-log/2026-10-24-corpus-compact-anchor-table.md |

@@ -1035,10 +1035,12 @@ func (c *compiler) derivedDeclarations() error {
 // (DCP-V1-569).
 const derivedByteReserve = 4096
 
-// declarationBytes estimates the encoded bytes one derived declaration adds to the artifact:
-// its subject and claim, their IDs in the subjects and claims capability records, the array
-// separators, and for a test subject its unobserved test gap and that gap's capability record
-// (DCP-V1-569).
+// declarationBytes is a lower bound on the encoded bytes one derived declaration adds to the
+// artifact: its subject and claim, their quoted IDs in the subjects and claims capability
+// records, the array separators, and for a test subject its unobserved test gap with its
+// separator and the shortest quoted gap offset in the gaps capability record. The retry keeps
+// a prefix only while the bytes it drops reach the overshoot, so an overestimate could keep
+// too many and be refused again (DCP-V1-569).
 func declarationBytes(s Subject, claim Claim) int64 {
 	size := func(value any) int64 {
 		n, _ := EncodeTo(io.Discard, value)
@@ -1046,7 +1048,7 @@ func declarationBytes(s Subject, claim Claim) int64 {
 	}
 	n := size(s) + size(claim) + int64(len(s.ID)+len(claim.ID)) + 8
 	if s.Kind == "test" {
-		n += size(Gap{s.ID, "not-collected", "test declaration has no retained observation"}) + 12
+		n += size(Gap{s.ID, "not-collected", "test declaration has no retained observation"}) + 1 + 4
 	}
 	return n
 }

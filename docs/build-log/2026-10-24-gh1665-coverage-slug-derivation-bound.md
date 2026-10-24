@@ -45,6 +45,11 @@ the frame paragraph 3 held words against the subject's 2. In 566 the flow
 `./internal/doccorpus` package passes. The general-search 59/64 case count is the reporter's
 private corpus and is not reproduced here; it needs the reporter's re-test.
 
+The one Codex review round found that the per-declaration byte estimate overestimated a test
+declaration's gap overhead. That is the unsafe direction: the retry kept too many, was refused
+again and derived none. `TestDCPV1569TestDeclarationsStopAtTheOutputBound` reproduced it with 3
+compiles and 0 derived. The estimate is now a lower bound, and the test passes with 2 compiles.
+
 ## Rollback
 
 Revert the change and return `DerivationVersion` to `3`. Artifacts built at derivation 4 are then
