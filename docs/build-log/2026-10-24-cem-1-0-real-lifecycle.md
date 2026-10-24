@@ -124,6 +124,10 @@ This refusal is the expected result, not a pass.
 - Receipt authority and execution at the commit are NOT_OBSERVED. Execution authority is
   CALLER_OBSERVED.
 - The cem-verdict grant covers only the seven anchored paths (see above).
+- The one review round found a P2: `encoding/json` merged a case-aliased member such as `Runner`
+  into `runner`. The fix is commit `37c20d339`, which requires the exact member names, with three
+  new refusal cases. It lands after SEAL and changes bound source. The sealed map describes target
+  T, not the PR head, so completion binds to SEAL.
 - `make dogfood-change` was tried twice, which is the lane's limit. Both runs were NOT_PRODUCED.
   - At the clean base it exited 2: `git-diff-failed`, `cem-map-not-produced`,
     `missing-intent-scope`, `map-unavailable` and `outcome-input-not-provided`.
