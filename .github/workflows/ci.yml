@@ -283,7 +283,14 @@ jobs:
     # Partition the complete runtime package universe using advisory measured costs. An
     # admitted Corvint selection intersects those same disjoint partitions; mixed full
     # fallbacks cannot omit selected packages. go-product remains the required check.
-    runs-on: ubuntu-24.04
+    # AFP-V0-420: only while the owner's repository variable CORVINT_SELF_HOSTED is on, a
+    # merge-queue entry or a pull request from a branch of this repository runs its shards on the
+    # owner's self-hosted runner (labels corvint-box); a push, a fork pull request and every other
+    # event, and every run while the variable is unset, stay on the hosted image. The job and
+    # check names do not change. This expression cannot stop a fork pull request that edits it,
+    # because pull_request runs the pull request's own workflow file: the repository's fork-PR
+    # approval policy is that boundary (docs/build-log/2026-10-24-self-hosted-shard-runner.md).
+    runs-on: ${{ (vars.CORVINT_SELF_HOSTED == 'on' && (github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))) && fromJSON('["self-hosted","linux","x64","corvint-box"]') || 'ubuntu-24.04' }}
     timeout-minutes: 75
     strategy:
       fail-fast: false
@@ -311,6 +318,12 @@ jobs:
       GOFLAGS: ""
       CGO_ENABLED: "1"
     steps:
+      - name: Clear the persistent workspace (self-hosted runner only, AFP-V0-421)
+        # A hosted VM starts empty. The self-hosted runner keeps GITHUB_WORKSPACE between jobs,
+        # so no checkout, pinned tool tree or file of an earlier run may survive into this one;
+        # the runner itself empties RUNNER_TEMP for every job.
+        if: runner.environment == 'self-hosted'
+        run: find "$GITHUB_WORKSPACE" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: source
@@ -332,8 +345,9 @@ jobs:
         # is off wherever the race invocation is off (DOCS, REUSE). The pinned narrowed driver,
         # which runs only for pull requests, keeps its own cold cache (AFP-V0-014/015).
         # -count=1 stays, so no test result is reused.
+        # AFP-V0-421: never on the self-hosted runner, whose shards build in a per-job cache.
         id: gocache
-        if: (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main'))
+        if: runner.environment != 'self-hosted' && (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main'))
         continue-on-error: true
         timeout-minutes: 5
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -343,6 +357,7 @@ jobs:
           restore-keys: |
             go-build-${{ runner.os }}-${{ runner.arch }}-go${{ steps.go.outputs.go-version }}-race-shard-${{ strategy.job-index }}-of-${{ strategy.job-total }}-${{ hashFiles('source/go.sum') }}-
       - name: Provision the host tools the product's fixed PATH resolves
+        if: runner.environment != 'self-hosted'
         # Child processes run under worksource.PlatformPath, which reaches Go through
         # /usr/local/go/bin rather than setup-go's tool cache. The dogfood shell tests use rg,
         # and the Git fixtures commit under the global identity. Automatic maintenance is off so
@@ -369,6 +384,40 @@ jobs:
             "ripgrep $RG_VERSION" | "ripgrep $RG_VERSION "*) ;;
             *) echo "::error::$rg_found is not ripgrep $RG_VERSION"; exit 1 ;;
           esac
+          git config --global user.name corvint-ci
+          git config --global user.email corvint-ci@users.noreply.github.com
+          git config --global maintenance.auto false
+          git config --global gc.auto 0
+          git --version
+      - name: Verify the host tools the product's fixed PATH resolves (self-hosted runner, AFP-V0-421)
+        # The self-hosted host has no passwordless sudo, so it provisions nothing: the owner
+        # installs the pinned Go at /usr/local/go and the pinned ripgrep at /usr/local/bin/rg, and
+        # this step only checks them. Go reads no host go.env file, and builds in a cache under
+        # RUNNER_TEMP, which the runner empties for every job, so no earlier run's build output,
+        # including a pull request's, reaches this one. The Git lines equal the hosted step's.
+        if: runner.environment == 'self-hosted'
+        env:
+          RG_VERSION: "15.2.0"
+        run: |
+          go_found=$(/usr/local/go/bin/go env GOVERSION 2> /dev/null || true)
+          if [ "$go_found" != "go1.27.2" ]; then
+            echo "::error::self-hosted host prerequisite: /usr/local/go/bin/go must be go1.27.2, found '${go_found:-nothing}'"
+            exit 1
+          fi
+          rg_found=$(PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin command -v rg || true)
+          rg_line=$(/usr/local/bin/rg --version 2> /dev/null | head -n 1 || true)
+          case "$rg_line" in
+            "ripgrep $RG_VERSION" | "ripgrep $RG_VERSION "*) ;;
+            *)
+              echo "::error::self-hosted host prerequisite: /usr/local/bin/rg must be ripgrep $RG_VERSION, found '${rg_line:-nothing}'"
+              exit 1
+              ;;
+          esac
+          if [ "$rg_found" != /usr/local/bin/rg ]; then
+            echo "::error::self-hosted host prerequisite: rg must resolve to /usr/local/bin/rg on the fixed PATH, found '${rg_found:-nothing}'"
+            exit 1
+          fi
+          printf 'GOENV=off\nGOCACHE=%s\n' "$RUNNER_TEMP/go-build" >> "$GITHUB_ENV"
           git config --global user.name corvint-ci
           git config --global user.email corvint-ci@users.noreply.github.com
           git config --global maintenance.auto false
@@ -700,14 +749,38 @@ jobs:
             echo "AFP-V0-098: selected packages passed; the full suite runs in the merge queue"
           fi
       - name: Retain package outcomes for the advisory cost-drift report
-        # AFP-V0-040: only a complete full shard whose tests passed keeps its outcomes.
-        if: steps.tests.outputs.costs == '1'
+        # AFP-V0-040: only a complete full shard whose tests passed keeps its outcomes, and
+        # AFP-V0-422: only on the hosted image, because self-hosted timings are not cloud timings.
+        if: steps.tests.outputs.costs == '1' && runner.environment != 'self-hosted'
         continue-on-error: true
         timeout-minutes: 2
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ci-shard-costs-${{ strategy.job-index }}
           path: ${{ runner.temp }}/shard-costs/shard-${{ strategy.job-index }}.json
+          if-no-files-found: ignore
+          retention-days: 3
+          overwrite: true
+      - name: Mark a self-hosted shard for the advisory cost-drift report (AFP-V0-422)
+        # In place of the stream a hosted shard would keep, so ci-shard-cost-drift abstains with
+        # the runner as its reason instead of comparing box timings with the cloud table.
+        id: costs-marker
+        if: steps.tests.outputs.costs == '1' && runner.environment == 'self-hosted'
+        continue-on-error: true
+        timeout-minutes: 1
+        env:
+          SHARD: ${{ strategy.job-index }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/shard-runner"
+          printf '%s\n' "$RUNNER_ENVIRONMENT" > "$RUNNER_TEMP/shard-runner/shard-$SHARD.self-hosted"
+      - name: Retain the self-hosted marker for the advisory cost-drift report (AFP-V0-422)
+        if: steps.costs-marker.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-shard-costs-runner-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/shard-runner/shard-${{ strategy.job-index }}.self-hosted
           if-no-files-found: ignore
           retention-days: 3
           overwrite: true
@@ -991,8 +1064,12 @@ jobs:
         run: |
           d="$RUNNER_TEMP/shard-costs"
           have=$(find "$d" -maxdepth 1 -name 'shard-*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
+          # AFP-V0-422: a shard on the self-hosted runner retains only a marker.
+          boxed=$(find "$d" -maxdepth 1 -name 'shard-*.self-hosted' -type f 2>/dev/null | wc -l | tr -d ' ')
           if [ "$SHARDS_RESULT" != success ]; then
             reason="go-product-shard result is $SHARDS_RESULT"
+          elif [ "$boxed" -ne 0 ]; then
+            reason="$boxed of $SHARDS shards ran on the self-hosted runner, whose timings are not cloud timings (AFP-V0-422)"
           elif [ "$have" -ne "$SHARDS" ]; then
             reason="$have of $SHARDS shard outcome artifacts present (a docs-only, reused or selected run executes no complete shard)"
           else
