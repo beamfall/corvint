@@ -266,6 +266,47 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   `structuralProof`. The repository-envelope cells are prose S0E recipes, so the tool runs them at
   source level in the same committed tree, through the native and portable S0E, envelope-cell and
   adversarial-shape tests, and reports them as not run against the binaries.
+- `CEM-V1-600`: (proposed; V1-2323) `companionrelease.ReadStableReleaseDeclaration` MUST read a
+  release-readiness declaration as one exact `cem-release-readiness/1` document: at most 64 KiB of
+  UTF-8 strict CEM JSON (duplicate keys refused) holding exactly `profile`, `runner`, `platform`
+  and `external`, one value and nothing after it. Each class MUST declare 1 to 64 distinct row
+  names of 1 to 128 bytes from `[A-Za-z0-9._/:-]`. Anything else is refused with class
+  `release-declaration`. The committed declaration `tools/cem-release-suites/READINESS.json`
+  requires the five sealed suites on both release binaries, the source-level envelope run,
+  `darwin/arm64` and `linux/amd64`, and one independent external consumer. The declaration names
+  what must be observed; it observes nothing.
+- `CEM-V1-601`: (proposed; V1-2323) `companionrelease.StableReleaseReadiness` MUST refuse with
+  class `stable-result-not-accepted` a release run that produced no accepted stable result. It
+  MUST read every accepted result through the `CEM-V1-569` and `CEM-V1-570` reader before any
+  outcome, so a malformed later result is never hidden behind a missing row. It then applies
+  `CEM-V1-571` to the declared runner, platform and external rows.
+- `CEM-V1-602`: (proposed; V1-2323) `tools/cem-release-suites --readiness PATH` MUST collect
+  every result line either binary emitted with `accept` true, and observe as `PASSED` only rows it
+  actually ran: each binary suite on each binary after its sealed expectation held, and
+  `source:repository-envelope` after the source-level envelope tests passed. The binary-level
+  `corvint:repository-envelope` and `cem01-go:repository-envelope` rows MUST be reported
+  `NOT_RUN`. The platform row is the `GOOS/GOARCH` both binaries' build information reports, and
+  no platform is observed when they disagree or omit it. No external row is ever observed by this
+  tool.
+- `CEM-V1-603`: (proposed; V1-2323) The `--readiness` path MUST be repository-relative and is
+  read from the committed tree at the binaries' revision (`CEM-V1-572`), not the worktree; a bad
+  path exits 2 and a bad declaration exits 1. The tool MUST print one
+  `cem-release-suites: readiness: <class> <row> <outcome>` line per declared row, `NOT_OBSERVED`
+  for an unobserved row, then either `readiness: READY (...)` with exit 0 or
+  `readiness: REFUSED (...): <refusal>` with exit 3. Exit 3 after every suite passed is the honest
+  verdict while any declared row is unobserved (`CEM-V1-008`), and READY never implies promotion.
+- `CEM-V1-604`: (proposed; V1-2323) `MIGRATION.json` addition A02 MUST leave `OPEN` with a status
+  starting `IMPLEMENTED_EXPERIMENTAL: `, naming `make cem-release-gate` and ending
+  `not promoted.`, and the sealed stable manifest MUST pin the new `MIGRATION.json` bytes
+  (`make cem-stable-regen-check`). No other migration row, sealed case or verifier changes.
+- `CEM-V1-605`: (proposed; V1-2323) `make cem-release-gate` MUST refuse a checkout with any
+  change or untracked file (Go stamps `vcs.modified` from untracked files too), run the
+  independent Node check `tools/cem-release-suites/readiness.test.mjs` (declaration shape and
+  suite coverage, A02 out of `OPEN`, and the manifest pin recomputed with `node:crypto`), build
+  `corvint` and `cem01-go` with `-trimpath` from that HEAD into a private directory that is
+  removed on exit, and run `tools/cem-release-suites` over them with the committed declaration.
+  It is opt-in and is not a `make gate` step; wiring it into a release workflow is an owner
+  `.github/` change.
 
 - `CEM-V1-573`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2322) A
   `cem-stable-plain-assembly/1` request MAY name `runners`, an array of 1 to 64
@@ -4559,15 +4600,21 @@ built release binaries either. This section adds a library reader and a binary-l
 Neither is called by a release workflow yet. The workflow wiring is an owner step under
 `.github/`, described in the V1-2323 pull request.
 
-The requirements are `CEM-V1-569` to `CEM-V1-572` in `## Requirements`.
+The requirements are `CEM-V1-569` to `CEM-V1-572` and `CEM-V1-600` to `CEM-V1-605` in
+`## Requirements`. The second block (V1-2323, 2026-10-24) integrates the reader: a committed
+readiness declaration, a readiness verdict over both built release binaries, and the opt-in
+`make cem-release-gate` target, after which A02 leaves `OPEN`.
 
 Non-goals:
 - no release workflow, CI job or `.github/` change; no promotion; no Tasks completion;
 - no change to the stable wire, either verifier, `RESULT.schema.json` or any sealed case;
 - no JSON Schema validation of the nested `hunks`, `references` and `drift` records beyond typed
   decoding and the verdict binding;
-- no source of truth for which runner, platform or external rows a release requires: the caller
-  declares them, and an empty declaration is refused rather than read as complete.
+- the committed declaration is the source of truth for which runner, platform and external rows
+  a release requires; an empty declaration is refused rather than read as complete;
+- no observation of external interoperability, of the repository-envelope cells against the
+  built binaries, or of a platform other than the one the binaries were built for: those rows
+  stay unobserved and the gate stays refused (recorded limits, never passes).
 
 Failure modes: a third-party or retired-profile result, a reordered or extended result, a forged
 verdict, or a `null` that typed decoding would turn into zero is refused as schema or mode. A result that claims native authority is refused as
@@ -4589,20 +4636,35 @@ over clean same-commit builds passed 23 tamper-matrix, 8 citation-vector, 8 neut
 19 receipt-authentication cases on both binaries, plus the source-level envelope tests. A
 `cem01-go` built from a different commit was refused with `builds differ`. The review repair
 (`docs/build-log/2026-10-23-cem-release-readiness-review-repair.md`) records the rerun.
-`MIGRATION.json` A02 stays `OPEN`: its decision recognizes the stable result only after
-integration, and no release workflow calls this reader yet. `TestCEMV1569MigrationA02StaysOpen`
-pins that.
+The 2026-10-24 integration adds `TestCEMV1600ReadinessDeclaration`,
+`TestCEMV1601ReadinessReadsEveryResultFirst` (`internal/companionrelease`),
+`TestCEMV1602ObservedRowsNeverPassUnrunRows`, `TestCEMV1602BuildPlatform`,
+`TestCEMV1603JudgeReadiness`, `TestCEMV1603ReadinessPathIsRepositoryRelative`
+(`tools/cem-release-suites`) and the Node check `tools/cem-release-suites/readiness.test.mjs`.
+`MIGRATION.json` A02 is `IMPLEMENTED_EXPERIMENTAL`, pinned by
+`TestCEMV1604MigrationA02Integrated`. The local `make cem-release-gate` run and the real
+V1-2322 lifecycle over this change are recorded in
+`docs/build-log/2026-10-24-cem-1-0-real-lifecycle.md`.
 
 Rollback: revert `internal/companionrelease/core_stable_result.go` and its test,
 `wire.ParseSigned` and its test, `verify.StructuralTupleAdmitted`, `tools/cem-release-suites`, the
-`cem-release-suites` Makefile target and these rows. `MIGRATION.json` and the stable manifest are
-unchanged. No caller, wire or sealed case depends on them.
+`cem-release-suites` Makefile target and these rows. To roll back only the 2026-10-24 integration,
+revert its commit: that removes `core_stable_readiness.go`, `READINESS.json`, the Node check, the
+`--readiness` flag and the `cem-release-gate` target, and restores the A02 status `OPEN`, the
+earlier `statusNote` and the earlier manifest pin of `MIGRATION.json` together. No caller, wire or
+sealed case depends on them.
 
 ### Release readiness over the stable result traceability
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
-| CEM-V1-569 | `TestCEMV1569StableReleaseReadiness` (`internal/companionrelease`): unknown member, missing member, member order, stale verdict, unknown axis, wrong profile, retired spec, other mode, null specificity under the original and a resealed verdict, scalar reference value; negative specificity accepted. `TestParseSignedAdmitsNegativeIntegers` (`internal/cem/wire`). `TestCEMV1569MigrationA02StaysOpen` | The public neutral-criterion ACCEPT line is accepted unchanged |
+| CEM-V1-569 | `TestCEMV1569StableReleaseReadiness` (`internal/companionrelease`): unknown member, missing member, member order, stale verdict, unknown axis, wrong profile, retired spec, other mode, null specificity under the original and a resealed verdict, scalar reference value; negative specificity accepted. `TestParseSignedAdmitsNegativeIntegers` (`internal/cem/wire`) | The public neutral-criterion ACCEPT line is accepted unchanged |
 | CEM-V1-570 | `TestCEMV1569StableReleaseReadiness`: raised native authority and runner execution, experimental and unsupported tuples, a qualified tuple outside the allowlist or without a structural proof, failed structural proof, mismatched or unchecked sidecar, unadmitted envelope, `UNSUPPORTED` outcome, `REJECT` | Admission and authority cases keep `REFERENCE_INTEGRITY_ONLY` |
 | CEM-V1-571 | `TestCEMV1569StableReleaseReadiness`: runner `FAILED`, `SKIPPED` and missing rows, platform `NOT_OBSERVED`, external undeclared | Each refusal follows an admitted ACCEPT with reference integrity |
 | CEM-V1-572 | `TestCEMV1572ReleaseBuildsMustMatch`, `TestCEMV1572GoVersionIsTheOnlyMaskedValue`, `TestCEMV1572RuntimeConsistent`, `TestCEMV1572ProvenanceIsReportedNotProven`, `TestCEMV1572SuitesReadCommittedObjects`, `TestCEMV1572MaterializeRefusesNonRegularEntries`, `TestCEMV1572EnvelopeSuitesRunInTheCommittedTree` (`tools/cem-release-suites`) | Local `make cem-release-suites` runs recorded in `docs/build-log/2026-10-23-cem-release-readiness-a02.md` and `docs/build-log/2026-10-23-cem-release-readiness-review-repair.md` |
+| CEM-V1-600 | `TestCEMV1600ReadinessDeclaration` (`internal/companionrelease`): committed declaration 11/2/1 rows; 15 malformed variants | Node check `readiness.test.mjs` reads the same bytes |
+| CEM-V1-601 | `TestCEMV1601ReadinessReadsEveryResultFirst`: ready, no result, later wrong-mode result before outcomes, runner `NOT_RUN`, platform and external unobserved | Every refusal is a `*StableReleaseRefusal` |
+| CEM-V1-602 | `TestCEMV1602ObservedRowsNeverPassUnrunRows`, `TestCEMV1602BuildPlatform` (`tools/cem-release-suites`) | Binary-level envelope rows `NOT_RUN`; no external row |
+| CEM-V1-603 | `TestCEMV1603JudgeReadiness`, `TestCEMV1603ReadinessPathIsRepositoryRelative` | Committed declaration exits 3 with `release-runner-incomplete` |
+| CEM-V1-604 | `TestCEMV1604MigrationA02Integrated` (`internal/companionrelease`); `make cem-stable-regen-check` | Node check recomputes the manifest pin |
+| CEM-V1-605 | `make cem-release-gate` run recorded in `docs/build-log/2026-10-24-cem-1-0-real-lifecycle.md`; `node --test tools/cem-release-suites/readiness.test.mjs` | Exit 3 refused; not a gate step |

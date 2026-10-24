@@ -5,7 +5,7 @@
 //
 // Usage:
 //
-//	cem-release-suites --corvint BIN --cem01 BIN [--root DIR]
+//	cem-release-suites --corvint BIN --cem01 BIN [--root DIR] [--readiness PATH]
 //
 // Each binary must carry Go build information naming one vcs.revision with
 // vcs.modified=false, the two revisions must be equal, and the checkout at
@@ -21,6 +21,16 @@
 // repository-envelope cells are prose recipes rebuilt by the in-process S0E
 // harnesses, so they run as source-level Go tests in that private tree, not
 // against the binaries, and the output says so.
+//
+// With --readiness PATH, the command also judges release readiness
+// (CEM-V1-600..603): PATH names a cem-release-readiness/1 declaration in the
+// same committed tree, every accepted stable result line both binaries
+// produced is read by internal/companionrelease as the exact cem/1.0 stable
+// result, and each declared runner, platform and external row must be
+// observed PASSED. The command observes only its own suite rows and the one
+// platform both binaries were built for; a binary-level repository-envelope
+// row is NOT_RUN and every external row is NOT_OBSERVED, so a declaration that
+// requires them is refused with exit 3 after the suites pass.
 package main
 
 import (
@@ -41,6 +51,8 @@ import (
 	"runtime/debug"
 	"sort"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/companionrelease"
 )
 
 const (
@@ -60,8 +72,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 	corvint := flags.String("corvint", "", "built corvint binary")
 	cem01 := flags.String("cem01", "", "built cem01-go binary")
 	root := flags.String("root", ".", "repository checkout the binaries were built from")
-	if err := flags.Parse(args); err != nil || *corvint == "" || *cem01 == "" || flags.NArg() != 0 {
-		fmt.Fprintln(stderr, "usage: cem-release-suites --corvint BIN --cem01 BIN [--root DIR]")
+	readiness := flags.String("readiness", "", "repository-relative cem-release-readiness/1 declaration read from the build commit")
+	if err := flags.Parse(args); err != nil || *corvint == "" || *cem01 == "" || flags.NArg() != 0 || *readiness != "" && !repositoryRelative(*readiness) {
+		fmt.Fprintln(stderr, "usage: cem-release-suites --corvint BIN --cem01 BIN [--root DIR] [--readiness PATH]")
 		return 2
 	}
 	absRoot, err := filepath.Abs(*root)
@@ -69,7 +82,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "cem-release-suites:", err)
 		return 2
 	}
-	revision, err := releaseBuild(*corvint, *cem01, absRoot)
+	revision, platform, err := releaseBuild(*corvint, *cem01, absRoot)
 	if err != nil {
 		fmt.Fprintln(stderr, "cem-release-suites: refused:", err)
 		return 1
@@ -95,6 +108,17 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "cem-release-suites: refused:", err)
 		return 1
 	}
+	var declaration companionrelease.StableReleaseDeclaration
+	if *readiness != "" {
+		raw, err := os.ReadFile(filepath.Join(src, filepath.FromSlash(*readiness)))
+		if err == nil {
+			declaration, err = companionrelease.ReadStableReleaseDeclaration(raw)
+		}
+		if err != nil {
+			fmt.Fprintln(stderr, "cem-release-suites: refused: readiness declaration:", err)
+			return 1
+		}
+	}
 	for _, s := range []struct {
 		name string
 		fn   func(string) error
@@ -114,7 +138,60 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 	fmt.Fprintf(stdout, "cem-release-suites: repository-envelope: PASS at source level on the committed tree of %s; NOT_RUN against binaries (prose recipes)\n", revision)
+	if *readiness == "" {
+		return 0
+	}
+	runnerRows, platformRows, externalRows := observedRows(platform)
+	return judgeReadiness(declaration, r.accepted, runnerRows, platformRows, externalRows, stdout)
+}
+
+// releaseSuites are the binary-level suites, in run order.
+var releaseSuites = []string{"tamper-matrix", "citation-vectors", "neutral-criterion", "receipt-authentication"}
+
+// observedRows is what one passing run observed (CEM-V1-602): each binary
+// suite on each binary, the source-level repository-envelope suite, the
+// binary-level repository-envelope suite as NOT_RUN, and the one platform the
+// two binaries report. It never observes an external row.
+func observedRows(platform string) (runner, platforms, external map[string]string) {
+	runner = map[string]string{"source:repository-envelope": "PASSED", "corvint:repository-envelope": "NOT_RUN", "cem01-go:repository-envelope": "NOT_RUN"}
+	for _, name := range releaseSuites {
+		runner["corvint:"+name], runner["cem01-go:"+name] = "PASSED", "PASSED"
+	}
+	platforms = map[string]string{}
+	if platform != "" {
+		platforms[platform] = "PASSED"
+	}
+	return runner, platforms, map[string]string{}
+}
+
+// judgeReadiness prints every declared row's observed outcome and the
+// readiness verdict: exit 0 when ready, 3 when refused (CEM-V1-603).
+func judgeReadiness(d companionrelease.StableReleaseDeclaration, accepted [][]byte, runner, platforms, external map[string]string, stdout io.Writer) int {
+	for _, class := range []struct {
+		name     string
+		rows     []string
+		observed map[string]string
+	}{{"runner", d.Runner, runner}, {"platform", d.Platform, platforms}, {"external", d.External, external}} {
+		for _, row := range class.rows {
+			outcome, ok := class.observed[row]
+			if !ok {
+				outcome = "NOT_OBSERVED"
+			}
+			fmt.Fprintf(stdout, "cem-release-suites: readiness: %s %s %s\n", class.name, row, outcome)
+		}
+	}
+	if err := companionrelease.StableReleaseReadiness(d, accepted, runner, platforms, external); err != nil {
+		fmt.Fprintf(stdout, "cem-release-suites: readiness: REFUSED (%d accepted stable results read): %v\n", len(accepted), err)
+		return 3
+	}
+	fmt.Fprintf(stdout, "cem-release-suites: readiness: READY (%d accepted stable results read); owner promotion is separate\n", len(accepted))
 	return 0
+}
+
+// repositoryRelative reports whether p is a clean slash-separated path inside
+// the repository tree.
+func repositoryRelative(p string) bool {
+	return p != "" && !strings.HasPrefix(p, "/") && !strings.Contains(p, "\\") && filepath.ToSlash(filepath.Clean(filepath.FromSlash(p))) == p && p != "." && !strings.HasPrefix(p, "../") && p != ".."
 }
 
 // privateDir makes the run's private directory with every symbolic link in
@@ -174,27 +251,48 @@ func mustAbs(p string) string {
 // the checkout at root is at that commit. Inputs are read from the commit's
 // objects by materialize, so worktree edits, skip-worktree and
 // assume-unchanged entries cannot reach a suite.
-func releaseBuild(corvint, cem01, root string) (string, error) {
+func releaseBuild(corvint, cem01, root string) (string, string, error) {
 	a, err := buildinfo.ReadFile(corvint)
 	if err != nil {
-		return "", fmt.Errorf("corvint build information: %v", err)
+		return "", "", fmt.Errorf("corvint build information: %v", err)
 	}
 	b, err := buildinfo.ReadFile(cem01)
 	if err != nil {
-		return "", fmt.Errorf("cem01-go build information: %v", err)
+		return "", "", fmt.Errorf("cem01-go build information: %v", err)
 	}
 	revision, err := sameBuild(a, b)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	head, err := gitOutput(root, "", nil, "rev-parse", "HEAD")
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if head != revision {
-		return "", fmt.Errorf("checkout HEAD %s is not the build revision %s; check out the build commit", head, revision)
+		return "", "", fmt.Errorf("checkout HEAD %s is not the build revision %s; check out the build commit", head, revision)
 	}
-	return revision, nil
+	return revision, buildPlatform(a, b), nil
+}
+
+// buildPlatform is the GOOS/GOARCH both builds report, or "" when either is
+// missing or the two differ: an unreported platform is never observed.
+func buildPlatform(builds ...*debug.BuildInfo) string {
+	platform := ""
+	for i, info := range builds {
+		settings := map[string]string{}
+		for _, s := range info.Settings {
+			settings[s.Key] = s.Value
+		}
+		if settings["GOOS"] == "" || settings["GOARCH"] == "" {
+			return ""
+		}
+		p := settings["GOOS"] + "/" + settings["GOARCH"]
+		if i > 0 && p != platform {
+			return ""
+		}
+		platform = p
+	}
+	return platform
 }
 
 // materialize writes every file of revision's tree, byte for byte from its
@@ -312,6 +410,9 @@ type runner struct {
 	tmp  string
 	bins [2]binary
 	runs int
+	// accepted holds both binaries' result lines of every case the two
+	// accepted, for release readiness (CEM-V1-601).
+	accepted [][]byte
 }
 
 type stableRun struct {
@@ -358,6 +459,9 @@ func (r *runner) verify(repo string, mapBytes []byte, base, target, artifacts, t
 	a, b := withoutGoVersion(runs[0].line), withoutGoVersion(runs[1].line)
 	if runs[0].exit != runs[1].exit || !bytes.Equal(a, b) {
 		return stableRun{}, fmt.Errorf("consumers differ: corvint exit %d %s; cem01-go exit %d %s", runs[0].exit, a, runs[1].exit, b)
+	}
+	if runs[0].result["accept"] == true {
+		r.accepted = append(r.accepted, runs[0].line, runs[1].line)
 	}
 	return runs[0], nil
 }
