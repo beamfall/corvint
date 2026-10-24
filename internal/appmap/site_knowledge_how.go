@@ -177,6 +177,38 @@ func howFlows(m *Map, flows []SKCandidateFlow) ([]*planFlow, func(string) float6
 	return out, func(t string) float64 { return math.Log(1 + n/float64(max(df[t], 1))) }
 }
 
+// goalVariation is the variation whose own source titles and step actions best match the goal,
+// by the summed weight of the goal terms they carry. The first (representative) variation wins a
+// tie, so a goal naming only terms every variation shares keeps it; a goal naming a term only one
+// variation carries never answers with another variation's test (SKH-V0-177).
+func goalVariation(f *SKCandidateFlow, goal string, idf func(string) float64) SKVariation {
+	q := terms(goal)
+	best, bestScore := 0, -1.0
+	for i, v := range f.Variations {
+		texts := []string{}
+		for _, s := range v.Sources {
+			texts = append(texts, s.Title)
+		}
+		for _, st := range v.Steps {
+			texts = append(texts, st.Action)
+		}
+		has := map[string]bool{}
+		for _, t := range terms(texts...) {
+			has[t] = true
+		}
+		score := 0.0
+		for _, t := range q {
+			if has[t] {
+				score += idf(t)
+			}
+		}
+		if score > bestScore {
+			best, bestScore = i, score
+		}
+	}
+	return f.Variations[best]
+}
+
 // admittedEdges indexes the edges a hop may cite by from and to screen: resolved static links,
 // the map's test-observed and flow-declared edges, and the ledger's PROVEN rows (SKH-V0-146).
 func admittedEdges(static, mapped []SKEdge, ledger *EdgeLedger) map[string][]HowEdge {
@@ -280,7 +312,7 @@ func howCompute(ctx context.Context, m *Map, sources []string, goal string, cond
 			f = &flows[i]
 		}
 	}
-	primary := f.Variations[0]
+	primary := goalVariation(f, goal, idf)
 	var t *SKTest
 	for i := range k.Tests {
 		if k.Tests[i].ID == primary.Sources[0].Test {

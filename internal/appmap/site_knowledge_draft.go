@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -93,6 +94,9 @@ func draftPath(testPath, goal string) string {
 	return path.Join(path.Dir(testPath), "how-"+digest([]byte(goal))[:12]+suffix)
 }
 
+// bodyOpener matches a line ending in the opening brace of an arrow or function callback body.
+var bodyOpener = regexp.MustCompile(`(=>|\))\s*\{\s*(//.*)?$`)
+
 func (a *howAnswer) draft(ctx context.Context, root, goal string) (SKDraft, error) {
 	d := SKDraft{Label: howProposalLabel, Gaps: []HowGap{}, Lines: []string{}, Evidence: []SKDraftLine{}}
 	abstain := func(g ...HowGap) (SKDraft, error) {
@@ -131,6 +135,20 @@ func (a *howAnswer) draft(ctx context.Context, root, goal string) (SKDraft, erro
 			}
 		}
 	}
+	// The guard goes directly after the line that opens the test's callback body, which may sit
+	// below a multi-line declaration; with no such line inside the test's span the draft abstains
+	// rather than place the guard inside the argument list (SKH-V0-178).
+	opener := 0
+	for n := t.Anchor.Start; n <= t.Anchor.End && n <= len(source); n++ {
+		if bodyOpener.MatchString(source[n-1]) {
+			opener = n
+			break
+		}
+	}
+	if opener == 0 {
+		at := t.Anchor
+		return abstain(HowGap{Code: GapSourceFramework, Detail: "test " + t.ID + ": callback body opener not located", Anchor: &at})
+	}
 	opaque, screened := map[int]SKStep{}, map[int]bool{}
 	for _, s := range t.Steps {
 		if s.Kind == StepOpaque {
@@ -167,7 +185,7 @@ func (a *howAnswer) draft(ctx context.Context, root, goal string) (SKDraft, erro
 			continue
 		}
 		emit(line, DraftBasisCopied, n, "")
-		if n != t.Anchor.Start {
+		if n != opener {
 			continue
 		}
 		emit(DraftGuardLine, DraftBasisGuard, 0, "")

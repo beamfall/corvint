@@ -721,10 +721,15 @@ func (r *skSetupReader) link(sf *skSetupFile) []SKSetupUse {
 			}
 		}
 		// A setup project runs before every test of a dependent project that does not narrow its
-		// tests; the setup files themselves are not arranged by it.
+		// tests; the setup files themselves are not arranged by it. A project whose file selection
+		// is UNKNOWN still arranges each test, so the dependency stays a gap rather than vanishing
+		// (SKH-V0-179).
 		for i := range r.out {
-			if s := r.out[i]; s.Kind == SetupProject && r.unrestricted[s.ID] && r.projectFiles[s.ID] != nil && !r.projectFiles[s.ID][f.path] &&
-				skUnder(f.path, r.projectDir[s.ID]) {
+			s := r.out[i]
+			if s.Kind != SetupProject || !r.unrestricted[s.ID] || !skUnder(f.path, r.projectDir[s.ID]) {
+				continue
+			}
+			if files := r.projectFiles[s.ID]; files != nil && !files[f.path] || files == nil && s.Status == StatusUnknown {
 				follow(s.ID, 0)
 			}
 		}

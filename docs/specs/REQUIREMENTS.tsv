@@ -4885,6 +4885,9 @@ SKH-V0-173	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) Conditi
 SKH-V0-174	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) `corvint-test e2e how-accept --answer FILE [--write PATH	unrecorded	-
 SKH-V0-175	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) Recorded evidence and oracles MUST decode strictly: the	unrecorded	-
 SKH-V0-176	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1905) The receipt (`site-knowledge-acceptance/0`) MUST be	unrecorded	-
+SKH-V0-177	docs/specs/site-knowledge-howto-v0.md	(experimental; Codex review fix, V1-1903) `how` MUST answer with the flow	unrecorded	-
+SKH-V0-178	docs/specs/site-knowledge-howto-v0.md	(experimental; Codex review fix, V1-1904) The draft guard MUST go directly after	unrecorded	-
+SKH-V0-179	docs/specs/site-knowledge-howto-v0.md	(experimental; Codex review fix, V1-1900) A setup project whose file selection i	unrecorded	-
 SBQ-V0-001	docs/specs/snapshot-batch-v0.md	`corvint [--root PATH] batch` MUST read one canonical JSON request object from	unrecorded	-
 SBQ-V0-002	docs/specs/snapshot-batch-v0.md	The verb MUST load the current snapshot exactly once through	unrecorded	-
 SBQ-V0-003	docs/specs/snapshot-batch-v0.md	Each operation MUST run the standalone verb's own code path over the loaded	unrecorded	-

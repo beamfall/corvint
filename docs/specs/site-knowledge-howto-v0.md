@@ -890,7 +890,26 @@ and `082` is NEEDS-HOST: neither the lane host nor its WSL2 runner carries the p
 shipped receipt reads `infrastructure`. The `SKH-V0-089` witness amendments are not made, so
 selectors and methods read `binding-unverified`; the V1-1733 prover contract is unaccepted, so
 nothing reads `PROVEN`; and the `SKH-V0-084` adopter qualification is NOT_RUN.
-`SKH-V0-177`..`179` are reserved.
+
+Codex review fixes (V1-1900, V1-1903, V1-1904):
+
+- `SKH-V0-177`: (experimental; Codex review fix, V1-1903) `how` MUST answer with the flow
+  variation whose own source titles and step actions carry the most goal-term weight, the
+  representative variation winning a tie, so a goal naming a term only one variation carries
+  ("ship with a note") never answers with another variation's test and steps (`SKH-V0-143`).
+- `SKH-V0-178`: (experimental; Codex review fix, V1-1904) The draft guard MUST go directly after
+  the first line in the test's span that ends by opening its callback body (`=> {` or `) {`,
+  optionally followed by a line comment), so a multi-line declaration keeps the guard out of its
+  argument list. With no such line the draft abstains with `source-framework-unsupported`
+  (`SKH-V0-154`).
+- `SKH-V0-179`: (experimental; Codex review fix, V1-1900) A setup project whose file selection is
+  `UNKNOWN` (for example an unsupported `testMatch` glob) MUST still arrange each test of an
+  unnarrowed dependent project under its directory, so the dependency is reported as a
+  `no-setup-for-precondition` gap in `how` rather than silently dropped (`SKH-V0-104`).
+
+Static links commented out in HTML (`<!-- -->`) or ERB (`<%# %>`), and programmatic navigation
+inside a string literal or after an inline comment, are not edges: this is a defect fix under
+`SKH-V0-111`, which already reads links lexically from markup and code.
 
 ## Preregistered measure
 
@@ -975,6 +994,9 @@ and 8 may stop there.
 | Reviewed source test with a `defect` verdict | blocks its flow and oracle (`SKH-V0-052`) |
 | Plan element mined only from a non-Playwright test | `source-framework-unsupported` (`SKH-V0-070`) |
 | Source line of the primary test is secret-shaped | not copied; `secret-screened` TODO and `INCOMPLETE` (`SKH-V0-157`) |
+| Callback body opener of the primary test not located | abstain with `source-framework-unsupported`; no guard inside an argument list (`SKH-V0-178`) |
+| Setup project with an unsupported file selection | `UNKNOWN` record still arranges the dependent tests; `how` reports `no-setup-for-precondition` (`SKH-V0-179`) |
+| Link inside an HTML or ERB comment, or navigation inside a string | not an edge (`SKH-V0-111`) |
 | Flaky live run | never `PROVEN` (`SKH-V0-082`) |
 | Secret in `storageState` or a typed value | screened and replaced by a parameter slot (`SKH-V0-006`) |
 | Browser, server or provider failure | `infrastructure`, kept separate from test failure |
@@ -1044,6 +1066,7 @@ Stage dependencies (each stage also reads the contracts named for it above):
 | `SKH-V0-060`..`064`, `SKH-V0-143`..`152` | V1-1903 | `internal/appmap/site_knowledge_how.go`, `cmd/corvint/flows_appmap_how.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: `TestSKHV0_143_HowAnswersGoal`, `TestSKHV0_144_HowAbstains`, `TestSKHV0_146_HowAdmitsLedgerEdges`, `TestSKHV0_147_HowSetupAndGaps`, `TestSKHV0_151_HowStale`, `TestSKHV0_152_HowBoundsAndBudget`, `TestSKHV0_143_HowCLI`, `TestSKHV0_143_MapKnowledgeHowView`; the top-level `corvint how` alias is PARTIAL |
 | `SKH-V0-070`..`074`, `SKH-V0-153`..`162` | V1-1904 | `internal/appmap/site_knowledge_draft.go`, `cmd/corvint/flows_appmap_plan.go`, `cmd/corvint-corpus-mcp/mapplan.go` | experimental: `TestSKHV0_153_HowDraftCopiesPrimaryTest`, `TestSKHV0_156_HowDraftMarksTodos`, `TestSKHV0_157_HowDraftScreensSecrets`, `TestSKHV0_159_HowDraftAbstains`, `TestSKHV0_161_PlanDraftCLI`, `TestSKHV0_162_MapPlanHowDraft` |
 | `SKH-V0-080`..`089`, `SKH-V0-163`..`176` | V1-1905 | `internal/skhproof/skhproof.go`, `cmd/corvint-test/howaccept.go` | experimental, offline over recorded evidence: `TestSKHV0_163_OnlyTheCompanionImportsThePipeline`, `TestSKHV0_164_TransformRemovesOnlyTheGuard`, `TestSKHV0_165_DraftMustVerify`, `TestSKHV0_166_EvidenceBindsTheCandidateBytes`, `TestSKHV0_167_RunsMustPassEveryRepeat`, `TestSKHV0_168_ValidityOfTheCandidateBlob`, `TestSKHV0_169_AcceptanceNeedsEveryAxis`, `TestSKHV0_170_SelectorsAndMethodsStayUnverified`, `TestSKHV0_171_EveryControlKilled`, `TestSKHV0_172_VerdictLadder`, `TestSKHV0_173_OracleSeparatesProvenFromExecution`, `TestSKHV0_174_HowAcceptCLI`, `TestSKHV0_175_StrictRecordedInputs`, `TestSKHV0_176_ReceiptIsStable`; the 080/082 live run is NEEDS-HOST (pinned Playwright tuple absent), 084 adopter qualification NOT_RUN, 089 witness amendments NOT_STARTED |
+| `SKH-V0-177`..`179`, `SKH-V0-111` (comment fix) | V1-1903, V1-1904, V1-1900 (Codex review fixes) | `internal/appmap/site_knowledge_how.go`, `internal/appmap/site_knowledge_draft.go`, `internal/appmap/site_knowledge_setup.go`, `internal/appmap/site_knowledge_edges.go` | experimental: `TestSKHV0_177_HowPicksGoalVariation`, `TestSKHV0_178_DraftGuardAfterBodyOpener`, `TestSKHV0_179_UnknownSetupProjectStaysAGap`, `TestSKHV0_111_CommentedLinksAreNotEdges` (each failing first) over inline committed fixtures |
 
 ## Promotion and kill criteria
 
