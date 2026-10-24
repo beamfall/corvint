@@ -1052,6 +1052,7 @@
         "Status is read-only.",
         "handoff is read-only.",
         "change writes the private evidence under the Git directory and .corvint/change.cem.json and .corvint/dogfood-report.json; check verifies the committed binding; seal checks, then commits the CEM rename to .corvint/changes/COMMIT.cem.json.",
+        "Prepare also cites each plan row against the prepared map without writing it, so a row cem cite would refuse stops the run before any bind (DCW-V0-335).",
         "batch-check is read-only.",
         "propose-citations is read-only.",
         "The draft is labelled PROPOSED on stderr; review it and write it to the DOGFOOD_CITATIONS file yourself (DCW-V0-150)."

@@ -298,10 +298,12 @@ func (l *finishLane) removeSidecar(name string) {
 func (l *finishLane) prepare() {
 	defer l.timed("prepare")()
 	l.removeSidecar("prepare")
-	code, run, output := l.pass("prepare", "")
+	// The plan is prechecked against this prepared map, so a row cem cite
+	// would refuse stops here, before the bind pass (DCW-V0-335).
+	code, run, output := l.pass("prepare", l.options.Change.Citations)
 	prepared := code != 2 && isRegular(l.root+"/"+finishLaneSidecar)
 	for _, row := range run.rows {
-		if row.name == "cem-prepare" && row.status != "PRODUCED" {
+		if (row.name == "cem-prepare" || row.name == citePrecheckStep) && row.status != "PRODUCED" {
 			prepared = false
 		}
 	}
