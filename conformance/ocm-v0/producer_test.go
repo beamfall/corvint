@@ -6,6 +6,8 @@ package main
 import (
 	"bytes"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // TestFrozenVectorsMatchTheRealProducer rebuilds each valid vector's seed
@@ -26,6 +28,7 @@ func TestFrozenVectorsMatchTheRealProducer(t *testing.T) {
 		t.Run(v.ID, func(t *testing.T) {
 			u, cleanup, err := BuildUniverse(v.Universe)
 			if err != nil {
+				testplatform.SkipWindowsRefusal(t, err)
 				t.Fatal(err)
 			}
 			defer cleanup()

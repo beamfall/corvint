@@ -33,6 +33,10 @@ func atm(t *testing.T, cwd string, stdin []byte, args ...string) run {
 // the pack opt-in.
 func atmWith(t *testing.T, cwd string, stdin []byte, derive store.ScopeDeriver, args ...string) run {
 	t.Helper()
+	// Off darwin and linux every command but help and version is refused up
+	// front, so a test driving one through atm skips on that exact refusal
+	// (CTS-V0-025); help and the refusal itself are tested with cli.Run.
+	fixture.SkipUnsupportedPlatform(t)
 	var out, errb bytes.Buffer
 	code := cli.Run(cli.Env{Cwd: cwd, Args: args, Stdin: bytes.NewReader(stdin), Stdout: &out, Stderr: &errb, ScopeDeriver: derive})
 	r := run{code: code, stdout: out.Bytes(), stderr: errb.Bytes()}

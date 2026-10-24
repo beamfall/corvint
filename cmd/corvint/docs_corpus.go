@@ -55,8 +55,9 @@ type corpusOptions struct {
 	// readTimings collects the phases when timings is set.
 	readTimings *doccorpus.ReadTimings
 	// profile is the extract operation's repository path of its extractor profile at --revision
-	// (DCP-V1-399); it is read from Git, not from --root.
-	profile string
+	// (DCP-V1-399); it is read from Git, not from --root. With profileSHA256 it is instead the
+	// absolute path of a caller-owned profile outside the repository (DCP-V1-478).
+	profile, profileSHA256 string
 }
 
 // stringFlags maps each value-taking corpus option to its field.
@@ -68,6 +69,7 @@ func (o *corpusOptions) stringFlags() map[string]*string {
 	o.legacyCases.addFlags(flags)
 	o.audit.addFlags(flags)
 	flags["--profile"] = &o.profile
+	flags["--profile-sha256"] = &o.profileSHA256
 	return flags
 }
 
@@ -165,8 +167,8 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 	if seen["--repository"] && o.repository == "" {
 		return o, true, argumentError("--repository must name a repository")
 	}
-	// DCP-V1-318, DCP-V1-319: a present status filter or intent --id is non-empty.
-	for _, flag := range []string{"--state", "--qualifier", "--run"} {
+	// DCP-V1-318, DCP-V1-319, DCP-V1-506: a present status filter, --profile-sha256 or intent --id is non-empty.
+	for _, flag := range []string{"--state", "--qualifier", "--run", "--profile-sha256"} {
 		if seen[flag] && strings.TrimSpace(*flags[flag]) == "" {
 			return o, true, argumentError(flag + " must not be empty")
 		}
@@ -265,6 +267,29 @@ func corpusInputPathError(o corpusOptions) error {
 	}
 	return nil
 }
+
+// corpusBuildManifest reads the manifest docs corpus build runs: --manifest itself, or the
+// manifest a --artifact embeds, which rebuilds that artifact (DCP-V1-495). Only build writes.
+func corpusBuildManifest(o corpusOptions) (doccorpus.Manifest, error) {
+	// Presence, not value, decides: an empty --manifest= beside --artifact is still both.
+	artifact := o.given["--artifact"]
+	if artifact == o.given["--manifest"] || artifact && o.artifact == "" || !artifact && o.manifest == "" {
+		return doccorpus.Manifest{}, argumentError("docs corpus build requires exactly one of --manifest or --artifact")
+	}
+	if artifact {
+		raw, err := doccorpus.ReadCorpusFile(o.root, o.artifact)
+		if err != nil {
+			return doccorpus.Manifest{}, err
+		}
+		return doccorpus.ManifestOfArtifact(raw)
+	}
+	raw, err := doccorpus.ReadCorpusFile(o.root, o.manifest)
+	if err != nil {
+		return doccorpus.Manifest{}, err
+	}
+	return doccorpus.ParseManifest(raw)
+}
+
 func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	if err := corpusInputPathError(o); err != nil {
 		return nil, err
@@ -281,11 +306,7 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 		return doccorpus.Encode(m)
 	}
 	if o.op == "build" {
-		raw, err := doccorpus.ReadCorpusFile(o.root, o.manifest)
-		if err != nil {
-			return nil, err
-		}
-		m, err := doccorpus.ParseManifest(raw)
+		m, err := corpusBuildManifest(o)
 		if err != nil {
 			return nil, err
 		}
@@ -312,7 +333,7 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 		return compileTestDiscovery(ctx, o)
 	}
 	if o.op == "extract" {
-		return doccorpus.BuildExtractorInventory(ctx, doccorpus.ExtractorInput{Root: o.root, Revision: o.revision, Profile: o.profile})
+		return doccorpus.BuildExtractorInventory(ctx, doccorpus.ExtractorInput{Root: o.root, Revision: o.revision, Profile: o.profile, ProfileSHA256: o.profileSHA256})
 	}
 	if o.op == "import-cases" || o.op == "search-cases" {
 		return compileLegacyCasesCorpus(o)

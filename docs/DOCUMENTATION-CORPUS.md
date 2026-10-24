@@ -44,7 +44,12 @@ manifest and profile digests and pinned revisions, then decodes it without reder
 label is dirty or unrecorded proves no rebuild equivalence, so it always rederives. An artifact built by
 another attested Corvint revision stays readable while the builder schema, derivation version and Go
 toolchain in its builder engine match the running binary's; when the derivation version changed, the
-refusal names both versions and the corpus must be rebuilt (`DCP-V1-471`). `validate`, and `--verify-rederive`
+refusal names both versions and the corpus must be rebuilt (`DCP-V1-471`). Rebuild it from the manifest
+it embeds, without re-supplying inputs: `corvint docs corpus build --artifact corpus.json > corpus.new.json`
+then `mv corpus.new.json corpus.json` (redirecting onto the file being read truncates it first). The
+rebuild checks the artifact's content and manifest digests and every pinned input's blob and SHA-256
+in Git; a read never rebuilds, and a running corpus MCP server asks to be restarted on the new file
+(`DCP-V1-495`..`498`). `validate`, and `--verify-rederive`
 on any read, rederive every record from the original pinned inputs (`source-rederived`,
 `DCP-V1-413`). Live source and provider changes are observed from Git status and the tree listing
 and reported separately from the artifact's recorded revision (`DCP-V1-411`). `--timings` writes one
@@ -62,6 +67,14 @@ larger typed import profile. A provider declares either `record` or a sorted `sh
 every shard has the same provider ID, version and source repository, and its own pinned manifest
 input. Commit shards after their original evidence, then name their exact commit, blob and SHA-256.
 All shards are validated together; missing shards, duplicate IDs and dangling joins refuse the build.
+
+A record or shard with many anchors may use the experimental compact
+`corvint-corpus-adoption-provider/2` encoding instead: a `files` table states each file's
+`path`, `blob` and `sha256` once (`repository` and `revision` default to the record's
+`source`), each anchor names its entry by zero-based `file` index with only its span, span hash
+and optional `symbol` or `region`, and optional `anchor_defaults` supply a shared `authority`,
+`evidence_kind` and `reason`. The build expands it to the `/1` record and admits that unchanged;
+on #1664's shape the anchors cost about half the bytes (`DCP-V1-487..489`).
 
 The profile preserves typed claims, eight-section flows, stable paragraphs and retirement redirects,
 test-link roles/confidence, explicit coverage membership, ticket history and intent comparisons.

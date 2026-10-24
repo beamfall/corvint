@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-202 accepted (standing auto-accept 2026-10-11; V1-2361); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); PSR-V0-201 accepted (standing auto-accept 2026-10-11; V1-1008); PSR-V0-203..204 accepted (standing auto-accept 2026-10-11; V1-2352, V1-2425); PSR-V0-220..221 accepted (standing auto-accept 2026-10-11; V1-1715, V1-0911, V1-1569; re-homed from CAL-V0-350 and CAL-V0-364); PSR-V0-222..223 accepted (standing auto-accept 2026-10-11; V1-2482)
+Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-224 accepted (standing auto-accept 2026-10-11; V1-2531); PSR-V0-225 accepted (standing auto-accept 2026-10-11; V1-2537); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-202 accepted (standing auto-accept 2026-10-11; V1-2361); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); PSR-V0-201 accepted (standing auto-accept 2026-10-11; V1-1008); PSR-V0-203..204 accepted (standing auto-accept 2026-10-11; V1-2352, V1-2425); PSR-V0-220..221 accepted (standing auto-accept 2026-10-11; V1-1715, V1-0911, V1-1569; re-homed from CAL-V0-350 and CAL-V0-364); PSR-V0-222..223 accepted (standing auto-accept 2026-10-11; V1-2482)
 Delivery status: experimental
 Authoritative inputs: https://github.com/beamfall/corvint/issues/498; CAL-V0-028..034 in corvint-tasks-agent-leases-v0.md; independent Gate A packet-r2/GATE-A.md PASS with no HIGH, MED findings incorporated before implementation.
 Native ticket: V1-0695, original creation receipt2436.
 
 ## Agent digest
 - Claim: Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.
-- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-202 accepted (standing auto-accept 2026-10-11; V1-2361); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); PSR-V0-201 accepted (standing auto-accept 2026-10-11; V1-1008); PSR-V0-203..204 accepted (standing auto-accept 2026-10-11; V1-2352, V1-2425); PSR-V0-220..221 accepted (standing auto-accept 2026-10-11; V1-1715, V1-0911, V1-1569; re-homed from CAL-V0-350 and CAL-V0-364); PSR-V0-222..223 accepted (standing auto-accept 2026-10-11; V1-2482); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
+- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-224 accepted (standing auto-accept 2026-10-11; V1-2531); PSR-V0-225 accepted (standing auto-accept 2026-10-11; V1-2537); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); PSR-V0-190..191 accepted (standing auto-accept 2026-10-11; V1-0917, V1-0324; decision 0552); PSR-V0-196 accepted (standing auto-accept 2026-10-11; V1-1750); PSR-V0-202 accepted (standing auto-accept 2026-10-11; V1-2361); PSR-V0-200 accepted (standing auto-accept 2026-10-11; V1-1568); PSR-V0-201 accepted (standing auto-accept 2026-10-11; V1-1008); PSR-V0-203..204 accepted (standing auto-accept 2026-10-11; V1-2352, V1-2425); PSR-V0-220..221 accepted (standing auto-accept 2026-10-11; V1-1715, V1-0911, V1-1569; re-homed from CAL-V0-350 and CAL-V0-364); PSR-V0-222..223 accepted (standing auto-accept 2026-10-11; V1-2482); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
 - Exists: Foreground sweep, optional dispatcher integration and focused fixtures are implemented in source. Earlier source-bound repair evidence is retained separately from current integrated qualification.
 - Blocked on: Current integrated native binary, mandatory selected tests, exact-target review, terminal evidence, hosted integration and native completion. Linux runtime and physical external cleanup remain unqualified.
 - Read next: Requirements; Acceptance evidence; Non-goals and simpler baseline; Compatibility and rollback.
@@ -359,16 +359,83 @@ applies at release; pools without `allowedSources` behave as before.
   declines (`fast.declined: ... claim Git observation deferred ...`) without running anything. A
   query naming an exact object (`rev-parse` or `ls-tree` of a full OID) is immutable and memoized
   for its argument list; a derivation is memoized for the identical root, tree, title and body.
-  Every other Git query (a symbolic revision such as `HEAD`, worktree status) is bound to the
-  head.json and intent tree digests read before it ran (the snapshot `bindObservation` checks),
-  and the lock-held observer serves it only while the audited state carries that snapshot. The
+  Every other Git query (a symbolic revision, worktree status) is bound to the head.json and
+  intent tree digests read before it ran (the snapshot `bindObservation` checks), and the
+  lock-held observer serves it only while the audited state carries that snapshot; the root's
+  `HEAD` commit is instead bound to its ref files when PSR-V0-224 applies. The
   rest of the observation then runs unlocked for the recorded state and the route is tried once
-  more. A journal or intent change meanwhile (for example a workflow that integrated a commit and
-  then wrote) misses the bound observations, so the retry declines again and the complete route
+  more. A journal or intent change meanwhile misses the snapshot-bound observations, and a
+  commit integrated meanwhile misses the `HEAD` observation, so the retry declines again and the
+  complete route
   observes Git afresh, reusing the derivation; a ticket edited meanwhile misses the derivation
   key. The reprobe is bounded by that single retry. A served observation clears the memo. A claim
   with no deriver resolves no base tree. Rollback: drop the claim's writer observer in
   `leaseOnce`; the route then observes under the lock as before.
+
+- `PSR-V0-224`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2531) Amends
+  the PSR-V0-168 claim deferral for the claim root's `HEAD` commit (a `CLAIM` or `CLAIM_NEXT`
+  with no base, or base `HEAD`). Before any lock the claim asks Git once where the root's HEAD
+  and common refs live (`rev-parse --path-format=absolute --git-dir --git-common-dir`). After the
+  unlocked `HEAD^{commit}` query, it resolves HEAD from those files alone: the HEAD file, then up
+  to five symbolic refs, each a loose ref file in the common directory (in the worktree's own
+  directory for `refs/bisect/`, `refs/worktree/` and `refs/rewritten/`) or, only when that file
+  is absent, the exact name's line in `packed-refs`. When that resolution names exactly the commit
+  Git reported, the observation is bound to it instead of to the store snapshot; otherwise the
+  PSR-V0-168 snapshot binding applies unchanged. The lock-held observer serves a `HEAD`-bound
+  observation only when the same file resolution, run under the lock with no Git command, still
+  names that commit, whatever the journal did meanwhile. A heartbeat or renew that committed
+  between the probe and the lock therefore no longer misses a contended claim's base: a claim
+  whose other observations are memoized commits on its first writer-route entry. The resolution reports nothing, so the snapshot binding applies, for a
+  layout it does not read exactly as Git's files backend: a reftable store (`reftable` in the
+  common directory), a symlink or non-regular HEAD or ref file, a file over 4 KiB, `packed-refs`
+  over 8 MiB, an unborn branch, a ref name outside plain `refs/` path segments, or a failed layout
+  query. The layout is bound to the root's route: the root's own `.git` (a directory, compared by
+  file identity and required to be the reported Git directory, or a file, compared by bytes) and
+  that Git directory's `gitdir` and `commondir` files, read before and after the layout query
+  and required equal. Every resolution, unlocked or under the lock, re-reads the route before and
+  after the chain and reports nothing on any difference, so a root whose linked worktree was moved
+  away and replaced by another (a new admin directory) is never resolved through the cached old
+  one, and a root without its own `.git` (a subdirectory) has no layout. After reading the target
+  ref, each resolution re-reads HEAD and every symbolic ref of the chain and requires them
+  byte-identical to the first read; otherwise it reports nothing. A checkout that moves HEAD to
+  another branch and resets the branch HEAD left between the two reads therefore cannot pair the
+  old HEAD with the reset ref's commit. Binding by the resolved commit, not by file bytes, means
+  a ref that moved and moved back while Git ran still serves only the commit it now names. A commit integrated in the claim root
+  after the probe is detected even when nothing writes the journal, which the snapshot binding
+  alone did not detect. Non-goals: other revisions, the tree, pool sources and pinned configs keep
+  their PSR-V0-168 bindings, and no Git command runs under the lock. Failure modes: an unreadable
+  layout falls back to the snapshot binding and at worst the PSR-V0-168 reprobe and complete
+  route; a HEAD or symref that changed during the chain read, or a changed route (a replaced or
+  moved worktree, a changed `gitdir` or `commondir`), refuses the memo so the claim reprobes. Rollback: make `headQuery` report false, restoring the PSR-V0-168 binding.
+
+- `PSR-V0-225`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2537) Amends
+  where the PSR-V0-052 and PSR-V0-056 base checks, and the JSG-V0-011 segment re-hash, do their
+  snapshot-independent reads; what they accept is unchanged. Before a resumed round takes the
+  preparation gate, the lease write runs a precheck through a read lifetime of its own. It re-hashes
+  every bound segment and manifest whose base stamps had settled, recording each one whose stamps
+  are still the base's and whose size and SHA-256 match the base's digest. It also lists the names
+  of every request shard whose modification and change times lie at least the PSR-V0-052
+  quiescence before the precheck began, when the shard's own handle reports the stamps its parent's
+  listing did. Under the gate, the resumed audit and the recheck before commit then stat every
+  segment and compare its stamps, change time included, with the base's. They skip the re-hash
+  only for a recorded segment. They list `requests/` afresh, and a shard whose identity, mode,
+  size, modification time and change time are the recorded ones, by both that listing and the
+  shard's own handle, has its recorded names reused. Every name is still stat'ed and checked as a
+  base file or tail-posted request. Any other shard is listed afresh. When any names were reused,
+  the `requests/` pathname must, after the last shard, still name the directory handle they were
+  reached through, as every listing's binding requires; otherwise the check declines as moved. The precheck admits nothing
+  and decides nothing: a fault, a mismatch or an unsettled stamp records nothing, so the gated
+  check does all its PSR-V0-052 work and declines as before. A failed close of the precheck's read
+  lifetime is cleanup, as PSR-V0-057 defines, and terminates the command. Failure modes: an entry
+  made, removed or renamed in a trusted shard after the precheck began moves the shard's
+  modification time (or, if that is restored, its change time), so the shard is listed afresh and
+  a stray or missing request declines. `requests/` or an ancestor renamed and replaced during the
+  gated check fails that binding and declines. A segment or request rewritten after the precheck changes
+  its change time and declines by stamps, and one rewritten before it fails the precheck's digest,
+  so the gated check re-hashes it and declines. A filesystem whose timestamps are coarser than the
+  quiescence could hide a change, the same assumption PSR-V0-052 already makes for base files.
+  Rollback: make `PrecheckResume` record nothing (or drop its call in the lease loop); the gated
+  checks then run exactly as before.
 
 - `PSR-V0-169`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1653) Amends the
   CAL-V0-117 Scheduling step. On an unsegmented store a writer-route write schedules the complete
@@ -1326,6 +1393,8 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-085 | `TestPSRV0081_SourceIdentityGuard`, `TestPSRV0085_LaneUntouchedKeepsIdentityGuard` (`internal/tasks/cli`) |
 | PSR-V0-086 | `TestPSRV0086_PoolsWithoutSourcesUnchanged` (`internal/tasks/cli`) |
 | PSR-V0-168 | `TestPSRV0168_IdentityProbeOutsideWriterLock`, `TestPSRV0168_IdentityProbeStaleStateNotReused`, `TestV12138_ClaimDerivationOutsideWriterLock`, `TestV12138_UnmovedClaimServedOnWriterRoute`, `TestV12138_ClaimRebindsMovedBaseAfterJournalAdvance`, `TestV12138_LockedClaimObserverRunsNoGit` (`internal/tasks/store`) |
+| PSR-V0-224 | `TestPSRV0224_HeadFilesResolveAsGit`, `TestPSRV0224_ClaimRebindsMovedHeadWithoutJournalAdvance`, `TestPSRV0224_HeadRefusesChainMovedBetweenReads`, `TestPSRV0224_CachedLayoutRefusesReplacedWorktree`, `TestV12138_ClaimDerivationOutsideWriterLock`, `TestV12138_ClaimRebindsMovedBaseAfterJournalAdvance` (`internal/tasks/store`); opt-in `TestCALV0263_LeaseGateLoad` (`docs/build-log/2026-10-24-claim-head-ref-binding.md`) |
+| PSR-V0-225 | `TestPSRV0225_PrecheckMovesBaseReadsOutOfTheGate` (no request shard listed and no settled segment re-hashed under the gate after the precheck; every shard listed without it), `TestPSRV0225_PrecheckNeverAdmitsAStaleBase` (stray, removed or rewritten request, a stray with the shard's mtime restored, a new shard and a rewritten segment, after the precheck or after the resumed audit, decline; `requests/` replaced by a copy with a stray during the recheck declines; a segment rewritten before the precheck is not trusted; a failed precheck close is cleanup), `TestJSGV0011_ResumeDeclinesRewrittenSegment` (store, sealed: a segment rewritten at `fast.resume.precheck`, after the precheck re-hashed it, declines; nothing commits and the complete route's decision stands); B2 run in `docs/build-log/2026-10-24-resume-precheck-outside-gate.md` (UNQUALIFIED macOS) |
 | PSR-V0-169 | `TestPSRV0169_NonPublishingRefreshDoesNotRecurPerWrite`, `TestCALV0117_WriterAdvanceAndScheduledRefresh` (`internal/tasks/store`) |
 | PSR-V0-190 | `TestPSRV0190_CheckpointTailRefusesPrefixRequestDuplicate`, `TestCALV0061_CheckpointTailEqualsFullAudit` (`internal/tasks/journal`) |
 | PSR-V0-191 | `TestPSRV0191_StaleProjectionReadWarns` (`internal/tasks/cli`) |

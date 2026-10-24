@@ -45,6 +45,11 @@ type gateLoadSample struct {
 	LockWaitMS, JournalWriteMS   float64
 	FsyncMS                      float64
 	Rounds, Transactions         int
+	// Stages sums the writer-route and complete-route stage durations the
+	// call reported (writerStage); Declines lists its writer-route
+	// declines in order (V1-2531).
+	Stages   map[string]float64 `json:",omitempty"`
+	Declines []string           `json:",omitempty"`
 }
 
 // TestCALV0263_LeaseGateLoad is the opt-in V1-1494 / GH967 load harness, not
@@ -336,6 +341,20 @@ func (r *gateLoadRun) call(verb string, req transaction.LeaseRequest) *Report {
 	})
 	var timing LeaseTiming
 	ctx = WithLeaseTiming(ctx, &timing)
+	ctx = context.WithValue(ctx, mutationStageKey{}, func(stage string) {
+		if why, ok := strings.CutPrefix(stage, "fast.declined: "); ok {
+			s.Declines = append(s.Declines, why)
+			return
+		}
+		if name, raw, ok := strings.Cut(strings.TrimPrefix(stage, "fast."), "="); ok {
+			if d, err := time.ParseDuration(raw); err == nil {
+				if s.Stages == nil {
+					s.Stages = map[string]float64{}
+				}
+				s.Stages[name] += ms(d)
+			}
+		}
+	})
 	forgetLeaseAudits()
 	started := time.Now()
 	report, err := Lease(ctx, r.repo, historyActor, LeaseChoice{QueueID: fixture.QueueID, RequestID: fmt.Sprintf("gate-load-%d-%d-%d", r.worker, r.calls, started.UnixNano()), Root: r.root, Lease: req}, WallClock())

@@ -2697,6 +2697,88 @@ records. Which records carry forward:
   no output. Acceptance: `TestDCPV1399DocsCorpusExtractCLI`, `TestDocsCorpusOperationFlagMatrix`,
   `TestDocsCorpusHelpListsOperations`.
 
+### Experimental compact per-file anchor table (GitHub #1664)
+
+A `corvint-corpus-adoption-provider/1` anchor repeats its file's repository, revision, path, blob
+and whole-file hash, and its authority, evidence kind and reason: about 530 bytes on #1664's
+corpus, where about 28,500 exact one-line anchors added about 15 MB of provider shards. An optional
+compact record encoding states each file once. Status for `DCP-V1-487..489`: proposed,
+experimental; GitHub #1664. `DCP-V1-472` already charges provider shards apart; neither 128 MiB
+bound changes.
+
+- `DCP-V1-487`: Amending `DCP-V1-033`, an adoption provider record or shard may instead use
+  `corvint-corpus-adoption-provider/2`: the `/1` members plus `files`, a table of
+  `{repository?, revision?, path, blob, sha256}` (at most 100,000 entries), and optional
+  `anchor_defaults` `{authority?, evidence_kind?, reason?}`. Every anchor of a `/2` record
+  (evidence `anchors` and observation `step_evidence`) is compact: a required zero-based `file`
+  index, `start_line`, `end_line`, `span_sha256`, and optional `symbol`, `region`, `authority`,
+  `evidence_kind` and `reason`. Decoding expands each compact anchor to the `/1` anchor it stands
+  for: an absent file repository or revision is the record's `source` one, an absent
+  authority, kind or reason is the default's, and a present member, even empty, is kept. The record is then admitted exactly as the `/1`
+  record with those anchors, under the same manifest `/2` requirement, anchor checks, per-shard
+  bound and charges on the compact pinned bytes, and builds the same artifact records; `/1`
+  records and shards are read unchanged. Acceptance: `TestDCPV1487CompactAnchorTableEquivalent`.
+- `DCP-V1-488`: A compact record is closed. A missing or out-of-range `file` index, a `/1` file
+  member inside a compact anchor, an unknown table or default member, a file table over 100,000
+  entries, or a `files` or
+  `anchor_defaults` member in any other provider schema is refused as a located closed-JSON
+  refusal (`DCP-V1-470`) naming the input and JSON pointer, whatever the member order; an expanded anchor that fails a `/1`
+  anchor check is refused as that check refuses it. Acceptance: `TestDCPV1488CompactAnchorRefusals`.
+- `DCP-V1-489`: The compact encoding is measured on a synthetic adoption record of #1664's shape,
+  28,500 anchored inventory subjects over 17,400 files (and over 2,000 files), against the same
+  record in `/1`. Its anchor bytes are at most 50% (35% over 2,000 files) of the `/1` anchor
+  bytes, it expands to exactly the `/1` record, and both aggregate bounds stay 128 MiB.
+  Acceptance: `TestDCPV1489CompactAnchorSizeMeasured`; measured in
+  docs/build-log/2026-10-24-corpus-compact-anchor-table.md.
+
+Failure modes: a compact record a producer writes against the wrong source revision expands to
+anchors that fail the `/1` revision check, never to anchors at another revision; a `/2` record
+under a `/1` manifest is refused as an adoption record is. Non-goals: the builder writes no `/2`
+record and offers no conversion command; the artifact, its anchors and receipts keep their
+format, so no derivation version changes (`DCP-V1-471`); the span hash stays per anchor. A `/2`
+record decodes in about twice the time of its `/1` form. Rollback removes the `/2` decode path;
+`/1` records are unaffected, and corpora pinning `/2` records are refused until rewritten as `/1`.
+
+### Corpus rebuild from the embedded manifest (GitHub #1667)
+
+`DCP-V1-471` admits an artifact from another attested builder revision of the same derivation,
+but an artifact whose derivation, builder schema or Go toolchain changed could only be refreshed
+by re-supplying the manifest it was built from. Status for `DCP-V1-495..498`: proposed,
+experimental; GitHub #1667. This delivers the rebuild that the next section lists as not
+delivered.
+
+- `DCP-V1-495`: `corvint docs corpus build` takes exactly one of `--manifest INPUT.json` or
+  `--artifact CORPUS.json`. With `--artifact` it builds the manifest that artifact embeds, under
+  the same thresholds, admission and pin verification as `--manifest`, and prints the new
+  artifact to stdout; it writes no file, the artifact read included. The manifest is read without
+  the closed record decode or any builder, derivation or pin check, so an artifact whose records
+  this builder no longer decodes still yields it. Its output bytes equal `build --manifest` of the
+  same manifest, so rebuilding a current artifact reproduces it. Neither or both options, or
+  an empty value for the one given, are an argument error with no output. Acceptance: `TestDCPV1495RebuildFromEmbeddedManifest`,
+  `TestDCPV1495BuildRebuildsFromEmbeddedManifest`, `TestDocsCorpusOperationFlagMatrix`,
+  `TestDocsCorpusOperationHelpPrintsFlags`.
+- `DCP-V1-496`: Before any Git read or build, the rebuild refuses (`corpus-refused`, no output)
+  bytes that are not JSON, whose last `sha256` member is not the canonical tail or does not match
+  the content digest, whose schema is not a `corvint-evidence-corpus/` schema, that exceed the
+  artifact size bound of their schema (4 MiB for `/1`, 128 MiB for `/2`), that embed no
+  manifest or a manifest that does not decode closed, or whose `manifest_sha256` does not match
+  the embedded manifest. Every pinned input is then reread from Git and refused unless its blob
+  and SHA-256 match the manifest (`input changed after pinning`). Acceptance:
+  `TestDCPV1496RebuildRefusesUnverifiedManifest`, `TestDCPV1495BuildRebuildsFromEmbeddedManifest`.
+- `DCP-V1-497`: Amending `DCP-V1-471`, every `builder differs:` refusal of the verified read ends
+  with the explicit rebuild (`docs corpus build --artifact <artifact>` into a new file). A read
+  never rebuilds or writes: a refused read runs no build and leaves the artifact file's bytes
+  unchanged. `docs corpus build --help` names what changes the derivation version and that a
+  rebuild goes to a new file renamed over the old one. Acceptance:
+  `TestDCPV1497ReadNeverRebuilds`, `TestDCPV1471VerifiedReadAcrossBuilderRevisions`,
+  `TestDCPV1495BuildRebuildsFromEmbeddedManifest`.
+- `DCP-V1-498`: A corpus MCP server answers its first call from an artifact recorded by another
+  attested builder revision of the same derivation (`DCP-V1-471`). One whose derivation differs
+  is refused as `corpus-refused`, naming both versions and the rebuild. Once the artifact is
+  rebuilt into a new file renamed over the served one, the running server refuses with its
+  restart message (`DCP-V1-143`) and a restarted server answers. Acceptance:
+  `TestDCPV1498MCPServesArtifactsAcrossBuilderUpgrades`.
+
 ### Corpus diagnostics, builder upgrades, eval cost and ranking residuals (GitHub #1662, #1664 to #1667)
 
 A caller-labelled adoption on main-730c6e0 reported five residuals. A malformed provider shard
@@ -2706,9 +2788,10 @@ contributor (#1664). `docs corpus eval` gave no returned rows for a failing case
 checkout stamp and freshness lookup per case (#1666). Every builder revision made every existing
 artifact unreadable (`builder differs`), although the derivation was unchanged (#1667). Five
 `docs_search` and `docs_claims` ranking misses remained (#1665). A caller-owned extractor profile
-(#1662) needs owner intent and is drafted as a proposal only. Status for `DCP-V1-470..477`:
-proposed, experimental; GitHub #1664 to #1667. Status for `DCP-V1-478`: proposed, not
-implemented; GitHub #1662, awaiting owner intent.
+(#1662) could not be used at all. Status for `DCP-V1-470..477`:
+proposed, experimental; GitHub #1664 to #1667. Status for `DCP-V1-478` and `DCP-V1-503..506`:
+proposed, experimental; GitHub #1662, implemented under the orchestrator's 2026-10-24 decision,
+owner acceptance open.
 
 - `DCP-V1-470`: A closed JSON refusal of a named local input (a manifest, a provider record or
   shard, an extractor profile) names its location: `invalid closed JSON input: <input>: <JSON
@@ -2782,21 +2865,72 @@ implemented; GitHub #1662, awaiting owner intent.
   subjects before claims, then the shorter name or text, then natural ID order. Index and scan
   readers keep the same order. Acceptance: `TestDCPV1477MeaningfulTieBreaks`,
   `TestDCPV1404SearchRankingEvalFixture`.
-- `DCP-V1-478`: (proposed, not implemented; awaiting owner intent; GitHub #1662) `docs corpus
-  extract` would accept a caller-owned profile outside the extracted repository with
-  `--profile-file FILE --profile-sha256 HEX`. The file follows the `DCP-V1-054` local input rule
-  and must hash to the digest. Source is still read from Git at `--revision`, and the inventory
-  records the profile digest and `profile_origin: caller`, so the result is reproducible but not
-  repository-declared. The extracted provider record is admitted unchanged (`DCP-V1-393`). Open
-  questions for the owner: whether a caller profile may be used when the repository also declares
-  one, and whether its records carry a lower authority than repository-declared ones.
-  Acceptance (when accepted): a test that a matching digest extracts identical inventory bytes to
-  the same profile committed in the repository, and a mismatched or missing digest refuses with
-  no output.
+- `DCP-V1-478`: (proposed, experimental; GitHub #1662; owner acceptance open) `docs corpus
+  extract --profile PATH --profile-sha256 HEX --revision FULL_COMMIT` admits a caller-owned
+  `corvint-extractor-profile/1` file outside the extracted repository. With `--profile-sha256`,
+  `PATH` must be a clean absolute path whose directory, with symlinks resolved, lies outside the
+  repository root, compared by filesystem identity of every ancestor so a case alias of the root is
+  still inside. The file is read along that resolved path with every directory component pinned
+  and no symlink followed, so a component replaced by a symlink after the check is refused; it
+  must be a regular file within the input bound, and its exact bytes must hash to `HEX` (64
+  lowercase hex digits). This needs the darwin/linux no-follow reader; on other platforms a
+  caller-owned profile is refused before it is read. It is then
+  admitted exactly as a committed profile (`DCP-V1-390`), and every source file is still read only
+  from Git at the revision (`DCP-V1-398`), so the same profile bytes yield the same subjects,
+  relations and gaps as when committed. Without `--profile-sha256` an absolute or otherwise
+  non-repository path keeps the `DCP-V1-399` refusal, which for an absolute path adds that a
+  caller-owned profile also needs the digest. A malformed digest, a relative or unclean path, a
+  path inside the repository, a missing, non-regular or over-bound file, or a digest mismatch
+  (which names the file's digest) is refused with no output before any source file is read. A
+  caller-owned profile is usable whether or not the repository commits one, and its records carry
+  the same `generated` trust and `external-provider` authority: a profile is configuration and
+  grants no authority (`DCP-V1-390`). Acceptance:
+  `TestDCPV1478CallerProfileExtractsLikeTheCommittedProfile`,
+  `TestDCPV1478CallerProfileRequiresAMatchingDigest`,
+  `TestDCPV1478CallerProfileDirectorySwapIsRefused`,
+  `TestDCPV1478CallerProfileUnsupportedPlatformIsRefused`.
+- `DCP-V1-503`: (proposed, experimental; GitHub #1662; owner acceptance open) A caller-profile
+  inventory's `profile` member records `origin: caller`, `sha256` (the digest of the file's exact
+  bytes, as pinned), `document` (the admitted profile) and `canonical_sha256` (the digest of that
+  document's canonical encoding), and never the caller's local path; `path` and `blob` are
+  omitted. Its limitations add that the profile is caller-owned and not declared by the
+  repository, and the provider record's `subjects` capability reason names
+  `sha256:HEX`, also when no pattern matched and the capability is `absent`. A
+  repository-declared inventory omits `origin`, `document` and `canonical_sha256` and keeps its
+  bytes. Acceptance: `TestDCPV1503CallerProfileProvenanceIsRecorded`,
+  `TestDCPV1503CallerProfileWithNoSubjectsKeepsItsDigest`,
+  `TestDCPV1478CallerProfileExtractsLikeTheCommittedProfile`.
+- `DCP-V1-504`: (proposed, experimental; GitHub #1662; owner acceptance open) The provider record
+  of a caller-profile inventory, committed unchanged and declared as a provider input, builds
+  through the existing provider admission (`DCP-V1-393`), and the built artifact still names the
+  profile digest through that capability reason. No artifact, manifest or provider record schema
+  changes. Acceptance: `TestDCPV1504CallerProfileProviderRecordBuildsUnchanged`.
+- `DCP-V1-505`: (proposed, experimental; GitHub #1662; owner acceptance open) A caller-profile
+  extraction writes neither the repository nor the profile or its directory, reads no working-tree
+  source, and returns identical bytes for identical inputs. Acceptance:
+  `TestDCPV1505CallerProfileExtractionIsReadOnly`.
+- `DCP-V1-506`: (proposed, experimental; GitHub #1662; owner acceptance open) `extract` takes
+  `--profile-sha256` as its one optional option, in `help --json` and the capability catalog; the
+  CLI prints exactly the producer's caller-profile inventory bytes and a refusal prints nothing.
+  A present but empty `--profile-sha256` is an argument error, never the repository-profile
+  route.
+  Acceptance: `TestDCPV1506DocsCorpusExtractCallerProfileCLI`, `TestDocsCorpusOperationFlagMatrix`,
+  `TestDocsCorpusHelpListsOperations`, `TestCAPV0019CommittedCatalogMatchesTheBinary`.
 
-Not delivered here: the compact per-file anchor table of #1664 (an anchor encoding change), a
-`score` or rank group on served rows and symbol subjects derived from indexed inputs (#1665
-rows 3 and 5), and rebuilding an artifact from its embedded manifest (#1667).
+Caller-owned profiles (`DCP-V1-478`, `DCP-V1-503..506`) add one CLI option and optional
+inventory members; they run no tool, open no network, add no cache or persisted state, and do not
+change the artifact, manifest or provider record formats. They are not a way to read sources from
+outside Git, to pin a profile by path, or to raise an extractor's authority. Failure modes: a
+caller who edits the profile without updating the digest is refused, never silently re-pinned; a
+profile placed inside the working tree is refused rather than treated as committed. Rollback
+removes the option and the optional members: caller-profile inventories already emitted stay
+readable to every lenient reader, and their provider records stay admissible.
+Caller-owned profiles stay refused on platforms without the no-follow reader, so Windows support
+is not met. Not delivered here: a `score` or rank group on served rows and symbol subjects
+derived from indexed inputs (#1665 rows 3 and 5). The compact per-file anchor table of #1664
+(`DCP-V1-487..489`) and the rebuild from an embedded manifest of #1667 (`DCP-V1-495..498`) are
+specified in their own sections; no producer writes the compact `/2` record yet (V1-2547), and
+release notes naming the merges that change the derivation version remain owner work (V1-2545).
 
 ## Input and authority boundary
 
@@ -3176,6 +3310,11 @@ a guessed subject.
   panic. A refused query read joins its started freshness observation before returning
   (`DCP-V1-431`). A refused or interrupted decode discards the claim terms it derived, and
   concurrent queries of one artifact take them at most once (`DCP-V1-434`).
+- Rebuild from the embedded manifest (`DCP-V1-495..498`): a tampered, noncanonical or
+  non-corpus artifact, or one whose embedded manifest or manifest digest does not hold, is refused
+  before any Git read; a pinned input Git no longer holds refuses the build; neither path prints a
+  partial artifact. Shell redirection onto the artifact being read truncates it before the build
+  reads it, so the guide and help write to a new file and rename it.
 - Diagnostics and builder upgrades (`DCP-V1-470..474`): a located refusal never reports a record
   ID that is not printable or is over 256 bytes, and is bounded however long the input. An
   artifact whose builder schema, derivation version, Go toolchain or engine differs, or whose
@@ -3341,14 +3480,20 @@ cache or memory-limit setting, change no artifact, manifest, receipt or index co
 make producers trust a rehashed artifact. Rollback points the CLI read and the joined `--corpus`
 read back at `ReadCorpusFile` plus `OpenRead` and drops the decode-time claim terms; the delta
 current side is `DCP-V1-460`'s and rolls back with it. No stored state needs migration.
+Rebuild from the embedded manifest (`DCP-V1-495..498`) adds one input option to `build`, and
+no cache, daemon, persisted state or artifact, manifest or receipt format change. It does not
+make a read rebuild, admit an artifact from a changed derivation, or trust an artifact's records:
+only its embedded manifest, checked against both recorded digests, and Git. Rollback removes
+`--artifact` from `build`, restores `--manifest` as required, and drops the rebuild hint from
+the `builder differs:` refusals; no stored state needs migration.
 Diagnostics, builder upgrades, eval sessions and ranking (`DCP-V1-470..477`) add no cache,
 daemon, flag, index key or persisted state, and change no artifact or receipt format other than
 the builder engine string and the two optional eval result members. They do not authenticate an
 artifact's origin, accept an artifact from a changed derivation, or add stemming to subject
 names. Rollback restores the bare decode message, the exact builder comparison and engine
 string (artifacts built in between are then refused and rebuilt), the single aggregate bound,
-the per-case freshness, and the `DCP-V1-402` and `DCP-V1-313` orders. `DCP-V1-478` is not
-implemented.
+the per-case freshness, and the `DCP-V1-402` and `DCP-V1-313` orders. Caller-owned profiles
+(`DCP-V1-478`, `DCP-V1-503..506`) carry their own bounds and rollback after `DCP-V1-506`.
 Read-start freshness and decode allocation (`DCP-V1-465..468`) add no cache, daemon or
 persisted observation, observe no additional checkout before its header, change no overlay,
 receipt, refusal, index or timing field, and do not shorten the decode itself. Rollback removes
@@ -3478,15 +3623,17 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-410..419 | `internal/doccorpus/read.go`, `artifact_decode.go`, `encoding.go`, `compile.go`, `query.go`, `query_index.go`, `query_index_fast.go`, `search_rank.go`, `symbol_anchor.go`, `internal/contextindex/observe_tree.go`, `internal/testvaliditydoc/read.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `stamp.go`, `eval.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1410VerifiedReadSkipsRederivation`, `TestDCPV1410VerifiedReadRefusals`, `TestDCPV1410UnattestedBuilderRederives`, `TestDCPV1411ObserveTreeMatchesBuildContext`, `TestDCPV1411ObserveTreeRetriesWhenHeadMoves`, `TestDCPV1412SymbolIndexBuiltOnlyWhenNeeded`, `TestDCPV1413CorpusReadsWithoutRederivation`, `TestDCPV1414ParallelDecodeMatchesClosedDecode`, `TestDCPV1416CorpusMCPFirstAndWarmCalls`, `TestDCPV1417WarmCallsSkipUnchangedArtifactRead`, `TestDCPV1417WarmStampRefusesParentSymlink`, `TestDCPV1418LargeFixtureVerifiedReadIsFast`, `BenchmarkDCPV1418VerifiedRead`, `TestDCPV1419FastIndexMatchesReference`, `TestDCPV1419FastIndexDeclinesEveryRefusal`, `TestDCPV1419BoundaryScanFindsStringContent`; measured in docs/build-log/2026-10-23-corpus-verified-fast-reads.md |
 | DCP-V1-430..434 | `internal/doccorpus/artifact_decode.go`, `read.go`, `encoding.go`, `query_index_fast.go`, `types.go`, `internal/testvaliditydoc/read.go`, `cmd/corvint/docs_corpus.go`, `corpus_integration.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1431StreamedReadReusesBlocks`, `TestDCPV1431OpenReadFile`, `TestDCPV1431StreamedTruncationAtWindowEnd`, `TestDCPV1431CorpusRefusalJoinsFreshness`, `TestDCPV1432JoinedCorpusReusesVerifiedArtifact`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1434ConcurrentQueriesShareClaimTerms`, `TestDCPV1416CorpusMCPFirstAndWarmCalls`; measured in docs/build-log/2026-10-23-corpus-read-residual.md |
 | DCP-V1-465..467 | `internal/doccorpus/primary_observation.go`, `query.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1465PrimaryObservationMatchesFreshRead`, `TestDCPV1466PrimaryObservationUsedOnce`, `TestDCPV1467CancelledPrimaryObservationJoins`, `TestDCPV1467ShorterDeadlineStopsWaitingForPrimary`, `TestDCPV1467CorpusPreHeaderRefusalJoinsPrimary`, `TestDCPV1431CorpusRefusalJoinsFreshness`, `TestDCPV1413CorpusReadsWithoutRederivation`; measured in docs/build-log/2026-10-23-corpus-read-start-freshness.md |
+| DCP-V1-495..498 | `internal/doccorpus/rebuild.go`, `encoding.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `internal/capcatalog/catalog.json` | `TestDCPV1495RebuildFromEmbeddedManifest`, `TestDCPV1495BuildRebuildsFromEmbeddedManifest`, `TestDCPV1496RebuildRefusesUnverifiedManifest`, `TestDCPV1497ReadNeverRebuilds`, `TestDCPV1498MCPServesArtifactsAcrossBuilderUpgrades`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-470 | `internal/doccorpus/encoding.go`, `shards.go`, `extractor.go` | `TestDCPV1470LocatedDecodeRefusal` |
 | DCP-V1-471 | `internal/doccorpus/encoding.go`, `read.go` | `TestDCPV1471VerifiedReadAcrossBuilderRevisions`, `TestDCPV1471DerivationVersionGuard`, `TestDCPV1410VerifiedReadRefusals` |
 | DCP-V1-472 | `internal/doccorpus/capacity.go`, `compile.go` | `TestDCPV1472ProviderRecordBytesChargedApart`, `TestDCPV1157CapacityRefusalsAreTypedAndEarly` |
 | DCP-V1-473 | `internal/mcp/corpusbridge/eval.go` | `TestDCPV1473FailingCasesListReturnedRows` |
 | DCP-V1-474 | `internal/mcp/corpusbridge/eval.go`, `corpusbridge.go` | `TestDCPV1474EvalSuiteObservesOnce`, `TestDCPV1251EvalScoresThroughTheMCPToolPath`; measured in docs/build-log/2026-10-24-corpus-diagnostics-and-ranking.md |
 | DCP-V1-475..477 | `internal/doccorpus/search_rank.go`, `search_phrase.go`, `typed_query.go` | `TestDCPV1475PhraseAndIdentifierMatchesRankFirst`, `TestDCPV1476ClaimTextMatchesInflections`, `TestDCPV1477MeaningfulTieBreaks`, `TestDCPV1404SearchRankingEvalFixture` |
-| DCP-V1-478 | not implemented (proposed; GitHub #1662) | none until accepted |
+| DCP-V1-478, DCP-V1-503..506 | `internal/doccorpus/extractor.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `docs.go` | `TestDCPV1478CallerProfileExtractsLikeTheCommittedProfile`, `TestDCPV1478CallerProfileRequiresAMatchingDigest`, `TestDCPV1478CallerProfileDirectorySwapIsRefused`, `TestDCPV1478CallerProfileUnsupportedPlatformIsRefused`, `TestDCPV1503CallerProfileProvenanceIsRecorded`, `TestDCPV1503CallerProfileWithNoSubjectsKeepsItsDigest`, `TestDCPV1504CallerProfileProviderRecordBuildsUnchanged`, `TestDCPV1505CallerProfileExtractionIsReadOnly`, `TestDCPV1506DocsCorpusExtractCallerProfileCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusHelpListsOperations`, `TestCAPV0019CommittedCatalogMatchesTheBinary` |
 | DCP-V1-468 | `internal/doccorpus/artifact_decode.go`, `query_index_fast.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1419FastIndexMatchesReference` |
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
+| DCP-V1-487..489 | `internal/doccorpus/compact_anchor.go`, `shards.go`, `encoding.go` | `TestDCPV1487CompactAnchorTableEquivalent`, `TestDCPV1488CompactAnchorRefusals`, `TestDCPV1489CompactAnchorSizeMeasured`; measured in docs/build-log/2026-10-24-corpus-compact-anchor-table.md |
 | DCP-V1-420..425 | `internal/doccorpus/delta.go`, `delta_open.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1420DeltaAdditionalRepositoryAnchors`, `TestDCPV1420DeltaSharedReadBound`, `TestDCPV1424DeltaHistoricalPins`, `TestDCPV1425OpenDeltaCurrentUnavailableCheckout`, `TestDCPV1425DeltaUnavailableCheckoutCLI`, `TestDCPV1421DeltaViewsCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-440..445 | `internal/doccorpus/delta.go`, `adoption.go`, `cmd/corvint/docs_corpus_help.go`, `internal/capcatalog/catalog.json` | `TestDCPV1440DeltaAdoptionRecords`, `TestDCPV1442DeltaExactTestJoinNeedsItsFile`, `TestDCPV1444SelfDeltaSharedSpanChargedOnce`, `TestCAPV0019CommittedCatalogMatchesTheBinary`, `TestMCPV0100HelpToolMatchesTheCLI`, `TestDocsCorpusHelpListsOperations` |
 | DCP-V1-460..462 | `internal/doccorpus/delta_open.go`, `delta.go`, `read.go`, `artifact_decode.go`, `compile.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus_help.go` | `TestDCPV1460DeltaVerifiedReadMatchesRederived`, `TestDCPV1460DeltaVerifiedReadRefusesClosed`, `TestDCPV1460DeltaVerifiedReadUnavailableCheckout`, `TestDCPV1460DeltaCLIVerifiedRead`, `TestDCPV1461PreviousOverDefaultBound`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |

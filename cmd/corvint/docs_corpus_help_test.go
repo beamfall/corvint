@@ -76,7 +76,7 @@ func TestDocsCorpusOperationHelpPrintsFlags(t *testing.T) {
 		"delta":               {"--previous", "--artifact", "--manifest", "--limit", "--offset"},
 		"carry-forward":       {"--previous", "--provider", "--artifact", "--manifest"},
 		"patterns":            {"--artifact", "--format"},
-		"build":               {"--manifest", "--max-unresolved-mention-rate", "--max-pattern-rate"},
+		"build":               {"--manifest", "--artifact", "--max-unresolved-mention-rate", "--max-pattern-rate"},
 	}
 	rootRelative := map[string][]string{
 		"discover-playwright": {"--migration", "--playwright-list", "--receipt"},
@@ -89,6 +89,7 @@ func TestDocsCorpusOperationHelpPrintsFlags(t *testing.T) {
 		"eval":                {"--artifact", "--cases", "--baseline"},
 		"audit-sample":        {"--artifact"},
 		"audit-report":        {"--artifact", "--sample"},
+		"build":               {"--manifest", "--artifact"},
 		"delta":               {"--manifest", "--artifact", "--previous"},
 		"carry-forward":       {"--manifest", "--artifact", "--previous"},
 		"patterns":            {"--artifact"},

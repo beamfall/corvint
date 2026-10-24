@@ -207,7 +207,7 @@ Separate experimental corpus profile:
   corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json
   corvint [--root PATH] docs corpus discover-legacy --runner jasmine|mocha --revision FULL_COMMIT --path PATH [--input REGISTRY.json]
   corvint [--root PATH] docs corpus discover-tests --runner playwright|rspec --revision FULL_COMMIT --path PATH
-  corvint [--root PATH] docs corpus extract --profile PATH --revision FULL_COMMIT
+  corvint [--root PATH] docs corpus extract --profile PATH --revision FULL_COMMIT [--profile-sha256 HEX]
   corvint [--root PATH] docs corpus import-cases --format testrail-json|csv --input EXPORT [--content ids-paths-titles|full]
   corvint [--root PATH] docs corpus search-cases --format testrail-json|csv --input EXPORT (--query TEXT [--match all|any] | --id C<digits>) [--limit N]
   corvint [--root PATH] docs corpus search --artifact CORPUS.json --query TEXT
@@ -294,7 +294,10 @@ corvint-extractor-inventory/1 record. Its provider member is a corvint-corpus-pr
 of endpoint, ui_surface, data_entity, job, event, symbol and interaction subjects with exact line
 anchors and implements, calls, depends_on and related_to relations; unreadable files, unsupported
 shapes and unresolved references are listed under gaps. Tool output is read only as a committed
-file whose SHA-256 the profile pins; no tool runs.
+file whose SHA-256 the profile pins; no tool runs. With --profile-sha256 HEX (DCP-V1-478), --profile
+is the absolute path of a caller-owned profile outside the repository, admitted only when its
+bytes hash to HEX; the inventory records origin caller, the digest and the canonical profile, and
+sources are still read only from Git at --revision.
 `
 
 // legacyCasesHelp is the DCP-V1-070..079 test-management export guidance that docs help and the

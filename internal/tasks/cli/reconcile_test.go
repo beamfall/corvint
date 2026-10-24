@@ -22,6 +22,8 @@ func (r *reconciliationInput) Read([]byte) (int, error) {
 }
 
 func TestTMV0007_AS35_InapplicableReconcileFlagRefusesBeforeInput(t *testing.T) {
+	// Off darwin and linux Tasks refuses the command up front (CTS-V0-025).
+	fixture.SkipUnsupportedPlatform(t)
 	for _, digest := range []string{"", string(wire.Sum([]byte("inapplicable")))} {
 		var output bytes.Buffer
 		input := &reconciliationInput{}

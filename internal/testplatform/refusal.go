@@ -28,6 +28,7 @@ var PlatformRefusals = []PlatformRefusal{
 	{"cannot be read without no-follow support on this platform", "internal/gitstatus/read_other.go"},
 	{"worker platform unsupported", "internal/gitstatus/worker_other.go"},
 	{"platform has no qualified safe opening boundary", "internal/tasks/safeopen/open_other.go"},
+	{"Corvint Tasks is unsupported on this platform", "internal/tasks/wire/platform_other.go"},
 	{"secure publication is unsupported on this platform", "internal/cem/publish/secure_other.go"},
 	{"bounded input acquisition is unsupported on this platform", "internal/cem/publish/read_unsupported.go"},
 	{"serialized CEM map updates are unsupported on this platform", "internal/cem/publish/lock_other.go"},

@@ -31,7 +31,7 @@ func buildCorpusOperations() []corpusOperation {
 	typed := func(name, purpose string) corpusOperation { return typedWith(name, purpose) }
 	return []corpusOperation{
 		{name: "manifest", purpose: "inventory one or more scopes at a full commit as a corpus manifest", required: []string{"--revision", "--scope", "--timestamp"}, optional: []string{"--schema"}},
-		{name: "build", purpose: "build the immutable corpus artifact from a manifest", required: []string{"--manifest"}, optional: []string{"--max-unresolved-mention-rate", "--max-pattern-rate"}},
+		{name: "build", purpose: "build the immutable corpus artifact from a manifest, or rebuild an artifact from the manifest it embeds", optional: []string{"--manifest", "--artifact", "--max-unresolved-mention-rate", "--max-pattern-rate"}},
 		{name: "render", purpose: "emit a deterministic filename-to-content documentation plan; writes nothing", required: []string{"--artifact"}},
 		{name: "maintain", purpose: "preview, or with --apply write, generated blocks of one human page", required: []string{"--artifact", "--page"}, optional: []string{"--apply"}},
 		{name: "cem", purpose: "emit CEM citation arguments and a corpus/CEM binding sidecar", required: []string{"--artifact", "--cem"}, optional: []string{"--id"}},
@@ -42,7 +42,7 @@ func buildCorpusOperations() []corpusOperation {
 		{name: "witness-playwright", purpose: "import qualified Playwright witnesses from a committed receipt and report", required: []string{"--input", "--receipt-input", "--report"}},
 		{name: "discover-legacy", purpose: "inventory Jasmine or Mocha/Cypress legacy cases statically from Git blobs", required: []string{"--runner", "--revision", "--path"}, optional: []string{"--input"}},
 		{name: "discover-tests", purpose: "read Playwright or RSpec examples, expectations, navigations, reaches and hooks statically from Git blobs", required: []string{"--runner", "--revision", "--path"}},
-		{name: "extract", purpose: "extract generic subjects and relations with a repository-declared extractor profile from Git blobs", required: []string{"--profile", "--revision"}},
+		{name: "extract", purpose: "extract generic subjects and relations with a repository-declared, or digest-pinned caller-owned, extractor profile from Git blobs", required: []string{"--profile", "--revision"}, optional: []string{"--profile-sha256"}},
 		{name: "import-cases", purpose: "import manual legacy cases from a caller-exported TestRail JSON or CSV file", required: []string{"--format", "--input"}, optional: []string{"--content"}},
 		{name: "search-cases", purpose: "search a caller-exported TestRail JSON or CSV file for legacy cases", required: []string{"--format", "--input"}, optional: []string{"--query", "--id", "--match", "--limit"}},
 		read("info", "artifact identity, capabilities and freshness", nil),
@@ -152,7 +152,8 @@ var corpusFlagHelp = map[string][2]string{
 	"--max-pattern-rate":            {"R|NAME=R[,NAME=R]", "refuse the build when a corpus pattern's rate exceeds R in [0, 1]; bare R applies to every pattern"},
 	"--sample":                      {"SAMPLE.json", doccorpus.AuditSampleSchema + " sample from docs corpus audit sample"},
 	"--provider":                    {"PROVIDER", "records provider ID declared in the previous corpus manifest"},
-	"--profile":                     {"PATH", "repository path of the " + doccorpus.ExtractorProfileSchema + " profile, read from Git at --revision"},
+	"--profile":                     {"PATH", "repository path of the " + doccorpus.ExtractorProfileSchema + " profile, read from Git at --revision; with --profile-sha256, the absolute path of a caller-owned profile outside the repository"},
+	"--profile-sha256":              {"HEX", "SHA-256 of the caller-owned profile's exact bytes; a mismatch is refused, and the digest and canonical profile are recorded in the inventory"},
 	"--uncovered":                   {"changed|all", "delta uncovered entries: changed regions only, or also uncited subjects (default all)"},
 	"--anchorless":                  {"summary|list", "delta anchorless records: counted by provider and kind, or listed (default summary)"},
 }
@@ -174,6 +175,8 @@ var corpusOperationFlagHelp = map[string]map[string][2]string{
 		"--artifact": {"CORPUS.json", "current corpus artifact (or --manifest; exactly one)"},
 		"--manifest": {"INPUT.json", "current manifest, built in memory (or --artifact; exactly one)"}},
 	"patterns": {"--format": {"json|table", "report view (default json)"}},
+	"build": {"--manifest": {"INPUT.json", "manifest from docs corpus manifest (or --artifact; exactly one)"},
+		"--artifact": {"CORPUS.json", "artifact to rebuild from its embedded manifest (or --manifest; exactly one)"}},
 }
 
 // corpusFlagHelpFor is the help entry of flag for operation.
@@ -249,8 +252,21 @@ func docsCorpusOperationHelp(name string) string {
 	if name == "import-cases" || name == "search-cases" {
 		text.WriteString("\n" + legacyCasesHelp)
 	}
+	if name == "build" {
+		text.WriteString("\n" + corpusRebuildHelp)
+	}
 	return text.String()
 }
+
+// corpusRebuildHelp is the build topic's note on rebuilding a stale artifact (DCP-V1-495, DCP-V1-497).
+const corpusRebuildHelp = "Rebuild: a verified read refuses an artifact whose builder differs (`builder differs:`): the\n" +
+	"derivation version (derivation-N in builder.engine), the builder schema, the Go toolchain in the\n" +
+	"engine, or an unattested revision. Another attested revision with the same derivation is read as\n" +
+	"is. A derivation version changes only with a merge that can alter the records built from the same\n" +
+	"pinned inputs. --artifact rebuilds from the artifact's own embedded manifest: its content and\n" +
+	"manifest digests are checked, every pinned input is reread from Git and must match its recorded\n" +
+	"blob and SHA-256, and the new artifact goes to stdout. Write it to a new file and rename it over\n" +
+	"the old one; redirecting onto the artifact being read truncates it first. Reads never rebuild.\n"
 
 // corpusHelpTopic names the help topic of `docs corpus` arguments, or "" when the operation is
 // unknown so the corpus parser refuses it.

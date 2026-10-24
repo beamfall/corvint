@@ -13,6 +13,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -48,12 +49,34 @@ type Repo struct {
 	IntentDir string // <Root>/.taskman
 }
 
+// SkipUnsupportedPlatform skips t when, and only when, the host is Windows and
+// Tasks refuses the platform up front (CTS-V0-025). On darwin and linux the
+// refusal is nil, so a supported platform never loses the test. Tasks keeps
+// this skip on its own side rather than calling Core's internal/testplatform,
+// because Tasks imports no Core package (decision 0397).
+func SkipUnsupportedPlatform(t testing.TB) {
+	t.Helper()
+	if reason, skip := unsupportedPlatformSkip(runtime.GOOS, wire.PlatformRefusal()); skip {
+		t.Skip(reason)
+	}
+}
+
+func unsupportedPlatformSkip(goos string, refusal error) (string, bool) {
+	if goos != "windows" || refusal == nil {
+		return "", false
+	}
+	return "production refuses this platform (internal/tasks/wire/platform_other.go): " + refusal.Error(), true
+}
+
 // TempRepo creates a primary worktree with a `.git` directory under a
 // symlink-resolved temp path (macOS's /var is a symlink; the §3.4 resolver
 // records the canonical path, so Root equals it). `head.primaryWorktree` is a PathText bounded to
 // 4096 bytes (§2). It removes everything at test cleanup.
 func TempRepo(t *testing.T) *Repo {
 	t.Helper()
+	// Tasks refuses Windows up front, and a drive-letter temp path is no
+	// PathText, so a Windows run skips on that exact refusal (CTS-V0-025).
+	SkipUnsupportedPlatform(t)
 	base, err := os.MkdirTemp("", "atm-")
 	if err != nil {
 		t.Fatalf("mkdtemp: %v", err)

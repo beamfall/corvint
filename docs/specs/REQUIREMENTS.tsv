@@ -623,6 +623,7 @@ BBF-V0-031	docs/specs/browser-behavior-falsification-v0.md	(accepted under the o
 BBF-V0-032	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027)	standing	2026-10-11; V1-2027
 BBF-V0-033	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027) A live t	standing	2026-10-11; V1-2027
 BBF-V0-214	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2029) The go-t	standing	2026-10-11; V1-2029
+BBF-V0-215	docs/specs/browser-behavior-falsification-v0.md	(proposed; V1-2524) A plan's `contract_file`, `test_file`, `config_file` and Go	unrecorded	-
 CAP-V0-001	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008)	standing	2026-10-11; V1-2008
 CAP-V0-002	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008) The	standing	2026-10-11; V1-2008
 CAP-V0-003	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008)	standing	2026-10-11; V1-2008
@@ -769,6 +770,7 @@ CEM-PILOT-016	docs/specs/cem-pilot-kit.md	Corvint repository changes MUST use th
 CEM-PILOT-017	docs/specs/cem-pilot-kit.md	every Git subprocess MUST ignore ambient repository/config redirection. Patch	unrecorded	-
 CEM-PILOT-018	docs/specs/cem-pilot-kit.md	when prepare refuses an existing map under `CEM-PILOT-002`, the	unrecorded	-
 CEM-PILOT-019	docs/specs/cem-pilot-kit.md	`cem verify` same-path drift MUST use only the five frozen statuses. A target en	unrecorded	-
+CEM-PILOT-033	docs/specs/cem-pilot-kit.md	(proposed 2026-10-24, V1-2522, not accepted) On a platform without advisory	unrecorded	-
 CEM-PILOT-028	docs/specs/cem-pilot-kit.md	`cem report --format json` MUST emit a read-only `cem-review/0` projection	unrecorded	-
 CEM-PILOT-029	docs/specs/cem-pilot-kit.md	An explicitly supplied `--ocm MAP` MUST be verified by the owning OCM reader	unrecorded	-
 CEM-PILOT-030	docs/specs/cem-pilot-kit.md	JSON and the published Markdown report MUST bind the same `recordSetSha256`,	unrecorded	-
@@ -830,6 +832,12 @@ CEM-V1-569	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `companionrelease.Val
 CEM-V1-570	docs/specs/cem-stable-v1.md	(proposed; V1-2323) The reader MUST refuse with class `stable-result-authority`	unrecorded	-
 CEM-V1-571	docs/specs/cem-stable-v1.md	(proposed; V1-2323) Runner, platform and external outcomes are release evidence	unrecorded	-
 CEM-V1-572	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `make cem-release-suites CORVINT_RELEASE_BIN=... CEM01_RELEA	unrecorded	-
+CEM-V1-573	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2322) A	standing	2026-10-11; V1-2322
+CEM-V1-574	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2322) A reques	standing	2026-10-11; V1-2322
+CEM-V1-575	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2322) Before	standing	2026-10-11; V1-2322
+CEM-V1-576	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2322) After	standing	2026-10-11; V1-2322
+CEM-V1-577	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2322) The	standing	2026-10-11; V1-2322
+CEM-V1-578	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2322) The	standing	2026-10-11; V1-2322
 CEM-V1-011	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Reject missing, duplicate, unknown or es	owner	decision 0546; 2026-10-20
 CEM-V1-012	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Publish the candidate schema and algorit	owner	decision 0546; 2026-10-20
 CEM-V1-013	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Never translate candidate spec labels to	owner	decision 0546; 2026-10-20
@@ -2122,6 +2130,8 @@ PSR-V0-084	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the ow
 PSR-V0-085	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1586) The guar	standing	2026-10-11; V1-1586
 PSR-V0-086	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1586) A pool	standing	2026-10-11; V1-1586
 PSR-V0-168	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1656) The	standing	2026-10-11; V1-1656
+PSR-V0-224	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2531) Amends	standing	2026-10-11; V1-2531
+PSR-V0-225	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2537) Amends	standing	2026-10-11; V1-2537
 PSR-V0-169	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1653) Amends t	standing	2026-10-11; V1-1653
 PSR-V0-110	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1617) No tail	standing	2026-10-11; V1-1617
 PSR-V0-111	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1617) Progress	standing	2026-10-11; V1-1617
@@ -2198,6 +2208,7 @@ CTS-V0-021	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's
 CTS-V0-022	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0903) The	standing	2026-10-11; V1-0903
 CTS-V0-023	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0903) One	standing	2026-10-11; V1-0903
 CTS-V0-024	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2400) The CTS-	standing	2026-10-11; V1-2400
+CTS-V0-025	docs/specs/corvint-tasks-store-init-v0.md	(proposed 2026-10-24, V1-2523, not accepted) On every GOOS but darwin and linux	unrecorded	-
 TRL-V0-001	docs/specs/corvint-tasks-store-relocation-v0.md	`corvint-tasks relocate --from OLD --request-id ID [--role OWNER|OPERATOR]	unrecorded	-
 TRL-V0-002	docs/specs/corvint-tasks-store-relocation-v0.md	A completed relocation commits one RELOCATE receipt that posts exactly one pinne	unrecorded	-
 TRL-V0-003	docs/specs/corvint-tasks-store-relocation-v0.md	Relocation refuses `QUIESCENCE_UNPROVED`, writing nothing, while any attempt hol	unrecorded	-
@@ -2801,6 +2812,13 @@ DCP-V1-396	docs/specs/documentation-corpus-v1.md	(accepted under the owner's sta
 DCP-V1-397	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) Whe	standing	2026-10-11; #1583
 DCP-V1-398	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583)	standing	2026-10-11; #1583
 DCP-V1-399	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583)	standing	2026-10-11; #1583
+DCP-V1-487	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-033`, an adoption provider record or shard may instead use	unrecorded	-
+DCP-V1-488	docs/specs/documentation-corpus-v1.md	A compact record is closed. A missing or out-of-range `file` index, a `/1` file	unrecorded	-
+DCP-V1-489	docs/specs/documentation-corpus-v1.md	The compact encoding is measured on a synthetic adoption record of #1664's shape	unrecorded	-
+DCP-V1-495	docs/specs/documentation-corpus-v1.md	`corvint docs corpus build` takes exactly one of `--manifest INPUT.json` or	unrecorded	-
+DCP-V1-496	docs/specs/documentation-corpus-v1.md	Before any Git read or build, the rebuild refuses (`corpus-refused`, no output)	unrecorded	-
+DCP-V1-497	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-471`, every `builder differs:` refusal of the verified read end	unrecorded	-
+DCP-V1-498	docs/specs/documentation-corpus-v1.md	A corpus MCP server answers its first call from an artifact recorded by another	unrecorded	-
 DCP-V1-470	docs/specs/documentation-corpus-v1.md	A closed JSON refusal of a named local input (a manifest, a provider record or	unrecorded	-
 DCP-V1-471	docs/specs/documentation-corpus-v1.md	The builder engine names a derivation version (`native-contextindex/<schema>/	unrecorded	-
 DCP-V1-472	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-033` and `DCP-V1-157`, the pinned bytes of a corpus's distinct	unrecorded	-
@@ -2809,7 +2827,11 @@ DCP-V1-474	docs/specs/documentation-corpus-v1.md	An eval suite opens the verifie
 DCP-V1-475	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-402`, a `docs_search` subject whose name field (`DCP-V1-400`,	unrecorded	-
 DCP-V1-476	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-313` and `DCP-V1-328`, a claim's ID and text also match the	unrecorded	-
 DCP-V1-477	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-313` and `DCP-V1-402`, ties no longer order by ID string.	unrecorded	-
-DCP-V1-478	docs/specs/documentation-corpus-v1.md	(proposed, not implemented; awaiting owner intent; GitHub #1662) `docs corpus	unrecorded	-
+DCP-V1-478	docs/specs/documentation-corpus-v1.md	(proposed, experimental; GitHub #1662; owner acceptance open) `docs corpus	unrecorded	-
+DCP-V1-503	docs/specs/documentation-corpus-v1.md	(proposed, experimental; GitHub #1662; owner acceptance open) A caller-profile	unrecorded	-
+DCP-V1-504	docs/specs/documentation-corpus-v1.md	(proposed, experimental; GitHub #1662; owner acceptance open) The provider recor	unrecorded	-
+DCP-V1-505	docs/specs/documentation-corpus-v1.md	(proposed, experimental; GitHub #1662; owner acceptance open) A caller-profile	unrecorded	-
+DCP-V1-506	docs/specs/documentation-corpus-v1.md	(proposed, experimental; GitHub #1662; owner acceptance open) `extract` takes	unrecorded	-
 DCP-V1-054	docs/specs/documentation-corpus-v1.md	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-
@@ -3781,6 +3803,7 @@ LQP-V0-018	docs/specs/lsp-quality-platform-v0.md	Rollback MUST preserve default 
 LQP-V0-019	docs/specs/lsp-quality-platform-v0.md	The tuples in the frozen qualification record are the only candidate support tup	unrecorded	-
 LQP-V0-020	docs/specs/lsp-quality-platform-v0.md	The frozen record MUST mirror every hard, quality and resource floor of the acce	unrecorded	-
 LQP-V0-021	docs/specs/lsp-quality-platform-v0.md	The protected held-out manifest MUST be produced by an independent custodian out	unrecorded	-
+LQP-V0-022	docs/specs/lsp-quality-platform-v0.md	(V1-2536) The public harness MUST classify every combined-arm expected relation	unrecorded	-
 LSO-V0-001	docs/specs/lsp-snapshot-overlay-v0.md	Git identity MUST contain repository, lexical root URI, object format, commit, t	unrecorded	-
 LSO-V0-002	docs/specs/lsp-snapshot-overlay-v0.md	Client text MUST be stored as immutable full-text captures with session, lexical	unrecorded	-
 LSO-V0-003	docs/specs/lsp-snapshot-overlay-v0.md	Close/reopen and explicit reset MUST invalidate old captures even when version a	unrecorded	-

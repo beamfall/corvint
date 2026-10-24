@@ -70,7 +70,8 @@ func TestJSGV0011_SealedStoreWidenAndReapResume(t *testing.T) {
 }
 
 // JSG-V0-011: a sealed segment rewritten in place, its modification time
-// restored, after the base audit or while the resumed write observes under
+// restored, after the base audit, after the resume precheck re-hashed it
+// before the gate (PSR-V0-225), or while the resumed write observes under
 // the writer lock, is never committed over. The resume declines and the
 // command keeps the complete route's own decision for that journal.
 func TestJSGV0011_ResumeDeclinesRewrittenSegment(t *testing.T) {
@@ -79,7 +80,7 @@ func TestJSGV0011_ResumeDeclinesRewrittenSegment(t *testing.T) {
 		t.Skip("platform reports no change time")
 	}
 	first := snapshot.SegmentName(1, snapshot.SegmentReceipts)
-	for _, stage := range []string{"base", "fast.lease.observe"} {
+	for _, stage := range []string{"base", "fast.resume.precheck", "fast.lease.observe"} {
 		t.Run(stage, func(t *testing.T) {
 			f := newSealedResumeFixture(t)
 			var tampered uint64

@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // TestFixturesAgainstRealVerifier builds each fixture's seed universe once,
@@ -25,6 +27,7 @@ func TestFixturesAgainstRealVerifier(t *testing.T) {
 			}
 			u, cleanup, err := BuildUniverse(f.Obligations)
 			if err != nil {
+				testplatform.SkipWindowsRefusal(t, err)
 				t.Fatal(err)
 			}
 			defer cleanup()

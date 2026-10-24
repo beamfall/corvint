@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -172,6 +173,8 @@ func TestATRV0056_DispatchStatusWorkerShowsContextNotice(t *testing.T) {
 	cli := func(args ...string) *wire.Result {
 		t.Helper()
 		var out, errb bytes.Buffer
+		// Off darwin and linux Tasks refuses the command up front (CTS-V0-025).
+		fixture.SkipUnsupportedPlatform(t)
 		Run(Env{Cwd: stateDir, Args: args, Stdin: bytes.NewReader(nil), Stdout: &out, Stderr: &errb})
 		res, err := wire.DecodeResult(out.Bytes())
 		if err != nil {

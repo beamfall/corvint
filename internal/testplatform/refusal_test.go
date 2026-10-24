@@ -8,6 +8,9 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	taskswire "github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 // V1-2486: the helper skips only on Windows and only for a listed refusal.
@@ -77,5 +80,33 @@ func TestPlatformRefusalsMatchTheirSources(t *testing.T) {
 		if !strings.Contains(string(source), `"`+refusal.Message+`"`) {
 			t.Fatalf("%s no longer carries the refusal %q", refusal.Source, refusal.Message)
 		}
+	}
+}
+
+// V1-2522, V1-2523: the CEM update-lock and Tasks platform refusals, as their
+// callers render them, skip on Windows only.
+func TestCEMLockAndTasksRefusalsSkipOnlyOnWindows(t *testing.T) {
+	lock := fmt.Errorf("cem prepare: %w", cemcode.New(cemcode.PublishFailed,
+		"update lock for %q cannot be opened: %v", ".corvint/change.cem.json", errors.New("serialized CEM map updates are unsupported on this platform")))
+	tasks := taskswire.Errorf(taskswire.CodeUnsupported, "platform", "Corvint Tasks is unsupported on this platform")
+	for _, err := range []error{lock, tasks} {
+		for _, goos := range []string{"darwin", "linux"} {
+			if reason, skip := windowsRefusalSkip(goos, err); skip || reason != "" {
+				t.Fatalf("%s: %v skipped with %q, want no skip on a supported platform", goos, err, reason)
+			}
+		}
+		if _, skip := windowsRefusalSkip("windows", err); !skip {
+			t.Fatalf("windows: %v did not skip", err)
+		}
+	}
+	// The pre-V1-2522 message dropped the platform cause and must not skip.
+	opaque := cemcode.New(cemcode.PublishFailed, "update lock for %q cannot be opened", ".corvint/change.cem.json")
+	if _, skip := windowsRefusalSkip("windows", opaque); skip {
+		t.Fatalf("windows: %v skipped without the platform refusal", opaque)
+	}
+	// A MALFORMED drive-letter PathText is not a platform refusal.
+	malformed := taskswire.Errorf(taskswire.CodeMalformed, "", "PathText must be an absolute path")
+	if _, skip := windowsRefusalSkip("windows", malformed); skip {
+		t.Fatalf("windows: %v skipped", malformed)
 	}
 }

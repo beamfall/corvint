@@ -19,7 +19,7 @@ var corpusReadOptional = []string{"--limit", "--offset", "--retirement", "--call
 
 var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"manifest":            {required: []string{"--revision", "--scope", "--timestamp"}, optional: []string{"--schema"}},
-	"build":               {required: []string{"--manifest"}, optional: []string{"--max-unresolved-mention-rate", "--max-pattern-rate"}}, // DCP-V1-346, DCP-V1-352
+	"build":               {optional: []string{"--manifest", "--artifact", "--max-unresolved-mention-rate", "--max-pattern-rate"}}, // DCP-V1-346, DCP-V1-352, DCP-V1-495
 	"render":              {required: []string{"--artifact"}},
 	"maintain":            {required: []string{"--artifact", "--page"}, optional: []string{"--apply"}},
 	"cem":                 {required: []string{"--artifact", "--cem"}, optional: []string{"--id"}},
@@ -29,7 +29,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"witness-playwright":  {required: []string{"--input", "--receipt-input", "--report"}},
 	"discover-legacy":     {required: []string{"--runner", "--revision", "--path"}, optional: []string{"--input"}},
 	"discover-tests":      {required: []string{"--runner", "--revision", "--path"}},
-	"extract":             {required: []string{"--profile", "--revision"}}, // DCP-V1-399
+	"extract":             {required: []string{"--profile", "--revision"}, optional: []string{"--profile-sha256"}}, // DCP-V1-399, DCP-V1-478
 	"import-cases":        {required: []string{"--format", "--input"}, optional: []string{"--content"}},
 	"search-cases":        {required: []string{"--format", "--input"}, optional: []string{"--query", "--id", "--match", "--limit"}},
 	"eval":                {required: []string{"--artifact", "--cases"}, optional: []string{"--baseline", "--format"}},
@@ -62,7 +62,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 
 var corpusAllFlags = []string{"--revision", "--scope", "--timestamp", "--manifest", "--artifact", "--page", "--apply",
 	"--cem", "--id", "--input", "--previous", "--check", "--migration", "--config", "--playwright-list", "--receipt",
-	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match", "--schema", "--section", "--include", "--cases", "--baseline", "--seed", "--size", "--stratify", "--sample", "--repository", "--kind", "--caller-revision", "--max-unresolved-mention-rate", "--max-pattern-rate", "--profile", "--verify-rederive", "--timings"}
+	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match", "--schema", "--section", "--include", "--cases", "--baseline", "--seed", "--size", "--stratify", "--sample", "--repository", "--kind", "--caller-revision", "--max-unresolved-mention-rate", "--max-pattern-rate", "--profile", "--profile-sha256", "--verify-rederive", "--timings"}
 
 func corpusFlagArgs(op, flag string) []string {
 	switch flag {

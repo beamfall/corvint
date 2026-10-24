@@ -179,6 +179,53 @@ def score_definition(packet, case, root, target_bytes):
         return False
 
 
+def relation_gold(section, case):
+    """LQP-V0-022: classify the combined expected relation. Only `present` can
+    pass; a bound that may have dropped it is stated uncertainty, and a
+    projection that breaks TCP-V0-054 subject-first order is a defect."""
+    expected, subject = case['expectedRelation'], case['subject']
+    rows = [x.get('relation', {}) for x in section.get('path_relations', [])]
+    # Like TCP-V0-054, only endpoints in the bound root repository count.
+    roots = [p.get('root_repository') for p in section.get('providers', []) if p.get('state') == 'loaded']
+    root = roots[0] if len(roots) == 1 and roots[0] else None
+    def path(row, side):
+        endpoint = row.get(side, {})
+        return endpoint.get('path') if root is not None and endpoint.get('repository') == root else None
+    def touches(row):
+        return path(row, 'from') == subject or path(row, 'to') == subject
+    # The order check comes first: a misordered packet is a defect even when
+    # it happens to carry the gold relation.
+    flags = [touches(r) for r in rows]
+    if any(later and not earlier for earlier, later in zip(flags, flags[1:])):
+        return 'projection-not-subject-first'
+    if any(r.get('type') == expected['type'] and path(r, 'from') == expected['from']
+           and path(r, 'to') == expected['to'] for r in rows):
+        return 'present'
+    omitted = section.get('omitted', {}).get('path_relations', 0)
+    gold_touches = subject in (expected['from'], expected['to'])
+    # Subject-first order kept every subject row when any non-subject row
+    # survived, so then only a non-subject gold can have been cut here.
+    if omitted and (not gold_touches or all(flags)):
+        return 'omitted-by-packet-bound'
+    query = section.get('query') or {}
+    if query.get('omitted_rows') or query.get('stopped'):
+        return 'omitted-by-provider-bound'
+    return 'absent'
+
+
+def combined_gold_passed(sample):
+    return (sample['exit']==0 and not sample['timedOut'] and
+            sample.get('goldRelation') is True and sample.get('corePacketParity') is True)
+
+
+def relation_states(samples):
+    states={}
+    for sample in samples:
+        state=sample.get('goldRelationState','not-scored')
+        states[state]=states.get(state,0)+1
+    return dict(sorted(states.items()))
+
+
 def self_check():
     # LQP-V0-015/016: nearby same-file symbol and coordinate/type drift must not score.
     import copy
@@ -233,6 +280,36 @@ def self_check():
             bad = copy.deepcopy(pkt)
             bad['span']['uri'] = bad['span']['uri'].replace('/internal/', '/internal/'+suffix)
             assert not score_definition(strict_json(json.dumps(bad)), actual_case, root, blob)
+    # V1-2536: a lexically ordered projection (pre-TCP-V0-054 binary) cut the
+    # gold subject definition at --limit 20; it must fail as a defect, and a
+    # legitimate bound miss must stay uncertainty, never a pass.
+    rel_case = {'subject': 's.go', 'expectedRelation': {'type': 'gopls:uses-definition', 'from': 's.go', 'to': 'd.go'}}
+    def row(source, target, kind='gopls:referenced-by', repository='root'):
+        return {'relation': {'type': kind, 'from': {'repository': repository, 'path': source},
+                             'to': {'repository': repository, 'path': target}}}
+    gold = row('s.go', 'd.go', 'gopls:uses-definition')
+    loaded = [{'state': 'loaded', 'root_repository': 'root'}]
+    lexical = {'providers': loaded, 'path_relations': [row('a.go', 'b.go'), row('s.go', 'c.go')],
+               'omitted': {'path_relations': 1}, 'query': {'omitted_rows': 64, 'stopped': 'query-budget'}}
+    assert relation_gold(lexical, rel_case) == 'projection-not-subject-first'
+    assert relation_gold({**lexical, 'path_relations': [gold, row('a.go', 'b.go')]}, rel_case) == 'present'
+    # Gold after a non-subject row still breaks subject-first order and never passes.
+    misordered_gold = {**lexical, 'path_relations': [row('a.go', 'b.go'), gold]}
+    assert relation_gold(misordered_gold, rel_case) == 'projection-not-subject-first'
+    subject_full = {**lexical, 'path_relations': [row('s.go', 'c.go'), row('x.go', 's.go')]}
+    assert relation_gold(subject_full, rel_case) == 'omitted-by-packet-bound'
+    kept_all = {**lexical, 'path_relations': [row('s.go', 'c.go'), row('a.go', 'b.go')]}
+    assert relation_gold(kept_all, rel_case) == 'omitted-by-provider-bound'
+    assert relation_gold({'providers': loaded, 'path_relations': kept_all['path_relations'], 'omitted': {'path_relations': 1},
+                          'query': {'omitted_rows': 0, 'stopped': ''}}, rel_case) == 'absent'
+    # A same-path endpoint in another repository neither matches gold nor gets subject priority.
+    foreign_gold = {**kept_all, 'path_relations': [row('s.go', 'c.go'), row('a.go', 'b.go'),
+                                                   row('s.go', 'd.go', 'gopls:uses-definition', 'other')]}
+    assert relation_gold(foreign_gold, rel_case) == 'omitted-by-provider-bound'
+    assert relation_gold({**lexical, 'providers': [], 'path_relations': [gold]}, rel_case) != 'present'
+    for section in (lexical, misordered_gold, subject_full, kept_all):
+        assert not combined_gold_passed({'exit': 0, 'timedOut': False, 'corePacketParity': True,
+                                         'goldRelation': relation_gold(section, rel_case) == 'present'})
     assert source_path('file:///fixture/a%20b.go', root) == 'a b.go'
     assert source_path('file:///fixture/p%2Ego', root) is None  # noncanonical alias
     print('exact-symbol gold self-check PASS; qualification UNQUALIFIED')
@@ -331,9 +408,9 @@ def main():
                                     section=packet.get('external',{})
                                     relations=[x.get('relation',{}) for x in section.get('path_relations',[])]
                                     sample['relationCount']=len(relations)
-                                    sample['goldRelation']=any(r.get('type')==case['expectedRelation']['type']
-                                                               and r.get('from',{}).get('path')==case['expectedRelation']['from']
-                                                               and r.get('to',{}).get('path')==case['expectedRelation']['to'] for r in relations)
+                                    sample['goldRelationState']=relation_gold(section, case)
+                                    sample['goldRelation']=sample['goldRelationState']=='present'
+                                    sample['pathRelationsOmitted']=section.get('omitted',{}).get('path_relations')
                                     sample['query']=section.get('query')
                                     sample['providerStates']=[p.get('state') for p in section.get('providers',[])]
                         except (ValueError,KeyError,TypeError) as exc:
@@ -346,11 +423,12 @@ def main():
                     sample['goldPassed']=(sample['exit']==0 and not sample['timedOut'] and
                                           (sample.get('goldDefinition') is True if arm=='upstream' else
                                            sample.get('expectedPathRank') is not None if arm=='core' else
-                                           sample.get('goldRelation') is True and sample.get('corePacketParity') is True))
+                                           combined_gold_passed(sample)))
             summary={}
             for arm in arms:
                 times=[s['seconds'] for s in samples[arm] if s['exit']==0]
                 summary[arm]={'processSuccesses':len(times),'goldPasses':sum(s['goldPassed'] for s in samples[arm]),
+                              **({'goldRelationStates':relation_states(samples[arm])} if arm=='combined' else {}),
                               'p50Seconds':percentile_nearest(times,1,2) if times else None,
                               'p95Seconds':percentile_nearest(times,95,100) if times else None,
                               'bytesMedian':percentile_nearest([s['bytes'] for s in samples[arm] if s['exit']==0],1,2) if times else None}
@@ -364,8 +442,11 @@ def main():
                                  for row in report['cases'] for arm in ('upstream','core','combined')))
         gold_passed=all(all(s['goldPassed'] for s in row['samples'][arm])
                         for row in report['cases'] for arm in ('upstream','core','combined'))
+        states=relation_states([s for row in report['cases'] for s in row['samples']['combined']])
         print(json.dumps({'output':str(args.output),'revision':revision,'cases':len(report['cases']),
-                          'allExecutionSucceeded':execution_succeeded,'allGoldPassed':gold_passed}))
+                          'allExecutionSucceeded':execution_succeeded,'allGoldPassed':gold_passed,
+                          'combinedRelationStates':states,
+                          'combinedRelationUncertain':sum(v for k,v in states.items() if k.startswith('omitted-by-'))}))
         if not execution_succeeded or not gold_passed:
             sys.exit(1)
 

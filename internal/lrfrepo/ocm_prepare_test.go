@@ -10,6 +10,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/cem/workflow"
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 func TestPrepareOCMResumesAfterExcludedSidecarCommit(t *testing.T) {
@@ -224,6 +225,7 @@ func prepareCEM(t *testing.T, root, base, target string, replace bool) {
 	if _, err := session.Prepare(context.Background(), workflow.PrepareOptions{
 		Base: base, Target: target, Replace: replace, Spec: wire.StableSpec,
 	}); err != nil {
+		testplatform.SkipWindowsRefusal(t, err)
 		t.Fatal(err)
 	}
 }

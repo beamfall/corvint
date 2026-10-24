@@ -89,7 +89,7 @@ func typed(v cw.Value, t reflect.Type) error {
 				return fmt.Errorf("untagged document field")
 			}
 			fields[parts[0]] = f.Type
-			required[parts[0]] = len(parts) == 1 || parts[1] != "omitempty"
+			required[parts[0]] = len(parts) == 1 || (parts[1] != "omitempty" && parts[1] != "omitzero")
 		}
 		for _, key := range v.Obj.Keys {
 			field, ok := fields[key]
