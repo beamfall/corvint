@@ -49,6 +49,54 @@ func fixtureGit(t *testing.T, dir, stdin string, args ...string) string {
 func plainFixture(t *testing.T) (PlainRequest, string, string) {
 	t.Helper()
 	caseRoot := neutralCaseRoot(t)
+	var expected struct {
+		BaseRevision   string `json:"baseRevision"`
+		TargetRevision string `json:"targetRevision"`
+	}
+	readJSON(t, filepath.Join(caseRoot, "EXPECTED.json"), &expected)
+	temp, repo, base, parent := recipeRepository(t, caseRoot)
+	if base != expected.BaseRevision || parent != expected.TargetRevision {
+		t.Fatalf("recipe commits %s..%s, want %s..%s", base, parent, expected.BaseRevision, expected.TargetRevision)
+	}
+	source, produced := producerMap(t, repo, base, parent, map[string]string{"1": "6:6", "2": "6:6"})
+	if len(source.Change.Evidence) != 1 || len(source.Change.Hunks) != 2 {
+		t.Fatalf("producer map has %d evidence and %d hunks, want 1 and 2", len(source.Change.Evidence), len(source.Change.Hunks))
+	}
+	inputs := filepath.Join(temp, "inputs")
+	if e := os.Mkdir(inputs, 0o700); e != nil {
+		t.Fatal(e)
+	}
+	ref := func(name string, raw []byte) FileRef { return save(t, filepath.Join(inputs, name), raw) }
+	artifact := func(name string) []byte {
+		b, e := os.ReadFile(filepath.Join(caseRoot, "artifacts", name))
+		if e != nil {
+			t.Fatal(e)
+		}
+		return b
+	}
+	evidence := source.Change.Evidence[0].ID
+	r := PlainRequest{Profile: PlainAssemblyProfile, Repository: repo, ExpectedBase: base, Target: parent,
+		SourceMap: ref("source.json", produced), RunnerPlan: ref("runner-plan.json", artifact("runner-plan.json")), RunnerReceipt: ref("runner-receipt.json", artifact("runner-receipt.json")),
+		Criteria: []PlainCriterion{{CriterionEvidenceID: evidence, HunkIDs: []string{source.Change.Hunks[0].ID, source.Change.Hunks[1].ID}, EvidenceIDs: []string{evidence}}}}
+	return r, filepath.Join(temp, "bundle"), caseRoot
+}
+
+func readJSON(t *testing.T, path string, v any) {
+	t.Helper()
+	b, e := os.ReadFile(path)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e := json.Unmarshal(b, v); e != nil {
+		t.Fatal(e)
+	}
+}
+
+// recipeRepository builds a case's flat-tree recipe repository in a new
+// temporary directory and returns that directory, the repository, and its
+// base and target commits.
+func recipeRepository(t *testing.T, caseRoot string) (string, string, string, string) {
+	t.Helper()
 	var recipe struct {
 		Identity struct{ Name, Email, Date string } `json:"identity"`
 		Commits  []struct {
@@ -57,19 +105,7 @@ func plainFixture(t *testing.T) (PlainRequest, string, string) {
 			Files   map[string]string `json:"files"`
 		} `json:"commits"`
 	}
-	var expected struct {
-		BaseRevision   string `json:"baseRevision"`
-		TargetRevision string `json:"targetRevision"`
-	}
-	for name, v := range map[string]any{"repository.recipe.json": &recipe, "EXPECTED.json": &expected} {
-		b, e := os.ReadFile(filepath.Join(caseRoot, name))
-		if e != nil {
-			t.Fatal(e)
-		}
-		if e := json.Unmarshal(b, v); e != nil {
-			t.Fatal(e)
-		}
-	}
+	readJSON(t, filepath.Join(caseRoot, "repository.recipe.json"), &recipe)
 	if recipe.Identity.Name != "Fixture" || recipe.Identity.Email != "fixture@invalid" || recipe.Identity.Date != "2026-10-01T00:00:00Z" {
 		t.Fatalf("recipe identity %+v differs from fixtureGit", recipe.Identity)
 	}
@@ -101,19 +137,28 @@ func plainFixture(t *testing.T) (PlainRequest, string, string) {
 	}
 	fixtureGit(t, repo, "", "update-ref", "refs/heads/main", parent)
 	fixtureGit(t, repo, "", "symbolic-ref", "HEAD", "refs/heads/main")
-	if base != expected.BaseRevision || parent != expected.TargetRevision {
-		t.Fatalf("recipe commits %s..%s, want %s..%s", base, parent, expected.BaseRevision, expected.TargetRevision)
-	}
+	return temp, repo, base, parent
+}
+
+// producerMap runs the cem/1.0 producer over base..target: prepare, then one
+// cite of SPEC.md per hunk at the given lines, and returns the producer map.
+func producerMap(t *testing.T, repo, base, target string, cites map[string]string) (*cw.StableMap, []byte) {
+	t.Helper()
 	session, e := workflow.Open(repo)
 	if e != nil {
 		t.Fatal(e)
 	}
 	ctx := context.Background()
-	if _, e := session.Prepare(ctx, workflow.PrepareOptions{Base: base, Target: parent}); e != nil {
+	if _, e := session.Prepare(ctx, workflow.PrepareOptions{Base: base, Target: target}); e != nil {
 		t.Fatalf("prepare: %v", e)
 	}
-	for _, hunk := range []string{"1", "2"} {
-		if _, e := session.Cite(ctx, workflow.CiteOptions{MapPath: cw.ExcludedCEMPath, Hunk: hunk, EvidencePath: "SPEC.md", Lines: "6:6", Relation: "specification"}); e != nil {
+	hunks := make([]string, 0, len(cites))
+	for hunk := range cites {
+		hunks = append(hunks, hunk)
+	}
+	sort.Strings(hunks)
+	for _, hunk := range hunks {
+		if _, e := session.Cite(ctx, workflow.CiteOptions{MapPath: cw.ExcludedCEMPath, Hunk: hunk, EvidencePath: "SPEC.md", Lines: cites[hunk], Relation: "specification"}); e != nil {
 			t.Fatalf("cite hunk %s: %v", hunk, e)
 		}
 	}
@@ -125,26 +170,7 @@ func plainFixture(t *testing.T) (PlainRequest, string, string) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if len(source.Change.Evidence) != 1 || len(source.Change.Hunks) != 2 {
-		t.Fatalf("producer map has %d evidence and %d hunks, want 1 and 2", len(source.Change.Evidence), len(source.Change.Hunks))
-	}
-	inputs := filepath.Join(temp, "inputs")
-	if e := os.Mkdir(inputs, 0o700); e != nil {
-		t.Fatal(e)
-	}
-	ref := func(name string, raw []byte) FileRef { return save(t, filepath.Join(inputs, name), raw) }
-	artifact := func(name string) []byte {
-		b, e := os.ReadFile(filepath.Join(caseRoot, "artifacts", name))
-		if e != nil {
-			t.Fatal(e)
-		}
-		return b
-	}
-	evidence := source.Change.Evidence[0].ID
-	r := PlainRequest{Profile: PlainAssemblyProfile, Repository: repo, ExpectedBase: base, Target: parent,
-		SourceMap: ref("source.json", produced), RunnerPlan: ref("runner-plan.json", artifact("runner-plan.json")), RunnerReceipt: ref("runner-receipt.json", artifact("runner-receipt.json")),
-		Criteria: []PlainCriterion{{CriterionEvidenceID: evidence, HunkIDs: []string{source.Change.Hunks[0].ID, source.Change.Hunks[1].ID}, EvidenceIDs: []string{evidence}}}}
-	return r, filepath.Join(temp, "bundle"), caseRoot
+	return source, produced
 }
 
 // TestCEMV1240PlainAssemblyReproducesNeutralCriterionCase proves the plain
@@ -251,6 +277,13 @@ func TestCEMV1240PlainAssemblyRechecksPinsAfterVerify(t *testing.T) {
 		t.Skip("stable process containment is only supported on Darwin/Linux")
 	}
 	r, out, _ := plainFixture(t)
+	recheckPinsAfterVerify(t, r, out)
+}
+
+// recheckPinsAfterVerify changes each pinned input of r in turn after the
+// verifier ACCEPTs and requires the producer to refuse it without a map.
+func recheckPinsAfterVerify(t *testing.T, r PlainRequest, out string) {
+	t.Helper()
 	t.Cleanup(func() { afterPlainVerify = nil })
 	for i, pin := range r.inputs() {
 		original, e := os.ReadFile(pin.Path)

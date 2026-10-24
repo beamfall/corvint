@@ -32,21 +32,23 @@ const (
 )
 
 // admitRunnerReceipt applies the CEM-V1-281..285 checks, in that order, and
-// returns a registered error naming the first one that fails.
-func admitRunnerReceipt(ctx context.Context, repository, target string, plan, receipt []byte) error {
+// returns a registered error naming the first one that fails. An admitted
+// receipt returns its plan's runner profile, which the runners form uses to
+// refuse two receipts of one profile for one criterion (CEM-V1-576).
+func admitRunnerReceipt(ctx context.Context, repository, target string, plan, receipt []byte) (string, error) {
 	var p tr.PlanDocument
 	if e := tr.DecodeDocument(plan, &p); e != nil || p.Profile != runnerPlanProfile {
-		return cemcode.New("runner-document-invalid", "runner plan is not a closed %s document", runnerPlanProfile)
+		return "", cemcode.New("runner-document-invalid", "runner plan is not a closed %s document", runnerPlanProfile)
 	}
 	var r tr.ReceiptDocument
 	if e := tr.DecodeDocument(receipt, &r); e != nil || r.Profile != runnerReceiptProfile {
-		return cemcode.New("runner-document-invalid", "runner receipt is not a closed %s document", runnerReceiptProfile)
+		return "", cemcode.New("runner-document-invalid", "runner receipt is not a closed %s document", runnerReceiptProfile)
 	}
 	if r.PlanSha256 != tr.Identity(p) || r.Execution.InputSha256 != tr.Identity(p.Request.InputFiles) || r.Execution.Runner != p.Request.Runner {
-		return cemcode.New("runner-receipt-tampered", "runner receipt does not bind the pinned plan")
+		return "", cemcode.New("runner-receipt-tampered", "runner receipt does not bind the pinned plan")
 	}
 	if e := runnerInputsAtTarget(ctx, repository, target, p.Request.InputFiles); e != nil {
-		return e
+		return "", e
 	}
 	passed := false
 	for _, t := range r.Observation.Tests {
@@ -55,16 +57,16 @@ func admitRunnerReceipt(ctx context.Context, repository, target string, plan, re
 			passed = true
 		case tr.Skipped:
 		default:
-			return cemcode.New("runner-receipt-failed", "runner receipt observes a %s test", t.State)
+			return "", cemcode.New("runner-receipt-failed", "runner receipt observes a %s test", t.State)
 		}
 	}
 	if r.Error != "" || !r.Observation.Complete {
-		return cemcode.New("runner-receipt-failed", "runner receipt observation is incomplete or carries an execution error")
+		return "", cemcode.New("runner-receipt-failed", "runner receipt observation is incomplete or carries an execution error")
 	}
 	if !passed {
-		return cemcode.New("runner-receipt-skipped", "runner receipt observes no passed test")
+		return "", cemcode.New("runner-receipt-skipped", "runner receipt observes no passed test")
 	}
-	return nil
+	return p.Request.Runner, nil
 }
 
 // runnerInputsAtTarget requires every plan input file to be a blob of the

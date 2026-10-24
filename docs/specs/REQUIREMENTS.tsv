@@ -830,6 +830,12 @@ CEM-V1-569	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `companionrelease.Val
 CEM-V1-570	docs/specs/cem-stable-v1.md	(proposed; V1-2323) The reader MUST refuse with class `stable-result-authority`	unrecorded	-
 CEM-V1-571	docs/specs/cem-stable-v1.md	(proposed; V1-2323) Runner, platform and external outcomes are release evidence	unrecorded	-
 CEM-V1-572	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `make cem-release-suites CORVINT_RELEASE_BIN=... CEM01_RELEA	unrecorded	-
+CEM-V1-573	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2322) A	standing	2026-10-11; V1-2322
+CEM-V1-574	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2322) A reques	standing	2026-10-11; V1-2322
+CEM-V1-575	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2322) Before	standing	2026-10-11; V1-2322
+CEM-V1-576	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2322) After	standing	2026-10-11; V1-2322
+CEM-V1-577	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2322) The	standing	2026-10-11; V1-2322
+CEM-V1-578	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2322) The	standing	2026-10-11; V1-2322
 CEM-V1-011	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Reject missing, duplicate, unknown or es	owner	decision 0546; 2026-10-20
 CEM-V1-012	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Publish the candidate schema and algorit	owner	decision 0546; 2026-10-20
 CEM-V1-013	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Never translate candidate spec labels to	owner	decision 0546; 2026-10-20
