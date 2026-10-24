@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -119,7 +120,10 @@ func TestDCPV1460DeltaVerifiedReadRefusesClosed(t *testing.T) {
 	ctx := context.Background()
 	root, a, data := builtFixture(t)
 	for name, bad := range map[string][]byte{
-		"builder":      rehashed(t, a, func(b *Artifact) { b.Builder.Revision = strings.Repeat("0", 40) }),
+		"builder": rehashed(t, a, func(b *Artifact) {
+			b.Builder.Revision = strings.Repeat("0", 40)
+			b.Builder.Engine = "native-contextindex/" + Schema + "/" + runtime.Version()
+		}),
 		"tree":         rehashed(t, a, func(b *Artifact) { b.Tree = strings.Repeat("0", 40) }),
 		"digest":       bytes.Replace(data, []byte(`"sha256":"`+a.SHA256), []byte(`"sha256":"`+strings.Repeat("0", 64)), 1),
 		"noncanonical": append([]byte(" "), data...),

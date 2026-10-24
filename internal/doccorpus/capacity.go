@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
@@ -13,8 +15,71 @@ import (
 // (DCP-V1-157). Its message names the limit and the observed count.
 const CapacityCode = "corpus-capacity-exceeded"
 
-// maxPinnedInputBytes bounds the distinct input bytes one build pins.
-const maxPinnedInputBytes = 128 << 20
+// maxPinnedInputBytes bounds the distinct input bytes one build pins other than provider record
+// shards, and maxProviderRecordBytes the distinct provider record shard bytes, which are charged
+// apart so that the size of the supplied record encoding cannot crowd out source inputs
+// (DCP-V1-472).
+const (
+	maxPinnedInputBytes    = 128 << 20
+	maxProviderRecordBytes = 128 << 20
+)
+
+// inputCharge is the distinct input bytes one build pins, kept per class with each input's size
+// so that a refusal can name the largest contributors (DCP-V1-472).
+type inputCharge struct {
+	sources, providers int
+	sizes              []chargedInput
+}
+
+type chargedInput struct {
+	path     string
+	provider bool
+	size     int
+}
+
+func (c *inputCharge) add(in Input, size int) {
+	provider := in.Purpose == "provider"
+	if provider {
+		c.providers += size
+	} else {
+		c.sources += size
+	}
+	c.sizes = append(c.sizes, chargedInput{path: in.Path, provider: provider, size: size})
+}
+
+// check refuses a charge past either bound, naming both totals and the three largest inputs of
+// the class that is over.
+func (c *inputCharge) check() error {
+	limit, count, bound, provider := "", 0, 0, false
+	switch {
+	case c.sources > maxPinnedInputBytes:
+		limit, count, bound = "aggregate pinned input bytes", c.sources, maxPinnedInputBytes
+	case c.providers > maxProviderRecordBytes:
+		limit, count, bound, provider = "aggregate provider record bytes", c.providers, maxProviderRecordBytes, true
+	default:
+		return nil
+	}
+	class := []chargedInput{}
+	for _, s := range c.sizes {
+		if s.provider == provider {
+			class = append(class, s)
+		}
+	}
+	sort.SliceStable(class, func(i, j int) bool {
+		if class[i].size != class[j].size {
+			return class[i].size > class[j].size
+		}
+		return class[i].path < class[j].path
+	})
+	largest := []string{}
+	for _, s := range class[:min(3, len(class))] {
+		largest = append(largest, fmt.Sprintf("%s (%d)", boundedText(s.path, 256), s.size))
+	}
+	err := capacityExceeded(limit, count, bound).(*Error)
+	err.Message += fmt.Sprintf("; source and other inputs %d bytes (limit %d), provider record shards %d bytes (limit %d); largest: %s",
+		c.sources, maxPinnedInputBytes, c.providers, maxProviderRecordBytes, strings.Join(largest, ", "))
+	return err
+}
 
 // corpusGitHooks are the test-only Git hooks one call carries in its context,
 // so tests that bound a phase's operations (DCP-V1-155) or compare batched

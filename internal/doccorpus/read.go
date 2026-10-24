@@ -240,8 +240,8 @@ func errNotRederivable(reason string) error {
 
 // verifyRecorded checks what a verified read trusts instead of rederiving.
 func verifyRecorded(ctx context.Context, root string, a *Artifact) error {
-	if a.Builder != currentBuilder() {
-		return errNotRederivable("builder differs")
+	if err := sameDerivation(a.Builder, currentBuilder()); err != nil {
+		return err
 	}
 	if (a.Schema == SchemaV2) != (a.Manifest.Schema == ManifestSchemaV2) {
 		return errNotRederivable("artifact and manifest schemas differ")

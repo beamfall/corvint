@@ -4,15 +4,20 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json/jsontext"
 	json "encoding/json/v2"
+	"errors"
 	"io"
 	"io/fs"
 	"os"
 	"path"
+	"reflect"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"sync"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/testvaliditydoc"
@@ -33,13 +38,125 @@ func decode(data []byte, target any) error {
 	return decodeBounded(data, target, MaxBytes)
 }
 func decodeBounded(data []byte, target any, limit int) error {
+	return decodeNamed("", data, target, limit)
+}
+
+// decodeNamed is decodeBounded for a caller-supplied input: a refusal keeps the "invalid closed
+// JSON input" prefix and, when name is set, appends the input name, the JSON pointer of the first
+// invalid value, the enclosing record id when one is readable, the reason and the byte offset
+// (DCP-V1-470). An artifact keeps the bare message, which its streamed decoder must match.
+func decodeNamed(name string, data []byte, target any, limit int) error {
 	if len(data) > limit {
 		return fail("input bound exceeded")
 	}
 	if err := json.Unmarshal(data, target, json.RejectUnknownMembers(true)); err != nil {
-		return fail("invalid closed JSON input")
+		if name == "" {
+			return fail("invalid closed JSON input")
+		}
+		return fail("invalid closed JSON input: " + locateDecodeError(name, data, err))
 	}
 	return nil
+}
+
+// locateDecodeError renders where and why a closed decode failed. Every caller-derived part is
+// bounded, so the message stays small whatever the input holds.
+func locateDecodeError(name string, data []byte, err error) string {
+	pointer, reason, offset := "", "invalid JSON", int64(-1)
+	var semantic *json.SemanticError
+	var syntactic *jsontext.SyntacticError
+	switch {
+	case errors.As(err, &semantic):
+		pointer, offset = string(semantic.JSONPointer), semantic.ByteOffset
+		switch {
+		case errors.Is(semantic.Err, json.ErrUnknownName):
+			reason = "unknown member"
+		case semantic.GoType != nil:
+			reason = "expected " + jsonKindOf(semantic.GoType) + ", got " + semantic.JSONKind.String()
+		}
+	case errors.As(err, &syntactic):
+		pointer, offset = string(syntactic.JSONPointer), syntactic.ByteOffset
+		if syntactic.Err != nil {
+			reason = syntactic.Err.Error()
+		}
+	}
+	if pointer == "" {
+		pointer = "/"
+	}
+	parts := []string{boundedText(name, 1024), boundedText(pointer, 512)}
+	if semantic != nil {
+		if id := recordIDAt(data, pointer); id != "" {
+			parts = append(parts, "record "+id)
+		}
+	}
+	located := strings.Join(parts, ": ") + ": " + boundedText(reason, 256)
+	if offset >= 0 {
+		located += " (offset " + strconv.FormatInt(offset, 10) + ")"
+	}
+	return located
+}
+
+// jsonKindOf names the JSON value a Go decode target expects.
+func jsonKindOf(t reflect.Type) string {
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	switch t.Kind() {
+	case reflect.Struct, reflect.Map:
+		return "object"
+	case reflect.Slice, reflect.Array:
+		return "array"
+	case reflect.String:
+		return "string"
+	case reflect.Bool:
+		return "boolean"
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint,
+		reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64:
+		return "number"
+	}
+	return "value"
+}
+
+// recordIDAt reads the string id of the record a JSON pointer of the form /member/index/... falls
+// in, best effort: a member or element that is not there, or an id that is not a short printable
+// string, yields "".
+func recordIDAt(data []byte, pointer string) string {
+	tokens := strings.Split(strings.TrimPrefix(pointer, "/"), "/")
+	if len(tokens) < 2 {
+		return ""
+	}
+	index, err := strconv.Atoi(tokens[1])
+	if err != nil || index < 0 {
+		return ""
+	}
+	var top map[string]jsontext.Value
+	if json.Unmarshal(data, &top) != nil {
+		return ""
+	}
+	member := strings.NewReplacer("~1", "/", "~0", "~").Replace(tokens[0])
+	var records []jsontext.Value
+	if json.Unmarshal(top[member], &records) != nil || index >= len(records) {
+		return ""
+	}
+	var record struct {
+		ID string `json:"id"`
+	}
+	if json.Unmarshal(records[index], &record) != nil || record.ID == "" || len(record.ID) > 256 ||
+		!utf8.ValidString(record.ID) || strings.IndexFunc(record.ID, func(r rune) bool { return !unicode.IsPrint(r) }) >= 0 {
+		return ""
+	}
+	return record.ID
+}
+
+// boundedText cuts caller-derived text to at most limit bytes on a rune boundary.
+func boundedText(value string, limit int) string {
+	if len(value) <= limit {
+		return value
+	}
+	cut := limit
+	for cut > 0 && !utf8.RuneStart(value[cut]) {
+		cut--
+	}
+	return value[:cut] + "..."
 }
 func hashValue(value any) (string, error) {
 	h := sha256.New()
@@ -98,7 +215,52 @@ func currentBuilder() Builder {
 	if dirty {
 		revision += "+dirty"
 	}
-	return Builder{Version: Schema, Revision: revision, Engine: "native-contextindex/" + Schema + "/" + runtime.Version()}
+	return Builder{Version: Schema, Revision: revision, Engine: "native-contextindex/" + Schema + "/derivation-" + DerivationVersion + "/" + runtime.Version()}
+}
+
+// DerivationVersion names the derivation a build runs: every rule that turns the same pinned
+// inputs into the artifact's records. A change that can alter the records built from the same
+// inputs increments it; one that changes only how a read ranks, renders or bounds them does not.
+// The verified read admits an artifact from another attested builder revision only while the
+// version, the builder schema and the engine are equal (DCP-V1-471).
+const DerivationVersion = "1"
+
+// derivationOf reads the derivation version a builder's engine label records, or "" for an
+// engine from before the version was recorded.
+func derivationOf(b Builder) string {
+	_, rest, ok := strings.Cut(b.Engine, "/derivation-")
+	if !ok {
+		return ""
+	}
+	version, _, _ := strings.Cut(rest, "/")
+	return version
+}
+
+// sameDerivation admits a recorded builder for the verified read: the running builder itself, or
+// another attested revision with the same builder schema, derivation version and engine. The
+// refusal names what differs (DCP-V1-471).
+func sameDerivation(recorded, running Builder) error {
+	if recorded == running {
+		return nil
+	}
+	named := func(v string) string {
+		if v == "" {
+			return "unrecorded"
+		}
+		return boundedText(v, 128)
+	}
+	switch {
+	case derivationOf(recorded) != derivationOf(running):
+		return errNotRederivable("builder differs: derivation version differs (artifact " + named(derivationOf(recorded)) +
+			", running builder " + named(derivationOf(running)) + "); rebuild the corpus")
+	case recorded.Version != running.Version:
+		return errNotRederivable("builder differs: builder schema differs (artifact " + named(recorded.Version) + ", running builder " + named(running.Version) + ")")
+	case recorded.Engine != running.Engine:
+		return errNotRederivable("builder differs: engine differs (artifact " + named(recorded.Engine) + ", running builder " + named(running.Engine) + ")")
+	case !attestedBuilder(recorded):
+		return errNotRederivable("builder differs: the artifact's builder revision is unrecorded or dirty")
+	}
+	return nil
 }
 func ReadFile(root, path string) ([]byte, error) { return readFileBounded(root, path, MaxBytes) }
 
@@ -189,7 +351,7 @@ func readFileBounded(root, path string, limit int64) ([]byte, error) {
 }
 func ParseManifest(data []byte) (Manifest, error) {
 	var m Manifest
-	err := decodeBounded(data, &m, MaxCorpusBytes)
+	err := decodeNamed("manifest", data, &m, MaxCorpusBytes)
 	if err == nil && len(data) > encodingLimit(m) {
 		err = fail("manifest input bound exceeded")
 	}

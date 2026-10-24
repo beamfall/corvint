@@ -41,7 +41,10 @@ condition of its closest test link; a link that fails only because its review is
 (`DCP-V1-150`..`152`). A read verifies the artifact's canonical bytes, content digest, builder,
 manifest and profile digests and pinned revisions, then decodes it without rederiving it
 (`DCP-V1-410`); `info` reports `validation: artifact-verified`. A development binary whose builder
-label is dirty or unrecorded proves no rebuild equivalence, so it always rederives. `validate`, and `--verify-rederive`
+label is dirty or unrecorded proves no rebuild equivalence, so it always rederives. An artifact built by
+another attested Corvint revision stays readable while the builder schema, derivation version and Go
+toolchain in its builder engine match the running binary's; when the derivation version changed, the
+refusal names both versions and the corpus must be rebuilt (`DCP-V1-471`). `validate`, and `--verify-rederive`
 on any read, rederive every record from the original pinned inputs (`source-rederived`,
 `DCP-V1-413`). Live source and provider changes are observed from Git status and the tree listing
 and reported separately from the artifact's recorded revision (`DCP-V1-411`). `--timings` writes one
@@ -83,7 +86,8 @@ parity distinguishes admitted records and restricted drops; it does not infer re
 Restricted findings belong only in the separate `restricted_findings` input family. Share the
 resulting severity summary, never the original local provider input or local detail report.
 
-A shard is limited to 64 MiB, all pinned inputs together and the output to 128 MiB. Collections admit
+A shard is limited to 64 MiB, the provider record shards together to 128 MiB, the other pinned inputs
+together to 128 MiB, and the output to 128 MiB; a refusal names the largest contributors. Collections admit
 100,000 subjects, claims and relations each, 4,096 journeys and 100,000 typed details. Each normalized
 record plus its detail must fit 1 MiB so a bounded reader can return it. The older `/1`, behavior
 adapter and retained receipt profiles keep their existing limits.

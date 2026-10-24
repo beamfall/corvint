@@ -42,8 +42,16 @@ type searchHit struct {
 	// exact marks an exact name or claim-text match, which orders before
 	// every hit that is not exact, whatever its score (DCP-V1-402).
 	exact bool
+	// phrase marks a subject whose name field holds the query's words in
+	// order, such as logout_redirect_url or the segment on_deck for the
+	// query "on deck"; it orders after exact hits and before every other
+	// hit (DCP-V1-475).
+	phrase bool
 	// claim orders a claim after a subject of equal score (DCP-V1-402).
 	claim bool
+	// text is the subject name or claim text whose length breaks a score
+	// tie before the natural ID order (DCP-V1-477).
+	text string
 }
 
 // normalized divides a family's raw score by the family's largest possible
@@ -62,10 +70,12 @@ func normalized(score, maximum float64) float64 {
 // with module and file path segments in the name field and prose names
 // weighed as text (DCP-V1-400, DCP-V1-401). Each family's score is
 // normalized by its largest possible partial score before the families merge
-// (DCP-V1-402). Exact matches order first whatever their term overlap.
-// Terms are summed in sorted order so the floating-point score is
-// deterministic; equal scores order subjects before claims, then by record
-// ID. A kind filter keeps only subjects of the named kinds and claims about
+// (DCP-V1-402). Exact matches order first whatever their term overlap,
+// then subjects whose name field holds the query as a phrase (DCP-V1-475).
+// Claim text also matches regular inflections of a query term
+// (DCP-V1-476). Terms are summed in sorted order so the floating-point
+// score is deterministic; equal scores order subjects before claims, then
+// the shorter name or text, then by natural record ID order (DCP-V1-477). A kind filter keeps only subjects of the named kinds and claims about
 // them.
 func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error {
 	terms := slices.Sorted(maps.Keys(contextindex.EvidenceTerms(request.Query)))
@@ -120,8 +130,14 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 			}
 		}
 	}
+	phrase, identifier := queryPhrase(request.Query)
 	for i, score := range scores {
-		hits = append(hits, searchHit{a.Subjects[i], a.Subjects[i].ID, score, exact[i], false})
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		s := a.Subjects[i]
+		in := phrase != nil && !exact[i] && phraseMatch(s, phrase, identifier)
+		hits = append(hits, searchHit{value: s, id: s.ID, score: score, exact: exact[i], phrase: in, text: s.Name})
 	}
 	if claims {
 		claimHits, err := claimSearchHits(ctx, a, x, request, terms, keep)
@@ -134,13 +150,19 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 		if hits[i].exact != hits[j].exact {
 			return hits[i].exact
 		}
+		if hits[i].phrase != hits[j].phrase {
+			return hits[i].phrase
+		}
 		if hits[i].score != hits[j].score {
 			return hits[i].score > hits[j].score
 		}
 		if hits[i].claim != hits[j].claim {
 			return !hits[i].claim
 		}
-		return hits[i].id < hits[j].id
+		if li, lj := specificity(hits[i].text), specificity(hits[j].text); li != lj {
+			return li < lj
+		}
+		return naturalLess(hits[i].id, hits[j].id)
 	})
 	for _, h := range hits {
 		addRecord(r, h.value)
@@ -278,9 +300,10 @@ func extraPaths(s Subject) []string {
 	return out
 }
 
-// claimSearchHits scores claims by their ID and text terms with claim-text
-// weight, normalized by the claim family's largest possible partial score;
-// an exact-text match orders first (DCP-V1-328, DCP-V1-402).
+// claimSearchHits scores claims by their ID and text terms, and regular
+// inflections of them (DCP-V1-476), with claim-text weight, normalized by the
+// claim family's largest possible partial score; an exact-text match orders
+// first (DCP-V1-328, DCP-V1-402).
 func claimSearchHits(ctx context.Context, a *Artifact, x *QueryIndex, request Request, terms []string, keep func(string) bool) ([]searchHit, error) {
 	about := func(c Claim) bool {
 		if request.Kinds == nil {
@@ -295,9 +318,10 @@ func claimSearchHits(ctx context.Context, a *Artifact, x *QueryIndex, request Re
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		idf := searchIDF(len(a.Claims), len(x.ClaimTerms[term]))
+		held := claimPostings(x, term)
+		idf := searchIDF(len(a.Claims), len(held))
 		maximum += claimFieldWeight * idf
-		for _, i := range x.ClaimTerms[term] {
+		for _, i := range held {
 			if about(a.Claims[i]) {
 				scores[i] += claimFieldWeight * idf
 			}
@@ -318,7 +342,8 @@ func claimSearchHits(ctx context.Context, a *Artifact, x *QueryIndex, request Re
 	}
 	hits := make([]searchHit, 0, len(scores))
 	for i, score := range scores {
-		hits = append(hits, searchHit{a.Claims[i], a.Claims[i].ID, normalized(score, maximum), exact[i], true})
+		c := a.Claims[i]
+		hits = append(hits, searchHit{value: c, id: c.ID, score: normalized(score, maximum), exact: exact[i], claim: true, text: c.Text})
 	}
 	return hits, nil
 }
