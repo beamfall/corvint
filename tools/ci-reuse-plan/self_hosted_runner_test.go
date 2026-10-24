@@ -179,18 +179,18 @@ func TestAFPV0422SelfHostedShardsMakeTheDriftReportAbstain(t *testing.T) {
 	}
 }
 
-// AFP-V0-423 to AFP-V0-425: the host-local seed is restored only on the self-hosted runner, for a
+// AFP-V0-427 to AFP-V0-429: the host-local seed is restored only on the self-hosted runner, for a
 // merge-queue entry on main or a same-repository pull request where the race invocation runs; only
 // a passing self-hosted merge-queue shard on main refreshes it; the hosted cache steps are unchanged.
-func TestAFPV0423SelfHostedSeedRestoreAndRefreshEvents(t *testing.T) {
+func TestAFPV0427SelfHostedSeedRestoreAndRefreshEvents(t *testing.T) {
 	ci := readWorkflow(t, "ci.yml")
 	shard := jobBlock(t, ci, "go-product-shard")
 	wantLine(t, "go-product-shard env", shard, "      CORVINT_BOX_GOCACHE_ROOT: /home/russell/ci-cache")
 	if n := strings.Count(ci, "CORVINT_BOX_GOCACHE_ROOT"); n != 3 {
 		t.Errorf("ci.yml names CORVINT_BOX_GOCACHE_ROOT %d times, want the job env and its two shard readers", n)
 	}
-	restore := stepBlock(t, shard, "Restore the host-local Go build seed (self-hosted runner, AFP-V0-423)")
-	refresh := stepBlock(t, shard, "Refresh the host-local Go build seed (self-hosted merge-queue shards on main, AFP-V0-424)")
+	restore := stepBlock(t, shard, "Restore the host-local Go build seed (self-hosted runner, AFP-V0-427)")
+	refresh := stepBlock(t, shard, "Refresh the host-local Go build seed (self-hosted merge-queue shards on main, AFP-V0-428)")
 	wantLine(t, "seed restore", restore, "        if: runner.environment == 'self-hosted' && "+
 		"(needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) && "+
 		"((github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main') || "+
@@ -230,17 +230,17 @@ func TestAFPV0423SelfHostedSeedRestoreAndRefreshEvents(t *testing.T) {
 		"        if: steps.testcache.outcome == 'success'")
 }
 
-// AFP-V0-423/424 behaviour: the scripts run under bash against a temporary root. A missing seed
+// AFP-V0-427/424 behaviour: the scripts run under bash against a temporary root. A missing seed
 // leaves a cold cache; a refresh swaps in a copy and removes the replaced one; a restore copies it
 // (an independent file, not a link); an unsafe root or a cache above the cap never fails.
-func TestAFPV0424SelfHostedSeedRefreshSwapsAndRestoreCopies(t *testing.T) {
+func TestAFPV0428SelfHostedSeedRefreshSwapsAndRestoreCopies(t *testing.T) {
 	testplatform.SkipPOSIXShell(t, "the seed steps run under bash")
 	if runtime.GOOS != "linux" {
 		t.Skip("the seed steps use GNU cp, mv -T and readlink -e, as on the linux self-hosted runner")
 	}
 	shard := jobBlock(t, readWorkflow(t, "ci.yml"), "go-product-shard")
-	restore := runScript(t, stepBlock(t, shard, "Restore the host-local Go build seed (self-hosted runner, AFP-V0-423)"))
-	refresh := runScript(t, stepBlock(t, shard, "Refresh the host-local Go build seed (self-hosted merge-queue shards on main, AFP-V0-424)"))
+	restore := runScript(t, stepBlock(t, shard, "Restore the host-local Go build seed (self-hosted runner, AFP-V0-427)"))
+	refresh := runScript(t, stepBlock(t, shard, "Refresh the host-local Go build seed (self-hosted merge-queue shards on main, AFP-V0-428)"))
 	dir := t.TempDir()
 	bin := filepath.Join(dir, "bin")
 	if err := os.MkdirAll(bin, 0o700); err != nil {
@@ -252,21 +252,26 @@ func TestAFPV0424SelfHostedSeedRefreshSwapsAndRestoreCopies(t *testing.T) {
 		t.Fatal(err)
 	}
 	root := filepath.Join(dir, "ci-cache")
-	exec1 := func(script, temp, runner, capKiB, tag string) string {
+	run := func(path, script, temp, runner, capKiB, tag string) (string, error) {
 		t.Helper()
 		if err := os.MkdirAll(temp, 0o700); err != nil {
 			t.Fatal(err)
 		}
 		cmd := exec.Command("bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", script)
 		cmd.Dir = dir
-		cmd.Env = append(os.Environ(), "PATH="+bin+":"+os.Getenv("PATH"), "RUNNER_TEMP="+temp,
+		cmd.Env = append(os.Environ(), "PATH="+path+":"+os.Getenv("PATH"), "RUNNER_TEMP="+temp,
 			"GOCACHE="+filepath.Join(temp, "go-build"), "RUNNER_NAME="+runner, "CORVINT_BOX_GOCACHE_ROOT="+root,
 			"SEED_CAP_KIB="+capKiB, "SEED_TAG="+tag)
 		out, err := cmd.CombinedOutput()
+		return string(out), err
+	}
+	exec1 := func(script, temp, runner, capKiB, tag string) string {
+		t.Helper()
+		out, err := run(bin, script, temp, runner, capKiB, tag)
 		if err != nil {
 			t.Fatalf("the step failed: %v\n%s", err, out)
 		}
-		return string(out)
+		return out
 	}
 	write := func(path, body string) {
 		t.Helper()
@@ -305,7 +310,7 @@ func TestAFPV0424SelfHostedSeedRefreshSwapsAndRestoreCopies(t *testing.T) {
 	}
 	// A restore copies the seed into an independent per-job cache.
 	t4 := filepath.Join(dir, "t4")
-	if out := exec1(restore, t4, "corvint-box-1", "", ""); !strings.Contains(out, "AFP-V0-423: restored") {
+	if out := exec1(restore, t4, "corvint-box-1", "", ""); !strings.Contains(out, "AFP-V0-427: restored") {
 		t.Fatalf("a present seed must be restored: %s", out)
 	}
 	restored := filepath.Join(t4, "go-build", "ab", "ab-d")
@@ -315,6 +320,28 @@ func TestAFPV0424SelfHostedSeedRefreshSwapsAndRestoreCopies(t *testing.T) {
 	write(restored, "rewritten")
 	if b, _ := os.ReadFile(filepath.Join(seed, "ab", "ab-d")); string(b) != "second" {
 		t.Error("rewriting a restored entry changed the seed: the restore must copy, not link")
+	}
+	// A refresh that fails mid-copy (a cp spy that leaves a partial copy, as on ENOSPC) first removes
+	// abandoned generations and earlier interrupted copies, removes its own partial copy, and keeps
+	// the live seed.
+	failbin := filepath.Join(dir, "failbin")
+	write(filepath.Join(failbin, "cp"), "#!/bin/sh\nmkdir -p \"$4\" && : > \"$4/partial\"\nexit 1\n")
+	if err := os.Chmod(filepath.Join(failbin, "cp"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, stale := range []string{seed + ".6-6-6", seed + ".7-7-7.tmp"} {
+		write(filepath.Join(stale, "ab", "ab-d"), "stale")
+	}
+	tf := filepath.Join(dir, "tf")
+	write(filepath.Join(tf, "go-build", "ab", "ab-d"), "unfinished")
+	if out, err := run(failbin+":"+bin, refresh, tf, "corvint-box-1", "8388608", "5-1-0"); err == nil {
+		t.Errorf("the spy copy failure must fail the step: %s", out)
+	}
+	if entries, _ := filepath.Glob(seed + "*"); len(entries) != 2 || entries[0] != seed || entries[1] != seed+".2-1-3" {
+		t.Errorf("after a failed refresh want only the live link and copy, got %q", entries)
+	}
+	if b, _ := os.ReadFile(filepath.Join(seed, "ab", "ab-d")); string(b) != "second" {
+		t.Errorf("a failed refresh changed the live seed: %q", b)
 	}
 	// Another runner has no seed of its own: a cold cache.
 	if out := exec1(restore, filepath.Join(dir, "t5"), "corvint-box-2", "", ""); !strings.Contains(out, "cold cache") {

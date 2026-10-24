@@ -57,7 +57,7 @@ Hardening of the host itself, with the reasons:
 - **Build cache.** The job never restores the shared `actions/cache` Go build cache: a box build is
   not a trusted cloud build. It builds in `$RUNNER_TEMP/go-build` with `GOENV=off`, so the host
   `go.env` never applies. The runner empties `RUNNER_TEMP` for every job; only the host-local seed
-  below (AFP-V0-423 to AFP-V0-425) carries build output between jobs.
+  below (AFP-V0-427 to AFP-V0-429) carries build output between jobs.
 - **Processes.** The runner's orphan-process cleanup ends the processes it tracks. A hostile
   process can escape that tracking, so it is not an adversarial boundary.
 - **Privileges.** Nothing in the job runs `sudo`, `apt` or a network install on the box. A test
@@ -130,7 +130,7 @@ No workflow logic changed in response.
 - Runtime behaviour on the box is `NOT_OBSERVED` until the owner registers the runner.
 - Hosted routing with the variable set is `NOT_OBSERVED` until the owner sets the variable.
 
-## Host-local warm build seed (AFP-V0-423 to AFP-V0-425)
+## Host-local warm build seed (AFP-V0-427 to AFP-V0-429)
 
 Added on the same lane after the first review. Hosted shards restore a trusted `actions/cache`
 seed (V1-1098); box shards built cold every time.
@@ -166,8 +166,9 @@ workflow.
 not a security boundary. Any job that reaches the box can write a seed directly, and a planted entry
 would be compiled into a later merge-queue run. That is the same exposure AFP-V0-421 already
 accepts for the runner account's home. Fork pull requests reach the box only through the owner's
-approval. Go checks an entry's size, not its content, so a corrupt seed shows as a build or test
-failure on one runner. The operator then deletes `/home/russell/ci-cache`, or that runner's seed and
+approval. Go checks an entry's size, not its content, so a corrupt seed may show as a build or test
+failure on one runner, or may silently change the compiled code under test; `-count=1` stops
+reuse of test results only. On a failure or any doubt, the operator deletes `/home/russell/ci-cache`, or that runner's seed and
 `<seed>.*`.
 
 **Owner step.** None: the first refresh creates the root with mode 0700.
@@ -198,3 +199,17 @@ test packages or links:
 Inference: a same-runner seed removes most of the compile share of a shard. On the `-p 1` race
 build that is on the order of a minute or more per shard. Linking and running the test binaries
 remain. A real box shard with the seed is `NOT_OBSERVED` until the variable is on.
+
+### Seed review (one Codex round, gpt-6-astra, read-only)
+
+- P2, accepted: a cancelled, timed-out or ENOSPC refresh left `<seed>.<tag>.tmp`, which only a
+  later successful refresh removed, so repeated failures could exceed the cap. The refresh now
+  removes every generation except the live target before copying, and an EXIT trap removes its own
+  partial copy. `TestAFPV0428SelfHostedSeedRefreshSwapsAndRestoreCopies` covers a failing copy.
+- P3, accepted: the text said a corrupt seed shows as a visible failure. Go authenticates only an
+  entry's size, so a corrupt or planted artifact can also pass silently; the spec and this entry now
+  say so, and the remedy is deleting the root on any doubt.
+- No fork-to-seed path was found, given that fork pull requests never reach the runner. The
+  remaining boundary is the shared runner account, as AFP-V0-429 states.
+- The seed IDs were renumbered from AFP-V0-423..425 to AFP-V0-427..429 because open PR #1691
+  holds AFP-V0-423..426.
