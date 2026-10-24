@@ -34,10 +34,10 @@ is NOT_OBSERVED.
 | Automatic context at session start / each turn | – | – | – | Q | – | – | extension.js `before_agent_start`/`context`; host.test AHI-002 (live) |
 | Context packet (`corvint_context`, `/corvint-context`) | Q | D | G→Q | – | Q | – | tools.js; host.test AHI-024/025 concurrent tools (live); cockpit-host Evidence view (live); skill corvint-context |
 | Source expansion (`corvint_expand`, `/corvint source`) | Q | Q | – | – | – | – | tools.js; cockpit-host RPC `/corvint` (live) |
-| Query | D | – | – | – | – | G→Q | core.js; core.test; `pi mcp list` lists corvint.query (live, with flag) |
-| Impact | D | – | G→Q | – | – | G→Q | core.js; core-host native chain; skill corvint-impact; MCP corvint.impact listed |
+| Query | D | – | – | – | – | G→D | core.js; core.test; `pi mcp list` discovers corvint.query (live, with flag); no Pi-originated call receipt |
+| Impact | D | – | G→Q | – | – | G→D | core.js; core-host native chain; skill corvint-impact; `pi mcp list` discovers corvint.impact, no Pi-originated call receipt |
 | Affected / test selection | D | – | G→Q | – | – | – | core.js; core-host (native, no mutation); skill corvint-impact |
-| Review | D | – | G→Q | – | – | – | core.js; skill corvint-review |
+| Review | D | – | G→Q | – | – | – | core.js; skill corvint-review; core-host live refusal of a head other than HEAD |
 | Prove | D | – | – | – | – | – | core.js; core.test |
 | CEM / OCM status, Frontier | D | – | G→Q | – | – | – | core.js; core.test frontier exit-1; skill corvint-review |
 | Witness | G→D | – | G→Q | – | – | – | PWV-V0-014; core.test; core-host live native witness, byte-identical tree |
@@ -46,7 +46,7 @@ is NOT_OBSERVED.
 | Native workflow begin/status and settle remediation | – | Q | – | Q | – | – | workflow.js; workflow-host LCP-V0-008 (live) |
 | Outcome record | D | D | – | – | – | – | tools.js `corvint_record_outcome`, `/corvint-record` |
 | Tasks reads (queue, roadmap, ticket, blockers, gates, releases, audit, ...) | D | – | – | – | Q | – | tasks.js; tasks-host (native); cockpit-host Tasks view (live) |
-| Tasks search / list | G→D | – | G→Q | – | – | – | PWV-V0-013; tasks.test; core-host live native search/list |
+| Tasks search / list | G→D | – | G→Q | – | – | – | PWV-V0-013; tasks.test closed status/kind sets and ParseLabel parity; tasks-host live search/list on an initialized store; core-host live UNINITIALIZED refusal |
 | Tasks operator writes (prioritize, claim, renew, release, submit, gate run, complete) | – | Q | – | – | – | – | tasks.js; host.test LCP fork/reload/resume (live); model tool has no write by design |
 | Tasks create / refine | – | G | – | – | – | – | absent by design until V1-0507 |
 | Tool annotations for permission extensions | G→Q | – | – | – | – | – | PWV-V0-015; capabilities.test; host.test getAllTools probe (live) |
@@ -61,12 +61,12 @@ is NOT_OBSERVED.
 | Status line and cockpit TUI | – | – | – | – | Q | – | cockpit.js `setStatus`, custom component; cockpit-host PTY (live) |
 | Host-version admission | – | – | – | D | – | – | PWV-V0-016 pre-spawn refusal; runtime.test (unit only: the live host is the admitted 0.99.1) |
 | Protected Pi fallback (embedded 0.85.1) | – | – | – | G→NO | – | – | V1-2149: typed refusal now codified (host-version.test); repin needs the image rebuild and a PPI amendment |
-| corvint-mcp companion through Pi's MCP client | – | – | – | – | – | G→Q | README recipe with `--protocol-version 2025-11-25` (live `pi mcp list`); the default fails `Method not found`, V1-2507 |
+| corvint-mcp companion through Pi's MCP client | – | – | – | – | – | G→Q | connection and tool discovery only: README recipe with `--protocol-version 2025-11-25` (live `pi mcp list`); the default fails `Method not found`, V1-2507; tool calls are the Query and Impact rows |
 | Docs/corpus MCP companions | – | – | – | – | – | G | NOT_RUN through Pi; the same legacy-protocol flag is suspected, V1-2507 |
 | Other agent-facing native reads (flows, test-plan, test-validity, changes, breakage, delta, necessity, ...) | G | – | – | – | – | – | bash only; V1-2512 |
 | Index / operator and maintenance CLI (index, init, adopt, eval, kernel, calibrate, migrate-traces, ...) | NA | – | – | – | – | – | reads never index; operator CLI, not a model surface (AGENTS.md invariant 4) |
 
-Counted cells before: QUALIFIED 15, DELIVERED 12, GAP 22, NOT_APPLICABLE 1, NEEDS-OWNER 0. After: QUALIFIED 28, DELIVERED 15, GAP 5, NOT_APPLICABLE 1, NEEDS-OWNER 1.
+Counted cells before: QUALIFIED 15, DELIVERED 12, GAP 22, NOT_APPLICABLE 1, NEEDS-OWNER 0. After: QUALIFIED 26, DELIVERED 17, GAP 5, NOT_APPLICABLE 1, NEEDS-OWNER 1.
 
 ## Live receipts (Phase 3)
 
@@ -84,20 +84,28 @@ and the host is macOS arm64.
   lacked the `## Requirements` section that current Core requires. This lane fixed the fixture
   (`host.test.mjs` intent).
 - `CORVINT_BIN=.bin/corvint CORVINT_TASKS_BIN=.bin/corvint-tasks node --test
-  integrations/pi/core-host.test.mjs`: 1/1 pass. It adds the overview, features and witness reads
-  and native search/list, and the worktree stays byte-identical.
+  integrations/pi/core-host.test.mjs`: 2/2 pass. It adds the overview, features and witness reads,
+  and the worktree stays byte-identical. A witness `head` other than the checked-out HEAD is refused
+  natively (exit 2, `--head must name the captured HEAD commit`) with no receipt. A separate case
+  shows search and list in a repository without a task store refused as `UNINITIALIZED`, with no
+  mutation and no `.taskman/`.
 - `workflow-host.test.mjs` 1/1 and `cockpit-host.test.mjs` 3/3 pass against installed Pi 0.99.1.
-- `tasks-host.test.mjs` (from the repository root): 2 pass and 1 skipped (real lease expiry).
-  The gate-interruption test fails with this branch, with the base-revision adapter and with
-  the installed build.715, so the cause predates this lane. Aborting a native `gate run` leaves
+- `tasks-host.test.mjs` (from the repository root), repair run: 4 pass and 1 skipped (real lease expiry). The
+  new search/list case runs on the initialized native fixture: a label, kind and milestone search
+  returns the one matching ticket with page total `1`; list with limit 1 returns total `2`,
+  `truncated: true`; a no-match search returns no tickets; native warnings are carried; and the
+  store's mtimes and digests are unchanged.
+  In the first run the gate-interruption test failed with this branch, with the base-revision adapter
+  and with the installed build.715, so the cause predates this lane. It passed in the repair run, so
+  the failure is intermittent. Aborting a native `gate run` leaves
   `MALFORMED: staging/a00: unassigned stage slot`. The adapter fails closed with
   `reconciliation-unavailable`. Filed as V1-2506.
 - `pi mcp add corvint -- .bin/corvint-mcp --root R`, then `pi mcp list`: `failed`, `Method not found`.
   Pi sends `initialize` with protocol `2025-11-25`. With `--protocol-version 2025-11-25`, the
   server connects with 4 tools (corvint.help, corvint.impact, corvint.query, corvint.status).
   Filed as V1-2507.
-- Skill digests: corvint-context `b048863402c2…`, corvint-impact `a55ac4fb42dd…`, corvint-review
-  `f5da2863dbc9…`, corvint-tasks `63b886ded08d…`.
+- Skill digests: corvint-context `b048863402c2…`, corvint-impact `0c86578c8778…`, corvint-review
+  `e25ac6da1070…`, corvint-tasks `63b886ded08d…`.
 
 NOT_RUN:
 - The built protected image (`build/release/pi-protected`, `build/node`). The two image-dependent
@@ -105,6 +113,7 @@ NOT_RUN:
 - Linux and Windows hosts.
 - The real minimum-duration lease expiry (`CORVINT_PI_REAL_LEASE_EXPIRY=1`).
 - Docs/corpus MCP through Pi.
+- A Pi-originated MCP `tools/call` for corvint.query or corvint.impact (needs a model session).
 - Model-driven use of skills with a real provider (offline only).
 
 ## Gaps left open

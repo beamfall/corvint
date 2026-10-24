@@ -110,5 +110,7 @@ test('PWV-V0-017 the package ships exactly the inventory skills, each routing on
   for(const [,tool] of text.matchAll(/`(corvint_[a-z_]+)`/g))assert.ok(tools.has(tool),`${name} routes to registered tool ${tool}`);
   for(const [,command] of text.matchAll(/`\/(corvint-[a-z-]+)/g))assert.ok(commands.has(command),`${name} routes to registered command ${command}`);
   assert.doesNotMatch(text,/corvint-tasks (claim|submit|complete|release|renew|ticket create)/,`${name} names no native write`);
+  assert.doesNotMatch(text,/`(git|go|make|npm|npx|node|bun|pi|corvint|corvint-tasks|corvint-mcp) [^`]*`/,`${name} names no native command outside the registered tools`);
+  assert.doesNotMatch(text,/\b(run|execute)\s+(the\s+)?(selected\s+)?(tests|checks)\b/i,`${name} does not direct the model to run commands itself`);
  }
 });

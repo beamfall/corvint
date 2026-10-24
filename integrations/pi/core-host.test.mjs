@@ -95,11 +95,32 @@ test('PWV-V0-012 named task -> governing clause -> immutable source -> impact ->
  }
  const witness=ok(await core.read('witness',{base,head},ctx));
  assert.equal(witness.profile,'corvint-witness/0');
- for(const operation of ['search','list']) {
-  const result=await tasks.read(operation,operation==='search'?{text:'round',limit:5,summary:true}:{limit:5},tctx);
-  assert.ok(result.raw||result.fault,`native ${operation} result or typed refusal is retained`);
- }
+ // The corvint-review skill: a head other than the checked-out HEAD is refused natively, never re-pointed.
+ const otherHead=await core.read('witness',{base,head:base},ctx);
+ assert.equal(otherHead.fault,'native-command-failed');assert.equal(otherHead.receipt,undefined);
+ assert.equal(otherHead.raw.exitCode,2);assert.match(otherHead.raw.stderr,/--head must name the captured HEAD commit/);
 
  assert.deepEqual(await snapshot(cwd),before,'reads leave worktree, Git directory and absent task store byte-identical');
  assert.equal(Object.keys(before).some(p=>p.startsWith('.taskman')||p.startsWith('.git/taskman')||p.startsWith('.corvint')),false);
+});
+
+// PWV-V0-013: without a store, native search and list refuse UNINITIALIZED and initialize nothing.
+// Successful reads on an initialized store are qualified in tasks-host.test.mjs.
+test('PWV-V0-013 search and list refuse UNINITIALIZED in a repository without a task store, without mutation',async t=>{
+ const cwd=await mkdtemp(join(tmpdir(),'pi-tasks-absent-'));t.after(()=>rm(cwd,{recursive:true,force:true}));
+ const env={PATH:process.env.PATH,HOME:process.env.HOME,GIT_CONFIG_NOSYSTEM:'1'};
+ const git=async args=>(await exec('git',args,{cwd,env,timeout:10000,maxBuffer:65536})).stdout.trim();
+ await git(['init','-q','-b','main']);await git(['config','user.name','Fixture']);await git(['config','user.email','fixture@example.invalid']);
+ await writeFile(join(cwd,'README.md'),'fixture\n');await git(['add','.']);await git(['commit','-qm','base']);
+ const runner=createCommandRunner({binary:process.env.CORVINT_TASKS_BIN??'corvint-tasks',env,timeoutMs:15000});t.after(()=>runner.close());
+ const tasks=createTasksService({runner});t.after(()=>tasks.close());
+ const ctx={cwd,isProjectTrusted:()=>true,sessionManager:{getSessionId:()=>'fixture-session'}};
+ const before=await snapshot(cwd);
+ for(const [operation,input] of [['search',{text:'round',limit:5,summary:true}],['list',{limit:5}]]) {
+  const result=await tasks.read(operation,input,ctx);
+  assert.equal(result.ok,false);assert.equal(result.fault,'native-refusal');
+  assert.equal(result.raw.outcome,'REFUSED');assert.deepEqual(result.raw.codes,['UNINITIALIZED'],JSON.stringify(result.raw).slice(0,2000));
+ }
+ assert.deepEqual(await snapshot(cwd),before,'refused reads leave the repository byte-identical');
+ assert.equal(Object.keys(await snapshot(cwd)).some(p=>p.startsWith('.taskman')||p.startsWith('.git/taskman')),false);
 });

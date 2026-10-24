@@ -6,6 +6,12 @@ const ident=v=>typeof v==='string'&&/^[A-Za-z0-9][A-Za-z0-9:._/-]{0,511}$/.test(
 const count=v=>typeof v==='string'&&/^(0|[1-9][0-9]{0,17})$/.test(v);
 const oid=v=>typeof v==='string'&&/^[0-9a-f]{40}([0-9a-f]{24})?$/.test(v);
 const ticket=v=>ident(v)&&v.startsWith('ticket:');
+// PWV-V0-013: native ticket.Statuses, ticket.Kinds and wire.ParseLabel (1..64 UTF-8 bytes, no
+// hostile code point, no TAB/LF/CR); the adapter also refuses a leading hyphen so no value reads as a flag.
+const STATUSES=['DRAFT','OPEN','HELD','COMPLETED','ARCHIVED'],KINDS=['FEATURE','BUG','CHORE','SPIKE','DOC','MANUAL','EXTERNAL'];
+const HOSTILE=/[\0-\x1f\x7f-\x9f﻿؜‎‏‪-‮⁦-⁩]/u;
+const label=v=>typeof v==='string'&&v.isWellFormed()&&Buffer.byteLength(v)>=1&&Buffer.byteLength(v)<=64&&!v.startsWith('-')&&!HOSTILE.test(v);
+function statuses(v,many){ensure(typeof v==='string');const parts=v.split(',');ensure((many||parts.length===1)&&parts.every(x=>STATUSES.includes(x))&&new Set(parts).size===parts.length)}
 function object(v,keys,required=keys) {if(!v||typeof v!=='object'||Array.isArray(v)||Object.keys(v).some(k=>!keys.includes(k))||required.some(k=>!Object.hasOwn(v,k)))throw Error('invalid-input')}
 function ensure(ok){if(!ok)throw Error('invalid-input')}
 function failure(fault,extra={}){return {ok:false,fault,mutation:'not-attempted',...extra}}
@@ -21,11 +27,11 @@ function readArgs(operation,input) {
    const v=input[k];
    if(k==='summary'){ensure(typeof v==='boolean');if(v)out.push('--summary');continue}
    if(k==='offset'||k==='limit'){ensure(Number.isSafeInteger(v)&&v>=(k==='limit'?1:0)&&v<=(k==='limit'?100:100000));out.push('--'+k,String(v));continue}
-   if(k==='status')ensure(typeof v==='string'&&(operation==='list'?/^[A-Z][A-Z_]{1,31}(,[A-Z][A-Z_]{1,31}){0,7}$/:/^[A-Z][A-Z_]{1,31}$/).test(v));
-   else if(k==='kind')ensure(typeof v==='string'&&/^[A-Z][A-Z_]{1,31}$/.test(v));
+   if(k==='status')statuses(v,operation==='list');
+   else if(k==='kind')ensure(KINDS.includes(v));
    else if(k==='priority')ensure(['P0','P1','P2','P3'].includes(v));
    else if(k==='text')ensure(typeof v==='string'&&v.length>0&&v.length<=256&&!v.startsWith('-')&&!/[\0-\x1f\x7f]/.test(v));
-   else ensure(ident(v)&&v.length<=128);
+   else ensure(label(v));
    out.push('--'+k,v);
   }
   return out;
