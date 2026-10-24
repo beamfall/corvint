@@ -589,7 +589,15 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 			timing.Guards += time.Since(guards)
 			return report, nil, wire.Errorf(wire.CodeOutOfScope, "queueId", "request queue differs")
 		}
-		err = clearLeaseOrphans(ctx, repo, guardOperation(request))
+		// CAL-V0-393 (proposed): a ready writer route takes no cleanup lock
+		// here. Staging a peer is publishing would otherwise queue this
+		// write on the writer lock for that peer's whole hold, outside the
+		// gate; the route itself declines on any staging under its lock, and
+		// every other route clears orphans first, as before.
+		ready := writerRouteReady(repo, request)
+		if !ready {
+			err = clearLeaseOrphans(ctx, repo, guardOperation(request))
+		}
 		timing.Guards += time.Since(guards)
 		if err != nil {
 			return guardFailureAudit(report, request.RequestID, err)
@@ -597,9 +605,15 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 		// CAL-V0-116: a retained writer checkpoint serves the write under one
 		// lock; every decline prepares the complete route below, outside the
 		// gate (CAL-V0-263).
-		if writerRouteReady(repo, request) {
+		if ready {
 			if done, rep, fast, err := writerRoute(nil); done {
 				return rep, fast, err
+			}
+			guards = time.Now()
+			err = clearLeaseOrphans(ctx, repo, guardOperation(request))
+			timing.Guards += time.Since(guards)
+			if err != nil {
+				return guardFailureAudit(report, request.RequestID, err)
 			}
 		}
 		if resume != nil {

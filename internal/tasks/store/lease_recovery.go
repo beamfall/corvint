@@ -14,12 +14,19 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-func clearLeaseOrphans(ctx context.Context, repo *intent.Repository, operation string) error {
+// stagingOccupied reports whether the staging directory holds any entry. A
+// missing directory is empty.
+func stagingOccupied(repo *intent.Repository) (bool, error) {
 	entries, err := os.ReadDir(filepath.Join(repo.StateDir, "staging"))
-	if os.IsNotExist(err) || (err == nil && len(entries) == 0) {
-		return nil
+	if os.IsNotExist(err) {
+		return false, nil
 	}
-	if err != nil {
+	return len(entries) > 0, err
+}
+
+func clearLeaseOrphans(ctx context.Context, repo *intent.Repository, operation string) error {
+	occupied, err := stagingOccupied(repo)
+	if err != nil || !occupied {
 		return err
 	}
 	// The cleanup lock is part of the lease transaction, so it spends the

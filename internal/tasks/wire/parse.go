@@ -385,8 +385,12 @@ func (p *parser) str() (string, error) {
 		case c == '"':
 			p.pos++
 			s := string(out)
-			if err := checkHostile(s, fmt.Sprintf("byte %d", start), true); err != nil {
-				return "", err
+			// The position is formatted only for a string the ASCII scan
+			// cannot accept (CAL-V0-397, proposed).
+			if !plainASCII(s, true) {
+				if err := checkHostile(s, fmt.Sprintf("byte %d", start), true); err != nil {
+					return "", err
+				}
 			}
 			return s, nil
 		case c == '\\':
