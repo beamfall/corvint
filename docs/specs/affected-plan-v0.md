@@ -3062,6 +3062,16 @@ pending); they do not change any plan, wire member or exit code.
   4,000 Ruby) a warm `--path` call MUST be sub-second on the build host, with the cold and warm
   times, peak memory and host load recorded in the build log and the PR. The reporter's real
   checkout (GH #1601) is not measured here; its warm time is `NOT_OBSERVED` until rerun there.
+- **AFP-V0-431:** (proposed; V1-2473, GH #1601 re-test on main-368b80d)
+  The shipped agent guide (`corvint help guide`, `internal/capcatalog/AGENT-GUIDE.md`) MUST say,
+  under its test-selection goal, that changed paths go in one call (repeated `--path` or
+  `--paths-from FILE`) because one call builds the graph once, that a large tree should also pass
+  `--cache DIR` (a private directory outside the repository) so repeated calls on an unchanged
+  checkout reuse the verified graph with the same plan, and that without `--cache` every call
+  builds the graph again. It is advice only: it adds no default cache location (a non-goal below;
+  a default would be new writable state on a read, invariant 4) and no command, option or output.
+  Failure mode: a guide edit that drops the advice fails the test. Rollback: delete the paragraph
+  and its test.
 
 Non-goals: no default cache location, no cache for `--snapshot` (already immutable Git input) or
 the Playwright profile, no incremental graph update after a change (a changed input rebuilds the
@@ -3325,6 +3335,7 @@ including one with a transient read failure, writes no entry. `--paths-from` ref
 | AFP-V0-395 | `readAffectedPathsFrom` and `resolveAffectedBatchAndCache` in `cmd/corvint/affected_cache.go`; the `--paths-from` cases in `parseAffectedOptions` | `TestAFPV0395PathsFromBatchesPathsIntoOnePlan` (a list with a blank line and a repeat, alone or joined with `--path`, writes the `--path` bytes; empty, absolute, parent, CRLF, byte order mark, 4,097-path, over-4-MiB, missing, directory, repeated, `--base` and `-x` refuse), `TestAFPV0395PathsFromFIFOCannotBlock` (a list replaced by a FIFO just before the open refuses within the bound) |
 | AFP-V0-396 | `affectedHelp` in `cmd/corvint/help.go`; the `corvint affected` row of `docs/CAPABILITIES.md` | `TestAFPV0396HelpDocumentsTheBatchFormAndTheCache`; `make capabilities-check` |
 | AFP-V0-397 | `BuildCached` hit path | `TestAFPV0397RepeatedPathCallOnALargeRubyTreeReusesTheGraph` (1,200 Ruby files: the warm call hits and writes the cold and uncached bytes); measured cold and warm numbers in build log `2026-10-23-affected-graph-reuse-gh1601` |
+| AFP-V0-431 | the test-selection goal of `internal/capcatalog/AGENT-GUIDE.md` | `TestAFPV0431ShippedGuideAdvisesBatchingAndTheAffectedCache`; `make capability-catalog-check` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`
