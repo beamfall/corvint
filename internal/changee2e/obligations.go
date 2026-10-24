@@ -85,10 +85,15 @@ type Obligations struct {
 	CoverageDigest string `json:"coverage_digest,omitempty"`
 	// ModuleGraph records the consulted TJAA module graph (CCE-V0-054).
 	ModuleGraph *ModuleGraphRelation `json:"module_graph,omitempty"`
-	Truncated   int                  `json:"truncated,omitempty"` // obligations dropped by the byte cap (CCE-V0-014)
-	Digest      string               `json:"digest"`
+	// LedgerDigest is the digest of the ANL edge ledger bound to the impact relation (CCE-V0-103).
+	LedgerDigest string `json:"ledger_digest,omitempty"`
+	Truncated    int    `json:"truncated,omitempty"` // obligations dropped by the byte cap (CCE-V0-014)
+	Digest       string `json:"digest"`
 
 	catalog *Catalog
+	// ledger and routes hold the bound ANL ledger and its proven entry routes (CCE-V0-103/104).
+	ledger *appmap.EdgeLedger
+	routes map[string]provenRoute
 	// baseOutcomes holds each outcome of the base map by ID, for oracle_origin (CCE-V0-016).
 	baseOutcomes map[string]baseOutcome
 	encoded      []byte
@@ -116,6 +121,9 @@ type DiffOptions struct {
 	// ModuleGraph consults the head tree's TypeScript/JavaScript module graph, which may only widen
 	// reach (CCE-V0-054).
 	ModuleGraph bool
+	// Ledger names an optional application-edge-ledger/0 document built from the head map at head;
+	// it is bound to the impact relation instead of nil (CCE-V0-103).
+	Ledger string
 }
 
 // maxObligations is MaxObligations; tests lower it to reach the fan-out case.
@@ -161,8 +169,12 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 	if err != nil {
 		return nil, err
 	}
+	ledger, err := loadLedger(o.Ledger, cat)
+	if err != nil {
+		return nil, err
+	}
 	opts := appmap.Options{Root: o.Root, Revision: cat.Revision, Full: impactBudget == 0, Budget: impactBudget}
-	raw, err := appmap.Impact(ctx, cat.m, nil, base, opts)
+	raw, err := appmap.Impact(ctx, cat.m, ledger, base, opts)
 	if err != nil {
 		return nil, refuse("e2e-impact-unavailable", "%v", err)
 	}
@@ -183,7 +195,12 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 		return nil, err
 	}
 	consulted := []string{"amap-impact", "amap-map:base", "amap-map:head", "e2e-blocks:reach_exempt@base"}
-	notConsulted := []string{"affected-plan", "anl-edge-ledger"}
+	notConsulted := []string{"affected-plan"}
+	if ledger != nil {
+		consulted = append(consulted, LedgerBasis)
+	} else {
+		notConsulted = append(notConsulted, LedgerBasis)
+	}
 	var coverageDigest string
 	var covered map[string][]string
 	if o.Coverage != "" {
@@ -194,9 +211,14 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 	} else {
 		notConsulted = append(notConsulted, CoverageBasis)
 	}
-	r := &Obligations{CoverageDigest: coverageDigest, AcceptancesInDiff: inDiff, Schema: ObligationsSchema, Base: base, Head: cat.Revision, CatalogDigest: cat.Digest, ImpactDigest: impact.Digest,
+	r := &Obligations{LedgerDigest: impact.LedgerDigest, CoverageDigest: coverageDigest, AcceptancesInDiff: inDiff, Schema: ObligationsSchema, Base: base, Head: cat.Revision, CatalogDigest: cat.Digest, ImpactDigest: impact.Digest,
 		Relations:   Relations{Consulted: consulted, NotConsulted: notConsulted},
-		Obligations: []Obligation{}, Unknown: []UnknownSpan{}, Exempt: []Exemption{}, catalog: cat, baseOutcomes: baseOutcomes}
+		Obligations: []Obligation{}, Unknown: []UnknownSpan{}, Exempt: []Exemption{}, catalog: cat, baseOutcomes: baseOutcomes, ledger: ledger}
+	if ledger != nil {
+		if r.routes, err = provenRoutes(ctx, o.Root, cat, ledger); err != nil {
+			return nil, err
+		}
+	}
 	changedRaw, err := git(ctx, o.Root, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", base, cat.Revision, "--")
 	if err != nil {
 		return nil, err

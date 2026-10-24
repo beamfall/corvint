@@ -71,6 +71,10 @@ type CompiledEntry struct {
 	OracleOrigin  string    `json:"oracle_origin,omitempty"`
 	Blocks        []string  `json:"blocks"`
 	Missing       []Missing `json:"missing"`
+	// ProvenPath and ProvenBy explain a path synthesised over ANL ledger edges: the screens from
+	// the admitted entry and the test key proving each hop (CCE-V0-104).
+	ProvenPath []string `json:"proven_path,omitempty"`
+	ProvenBy   []string `json:"proven_by,omitempty"`
 }
 
 // CompileReport is the e2e-compile/0 document.
@@ -167,7 +171,15 @@ func compileOne(cat *Catalog, obs *Obligations, ob Obligation) (*Scenario, Compi
 	} else {
 		pathID := "path:entry:" + flow.Steps[0].Screen
 		if p.entry = cat.Block(pathID); p.entry == nil {
-			miss(KindPath, pathID, cat.unadmittedReason(KindPath, pathID, "no-admitted-path"))
+			pe, hops, path, by, reason := cat.provenEntry(obs, flow.Steps[0].Screen, flow)
+			switch {
+			case pe != nil:
+				p.entry, p.steps, entry.ProvenPath, entry.ProvenBy = pe, hops, path, by
+			case reason != "":
+				miss(KindPath, pathID, reason)
+			default:
+				miss(KindPath, pathID, cat.unadmittedReason(KindPath, pathID, "no-admitted-path"))
+			}
 		}
 		for _, pre := range flow.Preconditions {
 			fx := cat.fixtureFor(pre)

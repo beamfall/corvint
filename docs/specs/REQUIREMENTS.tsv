@@ -1137,6 +1137,11 @@ CCE-V0-054	docs/specs/change-compiled-e2e-v0.md	(V1-1685) `obligations`, `compil
 CCE-V0-086	docs/specs/change-compiled-e2e-v0.md	A relative `--root`, including the default `.`, MUST resolve against the working	unrecorded	-
 CCE-V0-087	docs/specs/change-compiled-e2e-v0.md	A BBF control that reads `infrastructure_failed` and any of whose attempts' hook	unrecorded	-
 CCE-V0-088	docs/specs/change-compiled-e2e-v0.md	`harvest` MUST read the application map from a configured repository-relative	unrecorded	-
+CCE-V0-100	docs/specs/change-compiled-e2e-v0.md	The ordinary `go test` lane MUST replay the verdict ladder's	unrecorded	-
+CCE-V0-101	docs/specs/change-compiled-e2e-v0.md	The live ladder MUST be able to refresh the recordings: with	unrecorded	-
+CCE-V0-102	docs/specs/change-compiled-e2e-v0.md	The live prove tests MUST fail, not skip, when `CORVINT_CCE_LIVE=required` and t	unrecorded	-
+CCE-V0-103	docs/specs/change-compiled-e2e-v0.md	`obligations`, `compile` and `prove` MUST accept `--ledger FILE` (`DiffOptions.L	unrecorded	-
+CCE-V0-104	docs/specs/change-compiled-e2e-v0.md	With a bound ledger, a flow whose first screen has no admitted deep-link entry M	unrecorded	-
 CF-V1-001	docs/specs/change-frontier-profile-1.md	the profile identifier is exactly `frontier/1`; its error profile is exactly	unrecorded	-
 CF-V1-002	docs/specs/change-frontier-profile-1.md	`frontier/0` is untouched in every respect — clause text, item kinds, item IDs,	unrecorded	-
 CF-V1-003	docs/specs/change-frontier-profile-1.md	identity domain separation is deliberate and asymmetric:	unrecorded	-
