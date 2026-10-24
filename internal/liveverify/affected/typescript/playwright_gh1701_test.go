@@ -46,8 +46,8 @@ func TestPlaywrightTagClosurePlainStringify_GH1701(t *testing.T) {
 
 // TJAA-V0-091 (GitHub #1701 item 2): in path mode a literal string testMatch in a project entry
 // resolves, so the config raises no executable-config frontier when every file it assigns is a
-// Playwright test of the config; a computed, regular-expression, template, globstar or global
-// testMatch, or a glob longer than a test path, still names the testMatch line.
+// Playwright test of the config; a computed, regular-expression, template or global testMatch, or
+// a glob a test path's own segments cannot decide, still names the testMatch line.
 func TestPlaywrightPathModeLiteralTestMatch_GH1701(t *testing.T) {
 	const setup = "    { name: 'auth', testMatch: 'setup/global-setup.ts' },\n"
 	at := FrontierConfig + ":playwright.config.ts:6 `testMatch`"
@@ -61,7 +61,10 @@ func TestPlaywrightPathModeLiteralTestMatch_GH1701(t *testing.T) {
 		{"computed", "    { name: 'auth', testMatch: process.env.SETUP_MATCH },\n" + gh1688Projects, at, ""},
 		{"template", "    { name: 'auth', testMatch: `setup/${'global'}-setup.ts` },\n" + gh1688Projects, at, ""},
 		{"regular expression", "    { name: 'auth', testMatch: /global-setup\\.ts/ },\n" + gh1688Projects, at, ""},
-		{"globstar", "    { name: 'auth', testMatch: 'setup/**/global-setup.ts' },\n" + gh1688Projects, at, ""},
+		// TJAA-V0-092 (GitHub #1717): a whole-segment globstar that no test path's tail reaches
+		// resolves; one whose tail a path outside the setup directory matches keeps the site.
+		{"globstar", "    { name: 'auth', testMatch: 'setup/**/global-setup.ts' },\n" + gh1688Projects, "", ""},
+		{"globstar tail reaches a test path", "    { name: 'auth', testMatch: 'setup/**/*.spec.ts' },\n" + gh1688Projects, at, ""},
 		{"longer glob no test path reaches", "    { name: 'auth', testMatch: 'x/y/setup/global-setup.ts' },\n" + gh1688Projects, "", ""},
 		{"longer than a test path", "    { name: 'auth', testMatch: 'repo/tests/setup/global-setup.ts' },\n" + gh1688Projects, at, ""},
 		{"global literal", gh1688Projects, FrontierConfig + ":playwright.config.ts:5 `testMatch`", "import { defineConfig, devices } from '@playwright/test';\nconst deps = process.env.X === '1' ? ['setup'] : ['setup'];\nexport default defineConfig({\n  testDir: './tests',\n  testMatch: 'setup/global-setup.ts',\n  projects: [\n" + gh1688Projects + "  ],\n});\n"},

@@ -10,7 +10,7 @@ Authoritative inputs: operator task of 2026-08-29,
 
 ## Agent digest
 - Claim: Static JavaScript and TypeScript analysis conservatively maps changes to runner-addressable tests and widens on ambiguity.
-- Status: proposed/experimental; TJAA-V0-019 accepted (decision 0483) with its V1-1175 amendment and TJAA-V0-021 accepted (decision 0519); TJAA-V0-030..033 (V1-2042) and TJAA-V0-034..037 (GitHub #1575-#1578) and TJAA-V0-038..045 (GitHub #1593, #1594) and TJAA-V0-046..053 (GitHub #1604, #1605) and TJAA-V0-054..060 (GitHub #1604 re-test, #1625, PR #1628 review) and TJAA-V0-090/091 (GitHub #1701) under the standing lane auto-accept
+- Status: proposed/experimental; TJAA-V0-019 accepted (decision 0483) with its V1-1175 amendment and TJAA-V0-021 accepted (decision 0519); TJAA-V0-030..033 (V1-2042) and TJAA-V0-034..037 (GitHub #1575-#1578) and TJAA-V0-038..045 (GitHub #1593, #1594) and TJAA-V0-046..053 (GitHub #1604, #1605) and TJAA-V0-054..060 (GitHub #1604 re-test, #1625, PR #1628 review) and TJAA-V0-090/091 (GitHub #1701) and TJAA-V0-092/093 (GitHub #1717) under the standing lane auto-accept
 - Exists: `internal/liveverify/affected/typescript` static runner/dependency adapter and seam tests.
 - Blocked on: runtime tuple, command/config execution, cancellation, and full-CI recall qualification.
 - Read next: Requirements; Explicit unknown frontier; Traceability.
@@ -795,6 +795,57 @@ and `affected --path` stayed unknown for every change because a setup project's
   `testMatch` that the reporter's config may hold (such as `globalSetup`) still raise the frontier
   at their own line; the reporter's config was not available (`NOT_OBSERVED`).
 
+- `TJAA-V0-092`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1717)
+  Amending `TJAA-V0-091` and `TJAA-V0-037`, a literal project `testMatch` glob MAY hold whole
+  `**` segments after its first segment, provided its last segment is not `**` and no segment
+  holds `**` beside other characters. Such a glob still raises no executable-config frontier only
+  when no observed path inside the project's test directory has a match that depends on
+  directories above the repository. Playwright matches `**/` plus the glob against the absolute
+  path. A path whose own segments match `**/` plus the glob is decided. A path that matches only
+  after one or more of the glob's leading segments are dropped depends on the checkout's location,
+  and it names the frontier. The frontier MUST name the line of the first `testMatch` whose value
+  the rule refuses (a computed or regular-expression value, a glob outside the rule, or the glob
+  that path reaches), not the first `testMatch` line of the config. A file that imports
+  `@playwright/test` and that a project with such a literal `testMatch` owns MUST be classified
+  as a Playwright test of its config wherever it lives. Before, only a conventional test path
+  kept that classification, so `setup/global-setup.ts` under `testDir: './'` was support code
+  and raised `owns <file>`. A project's `dependencies`, computed or not, never raise the
+  executable-config frontier in path mode, because they order projects and do not decide
+  membership (`playwright:project-dependency` stays a membership-neutral unknown).
+- `TJAA-V0-093`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1717)
+  Amending `AFP-V0-409` and `AFP-V0-425`, a computed member read MUST NOT make its tag-closure file
+  inexact when its receiver is a fresh array. A fresh array is an array literal that is not itself
+  indexed (`['a', 'b'][index]`), or the result of a direct `.split(...)` or `.map(...)` method
+  call (`each.split(';')[index]`, `each?.split(';')[index]`, `all.map(f)[index]`). This holds only
+  while no file in the closure defines or reads `split` or `map` other than as a direct method call
+  `.split(` or `.map(`, and holds no `'split'` or `'map'` string. A user-defined `split` or `map`
+  method could return a details object, which the computed read could then reach. Every other
+  computed read still stops and names its line: a name, a parenthesized receiver, an indexed
+  literal, or another call such as `.slice(...)`. A computed write on a fresh array also still
+  stops (`a computed member write can set a tag`). When a fresh-array read is the only thing that
+  would make a closure exact, and a `split` or `map` definition sits in a closure file, the stop
+  names that definition's file and line.
+
+Intent and boundary (GitHub #1717): on `ec41e4e` the reporter's `affected --path
+lib/fixtures/control.ts` still reported `playwright.config.ts:120` `testMatch`. Line 120 was the
+literal `setup/global-setup.ts`, but the refused value was the next project's
+`setup/**/*.setup.ts` globstar. The tag closure also stopped at
+`splitIds(each.split(';')[index] ?? '')`, which kept 303 units "omission unverified".
+
+- Non-goals: no other array-producing methods (`filter`, `slice`, `concat`, `Array.from`); no
+  value-flow tracking of a fresh array through a name; no regular-expression `testMatch`; no
+  `testIgnore`; no change to how project `dependencies` are parsed.
+- Failure modes, each fail-closed: a globstar glob whose leading-segment-dropped form a test path
+  matches, a trailing or in-segment globstar, or a computed or regular-expression `testMatch`
+  names that `testMatch`'s own line. A `split` or `map` that the closure defines, reads or names
+  as a string makes every fresh-method index stop at the definition. A computed read on any other
+  receiver stops at its line as before. A Playwright file a literal `testMatch` owns but whose
+  config is not literal is still classified only by `TJAA-V0-037`.
+- Residual: a patch of `String.prototype.split` or `Array.prototype.map` from a file outside the
+  closure, as for every other global, is outside the static model (`AFP-V0-409`). The TypeScript
+  non-null form `value![key]` is not yet treated as a member access by the closure's receiver
+  test. The reporter's repository was not available (`NOT_OBSERVED`).
+
 ## Opt-in Playwright project profile
 
 `corvint affected --playwright-config PATH --playwright-discovery FILE` emits `playwright-affected/0`; it does not alter the
@@ -999,6 +1050,12 @@ The GitHub #1701 extension (`TJAA-V0-090`, `TJAA-V0-091`) reverts independently:
 `testMatch` marker refusal and the any-matcher project refusal in `playwrightStaticMembership`.
 Only the omission verdict and executable-config frontier entries change; no persisted store or
 receipt is written.
+The GitHub #1717 extension (`TJAA-V0-092`, `TJAA-V0-093`) reverts independently. To revert it,
+refuse every globstar in `playwrightRootFreeGlob`, name the first `testMatch` line again, drop
+`playwrightLiteralOwned` from `classify`, and drop the fresh-array exemption
+(`playwrightFreshArrayAt`, `playwrightFreshMethodDefinition`) from `playwrightTagTextLiteral`.
+Only test classification, executable-config frontier entries and the omission verdict change;
+no persisted store or receipt is written.
 
 ## Traceability
 
@@ -1044,5 +1101,7 @@ receipt is written.
 | `TJAA-V0-060` (PR #1628 review) | `TestPlaywrightConfinedMutationKeepsDeviceIdentity_PR1628` in `typescript_pr1628_test.go` | experimental |
 | `TJAA-V0-090` (GitHub #1701) | `TestPlaywrightTagClosurePlainStringify_GH1701` in `playwright_gh1701_test.go` (the issue's helper shape); `TestPlaywrightTagClosureDetailsWithoutTag_GH1688` in `playwright_gh1688_test.go` | experimental; reporter repository `NOT_OBSERVED` |
 | `TJAA-V0-091` (GitHub #1701) | `TestPlaywrightPathModeLiteralTestMatch_GH1701`, `TestPlaywrightPathModeLiteralTestMatchOutsideMatcherModel_GH1701`, `TestPlaywrightPathModeLiteralTestMatchOwnsSupport_GH1701` in `playwright_gh1701_test.go`; `TestPlaywrightConfigFrontierNamesBlocker_GH1688` in `playwright_gh1688_test.go` | experimental; reporter repository `NOT_OBSERVED` |
+| `TJAA-V0-092` (GitHub #1717) | `TestPlaywrightPathModeGlobstarTestMatch_GH1717` and `TestPlaywrightGlobstarReachesRoot_GH1717` in `playwright_gh1717_test.go` (the issue's project shape); `TestPlaywrightPathModeLiteralTestMatch_GH1701` in `playwright_gh1701_test.go` | experimental; reporter repository `NOT_OBSERVED` |
+| `TJAA-V0-093` (GitHub #1717) | `TestPlaywrightTagClosureFreshArrayIndex_GH1717` in `playwright_gh1717_test.go` (the issue's helper line) | experimental; reporter repository `NOT_OBSERVED` |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |

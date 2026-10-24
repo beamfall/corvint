@@ -38,6 +38,11 @@ type playwrightTagFile struct {
 	imports []string
 	tags    []string
 	stop    string
+	// fresh records that the file indexes a split or map result by a computed member, and
+	// freshStop, when not empty, names where the file defines or reads `split` or `map` other than
+	// as a direct method call; the closure stops on freshStop once any file is fresh (TJAA-V0-093).
+	fresh     bool
+	freshStop string
 }
 
 func newPlaywrightTagSources(root, configPath string) *playwrightTagSources {
@@ -99,6 +104,7 @@ func (sources *playwrightTagSources) exactOrStop(entries ...string) (map[string]
 	}
 	tags := map[string]bool{}
 	seen := map[string]bool{}
+	fresh, freshStop := false, ""
 	queue := slices.Clone(entries)
 	for len(queue) != 0 {
 		file := queue[0]
@@ -121,7 +127,14 @@ func (sources *playwrightTagSources) exactOrStop(entries ...string) (map[string]
 		for _, tag := range checked.tags {
 			tags[tag] = true
 		}
+		fresh = fresh || checked.fresh
+		if freshStop == "" {
+			freshStop = checked.freshStop
+		}
 		queue = append(queue, checked.imports...)
+	}
+	if fresh && freshStop != "" {
+		return nil, freshStop
 	}
 	return tags, ""
 }
@@ -196,13 +209,19 @@ func playwrightTagFileExact(root, relative string, alias func(owner, ref string)
 	if err != nil {
 		return playwrightTagFile{stop: relative + " does not tokenize"}
 	}
-	tags, at, why := playwrightTagTextLiteral(clean)
-	if why != "" {
+	stop := func(at int, why string) string {
+		return relative + " holds a tag or construct that is not one literal @\\S+ string (line " + strconv.Itoa(lineAt(clean, at)) + ": " + why + ")"
+	}
+	literal := playwrightTagTextLiteral(clean)
+	if literal.why != "" {
 		// The stop names the first construct and its line, so an owner can see which one keeps the
 		// closure inexact (AFP-V0-425).
-		return playwrightTagFile{stop: relative + " holds a tag or construct that is not one literal @\\S+ string (line " + strconv.Itoa(lineAt(clean, at)) + ": " + why + ")"}
+		return playwrightTagFile{stop: stop(literal.at, literal.why)}
 	}
-	result.tags = tags
+	result.tags, result.fresh = literal.tags, literal.fresh
+	if literal.defines >= 0 {
+		result.freshStop = stop(literal.defines, "`"+literal.defined+"` is defined or read other than as a direct method call, so a computed index on a split or map result can reach a tag array")
+	}
 	return result
 }
 
@@ -237,15 +256,34 @@ func playwrightResolveRelative(root, owner, ref string) (string, bool) {
 	return found, found != ""
 }
 
+// playwrightTagLiteral is the per-file verdict of playwrightTagTextLiteral. When the module is
+// not literal, why names the first rule it breaks and at is that construct's offset (AFP-V0-425).
+// fresh records a computed index on a split or map result, and defines is the offset of the
+// first `split` or `map` (named by defined) that is not a direct method call, or -1 (TJAA-V0-093).
+type playwrightTagLiteral struct {
+	tags    []string
+	at      int
+	why     string
+	fresh   bool
+	defines int
+	defined string
+}
+
+// playwrightFreshMethods are the methods whose direct call returns a new array that no tag key
+// holds: String.prototype.split, whose items are strings, and Array.prototype.map, whose items
+// are the callback's values (TJAA-V0-093).
+var playwrightFreshMethods = []string{"split", "map"}
+
 // playwrightTagTextLiteral applies the per-file text rules of playwrightTagFileExact to a
-// comment-stripped module and returns its literal tags. When the module is not literal, why names
-// the first rule it breaks and at is that construct's offset (AFP-V0-425).
-func playwrightTagTextLiteral(clean string) (tags []string, at int, why string) {
+// comment-stripped module and returns its literal tags.
+func playwrightTagTextLiteral(clean string) playwrightTagLiteral {
+	fresh := false
 	lexed, ok := playwrightLex(clean)
 	if !ok {
-		return nil, 0, "the module does not lex"
+		return playwrightTagLiteral{at: 0, why: "the module does not lex", defines: -1}
 	}
 	first, name := -1, ""
+	var opens map[int]int
 	for _, candidate := range playwrightTagIndirection {
 		for _, offset := range playwrightTokenOffsets(clean, candidate) {
 			if lexed.code[offset] && (first < 0 || offset < first) && (candidate != "JSON" || !playwrightPlainStringify(clean, lexed, offset)) {
@@ -254,11 +292,11 @@ func playwrightTagTextLiteral(clean string) (tags []string, at int, why string) 
 		}
 	}
 	if first >= 0 {
-		return nil, first, "`" + name + "` can build or enumerate a property at run time"
+		return playwrightTagLiteral{at: first, why: "`" + name + "` can build or enumerate a property at run time", defines: -1}
 	}
 	for _, quoted := range []string{"'tag'", `"tag"`, "`tag`"} {
 		if offset := strings.Index(clean, quoted); offset >= 0 {
-			return nil, offset, "the string " + quoted + " can name a tag key"
+			return playwrightTagLiteral{at: offset, why: "the string " + quoted + " can name a tag key", defines: -1}
 		}
 	}
 	for index := 0; index < len(clean); index++ {
@@ -266,10 +304,10 @@ func playwrightTagTextLiteral(clean string) (tags []string, at int, why string) 
 			if quote := clean[index]; (quote == '\'' || quote == '"') && (index == 0 || lexed.code[index-1]) {
 				end, ok := playwrightQuotedEnd(clean, index)
 				if !ok {
-					return nil, index, "a string does not close"
+					return playwrightTagLiteral{at: index, why: "a string does not close", defines: -1}
 				}
 				if next := playwrightNextCode(clean, end); strings.ContainsRune(clean[index:end], '\\') && next < len(clean) && clean[next] == ':' {
-					return nil, index, "an escaped string property key can spell tag"
+					return playwrightTagLiteral{at: index, why: "an escaped string property key can spell tag", defines: -1}
 				}
 				index = end - 1
 			}
@@ -277,39 +315,50 @@ func playwrightTagTextLiteral(clean string) (tags []string, at int, why string) 
 		}
 		switch clean[index] {
 		case '\\':
-			return nil, index, "an identifier escape can spell tag"
+			return playwrightTagLiteral{at: index, why: "an identifier escape can spell tag", defines: -1}
 		case '[':
 			previous := playwrightPreviousCode(clean, index)
 			closeAt, closed := lexed.closes[index]
 			if !closed {
-				return nil, index, "a bracket does not close"
+				return playwrightTagLiteral{at: index, why: "a bracket does not close", defines: -1}
 			}
 			next := playwrightNextCode(clean, closeAt+1)
 			if previous >= 0 && (clean[previous] == '{' || clean[previous] == ',') && next < len(clean) && (clean[next] == ':' || clean[next] == '(') {
-				return nil, index, "a computed object key or method can name a tag key"
+				return playwrightTagLiteral{at: index, why: "a computed object key or method can name a tag key", defines: -1}
 			}
 			if playwrightMemberAccessAt(clean, previous) && !playwrightLiteralIndex(clean[index+1:closeAt]) {
-				return nil, index, "a computed member access can reach a tag array without naming it"
+				if opens == nil {
+					opens = make(map[int]int, len(lexed.closes))
+					for open, close := range lexed.closes {
+						opens[close] = open
+					}
+				}
+				literal, method := playwrightFreshArrayAt(clean, opens, previous)
+				if !literal && !method {
+					return playwrightTagLiteral{at: index, why: "a computed member access can reach a tag array without naming it", defines: -1}
+				}
+				fresh = fresh || method
 			}
 		case ']':
 			// `T[] =` is a type annotation; any other `] =` writes a computed member.
 			if previous := playwrightPreviousCode(clean, index); (previous < 0 || clean[previous] != '[') && playwrightAssignmentAt(clean, playwrightNextCode(clean, index+1)) {
-				return nil, index, "a computed member write can set a tag"
+				return playwrightTagLiteral{at: index, why: "a computed member write can set a tag", defines: -1}
 			}
 		}
 	}
-	tags = []string{}
+	tags := []string{}
 	for _, offset := range playwrightTokenOffsets(clean, "tag") {
 		if !lexed.code[offset] {
 			continue
 		}
 		literal, ok := playwrightLiteralTagProperty(clean, lexed, offset)
 		if !ok {
-			return nil, offset, "`tag` is not an object-literal key whose value is literal @\\S+ strings"
+			return playwrightTagLiteral{at: offset, why: "`tag` is not an object-literal key whose value is literal @\\S+ strings", defines: -1}
 		}
 		tags = append(tags, literal...)
 	}
-	return tags, 0, ""
+	defines, defined := playwrightFreshMethodDefinition(clean, lexed)
+	return playwrightTagLiteral{tags: tags, fresh: fresh, defines: defines, defined: defined}
 }
 
 // playwrightPlainStringify reports whether the `JSON` token at offset begins a direct call
@@ -377,6 +426,66 @@ func playwrightMemberAccessAt(clean string, previous int) bool {
 		start--
 	}
 	return !slices.Contains(playwrightExpressionKeywords, clean[start:previous+1])
+}
+
+// playwrightFreshArrayAt reports whether the receiver ending at previous, the code byte before a
+// computed member access, is a fresh array: an array literal, or the result of a direct
+// `.split(...)` or `.map(...)` method call. Such an array is no tag key's value and its items were
+// produced by code the closure checks, so indexing it cannot reach a tag array without naming it,
+// as long as no closure file defines a split or map of its own (playwrightFreshMethodDefinition).
+// A parenthesized receiver, an indexed array, a spread call and any other call are not fresh.
+// literal reports an array literal and method a split or map result (TJAA-V0-093).
+func playwrightFreshArrayAt(clean string, opens map[int]int, previous int) (literal, method bool) {
+	open, closed := opens[previous]
+	if !closed {
+		return false, false
+	}
+	switch clean[previous] {
+	case ']':
+		return !playwrightMemberAccessAt(clean, playwrightPreviousCode(clean, open)), false
+	case ')':
+		end := playwrightPreviousCode(clean, open)
+		start := end
+		for start > 0 && playwrightIdentifierByte(clean[start-1]) {
+			start--
+		}
+		if end < 0 || !slices.Contains(playwrightFreshMethods, clean[start:end+1]) {
+			return false, false
+		}
+		dot := playwrightPreviousCode(clean, start)
+		return false, dot > 0 && clean[dot] == '.' && clean[dot-1] != '.'
+	}
+	return false, false
+}
+
+// playwrightFreshMethodDefinition returns the offset and name of the first `split` or `map` in
+// code that is not the name of a direct method call `.split(` or `.map(`, or of the first string
+// literal spelling one, or -1. Such a use can define an object's own split or map that returns a
+// details object, so a computed index on its result could reach a tag array (TJAA-V0-093).
+func playwrightFreshMethodDefinition(clean string, lexed playwrightLexed) (int, string) {
+	first, name := -1, ""
+	for _, method := range playwrightFreshMethods {
+		for _, offset := range playwrightTokenOffsets(clean, method) {
+			if first >= 0 && offset >= first {
+				break
+			}
+			if !lexed.code[offset] {
+				continue
+			}
+			dot := playwrightPreviousCode(clean, offset)
+			call := playwrightNextCode(clean, offset+len(method))
+			if dot > 0 && clean[dot] == '.' && clean[dot-1] != '.' && call < len(clean) && clean[call] == '(' {
+				continue
+			}
+			first, name = offset, method
+		}
+		for _, quoted := range []string{"'" + method + "'", `"` + method + `"`, "`" + method + "`"} {
+			if offset := strings.Index(clean, quoted); offset >= 0 && (first < 0 || offset < first) {
+				first, name = offset, method
+			}
+		}
+	}
+	return first, name
 }
 
 // playwrightExpressionKeywords are the keywords after which `[` starts an array literal.

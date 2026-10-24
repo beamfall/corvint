@@ -3,6 +3,7 @@ package typescript
 import (
 	"path"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -113,19 +114,32 @@ func playwrightStaticMembership(config config, files []string, observations []ob
 		return lineSite(config.path, config.body, unmodelled), sourceToken(config.body[unmodelled:]), false
 	}
 	projects, globalTestDir, unknown := parsePlaywrightConfig(config.path, config.body)
-	testMatchSite := func() (string, string, bool) {
+	// testMatchSite names the first testMatch whose value refused reports, or the first testMatch
+	// when none does, so a refused second project names its own line (TJAA-V0-092).
+	testMatchSite := func(refused func(items []string) bool) (string, string, bool) {
 		if testMatchAt < 0 {
 			// An escaped key such as "test\u004datch" parses to a testMatch the raw body never names.
 			return config.path, "testMatch", false
 		}
-		return lineSite(config.path, config.body, testMatchAt), sourceToken(config.body[testMatchAt:]), false
+		at := playwrightTestMatchAt(config.body, refused)
+		if at < 0 {
+			at = testMatchAt
+		}
+		return lineSite(config.path, config.body, at), sourceToken(config.body[at:]), false
 	}
 	parsedTestMatch := false
 	for _, project := range projects {
 		parsedTestMatch = parsedTestMatch || len(project.TestMatch) != 0
 	}
 	if (testMatchAt >= 0 || parsedTestMatch) && !playwrightLiteralTestMatches(config.body, projects, unknown) {
-		return testMatchSite()
+		return testMatchSite(func(items []string) bool {
+			for _, item := range items {
+				if _, ok := playwrightRootFreeGlob(item); !ok {
+					return true
+				}
+			}
+			return len(items) == 0
+		})
 	}
 	if unmodelled >= 0 {
 		return lineSite(config.path, config.body, unmodelled), sourceToken(config.body[unmodelled:]), false
@@ -166,7 +180,7 @@ func playwrightStaticMembership(config config, files []string, observations []ob
 			// where the Go matcher does not (TJAA-V0-091).
 			for _, glob := range project.TestMatch {
 				if playwrightInsideTestDir(project, globalTestDir, name) && (playwrightPathOutsideMatcherModel(name) || playwrightGlobReachesRoot(glob, name)) {
-					return testMatchSite()
+					return testMatchSite(func(items []string) bool { return slices.Contains(items, glob) })
 				}
 			}
 			if playwrightProjectOwns("", project, globalTestDir, name) {
@@ -190,7 +204,8 @@ func playwrightStaticMembership(config config, files []string, observations []ob
 // playwrightRootFreeGlob accepts: the parse left no unknown about a testMatch, and the body names
 // testMatch exactly once for each project that has one, so no global, nested, computed, commented
 // or spread testMatch is left unaccounted for. A regular expression, a computed value or a glob
-// with a globstar, a brace, a class or an extglob is not literal (TJAA-V0-091).
+// with a brace, a class, an extglob or a globstar that is not a whole segment is not literal
+// (TJAA-V0-091, TJAA-V0-092).
 func playwrightLiteralTestMatches(body string, projects []PlaywrightProject, unknown []PlaywrightUnknown) bool {
 	for _, entry := range unknown {
 		if strings.Contains(entry.Detail, "testMatch") {
@@ -212,49 +227,118 @@ func playwrightLiteralTestMatches(body string, projects []PlaywrightProject, unk
 	return matching != 0 && matching == strings.Count(body, "testMatch")
 }
 
-// playwrightRootFreeGlob reports whether raw is an escape-free literal string glob whose match
-// is decided by a test path's own last segments, and how many segments it has. Playwright
-// prefixes `**/` and matches the absolute path; with no other globstar and only segment-local `*`
-// and `?`, that match holds exactly when the path's last segments match the glob (TJAA-V0-091).
-func playwrightRootFreeGlob(raw string) (int, bool) {
+// playwrightLiteralProjects parses a Playwright config and returns its projects and global
+// testDir when every testMatch in it is a literal root-free string glob
+// (playwrightLiteralTestMatches), or nil (TJAA-V0-092).
+func playwrightLiteralProjects(path, body string) ([]PlaywrightProject, string) {
+	projects, globalTestDir, unknown := parsePlaywrightConfig(path, body)
+	if !playwrightLiteralTestMatches(body, projects, unknown) {
+		return nil, ""
+	}
+	return projects, globalTestDir
+}
+
+// playwrightLiteralOwned reports whether a project with a literal testMatch in one of the
+// Playwright configs named by paths owns relative, so a setup file such as
+// setup/global-setup.ts under testDir './' is a test of that project rather than support code
+// (TJAA-V0-092).
+func playwrightLiteralOwned(relative string, paths []string, configs []config) bool {
+	for _, config := range configs {
+		if !containsString(paths, config.path) {
+			continue
+		}
+		for _, project := range config.literalProjects {
+			if len(project.TestMatch) != 0 && playwrightProjectOwns("", project, config.literalTestDir, relative) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// playwrightTestMatchAt returns the offset of the first `testMatch` key in body whose value
+// refused reports, given its items (one item for a value that is not an array literal, none for
+// a value that does not parse), or -1 when none does (TJAA-V0-092).
+func playwrightTestMatchAt(body string, refused func(items []string) bool) int {
+	for _, at := range playwrightTokenOffsets(body, "testMatch") {
+		rest := body[at+len("testMatch"):]
+		index := 0
+		if index < len(rest) && (rest[index] == '\'' || rest[index] == '"') {
+			index++
+		}
+		index = playwrightNextCode(rest, index)
+		items := []string{}
+		if index < len(rest) && rest[index] == ':' {
+			if value, _, ok := playwrightBalancedValue(rest, index+1, '}'); ok {
+				if parts, ok := playwrightSplitTopLevel(value); ok && len(parts) != 0 && parts[0] != "" {
+					items = []string{parts[0]}
+					if array, ok := playwrightArrayItems(parts[0]); ok {
+						items = array
+					}
+				}
+			}
+		}
+		if refused(items) {
+			return at
+		}
+	}
+	return -1
+}
+
+// playwrightRootFreeGlob reports whether raw is an escape-free literal string glob that
+// playwrightGlobReachesRoot can decide for a test path, and returns its segments without
+// Playwright's own leading `**/`. A segment is a whole globstar `**` or holds only segment-local
+// `*` and `?`; the last segment is not a globstar, and no segment is empty, `.` or `..`
+// (TJAA-V0-091, TJAA-V0-092).
+func playwrightRootFreeGlob(raw string) ([]string, bool) {
 	value, literal := playwrightString(raw)
 	if !literal || strings.ContainsRune(raw, '\\') {
-		return 0, false
+		return nil, false
 	}
 	value = strings.TrimPrefix(value, "**/")
-	if value == "" || strings.ContainsAny(value, "{}[]()!+@\\") || strings.Contains(value, "**") {
-		return 0, false
+	if value == "" || strings.ContainsAny(value, "{}[]()!+@\\") {
+		return nil, false
 	}
 	segments := strings.Split(value, "/")
 	for _, segment := range segments {
-		if segment == "" || segment == "." || segment == ".." {
-			return 0, false
+		if segment == "" || segment == "." || segment == ".." || segment != "**" && strings.Contains(segment, "**") {
+			return nil, false
 		}
 	}
-	return len(segments), true
+	if segments[len(segments)-1] == "**" {
+		return nil, false
+	}
+	return segments, true
 }
 
-// playwrightGlobReachesRoot reports whether a playwrightRootFreeGlob glob has more segments than
-// the repository path name and its last segments match all of name, so whether Playwright matches
-// the absolute path depends on directories above the repository. A glob that is not root-free
-// reaches the root.
+// playwrightGlobReachesRoot reports whether Playwright's match of a playwrightRootFreeGlob glob
+// against the absolute path of the repository path name depends on directories above the
+// repository. Playwright matches `**/` plus the glob, so the absolute path matches whenever name
+// alone does; otherwise some directory prefix makes it match exactly when name matches the glob
+// with one or more of its leading segments dropped, since those segments, or a globstar's share
+// of them, can be matched by the prefix. A glob that is not root-free reaches the root.
 func playwrightGlobReachesRoot(raw, name string) bool {
 	segments, ok := playwrightRootFreeGlob(raw)
 	if !ok {
 		return true
 	}
-	own := strings.Count(name, "/") + 1
-	if own >= segments {
-		return false
+	matches := func(glob string) (bool, bool) {
+		pattern, valid := playwrightGlobPattern(glob)
+		if !valid {
+			return false, false
+		}
+		re, err := regexp.Compile("(?i)^(?:" + pattern + ")$")
+		return err == nil && re.MatchString(name), err == nil
 	}
-	value, _ := playwrightString(raw)
-	tail := strings.Split(strings.TrimPrefix(value, "**/"), "/")
-	pattern, valid := playwrightGlobPattern(strings.Join(tail[segments-own:], "/"))
-	if !valid {
-		return true
+	if full, valid := matches("**/" + strings.Join(segments, "/")); !valid || full {
+		return !valid
 	}
-	re, err := regexp.Compile("(?i)^(?:" + pattern + ")$")
-	return err != nil || re.MatchString(name)
+	for drop := 1; drop < len(segments); drop++ {
+		if hit, valid := matches(strings.Join(segments[drop:], "/")); !valid || hit {
+			return true
+		}
+	}
+	return false
 }
 
 // playwrightInsideTestDir reports whether test is inside the project's testDir, or the config's
