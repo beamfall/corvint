@@ -4,6 +4,12 @@
     "internal/analyzercap": {
       "docs/specs/analyzer-candidate-profiles.md": "named inside an expected diagnostic message; the test reads no file"
     },
+    "internal/cemcandidate": {
+      "artifacts/runner-plan-0.json": "a path inside the test's temporary assembly output and fixture case root; the repository's artifacts/ file is not read",
+      "artifacts/runner-receipt-0.json": "a path inside the test's temporary assembly output and fixture case root; the repository's artifacts/ file is not read",
+      "artifacts/runner-plan-1.json": "a path inside the test's temporary assembly output and fixture case root; the repository's artifacts/ file is not read",
+      "artifacts/runner-receipt-1.json": "a path inside the test's temporary assembly output and fixture case root; the repository's artifacts/ file is not read"
+    },
     "internal/gateselect": {
       ".corvint/changes": "a sealed-CEM selection fixture path matched against fixture values; nothing is read",
       ".corvint/test-read-scopes.json": "a read-scope declaration written into a temporary fixture repository; the repository's own declaration is not read",

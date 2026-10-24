@@ -837,6 +837,12 @@ CEM-V1-569	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `companionrelease.Val
 CEM-V1-570	docs/specs/cem-stable-v1.md	(proposed; V1-2323) The reader MUST refuse with class `stable-result-authority`	unrecorded	-
 CEM-V1-571	docs/specs/cem-stable-v1.md	(proposed; V1-2323) Runner, platform and external outcomes are release evidence	unrecorded	-
 CEM-V1-572	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `make cem-release-suites CORVINT_RELEASE_BIN=... CEM01_RELEA	unrecorded	-
+CEM-V1-600	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `companionrelease.ReadStableReleaseDeclaration` MUST read a	unrecorded	-
+CEM-V1-601	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `companionrelease.StableReleaseReadiness` MUST refuse with	unrecorded	-
+CEM-V1-602	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `tools/cem-release-suites --readiness PATH` MUST collect	unrecorded	-
+CEM-V1-603	docs/specs/cem-stable-v1.md	(proposed; V1-2323) The `--readiness` path MUST be repository-relative and is	unrecorded	-
+CEM-V1-604	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `MIGRATION.json` addition A02 MUST leave `OPEN` with a statu	unrecorded	-
+CEM-V1-605	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `make cem-release-gate` MUST refuse a checkout with any	unrecorded	-
 CEM-V1-573	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2322) A	standing	2026-10-11; V1-2322
 CEM-V1-574	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2322) A reques	standing	2026-10-11; V1-2322
 CEM-V1-575	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2322) Before	standing	2026-10-11; V1-2322
