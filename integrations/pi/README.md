@@ -1,7 +1,7 @@
 # Corvint for Pi — experimental FALLBACK
 
-Pi **0.99.1**, Corvint Pi adapter **0.3.3**, macOS arm64: tested with the real host and an
-offline fixture provider in print, RPC and interactive TUI modes. Other Pi versions refuse visibly; Linux has not been qualified and
+Pi **0.99.1**, Corvint Pi adapter **0.3.4**, macOS arm64. The last recorded live-host conformance
+(adapter 0.3.3) used the real host and an offline fixture provider in print, RPC and interactive TUI modes. Other Pi versions refuse visibly; Linux has not been qualified and
 Windows is unsupported because descendant cleanup requires POSIX process groups.
 
 Use a Corvint build containing the matching `adapter pi` version. Set `CORVINT_BIN` to its
@@ -27,8 +27,8 @@ CORVINT_BIN=/absolute/path/corvint pi -e /absolute/path/integrations/pi/index.ts
 
 The package declares the Pi host as a wildcard peer so Pi supplies its own modules; this is
 packaging policy, not runtime compatibility. The closed native/runtime guards admit only 0.99.1.
-The older 0.85.1 adapter remains historical qualification and is not admitted by adapter 0.3.3; adapter 0.3.2 is superseded
-by 0.3.3 (decision 0550) and refuses visibly.
+The older 0.85.1 adapter remains historical qualification and is not admitted by adapter 0.3.4; adapters 0.3.2 and 0.3.3 are superseded
+(decisions 0550 and 0556) and refuse visibly.
 The package uses `pi.extensions` discovery and the host's runtime `VERSION`. Untrusted projects
 refuse native reads. Startup, reload, new/resumed/forked sessions and tree navigation refresh
 context. Successful compaction supplies recovery to the next model request, including an automatic

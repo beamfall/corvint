@@ -80,14 +80,14 @@ read; `LIFECYCLE` is an `adapter pi` event under AHI-024 with continuation false
 is explicit outcome persistence under AHI-025; `LOCAL_POLICY` is the caller-owned workflow under
 LCP-V0-008; `OPERATOR_NATIVE_WRITE` is an explicit operator command whose Tasks verb is negotiated
 per call against the installed native `help` result. The exact tuple is the package's, and
-`FALLBACK` support never implies authority. The 0.3.3 package ships no copy of this inventory, so
+`FALLBACK` support never implies authority. The 0.3.4 package ships no copy of this inventory, so
 the exact qualified tuple is unchanged; a later adapter version may ship it as a declaration, never
 as runtime admission.
 
 ```json
 {
   "profile": "corvint-pi-capabilities/0",
-  "tuple": {"adapterVersion": "0.3.3", "host": "pi", "hostVersion": "0.99.1", "support": "FALLBACK", "surface": "extension"},
+  "tuple": {"adapterVersion": "0.3.4", "host": "pi", "hostVersion": "0.99.1", "support": "FALLBACK", "surface": "extension"},
   "tools": {"corvint_context": "NATIVE_READ", "corvint_core_read": "NATIVE_READ", "corvint_expand": "NATIVE_READ", "corvint_record_outcome": "EXPLICIT_RECORD", "corvint_tasks": "NATIVE_READ"},
   "commands": {"corvint": "NATIVE_READ", "corvint-context": "LIFECYCLE", "corvint-outcome": "LIFECYCLE", "corvint-record": "EXPLICIT_RECORD", "corvint-tasks": "OPERATOR_NATIVE_WRITE", "corvint-workflow": "LOCAL_POLICY"},
   "events": ["agent_before_settle", "agent_end", "agent_settled", "before_agent_start", "context", "input", "session_compact", "session_shutdown", "session_start", "session_tree", "tool_result"],
