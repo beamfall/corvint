@@ -37,10 +37,22 @@ const (
 	lossMessageBytes = 512
 	// locationUnlocated is the error location of a run-level error the receipt does not locate.
 	locationUnlocated = "unlocated"
+	// hookDetailBytes is BBF's bound on an infrastructure receipt's detail; a longer detail makes
+	// the attempt an invalid control.
+	hookDetailBytes = 4096
 )
 
-// absolutePath matches an absolute POSIX path that starts a word, so a URL's path is kept.
-var absolutePath = regexp.MustCompile(`(^|[\s'"(\[=])/[^\s'"()\[\]:]+`)
+var (
+	// fileURL matches a file URL to an absolute host path, line and column included.
+	fileURL = regexp.MustCompile(`file:///[^\s'"()\[\]]*`)
+	// absolutePath matches an absolute POSIX path that starts a word, so a URL's path is kept.
+	absolutePath = regexp.MustCompile(`(^|[\s'"(\[=])/[^\s'"()\[\]:]+`)
+	// windowsPath matches an absolute drive path that starts a word.
+	windowsPath = regexp.MustCompile(`(^|[\s'"(\[=])[A-Za-z]:\\[^\s'"()\[\]]+`)
+	// pathContinuation matches the words after a replaced path that still hold a separator, the
+	// rest of a path that contained spaces.
+	pathContinuation = regexp.MustCompile(`<path>(?: [^\s'"()\[\]:]*[/\\][^\s'"()\[\]:]*)+`)
+)
 
 // runErrorDetail is the location and bounded message of the error that lost a run: the receipt's
 // provider failure (a run-level reporter error carries its PWP-V3-009 location, or unlocated),
@@ -82,7 +94,10 @@ func lossText(text string, roots []string) string {
 			text = strings.ReplaceAll(text, root, ".")
 		}
 	}
+	text = fileURL.ReplaceAllString(text, "<path>")
 	text = absolutePath.ReplaceAllString(text, "${1}<path>")
+	text = windowsPath.ReplaceAllString(text, "${1}<path>")
+	text = pathContinuation.ReplaceAllString(text, "<path>")
 	text, _ = secretscreen.Screen(text)
 	return boundText(strings.TrimSpace(text), lossMessageBytes)
 }
@@ -100,9 +115,17 @@ func boundText(s string, n int) string {
 
 // hookInfrastructureDetail is the detail of a control hook's infrastructure receipt: the qualify
 // reason, then, when the run kept an error, its location and message on the next two lines. A
-// one-line detail is the reason alone, as hooks wrote before CCE-V0-116.
+// one-line detail is the reason alone, as hooks wrote before CCE-V0-116. The reason is kept whole,
+// since CCE-V0-087 reads it, and the location and message are cut so the detail stays within BBF's
+// bound; they never make a detail that BBF would accept as the reason alone invalid.
 func hookInfrastructureDetail(reason string, r jstestprovider.Receipt, runErr error, roots []string) string {
 	location, message := runErrorDetail(r, runErr, roots)
+	room := hookDetailBytes - len(reason) - 2
+	if room < 0 {
+		return reason
+	}
+	location = boundText(location, room)
+	message = boundText(message, room-len(location))
 	if location == "" && message == "" {
 		return reason
 	}

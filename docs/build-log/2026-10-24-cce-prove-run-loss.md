@@ -24,7 +24,8 @@ passes locally.
   `reason\nlocation\nmessage` when the run kept an error, else the reason alone, as before. The
   prover splits on the first two newlines, so a one-line detail written by an older hook reads as
   the reason alone and CCE-V0-087's `teardown-failed at <file>:<line>` match still reads the first
-  line. The detail stays under BBF's 4096-byte bound (reason, location and message each bounded).
+  line. The reason stays whole; location and message are cut so the detail stays within BBF's
+  4096-byte bound (a long teardown path otherwise made the attempt `invalid_control`; Codex review).
   BBF's wire schema is unchanged.
 - Classification is unchanged: no verdict, note, status, reason list or score reads the new fields.
 - `requireVerdict` in the live tests appends every loss to its failure message.

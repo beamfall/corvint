@@ -863,16 +863,19 @@ reads as before.
   reason; for a run-level reporter error its `error_location` (tree-relative `path:line`,
   `outside-test-tree`, or `unlocated`); and its `error_message` (the provider failure detail or the
   provider's run error), ANSI-stripped, with tree roots made relative and any other absolute path
-  replaced by `<path>`, secret-screened, and bounded to 512 bytes. An attempt that kept no hook
+  (POSIX, drive or `file:///` URL, spaces included) replaced by `<path>`, secret-screened, and
+  bounded to 512 bytes. An attempt that kept no hook
   receipt carries `hook_process`, its hook process evidence. The control hook carries the location
   and message to the prover on the second and third lines of its infrastructure `detail`; a
-  one-line detail, as hooks wrote before, reads as the reason alone. No verdict, note, status,
+  one-line detail, as hooks wrote before, reads as the reason alone; the reason stays whole and the
+  location and message are cut so the detail stays within BBF's 4096-byte bound. No verdict, note, status,
   reason list or score reads these fields, and CCE-V0-087 attribution is unchanged. A live
   `internal/changee2e` test that fails on a verdict prints every loss. Failure mode: a CI control
   reads `infrastructure_failed` with only `one-or-more-attempts-lost-to-infrastructure`, so the
   cause of an `INCONCLUSIVE` live run cannot be told from the log (CI run 40129429349). Acceptance:
   `TestCCEV0116LostControlAttemptDetail`, `TestCCEV0116TeardownDetailCompatible`,
-  `TestCCEV0116SideLoss`.
+  `TestCCEV0116SideLoss`, `TestCCEV0116LossTextRedactsHostPaths`,
+  `TestCCEV0116HookDetailWithinBBFBound`.
 
 ## Shadow evaluation and retirement
 
@@ -1005,7 +1008,7 @@ row's status says what is delivered.
 | CCE-V0-113 | golden compile outputs pinned to `CompilerVersion` | V1-1684 | PASS offline: `TestCCEV0113GoldenCompile` (four goldens at `corvint-test-e2e-compile/1`); recordings regenerated at `/1` (`TestCCEV0100ReplayRecordedReceipts`) |
 | CCE-V0-114 | base-declared API contract widens reach only | V1-1685 | PASS offline: `TestCCEV0114APIContractWidensReach` |
 | CCE-V0-115 | no reach source, alone or combined, turns `UNKNOWN` into `NONE` | V1-1685 | PASS offline: `TestCCEV0115NoReachSourceTurnsUnknownToNone`, `TestCCEV0046CoverageOnlyWidensReach`, `TestCCEV0054ModuleGraphWidensReach` |
-| CCE-V0-116 | each unqualified side and lost control attempt keeps its qualify reason, bounded secret-safe error message and location or `unlocated`; classification unchanged; live verdict failures print the losses | V1-2620 | PASS offline: `TestCCEV0116LostControlAttemptDetail` (unlocated run-level error on `control:omitted-event:setup-1` through the hook detail, a BBF report and the fake runner: verdict and reasons unchanged, no tree root, absolute path, secret or ANSI in the proof, failure output names each loss), `TestCCEV0116TeardownDetailCompatible`, `TestCCEV0116SideLoss` |
+| CCE-V0-116 | each unqualified side and lost control attempt keeps its qualify reason, bounded secret-safe error message and location or `unlocated`; classification unchanged; live verdict failures print the losses | V1-2620 | PASS offline: `TestCCEV0116LostControlAttemptDetail` (unlocated run-level error on `control:omitted-event:setup-1` through the hook detail, a BBF report and the fake runner: verdict and reasons unchanged, no tree root, absolute path, secret or ANSI in the proof, failure output names each loss), `TestCCEV0116TeardownDetailCompatible`, `TestCCEV0116SideLoss`, `TestCCEV0116LossTextRedactsHostPaths` and `TestCCEV0116HookDetailWithinBBFBound` (each failed before the review fix) |
 | CCE-V0-049 | hosted proof lists the adopter-config keys the prove config does not apply | V1-2409 | PASS: `TestCCEV0049HostedRunnerConfigDeviation` (an adopter config with `retries: 2`, `workers: 4`, `globalSetup`, `storageState`, a `baseURL` and projects; Playwright defaults when no config exists; a spread config read partially; failed with the proof wiring removed) |
 | CCE-V0-051 | a CHANGED_IN_DIFF verdict lifts the cap only through an independent, digest-bound acceptance recorded outside the repository | V1-2413 | PASS: `TestCCEV0051OracleAcceptance` (independent acceptance lifts DISCRIMINATES unscored; head author by name or email, a stale digest and no document keep the cap; an admitted scenario ignores it; failed with the lift removed), `TestCCEV0051OracleAcceptanceRefusals`, `TestCCEV0051OracleAcceptanceFlag` |
 | CCE-V0-052 | an unresolved outcome locator gets a proposed, never applied, data-testid rename with diff evidence | V1-2413 | PASS: `TestCCEV0052LocatorRepairProposal` (proposed `slot-state` with the line pair, verdict unchanged; value mismatch proposes nothing; ambiguous and no-rename; failed with the proposal removed) |

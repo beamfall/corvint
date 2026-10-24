@@ -203,3 +203,47 @@ func TestCCEV0116SideLoss(t *testing.T) {
 		t.Fatalf("qualified sides carry a loss: %+v %+v", q.Head.Loss, q.Base.Loss)
 	}
 }
+
+// CCE-V0-116 (review): host paths written as file URLs, with spaces or as drive paths leave no
+// trace in a kept message, while a path inside the staged tree stays readable.
+func TestCCEV0116LossTextRedactsHostPaths(t *testing.T) {
+	tree := t.TempDir()
+	in := "at file:///Users/alice/private/fixture.mjs:12:3 and /Users/alice smith/private notes/x.ts:4 " +
+		`and C:\Users\alice\fixture.ts, in ` + filepath.Join(tree, "e2e", "app.spec.ts") + ":7 and file://" + filepath.Join(tree, "e2e", "a.ts")
+	got := lossText(in, treeRoots(tree))
+	for _, leaked := range []string{"alice", "smith", "private", "notes", tree} {
+		if strings.Contains(got, leaked) {
+			t.Fatalf("lossText kept %q: %q", leaked, got)
+		}
+	}
+	for _, kept := range []string{"in e2e/app.spec.ts:7", "file://e2e/a.ts"} {
+		if !strings.Contains(got, kept) {
+			t.Fatalf("lossText lost %q: %q", kept, got)
+		}
+	}
+}
+
+// CCE-V0-116 (review): a long teardown reason BBF would accept alone stays whole and the hook
+// detail it heads stays within BBF's 4096-byte bound, so the attempt keeps reading
+// infrastructure_failed with its CCE-V0-087 attribution.
+func TestCCEV0116HookDetailWithinBBFBound(t *testing.T) {
+	tree := t.TempDir()
+	roots := treeRoots(tree)
+	file := filepath.Join(append([]string{tree, "e2e"}, slices.Repeat([]string{strings.Repeat("d", 200)}, 18)...)...)
+	receipt := jstestprovider.Receipt{Infrastructure: &jstestprovider.InfrastructureFailure{Reason: jstestprovider.ReasonReporterGlobalError,
+		Detail: strings.Repeat("Error: teardown ", 100), Location: &jstestprovider.Anchor{File: filepath.Join(file, "fixtures.ts"), Line: 9}}}
+	_, reason := qualify(receipt, nil, 1, roots)
+	if !strings.HasPrefix(reason, FailureTeardownFailed+" at e2e/") || len(reason) < 3500 || len(reason) > hookDetailBytes {
+		t.Fatalf("reason is %d bytes: %.80q", len(reason), reason)
+	}
+	detail := hookInfrastructureDetail(reason, receipt, nil, roots)
+	if len(detail) > hookDetailBytes {
+		t.Fatalf("hook detail is %d bytes, over BBF's %d", len(detail), hookDetailBytes)
+	}
+	if d, _, _ := parseHookDetail(detail); d != reason {
+		t.Fatalf("hook detail does not lead with the whole reason")
+	}
+	if long := strings.Repeat("r", hookDetailBytes); hookInfrastructureDetail(long, receipt, nil, roots) != long {
+		t.Fatalf("an over-long reason gained detail")
+	}
+}
