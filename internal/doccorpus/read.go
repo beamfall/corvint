@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
+	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
 // Artifact validation states an info receipt reports (DCP-V1-413).
@@ -204,8 +205,10 @@ func openVerified(ctx context.Context, root string, opts ReadOptions, start time
 // without version-control metadata share `unrecorded`, so equal labels of
 // either kind say nothing about equal extraction behavior. No executable
 // content identity is recorded in the artifact to tell such builds apart.
+// Only a full lowercase Git object ID is a recorded revision, so an empty or
+// malformed label is no attestation either (DCP-V1-471).
 func attestedBuilder(b Builder) bool {
-	return b.Revision != "unrecorded" && !strings.HasSuffix(b.Revision, "+dirty")
+	return wire.IsGitOid(b.Revision)
 }
 
 // unattestedBuilderTrusted admits the verified read for an unattested

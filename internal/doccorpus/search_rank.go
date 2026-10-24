@@ -117,27 +117,36 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 		scores[i] = normalized(scores[i], maximum)
 	}
 	exact := map[int]bool{}
+	phrased := map[int]bool{}
+	phrase, identifier := queryPhrase(request.Query)
 	for i, s := range a.Subjects {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if keep(s.Kind) && strings.EqualFold(request.Query, s.Name) {
+		if !keep(s.Kind) {
+			continue
+		}
+		if strings.EqualFold(request.Query, s.Name) {
 			// An exact name match outranks every partial match of either
 			// family, even one sharing no query term after tokenization.
 			exact[i] = true
-			if _, ok := scores[i]; !ok {
-				scores[i] = 0
-			}
+		} else if phrase != nil && mayHoldPhrase(s, phrase) && phraseMatch(s, phrase, identifier) {
+			// A phrase match is a candidate on its own, even when every
+			// phrase word is a stop word or no query term scored it.
+			phrased[i] = true
+		} else {
+			continue
+		}
+		if _, ok := scores[i]; !ok {
+			scores[i] = 0
 		}
 	}
-	phrase, identifier := queryPhrase(request.Query)
 	for i, score := range scores {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 		s := a.Subjects[i]
-		in := phrase != nil && !exact[i] && phraseMatch(s, phrase, identifier)
-		hits = append(hits, searchHit{value: s, id: s.ID, score: score, exact: exact[i], phrase: in, text: s.Name})
+		hits = append(hits, searchHit{value: s, id: s.ID, score: score, exact: exact[i], phrase: phrased[i], text: s.Name})
 	}
 	if claims {
 		claimHits, err := claimSearchHits(ctx, a, x, request, terms, keep)

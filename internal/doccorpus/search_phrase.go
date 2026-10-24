@@ -89,6 +89,56 @@ func phraseMatch(s Subject, phrase []string, identifier bool) bool {
 	return false
 }
 
+// mayHoldPhrase is phraseMatch's allocation-free prefilter: a subject can
+// hold the phrase only if its id, name or (for a module or file subject) an
+// anchor path holds the phrase's longest word, ignoring ASCII case. A word
+// with a non-ASCII rune is not filtered.
+func mayHoldPhrase(s Subject, phrase []string) bool {
+	word := ""
+	for _, w := range phrase {
+		if len(w) > len(word) {
+			word = w
+		}
+	}
+	for i := 0; i < len(word); i++ {
+		if word[i] >= utf8.RuneSelf {
+			return true
+		}
+	}
+	if containsFoldASCII(s.ID, word) || containsFoldASCII(s.Name, word) {
+		return true
+	}
+	if pathSubject(s) {
+		for _, anchor := range s.Evidence.Anchors {
+			if containsFoldASCII(anchor.Path, word) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// containsFoldASCII reports whether text holds the lower-case ASCII word,
+// ignoring ASCII case, without allocating.
+func containsFoldASCII(text, word string) bool {
+	for i := 0; i+len(word) <= len(text); i++ {
+		j := 0
+		for ; j < len(word); j++ {
+			c := text[i+j]
+			if 'A' <= c && c <= 'Z' {
+				c += 'a' - 'A'
+			}
+			if c != word[j] {
+				break
+			}
+		}
+		if j == len(word) {
+			return true
+		}
+	}
+	return false
+}
+
 // claimPostings returns the claims whose ID or text holds term or a regular
 // inflection of it, in claim order (DCP-V1-476). The index is never
 // modified.

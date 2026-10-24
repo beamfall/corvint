@@ -2724,7 +2724,8 @@ implemented; GitHub #1662, awaiting owner intent.
   encoding byte for the same inputs. The verified read (`DCP-V1-410`) admits an artifact whose
   builder differs from the running one only in an attested revision: the builder schema, the
   derivation version and the rest of the engine must be equal, and the recorded revision must be
-  attested (neither unrecorded nor `+dirty`). Otherwise it refuses with `builder differs:` and the
+  attested: a full lowercase Git object ID of 40 or 64 hex digits, so an unrecorded, `+dirty`,
+  empty or malformed revision is not. Otherwise it refuses with `builder differs:` and the
   member that differs. A changed derivation version names both versions and asks for a rebuild;
   an artifact from before this requirement has no recorded version and is refused as
   `unrecorded`. `--verify-rederive` still compares the rederived bytes, builder included.
@@ -2762,7 +2763,10 @@ implemented; GitHub #1662, awaiting owner intent.
   digit and at case changes, and keep stop words, so `logout_redirect_url` and
   `LogoutRedirectURL` match each other and the phrase `on deck` matches the path segment
   `on_deck`. A query of one identifier also matches inside a prose name. A query of fewer than two
-  words has no phrase. The word split is separate from the frozen evidence tokenizer and changes
+  words has no phrase. A phrase match is a hit on its own, even when no query term scores the
+  subject (the phrase `as is`, both stop words, finds `app/as_is.rb`); every subject the kind
+  filter keeps is checked once, after an allocation-free test for the phrase's longest word. The
+  word split is separate from the frozen evidence tokenizer and changes
   no indexed term. Acceptance: `TestDCPV1475PhraseAndIdentifierMatchesRankFirst`,
   `TestDCPV1404SearchRankingEvalFixture`.
 - `DCP-V1-476`: Amending `DCP-V1-313` and `DCP-V1-328`, a claim's ID and text also match the
@@ -3175,7 +3179,7 @@ a guessed subject.
 - Diagnostics and builder upgrades (`DCP-V1-470..474`): a located refusal never reports a record
   ID that is not printable or is over 256 bytes, and is bounded however long the input. An
   artifact whose builder schema, derivation version, Go toolchain or engine differs, or whose
-  revision is unrecorded or dirty, is still refused; a derived-byte change merged without a
+  revision is not an attested Git object ID, is still refused; a derived-byte change merged without a
   derivation version raise fails `TestDCPV1471DerivationVersionGuard` rather than serving
   artifacts the running builder would derive differently. A capacity refusal charges every
   distinct input before it reports. An eval whose checkout changes while its cases run is

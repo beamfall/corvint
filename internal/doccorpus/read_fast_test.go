@@ -346,6 +346,11 @@ func TestDCPV1410UnattestedBuilderRederives(t *testing.T) {
 		"unrecorded": false,
 		"0123456789abcdef0123456789abcdef01234567+dirty": false,
 		"0123456789abcdef0123456789abcdef01234567":       true,
+		strings.Repeat("ab", 32):                         true,
+		"":                                               false,
+		"garbage":                                        false,
+		"0123456789ABCDEF0123456789ABCDEF01234567": false,
+		"0123456789abcdef0123456789abcdef0123456":  false,
 	} {
 		if attestedBuilder(Builder{Version: Schema, Revision: label}) != attested {
 			t.Errorf("attestedBuilder(%q) != %v", label, attested)

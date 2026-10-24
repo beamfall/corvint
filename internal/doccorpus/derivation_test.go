@@ -45,7 +45,9 @@ func TestDCPV1471VerifiedReadAcrossBuilderRevisions(t *testing.T) {
 		{"builder schema", "builder schema differs (artifact corvint-evidence-corpus/0", func(c *Artifact) {
 			c.Builder.Revision, c.Builder.Version = strings.Repeat("a", 40), "corvint-evidence-corpus/0"
 		}},
-		{"dirty", "builder revision is unrecorded or dirty", func(c *Artifact) { c.Builder.Revision = strings.Repeat("a", 40) + "+dirty" }},
+		{"dirty", "builder revision is unrecorded, dirty or not a Git object ID", func(c *Artifact) { c.Builder.Revision = strings.Repeat("a", 40) + "+dirty" }},
+		{"empty revision", "builder revision is unrecorded, dirty or not a Git object ID", func(c *Artifact) { c.Builder.Revision = "" }},
+		{"malformed revision", "builder revision is unrecorded, dirty or not a Git object ID", func(c *Artifact) { c.Builder.Revision = "garbage" }},
 	}
 	for _, tc := range cases {
 		_, err := OpenRead(ctx, root, rehashed(t, a, tc.edit), ReadOptions{})

@@ -258,7 +258,7 @@ func sameDerivation(recorded, running Builder) error {
 	case recorded.Engine != running.Engine:
 		return errNotRederivable("builder differs: engine differs (artifact " + named(recorded.Engine) + ", running builder " + named(running.Engine) + ")")
 	case !attestedBuilder(recorded):
-		return errNotRederivable("builder differs: the artifact's builder revision is unrecorded or dirty")
+		return errNotRederivable("builder differs: the artifact's builder revision is unrecorded, dirty or not a Git object ID")
 	}
 	return nil
 }

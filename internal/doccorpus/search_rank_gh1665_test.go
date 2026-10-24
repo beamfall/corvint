@@ -35,6 +35,7 @@ func TestDCPV1475PhraseAndIdentifierMatchesRankFirst(t *testing.T) {
 			Subject{ID: p.ID + ":aa-deck", Kind: "use_case", Name: "Deck", Provider: p.ID, Evidence: ev},
 			Subject{ID: p.ID + ":ab-deck", Kind: "data_entity", Name: "deck slot", Provider: p.ID, Evidence: ev},
 			Subject{ID: p.ID + ":ac-deck", Kind: "use_case", Name: "deck on hold", Provider: p.ID, Evidence: ev},
+			Subject{ID: p.ID + ":zz-as-is", Kind: "module", Name: "app/as_is.rb", Provider: p.ID, Evidence: ev},
 		)
 		for i := range 8 {
 			p.Subjects = append(p.Subjects, Subject{ID: fmt.Sprintf("%s:filler-%02d", p.ID, i), Kind: "use_case", Name: fmt.Sprintf("redirect url %02d", i), Provider: p.ID, Evidence: ev})
@@ -52,6 +53,14 @@ func TestDCPV1475PhraseAndIdentifierMatchesRankFirst(t *testing.T) {
 	order := searchOrders(t, a, Request{Operation: "search", Query: "on deck"})
 	if len(order) == 0 || order[0] != "adapter:zz-on-deck" {
 		t.Fatalf("the on_deck path segment should rank first for the phrase: %v", order)
+	}
+	// A phrase of stop words scores no term, and still finds the subject
+	// whose path holds it (Codex review of #1669).
+	if got := searchOrders(t, a, Request{Operation: "search", Query: "as is"}); len(got) == 0 || got[0] != "adapter:zz-as-is" {
+		t.Fatalf("a stop-word phrase should find app/as_is.rb on its own: %v", got)
+	}
+	if got := searchOrders(t, a, Request{Operation: "search", Query: "as is", Kinds: []string{"use_case"}}); slices.Contains(got, "adapter:zz-as-is") {
+		t.Fatalf("a phrase-only candidate should still obey the kind filter: %v", got)
 	}
 	// Order matters, and a prose name only matches a one-identifier query.
 	if got := searchOrders(t, a, Request{Operation: "search", Query: "deck on"}); len(got) > 0 && got[0] == "adapter:zz-on-deck" {
