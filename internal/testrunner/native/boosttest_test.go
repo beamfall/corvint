@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -292,12 +293,49 @@ func TestBoostTestFragmentedTextLinear(t *testing.T) {
 	}
 }
 
+// boostFixtureDir is an absolute report directory on goos. "/fresh" has no
+// volume on Windows, where the native join yields --log_sink=\fresh\... (V1-2524).
+func boostFixtureDir(goos string) string {
+	if goos == "windows" {
+		return `C:\fresh`
+	}
+	return "/fresh"
+}
+
+// boostWantSink is the --log_sink argument for dir on goos: the report name
+// joined below dir with that platform's separator.
+func boostWantSink(goos, dir string) string {
+	separator := "/"
+	if goos == "windows" {
+		separator = `\`
+	}
+	return "--log_sink=" + dir + separator + boostReport
+}
+
+// TestBoostTestSinkFixturePerPlatform pins the Windows-style fixture on every
+// host, so the sink keeps its volume and never starts at a bare separator.
+func TestBoostTestSinkFixturePerPlatform(t *testing.T) {
+	for goos, want := range map[string]string{
+		"windows": `--log_sink=C:\fresh\boost-junit.xml`,
+		"linux":   "--log_sink=/fresh/boost-junit.xml",
+		"darwin":  "--log_sink=/fresh/boost-junit.xml",
+	} {
+		if got := boostWantSink(goos, boostFixtureDir(goos)); got != want {
+			t.Errorf("%s sink = %q, want %q", goos, got, want)
+		}
+	}
+}
+
 // TestBoostTestClosedBuild traces TRE-V0-036.
 func TestBoostTestClosedBuild(t *testing.T) {
-	valid := func() tr.Request {
-		return tr.Request{Runner: boostRunner, Executable: "/native-test", ReportDir: "/fresh", Target: boostTarget, ExpectedTests: []string{boostID("math/passes"), boostID("top_level"), boostID("math/fails")}}
+	dir := boostFixtureDir(runtime.GOOS)
+	if sink := filepath.Join(dir, boostReport); !filepath.IsAbs(sink) {
+		t.Fatalf("report fixture %q is not absolute on %s", sink, runtime.GOOS)
 	}
-	fixed := []string{"--log_format=JUNIT", "--log_level=error", "--log_sink=/fresh/boost-junit.xml", "--report_level=no", "--random=0", "--result_code=yes", "--build_info=no", "--color_output=no", "--show_progress=no", "--catch_system_errors=yes", "--auto_start_dbg=no"}
+	valid := func() tr.Request {
+		return tr.Request{Runner: boostRunner, Executable: "/native-test", ReportDir: dir, Target: boostTarget, ExpectedTests: []string{boostID("math/passes"), boostID("top_level"), boostID("math/fails")}}
+	}
+	fixed := []string{"--log_format=JUNIT", "--log_level=error", boostWantSink(runtime.GOOS, dir), "--report_level=no", "--random=0", "--result_code=yes", "--build_info=no", "--color_output=no", "--show_progress=no", "--catch_system_errors=yes", "--auto_start_dbg=no"}
 	v, e := Build(valid())
 	if e != nil || len(v.Phases) != 0 || strings.Join(v.Argv, " ") != strings.Join(fixed, " ") || v.Environment == nil || len(v.Environment) != 0 || len(v.Files) != 0 || strings.Join(v.ReportPaths, ",") != boostReport || len(v.SuccessExitCodes) != 1 || v.SuccessExitCodes[0] != 0 || len(v.FailureExitCodes) != 1 || v.FailureExitCodes[0] != 201 || len(v.OutcomeNeutralExitCodes) != 0 {
 		t.Fatal(v, e)

@@ -287,6 +287,17 @@ bounded caller commands, but it diagnoses suite interactions rather than criteri
   linker and standard library under `GOROOT` and the RSpec toolchain, which may be a wrapper that
   resolves paths from its own location, still run in place; `TestBBFV0214LimitToolsRunInPlace`
   confirms both swaps run (V1-2215).
+- `BBF-V0-215`: (proposed; V1-2524) A plan's `contract_file`, `test_file`, `config_file` and Go
+  provider `package` MUST be judged as canonical slash Git paths on every host: nonempty, not
+  rooted at `/`, unchanged by slash path cleaning, not `..` or below `../`, and free of `\` and
+  `:`. The check MUST NOT use the host's native path cleaning, which on Windows rewrites
+  `tests/x.spec.ts` to `tests\x.spec.ts` and refused every plan there with `contract and test paths
+  must be repository-relative`. Failure mode: a Windows spelling (`tests\x.ts`, `C:\repo\x.ts`,
+  `C:/repo/x.ts`, `\\server\share\x.ts`) is refused with the same diagnostic on every host,
+  including Linux, where a backslash was previously an ordinary file-name byte; plans that used
+  such a name no longer build. Evidence: `TestBBFV0215RepositoryRelativeUsesSlashSyntaxOnEveryHost` runs
+  the Windows spellings on Linux; the native Windows rerun is NEEDS-HOST. Rollback: restore the
+  native `filepath` check in `repositoryRelative`.
 
 ### Approval-bound evidence wire
 
@@ -383,6 +394,7 @@ Attempt reasons added by the opt-in profiles (BBF-V0-021, BBF-V0-025..027, BBF-V
 | declared shared-server isolation | `TestBBFV0019IsolationProfileIsExplicitAndBounded`, `TestBBFV0021IsolationFailureIsNeverKilled`, `TestBBFV0022IsolationEvidenceReceipt`, `TestBBFV0023LegacyWireIsByteIdentical` |
 | runner-neutral Go provider | `TestBBFV0024ProviderPlanIsBounded`, `TestBBFV0026GoProviderEndToEnd`, `TestBBFV0027ProviderEventsAreClosed`, `TestBBFV0028ProviderEvidenceReceiptIsRefused` |
 | RSpec provider binding | `TestBBFV0029RSpecProviderPlanIsBounded`, `TestBBFV0030RSpecProviderEndToEnd`, `TestBBFV0031RSpecReportIsClosed`, `TestBBFV0032RSpecEvidenceReceiptIsRefused`; live `TestBBFV0033LiveRSpecNegativeControls` (real RSpec 3.13.6 in `corvint-rspec-qual:2026-10-20`) |
+| host-independent plan paths | `TestBBFV0215RepositoryRelativeUsesSlashSyntaxOnEveryHost` (Windows spellings on every host); native Windows rerun NEEDS-HOST |
 
 Focused package and command tests run first. Repository completion additionally requires the
 canonical Go test/vet and interoperability gates, independent review, and the dogfood CEM/OCM
@@ -413,6 +425,7 @@ default commands remain unchanged.
 | BBF-V0-019..028 | `internal/behaviorfalsify/profiles.go`; `executeAttempt`, `classifyAttempt`, `ExecuteReceipt` and `VerifyReceipt` | `TestBBFV0019IsolationProfileIsExplicitAndBounded`, `TestBBFV0021IsolationFailureIsNeverKilled`, `TestBBFV0022IsolationEvidenceReceipt`, `TestBBFV0023LegacyWireIsByteIdentical`, `TestBBFV0024ProviderPlanIsBounded`, `TestBBFV0026GoProviderEndToEnd`, `TestBBFV0027ProviderEventsAreClosed`, `TestBBFV0028ProviderEvidenceReceiptIsRefused` |
 | BBF-V0-029..033 | `internal/behaviorfalsify/profiles.go` (`validateProvider`, `runRSpecProvider`, `rspecReceipt`) and `plan.go` (`observationIDValid`) | `TestBBFV0029RSpecProviderPlanIsBounded`, `TestBBFV0030RSpecProviderEndToEnd`, `TestBBFV0031RSpecReportIsClosed`, `TestBBFV0032RSpecEvidenceReceiptIsRefused`, `TestBBFV0033LiveRSpecNegativeControls` |
 | BBF-V0-214 | `internal/behaviorfalsify/execute.go` (`stageVerified`), `profiles.go` (`runProvider`, `validateProvider`) | `TestBBFV0214ToolchainRunsVerifiedBytes`; limit: `TestBBFV0214LimitToolsRunInPlace` |
+| BBF-V0-215 | `internal/behaviorfalsify/plan.go` (`repositoryRelative`) | `TestBBFV0215RepositoryRelativeUsesSlashSyntaxOnEveryHost`; native Windows rerun NEEDS-HOST |
 
 ## Unresolved decisions and promotion criteria
 
