@@ -2743,9 +2743,9 @@ implemented; GitHub #1662, awaiting owner intent.
 - `DCP-V1-473`: Amending `DCP-V1-252`, a failing eval case also carries `returned_rows`: its
   served top-k rows by rank with record ID, kind, name (or claim text) and the first path they
   cite, each bounded. A missed answer case whose `k` is below the query maximum also carries
-  `expected_rank`: the first rank an expected item is served at when the same call is repeated at
-  the maximum limit, or nothing when none is. The repeat changes no score, latency, byte count or
-  baseline comparison. A passing case carries neither. Acceptance:
+  `expected_rank`: the first rank an expected item is ranked at when the same call is repeated at
+  the maximum limit, or nothing when none is. The repeat is never served, so it skips the MCP
+  result frame bound, and it changes no score, latency, byte count or baseline comparison. A passing case carries neither. Acceptance:
   `TestDCPV1473FailingCasesListReturnedRows`.
 - `DCP-V1-474`: An eval suite opens the verified artifact and observes the checkout's freshness
   once before its first case, and answers every case through `CallTimed` from that artifact and

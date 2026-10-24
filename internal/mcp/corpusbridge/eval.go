@@ -296,6 +296,14 @@ type evalSession struct {
 
 type evalSessionKey struct{}
 
+// rankProbeKey marks expectedRank's repeated call, which reads the ranking at the largest limit
+// without the MCP result frame bound: it is never served, so no frame is spent (DCP-V1-473).
+type rankProbeKey struct{}
+
+func rankProbe(ctx context.Context) bool {
+	return ctx.Value(rankProbeKey{}) != nil && sessionOf(ctx) != nil
+}
+
 // sessionOf returns the evaluation session ctx carries, if any; only Evaluate sets one, so the
 // served MCP calls never take it.
 func sessionOf(ctx context.Context) *evalSession {
@@ -519,9 +527,9 @@ func (r *Registry) evaluateCase(ctx context.Context, c EvalCase, fileOrigin stri
 	return result, nil
 }
 
-// expectedRank reruns a missed case at the largest limit and returns the first rank an expected
-// item is served at, or nil when none is, or the tool takes no limit (DCP-V1-473). It never
-// changes the case's score or latency.
+// expectedRank reruns a missed case at the largest limit, without the result frame bound, and
+// returns the first rank an expected item is ranked at, or nil when none is, or the tool takes no
+// limit (DCP-V1-473). It never changes the case's score or latency.
 func (r *Registry) expectedRank(ctx context.Context, tool string, arguments []byte, subjects, claims, paths map[string]bool) *int {
 	var members map[string]jsontext.Value
 	if json.Unmarshal(arguments, &members) != nil || members == nil {
@@ -532,7 +540,7 @@ func (r *Registry) expectedRank(ctx context.Context, tool string, arguments []by
 	if err != nil {
 		return nil
 	}
-	structured, _, failure, transport, _ := r.CallTimed(ctx, tool, wide)
+	structured, _, failure, transport, _ := r.CallTimed(context.WithValue(ctx, rankProbeKey{}, true), tool, wide)
 	if failure != nil || transport != nil {
 		return nil
 	}

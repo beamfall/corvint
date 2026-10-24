@@ -440,6 +440,8 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	var data []byte
 	if batch {
 		data, err = queryBatch(ctx, queried, request, overlay, input.Paths)
+	} else if rankProbe(ctx) {
+		data, err = query(ctx, queried, request, overlay)
 	} else {
 		data, err = boundedQuery(ctx, queried, request, overlay, singleFrameBytes)
 	}
