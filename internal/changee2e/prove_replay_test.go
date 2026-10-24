@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -86,7 +87,12 @@ func replaySide(rec *recordedSide, sc Scenario, in runInput) (jstestprovider.Rec
 	if rec == nil {
 		return jstestprovider.Receipt{}, "", reasonRecMissing
 	}
-	if rec.Schema != recordingSchema || (rec.Provenance != provenanceLive && rec.Provenance != provenanceSynth) || !filepath.IsAbs(rec.Tree) {
+	// The recorded tree is slash-separated and may come from another platform; it is matched
+	// textually, then the receipt's tree locations move onto the host's staged tree before qualify
+	// reads them, exactly as a live receipt from that tree would.
+	recTree := strings.TrimSuffix(filepath.ToSlash(rec.Tree), "/")
+	if rec.Schema != recordingSchema || (rec.Provenance != provenanceLive && rec.Provenance != provenanceSynth) ||
+		!(path.IsAbs(recTree) || filepath.IsAbs(rec.Tree)) {
 		return jstestprovider.Receipt{}, "", reasonRecInvalid
 	}
 	r, err := jstestprovider.DecodeAttemptReceipt([]byte(rec.Receipt))
@@ -96,13 +102,12 @@ func replaySide(rec *recordedSide, sc Scenario, in runInput) (jstestprovider.Rec
 	if rec.Scenario != scenarioPin(sc) {
 		return jstestprovider.Receipt{}, "", reasonRecStale
 	}
-	digest, reason := qualify(r, nil, in.Repeats, []string{rec.Tree})
 	relocate := func(a *jstestprovider.Anchor) {
 		if a == nil {
 			return
 		}
-		if rel, err := filepath.Rel(rec.Tree, a.File); err == nil && !strings.HasPrefix(rel, "..") {
-			a.File = filepath.Join(in.Tree, rel)
+		if rel, ok := strings.CutPrefix(filepath.ToSlash(a.File), recTree+"/"); ok {
+			a.File = filepath.Join(in.Tree, filepath.FromSlash(rel))
 		}
 	}
 	for i := range r.Tests {
@@ -113,7 +118,11 @@ func replaySide(rec *recordedSide, sc Scenario, in runInput) (jstestprovider.Rec
 	if r.Infrastructure != nil {
 		relocate(r.Infrastructure.Location)
 	}
-	return r, digest, reason
+	if _, reason := qualify(r, nil, in.Repeats, treeRoots(in.Tree)); reason != "" {
+		return r, "", reason
+	}
+	// The side's digest is the recorded canonical document's, which DecodeAttemptReceipt accepted.
+	return r, "sha256:" + sha256Hex([]byte(rec.Receipt)), ""
 }
 
 // replayEnv is a proveEnv whose sides replay recorded receipts by role; the BBF controls stay
@@ -185,6 +194,8 @@ func TestCCEV0100ReplayRefusals(t *testing.T) {
 	padded.Receipt += "\n"
 	schema := *good
 	schema.Schema = "cce-recorded-side/9"
+	relative := *good
+	relative.Tree = strings.TrimPrefix(filepath.ToSlash(good.Tree), "/")
 	edited := sc
 	edited.Text = append(bytes.Clone(sc.Text), "// edited\n"...)
 	for _, tc := range []struct {
@@ -196,6 +207,7 @@ func TestCCEV0100ReplayRefusals(t *testing.T) {
 		{"missing", nil, sc, reasonRecMissing},
 		{"non-canonical", &padded, sc, reasonRecInvalid},
 		{"unknown schema", &schema, sc, reasonRecInvalid},
+		{"relative tree", &relative, sc, reasonRecInvalid},
 		{"other scenario text", good, edited, reasonRecStale},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -204,6 +216,24 @@ func TestCCEV0100ReplayRefusals(t *testing.T) {
 				t.Fatalf("verdict %s (%s), base %+v; want INCONCLUSIVE with base reason %s", p.Verdict, p.Note, p.Base, tc.reason)
 			}
 		})
+	}
+	// The recorded slash tree moves onto the host's staged tree, whatever its separator.
+	tree := t.TempDir()
+	r, digest, reason := replaySide(good, sc, runInput{Tree: tree, Repeats: 3})
+	moved := 0
+	for _, o := range r.Tests {
+		for _, d := range o.AttemptDetails {
+			if d.FailureLocation == nil {
+				continue
+			}
+			if rel, err := filepath.Rel(tree, d.FailureLocation.File); err != nil || strings.HasPrefix(rel, "..") {
+				t.Fatalf("failure location %q not under the staged tree %q", d.FailureLocation.File, tree)
+			}
+			moved++
+		}
+	}
+	if reason != "" || digest != "sha256:"+sha256Hex([]byte(good.Receipt)) || moved == 0 {
+		t.Fatalf("relocated replay: reason %q digest %q, %d locations moved", reason, digest, moved)
 	}
 	// A recording of three repeats replayed as a pool of two reads the provider's count mismatch.
 	p := replayEnv(root, head, sc, map[string]*recordedSide{"head": headRec, "base": good}, "killed").proveScenario(bg, base, head, sc, 2)

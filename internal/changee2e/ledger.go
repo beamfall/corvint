@@ -3,6 +3,7 @@ package changee2e
 import (
 	"context"
 	"encoding/json"
+	"slices"
 
 	"github.com/Beamfall/corvint/internal/appmap"
 )
@@ -96,6 +97,11 @@ func (c *Catalog) provenEntry(obs *Obligations, screen string, flow *appmap.Flow
 		from, ef := c.crossingStep(e)
 		if from == nil {
 			return nil, nil, nil, nil, "proven-hop-evidence-inconsistent"
+		}
+		// Only the crossing step is emitted, so an earlier step of the crossing flow on the same
+		// screen (a fill before its submit) would be dropped: abstain rather than omit it.
+		if i := slices.IndexFunc(ef.Steps, func(s appmap.Step) bool { return s.ID == from.ID }); i > 0 && ef.Steps[i-1].Screen == from.Screen {
+			return nil, nil, nil, nil, "proven-hop-prefix-not-emitted"
 		}
 		for _, p := range ef.Preconditions {
 			if !have[p] {

@@ -143,6 +143,15 @@ func TestCCEV0104ProvenPathSynthesis(t *testing.T) {
 	base := commitFiles(t, root, map[string]*string{
 		"flows/rebook-slot.json": text(rebookFlow("rebook-slot", `"club has open slots"`)),
 		"flows/rebook-bare.json": text(rebookFlow("rebook-bare", "")),
+		"flows/menu-teesheets.json": text(`{"schema":"application-flow-intent/1","flow_id":"menu-teesheets","revision":1,"kind":"ui","actor":"club admin",
+"preconditions":["club has open slots"],
+"steps":[{"step_id":"open-menu","action":"open the menu"},{"step_id":"open-teesheets","action":"open the tee sheet"},{"step_id":"select-slot","action":"select an open slot"}],
+"outcomes":[],"variations":[],"links":[],
+"navigation":{"precondition_flows":[],"steps":[
+{"step_id":"open-menu","state":"/home","locator":{"test_id":"nav-menu"},"expect":[]},
+{"step_id":"open-teesheets","state":"/home","locator":{"test_id":"nav-teesheets"},"expect":[]},
+{"step_id":"select-slot","state":"/clubs/{clubId}/teesheets","locator":{"test_id":"slot"},"expect":[]}]}}
+`),
 	}, "rebook flows")
 	head := commitBehaviourChange(t, root)
 	const key = "e2e/specs/booking-workflow.spec.ts::books-a-slot"
@@ -212,6 +221,19 @@ func TestCCEV0104ProvenPathSynthesis(t *testing.T) {
 	}{
 		"steps not adjacent": {func(e *appmap.LedgerEdge) { e.Evidence.Step = e.Evidence.FromStep }, "proven-hop-evidence-inconsistent"},
 		"unknown flow":       {func(e *appmap.LedgerEdge) { e.Evidence.Flow = "flow:nope" }, "proven-hop-evidence-inconsistent"},
+		// The crossing's from-step follows another step on its screen that would not be emitted.
+		"prefix dropped": {func(e *appmap.LedgerEdge) {
+			for _, f := range cat.m.Flows {
+				if f.FlowID == "menu-teesheets" {
+					if f.Steps[1].Screen != e.From || f.Steps[2].Screen != e.To || f.Steps[0].Screen != e.From {
+						t.Fatalf("menu-teesheets steps not on home, home, tee sheet: %+v", f.Steps)
+					}
+					e.Evidence.Flow, e.Evidence.FromStep, e.Evidence.Step = f.ID, f.Steps[1].ID, f.Steps[2].ID
+					return
+				}
+			}
+			t.Fatal("no menu-teesheets flow")
+		}, "proven-hop-prefix-not-emitted"},
 	} {
 		l := boundLedger(t, root, head)
 		e := homeToTeeSheets(t, cat, key)

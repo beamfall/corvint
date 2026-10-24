@@ -40,8 +40,20 @@ reservation.
   is replaced by the ledger-bound entry projection's shortest `PROVEN` path from an admitted
   deep-link entry. Each hop emits the admitted page-object method of the crossing step the receipt
   proved, never a generated `goto` or click. A hop abstains when its edge, crossing evidence,
-  preconditions or step block cannot be matched exactly. Precondition flows, session state and
+  preconditions or step block cannot be matched exactly, or when the crossing step follows another
+  step on its screen (`proven-hop-prefix-not-emitted`), because that earlier step would be dropped. Precondition flows, session state and
   route parameters are not synthesized.
+
+## Independent review
+
+One Codex round found two P2 issues, both fixed with tests:
+- A hop dropped the steps before its crossing on the same screen. It now abstains with
+  `proven-hop-prefix-not-emitted`.
+- The replay's absolute-tree check and its relocation used host path semantics, so the committed
+  slash-path recordings would have read `recording-invalid` on Windows. The tree now matches as a
+  slash path, and the receipt is relocated before `qualify` reads it.
+
+The replay tests have run on darwin and linux/WSL2 only; on Windows they are NOT_RUN.
 
 ## Compatibility
 

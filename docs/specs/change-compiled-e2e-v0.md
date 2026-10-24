@@ -696,9 +696,10 @@ the new members reads as before.
   `internal/changee2e/testdata/recorded/` (strict decoding: `schema`, `provenance` `live` or
   `synthetic`, `toolchain`, `compiler`, `scenario_sha256`, the absolute `tree` the pool ran in, and
   `receipt`, the canonical `corvint-playwright-external/3` document). The replay decodes the receipt
-  with the provider's own `DecodeAttemptReceipt`, qualifies it with Prove's `qualify` (the admitted
-  runtime and browser tuple, the qualified test ID and the attempt details), relocates only the
-  receipt's failure and infrastructure locations from the recorded tree onto the staged one, and runs
+  with the provider's own `DecodeAttemptReceipt`, moves only the receipt's failure and
+  infrastructure locations from the recorded tree (matched as a slash path, so a recording replays
+  on any host platform) onto the staged one, qualifies the result with Prove's `qualify` (the
+  admitted runtime and browser tuple, the qualified test ID and the attempt details), and runs
   the real staging, location and verdict code through the CCE-V0-028 seams; the BBF controls stay
   scripted. `scenario_sha256` pins the compiled scenario below its header (which names fixture commit
   revisions), and `compiler` MUST equal `CompilerVersion`. A missing recording reads
@@ -739,7 +740,9 @@ the new members reads as before.
   abstains with one named path reason and nothing is generated for it: `proven-path-entry-not-admitted`,
   `proven-hop-edge-missing`, `proven-hop-evidence-inconsistent` (the crossing names no map flow, or
   its steps are not adjacent on the hop's screens), `proven-hop-precondition-not-set` (the crossing
-  flow declares a precondition the compiled flow does not), `proven-hop-step-is-fill`, or
+  flow declares a precondition the compiled flow does not), `proven-hop-prefix-not-emitted` (the
+  crossing step follows another step of its flow on the same screen, such as a fill before its
+  submit, which only the crossing step would not carry), `proven-hop-step-is-fill`, or
   `proven-hop-` plus the CCE-V0-006 step reason. A screen the projection does not reach keeps its
   catalog reason, and without a ledger the output is unchanged. Precondition flows and session or
   parameter state are not synthesized. Failure modes: a path through an unproven, unverified or
@@ -861,11 +864,11 @@ row's status says what is delivered.
 | CCE-V0-086 | relative-root catalog and obligations | V1-1711 | PASS: `TestCCEV0086RelativeRootResolves` |
 | CCE-V0-087 | a control whose hook receipt records a located teardown failure reads `teardown-failed` in its reasons and the verdict note; other infrastructure stays `control-not-killed` | V1-2427 | PASS: `TestCCEV0087ControlTeardownAttribution` (BBF report fixture through `controlResults` and the offline ladder; failed with the reason carry or the verdict rung removed) |
 | CCE-V0-088 | harvest binds through a non-default manifest path | V1-2428 | PASS (library and CLI): `TestCCEV0088HarvestConfiguredManifest` (map at `config/club.appmap.json` binds `book-tee-time`; the default name is absent and reads `app-map-unavailable`; failed with the hard-coded name restored); `TestCCEV0088HarvestManifestFlag` (`e2e harvest --manifest config/club.appmap.json` binds proposals, the default reads `app-map-unavailable`; failed before the flag was passed) |
-| CCE-V0-100 | each recorded ladder rung replays offline; missing, non-canonical and stale recordings refuse | V1-1687 | PASS offline (darwin/arm64 and linux/WSL2): `TestCCEV0100ReplayRecordedReceipts` (five rungs from ten synthetic recordings through `DecodeAttemptReceipt`, `qualify` and the verdict code), `TestCCEV0100ReplayRefusals` (`recording-missing`, `recording-invalid` for a trailing byte and an unknown schema, `recording-stale` for other scenario text, `repeat-count-mismatch` for a two-repeat replay) |
+| CCE-V0-100 | each recorded ladder rung replays offline; missing, non-canonical and stale recordings refuse | V1-1687 | PASS offline (darwin/arm64 and linux/WSL2): `TestCCEV0100ReplayRecordedReceipts` (five rungs from ten synthetic recordings through `DecodeAttemptReceipt`, `qualify` and the verdict code), `TestCCEV0100ReplayRefusals` (`recording-missing`, `recording-invalid` for a trailing byte and an unknown schema, `recording-invalid` for a relative tree, `recording-stale` for other scenario text, `repeat-count-mismatch` for a two-repeat replay, and a slash-path recording relocated under the host's staged tree with the recorded document's digest) |
 | CCE-V0-101 | live run writes live recordings | V1-1687 | PARTIAL: `TestCCEV0101LiveRecord` written; SKIP here and NOT_RUN live (no qualified Playwright 1.64.0 tuple on this host; the Windows box's WSL has Node v22 and no `@playwright/test`), so every recording is `synthetic` |
 | CCE-V0-102 | a required live run fails without its toolchain | V1-1687 | PASS: `TestCCEV0102LiveRequiredFails` (unset and `1` skip, `required` fails); `make cce-live` is NOT_RUN. CI job: NEEDS-OWNER (`.github`) |
 | CCE-V0-103 | bound ledger consulted without changing reach; each binding mismatch refuses | V1-1685 | PASS: `TestCCEV0103LedgerBoundToImpact` (library and compile), `TestCCEV0103LedgerFlag` (CLI `obligations` and `compile`), `TestCCEV0034HostedTestFlag` (hosted `--ledger` refusal) |
-| CCE-V0-104 | path synthesis over proven ledger edges only; every hop abstention named | V1-1684 | PASS: `TestCCEV0104ProvenPathSynthesis` (a tee-sheet flow compiles from `/#!/home` through `goToTeeSheets`; without a ledger or a set precondition it stays `INCOMPLETE`; the existing scenario is byte-identical; evidence, entry and edge abstentions) |
+| CCE-V0-104 | path synthesis over proven ledger edges only; every hop abstention named | V1-1684 | PASS: `TestCCEV0104ProvenPathSynthesis` (a tee-sheet flow compiles from `/#!/home` through `goToTeeSheets`; without a ledger or a set precondition it stays `INCOMPLETE`; the existing scenario is byte-identical; evidence, prefix, entry and edge abstentions) |
 | CCE-V0-049 | hosted proof lists the adopter-config keys the prove config does not apply | V1-2409 | PASS: `TestCCEV0049HostedRunnerConfigDeviation` (an adopter config with `retries: 2`, `workers: 4`, `globalSetup`, `storageState`, a `baseURL` and projects; Playwright defaults when no config exists; a spread config read partially; failed with the proof wiring removed) |
 | CCE-V0-051 | a CHANGED_IN_DIFF verdict lifts the cap only through an independent, digest-bound acceptance recorded outside the repository | V1-2413 | PASS: `TestCCEV0051OracleAcceptance` (independent acceptance lifts DISCRIMINATES unscored; head author by name or email, a stale digest and no document keep the cap; an admitted scenario ignores it; failed with the lift removed), `TestCCEV0051OracleAcceptanceRefusals`, `TestCCEV0051OracleAcceptanceFlag` |
 | CCE-V0-052 | an unresolved outcome locator gets a proposed, never applied, data-testid rename with diff evidence | V1-2413 | PASS: `TestCCEV0052LocatorRepairProposal` (proposed `slot-state` with the line pair, verdict unchanged; value mismatch proposes nothing; ambiguous and no-rename; failed with the proposal removed) |
