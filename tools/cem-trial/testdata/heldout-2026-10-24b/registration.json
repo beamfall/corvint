@@ -10,5 +10,5 @@
   "partition": "heldout",
   "primary_metric": "miss",
   "profile": "corvint-cem-trial-registration/0",
-  "scorer_sha256": "8af2a18cdabbc25af8e2062f05c97e246d9e8007de931edccaf1a9e943818acc"
+  "scorer_sha256": "f21b8bfac1e9e634d8590968ce272241d2a9a0410d451e7692d1355f9b286ea1"
 }
