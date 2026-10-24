@@ -1096,7 +1096,7 @@ live vectors. Stable public VS Code APIs do not expose TestRun messages/output f
 reading; advisory-text and cause-message rows stay NOT_RUN without genuine host/UI observations.
 
 The historical ENOTCACHED attempt above remains historical. The current dependency lock includes
-@vscode/test-electron 3.1.0; extensions/vscode/test/installed/run.mjs pins Code 1.137.0 and Go 1.27.2.
+@vscode/test-electron 3.1.0; extensions/vscode/test/installed/run.mjs pins Code 1.137.0 and Go 1.27.3 (decision 0557).
 One isolated development-host fixture proof at ebf715049c010315606261c4ee8a451c65fc27ad observed
 a failed JS item, exact record digest, real diagnostic and absent provider group. It does not
 qualify packaged artifacts or the full trusted/untrusted matrix. Final integrated canonical and

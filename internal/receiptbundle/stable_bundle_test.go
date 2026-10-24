@@ -57,7 +57,7 @@ func requireStableRuntime(t *testing.T) {
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("NOT_RUN: the stable verifier's owned Git lifecycle is observed on Darwin and Linux only")
 	}
-	if v := runtime.Version(); v != "go1.27.1" && v != "go1.27.2" {
+	if v := runtime.Version(); v != "go1.27.1" && v != "go1.27.2" && v != "go1.27.3" {
 		t.Skipf("NOT_RUN: %s is not an admitted structural tuple", v)
 	}
 }

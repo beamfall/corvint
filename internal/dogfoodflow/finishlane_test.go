@@ -201,6 +201,9 @@ func TestFinishLaneDCWV0068NamesTheUnreadableMap(t *testing.T) {
 				return 1
 			}
 			return 0
+		case len(args) > 1 && args[0] == "cem" && args[1] == "cite" && strings.Contains(strings.Join(args, " "), " --output .corvint/.cem-citations-probe."):
+			// The prepare pass's plan precheck (DCW-V0-335) admits the row.
+			return 0
 		case len(args) > 1 && args[0] == "cem" && args[1] == "cite":
 			// The operator removes the sidecar while the pass runs.
 			if err := os.Remove(sidecar); err != nil {

@@ -13,7 +13,7 @@ contract is `docs/specs/protected-pi-runtime-v0.md`.
 
 ## Build and verify
 
-Use Bun 1.3.11, Go 1.27.2 and the checked-in npm lockfile. Dependency installation
+Use Bun 1.3.11, Go 1.27.3 and the checked-in npm lockfile. Dependency installation
 is explicit: `npm ci --ignore-scripts --prefix integrations/pi-protected`.
 Set `CORVINT_PI_NODE_ARCHIVE` to the official Node 22.23.2 darwin-arm64 tarball;
 the build rejects any SHA256 other than

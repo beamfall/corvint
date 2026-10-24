@@ -833,11 +833,13 @@ separate exact extension tuple remains governed by AHI-024.
   and stays `UNQUALIFIED`. Rollback: restore `<2.1.0` in the three locations; 2.1.x records then
   fail closed as unsupported.
 - `AHI-175`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2346) Full OpenCode
-  qualification (`tools/qualify-opencode` without `--native-only`) MUST admit exactly the Go
-  toolchains decision 0547 admits, `go1.27.2` and `go1.27.3`, and refuse any other reported
-  version, including a development build, before running the focused suite. Evidence:
-  `TestAdmittedGoVersion`. Failure mode: a future admitted toolchain is refused until this list and
-  decision 0547 change together. Rollback: restore the single `go1.27.2` comparison.
+  qualification (`tools/qualify-opencode` without `--native-only`) MUST admit exactly the one Go
+  toolchain decision 0557 pins, `go1.27.3` (amended by decision 0557; decision 0547 admitted
+  `go1.27.2` and `go1.27.3`), and refuse any other reported version, including the former
+  `go1.27.2` pin and a development build, before running the focused suite. Evidence:
+  `TestAdmittedGoVersion`. Failure mode: a go1.27.2-only host now refuses, and a future pin is
+  refused until this list and its decision change together. Rollback: revert the decision 0557
+  change, which restores the 0547 two-revision set.
 - `AHI-176`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2346) At plugin
   start the OpenCode adapter MUST register its bundled `skills/corvint/SKILL.md` through OpenCode's
   native skill registry (`ctx.skill.transform`, Skill.Info `{id, name, description, path,

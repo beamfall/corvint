@@ -106,7 +106,7 @@
     },
     "repositoryEnvelope": "canonical-repository-bounded/1",
     "runtime": {
-      "goVersion": "go1.27.2",
+      "goVersion": "go1.27.3",
       "structuralQualification": "NOT_REQUIRED"
     },
     "sidecar": "ABSENT",

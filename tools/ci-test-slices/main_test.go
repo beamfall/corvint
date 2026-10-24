@@ -23,7 +23,8 @@ import (
 const runURL = "https://github.com/beamfall/corvint/actions/runs/1"
 
 // partitionGoVersion is the source toolchain the fixture slice files record;
-// the partition admits it and go1.27.2 (.github/cishards, decision 0522). Tests
+// the partition admits it, go1.27.2 (.github/cishards, decision 0522) and the
+// go1.27.3 pin (decision 0557). Tests
 // generate as that toolchain unless they exercise another one.
 const partitionGoVersion = "go1.27.1"
 
@@ -33,8 +34,8 @@ func TestMain(m *testing.M) {
 }
 
 // TestAFPV0041GenerateRecordsTheSourceToolchain proves generate records the
-// toolchain it runs under, succeeds under each admitted one (go1.27.1 and the
-// pinned go1.27.2), and refuses, before any checkout or write, one the
+// toolchain it runs under, succeeds under each admitted one (go1.27.1, go1.27.2
+// and the pinned go1.27.3), and refuses, before any checkout or write, one the
 // partition does not admit.
 func TestAFPV0041GenerateRecordsTheSourceToolchain(t *testing.T) {
 	logs := stream(t)
@@ -55,7 +56,7 @@ func TestAFPV0041GenerateRecordsTheSourceToolchain(t *testing.T) {
 	if after, _ := os.ReadFile(filepath.Join(root, slicesPath)); !bytes.Equal(after, before) {
 		t.Fatal("refused generate changed the slice file")
 	}
-	for _, version := range []string{"go1.27.1", "go1.27.2"} {
+	for _, version := range []string{"go1.27.1", "go1.27.2", "go1.27.3"} {
 		root, _, code, err := generate(version)
 		if code != 0 || err != nil {
 			t.Fatalf("admitted toolchain %s: code=%d err=%v", version, code, err)

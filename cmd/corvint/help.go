@@ -1561,7 +1561,9 @@ finish-lane runs the bind loop on a committed change: prepare, bind with the
 --citations plan, commit .corvint/change.cem.json as "chore: bind change evidence",
 rebind, check and seal, one stdout line per step, then every NOT_PRODUCED row and
 the check's SUMMARY and verdict. It stops at the first failing step with that
-step's own reason and fix line; rerun from a bind commit continues at rebind. It
+step's own reason and fix line; rerun from a bind commit continues at rebind.
+Prepare also cites each plan row against the prepared map without writing it,
+so a row cem cite would refuse stops the run before any bind (DCW-V0-335). It
 never pushes. --citations, --intents, --verify and --outcome take precedence over
 DOGFOOD_CITATIONS, DOGFOOD_INTENTS_FILE, DOGFOOD_VERIFY_FILE and DOGFOOD_OUTCOME
 (DCW-V0-060..062).

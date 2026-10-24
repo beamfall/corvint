@@ -99,7 +99,7 @@ with the code.
 
 ## Sixty seconds on this repository
 
-You need Git and Go 1.27.2 or later; the full development gate pins exactly `go1.27.2`.
+You need Git and Go 1.27.3 or later; the full development gate pins exactly `go1.27.3`.
 Run this from the root of a Corvint checkout on macOS or Linux:
 
 ```console
@@ -595,7 +595,7 @@ and obtain independent review. Release or repository-wide validation uses the ex
 below, which includes root tests/vet, interoperability, archive and documentation checks:
 
 ```console
-test "$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.2"
+test "$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.3"
 GOTOOLCHAIN=local make gate
 script/release-checklist      # read-only; PASS/FAIL/NOT_RUN, exits 0 only when all required rows pass
 ```
@@ -604,11 +604,11 @@ Standalone root or interoperability tests use `go test -count=1 -timeout 30m ./.
 in the corresponding module with `GOTOOLCHAIN=local`. The 30-minute limit is a per-package hang
 detector. Do not rerun the same checks before `make gate` unless changed inputs or a failure require it.
 
-If `GOTOOLCHAIN=local go env GOVERSION` reports a different patch version than `go1.27.2` (for
+If `GOTOOLCHAIN=local go env GOVERSION` reports a different patch version than `go1.27.3` (for
 example, a Homebrew `go` formula upgrade changed the linked toolchain), install the exact pinned
 version alongside it rather than relinking Homebrew's default, then prepend its `bin` directory to
-`PATH` for gate commands only, e.g. `PATH=/opt/homebrew/Cellar/go/1.27.2/bin:$PATH GOTOOLCHAIN=local make gate`
-(Intel Homebrew: `/usr/local/Cellar/go/1.27.2/bin`).
+`PATH` for gate commands only, e.g. `PATH=/opt/homebrew/Cellar/go/1.27.3/bin:$PATH GOTOOLCHAIN=local make gate`
+(Intel Homebrew: `/usr/local/Cellar/go/1.27.3/bin`).
 
 Gemini/OpenCode adapter tests use their hosts' Node runtime. Core builds and the native regression
 suite do not require Python; optional qualification scripts, such as the live Go LSP campaign,

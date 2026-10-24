@@ -515,7 +515,8 @@ the stable verifier admits it only on an exact qualified tuple and otherwise ref
 
 - `CEM-V1-050`: (accepted by decision 0546, 2026-10-20) The native (`internal/cem/verify`) and portable (`interop/cem01-go`) stable
   verifiers MUST admit structural mechanical proof only on an exact listed Go release: `go1.27.1`,
-  the tuple the frozen S0E packet records, and `go1.27.2` (decision 0522). Every other release,
+  the tuple the frozen S0E packet records, `go1.27.2` (decision 0522), and `go1.27.3`, its own
+  sealed tuple and the sole toolchain pin under decision 0557. Every other release,
   including later patch releases, MUST keep refusing with `unsupported-structural-runtime` and no
   weakened fallback. A tuple admitted after `go1.27.1` MUST carry its own sealed packet under
   `protocol/cem-1.0/structural-tuples/<version>/` that binds the frozen
@@ -1775,7 +1776,7 @@ changes.
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
-| CEM-V1-060 | `TestStableExportRelocatesWithSameVerification` | The export envelope's result equals `verify.Stable` over the source (ACCEPT/EXACT on Go 1.27.1 and 1.27.2) |
+| CEM-V1-060 | `TestStableExportRelocatesWithSameVerification` | The export envelope's result equals `verify.Stable` over the source (ACCEPT/EXACT on Go 1.27.1, 1.27.2 and 1.27.3) |
 | CEM-V1-060 | `TestStableExportPublishesNothingForARefusedSource` | Stale base and tampered artifact (REJECT, exit 1), omitted artifact (UNSUPPORTED, exit 2), no artifact root and relative root (exit 2) return the verifier result with no bundle written; each absolute-root result equals `verify.Stable` over the same inputs |
 | CEM-V1-061 | `TestStableExportRelocatesWithSameVerification` | Map bytes equal the sealed bytes; all six roles, including the snapshot-head receipt, are exact copies; the manifest digest is reported |
 | CEM-V1-062 | `TestStableExportRelocatesWithSameVerification`, `TestCEMExportStableBundleRelocates` | After `os.Rename` to another parent, `VerifyStable` and `cem verify-stable` over the moved bundle equal the source result and exit |
