@@ -183,8 +183,10 @@ prelude:
 
 // playwrightDotenvArguments returns the file a config() call with argument raw reads. Only an
 // absent argument or an object literal with a literal escape-free path, override:false, and
-// literal quiet or debug flags is modelled; a path must stay inside the repository and must not
-// name a .vault file or start with "~" (AFP-V0-405).
+// literal quiet or debug flags is modelled; a path must stay inside the repository, must not name
+// a .vault file or start with "~", and must already be clean apart from one leading "./", since
+// dotenv passes it to the filesystem unchanged and `.env/` or `missing/../.env` can fail there
+// where the cleaned path would not (AFP-V0-405).
 func playwrightDotenvArguments(raw string) (string, bool) {
 	file := ".env"
 	if strings.TrimSpace(raw) == "" {
@@ -201,7 +203,10 @@ func playwrightDotenvArguments(raw string) (string, bool) {
 			if !isString || strings.ContainsRune(value, '\\') || strings.HasPrefix(literal, "~") {
 				return "", false
 			}
-			file = path.Clean(literal)
+			file = strings.TrimPrefix(literal, "./")
+			if path.Clean(file) != file {
+				return "", false
+			}
 		case "override":
 			if value != "false" {
 				return "", false
@@ -250,10 +255,11 @@ func observePlaywrightDotenv(root string, loads []playwrightDotenvLoad) ([]Playw
 }
 
 // playwrightDotenvLine is the one line form whose value every dotenv release parses the same way:
-// an optional-whitespace NAME=VALUE with no export prefix, no inline comment, no escape, and a
-// value that is unquoted (not starting with a quote) or wholly single- or double-quoted with
-// nothing after the closing quote (dotenv before 15 keeps the quotes when whitespace follows).
-var playwrightDotenvLine = regexp.MustCompile(`^[ \t]*([\w.-]+)[ \t]*=[ \t]*(?:'([^'\\#]*)'|"([^"\\#]*)"|(?:([^'"` + "`" + `#\s][^#]*?)?[ \t]*))$`)
+// an optional-whitespace NAME=VALUE with no export prefix, no inline comment, no backslash or
+// backtick anywhere in the value, and a value that is unquoted (not starting with a quote) or
+// wholly single- or double-quoted with nothing after the closing quote (dotenv before 15 keeps
+// the quotes when whitespace follows).
+var playwrightDotenvLine = regexp.MustCompile(`^[ \t]*([\w.-]+)[ \t]*=[ \t]*(?:'([^'\\#` + "`" + `]*)'|"([^"\\#` + "`" + `]*)"|(?:([^'"` + "`" + `#\s\\][^#\\` + "`" + `]*?)?[ \t]*))$`)
 
 // parsePlaywrightDotenv parses content after dotenv's CRLF/CR normalization. Blank and whole-line
 // # comment lines are skipped; the last duplicate wins. It returns the 1-based number of the first

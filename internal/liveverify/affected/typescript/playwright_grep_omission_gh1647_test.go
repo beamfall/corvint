@@ -55,6 +55,11 @@ func TestPlaywrightGrepOmissionSourceTags_GH1647(t *testing.T) {
 		{"property-building global", "test('plain', Object.fromEntries([['ta' + 'g', '@x y']]), async () => {});\n", nil, grepReproCases, false},
 		{"bare package import", "import { tags } from 'shared-tags';\ntest('plain', tags, async () => {});\n", nil, grepReproCases, false},
 		{"reported tag the sources do not hold", "test('plain', async () => {});\n", nil, smoke, false},
+		{"escaped string key", "test('plain', { \"\\x74ag\": ['@x y'] }, async () => {});\n", nil, grepReproCases, false},
+		{"escaped identifier key", "test('plain', { t\\u0061g: ['@x y'] }, async () => {});\n", nil, grepReproCases, false},
+		{"constructor route", "const opts = { tag: ['@smoke'] };\n({}).constructor.values(opts)[0].push('@x y');\ntest('plain', opts, async () => {});\n", nil, smoke, false},
+		{"ambiguous module extension", "import { tags } from './tags';\ntest('plain', tags, async () => {});\n", map[string]string{"e2e/tags.cjs": "exports.tags = { tag: ['@smoke'] };\n", "e2e/tags.js": "exports.tags = { tag: ['@smoke hidden'] };\n"}, smoke, false},
+		{"dependency outside the bound sources", "import { tags } from '../dist/tags';\ntest('plain', tags, async () => {});\n", map[string]string{"dist/tags.ts": "export const tags = { tag: ['@smoke'] };\n"}, smoke, false},
 	} {
 		t.Run(row.label, func(t *testing.T) {
 			root := grepFixture(t, grepRepro)
@@ -82,6 +87,33 @@ func TestPlaywrightGrepOmissionSourceTags_GH1647(t *testing.T) {
 			t.Fatalf("unverified=%+v", unverified)
 		}
 	})
+}
+
+// AFP-V0-409: every file of the tag proof is in the receipt's source binding, so changing an
+// imported tag module after the receipt is written makes it BINDING_MISMATCH instead of keeping a
+// stale verified omission.
+func TestPlaywrightGrepOmissionDependencyInvalidates_GH1647(t *testing.T) {
+	root := grepFixture(t, grepRepro)
+	write(t, root, "e2e/plain.spec.ts", "import { tags } from './tags';\ntest('plain', tags, async () => {});\n")
+	write(t, root, "e2e/tags.ts", "export const tags = { tag: ['@smoke'] };\n")
+	cases := grepReproCases()
+	cases[0].tags = []string{"smoke"}
+	raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, grepPlaywrightListing(t, root, "e2e", cases))
+	if err != nil {
+		t.Fatalf("listing refused: %v", err)
+	}
+	if unverified := decodeGrepReceipt(t, raw).UnverifiedUnits; len(unverified) != 0 {
+		t.Fatalf("unverified=%+v", unverified)
+	}
+	write(t, root, "e2e/tags.ts", "export const tags = { tag: ['@smoke hidden'] };\n")
+	plan, err := SelectPlaywright(root, "playwright.config.ts", discoveryFixtureRevision, nil, raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertDiscoveryFallback(t, plan, "BINDING_MISMATCH")
+	if !slices.ContainsFunc(plan.Unknown, func(unknown PlaywrightUnknown) bool { return strings.Contains(unknown.Detail, "source digest") }) {
+		t.Fatalf("unknown=%+v", plan.Unknown)
+	}
 }
 
 // AFP-V0-413: a pattern using a JavaScript-only regex feature (lookaround, a backreference, the v or

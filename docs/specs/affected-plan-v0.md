@@ -2715,8 +2715,9 @@ modelled.
   dotenv `config()` expression statements; dotenv is bound as a default or namespace import of
   `dotenv` or a plain `NAME = require('dotenv')`, or called as `require('dotenv').config(...)`; and
   each `config()` argument is absent or an object literal with only a literal `path` (no escape,
-  no `~`, a clean repository-relative path that is not `.`, outside the repository or a `.vault`
-  file), `override: false`, and literal `true`/`false` `quiet` or `debug`. An absent `path` is
+  no `~`, a repository-relative path that path cleaning leaves unchanged apart from one leading
+  `./`, so not `.env/` or `missing/../.env`, which dotenv passes to the filesystem as written, and
+  that is not `.`, outside the repository or a `.vault` file), `override: false`, and literal `true`/`false` `quiet` or `debug`. An absent `path` is
   `.env`. The path is relative to the repository root, the plan argv's working directory. Such a
   load reads one statically known file and never overrides a variable already present. Falsifier: a
   modelled load whose file or override behaviour depends on a value not in source.
@@ -2751,12 +2752,19 @@ modelled.
   resolved executable under one of these uses.
 - **AFP-V0-409:** (accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647);
   amends TJAA-V0-021 (b)) For a listing omission, the producer MUST decide whether the source tags
-  are literal: the config, the test file and their static import closure all read as UTF-8, have
-  only static loads that resolve to repository files or to `@playwright/test`, `dotenv`,
-  `dotenv/config` and the `path`/`os`/`url`/`fs` or `node:` built-ins, name no
-  `Object`/`Reflect`/`JSON`/`Proxy`/`eval`/`Function`/`globalThis`/`structuredClone`, hold no
-  `'tag'` string, computed object key or method, computed member write, or member access by other
-  than an integer or string literal, and every code `tag` is
+  are literal: the config, the test file and their static import closure all read as UTF-8, are
+  all in the source set the receipt's source digest binds (so editing any of them makes the
+  receipt BINDING_MISMATCH), have only static loads that resolve to exactly one existing
+  repository candidate (two candidates such as `tags.cjs` and `tags.js` are ambiguous) or to
+  `@playwright/test`, `dotenv`, `dotenv/config` and the `path`/`os`/`url`/`fs` or `node:`
+  built-ins, name in code none of the reflective globals and their aliases
+  (`Object`/`Reflect`/`JSON`/`Proxy`/`eval`/`Function`/`globalThis`/`global`/`window`/`self`/`structuredClone`),
+  the routes to them (`constructor`/`prototype`/`__proto__`/`__defineGetter__`/`__defineSetter__`),
+  the enumerating or defining helpers
+  (`values`/`entries`/`assign`/`defineProperty`/`defineProperties`/`fromEntries`/`getOwnPropertyNames`/`getOwnPropertyDescriptor`/`getOwnPropertyDescriptors`/`setPrototypeOf`)
+  or the in-place array mutators (`push`/`unshift`/`splice`/`fill`/`copyWithin`), hold no `'tag'`
+  string, identifier escape, escaped string property key, computed object key or method, computed
+  member write, or member access by other than an integer or string literal, and every code `tag` is
   an object-literal key whose value is a literal `@\S+` string (no escape, at least one character
   after `@`) or an array of them. Those strings are the closure's literal tags. Any other closure
   is not literal. Falsifier: a literal closure in which a describe or config tag could hold
@@ -3013,8 +3021,9 @@ the EXECUTION axis. AFP-V0-389/404 fail closed: any unobserved load, workspace p
 tsconfig, unmodelled marker or disagreement between the profile and the adapter keeps the
 existing frontier. AFP-V0-405 to AFP-V0-413 fail closed: an unmodelled dotenv form, `.vault`
 file, unreadable file or unmodelled line keeps the EXECUTION unknown and names the site or line,
-and a non-literal tag closure, a reported tag the sources do not hold or an unevaluable pattern
-keeps the omission unverified with its units named. A consumer still cannot read closure depth from an
+and a non-literal tag closure (including an escaped or reflective route to a tag, an ambiguous
+module extension or a dependency outside the bound source set), a reported tag the sources do not
+hold or an unevaluable pattern keeps the omission unverified with its units named. A consumer still cannot read closure depth from an
 `impact` receipt; only the help says so (AFP-V0-096).
 
 Graph cache failure modes (AFP-V0-390 to AFP-V0-392): a `--cache` inside the repository, a
@@ -3150,7 +3159,7 @@ including one with a transient read failure, writes no entry. `--paths-from` ref
 | AFP-V0-406 | `observePlaywrightDotenv`, `parsePlaywrightDotenv`, `PlaywrightEnvironmentFile`; `PlaywrightPlan.EnvironmentFiles` | `TestPlaywrightDotenvPresentFileResolves_GH1646`, `TestPlaywrightDotenvLineGrammar_GH1646`, `TestPlaywrightStaticPlanRecordsEnvironmentFile_GH1646` |
 | AFP-V0-407 | `resolvePlaywrightDotenv`, `PlaywrightEnvironmentResolution`; `resolvePlaywrightExecutables` | `TestPlaywrightDotenvAbsentFileKeepsRecordedValue_GH1646`, `TestPlaywrightDotenvPresentFileResolves_GH1646` |
 | AFP-V0-408 | the frontier details of `playwrightDotenvLoads` and `observePlaywrightDotenv` | `TestPlaywrightDotenvFrontierNamesSite_GH1646`, `TestPlaywrightExecutableUnknownKeepsReason_GH1640` (dotenv module), `TestPlaywrightExecutableLoaderWriterKeepsUnknown_GH1640` |
-| AFP-V0-409 | `playwrightTagSources`, `playwrightTagFileExact`, `playwrightTagTextLiteral`, `playwrightLiteralTagProperty` in `playwright_tag_sources.go` | `TestPlaywrightGrepOmissionSourceTags_GH1647` |
+| AFP-V0-409 | `playwrightTagSources`, `playwrightTagFileExact`, `playwrightTagTextLiteral`, `playwrightLiteralTagProperty`, `playwrightResolveRelative` in `playwright_tag_sources.go` | `TestPlaywrightGrepOmissionSourceTags_GH1647`, `TestPlaywrightGrepOmissionDependencyInvalidates_GH1647` |
 | AFP-V0-410 | the `sourceTags` rule of `classifyPlaywrightGrepOmission` in `playwright_grep_omission.go`; `checkPlaywrightListMembership` in `playwright_discovery_list.go` | `TestPlaywrightGrepOmissionSourceTags_GH1647`, `TestPlaywrightDiscoveryGrepOmission_TJAA_V0_021` |
 | AFP-V0-411 | `playwrightUnitList` in `playwright_discovery.go` | `TestPlaywrightUnitListBound_GH1647`, `TestPlaywrightGrepOmissionSourceTags_GH1647`, `TestPlaywrightDiscoveryGrepOmission_TJAA_V0_021` |
 | AFP-V0-412 | `playwrightBindingMismatch` in `playwright_discovery.go` | `TestPlaywrightBindingMismatchNamesBinding_GH1647` |

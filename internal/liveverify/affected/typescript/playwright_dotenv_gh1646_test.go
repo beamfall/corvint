@@ -85,6 +85,10 @@ func TestPlaywrightDotenvFrontierNamesSite_GH1646(t *testing.T) {
 		{"computed path", "require('dotenv').config({ path: process.env.ENV_FILE });", "", "", "dotenv config() call at playwright.config.ts:2 has a computed or unmodelled argument"},
 		{"override true", "require('dotenv').config({ override: true });", "", "", "playwright.config.ts:2 has a computed or unmodelled argument"},
 		{"parent path", "require('dotenv').config({ path: '../.env' });", "", "", "playwright.config.ts:2 has a computed or unmodelled argument"},
+		{"trailing slash path", "require('dotenv').config({ path: '.env/' });", ".env", "CHROME_PATH=/opt/chrome\n", "playwright.config.ts:2 has a computed or unmodelled argument"},
+		{"uncleaned path", "require('dotenv').config({ path: 'missing/../.env' });", ".env", "CHROME_PATH=/opt/chrome\n", "playwright.config.ts:2 has a computed or unmodelled argument"},
+		{"backslash value", "require('dotenv').config();", ".env", "CHROME_PATH=C:\\chrome\\chrome.exe\n", "reads .env, whose line 1 is not a NAME=VALUE form"},
+		{"quoted backtick", "require('dotenv').config();", ".env", "CHROME_PATH='/opt/`x`'\n", "reads .env, whose line 1 is not a NAME=VALUE form"},
 		{"after other code", "const mode = 'ci';\nrequire('dotenv').config();", "", "", "uses dotenv at playwright.config.ts:3 outside a top-level config() call"},
 		{"named import", "import { config } from 'dotenv';\nconfig();", "", "", "imports dotenv at playwright.config.ts:2"},
 		{"vault file", "require('dotenv').config();", ".env.vault", "DOTENV_VAULT=x\n", ".env.vault exists"},
@@ -122,7 +126,7 @@ func TestPlaywrightDotenvLineGrammar_GH1646(t *testing.T) {
 			t.Fatalf("%s=%q, want %q", name, values[name], value)
 		}
 	}
-	for _, bad := range []string{"export A=1", "A: 1", "A='x' # c", "A='x' ", `A="a\nb"`, "A=`x`", "A='open", "A=x y", "A"} {
+	for _, bad := range []string{"export A=1", "A: 1", "A='x' # c", "A='x' ", `A="a\nb"`, "A=`x`", "A='open", "A=x y", "A", `A=C:\chrome\chrome.exe`, "A=a`b", "A='a`b'", "A=\"a`b\""} {
 		if _, line := parsePlaywrightDotenv(bad + "\n"); line != 1 {
 			t.Fatalf("%q admitted", bad)
 		}

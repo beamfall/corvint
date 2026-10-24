@@ -306,7 +306,7 @@ func checkPlaywrightListMembership(root, configPath string, configBytes []byte, 
 	for _, project := range projects {
 		byName[project.Name] = project
 	}
-	tagSources := newPlaywrightTagSources(root)
+	tagSources := newPlaywrightTagSources(root, configPath)
 	for unit := range selected {
 		if listed[unit] {
 			continue

@@ -38,6 +38,17 @@ auto-accept (2026-10-11). They amend AFP-V0-386 and TJAA-V0-021.
   - The listing's explicit tags must also be among those literals. This is a consistency check
     that keeps a forged or stale listing from verifying.
 
+## Review repairs (Codex, PR #1648)
+
+- **Tag closure soundness.** Escaped keys, identifier escapes and `constructor`-style routes to
+  `Object` keep a file inexact, as do enumerating helpers and in-place array mutators.
+- **Ambiguous imports.** An import with two existing extension candidates is ambiguous.
+- **Bound dependencies.** A dependency outside the bound source set (`dist/`, hidden or skipped
+  trees) keeps the omission unverified, so every proof file is under the receipt's source digest.
+- **Dotenv paths.** A dotenv `path` must be unchanged by path cleaning apart from one leading `./`.
+- **Dotenv values.** Backslashes and backticks are now rejected anywhere in a value, matching
+  AFP-V0-406.
+
 ## Evidence
 
 Focused tests, all passing:
