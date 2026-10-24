@@ -4851,6 +4851,16 @@ SKH-V0-071	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's sta
 SKH-V0-072	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1904) A line	standing	2026-10-11; V1-1904
 SKH-V0-073	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1904) The	standing	2026-10-11; V1-1904
 SKH-V0-074	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1904) Generati	standing	2026-10-11; V1-1904
+SKH-V0-153	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1904) With `--draft`, the how answer MUST carry a `draft` head	unrecorded	-
+SKH-V0-154	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1904) The draft MUST insert exactly one `test.fixme(true, ...)	unrecorded	-
+SKH-V0-155	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1904) The draft's proposed path MUST sit in the primary test's	unrecorded	-
+SKH-V0-156	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1904) Each answer gap MUST become a marked	unrecorded	-
+SKH-V0-157	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1904) A source line that is secret-shaped (`secretscreen`) or	unrecorded	-
+SKH-V0-158	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1904) A condition with setup candidates MUST become an	unrecorded	-
+SKH-V0-159	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1904) An `ABSTAINED` answer MUST draft no lines and carry the	unrecorded	-
+SKH-V0-160	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1904) Each draft line MUST carry one evidence row: `copied` wi	unrecorded	-
+SKH-V0-161	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1904) `corvint flows appmap plan --map FILE --request GOAL	unrecorded	-
+SKH-V0-162	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1904) The `corvint.map_plan` MCP tool MUST accept `sources`,	unrecorded	-
 SKH-V0-080	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) One	standing	2026-10-11; V1-1905
 SKH-V0-081	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) The rece	standing	2026-10-11; V1-1905
 SKH-V0-082	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) The live	standing	2026-10-11; V1-1905

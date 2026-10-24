@@ -213,6 +213,30 @@ func outcomeOf(s SKStep) SKFlowOutcome {
 // SKH-V0-143..152). conditions are --condition texts the answer must also arrange; ledger, when
 // given, adds its PROVEN edges. It reads only committed sources and writes nothing.
 func How(ctx context.Context, m *Map, sources []string, goal string, conditions []string, trust []TestTrust, ledger *EdgeLedger, o Options) ([]byte, error) {
+	a, err := howCompute(ctx, m, sources, goal, conditions, trust, ledger, o)
+	if err != nil {
+		return nil, err
+	}
+	return render(a.head, a.sections, a.budget)
+}
+
+// howAnswer is one computed answer: its rendered head and sections, and the typed parts the
+// stage 7 draft copies from.
+type howAnswer struct {
+	head       []field
+	sections   []section
+	budget     int
+	status     string
+	gaps       []HowGap
+	k          *SKModel
+	test       *SKTest
+	setup      []HowSetup
+	conditions []SetupCondition
+	evaluated  string
+	revision   string
+}
+
+func howCompute(ctx context.Context, m *Map, sources []string, goal string, conditions []string, trust []TestTrust, ledger *EdgeLedger, o Options) (*howAnswer, error) {
 	budget, err := o.budget(DefaultFlowBudget)
 	if err != nil {
 		return nil, err
@@ -248,7 +272,7 @@ func How(ctx context.Context, m *Map, sources []string, goal string, conditions 
 		}
 		gaps = append(gaps, HowGap{Code: code, Detail: res.reason})
 		head = append(head, field{"status", HowAbstained}, field{"gaps", gaps}, field{"candidate", nil})
-		return render(head, []section{{"candidates", cands}}, budget)
+		return &howAnswer{head: head, sections: []section{{"candidates", cands}}, budget: budget, status: HowAbstained, gaps: gaps, k: k, revision: m.Revision}, nil
 	}
 	var f *SKCandidateFlow
 	for i := range flows {
@@ -354,14 +378,15 @@ func How(ctx context.Context, m *Map, sources []string, goal string, conditions 
 	for _, r := range records {
 		byID[r.ID] = r
 	}
-	setup := []any{}
+	setup, setupTyped := []any{}, []HowSetup{}
 	for _, u := range uses {
 		if u.Test != t.ID {
 			continue
 		}
 		for _, id := range u.Uses {
 			r := byID[id]
-			setup = append(setup, HowSetup{Setup: r.ID, Kind: r.Kind, Name: r.Name, Target: r.Target, Status: r.Status, Reason: r.Reason, Mocked: r.Mocked, Anchor: r.Anchor})
+			hs := HowSetup{Setup: r.ID, Kind: r.Kind, Name: r.Name, Target: r.Target, Status: r.Status, Reason: r.Reason, Mocked: r.Mocked, Anchor: r.Anchor}
+			setup, setupTyped = append(setup, hs), append(setupTyped, hs)
 			anchors = append(anchors, r.Anchor)
 			if r.Status != StatusResolved {
 				a := r.Anchor
@@ -372,10 +397,10 @@ func How(ctx context.Context, m *Map, sources []string, goal string, conditions 
 			gaps = append(gaps, HowGap{Code: GapNoSetup, Detail: "unresolved-fixture: " + name})
 		}
 	}
-	asked := make([]any, len(conditions))
+	asked, typed := make([]any, len(conditions)), make([]SetupCondition, len(conditions))
 	for i, c := range conditions {
 		q := conditionQuery(c, records)
-		asked[i] = q
+		asked[i], typed[i] = q, q
 		if q.Status != ConditionCandidates {
 			gaps = append(gaps, HowGap{Code: GapNoSetup, Detail: "condition: " + c})
 		}
@@ -428,7 +453,8 @@ func How(ctx context.Context, m *Map, sources []string, goal string, conditions 
 			Test: t.ID, Rank: primary.Sources[0].Rank, Gaps: f.Gaps, Anchor: t.Anchor}},
 		field{"goal_screen", goalScreen}, field{"start_screen", f.Start}, field{"oracle", oracle},
 		field{"ledger", ledgerDigest(ledger)})
-	return render(head, []section{{"setup", setup}, {"conditions", asked}, {"steps", steps}, {"path", hops}, {"candidates", cands}}, budget)
+	return &howAnswer{head: head, sections: []section{{"setup", setup}, {"conditions", asked}, {"steps", steps}, {"path", hops}, {"candidates", cands}},
+		budget: budget, status: status, gaps: gaps, k: k, test: t, setup: setupTyped, conditions: typed, evaluated: fresh.evaluated, revision: m.Revision}, nil
 }
 
 func ledgerDigest(l *EdgeLedger) any {

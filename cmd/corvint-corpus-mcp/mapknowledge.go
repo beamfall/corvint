@@ -132,6 +132,24 @@ func decodeMapKnowledgeArguments(raw []byte) (mapKnowledgeArguments, bool) {
 	return a, true
 }
 
+// pick returns the one configured map app names, or the only one when app is empty.
+func (p *mapPlanner) pick(app string) (*appmap.Map, string) {
+	var picked *appmap.Map
+	for _, m := range p.maps {
+		if app != "" && m.App != app {
+			continue
+		}
+		if picked != nil {
+			return nil, "more than one configured map matches; name its app"
+		}
+		picked = m
+	}
+	if picked == nil {
+		return nil, "no configured map has that app"
+	}
+	return picked, ""
+}
+
 // knowledge returns the projection text or a coded failure; ok is false for arguments outside the
 // schema. One configured map is used by default; with several, app names exactly one.
 func (p *mapPlanner) knowledge(ctx context.Context, raw []byte) (text string, code, message string, ok bool) {
@@ -139,18 +157,9 @@ func (p *mapPlanner) knowledge(ctx context.Context, raw []byte) (text string, co
 	if !valid {
 		return "", "", "", false
 	}
-	var picked *appmap.Map
-	for _, m := range p.maps {
-		if a.app != "" && m.App != a.app {
-			continue
-		}
-		if picked != nil {
-			return "", "appmap-invalid-query", "more than one configured map matches; name its app", true
-		}
-		picked = m
-	}
+	picked, message := p.pick(a.app)
 	if picked == nil {
-		return "", "appmap-invalid-query", "no configured map has that app", true
+		return "", "appmap-invalid-query", message, true
 	}
 	o := appmap.Options{Root: p.root, Budget: a.budget}
 	var data []byte

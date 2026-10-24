@@ -11,7 +11,7 @@ points", read through `docs/specs/INDEX.json` and their Agent digests.
 
 ## Agent digest
 - Claim: Page objects, steps, setup and edges mined from tests answer "how do I X" with a live-proven E2E test, or abstain naming the missing knowledge.
-- Status: accepted (owner intent 2026-10-19; V1-1897); experimental. SKH-V0-001..089 for stages 1..8 (V1-1898..V1-1905) are accepted under the owner's standing auto-accept (2026-10-11). Stages 1 and 2 are implemented as `flows appmap pageobjects` and `flows appmap steps` and the corpus MCP tool `corvint.map_knowledge` (V1-1898, V1-1899). Stage 3 (V1-1900, SKH-V0-100..105) is implemented as `flows appmap setup`: Playwright and Cypress fixtures, hooks, `storageState`, route mocks, API seeding, `cy.task` and setup projects, Rails factories, traits, fixture files, seeds and setup endpoints through the AMAP-V0-114 writer index, Ruby test links and the `--condition` query; the V1-1883 normaliser and TSA-V0 setup-select reuse in `SKH-V0-032` stay partial. Stage 4 (V1-1901, SKH-V0-110..115) is implemented as `flows appmap links`: static edges from templates and components with provenance `static` beside the map's test-observed edges; no router dialect is widened. Stage 5 (V1-1902, SKH-V0-120..126) is implemented as `flows appmap infer`: candidate flows and variations from test step sequences, ranked and blocked by DCP-V1 test knowledge, emitted as a proposed behavior-adapter request for `flows import`. Stage 6 (V1-1903, SKH-V0-143..152) is implemented as `flows appmap how` and the `how` view of `corvint.map_knowledge`; the top-level `corvint how` alias is a follow-up. Stages 7 and 8 are not started.
+- Status: accepted (owner intent 2026-10-19; V1-1897); experimental. SKH-V0-001..089 for stages 1..8 (V1-1898..V1-1905) are accepted under the owner's standing auto-accept (2026-10-11). Stages 1 and 2 are implemented as `flows appmap pageobjects` and `flows appmap steps` and the corpus MCP tool `corvint.map_knowledge` (V1-1898, V1-1899). Stage 3 (V1-1900, SKH-V0-100..105) is implemented as `flows appmap setup`: Playwright and Cypress fixtures, hooks, `storageState`, route mocks, API seeding, `cy.task` and setup projects, Rails factories, traits, fixture files, seeds and setup endpoints through the AMAP-V0-114 writer index, Ruby test links and the `--condition` query; the V1-1883 normaliser and TSA-V0 setup-select reuse in `SKH-V0-032` stay partial. Stage 4 (V1-1901, SKH-V0-110..115) is implemented as `flows appmap links`: static edges from templates and components with provenance `static` beside the map's test-observed edges; no router dialect is widened. Stage 5 (V1-1902, SKH-V0-120..126) is implemented as `flows appmap infer`: candidate flows and variations from test step sequences, ranked and blocked by DCP-V1 test knowledge, emitted as a proposed behavior-adapter request for `flows import`. Stage 6 (V1-1903, SKH-V0-143..152) is implemented as `flows appmap how` and the `how` view of `corvint.map_knowledge`; the top-level `corvint how` alias is a follow-up. Stage 7 (V1-1904, SKH-V0-153..162) is implemented as the guarded copy-only draft of `flows appmap plan --request GOAL --draft --source DIR` and `corvint.map_plan` with `sources`. Stage 8 is not started.
 - Exists: `flows appmap pageobjects`, `flows appmap steps`, `flows appmap setup` and `corvint.map_knowledge` (stages 1 and 2, partial stage 3, experimental), plus the contracts this extends: AMAP-V0 map and selectors, ANL-V0 edges, AFU-V1 intents, DCP-V1 inventories and test knowledge, AMSP-V0 planner draft, CCE-V0 prover, NEA-V0 controls, RVN-V0 binding, PWP-V0 receipts and TSA-V0 validity.
 - Blocked on: nothing for stage 4 (V1-1901) or stage 5 (V1-1902); a measured adopter need for any new router dialect (`SKH-V0-041`). First adopter core-history (owner 2026-10-22); N = 10.
 - Read next: Owner intent; Definition of "confidently"; Requirements; Preregistered measure; Owner questions.
@@ -702,6 +702,56 @@ visits with admitted edges, not a composed route.
   MUST be byte-identical across reruns for the same plan and revision, and it writes only to an
   output path the caller names explicitly.
 
+- `SKH-V0-153`: (experimental; V1-1904) With `--draft`, the how answer MUST carry a `draft` head
+  field whose lines copy the primary test's file at the map revision line for line, in order,
+  without the lines of the file's other mined tests, so imports, `test.use`, `describe` wrappers
+  and the test body keep the suite's own conventions. Parameter-slot substitution is the identity
+  in V0: no value is rewritten, so nothing is synthesised (`SKH-V0-072`). A file whose blob differs
+  from the mined test's anchor between reads is refused.
+- `SKH-V0-154`: (experimental; V1-1904) The draft MUST insert exactly one `test.fixme(true, ...)`
+  guard line directly after the primary test's declaration line and record its line number, so
+  the draft never runs as an executed test until the stage 8 companion removes that one line
+  (`AMSP-V0-008`, `SKH-V0-088`).
+- `SKH-V0-155`: (experimental; V1-1904) The draft's proposed path MUST sit in the primary test's
+  directory, named `how-<first 12 hex of SHA-256 of the goal>` with the test file's spec suffix
+  (`.spec.ts`, `.test.ts`, `.e2e.ts` or its extension), so the suite's test match selects it.
+- `SKH-V0-156`: (experimental; V1-1904) Each answer gap MUST become a marked
+  `// TODO <gap code>: <detail>` line: an opaque step's TODO precedes the copied call it names,
+  other answer gaps follow the guard. A draft with any TODO line or gap reads `INCOMPLETE`; only a
+  `COMPLETE` answer with none reads `COMPLETE`.
+- `SKH-V0-157`: (experimental; V1-1904) A source line that is secret-shaped (`secretscreen`) or
+  lies in a screened step MUST NOT be copied; it becomes a `secret-screened` TODO naming only its
+  path and line, and the draft reads `INCOMPLETE`.
+- `SKH-V0-158`: (experimental; V1-1904) A condition with setup candidates MUST become an
+  `arrange` TODO naming the candidate setup IDs, with gap `no-setup-for-precondition`
+  (`condition-not-arranged`); the generator never writes setup code. Setup the primary test
+  already uses is present only as the copied lines that use it.
+- `SKH-V0-159`: (experimental; V1-1904) An `ABSTAINED` answer MUST draft no lines and carry the
+  answer's gaps. A primary test that is not Playwright in a JavaScript or TypeScript file, or a
+  setup it uses that is anchored in a non-JavaScript file, MUST abstain with
+  `source-framework-unsupported`, naming the test or setup and its anchor (`SKH-V0-070`).
+- `SKH-V0-160`: (experimental; V1-1904) Each draft line MUST carry one evidence row: `copied` with
+  path, source line and blob; `guard`; or `todo` with its gap code (`SKH-V0-071`). The draft's
+  digest is the SHA-256 of its lines joined by newlines with a final newline. The answer and draft
+  are byte-identical across reruns, and the read writes nothing: the caller or the stage 8
+  companion writes the bytes to a path it names (`SKH-V0-074`).
+- `SKH-V0-161`: (experimental; V1-1904) `corvint flows appmap plan --map FILE --request GOAL
+  --draft --source DIR...` with optional `--condition`, `--ledger`, `--corpus` and `--budget N` or
+  `--full` MUST print the how answer with its draft (`SKH-V0-073`). `--source` without `--draft`
+  or `--request`, with `--step`, `--receipt`, `--bind`, `--revision` or more than one `--map`, and
+  `--condition`, `--ledger` or `--corpus` without `--source` exit 2.
+- `SKH-V0-162`: (experimental; V1-1904) The `corvint.map_plan` MCP tool MUST accept `sources`,
+  optional `conditions` and `app` with `request` (one goal of at most 256 bytes) and `draft: true`,
+  and return the same bytes as the library draft, framed as untrusted data. `sources` without
+  `draft`, with `steps` or `revision`, and `conditions` or `app` without `sources` are invalid
+  arguments.
+
+Implementation status (V1-1904): `SKH-V0-070`..`074` and `153`..`162` are implemented in
+`internal/appmap/site_knowledge_draft.go` over inline committed fixtures. The corpus join and edge
+ledger stay CLI-only over MCP, as for the how view. Placement uses the primary test's directory,
+which is the closest existing spec by construction; reuse of page objects, setup and fixtures is
+the copied lines' own imports and calls.
+
 ### Stage 8: proof pipeline (V1-1905)
 
 - `SKH-V0-080`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1905) One
@@ -854,6 +904,7 @@ and 8 may stop there.
 | Method or locator in the source but not exercised | `unverified`; `binding-unverified` (`SKH-V0-089`) |
 | Reviewed source test with a `defect` verdict | blocks its flow and oracle (`SKH-V0-052`) |
 | Plan element mined only from a non-Playwright test | `source-framework-unsupported` (`SKH-V0-070`) |
+| Source line of the primary test is secret-shaped | not copied; `secret-screened` TODO and `INCOMPLETE` (`SKH-V0-157`) |
 | Flaky live run | never `PROVEN` (`SKH-V0-082`) |
 | Secret in `storageState` or a typed value | screened and replaced by a parameter slot (`SKH-V0-006`) |
 | Browser, server or provider failure | `infrastructure`, kept separate from test failure |
@@ -921,7 +972,7 @@ Stage dependencies (each stage also reads the contracts named for it above):
 | `SKH-V0-050`..`054`, `SKH-V0-120`..`126` | V1-1902 | `internal/appmap/site_knowledge_flows.go`, `cmd/corvint/flows_appmap_infer.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: 050..054 and 120..126 by `TestSKHV0_050_054_FlowInferenceTrustAndImport`, `TestSKHV0_121_125_FlowInferenceRegressions`, `TestSKHV0_126_InferCLIAndImport`, `TestSKHV0_126_TrustFromJoins` and `TestSKHV0013CorpusMCPMapKnowledge` over inline committed fixtures; the corpus join is fixture-tested at its conversion boundary; no real-adopter sample (NOT_RUN: cloud) |
 | `SKH-V0-140`..`142` | V1-1900..V1-1902 (#1705 review fixes) | `internal/appmap/site_knowledge_flows.go`, `internal/appmap/site_knowledge_edges.go`, `internal/appmap/site_knowledge_setup.go` | experimental: `TestSKHV0_140_OutcomeKeepsSelectorName`, `TestSKHV0_141_RubyHelperConsumesWholeArgument`, `TestSKHV0_142_SetupProjectHonorsTestDir` (each failing first) over inline committed fixtures |
 | `SKH-V0-060`..`064`, `SKH-V0-143`..`152` | V1-1903 | `internal/appmap/site_knowledge_how.go`, `cmd/corvint/flows_appmap_how.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: `TestSKHV0_143_HowAnswersGoal`, `TestSKHV0_144_HowAbstains`, `TestSKHV0_146_HowAdmitsLedgerEdges`, `TestSKHV0_147_HowSetupAndGaps`, `TestSKHV0_151_HowStale`, `TestSKHV0_152_HowBoundsAndBudget`, `TestSKHV0_143_HowCLI`, `TestSKHV0_143_MapKnowledgeHowView`; the top-level `corvint how` alias is PARTIAL |
-| `SKH-V0-070`..`074` | V1-1904 | none | NOT_STARTED |
+| `SKH-V0-070`..`074`, `SKH-V0-153`..`162` | V1-1904 | `internal/appmap/site_knowledge_draft.go`, `cmd/corvint/flows_appmap_plan.go`, `cmd/corvint-corpus-mcp/mapplan.go` | experimental: `TestSKHV0_153_HowDraftCopiesPrimaryTest`, `TestSKHV0_156_HowDraftMarksTodos`, `TestSKHV0_157_HowDraftScreensSecrets`, `TestSKHV0_159_HowDraftAbstains`, `TestSKHV0_161_PlanDraftCLI`, `TestSKHV0_162_MapPlanHowDraft` |
 | `SKH-V0-080`..`089` | V1-1905 | none | NOT_STARTED |
 
 ## Promotion and kill criteria

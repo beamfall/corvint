@@ -154,3 +154,51 @@ func TestSKHV0_143_MapKnowledgeHowView(t *testing.T) {
 		}
 	}
 }
+
+// SKH-V0-162: corvint.map_plan with sources, request and draft returns the library's how draft,
+// framed as untrusted data; sources without draft, with steps or revision, and conditions or app
+// without sources are refused as invalid arguments.
+func TestSKHV0_162_MapPlanHowDraft(t *testing.T) {
+	root, maps := mapPlanRoot(t)
+	registry, e := corpusbridge.New(root, "corpus.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	planner, err := newMapPlanner(root, []string{"map-marketplace.json", "map-appmap.json"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := &toolHandler{registry: registry, planner: planner}
+	result, rpc := h.call(context.Background(), map[string]any{"name": mapPlanTool,
+		"arguments": map[string]any{"request": "open the dashboard", "draft": true, "sources": []any{"e2e"}, "app": "admin", "conditions": []any{"a user exists"}}})
+	if rpc != nil || result["isError"] != false {
+		t.Fatalf("draft: %#v %v", result, rpc)
+	}
+	want, err := appmap.HowDraft(context.Background(), maps[0], []string{"e2e"}, "open the dashboard", []string{"a user exists"}, nil, nil, appmap.Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wantObject map[string]any
+	_ = json.Unmarshal(want, &wantObject)
+	if !reflect.DeepEqual(result["structuredContent"], wantObject) || wantObject["draft"] == nil {
+		t.Fatalf("map_plan draft differs from the library answer: %s", want)
+	}
+	if framed, _ := repoenvelope.Frame(string(want)); result["content"].([]any)[0].(map[string]any)["text"] != framed {
+		t.Fatal("draft text not framed as untrusted data")
+	}
+	for _, args := range []map[string]any{
+		{"request": "x", "sources": []any{"e2e"}},
+		{"request": "x", "draft": false, "sources": []any{"e2e"}},
+		{"steps": []any{"x"}, "draft": true, "sources": []any{"e2e"}},
+		{"request": "x", "draft": true, "sources": []any{"e2e"}, "revision": "HEAD"},
+		{"request": "x", "draft": true, "sources": []any{}},
+		{"request": "x", "draft": true, "sources": []any{"e2e"}, "conditions": nil},
+		{"request": "x", "conditions": []any{"y"}},
+		{"request": "x", "app": "admin"},
+		{"request": strings.Repeat("x", 257), "draft": true, "sources": []any{"e2e"}},
+	} {
+		if _, rpc := h.call(context.Background(), map[string]any{"name": mapPlanTool, "arguments": args}); rpc == nil {
+			t.Errorf("arguments %v accepted", args)
+		}
+	}
+}

@@ -41,3 +41,40 @@ func TestSKHV0_143_HowCLI(t *testing.T) {
 		}
 	}
 }
+
+// SKH-V0-161: flows appmap plan --request GOAL --draft --source DIR prints the how answer with the
+// guarded draft, byte-identically on rerun; --source without --draft or with --step, and how-only
+// flags without --source, exit 2.
+func TestSKHV0_161_PlanDraftCLI(t *testing.T) {
+	root, filename := inferCLIRepo(t)
+	args := []string{"appmap", "plan", "--map", filename, "--request", "ship an order", "--draft", "--source", "e2e", "--full"}
+	code, out, diag := runFlowsCLI(root, args...)
+	if code != 0 {
+		t.Fatalf("plan draft: %d %s", code, diag)
+	}
+	var doc struct {
+		Schema string `json:"schema"`
+		Draft  struct {
+			Status    string   `json:"status"`
+			GuardLine int      `json:"guard_line"`
+			Lines     []string `json:"lines"`
+		} `json:"draft"`
+	}
+	if err := json.Unmarshal([]byte(out), &doc); err != nil || doc.Schema != "site-knowledge-how/0" || doc.Draft.GuardLine == 0 ||
+		!strings.Contains(doc.Draft.Lines[doc.Draft.GuardLine-1], "test.fixme(true,") {
+		t.Fatalf("draft = %v %s", err, out)
+	}
+	if _, again, _ := runFlowsCLI(root, args...); again != out {
+		t.Fatal("plan draft CLI is not byte-stable")
+	}
+	for _, bad := range [][]string{
+		{"appmap", "plan", "--map", filename, "--request", "ship an order", "--source", "e2e"},
+		{"appmap", "plan", "--map", filename, "--step", "ship", "--draft", "--source", "e2e"},
+		{"appmap", "plan", "--map", filename, "--map", filename, "--request", "ship", "--draft", "--source", "e2e"},
+		{"appmap", "plan", "--map", filename, "--request", "ship", "--condition", "x"},
+	} {
+		if code, _, _ := runFlowsCLI(root, bad...); code != 2 {
+			t.Fatalf("%v exit = %d, want 2", bad, code)
+		}
+	}
+}

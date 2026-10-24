@@ -37,23 +37,33 @@ func runFlowsAppmapHow(ctx context.Context, root string, args []string, out io.W
 			*budget = -1
 		}
 	})
-	m, err := appmap.LoadMap(*mapFile)
+	return writeHow(ctx, root, *mapFile, *corpus, *ledgerFile, sources, f.Arg(0), conditions, appmap.Options{Root: root, Budget: *budget, Full: *full}, false, out)
+}
+
+// writeHow loads the map, corpus trust and ledger and writes the how answer, with the stage 7
+// guarded draft when draft is set (`flows appmap plan --request GOAL --draft --source DIR`).
+func writeHow(ctx context.Context, root, mapFile, corpus, ledgerFile string, sources []string, goal string, conditions []string, o appmap.Options, draft bool, out io.Writer) error {
+	m, err := appmap.LoadMap(mapFile)
 	if err != nil {
 		return err
 	}
 	trust := []appmap.TestTrust{}
-	if *corpus != "" {
-		if trust, err = corpusTrust(ctx, root, *corpus, m.Revision); err != nil {
+	if corpus != "" {
+		if trust, err = corpusTrust(ctx, root, corpus, m.Revision); err != nil {
 			return err
 		}
 	}
 	var ledger *appmap.EdgeLedger
-	if *ledgerFile != "" {
-		if ledger, err = appmap.LoadEdgeLedger(*ledgerFile); err != nil {
+	if ledgerFile != "" {
+		if ledger, err = appmap.LoadEdgeLedger(ledgerFile); err != nil {
 			return err
 		}
 	}
-	doc, err := appmap.How(ctx, m, sources, f.Arg(0), conditions, trust, ledger, appmap.Options{Root: root, Budget: *budget, Full: *full})
+	how := appmap.How
+	if draft {
+		how = appmap.HowDraft
+	}
+	doc, err := how(ctx, m, sources, goal, conditions, trust, ledger, o)
 	if err != nil {
 		return err
 	}
