@@ -56,13 +56,37 @@ func mapShared(t *testing.T, p string) (flip func()) {
 	}
 }
 
+// tmpfsMagic is Linux's TMPFS_MAGIC statfs type.
+const tmpfsMagic = 0x01021994
+
+// watchSeesFirstMappedWrite reports whether the change watch must see the
+// first write through a new shared mapping of p (PSR-V0-223, PSR-V0-226). On
+// Linux that write faults the page writable and the filesystem updates the
+// times the guard re-reads, except on tmpfs, whose shared mappings have no
+// write fault hook, so no time moves. Darwin's watch sees nothing before msync.
+func watchSeesFirstMappedWrite(t *testing.T, p string) bool {
+	t.Helper()
+	if runtime.GOOS != "linux" {
+		return false
+	}
+	var st syscall.Statfs_t
+	if err := syscall.Statfs(p, &st); err != nil {
+		t.Fatalf("statfs %s: %v", p, err)
+	}
+	if int64(st.Type) == tmpfsMagic {
+		t.Logf("PSR-V0-226: %s is on tmpfs, so the first mapped write moves no time and only the content check sees it", p)
+		return false
+	}
+	return true
+}
+
 // TestCALV0070_MutateRefusesMappedWriteAfterMergedAudit is the CAL-V0-070
 // content check. A write through a shared mapping, made after the merged audit
 // read the file, raises no inotify event and no kqueue event before msync, and
 // once the page is mapped writable it changes no stat field the Linux guard
 // re-reads (PSR-V0-223), so only the fresh inventory's digest shows it. The
-// first write through the mapping faults, and the Linux guard sees that one.
-// Mutate must refuse the later write with the
+// first write through the mapping faults, and the Linux guard sees that one,
+// except on tmpfs (PSR-V0-226). Mutate must refuse the later write with the
 // separate passes' code and publish nothing.
 func TestCALV0070_MutateRefusesMappedWriteAfterMergedAudit(t *testing.T) {
 	t.Parallel()
@@ -86,8 +110,9 @@ func TestCALV0070_MutateRefusesMappedWriteAfterMergedAudit(t *testing.T) {
 			}
 			// PSR-V0-223: on Linux the first write through the new mapping
 			// faults its page writable, which updates the modification and
-			// change times the guard re-reads. Darwin's watch sees nothing
-			// before msync.
+			// change times the guard re-reads; tmpfs updates neither
+			// (PSR-V0-226). Darwin's watch sees nothing before msync.
+			want := watchSeesFirstMappedWrite(t, tc.file)
 			first, err := authority.WatchChanges(repo)
 			if err != nil {
 				t.Fatalf("change watch: %v", err)
@@ -96,8 +121,8 @@ func TestCALV0070_MutateRefusesMappedWriteAfterMergedAudit(t *testing.T) {
 			firstErr := first.Check()
 			flip()
 			first.Close()
-			if seen := wire.CodeOf(firstErr) == wire.CodeSnapshotMoved; seen != (runtime.GOOS == "linux") || !seen && firstErr != nil {
-				t.Fatalf("change watch on the first mapped write: %v", firstErr)
+			if seen := wire.CodeOf(firstErr) == wire.CodeSnapshotMoved; seen != want || !seen && firstErr != nil {
+				t.Fatalf("change watch on the first mapped write: %v (want seen %v)", firstErr, want)
 			}
 			// The page is now dirty and mapped writable, so a further write
 			// through it faults nothing and changes no stat field: no watch
