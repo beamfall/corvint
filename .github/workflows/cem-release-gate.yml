@@ -1,10 +1,12 @@
 name: CEM release gate
 
 # AFP-V0-432 (V1-2580): `make cem-release-gate` on every pull request, merge-queue entry and main
-# push, in its own workflow rather than in ci.yml. The gate refuses (tool exit 3) while the
-# committed readiness declaration names rows one host cannot observe, so it is red on every run
-# today; inside ci.yml that would fail the whole CI run, and the AFP-V0-080 static reuse and the
-# tested-tree reuse accept only successful ci.yml runs. Not a required check.
+# push, in its own workflow rather than in ci.yml. Each host job runs the sealed suites and writes
+# its cem-release-run/1 record; the aggregate job judges readiness over both records (CEM-V1-612),
+# so each platform row is observed by its own host. The aggregate refuses (exit 3) while a declared
+# row stays unobserved: today only the independent-external-consumer row, which no CI host can
+# observe. Inside ci.yml that refusal would fail the whole CI run, and the AFP-V0-080 static reuse
+# and the tested-tree reuse accept only successful ci.yml runs. Not a required check.
 
 on:
   pull_request:
@@ -24,11 +26,13 @@ jobs:
   cem-release-gate:
     # AFP-V0-432 (V1-2580): `make cem-release-gate` (CEM-V1-600..605) on linux/amd64 and darwin/arm64.
     # The target builds corvint and interop/cem01-go from this clean checkout into one private
-    # directory and runs the sealed suites with release readiness over both binaries. Any nonzero
-    # exit fails the job, including the readiness refusal (tool exit 3) that one host returns while
-    # the committed declaration names rows it cannot observe; a pass here is still not release
-    # support. Its combined output is retained per platform. Not a required check; a ci:batched
-    # constituent never starts it (AFP-V0-081), as its batch pull request and queue entry run it.
+    # directory, runs the sealed suites over both binaries and writes this host's run record and
+    # outcome (CEM-V1-611, CEM-V1-613). The job passes when the target exits 0, or when it exits
+    # nonzero after writing both: every suite passed and only this host's readiness view refused,
+    # which the aggregate job judges again across hosts. A suite failure writes no record and fails
+    # the job. Its output, record and outcome are retained per platform. Not a required check; a
+    # ci:batched constituent never starts it (AFP-V0-081), as its batch pull request and queue entry
+    # run it.
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'ci:batched') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
@@ -53,26 +57,85 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24.11.1"
-      - name: CEM release gate (fails on any nonzero exit)
+      - name: CEM release suites and run record (fails on a suite failure)
         run: |
           out="$RUNNER_TEMP/cem-release-gate"
           mkdir -p "$out"
           code=0
-          make cem-release-gate > "$out/output.txt" 2>&1 || code=$?
+          make cem-release-gate CEM_RELEASE_RECORD="$out/record.json" CEM_RELEASE_OUTCOME="$out/outcome.json" > "$out/output.txt" 2>&1 || code=$?
           cat "$out/output.txt"
+          verdict=failed
+          if [ "$code" = 0 ]; then
+            verdict=ready
+          elif [ -s "$out/record.json" ] && [ -s "$out/outcome.json" ]; then
+            verdict=recorded
+          fi
           {
-            printf '### CEM release gate (AFP-V0-432)\n\nmake cem-release-gate exited %s.\n\n```\n' "$code"
+            printf '### CEM release suites (AFP-V0-432)\n\nmake cem-release-gate exited %s; host verdict %s.\n\n```\n' "$code" "$verdict"
             grep -E '^cem-release-suites: (readiness: (REFUSED|platform|external)|.*(PASS|FAIL))' "$out/output.txt" || true
             printf '```\n'
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$code" != 0 ]; then
-            echo "::error::make cem-release-gate exited $code; the retained output names the refused or failed row."
+          if [ "$verdict" = failed ]; then
+            echo "::error::make cem-release-gate exited $code without a run record; the retained output names the failed suite."
+            exit "$code"
           fi
-          exit "$code"
       - name: Retain the CEM release gate output
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: cem-release-gate-${{ matrix.os }}
-          path: ${{ runner.temp }}/cem-release-gate/output.txt
+          path: ${{ runner.temp }}/cem-release-gate/
+          if-no-files-found: ignore
+
+  cem-release-readiness:
+    # AFP-V0-432 (V1-2580): judges release readiness over both hosts' run records of this revision
+    # (`cem-release-suites --aggregate`, CEM-V1-612). It fails with the tool's own nonzero exit: 3
+    # while any declared row is not observed PASSED. The independent-external-consumer row stays
+    # NOT_OBSERVED until a real external consumer reports, so the job is red on that row alone by
+    # design. Records are unauthenticated run output; a pass here is still not release support.
+    needs: cem-release-gate
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'ci:batched') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: cem-release-gate-*
+          path: ${{ runner.temp }}/cem-release-records
+      - name: CEM release readiness across hosts (fails on any nonzero exit)
+        run: |
+          records="$RUNNER_TEMP/cem-release-records"
+          out="$RUNNER_TEMP/cem-release-readiness"
+          mkdir -p "$out"
+          code=0
+          go run ./tools/cem-release-suites --aggregate --readiness tools/cem-release-suites/READINESS.json --outcome "$out/outcome.json" "$records/cem-release-gate-ubuntu-24.04/record.json" "$records/cem-release-gate-macos-15/record.json" > "$out/output.txt" 2>&1 || code=$?
+          cat "$out/output.txt"
+          {
+            printf '### CEM release readiness (AFP-V0-432)\n\ncem-release-suites --aggregate exited %s.\n\n```\n' "$code"
+            grep -E '^cem-release-suites: (aggregate|readiness): ' "$out/output.txt" || true
+            printf '```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" != 0 ]; then
+            echo "::error::cem-release-suites --aggregate exited $code; the retained output names the refused row."
+          fi
+          exit "$code"
+      - name: Retain the CEM release readiness output
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cem-release-readiness
+          path: ${{ runner.temp }}/cem-release-readiness/
           if-no-files-found: ignore
