@@ -13,6 +13,7 @@ import (
 	"github.com/Beamfall/corvint/internal/delta"
 	"github.com/Beamfall/corvint/internal/intake"
 	connector "github.com/Beamfall/corvint/internal/postmergeconnector"
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 type nativeFixture struct {
@@ -325,7 +326,7 @@ func TestNativeStrictInputsAndRetention(t *testing.T) {
 // this synthetic native conformance fixture grants no historical/host qualification.
 func TestNativeCLIExitTwo(t *testing.T) {
 	n := nativeSetup(t)
-	bin := filepath.Join(t.TempDir(), "workflow")
+	bin := filepath.Join(t.TempDir(), testplatform.Executable("workflow"))
 	cmd := exec.Command("go", "build", "-o", bin, "../../cmd/corvint-postmerge-workflow")
 	if b, e := cmd.CombinedOutput(); e != nil {
 		t.Fatalf("build %s %v", b, e)

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/liveverify/mutate"
+	"github.com/Beamfall/corvint/internal/testplatform"
 	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
@@ -347,6 +348,7 @@ func TestRunRejectsCallerMistakes(t *testing.T) {
 }
 
 func TestClassifyRunSeparatesACollectionErrorFromARedTest(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the exit statuses come from sh -c \"exit N\"")
 	exitWith := func(code int) error {
 		return exec.Command("sh", "-c", "exit "+string(rune('0'+code))).Run()
 	}

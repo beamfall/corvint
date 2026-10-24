@@ -11,9 +11,11 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 func TestPinnedRepositoryGitAllReadPaths(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the pinned host-git and the planted PATH decoy are #!/bin/sh scripts")
 	root, base, _ := makeRepo(t)
 	realGit, err := exec.LookPath("git")
 	if err != nil {

@@ -13,6 +13,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 func memoFixture(t *testing.T, format string) (*RequestReadMemo, *Repository, string, string, string) {
@@ -38,6 +39,7 @@ func memoFixture(t *testing.T, format string) (*RequestReadMemo, *Repository, st
 // inside the existing gitrun containment/cleanup path, with no extra descendant.
 func countMemoGit(t *testing.T) func() int {
 	t.Helper()
+	testplatform.SkipPOSIXShell(t, "the counting git spy on PATH is a #!/bin/sh script")
 	git, err := exec.LookPath("git")
 	if err != nil {
 		t.Fatal(err)

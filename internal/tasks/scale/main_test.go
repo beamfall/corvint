@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // churnLoop reports only successful creates as creates; refusals are counted
@@ -44,6 +46,7 @@ func TestChurnLoopCountsOnlySuccessfulCreates(t *testing.T) {
 // A writer start that fails after others started stops and reaps those
 // already running instead of abandoning them.
 func TestStartWritersReapsStartedWritersWhenALaterStartFails(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the writers are the POSIX /bin/sleep tool")
 	var started []*exec.Cmd
 	t0 := time.Now()
 	pool, err := startWriters(context.Background(), [][]string{{"/bin/sleep", "60"}, {"/nonexistent/tasks-scale-writer"}}, func(_ int, c *exec.Cmd) { started = append(started, c) })
@@ -60,6 +63,7 @@ func TestStartWritersReapsStartedWritersWhenALaterStartFails(t *testing.T) {
 
 // stop cancels running writers and waits for them.
 func TestWriterPoolStopCancelsRunningWriters(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the writers are the POSIX /bin/sleep tool")
 	pool, err := startWriters(context.Background(), [][]string{{"/bin/sleep", "60"}, {"/bin/sleep", "60"}}, nil)
 	if err != nil {
 		t.Fatal(err)

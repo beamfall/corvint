@@ -17,6 +17,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/mutate"
 	"github.com/Beamfall/corvint/internal/liveverify/rbmutate/minirspec"
+	"github.com/Beamfall/corvint/internal/testplatform"
 	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
@@ -306,6 +307,7 @@ func TestFPKV0069UnloadableMutantIsNeverCredited(t *testing.T) {
 
 func exitError(t *testing.T, status int) error {
 	t.Helper()
+	testplatform.SkipPOSIXShell(t, "the exit status comes from /bin/sh -c \"exit N\"")
 	err := exec.Command("/bin/sh", "-c", "exit "+strconv.Itoa(status)).Run()
 	var exit *exec.ExitError
 	if !errors.As(err, &exit) {
