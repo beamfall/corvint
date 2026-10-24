@@ -442,7 +442,7 @@ func playwrightFreshArrayAt(clean string, opens map[int]int, previous int) (lite
 	}
 	switch clean[previous] {
 	case ']':
-		return !playwrightMemberAccessAt(clean, playwrightPreviousCode(clean, open)), false
+		return playwrightArrayLiteralAt(clean, playwrightPreviousCode(clean, open)), false
 	case ')':
 		end := playwrightPreviousCode(clean, open)
 		start := end
@@ -456,6 +456,32 @@ func playwrightFreshArrayAt(clean string, opens map[int]int, previous int) (lite
 		return false, dot > 0 && clean[dot] == '.' && clean[dot-1] != '.'
 	}
 	return false, false
+}
+
+// playwrightArrayLiteralAt reports whether a `[` whose previous code byte is at previous
+// positively opens an array literal: it starts the text, follows an operator or opening
+// punctuator, or follows an expression keyword that is not itself a property name. A `]`, `)`,
+// `}`, `.`, `/`, `!` or any identifier, such as `default` in `box.default[0]`, is not
+// positively an operand start, so the bracket may index a value (TJAA-V0-093).
+func playwrightArrayLiteralAt(clean string, previous int) bool {
+	if previous < 0 {
+		return true
+	}
+	if strings.IndexByte("([{,;:=?&|+-*%<>^~", clean[previous]) >= 0 {
+		return true
+	}
+	if !playwrightIdentifierByte(clean[previous]) {
+		return false
+	}
+	start := previous
+	for start > 0 && playwrightIdentifierByte(clean[start-1]) {
+		start--
+	}
+	if !slices.Contains([]string{"return", "yield", "await", "case", "typeof", "void", "delete", "in", "of", "throw"}, clean[start:previous+1]) {
+		return false
+	}
+	before := playwrightPreviousCode(clean, start)
+	return before < 0 || clean[before] != '.'
 }
 
 // playwrightFreshMethodDefinition returns the offset and name of the first `split` or `map` in

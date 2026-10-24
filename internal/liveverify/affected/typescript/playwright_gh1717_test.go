@@ -50,6 +50,7 @@ func TestPlaywrightPathModeGlobstarTestMatch_GH1717(t *testing.T) {
 		{"globstar array", literal, "['setup/**/*.setup.ts', 'setup/global-setup.ts']", "", nil},
 		{"leading and inner globstar", literal, "'**/setup/**/*.setup.ts'", "", nil},
 		{"tail matched outside the setup directory", literal, globstar, line7, map[string]string{"tests/stray.setup.ts": "export const stray = 1;\n"}},
+		{"commented globstar reached outside the setup directory", literal, "/* setup */ 'setup/**/*.setup.ts'", line7, map[string]string{"tests/stray.setup.ts": "export const stray = 1;\n"}},
 		{"trailing globstar", literal, "'setup/**'", line7, nil},
 		{"globstar inside a segment", literal, "'setup/a**/*.setup.ts'", line7, nil},
 		{"computed second testMatch", literal, "process.env.SETUP_MATCH", line7, nil},
@@ -119,6 +120,7 @@ func TestPlaywrightTagClosureFreshArrayIndex_GH1717(t *testing.T) {
 		{"computed index on a name", "const details = { annotation: { type: 'a', description: 'b' } };\nconst key = 'annotation';\nconst value = details[key];\ntest('plain', async () => {});\n", stop + "3: " + computed, ""},
 		{"computed index on a parenthesized name", "const all = ['a'];\nconst pick = (index: number) => (all)[index];\ntest('plain', async () => {});\n", stop + "2: " + computed, ""},
 		{"computed index on an indexed literal", "const pick = (index: number) => [['a']][0][index];\ntest('plain', async () => {});\n", stop + "1: " + computed, ""},
+		{"computed index on an indexed keyword property", "const box = { default: [['a']] };\nconst pick = (index: number) => box.default[0][index];\ntest('plain', async () => {});\n", stop + "2: " + computed, ""},
 		{"computed index on another call", "const pick = (each: string, index: number) => each.slice(1)[index];\ntest('plain', async () => {});\n", stop + "1: " + computed, ""},
 		{"split defined as a method", "const box = { split() { return box; } };\nconst pick = (index: number) => box.split()[index];\ntest('plain', async () => {});\n", stop + "1: `split` is defined or read other than as a direct method call, so a computed index on a split or map result can reach a tag array)", ""},
 		{

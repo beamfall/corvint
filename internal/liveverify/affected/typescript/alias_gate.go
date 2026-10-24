@@ -260,6 +260,10 @@ func playwrightLiteralOwned(relative string, paths []string, configs []config) b
 // refused reports, given its items (one item for a value that is not an array literal, none for
 // a value that does not parse), or -1 when none does (TJAA-V0-092).
 func playwrightTestMatchAt(body string, refused func(items []string) bool) int {
+	// Blanking comments keeps offsets, so `testMatch: /* note */ 'glob'` yields the parsed glob.
+	if clean, err := stripComments(body, false); err == nil {
+		body = clean
+	}
 	for _, at := range playwrightTokenOffsets(body, "testMatch") {
 		rest := body[at+len("testMatch"):]
 		index := 0

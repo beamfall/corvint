@@ -814,14 +814,15 @@ and `affected --path` stayed unknown for every change because a setup project's
   membership (`playwright:project-dependency` stays a membership-neutral unknown).
 - `TJAA-V0-093`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1717)
   Amending `AFP-V0-409` and `AFP-V0-425`, a computed member read MUST NOT make its tag-closure file
-  inexact when its receiver is a fresh array. A fresh array is an array literal that is not itself
-  indexed (`['a', 'b'][index]`), or the result of a direct `.split(...)` or `.map(...)` method
+  inexact when its receiver is a fresh array. A fresh array is an array literal (`['a', 'b'][index]`)
+  whose `[` follows the start of the text, an operator, an opening punctuator or an expression
+  keyword that is not a property name (so `box.default[0][index]` is not one), or the result of a direct `.split(...)` or `.map(...)` method
   call (`each.split(';')[index]`, `each?.split(';')[index]`, `all.map(f)[index]`). This holds only
   while no file in the closure defines or reads `split` or `map` other than as a direct method call
   `.split(` or `.map(`, and holds no `'split'` or `'map'` string. A user-defined `split` or `map`
   method could return a details object, which the computed read could then reach. Every other
   computed read still stops and names its line: a name, a parenthesized receiver, an indexed
-  literal, or another call such as `.slice(...)`. A computed write on a fresh array also still
+  literal, a bracket after a property name, or another call such as `.slice(...)`. A computed write on a fresh array also still
   stops (`a computed member write can set a tag`). When a fresh-array read is the only thing that
   would make a closure exact, and a `split` or `map` definition sits in a closure file, the stop
   names that definition's file and line.
