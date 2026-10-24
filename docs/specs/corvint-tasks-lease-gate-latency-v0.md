@@ -11,10 +11,10 @@ Requirements section is at the 256-obligation OCM limit (`maxObligations`), so t
 They change no lease semantics, stored state, wire format or receipt.
 
 ## Agent digest
-- Claim: Lease rounds skip the cleanup lock on a ready writer route, keep fdinfo files open and parse each canonical ticket once.
-- Status: proposed; experimental; LGL-V0-001, 002 and 004 are implemented with focused tests; LGL-V0-003 is a measured target that is NOT MET (claim gate-wait p99 1.7 s against 500 ms).
-- Exists: the writer-route staging decline, retained Linux fdinfo files, the single-parse ticket loader and the wire ASCII scan, each with a focused test.
-- Blocked on: V1-2539 (claim wait) and V1-2203 (heartbeat median needs an owner decision on fsync coalescing).
+- Claim: Lease rounds skip the ready-route cleanup lock, keep fdinfo files open, parse tickets once; heartbeat and renew skip only staging-directory syncs.
+- Status: proposed; experimental; LGL-V0-001, 002, 004, 005, 006 and 007 are implemented with focused tests; LGL-V0-003 is a measured target that is NOT MET (claim gate-wait p99 1.7 s against 500 ms); LGL-V0-008 keeps every published artifact's sync and records why; the V1-0887 heartbeat median of 50 ms is still NOT MET.
+- Exists: the writer-route staging decline, retained Linux fdinfo files, the single-parse ticket loader, the wire ASCII scan and the heartbeat/renew staging-sync skip, each with a focused test.
+- Blocked on: V1-2539 (claim wait) and V1-2203 (the rest of the heartbeat floor needs an owner store-format decision: LGL-V0-008).
 - Read next: Requirements; Failure modes; Acceptance evidence.
 
 ## User and current state
@@ -62,11 +62,44 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   when every byte is below 0x80 and none is a control hostileRune refuses (TAB, LF and CR only
   where prose permits them); any other string takes the existing rune-by-rune check. Which bytes
   are accepted and which refusal, code and position are reported are unchanged.
+- `LGL-V0-005`: (proposed; V1-2203) A heartbeat or renew session (`transaction.LivenessLease`) MUST
+  make no sync call for any staging-directory sync: after a prepare, after a slot removal or orphan
+  unlink, and after a replace's rename out of `staging/`. It MUST still cross the same
+  `sync:staging` boundary and run the same checks there. Every file sync, every destination
+  directory sync and every mkdir parent sync MUST still run, so each artifact the session publishes
+  is as durable at its commit point as before. Every other verb MUST make every sync it made before.
+  The owner decision of 2026-10-24 for V1-2203 authorizes this for heartbeat and renew only, and
+  amends decision 0549 F2 for those two verbs.
+- `LGL-V0-006`: (proposed; V1-2203) A session MUST count the file and directory sync calls it makes
+  (`Session.SyncCalls`), and a lease write's `LeaseTiming.Syncs` MUST sum them over the write's
+  sessions. Like `SyncDuration` the count is a diagnostic, never proof or authority; the CLI does not
+  report it. On both lease routes a heartbeat or renew makes two sync calls per artifact it publishes
+  (8, or 10 when it creates a request shard), and a claim or release four per artifact.
+- `LGL-V0-007`: (proposed; V1-2203) The only state a crash after a heartbeat or renew can leave that
+  a full-sync session could not is staging residue: a slot name whose unsynced removal or rename
+  the crash undid, holding a second link to the receipt the session linked or the head it renamed.
+  That residue MUST read as the orphan a killed writer leaves (CAL-V0-019). With the writer lock free
+  the audit sets it aside and verifies (CTS-V0-026); the lease reads as the acknowledged write left
+  it; the next writer clears the residue and commits; and no other holder is granted the lease.
+- `LGL-V0-008`: (proposed; V1-2203) A heartbeat or renew MUST keep the file sync and the destination
+  directory sync of every artifact it publishes. The store reads a lost or torn tail receipt as
+  `JOURNAL_FORKED` or `MALFORMED`, and a head that lost its last advance as `REDO_PENDING`; it never
+  adopts a shorter chain as an older heartbeat. The owner decision's wider allowance (a liveness
+  receipt committed without its own fsync, made durable by the next synced write or by a group sync
+  of at most 1 s) is therefore not implemented: under the lane's stop clause it would weaken
+  integrity. Adopting a lost tail would need a durable liveness watermark that the closed
+  `head.json` member set cannot carry (a store-format cutover that old binaries refuse), recovery
+  that deletes committed receipts and reissues their sequence numbers, and a periodic group sync
+  that only a daemon could run (product invariant 7). The owner's premise also fails for renew. `planRenew` sets the expiry to the renew's own time plus
+  its lease minutes, so a lost renew that had shortened a lease leaves the longer, earlier expiry in
+  force. That design needs its own owner decision on the store format.
 
 ## Non-goals
 
-no fsync is coalesced or removed (decision 0549 F2 stays: staging-directory sync
-coalescing needs its own decision and crash-matrix proof); decision 0411's per-check mount-ID
+no sync of a published artifact or its destination directory is coalesced or removed; only
+heartbeat and renew skip staging-directory syncs (LGL-V0-005, under the owner decision of
+2026-10-24 that amends decision 0549 F2 for those two verbs), and no verb commits a receipt without
+its own fsync (LGL-V0-008); decision 0411's per-check mount-ID
 observation is kept; no round count, lock wait or gate order changes; no stored state, wire format
 or receipt changes.
 
@@ -82,7 +115,15 @@ pinned `*os.File` and closed with it. LGL-V0-004 is safe only while `wire.Parse`
 re-encode comparison and trailing-LF check; a change that relaxes either must restore the
 `canonical` call in `loadTickets`, and `TestLGLV0004_NoncanonicalTicketBytesStillRefused` then
 fails first. The ASCII scan accepts nothing the rune check refuses, because every byte below 0x80
-is a whole rune and the scan refuses every C0 control the rune check refuses.
+is a whole rune and the scan refuses every C0 control the rune check refuses. With LGL-V0-005 a
+crash after a heartbeat or renew can leave staging residue on a filesystem whose metadata journal
+does not already order the staging entry with the destination directory sync. A reader that meets
+that residue waits `StageSlotPatience` (2 s, CTS-V0-008) before the audit sets it aside, or refuses
+`MALFORMED` while the writer lock is held, until the next writer clears it; this is the cost a killed
+writer's orphan already has. The skip is safe only while each artifact's own file sync and its
+destination directory sync run before the session reports its commit; a change that drops either
+for a liveness session reaches LGL-V0-008, and `TestLGLV0005_SkippedStagingSyncKeepsEveryOtherSync`
+fails first.
 
 ## Acceptance evidence
 
@@ -102,9 +143,30 @@ in its refusal; `TestLGLV0004_NoncanonicalTicketBytesStillRefused`
 or extra trailing LF, insignificant whitespace or an escape form as malformed and accepts the
 canonical bytes. LGL-V0-003 and the LGL-V0-004 hold reduction are evidenced by the
 before/after load and hold-profile reports in the build-log entry `docs/build-log/2026-10-24-tasks-lease-latency.md`.
+`TestLGLV0005_SkippedStagingSyncKeepsEveryOtherSync`
+(`internal/tasks/authority/staging_sync_skip_test.go`) runs one stage, link, slot removal, stage and
+replace cycle with and without the skip: the full session syncs staging four times and the skipping
+one never, with the same file and destination directory syncs, the same boundaries in the same order
+and the same published bytes, and `SyncCalls` equals the calls observed (LGL-V0-006).
+`TestLGLV0006_OnlyLivenessWritesSkipStagingSync`
+(`internal/tasks/store/lease_staging_sync_test.go`) counts 8 or 10 sync calls for a heartbeat and a
+renew and at least 16, four per artifact, for a claim and a release on both lease routes, with the
+audit passing; without the store wiring it fails with an 18-call heartbeat.
+`TestLGLV0007_LivenessStagingResidueIsAnOrphan` (same file) is the crash injection: after a
+heartbeat it restores the two slot names a crash can undo, as second links to the last receipt and
+to `head.json`, and shows that the audit verifies, the lease reads as acknowledged, the next heartbeat
+clears the residue and commits on the same attempt and generation, and a second holder's claim is
+not granted. `TestLGLV0008_LostLivenessTailIsRefusedNotAdopted` (same file) deletes or tears the
+heartbeat's receipt, or restores the pre-heartbeat head, and pins the `JOURNAL_FORKED`, `MALFORMED`
+and `REDO_PENDING` refusals that keep every artifact's own sync in force. The before/after
+`TestCALV0118_WriterHoldProfile` reports (linux/WSL2 ext4, under load) are in the build-log entry
+`docs/build-log/2026-10-24-tasks-heartbeat-staging-sync.md`; the 50 ms heartbeat median is NOT MET.
 
 ## Rollback
 
 revert the source; the guards again take the cleanup lock whenever staging is present
 and each observation opens its fdinfo file afresh; `loadTickets` again re-parses each decoded
-ticket and every hostile check decodes runes.
+ticket and every hostile check decodes runes; heartbeat and renew again sync the staging directory
+twice per published artifact. No stored state, wire format or receipt changes, so a store written with
+LGL-V0-005 reads unchanged under the reverted binary, and any staging residue is the orphan both
+binaries already clear.
