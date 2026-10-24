@@ -206,6 +206,8 @@ type sideProof struct {
 	Receipts            []string        `json:"receipts"`
 	Outcomes            []repeatOutcome `json:"outcomes"`
 	Stability           string          `json:"stability"`
+	// Loss is an unqualified pool's concrete loss (CCE-V0-116); absent for a qualified pool.
+	Loss *runLoss `json:"loss,omitempty"`
 }
 
 type repeatOutcome struct {
@@ -223,6 +225,9 @@ type controlProof struct {
 	Status     string   `json:"status"`
 	PlanDigest string   `json:"plan_digest,omitempty"`
 	Reasons    []string `json:"reasons"`
+	// LostAttempts are the attempts BBF read infrastructure_failed, each with its concrete
+	// loss (CCE-V0-116); absent when none was.
+	LostAttempts []runLoss `json:"lost_attempts,omitempty"`
 }
 
 // proveEnv is the validated toolchain shared by every run of one Prove call.
@@ -234,10 +239,10 @@ type proveEnv struct {
 	hook                             behaviorfalsify.Command
 	acceptances                      *oracleAcceptances // nil without an acceptance document
 	recordCoverage                   bool
-	// side runs one staged pool and returns its receipt and either the qualified receipt digest
-	// or the reason it has none; controls applies the CCE-V0-018 controls at head. Prove uses
+	// side runs one staged pool and returns its receipt, either the qualified receipt digest
+	// or the reason it has none, and the provider's run error; controls applies the CCE-V0-018 controls at head. Prove uses
 	// runQualified and runControls; the offline ladder tests substitute fakes (CCE-V0-028).
-	side     func(ctx context.Context, in runInput) (jstestprovider.Receipt, string, string)
+	side     func(ctx context.Context, in runInput) (jstestprovider.Receipt, string, string, error)
 	controls func(ctx context.Context, head string, sc Scenario, tree testTree, headReceipt jstestprovider.Receipt) []controlProof
 }
 
@@ -471,10 +476,10 @@ func proveToolchain(root string, o ProveOptions) (*proveEnv, error) {
 }
 
 // runQualified runs one pool through the Playwright provider and qualifies its receipt.
-func runQualified(ctx context.Context, in runInput) (jstestprovider.Receipt, string, string) {
+func runQualified(ctx context.Context, in runInput) (jstestprovider.Receipt, string, string, error) {
 	receipt, runErr := runPlaywright(ctx, in)
 	digest, reason := qualify(receipt, runErr, in.Repeats, treeRoots(in.Tree))
-	return receipt, digest, reason
+	return receipt, digest, reason, runErr
 }
 
 func playwrightVersion(modules string) (string, error) {
@@ -548,10 +553,11 @@ func (e *proveEnv) proveSide(ctx context.Context, app, test string, tt testTree,
 		return side, jstestprovider.Receipt{}
 	}
 	roots := treeRoots(tree)
-	receipt, digest, reason := e.side(ctx, runInput{Tree: tree, AppIdentity: app, Placement: sc.Placement, Repeats: repeats,
+	receipt, digest, reason, runErr := e.side(ctx, runInput{Tree: tree, AppIdentity: app, Placement: sc.Placement, Repeats: repeats,
 		NodeModules: e.nodeModules, RunnerVersion: e.runnerVersion, PackageJSON: e.packageJSON, Lockfile: e.lockfile, Timeout: sideTimeout,
 		Environment: e.environment, ServeBin: e.serveBin, ServePath: e.servePath, Grep: hostedGrep(sc), Record: recorder.recordFunc(), SessionEnv: sc.SessionEnv})
 	side.Qualified, side.Reason = reason == "", reason
+	side.Loss = sideLoss(reason, receipt, runErr, roots)
 	if digest != "" {
 		side.Receipts = append(side.Receipts, digest)
 	}
@@ -1144,6 +1150,7 @@ func controlResults(specs []controlSpec, digest string, report behaviorfalsify.R
 				if r.Status == behaviorfalsify.StatusInfrastructureFailed {
 					c.Reasons = append(c.Reasons, controlTeardown(r)...)
 				}
+				c.LostAttempts = controlLosses(r)
 			}
 		}
 		out = append(out, c)
@@ -1157,7 +1164,7 @@ func controlTeardown(r behaviorfalsify.ControlResult) []string {
 		if a.Receipt == nil || a.Receipt.Infrastructure == nil {
 			continue
 		}
-		if d := a.Receipt.Infrastructure.Detail; strings.HasPrefix(d, FailureTeardownFailed+" at ") && !slices.Contains(out, d) {
+		if d, _, _ := parseHookDetail(a.Receipt.Infrastructure.Detail); strings.HasPrefix(d, FailureTeardownFailed+" at ") && !slices.Contains(out, d) {
 			out = append(out, d)
 		}
 	}

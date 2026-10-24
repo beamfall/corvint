@@ -417,19 +417,44 @@ func requireOutcomes(t *testing.T, s sideProof, state string, atAssertion bool) 
 // requireVerdict asserts the verdict. The live tests skip only when the Playwright toolchain is
 // not configured; once it is, an unqualified receipt (the PWP attempt profile binds an exact Node
 // and browser tuple) fails the test rather than leaving the verdict unproved.
-func requireVerdict(t *testing.T, p scenarioProof, want string) {
+func requireVerdict(t testing.TB, p scenarioProof, want string) {
 	t.Helper()
 	if !p.Head.Qualified || !p.Base.Qualified {
-		t.Fatalf("receipts not qualified (head %q, base %q, verdict %s); %s not proved", p.Head.Reason, p.Base.Reason, p.Verdict, want)
+		t.Fatalf("receipts not qualified (head %q, base %q, verdict %s); %s not proved%s", p.Head.Reason, p.Base.Reason, p.Verdict, want, proofLosses(p))
 	}
 	if p.Verdict != want {
-		t.Fatalf("verdict = %s (%s), want %s", p.Verdict, p.Note, want)
+		t.Fatalf("verdict = %s (%s), want %s%s", p.Verdict, p.Note, want, proofLosses(p))
 	}
 	for _, c := range p.Controls {
 		if c.Status != "killed" {
-			t.Fatalf("control %s = %s %v", c.Kind, c.Status, c.Reasons)
+			t.Fatalf("control %s = %s %v%s", c.Kind, c.Status, c.Reasons, proofLosses(p))
 		}
 	}
+}
+
+// proofLosses renders each unqualified side's and each lost control attempt's CCE-V0-116 loss,
+// so a failed live verdict is diagnosable from the test log alone (V1-2620).
+func proofLosses(p scenarioProof) string {
+	var b strings.Builder
+	write := func(who string, l runLoss) {
+		fmt.Fprintf(&b, "\n  %s: reason=%q attempt_reasons=%q error_location=%q error_message=%q hook_process=%q",
+			who, l.Reason, l.AttemptReasons, l.ErrorLocation, l.ErrorMessage, l.HookProcess)
+	}
+	if p.Head.Loss != nil {
+		write("head side", *p.Head.Loss)
+	}
+	if p.Base.Loss != nil {
+		write("base side", *p.Base.Loss)
+	}
+	for _, c := range p.Controls {
+		for _, l := range c.LostAttempts {
+			write(fmt.Sprintf("%s attempt %d", c.ID, l.Attempt), l)
+		}
+	}
+	if b.Len() == 0 {
+		return ""
+	}
+	return "\nlost runs (CCE-V0-116):" + b.String()
 }
 
 // CCE-V0-008: the disposable tree reproduces no tracked link, so a chained link cannot carry later
