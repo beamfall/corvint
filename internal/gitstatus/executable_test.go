@@ -9,7 +9,7 @@ import (
 
 func TestExecutableFollowsPathChanges(t *testing.T) {
 	fake := t.TempDir()
-	script := filepath.Join(fake, "git")
+	script := filepath.Join(fake, gitFixtureName())
 	if err := os.WriteFile(script, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -45,13 +45,13 @@ func TestPinFixesExecutableAgainstLaterPathChanges(t *testing.T) {
 	t.Cleanup(unpin)
 	first, second := t.TempDir(), t.TempDir()
 	for _, directory := range []string{first, second} {
-		if err := os.WriteFile(filepath.Join(directory, "git"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		if err := os.WriteFile(filepath.Join(directory, gitFixtureName()), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
 	t.Setenv("PATH", first)
 	pinned, err := Pin()
-	if err != nil || pinned != filepath.Join(first, "git") {
+	if err != nil || pinned != filepath.Join(first, gitFixtureName()) {
 		t.Fatalf("Pin() = %q, %v", pinned, err)
 	}
 	t.Setenv("PATH", second)
@@ -66,6 +66,26 @@ func TestPinRefusesUnresolvedGit(t *testing.T) {
 	if pinned, err := Pin(); err == nil {
 		t.Fatalf("Pin() = %q, want refusal", pinned)
 	}
+}
+
+// TestExecutableKeyFollowsPathext pins that a PATHEXT change re-resolves Git:
+// on Windows exec.LookPath reads it to choose which `git.*` name matches.
+func TestExecutableKeyFollowsPathext(t *testing.T) {
+	t.Setenv("PATHEXT", ".EXE")
+	before := executableKey()
+	t.Setenv("PATHEXT", ".COM;.EXE")
+	if executableKey() == before {
+		t.Fatal("executable cache key ignores PATHEXT")
+	}
+}
+
+// gitFixtureName is the file name exec.LookPath("git") matches: on Windows it
+// accepts only names carrying a PATHEXT extension, so a bare `git` never resolves.
+func gitFixtureName() string {
+	if runtime.GOOS == "windows" {
+		return "git.exe"
+	}
+	return "git"
 }
 
 func unpin() {

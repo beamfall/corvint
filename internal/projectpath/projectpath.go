@@ -14,6 +14,8 @@ func Relative(root, path string) (string, bool) {
 	if path == "" {
 		return "", false
 	}
+	// Callers pass slash paths; Windows splitting below trims only the native separator.
+	path = filepath.FromSlash(path)
 	resolvedRoot, err := filepath.EvalSymlinks(root)
 	if err != nil {
 		return "", false
@@ -58,6 +60,7 @@ func resolve(root, path string, linksLeft int) (string, bool) {
 				if err != nil {
 					return "", false
 				}
+				target = filepath.FromSlash(target)
 				if !filepath.IsAbs(target) {
 					parent, _ := filepath.Split(path)
 					target = parent + target

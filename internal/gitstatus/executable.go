@@ -45,11 +45,11 @@ func Pin() (string, error) {
 // Executable returns the path to spawn for Git. It is the executable `git`
 // names on PATH, except that Apple's xcrun shim is resolved to the Git it would
 // execute, so each spawn runs the same binary without paying the shim again.
-// The result is memoised per PATH and DEVELOPER_DIR value; when `git` cannot be
+// The result is memoised per PATH, PATHEXT and DEVELOPER_DIR value; when `git` cannot be
 // resolved the literal name is returned so the spawn fails as it did before.
 // After Pin, it returns the pinned path.
 func Executable() string {
-	key := os.Getenv("PATH") + "\x00" + os.Getenv("DEVELOPER_DIR")
+	key := executableKey()
 	executableCache.Lock()
 	defer executableCache.Unlock()
 	if executableCache.pinned != "" {
@@ -61,6 +61,12 @@ func Executable() string {
 	value := resolveExecutable()
 	executableCache.key, executableCache.value = key, value
 	return value
+}
+
+// executableKey names every variable exec.LookPath or the Apple shim reads, so
+// a PATHEXT change on Windows re-resolves Git as a PATH change does.
+func executableKey() string {
+	return os.Getenv("PATH") + "\x00" + os.Getenv("PATHEXT") + "\x00" + os.Getenv("DEVELOPER_DIR")
 }
 
 func resolveExecutable() string {

@@ -106,7 +106,7 @@ func TestIndexCoversSpecsAndHeaders(t *testing.T) {
 		if filepath.Base(file) == "README.md" {
 			continue
 		}
-		path := filepath.ToSlash(strings.TrimPrefix(file, "../../"))
+		path := indexKey(file)
 		if !seen[path] {
 			t.Errorf("missing INDEX entry %s", path)
 		}
@@ -114,6 +114,12 @@ func TestIndexCoversSpecsAndHeaders(t *testing.T) {
 	if len(seen) != len(files)-1 {
 		t.Errorf("INDEX has %d unique entries, want %d specification files", len(seen), len(files)-1)
 	}
+}
+
+// indexKey turns a glob match under ../../ into its INDEX.json path. It converts
+// separators before trimming, since a Windows glob returns ..\..\docs\specs\x.md.
+func indexKey(file string) string {
+	return strings.TrimPrefix(filepath.ToSlash(file), "../../")
 }
 
 func checkDigest(t *testing.T, e entry, text string) {
