@@ -90,11 +90,25 @@ type DeclaredIsolation struct {
 	Reset               Command `json:"reset"`
 }
 
-// ServerIdentity is the server URL and application identity a reset/health hook reported.
+// ServerIdentity is a server URL and application identity with the source that established it
+// (BBF-V0-216).
 type ServerIdentity struct {
 	ServerURL           string `json:"server_url"`
 	ApplicationIdentity string `json:"application_identity"`
+	Source              string `json:"source"`
 }
+
+// Server identity sources (BBF-V0-216). The runner never contacts the server (BBF-V0-020), so every
+// identity it records is IdentityHookReported; IdentityObserved is reserved for an independent
+// probe of the server, which no profile performs yet.
+const (
+	IdentityObserved     = "observed"
+	IdentityHookReported = "hook-reported"
+	// IsolationHookReportedGap is the report-level coverage gap that keeps a declared isolation
+	// resting on any hook-reported identity below complete. It contains '/', which no control ID
+	// may contain, so it cannot collide with a criterion-level gap.
+	IsolationHookReportedGap = "isolation/hook-reported-identity"
+)
 
 // IsolationObservation records the reset before and the identity check after one attempt.
 type IsolationObservation struct {
@@ -300,7 +314,39 @@ func isolationIdentity(plan Plan, controlID string, attempt int, phase string, p
 	if Decode(raw, &report) != nil || report.Schema != IsolationObservationSchema || report.PlanDigest != plan.Digest || report.Phase != phase || report.ControlID != controlID || report.Attempt != attempt || len(report.ServerURL) > 4096 || len(report.ApplicationIdentity) > 4096 {
 		return nil
 	}
-	return &ServerIdentity{ServerURL: report.ServerURL, ApplicationIdentity: report.ApplicationIdentity}
+	return &ServerIdentity{ServerURL: report.ServerURL, ApplicationIdentity: report.ApplicationIdentity, Source: IdentityHookReported}
+}
+
+// hookReportedIsolation reports whether a plan's declared isolation rests on any identity that was
+// not independently observed, or on none at all; such a report carries IsolationHookReportedGap so
+// a forged hook identity can never yield a complete verdict (BBF-V0-216).
+func hookReportedIsolation(plan Plan, results []ControlResult) bool {
+	if plan.Request.Isolation == nil {
+		return false
+	}
+	observed := false
+	for _, result := range results {
+		for _, attempt := range result.Attempts {
+			if attempt.Isolation == nil {
+				continue
+			}
+			for _, identity := range []*ServerIdentity{attempt.Isolation.Before, attempt.Isolation.After} {
+				if identity == nil {
+					continue
+				}
+				if identity.Source != IdentityObserved {
+					return true
+				}
+				observed = true
+			}
+		}
+	}
+	return !observed
+}
+
+// declaredServer reports whether identity names the declared server, whatever its source.
+func declaredServer(identity ServerIdentity, isolation *DeclaredIsolation) bool {
+	return identity.ServerURL == isolation.ServerURL && identity.ApplicationIdentity == isolation.ApplicationIdentity
 }
 
 // isolationBytesVerify reports whether a retained phase stdout matches its recorded process digest
@@ -327,16 +373,15 @@ func isolationFailure(plan Plan, result AttemptResult) string {
 		}
 		return ""
 	}
-	declared := ServerIdentity{ServerURL: isolation.ServerURL, ApplicationIdentity: isolation.ApplicationIdentity}
 	observed := result.Isolation
 	switch {
 	case observed == nil || !processSucceeded(observed.ResetProcess) || observed.Before == nil:
 		return "isolation-reset-failed"
-	case *observed.Before != declared:
+	case !declaredServer(*observed.Before, isolation):
 		return "isolation-identity-drift"
 	case observed.VerifyProcess == nil || !processSucceeded(*observed.VerifyProcess) || observed.After == nil:
 		return "isolation-health-failed"
-	case *observed.After != declared:
+	case !declaredServer(*observed.After, isolation):
 		return "isolation-identity-drift"
 	}
 	return ""

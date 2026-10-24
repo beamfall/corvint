@@ -298,6 +298,22 @@ bounded caller commands, but it diagnoses suite interactions rather than criteri
   such a name no longer build. Evidence: `TestBBFV0215RepositoryRelativeUsesSlashSyntaxOnEveryHost` runs
   the Windows spellings on Linux; the native Windows rerun is NEEDS-HOST. Rollback: restore the
   native `filepath` check in `repositoryRelative`.
+- `BBF-V0-216`: (proposed; V1-2030, decision 0552) Every `ServerIdentity` an isolation observation
+  records carries `source`, `observed` or `hook-reported`. The runner never contacts the server
+  (BBF-V0-020), so every identity it derives from a reset/health hook report is `hook-reported`;
+  `observed` is reserved for an independent server probe, which no profile performs. A report
+  whose declared isolation rests on any identity that is not `observed`, or on none, MUST append
+  the report-level coverage gap `isolation/hook-reported-identity` after its criterion-level gaps
+  (BBF-V0-008); the `/` keeps it disjoint from every control ID. A forged hook that reports the
+  declared identity therefore still yields a kill whose report has a gap, so no consumer that
+  requires an empty gap list reads it as complete. `verify-receipt` recomputes the gap and
+  re-derives each identity with its source from retained bytes, so a receipt that drops the gap or
+  relabels an identity `observed` does not verify. Identity drift compares only `server_url` and
+  `application_identity`. Plans, reports and receipts without isolation are unchanged
+  (BBF-V0-023). Failure mode: an isolation receipt exported before this row records identities
+  without `source` and no longer verifies; re-run `execute-receipt`. Evidence:
+  `TestBBFV0216HookReportedIdentityCapsVerdict`. Rollback: drop `source` and the gap from
+  `isolationIdentity`, `hookReportedIsolation`, `Execute` and `recountReport`.
 
 ### Approval-bound evidence wire
 
@@ -426,6 +442,7 @@ default commands remain unchanged.
 | BBF-V0-029..033 | `internal/behaviorfalsify/profiles.go` (`validateProvider`, `runRSpecProvider`, `rspecReceipt`) and `plan.go` (`observationIDValid`) | `TestBBFV0029RSpecProviderPlanIsBounded`, `TestBBFV0030RSpecProviderEndToEnd`, `TestBBFV0031RSpecReportIsClosed`, `TestBBFV0032RSpecEvidenceReceiptIsRefused`, `TestBBFV0033LiveRSpecNegativeControls` |
 | BBF-V0-214 | `internal/behaviorfalsify/execute.go` (`stageVerified`), `profiles.go` (`runProvider`, `validateProvider`) | `TestBBFV0214ToolchainRunsVerifiedBytes`; limit: `TestBBFV0214LimitToolsRunInPlace` |
 | BBF-V0-215 | `internal/behaviorfalsify/plan.go` (`repositoryRelative`) | `TestBBFV0215RepositoryRelativeUsesSlashSyntaxOnEveryHost`; native Windows rerun NEEDS-HOST |
+| BBF-V0-216 | `internal/behaviorfalsify/profiles.go` (`isolationIdentity`, `hookReportedIsolation`, `declaredServer`), `execute.go` (`Execute`), `receipt.go` (`recountReport`) | `TestBBFV0216HookReportedIdentityCapsVerdict` |
 
 ## Unresolved decisions and promotion criteria
 

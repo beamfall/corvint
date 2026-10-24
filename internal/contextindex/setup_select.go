@@ -94,6 +94,11 @@ func SelectSetup(index *Index, specs []string) SetupSelection {
 			s.read[registry.declaration.Path] = registry.blob
 		}
 	}
+	// Whether a registry is written after its declaration decides whether
+	// it closes (NGI-V0-066), so every source the write scan read is an input.
+	for name, blob := range s.dialect.writeInputs {
+		s.read[name] = blob
+	}
 	for name := range index.Sources {
 		if path.Ext(name) == ".json" {
 			if text, valid, loaded := index.Sources[name].Text(); valid && loaded && strings.Contains(text, "application-map-manifest") {
@@ -281,12 +286,16 @@ func (s *setupSelector) lookup(site registrySite) {
 		if !declares {
 			continue
 		}
-		if registry.missing || registry.unresolved != 0 {
+		// A registry written after its declaration, or an entry whose
+		// constructor arguments may reach another module, does not close
+		// either (NGI-V0-066, NGI-V0-067).
+		if registry.missing || registry.unresolved != 0 || registry.written != 0 {
 			unclosed = true
 		}
 		for _, entry := range registry.entries {
 			if entry.key == site.key {
 				found = true
+				unclosed = unclosed || entry.arguments
 				s.follow(registry.declaration.Path, entry.binding.specifier, entry.line, "key "+site.key+":")
 			}
 		}

@@ -629,6 +629,7 @@ BBF-V0-032	docs/specs/browser-behavior-falsification-v0.md	(accepted under the o
 BBF-V0-033	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027) A live t	standing	2026-10-11; V1-2027
 BBF-V0-214	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2029) The go-t	standing	2026-10-11; V1-2029
 BBF-V0-215	docs/specs/browser-behavior-falsification-v0.md	(proposed; V1-2524) A plan's `contract_file`, `test_file`, `config_file` and Go	unrecorded	-
+BBF-V0-216	docs/specs/browser-behavior-falsification-v0.md	(proposed; V1-2030, decision 0552) Every `ServerIdentity` an isolation observati	unrecorded	-
 CAP-V0-001	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008)	standing	2026-10-11; V1-2008
 CAP-V0-002	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008) The	standing	2026-10-11; V1-2008
 CAP-V0-003	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008)	standing	2026-10-11; V1-2008
@@ -3953,6 +3954,9 @@ MCPV0-102	docs/specs/mcp-server-2026-07-28-v0.md	(owner request, 2026-10-23; ext
 MCPV0-103	docs/specs/mcp-server-2026-07-28-v0.md	(owner request, 2026-10-23; extends `MCPV0-100`; amends `MTV-V0-001`)	unrecorded	-
 MCPV0-104	docs/specs/mcp-server-2026-07-28-v0.md	(owner request, 2026-10-23) The three servers of `MCPV0-101..103` MUST answer	unrecorded	-
 MCPV0-105	docs/specs/mcp-server-2026-07-28-v0.md	(owner request, 2026-10-23) The receipt `text` that `MCPV0-104` returns MUST be,	unrecorded	-
+MCPV0-110	docs/specs/mcp-server-2026-07-28-v0.md	(proposed; owner decision 2 of 2026-10-24, V1-1003; extends `MCPV0-032`)	owner	2026-10-24; V1-1003
+MCPV0-111	docs/specs/mcp-server-2026-07-28-v0.md	(proposed; owner decision 2 of 2026-10-24, V1-1003; extends `MCPV0-024` with	owner	2026-10-24; V1-1003
+MCPV0-112	docs/specs/mcp-server-2026-07-28-v0.md	(proposed; owner decision 2 of 2026-10-24, V1-1003; amends `MCPV0-031`) An impac	owner	2026-10-24; V1-1003
 MCPV0-095	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2219) A `MIXED	standing	2026-10-11; V1-2219
 MTV-V0-001	docs/specs/mcp-test-validity-profile-v0.md	The profile MUST be served by the separate executable `corvint-test-validity-mcp	unrecorded	-
 MTV-V0-002	docs/specs/mcp-test-validity-profile-v0.md	The tool's input schema MUST be a closed JSON Schema 2020-12 object with two	unrecorded	-
@@ -4057,6 +4061,9 @@ NGI-V0-012	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing a
 NGI-V0-013	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1456) An entry	standing	2026-10-11; V1-1456
 NGI-V0-014	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1456) The	standing	2026-10-11; V1-1456
 NGI-V0-015	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1457) A call	standing	2026-10-11; V1-1457
+NGI-V0-065	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1478) A call	standing	2026-10-11; V1-1478
+NGI-V0-066	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1478) A write	standing	2026-10-11; V1-1478
+NGI-V0-067	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1478) An eager	standing	2026-10-11; V1-1478
 NGI-V0-016	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1674) A	standing	2026-10-11; V1-1674
 NGI-V0-017	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1674) Roots	standing	2026-10-11; V1-1674
 NGI-V0-018	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1674) For a	standing	2026-10-11; V1-1674
@@ -5375,6 +5382,7 @@ TSA-V0-004	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-005	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) The JSON output (schema	standing	2026-10-11; V1-1587
 TSA-V0-006	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1698 / GitHub #1082) A shared constant is	standing	2026-10-11; V1-1698; #1082
 TSA-V0-007	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1698 / GitHub #1082) A reached read of a	standing	2026-10-11; V1-1698; #1082
+TSA-V0-646	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; decision 0552; V1-1478) A spec's literal key	standing	2026-10-11; decision 0552; V1-1478
 TSA-V0-012	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1589) `corvint tests lint --base REV [--re	standing	2026-10-11; V1-1589
 TSA-V0-013	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1589) The rule set MUST be closed, with st	standing	2026-10-11; V1-1589
 TSA-V0-014	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1589) Every rule MUST have a positive fixt	standing	2026-10-11; V1-1589

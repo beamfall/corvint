@@ -251,7 +251,7 @@ Failure modes:
   path, ambiguous/duplicate/incomplete requirement, unsupported text, capture/time/count/byte
   overflow with typed errors and no partial view. The Go handoff's requirement and text codes are
   `ambiguous-requirement`, `unsupported-requirement`, `incomplete-boundary` and `unsupported-text`
-  (`cmd/corvint/source_handoff.go:478,491,509,469@b810edfe`). Preserve available packet metadata including
+  (`cmd/corvint/source_handoff.go:479,492,510,470@b810edfe`). Preserve available packet metadata including
   shortages, omissions, coverage and unknown fields. After a packet-size/parse refusal no decoded packet is available; disclose this
   instead of claiming metadata preservation. Supply a raw immutable Git recovery argv
   when a syntactically safe commit/path exists; otherwise declare fallback unavailable and why.
@@ -344,7 +344,7 @@ emitting site and states only the condition checked there.
 | `invalid-source-handoff-arguments` | `cmd/corvint/source_handoff.go:62` | the argument list does not contain exactly `--packet-out` followed by one output path |
 | `no-safe-immutable-handle` | `cmd/corvint/source_handoff.go:275` | no safe immutable fallback handle has been established, so the fallback argv is `nil` |
 | `raw-immutable-source` | `cmd/corvint/source_handoff.go:315` | a safe path and resolved repository root permit a raw immutable `git show` fallback argv |
-| `view-budget` | `cmd/corvint/source_handoff.go:276@37ae3a0a` | the source view byte budget is below 1 or above 16384 |
+| `view-budget` | `cmd/corvint/source_handoff.go:277@37ae3a0a` | the source view byte budget is below 1 or above 16384 |
 
 ## Native implementation status
 

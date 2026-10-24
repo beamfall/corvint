@@ -412,3 +412,48 @@ func TestSelectSetupSharedConstantOpenSetups(t *testing.T) {
 		t.Errorf("plain: mode=%s files=%v reasons=%+v", selection.Mode, selection.SetupFiles, selection.Reasons)
 	}
 }
+
+// TestSelectSetupRegistryKeyInSubstitution is TSA-V0-646: a literal key passed to an accessor
+// called inside a template substitution selects its setup file, while a registry written after
+// its declaration, or an entry whose constructor arguments are open, returns ALL.
+func TestSelectSetupRegistryKeyInSubstitution(t *testing.T) {
+	t.Parallel()
+	files := setupSelectFiles()
+	files["tests/templated.spec.ts"] = "import { DataProvider } from './data/provider';\nconst dp = new DataProvider();\n" +
+		"test('t', () => `seeded ${dp.createTestData('ctx:alpha')}`);\n"
+	build := func() *Index {
+		root := impactRepositoryWithFiles(t, files)
+		index, err := BuildRevisionContext(context.Background(), root, strings.TrimSpace(testGit(t, root, "rev-parse", "HEAD")))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return index
+	}
+	selection := SelectSetup(build(), []string{"tests/templated.spec.ts"})
+	if selection.Mode != "selected" || !reflect.DeepEqual(selection.SetupFiles, []string{"setup/alpha.setup.ts"}) {
+		t.Fatalf("mode=%s files=%v reasons=%+v", selection.Mode, selection.SetupFiles, selection.Reasons)
+	}
+	registry := files["tests/data/registry.ts"]
+	for _, text := range []string{
+		registry + "registry['ctx:alpha'] = 1;\n",
+		strings.Replace(registry, "new AlphaContext()", "new AlphaContext(seed)", 1),
+	} {
+		files["tests/data/registry.ts"] = text
+		selection := SelectSetup(build(), []string{"tests/templated.spec.ts"})
+		if selection.Mode != "all" || !reflect.DeepEqual(reasonCodes(selection), []string{"registry-unresolved"}) {
+			t.Errorf("mode=%s reasons=%+v", selection.Mode, selection.Reasons)
+		}
+	}
+	// A write in a source outside the traversed closure decides the mode, so
+	// that source is a digest input (TSA-V0-005; Codex review).
+	files["tests/data/registry.ts"] = registry
+	files["tests/mutate.ts"] = "import { registry } from './data/registry';\nexport const n = 1;\n"
+	unwritten := SelectSetup(build(), []string{"tests/templated.spec.ts"})
+	files["tests/mutate.ts"] = "import { registry } from './data/registry';\nexport const n = 2;\n"
+	edited := SelectSetup(build(), []string{"tests/templated.spec.ts"})
+	files["tests/mutate.ts"] = "import { registry } from './data/registry';\nregistry.extra = 1;\n"
+	written := SelectSetup(build(), []string{"tests/templated.spec.ts"})
+	if unwritten.Mode != "selected" || edited.Mode != "selected" || written.Mode != "all" || unwritten.InputDigest == edited.InputDigest {
+		t.Errorf("modes %s %s %s; the scanned source's edit kept digest %s", unwritten.Mode, edited.Mode, written.Mode, edited.InputDigest)
+	}
+}

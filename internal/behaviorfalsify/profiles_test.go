@@ -226,7 +226,7 @@ func TestBBFV0022IsolationEvidenceReceipt(t *testing.T) {
 	t.Run("BBF-V0-022 rewriting a drifted identity cannot forge a kill", func(t *testing.T) {
 		tampered := r
 		tampered.Report.Results = slices.Clone(r.Report.Results)
-		declared := ServerIdentity{ServerURL: plan.Request.Isolation.ServerURL, ApplicationIdentity: plan.Request.Isolation.ApplicationIdentity}
+		declared := ServerIdentity{ServerURL: plan.Request.Isolation.ServerURL, ApplicationIdentity: plan.Request.Isolation.ApplicationIdentity, Source: IdentityHookReported}
 		forged := false
 		for i, control := range plan.Controls {
 			result := &tampered.Report.Results[i]
@@ -290,6 +290,86 @@ func TestBBFV0023LegacyWireIsByteIdentical(t *testing.T) {
 		encoded, err := Encode(report)
 		if err != nil || bytes.Contains(encoded, []byte(`"isolation"`)) || bytes.Contains(encoded, []byte(`"provider`)) {
 			t.Fatalf("legacy report encodes profile fields: %v", err)
+		}
+	})
+}
+
+// TestBBFV0216HookReportedIdentityCapsVerdict covers BBF-V0-216: the test hook forges the
+// declared identity without any server existing, and the kill it yields still carries the
+// hook-reported source and a report-level gap, so the verdict stays below complete; a receipt that
+// relabels the identity observed or drops the gap does not verify.
+func TestBBFV0216HookReportedIdentityCapsVerdict(t *testing.T) {
+	request, _ := isolationRequest(t, []ControlSpec{liveControl(t, "ok", "killed")})
+	plan, err := BuildPlan(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := ExecuteReceipt(context.Background(), plan, plan.Digest, receiptTool())
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := r.Report
+	t.Run("BBF-V0-216 a forged hook identity is labelled hook-reported", func(t *testing.T) {
+		observation := report.Results[0].Attempts[0].Isolation
+		if report.Results[0].Status != StatusKilled || observation == nil || observation.Before == nil || observation.After == nil ||
+			observation.Before.Source != IdentityHookReported || observation.After.Source != IdentityHookReported {
+			t.Fatalf("result = %+v", report.Results[0])
+		}
+		encoded, err := Encode(observation)
+		if err != nil || !bytes.Contains(encoded, []byte(`"source":"hook-reported"`)) {
+			t.Fatalf("isolation wire lacks the identity source: %s %v", encoded, err)
+		}
+	})
+	t.Run("BBF-V0-216 a hook-only identity caps the verdict below complete", func(t *testing.T) {
+		if !report.MutationScore.Defined || report.MutationScore.Killed != report.MutationScore.Denominator ||
+			!slices.Equal(report.CoverageGaps, []string{IsolationHookReportedGap}) || idPattern.MatchString(IsolationHookReportedGap) {
+			t.Fatalf("score %+v gaps %v", report.MutationScore, report.CoverageGaps)
+		}
+		if err := VerifyReceipt(r, plan.Digest, receiptTool().Executable); err != nil {
+			t.Fatal(err)
+		}
+	})
+	reseal := func(tampered EvidenceReceipt) EvidenceReceipt {
+		tampered.Report.Digest = digestJSON(tampered.Report)
+		tampered.Digest = evidenceDigest(tampered)
+		return tampered
+	}
+	t.Run("BBF-V0-216 dropping the gap does not verify", func(t *testing.T) {
+		tampered := r
+		tampered.Report.CoverageGaps = nil
+		if err := VerifyReceipt(reseal(tampered), plan.Digest, receiptTool().Executable); err == nil {
+			t.Fatal("receipt without the hook-reported identity gap verified")
+		}
+	})
+	t.Run("BBF-V0-216 relabelling the identity observed does not verify", func(t *testing.T) {
+		tampered := r
+		tampered.Report.Results = slices.Clone(r.Report.Results)
+		result := &tampered.Report.Results[0]
+		result.Attempts = slices.Clone(result.Attempts)
+		observation := *result.Attempts[0].Isolation
+		before, after := *observation.Before, *observation.After
+		before.Source, after.Source = IdentityObserved, IdentityObserved
+		observation.Before, observation.After = &before, &after
+		result.Attempts[0].Isolation = &observation
+		recountReport(&tampered.Report, plan)
+		if len(tampered.Report.CoverageGaps) != 0 {
+			t.Fatalf("observed identities kept the gap: %v", tampered.Report.CoverageGaps)
+		}
+		if err := VerifyReceipt(reseal(tampered), plan.Digest, receiptTool().Executable); err == nil {
+			t.Fatal("receipt relabelling a hook-reported identity observed verified")
+		}
+	})
+	t.Run("BBF-V0-216 a plan without isolation has no identity gap", func(t *testing.T) {
+		legacy, err := BuildPlan(liveRequest(t, []ControlSpec{liveControl(t, "ok", "killed")}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		plain, err := Execute(context.Background(), legacy, legacy.Digest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if plain.Results[0].Status != StatusKilled || len(plain.CoverageGaps) != 0 {
+			t.Fatalf("legacy report = %+v", plain)
 		}
 	})
 }

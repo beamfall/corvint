@@ -703,3 +703,149 @@ func TestRegistryDialectAmbientRequireIsLoader(t *testing.T) {
 		}
 	}
 }
+
+// TestRegistryDialectAccessorInsideSubstitution is NGI-V0-065: an accessor
+// called inside a template substitution is a call site like any other, a
+// literal key there selects precisely, and a template argument whose own
+// substitution supplies the key stays non-literal, nested or not.
+func TestRegistryDialectAccessorInsideSubstitution(t *testing.T) {
+	t.Parallel()
+	files := registryIssueFiles()
+	files["tests/report.spec.ts"] = "import { DataProvider } from './data/provider';\n" +
+		"const dp = new DataProvider();\n" +
+		"test('report', () => console.log(`made ${\n  dp.createTestData('ctx:beta')\n} ok`));\n"
+	receipt := registryImpact(t, files, "src/contexts/beta.ts")
+	rows := registryRows(receipt)
+	if len(rows) != 2 || !hasEvidence(rows["tests/report.spec.ts"], "tests/report.spec.ts", 4, "high") ||
+		!hasEvidence(rows["tests/report.spec.ts"], "tests/data/registry.ts", 7, "high") {
+		t.Fatalf("rows = %v, want beta.spec and report.spec with the substitution's call line", rows)
+	}
+	if found := registryUnknownRows(receipt, "accessor-key-nonliteral"); len(found) != 0 {
+		t.Errorf("a literal key inside a substitution is not open: %v", found)
+	}
+	if rows := registryRows(registryImpact(t, files, "src/contexts/alpha.ts")); rows["tests/report.spec.ts"] != nil {
+		t.Errorf("rows = %v: report.spec passes ctx:beta only", rows)
+	}
+	files["tests/nested.spec.ts"] = "import { DataProvider } from './data/provider';\n" +
+		"const dp = new DataProvider();\n" +
+		"const n = 'alpha';\n" +
+		"test('n', () => `${dp.createTestData(`ctx:${n}`)}`);\n" +
+		"test('m', () => `${dp.createTestData(`${'ctx'}:alpha`)}`);\n" +
+		"test('o', () => dp.createTestData(`${'ctx:alpha'}`));\n"
+	receipt = registryImpact(t, files, "src/contexts/gamma.ts")
+	if !hasEvidence(registryRows(receipt)["tests/nested.spec.ts"], "tests/nested.spec.ts", 4, "medium") {
+		t.Errorf("rows = %v, want nested.spec widened", registryRows(receipt))
+	}
+	found := registryUnknownRows(receipt, "accessor-key-nonliteral")
+	if len(found) != 1 || found[0]["count"] != 3 {
+		t.Errorf("unknowns = %v, want accessor-key-nonliteral count 3", found)
+	}
+}
+
+// TestRegistryDialectWrittenAfterDeclarationWidens is NGI-V0-066: an
+// assignment, compound assignment, `delete`, `++`, or write call on the
+// registry after its declaration, in the declaring file or through an
+// import, widens every caller with registry-written-after-declaration; reads,
+// comparisons and type queries do not.
+func TestRegistryDialectWrittenAfterDeclarationWidens(t *testing.T) {
+	t.Parallel()
+	declared := registryIssueFiles()["tests/data/registry.ts"]
+	reads := "import { registry } from './data/registry';\n" +
+		"type K = keyof typeof registry;\n" +
+		"const same = registry == null || registry['ctx:alpha'] === undefined || registry.x <= 1;\n" +
+		"const f = (registry: unknown) => registry;\n" +
+		"test('reads', () => ({ ...registry, registry }));\n"
+	files := registryIssueFiles()
+	files["tests/reads.spec.ts"] = reads
+	receipt := registryImpact(t, files, "src/contexts/alpha.ts")
+	if found := registryUnknownRows(receipt, "registry-written-after-declaration"); len(found) != 0 {
+		t.Fatalf("reads count as writes: %v", found)
+	}
+	if rows := registryRows(receipt); len(rows) != 1 {
+		t.Fatalf("rows = %v, want only alpha.spec", rows)
+	}
+	for _, tc := range []struct {
+		name, path, text string
+		count            int
+	}{
+		{"member assign", "tests/data/registry.ts", declared + "registry['ctx:alpha'] = new GammaContext();\n", 1},
+		{"compound and delete", "tests/data/registry.ts", declared + "registry.extra ??= 1;\ndelete registry['ctx:beta'];\n", 2},
+		{"object assign", "tests/write.spec.ts", "import { registry as r } from './data/registry';\nObject.assign(r, { 'ctx:alpha': 1 });\n", 1},
+		{"namespace and increment", "tests/write.spec.ts", "import * as data from './data/registry';\ndata.registry.count++;\nReflect.set(data.registry, 'k', 1);\n", 2},
+		// A default import spells the module, not the export (Codex review).
+		{"default import of a differently named export", "tests/write.spec.ts", "import r from './data/registry';\nr.extra = 1;\n", 1},
+	} {
+		files := registryIssueFiles()
+		if strings.HasPrefix(tc.name, "default import") {
+			renameRegistryExport(files, "table")
+		}
+		files[tc.path] = tc.text
+		files["tests/reads.spec.ts"] = reads
+		receipt := registryImpact(t, files, "src/contexts/alpha.ts")
+		found := registryUnknownRows(receipt, "registry-written-after-declaration")
+		if len(found) != 1 || found[0]["count"] != tc.count || found[0]["registry"] != "tests/data/registry.ts" {
+			t.Errorf("%s: unknowns = %v, want registry-written-after-declaration count %d", tc.name, found, tc.count)
+		}
+		rows := registryRows(receipt)
+		for _, spec := range []string{"tests/alpha.spec.ts", "tests/beta.spec.ts", "tests/gamma.spec.ts"} {
+			if rows[spec] == nil {
+				t.Errorf("%s: rows = %v, want widened caller %s", tc.name, rows, spec)
+			}
+		}
+		if !hasEvidence(rows["tests/beta.spec.ts"], "tests/beta.spec.ts", 3, "medium") {
+			t.Errorf("%s: beta.spec evidence = %v", tc.name, rows["tests/beta.spec.ts"])
+		}
+		// The written registry may reach any JS/TS path, and no Ruby path.
+		files["lib/other.rb"] = "class Other; end\n"
+		if found := registryUnknownRows(registryImpact(t, files, "lib/other.rb"), "registry-written-after-declaration"); len(found) != 0 {
+			t.Errorf("%s: a Ruby changed path carries %v", tc.name, found)
+		}
+	}
+}
+
+// TestRegistryDialectConstructorArgumentsOpen is NGI-V0-067: an eager
+// `new X(args)` entry whose arguments are identifiers may hand another module
+// to the instance, so a change to any JS/TS path selects the callers passing
+// that key and names the registry; literal arguments stay closed and the
+// precise X edge stays.
+func TestRegistryDialectConstructorArgumentsOpen(t *testing.T) {
+	t.Parallel()
+	files := registryIssueFiles()
+	files["src/config.ts"] = "export const config = { url: 'x' };\n"
+	files["src/other.ts"] = "export const other = 1;\n"
+	files["tests/data/registry.ts"] = "import { AlphaContext } from '../../src/contexts/alpha';\n" +
+		"import Beta from '../../src/contexts/beta';\n" +
+		"import * as ctx from '../../src/contexts/gamma';\n" +
+		"import { config } from '../../src/config';\n" +
+		"export const registry: Record<string, unknown> = {\n" +
+		"  'ctx:alpha': new AlphaContext(config),\n" +
+		"  \"ctx:beta\": Beta,\n" +
+		"  [`ctx:gamma`]: new ctx.GammaContext('seed', 2, true, null) as unknown,\n" +
+		"};\n"
+	receipt := registryImpact(t, files, "src/other.ts")
+	found := registryUnknownRows(receipt, "registry-constructor-arguments-open")
+	if len(found) != 1 || found[0]["count"] != 1 || found[0]["registry"] != "tests/data/registry.ts" {
+		t.Fatalf("unknowns = %v, want registry-constructor-arguments-open count 1", receipt["unknowns"])
+	}
+	rows := registryRows(receipt)
+	if len(rows) != 1 || !hasEvidence(rows["tests/alpha.spec.ts"], "tests/alpha.spec.ts", 4, "medium") {
+		t.Errorf("rows = %v, want only alpha.spec widened through its key", rows)
+	}
+	rows = registryRows(registryImpact(t, files, "src/contexts/alpha.ts"))
+	if !hasEvidence(rows["tests/alpha.spec.ts"], "tests/data/registry.ts", 6, "high") {
+		t.Errorf("the precise X edge stays: %v", rows["tests/alpha.spec.ts"])
+	}
+	files["tests/data/registry.ts"] = strings.Replace(files["tests/data/registry.ts"], "AlphaContext(config)", "AlphaContext('x', 1)", 1)
+	if found := registryUnknownRows(registryImpact(t, files, "src/other.ts"), "registry-constructor-arguments-open"); len(found) != 0 {
+		t.Errorf("literal arguments are closed: %v", found)
+	}
+}
+
+// renameRegistryExport renames the fixture registry's export so no importer
+// spells it through the module path.
+func renameRegistryExport(files map[string]string, export string) {
+	files["corvint/appmap.json"] = registryManifest(registryDeclaration("tests/data/registry.ts", export, "createTestData"))
+	files["tests/data/registry.ts"] = strings.Replace(files["tests/data/registry.ts"], "export const registry:", "export const "+export+":", 1) +
+		"export default " + export + ";\n"
+	files["tests/data/provider.ts"] = strings.ReplaceAll(strings.Replace(files["tests/data/provider.ts"], "{ registry }", "{ "+export+" }", 1), "return registry[", "return "+export+"[")
+}
