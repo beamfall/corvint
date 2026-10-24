@@ -66,4 +66,14 @@ rehearsal follows.
 
 ### Rehearsal
 
-NOT_RUN at the time of writing; see the next section once recorded.
+Run on Darwin arm64 (go1.27.3) from the clean lane worktree at commit `a94be9e5c`, into a
+scratch bin directory, not `~/.local/bin`:
+
+- Install: `script/install-cem-verifiers.sh --bin-dir <scratch>` built both tools and installed
+  them, then printed `MATCH a94be9e5c393e82e8e2c643912eb7ff45fa19929`. It took 8.4 s wall time.
+- `--check` on the same directory printed `MATCH`, exit 0.
+- Stale consumer: replacing the scratch `cem01-go` with the operator's installed one (built from
+  `ec41e4e9c`) made `--check` print `MISMATCH corvint=a94be9e5c... cem01-go=ec41e4e9c...`,
+  exit 1. This is the V1-1761 condition, named before the gate runs.
+- `--check` against `~/.local/bin` (read-only) printed `MATCH ec41e4e9c...`. The installed pair
+  is current, so nothing was reinstalled there.
