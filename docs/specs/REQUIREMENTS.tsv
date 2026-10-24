@@ -2832,6 +2832,9 @@ DCP-V1-503	docs/specs/documentation-corpus-v1.md	(proposed, experimental; GitHub
 DCP-V1-504	docs/specs/documentation-corpus-v1.md	(proposed, experimental; GitHub #1662; owner acceptance open) The provider recor	unrecorded	-
 DCP-V1-505	docs/specs/documentation-corpus-v1.md	(proposed, experimental; GitHub #1662; owner acceptance open) A caller-profile	unrecorded	-
 DCP-V1-506	docs/specs/documentation-corpus-v1.md	(proposed, experimental; GitHub #1662; owner acceptance open) `extract` takes	unrecorded	-
+DCP-V1-520	docs/specs/documentation-corpus-v1.md	(proposed, experimental; GitHub #1662; owner acceptance open) A glob in an	unrecorded	-
+DCP-V1-521	docs/specs/documentation-corpus-v1.md	(proposed, experimental; GitHub #1662; owner acceptance open) The walk descends	unrecorded	-
+DCP-V1-522	docs/specs/documentation-corpus-v1.md	(proposed, experimental; GitHub #1662; owner acceptance open) The walk keeps	unrecorded	-
 DCP-V1-054	docs/specs/documentation-corpus-v1.md	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-

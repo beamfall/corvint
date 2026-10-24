@@ -2932,6 +2932,44 @@ derived from indexed inputs (#1665 rows 3 and 5). The compact per-file anchor ta
 specified in their own sections; no producer writes the compact `/2` record yet (V1-2547), and
 release notes naming the merges that change the derivation version remain owner work (V1-2545).
 
+### Extraction enumeration of large revisions (GitHub #1662 residual)
+
+`docs corpus extract` walked the revision one Git operation per tree, so a revision with more
+than about 1,000 directories exhausted the 1,024-operation budget (`git-budget-exceeded`) before
+any file was read. Status for `DCP-V1-520..522`: proposed, experimental; GitHub #1662; owner
+acceptance open.
+
+- `DCP-V1-520`: (proposed, experimental; GitHub #1662; owner acceptance open) A glob in an
+  extractor's `files` resolves against one verified walk of the revision that costs one Git
+  operation to pin the commit and its self-hashed root tree plus one `cat-file --batch` per
+  directory level, whose records must self-hash and carry the OID their verified parent names.
+  The walk lists every non-tree entry (symlinks and gitlinks stay listed and become gaps when
+  read, `DCP-V1-395`), exactly as `ls-tree -r` would, independent of how many directories the
+  revision holds. Acceptance: `TestDCPV1520RevisionPathsMatchesLsTreeWithinOneOpPerLevel`,
+  `TestDCPV1520RevisionPathsOpsIndependentOfDirectoryCount`,
+  `TestDCPV1520ExtractionEnumeratesMoreThan1024Directories`.
+- `DCP-V1-521`: (proposed, experimental; GitHub #1662; owner acceptance open) The walk descends
+  only into a directory below which some glob can match: until a glob's first `**` segment each
+  glob segment must match exactly one directory segment, and the glob's last segment names a file
+  below the directory. Directories named `node_modules` stay pruned. Pruning never removes a path
+  a glob matches. Acceptance: `TestDCPV1521ExtractorGlobPruningIsSound`,
+  `TestDCPV1521RevisionPathsPrunesRejectedSubtrees`,
+  `TestDCPV1520ExtractionEnumeratesMoreThan1024Directories`.
+- `DCP-V1-522`: (proposed, experimental; GitHub #1662; owner acceptance open) The walk keeps
+  explicit bounds and refuses before it reads the next level: 400,000 listed tree entries
+  (`affected.MaxWalkEntries`), `MaxPathSetTreeBytes` of tree output (`git-output-exceeded`) and
+  `MaxTreeDepth` levels, and an unpinned revision is refused before any Git operation. Extraction
+  reports every refusal as `corpus-refused` with `extraction cannot enumerate the revision`.
+  Acceptance: `TestDCPV1522RevisionPathsRefusesPastItsBounds`.
+
+These rows change no inventory, profile, provider record or artifact format and add no cache,
+option or persisted state; a revision that extracted before yields the same inventory bytes.
+Failure modes: a tree object that does not self-hash or is not the one its parent names refuses
+the extraction; a revision past a bound is refused rather than listed in part. The per-extractor
+4,096-file record bound (`MaxRecords`) still applies to the matched files. Rollback restores the
+per-tree `RevisionFS` walk in `extractorTree`. Timing on linux/WSL2 is retained in
+`docs/build-log/2026-10-24-corpus-extract-enumeration.md`.
+
 ## Input and authority boundary
 
 ### Experimental behavior contracts (issue 40)
@@ -3631,6 +3669,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-474 | `internal/mcp/corpusbridge/eval.go`, `corpusbridge.go` | `TestDCPV1474EvalSuiteObservesOnce`, `TestDCPV1251EvalScoresThroughTheMCPToolPath`; measured in docs/build-log/2026-10-24-corpus-diagnostics-and-ranking.md |
 | DCP-V1-475..477 | `internal/doccorpus/search_rank.go`, `search_phrase.go`, `typed_query.go` | `TestDCPV1475PhraseAndIdentifierMatchesRankFirst`, `TestDCPV1476ClaimTextMatchesInflections`, `TestDCPV1477MeaningfulTieBreaks`, `TestDCPV1404SearchRankingEvalFixture` |
 | DCP-V1-478, DCP-V1-503..506 | `internal/doccorpus/extractor.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `docs.go` | `TestDCPV1478CallerProfileExtractsLikeTheCommittedProfile`, `TestDCPV1478CallerProfileRequiresAMatchingDigest`, `TestDCPV1478CallerProfileDirectorySwapIsRefused`, `TestDCPV1478CallerProfileUnsupportedPlatformIsRefused`, `TestDCPV1503CallerProfileProvenanceIsRecorded`, `TestDCPV1503CallerProfileWithNoSubjectsKeepsItsDigest`, `TestDCPV1504CallerProfileProviderRecordBuildsUnchanged`, `TestDCPV1505CallerProfileExtractionIsReadOnly`, `TestDCPV1506DocsCorpusExtractCallerProfileCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusHelpListsOperations`, `TestCAPV0019CommittedCatalogMatchesTheBinary` |
+| DCP-V1-520..522 | `internal/cem/gitauth/revision_paths.go`, `internal/doccorpus/extractor.go` | `TestDCPV1520RevisionPathsMatchesLsTreeWithinOneOpPerLevel`, `TestDCPV1520RevisionPathsOpsIndependentOfDirectoryCount`, `TestDCPV1520ExtractionEnumeratesMoreThan1024Directories`, `TestDCPV1521ExtractorGlobPruningIsSound`, `TestDCPV1521RevisionPathsPrunesRejectedSubtrees`, `TestDCPV1522RevisionPathsRefusesPastItsBounds`; measured in docs/build-log/2026-10-24-corpus-extract-enumeration.md |
 | DCP-V1-468 | `internal/doccorpus/artifact_decode.go`, `query_index_fast.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1419FastIndexMatchesReference` |
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-487..489 | `internal/doccorpus/compact_anchor.go`, `shards.go`, `encoding.go` | `TestDCPV1487CompactAnchorTableEquivalent`, `TestDCPV1488CompactAnchorRefusals`, `TestDCPV1489CompactAnchorSizeMeasured`; measured in docs/build-log/2026-10-24-corpus-compact-anchor-table.md |
