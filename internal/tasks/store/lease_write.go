@@ -783,22 +783,26 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 	write := time.Now()
 	session, err := authority.NewSession(repo, lock)
 	if err != nil {
-		timing.wrote(write, 0)
+		timing.wrote(write, 0, 0)
 		return err
 	}
 	defer func() {
 		cleanup := session.Close()
-		timing.wrote(write, session.SyncDuration())
+		timing.wrote(write, session.SyncDuration(), session.SyncCalls())
 		if cleanup != nil {
 			err = errors.Join(err, cleanup)
 		}
 	}()
 	if p.pending {
+		// Another write's redo keeps every sync, whatever request found it.
 		if err := redoLeaseProof(repo, session, p.proof); err != nil {
 			return err
 		}
 		report.Redone = true
 		return nil
+	}
+	if transaction.LivenessLease(request) {
+		session.SkipStagingSync() // LGL-V0-005 proposed
 	}
 	if err := p.guard.CheckEvents(); err != nil {
 		return err

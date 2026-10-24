@@ -78,15 +78,45 @@ func (graph *Graph) taskState(unknown []Unknown) ([]NonSource, []Unknown) {
 
 // named reports whether any unit's path literal resolves to path or any
 // unit's declared read scope holds it, regardless of what else reached it.
+// A literal names a projection file only through its whole file name
+// (namesFile, AFP-V0-088 (2)): a directory fragment such as `/tickets/` or
+// `.taskman/`, or a file-name fragment such as the `.taskman/tickets/V1-` of
+// a formatted literal, names a family of records, not this one.
 func (graph *Graph) named(path string, tokens [][]pathToken) bool {
 	parts := strings.Split(path, "/")
 	for i, id := range graph.order {
-		if namesAny(tokens[i], parts) && graph.resolves(id, path) {
+		if namesFileAny(tokens[i], parts) && graph.resolves(id, path) {
 			return true
 		}
 		unit := graph.units[id]
 		files := append(append([]string(nil), unit.Sources...), unit.Tests...)
 		if unit.ReadScoped && len(files) != 0 && inDeclaredScope(relativeDirectory(files[0]), unit.ReadScope, path) {
+			return true
+		}
+	}
+	return false
+}
+
+func namesFileAny(tokens []pathToken, parts []string) bool {
+	for _, token := range tokens {
+		if token.namesFile(parts) {
+			return true
+		}
+	}
+	return false
+}
+
+// namesFile reports whether one of the token's component runs matches the
+// split path's last components and ends at its whole file name: a run whose
+// last component is only a prefix of the file name (a literal concatenated
+// with a variable or a format verb) does not name the file (AFP-V0-088 (2)).
+func (token pathToken) namesFile(parts []string) bool {
+	for _, candidate := range token.runs {
+		offset := len(parts) - len(candidate.components)
+		if offset < 0 || candidate.components[len(candidate.components)-1] != parts[len(parts)-1] {
+			continue
+		}
+		if candidate.matchesAt(parts[offset:]) {
 			return true
 		}
 	}

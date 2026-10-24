@@ -30,10 +30,11 @@ Goals
    claims that omitted tests are safe to skip.
    For changed paths instead of a base, pass them all in one call (repeat
    --path, or list them with --paths-from FILE): one call builds the graph
-   once. On a large tree, also pass --cache DIR, a private directory outside
-   the repository, so repeated calls on an unchanged checkout reuse the
-   verified graph; the plan is the same with or without it. Without --cache
-   every call builds the graph again.
+   once. Repeated calls on an unchanged checkout reuse the verified graph from
+   a private cache under the user cache directory, outside
+   the repository; the plan is the same with or without it. Pass --cache DIR
+   to keep it elsewhere, or --no-cache to build the graph on every call;
+   `corvint affected cache` shows where the cache is and how large it is.
 
 4. Select Playwright tests in two steps
    Step 1: list the whole suite yourself, unfiltered and unsharded, with

@@ -288,3 +288,15 @@ The probe remains the interim liveness route, tightened on 2026-10-20 after the 
 
 - Total: about 4,950 Go lines and about 3,650 test lines.
 - T1 needs S1, S2 and S3. T2 needs S3 (and S6 for widen rounds). T3 needs S6.
+
+## Amendment (2026-10-24): F2 for heartbeat and renew
+
+The owner decision of 2026-10-24 for V1-2203 ("heartbeat fsync floor") amends F2 for heartbeat and
+renew only: their receipts may commit without their own fsync. Claim, submit, gate, complete,
+release and every authority-bearing write keep every sync.
+
+The delivered change uses that allowance only for the staging directory. A heartbeat or renew
+session skips its staging-directory sync calls and keeps every file sync and every destination
+directory sync (LGL-V0-005 to 007). Skipping a receipt's own sync would leave lost or torn tails
+that the store refuses as a fork rather than adopts as an older heartbeat, so it is not implemented
+(LGL-V0-008). See `docs/build-log/2026-10-24-tasks-heartbeat-staging-sync.md`.

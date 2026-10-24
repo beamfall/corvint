@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-01
 Requirement prefix: `AFP-V0`
-Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-009 amended by the owner (decision 0531; V1-0682); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361); AFP-V0-049 accepted under the owner's standing auto-accept (2026-10-11; V1-1371); AFP-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-1298); AFP-V0-023 and AFP-V0-050 amended by the owner (decision 0528; V1-1399, V1-1400), and (3) reworded by the owner (decision 0529; V1-1425); AFP-V0-051 accepted under the owner's standing auto-accept (2026-10-11; V1-1351); AFP-V0-053 accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat); AFP-V0-029/030 amended by the owner for the `INFRA` row class (decision 0537; V1-1514); AFP-V0-029 shadow bar amended by the owner to count the whole epoch (owner chat, 2026-10-20; V1-0812); AFP-V0-052 accepted under the owner's standing auto-accept (2026-10-11; V1-1514); AFP-V0-054 accepted under the owner's standing auto-accept (2026-10-11; V1-1719); AFP-V0-066 accepted under the owner's standing auto-accept (2026-10-11; V1-1796; GitHub #1130); AFP-V0-072 accepted under the owner's standing auto-accept (2026-10-11; V1-1806); AFP-V0-079/080/081/082 accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); AFP-V0-060 accepted by the owner (owner chat, 2026-10-18; V1-1096); AFP-V0-088 accepted under the owner's standing auto-accept (2026-10-11; V1-2049); AFP-V0-016/024/027/028 amended by them; AFP-V0-150/151/152/153/154/155 accepted under the owner's standing auto-accept (2026-10-11; V1-1087, V1-0875, V1-1820, V1-2070, V1-0996, V1-1005); AFP-V0-029/030 amended and AFP-V0-097/098/099 decided by the orchestrator under owner delegation (owner chat, 2026-10-20; V1-0812); AFP-V0-316 accepted under the owner's standing auto-accept (2026-10-11; V1-2169); AFP-V0-160/161 accepted, and AFP-V0-023 amended for rule (c) by AFP-V0-161, under the owner's standing auto-accept (2026-10-11; V1-0923, V1-1766/V1-2069); AFP-V0-356 accepted under the owner's standing auto-accept (2026-10-11; V1-2053); AFP-V0-156 accepted under the owner's standing auto-accept (2026-10-11; V1-2162); AFP-V0-162 accepted under the owner's standing auto-accept (2026-10-11; V1-2256, V1-2252); AFP-V0-196 accepted, amending AFP-V0-009, under the owner's standing auto-accept (2026-10-11; V1-2071); AFP-V0-181 to AFP-V0-186 accepted under the owner's standing auto-accept (2026-10-11; V1-2050); AFP-V0-187 to AFP-V0-191 accepted, and AFP-V0-008, AFP-V0-031 and AFP-V0-182 amended by them, under the owner's standing auto-accept (2026-10-11; V1-2297, V1-2296, V1-0874, V1-0922); AFP-V0-163/164 accepted under the owner's standing auto-accept (2026-10-11; V1-2113, V1-1752); AFP-V0-201 accepted under the owner's standing auto-accept (2026-10-11; V1-2348); AFP-V0-192 accepted, and rule (d) of AFP-V0-012 amended by it, under the owner's standing auto-accept (2026-10-11; V1-2075); AFP-V0-361 accepted under the owner's standing auto-accept (2026-10-11; V1-0883, V1-2217, V1-2069); AFP-V0-380 accepted, and AFP-V0-027 amended (V1-2265), under the owner's standing auto-accept (2026-10-11; V1-1103, V1-2265); AFP-V0-186 amended to a tracked fixture corpus under the owner's standing auto-accept (2026-10-11; V1-2298); AFP-V0-381 accepted under the owner's standing auto-accept (2026-10-11; V1-2363, GH #1519); AFP-V0-400 to AFP-V0-403 accepted, and AFP-V0-037, AFP-V0-050 (3) and AFP-V0-072 (3) amended by them, under the owner's standing auto-accept (2026-10-11; V1-1817, V1-1803, V1-1006, V1-2370); AFP-V0-382 to AFP-V0-389 and AFP-V0-404 accepted under the owner's standing auto-accept (2026-10-11; GH #1640, GH #1604); AFP-V0-405 to AFP-V0-414 accepted, and AFP-V0-386 and TJAA-V0-021 amended by them, under the owner's standing auto-accept (2026-10-11; GH #1646, GH #1647); AFP-V0-415/416 accepted under the owner's standing auto-accept (2026-10-11; V1-2488); AFP-V0-417 to AFP-V0-419 accepted, and AFP-V0-386, AFP-V0-409 and AFP-V0-411 amended by them, under the owner's standing auto-accept (2026-10-11; GH #1660); AFP-V0-423 to AFP-V0-426 accepted, and AFP-V0-404, AFP-V0-409 and AFP-V0-419 amended by them, under the owner's standing auto-accept (2026-10-11; GH #1688); AFP-V0-404, AFP-V0-409 and AFP-V0-425 amended by TJAA-V0-090/091 under the owner's standing auto-accept (2026-10-11; GH #1701)
+Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-009 amended by the owner (decision 0531; V1-0682); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361); AFP-V0-049 accepted under the owner's standing auto-accept (2026-10-11; V1-1371); AFP-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-1298); AFP-V0-023 and AFP-V0-050 amended by the owner (decision 0528; V1-1399, V1-1400), and (3) reworded by the owner (decision 0529; V1-1425); AFP-V0-051 accepted under the owner's standing auto-accept (2026-10-11; V1-1351); AFP-V0-053 accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat); AFP-V0-029/030 amended by the owner for the `INFRA` row class (decision 0537; V1-1514); AFP-V0-029 shadow bar amended by the owner to count the whole epoch (owner chat, 2026-10-20; V1-0812); AFP-V0-052 accepted under the owner's standing auto-accept (2026-10-11; V1-1514); AFP-V0-054 accepted under the owner's standing auto-accept (2026-10-11; V1-1719); AFP-V0-066 accepted under the owner's standing auto-accept (2026-10-11; V1-1796; GitHub #1130); AFP-V0-072 accepted under the owner's standing auto-accept (2026-10-11; V1-1806); AFP-V0-079/080/081/082 accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); AFP-V0-060 accepted by the owner (owner chat, 2026-10-18; V1-1096); AFP-V0-088 accepted under the owner's standing auto-accept (2026-10-11; V1-2049); AFP-V0-016/024/027/028 amended by them; AFP-V0-088 (2) amended under it (V1-2069); AFP-V0-150/151/152/153/154/155 accepted under the owner's standing auto-accept (2026-10-11; V1-1087, V1-0875, V1-1820, V1-2070, V1-0996, V1-1005); AFP-V0-029/030 amended and AFP-V0-097/098/099 decided by the orchestrator under owner delegation (owner chat, 2026-10-20; V1-0812); AFP-V0-316 accepted under the owner's standing auto-accept (2026-10-11; V1-2169); AFP-V0-160/161 accepted, and AFP-V0-023 amended for rule (c) by AFP-V0-161, under the owner's standing auto-accept (2026-10-11; V1-0923, V1-1766/V1-2069); AFP-V0-356 accepted under the owner's standing auto-accept (2026-10-11; V1-2053); AFP-V0-156 accepted under the owner's standing auto-accept (2026-10-11; V1-2162); AFP-V0-162 accepted under the owner's standing auto-accept (2026-10-11; V1-2256, V1-2252); AFP-V0-196 accepted, amending AFP-V0-009, under the owner's standing auto-accept (2026-10-11; V1-2071); AFP-V0-181 to AFP-V0-186 accepted under the owner's standing auto-accept (2026-10-11; V1-2050); AFP-V0-187 to AFP-V0-191 accepted, and AFP-V0-008, AFP-V0-031 and AFP-V0-182 amended by them, under the owner's standing auto-accept (2026-10-11; V1-2297, V1-2296, V1-0874, V1-0922); AFP-V0-163/164 accepted under the owner's standing auto-accept (2026-10-11; V1-2113, V1-1752); AFP-V0-201 accepted under the owner's standing auto-accept (2026-10-11; V1-2348); AFP-V0-192 accepted, and rule (d) of AFP-V0-012 amended by it, under the owner's standing auto-accept (2026-10-11; V1-2075); AFP-V0-361 accepted under the owner's standing auto-accept (2026-10-11; V1-0883, V1-2217, V1-2069); AFP-V0-380 accepted, and AFP-V0-027 amended (V1-2265), under the owner's standing auto-accept (2026-10-11; V1-1103, V1-2265); AFP-V0-186 amended to a tracked fixture corpus under the owner's standing auto-accept (2026-10-11; V1-2298); AFP-V0-381 accepted under the owner's standing auto-accept (2026-10-11; V1-2363, GH #1519); AFP-V0-400 to AFP-V0-403 accepted, and AFP-V0-037, AFP-V0-050 (3) and AFP-V0-072 (3) amended by them, under the owner's standing auto-accept (2026-10-11; V1-1817, V1-1803, V1-1006, V1-2370); AFP-V0-382 to AFP-V0-389 and AFP-V0-404 accepted under the owner's standing auto-accept (2026-10-11; GH #1640, GH #1604); AFP-V0-405 to AFP-V0-414 accepted, and AFP-V0-386 and TJAA-V0-021 amended by them, under the owner's standing auto-accept (2026-10-11; GH #1646, GH #1647); AFP-V0-415/416 accepted under the owner's standing auto-accept (2026-10-11; V1-2488); AFP-V0-417 to AFP-V0-419 accepted, and AFP-V0-386, AFP-V0-409 and AFP-V0-411 amended by them, under the owner's standing auto-accept (2026-10-11; GH #1660); AFP-V0-420 to AFP-V0-422 accepted under the owner's standing auto-accept (2026-10-11; owner request 2026-10-24; no ticket), effective only after the owner's `ci-control-plane` review of the `.github` change; AFP-V0-423 to AFP-V0-426 accepted, and AFP-V0-404, AFP-V0-409 and AFP-V0-419 amended by them, under the owner's standing auto-accept (2026-10-11; GH #1688); AFP-V0-427 to AFP-V0-430 accepted, and AFP-V0-421 amended by them, under the owner's standing auto-accept (2026-10-11; owner request 2026-10-24; no ticket), effective only after the same review; AFP-V0-404, AFP-V0-409 and AFP-V0-425 amended by TJAA-V0-090/091 under the owner's standing auto-accept (2026-10-11; GH #1701)
 Delivery status: experimental
 Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wire and non-goals),
 `docs/specs/live-proof-carrying-verification-v0.md` (future composer, not-started),
@@ -11,7 +11,7 @@ Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wi
 
 ## Agent digest
 - Claim: `corvint affected` emits a read-only, non-authoritative affected-test selection plan with provider-ready Go package paths.
-- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-009 amended by the owner (decision 0531; V1-0682); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361); AFP-V0-049 accepted under the owner's standing auto-accept (2026-10-11; V1-1371); AFP-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-1298); AFP-V0-023 and AFP-V0-050 amended by the owner (decision 0528; V1-1399, V1-1400), and (3) reworded by the owner (decision 0529; V1-1425); AFP-V0-051 accepted under the owner's standing auto-accept (2026-10-11; V1-1351); AFP-V0-053 accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat); AFP-V0-029/030 amended by the owner for the `INFRA` row class (decision 0537; V1-1514); AFP-V0-029 shadow bar amended by the owner to count the whole epoch (owner chat, 2026-10-20; V1-0812); AFP-V0-052 accepted under the owner's standing auto-accept (2026-10-11; V1-1514); AFP-V0-054 accepted under the owner's standing auto-accept (2026-10-11; V1-1719); AFP-V0-066 accepted under the owner's standing auto-accept (2026-10-11; V1-1796; GitHub #1130); AFP-V0-072 accepted under the owner's standing auto-accept (2026-10-11; V1-1806); AFP-V0-079/080/081/082 accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); AFP-V0-060 accepted by the owner (owner chat, 2026-10-18; V1-1096); AFP-V0-088 accepted under the owner's standing auto-accept (2026-10-11; V1-2049); AFP-V0-016/024/027/028 amended by them; AFP-V0-150/151/152/153/154/155 accepted under the owner's standing auto-accept (2026-10-11; V1-1087, V1-0875, V1-1820, V1-2070, V1-0996, V1-1005); AFP-V0-029/030 amended and AFP-V0-097/098/099 decided by the orchestrator under owner delegation (owner chat, 2026-10-20; V1-0812); AFP-V0-316 accepted under the owner's standing auto-accept (2026-10-11; V1-2169); AFP-V0-160/161 accepted, and AFP-V0-023 amended for rule (c) by AFP-V0-161, under the owner's standing auto-accept (2026-10-11; V1-0923, V1-1766/V1-2069); AFP-V0-356 accepted under the owner's standing auto-accept (2026-10-11; V1-2053); AFP-V0-156 accepted under the owner's standing auto-accept (2026-10-11; V1-2162); AFP-V0-162 accepted under the owner's standing auto-accept (2026-10-11; V1-2256, V1-2252); AFP-V0-196 accepted, amending AFP-V0-009, under the owner's standing auto-accept (2026-10-11; V1-2071); AFP-V0-181 to AFP-V0-186 accepted under the owner's standing auto-accept (2026-10-11; V1-2050); AFP-V0-187 to AFP-V0-191 accepted, and AFP-V0-008, AFP-V0-031 and AFP-V0-182 amended by them, under the owner's standing auto-accept (2026-10-11; V1-2297, V1-2296, V1-0874, V1-0922); AFP-V0-163/164 accepted under the owner's standing auto-accept (2026-10-11; V1-2113, V1-1752); AFP-V0-201 accepted under the owner's standing auto-accept (2026-10-11; V1-2348); AFP-V0-192 accepted, and rule (d) of AFP-V0-012 amended by it, under the owner's standing auto-accept (2026-10-11; V1-2075); AFP-V0-361 accepted under the owner's standing auto-accept (2026-10-11; V1-0883, V1-2217, V1-2069); AFP-V0-380 accepted, and AFP-V0-027 amended (V1-2265), under the owner's standing auto-accept (2026-10-11; V1-1103, V1-2265); AFP-V0-186 amended to a tracked fixture corpus under the owner's standing auto-accept (2026-10-11; V1-2298); AFP-V0-381 accepted under the owner's standing auto-accept (2026-10-11; V1-2363, GH #1519); AFP-V0-400 to AFP-V0-403 accepted, and AFP-V0-037, AFP-V0-050 (3) and AFP-V0-072 (3) amended by them, under the owner's standing auto-accept (2026-10-11; V1-1817, V1-1803, V1-1006, V1-2370); AFP-V0-382 to AFP-V0-389 and AFP-V0-404 accepted under the owner's standing auto-accept (2026-10-11; GH #1640, GH #1604); AFP-V0-405 to AFP-V0-414 accepted, and AFP-V0-386 and TJAA-V0-021 amended by them, under the owner's standing auto-accept (2026-10-11; GH #1646, GH #1647); AFP-V0-415/416 accepted under the owner's standing auto-accept (2026-10-11; V1-2488); AFP-V0-417 to AFP-V0-419 accepted, and AFP-V0-386, AFP-V0-409 and AFP-V0-411 amended by them, under the owner's standing auto-accept (2026-10-11; GH #1660); AFP-V0-423 to AFP-V0-426 accepted, and AFP-V0-404, AFP-V0-409 and AFP-V0-419 amended by them, under the owner's standing auto-accept (2026-10-11; GH #1688); AFP-V0-404, AFP-V0-409 and AFP-V0-425 amended by TJAA-V0-090/091 under the owner's standing auto-accept (2026-10-11; GH #1701)/experimental
+- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-009 amended by the owner (decision 0531; V1-0682); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361); AFP-V0-049 accepted under the owner's standing auto-accept (2026-10-11; V1-1371); AFP-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-1298); AFP-V0-023 and AFP-V0-050 amended by the owner (decision 0528; V1-1399, V1-1400), and (3) reworded by the owner (decision 0529; V1-1425); AFP-V0-051 accepted under the owner's standing auto-accept (2026-10-11; V1-1351); AFP-V0-053 accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat); AFP-V0-029/030 amended by the owner for the `INFRA` row class (decision 0537; V1-1514); AFP-V0-029 shadow bar amended by the owner to count the whole epoch (owner chat, 2026-10-20; V1-0812); AFP-V0-052 accepted under the owner's standing auto-accept (2026-10-11; V1-1514); AFP-V0-054 accepted under the owner's standing auto-accept (2026-10-11; V1-1719); AFP-V0-066 accepted under the owner's standing auto-accept (2026-10-11; V1-1796; GitHub #1130); AFP-V0-072 accepted under the owner's standing auto-accept (2026-10-11; V1-1806); AFP-V0-079/080/081/082 accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); AFP-V0-060 accepted by the owner (owner chat, 2026-10-18; V1-1096); AFP-V0-088 accepted under the owner's standing auto-accept (2026-10-11; V1-2049); AFP-V0-016/024/027/028 amended by them; AFP-V0-088 (2) amended under it (V1-2069); AFP-V0-150/151/152/153/154/155 accepted under the owner's standing auto-accept (2026-10-11; V1-1087, V1-0875, V1-1820, V1-2070, V1-0996, V1-1005); AFP-V0-029/030 amended and AFP-V0-097/098/099 decided by the orchestrator under owner delegation (owner chat, 2026-10-20; V1-0812); AFP-V0-316 accepted under the owner's standing auto-accept (2026-10-11; V1-2169); AFP-V0-160/161 accepted, and AFP-V0-023 amended for rule (c) by AFP-V0-161, under the owner's standing auto-accept (2026-10-11; V1-0923, V1-1766/V1-2069); AFP-V0-356 accepted under the owner's standing auto-accept (2026-10-11; V1-2053); AFP-V0-156 accepted under the owner's standing auto-accept (2026-10-11; V1-2162); AFP-V0-162 accepted under the owner's standing auto-accept (2026-10-11; V1-2256, V1-2252); AFP-V0-196 accepted, amending AFP-V0-009, under the owner's standing auto-accept (2026-10-11; V1-2071); AFP-V0-181 to AFP-V0-186 accepted under the owner's standing auto-accept (2026-10-11; V1-2050); AFP-V0-187 to AFP-V0-191 accepted, and AFP-V0-008, AFP-V0-031 and AFP-V0-182 amended by them, under the owner's standing auto-accept (2026-10-11; V1-2297, V1-2296, V1-0874, V1-0922); AFP-V0-163/164 accepted under the owner's standing auto-accept (2026-10-11; V1-2113, V1-1752); AFP-V0-201 accepted under the owner's standing auto-accept (2026-10-11; V1-2348); AFP-V0-192 accepted, and rule (d) of AFP-V0-012 amended by it, under the owner's standing auto-accept (2026-10-11; V1-2075); AFP-V0-361 accepted under the owner's standing auto-accept (2026-10-11; V1-0883, V1-2217, V1-2069); AFP-V0-380 accepted, and AFP-V0-027 amended (V1-2265), under the owner's standing auto-accept (2026-10-11; V1-1103, V1-2265); AFP-V0-186 amended to a tracked fixture corpus under the owner's standing auto-accept (2026-10-11; V1-2298); AFP-V0-381 accepted under the owner's standing auto-accept (2026-10-11; V1-2363, GH #1519); AFP-V0-400 to AFP-V0-403 accepted, and AFP-V0-037, AFP-V0-050 (3) and AFP-V0-072 (3) amended by them, under the owner's standing auto-accept (2026-10-11; V1-1817, V1-1803, V1-1006, V1-2370); AFP-V0-382 to AFP-V0-389 and AFP-V0-404 accepted under the owner's standing auto-accept (2026-10-11; GH #1640, GH #1604); AFP-V0-405 to AFP-V0-414 accepted, and AFP-V0-386 and TJAA-V0-021 amended by them, under the owner's standing auto-accept (2026-10-11; GH #1646, GH #1647); AFP-V0-415/416 accepted under the owner's standing auto-accept (2026-10-11; V1-2488); AFP-V0-417 to AFP-V0-419 accepted, and AFP-V0-386, AFP-V0-409 and AFP-V0-411 amended by them, under the owner's standing auto-accept (2026-10-11; GH #1660); AFP-V0-420 to AFP-V0-422 accepted under the owner's standing auto-accept (2026-10-11; owner request 2026-10-24; no ticket), effective only after the owner's `ci-control-plane` review of the `.github` change; AFP-V0-423 to AFP-V0-426 accepted, and AFP-V0-404, AFP-V0-409 and AFP-V0-419 amended by them, under the owner's standing auto-accept (2026-10-11; GH #1688); AFP-V0-427 to AFP-V0-430 accepted, and AFP-V0-421 amended by them, under the owner's standing auto-accept (2026-10-11; owner request 2026-10-24; no ticket), effective only after the same review; AFP-V0-404, AFP-V0-409 and AFP-V0-425 amended by TJAA-V0-090/091 under the owner's standing auto-accept (2026-10-11; GH #1701)/experimental
 - Exists: `internal/liveverify/affected`, `corvint affected`, `cmd/corvint/affected_test.go`, the `advice` member (AFP-V0-009: repository-declared mandatory checks, conditional when the AGENTS.md Verify section scopes them, one advisory Go command, the unknown frontier), the `--base FULL_COMMIT_ID` range form and `range` member (AFP-V0-010), and the `make gate-affected` fast tier over the receipt (AFP-V0-011: `script/gate-affected.sh`, fail-closed to the full `go-test` run; not the push gate), whose union is attributed per dirty path from a static repository index of imports and path literals (AFP-V0-012), whose literal-reader rule also adds, in the plan itself, selections for every dirty path a package names, without narrowing an unowned path's `UNKNOWN` scope (AFP-V0-021); `tools/corvint-pr-tests` and `.github/workflows/ci.yml` remain full until separately pinned AFP-V0-014 qualification; AFP-V0-022 adds complete advisory CI partitions and a digest-bound experimental sharded PR profile, and AFP-V0-041 (accepted, decision 0488) lets the full run split an owner-allowed package into test slices across those shards, and AFP-V0-048 makes the sharded PR driver run each slice on the shard the same helper assigns; AFP-V0-023 lets a project-owned `.corvint/test-read-scopes.json` take a root-locating package off the rule (d) floor, enforced in full CI by the Landlock wrapper `.github/testconfine`.
 - Blocked on: the LPCV-V0 composer accepting or replacing this wire; for queue-backed narrowing, AFP-V0-028/029 shadow admission, the owner setting the repository variable `CORVINT_PR_NARROWING` to `on`, a `CORVINT_PR_TOOL_SOURCE` pin carrying `narrow.sh` and the driver's plan mode, a scheduled `ci-forward-bar` verdict saying MET (AFP-V0-097 to AFP-V0-099; `docs/build-log/2026-10-20-v1-0812-narrowing-decisions.md`), reviewed tool pins and hosted observation of the V1-0760 queue-run reuse (AFP-V0-024; hosted enablement `NOT_OBSERVED`); the optional historical profile still requires genuine 200-row qualification and matching reviewed pins (AFP-V0-014/017), and its 201-commit prerequisite is met at `adf8358220769b8d6724ad27d27625602b8a7c62`, but no campaign PASS is implied.
 - Read next: Requirements; Non-goals and authority; Failure modes.
@@ -1983,7 +1983,7 @@ and container qualification; full fallback remains available.
   AFP-V0-080 each costs about 6 runner-minutes. Acceptance evidence:
   `TestAFPV0082PushConcurrencyGroupsByCommit`; hosted behavior `NOT_OBSERVED` until two merges
   land within one push run. Rollback: restore `github.event.pull_request.number || github.ref`.
-- **AFP-V0-088:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2049); no GitHub issue)
+- **AFP-V0-088:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2049); (2) amended under it for V1-2069; no GitHub issue)
   A dirty path of a Corvint Tasks store projection is task state, not source. (1) The recognised
   projection layout is closed: `.taskman/policy.json`, `.taskman/queue.json`, and one
   `.taskman/tickets/<name>.json` or `.taskman/releases/<name>.json` record whose name has no
@@ -1993,7 +1993,12 @@ and container qualification; full fallback remains available.
   a declared read scope that holds it (AFP-V0-023), is read by a test: the reader rules select
   that unit as before and the path keeps its `UNOWNED_DIRTY_PATH` entry, so the plan stays
   `UNKNOWN`. An unbounded reader (rule (d)) is selected on every dirty path and does not count as
-  naming one. (3) Every other projection path raises no unknown entry and is listed instead in the
+  naming one. A path literal names a projection file here only when one of its component runs
+  ends at the file's whole name (amended for V1-2069): a run that ends at a directory component
+  (`/tickets/`, `.taskman/tickets/`, `/.taskman`) or at a prefix of the file name (the
+  `.taskman/tickets/V1-` of `".taskman/tickets/V1-%04d.json"`) names a family of records, not
+  that one. Such a literal's unit is still selected with its `PATH_LITERAL_READER` witness, so
+  this changes no selection, only which unknown entry the path raises. (3) Every other projection path raises no unknown entry and is listed instead in the
   plan member `nonSource`, one group per class
   `{"class":"TASK_STORE_PROJECTION","reason":...,"paths":[...]}` with the stated reason once per
   class and the paths in dirty-path order; the member is omitted when no path is task state, and
@@ -2007,16 +2012,23 @@ and container qualification; full fallback remains available.
   read of the projection's content, no other task store layout; the
   `tools/gate-affected-select` fast-tier mirror follows in AFP-V0-153. Failure modes: a test that reads a projection
   file through a computed path with no literal and no declared scope is not seen, the same blind
-  spot AFP-V0-021 already has for any data file; a store-relative literal such as `/tickets/`
-  names every ticket record and keeps it unknown, which over-widens rather than hides a reader.
-  Acceptance evidence: `TestTaskStoreProjectionIsTaskStateNotUnknown_AFPV0088`,
+  spot AFP-V0-021 already has for any data file; a test that lists or builds a record's path from
+  a directory or file-name fragment (`filepath.Join(root, ".taskman/tickets", id+".json")`) and
+  reads this repository's store is selected as that fragment's literal reader, or as an
+  unbounded reader for the root it needs, but no longer keeps the record unknown, so a change to
+  the record's content is trusted to that selection. Before the V1-2069 amendment a store-relative
+  literal such as `/tickets/` named every ticket record and kept every ticket-only Corvint diff
+  unknown. Acceptance evidence: `TestTaskStoreProjectionIsTaskStateNotUnknown_AFPV0088`,
+  `TestTaskStoreProjectionFragmentLiteralDoesNotNameARecord_AFPV0088`,
   `TestTaskStoreProjectionBesideASourceChangeAddsNothing_AFPV0088`,
   `TestTaskStoreProjectionReaderIsSelectedAndKeepsItUnknown_AFPV0088`,
   `TestTaskStoreProjectionLayoutIsClosed_AFPV0088`, `TestTaskStoreProjectionWire_AFPV0088` and
   `TestAffectedTaskStoreProjectionIsTaskState_AFPV0088`; core-history and Corvint measurements
-  in build log 2026-10-20-V1-2049-affected-taskman-projection. Rollback: delete
+  in build log 2026-10-20-V1-2049-affected-taskman-projection, and the V1-2069 amendment's in
+  2026-10-24-V1-2069-affected-ticket-fragment-literal. Rollback: delete
   `internal/liveverify/affected/taskstate.go` and its test, the `NonSource` plan field and its
-  `participants` exclusion, and the compact receipt member.
+  `participants` exclusion, and the compact receipt member; for the V1-2069 amendment alone,
+  call `namesAny` instead of `namesFileAny` in `named`.
 
 ### Plan observation bounds
 
@@ -2951,9 +2963,10 @@ put the cost in the graph build: one open per Ruby file, and every spec re-readi
 the helpers it loads, about 60% of all opens. These requirements are proposed (owner auto-accept
 pending); they do not change any plan, wire member or exit code.
 
-- **AFP-V0-390:** (proposed; V1-2473, GH #1601)
-  `affected --cache DIR` MUST be the only way the plan path reads or writes a graph cache: without
-  it nothing is read from or written to any cache location. DIR is named by the caller; it is made
+- **AFP-V0-390:** (proposed; V1-2473, GH #1601; amended 2026-10-24 by AFP-V0-436, V1-2572)
+  `affected --cache DIR` or, without it, the AFP-V0-436 default location MUST be the only places
+  the plan path reads or writes a graph cache; with `--no-cache` nothing is read from or written to
+  any cache location. DIR is named by the caller; it is made
   absolute, the symlinks of its nearest existing ancestor are resolved, and it MUST be refused
   with `invalid-arguments` before any worktree read (`--paths-from` included) when it is at or
   under the repository root, textually or because the root is the same file as it or one of its
@@ -2978,8 +2991,8 @@ pending); they do not change any plan, wire member or exit code.
   outside repository content, never under `.corvint/` (whose private ledgers are fixed by
   `SOL-V0-001`, `SOL-V0-007` and `SOL-V0-010`), never in Git or trace state, never evidence, and
   never an input to ranking, authority or learning; it can only reproduce a graph a full build
-  would produce (AFP-V0-391 to AFP-V0-393). No user cache directory is used by default and no
-  daemon or watcher is started (invariant 7).
+  would produce (AFP-V0-391 to AFP-V0-393). The user cache directory is used by default only as
+  AFP-V0-436 admits it, and no daemon or watcher is started (invariant 7).
 - **AFP-V0-391:** (proposed; V1-2473, GH #1601)
   An entry (profile `corvint-affected-graph-cache/0`) MUST bind: the absolute repository root; the
   SHA-256 of the running corvint executable, so a build whose plugins may observe differently never
@@ -3068,18 +3081,279 @@ pending); they do not change any plan, wire member or exit code.
   `--paths-from FILE`) because one call builds the graph once, that a large tree should also pass
   `--cache DIR` (a private directory outside the repository) so repeated calls on an unchanged
   checkout reuse the verified graph with the same plan, and that without `--cache` every call
-  builds the graph again. It is advice only: it adds no default cache location (a non-goal below;
-  a default would be new writable state on a read, invariant 4) and no command, option or output.
+  builds the graph again. It is advice only and adds no command, option or output. Amended
+  2026-10-24 by AFP-V0-436 (V1-2572): the cache is now on by default, so the goal says instead
+  that repeated calls reuse a private cache under the user cache directory, outside the
+  repository, that `--cache DIR` moves it and `--no-cache` turns it off, and that
+  `corvint affected cache` shows its location and size.
   Failure mode: a guide edit that drops the advice fails the test. Rollback: delete the paragraph
   and its test.
 
-Non-goals: no default cache location, no cache for `--snapshot` (already immutable Git input) or
+Non-goals: no cache for `--snapshot` (already immutable Git input) or
 the Playwright profile, no incremental graph update after a change (a changed input rebuilds the
 whole graph), no cache of the status, advice or selection, no background process, and no change to
 the plan, its digest or any exit code. Rollback: drop `--cache` and `--paths-from` from
 `parseAffectedOptions`, delete `cmd/corvint/affected_cache.go`,
 `cmd/corvint/affected_identity_*.go` and `internal/liveverify/affected/graphcache*.go`, remove the `Source.record` hooks and restore
 `affected.Build`'s direct call; the Ruby helper memo reverts independently.
+
+### Opt-in self-hosted shard runner (owner request 2026-10-24)
+
+The eight `go-product-shard` jobs are the hosted critical path (about 26 minutes). The owner has a
+Linux host with more cores than a hosted image. These requirements let the owner move only those
+shards onto it, only for runs whose code the repository's writers authored, and switch it off
+without a code change. Security rationale and host setup: build-log entry
+`2026-10-24-self-hosted-shard-runner`.
+
+- **AFP-V0-420:** (accepted under the owner's standing auto-accept (2026-10-11; owner request
+  2026-10-24; no ticket)) `go-product-shard` in `.github/workflows/ci.yml` MUST run on the runner
+  labels `self-hosted`, `linux`, `x64` and `corvint-box` only when the repository variable
+  `CORVINT_SELF_HOSTED` equals `on` and the event is `merge_group`, or is `pull_request` whose head
+  repository is this repository. Every other case MUST use `ubuntu-24.04`: the variable unset or any
+  other value, a push to `main`, a fork pull request and any other event. No other job MAY read the
+  variable or leave the hosted image, and the job, matrix and check names MUST NOT change, because
+  required checks match by name. Non-goals: fork pull requests, pushes, `pull_request_target` and
+  every other job stay hosted; the runner never posts or changes `ci-control-plane` or any commit
+  status, which stay with `ci-control-plane.yml`. The routing expression does not defend against a
+  fork pull request that edits `ci.yml` itself, because a `pull_request` run uses the pull request's
+  own workflow file, and the variable does not gate that run: it can target the labels whenever the
+  runner is registered, even with the variable unset. The repository's fork-PR approval policy and
+  the runner's repository access are that boundary, so the owner sets approval for all external
+  contributors before registering the runner (build-log entry). Failure modes: with the box offline
+  or busy, the routed shards wait in the queue, for up to GitHub's 24-hour queue limit; the job's
+  75-minute timeout starts only when a runner picks the job up. `go-product` stays pending. The
+  operator then unsets the variable, cancels the queued run and starts a new one (a new push or
+  queue entry), which is hosted. Falsifier: a push, fork or variable-off run whose shard job runs on
+  a self-hosted runner, or a renamed required check. Rollback: unset `CORVINT_SELF_HOSTED`, which
+  needs no commit, or revert the `runs-on` line. That routes this repository's own runs back to the
+  cloud but does not revoke the runner: the security rollback is to remove the runner registration
+  or its access to this repository.
+- **AFP-V0-421:** (accepted under the owner's standing auto-accept (2026-10-11; owner request
+  2026-10-24; no ticket)) On `runner.environment == 'self-hosted'` the shard MUST provision nothing.
+  It MUST NOT use `sudo`, the package manager or a download into a system path. It MUST only verify
+  the host: `/usr/local/go/bin/go env GOVERSION` equals the `go-version` pinned by the job, and
+  `/usr/local/bin/rg --version` reports the job's pinned `RG_VERSION` and is the `rg` that the fixed
+  product PATH resolves. Otherwise it fails with an `::error::` that names the missing host
+  prerequisite. It keeps the hosted step's user-global Git configuration lines, run under an
+  exclusive `flock` on `/var/tmp/corvint-ci/git-global-config.flock`, because the runner instances
+  share one account's `~/.gitconfig` and a concurrent `git config --global` write fails on its lock
+  file; a lock not acquired within 120 s fails the step with an `::error::`. The hosted
+  provisioning step MUST stay byte-identical and run only off the self-hosted runner. Because the
+  host persists between jobs, the shard MUST first empty `GITHUB_WORKSPACE`, never restore or save the
+  shared Actions Go build cache, and build with `GOENV=off` in a `GOCACHE` under `RUNNER_TEMP` and, by AFP-V0-430, a per-runner `TMPDIR` under `/var/tmp`. The
+  runner empties `RUNNER_TEMP` for every job; as amended by AFP-V0-427 to AFP-V0-429, only the
+  host-local seed, which only a passing merge-queue shard on `main` refreshes, carries Go build
+  output from an earlier job into a later one. The runner's own job-end cleanup ends the processes it
+  tracks, and `maintenance.auto false` keeps Git from detaching any. This is hygiene, not isolation:
+  code a job runs can still write to the runner account's home, tool cache or runner installation,
+  or leave a process that escapes tracking, and so affect a later job. A persistent box is
+  therefore trusted only as far as every run that reaches it is trusted. Isolation needs a fresh
+  environment per job that is destroyed afterwards, such as a just-in-time runner in a disposable VM
+  or container, which is outside these requirements. Host prerequisites: the four
+  labels; the pinned Go at `/usr/local/go`; ripgrep 15.2.0 at `/usr/local/bin/rg`; a C toolchain
+  for `-race` with `CGO_ENABLED=1`; `jq`, `git`, `bash` and util-linux `flock`; and Landlock ABI 2 or later for the
+  AFP-V0-023 wrapper (`test-confine -probe`). Failure modes: host drift, such as a Go or ripgrep
+  upgrade or a removed tool, fails the verification step, and the shard runs no test. A shard on the
+  box without a usable AFP-V0-427 seed starts with a cold build cache. Falsifier: a self-hosted shard that runs `sudo`
+  or reads a build output, workspace file or Go setting from an earlier job, or a hosted
+  provisioning step whose script differs. Rollback: revert the three steps' conditions and the
+  verification and clearing steps.
+- **AFP-V0-422:** (accepted under the owner's standing auto-accept (2026-10-11; owner request
+  2026-10-24; no ticket); amends the AFP-V0-040 retention rule) Box timings are not cloud timings,
+  so a self-hosted shard MUST NOT retain its AFP-V0-040 `go test -json` stream. Where a hosted
+  shard would retain it, the self-hosted shard keeps only the marker `shard-<n>.self-hosted` as
+  artifact `ci-shard-costs-runner-<n>`. The marker is best-effort and continue-on-error. When any
+  marker is present, `ci-shard-cost-drift` MUST abstain with `Abstained: <k> of N shards ran on the
+  self-hosted runner, whose timings are not cloud timings (AFP-V0-422)` and report no drift. A
+  lost marker still leaves fewer than N streams, so the report abstains. Non-goals: no box cost
+  table, and no change to the AFP-V0-047 forward-row outcomes, which carry results, not timings.
+  Failure mode: while the variable is on, pull-request and merge-queue runs retain no streams, so
+  AFP-V0-022 refreshes and AFP-V0-041 slice regeneration need a hosted run. Falsifier: a drift
+  report, finding or table refresh computed from a self-hosted stream. Rollback: revert the marker
+  steps and the abstention branch.
+- **AFP-V0-427:** (accepted under the owner's standing auto-accept (2026-10-11; owner request
+  2026-10-24; no ticket); amends AFP-V0-421) The self-hosted runner MAY keep one host-local Go build
+  seed per runner, `$CORVINT_BOX_GOCACHE_ROOT/go-build-race-<RUNNER_NAME>`, where the job env
+  `CORVINT_BOX_GOCACHE_ROOT` (`/home/russell/ci-cache`, outside every runner's work tree) is the
+  only place the root is named. The seed is keyed by runner, not shard index: Go's action IDs
+  include the package directory, and each runner checks out under its own `_work` path, so a build
+  from another runner cannot hit (measured below). The seed is a symlink to a sibling directory
+  `<seed>.<run>-<attempt>-<shard>`. Only on the self-hosted runner, only where the race invocation
+  runs (not DOCS or REUSE), and only for a `merge_group` entry whose base is `refs/heads/main` or a
+  `pull_request` whose head repository is this repository, the shard MUST copy (`cp -a`, never a
+  hardlink, because Go can rewrite an existing cache entry in place, and preserving mtimes keeps
+  Go's 5-day trim of unused entries meaningful) the seed's target into its per-job
+  `$RUNNER_TEMP/go-build` before the tests. Same-repository pull requests restore because they
+  already run as the same host user with write access to the root, so a read-only copy grants
+  them nothing new; it gives the box's pull-request shards the same warm build. The restore MUST
+  NOT fail the shard: a `GOCACHE` other than the per-job cache restores nothing, and a runner name
+  outside `[A-Za-z0-9_-]`, a missing root, a root that is a link, foreign or group/world-writable, a
+  missing seed, a seed that does not resolve to `<seed>.*`, a target this user does not own, or a
+  failed copy each leave an empty per-job cache; every case prints a `::notice::`. `-count=1` stays on every race
+  invocation, so no test result is reused. Hosted shards keep the V1-1098 `actions/cache` steps
+  unchanged and never read the seed. Falsifier: a hosted or push run that reads the seed, a seed
+  linked rather than copied into the job, a restore that fails a shard, or a race invocation
+  without `-count=1`. Rollback: delete `/home/russell/ci-cache` (the next shard starts cold), or
+  unset `CORVINT_SELF_HOSTED`, or revert the restore step.
+- **AFP-V0-428:** (accepted under the owner's standing auto-accept (2026-10-11; owner request
+  2026-10-24; no ticket); amends AFP-V0-421) Only a self-hosted `go-product-shard` of a
+  `merge_group` entry whose base is `refs/heads/main` and whose tests step succeeded MAY refresh its
+  runner's seed; no pull request, push or failed shard refreshes it. The refresh MUST run
+  `go clean -testcache`, create the root with mode 0700 when absent, refuse a root that is a link,
+  foreign or group/world-writable, remove every `<seed>.*` except the live seed's target before
+  copying (so an interrupted or failed refresh's copy never accumulates), copy the job cache with
+  `cp -a` into `<seed>.<tag>.tmp` beside the seed (removed again if the step fails), rename it to
+  `<seed>.<tag>`, and swap it in by atomically renaming a new relative symlink over `<seed>`, so a
+  reader never resolves a partial seed; it then removes every other `<seed>.*`. The size cap is explicit:
+  `SEED_CAP_KIB` (8388608 KiB, 8 GiB) per seed; a job cache above it removes the seed instead, so
+  the next shard on that runner starts cold and regrows only what it builds. With eight runners the
+  root holds at most 64 GiB at rest, plus one transient copy per refreshing runner; Go's own trim
+  drops entries unused for five days. A refusal or failure never fails the shard
+  (`continue-on-error`). Each runner runs one job at a time, so its seed has one writer. Falsifier:
+  a seed refreshed by a pull-request, push, non-`main` or failed shard, a partially copied seed
+  that a restore resolves, or a seed above the cap after a refresh. Rollback: revert the refresh
+  step and delete the root.
+- **AFP-V0-429:** (accepted under the owner's standing auto-accept (2026-10-11; owner request
+  2026-10-24; no ticket)) The seed's provenance is only as strong as AFP-V0-421's trust in every job
+  that reaches the box. The event conditions keep honest pull-request builds out of the seed; they
+  are not a boundary. Every job runs as the runner account, which owns the root, and a
+  `pull_request` run uses the pull request's own `ci.yml`, so any same-repository pull request, or
+  a fork pull request the owner approved, can write or replace a seed directly, and a planted entry
+  is then compiled into a later merge-queue run, whose result could be wrong. Fork pull requests
+  reach the runner only through the owner's approval (AFP-V0-420). Go's cache checks only an
+  entry's size, not its content, so a corrupt seed may show as a compile, link or test failure on
+  that runner, or may silently change what the tests exercise: `-count=1` stops reuse of test
+  results, not of compiled code. On a failure or any doubt about the seed, the operator deletes `$CORVINT_BOX_GOCACHE_ROOT` (or that runner's `<seed>` and `<seed>.*`)
+  and the next shard rebuilds cold. Non-goals: no seed is shared between runners or with the hosted
+  image, no seed is a cache of test results, and the seed adds no isolation. Falsifier: a document
+  or comment that calls the seed's event gating an isolation or security boundary.
+- **AFP-V0-430:** (accepted under the owner's standing auto-accept (2026-10-11; owner request
+  2026-10-24; no ticket); amends AFP-V0-421; amended after box run 40101041311) On the self-hosted
+  runner only, the verification step MUST, before the tests step, refuse a `RUNNER_NAME` that is not
+  a plain directory name, create `/var/tmp/corvint-ci` mode 0700 and refuse it unless it is a
+  directory this account owns and not a link, give every directory below
+  `/var/tmp/corvint-ci/$RUNNER_NAME` owner read, write and search permission without following a
+  link (a test killed before its cleanup can leave one `rm` cannot empty), remove and recreate that
+  directory mode 0700, and export `TMPDIR` to it through `$GITHUB_ENV`. Go's work directories and every
+  `t.TempDir()` then land on the box's ext4 root rather than its 16 GiB RAM-backed `/tmp` tmpfs,
+  matching the hosted runners' ext4 temporary directory. No hosted step sets `TMPDIR`. The directory
+  MUST NOT share an ancestor below `/` with the confined checkout: AFP-V0-023's wrapper grants every
+  path beside the checkout's ancestor chain but never the ancestors themselves, so a test that opens
+  each ancestor of a temporary path (the AFP-V0-361 root-skipping walks) is refused at `/home` when
+  `TMPDIR` is under `RUNNER_TEMP` (`/home/russell/actions-runner*/_work/_temp`); under `/var/tmp` the
+  only shared ancestor is `/`, as with the hosted `/tmp`. `/var/tmp` is also one of the temporary
+  roots product code recognises, as `/tmp` is on the hosted image. Cleanup and trust boundary: each
+  runner runs one job at a time and empties its own directory at the start of every job, so a file a
+  test leaves is removed before the next job on that runner; this is per-job hygiene, not isolation,
+  since every job runs as the same account (AFP-V0-429). Falsifier: a self-hosted shard whose
+  `TMPDIR` is unset, under `/tmp`, or under an ancestor of the checkout other than `/`; a removal
+  that runs before the runner-name or root checks; or a hosted step that sets `TMPDIR`. Rollback:
+  remove the block; temporary files return to `/tmp`.
+
+### Release and live-browser CI jobs (V1-2580, V1-1687)
+
+These four requirements add two CI jobs under the owner's delegation of
+`.github/workflows/` edits for this work (2026-10-24, recorded in
+`docs/build-log/2026-10-24-owner-queue-decisions.md` on PR #1718). Neither job is a required check;
+existing jobs and check names are unchanged. Both honor the AFP-V0-081 batched skip.
+
+- **AFP-V0-432:** (proposed; V1-2580) `.github/workflows/cem-release-gate.yml`, on `ci.yml`'s
+  triggers, MUST run a `cem-release-gate` job on `ubuntu-24.04` (linux/amd64) and `macos-15` (darwin/arm64), with `fail-fast: false`, which builds `corvint` and
+  `interop/cem01-go` from the one checkout through `make cem-release-gate`, retains the command's
+  whole output as the `cem-release-gate-<os>` artifact even when it fails, writes the readiness and
+  suite verdict lines to the step summary, and fails with the target's own nonzero exit and an
+  error annotation. It MUST NOT carry `continue-on-error`, and `ci.yml` MUST NOT run the gate:
+  the AFP-V0-080 static reuse and the tested-tree reuse accept only successful `ci.yml` runs, which
+  an always-red job there would end. Failure mode: while any required
+  readiness row is `NOT_RUN` or `NOT_OBSERVED`, the target refuses (exit 3, `make` exit 2) and the
+  job is red on every run by design; that refusal is the signal, not a CI fault. Falsifier: a job
+  that passes on a nonzero exit, runs on only one platform, or loses the output on failure.
+  Rollback: delete the `cem-release-gate` job.
+- **AFP-V0-433:** (proposed; V1-1687, cce-live part of PR #1702) `ci.yml` MUST run a `cce-live`
+  job on `macos-15` that installs Node 24.11.1, installs `@playwright/test@1.64.0` into
+  `$RUNNER_TEMP/pw` with `npx playwright install chromium-headless-shell`, then runs
+  `make cce-live` (which sets `CORVINT_CCE_LIVE=required`, CCE-V0-102) with
+  `CORVINT_PLAYWRIGHT_MODULES` naming that `node_modules` and `CORVINT_E2E_NODE_BIN` naming the
+  installed `node`, and retains the output as the `cce-live` artifact. Failure mode: a missing
+  toolchain fails the live tests instead of skipping them. Rollback: delete the `cce-live` job.
+- **AFP-V0-434:** (proposed; V1-1687) The `cce-live` job MUST run its live steps only when the
+  tested commit changes `internal/changee2e/` or `.github/workflows/ci.yml` against its first
+  parent (fetch depth 2, the AFP-V0-042 pattern), and otherwise MUST conclude successfully with a
+  step-summary line saying the live tests did not run. The job itself always runs, so its check
+  name always reports and never waits as a skipped path-filtered check. Any doubt, such as a
+  checkout with no first parent, runs the tests. Failure mode: a change outside these paths that
+  breaks the live flow is not caught by this job; `go-product` still runs the hermetic tests.
+  Falsifier: a sibling prefix (`internal/changee2e-other/`) that triggers the run, or a changee2e
+  change that does not. Rollback: drop the change-check step and its `if:` guards.
+- **AFP-V0-435:** (proposed; V1-1687) Before the live tests, the `cce-live` job MUST require the
+  qualified Playwright tuple of `internal/jstestprovider/external.go` for 1.64.0: the installed
+  `playwright-core/browsers.json` pins `chromium-headless-shell` revision 1248, the cached
+  executable reports `Google Chrome for Testing 156.0.8078.4`, and `node --version` is `v24.11.1`.
+  Any mismatch, unreadable manifest or missing executable MUST fail the job with one error that
+  names the observed and the qualified values, instead of producing receipts qualify would refuse.
+  Falsifier: a job whose pinned values drift from the provider's qualified row, or that passes on
+  build 1243, another executable version, a missing executable or another Node major. Rollback:
+  drop the tuple step.
+
+### Default graph cache location (AFP-V0-436 to AFP-V0-439)
+
+Owner decision 2026-10-24 (`docs/build-log/2026-10-24-owner-queue-decisions.md`, V1-2572, part of
+GH #1601 / V1-2473): repeated `affected` calls should reuse the verified graph without every caller
+naming `--cache DIR`. These requirements are proposed (owner auto-accept pending) and experimental;
+they do not change any plan, wire member or exit code of a plan call.
+
+- **AFP-V0-436:** (proposed, experimental; V1-2572, GH #1601)
+  Without `--cache` and without `--no-cache`, a plan call (every form `--cache` accepts; never
+  `--snapshot`, `--playwright-config`, `affected discovery` or `affected cache`) MUST use the
+  graph cache directory `os.UserCacheDir()/corvint/affected` (`~/Library/Caches` on darwin,
+  `$XDG_CACHE_HOME` or `~/.cache` on linux, `%LocalAppData%` on windows), held to every
+  AFP-V0-390 placement and handle rule and keyed exactly as an explicit `--cache` entry
+  (AFP-V0-391: the executable identity, the root, the language set and the stat pins of every
+  walked file). Missing components are created mode 0700 through the opened handle; the directory
+  holds at most one entry per repository root and language set. The location is never inside the
+  repository, any `.git` directory, the repository's Git or common directory, or `.corvint/`: a
+  default that the AFP-V0-390 placement check would refuse is not used (AFP-V0-438). Tests MUST
+  NOT read or write the real user cache directory: the `cmd/corvint` TestMain replaces the lookup
+  with one that fails, and a test of the default injects its own directory. Invariant analysis
+  (AGENTS.md invariant 4, amended in the same change): this is a bounded, private user-cache write
+  outside the repository, of derived state that can only reproduce a graph a full build would
+  produce; it is never repository, Git, trace or `.corvint/` state, never evidence, and never an
+  input to ranking, authority or learning. No daemon, watcher, eviction process or network access
+  is added (invariant 7). Failure mode: entries of deleted roots accumulate, one per root, until
+  the user deletes the directory; `affected cache` reports its size. Rollback: drop the default
+  branch in `resolveAffectedBatchAndCache`, restoring the explicit-only cache.
+- **AFP-V0-437:** (proposed, experimental; V1-2572, GH #1601)
+  `--cache DIR` MUST replace the default location, under the AFP-V0-390 refusals, and the default
+  location MUST then be neither read nor written. `--no-cache` MUST turn the graph cache off: no
+  cache location is resolved, read, created or written. `--no-cache` takes no value and is given
+  at most once, and `--cache` with `--no-cache` is refused; each is `invalid-arguments` before any
+  worktree read. Help lists both and names the default location. Rollback: drop `--no-cache`
+  from `parseAffectedOptions` with the AFP-V0-436 default.
+- **AFP-V0-438:** (proposed, experimental; V1-2572, GH #1601)
+  A default location that cannot be used MUST NOT be an error: when `os.UserCacheDir` fails or is
+  not absolute, when the location fails any AFP-V0-390 placement rule (inside the root, a `.git`
+  component, the Git or common directory, or a Git directory that cannot be named), or when it
+  cannot be created, opened, kept private or written, the call runs uncached, writes nothing to
+  stderr and exits as `--no-cache` would. The receipt MUST be byte-identical with `--no-cache`, a
+  cold default cache and a warm default cache (AFP-V0-393), for every plan form. Rollback: as
+  AFP-V0-436.
+- **AFP-V0-439:** (proposed, experimental; V1-2572, GH #1601)
+  `corvint [--root PATH] affected cache [--format json|doctor-plugin]` MUST report the default
+  location for the root without creating, opening an entry of or writing anything: one canonical
+  JSON object, profile `affected-cache-status/0`, with exactly `bytes` (the sum of regular file
+  sizes in the directory), `entries` (files named `affected-graph-*.json`), `location` (resolved,
+  or empty when there is none), `mutates` (false), `ok` (true), `profile`, `reason` and `state`:
+  `PRESENT`, `ABSENT` (not yet created), `UNAVAILABLE` (no user cache directory, a placement the
+  AFP-V0-390 rules refuse, or a directory the planner's handle and privacy checks refuse, such
+  as one writable by another user, so plan calls run uncached) or
+  `INCOMPLETE` (the listing stopped at its 4096-entry bound or failed). The directory is opened
+  nonblocking and held to a directory by its descriptor, so a FIFO cannot hang the call, and is
+  read in fixed batches without descending. `--format doctor-plugin` prints the TQD-V0-010 plugin
+  array with exactly one `AFFECTED_CACHE` item whose `who` is the location (`affected-cache`
+  when there is none) and whose `detail` names the state, entries and bytes, so
+  `corvint-tasks doctor --plugins DIR` can show the cache; there is no `corvint doctor` command.
+  It exits 0 in every state and 2 (`invalid-arguments`) for any other argument or a repeated or
+  unknown `--format`. Rollback: drop the `cache` dispatch and `runAffectedCacheStatus`.
 
 ## Non-goals and authority
 
@@ -3102,6 +3376,12 @@ evaluate computed patterns, titles or tags, run Playwright, or read tags through
 the repository.
 AFP-V0-389/404 do not change the `--playwright-config` mode or alias resolution for another
 runner's loader.
+AFP-V0-420 to AFP-V0-422 move no job other than `go-product-shard`, never run a fork pull request,
+a push or `pull_request_target` on the self-hosted runner, never let it post a commit status, and
+never provision the host, and do not isolate jobs from one another on a persistent host;
+registering the runner and setting `CORVINT_SELF_HOSTED` stay owner steps. AFP-V0-427 to AFP-V0-429
+share no seed between runners or with the hosted image, cache no test result, and add no
+isolation; the seed root needs no owner step, because the first refresh creates it.
 
 ## Failure modes
 
@@ -3187,8 +3467,21 @@ incompletely stamped entry, a FIFO or other non-regular entry, a cache directory
 link into the repository or not private to the user, an unwritable cache directory, an
 unreadable or replaced executable or an unsupported platform is a full build with the same
 receipt, never a refusal and never a reused graph; an observation that cannot be pinned,
-including one with a transient read failure, writes no entry. `--paths-from` refusals are `invalid-arguments`
+including one with a transient read failure, writes no entry. For the AFP-V0-436 default
+location every one of these, a placement refusal included, is an uncached call with the same
+receipt and no stderr (AFP-V0-438); `affected cache` reports it as `UNAVAILABLE`. `--paths-from` refusals are `invalid-arguments`
 (AFP-V0-395).
+Self-hosted shard runner (AFP-V0-420 to AFP-V0-422): an offline or busy box leaves the routed
+shards queued for up to GitHub's 24-hour queue limit, and the operator recovers by unsetting
+`CORVINT_SELF_HOSTED`, cancelling the queued run and starting a new one; a registered runner stays
+reachable by an approved fork pull request until it is removed; host drift fails the verification step with the named prerequisite; a
+self-hosted run makes the cost-drift report abstain. A missing, unsafe or unreadable host-local seed
+(AFP-V0-427) leaves a cold cache with a notice; a refresh above the cap removes the seed; a corrupt
+seed may fail that runner's shards or pass silently, and the operator deletes the seed root on any
+doubt (AFP-V0-429). A test that fills the per-runner `TMPDIR` (AFP-V0-430) fills the box's root disk
+rather than its memory, and the next job on that runner removes it; a removed runner's directory
+stays until the operator deletes it. A link, foreign owner or non-directory at `/var/tmp/corvint-ci`
+fails the verification step before anything is removed.
 
 ## Acceptance evidence and traceability
 
@@ -3322,6 +3615,13 @@ including one with a transient read failure, writes no entry. `--paths-from` ref
 | AFP-V0-416 | build-log entry 2026-10-23-windows-production-path-logic; `ParsePathText` unchanged | no code; the per-package class table |
 | AFP-V0-417 | `playwrightEnvLoaderReference`, `playwrightEnvKeyString`, `playwrightEnvironmentWriter` in `playwright_env.go` | `TestPlaywrightEnvLoaderNameInStringIsData_GH1660` (string, template, regex and array-literal data resolve; code, template substitution, computed member key, quoted and computed destructuring keys and escaped text keep the writer with its line) |
 | AFP-V0-418 | `resolveAlias`, `boundFiles` in `playwright_tag_sources.go`; `allowJS` in `parseTypeScriptAliases`; `playwrightObservedName` in `playwright.go`; the alias argument of `playwrightTagFileExact` | `TestPlaywrightGrepOmissionFollowsTypeScriptAliases_GH1660` (paths, baseUrl, a nearer jsconfig, a tsconfig beside a jsconfig and a `.js` importer under `allowJs` or a jsconfig verified; hidden tag, no tsconfig, `extends`, missing target, a nearer jsconfig redirecting to a hidden tag, a `.js` importer without `allowJs` and a config naming `tsconfig` stay unverified), `TestPlaywrightSourcesBindJSConfig_GH1660` (a jsconfig.json edit changes the source identity) |
+| AFP-V0-420 | the `go-product-shard` `runs-on` expression in `.github/workflows/ci.yml` | `TestAFPV0420ShardRunsOnKeepsTheCloudFallback` (the exact expression, every other job on `ubuntu-24.04`, one variable read, no push route, unchanged check names); `actionlint`; hosted self-hosted routing `NOT_OBSERVED` until the owner registers the runner and sets the variable |
+| AFP-V0-421 | the clearing, conditional provisioning, verification and cache-restore steps of `go-product-shard` | `TestAFPV0421SelfHostedShardsVerifyAndNeverProvision` (hosted step unchanged and hosted-only, no `sudo` elsewhere, pins equal, named errors, same Git lines, per-job `GOCACHE`, clearing first) and `TestAFPV0421SelfHostedGitConfigSerializesConcurrentRunners` (eight concurrent runs of the locked Git block all succeed); a box run is `NOT_OBSERVED` |
+| AFP-V0-422 | the marker steps of `go-product-shard`; the self-hosted branch of `ci-shard-cost-drift`'s outcome check | `TestAFPV0422SelfHostedShardsMakeTheDriftReportAbstain` (runs the outcome check: eight streams report, one marker abstains with the runner reason) |
+| AFP-V0-427 | the `CORVINT_BOX_GOCACHE_ROOT` job env and the seed restore step of `go-product-shard` | `TestAFPV0427SelfHostedSeedRestoreAndRefreshEvents` (exact events, copy not link, never fails, step order, `-count=1`, hosted cache steps unchanged); `TestAFPV0428SelfHostedSeedRefreshSwapsAndRestoreCopies` (linux: missing seed is cold, restore is an independent copy, another runner reads nothing, unsafe root and path-like runner name refused); box cold/warm timing in build-log entry `2026-10-24-self-hosted-shard-runner`; a runner run is `NOT_OBSERVED` |
+| AFP-V0-428 | the seed refresh step of `go-product-shard` | `TestAFPV0427SelfHostedSeedRestoreAndRefreshEvents` (merge-queue on `main` with tests success only, explicit cap); `TestAFPV0428SelfHostedSeedRefreshSwapsAndRestoreCopies` (relative link swap, replaced copy and leftovers removed, a failed copy removes abandoned and partial copies and keeps the live seed, test results expired, over-cap removes the seed, unsafe root refused) |
+| AFP-V0-430 | the self-hosted verification step of `go-product-shard` | `TestAFPV0430SelfHostedTMPDIRIsPerRunnerOffTheCheckoutAncestors` (self-hosted only, per-runner under `/var/tmp/corvint-ci`, checks and permission restore before the removal, never under `RUNNER_TEMP`, before the tests, no other `TMPDIR` writer); `TestAFPV0430SelfHostedTMPDIRBlockEmptiesLeftoversAndRefusesUnsafeRoots` (the block under bash: a path-like name and a linked root refused before any removal, a leftover 0500/0000 tree emptied, a link out of it not followed); box reproduction in build-log entry `2026-10-24-self-hosted-shard-runner`; a runner run is `NOT_OBSERVED` |
+| AFP-V0-429 | this spec and build-log entry `2026-10-24-self-hosted-shard-runner` (trust boundary, corrupt-seed recovery) | the step comments state the boundary; review evidence in the build-log entry |
 | AFP-V0-419 | `exactOrStop` and `playwrightTagFile.stop` in `playwright_tag_sources.go`; the stop detail in `SelectPlaywrightWithEnvironment` | `TestPlaywrightGrepOmissionFollowsTypeScriptAliases_GH1660` (each stop names the file and specifier) |
 | AFP-V0-423 | `playwrightStaticMembership` in `alias_gate.go`; the `FrontierConfig` raise in `observe` | `TestPlaywrightConfigFrontierNamesBlocker_GH1688`, `TestFrontierSitesNameFileLineAndToken_GH1604` |
 | AFP-V0-424 | `graphFrontierDetail`, `namedFrontierSites` in `playwright.go` | `TestPlaywrightDynamicSourceNamesSites_GH1688` |
@@ -3336,6 +3636,14 @@ including one with a transient read failure, writes no entry. `--paths-from` ref
 | AFP-V0-396 | `affectedHelp` in `cmd/corvint/help.go`; the `corvint affected` row of `docs/CAPABILITIES.md` | `TestAFPV0396HelpDocumentsTheBatchFormAndTheCache`; `make capabilities-check` |
 | AFP-V0-397 | `BuildCached` hit path | `TestAFPV0397RepeatedPathCallOnALargeRubyTreeReusesTheGraph` (1,200 Ruby files: the warm call hits and writes the cold and uncached bytes); measured cold and warm numbers in build log `2026-10-23-affected-graph-reuse-gh1601` |
 | AFP-V0-431 | the test-selection goal of `internal/capcatalog/AGENT-GUIDE.md` | `TestAFPV0431ShippedGuideAdvisesBatchingAndTheAffectedCache`; `make capability-catalog-check` |
+| AFP-V0-432 | `.github/workflows/cem-release-gate.yml` `cem-release-gate` job | `TestAFPV0432CEMReleaseGateRunsOnBothPlatformsAndRetainsOutput` |
+| AFP-V0-433 | `.github/workflows/ci.yml` `cce-live` job | `TestAFPV0433CCELiveRunsTheLiveTargetOnTheQualifiedHost` |
+| AFP-V0-434 | `.github/workflows/ci.yml` `cce-live` change check | `TestAFPV0434CCELiveRunsOnlyWhenChangee2eChanges` |
+| AFP-V0-435 | `.github/workflows/ci.yml` `cce-live` tuple step | `TestAFPV0435CCELiveRefusesAnUnqualifiedHeadlessShell` |
+| AFP-V0-436 | `affectedUserCacheDir`, `affectedDefaultCacheLocation` and the default branch of `resolveAffectedBatchAndCache` in `cmd/corvint/affected_cache.go`; the TestMain lookup replacement in `cmd/corvint/work_materialization_test.go`; the planner environment of `script/gate-affected_test.sh` | `TestAFPV0436DefaultCacheLivesUnderTheUserCacheDirectory` (bare, `--full`, `--path`, `--base`: the cold call stores and the warm call hits under the injected `corvint/affected`, both byte-identical with `--no-cache`; one entry; 0700 components; repository status unchanged; `--snapshot`, `--playwright-config`, `--no-cache` and status invocations resolve no cache) |
+| AFP-V0-437 | `--no-cache` and the `--cache`/`--no-cache` check in `parseAffectedOptions`; `affectedHelp` | `TestAFPV0437NoCacheAndCacheOverrideTheDefault` (`--no-cache` observes no cache; `--cache DIR` stores then hits in DIR and the default is never created; the combination, a repetition and a value refuse), `TestAFPV0437HelpDocumentsTheDefaultCache` |
+| AFP-V0-438 | the swallowed refusal in `resolveAffectedBatchAndCache`; `BuildCachedExcluding`'s fall-back | `TestAFPV0438DefaultCacheDegradesToUncached` (a failing lookup, an empty or relative base, a base inside the root or `.git`, an unwritable base and a file in place of `corvint/`: exit 0, no stderr, the `--no-cache` bytes, no entry read or stored, repository status unchanged); `TestAFPV0436DefaultCacheLivesUnderTheUserCacheDirectory` (cold and warm parity) |
+| AFP-V0-439 | `parseAffectedCacheStatusOptions`, `inspectAffectedDefaultCache` and `runAffectedCacheStatus` in `cmd/corvint/affected_cache.go`; `InspectCacheDirectory` in `internal/liveverify/affected/graphcache_dir.go` | `TestAFPV0439CacheStatusReportsLocationAndSize` (ABSENT creates nothing; PRESENT counts the one entry and its bytes; the doctor-plugin item; UNAVAILABLE inside the root, for a group-writable directory and with no user cache directory; argument refusals) |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`

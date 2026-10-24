@@ -9,7 +9,7 @@ import (
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
-// The Playwright half of the static test discovery (DCP-V1-371..376). It reuses the TSA-V0-073
+// The Playwright half of the static test discovery (DCX-V1-371..376). It reuses the TSA-V0-073
 // example reader (jsReader) for placement, titles and abstention, and its token helpers for
 // expectations, calls and imports.
 
@@ -371,7 +371,7 @@ func (d *jsDiscovery) annotationObject(v [2]int) (string, string, bool) {
 	return typ, desc, typ != ""
 }
 
-// expectations adds every assertion in body (DCP-V1-372).
+// expectations adds every assertion in body (DCX-V1-372).
 func (d *jsDiscovery) expectations(out *DiscoveredExample, body [2]int) {
 	f, s := d.f, d.s
 	for k := body[0]; k < body[1]; k++ {
@@ -419,7 +419,7 @@ func (d *jsDiscovery) expectations(out *DiscoveredExample, body [2]int) {
 	}
 }
 
-// navigations adds every navigation, request and awaited route in body (DCP-V1-373).
+// navigations adds every navigation, request and awaited route in body (DCX-V1-373).
 func (d *jsDiscovery) navigations(out *DiscoveredExample, body [2]int, source string) {
 	f, s := d.f, d.s
 	for k := body[0]; k < body[1]; k++ {
@@ -479,7 +479,7 @@ func (d *jsDiscovery) optionMethod(v [2]int) string {
 }
 
 // reachesOf adds the modules, dynamic loads and fixtures example e and its hooks reach
-// (DCP-V1-374).
+// (DCX-V1-374).
 func (d *jsDiscovery) reachesOf(out *DiscoveredExample, e jsDecl, hooks []jsDiscoveryHook) {
 	f, r, s := d.f, d.r, d.s
 	ranges := [][2]int{}

@@ -44,7 +44,7 @@ func decodeBounded(data []byte, target any, limit int) error {
 // decodeNamed is decodeBounded for a caller-supplied input: a refusal keeps the "invalid closed
 // JSON input" prefix and, when name is set, appends the input name, the JSON pointer of the first
 // invalid value, the enclosing record id when one is readable, the reason and the byte offset
-// (DCP-V1-470). An artifact keeps the bare message, which its streamed decoder must match.
+// (DCX-V1-470). An artifact keeps the bare message, which its streamed decoder must match.
 func decodeNamed(name string, data []byte, target any, limit int, opts ...json.Options) error {
 	if len(data) > limit {
 		return fail("input bound exceeded")
@@ -162,16 +162,23 @@ func boundedText(value string, limit int) string {
 	return value[:cut] + "..."
 }
 func hashValue(value any) (string, error) {
+	digest, _, err := hashSized(value)
+	return digest, err
+}
+
+// hashSized is hashValue with the encoded size, newline included; on an output bound refusal
+// it still returns the size, so a caller can name how far the bound was exceeded (DCS-V1-569).
+func hashSized(value any) (string, int64, error) {
 	h := sha256.New()
 	n, err := EncodeTo(h, value)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 	if n+1 > int64(encodingLimit(value)) {
-		return "", fail("output bound exceeded")
+		return "", n + 1, fail("output bound exceeded")
 	}
 	h.Write([]byte{'\n'})
-	return hex.EncodeToString(h.Sum(nil)), nil
+	return hex.EncodeToString(h.Sum(nil)), n + 1, nil
 }
 func validPath(value string) bool { return LocalInputPathRule(value) == "" }
 
@@ -225,8 +232,8 @@ func currentBuilder() Builder {
 // inputs into the artifact's records. A change that can alter the records built from the same
 // inputs increments it; one that changes only how a read ranks, renders or bounds them does not.
 // The verified read admits an artifact from another attested builder revision only while the
-// version, the builder schema and the engine are equal (DCP-V1-471).
-const DerivationVersion = "3"
+// version, the builder schema and the engine are equal (DCX-V1-471).
+const DerivationVersion = "4"
 
 // derivationOf reads the derivation version a builder's engine label records, or "" for an
 // engine from before the version was recorded.
@@ -241,7 +248,7 @@ func derivationOf(b Builder) string {
 
 // sameDerivation admits a recorded builder for the verified read: the running builder itself, or
 // another attested revision with the same builder schema, derivation version and engine. The
-// refusal names what differs (DCP-V1-471).
+// refusal names what differs (DCX-V1-471).
 func sameDerivation(recorded, running Builder) error {
 	if recorded == running {
 		return nil
@@ -269,7 +276,7 @@ func sameDerivation(recorded, running Builder) error {
 }
 
 // RebuildHint names the explicit write that refreshes an artifact the verified read refuses as
-// built by another builder; the read itself never rebuilds (DCP-V1-497).
+// built by another builder; the read itself never rebuilds (DCX-V1-497).
 const RebuildHint = "rebuild the corpus from its embedded manifest with corvint docs corpus build --artifact <artifact> into a new file"
 
 func ReadFile(root, path string) ([]byte, error) { return readFileBounded(root, path, MaxBytes) }
@@ -280,7 +287,7 @@ func ReadPlaywrightFile(root, path string) ([]byte, error) {
 	return readFileBounded(root, path, PlaywrightFileMaxBytes)
 }
 
-// ReadProviderFile admits one provider record or shard within its per-shard bound (DCP-V1-531).
+// ReadProviderFile admits one provider record or shard within its per-shard bound (DCX-V1-531).
 func ReadProviderFile(root, path string) ([]byte, error) {
 	return readFileBounded(root, path, MaxProviderBytes)
 }
@@ -294,7 +301,7 @@ func ReadCorpusFile(root, path string) ([]byte, error) {
 // StatCorpusFile is ReadCorpusFile without the read: the path rule and the
 // no-follow walk of every directory component are the read's, and the leaf
 // must be a regular file. It returns the leaf's lstat record, so a caller can
-// tell an unchanged file without reading it (DCP-V1-417).
+// tell an unchanged file without reading it (DCR-V1-417).
 func StatCorpusFile(root, path string) (fs.FileInfo, error) {
 	if rule := LocalInputPathRule(path); rule != "" {
 		return nil, fail("invalid local input path: input paths must be canonical and relative to the input root (" + rule + ")")
@@ -312,7 +319,7 @@ func StatCorpusFile(root, path string) (fs.FileInfo, error) {
 }
 
 // streamCorpusFile is ReadCorpusFile with read consuming the file instead of
-// a copy of it (DCP-V1-431). A failure to open or read the file is the read's
+// a copy of it (DCR-V1-431). A failure to open or read the file is the read's
 // refusal; read's own refusal is returned as it is.
 func streamCorpusFile(root, path string, read func(io.Reader) error) error {
 	if rule := LocalInputPathRule(path); rule != "" {
@@ -394,7 +401,7 @@ func decodeArtifact(data []byte) (*Artifact, error) {
 
 // verifyCanonical refuses data that is not exactly the canonical encoding of a, whose recorded
 // digest differs, or whose schema is unsupported. The digest is hashed from data while the
-// canonical comparison encodes a, so neither waits for the other (DCP-V1-414).
+// canonical comparison encodes a, so neither waits for the other (DCR-V1-414).
 func verifyCanonical(a *Artifact, data []byte) error {
 	var digest string
 	var digestErr error
@@ -422,7 +429,7 @@ func verifyCanonical(a *Artifact, data []byte) error {
 }
 
 // canonicalArtifactDigest is hashValue of a with its sha256 field empty, computed from data, the
-// canonical encoding of a, without encoding a again (DCP-V1-414). a is only read.
+// canonical encoding of a, without encoding a again (DCR-V1-414). a is only read.
 func canonicalArtifactDigest(a *Artifact, data []byte) (string, error) {
 	tail := hashArtifactTail(data)
 	if err := tail.suffix(a); err != nil {

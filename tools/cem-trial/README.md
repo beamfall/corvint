@@ -9,8 +9,10 @@ that exist at `C^` become the **gold** the agent is scored against, and a test o
 adds is recorded as `gold_unreachable` and never scored, because no arm can cite a path absent at
 the base revision (CRT-V0-004, amended 2026-10-01). Every arm sees byte-identical patch bytes, the
 same numbered hunk list, the same model, timeout, and read-only clone. The `treatment` arm
-additionally receives the cem/0.1 map from `cem begin` over those exact bytes (every hunk
-`unknown`), the `cem status` worklist, and `cem report`; the `seeded` arm receives the same three
+additionally receives a cem/1.0 map that `cem prepare` builds over those exact bytes (every hunk
+`unknown`), the `cem status` worklist, and `cem report`. The map is prepared against a synthetic
+target commit holding only the presented hunks, in a private clone the agent never sees and that is
+removed with the change, so no arm can reach `C` (CRT-V0-005, amended 2026-10-24); the `seeded` arm receives the same three
 artefacts plus the evidence `corvint context --subject PATH` retrieves at `C^` for each presented
 source file, labelled as suggestions and never cited. Nothing else differs, the control prompt never
 names Corvint, CEM, a map or a suggestion, and `treatment` is the format control between `control`
@@ -21,7 +23,7 @@ no evidence and could only measure the worklist's wording.
 
 ```sh
 cem-trial select --repo DIR --output DIR --seed S --corvint PATH \
-  [--name N] [--since DATE] [--partition pilot|heldout] [--exclude FILES] [--limit N]
+  [--name N] [--since DATE] [--partition pilot|development|heldout] [--exclude FILES] [--limit N]
 cem-trial run --tasks tasks.json --history DIR --corvint PATH \
   [--arms control,treatment,seeded] [--repeats N] [--agent codex|script] [--agent-command PATH] \
   [--model M] [--effort E] [--timeout D] [--workers N] [--seed S] [--output FILE] [--resume|--reuse FILE] \
@@ -64,7 +66,7 @@ A `heldout` run needs `--registration FILE` (CRT-V0-014): a JSON object with exa
 the strings the report records (`NOT_OBSERVED` for the script agent and an unset effort). The file
 must be committed, byte for byte, at `HEAD` of its repository before selection. `run` refuses a
 registration the run does not match before any lane starts, and refuses a registered run of the
-`treatment` or `seeded` arm, which still carry the all-unknown cem/0.1 worklist rather than the
+`treatment` or `seeded` arm, which carry an all-unknown cem/1.0 worklist rather than the
 shipped profile's artifact (CRT-V0-015). Each lane records `started_at`; the report is `invalid`
 when the registration commit is newer than the first lane or a lane that did not error recorded
 no start, and `score --report` re-checks that order, the registration's fields and the running

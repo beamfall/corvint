@@ -259,7 +259,7 @@ func docsCorpusOperationHelp(name string) string {
 	return text.String()
 }
 
-// corpusRebuildHelp is the build topic's note on rebuilding a stale artifact (DCP-V1-495, DCP-V1-497, DCP-V1-532).
+// corpusRebuildHelp is the build topic's note on rebuilding a stale artifact (DCX-V1-495, DCX-V1-497, DCX-V1-532).
 const corpusRebuildHelp = "Rebuild: a verified read refuses an artifact whose builder differs (`builder differs:`): the\n" +
 	"derivation version (derivation-N in builder.engine), the builder schema, the Go toolchain in the\n" +
 	"engine, or an unattested revision. Another attested revision with the same derivation is read as\n" +

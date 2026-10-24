@@ -11,10 +11,10 @@ import (
 	"testing"
 )
 
-// pairwiseInScope is the comparison every scope loop made before DCP-V1-450.
+// pairwiseInScope is the comparison every scope loop made before DCR-V1-450.
 func pairwiseInScope(p, s string) bool { return p == s || strings.HasPrefix(p, s+"/") }
 
-// pairwiseOverlap is inventoryScopeSet's nested-scope refusal before DCP-V1-450.
+// pairwiseOverlap is inventoryScopeSet's nested-scope refusal before DCR-V1-450.
 func pairwiseOverlap(scopes []string) string {
 	for _, outer := range scopes {
 		for _, inner := range scopes {
@@ -43,11 +43,11 @@ func scopeTestPaths(r *rand.Rand, n int) []string {
 	return out
 }
 
-// TestDCPV1450ScopeMatchingMatchesPairwise: inScope allocates nothing and
+// TestDCRV1450ScopeMatchingMatchesPairwise: inScope allocates nothing and
 // agrees with the old comparison; a scope set visits exactly the scopes the
 // pairwise comparison admits, once each, for every revision; and the inventory
 // refusal names the same pair the pairwise loop named.
-func TestDCPV1450ScopeMatchingMatchesPairwise(t *testing.T) {
+func TestDCRV1450ScopeMatchingMatchesPairwise(t *testing.T) {
 	r := rand.New(rand.NewPCG(1450, 1))
 	for range 200 {
 		scopes := scopeTestPaths(r, 1+r.IntN(12))
@@ -124,11 +124,11 @@ func slicesCompact(sorted []string) []string {
 	return out
 }
 
-// TestDCPV1450NestedScopesKeepRefusalsAndReasons: a hand-written manifest may
+// TestDCRV1450NestedScopesKeepRefusalsAndReasons: a hand-written manifest may
 // nest scopes. It still builds, refuses an undeclared input before a missing
 // scope in manifest order, and reports a new live file under the scopes once
 // per holding scope.
-func TestDCPV1450NestedScopesKeepRefusalsAndReasons(t *testing.T) {
+func TestDCRV1450NestedScopesKeepRefusalsAndReasons(t *testing.T) {
 	t.Parallel()
 	root, m := fixture(t)
 	revision := m.Repository.Revision
@@ -193,9 +193,9 @@ func TestDCPV1450NestedScopesKeepRefusalsAndReasons(t *testing.T) {
 	}
 }
 
-// TestDCPV1450NewLiveFileNotedPerHoldingScope: a new live file under two nested
+// TestDCRV1450NewLiveFileNotedPerHoldingScope: a new live file under two nested
 // scopes is reported once for each, as the per-scope pass reported it.
-func TestDCPV1450NewLiveFileNotedPerHoldingScope(t *testing.T) {
+func TestDCRV1450NewLiveFileNotedPerHoldingScope(t *testing.T) {
 	t.Parallel()
 	root, _ := fixture(t)
 	if err := os.MkdirAll(filepath.Join(root, "src", "sub"), 0o700); err != nil {

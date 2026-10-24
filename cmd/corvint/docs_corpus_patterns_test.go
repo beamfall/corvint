@@ -10,10 +10,10 @@ import (
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
 )
 
-// DCP-V1-343, DCP-V1-346, DCP-V1-349, DCP-V1-350, DCP-V1-352: the claim mention check is served
+// DCX-V1-343, DCX-V1-346, DCX-V1-349, DCX-V1-350, DCX-V1-352: the claim mention check is served
 // by CLI and MCP, `docs corpus patterns` reports the patterns, `--stratify patterns` is admitted,
 // and the opt-in build thresholds refuse a corpus above them without writing it.
-func TestDCPV1349CorpusPatternsCLI(t *testing.T) {
+func TestDCXV1349CorpusPatternsCLI(t *testing.T) {
 	root, m := typedCorpusCLIFixtureWith(t, func(p *doccorpus.ProviderRecord, _ doccorpus.Evidence) {
 		p.Claims[0].Text = "`Checkout()` is declared beside `missingThing`"
 	})

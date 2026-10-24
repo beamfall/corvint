@@ -99,13 +99,13 @@ type EvalResult struct {
 	LatencyMS         int64            `json:"latency_ms"`
 	ReceiptBytes      int              `json:"receipt_bytes"`
 	// ReturnedRows lists a failing case's served top-k rows, and ExpectedRank the first rank of
-	// an expected item beyond k, when one is served at all (DCP-V1-473).
+	// an expected item beyond k, when one is served at all (DCX-V1-473).
 	ReturnedRows []EvalRow `json:"returned_rows,omitempty"`
 	ExpectedRank *int      `json:"expected_rank,omitempty"`
 }
 
 // EvalRow is one served row of a failing case: its rank, record id, kind, name (or claim text)
-// and the first path it cites, each bounded (DCP-V1-473).
+// and the first path it cites, each bounded (DCX-V1-473).
 type EvalRow struct {
 	Rank int    `json:"rank"`
 	ID   string `json:"id,omitempty"`
@@ -287,7 +287,7 @@ func (r *Registry) loadedArtifact(ctx context.Context) (*doccorpus.Artifact, err
 }
 
 // evalSession pins one suite to the verified artifact and the freshness overlay observed once
-// before its first case (DCP-V1-474).
+// before its first case (DCX-V1-474).
 type evalSession struct {
 	artifact *doccorpus.Artifact
 	stamp    string
@@ -297,7 +297,7 @@ type evalSession struct {
 type evalSessionKey struct{}
 
 // rankProbeKey marks expectedRank's repeated call, which reads the ranking at the largest limit
-// without the MCP result frame bound: it is never served, so no frame is spent (DCP-V1-473).
+// without the MCP result frame bound: it is never served, so no frame is spent (DCX-V1-473).
 type rankProbeKey struct{}
 
 func rankProbe(ctx context.Context) bool {
@@ -347,7 +347,7 @@ func (r *Registry) closeEvalSession(ctx context.Context, s *evalSession) error {
 
 // Evaluate scores every case through CallTimed (DCP-V1-251..253). The suite opens and checks the
 // artifact and its freshness once, answers every case from them, and checks once after the last
-// case that the checkout did not change (DCP-V1-474).
+// case that the checkout did not change (DCX-V1-474).
 func (r *Registry) Evaluate(ctx context.Context, cases EvalCases, casesPath string, casesRaw []byte) (*EvalReport, error) {
 	session, err := r.openEvalSession(ctx)
 	if err != nil {
@@ -529,7 +529,7 @@ func (r *Registry) evaluateCase(ctx context.Context, c EvalCase, fileOrigin stri
 
 // expectedRank reruns a missed case at the largest limit, without the result frame bound, and
 // returns the first rank an expected item is ranked at, or nil when none is, or the tool takes no
-// limit (DCP-V1-473). It never changes the case's score or latency.
+// limit (DCX-V1-473). It never changes the case's score or latency.
 func (r *Registry) expectedRank(ctx context.Context, tool string, arguments []byte, subjects, claims, paths map[string]bool) *int {
 	var members map[string]jsontext.Value
 	if json.Unmarshal(arguments, &members) != nil || members == nil {

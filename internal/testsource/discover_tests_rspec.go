@@ -9,7 +9,7 @@ import (
 	"github.com/Beamfall/corvint/internal/doccorpus"
 )
 
-// The RSpec half of the static test discovery (DCP-V1-371..376). It reuses the TSA-V0-048
+// The RSpec half of the static test discovery (DCX-V1-371..376). It reuses the TSA-V0-048
 // logical-line reader (rspecReader) for groups, examples, inclusions and hooks; facts are read
 // from string-masked logical lines so a quoted description never reads as code.
 
@@ -79,7 +79,7 @@ func (d *rspecDiscovery) physicalEnd(i int) int {
 	return max(start, end)
 }
 
-// assignIDs gives each example its RSpec scoped id where the source fixes it (DCP-V1-371).
+// assignIDs gives each example its RSpec scoped id where the source fixes it (DCX-V1-371).
 func (d *rspecDiscovery) assignIDs() {
 	r := d.r
 	n, blocked := 0, ""
@@ -400,7 +400,7 @@ func (d *rspecDiscovery) hook(out *DiscoveredExample, h rspecHookSite) {
 	d.navigations(out, h.index, h.body, "hook")
 }
 
-// expectations adds every expectation of an example body (DCP-V1-372).
+// expectations adds every expectation of an example body (DCX-V1-372).
 func (d *rspecDiscovery) expectations(out *DiscoveredExample, index int, body []rubyLine) {
 	f := d.f
 	for k, l := range body {
@@ -501,7 +501,7 @@ func (d *rspecDiscovery) matcher(x *DiscoveredExpectation, rest string) {
 	x.Unknown = discoverReasonMatcherUnread
 }
 
-// navigations adds every visit and request statement of a body (DCP-V1-373).
+// navigations adds every visit and request statement of a body (DCX-V1-373).
 func (d *rspecDiscovery) navigations(out *DiscoveredExample, index int, body []rubyLine, source string) {
 	for k, l := range body {
 		text, masked := l.text, maskRubyStrings(l.text)
@@ -540,7 +540,7 @@ func (d *rspecDiscovery) navigations(out *DiscoveredExample, index int, body []r
 }
 
 // reaches adds the shared groups the example's groups include and the file's requires
-// (DCP-V1-374).
+// (DCX-V1-374).
 func (d *rspecDiscovery) reaches(out *DiscoveredExample, chainSet map[int]bool) {
 	f, r := d.f, d.r
 	for _, inc := range r.includes {

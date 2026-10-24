@@ -10,10 +10,10 @@ import (
 	"github.com/Beamfall/corvint/internal/doccorpus"
 )
 
-// TestDCPV1531CompactProviderCommand: docs corpus compact-provider prints exactly the producer's
+// TestDCXV1531CompactProviderCommand: docs corpus compact-provider prints exactly the producer's
 // /2 encoding of a /1 provider record, and refuses a /2 or missing input with no output
-// (DCP-V1-531).
-func TestDCPV1531CompactProviderCommand(t *testing.T) {
+// (DCX-V1-531).
+func TestDCXV1531CompactProviderCommand(t *testing.T) {
 	t.Parallel()
 	root, _ := typedCorpusCLIFixture(t)
 	raw, err := os.ReadFile(filepath.Join(root, "provider.json"))
@@ -37,11 +37,11 @@ func TestDCPV1531CompactProviderCommand(t *testing.T) {
 	}
 }
 
-// TestDCPV1532BuildArtifactReusesRecords: docs corpus build --artifact of an artifact another
+// TestDCXV1532BuildArtifactReusesRecords: docs corpus build --artifact of an artifact another
 // attested revision of the running derivation recorded prints the bytes build --manifest prints
 // without a compiler build, and one of another derivation is still rebuilt in full to the same
-// bytes (DCP-V1-532, DCP-V1-533). It runs alone, since it counts builds.
-func TestDCPV1532BuildArtifactReusesRecords(t *testing.T) {
+// bytes (DCX-V1-532, DCX-V1-533). It runs alone, since it counts builds.
+func TestDCXV1532BuildArtifactReusesRecords(t *testing.T) {
 	defer doccorpus.TrustUnattestedBuilderForTest()()
 	root := taskContextRepository(t)
 	rev := cemGit(t, root, "rev-parse", "HEAD")

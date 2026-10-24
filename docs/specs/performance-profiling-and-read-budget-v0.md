@@ -207,7 +207,7 @@ Status for `PRB-V0-050..053`: proposed, experimental; GitHub #1634. They amend `
   bound exactly the seven scenarios in that order.
 - `PRB-V0-051`: `unchanged-delta` MUST carry the two enforced `PRB-V0-032` ceilings, except that
   its p95 wall ceiling is 2x its baseline p95 rounded up to 500 ms, so a delta that rederives the
-  artifact (`DCP-V1-460`) exceeds it on the baseline host; the margin depends on the host, and it
+  artifact (`DCR-V1-460`) exceeds it on the baseline host; the margin depends on the host, and it
   has no target, because GitHub #1634 states no number.
 - `PRB-V0-052`: The baseline MUST carry the `unchanged-delta` measurement the ceilings derive from.
   Until the next `--record-baseline` run it was recorded in a separate run from the other six,
@@ -308,7 +308,7 @@ Status for `PRB-V0-050..053`: proposed, experimental; GitHub #1634. They amend `
   that the before-change delta exceeds the wall ceiling; a harness run with the before-change
   binary fails on `unchanged-delta` (build-log entry 2026-10-23-corpus-delta-verified-read). Its
   rederiving measurements are recorded constants, so it cannot detect a restored rederivation;
-  `TestDCPV1460DeltaCLIVerifiedRead`'s build counter (`DCP-V1-461`) is the deterministic guard.
+  `TestDCRV1460DeltaCLIVerifiedRead`'s build counter (`DCR-V1-461`) is the deterministic guard.
   `TestPRBV0053BaselineProvenance` checks that the separately recorded measurement names its run.
 
 ## Traceability

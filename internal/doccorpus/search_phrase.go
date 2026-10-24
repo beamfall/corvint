@@ -10,7 +10,7 @@ import (
 // identifierWords splits text into lower-case words at every rune that is
 // not a letter or digit and at case changes inside an identifier:
 // "LogoutRedirectURL", "logout_redirect_url" and "logout redirect url" all
-// give logout, redirect, url (DCP-V1-475). Stop words are kept, so the
+// give logout, redirect, url (DCX-V1-475). Stop words are kept, so the
 // phrase "on deck" matches the segment on_deck. It is separate from the
 // frozen evidence tokenizer and never changes the indexed terms.
 func identifierWords(text string) []string {
@@ -54,7 +54,7 @@ func containsPhrase(words, phrase []string) bool {
 
 // queryPhrase returns the words of a query that can match as a phrase, at
 // least two of them, and whether the query is one identifier, such as
-// logout_redirect_url, rather than space-separated words (DCP-V1-475).
+// logout_redirect_url, rather than space-separated words (DCX-V1-475).
 func queryPhrase(query string) ([]string, bool) {
 	words := identifierWords(query)
 	if len(words) < 2 {
@@ -65,10 +65,10 @@ func queryPhrase(query string) ([]string, bool) {
 
 // phraseMatch reports whether a subject's name field holds the query phrase
 // as whole words in order: its id, its name unless the name is prose, and a
-// module or file subject's anchor paths (DCP-V1-400, DCP-V1-401). A query
+// module or file subject's anchor paths (DCS-V1-400, DCS-V1-401). A query
 // that is one identifier also matches inside a prose name, since an
-// identifier quoted in a paragraph names the same thing (DCP-V1-475). Which
-// of these holds it orders the match (phraseTier, DCP-V1-542).
+// identifier quoted in a paragraph names the same thing (DCX-V1-475). Which
+// of these holds it orders the match (phraseTier, DCS-V1-542).
 func phraseMatch(s Subject, phrase []string, identifier bool) bool {
 	return phraseTier(s, phrase, identifier) != tierTerms
 }
@@ -128,7 +128,7 @@ func containsFoldASCII(text, word string) bool {
 }
 
 // claimPostings returns the claims whose ID or text holds term or a regular
-// inflection of it, in claim order (DCP-V1-476). The index is never
+// inflection of it, in claim order (DCX-V1-476). The index is never
 // modified.
 func claimPostings(x *QueryIndex, term string) []int {
 	held := x.ClaimTerms[term]
@@ -152,7 +152,7 @@ func claimPostings(x *QueryIndex, term string) []int {
 // alphabetic term of at least three letters: -s, -es, -ed and -ing, the
 // doubled final consonant (set, setting) and the dropped final e (revoke,
 // revoking, revoked). It is a fixed suffix list, not a stemmer, and only
-// widens a query term (DCP-V1-476).
+// widens a query term (DCX-V1-476).
 func inflections(term string) []string {
 	if len(term) < 3 || strings.IndexFunc(term, func(r rune) bool { return r < 'a' || r > 'z' }) >= 0 {
 		return nil
@@ -170,7 +170,7 @@ func inflections(term string) []string {
 }
 
 // naturalLess orders record IDs with every run of digits compared by value,
-// so claim:209 orders before claim:2004 (DCP-V1-477). Equal values fall back
+// so claim:209 orders before claim:2004 (DCX-V1-477). Equal values fall back
 // to the plain string order, keeping the order total.
 func naturalLess(a, b string) bool {
 	i, j := 0, 0
@@ -211,5 +211,5 @@ func digitsEnd(s string, i int) int {
 
 // specificity is the tie-break length of a record's ranked text: a subject's
 // name or a claim's text in runes. Of two records with the same score, the
-// shorter holds the matched terms more densely and orders first (DCP-V1-477).
+// shorter holds the matched terms more densely and orders first (DCX-V1-477).
 func specificity(text string) int { return utf8.RuneCountInString(text) }

@@ -12,10 +12,10 @@ import (
 	"github.com/Beamfall/corvint/internal/doccorpus"
 )
 
-// TestDCPV1360DeltaCLI drives `docs corpus delta` and `docs corpus carry-forward` through the
+// TestDCXV1360DeltaCLI drives `docs corpus delta` and `docs corpus carry-forward` through the
 // CLI: both current-side forms page the same worklist, nothing is written, and the input forms
 // and an undeclared provider are refused.
-func TestDCPV1360DeltaCLI(t *testing.T) {
+func TestDCXV1360DeltaCLI(t *testing.T) {
 	root := taskContextRepository(t)
 	writeCorpusFixture(t, root, cemGit(t, root, "rev-parse", "HEAD"), "cache")
 	if err := os.Rename(filepath.Join(root, "corpus.json"), filepath.Join(root, "previous.json")); err != nil {
@@ -68,11 +68,11 @@ func TestDCPV1360DeltaCLI(t *testing.T) {
 	}
 }
 
-// TestDCPV1425DeltaUnavailableCheckoutCLI drives `docs corpus delta` over a retained artifact
+// TestDCXV1425DeltaUnavailableCheckoutCLI drives `docs corpus delta` over a retained artifact
 // whose declared additional checkout has disappeared: the delta still classifies, the missing
 // repository's anchors are unresolved with the reason, the primary repository's anchors carry
-// forward, and the receipt says the current side was not rederived (DCP-V1-425).
-func TestDCPV1425DeltaUnavailableCheckoutCLI(t *testing.T) {
+// forward, and the receipt says the current side was not rederived (DCX-V1-425).
+func TestDCXV1425DeltaUnavailableCheckoutCLI(t *testing.T) {
 	root := taskContextRepository(t)
 	rev := cemGit(t, root, "rev-parse", "HEAD")
 	m, err := doccorpus.Inventory(context.Background(), root, rev, "cache", "2026-09-19T00:00:00Z")
@@ -168,11 +168,11 @@ func TestDCPV1425DeltaUnavailableCheckoutCLI(t *testing.T) {
 	}
 }
 
-// TestDCPV1421DeltaViewsCLI drives the delta views through the CLI: --uncovered changed keeps
+// TestDCXV1421DeltaViewsCLI drives the delta views through the CLI: --uncovered changed keeps
 // only changed regions and counts the uncited subjects, --anchorless list and --format jsonl
 // are admitted, and an invalid mode, a jsonl stream with paging, and a view option on
-// carry-forward are refused (DCP-V1-421..423).
-func TestDCPV1421DeltaViewsCLI(t *testing.T) {
+// carry-forward are refused (DCX-V1-421..423).
+func TestDCXV1421DeltaViewsCLI(t *testing.T) {
 	root := taskContextRepository(t)
 	writeCorpusFixture(t, root, cemGit(t, root, "rev-parse", "HEAD"), "cache")
 	run := func(args ...string) string {
@@ -223,14 +223,14 @@ func TestDCPV1421DeltaViewsCLI(t *testing.T) {
 	}
 }
 
-// TestDCPV1460DeltaCLIVerifiedRead drives `docs corpus delta --artifact` through the CLI: the
+// TestDCRV1460DeltaCLIVerifiedRead drives `docs corpus delta --artifact` through the CLI: the
 // default path admits the current artifact through the verified read and runs no build, its
 // paged and jsonl output is byte-identical to --verify-rederive, --timings writes one phase line
 // with the comparison and encode phases to stderr and leaves stdout unchanged, and a current
-// artifact the verified read refuses is refused (DCP-V1-460..462).
-func TestDCPV1460DeltaCLIVerifiedRead(t *testing.T) {
+// artifact the verified read refuses is refused (DCR-V1-460..462).
+func TestDCRV1460DeltaCLIVerifiedRead(t *testing.T) {
 	// A test binary's builder label is always `unrecorded`; trust it as an attested build would be
-	// (DCP-V1-410). Not parallel: it counts builds.
+	// (DCR-V1-410). Not parallel: it counts builds.
 	defer doccorpus.TrustUnattestedBuilderForTest()()
 	root := taskContextRepository(t)
 	writeCorpusFixture(t, root, cemGit(t, root, "rev-parse", "HEAD"), "cache")

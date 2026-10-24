@@ -34,12 +34,12 @@ func recordedBy(t *testing.T, artifact, engine string) string {
 	return string(data)
 }
 
-// TestDCPV1495BuildRebuildsFromEmbeddedManifest: docs corpus build --artifact rebuilds an artifact
+// TestDCXV1495BuildRebuildsFromEmbeddedManifest: docs corpus build --artifact rebuilds an artifact
 // a verified read refuses as built by another derivation, from its embedded manifest alone, to
 // the bytes build --manifest produces; it takes exactly one of --manifest or --artifact, refuses
 // an artifact whose digests do not hold with no output, and never writes the artifact file
-// (DCP-V1-495, DCP-V1-496, DCP-V1-497).
-func TestDCPV1495BuildRebuildsFromEmbeddedManifest(t *testing.T) {
+// (DCX-V1-495, DCX-V1-496, DCX-V1-497).
+func TestDCXV1495BuildRebuildsFromEmbeddedManifest(t *testing.T) {
 	defer doccorpus.TrustUnattestedBuilderForTest()()
 	root := taskContextRepository(t)
 	rev := cemGit(t, root, "rev-parse", "HEAD")
@@ -73,12 +73,12 @@ func TestDCPV1495BuildRebuildsFromEmbeddedManifest(t *testing.T) {
 	}
 }
 
-// TestDCPV1498MCPServesArtifactsAcrossBuilderUpgrades: a corpus MCP server answers its first call
+// TestDCXV1498MCPServesArtifactsAcrossBuilderUpgrades: a corpus MCP server answers its first call
 // from an artifact another attested builder revision of the same derivation recorded; one whose
 // derivation differs is refused, naming the version change and the rebuild; once the operator
 // rebuilds it into a new file and renames it over the old one, the running server names the
-// restart and a restarted server answers (DCP-V1-498).
-func TestDCPV1498MCPServesArtifactsAcrossBuilderUpgrades(t *testing.T) {
+// restart and a restarted server answers (DCX-V1-498).
+func TestDCXV1498MCPServesArtifactsAcrossBuilderUpgrades(t *testing.T) {
 	defer doccorpus.TrustUnattestedBuilderForTest()()
 	root := taskContextRepository(t)
 	rev := cemGit(t, root, "rev-parse", "HEAD")

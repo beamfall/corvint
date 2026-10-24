@@ -13,12 +13,12 @@ import (
 )
 
 // ValidationUnrederived is the timings validation state of a delta current side taken from its
-// canonical bytes because a declared additional checkout is unavailable (DCP-V1-425, DCP-V1-460).
+// canonical bytes because a declared additional checkout is unavailable (DCX-V1-425, DCR-V1-460).
 // It is diagnostics only and never enters a receipt.
 const ValidationUnrederived = "checkout-unavailable"
 
 // ValidationManifestBuilt is the timings validation state of a delta current side built from
-// --manifest (DCP-V1-462); diagnostics only.
+// --manifest (DCR-V1-462); diagnostics only.
 const ValidationManifestBuilt = "manifest-built"
 
 // OpenDeltaCurrent opens a retained artifact as the current side of `docs corpus delta`
@@ -28,11 +28,11 @@ func OpenDeltaCurrent(ctx context.Context, root string, data []byte) (*Artifact,
 }
 
 // OpenDeltaRead opens a retained artifact as the current side of `docs corpus delta`
-// (DCP-V1-425, DCP-V1-460). While every declared additional checkout holds its identity at each
+// (DCX-V1-425, DCR-V1-460). While every declared additional checkout holds its identity at each
 // pinned revision it is OpenRead: the verified read by default, the complete rederivation with
 // opts.Rederive or an unattested running builder, and every failure refuses; the verified read
 // also checks that every input names the regular blob its path holds at its pinned revision
-// before anything is classified (DCP-V1-464). When one does not,
+// before anything is classified (DCR-V1-464). When one does not,
 // the artifact cannot be verified or rederived, so it is taken from its canonical, digest-checked
 // bytes instead: every input of an available repository must still name the blob its path holds
 // at its pinned revision, the unavailable repositories' anchors classify unresolved with the
@@ -65,10 +65,10 @@ func OpenDeltaRead(ctx context.Context, root string, data []byte, opts ReadOptio
 		return OpenRead(ctx, root, data, opts)
 	}
 	// The checkouts are observed from the header members while the records are decoded and
-	// verified, as a read's freshness is (DCP-V1-411).
+	// verified, as a read's freshness is (DCR-V1-411).
 	// With every checkout available, each input's (revision, path) -> blob binding is checked
 	// against its pinned tree there too, because the verified read checks only the pins and the
-	// classification trusts the recorded blobs (DCP-V1-464).
+	// classification trusts the recorded blobs (DCR-V1-464).
 	var missing map[string]string
 	var missingErr, bindingErr error
 	var bindingTime time.Duration
@@ -107,7 +107,7 @@ func OpenDeltaRead(ctx context.Context, root string, data []byte, opts ReadOptio
 }
 
 // openDeltaUnrederived checks a canonically decoded current side whose missing checkouts
-// prevent its rederivation (DCP-V1-425).
+// prevent its rederivation (DCX-V1-425).
 func openDeltaUnrederived(ctx context.Context, root string, a *Artifact, missing map[string]string, t *ReadTimings) (*Artifact, error) {
 	start := time.Now()
 	err := verifyAvailableInputs(ctx, root, a.Manifest, missing)
@@ -126,11 +126,11 @@ func openDeltaUnrederived(ctx context.Context, root string, a *Artifact, missing
 }
 
 // OpenDeltaPrevious admits the `--previous` artifact of `docs corpus delta` and
-// `carry-forward` (DCP-V1-360, DCP-V1-461) with the verified read's decode: one scan, the
+// `carry-forward` (DCX-V1-360, DCR-V1-461) with the verified read's decode: one scan, the
 // record elements decoded and compared with their canonical encoding in parallel, and the
-// content digest hashed while they are (DCP-V1-414). It admits and refuses exactly what
+// content digest hashed while they are (DCR-V1-414). It admits and refuses exactly what
 // ParseArtifact does. Builder identity and pins are not checked, because the worklist must not
-// depend on which builder built the previous corpus (DCP-V1-424), and nothing is rederived.
+// depend on which builder built the previous corpus (DCX-V1-424), and nothing is rederived.
 func OpenDeltaPrevious(data []byte, t *ReadTimings) (*Artifact, error) {
 	start := time.Now()
 	defer func() {

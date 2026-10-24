@@ -88,3 +88,8 @@ Recorded value re-emissions: a revision may also re-emit the value of an existin
 member with `make cem-stable-regen-replace` (CEM-V1-091, decision 0530), which
 keeps every other key, exit and case, records the predecessor digest of each
 replaced value and the reason, and appends a section to CHANGES.md.
+
+Recorded schema enum widenings: a revision may also widen one string `const` or
+`enum` of RESULT.schema.json with `make cem-stable-regen-widen` (CEM-V1-620),
+which keeps every existing value, case and cell, records the predecessor digest
+of the widened node and the reason, and appends a section to CHANGES.md.

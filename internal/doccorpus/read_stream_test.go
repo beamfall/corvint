@@ -16,7 +16,7 @@ import (
 	"testing/iotest"
 )
 
-// streamCases are the refusal shapes TestDCPV1414 and TestDCPV1419 cover, applied to data.
+// streamCases are the refusal shapes TestDCRV1414 and TestDCRV1419 cover, applied to data.
 func streamCases(t *testing.T, data []byte) map[string][]byte {
 	t.Helper()
 	insert := func(after, text string) []byte {
@@ -57,11 +57,11 @@ func streamCases(t *testing.T, data []byte) map[string][]byte {
 	}
 }
 
-// TestDCPV1431StreamedDecodeMatchesInMemory: the streamed decode admits exactly what the in-memory
+// TestDCRV1431StreamedDecodeMatchesInMemory: the streamed decode admits exactly what the in-memory
 // decode admits, with the same records and digest tail, and refuses every shape the closed decoder
 // refuses, whichever window and carry room splits the bytes, so every value crosses a window
 // boundary at some size and carries both fit and overflow the room before a block.
-func TestDCPV1431StreamedDecodeMatchesInMemory(t *testing.T) {
+func TestDCRV1431StreamedDecodeMatchesInMemory(t *testing.T) {
 	t.Parallel()
 	_, a, _ := builtFixture(t)
 	data := rehashed(t, a, func(c *Artifact) {
@@ -109,9 +109,9 @@ func TestDCPV1431StreamedDecodeMatchesInMemory(t *testing.T) {
 	}
 }
 
-// TestDCPV1431StreamedLongValue: a value much longer than a window (one claim of 3 MiB) decodes
+// TestDCRV1431StreamedLongValue: a value much longer than a window (one claim of 3 MiB) decodes
 // as in memory; the window grows geometrically while the value is scanned.
-func TestDCPV1431StreamedLongValue(t *testing.T) {
+func TestDCRV1431StreamedLongValue(t *testing.T) {
 	t.Parallel()
 	_, a, _ := builtFixture(t)
 	data := rehashed(t, a, func(c *Artifact) {
@@ -129,9 +129,9 @@ func TestDCPV1431StreamedLongValue(t *testing.T) {
 	}
 }
 
-// TestDCPV1431StreamedReadReusesBlocks: a streamed read of many blocks reuses block buffers
+// TestDCRV1431StreamedReadReusesBlocks: a streamed read of many blocks reuses block buffers
 // instead of allocating one per block, so the artifact is never held whole.
-func TestDCPV1431StreamedReadReusesBlocks(t *testing.T) {
+func TestDCRV1431StreamedReadReusesBlocks(t *testing.T) {
 	t.Parallel()
 	_, a, _ := builtFixture(t)
 	data := rehashed(t, a, func(c *Artifact) {
@@ -159,10 +159,10 @@ func TestDCPV1431StreamedReadReusesBlocks(t *testing.T) {
 	}
 }
 
-// TestDCPV1431OpenReadFile: the streamed file read admits and refuses as OpenRead of the file's
+// TestDCRV1431OpenReadFile: the streamed file read admits and refuses as OpenRead of the file's
 // bytes does, a read error is not reported as a refusal of the bytes read before it, and a missing
 // or unsafe path is the read's unavailable refusal.
-func TestDCPV1431OpenReadFile(t *testing.T) {
+func TestDCRV1431OpenReadFile(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	root, _, data := builtFixture(t)
@@ -220,10 +220,10 @@ func (spaces) Read(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// TestDCPV1434DecodeTimeClaimTermsMatchIndex: claim terms derived on the decode workers while a
+// TestDCRV1434DecodeTimeClaimTermsMatchIndex: claim terms derived on the decode workers while a
 // read decodes give the query index the reference derivation stores, whichever batches the
 // window splits the claims into; blocks that do not cover every claim are not used.
-func TestDCPV1434DecodeTimeClaimTermsMatchIndex(t *testing.T) {
+func TestDCRV1434DecodeTimeClaimTermsMatchIndex(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	_, built, _ := builtFixture(t)
@@ -273,10 +273,10 @@ func TestDCPV1434DecodeTimeClaimTermsMatchIndex(t *testing.T) {
 	}
 }
 
-// TestDCPV1431StreamedTruncationAtWindowEnd: input that ends exactly at a window boundary, in the
+// TestDCRV1431StreamedTruncationAtWindowEnd: input that ends exactly at a window boundary, in the
 // middle of a value or right after a scalar, refuses as a truncated artifact instead of panicking,
 // whatever the window is; the refill at the end of the input moves the window without reading.
-func TestDCPV1431StreamedTruncationAtWindowEnd(t *testing.T) {
+func TestDCRV1431StreamedTruncationAtWindowEnd(t *testing.T) {
 	t.Parallel()
 	_, _, data := builtFixture(t)
 	cases := map[string][]byte{"schema scalar": []byte(`{"schema":1`), "schema scalar with space": []byte(`{"schema": 12`)}
@@ -295,10 +295,10 @@ func TestDCPV1431StreamedTruncationAtWindowEnd(t *testing.T) {
 	}
 }
 
-// TestDCPV1434ConcurrentQueriesShareClaimTerms: concurrent queries of one verified artifact
+// TestDCRV1434ConcurrentQueriesShareClaimTerms: concurrent queries of one verified artifact
 // derive their query indexes without racing on the decode-time claim terms; exactly one takes
 // them, the others tokenize, and every receipt is the serial one. Run under -race.
-func TestDCPV1434ConcurrentQueriesShareClaimTerms(t *testing.T) {
+func TestDCRV1434ConcurrentQueriesShareClaimTerms(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	root, _, data := builtFixture(t)

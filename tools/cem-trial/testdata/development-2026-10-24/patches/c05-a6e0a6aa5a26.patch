@@ -1,0 +1,182 @@
+diff --git a/internal/store/backup.go b/internal/store/backup.go
+index 4ae7cec17..e75143e9b 100644
+--- a/internal/store/backup.go
++++ b/internal/store/backup.go
+@@ -142,12 +142,24 @@ func (s *Store) BackupWithOptions(ctx context.Context, destDir string, opts Back
+ 	if err != nil {
+ 		return BackupResult{}, err
+ 	}
+-	if err := os.WriteFile(manifestPath, append(data, '\n'), 0o600); err != nil {
++	if err := writeFileSync0600(manifestPath, append(data, '\n')); err != nil {
++		return BackupResult{}, err
++	}
++	// fsync the partial directory so its entries (manifest + every snapshot file)
++	// are durable on disk before the rename publishes the set; otherwise a crash
++	// after rename could surface a finalDir whose contents never reached the
++	// platter (JBF-4 — durability).
++	if err := syncDir(partialDir); err != nil {
+ 		return BackupResult{}, err
+ 	}
+ 	if err := os.Rename(partialDir, finalDir); err != nil {
+ 		return BackupResult{}, err
+ 	}
++	// fsync the destination's parent so the rename itself is durable: the backup
++	// is only "written" once the directory entry survives a crash.
++	if err := syncDir(destDir); err != nil {
++		return BackupResult{}, err
++	}
+ 	cleanupPartial = false
+ 	slog.InfoContext(ctx, "backup written", "directory", finalDir)
+ 	return BackupResult{
+@@ -248,6 +260,21 @@ func RestoreBackup(ctx context.Context, manifestPath string, dataDir string) err
+ 		return errors.New("backup manifest missing consistency protocol")
+ 	}
+ 	dbDir := filepath.Join(dataDir, "db")
++	// restoreInto populates dbDir. If it fails partway, the target holds a
++	// half-restored db/ tree that would otherwise look like a real data dir on
++	// the next Open. Roll the partial restore back so no stale/incomplete state
++	// is left behind, and if that cleanup itself fails surface both errors so the
++	// operator knows the target is dirty rather than silently usable (JBF-5).
++	if err := restoreInto(ctx, dbDir, manifest); err != nil {
++		if rmErr := os.RemoveAll(dbDir); rmErr != nil {
++			return fmt.Errorf("restore failed (%w) and partial restore cleanup failed: %v", err, rmErr)
++		}
++		return err
++	}
++	return nil
++}
++
++func restoreInto(ctx context.Context, dbDir string, manifest backupSetManifest) error {
+ 	if err := os.MkdirAll(dbDir, 0o700); err != nil {
+ 		return err
+ 	}
+@@ -259,7 +286,7 @@ func RestoreBackup(ctx context.Context, manifestPath string, dataDir string) err
+ 		if !ok {
+ 			return fmt.Errorf("backup manifest missing %s snapshot", name)
+ 		}
+-		if err := copyFile0600(snapshot.BackupPath, dest); err != nil {
++		if err := copyVerified0600(snapshot, dest); err != nil {
+ 			return err
+ 		}
+ 	}
+@@ -280,7 +307,7 @@ func RestoreBackup(ctx context.Context, manifestPath string, dataDir string) err
+ 		if err := os.MkdirAll(filepath.Dir(dest), 0o700); err != nil {
+ 			return err
+ 		}
+-		if err := copyFile0600(snapshot.BackupPath, dest); err != nil {
++		if err := copyVerified0600(snapshot, dest); err != nil {
+ 			return err
+ 		}
+ 	}
+@@ -292,6 +319,28 @@ func RestoreBackup(ctx context.Context, manifestPath string, dataDir string) err
+ 	}
+ }
+ 
++// copyVerified0600 copies a backup snapshot to dest and verifies the restored
++// bytes against the manifest's recorded size and SHA-256, failing closed on any
++// mismatch (JBF-7; precedent: internal/backup verifyCiphertext). This catches
++// bit-rot or tampering of the backup set before the corrupt copy is adopted as
++// live data.
++func copyVerified0600(snapshot BackupDatabaseSnapshot, dest string) error {
++	if err := copyFile0600(snapshot.BackupPath, dest); err != nil {
++		return err
++	}
++	if snapshot.SHA256 == "" {
++		return fmt.Errorf("backup snapshot %s missing sha256 checksum", snapshot.BackupPath)
++	}
++	size, checksum, err := fileSizeAndSHA256(dest)
++	if err != nil {
++		return err
++	}
++	if size != snapshot.SizeBytes || checksum != snapshot.SHA256 {
++		return fmt.Errorf("restore integrity check failed for %s: size=%d/%d sha256=%s/%s", snapshot.BackupPath, size, snapshot.SizeBytes, checksum, snapshot.SHA256)
++	}
++	return nil
++}
++
+ func ensureRestoreTargetEmpty(dataDir string) error {
+ 	entries, err := os.ReadDir(dataDir)
+ 	if os.IsNotExist(err) {
+@@ -443,6 +492,40 @@ func snapshotDatabase(ctx context.Context, db *sql.DB, sourcePath string, name s
+ 	}, nil
+ }
+ 
++// writeFileSync0600 writes data to path with 0600 perms and fsyncs the file
++// before returning, so the bytes are durable on disk (plain os.WriteFile leaves
++// them in the page cache). Used for the backup manifest (JBF-4).
++func writeFileSync0600(path string, data []byte) error {
++	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
++	if err != nil {
++		return err
++	}
++	if _, err := file.Write(data); err != nil {
++		_ = file.Close()
++		return err
++	}
++	if err := file.Sync(); err != nil {
++		_ = file.Close()
++		return err
++	}
++	return file.Close()
++}
++
++// syncDir fsyncs a directory so its name-to-inode entries (creations, renames)
++// are durable. A directory fsync is the POSIX barrier that makes a rename
++// crash-safe (JBF-4).
++func syncDir(path string) error {
++	dir, err := os.Open(path)
++	if err != nil {
++		return err
++	}
++	if err := dir.Sync(); err != nil {
++		_ = dir.Close()
++		return err
++	}
++	return dir.Close()
++}
++
+ func fileSizeAndSHA256(path string) (int64, string, error) {
+ 	file, err := os.Open(path)
+ 	if err != nil {
+diff --git a/internal/store/library_health.go b/internal/store/library_health.go
+index f56430303..f593c971e 100644
+--- a/internal/store/library_health.go
++++ b/internal/store/library_health.go
+@@ -355,6 +355,12 @@ func validHealthDimension(dim HealthDimension) bool {
+ //
+ // keep is the set of Media IDs to spare (the canonical survivors of a merge);
+ // pass nil to trash the whole matching set (bulk-trash-broken).
++//
++// Like TrashMedia (see the trashDisabled-asymmetry note there; JBF-2), this
++// bulk path is intentionally NOT gated on s.trashDisabled: it is invoked only
++// through admin-gated, human-confirmed Console mutations, so it is the
++// "human confirmation" branch of invariant 6 rather than autonomous
++// destruction. Only the unattended retention sweep yields when trash is off.
+ func (s *Store) HealthBulkTrash(ctx context.Context, libraryID LibraryID, dim HealthDimension, filter LibraryFilter, keep map[MediaID]bool) (int, error) {
+ 	items, err := s.LibraryHealthItems(ctx, libraryID, dim, filter, 500)
+ 	if err != nil {
+diff --git a/internal/store/trash.go b/internal/store/trash.go
+index a0868266c..2e8d997dd 100644
+--- a/internal/store/trash.go
++++ b/internal/store/trash.go
+@@ -22,6 +22,20 @@ const TrashRetention = 30 * 24 * time.Hour
+ // TrashMedia soft-deletes a Media item the caller can see (hard invariant 6:
+ // destruction is recoverable — the catalog row and source file both survive
+ // until the retention purge, and the purge never touches source files).
++//
++// trashDisabled asymmetry (JBF-2): unlike the autonomous retention sweep
++// (ApplySubscriptionRetentionPolicies), TrashMedia is deliberately NOT gated
++// on s.trashDisabled. Invariant 6 gates *autonomous* destruction ("destructive
++// operations may be autonomous only while trash is enabled; with trash disabled
++// they require human confirmation"). TrashMedia and its bulk wrapper
++// HealthBulkTrash are reached only through human-initiated, admin-gated GraphQL
++// mutations that the web Console already fronts with an explicit confirmation
++// (e.g. strings.confirmnBroken). The trashDisabled toggle still works as
++// intended: when trash is off these confirmed deletes route to the same audited
++// soft-delete (the catalog row survives a TrashRetention window and the purge
++// never deletes source files), so destruction stays recoverable. Gating here
++// would silently break a legitimately human-confirmed operation, which the
++// invariant does not require — only the unattended sweep must yield.
+ func (s *Store) TrashMedia(ctx context.Context, id MediaID, filter LibraryFilter) error {
+ 	return s.trashMediaAt(ctx, id, filter, time.Now().UTC())
+ }

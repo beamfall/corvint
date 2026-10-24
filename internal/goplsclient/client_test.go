@@ -116,7 +116,11 @@ func TestHost(t *testing.T) {
 				if child.Start() != nil {
 					os.Exit(4)
 				}
-				_ = os.WriteFile("child-pid", []byte(strconv.Itoa(child.Process.Pid)), 0600)
+				// Written beside the witness and renamed over it, so a reader never sees the
+				// created-but-empty file os.WriteFile leaves before its write.
+				if os.WriteFile("child-pid.tmp", []byte(strconv.Itoa(child.Process.Pid)), 0600) != nil || os.Rename("child-pid.tmp", "child-pid") != nil {
+					os.Exit(5)
+				}
 				time.Sleep(150 * time.Millisecond)
 				if mode == "wait-cancel" {
 					time.Sleep(120 * time.Second)

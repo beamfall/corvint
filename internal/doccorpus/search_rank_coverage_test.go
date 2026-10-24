@@ -25,10 +25,10 @@ func coverageCorpus(t *testing.T) *Artifact {
 	})
 }
 
-// DCP-V1-547: inside tier terms a result holding more query words orders
+// DCS-V1-547: inside tier terms a result holding more query words orders
 // before one holding fewer, whatever their per-word scores, and a change of
 // held word count starts a new group.
-func TestDCPV1547TermsTierOrdersByCoverage(t *testing.T) {
+func TestDCSV1547TermsTierOrdersByCoverage(t *testing.T) {
 	t.Parallel()
 	a := coverageCorpus(t)
 	q := Request{Operation: "search", Query: "admin logout redirect url LSID", Limit: 10}
@@ -60,11 +60,11 @@ func TestDCPV1547TermsTierOrdersByCoverage(t *testing.T) {
 	}
 }
 
-// DCP-V1-548 (V1-2568): a question names a one-word subject by a capitalized
+// DCS-V1-548 (V1-2568): a question names a one-word subject by a capitalized
 // word that is not the question's first, so "How does Waitlist work?" ranks
 // the Waitlist flow in tier named before a rarer question word's match. A
 // lower-case word, the first word and a statement name nothing.
-func TestDCPV1548QuestionNamesAOneWordSubject(t *testing.T) {
+func TestDCSV1548QuestionNamesAOneWordSubject(t *testing.T) {
 	t.Parallel()
 	a := buildAdoption(t, func(p *ProviderRecord) {
 		ev := p.Subjects[0].Evidence

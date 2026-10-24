@@ -118,6 +118,47 @@ func TestTaskStoreProjectionReaderIsSelectedAndKeepsItUnknown_AFPV0088(t *testin
 	}
 }
 
+// AFP-V0-088 (2), V1-2069: a literal names a projection file only through its
+// whole file name. A directory fragment (`/tickets/`, `.taskman/tickets/`,
+// `/.taskman`) or a file-name fragment (the `.taskman/tickets/V1-` of
+// `".taskman/tickets/V1-%04d.json"`) still selects its unit as a path-literal
+// reader, but names a family of records, not this one, so the path is task
+// state; the whole name, alone or with its directories, keeps it unknown.
+func TestTaskStoreProjectionFragmentLiteralDoesNotNameARecord_AFPV0088(t *testing.T) {
+	const ticket = ".taskman/tickets/V1-0001.json"
+	for _, tc := range []struct {
+		token, dirty string
+		named        bool
+	}{
+		{"/tickets/", ticket, false},
+		{"/tickets", ticket, false},
+		{".taskman/tickets/", ticket, false},
+		{"/.taskman", ticket, false},
+		{"/.taskman/", ".taskman/queue.json", false},
+		{".taskman/tickets/V1-", ticket, false},
+		{".taskman/releases/", ".taskman/releases/v1-0.json", false},
+		{".taskman/tickets/V1-0001.json", ticket, true},
+		{"tickets/V1-0001.json", ticket, true},
+		{"V1-0001.json", ticket, true},
+		{"/.taskman/queue.json", ".taskman/queue.json", true},
+	} {
+		plan := taskStatePlan(t, func(language *fake) { language.units[3].PathTokens = []string{tc.token} }, tc.dirty)
+		if got := witnesses(plan)["x:solo"]; got.Kind != WitnessPathLiteralReader || got.DirtyPath != tc.dirty {
+			t.Fatalf("%q: the literal's unit must stay selected: %+v", tc.token, plan.Selected)
+		}
+		unowned := slices.Contains(unknownDetails(plan), "UNOWNED_DIRTY_PATH "+tc.dirty)
+		if tc.named {
+			if !unowned || len(plan.NonSource) != 0 {
+				t.Fatalf("%q names %s: unknown=%v nonSource=%v", tc.token, tc.dirty, unknownDetails(plan), plan.NonSource)
+			}
+			continue
+		}
+		if unowned || !slices.Equal(nonSourcePaths(plan), []string{tc.dirty}) || !slices.Equal(unknownDetails(plan), []string{"LANGUAGE_FRONTIER x:dynamic-dispatch"}) {
+			t.Fatalf("%q must not name %s: unknown=%v nonSource=%v", tc.token, tc.dirty, unknownDetails(plan), plan.NonSource)
+		}
+	}
+}
+
 // AFP-V0-088 (1): only the recognised projection layout is task state.
 func TestTaskStoreProjectionLayoutIsClosed_AFPV0088(t *testing.T) {
 	for path, want := range map[string]bool{

@@ -1,10 +1,11 @@
 #!/bin/sh
 set -eu
 
-# Two cases, on a fixture repository: a clean tracked docs/decisions set passes, and a
+# Cases on a fixture repository: a clean tracked docs/decisions set passes, and a
 # `git ls-files` failure is refused loudly instead of being swallowed by the pipe and
 # reported as zero collisions found (plain `sh` has no `pipefail`, so a pipeline's exit
-# status is its last command's, not the enumeration's).
+# status is its last command's, not the enumeration's); missing and duplicate index rows
+# fail; and parallel README appends union-merge cleanly under .gitattributes (DNG-V0-009).
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-decision-numbers-test.XXXXXX")
@@ -90,4 +91,45 @@ esac
 # Restore a clean README so any later case reusing this fixture starts from a passing state.
 write_readme
 
-printf 'check-decision-numbers_test: 4 cases passed\n'
+# 5. DNG-V0-009: with the repository's .gitattributes, two branches that each add a decision
+# file, its README row at the same place and a build-log entry merge with no conflict, and the
+# merged index passes the gate.
+cp "$source_root/.gitattributes" "$test_root/.gitattributes"
+git -C "$test_root" add -A
+git -C "$test_root" commit -qm attributes
+start=$(git -C "$test_root" rev-parse HEAD)
+add_decision() { # branch file build-log-entry
+    git -C "$test_root" checkout -q -b "$1" "$start"
+    printf '# %s\n' "$2" > "$test_root/docs/decisions/$2"
+    mkdir -p "$test_root/docs/build-log"
+    printf '# %s\n' "$3" > "$test_root/docs/build-log/$3"
+    { sed -n '1,2p' "$readme"
+      printf '| [`%s`](%s) | accepted | fixture |\n' "$2" "$2"
+      sed '1,2d' "$readme"; } > "$readme.new"
+    mv -f "$readme.new" "$readme"
+    git -C "$test_root" add -A
+    git -C "$test_root" commit -qm "$1"
+}
+add_decision lane-a 0003-third-2026-10-24.md 2026-10-24-third.md
+add_decision lane-b 0004-fourth-2026-10-24.md 2026-10-24-fourth.md
+git -C "$test_root" checkout -q lane-a
+git -C "$test_root" merge -q --no-edit lane-b >/dev/null 2>&1 || fail "parallel decision rows did not merge cleanly: $(git -C "$test_root" status --short)"
+grep -q '0003-third-2026-10-24.md' "$readme" && grep -q '0004-fourth-2026-10-24.md' "$readme" ||
+    fail "the union merge dropped a row: $(cat "$readme")"
+output=$(run) || fail "the union-merged index did not pass: $output"
+
+# 6. A union merge of two branches that each claimed the same decision number keeps both rows,
+# and the gate refuses the colliding number rather than accepting it silently (V1-0265).
+add_decision lane-c 0005-fifth-a-2026-10-24.md 2026-10-24-fifth-a.md
+add_decision lane-d 0005-fifth-b-2026-10-24.md 2026-10-24-fifth-b.md
+git -C "$test_root" checkout -q lane-c
+git -C "$test_root" merge -q --no-edit lane-d >/dev/null 2>&1 || fail "colliding decision rows did not union-merge: $(git -C "$test_root" status --short)"
+status=0
+output=$(run) || status=$?
+test "$status" -ne 0 || fail "a union-merged number collision passed the gate: $output"
+case $output in
+    *0005-fifth-a-2026-10-24.md*0005-fifth-b-2026-10-24.md*) ;;
+    *) fail "the failure did not name both colliding files: $output" ;;
+esac
+
+printf 'check-decision-numbers_test: 6 cases passed\n'

@@ -98,12 +98,15 @@ func TestCTSV0006_ReadVerbsUnderConcurrentWriter(t *testing.T) {
 	}
 	var mu sync.Mutex
 	var failures []string
+	// Every tally exists before any reader starts, so readers only read the map.
 	reads := map[string]*tally{}
+	for _, args := range verbs {
+		reads[args[0]] = &tally{}
+	}
 	var wg sync.WaitGroup
 	withReadPatience(t, 2*time.Second, func() {
 		for _, args := range verbs {
 			wg.Add(1)
-			reads[args[0]] = &tally{}
 			go func(args []string) {
 				defer wg.Done()
 				for {

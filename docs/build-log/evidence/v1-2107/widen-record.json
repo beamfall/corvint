@@ -1,0 +1,8 @@
+{
+  "reason": "V1-2107 (Codex P2 on beamfall/corvint#1338): CEM-V1-310..313 admit the opaque/0 runner receipt label for maps whose runner receipt was not admitted, so a verify result that references such a receipt is ACCEPT but failed RESULT.schema.json, which pinned references.runnerReceipts[].profile to corvint-test-runner-receipt/0; the node admits exactly the two labels stable.schema.json already admits (CEM-V1-621).",
+  "pointer": "/$defs/runnerReceipt/properties/profile",
+  "predecessorSha256": "ee614710112c1b723eb3e032a0f7a103be2470b0c2e405cceb870d4ad3cf9f47",
+  "add": [
+    "opaque/0"
+  ]
+}

@@ -91,7 +91,7 @@ func SetIndexBoundsForTest(postings, keyBytes int) (restore func()) {
 
 // BuildQueryIndex derives the query index of a. buildQueryIndexReference is
 // the reference derivation: buildQueryIndexFast answers whenever it can show
-// the reference stores the same index and refuses nothing (DCP-V1-419), and
+// the reference stores the same index and refuses nothing (DCR-V1-419), and
 // the reference runs otherwise, so every refusal keeps its code, message and
 // observed count.
 func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {

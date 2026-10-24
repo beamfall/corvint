@@ -35,10 +35,10 @@ func leftoversCorpus(t *testing.T) *Artifact {
 	})
 }
 
-// DCP-V1-540: a query word counts once, by the best of the terms it yields,
+// DCS-V1-540: a query word counts once, by the best of the terms it yields,
 // so the plural "breaks" (which also yields "break") no longer outweighs two
 // subject words, and served terms count held query words.
-func TestDCPV1540QueryWordCountsOnce(t *testing.T) {
+func TestDCSV1540QueryWordCountsOnce(t *testing.T) {
 	t.Parallel()
 	a := leftoversCorpus(t)
 	q := Request{Operation: "search", Query: "breaks reservation cancellation", Limit: 10}
@@ -69,11 +69,11 @@ func TestDCPV1540QueryWordCountsOnce(t *testing.T) {
 	}
 }
 
-// DCP-V1-541: a query of one identifier ranks a subject one of whose name or
+// DCS-V1-541: a query of one identifier ranks a subject one of whose name or
 // path tokens spells it, with or without the token's extension, before a
 // shorter name that only holds its words as a phrase. A spaced query is not
 // an identifier.
-func TestDCPV1541IdentifierTokenTier(t *testing.T) {
+func TestDCSV1541IdentifierTokenTier(t *testing.T) {
 	t.Parallel()
 	a := leftoversCorpus(t)
 	for _, query := range []string{"pos_sync", "PosSync", "pos_sync.rb"} {
@@ -94,11 +94,11 @@ func TestDCPV1541IdentifierTokenTier(t *testing.T) {
 	}
 }
 
-// DCP-V1-542 (V1-2549): a phrase in a module or file subject's path orders
+// DCS-V1-542 (V1-2549): a phrase in a module or file subject's path orders
 // before a phrase in another subject's name, which orders before a phrase
 // held only by an ID, so "on deck" ranks the controller file before its own
 // declarations.
-func TestDCPV1542PathPhraseBeforeDeclarations(t *testing.T) {
+func TestDCSV1542PathPhraseBeforeDeclarations(t *testing.T) {
 	t.Parallel()
 	a := leftoversCorpus(t)
 	q := Request{Operation: "search", Query: "on deck", Limit: 10}
@@ -114,10 +114,10 @@ func TestDCPV1542PathPhraseBeforeDeclarations(t *testing.T) {
 	}
 }
 
-// DCP-V1-543: a question ranks a subject whose name of two or more words it
+// DCS-V1-543: a question ranks a subject whose name of two or more words it
 // holds before subjects matching its terms alone; a statement holding a name
 // does not, and an identifier starting with a question word is no question.
-func TestDCPV1543QuestionNamesASubject(t *testing.T) {
+func TestDCSV1543QuestionNamesASubject(t *testing.T) {
 	t.Parallel()
 	a := leftoversCorpus(t)
 	for _, query := range []string{"What breaks in Reservation Cancellation, and under what conditions?", "how does reservation cancellation refund"} {
@@ -142,9 +142,9 @@ func TestDCPV1543QuestionNamesASubject(t *testing.T) {
 	}
 }
 
-// DCP-V1-544: tiers split groups even at equal scores, every served tier is
+// DCS-V1-544: tiers split groups even at equal scores, every served tier is
 // one of the named values, and a merged claim carries its held word count.
-func TestDCPV1544ServedTiersAndTerms(t *testing.T) {
+func TestDCSV1544ServedTiersAndTerms(t *testing.T) {
 	t.Parallel()
 	a := leftoversCorpus(t)
 	served := []string{"exact", "identifier", "path-phrase", "phrase", "id-phrase", "named", "terms"}

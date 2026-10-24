@@ -10,12 +10,12 @@ import (
 	"testing"
 )
 
-// TestDCPV1460DeltaVerifiedReadMatchesRederived: over a pair with carry-forward, moved, changed,
+// TestDCRV1460DeltaVerifiedReadMatchesRederived: over a pair with carry-forward, moved, changed,
 // removed, unresolved and uncovered entries, the verified current side and canonical previous
 // side give byte-identical paged receipts and jsonl streams to the --verify-rederive path and to
 // the earlier ParseArtifact and OpenDeltaCurrent path, in every view; the verified path runs no
-// build and the rederived path does (DCP-V1-460, DCP-V1-461). Not parallel: it counts builds.
-func TestDCPV1460DeltaVerifiedReadMatchesRederived(t *testing.T) {
+// build and the rederived path does (DCR-V1-460, DCR-V1-461). Not parallel: it counts builds.
+func TestDCRV1460DeltaVerifiedReadMatchesRederived(t *testing.T) {
 	ctx := context.Background()
 	root, previous, m := deltaFixture(t)
 	current, err := Build(ctx, root, m)
@@ -112,10 +112,10 @@ func TestDCPV1460DeltaVerifiedReadMatchesRederived(t *testing.T) {
 	}
 }
 
-// TestDCPV1460DeltaVerifiedReadRefusesClosed: a current side the verified read refuses is
+// TestDCRV1460DeltaVerifiedReadRefusesClosed: a current side the verified read refuses is
 // refused by the delta, never served from its unverified bytes, and a previous side keeps the
-// closed decoder's admission (DCP-V1-460, DCP-V1-461).
-func TestDCPV1460DeltaVerifiedReadRefusesClosed(t *testing.T) {
+// closed decoder's admission (DCR-V1-460, DCR-V1-461).
+func TestDCRV1460DeltaVerifiedReadRefusesClosed(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	root, a, data := builtFixture(t)
@@ -141,10 +141,10 @@ func TestDCPV1460DeltaVerifiedReadRefusesClosed(t *testing.T) {
 	}
 }
 
-// TestDCPV1461PreviousOverDefaultBound: a schema /2 previous artifact larger than the default
+// TestDCRV1461PreviousOverDefaultBound: a schema /2 previous artifact larger than the default
 // 4 MiB bound is admitted by OpenDeltaPrevious exactly as by ParseArtifact; the parallel decode
-// reads the schema before it applies the bound even without a header callback (DCP-V1-461).
-func TestDCPV1461PreviousOverDefaultBound(t *testing.T) {
+// reads the schema before it applies the bound even without a header callback (DCR-V1-461).
+func TestDCRV1461PreviousOverDefaultBound(t *testing.T) {
 	t.Parallel()
 	_, a, _ := builtFixture(t)
 	data := rehashed(t, a, func(b *Artifact) {
@@ -168,11 +168,11 @@ func TestDCPV1461PreviousOverDefaultBound(t *testing.T) {
 	}
 }
 
-// TestDCPV1460DeltaVerifiedReadUnavailableCheckout: on the default verified branch, an
-// unavailable additional checkout still takes the DCP-V1-425 path, observed from the header
+// TestDCRV1460DeltaVerifiedReadUnavailableCheckout: on the default verified branch, an
+// unavailable additional checkout still takes the DCX-V1-425 path, observed from the header
 // members, and an available input that does not name its blob is still refused; an invalid
-// manifest is refused on both branches before any checkout is examined (DCP-V1-460).
-func TestDCPV1460DeltaVerifiedReadUnavailableCheckout(t *testing.T) {
+// manifest is refused on both branches before any checkout is examined (DCR-V1-460).
+func TestDCRV1460DeltaVerifiedReadUnavailableCheckout(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	f := newDeltaAddRepoFixture(t)
@@ -235,11 +235,11 @@ func TestDCPV1460DeltaVerifiedReadUnavailableCheckout(t *testing.T) {
 	}
 }
 
-// TestDCPV1464DeltaVerifiedReadChecksInputBindings: with every checkout available, a current
+// TestDCRV1464DeltaVerifiedReadChecksInputBindings: with every checkout available, a current
 // artifact whose changed input names the previous blob and SHA-256, with its manifest and artifact
 // digests recomputed, is refused by the verified delta current side before any classification, as
-// by the rederivation, and never classified carry-forward (DCP-V1-464).
-func TestDCPV1464DeltaVerifiedReadChecksInputBindings(t *testing.T) {
+// by the rederivation, and never classified carry-forward (DCR-V1-464).
+func TestDCRV1464DeltaVerifiedReadChecksInputBindings(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	root, previous, m := deltaFixture(t)

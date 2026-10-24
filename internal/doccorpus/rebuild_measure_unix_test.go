@@ -15,14 +15,14 @@ import (
 	"time"
 )
 
-// TestDCPV1534RebuildReuseMeasured measures docs corpus build --artifact on a large inventory,
+// TestDCXV1534RebuildReuseMeasured measures docs corpus build --artifact on a large inventory,
 // each mode in its own process so its peak resident set is its own: "full" rebuilds an artifact
-// of another derivation (the cost every rebuild paid before DCP-V1-532), "reuse" one of another
+// of another derivation (the cost every rebuild paid before DCX-V1-532), "reuse" one of another
 // revision of the running derivation. Both must print the bytes a full build prints. A Linux
 // child's peak resident set starts at its parent's, so a third process prepares the corpus and
 // this one stays small. Set CORVINT_REBUILD_MEASURE_FILES (the PR measurement uses 9500) to run
-// it (DCP-V1-534).
-func TestDCPV1534RebuildReuseMeasured(t *testing.T) {
+// it (DCX-V1-534).
+func TestDCXV1534RebuildReuseMeasured(t *testing.T) {
 	if mode := os.Getenv("CORVINT_REBUILD_MEASURE_CHILD"); mode == "prepare" {
 		prepareRebuildMeasure(t)
 		return
@@ -35,7 +35,7 @@ func TestDCPV1534RebuildReuseMeasured(t *testing.T) {
 	}
 	dir := t.TempDir()
 	for _, mode := range []string{"prepare", "full", "reuse"} {
-		cmd := exec.Command(os.Args[0], "-test.run=^TestDCPV1534RebuildReuseMeasured$", "-test.count=1", "-test.v")
+		cmd := exec.Command(os.Args[0], "-test.run=^TestDCXV1534RebuildReuseMeasured$", "-test.count=1", "-test.v")
 		cmd.Env = append(os.Environ(), "CORVINT_REBUILD_MEASURE_CHILD="+mode, "CORVINT_REBUILD_MEASURE_DIR="+dir)
 		began := time.Now()
 		out, err := cmd.CombinedOutput()

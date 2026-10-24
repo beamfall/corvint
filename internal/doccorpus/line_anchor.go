@@ -3,7 +3,7 @@ package doccorpus
 import "bytes"
 
 // LineIndex locates 1-based line spans of one pinned Git blob so producers outside this package
-// (the static test discovery and the coverage ingest, DCP-V1-370 and AFU-V1-112) build anchors
+// (the static test discovery and the coverage ingest, DCX-V1-370 and AFU-V1-112) build anchors
 // exactly as the compiler checks them: the whole blob's digest, the span's digest, and the same
 // non-vacuous, maxSpanBytes-bounded excerpt rule as span.
 type LineIndex struct {

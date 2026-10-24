@@ -139,11 +139,11 @@ func searchRankingCorpus(t *testing.T, fixture string) string {
 	return root
 }
 
-// DCP-V1-404 (GitHub #1597): the committed fixture's file-lookup cases pass
+// DCS-V1-404 (GitHub #1597): the committed fixture's file-lookup cases pass
 // without a kind filter and its claim-lookup cases pass with
 // include:["claims"], every case answered through the docs_search MCP tool
 // path, deterministically across runs.
-func TestDCPV1404SearchRankingEvalFixture(t *testing.T) {
+func TestDCSV1404SearchRankingEvalFixture(t *testing.T) {
 	root := searchRankingCorpus(t, searchRankingFixture)
 	cases, err := os.ReadFile(filepath.Join(searchRankingFixture, "cases.json"))
 	if err != nil {

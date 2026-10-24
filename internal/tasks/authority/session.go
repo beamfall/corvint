@@ -152,10 +152,31 @@ func (s *Session) RemoveBarrier(expected wire.Digest) error {
 	return s.inner.removeBarrier(fixtureTarget{fixtureBarrier, "barrier.json"}, expected)
 }
 
+// SkipStagingSync makes every later staging-directory sync of this session
+// keep its boundary and checks but make no sync call (LGL-V0-005 proposed).
+// Only a heartbeat or renew session sets it: every file sync and every
+// destination directory sync still runs, so what the session commits is as
+// durable as before, and a crash can leave only the staging residue a killed
+// writer already leaves, which the next writer or audit sets aside.
+func (s *Session) SkipStagingSync() {
+	s.inner.mu.Lock()
+	defer s.inner.mu.Unlock()
+	s.inner.stagingSyncSkipped = true
+}
+
 // SyncDuration is the wall time this session has spent in file and directory
 // sync calls so far. It is an issue 494 diagnostic, never proof or authority.
 func (s *Session) SyncDuration() time.Duration {
 	s.inner.mu.Lock()
 	defer s.inner.mu.Unlock()
 	return s.inner.syncTime
+}
+
+// SyncCalls is how many file and directory sync calls this session has made
+// so far (LGL-V0-006 proposed). Like SyncDuration it is a diagnostic, never
+// proof or authority.
+func (s *Session) SyncCalls() int {
+	s.inner.mu.Lock()
+	defer s.inner.mu.Unlock()
+	return s.inner.syncCalls
 }

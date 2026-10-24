@@ -68,7 +68,7 @@ func subjectAnchor(t *testing.T, a *Artifact, id string) Anchor {
 	return Anchor{}
 }
 
-// assertSelfDeltaCarries is the DCP-V1-444 conformance check: a corpus compared with itself lists
+// assertSelfDeltaCarries is the DCX-V1-444 conformance check: a corpus compared with itself lists
 // no unresolved entry in either format, and every docs adoption record is carry-forward.
 func assertSelfDeltaCarries(t *testing.T, root string, a *Artifact) {
 	t.Helper()
@@ -101,10 +101,10 @@ func assertSelfDeltaCarries(t *testing.T, root string, a *Artifact) {
 	}
 }
 
-func TestDCPV1440DeltaAdoptionRecords(t *testing.T) {
+func TestDCXV1440DeltaAdoptionRecords(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	t.Run("DCP-V1-440 DCP-V1-444 a self-delta of the additional-repository fixture with flows and paragraphs has no unresolved entry", func(t *testing.T) {
+	t.Run("DCX-V1-440 DCX-V1-444 a self-delta of the additional-repository fixture with flows and paragraphs has no unresolved entry", func(t *testing.T) {
 		t.Parallel()
 		f := newDeltaAddRepoFixture(t)
 		m := withDocsAdoption(t, f.root, f.previous.Manifest, subjectAnchor(t, f.previous, "adapter:lib"), subjectAnchor(t, f.previous, "adapter:print"))
@@ -117,7 +117,7 @@ func TestDCPV1440DeltaAdoptionRecords(t *testing.T) {
 			t.Fatalf("flow anchors in the additional repository: %+v", e)
 		}
 	})
-	t.Run("DCP-V1-440 DCP-V1-444 a self-delta of the multi-revision fixture with flows and paragraphs has no unresolved entry", func(t *testing.T) {
+	t.Run("DCX-V1-440 DCX-V1-444 a self-delta of the multi-revision fixture with flows and paragraphs has no unresolved entry", func(t *testing.T) {
 		t.Parallel()
 		root, m, _, _ := multiRevisionFixture(t)
 		base, err := Build(ctx, root, m)
@@ -131,7 +131,7 @@ func TestDCPV1440DeltaAdoptionRecords(t *testing.T) {
 		}
 		assertSelfDeltaCarries(t, root, a)
 	})
-	t.Run("DCP-V1-440 DCP-V1-442 a partly changed flow is changed with its anchors and its dependents are demoted", func(t *testing.T) {
+	t.Run("DCX-V1-440 DCX-V1-442 a partly changed flow is changed with its anchors and its dependents are demoted", func(t *testing.T) {
 		t.Parallel()
 		root, m := fixture(t)
 		rev := m.Repository.Revision
@@ -172,7 +172,7 @@ func TestDCPV1440DeltaAdoptionRecords(t *testing.T) {
 			t.Fatalf("carry-forward re-applied a record whose dependencies changed: %+v", record)
 		}
 	})
-	t.Run("DCP-V1-443 carry-forward re-applies adoption records with their typed details and the next build admits them", func(t *testing.T) {
+	t.Run("DCX-V1-443 carry-forward re-applies adoption records with their typed details and the next build admits them", func(t *testing.T) {
 		t.Parallel()
 		root, m := fixture(t)
 		rev := m.Repository.Revision
@@ -218,7 +218,7 @@ func TestDCPV1440DeltaAdoptionRecords(t *testing.T) {
 			t.Fatalf("second carry-forward carried again: %+v %v", again, err)
 		}
 	})
-	t.Run("DCP-V1-441 an adoption record missing its typed details stays unresolved with the reason", func(t *testing.T) {
+	t.Run("DCX-V1-441 an adoption record missing its typed details stays unresolved with the reason", func(t *testing.T) {
 		t.Parallel()
 		root, m := fixture(t)
 		rev := m.Repository.Revision
@@ -253,7 +253,7 @@ func TestDCPV1440DeltaAdoptionRecords(t *testing.T) {
 	})
 }
 
-func TestDCPV1442DeltaExactTestJoinNeedsItsFile(t *testing.T) {
+func TestDCXV1442DeltaExactTestJoinNeedsItsFile(t *testing.T) {
 	t.Parallel()
 	join := func(file string) *deltaRecord {
 		return &deltaRecord{kind: "relation", entry: DeltaEntry{Class: DeltaCarryForward, ID: "docs:join"}, relation: Relation{ID: "docs:join", From: "docs:flow", To: "docs:test"}, details: &RecordDetails{TestLink: &TestLinkDetails{Role: "asserting", JoinConfidence: "exact", File: file}}}
@@ -293,10 +293,10 @@ func recordEntries(receipt *DeltaReceipt) map[string]DeltaEntry {
 	return out
 }
 
-// TestDCPV1444SelfDeltaSharedSpanChargedOnce pins that a self-delta stays free of unresolved
+// TestDCXV1444SelfDeltaSharedSpanChargedOnce pins that a self-delta stays free of unresolved
 // entries when more records share one large span than the 64 MiB hashing bound could hash one
 // by one: each distinct verified span is charged once, and a cached digest still has to match.
-func TestDCPV1444SelfDeltaSharedSpanChargedOnce(t *testing.T) {
+func TestDCXV1444SelfDeltaSharedSpanChargedOnce(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	root, m := fixture(t)

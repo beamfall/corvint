@@ -11,10 +11,10 @@ import (
 	"testing"
 )
 
-// TestDCPV1530CompactEncoderMatchesReference: the shipped compact encoder writes, byte for byte,
-// what the DCP-V1-487 reference encoder writes for the same record and defaults, and refuses a
-// record that is not /1 (DCP-V1-530).
-func TestDCPV1530CompactEncoderMatchesReference(t *testing.T) {
+// TestDCXV1530CompactEncoderMatchesReference: the shipped compact encoder writes, byte for byte,
+// what the DCX-V1-487 reference encoder writes for the same record and defaults, and refuses a
+// record that is not /1 (DCX-V1-530).
+func TestDCXV1530CompactEncoderMatchesReference(t *testing.T) {
 	t.Parallel()
 	root, _ := adoptionFixture(t, nil)
 	fixture := readProvider(t, root)
@@ -109,11 +109,11 @@ func referenceDefaults(t *testing.T, raw []byte) *AnchorDefaults {
 	return &AnchorDefaults{Authority: top[0], Kind: top[1], Reason: top[2]}
 }
 
-// TestDCPV1531CompactProviderProducer: docs corpus compact-provider rewrites a /1 record or shard
+// TestDCXV1531CompactProviderProducer: docs corpus compact-provider rewrites a /1 record or shard
 // as the reference encoding with the most frequent anchor members as defaults, the build admits
 // the same records from either form, the output is deterministic, and a /2, non-adoption or
-// malformed input is refused (DCP-V1-531).
-func TestDCPV1531CompactProviderProducer(t *testing.T) {
+// malformed input is refused (DCX-V1-531).
+func TestDCXV1531CompactProviderProducer(t *testing.T) {
 	t.Parallel()
 	root, m := adoptionFixture(t, nil)
 	legacy, err := Build(context.Background(), root, m)

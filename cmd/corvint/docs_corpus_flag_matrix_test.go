@@ -12,33 +12,33 @@ import (
 // the shared table cannot vouch for itself. import-cases and search-cases come from the
 // claude/issues-812-813-legacy-cases parser (DCP-V1-070..079), and discover-legacy from the
 // claude/issue-811-legacy-inventory parser (DCP-V1-060..069); both predate the table. discover-tests
-// (DCP-V1-370) admits exactly its three required options.
+// (DCX-V1-370) admits exactly its three required options.
 type corpusFlagExpectation struct{ required, optional []string }
 
-var corpusReadOptional = []string{"--limit", "--offset", "--retirement", "--caller-revision", "--verify-rederive", "--timings"} // DCP-V1-332, DCP-V1-413, DCP-V1-415
+var corpusReadOptional = []string{"--limit", "--offset", "--retirement", "--caller-revision", "--verify-rederive", "--timings"} // DCP-V1-332, DCR-V1-413, DCR-V1-415
 
 var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"manifest":            {required: []string{"--revision", "--scope", "--timestamp"}, optional: []string{"--schema"}},
-	"build":               {optional: []string{"--manifest", "--artifact", "--max-unresolved-mention-rate", "--max-pattern-rate"}}, // DCP-V1-346, DCP-V1-352, DCP-V1-495
+	"build":               {optional: []string{"--manifest", "--artifact", "--max-unresolved-mention-rate", "--max-pattern-rate"}}, // DCX-V1-346, DCX-V1-352, DCX-V1-495
 	"render":              {required: []string{"--artifact"}},
 	"maintain":            {required: []string{"--artifact", "--page"}, optional: []string{"--apply"}},
 	"cem":                 {required: []string{"--artifact", "--cem"}, optional: []string{"--id"}},
 	"behavior-adapter":    {required: []string{"--input"}, optional: []string{"--previous", "--check"}},
 	"behavior-provider":   {required: []string{"--input"}},
-	"compact-provider":    {required: []string{"--input"}}, // DCP-V1-531
+	"compact-provider":    {required: []string{"--input"}}, // DCX-V1-531
 	"discover-playwright": {required: []string{"--migration", "--config", "--playwright-list"}, optional: []string{"--receipt"}},
 	"witness-playwright":  {required: []string{"--input", "--receipt-input", "--report"}},
 	"discover-legacy":     {required: []string{"--runner", "--revision", "--path"}, optional: []string{"--input"}},
 	"discover-tests":      {required: []string{"--runner", "--revision", "--path"}},
-	"extract":             {required: []string{"--profile", "--revision"}, optional: []string{"--profile-sha256", "--schema"}}, // DCP-V1-399, DCP-V1-478, DCP-V1-560
+	"extract":             {required: []string{"--profile", "--revision"}, optional: []string{"--profile-sha256", "--schema"}}, // DCX-V1-399, DCX-V1-478, DCX-V1-560
 	"import-cases":        {required: []string{"--format", "--input"}, optional: []string{"--content"}},
 	"search-cases":        {required: []string{"--format", "--input"}, optional: []string{"--query", "--id", "--match", "--limit"}},
 	"eval":                {required: []string{"--artifact", "--cases"}, optional: []string{"--baseline", "--format"}},
 	"audit-sample":        {required: []string{"--artifact", "--seed", "--size"}, optional: []string{"--stratify", "--scope"}},
 	"audit-report":        {required: []string{"--artifact", "--sample"}, optional: []string{"--format"}},
-	"delta":               {required: []string{"--previous"}, optional: []string{"--artifact", "--manifest", "--limit", "--offset", "--uncovered", "--anchorless", "--format", "--verify-rederive", "--timings"}}, // DCP-V1-460, DCP-V1-462
+	"delta":               {required: []string{"--previous"}, optional: []string{"--artifact", "--manifest", "--limit", "--offset", "--uncovered", "--anchorless", "--format", "--verify-rederive", "--timings"}}, // DCR-V1-460, DCR-V1-462
 	"carry-forward":       {required: []string{"--previous", "--provider"}, optional: []string{"--artifact", "--manifest"}},
-	"patterns":            {required: []string{"--artifact"}, optional: []string{"--format"}}, // DCP-V1-348
+	"patterns":            {required: []string{"--artifact"}, optional: []string{"--format"}}, // DCX-V1-348
 	"info":                {required: []string{"--artifact"}, optional: corpusReadOptional},
 	"validate":            {required: []string{"--artifact"}, optional: corpusReadOptional},
 	"inventory":           {required: []string{"--artifact"}, optional: corpusReadOptional},

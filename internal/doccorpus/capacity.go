@@ -18,14 +18,14 @@ const CapacityCode = "corpus-capacity-exceeded"
 // maxPinnedInputBytes bounds the distinct input bytes one build pins other than provider record
 // shards, and maxProviderRecordBytes the distinct provider record shard bytes, which are charged
 // apart so that the size of the supplied record encoding cannot crowd out source inputs
-// (DCP-V1-472).
+// (DCX-V1-472).
 const (
 	maxPinnedInputBytes    = 128 << 20
 	maxProviderRecordBytes = 128 << 20
 )
 
 // inputCharge is the distinct input bytes one build pins, kept per class with each input's size
-// so that a refusal can name the largest contributors (DCP-V1-472).
+// so that a refusal can name the largest contributors (DCX-V1-472).
 type inputCharge struct {
 	sources, providers int
 	sizes              []chargedInput
@@ -176,7 +176,7 @@ func encodingLimit(value any) int {
 			return MaxProviderBytes
 		}
 	case *ExtractorInventory:
-		// DCP-V1-560: a --schema 2 inventory carries an adoption provider record of up to
+		// DCX-V1-560: a --schema 2 inventory carries an adoption provider record of up to
 		// MaxProviderBytes plus up to MaxCorpusRecords gaps.
 		if v != nil && v.Provider.Schema == AdoptionProviderSchema {
 			return MaxCorpusBytes

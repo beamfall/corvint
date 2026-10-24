@@ -8,7 +8,7 @@ import (
 )
 
 // Without lstat inode and change-time fields no index entry can be vouched,
-// so every eligible entry takes the hashed worktree pass (DCP-V1-453).
+// so every eligible entry takes the hashed worktree pass (DCR-V1-453).
 func fileIndexStat(os.FileInfo) (gitIndexStat, bool) { return gitIndexStat{}, false }
 
 func openGitIndex(string) (*os.File, error) {

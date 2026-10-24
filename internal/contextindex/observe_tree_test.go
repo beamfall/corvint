@@ -11,11 +11,11 @@ import (
 	"testing"
 )
 
-// TestDCPV1411ObserveTreeMatchesBuildContext: the tree observation a corpus reader's freshness
+// TestDCRV1411ObserveTreeMatchesBuildContext: the tree observation a corpus reader's freshness
 // uses holds exactly the tracked and skipped paths, header fields and dirty paths a full build
 // of the same state holds, and each admitted source's blob ID and mode, without reading any
-// source (documentation-corpus DCP-V1-411).
-func TestDCPV1411ObserveTreeMatchesBuildContext(t *testing.T) {
+// source (documentation-corpus DCR-V1-411).
+func TestDCRV1411ObserveTreeMatchesBuildContext(t *testing.T) {
 	t.Parallel()
 	root := testRepository(t)
 	writeTestFile(t, root, "docs/guide.md", "# Guide\n\nSteps.\n")
@@ -66,12 +66,12 @@ func TestDCPV1411ObserveTreeMatchesBuildContext(t *testing.T) {
 	}
 }
 
-// TestDCPV1411ObserveTreeRetriesWhenHeadMoves: a commit that lands between the identity read and
+// TestDCRV1411ObserveTreeRetriesWhenHeadMoves: a commit that lands between the identity read and
 // the status read leaves a status of the new commit beside a listing of the old tree; the closing
 // identity read detects it and the observation is repeated, so the returned listing, identity
 // and status all describe the new commit. HEAD moving on every attempt refuses instead of mixing
-// states (documentation-corpus DCP-V1-411).
-func TestDCPV1411ObserveTreeRetriesWhenHeadMoves(t *testing.T) {
+// states (documentation-corpus DCR-V1-411).
+func TestDCRV1411ObserveTreeRetriesWhenHeadMoves(t *testing.T) {
 	root := testRepository(t)
 	writeTestFile(t, root, "docs/guide.md", "# Guide\n\nOld.\n")
 	testGit(t, root, "add", ".")

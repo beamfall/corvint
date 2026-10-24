@@ -8,13 +8,13 @@ import (
 	"github.com/Beamfall/corvint/internal/doccorpus"
 )
 
-// compileCorpusDelta runs `docs corpus delta` and `docs corpus carry-forward` (DCP-V1-360,
-// DCP-V1-366): --previous is a committed corpus artifact read canonically, and the current side
+// compileCorpusDelta runs `docs corpus delta` and `docs corpus carry-forward` (DCX-V1-360,
+// DCX-V1-366): --previous is a committed corpus artifact read canonically, and the current side
 // is exactly one of --artifact or --manifest (built in memory, never written). A delta admits
 // --artifact through the verified read and rederives it only with --verify-rederive; carry-forward
-// rederives it (DCP-V1-460). Both read Git objects only.
+// rederives it (DCR-V1-460). Both read Git objects only.
 func compileCorpusDelta(ctx context.Context, o corpusOptions) ([]byte, error) {
-	// Presence, not value, decides, as for build (DCP-V1-563): an empty --manifest= beside
+	// Presence, not value, decides, as for build (DCX-V1-563): an empty --manifest= beside
 	// --artifact is still both, and an empty value alone is none.
 	artifact := o.given["--artifact"]
 	if artifact == o.given["--manifest"] || artifact && o.artifact == "" || !artifact && o.manifest == "" {
@@ -36,7 +36,7 @@ func compileCorpusDelta(ctx context.Context, o corpusOptions) ([]byte, error) {
 		return nil, err
 	}
 	// The previous side decodes while the current side opens; a previous refusal still wins
-	// (DCP-V1-461). Its own timings are added after the join.
+	// (DCR-V1-461). Its own timings are added after the join.
 	var previous *doccorpus.Artifact
 	var previousTimings doccorpus.ReadTimings
 	var wg sync.WaitGroup
@@ -75,7 +75,7 @@ func compileCorpusDelta(ctx context.Context, o corpusOptions) ([]byte, error) {
 	return data, err
 }
 
-// corpusDeltaViewError refuses an invalid delta view before any read (DCP-V1-421..423): the
+// corpusDeltaViewError refuses an invalid delta view before any read (DCX-V1-421..423): the
 // uncovered and anchorless modes, the output format, and paging options with the jsonl stream.
 func corpusDeltaViewError(o corpusOptions) error {
 	switch {
@@ -92,8 +92,8 @@ func corpusDeltaViewError(o corpusOptions) error {
 }
 
 // openCorpusDeltaCurrent opens the current side. A delta over a retained artifact takes the
-// verified read, or the rederivation with --verify-rederive (DCP-V1-460), and still reaches
-// classification when a declared additional checkout is unavailable (DCP-V1-425); carry-forward
+// verified read, or the rederivation with --verify-rederive (DCR-V1-460), and still reaches
+// classification when a declared additional checkout is unavailable (DCX-V1-425); carry-forward
 // emits records for the next build, so it keeps requiring a rederived artifact.
 func openCorpusDeltaCurrent(ctx context.Context, o corpusOptions) (*doccorpus.Artifact, string, error) {
 	if o.artifact != "" {

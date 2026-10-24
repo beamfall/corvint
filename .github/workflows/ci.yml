@@ -283,7 +283,14 @@ jobs:
     # Partition the complete runtime package universe using advisory measured costs. An
     # admitted Corvint selection intersects those same disjoint partitions; mixed full
     # fallbacks cannot omit selected packages. go-product remains the required check.
-    runs-on: ubuntu-24.04
+    # AFP-V0-420: only while the owner's repository variable CORVINT_SELF_HOSTED is on, a
+    # merge-queue entry or a pull request from a branch of this repository runs its shards on the
+    # owner's self-hosted runner (labels corvint-box); a push, a fork pull request and every other
+    # event, and every run while the variable is unset, stay on the hosted image. The job and
+    # check names do not change. This expression cannot stop a fork pull request that edits it,
+    # because pull_request runs the pull request's own workflow file: the repository's fork-PR
+    # approval policy is that boundary (docs/build-log/2026-10-24-self-hosted-shard-runner.md).
+    runs-on: ${{ (vars.CORVINT_SELF_HOSTED == 'on' && (github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))) && fromJSON('["self-hosted","linux","x64","corvint-box"]') || 'ubuntu-24.04' }}
     timeout-minutes: 75
     strategy:
       fail-fast: false
@@ -310,7 +317,16 @@ jobs:
       GOWORK: "off"
       GOFLAGS: ""
       CGO_ENABLED: "1"
+      # AFP-V0-427: the one host-local root of the self-hosted runner's Go build seeds, outside
+      # every runner's work tree. The runner account is russell. Unused on the hosted image.
+      CORVINT_BOX_GOCACHE_ROOT: /home/russell/ci-cache
     steps:
+      - name: Clear the persistent workspace (self-hosted runner only, AFP-V0-421)
+        # A hosted VM starts empty. The self-hosted runner keeps GITHUB_WORKSPACE between jobs,
+        # so no checkout, pinned tool tree or file of an earlier run may survive into this one;
+        # the runner itself empties RUNNER_TEMP for every job.
+        if: runner.environment == 'self-hosted'
+        run: find "$GITHUB_WORKSPACE" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: source
@@ -332,8 +348,9 @@ jobs:
         # is off wherever the race invocation is off (DOCS, REUSE). The pinned narrowed driver,
         # which runs only for pull requests, keeps its own cold cache (AFP-V0-014/015).
         # -count=1 stays, so no test result is reused.
+        # AFP-V0-421: never on the self-hosted runner, whose shards build in a per-job cache.
         id: gocache
-        if: (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main'))
+        if: runner.environment != 'self-hosted' && (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main'))
         continue-on-error: true
         timeout-minutes: 5
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -343,6 +360,7 @@ jobs:
           restore-keys: |
             go-build-${{ runner.os }}-${{ runner.arch }}-go${{ steps.go.outputs.go-version }}-race-shard-${{ strategy.job-index }}-of-${{ strategy.job-total }}-${{ hashFiles('source/go.sum') }}-
       - name: Provision the host tools the product's fixed PATH resolves
+        if: runner.environment != 'self-hosted'
         # Child processes run under worksource.PlatformPath, which reaches Go through
         # /usr/local/go/bin rather than setup-go's tool cache. The dogfood shell tests use rg,
         # and the Git fixtures commit under the global identity. Automatic maintenance is off so
@@ -374,6 +392,111 @@ jobs:
           git config --global maintenance.auto false
           git config --global gc.auto 0
           git --version
+      - name: Verify the host tools the product's fixed PATH resolves (self-hosted runner, AFP-V0-421)
+        # The self-hosted host has no passwordless sudo, so it provisions nothing: the owner
+        # installs the pinned Go at /usr/local/go and the pinned ripgrep at /usr/local/bin/rg, and
+        # this step only checks them. Go reads no host go.env file, and builds in a cache under
+        # RUNNER_TEMP, which the runner empties for every job. Only the AFP-V0-427 seed, which only
+        # a passing merge-queue shard on main refreshes, carries build output from an earlier job
+        # into this one. The Git lines equal the hosted step's and run under one lock.
+        if: runner.environment == 'self-hosted'
+        env:
+          RG_VERSION: "15.2.0"
+        run: |
+          go_found=$(/usr/local/go/bin/go env GOVERSION 2> /dev/null || true)
+          if [ "$go_found" != "go1.27.3" ]; then
+            echo "::error::self-hosted host prerequisite: /usr/local/go/bin/go must be go1.27.3, found '${go_found:-nothing}'"
+            exit 1
+          fi
+          rg_found=$(PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin command -v rg || true)
+          rg_line=$(/usr/local/bin/rg --version 2> /dev/null | head -n 1 || true)
+          case "$rg_line" in
+            "ripgrep $RG_VERSION" | "ripgrep $RG_VERSION "*) ;;
+            *)
+              echo "::error::self-hosted host prerequisite: /usr/local/bin/rg must be ripgrep $RG_VERSION, found '${rg_line:-nothing}'"
+              exit 1
+              ;;
+          esac
+          if [ "$rg_found" != /usr/local/bin/rg ]; then
+            echo "::error::self-hosted host prerequisite: rg must resolve to /usr/local/bin/rg on the fixed PATH, found '${rg_found:-nothing}'"
+            exit 1
+          fi
+          printf 'GOENV=off\nGOCACHE=%s\n' "$RUNNER_TEMP/go-build" >> "$GITHUB_ENV"
+          # AFP-V0-430: the box's /tmp is a RAM-backed tmpfs, so temporary files, t.TempDir()
+          # among them, go to this runner's directory on the ext4 /var/tmp. Not RUNNER_TEMP: it is
+          # under /home/russell, an ancestor of the confined checkout, which test-confine never
+          # lets a test open (AFP-V0-023). Emptied here, so no file of an earlier job survives.
+          case "$RUNNER_NAME" in
+            '' | *[!A-Za-z0-9_-]*)
+              echo "::error::AFP-V0-430: runner name '$RUNNER_NAME' is not a plain directory name"
+              exit 1
+              ;;
+          esac
+          tmp_root=/var/tmp/corvint-ci
+          mkdir -m 0700 -- "$tmp_root" 2> /dev/null || true
+          if [ -L "$tmp_root" ] || [ ! -d "$tmp_root" ] || [ ! -O "$tmp_root" ]; then
+            echo "::error::AFP-V0-430: $tmp_root must be a directory this account owns, not a link"
+            exit 1
+          fi
+          chmod 0700 "$tmp_root"
+          job_tmp="$tmp_root/$RUNNER_NAME"
+          # A test killed before its cleanup can leave a directory without owner write or search
+          # permission, which rm cannot empty; restore it first. find follows no link (-P).
+          find -P "$job_tmp" -type d ! -perm -0700 -exec chmod u+rwx {} \; 2> /dev/null || true
+          rm -rf -- "$job_tmp"
+          mkdir -m 0700 -- "$job_tmp"
+          printf 'TMPDIR=%s\n' "$job_tmp" >> "$GITHUB_ENV"
+          # The runner instances share this account's ~/.gitconfig, and a `git config --global`
+          # write fails while another instance holds its lock file, so the hosted step's lines run
+          # under one lock in the root above (AFP-V0-421).
+          (
+            if ! flock -w 120 9; then
+              echo "::error::AFP-V0-421: no lock on $tmp_root/git-global-config.flock within 120 s"
+              exit 1
+            fi
+            git config --global user.name corvint-ci
+            git config --global user.email corvint-ci@users.noreply.github.com
+            git config --global maintenance.auto false
+            git config --global gc.auto 0
+          ) 9> "$tmp_root/git-global-config.flock"
+          git --version
+      - name: Restore the host-local Go build seed (self-hosted runner, AFP-V0-427)
+        # AFP-V0-427: copies this runner's seed into the per-job GOCACHE for a merge-queue entry on
+        # main or a pull request from this repository, wherever the race invocation runs (not DOCS
+        # or REUSE). Seeds are keyed by runner, not shard: Go's action IDs include the package
+        # directory, and each runner checks out under its own _work path, so only builds from the
+        # same runner can hit. A copy, never a hardlink, because Go rewrites an existing entry in
+        # place, and cp -a keeps the mtimes Go's 5-day trim reads. A missing, unsafe or unreadable
+        # seed leaves a cold cache with a notice and never fails the shard. -count=1 stays, so no
+        # test result is reused. This is provenance hygiene, not a boundary: every job on the box
+        # runs as the same user and could write the seed root directly (AFP-V0-429).
+        id: boxcache
+        if: runner.environment == 'self-hosted' && (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) && ((github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          if [ "$GOCACHE" != "$RUNNER_TEMP/go-build" ]; then
+            echo "::notice::AFP-V0-427: GOCACHE is not the per-job cache; no seed restored"
+            exit 0
+          fi
+          cold() {
+            rm -rf -- "$GOCACHE"
+            mkdir -p -- "$GOCACHE"
+            echo "::notice::AFP-V0-427: $1; this shard builds in a cold cache"
+            exit 0
+          }
+          case "$RUNNER_NAME" in '' | *[!A-Za-z0-9_-]*) cold "runner name '$RUNNER_NAME' is not a plain seed name" ;; esac
+          root=$CORVINT_BOX_GOCACHE_ROOT
+          seed="$root/go-build-race-$RUNNER_NAME"
+          if [ ! -d "$root" ] || [ -L "$root" ] || [ ! -O "$root" ] || [ -n "$(find "$root" -maxdepth 0 -perm /022)" ]; then
+            cold "seed root $root is missing, a link, foreign or group/world-writable"
+          fi
+          src=$(readlink -e -- "$seed") || cold "no seed at $seed"
+          case "$src" in "$seed".*) ;; *) cold "seed $seed does not point to a seed directory" ;; esac
+          if [ ! -d "$src" ] || [ -L "$src" ] || [ ! -O "$src" ]; then cold "seed $src is not a directory this user owns"; fi
+          rm -rf -- "$GOCACHE"
+          cp -a -- "$src" "$GOCACHE" || cold "copying $src failed"
+          echo "AFP-V0-427: restored $(du -sk -- "$GOCACHE" | cut -f1) KiB from $src"
       - name: Capture trusted tool source outside tested checkout
         continue-on-error: true
         if: github.event_name == 'pull_request' && env.CORVINT_PR_TOOL_SOURCE != ''
@@ -700,14 +823,38 @@ jobs:
             echo "AFP-V0-098: selected packages passed; the full suite runs in the merge queue"
           fi
       - name: Retain package outcomes for the advisory cost-drift report
-        # AFP-V0-040: only a complete full shard whose tests passed keeps its outcomes.
-        if: steps.tests.outputs.costs == '1'
+        # AFP-V0-040: only a complete full shard whose tests passed keeps its outcomes, and
+        # AFP-V0-422: only on the hosted image, because self-hosted timings are not cloud timings.
+        if: steps.tests.outputs.costs == '1' && runner.environment != 'self-hosted'
         continue-on-error: true
         timeout-minutes: 2
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ci-shard-costs-${{ strategy.job-index }}
           path: ${{ runner.temp }}/shard-costs/shard-${{ strategy.job-index }}.json
+          if-no-files-found: ignore
+          retention-days: 3
+          overwrite: true
+      - name: Mark a self-hosted shard for the advisory cost-drift report (AFP-V0-422)
+        # In place of the stream a hosted shard would keep, so ci-shard-cost-drift abstains with
+        # the runner as its reason instead of comparing box timings with the cloud table.
+        id: costs-marker
+        if: steps.tests.outputs.costs == '1' && runner.environment == 'self-hosted'
+        continue-on-error: true
+        timeout-minutes: 1
+        env:
+          SHARD: ${{ strategy.job-index }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/shard-runner"
+          printf '%s\n' "$RUNNER_ENVIRONMENT" > "$RUNNER_TEMP/shard-runner/shard-$SHARD.self-hosted"
+      - name: Retain the self-hosted marker for the advisory cost-drift report (AFP-V0-422)
+        if: steps.costs-marker.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-shard-costs-runner-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/shard-runner/shard-${{ strategy.job-index }}.self-hosted
           if-no-files-found: ignore
           retention-days: 3
           overwrite: true
@@ -723,6 +870,59 @@ jobs:
           path: ${{ runner.temp }}/forward-outcomes/outcomes.json
           if-no-files-found: ignore
           overwrite: true
+      - name: Refresh the host-local Go build seed (self-hosted merge-queue shards on main, AFP-V0-428)
+        # AFP-V0-428: only a merge-queue entry on main whose race invocation passed refreshes this
+        # runner's seed. The job cache, its test results expired, is copied beside the seed and
+        # swapped in by an atomic rename of the seed link, so a reader never sees a partial seed;
+        # the replaced copy and any interrupted refresh's copy are removed. A cache above SEED_CAP_KIB removes the seed instead, so the
+        # next shard on this runner starts cold. A refusal or failure never fails the shard.
+        if: runner.environment == 'self-hosted' && github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main' && steps.tests.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 10
+        working-directory: source
+        env:
+          # AFP-V0-428: the explicit cap on one seed (8 GiB); the root holds one seed per runner.
+          SEED_CAP_KIB: "8388608"
+          SEED_TAG: ${{ github.run_id }}-${{ github.run_attempt }}-${{ strategy.job-index }}
+        run: |
+          test "$(go env GOCACHE)" = "$RUNNER_TEMP/go-build"
+          case "$RUNNER_NAME" in
+            '' | *[!A-Za-z0-9_-]*)
+              echo "::notice::AFP-V0-428: runner name '$RUNNER_NAME' is not a plain seed name; not refreshing"
+              exit 0
+              ;;
+          esac
+          root=$CORVINT_BOX_GOCACHE_ROOT
+          seed="$root/go-build-race-$RUNNER_NAME"
+          umask 077
+          mkdir -p -- "$root"
+          if [ -L "$root" ] || [ ! -O "$root" ] || [ -n "$(find "$root" -maxdepth 0 -perm /022)" ]; then
+            echo "::warning::AFP-V0-428: seed root $root is a link, foreign or group/world-writable; not refreshing"
+            exit 0
+          fi
+          go clean -testcache
+          size=$(du -sk -- "$GOCACHE" | cut -f1)
+          if [ "$size" -gt "$SEED_CAP_KIB" ]; then
+            rm -rf -- "$seed" "$seed".*
+            echo "::notice::AFP-V0-428: the job cache is $size KiB, above the $SEED_CAP_KIB KiB cap; seed removed, the next shard on $RUNNER_NAME starts cold"
+            exit 0
+          fi
+          next="$seed.$SEED_TAG"
+          # Every generation but the live one, including an interrupted refresh's copy, goes first,
+          # so failed refreshes never accumulate; this copy is removed if the step fails.
+          live=$(readlink -e -- "$seed" || true)
+          for old in "$seed".*; do
+            [ "$old" = "$live" ] || rm -rf -- "$old"
+          done
+          trap 'rm -rf -- "$next.tmp"' EXIT
+          cp -a -- "$GOCACHE" "$next.tmp"
+          mv -T -- "$next.tmp" "$next"
+          ln -s -- "${next##*/}" "$seed.link"
+          mv -Tf -- "$seed.link" "$seed"
+          for old in "$seed".*; do
+            [ "$old" = "$next" ] || rm -rf -- "$old"
+          done
+          echo "AFP-V0-428: $seed now holds $size KiB from run $SEED_TAG"
       - name: Expire cached test results before saving the build cache
         # Only a main push whose full race invocation passed writes the cache. A REUSE or DOCS
         # push (AFP-V0-024, including a push that reuses its queue run) compiles nothing, skips
@@ -991,8 +1191,12 @@ jobs:
         run: |
           d="$RUNNER_TEMP/shard-costs"
           have=$(find "$d" -maxdepth 1 -name 'shard-*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
+          # AFP-V0-422: a shard on the self-hosted runner retains only a marker.
+          boxed=$(find "$d" -maxdepth 1 -name 'shard-*.self-hosted' -type f 2>/dev/null | wc -l | tr -d ' ')
           if [ "$SHARDS_RESULT" != success ]; then
             reason="go-product-shard result is $SHARDS_RESULT"
+          elif [ "$boxed" -ne 0 ]; then
+            reason="$boxed of $SHARDS shards ran on the self-hosted runner, whose timings are not cloud timings (AFP-V0-422)"
           elif [ "$have" -ne "$SHARDS" ]; then
             reason="$have of $SHARDS shard outcome artifacts present (a docs-only, reused or selected run executes no complete shard)"
           else
@@ -1211,3 +1415,95 @@ jobs:
           test "$(git rev-parse --verify -q "$GITHUB_SHA^2")" = "$PR_HEAD"
           tree=$(git rev-parse --verify -q "$GITHUB_SHA^{tree}")
           printf 'corvint-ci-integrity-tree/0 tree=%s target=%s head=%s\n' "$tree" "$GITHUB_SHA" "$PR_HEAD"
+
+  cce-live:
+    # AFP-V0-433 (V1-1687): the live CCE prove tests (`make cce-live`, CCE-V0-102) on the macOS arm64
+    # tuple they were qualified on. The job always starts, so its check is never left pending, and
+    # runs the tests only when the tested commit changes internal/changee2e or this workflow against
+    # its first parent (AFP-V0-434); otherwise it passes with a summary line. It fails, rather than
+    # passes, when the installed toolchain is not the qualified tuple (AFP-V0-435). Not a required
+    # check; a ci:batched constituent never starts it (AFP-V0-081).
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'ci:batched') }}
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # Depth 2 keeps the tested commit's first parent for the change check.
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Does the tested commit change internal/changee2e? (AFP-V0-434)
+        id: changed
+        run: |
+          # Any doubt (no first parent in this checkout) runs the tests.
+          if base=$(git rev-parse -q --verify 'HEAD^1') &&
+            git diff --quiet "$base" HEAD -- internal/changee2e .github/workflows/ci.yml; then
+            echo 'cce-live: internal/changee2e and this workflow are unchanged against the first parent; the live tests did not run.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo 'run=1' >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: steps.changed.outputs.run == '1'
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: steps.changed.outputs.run == '1'
+        with:
+          node-version: "24.11.1"
+      - name: Install Playwright 1.64.0 and its headless shell
+        if: steps.changed.outputs.run == '1'
+        env:
+          # A registry fetch is this step's purpose; the Go steps keep GOPROXY off.
+          npm_config_audit: "false"
+          npm_config_fund: "false"
+        run: |
+          mkdir -p "$RUNNER_TEMP/pw"
+          cd "$RUNNER_TEMP/pw"
+          npm init -y > /dev/null
+          npm install --no-save @playwright/test@1.64.0
+          npx playwright install chromium-headless-shell
+      - name: Require the qualified Playwright tuple (AFP-V0-435)
+        id: tuple
+        if: steps.changed.outputs.run == '1'
+        env:
+          PW_DIR: ${{ runner.temp }}/pw
+        run: |
+          # The 1.64.0 tuple of qualifiedBundledBrowsers (internal/jstestprovider/external.go).
+          want_build=1248
+          want_version='Google Chrome for Testing 156.0.8078.4'
+          want_node=v24.11.1
+          rev=$(jq -r '[.browsers[]? | select(.name == "chromium-headless-shell") | .revision] | if length == 1 then .[0] else "missing" end' \
+            "$PW_DIR/node_modules/playwright-core/browsers.json" 2> /dev/null) || rev=unreadable
+          exe="$HOME/Library/Caches/ms-playwright/chromium_headless_shell-$want_build/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+          got=$("$exe" --version 2> /dev/null) || got="no runnable headless shell at $exe"
+          node=$(node --version 2> /dev/null) || node=missing
+          if [ "$rev" != "$want_build" ] || [ "$got" != "$want_version" ] || [ "$node" != "$want_node" ]; then
+            msg="cce-live: Playwright pins headless shell build $rev, which reports '$got', under node $node; the qualified tuple is build $want_build reporting '$want_version' under node $want_node, so qualify would refuse these receipts. The job fails instead of passing."
+            echo "::error::$msg"
+            echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "cce-live: headless shell build $rev ($got), node $node." >> "$GITHUB_STEP_SUMMARY"
+      - name: Live CCE prove tests
+        if: steps.changed.outputs.run == '1'
+        env:
+          CORVINT_PLAYWRIGHT_MODULES: ${{ runner.temp }}/pw/node_modules
+          CORVINT_E2E_NODE_BIN: node
+        run: |
+          mkdir -p "$RUNNER_TEMP/cce-live"
+          set -o pipefail
+          make cce-live 2>&1 | tee "$RUNNER_TEMP/cce-live/output.txt"
+      - name: Retain the live test output
+        if: always() && steps.changed.outputs.run == '1'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cce-live
+          path: ${{ runner.temp }}/cce-live/output.txt
+          if-no-files-found: ignore

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"go/parser"
 	"go/token"
@@ -201,6 +202,9 @@ func TestMain(m *testing.M) {
 	// notice threshold and add a stderr line that tests asserting empty stderr
 	// reject; TestSnapshotMissNoticeNamesTheBuild sets its own thresholds.
 	snapshotMissNoticeAfter = time.Hour
+	// No test reads or writes the real user cache directory; a test of the
+	// default graph cache injects its own (AFP-V0-436).
+	affectedUserCacheDir = func() (string, error) { return "", errors.New("the user cache is not used by tests") }
 	code := m.Run()
 	for name, root := range map[string]string{"work production seed": workProductionSeed.root, "work compiler cache": workCompilerCache.root, "work bound build": workBoundBuild.root} {
 		if root == "" {

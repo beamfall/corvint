@@ -531,7 +531,10 @@
           "$ref": "#/$defs/sha256"
         },
         "profile": {
-          "const": "corvint-test-runner-receipt/0"
+          "enum": [
+            "corvint-test-runner-receipt/0",
+            "opaque/0"
+          ]
         },
         "planSha256": {
           "$ref": "#/$defs/sha256"

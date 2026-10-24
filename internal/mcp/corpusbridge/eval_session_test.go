@@ -17,11 +17,11 @@ const evalDiagnosticsCases = `{"schema":"corvint-corpus-eval-cases/1","origin":"
 {"id":"passing","operation":"search","arguments":{"query":"Checkout step","limit":1},"expect":{"subjects":["native:file:docs/p0.md"]}}
 ]}`
 
-// DCP-V1-473 (GitHub #1666): a failing case lists its served top-k rows with
+// DCX-V1-473 (GitHub #1666): a failing case lists its served top-k rows with
 // rank, id, kind, name and path, and a missed answer reports the first rank
 // it is served at beyond k; a passing case carries neither, and the score is
 // unchanged.
-func TestDCPV1473FailingCasesListReturnedRows(t *testing.T) {
+func TestDCXV1473FailingCasesListReturnedRows(t *testing.T) {
 	root, _ := lazyFixture(t)
 	report := evalRun(t, root, evalDiagnosticsCases)
 	beyond := evalCase(t, report, "beyond-k")
@@ -48,11 +48,11 @@ func TestDCPV1473FailingCasesListReturnedRows(t *testing.T) {
 	}
 }
 
-// DCP-V1-474 (GitHub #1666): a suite opens the artifact and observes the
+// DCX-V1-474 (GitHub #1666): a suite opens the artifact and observes the
 // checkout once, answers every case from that observation, and checks once
 // after the last case; a checkout that changed while the cases ran refuses
 // the evaluation instead of mixing answers from two states.
-func TestDCPV1474EvalSuiteObservesOnce(t *testing.T) {
+func TestDCXV1474EvalSuiteObservesOnce(t *testing.T) {
 	root, _ := lazyFixture(t)
 	observed := 0
 	saved := observeCorpus

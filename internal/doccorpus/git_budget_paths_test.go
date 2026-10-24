@@ -430,7 +430,7 @@ func TestDCPV1216GitHooksTravelWithTheContext(t *testing.T) {
 }
 
 // indexedSymbolOverlay is an overlay over a prebuilt live index, as one whose
-// re-resolution has already built it (DCP-V1-412).
+// re-resolution has already built it (DCR-V1-412).
 func indexedSymbolOverlay(root, id string, live *contextindex.Index) *symbolOverlay {
 	observed := contextindex.Observation{ObjectFormat: live.ObjectFormat, CommitRevision: live.CommitRevision, Revision: live.Revision, StatusSHA256: live.StatusSHA256, DirtyPaths: live.DirtyPaths}
 	return &symbolOverlay{root: root, repository: id, live: &contextindex.TreeObservation{Observation: observed}, observation: ObservationKey(observed), index: live, files: &sharedSymbolFiles{files: map[string]sharedSymbolFile{}}}

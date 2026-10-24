@@ -17,10 +17,10 @@ func sameFreshness(a, b FreshnessOverlay) bool {
 	return a.State == b.State && a.Observation() == b.Observation() && reflect.DeepEqual(a.Limitations, b.Limitations)
 }
 
-// TestDCPV1465PrimaryObservationMatchesFreshRead: freshness that takes the observation started
+// TestDCRV1465PrimaryObservationMatchesFreshRead: freshness that takes the observation started
 // at the read's start gives the overlay and receipt a freshness observing the checkout itself
 // gives, and uses the started observation rather than a new one.
-func TestDCPV1465PrimaryObservationMatchesFreshRead(t *testing.T) {
+func TestDCRV1465PrimaryObservationMatchesFreshRead(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	root, a, _ := builtFixture(t)
@@ -54,10 +54,10 @@ func TestDCPV1465PrimaryObservationMatchesFreshRead(t *testing.T) {
 	}
 }
 
-// TestDCPV1466PrimaryObservationUsedOnce: the started observation answers one freshness of its
+// TestDCRV1466PrimaryObservationUsedOnce: the started observation answers one freshness of its
 // own root; a later freshness under the same context observes the checkout again and sees a
 // commit that landed in between, and a freshness of another root never takes it.
-func TestDCPV1466PrimaryObservationUsedOnce(t *testing.T) {
+func TestDCRV1466PrimaryObservationUsedOnce(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	root, a, _ := builtFixture(t)
@@ -100,10 +100,10 @@ func TestDCPV1466PrimaryObservationUsedOnce(t *testing.T) {
 	}
 }
 
-// TestDCPV1467CancelledPrimaryObservationJoins: a read that ends before any freshness, as a
+// TestDCRV1467CancelledPrimaryObservationJoins: a read that ends before any freshness, as a
 // refused read does, cancels the started observation and its join returns once the observation
 // has ended; nothing it started outlives the read. Run under -race.
-func TestDCPV1467CancelledPrimaryObservationJoins(t *testing.T) {
+func TestDCRV1467CancelledPrimaryObservationJoins(t *testing.T) {
 	t.Parallel()
 	root, _, _ := builtFixture(t)
 	for _, early := range []bool{true, false} {
@@ -135,11 +135,11 @@ func TestDCPV1467CancelledPrimaryObservationJoins(t *testing.T) {
 	}
 }
 
-// TestDCPV1467ShorterDeadlineStopsWaitingForPrimary: a freshness whose context ends before the
+// TestDCRV1467ShorterDeadlineStopsWaitingForPrimary: a freshness whose context ends before the
 // started primary observation does returns that context's error at once rather than waiting
 // for the observation, and the read's cancel and join still end the observation. It is serial
 // because it replaces the package's primary observation.
-func TestDCPV1467ShorterDeadlineStopsWaitingForPrimary(t *testing.T) {
+func TestDCRV1467ShorterDeadlineStopsWaitingForPrimary(t *testing.T) {
 	root, a, _ := builtFixture(t)
 	held := make(chan struct{})
 	defer SetPrimaryObservationForTest(func(ctx context.Context, _ string) (*contextindex.TreeObservation, error) {

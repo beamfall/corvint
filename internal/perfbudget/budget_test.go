@@ -113,7 +113,7 @@ func TestPRBV0030BudgetsValidation(t *testing.T) {
 // tighter wall ceiling derived from it, and that ceiling fails a delta that rederives: the
 // before-change measurement in docs/build-log/2026-10-23-corpus-delta-verified-read.md. Those
 // rederiving measurements are recorded constants, so this test cannot detect a restored
-// rederivation; TestDCPV1460DeltaCLIVerifiedRead's build counter is the deterministic guard.
+// rederivation; TestDCRV1460DeltaCLIVerifiedRead's build counter is the deterministic guard.
 func TestPRBV0050UnchangedDeltaBudget(t *testing.T) {
 	b, err := LoadBudgets("budgets.json")
 	if err != nil {

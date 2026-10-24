@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
@@ -32,7 +35,8 @@ func setAffectedOnce(field *string, name, value string) error {
 }
 
 // resolveAffectedBatchAndCache reads --paths-from into the --path set and
-// resolves --cache, both after --root is known.
+// resolves --cache, or else the default cache location unless --no-cache,
+// both after --root is known.
 func resolveAffectedBatchAndCache(invocation *affectedInvocation) error {
 	if invocation.Cache != "" {
 		resolved, gitDirectories, err := resolveAffectedCache(invocation.Root, invocation.Cache)
@@ -40,6 +44,15 @@ func resolveAffectedBatchAndCache(invocation *affectedInvocation) error {
 			return err
 		}
 		invocation.Cache, invocation.CacheExcluded = resolved, gitDirectories
+	} else if !invocation.NoCache && !invocation.CacheStatus && invocation.Snapshot == "" && invocation.PlaywrightConfig == "" {
+		// The default location is held to every --cache placement rule; one
+		// that fails any of them, or that cannot be named, is not used and
+		// the call runs uncached with the same bytes (AFP-V0-436, AFP-V0-438).
+		if location, _ := affectedDefaultCacheLocation(); location != "" {
+			if resolved, gitDirectories, err := resolveAffectedCache(invocation.Root, location); err == nil {
+				invocation.Cache, invocation.CacheExcluded = resolved, gitDirectories
+			}
+		}
 	}
 	if invocation.PathsFrom != "" {
 		paths, err := readAffectedPathsFrom(invocation.Root, invocation.PathsFrom)
@@ -276,4 +289,163 @@ func affectedBuildGraph(ctx context.Context, invocation affectedInvocation) (*af
 		affectedCacheObserved(outcome)
 	}
 	return graph, err
+}
+
+// affectedUserCacheDir names the user cache directory the default graph cache
+// lives under (AFP-V0-436). The package's TestMain replaces it, so no test
+// reads or writes the real user cache; a test of the default injects its own.
+var affectedUserCacheDir = os.UserCacheDir
+
+// affectedDefaultCacheLocation is os.UserCacheDir()/corvint/affected, or
+// empty with the reason there is none (AFP-V0-436).
+func affectedDefaultCacheLocation() (string, string) {
+	base, err := affectedUserCacheDir()
+	if err != nil {
+		return "", "no user cache directory: " + err.Error()
+	}
+	if base == "" || !filepath.IsAbs(base) {
+		return "", "the user cache directory is not an absolute path"
+	}
+	return filepath.Join(filepath.Clean(base), "corvint", "affected"), ""
+}
+
+// affectedCacheStatusMaxEntries bounds the directory listing `affected cache`
+// reads (AFP-V0-439); a larger directory is reported INCOMPLETE.
+const affectedCacheStatusMaxEntries = 4096
+
+// parseAffectedCacheStatusOptions reads `affected cache [--format
+// json|doctor-plugin]`, the option at most once (AFP-V0-439).
+func parseAffectedCacheStatusOptions(rest []string) (affectedInvocation, error) {
+	invocation := affectedInvocation{CacheStatus: true}
+	for index := 0; index < len(rest); index++ {
+		name, value, inline := strings.Cut(rest[index], "=")
+		if name != "--format" {
+			return affectedInvocation{}, argumentError("unrecognized arguments: " + rest[index])
+		}
+		if !inline {
+			if index+1 >= len(rest) {
+				return affectedInvocation{}, argumentError("--format requires exactly one value")
+			}
+			index++
+			value = rest[index]
+		}
+		if invocation.CacheStatusFormat != "" || (value != "json" && value != "doctor-plugin") {
+			return affectedInvocation{}, argumentError("argument --format: affected cache accepts json or doctor-plugin once")
+		}
+		invocation.CacheStatusFormat = value
+	}
+	return invocation, nil
+}
+
+// affectedCacheStatus is the `affected-cache-status/0` report (AFP-V0-439).
+type affectedCacheStatus struct {
+	Bytes    int64  `json:"bytes"`
+	Entries  int    `json:"entries"`
+	Location string `json:"location"`
+	Mutates  bool   `json:"mutates"`
+	OK       bool   `json:"ok"`
+	Profile  string `json:"profile"`
+	Reason   string `json:"reason"`
+	State    string `json:"state"`
+}
+
+// inspectAffectedDefaultCache reports where the default graph cache of root
+// is and how much it holds, without creating, opening an entry of, or
+// writing anything: PRESENT, ABSENT (not yet created), UNAVAILABLE (no user
+// cache directory, a placement the AFP-V0-390 rules refuse, or not a
+// readable directory, so calls run uncached) or INCOMPLETE (the bounded
+// listing stopped early). The directory is opened nonblocking and held to a
+// directory by its descriptor, so a FIFO in its place cannot hang the call.
+func inspectAffectedDefaultCache(root string) affectedCacheStatus {
+	status := affectedCacheStatus{OK: true, Profile: "affected-cache-status/0", State: "UNAVAILABLE"}
+	location, reason := affectedDefaultCacheLocation()
+	if location == "" {
+		status.Reason = reason
+		return status
+	}
+	status.Location = location
+	resolved, gitDirectories, err := resolveAffectedCache(root, location)
+	if err != nil {
+		status.Reason = strings.Replace(err.Error(), "--cache", "the default cache", 1)
+		return status
+	}
+	status.Location = resolved
+	if _, err := os.Lstat(resolved); errors.Is(err, fs.ErrNotExist) {
+		status.State, status.Reason = "ABSENT", "not created yet; the first cached call creates it"
+		return status
+	}
+	directory, err := os.OpenFile(resolved, os.O_RDONLY|affectedOpenNonblocking, 0)
+	if err != nil {
+		status.Reason = "the cache directory is unreadable"
+		return status
+	}
+	defer directory.Close()
+	if info, err := directory.Stat(); err != nil || !info.IsDir() {
+		status.Reason = "the cache location is not a directory"
+		return status
+	}
+	if reason := affected.InspectCacheDirectory(resolved, root, gitDirectories); reason != "" {
+		status.Reason = reason + "; calls run uncached"
+		return status
+	}
+	status.State = "PRESENT"
+	read := 0
+	for {
+		batch, err := directory.ReadDir(256)
+		for _, entry := range batch {
+			if read == affectedCacheStatusMaxEntries {
+				status.State, status.Reason = "INCOMPLETE", fmt.Sprintf("the listing stopped at its %d-entry bound", affectedCacheStatusMaxEntries)
+				return status
+			}
+			read++
+			info, infoErr := entry.Info()
+			if infoErr != nil || !info.Mode().IsRegular() {
+				continue
+			}
+			status.Bytes += info.Size()
+			if strings.HasPrefix(entry.Name(), "affected-graph-") && strings.HasSuffix(entry.Name(), ".json") {
+				status.Entries++
+			}
+		}
+		if err == io.EOF || (err == nil && len(batch) == 0) {
+			return status
+		}
+		if err != nil {
+			status.State, status.Reason = "INCOMPLETE", "the cache directory could not be listed in full"
+			return status
+		}
+	}
+}
+
+// runAffectedCacheStatus prints the default cache's status (AFP-V0-439) as
+// one canonical JSON report or, with --format doctor-plugin, a one-item
+// TQD-V0-010 plugin array; it never mutates and exits 0 whatever the state.
+func runAffectedCacheStatus(invocation affectedInvocation, stdout, stderr io.Writer) int {
+	status := inspectAffectedDefaultCache(invocation.Root)
+	var report any = status
+	if invocation.CacheStatusFormat == "doctor-plugin" {
+		who := status.Location
+		if who == "" {
+			who = "affected-cache"
+		}
+		detail := fmt.Sprintf("%s: %d entries, %d bytes", status.State, status.Entries, status.Bytes)
+		if status.Reason != "" {
+			detail += "; " + status.Reason
+		}
+		report = []map[string]string{{
+			"detail": detail,
+			"kind":   "AFFECTED_CACHE",
+			"remedy": "delete the directory to clear the cache; `corvint affected --no-cache` disables it and `--cache DIR` moves it",
+			"who":    who,
+		}}
+	}
+	encoded, err := gokernel.CanonicalJSON(report)
+	if err == nil {
+		_, err = stdout.Write(append(encoded, '\n'))
+	}
+	if err != nil {
+		emitError(stderr, &gokernel.Error{Code: "output-failed", Message: "cannot write affected cache status"})
+		return 2
+	}
+	return 0
 }
