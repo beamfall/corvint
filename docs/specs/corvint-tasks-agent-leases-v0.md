@@ -7527,6 +7527,65 @@ release-gates signature.
 
 Rollback: revert the source; a torn guard read again ends the write at once.
 
+### V1-2531 lease-gate latency: guards cleanup lock and mount observation
+
+Human-owned input: native tickets V1-2531, V1-2537, V1-2539 and V1-2203 (owner rule: performance
+issues are 1.0 work, V1-0887 targets a heartbeat median of at most 50 ms and a p99 of at most
+250 ms). On the WSL2 host at 84b08d351, `TestCALV0263_LeaseGateLoad` (40k receipts, 15 writers,
+5 x 120 s) showed heartbeat and renew time outside the gate, in the round's guards, at p99
+169-187 ms. The guards' orphan cleanup took the writer lock whenever `staging/` was non-empty, and
+a live peer's commit keeps its slots there for its whole hold, so a ready writer-route write
+queued on the lock for that hold before it reached the gate, then queued again inside the route.
+A per-syscall count of one heartbeat at 40k receipts put about 85 % of the journal-write CPU in
+the session's pinned-parent checks, each re-observing about eleven mounts by opening, reading and
+closing `/proc/self/fdinfo/<fd>` (decision 0411).
+
+- `CAL-V0-393`: (proposed; V1-2531) A lease write round MUST clear orphan stages under a cleanup
+  lock before the preparation gate only when its writer-checkpoint route is not ready. When the
+  route is ready the round MUST enter it with no cleanup lock; the route, holding the gate and the
+  writer lock, MUST decline `staging` when the staging directory holds any entry (under the lock
+  every entry is an orphan, because only the lock holder stages), writing nothing, and the round
+  then clears orphans under a lock of its own exactly as before and continues to the resume or
+  complete route. What a round commits is unchanged.
+- `CAL-V0-394`: (proposed; V1-2203) On Linux a session MUST open each pinned descriptor's procfs
+  `fdinfo` file once, on the descriptor's first mount observation, retain it for the session's
+  life, and re-read it from offset 0 on every later observation (procfs regenerates the content
+  on each read from offset 0), closing every retained file when the session closes its handles.
+  Every observation still re-reads the mount ID decision 0411 requires; only the open and close
+  per observation are removed.
+- `CAL-V0-396`: (proposed; V1-2539) The claim latency target under `TestCALV0263_LeaseGateLoad`
+  at 40k receipts and 15 writers on the WSL2 quiet host is a claim gate-wait p99 of at most
+  500 ms (at most four claim holds of the measured 125 ms p99 queued ahead) and a claim wall p99 of
+  at most 1500 ms. Every claim run reports both against this target, labelled with its platform
+  and host load; a run that misses it is reported NOT MET, never rounded.
+
+Non-goals: no fsync is coalesced or removed (decision 0549 F2 stays: staging-directory sync
+coalescing needs its own decision and crash-matrix proof); decision 0411's per-check mount-ID
+observation is kept; no round count, lock wait or gate order changes; no stored state, wire format
+or receipt changes.
+
+Failure modes: with CAL-V0-393 a round that finds staging under the route's lock pays one more
+lock acquisition (the cleanup lock) than before, only when a stage is present; a write killed
+between the route's decline and the cleanup leaves the orphan for the next writer's cleanup, as
+before. With CAL-V0-394 a retained fdinfo file whose read fails, or that reports a different
+mount, fails the observation exactly as a fresh open would; a descriptor number reused after a
+close cannot alias a retained file, because the retained file is keyed by the session's own
+pinned `*os.File` and closed with it.
+
+Acceptance evidence: `TestCALV0393_ReadyRouteTakesNoCleanupLockOutsideGate`
+(`internal/tasks/store/lease_orphan_route_test.go`) holds the writer lock 600 ms over an orphan
+slot: the heartbeat spends under half that hold in its guards and at least half waiting inside the
+route, declines `staging`, clears the orphan, commits once, replays the same request and serves
+the next heartbeat from the route; without the change it fails on the guards time.
+`TestCALV0394_RetainedFDInfoObservesCurrentState`
+(`internal/tasks/authority/fixture_session_linux_test.go`) seeks a pinned file to three offsets and
+sees each retained re-read report the current `pos` and equal a fresh observation, with one
+retained file per descriptor and none after the handles close. CAL-V0-396 is evidenced by the
+before/after load reports in the build-log entry `docs/build-log/2026-10-24-tasks-lease-latency.md`.
+
+Rollback: revert the source; the guards again take the cleanup lock whenever staging is present
+and each observation opens its fdinfo file afresh.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.

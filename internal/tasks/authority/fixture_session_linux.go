@@ -25,7 +25,66 @@ const (
 // reported when it was qualified, or zero. An open descriptor keeps its
 // mount alive, so its mnt_id cannot be reused and an identity equal to held
 // is the mount already qualified; only then is qualification not repeated.
-func fixtureObserveMount(f *os.File, held fixtureMount) (result fixtureMount, err error) {
+func fixtureObserveMount(f *os.File, held fixtureMount) (fixtureMount, error) {
+	return observeMountWith(f, held, func(fd uintptr) ([]byte, error) {
+		info, err := os.Open(fdinfoPath(fd))
+		if err != nil {
+			return nil, err
+		}
+		raw, err := io.ReadAll(io.LimitReader(info, 4097))
+		return raw, errors.Join(err, info.Close())
+	})
+}
+
+// observeMount is fixtureObserveMount for a session's pinned descriptor. It
+// keeps that descriptor's fdinfo file open for the session and re-reads it
+// from offset 0 on each check. procfs regenerates fdinfo for the
+// descriptor's current state on every such read, so each check still
+// observes mnt_id from fdinfo (decision 0411) without a path walk, open and
+// close per parent (CAL-V0-394, proposed).
+func (s *fixtureSession) observeMount(f *os.File, held fixtureMount) (fixtureMount, error) {
+	return observeMountWith(f, held, func(fd uintptr) ([]byte, error) {
+		info := s.fdinfo[f]
+		if info == nil {
+			opened, err := os.Open(fdinfoPath(fd))
+			if err != nil {
+				return nil, err
+			}
+			if s.fdinfo == nil {
+				s.fdinfo = map[*os.File]*os.File{}
+			}
+			s.fdinfo[f], info = opened, opened
+		}
+		return readFDInfoAt(info)
+	})
+}
+
+func fdinfoPath(fd uintptr) string {
+	return "/proc/self/fdinfo/" + strconv.FormatUint(uint64(fd), 10)
+}
+
+// readFDInfoAt reads info from offset 0 to end of file, at most 4097 bytes
+// so linuxMountID refuses an oversized observation as before.
+func readFDInfoAt(info *os.File) ([]byte, error) {
+	buf := make([]byte, 4097)
+	n := 0
+	for n < len(buf) {
+		m, err := info.ReadAt(buf[n:], int64(n))
+		n += m
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if m == 0 {
+			break
+		}
+	}
+	return buf[:n], nil
+}
+
+func observeMountWith(f *os.File, held fixtureMount, readInfo func(fd uintptr) ([]byte, error)) (result fixtureMount, err error) {
 	err = safeopen.Control(f, func(fd uintptr) (err error) {
 		var st syscall.Stat_t
 		var fs syscall.Statfs_t
@@ -38,12 +97,7 @@ func fixtureObserveMount(f *os.File, held fixtureMount) (result fixtureMount, er
 		// Linux fdinfo mnt_id identifies the mount of THIS pinned descriptor,
 		// including bind mounts sharing st_dev. This read is observation only.
 		// Missing procfs/mnt_id, duplicate fields, or oversized observations refuse.
-		info, err := os.Open("/proc/self/fdinfo/" + strconv.FormatUint(uint64(fd), 10))
-		if err != nil {
-			return err
-		}
-		defer func() { err = errors.Join(err, info.Close()) }()
-		raw, err := io.ReadAll(io.LimitReader(info, 4097))
+		raw, err := readInfo(fd)
 		if err != nil {
 			return err
 		}

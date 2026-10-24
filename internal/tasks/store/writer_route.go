@@ -233,6 +233,14 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	if err != nil || headState.QueueID.Raw != request.QueueID {
 		return leaseDeclined(ctx, request, "guards")
 	}
+	// leaseWrite clears orphan stages before this route only when the
+	// route is not ready, so a peer's live staging never queues a ready
+	// write on the writer lock outside the gate (CAL-V0-393, proposed).
+	// Under the lock every staging entry is an orphan; the route declines
+	// and the complete route clears it under a lock first, as before.
+	if orphans, err := stagingOccupied(repo); err != nil || orphans {
+		return leaseDeclined(ctx, request, "staging")
+	}
 	read := time.Now()
 	// Only the audit attempts the resumed route ran are resumed walks: a
 	// decline before its audit charges none (PSR-V0-151).
