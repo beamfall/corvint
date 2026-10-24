@@ -129,31 +129,38 @@ func TestCALV0019_ConcurrentCollidingClaimsAdmitOne(t *testing.T) {
 func TestCALV0019_RacingLeaseVerbsLeaveOneConsistentHead(t *testing.T) {
 	t.Parallel()
 	t.Run("CAL-V0-019 RacingLeaseVerbsLeaveOneConsistentHead", func(t *testing.T) {
-		s := newGateStore(t)
-		a, b, c, d := s.ticket(t, "a"), s.ticket(t, "b"), s.ticket(t, "c"), s.ticket(t, "d")
-		built, commit := s.submitted(t, a, "src", 0)
-		tree := gitOut(t, s.root, "rev-parse", "HEAD^{tree}")
-		short := claimOf(b, "docs/")
-		short.LeaseMinutes = "5"
-		s.lease(t, "claim-b", short, 1, nil)
-		live := s.claim(t, "claim-d", d, 1, "web/")
-		at := s.at(t, 10)
-		widen := transaction.LeaseRequest{Verb: transaction.LeaseWiden, AttemptID: live.AttemptID, Generation: live.Generation, Scope: []string{"web2/"}}
-		race(t,
-			func() (*store.Report, error) { return s.try("renew-a", renewOf(built), at) },
-			func() (*store.Report, error) { return s.try("submit-a", submitOf(built, tree), at) },
-			func() (*store.Report, error) { return s.tryGate("gate-a", gateOf(built, "verify"), at) },
-			func() (*store.Report, error) { return s.try("complete-a", completeOf(built, commit), at) },
-			func() (*store.Report, error) {
-				return s.try("reap-all", transaction.LeaseRequest{Verb: transaction.LeaseReap}, at)
-			},
-			func() (*store.Report, error) { return s.try("claim-c", claimOf(c, "docs/"), at) },
-			func() (*store.Report, error) { return s.try("renew-d", renewOf(live), at) },
-			func() (*store.Report, error) { return s.try("widen-d", widen, at) },
-			func() (*store.Report, error) { return s.try("release-d", releaseOf(live), at) },
-		)
-		s.consistent(t)
+		raceLeaseVerbs(t, newGateStore(t), func() {})
 	})
+}
+
+// raceLeaseVerbs builds the racing store state on s, calls arm, then sends
+// the nine verbs at once and audits the store.
+func raceLeaseVerbs(t *testing.T, s *leaseStore, arm func()) {
+	t.Helper()
+	a, b, c, d := s.ticket(t, "a"), s.ticket(t, "b"), s.ticket(t, "c"), s.ticket(t, "d")
+	built, commit := s.submitted(t, a, "src", 0)
+	tree := gitOut(t, s.root, "rev-parse", "HEAD^{tree}")
+	short := claimOf(b, "docs/")
+	short.LeaseMinutes = "5"
+	s.lease(t, "claim-b", short, 1, nil)
+	live := s.claim(t, "claim-d", d, 1, "web/")
+	at := s.at(t, 10)
+	widen := transaction.LeaseRequest{Verb: transaction.LeaseWiden, AttemptID: live.AttemptID, Generation: live.Generation, Scope: []string{"web2/"}}
+	arm()
+	race(t,
+		func() (*store.Report, error) { return s.try("renew-a", renewOf(built), at) },
+		func() (*store.Report, error) { return s.try("submit-a", submitOf(built, tree), at) },
+		func() (*store.Report, error) { return s.tryGate("gate-a", gateOf(built, "verify"), at) },
+		func() (*store.Report, error) { return s.try("complete-a", completeOf(built, commit), at) },
+		func() (*store.Report, error) {
+			return s.try("reap-all", transaction.LeaseRequest{Verb: transaction.LeaseReap}, at)
+		},
+		func() (*store.Report, error) { return s.try("claim-c", claimOf(c, "docs/"), at) },
+		func() (*store.Report, error) { return s.try("renew-d", renewOf(live), at) },
+		func() (*store.Report, error) { return s.try("widen-d", widen, at) },
+		func() (*store.Report, error) { return s.try("release-d", releaseOf(live), at) },
+	)
+	s.consistent(t)
 }
 
 // TestCALV0019_FencedGenerationCannotMoveOrComplete: once a generation is
