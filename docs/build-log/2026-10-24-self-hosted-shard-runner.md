@@ -287,3 +287,39 @@ linked root is refused before anything is removed. On the box the step's block e
 
 This is per-job cleanup, not isolation. Rollback is removing the block. A runner run is
 `NOT_OBSERVED`.
+
+## Fork exposure review (PR #1689 repair)
+
+With `CORVINT_SELF_HOSTED=on`, each event that could carry fork code to the box:
+
+- **`pull_request` from a fork.** The expression routes it to the hosted image. A fork can still
+  edit `ci.yml` and name the labels itself, as above. The repository's fork policy, read through
+  `GET /repos/beamfall/corvint/actions/permissions/fork-pr-contributor-approval` on 2026-10-24, is
+  now `all_external_contributors`. So every fork run waits for a maintainer's approval, and that
+  approval is the boundary.
+- **`merge_group`.** The expression routes every merge-queue entry to the box. An entry tests the
+  merged tree of every queued pull request, fork pull requests included. It runs the workflow file
+  from that tree. The `checks_requested` payload names only the head SHA and refs, not the queued
+  pull requests or their head repositories, so no expression can tell a same-repository entry from
+  one that carries fork commits. Enqueueing a fork pull request therefore runs its code on the box
+  with no further approval. A passing entry on `main` also refreshes the AFP-V0-428 seed. So the
+  earlier review's "no fork-to-seed path" holds only for unqueued fork pull requests. The
+  mitigation is procedural: read a fork pull request's whole diff before enqueueing it, or unset
+  the variable while it is queued. Neither is enforced. A fork change to `.github/` also needs the
+  owner's `ci-control-plane` status before it can merge.
+- **`workflow_run`.** Only `ci-control-plane.yml` uses it. That workflow runs from the default
+  branch, and all its jobs name `ubuntu-24.04`.
+- **`pull_request_target`.** No workflow uses it.
+- **Other triggers.** `push` (only `main`) and `workflow_dispatch` need write access. They are not
+  fork paths.
+
+No routing change was made. The cheap tightening, keeping fork-carrying merge-queue entries off
+the box, cannot be known from the event.
+
+`go-product-shard (2)` failed on head `a24b95de8`, on runner `corvint-box-2`. The failure was
+`TestCrashAndSessionCancellationRetireDescendant/wait-cancel` (GCS-V0-002), reporting "child
+witness absent" after 0.09 s, well under the 3 s wait. The fake gopls wrote `child-pid` with
+`os.WriteFile`, which creates the file before it writes the bytes. The test read the empty file,
+parsed PID 0 and stopped waiting. That is a race in the test, not in this change. The fake now
+writes the witness beside the file and renames it into place, and the reader retries until it reads
+a positive PID.
