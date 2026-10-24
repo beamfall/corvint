@@ -55,9 +55,9 @@ Hardening of the host itself, with the reasons:
 - **Workspace.** `GITHUB_WORKSPACE` persists between jobs on a self-hosted runner. The first step
   empties it, so a previous run's files never reach checkout or the tests.
 - **Build cache.** The job never restores the shared `actions/cache` Go build cache: a box build is
-  not a trusted cloud build. It builds in `$RUNNER_TEMP/go-build` with `GOENV=off`, so neither an
-  earlier pull request's build output nor the host `go.env` reaches a later run. The runner empties
-  `RUNNER_TEMP` for every job, so the merge-queue shards always start with a cold cache.
+  not a trusted cloud build. It builds in `$RUNNER_TEMP/go-build` with `GOENV=off`, so the host
+  `go.env` never applies. The runner empties `RUNNER_TEMP` for every job; only the host-local seed
+  below (AFP-V0-423 to AFP-V0-425) carries build output between jobs.
 - **Processes.** The runner's orphan-process cleanup ends the processes it tracks. A hostile
   process can escape that tracking, so it is not an adversarial boundary.
 - **Privileges.** Nothing in the job runs `sudo`, `apt` or a network install on the box. A test
@@ -129,3 +129,72 @@ No workflow logic changed in response.
   test runs the drift script under bash.
 - Runtime behaviour on the box is `NOT_OBSERVED` until the owner registers the runner.
 - Hosted routing with the variable set is `NOT_OBSERVED` until the owner sets the variable.
+
+## Host-local warm build seed (AFP-V0-423 to AFP-V0-425)
+
+Added on the same lane after the first review. Hosted shards restore a trusted `actions/cache`
+seed (V1-1098); box shards built cold every time.
+
+**Design.** One seed per runner under `CORVINT_BOX_GOCACHE_ROOT` (`/home/russell/ci-cache`, named
+once in the job env): `go-build-race-<RUNNER_NAME>`, a relative symlink to
+`go-build-race-<RUNNER_NAME>.<run>-<attempt>-<shard>`.
+
+- **Restore** for a merge-queue entry on `main` or a same-repository pull request, wherever the
+  race invocation runs. It is a `cp -a` copy into `$RUNNER_TEMP/go-build`, never a hardlink,
+  because Go can rewrite an entry in place. Preserved mtimes keep Go's 5-day trim working.
+- **Refresh** only from a merge-queue shard on `main` whose tests step succeeded. It expires test
+  results, copies the job cache beside the seed, renames a new symlink over the seed atomically,
+  and removes every other `<seed>.*`.
+- **Cap.** 8 GiB per seed (`SEED_CAP_KIB`); a larger job cache removes the seed, so that runner
+  restarts cold. Eight runners bound the root at 64 GiB at rest. The box has about 926 GB free.
+- **Fallback.** Any missing, unsafe or unreadable seed leaves a cold cache with a notice. Neither
+  step can fail a shard. `-count=1` stays.
+
+**Why per runner, not per shard index.** The charter proposed per-shard seeds. Go's action ID
+includes the package directory for non-`-trimpath` builds, and each runner checks out under its own
+`/home/russell/actions-runner[-N]/_work/...`. A seed written by another runner therefore misses for
+every repository package; only the standard library and dependencies hit. The measurement below
+shows this. A per-runner seed hits for whatever shards that runner ran before. Each runner runs one
+job at a time, so a seed has a single writer.
+
+**Pull requests restore too.** A same-repository pull request already runs as the runner account,
+which owns the seed root, and its `pull_request` run uses its own `ci.yml`. A read-only copy gives
+it nothing it could not already do, and it gets the same warm build. It never refreshes through the
+workflow.
+
+**Trust boundary, stated plainly.** The event gating is provenance hygiene for honest runs. It is
+not a security boundary. Any job that reaches the box can write a seed directly, and a planted entry
+would be compiled into a later merge-queue run. That is the same exposure AFP-V0-421 already
+accepts for the runner account's home. Fork pull requests reach the box only through the owner's
+approval. Go checks an entry's size, not its content, so a corrupt seed shows as a build or test
+failure on one runner. The operator then deletes `/home/russell/ci-cache`, or that runner's seed and
+`<seed>.*`.
+
+**Owner step.** None: the first refresh creates the root with mode 0700.
+
+**Rollback.** Delete `/home/russell/ci-cache` (next shards start cold), unset `CORVINT_SELF_HOSTED`,
+or revert the restore and refresh steps.
+
+**Measured (linux/amd64 WSL2 on the box, Ryzen 9 5950X; an estimate, not a CI run).** Shard 0 of 8
+has 48 packages including slices, and a 450 MB race cache. `go test -race -count=1 -run '^$'` was
+run through `heavy.sh`, whose worktree path changes on every run, so its warm run equals a seed
+from another runner:
+
+| Run | `-p 4` | `-p 1` (as CI) |
+|---|---|---|
+| cold cache | 57.7 s | 177.3 s |
+| warm, different checkout path | 45.6 s | 145.1 s |
+
+The lane's hook routes `go test` only through `heavy.sh`, so the same-path effect was measured with
+`go build -race -o /dev/null` over the same packages at a fixed path. This covers compile only, not
+test packages or links:
+
+| Run | `-p 4` | `-p 1` |
+|---|---|---|
+| cold cache | 32.2 s | 82.4 s |
+| warm, same checkout path | 1.5 s | 4.3 s |
+| warm, different checkout path | 20.3 s | 51.8 s |
+
+Inference: a same-runner seed removes most of the compile share of a shard. On the `-p 1` race
+build that is on the order of a minute or more per shard. Linking and running the test binaries
+remain. A real box shard with the seed is `NOT_OBSERVED` until the variable is on.

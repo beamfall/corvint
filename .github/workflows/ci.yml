@@ -317,6 +317,9 @@ jobs:
       GOWORK: "off"
       GOFLAGS: ""
       CGO_ENABLED: "1"
+      # AFP-V0-423: the one host-local root of the self-hosted runner's Go build seeds, outside
+      # every runner's work tree. The runner account is russell. Unused on the hosted image.
+      CORVINT_BOX_GOCACHE_ROOT: /home/russell/ci-cache
     steps:
       - name: Clear the persistent workspace (self-hosted runner only, AFP-V0-421)
         # A hosted VM starts empty. The self-hosted runner keeps GITHUB_WORKSPACE between jobs,
@@ -393,8 +396,9 @@ jobs:
         # The self-hosted host has no passwordless sudo, so it provisions nothing: the owner
         # installs the pinned Go at /usr/local/go and the pinned ripgrep at /usr/local/bin/rg, and
         # this step only checks them. Go reads no host go.env file, and builds in a cache under
-        # RUNNER_TEMP, which the runner empties for every job, so no earlier run's build output,
-        # including a pull request's, reaches this one. The Git lines equal the hosted step's.
+        # RUNNER_TEMP, which the runner empties for every job. Only the AFP-V0-423 seed, which only
+        # a passing merge-queue shard on main refreshes, carries build output from an earlier job
+        # into this one. The Git lines equal the hosted step's.
         if: runner.environment == 'self-hosted'
         env:
           RG_VERSION: "15.2.0"
@@ -423,6 +427,43 @@ jobs:
           git config --global maintenance.auto false
           git config --global gc.auto 0
           git --version
+      - name: Restore the host-local Go build seed (self-hosted runner, AFP-V0-423)
+        # AFP-V0-423: copies this runner's seed into the per-job GOCACHE for a merge-queue entry on
+        # main or a pull request from this repository, wherever the race invocation runs (not DOCS
+        # or REUSE). Seeds are keyed by runner, not shard: Go's action IDs include the package
+        # directory, and each runner checks out under its own _work path, so only builds from the
+        # same runner can hit. A copy, never a hardlink, because Go rewrites an existing entry in
+        # place, and cp -a keeps the mtimes Go's 5-day trim reads. A missing, unsafe or unreadable
+        # seed leaves a cold cache with a notice and never fails the shard. -count=1 stays, so no
+        # test result is reused. This is provenance hygiene, not a boundary: every job on the box
+        # runs as the same user and could write the seed root directly (AFP-V0-425).
+        id: boxcache
+        if: runner.environment == 'self-hosted' && (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) && ((github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          if [ "$GOCACHE" != "$RUNNER_TEMP/go-build" ]; then
+            echo "::notice::AFP-V0-423: GOCACHE is not the per-job cache; no seed restored"
+            exit 0
+          fi
+          cold() {
+            rm -rf -- "$GOCACHE"
+            mkdir -p -- "$GOCACHE"
+            echo "::notice::AFP-V0-423: $1; this shard builds in a cold cache"
+            exit 0
+          }
+          case "$RUNNER_NAME" in '' | *[!A-Za-z0-9_-]*) cold "runner name '$RUNNER_NAME' is not a plain seed name" ;; esac
+          root=$CORVINT_BOX_GOCACHE_ROOT
+          seed="$root/go-build-race-$RUNNER_NAME"
+          if [ ! -d "$root" ] || [ -L "$root" ] || [ ! -O "$root" ] || [ -n "$(find "$root" -maxdepth 0 -perm /022)" ]; then
+            cold "seed root $root is missing, a link, foreign or group/world-writable"
+          fi
+          src=$(readlink -e -- "$seed") || cold "no seed at $seed"
+          case "$src" in "$seed".*) ;; *) cold "seed $seed does not point to a seed directory" ;; esac
+          if [ ! -d "$src" ] || [ -L "$src" ] || [ ! -O "$src" ]; then cold "seed $src is not a directory this user owns"; fi
+          rm -rf -- "$GOCACHE"
+          cp -a -- "$src" "$GOCACHE" || cold "copying $src failed"
+          echo "AFP-V0-423: restored $(du -sk -- "$GOCACHE" | cut -f1) KiB from $src"
       - name: Capture trusted tool source outside tested checkout
         continue-on-error: true
         if: github.event_name == 'pull_request' && env.CORVINT_PR_TOOL_SOURCE != ''
@@ -796,6 +837,53 @@ jobs:
           path: ${{ runner.temp }}/forward-outcomes/outcomes.json
           if-no-files-found: ignore
           overwrite: true
+      - name: Refresh the host-local Go build seed (self-hosted merge-queue shards on main, AFP-V0-424)
+        # AFP-V0-424: only a merge-queue entry on main whose race invocation passed refreshes this
+        # runner's seed. The job cache, its test results expired, is copied beside the seed and
+        # swapped in by an atomic rename of the seed link, so a reader never sees a partial seed;
+        # the replaced copy is removed. A cache above SEED_CAP_KIB removes the seed instead, so the
+        # next shard on this runner starts cold. A refusal or failure never fails the shard.
+        if: runner.environment == 'self-hosted' && github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main' && steps.tests.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 10
+        working-directory: source
+        env:
+          # AFP-V0-424: the explicit cap on one seed (8 GiB); the root holds one seed per runner.
+          SEED_CAP_KIB: "8388608"
+          SEED_TAG: ${{ github.run_id }}-${{ github.run_attempt }}-${{ strategy.job-index }}
+        run: |
+          test "$(go env GOCACHE)" = "$RUNNER_TEMP/go-build"
+          case "$RUNNER_NAME" in
+            '' | *[!A-Za-z0-9_-]*)
+              echo "::notice::AFP-V0-424: runner name '$RUNNER_NAME' is not a plain seed name; not refreshing"
+              exit 0
+              ;;
+          esac
+          root=$CORVINT_BOX_GOCACHE_ROOT
+          seed="$root/go-build-race-$RUNNER_NAME"
+          umask 077
+          mkdir -p -- "$root"
+          if [ -L "$root" ] || [ ! -O "$root" ] || [ -n "$(find "$root" -maxdepth 0 -perm /022)" ]; then
+            echo "::warning::AFP-V0-424: seed root $root is a link, foreign or group/world-writable; not refreshing"
+            exit 0
+          fi
+          go clean -testcache
+          size=$(du -sk -- "$GOCACHE" | cut -f1)
+          if [ "$size" -gt "$SEED_CAP_KIB" ]; then
+            rm -rf -- "$seed" "$seed".*
+            echo "::notice::AFP-V0-424: the job cache is $size KiB, above the $SEED_CAP_KIB KiB cap; seed removed, the next shard on $RUNNER_NAME starts cold"
+            exit 0
+          fi
+          next="$seed.$SEED_TAG"
+          rm -rf -- "$next" "$next.tmp" "$seed.link"
+          cp -a -- "$GOCACHE" "$next.tmp"
+          mv -T -- "$next.tmp" "$next"
+          ln -s -- "${next##*/}" "$seed.link"
+          mv -Tf -- "$seed.link" "$seed"
+          for old in "$seed".*; do
+            [ "$old" = "$next" ] || rm -rf -- "$old"
+          done
+          echo "AFP-V0-424: $seed now holds $size KiB from run $SEED_TAG"
       - name: Expire cached test results before saving the build cache
         # Only a main push whose full race invocation passed writes the cache. A REUSE or DOCS
         # push (AFP-V0-024, including a push that reuses its queue run) compiles nothing, skips
