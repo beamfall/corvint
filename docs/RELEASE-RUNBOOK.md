@@ -23,7 +23,7 @@ output directories outside the checkout; the reproducibility script refuses one 
    `git --version` with the evidence.
 
    ```sh
-   test "$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.2"
+   test "$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.3"
    ```
 
 3. Read-only readiness report. No row may be `FAIL`; a `FAIL` row names the clause to fix before

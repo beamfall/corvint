@@ -1,3 +1,3 @@
 module github.com/Beamfall/corvint
 
-go 1.27.2
+go 1.27.3

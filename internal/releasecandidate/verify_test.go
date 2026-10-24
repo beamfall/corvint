@@ -427,7 +427,7 @@ func validCoreFixture(t *testing.T) string {
 		{"windows", "amd64", "corvint.exe", "corvint_windows_amd64.zip"},
 	}
 	report := coreReport{
-		Schema: "corvint.release-go-archive-report.v2", Revision: strings.Repeat("a", 40), Tree: strings.Repeat("b", 40), ManifestSHA256: strings.Repeat("c", 64), Toolchain: "go1.27.2", Verdict: "PASS",
+		Schema: "corvint.release-go-archive-report.v2", Revision: strings.Repeat("a", 40), Tree: strings.Repeat("b", 40), ManifestSHA256: strings.Repeat("c", 64), Toolchain: "go1.27.3", Verdict: "PASS",
 		Limits: coreLimits{Targets: 5, MembersPerArchive: 6, MaximumArchiveBytes: 1 << 20, MaximumTotalBytes: 5 << 20, MaximumReportBytes: 1 << 20, MaximumWitnessBytes: 1 << 16}, Reasons: []coreReason{},
 	}
 	for _, item := range expected {
@@ -452,7 +452,7 @@ func validCoreFixture(t *testing.T) string {
 }
 
 func companionManifestFixture() companionrelease.BundleManifest {
-	return companionrelease.BundleManifest{GoVersion: "go1.27.2", GitVersion: "git version fixture"}
+	return companionrelease.BundleManifest{GoVersion: "go1.27.3", GitVersion: "git version fixture"}
 }
 
 func closedCandidateFixture(t *testing.T, versionOutput, corvintCommit, corvintTree string, tasks SourceIdentity, corvintSource, tasksSource []byte, coreBinary func(coreTarget) []byte) string {
@@ -491,7 +491,7 @@ func closedCandidateFixture(t *testing.T, versionOutput, corvintCommit, corvintT
 	add("QUALIFICATION.json", "qualification-receipt", qualificationRaw)
 	add("README.md", "release-notes", []byte(candidateReadme("0.5.0a1")))
 	manifest := Manifest{
-		Profile: manifestProfile, Version: "0.5.0a1", BuildNumber: "9", CorvintVersion: versionOutput, GoVersion: "go1.27.2", GitVersion: "git version fixture",
+		Profile: manifestProfile, Version: "0.5.0a1", BuildNumber: "9", CorvintVersion: versionOutput, GoVersion: "go1.27.3", GitVersion: "git version fixture",
 		Sources: []SourceIdentity{{Name: "corvint", Commit: corvintCommit, Tree: corvintTree}, tasks}, Assets: assetsFor(files, roles),
 	}
 	manifestRaw, err := canonicalJSON(manifest)
@@ -510,7 +510,7 @@ func closedCandidateFixture(t *testing.T, versionOutput, corvintCommit, corvintT
 func addCoreCandidateFixture(t *testing.T, add func(name, role string, raw []byte), corvintCommit, corvintTree string, coreBinary, coreArchive func(coreTarget) []byte) {
 	t.Helper()
 	report := coreReport{
-		Schema: "corvint.release-go-archive-report.v2", Revision: corvintCommit, Tree: corvintTree, ManifestSHA256: strings.Repeat("e", 64), Toolchain: "go1.27.2", Verdict: "PASS",
+		Schema: "corvint.release-go-archive-report.v2", Revision: corvintCommit, Tree: corvintTree, ManifestSHA256: strings.Repeat("e", 64), Toolchain: "go1.27.3", Verdict: "PASS",
 		Limits: coreLimits{Targets: 5, MembersPerArchive: 6, MaximumArchiveBytes: 1 << 20, MaximumTotalBytes: 5 << 20, MaximumReportBytes: 1 << 20, MaximumWitnessBytes: 1 << 16}, Reasons: []coreReason{},
 	}
 	targets := []struct{ goos, goarch, binary, archive string }{
@@ -564,7 +564,7 @@ func coreOnlyCandidateFixture(t *testing.T, versionOutput, corvintCommit, corvin
 		}
 	}
 	manifest := Manifest{
-		Profile: coreManifestProfile, Version: "0.5.0a1", BuildNumber: "9", CorvintVersion: versionOutput, GoVersion: "go1.27.2", GitVersion: "git version fixture",
+		Profile: coreManifestProfile, Version: "0.5.0a1", BuildNumber: "9", CorvintVersion: versionOutput, GoVersion: "go1.27.3", GitVersion: "git version fixture",
 		Sources: []SourceIdentity{{Name: "corvint", Commit: corvintCommit, Tree: corvintTree}},
 	}
 	if mutate != nil {

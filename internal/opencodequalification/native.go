@@ -76,7 +76,7 @@ func Native(ctx context.Context, c Config) (Object, error) {
 	for i := 0; i < 180; i++ {
 		source += fmt.Sprintf("// unrelated fixture line %d: retained for the manual full-file read baseline.\n", i)
 	}
-	for name, text := range map[string]string{"go.mod": "module example.com/qualification\n\ngo 1.27.2\n", "add.go": source, "AGENTS.md": "# Project instructions\nFor repository workflow changes, inspect add.go and run git diff --check.\n", "oversized.txt": strings.Repeat("excluded fixture\n", 150000)} {
+	for name, text := range map[string]string{"go.mod": "module example.com/qualification\n\ngo 1.27.3\n", "add.go": source, "AGENTS.md": "# Project instructions\nFor repository workflow changes, inspect add.go and run git diff --check.\n", "oversized.txt": strings.Repeat("excluded fixture\n", 150000)} {
 		if e = os.WriteFile(filepath.Join(repo, name), []byte(text), 0600); e != nil {
 			return nil, e
 		}

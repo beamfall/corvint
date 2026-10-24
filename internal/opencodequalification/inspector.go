@@ -150,7 +150,7 @@ func Inspector(ctx context.Context, c Config) (failure error) {
 		multiply += fmt.Sprintf("// After citation %02d\n", i)
 	}
 	for name, text := range map[string]string{
-		"go.mod":      "module example.com/inspector\n\ngo 1.27.2\n",
+		"go.mod":      "module example.com/inspector\n\ngo 1.27.3\n",
 		"add.go":      "package inspector\n\n// Add preserves the NATIVE_INSPECTOR_WITNESS contract.\nfunc Add(a, b int) int { return a + b }\n",
 		"multiply.go": multiply, "examples/multiply.go": "package examples\n\n// Multiply uses NATIVE_SECOND_WITNESS.\nfunc Multiply(a, b int) int { return a * b }\n",
 		"multiply_test.go": "package inspector\n\nimport \"testing\"\n\nfunc TestMultiply(t *testing.T) { if Multiply(3, 4) != 12 { t.Fatal(\"wrong product\") }; t.Log(\"COCKPIT_PROOF_WITNESS\") }\n",

@@ -141,7 +141,7 @@ try {
       CORVINT_VSCODE_EXTENSIONS: extensions,
       CORVINT_GO_AUTHORITY_BUNDLE: authorityBundlePath,
       CORVINT_NODE_EXECUTABLE: process.execPath,
-      CORVINT_GO_EXECUTABLE: "/opt/homebrew/Cellar/go/1.27.2/bin/go",
+      CORVINT_GO_EXECUTABLE: "/opt/homebrew/Cellar/go/1.27.3/bin/go",
       CORVINT_TOOL_IDENTITIES: JSON.stringify(publicToolIdentities(toolIdentities)),
       CORVINT_FIXTURE_COMMIT: fixtureCommit,
       CORVINT_FIXTURE_TREE: fixtureTree,
@@ -223,7 +223,7 @@ function requiredEnvironment(name) {
 async function measuredCallerAttachment(worktree, temporaryParent, moduleCacheDirectory) {
   const verifierExecutable = await realpath(requiredEnvironment("CORVINT_GO_PROVIDER"));
   const gitExecutable = await realpath("/usr/bin/git");
-  const goExecutable = await realpath("/opt/homebrew/Cellar/go/1.27.2/bin/go");
+  const goExecutable = await realpath("/opt/homebrew/Cellar/go/1.27.3/bin/go");
   const goos = await runCommand(goExecutable, ["env", "GOOS"], worktree);
   const goarch = await runCommand(goExecutable, ["env", "GOARCH"], worktree);
   const goroot = await runCommand(goExecutable, ["env", "GOROOT"], worktree);

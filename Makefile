@@ -77,7 +77,7 @@ host-adapter-test:
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test -count=1 -timeout $(GO_TEST_TIMEOUT) ./cmd/corvint -run '^(TestDogfoodEvent|TestCodexHostAdapter|TestClaudeNativeDogfoodLifecycle|TestClaudeSourceHandoffCLI|TestHostAdapter|TestPi)'
 
 go-version:
-	v="$$(GOTOOLCHAIN=local go env GOVERSION)"; test "$$v" = "go1.27.2" || test "$$v" = "go1.27.3"
+	test "$$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.3"
 
 go-test:
 	go run ./tools/test-commands-run
@@ -600,7 +600,7 @@ shell-test: go-format-test go-archive-gate-test spec-requirements-test requireme
 # windows-vet is the local twin of the go-static step "Windows vet including test files
 # (AFP-V0-042)" in .github/workflows/ci.yml: the same GOOS, GOARCH, CGO_ENABLED, empty GOFLAGS (no
 # build tags) and GOWORK=off as that job, over the same two modules, test files included, on the
-# go1.27.2 CI pins (go-version also admits the go1.27.3 patch revision, decision 0547). GOENV=off ignores settings saved by `go env -w`, which an empty
+# go1.27.3 CI pin (decision 0557). GOENV=off ignores settings saved by `go env -w`, which an empty
 # GOFLAGS alone would fall back to; the CI runner has none. Run it
 # before pushing a change that touches a .go, go.mod or go.sum file (AFP-V0-054,
 # docs/specs/affected-plan-v0.md); TestAFPV0054 keeps the two in step.

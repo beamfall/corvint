@@ -10,7 +10,7 @@ import (
 
 const validManifest = `{
   "schema": "corvint.release-artifact-v0",
-  "toolchain": {"goVersion": "go1.27.2", "goModDirective": "1.27.2", "forbiddenGoModDirective": "toolchain", "gotoolchain": "local"},
+  "toolchain": {"goVersion": "go1.27.3", "goModDirective": "1.27.3", "forbiddenGoModDirective": "toolchain", "gotoolchain": "local"},
   "profile": {"package": "./cmd/corvint", "modulePath": "github.com/Beamfall/corvint", "binaryName": "corvint",
     "buildFlags": ["-trimpath"],
     "environment": {"CGO_ENABLED": "0", "GOENV": "off", "GOTOOLCHAIN": "local", "GOPROXY": "off", "GOFLAGS": "-mod=readonly", "GOSUMDB": "off"}},
@@ -115,7 +115,7 @@ func TestBuildInfoMismatchIsNamed(t *testing.T) {
 	target := Target{GOOS: "linux", GOARCH: "arm64"}
 	commit := strings.Repeat("a", 40)
 	clean := map[string]string{
-		"go": "go1.27.2", "path": "github.com/Beamfall/corvint/cmd/corvint",
+		"go": "go1.27.3", "path": "github.com/Beamfall/corvint/cmd/corvint",
 		"GOOS": "linux", "GOARCH": "arm64", "CGO_ENABLED": "0", "-trimpath": "true",
 		"vcs.revision": commit, "vcs.modified": "false",
 	}
@@ -210,7 +210,7 @@ func TestGoModDirectivesAreReadExactly(t *testing.T) {
 	if err != nil || directive != "1.27.0" || lines != 0 {
 		t.Fatalf("directive=%q lines=%d err=%v", directive, lines, err)
 	}
-	if err := os.WriteFile(path, []byte("module example.com/x\n\ngo 1.27.0\n\ntoolchain go1.27.2\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("module example.com/x\n\ngo 1.27.0\n\ntoolchain go1.27.3\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, lines, _ := readGoModDirectives(path); lines != 1 {

@@ -263,7 +263,7 @@ func mcpStructuredString(responses []map[string]any, index int, key string) (str
 }
 
 func initDocsSmokeRepo(ctx context.Context, root string) error {
-	files := map[string]string{"go.mod": "module example.test/companion-docs\n\ngo 1.27.2\n", "cache/demux.go": "package cache\n\nfunc Split(key string) string { return key }\n", "owner.md": "# Cache\nDelivery status: experimental\n\n## Agent digest\n- Claim: splits keys\n- Blocked on: behavior validation\n\n## Requirements\nNever promote drafts.\n"}
+	files := map[string]string{"go.mod": "module example.test/companion-docs\n\ngo 1.27.3\n", "cache/demux.go": "package cache\n\nfunc Split(key string) string { return key }\n", "owner.md": "# Cache\nDelivery status: experimental\n\n## Agent digest\n- Claim: splits keys\n- Blocked on: behavior validation\n\n## Requirements\nNever promote drafts.\n"}
 	if err := writeFiles(root, files, 0o600); err != nil {
 		return err
 	}

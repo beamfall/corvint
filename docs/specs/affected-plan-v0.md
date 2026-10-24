@@ -339,7 +339,7 @@ bounds), walks at most `affected.MaxWalkEntries` entries, reads at most
   MUST stay visibly full-suite; local fixture PASS MUST NOT claim hosted or narrowed CI PASS.
 - **AFP-V0-014:** (accepted (decision 0431); amended by decision 0431; originally decision 0289) The optional
   historical qualification profile MUST require a separately trusted,
-  SHA256-pinned qualification artifact matching exact reviewed tool source/binaries, Go 1.27.2 (decision 0522; formerly 1.27.1 under decision 0293),
+  SHA256-pinned qualification artifact matching exact reviewed tool source/binaries, Go 1.27.3 (decision 0557; formerly 1.27.2 under decision 0522 and 1.27.1 under decision 0293),
   OS/architecture/release and C compiler identities, fixed `go test -json -p 1 -count=1 -race
   -timeout 50m` argv, closed `GOENV=off`, `GOTOOLCHAIN=local`, `GOPROXY=off`, `GOWORK=off`, empty `GOFLAGS`,
   `GOSUMDB=off`, `CGO_ENABLED=1`, owned build cache and empty read-only module cache. Freeze
@@ -364,7 +364,7 @@ boundary after planning. Qualification SHALL accept retained read-only rows sepa
 its writable output. Missing rows, altered pairs, profile mismatch or incomplete outcomes fail.
 
 The retained `corvint-pr-container/1` profile and its receipt reader remain exact Go 1.27.0.
-Current native execution requires Go 1.27.2 under decision 0522; current-source execution in the
+Current native execution requires Go 1.27.3 under decision 0557; current-source execution in the
 retained image is unqualified. The launcher delegates to separately supplied, hashed, read-only
 trusted binaries and their immutable source identity. Neither that boundary nor retained receipts
 qualifies a current-launcher/legacy-tools pairing. Migrating the image requires separate review and
@@ -562,7 +562,8 @@ and container qualification; full fallback remains available.
   a failed or repeated package outcome, logs that lack a package the current table lists (unless
   the operator states the removal), or a table the partition would reject, SHALL refuse the
   refresh and leave the table unchanged. The table records the toolchain refresh runs under as
-  its source `goVersion`; the partition admits `go1.27.1` and `go1.27.2` (decision 0522), so
+  its source `goVersion`; the partition admits `go1.27.1`, `go1.27.2` (decision 0522) and the
+  `go1.27.3` pin (decision 0557), so
   refresh under any other toolchain refuses. `tools/ci-shard-costs check` SHALL report each package whose observed time differs from
   its entry by more than the stated factor (default 2, ignoring differences under 10s), each
   executed package the table lacks, and each entry the run did not execute. The check is advisory
@@ -597,8 +598,8 @@ and container qualification; full fallback remains available.
   nothing.
   (3) Unusable input SHALL keep packages whole and never drop a test. A file-level failure keeps
   every package whole: an allow-list or slice file that is not exactly its closed profile (unknown
-  members, trailing data, over 1 MiB), or a source other than a 40-hex revision, `go1.27.1` or
-  `go1.27.2` (decision 0522; generate records its own toolchain) and a run of this repository. A package-level failure keeps that package whole: a package outside the
+  members, trailing data, over 1 MiB), or a source other than a 40-hex revision, `go1.27.1`,
+  `go1.27.2` (decision 0522) or `go1.27.3` (decision 0557; generate records its own toolchain) and a run of this repository. A package-level failure keeps that package whole: a package outside the
   runtime universe or the allow-list, a cost outside 1..3,000,000 ms, an invalid, repeated or
   unsorted name, or a pattern over 64 KiB (half of Linux `MAX_ARG_STRLEN`) or that does not
   compile. Invalid package costs keep the AFP-V0-022 lexical round-robin and split nothing.
@@ -1751,7 +1752,7 @@ and container qualification; full fallback remains available.
   `GOFLAGS`, so no build tag is added and `_test.go` files are type-checked. It SHALL also set
   `GOENV=off`, so a value saved by `go env -w` (which an empty `GOFLAGS` falls back to) cannot
   change the selected files, and SHALL depend on the `go-version` target, so it runs only on the
-  `go1.27.2` toolchain CI's `setup-go` pins. (2) The
+  `go1.27.3` toolchain CI's `setup-go` pins (decision 0557). (2) The
   `AGENTS.md` Verify section SHALL declare `make windows-vet` in a shell fence and scope it, in a
   sentence naming the command, to a change that touches a `.go`, `go.mod` or `go.sum` file, so
   `corvint affected` lists it as a `conditional` check (AFP-V0-009, decision 0531) and an agent
@@ -2122,12 +2123,14 @@ and container qualification; full fallback remains available.
   first error that differs from the serial pass (`GOMAXPROCS=1` takes it). Rollback: restore the
   in-walk `scanFile` call.
 - **AFP-V0-296:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2194))
-  `corvint-pr-tests` admits exactly the toolchains decision 0547 allows, `go1.27.2` and `go1.27.3`.
-  One definition in the driver, `admittedGoVersions`, holds that set. The trusted tool identity
-  observed under any other `go env GOVERSION` is refused with the existing error `unsupported Go
-  version`. The `.github/cishards` source-version set and the hosted `setup-go` pin are unchanged.
+  `corvint-pr-tests` admits exactly the one toolchain decision 0557 pins, `go1.27.3` (amended by
+  decision 0557; decision 0547 admitted `go1.27.2` and `go1.27.3`). One definition in the driver,
+  `admittedGoVersions`, holds that set. The trusted tool identity observed under any other `go env
+  GOVERSION`, including the former `go1.27.2` pin, is refused with the existing error
+  `unsupported Go version`. The hosted `setup-go` pin is the same `go1.27.3`; the `.github/cishards`
+  source-version set keeps admitting the retained tables' `go1.27.1` and `go1.27.2` provenance.
   Falsifier: an identity accepted under a version outside the set, or refused under `go1.27.3`.
-  Rollback: set `admittedGoVersions` back to `go1.27.2` alone.
+  Rollback: revert the decision 0557 change, which restores the 0547 two-revision set.
 
 ### Declared documentation paths and scope-bounded literal readers
 
@@ -3203,7 +3206,7 @@ including one with a transient read failure, writes no entry. `--paths-from` ref
 | AFP-V0-163 | the `reuse` and `Retain integrity reuse decision` steps, `permissions`, `fetch-depth: 2` and the `steps.reuse.outputs.mode` conditions of `artifact-integrity`, and the `artifact-integrity-record` job, in `.github/workflows/ci.yml`; the `job:artifact-integrity` row of `script/ci-least-privilege-exceptions.tsv` | `TestAFPV0163WorkflowWiresIntegrityTreeReuse`, `TestAFPV0163RecordJobRunsNoRepositoryCode`, `TestAFPV0163IntegrityReuseDecidesOnlyForAPassedPullRequestRunOfThisTree` (all fail before the change); queue timings in build log 2026-10-21-ci-waste-1021g-integrity-reuse-and-tasks-slices; hosted after-measurement `NOT_OBSERVED` |
 | AFP-V0-164 | the `internal/tasks/cli` and `internal/tasks/authority` entries of `.github/cishards/test-split-allow.json` and their slices in `.github/cishards/test-slices.json` (regenerated from run 39613481398) | `TestAFPV0060CommittedSlicesBoundOversizedPackages` (requires `cmd/corvint`, `internal/tasks/store` and `internal/tasks/cli` split and every allowed package above the bound split, every test selected once, each slice within 400 s); amendment replay in build log 2026-10-21-cisplit-1021v-store-slices; `tools/ci-test-slices replay` before/after in build log 2026-10-21-ci-waste-1021g-integrity-reuse-and-tasks-slices; shuffled package runs; hosted observed max shard `NOT_OBSERVED` |
 | AFP-V0-316 | `scanFiles`, `scanFile` and `record` in `internal/gateselect/readers.go` | `TestAFPV0316ParallelIndexMatchesSerial` (the pooled index deep-equals the `GOMAXPROCS=1` serial index over a 99-file fixture, five times) and `TestAFPV0316ParallelIndexReportsTheFirstErrorInWalkOrder` (two unparsable sources: always the walk-first one; recording in completion order fails it); `BenchmarkIndexRepository` |
-| AFP-V0-296 | `admittedGoVersions` in `tools/corvint-pr-tests/main.go` | `TestToolIdentityRequiresCurrentGoVersion` (go1.27.2 and go1.27.3 admitted, go1.27.1, go1.27.4 and go1.28.2 refused), run green under go1.27.2 and go1.27.3; fails on go1.27.3 without the fix |
+| AFP-V0-296 | `admittedGoVersions` in `tools/corvint-pr-tests/main.go` | `TestToolIdentityRequiresCurrentGoVersion` (go1.27.3 admitted; go1.27.1, go1.27.2, go1.27.4 and go1.28.2 refused, decision 0557), run green under go1.27.3 |
 | AFP-V0-160 | `readDocumentationPaths`, `declaredDocumentation` and `documentationPaths` in `internal/liveverify/affected/documentation.go`; the `documentation` graph field and digest member in `graph.go`; the `Select` call in `select.go`; `.corvint/documentation-paths.json` | `TestDeclaredDocumentationIsNonSourceNotUnknown_AFPV0160`, `TestDeclaredDocumentationKeepsEveryReader_AFPV0160`, `TestDeclaredDocumentationLeavesTaskStateAndSourceAlone_AFPV0160`, `TestDocumentationDeclarationIsValidated_AFPV0160`, `TestDocumentationDeclarationIsInTheDigest_AFPV0160`, `TestRepositoryDeclaresBuildLogDocumentation_AFPV0160` |
 | AFP-V0-161 | the read-scope guard in `resolves`, `internal/liveverify/affected/readers.go` | `TestDeclaredReadScopeBoundsPathLiteralReaders_AFPV0161`, `TestDeclaredReadScopeKeepsEveryInScopeLiteralReader_AFPV0161`, `TestDeclaredReadScopeDropsOutOfScopeFixtureNamers_AFPV0161` |
 | AFP-V0-356 | `affectedDirtyDetail`, `affectedMixedWarning`, `affectedMixedWorktreeRefusal` and `affectedPathListMixedRefusal` in `cmd/corvint/affected_freshness.go` | `TestAFPV0356MixedNamesGloballyExcludedPath` (a path excluded only through `GIT_CONFIG_GLOBAL`'s `core.excludesFile` is named, with the cause and fix, by the `--require-clean` and `--path` refusals and the `--base` warning), `TestAFPV0356DirtyDetailIsBounded` |

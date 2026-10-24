@@ -65,11 +65,11 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.27.2"
+          go-version: "1.27.3"
           cache: false
       - name: Offline checks of the latest-release script
         run: make spec-toolchain-latest-test
       - name: Pinned upstream validators and obligation equality
         run: |
-          test "$(go env GOVERSION)" = "go1.27.2"
+          test "$(go env GOVERSION)" = "go1.27.3"
           make spec-toolchain-conformance

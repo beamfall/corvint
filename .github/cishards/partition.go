@@ -81,9 +81,10 @@ type estimates struct {
 }
 
 // SourceGoVersions are the toolchains a cost table or slice file may record as
-// its source: go1.27.1 keeps the retained tables valid, and go1.27.2 is the
-// pinned toolchain whose hosted runs refresh them (decision 0522).
-var SourceGoVersions = map[string]bool{"go1.27.1": true, "go1.27.2": true}
+// its source: go1.27.1 and go1.27.2 keep the retained tables valid (decision
+// 0522), and go1.27.3 is the pinned toolchain whose hosted runs refresh them
+// (decision 0557).
+var SourceGoVersions = map[string]bool{"go1.27.1": true, "go1.27.2": true, "go1.27.3": true}
 
 func weights(raw []byte) (map[string]int64, int64, bool) {
 	if len(raw) > 1<<20 {

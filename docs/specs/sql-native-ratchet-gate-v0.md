@@ -193,7 +193,7 @@ the pinned `causal_parent` commit, the
   directory or under one `mktemp -d` scratch root, and MUST be removed by a trap on normal exit and
   on `HUP`/`INT`/`TERM`. The gate MUST NOT write to any tracked path in the working tree.
 - `SNR-V0-030`: (V1-2120) The admitted toolchain source is the Makefile `go-version` target
-  (decision 0547), not a version written into this gate. The gate MUST keep its content pins as
+  (decision 0557, which admits exactly `go1.27.3`; formerly decision 0547), not a version written into this gate. The gate MUST keep its content pins as
   rows of `version go_binary_sha256 receipt_tool_sha256 goroot_entries goroot_sha256`, one per
   measured installation, and every row's version MUST be one that target admits. A toolchain whose
   version and go binary digest match no row, a receipt tool digest that differs from the row, or a
@@ -201,25 +201,26 @@ the pinned `causal_parent` commit, the
   `sql-native-ratchets status=REJECTED reason=TOOLCHAIN_MISMATCH detail=<detail>` to stderr and exit
   78, never a silent `test` failure. The `SNR-V0-014` line MUST name the matched `go_version`,
   `goroot_entries` and `goroot_sha256` from the row instead of constants.
-- `SNR-V0-031`: (V1-2249) The pin table MUST carry a row for the official Go toolchain module
-  `golang.org/toolchain@v0.0.1-go1.27.2.linux-amd64` (the installation `GOTOOLCHAIN=go1.27.2` and a
-  `go 1.27.2` go.mod line download, its zip verified by the Go checksum database as
-  `h1:N6Xv/1OLzI0jVVkUwkrxHRZc/GCTARUo6idcngKwlDE=`), observed on 2026-10-23 on a linux/amd64
-  host: go binary `548d3c32f83fa81152f543eb1526be7884cfe0526eb5e9ce29d3eca14786e7e0`, receipt tool
-  `874295bf91fbb9801685232e798ccb4e1726789e1e2c5369add4b822575f6d8c` (built with the gate's own
-  `run_go` flags from this tree), and GOROOT receipt 13474 entries,
-  `5d9a61679c596804cec287f48714f3808fb1e52ae87db7d9b0736ee4dfa56ecb`. No two rows MAY share a
-  version and go binary digest, and on a host whose GOROOT is that linux/amd64 module the
-  toolchain MUST match a row in all three digests; any other host toolchain that matches a row by
-  version and go binary digest MUST match its other two, and one that matches none is reported
-  `NOT_OBSERVED`, not failed (`script/check-sql-native-ratchets_test.sh` case 9, which builds only
-  the receipt tool). A full `make sql-native-ratchets` run on that host passed on 2026-10-23
-  (`core_base=d56eb2c9`, `core_binary=identical core_deps=identical`, `goroot_entries=13474`,
-  `candidate_max_allocs_op=393`, `causal=NOT_RUN-causal-parent-unavailable`). Non-goal:
-  the go.dev `go1.27.2.linux-amd64.tar.gz` installation that `actions/setup-go` unpacks, and
-  linux/arm64, are `NOT_OBSERVED` (go.dev and dl.google.com refused this host's proxy), so they
-  still refuse with `TOOLCHAIN_MISMATCH` until a row is measured on them. A receipt tool source
-  change changes the receipt digest of every row and needs every row re-measured.
+- `SNR-V0-031`: (V1-2249; amended by decision 0557) The pin table MUST carry a row for the official
+  Go toolchain module of the pinned toolchain for linux/amd64,
+  `golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64` (the installation `GOTOOLCHAIN=go1.27.3` and a
+  `go 1.27.3` go.mod line download). No two rows MAY share a version and go binary digest, and on a
+  host whose GOROOT is that linux/amd64 module the toolchain MUST match a row in all three digests;
+  any other host toolchain that matches a row by version and go binary digest MUST match its other
+  two, and one that matches none is reported `NOT_OBSERVED`, not failed
+  (`script/check-sql-native-ratchets_test.sh` case 9, which builds only the receipt tool). Current
+  state: that go1.27.3 row is `NOT_OBSERVED`. Decision 0557 removed the two `go1.27.2` rows,
+  because `SNR-V0-030` admits only versions the Makefile `go-version` target admits and that target
+  now admits exactly `go1.27.3`. The removed linux/amd64 `go1.27.2` row was observed on 2026-10-23
+  (go binary `548d3c32f83fa81152f543eb1526be7884cfe0526eb5e9ce29d3eca14786e7e0`, receipt tool
+  `874295bf91fbb9801685232e798ccb4e1726789e1e2c5369add4b822575f6d8c`, GOROOT receipt 13474
+  entries, `5d9a61679c596804cec287f48714f3808fb1e52ae87db7d9b0736ee4dfa56ecb`, a full
+  `make sql-native-ratchets` pass at `core_base=d56eb2c9`). Failure mode: until the go1.27.3 row is
+  measured on a linux/amd64 host, that host refuses with `TOOLCHAIN_MISMATCH` and fails case 9.
+  Non-goal: the go.dev `go1.27.3.linux-amd64.tar.gz` installation that `actions/setup-go` unpacks,
+  and linux/arm64, are `NOT_OBSERVED` and refuse with `TOOLCHAIN_MISMATCH` until a row is measured
+  on them. A receipt tool source change changes the receipt digest of every row and needs every row
+  re-measured. Rollback: revert the decision 0557 change, which restores the `go1.27.2` rows.
 
 ## Non-goals and simpler baseline
 
@@ -239,9 +240,10 @@ It does not enforce that its own numeric thresholds only tighten over time: the 
 here mechanically prevents a future edit from raising them; monotonic tightening is a review-time
 convention borrowed from `ACP-009`'s per-candidate ceiling table, not a property this gate checks
 for itself. It does not run on any host whose discovered `GOROOT` is not byte-identical to
-an `SNR-V0-030` pin row (on 2026-10-21 two darwin/arm64 rows, the official module `go1.27.2`
-and Homebrew `go1.27.3`; on 2026-10-23 a linux/amd64 row for the official module `go1.27.2`
-(`SNR-V0-031`), with the go.dev tarball and linux/arm64 still `NOT_OBSERVED`; the earlier
+an `SNR-V0-030` pin row (since decision 0557 one darwin/arm64 row, Homebrew `go1.27.3`; the
+darwin/arm64 official module `go1.27.2` row of 2026-10-21 and the linux/amd64 official module
+`go1.27.2` row of 2026-10-23 were removed with that pin, and the linux/amd64 `go1.27.3` row
+(`SNR-V0-031`), the go.dev tarball and linux/arm64 are `NOT_OBSERVED`; the earlier
 `go1.27.0` row was dropped when Homebrew removed that installation); the pins are platform-specific
 content digests, which is the most plausible reason it was never added to the Linux-hosted CI
 workflow. It does not measure or ratchet wall-clock latency (its own report says
@@ -306,21 +308,21 @@ decision 0226 the run completed with exit 0 and an `SNR-V0-014` line whose paren
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| SNR-V0-001 | `script/check-sql-native-ratchets.sh:23@c6e1dd0e` (lock `mkdir`) and `:28-30@682a66e3` (cleanup trap) | `sh script/check-sql-native-ratchets_test.sh`, exit 0, 2026-09-13 |
-| SNR-V0-002 | `script/check-sql-native-ratchets.sh:33-37@97a0bf90` (`SQL_NATIVE_RATCHET_LOCK_TEST_HOLD` case block) | `sh script/check-sql-native-ratchets_test.sh`, exit 0, 2026-09-13 |
+| SNR-V0-001 | `script/check-sql-native-ratchets.sh:21@c6e1dd0e` (lock `mkdir`) and `:26-28@682a66e3` (cleanup trap) | `sh script/check-sql-native-ratchets_test.sh`, exit 0, 2026-09-13 |
+| SNR-V0-002 | `script/check-sql-native-ratchets.sh:31-35@97a0bf90` (`SQL_NATIVE_RATCHET_LOCK_TEST_HOLD` case block) | `sh script/check-sql-native-ratchets_test.sh`, exit 0, 2026-09-13 |
 | SNR-V0-003, SNR-V0-004 | `check_toolchain` and the receipt build in `script/check-sql-native-ratchets.sh` | real 2026-09-13 post-shrink run passed both (see Verified current state) |
-| SNR-V0-005 | `script/check-sql-native-ratchets.sh:53-54@9aea4cd3` (`source_bytes` `find`/`wc -c` pipeline and ceiling test) | `sh script/check-sql-native-ratchets_test.sh`, exit 0 (ceiling-boundary fixture), plus the real 2026-09-13 invocations: refusal at `source_bytes=65908`, then pass at `source_bytes=64153` after the `analyzer.go` shrink (see `../BUILD-LOG.md` 2026-09-13) |
+| SNR-V0-005 | `script/check-sql-native-ratchets.sh:51-52@9aea4cd3` (`source_bytes` `find`/`wc -c` pipeline and ceiling test) | `sh script/check-sql-native-ratchets_test.sh`, exit 0 (ceiling-boundary fixture), plus the real 2026-09-13 invocations: refusal at `source_bytes=65908`, then pass at `source_bytes=64153` after the `analyzer.go` shrink (see `../BUILD-LOG.md` 2026-09-13) |
 | SNR-V0-006 | the `build` function and `binary_bytes` check in `script/check-sql-native-ratchets.sh` | real 2026-09-13 post-shrink run: `binary_bytes=2832594` |
 | SNR-V0-007, SNR-V0-008 | the `core_base` export and the `core-a`/`core-b` build and `deps` comparison block in `script/check-sql-native-ratchets.sh` | `sh script/check-sql-native-ratchets_test.sh`, exit 0 (Core-base export fixture); real 2026-09-13 decision-0226 run (`core_base=469c2478`): `core_binary=identical core_deps=identical`; scratch candidate-wiring commit refused |
 | SNR-V0-009 | the cross-compile `for target in ...` loop in `script/check-sql-native-ratchets.sh` | real 2026-09-13 decision-0226 run (`core_base=469c2478`) |
 | SNR-V0-010 | the `TestSQLite351NestedWithDelimiterWorkRatchet` invocation in `script/check-sql-native-ratchets.sh` | `experimental/analyzers/sqlnative/analyzer_test.go`; real 2026-09-13 decision-0226 run (`core_base=469c2478`) |
 | SNR-V0-011 | the `measure` calls against `BenchmarkAnalyzeCandidate` in `script/check-sql-native-ratchets.sh` | `experimental/analyzers/sqlnative/analyzer_test.go`; ceilings from `analyzer-candidate-profiles.md`; real 2026-09-13 decision-0226 run (`core_base=469c2478`) |
 | SNR-V0-012 | the fixture copy and `measure` calls against `BenchmarkAnalyzeCausalSQL` in `script/check-sql-native-ratchets.sh` | `experimental/analyzers/sqlnative/causal_benchmark_test.go`; not yet exercised by a real run |
-| SNR-V0-013 | the causal_parent presence guard, `script/check-sql-native-ratchets.sh:70-77@92746b02` (`git cat-file -e "$causal_parent^{commit}"`) | `sh script/check-sql-native-ratchets_test.sh`, exit 0, 2026-09-13, proving the guard is false for the pinned, absent `causal_parent` and true for a real commit; the parent-separation comparison itself has not been produced (`causal_parent` absent from the object database) and this spec never claims it has |
+| SNR-V0-013 | the causal_parent presence guard, `script/check-sql-native-ratchets.sh:68-75@92746b02` (`git cat-file -e "$causal_parent^{commit}"`) | `sh script/check-sql-native-ratchets_test.sh`, exit 0, 2026-09-13, proving the guard is false for the pinned, absent `causal_parent` and true for a real commit; the parent-separation comparison itself has not been produced (`causal_parent` absent from the object database) and this spec never claims it has |
 | SNR-V0-014 | the final `printf` in `script/check-sql-native-ratchets.sh` | the gate invocation's stdout; real 2026-09-13 decision-0226 run (`core_base=469c2478`) |
 | SNR-V0-015 | the `cleanup` trap and `ratchet_root` scoping in `script/check-sql-native-ratchets.sh` | inspection |
 | SNR-V0-030 | `toolchain_pins`, `reject_toolchain` and the pin-row match in `script/check-sql-native-ratchets.sh` | `script/check-sql-native-ratchets_test.sh` cases 4 (fixture pin row for the host toolchain reaches the receipt build), 7 (unpinned go binary: one `TOOLCHAIN_MISMATCH` line, exit 78, lock released) and 8 (every real row's version is admitted by the Makefile `go-version` target) |
-| SNR-V0-031 | the linux/amd64 `go1.27.2` row of `toolchain_pins` in `script/check-sql-native-ratchets.sh` | `script/check-sql-native-ratchets_test.sh` case 9 (rows unique; the host's official toolchain module matches its row in all three digests; fails on the origin/main table, which has no row for it), and the full Linux run in the 2026-10-23 procgroup-linux-grace build log |
+| SNR-V0-031 | the linux/amd64 official-module case of `script/check-sql-native-ratchets_test.sh` case 9 (now `go1.27.3`, decision 0557; its `toolchain_pins` row is `NOT_OBSERVED`, the `go1.27.2` row was removed) | `script/check-sql-native-ratchets_test.sh` case 9 (rows unique; the host's official toolchain module matches its row in all three digests; fails on the origin/main table, which has no row for it), and the full Linux run in the 2026-10-23 procgroup-linux-grace build log |
 
 ## Rollout, rollback, and drift
 

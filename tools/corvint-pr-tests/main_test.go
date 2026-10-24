@@ -36,7 +36,7 @@ func fixture(t *testing.T) (options, identity) {
 			t.Fatal(err)
 		}
 	}
-	mustWrite("go.mod", "module example.org/fixture\n\ngo 1.27.2\n")
+	mustWrite("go.mod", "module example.org/fixture\n\ngo 1.27.3\n")
 	mustWrite("a/a.go", "package a\nfunc Value() int { return 1 }\n")
 	mustWrite("a/a_test.go", "package a\nimport \"testing\"\nfunc TestValue(t *testing.T) { if Value()!=1 { t.Fatal(\"relevant failure\") } }\n")
 	mustWrite("b/b_test.go", "package b\nimport \"testing\"\nfunc TestOther(t *testing.T) {}\n")
@@ -86,9 +86,9 @@ func fixture(t *testing.T) (options, identity) {
 }
 
 func TestToolIdentityRequiresCurrentGoVersion(t *testing.T) {
-	// Decision 0547 (V1-2194): exactly the go1.27.2 pin and the go1.27.3
-	// revision are admitted; neighbours on both sides are refused.
-	admitted := map[string]bool{"go1.27.2": true, "go1.27.3": true}
+	// Decision 0557: exactly the go1.27.3 pin is admitted; neighbours on
+	// both sides, including the former go1.27.2 pin, are refused.
+	admitted := map[string]bool{"go1.27.3": true}
 	for _, version := range []string{"go1.27.1", "go1.27.2", "go1.27.3", "go1.27.4", "go1.28.2"} {
 		t.Run(version, func(t *testing.T) {
 			bin := t.TempDir()
@@ -430,7 +430,7 @@ func TestExecuteGivesTestsSilencedGraftEnvironment(t *testing.T) {
 		for path, body := range map[string]string{
 			o.planner:                             "identity fixture",
 			o.selector:                            "identity fixture",
-			filepath.Join(root, "go.mod"):         "module example.org/graft\n\ngo 1.27.2\n",
+			filepath.Join(root, "go.mod"):         "module example.org/graft\n\ngo 1.27.3\n",
 			filepath.Join(root, "g", "g_test.go"): "package g\nimport (\"os\"; \"os/exec\"; \"testing\")\nfunc TestGitOutput(t *testing.T) {\n\tif os.Getenv(\"GIT_GRAFT_FILE\") != os.DevNull { t.Fatal(\"grafts not refused\") }\n\tout, err := exec.Command(\"git\", \"log\", \"-1\", \"--format=%s\").CombinedOutput()\n\tif err != nil || string(out) != \"base\\n\" { t.Fatalf(\"git output %q: %v\", out, err) }\n}\n",
 		} {
 			if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
@@ -467,7 +467,7 @@ func TestExecuteRequiresGitIdentity(t *testing.T) {
 	t.Run("AFP-V0-013", func(t *testing.T) {
 		bin := t.TempDir()
 		for name, body := range map[string]string{
-			"go":  "#!/bin/sh\ncase \"$1:$2\" in\nenv:GOVERSION) printf '%s\\n' go1.27.2 ;;\nenv:CC) printf '%s\\n' /usr/bin/cc ;;\n*) exit 1 ;;\nesac\n",
+			"go":  "#!/bin/sh\ncase \"$1:$2\" in\nenv:GOVERSION) printf '%s\\n' go1.27.3 ;;\nenv:CC) printf '%s\\n' /usr/bin/cc ;;\n*) exit 1 ;;\nesac\n",
 			"git": "#!/bin/sh\nexit 1\n",
 		} {
 			if err := os.WriteFile(filepath.Join(bin, name), []byte(body), 0700); err != nil {

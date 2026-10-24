@@ -18,7 +18,7 @@ import (
 	"github.com/Beamfall/corvint/internal/analyzergo"
 )
 
-const pinnedGoTool = "/opt/homebrew/Cellar/go/1.27.2/libexec/bin/go"
+const pinnedGoTool = "/opt/homebrew/Cellar/go/1.27.3/libexec/bin/go"
 
 // These are independent, LF-framed production-command goldens. They are not
 // calculated through Process in this package: the command must reproduce the

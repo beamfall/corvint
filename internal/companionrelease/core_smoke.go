@@ -57,7 +57,7 @@ func smokeCoreVersion(ctx context.Context, binary, root string) error {
 
 func smokeAffectedSelection(ctx context.Context, binary, root string) error {
 	files := map[string]string{
-		"go.mod":            "module example.test/release-smoke\n\ngo 1.27.2\n",
+		"go.mod":            "module example.test/release-smoke\n\ngo 1.27.3\n",
 		"calc/calc.go":      "package calc\n\nfunc Add(a, b int) int { return a + b }\n",
 		"calc/calc_test.go": "package calc\n\nimport \"testing\"\n\nfunc TestAdd(t *testing.T) { if Add(1, 1) != 2 { t.Fatal(\"bad sum\") } }\n",
 	}
@@ -163,7 +163,7 @@ func smokeExternalPlaywrightDiscovery(ctx context.Context, binary, root string) 
 
 func smokeDocumentationCorpus(ctx context.Context, binary, root string) error {
 	files := map[string]string{
-		"go.mod":          "module example.test/release-docs\n\ngo 1.27.2\n",
+		"go.mod":          "module example.test/release-docs\n\ngo 1.27.3\n",
 		"docs/release.md": "# ReleaseSmoke\n\nInstalled documentation corpus discovery.\n",
 	}
 	revision, err := initCommittedFixture(ctx, root, files)

@@ -113,7 +113,7 @@ func makeRetainedFixture(t *testing.T) string {
 		h := treeDigestForTest(entry)
 		artifacts = append(artifacts, ArtifactManifest{Name: name, Kind: "host-package-tree", Path: "plugins/" + name + "/", SHA256: h, SizeBytes: int64(len(entry.Data)), Commit: components[0].Commit, Tree: components[0].Tree, SourceArchivePath: "source/corvint-src.tar.gz", SourceArchiveSHA256: sourceDigest, Support: "FALLBACK"})
 	}
-	manifest := BundleManifest{Target: supportedTarget, GoVersion: "go1.27.2", GitVersion: "git version fixture", Components: components, Artifacts: artifacts, VSIXTools: VSIXToolchainManifest{NodeVersion: requiredNodeVersion, NodeSHA256: hex64, NPMVersion: requiredNPMVersion, NPMSHA256: hex64, TypeScriptVersion: requiredTypeScriptVersion, TypeScriptSHA256: hex64, VSCEVersion: requiredVSCEVersion, VSCESHA256: hex64, LockfileSHA256: hex64}}
+	manifest := BundleManifest{Target: supportedTarget, GoVersion: "go1.27.3", GitVersion: "git version fixture", Components: components, Artifacts: artifacts, VSIXTools: VSIXToolchainManifest{NodeVersion: requiredNodeVersion, NodeSHA256: hex64, NPMVersion: requiredNPMVersion, NPMSHA256: hex64, TypeScriptVersion: requiredTypeScriptVersion, TypeScriptSHA256: hex64, VSCEVersion: requiredVSCEVersion, VSCESHA256: hex64, LockfileSHA256: hex64}}
 	entries, err = assembleBundleEntries(entries, manifest)
 	if err != nil {
 		t.Fatal(err)
