@@ -11,7 +11,7 @@ points", read through `docs/specs/INDEX.json` and their Agent digests.
 
 ## Agent digest
 - Claim: Page objects, steps, setup and edges mined from tests answer "how do I X" with a live-proven E2E test, or abstain naming the missing knowledge.
-- Status: accepted (owner intent 2026-10-19; V1-1897); experimental. SKH-V0-001..089 for stages 1..8 (V1-1898..V1-1905) are accepted under the owner's standing auto-accept (2026-10-11). Stages 1 and 2 are implemented as `flows appmap pageobjects` and `flows appmap steps` and the corpus MCP tool `corvint.map_knowledge` (V1-1898, V1-1899). Stage 3 (V1-1900, SKH-V0-100..105) is implemented as `flows appmap setup`: Playwright and Cypress fixtures, hooks, `storageState`, route mocks, API seeding, `cy.task` and setup projects, Rails factories, traits, fixture files, seeds and setup endpoints through the AMAP-V0-114 writer index, Ruby test links and the `--condition` query; the V1-1883 normaliser and TSA-V0 setup-select reuse in `SKH-V0-032` stay partial. Stage 4 (V1-1901, SKH-V0-110..115) is implemented as `flows appmap links`: static edges from templates and components with provenance `static` beside the map's test-observed edges; no router dialect is widened. Stage 5 (V1-1902, SKH-V0-120..126) is implemented as `flows appmap infer`: candidate flows and variations from test step sequences, ranked and blocked by DCP-V1 test knowledge, emitted as a proposed behavior-adapter request for `flows import`. Stages 6..8 are not started.
+- Status: accepted (owner intent 2026-10-19; V1-1897); experimental. SKH-V0-001..089 for stages 1..8 (V1-1898..V1-1905) are accepted under the owner's standing auto-accept (2026-10-11). Stages 1 and 2 are implemented as `flows appmap pageobjects` and `flows appmap steps` and the corpus MCP tool `corvint.map_knowledge` (V1-1898, V1-1899). Stage 3 (V1-1900, SKH-V0-100..105) is implemented as `flows appmap setup`: Playwright and Cypress fixtures, hooks, `storageState`, route mocks, API seeding, `cy.task` and setup projects, Rails factories, traits, fixture files, seeds and setup endpoints through the AMAP-V0-114 writer index, Ruby test links and the `--condition` query; the V1-1883 normaliser and TSA-V0 setup-select reuse in `SKH-V0-032` stay partial. Stage 4 (V1-1901, SKH-V0-110..115) is implemented as `flows appmap links`: static edges from templates and components with provenance `static` beside the map's test-observed edges; no router dialect is widened. Stage 5 (V1-1902, SKH-V0-120..126) is implemented as `flows appmap infer`: candidate flows and variations from test step sequences, ranked and blocked by DCP-V1 test knowledge, emitted as a proposed behavior-adapter request for `flows import`. Stage 6 (V1-1903, SKH-V0-143..152) is implemented as `flows appmap how` and the `how` view of `corvint.map_knowledge`; the top-level `corvint how` alias is a follow-up. Stages 7 and 8 are not started.
 - Exists: `flows appmap pageobjects`, `flows appmap steps`, `flows appmap setup` and `corvint.map_knowledge` (stages 1 and 2, partial stage 3, experimental), plus the contracts this extends: AMAP-V0 map and selectors, ANL-V0 edges, AFU-V1 intents, DCP-V1 inventories and test knowledge, AMSP-V0 planner draft, CCE-V0 prover, NEA-V0 controls, RVN-V0 binding, PWP-V0 receipts and TSA-V0 validity.
 - Blocked on: nothing for stage 4 (V1-1901) or stage 5 (V1-1902); a measured adopter need for any new router dialect (`SKH-V0-041`). First adopter core-history (owner 2026-10-22); N = 10.
 - Read next: Owner intent; Definition of "confidently"; Requirements; Preregistered measure; Owner questions.
@@ -623,6 +623,57 @@ supplied directly to the inference. No fixture builds a full corpus artifact wit
   `COMPLETE`.
 - `SKH-V0-064`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1903) The plan
   MUST fit the AMSP-V0 byte budget rules (`AMSP-V0-009`).
+- `SKH-V0-143`: (experimental; V1-1903) `corvint flows appmap how --map FILE --source DIR...
+  [--condition TEXT]... [--ledger FILE] [--corpus ARTIFACT] [--budget N | --full] GOAL` and the
+  `how` view of the `corvint.map_knowledge` MCP tool (`goal`, optional `conditions`) MUST print one
+  `site-knowledge-how/0` answer: the best candidate flow from the stage 5 inference, its goal
+  screen (the flow's end screen with its router anchor), its start screen, the setup and
+  conditions, the steps, the path and the oracle. The MCP view reads no corpus and no ledger.
+- `SKH-V0-144`: (experimental; V1-1903) The answer MUST carry one of `COMPLETE`, `INCOMPLETE`,
+  `STALE` or `ABSTAINED` and a list of gaps sorted by code, each with one closed code from
+  `SKH-V0-062`, a detail and an anchor when one exists. `COMPLETE` means no gap. No candidate
+  covering any goal term is `ABSTAINED` with `no-route` and no step.
+- `SKH-V0-145`: (experimental; V1-1903) The steps MUST be the primary variation's first source
+  test's actions up to its last action, each with its kind, action, via, the screen it runs on
+  and its source anchor. Each visit that changes screen MUST add a hop from the previous screen
+  with basis `edge` when an admitted edge joins them and `visit` otherwise. A visit that resolves
+  to no screen is a `no-route` gap, and an opaque step is a gap: `no-page-object` for an
+  unresolved call and `no-route` otherwise.
+- `SKH-V0-146`: (experimental; V1-1903) A hop's admitted edges MUST be the stage 4 static edges,
+  the map's test-observed and flow-declared edges and, with `--ledger`, the `PROVEN` rows of an
+  application-edge-ledger/0 built from this map, each with its provenance (`static`,
+  `test-observed`, `flow-declared` or `ledger`), anchor or ledger digest and receipt test. A ledger
+  for another app or map digest, a trimmed ledger or one whose digest does not match its content is
+  refused with `appmap-invalid-query`.
+- `SKH-V0-147`: (experimental; V1-1903) The setup MUST list the stage 3 records that arrange the
+  primary test with their anchors and labels (mocked kept). An unresolved setup record arranging it
+  and each `--condition` with no producing record (`conditionQuery`) are
+  `no-setup-for-precondition` gaps; each condition is answered with its candidates.
+- `SKH-V0-148`: (experimental; V1-1903) The oracle MUST be the trailing assertions of the primary
+  test's outcome that every source of the variation shares (`SKH-V0-122`), each with matcher,
+  locator, expected value and anchor; no shared outcome, or a candidate blocked by test knowledge,
+  is a `no-oracle` gap. The oracle is never synthesised.
+- `SKH-V0-149`: (experimental; V1-1903) A tie for the highest coverage MUST be `ABSTAINED` with
+  `ambiguous-goal`, listing every candidate in rank order with its coverage, and no steps.
+- `SKH-V0-150`: (experimental; V1-1903) The answer MUST be labelled a proposal with learned
+  authority, never accepted intent, MUST be byte-identical across reruns for the same inputs and
+  revision, and the read MUST change no repository file.
+- `SKH-V0-151`: (experimental; V1-1903) Freshness MUST be evaluated over every cited anchor at the
+  evaluated revision. A stale anchor makes the answer `STALE` with a `stale-evidence` gap; freshness
+  that cannot be established is a `stale-evidence` gap with detail `freshness-unknown`.
+- `SKH-V0-152`: (experimental; V1-1903) A goal MUST be 1 to 256 bytes of one line with no
+  secret-shaped text, and conditions keep the stage 3 bounds; otherwise `appmap-invalid-query`.
+  The answer fits the byte budget by trimming its sections (setup, conditions, steps, path,
+  candidates) with omitted counts while the head stays whole, or refuses with
+  `appmap-budget-too-small`.
+
+Implementation status (V1-1903): `flows appmap how` and the `how` MCP view implement
+`SKH-V0-060`..`064` and `143`..`152` over inline committed fixtures. The top-level `corvint how`
+alias named in `SKH-V0-060` is not delivered: it needs the command registry, help and capability
+catalog changes for a new top-level command, so it stays a follow-up. Resolution reuses the stage 5
+candidate flows and the AMSP-V0 lexical resolver (`resolve`) rather than a second planner;
+navigation composition (`AMSP-V0-006`) is not reused, because the path is the primary test's own
+visits with admitted edges, not a composed route.
 
 ### Stage 7: generator (V1-1904)
 
@@ -869,7 +920,7 @@ Stage dependencies (each stage also reads the contracts named for it above):
 | `SKH-V0-040`..`043`, `SKH-V0-110`..`115` | V1-1901 | `internal/appmap/site_knowledge_edges.go`, `cmd/corvint/flows_appmap_knowledge.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: 040, 042, 043 and 110..115 by `TestSKHV0_110_115_StaticNavigationEdges`, `TestSKHV0_114_StaticLinkRegressions`, `TestSKHV0_013_PageObjectsAndStepsCLI` and `TestSKHV0013CorpusMCPMapKnowledge` over inline committed fixtures; 041 dialect widening NOT MET (NEEDS-HOST: no adopter in the cloud lane); no real-adopter sample (NOT_RUN: cloud) |
 | `SKH-V0-050`..`054`, `SKH-V0-120`..`126` | V1-1902 | `internal/appmap/site_knowledge_flows.go`, `cmd/corvint/flows_appmap_infer.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: 050..054 and 120..126 by `TestSKHV0_050_054_FlowInferenceTrustAndImport`, `TestSKHV0_121_125_FlowInferenceRegressions`, `TestSKHV0_126_InferCLIAndImport`, `TestSKHV0_126_TrustFromJoins` and `TestSKHV0013CorpusMCPMapKnowledge` over inline committed fixtures; the corpus join is fixture-tested at its conversion boundary; no real-adopter sample (NOT_RUN: cloud) |
 | `SKH-V0-140`..`142` | V1-1900..V1-1902 (#1705 review fixes) | `internal/appmap/site_knowledge_flows.go`, `internal/appmap/site_knowledge_edges.go`, `internal/appmap/site_knowledge_setup.go` | experimental: `TestSKHV0_140_OutcomeKeepsSelectorName`, `TestSKHV0_141_RubyHelperConsumesWholeArgument`, `TestSKHV0_142_SetupProjectHonorsTestDir` (each failing first) over inline committed fixtures |
-| `SKH-V0-060`..`064` | V1-1903 | none | NOT_STARTED |
+| `SKH-V0-060`..`064`, `SKH-V0-143`..`152` | V1-1903 | `internal/appmap/site_knowledge_how.go`, `cmd/corvint/flows_appmap_how.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: `TestSKHV0_143_HowAnswersGoal`, `TestSKHV0_144_HowAbstains`, `TestSKHV0_146_HowAdmitsLedgerEdges`, `TestSKHV0_147_HowSetupAndGaps`, `TestSKHV0_151_HowStale`, `TestSKHV0_152_HowBoundsAndBudget`, `TestSKHV0_143_HowCLI`, `TestSKHV0_143_MapKnowledgeHowView`; the top-level `corvint how` alias is PARTIAL |
 | `SKH-V0-070`..`074` | V1-1904 | none | NOT_STARTED |
 | `SKH-V0-080`..`089` | V1-1905 | none | NOT_STARTED |
 

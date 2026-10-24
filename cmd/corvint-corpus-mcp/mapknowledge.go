@@ -18,6 +18,10 @@ const (
 	mapKnowledgeTool   = "corvint.map_knowledge"
 	maxKnowledgeSource = 512
 	maxKnowledgeApp    = 256
+	maxKnowledgeGoal   = 256
+	// howView answers one goal (site-knowledge-how/0, SKH-V0-060, SKH-V0-143); it alone takes
+	// goal and conditions, so it is not in mapKnowledgeViews.
+	howView = "how"
 )
 
 var mapKnowledgeViews = map[string]func(context.Context, *appmap.Map, []string, appmap.Options) ([]byte, error){
@@ -39,15 +43,20 @@ func (p *mapPlanner) knowledgeDescriptor() bridge.ToolDescriptor {
 			"setup records (fixtures, hooks, storageState, mocks, seeding, Rails factories, fixtures, seeds and setup endpoints) " +
 			"linked to the tests they arrange, or the screen graph's edges by provenance (static links from templates and " +
 			"components beside test-observed ones), or candidate flows clustered from test step sequences (proposals only), " +
+			"or (view how, with goal and optional conditions) the task answer for one goal: goal screen, setup, step path " +
+			"over admitted edges and outcome oracle, or ABSTAINED with named gaps (a proposal, never accepted intent), " +
 			"pinned to the map revision and source spans. Static, learned authority; opaque steps and unknowns are named.",
 		Annotations: bridge.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true},
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"view":    map[string]any{"type": "string", "enum": []any{"page_objects", "steps", "setup", "links", "flow_candidates"}},
+				"view":    map[string]any{"type": "string", "enum": []any{"page_objects", "steps", "setup", "links", "flow_candidates", howView}},
 				"sources": map[string]any{"type": "array", "minItems": 1, "maxItems": 16, "items": map[string]any{"type": "string", "minLength": 1, "maxLength": maxKnowledgeSource}},
 				"app":     map[string]any{"type": "string", "minLength": 1, "maxLength": maxKnowledgeApp},
-				"budget":  map[string]any{"type": "integer", "minimum": appmap.MinBudget, "maximum": appmap.MaxBudget},
+				"goal":    map[string]any{"type": "string", "minLength": 1, "maxLength": maxKnowledgeGoal, "description": "the task goal; view how only"},
+				"conditions": map[string]any{"type": "array", "maxItems": appmap.MaxSetupConditions,
+					"items": map[string]any{"type": "string", "minLength": 1, "maxLength": maxKnowledgeGoal}, "description": "preconditions to resolve; view how only"},
+				"budget": map[string]any{"type": "integer", "minimum": appmap.MinBudget, "maximum": appmap.MaxBudget},
 			},
 			"required":             []any{"view", "sources"},
 			"additionalProperties": false,
@@ -56,10 +65,12 @@ func (p *mapPlanner) knowledgeDescriptor() bridge.ToolDescriptor {
 }
 
 type mapKnowledgeArguments struct {
-	view    string
-	sources []string
-	app     string
-	budget  int
+	view       string
+	sources    []string
+	app        string
+	budget     int
+	goal       string
+	conditions []string
 }
 
 // decodeMapKnowledgeArguments enforces the advertised input schema: a closed key set, no null,
@@ -82,7 +93,7 @@ func decodeMapKnowledgeArguments(raw []byte) (mapKnowledgeArguments, bool) {
 		switch key {
 		case "view":
 			a.view, ok = str(v, 32)
-			ok = ok && mapKnowledgeViews[a.view] != nil
+			ok = ok && (mapKnowledgeViews[a.view] != nil || a.view == howView)
 		case "sources":
 			var items []json.RawMessage
 			ok = json.Unmarshal(v, &items) == nil && len(items) >= 1 && len(items) <= 16
@@ -93,6 +104,16 @@ func decodeMapKnowledgeArguments(raw []byte) (mapKnowledgeArguments, bool) {
 			}
 		case "app":
 			a.app, ok = str(v, maxKnowledgeApp)
+		case "goal":
+			a.goal, ok = str(v, maxKnowledgeGoal)
+		case "conditions":
+			var items []json.RawMessage
+			ok = json.Unmarshal(v, &items) == nil && items != nil && len(items) <= appmap.MaxSetupConditions
+			for _, item := range items {
+				s, good := str(item, maxKnowledgeGoal)
+				ok = ok && good
+				a.conditions = append(a.conditions, s)
+			}
 		case "budget":
 			var n *float64 // a JSON number only: a string or null does not decode to it
 			if json.Unmarshal(v, &n) == nil && n != nil {
@@ -103,6 +124,10 @@ func decodeMapKnowledgeArguments(raw []byte) (mapKnowledgeArguments, bool) {
 		if !ok {
 			return a, false
 		}
+	}
+	// goal and conditions belong to the how view only, and how needs its goal.
+	if (a.view == howView) != (fields["goal"] != nil) || a.view != howView && fields["conditions"] != nil {
+		return a, false
 	}
 	return a, true
 }
@@ -127,7 +152,15 @@ func (p *mapPlanner) knowledge(ctx context.Context, raw []byte) (text string, co
 	if picked == nil {
 		return "", "appmap-invalid-query", "no configured map has that app", true
 	}
-	data, err := mapKnowledgeViews[a.view](ctx, picked, a.sources, appmap.Options{Root: p.root, Budget: a.budget})
+	o := appmap.Options{Root: p.root, Budget: a.budget}
+	var data []byte
+	var err error
+	if a.view == howView {
+		// The corpus join and edge ledger of `flows appmap how --corpus|--ledger` are CLI-only.
+		data, err = appmap.How(ctx, picked, a.sources, a.goal, a.conditions, nil, nil, o)
+	} else {
+		data, err = mapKnowledgeViews[a.view](ctx, picked, a.sources, o)
+	}
 	if err != nil {
 		var coded *gokernel.Error
 		if errors.As(err, &coded) {

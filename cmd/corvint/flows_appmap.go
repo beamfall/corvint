@@ -31,6 +31,8 @@ Application map usage (experimental, AMAP-V0):
   corvint [--root PATH] flows appmap links --map FILE --source DIR [--source DIR]... [--budget N | --full]
   corvint [--root PATH] flows appmap infer --map FILE --source DIR [--source DIR]... [--corpus ARTIFACT]
       [--emit report|request] [--budget N | --full]
+  corvint [--root PATH] flows appmap how --map FILE --source DIR [--source DIR]... [--condition TEXT]...
+      [--ledger FILE] [--corpus ARTIFACT] [--budget N | --full] GOAL
   corvint [--root PATH] flows appmap actions --map FILE [--budget N | --full]
   corvint [--root PATH] flows appmap blocker --map FILE --note TEXT [--budget N | --full]
   corvint [--root PATH] flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...] [--budget N | --full]
@@ -128,7 +130,12 @@ prints the proposed candidates as a corvint-behavior-adapter-request/1 for flows
 --format behavior-adapter-request, which writes them as proposed intents (default caps 6144
 bytes). Unsupported constructs are
 unknowns or opaque steps with a reason; secret-shaped values are screened. Learned authority,
-static, no code runs and no repository file changes.
+static, no code runs and no repository file changes. how answers one goal (site-knowledge-how/0):
+the best candidate flow by lexical coverage, its goal screen, the setup that arranges its primary
+test and each --condition, the steps with each hop's admitted static, test-observed and --ledger
+PROVEN edges (provenance kept), and the outcome oracle its sources share; a missing piece is a
+named gap (no-route, no-setup-for-precondition, no-oracle, no-page-object, ambiguous-goal,
+stale-evidence) and no candidate or a tie ABSTAINS. The answer is a proposal, never accepted intent.
 
 Route-action check (experimental, V1-1890): actions compiles every rails-routes/0 route (and its
 one-level draws) to a controller and action and reports ROUTE-ACTION-MISSING when the handler
@@ -161,7 +168,7 @@ selector strength or freshness. A --bind test key absent from every receipt refu
 
 func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, pageobjects, steps, setup, links, infer, actions, blocker, branches, edges, observe, impact or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, pageobjects, steps, setup, links, infer, how, actions, blocker, branches, edges, observe, impact or plan")
 	}
 	verb, args := args[0], args[1:]
 	if verb == "edges" {
@@ -222,6 +229,9 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 	if verb == "infer" {
 		return runFlowsAppmapInfer(ctx, root, args, out)
 	}
+	if verb == "how" {
+		return runFlowsAppmapHow(ctx, root, args, out)
+	}
 	if verb == "actions" {
 		return runFlowsAppmapActions(ctx, root, args, out)
 	}
@@ -239,7 +249,7 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 		"screen": appmap.ProjectScreen, "flow": appmap.ProjectFlow, "find": appmap.ProjectFind, "scaffold": appmap.ProjectScaffold,
 	}[verb], map[string]string{"screen": "screen", "flow": "flow", "find": "text", "scaffold": "flow"}[verb]
 	if project == nil {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, pageobjects, steps, setup, links, infer, actions, blocker, branches, edges, observe, impact or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, pageobjects, steps, setup, links, infer, how, actions, blocker, branches, edges, observe, impact or plan")
 	}
 	mapFile := f.String("map", "", "application-map/0 file")
 	query := f.String(queryFlag, "", "query")

@@ -103,3 +103,54 @@ func TestSKHV0013CorpusMCPMapKnowledge(t *testing.T) {
 		}
 	}
 }
+
+// SKH-V0-060 SKH-V0-143: the how view serves the library's site-knowledge-how/0 bytes for a goal
+// and its conditions, framed as untrusted data; goal is required for how and refused on any other
+// view, and conditions outside the bounds are refused.
+func TestSKHV0_143_MapKnowledgeHowView(t *testing.T) {
+	root, maps := mapPlanRoot(t)
+	registry, e := corpusbridge.New(root, "corpus.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	planner, err := newMapPlanner(root, []string{"map-marketplace.json", "map-appmap.json"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := &toolHandler{registry: registry, planner: planner}
+	result, rpc := h.call(context.Background(), map[string]any{"name": mapKnowledgeTool,
+		"arguments": map[string]any{"view": "how", "sources": []any{"e2e"}, "app": "admin", "goal": "open the dashboard", "conditions": []any{"a user exists"}}})
+	if rpc != nil || result["isError"] != false {
+		t.Fatalf("how: %#v %v", result, rpc)
+	}
+	want, err := appmap.How(context.Background(), maps[0], []string{"e2e"}, "open the dashboard", []string{"a user exists"}, nil, nil, appmap.Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wantObject map[string]any
+	_ = json.Unmarshal(want, &wantObject)
+	if !reflect.DeepEqual(result["structuredContent"], wantObject) || wantObject["schema"] != "site-knowledge-how/0" {
+		t.Fatalf("how view differs from the library answer: %s", want)
+	}
+	if framed, _ := repoenvelope.Frame(string(want)); result["content"].([]any)[0].(map[string]any)["text"] != framed {
+		t.Fatal("how text not framed as untrusted data")
+	}
+	seventeen := []any{}
+	for range 17 {
+		seventeen = append(seventeen, "x")
+	}
+	for _, args := range []map[string]any{
+		{"view": "how", "sources": []any{"e2e"}},
+		{"view": "steps", "sources": []any{"e2e"}, "goal": "x"},
+		{"view": "steps", "sources": []any{"e2e"}, "conditions": []any{"x"}},
+		{"view": "how", "sources": []any{"e2e"}, "goal": ""},
+		{"view": "how", "sources": []any{"e2e"}, "goal": strings.Repeat("x", 257)},
+		{"view": "how", "sources": []any{"e2e"}, "goal": "x", "conditions": nil},
+		{"view": "how", "sources": []any{"e2e"}, "goal": "x", "conditions": []any{""}},
+		{"view": "how", "sources": []any{"e2e"}, "goal": "x", "conditions": seventeen},
+	} {
+		if _, rpc := h.call(context.Background(), map[string]any{"name": mapKnowledgeTool, "arguments": args}); rpc == nil {
+			t.Errorf("arguments %v accepted", args)
+		}
+	}
+}

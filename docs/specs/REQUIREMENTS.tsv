@@ -4836,6 +4836,16 @@ SKH-V0-061	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's sta
 SKH-V0-062	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1903) An ambig	standing	2026-10-11; V1-1903
 SKH-V0-063	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1903) A plan w	standing	2026-10-11; V1-1903
 SKH-V0-064	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1903) The plan	standing	2026-10-11; V1-1903
+SKH-V0-143	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1903) `corvint flows appmap how --map FILE --source DIR...	unrecorded	-
+SKH-V0-144	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1903) The answer MUST carry one of `COMPLETE`, `INCOMPLETE`,	unrecorded	-
+SKH-V0-145	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1903) The steps MUST be the primary variation's first source	unrecorded	-
+SKH-V0-146	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1903) A hop's admitted edges MUST be the stage 4 static edges,	unrecorded	-
+SKH-V0-147	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1903) The setup MUST list the stage 3 records that arrange the	unrecorded	-
+SKH-V0-148	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1903) The oracle MUST be the trailing assertions of the primar	unrecorded	-
+SKH-V0-149	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1903) A tie for the highest coverage MUST be `ABSTAINED` with	unrecorded	-
+SKH-V0-150	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1903) The answer MUST be labelled a proposal with learned	unrecorded	-
+SKH-V0-151	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1903) Freshness MUST be evaluated over every cited anchor at t	unrecorded	-
+SKH-V0-152	docs/specs/site-knowledge-howto-v0.md	(experimental; V1-1903) A goal MUST be 1 to 256 bytes of one line with no	unrecorded	-
 SKH-V0-070	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1904) From a	standing	2026-10-11; V1-1904
 SKH-V0-071	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1904) Every	standing	2026-10-11; V1-1904
 SKH-V0-072	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1904) A line	standing	2026-10-11; V1-1904
