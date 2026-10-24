@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-07
 Requirement prefix: `DNG-V0`
-Intent status: accepted (owner instruction 2026-09-07)
+Intent status: accepted (owner instruction 2026-09-07); DNG-V0-009 accepted 2026-10-24 (V1-0332)
 Delivery status: implemented
 Authoritative inputs: `../../AGENTS.md` invariant 8, `../SPEC-DRIVEN-DEVELOPMENT.md` "Required
 capability-spec shape", `../decisions/0048-four-owner-calls-2026-09-04.md` (which names the
@@ -13,7 +13,7 @@ gate scripts still without an owning spec).
 
 ## Agent digest
 - Claim: Every decision file claims a four-digit number no sibling shares, with exactly one grandfathered pair.
-- Status: accepted (owner instruction 2026-09-07) / implemented
+- Status: accepted (owner instruction 2026-09-07); DNG-V0-009 accepted 2026-10-24 (V1-0332) / implemented
 - Exists: `script/check-decision-numbers.sh`, `make` target `decision-numbers-check`, wired into `make gate`.
 - Blocked on: nothing for this gate. The sibling gate scripts named in `../agent-memory/fixes.md` remain unspecified.
 - Read next: Requirements; Trust boundary, limits, and failure modes.
@@ -80,6 +80,21 @@ passes with only that pair present.
 - `DNG-V0-008`: The gate MUST perform no write to any file and MUST produce the same result
   regardless of the working directory it is invoked from, resolving its own location to find the
   repository root before reading `docs/decisions/`.
+- `DNG-V0-009`: (accepted 2026-10-24; V1-0332) `.gitattributes` MUST give
+  `docs/decisions/README.md`, and no other path, the `merge=union` driver, so two branches that
+  each add a decision file and its index row at the same place merge without manual conflict
+  resolution, and the gate (DNG-V0-003 and the index row checks) MUST stay the fail-closed check
+  on the result: a union merge that keeps a duplicate row, or two files claiming one number,
+  fails. Design: one-file-per-entry build-log entries (decision 0423) already merge cleanly; the
+  index table was the remaining append-conflict point. Non-goals: `docs/specs/REQUIREMENTS.tsv`
+  and other generated files, which regenerate instead (decision 0543, SRG-V0-041); any other
+  index. Failure modes: Git hosts that ignore custom merge attributes; whether GitHub's own merge
+  honors `merge=union` is NOT_OBSERVED, so a host-side merge may still report a conflict that a
+  local merge resolves; `dogfood batch-check` replays merges with `git merge-tree` in a scratch
+  repository without this attribute, so a union-resolved index can show as an unbound merge
+  resolution, as a manual resolution already does. Evidence: cases 5 and 6 of
+  `script/check-decision-numbers_test.sh` (`make decision-numbers-test`). Rollback: remove the
+  attribute line; parallel index rows conflict again and are resolved by hand.
 
 ## Non-goals and simpler baseline
 
@@ -112,9 +127,9 @@ there is no partial-success exit.
 
 ## Acceptance criteria and testing matrix
 
-This script has no dedicated Go or shell test file; its evidence is the gate invocation itself
-against the live `docs/decisions/` corpus, plus the historical record of the one exemption it must
-keep passing.
+Besides the fixture cases of `script/check-decision-numbers_test.sh`, its evidence is the gate
+invocation itself against the live `docs/decisions/` corpus, plus the historical record of the one
+exemption it must keep passing.
 
 | Requirement | Evidence |
 |---|---|
@@ -123,6 +138,7 @@ keep passing.
 | DNG-V0-005 | the `0016` pair present at `b7c3dbe` and passing, per `../decisions/0048-four-owner-calls-2026-09-04.md` and `../reviews/r13-truth-audit.md` |
 | DNG-V0-006, DNG-V0-007 | `make decision-numbers-check` membership in `make gate`; a non-exempt collision fails, an exempt or absent one passes |
 | DNG-V0-008 | the script's own root resolution (`cd -- "$(dirname "$0")/.."`) and read-only body; no write path exists in the script |
+| DNG-V0-009 | `make decision-numbers-test`: case 5 merges two fixture branches that each add a decision, its README row at the same place and a build-log entry, with no conflict and a passing gate (fails without the attribute); case 6 union-merges two files claiming `0005` and the gate fails naming both |
 
 ## Traceability
 
@@ -135,13 +151,14 @@ keep passing.
 | DNG-V0-005 | the `grandfathered` variable and comparison in `script/check-decision-numbers.sh` | `decision-numbers-check` at `b7c3dbe` |
 | DNG-V0-007 | the `Makefile` `decision-numbers-check` target and its listing in the `gate` target | `make gate` membership |
 | DNG-V0-008 | the `root=$(...)`/`cd` prelude in `script/check-decision-numbers.sh` | code inspection; no write syscall in the script |
+| DNG-V0-009 | the `docs/decisions/README.md merge=union` line in `.gitattributes` | `make decision-numbers-test` cases 5 and 6 |
 
 ## Rollout, rollback, and drift
 
 The check is additive over `docs/decisions/README.md`'s existing documentation of the same rule;
 reverting it removes the mechanical gate and leaves the collision rule as documentation only.
 Rollback is dropping the `decision-numbers-check` prerequisite from `make gate` and reverting the
-script. Drift rule: the grandfathered exemption names an exact, closed set of two files and MUST
+script. Roll back DNG-V0-009 by removing its `.gitattributes` line. Drift rule: the grandfathered exemption names an exact, closed set of two files and MUST
 NOT be generalized into a pattern, a count threshold, or a growing allowlist; a new collision is a
 naming defect to fix by renumbering, not a candidate for a second exemption.
 
