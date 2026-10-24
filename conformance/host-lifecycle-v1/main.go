@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"syscall"
@@ -49,14 +50,27 @@ type hostProfile struct {
 	marketplace    string // marketplace name the source declares
 	selector       string
 	homeVariable   string
-	homeDirectory  string // under the private HOME
-	cacheDirectory string // installed plugin root under the host home, before the version
-	events         []string
+	homeDirectory  string              // under the private HOME
+	cacheDirectory string              // installed plugin root under the host home, before the version
+	hooks          map[string][]string // exact registration: event -> adapter subcommands, the first run by the cases (HLQ-V1-011)
 	install        [][]string
 	reinstall      []string
 	uninstall      [][]string
 	// shellCommand is set when the host registers each hook as one shell command string.
 	shellCommand bool
+}
+
+// claudeCodeHooks is the Claude Code package's registration: each event and the adapter subcommands
+// its commands run. The first is the command the hook cases run; Stop's stop-done-list (AHI-191) is
+// a companion the host runs alongside stop ("" in a profile is a bare `corvint adapter <host>`).
+var claudeCodeHooks = map[string][]string{
+	"PostCompact":      {"post-compact"},
+	"PostToolUse":      {"post-tool"},
+	"PreCompact":       {"pre-compact"},
+	"SessionEnd":       {"session-end"},
+	"SessionStart":     {"session-start"},
+	"Stop":             {"stop", "stop-done-list"},
+	"UserPromptSubmit": {"user-prompt"},
 }
 
 var profiles = map[string]hostProfile{
@@ -69,7 +83,7 @@ var profiles = map[string]hostProfile{
 		homeVariable:   "CLAUDE_CONFIG_DIR",
 		homeDirectory:  ".claude",
 		cacheDirectory: "plugins/cache/corvint/corvint",
-		events:         []string{"PostCompact", "PostToolUse", "PreCompact", "SessionEnd", "SessionStart", "Stop", "UserPromptSubmit"},
+		hooks:          claudeCodeHooks,
 		install:        [][]string{{"plugin", "marketplace", "add", "SOURCE"}, {"plugin", "install", "corvint@corvint", "--scope", "user"}},
 		reinstall:      []string{"plugin", "update", "corvint@corvint", "--scope", "user"},
 		uninstall: [][]string{
@@ -88,7 +102,7 @@ var profiles = map[string]hostProfile{
 		homeVariable:   "CODEX_HOME",
 		homeDirectory:  ".codex",
 		cacheDirectory: "plugins/cache/corvint-source/corvint",
-		events:         []string{"SessionEnd", "SessionStart", "Stop", "UserPromptSubmit"},
+		hooks:          map[string][]string{"SessionEnd": {""}, "SessionStart": {""}, "Stop": {""}, "UserPromptSubmit": {""}},
 		install:        [][]string{{"plugin", "marketplace", "add", "SOURCE"}, {"plugin", "add", "corvint@corvint-source"}},
 		reinstall:      []string{"plugin", "add", "corvint@corvint-source"},
 		uninstall:      [][]string{{"plugin", "remove", "corvint@corvint-source"}, {"plugin", "marketplace", "remove", "corvint-source"}},
@@ -115,7 +129,8 @@ type runner struct {
 	hostVersion    string
 	adapterVersion string
 	pluginRoot     string
-	hooks          map[string][]string
+	hooks          map[string][]string   // event -> argv of the command the hook cases run
+	companions     map[string][][]string // event -> argv of each further registered command
 	results        []result
 	// lastHook and retried describe the hook invocations of the running case (HLQ-V1-009).
 	lastHook *hookCall
@@ -796,22 +811,16 @@ func (r *runner) runPlugin() {
 		if r.pluginRoot == "" {
 			return "", fmt.Errorf("install did not complete")
 		}
-		hooks, err := readHooks(filepath.Join(r.pluginRoot, "hooks", "hooks.json"), r.profile.shellCommand)
+		registered, err := readHooks(filepath.Join(r.pluginRoot, "hooks", "hooks.json"), r.profile.shellCommand)
 		if err != nil {
 			return "", err
 		}
-		events := make([]string, 0, len(hooks))
-		for event, argv := range hooks {
-			if len(argv) < 3 || argv[0] != "corvint" || argv[1] != "adapter" || argv[2] != r.host {
-				return "", fmt.Errorf("%s hook runs %q, not the corvint %s adapter", event, strings.Join(argv, " "), r.host)
-			}
-			events = append(events, event)
+		hooks, companions, err := discoverHooks(registered, r.host, r.profile.hooks)
+		if err != nil {
+			return "", err
 		}
-		sort.Strings(events)
-		if strings.Join(events, ",") != strings.Join(r.profile.events, ",") {
-			return "", fmt.Errorf("registered hook events %v, expected %v", events, r.profile.events)
-		}
-		r.hooks = hooks
+		events := sortedKeys(r.profile.hooks)
+		r.hooks, r.companions = hooks, companions
 		skills, _ := filepath.Glob(filepath.Join(r.pluginRoot, "skills", "*", "SKILL.md"))
 		if len(skills) == 0 {
 			return "", fmt.Errorf("installed plugin carries no skill")
@@ -823,7 +832,13 @@ func (r *runner) runPlugin() {
 		if !strings.Contains(strings.ToLower(row(listing, r.profile.selector)), "enabled") {
 			return "", fmt.Errorf("host listing does not report the plugin enabled")
 		}
-		return fmt.Sprintf("host reports it enabled; hooks %s and %d skill", strings.Join(events, ","), len(skills)), nil
+		detail := fmt.Sprintf("host reports it enabled; hooks %s and %d skill", strings.Join(events, ","), len(skills))
+		for _, event := range events {
+			if extra := r.profile.hooks[event][1:]; len(extra) > 0 {
+				detail += fmt.Sprintf("; %s also runs %s", event, strings.Join(extra, ","))
+			}
+		}
+		return detail, nil
 	})
 	r.step("context", func() (string, error) {
 		receipt, _, err := r.contextHook("SessionStart", map[string]any{"source": "startup"})
@@ -1031,6 +1046,19 @@ func (r *runner) pluginFrontier() (string, error) {
 	if _, decided := released["decision"]; decided {
 		return "", fmt.Errorf("unenrolled Stop returned decision %v", released["decision"])
 	}
+	// Each companion Stop command the host runs alongside (Claude Code stop-done-list, opt-in and
+	// off in the private environment, AHI-191) must emit exactly {} (HLQ-V1-011).
+	companions := ""
+	for _, argv := range r.companions["Stop"] {
+		output, err := r.hookCommand("Stop", argv, r.payload("Stop", map[string]any{"stop_hook_active": false, "last_assistant_message": "done"}), environment)
+		if err != nil {
+			return "", err
+		}
+		if strings.TrimSpace(output) != "{}" {
+			return "", fmt.Errorf("%s emitted %q, not {}", strings.Join(argv, " "), firstLine(output))
+		}
+		companions += "; " + argv[len(argv)-1] + " emits {}"
+	}
 	head, err := r.revision("HEAD")
 	if err != nil {
 		return "", err
@@ -1060,7 +1088,7 @@ func (r *runner) pluginFrontier() (string, error) {
 	if _, decided := recursive["decision"]; decided {
 		return "", fmt.Errorf("recursive Stop returned decision %v", recursive["decision"])
 	}
-	return "unenrolled Stop releases; enrolled incomplete Stop blocks once naming unavailable Frontier authority; recursive Stop releases", nil
+	return "unenrolled Stop releases" + companions + "; enrolled incomplete Stop blocks once naming unavailable Frontier authority; recursive Stop releases", nil
 }
 
 // sessionKey returns the dogfood key arguments and environment that bind an enrollment to the
@@ -1107,15 +1135,24 @@ var timeBoundDegradations = map[string]bool{
 	"adapter-host-kill-deadline":         true,
 }
 
-// hook runs the installed registration for event with payload on stdin; a hook must exit 0. An
-// output that fails open on a time bound is not evidence for any case predicate: it is retried up
-// to hookAttempts times, each such attempt is retained for the case line, and exhausting the
-// attempts is an error naming the degradation (HLQ-V1-009).
+// hook runs the installed case command for event (hookCommand). Before a completed discovery there
+// is no registration to run, and the error says so rather than naming the event (HLQ-V1-011).
 func (r *runner) hook(event string, payload []byte, environment []string) (string, error) {
+	if r.hooks == nil {
+		return "", fmt.Errorf("discovery did not complete")
+	}
 	argv, ok := r.hooks[event]
 	if !ok {
 		return "", fmt.Errorf("no %s hook registered", event)
 	}
+	return r.hookCommand(event, argv, payload, environment)
+}
+
+// hookCommand runs one registered command for event with payload on stdin; a hook must exit 0. An
+// output that fails open on a time bound is not evidence for any case predicate: it is retried up
+// to hookAttempts times, each such attempt is retained for the case line, and exhausting the
+// attempts is an error naming the degradation (HLQ-V1-009).
+func (r *runner) hookCommand(event string, argv []string, payload []byte, environment []string) (string, error) {
 	for attempt := 1; ; attempt++ {
 		started := time.Now()
 		stdout, stderr, code, err := r.exec(r.fixture, payload, environment, argv...)
@@ -1305,9 +1342,10 @@ func substitute(argv []string, source string) []string {
 	return out
 }
 
-// readHooks maps each registered hook event to the argv of its one command; an event that
-// registers no command or several is an error.
-func readHooks(path string, shellCommand bool) (map[string][]string, error) {
+// readHooks maps each registered hook event to the argv of each of its commands, in registration
+// order across its groups; an event that registers no command is an error. Which commands an event
+// may register is discoverHooks' judgement (HLQ-V1-011).
+func readHooks(path string, shellCommand bool) (map[string][][]string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -1323,26 +1361,73 @@ func readHooks(path string, shellCommand bool) (map[string][]string, error) {
 	if err := json.Unmarshal(data, &document); err != nil {
 		return nil, err
 	}
-	hooks := map[string][]string{}
+	hooks := map[string][][]string{}
 	for event, groups := range document.Hooks {
-		var commands []struct {
-			Command string   `json:"command"`
-			Args    []string `json:"args"`
-		}
 		for _, group := range groups {
-			commands = append(commands, group.Hooks...)
+			for _, command := range group.Hooks {
+				argv := append([]string{command.Command}, command.Args...)
+				if shellCommand {
+					argv = strings.Fields(command.Command)
+				}
+				hooks[event] = append(hooks[event], argv)
+			}
 		}
-		if len(commands) != 1 {
-			return nil, fmt.Errorf("%s registers %d commands, not one", event, len(commands))
+		if len(hooks[event]) == 0 {
+			return nil, fmt.Errorf("%s registers no command", event)
 		}
-		command := commands[0]
-		argv := append([]string{command.Command}, command.Args...)
-		if shellCommand {
-			argv = strings.Fields(command.Command)
-		}
-		hooks[event] = argv
 	}
 	return hooks, nil
+}
+
+// discoverHooks checks a read registration against a host profile's exact one (HLQ-V1-011): the
+// event set is exact; every command is `corvint adapter <host>` with at most one subcommand, none
+// registered twice; and each event's subcommands are exactly the expected ones. It returns, per
+// event, the argv of the case command (the first expected subcommand, whatever the registration
+// order) and of each companion in expected order.
+func discoverHooks(registered map[string][][]string, host string, expected map[string][]string) (map[string][]string, map[string][][]string, error) {
+	events, want := sortedKeys(registered), sortedKeys(expected)
+	if strings.Join(events, ",") != strings.Join(want, ",") {
+		return nil, nil, fmt.Errorf("registered hook events %v, expected %v", events, want)
+	}
+	primary, companions := map[string][]string{}, map[string][][]string{}
+	for _, event := range events {
+		bySubcommand := map[string][]string{}
+		var got []string
+		for _, argv := range registered[event] {
+			if len(argv) < 3 || len(argv) > 4 || argv[0] != "corvint" || argv[1] != "adapter" || argv[2] != host {
+				return nil, nil, fmt.Errorf("%s hook runs %q, not the corvint %s adapter", event, strings.Join(argv, " "), host)
+			}
+			subcommand := ""
+			if len(argv) == 4 {
+				subcommand = argv[3]
+			}
+			if _, twice := bySubcommand[subcommand]; twice {
+				return nil, nil, fmt.Errorf("%s registers %q twice", event, strings.Join(argv, " "))
+			}
+			bySubcommand[subcommand] = argv
+			got = append(got, subcommand)
+		}
+		sort.Strings(got)
+		sortedWant := append([]string(nil), expected[event]...)
+		sort.Strings(sortedWant)
+		if !slices.Equal(got, sortedWant) {
+			return nil, nil, fmt.Errorf("%s registers adapter commands %q, expected %q", event, got, expected[event])
+		}
+		primary[event] = bySubcommand[expected[event][0]]
+		for _, subcommand := range expected[event][1:] {
+			companions[event] = append(companions[event], bySubcommand[subcommand])
+		}
+	}
+	return primary, companions, nil
+}
+
+func sortedKeys[V any](m map[string]V) []string {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func readManifestVersion(path string) (string, error) {

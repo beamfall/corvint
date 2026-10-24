@@ -103,6 +103,10 @@
       "internal/cem/",
       "internal/liveverify/"
     ],
+    "conformance/host-lifecycle-v1": [
+      "integrations/claude-code/plugins/corvint/hooks/hooks.json",
+      "integrations/codex/plugins/corvint/hooks/hooks.json"
+    ],
     "conformance/pulse-snapshot-v0": [
       "cmd/corvint-pulse/",
       "go.mod",
