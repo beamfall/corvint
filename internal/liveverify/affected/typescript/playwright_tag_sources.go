@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"path"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -23,12 +24,19 @@ type playwrightTagSources struct {
 	root, configPath string
 	bound            map[string]bool
 	files            map[string]playwrightTagFile
+	// names holds every bound file name (with no body) for tsconfig alias resolution, and aliases
+	// the parsed tsconfig.json files among them (AFP-V0-418).
+	names   map[string]string
+	aliases []typeScriptAliases
 }
 
+// playwrightTagFile is one checked file. stop, when the file is not exact, says why: the first
+// import it cannot follow, or that its text is not literal (AFP-V0-419).
 type playwrightTagFile struct {
 	exact   bool
 	imports []string
 	tags    []string
+	stop    string
 }
 
 func newPlaywrightTagSources(root, configPath string) *playwrightTagSources {
@@ -44,8 +52,26 @@ func (sources *playwrightTagSources) boundFiles() map[string]bool {
 			return nil
 		}
 		sources.bound = map[string]bool{sources.configPath: true}
+		sources.names = map[string]string{sources.configPath: ""}
+		bodies := map[string]string{}
 		for _, file := range files {
 			sources.bound[file] = true
+			sources.names[file] = ""
+			if path.Base(file) == "tsconfig.json" {
+				if body, err := affected.ReadSource(sources.root, file); err == nil && utf8.Valid(body) {
+					bodies[file] = string(body)
+				} else {
+					bodies[file] = "" // an unreadable tsconfig parses as invalid and blocks its aliases
+				}
+			}
+		}
+		// A config naming `tsconfig` can point Playwright at another file than the nearest one, so
+		// no alias is followed, as TJAA-V0-037 refuses for the dependency graph.
+		config, err := affected.ReadSource(sources.root, sources.configPath)
+		if err == nil && len(playwrightTokenOffsets(string(config), "tsconfig")) == 0 {
+			for _, name := range sortedKeys(bodies) {
+				sources.aliases = append(sources.aliases, parseTypeScriptAliases(name, bodies[name]))
+			}
 		}
 	}
 	return sources.bound
@@ -54,9 +80,16 @@ func (sources *playwrightTagSources) boundFiles() map[string]bool {
 // exact returns the literal tags of every file reachable from entries when each is in the bound
 // source set and passes playwrightTagFileExact, or nil when one does not.
 func (sources *playwrightTagSources) exact(entries ...string) map[string]bool {
+	tags, _ := sources.exactOrStop(entries...)
+	return tags
+}
+
+// exactOrStop is exact that also returns, when the tags are nil, where the closure stopped
+// (AFP-V0-419).
+func (sources *playwrightTagSources) exactOrStop(entries ...string) (map[string]bool, string) {
 	bound := sources.boundFiles()
 	if bound == nil {
-		return nil
+		return nil, "the bound source set cannot be listed"
 	}
 	tags := map[string]bool{}
 	seen := map[string]bool{}
@@ -69,22 +102,35 @@ func (sources *playwrightTagSources) exact(entries ...string) map[string]bool {
 		}
 		seen[file] = true
 		if !bound[file] {
-			return nil
+			return nil, file + " is outside the bound sources"
 		}
 		checked, ok := sources.files[file]
 		if !ok {
-			checked = playwrightTagFileExact(sources.root, file)
+			checked = playwrightTagFileExact(sources.root, file, sources.resolveAlias)
 			sources.files[file] = checked
 		}
 		if !checked.exact {
-			return nil
+			return nil, checked.stop
 		}
 		for _, tag := range checked.tags {
 			tags[tag] = true
 		}
 		queue = append(queue, checked.imports...)
 	}
-	return tags
+	return tags, ""
+}
+
+// resolveAlias resolves a bare specifier of owner through the nearest tsconfig.json paths or
+// baseUrl to the one bound repository file it names, as the dependency graph does (TJAA-V0-037).
+// A specifier the nearest config does not claim, a config that is not valid, a Playwright config
+// that names `tsconfig`, and an ambiguous or missing target all leave it unresolved (AFP-V0-418).
+func (sources *playwrightTagSources) resolveAlias(owner, ref string) (string, bool) {
+	nearest := nearestTypeScriptAliases(owner, sources.aliases)
+	if nearest == nil || !nearest.valid || externalScheme(ref) {
+		return "", false
+	}
+	target, _ := nearest.resolve(ref, sources.names)
+	return target, target != "" && sources.bound[target]
 }
 
 // playwrightTagNeutralModules are bare modules whose import gives a case no tag.
@@ -102,21 +148,23 @@ var playwrightTagIndirection = []string{
 	"push", "unshift", "splice", "fill", "copyWithin",
 }
 
-// playwrightTagFileExact checks one file. Its static loads must all resolve: a bare module other
-// than @playwright/test, dotenv or a neutral Node built-in, an unresolved relative import, or a
-// dynamic load is not exact. Every `tag` in its code must be an object-literal property key whose
+// playwrightTagFileExact checks one file. Its static loads must all resolve: a relative import to
+// one repository file, or a bare specifier that alias resolves to one through tsconfig paths or
+// baseUrl (AFP-V0-418), is followed; any other bare module than @playwright/test, dotenv or a
+// neutral Node built-in, an unresolved import, or a dynamic load is not exact, and stop names the
+// first such specifier (AFP-V0-419). Every `tag` in its code must be an object-literal property key whose
 // value is a literal string or an array of literal strings, each `@` followed by one or more
 // non-whitespace characters without an escape. A string literal "tag", an escaped identifier or
 // string property key, a computed object key, a computed member assignment or access or a name in
 // playwrightTagIndirection is not exact (AFP-V0-409).
-func playwrightTagFileExact(root, relative string) playwrightTagFile {
+func playwrightTagFileExact(root, relative string, alias func(owner, ref string) (string, bool)) playwrightTagFile {
 	body, err := affected.ReadSource(root, relative)
 	if err != nil || !utf8.Valid(body) {
-		return playwrightTagFile{}
+		return playwrightTagFile{stop: relative + " is not readable as bounded UTF-8 source"}
 	}
 	scan := scanImportSites(relative, string(body))
 	if scan.err != nil || scan.dynamic >= 0 || scan.unresolved >= 0 || scan.syntax >= 0 {
-		return playwrightTagFile{}
+		return playwrightTagFile{stop: relative + " has a module load that is not static"}
 	}
 	result := playwrightTagFile{exact: true}
 	for _, ref := range scan.refs {
@@ -124,17 +172,20 @@ func playwrightTagFileExact(root, relative string) playwrightTagFile {
 			continue
 		}
 		resolved, ok := playwrightResolveRelative(root, relative, ref)
+		if !ok && !strings.HasPrefix(ref, ".") && alias != nil {
+			resolved, ok = alias(relative, ref)
+		}
 		if !ok {
-			return playwrightTagFile{}
+			return playwrightTagFile{stop: relative + " imports " + strconv.Quote(ref) + ", which resolves to no single repository file"}
 		}
 		result.imports = append(result.imports, resolved)
 	}
 	clean, err := stripComments(string(body), jsxSource(relative))
 	if err != nil {
-		return playwrightTagFile{}
+		return playwrightTagFile{stop: relative + " does not tokenize"}
 	}
 	if result.tags, result.exact = playwrightTagTextLiteral(clean); !result.exact {
-		return playwrightTagFile{}
+		return playwrightTagFile{stop: relative + " holds a tag or construct that is not one literal @\\S+ string"}
 	}
 	return result
 }

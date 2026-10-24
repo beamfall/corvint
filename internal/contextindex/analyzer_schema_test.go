@@ -17,8 +17,8 @@ import (
 // discovered, not an enumerated filename allowlist. Review new imports too.
 func TestAnalyzerSchemaInputs(t *testing.T) {
 	t.Run("IDX-SNAP-V0-017", func(t *testing.T) {
-		const auditedSchema = "corvint-analyzer/147"
-		const auditedSHA256 = "bd92a5de503f4eeec2da208ec65b37f5115dab162514fbd2dcf81e4100e2f2da"
+		const auditedSchema = "corvint-analyzer/148"
+		const auditedSHA256 = "7bd0c28b7a44aa697b25db60c4537d177d17357edeae81814483e9bf35586fc4"
 		root := filepath.Join("..", "..")
 		paths := []string{"go.mod"}
 		if _, err := os.Stat(filepath.Join(root, "go.sum")); err == nil {
@@ -63,7 +63,7 @@ func TestAnalyzerSchemaInputs(t *testing.T) {
 // bump then repins only the input digest (IDX-SNAP-V0-107, V1-2289).
 func TestAnalyzerSchemaOutput(t *testing.T) {
 	t.Run("IDX-SNAP-V0-107", func(t *testing.T) {
-		const auditedOutputSHA256 = "c62c9c66683e1a9ef3e57ee462c62c29363a536ef4a7ef95817f1d7360019f5c"
+		const auditedOutputSHA256 = "97e578f3114ad71d1df58c3487b012750484b76a60a54b490f5122ed4acdd717"
 		got := analyzerGoldenOutput(t)
 		t.Logf("analyzer output SHA256=%s", got)
 		if got != auditedOutputSHA256 {
@@ -73,7 +73,7 @@ func TestAnalyzerSchemaOutput(t *testing.T) {
 }
 
 // analyzerGoldenCorpus exercises every extractor family the pack carries:
-// Go, Python, Ruby, the web languages, record ledgers, decisions, specs,
+// Go, Python, Ruby (with a Rake file), the web languages and a template, record ledgers, decisions, specs,
 // instructions, a marker and a non-text blob.
 var analyzerGoldenCorpus = map[string]string{
 	"go.mod":                       "module example.test/golden\n\ngo 1.27.0\n",
@@ -86,6 +86,8 @@ var analyzerGoldenCorpus = map[string]string{
 	"tools/cache/client.py":        "def fetch(key):\n    return key\n",
 	"app/models/user.rb":           "class User < ApplicationRecord\n  def name\n    Profile.new.name\n  end\nend\n",
 	"app/models/profile.rb":        "class Profile\n  def name\n    \"p\"\n  end\nend\n",
+	"lib/tasks/seed.rake":          "# feature:seed-demo\ndef seed_profiles\n  Profile.new\nend\n",
+	"app/views/home.html.erb":      "<p><%= User.new.name %></p>\n",
 	"web/src/main.ts":              "import { render } from './view';\nexport function start(): string { return render('x'); }\n",
 	"web/src/view.js":              "export function render(value) { return `<p>${value}</p>`; }\n",
 	"testing/features.yaml":        "features:\n  - id: F-CACHE\n    title: \"Cache demux\"\n    tags: ['cache', \"split\", True, None]\n    paths: [cache/cache.go, cache/split.go]\n    owner: core\n  - id: F-REPORT\n    title: Report rendering\n    enabled: true\n",

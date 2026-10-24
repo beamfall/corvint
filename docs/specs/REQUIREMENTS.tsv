@@ -131,6 +131,9 @@ AFP-V0-411	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-412	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647))	standing	2026-10-11; #1646; #1647
 AFP-V0-413	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647))	standing	2026-10-11; #1646; #1647
 AFP-V0-414	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647))	standing	2026-10-11; #1646; #1647
+AFP-V0-417	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1660);	standing	2026-10-11; #1660
+AFP-V0-418	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1660);	standing	2026-10-11; #1660
+AFP-V0-419	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1660);	standing	2026-10-11; #1660
 AFP-V0-390	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
 AFP-V0-391	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
 AFP-V0-392	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
@@ -3380,6 +3383,7 @@ IDX-SNAP-V0-103	docs/specs/index-snapshot-v0.md	(accepted under the owner's stan
 IDX-SNAP-V0-104	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1640)) The	standing	2026-10-11; V1-1640
 IDX-SNAP-V0-105	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-2237)) On a	standing	2026-10-11; V1-2237
 IDX-SNAP-V0-108	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1088) The	standing	2026-10-11; V1-1088
+IDX-SNAP-V0-109	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH #1663)	standing	2026-10-11; #1663
 IDX-SNAP-V0-106	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2290) Two	standing	2026-10-11; V1-2290
 IDX-SNAP-V0-107	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2289);	standing	2026-10-11; V1-2289
 JAT-V0-001	docs/specs/java-affected-test-v0.md	A plugin with namespace `java` MUST own exactly the names ending `.java`. Build	unrecorded	-

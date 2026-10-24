@@ -50,19 +50,19 @@ var (
 	// here is invisible to the index entirely, not merely unanalysed.
 	//
 	// The second row is the set admitted for symbol extraction by
-	// langsymbols.go. The third is admitted as searchable text only: SQL has no
-	// extractor here, and `.m` is shared by Objective-C, MATLAB and Mathematica,
-	// so any symbol rule written for it would be right for at most one of the
-	// three. Admitting them still moves them from invisible to searchable.
+	// langsymbols.go. The third is searchable text only: SQL has no extractor,
+	// `.m` is Objective-C, MATLAB or Mathematica, and templates hold markup
+	// (IDX-SNAP-V0-109). Admitting them moves them from invisible to searchable.
 	textSuffixes = map[string]bool{
 		".go": true, ".ts": true, ".tsx": true, ".js": true, ".jsx": true,
 		".mjs": true, ".cjs": true, ".py": true, ".sh": true, ".md": true,
 		".yaml": true, ".yml": true, ".json": true, ".toml": true, ".mod": true,
 
 		".rs": true, ".cs": true, ".swift": true, ".kt": true, ".kts": true,
-		".rb": true, ".mts": true, ".cts": true, // .mts/.cts text only (V1-1088)
+		".rb": true, ".rake": true, ".mts": true, ".cts": true, // .mts/.cts text only (V1-1088)
 
-		".sql": true, ".m": true, ".rst": true, ".mdx": true, ".txt": true,
+		".sql": true, ".m": true, ".rst": true, ".mdx": true, ".txt": true, ".erb": true,
+		".html": true, ".htm": true, ".haml": true, ".slim": true, ".hbs": true, ".vue": true, ".svelte": true,
 	}
 	// A path is excluded when any of its components is one of these. ".claude"
 	// is here because an agent worktree copy under it is not first-party

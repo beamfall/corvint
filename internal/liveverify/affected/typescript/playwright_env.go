@@ -114,10 +114,9 @@ func playwrightEnvironmentWriter(configPath, source string) (string, []playwrigh
 	if frontier != "" {
 		return frontier, nil
 	}
-	for _, name := range playwrightEnvLoaderNames {
-		if len(playwrightTokenOffsets(residual, name)) != 0 {
-			return "the config references " + name + ", which can load a module or file that sets the variable before the config reads it", nil
-		}
+	if name, at := playwrightEnvLoaderReference(residual); at >= 0 {
+		site := configPath + ":" + strconv.Itoa(1+strings.Count(residual[:at], "\n"))
+		return "the config references " + name + " at " + site + ", which can load a module or file that sets the variable before the config reads it", nil
 	}
 	if strings.Contains(clean, "globalSetup") {
 		return "the config declares globalSetup, which can set the variable before workers evaluate the config", nil
@@ -132,6 +131,29 @@ var playwrightEnvNeutralBuiltins = map[string]bool{"path": true, "os": true, "ur
 // playwrightEnvLoaderNames are the globals through which a config can load a module or an env
 // file or evaluate code that does (AFP-V0-386).
 var playwrightEnvLoaderNames = []string{"require", "createRequire", "module", "loadEnvFile", "eval", "Function", "globalThis", "global"}
+
+// playwrightEnvLoaderReference returns the first loader name, in playwrightEnvLoaderNames order,
+// that the comment-stripped config references and the offset of its first reference, or -1. A name counts in code and as a whole string literal that is a
+// computed member key (`x['global']`); inside other string, template or regular-expression text it
+// is data, such as a project named 'global-setup' (AFP-V0-417). That exemption holds only while
+// the module tokenizes and no text can become code or reach a property the scan cannot see
+// (playwrightReflectiveChannel); otherwise every occurrence counts, as before.
+func playwrightEnvLoaderReference(clean string) (string, int) {
+	lexed, ok := playwrightLex(clean)
+	textIsData := ok
+	if ok {
+		at, _ := playwrightReflectiveChannel(clean, lexed)
+		textIsData = at < 0
+	}
+	for _, candidate := range playwrightEnvLoaderNames {
+		for _, at := range playwrightTokenOffsets(clean, candidate) {
+			if !textIsData || lexed.code[at] || playwrightComputedKeyString(clean, lexed, at, len(candidate)) {
+				return candidate, at
+			}
+		}
+	}
+	return "", -1
+}
 
 // resolvePlaywrightExecutables replaces a project's computed-executablePath unknown with the
 // recorded resolution when the expression is a modelled process.env read of a variable the caller

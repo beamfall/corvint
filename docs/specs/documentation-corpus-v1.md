@@ -1268,7 +1268,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   the read `stale` and names that input.
 - `DCP-V1-156`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1240;
   V1-1984)) Manifest inventory and build load the inputs the revision index does not hold as text
-  (for example HTML, ERB and JSON) through batched reads: per pinned revision, one verified path
+  (for example XML or CSV; HTML and ERB are indexed text since IDX-SNAP-V0-109) through batched reads: per pinned revision, one verified path
   walk (`DCP-V1-155`), then one header batch for every distinct regular blob and one body batch for
   every admitted blob. Every body must have its admitted size and self-hash to its OID. All reads
   pass through the same bounded Git runner and its operation budget; none bypasses them.
