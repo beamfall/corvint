@@ -1,0 +1,79 @@
+diff --git a/internal/app/app.go b/internal/app/app.go
+index d7e256571..174c714c9 100644
+--- a/internal/app/app.go
++++ b/internal/app/app.go
+@@ -901,7 +901,9 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger, bundles []
+ 	// reflected. A read error degrades to the compiled-in default rather than
+ 	// failing boot.
+ 	capabilityOverrides, _ := st.CapabilityStates(ctx)
+-	srv.SetCapabilities(capabilities.CurrentWithOverrides(capabilityOverrides).Capabilities)
++	capabilityReport := capabilities.CurrentWithOverrides(capabilityOverrides)
++	srv.SetCapabilities(capabilityReport.Capabilities)
++	srv.SetSourceOfferURL(capabilityReport.CorrespondingSourceOfferURL)
+ 	srv.SetPublicMetrics(cfg.PublicMetrics)
+ 	// Reveal-filtered SSE event stream (ADR-0040): the store is both the
+ 	// outbox reader and the reveal-filtered Media lookup the surface gates on.
+diff --git a/internal/server/server.go b/internal/server/server.go
+index c621cdc44..230d8a652 100644
+--- a/internal/server/server.go
++++ b/internal/server/server.go
+@@ -78,6 +78,7 @@ type Server struct {
+ 	seedProfile       string
+ 	seedVersion       string
+ 	capabilities      []string
++	sourceOfferURL    string
+ 	proxyTee          http.HandlerFunc
+ 	packManifest      http.HandlerFunc
+ 	packContent       http.HandlerFunc
+@@ -194,6 +195,10 @@ func New(manifests *manifest.Service, playbackInfo *playback.Service, beamServic
+ 	}
+ 	s.handle(http.MethodGet, "/health", "", s.health)
+ 	s.handle(http.MethodGet, "/metrics", reveal.Aggregate, s.metrics)
++	// AGPL §13 source offer for the exact running release. The redirect target
++	// is injected at build time through capabilities.SourceOfferURL and is never
++	// accepted from a request. Development builds with no offer fail closed.
++	s.handle(http.MethodGet, "/source", "", s.sourceOffer)
+ 	s.handle(http.MethodPost, "/api/graphql", reveal.ContentJSON, s.graphQL)
+ 	s.handle(http.MethodGet, "/api/manifest", reveal.ContentJSON, s.manifestDocument)
+ 	s.handle(http.MethodPost, "/api/playback-info", reveal.ContentJSON, s.playbackInfo)
+@@ -740,6 +745,12 @@ func (s *Server) SetCapabilities(capabilities []string) {
+ 	s.capabilities = append([]string(nil), capabilities...)
+ }
+ 
++// SetSourceOfferURL wires the release-injected, version-specific
++// corresponding-source offer into the public /source redirect.
++func (s *Server) SetSourceOfferURL(offerURL string) {
++	s.sourceOfferURL = strings.TrimSpace(offerURL)
++}
++
+ // SetPublicMetrics allows /metrics to be scraped from non-loopback clients.
+ // The default is false: internet-exposed metrics require an explicit operator
+ // opt-in and should sit behind the hardened reverse-proxy path.
+diff --git a/internal/web/app/src/components/chrome/AppShell.tsx b/internal/web/app/src/components/chrome/AppShell.tsx
+index a2ca7cb17..0b667ee43 100644
+--- a/internal/web/app/src/components/chrome/AppShell.tsx
++++ b/internal/web/app/src/components/chrome/AppShell.tsx
+@@ -161,6 +161,11 @@ export function AppShell({
+       )}
+ 
+       <main className="bf-main px-4 py-6">{children}</main>
++      <footer className="bf-source-footer">
++        <a href="/source" target="_blank" rel="noreferrer noopener">
++          {t("coreSourceOffer")}
++        </a>
++      </footer>
+     </div>
+   );
+ }
+diff --git a/internal/web/app/src/strings.ts b/internal/web/app/src/strings.ts
+index 1e7cc0e1a..7107e4feb 100644
+--- a/internal/web/app/src/strings.ts
++++ b/internal/web/app/src/strings.ts
+@@ -8,6 +8,7 @@
+ const en = {
+   appTitle: "Beamfall",
+   brand: "Beamfall",
++  coreSourceOffer: "Beamfall Core corresponding source",
+   navLabel: "Navigation",
+   manage: "Manage",
+   managerRole: "MANAGER",

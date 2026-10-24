@@ -1,0 +1,65 @@
+diff --git a/internal/mediahttp/mediahttp.go b/internal/mediahttp/mediahttp.go
+index e3073ce85..b09ce8207 100644
+--- a/internal/mediahttp/mediahttp.go
++++ b/internal/mediahttp/mediahttp.go
+@@ -33,6 +33,7 @@ type Handler struct {
+ 	artworkCandidateFetch ArtworkCandidateFetcher
+ 	subtitles             SubtitleConverter
+ 	subtitleDir           string
++	hotSegments           *hotSegmentCache
+ }
+ 
+ type ArtworkCandidateFetcher interface {
+@@ -69,6 +70,13 @@ func (h *Handler) SetSubtitles(converter SubtitleConverter, dir string) {
+ 	h.subtitleDir = dir
+ }
+ 
++// SetHotSegmentCache enables a bounded RAM cache for precomputed HLS segment
++// bytes while there is active fan-out for the same segment. Playlists stay
++// disk-served; Stream Token and Reveal checks still run before cache lookup.
++func (h *Handler) SetHotSegmentCache(maxBytes int64) {
++	h.hotSegments = newHotSegmentCache(maxBytes)
++}
++
+ // Assets serves Generated Asset bytes (ADR-0033) for a signed token URL:
+ // trickplay manifest and sheets, the preview clip, and Marker thumbnails.
+ // These are media bytes — Stream Tokens and the Reveal contract apply as-is
+@@ -468,7 +476,8 @@ func (h *Handler) servePrecomputedHLS(w http.ResponseWriter, r *http.Request, gr
+ 		http.Error(w, "stream unavailable", http.StatusNotFound)
+ 		return
+ 	}
+-	if _, err := os.Stat(path); err != nil {
++	info, err := os.Stat(path)
++	if err != nil {
+ 		http.Error(w, "stream unavailable", http.StatusNotFound)
+ 		return
+ 	}
+@@ -481,6 +490,28 @@ func (h *Handler) servePrecomputedHLS(w http.ResponseWriter, r *http.Request, gr
+ 	} else {
+ 		w.Header().Set("Content-Type", "video/mp4")
+ 	}
++	if h.hotSegments != nil && !strings.HasSuffix(name, ".m3u8") {
++		h.servePrecomputedHotSegment(w, r, path, rendition.ID, name, info.ModTime())
++		return
++	}
++	http.ServeFile(w, r, path)
++}
++
++func (h *Handler) servePrecomputedHotSegment(w http.ResponseWriter, r *http.Request, path string, renditionID store.PlaybackRenditionID, name string, modTime time.Time) {
++	key := string(renditionID) + "/" + name
++	data, cachedModTime, hit, fanout, lease := h.hotSegments.begin(key)
++	defer lease.done()
++	if hit {
++		http.ServeContent(w, r, filepath.Base(path), cachedModTime, bytes.NewReader(data))
++		return
++	}
++	if fanout {
++		data, err := os.ReadFile(path)
++		if err == nil && h.hotSegments.store(key, data, modTime) {
++			http.ServeContent(w, r, filepath.Base(path), modTime, bytes.NewReader(data))
++			return
++		}
++	}
+ 	http.ServeFile(w, r, path)
+ }
+ 

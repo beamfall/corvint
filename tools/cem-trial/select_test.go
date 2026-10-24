@@ -238,3 +238,62 @@ func TestExplicitlyEmptyExcludeListIsRefused(t *testing.T) {
 		t.Fatalf("omitting --exclude was refused: %v", err)
 	}
 }
+
+// V1-2619: a hunk that git's default indent heuristic slides by a line must
+// be presented where the canonical CEM diff, which `cem prepare` maps, puts it.
+func TestSelectionPresentsTheCanonicalCEMDiff(t *testing.T) {
+	entry := func(id string) string {
+		return "\t\t\t\t\t{\n\t\t\t\t\t\tID:   \"" + id + "\",\n\t\t\t\t\t\tKind: \"shelf\",\n\t\t\t\t\t},\n"
+	}
+	padding := strings.Repeat("// padding\n", 12)
+	source := func(inserted bool, revision int) string {
+		var body strings.Builder
+		body.WriteString("package play\n\nfunc One() int {\n\treturn " + fmt.Sprint(revision) + "\n}\n\n" + padding)
+		body.WriteString("var layout = []Section{\n\t\t\t{\n\t\t\t\tID: \"home\",\n\t\t\t\tSections: []Section{\n")
+		if inserted {
+			body.WriteString(entry("continue"))
+		}
+		body.WriteString(entry("recent") + "\t\t\t\t},\n\t\t\t},\n}\n\n" + padding)
+		body.WriteString("func Two() int {\n\treturn " + fmt.Sprint(2*revision) + "\n}\n")
+		return body.String()
+	}
+	root := t.TempDir()
+	if _, err := git(context.Background(), root, "init", "-q"); err != nil {
+		t.Fatal(err)
+	}
+	for _, arguments := range [][]string{{"config", "user.name", "fixture"}, {"config", "user.email", "fixture@example.invalid"}} {
+		if _, err := git(context.Background(), root, arguments...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for revision, inserted := range []bool{false, true} {
+		writeFixtureFile(t, root, "internal/play/play.go", source(inserted, revision+1))
+		writeFixtureFile(t, root, "internal/play/play_test.go", fmt.Sprintf("package play\n\n// revision %d\n", revision))
+		writeFixtureFile(t, root, "README.md", fmt.Sprintf("revision %d\n", revision))
+		for _, arguments := range [][]string{{"add", "-A"}, {"commit", "-q", "-m", fmt.Sprint("change ", revision)}} {
+			if _, err := git(context.Background(), root, arguments...); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	canonical, err := gitOutput(context.Background(), root, append(append([]string{}, canonicalDiffArguments...), "HEAD^", "HEAD", "--", "internal/play/play.go")...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ordinary, err := gitOutput(context.Background(), root, "diff", "HEAD^", "HEAD", "--", "internal/play/play.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if canonical == ordinary {
+		t.Fatal("fixture does not slide: the default and canonical diffs agree")
+	}
+	head, _ := git(context.Background(), root, "rev-parse", "HEAD")
+	parent, _ := git(context.Background(), root, "rev-parse", "HEAD^")
+	chosen, ok, err := inspectCommit(context.Background(), root, strings.TrimSpace(head), strings.TrimSpace(parent))
+	if err != nil || !ok {
+		t.Fatalf("the fixture change was not a candidate: ok=%v err=%v", ok, err)
+	}
+	if chosen.patch != canonical {
+		t.Fatalf("presented patch is not the canonical CEM diff:\n%s\nwant:\n%s", chosen.patch, canonical)
+	}
+}

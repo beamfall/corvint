@@ -1,0 +1,197 @@
+diff --git a/script/bf_tools.py b/script/bf_tools.py
+index a383442a6..db8783cb8 100644
+--- a/script/bf_tools.py
++++ b/script/bf_tools.py
+@@ -27,6 +27,8 @@ DEFAULT_CONTEXT_LIMIT = 10
+ MAX_CONTEXT_LIMIT = 50
+ ATLAS_RUNTIME_ENV = "ATLAS_DOCUMENTATION_RUNTIME"
+ ATLAS_RUNTIME = ROOT / "tools/atlas-documentation-runtime/atlas_runtime.py"
++ATLAS_SNAPSHOT_RUNTIME_ENV = "ATLAS_DOCUMENTATION_SNAPSHOT_RUNTIME"
++ATLAS_SNAPSHOT_RUNTIME = ROOT / "tools/atlas-documentation-runtime/snapshot.py"
+ 
+ 
+ def die(message: str, code: int = 2) -> None:
+@@ -66,28 +68,46 @@ def atlas_runtime_command() -> list[str]:
+     return [str(entrypoint)]
+ 
+ 
+-def run_atlas_runtime(args: list[str]) -> None:
+-    command = atlas_runtime_command() + args
++def atlas_snapshot_runtime_command() -> list[str]:
++    configured = os.environ.get(ATLAS_SNAPSHOT_RUNTIME_ENV)
++    entrypoint = Path(configured).expanduser() if configured else ATLAS_SNAPSHOT_RUNTIME
++    if not entrypoint.is_absolute():
++        entrypoint = ROOT / entrypoint
++    entrypoint = entrypoint.resolve()
++    if not entrypoint.is_file():
++        die(f"experimental Atlas snapshot runtime is unavailable: {entrypoint} does not exist")
++    return [sys.executable, str(entrypoint)] if entrypoint.suffix == ".py" else [str(entrypoint)]
++
++
++def run_json_runtime(command: list[str], label: str) -> None:
+     completed = subprocess.run(
+-        command,
+-        cwd=ROOT,
+-        text=True,
+-        capture_output=True,
+-        check=False,
++        command, cwd=ROOT, text=True, capture_output=True, check=False,
+     )
+     output = completed.stdout.strip()
+     try:
+         payload = json.loads(output)
+     except json.JSONDecodeError as exc:
+         detail = completed.stderr.strip() or output or "no output"
+-        die(f"experimental Atlas runtime returned invalid JSON: {exc}: {detail}")
++        die(f"{label} returned invalid JSON: {exc}: {detail}")
+     if not isinstance(payload, dict):
+-        die("experimental Atlas runtime response must be one JSON object")
++        die(f"{label} response must be one JSON object")
+     print(output)
+     if completed.returncode != 0:
+         raise SystemExit(completed.returncode)
+ 
+ 
++def run_atlas_runtime(args: list[str]) -> None:
++    run_json_runtime(
++        atlas_runtime_command() + args, "experimental Atlas runtime"
++    )
++
++
++def run_atlas_snapshot_runtime(args: list[str]) -> None:
++    run_json_runtime(
++        atlas_snapshot_runtime_command() + args, "experimental Atlas snapshot runtime"
++    )
++
++
+ def rel(path: Path) -> str:
+     try:
+         return str(path.resolve().relative_to(ROOT))
+@@ -443,6 +463,30 @@ def cmd_locate(args: argparse.Namespace) -> None:
+     run_atlas_runtime(command)
+ 
+ 
++def cmd_atlas_snapshot_build(args: argparse.Namespace) -> None:
++    run_atlas_snapshot_runtime([
++        "build-snapshot", "--manifest", args.manifest, "--output", args.output,
++        "--jobs", str(args.jobs),
++    ])
++
++
++def cmd_atlas_snapshot_info(args: argparse.Namespace) -> None:
++    run_atlas_snapshot_runtime(["snapshot-info", "--snapshot", args.snapshot])
++
++
++def cmd_locate_snapshot(args: argparse.Namespace) -> None:
++    if not args.paths and not args.symbols:
++        die("locate-snapshot requires at least one --path or --symbol")
++    command = ["locate-snapshot", "--snapshot", args.snapshot]
++    for repository in args.repositories:
++        command.extend(["--repository", repository])
++    for path in args.paths:
++        command.extend(["--path", path])
++    for symbol in args.symbols:
++        command.extend(["--symbol", symbol])
++    run_atlas_snapshot_runtime(command)
++
++
+ def build_parser() -> argparse.ArgumentParser:
+     parser = argparse.ArgumentParser(description=__doc__)
+     sub = parser.add_subparsers(dest="tool", required=True)
+@@ -514,6 +558,20 @@ def build_parser() -> argparse.ArgumentParser:
+     locate.add_argument("--path", dest="paths", action="append", type=context_path, default=[])
+     locate.add_argument("--symbol", dest="symbols", action="append", default=[])
+     locate.set_defaults(func=cmd_locate)
++    snapshot_build = sub.add_parser("atlas_snapshot_build", aliases=["atlas-snapshot-build"])
++    snapshot_build.add_argument("--manifest", required=True)
++    snapshot_build.add_argument("--output", required=True)
++    snapshot_build.add_argument("--jobs", type=positive_limit, default=4)
++    snapshot_build.set_defaults(func=cmd_atlas_snapshot_build)
++    snapshot_info = sub.add_parser("atlas_snapshot_info", aliases=["atlas-snapshot-info"])
++    snapshot_info.add_argument("--snapshot", required=True)
++    snapshot_info.set_defaults(func=cmd_atlas_snapshot_info)
++    snapshot_locate = sub.add_parser("locate_snapshot", aliases=["locate-snapshot"])
++    snapshot_locate.add_argument("--snapshot", required=True)
++    snapshot_locate.add_argument("--repository", dest="repositories", action="append", default=[])
++    snapshot_locate.add_argument("--path", dest="paths", action="append", type=context_path, default=[])
++    snapshot_locate.add_argument("--symbol", dest="symbols", action="append", default=[])
++    snapshot_locate.set_defaults(func=cmd_locate_snapshot)
+     return parser
+ 
+ 
+diff --git a/tools/atlas-documentation-runtime/snapshot.py b/tools/atlas-documentation-runtime/snapshot.py
+index 4cfaa39a3..0bde96345 100644
+--- a/tools/atlas-documentation-runtime/snapshot.py
++++ b/tools/atlas-documentation-runtime/snapshot.py
+@@ -186,20 +186,24 @@ def atomic_write(path: Path, raw: bytes) -> None:
+ 
+ def load_snapshot(path: Path) -> tuple[dict[str, Any], str]:
+     try:
++        if path.stat().st_size > MAX_SNAPSHOT_BYTES:
++            raise SnapshotError("snapshot_size_limit", "snapshot exceeds the 256 MiB dogfood limit")
+         raw = path.read_bytes()
+         value = json.loads(raw)
++    except SnapshotError:
++        raise
+     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+         raise SnapshotError("missing_or_invalid_snapshot", str(exc)) from exc
+-    if len(raw) > MAX_SNAPSHOT_BYTES:
+-        raise SnapshotError("snapshot_size_limit", "snapshot exceeds the 256 MiB dogfood limit")
+     return validate_snapshot(value), digest(raw)
+ 
+ 
+ def outcome_envelope(tool: str, outcome: str, reason: str, payload: Any,
+-                     coverage: dict[str, Any] | None = None) -> dict[str, Any]:
++                     coverage: dict[str, Any] | None = None,
++                     citations: list[dict[str, Any]] | None = None,
++                     evidence_map: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+     return atlas_runtime.envelope(
+         tool, outcome=outcome, reason=reason, payload=payload,
+-        coverage=coverage or {},
++        coverage=coverage or {}, citations=citations, evidence_map=evidence_map,
+         limitations=[
+             "experimental contract is not activated",
+             "logical snapshots are bounded to 256 repositories and 256 MiB",
+@@ -291,10 +295,31 @@ def cmd_locate(args: argparse.Namespace) -> dict[str, Any]:
+     if subject_count * len(artifacts) > MAX_LOOKUPS:
+         raise SnapshotError("lookup_limit", f"snapshot locate accepts at most {MAX_LOOKUPS} lookups")
+     members: list[dict[str, Any]] = []
++    citations: list[dict[str, Any]] = []
++    evidence_map: list[dict[str, Any]] = []
+     for artifact in artifacts:
+         repository = artifact["source"]["repository"]
+-        members.extend({"repository": repository, **locate_path(artifact, path)} for path in args.paths)
+-        members.extend({"repository": repository, **locate_symbol(artifact, symbol)} for symbol in args.symbols)
++        inventory = {row["path"]: row for row in artifact["sections"]["inventory"]}
++        for path in args.paths:
++            member = {"repository": repository, **locate_path(artifact, path)}
++            members.append(member)
++            row = inventory.get(member.get("path", ""))
++            if row is not None:
++                citation_id = f"{repository}:path:{row['path']}"
++                citations.append({
++                    "blob_sha1": row["blob_sha1"], "id": citation_id,
++                    "path": row["path"], "repository": repository,
++                })
++                evidence_map.append({"citation_id": citation_id, "member": len(members) - 1})
++        for symbol in args.symbols:
++            member = {"repository": repository, **locate_symbol(artifact, symbol)}
++            members.append(member)
++            for match in member.get("matches", []):
++                citation_id = (
++                    f"{repository}:symbol:{match['path']}:{match['line']}:{match['name']}"
++                )
++                citations.append({"id": citation_id, "repository": repository, **match})
++                evidence_map.append({"citation_id": citation_id, "member": len(members) - 1})
+     outcomes = {member["outcome"] for member in members}
+     outcome = "not_covered" if "not_covered" in outcomes else (
+         "answered" if "answered" in outcomes else "no_result"
+@@ -306,6 +331,8 @@ def cmd_locate(args: argparse.Namespace) -> dict[str, Any]:
+             "not_covered": sum(row["outcome"] == "not_covered" for row in members),
+             "repositories": len(artifacts), "requested": subject_count,
+         },
++        citations,
++        evidence_map,
+     )
+ 
+ 

@@ -1,0 +1,221 @@
+diff --git a/internal/manifest/manifest.go b/internal/manifest/manifest.go
+index 2ba0ad509..f810a146d 100644
+--- a/internal/manifest/manifest.go
++++ b/internal/manifest/manifest.go
+@@ -29,6 +29,12 @@ type LibrarySummary struct {
+ 	ID       string  `json:"id"`
+ 	Title    string  `json:"title"`
+ 	PluginID *string `json:"pluginID"`
++	// Accent is the bound plugin's Library accent color ("#RRGGBB",
++	// ADR-0003 §7 Theme Tokens): clients normalize it into tint/focus
++	// variants (artwork-fallback tint, filter selection). Omitted when the
++	// Library has no plugin or the plugin declares none, so existing
++	// payloads keep their shape.
++	Accent string `json:"accent,omitempty"`
+ }
+ 
+ // NavigationNode is an allowlisted navigation entry. Title is a locale map
+@@ -67,6 +73,21 @@ type Section struct {
+ 	Title       plugin.LocaleString `json:"title"`
+ 	ArtworkSlot string              `json:"artworkSlot"`
+ 	Source      SourceSpec          `json:"source"`
++	// Filters carries a filter-bar Section's declared filter options:
++	// selecting one narrows the adjacent Section's Source by equality on
++	// the named Media field (clients merge it into that Source's
++	// fieldFilters echo). Omitted on every other kind — and on filter-bars
++	// declaring none — so existing payloads keep their shape.
++	Filters []FilterOption `json:"filters,omitempty"`
++}
++
++// FilterOption is the wire form of one filter-bar affordance: a declared
++// text Media field, the value selecting it applies, and the chip's display
++// label (locale map; absent label falls back to the value).
++type FilterOption struct {
++	Field string              `json:"field"`
++	Value string              `json:"value"`
++	Label plugin.LocaleString `json:"label,omitempty"`
+ }
+ 
+ // SourceSpec is the bounded data-source vocabulary consumed by a Section.
+@@ -131,18 +152,20 @@ func (s *Service) Document(ctx context.Context, scope auth.Scope) (Document, err
+ 	}
+ 	pluginLayouts := map[string]Layout{}
+ 	for i, library := range libraries {
+-		librarySummaries[i] = LibrarySummary{
++		summary := LibrarySummary{
+ 			ID:       string(library.ID),
+ 			Title:    library.Title,
+ 			PluginID: library.PluginID,
+ 		}
+ 		if library.PluginID != nil {
+ 			if bundle, ok := s.plugins.Bundle(plugin.ID(*library.PluginID)); ok {
++				summary.Accent = bundle.Accent
+ 				for _, layout := range bundleLayouts(bundle) {
+ 					pluginLayouts[layout.ID] = layout
+ 				}
+ 			}
+ 		}
++		librarySummaries[i] = summary
+ 		layoutID := "layout-home"
+ 		if library.PluginID != nil {
+ 			if _, ok := s.plugins.Bundle(plugin.ID(*library.PluginID)); ok {
+@@ -230,6 +253,7 @@ func bundleLayouts(bundle plugin.Bundle) []Layout {
+ 					FieldFilters: section.Source.FieldFilters,
+ 					EntityFilter: wireEntityFilter(section.Source.EntityFilter),
+ 				},
++				Filters: wireFilterOptions(section.FilterOptions),
+ 			})
+ 		}
+ 		layouts = append(layouts, layout)
+@@ -237,6 +261,20 @@ func bundleLayouts(bundle plugin.Bundle) []Layout {
+ 	return layouts
+ }
+ 
++// wireFilterOptions converts a filter-bar's declared options to wire form;
++// an empty declaration stays nil so optionless Sections keep their
++// historical shape.
++func wireFilterOptions(options []plugin.FilterOption) []FilterOption {
++	if len(options) == 0 {
++		return nil
++	}
++	wire := make([]FilterOption, len(options))
++	for i, option := range options {
++		wire[i] = FilterOption{Field: option.Field, Value: option.Value, Label: option.Label}
++	}
++	return wire
++}
++
+ // wireEntityFilter converts a declared entity filter to its wire form; nil
+ // stays nil so filterless Sources keep their historical shape.
+ func wireEntityFilter(filter *plugin.EntityFilter) *EntityFilter {
+diff --git a/internal/plugin/firstparty/filmtv/bundle.go b/internal/plugin/firstparty/filmtv/bundle.go
+index 691e0de87..440c7fe1a 100644
+--- a/internal/plugin/firstparty/filmtv/bundle.go
++++ b/internal/plugin/firstparty/filmtv/bundle.go
+@@ -25,6 +25,10 @@ func Bundle() plugin.Bundle {
+ 		// fallback for unmapped class values.
+ 		MediaLabel:   plugin.LocaleString{"en": "Video", "fr": "Vidéo"},
+ 		MediaClasses: []string{"video"},
++		// Library accent (ADR-0003 §7 Theme Tokens): a warm cinema amber,
++		// distinct from the beam brand accent. Clients derive the
++		// artwork-fallback tint and filter selection state from it.
++		Accent: "#C9803F",
+ 		// The `class` keystone (ADR-0028 §1): the parse/identification stage
+ 		// classifies every file movie-vs-episode and writes this Media field.
+ 		// The values are this plugin's data, never core vocabulary.
+@@ -191,9 +195,6 @@ func Bundle() plugin.Bundle {
+ 					ArtworkSlot: "poster",
+ 					Source: plugin.SourceSpec{Kind: "all-items",
+ 						EntityFilter: &plugin.EntityFilter{Kind: "genre", Name: "Comedy"}}},
+-				{ID: "browse-filter", Kind: "filter-bar",
+-					Title:  plugin.LocaleString{"en": "Browse", "fr": "Parcourir"},
+-					Source: plugin.SourceSpec{Kind: "all-items"}},
+ 				{ID: "browse-movies", Kind: "grid",
+ 					Title:       plugin.LocaleString{"en": "Movies", "fr": "Films"},
+ 					ArtworkSlot: "poster",
+@@ -204,6 +205,19 @@ func Bundle() plugin.Bundle {
+ 					ArtworkSlot: "poster",
+ 					Source: plugin.SourceSpec{Kind: "all-items",
+ 						FieldFilters: map[string]string{"class": "episode"}}},
++				// The filter-bar's declared options narrow the adjacent grid
++				// (browse-all, directly below) by the `class` keystone —
++				// view-time FieldFilters the user picks instead of the
++				// declaration-time split above.
++				{ID: "browse-filter", Kind: "filter-bar",
++					Title:  plugin.LocaleString{"en": "Browse", "fr": "Parcourir"},
++					Source: plugin.SourceSpec{Kind: "all-items"},
++					FilterOptions: []plugin.FilterOption{
++						{Field: "class", Value: "movie",
++							Label: plugin.LocaleString{"en": "Movies", "fr": "Films"}},
++						{Field: "class", Value: "episode",
++							Label: plugin.LocaleString{"en": "Episodes", "fr": "Épisodes"}},
++					}},
+ 				{ID: "browse-all", Kind: "grid",
+ 					Title:       plugin.LocaleString{"en": "All Movies & Shows", "fr": "Tous les films et séries"},
+ 					ArtworkSlot: "poster", Source: plugin.SourceSpec{Kind: "all-items"}},
+diff --git a/internal/plugin/plugin.go b/internal/plugin/plugin.go
+index 5423c3d45..f87f3b9e1 100644
+--- a/internal/plugin/plugin.go
++++ b/internal/plugin/plugin.go
+@@ -94,6 +94,12 @@ type Bundle struct {
+ 	MediaLabel LocaleString
+ 	// MediaClasses this plugin's Libraries hold ("video", "audio").
+ 	MediaClasses []string
++	// Accent is the optional Library accent color ("#RRGGBB") for Libraries
++	// bound to this plugin (ADR-0003 §7 Theme Tokens; design system "Library
++	// accents"). Clients normalize it into tint/focus variants — it never
++	// changes type, spacing, focus behavior, or motion. Empty means the
++	// client default.
++	Accent string
+ 	// MediaFields declares typed fields on the wire entity Media itself,
+ 	// against the same FieldTypes vocabulary as Entity Kind fields. Field
+ 	// values are plugin data, assigned at identification/parse time — core
+@@ -249,6 +255,22 @@ type SectionSpec struct {
+ 	Title       LocaleString
+ 	ArtworkSlot string
+ 	Source      SourceSpec
++	// FilterOptions declares a "filter-bar" Section's selectable filter
++	// affordances: each option, when selected, narrows the adjacent
++	// Section's Source by equality on one declared text Media field —
++	// the same FieldFilters mechanism, chosen at view time instead of
++	// declaration time. Valid only on filter-bar Sections; the values are
++	// plugin data, never core vocabulary.
++	FilterOptions []FilterOption
++}
++
++// FilterOption is one filter-bar affordance: a declared text Media field,
++// the required value, and the display label clients render for the chip
++// (ADR-0034 locale map; an absent label falls back to the value).
++type FilterOption struct {
++	Field string
++	Value string
++	Label LocaleString
+ }
+ 
+ // SourceSpec is the canonical declarative Source reference (ARCHITECTURE §0).
+@@ -431,6 +453,10 @@ type LoginSpec struct {
+ 
+ var slugPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
+ 
++// accentPattern constrains Bundle.Accent to a six-digit hex color — the one
++// shape every client can normalize without parsing arbitrary CSS color text.
++var accentPattern = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
++
+ // authStyleNamePattern constrains the <name>/<param> half of the
+ // parameterized auth-style forms (a header name or query parameter).
+ var authStyleNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.~-]*$`)
+@@ -498,6 +524,9 @@ func Validate(bundle Bundle) error {
+ 	if err := validateLocaleString(bundle.DisplayName); err != nil {
+ 		return fmt.Errorf("plugin %s: display name: %w", bundle.ID, err)
+ 	}
++	if bundle.Accent != "" && !accentPattern.MatchString(bundle.Accent) {
++		return fmt.Errorf("plugin %s: accent %q must be a #RRGGBB hex color", bundle.ID, bundle.Accent)
++	}
+ 	if strings.TrimSpace(bundle.MediaLabel.Resolve("")) == "" {
+ 		return fmt.Errorf("plugin %s: media label is required", bundle.ID)
+ 	}
+@@ -673,6 +702,24 @@ func Validate(bundle Bundle) error {
+ 			if filter := section.Source.EntityFilter; filter != nil && !kinds[filter.Kind] {
+ 				return fmt.Errorf("plugin %s: section %q entity filter names undeclared entity kind %q", bundle.ID, section.ID, filter.Kind)
+ 			}
++			if len(section.FilterOptions) > 0 && section.Kind != "filter-bar" {
++				return fmt.Errorf("plugin %s: section %q declares filter options on kind %q, only filter-bar sections take them", bundle.ID, section.ID, section.Kind)
++			}
++			for _, option := range section.FilterOptions {
++				fieldType, declared := mediaFields[option.Field]
++				if !declared {
++					return fmt.Errorf("plugin %s: section %q filter option names undeclared media field %q", bundle.ID, section.ID, option.Field)
++				}
++				if fieldType != "text" {
++					return fmt.Errorf("plugin %s: section %q filter option names media field %q of type %q, only text fields can be filtered", bundle.ID, section.ID, option.Field, fieldType)
++				}
++				if strings.TrimSpace(option.Value) == "" {
++					return fmt.Errorf("plugin %s: section %q filter option on field %q requires a value", bundle.ID, section.ID, option.Field)
++				}
++				if err := validateLocaleString(option.Label); err != nil {
++					return fmt.Errorf("plugin %s: section %q filter option label: %w", bundle.ID, section.ID, err)
++				}
++			}
+ 		}
+ 	}
+ 	if browseCount != 1 {

@@ -1,0 +1,202 @@
+diff --git a/script/context_atlas.py b/script/context_atlas.py
+index 3d338b63f..23a13e526 100644
+--- a/script/context_atlas.py
++++ b/script/context_atlas.py
+@@ -1,6 +1,7 @@
+ #!/usr/bin/env python3
+ from __future__ import annotations
+ 
++import hashlib
+ import json
+ import re
+ import time
+@@ -33,7 +34,7 @@ from context_atlas_index import (
+     _web_import_target,
+ )
+ from context_atlas_learning import (
+-    compile_receipt, evaluation_identity as eval_identity, learned_candidates,
++    _history, compile_receipt, evaluation_identity as eval_identity, learned_candidates,
+     selector_key, verification, verify_evaluation_identity as verify_identity,
+ )
+ from context_atlas_intent import (
+@@ -375,7 +376,8 @@ def impact(root: Path, paths: list[str], limit: int = 10,
+ def evaluate(root: Path, golden_path: Path) -> dict[str, Any]:
+     started = time.perf_counter()
+     try:
+-        payload = json.loads(Path(golden_path).read_text(encoding="utf-8"))
++        golden_bytes = Path(golden_path).read_bytes()
++        payload = json.loads(golden_bytes)
+     except (OSError, json.JSONDecodeError) as exc:
+         raise AtlasError(f"invalid retrieval golden: {exc}") from exc
+     cases = payload.get("cases")
+@@ -384,10 +386,13 @@ def evaluate(root: Path, golden_path: Path) -> dict[str, Any]:
+     if len(cases) > 200:
+         raise AtlasError("retrieval golden exceeds 200-case bound")
+     evaluation_head, evaluation_revision = eval_identity(Path(root))
++    canonical_golden = Path(root).resolve() / "testing/context-retrieval-goldens.json"
++    is_canonical_golden = Path(golden_path).resolve() == canonical_golden
++    golden_digest = hashlib.sha256(golden_bytes).hexdigest()
+ 
+     must_total = must_hit = critical_total = critical_hit = 0
+     exclude_total = exclude_violations = abstention_total = abstention_hit = 0
+-    top5_total = top5_hit = 0
++    top5_total = top5_hit = positive_cases = 0
+     relevant_weight = total_weight = packet_bytes = 0
+     budget_total = budget_hit = budget_overflows = critical_overflows = 0
+     authoritative_results = advisory_results = 0
+@@ -426,6 +431,7 @@ def evaluate(root: Path, golden_path: Path) -> dict[str, Any]:
+         critical = set(expected.get("critical", []))
+         must_exclude = set(expected.get("must_exclude", []))
+         relevant = set(expected.get("relevant", [])) | must | critical
++        positive_cases += bool(relevant)
+         must_total += len(must)
+         must_hit += len(must & actual_keys)
+         critical_total += len(critical)
+@@ -469,6 +475,8 @@ def evaluate(root: Path, golden_path: Path) -> dict[str, Any]:
+         else _read_traces(trace_atlas)
+     passed_traces = [trace for trace in traces if trace["outcome"] == "passed"]
+     replay_expected = replay_hit = replay_top5 = replay_tasks = 0
++    replay_signatures: set[tuple[tuple[str, ...], tuple[str, ...]]] = set()
++    history_snapshot = _history(trace_atlas) if passed_traces else None
+     for trace in passed_traces:
+         expected_paths = [
+             path for path in dict.fromkeys([
+@@ -478,7 +486,16 @@ def evaluate(root: Path, golden_path: Path) -> dict[str, Any]:
+         if not expected_paths:
+             continue
+         replay_tasks += 1
+-        replay, _ = learned_candidates(trace_atlas, trace["task"], 10)
++        replay_signatures.add((
++            tuple(sorted(_terms(re.sub(r"\d+", "", trace["task"].lower())))),
++            tuple(sorted(expected_paths)),
++        ))
++        held_out = [candidate for candidate in passed_traces
++                    if candidate["trace_id"] != trace["trace_id"]]
++        replay, _ = learned_candidates(
++            trace_atlas, trace["task"], 10,
++            trace_snapshot=held_out, history_snapshot=history_snapshot,
++        )
+         replay = [item for item in replay
+                   if result_allowed(item, infer_intent(trace["task"]))]
+         actual_paths = {item["id"] for item in replay}
+@@ -486,7 +503,7 @@ def evaluate(root: Path, golden_path: Path) -> dict[str, Any]:
+         replay_hit += len(set(expected_paths) & actual_paths)
+         replay_top5 += bool(set(expected_paths) & {item["id"] for item in replay[:5]})
+     elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
+-    precision = round(relevant_weight / total_weight, 6) if total_weight else 1.0
++    precision = round(relevant_weight / total_weight, 6) if total_weight else 0.0
+     budget_compliance = round(budget_hit / budget_total, 6) if budget_total else 1.0
+     abstention_accuracy = round(abstention_hit / abstention_total, 6) \
+         if abstention_total else 1.0
+@@ -495,8 +512,12 @@ def evaluate(root: Path, golden_path: Path) -> dict[str, Any]:
+     replay_top5_success = round(replay_top5 / replay_tasks, 6) \
+         if replay_tasks else 0.0
+     promotion_checks = {
++        "canonical_frozen_corpus": is_canonical_golden,
++        "positive_evaluation_cases": positive_cases > 0,
++        "positive_result_weight": total_weight > 0,
+         "minimum_passed_traces": len(passed_traces) >= PROMOTION_MIN_TRACES,
+         "minimum_replayed_traces": replay_tasks >= PROMOTION_MIN_TRACES,
++        "minimum_distinct_replays": len(replay_signatures) >= PROMOTION_MIN_TRACES,
+         "frozen_precision": precision >= PROMOTION_MIN_RATIO,
+         "frozen_top5_success": top5_task_success >= PROMOTION_MIN_RATIO,
+         "trace_replay_recall": replay_recall >= PROMOTION_MIN_RATIO,
+@@ -542,14 +563,21 @@ def evaluate(root: Path, golden_path: Path) -> dict[str, Any]:
+             "trace_state": trace_state,
+             "passed_trace_count": len(passed_traces),
+             "trace_replay_tasks": replay_tasks,
++            "distinct_trace_replay_tasks": len(replay_signatures),
+             "trace_replay_recall": replay_recall,
+             "trace_replay_top5_success": replay_top5_success,
+         },
+         "promotion": {
+             "ready": all(promotion_checks.values()),
++            "frozen_corpus": {
++                "canonical": is_canonical_golden,
++                "path": str(canonical_golden),
++                "sha256": golden_digest,
++            },
+             "thresholds": {
+                 "minimum_passed_traces": PROMOTION_MIN_TRACES,
+                 "minimum_replayed_traces": PROMOTION_MIN_TRACES,
++                "minimum_distinct_replays": PROMOTION_MIN_TRACES,
+                 "minimum_ratio": PROMOTION_MIN_RATIO,
+                 "critical_evidence_misses": 0,
+                 "abstention_accuracy": 1.0,
+diff --git a/script/context_atlas_learning.py b/script/context_atlas_learning.py
+index 23b8ead18..572a3028a 100644
+--- a/script/context_atlas_learning.py
++++ b/script/context_atlas_learning.py
+@@ -69,12 +69,18 @@ def verify_evaluation_identity(root: Path, head: str, receipt: dict[str, Any]) -
+ 
+ 
+ def learned_candidates(atlas: Atlas, task: str, maximum: int,
+-                       minimum_overlap: int = 2) -> tuple[list[dict[str, Any]], dict[str, Any]]:
++                       minimum_overlap: int = 2,
++                       trace_snapshot: list[dict[str, Any]] | None = None,
++                       history_snapshot: tuple[str, list[tuple[str, str, list[str]]]] | None = None,
++                       ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+     query_terms = _terms(task)
+     by_path: dict[str, dict[str, Any]] = {}
+     traces: list[dict[str, Any]] = []
+     trace_state = "blocked-mixed-worktree" if atlas.dirty_paths else "absent"
+-    if not atlas.dirty_paths:
++    if trace_snapshot is not None:
++        traces = trace_snapshot
++        trace_state = "provided"
++    elif not atlas.dirty_paths:
+         traces, trace_state = _read_traces(atlas)
+     matched_traces = 0
+     for trace in traces:
+@@ -99,7 +105,7 @@ def learned_candidates(atlas: Atlas, task: str, maximum: int,
+             )
+             _merge_candidate(by_path, path, score, evidence)
+ 
+-    history_tip, history = _history(atlas)
++    history_tip, history = history_snapshot or _history(atlas)
+     matched_commits = 0
+     for commit, subject, paths in history:
+         if SECRET_RE.search(subject):
+diff --git a/script/context_atlas_trace.py b/script/context_atlas_trace.py
+index 54e31a7ee..b2667307d 100644
+--- a/script/context_atlas_trace.py
++++ b/script/context_atlas_trace.py
+@@ -251,18 +251,26 @@ def _read_traces(atlas: Atlas) -> tuple[list[dict[str, Any]], str]:
+     if directory is None:
+         return [], "absent"
+     try:
+-        names = sorted(name for name in os.listdir(directory) if name.endswith(".jsonl"))
+-    except OSError as exc:
+-        raise AtlasError(f"cannot read local trace store: {exc}") from exc
+-    if len(names) > MAX_TRACE_FILES:
+-        raise AtlasError(f"local trace store exceeds {MAX_TRACE_FILES} revision files")
+-    reachable = set(str(_git(
+-        atlas.root, "log", "--format=%T", "HEAD", text=True
+-    )).splitlines())
+-    reachable.add(atlas.revision)
+-    traces: list[dict[str, Any]] = []
+-    total_bytes = 0
+-    try:
++        try:
++            names = []
++            with os.scandir(directory) as entries:
++                for entry in entries:
++                    if not entry.name.endswith(".jsonl"):
++                        continue
++                    names.append(entry.name)
++                    if len(names) > MAX_TRACE_FILES:
++                        raise AtlasError(
++                            f"local trace store exceeds {MAX_TRACE_FILES} revision files"
++                        )
++            names.sort()
++        except OSError as exc:
++            raise AtlasError(f"cannot read local trace store: {exc}") from exc
++        reachable = set(str(_git(
++            atlas.root, "log", "--format=%T", "HEAD", text=True
++        )).splitlines())
++        reachable.add(atlas.revision)
++        traces: list[dict[str, Any]] = []
++        total_bytes = 0
+         for name in names:
+             revision = name.removesuffix(".jsonl")
+             if not re.fullmatch(r"[0-9a-f]{40,64}", revision):

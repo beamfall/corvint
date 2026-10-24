@@ -1,0 +1,236 @@
+diff --git a/internal/web/app/src/App.tsx b/internal/web/app/src/App.tsx
+index c3d18676a..650da0b9f 100644
+--- a/internal/web/app/src/App.tsx
++++ b/internal/web/app/src/App.tsx
+@@ -1,5 +1,6 @@
+-import { lazy, Suspense } from "react";
+-import { Navigate, Route, Routes } from "react-router";
++import { lazy, type ReactNode, Suspense } from "react";
++import { Navigate, Route, Routes, useLocation } from "react-router";
++import { AreaErrorBoundary } from "@/components/chrome/ErrorBoundary";
+ import { Skeleton } from "@/components/ui/skeleton";
+ 
+ // ADR-0007 — one web app, three areas: Viewer (root), Manage, Console (Admin).
+@@ -36,16 +37,68 @@ function RouteFallback() {
+   );
+ }
+ 
++// Every area mounts inside its own error boundary (the root boundary lives in
++// main.tsx around the router): a failed lazy chunk — the first load after a
++// server upgrade, before the new worker has taken over — renders that area's
++// reload panel instead of unmounting the whole root. The boundary resets when
++// the route path changes, so a failed area never pins navigation.
++function Area({ children }: { children: ReactNode }) {
++  const { pathname } = useLocation();
++  return <AreaErrorBoundary resetKey={pathname}>{children}</AreaErrorBoundary>;
++}
++
+ export function App() {
+   return (
+     <Suspense fallback={<RouteFallback />}>
+       <Routes>
+-        <Route path="/setup" element={<SetupWizard />} />
+-        <Route path="/enroll" element={<EnrollPage />} />
+-        <Route path="/promote" element={<PromotePage />} />
+-        <Route path="/manage/*" element={<ManageArea />} />
+-        <Route path="/console/*" element={<ConsoleArea />} />
+-        <Route path="/*" element={<ViewerArea />} />
++        <Route
++          path="/setup"
++          element={
++            <Area>
++              <SetupWizard />
++            </Area>
++          }
++        />
++        <Route
++          path="/enroll"
++          element={
++            <Area>
++              <EnrollPage />
++            </Area>
++          }
++        />
++        <Route
++          path="/promote"
++          element={
++            <Area>
++              <PromotePage />
++            </Area>
++          }
++        />
++        <Route
++          path="/manage/*"
++          element={
++            <Area>
++              <ManageArea />
++            </Area>
++          }
++        />
++        <Route
++          path="/console/*"
++          element={
++            <Area>
++              <ConsoleArea />
++            </Area>
++          }
++        />
++        <Route
++          path="/*"
++          element={
++            <Area>
++              <ViewerArea />
++            </Area>
++          }
++        />
+         <Route path="*" element={<Navigate to="/" replace />} />
+       </Routes>
+     </Suspense>
+diff --git a/internal/web/app/src/lib/pwa.ts b/internal/web/app/src/lib/pwa.ts
+index 30fe0bfba..14eded9c7 100644
+--- a/internal/web/app/src/lib/pwa.ts
++++ b/internal/web/app/src/lib/pwa.ts
+@@ -14,12 +14,12 @@
+ // first `controllerchange` that REPLACES a live controller reloads the page
+ // exactly once. A first install (no previous controller) never reloads.
+ 
+-type ServiceWorkerHost = Pick<ServiceWorkerContainer, "controller" | "addEventListener">;
++interface ServiceWorkerHost {
++  controller: ServiceWorker | null;
++  addEventListener(type: "controllerchange", listener: () => void): void;
++}
+ 
+-export function reloadOnceOnControllerChange(
+-  host: ServiceWorkerHost,
+-  reload: () => void,
+-): void {
++export function reloadOnceOnControllerChange(host: ServiceWorkerHost, reload: () => void): void {
+   if (!host.controller) return;
+   let reloaded = false;
+   host.addEventListener("controllerchange", () => {
+diff --git a/internal/web/app/src/main.tsx b/internal/web/app/src/main.tsx
+index 4f2bcc8e5..635c516b3 100644
+--- a/internal/web/app/src/main.tsx
++++ b/internal/web/app/src/main.tsx
+@@ -2,6 +2,7 @@ import { StrictMode } from "react";
+ import { createRoot } from "react-dom/client";
+ import { BrowserRouter } from "react-router";
+ import "./styles/global.css";
++import { ShellErrorBoundary } from "@/components/chrome/ErrorBoundary";
+ import { I18nProvider } from "@/lib/i18n";
+ import { registerServiceWorker } from "@/lib/pwa";
+ import { RegisterProvider } from "@/lib/register";
+@@ -15,17 +16,23 @@ if (!container) throw new Error("missing #root");
+ // tracks it so client routing works under whichever mount point it is built for.
+ const basename = import.meta.env.BASE_URL.replace(/\/$/, "");
+ 
++// I18nProvider sits outside the root error boundary so the boundary's own
++// panel is localized; the boundary wraps the router and every provider under
++// it, so a fault anywhere in the tree leaves a Reload control, never a blank
++// root. Per-area boundaries live in App.tsx.
+ createRoot(container).render(
+   <StrictMode>
+-    <BrowserRouter basename={basename}>
+-      <I18nProvider>
+-        <RegisterProvider>
+-          <SessionProvider>
+-            <App />
+-          </SessionProvider>
+-        </RegisterProvider>
+-      </I18nProvider>
+-    </BrowserRouter>
++    <I18nProvider>
++      <ShellErrorBoundary>
++        <BrowserRouter basename={basename}>
++          <RegisterProvider>
++            <SessionProvider>
++              <App />
++            </SessionProvider>
++          </RegisterProvider>
++        </BrowserRouter>
++      </ShellErrorBoundary>
++    </I18nProvider>
+   </StrictMode>,
+ );
+ 
+diff --git a/internal/web/app/src/strings/shared-states.ts b/internal/web/app/src/strings/shared-states.ts
+index 453cebbda..2f0e9aeb9 100644
+--- a/internal/web/app/src/strings/shared-states.ts
++++ b/internal/web/app/src/strings/shared-states.ts
+@@ -1,5 +1,13 @@
+ export const sharedStateStrings = {
+   en: {
++    shellErrorTitle: "Something went wrong.",
++    shellErrorLead: "This part of Beamfall could not be loaded. Reloading usually fixes it.",
++    reloadPage: "Reload",
++    enrollConnected: "Connected. Loading Beamfall…",
++    enrollHandshakeIncomplete:
++      "Connected, but the server handshake did not complete. Beamfall will retry it after reloading.",
++    adminUnlockHandshakeIncomplete:
++      "Unlocked, but the server handshake did not complete. Reload the page if Console requests fail.",
+     remove: "Remove",
+     couldNotRemoveSubscription: "Could not remove the subscription.",
+     pickLibraryFeedRoot: "Pick a library and enter a feed URL.",
+@@ -44,6 +52,15 @@ export const sharedStateStrings = {
+     connectionLost: "Connection lost. Showing the last rendered view until the server responds.",
+   },
+   fr: {
++    shellErrorTitle: "Un problème est survenu.",
++    shellErrorLead:
++      "Cette partie de Beamfall n’a pas pu être chargée. Recharger la page règle généralement le problème.",
++    reloadPage: "Recharger",
++    enrollConnected: "Connecté. Chargement de Beamfall…",
++    enrollHandshakeIncomplete:
++      "Connecté, mais la négociation avec le serveur n’a pas abouti. Beamfall réessaiera après le rechargement.",
++    adminUnlockHandshakeIncomplete:
++      "Déverrouillé, mais la négociation avec le serveur n’a pas abouti. Rechargez la page si les requêtes de la console échouent.",
+     remove: "Supprimer",
+     couldNotRemoveSubscription: "Impossible de supprimer l’abonnement.",
+     pickLibraryFeedRoot: "Choisissez une bibliothèque et entrez une URL de flux.",
+@@ -83,6 +100,15 @@ export const sharedStateStrings = {
+       "Connexion perdue. Affichage de la dernière vue rendue jusqu’à ce que le serveur réponde.",
+   },
+   de: {
++    shellErrorTitle: "Etwas ist schiefgelaufen.",
++    shellErrorLead:
++      "Dieser Teil von Beamfall konnte nicht geladen werden. Ein Neuladen behebt das meist.",
++    reloadPage: "Neu laden",
++    enrollConnected: "Verbunden. Beamfall wird geladen…",
++    enrollHandshakeIncomplete:
++      "Verbunden, aber der Server-Handshake wurde nicht abgeschlossen. Beamfall versucht es nach dem Neuladen erneut.",
++    adminUnlockHandshakeIncomplete:
++      "Entsperrt, aber der Server-Handshake wurde nicht abgeschlossen. Lade die Seite neu, falls Konsolenanfragen fehlschlagen.",
+     remove: "Entfernen",
+     couldNotRemoveSubscription: "Das Abonnement konnte nicht entfernt werden.",
+     pickLibraryFeedRoot: "Wähle eine Bibliothek aus und gib eine Feed-URL ein.",
+@@ -122,6 +148,14 @@ export const sharedStateStrings = {
+       "Verbindung verloren. Die zuletzt gerenderte Ansicht wird angezeigt, bis der Server antwortet.",
+   },
+   es: {
++    shellErrorTitle: "Algo salió mal.",
++    shellErrorLead: "Esta parte de Beamfall no se pudo cargar. Recargar suele solucionarlo.",
++    reloadPage: "Recargar",
++    enrollConnected: "Conectado. Cargando Beamfall…",
++    enrollHandshakeIncomplete:
++      "Conectado, pero la negociación con el servidor no se completó. Beamfall lo reintentará al recargar.",
++    adminUnlockHandshakeIncomplete:
++      "Desbloqueado, pero la negociación con el servidor no se completó. Recarga la página si fallan las solicitudes de la consola.",
+     remove: "Eliminar",
+     couldNotRemoveSubscription: "No se pudo eliminar la suscripción.",
+     pickLibraryFeedRoot: "Elige una biblioteca e introduce una URL de feed.",
+@@ -161,6 +195,15 @@ export const sharedStateStrings = {
+       "Se perdió la conexión. Se muestra la última vista renderizada hasta que el servidor responda.",
+   },
+   pt: {
++    shellErrorTitle: "Algo deu errado.",
++    shellErrorLead:
++      "Esta parte do Beamfall não pôde ser carregada. Recarregar normalmente resolve.",
++    reloadPage: "Recarregar",
++    enrollConnected: "Conectado. Carregando o Beamfall…",
++    enrollHandshakeIncomplete:
++      "Conectado, mas a negociação com o servidor não foi concluída. O Beamfall tentará novamente após recarregar.",
++    adminUnlockHandshakeIncomplete:
++      "Desbloqueado, mas a negociação com o servidor não foi concluída. Recarregue a página se as solicitações do console falharem.",
+     remove: "Remover",
+     couldNotRemoveSubscription: "Não foi possível remover a assinatura.",
+     pickLibraryFeedRoot: "Escolha uma biblioteca e insira uma URL de feed.",

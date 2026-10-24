@@ -65,9 +65,9 @@ A `heldout` run needs `--registration FILE` (CRT-V0-014): a JSON object with exa
 `cat tools/cem-trial/{gold,main,register,score,select}.go | shasum -a 256`; `model` and `effort` are
 the strings the report records (`NOT_OBSERVED` for the script agent and an unset effort). The file
 must be committed, byte for byte, at `HEAD` of its repository before selection. `run` refuses a
-registration the run does not match before any lane starts, and refuses a registered run of the
-`treatment` or `seeded` arm, which carry an all-unknown cem/1.0 worklist rather than the
-shipped profile's artifact (CRT-V0-015). Each lane records `started_at`; the report is `invalid`
+registration the run does not match before any lane starts. Since 2026-10-24 the owner counts the
+all-unknown cem/1.0 map of the `treatment` and `seeded` arms as the shipped profile's artifact, so a
+registered run may name them (CRT-V0-015). Each lane records `started_at`; the report is `invalid`
 when the registration commit is newer than the first lane or a lane that did not error recorded
 no start, and `score --report` re-checks that order, the registration's fields and the running
 scorer's digest.

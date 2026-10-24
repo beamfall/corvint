@@ -1,0 +1,176 @@
+diff --git a/internal/app/app.go b/internal/app/app.go
+index 4efa41c09..1ab506077 100644
+--- a/internal/app/app.go
++++ b/internal/app/app.go
+@@ -145,6 +145,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger, bundles []
+ 	identifyService := identify.NewService(scrapeEngine, plugins, st)
+ 	identifyService.SetArtwork(scrapeEngine, artworkService)
+ 	identifyService.SetFields(st)
++	identifyService.SetEntities(st)
+ 	graphHandler := graph.NewHandler(manifests, authService, st, plugins)
+ 	graphHandler.SetIdentify(identifyService)
+ 	graphHandler.SetArtwork(artworkService)
+diff --git a/internal/identify/identify.go b/internal/identify/identify.go
+index d3cbe4fe0..e2063c4e8 100644
+--- a/internal/identify/identify.go
++++ b/internal/identify/identify.go
+@@ -10,6 +10,8 @@ package identify
+ 
+ import (
+ 	"context"
++	"crypto/sha256"
++	"encoding/hex"
+ 	"errors"
+ 	"fmt"
+ 	"log/slog"
+@@ -56,6 +58,15 @@ type FieldStore interface {
+ 	UpsertMediaFields(ctx context.Context, id store.MediaID, fields []store.MediaField) error
+ }
+ 
++// EntityStore is the entity hydration write seam; *store.Store satisfies it.
++// MediaLibrary scopes hydrated Entities to the identified Media's Library
++// (Entities are Library-scoped so reveal filtering applies).
++type EntityStore interface {
++	MediaLibrary(ctx context.Context, id store.MediaID) (store.LibraryID, error)
++	UpsertEntity(ctx context.Context, entity store.Entity) error
++	UpsertEntityRelation(ctx context.Context, relation store.EntityRelation) error
++}
++
+ // Candidate is one identification candidate from a scraper search.
+ type Candidate struct {
+ 	// ID is the handle Apply feeds back into the scraper's lookup
+@@ -73,12 +84,13 @@ type Candidate struct {
+ // Service runs the manual identification flow: Search → a human picks →
+ // Apply.
+ type Service struct {
+-	engine  Engine
+-	bundles Bundles
+-	store   MetadataStore
+-	fetcher Fetcher
+-	artwork ArtworkStore
+-	fields  FieldStore
++	engine   Engine
++	bundles  Bundles
++	store    MetadataStore
++	fetcher  Fetcher
++	artwork  ArtworkStore
++	fields   FieldStore
++	entities EntityStore
+ }
+ 
+ // NewService wires the identification service.
+@@ -102,6 +114,15 @@ func (s *Service) SetFields(fields FieldStore) {
+ 	s.fields = fields
+ }
+ 
++// SetEntities wires entity hydration: when the chosen scraper's EntityMaps
++// resolved entities from the lookup document, Apply upserts each as an Entity
++// in the Media's Library and links the declared Media relation. Nil (the
++// default) makes Apply error on such results rather than silently drop
++// declared hydrations.
++func (s *Service) SetEntities(entities EntityStore) {
++	s.entities = entities
++}
++
+ // Search resolves the plugin's scraper spec and returns the engine's
+ // candidates mapped onto the core metadata fields.
+ func (s *Service) Search(ctx context.Context, pluginID, scraperID, query string) ([]Candidate, error) {
+@@ -152,6 +173,9 @@ func (s *Service) Apply(ctx context.Context, mediaID store.MediaID, pluginID, sc
+ 	if err := s.applyImpliedFields(ctx, mediaID, spec); err != nil {
+ 		return err
+ 	}
++	if err := s.applyEntities(ctx, mediaID, spec, result); err != nil {
++		return err
++	}
+ 	s.applyPoster(ctx, mediaID, result)
+ 	return nil
+ }
+@@ -181,6 +205,56 @@ func (s *Service) applyImpliedFields(ctx context.Context, mediaID store.MediaID,
+ 	return s.fields.UpsertMediaFields(ctx, mediaID, fields)
+ }
+ 
++// applyEntities upserts the lookup document's hydrated Entities into the
++// Media's Library and links each to the Media through its declared relation
++// (ADR-0003 §3's field → Entity Kind relation mapping). Like applyImpliedFields
++// this is a local store write, so failures propagate: a half-hydrated
++// identification stays visible and re-running Apply heals it — every write is
++// idempotent because the Entity ID is derived from (library, kind, name) and
++// relation rows upsert on their (from, name, to) key.
++func (s *Service) applyEntities(ctx context.Context, mediaID store.MediaID, spec plugin.ScraperSpec, result scrape.Result) error {
++	if len(result.Entities) == 0 {
++		return nil
++	}
++	if s.entities == nil {
++		return fmt.Errorf("identify: scraper %q hydrates entities but no entity store is wired", spec.ID)
++	}
++	library, err := s.entities.MediaLibrary(ctx, mediaID)
++	if err != nil {
++		return err
++	}
++	for _, hydrated := range result.Entities {
++		id := entityIDForName(library, hydrated.Kind, hydrated.Name)
++		if err := s.entities.UpsertEntity(ctx, store.Entity{
++			ID:        id,
++			LibraryID: library,
++			Kind:      hydrated.Kind,
++			Title:     hydrated.Name,
++		}); err != nil {
++			return err
++		}
++		if err := s.entities.UpsertEntityRelation(ctx, store.EntityRelation{
++			FromEntityID: id,
++			Name:         hydrated.Relation,
++			ToMediaID:    mediaID,
++		}); err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
++// entityIDForName derives the durable Entity ID for one hydrated Entity:
++// the same (Library, kind, name) always maps to the same Entity, which is
++// what makes hydration idempotent across scrapers and re-applies (the same
++// keying posture as mediaIDForFingerprint). The truncated 128-bit form is
++// identity-bearing and persisted: do not widen or change it, or re-applies
++// would silently fork existing Entities.
++func entityIDForName(library store.LibraryID, kind, name string) store.EntityID {
++	sum := sha256.Sum256([]byte(string(library) + "\x00" + kind + "\x00" + name))
++	return store.EntityID("entity-" + hex.EncodeToString(sum[:16]))
++}
++
+ // applyPoster downloads and stores the looked-up poster. Best-effort: the
+ // metadata write already succeeded, so artwork failures only log — a missing
+ // poster regenerates from frames on the next sweep anyway.
+diff --git a/internal/store/store.go b/internal/store/store.go
+index f3ec125f8..52aa4c6aa 100644
+--- a/internal/store/store.go
++++ b/internal/store/store.go
+@@ -645,6 +645,27 @@ func (s *Store) Media(ctx context.Context, id MediaID, filter LibraryFilter) (Me
+ 	return s.visibleMediaSQL(ctx, id, filter)
+ }
+ 
++// MediaLibrary returns the Library a Media row belongs to, unfiltered.
++// Server-internal callers only (identification's entity hydration scopes
++// hydrated Entities to the identified Media's Library); reveal-filtered
++// reads go through Media/SourceItems.
++func (s *Store) MediaLibrary(ctx context.Context, id MediaID) (LibraryID, error) {
++	if id == "" {
++		return "", errors.New("media ID is required")
++	}
++	s.mu.RLock()
++	defer s.mu.RUnlock()
++	if err := s.guardLocked(); err != nil {
++		return "", err
++	}
++	var library LibraryID
++	err := s.catalogR.QueryRowContext(ctx, `SELECT library_id FROM media WHERE id = ?`, id).Scan(&library)
++	if errors.Is(err, sql.ErrNoRows) {
++		return "", errors.New("media not found")
++	}
++	return library, err
++}
++
+ // AllMediaIDs returns every Media ID, unfiltered. Server-internal callers only
+ // (background generation); reveal-filtered reads go through Media/SourceItems.
+ func (s *Store) AllMediaIDs(ctx context.Context) ([]MediaID, error) {

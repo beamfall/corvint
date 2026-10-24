@@ -1,0 +1,185 @@
+diff --git a/internal/graph/graph_consoleconfig.go b/internal/graph/graph_consoleconfig.go
+index 59b8fd0fc..a19118876 100644
+--- a/internal/graph/graph_consoleconfig.go
++++ b/internal/graph/graph_consoleconfig.go
+@@ -46,6 +46,13 @@ type ConsoleConfigInfo struct {
+ 	Plugins []PluginActivationInfo `json:"plugins"`
+ }
+ 
++// UninstallPluginDataResult returns the refreshed console config plus the
++// irreversible purge count from the confirmed Uninstall.
++type UninstallPluginDataResult struct {
++	ConsoleConfigInfo
++	Purged int `json:"purged"`
++}
++
+ // PluginActivationInfo pairs an available plugin with its activation state. The
+ // id and display name come from the registry (what is AVAILABLE); active comes
+ // from the Console override in the database (default true when no override).
+@@ -529,23 +536,23 @@ func (h *Handler) setPluginActive(ctx context.Context, scope auth.Scope, req req
+ // requires `confirm: true` (invariant #6: destructive ops are confirmed). The
+ // plugin must be present in the loaded registry so its declared Entity Kinds are
+ // resolvable; it may already be deactivated. Admin-Session-gated in execute.
+-func (h *Handler) uninstallPluginData(ctx context.Context, scope auth.Scope, req request) (ConsoleConfigInfo, error) {
++func (h *Handler) uninstallPluginData(ctx context.Context, scope auth.Scope, req request) (UninstallPluginDataResult, error) {
+ 	pluginID := trimmedVariable(req, "pluginID")
+ 	if pluginID == "" {
+-		return ConsoleConfigInfo{}, clientError("pluginID is required")
++		return UninstallPluginDataResult{}, clientError("pluginID is required")
+ 	}
+ 	if !boolVar(req, "confirm") {
+-		return ConsoleConfigInfo{}, clientError("uninstall is destructive and must be confirmed (confirm: true)")
++		return UninstallPluginDataResult{}, clientError("uninstall is destructive and must be confirmed (confirm: true)")
+ 	}
+ 	if h.plugins == nil {
+-		return ConsoleConfigInfo{}, clientError("unknown plugin")
++		return UninstallPluginDataResult{}, clientError("unknown plugin")
+ 	}
+ 	bundle, found := h.plugins.Bundle(plugin.ID(pluginID))
+ 	if !found {
+-		return ConsoleConfigInfo{}, clientError("unknown plugin")
++		return UninstallPluginDataResult{}, clientError("unknown plugin")
+ 	}
+ 	if h.pluginSuppressed(plugin.ID(pluginID)) {
+-		return ConsoleConfigInfo{}, clientError("unknown plugin")
++		return UninstallPluginDataResult{}, clientError("unknown plugin")
+ 	}
+ 	kinds := make([]string, 0, len(bundle.EntityKinds))
+ 	for _, k := range bundle.EntityKinds {
+@@ -555,24 +562,34 @@ func (h *Handler) uninstallPluginData(ctx context.Context, scope auth.Scope, req
+ 	// Plugin, ADR-0003 §6, so PurgePluginData's (library, kind) scope is exact).
+ 	libraries, err := h.store.Libraries(ctx, store.LibraryFilter{AllLibraries: true, Revealed: true})
+ 	if err != nil {
+-		return ConsoleConfigInfo{}, err
++		return UninstallPluginDataResult{}, err
+ 	}
++	var bound []store.LibraryID
+ 	for _, lib := range libraries {
+ 		if lib.PluginID == nil || *lib.PluginID != pluginID {
+ 			continue
+ 		}
+-		if _, err := h.store.PurgePluginData(ctx, lib.ID, kinds); err != nil {
+-			return ConsoleConfigInfo{}, err
+-		}
++		bound = append(bound, lib.ID)
++	}
++	purged, err := h.store.PurgePluginData(ctx, bound, kinds)
++	if err != nil {
++		return UninstallPluginDataResult{}, err
+ 	}
+ 	// Deactivate so the purged plugin does not reload + recreate its Entities.
+ 	if err := h.store.SetPluginActivation(ctx, pluginID, false, time.Now().UTC()); err != nil {
+-		return ConsoleConfigInfo{}, err
++		return UninstallPluginDataResult{}, err
+ 	}
+ 	if err := h.logActivity(ctx, scope, store.ActivityPluginActivation, "plugin", pluginID, ""); err != nil {
+-		return ConsoleConfigInfo{}, err
++		return UninstallPluginDataResult{}, err
+ 	}
+-	return h.consoleConfig(ctx, scope, req)
++	if err := h.logActivity(ctx, scope, store.ActivityPluginUninstall, strconv.FormatInt(purged, 10), pluginID, ""); err != nil {
++		return UninstallPluginDataResult{}, err
++	}
++	cfg, err := h.consoleConfig(ctx, scope, req)
++	if err != nil {
++		return UninstallPluginDataResult{}, err
++	}
++	return UninstallPluginDataResult{ConsoleConfigInfo: cfg, Purged: int(purged)}, nil
+ }
+ 
+ func (h *Handler) setPluginConfig(ctx context.Context, scope auth.Scope, req request) (ConsoleConfigInfo, error) {
+diff --git a/internal/store/activity.go b/internal/store/activity.go
+index a87d70a3e..57262cf7a 100644
+--- a/internal/store/activity.go
++++ b/internal/store/activity.go
+@@ -59,6 +59,9 @@ const (
+ 	// (ADR-0013 §5, ADR-0007 §4). The plugin id is operator-facing config, not
+ 	// content, so it rides TargetID with no LibraryID.
+ 	ActivityPluginActivation = "plugin.activation"
++	// ActivityPluginUninstall audits the explicit irreversible plugin data purge.
++	// TargetID is the plugin id; TargetType carries the purged Entity count.
++	ActivityPluginUninstall = "plugin.uninstall"
+ 	// ActivityCapabilityToggle audits a Console/Manager Workflow-capability
+ 	// enable/disable (ADR-0124 §5). The capability id rides TargetID with
+ 	// TargetType "capability" and no LibraryID; the flip is an attributed
+diff --git a/internal/store/plugin_purge.go b/internal/store/plugin_purge.go
+index 3e479d1e8..920b31671 100644
+--- a/internal/store/plugin_purge.go
++++ b/internal/store/plugin_purge.go
+@@ -5,14 +5,15 @@ import (
+ 	"strings"
+ )
+ 
+-// PurgePluginData hard-deletes a Library's Entities of the given Kinds plus all
++// PurgePluginData hard-deletes Libraries' Entities of the given Kinds plus all
+ // their dependent rows (PANEL-8 / ADR-0104 Uninstall). It is the ONLY purge path
+ // for plugin Entity data: deactivation leaves data inert and fully reversible
+ // (ADR-0104 §1), and only an explicit, operator-confirmed Uninstall reaches here.
+ //
+-// Scope is (library_id, kind). A Library binds exactly one Plugin (ADR-0003 §6),
+-// so purging by Library + Kind unambiguously removes only the uninstalled plugin's
+-// data and can never touch another plugin's same-named Kind in a different Library.
++// Scope is (library_id IN libraries, kind IN kinds). A Library binds exactly one
++// Plugin (ADR-0003 §6), so purging by Library + Kind unambiguously removes only
++// the uninstalled plugin's data and can never touch another plugin's same-named
++// Kind in a different Library.
+ //
+ // One DELETE does the whole job: entity_field_{int,real,text,date} and
+ // entity_relation (BOTH endpoints — from_entity_id and to_entity_id are each
+@@ -27,32 +28,43 @@ import (
+ // could corrupt another plugin's query surface. An index over zero rows is cheap;
+ // reclaiming a genuinely-unused index is a separate, collision-checked follow-up.
+ //
+-// Returns the number of Entity rows purged. An empty kinds slice is a no-op.
+-func (s *Store) PurgePluginData(ctx context.Context, libraryID LibraryID, kinds []string) (int64, error) {
+-	if libraryID == "" {
+-		return 0, ValidationError("library id is required")
+-	}
+-	if len(kinds) == 0 {
++// Returns the number of Entity rows purged. Empty libraries or kinds are no-ops.
++func (s *Store) PurgePluginData(ctx context.Context, libraries []LibraryID, kinds []string) (int64, error) {
++	if len(libraries) == 0 || len(kinds) == 0 {
+ 		return 0, nil
+ 	}
++	for _, libraryID := range libraries {
++		if libraryID == "" {
++			return 0, ValidationError("library id is required")
++		}
++	}
+ 	s.mu.RLock()
+ 	defer s.mu.RUnlock()
+ 	if err := s.guardLocked(); err != nil {
+ 		return 0, err
+ 	}
+-	placeholders := make([]string, len(kinds))
+-	args := make([]any, 0, len(kinds)+1)
+-	args = append(args, string(libraryID))
++	libraryPlaceholders := make([]string, len(libraries))
++	kindPlaceholders := make([]string, len(kinds))
++	args := make([]any, 0, len(libraries)+len(kinds))
++	for i, libraryID := range libraries {
++		libraryPlaceholders[i] = "?"
++		args = append(args, string(libraryID))
++	}
+ 	for i, k := range kinds {
+-		placeholders[i] = "?"
++		kindPlaceholders[i] = "?"
+ 		args = append(args, k)
+ 	}
+-	res, err := s.catalogW.ExecContext(ctx,
+-		"DELETE FROM entity WHERE library_id = ? AND kind IN ("+strings.Join(placeholders, ",")+")",
++	tx, err := s.catalogW.BeginTx(ctx, nil)
++	if err != nil {
++		return 0, err
++	}
++	defer tx.Rollback()
++	res, err := tx.ExecContext(ctx,
++		"DELETE FROM entity WHERE library_id IN ("+strings.Join(libraryPlaceholders, ",")+") AND kind IN ("+strings.Join(kindPlaceholders, ",")+")",
+ 		args...)
+ 	if err != nil {
+ 		return 0, err
+ 	}
+ 	purged, _ := res.RowsAffected()
+-	return purged, nil
++	return purged, tx.Commit()
+ }

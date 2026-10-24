@@ -92,9 +92,12 @@ type report struct {
 	Changes        []changeMeta              `json:"changes"`
 	Lanes          []*lane                   `json:"lanes"`
 	Registration   *registrationRecord       `json:"registration,omitempty"`
-	Summary        map[string]any            `json:"summary,omitempty"`
-	Invalid        string                    `json:"invalid,omitempty"`
-	Partial        bool                      `json:"partial,omitempty"`
+	// ReRegistered is the earlier registration of the report a re-declared
+	// run reuses lanes from (CRT-V0-016).
+	ReRegistered *reRegistration `json:"re_registered,omitempty"`
+	Summary      map[string]any  `json:"summary,omitempty"`
+	Invalid      string          `json:"invalid,omitempty"`
+	Partial      bool            `json:"partial,omitempty"`
 }
 
 // finalize rebuilds every derived field from the raw ones, so a run and a

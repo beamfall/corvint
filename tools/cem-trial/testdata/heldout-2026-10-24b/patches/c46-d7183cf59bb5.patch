@@ -1,0 +1,206 @@
+diff --git a/internal/web/app/src/areas/console/sections/Plugins.tsx b/internal/web/app/src/areas/console/sections/Plugins.tsx
+index 4fb4ee61a..a75814dbf 100644
+--- a/internal/web/app/src/areas/console/sections/Plugins.tsx
++++ b/internal/web/app/src/areas/console/sections/Plugins.tsx
+@@ -158,7 +158,7 @@ export function Plugins() {
+   const t = useT();
+   const displayLocale = useDisplayLocale();
+   const previousPlugins = useRef<PluginWithStanding[]>([]);
+-  const { data, loading, failed, setData, refresh } = useAsync((signal) =>
++  const { data, loading, failed, refresh, replace } = useAsync((signal) =>
+     fetchConsoleConfigWithStanding(signal, previousPlugins.current),
+   );
+   const [credentialInputs, setCredentialInputs] = useState<Record<string, string>>({});
+@@ -191,19 +191,22 @@ export function Plugins() {
+     return [...grouped.entries()];
+   }, [scrapers]);
+ 
++  async function publishMutation(
++    mutation: () => Promise<Awaited<ReturnType<typeof fetchConsoleConfig>>>,
++  ) {
++    await replace(async (signal) => addPluginStanding(await mutation(), plugins, signal));
++  }
++
+   async function toggle(pluginID: string, active: boolean) {
+-    const next = await setPluginActive(pluginID, active);
+-    setData(await addPluginStanding(next, plugins));
++    await publishMutation(() => setPluginActive(pluginID, active));
+   }
+ 
+   async function saveConfig(pluginID: string, values: Record<string, string>, clear: string[]) {
+-    const next = await setPluginConfig(pluginID, values, clear);
+-    setData(await addPluginStanding(next, plugins));
++    await publishMutation(() => setPluginConfig(pluginID, values, clear));
+   }
+ 
+   async function uninstall(pluginID: string) {
+-    const next = await uninstallPluginData(pluginID);
+-    setData(await addPluginStanding(next, plugins));
++    await publishMutation(() => uninstallPluginData(pluginID));
+   }
+ 
+   async function saveCredential(authRef: string) {
+diff --git a/internal/web/app/src/areas/console/useAsync.ts b/internal/web/app/src/areas/console/useAsync.ts
+index 212322b61..5bc95d1be 100644
+--- a/internal/web/app/src/areas/console/useAsync.ts
++++ b/internal/web/app/src/areas/console/useAsync.ts
+@@ -17,6 +17,8 @@ export interface AsyncState<T> {
+   /** True once a fetch has rejected since the last successful load. */
+   failed: boolean;
+   refresh: () => Promise<void>;
++  /** Replace data through the same abort and generation fence as a fetch. */
++  replace: (producer: (signal: AbortSignal) => Promise<T>) => Promise<void>;
+   setData: (next: T) => void;
+ }
+ 
+@@ -47,7 +49,7 @@ export function useAsync<T>(
+   const epoch = useRef(0);
+   const request = useRef<AbortController | null>(null);
+ 
+-  const refresh = useCallback(async () => {
++  const beginRequest = useCallback(() => {
+     request.current?.abort();
+     const controller = new AbortController();
+     request.current = controller;
+@@ -60,6 +62,11 @@ export function useAsync<T>(
+     // abort the transport, not merely drop the response.
+     const signal = withAdminEpoch(controller.signal);
+     const current = () => epoch.current === started && !signal.aborted;
++    return { current, signal };
++  }, []);
++
++  const refresh = useCallback(async () => {
++    const { current, signal } = beginRequest();
+     setLoading(true);
+     setFailed(false);
+     try {
+@@ -76,7 +83,16 @@ export function useAsync<T>(
+     } finally {
+       if (current()) setLoading(false);
+     }
+-  }, []);
++  }, [beginRequest]);
++
++  const replace = useCallback(
++    async (producer: (signal: AbortSignal) => Promise<T>) => {
++      const { current, signal } = beginRequest();
++      const next = await producer(signal);
++      if (current()) setData(next);
++    },
++    [beginRequest],
++  );
+ 
+   useLayoutEffect(() => {
+     // A dependency change selects a different scoped resource (and may be an
+@@ -96,5 +112,5 @@ export function useAsync<T>(
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, deps);
+ 
+-  return { data, loading, failed, refresh, setData };
++  return { data, loading, failed, refresh, replace, setData };
+ }
+diff --git a/internal/web/app/src/lib/compat.ts b/internal/web/app/src/lib/compat.ts
+index c30d169fa..7e46eeb19 100644
+--- a/internal/web/app/src/lib/compat.ts
++++ b/internal/web/app/src/lib/compat.ts
+@@ -63,8 +63,8 @@ const terminalDecisions = new Set<CompatDecision>([
+ 
+ let terminalResult: CompatHandshakeResponse | undefined;
+ const terminalListeners = new Set<(result: CompatHandshakeResponse) => void>();
+-let subjectEpoch = 0;
+-let latchedEpoch: number | undefined;
++let identityEpoch = 0;
++let latchedIdentityEpoch: number | undefined;
+ let latchedRequest: Promise<CompatHandshakeResponse> | undefined;
+ 
+ installAPIRequestGuard((path) => {
+@@ -73,44 +73,53 @@ installAPIRequestGuard((path) => {
+ });
+ 
+ /**
+- * Negotiate the embedded UI contract once per authenticated-subject epoch.
++ * Negotiate the embedded UI contract once per live identity epoch.
+  * Bootstrap and transport failures remain retryable; terminal incompatibility
+  * remains blocked even if later session activity advances the epoch.
+  */
+ export function performHandshake(): Promise<CompatHandshakeResponse> {
+   if (terminalResult) return Promise.resolve(terminalResult);
+-  if (latchedEpoch === subjectEpoch && latchedRequest) return latchedRequest;
++  if (latchedIdentityEpoch === identityEpoch && latchedRequest) return latchedRequest;
+ 
+-  const requestEpoch = subjectEpoch;
++  const requestEpoch = identityEpoch;
+   const request = postJSON<CompatHandshakeResponse>("/api/compat/handshake", CLIENT_CONTRACT)
+     .then((result) => {
+-      if (requestEpoch !== subjectEpoch) return performHandshake();
++      if (requestEpoch !== identityEpoch) {
++        return latchedIdentityEpoch === identityEpoch && latchedRequest ? latchedRequest : result;
++      }
+       if (terminalDecisions.has(result.decision) && !terminalResult) {
+         terminalResult = result;
+         for (const listener of terminalListeners) listener(result);
+       }
+       if (result.decision === "bootstrap" && latchedRequest === request) {
+-        latchedEpoch = undefined;
++        latchedIdentityEpoch = undefined;
+         latchedRequest = undefined;
+       }
+       return result;
+     })
+     .catch((error: unknown) => {
+       if (latchedRequest === request) {
+-        latchedEpoch = undefined;
++        latchedIdentityEpoch = undefined;
+         latchedRequest = undefined;
+       }
+       throw error;
+     });
+ 
+-  latchedEpoch = subjectEpoch;
++  latchedIdentityEpoch = identityEpoch;
+   latchedRequest = request;
+   return request;
+ }
+ 
++/** End the current identity epoch without starting work for its replacement. */
++export function advanceCompatibilityEpoch(): void {
++  identityEpoch++;
++  latchedIdentityEpoch = undefined;
++  latchedRequest = undefined;
++}
++
+ /** Re-negotiate after a server-side auth fingerprint change. */
+ export async function rebindCompatibility(): Promise<CompatHandshakeResponse> {
+-  subjectEpoch++;
++  advanceCompatibilityEpoch();
+   const result = await performHandshake();
+   if (isBlocked()) throw new Error(result.messageClass);
+   return result;
+diff --git a/internal/web/app/src/lib/session.tsx b/internal/web/app/src/lib/session.tsx
+index a5bb6c64b..5c3b97e26 100644
+--- a/internal/web/app/src/lib/session.tsx
++++ b/internal/web/app/src/lib/session.tsx
+@@ -11,6 +11,7 @@ import {
+ import { ApiError, setIdentityEpochReset, setIdentityEpochSignal } from "@/lib/api";
+ import { takeBeamfallHostInitialMessages } from "@/lib/beamfallHost";
+ import {
++  advanceCompatibilityEpoch,
+   isBlocked,
+   isCompatibilityRefusal,
+   performHandshake,
+@@ -80,6 +81,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
+ 
+   const beginEpoch = useCallback(() => {
+     controllerRef.current?.abort();
++    advanceCompatibilityEpoch();
+     const controller = new AbortController();
+     controllerRef.current = controller;
+     setIdentityEpochSignal(controller.signal);
+@@ -195,6 +197,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
+     void load();
+     return () => {
+       controllerRef.current?.abort();
++      advanceCompatibilityEpoch();
+       setIdentityEpochSignal();
+       setIdentityEpochReset();
+     };
