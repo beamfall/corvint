@@ -14,6 +14,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -1469,7 +1470,7 @@ func TestProcessNeverExecutesCallerSource(t *testing.T) {
 	t.Setenv("HOME", marker)
 	t.Setenv("CORVINT_AMBIENT_MARKER", marker)
 	r := mustRequest(t, fixture(t))
-	r.Inputs[3] = input("d-source", "go.source", "cmd/main.go", "package main\nimport (\n\t\"net\"\n\t\"os\"\n\t\"os/exec\"\n)\nfunc init() { _, _ = net.Dial(\"tcp\", \""+address+"\"); _ = exec.Command(\"touch\", \""+marker+"\").Run(); _ = os.WriteFile(os.Getenv(\"CORVINT_AMBIENT_MARKER\"), nil, 0600) }\n")
+	r.Inputs[3] = input("d-source", "go.source", "cmd/main.go", "package main\nimport (\n\t\"net\"\n\t\"os\"\n\t\"os/exec\"\n)\nfunc init() { _, _ = net.Dial(\"tcp\", \""+address+"\"); _ = exec.Command(\"touch\", "+strconv.Quote(marker)+").Run(); _ = os.WriteFile(os.Getenv(\"CORVINT_AMBIENT_MARKER\"), nil, 0600) }\n")
 	raw, _ := json.Marshal(r)
 	if out, err := Process(append(raw, '\n')); err != nil || !strings.Contains(string(out), `"status":"CANDIDATE"`) {
 		t.Fatalf("source parse: %v %s", err, out)

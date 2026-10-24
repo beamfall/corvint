@@ -299,7 +299,7 @@ func privateMergeRepository(g git) ([]string, func(), error) {
 		return nil, nil, errors.New(CodeGitUnavailable)
 	}
 	store, shallow, format := lines[0], lines[1], lines[2]
-	if store == "" || !filepath.IsAbs(store) || strings.ContainsAny(store, ":\"\n\r") || !filepath.IsAbs(shallow) {
+	if store == "" || !filepath.IsAbs(store) || !singleAlternate(store) || !filepath.IsAbs(shallow) {
 		return nil, nil, errors.New(CodeGitUnavailable)
 	}
 	if format != "sha1" && format != "sha256" {
@@ -320,6 +320,13 @@ func privateMergeRepository(g git) ([]string, func(), error) {
 		env = append(env, "GIT_SHALLOW_FILE="+shallow)
 	}
 	return env, cleanup, nil
+}
+
+// singleAlternate reports whether store is one GIT_ALTERNATE_OBJECT_DIRECTORIES
+// entry: no list separator (':' on POSIX, ';' on Windows), quote or line break.
+// A volume name is not part of the list syntax, so Git for Windows' C:/... passes.
+func singleAlternate(store string) bool {
+	return !strings.ContainsAny(store[len(filepath.VolumeName(store)):], string(filepath.ListSeparator)+"\"\n\r")
 }
 
 // conflictPaths parses `merge-tree --write-tree --name-only -z` output: the

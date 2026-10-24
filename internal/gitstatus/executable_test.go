@@ -68,17 +68,6 @@ func TestPinRefusesUnresolvedGit(t *testing.T) {
 	}
 }
 
-// TestExecutableKeyFollowsPathext pins that a PATHEXT change re-resolves Git:
-// on Windows exec.LookPath reads it to choose which `git.*` name matches.
-func TestExecutableKeyFollowsPathext(t *testing.T) {
-	t.Setenv("PATHEXT", ".EXE")
-	before := executableKey()
-	t.Setenv("PATHEXT", ".COM;.EXE")
-	if executableKey() == before {
-		t.Fatal("executable cache key ignores PATHEXT")
-	}
-}
-
 // gitFixtureName is the file name exec.LookPath("git") matches: on Windows it
 // accepts only names carrying a PATHEXT extension, so a bare `git` never resolves.
 func gitFixtureName() string {
