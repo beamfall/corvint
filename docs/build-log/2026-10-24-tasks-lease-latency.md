@@ -94,5 +94,7 @@ with fsync near 32 ms and journal write 13.9 falling to 10.7.
   32-54 ms of that is fsync, which decision 0549 F2 keeps uncoalesced; reaching the target needs
   an owner decision on staging-directory sync coalescing, with a crash-matrix proof.
 
-Known unrelated failure: `TestCALV0070_MutateRefusesMappedWriteAfterMergedAudit` fails on base and
-head on WSL2 (V1-2554 / V1-2563).
+Tests on WSL2: `internal/tasks/{store,journal,authority}` pass after rebasing onto a68184603, and
+`internal/tasks/{wire,transaction,ticket}` pass at the pre-rebase head, whose `internal/tasks` tree
+differs from the rebased one only in a store test file. Before the rebase, `TestCALV0070_MutateRefusesMappedWriteAfterMergedAudit` failed on base
+and head (the tmpfs gap V1-2554); main's PSR-V0-226 fixed it.
