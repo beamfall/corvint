@@ -404,8 +404,8 @@ jobs:
           RG_VERSION: "15.2.0"
         run: |
           go_found=$(/usr/local/go/bin/go env GOVERSION 2> /dev/null || true)
-          if [ "$go_found" != "go1.27.2" ]; then
-            echo "::error::self-hosted host prerequisite: /usr/local/go/bin/go must be go1.27.2, found '${go_found:-nothing}'"
+          if [ "$go_found" != "go1.27.3" ]; then
+            echo "::error::self-hosted host prerequisite: /usr/local/go/bin/go must be go1.27.3, found '${go_found:-nothing}'"
             exit 1
           fi
           rg_found=$(PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin command -v rg || true)

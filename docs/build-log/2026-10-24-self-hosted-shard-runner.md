@@ -81,8 +81,8 @@ Recommended, not enforced by the workflow:
 ## Host prerequisites
 
 - Runner labels `self-hosted`, `linux`, `x64`, `corvint-box`.
-- `/usr/local/go` is the pinned Go, currently go1.27.2. It must follow `setup-go`'s `go-version`;
-  `TestAFPV0421SelfHostedShardsVerifyAndNeverProvision` fails on a mismatch, so the go1.27.3 pin
+- `/usr/local/go` is the pinned Go, currently go1.27.3. It must follow `setup-go`'s `go-version`;
+  `TestAFPV0421SelfHostedShardsVerifyAndNeverProvision` fails on a mismatch, so a later pin
   change must update the verification step too.
 - `/usr/local/bin/rg` is the pinned ripgrep, 15.2.0.
 - Linux Landlock ABI 2 or later. The box reports ABI 7.
