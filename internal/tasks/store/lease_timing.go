@@ -27,6 +27,9 @@ type LeaseTiming struct {
 	LockHold      time.Duration
 	JournalWrite  time.Duration // session, staged writes, links and redo, less Fsync
 	Fsync         time.Duration // file and directory sync calls under the lock
+	// Syncs counts those sync calls (LGL-V0-006, proposed). The CLI does not
+	// report it.
+	Syncs int
 	// Resumed counts writes served by resuming from the command's own audit
 	// from receipt 1 (PSR-V0-052, proposed). The CLI does not report it.
 	Resumed int
@@ -107,7 +110,8 @@ func (t *LeaseTiming) prepared(start, readEnd time.Time) {
 }
 
 // wrote charges one journal write, separating its sync calls.
-func (t *LeaseTiming) wrote(start time.Time, sync time.Duration) {
+func (t *LeaseTiming) wrote(start time.Time, sync time.Duration, syncs int) {
 	t.Fsync += sync
+	t.Syncs += syncs
 	t.JournalWrite += time.Since(start) - sync
 }

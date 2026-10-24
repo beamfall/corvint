@@ -343,12 +343,15 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	write := time.Now()
 	session, err := authority.NewSession(repo, lock)
 	if err != nil {
-		timing.wrote(write, 0)
+		timing.wrote(write, 0, 0)
 		return true, false, nil, err
+	}
+	if transaction.LivenessLease(request) {
+		session.SkipStagingSync() // LGL-V0-005 proposed
 	}
 	defer func() {
 		cleanup := session.Close()
-		timing.wrote(write, session.SyncDuration())
+		timing.wrote(write, session.SyncDuration(), session.SyncCalls())
 		if cleanup != nil {
 			err = errors.Join(err, cleanup)
 		}

@@ -3973,7 +3973,7 @@
     "reqPrefix": "LGL-V0",
     "intent": "proposed",
     "delivery": "experimental",
-    "claim": "Lease rounds skip the cleanup lock on a ready writer route, keep fdinfo files open and parse each canonical ticket once.",
+    "claim": "Lease rounds skip the ready-route cleanup lock, keep fdinfo files open, parse tickets once; heartbeat and renew skip only staging-directory syncs.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,

@@ -115,6 +115,12 @@ type fixtureSession struct {
 	// syncTime sums the session's file and directory sync calls (issue 494
 	// diagnostics only); guarded by mu like every other session field.
 	syncTime time.Duration
+	// syncCalls counts those calls (LGL-V0-006 proposed), like syncTime a
+	// diagnostic only; guarded by mu.
+	syncCalls int
+	// stagingSyncSkipped makes syncStaging skip only its directory sync call
+	// (LGL-V0-005 proposed); guarded by mu.
+	stagingSyncSkipped bool
 }
 
 func fixtureDirectory(key string) (parent, name string, ok bool) {
@@ -556,6 +562,30 @@ func (s *fixtureSession) syncParent(key string, checks ...func() error) error {
 	}
 	return s.timedSync(func() error { return syncDirectory(s.parents[key].file) })
 }
+
+// syncStaging is syncParent("staging"), except that a session with
+// stagingSyncSkipped keeps the boundary and every check but makes no sync
+// call (LGL-V0-005 proposed). The staging directory's own entries are never
+// published state: each artifact's file sync and its destination's directory
+// sync make it durable, and a slot name a crash restores or drops is the
+// orphan a killed writer leaves (CAL-V0-019, CTS-V0-026).
+func (s *fixtureSession) syncStaging(checks ...func() error) error {
+	if !s.stagingSyncSkipped {
+		return s.syncParent("staging", checks...)
+	}
+	if err := s.boundary("sync:staging"); err != nil {
+		return err
+	}
+	if err := s.check(); err != nil {
+		return err
+	}
+	for _, check := range checks {
+		if err := check(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 func (s *fixtureSession) absent(key, name string) error {
 	_, err := s.parents[key].root.Lstat(name)
 	if os.IsNotExist(err) {
@@ -689,7 +719,7 @@ func (s *fixtureSession) prepare(slot fixtureSlot, role fixtureRole, data []byte
 		if err = s.timedSync(func() error { return syncFile(f) }); err != nil {
 			return err
 		}
-		if err = s.syncParent("staging", func() error { return s.checkStageFile(owned, f) }); err != nil {
+		if err = s.syncStaging(func() error { return s.checkStageFile(owned, f) }); err != nil {
 			return err
 		}
 		// The real close always runs, even when a deterministic close fault fires.
@@ -748,7 +778,7 @@ func (s *fixtureSession) cleanupStage(stage *fixtureStage) (err error) {
 		return err
 	}
 	performed = true
-	return s.syncParent("staging", func() error { return s.absent("staging", string(stage.slot)) })
+	return s.syncStaging(func() error { return s.absent("staging", string(stage.slot)) })
 }
 func (s *fixtureSession) checkStageFile(stage *fixtureStage, f *os.File) error {
 	if err := s.check(); err != nil {
@@ -932,7 +962,7 @@ func (s *fixtureSession) replace(stage *fixtureStage, t fixtureTarget, expected 
 		// Both are attempted, even if the first fails. Rename consumed the slot.
 		checkPost := func() error { return s.checkCurrent(key, name, source, stage.info, stage.digest) }
 		checkSourceAbsent := func() error { return s.absent("staging", string(stage.slot)) }
-		return errors.Join(s.syncParent(key, checkPost), s.syncParent("staging", checkPost, checkSourceAbsent))
+		return errors.Join(s.syncParent(key, checkPost), s.syncStaging(checkPost, checkSourceAbsent))
 	})
 }
 func stageLimitForTarget(t fixtureTarget) int { _, _, limit, _ := t.location(); return limit }
@@ -1096,7 +1126,7 @@ func (s *fixtureSession) unlinkOrphan(name string) (err error) {
 		return err
 	}
 	performed = true
-	return s.syncParent("staging", func() error { return s.absent("staging", name) })
+	return s.syncStaging(func() error { return s.absent("staging", name) })
 }
 func (s *fixtureSession) mkdir(key string) error {
 	parent, name, ok := fixtureDirectory(key)
@@ -1133,11 +1163,12 @@ func (s *fixtureSession) mkdir(key string) error {
 	})
 }
 
-// timedSync runs one durability call and adds its wall time to the session's
-// issue 494 diagnostic sum. The caller holds mu.
+// timedSync runs one durability call and adds its wall time and one call to
+// the session's issue 494 diagnostic sums. The caller holds mu.
 func (s *fixtureSession) timedSync(sync func() error) error {
 	start := time.Now()
 	err := sync()
 	s.syncTime += time.Since(start)
+	s.syncCalls++
 	return err
 }
