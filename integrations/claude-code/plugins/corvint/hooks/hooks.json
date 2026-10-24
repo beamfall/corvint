@@ -65,6 +65,17 @@
             ],
             "timeout": 2,
             "statusMessage": "Checking the Corvint change workflow"
+          },
+          {
+            "type": "command",
+            "command": "corvint",
+            "args": [
+              "adapter",
+              "claude-code",
+              "stop-done-list"
+            ],
+            "timeout": 10,
+            "statusMessage": "Listing the tests this change still owes"
           }
         ]
       }

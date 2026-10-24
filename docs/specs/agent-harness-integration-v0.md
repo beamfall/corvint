@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-08-23
-Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969); AHI-057 accepted under the owner's standing auto-accept (2026-10-11) (V1-1974); AHI-070 accepted under the owner's standing auto-accept (2026-10-11) (V1-2062); AHI-171 accepted under the owner's standing auto-accept (2026-10-11) (V1-2192); AHI-172 accepted under the owner's standing auto-accept (2026-10-11) (V1-2201); AHI-071 accepted under the owner's standing auto-accept (2026-10-11) (V1-2150; Pi tuple now 0.99.1 / 0.3.3, decision 0550); AHI-173 and the AHI-020 Spec Kit/OpenSpec amendment accepted under the owner's standing auto-accept (2026-10-11) (V1-2145, V1-2184)
+Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969); AHI-057 accepted under the owner's standing auto-accept (2026-10-11) (V1-1974); AHI-070 accepted under the owner's standing auto-accept (2026-10-11) (V1-2062); AHI-171 accepted under the owner's standing auto-accept (2026-10-11) (V1-2192); AHI-172 accepted under the owner's standing auto-accept (2026-10-11) (V1-2201); AHI-071 accepted under the owner's standing auto-accept (2026-10-11) (V1-2150; Pi tuple now 0.99.1 / 0.3.3, decision 0550); AHI-173 and the AHI-020 Spec Kit/OpenSpec amendment accepted under the owner's standing auto-accept (2026-10-11) (V1-2145, V1-2184); AHI-190..199 accepted under the owner's standing auto-accept (2026-10-11) (V1-0403, V1-2466, V1-2440)
 Delivery status: experimental
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.
-- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969); AHI-057 accepted under the owner's standing auto-accept (2026-10-11) (V1-1974); AHI-070 accepted under the owner's standing auto-accept (2026-10-11) (V1-2062); AHI-171 accepted under the owner's standing auto-accept (2026-10-11) (V1-2192); AHI-172 accepted under the owner's standing auto-accept (2026-10-11) (V1-2201); AHI-071 accepted under the owner's standing auto-accept (2026-10-11) (V1-2150; Pi tuple now 0.99.1 / 0.3.3, decision 0550); AHI-173 and the AHI-020 Spec Kit/OpenSpec amendment accepted under the owner's standing auto-accept (2026-10-11) (V1-2145, V1-2184)/experimental
+- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969); AHI-057 accepted under the owner's standing auto-accept (2026-10-11) (V1-1974); AHI-070 accepted under the owner's standing auto-accept (2026-10-11) (V1-2062); AHI-171 accepted under the owner's standing auto-accept (2026-10-11) (V1-2192); AHI-172 accepted under the owner's standing auto-accept (2026-10-11) (V1-2201); AHI-071 accepted under the owner's standing auto-accept (2026-10-11) (V1-2150; Pi tuple now 0.99.1 / 0.3.3, decision 0550); AHI-173 and the AHI-020 Spec Kit/OpenSpec amendment accepted under the owner's standing auto-accept (2026-10-11) (V1-2145, V1-2184); AHI-190..199 accepted under the owner's standing auto-accept (2026-10-11) (V1-0403, V1-2466, V1-2440)/experimental
 - Exists: `internal/gokernel`, `cmd/corvint`, native adapter previews, and the experimental OpenCode inspector/change/Tasks workbench (AHI-033–041) with the owner-approved Work / Change / Evidence presentation (AHI-042).
 - Blocked on: black-box release-matrix qualification with accepted closing authority.
 - Read next: `harness-authority-relation-v0.md` (superseded by accepted decision 0009 option 2; no execution authority root) and `change-frontier-profile-1.md`.
@@ -1279,7 +1279,7 @@ separate exact extension tuple remains governed by AHI-024.
   `status` never invents a session key (`LCP-V0-011`). Decision 0161 is unchanged: hooks add no
   `systemMessage` for routine receipts, so `/corvint:status` is the on-demand user view, and a
   persistent status line or pane remains V1-1054.
-  Non-goals: no MCP declaration (V1-0191), no new verb, no change to hook output or the
+  Non-goals: no MCP declaration (V1-0191; amended by `AHI-198`), no new verb, no change to hook output or the
   `corvint-dogfood-event/0` receipt, and no Codex skill parity.
   Failure modes: a host older than skill `allowed-tools` or `disable-model-invocation` support
   prompts for permission or lets the model start `status`/`index`; both remain read-only apart from
@@ -1289,6 +1289,110 @@ separate exact extension tuple remains governed by AHI-024.
   and `conformance/host-lifecycle-v1` discovery reports the six skills on the installed host.
   Rollback: restore the 0.2.3 manifest, marketplace and `hooks.json` and delete the five skill
   directories under a new plugin version; no store, ledger or wire format changes.
+- `AHI-190`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0403) `corvint adapter
+  done-list [--root DIR] [--base FULL_SHA] [--mutate]` MUST print one `corvint-done-list/0` receipt
+  inside the `AHI-004` untrusted-data envelope, naming what the current change still owes:
+  `affected` (state, scope, selected-unit count, at most 8 units with their test counts, unknown
+  count and at most 8 reasons, dirty count, tier summary), `witness` (the `corvint witness` summary
+  and at most 8 non-`CLOSED` obligation paths) and `mutation` (one entry per test file the change
+  adds). Each part that did not run is `NOT_RUN` (or `NOT_APPLICABLE`) with a stable reason. The
+  receipt carries `mutates: false`; the command writes nothing in the repository and runs the
+  existing verbs in process. The plugin ships a user-only `/corvint:done [BASE]` skill
+  (`disable-model-invocation`, because `--mutate` executes test code) that pre-approves only
+  `corvint adapter done-list` and `git rev-parse`; this amends the `AHI-051` skill set.
+- `AHI-191`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0403) The Claude Code
+  `Stop` hook `corvint adapter claude-code stop-done-list` MUST emit `{}` unless the hook
+  environment sets `CORVINT_STOP_DONE_LIST` to exactly `1` (settings `env`); the done-list is opt-in
+  and off by default.
+- `AHI-192`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0403) Opted in, the
+  hook MUST also emit `{}` on a continued Stop (`stop_hook_active`), inside a subagent, and when the
+  tree is clean (no base, no dirty path, no new test). Otherwise it MUST emit exactly one
+  `systemMessage` and nothing else: on `Stop`, `additionalContext` or a block decision would continue
+  the turn (`AHI-021`, decision 0161), so the done-list is shown to the user only and never reaches the
+  model. The opt-in is the user's request for this one notice; routine receipts still add none.
+- `AHI-193`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0403) The message MUST
+  be `Corvint done-list:` and three lines (tests, unwitnessed ranges, new-test mutation), at most
+  2,000 bytes with a ` [truncated]` suffix when cut, with every repository-derived value passed
+  through the `AHI-004` hidden-character escape and control characters removed, so a path cannot
+  add lines or hidden text.
+- `AHI-194`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0403) Mutation budget
+  and the hook timeout: the `stop-done-list` hook is registered with a 10-second host kill (the
+  `AHI-017` table entry `claude-code stop-done-list`, deadline 9.6 s). `corvint prove --mutate
+  --attack-tests` runs every selected test once per mutant, minutes on a real package, so the hook
+  MUST NOT run witness or mutation: it runs only `affected` against the working tree, reports
+  witness as `NOT_RUN witness-requires-committed-range` and mutation as `NOT_RUN
+  mutation-not-run-from-hook`, each with the exact argv to run after committing (`corvint --root R
+  witness --base HEAD` and `corvint adapter done-list --root R --base HEAD --mutate`, with `HEAD`
+  resolved to its full SHA). Past the deadline it fails open under `AHI-044`. The explicit command
+  has no hook deadline and runs mutation only with `--base` and `--mutate`
+  (`mutation-not-requested` otherwise).
+- `AHI-195`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0403) The explicit
+  command MUST exit 2 with `invalid-arguments` for an unknown flag, a flag without its value, a base
+  that is not a full 40- or 64-hex object name, and `--mutate` without `--base`; with
+  `project-root-unavailable` when the root cannot be resolved; and with `not-a-git-repository`
+  outside a repository. Each refusal is a `corvint-done-list/0` receipt with `ok: false`.
+- `AHI-196`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0403) With `--base B`
+  the receipt describes `B..HEAD` plus the dirty paths `affected` sees: `affected --base B`,
+  `witness --base B --json`, and the new tests are the files the range adds (`git diff
+  --diff-filter=A B HEAD`) whose names follow the test conventions (`_test.go`, `test_*`, `_test.py`,
+  `_spec.rb`, `.test.*`, `.spec.*`). Without a base the new tests are untracked or added paths in
+  `git status`. A verb that fails or passes the deadline is `NOT_RUN` with
+  `<verb>-failed:<code>` or `deadline`. The receipt is bound to the commit HEAD names before any
+  verb runs: when HEAD names another commit after the last verb, the receipt is replaced by an
+  `ok: false` refusal `head-moved` (exit 1), and the Stop hook reports only that.
+- `AHI-197`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0403) With `--base`
+  and `--mutate`, each new Go test file MUST carry the `prove --mutate --attack-tests` row for that
+  file: `mutants`, `killed`, `survived` and a verdict, `KILLS_MUTANTS` when it kills at least one,
+  `KILLS_NO_MUTANT` when mutants executed (killed or survived) and it killed none (a test that
+  asserts nothing), and `NOT_RUN` with `no-mutants`, `no-mutant-executed` (every mutant was
+  uncompilable or skipped), `mutation-unsupported-language` (non-Go tests), `no-affected-test-row`
+  or the prove status otherwise. The tree MUST be byte-identical afterwards.
+  Non-goals (`AHI-190` to `AHI-197`): no mutation in any hook; no `additionalContext` or blocking
+  Stop; no new mutation engine or language; no witness of an uncommitted tree; no change to
+  `corvint-dogfood-event/0` or to the existing Stop completion hook.
+  Failure modes: a large dirty tree can push `affected` past the 9.6 s deadline, and the hook then
+  degrades visibly and silently drops the list; a test file added under an unconventional name is
+  not judged; a mutation verdict covers only the mutants `prove` generates for `B..HEAD`, so
+  `KILLS_MUTANTS` is not proof the test is adequate.
+  Acceptance: `cmd/corvint/host_adapter_done_list_test.go`:
+  `TestAHI191StopDoneListOptInSilenceAndShape`, `TestAHI193DoneListMessageBoundedAndPlain`,
+  `TestAHI195DoneListCommandRefusals`, `TestAHI197DoneListJudgesNewTestsByMutation` (a tautological
+  new test reports `KILLS_NO_MUTANT`, an asserting one `KILLS_MUTANTS`, tree unchanged, and
+  `mutation-not-requested` without `--mutate`); `TestAHI017AdapterHostKillMatchesDeclaredHooks`
+  for the 10 s registration; `TestAHI044HookAdaptersFailOpen` for the deadline path; the `AHI-051`
+  skill test in `integrations/host-adapters.test.mjs` for `/corvint:done`.
+  Rollback: remove the second `Stop` hook from `hooks.json`, the `done` skill, the `done-list` verb
+  branch, the `stop-done-list` event and table entry, and `cmd/corvint/host_adapter_done_list.go`
+  with its test, under a new plugin version; no store, ledger or wire format changes.
+- `AHI-198`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2466, GitHub #1588;
+  amends the `AHI-051` non-goal) The Claude Code plugin MUST declare the read-only `corvint-mcp`
+  stdio server in `plugins/corvint/.mcp.json` as server `corvint`, command `corvint-mcp`, args
+  `--root ${CLAUDE_PROJECT_DIR} --protocol-version 2025-11-25`, and nowhere else, so `corvint.help`
+  and the other `corvint.*` tools are reachable in-session. The legacy protocol is the
+  `initialize` handshake Claude Code speaks; the server's default `2026-07-28` mode answers
+  `initialize` with method-not-found. `compatibility.json` records `surfaces.mcp: FALLBACK` and the
+  verified host version. Non-goals: no bundled binary, no install step, no official MCP conformance
+  claim. Failure modes: `corvint-mcp` absent from `PATH` shows the server as failed in `/mcp` and
+  `claude mcp list` (`ENOENT`) while hooks and skills keep working; a project root that is not a Git
+  repository makes the server refuse its tools. Acceptance: `AHI-198 Claude Code plugin declares
+  the read-only corvint-mcp server at the project root` in `integrations/host-adapters.test.mjs`;
+  the live `claude mcp list` health check on Claude Code 2.1.293 (`✔ Connected`) and a stdio
+  `corvint.help` call recorded in `docs/build-log/2026-10-23-claude-code-integration-matrix.md`.
+  Rollback: delete `.mcp.json` and restore `surfaces.mcp: UNAVAILABLE` under a new plugin version.
+- `AHI-199`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2440) Heavy repository
+  targets MUST run their children below interactive priority so hook adapters keep their CPU share
+  under lane test load: `script/heavy.sh` runs its command at `HEAVY_NICE` (default 10, `0` keeps
+  the caller's priority, outside 0..19 refused with `REFUSE invalid-nice`, never raising a caller
+  already nicer), and the Makefile prefixes `nice -n $(HEAVY_NICE)` to the `ledger/%` gate steps,
+  `GO_TEST_COMMAND`, `dogfood-change` and `dogfood-check` when `nice(1)` exists. The `go-test` and
+  `ledger/go-test` recipes stay the exact lines `STR-V0-006` pins, so a bare `make gate` runs its
+  Go test step at the caller's priority; `script/heavy.sh make gate` (the lane wrapper) lowers it.
+  Non-goals: no change to slot counts, `-p`, the hook timeouts or the `STR-V0-006` pins. Failure modes: priority does not help when the starved resource is memory or I/O, and a
+  load that saturates every core can still slow a hook. Acceptance: the `AHI-199` group in
+  `script/lane-scripts_test.sh` (default 10, `HEAVY_NICE=0`, refusal, Makefile dry runs); 50
+  consecutive `corvint adapter claude-code user-prompt` runs under 3 and 6 concurrent package test
+  runs, timings in the matrix build-log entry. Rollback: drop `HEAVY_NICE` from `script/heavy.sh`
+  and `HEAVY_NICE_PREFIX` from the Makefile.
 - `AHI-052`: (accepted, decision 0497; V1-1116; amends `AHI-050` for OpenCode only) When
   the OpenCode adapter's cleanup probe `kill(-pid, 0)` answers `EPERM`, the adapter MUST repeat that
   signal-0 probe, each repeat a timer at least 5 ms after the last, until it answers anything other
@@ -1620,6 +1724,9 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-171` (accepted under the owner's standing auto-accept (2026-10-11); V1-2192) | `internal/opencodequalification/contention.go`, `native.go` (window readings, `latencyOutcome`, `RETRY_LATER`), `tools/qualify-opencode` exit 75 | `TestAHI171LatencyHostContention` (a latency-only miss at load 11.5 on 12 CPUs is `LATENCY_HOST_CONTENDED` and retry-later with a hint; the same miss on a quiet host, with unobserved contention, with another failed check or with a short sample is not; absent readings are `NOT_OBSERVED`; a live host reading) |
 | `AHI-172` (accepted under the owner's standing auto-accept (2026-10-11); V1-2201) | `internal/opencodequalification/baseline.go` (`sampleBaseline`, `baselineComparison`, `baselineEvidence`), `contention.go` (`latencyOutcome`, `retryHint`, `procLoadavgPath`), `native.go` window sampling | `TestAHI172SameWindowBaseline` (both slow under contention is host-contended with the comparison recorded; a candidate beyond its slowdown-scaled limits is a regression under load; a slow probe on a quiet host excuses nothing; an unobserved baseline keeps the AHI-171 rule with `NOT_OBSERVED` fields; a live sampler), `TestAHI172ProcLoadavgFixture` (the Linux reader from a fixture, malformed lines unobserved) |
 | `AHI-173` (accepted under the owner's standing auto-accept (2026-10-11); V1-2145) | `script/host-package-version.sh`, `Makefile` (`host-package-version-bump`, `host-package-version-verify`) | `script/host-package-version_test.sh` (every package bumped against copies of the real manifests, one line per location, evidence versions untouched, explicit version, disagreement named and bump refused, unknown package exit 2); the failure-message case in `script/check-host-package-versions_test.sh` |
+| `AHI-190`..`AHI-197` (accepted under the owner's standing auto-accept (2026-10-11); V1-0403) | `cmd/corvint/host_adapter_done_list.go` (`runDoneListCommand`, `runClaudeStopDoneList`, `doneList`, `renderDoneList`), `cmd/corvint/host_adapter.go` (`done-list` verb, `stop-done-list` event, `AHI-017` table), `integrations/claude-code/plugins/corvint/hooks/hooks.json`, `skills/done/SKILL.md` | `TestAHI191StopDoneListOptInSilenceAndShape`, `TestAHI193DoneListMessageBoundedAndPlain`, `TestAHI195DoneListCommandRefusals`, `TestAHI196DoneListRefusesWhenHeadMoves`, `TestAHI197DoneListJudgesNewTestsByMutation`, `TestAHI197DoneListVerdictNeedsExecutedMutants` (`cmd/corvint/host_adapter_done_list_test.go`); `TestAHI017AdapterHostKillMatchesDeclaredHooks`; `TestAHI044HookAdaptersFailOpen`; the `AHI-051` skill test under `TestHostAdapterJavaScriptHosts` |
+| `AHI-198` (accepted under the owner's standing auto-accept (2026-10-11); V1-2466) | `integrations/claude-code/plugins/corvint/.mcp.json`, `compatibility.json` (`surfaces.mcp`, `mcpServer`) | `AHI-198 Claude Code plugin declares the read-only corvint-mcp server at the project root` under `TestHostAdapterJavaScriptHosts`; live `claude mcp list` receipt in `docs/build-log/2026-10-23-claude-code-integration-matrix.md` |
+| `AHI-199` (accepted under the owner's standing auto-accept (2026-10-11); V1-2440) | `script/heavy.sh` (`HEAVY_NICE`), `Makefile` (`HEAVY_NICE_PREFIX`); the pinned `ledger/go-test` stays unprefixed | the `AHI-199` group in `script/lane-scripts_test.sh`; the user-prompt timing runs in `docs/build-log/2026-10-23-claude-code-integration-matrix.md` |
 | `AHI-055` (accepted under the owner's standing auto-accept (2026-10-11); V1-1280) | `cmd/corvint/host_adapter.go` (`deadlineRemediation`, `withDeadlineRemediation`), `cmd/corvint/host_adapter_compaction.go` | `TestClaudeAdapterStopDeadlineFailsOpenVisibly`, `TestClaudeCompactionDeadlineNamesRemediation`, `TestDeadlineRemediationKeepsFrameWithinLimit`, `TestClaudeAdapterDogfoodEventDeadlineCarriesNoNotice`, `TestCodexAdapterDeadlineNamesRemediation`, `TestClaudeAdapterStaleSnapshotNamesRemediation`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
 | `AHI-054` (accepted, decision 0519; V1-1157) | `internal/gokernel/harness.go` `HandleEvent` stop frontier, `FrontierCauseNoClosingAuthority`; `conformance/cli-parity-v0` `validFrontierCauseDivergence`, `outOfPacketKnownDivergence`; `integrations/testfixture/main.go` | `TestAHI054StopFrontierCarriesFixedCause`, `TestAHI054FrontierCauseDivergenceIsPinnedAndOutOfPacket`, `TestGPKV0002ManifestReplay` (`DR-0043`), Gemini CLI and OpenCode stop cases and the `AHI-054` with-and-without-cause case under `TestHostAdapterJavaScriptHosts` |
 | `AHI-004` | native adapter renderers, shared lifecycle command, `internal/repoenvelope`, and the JavaScript envelope builders | byte-identical untrusted-data envelope with hidden-character escaping and terminator refusal (`internal/repoenvelope`, `cmd/corvint`, `tools/native-hook-observer` and `integrations/host-adapters.test.mjs` tests), injection bounds, authority order, and query fixtures |

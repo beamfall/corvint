@@ -2,10 +2,11 @@
 
 This local marketplace contains the `corvint@corvint` plugin, which works in the Claude Code terminal
 and in the Code tab of the Claude desktop app. Its support level is intentionally `FALLBACK`: the formal harness hooks
-translate only fields exposed by Claude Code into `corvint-harness-event/0`. Corvint ships an
-experimental local stdio MCP server (`corvint-mcp`), but this plugin does not declare it;
-official-schema execution and official MCP conformance remain `NOT_RUN`. No accepted Frontier
-authority can block or continue a Stop event.
+translate only fields exposed by Claude Code into `corvint-harness-event/0`. The plugin declares
+Corvint's experimental local stdio MCP server (`corvint-mcp`, `AHI-198`) so the read-only
+`corvint.*` tools, including `corvint.help`, are reachable in-session; official-schema execution and
+official MCP conformance remain `NOT_RUN`. No accepted Frontier authority can block or continue a
+Stop event.
 
 Prerequisite: `corvint` is on `PATH` (see [Try it](../../README.md#try-it-in-a-minute)), and the repository is
 trusted in Claude Code.
@@ -36,10 +37,24 @@ Commands (skills, `AHI-051`). Each runs existing verbs and reports their uncerta
 | `/corvint:review [BASE]` | `corvint review` | user or model |
 | `/corvint:status` | `--version`, `observations`, keyed `dogfood status` | user only |
 | `/corvint:index` | `corvint index --if-stale` (writes only the derived snapshot) | user only |
+| `/corvint:done [BASE]` | `corvint adapter done-list` (with a base, `--mutate` runs the new tests against mutants) | user only |
 
 Hooks add no routine notices to the conversation (decision 0161); their context goes to the model
 only. `/corvint:status` is the on-demand view of versions, index freshness, workflow state and
 recent adapter degradations.
+
+The done-list (`AHI-190` to `AHI-197`) answers "what does this change still owe": the tests
+`corvint affected` selects, the ranges `corvint witness` leaves unwitnessed, and a mutation verdict
+per new test (`KILLS_MUTANTS`, `KILLS_NO_MUTANT` for a test that asserts nothing, or `NOT_RUN` with a
+reason). Set `CORVINT_STOP_DONE_LIST=1` in the settings `env` to also print it, to the user only, at
+the end of each main-thread turn on a dirty tree. The Stop hook runs only `affected` within its
+10-second bound; witness and mutation need a committed range and minutes of test time, so the hook
+names the exact `corvint adapter done-list --base <HEAD> --mutate` argv instead of running them.
+
+MCP (`AHI-198`): `.mcp.json` starts `corvint-mcp --root ${CLAUDE_PROJECT_DIR} --protocol-version
+2025-11-25` (the initialize-handshake protocol Claude Code speaks). `corvint-mcp` must be on `PATH`
+next to `corvint`; when it is missing, `/mcp` and `claude mcp list` show the server as failed and the
+hooks and skills are unaffected. Disable the server alone from `/mcp`.
 
 Use `claude --plugin-dir ./integrations/claude-code/plugins/corvint` for an installation-free local
 check and `/hooks` to inspect the registered hooks. Corvint has no exact-handle expansion command yet
