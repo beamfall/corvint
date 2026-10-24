@@ -111,15 +111,18 @@ func psrRunLoaded(s *leaseStore, id string) (*store.PoolSweepReport, error) {
 
 // PSR-V0-009: the same request replays the original result after env file
 // deletion and successor allocation, without execution or touching the successor.
+// V1-2538: the sweep runs with the V1-1324 load-tolerant bounds (see
+// psrLoadedSweepSeconds), so a loaded host cannot end the attempt as TIMEOUT
+// before the replay under test is reached.
 func TestPSRSweepSuccessReplaySuccessor(t *testing.T) {
 	t.Parallel()
-	s, a := psrFixture(t, "printf reset", "printf 'literal[ok]'", "literal[ok]", "1", true)
-	out, e := psrRun(s, "sweep")
+	s, a := psrFixtureConfigured(t, "printf reset", "printf 'literal[ok]'", "literal[ok]", "1", true, psrLoadTolerant)
+	out, e := psrRunLoaded(s, "sweep")
 	if e != nil || out.Report == nil || out.Report.Outcome.Outcome != mutation.OutcomeCompleted {
 		t.Fatalf("sweep %+v %v", out, e)
 	}
-	if len(psrPools(t, s).Entries) != 0 {
-		t.Fatal("not freed")
+	if p := psrPools(t, s); len(p.Entries) != 0 {
+		t.Fatalf("not freed pool=%s", psrEntryStates(p))
 	}
 	id := s.ticket(t, "successor")
 	c := claimOf(id, "next")
@@ -140,7 +143,7 @@ func TestPSRSweepSuccessReplaySuccessor(t *testing.T) {
 		t.Fatal(e)
 	}
 	os.RemoveAll(s.root)
-	replay, e := psrRun(s, "sweep")
+	replay, e := psrRunLoaded(s, "sweep")
 	if e != nil || replay.Pending || !bytes.Equal(out.Result, replay.Result) {
 		t.Fatalf("replay %+v %v", replay, e)
 	}
@@ -277,10 +280,14 @@ func psrTestBound(t *testing.T) <-chan struct{} {
 }
 
 // PSR-V0-005: stderr cannot satisfy the stdout literal.
+// V1-2538: the fixture's 3s attempt bound covered the reset and verify
+// commands plus about a dozen bounded Git and process-group observations, so
+// on a loaded host verify ended TIMEOUT instead of STDOUT_MISMATCH. The
+// V1-1324 load-tolerant bounds keep the verify class the subject.
 func TestPSRSweepStderrIsNotStdout(t *testing.T) {
 	t.Parallel()
-	s, _ := psrFixture(t, "true", "printf expected >&2", "expected", "1", false)
-	_, e := psrRun(s, "stderr")
+	s, _ := psrFixtureConfigured(t, "true", "printf expected >&2", "expected", "1", false, psrLoadTolerant)
+	_, e := psrRunLoaded(s, "stderr")
 	if e != nil {
 		t.Fatal(e)
 	}
