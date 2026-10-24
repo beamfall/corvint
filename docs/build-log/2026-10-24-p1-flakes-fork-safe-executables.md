@@ -47,6 +47,31 @@ slots busy), so the per-test fixes rest on the reproduced mechanism and the code
 before/after flip of the failing test itself. `-count=50` of the termination test and `-count=20`
 of the other two pass with the change.
 
+## V1-2440 hook latency under lane load (observed, darwin/arm64 12-core host)
+
+Three concurrent `HEAVY_REMOTE=0 heavy.sh ... go test -count=3 ./internal/contextindex` runs (nice 15 via
+heavy.sh, the mechanism PR #1659 landed) drove the one-minute load average from 17 to 50 (143 at the
+end of the window; other lanes were also active). 50 consecutive
+`corvint adapter claude-code user-prompt` invocations (Corvint 1.0.0-rc.3 build 746, real index of
+the primary checkout, the plugin's exact argv) during that window: min 458 ms, median 724 ms,
+p95 1,111 ms, max 1,356 ms, 0 of 50 over the 2 s hook timeout, every exit 0 with a context packet.
+Unloaded warmup: 320-721 ms. Timings: scratch `p1-hook-loaded.json`, retained in the PR body.
+
+## Dogfood outcome
+
+`make dogfood-change BASE=0949876`: try 1 in the linked worktree was refused
+(`unsupported-impact-worktree`, `git-diff-failed`); try 2 in a plain clone with intents, verify and
+outcome inputs prepared the map (61 hunks) but ended `FAIL not-complete`: `cem-cite`
+`citation-plan-not-provided` (the plan needs the prepared map, which only this run produced, and the
+lane cap is two runs), `cem-status not-ready`, `local-outcome record-index-failed`, prechange
+query/impact `NOT_OBSERVED agent-receipt-absent`. CEM citation, check and seal are NOT_PRODUCED for
+this lane; a batch bind can cite from the committed range.
+
+## Review
+
+One Codex round: P2, the cross-platform `TestWriteFileMatchesOSWriteFile` asserted an executable bit
+Windows never reports; the assertion is now Unix-only. No other finding.
+
 ## Scope and rollback
 
 - Test fixtures in `internal/contextindex`, `conformance/mcp-2026-07-28/lifecycle_unix_test.go`,
