@@ -193,12 +193,14 @@ def relation_gold(section, case):
         return endpoint.get('path') if root is not None and endpoint.get('repository') == root else None
     def touches(row):
         return path(row, 'from') == subject or path(row, 'to') == subject
-    if any(r.get('type') == expected['type'] and path(r, 'from') == expected['from']
-           and path(r, 'to') == expected['to'] for r in rows):
-        return 'present'
+    # The order check comes first: a misordered packet is a defect even when
+    # it happens to carry the gold relation.
     flags = [touches(r) for r in rows]
     if any(later and not earlier for earlier, later in zip(flags, flags[1:])):
         return 'projection-not-subject-first'
+    if any(r.get('type') == expected['type'] and path(r, 'from') == expected['from']
+           and path(r, 'to') == expected['to'] for r in rows):
+        return 'present'
     omitted = section.get('omitted', {}).get('path_relations', 0)
     gold_touches = subject in (expected['from'], expected['to'])
     # Subject-first order kept every subject row when any non-subject row
@@ -291,6 +293,9 @@ def self_check():
                'omitted': {'path_relations': 1}, 'query': {'omitted_rows': 64, 'stopped': 'query-budget'}}
     assert relation_gold(lexical, rel_case) == 'projection-not-subject-first'
     assert relation_gold({**lexical, 'path_relations': [gold, row('a.go', 'b.go')]}, rel_case) == 'present'
+    # Gold after a non-subject row still breaks subject-first order and never passes.
+    misordered_gold = {**lexical, 'path_relations': [row('a.go', 'b.go'), gold]}
+    assert relation_gold(misordered_gold, rel_case) == 'projection-not-subject-first'
     subject_full = {**lexical, 'path_relations': [row('s.go', 'c.go'), row('x.go', 's.go')]}
     assert relation_gold(subject_full, rel_case) == 'omitted-by-packet-bound'
     kept_all = {**lexical, 'path_relations': [row('s.go', 'c.go'), row('a.go', 'b.go')]}
@@ -302,7 +307,7 @@ def self_check():
                                                    row('s.go', 'd.go', 'gopls:uses-definition', 'other')]}
     assert relation_gold(foreign_gold, rel_case) == 'omitted-by-provider-bound'
     assert relation_gold({**lexical, 'providers': [], 'path_relations': [gold]}, rel_case) != 'present'
-    for section in (lexical, subject_full, kept_all):
+    for section in (lexical, misordered_gold, subject_full, kept_all):
         assert not combined_gold_passed({'exit': 0, 'timedOut': False, 'corePacketParity': True,
                                          'goldRelation': relation_gold(section, rel_case) == 'present'})
     assert source_path('file:///fixture/a%20b.go', root) == 'a b.go'
