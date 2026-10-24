@@ -19,37 +19,31 @@ import (
 // record's source and an anchor's authority, kind and reason when they equal defaults.
 func compactEncode(t testing.TB, record ProviderRecord, defaults *AnchorDefaults) []byte {
 	t.Helper()
-	index := map[AnchorFile]int{}
+	type fileKey struct{ repository, revision, path, blob, sha256 string }
+	index := map[fileKey]int{}
 	files := []AnchorFile{}
-	fileOf := func(a Anchor) AnchorFile {
-		f := AnchorFile{Repository: a.Repository, Revision: a.Revision, Path: a.Path, Blob: a.Blob, SHA256: a.SHA256}
-		if f.Repository == record.Source.ID {
-			f.Repository = ""
+	unlessEqual := func(value, implied string) *string {
+		if value == implied {
+			return nil
 		}
-		if f.Revision == record.Source.Revision {
-			f.Revision = ""
-		}
-		return f
+		return &value
+	}
+	var d AnchorDefaults
+	if defaults != nil {
+		d = *defaults
 	}
 	compact := json.MarshalToFunc(func(enc *jsontext.Encoder, a Anchor) error {
-		f := fileOf(a)
-		i, ok := index[f]
+		key := fileKey{a.Repository, a.Revision, a.Path, a.Blob, a.SHA256}
+		i, ok := index[key]
 		if !ok {
 			i = len(files)
-			index[f] = i
-			files = append(files, f)
+			index[key] = i
+			files = append(files, AnchorFile{Repository: unlessEqual(a.Repository, record.Source.ID), Revision: unlessEqual(a.Revision, record.Source.Revision), Path: a.Path, Blob: a.Blob, SHA256: a.SHA256})
 		}
-		c := CompactAnchor{File: &i, Start: a.Start, End: a.End, SpanSHA256: a.SpanSHA256, Symbol: a.Symbol, Region: a.Region, Authority: a.Authority, Kind: a.Kind, Reason: a.Reason}
+		c := CompactAnchor{File: &i, Start: a.Start, End: a.End, SpanSHA256: a.SpanSHA256, Symbol: a.Symbol, Region: a.Region,
+			Authority: &a.Authority, Kind: &a.Kind, Reason: &a.Reason}
 		if defaults != nil {
-			if c.Authority == defaults.Authority {
-				c.Authority = ""
-			}
-			if c.Kind == defaults.Kind {
-				c.Kind = ""
-			}
-			if c.Reason == defaults.Reason {
-				c.Reason = ""
-			}
+			c.Authority, c.Kind, c.Reason = unlessEqual(a.Authority, d.Authority), unlessEqual(a.Kind, d.Kind), unlessEqual(a.Reason, d.Reason)
 		}
 		return json.MarshalEncode(enc, c)
 	})
@@ -204,10 +198,10 @@ func TestDCPV1488CompactAnchorRefusals(t *testing.T) {
 		{"full anchor member in compact anchor", "unknown member", func(doc map[string]any, record ProviderRecord) {
 			firstAnchor(doc)["path"] = record.Subjects[0].Evidence.Anchors[0].Path
 		}},
-		{"unknown file table member", "unknown member", func(doc map[string]any, _ ProviderRecord) {
+		{"unknown file table member", "/files/0/start_line: unknown member", func(doc map[string]any, _ ProviderRecord) {
 			doc["files"].([]any)[0].(map[string]any)["start_line"] = 1
 		}},
-		{"unknown default member", "unknown member", func(doc map[string]any, _ ProviderRecord) {
+		{"unknown default member", "/anchor_defaults/path: unknown member", func(doc map[string]any, _ ProviderRecord) {
 			doc["anchor_defaults"] = map[string]any{"path": "src/value.go"}
 		}},
 		{"file table in a /1 record", "unknown member", func(doc map[string]any, record ProviderRecord) {
@@ -237,6 +231,20 @@ func TestDCPV1488CompactAnchorRefusals(t *testing.T) {
 		{"wrong file revision", "", func(doc map[string]any, _ ProviderRecord) {
 			doc["files"].([]any)[0].(map[string]any)["revision"] = strings.Repeat("0", 40)
 		}},
+		{"explicit empty reason keeps no default", "", func(doc map[string]any, _ ProviderRecord) {
+			doc["anchor_defaults"] = map[string]any{"reason": "fallback"}
+			firstAnchor(doc)["reason"] = ""
+		}},
+		{"explicit empty file revision keeps no source default", "", func(doc map[string]any, _ ProviderRecord) {
+			doc["files"].([]any)[0].(map[string]any)["revision"] = ""
+		}},
+		{"file table bound", "/files: anchor file table bound exceeded", func(doc map[string]any, _ ProviderRecord) {
+			table := make([]any, maxAnchorFiles+1)
+			for i := range table {
+				table[i] = map[string]any{}
+			}
+			doc["files"] = table
+		}},
 		{"compact record on a /1 manifest", "", nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -259,7 +267,7 @@ func TestDCPV1488CompactAnchorRefusals(t *testing.T) {
 			if tc.want != "" && (!strings.Contains(err.Error(), tc.want) || !strings.Contains(err.Error(), "evidence/provider.json")) {
 				t.Fatalf("refusal %q lacks %q at its located input", err, tc.want)
 			}
-			if strings.Contains(tc.want, "file") && !strings.Contains(err.Error(), "/subjects/0/evidence/anchors/0") {
+			if anchorCase := tc.want == "outside the file table" || tc.want == "lacks its file index"; anchorCase && !strings.Contains(err.Error(), "/subjects/0/evidence/anchors/0") {
 				t.Fatalf("refusal %q lacks the anchor's pointer", err)
 			}
 		})

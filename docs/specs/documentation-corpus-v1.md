@@ -2713,15 +2713,16 @@ bound changes.
   (evidence `anchors` and observation `step_evidence`) is compact: a required zero-based `file`
   index, `start_line`, `end_line`, `span_sha256`, and optional `symbol`, `region`, `authority`,
   `evidence_kind` and `reason`. Decoding expands each compact anchor to the `/1` anchor it stands
-  for: an absent file repository or revision is the record's `source` one, and an absent
-  authority, kind or reason is the default's. The record is then admitted exactly as the `/1`
+  for: an absent file repository or revision is the record's `source` one, an absent
+  authority, kind or reason is the default's, and a present member, even empty, is kept. The record is then admitted exactly as the `/1`
   record with those anchors, under the same manifest `/2` requirement, anchor checks, per-shard
   bound and charges on the compact pinned bytes, and builds the same artifact records; `/1`
   records and shards are read unchanged. Acceptance: `TestDCPV1487CompactAnchorTableEquivalent`.
 - `DCP-V1-488`: A compact record is closed. A missing or out-of-range `file` index, a `/1` file
-  member inside a compact anchor, an unknown table or default member, or a `files` or
+  member inside a compact anchor, an unknown table or default member, a file table over 100,000
+  entries, or a `files` or
   `anchor_defaults` member in any other provider schema is refused as a located closed-JSON
-  refusal (`DCP-V1-470`) naming the input and JSON pointer; an expanded anchor that fails a `/1`
+  refusal (`DCP-V1-470`) naming the input and JSON pointer, whatever the member order; an expanded anchor that fails a `/1`
   anchor check is refused as that check refuses it. Acceptance: `TestDCPV1488CompactAnchorRefusals`.
 - `DCP-V1-489`: The compact encoding is measured on a synthetic adoption record of #1664's shape,
   28,500 anchored inventory subjects over 17,400 files (and over 2,000 files), against the same

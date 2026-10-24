@@ -10,12 +10,14 @@ await the orchestrator's acceptance.
 `corvint-corpus-adoption-provider/2` is the `/1` adoption record plus two top-level members:
 
 - `files`: `[{repository?, revision?, path, blob, sha256}]`, at most 100,000 entries. An absent
-  repository or revision is the record's `source` one.
+  repository or revision is the record's `source` one; a present one, even empty, is kept.
 - `anchor_defaults`: optional `{authority?, evidence_kind?, reason?}`.
 
 Every anchor of a `/2` record, in evidence `anchors` and observation `step_evidence`, is compact:
 `{file, start_line, end_line, span_sha256, symbol?, region?, authority?, evidence_kind?, reason?}`.
-`file` is a required zero-based index. A `/1` file member inside a compact anchor is an unknown
+`file` is a required zero-based index. An absent authority, kind or reason is the default's; a
+present one, even empty, is kept, so it fails the `/1` anchor check as an empty `/1` member does.
+A `/1` file member inside a compact anchor is an unknown
 member. The span hash stays per anchor, because the anchor check verifies it per span.
 
 ## Decisions
@@ -23,7 +25,9 @@ member. The span hash stays per anchor, because the anchor check verifies it per
 - **Expand at decode, admit as `/1`.** `decodeProviderRecord` (`internal/doccorpus/compact_anchor.go`)
   is the only provider decode site. It first runs today's closed decode, so every other schema
   costs what it did. Only when that decode fails or reads the `/2` schema does it scan the
-  top-level `schema`, `source`, `files` and `anchor_defaults` with `jsontext`, then decode again
+  top-level `schema` with `jsontext`, skipping every other member. Only for `/2` does it scan
+  again for `source`, `files` and `anchor_defaults`, so a refusal inside them is located whatever
+  the member order. It then decodes again
   with a json/v2 `UnmarshalFromFunc` that turns each compact anchor into its full `Anchor`. The
   record's schema is then set to `/1`. The manifest `/2` requirement, `checkAnchor`, shard
   identity, incremental reuse and capacity charges are therefore unchanged code paths. Capacity
@@ -69,10 +73,11 @@ Decode time on the same records, in one run (not a benchmark; the host was share
 
 | Shape | `/1` decode | `/2` decode |
 | --- | --- | --- |
-| 17,400 files | 92 ms | 157 ms |
-| 2,000 files | 80 ms | 159 ms |
+| 17,400 files | 79 ms | 181 ms |
+| 2,000 files | 127 ms | 164 ms |
 
-The compact path costs a head scan and a second decode, so `/2` takes about twice as long. It is
+The compact path costs two top-level scans and a second decode, so `/2` takes up to about twice
+as long. It is
 paid only by `/2` inputs.
 
 ## Evidence
@@ -80,14 +85,28 @@ paid only by `/2` inputs.
 - `TestDCPV1487CompactAnchorTableEquivalent`: the adoption fixture's record, re-encoded as `/2`
   both without and with anchor defaults, builds byte-identical subjects, claims, relations,
   journeys and details. The artifact opens, and `/1` shards still build.
-- `TestDCPV1488CompactAnchorRefusals`: ten refusal cases, with the located reason checked where
-  it applies:
+- `TestDCPV1488CompactAnchorRefusals`: thirteen refusal cases, with the located reason and
+  pointer checked where they apply:
   - an index out of range, a negative index or a missing index
   - a `/1` member inside a compact anchor
-  - an unknown member in the file table or in the defaults
+  - an unknown member in the file table or in the defaults, which sort before `schema`
+  - an explicit empty reason under a reason default, and an explicit empty file revision
+  - a file table of 100,001 entries
   - a file table or defaults in a `/1` record
   - a wrong file revision
   - a `/2` record under a `/1` manifest
+
+## Independent review
+
+One Codex review round (gpt-6-astra, read-only) found two P2 issues and one P3 issue. All three
+are fixed with tests in `TestDCPV1488CompactAnchorRefusals`:
+
+- **P2: explicit empty members took defaults.** An explicit empty `reason` took the default, and
+  so did an explicit empty authority, kind, file repository or revision. Those members are now
+  pointers, so only an absent member takes a default.
+- **P2: a refusal inside `files` or `anchor_defaults` was located only when `schema` came
+  first.** The schema is now found by its own scan.
+- **P3: the file-table bound refusal was unlocated.** It now names the input and `/files`.
 
 ## Rollback
 
