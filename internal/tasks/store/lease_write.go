@@ -715,6 +715,7 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 	if err != nil {
 		return err
 	}
+	at := writerStage(ctx, "complete.guards", held)
 	if p.branch != "" {
 		branch, err := primaryBranch(repo)
 		if err != nil {
@@ -740,15 +741,19 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 	if wire.Sum(current) != wire.Sum(p.head) {
 		return wire.Errorf(wire.CodeSnapshotMoved, "head", "prepared head changed")
 	}
+	at = writerStage(ctx, "complete.recheck", at)
 	// The lock is held and the head is the audited one. Read verbs share
 	// leaseAudit, so the checkpoint is retained here and never there.
 	staged.publish()
+	at = writerStage(ctx, "complete.readCheckpoint", at)
 	if p.writerProof != nil {
 		p.writerToken = verifyWriterCheckpoint(ctx, repo, p.writerToken, func(old *journal.WriterCheckpoint) (bool, error) {
 			return p.writerProof.VerifyWriterCheckpoint(old, p.writerPhys)
 		})
 	}
+	at = writerStage(ctx, "complete.verifyWriter", at)
 	retainStagedWriterCheckpoint(repo, p.writer, p.writerToken, stagedWriter)
+	at = writerStage(ctx, "complete.retainWriter", at)
 	if !p.pending && (p.result.Kind != "Transaction" || p.result.Plan == nil) {
 		setLeaseReport(report, p.result)
 		return nil
@@ -778,6 +783,7 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 	}
 	setLeaseReport(report, p.result)
 	report.Receipt, err = applyBeforeCommit(repo, session, p.result.Plan, beforeCommit)
+	writerStage(ctx, "complete.apply", at)
 	return err
 }
 

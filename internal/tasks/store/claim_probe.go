@@ -26,19 +26,26 @@ import (
 // head.json and intent tree digests read before it ran, and the locked
 // observer serves it only while its audited state still carries that
 // snapshot. Drift is a miss, so the route reprobes once and then falls back
-// to the complete route.
+// to the complete route. The one exception is the root's HEAD commit
+// (PSR-V0-224): when the HEAD and ref files resolve to the commit Git
+// reported, that result is bound to them instead, and the locked observer
+// serves it only while those files, read without Git, still name it. A
+// journal write alone (a heartbeat) then no longer misses the base.
 type claimProbe struct {
 	outputs  map[string]gitMemo
 	scopes   map[string]derivedScope
+	layouts  map[string]*headLayout
 	at       *journal.Identity
 	deferred bool
 	pending  *claimPending
 }
 
-// gitMemo is one memoized Git output. A nil bound marks an immutable query.
+// gitMemo is one memoized Git output. A nil bound and empty head mark an
+// immutable query; head is the commit a HEAD query is bound to.
 type gitMemo struct {
 	out   []byte
 	bound *journal.Identity
+	head  string
 }
 
 type derivedScope struct {
@@ -61,7 +68,7 @@ var errClaimDeferred = errWriterRoute("claim", "claim Git observation deferred u
 // snapshot read first. Without that snapshot, or on a failed observation,
 // nothing mutable is memoized; the locked observer then defers it.
 func newClaimProbe(ctx context.Context, repo *intent.Repository, choice LeaseChoice) *claimProbe {
-	p := &claimProbe{outputs: map[string]gitMemo{}, scopes: map[string]derivedScope{}}
+	p := &claimProbe{outputs: map[string]gitMemo{}, scopes: map[string]derivedScope{}, layouts: map[string]*headLayout{}}
 	if repo == nil {
 		return p
 	}
@@ -99,13 +106,15 @@ func immutableQuery(args []string) bool {
 	return false
 }
 
-// git serves a memoized output while it is immutable or bound to p.at. The
-// locked runner defers any other query; the unlocked one runs it and binds a
+// git serves a memoized output while it is immutable, its HEAD commit is
+// still named by the ref files, or it is bound to p.at. The locked runner
+// defers any other query; the unlocked one runs it and binds a HEAD query to
+// the ref files when they name the commit Git reported, and any other
 // mutable output to p.at, or memoizes nothing without one.
 func (p *claimProbe) git(locked bool) gitRunner {
 	return func(root string, args ...string) ([]byte, error) {
 		key := strings.Join(append([]string{root}, args...), "\x00")
-		if m, ok := p.outputs[key]; ok && (m.bound == nil || (p.at != nil && sameSnapshot(*m.bound, *p.at))) {
+		if m, ok := p.outputs[key]; ok && p.fresh(root, m) {
 			return m.out, nil
 		}
 		if locked {
@@ -113,16 +122,58 @@ func (p *claimProbe) git(locked bool) gitRunner {
 			return nil, errClaimDeferred
 		}
 		out, err := gitOutput(root, args...)
+		head := ""
+		if err == nil && headQuery(args) {
+			if oid, ok := p.head(root, false); ok && oid == strings.TrimSpace(string(out)) {
+				head = oid
+			}
+		}
 		switch {
 		case err != nil:
 		case immutableQuery(args):
 			p.outputs[key] = gitMemo{out: out}
+		case head != "":
+			p.outputs[key] = gitMemo{out: out, head: head}
 		case p.at != nil:
 			at := *p.at
 			p.outputs[key] = gitMemo{out: out, bound: &at}
 		}
 		return out, err
 	}
+}
+
+// fresh reports whether a memoized output still holds: an immutable one
+// always, a HEAD-bound one while the ref files name the same commit, any
+// other while the audited snapshot is the one it was bound to.
+func (p *claimProbe) fresh(root string, m gitMemo) bool {
+	switch {
+	case m.head != "":
+		oid, ok := p.head(root, true)
+		return ok && oid == m.head
+	case m.bound == nil:
+		return true
+	default:
+		return p.at != nil && sameSnapshot(*m.bound, *p.at)
+	}
+}
+
+// head resolves root's HEAD from its ref files. Only an unlocked caller may
+// observe the layout with Git; a locked one uses the layout observed before.
+func (p *claimProbe) head(root string, locked bool) (string, bool) {
+	l, seen := p.layouts[root]
+	if !seen {
+		if locked {
+			return "", false
+		}
+		if found, ok := observeHeadLayout(root); ok {
+			l = &found
+		}
+		p.layouts[root] = l
+	}
+	if l == nil {
+		return "", false
+	}
+	return l.head()
 }
 
 func (p *claimProbe) scope(locked bool, deriver ScopeDeriver) scopeRunner {
