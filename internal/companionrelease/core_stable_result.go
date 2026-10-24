@@ -2,6 +2,8 @@ package companionrelease
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -95,7 +97,11 @@ func ValidateStableReleaseEvidence(e StableReleaseEvidence) error {
 		return stableRefuse(StableRefusalAdmission, "result is UNSUPPORTED at stage %s", view.Stage)
 	}
 	switch view.Runtime.StructuralQualification {
-	case "NOT_REQUIRED", "QUALIFIED_EXACT_TUPLE":
+	case "NOT_REQUIRED":
+	case "QUALIFIED_EXACT_TUPLE":
+		if !verify.StructuralTupleAdmitted(view.Runtime.GoVersion) {
+			return stableRefuse(StableRefusalAdmission, "structural runtime %s is not an admitted QUALIFIED_EXACT_TUPLE", view.Runtime.GoVersion)
+		}
 	default:
 		return stableRefuse(StableRefusalAdmission, "structural runtime %s is %s", view.Runtime.GoVersion, view.Runtime.StructuralQualification)
 	}
@@ -112,6 +118,16 @@ func ValidateStableReleaseEvidence(e StableReleaseEvidence) error {
 	case "REFERENCE_INTEGRITY_ONLY", "EMPTY_REFERENCE_SET":
 	default:
 		return stableRefuse(StableRefusalNotAccept, "reference integrity is %s", view.Axes["referenceIntegrity"])
+	}
+	// An ACCEPT reached the repository and verification stages, so its sidecar
+	// and structural proof must say so, and a qualified tuple is only ever
+	// reported for a proven structural hunk.
+	if view.Sidecar != "ABSENT" && view.Sidecar != "EXACT" {
+		return stableRefuse(StableRefusalNotAccept, "an ACCEPT reports sidecar %s", view.Sidecar)
+	}
+	proof := view.Axes["structuralProof"]
+	if proof != "NOT_REQUIRED" && proof != "PROVEN_DECLARED_FILE_PREDICATES" || view.Runtime.StructuralQualification == "QUALIFIED_EXACT_TUPLE" && proof != "PROVEN_DECLARED_FILE_PREDICATES" {
+		return stableRefuse(StableRefusalNotAccept, "an ACCEPT reports structural proof %s under %s", proof, view.Runtime.StructuralQualification)
 	}
 	for _, class := range []struct {
 		code string
@@ -146,17 +162,22 @@ func completeStableOutcomes(class string, o StableReleaseOutcomes) error {
 }
 
 // readStableResult enforces the closed cem-stable-verification/1 shape: the
-// strict CEM JSON profile, the exact member names in normative order
-// (CEM-V1-113), no unknown nested member, and a verdictSha256 that the other
-// members recompute (CEM-V1-066).
+// strict CEM JSON profile with signed result integers, the exact member names
+// in normative order (CEM-V1-113), no unknown nested member, a typed reading
+// that loses nothing, and a verdictSha256 that the supplied members recompute
+// (CEM-V1-066).
 func readStableResult(raw []byte) (verify.StableResult, error) {
 	var view verify.StableResult
 	raw = bytes.TrimSuffix(raw, []byte("\n"))
 	if len(raw) == 0 || len(raw) > installedTotalOutputLimit || !utf8.Valid(raw) {
 		return view, stableRefuse(StableRefusalSchema, "result exceeds UTF-8/size bounds")
 	}
-	if _, err := wire.Parse(raw); err != nil {
+	parsed, err := wire.ParseSigned(raw)
+	if err != nil {
 		return view, stableRefuse(StableRefusalSchema, "%v", err)
+	}
+	if parsed.Kind != wire.KindObject {
+		return view, stableRefuse(StableRefusalSchema, "result is not a JSON object")
 	}
 	names, err := topLevelNames(raw)
 	if err != nil {
@@ -174,10 +195,48 @@ func readStableResult(raw []byte) (verify.StableResult, error) {
 	if err := requireJSONEOF(decoder); err != nil {
 		return view, stableRefuse(StableRefusalSchema, "%v", err)
 	}
-	if want, err := view.VerdictDigest(); err != nil || want != view.VerdictSha256 {
+	// The verdict is recomputed from the supplied value, never from the typed
+	// view: typed decoding reads null as 0 or "" and would rebuild the digest
+	// of a different result.
+	if stableVerdictDigest(parsed) != view.VerdictSha256 {
 		return view, stableRefuse(StableRefusalSchema, "verdictSha256 does not bind the result")
 	}
+	type plainResult verify.StableResult
+	typed, err := json.Marshal(plainResult(view))
+	if err != nil {
+		return view, stableRefuse(StableRefusalSchema, "%v", err)
+	}
+	reread, err := wire.ParseSigned(typed)
+	if err != nil {
+		return view, stableRefuse(StableRefusalSchema, "%v", err)
+	}
+	if !bytes.Equal(wire.CanonicalValue(withoutMembers(parsed, "verdictSha256")), wire.CanonicalValue(withoutMembers(reread, "verdictSha256"))) {
+		return view, stableRefuse(StableRefusalSchema, "a member has a null or type the typed result cannot hold")
+	}
 	return view, nil
+}
+
+// stableVerdictDigest is the CEM-V1-066 verdict: the SHA-256 of the canonical
+// JSON value of the result without runtime, repositoryEnvelope and
+// verdictSha256.
+func stableVerdictDigest(result wire.Value) string {
+	sum := sha256.Sum256(wire.CanonicalValue(withoutMembers(result, "runtime", "repositoryEnvelope", "verdictSha256")))
+	return hex.EncodeToString(sum[:])
+}
+
+func withoutMembers(object wire.Value, names ...string) wire.Value {
+	out := &wire.Object{Values: map[string]wire.Value{}}
+	for _, key := range object.Obj.Keys {
+		drop := false
+		for _, name := range names {
+			drop = drop || key == name
+		}
+		if !drop {
+			out.Keys = append(out.Keys, key)
+			out.Values[key] = object.Obj.Values[key]
+		}
+	}
+	return wire.Value{Kind: wire.KindObject, Obj: out}
 }
 
 // closedStableResult closes every enumeration release readiness reads.
@@ -206,8 +265,11 @@ func closedStableResult(v verify.StableResult) error {
 		checks = append(checks, stableRefuse(StableRefusalSchema, "runtime goVersion or repositoryEnvelope is outside its bounds"))
 	}
 	references := make([]string, 0, len(v.References))
-	for name := range v.References {
+	for name, value := range v.References {
 		references = append(references, name)
+		if _, ok := value.([]any); !ok {
+			checks = append(checks, stableRefuse(StableRefusalSchema, "references.%s is not an array", name))
+		}
 	}
 	sort.Strings(references)
 	if fmt.Sprint(references) != "[artifacts criterionBindings criterionLinks runnerReceipts]" {

@@ -56,8 +56,9 @@ func (o *Object) Get(key string) (Value, bool) {
 }
 
 type parser struct {
-	data []byte
-	pos  int
+	data   []byte
+	pos    int
+	signed bool
 }
 
 func invalid(format string, args ...any) *cemcode.Error {
@@ -65,11 +66,19 @@ func invalid(format string, args ...any) *cemcode.Error {
 }
 
 // Parse reads one strict JSON document occupying the entire input.
-func Parse(data []byte) (Value, error) {
+func Parse(data []byte) (Value, error) { return parse(data, false) }
+
+// ParseSigned is Parse that also admits negative integers down to
+// -MaxWireInteger. It reads cem-stable-verification/1 result lines, whose
+// citation.specificity is a signed integer (RESULT.schema.json); negative zero
+// stays invalid. CEM wire documents keep Parse.
+func ParseSigned(data []byte) (Value, error) { return parse(data, true) }
+
+func parse(data []byte, signed bool) (Value, error) {
 	if !utf8.Valid(data) {
 		return Value{}, invalid("input is not valid UTF-8")
 	}
-	p := &parser{data: data}
+	p := &parser{data: data, signed: signed}
 	p.skipSpace()
 	value, err := p.parseValue(0)
 	if err != nil {
@@ -131,10 +140,14 @@ func (p *parser) parseLiteral(word string, value Value) (Value, error) {
 }
 
 func (p *parser) parseNumber() (Value, error) {
-	start := p.pos
-	if p.pos < len(p.data) && p.data[p.pos] == '-' {
-		return Value{}, invalid("negative numbers are outside the wire integer range")
+	negative := p.pos < len(p.data) && p.data[p.pos] == '-'
+	if negative {
+		if !p.signed {
+			return Value{}, invalid("negative numbers are outside the wire integer range")
+		}
+		p.pos++
 	}
+	start := p.pos
 	for p.pos < len(p.data) {
 		c := p.data[p.pos]
 		if c >= '0' && c <= '9' {
@@ -162,6 +175,12 @@ func (p *parser) parseNumber() (Value, error) {
 	}
 	if number > MaxWireInteger {
 		return Value{}, invalid("integer exceeds the wire integer range")
+	}
+	if negative {
+		if number == 0 {
+			return Value{}, invalid("negative zero is invalid")
+		}
+		number = -number
 	}
 	return Value{Kind: KindInt, Int: number}, nil
 }

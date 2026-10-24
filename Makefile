@@ -163,17 +163,17 @@ cem-stable-regen-check:
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/cem-stable-regen --check
 
 # cem-release-suites runs the sealed protocol/cem-1.0 stable suites against two built release
-# binaries and refuses unless both were built from the same clean commit, which the checkout must
-# be at (CEM-V1-572, V1-2323):
+# binaries and refuses unless both report the same clean commit, which the checkout must be at
+# (CEM-V1-572, V1-2323):
 #   make cem-release-suites CORVINT_RELEASE_BIN=<corvint> CEM01_RELEASE_BIN=<cem01-go>
-# The tamper matrix, citation vectors, neutral criterion and receipt authentication run through
-# both binaries. The repository-envelope cells are prose S0E recipes, so they run at source level
-# only, at the same commit; that is not a binary-level run.
+# Build stamps are unauthenticated, so the tool reports the revision and each binary's SHA-256
+# rather than proving provenance. Every input is read from that commit's Git objects, not the
+# worktree. The tamper matrix, citation vectors, neutral criterion and receipt authentication run
+# through both binaries. The repository-envelope cells are prose S0E recipes, so the tool runs
+# them as source-level Go tests in the same committed tree; that is not a binary-level run.
 cem-release-suites:
 	@test -n "$(CORVINT_RELEASE_BIN)" && test -n "$(CEM01_RELEASE_BIN)" || { echo "set CORVINT_RELEASE_BIN and CEM01_RELEASE_BIN" >&2; exit 2; }
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/cem-release-suites --corvint "$(CORVINT_RELEASE_BIN)" --cem01 "$(CEM01_RELEASE_BIN)"
-	$(GO_TEST_COMMAND) ./internal/cem/verify -run '^(TestStableS0EPublicCases|TestStableS0ELinkedControl|TestStableCanonicalEnvelopeCellsNative|TestStableEnvelopeAdversarialShapes)$$'
-	cd interop/cem01-go && GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test -count=1 -timeout $(GO_TEST_TIMEOUT) -run '^(TestStableCanonicalEnvelopeCells|TestStableEnvelopeAdversarialShapes)$$' .
 
 # spec-requirements regenerates docs/specs/REQUIREMENTS.tsv and projects the spec headers onto
 # docs/specs/INDEX.json and the docs/specs/README.md table (SRG-V0-012). The generator reads the

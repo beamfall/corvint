@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/verify"
+	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
 // stableAcceptResult is the public neutral-criterion ACCEPT result line, an
@@ -48,17 +48,11 @@ func emitStableResult(t *testing.T, members map[string]json.RawMessage, order []
 		return b.Bytes()
 	}
 	if reseal {
-		decoder := json.NewDecoder(bytes.NewReader(encode()))
-		decoder.UseNumber()
-		var r verify.StableResult
-		if err := decoder.Decode(&r); err != nil {
-			t.Fatal(err)
-		}
-		digest, err := r.VerdictDigest()
+		parsed, err := wire.ParseSigned(bytes.TrimSuffix(encode(), []byte("\n")))
 		if err != nil {
 			t.Fatal(err)
 		}
-		members["verdictSha256"], _ = json.Marshal(digest)
+		members["verdictSha256"], _ = json.Marshal(stableVerdictDigest(parsed))
 	}
 	return encode()
 }
@@ -85,6 +79,26 @@ func TestCEMV1569StableReleaseReadiness(t *testing.T) {
 	}
 	set := func(name, value string) func(map[string]json.RawMessage) {
 		return func(m map[string]json.RawMessage) { m[name] = json.RawMessage(value) }
+	}
+	// setIn replaces one member of the object member parent, keeping the
+	// other members' bytes and order.
+	setIn := func(parent, name, value string) func(map[string]json.RawMessage) {
+		return func(m map[string]json.RawMessage) {
+			old := m[parent]
+			key := []byte(`"` + name + `":`)
+			start := bytes.Index(old, key)
+			if start < 0 {
+				t.Fatalf("%s has no member %s", parent, name)
+			}
+			end := start + len(key)
+			decoder := json.NewDecoder(bytes.NewReader(old[end:]))
+			var skip json.RawMessage
+			if err := decoder.Decode(&skip); err != nil {
+				t.Fatal(err)
+			}
+			end += int(decoder.InputOffset())
+			m[parent] = append(append(append([]byte(nil), old[:start+len(key)]...), value...), old[end:]...)
+		}
 	}
 	swapped := append([]string(nil), order...)
 	swapped[0], swapped[1] = swapped[1], swapped[0]
@@ -116,6 +130,15 @@ func TestCEMV1569StableReleaseReadiness(t *testing.T) {
 			m["outcome"], m["accept"], m["stage"] = json.RawMessage(`"REJECT"`), json.RawMessage(`false`), json.RawMessage(`"artifacts"`)
 			setAxis("referenceIntegrity", "FAILED")(m)
 		}, reseal: true}, class: StableRefusalNotAccept},
+		{name: "null specificity under the original verdict", m: mutation{members: setIn("citation", "specificity", `null`)}, class: StableRefusalSchema},
+		{name: "null specificity resealed", m: mutation{members: setIn("citation", "specificity", `null`), reseal: true}, class: StableRefusalSchema},
+		{name: "negative specificity", m: mutation{members: setIn("citation", "specificity", `-2`), reseal: true}, integrity: true},
+		{name: "scalar reference value", m: mutation{members: setIn("references", "artifacts", `"artifact"`), reseal: true}, class: StableRefusalSchema},
+		{name: "failed structural proof on an accept", m: mutation{members: setAxis("structuralProof", "FAILED"), reseal: true}, class: StableRefusalNotAccept, integrity: true},
+		{name: "mismatched sidecar on an accept", m: mutation{members: set("sidecar", `"MISMATCH"`), reseal: true}, class: StableRefusalNotAccept, integrity: true},
+		{name: "unchecked sidecar on an accept", m: mutation{members: set("sidecar", `"NOT_CHECKED"`), reseal: true}, class: StableRefusalNotAccept, integrity: true},
+		{name: "qualified tuple outside the allowlist", m: mutation{members: set("runtime", `{"goVersion":"go1.26.0","structuralQualification":"QUALIFIED_EXACT_TUPLE"}`)}, class: StableRefusalAdmission, integrity: true},
+		{name: "qualified tuple without a structural proof", m: mutation{members: set("runtime", `{"goVersion":"go1.27.2","structuralQualification":"QUALIFIED_EXACT_TUPLE"}`)}, class: StableRefusalNotAccept, integrity: true},
 		{name: "runner row failed", m: mutation{release: func(e *StableReleaseEvidence) { e.Runner.Observed = map[string]string{"go-test": "FAILED"} }}, class: StableRefusalRunner, integrity: true},
 		{name: "runner row skipped", m: mutation{release: func(e *StableReleaseEvidence) { e.Runner.Observed = map[string]string{"go-test": "SKIPPED"} }}, class: StableRefusalRunner, integrity: true},
 		{name: "runner row missing", m: mutation{release: func(e *StableReleaseEvidence) { e.Runner.Required = []string{"go-test", "vitest"} }}, class: StableRefusalRunner, integrity: true},
@@ -157,4 +180,32 @@ func TestCEMV1569StableReleaseReadiness(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestCEMV1569MigrationA02StaysOpen pins the migration status rule: A02 says
+// release readiness is recognized only after integration, and every unfinished
+// obligation stays OPEN, so the library reader alone must not close it.
+func TestCEMV1569MigrationA02StaysOpen(t *testing.T) {
+	raw, err := os.ReadFile("../../protocol/cem-1.0/stable/MIGRATION.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var migration struct {
+		LaterAdditions []struct {
+			ID     string `json:"id"`
+			Status string `json:"status"`
+		} `json:"laterAdditions"`
+	}
+	if err := json.Unmarshal(raw, &migration); err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range migration.LaterAdditions {
+		if entry.ID == "A02" {
+			if entry.Status != "OPEN" {
+				t.Fatalf("A02 status = %q; it stays OPEN until a release workflow integrates the stable result", entry.Status)
+			}
+			return
+		}
+	}
+	t.Fatal("MIGRATION.json has no A02 entry")
 }

@@ -9,20 +9,26 @@
 //
 // Each binary must carry Go build information naming one vcs.revision with
 // vcs.modified=false, the two revisions must be equal, and the checkout at
-// --root must be at that revision with protocol/cem-1.0 unmodified, so the
-// sealed suites read are the ones the binaries were built with. The tamper
-// matrix, citation vectors, neutral criterion and receipt authentication cases
-// then run through `corvint cem verify-stable` and
-// `cem01-go verify-stable-canonical`; each result is checked against the
-// sealed expectation and the two binaries' result lines, runtime aside, must
-// be byte-identical. The repository-envelope cells are prose recipes rebuilt
-// by the in-process S0E harnesses, so this command does not run them; the
-// Makefile target runs those suites at source level and says so.
+// --root must be at that revision. Build stamps are unauthenticated, so the
+// command reports the revision as the binaries' reported one and pins each
+// binary by SHA-256; it does not prove how the binaries were built. Every
+// input is then read from the revision's committed Git objects, written to a
+// private tree, never from the checkout's worktree. The tamper matrix,
+// citation vectors, neutral criterion and receipt authentication cases run
+// through `corvint cem verify-stable` and `cem01-go verify-stable-canonical`;
+// each result is checked against the sealed expectation and the two binaries'
+// result lines, runtime.goVersion aside, must be byte-identical. The
+// repository-envelope cells are prose recipes rebuilt by the in-process S0E
+// harnesses, so they run as source-level Go tests in that private tree, not
+// against the binaries, and the output says so.
 package main
 
 import (
+	"bufio"
 	"bytes"
+	"crypto/sha256"
 	"debug/buildinfo"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -68,8 +74,13 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "cem-release-suites: refused:", err)
 		return 1
 	}
-	fmt.Fprintf(stdout, "cem-release-suites: both binaries built from clean %s\n", revision)
-	r := &runner{root: absRoot, bins: [2]binary{{name: "corvint", argv: []string{mustAbs(*corvint), "cem", "verify-stable"}}, {name: "cem01-go", argv: []string{mustAbs(*cem01), "verify-stable-canonical"}}}}
+	report, err := provenanceReport(revision, *corvint, *cem01)
+	if err != nil {
+		fmt.Fprintln(stderr, "cem-release-suites:", err)
+		return 2
+	}
+	fmt.Fprintln(stdout, report)
+	r := &runner{bins: [2]binary{{name: "corvint", argv: []string{mustAbs(*corvint), "cem", "verify-stable"}}, {name: "cem01-go", argv: []string{mustAbs(*cem01), "verify-stable-canonical"}}}}
 	tmp, err := os.MkdirTemp("", "cem-release-suites-")
 	if err != nil {
 		fmt.Fprintln(stderr, "cem-release-suites:", err)
@@ -77,19 +88,60 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	defer os.RemoveAll(tmp)
 	r.tmp = tmp
+	src := filepath.Join(tmp, "src")
+	if err := materialize(absRoot, revision, src); err != nil {
+		fmt.Fprintln(stderr, "cem-release-suites: refused:", err)
+		return 1
+	}
 	for _, s := range []struct {
 		name string
 		fn   func(string) error
 	}{{"tamper-matrix", r.tamperMatrix}, {"citation-vectors", r.citationVectors}, {"neutral-criterion", r.neutralCriterion}, {"receipt-authentication", r.receiptAuthentication}} {
 		before := r.runs
-		if err := s.fn(filepath.Join(absRoot, stableDir, s.name)); err != nil {
+		if err := s.fn(filepath.Join(src, stableDir, s.name)); err != nil {
 			fmt.Fprintf(stderr, "cem-release-suites: %s: FAIL: %v\n", s.name, err)
 			return 1
 		}
 		fmt.Fprintf(stdout, "cem-release-suites: %s: PASS (%d cases on both binaries)\n", s.name, r.runs-before)
 	}
-	fmt.Fprintln(stdout, "cem-release-suites: repository-envelope: NOT_RUN against binaries (prose recipes; run at source level by make cem-release-suites)")
+	for _, cmd := range sourceSuites(src) {
+		cmd.Stdout, cmd.Stderr = stdout, stderr
+		if err := cmd.Run(); err != nil {
+			fmt.Fprintf(stderr, "cem-release-suites: repository-envelope: FAIL: %v in %s: %v\n", cmd.Args, cmd.Dir, err)
+			return 1
+		}
+	}
+	fmt.Fprintf(stdout, "cem-release-suites: repository-envelope: PASS at source level on the committed tree of %s; NOT_RUN against binaries (prose recipes)\n", revision)
 	return 0
+}
+
+// provenanceReport names the revision both binaries report and pins each
+// binary's bytes by SHA-256. A Go build stamp is unauthenticated metadata that
+// an edited binary can carry, so the line says reported, never proven.
+func provenanceReport(revision, corvint, cem01 string) (string, error) {
+	sums := [2]string{}
+	for i, path := range []string{corvint, cem01} {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return "", err
+		}
+		sum := sha256.Sum256(raw)
+		sums[i] = hex.EncodeToString(sum[:])
+	}
+	return fmt.Sprintf("cem-release-suites: both binaries report clean vcs.revision %s (unauthenticated build stamps, not verified build provenance); corvint sha256 %s, cem01-go sha256 %s", revision, sums[0], sums[1]), nil
+}
+
+// sourceSuites are the source-level repository-envelope tests, run in the
+// committed tree src rather than in the mutable checkout.
+func sourceSuites(src string) []*exec.Cmd {
+	native := exec.Command("go", "test", "-count=1", "-timeout", "30m", "-run", "^(TestStableS0EPublicCases|TestStableS0ELinkedControl|TestStableCanonicalEnvelopeCellsNative|TestStableEnvelopeAdversarialShapes)$", "./internal/cem/verify")
+	native.Dir = src
+	portable := exec.Command("go", "test", "-count=1", "-timeout", "30m", "-run", "^(TestStableCanonicalEnvelopeCells|TestStableEnvelopeAdversarialShapes)$", ".")
+	portable.Dir = filepath.Join(src, "interop", "cem01-go")
+	for _, cmd := range []*exec.Cmd{native, portable} {
+		cmd.Env = withoutGitSelection(os.Environ())
+	}
+	return []*exec.Cmd{native, portable}
 }
 
 func mustAbs(p string) string {
@@ -100,8 +152,10 @@ func mustAbs(p string) string {
 	return a
 }
 
-// releaseBuild refuses unless both binaries were built from the same clean
-// commit and the checkout at root is that commit with the packet unmodified.
+// releaseBuild refuses unless both binaries report the same clean commit and
+// the checkout at root is at that commit. Inputs are read from the commit's
+// objects by materialize, so worktree edits, skip-worktree and
+// assume-unchanged entries cannot reach a suite.
 func releaseBuild(corvint, cem01, root string) (string, error) {
 	a, err := buildinfo.ReadFile(corvint)
 	if err != nil {
@@ -122,10 +176,82 @@ func releaseBuild(corvint, cem01, root string) (string, error) {
 	if head != revision {
 		return "", fmt.Errorf("checkout HEAD %s is not the build revision %s; check out the build commit", head, revision)
 	}
-	if dirty, err := gitOutput(root, "", nil, "status", "--porcelain", "--", "protocol/cem-1.0"); err != nil || dirty != "" {
-		return "", fmt.Errorf("protocol/cem-1.0 differs from the build revision: %v%s", err, dirty)
-	}
 	return revision, nil
+}
+
+// materialize writes every file of revision's tree, byte for byte from its
+// committed blob, under dst. Only regular blobs are admitted.
+func materialize(root, revision, dst string) error {
+	listing, err := gitOutput(root, "", nil, "ls-tree", "-r", "-z", "--full-tree", revision)
+	if err != nil {
+		return err
+	}
+	type entry struct{ mode, oid, path string }
+	var entries []entry
+	var oids strings.Builder
+	for _, record := range strings.Split(listing, "\x00") {
+		if record == "" {
+			continue
+		}
+		meta, path, ok := strings.Cut(record, "\t")
+		fields := strings.Fields(meta)
+		if !ok || len(fields) != 3 || fields[1] != "blob" || fields[0] != "100644" && fields[0] != "100755" || !filepath.IsLocal(path) {
+			return fmt.Errorf("tree entry %q at %s is not a regular committed file", record, revision)
+		}
+		entries = append(entries, entry{fields[0], fields[2], path})
+		oids.WriteString(fields[2] + "\n")
+	}
+	cmd := gitCommand(root, "cat-file", "--batch")
+	cmd.Stdin = strings.NewReader(oids.String())
+	pipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	read := func() error {
+		out := bufio.NewReader(pipe)
+		for _, e := range entries {
+			header, err := out.ReadString('\n')
+			if err != nil {
+				return err
+			}
+			var oid, kind string
+			var size int64
+			if _, err := fmt.Sscanf(header, "%s %s %d\n", &oid, &kind, &size); err != nil || oid != e.oid || kind != "blob" {
+				return fmt.Errorf("git cat-file returned %q for %s", header, e.path)
+			}
+			body := make([]byte, size+1)
+			if _, err := io.ReadFull(out, body); err != nil {
+				return err
+			}
+			mode := os.FileMode(0o644)
+			if e.mode == "100755" {
+				mode = 0o755
+			}
+			target := filepath.Join(dst, filepath.FromSlash(e.path))
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return err
+			}
+			if err := os.WriteFile(target, body[:size], mode); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	readErr := read()
+	if readErr != nil {
+		_ = cmd.Process.Kill()
+	}
+	waitErr := cmd.Wait()
+	if readErr != nil {
+		return fmt.Errorf("materialize %s: %v", revision, readErr)
+	}
+	if waitErr != nil {
+		return fmt.Errorf("materialize %s: git cat-file: %v", revision, waitErr)
+	}
+	return nil
 }
 
 // sameBuild returns the shared vcs.revision of a corvint and a cem01-go build,
@@ -165,9 +291,9 @@ type binary struct {
 }
 
 type runner struct {
-	root, tmp string
-	bins      [2]binary
-	runs      int
+	tmp  string
+	bins [2]binary
+	runs int
 }
 
 type stableRun struct {
@@ -207,26 +333,51 @@ func (r *runner) verify(repo string, mapBytes []byte, base, target, artifacts, t
 		if err := json.Unmarshal(runs[i].line, &runs[i].result); err != nil {
 			return stableRun{}, fmt.Errorf("%s printed no result line: %v: %s", b.name, err, out.Bytes())
 		}
+		if err := runtimeConsistent(runs[i].result); err != nil {
+			return stableRun{}, fmt.Errorf("%s: %v: %s", b.name, err, runs[i].line)
+		}
 	}
-	a, b := withoutRuntime(runs[0].line), withoutRuntime(runs[1].line)
+	a, b := withoutGoVersion(runs[0].line), withoutGoVersion(runs[1].line)
 	if runs[0].exit != runs[1].exit || !bytes.Equal(a, b) {
 		return stableRun{}, fmt.Errorf("consumers differ: corvint exit %d %s; cem01-go exit %d %s", runs[0].exit, a, runs[1].exit, b)
 	}
 	return runs[0], nil
 }
 
-// withoutRuntime removes the runtime member, whose goVersion names the build
-// toolchain, from one result line without reordering anything else.
-func withoutRuntime(line []byte) []byte {
-	start := bytes.Index(line, []byte(`,"runtime":{`))
+// withoutGoVersion empties runtime.goVersion, the one value another admitted
+// toolchain changes in a sealed line, and keeps every other byte, including
+// runtime.structuralQualification.
+func withoutGoVersion(line []byte) []byte {
+	key := []byte(`"runtime":{"goVersion":"`)
+	start := bytes.Index(line, key)
 	if start < 0 {
 		return line
 	}
-	end := bytes.IndexByte(line[start+len(`,"runtime":{`):], '}')
+	value := start + len(key)
+	end := bytes.IndexByte(line[value:], '"')
 	if end < 0 {
 		return line
 	}
-	return append(append([]byte(nil), line[:start]...), line[start+len(`,"runtime":{`)+end+1:]...)
+	return append(append([]byte(nil), line[:value]...), line[value+end:]...)
+}
+
+// runtimeConsistent refuses a runtime record that is not exactly goVersion and
+// structuralQualification, or whose qualification contradicts the structural
+// proof axis: no structural hunk means NOT_REQUIRED, and UNSUPPORTED_RUNTIME
+// is only reported with an UNSUPPORTED qualification.
+func runtimeConsistent(result map[string]any) error {
+	runtime, _ := result["runtime"].(map[string]any)
+	version, _ := runtime["goVersion"].(string)
+	qualification, _ := runtime["structuralQualification"].(string)
+	if len(runtime) != 2 || version == "" || qualification == "" {
+		return fmt.Errorf("runtime %v is not one goVersion and structuralQualification", result["runtime"])
+	}
+	axes, _ := result["axes"].(map[string]any)
+	proof, _ := axes["structuralProof"].(string)
+	if proof == "NOT_REQUIRED" && qualification != "NOT_REQUIRED" || (proof == "UNSUPPORTED_RUNTIME") != (qualification == "UNSUPPORTED") {
+		return fmt.Errorf("structuralQualification %s contradicts structuralProof %s", qualification, proof)
+	}
+	return nil
 }
 
 func resultExceptRuntime(m map[string]any) map[string]any {
@@ -305,8 +456,27 @@ func (r *runner) recipe(dir string) (repo, base, target string, err error) {
 	return
 }
 
-func gitOutput(dir, stdin string, env []string, args ...string) (string, error) {
+// gitCommand runs git on the repository at dir only: inherited repository
+// selection (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE and every other GIT_*
+// variable) is dropped, so -C dir names the repository that is read.
+func gitCommand(dir string, args ...string) *exec.Cmd {
 	cmd := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", dir}, args...)...)
+	cmd.Env = withoutGitSelection(os.Environ())
+	return cmd
+}
+
+func withoutGitSelection(env []string) []string {
+	out := make([]string, 0, len(env))
+	for _, kv := range env {
+		if !strings.HasPrefix(kv, "GIT_") {
+			out = append(out, kv)
+		}
+	}
+	return out
+}
+
+func gitOutput(dir, stdin string, env []string, args ...string) (string, error) {
+	cmd := gitCommand(dir, args...)
 	if env != nil {
 		cmd.Env = append([]string{"PATH=" + os.Getenv("PATH")}, env...)
 	}
@@ -424,7 +594,7 @@ func (r *runner) citationVectors(dir string) error {
 		if err != nil {
 			return fmt.Errorf("%s: %v", c.Name, err)
 		}
-		if got.exit != c.Exit || !bytes.Equal(withoutRuntime(got.line), withoutRuntime(bytes.TrimSuffix(sealed, []byte("\n")))) {
+		if got.exit != c.Exit || !bytes.Equal(withoutGoVersion(got.line), withoutGoVersion(bytes.TrimSuffix(sealed, []byte("\n")))) {
 			return fmt.Errorf("%s: exit %d %s, want exit %d and the sealed result line", c.Name, got.exit, got.line, c.Exit)
 		}
 	}
@@ -468,7 +638,11 @@ func (r *runner) neutralCriterion(dir string) error {
 	if err != nil {
 		return fmt.Errorf("accept: %v", err)
 	}
-	if got.exit != want.Accept.Exit || !reflect.DeepEqual(resultExceptRuntime(got.result), want.Accept.Result) {
+	sealed, err := os.ReadFile(filepath.Join(dir, "results", "accept.json"))
+	if err != nil {
+		return err
+	}
+	if got.exit != want.Accept.Exit || !reflect.DeepEqual(resultExceptRuntime(got.result), want.Accept.Result) || !bytes.Equal(withoutGoVersion(got.line), withoutGoVersion(bytes.TrimSuffix(sealed, []byte("\n")))) {
 		return fmt.Errorf("accept: exit %d %s, want the sealed ACCEPT", got.exit, got.line)
 	}
 	if len(want.Refusals) == 0 {

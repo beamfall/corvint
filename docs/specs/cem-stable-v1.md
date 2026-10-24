@@ -211,11 +211,15 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   no consumer reads it. Rollback is a Git revert of the re-emission and the three emission sites.
 - `CEM-V1-569`: (proposed; V1-2323) `companionrelease.ValidateStableReleaseEvidence` MUST read
   its `Result` bytes as one exact `cem-stable-verification/1` result. It requires the strict CEM
-  JSON profile (`wire.Parse`), the 23 members of `RESULT.schema.json` in their normative order
+  JSON profile with signed integers (`wire.ParseSigned`, since `citation.specificity` is a signed
+  integer in `RESULT.schema.json`), the 23 members of `RESULT.schema.json` in their normative order
   (`CEM-V1-113`), no unknown member in any typed nested record, closed values for `outcome`,
   `stage`, `sidecar`, `assurance`, `runtime.structuralQualification` and the five integrity axes,
-  exactly the 18 named axes, the four reference arrays, and a `verdictSha256` that the other
-  members recompute (`CEM-V1-066`). Anything else is refused with class `stable-result-schema`. A
+  exactly the 18 named axes, the four reference members each an array, and a `verdictSha256` that
+  the other members recompute (`CEM-V1-066`). The verdict is recomputed from the parsed bytes, not
+  from the typed decoding, and the typed decoding MUST re-encode to the same canonical value, so a
+  `null` or a value of the wrong type that typed decoding would coerce is refused rather than
+  normalized. Anything else is refused with class `stable-result-schema`. A
   result whose `profile`, `spec` or `verificationMode` is not `cem-stable-verification/1`,
   `cem/1.0` and `canonical-and-reference-integrity` is refused with class `stable-result-mode`.
 - `CEM-V1-570`: (proposed; V1-2323) The reader MUST refuse with class `stable-result-authority`
@@ -223,12 +227,16 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   discrimination or external-interoperability axis other than `NOT_OBSERVED`. `authentication` may
   also be `UNTRUSTED_KEY`, `VERIFIED` or `FAILED` (`CEM-V1-084`). It MUST refuse with class
   `stable-result-unsupported-admission` an `UNSUPPORTED` outcome, a structural qualification other
-  than `NOT_REQUIRED` or `QUALIFIED_EXACT_TUPLE`, a repository envelope other than
-  `canonical-repository-bounded/1`, and `structuralProof` `UNSUPPORTED_RUNTIME`. It MUST refuse
-  with class `stable-result-not-accepted` anything but an `ACCEPT` with `accept` true, stage
+  than `NOT_REQUIRED` or `QUALIFIED_EXACT_TUPLE`, a `QUALIFIED_EXACT_TUPLE` whose
+  `runtime.goVersion` is not an admitted structural tuple (`CEM-V1-050`), a repository envelope
+  other than `canonical-repository-bounded/1`, and `structuralProof` `UNSUPPORTED_RUNTIME`. It MUST
+  refuse with class `stable-result-not-accepted` anything but an `ACCEPT` with `accept` true, stage
   `complete`, a null code, no issue codes, non-null assurance, `changeIntegrity` `VERIFIED`,
-  authentication not `FAILED`, and `referenceIntegrity` `REFERENCE_INTEGRITY_ONLY` or
-  `EMPTY_REFERENCE_SET`. These checks run before the release outcomes, and an admission refusal
+  authentication not `FAILED`, `referenceIntegrity` `REFERENCE_INTEGRITY_ONLY` or
+  `EMPTY_REFERENCE_SET`, `sidecar` `ABSENT` or `EXACT`, and `structuralProof` `NOT_REQUIRED` or
+  `PROVEN_DECLARED_FILE_PREDICATES`, which `QUALIFIED_EXACT_TUPLE` requires. A result that
+  contradicts what a verifier can emit on an accept is refused even when its verdict recomputes.
+  These checks run before the release outcomes, and an admission refusal
   holds even when reference integrity passes. Neither `accept` true nor the binary version
   establishes release support.
 - `CEM-V1-571`: (proposed; V1-2323) Runner, platform and external outcomes are release evidence
@@ -243,14 +251,21 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
 - `CEM-V1-572`: (proposed; V1-2323) `make cem-release-suites CORVINT_RELEASE_BIN=... CEM01_RELEASE_BIN=...`
   (`tools/cem-release-suites`) MUST refuse unless both binaries carry Go build information with
   the expected main package (`cmd/corvint`, `interop/cem01-go`), a Git `vcs.revision`,
-  `vcs.modified=false`, and the same revision. The checkout must also be at that revision with
-  `protocol/cem-1.0` unmodified. It then runs the tamper matrix, citation vectors, neutral
-  criterion and receipt authentication cases through `corvint cem verify-stable` and
-  `cem01-go verify-stable-canonical`. Each result is checked against its sealed expectation, and
-  the two binaries' result lines must be byte-identical apart from `runtime`. The
-  repository-envelope cells are prose S0E recipes, so the target runs them at source level only,
-  through the native and portable S0E, envelope-cell and adversarial-shape tests, and reports
-  them as not run against the binaries.
+  `vcs.modified=false`, and the same revision, and the checkout is at that revision. Build stamps
+  are unauthenticated, so it MUST report that revision as reported by the binaries, never as
+  verified provenance, and pin each binary by the SHA-256 of its bytes. Git runs without any
+  inherited `GIT_*` variable. Every suite input is written from the revision's committed tree
+  objects into a private directory, so worktree edits, `skip-worktree` and `assume-unchanged`
+  entries cannot reach a suite; a tree entry that is not a regular file is refused. It then runs
+  the tamper matrix, citation vectors, neutral criterion and receipt authentication cases through
+  `corvint cem verify-stable` and `cem01-go verify-stable-canonical`. Each result is checked
+  against its sealed expectation, including the sealed `results/accept.json` line for the neutral
+  accept, and the two binaries' result lines must be byte-identical apart from
+  `runtime.goVersion`; `runtime.structuralQualification` is compared. Each `runtime` must be
+  exactly `goVersion` and `structuralQualification`, and a qualification must agree with
+  `structuralProof`. The repository-envelope cells are prose S0E recipes, so the tool runs them at
+  source level in the same committed tree, through the native and portable S0E, envelope-cell and
+  adversarial-shape tests, and reports them as not run against the binaries.
 
 ## Non-goals and failure modes
 
@@ -4464,13 +4479,16 @@ Non-goals:
 - no source of truth for which runner, platform or external rows a release requires: the caller
   declares them, and an empty declaration is refused rather than read as complete.
 
-Failure modes: a third-party or retired-profile result, a reordered or extended result, or a
-forged verdict is refused as schema or mode. A result that claims native authority is refused as
+Failure modes: a third-party or retired-profile result, a reordered or extended result, a forged
+verdict, or a `null` that typed decoding would turn into zero is refused as schema or mode. A result that claims native authority is refused as
 authority. A result from an experimental or unsupported tuple or envelope is refused as admission,
 even though its `verdictSha256` stays valid (the verdict excludes `runtime` and
 `repositoryEnvelope`). Release evidence that is missing, partial, failed or skipped is refused per
-class. The suite runner refuses binaries with skewed or dirty builds before running anything, and
-reports the first case where the two consumers disagree.
+class. A sidecar, structural proof or tuple that contradicts an accept is refused as not accepted
+or admission. The suite runner refuses binaries with skewed or dirty builds before running
+anything, reads only committed objects, and reports the first case where the two consumers
+disagree. Build stamps can be forged, so the runner reports them as unauthenticated and pins the
+binary bytes; it does not prove how the binaries were built.
 
 Acceptance evidence: `TestCEMV1569StableReleaseReadiness` (`internal/companionrelease`) runs one
 accepted case and refusals for every class. The accepted case is the public
@@ -4479,20 +4497,22 @@ external refusals keep its passing reference integrity. `TestCEMV1572ReleaseBuil
 (`tools/cem-release-suites`) covers the provenance refusals. Locally, `make cem-release-suites`
 over clean same-commit builds passed 23 tamper-matrix, 8 citation-vector, 8 neutral-criterion and
 19 receipt-authentication cases on both binaries, plus the source-level envelope tests. A
-`cem01-go` built from a different commit was refused with `builds differ`.
-`MIGRATION.json` A02 moved from `OPEN` to `IMPLEMENTED_EXPERIMENTAL`, and its entry in
-`protocol/cem-1.0/stable/manifest.json` was re-pinned.
+`cem01-go` built from a different commit was refused with `builds differ`. The review repair
+(`docs/build-log/2026-10-23-cem-release-readiness-review-repair.md`) records the rerun.
+`MIGRATION.json` A02 stays `OPEN`: its decision recognizes the stable result only after
+integration, and no release workflow calls this reader yet. `TestCEMV1569MigrationA02StaysOpen`
+pins that.
 
 Rollback: revert `internal/companionrelease/core_stable_result.go` and its test,
-`tools/cem-release-suites`, the `cem-release-suites` Makefile target and these rows. Then restore
-A02 `status` to `OPEN`, restore its `statusNote` clause, and re-pin the `MIGRATION.json` sha256 and
-bytes in the stable manifest. No caller, wire or sealed case depends on them.
+`wire.ParseSigned` and its test, `verify.StructuralTupleAdmitted`, `tools/cem-release-suites`, the
+`cem-release-suites` Makefile target and these rows. `MIGRATION.json` and the stable manifest are
+unchanged. No caller, wire or sealed case depends on them.
 
 ### Release readiness over the stable result traceability
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
-| CEM-V1-569 | `TestCEMV1569StableReleaseReadiness` (`internal/companionrelease`): unknown member, missing member, member order, stale verdict, unknown axis, wrong profile, retired spec, other mode | The public neutral-criterion ACCEPT line is accepted unchanged |
-| CEM-V1-570 | `TestCEMV1569StableReleaseReadiness`: raised native authority and runner execution, experimental and unsupported tuples, unadmitted envelope, `UNSUPPORTED` outcome, `REJECT` | Admission and authority cases keep `REFERENCE_INTEGRITY_ONLY` |
+| CEM-V1-569 | `TestCEMV1569StableReleaseReadiness` (`internal/companionrelease`): unknown member, missing member, member order, stale verdict, unknown axis, wrong profile, retired spec, other mode, null specificity under the original and a resealed verdict, scalar reference value; negative specificity accepted. `TestParseSignedAdmitsNegativeIntegers` (`internal/cem/wire`). `TestCEMV1569MigrationA02StaysOpen` | The public neutral-criterion ACCEPT line is accepted unchanged |
+| CEM-V1-570 | `TestCEMV1569StableReleaseReadiness`: raised native authority and runner execution, experimental and unsupported tuples, a qualified tuple outside the allowlist or without a structural proof, failed structural proof, mismatched or unchecked sidecar, unadmitted envelope, `UNSUPPORTED` outcome, `REJECT` | Admission and authority cases keep `REFERENCE_INTEGRITY_ONLY` |
 | CEM-V1-571 | `TestCEMV1569StableReleaseReadiness`: runner `FAILED`, `SKIPPED` and missing rows, platform `NOT_OBSERVED`, external undeclared | Each refusal follows an admitted ACCEPT with reference integrity |
-| CEM-V1-572 | `TestCEMV1572ReleaseBuildsMustMatch`, `TestWithoutRuntimeKeepsMemberOrder` (`tools/cem-release-suites`) | Local `make cem-release-suites` run and the different-commit refusal recorded in `docs/build-log/2026-10-23-cem-release-readiness-a02.md` |
+| CEM-V1-572 | `TestCEMV1572ReleaseBuildsMustMatch`, `TestCEMV1572GoVersionIsTheOnlyMaskedValue`, `TestCEMV1572RuntimeConsistent`, `TestCEMV1572ProvenanceIsReportedNotProven`, `TestCEMV1572SuitesReadCommittedObjects`, `TestCEMV1572MaterializeRefusesNonRegularEntries`, `TestCEMV1572EnvelopeSuitesRunInTheCommittedTree` (`tools/cem-release-suites`) | Local `make cem-release-suites` runs recorded in `docs/build-log/2026-10-23-cem-release-readiness-a02.md` and `docs/build-log/2026-10-23-cem-release-readiness-review-repair.md` |
