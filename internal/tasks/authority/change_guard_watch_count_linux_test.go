@@ -30,9 +30,10 @@ func inotifyWatchesHeld(t *testing.T) int {
 }
 
 // PSR-V0-222, PSR-V0-223 (V1-2482): the watches one guard holds do not grow
-// with the number of files in the store, which are tracked by stat instead. A store of 10 files and the same store with
-// 5,000 more receipt-like files in the same directories take the same count,
-// the directories and their ancestors.
+// with the number of files in the store, which are tracked by stat instead. A
+// store of 11 files and the same store with 4,990 more receipt-like files in
+// the same directories take the same count, the directories and their
+// ancestors.
 func TestPSRV0222_ChangeGuardWatchCountIsBoundedByDirectories(t *testing.T) {
 	repo, file := guardRepo(t)
 	receipts := filepath.Join(repo.StateDir, "receipts")
@@ -70,18 +71,18 @@ func TestPSRV0222_ChangeGuardWatchCountIsBoundedByDirectories(t *testing.T) {
 		}
 	}
 	grow(5)
-	tracked = 10
+	tracked = 11
 	small := held()
 	grow(2500)
-	tracked = 5010
+	tracked = 5001
 	large := held()
 	if small != large {
-		t.Fatalf("a guard holds %d watches over 10 files and %d over 5,010: the count grows with the files", small, large)
+		t.Fatalf("a guard holds %d watches over 11 files and %d over 5,001: the count grows with the files", small, large)
 	}
 	// ancestors of the two roots, the state directory, receipts, the intent
 	// directory and tickets: far below one watch per file.
 	if large > 64 {
 		t.Fatalf("a guard holds %d watches over a store of 4 directories", large)
 	}
-	t.Logf("watches per guard: %d over 10 files, %d over 5,010 files", small, large)
+	t.Logf("watches per guard: %d over 11 files, %d over 5,001 files", small, large)
 }

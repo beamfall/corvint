@@ -159,7 +159,7 @@ func (w *notifyWatch) poll() (bool, error) {
 		}
 	}
 	if errors.Is(err, syscall.EAGAIN) {
-		return false, nil
+		n, err = 0, nil
 	}
 	if err != nil {
 		return true, err
