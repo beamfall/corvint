@@ -34,9 +34,12 @@ func TestCrashAndSessionCancellationRetireDescendant(t *testing.T) {
 			var pid int
 			for time.Now().Before(deadline) {
 				b, e := os.ReadFile(filepath.Join(cfg.Root, "child-pid"))
+				// The fake writes the witness atomically; a short or empty read still retries
+				// rather than failing on a witness that is not yet complete.
 				if e == nil {
-					pid, _ = strconv.Atoi(string(b))
-					break
+					if pid, _ = strconv.Atoi(string(b)); pid > 0 {
+						break
+					}
 				}
 				time.Sleep(10 * time.Millisecond)
 			}

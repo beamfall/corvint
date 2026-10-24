@@ -1,0 +1,336 @@
+# Opt-in self-hosted runner for the CI shard matrix
+
+Date: 2026-10-24. Lane: claude/self-hosted-runner (base b64eb76a1). Owner request of 2026-10-24, no
+ticket. Requirements `AFP-V0-420..422` in `docs/specs/affected-plan-v0.md`. They take effect only
+after the owner's `ci-control-plane` review of the `.github` change.
+
+## Decision
+
+`go-product-shard`, the eight-shard matrix on the 26-minute critical path, may run on a self-hosted
+runner labelled `self-hosted, linux, x64, corvint-box`. It does so only when the repository variable
+`CORVINT_SELF_HOSTED` is `on` and the run is a `merge_group` entry or a `pull_request` whose head
+repository is this repository. Every other case runs on `ubuntu-24.04` with unchanged check names:
+the variable unset, a push to `main`, a fork pull request, or any other event. No other job moves.
+
+On the box, the job verifies its tools instead of provisioning them. The box has no passwordless
+sudo. The hosted provisioning step is unchanged and runs only on hosted runners. The self-hosted
+step requires these, and fails with a `::error::` that names the missing prerequisite:
+
+- `/usr/local/go/bin/go env GOVERSION` must equal the pinned Go;
+- `/usr/local/bin/rg` must be the pinned ripgrep;
+- the fixed `PATH` must resolve `rg` to `/usr/local/bin/rg`.
+
+The step keeps the same user-global Git configuration as the hosted step.
+
+## Security rationale
+
+The repository is PUBLIC. A self-hosted runner executes code from every run that reaches its
+labels, so a malicious pull request could:
+
+- persist on the host;
+- read whatever the runner user can read;
+- poison later jobs.
+
+The routing expression admits only same-repository pull requests and merge-queue entries. Only
+people with write access create those.
+
+**The routing expression is not a security boundary against fork pull requests.** The
+`pull_request` event runs the workflow file from the pull request's own head. A fork pull request
+can therefore edit `ci.yml` and write `runs-on: [self-hosted, corvint-box]` on any job. The
+expression in `main` never sees that run.
+
+The variable does not gate that run either. A fork pull request can target the labels whenever the
+runner is registered, even with `CORVINT_SELF_HOSTED` unset.
+
+What stops that run is the repository's fork-approval policy. It is currently
+`first_time_contributors`: a contributor whose first pull request was approved runs later
+workflows with no approval. **Before registering the runner, the owner should set
+Settings → Actions → General → "Require approval for all external contributors"**, and should
+read every fork change to `.github/` before approving its run. A runner group limited to this
+repository is further defense. Unsetting the variable is an operational rollback only. The security
+rollback is to remove the runner registration, or its access to this repository.
+
+Hardening of the host itself, with the reasons:
+
+- **Workspace.** `GITHUB_WORKSPACE` persists between jobs on a self-hosted runner. The first step
+  empties it, so a previous run's files never reach checkout or the tests.
+- **Build cache.** The job never restores the shared `actions/cache` Go build cache: a box build is
+  not a trusted cloud build. It builds in `$RUNNER_TEMP/go-build` with `GOENV=off`, so the host
+  `go.env` never applies. The runner empties `RUNNER_TEMP` for every job; only the host-local seed
+  below (AFP-V0-427 to AFP-V0-429) carries build output between jobs.
+- **Processes.** The runner's orphan-process cleanup ends the processes it tracks. A hostile
+  process can escape that tracking, so it is not an adversarial boundary.
+- **Privileges.** Nothing in the job runs `sudo`, `apt` or a network install on the box. A test
+  asserts this.
+- **Statuses.** The box never posts commit statuses. Only the owner posts `ci-control-plane`.
+
+This is hygiene, not isolation. Code that a job runs can still write to the runner account's home,
+the tool cache or the runner installation, and so affect a later merge-queue result. The test
+sandbox's Landlock rules confine reads, not writes, and an undeclared package runs unconfined. A
+persistent box is therefore trusted only as far as every run that reaches it is trusted: code from
+the repository's writers, and fork code the owner approved. Real isolation needs a fresh
+environment for each job that is destroyed afterwards, such as a just-in-time runner in a
+disposable VM or container. `--ephemeral` registration alone does not reset the machine. That is
+outside this change.
+
+Recommended, not enforced by the workflow:
+
+- run the runner as a dedicated unprivileged user that holds no credentials;
+- register several runner instances, so the eight shards do not run one after another.
+
+## Host prerequisites
+
+- Runner labels `self-hosted`, `linux`, `x64`, `corvint-box`.
+- `/usr/local/go` is the pinned Go, currently go1.27.3. It must follow `setup-go`'s `go-version`;
+  `TestAFPV0421SelfHostedShardsVerifyAndNeverProvision` fails on a mismatch, so a later pin
+  change must update the verification step too.
+- `/usr/local/bin/rg` is the pinned ripgrep, 15.2.0.
+- Linux Landlock ABI 2 or later. The box reports ABI 7.
+- `bash`, `git`, `jq` and a C toolchain for `-race`.
+
+## Cost drift (AFP-V0-040)
+
+Box timings are not cloud timings. A self-hosted shard uploads no timing stream. Instead it uploads
+a `ci-shard-costs-runner-<index>` marker artifact. `ci-shard-cost-drift` counts the markers and
+abstains with the reason "N of 8 shards ran on the self-hosted runner". It does not compare them
+against the cloud table. If a marker is lost, the missing stream still makes the report abstain.
+
+## Failure modes and rollback
+
+- If the box is offline, the shard jobs stay queued, for up to GitHub's 24-hour queue limit. The
+  job's 75-minute timeout starts only when a runner picks the job up. The operator unsets the
+  variable, cancels the queued run and starts a new one (a new push or queue entry).
+- If the host drifts, verification fails with a named prerequisite.
+
+The operational rollback is to unset `CORVINT_SELF_HOSTED`, or set it to anything but `on`. That
+returns this repository's runs to the cloud with no code change. A revert of this change is also
+safe. The security rollback is to remove the runner registration, because a registered runner
+stays reachable by an approved fork pull request.
+
+## Review
+
+One Codex review round (gpt-6-astra, read-only) raised three findings, all accepted as
+documentation corrections:
+
+- **The variable does not gate fork access.** The approval policy must be set before the runner is
+  registered. Removing the runner, not unsetting the variable, is the security rollback.
+- **Workspace clearing is not isolation.** This is now stated, with fresh per-job environments
+  named as the isolation route.
+- **Queue timing.** A queued job waits up to 24 hours, not 75 minutes. Recovery is cancel and
+  re-run.
+
+No workflow logic changed in response.
+
+## Evidence
+
+- The tests are in `tools/ci-reuse-plan/self_hosted_runner_test.go`. They pin the routing
+  expression, the cloud fallback for push, fork and other events, the unchanged hosted
+  provisioning, the verification-only self-hosted step and the drift abstention. The abstention
+  test runs the drift script under bash.
+- Runtime behaviour on the box is `NOT_OBSERVED` until the owner registers the runner.
+- Hosted routing with the variable set is `NOT_OBSERVED` until the owner sets the variable.
+
+## Host-local warm build seed (AFP-V0-427 to AFP-V0-429)
+
+Added on the same lane after the first review. Hosted shards restore a trusted `actions/cache`
+seed (V1-1098); box shards built cold every time.
+
+**Design.** One seed per runner under `CORVINT_BOX_GOCACHE_ROOT` (`/home/russell/ci-cache`, named
+once in the job env): `go-build-race-<RUNNER_NAME>`, a relative symlink to
+`go-build-race-<RUNNER_NAME>.<run>-<attempt>-<shard>`.
+
+- **Restore** for a merge-queue entry on `main` or a same-repository pull request, wherever the
+  race invocation runs. It is a `cp -a` copy into `$RUNNER_TEMP/go-build`, never a hardlink,
+  because Go can rewrite an entry in place. Preserved mtimes keep Go's 5-day trim working.
+- **Refresh** only from a merge-queue shard on `main` whose tests step succeeded. It expires test
+  results, copies the job cache beside the seed, renames a new symlink over the seed atomically,
+  and removes every other `<seed>.*`.
+- **Cap.** 8 GiB per seed (`SEED_CAP_KIB`); a larger job cache removes the seed, so that runner
+  restarts cold. Eight runners bound the root at 64 GiB at rest. The box has about 926 GB free.
+- **Fallback.** Any missing, unsafe or unreadable seed leaves a cold cache with a notice. Neither
+  step can fail a shard. `-count=1` stays.
+
+**Why per runner, not per shard index.** The charter proposed per-shard seeds. Go's action ID
+includes the package directory for non-`-trimpath` builds, and each runner checks out under its own
+`/home/russell/actions-runner[-N]/_work/...`. A seed written by another runner therefore misses for
+every repository package; only the standard library and dependencies hit. The measurement below
+shows this. A per-runner seed hits for whatever shards that runner ran before. Each runner runs one
+job at a time, so a seed has a single writer.
+
+**Pull requests restore too.** A same-repository pull request already runs as the runner account,
+which owns the seed root, and its `pull_request` run uses its own `ci.yml`. A read-only copy gives
+it nothing it could not already do, and it gets the same warm build. It never refreshes through the
+workflow.
+
+**Trust boundary, stated plainly.** The event gating is provenance hygiene for honest runs. It is
+not a security boundary. Any job that reaches the box can write a seed directly, and a planted entry
+would be compiled into a later merge-queue run. That is the same exposure AFP-V0-421 already
+accepts for the runner account's home. Fork pull requests reach the box only through the owner's
+approval. Go checks an entry's size, not its content, so a corrupt seed may show as a build or test
+failure on one runner, or may silently change the compiled code under test; `-count=1` stops
+reuse of test results only. On a failure or any doubt, the operator deletes `/home/russell/ci-cache`, or that runner's seed and
+`<seed>.*`.
+
+**Owner step.** None: the first refresh creates the root with mode 0700.
+
+**Rollback.** Delete `/home/russell/ci-cache` (next shards start cold), unset `CORVINT_SELF_HOSTED`,
+or revert the restore and refresh steps.
+
+**Measured (linux/amd64 WSL2 on the box, Ryzen 9 5950X; an estimate, not a CI run).** Shard 0 of 8
+has 48 packages including slices, and a 450 MB race cache. `go test -race -count=1 -run '^$'` was
+run through `heavy.sh`, whose worktree path changes on every run, so its warm run equals a seed
+from another runner:
+
+| Run | `-p 4` | `-p 1` (as CI) |
+|---|---|---|
+| cold cache | 57.7 s | 177.3 s |
+| warm, different checkout path | 45.6 s | 145.1 s |
+
+The lane's hook routes `go test` only through `heavy.sh`, so the same-path effect was measured with
+`go build -race -o /dev/null` over the same packages at a fixed path. This covers compile only, not
+test packages or links:
+
+| Run | `-p 4` | `-p 1` |
+|---|---|---|
+| cold cache | 32.2 s | 82.4 s |
+| warm, same checkout path | 1.5 s | 4.3 s |
+| warm, different checkout path | 20.3 s | 51.8 s |
+
+Inference: a same-runner seed removes most of the compile share of a shard. On the `-p 1` race
+build that is on the order of a minute or more per shard. Linking and running the test binaries
+remain. A real box shard with the seed is `NOT_OBSERVED` until the variable is on.
+
+### Seed review (one Codex round, gpt-6-astra, read-only)
+
+- P2, accepted: a cancelled, timed-out or ENOSPC refresh left `<seed>.<tag>.tmp`, which only a
+  later successful refresh removed, so repeated failures could exceed the cap. The refresh now
+  removes every generation except the live target before copying, and an EXIT trap removes its own
+  partial copy. `TestAFPV0428SelfHostedSeedRefreshSwapsAndRestoreCopies` covers a failing copy.
+- P3, accepted: the text said a corrupt seed shows as a visible failure. Go authenticates only an
+  entry's size, so a corrupt or planted artifact can also pass silently; the spec and this entry now
+  say so, and the remedy is deleting the root on any doubt.
+- No fork-to-seed path was found, given that fork pull requests never reach the runner. The
+  remaining boundary is the shared runner account, as AFP-V0-429 states.
+- The seed IDs were renumbered from AFP-V0-423..425 to AFP-V0-427..429 because open PR #1691
+  holds AFP-V0-423..426.
+
+## Per-job TMPDIR on the box (AFP-V0-430)
+
+The box's `/tmp` is a 16 GiB tmpfs, while `/` is ext4. Nothing in `ci.yml` set `TMPDIR`, so eight
+concurrent `-race` shards would put every `t.TempDir()` and Go work directory in RAM on a 31 GB host.
+Filesystem-dependent tests would also differ from the hosted ext4 runners (V1-2554, V1-2563).
+
+The first version exported `TMPDIR=$RUNNER_TEMP/tmp`. That was wrong. It claimed the test-confine
+wrapper needed no change because `RUNNER_TEMP` is a sibling of the checkout. But `Rules` in
+`.github/testconfine/scopes.go` grants only the siblings along the checkout's ancestor chain, never
+the ancestors themselves. `RUNNER_TEMP` (`/home/russell/actions-runner*/_work/_temp`) shares
+`/home`, `/home/russell`, the runner directory and `_work` with the checkout. So a confined test that
+opens each ancestor of a temporary path was refused at `/home`. On the hosted image
+`TMPDIR=/tmp`, whose only ancestor is `/`, which those tests skip.
+
+Box run 40101041311 (corvint-box-1..8, WSL2) failed shards 0, 1, 2 and 4. Shards 3, 5, 6 and 7
+passed in 27 to 30 minutes. The failures sort into three causes:
+
+- **`TMPDIR` under the checkout's ancestors.** This fixed `testvaliditydoc`, `flowdocs`, the
+  `doccorpus` caller-profile tests, `flowcoverage` (its STALE "binding changed" reasons),
+  `testrunner/sql`, and `upgradechanges` (`open /home: permission denied`). It also fixed
+  `tasks/cli` `TestSERVICE500_CLIRoutesRefusalsAndPureReads`, which expects a profile under
+  `t.TempDir()` to count as a "temporary production path". `internal/tasks/service/profile.go`
+  recognises `/tmp` and `/var/tmp` but not `/home`.
+- **`bwrap` under Landlock** (`cem/workflow` `TestDiscriminateRecordsWitnessAndReportDowngrades`). This
+  is a host difference that `TMPDIR` does not cause. The box has bubblewrap 0.11.1 installed at
+  `/usr/bin/bwrap`, so `mutate.HostSandbox` finds it and the test does not skip. Under test-confine,
+  Landlock refuses mount changes, so bwrap exits with `bwrap: Failed to make / slave: Operation not
+  permitted`. `inconclusive` in `internal/liveverify/mutate/gotest.go` recognises only the
+  sandbox-exec refusal line, so the run becomes "run ended without a verdict" and the test fails
+  instead of skipping. Box evidence: the test passes unconfined and fails confined with either
+  `TMPDIR`. The hosted image is assumed to have no `bwrap`, so the test skips there; this is
+  inferred, not observed. The smallest product fix is to recognise bwrap's fixed refusal line as
+  `ErrSandboxUnavailable`. The owner could instead remove bubblewrap from the box.
+- **Shared PID namespace** (`postmergeproof` `TestLinuxProcfsOwnedExecution`,
+  `TestLinuxProcfsSweepFindsSurvivor`, `TestHostCollectorV2OwnedExecution`). This is a host
+  difference that `TMPDIR` does not cause. `procfs.SweepProcesses` lists all of `/proc` and records
+  any PID whose `stat` it cannot read as a read failure. A process that exits between the listing
+  and the read therefore blocks the proof as `process-sweep-incomplete`. Eight runners on one WSL
+  kernel share one PID namespace, and other shards keep starting short-lived processes, so the race
+  is likely. A hosted VM runs one job. Box evidence: idle, confined, `-count=3` passes; with a
+  `/bin/true` churn loop running alongside, all nine runs fail with that reason. Fixing this needs a
+  product decision outside `ci.yml`. Either re-check a failed PID and drop it when `/proc/<pid>` is
+  gone, which amends the "never an absent process" rule, or run those tests where no other job
+  shares the PID namespace.
+
+The verification step now refuses a runner name that is not a plain directory name. It creates
+`/var/tmp/corvint-ci` mode 0700 and refuses it unless it is a directory this account owns and not a
+link. It then removes and recreates `/var/tmp/corvint-ci/$RUNNER_NAME` mode 0700 and exports
+`TMPDIR` to it. `/var/tmp` is on the box's ext4 root, with 914 GB free. Its only ancestor shared with
+the checkout is `/`. Hosted steps are unchanged and never set `TMPDIR`.
+
+Box reproduction used the branch tree under `/home/russell/tmpdir-repro/_work/corvint/corvint`, with
+test-confine built as CI builds it and `-race`. With `TMPDIR` under that tree's `_work/_temp`,
+`testvaliditydoc`, `flowdocs`, `doccorpus`, `flowcoverage`, `cem/workflow`, `testrunner/sql`,
+`upgradechanges` and the `tasks/cli` SERVICE500 test failed as in the run. With `TMPDIR` under
+`/var/tmp`, all of them passed except `cem/workflow` (the bwrap cause). The step's block itself also
+ran on the box. It refused `RUNNER_NAME=../x` before creating anything. For a plain name it created
+both directories mode 0700, removed a planted stale file, and wrote the `TMPDIR` line.
+
+One Codex review round (gpt-6-astra, read-only) found one real defect, accepted. `rm -rf` cannot
+empty a leftover directory that lacks owner write or search permission; a test killed before its
+cleanup can leave one (`internal/tasks/cli/attempt_runs_cursor_internal_test.go` makes populated
+0500 directories). That would fail every later job on the runner. The step now runs
+`find -P "$job_tmp" -type d ! -perm -0700 -exec chmod u+rwx` before the removal; `-P` follows no
+link and `-type d` never matches one, so nothing outside the runner's directory changes mode.
+`TestAFPV0430SelfHostedTMPDIRBlockEmptiesLeftoversAndRefusesUnsafeRoots` runs the block under bash
+against a test root: a 0500 directory holding a 0000 directory and a read-only file is emptied, a
+link to a 0500 directory outside keeps its target's mode and contents, and a path-like name or a
+linked root is refused before anything is removed. On the box the step's block emptied a planted
+0500 directory holding a 0000 one and left both directories mode 0700.
+
+This is per-job cleanup, not isolation. Rollback is removing the block. A runner run is
+`NOT_OBSERVED`.
+
+## Fork exposure review (PR #1689 repair)
+
+With `CORVINT_SELF_HOSTED=on`, each event that could carry fork code to the box:
+
+- **`pull_request` from a fork.** The expression routes it to the hosted image. A fork can still
+  edit `ci.yml` and name the labels itself, as above. The repository's fork policy, read through
+  `GET /repos/beamfall/corvint/actions/permissions/fork-pr-contributor-approval` on 2026-10-24, is
+  now `all_external_contributors`. So every fork run waits for a maintainer's approval, and that
+  approval is the boundary.
+- **`merge_group`.** The expression routes every merge-queue entry to the box. An entry tests the
+  merged tree of every queued pull request, fork pull requests included. It runs the workflow file
+  from that tree. The `checks_requested` payload names only the head SHA and refs, not the queued
+  pull requests or their head repositories, so no expression can tell a same-repository entry from
+  one that carries fork commits. Enqueueing a fork pull request therefore runs its code on the box
+  with no further approval. A passing entry on `main` also refreshes the AFP-V0-428 seed. So the
+  earlier review's "no fork-to-seed path" holds only for unqueued fork pull requests. The
+  mitigation is procedural: read a fork pull request's whole diff before enqueueing it, or unset
+  the variable while it is queued. Neither is enforced. A fork change to `.github/` also needs the
+  owner's `ci-control-plane` status before it can merge.
+- **`workflow_run`.** Only `ci-control-plane.yml` uses it. That workflow runs from the default
+  branch, and all its jobs name `ubuntu-24.04`.
+- **`pull_request_target`.** No workflow uses it.
+- **Other triggers.** `push` (only `main`) and `workflow_dispatch` need write access. They are not
+  fork paths.
+
+No routing change was made. The cheap tightening, keeping fork-carrying merge-queue entries off
+the box, cannot be known from the event.
+
+`go-product-shard (2)` failed on head `a24b95de8`, on runner `corvint-box-2`. The failure was
+`TestCrashAndSessionCancellationRetireDescendant/wait-cancel` (GCS-V0-002), reporting "child
+witness absent" after 0.09 s, well under the 3 s wait. The fake gopls wrote `child-pid` with
+`os.WriteFile`, which creates the file before it writes the bytes. The test read the empty file,
+parsed PID 0 and stopped waiting. That is a race in the test, not in this change. The fake now
+writes the witness beside the file and renames it into place, and the reader retries until it reads
+a positive PID.
+
+The repair's Codex round (gpt-6-astra, read-only, `origin/main...HEAD`) found one defect, P2,
+which was accepted. All eight runner instances run as `russell` and write the same
+`~/.gitconfig` with `git config --global`. Git takes `~/.gitconfig.lock` for each write, so a
+concurrent write fails with "could not lock config file" and the shard stops before its tests. On
+WSL2, five rounds of eight unlocked concurrent writers produced 35 such failures. The four lines
+now run under one `flock` on `/var/tmp/corvint-ci/git-global-config.flock`. That root is the one
+the AFP-V0-430 block checks for ownership. `TestAFPV0421SelfHostedGitConfigSerializesConcurrentRunners`
+runs eight copies of the step's locked block at once against a test home, and all of them succeed.
+The AFP-V0-421 test still requires the locked lines to equal the hosted step's. util-linux `flock`
+is now a listed host prerequisite.
