@@ -60,7 +60,7 @@ func TestDCPV1495BuildRebuildsFromEmbeddedManifest(t *testing.T) {
 	if after, err := os.ReadFile(filepath.Join(root, "stale.json")); err != nil || string(after) != stale {
 		t.Fatalf("build --artifact wrote the artifact it read (%v)", err)
 	}
-	for _, args := range [][]string{{}, {"--manifest", "corpus-input.json", "--artifact", "corpus.json"}} {
+	for _, args := range [][]string{{}, {"--manifest", "corpus-input.json", "--artifact", "corpus.json"}, {"--manifest=", "--artifact=corpus.json"}, {"--artifact="}} {
 		code, out, stderr := corpusCLI(t, root, append([]string{"docs", "corpus", "build"}, args...)...)
 		if code != 2 || out != "" || !strings.Contains(stderr, "exactly one of --manifest or --artifact") {
 			t.Fatalf("build %v: %d %q %s", args, code, out, stderr)

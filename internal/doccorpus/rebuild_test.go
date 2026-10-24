@@ -61,9 +61,9 @@ func TestDCPV1495RebuildFromEmbeddedManifest(t *testing.T) {
 
 // TestDCPV1496RebuildRefusesUnverifiedManifest: the rebuild refuses bytes whose content digest,
 // canonical tail, schema, embedded manifest or manifest digest does not hold before any build,
-// and a pinned input that no longer matches Git at build (DCP-V1-496).
+// bytes over their schema's size bound, and a pinned input that no longer matches Git at build
+// (DCP-V1-496). Not parallel: it counts the process's builds.
 func TestDCPV1496RebuildRefusesUnverifiedManifest(t *testing.T) {
-	t.Parallel()
 	root, a, data := builtFixture(t)
 	changed := *a
 	changed.Manifest.Inputs = append([]Input(nil), a.Manifest.Inputs...)
@@ -76,6 +76,7 @@ func TestDCPV1496RebuildRefusesUnverifiedManifest(t *testing.T) {
 		{"noncanonical tail", "noncanonical artifact", append(bytes.TrimSuffix(data, []byte("}\n")), " }\n"...)},
 		{"not JSON", "invalid artifact JSON", []byte("not json\n")},
 		{"schema", "unsupported artifact schema", rehashed(t, a, func(c *Artifact) { c.Schema = "other-schema/1" })},
+		{"schema size bound", "input bound exceeded", resigned(bytes.Replace(data, []byte(`{"schema":`), []byte(`{"future_records":"`+strings.Repeat("x", MaxBytes)+`","schema":`), 1))},
 		{"no manifest", "artifact has no embedded manifest", resigned([]byte(`{"schema":"` + Schema + `","sha256":""}` + "\n"))},
 		{"open manifest", "invalid closed JSON input", resigned(bytes.Replace(data, []byte(`"manifest":{`), []byte(`"manifest":{"extra":1,`), 1))},
 		{"manifest digest", "artifact manifest digest mismatch", rehashed(t, a, func(c *Artifact) { c.ManifestSHA256 = strings.Repeat("0", 64) })},

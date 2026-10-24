@@ -32,6 +32,17 @@ await the orchestrator's acceptance.
   changes it. `TestDCPV1471DerivationVersionGuard` enforces it. Per-release notes naming such
   merges are not produced here (NEEDS-OWNER: release-notes policy).
 
+## Independent review
+
+One Codex round (`gpt-6-astra`, read-only) found three P2s, all fixed with tests that failed
+first. (1) The rebuild applied only the 128 MiB ceiling, so a `/1` artifact padded past its 4 MiB
+bound with skipped members still yielded a manifest; it now applies the schema's bound. (2) Flag
+exclusivity checked values, so `--manifest= --artifact=X` built; it now checks option presence
+and refuses an empty value. `delta` and `carry-forward` keep the old check (V1-2543). (3) The
+build-counter assertion in the `DCP-V1-496` test ran in parallel with other builds; it now runs
+serially. It found no digest bypass. Duplicate members are refused by the decoder. A load-dependent
+failure of `TestDCPV1143LazyLoadAndMemo` in an untouched package is filed as V1-2544.
+
 ## Format and benchmark note
 
 There is no on-disk or wire encoding change. The artifact, manifest and receipt formats are

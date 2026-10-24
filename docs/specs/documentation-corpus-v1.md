@@ -2711,13 +2711,14 @@ delivered.
   artifact to stdout; it writes no file, the artifact read included. The manifest is read without
   the closed record decode or any builder, derivation or pin check, so an artifact whose records
   this builder no longer decodes still yields it. Its output bytes equal `build --manifest` of the
-  same manifest, so rebuilding a current artifact reproduces it. Neither or both options are an
-  argument error with no output. Acceptance: `TestDCPV1495RebuildFromEmbeddedManifest`,
+  same manifest, so rebuilding a current artifact reproduces it. Neither or both options, or
+  an empty value for the one given, are an argument error with no output. Acceptance: `TestDCPV1495RebuildFromEmbeddedManifest`,
   `TestDCPV1495BuildRebuildsFromEmbeddedManifest`, `TestDocsCorpusOperationFlagMatrix`,
   `TestDocsCorpusOperationHelpPrintsFlags`.
 - `DCP-V1-496`: Before any Git read or build, the rebuild refuses (`corpus-refused`, no output)
   bytes that are not JSON, whose last `sha256` member is not the canonical tail or does not match
-  the content digest, whose schema is not a `corvint-evidence-corpus/` schema, that embed no
+  the content digest, whose schema is not a `corvint-evidence-corpus/` schema, that exceed the
+  artifact size bound of their schema (4 MiB for `/1`, 128 MiB for `/2`), that embed no
   manifest or a manifest that does not decode closed, or whose `manifest_sha256` does not match
   the embedded manifest. Every pinned input is then reread from Git and refused unless its blob
   and SHA-256 match the manifest (`input changed after pinning`). Acceptance:
