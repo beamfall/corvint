@@ -4766,6 +4766,7 @@ SRG-V0-041	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the
 SRG-V0-042	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2160) Every	standing	2026-10-11; V1-2160
 SRG-V0-043	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2146) In every	standing	2026-10-11; V1-2146
 SRG-V0-044	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2309) The	standing	2026-10-11; V1-2309
+SRG-V0-045	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0515) Every	standing	2026-10-11; V1-0515
 STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
 STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-
 STA-V0-003	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-delta` reads one OpenSpec delta file.	unrecorded	-
