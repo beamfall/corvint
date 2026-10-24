@@ -8,14 +8,18 @@ witness asks for `lspprovider.Expand` from `lspevidence.Attach`; the second asks
 semantic baseline for each witness. This public development corpus is intentionally small
 and must never be treated as a protected or representative held-out set.
 
-From a clean Corvint checkout whose Go files and module files match the pinned base, install
-or point to a compatible gopls explicitly, build the Corvint CLI, then run:
+Build the Corvint CLI under test from the candidate tree, then point `--root` at a separate
+clean checkout whose Go files and module files match the pinned base, and install or point to a
+compatible gopls explicitly. Do not build the CLI inside the `sourceBase` checkout: that tree
+predates subject-first task relation selection (TCP-V0-054), so its lexical projection drops the
+`go-attach-expand` gold definition at `--limit 20` (V1-2536).
 
 ```sh
 GOTOOLCHAIN=local go build -o /tmp/corvint-lsp-measure ./cmd/corvint
+git worktree add --detach /tmp/corvint-lsp-source cf93522e149c754e002426e422270f24c88777fe
 GOCACHE=/tmp/corvint-go-build-cache python3 script/measure-lsp-quality.py \
   --manifest benchmarks/lsp-quality/public-v0.json \
-  --root "$PWD" --corvint /tmp/corvint-lsp-measure \
+  --root /tmp/corvint-lsp-source --corvint /tmp/corvint-lsp-measure \
   --gopls /absolute/path/to/gopls \
   --output /tmp/corvint-lsp-public-baseline.json --repeat 3
 ```
@@ -31,7 +35,11 @@ group with bounded execution and interruption cleanup. Output goes outside the r
 
 The report records exact definition resolution, the ranked Core path, the expected
 combined relation, Core packet parity, provider state, query/omission counts, wall time and
-output bytes. Its nearest-rank p50/p95 with only three repetitions is descriptive; p95 is
+output bytes. Each combined sample carries `goldRelationState` (LQP-V0-022): `present`,
+`projection-not-subject-first` (a defect in the binary under test), `omitted-by-packet-bound`
+or `omitted-by-provider-bound` (stated uncertainty: a bound may have dropped the relation), or
+`absent`. Only `present` passes; the summary line counts each state and the uncertain misses.
+`--repeat` is limited to 1..20. Its nearest-rank p50/p95 with only three repetitions is descriptive; p95 is
 simply the largest observation. The upstream, Core and combined gold checks must all pass
 for a zero exit; a process failure, timeout or semantic miss exits nonzero after saving the
 report. Tool stderr is recorded only as a byte count and digest. Timings are not comparable
