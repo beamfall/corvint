@@ -24,11 +24,17 @@ const lockRetry = 10 * time.Millisecond
 // file before unlocking, but only while the path still names the held inode; a
 // waiter that then acquires the unlinked inode sees it no longer names the path
 // and retries. Expiry of
-// the wait refuses with map-locked rather than risking a lost update.
+// the wait refuses with map-locked rather than risking a lost update. A
+// platform without advisory locks refuses first, as LockRefusal reports.
 func (r *Root) Lock(relative string) (func(), error) {
 	final, err := r.resolveOutput(relative)
 	if err != nil {
 		return nil, err
+	}
+	// A platform without advisory locks refuses before anything is created,
+	// and the message keeps the platform refusal (CEM-PILOT-033).
+	if err := LockRefusal(); err != nil {
+		return nil, cemcode.New(cemcode.PublishFailed, "update lock for %q cannot be opened: %v", relative, err)
 	}
 	if err := os.MkdirAll(filepath.Dir(final), 0o700); err != nil {
 		return nil, cemcode.New(cemcode.PublishFailed, "lock directory for %q cannot be created", relative)

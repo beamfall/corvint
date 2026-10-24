@@ -8,6 +8,9 @@ import (
 	"syscall"
 )
 
+// LockRefusal returns nil: Darwin and Linux take an advisory flock.
+func LockRefusal() error { return nil }
+
 func openLockFile(path string) (*os.File, error) {
 	return os.OpenFile(path, os.O_RDWR|os.O_CREATE|syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0o600)
 }

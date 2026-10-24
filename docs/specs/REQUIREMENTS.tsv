@@ -770,6 +770,7 @@ CEM-PILOT-016	docs/specs/cem-pilot-kit.md	Corvint repository changes MUST use th
 CEM-PILOT-017	docs/specs/cem-pilot-kit.md	every Git subprocess MUST ignore ambient repository/config redirection. Patch	unrecorded	-
 CEM-PILOT-018	docs/specs/cem-pilot-kit.md	when prepare refuses an existing map under `CEM-PILOT-002`, the	unrecorded	-
 CEM-PILOT-019	docs/specs/cem-pilot-kit.md	`cem verify` same-path drift MUST use only the five frozen statuses. A target en	unrecorded	-
+CEM-PILOT-033	docs/specs/cem-pilot-kit.md	(proposed 2026-10-24, V1-2522, not accepted) On a platform without advisory	unrecorded	-
 CEM-PILOT-028	docs/specs/cem-pilot-kit.md	`cem report --format json` MUST emit a read-only `cem-review/0` projection	unrecorded	-
 CEM-PILOT-029	docs/specs/cem-pilot-kit.md	An explicitly supplied `--ocm MAP` MUST be verified by the owning OCM reader	unrecorded	-
 CEM-PILOT-030	docs/specs/cem-pilot-kit.md	JSON and the published Markdown report MUST bind the same `recordSetSha256`,	unrecorded	-
@@ -2207,6 +2208,7 @@ CTS-V0-021	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's
 CTS-V0-022	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0903) The	standing	2026-10-11; V1-0903
 CTS-V0-023	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0903) One	standing	2026-10-11; V1-0903
 CTS-V0-024	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2400) The CTS-	standing	2026-10-11; V1-2400
+CTS-V0-025	docs/specs/corvint-tasks-store-init-v0.md	(proposed 2026-10-24, V1-2523, not accepted) On every GOOS but darwin and linux	unrecorded	-
 TRL-V0-001	docs/specs/corvint-tasks-store-relocation-v0.md	`corvint-tasks relocate --from OLD --request-id ID [--role OWNER|OPERATOR]	unrecorded	-
 TRL-V0-002	docs/specs/corvint-tasks-store-relocation-v0.md	A completed relocation commits one RELOCATE receipt that posts exactly one pinne	unrecorded	-
 TRL-V0-003	docs/specs/corvint-tasks-store-relocation-v0.md	Relocation refuses `QUIESCENCE_UNPROVED`, writing nothing, while any attempt hol	unrecorded	-

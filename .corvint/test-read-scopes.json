@@ -420,7 +420,8 @@
       "internal/postmergeconnector/files_other.go",
       "internal/procgroup/process.go",
       "internal/procgroup/process_other.go",
-      "internal/tasks/safeopen/open_other.go"
+      "internal/tasks/safeopen/open_other.go",
+      "internal/tasks/wire/platform_other.go"
     ],
     "internal/testrunner": [],
     "internal/testrunner/dynamic": [],

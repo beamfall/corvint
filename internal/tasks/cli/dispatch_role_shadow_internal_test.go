@@ -10,6 +10,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // CAL-V0-290: `dispatch status` reports each shadowed role of the
@@ -45,6 +46,8 @@ func TestCALV0290_DispatchStatusReportsShadowedRoles(t *testing.T) {
 	status := func() *wire.Result {
 		t.Helper()
 		var out, errb bytes.Buffer
+		// Off darwin and linux Tasks refuses the command up front (CTS-V0-025).
+		testplatform.SkipWindowsRefusal(t, wire.PlatformRefusal())
 		Run(Env{Cwd: stateDir, Args: []string{"dispatch", "status", "--program", "prog", "--config", path}, Stdin: bytes.NewReader(nil), Stdout: &out, Stderr: &errb})
 		res, err := wire.DecodeResult(out.Bytes())
 		if err != nil || res.Outcome != wire.OutcomeOK {

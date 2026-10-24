@@ -7,11 +7,15 @@ import (
 	"os"
 )
 
-// openLockFile refuses: serialized CEM map updates are unsupported on this
-// platform, and an unserialized update could be lost.
-func openLockFile(string) (*os.File, error) {
-	return nil, errors.New("serialized CEM map updates are unsupported on this platform")
-}
+// errLockUnsupported is the platform refusal: serialized CEM map updates are
+// unsupported on this platform, and an unserialized update could be lost.
+var errLockUnsupported = errors.New("serialized CEM map updates are unsupported on this platform")
+
+// LockRefusal returns the platform refusal Lock makes before it creates any
+// directory or lock file (CEM-PILOT-033).
+func LockRefusal() error { return errLockUnsupported }
+
+func openLockFile(string) (*os.File, error) { return nil, errLockUnsupported }
 
 func tryLockFile(*os.File) (bool, error) { return false, nil }
 
