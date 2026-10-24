@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"io"
 	"os"
 	"os/exec"
@@ -378,7 +379,7 @@ func TestAggregateGitExecutorErrorParity(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
 			path := filepath.Join(root, "git")
-			if err := os.WriteFile(path, []byte("#!/bin/sh\n"+tc.script+"\n"), 0755); err != nil {
+			if err := execfile.WriteFile(path, []byte("#!/bin/sh\n"+tc.script+"\n"), 0755); err != nil {
 				t.Fatal(err)
 			}
 			ctx := context.WithValue(context.Background(), gitExecutionKey{}, gitExecution{executable: path, environment: os.Environ()})

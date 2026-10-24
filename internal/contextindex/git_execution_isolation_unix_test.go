@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 )
 
@@ -59,10 +60,10 @@ if [ "${CORVINT_DENY_BLOBS:-}" = 1 ]; then
 fi
 exec %s "$@"
 `, quote(logPath), quote(realGit))
-		if err := os.WriteFile(wrapper, []byte(body), 0o700); err != nil {
+		if err := execfile.WriteFile(wrapper, []byte(body), 0o700); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(directory, "git"), []byte("#!/bin/sh\nexit 95\n"), 0o700); err != nil {
+		if err := execfile.WriteFile(filepath.Join(directory, "git"), []byte("#!/bin/sh\nexit 95\n"), 0o700); err != nil {
 			t.Fatal(err)
 		}
 		environment := append(qualifiedGitTestEnvironment(t), "CORVINT_QUALIFIED_WITNESS=1")

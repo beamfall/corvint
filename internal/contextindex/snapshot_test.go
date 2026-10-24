@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -319,7 +320,7 @@ exec %s "$@"
 		strconv.Quote(index.CommitRevision), strconv.Quote(index.Revision), strconv.Quote(statusDone),
 		strconv.Quote(alternateCommit), strconv.Quote(index.ObjectFormat),
 		strconv.Quote(realGit), strconv.Quote(statusDone), strconv.Quote(realGit))
-	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
