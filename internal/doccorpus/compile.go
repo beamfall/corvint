@@ -851,10 +851,12 @@ func (c *compiler) native(provider Provider) error {
 }
 
 // derivedDeclarations gives the first native provider a declaration subject, and its
-// declaration claim, for each symbol the native index holds in a primary-revision source input
-// that only non-native providers claim, so an identifier declared there is searchable whoever
-// produced the input's records (DCP-V1-482, DCP-V1-483). IDs and evidence follow the native
-// provider's own declarations; no file subject or excerpt is added. It runs after every
+// declaration claim, for each symbol the native index holds in a source input that only
+// non-native providers claim, so an identifier declared there is searchable whoever produced the
+// input's records (DCP-V1-482, DCP-V1-483). Inputs at the primary revision and at each
+// additional repository's declared revision are derived; an additional repository's
+// declaration IDs name the repository after the kind (DCP-V1-549). IDs and evidence follow the
+// native provider's own declarations; no file subject or excerpt is added. It runs after every
 // provider. On the retry of a compile that a bound or check refused, it derives nothing and
 // records one gap instead (DCP-V1-484).
 func (c *compiler) derivedDeclarations() error {
@@ -871,40 +873,50 @@ func (c *compiler) derivedDeclarations() error {
 	if len(native) == 0 {
 		return nil
 	}
-	revision := c.manifest.Repository.Revision
+	// qualifier names the repository of each derivable revision inside a derived ID: empty for
+	// the primary revision, so a single-repository artifact keeps its bytes.
+	qualifier := map[string]string{c.manifest.Repository.Revision: ""}
+	for _, r := range c.manifest.AdditionalRepositories {
+		qualifier[r.Revision] = r.ID + ":"
+	}
 	owned := map[string]bool{}
 	for _, in := range c.manifest.Inputs {
 		if native[in.Provider] {
-			owned[in.Path] = true
+			owned[inputKey(in.Revision, in.Path)] = true
 		}
-	}
-	index := c.indexes[revision]
-	if index == nil {
-		return nil
 	}
 	symbols := map[string][]contextindex.Symbol{}
-	for _, s := range index.Symbols {
-		symbols[s.Path] = append(symbols[s.Path], s)
+	unparsed := map[string]map[string]string{}
+	for revision := range qualifier {
+		index := c.indexes[revision]
+		if index == nil {
+			continue
+		}
+		for _, s := range index.Symbols {
+			symbols[inputKey(revision, s.Path)] = append(symbols[inputKey(revision, s.Path)], s)
+		}
+		unparsed[revision] = index.UnparsedPaths()
 	}
-	unparsed := index.UnparsedPaths()
 	for _, in := range c.manifest.Inputs {
-		if in.Purpose != "source" || in.Revision != revision || owned[in.Path] || len(symbols[in.Path]) == 0 {
+		key := inputKey(in.Revision, in.Path)
+		repository, derivable := qualifier[in.Revision]
+		if in.Purpose != "source" || !derivable || owned[key] || len(symbols[key]) == 0 {
 			continue
 		}
-		owned[in.Path] = true
-		if _, bad := unparsed[in.Path]; bad || c.nativeExclusion(in) != "" {
+		owned[key] = true
+		if _, bad := unparsed[in.Revision][in.Path]; bad || c.nativeExclusion(in) != "" {
 			continue
 		}
-		text, valid, loaded := c.sources[inputKey(in.Revision, in.Path)].Text()
+		text, valid, loaded := c.sources[key].Text()
 		if !valid || !loaded {
 			continue
 		}
 		if c.withoutDerived {
 			reason := "derived declaration bound: the compile with derived declarations was refused by a corpus bound or check, so declarations of source inputs other providers claim are not derived"
-			c.artifact.Gaps = append(c.artifact.Gaps, Gap{provider.ID + ":file:" + in.Path, "not-collected", reason})
+			c.artifact.Gaps = append(c.artifact.Gaps, Gap{provider.ID + ":file:" + repository + in.Path, "not-collected", reason})
 			return nil
 		}
-		for _, s := range symbols[in.Path] {
+		for _, s := range symbols[key] {
 			// Counted before anchoring, so a refused first declaration is retried too.
 			c.derived++
 			a, err := c.anchor(in.Revision, in.Path, s.Line, s.Line, "syntax", "source", "native indexed declaration")
@@ -917,7 +929,7 @@ func (c *compiler) derivedDeclarations() error {
 			if isTestPath(in.Path) {
 				kind = "test"
 			}
-			id := fmt.Sprintf("%s:symbol:%s:%d:%s", provider.ID, in.Path, s.Line, s.Name)
+			id := fmt.Sprintf("%s:symbol:%s%s:%d:%s", provider.ID, repository, in.Path, s.Line, s.Name)
 			c.artifact.Subjects = append(c.artifact.Subjects, Subject{id, kind, s.Name, provider.ID, ev, nil})
 			c.artifact.Claims = append(c.artifact.Claims, Claim{id + ":declaration", id, lineText(text, s.Line), provider.ID, ev})
 		}

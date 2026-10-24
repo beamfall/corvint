@@ -17,6 +17,9 @@ var derivationFixtureDigests = map[string]string{
 	// Derivation 2 adds derived declarations (DCP-V1-482); the fixture holds no source input a
 	// records provider owns, so its digest is unchanged (DCP-V1-485).
 	"2": "a571c3440bc8df0f5e1c5f758ce85b78511dc24d6820a32961311e272d1a3568",
+	// Derivation 3 derives declarations in additional repositories too (DCP-V1-549); the
+	// fixture declares no additional repository, so its digest is unchanged.
+	"3": "a571c3440bc8df0f5e1c5f758ce85b78511dc24d6820a32961311e272d1a3568",
 }
 
 // TestDCPV1471VerifiedReadAcrossBuilderRevisions: the verified read admits an artifact recorded

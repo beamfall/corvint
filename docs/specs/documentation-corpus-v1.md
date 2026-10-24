@@ -1796,7 +1796,7 @@ file) had no subject, so `docs_search --query sync_with_pos` and `--kind symbol`
   unchanged. Acceptance: `TestDCPV1482DeclarationsOfRecordsOwnedSource`.
 - `DCP-V1-483`: Derivation runs after every provider, once per path, and skips an input a native
   provider claims (it already declares its symbols), an unparsed or natively excluded input, an
-  input of another revision and a non-`source` input. A manifest without a native provider
+  input of another revision (amended by `DCP-V1-549`) and a non-`source` input. A manifest without a native provider
   derives nothing. Acceptance: `TestDCPV1483DerivationScope`.
 - `DCP-V1-484`: Derivation never refuses a manifest the compiler built before it. When a compile
   that derived declarations is refused by a corpus bound or check (a record count, the output
@@ -1867,7 +1867,8 @@ proposed, experimental; GitHub #1665.
   a subject whose non-prose name of at least two words, at least one an evidence term, appears as
   a contiguous run of the query's words. An allocation-free prefilter skips names whose letter
   pieces the lower-cased query does not hold. Failure modes: a statement never gets `named`; the
-  identifier `is_admin` is not a question; a single-word name is never `named`. Acceptance:
+  identifier `is_admin` is not a question; a single-word name is never `named` (amended by
+  `DCP-V1-548`). Acceptance:
   `TestDCPV1543QuestionNamesASubject`.
 - `DCP-V1-544`: Amending `DCP-V1-479`, `tier` is one of `exact`, `identifier`, `path-phrase`,
   `phrase`, `id-phrase`, `named` and `terms`, in rank order; a group is the results of one tier
@@ -1893,9 +1894,59 @@ proposed, experimental; GitHub #1665.
 
 Non-goals: no document-length normalization (short names already break score ties,
 `DCP-V1-477`), no stop-word or tokenizer change, no `docs_claims` change, no learned or tunable
-weights, and no `named` tier for single-word subject names. Rollback: restore the per-term sum and
+weights, and no `named` tier for single-word subject names (amended by `DCP-V1-548`). Rollback: restore the per-term sum and
 the exact, phrase and terms tiers of `DCP-V1-475` and `DCP-V1-479`, and the fixtures' previous
 expectations. No stored state needs migration.
+
+### Query-word coverage, one-word named subjects and multi-repository declarations (GitHub #1665 re-test of a681846)
+
+The re-test of #1665 on `a681846` left three shapes open. In tier `terms` a result holding a few
+rare query words in a short name outscored a prose name holding every query word, so a file
+holding 5 of 5 words ranked 7th and one holding 10 of 11 ranked 15th (V1-2575). A question naming
+a one-word flow ("How does Waitlist work?") got no `named` tier (V1-2568, the `DCP-V1-543` limit).
+And a records-owned source of an additional repository got no derived declaration, so its
+identifiers stayed unsearchable in a multi-repository corpus (V1-2567, row 5). Status for
+`DCP-V1-547..550`: proposed, experimental; GitHub #1665.
+
+- `DCP-V1-547`: Amending `DCP-V1-544`, inside tier `terms` a result holding more query words
+  (`DCP-V1-540` groups; the served `terms`) orders before one holding fewer, whatever their scores;
+  among equal counts the score orders as before, and a group is the results of one tier with one
+  held-word count and one served score. Other tiers are unchanged. Failure modes: a higher-scoring
+  result holding fewer words never orders first; two results with equal score but different counts
+  are never one group; index and scan orders stay equal (`DCP-V1-545`). Acceptance:
+  `TestDCPV1547TermsTierOrdersByCoverage` (5-word and 11-word queries of the re-test; it ranks the
+  expected result 4th before the change).
+- `DCP-V1-548`: Amending `DCP-V1-543`, a question-shaped query also names, in tier `named`, a
+  subject whose non-prose name is one word that is an evidence term, when the query holds that word
+  as a capitalized letter-and-digit run, other than the query's first run, that is one identifier
+  word and not a question word. So "How
+  does Waitlist work?" names the `Waitlist` flow; "how does waitlist work?", a first-word
+  "Waitlist: how does it work?" and a statement name nothing. Failure modes: a lower-case word or
+  the first word never names a one-word subject; an identifier such as `WaitlistNotifier` is not
+  the one word `waitlist`. Acceptance: `TestDCPV1548QuestionNamesAOneWordSubject`.
+- `DCP-V1-549`: Amending `DCP-V1-482` and `DCP-V1-483`, derived declarations also cover `source`
+  inputs at each additional repository's declared revision (`DCP-V1-175`); other revisions are
+  still skipped. A declaration of an additional repository is
+  `<native>:symbol:<repository id>:<path>:<line>:<name>`, anchored in that repository; primary
+  revision IDs are unchanged, and the `DCP-V1-484` gap names `<native>:file:<repository id>:<path>`.
+  Failure modes: a manifest without a native provider derives nothing; a single-repository
+  artifact's records are byte-identical; an additional repository's path never collides with a
+  primary path of the same name. Acceptance:
+  `TestDCPV1549DerivedDeclarationsInAdditionalRepository` (no declaration before the change),
+  `TestDCPV1471DerivationVersionGuard`.
+- `DCP-V1-550`: Amending `DCP-V1-485`, `DCP-V1-549` changes the records the same multi-repository
+  inputs build, so `DerivationVersion` is `3`: the verified read refuses a derivation 2 artifact
+  with `derivation version differs (artifact 2, running builder 3); rebuild the corpus`. The
+  single-repository fixture digest of derivation 3 equals derivation 2's. Acceptance:
+  `TestDCPV1549DerivedDeclarationsInAdditionalRepository`,
+  `TestDCPV1485DerivationTwoRefusesDerivationOneArtifacts`, `TestDCPV1471DerivationVersionGuard`.
+
+Non-goals: no coverage multiplier or score threshold, no document-length normalization, no
+`docs_claims` change, no `named` tier for a one-word name in a statement, and no derivation for
+revisions other than the primary and each additional repository's declared one. Rollback: restore
+the score-only `terms` order and the two-word `named` rule, drop the additional-repository
+derivation and return `DerivationVersion` to `2`; artifacts built in between are refused as
+another derivation and rebuilt. No stored state needs migration.
 
 ### Caller-owned retrieval evaluation (`docs corpus eval`)
 
@@ -2882,6 +2933,57 @@ records. Which records carry forward:
   `corvint-extractor-inventory/1` bytes; a missing profile or a non-full revision is refused with
   no output. Acceptance: `TestDCPV1399DocsCorpusExtractCLI`, `TestDocsCorpusOperationFlagMatrix`,
   `TestDocsCorpusHelpListsOperations`.
+
+### Whole-repository extraction, delta argument presence and derivation notes (GitHub #1700, #1667)
+
+`docs corpus extract` emitted only a `corvint-corpus-provider/1` record, bounded at 4096 records
+and 4 MiB, so a repository with 13,051 definition sites was refused (V1-2574, GitHub #1700), and
+the refusal named neither the count nor the extractor. `docs corpus delta` and `carry-forward`
+chose the current side by value, so `--manifest= --artifact=corpus.json` was read as an artifact
+instead of refused (V1-2543). And no release note named the merges that changed the derivation
+(V1-2545). Status for `DCP-V1-560..564`: proposed, experimental; GitHub #1700 and #1667.
+
+- `DCP-V1-560`: Amending `DCP-V1-393` and `DCP-V1-399`, `docs corpus extract --schema 2` (and
+  `ExtractorInput.Schema` `2`) emits the inventory's `provider` member as a
+  `corvint-corpus-adoption-provider/1` record, which a manifest `/2` admits: the subject, relation,
+  matched-file and gap bounds are `MaxCorpusRecords` (100,000) and the record is bounded by
+  `MaxProviderBytes` (64 MiB); the inventory schema and every other member are unchanged. Without
+  `--schema`, or with `--schema 1`, the output is byte-identical to before. Any other value is
+  refused with `--schema must be 1 or 2` and no output. Failure modes: a manifest `/1` still
+  refuses an adoption record; the output is deterministic for identical inputs; nothing is written.
+  Acceptance: `TestDCPV1560ExtractorSchemaTwoAdmitsMoreThanTheRecordBound` (14,000 sites in 14
+  files, past #1700's 13,051, build through a manifest `/2`; refused before the change),
+  `TestDCPV1560DocsCorpusExtractSchemaCLI`, `TestDocsCorpusOperationFlagMatrix`.
+- `DCP-V1-561`: Amending `DCP-V1-395`, an extraction over its record bound is refused with
+  `extractor inventory exceeds the record bound: N KIND at extractor "ID" path P, over the bound of
+  B`, where `N` is the count reached (bound plus one), `KIND` is `sites`, `gaps`, `matched files`,
+  `subjects` or `relations`, the extractor and path are named where one crossed it, and `B` is the
+  schema's bound. A `/1` refusal adds that `--schema 2` admits 100,000. Failure modes: the refusal
+  is still raised while scanning, so a dense file is not anchored whole (`DCP-V1-395`). Acceptance:
+  `TestDCPV1560ExtractorSchemaTwoAdmitsMoreThanTheRecordBound`,
+  `TestDCPV1395ExtractorDenseFileIsRefusedWhileScanning`.
+- `DCP-V1-562`: A provider record within the record bound but over its schema's input byte bound
+  (4 MiB for `/1`, 64 MiB for the adoption schema) is refused at extraction with `extractor provider
+  record is N bytes, over the SCHEMA input bound of B bytes`, a `/1` refusal adding that `--schema 2`
+  admits 67,108,864 bytes, instead of printing a record that build refuses. Acceptance:
+  `TestDCPV1562ExtractorRefusesARecordOverTheInputBound`.
+- `DCP-V1-563`: Amending `DCP-V1-360` for `delta` and `carry-forward`, the current side is chosen
+  by flag presence, as `build` does (`DCP-V1-495`): exactly one of `--artifact` and `--manifest`
+  must be given, and the given one must be non-empty; `--manifest= --artifact=PATH` in either order,
+  an empty value alone, or both flags exit 2 with `requires exactly one of --artifact or --manifest`
+  on stderr, no stdout and no write. Acceptance: `TestDCPV1563DeltaCurrentSideIsDecidedByPresence`
+  (`--manifest= --artifact=corpus.json` exits 0 before the change).
+- `DCP-V1-564`: `docs/RELEASE-NOTES.md` has a `Corpus derivation versions` section naming, for each
+  derivation version from 1 to the running `DerivationVersion`, the merge (`#N`) that introduced it,
+  what changed, and the rebuild command `corvint docs corpus build --artifact`. A merge that raises
+  `DerivationVersion` without an entry fails the check. The owner may move or reformat the section;
+  the check moves with it. Acceptance: `TestDCPV1564ReleaseNotesListEveryDerivation`.
+
+Non-goals: no sharded extractor output (a record over 64 MiB stays refused, naming its bytes), no
+change to the default `/1` output, no new manifest or provider schema, and no automatic release-note
+generation. Rollback: drop `--schema` from `extract` and the `ExtractorInventory` encode case,
+restore the plain record-bound refusals, restore the value-based delta check and remove the
+release-note section and its test. No stored state or artifact changes, so nothing needs migration.
 
 ### Experimental compact per-file anchor table (GitHub #1664)
 
@@ -3922,6 +4024,8 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-486 | `internal/mcp/corpusbridge/testdata/search-ranking-gh1665/` | `TestDCPV1486GH1665RankingEvalFixture` |
 | DCP-V1-520..522 | `internal/cem/gitauth/revision_paths.go`, `internal/doccorpus/extractor.go` | `TestDCPV1520RevisionPathsMatchesLsTreeWithinOneOpPerLevel`, `TestDCPV1520RevisionPathsOpsIndependentOfDirectoryCount`, `TestDCPV1520RevisionPathsListsGitSafeNamesUnfiltered`, `TestDCPV1520ExtractionEnumeratesMoreThan1024Directories`, `TestDCPV1521ExtractorGlobPruningIsSound`, `TestDCPV1521RevisionPathsPrunesRejectedSubtrees`, `TestDCPV1522RevisionPathsRefusesPastItsBounds`; measured in docs/build-log/2026-10-24-corpus-extract-enumeration.md |
 | DCP-V1-540..546 | `internal/doccorpus/search_rank.go`, `search_tier.go`, `search_phrase.go`, `types.go`, `internal/mcp/corpusbridge/testdata/search-ranking-gh1665-leftovers/` | `TestDCPV1540QueryWordCountsOnce`, `TestDCPV1541IdentifierTokenTier`, `TestDCPV1542PathPhraseBeforeDeclarations`, `TestDCPV1543QuestionNamesASubject`, `TestDCPV1544ServedTiersAndTerms`, `TestDCPV1404SearchRankingEvalFixture`, `TestDCPV1546GH1665LeftoversRankingEvalFixture`, `TestDCPV1486GH1665RankingEvalFixture`; measured in docs/build-log/2026-10-24-gh1665-rank-leftovers.md |
+| DCP-V1-547..550 | `internal/doccorpus/search_rank.go`, `search_tier.go`, `compile.go`, `encoding.go` | `TestDCPV1547TermsTierOrdersByCoverage`, `TestDCPV1548QuestionNamesAOneWordSubject`, `TestDCPV1549DerivedDeclarationsInAdditionalRepository`, `TestDCPV1485DerivationTwoRefusesDerivationOneArtifacts`, `TestDCPV1471DerivationVersionGuard`; measured in docs/build-log/2026-10-24-corpus-coverage-multirepo-derivation.md |
+| DCP-V1-560..564 | `internal/doccorpus/extractor.go`, `capacity.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `docs_corpus_delta.go`, `docs/RELEASE-NOTES.md` | `TestDCPV1560ExtractorSchemaTwoAdmitsMoreThanTheRecordBound`, `TestDCPV1560DocsCorpusExtractSchemaCLI`, `TestDCPV1562ExtractorRefusesARecordOverTheInputBound`, `TestDCPV1563DeltaCurrentSideIsDecidedByPresence`, `TestDCPV1564ReleaseNotesListEveryDerivation`, `TestDocsCorpusOperationFlagMatrix`; measured in docs/build-log/2026-10-24-corpus-coverage-multirepo-derivation.md |
 | DCP-V1-468 | `internal/doccorpus/artifact_decode.go`, `query_index_fast.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1419FastIndexMatchesReference` |
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-487..489 | `internal/doccorpus/compact_anchor.go`, `shards.go`, `encoding.go` | `TestDCPV1487CompactAnchorTableEquivalent`, `TestDCPV1488CompactAnchorRefusals`, `TestDCPV1489CompactAnchorSizeMeasured`; measured in docs/build-log/2026-10-24-corpus-compact-anchor-table.md |
