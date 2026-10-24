@@ -256,7 +256,9 @@ on a fixture queue remain non-goals.
   unchanged. A rolled-back writer only refuses new amendment requests.
 - `CTS-V0-025`: (proposed 2026-10-24, V1-2523, not accepted) On every GOOS but darwin and linux
   (so windows/amd64, which the 1.0 release spec lists `UNSUPPORTED` and decision 0061 defers),
-  `corvint-tasks` MUST refuse every command except help, per-command help and `version` with
+  `corvint-tasks` MUST refuse every command except help, per-command help (including the help a
+  command's own parser answers: `--help` anywhere in a ticket mutation argv, and `pool --help`) and
+  `version` with
   outcome `ERROR`, code `UNSUPPORTED`, not retryable, before it reads or writes any store, intent
   or worktree state. The warning MUST carry `UNSUPPORTED: platform: Corvint Tasks is unsupported on
   this platform`, returned by `wire.PlatformRefusal`, which is nil on darwin and linux. PathText
@@ -470,9 +472,14 @@ CTS-V0-025 (V1-2523, proposed) is evidenced by `TestCTSV0025_SupportedPlatformHa
 (darwin, linux: no refusal, a command reaches its own handling) and
 `TestCTSV0025_UnsupportedPlatformRefusesUpFront` (other GOOS: `UNSUPPORTED` with the platform text,
 the worktree untouched, `version` still exit 0), which `make windows-vet` type-checks and only a
-Windows host runs (`NEEDS-HOST`). `fixture.TempRepo` skips a Windows test on exactly this refusal
-through `testplatform.SkipWindowsRefusal`, which `TestCEMLockAndTasksRefusalsSkipOnlyOnWindows`
-proves does not skip on darwin or linux. Rollback is a revert; no state format or code changes.
+Windows host runs (`NEEDS-HOST`). `TestCTSV0025_ParserHelpAnswersOnEveryPlatform` proves
+parser-level help still answers, and the unsupported-platform test proves a `--help` that is a
+flag's value stays refused. `fixture.TempRepo`, the `atm` CLI test helper and the internal tests
+that call `Run` directly skip a Windows test on exactly this refusal through
+`testplatform.SkipWindowsRefusal`, which `TestCEMLockAndTasksRefusalsSkipOnlyOnWindows` proves does
+not skip on darwin or linux. On a Windows host (2026-10-24, batch 1024c) the CTS-V0-025 tests,
+`TestCriterionBindingOfflineVerify` (skips) and the help tests passed; 13 other
+`internal/tasks/cli` tests that do not reach this refusal still fail there, out of this scope. Rollback is a revert; no state format or code changes.
 
 CTS-V0-022 (V1-0903) is accepted by `TestCTSV0022_LongBodyKeepsPausePatience` (snapshot) and
 `TestCTSV0022_SlowExportStillWaitsOutWriter` (archive), with the escalating moved re-read backoff

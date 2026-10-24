@@ -11,6 +11,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // CAL-V0-125: status reports the derived CPU utilization, UNKNOWN until a
@@ -80,6 +81,8 @@ func TestCALV0127_DispatchStatusWithInvalidConfigFile(t *testing.T) {
 	cli := func(args ...string) *wire.Result {
 		t.Helper()
 		var out, errb bytes.Buffer
+		// Off darwin and linux Tasks refuses the command up front (CTS-V0-025).
+		testplatform.SkipWindowsRefusal(t, wire.PlatformRefusal())
 		Run(Env{Cwd: stateDir, Args: args, Stdin: bytes.NewReader(nil), Stdout: &out, Stderr: &errb})
 		res, err := wire.DecodeResult(out.Bytes())
 		if err != nil {
