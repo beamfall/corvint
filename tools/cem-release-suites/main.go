@@ -18,9 +18,10 @@
 // through `corvint cem verify-stable` and `cem01-go verify-stable-canonical`;
 // each result is checked against the sealed expectation and the two binaries'
 // result lines, runtime.goVersion aside, must be byte-identical. The
-// repository-envelope cells are prose recipes rebuilt by the in-process S0E
-// harnesses, so they run as source-level Go tests in that private tree, not
-// against the binaries, and the output says so.
+// repository-envelope cells are prose recipes rebuilt by the S0E harnesses:
+// they run as source-level Go tests in that private tree, and then once per
+// binary through the portable consumer's cell recipes with the built binary
+// as each cell's verifier (CEM-V1-609, CEM-V1-610).
 //
 // With --readiness PATH, the command also judges release readiness
 // (CEM-V1-600..603): PATH names a cem-release-readiness/1 declaration in the
@@ -29,8 +30,9 @@
 // result, and each declared runner, platform and external row must be
 // observed PASSED. The command observes only its own suite rows and the one
 // platform both binaries were built for; a binary-level repository-envelope
-// row is NOT_RUN and every external row is NOT_OBSERVED, so a declaration that
-// requires them is refused with exit 3 after the suites pass.
+// row is PASSED only when all 29 cells passed against that binary, and every
+// external row is NOT_OBSERVED, so a declaration that requires one is refused
+// with exit 3 after the suites pass.
 package main
 
 import (
@@ -137,25 +139,45 @@ func run(args []string, stdout, stderr io.Writer) int {
 			return 1
 		}
 	}
-	fmt.Fprintf(stdout, "cem-release-suites: repository-envelope: PASS at source level on the committed tree of %s; NOT_RUN against binaries (prose recipes)\n", revision)
+	fmt.Fprintf(stdout, "cem-release-suites: repository-envelope: PASS at source level on the committed tree of %s\n", revision)
+	envelope := map[string]string{}
+	for _, b := range r.bins {
+		cmd, report := binaryEnvelopeSuite(src, tmp, b)
+		cmd.Stdout, cmd.Stderr = stdout, stderr
+		outcome, detail := envelopeOutcome(cmd.Run(), report)
+		if outcome == "FAILED" {
+			fmt.Fprintf(stderr, "cem-release-suites: %s:repository-envelope: FAIL: %s\n", b.name, detail)
+			return 1
+		}
+		envelope[b.name] = outcome
+		fmt.Fprintf(stdout, "cem-release-suites: %s:repository-envelope: %s against the built binary (%s)\n", b.name, outcome, detail)
+	}
 	if *readiness == "" {
 		return 0
 	}
-	runnerRows, platformRows, externalRows := observedRows(platform)
+	runnerRows, platformRows, externalRows := observedRows(platform, envelope)
 	return judgeReadiness(declaration, r.accepted, runnerRows, platformRows, externalRows, stdout)
 }
 
 // releaseSuites are the binary-level suites, in run order.
 var releaseSuites = []string{"tamper-matrix", "citation-vectors", "neutral-criterion", "receipt-authentication"}
 
-// observedRows is what one passing run observed (CEM-V1-602): each binary
-// suite on each binary, the source-level repository-envelope suite, the
-// binary-level repository-envelope suite as NOT_RUN, and the one platform the
-// two binaries report. It never observes an external row.
-func observedRows(platform string) (runner, platforms, external map[string]string) {
-	runner = map[string]string{"source:repository-envelope": "PASSED", "corvint:repository-envelope": "NOT_RUN", "cem01-go:repository-envelope": "NOT_RUN"}
-	for _, name := range releaseSuites {
-		runner["corvint:"+name], runner["cem01-go:"+name] = "PASSED", "PASSED"
+// observedRows is what one passing run observed (CEM-V1-602, CEM-V1-610):
+// each binary suite on each binary, the source-level repository-envelope
+// suite, each binary's repository-envelope outcome as envelope reports it
+// (NOT_RUN when absent), and the one platform the two binaries report. It
+// never observes an external row.
+func observedRows(platform string, envelope map[string]string) (runner, platforms, external map[string]string) {
+	runner = map[string]string{"source:repository-envelope": "PASSED"}
+	for _, name := range []string{"corvint", "cem01-go"} {
+		outcome := envelope[name]
+		if outcome == "" {
+			outcome = "NOT_RUN"
+		}
+		runner[name+":repository-envelope"] = outcome
+		for _, suite := range releaseSuites {
+			runner[name+":"+suite] = "PASSED"
+		}
 	}
 	platforms = map[string]string{}
 	if platform != "" {
@@ -237,6 +259,74 @@ func sourceSuites(src string) []*exec.Cmd {
 		cmd.Env = withoutGitSelection(os.Environ())
 	}
 	return []*exec.Cmd{native, portable}
+}
+
+// envelopeCells is the number of public repository-envelope cells.
+const envelopeCells = 29
+
+// binaryEnvelopeSuite runs the 29 public repository-envelope cells against one
+// built binary (CEM-V1-609). The cells' recipes are the portable consumer's
+// TestStableCanonicalEnvelopeCells in the committed tree src; each cell's
+// verification runs b's argv instead of the test binary, and the per-cell
+// conformance record is written to the returned report path.
+func binaryEnvelopeSuite(src, tmp string, b binary) (*exec.Cmd, string) {
+	report := filepath.Join(tmp, "envelope-"+b.name+".json")
+	argv, _ := json.Marshal(b.argv)
+	cmd := exec.Command("go", "test", "-count=1", "-timeout", "30m", "-run", "^TestStableCanonicalEnvelopeCells$", ".")
+	cmd.Dir = filepath.Join(src, "interop", "cem01-go")
+	cmd.Env = append(withoutEnvelopeSelection(withoutGitSelection(os.Environ())), "CEM01_ENVELOPE_BINARY="+string(argv), "CEM01_S0E_CONFORMANCE_OUT="+report)
+	return cmd, report
+}
+
+// withoutEnvelopeSelection drops an inherited envelope binary or conformance
+// output, so only this run names them.
+func withoutEnvelopeSelection(env []string) []string {
+	out := env[:0:0]
+	for _, kv := range env {
+		if !strings.HasPrefix(kv, "CEM01_ENVELOPE_BINARY=") && !strings.HasPrefix(kv, "CEM01_S0E_CONFORMANCE_OUT=") {
+			out = append(out, kv)
+		}
+	}
+	return out
+}
+
+// envelopeOutcome judges one binary envelope run (CEM-V1-610): FAILED when the
+// test run failed, its report is unreadable, or any recorded cell did not pass
+// against the named binary; PASSED only when all 29 distinct cells passed in
+// RUN_BINARY mode; otherwise NOT_RUN, the cells this host could not build.
+func envelopeOutcome(runErr error, reportPath string) (string, string) {
+	if runErr != nil {
+		return "FAILED", fmt.Sprintf("envelope cells run: %v", runErr)
+	}
+	raw, err := os.ReadFile(reportPath)
+	if errors.Is(err, os.ErrNotExist) {
+		return "NOT_RUN", fmt.Sprintf("0 of %d cells ran on this host", envelopeCells)
+	}
+	if err != nil {
+		return "FAILED", fmt.Sprintf("conformance report: %v", err)
+	}
+	var report struct {
+		Profile string `json:"profile"`
+		Cells   []struct {
+			Name   string `json:"name"`
+			Mode   string `json:"mode"`
+			Status string `json:"status"`
+		} `json:"envelopeCells"`
+	}
+	if err := json.Unmarshal(raw, &report); err != nil || report.Profile != "cem01-go-s0e-portable-conformance/1" {
+		return "FAILED", fmt.Sprintf("conformance report is not cem01-go-s0e-portable-conformance/1: %v", err)
+	}
+	seen := map[string]bool{}
+	for _, c := range report.Cells {
+		if c.Mode != "RUN_BINARY" || c.Status != "PASS" || seen[c.Name] {
+			return "FAILED", fmt.Sprintf("cell %s recorded %s %s", c.Name, c.Mode, c.Status)
+		}
+		seen[c.Name] = true
+	}
+	if len(seen) != envelopeCells {
+		return "NOT_RUN", fmt.Sprintf("%d of %d cells ran on this host", len(seen), envelopeCells)
+	}
+	return "PASSED", fmt.Sprintf("%d of %d cells passed", len(seen), envelopeCells)
 }
 
 func mustAbs(p string) string {

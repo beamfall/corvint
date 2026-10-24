@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -271,12 +273,15 @@ func TestCEMV1572PrivateDirIsResolved(t *testing.T) {
 
 // TestCEMV1602ObservedRowsNeverPassUnrunRows pins what one passing run
 // observes: every binary suite on both binaries, the source-level envelope,
-// the binary-level envelope as NOT_RUN, the reported platform and no external
-// row.
+// each binary-level envelope as its run reported it and NOT_RUN when it
+// reported nothing (CEM-V1-610), the reported platform and no external row.
 func TestCEMV1602ObservedRowsNeverPassUnrunRows(t *testing.T) {
-	runner, platforms, external := observedRows("linux/amd64")
+	runner, platforms, external := observedRows("linux/amd64", nil)
 	if len(runner) != 11 || runner["source:repository-envelope"] != "PASSED" || runner["corvint:repository-envelope"] != "NOT_RUN" || runner["cem01-go:repository-envelope"] != "NOT_RUN" {
 		t.Fatalf("runner rows = %v", runner)
+	}
+	if runner, _, _ := observedRows("linux/amd64", map[string]string{"corvint": "PASSED", "cem01-go": "NOT_RUN"}); runner["corvint:repository-envelope"] != "PASSED" || runner["cem01-go:repository-envelope"] != "NOT_RUN" {
+		t.Fatalf("envelope rows = %v", runner)
 	}
 	for _, suite := range releaseSuites {
 		if runner["corvint:"+suite] != "PASSED" || runner["cem01-go:"+suite] != "PASSED" {
@@ -286,7 +291,7 @@ func TestCEMV1602ObservedRowsNeverPassUnrunRows(t *testing.T) {
 	if len(platforms) != 1 || platforms["linux/amd64"] != "PASSED" || len(external) != 0 {
 		t.Fatalf("platform rows %v, external rows %v", platforms, external)
 	}
-	if _, platforms, _ := observedRows(""); len(platforms) != 0 {
+	if _, platforms, _ := observedRows("", nil); len(platforms) != 0 {
 		t.Fatalf("an unreported platform is observed: %v", platforms)
 	}
 }
@@ -336,7 +341,7 @@ func TestCEMV1603JudgeReadiness(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	runner, platforms, external := observedRows("linux/amd64")
+	runner, platforms, external := observedRows("linux/amd64", nil)
 	var out bytes.Buffer
 	if code := judgeReadiness(committed, [][]byte{accept}, runner, platforms, external, &out); code != 3 {
 		t.Fatalf("committed declaration exit %d, want 3: %s", code, out.String())
@@ -372,5 +377,105 @@ func TestCEMV1603ReadinessPathIsRepositoryRelative(t *testing.T) {
 	}
 	if !repositoryRelative("tools/cem-release-suites/READINESS.json") {
 		t.Fatal("the committed declaration path is refused")
+	}
+}
+
+// TestCEMV1609BinaryEnvelopeSuiteNamesTheBinary pins the binary-level
+// envelope run: it runs the portable cell recipes in the committed tree, names
+// exactly the built binary's argv as each cell's verifier, writes its report
+// into the run's private directory and inherits no Git or envelope selection.
+func TestCEMV1609BinaryEnvelopeSuiteNamesTheBinary(t *testing.T) {
+	src, tmp := t.TempDir(), t.TempDir()
+	t.Setenv("GIT_DIR", "/nonexistent")
+	t.Setenv("CEM01_ENVELOPE_BINARY", `["/inherited","x"]`)
+	t.Setenv("CEM01_S0E_CONFORMANCE_OUT", "/inherited.json")
+	b := binary{name: "corvint", argv: []string{"/abs/corvint", "cem", "verify-stable"}}
+	cmd, report := binaryEnvelopeSuite(src, tmp, b)
+	if cmd.Dir != filepath.Join(src, "interop", "cem01-go") || report != filepath.Join(tmp, "envelope-corvint.json") {
+		t.Fatalf("suite runs in %s with report %s", cmd.Dir, report)
+	}
+	if !strings.Contains(strings.Join(cmd.Args, " "), "-run ^TestStableCanonicalEnvelopeCells$ .") {
+		t.Fatalf("suite args = %v", cmd.Args)
+	}
+	var named []string
+	for _, kv := range cmd.Env {
+		switch {
+		case strings.HasPrefix(kv, "GIT_"):
+			t.Fatalf("suite inherits %s", kv)
+		case strings.HasPrefix(kv, "CEM01_ENVELOPE_BINARY="), strings.HasPrefix(kv, "CEM01_S0E_CONFORMANCE_OUT="):
+			named = append(named, kv)
+		}
+	}
+	if len(named) != 2 || named[0] != `CEM01_ENVELOPE_BINARY=["/abs/corvint","cem","verify-stable"]` || named[1] != "CEM01_S0E_CONFORMANCE_OUT="+report {
+		t.Fatalf("suite names %v", named)
+	}
+}
+
+// TestCEMV1610EnvelopeOutcome pins the binary-level envelope verdict: a failed
+// run, an unreadable or foreign report, or any cell that did not pass against
+// the named binary is FAILED; fewer than 29 passing cells is NOT_RUN; only 29
+// distinct RUN_BINARY passes are PASSED.
+func TestCEMV1610EnvelopeOutcome(t *testing.T) {
+	dir := t.TempDir()
+	cells := func(n int, mode, status string) string {
+		var rows []string
+		for i := 0; i < n; i++ {
+			rows = append(rows, fmt.Sprintf(`{"name":"cell-%02d","mode":%q,"status":%q}`, i, mode, status))
+		}
+		return `{"profile":"cem01-go-s0e-portable-conformance/1","envelopeCells":[` + strings.Join(rows, ",") + `]}`
+	}
+	for i, c := range []struct {
+		runErr error
+		report string
+		want   string
+	}{
+		{errors.New("exit status 1"), cells(29, "RUN_BINARY", "PASS"), "FAILED"},
+		{nil, cells(28, "RUN_BINARY", "PASS")[:len(cells(28, "RUN_BINARY", "PASS"))-2] + `,{"name":"bad","mode":"RUN_BINARY","status":"FAIL"}]}`, "FAILED"},
+		{nil, cells(29, "RUN_REAL", "PASS"), "FAILED"},
+		{nil, strings.Replace(cells(29, "RUN_BINARY", "PASS"), "cell-01", "cell-00", 1), "FAILED"},
+		{nil, `{"profile":"other/1","envelopeCells":[]}`, "FAILED"},
+		{nil, "not json", "FAILED"},
+		{nil, "", "NOT_RUN"},
+		{nil, cells(28, "RUN_BINARY", "PASS"), "NOT_RUN"},
+		{nil, cells(29, "RUN_BINARY", "PASS"), "PASSED"},
+	} {
+		path := filepath.Join(dir, fmt.Sprintf("report-%d.json", i))
+		if c.report != "" {
+			if err := os.WriteFile(path, []byte(c.report), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if got, detail := envelopeOutcome(c.runErr, path); got != c.want {
+			t.Fatalf("case %d: outcome %s (%s), want %s", i, got, detail, c.want)
+		}
+	}
+}
+
+// TestCEMV1610FailingBinaryEnvelopeRunIsRefused runs the real portable cell
+// recipes against a stub binary that prints a non-result: every cell fails,
+// the run fails and the binary's envelope row is FAILED, never PASSED or
+// NOT_RUN.
+func TestCEMV1610FailingBinaryEnvelopeRunIsRefused(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("NOT_RUN: no go command on PATH")
+	}
+	src, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmp := t.TempDir()
+	stub := filepath.Join(tmp, "stub")
+	if err := os.WriteFile(stub, []byte("#!/bin/sh\necho '{}'\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cmd, report := binaryEnvelopeSuite(src, tmp, binary{name: "stub", argv: []string{stub, "verify-stable"}})
+	var out bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &out
+	outcome, detail := envelopeOutcome(cmd.Run(), report)
+	if outcome != "FAILED" {
+		t.Fatalf("stub binary envelope outcome %s (%s), want FAILED:\n%s", outcome, detail, out.String())
+	}
+	if n := strings.Count(out.String(), "first differing key"); n != envelopeCells {
+		t.Fatalf("stub run compared %d of %d cells:\n%s", n, envelopeCells, out.String())
 	}
 }
