@@ -26,3 +26,21 @@ rewrite would change what the test proves. No darwin/linux test is skipped, and 
 - No native Windows run was made for this change. The per-package fixes come from reading each
   test, guided by the V1-2441 classification; the owner reruns the listed packages on the host.
 - Skipped tests leave those harness paths unqualified on Windows, the same as before.
+
+## V1-2486 follow-up: deliberate platform refusals skip on Windows
+
+`testplatform.SkipWindowsRefusal(t, err)` skips only when `GOOS` is `windows` and `err`, or an error it wraps,
+reads exactly as one of the production refusal messages in `testplatform.PlatformRefusals` or ends
+with it after a `": "` separator; refusal text inside a path or ahead of an unrelated cause does not
+qualify, and the source check anchors each message with its closing quote; the skip reason
+quotes the refusal and its source file. The list is explicit rather than a pattern such as
+"unsupported", so an unrelated Windows failure still fails. `TestPlatformRefusalsMatchTheirSources`
+rereads each source file, so a reworded refusal fails that test instead of silently no longer
+matching. On darwin and linux the helper returns without effect, proved by
+`TestSkipWindowsRefusalDoesNothingOffWindows`.
+
+The first call site is `testsupport.RunGit`: fixture git runs under `procgroup`, which refuses
+Windows with `process-platform-unsupported`, so every test using that fixture now skips there.
+The remaining V1-2486 packages hit refusals through production call chains at individual
+`t.Fatal(err)` sites. Wiring those needs the per-test failure text from a native Windows run and
+stays open on the ticket.

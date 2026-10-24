@@ -403,6 +403,22 @@
     "internal/testplan": [
       "internal/appmap/testdata/"
     ],
+    "internal/testplatform": [
+      "internal/analyzerexec/platform_other.go",
+      "internal/cem/cli/stable_other.go",
+      "internal/cem/publish/lock_other.go",
+      "internal/cem/publish/read_unsupported.go",
+      "internal/cem/publish/secure_other.go",
+      "internal/contextindex/blob_shards_open_unsupported.go",
+      "internal/contextindex/index_stat_other.go",
+      "internal/gitstatus/read_other.go",
+      "internal/gitstatus/worker_other.go",
+      "internal/groupreap/owner.go",
+      "internal/postmergeconnector/files_other.go",
+      "internal/procgroup/process.go",
+      "internal/procgroup/process_other.go",
+      "internal/tasks/safeopen/open_other.go"
+    ],
     "internal/testrunner": [],
     "internal/testrunner/dynamic": [],
     "internal/testrunner/mobile": [],
