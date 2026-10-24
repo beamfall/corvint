@@ -1,0 +1,86 @@
+diff --git a/internal/graph/graph_devices.go b/internal/graph/graph_devices.go
+index 14a9fd4d9..5558055aa 100644
+--- a/internal/graph/graph_devices.go
++++ b/internal/graph/graph_devices.go
+@@ -95,12 +95,13 @@ func (h *Handler) revokeAllDevices(ctx context.Context, scope auth.Scope) (Revok
+ 	if err != nil {
+ 		return RevokeAllDevicesResult{}, err
+ 	}
+-	var active []store.ActiveSession
++	var activeByDevice map[store.DeviceID][]store.SessionID
+ 	if h.transcodeTerminator != nil {
+-		active, err = h.store.ActiveSessions(ctx, time.Now().UTC(), scope.LibraryFilter())
++		active, err := h.store.ActiveSessions(ctx, time.Now().UTC(), scope.LibraryFilter())
+ 		if err != nil {
+ 			return RevokeAllDevicesResult{}, err
+ 		}
++		activeByDevice = activeSessionIDsByDevice(active)
+ 	}
+ 	result := RevokeAllDevicesResult{}
+ 	for _, d := range list {
+@@ -111,7 +112,7 @@ func (h *Handler) revokeAllDevices(ctx context.Context, scope auth.Scope) (Revok
+ 			return RevokeAllDevicesResult{}, err
+ 		}
+ 		result.RevokedCount++
+-		result.TranscodesAborted += h.abortDeviceTranscodes(string(d.ID), active)
++		result.TranscodesAborted += h.abortDeviceTranscodes(activeByDevice[d.ID])
+ 		if err := h.logActivity(ctx, scope, store.ActivityDeviceRevoke, "device", string(d.ID), ""); err != nil {
+ 			return RevokeAllDevicesResult{}, err
+ 		}
+diff --git a/internal/graph/graph_livesessions.go b/internal/graph/graph_livesessions.go
+index eb3f4c9db..fc95b9c7b 100644
+--- a/internal/graph/graph_livesessions.go
++++ b/internal/graph/graph_livesessions.go
+@@ -163,29 +163,40 @@ func (h *Handler) revokeDevice(ctx context.Context, scope auth.Scope, req reques
+ 			return RevokeDeviceResult{}, err
+ 		}
+ 	}
+-	aborted := h.abortDeviceTranscodes(id, active)
++	aborted := h.abortDeviceTranscodes(activeSessionIDsByDevice(active)[store.DeviceID(id)])
+ 	if err := h.logActivity(ctx, scope, store.ActivityDeviceRevoke, "device", id, ""); err != nil {
+ 		return RevokeDeviceResult{}, err
+ 	}
+ 	return RevokeDeviceResult{DeviceID: id, TranscodesAborted: aborted}, nil
+ }
+ 
+-// abortDeviceTranscodes terminates every in-flight transcode belonging to the
+-// given device id, drawn from a pre-fetched active-session list (so a revoke-all
+-// can enumerate ActiveSessions once and fan out across devices). Returns the
++func activeSessionIDsByDevice(active []store.ActiveSession) map[store.DeviceID][]store.SessionID {
++	type key struct {
++		deviceID  store.DeviceID
++		sessionID store.SessionID
++	}
++	byDevice := make(map[store.DeviceID][]store.SessionID)
++	seen := make(map[key]bool, len(active))
++	for _, session := range active {
++		key := key{deviceID: session.DeviceID, sessionID: session.SessionID}
++		if seen[key] {
++			continue
++		}
++		seen[key] = true
++		byDevice[session.DeviceID] = append(byDevice[session.DeviceID], session.SessionID)
++	}
++	return byDevice
++}
++
++// abortDeviceTranscodes terminates each pre-grouped Session once. Returns the
+ // count aborted. A nil terminator or empty list aborts zero.
+-func (h *Handler) abortDeviceTranscodes(deviceID string, active []store.ActiveSession) int {
++func (h *Handler) abortDeviceTranscodes(sessionIDs []store.SessionID) int {
+ 	if h.transcodeTerminator == nil {
+ 		return 0
+ 	}
+ 	aborted := 0
+-	seen := map[store.SessionID]bool{}
+-	for _, s := range active {
+-		if string(s.DeviceID) != deviceID || seen[s.SessionID] {
+-			continue
+-		}
+-		seen[s.SessionID] = true
+-		aborted += h.transcodeTerminator.TerminateSession(s.SessionID)
++	for _, sessionID := range sessionIDs {
++		aborted += h.transcodeTerminator.TerminateSession(sessionID)
+ 	}
+ 	return aborted
+ }

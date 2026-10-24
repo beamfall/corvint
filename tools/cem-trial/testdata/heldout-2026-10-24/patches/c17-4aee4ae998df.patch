@@ -1,0 +1,383 @@
+diff --git a/internal/graph/graph.go b/internal/graph/graph.go
+index c0a0755bf..535f6a14a 100644
+--- a/internal/graph/graph.go
++++ b/internal/graph/graph.go
+@@ -862,6 +862,70 @@ func (h *Handler) execute(ctx context.Context, scope auth.Scope, req request, fi
+ 			readField(data, &errs, "trashList", "trash", entries, err)
+ 		}
+ 	}
++	if fields["tags"] || fields["tagassignments"] || fields["createtag"] || fields["updatetag"] ||
++		fields["deletetag"] || fields["restoretag"] || fields["assigntag"] ||
++		fields["unassigntag"] || fields["bulkassigntags"] {
++		if scope.DeviceRole != store.DeviceRoleManager {
++			return response{Errors: []graphError{{Message: "manager role required"}}}
++		}
++		if fields["tags"] {
++			tags, err := h.tags(ctx, req)
++			readField(data, &errs, "tags", "tags", tags, err)
++		}
++		if fields["tagassignments"] {
++			assignment, err := h.tagAssignments(ctx, scope, req)
++			readField(data, &errs, "tagAssignments", "tagAssignments", assignment, err)
++		}
++		if fields["createtag"] {
++			tag, err := h.createTag(ctx, scope, req)
++			if err != nil {
++				return graphFail("createTag", err)
++			}
++			data["createTag"] = tag
++		}
++		if fields["updatetag"] {
++			tag, err := h.updateTag(ctx, scope, req)
++			if err != nil {
++				return graphFail("updateTag", err)
++			}
++			data["updateTag"] = tag
++		}
++		if fields["deletetag"] {
++			tag, err := h.deleteTag(ctx, scope, req)
++			if err != nil {
++				return graphFail("deleteTag", err)
++			}
++			data["deleteTag"] = tag
++		}
++		if fields["restoretag"] {
++			tag, err := h.restoreTag(ctx, scope, req)
++			if err != nil {
++				return graphFail("restoreTag", err)
++			}
++			data["restoreTag"] = tag
++		}
++		if fields["assigntag"] {
++			assignment, err := h.assignTag(ctx, scope, req)
++			if err != nil {
++				return graphFail("assignTag", err)
++			}
++			data["assignTag"] = assignment
++		}
++		if fields["unassigntag"] {
++			assignment, err := h.unassignTag(ctx, scope, req)
++			if err != nil {
++				return graphFail("unassignTag", err)
++			}
++			data["unassignTag"] = assignment
++		}
++		if fields["bulkassigntags"] {
++			result, err := h.bulkAssignTags(ctx, scope, req)
++			if err != nil {
++				return graphFail("bulkAssignTags", err)
++			}
++			data["bulkAssignTags"] = result
++		}
++	}
+ 	if fields["createprofile"] {
+ 		if !scope.Admin {
+ 			return response{Errors: []graphError{{Message: "admin session required"}}}
+@@ -4729,6 +4793,8 @@ var queryFields = map[string]bool{
+ 	"searchfeeds":            true,
+ 	"media":                  true,
+ 	"trashlist":              true,
++	"tags":                   true,
++	"tagassignments":         true,
+ 	"libraries":              true,
+ 	"qualitypolicy":          true,
+ 	"encryptedlibrarystatus": true, // ENC-2 (ADR-0045 §2.4): credential-free Sealed/Unsealed + mode read
+@@ -4816,6 +4882,13 @@ var mutationFields = map[string]bool{
+ 	"pinartworkcandidate":                true,
+ 	"trashmedia":                         true,
+ 	"restoremedia":                       true,
++	"createtag":                          true,
++	"updatetag":                          true,
++	"deletetag":                          true,
++	"restoretag":                         true,
++	"assigntag":                          true,
++	"unassigntag":                        true,
++	"bulkassigntags":                     true,
+ 	"setmediafieldlock":                  true,
+ 	"bulkeditapply":                      true,
+ 	"organizeapply":                      true,
+diff --git a/internal/graph/nested_schema.go b/internal/graph/nested_schema.go
+index 05d6e21b6..725d4a6ac 100644
+--- a/internal/graph/nested_schema.go
++++ b/internal/graph/nested_schema.go
+@@ -69,6 +69,8 @@ var resultTypes = map[string]any{
+ 	"searchfeeds":            FeedSearchResult{},
+ 	"media":                  MediaInfo{},
+ 	"trashlist":              TrashEntry{},
++	"tags":                   TagInfo{},
++	"tagassignments":         TagAssignmentInfo{},
+ 	"libraries":              LibraryInfo{},
+ 	"qualitypolicy":          QualityPolicyInfo{},
+ 	"accessschedule":         AccessScheduleInfo{},
+@@ -163,6 +165,13 @@ var resultTypes = map[string]any{
+ 	"pinartworkcandidate":                ArtworkCandidateInfo{},
+ 	"trashmedia":                         TrashEntry{},
+ 	"restoremedia":                       TrashEntry{},
++	"createtag":                          TagInfo{},
++	"updatetag":                          TagInfo{},
++	"deletetag":                          TagInfo{},
++	"restoretag":                         TagInfo{},
++	"assigntag":                          TagAssignmentInfo{},
++	"unassigntag":                        TagAssignmentInfo{},
++	"bulkassigntags":                     TagBulkAssignmentInfo{},
+ 	"setmediafieldlock":                  FieldLockInfo{},
+ 	"bulkeditapply":                      BatchResultInfo{},
+ 	"organizeapply":                      BatchResultInfo{},
+diff --git a/internal/store/activity.go b/internal/store/activity.go
+index 9315f9d2b..31af60556 100644
+--- a/internal/store/activity.go
++++ b/internal/store/activity.go
+@@ -131,6 +131,12 @@ const (
+ 	// the entry carries the Media's LibraryID for reveal-filtered visibility;
+ 	// it records that a lock toggled, never the field value behind it.
+ 	ActivityMediaFieldLock = "media.field_lock"
++	ActivityTagCreate      = "tag.create"
++	ActivityTagUpdate      = "tag.update"
++	ActivityTagDelete      = "tag.delete"
++	ActivityTagRestore     = "tag.restore"
++	ActivityTagAssign      = "tag.assign"
++	ActivityTagBulkAssign  = "tag.bulk_assign"
+ 	// ActivityExtensionRequest records a managed Profile raising a parental
+ 	// extension request (ADR-0039 §2.1 / PUSH-2). TargetType is "extension",
+ 	// TargetID the request id. No LibraryID — the request names no content (only
+diff --git a/internal/store/schema_freeze.go b/internal/store/schema_freeze.go
+index d7840e7a6..e6c8c8c14 100644
+--- a/internal/store/schema_freeze.go
++++ b/internal/store/schema_freeze.go
+@@ -200,8 +200,17 @@ package store
+ //     keys, or uploaded metadata; encrypted uploads still register through the
+ //     target Library's existing media/media_file catalog plane. Catalog count
+ //     72 → 73.
++//   - WEB-5D substrate (ADR-0061 Tags row): 0076 adds first-class Tag rows
++//     (`tag`) plus three assignment tables (`media_tag`, `entity_tag`,
++//     `marker_core_tag`). Tags are Core, domain-agnostic labels; parent links
++//     are optional same-table hierarchy edges; delete is soft/recoverable via
++//     `trashed_at_ms`. `marker_core_tag` is deliberately separate from the
++//     existing free-form `marker_tag` display/fallback table, so Marker label
++//     behavior does not change. These tables are off the entity-query hot path;
++//     focused store/graph tests cover reveal gating and bulk assignment.
++//     Catalog count 73 → 74 (`make bench` not run in this slice yet).
+ const (
+-	schemaFreezeCatalogMigrations          = 73
++	schemaFreezeCatalogMigrations          = 74
+ 	schemaFreezeEventsMigrations           = 15
+ 	schemaFreezeEncryptedLibraryMigrations = 2
+ )
+diff --git a/internal/web/app/src/lib/graphql/manage.ts b/internal/web/app/src/lib/graphql/manage.ts
+index 368459462..4170b507b 100644
+--- a/internal/web/app/src/lib/graphql/manage.ts
++++ b/internal/web/app/src/lib/graphql/manage.ts
+@@ -20,6 +20,11 @@ import type {
+   ScheduleTriggerInput,
+   TrashEntry,
+   RestoreMediaResult,
++  TagAssignmentInfo,
++  TagBulkAssignmentInfo,
++  TagBulkMode,
++  TagInfo,
++  TagTargetType,
+   ArtworkCandidate,
+   SubscriptionInfo,
+   SubscriptionRetentionResult,
+@@ -214,6 +219,160 @@ export async function restoreMedia(
+   return data.restoreMedia;
+ }
+ 
++// --- Tags (ADR-0061 / WEB-5D substrate) ----------------------------------
++
++const TAG_FIELDS =
++  "id name parentTagID trashedAt createdAt updatedAt";
++
++const TAGS_QUERY =
++  "query Tags($includeTrashed: Boolean) { tags(includeTrashed: $includeTrashed) { " +
++  TAG_FIELDS +
++  " } }";
++
++/** Tags — first-class Core Tags, optionally including recoverable deleted Tags. */
++export async function fetchTags(
++  includeTrashed = false,
++): Promise<TagInfo[]> {
++  const data = await graphql<{ tags: TagInfo[] | null }>(TAGS_QUERY, {
++    includeTrashed,
++  });
++  return data.tags ?? [];
++}
++
++const TAG_ASSIGNMENTS_QUERY =
++  "query TagAssignments($targetType: String!, $targetID: String!) { tagAssignments(targetType: $targetType, targetID: $targetID) { targetType targetID libraryID tags { " +
++  TAG_FIELDS +
++  " } } }";
++
++/** TagAssignments — current first-class Tags for a Media, Entity, or Marker. */
++export async function fetchTagAssignments(
++  targetType: TagTargetType,
++  targetID: string,
++): Promise<TagAssignmentInfo> {
++  const data = await graphql<{ tagAssignments: TagAssignmentInfo }>(
++    TAG_ASSIGNMENTS_QUERY,
++    { targetType, targetID },
++  );
++  return data.tagAssignments;
++}
++
++const CREATE_TAG_MUTATION =
++  "mutation CreateTag($name: String!, $parentTagID: String) { createTag(name: $name, parentTagID: $parentTagID) { " +
++  TAG_FIELDS +
++  " } }";
++
++/** CreateTag — create one first-class Core Tag. */
++export async function createTag(
++  name: string,
++  parentTagID?: string,
++): Promise<TagInfo> {
++  const data = await graphql<{ createTag: TagInfo }>(CREATE_TAG_MUTATION, {
++    name,
++    parentTagID,
++  });
++  return data.createTag;
++}
++
++const UPDATE_TAG_MUTATION =
++  "mutation UpdateTag($tagID: String!, $name: String!, $parentTagID: String) { updateTag(tagID: $tagID, name: $name, parentTagID: $parentTagID) { " +
++  TAG_FIELDS +
++  " } }";
++
++/** UpdateTag — rename and/or reparent one live Tag. */
++export async function updateTag(
++  tagID: string,
++  name: string,
++  parentTagID?: string,
++): Promise<TagInfo> {
++  const data = await graphql<{ updateTag: TagInfo }>(UPDATE_TAG_MUTATION, {
++    tagID,
++    name,
++    parentTagID,
++  });
++  return data.updateTag;
++}
++
++const DELETE_TAG_MUTATION =
++  "mutation DeleteTag($tagID: String!) { deleteTag(tagID: $tagID) { " +
++  TAG_FIELDS +
++  " } }";
++
++/** DeleteTag — soft-delete one Tag so it can be restored. */
++export async function deleteTag(tagID: string): Promise<TagInfo> {
++  const data = await graphql<{ deleteTag: TagInfo }>(DELETE_TAG_MUTATION, {
++    tagID,
++  });
++  return data.deleteTag;
++}
++
++const RESTORE_TAG_MUTATION =
++  "mutation RestoreTag($tagID: String!) { restoreTag(tagID: $tagID) { " +
++  TAG_FIELDS +
++  " } }";
++
++/** RestoreTag — restore one soft-deleted Tag. */
++export async function restoreTag(tagID: string): Promise<TagInfo> {
++  const data = await graphql<{ restoreTag: TagInfo }>(RESTORE_TAG_MUTATION, {
++    tagID,
++  });
++  return data.restoreTag;
++}
++
++const ASSIGN_TAG_MUTATION =
++  "mutation AssignTag($tagID: String!, $targetType: String!, $targetID: String!) { assignTag(tagID: $tagID, targetType: $targetType, targetID: $targetID) { targetType targetID libraryID tags { " +
++  TAG_FIELDS +
++  " } } }";
++
++/** AssignTag — attach one Tag to one Media, Entity, or Marker. */
++export async function assignTag(
++  tagID: string,
++  targetType: TagTargetType,
++  targetID: string,
++): Promise<TagAssignmentInfo> {
++  const data = await graphql<{ assignTag: TagAssignmentInfo }>(
++    ASSIGN_TAG_MUTATION,
++    { tagID, targetType, targetID },
++  );
++  return data.assignTag;
++}
++
++const UNASSIGN_TAG_MUTATION =
++  "mutation UnassignTag($tagID: String!, $targetType: String!, $targetID: String!) { unassignTag(tagID: $tagID, targetType: $targetType, targetID: $targetID) { targetType targetID libraryID tags { " +
++  TAG_FIELDS +
++  " } } }";
++
++/** UnassignTag — detach one Tag from one Media, Entity, or Marker. */
++export async function unassignTag(
++  tagID: string,
++  targetType: TagTargetType,
++  targetID: string,
++): Promise<TagAssignmentInfo> {
++  const data = await graphql<{ unassignTag: TagAssignmentInfo }>(
++    UNASSIGN_TAG_MUTATION,
++    { tagID, targetType, targetID },
++  );
++  return data.unassignTag;
++}
++
++const BULK_ASSIGN_TAGS_MUTATION =
++  "mutation BulkAssignTags($tagIDs: [String!]!, $targetType: String!, $targetIDs: [String!]!, $mode: String!) { bulkAssignTags(tagIDs: $tagIDs, targetType: $targetType, targetIDs: $targetIDs, mode: $mode) { affected tags { " +
++  TAG_FIELDS +
++  " } } }";
++
++/** BulkAssignTags — add/remove/replace Tags across selected targets. */
++export async function bulkAssignTags(
++  tagIDs: string[],
++  targetType: TagTargetType,
++  targetIDs: string[],
++  mode: TagBulkMode,
++): Promise<TagBulkAssignmentInfo> {
++  const data = await graphql<{ bulkAssignTags: TagBulkAssignmentInfo }>(
++    BULK_ASSIGN_TAGS_MUTATION,
++    { tagIDs, targetType, targetIDs, mode },
++  );
++  return data.bulkAssignTags;
++}
++
+ // --- Artwork candidates (ADR-0009) ----------------------------------------
+ 
+ const ARTWORK_CANDIDATES_QUERY =
+diff --git a/internal/web/app/src/lib/graphql/types.ts b/internal/web/app/src/lib/graphql/types.ts
+index c63f7aedb..01df403b3 100644
+--- a/internal/web/app/src/lib/graphql/types.ts
++++ b/internal/web/app/src/lib/graphql/types.ts
+@@ -428,6 +428,36 @@ export interface RestoreMediaResult {
+   trashedAt: string;
+ }
+ 
++/** A first-class Core Tag (graph.TagInfo). */
++export interface TagInfo {
++  id: string;
++  name: string;
++  parentTagID?: string;
++  trashedAt?: string;
++  createdAt: string;
++  updatedAt: string;
++}
++
++/** A Tag assignment target kind. */
++export type TagTargetType = "media" | "entity" | "marker";
++
++/** A bulk Tag assignment mode. */
++export type TagBulkMode = "add" | "remove" | "replace";
++
++/** One target's current first-class Tag set (graph.TagAssignmentInfo). */
++export interface TagAssignmentInfo {
++  targetType: TagTargetType;
++  targetID: string;
++  libraryID: string;
++  tags: TagInfo[];
++}
++
++/** A bulk Tag assignment result (graph.TagBulkAssignmentInfo). */
++export interface TagBulkAssignmentInfo {
++  affected: number;
++  tags: TagInfo[];
++}
++
+ /** An artwork candidate (graph.ArtworkCandidateInfo). */
+ export interface ArtworkCandidate {
+   id: string;

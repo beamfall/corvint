@@ -1,0 +1,208 @@
+diff --git a/internal/ffmpeg/ffmpeg.go b/internal/ffmpeg/ffmpeg.go
+index 3a29ff5ed..dec1aa915 100644
+--- a/internal/ffmpeg/ffmpeg.go
++++ b/internal/ffmpeg/ffmpeg.go
+@@ -408,6 +408,26 @@ const waveformSampleRate = 8000
+ // a fully silent window.
+ const rmsLevelPrefix = "lavfi.astats.Overall.RMS_level="
+ 
++// Silence-detection tunables (ADR-0052 §2.4(a)). silencedetect's defaults
++// (-60dB, 2s) miss the soft between-segment dead air the trim-silence seek
++// targets, so the threshold is loosened to -50dB while keeping a 2s minimum —
++// long enough that ordinary speech pauses never register, short enough to catch
++// the gaps between ad reads and segments. These are server tunables, not client
++// commitments: the wire contract is the {start,end} span list, not the recipe.
++const (
++	silenceThresholdDB    = -50.0
++	silenceMinDurationSec = 2.0
++)
++
++// silenceStartPrefix / silenceEndPrefix are the tokens silencedetect prints on
++// stderr for each detected span (e.g. "silence_start: 12.34",
++// "silence_end: 15.6 | silence_duration: 3.26"). The end line carries trailing
++// fields after a "|", parsed off here.
++const (
++	silenceStartPrefix = "silence_start:"
++	silenceEndPrefix   = "silence_end:"
++)
++
+ // WaveformAmplitudes analyses src and returns one linear amplitude in [0,1] per
+ // analysis window across the full duration (ADR-0035 §6). The pass downmixes to
+ // mono at a fixed low rate, slices the stream into waveformWindows fixed-size
+@@ -508,6 +528,96 @@ func parseWaveformAmplitudes(out string) []float64 {
+ 	return amps
+ }
+ 
++// SilenceSpans analyses src's primary audio stream with FFmpeg's silencedetect
++// filter and returns the quiet regions above the configured threshold/duration
++// (ADR-0052 §2.4(a)) as {start,end} second pairs. silencedetect prints
++// "silence_start"/"silence_end" pairs on stderr; the pass runs under the null
++// muxer (-f null), so no media bytes are produced — only the printed events,
++// parsed here. The result is a primitive [start,end] pair shape (no exported
++// span struct) so the genassets seam consuming this never has to import ffmpeg
++// — genassets owns the wire span type and maps these pairs into it. Values are
++// raw stream-relative seconds, not a client-facing recipe.
++func (r *Runner) SilenceSpans(ctx context.Context, src string) ([][2]float64, error) {
++	if err := checkPath(src); err != nil {
++		return nil, err
++	}
++	ffmpegPath, err := exec.LookPath("ffmpeg")
++	if err != nil {
++		return nil, fmt.Errorf("ffmpeg is not available: %w", err)
++	}
++	filter := fmt.Sprintf("silencedetect=noise=%gdB:d=%g", silenceThresholdDB, silenceMinDurationSec)
++	// Read-only job: the null muxer produces no media bytes — only stderr events
++	// parsed here — so only the source's directory needs to be reachable, exactly
++	// like the waveform pass. The shim always permits /dev/null writes.
++	cmd := r.generationCommand(ctx, readConfinement(src), ffmpegPath,
++		"-i", src,
++		"-map", "0:a:0",
++		"-af", filter,
++		"-f", "null",
++		"--", os.DevNull,
++	)
++	applySysProcAttr(cmd)
++	// silencedetect prints its events at the "info" log level, so -v error would
++	// suppress them; CombinedOutput captures stderr where the events appear.
++	output, err := cmd.CombinedOutput()
++	if err != nil {
++		detail := strings.TrimSpace(string(output))
++		if detail == "" {
++			detail = err.Error()
++		}
++		return nil, fmt.Errorf("ffmpeg silence analysis: %s", detail)
++	}
++	return parseSilenceSpans(string(output)), nil
++}
++
++// parseSilenceSpans extracts {start,end} spans from silencedetect's stderr.
++// silencedetect emits a "silence_start: <t>" line when it enters a quiet region
++// and a "silence_end: <t> | silence_duration: <d>" line when it leaves; the two
++// are matched in order. A dangling start with no matching end (silence running
++// to end-of-file — silencedetect does not print an end in that case) is dropped
++// rather than guessed, since the true end is unknown without the duration; an
++// unparseable token resets the pending start so a malformed line can't pair
++// across spans.
++func parseSilenceSpans(out string) [][2]float64 {
++	var spans [][2]float64
++	pendingStart := math.NaN()
++	for _, line := range strings.Split(out, "\n") {
++		line = strings.TrimSpace(line)
++		if idx := strings.Index(line, silenceStartPrefix); idx >= 0 {
++			rest := strings.TrimSpace(line[idx+len(silenceStartPrefix):])
++			pendingStart = parseSilenceSeconds(rest)
++			continue
++		}
++		if idx := strings.Index(line, silenceEndPrefix); idx >= 0 {
++			rest := strings.TrimSpace(line[idx+len(silenceEndPrefix):])
++			if cut := strings.IndexByte(rest, '|'); cut >= 0 {
++				rest = strings.TrimSpace(rest[:cut])
++			}
++			end := parseSilenceSeconds(rest)
++			if math.IsNaN(pendingStart) || math.IsNaN(end) || end < pendingStart {
++				pendingStart = math.NaN()
++				continue
++			}
++			spans = append(spans, [2]float64{pendingStart, end})
++			pendingStart = math.NaN()
++		}
++	}
++	return spans
++}
++
++// parseSilenceSeconds reads the leading float token of a silencedetect value,
++// returning NaN when it is not a number.
++func parseSilenceSeconds(s string) float64 {
++	if i := strings.IndexAny(s, " \t"); i >= 0 {
++		s = s[:i]
++	}
++	v, err := strconv.ParseFloat(s, 64)
++	if err != nil {
++		return math.NaN()
++	}
++	return v
++}
++
+ // ExtractSubtitleToWebVTT extracts the text subtitle stream at the given
+ // absolute ffprobe stream index from src and converts it to WebVTT, writing
+ // dst atomically via a temp file in dst's directory (ADR-0010 §5: muxed text
+diff --git a/internal/genassets/genassets.go b/internal/genassets/genassets.go
+index 386f8d1bd..d873b7ed9 100644
+--- a/internal/genassets/genassets.go
++++ b/internal/genassets/genassets.go
+@@ -89,6 +89,12 @@ type Generator interface {
+ 	// normalises it. Values need not be pre-normalised; normalizeWaveform owns
+ 	// the [0,1] scaling.
+ 	WaveformAmplitudes(ctx context.Context, src string) ([]float64, error)
++	// SilenceSpans returns src's quiet regions as stream-relative [start,end]
++	// second pairs (ADR-0052 §2.4(a)). The pair shape (not a shared struct) keeps
++	// the ffmpeg boundary out of genassets' import set; genassets maps the pairs
++	// into the wire SilenceSpan. The detection threshold/duration are owned by the
++	// runner; genassets persists the returned spans verbatim.
++	SilenceSpans(ctx context.Context, src string) ([][2]float64, error)
+ }
+ 
+ // Service generates and locates Generated Asset files under dataDir/generated
+@@ -165,6 +171,7 @@ var (
+ // anything else (including traversal attempts) is an unknown asset.
+ func validAssetName(name string) bool {
+ 	return name == ManifestName || name == PreviewClipName || name == WaveformName ||
++		name == SilenceMapName ||
+ 		sheetNameRe.MatchString(name) || markerNameRe.MatchString(name)
+ }
+ 
+diff --git a/internal/genassets/sweep.go b/internal/genassets/sweep.go
+index 6c26caee1..62a5bbdd3 100644
+--- a/internal/genassets/sweep.go
++++ b/internal/genassets/sweep.go
+@@ -48,7 +48,8 @@ func NewSweepJob(createdAt time.Time) (store.Job, error) {
+ }
+ 
+ // SweepHandler returns the job handler that fills in missing trickplay
+-// sprites, Marker thumbnails, preview clips, and audio waveform envelopes,
++// sprites, Marker thumbnails, preview clips, audio waveform envelopes, and
++// audio silence maps,
+ // checkpointing by Media ID so
+ // a preempted sweep resumes where it stopped. Each generator no-ops when its
+ // asset already exists for the file's content fingerprint, so reruns over
+@@ -79,6 +80,7 @@ func SweepHandler(service *Service) jobs.Handler {
+ 				service.GenerateMarkerThumbs,
+ 				service.GeneratePreviewClip,
+ 				service.GenerateWaveform,
++				service.GenerateSilenceMap,
+ 			} {
+ 				if err := generate(ctx, id); err != nil {
+ 					failed = true
+diff --git a/internal/scan/estimate.go b/internal/scan/estimate.go
+index d35907eef..2368fac09 100644
+--- a/internal/scan/estimate.go
++++ b/internal/scan/estimate.go
+@@ -49,6 +49,9 @@ const (
+ 	DeferrableMarkerThumbs = "marker-thumbnails"
+ 	// DeferrableWaveform is the audio waveform-envelope backlog (audio only).
+ 	DeferrableWaveform = "waveform-envelopes"
++	// DeferrableSilenceMap is the audio silence-map backlog (audio only) —
++	// FFmpeg silencedetect spans for trim-silence seeking (ADR-0052 §2.4(a)).
++	DeferrableSilenceMap = "silence-maps"
+ )
+ 
+ // DeferrableWork is one kind of background asset-generation backlog the first
+@@ -134,14 +137,15 @@ func EstimateRoots(ctx context.Context, roots []string) (Estimate, error) {
+ 	// The deferrable breakdown mirrors the ADR-0033 Generated Asset family and
+ 	// the asset-sweep's per-class generators (genassets.SweepHandler): video
+ 	// items grow trickplay sprites, preview clips, and Marker thumbnails; audio
+-	// items grow waveform envelopes. Every entry is non-gating — the split the
+-	// wizard surfaces. Always emitted (zero counts included) so the wizard shows
+-	// a stable shape rather than a list that appears and disappears.
++	// items grow waveform envelopes and silence maps. Every entry is non-gating —
++	// the split the wizard surfaces. Always emitted (zero counts included) so the
++	// wizard shows a stable shape rather than a list that appears and disappears.
+ 	est.DeferrableWork = []DeferrableWork{
+ 		{Kind: DeferrableTrickplay, EstimatedCount: est.EstimatedVideoFiles, PlayabilityGating: false},
+ 		{Kind: DeferrablePreviewClip, EstimatedCount: est.EstimatedVideoFiles, PlayabilityGating: false},
+ 		{Kind: DeferrableMarkerThumbs, EstimatedCount: est.EstimatedVideoFiles, PlayabilityGating: false},
+ 		{Kind: DeferrableWaveform, EstimatedCount: est.EstimatedAudioFiles, PlayabilityGating: false},
++		{Kind: DeferrableSilenceMap, EstimatedCount: est.EstimatedAudioFiles, PlayabilityGating: false},
+ 	}
+ 	return est, nil
+ }
