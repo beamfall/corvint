@@ -6,6 +6,7 @@ import (
 	json "encoding/json/v2"
 	"errors"
 	"fmt"
+	"io"
 	"path"
 	"path/filepath"
 	"slices"
@@ -21,10 +22,12 @@ import (
 )
 
 type compiler struct {
-	// withoutDerived skips declaration derivation on the retry of a refused compile and
-	// derived counts the declarations one compile attempted to derive (DCP-V1-484).
-	withoutDerived    bool
+	// derivation bounds the declarations one compile derives, derived counts the declarations
+	// it attempted to derive and outputBytes is the encoded size of a compile the output byte
+	// bound refused (DCP-V1-484, DCP-V1-568, DCP-V1-569).
+	derivation        derivationPlan
 	derived           int
+	outputBytes       int64
 	providerRecords   map[string]ProviderRecord
 	restrictedIDs     map[string]bool
 	restrictedBytes   int
@@ -259,10 +262,14 @@ func Build(ctx context.Context, root string, m Manifest) (*Artifact, error) {
 	return build(ctx, root, m, nil)
 }
 
-// build compiles m once and, when the compile derived declarations (DCP-V1-482) and was then
-// refused by a corpus bound or check, compiles it once more without them, so derivation never
-// refuses a manifest the compiler built before it (DCP-V1-484). The retry restores the
-// incremental reuse state the refused compile recorded.
+// build compiles m and, when the compile derived declarations (DCP-V1-482) and was then refused
+// by a corpus bound or check, compiles it again with fewer, so derivation never refuses a
+// manifest the compiler built before it (DCP-V1-484). A refusal by the output byte bound is
+// retried with the prefix of the declarations that fits under it (DCP-V1-569); any other
+// refusal, or a second one, is retried without derived declarations. The record bound needs no
+// retry: the first compile derives only what it admits (DCP-V1-568). So a build compiles at
+// most three times. Each retry restores the incremental reuse state the refused compile
+// recorded.
 func build(ctx context.Context, root string, m Manifest, reuse *incrementalBuild) (*Artifact, error) {
 	var stats IncrementalStats
 	shards := 0
@@ -270,105 +277,136 @@ func build(ctx context.Context, root string, m Manifest, reuse *incrementalBuild
 		stats = IncrementalStats{slices.Clone(reuse.stats.Compiled), slices.Clone(reuse.stats.Reused), slices.Clone(reuse.stats.Fallback), reuse.stats.FallbackReason}
 		shards = len(reuse.cache.Shards)
 	}
-	a, derived, err := compileOnce(ctx, root, m, reuse, false)
-	if !retryWithoutDerived(derived, err) {
-		return a, err
+	var plan derivationPlan
+	for {
+		a, result, err := compileOnce(ctx, root, m, reuse, plan)
+		if plan.none || !retryWithoutDerived(result.derived, err) {
+			return a, err
+		}
+		if reuse != nil {
+			*reuse.stats = IncrementalStats{slices.Clone(stats.Compiled), slices.Clone(stats.Reused), slices.Clone(stats.Fallback), stats.FallbackReason}
+			reuse.cache.Shards = reuse.cache.Shards[:shards]
+		}
+		plan = retryPlan(plan, result, err)
 	}
-	if reuse != nil {
-		*reuse.stats = stats
-		reuse.cache.Shards = reuse.cache.Shards[:shards]
+}
+
+// derivationPlan bounds the declarations one compile derives (DCP-V1-484, DCP-V1-568,
+// DCP-V1-569). The zero plan derives every declaration the record bound admits. The retry of
+// a compile the output byte bound refused carries that compile's encoded size, and derives the
+// prefix whose estimated bytes fit under the bound; the retry of any other refusal derives none.
+type derivationPlan struct {
+	none        bool
+	refusal     string
+	attempted   int
+	outputBytes int64
+}
+
+// compileResult is what a refused compile tells its retry: the declarations it attempted to
+// derive and, when the output byte bound refused it, its encoded size.
+type compileResult struct {
+	derived     int
+	outputBytes int64
+}
+
+func (c *compiler) result() compileResult { return compileResult{c.derived, c.outputBytes} }
+
+// retryPlan is the derivation of the compile after a refused one: the byte-bounded prefix
+// after a first refusal by the output byte bound, and no derived declarations otherwise.
+func retryPlan(plan derivationPlan, result compileResult, err error) derivationPlan {
+	if plan.outputBytes == 0 && result.outputBytes > 0 {
+		return derivationPlan{attempted: result.derived, outputBytes: result.outputBytes}
 	}
-	a, _, err = compileOnce(ctx, root, m, reuse, true)
-	return a, err
+	return derivationPlan{none: true, refusal: err.Error(), attempted: result.derived}
 }
 
 // retryWithoutDerived reports whether a compile that attempted derived declarations failed
-// with a corpus refusal (a bound or check), the only failure the declaration-free retry
+// with a corpus refusal (a bound or check), the only failure a retry with fewer declarations
 // answers; a Git, capacity or input-availability error is returned as it is (DCP-V1-484).
 func retryWithoutDerived(derived int, err error) bool {
 	var refused *Error
 	return err != nil && derived > 0 && errors.As(err, &refused) && refused.Code == "corpus-refused"
 }
 
-func compileOnce(ctx context.Context, root string, m Manifest, reuse *incrementalBuild, withoutDerived bool) (*Artifact, int, error) {
+func compileOnce(ctx context.Context, root string, m Manifest, reuse *incrementalBuild, plan derivationPlan) (*Artifact, compileResult, error) {
 	builds.Add(1)
 	ctx = gitstatus.WithIsolation(ctx)
 	if _, err := Encode(m); err != nil {
-		return nil, 0, err
+		return nil, compileResult{}, err
 	}
 	if err := validateManifest(m); err != nil {
-		return nil, 0, err
+		return nil, compileResult{}, err
 	}
-	c := &compiler{root: root, manifest: m, withoutDerived: withoutDerived, indexes: map[string]*contextindex.Index{}, sources: map[string]contextindex.Source{}}
+	c := &compiler{root: root, manifest: m, derivation: plan, indexes: map[string]*contextindex.Index{}, sources: map[string]contextindex.Source{}}
 	if err := c.pin(ctx); err != nil {
-		return nil, c.derived, err
+		return nil, c.result(), err
 	}
 	manifestSHA256, err := hashValue(m)
 	if err != nil {
-		return nil, c.derived, err
+		return nil, c.result(), err
 	}
 	profileSHA256, err := hashValue(m.Profile)
 	if err != nil {
-		return nil, c.derived, err
+		return nil, c.result(), err
 	}
 	c.artifact = &Artifact{Schema: Schema, Builder: currentBuilder(), Manifest: m, ManifestSHA256: manifestSHA256, ProfileSHA256: profileSHA256, Tree: c.indexes[m.Repository.Revision].Revision, Subjects: []Subject{}, Claims: []Claim{}, Relations: []Relation{}, Journeys: []Journey{}, Observations: []Observation{}, Capabilities: []Capability{}, Gaps: []Gap{}}
 	if m.Schema == ManifestSchemaV2 {
 		c.artifact.Schema = SchemaV2
 	}
 	if err := c.preloadProviders(); err != nil {
-		return nil, c.derived, err
+		return nil, c.result(), err
 	}
 	for _, p := range m.Providers {
 		if p.Kind == "native" {
 			if err := c.native(p); err != nil {
-				return nil, c.derived, err
+				return nil, c.result(), err
 			}
 			if err := c.nativeImports(p); err != nil {
-				return nil, c.derived, err
+				return nil, c.result(), err
 			}
 			if err := c.nativeParagraphs(p); err != nil {
-				return nil, c.derived, err
+				return nil, c.result(), err
 			}
 			continue
 		}
 		if err := c.importRecordsIncremental(p, reuse); err != nil {
-			return nil, c.derived, err
+			return nil, c.result(), err
 		}
 	}
 	if err := c.derivedDeclarations(); err != nil {
-		return nil, c.derived, err
+		return nil, c.result(), err
 	}
 	if err := c.validateRecords(); err != nil {
-		return nil, c.derived, err
+		return nil, c.result(), err
 	}
 	c.compileBehaviors()
 	c.capabilities()
 	c.aggregateImportParity()
 	if err := c.validateAdoptionJoins(); err != nil {
-		return nil, c.derived, err
+		return nil, c.result(), err
 	}
 	if err := c.joinTestKnowledge(c.testKnowledge); err != nil {
-		return nil, c.derived, err
+		return nil, c.result(), err
 	}
 	if err := c.joinFlowRelations(c.flowRelations); err != nil {
-		return nil, c.derived, err
+		return nil, c.result(), err
 	}
 	if err := c.joinClaimAudits(c.claimAudits); err != nil {
-		return nil, c.derived, err
+		return nil, c.result(), err
 	}
 	if err := c.checkClaimMentions(); err != nil {
-		return nil, c.derived, err
+		return nil, c.result(), err
 	}
 	if err := validateAlternateIDsAfterJoins(c.artifact); err != nil {
-		return nil, c.derived, err
+		return nil, c.result(), err
 	}
 	if m.Schema == ManifestSchemaV2 {
 		if err := validateReadableRecords(c.artifact); err != nil {
-			return nil, c.derived, err
+			return nil, c.result(), err
 		}
 	}
 	if err := c.guardRestrictedOutput(); err != nil {
-		return nil, c.derived, err
+		return nil, c.result(), err
 	}
 	a := c.artifact
 	sort.Slice(a.Subjects, func(i, j int) bool { return a.Subjects[i].ID < a.Subjects[j].ID })
@@ -381,20 +419,24 @@ func compileOnce(ctx context.Context, root string, m Manifest, reuse *incrementa
 	sort.Slice(a.Gaps, func(i, j int) bool {
 		return a.Gaps[i].Subject+"\x00"+a.Gaps[i].Kind+"\x00"+a.Gaps[i].Reason < a.Gaps[j].Subject+"\x00"+a.Gaps[j].Kind+"\x00"+a.Gaps[j].Reason
 	})
-	digest, err := hashValue(a)
+	digest, size, err := hashSized(a)
 	if err != nil {
-		return nil, c.derived, err
+		// size is set only when the output byte bound refused the artifact (DCP-V1-569).
+		c.outputBytes = size
+		return nil, c.result(), err
 	}
 	a.SHA256 = digest
 	if _, err := Encode(a); err != nil {
-		return nil, c.derived, err
+		// The digest field adds at most its own bytes and its member syntax.
+		c.outputBytes = size + int64(len(digest)) + 16
+		return nil, c.result(), err
 	}
 	// Re-read immutable input identities after compilation; mutable object stores
 	// must not let a changing input be reported as a successful pinned build.
 	if err := c.pin(ctx); err != nil {
-		return nil, c.derived, err
+		return nil, c.result(), err
 	}
-	return a, c.derived, nil
+	return a, c.result(), nil
 }
 
 func validateManifest(m Manifest) error {
@@ -857,8 +899,11 @@ func (c *compiler) native(provider Provider) error {
 // additional repository's declared revision are derived; an additional repository's
 // declaration IDs name the repository after the kind (DCP-V1-549). IDs and evidence follow the
 // native provider's own declarations; no file subject or excerpt is added. It runs after every
-// provider. On the retry of a compile that a bound or check refused, it derives nothing and
-// records one gap instead (DCP-V1-484).
+// provider. It derives at most what the corpus record bound admits (DCP-V1-568) and, on the
+// retry of a compile the output byte bound refused, the prefix that fits under it
+// (DCP-V1-569); on the retry of any other refusal it derives nothing (DCP-V1-484). Declarations
+// are kept in manifest input order and symbol order, and one gap names each bound that dropped
+// any, the counts and the first declaration dropped.
 func (c *compiler) derivedDeclarations() error {
 	var provider Provider
 	native := map[string]bool{}
@@ -897,6 +942,14 @@ func (c *compiler) derivedDeclarations() error {
 		}
 		unparsed[revision] = index.UnparsedPaths()
 	}
+	type declaration struct {
+		subject Subject
+		claim   Claim
+		at      string
+	}
+	var pending []declaration
+	total, firstDropped, recordBound := 0, "", false
+	budget := c.manifest.recordLimit() - max(len(c.artifact.Subjects), len(c.artifact.Claims))
 	for _, in := range c.manifest.Inputs {
 		key := inputKey(in.Revision, in.Path)
 		repository, derivable := qualifier[in.Revision]
@@ -911,12 +964,15 @@ func (c *compiler) derivedDeclarations() error {
 		if !valid || !loaded {
 			continue
 		}
-		if c.withoutDerived {
-			reason := "derived declaration bound: the compile with derived declarations was refused by a corpus bound or check, so declarations of source inputs other providers claim are not derived"
-			c.artifact.Gaps = append(c.artifact.Gaps, Gap{provider.ID + ":file:" + repository + in.Path, "not-collected", reason})
-			return nil
-		}
 		for _, s := range symbols[key] {
+			total++
+			if c.derivation.none || len(pending) >= budget {
+				recordBound = recordBound || !c.derivation.none
+				if firstDropped == "" {
+					firstDropped = fmt.Sprintf("%s%s:%d", repository, in.Path, s.Line)
+				}
+				continue
+			}
 			// Counted before anchoring, so a refused first declaration is retried too.
 			c.derived++
 			a, err := c.anchor(in.Revision, in.Path, s.Line, s.Line, "syntax", "source", "native indexed declaration")
@@ -930,11 +986,71 @@ func (c *compiler) derivedDeclarations() error {
 				kind = "test"
 			}
 			id := fmt.Sprintf("%s:symbol:%s%s:%d:%s", provider.ID, repository, in.Path, s.Line, s.Name)
-			c.artifact.Subjects = append(c.artifact.Subjects, Subject{id, kind, s.Name, provider.ID, ev, nil})
-			c.artifact.Claims = append(c.artifact.Claims, Claim{id + ":declaration", id, lineText(text, s.Line), provider.ID, ev})
+			pending = append(pending, declaration{Subject{id, kind, s.Name, provider.ID, ev, nil}, Claim{id + ":declaration", id, lineText(text, s.Line), provider.ID, ev}, fmt.Sprintf("%s%s:%d", repository, in.Path, s.Line)})
 		}
 	}
+	kept := len(pending)
+	var bounds []string
+	if recordBound {
+		bounds = append(bounds, fmt.Sprintf("record bound %d records (%s) reached", c.manifest.recordLimit(), c.manifest.Schema))
+	}
+	if plan := c.derivation; plan.outputBytes > 0 {
+		// The refused compile derived plan.attempted declarations, the same ones in the same
+		// order, and exceeded the bound by over bytes; keep the prefix whose estimated bytes
+		// leave that much and a reserve for the bytes the estimate misses.
+		limit := int64(encodingLimit(c.artifact))
+		budget := -(plan.outputBytes - limit) - derivedByteReserve
+		for _, d := range pending {
+			budget += declarationBytes(d.subject, d.claim)
+		}
+		kept = 0
+		for _, d := range pending {
+			if budget -= declarationBytes(d.subject, d.claim); budget < 0 {
+				break
+			}
+			kept++
+		}
+		bounds = append(bounds, fmt.Sprintf("output byte bound %d bytes (%s) exceeded at %d bytes with %d derived", limit, c.artifact.Schema, plan.outputBytes, plan.attempted))
+		c.derived = kept
+	}
+	if c.derivation.none {
+		bounds = append(bounds, fmt.Sprintf("the compile with %d derived was refused (%s)", c.derivation.attempted, c.derivation.refusal))
+	}
+	for _, d := range pending[:kept] {
+		c.artifact.Subjects = append(c.artifact.Subjects, d.subject)
+		c.artifact.Claims = append(c.artifact.Claims, d.claim)
+	}
+	if kept < total {
+		if kept < len(pending) {
+			firstDropped = pending[kept].at
+		}
+		reason := fmt.Sprintf("derived declaration bound: %s; derived %d of %d declarations of source inputs other providers claim, %d dropped from %s onward in manifest input order", strings.Join(bounds, "; "), kept, total, total-kept, firstDropped)
+		c.artifact.Gaps = append(c.artifact.Gaps, Gap{provider.ID + ":derived-declarations", "not-collected", reason})
+	}
 	return nil
+}
+
+// derivedByteReserve is the slack a byte-bounded derivation retry leaves under the output byte
+// bound for the bytes declarationBytes does not count, such as the bound gap itself
+// (DCP-V1-569).
+const derivedByteReserve = 4096
+
+// declarationBytes is a lower bound on the encoded bytes one derived declaration adds to the
+// artifact: its subject and claim, their quoted IDs in the subjects and claims capability
+// records, the array separators, and for a test subject its unobserved test gap with its
+// separator and the shortest quoted gap offset in the gaps capability record. The retry keeps
+// a prefix only while the bytes it drops reach the overshoot, so an overestimate could keep
+// too many and be refused again (DCP-V1-569).
+func declarationBytes(s Subject, claim Claim) int64 {
+	size := func(value any) int64 {
+		n, _ := EncodeTo(io.Discard, value)
+		return n
+	}
+	n := size(s) + size(claim) + int64(len(s.ID)+len(claim.ID)) + 8
+	if s.Kind == "test" {
+		n += size(Gap{s.ID, "not-collected", "test declaration has no retained observation"}) + 1 + 4
+	}
+	return n
 }
 
 // firstContentLine is the first non-blank line whose span fits the excerpt bound, so one

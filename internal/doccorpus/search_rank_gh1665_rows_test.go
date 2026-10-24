@@ -295,9 +295,10 @@ func TestDCPV1483DerivationScope(t *testing.T) {
 
 // DCP-V1-484: derivation never refuses a manifest the compiler built before it.
 // Declarations of a large records-owned source would exceed the /1 output byte
-// bound, so the refused compile is retried once without them: the build
-// succeeds with the provider's records, no derived declarations and one gap
-// naming the bound, and an incremental build reports each shard once.
+// bound, so the refused compile is retried with the prefix that fits
+// (DCP-V1-569): the build succeeds with the provider's records, fewer derived
+// declarations and one gap naming the bound, and an incremental build reports
+// each shard once.
 func TestDCPV1484DerivationNeverRefusesABuildableManifest(t *testing.T) {
 	t.Parallel()
 	var big strings.Builder
@@ -308,8 +309,8 @@ func TestDCPV1484DerivationNeverRefusesABuildableManifest(t *testing.T) {
 	root, m := ownedSourceCorpus(t, files, []string{"src/big.py"}, false)
 	before := BuildsForTest()
 	a := buildOwned(t, root, m)
-	if derived := subjectsWithPrefix(a, "native:symbol:src/big.py:"); len(derived) != 0 {
-		t.Fatalf("the retry must derive nothing: %d derived subjects", len(derived))
+	if derived := subjectsWithPrefix(a, "native:symbol:src/big.py:"); len(derived) >= MaxRecords+8 {
+		t.Fatalf("the retry must drop declarations: %d derived subjects", len(derived))
 	}
 	if got := BuildsForTest() - before; got < 2 {
 		t.Fatalf("the refused compile must be retried: %d compiles", got)
@@ -320,7 +321,7 @@ func TestDCPV1484DerivationNeverRefusesABuildableManifest(t *testing.T) {
 			gaps = append(gaps, g)
 		}
 	}
-	if len(gaps) != 1 || gaps[0].Kind != "not-collected" || gaps[0].Subject != "native:file:src/big.py" {
+	if len(gaps) != 1 || gaps[0].Kind != "not-collected" || gaps[0].Subject != "native:derived-declarations" {
 		t.Fatalf("one bound gap expected: %+v", gaps)
 	}
 	if !slices.ContainsFunc(a.Subjects, func(s Subject) bool { return s.ID == "adapter:owner" }) {
@@ -386,7 +387,7 @@ func TestDCPV1484RefusedFirstDeclarationRestoresShardCache(t *testing.T) {
 		t.Fatalf("the retry must derive nothing: %d derived subjects", len(derived))
 	}
 	if !slices.ContainsFunc(cold.Gaps, func(g Gap) bool {
-		return g.Subject == "native:file:src/long.py" && strings.Contains(g.Reason, "derived declaration bound")
+		return g.Subject == "native:derived-declarations" && strings.Contains(g.Reason, "derived declaration bound") && strings.Contains(g.Reason, "vacuous or oversized anchor")
 	}) {
 		t.Fatalf("the refused first declaration should leave the bound gap: %+v", cold.Gaps)
 	}

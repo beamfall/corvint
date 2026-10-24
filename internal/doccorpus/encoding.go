@@ -162,16 +162,23 @@ func boundedText(value string, limit int) string {
 	return value[:cut] + "..."
 }
 func hashValue(value any) (string, error) {
+	digest, _, err := hashSized(value)
+	return digest, err
+}
+
+// hashSized is hashValue with the encoded size, newline included; on an output bound refusal
+// it still returns the size, so a caller can name how far the bound was exceeded (DCP-V1-569).
+func hashSized(value any) (string, int64, error) {
 	h := sha256.New()
 	n, err := EncodeTo(h, value)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 	if n+1 > int64(encodingLimit(value)) {
-		return "", fail("output bound exceeded")
+		return "", n + 1, fail("output bound exceeded")
 	}
 	h.Write([]byte{'\n'})
-	return hex.EncodeToString(h.Sum(nil)), nil
+	return hex.EncodeToString(h.Sum(nil)), n + 1, nil
 }
 func validPath(value string) bool { return LocalInputPathRule(value) == "" }
 
@@ -226,7 +233,7 @@ func currentBuilder() Builder {
 // inputs increments it; one that changes only how a read ranks, renders or bounds them does not.
 // The verified read admits an artifact from another attested builder revision only while the
 // version, the builder schema and the engine are equal (DCP-V1-471).
-const DerivationVersion = "3"
+const DerivationVersion = "4"
 
 // derivationOf reads the derivation version a builder's engine label records, or "" for an
 // engine from before the version was recorded.

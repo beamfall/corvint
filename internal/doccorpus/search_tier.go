@@ -155,15 +155,22 @@ func questionShaped(query string) bool {
 	return len(fields) > 0 && questionWords[strings.ToLower(fields[0])]
 }
 
-// namedInQuery reports whether a subject's name of at least two words, at
-// least one of them an evidence term, appears as a contiguous run of the
-// question's words (DCP-V1-543): the flow "Reservation Cancellation" is named
-// in "What breaks in Reservation Cancellation, and under what conditions?". A
-// one-word name is named only by a capitalized query word (DCP-V1-548):
-// "Waitlist" in "How does Waitlist work?". A prose name never is. folded is
-// the lower-cased query, which an allocation-free test reads before the words
-// are compared.
+// namedInQuery reports whether a question names a subject (DCP-V1-543): its
+// name of at least two words, at least two of them content words, appears as
+// a contiguous run of the question's words (DCP-V1-567), so the flow
+// "Reservation Cancellation" is named in "What breaks in Reservation
+// Cancellation, and under what conditions?" while "In the source" is not. A
+// one-word name is named only by a capitalized query word that no other
+// capitalized word adjoins (DCP-V1-548, DCP-V1-567): "Waitlist" in "How does
+// Waitlist work?", but not "Cancellation" in "Where is Reservation
+// Cancellation implemented?". A prose name never is. A subject is also named
+// by its ID slug (DCP-V1-566). folded is the lower-cased query, which an
+// allocation-free test reads before the words are compared.
 func namedInQuery(s Subject, queryWords []string, folded string, capitalized map[string]bool) bool {
+	return nameNamed(s, queryWords, folded, capitalized) || slugNamed(s.ID, queryWords, folded)
+}
+
+func nameNamed(s Subject, queryWords []string, folded string, capitalized map[string]bool) bool {
 	if !mayBeNamedIn(s.Name, folded) {
 		return false
 	}
@@ -173,25 +180,105 @@ func namedInQuery(s Subject, queryWords []string, folded string, capitalized map
 		if !capitalized[name[0]] {
 			return false
 		}
-	case len(name) < 2 || !containsPhrase(queryWords, name):
+	case len(name) < 2 || contentWords(name) < 2 || !containsPhrase(queryWords, name):
 		return false
 	}
 	terms := contextindex.EvidenceTerms(s.Name)
 	return len(terms) > 0 && (pathSubject(s) || len(terms) <= proseNameTerms)
 }
 
+// slugNamed reports whether a subject's ID slug, the ID after its last '/' or
+// ':' without its last dot suffix, holds at least two words, two of them
+// content words, that appear as a contiguous run of the question's words
+// (DCP-V1-566): adapter:flow:flows/reservation-cancellation and
+// docs/reservation-cancellation.md are named in "Where in the source is
+// Reservation Cancellation implemented?".
+func slugNamed(id string, queryWords []string, folded string) bool {
+	slug := id[strings.LastIndexAny(id, "/:")+1:]
+	if dot := strings.LastIndexByte(slug, '.'); dot > 0 {
+		slug = slug[:dot]
+	}
+	if !mayBeNamedIn(slug, folded) {
+		return false
+	}
+	words := identifierWords(slug)
+	return len(words) >= 2 && contentWords(words) >= 2 && containsPhrase(queryWords, words)
+}
+
+// frameWords say where or how a question asks about its subject rather than
+// what the subject is (DCP-V1-565): "Where in the source is X implemented?"
+// and "How does X work?" are about X.
+var frameWords = words("source sources codebase repo repository implemented implement implements implementation implementations defined define defines definition declared declare declares located location live lives handled handle handles work works happen happens")
+
+// contentWord reports whether a question word says what the question is
+// about: it yields an evidence term and is neither a frame word nor a
+// question word (DCP-V1-565).
+func contentWord(word string) bool {
+	return !frameWords[word] && !questionWords[word] && len(contextindex.EvidenceTerms(word)) > 0
+}
+
+func contentWords(words []string) int {
+	n := 0
+	for _, w := range words {
+		if contentWord(w) {
+			n++
+		}
+	}
+	return n
+}
+
+// coveredGroups reports, for each query term group, whether it counts as a
+// covered query word (DCP-V1-547, DCP-V1-565). In a question a group every
+// term of which only frame and question words yield is not covered, so a
+// result holding "source" and "implemented" holds no more of "Where in the
+// source is Player Types implemented?" than one holding neither. A term no
+// word yields, such as an identifier's compound, is content. In a statement
+// every group is covered.
+func coveredGroups(query string, groups [][]string) []bool {
+	covered := make([]bool, len(groups))
+	for i := range covered {
+		covered[i] = true
+	}
+	if !questionShaped(query) {
+		return covered
+	}
+	frame, content := map[string]bool{}, map[string]bool{}
+	for _, word := range identifierWords(query) {
+		set := content
+		if !contentWord(word) {
+			set = frame
+		}
+		for term := range contextindex.EvidenceTerms(word) {
+			set[term] = true
+		}
+	}
+	for i, group := range groups {
+		covered[i] = slices.ContainsFunc(group, func(term string) bool { return content[term] || !frame[term] })
+	}
+	return covered
+}
+
 // capitalizedWords are the words of a question that may name a one-word
 // subject (DCP-V1-548): a field of letters and digits, other than the first,
 // whose first letter is upper case, that is one identifier word, an evidence
-// term and not a question word. "How does Waitlist work?" yields waitlist;
-// the sentence-initial "What", the compound "WaitlistNotifier" and the lower
-// case "waitlist" yield nothing.
+// term and not a question word. A capitalized field that another capitalized
+// field other than the first adjoins is part of a longer name and yields
+// nothing (DCP-V1-567). "How does Waitlist work?" yields waitlist; the
+// sentence-initial "What", the compound "WaitlistNotifier", the lower case
+// "waitlist" and the "Cancellation" of "Reservation Cancellation" yield
+// nothing.
 func capitalizedWords(query string) map[string]bool {
 	fields := strings.FieldsFunc(query, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
+	capital := func(n int) bool {
+		if n < 1 || n >= len(fields) {
+			return false
+		}
+		first, _ := utf8.DecodeRuneInString(fields[n])
+		return unicode.IsUpper(first)
+	}
 	words := map[string]bool{}
 	for n, field := range fields {
-		first, _ := utf8.DecodeRuneInString(field)
-		if n == 0 || !unicode.IsUpper(first) {
+		if !capital(n) || capital(n-1) || capital(n+1) {
 			continue
 		}
 		parts := identifierWords(field)
