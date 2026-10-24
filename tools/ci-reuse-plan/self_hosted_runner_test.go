@@ -390,15 +390,17 @@ func TestAFPV0430SelfHostedTMPDIRIsPerRunnerOffTheCheckoutAncestors(t *testing.T
 		`          mkdir -m 0700 -- "$tmp_root" 2> /dev/null || true`,
 		`          if [ -L "$tmp_root" ] || [ ! -d "$tmp_root" ] || [ ! -O "$tmp_root" ]; then`,
 		`          job_tmp="$tmp_root/$RUNNER_NAME"`,
+		`          find -P "$job_tmp" -type d ! -perm -0700 -exec chmod u+rwx {} \; 2> /dev/null || true`,
 		`          rm -rf -- "$job_tmp"`,
 		`          mkdir -m 0700 -- "$job_tmp"`,
 		`          printf 'TMPDIR=%s\n' "$job_tmp" >> "$GITHUB_ENV"`,
 	} {
 		wantLine(t, "self-hosted verification", verify, line)
 	}
-	name, guard, clear := strings.Index(verify, `case "$RUNNER_NAME" in`), strings.Index(verify, `[ ! -O "$tmp_root" ]`), strings.Index(verify, `rm -rf -- "$job_tmp"`)
-	if name < 0 || guard < name || clear < guard {
-		t.Errorf("the runner-name check and the root guard must precede the removal: name %d, guard %d, rm %d", name, guard, clear)
+	name, guard := strings.Index(verify, `case "$RUNNER_NAME" in`), strings.Index(verify, `[ ! -O "$tmp_root" ]`)
+	restore, clear := strings.Index(verify, `find -P "$job_tmp"`), strings.Index(verify, `rm -rf -- "$job_tmp"`)
+	if name < 0 || guard < name || restore < guard || clear < restore {
+		t.Errorf("the runner-name check, the root guard and the permission restore must precede the removal: name %d, guard %d, find %d, rm %d", name, guard, restore, clear)
 	}
 	if strings.Contains(verify, `"$RUNNER_TEMP/tmp"`) {
 		t.Error("TMPDIR must not be under RUNNER_TEMP, whose ancestors are the confined checkout's")
@@ -409,5 +411,104 @@ func TestAFPV0430SelfHostedTMPDIRIsPerRunnerOffTheCheckoutAncestors(t *testing.T
 	at := func(name string) int { return strings.Index(shard, "      - name: "+name) }
 	if v, g := at("Verify the host tools"), at("Go tests (full until"); v < 0 || g < v {
 		t.Errorf("TMPDIR must be set before the tests step: verify at %d, tests at %d", v, g)
+	}
+}
+
+// AFP-V0-430: the TMPDIR block run under bash with its root moved into a test directory. A path-like
+// runner name and a linked root are refused before anything is removed; a leftover tree whose
+// directories lack owner write or search permission is emptied without following a link out of it.
+func TestAFPV0430SelfHostedTMPDIRBlockEmptiesLeftoversAndRefusesUnsafeRoots(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the verification step runs under bash")
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores the permission bits this test leaves behind")
+	}
+	verify := stepBlock(t, jobBlock(t, readWorkflow(t, "ci.yml"), "go-product-shard"),
+		"Verify the host tools the product's fixed PATH resolves (self-hosted runner, AFP-V0-421)")
+	start, end := strings.Index(verify, `          case "$RUNNER_NAME" in`), strings.Index(verify, `"$job_tmp" >> "$GITHUB_ENV"`)
+	if start < 0 || end < start {
+		t.Fatalf("the AFP-V0-430 block is missing: start %d, end %d", start, end)
+	}
+	block := strings.ReplaceAll(verify[start:end+len(`"$job_tmp" >> "$GITHUB_ENV"`)], "\n          ", "\n")
+	dir := t.TempDir()
+	t.Cleanup(func() { _ = exec.Command("chmod", "-R", "u+rwx", dir).Run() })
+	root := filepath.Join(dir, "corvint-ci")
+	const fixed = "tmp_root=/var/tmp/corvint-ci\n"
+	if strings.Count(block, fixed) != 1 {
+		t.Fatalf("the block must name its root once as %q", fixed)
+	}
+	block = strings.Replace(block, fixed, "tmp_root="+root+"\n", 1)
+	env := filepath.Join(dir, "github-env")
+	run := func(runner string) (string, error) {
+		t.Helper()
+		cmd := exec.Command("bash", "--noprofile", "--norc", "-e", "-c", strings.TrimPrefix(block, "          "))
+		cmd.Env = append(os.Environ(), "RUNNER_NAME="+runner, "GITHUB_ENV="+env)
+		out, err := cmd.CombinedOutput()
+		return string(out), err
+	}
+	mkdir := func(path string, mode os.FileMode) {
+		t.Helper()
+		if err := os.MkdirAll(path, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(path, mode); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if out, err := run("../x"); err == nil || !strings.Contains(out, "not a plain directory name") {
+		t.Fatalf("a path-like runner name must be refused: %v %s", err, out)
+	}
+	if _, err := os.Lstat(root); !os.IsNotExist(err) {
+		t.Fatalf("a refused runner name created the root: %v", err)
+	}
+	// Leftovers of an interrupted job: a populated 0500 directory, a 0000 directory below it, and a
+	// link to a 0500 directory outside the tree, whose mode must not change.
+	outside := filepath.Join(dir, "outside")
+	mkdir(outside, 0o700)
+	if err := os.WriteFile(filepath.Join(outside, "keep"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	mkdir(outside, 0o500)
+	job := filepath.Join(root, "box-1")
+	locked := filepath.Join(job, "locked")
+	mkdir(filepath.Join(locked, "sealed"), 0o700)
+	if err := os.WriteFile(filepath.Join(locked, "stale"), nil, 0o400); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(job, "link")); err != nil {
+		t.Fatal(err)
+	}
+	mkdir(filepath.Join(locked, "sealed"), 0o000)
+	mkdir(locked, 0o500)
+	if out, err := run("box-1"); err != nil {
+		t.Fatalf("leftovers must be emptied: %v %s", err, out)
+	}
+	if entries, err := os.ReadDir(job); err != nil || len(entries) != 0 {
+		t.Fatalf("the job directory must be empty and recreated: %v %v", entries, err)
+	}
+	for path, want := range map[string]os.FileMode{root: 0o700, job: 0o700, outside: 0o500} {
+		if info, err := os.Lstat(path); err != nil || !info.IsDir() || info.Mode().Perm() != want {
+			t.Errorf("%s: want a directory mode %o, got %v %v", path, want, info, err)
+		}
+	}
+	if _, err := os.Lstat(filepath.Join(outside, "keep")); err != nil {
+		t.Errorf("the link target outside the tree was touched: %v", err)
+	}
+	if data, err := os.ReadFile(env); err != nil || string(data) != "TMPDIR="+job+"\n" {
+		t.Errorf("GITHUB_ENV = %q %v", data, err)
+	}
+	// A root that is a link is refused before anything under it is removed.
+	if err := os.RemoveAll(root); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(dir, "target")
+	mkdir(filepath.Join(target, "box-1"), 0o700)
+	if err := os.Symlink(target, root); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := run("box-1"); err == nil || !strings.Contains(out, "must be a directory this account owns, not a link") {
+		t.Fatalf("a linked root must be refused: %v %s", err, out)
+	}
+	if _, err := os.Stat(filepath.Join(target, "box-1")); err != nil {
+		t.Errorf("a refused linked root removed its target's runner directory: %v", err)
 	}
 }

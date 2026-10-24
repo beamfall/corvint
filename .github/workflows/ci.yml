@@ -438,8 +438,11 @@ jobs:
             echo "::error::AFP-V0-430: $tmp_root must be a directory this account owns, not a link"
             exit 1
           fi
-          chmod 0700 -- "$tmp_root"
+          chmod 0700 "$tmp_root"
           job_tmp="$tmp_root/$RUNNER_NAME"
+          # A test killed before its cleanup can leave a directory without owner write or search
+          # permission, which rm cannot empty; restore it first. find follows no link (-P).
+          find -P "$job_tmp" -type d ! -perm -0700 -exec chmod u+rwx {} \; 2> /dev/null || true
           rm -rf -- "$job_tmp"
           mkdir -m 0700 -- "$job_tmp"
           printf 'TMPDIR=%s\n' "$job_tmp" >> "$GITHUB_ENV"

@@ -273,5 +273,17 @@ test-confine built as CI builds it and `-race`. With `TMPDIR` under that tree's 
 ran on the box. It refused `RUNNER_NAME=../x` before creating anything. For a plain name it created
 both directories mode 0700, removed a planted stale file, and wrote the `TMPDIR` line.
 
+One Codex review round (gpt-6-astra, read-only) found one real defect, accepted. `rm -rf` cannot
+empty a leftover directory that lacks owner write or search permission; a test killed before its
+cleanup can leave one (`internal/tasks/cli/attempt_runs_cursor_internal_test.go` makes populated
+0500 directories). That would fail every later job on the runner. The step now runs
+`find -P "$job_tmp" -type d ! -perm -0700 -exec chmod u+rwx` before the removal; `-P` follows no
+link and `-type d` never matches one, so nothing outside the runner's directory changes mode.
+`TestAFPV0430SelfHostedTMPDIRBlockEmptiesLeftoversAndRefusesUnsafeRoots` runs the block under bash
+against a test root: a 0500 directory holding a 0000 directory and a read-only file is emptied, a
+link to a 0500 directory outside keeps its target's mode and contents, and a path-like name or a
+linked root is refused before anything is removed. On the box the step's block emptied a planted
+0500 directory holding a 0000 one and left both directories mode 0700.
+
 This is per-job cleanup, not isolation. Rollback is removing the block. A runner run is
 `NOT_OBSERVED`.
