@@ -106,7 +106,10 @@ module.exports = {
 var proveLimitations = []string{
 	"outcome-assertion location is the receipt's PWP-V3-008 failure location (the innermost frame in the test file); a repeat whose receipt names no location is read off the assertion",
 	"failure kind is read from the failure message: a received `element(s) not found` is locator-unresolved, any other failure at the outcome assertion is value-mismatch",
-	"cleanup-failed is read only for a failure located in the test file's own `finally` cleanup; a test-scoped fixture or hook teardown failure is a failure off the assertion at its receipt location",
+	"cleanup-failed is read only for a failure located at a compiled fixture's teardown call, or in a hosted test file's own `finally` cleanup; any other fixture or hook teardown failure is a failure off the assertion at its receipt location",
+	"a count assertion (toHaveCount) that matches no element reads value-mismatch, not locator-unresolved; a locator repair is proposed only for a test-id locator",
+	"a fixture whose setup returns outputs has no omitted-event control: removing its setup fails the output check by construction, so it would not show the setup's effect is load-bearing",
+	"a session scenario is skipped, and reads INCONCLUSIVE, when its storage-state variable is unset; prove never reads or checks the storage-state file",
 	"teardown-failed is read only for a run-level error the receipt locates inside the staged test tree; an unlocated run-level error, or one located outside the tree, reads infrastructure",
 	"PRESERVES is a regression-preservation check only; it does not detect the change",
 	"NEW_REACH checks new behaviour against its absence; it does not detect a changed value",
@@ -354,7 +357,7 @@ func (e *proveEnv) proveScenario(ctx context.Context, base, head string, sc Scen
 		p.Controls = notRunControls(sc, "verdict-decided-before-controls")
 	}
 	p.Verdict, p.Note = verdict(p.Head, p.Base, p.Controls)
-	if sc.Locator != "" && !sc.Hosted && headFailsUnresolved(p.Head) {
+	if sc.Locator != "" && sc.LocatorForm == "" && !sc.Hosted && headFailsUnresolved(p.Head) {
 		p.LocatorRepair = proposeLocatorRepair(ctx, e.root, base, head, sc.Locator)
 	}
 	p.OracleAcceptance = e.acceptances.lookup(sc)
@@ -547,7 +550,7 @@ func (e *proveEnv) proveSide(ctx context.Context, app, test string, tt testTree,
 	roots := treeRoots(tree)
 	receipt, digest, reason := e.side(ctx, runInput{Tree: tree, AppIdentity: app, Placement: sc.Placement, Repeats: repeats,
 		NodeModules: e.nodeModules, RunnerVersion: e.runnerVersion, PackageJSON: e.packageJSON, Lockfile: e.lockfile, Timeout: sideTimeout,
-		Environment: e.environment, ServeBin: e.serveBin, ServePath: e.servePath, Grep: hostedGrep(sc), Record: recorder.recordFunc()})
+		Environment: e.environment, ServeBin: e.serveBin, ServePath: e.servePath, Grep: hostedGrep(sc), Record: recorder.recordFunc(), SessionEnv: sc.SessionEnv})
 	side.Qualified, side.Reason = reason == "", reason
 	if digest != "" {
 		side.Receipts = append(side.Receipts, digest)
@@ -663,6 +666,8 @@ type runInput struct {
 	Grep                         string // a --grep title pattern selecting one hosted test (CCE-V0-034)
 	// Record, when set, receives each path the in-process static server answers (CCE-V0-053).
 	Record func(path string)
+	// SessionEnv is the scenario's storage-state variable, passed to the run when set (CCE-V0-107).
+	SessionEnv string
 }
 
 // runPlaywright serves tree, through the declared environment's serve argv when there is one and
@@ -712,7 +717,7 @@ func runPlaywright(ctx context.Context, in runInput) (jstestprovider.Receipt, er
 			Lockfile:        in.Lockfile,
 			RunnerName:      "playwright",
 			RunnerVersion:   in.RunnerVersion,
-			DeclaredEnvKeys: []string{envBrowsers, envBaseURL},
+			DeclaredEnvKeys: runEnvKeys(in.SessionEnv),
 			Timeout:         in.Timeout,
 		},
 		ExternalServer:       true,
@@ -728,6 +733,16 @@ func runPlaywright(ctx context.Context, in runInput) (jstestprovider.Receipt, er
 		}
 	}
 	return receipt, err
+}
+
+// runEnvKeys are the variables a Playwright run reads: the browsers path, the base URL and, for a
+// session scenario whose variable is set, its storage-state path (CCE-V0-107).
+func runEnvKeys(session string) []string {
+	keys := []string{envBrowsers, envBaseURL}
+	if _, ok := os.LookupEnv(session); ok && session != "" {
+		keys = append(keys, session)
+	}
+	return keys
 }
 
 // qualify returns the native receipt digest of a qualified run, or a reason it has none. roots are
@@ -848,7 +863,7 @@ func assertionFailure(state, message, file string, line int, sc Scenario) string
 	if state != string(jstestprovider.StateFailed) || file != sc.Placement {
 		return ""
 	}
-	if slices.Contains(cleanupLines(sc.Text), line) {
+	if slices.Contains(sc.CleanupLines, line) || slices.Contains(cleanupLines(sc.Text), line) {
 		return FailureCleanupFailed
 	}
 	if !slices.Contains(assertionLines(sc), line) {
@@ -950,27 +965,14 @@ func controlSpecs(sc Scenario) []controlSpec {
 		{"control:" + string(behaviorfalsify.WrongExpectedValue), behaviorfalsify.WrongExpectedValue, sc.AssertionLine, wrongValue},
 		{"control:omitted-event:step", behaviorfalsify.OmittedEvent, sc.AssertionLine - 1, omittedEvent},
 	}
-	for i, line := range setupLines(sc) {
-		out = append(out, controlSpec{"control:omitted-event:setup-" + strconv.Itoa(i+1), behaviorfalsify.OmittedEvent, line, omittedEvent})
-	}
-	return out
-}
-
-// setupLines are the 1-based lines of the fixture setup calls: the awaited statements between the
-// test declaration and the scenario's `try`.
-func setupLines(sc Scenario) []int {
-	var out []int
-	inTest := false
-	for i, l := range strings.Split(string(sc.Text), "\n") {
-		switch {
-		case strings.HasPrefix(l, "test("):
-			inTest = true
-		case !inTest:
-		case l == "  try {":
-			return out
-		case strings.HasPrefix(l, "  await "):
-			out = append(out, i+1)
+	if sc.Matcher == MatcherCount {
+		// A count is perturbed to the next integer: no quoted wrong value is a count (CCE-V0-110).
+		if n, err := strconv.Atoi(sc.Value); err == nil {
+			out[1].replacement = strconv.Itoa(n + 1)
 		}
+	}
+	for i, line := range sc.SetupLines {
+		out = append(out, controlSpec{"control:omitted-event:setup-" + strconv.Itoa(i+1), behaviorfalsify.OmittedEvent, line, omittedEvent})
 	}
 	return out
 }
@@ -1202,6 +1204,9 @@ func (e *proveEnv) controlRequest(sc Scenario, rev, repo, disposable string, hea
 			}
 		}
 	}
+	if _, ok := os.LookupEnv(sc.SessionEnv); ok && sc.SessionEnv != "" && !slices.Contains(keys, sc.SessionEnv) {
+		keys = append(keys, sc.SessionEnv) // the control runs under the same session (CCE-V0-107)
+	}
 	slices.Sort(keys)
 	envValues := map[string]string{}
 	for _, k := range keys {
@@ -1219,7 +1224,7 @@ func (e *proveEnv) controlRequest(sc Scenario, rev, repo, disposable string, hea
 	def := func(spec controlSpec) map[string]string {
 		d := map[string]string{"tree": repo, "file": sc.Placement, "line": strconv.Itoa(spec.line),
 			"replacement": spec.replacement, "kind": string(spec.kind)}
-		for k, v := range map[string]string{"locator": sc.Locator, "matcher": sc.Matcher, "marker": sc.Marker, "value": sc.Value} {
+		for k, v := range map[string]string{"locator": sc.Locator, "matcher": sc.Matcher, "marker": sc.Marker, "value": sc.Value, "locator_form": sc.LocatorForm, "session_env": sc.SessionEnv} {
 			if v != "" { // BBF refuses an empty definition value; a hosted test has none of these
 				d[k] = v
 			}

@@ -2860,6 +2860,7 @@
         "playwright-navigation-events/0",
         "rails-routes/0",
         "react-router/0",
+        "site-knowledge-how/0",
         "test-run-evidence/0",
         "ui-router-states/0"
       ],
@@ -2903,6 +2904,8 @@
         "Branch tests and setup (experimental, V1-1891): branches reads up to 16 cited Ruby line ranges and lists, per if/unless/elsif/when branch, the tests that name it grouped by boundary (unit, request, e2e; \"none at <boundary>\" when none), and for a boundary not reached the guard's model inputs with the setup endpoints, factories and fixtures that write them.",
         "plan resolves each plain-language step (repeat --step, or one --request split at ';' and line breaks) to one mapped flow of the given application maps (1..8, one per app) and writes one application-map-plan/0 document within --budget bytes (default 16384) or --full: one browser session per app, navigation that stays on the screen a previous step left, route parameters handed from the step that reaches them, and each flow's named outcome assertions.",
         "The command writes nothing.",
+        "With --source (experimental, SKH-V0 stage 7) the request is one goal: plan writes the site-knowledge-how/0 answer of `flows appmap how` with a draft head field instead.",
+        "The draft is a proposal, never accepted intent; it writes nothing.",
         "request-path reads one Express-style route registered in --file (or one named handler) from committed JavaScript/TypeScript at --revision (default HEAD) and writes corvint-request-path/0: each guard and the handler in run order, the environment and configuration keys each reads, the outbound network calls each makes with the call chain, and guard-order findings where a guard with an outbound call runs before a cheaper guard.",
         "It writes nothing."
       ],

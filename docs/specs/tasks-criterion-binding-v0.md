@@ -55,7 +55,10 @@ for TCB-V0-007..023, decision 0525 §1 step 8, `docs/specs/cem-stable-v1.md` and
 - `TCB-V0-011`: Predicates are closed: `touched-anchored` governs hunks under a touch key (a `dir/` key
   is a prefix, any other key an exact path) and `all-anchored` governs every hunk. Tiers come only from
   the recomputed citation; `anchored`, `mechanical-proved` and `held` satisfy and nothing raises a tier.
-  No governed hunk, or one below anchored, refuses `CEM_VERDICT_PREDICATE_FAILED`.
+  No governed hunk, or one below anchored, refuses `CEM_VERDICT_PREDICATE_FAILED`. Amended
+  2026-10-24 (proposed; V1-2577): a `cited` hunk is also satisfied on the runner-bound bases of
+  `CEM-V1-606` and `CEM-V1-607` in `docs/specs/cem-stable-v1.md`; its tier is still reported
+  unchanged, and an unsatisfied hunk names a closed reason (`CEM-V1-608`).
 - `TCB-V0-012`: Every outcome MUST emit one canonical, deterministic, host-path-free document pinning
   the inputs, candidate tree, sealed names, map path/target/blob/`mapSha256`, consumer
   outcome/stage/code/issues/sidecar/`verdictSha256`, the recomputed citation and per-hunk governed rows.

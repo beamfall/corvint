@@ -149,3 +149,27 @@ test('PWV-V0-013 search and list map closed selectors to native argv and refuse 
  for(const [op,input] of [['search',{unknown:'x'}],['search',{text:'--help'}],['search',{text:''}],['search',{text:'a\nb'}],['search',{text:'x'.repeat(257)}],['search',{limit:0}],['search',{limit:101}],['search',{offset:-1}],['search',{limit:1.5}],['search',{summary:'yes'}],['search',{priority:'P9'}],['search',{status:'open'}],['search',{status:'OPEN,HELD'}],['search',{status:'NOT_A_STATUS'}],['search',{kind:'NOT_A_KIND'}],['search',{kind:'bug'}],['search',{label:'--status'}],['search',{owner:'-x'}],['search',{label:''}],['search',{label:'é'.repeat(33)}],['search',{label:'a\tb'}],['search',{milestone:'a\u202eb'}],['search',{owner:'a\ufeffb'}],['search',{label:'\ud800'}],['search',{owner:7}],['list',{text:'x'}],['list',{status:'OPEN,'}],['list',{status:'OPEN,OPEN'}],['list',{status:'BLOCKED'}],['list',{status:'NOT_A_STATUS'}],['list',{limit:'10'}]])assert.equal((await service.read(op,input,ctx)).fault,'invalid-input',`${op} ${JSON.stringify(input)}`);
  assert.equal(calls.length,0);
 });
+
+// PWV-V0-018 and PWV-V0-019: a writer dispatch carries the bounded TERM grace; a store whose
+// committed receipt the head does not name yet (REDO_PENDING) reconciles as pending-operation.
+test('PWV-V0-018/019 writer grace and REDO_PENDING reconciliation',async t=>{
+ const {ctx,identity}=await setup(t);let redo=false,other=false;const calls=[];
+ const refused=(args,code)=>({exitCode:1,stdout:JSON.stringify({profile:'taskman-command-result/0',command:args,items:[],outcome:'REFUSED',codes:[code],warnings:[]})});
+ const runner={async run(call){const {args}=call;calls.push(call);
+  if(args[0]==='help')return receipt(args,[{implemented:['ticket prioritize']}]);
+  if(redo&&args[0]!=='help')return refused(args,'REDO_PENDING');
+  if(other&&args[0]==='queue')return refused(args,'MALFORMED');
+  if(args[0]==='ticket'&&args[1]==='show')return receipt(args,[{ticketId,revision:'1'}]);
+  return receipt(args,[{receipt:'native',replayed:false}])}};
+ const service=createTasksService({runner,identity});
+ assert.equal((await service.command(request,ctx)).ok,true);
+ const write=calls.find(c=>c.args[1]==='prioritize');assert.equal(write.graceMs,40000,'writer dispatch covers the 5 s gate wait delay, the CAL-V0-319 30 s record bound and a 5 s observation margin');
+ assert.ok(calls.filter(c=>c!==write).every(c=>c.graceMs===undefined),'reads keep the default TERM grace');
+ redo=true;calls.length=0;
+ const pending=await service.command({...request,requestId:'after-crash',input:{...request.input,expectedRevision:'2'}},ctx);
+ assert.equal(pending.fault,'pending-operation');assert.equal(pending.mutation,'not-attempted');
+ assert.deepEqual(pending.reconciliation.audit.raw.codes,['REDO_PENDING'],'the native REDO_PENDING receipt is retained');
+ assert.equal(calls.filter(c=>c.args[1]==='prioritize').length,0,'no writer dispatch while a receipt is pending');
+ redo=false;other=true;
+ assert.equal((await service.command({...request,requestId:'malformed',input:{...request.input,expectedRevision:'2'}},ctx)).fault,'reconciliation-unavailable','other refusals stay unavailable');
+});

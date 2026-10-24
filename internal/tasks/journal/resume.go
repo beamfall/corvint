@@ -626,9 +626,13 @@ func (b *ResumeBase) segmentSame(s *nativeRead, p string, rehash bool) error {
 }
 
 // stamped says info is the file f recorded, with the same mode, size,
-// modification time and change time.
+// modification time and change time. A file whose stamps had not settled at
+// the base capture may differ in change time alone: every caller re-reads it
+// against its digest, which a link count change (a writer unlinking the
+// staging name it published from, after the base capture) leaves intact
+// (PSR-V0-247, proposed).
 func (f resumeFile) stamped(p string, info os.FileInfo) error {
-	if !sameStamps(f.info, info) {
+	if f.quiet && !sameStamps(f.info, info) || !f.quiet && !sameStat(f.info, info) {
 		return errCheckpoint(p, "base file changed since the base audit")
 	}
 	return nil

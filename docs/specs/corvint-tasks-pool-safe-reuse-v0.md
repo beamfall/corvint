@@ -1323,6 +1323,27 @@ evidence: `TestCALV0070_MutateRefusesMappedWriteAfterMergedAudit` fails on the t
 origin/main and passes there with this change, and passes with `TMPDIR` on ext4 at both
 (`docs/build-log/2026-10-24-wsl2-tmpfs-mapped-write.md`). Rollback: revert the test's statfs
 check; the guard code is unchanged.
+- `PSR-V0-247`: (proposed; V1-2537) Amends PSR-V0-052's base receipt and base file stamp check. A
+  base file whose stamps had not settled when the base capture began (the files PSR-V0-052 already
+  re-reads against their digests) MUST be accepted when it is the same file with the same mode,
+  size and modification time and its re-read matches the digest the base audit recorded, even if
+  its change time moved. A base file whose stamps had settled MUST still keep every stamp, change
+  time included. What a resumed write accepts is otherwise unchanged.
+
+Failure modes: a writer link-publishes each receipt and post from its staging slot and unlinks the
+slot only after it publishes the head, so a base audit that runs after a peer's head publish
+captures that peer's newest receipt with a second name; the unlink then moves the receipt's change
+time and nothing else. Under PSR-V0-052 alone every such base declined with `receipts/N.json:
+checkpoint unusable: base file changed since the base audit` (WSL2, 40k receipts, 15 writers:
+15 of 58 widen and 8 of 31 reap writes over 5 x 120 s), and each decline fell back to a 12 to 50 s
+complete audit. A file rewritten in place to the same size with its modification time restored
+still fails the re-read; a replaced file fails the identity check; a mode change fails the stamp
+check. Acceptance evidence: `TestPSRV0247_UnsettledBaseFileSurvivesALinkCountChange`
+(`internal/tasks/journal/resume_link_count_test.go`) captures a base while the newest receipt has
+a second link, removes the link, and sees the resumed audit and the recheck before commit accept
+it; it fails with the production message without this change. In the same test an unsettled base
+request rewritten in place, and a settled receipt whose change time moved, still decline.
+Rollback: revert `resumeFile.stamped` to the full stamp comparison.
 
 - `PSR-V0-227`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1091) Amends
   PSR-V0-204's non-goal "no tolerance for any other identity or call site". The tolerant comparison

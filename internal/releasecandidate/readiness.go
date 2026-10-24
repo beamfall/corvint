@@ -17,6 +17,8 @@ import (
 	"syscall"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/Beamfall/corvint/internal/companionrelease"
 )
 
 // The stable-readiness record (SRR-V1, accepted by decision 0422) binds one
@@ -109,8 +111,18 @@ type readinessRule struct {
 	id       string
 	fixed    bool
 	fallback bool
+	cemGate  bool
 	missing  ReadinessRow
 }
+
+// cemGateRow binds the cem-release-gate verdict by digest (CEM-V1-614). It is
+// required: a missing outcome, one for another commit, and a REFUSED outcome
+// all refuse the record instead of recording NOT_RUN.
+const cemGateRow = "gate/cem-release-gate"
+
+// cemGateExempt names the candidates cut before the cem release gate existed;
+// their records keep the catalogue they were written with.
+var cemGateExempt = map[string]bool{firstStableCandidate: true, "1.0.0-rc.2": true}
 
 var readinessCatalogue = []readinessRule{
 	operatorRule("gate/full-gate"),
@@ -158,6 +170,9 @@ var signingDecisions = map[string]string{
 // fixed when an owner decision selects it for that version.
 func readinessRules(version string) []readinessRule {
 	rules := append([]readinessRule(nil), readinessCatalogue...)
+	if !cemGateExempt[version] {
+		rules = append(rules, readinessRule{id: cemGateRow, cemGate: true, missing: ReadinessRow{ID: cemGateRow, Status: "NOT_RUN", Reason: "cem-release-gate outcome not supplied"}})
+	}
 	decision, fixed := signingDecisions[version]
 	if !fixed {
 		return rules
@@ -197,6 +212,9 @@ func BuildReadinessRecord(ctx context.Context, options ReadinessOptions) (*Readi
 	}
 	rows, err := readinessRows(readinessRules(identity.Version), options.Evidence)
 	if err != nil {
+		return nil, nil, err
+	}
+	if err := checkCEMGate(rows, evidencePaths(options.Evidence), identity.Commit); err != nil {
 		return nil, nil, err
 	}
 	record := &ReadinessRecord{Profile: readinessProfile, Identity: identity, Core: core, StoreRelease: store, Vulnerability: vulnerability, Rows: rows}
@@ -336,6 +354,38 @@ func validateReadinessRow(rule readinessRule, row ReadinessRow) error {
 	if rule.fixed && row != rule.missing {
 		return fmt.Errorf("readiness row %s differs from its fixed value", rule.id)
 	}
+	if rule.cemGate && row.Status != "PASS" {
+		return fmt.Errorf("readiness row %s is %s; only a READY cem-release-gate outcome is admitted", rule.id, row.Status)
+	}
+	return nil
+}
+
+// checkCEMGate reads the outcome file of the record's cem-release-gate row,
+// when the catalogue has one, as one exact cem-release-gate-outcome/1 READY
+// verdict over the candidate's commit (CEM-V1-614).
+func checkCEMGate(rows []ReadinessRow, evidence map[string]string, commit string) error {
+	for _, row := range rows {
+		if row.ID != cemGateRow {
+			continue
+		}
+		if row.Status != "PASS" {
+			return fmt.Errorf("readiness row %s needs the cem-release-gate outcome; a candidate without a READY one is refused", cemGateRow)
+		}
+		raw, err := readRegular(evidence[cemGateRow], maxInputBytes)
+		if err != nil || digest(raw) != row.SHA256 {
+			return fmt.Errorf("readiness row %s outcome does not reproduce its digest", cemGateRow)
+		}
+		outcome, err := companionrelease.ReadStableGateOutcome(raw)
+		if err != nil {
+			return fmt.Errorf("readiness row %s: %w", cemGateRow, err)
+		}
+		if outcome.Revision != commit {
+			return fmt.Errorf("readiness row %s outcome judged %s, not the candidate commit %s", cemGateRow, outcome.Revision, commit)
+		}
+		if outcome.Verdict != companionrelease.StableGateReady {
+			return fmt.Errorf("readiness row %s outcome is %s: %s", cemGateRow, outcome.Verdict, outcome.Reason)
+		}
+	}
 	return nil
 }
 
@@ -363,6 +413,9 @@ func VerifyReadinessRecord(ctx context.Context, raw []byte, candidateDirectory s
 		return nil, err
 	}
 	if err := verifyReadinessEvidence(record.Rows, evidence); err != nil {
+		return nil, err
+	}
+	if err := checkCEMGate(record.Rows, evidence, record.Identity.Commit); err != nil {
 		return nil, err
 	}
 	return &record, nil

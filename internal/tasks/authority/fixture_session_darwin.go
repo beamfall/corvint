@@ -45,3 +45,9 @@ func fixtureObserveMount(f *os.File, _ fixtureMount) (result fixtureMount, err e
 func fixtureRename(a *os.File, from string, b *os.File, to string, source, dest *os.File) error {
 	return fixtureTwoPaths(fixtureRenameat, a, from, b, to, source, dest)
 }
+
+// observeMount is fixtureObserveMount; only Linux retains a per-descriptor
+// observation file (LGL-V0-002, proposed).
+func (s *fixtureSession) observeMount(f *os.File, held fixtureMount) (fixtureMount, error) {
+	return fixtureObserveMount(f, held)
+}

@@ -18,7 +18,7 @@ const tierBelowAnchoredFix = "rule=CEM-V1-081 fix=\"cite a span that defines a r
 
 // tierBelowAnchoredUnavailable names why the hunks a NOTE line counts carry no
 // tier warning.
-const tierBelowAnchoredUnavailable = "rule=CEM-V1-081 reason=\"no stable BASE line names the hunk path, or its basename of at least 6 bytes, or defines a requirement ID the hunk adds, so no citation can anchor it; a touched-anchored or all-anchored cem-verdict gate still refuses it\""
+const tierBelowAnchoredUnavailable = "rule=CEM-V1-081 reason=\"no stable BASE line names the hunk path, or its basename of at least 6 bytes, or defines a requirement ID the hunk adds, so no citation can anchor it; a touched-anchored or all-anchored cem-verdict gate refuses it unless a passed runner receipt in the map binds it (CEM-V1-606, CEM-V1-607)\""
 
 // tierRows reads the stable `cem status` line and returns, in citation order,
 // the hunks whose recomputed tier is below `anchored` (`cited` or `unknown`)

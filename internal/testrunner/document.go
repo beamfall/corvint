@@ -33,6 +33,9 @@ type ReceiptDocument struct {
 // integer a plan or receipt document carries, and only as an `exitCode` member.
 const KilledExitCode = -1
 
+// PlanProfile is the plan document profile ID; it is unchanged by the fold (CTF-V0-003).
+const PlanProfile = "corvint-test-runner-plan/0"
+
 var (
 	// ErrNegativeInteger names a document negative integer other than an
 	// `exitCode` member equal to KilledExitCode.
