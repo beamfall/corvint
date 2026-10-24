@@ -36,6 +36,18 @@ Single-writer profile claim preparation hold: 62.8 ms before (load 6 to 9), 68.5
 comparable here; the WSL2 quiet-host rerun decides the acceptance. These numbers are not
 comparable to the WSL2 numbers on V1-2205 or V1-2203.
 
+## Review findings (Codex, PR #1672)
+
+- Mixed ref reads: HEAD and the target ref were read at different instants, so a checkout that
+  moved HEAD to another branch and reset the old branch in between paired the old HEAD with the
+  reset commit. Each resolution now re-reads HEAD and every symref after the target and refuses
+  on any byte difference. `TestPSRV0224_HeadRefusesChainMovedBetweenReads` fails without it.
+- Unbound cached layout: the probe's layout was never rebound to the root, so a linked worktree
+  moved away and replaced at the same root still resolved through the old admin directory. The
+  layout now carries the root's route (`.git` identity or bytes, `gitdir`, `commondir`), and
+  every resolution refuses when it changed. `TestPSRV0224_CachedLayoutRefusesReplacedWorktree`
+  fails without it.
+
 ## Found, not fixed
 
 The remaining gate holders under this load are `widen` and `reap`: 500 to 760 ms per hold, of

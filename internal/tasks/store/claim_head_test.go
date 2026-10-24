@@ -174,3 +174,75 @@ func TestPSRV0224_ClaimRebindsMovedHeadWithoutJournalAdvance(t *testing.T) {
 		t.Fatalf("claim base %q, want the commit made while the deriver ran %q", a.BaseCommit, moved)
 	}
 }
+
+// PSR-V0-224: a HEAD resolution whose reads straddle a checkout is refused.
+// HEAD names main at B; between the HEAD read and the main read, HEAD moves
+// to other at C and main is reset to A. The chain read names A, a commit
+// HEAD never named at one instant, so the re-read of HEAD must refuse it.
+func TestPSRV0224_HeadRefusesChainMovedBetweenReads(t *testing.T) {
+	t.Parallel()
+	root := headRepo(t)
+	a := gitHead(t, root)
+	commit := func(msg string) {
+		holdGit(t, root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", msg)
+	}
+	commit("b")
+	holdGit(t, root, "checkout", "-q", "-b", "other")
+	commit("c")
+	c := gitHead(t, root)
+	holdGit(t, root, "checkout", "-q", "main")
+	l, ok := observeHeadLayout(root)
+	if !ok {
+		t.Fatal("layout not observed")
+	}
+	main := filepath.Join("refs", "heads", "main")
+	fired := false
+	l.read = func(path string) ([]byte, bool) {
+		if !fired && strings.HasSuffix(path, main) {
+			fired = true
+			holdGit(t, root, "symbolic-ref", "HEAD", "refs/heads/other")
+			holdGit(t, root, "update-ref", "refs/heads/main", a)
+		}
+		return readRefFile(path)
+	}
+	if oid, ok := l.head(); ok {
+		t.Fatalf("chain read across a checkout served %q (main reset to %q, HEAD now at %q)", oid, a, c)
+	}
+	if !fired {
+		t.Fatal("the main ref was never read")
+	}
+	if oid, ok := l.head(); !ok || oid != c || oid != gitHead(t, root) {
+		t.Fatalf("settled HEAD: %q %v, want %q", oid, ok, c)
+	}
+}
+
+// PSR-V0-224: a probe's cached layout serves only while the claim root is
+// still routed to the Git directory it was observed with. The linked
+// worktree observed at A moves away and a new worktree at B takes its root;
+// the old admin directory still names A, and the locked observer must
+// refuse it instead of confirming the stale base.
+func TestPSRV0224_CachedLayoutRefusesReplacedWorktree(t *testing.T) {
+	t.Parallel()
+	root := headRepo(t)
+	b := gitHead(t, root)
+	linked := filepath.Join(filepath.Dir(root), "linked")
+	holdGit(t, root, "worktree", "add", "-q", "-b", "side", linked)
+	holdGit(t, linked, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "side")
+	a := gitHead(t, linked)
+	p := &claimProbe{layouts: map[string]*headLayout{}}
+	if oid, ok := p.head(linked, false); !ok || oid != a {
+		t.Fatalf("probe: %q %v, want %q", oid, ok, a)
+	}
+	holdGit(t, root, "worktree", "move", linked, filepath.Join(filepath.Dir(root), "moved"))
+	holdGit(t, root, "worktree", "add", "-q", "-b", "other", linked, "main")
+	if now := gitHead(t, linked); now != b {
+		t.Fatalf("replacement worktree at %q, want %q", now, b)
+	}
+	if oid, ok := p.head(linked, true); ok {
+		t.Fatalf("cached layout of the moved worktree served %q for a root now at %q", oid, b)
+	}
+	fresh := &claimProbe{layouts: map[string]*headLayout{}}
+	if oid, ok := fresh.head(linked, false); !ok || oid != b {
+		t.Fatalf("re-observed: %q %v, want %q", oid, ok, b)
+	}
+}

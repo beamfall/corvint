@@ -389,13 +389,24 @@ applies at release; pools without `allowedSources` behave as before.
   layout it does not read exactly as Git's files backend: a reftable store (`reftable` in the
   common directory), a symlink or non-regular HEAD or ref file, a file over 4 KiB, `packed-refs`
   over 8 MiB, an unborn branch, a ref name outside plain `refs/` path segments, or a failed layout
-  query. Binding by the resolved commit, not by file bytes, means a ref that moved and moved back
-  while Git ran still serves only the commit it now names. A commit integrated in the claim root
+  query. The layout is bound to the root's route: the root's own `.git` (a directory, compared by
+  file identity and required to be the reported Git directory, or a file, compared by bytes) and
+  that Git directory's `gitdir` and `commondir` files, read before and after the layout query
+  and required equal. Every resolution, unlocked or under the lock, re-reads the route before and
+  after the chain and reports nothing on any difference, so a root whose linked worktree was moved
+  away and replaced by another (a new admin directory) is never resolved through the cached old
+  one, and a root without its own `.git` (a subdirectory) has no layout. After reading the target
+  ref, each resolution re-reads HEAD and every symbolic ref of the chain and requires them
+  byte-identical to the first read; otherwise it reports nothing. A checkout that moves HEAD to
+  another branch and resets the branch HEAD left between the two reads therefore cannot pair the
+  old HEAD with the reset ref's commit. Binding by the resolved commit, not by file bytes, means
+  a ref that moved and moved back while Git ran still serves only the commit it now names. A commit integrated in the claim root
   after the probe is detected even when nothing writes the journal, which the snapshot binding
   alone did not detect. Non-goals: other revisions, the tree, pool sources and pinned configs keep
   their PSR-V0-168 bindings, and no Git command runs under the lock. Failure modes: an unreadable
   layout falls back to the snapshot binding and at worst the PSR-V0-168 reprobe and complete
-  route. Rollback: make `headQuery` report false, restoring the PSR-V0-168 binding.
+  route; a HEAD or symref that changed during the chain read, or a changed route (a replaced or
+  moved worktree, a changed `gitdir` or `commondir`), refuses the memo so the claim reprobes. Rollback: make `headQuery` report false, restoring the PSR-V0-168 binding.
 
 - `PSR-V0-169`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1653) Amends the
   CAL-V0-117 Scheduling step. On an unsegmented store a writer-route write schedules the complete
@@ -1253,7 +1264,7 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-085 | `TestPSRV0081_SourceIdentityGuard`, `TestPSRV0085_LaneUntouchedKeepsIdentityGuard` (`internal/tasks/cli`) |
 | PSR-V0-086 | `TestPSRV0086_PoolsWithoutSourcesUnchanged` (`internal/tasks/cli`) |
 | PSR-V0-168 | `TestPSRV0168_IdentityProbeOutsideWriterLock`, `TestPSRV0168_IdentityProbeStaleStateNotReused`, `TestV12138_ClaimDerivationOutsideWriterLock`, `TestV12138_UnmovedClaimServedOnWriterRoute`, `TestV12138_ClaimRebindsMovedBaseAfterJournalAdvance`, `TestV12138_LockedClaimObserverRunsNoGit` (`internal/tasks/store`) |
-| PSR-V0-224 | `TestPSRV0224_HeadFilesResolveAsGit`, `TestPSRV0224_ClaimRebindsMovedHeadWithoutJournalAdvance`, `TestV12138_ClaimDerivationOutsideWriterLock`, `TestV12138_ClaimRebindsMovedBaseAfterJournalAdvance` (`internal/tasks/store`); opt-in `TestCALV0263_LeaseGateLoad` (`docs/build-log/2026-10-24-claim-head-ref-binding.md`) |
+| PSR-V0-224 | `TestPSRV0224_HeadFilesResolveAsGit`, `TestPSRV0224_ClaimRebindsMovedHeadWithoutJournalAdvance`, `TestPSRV0224_HeadRefusesChainMovedBetweenReads`, `TestPSRV0224_CachedLayoutRefusesReplacedWorktree`, `TestV12138_ClaimDerivationOutsideWriterLock`, `TestV12138_ClaimRebindsMovedBaseAfterJournalAdvance` (`internal/tasks/store`); opt-in `TestCALV0263_LeaseGateLoad` (`docs/build-log/2026-10-24-claim-head-ref-binding.md`) |
 | PSR-V0-169 | `TestPSRV0169_NonPublishingRefreshDoesNotRecurPerWrite`, `TestCALV0117_WriterAdvanceAndScheduledRefresh` (`internal/tasks/store`) |
 | PSR-V0-190 | `TestPSRV0190_CheckpointTailRefusesPrefixRequestDuplicate`, `TestCALV0061_CheckpointTailEqualsFullAudit` (`internal/tasks/journal`) |
 | PSR-V0-191 | `TestPSRV0191_StaleProjectionReadWarns` (`internal/tasks/cli`) |
