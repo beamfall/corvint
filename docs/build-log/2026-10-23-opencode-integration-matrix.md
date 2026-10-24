@@ -24,13 +24,13 @@ with `corvint-mcp`, **Perm** permission evaluation, **Instr** AGENTS.md/instruct
 plugin and inspector RPC. Q = QUALIFIED, D = DELIVERED, G = GAP, `was X` marks a cell this lane
 changed. Q cells cite the retained 2.1.3 receipts: N =
 `conformance/opencode-native-v1/results/2.1.3-darwin-arm64/native-report.json` (named check), M =
-`mcp-probe.json`, MG = `mcp-probe-global-config.json`. A blank cell is NOT_APPLICABLE: the
+`mcp-probe.json`, MG = `mcp-probe-global-config.json`, NS = `native-status-probe.json`. A blank cell is NOT_APPLICABLE: the
 capability has no behaviour at that extension point (for example a TUI cell for outcome recording).
 
 | Capability | Tool | Hook | Skill | Cmd | Agent | MCP | Perm | Instr | TUI |
 |---|---|---|---|---|---|---|---|---|---|
 | Host-version admission (2.1.x) | Q N `native-host-image` (was G: 2.1.3 failed closed, V1-2346) | | | | | | | | |
-| Qualification status | Q N `direct-install` | | | G V1-2498 | | Q M `corvint_status` READY | | | D cockpit |
+| Qualification status | Q NS native `corvint_status` FULL, `exact-tuple-conformance-passed` (was cited as N `direct-install`) | | | G V1-2498 | | D M server readiness only: the MCP `corvint_status` reports READY, not native qualification (was Q) | | | D cockpit |
 | Task context / query | Q N `native-query` | Q N `awaited-current-prompt`, `bounded-prompt` | | G V1-2498 | | D MG listed, not called (V1-2503) | | | |
 | Exact expansion | Q N `native-exact-expansion` | | | | | | | | |
 | Outcome recording | Q N `explicit-outcome` | | | | | | | | |
@@ -55,8 +55,8 @@ The last row is a repository gate, not a host cell: before this change `make hos
 ran none of `integrations/opencode/*.test.mjs` (a degrading gap for every D cell above); AHI-178
 adds them.
 
-Counts over non-blank cells (30; the registration cell counts its Q and its G). Before: Q 12,
-D 8, G 10. After: Q 15, D 6, G 9: the range G, the skill D and the MCP-registration D became Q, and
+Counts over non-blank cells (30; the registration cell counts its Q and its G). Before: Q 11,
+D 9, G 10. After: Q 14, D 7, G 9: the range G, the skill D and the MCP-registration D became Q, and
 the CI gate gap (outside the cell count) closed. Every remaining G has a ticket. NEEDS-OWNER: 0; the permission-guard
 design (V1-2500) carries an owner question in its ticket.
 
@@ -82,6 +82,14 @@ design (V1-2500) carries an owner question in its ticket.
   against committed tree `907a9f10`, adapter 0.7.18: 27 checks true, record PASS (39,355 bytes,
   under the 131,072-byte bound); `interrupted.observation.json` (163 processes) matches the
   report's `processesSHA256`.
+- Native qualification status (NS): `conformance/opencode-native-v1/mcp_probe.py` in `native=` mode
+  loaded the plugin from the same tree into stock 2.1.3 and called the native `corvint_status` tool
+  through Code Mode; it returned `integrationSupport` FULL, reason `exact-tuple-conformance-passed`,
+  against the completed local record above (same host and corvint digests). The repair commit then
+  edited `integrations/opencode/evidence.test.mjs`, which is inside the bound package tree, so that
+  local record now reports `qualification-package-changed` until it is rerun; the retained receipt
+  binds the tree it ran against. The MCP server's own `corvint_status` (M) reports server readiness
+  only and is counted D for this row.
 - MCP: project-config legacy selector PASS (M); global-config listing PASS (MG); global-config
   `"protocol": "2026-07-28"` PASS (`mcp-probe-protocol-2026-07-28.json`). The first model turn
   reported `Unknown tool namespace 'corvint'` in two runs: 2.1 connects MCP servers asynchronously.

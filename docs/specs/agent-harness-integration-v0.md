@@ -826,7 +826,7 @@ separate exact extension tuple remains governed by AHI-024.
   unsupported and fail closed. The range still only admits a campaign: each exact version and
   executable digest needs its own passing record. Evidence: the live 2.1.3 native campaign retained
   under `conformance/opencode-native-v1/results/2.1.3-darwin-arm64/native-report.json`;
-  `TestRecordValidation` (`AHI-009 AHI-032 AHI-174` cases) and the AHI-177 range test. Failure
+  `TestSupportedHostVersion` (`AHI-009 AHI-032 AHI-174` cases) and the AHI-177 range test. Failure
   modes: a 2.1 point release that changes a plugin API passes admission but fails its own campaign
   and stays `UNQUALIFIED`. Rollback: restore `<2.1.0` in the three locations; 2.1.x records then
   fail closed as unsupported.
@@ -860,15 +860,20 @@ separate exact extension tuple remains governed by AHI-024.
   in `integrations/opencode/package.json` `corvintIntegration.testedHostVersions` MUST name
   committed evidence under `conformance/opencode-native-v1/results/<version>-<os>-<arch>/`: a
   passing `opencode-native-integration/1` `native-report.json` for that exact host version with
-  every check true, and a passing `mcp-probe.json` (`opencode-mcp-live-probe/0`, written by
+  every one of the 27 mandatory checks present and true, and a passing `mcp-probe.json` (`opencode-mcp-live-probe/0`, written by
   `conformance/opencode-native-v1/mcp_probe.py`) from the same host digest in which stock OpenCode
   loaded `corvint-mcp` from `mcp.servers` and completed a `corvint_status` call. The
+  `integrations/compatibility.json` host version MUST also retain a passing `native-status-probe.json`
+  (`opencode-native-status-live-probe/0`, the same script in `native=` mode) from the same host
+  digest, in which the native plugin `corvint_status` tool returned `integrationSupport` FULL with
+  reason `exact-tuple-conformance-passed`. The probe refuses an existing output directory and runs
+  OpenCode in its own process group, terminated on timeout, SIGINT and SIGTERM. The
   `integrations/compatibility.json` OpenCode `hostVersion` MUST be a tested version, and
   `hostVersionEvidenceAdapterVersion` MUST equal the adapter version of that version's native
   report. Tested versions are evidence pointers, not qualification records: `corvint_status` still
   reads only the local exact-tuple record. Evidence: `integrations/opencode/evidence.test.mjs`.
   Failure modes: evidence from an earlier adapter version, a different host image, or a missing
-  probe fails the test. Rollback: empty `testedHostVersions` and restore the previous
+  probe fails the test, as does a report that omits any mandatory check. Rollback: empty `testedHostVersions` and restore the previous
   compatibility entry; the retained results stay as history.
 - `AHI-178`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0453)
   `make host-adapter-test`, which CI runs for TypeScript/JavaScript changes, MUST run every
@@ -884,7 +889,11 @@ separate exact extension tuple remains governed by AHI-024.
   131,072-byte consumer bound however long the host takes to become ready. Failure mode: on a
   loaded host the 20 ms observation grew to 665 processes and the full-mode record was refused
   with `qualification record exceeds consumer bound`; a summary whose digest does not match the
-  retained file is not evidence. Evidence: `TestCommandInterruption` and the live 2.1.3 full-mode
+  retained file is not evidence. `integrations/opencode/evidence.test.mjs` MUST verify each
+  committed report's sidecar: the file exists in the evidence directory, its SHA-256 equals
+  `processesSHA256`, and the summary's process count, `absent`, `scope`, `interval_ms` and
+  `failures` agree with it; a missing, corrupted or zero-digest sidecar fails. Evidence:
+  `TestCommandInterruption`, the evidence test's negative cases, and the live 2.1.3 full-mode
   campaign. Rollback: embed the observation again and remove the file write.
 - `AHI-070`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2062) The generic
   `corvint harness event --event user-prompt` keeps refusing a task whose raw input, counted before
@@ -1690,12 +1699,12 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-171` (accepted under the owner's standing auto-accept (2026-10-11); V1-2192) | `internal/opencodequalification/contention.go`, `native.go` (window readings, `latencyOutcome`, `RETRY_LATER`), `tools/qualify-opencode` exit 75 | `TestAHI171LatencyHostContention` (a latency-only miss at load 11.5 on 12 CPUs is `LATENCY_HOST_CONTENDED` and retry-later with a hint; the same miss on a quiet host, with unobserved contention, with another failed check or with a short sample is not; absent readings are `NOT_OBSERVED`; a live host reading) |
 | `AHI-172` (accepted under the owner's standing auto-accept (2026-10-11); V1-2201) | `internal/opencodequalification/baseline.go` (`sampleBaseline`, `baselineComparison`, `baselineEvidence`), `contention.go` (`latencyOutcome`, `retryHint`, `procLoadavgPath`), `native.go` window sampling | `TestAHI172SameWindowBaseline` (both slow under contention is host-contended with the comparison recorded; a candidate beyond its slowdown-scaled limits is a regression under load; a slow probe on a quiet host excuses nothing; an unobserved baseline keeps the AHI-171 rule with `NOT_OBSERVED` fields; a live sampler), `TestAHI172ProcLoadavgFixture` (the Linux reader from a fixture, malformed lines unobserved) |
 | `AHI-173` (accepted under the owner's standing auto-accept (2026-10-11); V1-2145) | `script/host-package-version.sh`, `Makefile` (`host-package-version-bump`, `host-package-version-verify`) | `script/host-package-version_test.sh` (every package bumped against copies of the real manifests, one line per location, evidence versions untouched, explicit version, disagreement named and bump refused, unknown package exit 2); the failure-message case in `script/check-host-package-versions_test.sh` |
-| `AHI-174` (accepted under the owner's standing auto-accept (2026-10-11); V1-2346) | `internal/opencodequalification/record.go` (`SupportedHostRange`, `ParseSupportedHostVersion`), `integrations/opencode/src/qualification.js`, `package.json` | `internal/opencodequalification/record_test.go::TestRecordValidation` (2.0.18..2.1.999 admitted; prerelease, leading zero, 2.2.0, 2.0.17 refused), `integrations/opencode/evidence.test.mjs` range test, live 2.1.3 campaign |
+| `AHI-174` (accepted under the owner's standing auto-accept (2026-10-11); V1-2346) | `internal/opencodequalification/record.go` (`SupportedHostRange`, `ParseSupportedHostVersion`), `integrations/opencode/src/qualification.js`, `package.json` | `internal/opencodequalification/record_test.go::TestSupportedHostVersion` (2.0.18..2.1.999 admitted; prerelease, leading zero, 2.2.0, 2.0.17 refused), `integrations/opencode/evidence.test.mjs` range test, live 2.1.3 campaign |
 | `AHI-175` (accepted under the owner's standing auto-accept (2026-10-11); V1-2346) | `internal/opencodequalification/command.go` (`admittedGoVersion`) | `internal/opencodequalification/record_test.go::TestAdmittedGoVersion` |
 | `AHI-176` (accepted under the owner's standing auto-accept (2026-10-11); V1-2346) | `integrations/opencode/src/skill.js`, `src/index.js`, `internal/opencodequalification/native.go` (`bundledSkillAdvertised`), `record.go` context case | `integrations/opencode/skill.test.mjs`, `internal/opencodequalification/native_test.go::TestBundledSkillAdvertised`, live 2.1.3 campaign `native-bundled-skill` |
-| `AHI-177` (accepted under the owner's standing auto-accept (2026-10-11); V1-0453) | `integrations/opencode/package.json` `testedHostVersions`, `integrations/compatibility.json`, `conformance/opencode-native-v1/` | `integrations/opencode/evidence.test.mjs` |
+| `AHI-177` (accepted under the owner's standing auto-accept (2026-10-11); V1-0453) | `integrations/opencode/package.json` `testedHostVersions`, `integrations/compatibility.json`, `conformance/opencode-native-v1/` | `integrations/opencode/evidence.test.mjs` (mandatory check set, native status probe), live 2.1.3 `native-status-probe.json` |
 | `AHI-178` (accepted under the owner's standing auto-accept (2026-10-11); V1-0453) | `Makefile` `host-adapter-test` | the target's `node --test integrations/opencode/*.test.mjs` run |
-| `AHI-179` (accepted under the owner's standing auto-accept (2026-10-11); V1-2346) | `internal/opencodequalification/probe.go` (`retainObservation`) | `internal/opencodequalification/process_test.go::TestCommandInterruption`, live 2.1.3 full-mode campaign `interruption-cleanup` |
+| `AHI-179` (accepted under the owner's standing auto-accept (2026-10-11); V1-2346) | `internal/opencodequalification/probe.go` (`retainObservation`) | `internal/opencodequalification/process_test.go::TestCommandInterruption`, `integrations/opencode/evidence.test.mjs` sidecar negative cases, live 2.1.3 full-mode campaign `interruption-cleanup` |
 | `AHI-055` (accepted under the owner's standing auto-accept (2026-10-11); V1-1280) | `cmd/corvint/host_adapter.go` (`deadlineRemediation`, `withDeadlineRemediation`), `cmd/corvint/host_adapter_compaction.go` | `TestClaudeAdapterStopDeadlineFailsOpenVisibly`, `TestClaudeCompactionDeadlineNamesRemediation`, `TestDeadlineRemediationKeepsFrameWithinLimit`, `TestClaudeAdapterDogfoodEventDeadlineCarriesNoNotice`, `TestCodexAdapterDeadlineNamesRemediation`, `TestClaudeAdapterStaleSnapshotNamesRemediation`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
 | `AHI-054` (accepted, decision 0519; V1-1157) | `internal/gokernel/harness.go` `HandleEvent` stop frontier, `FrontierCauseNoClosingAuthority`; `conformance/cli-parity-v0` `validFrontierCauseDivergence`, `outOfPacketKnownDivergence`; `integrations/testfixture/main.go` | `TestAHI054StopFrontierCarriesFixedCause`, `TestAHI054FrontierCauseDivergenceIsPinnedAndOutOfPacket`, `TestGPKV0002ManifestReplay` (`DR-0043`), Gemini CLI and OpenCode stop cases and the `AHI-054` with-and-without-cause case under `TestHostAdapterJavaScriptHosts` |
 | `AHI-004` | native adapter renderers, shared lifecycle command, `internal/repoenvelope`, and the JavaScript envelope builders | byte-identical untrusted-data envelope with hidden-character escaping and terminator refusal (`internal/repoenvelope`, `cmd/corvint`, `tools/native-hook-observer` and `integrations/host-adapters.test.mjs` tests), injection bounds, authority order, and query fixtures |

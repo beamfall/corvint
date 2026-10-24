@@ -1,0 +1,11 @@
+{
+ "profile": "opencode-native-status-live-probe/0",
+ "hostVersion": "opencode v2.1.3",
+ "hostSHA256": "1638ccfd0936dc10b15df34268b541a219822f4735d564359420d426c03383f1",
+ "corvintSHA256": "18edd8ceec3f41423e59a37e8a37698ac2e96c465c6b623e9289f6c0e50a26ae",
+ "exit": 0,
+ "providerRequests": 3,
+ "nativeToolsListed": "corvint_context,corvint_expand,corvint_record_outcome,corvint_status",
+ "statusCallResult": "{\"tool\":\"corvint_status\",\"result\":\"{\\\"profile\\\":\\\"opencode-native-integration/1\\\",\\\"integrationSupport\\\":\\\"FULL\\\",\\\"hostVersion\\\":\\\"2.1.3\\\",\\\"adapterVersion\\\":\\\"0.7.18\\\",\\\"operatingSystem\\\":\\\"darwin\\\",\\\"architecture\\\":\\\"arm64\\\",\\\"executionAuthority\\\":\\\"NONE\\\",\\\"frontier\\\":\\\"UNAVAILABLE\\\",\\\"legacyReceiptSupport\\\":\\\"FALLBACK\\\",\\\"supportedHostRange\\\":\\\">=2.0.18 <2.2.0\\\",\\\"qualificationAction\\\":\\\"from a clean Corvint checkout, run GOTOOLCHAIN=local go run ./tools/qualify-opencode --host /absolute/path/to/opencode --corvint /absolute/path/to/corvint --output /absolute/evidence; see integrations/opencode/README.md#qualify-this-installation\\\",\\\"reason\\\":\\\"exact-tuple-conformance-passed\\\",\\\"recordPath\\\":\\\"/private/tmp/claude-501/lane-host-opencode/integrations/opencode-qualification.json\\\",\\\"failedCases\\\":[]}\"}",
+ "result": "PASS"
+}
