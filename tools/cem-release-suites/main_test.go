@@ -3,12 +3,15 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/companionrelease"
 )
 
 func build(path, revision, modified string) *debug.BuildInfo {
@@ -263,5 +266,111 @@ func TestCEMV1572PrivateDirIsResolved(t *testing.T) {
 	resolved, err := filepath.EvalSymlinks(dir)
 	if err != nil || resolved != dir {
 		t.Fatalf("privateDir = %s, resolves to %s (%v); want a path without symbolic links", dir, resolved, err)
+	}
+}
+
+// TestCEMV1602ObservedRowsNeverPassUnrunRows pins what one passing run
+// observes: every binary suite on both binaries, the source-level envelope,
+// the binary-level envelope as NOT_RUN, the reported platform and no external
+// row.
+func TestCEMV1602ObservedRowsNeverPassUnrunRows(t *testing.T) {
+	runner, platforms, external := observedRows("linux/amd64")
+	if len(runner) != 11 || runner["source:repository-envelope"] != "PASSED" || runner["corvint:repository-envelope"] != "NOT_RUN" || runner["cem01-go:repository-envelope"] != "NOT_RUN" {
+		t.Fatalf("runner rows = %v", runner)
+	}
+	for _, suite := range releaseSuites {
+		if runner["corvint:"+suite] != "PASSED" || runner["cem01-go:"+suite] != "PASSED" {
+			t.Fatalf("suite %s rows = %v", suite, runner)
+		}
+	}
+	if len(platforms) != 1 || platforms["linux/amd64"] != "PASSED" || len(external) != 0 {
+		t.Fatalf("platform rows %v, external rows %v", platforms, external)
+	}
+	if _, platforms, _ := observedRows(""); len(platforms) != 0 {
+		t.Fatalf("an unreported platform is observed: %v", platforms)
+	}
+}
+
+// TestCEMV1602BuildPlatform pins the platform row: both builds must report
+// the same GOOS/GOARCH, or no platform is observed.
+func TestCEMV1602BuildPlatform(t *testing.T) {
+	stamp := func(goos, goarch string) *debug.BuildInfo {
+		info := &debug.BuildInfo{}
+		if goos != "" {
+			info.Settings = append(info.Settings, debug.BuildSetting{Key: "GOOS", Value: goos})
+		}
+		if goarch != "" {
+			info.Settings = append(info.Settings, debug.BuildSetting{Key: "GOARCH", Value: goarch})
+		}
+		return info
+	}
+	for _, c := range []struct {
+		a, b *debug.BuildInfo
+		want string
+	}{
+		{stamp("linux", "amd64"), stamp("linux", "amd64"), "linux/amd64"},
+		{stamp("linux", "amd64"), stamp("darwin", "arm64"), ""},
+		{stamp("linux", ""), stamp("linux", "amd64"), ""},
+		{stamp("", "amd64"), stamp("", "amd64"), ""},
+	} {
+		if got := buildPlatform(c.a, c.b); got != c.want {
+			t.Fatalf("buildPlatform = %q, want %q", got, c.want)
+		}
+	}
+}
+
+// TestCEMV1603JudgeReadiness pins the verdict and exit code over the sealed
+// neutral-criterion ACCEPT: the committed declaration is refused with exit 3
+// and every unobserved row printed, and only a run whose declared rows are all
+// observed PASSED is READY.
+func TestCEMV1603JudgeReadiness(t *testing.T) {
+	accept, err := os.ReadFile("../../protocol/cem-1.0/stable/neutral-criterion/results/accept.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile("READINESS.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	committed, err := companionrelease.ReadStableReleaseDeclaration(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner, platforms, external := observedRows("linux/amd64")
+	var out bytes.Buffer
+	if code := judgeReadiness(committed, [][]byte{accept}, runner, platforms, external, &out); code != 3 {
+		t.Fatalf("committed declaration exit %d, want 3: %s", code, out.String())
+	}
+	for _, want := range []string{"readiness: runner corvint:repository-envelope NOT_RUN", "readiness: runner cem01-go:neutral-criterion PASSED", "readiness: platform darwin/arm64 NOT_OBSERVED", "readiness: platform linux/amd64 PASSED", "readiness: external independent-external-consumer NOT_OBSERVED", "readiness: REFUSED (1 accepted stable results read): release-runner-incomplete"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("output lacks %q:\n%s", want, out.String())
+		}
+	}
+	narrow := companionrelease.StableReleaseDeclaration{Profile: companionrelease.StableReleaseDeclarationProfile, Runner: []string{"corvint:neutral-criterion"}, Platform: []string{"linux/amd64"}, External: []string{"independent-external-consumer"}}
+	out.Reset()
+	if code := judgeReadiness(narrow, [][]byte{accept}, runner, platforms, external, &out); code != 3 || !strings.Contains(out.String(), "release-external-incomplete") {
+		t.Fatalf("self-observed run exit %d, want 3 at external: %s", code, out.String())
+	}
+	out.Reset()
+	if code := judgeReadiness(narrow, nil, runner, platforms, external, &out); code != 3 || !strings.Contains(out.String(), "stable-result-not-accepted") {
+		t.Fatalf("run without an accepted result exit %d: %s", code, out.String())
+	}
+	out.Reset()
+	if code := judgeReadiness(narrow, [][]byte{accept}, runner, platforms, map[string]string{"independent-external-consumer": "PASSED"}, &out); code != 0 || !strings.Contains(out.String(), "readiness: READY (1 accepted stable results read)") {
+		t.Fatalf("fully observed run exit %d: %s", code, out.String())
+	}
+}
+
+// TestCEMV1603ReadinessPathIsRepositoryRelative pins the usage refusal: the
+// declaration path names a file inside the committed tree.
+func TestCEMV1603ReadinessPathIsRepositoryRelative(t *testing.T) {
+	for _, path := range []string{"/etc/READINESS.json", "../READINESS.json", "a/../READINESS.json", ".", "..", "a//b", "a\\b", "./a"} {
+		var stderr bytes.Buffer
+		if code := run([]string{"--corvint", "c", "--cem01", "p", "--readiness", path}, io.Discard, &stderr); code != 2 {
+			t.Fatalf("--readiness %q exit %d, want 2: %s", path, code, stderr.String())
+		}
+	}
+	if !repositoryRelative("tools/cem-release-suites/READINESS.json") {
+		t.Fatal("the committed declaration path is refused")
 	}
 }

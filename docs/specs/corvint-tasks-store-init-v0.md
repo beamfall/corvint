@@ -1,7 +1,7 @@
 # Corvint Tasks store initialization V0
 
 Owner: Russell Lewis
-Date: 2026-09-25 (CTS-V0-001, CTS-V0-003 and CTS-V0-004 accepted 2026-09-27; CTS-V0-002 accepted 2026-09-28; CTS-V0-006 requested 2026-10-01 in issue 433; CTS-V0-008 proposed 2026-10-10 in V1-0825 and accepted 2026-10-10, decision 0490; CTS-V0-010 accepted 2026-10-15 under the owner's standing auto-accept, V1-1379; CTS-V0-011 accepted 2026-10-21 under the same auto-accept, V1-0758; CTS-V0-012 accepted 2026-10-21 under the same auto-accept, V1-2143; CTS-V0-013 accepted 2026-10-21; CTS-V0-014 to CTS-V0-017 accepted 2026-10-22 under the same auto-accept, V1-1660; CTS-V0-018 accepted 2026-10-22 under the same auto-accept, V1-2401; CTS-V0-020 and CTS-V0-021 accepted 2026-10-23 under the same auto-accept, V1-2400; CTS-V0-022 accepted 2026-10-23 under the same auto-accept, V1-0903; CTS-V0-025 proposed 2026-10-24 in V1-2523, not accepted)
+Date: 2026-09-25 (CTS-V0-001, CTS-V0-003 and CTS-V0-004 accepted 2026-09-27; CTS-V0-002 accepted 2026-09-28; CTS-V0-006 requested 2026-10-01 in issue 433; CTS-V0-008 proposed 2026-10-10 in V1-0825 and accepted 2026-10-10, decision 0490; CTS-V0-010 accepted 2026-10-15 under the owner's standing auto-accept, V1-1379; CTS-V0-011 accepted 2026-10-21 under the same auto-accept, V1-0758; CTS-V0-012 accepted 2026-10-21 under the same auto-accept, V1-2143; CTS-V0-013 accepted 2026-10-21; CTS-V0-014 to CTS-V0-017 accepted 2026-10-22 under the same auto-accept, V1-1660; CTS-V0-018 accepted 2026-10-22 under the same auto-accept, V1-2401; CTS-V0-020 and CTS-V0-021 accepted 2026-10-23 under the same auto-accept, V1-2400; CTS-V0-022 accepted 2026-10-23 under the same auto-accept, V1-0903; CTS-V0-025 proposed 2026-10-24 in V1-2523, not accepted; CTS-V0-026 accepted 2026-10-24 under the standing lane auto-accept, V1-2506)
 Intent status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28)
 Delivery status: experimental
 Authoritative inputs: owner request [issue 336](https://github.com/beamfall/corvint/issues/336), decision 0397 (corvint-tasks built in tree), `AGENTS.md`,
@@ -11,7 +11,7 @@ Authoritative inputs: owner request [issue 336](https://github.com/beamfall/corv
 
 ## Agent digest
 - Claim: `corvint-tasks init` refuses an intent store that already holds records, and works in a repository reached through a symlinked ancestor such as macOS `/tmp`.
-- Status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28); experimental. CTS-V0-001 through CTS-V0-004 are implemented; CTS-V0-002 permits only four unaudited inventory reads when the journal directory is absent; CTS-V0-005 adds tested non-fixture external-agent setup templates; CTS-V0-006 makes journal-backed reads wait out an in-flight writer (issue 433) instead of failing `REDO_PENDING` or `SNAPSHOT_MOVED` at once; CTS-V0-008 (accepted, decision 0490; V1-0825) makes an unlocked journal audit or archive export wait out a writer's descriptor-less staging slots before refusing `MALFORMED`, while an audit made under the writer lock still refuses them at once. CTS-V0-010 (V1-1379) makes a journal-absent `ticket show` miss name the stale `.taskman` snapshot and the journal it lacks instead of claiming the ticket does not exist. CTS-V0-011 (V1-0758) makes `ADOPT_FILE` compose added, changed or removed `requiresPool` and `requiredRoles` through `REFINE`. CTS-V0-012 (V1-2143) makes `ticket search --text` token-based and makes a list or search `--fields` refusal for `labels` or `effects` name the read that returns them. CTS-V0-014 to CTS-V0-017 (V1-0398) are the import-map writer: a non-fixture queue whose `importMapSha256` names `.taskman/import-map.json` initializes with the map journaled at genesis, takes every non-fixture write, keeps the map immutable, and imports only under the map's identity. CTS-V0-018 (V1-2401) checks the whole import plan against the map before the first batch and names every conflict. CTS-V0-020 and CTS-V0-021 (V1-2400) add the one amendment path for that map after genesis: an OWNER-only `import amend-map` that journals the amended map and the queue naming it under one `IMPORT_PLAN` receipt, bound to the journaled map the owner reviewed, refusing any identity conflict `DUPLICATE_ID`. CTS-V0-022 (V1-0903) charges the CTS-V0-006 budget with pauses only, so a read or export whose body takes longer than two seconds (a 10k-ticket store) still waits out a writer it meets. CTS-V0-023 (V1-0903) bounds the directory roots one export holds to a true peak of 16, so a 10k-ticket store no longer exhausts a low `ulimit -n`; CTS-V0-024 corrects the CTS-V0-020 rollback guidance: an `IMPORT_PLAN` receipt needs no restore. CTS-V0-025 (V1-2523, proposed) refuses every Tasks command but help and version `UNSUPPORTED` up front off darwin and linux.
+- Status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28); experimental. CTS-V0-001 through CTS-V0-004 are implemented; CTS-V0-002 permits only four unaudited inventory reads when the journal directory is absent; CTS-V0-005 adds tested non-fixture external-agent setup templates; CTS-V0-006 makes journal-backed reads wait out an in-flight writer (issue 433) instead of failing `REDO_PENDING` or `SNAPSHOT_MOVED` at once; CTS-V0-008 (accepted, decision 0490; V1-0825) makes an unlocked journal audit or archive export wait out a writer's descriptor-less staging slots before refusing `MALFORMED`, while an audit made under the writer lock still refuses them at once. CTS-V0-010 (V1-1379) makes a journal-absent `ticket show` miss name the stale `.taskman` snapshot and the journal it lacks instead of claiming the ticket does not exist. CTS-V0-011 (V1-0758) makes `ADOPT_FILE` compose added, changed or removed `requiresPool` and `requiredRoles` through `REFINE`. CTS-V0-012 (V1-2143) makes `ticket search --text` token-based and makes a list or search `--fields` refusal for `labels` or `effects` name the read that returns them. CTS-V0-014 to CTS-V0-017 (V1-0398) are the import-map writer: a non-fixture queue whose `importMapSha256` names `.taskman/import-map.json` initializes with the map journaled at genesis, takes every non-fixture write, keeps the map immutable, and imports only under the map's identity. CTS-V0-018 (V1-2401) checks the whole import plan against the map before the first batch and names every conflict. CTS-V0-020 and CTS-V0-021 (V1-2400) add the one amendment path for that map after genesis: an OWNER-only `import amend-map` that journals the amended map and the queue naming it under one `IMPORT_PLAN` receipt, bound to the journaled map the owner reviewed, refusing any identity conflict `DUPLICATE_ID`. CTS-V0-022 (V1-0903) charges the CTS-V0-006 budget with pauses only, so a read or export whose body takes longer than two seconds (a 10k-ticket store) still waits out a writer it meets. CTS-V0-023 (V1-0903) bounds the directory roots one export holds to a true peak of 16, so a 10k-ticket store no longer exhausts a low `ulimit -n`; CTS-V0-024 corrects the CTS-V0-020 rollback guidance: an `IMPORT_PLAN` receipt needs no restore. CTS-V0-025 (V1-2523, proposed) refuses every Tasks command but help and version `UNSUPPORTED` up front off darwin and linux. CTS-V0-026 (V1-2506) amends CTS-V0-008: once the unlocked journal audit's wait is spent under an unchanged head, a free writer lock proves the slots a killed writer's orphans, and the audit reads past exactly those slots instead of refusing `MALFORMED` until the next writer.
 - Exists: journal-absent inventory reads with no audit identity, the coded init refusal, the ancestor resolution, the `corvint-tasks import` verb with its `IMPORT_APPLY` stage operation, and their store, transaction and CLI tests.
 - Blocked on: broader task-store authority recovery (V1-0310) remains open; CTS-V0-002 has narrow independent owner acceptance. For a non-fixture import writer, V1-0398.
 - Read next: Requirements; Import export and batching; Failure modes; Traceability.
@@ -266,6 +266,30 @@ on a fixture queue remain non-goals.
   Windows (V1-2485 owns that scope decision), a new §11 code, and the `lane-leader` re-exec, which
   only a refused parent could spawn. Rollback: revert the commit; the refusal goes away and a
   Windows command fails later as before (`MALFORMED` PathText or the `safeopen` refusal).
+- `CTS-V0-026`: (accepted 2026-10-24 under the owner's standing lane auto-accept (2026-10-11),
+  V1-2506) amends CTS-V0-008 for the journal audit only. When an audit that does not hold the writer
+  lock has spent the whole CTS-V0-008 wait beside descriptor-less slots under a head that did not
+  move (so CAL-V0-340 does not apply), and its source is a native state directory named `taskman`,
+  it MUST probe the writer lock `<git-common-dir>/taskman.lock` once before refusing. The probe
+  MUST NOT create, write, truncate or follow a symlink to the file: it opens the regular file
+  read-only through a root confined to the common directory, checks its identity before and after,
+  and tests `flock(LOCK_SH|LOCK_NB)`, releasing it at once. Every writer holds that lock
+  exclusively for the whole of its publish (CTS-V0-008), so a lock that is free proves every slot
+  of the refused observation a killed writer's orphan. The audit then MUST observe again, setting
+  aside exactly those slots, each bound by file identity, mode, size and modification time, and
+  report `StagingPresent` with the slots named (`OrphanStageSlots`; `receipt audit` adds a warning
+  naming them). A slot that is new or not identical to its granted observation proves a live writer
+  and MUST refuse `SNAPSHOT_MOVED` (retryable) at `staging`. A lock that is held, absent, a symlink,
+  not a regular file, replaced during the probe, or untestable (another GOOS) proves nothing and
+  keeps the CTS-V0-008 `MALFORMED`. The probe never waits, so a writer polling for the lock loses
+  at most one poll interval and never fails on its account. A writer-locked audit, a non-native
+  source and an unassigned slot beside a descriptor or descriptor temp keep refusing at once. The
+  read still never removes a slot; the next writer removes it (CAL-V0-019). Non-goals: the archive
+  `export` reader, which keeps the CTS-V0-008 refusal; a writer that `REDO_PENDING` shows died after
+  its receipt commit, which reads still never redo (TM-V0-008, V1-2506 follow-up); any change to a
+  writer or to the state format. Rollback: revert the commit; reads beside a killed writer's orphan
+  slots refuse `MALFORMED` again until the next writer, and no state format, code or envelope
+  changes.
 
 ## Import export and batching
 
@@ -333,6 +357,9 @@ revision 1, a broken revision chain, and a target held by a native record or ano
 | Export of a store with more listed directories than the root bound (`requests/` shards) | Least recently used roots are released and reopened under their parent; the stream is unchanged (CTS-V0-023). |
 | A released directory root is replaced before it is reopened | `SNAPSHOT_MOVED`; the export retries or fails closed as any moved read (CTS-V0-023). |
 | Any command but help or version on Windows or another GOOS without the safe opening boundary | `ERROR` `UNSUPPORTED` naming the platform; nothing is read or written (CTS-V0-025). Before it, a Windows test fixture failed `MALFORMED` on its drive-letter `primaryWorktree` PathText. |
+| Unlocked journal audit spends the CTS-V0-008 wait beside a killed writer's orphan slots with the writer lock free | The audit sets aside exactly those slots and reads the store, naming them; `receipt audit` warns; the next writer removes them (CTS-V0-026). |
+| A writer stages or replaces a slot after the free-lock proof | `SNAPSHOT_MOVED` (retryable) at `staging`, never a read that skips its slot (CTS-V0-026). |
+| The writer lock is held, absent, a symlink or replaced when the wait is spent | The unchanged CTS-V0-008 `MALFORMED` `unassigned stage slot` (CTS-V0-026). |
 | Re-import of an `IMPORT` record that a `REFINE` gave `requiresPool` or `requiredRoles` | Both keys are kept byte-identical; only the changed `source` bumps `acceptanceRevision` (CTS-V0-007). |
 
 ## Acceptance and rollback
@@ -482,6 +509,21 @@ skip on darwin or linux. On a Windows host (2026-10-24, batch 1024c) the CTS-V0-
 `TestCriterionBindingOfflineVerify` (skips) and the help tests passed; 13 other
 `internal/tasks/cli` tests that do not reach this refusal still fail there, out of this scope. Rollback is a revert; no state format or code changes.
 
+CTS-V0-026 (V1-2506) is accepted by journal tests that drive the wait with the stage-pause hook:
+`TestCTSV0026_FreeWriterLockSetsAsideKilledWritersOrphans` (two orphans beside a free lock: the
+audit, a ticket read and a mutation audit succeed after exactly the budget, both slots are named and
+kept, and the lock file is unchanged), `TestCTSV0026_UnprovenOrphansStayMalformed` (held, absent and
+symlinked lock keep `MALFORMED`), `TestCTSV0026_SlotsStagedAfterTheProofAreRetryable` (a new or
+replaced slot after the probe is a retryable `SNAPSHOT_MOVED` after one probe),
+`TestCTSV0026_WriterLockedAndNonNativeAuditsNeverProbe` and `TestCTSV0026_ProbeNamesTheWriterLock`
+(a real `authority.AcquireLock` hold keeps `MALFORMED`; once released the audit reads). The store
+regression `TestCTSV0026_KilledGateRunLeavesAReadableStore` SIGKILLs a real `gate run` subprocess at
+an artifact publication while one of its slots is occupied, then runs `ticket show`, `queue status`
+and `receipt audit` through the CLI: all exit 0 and the audit warning names the orphan, and the next
+gate run removes it; with the probe disabled the same test fails `MALFORMED` at `ticket show`. The
+Pi `tasks-host` interruption test no longer meets `MALFORMED`; its remaining failures are the
+designed `REDO_PENDING` of a writer killed after its receipt commit, out of this requirement.
+
 CTS-V0-022 (V1-0903) is accepted by `TestCTSV0022_LongBodyKeepsPausePatience` (snapshot) and
 `TestCTSV0022_SlowExportStillWaitsOutWriter` (archive), with the escalating moved re-read backoff
 held by `TestCTSV0006_MovedReadsPauseBetweenAttempts`: a body that outlasts the budget and leaves a
@@ -520,6 +562,7 @@ restored byte-identical afterwards. Rollback restores the wall-clock deadline in
 | CTS-V0-022 | `internal/tasks/snapshot/probe.go` (`Reader.Read`, `AfterWait`), `internal/tasks/archive/stage_read.go` (`readArchive`) | TestCTSV0022_LongBodyKeepsPausePatience, TestCTSV0022_SlowExportStillWaitsOutWriter, TestCTSV0006_MovedReadsPauseBetweenAttempts |
 | CTS-V0-023 | `internal/tasks/archive/stage_read.go` (`maxOpenRoots`, `archiveRead.parent`, `reserve`, `binding`) | TestCTSV0023_ExportHoldsBoundedRoots, TestCTSV0023_ReopenedShardMustBeTheListedDirectory |
 | CTS-V0-024 | `docs/specs/corvint-tasks-store-init-v0.md` (rollback guidance); `internal/tasks/store/redo.go`, `internal/tasks/journal` (unchanged) | TestCTSV0024_RollbackDistinguishesInterruptedAmendment |
+| CTS-V0-026 | `internal/tasks/journal/lock_probe.go`, `lock_probe_unix.go`, `lock_probe_other.go` (`writerLockFree`), `internal/tasks/journal/audit.go` (`audit`, `Reader.writerLockFree`, `Result.OrphanStageSlots`), `internal/tasks/journal/stage_read.go` (`readStage`, `sameSlot`), `internal/tasks/cli/receipt.go` (orphan warning) | TestCTSV0026_FreeWriterLockSetsAsideKilledWritersOrphans, TestCTSV0026_UnprovenOrphansStayMalformed, TestCTSV0026_SlotsStagedAfterTheProofAreRetryable, TestCTSV0026_WriterLockedAndNonNativeAuditsNeverProbe, TestCTSV0026_ProbeNamesTheWriterLock, TestCTSV0026_KilledGateRunLeavesAReadableStore |
 | CTS-V0-025 | `internal/tasks/wire/platform_other.go`, `platform_unix.go` (`PlatformRefusal`), `internal/tasks/cli/platform.go` (`platformRefusal`), `internal/tasks/fixture/fixture.go` (`TempRepo`) | TestCTSV0025_SupportedPlatformHasNoRefusal, TestCTSV0025_UnsupportedPlatformRefusesUpFront, TestCEMLockAndTasksRefusalsSkipOnlyOnWindows |
 | CTS-V0-010 | `internal/tasks/cli/cli.go` (`ticketShow`, `journalAbsentNotFound`) | TestCTSV0010_JournalAbsentShowNamesTheStaleSnapshot; `docs/build-log/2026-10-15-v1-1384-1379-tasks-cli-refusals.md` |
 | CTS-V0-009 | `internal/tasks/cli/attempt_detach.go` (`attemptAttach`), `internal/tasks/snapshot/probe.go` (`Reader.Read`) | TestCTSV0009_AttachWaitsForReceiptLinkBeforeHeadRename, TestCTSV0009_AttachReportsPendingAfterPatience; loaded qualification: TestATRV0008_DetachedRunSurvivesItsLauncher |

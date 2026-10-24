@@ -152,3 +152,43 @@ func TestInconclusiveNamesALauncherRefusalWithoutEchoingIt(t *testing.T) {
 		}
 	}
 }
+
+// TCQ-V0-064, V1-2569: bwrap's own setup refusals, recorded on the linux/WSL2
+// runner box (bubblewrap 0.11.1) under the test-confine Landlock wrapper and
+// inside an enclosing bwrap --disable-userns, are an unavailable sandbox with
+// a bwrap-specific fixed text. Any other bwrap line, such as a failed execvp
+// of the command, or a refusal line that is not the whole output, stays the
+// generic error; neither echoes the output.
+func TestTCQV0064InconclusiveNamesABubblewrapSetupRefusal(t *testing.T) {
+	const landlock = "bwrap: Failed to make / slave: Operation not permitted\n"
+	const nested = "bwrap: Creating new namespace failed: nesting depth or /proc/sys/user/max_*_namespaces exceeded (ENOSPC)\n"
+	for _, test := range []struct {
+		name, output string
+		unavailable  bool
+	}{
+		{"landlock mount refusal", landlock, true},
+		{"nested namespace refusal", nested, true},
+		{"command not found", "bwrap: execvp go: No such file or directory\n", false},
+		{"refusal then more output", landlock + "FAIL\texample.test/mut/pkg/calc\t0.1s\n", false},
+		{"output before refusal", "ok\n" + nested, false},
+		{"no newline", strings.TrimSuffix(landlock, "\n"), false},
+		{"no errno text", "bwrap: Failed to make / slave: \n", false},
+		{"control character", "bwrap: Failed to make / slave: denied\x1b[2J\n", false},
+		{"overlong", "bwrap: Creating new namespace failed: " + strings.Repeat("x", launcherRefusalLimit) + "\n", false},
+	} {
+		err := inconclusive(test.output)
+		if got := errors.Is(err, ErrSandboxUnavailable); got != test.unavailable {
+			t.Errorf("%s: sandbox unavailable = %v (%v), want %v", test.name, got, err, test.unavailable)
+		}
+		want := "mutate: run ended without a verdict"
+		if test.unavailable {
+			want = "mutate: sandbox unavailable: the host refused to set up the bwrap sandbox"
+		}
+		if err.Error() != want {
+			t.Errorf("%s: err = %q, want %q", test.name, err, want)
+		}
+	}
+	if got := inconclusive("sandbox-exec: sandbox_apply: Operation not permitted\n"); got != ErrSandboxUnavailable {
+		t.Errorf("sandbox-exec refusal = %v, want the unchanged %v", got, ErrSandboxUnavailable)
+	}
+}

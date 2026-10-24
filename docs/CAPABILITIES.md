@@ -262,7 +262,7 @@ needs `--legacy-cases`.
 | `corvint.docs_trace` | `corvint-corpus-mcp` | Walk relations to a depth | experimental | Capability absent | [DCP-V1](specs/documentation-corpus-v1.md) |
 | `corvint.docs_search_cases` | `corvint-corpus-mcp` with `--legacy-cases` | Search imported legacy test cases | experimental | Server started without the flag | [DCP-V1](specs/documentation-corpus-v1.md) |
 | `corvint.map_plan` | `corvint-corpus-mcp` with `--map` | Scenario plan over an application map | experimental | Server started without the flag | [AMSP-V0](specs/application-map-scenario-planner-v0.md) |
-| `corvint.map_knowledge` | `corvint-corpus-mcp` with `--map` | Site knowledge (page objects, steps, setup) mined from committed E2E sources | experimental | Server started without the flag; unread sources are named | [SKH-V0](specs/site-knowledge-howto-v0.md) |
+| `corvint.map_knowledge` | `corvint-corpus-mcp` with `--map` | Site knowledge (page objects, steps, setup, static links, candidate flows) mined from committed E2E sources | experimental | Server started without the flag; unread sources are named | [SKH-V0](specs/site-knowledge-howto-v0.md) |
 | `corvint.consolidate_tests` | `corvint-corpus-mcp` with `--consolidation` | Test consolidation plan | experimental | Server started without the flag | [TCN-V0](specs/test-consolidation-planner-v0.md) |
 <!-- /capability-gate:mcp-tools -->
 

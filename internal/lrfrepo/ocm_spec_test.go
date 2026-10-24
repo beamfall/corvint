@@ -20,13 +20,9 @@ func TestWorkQueueSpecEnumeratesEveryObligation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := make([]string, 52)
-	for i := range want {
-		want[i] = fmt.Sprintf("WQO-V0-%03d", i+1)
-	}
-	slices.Sort(requirements)
-	if !slices.Equal(requirements, want) {
-		t.Fatalf("OCM enumerates %v; want exactly %v", requirements, want)
+	want := indexedRequirements(t, path)
+	if len(want) == 0 || !slices.Equal(slices.Sorted(slices.Values(requirements)), want) {
+		t.Fatalf("OCM enumerates %v; REQUIREMENTS.tsv lists %v", requirements, want)
 	}
 }
 

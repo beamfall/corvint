@@ -20,7 +20,7 @@ solution that is a perfect additional and use case for corvint".
 
 ## Agent digest
 - Claim: Reviewed E2E blocks compile into change-specific scenarios that must discriminate the change; hosted tests retire only after a shadow evaluation.
-- Status: accepted (owner, 2026-10-22); experimental; CCE-V0-026..054 accepted under the standing auto-accept (2026-10-11). First slice V1-1665 implements CCE-V0-001, 002, 004..009 and 015 in `internal/changee2e` behind `corvint-test e2e` with focused tests and a live Playwright qualification (Node v22.23.2); CCE-V0-003 is partial (one hand-written declarations file). The 2026-10-17 panel amendment adds CCE-V0-016..025 and amends 003, 004, 009, 011 and 012. Implemented: the CCE-V0-021 environment block (V1-1681 serve part), the obligations soundness of CCE-V0-019/020 with the amended 004 base join (V1-1678), and (2026-10-22 lane) the amended 009 ladder, 016 `oracle_origin`, 017 head test tree, 018 structure controls, 024 `outcome-vacuous`, the offline fake runner and the 011/012 shadow report over a recorded window (CCE-V0-026..033; V1-1679, V1-1680, V1-1682, V1-1687). The 2026-10-22 lane 1022k implements the hosted-test prover CCE-V0-034..036 (offline and live), receipt-located assertions (PWP-V3-008), `cleanup-failed`, the 037 usefulness exclusion of `PRESERVES`, CCE-V0-010, 013 and the 014 byte cap (CCE-V0-039, 040), and the first V1 authoring slice (V1-1683): `e2e harvest`, the `.corvint/e2e-acceptances.json` ledger and the in-diff flag (CCE-V0-041..044), and the runtime-coverage reach source of V1-1685 (CCE-V0-045..047). Not implemented: CCE-V0-022/023/025 and the rest of 024; NOT_RUN: the 038 actualbudget rerun and any adopter window. Lane cce2-1022u attributes a located worker teardown failure as `teardown-failed` (CCE-V0-048, PWP-V3-009) and records how a hosted run's config differs from the adopter's (CCE-V0-049), binds harvested proposals to a map flow or screen (CCE-V0-050), lifts the edited-oracle cap only through a recorded independent acceptance (CCE-V0-051) proposes, never applies, a locator repair (CCE-V0-052), records the head pool's served paths per screen for `--coverage` (CCE-V0-053) and widens reach through the head tree's TJAA module graph behind `--module-graph` (CCE-V0-054). CCE-V0-086 (V1-1711) resolves a relative `--root`. CCE-V0-087 (V1-2427) attributes a control run's teardown failure like a side's; CCE-V0-088 (V1-2428) lets `e2e harvest --manifest` read a configured map path. Everything ships as the `e2e` group of one experimental companion, `corvint-test`; V0 adds nothing to core `corvint`.
+- Status: accepted (owner, 2026-10-22); experimental; CCE-V0-026..054 accepted under the standing auto-accept (2026-10-11). First slice V1-1665 implements CCE-V0-001, 002, 004..009 and 015 in `internal/changee2e` behind `corvint-test e2e` with focused tests and a live Playwright qualification (Node v22.23.2); CCE-V0-003 is partial (one hand-written declarations file). The 2026-10-17 panel amendment adds CCE-V0-016..025 and amends 003, 004, 009, 011 and 012. Implemented: the CCE-V0-021 environment block (V1-1681 serve part), the obligations soundness of CCE-V0-019/020 with the amended 004 base join (V1-1678), and (2026-10-22 lane) the amended 009 ladder, 016 `oracle_origin`, 017 head test tree, 018 structure controls, 024 `outcome-vacuous`, the offline fake runner and the 011/012 shadow report over a recorded window (CCE-V0-026..033; V1-1679, V1-1680, V1-1682, V1-1687). The 2026-10-22 lane 1022k implements the hosted-test prover CCE-V0-034..036 (offline and live), receipt-located assertions (PWP-V3-008), `cleanup-failed`, the 037 usefulness exclusion of `PRESERVES`, CCE-V0-010, 013 and the 014 byte cap (CCE-V0-039, 040), and the first V1 authoring slice (V1-1683): `e2e harvest`, the `.corvint/e2e-acceptances.json` ledger and the in-diff flag (CCE-V0-041..044), and the runtime-coverage reach source of V1-1685 (CCE-V0-045..047). Not implemented: CCE-V0-022/023/025 and the rest of 024; NOT_RUN: the 038 actualbudget rerun and any adopter window. Lane cce2-1022u attributes a located worker teardown failure as `teardown-failed` (CCE-V0-048, PWP-V3-009) and records how a hosted run's config differs from the adopter's (CCE-V0-049), binds harvested proposals to a map flow or screen (CCE-V0-050), lifts the edited-oracle cap only through a recorded independent acceptance (CCE-V0-051) proposes, never applies, a locator repair (CCE-V0-052), records the head pool's served paths per screen for `--coverage` (CCE-V0-053) and widens reach through the head tree's TJAA module graph behind `--module-graph` (CCE-V0-054). CCE-V0-086 (V1-1711) resolves a relative `--root`. CCE-V0-087 (V1-2427) attributes a control run's teardown failure like a side's; CCE-V0-088 (V1-2428) lets `e2e harvest --manifest` read a configured map path. The 2026-10-24 lane p1-cce proposes CCE-V0-100..104: offline replay of recorded side receipts and a live-required switch (V1-1687), `--ledger` bound to the impact relation (V1-1685) and path synthesis over proven ledger edges (V1-1684). Everything ships as the `e2e` group of one experimental companion, `corvint-test`; V0 adds nothing to core `corvint`.
 - Exists: `cmd/corvint-test` (`e2e catalog|harvest|obligations|compile|prove|shadow`) over `internal/changee2e`. It composes the existing AMAP-V0 map and scaffold, AMSP-V0 planner, AFU-V1 declared outcomes, ANL-V0 proven edges, RVN-V0 run verification, PWR-V0 run comparison and NEA-V0/BBF-V0 negative controls.
 - Blocked on: the CCE-V0-038 external rerun (V1-1733); an adopter shadow window of at least 30 recorded entries (external; umbrella V1-1666); the rest of the companion fold (V1-1667, planned in `docs/specs/corvint-test-fold-v0.md`; groups 1 to 3 have moved and groups 4 to 6 remain).
 - Read next: User and measurable job; Definitions; Requirements (016..033); Shadow evaluation and retirement; Beyond V0; Owner questions.
@@ -685,6 +685,70 @@ under the standing auto-accept of 2026-10-11:
   not `appmap.json` at the root gets every harvested proposal unbound although the catalog reads
   the same map. `corvint-test e2e harvest --manifest PATH` passes the path to `HarvestOptions`.
 
+The 2026-10-24 CCE V1 lane (p1-cce: V1-1687, V1-1685, V1-1684) adds CCE-V0-100..104, proposed and
+experimental under the standing auto-accept of 2026-10-11 until the owner accepts them. Each item's
+rollback is to remove its code and tests; no stored state migrates, and an artifact written without
+the new members reads as before.
+
+- `CCE-V0-100`: The ordinary `go test` lane MUST replay the verdict ladder's
+  `DISCRIMINATES`, `NEW_REACH`, `PRESERVES`, `REGRESSION_DETECTED` and `UNSTABLE` rungs from recorded
+  side receipts, with no Node or browser. A recording is one `cce-recorded-side/0` file under
+  `internal/changee2e/testdata/recorded/` (strict decoding: `schema`, `provenance` `live` or
+  `synthetic`, `toolchain`, `compiler`, `scenario_sha256`, the absolute `tree` the pool ran in, and
+  `receipt`, the canonical `corvint-playwright-external/3` document). The replay decodes the receipt
+  with the provider's own `DecodeAttemptReceipt`, moves only the receipt's failure and
+  infrastructure locations from the recorded tree (matched as a slash path, so a recording replays
+  on any host platform) onto the staged one, qualifies the result with Prove's `qualify` (the
+  admitted runtime and browser tuple, the qualified test ID and the attempt details), and runs
+  the real staging, location and verdict code through the CCE-V0-028 seams; the BBF controls stay
+  scripted. `scenario_sha256` pins the compiled scenario below its header (which names fixture commit
+  revisions), and `compiler` MUST equal `CompilerVersion`. A missing recording reads
+  `recording-missing`, a non-canonical receipt or unknown schema or provenance `recording-invalid`,
+  and a recording of other scenario text `recording-stale`; each leaves its side unqualified and the
+  verdict `INCONCLUSIVE`, never a synthesized outcome. Failure modes: replay trusts a recorded
+  outcome the provider would not qualify; a stale recording reads as current; a ladder change goes
+  untested in the ordinary lane because the live tests skip. Acceptance:
+  `TestCCEV0100ReplayRecordedReceipts`, `TestCCEV0100ReplayRefusals`.
+- `CCE-V0-101`: The live ladder MUST be able to refresh the recordings: with
+  `CORVINT_CCE_RECORD_DIR` set and the live toolchain present, `TestCCEV0101LiveRecord` writes each
+  qualified side of the rungs a live run reaches on the fixture (`DISCRIMINATES`, `PRESERVES`) as a
+  `provenance: live` recording that replaces the synthetic one. `go test -cce-write-recordings`
+  regenerates the synthetic set, whose receipts carry the live receipt's shape (the generated config
+  and placement under a fixed synthetic tree, the declared application identity, the qualified
+  runtime and browser tuple) and no host path. Without the variable the test skips. Failure mode:
+  recordings drift from what a live pool emits and replay proves a ladder no real run can reach.
+- `CCE-V0-102`: The live prove tests MUST fail, not skip, when `CORVINT_CCE_LIVE=required` and their
+  toolchain is missing, and `make cce-live` runs them so. A CI job that sets the variable therefore
+  cannot pass by skipping. Failure mode: a CI lane without Node or Playwright reports the live tests
+  green. The CI job itself is `.github` work that needs the owner.
+- `CCE-V0-103`: `obligations`, `compile` and `prove` MUST accept `--ledger FILE` (`DiffOptions.Ledger`),
+  an `application-edge-ledger/0` document, and pass it to the AMAP/ANL impact relation instead of
+  nil. A ledger of another application, map digest or revision than the head map, a trimmed ledger,
+  or an unreadable or wrong-schema document refuses `e2e-ledger-invalid`. A bound ledger moves
+  `anl-edge-ledger` from `not_consulted` to `consulted`, records the ledger's digest as
+  `ledger_digest` (omitted without a ledger) and changes the impact digest, but never changes reach:
+  the state, obligations, unknown spans and exemptions equal the report without it. A hosted-test
+  `prove` refuses `--ledger` as it refuses `--coverage`. Failure mode: a ledger from another revision
+  silently feeds reach, or a consulted ledger is not recorded.
+- `CCE-V0-104`: With a bound ledger, a flow whose first screen has no admitted deep-link entry MUST
+  compile over the ledger-bound AMAP entry projection's shortest `PROVEN` path (AMAP-V0-080) only:
+  the path must start at an admitted `path:entry:` block; each hop is the ledger edge between its
+  screens proven by the projection's test key (the lowest edge ID when several are); and the hop
+  emits the admitted page-object method of that edge's crossing from-step, the mined, anchored
+  statement a receipt saw cross the edge, before the flow's own steps. The compiled entry names
+  `proven_path` and `proven_by`, and its `blocks` include the entry and each hop method. A hop
+  abstains with one named path reason and nothing is generated for it: `proven-path-entry-not-admitted`,
+  `proven-hop-edge-missing`, `proven-hop-evidence-inconsistent` (the crossing names no map flow, or
+  its steps are not adjacent on the hop's screens), `proven-hop-precondition-not-set` (the crossing
+  flow declares a precondition the compiled flow does not), `proven-hop-prefix-not-emitted` (the
+  crossing step follows another step of its flow on the same screen, such as a fill before its
+  submit, which only the crossing step would not carry), `proven-hop-step-is-fill`, or
+  `proven-hop-` plus the CCE-V0-006 step reason. A screen the projection does not reach keeps its
+  catalog reason, and without a ledger the output is unchanged. Precondition flows and session or
+  parameter state are not synthesized. Failure modes: a path through an unproven, unverified or
+  receipt-less edge; a generated navigation statement; a hop whose crossing ran under a fixture the
+  scenario does not set up.
+
 ## Shadow evaluation and retirement
 
 The frozen V0 gate values, which only an owner decision may change:
@@ -800,6 +864,11 @@ row's status says what is delivered.
 | CCE-V0-086 | relative-root catalog and obligations | V1-1711 | PASS: `TestCCEV0086RelativeRootResolves` |
 | CCE-V0-087 | a control whose hook receipt records a located teardown failure reads `teardown-failed` in its reasons and the verdict note; other infrastructure stays `control-not-killed` | V1-2427 | PASS: `TestCCEV0087ControlTeardownAttribution` (BBF report fixture through `controlResults` and the offline ladder; failed with the reason carry or the verdict rung removed) |
 | CCE-V0-088 | harvest binds through a non-default manifest path | V1-2428 | PASS (library and CLI): `TestCCEV0088HarvestConfiguredManifest` (map at `config/club.appmap.json` binds `book-tee-time`; the default name is absent and reads `app-map-unavailable`; failed with the hard-coded name restored); `TestCCEV0088HarvestManifestFlag` (`e2e harvest --manifest config/club.appmap.json` binds proposals, the default reads `app-map-unavailable`; failed before the flag was passed) |
+| CCE-V0-100 | each recorded ladder rung replays offline; missing, non-canonical and stale recordings refuse | V1-1687 | PASS offline (darwin/arm64 and linux/WSL2): `TestCCEV0100ReplayRecordedReceipts` (five rungs from ten synthetic recordings through `DecodeAttemptReceipt`, `qualify` and the verdict code), `TestCCEV0100ReplayRefusals` (`recording-missing`, `recording-invalid` for a trailing byte and an unknown schema, `recording-invalid` for a relative tree, `recording-stale` for other scenario text, `repeat-count-mismatch` for a two-repeat replay, and a slash-path recording relocated under the host's staged tree with the recorded document's digest) |
+| CCE-V0-101 | live run writes live recordings | V1-1687 | PARTIAL: `TestCCEV0101LiveRecord` written; SKIP here and NOT_RUN live (no qualified Playwright 1.64.0 tuple on this host; the Windows box's WSL has Node v22 and no `@playwright/test`), so every recording is `synthetic` |
+| CCE-V0-102 | a required live run fails without its toolchain | V1-1687 | PASS: `TestCCEV0102LiveRequiredFails` (unset and `1` skip, `required` fails); `make cce-live` is NOT_RUN. CI job: NEEDS-OWNER (`.github`) |
+| CCE-V0-103 | bound ledger consulted without changing reach; each binding mismatch refuses | V1-1685 | PASS: `TestCCEV0103LedgerBoundToImpact` (library and compile), `TestCCEV0103LedgerFlag` (CLI `obligations` and `compile`), `TestCCEV0034HostedTestFlag` (hosted `--ledger` refusal) |
+| CCE-V0-104 | path synthesis over proven ledger edges only; every hop abstention named | V1-1684 | PASS: `TestCCEV0104ProvenPathSynthesis` (a tee-sheet flow compiles from `/#!/home` through `goToTeeSheets`; without a ledger or a set precondition it stays `INCOMPLETE`; the existing scenario is byte-identical; evidence, prefix, entry and edge abstentions) |
 | CCE-V0-049 | hosted proof lists the adopter-config keys the prove config does not apply | V1-2409 | PASS: `TestCCEV0049HostedRunnerConfigDeviation` (an adopter config with `retries: 2`, `workers: 4`, `globalSetup`, `storageState`, a `baseURL` and projects; Playwright defaults when no config exists; a spread config read partially; failed with the proof wiring removed) |
 | CCE-V0-051 | a CHANGED_IN_DIFF verdict lifts the cap only through an independent, digest-bound acceptance recorded outside the repository | V1-2413 | PASS: `TestCCEV0051OracleAcceptance` (independent acceptance lifts DISCRIMINATES unscored; head author by name or email, a stale digest and no document keep the cap; an admitted scenario ignores it; failed with the lift removed), `TestCCEV0051OracleAcceptanceRefusals`, `TestCCEV0051OracleAcceptanceFlag` |
 | CCE-V0-052 | an unresolved outcome locator gets a proposed, never applied, data-testid rename with diff evidence | V1-2413 | PASS: `TestCCEV0052LocatorRepairProposal` (proposed `slot-state` with the line pair, verdict unchanged; value mismatch proposes nothing; ambiguous and no-rename; failed with the proposal removed) |

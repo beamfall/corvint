@@ -259,6 +259,7 @@
     "internal/doccompiler": [],
     "internal/doccorpus": [
       "docs/DOCUMENTATION-CORPUS.md",
+      "docs/RELEASE-NOTES.md",
       "examples/documentation-corpus/",
       "protocol/cem-1.0/stable/repository-envelope-packet/",
       "protocol/cem-1.0/structural-tuples/"
@@ -457,6 +458,9 @@
       "integrations/",
       "internal/",
       "protocol/integrations/"
+    ],
+    "tools/cem-release-suites": [
+      "protocol/cem-1.0/stable/neutral-criterion/results/accept.json"
     ],
     "tools/cem-stable-regen": [
       "protocol/cem-1.0/"

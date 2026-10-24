@@ -94,7 +94,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	root := fs.String("root", ".", "repository root")
 	manifest := fs.String("manifest", "appmap.json", "repository-relative application-map manifest")
 	out := fs.String("out", "", "output file (catalog, harvest, obligations) or directory (compile, prove), outside the repository")
-	var rev, base, head, coverage *string
+	var rev, base, head, coverage, ledger *string
 	var repeats *int
 	var recordCoverage, moduleGraph *bool
 	var nodeModules, nodeBin, packageJSON, lockfile, window, hostedTest, hostedTitle, oracleAcceptance *string
@@ -107,6 +107,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		base = fs.String("base", "", "base revision")
 		head = fs.String("head", "", "head revision")
 		coverage = fs.String("coverage", "", "runtime coverage document recorded at head; it may only widen reach (CCE-V0-045)")
+		ledger = fs.String("ledger", "", "application-edge-ledger/0 document built from the head map at head, bound to the impact relation (CCE-V0-103)")
 		moduleGraph = fs.Bool("module-graph", false, "widen reach through the head tree's TypeScript/JavaScript module graph (CCE-V0-054)")
 		if sub == "prove" {
 			repeats = fs.Int("repeats", changee2e.DefaultRepeats, "repeats per side")
@@ -137,7 +138,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		outPath = p
 	}
 	diff := func() changee2e.DiffOptions {
-		return changee2e.DiffOptions{Root: *root, Base: *base, Head: *head, Manifest: *manifest, Coverage: *coverage, ModuleGraph: *moduleGraph}
+		return changee2e.DiffOptions{Root: *root, Base: *base, Head: *head, Manifest: *manifest, Coverage: *coverage, ModuleGraph: *moduleGraph, Ledger: *ledger}
 	}
 	var doc []byte
 	switch sub {
@@ -182,8 +183,8 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 			if *hostedTest == "" {
 				return &changee2e.Refusal{Code: "e2e-hosted-test-invalid", Detail: "--hosted-title needs --hosted-test"}
 			}
-			if *coverage != "" {
-				return &changee2e.Refusal{Code: "e2e-hosted-test-invalid", Detail: "--coverage compiles reach; a hosted test is proved as given"}
+			if *coverage != "" || *ledger != "" {
+				return &changee2e.Refusal{Code: "e2e-hosted-test-invalid", Detail: "--coverage and --ledger compile reach; a hosted test is proved as given"}
 			}
 			doc, err := changee2e.Prove(ctx, changee2e.ProveOptions{Root: *root, Base: *base, Head: *head, Repeats: *repeats,
 				NodeModules: *nodeModules, NodeBin: *nodeBin, PackageJSON: *packageJSON, Lockfile: *lockfile,

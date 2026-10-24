@@ -5,6 +5,7 @@ package contextindex
 import (
 	"context"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -47,10 +48,10 @@ func TestBuildWithGitExecutionIgnoresAmbientAndPreservesIndex(t *testing.T) {
 	log := filepath.Join(directory, "calls")
 	wrapper := filepath.Join(directory, "qualified-git")
 	body := fmt.Sprintf("#!/bin/sh\n[ -z \"${GIT_DIR+x}${GIT_INDEX_FILE+x}${GIT_CONFIG_COUNT+x}${CORVINT_POISON+x}\" ] || exit 91\nprintf '%%s\\n' \"$*\" >> %s\nexec %s \"$@\"\n", strconv.Quote(log), strconv.Quote(realGit))
-	if err := os.WriteFile(wrapper, []byte(body), 0o700); err != nil {
+	if err := execfile.WriteFile(wrapper, []byte(body), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(directory, "git"), []byte("#!/bin/sh\nexit 92\n"), 0o700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(directory, "git"), []byte("#!/bin/sh\nexit 92\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	environment := qualifiedGitTestEnvironment(t)
@@ -101,7 +102,7 @@ func TestBuildWithGitExecutionOwnsEnvironment(t *testing.T) {
 	directory := t.TempDir()
 	wrapper := filepath.Join(directory, "git")
 	body := fmt.Sprintf("#!/bin/sh\n[ \"$LANG\" = C ] || { printf 'environment changed' >&2; exit 94; }\nexec %s \"$@\"\n", strconv.Quote(realGit))
-	if err := os.WriteFile(wrapper, []byte(body), 0o700); err != nil {
+	if err := execfile.WriteFile(wrapper, []byte(body), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	environment := qualifiedGitTestEnvironment(t)
@@ -139,12 +140,13 @@ func TestBuildWithGitExecutionRequiresImmutableObjects(t *testing.T) {
 		}
 		wrapper := filepath.Join(t.TempDir(), "git")
 		body := fmt.Sprintf("#!/bin/sh\nfor arg do\n[ \"$arg\" != cat-file ] || { printf 'immutable object unavailable' >&2; exit 93; }\ndone\nexec %s \"$@\"\n", strconv.Quote(realGit))
-		if err := os.WriteFile(wrapper, []byte(body), 0o700); err != nil {
+		if err := execfile.WriteFile(wrapper, []byte(body), 0o700); err != nil {
 			t.Fatal(err)
 		}
 		qualified, err = BuildWithGitExecution(context.Background(), root, wrapper, environment)
 		if qualified != nil || err == nil || !strings.Contains(err.Error(), "immutable object unavailable") {
-			t.Fatalf("immutable acquisition fell back to worktree: index=%v error=%v", qualified != nil, err)
+			failure, _ := GitFailureDetails(err)
+			t.Fatalf("immutable acquisition fell back to worktree: index=%v error=%v start=%v stderr=%q", qualified != nil, err, failure.StartError, failure.Stderr)
 		}
 	})
 }
@@ -153,7 +155,7 @@ func TestBuildWithGitExecutionRequiresImmutableObjects(t *testing.T) {
 func TestBuildWithGitExecutionRejectsTruncatedOutput(t *testing.T) {
 	wrapper := filepath.Join(t.TempDir(), "git")
 	body := "#!/bin/sh\nprintf '%s' '" + strings.Repeat("a", maxIdentityBytes+1) + "'\n"
-	if err := os.WriteFile(wrapper, []byte(body), 0o700); err != nil {
+	if err := execfile.WriteFile(wrapper, []byte(body), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	index, err := BuildWithGitExecution(context.Background(), t.TempDir(), wrapper, qualifiedGitTestEnvironment(t))
@@ -179,7 +181,7 @@ func TestBuildWithGitExecutionOwnsPipesAndCancellation(t *testing.T) {
 				ending = "wait \"$child\""
 			}
 			body := fmt.Sprintf("#!/bin/sh\n/bin/sleep 10 &\nchild=$!\nprintf '%%s\\n' \"$child\" > %s/child-$$\n%s\n", strconv.Quote(directory), ending)
-			if err := os.WriteFile(wrapper, []byte(body), 0o700); err != nil {
+			if err := execfile.WriteFile(wrapper, []byte(body), 0o700); err != nil {
 				t.Fatal(err)
 			}
 			// Register bounded fallback cleanup before either Git invocation starts.
@@ -242,7 +244,7 @@ func TestGitCapturesOutputThatDrainsAfterGitExits(t *testing.T) {
 	t.Parallel()
 	wrapper := filepath.Join(t.TempDir(), "git")
 	body := "#!/bin/sh\nprintf 'sha1\\n'\n/bin/sleep 2 &\nexit 0\n"
-	if err := os.WriteFile(wrapper, []byte(body), 0o700); err != nil {
+	if err := execfile.WriteFile(wrapper, []byte(body), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	ctx := context.WithValue(context.Background(), gitExecutionKey{}, gitExecution{executable: wrapper, environment: sanitizedGitEnvironment()})

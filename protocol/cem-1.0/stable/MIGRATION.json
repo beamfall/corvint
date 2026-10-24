@@ -1,7 +1,7 @@
 {
   "profile": "cem-stable-consumer-migration-proposal/1",
   "status": "IMPLEMENTED_NOT_PROMOTED",
-  "statusNote": "Updated by V1-0595 under decision 0525 section 6 against origin/main f3ca72248. Each family's currentStatus names its owning docs/specs/cem-stable-v1.md requirements. The stable wire was frozen by V1-1265 (1f35e3da7), every committed map was migrated by V1-1277 (35c365a9e) and cem/0.x was removed by V1-1278 S1..S3 (baseline 88197e465). The stableDecision, priorProfileObservation and rollback text is the original proposal, kept as history; its promises to keep 0.x profiles, defaults and packets and to roll back to them are superseded by decision 0525 section 6. Promotion, qualification breadth, independent external conformance (CEM-V1-008) and A02 remain open.",
+  "statusNote": "Updated by V1-0595 under decision 0525 section 6 against origin/main f3ca72248. Each family's currentStatus names its owning docs/specs/cem-stable-v1.md requirements. The stable wire was frozen by V1-1265 (1f35e3da7), every committed map was migrated by V1-1277 (35c365a9e) and cem/0.x was removed by V1-1278 S1..S3 (baseline 88197e465). The stableDecision, priorProfileObservation and rollback text is the original proposal, kept as history; its promises to keep 0.x profiles, defaults and packets and to roll back to them are superseded by decision 0525 section 6. Promotion, qualification breadth, independent external conformance (CEM-V1-008) and the release-readiness rows the A02 gate still refuses (CEM-V1-600..605) remain open.",
   "parentPlan": "../migration-plan.json",
   "parentPlanSHA256": "1218845629d95bd03648c6e91124064359cfd70e8124beed998cbdc132237cd2",
   "ownerTickets": "Existing native Corvint Tasks V1-0591..0596; this file is a review artifact, not a competing queue.",
@@ -421,7 +421,7 @@
         "C18"
       ],
       "evidence": "Release readiness refuses incomplete runner/platform/external outcomes and unsupported admission even when stable reference integrity passes.",
-      "status": "OPEN"
+      "status": "IMPLEMENTED_EXPERIMENTAL: internal/companionrelease reads the exact stable result (CEM-V1-569..571) and tools/cem-release-suites --readiness with make cem-release-gate integrate it over both built release binaries (CEM-V1-600..605); readiness stays refused until every declared runner, platform and external row is observed PASSED; not promoted."
     }
   ],
   "verticalOrder": [

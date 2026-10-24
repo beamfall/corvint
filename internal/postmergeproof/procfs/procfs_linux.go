@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"strconv"
@@ -97,7 +98,9 @@ func CaptureBirth(ctx context.Context, pid int, executableLimit int64) (BirthCap
 
 // SweepProcesses lists /proc in directory order and reads each numeric
 // entry's stat once. A row whose stat cannot be read is a read failure, never
-// an absent process.
+// an absent process, except a PID that exited between enumeration and read
+// (PMR-V2-011): its read fails ENOENT or ESRCH and a re-check confirms its
+// /proc entry is gone, so it is dropped from the inventory.
 func SweepProcesses(ctx context.Context, limit int) (Sweep, error) {
 	var s Sweep
 	var err error
@@ -116,6 +119,20 @@ func SweepProcesses(ctx context.Context, limit int) (Sweep, error) {
 	if err != nil {
 		return s, fmt.Errorf("procfs sweep: %w", err)
 	}
+	readStat := func(name string) ([]byte, error) { return readBounded("/proc/"+name+"/stat", statLimit) }
+	lstat := func(name string) error {
+		_, err := os.Lstat("/proc/" + name)
+		return err
+	}
+	return s, sweepNames(ctx, &s, names, limit, readStat, lstat)
+}
+
+var errSweepBound = errors.New("procfs sweep: process bound exceeded")
+
+// sweepNames fills s from the /proc entry names in order. readStat reads one
+// entry's stat; lstat re-checks that its /proc entry still exists. Only an
+// entry listed in the PID directory counts toward limit.
+func sweepNames(ctx context.Context, s *Sweep, names []string, limit int, readStat func(string) ([]byte, error), lstat func(string) error) error {
 	s.PIDDirectory, s.Processes, s.ReadFailures = []byte{}, []SweptProcess{}, []string{}
 	for _, name := range names {
 		pid, ok := pidName(name)
@@ -123,20 +140,30 @@ func SweepProcesses(ctx context.Context, limit int) (Sweep, error) {
 			continue
 		}
 		if err := ctx.Err(); err != nil {
-			return s, err
+			return err
+		}
+		stat, err := readStat(name)
+		if err != nil && vanished(err) && errors.Is(lstat(name), fs.ErrNotExist) {
+			continue
 		}
 		if len(s.Processes)+len(s.ReadFailures) >= limit {
-			return s, errors.New("procfs sweep: process bound exceeded")
+			return errSweepBound
 		}
 		s.PIDDirectory = append(s.PIDDirectory, name+"\n"...)
-		stat, err := readBounded("/proc/"+name+"/stat", statLimit)
 		if err != nil {
 			s.ReadFailures = append(s.ReadFailures, name+": stat unreadable")
 			continue
 		}
 		s.Processes = append(s.Processes, SweptProcess{PID: pid, Stat: stat})
 	}
-	return s, nil
+	return nil
+}
+
+// vanished reports a read error a process that exited after enumeration
+// produces: its /proc entry is gone (ENOENT) or an open entry no longer has a
+// task (ESRCH).
+func vanished(err error) bool {
+	return errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ESRCH)
 }
 
 func pidName(name string) (int, bool) {

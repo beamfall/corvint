@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/worksource"
 )
 
@@ -140,17 +141,17 @@ func (run *workMaterialization) writeEntries() error {
 		if entry.Mode == "100755" {
 			mode = 0755
 		}
-		file, err := root.OpenFile(entry.Path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
+		write := func() error { return workWriteEntry(root, entry.Path, entry.Raw, mode) }
+		if mode == 0755 {
+			// The runner execs materialized executables from this process while
+			// other goroutines fork; a fork between open and close would inherit
+			// the write descriptor and fail that start with ETXTBSY (WQO-V0-093).
+			err = execfile.Guard(write)
+		} else {
+			err = write()
+		}
 		if err != nil {
 			return err
-		}
-		_, writeErr := file.Write(entry.Raw)
-		closeErr := file.Close()
-		if writeErr != nil {
-			return writeErr
-		}
-		if closeErr != nil {
-			return closeErr
 		}
 	}
 	for _, entry := range run.source.Entries {
@@ -165,6 +166,21 @@ func (run *workMaterialization) writeEntries() error {
 		}
 	}
 	return nil
+}
+
+// workWriteEntry creates path under root exclusively and writes raw to it. The
+// descriptor is closed before it returns, so a caller may hold the fork lock.
+func workWriteEntry(root *os.Root, path string, raw []byte, mode fs.FileMode) error {
+	file, err := root.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
+	if err != nil {
+		return err
+	}
+	_, writeErr := file.Write(raw)
+	closeErr := file.Close()
+	if writeErr != nil {
+		return writeErr
+	}
+	return closeErr
 }
 
 func workMakeParents(root *os.Root, path string) error {

@@ -709,6 +709,19 @@ Explicit unknowns for an adopted repository:
   platforms keep no record. Rollback: remove the record, marker and `Close` retirement; scratch
   removal then races surviving Git children as before.
 
+- `WQO-V0-093`: (proposed; V1-2476, V1-2550) Materialization MUST write every `100755` entry
+  while holding Go's fork lock for reading (`syscall.ForkLock.RLock`) from open to close, so no
+  process this program forks concurrently inherits the write descriptor; the adapter's first start
+  therefore cannot fail `ETXTBSY` from an inherited descriptor, and the bounded start retry of
+  V1-2433 remains only a defence against writers outside this process. The guard is the shared
+  `internal/execfile` package, which test fixtures that write then execute scripts also use. Failure
+  mode: a fork made between the open and the close of an executable's write descriptor, which on
+  Linux holds the file busy until that child's exec and fails the start with "text file busy" past
+  any retry budget under load. Acceptance: a fork-race stress (continuous forks against repeated
+  write-then-exec) records zero `ETXTBSY` starts for the guarded writer on Linux; the unguarded
+  control is reported, not asserted. Rollback: write entries without the guard; the V1-2433 retry
+  then bounds, but does not remove, the race.
+
 - `WQO-V0-033`: Corvint core makes no network request, model call, database, daemon, embedding, or
   hosted-service call. Adapter network is `DENIED` only under enforced denial; otherwise
   `HOST_UNOBSERVED` with `NETWORK_UNOBSERVED`. V0 never claims hermeticity. ACL mismatch invalidates
@@ -801,6 +814,7 @@ repository's existing roadmap files; a repository with another queue writes its 
 | Bound adoption executable | WQO-V0-049..050 | `cmd/corvint/work_executable_binding.go`, `TestWorkInitBindsExplicitExecutableWQOV0049`, `TestWorkInitBindsResolvedSymlinkTargetWQOV0049`, `TestWorkInitRejectsUnqualifiedExecutableWQOV0049`, `TestWorkExecutableMissingAndSymlinkSwapWQOV0049`, `TestWorkExecutableChangeRequiresReviewedRebindWQOV0050` |
 | Source refusal reason | WQO-V0-051 | `cmd/corvint/work.go` `workSourceReasons`, `internal/worksource/source.go` `RefusalReason`, `cmd/corvint/work_adopt.go`, `TestWorkSourceUnqualifiedNamesReasonWQOV0051`, `TestWorkRebindUnqualifiedAdoptionOmitsGitStderr` |
 | Killed-producer Git groups | WQO-V0-052 | `internal/worksource/process_unix.go` `recordGitGroup`, `RetireGitGroups`; `internal/groupreap/argv.go` `GroupLeadersWithArgument`, `StopKillGroup`; `cmd/corvint/work_materialization.go` `Close`; `TestRetireGitGroupsAfterProducerKill`, `TestRetireGitGroupsAfterProducerDiesAtGitStart`, `TestRetireGitGroupsNeverSignalsAnUnpinnedGroup`, `TestRetireGitGroupsLeavesFinishedRecords`, `TestGitRunRemovesItsGroupRecord`, `TestGroupLeadersWithArgumentAndStopKillGroup`, `TestWorkCloseRetiresKilledProducerGit`, `TestWorkCloseKeepsScratchWhenRetirementIsUnconfirmed` |
+| Fork-safe executable materialization | WQO-V0-093 | `internal/execfile/execfile.go` `Guard`, `WriteFile`; `cmd/corvint/work_materialization.go` `writeEntries`, `workWriteEntry`; `TestWriteFileExcludesForkInheritance`, `TestWriteFileMatchesOSWriteFile` |
 
 Decision 0046 accepted this contract and assigned the Corvint self-dogfood authority IDs
 (`repo:corvint`, `queue:corvint:worklist`, `scope:corvint:worklist`, `access:corvint:local`); the core

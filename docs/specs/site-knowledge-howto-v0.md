@@ -11,9 +11,9 @@ points", read through `docs/specs/INDEX.json` and their Agent digests.
 
 ## Agent digest
 - Claim: Page objects, steps, setup and edges mined from tests answer "how do I X" with a live-proven E2E test, or abstain naming the missing knowledge.
-- Status: accepted (owner intent 2026-10-19; V1-1897); experimental. SKH-V0-001..089 for stages 1..8 (V1-1898..V1-1905) are accepted under the owner's standing auto-accept (2026-10-11). Stages 1 and 2 are implemented as `flows appmap pageobjects` and `flows appmap steps` and the corpus MCP tool `corvint.map_knowledge` (V1-1898, V1-1899). Stage 3 is partial: `flows appmap setup` reads Playwright and Cypress TypeScript fixtures, hooks, `storageState`, route mocks, API seeding and `cy.task`, and names the sources it does not read (V1-1900); stages 4..8 are not started.
+- Status: accepted (owner intent 2026-10-19; V1-1897); experimental. SKH-V0-001..089 for stages 1..8 (V1-1898..V1-1905) are accepted under the owner's standing auto-accept (2026-10-11). Stages 1 and 2 are implemented as `flows appmap pageobjects` and `flows appmap steps` and the corpus MCP tool `corvint.map_knowledge` (V1-1898, V1-1899). Stage 3 (V1-1900, SKH-V0-100..105) is implemented as `flows appmap setup`: Playwright and Cypress fixtures, hooks, `storageState`, route mocks, API seeding, `cy.task` and setup projects, Rails factories, traits, fixture files, seeds and setup endpoints through the AMAP-V0-114 writer index, Ruby test links and the `--condition` query; the V1-1883 normaliser and TSA-V0 setup-select reuse in `SKH-V0-032` stay partial. Stage 4 (V1-1901, SKH-V0-110..115) is implemented as `flows appmap links`: static edges from templates and components with provenance `static` beside the map's test-observed edges; no router dialect is widened. Stage 5 (V1-1902, SKH-V0-120..126) is implemented as `flows appmap infer`: candidate flows and variations from test step sequences, ranked and blocked by DCP-V1 test knowledge, emitted as a proposed behavior-adapter request for `flows import`. Stages 6..8 are not started.
 - Exists: `flows appmap pageobjects`, `flows appmap steps`, `flows appmap setup` and `corvint.map_knowledge` (stages 1 and 2, partial stage 3, experimental), plus the contracts this extends: AMAP-V0 map and selectors, ANL-V0 edges, AFU-V1 intents, DCP-V1 inventories and test knowledge, AMSP-V0 planner draft, CCE-V0 prover, NEA-V0 controls, RVN-V0 binding, PWP-V0 receipts and TSA-V0 validity.
-- Blocked on: nothing for the rest of stage 3 (V1-1900: FactoryBot, fixture files, seeds, setup endpoints, setup projects and the condition query) or stage 4 (V1-1901). First adopter core-history (owner 2026-10-22); N = 10.
+- Blocked on: nothing for stage 4 (V1-1901) or stage 5 (V1-1902); a measured adopter need for any new router dialect (`SKH-V0-041`). First adopter core-history (owner 2026-10-22); N = 10.
 - Read next: Owner intent; Definition of "confidently"; Requirements; Preregistered measure; Owner questions.
 
 ## Owner intent
@@ -332,23 +332,90 @@ Each stage extends the named point. None of these contracts is restated here.
   record backed by a `page.route` mock MUST be labelled `mocked`. No plan or proof may treat a
   mocked response as evidence of real backend behaviour.
 
-Implementation status (V1-1900, partial): `flows appmap setup` and the `setup` view of
-`corvint.map_knowledge` print the closed `site-knowledge-setup/0` report for Playwright and Cypress
-TypeScript. Records are `fixture` (each `X.extend({...})` property with its `test` object and
-`base`, destructured parameters, `scope`, `option`, `auto` and `after-use` cleanup; dependencies on
-other fixtures resolve along the extend chain into `requires`, the rest into `unresolved` unless a
-Playwright built-in), `hook` (`beforeEach`, `beforeAll`, `afterEach`, `afterAll`, `before`,
-`after`), `storage-state` (`mode` `reads` for an object-literal `storageState` property, `writes` for
-`.storageState({ path })`; a literal path keeps its committed blob when the declared sources hold
-it, and contents are never read), `route-mock` (`route`, `routeFromHAR`, `cy.intercept`, always
-`mocked`), `api-seed` (`request.<verb>`, `cy.request`) and `task` (`cy.task`). A non-literal target is
-`UNKNOWN` with reason `dynamic-value`. Each record anchors to its span and names the fixture, hook
-or helper it is `within`. Each test lists the records that arrange it: fixtures it destructures and
-their `requires`, auto fixtures along its test object's chain, hooks and `storageState` in its
-enclosing blocks, and records in the test body or the helpers it reaches. The report names
-`not_read`: `factorybot`, `fixture-files`, `seeds`, `setup-endpoints` and `setup-projects` (the
-`SKH-V0-032` reuse of TSA-V0 setup-select, V1-1891 and V1-1883 is not started), and the
-`SKH-V0-031` condition query is not started.
+- `SKH-V0-100`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1900) Rails
+  setup sources MUST come from the AMAP-V0-114 setup-writer index that the branch query (V1-1891)
+  builds over the application roots of the map's `rails-routes/0` routers, not from a second
+  reader. Each factory becomes a `factory` record, each trait a `trait` record, each YAML fixture
+  file a `fixture-file` record and each test-setup endpoint a `setup-endpoint` record. The
+  endpoint record is anchored at its route declaration and produces its handler's model writes.
+  `db/seeds.rb` and `db/seeds/**/*.rb` become one `seed` record per file, read with the same
+  per-line write scan as endpoints. `produces` lists `entity`, `entity.attribute`, and
+  `entity.*` when the request supplies the attributes. Entities use the TSA-V0-102 lower snake
+  case. Each record keeps the index's write `basis`. A factory whose `class:` option is unread is
+  `UNKNOWN` with reason `unread-factory-class`. A `FactoryBot.create` call is a factory use and is
+  never read as a write to a `FactoryBot` model.
+- `SKH-V0-101`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1900) The report MUST list each SKH-V0-030 source it did not read in `not_read`,
+  with the source and a closed reason. A map without a `rails-routes/0` router names
+  `factorybot`, `fixture-files`, `seeds` and `setup-endpoints` with reason `no-rails-router`.
+- `SKH-V0-102`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1900) Each Ruby test in the declared sources MUST link to these records: the
+  `factory` and `trait` records that `create`, `build`, `create_list` or `build_list` name in its
+  body, and the `fixture-file` records that its file's `fixtures :t, ...` declarations name. A
+  name with no record is listed under `unresolved` as `factory:NAME`, `trait:FACTORY:TRAIT` or
+  `fixtures:TABLE`. It is never guessed. Ruby `before`, `let` and `let!` bodies are not followed.
+- `SKH-V0-103`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1900) `flows appmap setup` MUST accept a repeatable `--condition TEXT`: at most
+  16, each 1 to 256 bytes on one line and not secret-shaped. Any other value is refused with
+  `appmap-invalid-query`. Each condition is answered in `conditions`, matched lexically
+  (`SKH-V0-004`) in this order:
+  - a record whose literal `target` equals the text, except a `storageState` read (basis
+    `target`);
+  - for each `Entity.attribute` word, a record producing `entity.attribute` or `entity.*`
+    (basis `produces-attribute`);
+  - for each other word, singularised, a record producing that entity or fixture name (basis
+    `produces-entity`).
+
+  The answer is `candidates`, each with its setup ID, kind, basis and `mocked` label, or
+  `unresolved` with reason `no-producing-record`. Every precondition of every flow in the map is
+  answered the same way under `preconditions`, naming its flow. `preconditions_total` and
+  `preconditions_linked` count them.
+- `SKH-V0-104`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1900) Playwright setup projects MUST be read from a literal `projects` list in a
+  `playwright.config.*` file in the declared sources. A project that another project names in
+  `dependencies` or `teardown` is a `setup-project` record. The record keeps its `testMatch` as
+  written, the projects it `arranges`, and cleanup `teardown:NAME`. A regular-expression
+  `testMatch` with no flag or the `i` flag, or a glob without `**`, binds the record's `requires`
+  to the records of the declared files it selects under the config's directory. These cases are `UNKNOWN` instead:
+  `dynamic-value` for a non-literal `testMatch`, `no-test-match` when there is none,
+  `unsupported-test-match` for any other pattern, and `no-matching-setup-file` when no declared
+  file matches. A test under the config's directory and outside the selected files is arranged
+  by the setup project when a dependent project does not narrow its tests (no `testMatch`, `testDir`, `testIgnore`, `grep` or
+  `grepInvert`).
+- `SKH-V0-105`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1900) The setup report profile MUST be `site-knowledge-setup/1`. It adds the Rails
+  and setup-project kinds, `basis`, `arranges`, the reasoned `not_read` list and the `conditions`
+  and `preconditions` sections. No command reads `/0` or `/1` back, so no `/0` reader is kept. A
+  later reader MUST refuse any other version by name (`SKH-V0-007`).
+
+Implementation status (V1-1900): `flows appmap setup` and the `setup` view of
+`corvint.map_knowledge` print `site-knowledge-setup/1`. For Playwright and Cypress TypeScript the
+records are:
+
+- `fixture`: each `X.extend({...})` property, with its `test` object and `base`, destructured
+  parameters, `scope`, `option`, `auto` and `after-use` cleanup. Its dependencies on other
+  fixtures resolve along the extend chain into `requires`. The rest go to `unresolved`, unless
+  they are Playwright built-ins.
+- `hook`: `beforeEach`, `beforeAll`, `afterEach`, `afterAll`, `before` and `after`.
+- `storage-state`: `mode` `reads` for an object-literal `storageState` property, and `writes` for
+  `.storageState({ path })`. A literal path keeps its committed blob when the declared sources
+  hold it. Contents are never read.
+- `route-mock`: `route`, `routeFromHAR` and `cy.intercept`, always `mocked`.
+- `api-seed`: `request.<verb>` and `cy.request`.
+- `task`: `cy.task`.
+- `setup-project`: see `SKH-V0-104`.
+
+A non-literal target is `UNKNOWN` with reason `dynamic-value`. Each record anchors to its span and
+names the fixture, hook or helper it is `within`. Each test lists the records that arrange it:
+
+- the fixtures it destructures, and their `requires`;
+- the auto fixtures along its test object's chain;
+- the hooks and `storageState` of its enclosing blocks;
+- the records in its test body or in the helpers it reaches;
+- the setup projects of an unrestricted dependent project.
+
+Rails factories, traits, fixture files, seeds and setup endpoints follow `SKH-V0-100`..`102`. The
+condition query follows `SKH-V0-103`. Two parts of `SKH-V0-032` remain open:
+
+- V1-1883 seed normalisation is reused only through its TSA-V0-102 name rule. Its reader lives in
+  `internal/testsource`, which imports `internal/appmap`.
+- TSA-V0 setup-select needs a context index that this report does not build. Setup projects are
+  read from the config instead.
 
 ### Stage 4: navigation edges (V1-1901)
 
@@ -366,6 +433,67 @@ enclosing blocks, and records in the test body or the helpers it reaches. The re
 - `SKH-V0-043`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1901) A dynamic
   target, such as an interpolated URL or a computed state name, MUST be an UNKNOWN edge at its
   line. It is never resolved by guessing.
+
+- `SKH-V0-110`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1901) `flows appmap links` and the `links` view of `corvint.map_knowledge` MUST print
+  `site-knowledge-edges/0`. It lists every map edge with provenance `test-observed` (basis
+  `test-sequence`) or `flow-declared` (basis `flow-step`), and every static edge with provenance
+  `static`, from this closed set. Static edges are never merged into the map's edges. A static
+  edge whose resolved screen pair is also a test-observed edge is marked `observed`, and both
+  records are kept. `provenance` counts each class. `ledger` names `flows appmap edges` as the
+  only source of `PROVEN` edges (`SKH-V0-042`). Nothing is captured.
+- `SKH-V0-111`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1901) Static edges MUST be read lexically from the committed `.html`, `.htm`, `.erb`,
+  `.vue`, `.rb` and JavaScript or TypeScript files in the declared sources. Each link becomes an
+  edge of one closed kind:
+  - `a-href`: an `href` attribute, except on a `link` or `base` element;
+  - `link-to`: a `to` attribute on `Link`, `NavLink`, `router-link` or `RouterLink`;
+  - `ui-sref`: a `ui-sref` attribute, with its parameters dropped;
+  - `router-link`: a literal `routerLink`, or a bound literal array of absolute segments;
+  - `form-action`: the `action` of a `form` element;
+  - `link_to` and `button_to`, taking the first argument in the block form and the second
+    otherwise;
+  - `redirect_to`;
+  - `form_with`: `form_with url:` and `form_tag`;
+  - `state-go`: `$state.go` and `$state.transitionTo`;
+  - `navigate`: `router` or `history` `push`, `replace`, `navigate` or `navigateByUrl`,
+    `location.assign` and a bare `navigate(...)` call.
+
+  An attribute is read only when its element opens on the same line, so a script assignment
+  such as `const href = '/x'` is not a link. In Ruby, calls are found in masked code and their
+  arguments are read from the same line unmasked, up to an unquoted `#`. A script line that
+  starts with `//` or `*` is skipped. A link that leaves the application or
+  stays on the page is skipped: a URL with a scheme, or one starting with `//`, `#`, `mailto:`,
+  `tel:` or `javascript:`.
+- `SKH-V0-112`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1901) The source screen of a static edge MUST come only from Rails conventions,
+  through the compiled `GET` routes of the map's `rails-routes/0` routers. A view
+  `app/views/CTRL/ACTION.*` that is not a partial binds to the screen of `CTRL#ACTION`. A line
+  inside `def ACTION` of `app/controllers/CTRL_controller.rb` binds the same way. In every other
+  case `from_status` is `UNKNOWN`, with `from_reason` `source-not-bound`,
+  `no-enclosing-action`, `no-screen-for-action` or `ambiguous-action-screen`.
+- `SKH-V0-113`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1901) A literal URL target MUST resolve through the AMAP-V0 screen index, with the same
+  reasons when it does not (`no-matching-screen`, `ambiguous-template` and the others). A
+  `ui-sref`, `$state.go` or Rails `*_path` or `*_url` helper target resolves by screen state
+  name. A relative state (`.child`, `^`) is `UNKNOWN` with reason `relative-state`, and a URL
+  that does not start with `/` is `UNKNOWN` with reason `relative-target`. No router dialect is
+  added: a target resolves only to screens the map already holds (`SKH-V0-041`).
+- `SKH-V0-114`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1901) These targets MUST be `UNKNOWN` with reason `dynamic-target` at their line
+  (`SKH-V0-043`): an interpolated value (`{{`, `${`, `<%`, `#{`), a bound attribute (`:to`,
+  `v-bind:`, or `[...]` other than a literal routerLink array), a JSX expression, a non-literal
+  call argument, and a Ruby argument that is neither a literal nor a route helper. Files in an
+  unsupported template language (`.haml`, `.slim`, `.pug`, `.jade`, `.hbs`, `.handlebars`,
+  `.mustache`, `.twig`, `.njk`, `.liquid`, `.svelte`) are named unknowns with reason
+  `unsupported-template-language`. They are never read. A secret-shaped literal target
+  (`SKH-V0-006`) is `UNKNOWN` with reason `screened-target`, and its text is never printed.
+- `SKH-V0-115`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1901) The links report MUST use the site-knowledge file and byte bounds. It refuses
+  more than 8192 static links with `appmap-bound-exceeded`, is byte-capped like the other reports,
+  reruns byte-identically and writes nothing.
+
+Implementation status (V1-1901): `flows appmap links` and the `links` view implement
+`SKH-V0-040`, `042`, `043` and `110`..`115` over inline committed fixtures (Rails views and
+controllers, TSX, an Angular or ui-router HTML template, and a HAML file). For `SKH-V0-041`, no
+router dialect is widened: the cloud lane had no adopter repository to measure a need, so that
+clause is NOT MET (NEEDS-HOST). The existing dialects keep the `AMAP-V0-042` abstention. The
+V1-1191 link-only crawl is not delivered, so observed edges still come only from the map and the
+ANL-V0 producer.
 
 ### Stage 5: flow inference (V1-1902)
 
@@ -396,6 +524,69 @@ enclosing blocks, and records in the test body or the helpers it reaches. The re
   import round-trip fixture whose emitted document, imported by `flows import`, yields `proposed`
   intents equal to the candidates. Fixtures MUST show a `run+reviewed` test with a `defect` verdict
   blocking its flow instead of ranking first, and an `unrelated` test never used as a source.
+
+- `SKH-V0-120`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1902) `flows appmap infer` and the `flow_candidates` view of
+  `corvint.map_knowledge` MUST print `site-knowledge-flows/0`. The report lists `candidates` and
+  `unclustered` tests, counts candidates by status, single-source candidates, conflicts and
+  unclustered reasons, and writes nothing. Each candidate has learned authority and the anchor
+  of its primary source test.
+- `SKH-V0-121`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Each stage 2 test MUST be read into action segments. A run of consecutive
+  steps inlined from one page-object method or helper is one `call` segment, and cites the
+  stage 2 record when the run equals one. Every other step that is not an assertion or a wait is
+  its own segment. The start screen is the first `visit` target's screen; the end screen is the
+  last `visit` target's screen. Each resolves through the AMAP-V0 screen index. Tests with the
+  same start and end screen form one candidate. Within it, tests with the same segment sequence
+  form one variation. The candidate's steps are the primary variation's steps. A test that
+  cannot be placed is listed as `unclustered` with reason `no-start-screen`,
+  `start-screen-unresolved` (and the index reason) or `end-screen-unresolved`.
+- `SKH-V0-122`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1902) A variation's outcomes MUST be the assertions after the last action that every
+  source test of the variation makes. A candidate's outcomes are those every variation shares.
+  A candidate with none has `outcome_status` `UNKNOWN`. A candidate with an opaque step in any
+  source is `incomplete` (`SKH-V0-021`).
+- `SKH-V0-123`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Each source test MUST join every test-knowledge record whose test anchor
+  shares its path and overlaps its span, and every joined record applies. The rules are:
+  - Any joined `unrelated` verdict removes the test, whatever else is joined, which is listed as `unclustered` with reason
+    `unrelated-verdict` and the record ID.
+  - Any joined selection `blocks` makes the candidate `blocked`, with the record IDs in
+    `blocked_by` and the source labelled `blocked`, whatever its trust level.
+  - Sources rank `candidate` (selection `candidate`), then `run-unreviewed`, then `unreviewed`.
+  - The primary variation is the one with the best-ranked source, then the most support, then the
+    lowest ID.
+  - A `partial` verdict's gap is carried in `gaps` as `ID: gap`.
+  - Each source keeps its trust level, verdict and selection as labels. They are never promoted.
+- `SKH-V0-124`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Each candidate MUST report `support`, the distinct source tests, and mark
+  `single_source` when there is one. For every non-primary variation it reports a conflict: the
+  step index where that variation diverges from the primary, the diverging action (or
+  `end-of-sequence`), and its tests.
+- `SKH-V0-125`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1902) `--emit request` MUST print one `corvint-behavior-adapter-request/1` holding
+  every candidate whose `emit` is `emitted`. A candidate is emitted only when it is `proposed`
+  and every variation has an outcome with a value: the literal expected value (not one that
+  interpolates an unbound parameter slot, which is marked `slotted`), or the `DCP-V1-084`
+  canonical value of a valueless state matcher. Otherwise `emit` is the candidate
+  status or `no-emittable-outcome`. Each emitted candidate becomes one proposed intent:
+  - flow ID `sk-` plus 12 hex digits of the candidate ID;
+  - derivation `source-derived`, with the primary test's anchor as evidence;
+  - required pages: the start and end states;
+  - per variation, its actions (a repeat is numbered `#N`), outcomes, the outcome text as
+    observable facts, project `unknown`, and inferred test links.
+
+  The envelope's migration, discovery and empty candidate and test inputs carry inline anchors
+  with the reason `site-knowledge flow inference output; generated, not committed, nothing ran`.
+  The discovery input lists no executions. The request is checked by the DCP-V1 adapter before it
+  is printed, and is refused with `appmap-invalid-query` if the adapter rejects it. It is bounded
+  by the corpus byte limit. `flows import --format behavior-adapter-request` on it writes
+  `proposed` intents only (`SKH-V0-051`).
+- `SKH-V0-126`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1902) `--corpus ARTIFACT` MUST open a built corpus artifact with the corpus reader,
+  which re-derives it against `--root`. An artifact built at another revision than the map is
+  refused with `appmap-invalid-query`. Only `joined` records whose test anchor names the corpus
+  repository are read, and at most `MaxTestKnowledge` of them. The MCP `flow_candidates` view
+  reads no corpus. A missing or unreadable artifact, an `--emit` other than `report` or
+  `request`, and every other flag error exit 2.
+
+Implementation status (V1-1902): `flows appmap infer`, its `--emit request`, and the
+`flow_candidates` MCP view implement `SKH-V0-050`..`054` and `120`..`126` over inline committed
+fixtures. The corpus join is tested at its conversion boundary (`trustFromJoins`), with trust
+supplied directly to the inference. No fixture builds a full corpus artifact with test knowledge.
 
 ### Stage 6: the `corvint how` task query (V1-1903)
 
@@ -660,9 +851,9 @@ Stage dependencies (each stage also reads the contracts named for it above):
 | `SKH-V0-010`..`014` | V1-1898 | `internal/appmap/site_knowledge*.go`, `cmd/corvint/flows_appmap_knowledge.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: `TestSKHV0_010_PlaywrightClassPageObject`, `TestSKHV0_010_ModulePageObjectAndSetupHelpers`, `TestSKHV0_010_CypressClass`, `TestSKHV0_010_CapybaraAndSitePrism`, `TestSKHV0_012_SpecLocalHelpersTemplatesAndValueAsserts`, `TestSKHV0_013_PageObjectsAndStepsCLI`, `TestSKHV0013CorpusMCPMapKnowledge`; core-history sample qualifies `playwright-ts-module` only (build logs 2026-10-22-sk-1022l and 2026-10-22-site-knowledge-setup-stage3) |
 | `SKH-V0-015`, `016` | V1-2407 | `internal/appmap/site_knowledge.go`, `internal/appmap/site_knowledge_project.go` | experimental: `TestSKHV0_015_016_URLJoinAndNamedEffects`; core-history sample: 0 of 10 joined, every unjoined page object and unknown effect named |
 | `SKH-V0-020`..`024` | V1-1899, V1-2406 | `internal/appmap/site_knowledge*.go` | experimental: `TestSKHV0_020_OpaqueStepsAreKept`, `TestSKHV0_021_InlinesCallsWithBoundArguments`, `TestSKHV0_022_DeduplicatesSequencesWithUsage`, `TestSKHV0_023_StrictStepDecoderRefusesOutsideTheClosedIR`, `TestSKHV0_024_PressFocusAndHoverAreTyped`; core-history sample for Playwright; Cypress and Capybara fixture-only |
-| `SKH-V0-030`..`034` | V1-1900, V1-2408 | `internal/appmap/site_knowledge_setup.go`, `internal/appmap/site_knowledge_project.go`, `cmd/corvint/flows_appmap_knowledge.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental, partial: 030, 031, 033 and 034 for Playwright and Cypress TypeScript by `TestSKHV0_030_031_SetupRecordsAndTestLinks`, `TestSKHV0_013_PageObjectsAndStepsCLI` and `TestSKHV0013CorpusMCPMapKnowledge`; the other 030 sources, the 031 condition query and 032 NOT_STARTED |
-| `SKH-V0-040`..`043` | V1-1901 | none | NOT_STARTED |
-| `SKH-V0-050`..`054` | V1-1902 | none | NOT_STARTED |
+| `SKH-V0-030`..`034`, `SKH-V0-100`..`105` | V1-1900, V1-2408 | `internal/appmap/site_knowledge_setup.go`, `internal/appmap/site_knowledge_setup_rails.go`, `internal/appmap/setup_writers.go`, `internal/appmap/site_knowledge_project.go`, `cmd/corvint/flows_appmap_knowledge.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: 030, 031, 033, 034 and 100..105 by `TestSKHV0_030_031_SetupRecordsAndTestLinks`, `TestSKHV0_100_105_RailsSetupProjectsAndConditions`, `TestSKHV0_103_SetupConditionCLI`, `TestSKHV0_013_PageObjectsAndStepsCLI` and `TestSKHV0013CorpusMCPMapKnowledge` over inline committed fixtures; 032 partial (V1-1891 reused; V1-1883 name rule only; TSA-V0 setup-select not joined); no real-adopter sample (NOT_RUN: cloud) |
+| `SKH-V0-040`..`043`, `SKH-V0-110`..`115` | V1-1901 | `internal/appmap/site_knowledge_edges.go`, `cmd/corvint/flows_appmap_knowledge.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: 040, 042, 043 and 110..115 by `TestSKHV0_110_115_StaticNavigationEdges`, `TestSKHV0_114_StaticLinkRegressions`, `TestSKHV0_013_PageObjectsAndStepsCLI` and `TestSKHV0013CorpusMCPMapKnowledge` over inline committed fixtures; 041 dialect widening NOT MET (NEEDS-HOST: no adopter in the cloud lane); no real-adopter sample (NOT_RUN: cloud) |
+| `SKH-V0-050`..`054`, `SKH-V0-120`..`126` | V1-1902 | `internal/appmap/site_knowledge_flows.go`, `cmd/corvint/flows_appmap_infer.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: 050..054 and 120..126 by `TestSKHV0_050_054_FlowInferenceTrustAndImport`, `TestSKHV0_121_125_FlowInferenceRegressions`, `TestSKHV0_126_InferCLIAndImport`, `TestSKHV0_126_TrustFromJoins` and `TestSKHV0013CorpusMCPMapKnowledge` over inline committed fixtures; the corpus join is fixture-tested at its conversion boundary; no real-adopter sample (NOT_RUN: cloud) |
 | `SKH-V0-060`..`064` | V1-1903 | none | NOT_STARTED |
 | `SKH-V0-070`..`074` | V1-1904 | none | NOT_STARTED |
 | `SKH-V0-080`..`089` | V1-1905 | none | NOT_STARTED |

@@ -175,6 +175,16 @@ func encodingLimit(value any) int {
 		if v != nil && (v.Schema == AdoptionProviderSchema || v.Schema == TestKnowledgeSchema || v.Schema == FlowRelationSchema || v.Schema == ClaimAuditSchema) {
 			return MaxProviderBytes
 		}
+	case *ExtractorInventory:
+		// DCP-V1-560: a --schema 2 inventory carries an adoption provider record of up to
+		// MaxProviderBytes plus up to MaxCorpusRecords gaps.
+		if v != nil && v.Provider.Schema == AdoptionProviderSchema {
+			return MaxCorpusBytes
+		}
+	case ExtractorInventory:
+		if v.Provider.Schema == AdoptionProviderSchema {
+			return MaxCorpusBytes
+		}
 	}
 	return MaxBytes
 }

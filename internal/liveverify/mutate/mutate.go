@@ -166,7 +166,7 @@ func open(ctx context.Context, configuration exportSettings) (*Export, error) {
 	}
 	if nestingRefused(ctx, space) {
 		remove()
-		return &Export{configuration: configuration, unsandboxed: "cited tests cannot be sandboxed: " + nestingRefusal}, nil
+		return &Export{configuration: configuration, unsandboxed: "cited tests cannot be sandboxed: " + NestingRefusal}, nil
 	}
 	return &Export{configuration: configuration, space: space, remove: remove}, nil
 }

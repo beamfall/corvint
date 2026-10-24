@@ -3,6 +3,8 @@ package doccorpus
 import (
 	"bytes"
 	"context"
+	json "encoding/json/v2"
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -74,6 +76,10 @@ type ExtractorToolOutput struct {
 type ExtractorInput struct {
 	Root, Revision, Profile string
 	ProfileSHA256           string
+	// Schema "2" emits the provider member as a corvint-corpus-adoption-provider/1 record for a
+	// corvint-corpus-input/2 manifest, bounded by MaxCorpusRecords and MaxProviderBytes instead
+	// of MaxRecords and MaxBytes (DCP-V1-560). Empty or "1" keeps the provider/1 record.
+	Schema string
 }
 
 // ExtractorProfileOriginCaller marks an inventory produced from a caller-owned profile.
@@ -93,8 +99,9 @@ type ExtractorProfileRef struct {
 }
 
 // ExtractorInventory is generated, never reviewed. Provider is a complete
-// corvint-corpus-provider/1 record a project can commit and declare; Gaps lists everything the
-// profile could not turn into evidence (DCP-V1-395).
+// corvint-corpus-provider/1 record, or under --schema 2 a corvint-corpus-adoption-provider/1
+// record (DCP-V1-560), a project can commit and declare; Gaps lists everything the profile could
+// not turn into evidence (DCP-V1-395).
 type ExtractorInventory struct {
 	Schema      string              `json:"schema"`
 	Status      string              `json:"status"`
@@ -173,6 +180,43 @@ type extractorProducer struct {
 	callerProfile string
 	inv           *ExtractorInventory
 	sites         []extractorSite
+	// limit bounds sites, gaps, matched files per extractor, subjects and relations; schema is
+	// the emitted provider record schema (DCP-V1-560).
+	limit  int
+	schema string
+}
+
+// bound refuses an inventory whose count of what has crossed the record bound, naming the count
+// reached, the bound and the extractor and path that crossed it, and for the provider/1 family
+// the --schema 2 bound that admits more (DCP-V1-561).
+func (p *extractorProducer) bound(what string, count int, extractor, path string) error {
+	at := ""
+	if extractor != "" {
+		at = " at extractor " + strconv.Quote(extractor)
+		if path != "" {
+			at += " path " + path
+		}
+	}
+	message := fmt.Sprintf("extractor inventory exceeds the record bound: %d %s%s, over the bound of %d", count, what, at, p.limit)
+	if p.schema == ProviderSchema {
+		message += fmt.Sprintf("; --schema 2 emits an adoption provider record for a manifest /2, which admits %d", MaxCorpusRecords)
+	}
+	return fail(message)
+}
+
+// over reports the first of sites or gaps beyond the record bound.
+func (p *extractorProducer) over(ex *compiledExtractor, f *extractorFile) error {
+	path := ""
+	if f != nil {
+		path = f.path
+	}
+	if len(p.sites) > p.limit {
+		return p.bound("sites", len(p.sites), ex.ID, path)
+	}
+	if len(p.inv.Gaps) > p.limit {
+		return p.bound("gaps", len(p.inv.Gaps), ex.ID, path)
+	}
+	return nil
 }
 
 // BuildExtractorInventory reads a repository-declared extractor profile and the files it names
@@ -183,6 +227,14 @@ func BuildExtractorInventory(ctx context.Context, input ExtractorInput) ([]byte,
 		return nil, fail("extraction requires a full commit revision")
 	}
 	caller := input.ProfileSHA256 != ""
+	limit, schema := MaxRecords, ProviderSchema
+	switch input.Schema {
+	case "", "1":
+	case "2":
+		limit, schema = MaxCorpusRecords, AdoptionProviderSchema
+	default:
+		return nil, fail("--schema must be 1 or 2")
+	}
 	switch {
 	case caller && !extractorDigest.MatchString(input.ProfileSHA256):
 		return nil, fail("--profile-sha256 must be 64 lowercase hexadecimal digits")
@@ -249,7 +301,8 @@ func BuildExtractorInventory(ctx context.Context, input ExtractorInput) ([]byte,
 		ref.CanonicalSHA256, ref.Document = Digest(canonical), &profile
 		limitations = append(slices.Clone(extractorLimitations), callerProfileLimitation)
 	}
-	paths, err := extractorPaths(ctx, auth, input.Revision, extractors)
+	p := &extractorProducer{provider: profile.Provider, limit: limit, schema: schema}
+	paths, err := extractorPaths(ctx, auth, input.Revision, extractors, p)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +319,7 @@ func BuildExtractorInventory(ctx context.Context, input ExtractorInput) ([]byte,
 	}
 	source := Repository{ID: repository, Revision: input.Revision}
 	inv := &ExtractorInventory{Schema: ExtractorInventorySchema, Status: "generated", Repository: repository, Revision: input.Revision, Profile: ref, Gaps: []ExtractorGap{}, Limitations: limitations}
-	p := &extractorProducer{provider: profile.Provider, repository: repository, revision: input.Revision, inv: inv}
+	p.repository, p.revision, p.inv = repository, input.Revision, inv
 	if caller {
 		p.callerProfile = "caller-owned extractor profile sha256:" + input.ProfileSHA256
 	}
@@ -299,8 +352,21 @@ func BuildExtractorInventory(ctx context.Context, input ExtractorInput) ([]byte,
 		return nil, err
 	}
 	inv.Provider = record
-	if len(inv.Gaps) > MaxRecords {
-		return nil, fail("extractor inventory exceeds the record bound")
+	if len(inv.Gaps) > p.limit {
+		return nil, p.bound("gaps", len(inv.Gaps), "", "")
+	}
+	// DCP-V1-560: the provider member is committed unchanged as one provider input, so it must
+	// fit the input bound build admits for its schema.
+	encoded, err := json.Marshal(record, json.Deterministic(true))
+	if err != nil {
+		return nil, err
+	}
+	if limit := encodingLimit(record); len(encoded)+1 > limit {
+		message := fmt.Sprintf("extractor provider record is %d bytes, over the %s input bound of %d bytes", len(encoded)+1, record.Schema, limit)
+		if schema == ProviderSchema {
+			message += fmt.Sprintf("; --schema 2 emits an adoption provider record, which admits %d bytes", MaxProviderBytes)
+		}
+		return nil, fail(message)
 	}
 	return Encode(inv)
 }
@@ -521,7 +587,7 @@ func extractorMatchParts(pattern, name []string) bool {
 // extractorPaths resolves each extractor's files in path order: literal paths are kept as named
 // (a missing one becomes a gap when read) and patterns share one bounded walk of the revision tree
 // that descends only into directories some pattern can match below, skipping node_modules.
-func extractorPaths(ctx context.Context, auth *gitauth.Repository, revision string, extractors []compiledExtractor) ([][]string, error) {
+func extractorPaths(ctx context.Context, auth *gitauth.Repository, revision string, extractors []compiledExtractor, p *extractorProducer) ([][]string, error) {
 	paths := make([][]string, len(extractors))
 	var globs [][]string
 	for _, ex := range extractors {
@@ -555,8 +621,8 @@ func extractorPaths(ctx context.Context, auth *gitauth.Repository, revision stri
 			paths[i] = append(paths[i], name)
 		}
 		sort.Strings(paths[i])
-		if len(paths[i]) > MaxRecords {
-			return nil, fail("extractor " + strconv.Quote(ex.ID) + " matches more files than the record bound")
+		if len(paths[i]) > p.limit {
+			return nil, p.bound("matched files", len(paths[i]), ex.ID, "")
 		}
 	}
 	return paths, nil
@@ -676,8 +742,8 @@ func extractorCapture(re *regexp.Regexp, match []string, name string) (string, b
 func (p *extractorProducer) file(ex *compiledExtractor, f *extractorFile) error {
 	entity, entityOpen := "", false
 	for n, raw := range f.lines {
-		if len(p.sites) > MaxRecords || len(p.inv.Gaps) > MaxRecords {
-			return fail("extractor inventory exceeds the record bound")
+		if err := p.over(ex, f); err != nil {
+			return err
 		}
 		line := n + 1
 		text := strings.TrimRight(raw, "\r\n")
@@ -742,10 +808,7 @@ func (p *extractorProducer) file(ex *compiledExtractor, f *extractorFile) error 
 			p.gap(ex, f, line, "unsupported-shape", "the line looks like a declaration but does not match the supported pattern")
 		}
 	}
-	if len(p.sites) > MaxRecords || len(p.inv.Gaps) > MaxRecords {
-		return fail("extractor inventory exceeds the record bound")
-	}
-	return nil
+	return p.over(ex, f)
 }
 
 func (p *extractorProducer) match(ex *compiledExtractor, f *extractorFile, line int, match []string) {
@@ -890,7 +953,7 @@ func (p *extractorProducer) record(source Repository, version string) (ProviderR
 			}
 		}
 	}
-	record := ProviderRecord{Schema: ProviderSchema, ID: p.provider, Version: version, Source: source, Subjects: []Subject{}, Claims: []Claim{}, Relations: []Relation{}, Journeys: []Journey{}, Observations: []ObservationLink{}}
+	record := ProviderRecord{Schema: p.schema, ID: p.provider, Version: version, Source: source, Subjects: []Subject{}, Claims: []Claim{}, Relations: []Relation{}, Journeys: []Journey{}, Observations: []ObservationLink{}}
 	for _, entry := range subjects {
 		if !identifier(entry.subject.ID) || !textOK(entry.subject.Name) {
 			return ProviderRecord{}, fail("extracted subject identity exceeds the identifier bound: " + entry.subject.Kind)
@@ -902,8 +965,11 @@ func (p *extractorProducer) record(source Repository, version string) (ProviderR
 		record.Relations = append(record.Relations, r)
 	}
 	sort.Slice(record.Relations, func(i, j int) bool { return record.Relations[i].ID < record.Relations[j].ID })
-	if len(record.Subjects) > MaxRecords || len(record.Relations) > MaxRecords {
-		return ProviderRecord{}, fail("extractor inventory exceeds the record bound")
+	if len(record.Subjects) > p.limit {
+		return ProviderRecord{}, p.bound("subjects", len(record.Subjects), "", "")
+	}
+	if len(record.Relations) > p.limit {
+		return ProviderRecord{}, p.bound("relations", len(record.Relations), "", "")
 	}
 	subjectsState, subjectsReason := "present", "subjects matched by the repository-declared extractor profile"
 	if p.callerProfile != "" {

@@ -288,16 +288,28 @@ func liveToolchain(t *testing.T) (modules, node string) {
 	t.Helper()
 	modules = os.Getenv(envModules)
 	if modules == "" {
-		t.Skip("CORVINT_PLAYWRIGHT_MODULES is not set")
+		liveUnavailable(t, "CORVINT_PLAYWRIGHT_MODULES is not set")
 	}
 	node = os.Getenv("CORVINT_PLAYWRIGHT_NODE")
 	if node == "" {
 		var err error
 		if node, err = exec.LookPath("node"); err != nil {
-			t.Skip("node is not available")
+			liveUnavailable(t, "node is not available")
 		}
 	}
 	return modules, node
+}
+
+// envLive set to `required` makes a missing live toolchain fail the live tests instead of
+// skipping them, so a lane that is meant to run them cannot pass vacuously (CCE-V0-102).
+const envLive = "CORVINT_CCE_LIVE"
+
+func liveUnavailable(t testing.TB, reason string) {
+	t.Helper()
+	if os.Getenv(envLive) == "required" {
+		t.Fatalf("%s=required: %s", envLive, reason)
+	}
+	t.Skip(reason)
 }
 
 func liveProveDoc(t *testing.T, root, base, head string) (scenarioProof, proveReport) {

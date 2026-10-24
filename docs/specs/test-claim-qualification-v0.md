@@ -723,7 +723,27 @@ its tests; a surviving mutant is a change the cited tests cannot tell from the o
   fixed texts and never reach a verdict. Only the error text changes: the witness stays
   `not-run` with zero counts, `prove --mutate` still exits 2 `unsupported-prove-mutation`
   with its fixed message, and every other not-run, downgrade, and verdict path is unchanged.
-  Linux `bwrap` launcher failures are not classified.
+  Linux `bwrap` launcher failures are classified only as `TCQ-V0-064` states.
+- `TCQ-V0-064`: (proposed 2026-10-24 under the owner's standing lane auto-accept of 2026-10-11;
+  V1-2569) a runner failure whose whole output is one Linux `bwrap` setup refusal line, recorded
+  on the linux/WSL2 runner box (bubblewrap 0.11.1), MUST surface as
+  `mutate.ErrBubblewrapUnavailable`, whose fixed text is
+  `mutate: sandbox unavailable: the host refused to set up the bwrap sandbox` and which
+  `errors.Is` reports as `mutate.ErrSandboxUnavailable`. The admitted lines are
+  `bwrap: Failed to make / slave: ` (what bwrap writes, exit 1, under test-confine's Landlock
+  domain) and `bwrap: Creating new namespace failed: ` (inside an enclosing bwrap
+  `--disable-userns`), each followed by non-empty printable ASCII reason text and a newline,
+  under the same 160-byte whole-output bound as `TCQ-V0-059`. The same match drives the
+  `FPK-V0-142` nesting preflight, so such a host reports every claim `UNSUPPORTED` with the fixed
+  nesting reason once per export and runs no `go test`. Failure modes: any other `bwrap` line,
+  such as `bwrap: execvp go: No such file or directory`, a refusal line with other bytes before
+  or after it, an empty or non-printable reason, or an overlong output stays
+  `mutate: run ended without a verdict`; no output byte is echoed; a refusal never becomes a
+  verdict. The sandbox-exec text and every other path are unchanged. Acceptance:
+  `TestTCQV0064InconclusiveNamesABubblewrapSetupRefusal`,
+  `TestTCQV0064PreflightFindsABubblewrapRefusal`, and
+  `TestDiscriminateRecordsWitnessAndReportDowngrades` skipping with the runner's own reason under
+  test-confine (`-race`) on the linux/WSL2 box and passing there unconfined.
 
 Measured cost (this host, macOS `sandbox-exec`, `TestDiscriminateRecordsWitnessAndReportDowngrades`
 fixture: one Go module, one selected hunk, 4 mutants, `--max-mutants 6`, `--wall-time 5m`): one
@@ -899,6 +919,9 @@ flag, `internal/cem/verify/guards.go` and its `DOGFOOD.md` command; no committed
 public case depends on them, and a row already cited stays an ordinary `test-claim` citation. `TCQ-V0-063`
 rolls back with the V1-1453 code commit: the search again prints a row over the bound, which
 `cem cite` refuses.
+`TCQ-V0-064` rolls back by removing the two `bwrap` entries from `launcherRefusals` and
+`ErrBubblewrapUnavailable`; a `bwrap` refusal then reads as `mutate: run ended without a verdict`
+again and no wire, state, or exit status changes.
 
 ## Traceability
 
@@ -930,6 +953,7 @@ non-authoritative and slated for separate removal.
 | `TCQ-V0-061` | `declaredTests` and `revertCandidates` in `internal/cem/verify/hunkrevert.go` | `TestCEMV1088DeclaredTestsAreWhatGoTestRuns`, `TestCEMV1088ForgedWitnessNeverCounts` (a span declaring no test is `no-named-test`) |
 | `TCQ-V0-062` | `internal/cem/verify/guards.go`, `internal/cem/workflow/stable_read.go`, `internal/cem/cli/cli.go` | `TestTCQV0062GuardingTestsNameObservedGuards`, `TestTCQV0062FlagIsVerifyOnly` (`internal/cem/workflow`); `TestTCQV0062VerifyGuardingTestsIsOptIn` (`internal/cem/cli`); `TestTCQV0062CandidatesFollowThePackageClosure`, `TestTCQV0062CitationNeedsAStableBaseHeader`, `TestTCQV0062LineDirectivesKeepPhysicalLines`, `TestTCQV0062ChangedLinesFindTheEditedDeclaration`, `TestTCQV0062SpentBudgetKeepsNoCandidateReason` (`internal/cem/verify`): on an uncited prepared map the search guards the Clamp hunk with its one asserting test only, keeps a revert that breaks the build and a test failing without the revert `not-run`, prints the plan row `cem cite` admits, and the consumer then holds the hunk |
 | `TCQ-V0-063` | `goPackage.citation` in `internal/cem/verify/guards.go`; `wire.MaxCitationSpanBytes` read by `cem cite` in `internal/cem/workflow/commands.go` | `TestTCQV0063PlanRowRespectsTheCiteSpanBound` (`internal/cem/verify`): a guard header of exactly 1 MiB is cited, one byte over is skipped and the next guard by name is cited |
+| `TCQ-V0-064` | `internal/liveverify/mutate/gotest.go` (`launcherRefusals`, `launcherRefused`, `ErrBubblewrapUnavailable`); `internal/liveverify/mutate/sandbox.go` (`nestingRefused`) | `TestTCQV0064InconclusiveNamesABubblewrapSetupRefusal`, `TestTCQV0064PreflightFindsABubblewrapRefusal` (`internal/liveverify/mutate`); measured 2026-10-24 on the linux/WSL2 box under test-confine `-race`: `TestDiscriminateRecordsWitnessAndReportDowngrades` SKIP with detail `unsupported: cited tests cannot be sandboxed: the host refused to apply the sandbox profile (an enclosing sandbox forbids nesting)`, and PASS unconfined |
 
 The implementation and deterministic reference vectors are delivered as a candidate. The labelled
 corpus, reporter compatibility measurements, independent implementation, and ten-change dogfood
