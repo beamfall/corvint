@@ -224,8 +224,14 @@ func readerLeaderLive(dir, program string) error {
 	if err != nil {
 		return wire.Errorf(wire.CodeQuiescenceUnproved, "--program", "reader pid %d identity cannot be read (%v); the quarantine stays", leader.ReaderPID, err)
 	}
-	if id == leader.ReaderStart {
+	// A Linux btime one second off the recorded start is the same reader;
+	// a matching start tick with btime further off is unknown, so the
+	// quarantine stays (PSR-V0-227).
+	switch supervisor.CompareIdentity(id, leader.ReaderStart) {
+	case supervisor.IdentitySame:
 		return wire.Errorf(wire.CodeQuiescenceUnproved, "--program", "reader pid %d (run %s) is still running; stop it and its descendants before recovering", leader.ReaderPID, leader.Run)
+	case supervisor.IdentityUnknown:
+		return wire.Errorf(wire.CodeQuiescenceUnproved, "--program", "reader pid %d (run %s) identity is uncertain: its start tick matches but its boot time differs; the quarantine stays", leader.ReaderPID, leader.Run)
 	}
 	return nil
 }

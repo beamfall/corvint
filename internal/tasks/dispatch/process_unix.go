@@ -208,8 +208,10 @@ func launch(argv, env []string, dir, logDir string) (int, string, <-chan int, er
 // session. Session expansion is disabled once the session ID names a
 // different process, so PID reuse cannot pull in an unrelated session. An
 // unreadable identity leaves the recorded tree unchanged and returns the
-// error: an unobservable member is never taken for a gone one. Processes of
-// the verified detached run supervisors in exempt are left out (CAL-V0-145).
+// error: an unobservable member is never taken for a gone one, and neither is
+// a member or leader whose identity compares unknown (PSR-V0-227). Processes
+// of the verified detached run supervisors in exempt are left out
+// (CAL-V0-145).
 func refreshTree(w *Worker, procs map[int]proc, exempt map[int]string) error {
 	ex, err := newExemption(procs, exempt, w.PID)
 	if err != nil {
@@ -225,8 +227,15 @@ func refreshTree(w *Worker, procs map[int]proc, exempt map[int]string) error {
 			if err != nil {
 				return err
 			}
-			if id != "" && id == m.Identity {
-				members[m.PID] = id
+			// The recorded identity is kept, so a Linux btime one second
+			// off this read never drifts the record; a wider gap with the
+			// same start tick may be the member after a clock step, so it
+			// is uncertainty, never a gone member (PSR-V0-227).
+			switch supervisor.CompareIdentity(id, m.Identity) {
+			case supervisor.IdentitySame:
+				members[m.PID] = m.Identity
+			case supervisor.IdentityUnknown:
+				return fmt.Errorf("process %d identity is uncertain: %s is not %s within one second", m.PID, id, m.Identity)
 			}
 		}
 	}
@@ -238,7 +247,11 @@ func refreshTree(w *Worker, procs map[int]proc, exempt map[int]string) error {
 		if err != nil {
 			return err
 		}
-		session = id == "" || id == w.LeaderIdentity
+		match := supervisor.CompareIdentity(id, w.LeaderIdentity)
+		if match == supervisor.IdentityUnknown {
+			return fmt.Errorf("leader %d identity is uncertain: %s is not %s within one second", w.PID, id, w.LeaderIdentity)
+		}
+		session = id == "" || match == supervisor.IdentitySame
 	}
 	pids := make([]int, 0, len(procs))
 	for pid := range procs {
@@ -319,7 +332,7 @@ func newExemption(procs map[int]proc, exempt map[int]string, leader int) (*exemp
 		if err != nil {
 			return nil, err
 		}
-		if id == want {
+		if supervisor.SameProcess(id, want) {
 			e.sups[pid] = true
 		}
 	}
@@ -367,17 +380,18 @@ func detachedSupervisor(pid int, identity string, leader int) bool {
 	if pid <= 1 || pid == leader || pid == os.Getpid() || identity == "" {
 		return false
 	}
-	if id, err := processIdentity(pid); err != nil || id != identity {
+	if id, err := processIdentity(pid); err != nil || !supervisor.SameProcess(id, identity) {
 		return false
 	}
 	sid, err := getsid(pid)
 	return err == nil && sid == pid
 }
 
-// leaderAlive reports whether the recorded leader still runs.
+// leaderAlive reports whether the recorded leader still runs: a member with
+// the leader's PID whose identity names the recorded leader (PSR-V0-227).
 func leaderAlive(w *Worker) bool {
 	for _, m := range w.Members {
-		if m.PID == w.PID && m.Identity == w.LeaderIdentity {
+		if m.PID == w.PID && supervisor.SameProcess(m.Identity, w.LeaderIdentity) {
 			return true
 		}
 	}
@@ -386,7 +400,7 @@ func leaderAlive(w *Worker) bool {
 
 // signal sends s to m only while m still runs with its recorded identity.
 func signal(m Proc, s syscall.Signal) {
-	if id, _ := supervisor.ProcessIdentity(m.PID); id != "" && id == m.Identity {
+	if id, _ := processIdentity(m.PID); supervisor.SameProcess(id, m.Identity) {
 		_ = syscall.Kill(m.PID, s)
 	}
 }
@@ -516,10 +530,12 @@ func liveTrees() (groups, sessions map[int]bool, ok bool) {
 // treeMayRun reports whether a worker tree whose leader started as pid with
 // start identity id may still run: the leader still has that identity, or a
 // live process remains in its process group or session. An unreadable
-// identity reports true.
+// identity reports true, and so does one whose start tick matches but whose
+// Linux btime is more than a second off: it is unknown, not gone
+// (PSR-V0-227).
 func treeMayRun(pid int, id string, groups, sessions map[int]bool) bool {
 	cur, err := processIdentity(pid)
-	if err != nil || cur != "" && cur == id {
+	if err != nil || supervisor.CompareIdentity(cur, id) != supervisor.IdentityDifferent {
 		return true
 	}
 	return groups[pid] || sessions[pid]

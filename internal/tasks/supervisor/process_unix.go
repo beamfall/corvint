@@ -142,7 +142,7 @@ func signalMembers(m map[int]string, s syscall.Signal) error {
 		if e != nil {
 			return e
 		}
-		if now == id {
+		if SameProcess(now, id) { // PSR-V0-227
 			if e = syscall.Kill(pid, s); e != nil && e != syscall.ESRCH {
 				return e
 			}
@@ -297,7 +297,7 @@ func Run(ctx context.Context, self, dir string, c Capsule, journal Journal) (out
 		return
 	}
 	identity, e := ProcessIdentity(out.Boot.PID)
-	if e != nil || identity != out.Boot.Started {
+	if e != nil || !SameProcess(identity, out.Boot.Started) { // the boot child published Started (PSR-V0-227)
 		err = fmt.Errorf("boot identity changed")
 		_ = journal("STOPPING", out.Boot, &out)
 		return

@@ -437,7 +437,7 @@ func (c leaseContext) completionBlocker(a *snapshot.Attempt, rec *ticket.Record)
 	case !f.CommitReachable:
 		return wire.CodeStaleTree, c.notIntegrated()
 	case f.CommitTree != *a.CandidateTreeOid:
-		return wire.CodeStaleTree, "commit tree " + f.CommitTree + " is not the candidate " + *a.CandidateTreeOid
+		return wire.CodeStaleTree, "commit tree " + f.CommitTree + " is not the candidate " + *a.CandidateTreeOid + "; " + postMergeSequence
 	case rec.Status == ticket.StatusHeld:
 		return wire.CodeTicketHeld, "the ticket is HELD"
 	case rec.Status != ticket.StatusOpen:
@@ -453,7 +453,8 @@ func (c leaseContext) completionBlocker(a *snapshot.Attempt, rec *ticket.Record)
 }
 
 // notIntegrated names every ref the unreachable commit was checked against
-// and the recovery that moves no checked-out branch (CAL-V0-017, V1-1081).
+// and the recovery that moves no checked-out branch (CAL-V0-017, V1-1081),
+// and, for one repository, the post-merge sequence (TCB-V0-047).
 func (c leaseContext) notIntegrated() string {
 	f := c.in.LeaseFacts
 	if f.UnintegratedRepository != "" {
@@ -461,10 +462,17 @@ func (c leaseContext) notIntegrated() string {
 	}
 	local := "refs/heads/" + c.st.queue.IntentBranch
 	if f.CommitUpstream == "" {
-		return "commit " + c.l.Commit + " is not reachable from " + local + ", which has no remote-tracking upstream configured; integrate it into " + local + ", or set that branch's upstream (git branch --set-upstream-to) and fetch it so the remote-tracking ref contains the commit"
+		return "commit " + c.l.Commit + " is not reachable from " + local + ", which has no remote-tracking upstream configured; integrate it into " + local + ", or set that branch's upstream (git branch --set-upstream-to) and fetch it so the remote-tracking ref contains the commit; " + postMergeSequence
 	}
-	return "commit " + c.l.Commit + " is not reachable from " + local + " or its upstream " + f.CommitUpstream + "; fetch the upstream (git fetch) so " + f.CommitUpstream + " contains the commit, then complete again"
+	return "commit " + c.l.Commit + " is not reachable from " + local + " or its upstream " + f.CommitUpstream + "; fetch the upstream (git fetch) so " + f.CommitUpstream + " contains the commit, then complete again; " + postMergeSequence
 }
+
+// postMergeSequence is the one route both STALE_TREE refusals name for a
+// change integrated by a new merge commit, as a merge queue makes: complete
+// keeps tree equality (CAL-V0-017), so the merge commit's own tree is
+// submitted and gated before it completes (TCB-V0-047, V1-1895). submit and
+// complete take full OIDs, so the route resolves each with git rev-parse.
+const postMergeSequence = "if the change landed as a new merge commit (a merge queue), submit that commit's full tree OID (submit --tree $(git rev-parse <merge>^{tree})), run each required gate on it (gate run), then complete --commit $(git rev-parse <merge>)"
 
 // approvalBlocker requires an unrevoked COMPLETE grant at the current
 // acceptanceRevision for an APPROVAL_REQUIRED ticket (§7.3 row 12).

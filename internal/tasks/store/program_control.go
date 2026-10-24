@@ -81,11 +81,11 @@ func RequestProgramControl(ctx context.Context, repo *intent.Repository, actor m
 			if !found {
 				return wire.Errorf(wire.CodeFenced, "program control", "control target disappeared")
 			}
-			identity, e := supervisor.ProcessIdentity(p.OwnerPID)
+			identity, e := recordedProcessIdentity(p.OwnerPID)
 			if e != nil {
 				return e
 			}
-			if identity != p.OwnerStarted {
+			if recordedMatch(identity, p.OwnerStarted) != supervisor.IdentitySame {
 				return nil
 			}
 			select {
