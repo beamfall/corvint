@@ -93,11 +93,23 @@ remain required. The explicit tool result bound is 65536 bytes; automatic contex
 ## Native workflow and cockpit
 
 `corvint_core_read` exposes closed native query/context/impact/affected/review/prove,
-CEM/OCM status, Frontier and local-policy status operations. It retains original receipt,
+overview/features (clean HEAD only), witness (`base`, optional `head`), CEM/OCM status,
+Frontier and local-policy status operations. It retains original receipt,
 exit status and raw output. It does not index, execute suggested tests or write reports.
-`corvint_tasks` exposes native Tasks reads; set `CORVINT_TASKS_BIN` to a compatible
+`corvint_tasks` exposes native Tasks reads, including closed-selector `search` and `list`;
+set `CORVINT_TASKS_BIN` to a compatible
 native binary when PATH selection is unsuitable. Current qualification uses developer
 build202, not a stable release or qualification of the application's queue policy.
+
+Every model tool declares Pi `annotations` (read-only, or the explicit outcome record), which
+permission extensions can read through `getAllTools`; they are hints, not authority. The
+package also ships the `corvint-context`, `corvint-impact`, `corvint-review` and
+`corvint-tasks` skills, loaded on demand or with `/skill:<name>`; `--no-skills` disables them.
+
+Pi 0.99.1 also has a native MCP client. To add the `corvint-mcp` companion, register it with
+the legacy protocol Pi speaks: `pi mcp add corvint -- corvint-mcp --protocol-version 2025-11-25
+--root <repo>`, then check it with `pi mcp list`. Without the flag Pi reports `Method not found`
+(V1-2507). The extension does not register it for you.
 
 `/corvint` opens Evidence, Changes, Tasks, Verification and Gaps. Use left/right or
 1–5 to select a view, `r` to refresh, arrows/PageUp/PageDown to scroll and `q`/Escape

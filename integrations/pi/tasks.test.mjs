@@ -139,3 +139,12 @@ test('PWV identity await transition cannot dispatch reads, and detached HEAD can
  const detached=createTasksService({runner:f.runner,identity:async()=>({...await f.identity(),branch:'HEAD',detached:true})});
  assert.equal((await detached.command(request,f.ctx)).fault,'detached-head');assert.equal(f.calls.length,0);
 });
+test('PWV-V0-013 search and list map closed selectors to native argv and refuse before any native call',async t=>{
+ const {service,ctx,calls}=await setup(t);
+ await service.read('search',{status:'OPEN',kind:'BUG',priority:'P1',owner:'pi',milestone:'v1-0',label:'bugs',text:'pi host',offset:20,limit:10,summary:true},ctx);
+ await service.read('search',{text:'x',summary:false},ctx);await service.read('list',{status:'OPEN,BLOCKED',limit:100,offset:0},ctx);await service.read('list',{},ctx);
+ assert.deepEqual(calls,[['ticket','search','--status','OPEN','--kind','BUG','--priority','P1','--owner','pi','--milestone','v1-0','--label','bugs','--text','pi host','--offset','20','--limit','10','--summary'],['ticket','search','--text','x'],['ticket','list','--status','OPEN,BLOCKED','--offset','0','--limit','100'],['ticket','list']]);
+ calls.length=0;
+ for(const [op,input] of [['search',{unknown:'x'}],['search',{text:'--help'}],['search',{text:''}],['search',{text:'a\nb'}],['search',{text:'x'.repeat(257)}],['search',{limit:0}],['search',{limit:101}],['search',{offset:-1}],['search',{limit:1.5}],['search',{summary:'yes'}],['search',{priority:'P9'}],['search',{status:'open'}],['search',{status:'OPEN,BLOCKED'}],['search',{label:'--status'}],['search',{owner:'a b'}],['list',{text:'x'}],['list',{status:'OPEN,'}],['list',{limit:'10'}]])assert.equal((await service.read(op,input,ctx)).fault,'invalid-input',`${op} ${JSON.stringify(input)}`);
+ assert.equal(calls.length,0);
+});

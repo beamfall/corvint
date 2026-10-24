@@ -16,11 +16,15 @@
     "tasks.js",
     "operations.js",
     "cockpit.js",
-    "workflow.js"
+    "workflow.js",
+    "skills"
   ],
   "pi": {
     "extensions": [
       "./index.ts"
+    ],
+    "skills": [
+      "./skills"
     ]
   },
   "peerDependencies": {

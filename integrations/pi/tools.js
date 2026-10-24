@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { decodeObject } from './runtime.js';
-import { canonical } from './operations.js';
+import { canonical, READ_ONLY_TOOL, RECORD_TOOL } from './operations.js';
 import { workflowIdentity } from './workflow.js';
 
 const string={type:'string'};
@@ -86,7 +86,7 @@ export function registerTools(pi,{runner,version,notice,identity=workflowIdentit
  ];
  for(const [name,label,description,parameters,handler] of definitions) {
   const prepareArguments=name==='corvint_expand'?args=>{if(missingExpansionIndex(args))throw Error(failure('invalid-expansion-index').content[0].text);return args;}:undefined;
-  pi.registerTool({name,label,description,parameters,promptSnippet:description,...(prepareArguments&&{prepareArguments}),execute:async(_id,args,signal,_update,ctx)=>{const result=await handler(args,signal,ctx);if(result.isError)throw Error(result.content[0].text);return result;}});
+  pi.registerTool({name,label,description,parameters,promptSnippet:description,annotations:name==='corvint_record_outcome'?RECORD_TOOL:READ_ONLY_TOOL,...(prepareArguments&&{prepareArguments}),execute:async(_id,args,signal,_update,ctx)=>{const result=await handler(args,signal,ctx);if(result.isError)throw Error(result.content[0].text);return result;}});
  }
  pi.registerCommand('corvint-record',{description:'Explicitly persist an outcome JSON through Corvint record',handler:async(text,ctx)=>{
   let input;try{if(Buffer.byteLength(text)>131072)throw Error('bound');input=decodeObject(text)}catch{notice(ctx,'invalid-input');return;}

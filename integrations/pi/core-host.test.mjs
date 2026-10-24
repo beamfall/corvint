@@ -87,6 +87,19 @@ test('PWV-V0-012 named task -> governing clause -> immutable source -> impact ->
  const queue=await tasks.read('queue',{},tctx);
  assert.ok(queue.raw||queue.fault,'native queue result or typed refusal is retained');
 
+ // PWV-V0-013 and PWV-V0-014: the added native reads keep the same no-mutation contract.
+ for(const operation of ['overview','features']) {
+  const guide=await core.read(operation,{},ctx);
+  assert.equal(guide.fault,undefined,JSON.stringify(guide).slice(0,2000));
+  assert.deepEqual(guide.receipt,JSON.parse(guide.raw.stdout),`${operation} receipt is preserved verbatim`);
+ }
+ const witness=ok(await core.read('witness',{base,head},ctx));
+ assert.equal(witness.profile,'corvint-witness/0');
+ for(const operation of ['search','list']) {
+  const result=await tasks.read(operation,operation==='search'?{text:'round',limit:5,summary:true}:{limit:5},tctx);
+  assert.ok(result.raw||result.fault,`native ${operation} result or typed refusal is retained`);
+ }
+
  assert.deepEqual(await snapshot(cwd),before,'reads leave worktree, Git directory and absent task store byte-identical');
  assert.equal(Object.keys(before).some(p=>p.startsWith('.taskman')||p.startsWith('.git/taskman')||p.startsWith('.corvint')),false);
 });

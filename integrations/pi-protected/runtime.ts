@@ -11,6 +11,7 @@ import {setBedrockProviderModule} from '@corvint/pi-ai-internal/api/bedrock-conv
 import registerProtected from './extension.mjs';
 import {createQualifiedRunner} from './qualified-runner.mjs';
 import {createRunner} from '../pi/runtime.js';
+import {PROTECTED_PI_VERSION} from './host-version.mjs';
 import {createCredentials,mergeSettings,parseArguments,readSettings} from './settings.mjs';
 
 class FixedResources {
@@ -19,7 +20,7 @@ class FixedResources {
  async reload(){
   const runtime=createExtensionRuntime();
   const installed=/^\/Library\/CorvintAuthority\/versions\/[0-9a-f]{64}\/pi-protected$/.test(process.execPath);
-  const extension=await loadExtensionFromFactory(pi=>registerProtected(pi,{ordinary:createRunner({binary:this.consumer}),qualified:createQualifiedRunner({binary:this.consumer,consumerSHA256:CORVINT_CONSUMER_SHA256}),installed,version:'0.85.1'}),this.cwd,createEventBus(),runtime,'<compiled-corvint>');
+  const extension=await loadExtensionFromFactory(pi=>registerProtected(pi,{ordinary:createRunner({binary:this.consumer}),qualified:createQualifiedRunner({binary:this.consumer,consumerSHA256:CORVINT_CONSUMER_SHA256}),installed,version:PROTECTED_PI_VERSION}),this.cwd,createEventBus(),runtime,'<compiled-corvint>');
   this.result={extensions:[extension],errors:[],runtime};
  }
  getExtensions(){return this.result}
