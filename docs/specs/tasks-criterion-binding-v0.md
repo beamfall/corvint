@@ -141,9 +141,29 @@ for TCB-V0-007..023, decision 0525 §1 step 8, `docs/specs/cem-stable-v1.md` and
   refuses by itself, and the document stays free of revisions and paths (TCB-V0-040). The
   recovery is to rebuild the consumer from the verifier's checkout,
   `(cd interop/cem01-go && GOTOOLCHAIN=local go build -o "$CONSUMER" .)`, and rerun the gate.
-  `corvint-update` installs release components only and does not install `cem01-go`.
+  `corvint-update` installs release components only and does not install `cem01-go`; the
+  documented route that rebuilds and installs both from one checkout is
+  `script/install-cem-verifiers.sh` (TCB-V0-046).
   `corvint help cem gate-verdict` names `verifier-build-mismatch` and this rebuild command
   (amendment accepted under the same standing auto-accept, V1-2324).
+- `TCB-V0-046`: (proposed; V1-1761) `script/install-cem-verifiers.sh [--bin-dir DIR] [--keep N]`
+  is the documented install route for the gate's two verifiers. Run from a Corvint checkout, it
+  MUST refuse (exit 2, nothing built or installed) a checkout with any modified, staged or
+  untracked file, since Go then records `vcs.modified=true`. It MUST build `./cmd/corvint` and
+  `interop/cem01-go` from that HEAD into a temporary directory with `GOTOOLCHAIN=local`, and MUST
+  refuse (exit 2, nothing installed) unless both builds record `vcs.revision` equal to HEAD and
+  `vcs.modified=false`. It then installs each over `DIR/corvint` and `DIR/cem01-go` (default
+  `~/.local/bin`) through `script/install-local-bin.sh` (ASD-V0-025, one
+  `<tool>.corvint-prev-<n>` rollback each, more with `--keep N`) and re-reads the installed pair,
+  printing `MATCH <revision>`. `--check` builds and writes nothing: it reads the build
+  information both installed tools record and prints `MATCH <revision>` (exit 0), or `MISMATCH`
+  (revisions differ or either is modified, the TCB-V0-045 `verifier-build-mismatch` condition) or
+  `UNRECORDED` (a tool records no revision) with each tool's build (exit 1); a missing tool or bad
+  arguments exit 2. Non-goals: `corvint-update` is unchanged and still installs release archives
+  only; the script installs no other component and never runs the gate. Failure modes: a failed
+  second install leaves a mismatched pair, which `--check` and the gate's TCB-V0-045 refusal both
+  name. Rollback: `script/install-local-bin.sh --rollback DIR/<tool>` for each tool, or revert the
+  script.
 
 ## Acceptance and rollback
 
@@ -516,3 +536,4 @@ contract, policy entry or gate digest changes.
 | TCB-V0-043 | `internal/taskman/process_unix.go` `portablePath`; `TestTCBV0043PortableConsumerResolvesTheGateGit` | A shim `git` directory on the gate's PATH is what the consumer resolves first; no, relative, `/usr/bin` or `/bin` resolution keeps `/usr/bin:/bin` |
 | TCB-V0-044 | `release-gates.yml` dispatches 38650914390 (cause, commit 22fca01e6) and 38654510601 (fix, commit 52ad86a36) | Run 1 macos-15 full-gate `failure` with the cause retained (Apple Git 2.39.5 rejects `--attr-source`; portable `repository` / `git-diff-failed`); run 2 macos-15 full-gate `success` (cmd/corvint and internal/taskman `ok`), see the lane build log |
 | TCB-V0-045 | `internal/taskman/cem_verdict_gate.go` `crossCheck`, `verifierBuilds`, `verifierBuildsDiffer`; `TestTCBV0045DisagreementNamesAVerifierBuildMismatch`, `TestTCBV0045RecordedBuildReadsVCSSettings`; `cmd/corvint/cem_gate_verdict.go` `cemGateVerdictHelp`, `TestTCBV0045GateVerdictHelpNamesBuildMismatchRecovery` (V1-2324: the help names the refusal and the rebuild command; fails without the help text) | Over a real fixture with a disagreeing consumer, differing revisions and a modified tree on either side refuse `verifier-build-mismatch`, while equal or unrecorded builds keep `verifier-disagreement`; agreeing legs grant without reading builds; the test binary and `/bin/sh` read as unrecorded. The test fails with the build check disabled. The installed-binary rehearsal of V1-1761 (a stale `~/.local/bin/cem01-go`) is NOT_RUN. |
+| TCB-V0-046 | `script/install-cem-verifiers.sh`; the TCB-V0-046 group of `script/lane-scripts_test.sh` (`make lane-scripts-test`, stub `GO`) | Install from a clean fixture HEAD prints `MATCH`, builds from the repository root and `interop/cem01-go`, and keeps one backup per tool; `--check` reports a stale, modified or unrecorded consumer as `MISMATCH`/`UNRECORDED` (exit 1) and a missing tool exit 2; a dirty checkout, an unstamped or modified build and bad arguments are refused with the bin dir unchanged. The real-build rehearsal is in `docs/build-log/2026-10-24-v1-2107-result-schema-opaque-widen.md`. |

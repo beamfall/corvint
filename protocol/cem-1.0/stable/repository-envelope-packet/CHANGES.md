@@ -446,3 +446,44 @@ file and are recorded in Git, in ../manifest.json and in each tuple manifest.
 | protocol/cem-1.0/structural-tuples/go1.27.2/manifest.json | 49f4e95921aeebcbcccb87136a8b55cf70aa6e24cbb8c1fbbc555b3a2da33b52 |
 | protocol/cem-1.0/structural-tuples/go1.27.3/TUPLE.json | cd9e83cb4a997369dd5cedaf74c8b622181c7246fbf599ab58f56de03ce62750 |
 | protocol/cem-1.0/structural-tuples/go1.27.3/manifest.json | 1240a0b0b4fb5525f16899e387940097b9cdd3c852da3bbabeeaaf2d53789a2e |
+
+# Recorded schema enum widening of `/$defs/runnerReceipt/properties/profile` (2026-10-24)
+
+Base: the public packet with manifest sha256
+c6a5cbe0899fe31968f42e740db00da6005989c3e7ce1954c1e832e5045834f4.
+Reason: V1-2107 (Codex P2 on beamfall/corvint#1338): CEM-V1-310..313 admit the opaque/0 runner receipt label for maps whose runner receipt was not admitted, so a verify result that references such a receipt is ACCEPT but failed RESULT.schema.json, which pinned references.runnerReceipts[].profile to corvint-test-runner-receipt/0; the node admits exactly the two labels stable.schema.json already admits (CEM-V1-621).
+Record file sha256: 08deed4e4bb28eab94ba18e4d9ee8be631023f0f42bed916c2526aed78cc1e25.
+Produced by `make cem-stable-regen-widen` (tools/cem-stable-regen, CEM-V1-620).
+
+- RESULT.schema.json `/$defs/runnerReceipt/properties/profile` admitted `corvint-test-runner-receipt/0`; it now admits `corvint-test-runner-receipt/0`, `opaque/0`.
+- Widened node sha256 (compact JSON): ee614710112c1b723eb3e032a0f7a103be2470b0c2e405cceb870d4ad3cf9f47 -> 2dcc5dcebe9c2714f5f0d3afb39a407590ae28c4dab65430a439b7d1b03f41bb.
+- No member, case, cell, exit or other schema byte changed; every frozen
+  expectation stays valid because no value was removed.
+
+## Changed files
+
+| File | Old sha256 | New sha256 |
+| --- | --- | --- |
+| RESULT.schema.json | 2334f05dfbc4cb226ae53b5df22eba4ba0f94f3f7136b13e04b610e37bc14f2a | 5849832edd23b92c8cc70aa7ea20f26f51dd8d0cfb8f288b5518515b56aa2fdb |
+| README.md | 47febbf4da14a86b2733015731ed91d916817a2b1d3a5818f46838cdb5f93f96 | dd48c32b5b8ca50ce0f7d345fc9b43c70d4b58f45a1b5cf5a89ee0c24f534de6 |
+| CHANGES.md | 6bde75e56857096345bb59c6ba484c9c1155c213d6c446cec63d3469ce8afc82 | See manifest.json; this file cannot contain its own final digest. |
+| manifest.json | c6a5cbe0899fe31968f42e740db00da6005989c3e7ce1954c1e832e5045834f4 | See ../manifest.json publicAmendmentManifestSHA256; manifest.json is not listed inside its own file list. |
+
+Files not listed above are byte-identical to the base packet. INPUTS.json
+keeps its repair-era pins as history.
+
+## Re-bound files outside the packet
+
+These files are re-bound to the digests above; their new digests depend on this
+file and are recorded in Git, in ../manifest.json and in each tuple manifest.
+
+| File | Predecessor sha256 |
+| --- | --- |
+| protocol/cem-1.0/stable/REPOSITORY-ENVELOPE.cells.json | bf8244b77897400fbb8c28a463d24d190bba98cadbc38627af23639d6609dd60 |
+| protocol/cem-1.0/stable/REPOSITORY-ENVELOPE.md | d667043b39855fbe4933c428be7e18e8630b3e84a122bc91438ba028e3c3aad8 |
+| protocol/cem-1.0/stable/manifest.json | bd5016fe00f39add50e67fb7556b813b2869480bf9ef10cfc6965da8646fbc97 |
+| protocol/cem-1.0/structural-tuples/go1.27.2/TUPLE.json | 4bb2c6de30a65df944ed7a6530f0ac6c431b2ee25f24d90ea178fa229d53fc67 |
+| protocol/cem-1.0/structural-tuples/go1.27.2/manifest.json | ae87785b03bb10ff8461f86c93207b74ccad8ba104a9b7438aeedcd37db63abd |
+| protocol/cem-1.0/structural-tuples/go1.27.3/TUPLE.json | 2eb10d8258eddcb272185e35296e423167e47353ee35d94fdb22f3a10c20f32e |
+| protocol/cem-1.0/structural-tuples/go1.27.3/manifest.json | 912c59cbdffc35c9031491c74c6f41bb9bba4377c076cce8fcb411f48d88a692 |
+| protocol/cem-1.0/stable/RESULT.schema.json | identical to protocol/cem-1.0/stable/repository-envelope-packet/RESULT.schema.json |

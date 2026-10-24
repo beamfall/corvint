@@ -349,6 +349,35 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   Tasks-bound `cem-stable-assembly/1` request is unchanged. It writes no stable map (its source
   check refuses every source), so it has no runner set to widen, and its closed decoder MUST keep
   refusing a `runners` member as an unknown field.
+- `CEM-V1-620`: (proposed; V1-2107) A string `const` or `enum` node of both `RESULT.schema.json`
+  copies MAY be widened only by `make cem-stable-regen-widen RECORD=<file>` (`cem-stable-regen
+  --widen --record`). The closed record names a reason, the RFC 6901 pointer of the node (object
+  members only), the SHA-256 of the node's compact JSON and the values to add. The tool MUST refuse
+  before any write: an unknown record member, an empty reason, a root or array-crossing pointer, a
+  missing member, a node that is not exactly `{"const": STRING}` or `{"enum": [STRING, ...]}`, a
+  predecessor digest that differs, no value, and an empty, repeated or already admitted value. It
+  MUST rewrite the node as an `enum` of the old values in order followed by the added values,
+  change no other schema byte, case, cell, exit or key count, and re-bind the same chain as
+  `CEM-V1-091` with packet status `SCHEMA_ENUM_WIDENED`, a once-only README pointer and a
+  `CHANGES.md` section with the reason, the record digest, the old and new admitted values and the
+  predecessor and new node digests. `make cem-stable-regen-check` MUST pass before and after.
+  Failure modes: a widening that also needs a structural change (a new member, a new `oneOf`
+  branch) is out of scope and refused at the node-shape check. Rollback is a Git revert of the
+  regenerated files.
+- `CEM-V1-621`: (proposed; V1-2107) Both `RESULT.schema.json` copies MUST admit exactly the two
+  `CEM-V1-311` labels at `$defs/runnerReceipt/properties/profile`, `corvint-test-runner-receipt/0`
+  and `opaque/0`, produced by one `CEM-V1-620` run from the committed record
+  `docs/build-log/evidence/v1-2107/widen-record.json`. The legacy label stays admitted, so no
+  sealed map, public case result or verdict digest changes. Rollback is a Git revert of that run.
+- `CEM-V1-622`: (proposed; V1-2107) A test MUST validate the complete native verify result of the
+  public `neutral-criterion` case, once with its runner label and once relabelled `opaque/0` (the
+  label of an unadmitted map), against both committed schema copies with a closed draft 2020-12
+  validator that refuses every keyword it does not implement. The label `opaque/1` and the
+  predecessor legacy `const` MUST refuse at `references.runnerReceipts[0].profile`. Open limit:
+  the committed `$defs/criterionBinding` still carries only the Tasks form, not the `CEM-V1-083`
+  plain form these results carry, so each result is refused at `references.criterionBindings[0]`;
+  the test pins that gap and validates the rest of each result with only that definition
+  overlaid by both forms. The gap is V1-2615.
 
 ## Non-goals and failure modes
 
@@ -375,7 +404,7 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-083 | Plain criterion form in `internal/cem/wire/stable.go` and `interop/cem01-go/cem.go`; public case `protocol/cem-1.0/stable/neutral-criterion/`; `TestCEMV1083*` in `internal/cem/wire`, `internal/cem/verify` and `interop/cem01-go` | The plain form is produced by the experimental `cem-stable-plain-assembly/1` request of `corvint-cem-candidate assemble-stable` (`CEM-V1-240`, V1-1290); no default `corvint cem` verb emits it; stranger time NOT_OBSERVED |
 | CEM-V1-240 | `AssemblePlain` in `internal/cemcandidate/plain.go` and the profile dispatch in `cmd/corvint-cem-candidate/stable.go`; `TestCEMV1240*` in `internal/cemcandidate` and `cmd/corvint-cem-candidate`; timed run in `docs/build-log/2026-10-15-cem-plain-criterion-producer.md` | Experimental companion, not promoted; the runner plan and receipt are opaque inputs checked only by SHA-256, so receipt authority and execution at the target stay `NOT_OBSERVED`; one runner receipt per map in the single form, up to 64 admitted receipts in the `runners` form (`CEM-V1-573..578`); stranger time NOT_OBSERVED |
 | CEM-V1-084 | `internal/cem/wire/stable_auth.go`, `internal/cem/verify/stable_auth.go`, `interop/cem01-go/stable_auth.go`; `--trusted-keys` in `internal/cem/cli/stable.go` and both portable commands; public case `protocol/cem-1.0/stable/receipt-authentication/`; `TestCEMV1084*` in `internal/cem/wire`, `internal/cem/verify`, `interop/cem01-go`, `internal/console` and `cmd/corvint` | No producer signs receipts (operator step, FPK-V0-036); `RESULT.schema.json` and the sealed S0E packet still name only `NOT_OBSERVED` for `authentication` and lack the four attestation issue codes (V1-1265); keys are TEST-ONLY; stranger time NOT_OBSERVED |
-| CEM-V1-091 | `tools/cem-stable-regen` and the `CEM_STABLE_REGEN_CAPTURE` hook in `internal/cem/verify/stable_repository_test.go`; `TestCheckPassesOnRepositoryPacket`, `TestCheckCoversEveryStableManifestEntry`, `TestRegenerateRealPacketCopy`, `TestRegenerateRefusals`, `TestRegenerateSyntheticPacket`, `TestReplaceRealPacketCopy`, `TestReplaceRefusals`; proof runs in `docs/build-log/2026-10-11-cem-stable-regen-tooling.md` and `docs/build-log/2026-10-15-v1-1331-1335-1332-citation-measures.md` | V1-1265 added `citation` (CEM-V1-092) and `verdictSha256` (CEM-V1-066) through the tool; since V1-1287 `--check` verifies every stable manifest entry (see "Stable manifest entry repair"); V1-1331 re-emitted `citation` and `verdictSha256` of 3 cases and 11 envelope cells with `--replace` under decision 0530 |
+| CEM-V1-091 | `tools/cem-stable-regen` and the `CEM_STABLE_REGEN_CAPTURE` hook in `internal/cem/verify/stable_repository_test.go`; `TestCheckPassesOnRepositoryPacket`, `TestCheckCoversEveryStableManifestEntry`, `TestRegenerateRealPacketCopy`, `TestRegenerateRefusals`, `TestRegenerateSyntheticPacket`, `TestReplaceRealPacketCopy`, `TestReplaceRefusals`, `TestWidenRealPacketCopy`, `TestWidenRefusals`; proof runs in `docs/build-log/2026-10-11-cem-stable-regen-tooling.md` and `docs/build-log/2026-10-15-v1-1331-1335-1332-citation-measures.md` | V1-1265 added `citation` (CEM-V1-092) and `verdictSha256` (CEM-V1-066) through the tool; since V1-1287 `--check` verifies every stable manifest entry (see "Stable manifest entry repair"); V1-1331 re-emitted `citation` and `verdictSha256` of 3 cases and 11 envelope cells with `--replace` under decision 0530 |
 | CEM-V1-092 | `citation` member of `StableResult` (`internal/cem/verify/stable.go`) and `stableResult` (`interop/cem01-go/cem.go`, `stable_repository.go`), regenerated into the sealed packet and the public `neutral-criterion` and `receipt-authentication` expectations; `TestCEMV1092CitationOnlyOnAccept`, `TestCEMV1092SealedCasesCarryCitationOnlyOnAccept`, `TestCEMV1092RefuseAndRejectClearCitation` (native); `TestCEMV1092PortableCitationOnlyOnAccept`, `TestCEMV1082StableResultCarriesTheBlock`, `TestStableCanonicalFullResults` (portable) | The go1.24.13 cases 21 and 22 were not run on this host: their values come from the override file (case 21 derived natively on go1.27.2 with every other non-runtime key matching); ten envelope cells take `--cell-values` overrides |
 | CEM-V1-066 | `verdictSha256` member and `VerdictDigest` of `StableResult` (`internal/cem/verify/stable.go`, `stable_verdict.go`) and `stableResult` (`interop/cem01-go/cem.go`, `verdict.go`), regenerated into the sealed packet and the public `neutral-criterion` and `receipt-authentication` expectations; `TestCEMV1066SealedVerdictDigests`, `TestCEMV1066VerdictDigestCoversOnlyTheVerdict`, `TestCEMV1066EveryOutcomeCarriesVerdictDigest` (native); `TestCEMV1066PortableSealedVerdictDigests`, `TestCEMV1066PortableVerdictDigestCoversOnlyTheVerdict`, `TestCEMV1066PortableEveryOutcomeCarriesVerdictDigest`, `TestStableCanonicalFullResults` (portable) | The go1.24.13 cases 21 and 22 were not run on this host: their values come from the override file, computed from their sealed expectations; ten envelope cells take `--cell-values` overrides; the experimental Tasks verdict gate pins it and requires the portable consumer to recompute it (`docs/specs/tasks-criterion-binding-v0.md` TCB-V0-017; decision 0525 step 8, V1-1283) |
 | CEM-V1-093..095 | `internal/cem/wire/stable_provenance.go`, `interop/cem01-go/stable_provenance.go`; `provenance`, `role`, `sha1Oid` in `protocol/cem-1.0/stable/stable.schema.json`; re-homed 0.1/0.3 text in `protocol/cem-1.0/stable/ALGORITHMS.md`; shared vectors `interop/cem01-go/testdata/stable-map-members/cases.json`; `TestCEMV1093*`, `TestCEMV1094*`, `TestCEMV1095*` in `internal/cem/wire` and `interop/cem01-go` | The V1-1275 converter (CEM-V1-096..105) emits `provenance` but never `role`; `cem status --citation` role grouping is `CEM-V1-106` (V1-1281); provenance OIDs are SHA-1 only; the sealed S0E packet copy of `stable.schema.json` is unchanged; stranger time NOT_OBSERVED |
@@ -627,6 +656,9 @@ every frozen S0E expectation, so it cannot land by hand edits to sealed case fil
   differs from the frozen value MUST map back through an admitted tuple substitution, and any other
   value is refused before any write. (Amended by V1-2327 under decision 0551: the capture runs on
   an admitted tuple, while every substitution starts from the frozen `go1.27.1`.)
+  A string `const` or `enum` node of the schema MAY instead be widened, only through
+  `make cem-stable-regen-widen` (`--widen`, `CEM-V1-620`), which keeps every case, cell and key
+  count. (Amended by V1-2107: the result schema pinned a runner label that `CEM-V1-311` widened.)
   Rollback is a Git revert of the regenerated files and the consumer change.
 
 ## Consumer-computed support tiers (V1-1262, decision 0523 P0)
@@ -2826,6 +2858,9 @@ members and needs no change.
 | CEM-V1-576 | `TestCEMV1575RunnerSetRefusals` (`internal/cemcandidate`) | Two `go-test` receipts on one criterion refused; `go-test` plus `node-test` on one criterion ACCEPTed |
 | CEM-V1-577 | `TestCEMV1577NativeReaderChecksTwoProfileMap` (`internal/cem/verify`); `TestCEMV1577PortableReaderChecksTwoProfileMap` (`interop/cem01-go`) | `EXPECTED.json` of the case: ACCEPT and six REJECTs, equal on both readers |
 | CEM-V1-578 | `TestCEMV1578TasksBoundRequestHasNoRunnersForm` (`internal/cemcandidate`) | `runners` refused as an unknown field |
+| CEM-V1-620 | `TestWidenRealPacketCopy`, `TestWidenRefusals` (`tools/cem-stable-regen`); `make cem-stable-regen-check` | Both schema copies change only at the node; cases and cells byte-identical; repeat refused |
+| CEM-V1-621 | `TestWidenCommittedProfile` (`tools/cem-stable-regen`); the run in `docs/build-log/2026-10-24-v1-2107-result-schema-opaque-widen.md` | Exactly the two labels; `CHANGES.md` names the legacy node digest |
+| CEM-V1-622 | `TestCEMV1622OpaqueReceiptResultValidates`, `TestStableSchemaValidatorRefusesUnknownKeywords` (`internal/cem/verify`) | `opaque/1` and the legacy const refused; plain binding gap V1-2615 pinned |
 
 Rollback: remove the `runners` and `runnerReceiptSha256s` members, the two `UnmarshalJSON`
 methods, `validateRunnerSet`, `checkRunnerProfiles` and `artifactPaths` from
@@ -2879,12 +2914,11 @@ Failure modes: an unknown runner label is refused by both readers at the existin
 runner-limitation check, with the same stage and code as before; a third-party `cem/1.0` reader that still accepts only the legacy label refuses
 a newly produced unadmitted map instead of misreading it, which is the safe direction.
 
-Open limit: the result schema `RESULT.schema.json` (stable and sealed repository-envelope copies)
-still pins `references.runnerReceipts[].profile` to the legacy label. Both verifiers echo the
-receipt record into the result, so the result for a newly produced unadmitted map carries
-`opaque/0` and does not validate against that schema, although the verdict itself is ACCEPT.
-Widening the result schema needs a re-binding of the sealed `CEM-V1-091` chain, and
-`cem-stable-regen` has no enum-widening mode. That is left as a follow-up.
+Closed limit (V1-2107): both `RESULT.schema.json` copies now admit `opaque/0` beside the legacy
+label at `references.runnerReceipts[].profile` (`CEM-V1-621`), through the recorded `--widen`
+mode of `cem-stable-regen` (`CEM-V1-620`). The result of a plain map still fails the committed
+schema at `references.criterionBindings[]`, which lacks the `CEM-V1-083` plain form (V1-2615,
+`CEM-V1-622`).
 
 ### Opaque runner receipt label traceability
 

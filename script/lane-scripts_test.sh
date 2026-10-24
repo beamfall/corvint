@@ -2,7 +2,7 @@
 # Tests for the lane procedure scripts (docs/LANE-ORCHESTRATION.md): heavy.sh (ASD-V0-014),
 # the dogfood-finish missing-input refusal (ASD-V0-015), lane-idle-check.sh (ASD-V0-017),
 # lane-clean.sh (ASD-V0-018), lane-guard.sh (ASD-V0-024),
-# install-local-bin.sh (ASD-V0-025). No Go build runs.
+# install-local-bin.sh (ASD-V0-025), install-cem-verifiers.sh (TCB-V0-046). No Go build runs.
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -300,6 +300,78 @@ grep -q '^REMOVED .*tool.corvint-prev-2$' "$tmp/install.out" || fail "install-lo
 grep -q 'REFUSE source-unreadable' "$tmp/install.err" || fail "install-local-bin did not name the missing source"
 "$script/install-local-bin.sh" --keep 0 "$tmp/v1" "$bin/tool" 2> /dev/null && fail "install-local-bin accepted --keep 0"
 "$script/install-local-bin.sh" --rollback "$bin/none" 2> /dev/null && fail "install-local-bin rolled back without a backup"
+ok
+
+# TCB-V0-046 (V1-1761): install-cem-verifiers.sh builds corvint and cem01-go from the same clean
+# HEAD, refuses an unstamped build or a dirty checkout before installing, and --check names a
+# mismatched, modified or unrecorded pair the way the cem-verdict gate does. A stub GO records each
+# build and answers `version -m` from the stub binary's content.
+cem=$(cd "$tmp" && pwd)/cem-repo
+mkdir -p "$cem/script" "$cem/cmd/corvint" "$cem/interop/cem01-go" "$tmp/cem-bin"
+/bin/cp -f "$script/install-cem-verifiers.sh" "$script/install-local-bin.sh" "$cem/script/"
+printf 'package main\n' > "$cem/cmd/corvint/main.go"
+printf 'package main\n' > "$cem/interop/cem01-go/main.go"
+git -C "$cem" init -q && git -C "$cem" add -A &&
+  git -C "$cem" -c user.name=t -c user.email=t@t commit -qm one || fail "install-cem-verifiers fixture commit failed"
+cat > "$tmp/stub-go" << 'STUB'
+#!/usr/bin/env bash
+case $1 in
+  build)
+    out=''
+    while (($# > 0)); do [[ $1 == -o ]] && out=$2; shift; done
+    printf '%s %s\n' "$PWD" "$GOTOOLCHAIN" >> "$STUB_LOG"
+    printf 'stub-build %s %s\n' "${STUB_REV:-$(git rev-parse HEAD)}" "${STUB_MODIFIED:-false}" > "$out"
+    ;;
+  version)
+    read -r tag rev modified < "$3" 2> /dev/null && [[ $tag == stub-build ]] || exit 1
+    printf '%s: go1.27.3\n\tpath\tstub\n\tbuild\tvcs=git\n\tbuild\tvcs.revision=%s\n\tbuild\tvcs.modified=%s\n' "$3" "$rev" "$modified"
+    ;;
+  *) exit 9 ;;
+esac
+STUB
+chmod +x "$tmp/stub-go"
+export STUB_LOG=$tmp/stub-go.log
+cemv() { GO=$tmp/stub-go "$cem/script/install-cem-verifiers.sh" "$@"; }
+head1=$(git -C "$cem" rev-parse HEAD)
+cemv --bin-dir "$tmp/cem-bin" > "$tmp/cemv.out" 2>&1 || fail "install-cem-verifiers install failed: $(cat "$tmp/cemv.out")"
+[[ $(tail -1 "$tmp/cemv.out") == "MATCH $head1" ]] || fail "install-cem-verifiers did not report the installed pair: $(cat "$tmp/cemv.out")"
+[[ $(cat "$STUB_LOG") == "$cem local"$'\n'"$cem/interop/cem01-go local" ]] || fail "install-cem-verifiers built from the wrong directories: $(cat "$STUB_LOG")"
+[[ $(cemv --check --bin-dir "$tmp/cem-bin") == "MATCH $head1" ]] || fail "install-cem-verifiers --check did not match a fresh pair"
+git -C "$cem" -c user.name=t -c user.email=t@t commit -q --allow-empty -m two
+head2=$(git -C "$cem" rev-parse HEAD)
+cemv --bin-dir "$tmp/cem-bin" > /dev/null 2>&1 || fail "install-cem-verifiers reinstall failed"
+[[ $(cemv --check --bin-dir "$tmp/cem-bin") == "MATCH $head2" ]] || fail "install-cem-verifiers did not install the new HEAD"
+[[ -f $tmp/cem-bin/corvint.corvint-prev-1 && -f $tmp/cem-bin/cem01-go.corvint-prev-1 ]] || fail "install-cem-verifiers kept no rollback backups"
+# A stale consumer (the V1-1761 observation), a modified build and an unrecorded build each fail.
+printf 'stub-build %s false\n' "$head1" > "$tmp/cem-bin/cem01-go"
+got=$(cemv --check --bin-dir "$tmp/cem-bin") && fail "install-cem-verifiers --check accepted a stale consumer"
+[[ $got == "MISMATCH corvint=$head2 cem01-go=$head1" ]] || fail "install-cem-verifiers stale consumer: $got"
+printf 'stub-build %s true\n' "$head2" > "$tmp/cem-bin/cem01-go"
+got=$(cemv --check --bin-dir "$tmp/cem-bin") && fail "install-cem-verifiers --check accepted a modified consumer"
+[[ $got == "MISMATCH corvint=$head2 cem01-go=$head2+modified" ]] || fail "install-cem-verifiers modified consumer: $got"
+printf '#!/bin/sh\n' > "$tmp/cem-bin/cem01-go"
+got=$(cemv --check --bin-dir "$tmp/cem-bin") && fail "install-cem-verifiers --check accepted an unrecorded consumer"
+[[ $got == "UNRECORDED corvint=$head2 cem01-go=-" ]] || fail "install-cem-verifiers unrecorded consumer: $got"
+/bin/rm -f "$tmp/cem-bin/cem01-go"
+cemv --check --bin-dir "$tmp/cem-bin" > /dev/null 2> "$tmp/cemv.err"
+[[ $? == 2 ]] && grep -q 'REFUSE missing-tool' "$tmp/cemv.err" || fail "install-cem-verifiers --check did not refuse a missing tool"
+# Refusals before any install: an untracked file, an unstamped build, bad arguments.
+/bin/cp -f "$tmp/cem-bin/corvint" "$tmp/corvint-before"
+: > "$STUB_LOG"
+printf 'x\n' > "$cem/untracked"
+cemv --bin-dir "$tmp/cem-bin" > /dev/null 2> "$tmp/cemv.err"
+[[ $? == 2 ]] && grep -q 'REFUSE uncommitted-changes' "$tmp/cemv.err" || fail "install-cem-verifiers installed from a dirty checkout"
+[[ ! -s $STUB_LOG ]] || fail "install-cem-verifiers built from a dirty checkout"
+/bin/rm -f "$cem/untracked"
+STUB_REV=$head1 cemv --bin-dir "$tmp/cem-bin" > /dev/null 2> "$tmp/cemv.err"
+[[ $? == 2 ]] && grep -q 'REFUSE build-not-stamped corvint' "$tmp/cemv.err" || fail "install-cem-verifiers installed a build of another revision"
+STUB_MODIFIED=true cemv --bin-dir "$tmp/cem-bin" > /dev/null 2> "$tmp/cemv.err"
+[[ $? == 2 ]] && grep -q 'REFUSE build-not-stamped' "$tmp/cemv.err" || fail "install-cem-verifiers installed a modified build"
+cmp -s "$tmp/corvint-before" "$tmp/cem-bin/corvint" && [[ ! -e $tmp/cem-bin/cem01-go ]] || fail "a refused install-cem-verifiers run wrote the bin dir"
+cemv --keep 0 --bin-dir "$tmp/cem-bin" 2> /dev/null; [[ $? == 2 ]] || fail "install-cem-verifiers accepted --keep 0"
+cemv --bogus 2> /dev/null; [[ $? == 2 ]] || fail "install-cem-verifiers accepted an unknown argument"
+cemv --bin-dir "$tmp/no-such-dir" 2> /dev/null; [[ $? == 2 ]] || fail "install-cem-verifiers accepted a missing bin dir"
+unset STUB_LOG
 ok
 
 printf 'lane-scripts_test: %d groups passed\n' "$passed"
