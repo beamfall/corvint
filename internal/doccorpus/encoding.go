@@ -280,6 +280,11 @@ func ReadPlaywrightFile(root, path string) ([]byte, error) {
 	return readFileBounded(root, path, PlaywrightFileMaxBytes)
 }
 
+// ReadProviderFile admits one provider record or shard within its per-shard bound (DCP-V1-531).
+func ReadProviderFile(root, path string) ([]byte, error) {
+	return readFileBounded(root, path, MaxProviderBytes)
+}
+
 // ReadCorpusFile admits a bounded /2 manifest or artifact; its decoder still
 // enforces the original limit for /1 and for independent receipt profiles.
 func ReadCorpusFile(root, path string) ([]byte, error) {

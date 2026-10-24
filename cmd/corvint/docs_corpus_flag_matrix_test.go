@@ -25,6 +25,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"cem":                 {required: []string{"--artifact", "--cem"}, optional: []string{"--id"}},
 	"behavior-adapter":    {required: []string{"--input"}, optional: []string{"--previous", "--check"}},
 	"behavior-provider":   {required: []string{"--input"}},
+	"compact-provider":    {required: []string{"--input"}}, // DCP-V1-531
 	"discover-playwright": {required: []string{"--migration", "--config", "--playwright-list"}, optional: []string{"--receipt"}},
 	"witness-playwright":  {required: []string{"--input", "--receipt-input", "--report"}},
 	"discover-legacy":     {required: []string{"--runner", "--revision", "--path"}, optional: []string{"--input"}},

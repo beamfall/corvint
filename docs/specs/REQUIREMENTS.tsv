@@ -2819,6 +2819,11 @@ DCP-V1-495	docs/specs/documentation-corpus-v1.md	`corvint docs corpus build` tak
 DCP-V1-496	docs/specs/documentation-corpus-v1.md	Before any Git read or build, the rebuild refuses (`corpus-refused`, no output)	unrecorded	-
 DCP-V1-497	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-471`, every `builder differs:` refusal of the verified read end	unrecorded	-
 DCP-V1-498	docs/specs/documentation-corpus-v1.md	A corpus MCP server answers its first call from an artifact recorded by another	unrecorded	-
+DCP-V1-530	docs/specs/documentation-corpus-v1.md	`doccorpus.EncodeCompactProvider` writes a `/1` adoption provider record as the	unrecorded	-
+DCP-V1-531	docs/specs/documentation-corpus-v1.md	`corvint docs corpus compact-provider --input PROVIDER.json` reads one `/1`	unrecorded	-
+DCP-V1-532	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-495`, `build --artifact` reuses the artifact's records instead	unrecorded	-
+DCP-V1-533	docs/specs/documentation-corpus-v1.md	Any other artifact is rebuilt in full, to the same bytes. This covers another or	unrecorded	-
+DCP-V1-534	docs/specs/documentation-corpus-v1.md	The rebuild is measured on a synthetic inventory of 9,500 files (38,010	unrecorded	-
 DCP-V1-470	docs/specs/documentation-corpus-v1.md	A closed JSON refusal of a named local input (a manifest, a provider record or	unrecorded	-
 DCP-V1-471	docs/specs/documentation-corpus-v1.md	The builder engine names a derivation version (`native-contextindex/<schema>/	unrecorded	-
 DCP-V1-472	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-033` and `DCP-V1-157`, the pinned bytes of a corpus's distinct	unrecorded	-

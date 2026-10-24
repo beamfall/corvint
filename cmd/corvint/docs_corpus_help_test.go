@@ -22,7 +22,7 @@ func corpusHelpRun(t *testing.T, args ...string) string {
 
 // issue805CorpusOperations is every operation parseCorpusInvocation admits.
 var issue805CorpusOperations = []string{
-	"manifest", "build", "render", "maintain", "cem", "behavior-adapter", "behavior-provider",
+	"manifest", "build", "render", "maintain", "cem", "behavior-adapter", "behavior-provider", "compact-provider",
 	"discover-playwright", "witness-playwright", "discover-legacy", "import-cases", "search-cases", "eval", "audit-sample", "audit-report", "delta", "carry-forward", "discover-tests", "extract", "patterns", "info", "validate", "inventory", "search", "get",
 	"trace", "related", "journey", "stability", "locate", "coverage", "gaps", "concept", "claims",
 	"flow", "dependencies", "recommend-tests", "navigation", "vocabulary", "intent",

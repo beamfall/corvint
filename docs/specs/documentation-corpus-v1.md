@@ -2734,7 +2734,7 @@ bound changes.
 Failure modes: a compact record a producer writes against the wrong source revision expands to
 anchors that fail the `/1` revision check, never to anchors at another revision; a `/2` record
 under a `/1` manifest is refused as an adoption record is. Non-goals: the builder writes no `/2`
-record and offers no conversion command; the artifact, its anchors and receipts keep their
+record (only the explicit `compact-provider` producer of `DCP-V1-531` does); the artifact, its anchors and receipts keep their
 format, so no derivation version changes (`DCP-V1-471`); the span hash stays per anchor. A `/2`
 record decodes in about twice the time of its `/1` form. Rollback removes the `/2` decode path;
 `/1` records are unaffected, and corpora pinning `/2` records are refused until rewritten as `/1`.
@@ -2778,6 +2778,61 @@ delivered.
   rebuilt into a new file renamed over the served one, the running server refuses with its
   restart message (`DCP-V1-143`) and a restarted server answers. Acceptance:
   `TestDCPV1498MCPServesArtifactsAcrossBuilderUpgrades`.
+
+### Compact provider producer and rebuild reuse (GitHub #1664, #1667)
+
+The compact `/2` encoding of `DCP-V1-487` had only a reference encoder inside a test, and
+`build --artifact` rederived every record even when the running builder's derivation was the
+artifact's own: about 11 s and 1.6 GB on #1667's corpus. Status for `DCP-V1-530..534`: proposed,
+experimental; GitHub #1664, #1667.
+
+- `DCP-V1-530`: `doccorpus.EncodeCompactProvider` writes a `/1` adoption provider record as the
+  `/2` record that expands to it: its anchors index a file table in first-appearance order, a file
+  omits its repository or revision when it is the record's `source` one, and with defaults an
+  anchor omits each authority, kind or reason equal to the default's. Its bytes equal the
+  `DCP-V1-487` reference encoder's for the same record and defaults. A record of any other schema
+  is refused, as is a table over the 100,000-entry bound. Acceptance:
+  `TestDCPV1530CompactEncoderMatchesReference`.
+- `DCP-V1-531`: `corvint docs corpus compact-provider --input PROVIDER.json` reads one `/1`
+  adoption provider record or shard within its per-shard bound (128 MiB) and prints its `/2`
+  encoding, with the most frequent anchor authority, kind and reason as `anchor_defaults` (each
+  tie going to the byte-smallest value; none when the record has no anchor). It refuses with no
+  output: unreadable or malformed input, a `/2` or non-adoption schema, an output over the
+  per-shard bound, and a result that does not decode back to exactly the input record. The output
+  is deterministic, and the build admits the same records from it as from its input. It writes no
+  file, and the caller repins the manifest to the new bytes. Acceptance:
+  `TestDCPV1531CompactProviderProducer`, `TestDCPV1531CompactProviderCommand`,
+  `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags`.
+- `DCP-V1-532`: Amending `DCP-V1-495`, `build --artifact` reuses the artifact's records instead
+  of rederiving them when all of these hold: the running builder is attested; the artifact
+  decodes closed and canonical; the verified read admits its recorded builder (`DCP-V1-471`: same
+  builder schema, derivation version and engine, Go toolchain included); its embedded manifest,
+  manifest digest, profile digest and schema pairing match the manifest being built; and, after
+  `DCP-V1-496`'s full pin rereads every pinned input from Git, the primary revision resolves to
+  its recorded tree. Only the builder and the content digest are then rewritten, and the query
+  index is admitted as `build` admits it (`DCP-V1-196`). The printed bytes equal a full build of
+  the same manifest. Because `--artifact` always builds the embedded manifest, every shard digest
+  matches, so reuse is of the whole artifact. Acceptance:
+  `TestDCPV1532RebuildReusesSameDerivation`, `TestDCPV1532BuildArtifactReusesRecords`.
+- `DCP-V1-533`: Any other artifact is rebuilt in full, to the same bytes. This covers another or an
+  unrecorded derivation, another engine, digests or a tree a full build would not reproduce, and
+  any artifact under an unattested running builder. The verified read still refuses an
+  unrecorded-derivation artifact (`DCP-V1-471`). A pin refusal is the full build's own refusal.
+  Acceptance: `TestDCPV1533RebuildRederivesOtherwise`, `TestDCPV1532BuildArtifactReusesRecords`.
+- `DCP-V1-534`: The rebuild is measured on a synthetic inventory of 9,500 files (38,010
+  subjects, 28,511 claims, 28,500 provider anchors, 62 MB artifact). Each mode runs in its own process,
+  and both print the bytes of a full build. Acceptance: `TestDCPV1534RebuildReuseMeasured` (env-gated);
+  measured in docs/build-log/2026-10-24-corpus-compact-producer-and-rebuild-reuse.md.
+
+Failure modes: a hand-edited artifact whose records were re-signed, and whose recorded builder
+the verified read admits, is reused as is. The verified read already serves such an artifact
+without rederiving it, so the rebuild extends it no further trust. A full rebuild is the
+remedy, by changing the derivation or rebuilding with `--manifest`. A Go toolchain change still
+forces a full rebuild, because the engine is part of the admitted derivation. Non-goals: no
+per-shard record cache, no persisted state, and no change to the artifact, manifest, provider or
+receipt encodings. Rollback removes `compact-provider`, `EncodeCompactProvider` and the reuse
+path. `build --artifact` then rederives every artifact as `DCP-V1-495` did, and `/2` records
+already written stay readable.
 
 ### Corpus diagnostics, builder upgrades, eval cost and ranking residuals (GitHub #1662, #1664 to #1667)
 
@@ -2929,7 +2984,7 @@ Caller-owned profiles stay refused on platforms without the no-follow reader, so
 is not met. Not delivered here: a `score` or rank group on served rows and symbol subjects
 derived from indexed inputs (#1665 rows 3 and 5). The compact per-file anchor table of #1664
 (`DCP-V1-487..489`) and the rebuild from an embedded manifest of #1667 (`DCP-V1-495..498`) are
-specified in their own sections; no producer writes the compact `/2` record yet (V1-2547), and
+specified in their own sections, as are the compact `/2` producer and rebuild reuse (`DCP-V1-530..534`), and
 release notes naming the merges that change the derivation version remain owner work (V1-2545).
 
 ## Input and authority boundary
@@ -3482,8 +3537,8 @@ read back at `ReadCorpusFile` plus `OpenRead` and drops the decode-time claim te
 current side is `DCP-V1-460`'s and rolls back with it. No stored state needs migration.
 Rebuild from the embedded manifest (`DCP-V1-495..498`) adds one input option to `build`, and
 no cache, daemon, persisted state or artifact, manifest or receipt format change. It does not
-make a read rebuild, admit an artifact from a changed derivation, or trust an artifact's records:
-only its embedded manifest, checked against both recorded digests, and Git. Rollback removes
+make a read rebuild, admit an artifact from a changed derivation, or trust an artifact's records
+beyond `DCP-V1-532`'s reuse: only its embedded manifest, checked against both recorded digests, and Git. Rollback removes
 `--artifact` from `build`, restores `--manifest` as required, and drops the rebuild hint from
 the `builder differs:` refusals; no stored state needs migration.
 Diagnostics, builder upgrades, eval sessions and ranking (`DCP-V1-470..477`) add no cache,
@@ -3624,6 +3679,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-430..434 | `internal/doccorpus/artifact_decode.go`, `read.go`, `encoding.go`, `query_index_fast.go`, `types.go`, `internal/testvaliditydoc/read.go`, `cmd/corvint/docs_corpus.go`, `corpus_integration.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1431StreamedReadReusesBlocks`, `TestDCPV1431OpenReadFile`, `TestDCPV1431StreamedTruncationAtWindowEnd`, `TestDCPV1431CorpusRefusalJoinsFreshness`, `TestDCPV1432JoinedCorpusReusesVerifiedArtifact`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1434ConcurrentQueriesShareClaimTerms`, `TestDCPV1416CorpusMCPFirstAndWarmCalls`; measured in docs/build-log/2026-10-23-corpus-read-residual.md |
 | DCP-V1-465..467 | `internal/doccorpus/primary_observation.go`, `query.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1465PrimaryObservationMatchesFreshRead`, `TestDCPV1466PrimaryObservationUsedOnce`, `TestDCPV1467CancelledPrimaryObservationJoins`, `TestDCPV1467ShorterDeadlineStopsWaitingForPrimary`, `TestDCPV1467CorpusPreHeaderRefusalJoinsPrimary`, `TestDCPV1431CorpusRefusalJoinsFreshness`, `TestDCPV1413CorpusReadsWithoutRederivation`; measured in docs/build-log/2026-10-23-corpus-read-start-freshness.md |
 | DCP-V1-495..498 | `internal/doccorpus/rebuild.go`, `encoding.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `internal/capcatalog/catalog.json` | `TestDCPV1495RebuildFromEmbeddedManifest`, `TestDCPV1495BuildRebuildsFromEmbeddedManifest`, `TestDCPV1496RebuildRefusesUnverifiedManifest`, `TestDCPV1497ReadNeverRebuilds`, `TestDCPV1498MCPServesArtifactsAcrossBuilderUpgrades`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
+| DCP-V1-530..534 | `internal/doccorpus/compact_anchor.go`, `rebuild.go`, `encoding.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `docs.go`, `internal/capcatalog/catalog.json` | `TestDCPV1530CompactEncoderMatchesReference`, `TestDCPV1531CompactProviderProducer`, `TestDCPV1531CompactProviderCommand`, `TestDCPV1532RebuildReusesSameDerivation`, `TestDCPV1532BuildArtifactReusesRecords`, `TestDCPV1533RebuildRederivesOtherwise`, `TestDCPV1534RebuildReuseMeasured`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-470 | `internal/doccorpus/encoding.go`, `shards.go`, `extractor.go` | `TestDCPV1470LocatedDecodeRefusal` |
 | DCP-V1-471 | `internal/doccorpus/encoding.go`, `read.go` | `TestDCPV1471VerifiedReadAcrossBuilderRevisions`, `TestDCPV1471DerivationVersionGuard`, `TestDCPV1410VerifiedReadRefusals` |
 | DCP-V1-472 | `internal/doccorpus/capacity.go`, `compile.go` | `TestDCPV1472ProviderRecordBytesChargedApart`, `TestDCPV1157CapacityRefusalsAreTypedAndEarly` |
