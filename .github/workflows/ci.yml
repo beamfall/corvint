@@ -422,6 +422,10 @@ jobs:
             exit 1
           fi
           printf 'GOENV=off\nGOCACHE=%s\n' "$RUNNER_TEMP/go-build" >> "$GITHUB_ENV"
+          # AFP-V0-430: the box's /tmp is a RAM-backed tmpfs; temporary files, t.TempDir() among
+          # them, go to the per-job ext4 RUNNER_TEMP instead, outside the confined checkout.
+          mkdir -p -- "$RUNNER_TEMP/tmp"
+          printf 'TMPDIR=%s\n' "$RUNNER_TEMP/tmp" >> "$GITHUB_ENV"
           git config --global user.name corvint-ci
           git config --global user.email corvint-ci@users.noreply.github.com
           git config --global maintenance.auto false

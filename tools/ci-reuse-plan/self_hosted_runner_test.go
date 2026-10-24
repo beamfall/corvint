@@ -230,7 +230,7 @@ func TestAFPV0427SelfHostedSeedRestoreAndRefreshEvents(t *testing.T) {
 		"        if: steps.testcache.outcome == 'success'")
 }
 
-// AFP-V0-427/424 behaviour: the scripts run under bash against a temporary root. A missing seed
+// AFP-V0-427/428 behaviour: the scripts run under bash against a temporary root. A missing seed
 // leaves a cold cache; a refresh swaps in a copy and removes the replaced one; a restore copies it
 // (an independent file, not a link); an unsafe root or a cache above the cap never fails.
 func TestAFPV0428SelfHostedSeedRefreshSwapsAndRestoreCopies(t *testing.T) {
@@ -371,5 +371,24 @@ func TestAFPV0428SelfHostedSeedRefreshSwapsAndRestoreCopies(t *testing.T) {
 	// A runner name that is not a plain path component is refused.
 	if out := exec1(restore, filepath.Join(dir, "t9"), "../x", "", ""); !strings.Contains(out, "not a plain seed name") {
 		t.Errorf("a path-like runner name must be refused: %s", out)
+	}
+}
+
+// AFP-V0-430: on the self-hosted runner only, the verification step points TMPDIR at a per-job
+// directory under RUNNER_TEMP (ext4, emptied by the runner for every job) before the tests run, so
+// t.TempDir() never lands on the box's RAM-backed /tmp; no other step and no hosted step sets it.
+func TestAFPV0430SelfHostedTMPDIRIsPerJobUnderRunnerTemp(t *testing.T) {
+	ci := readWorkflow(t, "ci.yml")
+	shard := jobBlock(t, ci, "go-product-shard")
+	verify := stepBlock(t, shard, "Verify the host tools the product's fixed PATH resolves (self-hosted runner, AFP-V0-421)")
+	wantLine(t, "self-hosted verification", verify, "        if: runner.environment == 'self-hosted'")
+	wantLine(t, "self-hosted verification", verify, `          mkdir -p -- "$RUNNER_TEMP/tmp"`)
+	wantLine(t, "self-hosted verification", verify, `          printf 'TMPDIR=%s\n' "$RUNNER_TEMP/tmp" >> "$GITHUB_ENV"`)
+	if all, here := strings.Count(ci, "TMPDIR"), strings.Count(verify, "TMPDIR"); all != here {
+		t.Errorf("ci.yml names TMPDIR %d times, %d of them outside the self-hosted verification step", all, all-here)
+	}
+	at := func(name string) int { return strings.Index(shard, "      - name: "+name) }
+	if v, g := at("Verify the host tools"), at("Go tests (full until"); v < 0 || g < v {
+		t.Errorf("TMPDIR must be set before the tests step: verify at %d, tests at %d", v, g)
 	}
 }

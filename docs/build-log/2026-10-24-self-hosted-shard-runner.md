@@ -213,3 +213,17 @@ remain. A real box shard with the seed is `NOT_OBSERVED` until the variable is o
   remaining boundary is the shared runner account, as AFP-V0-429 states.
 - The seed IDs were renumbered from AFP-V0-423..425 to AFP-V0-427..429 because open PR #1691
   holds AFP-V0-423..426.
+
+## Per-job TMPDIR on the box (AFP-V0-430)
+
+The box's `/tmp` is a 16 GiB tmpfs, while `/` is ext4. Nothing in `ci.yml` set `TMPDIR`, so eight
+concurrent `-race` shards would put every `t.TempDir()` and Go work directory in RAM on a 31 GB host.
+Filesystem-dependent tests would also differ from the hosted ext4 runners (V1-2554, V1-2563).
+
+The self-hosted verification step now creates `$RUNNER_TEMP/tmp` and exports `TMPDIR` to it through
+`$GITHUB_ENV`. `RUNNER_TEMP` is ext4 and the runner empties it for every job. Hosted steps are
+unchanged and never set `TMPDIR`. The test-confine wrapper needs no change, because it grants reads
+everywhere outside the confined checkout, and `RUNNER_TEMP` is a sibling of that checkout.
+
+This is per-job cleanup, not isolation. Rollback is removing the two lines. A box run is
+`NOT_OBSERVED`.
