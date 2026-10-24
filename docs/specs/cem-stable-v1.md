@@ -335,6 +335,54 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   read refuses `CEM_VERDICT_UNVERIFIABLE` / `git-read-failed` with no governed rows. The citation
   block, the verdict digest and the portable cross-check are unchanged.
 
+- `CEM-V1-609`: (proposed; V1-2578) `make cem-release-gate` MUST run the 29 public
+  repository-envelope cells once per built binary: the portable consumer's
+  `TestStableCanonicalEnvelopeCells` recipes in the committed private tree, with
+  `CEM01_ENVELOPE_BINARY` naming that binary's absolute path and stable verification command
+  (`corvint cem verify-stable`, `cem01-go verify-stable-canonical`) as each cell's verifier, and
+  `CEM01_S0E_CONFORMANCE_OUT` naming a report in the run's private directory. Inherited Git and
+  envelope selection variables are dropped. A malformed `CEM01_ENVELOPE_BINARY` fails the test and
+  never falls back to the test binary; unset, the cells keep running the test binary in `RUN_REAL`
+  mode.
+- `CEM-V1-610`: (proposed; V1-2578) The `corvint:repository-envelope` and
+  `cem01-go:repository-envelope` rows MUST be `PASSED` only when that binary's report is
+  `cem01-go-s0e-portable-conformance/1` with 29 distinct cells, every one `RUN_BINARY` `PASS`;
+  `FAILED` when the test run failed, the report is unreadable or foreign, or any recorded cell did
+  not pass; and otherwise `NOT_RUN` (cells this host could not build). A `FAILED` row refuses the
+  run with exit 1, whatever the declaration requires.
+- `CEM-V1-611`: (proposed; V1-2579) `--record PATH` MUST write the run's `cem-release-run/1`
+  record, the canonical `encoding/json` form plus LF, with members `profile`, `revision`,
+  `platform`, `declaration` (`path`, `sha256` of the judged declaration bytes), `binaries`
+  (exactly `corvint` then `cem01-go`, each with its main package and SHA-256), `runner` and
+  `platforms` (the rows observed) and `accepted` (the accepted stable result lines). The record is
+  unauthenticated run output; it never proves who ran it or how the binaries were built. A reader
+  MUST refuse unknown members, a trailing value and any non-canonical spelling. An existing
+  output path is refused before the build and never overwritten.
+- `CEM-V1-612`: (proposed; V1-2579) `--aggregate --readiness PATH [--root DIR] [--outcome OUT]
+  RECORD...` MUST read the declaration from the first record's revision's committed objects at
+  `--root`, never from a record, and MUST refuse the record set with exit 1, writing no outcome,
+  unless every record has the run profile, that revision and exactly that declaration path and
+  digest; names exactly the `corvint` and `cem01-go` binaries with digests; observes exactly its
+  own platform `PASSED`; declares the same runner rows; and carries at least one accepted result.
+  No platform and no binary digest may appear in two records. The merged runner row is `PASSED`
+  only when every record observed it `PASSED`, and otherwise the first other outcome in record
+  order; platforms are the union and accepted lines are concatenated; readiness is then judged as
+  in CEM-V1-601 with every external row `NOT_OBSERVED`.
+- `CEM-V1-613`: (proposed; V1-2579, V1-2581) `--outcome PATH` MUST write one
+  `cem-release-gate-outcome/1` document when readiness was judged, in either mode:
+  `profile`, `revision` (a full 40- or 64-hex object name), `declarationSha256`, `records` (the
+  distinct digests of the records the run wrote or aggregated, `[]` when it wrote none), `verdict` and `reason`, in
+  that order, LF terminated. `READY` carries an empty reason and `REFUSED` a non-empty one.
+  `companionrelease.ReadStableGateOutcome` MUST admit only that canonical encoding and refuse
+  everything else with class `release-gate-outcome`. A run refused before readiness is judged
+  writes no outcome, so a missing outcome never reads as a verdict.
+- `CEM-V1-614`: (proposed; V1-2581) The stable readiness record (SRR-V1-005) MUST end its
+  catalogue with the row `gate/cem-release-gate` for every version except `1.0.0-rc.1` and
+  `1.0.0-rc.2`, whose records stay verifiable unchanged. The row MUST be `PASS`, and its evidence
+  file MUST read as a gate outcome whose `revision` is the candidate commit and whose verdict is
+  `READY`, at build and again at verification. A missing outcome, a `REFUSED` one, one for another
+  commit, a malformed one or a non-PASS status refuses the candidate.
+
 - `CEM-V1-573`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2322) A
   `cem-stable-plain-assembly/1` request MAY name `runners`, an array of 1 to 64
   `{runnerPlan, runnerReceipt}` pairs of pinned inputs, in place of the top-level `runnerPlan` and
@@ -4741,3 +4789,48 @@ tier are byte-identical under both versions; a pinned runner-bound GRANT stops r
 | CEM-V1-606 | `TestCEMV1606RunnerInputAnchorsNewAndEditedFiles` (`internal/taskman`): new and edited files GRANT on `runner-input`, tiers equal the citation, pinned bytes reverify | #1703 rerun: 18 `runner-input` hunks |
 | CEM-V1-607 | `TestCEMV1607RunnerArtifactAnchorsCommittedRunnerArtifacts`: plan and receipt GRANT on `runner-artifact`; a failed run anchors neither | #1703 rerun: 6 `runner-artifact` hunks |
 | CEM-V1-608 | `TestCEMV1608UnanchorablePathsRefuseWithANamedReason` (deletion, input absent from the plan, stale input digest, failed run, opaque receipt, unlinked hunk; `all-anchored` refuses), `TestCEMV1608RunnerAnchorReasonsAndReadFailure`, `TestCEMV1608AnchoredGrantEncodesWithoutRunnerMembers` | Earlier tier-only GRANT bytes unchanged |
+
+## Release-gate binary envelopes, run aggregation and readiness binding (V1-2578, V1-2579, V1-2581, 2026-10-24)
+
+Status: proposed (V1-2578, V1-2579, V1-2581); experimental until owner acceptance. The first real
+lifecycle (`docs/build-log/2026-10-24-cem-1-0-real-lifecycle.md`) left `make cem-release-gate`
+refused for three reasons this section addresses: the binary-level repository-envelope rows were
+`NOT_RUN`, one run observes one platform so `linux/amd64` stayed `NOT_OBSERVED`, and the release
+candidate readiness record did not bind the gate's verdict. SRR-V1-005 is amended by
+cross-reference to append the gate row (CEM-V1-614).
+
+The requirements are `CEM-V1-609` to `CEM-V1-614` in `## Requirements`.
+
+Non-goals: no signing or authentication of run records or outcomes; no network transfer between
+hosts (the operator copies records); no external-consumer observation, which stays
+`NOT_OBSERVED` under V1-0014; no CI wiring (V1-2580 is an owner `.github/` change); no change to
+the sealed cases, the stable verifier or the declaration format.
+
+Failure modes: a failing binary envelope run, a foreign or partial report, a record of another
+revision, declaration or binary set, a reused binary digest, a repeated or foreign platform, a
+non-canonical record or outcome and an existing output path each refuse as named above. A record
+is unauthenticated: an operator can fabricate one, so an aggregated `READY` proves only what the
+copied records claim; the binary digests let a reviewer rebuild and compare.
+
+Acceptance evidence: the tests below, and the runs at `27e9d9807214029a1535a5135f3401b6c6d45bec`
+recorded in `docs/build-log/2026-10-24-cem-release-run-aggregation.md`: a darwin/arm64 run and a
+WSL2 linux/amd64 run each observed both binary envelope rows `PASSED` (29 of 29), and their
+aggregation observed every runner row and both platform rows `PASSED`, refused only at
+`independent-external-consumer`.
+
+Rollback: revert the change. The `--record`, `--aggregate` and `--outcome` flags and the gate row
+go away; written records and outcomes are evidence only and no reader takes them as ranking,
+authority or promotion input. A readiness record carrying `gate/cem-release-gate` stops verifying
+after a rollback (its catalogue is not closed), which is the intended refusal; rc.1 and rc.2
+records verify under both versions.
+
+### Release-gate aggregation traceability
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-609 | `TestCEMV1609BinaryEnvelopeSuiteNamesTheBinary` (`tools/cem-release-suites`) | darwin and linux runs: 29 of 29 cells per binary |
+| CEM-V1-610 | `TestCEMV1610EnvelopeOutcome`, `TestCEMV1610FailingBinaryEnvelopeRunIsRefused` | A stub binary fails every cell and the row is `FAILED` |
+| CEM-V1-611 | `TestCEMV1611RunRecordIsCanonical` | darwin and linux records by digest in the build log |
+| CEM-V1-612 | `TestCEMV1612AggregationRefusesMismatchedRuns`, `TestCEMV1612BothPlatformRowsFromTwoRuns` | Real aggregation: both platform rows `PASSED`, exit 3 at the external row |
+| CEM-V1-613 | `TestCEMV1613GateOutcomeIsExact` (`internal/companionrelease`) | Outcomes of both runs and the aggregation read back |
+| CEM-V1-614 | `TestCEMV1614ReadinessBindsTheCEMGateOutcome` (`internal/releasecandidate`) | rc.1 and rc.2 fixtures unchanged (`TestSRRV1005MissingEvidenceIsNotRun` and the other SRR-V1 tests) |
