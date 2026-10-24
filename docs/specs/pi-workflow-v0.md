@@ -53,14 +53,16 @@ that exception grants neither a native claim nor native completion and changes n
 - `PWV-V0-015`: Every registered model tool MUST declare Pi `annotations`: `NATIVE_READ` tools are `readOnlyHint` true, `destructiveHint` false, `idempotentHint` true and `openWorldHint` false; the `EXPLICIT_RECORD` tool is `readOnlyHint`, `destructiveHint`, `idempotentHint` and `openWorldHint` false. Annotations are unverified host hints for permission extensions and grant no authority.
 - `PWV-V0-016`: The lifecycle runner MUST refuse a `hostVersion` other than the exact admitted `0.99.1` with `unsupported-host-version` before starting any process. The protected image's ordinary fallback MUST declare its embedded Pi version from one constant that equals its pinned SDK dependency; while that version is not admitted, every fallback MUST be a typed, visible refusal that injects no context.
 - `PWV-V0-017`: The package MUST ship Pi skills through its `pi.skills` manifest entry, exactly the inventory `skills` set. Each skill directory MUST contain a `SKILL.md` whose frontmatter `name` equals the directory name and whose body routes only to registered Corvint tools or the operator's explicit `/corvint-tasks` command. A skill MUST NOT instruct the model to write the task store, claim completion, or run a native command outside the registered tools.
+- `PWV-V0-018` (proposed, V1-2573): An interrupted native Tasks writer dispatch MUST receive a per-call TERM grace of 30,000 ms, the CAL-V0-319 interrupted-record write bound, before KILL; leader exit ends the grace and its process group is swept 100 ms later. Reads keep the 100 ms grace. The process helper MUST refuse a `graceMs` that is not an integer from 100 to 30,000 with `invalid-request` before spawn. Failure mode: a KILL that lands after the native receipt commit and before the head apply leaves the store `REDO_PENDING`.
+- `PWV-V0-019` (proposed, V1-2573): When every failing reconciliation read refuses with native code `REDO_PENDING`, the Tasks service MUST return `pending-operation` with mutation `not-attempted`, retain the native receipts under `reconciliation`, and dispatch no writer. The wrapper MUST NOT redo the pending receipt (TM-V0-008): the next native writer redoes it. Any other reconciliation refusal stays `reconciliation-unavailable`.
 
 ## Trust boundary, limits and failure modes
 
 The process helper defaults to 15 seconds and 65,536 aggregate stdout/stderr bytes; configuration
 cannot exceed 120 seconds or 1 MiB. Argv is at most 128 members and 65,536 serialized bytes; stdin
 shares the configured byte bound. Each request uses no shell and creates no persistent service.
-Normal leader exit also cleans its process group; TERM receives 100 ms before KILL and bounded pipe
-closure. Darwin/Linux are admitted; other platforms refuse. The native executable and its configured
+Normal leader exit also cleans its process group; TERM receives 100 ms before KILL (a native Tasks
+writer dispatch receives at most 30,000 ms, PWV-V0-018) and bounded pipe closure. Darwin/Linux are admitted; other platforms refuse. The native executable and its configured
 environment are operator-trusted. This is process lifecycle containment, not a hostile executable
 sandbox: descendants that deliberately create a different session are outside this profile.
 
@@ -132,6 +134,8 @@ requires the existing governing interface; missing dependencies remain open.
 | PWV-V0-015 | `core.js`, `tasks.js`, `tools.js` registration | `capabilities.test.mjs`: each tool's annotations follow its inventory state; live `getAllTools` receipt in the build-log matrix |
 | PWV-V0-016 | `integrations/pi/runtime.js`, `integrations/pi-protected/host-version.mjs` | `runtime.test.mjs` refuses before spawn; `pi-protected/host-version.test.mjs` drives the protected fallback through the real runner. Built-image confirmation is NOT_RUN until the image is built |
 | PWV-V0-017 | `integrations/pi/skills/`, `package.json` | `capabilities.test.mjs`: shipped skill set, frontmatter names, tool routes, and no named native command or instruction to run tests or checks; `core-host.test.mjs`: the review skill's head rule (a head other than HEAD is refused); live `get_commands` receipt in the build-log matrix |
+| PWV-V0-018 | `integrations/pi/process.js`, `tasks.js` writer dispatch | `process.test.mjs`: a TERM-handling leader finishes its record under a 5,000 ms grace and is killed under the default and a 150 ms grace; out-of-range `graceMs` refuses; `tasks.test.mjs`: the writer call carries 30,000 ms and reads carry none |
+| PWV-V0-019 | `integrations/pi/tasks.js` reconciliation | `tasks.test.mjs`: `REDO_PENDING` gives `pending-operation` with no dispatch and other refusals stay `reconciliation-unavailable`; manual `tasks-host.test.mjs` restores the pre-apply head after a real native gate run and requires `pending-operation`, then a native writer redo and clean reads |
 
 A test path names required evidence, not an assertion that it passed. Final outcome belongs in the
 combined build-log and bound CEM/OCM. Missing or failed acceptance rows keep delivery experimental.
@@ -146,6 +150,8 @@ API/version changes and native CLI contract drift; refuse unsupported tuples rat
 The PWV-V0-013 to PWV-V0-017 additions roll back independently: drop the operation from the
 `reads` or `fields` map, the `annotations` field, or the `pi.skills` entry, together with its
 inventory entry. None of them persists state, so rollback leaves no residue.
+PWV-V0-018 and PWV-V0-019 roll back by dropping the `graceMs` argument from the writer dispatch and
+the `REDO_PENDING` branch in reconciliation; neither persists state.
 
 ## Open decisions and kill criteria
 

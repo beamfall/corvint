@@ -2,6 +2,7 @@
 import { canonical, digest, createWorktreeIdentity, createOperationLedger, READ_ONLY_TOOL } from './operations.js';
 const reads={help:['help'],audit:['receipt','audit'],queue:['queue','status'],roadmap:['roadmap'],ticket:['ticket','show'],blockers:['ticket','blockers'],gates:['gate','list'],gate:['gate','show'],releases:['release','list'],release:['release','show'],readiness:['release','readiness'],attempt:['attempt','show'],plan:['plan','preview'],search:['ticket','search'],list:['ticket','list']};
 const writes=['ticket prioritize','claim','renew','release','submit','gate run','complete'];
+const WRITER_GRACE_MS=30000;
 const ident=v=>typeof v==='string'&&/^[A-Za-z0-9][A-Za-z0-9:._/-]{0,511}$/.test(v)&&!v.includes('..');
 const count=v=>typeof v==='string'&&/^(0|[1-9][0-9]{0,17})$/.test(v);
 const oid=v=>typeof v==='string'&&/^[0-9a-f]{40}([0-9a-f]{24})?$/.test(v);
@@ -82,7 +83,7 @@ export function createTasksService({runner,identity,identityOwner,ledger=createO
  }
  const frozen=(binding,ctx)=>({...ctx,cwd:binding.cwd,signal:binding.signal,sessionManager:{getSessionId:()=>binding.session}});
  async function identify(ctx,binding,write=false) {check(binding,ctx,write);const i=await resolveIdentity(frozen(binding,ctx));check(binding,ctx,write);return i}
- async function native(args,ctx,input,binding) {const nativeResult=await runner.run({cwd:binding.cwd,args,input,signal:binding.signal});return {...decode(nativeResult),nativeResult}}
+ async function native(args,ctx,input,binding,graceMs) {const nativeResult=await runner.run({cwd:binding.cwd,args,input,signal:binding.signal,...(graceMs?{graceMs}:{})});return {...decode(nativeResult),nativeResult}}
  const fault=(error,fallback)=>['invalid-input','unsupported-operation','unsupported-mutation','pending-operation','request-id-conflict','reconciliation-required','ledger-full','ledger-invalid','stale-context','aborted','untrusted-project','host-not-idle','identity-unavailable','detached-head'].includes(error.message)?error.message:fallback;
  async function read(operation,input={},ctx) {
   if(!trusted(ctx))return failure('untrusted-project');
@@ -120,7 +121,11 @@ export function createTasksService({runner,identity,identityOwner,ledger=createO
    const capability=await read('help',{},ctx);check(binding,ctx,true);
    if(!capability.ok||!capability.raw.items[0]?.implemented?.includes(request.operation))return failure('capability-unavailable');
    const evidence=await reconcile(request.input,ctx,binding);check(binding,ctx,true);
-   if(Object.values(evidence).some(r=>!r.ok))return failure('reconciliation-unavailable',{reconciliation:evidence});
+   const unread=Object.values(evidence).filter(r=>!r.ok);
+   // PWV-V0-019: a committed receipt the head does not name yet is a pending native operation;
+   // reads never redo it (TM-V0-008), the next native writer does.
+   if(unread.length&&unread.every(r=>r.raw?.codes?.includes('REDO_PENDING')))return failure('pending-operation',{reconciliation:evidence});
+   if(unread.length)return failure('reconciliation-unavailable',{reconciliation:evidence});
    const record=evidence.ticket.raw.items[0];
    if(!record||record.ticketId!==request.input.ticketId)return failure('ticket-mismatch',{reconciliation:evidence});
    log=ledger(before.gitDir);
@@ -148,7 +153,8 @@ export function createTasksService({runner,identity,identityOwner,ledger=createO
    const fresh=await identify(ctx,binding,true);
    if(scope(before)!==scope(fresh)||fresh.head!==before.head)throw Error('stale-context');
    check(binding,ctx,true);dispatched=true;
-   result=await native(call.args,ctx,call.input,binding);check(binding,ctx);
+   // PWV-V0-018: an interrupted writer gets its CAL-V0-319 record bound before KILL.
+   result=await native(call.args,ctx,call.input,binding,WRITER_GRACE_MS);check(binding,ctx);
    const final=await identify(ctx,binding);
    if(scope(before)!==scope(final))throw Error('stale-context');
    if(result.raw){check(binding,ctx);await log.finish(entry,result.raw,{ok:result.ok,nativeOutcome:result.raw.outcome,exitCode:result.exitCode,fault:result.ok?null:'native-refusal'});check(binding,ctx);return {...result,mutation:result.raw.items[0]?.receipt?'receipt-observed':'native-result-observed',requestId:entry.requestId,reconciliation:evidence}}
