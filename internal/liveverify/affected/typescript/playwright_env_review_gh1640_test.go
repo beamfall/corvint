@@ -19,7 +19,7 @@ func TestPlaywrightExecutableEscapedLiteralKeepsUnknown_GH1640(t *testing.T) {
 	for _, expression := range []string{`process.env['\U00000041']`, `process.env["\u0041"]`} {
 		config := gh1640Config("", expression)
 		projects, _, _ := parsePlaywrightConfig("playwright.config.ts", config)
-		resolvePlaywrightExecutables(projects, []PlaywrightEnvironmentInput{input}, "playwright.config.ts", config)
+		resolvePlaywrightExecutables(t.TempDir(), projects, []PlaywrightEnvironmentInput{input}, "playwright.config.ts", config)
 		for _, project := range projects {
 			if project.Executable != nil {
 				t.Fatalf("%s: %s resolved to %+v", expression, project.Name, project.Executable)
@@ -46,7 +46,7 @@ func TestPlaywrightExecutableLoaderWriterKeepsUnknown_GH1640(t *testing.T) {
 				t.Logf("config refused before resolution: %+v", unknown)
 				return
 			}
-			resolvePlaywrightExecutables(projects, []PlaywrightEnvironmentInput{unset}, "playwright.config.ts", config)
+			resolvePlaywrightExecutables(t.TempDir(), projects, []PlaywrightEnvironmentInput{unset}, "playwright.config.ts", config)
 			for _, project := range projects {
 				if project.Executable != nil || len(project.execution) != 1 || !strings.Contains(project.execution[0].Detail, row.detail) {
 					t.Fatalf("%s: execution=%+v executable=%+v want detail %q", project.Name, project.execution, project.Executable, row.detail)

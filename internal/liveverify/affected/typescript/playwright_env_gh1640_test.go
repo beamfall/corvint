@@ -27,7 +27,7 @@ func gh1640Resolve(t *testing.T, config string, inputs ...PlaywrightEnvironmentI
 	if len(unknown) != 0 || len(projects) != 2 {
 		t.Fatalf("projects=%+v unknown=%+v", projects, unknown)
 	}
-	resolvePlaywrightExecutables(projects, inputs, "playwright.config.ts", config)
+	resolvePlaywrightExecutables(t.TempDir(), projects, inputs, "playwright.config.ts", config)
 	return projects
 }
 
