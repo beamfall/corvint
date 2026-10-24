@@ -38,7 +38,7 @@ func deltaLibrary(t *testing.T, root, text string) (AdditionalRepository, Input,
 	return extra, in, anchor
 }
 
-func TestDCPV1420DeltaSharedReadBound(t *testing.T) {
+func TestDCXV1420DeltaSharedReadBound(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	root, m := fixture(t)
@@ -100,7 +100,7 @@ func TestDCPV1420DeltaSharedReadBound(t *testing.T) {
 	}
 }
 
-func TestDCPV1425OpenDeltaCurrentUnavailableCheckout(t *testing.T) {
+func TestDCXV1425OpenDeltaCurrentUnavailableCheckout(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	f := newDeltaAddRepoFixture(t)
@@ -156,7 +156,7 @@ func TestDCPV1425OpenDeltaCurrentUnavailableCheckout(t *testing.T) {
 	}
 }
 
-func TestDCPV1424DeltaHistoricalPins(t *testing.T) {
+func TestDCXV1424DeltaHistoricalPins(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	root, m, extra, oldRevision := multiRevisionFixture(t)

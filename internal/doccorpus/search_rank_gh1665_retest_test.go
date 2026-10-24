@@ -39,11 +39,11 @@ func retestCorpus(t *testing.T) *Artifact {
 	})
 }
 
-// DCP-V1-565: in a question, the frame words of DCP-V1-565 and the question
+// DCS-V1-565: in a question, the frame words of DCS-V1-565 and the question
 // words are not covered words, so a paragraph holding "source" and
 // "implemented" no longer outranks the subject holding the named words; a
 // statement still counts every word, and claims follow the same rule.
-func TestDCPV1565QuestionCoverageCountsContentWords(t *testing.T) {
+func TestDCSV1565QuestionCoverageCountsContentWords(t *testing.T) {
 	t.Parallel()
 	a := retestCorpus(t)
 	q := Request{Operation: "search", Query: "Where in the source is Player Types implemented?", Limit: 20}
@@ -66,11 +66,11 @@ func TestDCPV1565QuestionCoverageCountsContentWords(t *testing.T) {
 	}
 }
 
-// DCP-V1-566: a question names a subject whose ID slug, the ID after its last
+// DCS-V1-566: a question names a subject whose ID slug, the ID after its last
 // '/' or ':' and without a dot suffix, spells at least two content words of
 // the question in order, so the flow flows/reservation-cancellation reaches
 // tier named; a one-word slug names nothing.
-func TestDCPV1566QuestionNamesAnIDSlug(t *testing.T) {
+func TestDCSV1566QuestionNamesAnIDSlug(t *testing.T) {
 	t.Parallel()
 	a := retestCorpus(t)
 	q := Request{Operation: "search", Query: "Where in the source is Reservation Cancellation implemented?", Limit: 20}
@@ -89,11 +89,11 @@ func TestDCPV1566QuestionNamesAnIDSlug(t *testing.T) {
 	}
 }
 
-// DCP-V1-567: tier named needs two content words of a multi-word name, and a
+// DCS-V1-567: tier named needs two content words of a multi-word name, and a
 // one-word name only a capitalized word that no other capitalized word
 // adjoins, so neither "Cancellation" nor "In the source" is named by the
 // question that names Reservation Cancellation.
-func TestDCPV1567NamedTierNeedsTheWholeName(t *testing.T) {
+func TestDCSV1567NamedTierNeedsTheWholeName(t *testing.T) {
 	t.Parallel()
 	a := retestCorpus(t)
 	q := Request{Operation: "search", Query: "Where in the source is Reservation Cancellation implemented?", Limit: 20}
@@ -165,11 +165,11 @@ func derivedBoundGap(t *testing.T, a *Artifact) Gap {
 	return gaps[0]
 }
 
-// DCP-V1-568: derivation stops at the corpus record bound in the first
+// DCS-V1-568: derivation stops at the corpus record bound in the first
 // compile, so a records provider that leaves room for a few declarations gets
 // exactly that many, with no retry, and one gap names the bound, its value,
 // the count derived and dropped and where dropping began.
-func TestDCPV1568DerivationStopsAtTheRecordBound(t *testing.T) {
+func TestDCSV1568DerivationStopsAtTheRecordBound(t *testing.T) {
 	// Not parallel: BuildsForTest counts every compile of the package.
 	const functions = 30
 	var src strings.Builder
@@ -202,10 +202,10 @@ func TestDCPV1568DerivationStopsAtTheRecordBound(t *testing.T) {
 	}
 }
 
-// DCP-V1-569: a compile refused by the output byte bound is retried deriving
+// DCS-V1-569: a compile refused by the output byte bound is retried deriving
 // a prefix of the declarations that fits under the bound, not none, and the
 // gap names the byte bound, its value, the size reached and the dropped count.
-func TestDCPV1569DerivationStopsAtTheOutputBound(t *testing.T) {
+func TestDCSV1569DerivationStopsAtTheOutputBound(t *testing.T) {
 	// Not parallel: BuildsForTest counts every compile of the package.
 	var big strings.Builder
 	for i := range MaxRecords + 8 {
@@ -233,10 +233,10 @@ func TestDCPV1569DerivationStopsAtTheOutputBound(t *testing.T) {
 	}
 }
 
-// DCP-V1-569: the byte estimate of a test declaration is a lower bound, so a
+// DCS-V1-569: the byte estimate of a test declaration is a lower bound, so a
 // test-heavy corpus over the output byte bound still keeps the prefix that
 // fits in one retry instead of a second refusal that derives none.
-func TestDCPV1569TestDeclarationsStopAtTheOutputBound(t *testing.T) {
+func TestDCSV1569TestDeclarationsStopAtTheOutputBound(t *testing.T) {
 	// Not parallel: BuildsForTest counts every compile of the package.
 	var big strings.Builder
 	for i := range MaxRecords + 8 {

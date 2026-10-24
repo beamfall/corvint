@@ -7,7 +7,7 @@ import (
 )
 
 // boundaryScan is how a streamed or in-memory decode finds the elements of a split member
-// (DCP-V1-551). A window region holding at least two segments of minSegment bytes is cut into at
+// (DCR-V1-551). A window region holding at least two segments of minSegment bytes is cut into at
 // most segments segments that are scanned in parallel; a smaller region, and segments 1, is
 // scanned sequentially. The zero value is the default: 32 KiB segments, one per GOMAXPROCS.
 type boundaryScan struct{ minSegment, segments int }
@@ -29,7 +29,7 @@ type windowSpan struct{ begin, end int }
 // parallelElements finds the split elements that follow one another from the scan position,
 // which must be at the first byte of an element, and returns their bounds. They are exactly the
 // elements the sequential scan finds from there, each directly followed by one comma, so the scan
-// resumes after the last of them as if it had found them itself (DCP-V1-551):
+// resumes after the last of them as if it had found them itself (DCR-V1-551):
 //
 //  1. The first element's bytes up to its first member name give a separator: a comma, then
 //     those bytes. In a canonical artifact every element of a split member starts with the same

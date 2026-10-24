@@ -106,14 +106,14 @@ func deltaEntries(t *testing.T, root string, previous *Artifact, current *Artifa
 	return out
 }
 
-func TestDCPV1360DeltaWorklistClasses(t *testing.T) {
+func TestDCXV1360DeltaWorklistClasses(t *testing.T) {
 	t.Parallel()
 	root, previous, m := deltaFixture(t)
 	current, err := Build(context.Background(), root, m)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Run("DCP-V1-360 DCP-V1-361 DCP-V1-362 DCP-V1-363 classes", func(t *testing.T) {
+	t.Run("DCX-V1-360 DCX-V1-361 DCX-V1-362 DCX-V1-363 classes", func(t *testing.T) {
 		got := deltaEntries(t, root, previous, current)
 		want := map[string]string{
 			"adapter:readme": DeltaCarryForward, "adapter:readme-claim": DeltaCarryForward, "adapter:rel": DeltaCarryForward,
@@ -143,7 +143,7 @@ func TestDCPV1360DeltaWorklistClasses(t *testing.T) {
 			t.Fatalf("orphan claim was not demoted for its unconfirmed subject: %+v", got["adapter:orphan-claim"])
 		}
 	})
-	t.Run("DCP-V1-364 uncovered regions", func(t *testing.T) {
+	t.Run("DCX-V1-364 uncovered regions", func(t *testing.T) {
 		got := deltaEntries(t, root, previous, current)
 		for _, id := range []string{"src/value.go:3-5", "src/extra.go:1-3", "src/show.ts:1-1"} {
 			if got[id].Class != DeltaUncovered || got[id].Region == nil {
@@ -157,7 +157,7 @@ func TestDCPV1360DeltaWorklistClasses(t *testing.T) {
 			t.Fatal("uncovered region names no current subjects")
 		}
 	})
-	t.Run("DCP-V1-360 DCP-V1-367 paging and determinism", func(t *testing.T) {
+	t.Run("DCX-V1-360 DCX-V1-367 paging and determinism", func(t *testing.T) {
 		first, err := Delta(context.Background(), root, previous, current, "manifest", 0, 2)
 		if err != nil {
 			t.Fatal(err)
@@ -185,7 +185,7 @@ func TestDCPV1360DeltaWorklistClasses(t *testing.T) {
 			t.Fatal("over-bound limit admitted")
 		}
 	})
-	t.Run("DCP-V1-368 read-only", func(t *testing.T) {
+	t.Run("DCX-V1-368 read-only", func(t *testing.T) {
 		head, status := git(t, root, "rev-parse", "HEAD"), git(t, root, "status", "--porcelain")
 		if _, err := Delta(context.Background(), root, previous, current, "manifest", 0, 8); err != nil {
 			t.Fatal(err)
@@ -197,7 +197,7 @@ func TestDCPV1360DeltaWorklistClasses(t *testing.T) {
 			t.Fatal("delta mutated the repository")
 		}
 	})
-	t.Run("DCP-V1-369 refusals and unresolved anchors", func(t *testing.T) {
+	t.Run("DCX-V1-369 refusals and unresolved anchors", func(t *testing.T) {
 		other := *previous
 		other.Manifest.Repository.ID = "other-repository"
 		if _, err := Delta(context.Background(), root, &other, current, "manifest", 0, 8); err == nil || !strings.Contains(err.Error(), "different repositories") {
@@ -222,7 +222,7 @@ func TestDCPV1360DeltaWorklistClasses(t *testing.T) {
 		}
 		got := deltaEntries(t, root, mutated, current)
 		if got["adapter:readme"].Class != DeltaUnresolved || !strings.Contains(got["adapter:readme"].Reason, "which the current manifest does not declare") {
-			t.Fatalf("undeclared-repository anchor (DCP-V1-425): %+v", got["adapter:readme"])
+			t.Fatalf("undeclared-repository anchor (DCX-V1-425): %+v", got["adapter:readme"])
 		}
 		if got["adapter:count"].Class != DeltaChanged {
 			t.Fatalf("an unconfirmable span hash was not changed: %+v", got["adapter:count"])
@@ -233,7 +233,7 @@ func TestDCPV1360DeltaWorklistClasses(t *testing.T) {
 	})
 }
 
-func TestDCPV1366CarryForwardFeedsNextBuild(t *testing.T) {
+func TestDCXV1366CarryForwardFeedsNextBuild(t *testing.T) {
 	t.Parallel()
 	root, previous, m := deltaFixture(t)
 	current, err := Build(context.Background(), root, m)
@@ -292,7 +292,7 @@ func TestDCPV1366CarryForwardFeedsNextBuild(t *testing.T) {
 	}
 }
 
-func TestDCPV1363LineDiff(t *testing.T) {
+func TestDCXV1363LineDiff(t *testing.T) {
 	t.Parallel()
 	lines := func(s string) []string { return splitLines([]byte(s)) }
 	hunks := lineDiff(lines("a\nb\nc\nd\ne\n"), lines("a\nx\nc\nd\ny\nz\ne\n"), deltaMaxEdits)

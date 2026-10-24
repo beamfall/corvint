@@ -8,7 +8,7 @@ import (
 )
 
 // primaryObservation is the live observation of a read's primary checkout, started when the
-// read starts rather than when its artifact header arrives (DCP-V1-465). The primary checkout
+// read starts rather than when its artifact header arrives (DCR-V1-465). The primary checkout
 // is the read's own root, so observing it needs nothing the artifact records.
 type primaryObservation struct {
 	root string
@@ -37,9 +37,9 @@ func SetPrimaryObservationForTest(observe func(context.Context, string) (*contex
 
 // WithPrimaryObservation starts observing root's tree on its own goroutine and returns a
 // context carrying it. The first live freshness of root under the returned context uses that
-// observation, at most once; any later one observes the checkout again (DCP-V1-466). The
+// observation, at most once; any later one observes the checkout again (DCR-V1-466). The
 // returned join cancels nothing: it waits for the observation, so the caller cancels ctx first
-// and then joins, and no observation outlives the read (DCP-V1-467).
+// and then joins, and no observation outlives the read (DCR-V1-467).
 func WithPrimaryObservation(ctx context.Context, root string) (context.Context, func()) {
 	p := &primaryObservation{root: root, done: make(chan struct{})}
 	observe := observePrimaryTree
@@ -54,7 +54,7 @@ func WithPrimaryObservation(ctx context.Context, root string) (context.Context, 
 // dir and not yet used, otherwise a new one. The started observation shares the read's
 // context, so a cancelled read ends it as it ends a new one. A caller whose own context ends
 // first, such as one deriving a shorter deadline, stops waiting and gets its context's error as
-// a new observation would; the read's cancel and join still end the started one (DCP-V1-467).
+// a new observation would; the read's cancel and join still end the started one (DCR-V1-467).
 func observeTree(ctx context.Context, dir string) (*contextindex.TreeObservation, error) {
 	if p, ok := ctx.Value(primaryObservationKey{}).(*primaryObservation); ok && p.root == dir && p.take() {
 		select {

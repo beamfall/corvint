@@ -11,26 +11,26 @@ import (
 // derivationFixtureDigests pins, per derivation version, the digest of the fixture corpus built
 // with the builder, the content digest and every commit and tree id normalized. A change that
 // alters it alters the records a build derives from the same inputs: increment DerivationVersion
-// and record the new digest here (DCP-V1-471).
+// and record the new digest here (DCX-V1-471).
 var derivationFixtureDigests = map[string]string{
 	"1": "a571c3440bc8df0f5e1c5f758ce85b78511dc24d6820a32961311e272d1a3568",
-	// Derivation 2 adds derived declarations (DCP-V1-482); the fixture holds no source input a
-	// records provider owns, so its digest is unchanged (DCP-V1-485).
+	// Derivation 2 adds derived declarations (DCS-V1-482); the fixture holds no source input a
+	// records provider owns, so its digest is unchanged (DCS-V1-485).
 	"2": "a571c3440bc8df0f5e1c5f758ce85b78511dc24d6820a32961311e272d1a3568",
-	// Derivation 3 derives declarations in additional repositories too (DCP-V1-549); the
+	// Derivation 3 derives declarations in additional repositories too (DCS-V1-549); the
 	// fixture declares no additional repository, so its digest is unchanged.
 	"3": "a571c3440bc8df0f5e1c5f758ce85b78511dc24d6820a32961311e272d1a3568",
 	// Derivation 4 derives declarations up to the record and output byte bounds and names the
-	// bound in one gap (DCP-V1-568, DCP-V1-569); the fixture reaches neither bound, so its
+	// bound in one gap (DCS-V1-568, DCS-V1-569); the fixture reaches neither bound, so its
 	// digest is unchanged.
 	"4": "a571c3440bc8df0f5e1c5f758ce85b78511dc24d6820a32961311e272d1a3568",
 }
 
-// TestDCPV1471VerifiedReadAcrossBuilderRevisions: the verified read admits an artifact recorded
+// TestDCXV1471VerifiedReadAcrossBuilderRevisions: the verified read admits an artifact recorded
 // by another attested builder revision with the same builder schema, derivation version and
 // engine, and refuses, naming what differs, one whose derivation version, engine or schema
-// differs or whose builder revision is unattested (DCP-V1-471).
-func TestDCPV1471VerifiedReadAcrossBuilderRevisions(t *testing.T) {
+// differs or whose builder revision is unattested (DCX-V1-471).
+func TestDCXV1471VerifiedReadAcrossBuilderRevisions(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	root, a, _ := builtFixture(t)
@@ -70,9 +70,9 @@ func TestDCPV1471VerifiedReadAcrossBuilderRevisions(t *testing.T) {
 	}
 }
 
-// TestDCPV1471DerivationVersionGuard fails when the records the fixture corpus derives change
-// without a new DerivationVersion (DCP-V1-471).
-func TestDCPV1471DerivationVersionGuard(t *testing.T) {
+// TestDCXV1471DerivationVersionGuard fails when the records the fixture corpus derives change
+// without a new DerivationVersion (DCX-V1-471).
+func TestDCXV1471DerivationVersionGuard(t *testing.T) {
 	t.Parallel()
 	_, a, _ := builtFixture(t)
 	normal := *a

@@ -8,10 +8,10 @@ import (
 	"testing"
 )
 
-// DCP-V1-564 (V1-2545): the release notes name the merge of every derivation version from 1 to the
+// DCX-V1-564 (V1-2545): the release notes name the merge of every derivation version from 1 to the
 // running DerivationVersion, with the rebuild command, so a merge that raises the derivation fails
 // here until its entry is written.
-func TestDCPV1564ReleaseNotesListEveryDerivation(t *testing.T) {
+func TestDCXV1564ReleaseNotesListEveryDerivation(t *testing.T) {
 	t.Parallel()
 	data, err := os.ReadFile("../../docs/RELEASE-NOTES.md")
 	if err != nil {

@@ -104,7 +104,7 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 	unknown := FreshnessOverlay{State: "unknown"}
 	// Every declared checkout is observed in parallel; each additional repository's inputs are
 	// checked against its own declared checkout, never the primary tree (DCP-V1-178), and that
-	// checkout's own observation joins the overlay's reuse key (DCP-V1-280, DCP-V1-411).
+	// checkout's own observation joins the overlay's reuse key (DCP-V1-280, DCR-V1-411).
 	type checkout struct {
 		dir, prefix string
 		member      func(string) bool
@@ -175,7 +175,7 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 // checkout at dir, returning whether any is stale and each reason under prefix. It records each
 // admitted input's pinned blob, and its live drift when it differs, in drift (DCP-V1-282). The
 // live checkout is observed from Git's identity, its stat-cached status and one tree listing;
-// no tracked file is read or indexed (DCP-V1-411).
+// no tracked file is read or indexed (DCR-V1-411).
 func liveRepository(ctx context.Context, dir string, a *Artifact, member func(string) bool, prefix string, drift *anchorDrift) (*contextindex.TreeObservation, bool, []string, error) {
 	live, err := observeTree(ctx, dir)
 	if err != nil {
@@ -208,7 +208,7 @@ func liveRepository(ctx context.Context, dir string, a *Artifact, member func(st
 		}
 	}
 	// Each live path is noted once per admitted scope holding it, as a scope-by-path pass did;
-	// the reasons are sorted by the caller, so the visiting order is not observable (DCP-V1-450).
+	// the reasons are sorted by the caller, so the visiting order is not observable (DCR-V1-450).
 	scopes := newScopeSet(a.Manifest.Scopes, member)
 	for rev := range scopes {
 		for p := range live.Tracked {
@@ -230,7 +230,7 @@ func liveRepository(ctx context.Context, dir string, a *Artifact, member func(st
 		dirty[p] = true
 	}
 	// A path the live tree listing holds needs no further tree walk (DCP-V1-144,
-	// DCP-V1-411); every other path resolves in one verified walk whose Git cost
+	// DCR-V1-411); every other path resolves in one verified walk whose Git cost
 	// is independent of the input count (DCP-V1-155).
 	lookups := []string{}
 	for _, in := range inputs {

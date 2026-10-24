@@ -18,8 +18,8 @@ const mentionClaimText = "`Count()` returns one for `adapter:count`; see `showCo
 
 func mentionEdit(p *ProviderRecord) { p.Claims[0].Text = mentionClaimText }
 
-// DCP-V1-340: the shared extractor's token rules are deterministic and documented.
-func TestDCPV1340ExtractCodeTokens(t *testing.T) {
+// DCX-V1-340: the shared extractor's token rules are deterministic and documented.
+func TestDCXV1340ExtractCodeTokens(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		text string
@@ -90,9 +90,9 @@ func mentionCheckFor(t *testing.T, a *Artifact, id string) ClaimMentionCheck {
 	return check
 }
 
-// DCP-V1-341, DCP-V1-342: the build stores each non-native claim's mention check, resolving
+// DCX-V1-341, DCX-V1-342: the build stores each non-native claim's mention check, resolving
 // in the cited span first, then subject, indexed symbol and tracked path, deterministically.
-func TestDCPV1341ClaimMentionCheckIsBuiltAndPinned(t *testing.T) {
+func TestDCXV1341ClaimMentionCheckIsBuiltAndPinned(t *testing.T) {
 	t.Parallel()
 	root, m := providerFixture(t, mentionEdit)
 	a, err := Build(context.Background(), root, m)
@@ -189,9 +189,9 @@ func TestDCPV1341ClaimMentionCheckIsBuiltAndPinned(t *testing.T) {
 	}
 }
 
-// DCP-V1-343: the mention check is served with the claim on v1 and v2 readers without changing
+// DCX-V1-343: the mention check is served with the claim on v1 and v2 readers without changing
 // the claim or its trust.
-func TestDCPV1343ClaimMentionsAreServedWithTheClaim(t *testing.T) {
+func TestDCXV1343ClaimMentionsAreServedWithTheClaim(t *testing.T) {
 	t.Parallel()
 	for _, fixture := range []struct {
 		name  string
@@ -229,9 +229,9 @@ func TestDCPV1343ClaimMentionsAreServedWithTheClaim(t *testing.T) {
 	}
 }
 
-// DCP-V1-344, DCP-V1-345: an unresolved mention is a typed gap on the claim, and coverage
+// DCX-V1-344, DCX-V1-345: an unresolved mention is a typed gap on the claim, and coverage
 // counts every checked claim by mention state.
-func TestDCPV1344ClaimMentionGapsAndCoverage(t *testing.T) {
+func TestDCXV1344ClaimMentionGapsAndCoverage(t *testing.T) {
 	t.Parallel()
 	root, m := adoptionFixture(t, mentionEdit)
 	a, err := Build(context.Background(), root, m)
@@ -304,9 +304,9 @@ func mentionCoverageRows(t *testing.T, a *Artifact) map[string]map[string]any {
 	return rows
 }
 
-// DCP-V1-346: the opt-in unresolved-mention threshold refuses a corpus above it, naming the
+// DCX-V1-346: the opt-in unresolved-mention threshold refuses a corpus above it, naming the
 // rate; unset or met thresholds accept.
-func TestDCPV1346UnresolvedMentionThreshold(t *testing.T) {
+func TestDCXV1346UnresolvedMentionThreshold(t *testing.T) {
 	t.Parallel()
 	a := &Artifact{ClaimMentions: []ClaimMentionCheck{{ClaimID: "a", Unresolved: 1}, {ClaimID: "b"}, {ClaimID: "c"}, {ClaimID: "d", Unresolved: 2}}}
 	if n, d, rate := UnresolvedMentionRate(a); n != 2 || d != 4 || rate == nil || *rate != 0.5 {
@@ -340,9 +340,9 @@ func TestDCPV1346UnresolvedMentionThreshold(t *testing.T) {
 	}
 }
 
-// DCP-V1-347: a dangling subject, relation, journey or observation reference refuses the build
+// DCX-V1-347: a dangling subject, relation, journey or observation reference refuses the build
 // rather than entering the corpus.
-func TestDCPV1347DanglingReferencesRefuse(t *testing.T) {
+func TestDCXV1347DanglingReferencesRefuse(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
 		want string

@@ -241,7 +241,7 @@ type Artifact struct {
 	FlowRelations       []FlowRelationJoin       `json:"flow_relations,omitempty"`
 	ClaimAudits         []ClaimAuditJoin         `json:"claim_audits,omitempty"`
 	// ClaimMentions is the build-time mention check of every non-native claim with a code-like
-	// token, sorted by claim ID (DCP-V1-341).
+	// token, sorted by claim ID (DCX-V1-341).
 	ClaimMentions  []ClaimMentionCheck `json:"claim_mentions,omitempty"`
 	SuppliedGaps   []SuppliedGap       `json:"supplied_gaps,omitempty"`
 	Schema         string              `json:"schema"`
@@ -259,13 +259,13 @@ type Artifact struct {
 	Gaps           []Gap               `json:"gaps"`
 	SHA256         string              `json:"sha256"`
 
-	// validation is how a reader admitted the artifact (DCP-V1-413); never serialized.
+	// validation is how a reader admitted the artifact (DCR-V1-413); never serialized.
 	validation string
 	// deltaUnverified is set only by OpenDeltaCurrent when the artifact could not be rederived
-	// because a declared additional checkout is unavailable; the delta reports it (DCP-V1-425).
+	// because a declared additional checkout is unavailable; the delta reports it (DCX-V1-425).
 	deltaUnverified []string
 	// claimTerms hands the claim-term derivation a read made while decoding to the first query
-	// index derivation, instead of tokenizing again (DCP-V1-434); never serialized. It is set
+	// index derivation, instead of tokenizing again (DCR-V1-434); never serialized. It is set
 	// before the read returns and never reassigned, so a copy of the artifact shares it.
 	claimTerms *claimTermHandoff
 }
@@ -328,7 +328,7 @@ type Receipt struct {
 	// holds claim-audit records (DCP-V1-263).
 	ClaimAudits map[string][]ClaimAuditView `json:"claim_audits,omitempty"`
 	// ClaimMentions serves each visible claim's mention check, present only when the corpus
-	// stores one for it (DCP-V1-343).
+	// stores one for it (DCX-V1-343).
 	ClaimMentions map[string]ClaimMentionCheck `json:"claim_mentions,omitempty"`
 	// SymbolAnchors is the live re-resolution of each cited symbol anchor,
 	// present only from a live reader (DCP-V1-141).
@@ -345,7 +345,7 @@ type Receipt struct {
 	ResultKinds map[string]string `json:"result_kinds,omitempty"`
 	// ResultRanks shows each visible result's place in a ranked search or
 	// claim-text query: its position before paging, its tie group, its tier and
-	// its normalized score (DCP-V1-479, DCP-V1-480). Absent for every other
+	// its normalized score (DCS-V1-479, DCS-V1-480). Absent for every other
 	// operation, so their receipts keep their bytes.
 	ResultRanks map[string]ResultRank `json:"result_ranks,omitempty"`
 	// ranks holds the rank of every ranked result before paging; the visible
@@ -356,13 +356,13 @@ type Receipt struct {
 	AliasResolution *AliasResolution `json:"alias_resolution,omitempty"`
 }
 
-// ResultRank is one ranked result's place in its ranking (DCP-V1-479). Rank
+// ResultRank is one ranked result's place in its ranking (DCS-V1-479). Rank
 // is the 1-based position before offset and limit. Results that share Group
 // tie on every ranking key the scorer computes, and only the specificity and
 // natural ID tie-breaks order them. Tier is exact, identifier, path-phrase,
-// phrase, id-phrase, named or terms (DCP-V1-544). Score is the normalized term
+// phrase, id-phrase, named or terms (DCS-V1-544). Score is the normalized term
 // score in [0, 1], rounded to six decimals. Terms counts the distinct query
-// words a result holds (DCP-V1-480, DCP-V1-540).
+// words a result holds (DCS-V1-480, DCS-V1-540).
 type ResultRank struct {
 	Rank  int     `json:"rank"`
 	Group int     `json:"group"`

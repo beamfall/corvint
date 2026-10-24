@@ -48,7 +48,7 @@ func resolveAlternateID(a *Artifact, id string) (string, bool) {
 // includes claims (DCP-V1-328) and the non-witness limitation of a test run
 // whose association is not passed (DCP-V1-323). Each is absent when it does
 // not apply, so receipts without them keep their bytes. A ranked search or
-// claim-text query also shows each visible result's rank (DCP-V1-479).
+// claim-text query also shows each visible result's rank (DCS-V1-479).
 func annotateVisibleResults(a *Artifact, request Request, r *Receipt) {
 	r.TextOrigins, r.ResultKinds, r.ResultRanks = nil, nil, nil
 	ranked := request.Operation == "search" || request.Operation == "claims" && request.Query != ""

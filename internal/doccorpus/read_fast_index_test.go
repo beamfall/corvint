@@ -35,10 +35,10 @@ func adversarialTermArtifact() *Artifact {
 	}
 }
 
-// TestDCPV1419FastIndexMatchesReference: the concurrent derivation stores exactly the reference
+// TestDCRV1419FastIndexMatchesReference: the concurrent derivation stores exactly the reference
 // derivation's index for corpora of every record family, including text whose term sets depend on
 // the ID/text join, and for a corpus large enough to span many worker blocks.
-func TestDCPV1419FastIndexMatchesReference(t *testing.T) {
+func TestDCRV1419FastIndexMatchesReference(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	_, built, _ := builtFixture(t)
@@ -67,9 +67,9 @@ func TestDCPV1419FastIndexMatchesReference(t *testing.T) {
 	}
 }
 
-// TestDCPV1419FastIndexDeclinesEveryRefusal: whenever the reference derivation refuses, the
+// TestDCRV1419FastIndexDeclinesEveryRefusal: whenever the reference derivation refuses, the
 // concurrent derivation declines, so BuildQueryIndex returns the reference refusal unchanged.
-func TestDCPV1419FastIndexDeclinesEveryRefusal(t *testing.T) {
+func TestDCRV1419FastIndexDeclinesEveryRefusal(t *testing.T) {
 	ctx := context.Background()
 	edit := func(change func(*Artifact)) *Artifact {
 		a := adversarialTermArtifact()
@@ -125,11 +125,11 @@ func TestDCPV1419FastIndexDeclinesEveryRefusal(t *testing.T) {
 	}
 }
 
-// TestDCPV1419BoundaryScanFindsStringContent: the boundary scan skips strings holding escaped
+// TestDCRV1419BoundaryScanFindsStringContent: the boundary scan skips strings holding escaped
 // quotes, backslashes, brackets and element separators without splitting them, and refuses an
 // unterminated string, an escaped member name that is a duplicate, unbalanced element brackets
 // and trailing bytes, as the closed decoder does.
-func TestDCPV1419BoundaryScanFindsStringContent(t *testing.T) {
+func TestDCRV1419BoundaryScanFindsStringContent(t *testing.T) {
 	t.Parallel()
 	_, a, _ := builtFixture(t)
 	data := rehashed(t, a, func(c *Artifact) {

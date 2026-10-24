@@ -28,15 +28,15 @@ func corpusInfoValidation(t *testing.T, out string) string {
 	return value
 }
 
-// TestDCPV1413CorpusReadsWithoutRederivation covers every read row of GitHub #1598 (info, search,
+// TestDCRV1413CorpusReadsWithoutRederivation covers every read row of GitHub #1598 (info, search,
 // get, flow, coverage, locate and gaps, plus the corpus MCP first call): each answers from the
 // verified artifact, so deleting a pinned input blob from the object store, which any
 // rederivation must read, changes no receipt byte, while validate, --verify-rederive and
 // docs_validate still rederive and refuse. --timings adds one stderr summary and leaves stdout
-// unchanged (DCP-V1-410, DCP-V1-413, DCP-V1-415, DCP-V1-416).
-func TestDCPV1413CorpusReadsWithoutRederivation(t *testing.T) {
+// unchanged (DCR-V1-410, DCR-V1-413, DCR-V1-415, DCR-V1-416).
+func TestDCRV1413CorpusReadsWithoutRederivation(t *testing.T) {
 	// A test binary's builder label is always `unrecorded`; trust it as an attested build would be
-	// (DCP-V1-410).
+	// (DCR-V1-410).
 	defer doccorpus.TrustUnattestedBuilderForTest()()
 	root := taskContextRepository(t)
 	rev := cemGit(t, root, "rev-parse", "HEAD")
@@ -118,10 +118,10 @@ func TestDCPV1413CorpusReadsWithoutRederivation(t *testing.T) {
 	}
 }
 
-// TestDCPV1432JoinedCorpusReusesVerifiedArtifact: a native read joined with --corpus admits the
-// corpus through the verified read (DCP-V1-432); the delta current side is DCP-V1-460's. No read
-// writes a file, persisted index or sidecar beside the artifact (DCP-V1-433).
-func TestDCPV1432JoinedCorpusReusesVerifiedArtifact(t *testing.T) {
+// TestDCRV1432JoinedCorpusReusesVerifiedArtifact: a native read joined with --corpus admits the
+// corpus through the verified read (DCR-V1-432); the delta current side is DCR-V1-460's. No read
+// writes a file, persisted index or sidecar beside the artifact (DCR-V1-433).
+func TestDCRV1432JoinedCorpusReusesVerifiedArtifact(t *testing.T) {
 	defer doccorpus.TrustUnattestedBuilderForTest()()
 	root := taskContextRepository(t)
 	rev := cemGit(t, root, "rev-parse", "HEAD")
@@ -168,11 +168,11 @@ func TestDCPV1432JoinedCorpusReusesVerifiedArtifact(t *testing.T) {
 	}
 }
 
-// TestDCPV1431CorpusRefusalJoinsFreshness: a query read refused after its live freshness
+// TestDCRV1431CorpusRefusalJoinsFreshness: a query read refused after its live freshness
 // observation started, by its query index or by its arguments, cancels and joins the observation
 // before it returns, so no observation outlives the read or writes its timing after the --timings
 // summary. The observation blocks until it is cancelled. Run under -race.
-func TestDCPV1431CorpusRefusalJoinsFreshness(t *testing.T) {
+func TestDCRV1431CorpusRefusalJoinsFreshness(t *testing.T) {
 	defer doccorpus.TrustUnattestedBuilderForTest()()
 	root := taskContextRepository(t)
 	rev := cemGit(t, root, "rev-parse", "HEAD")
@@ -218,11 +218,11 @@ func TestDCPV1431CorpusRefusalJoinsFreshness(t *testing.T) {
 	}
 }
 
-// TestDCPV1467CorpusPreHeaderRefusalJoinsPrimary: a read refused before its artifact header
+// TestDCRV1467CorpusPreHeaderRefusalJoinsPrimary: a read refused before its artifact header
 // arrives, because the artifact is missing or malformed, cancels and joins the primary
 // observation it started at read start before the command returns, and starts no header
 // freshness. It is serial because it replaces the package's primary observation.
-func TestDCPV1467CorpusPreHeaderRefusalJoinsPrimary(t *testing.T) {
+func TestDCRV1467CorpusPreHeaderRefusalJoinsPrimary(t *testing.T) {
 	root := taskContextRepository(t)
 	if err := os.WriteFile(filepath.Join(root, "malformed.json"), []byte("{\"schema\": "), 0o600); err != nil {
 		t.Fatal(err)

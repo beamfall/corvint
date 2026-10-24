@@ -48,11 +48,11 @@ func multiRepositoryOwnedSource(t *testing.T) (string, Manifest, AdditionalRepos
 	return root, m, extra
 }
 
-// DCP-V1-549: a source input of an additional repository's declared revision
+// DCS-V1-549: a source input of an additional repository's declared revision
 // that only a records provider claims gets derived declarations, whose IDs
 // name the repository, so docs_search finds the identifier in a
 // multi-repository corpus; the declaration cites repository B.
-func TestDCPV1549DerivedDeclarationsInAdditionalRepository(t *testing.T) {
+func TestDCSV1549DerivedDeclarationsInAdditionalRepository(t *testing.T) {
 	t.Parallel()
 	root, m, extra := multiRepositoryOwnedSource(t)
 	a := buildOwned(t, root, m)

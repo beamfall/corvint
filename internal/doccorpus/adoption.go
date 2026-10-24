@@ -362,7 +362,7 @@ func (c *compiler) validateAdoption(p ProviderRecord) error {
 }
 
 // typedSubjectNeedsDetails and typedRelationNeedsDetails name the adoption kinds an adoption
-// provider must give typed details; the delta applies the same rule (DCP-V1-441).
+// provider must give typed details; the delta applies the same rule (DCX-V1-441).
 func typedSubjectNeedsDetails(kind string) bool {
 	return adoptionSubjectKinds[kind] && kind != "variation" && kind != "inventory" && kind != "manual_case"
 }

@@ -62,11 +62,11 @@ func fullBuild(t *testing.T, root string, data []byte) []byte {
 // otherRevision records a as built by another attested revision of this builder's derivation.
 func otherRevision(c *Artifact) { c.Builder.Revision = strings.Repeat("b", 40) }
 
-// TestDCPV1532RebuildReusesSameDerivation: build --artifact of an artifact recorded by another
+// TestDCXV1532RebuildReusesSameDerivation: build --artifact of an artifact recorded by another
 // attested revision of the running derivation reuses its records without a compiler build and
 // prints exactly the bytes a full build of the same manifest prints, for a single record, two
-// shards and a many-shard inventory (DCP-V1-532). It runs alone, since it counts builds.
-func TestDCPV1532RebuildReusesSameDerivation(t *testing.T) {
+// shards and a many-shard inventory (DCX-V1-532). It runs alone, since it counts builds.
+func TestDCXV1532RebuildReusesSameDerivation(t *testing.T) {
 	small := func(t *testing.T) (string, Manifest) { return largeAdoptionCorpus(t, 48, 6) }
 	for name, corpus := range map[string]func(*testing.T) (string, Manifest){
 		"record":    func(t *testing.T) (string, Manifest) { return adoptionFixture(t, nil) },
@@ -108,12 +108,12 @@ func encodeArtifact(t *testing.T, a *Artifact) []byte {
 	return data
 }
 
-// TestDCPV1533RebuildRederivesOtherwise: build --artifact rederives in full, to the same bytes,
+// TestDCXV1533RebuildRederivesOtherwise: build --artifact rederives in full, to the same bytes,
 // an artifact of another or an unrecorded derivation (which the verified read still refuses),
 // one whose recorded digests or tree a full build would not reproduce, and any artifact when the
-// running builder is unattested; a pin refusal is the full build's own refusal (DCP-V1-533). It
+// running builder is unattested; a pin refusal is the full build's own refusal (DCX-V1-533). It
 // runs alone, since it counts builds and turns the builder trust off.
-func TestDCPV1533RebuildRederivesOtherwise(t *testing.T) {
+func TestDCXV1533RebuildRederivesOtherwise(t *testing.T) {
 	root, a, data := builtFixture(t)
 	want := fullBuild(t, root, data)
 	unrecorded := func(c *Artifact) {

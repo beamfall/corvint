@@ -52,7 +52,7 @@ type splitArray struct {
 const splitChunk = 512
 
 // artifactWindow is the number of artifact bytes a streamed read holds beyond the value being
-// scanned (DCP-V1-431).
+// scanned (DCR-V1-431).
 const artifactWindow = 1 << 20
 
 // decodeArtifactParallel is decodeArtifactStream over bytes already in memory; their digest is
@@ -72,7 +72,7 @@ func decodeArtifactBytes(data []byte, header func(*Artifact), claims func(lo int
 
 // decodeArtifactReader is decodeArtifactStream over r, read ahead in blocks of artifactWindow
 // bytes on its own goroutine and hashed as it is read, so the artifact is never held whole
-// (DCP-V1-431). A read error is returned as it is, before any refusal of the bytes read so far.
+// (DCR-V1-431). A read error is returned as it is, before any refusal of the bytes read so far.
 func decodeArtifactReader(r io.Reader, header func(*Artifact), claims func(lo int, chunk []Claim)) (*Artifact, artifactTail, error) {
 	return decodeArtifactBlocks(r, artifactWindow, blockHeadroom, header, claims, nil)
 }
@@ -105,7 +105,7 @@ func decodeArtifactBlocksScan(r io.Reader, window, headroom int, scan boundarySc
 	a, tail, err := decodeArtifactStream(s, header, true, claims)
 	if err != nil && !s.eof {
 		// A refusal of the bytes read so far does not hide a later read error: the rest of the
-		// input is read, bounded as before, before the refusal is reported (DCP-V1-431).
+		// input is read, bounded as before, before the refusal is reported (DCR-V1-431).
 		var total int64 = s.base + int64(len(s.buf))
 		for b := range blocks {
 			total += int64(b.n)
@@ -140,7 +140,7 @@ type streamBlock struct {
 // blockRef counts the holders of one block buffer: the window it backs, the hash of its data
 // and every decode job or deferred member decoding from it. The last release returns the buffer
 // to the pool for a later block, so a streamed read reuses a few buffers instead of allocating
-// one per block (DCP-V1-431). A nil blockRef is a buffer outside the pool.
+// one per block (DCR-V1-431). A nil blockRef is a buffer outside the pool.
 type blockRef struct {
 	buf  []byte
 	refs atomic.Int32
@@ -197,7 +197,7 @@ func readBlocks(r io.Reader, blocks chan<- streamBlock, done <-chan struct{}, po
 
 // decodeArtifactStream is decodeArtifact plus verifyCanonical's canonical-form check, with
 // the elements of every split member decoded and compared with their canonical encoding in
-// parallel (DCP-V1-414). The input is scanned once for member and element boundaries; then:
+// parallel (DCR-V1-414). The input is scanned once for member and element boundaries; then:
 //   - every split element must be exactly the canonical encoding of the element it decodes to,
 //     and the elements must be separated by exactly one comma inside their brackets;
 //   - the input with every split member's brackets emptied must equal the canonical encoding
@@ -211,10 +211,10 @@ func readBlocks(r io.Reader, blocks chan<- streamBlock, done <-chan struct{}, po
 //
 // The scan holds only the window being scanned: an element is decoded from the window it was
 // found in, the bytes outside every split member (the skeleton) are copied once, and a window is
-// released when its last element is decoded (DCP-V1-431). When hash is set the bytes are hashed
+// released when its last element is decoded (DCR-V1-431). When hash is set the bytes are hashed
 // in read order and the tail is returned. claims, when set, runs on the decode worker for every
 // batch of claims once each of them is decoded and verified, with the offset of its first claim
-// (DCP-V1-434); its work must not be used unless the decode succeeds.
+// (DCR-V1-434); its work must not be used unless the decode succeeds.
 func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, claims func(lo int, chunk []Claim)) (*Artifact, artifactTail, error) {
 	invalid := fail("invalid closed JSON input")
 	var hasher *tailHasher
@@ -240,7 +240,7 @@ func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, 
 	plains := []plain{}
 	splits := []*splitArray{}
 	// The header members are decoded during the scan even without a header callback: the
-	// output bound below depends on the decoded schema (DCP-V1-461).
+	// output bound below depends on the decoded schema (DCR-V1-461).
 	headerSent := false
 	var headerWG sync.WaitGroup
 	sendHeader := func() {
@@ -259,7 +259,7 @@ func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, 
 		return nil
 	}
 	// Split elements are decoded and compared with their canonical encoding by a pool of workers
-	// while the scan continues (DCP-V1-414, DCP-V1-419). A decode failure refuses as the closed
+	// while the scan continues (DCR-V1-414, DCR-V1-419). A decode failure refuses as the closed
 	// decoder does, before any canonical mismatch, so the refusal does not depend on which worker
 	// finishes first.
 	var undecodable, mismatched, stop atomic.Bool
@@ -284,7 +284,7 @@ func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, 
 					}
 					// A mismatch stops only the comparisons: every element is still decoded, so an
 					// undecodable element anywhere refuses first whatever the batches and their
-					// order (DCP-V1-431).
+					// order (DCR-V1-431).
 					if !verified {
 						continue
 					}
@@ -349,7 +349,7 @@ func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, 
 				d.peek()
 				if spans := d.parallelElements(); len(spans) > 0 {
 					// The elements the parallel scan found are exactly the ones the scan below
-					// would find from here, so it resumes after the last (DCP-V1-551).
+					// would find from here, so it resumes after the last (DCR-V1-551).
 					for _, e := range spans {
 						d.element(s, e.begin, e.end)
 					}
@@ -694,7 +694,7 @@ func scalarStart(c byte) bool { return c != '"' && c != '{' && c != '[' }
 
 // scanValue finds the end of the value starting at data[at] without validating its contents:
 // every byte it passes over is validated afterwards, by the closed decode of the value that
-// holds it or by the byte comparison of the skeleton with its canonical encoding (DCP-V1-419).
+// holds it or by the byte comparison of the skeleton with its canonical encoding (DCR-V1-419).
 // Strings are passed with a vectorized search for their closing quote, a bracketed value by its
 // bracket depth and a scalar up to its delimiter. scanShort means the data ended first; for a
 // scalar, end is then the end of the data.

@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// Corpus pattern report (DCP-V1-348..352): bounded, deterministic signals of generated-text
+// Corpus pattern report (DCX-V1-348..352): bounded, deterministic signals of generated-text
 // failure modes across the claims the mention check examines. A flag is a sampling signal, not a
 // verdict; it never changes a claim, its trust or a gap.
 
@@ -223,7 +223,7 @@ func corpusPatternFlags(a *Artifact) (map[string]map[string]bool, map[string]int
 	return flags, groups, len(examined)
 }
 
-// PatternReport reports every corpus pattern over the examined claims (DCP-V1-348).
+// PatternReport reports every corpus pattern over the examined claims (DCX-V1-348).
 func PatternReport(a *Artifact) *CorpusPatternReport {
 	flags, groups, population := corpusPatternFlags(a)
 	r := &CorpusPatternReport{Schema: CorpusPatternsSchema, Corpus: auditCorpus(a), Population: population, Patterns: []CorpusPattern{},
@@ -264,7 +264,7 @@ func RenderPatternTable(r *CorpusPatternReport) []byte {
 	return []byte(b.String())
 }
 
-// BuildThresholds are the opt-in build refusals (DCP-V1-346, DCP-V1-352). A nil rate is unset.
+// BuildThresholds are the opt-in build refusals (DCX-V1-346, DCX-V1-352). A nil rate is unset.
 type BuildThresholds struct {
 	MaxUnresolvedMentionRate *float64
 	MaxPatternRates          map[string]float64

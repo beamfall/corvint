@@ -11,13 +11,13 @@ import (
 
 // RevisionPaths lists the path of every non-tree entry at one pinned commit
 // through the verified walk, for a cost independent of how many directories
-// the tree holds (DCP-V1-520): one Git operation pins the commit and its
+// the tree holds (DCX-V1-520): one Git operation pins the commit and its
 // self-hashed root tree, then each directory level is one cat-file batch whose
 // records must self-hash and carry the OID their verified parent names. A
-// subtree whose path descend rejects is pruned unread (DCP-V1-521). The walk
+// subtree whose path descend rejects is pruned unread (DCX-V1-521). The walk
 // refuses past MaxTreeDepth levels, past MaxPathSetTreeBytes of tree output
 // (git-output-exceeded) and past maxEntries listed entries, each before the
-// next level is read (DCP-V1-522). Names follow Git's tree grammar (no empty,
+// next level is read (DCX-V1-522). Names follow Git's tree grammar (no empty,
 // ".", ".." or slash-bearing segment); wire-path policy is left to the caller's
 // selected paths, as with the per-tree walk this replaces. Paths are returned
 // sorted.

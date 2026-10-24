@@ -485,7 +485,7 @@ type symbolOverlay struct {
 
 // liveIndex returns the full live index a symbol re-resolution reads, building
 // it on the first anchor whose pinned blob changed and keeping it for later
-// requests under this overlay (DCP-V1-412). An index built from another state
+// requests under this overlay (DCR-V1-412). An index built from another state
 // than the overlay observed is refused, so a re-resolution never mixes two
 // checkout states; a failure is not kept.
 func (o *symbolOverlay) liveIndex(ctx context.Context) (*contextindex.Index, error) {

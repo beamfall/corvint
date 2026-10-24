@@ -13,7 +13,7 @@ import (
 )
 
 // statRoutedPinKey marks a build whose worktree pin pass routes the entries
-// Git's index vouches for to the committed blob (DCP-V1-452). Only
+// Git's index vouches for to the committed blob (DCR-V1-452). Only
 // BuildRevisionContext sets it: the corpus pins an explicit revision, without
 // a status read, for every revision it names and again after compiling, so
 // each of those passes opened every tracked file. Build, BuildContext and
@@ -73,8 +73,8 @@ const gitIndexExtendedFlags = 0x6000
 // Vouching therefore selects only the source; an eligible entry's pinned
 // bytes are its tree blob's whichever source supplies them. An
 // unreadable, unsupported or corrupt index, a stat mismatch, a racy entry or a
-// failed batch leaves the entry to the hashed worktree pass (DCP-V1-452,
-// DCP-V1-453).
+// failed batch leaves the entry to the hashed worktree pass (DCR-V1-452,
+// DCR-V1-453).
 func pinStatVouched(ctx context.Context, root string, identity repositoryIdentity, entries []treeEntry, dirty map[string]struct{}, pinned []pinnedEntry, done []bool) {
 	vouched := statVouchedEntries(ctx, root, identity, entries, dirty)
 	needed := make([]treeEntry, 0, len(entries))

@@ -50,11 +50,11 @@ func removeObject(t *testing.T, root, oid string) {
 	}
 }
 
-// TestDCPV1410VerifiedReadSkipsRederivation: the verified read decodes the same artifact the
+// TestDCRV1410VerifiedReadSkipsRederivation: the verified read decodes the same artifact the
 // rederivation produces, reports how it was admitted, and reads no pinned input body: with one
 // pinned input blob deleted from the object store, rederivation refuses and the verified read
 // still answers with live freshness.
-func TestDCPV1410VerifiedReadSkipsRederivation(t *testing.T) {
+func TestDCRV1410VerifiedReadSkipsRederivation(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	root, a, data := builtFixture(t)
@@ -102,10 +102,10 @@ func TestDCPV1410VerifiedReadSkipsRederivation(t *testing.T) {
 	}
 }
 
-// TestDCPV1410VerifiedReadRefusals: every check the verified read trusts instead of rederiving
+// TestDCRV1410VerifiedReadRefusals: every check the verified read trusts instead of rederiving
 // refuses on its own; nothing unverified is served. A deliberately rehashed record edit passes
 // the verified checks and is refused by the rederivation the caller can request.
-func TestDCPV1410VerifiedReadRefusals(t *testing.T) {
+func TestDCRV1410VerifiedReadRefusals(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	root, a, data := builtFixture(t)
@@ -161,9 +161,9 @@ func TestDCPV1410VerifiedReadRefusals(t *testing.T) {
 	}
 }
 
-// TestDCPV1414ParallelDecodeMatchesClosedDecode: the parallel decoder admits exactly the canonical
+// TestDCRV1414ParallelDecodeMatchesClosedDecode: the parallel decoder admits exactly the canonical
 // artifact the closed decoder admits, with the same records, and refuses every other shape.
-func TestDCPV1414ParallelDecodeMatchesClosedDecode(t *testing.T) {
+func TestDCRV1414ParallelDecodeMatchesClosedDecode(t *testing.T) {
 	t.Parallel()
 	_, a, data := builtFixture(t)
 	parallel, err := decodeArtifactParallel(data, nil)
@@ -218,10 +218,10 @@ func TestDCPV1414ParallelDecodeMatchesClosedDecode(t *testing.T) {
 	}
 }
 
-// TestDCPV1412SymbolIndexBuiltOnlyWhenNeeded: live freshness indexes no source; the first cited
+// TestDCRV1412SymbolIndexBuiltOnlyWhenNeeded: live freshness indexes no source; the first cited
 // symbol anchor whose pinned blob changed builds the live index once, and an index built from
 // another checkout state than the overlay observed is refused.
-func TestDCPV1412SymbolIndexBuiltOnlyWhenNeeded(t *testing.T) {
+func TestDCRV1412SymbolIndexBuiltOnlyWhenNeeded(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	root, a, _ := builtFixture(t)
@@ -270,11 +270,11 @@ func TestDCPV1412SymbolIndexBuiltOnlyWhenNeeded(t *testing.T) {
 	}
 }
 
-// TestDCPV1418LargeFixtureVerifiedReadIsFast: on a generated corpus with thousands of inputs
+// TestDCRV1418LargeFixtureVerifiedReadIsFast: on a generated corpus with thousands of inputs
 // across additional repositories, a verified read with live freshness is several times faster
 // than the rederivation every read used to run, and answers identically. Wall times are logged;
 // the ratio, not an absolute bound, is asserted so host load cannot flake it.
-func TestDCPV1418LargeFixtureVerifiedReadIsFast(t *testing.T) {
+func TestDCRV1418LargeFixtureVerifiedReadIsFast(t *testing.T) {
 	if testing.Short() {
 		t.Skip("large fixture")
 	}
@@ -312,8 +312,8 @@ func TestDCPV1418LargeFixtureVerifiedReadIsFast(t *testing.T) {
 	}
 }
 
-// BenchmarkDCPV1418VerifiedRead measures one verified read with live freshness and a search.
-func BenchmarkDCPV1418VerifiedRead(b *testing.B) {
+// BenchmarkDCRV1418VerifiedRead measures one verified read with live freshness and a search.
+func BenchmarkDCRV1418VerifiedRead(b *testing.B) {
 	ctx := context.Background()
 	root, _ := largeReadFixture(b, b.TempDir(), readFixtureScale{docs: 1200, sections: 4, sources: 1500, additional: 2, additionalFiles: 600})
 	data, err := ReadCorpusFile(root, "corpus.json")
@@ -335,13 +335,13 @@ func BenchmarkDCPV1418VerifiedRead(b *testing.B) {
 	}
 }
 
-// TestDCPV1410UnattestedBuilderRederives: a dirty or unrecorded builder label is shared by builds
+// TestDCRV1410UnattestedBuilderRederives: a dirty or unrecorded builder label is shared by builds
 // of different source, so a running builder with such a label never treats an equal recorded
 // label as rebuild equivalence. It rederives instead: a record edit with a recomputed digest,
 // which stands for an artifact written by another build that shares the label and extracts
 // differently, is refused, and an untouched artifact is admitted as source-rederived. Only an
 // attested label (a recorded revision without uncommitted changes) admits the verified read.
-func TestDCPV1410UnattestedBuilderRederives(t *testing.T) {
+func TestDCRV1410UnattestedBuilderRederives(t *testing.T) {
 	for label, attested := range map[string]bool{
 		"unrecorded": false,
 		"0123456789abcdef0123456789abcdef01234567+dirty": false,

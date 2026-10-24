@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-// tieCorpus is the DCP-V1-477 tie corpus: four claims and a longer one that
+// tieCorpus is the DCX-V1-477 tie corpus: four claims and a longer one that
 // all hold "booking" once, a rare-term claim, four "a tee" claims and three
 // subjects that hold "marshal" in their names.
 func tieCorpus(t *testing.T) *Artifact {
@@ -46,11 +46,11 @@ func pageOf(t *testing.T, a *Artifact, q Request) Receipt {
 	return r
 }
 
-// DCP-V1-479 (GitHub #1665 row 3): every visible docs_search result carries
+// DCS-V1-479 (GitHub #1665 row 3): every visible docs_search result carries
 // its rank before paging, its tie group, its tier and its normalized score in
 // result_ranks, so a caller sees a tie and can cut at a group boundary. A page
 // carries only its own results' ranks; other operations carry none.
-func TestDCPV1479SearchServesRankGroups(t *testing.T) {
+func TestDCSV1479SearchServesRankGroups(t *testing.T) {
 	t.Parallel()
 	a := tieCorpus(t)
 	r := pageOf(t, a, Request{Operation: "search", Query: "marshal", Limit: 10})
@@ -60,7 +60,7 @@ func TestDCPV1479SearchServesRankGroups(t *testing.T) {
 	}
 	for id, rank := range want {
 		got := r.ResultRanks[id]
-		// DCP-V1-544 amends DCP-V1-479: docs_search now serves terms, the
+		// DCS-V1-544 amends DCS-V1-479: docs_search now serves terms, the
 		// one query word each result holds.
 		if got.Rank != rank || got.Group != 1 || got.Tier != "terms" || got.Score <= 0 || got.Score > 1 || got.Terms != 1 {
 			t.Fatalf("%s: %+v, want rank %d in tie group 1 with a terms score in (0,1] and one held word", id, got, rank)
@@ -105,12 +105,12 @@ func TestDCPV1479SearchServesRankGroups(t *testing.T) {
 	}
 }
 
-// DCP-V1-480 (GitHub #1665 row 3): docs_claims with a query serves each
+// DCS-V1-480 (GitHub #1665 row 3): docs_claims with a query serves each
 // visible claim's rank, its tie group (claims that hold as many query terms
 // of the same summed idf), its tier, its normalized idf score and the count
 // of distinct query terms it holds. The tie the issue showed as an ID-ordered
 // run is one visible group.
-func TestDCPV1480ClaimsServeRankGroups(t *testing.T) {
+func TestDCSV1480ClaimsServeRankGroups(t *testing.T) {
 	t.Parallel()
 	a := tieCorpus(t)
 	r := pageOf(t, a, Request{Operation: "claims", Query: "booking", Limit: 10})
@@ -227,13 +227,13 @@ var ownedSources = map[string]string{
 	"src/readme.md":      "# Pos\n\nSyncs with the point of sale.\n",
 }
 
-// DCP-V1-482 (GitHub #1665 row 5): an identifier declared in a source input
+// DCS-V1-482 (GitHub #1665 row 5): an identifier declared in a source input
 // that only a records provider claims is searchable. The native provider
 // derives its declaration subject and claim, so docs_search for
 // sync_with_pos or report_count ranks the declaration first, with or
 // without a symbol kind filter, and a test path's declaration is a test
 // subject.
-func TestDCPV1482DeclarationsOfRecordsOwnedSource(t *testing.T) {
+func TestDCSV1482DeclarationsOfRecordsOwnedSource(t *testing.T) {
 	t.Parallel()
 	root, m := ownedSourceCorpus(t, ownedSources, []string{"src/pos.rb", "src/report.py", "src/report_test.py"}, false)
 	a := buildOwned(t, root, m)
@@ -272,10 +272,10 @@ func TestDCPV1482DeclarationsOfRecordsOwnedSource(t *testing.T) {
 	}
 }
 
-// DCP-V1-483: derivation covers only inputs no native provider claims, once
+// DCS-V1-483: derivation covers only inputs no native provider claims, once
 // per path. A native co-claim keeps one declaration per symbol, and a
 // manifest without a native provider derives none.
-func TestDCPV1483DerivationScope(t *testing.T) {
+func TestDCSV1483DerivationScope(t *testing.T) {
 	t.Parallel()
 	root, m := ownedSourceCorpus(t, ownedSources, []string{"src/pos.rb"}, true)
 	a := buildOwned(t, root, m)
@@ -293,13 +293,13 @@ func TestDCPV1483DerivationScope(t *testing.T) {
 	}
 }
 
-// DCP-V1-484: derivation never refuses a manifest the compiler built before it.
+// DCS-V1-484: derivation never refuses a manifest the compiler built before it.
 // Declarations of a large records-owned source would exceed the /1 output byte
 // bound, so the refused compile is retried with the prefix that fits
-// (DCP-V1-569): the build succeeds with the provider's records, fewer derived
+// (DCS-V1-569): the build succeeds with the provider's records, fewer derived
 // declarations and one gap naming the bound, and an incremental build reports
 // each shard once.
-func TestDCPV1484DerivationNeverRefusesABuildableManifest(t *testing.T) {
+func TestDCSV1484DerivationNeverRefusesABuildableManifest(t *testing.T) {
 	t.Parallel()
 	var big strings.Builder
 	for i := range MaxRecords + 8 {
@@ -340,11 +340,11 @@ func TestDCPV1484DerivationNeverRefusesABuildableManifest(t *testing.T) {
 	}
 }
 
-// DCP-V1-484: a refusal of the first derived declaration (an oversized
+// DCS-V1-484: a refusal of the first derived declaration (an oversized
 // declaration line) is retried like any later one, and the retry restores the
 // incremental shard cache, so an eligible adoption shard is compiled once cold
 // and reused warm, with exactly one cached shard either way.
-func TestDCPV1484RefusedFirstDeclarationRestoresShardCache(t *testing.T) {
+func TestDCSV1484RefusedFirstDeclarationRestoresShardCache(t *testing.T) {
 	t.Parallel()
 	files := map[string]string{"src/long.py": "# header\n\ndef long_line(x=\"" + strings.Repeat("a", maxSpanBytes) + "\"):\n    return x\n", "src/readme.md": "# Long\n\nOne long declaration.\n"}
 	root, m := ownedSourceCorpus(t, files, []string{"src/long.py"}, false)
@@ -412,9 +412,9 @@ func TestDCPV1484RefusedFirstDeclarationRestoresShardCache(t *testing.T) {
 	}
 }
 
-// DCP-V1-484: only a corpus refusal of a compile that attempted derivation is
+// DCS-V1-484: only a corpus refusal of a compile that attempted derivation is
 // retried; Git, capacity and input-availability failures are returned as they are.
-func TestDCPV1484RetryAnswersOnlyCorpusRefusals(t *testing.T) {
+func TestDCSV1484RetryAnswersOnlyCorpusRefusals(t *testing.T) {
 	t.Parallel()
 	refused := fail("output bound exceeded")
 	cases := []struct {
@@ -438,11 +438,11 @@ func TestDCPV1484RetryAnswersOnlyCorpusRefusals(t *testing.T) {
 	}
 }
 
-// DCP-V1-485: derived declarations change the records the same inputs build,
-// so the builder engine names derivation 2 or later (3 since DCP-V1-549). The verified read refuses an
+// DCS-V1-485: derived declarations change the records the same inputs build,
+// so the builder engine names derivation 2 or later (3 since DCS-V1-549). The verified read refuses an
 // artifact recorded by derivation 1, which lacks them, and names the rebuild;
 // the rebuilt corpus serves them.
-func TestDCPV1485DerivationTwoRefusesDerivationOneArtifacts(t *testing.T) {
+func TestDCSV1485DerivationTwoRefusesDerivationOneArtifacts(t *testing.T) {
 	t.Parallel()
 	if DerivationVersion < "2" || derivationOf(currentBuilder()) != DerivationVersion {
 		t.Fatalf("derivation %s, engine %q: derived declarations need derivation 2 or later", DerivationVersion, currentBuilder().Engine)

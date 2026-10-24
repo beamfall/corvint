@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-// scanPlans are the segmentations the DCP-V1-551 and DCP-V1-552 tests compare with the
+// scanPlans are the segmentations the DCR-V1-551 and DCR-V1-552 tests compare with the
 // sequential scan: one byte segments so a split falls at every byte, and coarser ones.
 var scanPlans = []boundaryScan{{1, 2}, {1, 3}, {1, 5}, {1, 7}, {1, 16}, {3, 64}, {17, 9}, {}}
 
@@ -92,10 +92,10 @@ func parallelSpans(data []byte, at int, plan boundaryScan) []windowSpan {
 	return d.parallelElements()
 }
 
-// TestDCPV1551ParallelElementsMatchScan: on a canonical split array the parallel scan finds every
+// TestDCRV1551ParallelElementsMatchScan: on a canonical split array the parallel scan finds every
 // element the sequential scan finds, whichever segmentation splits its strings, escapes and
 // nesting; on a hostile one, whose separators mislead the guesses, it finds a prefix of them.
-func TestDCPV1551ParallelElementsMatchScan(t *testing.T) {
+func TestDCRV1551ParallelElementsMatchScan(t *testing.T) {
 	t.Parallel()
 	for _, hostile := range []bool{false, true} {
 		for seed := range uint64(8) {
@@ -117,10 +117,10 @@ func TestDCPV1551ParallelElementsMatchScan(t *testing.T) {
 	}
 }
 
-// TestDCPV1551ParallelElementsCorrupt: on arrays with bytes replaced, inserted or cut, the
+// TestDCRV1551ParallelElementsCorrupt: on arrays with bytes replaced, inserted or cut, the
 // parallel scan returns only elements the sequential scan finds, in order from the scan position,
 // so a wrong guess or an anomaly can only shorten the run it hands over.
-func TestDCPV1551ParallelElementsCorrupt(t *testing.T) {
+func TestDCRV1551ParallelElementsCorrupt(t *testing.T) {
 	t.Parallel()
 	r := rand.New(rand.NewPCG(547, 1))
 	sharp := []byte(`"\{}[],x 0` + "\x00")
@@ -179,11 +179,11 @@ func decodeWith(data []byte, plan boundaryScan, window, headroom int) decodeOutc
 	return out
 }
 
-// TestDCPV1552ParallelScanMatchesSequential: the decode with the parallel boundary scan returns
+// TestDCRV1552ParallelScanMatchesSequential: the decode with the parallel boundary scan returns
 // the same records, digest tail and refusal as with the sequential scan, in memory and streamed,
-// for the committed fixture, adversarial claim texts, every refusal shape of DCP-V1-414 and
-// DCP-V1-419, and the claims member truncated or corrupted at up to 1500 split points.
-func TestDCPV1552ParallelScanMatchesSequential(t *testing.T) {
+// for the committed fixture, adversarial claim texts, every refusal shape of DCR-V1-414 and
+// DCR-V1-419, and the claims member truncated or corrupted at up to 1500 split points.
+func TestDCRV1552ParallelScanMatchesSequential(t *testing.T) {
 	t.Parallel()
 	_, a, base := builtFixture(t)
 	adversarial := rehashed(t, a, func(c *Artifact) {

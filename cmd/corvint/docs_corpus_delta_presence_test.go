@@ -5,10 +5,10 @@ import (
 	"testing"
 )
 
-// TestDCPV1563DeltaCurrentSideIsDecidedByPresence: for delta and carry-forward, an empty
+// TestDCXV1563DeltaCurrentSideIsDecidedByPresence: for delta and carry-forward, an empty
 // --manifest= beside --artifact, or an empty --artifact= or --manifest= alone, is refused with
-// exit 2 and no output, as build refuses it (DCP-V1-495, DCP-V1-563; GitHub #1667, V1-2543).
-func TestDCPV1563DeltaCurrentSideIsDecidedByPresence(t *testing.T) {
+// exit 2 and no output, as build refuses it (DCX-V1-495, DCX-V1-563; GitHub #1667, V1-2543).
+func TestDCXV1563DeltaCurrentSideIsDecidedByPresence(t *testing.T) {
 	root := taskContextRepository(t)
 	writeCorpusFixture(t, root, cemGit(t, root, "rev-parse", "HEAD"), "cache")
 	status := cemGit(t, root, "status", "--porcelain", "--untracked-files=all")

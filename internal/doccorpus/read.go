@@ -14,7 +14,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
-// Artifact validation states an info receipt reports (DCP-V1-413).
+// Artifact validation states an info receipt reports (DCR-V1-413).
 const (
 	ValidationVerified  = "artifact-verified"
 	ValidationRederived = "source-rederived"
@@ -23,19 +23,19 @@ const (
 // ReadOptions selects how a reader admits an artifact.
 type ReadOptions struct {
 	// Rederive runs the complete DCP-V1-011 rederivation instead of the verified
-	// read (DCP-V1-413).
+	// read (DCR-V1-413).
 	Rederive bool
-	// Timings, when set, receives the read's phase durations (DCP-V1-415).
+	// Timings, when set, receives the read's phase durations (DCR-V1-415).
 	Timings *ReadTimings
 	// Header runs on the artifact's header members (schema, builder, manifest,
 	// its digests and tree; no records) while the records are decoded and
-	// verified, so a reader's freshness work overlaps them (DCP-V1-411). Its
+	// verified, so a reader's freshness work overlaps them (DCR-V1-411). Its
 	// result must not be used unless OpenRead succeeds. Header is not run on a
 	// rederived read.
 	Header func(*Artifact)
 	// Index derives the claim terms of the query index on the decode workers
 	// while the records are decoded, for BuildQueryIndex to take
-	// (DCP-V1-434). It only moves work: the index, its bounds and refusals are
+	// (DCR-V1-434). It only moves work: the index, its bounds and refusals are
 	// unchanged.
 	Index bool
 }
@@ -45,7 +45,7 @@ type ReadOptions struct {
 type ReadTimings struct {
 	Validation                                     string
 	Parse, Verify, Freshness, Index, Query, Encode time.Duration
-	// Delta adds the delta's comparison phase, Compare, to the line (DCP-V1-462).
+	// Delta adds the delta's comparison phase, Compare, to the line (DCR-V1-462).
 	Delta   bool
 	Compare time.Duration
 }
@@ -62,7 +62,7 @@ func (t *ReadTimings) Write(w io.Writer, total time.Duration) {
 }
 
 // OpenRead admits an artifact for a read. By default it is the verified read
-// (DCP-V1-410): the artifact must be canonical, match its recorded content
+// (DCR-V1-410): the artifact must be canonical, match its recorded content
 // digest, name this builder, carry the digests of its own manifest and
 // profile, pair its schema with the manifest's, and every revision it pins
 // must still resolve in the checkout that owns it, the primary one to the
@@ -89,7 +89,7 @@ func OpenRead(ctx context.Context, root string, data []byte, opts ReadOptions) (
 // OpenReadFile is OpenRead of the artifact at path under root, read as
 // ReadCorpusFile reads it. The verified read streams the file: it is hashed,
 // scanned and decoded window by window, so the artifact bytes are never held
-// whole beside the records they decode to (DCP-V1-431). A rederived read reads
+// whole beside the records they decode to (DCR-V1-431). A rederived read reads
 // the whole file, as before.
 func OpenReadFile(ctx context.Context, root, path string, opts ReadOptions) (*Artifact, error) {
 	t := opts.Timings
@@ -118,7 +118,7 @@ func OpenReadFile(ctx context.Context, root, path string, opts ReadOptions) (*Ar
 
 // rederives reports whether a read runs the complete rederivation: on request, or for a running
 // builder whose label names no immutable build, which cannot show that an equal recorded label
-// means equal extraction (DCP-V1-410).
+// means equal extraction (DCR-V1-410).
 func rederives(opts ReadOptions) bool {
 	return opts.Rederive || !rebuildAttested(currentBuilder())
 }
@@ -143,7 +143,7 @@ func openRederived(ctx context.Context, root string, data []byte, t *ReadTimings
 // artifact, runs header on its header members and returns its digest tail. The recorded
 // identity is verified, and the caller's header work runs, from the header members while the
 // records are decoded and compared with their canonical encoding; the first failure in the
-// order decode, digest, recorded identity refuses (DCP-V1-414).
+// order decode, digest, recorded identity refuses (DCR-V1-414).
 func openVerified(ctx context.Context, root string, opts ReadOptions, start time.Time, decode func(header func(*Artifact), claims func(int, []Claim)) (*Artifact, artifactTail, error)) (*Artifact, error) {
 	t := opts.Timings
 	var recorded error
@@ -206,7 +206,7 @@ func openVerified(ctx context.Context, root string, opts ReadOptions, start time
 // either kind say nothing about equal extraction behavior. No executable
 // content identity is recorded in the artifact to tell such builds apart.
 // Only a full lowercase Git object ID is a recorded revision, so an empty or
-// malformed label is no attestation either (DCP-V1-471).
+// malformed label is no attestation either (DCX-V1-471).
 func attestedBuilder(b Builder) bool {
 	return wire.IsGitOid(b.Revision)
 }
@@ -221,7 +221,7 @@ func rebuildAttested(b Builder) bool {
 }
 
 // builds counts compiler builds, rederivations included, so a test can show that a read path
-// rederived nothing (DCP-V1-461).
+// rederived nothing (DCR-V1-461).
 var builds atomic.Int64
 
 // BuildsForTest returns how many builds this process has run. Production code never calls it.
@@ -236,7 +236,7 @@ func TrustUnattestedBuilderForTest() (restore func()) {
 }
 
 // errNotRederivable is the refusal of a verified read whose recorded identity
-// this builder could never rederive (DCP-V1-410).
+// this builder could never rederive (DCR-V1-410).
 func errNotRederivable(reason string) error {
 	return fail("artifact cannot be rederived from current builder and pinned inputs: " + reason)
 }

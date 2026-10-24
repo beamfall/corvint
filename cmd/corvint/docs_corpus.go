@@ -22,10 +22,10 @@ type corpusOptions struct {
 	repository string
 	// state, qualifier and run select claims' supplied status claims (DCP-V1-318).
 	state, qualifier, run string
-	// provider is the carry-forward records provider ID (DCP-V1-366).
+	// provider is the carry-forward records provider ID (DCX-V1-366).
 	provider string
 	// uncovered and anchorless select the delta worklist view; paged reports whether --limit or
-	// --offset was given (DCP-V1-421..423).
+	// --offset was given (DCX-V1-421..423).
 	uncovered, anchorless string
 	paged                 bool
 	// callerRevision is the caller's checkout commit compared with the corpus source revision
@@ -33,7 +33,7 @@ type corpusOptions struct {
 	callerRevision string
 	// scopes holds every repeated manifest --scope in argument order (DCP-V1-161).
 	scopes []string
-	// maxMentionRate and maxPatternRate are the opt-in build thresholds (DCP-V1-346, DCP-V1-352).
+	// maxMentionRate and maxPatternRate are the opt-in build thresholds (DCX-V1-346, DCX-V1-352).
 	maxMentionRate, maxPatternRate string
 	// given records every option present on the command line, so an empty value is refused
 	// rather than read as absent.
@@ -49,14 +49,14 @@ type corpusOptions struct {
 	audit        corpusAuditOptions
 	apply, check bool
 	// verifyRederive reads with the complete DCP-V1-011 rederivation and timings writes the read
-	// phase summary to stderr (DCP-V1-413, DCP-V1-415).
+	// phase summary to stderr (DCR-V1-413, DCR-V1-415).
 	verifyRederive, timings bool
 	limit, offset           int
 	// readTimings collects the phases when timings is set.
 	readTimings *doccorpus.ReadTimings
 	// profile is the extract operation's repository path of its extractor profile at --revision
-	// (DCP-V1-399); it is read from Git, not from --root. With profileSHA256 it is instead the
-	// absolute path of a caller-owned profile outside the repository (DCP-V1-478).
+	// (DCX-V1-399); it is read from Git, not from --root. With profileSHA256 it is instead the
+	// absolute path of a caller-owned profile outside the repository (DCX-V1-478).
 	profile, profileSHA256 string
 }
 
@@ -167,7 +167,7 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 	if seen["--repository"] && o.repository == "" {
 		return o, true, argumentError("--repository must name a repository")
 	}
-	// DCP-V1-318, DCP-V1-319, DCP-V1-506: a present status filter, --profile-sha256 or intent --id is non-empty.
+	// DCP-V1-318, DCP-V1-319, DCX-V1-506: a present status filter, --profile-sha256 or intent --id is non-empty.
 	for _, flag := range []string{"--state", "--qualifier", "--run", "--profile-sha256"} {
 		if seen[flag] && strings.TrimSpace(*flags[flag]) == "" {
 			return o, true, argumentError(flag + " must not be empty")
@@ -212,7 +212,7 @@ func runCorpus(ctx context.Context, o corpusOptions, stdout, stderr io.Writer) i
 	start := time.Now()
 	if o.timings {
 		o.readTimings = &doccorpus.ReadTimings{}
-		// The summary is diagnostics on stderr after the result; stdout is unchanged (DCP-V1-415).
+		// The summary is diagnostics on stderr after the result; stdout is unchanged (DCR-V1-415).
 		defer func() { o.readTimings.Write(stderr, time.Since(start)) }()
 	}
 	data, err := compileCorpus(ctx, o)
@@ -270,7 +270,7 @@ func corpusInputPathError(o corpusOptions) error {
 
 // corpusBuild builds what docs corpus build prints: --manifest itself, or the manifest a
 // --artifact embeds, which rebuilds that artifact and reuses its records when its derivation
-// is this builder's (DCP-V1-495, DCP-V1-532). Only build writes.
+// is this builder's (DCX-V1-495, DCX-V1-532). Only build writes.
 func corpusBuild(ctx context.Context, o corpusOptions) (*doccorpus.Artifact, error) {
 	// Presence, not value, decides: an empty --manifest= beside --artifact is still both.
 	artifact := o.given["--artifact"]
@@ -404,9 +404,9 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	var step time.Time
 	// Reads admit the verified artifact without rederiving it, streaming the file rather than
 	// holding it whole; validate and --verify-rederive run the complete rederivation
-	// (DCP-V1-410, DCP-V1-413, DCP-V1-431). A query's live freshness is observed while the
+	// (DCR-V1-410, DCR-V1-413, DCR-V1-431). A query's live freshness is observed while the
 	// records are decoded and verified and the query index is derived, and used only once they
-	// are (DCP-V1-411, DCP-V1-419).
+	// are (DCR-V1-411, DCR-V1-419).
 	// Every exit, a refusal included, cancels and joins a started observation, so none outlives
 	// the read or writes its timing after the summary is printed.
 	liveCtx, cancelLive := context.WithCancel(ctx)
@@ -420,7 +420,7 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	options := doccorpus.ReadOptions{Rederive: o.verifyRederive || o.op == "validate", Timings: t, Index: doccorpus.IndexedOperation(o.op)}
 	if corpusQueryOperation(o.op) {
 		// The primary checkout is observed from the read's start, before the header arrives
-		// (DCP-V1-465); the deferred cancel and join above end it on every exit (DCP-V1-467).
+		// (DCR-V1-465); the deferred cancel and join above end it on every exit (DCR-V1-467).
 		liveCtx, joinPrimary = doccorpus.WithPrimaryObservation(liveCtx, o.root)
 		options.Header = func(h *doccorpus.Artifact) { live.start(liveCtx, h) }
 	}

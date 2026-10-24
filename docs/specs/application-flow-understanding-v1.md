@@ -60,7 +60,7 @@ At `978b37b`:
   attempt. The external reporter emits the same complete inventory only under the separate `/3`
   profile (`internal/jstestprovider/attempt_details.go`); earlier profiles continue to refuse it.
 - The issue-53 adapter reconciles flows, variations, tests and assertions in both directions, and
-  never has narrowing authority (`docs/specs/documentation-corpus-v1.md:192-197@cea38e20`). S4
+  never has narrowing authority (`docs/specs/documentation-corpus-v1.md:198-203@cea38e20`). S4
   leaves it so: only `internal/appflows/selection.go` produces an `e2e-safe` omission.
 
 ## Definitions
@@ -1441,7 +1441,7 @@ state depends on the report.
 ## Extractor inventory flow import (issue 1583)
 
 Human-owned intent: an adopter who ran a repository-declared extractor profile
-(`DCP-V1-390..399`) can seed proposed flow intents from its endpoints and UI surfaces instead of
+(`DCX-V1-390..399`) can seed proposed flow intents from its endpoints and UI surfaces instead of
 typing them, while every imported flow stays `proposed` with `inferred` links until review.
 Requirements accepted under the owner's standing auto-accept (2026-10-11).
 

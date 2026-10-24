@@ -14,7 +14,7 @@ import (
 	"github.com/Beamfall/corvint/internal/gitstatus"
 )
 
-// Cross-revision delta worklist (DCP-V1-360..369): the previous corpus's
+// Cross-revision delta worklist (DCX-V1-360..369): the previous corpus's
 // provider records classified against the current revision's blobs, plus the
 // changed source lines no claim covers, and a carry-forward provider record
 // that feeds the confirmed records into the next build unchanged, keyed by
@@ -33,7 +33,7 @@ const (
 	DeltaDefaultLimit = 64
 )
 
-// Delta read bounds (DCP-V1-367): per blob, admitted bytes in total, bytes
+// Delta read bounds (DCX-V1-367): per blob, admitted bytes in total, bytes
 // hashed to place spans, changed-line hunks per anchor and subjects named per
 // uncovered region.
 const (
@@ -69,7 +69,7 @@ type DeltaSpan struct {
 // DeltaAnchor is one previous anchor re-validated at the current revision.
 type DeltaAnchor struct {
 	Anchor string `json:"anchor"`
-	// Repository names a declared additional repository the anchor belongs to (DCP-V1-420);
+	// Repository names a declared additional repository the anchor belongs to (DCX-V1-420);
 	// it is omitted for the primary repository, whose receipts keep their bytes.
 	Repository       string      `json:"repository,omitempty"`
 	State            string      `json:"state"`
@@ -105,7 +105,7 @@ type DeltaSide struct {
 	Builder        Builder    `json:"builder"`
 }
 
-// DeltaReceipt is the paged `docs corpus delta` worklist (DCP-V1-360).
+// DeltaReceipt is the paged `docs corpus delta` worklist (DCX-V1-360).
 type DeltaReceipt struct {
 	Schema      string         `json:"schema"`
 	Previous    DeltaSide      `json:"previous"`
@@ -118,15 +118,15 @@ type DeltaReceipt struct {
 	Entries     []DeltaEntry   `json:"entries"`
 	Limitations []string       `json:"limitations"`
 	// Anchorless summarizes the records with no anchor by provider and record kind instead of
-	// listing each as an unresolved entry (DCP-V1-422).
+	// listing each as an unresolved entry (DCX-V1-422).
 	Anchorless []DeltaAnchorless `json:"anchorless,omitempty"`
 	// UncoveredSubjectsOmitted counts the subject-level uncovered entries that the `changed`
-	// uncovered mode leaves out of the worklist (DCP-V1-421).
+	// uncovered mode leaves out of the worklist (DCX-V1-421).
 	UncoveredSubjectsOmitted int `json:"uncovered_subjects_omitted,omitempty"`
 }
 
 // DeltaAnchorless is one provider and record kind's count of previous records that have no
-// anchor, so no span hash can be confirmed (DCP-V1-422).
+// anchor, so no span hash can be confirmed (DCX-V1-422).
 type DeltaAnchorless struct {
 	Provider   string `json:"provider"`
 	RecordKind string `json:"record_kind"`
@@ -135,7 +135,7 @@ type DeltaAnchorless struct {
 }
 
 // DeltaStreamSchema is the header line of the whole-worklist `--format jsonl` stream
-// (DCP-V1-423); every later line is one DeltaEntry.
+// (DCX-V1-423); every later line is one DeltaEntry.
 const DeltaStreamSchema = "corvint-corpus-delta-stream/1"
 
 // DeltaStreamHeader is the first line of the jsonl stream: the receipt without paging.
@@ -150,7 +150,7 @@ type DeltaStreamHeader struct {
 	UncoveredSubjectsOmitted int               `json:"uncovered_subjects_omitted,omitempty"`
 }
 
-// Delta worklist modes (DCP-V1-421, DCP-V1-422).
+// Delta worklist modes (DCX-V1-421, DCX-V1-422).
 const (
 	DeltaUncoveredAll      = "all"
 	DeltaUncoveredChanged  = "changed"
@@ -167,13 +167,13 @@ type DeltaOptions struct {
 	Uncovered     string
 	Anchorless    string
 	// Timings, when set, receives the comparison phase and, for the stream, the encode phase
-	// (DCP-V1-462). It never changes the result.
+	// (DCR-V1-462). It never changes the result.
 	Timings *ReadTimings
 }
 
 // deltaRepo is one repository whose anchors the delta re-validates: the primary, or a declared
-// additional repository read from its own checkout at one of its pinned revisions (DCP-V1-420,
-// DCP-V1-424).
+// additional repository read from its own checkout at one of its pinned revisions (DCX-V1-420,
+// DCX-V1-424).
 type deltaRepo struct {
 	id, revision, dir string
 	primary           bool
@@ -197,9 +197,9 @@ type deltaRecord struct {
 	relation Relation
 	anchors  []Anchor
 	// details are the record's typed adoption details in the previous corpus, if any; a carried
-	// record re-applies them unchanged (DCP-V1-443).
+	// record re-applies them unchanged (DCX-V1-443).
 	details *RecordDetails
-	// adoption reports an adoption-only subject kind or relation type (DCP-V1-440).
+	// adoption reports an adoption-only subject kind or relation type (DCX-V1-440).
 	adoption bool
 }
 
@@ -219,7 +219,7 @@ type deltaRun struct {
 	blobReasons  map[string]string
 	read, hashed int
 	// verified caches span digests by deltaSpanKey so a repeated span is
-	// charged to the hashing bound once (DCP-V1-444).
+	// charged to the hashing bound once (DCX-V1-444).
 	verified      map[deltaSpanKey]string
 	hashLimit     int // deltaHashMaxBytes; zero means the default
 	readLimit     int // deltaReadMaxBytes; zero means the default
@@ -229,18 +229,18 @@ type deltaRun struct {
 	regions       []DeltaEntry
 	limitations   []string
 	skippedNative int
-	// extra holds the declared additional repositories previous anchors name (DCP-V1-420).
+	// extra holds the declared additional repositories previous anchors name (DCX-V1-420).
 	extra map[string]*deltaRepo
 }
 
-// Delta classifies previous against current (DCP-V1-360..365) and returns one
+// Delta classifies previous against current (DCX-V1-360..365) and returns one
 // page of the worklist. current is the opened or freshly built current corpus;
 // source is "artifact" or "manifest". It reads Git objects only.
 func Delta(ctx context.Context, root string, previous, current *Artifact, source string, offset, limit int) (*DeltaReceipt, error) {
 	return DeltaWith(ctx, root, previous, current, source, DeltaOptions{Offset: offset, Limit: limit})
 }
 
-// DeltaWith is Delta with the uncovered and anchorless modes (DCP-V1-421, DCP-V1-422).
+// DeltaWith is Delta with the uncovered and anchorless modes (DCX-V1-421, DCX-V1-422).
 func DeltaWith(ctx context.Context, root string, previous, current *Artifact, source string, o DeltaOptions) (*DeltaReceipt, error) {
 	if o.Limit == 0 {
 		o.Limit = DeltaDefaultLimit
@@ -264,7 +264,7 @@ func DeltaWith(ctx context.Context, root string, previous, current *Artifact, so
 }
 
 // DeltaStream classifies once and returns the whole worklist as JSON lines: one
-// DeltaStreamHeader line, then every entry in worklist order (DCP-V1-423). Paging options are
+// DeltaStreamHeader line, then every entry in worklist order (DCX-V1-423). Paging options are
 // ignored. The stream is bounded by the 128 MiB corpus byte bound.
 func DeltaStream(ctx context.Context, root string, previous, current *Artifact, source string, o DeltaOptions) ([]byte, error) {
 	w, err := timedDeltaWorklist(ctx, root, previous, current, o)
@@ -377,10 +377,10 @@ func deltaWorklist(ctx context.Context, root string, previous, current *Artifact
 // CarryForward returns a corvint-corpus-provider/1 record holding provider's
 // previous records that the delta classes carry-forward or moved and that the
 // current corpus does not already hold, each anchor re-pinned to the current
-// revision with its span hash unchanged (DCP-V1-366). The record is meant to be
+// revision with its span hash unchanged (DCX-V1-366). The record is meant to be
 // committed and declared as a records provider of the next build. A record that
 // carries adoption kinds or typed details is a corvint-corpus-adoption-provider/1
-// record holding those details unchanged (DCP-V1-443).
+// record holding those details unchanged (DCX-V1-443).
 func CarryForward(ctx context.Context, root string, previous, current *Artifact, provider string) (*ProviderRecord, error) {
 	declared, ok := Provider{}, false
 	for _, p := range previous.Manifest.Providers {
@@ -397,7 +397,7 @@ func CarryForward(ctx context.Context, root string, previous, current *Artifact,
 	}
 	record := &ProviderRecord{Schema: ProviderSchema, ID: provider, Version: declared.Version, Source: current.Manifest.Repository, Subjects: []Subject{}, Claims: []Claim{}, Relations: []Relation{}, Journeys: []Journey{}, Observations: []ObservationLink{}, Capabilities: []CapabilityDeclaration{}}
 	// An adoption provider's records go back as the adoption record they came from, under its
-	// record bound; every adoption import leaves a typed_detail parity row (DCP-V1-443).
+	// record bound; every adoption import leaves a typed_detail parity row (DCX-V1-443).
 	adoption, details := slices.ContainsFunc(previous.ImportParity, func(p ImportParity) bool {
 		return p.Provider == provider && p.SourceKind == "typed_detail"
 	}), map[string]RecordDetails{}
@@ -425,7 +425,7 @@ func CarryForward(ctx context.Context, root string, previous, current *Artifact,
 		}
 	}
 	// Adoption kinds and typed details re-apply only through the adoption schema, which only a /2
-	// manifest admits (DCP-V1-443).
+	// manifest admits (DCX-V1-443).
 	limit := MaxRecords
 	if adoption || len(details) > 0 {
 		if current.Manifest.Schema != ManifestSchemaV2 {
@@ -457,9 +457,9 @@ func CarryForward(ctx context.Context, root string, previous, current *Artifact,
 // carriedClosure refuses a carry-forward record that would not import on its
 // own: a carried claim's subject, or a carried relation's endpoint, that is
 // neither in the current corpus nor in the record. Classification already
-// demoted records whose dependency is carried by no provider (DCP-V1-365), so
+// demoted records whose dependency is carried by no provider (DCX-V1-365), so
 // what remains is a dependency another provider carries; the refusal names it
-// so the caller can carry and build that provider first (DCP-V1-366).
+// so the caller can carry and build that provider first (DCX-V1-366).
 func carriedClosure(run *deltaRun, record *ProviderRecord, provider string) error {
 	present := map[string]bool{}
 	for _, s := range run.current.Subjects {
@@ -493,7 +493,7 @@ func carriedClosure(run *deltaRun, record *ProviderRecord, provider string) erro
 		need(r.ID, r.From)
 		need(r.ID, r.To)
 	}
-	// A typed detail may also join to a relation (DCP-V1-442).
+	// A typed detail may also join to a relation (DCX-V1-442).
 	for _, r := range run.current.Relations {
 		present[r.ID] = true
 	}
@@ -535,7 +535,7 @@ func classifyDelta(ctx context.Context, root string, previous, current *Artifact
 }
 
 // classifyDeltaWithin is classifyDelta under readLimit bytes read from every repository's object
-// store together, prefetch included (DCP-V1-367, DCP-V1-420).
+// store together, prefetch included (DCX-V1-367, DCX-V1-420).
 func classifyDeltaWithin(ctx context.Context, root string, previous, current *Artifact, readLimit int) (_ *deltaRun, err error) {
 	defer func() { err = gitCapacity(err, "while classifying the corpus delta") }()
 	if previous.Manifest.Repository.ID != current.Manifest.Repository.ID {
@@ -582,7 +582,7 @@ func classifyDeltaWithin(ctx context.Context, root string, previous, current *Ar
 }
 
 // openAdditional opens, read-only, the checkout of every declared additional repository that a
-// previous anchor names, exactly as the build reads it (DCP-V1-176, DCP-V1-420): the current
+// previous anchor names, exactly as the build reads it (DCP-V1-176, DCX-V1-420): the current
 // manifest must declare the repository, its checkout must open, and its root commit must equal
 // the declared identity. A repository that fails any of these keeps the reason, and its anchors
 // are unresolved with it. The returned function releases every object session.
@@ -626,7 +626,7 @@ func (d *deltaRun) openAdditional(ctx context.Context) func() {
 		releases = append(releases, auth.BeginObjectSession())
 		repo.auth, repo.dir, repo.pins, repo.pinOrder = auth, dir, map[string]*deltaRepo{}, declared.pinned()
 		// Each pinned revision keeps its own inputs, so an anchor is resolved at the revision it
-		// was pinned to while the current manifest still pins it (DCP-V1-424).
+		// was pinned to while the current manifest still pins it (DCX-V1-424).
 		for _, revision := range repo.pinOrder {
 			pin := &deltaRepo{id: id, revision: revision, dir: dir, auth: auth, pre: newPathPrefetch(revision), inputs: map[string]Input{}}
 			if revision != declared.Revision {
@@ -651,7 +651,7 @@ func (d *deltaRun) openAdditional(ctx context.Context) func() {
 
 // repoOf is the repository a previous anchor belongs to: the primary, or a declared additional
 // repository opened by openAdditional, at the anchor's own revision while the current manifest
-// still pins it and otherwise at the repository's current revision (DCP-V1-424).
+// still pins it and otherwise at the repository's current revision (DCX-V1-424).
 func (d *deltaRun) repoOf(a Anchor) *deltaRepo {
 	if a.Repository == d.previous.Manifest.Repository.ID {
 		return &deltaRepo{id: a.Repository, revision: d.current.Manifest.Repository.Revision, primary: true, auth: d.auth, pre: d.pre, inputs: d.newInputs}
@@ -670,8 +670,8 @@ func (d *deltaRun) repoOf(a Anchor) *deltaRepo {
 
 // prefetch batches the tree lookups and blob reads the classification needs,
 // so the Git operation count does not grow with the record count. Every batch draws on the one
-// delta read bound shared by all repositories, so prefetch never reads past it (DCP-V1-367,
-// DCP-V1-420).
+// delta read bound shared by all repositories, so prefetch never reads past it (DCX-V1-367,
+// DCX-V1-420).
 func (d *deltaRun) prefetch(ctx context.Context) error {
 	oids, paths := []string{}, []string{}
 	extraOIDs, extraPaths := map[*deltaRepo][]string{}, map[*deltaRepo][]string{}
@@ -869,8 +869,8 @@ func (d *deltaRun) classifyRecords(ctx context.Context) error {
 	for _, r := range d.current.Relations {
 		present[r.ID] = true
 	}
-	// Adoption-only kinds are classified like generic records (DCP-V1-440); one whose kind needs
-	// typed details the previous corpus does not hold stays unresolved (DCP-V1-441).
+	// Adoption-only kinds are classified like generic records (DCX-V1-440); one whose kind needs
+	// typed details the previous corpus does not hold stays unresolved (DCX-V1-441).
 	add := func(kind, id, provider string, e Evidence, known bool, typed string, needsDetails bool, r *deltaRecord) error {
 		if !recordsProviders[provider] {
 			d.skippedNative++
@@ -926,7 +926,7 @@ type deltaDependency struct {
 }
 
 // dependencies are a claim's subject, a relation's endpoints, and every ID the record's typed
-// details reference (DCP-V1-365, DCP-V1-442).
+// details reference (DCX-V1-365, DCX-V1-442).
 func (r *deltaRecord) dependencies() []deltaDependency {
 	deps := []deltaDependency{}
 	switch r.kind {
@@ -974,7 +974,7 @@ func detailReferences(d RecordDetails) []string {
 }
 
 // demoteDependencies keeps the carried set closed: every dependency of a carried record is in
-// the current corpus or carried with it (DCP-V1-365, DCP-V1-442). A demotion re-checks the records
+// the current corpus or carried with it (DCX-V1-365, DCX-V1-442). A demotion re-checks the records
 // that depend on the demoted ID, so the set is stable when the queue drains.
 func (d *deltaRun) demoteDependencies(present map[string]bool) {
 	carried := map[string]int{}
@@ -1006,7 +1006,7 @@ func (d *deltaRun) demoteDependencies(present map[string]bool) {
 		return false
 	}
 	// An exact test join needs its file among the anchors its target test has in the next build:
-	// the current subject's, or the carried subject's re-pinned anchors (DCP-V1-442).
+	// the current subject's, or the carried subject's re-pinned anchors (DCX-V1-442).
 	testPaths := map[string][]string{}
 	for _, s := range d.current.Subjects {
 		for _, a := range s.Evidence.Anchors {
@@ -1454,7 +1454,7 @@ func (d *deltaRun) symbolMove(ctx context.Context, repo *deltaRepo, a Anchor, da
 
 // uncovered lists the source lines of the current revision that changed since
 // the previous revision and that no records-provider claim covers
-// (DCP-V1-364). Compiler-derived native claims exist for every declaration, so
+// (DCX-V1-364). Compiler-derived native claims exist for every declaration, so
 // they do not count as coverage.
 func (d *deltaRun) uncovered(ctx context.Context) error {
 	revision := d.current.Manifest.Repository.Revision
@@ -1599,7 +1599,7 @@ func regionEntry(p string, in Input, data []byte, s, e int, why string, subjects
 }
 
 // uncitedSubjects lists every current subject that no current claim, of any
-// provider, names as its subject (DCP-V1-364). The list is bounded by the
+// provider, names as its subject (DCX-V1-364). The list is bounded by the
 // corpus capacity and paged with the rest of the worklist.
 func (d *deltaRun) uncitedSubjects() {
 	cited := map[string]bool{}

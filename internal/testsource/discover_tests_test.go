@@ -188,10 +188,10 @@ func checkAnchors(t *testing.T, root, commit string, data []byte) int {
 	return count
 }
 
-// TestDCPV1370DiscoverTestsDeterministicAnchored pins DCP-V1-370: one generated, unreviewed
+// TestDCXV1370DiscoverTestsDeterministicAnchored pins DCX-V1-370: one generated, unreviewed
 // document per runner, pinned to the full revision, byte-identical across runs, with every fact
 // anchored to its committed lines; invalid input is refused with a typed code.
-func TestDCPV1370DiscoverTestsDeterministicAnchored(t *testing.T) {
+func TestDCXV1370DiscoverTestsDeterministicAnchored(t *testing.T) {
 	root, commit := discoverFixture(t)
 	for _, runner := range []string{"playwright", "rspec"} {
 		input := TestDiscoveryInput{Root: root, Runner: runner, Revision: commit, Path: "."}
@@ -236,11 +236,11 @@ func TestDCPV1370DiscoverTestsDeterministicAnchored(t *testing.T) {
 	}
 }
 
-// TestDCPV1371DiscoverTestsIdentityJoins pins DCP-V1-371: an RSpec example's identity is the key
+// TestDCXV1371DiscoverTestsIdentityJoins pins DCX-V1-371: an RSpec example's identity is the key
 // tests example-join gives the same example, a Playwright example's full name and file form the
 // js-title-path key once a receipt supplies the project, and an id the source does not fix is an
 // unknown with its reason.
-func TestDCPV1371DiscoverTestsIdentityJoins(t *testing.T) {
+func TestDCXV1371DiscoverTestsIdentityJoins(t *testing.T) {
 	root := t.TempDir()
 	loop := "RSpec.describe Calc do\n  [1, 2].each do |n|\n    it \"handles #{n}\" do\n      expect(n).to be_positive\n    end\n  end\nend\n"
 	commit := commitFiles(t, root, map[string]string{"spec/calc_spec.rb": calcBefore, "tests/cart.spec.ts": cartA, "spec/loop_spec.rb": loop})
@@ -307,10 +307,10 @@ func expectationRows(e DiscoveredExample) []expectationRow {
 	return out
 }
 
-// TestDCPV1372DiscoverTestsExpectations pins DCP-V1-372: each expectation's matcher, negation,
+// TestDCXV1372DiscoverTestsExpectations pins DCX-V1-372: each expectation's matcher, negation,
 // receiver and line span, including multi-line RSpec block expectations; a shape not read is an
 // expectation with matcher-not-read or assertion-shape-not-read, never dropped.
-func TestDCPV1372DiscoverTestsExpectations(t *testing.T) {
+func TestDCXV1372DiscoverTestsExpectations(t *testing.T) {
 	root, commit := discoverFixture(t)
 	js := discoveredExample(t, discover(t, root, "playwright", commit, "."), 15)
 	want := []expectationRow{{"toBeTruthy", "res.ok()", false, [2]int{20, 20}}, {"toHaveCount", `page.locator(".item")`, true, [2]int{21, 21}}}
@@ -361,10 +361,10 @@ func navigationRows(e DiscoveredExample) []navigationRow {
 	return out
 }
 
-// TestDCPV1373DiscoverTestsNavigations pins DCP-V1-373: goto, visit and request helpers in the
+// TestDCXV1373DiscoverTestsNavigations pins DCX-V1-373: goto, visit and request helpers in the
 // example and its applicable hooks, with the method and a literal target, and target-not-literal
 // for a computed one.
-func TestDCPV1373DiscoverTestsNavigations(t *testing.T) {
+func TestDCXV1373DiscoverTestsNavigations(t *testing.T) {
 	root, commit := discoverFixture(t)
 	pw := discover(t, root, "playwright", commit, ".")
 	want := []navigationRow{{"goto", "", "/home", "hook", "", 7}, {"goto", "", "/cart", "example", "", 18}, {"request", "POST", "/api/items", "example", "", 19}}
@@ -396,11 +396,11 @@ func reachRows(e DiscoveredExample) []reachRow {
 	return out
 }
 
-// TestDCPV1374DiscoverTestsReaches pins DCP-V1-374: page objects, helpers and fixtures reached
+// TestDCXV1374DiscoverTestsReaches pins DCX-V1-374: page objects, helpers and fixtures reached
 // by static import, shared groups reached by inclusion and files by require_relative, each with
 // its declaration anchor; a computed lookup, an alias and an unregistered shared group carry the
 // setup-select reasons.
-func TestDCPV1374DiscoverTestsReaches(t *testing.T) {
+func TestDCXV1374DiscoverTestsReaches(t *testing.T) {
 	root, commit := discoverFixture(t)
 	pw := discover(t, root, "playwright", commit, ".")
 	want := []reachRow{
@@ -448,10 +448,10 @@ func TestDCPV1374DiscoverTestsReaches(t *testing.T) {
 	}
 }
 
-// TestDCPV1375DiscoverTestsHooksTagsAnnotations pins DCP-V1-375: the hooks that apply to each
+// TestDCXV1375DiscoverTestsHooksTagsAnnotations pins DCX-V1-375: the hooks that apply to each
 // example, outermost first, with scope and whether the hook body asserts, and the example's
 // tags and annotations from its declaration, its groups and its runtime skip calls.
-func TestDCPV1375DiscoverTestsHooksTagsAnnotations(t *testing.T) {
+func TestDCXV1375DiscoverTestsHooksTagsAnnotations(t *testing.T) {
 	root, commit := discoverFixture(t)
 	js := discoveredExample(t, discover(t, root, "playwright", commit, "."), 15)
 	hooks := fmt.Sprint(js.Hooks[0].Kind, js.Hooks[0].Scope, js.Hooks[0].Asserts, js.Hooks[1].Kind, js.Hooks[1].Asserts)
@@ -485,10 +485,10 @@ func TestDCPV1375DiscoverTestsHooksTagsAnnotations(t *testing.T) {
 	}
 }
 
-// TestDCPV1376DiscoverTestsUnknowns pins DCP-V1-376: what the reader cannot classify is an
+// TestDCXV1376DiscoverTestsUnknowns pins DCX-V1-376: what the reader cannot classify is an
 // unknown with a reason (a non-literal metadata value, a file the reader cannot balance, a file
 // over the byte bound, a fact list over its bound) rather than a guess or a silent drop.
-func TestDCPV1376DiscoverTestsUnknowns(t *testing.T) {
+func TestDCXV1376DiscoverTestsUnknowns(t *testing.T) {
 	root, commit := discoverFixture(t)
 	if got := discoveryReasons(discover(t, root, "rspec", commit, ".")); !slices.Contains(got, discoverReasonMetadata) {
 		t.Fatalf("metadata unknown missing: %v", got)

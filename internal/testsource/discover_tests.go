@@ -17,7 +17,7 @@ import (
 )
 
 // The static test-evidence producer behind `corvint docs corpus discover-tests`
-// (DCP-V1-370..376, GitHub #1582). It reads committed Playwright or RSpec test files at one full
+// (DCX-V1-370..376, GitHub #1582). It reads committed Playwright or RSpec test files at one full
 // commit through the TSA-V0 readers and emits, per example, its title path, tags, annotations,
 // expectations, navigations and requests, statically reached modules, fixtures and shared
 // groups, and the hooks that apply to it. Every fact carries a line anchor pinned to the blob;
@@ -37,7 +37,7 @@ const (
 	maxDiscoveryFacts = 512
 )
 
-// Unknown reasons the producer emits (DCP-V1-376). computed-lookup, import-unresolved and
+// Unknown reasons the producer emits (DCX-V1-376). computed-lookup, import-unresolved and
 // registry-unresolved keep the meaning setup-select gives them (TSA-V0-003).
 const (
 	discoverReasonComputedLookup   = "computed-lookup"
@@ -227,7 +227,7 @@ func discoveryTyped(err error) error {
 }
 
 // BuildTestDiscovery reads the runner's committed test files under input.Path at input.Revision
-// and returns the encoded corvint-test-discovery/1 record (DCP-V1-370). It reads Git objects only,
+// and returns the encoded corvint-test-discovery/1 record (DCX-V1-370). It reads Git objects only,
 // writes nothing and runs no test.
 func BuildTestDiscovery(ctx context.Context, input TestDiscoveryInput) ([]byte, error) {
 	if input.Runner != "playwright" && input.Runner != "rspec" {
@@ -418,7 +418,7 @@ func (f *discoveryFile) capFacts(e *DiscoveredExample) {
 
 // dropUnanchored removes facts whose anchor failed (a span that is empty or over the excerpt
 // bound), so no fact is reported with zero-valued evidence: each kind it cuts is one unknown, and
-// an unanchored title empties the title path (DCP-V1-370, DCP-V1-376).
+// an unanchored title empties the title path (DCX-V1-370, DCX-V1-376).
 func (f *discoveryFile) dropUnanchored(e *DiscoveredExample) {
 	note := func(n int, kind string) {
 		if n > 0 {

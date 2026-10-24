@@ -51,7 +51,7 @@ type FlowRelationJoin struct {
 	Traversable bool     `json:"traversable"`
 	Reasons     []string `json:"reasons"`
 	// NameSubjects are the job or event subjects a produces or consumes record's name matches,
-	// set only when the corpus declares job or event subjects (DCP-V1-397).
+	// set only when the corpus declares job or event subjects (DCX-V1-397).
 	NameSubjects []string           `json:"name_subjects,omitempty"`
 	Record       FlowRelationRecord `json:"record"`
 }
@@ -151,7 +151,7 @@ func (c *compiler) joinFlowRelations(sets []providerFlowRelations) error {
 	revision := c.manifest.Repository.Revision
 	flows := map[string]bool{}
 	// names holds declared job and event subjects by name; when the corpus declares any, a
-	// produces or consumes record must name one of them (DCP-V1-397).
+	// produces or consumes record must name one of them (DCX-V1-397).
 	names := map[string][]string{}
 	for _, s := range c.artifact.Subjects {
 		if s.Kind == "flow" || s.Kind == "variation" {

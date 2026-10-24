@@ -147,7 +147,7 @@ func extractEdit(index int, key string, value any) func(map[string]any) {
 	}
 }
 
-func TestDCPV1390ExtractorProfileIsClosed(t *testing.T) {
+func TestDCXV1390ExtractorProfileIsClosed(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name string
@@ -195,7 +195,7 @@ func TestDCPV1390ExtractorProfileIsClosed(t *testing.T) {
 	})
 }
 
-func TestDCPV1391ExtractorEmitsGenericSubjectsWithExactAnchors(t *testing.T) {
+func TestDCXV1391ExtractorEmitsGenericSubjectsWithExactAnchors(t *testing.T) {
 	t.Parallel()
 	root, rev := extractFixture(t, false, nil)
 	inv, _ := extractInventory(t, root, rev)
@@ -240,7 +240,7 @@ func TestDCPV1391ExtractorEmitsGenericSubjectsWithExactAnchors(t *testing.T) {
 	}
 }
 
-func TestDCPV1392ExtractorDerivesImplementsAndCallsRelations(t *testing.T) {
+func TestDCXV1392ExtractorDerivesImplementsAndCallsRelations(t *testing.T) {
 	t.Parallel()
 	root, rev := extractFixture(t, false, nil)
 	inv, _ := extractInventory(t, root, rev)
@@ -280,7 +280,7 @@ func TestDCPV1392ExtractorDerivesImplementsAndCallsRelations(t *testing.T) {
 	}
 }
 
-func TestDCPV1393ExtractorProviderRecordBuildsUnchanged(t *testing.T) {
+func TestDCXV1393ExtractorProviderRecordBuildsUnchanged(t *testing.T) {
 	t.Parallel()
 	root, rev := extractFixture(t, false, nil)
 	inv, _ := extractInventory(t, root, rev)
@@ -324,7 +324,7 @@ func TestDCPV1393ExtractorProviderRecordBuildsUnchanged(t *testing.T) {
 	}
 }
 
-func TestDCPV1394ExtractorReadsOnlyPinnedToolOutput(t *testing.T) {
+func TestDCXV1394ExtractorReadsOnlyPinnedToolOutput(t *testing.T) {
 	t.Parallel()
 	root, rev := extractFixture(t, false, nil)
 	inv, _ := extractInventory(t, root, rev)
@@ -341,7 +341,7 @@ func TestDCPV1394ExtractorReadsOnlyPinnedToolOutput(t *testing.T) {
 	}
 }
 
-func TestDCPV1395ExtractorReportsUnreadableFilesAndShapesAsGaps(t *testing.T) {
+func TestDCXV1395ExtractorReportsUnreadableFilesAndShapesAsGaps(t *testing.T) {
 	t.Parallel()
 	root, rev := extractFixture(t, true, nil)
 	inv, _ := extractInventory(t, root, rev)
@@ -372,7 +372,7 @@ func TestDCPV1395ExtractorReportsUnreadableFilesAndShapesAsGaps(t *testing.T) {
 	}
 }
 
-func TestDCPV1396JobAndEventAreGenericSubjectKinds(t *testing.T) {
+func TestDCXV1396JobAndEventAreGenericSubjectKinds(t *testing.T) {
 	t.Parallel()
 	for _, kind := range []string{"job", "event"} {
 		if !subjectKinds[kind] {
@@ -381,7 +381,7 @@ func TestDCPV1396JobAndEventAreGenericSubjectKinds(t *testing.T) {
 	}
 }
 
-func TestDCPV1398ExtractorIsDeterministicAndReadOnly(t *testing.T) {
+func TestDCXV1398ExtractorIsDeterministicAndReadOnly(t *testing.T) {
 	t.Parallel()
 	root, rev := extractFixture(t, true, nil)
 	_, first := extractInventory(t, root, rev)
@@ -421,7 +421,7 @@ func extractAnchored(anchors []Anchor, path string, line int) bool {
 	return slices.ContainsFunc(anchors, func(a Anchor) bool { return a.Path == path && a.Start == line })
 }
 
-func TestDCPV1390ExtractorGlobMatchIsLinear(t *testing.T) {
+func TestDCXV1390ExtractorGlobMatchIsLinear(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
 		pattern, name string
@@ -450,7 +450,7 @@ func TestDCPV1390ExtractorGlobMatchIsLinear(t *testing.T) {
 	})
 }
 
-func TestDCPV1395ExtractorDenseFileIsRefusedWhileScanning(t *testing.T) {
+func TestDCXV1395ExtractorDenseFileIsRefusedWhileScanning(t *testing.T) {
 	t.Parallel()
 	// About 3.6 MiB of declarations: under the byte bound, far over the record bound. Anchoring
 	// each site used to re-split and re-hash the whole file, and the bound was checked only after it.
@@ -462,7 +462,7 @@ func TestDCPV1395ExtractorDenseFileIsRefusedWhileScanning(t *testing.T) {
 	})
 }
 
-func TestDCPV1392ExtractorRelationsCiteBothEnds(t *testing.T) {
+func TestDCXV1392ExtractorRelationsCiteBothEnds(t *testing.T) {
 	t.Parallel()
 	root, rev := extractFixture(t, false, nil)
 	inv, _ := extractInventory(t, root, rev)
@@ -494,7 +494,7 @@ func TestDCPV1392ExtractorRelationsCiteBothEnds(t *testing.T) {
 	}
 }
 
-func TestDCPV1395AmbiguousEntityDeclarationClosesTheEntity(t *testing.T) {
+func TestDCXV1395AmbiguousEntityDeclarationClosesTheEntity(t *testing.T) {
 	t.Parallel()
 	more := "create_table \"users\"\n" +
 		"  t.string \"name\"\n" +

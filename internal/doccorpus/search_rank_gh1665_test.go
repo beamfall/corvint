@@ -18,13 +18,13 @@ func claimOrder(t *testing.T, a *Artifact, query string) []string {
 	return order
 }
 
-// DCP-V1-475 (GitHub #1665 rows 1 and 4): a subject whose name field holds
+// DCX-V1-475 (GitHub #1665 rows 1 and 4): a subject whose name field holds
 // the query's words in order outranks partial overlaps. The identifier
 // logout_redirect_url, also written LogoutRedirectURL, finds the subject that
 // quotes it in a prose name ahead of one named lsid_error_redirect_url, and
 // the phrase "on deck" finds the controller file whose path segment is
 // on_deck ahead of short names that only hold "deck".
-func TestDCPV1475PhraseAndIdentifierMatchesRankFirst(t *testing.T) {
+func TestDCXV1475PhraseAndIdentifierMatchesRankFirst(t *testing.T) {
 	t.Parallel()
 	a := buildAdoption(t, func(p *ProviderRecord) {
 		ev := p.Subjects[0].Evidence
@@ -84,11 +84,11 @@ func TestDCPV1475PhraseAndIdentifierMatchesRankFirst(t *testing.T) {
 	}
 }
 
-// DCP-V1-476 (GitHub #1665 row 2): claim text matches regular inflections
+// DCX-V1-476 (GitHub #1665 row 2): claim text matches regular inflections
 // of a query term, so "set admin user" finds "Setting an admin ..." and
 // "revoke admin user" finds "Revoking ...", through docs_claims and through
 // docs_search with include:["claims"].
-func TestDCPV1476ClaimTextMatchesInflections(t *testing.T) {
+func TestDCXV1476ClaimTextMatchesInflections(t *testing.T) {
 	t.Parallel()
 	a := buildAdoption(t, func(p *ProviderRecord) {
 		ev := p.Subjects[0].Evidence
@@ -123,11 +123,11 @@ func TestDCPV1476ClaimTextMatchesInflections(t *testing.T) {
 	}
 }
 
-// DCP-V1-477 (GitHub #1665 row 3): ties no longer order by ID string. Claims
+// DCX-V1-477 (GitHub #1665 row 3): ties no longer order by ID string. Claims
 // holding as many query terms order by the summed idf of the terms they hold,
 // then the shorter text, then natural ID order (claim:209 before claim:2004);
 // docs_search ties order by the shorter name, then natural ID order.
-func TestDCPV1477MeaningfulTieBreaks(t *testing.T) {
+func TestDCXV1477MeaningfulTieBreaks(t *testing.T) {
 	t.Parallel()
 	a := buildAdoption(t, func(p *ProviderRecord) {
 		ev := p.Subjects[0].Evidence

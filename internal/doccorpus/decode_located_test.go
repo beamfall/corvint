@@ -6,10 +6,10 @@ import (
 	"testing"
 )
 
-// TestDCPV1470LocatedDecodeRefusal pins that a caller input's closed-decode refusal names the
+// TestDCXV1470LocatedDecodeRefusal pins that a caller input's closed-decode refusal names the
 // input, the JSON pointer, the record id, the reason and the offset, while an artifact keeps the
-// bare message its streamed decoder must match (DCP-V1-470).
-func TestDCPV1470LocatedDecodeRefusal(t *testing.T) {
+// bare message its streamed decoder must match (DCX-V1-470).
+func TestDCXV1470LocatedDecodeRefusal(t *testing.T) {
 	shard := []byte(`{"subjects":[{"id":"subject:a","evidence":{"anchors":[]}},` +
 		`{"id":"subject:b","evidence":{"anchors":[false]}}]}`)
 	cases := []struct {

@@ -12,11 +12,11 @@ import (
 	"testing"
 )
 
-// readFixtureScale sizes the large read fixture (DCP-V1-418): native documentation pages in the
+// readFixtureScale sizes the large read fixture (DCR-V1-418): native documentation pages in the
 // declared scope, source files outside it that a full live re-index would read, and the pinned
 // evidence files of each additional repository. manyScopes declares one single-file scope per
 // documentation page and per additional-repository file instead of one directory scope each
-// (DCP-V1-450), the shape an export of thousands of individually scoped files produces.
+// (DCR-V1-450), the shape an export of thousands of individually scoped files produces.
 type readFixtureScale struct {
 	docs, sections, sources, additional, additionalFiles int
 	manyScopes                                           bool

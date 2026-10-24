@@ -9,9 +9,9 @@ import (
 	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
-// The docs_search ranking tiers, in rank order (DCP-V1-541 to DCP-V1-544).
+// The docs_search ranking tiers, in rank order (DCS-V1-541 to DCS-V1-544).
 // A hit of an earlier tier orders before every hit of a later one, whatever
-// the scores; within a tier hits order by score (DCP-V1-402, DCP-V1-477).
+// the scores; within a tier hits order by score (DCS-V1-402, DCX-V1-477).
 const (
 	tierExact = iota
 	tierIdentifier
@@ -22,12 +22,12 @@ const (
 	tierTerms
 )
 
-// tierNames are the served tier values (DCP-V1-544).
+// tierNames are the served tier values (DCS-V1-544).
 var tierNames = [...]string{"exact", "identifier", "path-phrase", "phrase", "id-phrase", "named", "terms"}
 
 // queryGroups groups a query's evidence terms by the query words that yield
 // them, so "conditions" and its singular "condition" are one group and the
-// word counts once (DCP-V1-540). Terms that one word yields join one group,
+// word counts once (DCS-V1-540). Terms that one word yields join one group,
 // and groups sharing a term merge, so the grouping does not depend on word
 // order: "condition conditions" and "conditions condition" both give one
 // group. A term no word yields, such as an identifier's compound, is a group
@@ -78,7 +78,7 @@ func queryGroups(query string, terms []string) [][]string {
 }
 
 // phraseTier is the phrase tier of a subject for the query phrase
-// (DCP-V1-475, DCP-V1-542): tierPathPhrase when a module or file subject's
+// (DCX-V1-475, DCS-V1-542): tierPathPhrase when a module or file subject's
 // name or anchor path holds it, tierPhrase when another subject's name does
 // (unless the name is prose and the query is not one identifier), tierIDPhrase
 // when only the subject's ID does, and tierTerms otherwise.
@@ -106,7 +106,7 @@ func phraseTier(s Subject, phrase []string, identifier bool) int {
 // identifierToken reports whether one token of the subject's name, or of a
 // module or file subject's anchor path, spells the query identifier: its
 // words, or its words without the token's last dot suffix, equal the query's
-// (DCP-V1-541). A token is a run of letters, digits, '_', '-' and '.', so the
+// (DCS-V1-541). A token is a run of letters, digits, '_', '-' and '.', so the
 // path src/app/services/pos_sync.rb holds the token pos_sync.rb, which spells
 // pos_sync, PosSync and pos_sync.rb, while the name "POS sync dashboard"
 // spells none of them. The subject's ID is not read.
@@ -140,12 +140,12 @@ func spellsIdentifier(text string, phrase []string) bool {
 	return false
 }
 
-// questionWords open a question-shaped query (DCP-V1-543).
+// questionWords open a question-shaped query (DCS-V1-543).
 var questionWords = words("what how why when where which who whom whose does do did is are was were can could should would will has have")
 
 // questionShaped reports whether a query is a question: it ends with '?' or
 // its first whitespace-separated field is a question word, ignoring case
-// (DCP-V1-543). The identifier is_admin is not a question.
+// (DCS-V1-543). The identifier is_admin is not a question.
 func questionShaped(query string) bool {
 	q := strings.TrimSpace(query)
 	if strings.HasSuffix(q, "?") {
@@ -155,16 +155,16 @@ func questionShaped(query string) bool {
 	return len(fields) > 0 && questionWords[strings.ToLower(fields[0])]
 }
 
-// namedInQuery reports whether a question names a subject (DCP-V1-543): its
+// namedInQuery reports whether a question names a subject (DCS-V1-543): its
 // name of at least two words, at least two of them content words, appears as
-// a contiguous run of the question's words (DCP-V1-567), so the flow
+// a contiguous run of the question's words (DCS-V1-567), so the flow
 // "Reservation Cancellation" is named in "What breaks in Reservation
 // Cancellation, and under what conditions?" while "In the source" is not. A
 // one-word name is named only by a capitalized query word that no other
-// capitalized word adjoins (DCP-V1-548, DCP-V1-567): "Waitlist" in "How does
+// capitalized word adjoins (DCS-V1-548, DCS-V1-567): "Waitlist" in "How does
 // Waitlist work?", but not "Cancellation" in "Where is Reservation
 // Cancellation implemented?". A prose name never is. A subject is also named
-// by its ID slug (DCP-V1-566). folded is the lower-cased query, which an
+// by its ID slug (DCS-V1-566). folded is the lower-cased query, which an
 // allocation-free test reads before the words are compared.
 func namedInQuery(s Subject, queryWords []string, folded string, capitalized map[string]bool) bool {
 	return nameNamed(s, queryWords, folded, capitalized) || slugNamed(s.ID, queryWords, folded)
@@ -190,7 +190,7 @@ func nameNamed(s Subject, queryWords []string, folded string, capitalized map[st
 // slugNamed reports whether a subject's ID slug, the ID after its last '/' or
 // ':' without its last dot suffix, holds at least two words, two of them
 // content words, that appear as a contiguous run of the question's words
-// (DCP-V1-566): adapter:flow:flows/reservation-cancellation and
+// (DCS-V1-566): adapter:flow:flows/reservation-cancellation and
 // docs/reservation-cancellation.md are named in "Where in the source is
 // Reservation Cancellation implemented?".
 func slugNamed(id string, queryWords []string, folded string) bool {
@@ -206,13 +206,13 @@ func slugNamed(id string, queryWords []string, folded string) bool {
 }
 
 // frameWords say where or how a question asks about its subject rather than
-// what the subject is (DCP-V1-565): "Where in the source is X implemented?"
+// what the subject is (DCS-V1-565): "Where in the source is X implemented?"
 // and "How does X work?" are about X.
 var frameWords = words("source sources codebase repo repository implemented implement implements implementation implementations defined define defines definition declared declare declares located location live lives handled handle handles work works happen happens")
 
 // contentWord reports whether a question word says what the question is
 // about: it yields an evidence term and is neither a frame word nor a
-// question word (DCP-V1-565).
+// question word (DCS-V1-565).
 func contentWord(word string) bool {
 	return !frameWords[word] && !questionWords[word] && len(contextindex.EvidenceTerms(word)) > 0
 }
@@ -228,7 +228,7 @@ func contentWords(words []string) int {
 }
 
 // coveredGroups reports, for each query term group, whether it counts as a
-// covered query word (DCP-V1-547, DCP-V1-565). In a question a group every
+// covered query word (DCS-V1-547, DCS-V1-565). In a question a group every
 // term of which only frame and question words yield is not covered, so a
 // result holding "source" and "implemented" holds no more of "Where in the
 // source is Player Types implemented?" than one holding neither. A term no
@@ -259,11 +259,11 @@ func coveredGroups(query string, groups [][]string) []bool {
 }
 
 // capitalizedWords are the words of a question that may name a one-word
-// subject (DCP-V1-548): a field of letters and digits, other than the first,
+// subject (DCS-V1-548): a field of letters and digits, other than the first,
 // whose first letter is upper case, that is one identifier word, an evidence
 // term and not a question word. A capitalized field that another capitalized
 // field other than the first adjoins is part of a longer name and yields
-// nothing (DCP-V1-567). "How does Waitlist work?" yields waitlist; the
+// nothing (DCS-V1-567). "How does Waitlist work?" yields waitlist; the
 // sentence-initial "What", the compound "WaitlistNotifier", the lower case
 // "waitlist" and the "Cancellation" of "Reservation Cancellation" yield
 // nothing.

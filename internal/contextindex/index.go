@@ -649,7 +649,7 @@ func pinSourcesDeferringBlobs(ctx context.Context, root string, identity reposit
 //
 // Under withStatRoutedPins the entries Git's index vouches for are pinned
 // from their committed blobs first and the worktree pass skips them; the
-// returned set then reports every position this pass pinned (DCP-V1-452).
+// returned set then reports every position this pass pinned (DCR-V1-452).
 func pinWorktree(ctx context.Context, root string, identity repositoryIdentity, entries []treeEntry, dirty map[string]struct{}, pinned []pinnedEntry) []bool {
 	fromWorktree := make([]bool, len(entries))
 	if statRoutedPins(ctx) {
@@ -718,7 +718,7 @@ func worktreePin(opener *cleanFileOpener, entry treeEntry, identity repositoryId
 }
 
 // worktreePinRead observes each worktree file the pin pass opens; tests use it
-// to show which entries skipped the read (DCP-V1-452).
+// to show which entries skipped the read (DCR-V1-452).
 var worktreePinRead = func(string) {}
 
 func eligibleForWorktreePin(entry treeEntry, dirty map[string]struct{}) bool {

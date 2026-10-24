@@ -59,9 +59,9 @@ func patternArtifact() *Artifact {
 	return a
 }
 
-// DCP-V1-348: the pattern report gives each pattern's rule, thresholds, count, rate, groups and
+// DCX-V1-348: the pattern report gives each pattern's rule, thresholds, count, rate, groups and
 // sorted bounded claim IDs over the examined claims; it is deterministic and changes nothing.
-func TestDCPV1348CorpusPatternReport(t *testing.T) {
+func TestDCXV1348CorpusPatternReport(t *testing.T) {
 	t.Parallel()
 	a := patternArtifact()
 	before, _ := json.Marshal(a)
@@ -136,9 +136,9 @@ func TestDCPV1348CorpusPatternReport(t *testing.T) {
 	}
 }
 
-// DCP-V1-350: --stratify patterns over-samples flagged claims reproducibly, capping a stratum at
+// DCX-V1-350: --stratify patterns over-samples flagged claims reproducibly, capping a stratum at
 // its population.
-func TestDCPV1350StratifyPatternsOverSamples(t *testing.T) {
+func TestDCXV1350StratifyPatternsOverSamples(t *testing.T) {
 	t.Parallel()
 	a := &Artifact{Manifest: Manifest{Providers: []Provider{{ID: "gen", Kind: "records"}}}, Subjects: []Subject{{ID: "s", Kind: "capability", Name: "S"}}}
 	for i := 0; i < 30; i++ {
@@ -199,9 +199,9 @@ func TestDCPV1350StratifyPatternsOverSamples(t *testing.T) {
 	}
 }
 
-// DCP-V1-351: a stratified audit report gives a population-weighted overall figure that abstains
+// DCX-V1-351: a stratified audit report gives a population-weighted overall figure that abstains
 // when a populated stratum has no defined accuracy.
-func TestDCPV1351WeightedAuditFigure(t *testing.T) {
+func TestDCXV1351WeightedAuditFigure(t *testing.T) {
 	t.Parallel()
 	groups := map[string]*AuditGroup{"a": {Accuracy: AuditRatio{Numerator: 1, Denominator: 2, Defined: true}}, "b": {Accuracy: AuditRatio{Numerator: 1, Denominator: 1, Defined: true}}}
 	w := auditWeighted([]AuditStratum{{"a", 30, 2}, {"b", 10, 1}, {"c", 0, 0}}, groups)
@@ -282,8 +282,8 @@ func TestDCPV1351WeightedAuditFigure(t *testing.T) {
 	}
 }
 
-// DCP-V1-352: optional pattern-rate thresholds refuse a corpus above them, naming each pattern.
-func TestDCPV1352PatternRateThresholds(t *testing.T) {
+// DCX-V1-352: optional pattern-rate thresholds refuse a corpus above them, naming each pattern.
+func TestDCXV1352PatternRateThresholds(t *testing.T) {
 	t.Parallel()
 	a := patternArtifact()
 	if err := CheckBuildThresholds(a, BuildThresholds{MaxPatternRates: map[string]float64{"uniform-shape": 0.5, "broad-anchor": 0.1}}); err != nil {

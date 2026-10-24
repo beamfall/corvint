@@ -28,7 +28,7 @@ var AuditStratifications = []string{"provider", "kind", "flow", "trust", "patter
 const auditSampleMethod = "per-stratum rank by sha256(seed, claim id); proportional allocation by largest remainder, ties by stratum name"
 
 // AuditPatternWeight is the over-sampling weight of a flagged pattern stratum relative to the
-// unflagged stratum under --stratify patterns (DCP-V1-350).
+// unflagged stratum under --stratify patterns (DCX-V1-350).
 const AuditPatternWeight = 4
 
 const auditPatternSampleMethod = "per-stratum rank by sha256(seed, claim id); stratum is the first flagged pattern in report order, else unflagged; weighted largest-remainder allocation with each flagged stratum weighted 4 per claim and unflagged 1, capped at stratum population, ties by stratum name"
@@ -116,7 +116,7 @@ func auditStratum(a *Artifact, subjects map[string]Subject, claim Claim, by stri
 	return "all"
 }
 
-// auditPatternStrata maps each flagged claim to its first flagged pattern (DCP-V1-350).
+// auditPatternStrata maps each flagged claim to its first flagged pattern (DCX-V1-350).
 func auditPatternStrata(a *Artifact) map[string]string {
 	flags, _, _ := corpusPatternFlags(a)
 	out := map[string]string{}
@@ -130,7 +130,7 @@ func auditPatternStrata(a *Artifact) map[string]string {
 
 // weightedAllocation allocates size across strata in proportion to population times weight,
 // capping each at its population and redistributing the rest, then by largest remainder with
-// ties by stratum name (DCP-V1-350).
+// ties by stratum name (DCX-V1-350).
 func weightedAllocation(names []string, population map[string]int, weight func(string) int, size int) map[string]int {
 	alloc := map[string]int{}
 	open := append([]string{}, names...)
@@ -323,7 +323,7 @@ func ParseAuditSample(raw []byte) (*AuditSample, error) {
 		}
 		seen[c.ClaimID] = true
 	}
-	// Strata reconcile with the claims and totals (DCP-V1-351): unique names, each sampled claim in
+	// Strata reconcile with the claims and totals (DCX-V1-351): unique names, each sampled claim in
 	// exactly one listed stratum, per-stratum sampled counts equal to its claims, and population and
 	// sampled totals equal to the design's.
 	sampled := map[string]int{}
@@ -455,7 +455,7 @@ type AuditSampleBinding struct {
 
 // AuditWeighted is the population-weighted accuracy sum over strata of (N_h / N) * p_h, where
 // N_h is a stratum's sampled-from population and p_h its accuracy; it abstains unless every
-// populated stratum's accuracy is defined (DCP-V1-351).
+// populated stratum's accuracy is defined (DCX-V1-351).
 type AuditWeighted struct {
 	Population      int      `json:"population"`
 	Defined         bool     `json:"defined"`
@@ -471,7 +471,7 @@ type AuditReport struct {
 	Sample  AuditSampleBinding `json:"sample"`
 	Corpus  AuditCorpus        `json:"corpus"`
 	Overall AuditGroup         `json:"overall"`
-	// Weighted is present only for a stratified sample (DCP-V1-351).
+	// Weighted is present only for a stratified sample (DCX-V1-351).
 	Weighted    *AuditWeighted      `json:"weighted,omitempty"`
 	ByStratum   []AuditGroup        `json:"by_stratum"`
 	ByMethod    []AuditMethodGroup  `json:"by_method"`
