@@ -319,13 +319,16 @@ case $1 in
   build)
     out=''
     while (($# > 0)); do [[ $1 == -o ]] && out=$2; shift; done
-    printf '%s %s\n' "$PWD" "$GOTOOLCHAIN" >> "$STUB_LOG"
-    printf 'stub-build %s %s\n' "${STUB_REV:-$(git rev-parse HEAD)}" "${STUB_MODIFIED:-false}" > "$out"
+    printf '%s %s %s/%s\n' "$PWD" "$GOTOOLCHAIN" "$GOOS" "$GOARCH" >> "$STUB_LOG"
+    printf 'stub-build %s %s %s %s\n' "${STUB_REV:-$(git rev-parse HEAD)}" "${STUB_MODIFIED:-false}" \
+      "${STUB_GOOS:-$GOOS}" "$GOARCH" > "$out"
     ;;
   version)
-    read -r tag rev modified < "$3" 2> /dev/null && [[ $tag == stub-build ]] || exit 1
-    printf '%s: go1.27.3\n\tpath\tstub\n\tbuild\tvcs=git\n\tbuild\tvcs.revision=%s\n\tbuild\tvcs.modified=%s\n' "$3" "$rev" "$modified"
+    read -r tag rev modified goos goarch < "$3" 2> /dev/null && [[ $tag == stub-build ]] || exit 1
+    printf '%s: go1.27.3\n\tpath\tstub\n\tbuild\tGOARCH=%s\n\tbuild\tGOOS=%s\n\tbuild\tvcs=git\n\tbuild\tvcs.revision=%s\n\tbuild\tvcs.modified=%s\n' \
+      "$3" "$goarch" "$goos" "$rev" "$modified"
     ;;
+  env) [[ $2 == GOHOSTOS && $3 == GOHOSTARCH ]] && printf 'tos\ntarch\n' || exit 9 ;;
   *) exit 9 ;;
 esac
 STUB
@@ -335,11 +338,14 @@ cemv() { GO=$tmp/stub-go "$cem/script/install-cem-verifiers.sh" "$@"; }
 head1=$(git -C "$cem" rev-parse HEAD)
 cemv --bin-dir "$tmp/cem-bin" > "$tmp/cemv.out" 2>&1 || fail "install-cem-verifiers install failed: $(cat "$tmp/cemv.out")"
 [[ $(tail -1 "$tmp/cemv.out") == "MATCH $head1" ]] || fail "install-cem-verifiers did not report the installed pair: $(cat "$tmp/cemv.out")"
-[[ $(cat "$STUB_LOG") == "$cem local"$'\n'"$cem/interop/cem01-go local" ]] || fail "install-cem-verifiers built from the wrong directories: $(cat "$STUB_LOG")"
+[[ $(cat "$STUB_LOG") == "$cem local tos/tarch"$'\n'"$cem/interop/cem01-go local tos/tarch" ]] || fail "install-cem-verifiers built from the wrong directories: $(cat "$STUB_LOG")"
 [[ $(cemv --check --bin-dir "$tmp/cem-bin") == "MATCH $head1" ]] || fail "install-cem-verifiers --check did not match a fresh pair"
 git -C "$cem" -c user.name=t -c user.email=t@t commit -q --allow-empty -m two
 head2=$(git -C "$cem" rev-parse HEAD)
-cemv --bin-dir "$tmp/cem-bin" > /dev/null 2>&1 || fail "install-cem-verifiers reinstall failed"
+# A cross-compilation environment does not leak into the builds (Codex P2).
+: > "$STUB_LOG"
+GOOS=plan9 GOARCH=386 cemv --bin-dir "$tmp/cem-bin" > /dev/null 2>&1 || fail "install-cem-verifiers reinstall failed"
+[[ $(sort -u <<< "$(cut -d' ' -f3 "$STUB_LOG")") == tos/tarch ]] || fail "install-cem-verifiers cross-built: $(cat "$STUB_LOG")"
 [[ $(cemv --check --bin-dir "$tmp/cem-bin") == "MATCH $head2" ]] || fail "install-cem-verifiers did not install the new HEAD"
 [[ -f $tmp/cem-bin/corvint.corvint-prev-1 && -f $tmp/cem-bin/cem01-go.corvint-prev-1 ]] || fail "install-cem-verifiers kept no rollback backups"
 # A stale consumer (the V1-1761 observation), a modified build and an unrecorded build each fail.
@@ -367,6 +373,9 @@ STUB_REV=$head1 cemv --bin-dir "$tmp/cem-bin" > /dev/null 2> "$tmp/cemv.err"
 [[ $? == 2 ]] && grep -q 'REFUSE build-not-stamped corvint' "$tmp/cemv.err" || fail "install-cem-verifiers installed a build of another revision"
 STUB_MODIFIED=true cemv --bin-dir "$tmp/cem-bin" > /dev/null 2> "$tmp/cemv.err"
 [[ $? == 2 ]] && grep -q 'REFUSE build-not-stamped' "$tmp/cemv.err" || fail "install-cem-verifiers installed a modified build"
+STUB_GOOS=other cemv --bin-dir "$tmp/cem-bin" > /dev/null 2> "$tmp/cemv.err"
+[[ $? == 2 ]] && grep -q "REFUSE build-not-host corvint targets 'other/tarch'" "$tmp/cemv.err" ||
+  fail "install-cem-verifiers installed a build for another target"
 cmp -s "$tmp/corvint-before" "$tmp/cem-bin/corvint" && [[ ! -e $tmp/cem-bin/cem01-go ]] || fail "a refused install-cem-verifiers run wrote the bin dir"
 cemv --keep 0 --bin-dir "$tmp/cem-bin" 2> /dev/null; [[ $? == 2 ]] || fail "install-cem-verifiers accepted --keep 0"
 cemv --bogus 2> /dev/null; [[ $? == 2 ]] || fail "install-cem-verifiers accepted an unknown argument"

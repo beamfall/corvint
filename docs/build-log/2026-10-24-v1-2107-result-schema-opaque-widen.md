@@ -54,8 +54,10 @@ tools together. `corvint-update` installs release archives only, and release arc
 `cem01-go`. TCB-V0-046 adds `script/install-cem-verifiers.sh` as the documented route:
 
 - It refuses a dirty checkout.
-- It builds both tools from HEAD.
-- It refuses any build that does not record HEAD and `vcs.modified=false`.
+- It builds both tools from HEAD for the host target (`go env GOHOSTOS GOHOSTARCH`).
+- It refuses any build that does not record the host target, HEAD and `vcs.modified=false`. The
+  one Codex review round (P2) found that an inherited `GOOS`/`GOARCH` could otherwise install a
+  foreign binary that `go version -m` still reads as `MATCH`.
 - It installs each tool through `install-local-bin.sh`, keeping a rollback copy.
 - It re-reads the installed pair.
 

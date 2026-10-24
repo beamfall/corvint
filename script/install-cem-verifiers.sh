@@ -6,7 +6,8 @@
 # from this checkout's HEAD (TCB-V0-046, V1-1761), so the cem-verdict gate's two legs share their
 # source. It refuses a checkout with any uncommitted or untracked file (Go then records
 # vcs.modified=true, which the gate refuses), builds both into a temporary
-# directory, requires each build to record vcs.revision equal to HEAD and vcs.modified=false, then
+# directory for this host's GOHOSTOS/GOHOSTARCH, requires each build to record that target,
+# vcs.revision equal to HEAD and vcs.modified=false, then
 # installs each over DIR/<tool> (default ~/.local/bin) with script/install-local-bin.sh (one
 # rollback backup each; more with --keep N) and re-reads the installed pair.
 # --check builds and writes nothing: it reads the build information the installed pair records and
@@ -35,14 +36,26 @@ repo=$(cd "$script/.." && pwd)
 [[ $keep =~ ^[1-9][0-9]*$ ]] || refuse "invalid-keep ${keep:-<empty>} (want 1 or more)"
 tools=(corvint cem01-go)
 
+# setting prints the value of one build setting from `go version -m` output, or nothing.
+setting() {
+  printf '%s\n' "$1" | awk -F'\t' -v key="$2=" '$2 == "build" && index($3, key) == 1 { print substr($3, length(key) + 1) }'
+}
+
 # build_of prints "<vcs.revision> <vcs.modified>" from FILE's Go build information, with "-" for a
 # setting the build does not record.
 build_of() {
   local info rev modified
   info=$("$go" version -m "$1" 2> /dev/null) || { printf -- '- -\n'; return; }
-  rev=$(printf '%s\n' "$info" | awk -F'\t' '$2 == "build" && $3 ~ /^vcs\.revision=/ { sub(/^vcs\.revision=/, "", $3); print $3 }')
-  modified=$(printf '%s\n' "$info" | awk -F'\t' '$2 == "build" && $3 ~ /^vcs\.modified=/ { sub(/^vcs\.modified=/, "", $3); print $3 }')
+  rev=$(setting "$info" vcs.revision)
+  modified=$(setting "$info" vcs.modified)
   printf '%s %s\n' "${rev:--}" "${modified:--}"
+}
+
+# target_of prints "<GOOS>/<GOARCH>" from FILE's Go build information.
+target_of() {
+  local info
+  info=$("$go" version -m "$1" 2> /dev/null) || { printf -- '-/-\n'; return; }
+  printf '%s/%s\n' "$(setting "$info" GOOS)" "$(setting "$info" GOARCH)"
 }
 
 # check_pair compares the builds of DIR/corvint and DIR/cem01-go the way the cem-verdict gate does
@@ -82,15 +95,23 @@ dirty=$(git -C "$repo" status --porcelain) || refuse "git-status-failed $repo"
 [[ -z $dirty ]] || refuse "uncommitted-changes $repo (commit, stash or remove them first)"
 head=$(git -C "$repo" rev-parse HEAD) || refuse "git-head-failed $repo"
 count=$(git -C "$repo" rev-list --count --first-parent HEAD) || refuse "git-head-failed $repo"
+# Build for this host whatever GOOS/GOARCH the environment or go env sets: `go version -m` reads a
+# foreign binary without running it, so a cross build would otherwise install and still MATCH.
+host=$("$go" env GOHOSTOS GOHOSTARCH) || refuse "go-env-failed"
+hostos=${host%%$'\n'*}
+hostarch=${host#*$'\n'}
+[[ -n $hostos && -n $hostarch && $hostarch != "$host" ]] || refuse "go-env-failed GOHOSTOS/GOHOSTARCH"
 work=$(mktemp -d "${TMPDIR:-/tmp}/corvint-install-cem-verifiers.XXXXXX") || refuse "temp-dir-failed"
 trap '/bin/rm -rf "$work"' EXIT
-(cd "$repo" && GOTOOLCHAIN=local "$go" build -trimpath -ldflags "-X main.build=$count" -o "$work/corvint" ./cmd/corvint) ||
+(cd "$repo" && GOOS=$hostos GOARCH=$hostarch GOTOOLCHAIN=local "$go" build -trimpath -ldflags "-X main.build=$count" -o "$work/corvint" ./cmd/corvint) ||
   refuse "build-failed corvint"
-(cd "$repo/interop/cem01-go" && GOTOOLCHAIN=local "$go" build -trimpath -o "$work/cem01-go" .) ||
+(cd "$repo/interop/cem01-go" && GOOS=$hostos GOARCH=$hostarch GOTOOLCHAIN=local "$go" build -trimpath -o "$work/cem01-go" .) ||
   refuse "build-failed cem01-go"
 for tool in "${tools[@]}"; do
   line=$(build_of "$work/$tool")
   [[ $line == "$head false" ]] || refuse "build-not-stamped $tool records '$line', want '$head false'"
+  line=$(target_of "$work/$tool")
+  [[ $line == "$hostos/$hostarch" ]] || refuse "build-not-host $tool targets '$line', want '$hostos/$hostarch'"
 done
 for tool in "${tools[@]}"; do
   "$script/install-local-bin.sh" --keep "$keep" "$work/$tool" "$bin_dir/$tool" || refuse "install-failed $tool"
