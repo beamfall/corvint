@@ -136,7 +136,6 @@ docs/specs/compat-replay-runner-v0.md	internal/procgroup/process_test.go:115
 docs/specs/compat-replay-runner-v0.md	internal/procgroup/process_test.go:132
 docs/specs/compat-replay-runner-v0.md	internal/procgroup/process_test.go:352
 docs/specs/compat-replay-runner-v0.md	tools/cem-trial/main.go:997
-docs/specs/compat-replay-runner-v0.md	tools/cem-trial/main.go:999
 docs/specs/compat-replay-runner-v0.md	tools/cw-trial/main.go:1498
 docs/specs/compat-replay-runner-v0.md	tools/cw-trial/main.go:1500
 docs/specs/compat-replay-runner-v0.md	tools/retrieval-bench/procgroup_unix.go:14-16
@@ -148,7 +147,6 @@ docs/specs/compat-trial-v0.md	internal/procgroup/process_posix.go:29
 docs/specs/compat-trial-v0.md	internal/procgroup/process_posix.go:43-69
 docs/specs/compat-trial-v0.md	internal/procgroup/process_posix.go:87-102
 docs/specs/compat-trial-v0.md	tools/cem-trial/main.go:971
-docs/specs/compat-trial-v0.md	tools/cem-trial/main.go:999
 docs/specs/compat-trial-v0.md	tools/cw-trial/main.go:130
 docs/specs/compat-trial-v0.md	tools/cw-trial/main.go:130
 docs/specs/compat-trial-v0.md	tools/cw-trial/main.go:130

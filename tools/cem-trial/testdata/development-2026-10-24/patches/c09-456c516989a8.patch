@@ -1,0 +1,102 @@
+diff --git a/internal/capabilities/clientcompat_binding.go b/internal/capabilities/clientcompat_binding.go
+index 2d8abfd3a..af3be7625 100644
+--- a/internal/capabilities/clientcompat_binding.go
++++ b/internal/capabilities/clientcompat_binding.go
+@@ -223,7 +223,7 @@ func (r *Registry) Resolve(subject string, want ResolveKey, now time.Time) (Reco
+ 	if generationSet && record.Key.Generation != generation {
+ 		return record, ErrStaleGeneration
+ 	}
+-	if record.Key.Generation != want.Generation {
++	if !generationSet && record.Key.Generation != want.Generation {
+ 		return record, ErrStaleGeneration
+ 	}
+ 	if want.DerivedSurface != "" && record.Key.Surface != want.DerivedSurface {
+@@ -232,11 +232,10 @@ func (r *Registry) Resolve(subject string, want ResolveKey, now time.Time) (Reco
+ 	return record, nil
+ }
+ 
+-// Invalidate advances the live generation while retaining records so Resolve
+-// can report ErrStaleGeneration and callers can apply asymmetric renewal. Every
+-// record made stale by the advance also gets a bounded durable tombstone; after
+-// restart, when the record is gone, Resolve therefore reports a stale
+-// generation instead of ErrNoDecision.
++// Invalidate durably tombstones every record made stale by generation before it
++// publishes the generation. Resolve therefore reports ErrStaleGeneration both
++// before and after restart. A failed journal write leaves the prior generation
++// authoritative and can be retried without exposing a memory-only rejection.
+ func (r *Registry) Invalidate(generation int) error {
+ 	now := time.Now()
+ 	if err := r.ensureInvalidations(now); err != nil {
+@@ -244,9 +243,19 @@ func (r *Registry) Invalidate(generation int) error {
+ 	}
+ 	r.mu.Lock()
+ 	defer r.mu.Unlock()
++	invalidations := r.generationInvalidationsLocked(generation, now)
++	if err := r.persistInvalidationsLocked(invalidations); err != nil {
++		return err
++	}
++	if r.invalidated == nil {
++		r.invalidated = make(map[string]Invalidation)
++	}
++	for _, invalidation := range invalidations {
++		r.invalidated[invalidation.Subject] = invalidation
++	}
+ 	r.generation = generation
+ 	r.generationSet = true
+-	return r.recordGenerationInvalidationsLocked(generation, now)
++	return nil
+ }
+ 
+ func (r *Registry) ensureRecords() {
+diff --git a/internal/capabilities/clientcompat_durability.go b/internal/capabilities/clientcompat_durability.go
+index 0fbb84dd5..48d43b7b2 100644
+--- a/internal/capabilities/clientcompat_durability.go
++++ b/internal/capabilities/clientcompat_durability.go
+@@ -232,17 +232,42 @@ func (r *Registry) recordInvalidationLocked(subject string, result Result, now t
+ 	return nil
+ }
+ 
+-func (r *Registry) recordGenerationInvalidationsLocked(generation int, now time.Time) error {
+-	var errs []error
+-	for subject, record := range r.records {
++func (r *Registry) generationInvalidationsLocked(generation int, now time.Time) []Invalidation {
++	r.pruneInvalidationsLocked(now)
++	retention := r.invalidationRetention
++	if retention <= 0 {
++		retention = InvalidationRetention
++	}
++	invalidations := make([]Invalidation, 0, len(r.records))
++	for _, record := range r.records {
+ 		if record.Key.Generation == generation {
+ 			continue
+ 		}
+-		if err := r.recordInvalidationLocked(subject, record.Result, now); err != nil {
++		invalidations = append(invalidations, Invalidation{
++			Subject:    record.Key.Subject,
++			Decision:   record.Result.Decision,
++			ReasonCode: record.Result.ReasonCode,
++			RecordedAt: now,
++			ExpiresAt:  now.Add(retention),
++		})
++	}
++	return invalidations
++}
++
++func (r *Registry) persistInvalidationsLocked(invalidations []Invalidation) error {
++	if r.journal == nil {
++		return nil
++	}
++	var errs []error
++	for _, invalidation := range invalidations {
++		if err := r.journal.RecordInvalidation(context.Background(), invalidation); err != nil {
+ 			errs = append(errs, err)
+ 		}
+ 	}
+-	return errors.Join(errs...)
++	if err := errors.Join(errs...); err != nil {
++		return errors.Join(ErrInvalidationJournalUnavailable, err)
++	}
++	return nil
+ }
+ 
+ // clearInvalidationLocked drops a subject's tombstone durably before dropping it

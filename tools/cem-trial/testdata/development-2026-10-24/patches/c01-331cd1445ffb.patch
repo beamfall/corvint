@@ -1,0 +1,226 @@
+diff --git a/internal/app/app.go b/internal/app/app.go
+index 859d70baf..19059dca6 100644
+--- a/internal/app/app.go
++++ b/internal/app/app.go
+@@ -9,6 +9,7 @@ import (
+ 	"sync"
+ 	"time"
+ 
++	"github.com/beamfall/core/internal/artwork"
+ 	"github.com/beamfall/core/internal/auth"
+ 	"github.com/beamfall/core/internal/config"
+ 	"github.com/beamfall/core/internal/ffmpeg"
+@@ -50,19 +51,32 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	ffmpegRunner := ffmpeg.New()
++	artworkService := artwork.NewService(st, ffmpegRunner, cfg.DataDir)
+ 	jobRegistry := jobs.NewRegistry(st, "beamfall-server")
+ 	jobRegistry.SetLogger(logger)
+-	jobRegistry.Register(scanpkg.JobKind, scanpkg.Handler(st, ffmpeg.New()))
++	// A completed scan re-arms the artwork sweep so new imports get posters
++	// without a restart; the sweep job dedupes while one is already queued.
++	scanHandler := scanpkg.Handler(st, ffmpegRunner)
++	jobRegistry.Register(scanpkg.JobKind, func(ctx context.Context, job store.Job) (jobs.Result, error) {
++		result, err := scanHandler(ctx, job)
++		if err == nil {
++			enqueueArtworkSweep(ctx, st, logger)
++		}
++		return result, err
++	})
++	jobRegistry.Register(artwork.SweepJobKind, artwork.SweepHandler(artworkService))
+ 	if _, err := jobRegistry.Resume(ctx, time.Now()); err != nil {
+ 		_ = st.Close()
+ 		return nil, err
+ 	}
++	enqueueArtworkSweep(ctx, st, logger)
+ 	authService := auth.NewService(st)
+ 	manifests := manifest.NewService(st, time.Now)
+ 	tokenService := streamtoken.NewService(cfg.StreamTokenKey, time.Now)
+ 	playbackInfo := playback.NewService(st, tokenService, time.Now)
+ 	pairingService := pairing.NewService(st, time.Now)
+-	mediaHTTP := mediahttp.NewHandler(st, authService, tokenService)
++	mediaHTTP := mediahttp.NewHandler(st, authService, tokenService, artworkService)
+ 	surfaces := reveal.NewRegistry()
+ 	surfaces.Register(reveal.Surface{ID: "Query.navigationManifest", Class: reveal.ContentJSON})
+ 	surfaces.Register(reveal.Surface{ID: "Query.sourceItems", Class: reveal.ContentJSON})
+@@ -176,3 +190,15 @@ func (a *App) runJobs(ctx context.Context) {
+ 		}
+ 	}
+ }
++
++// enqueueArtworkSweep schedules the missing-poster sweep; failure to enqueue
++// is logged, never fatal — the next scan or restart re-arms it.
++func enqueueArtworkSweep(ctx context.Context, st *store.Store, logger *slog.Logger) {
++	job, err := artwork.NewSweepJob(time.Now().UTC())
++	if err == nil {
++		_, err = st.EnqueueJob(ctx, job)
++	}
++	if err != nil {
++		logger.Warn("artwork sweep enqueue failed", "error", err)
++	}
++}
+diff --git a/internal/ffmpeg/ffmpeg.go b/internal/ffmpeg/ffmpeg.go
+index fa866fa43..2f551a3c9 100644
+--- a/internal/ffmpeg/ffmpeg.go
++++ b/internal/ffmpeg/ffmpeg.go
+@@ -10,6 +10,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"math"
++	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"strconv"
+@@ -62,6 +63,35 @@ func (r *Runner) Probe(ctx context.Context, path string) (Probe, error) {
+ 	return parseProbe(output, path)
+ }
+ 
++// FrameGrab extracts one video frame as a JPEG, scaled to width (keeping
++// aspect), writing dst atomically via a temp file in dst's directory.
++func (r *Runner) FrameGrab(ctx context.Context, src string, atSeconds float64, width int, dst string) error {
++	ffmpegPath, err := exec.LookPath("ffmpeg")
++	if err != nil {
++		return fmt.Errorf("ffmpeg is not available: %w", err)
++	}
++	tmp := dst + ".tmp"
++	cmd := exec.CommandContext(ctx, ffmpegPath,
++		"-v", "error",
++		"-ss", strconv.FormatFloat(atSeconds, 'f', 3, 64),
++		"-i", src,
++		"-frames:v", "1",
++		"-vf", fmt.Sprintf("scale=%d:-2", width),
++		"-f", "image2",
++		"-y", tmp,
++	)
++	output, err := cmd.CombinedOutput()
++	if err != nil {
++		_ = os.Remove(tmp)
++		detail := strings.TrimSpace(string(output))
++		if detail == "" {
++			detail = err.Error()
++		}
++		return fmt.Errorf("ffmpeg frame grab: %s", detail)
++	}
++	return os.Rename(tmp, dst)
++}
++
+ type probeDocument struct {
+ 	Format struct {
+ 		FormatName string `json:"format_name"`
+diff --git a/internal/mediahttp/mediahttp.go b/internal/mediahttp/mediahttp.go
+index a53ed5945..6caa0c790 100644
+--- a/internal/mediahttp/mediahttp.go
++++ b/internal/mediahttp/mediahttp.go
+@@ -8,6 +8,7 @@ import (
+ 	"os"
+ 	"strings"
+ 
++	"github.com/beamfall/core/internal/artwork"
+ 	"github.com/beamfall/core/internal/auth"
+ 	"github.com/beamfall/core/internal/store"
+ 	"github.com/beamfall/core/internal/streamtoken"
+@@ -15,14 +16,50 @@ import (
+ 
+ // Handler serves media-byte routes.
+ type Handler struct {
+-	store  *store.Store
+-	auth   *auth.Service
+-	tokens *streamtoken.Service
++	store   *store.Store
++	auth    *auth.Service
++	tokens  *streamtoken.Service
++	artwork *artwork.Service
+ }
+ 
+ // NewHandler creates a media HTTP handler.
+-func NewHandler(st *store.Store, authService *auth.Service, tokens *streamtoken.Service) *Handler {
+-	return &Handler{store: st, auth: authService, tokens: tokens}
++func NewHandler(st *store.Store, authService *auth.Service, tokens *streamtoken.Service, artworkService *artwork.Service) *Handler {
++	return &Handler{store: st, auth: authService, tokens: tokens, artwork: artworkService}
++}
++
++// Artwork serves an artwork derivative for a visible Media item. Unlike Direct
++// it authenticates with the standard credential headers — clients control
++// their image fetches, so no URL-carried token is needed, and the Media
++// visibility check reveal-filters restricted artwork by construction.
++func (h *Handler) Artwork(w http.ResponseWriter, r *http.Request) {
++	rest := strings.TrimPrefix(r.URL.Path, "/api/media/artwork/")
++	mediaID, slot, ok := strings.Cut(rest, "/")
++	if !ok || mediaID == "" || slot != artwork.SlotPoster {
++		http.Error(w, "unknown artwork", http.StatusNotFound)
++		return
++	}
++	scope, err := h.auth.ScopeFromRequest(r.Context(), r)
++	if err != nil {
++		http.Error(w, "unauthorized", http.StatusUnauthorized)
++		return
++	}
++	if _, err := h.store.Media(r.Context(), store.MediaID(mediaID), scope.LibraryFilter()); err != nil {
++		http.Error(w, "unknown artwork", http.StatusNotFound)
++		return
++	}
++	f, err := os.Open(h.artwork.PosterPath(store.MediaID(mediaID)))
++	if err != nil {
++		http.Error(w, "unknown artwork", http.StatusNotFound)
++		return
++	}
++	defer f.Close()
++	info, err := f.Stat()
++	if err != nil {
++		http.Error(w, "artwork unavailable", http.StatusInternalServerError)
++		return
++	}
++	w.Header().Set("Content-Type", "image/jpeg")
++	http.ServeContent(w, r, "poster.jpg", info.ModTime(), f)
+ }
+ 
+ // Direct serves direct Media bytes for a signed token URL.
+diff --git a/internal/server/server.go b/internal/server/server.go
+index e1d01857e..2a1950d9c 100644
+--- a/internal/server/server.go
++++ b/internal/server/server.go
+@@ -64,6 +64,7 @@ func New(manifests *manifest.Service, playbackInfo *playback.Service, pairingSer
+ 	s.handle(http.MethodPost, "/api/pairing-codes", reveal.ContentJSON, s.createPairingCode)
+ 	s.handle(http.MethodPost, "/api/enroll", reveal.ContentJSON, s.enrollDevice)
+ 	s.handle(http.MethodGet, "/api/media/direct/", reveal.ContentBytes, s.media.Direct)
++	s.handle(http.MethodGet, "/api/media/artwork/", reveal.ContentBytes, s.media.Artwork)
+ 	return s
+ }
+ 
+diff --git a/internal/store/store.go b/internal/store/store.go
+index 7ca0c014f..f374a16ec 100644
+--- a/internal/store/store.go
++++ b/internal/store/store.go
+@@ -460,6 +460,30 @@ func (s *Store) Media(ctx context.Context, id MediaID, filter LibraryFilter) (Me
+ 	return s.visibleMediaSQL(ctx, id, filter)
+ }
+ 
++// AllMediaIDs returns every Media ID, unfiltered. Server-internal callers only
++// (background generation); reveal-filtered reads go through Media/SourceItems.
++func (s *Store) AllMediaIDs(ctx context.Context) ([]MediaID, error) {
++	s.mu.RLock()
++	defer s.mu.RUnlock()
++	if err := s.guardLocked(); err != nil {
++		return nil, err
++	}
++	rows, err := s.catalogR.QueryContext(ctx, `SELECT id FROM media ORDER BY rowid`)
++	if err != nil {
++		return nil, err
++	}
++	defer rows.Close()
++	var ids []MediaID
++	for rows.Next() {
++		var id MediaID
++		if err := rows.Scan(&id); err != nil {
++			return nil, err
++		}
++		ids = append(ids, id)
++	}
++	return ids, rows.Err()
++}
++
+ // SetPrimaryMediaFile records the current file path backing a Media item.
+ func (s *Store) SetPrimaryMediaFile(ctx context.Context, id MediaID, path string) error {
+ 	if id == "" {

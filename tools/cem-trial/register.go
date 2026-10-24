@@ -197,7 +197,7 @@ func loadRegistration(ctx context.Context, path string) (*registrationRecord, er
 // registrationMismatches lists every way the report's run disagrees with its
 // registration: a malformed or unfixed field (a report is decoded without
 // parseRegistration), the registered values, the running scorer, and the arms,
-// which may not carry the all-unknown cem/0.1 worklist (CRT-V0-014, CRT-V0-015).
+// which may not carry an all-unknown worklist (CRT-V0-014, CRT-V0-015).
 func registrationMismatches(document *report, record *registrationRecord) []string {
 	plan := record.Document
 	problems := registrationProblems(plan)
@@ -214,7 +214,7 @@ func registrationMismatches(document *report, record *registrationRecord) []stri
 		problems = append(problems, fmt.Sprintf("registered n %d, run %d pairs", plan.N, document.Pairs))
 	}
 	if armsNeedCorvint(document.Arms) {
-		problems = append(problems, "the treatment and seeded arms carry the all-unknown cem/0.1 worklist, "+
+		problems = append(problems, "the treatment and seeded arms carry an all-unknown cem/1.0 worklist, "+
 			"not the shipped profile's artifact (CRT-V0-015)")
 	}
 	return problems

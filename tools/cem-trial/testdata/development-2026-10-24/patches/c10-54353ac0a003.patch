@@ -1,0 +1,228 @@
+diff --git a/script/roadmap_lib.py b/script/roadmap_lib.py
+index c3399d206..551b29e07 100644
+--- a/script/roadmap_lib.py
++++ b/script/roadmap_lib.py
+@@ -3074,6 +3074,55 @@ def cmd_repos(path):
+     return 0
+ 
+ 
++# The design-change (mockup) gate, as two named predicates. `approve` records the
++# release and `ticket_blockers` reads it, so both must resolve the same marker —
++# a second copy of either pattern would let one verb approve what the other still
++# blocks on.
++DESIGN_GATE_RE = re.compile(
++    r'(\*\*design-change gate\*\*|design-change gate(?:\s+applies|\s+for|\s*:)|design gate(?:\s+for|\s*:)|'
++    r'no design-affecting implementation|mockup first|approve the mockup|mockup-gated|'
++    r'approved mockup(?:\s+before|\s+precedes)|mockup(?: approval)?\s*:?\s+(?:is\s+)?required|'
++    r'once (?:the )?mockup[^\n]{0,40}approved|after (?:an )?approved mockup|'
++    r'mockup[^\n]{0,40}before (?:client |ui )?implementation)',
++    re.I,
++)
++DESIGN_APPROVED_RE = re.compile(
++    r'(\*\*(?:design approval|design gate|mockup):\*\*\s*(?:APPROVED|N/A)|\*\*Mockup\*\* approved|'
++    r'\*\*Approval \d{4}-\d{2}-\d{2}:\*\*|mockup gate\s+(?:SATISFIED|APPROVED)|'
++    r'(?:^|\n)\s*-\s*(?:\*\*)?Mockup(?:\*\*)?:\s*(?:APPROVED|N/A|required-via-existing approval))',
++    re.I,
++)
++
++
++def design_approval_scope(block):
++    """The region of a ticket block a root-level approval marker may live in.
++
++    A consolidated row can carry approvals for individual members. Only a
++    root-level marker may release the whole runnable packet; otherwise one
++    approved member can accidentally mask another member's missing mockup.
++    """
++    return block.split('\n  - **Member:**', 1)[0]
++
++
++def design_gate_state(t):
++    """'none', 'pending' or 'approved' — one ticket's design-change gate.
++
++    The gate itself is detected across the whole block (a consolidated row can
++    inherit it from a member); the release marker counts only at root scope.
++    A design-AUTHORING ticket carries no gate: it is the mockup.
++    """
++    block = t.get('block', '')
++    design_authoring = normalized_repos(t.get('primary_repo', '')) == ['beamfall-design-system'] or (
++        'beamfall-design-system' in normalized_repos(t.get('repo', '')) and (
++            ':mockup' in (t.get('fanout_lane') or '').lower()
++            or 'mockup' in (t.get('context_class') or '').lower()
++        )
++    )
++    if design_authoring or not DESIGN_GATE_RE.search(block):
++        return 'none'
++    return 'approved' if DESIGN_APPROVED_RE.search(design_approval_scope(block)) else 'pending'
++
++
+ def ticket_blockers(t, status):
+     blockers = []
+     if t['status'] != ' ':
+@@ -3089,35 +3138,7 @@ def ticket_blockers(t, status):
+         blockers.append('unknown_dep')
+     if unmet:
+         blockers.append('unmet_dep')
+-    block = t.get('block', '')
+-    primary_repos = normalized_repos(t.get('primary_repo', ''))
+-    design_authoring = primary_repos == ['beamfall-design-system'] or (
+-        'beamfall-design-system' in normalized_repos(t.get('repo', '')) and (
+-            ':mockup' in (t.get('fanout_lane') or '').lower()
+-            or 'mockup' in (t.get('context_class') or '').lower()
+-        )
+-    )
+-    design_gate = not design_authoring and re.search(
+-        r'(\*\*design-change gate\*\*|design-change gate(?:\s+applies|\s+for|\s*:)|design gate(?:\s+for|\s*:)|'
+-        r'no design-affecting implementation|mockup first|approve the mockup|mockup-gated|'
+-        r'approved mockup(?:\s+before|\s+precedes)|mockup(?: approval)?\s*:?\s+(?:is\s+)?required|'
+-        r'once (?:the )?mockup[^\n]{0,40}approved|after (?:an )?approved mockup|'
+-        r'mockup[^\n]{0,40}before (?:client |ui )?implementation)',
+-        block,
+-        re.I,
+-    )
+-    # A consolidated row can carry approvals for individual members. Only a
+-    # root-level marker may release the whole runnable packet; otherwise one
+-    # approved member can accidentally mask another member's missing mockup.
+-    approval_scope = block.split('\n  - **Member:**', 1)[0]
+-    design_approved = re.search(
+-        r'(\*\*(?:design approval|design gate|mockup):\*\*\s*(?:APPROVED|N/A)|\*\*Mockup\*\* approved|'
+-        r'\*\*Approval \d{4}-\d{2}-\d{2}:\*\*|mockup gate\s+(?:SATISFIED|APPROVED)|'
+-        r'(?:^|\n)\s*-\s*(?:\*\*)?Mockup(?:\*\*)?:\s*(?:APPROVED|N/A|required-via-existing approval))',
+-        approval_scope,
+-        re.I,
+-    )
+-    if design_gate and not design_approved:
++    if design_gate_state(t) == 'pending':
+         blockers.append('approval')
+     return blockers
+ 
+@@ -3534,6 +3555,105 @@ def cmd_complexity(path, ticket):
+     return 1
+ 
+ 
++def cmd_approve(path, ticket, note, at):
++    """Record the operator's design-change (mockup) approval on a ticket's ROOT.
++
++    Only a root-scope marker releases a runnable packet, and `amend` refuses root
++    metadata bullets, so this is the one verb that can clear an `approval`
++    blocker without hand-editing a shard. Fails closed on a ticket that carries
++    no gate, so an approval marker never becomes decoration. The caller
++    (roadmap.sh) holds the roadmap locks and commits the owning shard.
++    """
++    path = resolve_source(path)
++    if is_db_path(path):
++        print('approve: refusing to mutate the derived DB; approve in the text source',
++              file=sys.stderr)
++        return 2
++    source = owning_shard(path, ticket)
++    if not source:
++        print(f'{ticket}: not found', file=sys.stderr)
++        return 1
++    note = note.strip()
++    if not note or '\n' in note or '\r' in note:
++        print(f'approve: {ticket} predicate approval note is one non-empty line failed',
++              file=sys.stderr)
++        return 2
++    if '·' in note or '**' in note:
++        print(f'approve: {ticket} predicate approval note declares no second metadata field '
++              "failed (a '·' or '**' in the note would open one)", file=sys.stderr)
++        return 2
++    tickets, _ = parse_markdown(source)
++    original = next((t for t in tickets if ticket in t['ids']), None)
++    if original is None:
++        print(f'{ticket}: not found in {source}', file=sys.stderr)
++        return 1
++    if original['status'] != ' ':
++        print(f'approve: {ticket} is not open ([{original["status"]}]); '
++              'refusing to approve a delivered/retired/in-flight charter', file=sys.stderr)
++        return 1
++    state = design_gate_state(original)
++    if state == 'none':
++        print(f'approve: {ticket} carries no design-change gate — nothing to approve',
++              file=sys.stderr)
++        return 1
++    if state == 'approved':
++        print(f'{ticket}: design gate already approved, no change')
++        return 0
++
++    with open(source, encoding='utf-8') as f:
++        lines = f.read().splitlines()
++    header = match_ticket(lines, original['line'] - 1)
++    if not header:
++        print(f'{ticket}: no ticket header to edit', file=sys.stderr)
++        return 1
++    _, _, _, header_end = header
++    idx = header_end + 1
++    if idx >= len(lines) or not lines[idx].lstrip().startswith('**Context Class** '):
++        # No generated metadata line: metadata rides the header — record there.
++        idx = header_end
++    approval = f'approved {at} — {note}'
++    existing = FIELD_RE('Mockup').search(lines[idx])
++    if existing:
++        # A pending `**Mockup** required …` field is the gate's own declaration.
++        # Replace its value so one field never reads two ways, but carry the old
++        # text along: dropping it would erase the evidence that a gate existed.
++        superseded = existing.group(1).strip().rstrip('.')
++        candidate_line = (lines[idx][:existing.start(1)]
++                          + f'{approval}; supersedes: {superseded}'
++                          + lines[idx][existing.end(1):])
++    else:
++        candidate_line = lines[idx].rstrip().rstrip('.') + f' · **Mockup** {approval}.'
++
++    candidate = list(lines)
++    candidate[idx] = candidate_line
++    with tempfile.NamedTemporaryFile('w', encoding='utf-8', suffix='.md') as f:
++        f.write('\n'.join(candidate) + '\n')
++        f.flush()
++        parsed, _ = parse_markdown(f.name)
++    mutated = next((t for t in parsed if ticket in t['ids']), None)
++    # Appending a field moves the block's terminal '.' onto it, so compare field
++    # SUBSTANCE: a value may shed trailing sentence punctuation, never change.
++    other_fields = lambda block: [
++        (m.group(1), m.group(2).strip().rstrip('.;'))
++        for m in RAW_FIELD_RE.finditer(block) if m.group(1).lower() != 'mockup'
++    ]
++    bookkeeping = {'block', 'line', 'ordinal', 'source_file', 'mockup'}
++    # The contract is exactly the gate's own: an approval marker now stands at
++    # ROOT scope, and nothing is left pending. (Replacing a pending declaration
++    # can retire the gate phrase with it, which clears the blocker just as well.)
++    if (mutated is None
++            or not DESIGN_APPROVED_RE.search(design_approval_scope(mutated['block']))
++            or design_gate_state(mutated) == 'pending'
++            or other_fields(mutated['block']) != other_fields(original['block'])
++            or any(mutated.get(key) != value for key, value in original.items()
++                   if key not in bookkeeping)):
++        print(f'approve: {ticket} validation failed — refusing unsafe mutation', file=sys.stderr)
++        return 1
++    _atomic_write(source, '\n'.join(candidate) + '\n')
++    print(f'{ticket}: design gate approved {at} ({note})')
++    return 0
++
++
+ def cmd_set_held(path, ticket, reason):
+     """Append a **Held** <reason> marker to a ticket's generated metadata line
+     (parks it out of every ready queue until a human removes the marker)."""
+@@ -4359,6 +4479,24 @@ def main(argv):
+             print('set-held: ticket and reason required', file=sys.stderr)
+             return 2
+         return cmd_set_held(path, argv[3], ' '.join(argv[4:]))
++    if cmd == 'approve':
++        if len(argv) < 4:
++            print('approve: ticket required', file=sys.stderr)
++            return 2
++        note = at = ''
++        rest = argv[4:]
++        while rest:
++            if rest[0] == '--note' and len(rest) > 1:
++                note, rest = rest[1], rest[2:]
++            elif rest[0] == '--at' and len(rest) > 1:
++                at, rest = rest[1], rest[2:]
++            else:
++                print(f'approve: unexpected arg {rest[0]!r}', file=sys.stderr)
++                return 2
++        if not note or not at:
++            print('approve: --note and --at required', file=sys.stderr)
++            return 2
++        return cmd_approve(path, argv[3], note, at)
+     if cmd == 'suggest-paths':
+         if len(argv) < 4:
+             print('suggest-paths: ticket required', file=sys.stderr)

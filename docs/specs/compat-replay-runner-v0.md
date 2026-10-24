@@ -133,7 +133,7 @@ measurement-specific group cleanup but not this runner's observation/adjudicatio
 - `CRR-V0-002`: Environment allow-list, reconciled with the mandatory determinism variables.
   - (a) The launched command's environment MUST equal the descriptor's `env` allowlist
     (`CTR-V0-001`) exactly, set through `Cmd.Env` on every launch, never inherited;
-    `tools/cw-trial/main.go:1500` and `tools/cem-trial/main.go:999` explicitly inherit the full environment and are not the replay policy.
+    `tools/cw-trial/main.go:1500` and `tools/cem-trial/main.go:1257@d8029f80` explicitly inherit the full environment and are not the replay policy.
     `Cmd.Env` MUST also be non-nil for an *empty* allowlist, because a nil `Cmd.Env` inherits
     `os.Environ()`. At the extraction base, `conformance/cli-parity-v0/process.go` used
     `append([]string(nil), spec.Env...)` and returned nil for an empty allowlist; the delivered

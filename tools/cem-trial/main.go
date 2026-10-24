@@ -1,7 +1,7 @@
 // Command cem-trial is the external agent-harness dispatcher for the CEM
 // reviewer trial in docs/specs/cem-reviewer-trial-v0.md. It selects changes
 // from a local Git history, presents each change's source hunks to one agent
-// twice — once bare (control) and once with a cem/0.1 map, status worklist,
+// twice — once bare (control) and once with a cem/1.0 map, status worklist,
 // and report (treatment) — and scores how much of the change's own withheld
 // test-or-spec evidence each arm cited. It downloads nothing beyond the local
 // history it is given and writes only its own output tree.
@@ -93,9 +93,10 @@ could not justify.
 const treatmentPrologue = `
 ## Change Evidence Map
 
-A Change Evidence Map has already been built over the exact patch bytes above. It lists the
-same hunks with a stable identifier and an explicit disposition, and it is the worklist you
-are completing: every hunk whose disposition is ` + "`unknown`" + ` still needs evidence.
+A cem/1.0 Change Evidence Map has already been built over the same hunks as the patch above.
+It lists them in the same order with a stable identifier and an explicit disposition, and it
+is the worklist you are completing: every hunk whose disposition is ` + "`unknown`" + ` still needs
+evidence.
 
 ### Map
 
@@ -437,10 +438,13 @@ func runChange(ctx context.Context, configuration options, runner agent, base st
 		failLanes(item.records, fmt.Errorf("the clone resolves %s: the change leaked into its own base", item.task.Commit), saver)
 		return
 	}
-	artefacts, err := buildArtefacts(ctx, configuration, prep, patch, item.task.SourceFiles)
+	artefacts, target, err := buildArtefacts(ctx, configuration, prep, patch, item.task.SourceFiles)
 	if err != nil && armsNeedCorvint(configuration.arms) {
 		failLanes(item.records, err, saver)
 		return
+	}
+	if target != nil {
+		defer os.RemoveAll(target.root)
 	}
 	prompts := map[string]string{}
 	for _, arm := range configuration.arms {
@@ -456,7 +460,7 @@ func runChange(ctx context.Context, configuration options, runner agent, base st
 		if prior.apply(record) {
 			continue
 		}
-		invokeLane(ctx, configuration, runner, prep, prompts[record.Arm], patch, item.task, record, saver)
+		invokeLane(ctx, configuration, runner, prep, prompts[record.Arm], target, item.task, record, saver)
 		saver.save()
 	}
 }
@@ -467,7 +471,7 @@ func failLanes(records []*lane, err error, saver *checkpointer) {
 	}
 }
 
-func invokeLane(ctx context.Context, configuration options, runner agent, prep, prompt, patch string, item task, record *lane, saver *checkpointer) {
+func invokeLane(ctx context.Context, configuration options, runner agent, prep, prompt string, target *mapTarget, item task, record *lane, saver *checkpointer) {
 	if err := ctx.Err(); err != nil {
 		assign(saver.lock(), func() { record.Error = err.Error() })
 		return
@@ -500,7 +504,7 @@ func invokeLane(ctx context.Context, configuration options, runner agent, prep, 
 		return
 	}
 	citations, _ := extractCitations(record.Reply)
-	state := applyCitations(ctx, configuration, root, patch, item, citations)
+	state := applyCitations(ctx, configuration, root, target, item, citations)
 	assign(saver.lock(), func() { record.CEM = state })
 }
 
@@ -509,21 +513,208 @@ func armsNeedCorvint(arms []string) bool {
 	return contains(arms, "treatment") || contains(arms, "seeded")
 }
 
-// errRetiredMapArms refuses the map-carrying arms. They present the
-// all-unknown cem/0.1 worklist that `cem begin --patch` and
-// `cem status --patch` produced (CRT-V0-005, CRT-V0-014); cem/0.x is retired
-// (decision 0525 §1, CEM-V1-215), so the arms refuse before any map is written
-// into the prep clone. The control arm is unaffected.
-var errRetiredMapArms = errors.New("the treatment and seeded arms carry a cem/0.1 map, retired with cem/0.x (CEM-V1-215)")
+// targetMap is where `cem prepare` writes the candidate map in the target
+// clone; targetDate pins the synthetic target commit's dates so its object id,
+// and with it every artefact, is the same on every build (CRT-V0-005).
+const (
+	targetMap  = ".corvint/change.cem.json"
+	targetDate = "@946684800 +0000"
+	targetRoot = "<target-clone>"
+)
 
-// buildArtefacts produced the map-carrying arms' artefacts from the withheld
-// patch bytes alone (CRT-V0-005). With cem/0.x retired it refuses whenever a
-// Corvint binary is configured for those arms.
-func buildArtefacts(ctx context.Context, configuration options, root, patch string, sourceFiles []string) (map[string]string, error) {
+// mapTarget is one change's cem/1.0 producer state. The presented patch is
+// committed as a synthetic target T on top of the base in a private clone of
+// the prep clone, so `cem prepare --base B --target T` derives the canonical
+// patch the map binds. No lane clones it: lanes clone the prep clone, which
+// cannot resolve T, and only the harness cites into it. pristine is the
+// prepared map, restored before each lane's citations are applied.
+type mapTarget struct {
+	root, base, target string
+	pristine           []byte
+}
+
+func (target *mapTarget) flags() []string {
+	return []string{"--map", targetMap, "--expected-base", target.base, "--target", target.target, "--artifacts", target.root}
+}
+
+// buildArtefacts produces the map-carrying arms' artefacts at the shipped
+// cem/1.0 wire (CRT-V0-005, CRT-V0-015): the prepared map, its `cem status`
+// envelope as the worklist, and its `cem report`, with the target clone's
+// absolute path replaced so the prompt is byte-stable across builds. The
+// returned target is the caller's to remove.
+func buildArtefacts(ctx context.Context, configuration options, root, patch string, sourceFiles []string) (map[string]string, *mapTarget, error) {
 	if configuration.corvintGo == "" {
-		return map[string]string{}, nil
+		return map[string]string{}, nil, nil
 	}
-	return nil, errRetiredMapArms
+	suggestions := ""
+	if contains(configuration.arms, "seeded") {
+		rows, err := suggestEvidence(ctx, configuration, root, sourceFiles)
+		if err != nil {
+			return nil, nil, err
+		}
+		encoded, err := json.MarshalIndent(rows, "", "  ")
+		if err != nil {
+			return nil, nil, err
+		}
+		suggestions, _ = truncate(string(encoded), maxArtefactSize)
+	}
+	target, err := prepareTarget(ctx, configuration, root, patch)
+	if err != nil {
+		return nil, nil, err
+	}
+	artefacts, err := renderArtefacts(ctx, configuration, target)
+	if err != nil {
+		_ = os.RemoveAll(target.root)
+		return nil, nil, err
+	}
+	artefacts["suggestions"] = strings.TrimSpace(suggestions)
+	return artefacts, target, nil
+}
+
+// prepareTarget commits the presented patch as T in a fresh clone of prep and
+// runs `cem prepare`. The map's hunks must be the presented patch's hunks in
+// the presented order, or a reply's hunk number would cite the wrong hunk.
+func prepareTarget(ctx context.Context, configuration options, prep, patch string) (*mapTarget, error) {
+	root, err := laneClone(ctx, prep)
+	if err != nil {
+		return nil, err
+	}
+	target, err := commitTarget(ctx, configuration, root, patch)
+	if err != nil {
+		_ = os.RemoveAll(root)
+		return nil, err
+	}
+	return target, nil
+}
+
+func commitTarget(ctx context.Context, configuration options, root, patch string) (*mapTarget, error) {
+	base, err := git(ctx, root, "rev-parse", "HEAD")
+	if err != nil {
+		return nil, fmt.Errorf("git rev-parse: %w", err)
+	}
+	scratch, err := os.MkdirTemp("", "corvint-cem-trial-patch-")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(scratch)
+	patchPath := filepath.Join(scratch, "change.patch")
+	if err := os.WriteFile(patchPath, []byte(patch), 0o644); err != nil {
+		return nil, err
+	}
+	if _, err := git(ctx, root, "apply", "--index", patchPath); err != nil {
+		return nil, fmt.Errorf("git apply: %w", err)
+	}
+	if _, err := gitWith(ctx, root, []string{"GIT_AUTHOR_DATE=" + targetDate, "GIT_COMMITTER_DATE=" + targetDate},
+		"commit", "-q", "--no-verify", "--no-gpg-sign", "-m", "cem-trial synthetic target"); err != nil {
+		return nil, fmt.Errorf("git commit: %w", err)
+	}
+	head, err := git(ctx, root, "rev-parse", "HEAD")
+	if err != nil {
+		return nil, fmt.Errorf("git rev-parse: %w", err)
+	}
+	if _, err := corvint(ctx, configuration, root, "cem", "prepare", "--base", base, "--target", head); err != nil {
+		return nil, fmt.Errorf("cem prepare: %w", err)
+	}
+	pristine, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(targetMap)))
+	if err != nil {
+		return nil, err
+	}
+	if err := alignedHunks(pristine, patch); err != nil {
+		return nil, err
+	}
+	return &mapTarget{root: root, base: base, target: head, pristine: pristine}, nil
+}
+
+func renderArtefacts(ctx context.Context, configuration options, target *mapTarget) (map[string]string, error) {
+	status, err := corvint(ctx, configuration, target.root, append([]string{"cem", "status"}, target.flags()...)...)
+	if err != nil {
+		return nil, fmt.Errorf("cem status: %w", err)
+	}
+	scratch, err := os.MkdirTemp("", "corvint-cem-trial-report-")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(scratch)
+	reportPath := filepath.Join(scratch, reportRelative)
+	if _, err := corvint(ctx, configuration, target.root, append(append([]string{"cem", "report"}, target.flags()...), "--output", reportPath)...); err != nil {
+		return nil, fmt.Errorf("cem report: %w", err)
+	}
+	rendered, err := os.ReadFile(reportPath)
+	if err != nil {
+		return nil, err
+	}
+	stable := func(text string) string {
+		text = strings.ReplaceAll(text, target.root, targetRoot)
+		if resolved, err := filepath.EvalSymlinks(target.root); err == nil {
+			text = strings.ReplaceAll(text, resolved, targetRoot)
+		}
+		text, _ = truncate(text, maxArtefactSize)
+		return strings.TrimSpace(text)
+	}
+	return map[string]string{"map": stable(string(target.pristine)), "status": stable(status), "report": stable(string(rendered))}, nil
+}
+
+// alignedHunks refuses a map whose hunks are not the presented patch's hunks,
+// in order, by path and by old and new start line.
+func alignedHunks(document []byte, patch string) error {
+	var envelope struct {
+		Hunks []struct {
+			Path     string `json:"path"`
+			OldRange struct {
+				Start int `json:"start"`
+			} `json:"oldRange"`
+			NewRange struct {
+				Start int `json:"start"`
+			} `json:"newRange"`
+		} `json:"hunks"`
+	}
+	if err := json.Unmarshal(document, &envelope); err != nil {
+		return fmt.Errorf("cem prepare: unreadable map: %w", err)
+	}
+	presented := patchHunks(patch)
+	if len(envelope.Hunks) != len(presented) {
+		return fmt.Errorf("cem prepare: the map holds %d hunks, the presented patch %d", len(envelope.Hunks), len(presented))
+	}
+	for index, want := range presented {
+		got := envelope.Hunks[index]
+		if got.Path != want.path || got.OldRange.Start != want.oldStart || got.NewRange.Start != want.newStart {
+			return fmt.Errorf("cem prepare: map hunk %d is %s -%d +%d, the presented hunk %s -%d +%d",
+				index+1, got.Path, got.OldRange.Start, got.NewRange.Start, want.path, want.oldStart, want.newStart)
+		}
+	}
+	return nil
+}
+
+type hunkHeader struct {
+	path               string
+	oldStart, newStart int
+}
+
+var hunkHeaderPattern = regexp.MustCompile(`^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@`)
+
+// patchHunks reads the hunk headers in the order hunkList numbers them. A
+// deleted file's hunks carry its old path.
+func patchHunks(patch string) []hunkHeader {
+	var hunks []hunkHeader
+	oldPath, path := "", ""
+	for _, line := range strings.Split(patch, "\n") {
+		switch {
+		case strings.HasPrefix(line, "--- a/"):
+			oldPath = strings.TrimPrefix(line, "--- a/")
+		case strings.HasPrefix(line, "+++ b/"):
+			path = strings.TrimPrefix(line, "+++ b/")
+		case strings.HasPrefix(line, "+++ /dev/null"):
+			path = oldPath
+		}
+		match := hunkHeaderPattern.FindStringSubmatch(line)
+		if match == nil {
+			continue
+		}
+		oldStart, _ := strconv.Atoi(match[1])
+		newStart, _ := strconv.Atoi(match[2])
+		hunks = append(hunks, hunkHeader{path: path, oldStart: oldStart, newStart: newStart})
+	}
+	return hunks
 }
 
 // suggestEvidence runs `corvint context --subject PATH` in the prep clone,
@@ -589,11 +780,68 @@ func suggestedPaths(rendered string) []string {
 	return paths
 }
 
-// applyCitations replayed the treatment reply into a cem/0.1 map. That map is
-// retired with cem/0.x (CEM-V1-215), so the cited state stays not observed;
-// buildArtefacts refuses the arm before a reply exists.
-func applyCitations(ctx context.Context, configuration options, root, patch string, item task, citations []citation) map[string]any {
-	return map[string]any{"counts": map[string]any{}, "state": notObserved, "verify_ok": notObserved, "replay_ok": notObserved, "cited": len(citations)}
+// applyCitations replays one lane's reply into a fresh copy of the change's
+// prepared cem/1.0 map: each citation is one `cem cite` on the reply's hunk
+// number, then `cem status` supplies the per-hunk dispositions and the
+// consumer-computed tiers, and `cem verify` the verdict. replay_ok is the
+// harness's own Git-only check in the lane clone (CRT-V0-007).
+func applyCitations(ctx context.Context, configuration options, laneRoot string, target *mapTarget, item task, citations []citation) map[string]any {
+	state := map[string]any{"counts": map[string]any{}, "state": notObserved, "verify_ok": notObserved, "replay_ok": notObserved, "cited": len(citations)}
+	if target == nil {
+		return state
+	}
+	if err := os.WriteFile(filepath.Join(target.root, filepath.FromSlash(targetMap)), target.pristine, 0o600); err != nil {
+		return state
+	}
+	accepted := 0
+	for _, one := range citations {
+		if _, err := corvint(ctx, configuration, target.root, "cem", "cite", "--map", targetMap,
+			"--hunk", one.Hunk, "--evidence-path", one.Path, "--lines", one.Lines, "--relation", one.Relation); err == nil {
+			accepted++
+		}
+	}
+	state["accepted"] = accepted
+	if raw, err := corvint(ctx, configuration, target.root, append([]string{"cem", "status"}, target.flags()...)...); err == nil {
+		var envelope struct {
+			State  string `json:"state"`
+			Stable struct {
+				Hunks []struct {
+					Disposition string `json:"disposition"`
+				} `json:"hunks"`
+				Citation struct {
+					HunksByClass map[string]any `json:"hunksByClass"`
+				} `json:"citation"`
+			} `json:"stableVerification"`
+		}
+		if json.Unmarshal([]byte(raw), &envelope) == nil && len(envelope.Stable.Hunks) != 0 {
+			counts := map[string]any{"total": len(envelope.Stable.Hunks), "supported": 0, "mechanical": 0, "unknown": 0}
+			for _, hunk := range envelope.Stable.Hunks {
+				if value, ok := counts[hunk.Disposition].(int); ok {
+					counts[hunk.Disposition] = value + 1
+				}
+			}
+			state["counts"], state["state"] = counts, envelope.State
+			if envelope.Stable.Citation.HunksByClass != nil {
+				state["tiers"] = envelope.Stable.Citation.HunksByClass
+			}
+		}
+	}
+	raw, err := corvint(ctx, configuration, target.root, append([]string{"cem", "verify"}, target.flags()...)...)
+	state["verify_ok"] = err == nil && verifyAccepted(raw)
+	state["replay_ok"] = replayCitations(ctx, laneRoot, item.BaseCommit, citations)
+	return state
+}
+
+// verifyAccepted holds for a `cem verify` envelope that is ok with a stable
+// ACCEPT outcome.
+func verifyAccepted(raw string) bool {
+	var envelope struct {
+		OK     bool `json:"ok"`
+		Stable struct {
+			Outcome string `json:"outcome"`
+		} `json:"stableVerification"`
+	}
+	return json.Unmarshal([]byte(raw), &envelope) == nil && envelope.OK && envelope.Stable.Outcome == "ACCEPT"
 }
 
 func corvint(ctx context.Context, configuration options, root string, arguments ...string) (string, error) {
@@ -759,6 +1007,11 @@ func laneClone(ctx context.Context, prep string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// The stable cem/1.0 verifier refuses a root reached through a symlink
+	// (macOS TMPDIR is one; V1-2519), so every lane works under its real path.
+	if resolved, err := filepath.EvalSymlinks(root); err == nil {
+		root = resolved
+	}
 	if _, err := git(ctx, root, "clone", "-q", "--no-checkout", prep, root); err != nil {
 		_ = os.RemoveAll(root)
 		return "", fmt.Errorf("git clone: %w", err)
@@ -777,13 +1030,18 @@ func resolvable(ctx context.Context, root, commit string) bool {
 }
 
 func git(ctx context.Context, root string, arguments ...string) (string, error) {
+	return gitWith(ctx, root, nil, arguments...)
+}
+
+// gitWith is git with extra environment entries, which win over the defaults.
+func gitWith(ctx context.Context, root string, environment []string, arguments ...string) (string, error) {
 	command := exec.CommandContext(ctx, "git", append([]string{"--no-optional-locks", "-c", "core.quotepath=false"}, arguments...)...)
 	command.Dir = root
-	command.Env = append(os.Environ(),
+	command.Env = append(append(os.Environ(),
 		"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1",
 		"GIT_AUTHOR_NAME=cem-trial", "GIT_AUTHOR_EMAIL=trial@localhost",
 		"GIT_COMMITTER_NAME=cem-trial", "GIT_COMMITTER_EMAIL=trial@localhost",
-	)
+	), environment...)
 	output, err := command.Output()
 	if err != nil {
 		return "", err
