@@ -4,11 +4,17 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 )
+
+// fixtureRoot is an absolute root that need not exist; "/repo" has no volume
+// and is not absolute on Windows (V1-2488).
+var fixtureRoot = filepath.Join(os.TempDir(), "repo")
 
 func ptr(n int64) *int64 { return &n }
 func hour(n int) string {
@@ -25,7 +31,7 @@ func fixture(n int) (Policy, History) {
 	p := Policy{Profile: "postmerge-policy/0", Classes: []Class{{ID: "prose", MaxCorrectionBP: 10000, MinSamples: 1, DemoteRuns: 2}}}
 	h := History{Profile: "postmerge-history/0", Classes: []Inventory{{Class: "prose", LastSequence: n, RunsComplete: true, EventsComplete: true, RunsThrough: hour(20000), EventsThrough: hour(20000)}}, Runs: []Run{}, Events: []Event{}}
 	for i := 1; i <= n; i++ {
-		h.Runs = append(h.Runs, Run{ID: string(rune('a' + i - 1)), Class: "prose", Sequence: i, At: hour(i), Outcome: "generated", Stages: []Stage{{Name: "build", Outcome: "passed", DurationMS: ptr(10)}}, Followup: Followup{Status: "created", DurationMS: ptr(20)}, Git: &GitPair{Root: "/repo", Bot: strings.Repeat("a", 40), Approved: strings.Repeat("b", 40)}})
+		h.Runs = append(h.Runs, Run{ID: string(rune('a' + i - 1)), Class: "prose", Sequence: i, At: hour(i), Outcome: "generated", Stages: []Stage{{Name: "build", Outcome: "passed", DurationMS: ptr(10)}}, Followup: Followup{Status: "created", DurationMS: ptr(20)}, Git: &GitPair{Root: fixtureRoot, Bot: strings.Repeat("a", 40), Approved: strings.Repeat("b", 40)}})
 	}
 	return p, h
 }

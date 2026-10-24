@@ -136,6 +136,12 @@ func checkIndex(root string, report func(format string, args ...any)) {
 	}
 }
 
+// indexKey turns a glob match under ../../ into its INDEX.json path. It converts
+// separators before trimming, since a Windows glob returns ..\..\docs\specs\x.md.
+func indexKey(file string) string {
+	return strings.TrimPrefix(filepath.ToSlash(file), "../../")
+}
+
 func checkDigest(report func(format string, args ...any), e entry, text string) {
 	lines := strings.Split(text, "\n")
 	start := -1

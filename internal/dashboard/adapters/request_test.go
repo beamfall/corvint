@@ -1,6 +1,7 @@
 package adapters
 
 import (
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -9,9 +10,15 @@ import (
 	"github.com/Beamfall/corvint/internal/dashboard/source"
 )
 
+// absoluteFixtureRoot is an absolute root that need not exist: \repo alone has
+// no volume and is not absolute on Windows (V1-2488).
+func absoluteFixtureRoot() string {
+	return filepath.Join(filepath.VolumeName(os.TempDir())+string(filepath.Separator), "repo")
+}
+
 func TestPlanRequestSortsBeforeAssigningPathFreeOrdinals(t *testing.T) {
 	generated := "2026-08-23T12:00:00.000000000Z"
-	root := filepath.Join(string(filepath.Separator), "repo")
+	root := absoluteFixtureRoot()
 	planned, failure := planRequest(ScanRequest{
 		Root: root, GeneratedAt: &generated, ClockSource: "CALLER",
 		Authority: qualifiedAuthority(), SourceBudget: source.NewBudget(source.MaxAggregateBytes),
@@ -36,7 +43,7 @@ func TestPlanRequestSortsBeforeAssigningPathFreeOrdinals(t *testing.T) {
 }
 
 func TestPlanRequestRejectsDuplicatesAndTraversal(t *testing.T) {
-	root := filepath.Join(string(filepath.Separator), "repo")
+	root := absoluteFixtureRoot()
 	base := ScanRequest{Root: root, ClockSource: "PROCESS", Authority: qualifiedAuthority(), SourceBudget: source.NewBudget(source.MaxAggregateBytes)}
 	tests := []ScanRequest{
 		{Root: "repo", ClockSource: "PROCESS"},
@@ -65,7 +72,7 @@ func TestPlanRequestRejectsDuplicatesAndTraversal(t *testing.T) {
 }
 
 func TestPlanRequestRequiresCallerOwnedBudgetAndAuthority(t *testing.T) {
-	root := filepath.Join(string(filepath.Separator), "repo")
+	root := absoluteFixtureRoot()
 	base := ScanRequest{Root: root, ClockSource: "PROCESS", Authority: qualifiedAuthority(), SourceBudget: source.NewBudget(source.MaxAggregateBytes)}
 	withoutAuthority := base
 	withoutAuthority.Authority = nil
