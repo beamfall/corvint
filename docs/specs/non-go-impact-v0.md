@@ -203,8 +203,10 @@ closed.
   including a named import of the export whose module is unresolved. A declaration of the name,
   a `typeof`/`keyof` query, a comparison, an arrow and a read are not writes. Retained limits:
   an alias (`const r = registry`), a destructuring target and a write through a function the
-  registry is passed to are not followed. Failure mode: before this row a spec that relied on a
-  key a setup file added at run time was treated as closed. Rollback: drop `registryWrites`.
+  registry is passed to are not followed, and a source is scanned only when it spells the
+  export name or the module stem (the directory name for an index file), so a bare package
+  specifier that spells neither is not scanned. Failure mode: before this row a spec that relied
+  on a key a setup file added at run time was treated as closed. Rollback: drop `registryWrites`.
 - `NGI-V0-067`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1478) An eager
   `new X(args)` or `new ns.X(args)` entry whose arguments are not all closed literals (quoted
   strings, substitution-free templates, numbers, `true`, `false`, `null`, `undefined`) MAY hand

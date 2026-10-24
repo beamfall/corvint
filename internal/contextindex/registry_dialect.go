@@ -902,6 +902,11 @@ type registryDialect struct {
 	registries  []registryFacts
 	sites       []registrySite
 	unavailable int
+	// writeInputs is every JS/TS source the write scan parsed, by path and
+	// blob, so a selection that depends on the scan digests it (TSA-V0-005).
+	// A source that spells no export or module stem cannot change the scan,
+	// and one that starts spelling it joins the set, changing the digest.
+	writeInputs map[string]string
 }
 
 func loadRegistryDialect(index *Index) *registryDialect {
@@ -921,7 +926,7 @@ func loadRegistryDialect(index *Index) *registryDialect {
 	if len(accessors) != 0 {
 		dialect.sites, dialect.unavailable = registryCallSites(index, accessors)
 	}
-	registryWrites(index, dialect.registries)
+	dialect.writeInputs = registryWrites(index, dialect.registries)
 	return dialect
 }
 
@@ -939,18 +944,25 @@ var registryWriteCalls = map[string]map[string]bool{
 // write is an assignment (compound included), `++`/`--` or `delete` through
 // the object or a member chain on it, or a write call of registryWriteCalls
 // with it as the first argument. An alias (`const r = registry`) or a
-// destructuring target is not followed (a retained limit).
-func registryWrites(index *Index, registries []registryFacts) {
-	exports := map[string]bool{}
+// destructuring target is not followed (a retained limit). A source is
+// scanned only when it spells a registry's export name or its module stem
+// (the directory name for an index file): a default or namespace import
+// need not spell the export, but its specifier names the module. A bare
+// package specifier that spells neither is not scanned (a retained limit).
+// It returns every source it parsed, by path and blob.
+func registryWrites(index *Index, registries []registryFacts) map[string]string {
+	mentions := map[string]bool{}
 	for _, registry := range registries {
 		if !registry.missing {
-			exports[registry.declaration.Export] = true
+			mentions[registry.declaration.Export] = true
+			mentions[registryModuleStem(registry.declaration.Path)] = true
 		}
 	}
-	if len(exports) == 0 {
-		return
+	if len(mentions) == 0 {
+		return nil
 	}
 	names := make([]string, 0)
+	consulted := map[string]string{}
 	for name := range index.Sources {
 		if language := NonGoImpactLanguage(name); language == "javascript" || language == "typescript" {
 			names = append(names, name)
@@ -961,10 +973,15 @@ func registryWrites(index *Index, registries []registryFacts) {
 	for _, name := range names {
 		text, valid, loaded := index.Sources[name].Text()
 		mentioned := false
-		for export := range exports {
-			mentioned = mentioned || strings.Contains(text, export)
+		for mention := range mentions {
+			mentioned = mentioned || mention != "" && strings.Contains(text, mention)
 		}
-		if !valid || !loaded || !mentioned {
+		if valid && loaded && !mentioned {
+			continue
+		}
+		// An unreadable source may write the registry, so it is an input too.
+		consulted[name] = index.Sources[name].BlobHash
+		if !valid || !loaded {
 			continue
 		}
 		tokens, _ := registryCallTokens(text)
@@ -1002,6 +1019,18 @@ func registryWrites(index *Index, registries []registryFacts) {
 			}
 		}
 	}
+	return consulted
+}
+
+// registryModuleStem is the name an import specifier of name must spell: the
+// base name without its extension, or the directory name for an index file.
+func registryModuleStem(name string) string {
+	base := path.Base(name)
+	stem := strings.TrimSuffix(base, path.Ext(base))
+	if stem == "index" {
+		return path.Base(path.Dir(name))
+	}
+	return stem
 }
 
 // registryWriteCount counts the writes to root, a dotted name path, in tokens.

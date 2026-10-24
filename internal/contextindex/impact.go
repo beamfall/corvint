@@ -363,9 +363,6 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 	deduplicated = reserveCallerRows(deduplicated, callers, limit)
 	disclosures := omittedCallerDisclosures(deduplicated, goCallers, limit)
 	capImpactRows(deduplicated[:min(len(deduplicated), limit)])
-	if line := evidenceTruncatedDisclosure(deduplicated[:min(len(deduplicated), limit)]); line != "" {
-		disclosures = append(disclosures, line)
-	}
 	unresolvedImports := 0
 	if webGraph != nil && webGraph.unresolved != 0 && (syntaxFrontier || webManifestIndexed(index)) {
 		// GPK-V0-080 (proposed): a bare specifier that names no repository
@@ -1233,7 +1230,9 @@ func noteEvidenceTruncated(result map[string]any, dropped int) {
 
 // evidenceTruncatedDisclosure is the coverage line naming the maxEvidence
 // ceiling's cut across the emitted results, so it is never read as the packet
-// budget's or the result limit's (MCPV0-112).
+// budget's or the result limit's (MCPV0-112). setCoverage derives it from the
+// results each budget trial keeps, so a result the budget drops takes its
+// count with it.
 func evidenceTruncatedDisclosure(results []map[string]any) string {
 	rows, carriers := 0, 0
 	for _, result := range results {

@@ -444,4 +444,16 @@ func TestSelectSetupRegistryKeyInSubstitution(t *testing.T) {
 			t.Errorf("mode=%s reasons=%+v", selection.Mode, selection.Reasons)
 		}
 	}
+	// A write in a source outside the traversed closure decides the mode, so
+	// that source is a digest input (TSA-V0-005; Codex review).
+	files["tests/data/registry.ts"] = registry
+	files["tests/mutate.ts"] = "import { registry } from './data/registry';\nexport const n = 1;\n"
+	unwritten := SelectSetup(build(), []string{"tests/templated.spec.ts"})
+	files["tests/mutate.ts"] = "import { registry } from './data/registry';\nexport const n = 2;\n"
+	edited := SelectSetup(build(), []string{"tests/templated.spec.ts"})
+	files["tests/mutate.ts"] = "import { registry } from './data/registry';\nregistry.extra = 1;\n"
+	written := SelectSetup(build(), []string{"tests/templated.spec.ts"})
+	if unwritten.Mode != "selected" || edited.Mode != "selected" || written.Mode != "all" || unwritten.InputDigest == edited.InputDigest {
+		t.Errorf("modes %s %s %s; the scanned source's edit kept digest %s", unwritten.Mode, edited.Mode, written.Mode, edited.InputDigest)
+	}
 }

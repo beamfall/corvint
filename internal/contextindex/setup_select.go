@@ -94,6 +94,11 @@ func SelectSetup(index *Index, specs []string) SetupSelection {
 			s.read[registry.declaration.Path] = registry.blob
 		}
 	}
+	// Whether a registry is written after its declaration decides whether
+	// it closes (NGI-V0-066), so every source the write scan read is an input.
+	for name, blob := range s.dialect.writeInputs {
+		s.read[name] = blob
+	}
 	for name := range index.Sources {
 		if path.Ext(name) == ".json" {
 			if text, valid, loaded := index.Sources[name].Text(); valid && loaded && strings.Contains(text, "application-map-manifest") {

@@ -81,6 +81,29 @@ func TestMCPV0112ImpactCountsEvidenceCeilingSeparately(t *testing.T) {
 	if !slices.Contains(anySlice(coverage["uncertainty"]), any(want)) {
 		t.Fatalf("coverage uncertainty lacks %q: %#v", want, coverage["uncertainty"])
 	}
+	// The line counts only results the packet budget keeps: a budget that
+	// drops the truncated result drops its count with it (Codex review).
+	for _, test := range []struct {
+		budget int
+		kept   bool
+	}{{MaxPacketBytes, true}, {MinPacketBytes, false}} {
+		budget := test.budget
+		budgeted, err := EvalImpactSyntax(index, []string{"p/a.go"}, 10, &budget)
+		if err != nil {
+			t.Fatal(err)
+		}
+		carried := false
+		for _, result := range mapsFromAny(budgeted["results"]) {
+			if _, ok := result[evidenceTruncatedKey]; ok {
+				carried = true
+			}
+		}
+		budgetCoverage, _ := budgeted["coverage"].(map[string]any)
+		if carried != test.kept || slices.Contains(anySlice(budgetCoverage["uncertainty"]), any(want)) != test.kept {
+			t.Fatalf("budget %d: truncated result kept=%v, ceiling line=%v, want %v: %#v", budget, carried,
+				slices.Contains(anySlice(budgetCoverage["uncertainty"]), any(want)), test.kept, budgetCoverage["uncertainty"])
+		}
+	}
 
 	existing := map[string]any{"evidence": ceilingEvidenceRows("existing", maxEvidence-1)}
 	candidate := map[string]any{"evidence": ceilingEvidenceRows("candidate", 3), evidenceTruncatedKey: 2}

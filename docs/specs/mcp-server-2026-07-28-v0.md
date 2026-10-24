@@ -846,7 +846,7 @@ Each row cites the first emitting site and states only the condition checked the
   keeps counting only the `MCPV0-031` display cut, so the two never mix. When any emitted result
   carries the key, `coverage.uncertainty` MUST name the total in its own line, "N evidence rows in M
   results omitted by the per-result evidence ceiling of 10", which is not the packet budget's or the
-  result limit's text. A result under the ceiling carries no key, so the wire of an untruncated
+  result limit's text, counted over the results the packet budget keeps. A result under the ceiling carries no key, so the wire of an untruncated
   receipt is unchanged. Failure mode: a count can only be an exact sum of dropped rows; a builder
   that cannot count reports none rather than a guess. Falsifier: a ceiling cut with no
   `evidence_truncated`, a count folded into `evidence_omitted`, or the disclosure missing.

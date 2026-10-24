@@ -119,8 +119,10 @@ baseline is running every setup project for every spec, reviewing by eye, and gr
   that key's module reaches, as TSA-V0-001 does for any other call site (NGI-V0-065). A registry
   written after its declaration (NGI-V0-066), or a matched entry whose constructor arguments are
   open (NGI-V0-067), does not close: the selector MUST return ALL with reason
-  `registry-unresolved` naming the call site, never `selected`. Rollback: the NGI-V0-065..067
-  rollbacks.
+  `registry-unresolved` naming the call site, never `selected`. Every source the write scan
+  parses, and every unreadable JS/TS source, joins the TSA-V0-005 `inputDigest` inputs, so an
+  edit to a write outside the traversed closure changes the digest. Rollback: the
+  NGI-V0-065..067 rollbacks.
 
 ### Lint (V1-1589)
 

@@ -772,8 +772,13 @@ func TestRegistryDialectWrittenAfterDeclarationWidens(t *testing.T) {
 		{"compound and delete", "tests/data/registry.ts", declared + "registry.extra ??= 1;\ndelete registry['ctx:beta'];\n", 2},
 		{"object assign", "tests/write.spec.ts", "import { registry as r } from './data/registry';\nObject.assign(r, { 'ctx:alpha': 1 });\n", 1},
 		{"namespace and increment", "tests/write.spec.ts", "import * as data from './data/registry';\ndata.registry.count++;\nReflect.set(data.registry, 'k', 1);\n", 2},
+		// A default import spells the module, not the export (Codex review).
+		{"default import of a differently named export", "tests/write.spec.ts", "import r from './data/registry';\nr.extra = 1;\n", 1},
 	} {
 		files := registryIssueFiles()
+		if strings.HasPrefix(tc.name, "default import") {
+			renameRegistryExport(files, "table")
+		}
 		files[tc.path] = tc.text
 		files["tests/reads.spec.ts"] = reads
 		receipt := registryImpact(t, files, "src/contexts/alpha.ts")
@@ -834,4 +839,13 @@ func TestRegistryDialectConstructorArgumentsOpen(t *testing.T) {
 	if found := registryUnknownRows(registryImpact(t, files, "src/other.ts"), "registry-constructor-arguments-open"); len(found) != 0 {
 		t.Errorf("literal arguments are closed: %v", found)
 	}
+}
+
+// renameRegistryExport renames the fixture registry's export so no importer
+// spells it through the module path.
+func renameRegistryExport(files map[string]string, export string) {
+	files["corvint/appmap.json"] = registryManifest(registryDeclaration("tests/data/registry.ts", export, "createTestData"))
+	files["tests/data/registry.ts"] = strings.Replace(files["tests/data/registry.ts"], "export const registry:", "export const "+export+":", 1) +
+		"export default " + export + ";\n"
+	files["tests/data/provider.ts"] = strings.ReplaceAll(strings.Replace(files["tests/data/provider.ts"], "{ registry }", "{ "+export+" }", 1), "return registry[", "return "+export+"[")
 }
