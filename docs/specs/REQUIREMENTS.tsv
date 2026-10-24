@@ -843,6 +843,15 @@ CEM-V1-602	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `tools/cem-release-su
 CEM-V1-603	docs/specs/cem-stable-v1.md	(proposed; V1-2323) The `--readiness` path MUST be repository-relative and is	unrecorded	-
 CEM-V1-604	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `MIGRATION.json` addition A02 MUST leave `OPEN` with a statu	unrecorded	-
 CEM-V1-605	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `make cem-release-gate` MUST refuse a checkout with any	unrecorded	-
+CEM-V1-606	docs/specs/cem-stable-v1.md	(proposed; V1-2577) The sealed verdict gate (`corvint cem gate-verdict`, TCB-V0-	unrecorded	-
+CEM-V1-607	docs/specs/cem-stable-v1.md	(proposed; V1-2577) The gate MUST satisfy a governed `cited` hunk on the	unrecorded	-
+CEM-V1-608	docs/specs/cem-stable-v1.md	(proposed; V1-2577) An unsatisfied governed hunk MUST name one closed `reason`:	unrecorded	-
+CEM-V1-609	docs/specs/cem-stable-v1.md	(proposed; V1-2578) `make cem-release-gate` MUST run the 29 public	unrecorded	-
+CEM-V1-610	docs/specs/cem-stable-v1.md	(proposed; V1-2578) The `corvint:repository-envelope` and	unrecorded	-
+CEM-V1-611	docs/specs/cem-stable-v1.md	(proposed; V1-2579) `--record PATH` MUST write the run's `cem-release-run/1`	unrecorded	-
+CEM-V1-612	docs/specs/cem-stable-v1.md	(proposed; V1-2579) `--aggregate --readiness PATH [--root DIR] [--outcome OUT]	unrecorded	-
+CEM-V1-613	docs/specs/cem-stable-v1.md	(proposed; V1-2579, V1-2581) `--outcome PATH` MUST write one	unrecorded	-
+CEM-V1-614	docs/specs/cem-stable-v1.md	(proposed; V1-2581) The stable readiness record (SRR-V1-005) MUST end its	unrecorded	-
 CEM-V1-573	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2322) A	standing	2026-10-11; V1-2322
 CEM-V1-574	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2322) A reques	standing	2026-10-11; V1-2322
 CEM-V1-575	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2322) Before	standing	2026-10-11; V1-2322

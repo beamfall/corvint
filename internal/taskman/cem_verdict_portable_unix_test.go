@@ -333,7 +333,7 @@ func TestTCBV0018PathsCarryTheMinimumRecomputedTier(t *testing.T) {
 	g := &verdictGate{doc: cemVerdictDocument{Paths: []cemVerdictPath{}}}
 	hunks := []wire.Hunk{{ID: "h1", Path: "src/a.go"}, {ID: "h2", Path: "src/a.go"}, {ID: "h3", Path: "lib/b.go"}, {ID: "h4", Path: "docs/c.md"}}
 	citation := &verify.Citation{Hunks: []verify.CitationHunk{{HunkID: "h1", Tier: verify.TierHeld}, {HunkID: "h2", Tier: verify.TierCited}, {HunkID: "h3", Tier: verify.TierAnchored}, {HunkID: "h4", Tier: verify.TierUnknown}}}
-	g.predicate(PredicateTouchedAnchored, []string{"lib/", "src/"}, hunks, citation)
+	g.predicate(PredicateTouchedAnchored, []string{"lib/", "src/"}, hunks, citation, nil)
 	want := []cemVerdictPath{{Path: "lib/b.go", Tier: verify.TierAnchored, Satisfied: true}, {Path: "src/a.go", Tier: verify.TierCited, Satisfied: false}}
 	if len(g.doc.Paths) != len(want) || g.doc.Paths[0] != want[0] || g.doc.Paths[1] != want[1] || g.doc.Outcome == "GRANT" {
 		t.Fatalf("paths: %+v want %+v (%s)", g.doc.Paths, want, g.doc.Outcome)

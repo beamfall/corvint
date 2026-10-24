@@ -1166,10 +1166,7 @@ func TestStableCanonicalEnvelopeCells(t *testing.T) {
 	if len(doc.Cases) != 29 {
 		t.Fatalf("expected 29 cells, got %d", len(doc.Cases))
 	}
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
+	argv, mode := s0eEnvelopeBinary(t)
 	for _, c := range doc.Cases {
 		t.Run(c.ID, func(t *testing.T) {
 			if !stableOwnerSupported() {
@@ -1319,8 +1316,8 @@ func TestStableCanonicalEnvelopeCells(t *testing.T) {
 			default:
 				t.Fatalf("no recipe for cell %s", c.ID)
 			}
-			cmd := exec.Command(exe, "verify-stable-canonical", "--repository", repo, "--map", mapPath,
-				"--expected-base", c.ExpectedBase, "--target", c.Target, "--artifacts", arts)
+			cmd := exec.Command(argv[0], append(argv[1:len(argv):len(argv)], "--repository", repo, "--map", mapPath,
+				"--expected-base", c.ExpectedBase, "--target", c.Target, "--artifacts", arts)...)
 			cmd.Env = append([]string{"PATH=" + os.Getenv("PATH"), "HOME=" + filepath.Join(B, "home"), "TMPDIR=" + os.Getenv("TMPDIR"), "CEM01_TEST_CLI=1"}, env...)
 			var stdout bytes.Buffer
 			cmd.Stdout = &stdout
@@ -1333,7 +1330,7 @@ func TestStableCanonicalEnvelopeCells(t *testing.T) {
 				t.Fatal(err)
 			}
 			var got stableResult
-			rec := s0eRecord{Name: c.ID, Mode: "RUN_REAL", ExpectedExit: c.ExpectedExit, ActualExit: code, Note: note}
+			rec := s0eRecord{Name: c.ID, Mode: mode, ExpectedExit: c.ExpectedExit, ActualExit: code, Note: note}
 			if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
 				rec.FirstDifferingKey = "stdout-json"
 			} else {
@@ -1351,6 +1348,36 @@ func TestStableCanonicalEnvelopeCells(t *testing.T) {
 			s0eRecordAdd(&s0eConformance.Cells, rec)
 		})
 	}
+}
+
+// s0eEnvelopeBinaryEnv names a built release verifier for the envelope cells
+// (CEM-V1-609): a JSON array whose first element is the absolute path of the
+// binary and whose remaining elements select its stable verification command,
+// such as ["/bin/corvint","cem","verify-stable"]. Unset, the cells run this
+// test binary's own verify-stable-canonical command.
+const s0eEnvelopeBinaryEnv = "CEM01_ENVELOPE_BINARY"
+
+// s0eEnvelopeBinary returns the argv prefix each envelope cell runs and the
+// conformance mode it records: RUN_BINARY for a named release binary, RUN_REAL
+// for this test binary. A malformed name fails the test, never falls back.
+func s0eEnvelopeBinary(t *testing.T) ([]string, string) {
+	t.Helper()
+	raw := os.Getenv(s0eEnvelopeBinaryEnv)
+	if raw == "" {
+		exe, err := os.Executable()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return []string{exe, "verify-stable-canonical"}, "RUN_REAL"
+	}
+	var argv []string
+	if err := json.Unmarshal([]byte(raw), &argv); err != nil || len(argv) < 2 || !filepath.IsAbs(argv[0]) {
+		t.Fatalf("%s=%q is not a JSON argv of an absolute binary and its command", s0eEnvelopeBinaryEnv, raw)
+	}
+	if info, err := os.Stat(argv[0]); err != nil || !info.Mode().IsRegular() {
+		t.Fatalf("%s names %s, which is not a regular file: %v", s0eEnvelopeBinaryEnv, argv[0], err)
+	}
+	return argv, "RUN_BINARY"
 }
 
 // TestStableResolveMissingPinnedObjectUnavailable covers V1-1297 (decision

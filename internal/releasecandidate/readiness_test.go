@@ -26,12 +26,18 @@ type readinessFixture struct {
 // source root carrying goMod, with the host toolchain probe pinned.
 func newReadinessFixture(t *testing.T, goMod string) readinessFixture {
 	t.Helper()
+	return newReadinessFixtureVersion(t, goMod, firstStableCandidate)
+}
+
+// newReadinessFixtureVersion is newReadinessFixture for another version.
+func newReadinessFixtureVersion(t *testing.T, goMod, version string) readinessFixture {
+	t.Helper()
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("host probe fixture requires a POSIX shell")
 	}
-	source := readinessSource(t, firstStableCandidate, goMod)
+	source := readinessSource(t, version, goMod)
 	commit, tree := readinessGit(t, source, "rev-parse", "HEAD"), readinessGit(t, source, "rev-parse", "HEAD^{tree}")
-	versionOutput := "Corvint " + firstStableCandidate + " (build 1)"
+	versionOutput := "Corvint " + version + " (build 1)"
 	hostProgram := "#!/bin/sh\nprintf '%s\\n' '" + versionOutput + "'\n"
 	isHost := func(target coreTarget) bool { return target.GOOS == runtime.GOOS && target.GOARCH == runtime.GOARCH }
 	coreBinary := func(target coreTarget) []byte {
@@ -52,8 +58,8 @@ func newReadinessFixture(t *testing.T, goMod string) readinessFixture {
 	goToolchainProbe = func(context.Context, string) (string, error) { return pinnedToolchain, nil }
 	t.Cleanup(func() { verifyCoreBinary, goToolchainProbe = previousCore, previousProbe })
 	candidate := coreOnlyCandidateFixture(t, versionOutput, commit, tree, coreBinary, coreArchive, func(files map[string][]byte, _ map[string]string, manifest *Manifest, _ *Qualification) {
-		manifest.Version, manifest.BuildNumber = firstStableCandidate, "1"
-		files["README.md"] = []byte(candidateReadme(firstStableCandidate))
+		manifest.Version, manifest.BuildNumber = version, "1"
+		files["README.md"] = []byte(candidateReadme(version))
 	})
 	return readinessFixture{candidate: candidate, source: source, evidence: canonicalTemp(t), commit: commit, tree: tree}
 }
