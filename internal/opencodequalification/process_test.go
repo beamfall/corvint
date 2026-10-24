@@ -10,7 +10,7 @@ import (
 )
 
 func TestCommandInterruption(t *testing.T) {
-	t.Run("GOC-V0-008 AHI-032 Go command reaps escaped group descendant", func(t *testing.T) {
+	t.Run("GOC-V0-008 AHI-032 AHI-179 Go command reaps escaped group descendant", func(t *testing.T) {
 		if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 			t.Skip("explicitly unsupported process platform")
 		}
@@ -38,6 +38,19 @@ func TestCommandInterruption(t *testing.T) {
 		}
 		if number(result["exit"]) != 143 || len(array(result["observedDescendants"])) == 0 || len(array(result["survivors"])) != 0 {
 			t.Fatal(result)
+		}
+		// AHI-179: the report carries a fixed-size summary bound by digest to the retained snapshots.
+		summary := object(result["observation"])
+		retained, e := os.ReadFile(filepath.Join(dir, "interruption.observation.json"))
+		if e != nil {
+			t.Fatal(e)
+		}
+		full, e := decode(retained)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if _, embedded := summary["processes"]; embedded || summary["processesSHA256"] != hash(retained) || summary["processesFile"] != "interruption.observation.json" || number(summary["processCount"]) != float64(len(array(full["processes"]))) || number(summary["processCount"]) == 0 || summary["absent"] != true || summary["scope"] != full["scope"] {
+			t.Fatal(summary)
 		}
 	})
 }

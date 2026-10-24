@@ -2,6 +2,7 @@ package opencodequalification
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -177,5 +178,25 @@ func interruptedCommand(ctx context.Context, dir string, args []string, output s
 	if result.ExitStatus != 143 || result.DescendantObservation == nil || !result.DescendantObservation.Absent || !result.OwnedProcessGroupCleanup || len(observed) == 0 {
 		return nil, fmt.Errorf("interruption cleanup incomplete: exit=%d error=%v evidence=%+v", result.ExitStatus, result.Err, result.DescendantObservation)
 	}
-	return Object{"exit": 143, "observedDescendants": observed, "survivors": []any{}, "observation": result.DescendantObservation, "absentBeforeSupervisorCleanup": true, "passiveWitness": known}, nil
+	summary, e := retainObservation(output+".observation.json", result.DescendantObservation)
+	if e != nil {
+		return nil, e
+	}
+	return Object{"exit": 143, "observedDescendants": observed, "survivors": []any{}, "observation": summary, "absentBeforeSupervisorCleanup": true, "passiveWitness": known}, nil
+}
+
+// retainObservation writes the full process observation beside the other interruption evidence and
+// returns a fixed-size summary bound to it by digest. The observer's snapshot list grows with the time
+// the interrupted helper takes to reach readiness, so embedding it let a slow, loaded host push the
+// report and record past the consumer bound (AHI-179).
+func retainObservation(path string, d *procgroup.DescendantObservation) (Object, error) {
+	b, e := json.MarshalIndent(d, "", "  ")
+	if e != nil {
+		return nil, e
+	}
+	b = append(b, '\n')
+	if e = os.WriteFile(path, b, 0600); e != nil {
+		return nil, e
+	}
+	return Object{"scope": d.Scope, "interval_ms": d.IntervalMS, "absent": d.Absent, "failures": d.Failures, "limitations": d.Limitations, "processCount": len(d.Processes), "processesFile": filepath.Base(path), "processesSHA256": hash(b)}, nil
 }

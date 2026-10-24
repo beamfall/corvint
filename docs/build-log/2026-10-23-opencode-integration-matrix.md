@@ -1,7 +1,7 @@
 # OpenCode 2.1.3 integration matrix and host-lane delivery
 
 Date: 2026-10-23. Tickets: V1-2346 (range), V1-0453 (tested versions and MCP evidence), V1-2201
-(closeout note), V1-1563 (OpenCode half). Requirements: AHI-174..AHI-178 in
+(closeout note), V1-1563 (OpenCode half). Requirements: AHI-174..AHI-179 in
 [the AHI spec](../specs/agent-harness-integration-v0.md). Base: origin/main `368b80d4`.
 
 ## Installed host
@@ -70,6 +70,10 @@ design (V1-2500) carries an owner question in its ticket.
 - AHI-177: `testedHostVersions` `["2.1.3"]` names committed native and MCP evidence;
   `integrations/opencode/evidence.test.mjs` enforces it, and the README MCP section covers 2.x.
 - AHI-178: `make host-adapter-test` runs the OpenCode JS tests.
+- AHI-179: the interruption-cleanup evidence keeps its full process observation in a sibling
+  file and embeds a digest-bound summary. The first full-mode run on a loaded host (load about 17)
+  was refused with `qualification record exceeds consumer bound`: the 20 ms observation held 665
+  processes (82 KB).
 
 ## Live receipts
 
@@ -103,5 +107,5 @@ and V1-0451 (Bun runtime), which stay as they are.
 
 ## Rollback
 
-Each AHI-174..AHI-178 entry names its own rollback. Removing the evidence directory alone makes
+Each AHI-174..AHI-179 entry names its own rollback. Removing the evidence directory alone makes
 `evidence.test.mjs` fail, so empty `testedHostVersions` in the same change.
