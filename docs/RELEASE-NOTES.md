@@ -33,8 +33,8 @@ Main changes since rc.2:
 - Analyzers: Ruby named-constant reverse references and profile completion (V1-1674), flows and
   appmap name-level test references (V1-1581), and docs-corpus Playwright discovery and witness
   producers.
-- CI and release tooling: the toolchain pin moves to go1.27.2, with go1.27.3 admitted as a patch
-  revision (decisions 0522, 0547); Windows test vet runs in PR CI and locally as `make windows-vet`
+- CI and release tooling: the toolchain pin moves to go1.27.3, the single pin for go.mod, CI,
+  release builds and release identity (decisions 0522, 0547, 0557); Windows test vet runs in PR CI and locally as `make windows-vet`
   (V1-1117, V1-1719); duration-balanced shard planning (V1-1579); the gate ledger runs unresolved
   packages after a failed batch (V1-0847); the hosted release gate no longer stops at the first
   failed step (V1-0848); and the workflow least-privilege check covers every workflow (V1-1469).

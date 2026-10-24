@@ -343,9 +343,32 @@ type Receipt struct {
 	// ResultKinds tags each visible result of a search that includes claims with
 	// its record kind (DCP-V1-328).
 	ResultKinds map[string]string `json:"result_kinds,omitempty"`
+	// ResultRanks shows each visible result's place in a ranked search or
+	// claim-text query: its position before paging, its tie group, its tier and
+	// its normalized score (DCP-V1-479, DCP-V1-480). Absent for every other
+	// operation, so their receipts keep their bytes.
+	ResultRanks map[string]ResultRank `json:"result_ranks,omitempty"`
+	// ranks holds the rank of every ranked result before paging; the visible
+	// page copies its own entries into ResultRanks.
+	ranks map[string]ResultRank
 	// AliasResolution records that the requested id was a subject's alternate
 	// id (DCP-V1-330).
 	AliasResolution *AliasResolution `json:"alias_resolution,omitempty"`
+}
+
+// ResultRank is one ranked result's place in its ranking (DCP-V1-479). Rank
+// is the 1-based position before offset and limit. Results that share Group
+// tie on every ranking key the scorer computes, and only the specificity and
+// natural ID tie-breaks order them. Tier is exact, phrase or terms. Score is
+// the normalized term score in [0, 1], rounded to six decimals. Terms counts
+// the distinct query terms a docs_claims result holds; it is absent on
+// docs_search (DCP-V1-480).
+type ResultRank struct {
+	Rank  int     `json:"rank"`
+	Group int     `json:"group"`
+	Tier  string  `json:"tier"`
+	Score float64 `json:"score"`
+	Terms int     `json:"terms,omitempty"`
 }
 
 // TextOrigin is the origin and byte cap of one free-text field (DCP-V1-322).

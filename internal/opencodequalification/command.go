@@ -213,7 +213,7 @@ func qualify(ctx context.Context, c Config) (failure error) {
 		return e
 	}
 	if !admittedGoVersion(strings.TrimSpace(str(version["stdout"]))) {
-		return errors.New("Go 1.27.2 or 1.27.3 is required")
+		return errors.New("Go 1.27.3 is required")
 	}
 	focused, e := runCommand(ctx, c.Source, env, []string{"go", "test", "-json", "-count=1", "-timeout", "30m", "./cmd/corvint", "-run", "^TestHostAdapterJavaScript(Hosts|HarnessInterruption)$"}, run+"/focused", 30*time.Minute)
 	if e != nil {
@@ -244,7 +244,7 @@ func qualify(ctx context.Context, c Config) (failure error) {
 	return nil
 }
 
-// admittedGoVersions are the exact toolchain revisions decision 0547 admits (AHI-175).
-var admittedGoVersions = map[string]bool{"go1.27.2": true, "go1.27.3": true}
+// admittedGoVersions is the one exact toolchain decision 0557 pins (AHI-175).
+var admittedGoVersions = map[string]bool{"go1.27.3": true}
 
 func admittedGoVersion(version string) bool { return admittedGoVersions[version] }

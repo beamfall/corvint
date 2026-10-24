@@ -21,7 +21,7 @@ test adequacy and product improvement unproven.
 
 ## Run a disposable lifecycle
 
-Build both companions from this checkout with Go 1.27.2. Use a fresh scratch
+Build both companions from this checkout with Go 1.27.3. Use a fresh scratch
 directory for binaries and qualification output; the demo refuses an existing
 `--out` directory. Replace the paths below with absolute paths on your machine.
 

@@ -1258,7 +1258,7 @@ func verifyCapabilityBody(object map[string]any, verifierExecutableSHA256 string
 	containment, containmentErr := stringsField(object, "supportedContainment", true)
 	coverage, coverageErr := stringsField(object, "supportedCoverage", true)
 	network, networkErr := stringsField(object, "supportedNetwork", true)
-	providerBuildBody, err := canonical(map[string]any{"executableRawSha256": verifierExecutableSHA256, "goVersion": "go1.27.2"})
+	providerBuildBody, err := canonical(map[string]any{"executableRawSha256": verifierExecutableSHA256, "goVersion": "go1.27.3"})
 	return err == nil && isDigest(verifierExecutableSHA256) && protocol == "go1.27/test2json" && profile == "go-live-capability/0" && build == bareDomainDigest("go-provider-build", "go-provider-build/0", providerBuildBody) &&
 		version == "0.1.0-experimental" && operationsErr == nil && equalStrings(operations, []string{"execute"}) &&
 		containmentErr == nil && equalStrings(containment, []string{"PROCESS_GROUP_BEST_EFFORT"}) &&
@@ -1311,7 +1311,7 @@ func verifyPlanBody(object map[string]any, context transcriptContext, discovery 
 	rootPath, _ := stringField(source, "rootPathSha256")
 	toolchain, ok := object["toolchain"].(map[string]any)
 	if !ok || exactKeys(toolchain, "cgoEnabled", "goarch", "goenvSha256", "goexeSha256", "goos", "gorootSha256", "goversion", "id", "invokedToolsSha256", "pathSha256", "toolDirSha256") != nil ||
-		toolchain["cgoEnabled"] != "0" || toolchain["goversion"] != "go1.27.2" || toolchain["id"] != discovery.ToolchainID {
+		toolchain["cgoEnabled"] != "0" || toolchain["goversion"] != "go1.27.3" || toolchain["id"] != discovery.ToolchainID {
 		return false
 	}
 	if !isDigest(materialization) || rootPath != cwd {

@@ -29,7 +29,8 @@ func write(t *testing.T, name, body string) string {
 
 // AFP-V0-022: costs come from retained hosted package outcomes, with the source recorded.
 // partitionGoVersion is the source toolchain the fixture tables record; the
-// partition admits it and go1.27.2 (.github/cishards, decision 0522). Tests
+// partition admits it, go1.27.2 (.github/cishards, decision 0522) and the
+// go1.27.3 pin (decision 0557). Tests
 // refresh as that toolchain unless they exercise another one.
 const partitionGoVersion = "go1.27.1"
 
@@ -39,8 +40,8 @@ func TestMain(m *testing.M) {
 }
 
 // TestAFPV0022RefreshRecordsTheSourceToolchain proves refresh records the
-// toolchain it runs under, succeeds under each admitted one (go1.27.1 and the
-// pinned go1.27.2), and refuses, without writing, one the partition does not
+// toolchain it runs under, succeeds under each admitted one (go1.27.1, go1.27.2
+// and the pinned go1.27.3), and refuses, without writing, one the partition does not
 // admit.
 func TestAFPV0022RefreshRecordsTheSourceToolchain(t *testing.T) {
 	logs := write(t, "raw.log", passed("example.org/a", "0.5"))
@@ -58,7 +59,7 @@ func TestAFPV0022RefreshRecordsTheSourceToolchain(t *testing.T) {
 	if _, err := os.Stat(table); !os.IsNotExist(err) {
 		t.Fatalf("refused refresh wrote the table: %v", err)
 	}
-	for _, version := range []string{"go1.27.1", "go1.27.2"} {
+	for _, version := range []string{"go1.27.1", "go1.27.2", "go1.27.3"} {
 		table, code, err := refresh(version)
 		if code != 0 || err != nil {
 			t.Fatalf("admitted toolchain %s: code=%d err=%v", version, code, err)

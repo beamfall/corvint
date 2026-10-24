@@ -89,6 +89,7 @@ Goals
    Output: bounded JSON. search ranks subjects by field-weighted text; --kind
    keeps some subject kinds and --include claims ranks claim hits with them,
    naming each hit's kind in result_kinds. claims --query ranks claims by text.
+   Both name each result's rank, tie group and score in result_ranks.
    A generated claim that names code carries a claim_mentions check of whether
    its cited spans hold those names. Generated evidence grants no task or
    test-selection authority. The corpus is also served by the

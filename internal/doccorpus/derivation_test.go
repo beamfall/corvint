@@ -14,6 +14,9 @@ import (
 // and record the new digest here (DCP-V1-471).
 var derivationFixtureDigests = map[string]string{
 	"1": "a571c3440bc8df0f5e1c5f758ce85b78511dc24d6820a32961311e272d1a3568",
+	// Derivation 2 adds derived declarations (DCP-V1-482); the fixture holds no source input a
+	// records provider owns, so its digest is unchanged (DCP-V1-485).
+	"2": "a571c3440bc8df0f5e1c5f758ce85b78511dc24d6820a32961311e272d1a3568",
 }
 
 // TestDCPV1471VerifiedReadAcrossBuilderRevisions: the verified read admits an artifact recorded

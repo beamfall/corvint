@@ -16,7 +16,7 @@ import (
 // result and exit through `cem verify-stable`.
 func TestCEMExportStableBundleRelocates(t *testing.T) {
 	f := materializeCEMStableRoot(t)
-	if v := runtime.Version(); v != "go1.27.1" && v != "go1.27.2" {
+	if v := runtime.Version(); v != "go1.27.1" && v != "go1.27.2" && v != "go1.27.3" {
 		t.Skipf("NOT_RUN: %s is not an admitted structural tuple", v)
 	}
 	sealed, err := os.ReadFile(filepath.Join(cemStablePacket, "inherited/fixtures/maps/sha1-positive-sealed.json"))

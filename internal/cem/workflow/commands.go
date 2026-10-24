@@ -455,14 +455,21 @@ func (s *Session) requireCiteSpanStable(ctx context.Context, document *wire.Map,
 		// why an unchanged span is still refused (DCW-V0-063).
 		needle := baseBlob[span.Start:span.End]
 		occurrences := verify.SpanOccurrences(patchedBlob, needle)
+		// V1-2541: name where each copy of the text lands in the changed file
+		// and the narrowest wider base span whose text occurs once, which keeps
+		// the cited lines (DCW-V0-334).
+		duplicates := occurrenceLines(patchedBlob, needle, maxNamedOccurrences)
+		if widened := uniqueWidening(group, baseBlob, patchedBlob, span); widened != "" {
+			guidance = "recovery: cite the wider unique span --lines " + widened + ", which keeps these lines; " + guidance
+		}
 		if start, end := spanLines(baseBlob, span); spanUneditedByHunks(group, start, end) {
 			return cemcode.New(cemcode.CiteSpanNotStable,
-				"evidence span in %q would be %s after applying its CEM hunk group; base lines %d:%d are edited by no hunk (at most hunk context), so git's line alignment leaves them unchanged, but the stability check matches the span text, which occurs %d times in the changed file; %s",
-				evidencePath, classification, start, end, occurrences, guidance)
+				"evidence span in %q would be %s after applying its CEM hunk group; base lines %d:%d are edited by no hunk (at most hunk context), so git's line alignment leaves them unchanged, but the stability check matches the span text, which occurs %d times in the changed file (at changed-file lines %s); %s",
+				evidencePath, classification, start, end, occurrences, duplicates, guidance)
 		}
 		return cemcode.New(cemcode.CiteSpanNotStable,
-			"evidence span in %q would be %s after applying its CEM hunk group; the stability check matches the span text, which occurs %d times in the changed file; %s",
-			evidencePath, classification, occurrences, guidance)
+			"evidence span in %q would be %s after applying its CEM hunk group; the stability check matches the span text, which occurs %d times in the changed file (at changed-file lines %s); %s",
+			evidencePath, classification, occurrences, duplicates, guidance)
 	}
 	if changedByDisplayPath {
 		return cemcode.New(cemcode.PatchDigestMismatch, "CEM patch has no hunk group for changed evidence path %q", evidencePath)
@@ -486,37 +493,11 @@ func citeSpanGuidance(group *patch.Group, baseBlob, patchedBlob []byte, span wir
 	}
 	starts := lineStarts(baseBlob)
 	lines := int64(len(starts))
-	edited := make([]bool, lines+2)
-	splitBefore := make([]bool, lines+2)
-	for _, hunk := range group.Hunks {
-		line := hunk.OldRange.Start
-		if hunk.OldRange.Count == 0 {
-			line++
-		}
-		for _, body := range hunk.Body {
-			switch body.Prefix {
-			case ' ':
-				line++
-			case '-':
-				if line >= 1 && line <= lines {
-					edited[line] = true
-				}
-				line++
-			case '+':
-				if line >= 1 && line <= lines+1 {
-					splitBefore[line] = true
-				}
-			}
-		}
-	}
+	edited, splitBefore := hunkLineEdits(group, lines)
 	first, last := spanLines(baseBlob, span)
 	unchanged := bytes.Equal(baseBlob, patchedBlob)
 	bytesOf := func(start, end int64) wire.Span {
-		candidate := wire.Span{Start: starts[start-1], End: int64(len(baseBlob))}
-		if end < lines {
-			candidate.End = starts[end]
-		}
-		return candidate
+		return lineSpan(baseBlob, starts, start, end)
 	}
 	var found []string
 	name := func(start, end int64) {
@@ -565,6 +546,121 @@ func citeSpanGuidance(group *patch.Group, baseBlob, patchedBlob []byte, span wir
 		return citeSpanRule + "; no nearby unedited base line span is stable"
 	}
 	return citeSpanRule + "; nearest stable base spans: --lines " + strings.Join(found, ", --lines ")
+}
+
+// hunkLineEdits marks, by one-based base line, each line a hunk of group
+// removes and each line an insertion lands before (CEM-V1-322).
+func hunkLineEdits(group *patch.Group, lines int64) (edited, splitBefore []bool) {
+	edited = make([]bool, lines+2)
+	splitBefore = make([]bool, lines+2)
+	for _, hunk := range group.Hunks {
+		line := hunk.OldRange.Start
+		if hunk.OldRange.Count == 0 {
+			line++
+		}
+		for _, body := range hunk.Body {
+			switch body.Prefix {
+			case ' ':
+				line++
+			case '-':
+				if line >= 1 && line <= lines {
+					edited[line] = true
+				}
+				line++
+			case '+':
+				if line >= 1 && line <= lines+1 {
+					splitBefore[line] = true
+				}
+			}
+		}
+	}
+	return edited, splitBefore
+}
+
+// lineSpan returns the bytes of one-based inclusive base lines start..end.
+func lineSpan(blob []byte, starts []int64, start, end int64) wire.Span {
+	span := wire.Span{Start: starts[start-1], End: int64(len(blob))}
+	if end < int64(len(starts)) {
+		span.End = starts[end]
+	}
+	return span
+}
+
+// maxNamedOccurrences bounds how many changed-file copies a refusal names.
+const maxNamedOccurrences = 8
+
+// maxWidenLines bounds how many lines uniqueWidening adds on each side, so a
+// refusal stays linear in the file for each candidate it classifies.
+const maxWidenLines = 16
+
+// occurrenceLines names, as one-based inclusive changed-file line ranges, the
+// first limit overlapping occurrences of needle in blob (V1-2541).
+func occurrenceLines(blob, needle []byte, limit int) string {
+	var named []string
+	total := 0
+	for offset := 0; len(needle) > 0 && offset <= len(blob)-len(needle); {
+		next := bytes.Index(blob[offset:], needle)
+		if next < 0 {
+			break
+		}
+		at := offset + next
+		total++
+		if len(named) < limit {
+			start, end := spanLines(blob, wire.Span{Start: int64(at), End: int64(at + len(needle))})
+			named = append(named, strconv.FormatInt(start, 10)+":"+strconv.FormatInt(end, 10))
+		}
+		offset = at + 1
+	}
+	if total > len(named) {
+		named = append(named, "+"+strconv.Itoa(total-len(named))+" more")
+	}
+	return strings.Join(named, ", ")
+}
+
+// uniqueWidening returns the narrowest base line span that contains span,
+// adds at most maxWidenLines lines on each side, spans only lines no hunk
+// removes or splits, and whose text classifies stable or relocated against
+// the patched blob, so the named span cites as stated (DCW-V0-334). Every
+// split of each total width is tried, so an asymmetric span qualifies; within
+// a width, more lines above are tried before more below. It returns "" when
+// none qualifies.
+func uniqueWidening(group *patch.Group, baseBlob, patchedBlob []byte, span wire.Span) string {
+	if group.NewPath == nil || *group.NewPath != *group.OldPath {
+		return ""
+	}
+	starts := lineStarts(baseBlob)
+	lines := int64(len(starts))
+	edited, splitBefore := hunkLineEdits(group, lines)
+	first, last := spanLines(baseBlob, span)
+	unedited := func(start, end int64) bool {
+		for line := start; line <= end; line++ {
+			if edited[line] || (line > start && splitBefore[line]) {
+				return false
+			}
+		}
+		return true
+	}
+	if !unedited(first, last) {
+		return ""
+	}
+	unchanged := bytes.Equal(baseBlob, patchedBlob)
+	for width := int64(1); width <= 2*maxWidenLines; width++ {
+		for above := min(width, maxWidenLines); above >= max(0, width-maxWidenLines); above-- {
+			start, end := first-above, last+width-above
+			if start < 1 || end > lines || !unedited(start, end) {
+				continue
+			}
+			bytesSpan := lineSpan(baseBlob, starts, start, end)
+			if bytesSpan.End-bytesSpan.Start > wire.MaxCitationSpanBytes {
+				continue
+			}
+			status, _ := verify.ClassifySpan(true, unchanged, patchedBlob, baseBlob[bytesSpan.Start:bytesSpan.End], bytesSpan)
+			if status == verify.DriftStable || status == verify.DriftRelocated {
+				return strconv.FormatInt(start, 10) + ":" + strconv.FormatInt(end, 10)
+			}
+		}
+	}
+	return ""
 }
 
 // lineStarts returns the byte offset of each line of blob; a final line

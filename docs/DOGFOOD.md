@@ -379,7 +379,10 @@ exception) and a committed change ahead of `BASE_SHA`, and it never pushes. At t
 does not succeed it stops with that step's own reasons and `fix:` lines; fix the input and rerun the
 same command. A rerun from the bind commit continues at the rebind, and one from the seal commit
 prints `seal SKIP already-sealed`. The prepare and bind passes run only the steps their decision
-reads; the rebind is the full pass the check reads (`DCW-V0-115`). Stderr carries one
+reads; the rebind is the full pass the check reads (`DCW-V0-115`). The prepare pass also cites
+every plan row against the map it prepared into a removed probe output, so a row `cem cite` would
+refuse, such as a span whose text recurs in the changed file, stops the run at `prepare` with every
+refused row and its recovery span before any bind (`DCW-V0-334`, `DCW-V0-335`). Stderr carries one
 `TIMING <step> seconds=S commands=N` line per step and a `TIMING total` line naming
 `<git-dir>/corvint/dogfood-finish-lane.timings.tsv`, the per-command times. An interrupted run
 prints a `fix:` line with the exact restore and rerun that resume it (`DCW-V0-116`).

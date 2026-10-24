@@ -9,7 +9,7 @@
     "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
     "tree": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
     "manifestSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-    "toolchain": {"const": "go1.27.2"},
+    "toolchain": {"const": "go1.27.3"},
     "verdict": {"enum": ["PASS", "FAIL"]},
     "limits": {"$ref": "#/$defs/limits"},
     "targets": {"type": "array", "maxItems": 5, "items": {"$ref": "#/$defs/target"}},

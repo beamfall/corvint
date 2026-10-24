@@ -34,7 +34,7 @@ const (
 	ScopeUnknown                        = "UNKNOWN"
 	CoverageNone                        = "NONE"
 	PersistenceNone                     = "NONE"
-	GoVersion                           = "go1.27.2"
+	GoVersion                           = "go1.27.3"
 	EnvironmentProfile                  = "GO127_CGO0_OFFLINE_POSIX_0"
 
 	// Exact source/dependency/toolchain re-observation includes a bounded full
@@ -615,7 +615,7 @@ func validateBinding(binding AuthorityBinding, moduleMode ModuleMode, repository
 	}
 	if binding.GoVersion != GoVersion || binding.GOOS != runtime.GOOS || binding.GOARCH != runtime.GOARCH ||
 		binding.CGOEnabled != "0" || binding.EnvironmentProfile != EnvironmentProfile {
-		return "", "", fmt.Errorf("%w: exact Go 1.27.2 tuple binding is absent", ErrAuthorityUnavailable)
+		return "", "", fmt.Errorf("%w: exact Go 1.27.3 tuple binding is absent", ErrAuthorityUnavailable)
 	}
 	moduleCache, err := resolvePath(binding.ModuleCacheDirectory, true)
 	if err != nil || within(repositoryRoot, moduleCache) || within(runRoot, moduleCache) {

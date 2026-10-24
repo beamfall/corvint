@@ -26,7 +26,7 @@ import (
 const (
 	readinessProfile     = "corvint-stable-readiness-record/1"
 	readinessDecision    = "0420"
-	pinnedToolchain      = "go1.27.2"
+	pinnedToolchain      = "go1.27.3"
 	firstStableCandidate = "1.0.0-rc.1"
 )
 

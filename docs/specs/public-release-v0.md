@@ -314,7 +314,7 @@ sidecars before and after execution; materialize its helpers and fixtures only f
 Corvint source archive; run with private offline dependency state; and retain its PASS result only
 after the real editor/browser, interruption, automatic documentation/MCP and idempotent planning
 paths have completed and every observed descendant is absent. Its checker MUST be built by exact
-Go 1.27.2 from the clean frozen source revision, refuse source/input/output overlaps before writes,
+Go 1.27.3 (decision 0557) from the clean frozen source revision, refuse source/input/output overlaps before writes,
 revalidate pinned Node, npm and Python bytes around child execution, and retain the bounded original
 automatic-documentation watch/discovery/list/draft/consume JSON evidence without private paths.
 The result binds the archive SHA-256 and frozen Corvint commit/tree. Existing output is never overwritten.
@@ -356,7 +356,7 @@ The result binds the archive SHA-256 and frozen Corvint commit/tree. Existing ou
   exclusive atomic result retention, and refuse overlapping or pre-existing output paths before
   effects. Missing actual tooling/admission is blocking NOT_PRODUCED, never synthetic PASS.
   No editor invocation or result is required. Core evidence does not promote host FULL, Frontier
-  authority or test adequacy. The checker MUST be built by exact Go 1.27.2 from the clean frozen
+  authority or test adequacy. The checker MUST be built by exact Go 1.27.3 (decision 0557) from the clean frozen
   source revision. Every required row must bind its original bounded evidence and exact fixture,
   archive, source and tool identities; unknowns retain their labels.
 - `PUB-V0-021`: Every new Corvint version created on main MUST carry a new build number (owner
