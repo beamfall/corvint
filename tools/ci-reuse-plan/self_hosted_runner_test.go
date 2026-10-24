@@ -107,8 +107,8 @@ func TestAFPV0421SelfHostedShardsVerifyAndNeverProvision(t *testing.T) {
 		t.Error("a failed verification must name the missing host prerequisite")
 	}
 	_, hostedGit, _ := strings.Cut(hostedScript, "git config --global user.name")
-	_, verifyGit, _ := strings.Cut(verifyScript, "git config --global user.name")
-	if hostedGit == "" || hostedGit != verifyGit {
+	hostedGit = "git config --global user.name" + hostedGit
+	if verifyGit := selfHostedGitLines(t, verifyScript); verifyGit != hostedGit {
 		t.Errorf("the self-hosted Git configuration differs from the hosted one:\n%s\nwant\n%s", verifyGit, hostedGit)
 	}
 	if !strings.Contains(verifyScript, `printf 'GOENV=off\nGOCACHE=%s\n' "$RUNNER_TEMP/go-build" >> "$GITHUB_ENV"`) {
@@ -122,6 +122,73 @@ func TestAFPV0421SelfHostedShardsVerifyAndNeverProvision(t *testing.T) {
 	restore := stepBlock(t, shard, "Restore the trusted Go build cache")
 	if !strings.Contains(restore, "        if: runner.environment != 'self-hosted' && (") {
 		t.Error("the self-hosted runner must never restore the shared Go build cache")
+	}
+}
+
+const (
+	gitLockOpen  = "(\n  if ! flock -w 120 9; then\n    echo \"::error::AFP-V0-421: no lock on $tmp_root/git-global-config.flock within 120 s\"\n    exit 1\n  fi\n"
+	gitLockClose = ") 9> \"$tmp_root/git-global-config.flock\"\n"
+)
+
+// selfHostedGitLines returns the self-hosted verification script's Git lines in the hosted
+// step's form: the lock-held `git config --global` lines, unindented, then the rest of the script.
+func selfHostedGitLines(t *testing.T, script string) string {
+	t.Helper()
+	if strings.Count(script, gitLockOpen) != 1 || strings.Count(script, gitLockClose) != 1 {
+		t.Fatal("the self-hosted Git configuration must run once under the AFP-V0-421 lock")
+	}
+	_, held, _ := strings.Cut(script, gitLockOpen)
+	held, rest, _ := strings.Cut(held, gitLockClose)
+	if !strings.HasPrefix(held, "  git config --global user.name") {
+		t.Fatalf("the lock must hold the Git configuration lines, holds:\n%s", held)
+	}
+	return strings.ReplaceAll("\n"+held, "\n  ", "\n")[1:] + rest
+}
+
+// AFP-V0-421: concurrent runner instances of one account all configure Git, because the writes
+// to the shared global configuration are serialized by the step's lock.
+func TestAFPV0421SelfHostedGitConfigSerializesConcurrentRunners(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the verification step runs under bash")
+	if _, err := exec.LookPath("flock"); err != nil {
+		t.Skip("flock (util-linux) is a self-hosted host prerequisite and is absent here")
+	}
+	verify := runScript(t, stepBlock(t, jobBlock(t, readWorkflow(t, "ci.yml"), "go-product-shard"),
+		"Verify the host tools the product's fixed PATH resolves (self-hosted runner, AFP-V0-421)"))
+	_, block, _ := strings.Cut(verify, gitLockOpen)
+	block, _, _ = strings.Cut(block, gitLockClose)
+	block = gitLockOpen + block + gitLockClose
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	if err := os.Mkdir(home, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	global := filepath.Join(home, ".gitconfig")
+	const runners = 8
+	failures := make(chan string, runners)
+	for i := 0; i < runners; i++ {
+		go func() {
+			cmd := exec.Command("bash", "--noprofile", "--norc", "-e", "-c", "tmp_root="+dir+"\n"+block)
+			cmd.Env = append(os.Environ(), "HOME="+home, "GIT_CONFIG_GLOBAL="+global, "GIT_CONFIG_NOSYSTEM=1")
+			out, err := cmd.CombinedOutput()
+			if err == nil {
+				out = nil
+			} else if len(out) == 0 {
+				out = []byte(err.Error())
+			}
+			failures <- string(out)
+		}()
+	}
+	for i := 0; i < runners; i++ {
+		if out := <-failures; out != "" {
+			t.Errorf("a concurrent runner failed to configure Git: %s", out)
+		}
+	}
+	for key, want := range map[string]string{"user.name": "corvint-ci", "user.email": "corvint-ci@users.noreply.github.com", "maintenance.auto": "false", "gc.auto": "0"} {
+		cmd := exec.Command("git", "config", "--global", "--get", key)
+		cmd.Env = append(os.Environ(), "HOME="+home, "GIT_CONFIG_GLOBAL="+global, "GIT_CONFIG_NOSYSTEM=1")
+		if out, err := cmd.Output(); err != nil || strings.TrimSpace(string(out)) != want {
+			t.Errorf("git config %s = %q %v, want %q", key, out, err, want)
+		}
 	}
 }
 

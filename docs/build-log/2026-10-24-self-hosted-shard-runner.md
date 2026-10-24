@@ -323,3 +323,14 @@ witness absent" after 0.09 s, well under the 3 s wait. The fake gopls wrote `chi
 parsed PID 0 and stopped waiting. That is a race in the test, not in this change. The fake now
 writes the witness beside the file and renames it into place, and the reader retries until it reads
 a positive PID.
+
+The repair's Codex round (gpt-6-astra, read-only, `origin/main...HEAD`) found one defect, P2,
+which was accepted. All eight runner instances run as `russell` and write the same
+`~/.gitconfig` with `git config --global`. Git takes `~/.gitconfig.lock` for each write, so a
+concurrent write fails with "could not lock config file" and the shard stops before its tests. On
+WSL2, five rounds of eight unlocked concurrent writers produced 35 such failures. The four lines
+now run under one `flock` on `/var/tmp/corvint-ci/git-global-config.flock`. That root is the one
+the AFP-V0-430 block checks for ownership. `TestAFPV0421SelfHostedGitConfigSerializesConcurrentRunners`
+runs eight copies of the step's locked block at once against a test home, and all of them succeed.
+The AFP-V0-421 test still requires the locked lines to equal the hosted step's. util-linux `flock`
+is now a listed host prerequisite.

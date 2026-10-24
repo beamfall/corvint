@@ -398,7 +398,7 @@ jobs:
         # this step only checks them. Go reads no host go.env file, and builds in a cache under
         # RUNNER_TEMP, which the runner empties for every job. Only the AFP-V0-427 seed, which only
         # a passing merge-queue shard on main refreshes, carries build output from an earlier job
-        # into this one. The Git lines equal the hosted step's.
+        # into this one. The Git lines equal the hosted step's and run under one lock.
         if: runner.environment == 'self-hosted'
         env:
           RG_VERSION: "15.2.0"
@@ -446,10 +446,19 @@ jobs:
           rm -rf -- "$job_tmp"
           mkdir -m 0700 -- "$job_tmp"
           printf 'TMPDIR=%s\n' "$job_tmp" >> "$GITHUB_ENV"
-          git config --global user.name corvint-ci
-          git config --global user.email corvint-ci@users.noreply.github.com
-          git config --global maintenance.auto false
-          git config --global gc.auto 0
+          # The runner instances share this account's ~/.gitconfig, and a `git config --global`
+          # write fails while another instance holds its lock file, so the hosted step's lines run
+          # under one lock in the root above (AFP-V0-421).
+          (
+            if ! flock -w 120 9; then
+              echo "::error::AFP-V0-421: no lock on $tmp_root/git-global-config.flock within 120 s"
+              exit 1
+            fi
+            git config --global user.name corvint-ci
+            git config --global user.email corvint-ci@users.noreply.github.com
+            git config --global maintenance.auto false
+            git config --global gc.auto 0
+          ) 9> "$tmp_root/git-global-config.flock"
           git --version
       - name: Restore the host-local Go build seed (self-hosted runner, AFP-V0-427)
         # AFP-V0-427: copies this runner's seed into the per-job GOCACHE for a merge-queue entry on

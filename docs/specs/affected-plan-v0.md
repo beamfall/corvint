@@ -3118,7 +3118,10 @@ without a code change. Security rationale and host setup: build-log entry
   the host: `/usr/local/go/bin/go env GOVERSION` equals the `go-version` pinned by the job, and
   `/usr/local/bin/rg --version` reports the job's pinned `RG_VERSION` and is the `rg` that the fixed
   product PATH resolves. Otherwise it fails with an `::error::` that names the missing host
-  prerequisite. It keeps the hosted step's user-global Git configuration lines. The hosted
+  prerequisite. It keeps the hosted step's user-global Git configuration lines, run under an
+  exclusive `flock` on `/var/tmp/corvint-ci/git-global-config.flock`, because the runner instances
+  share one account's `~/.gitconfig` and a concurrent `git config --global` write fails on its lock
+  file; a lock not acquired within 120 s fails the step with an `::error::`. The hosted
   provisioning step MUST stay byte-identical and run only off the self-hosted runner. Because the
   host persists between jobs, the shard MUST first empty `GITHUB_WORKSPACE`, never restore or save the
   shared Actions Go build cache, and build with `GOENV=off` in a `GOCACHE` under `RUNNER_TEMP` and, by AFP-V0-430, a per-runner `TMPDIR` under `/var/tmp`. The
@@ -3132,7 +3135,7 @@ without a code change. Security rationale and host setup: build-log entry
   environment per job that is destroyed afterwards, such as a just-in-time runner in a disposable VM
   or container, which is outside these requirements. Host prerequisites: the four
   labels; the pinned Go at `/usr/local/go`; ripgrep 15.2.0 at `/usr/local/bin/rg`; a C toolchain
-  for `-race` with `CGO_ENABLED=1`; `jq`, `git` and `bash`; and Landlock ABI 2 or later for the
+  for `-race` with `CGO_ENABLED=1`; `jq`, `git`, `bash` and util-linux `flock`; and Landlock ABI 2 or later for the
   AFP-V0-023 wrapper (`test-confine -probe`). Failure modes: host drift, such as a Go or ripgrep
   upgrade or a removed tool, fails the verification step, and the shard runs no test. A shard on the
   box without a usable AFP-V0-427 seed starts with a cold build cache. Falsifier: a self-hosted shard that runs `sudo`
@@ -3490,7 +3493,7 @@ fails the verification step before anything is removed.
 | AFP-V0-417 | `playwrightEnvLoaderReference`, `playwrightEnvKeyString`, `playwrightEnvironmentWriter` in `playwright_env.go` | `TestPlaywrightEnvLoaderNameInStringIsData_GH1660` (string, template, regex and array-literal data resolve; code, template substitution, computed member key, quoted and computed destructuring keys and escaped text keep the writer with its line) |
 | AFP-V0-418 | `resolveAlias`, `boundFiles` in `playwright_tag_sources.go`; `allowJS` in `parseTypeScriptAliases`; `playwrightObservedName` in `playwright.go`; the alias argument of `playwrightTagFileExact` | `TestPlaywrightGrepOmissionFollowsTypeScriptAliases_GH1660` (paths, baseUrl, a nearer jsconfig, a tsconfig beside a jsconfig and a `.js` importer under `allowJs` or a jsconfig verified; hidden tag, no tsconfig, `extends`, missing target, a nearer jsconfig redirecting to a hidden tag, a `.js` importer without `allowJs` and a config naming `tsconfig` stay unverified), `TestPlaywrightSourcesBindJSConfig_GH1660` (a jsconfig.json edit changes the source identity) |
 | AFP-V0-420 | the `go-product-shard` `runs-on` expression in `.github/workflows/ci.yml` | `TestAFPV0420ShardRunsOnKeepsTheCloudFallback` (the exact expression, every other job on `ubuntu-24.04`, one variable read, no push route, unchanged check names); `actionlint`; hosted self-hosted routing `NOT_OBSERVED` until the owner registers the runner and sets the variable |
-| AFP-V0-421 | the clearing, conditional provisioning, verification and cache-restore steps of `go-product-shard` | `TestAFPV0421SelfHostedShardsVerifyAndNeverProvision` (hosted step unchanged and hosted-only, no `sudo` elsewhere, pins equal, named errors, same Git lines, per-job `GOCACHE`, clearing first); a box run is `NOT_OBSERVED` |
+| AFP-V0-421 | the clearing, conditional provisioning, verification and cache-restore steps of `go-product-shard` | `TestAFPV0421SelfHostedShardsVerifyAndNeverProvision` (hosted step unchanged and hosted-only, no `sudo` elsewhere, pins equal, named errors, same Git lines, per-job `GOCACHE`, clearing first) and `TestAFPV0421SelfHostedGitConfigSerializesConcurrentRunners` (eight concurrent runs of the locked Git block all succeed); a box run is `NOT_OBSERVED` |
 | AFP-V0-422 | the marker steps of `go-product-shard`; the self-hosted branch of `ci-shard-cost-drift`'s outcome check | `TestAFPV0422SelfHostedShardsMakeTheDriftReportAbstain` (runs the outcome check: eight streams report, one marker abstains with the runner reason) |
 | AFP-V0-427 | the `CORVINT_BOX_GOCACHE_ROOT` job env and the seed restore step of `go-product-shard` | `TestAFPV0427SelfHostedSeedRestoreAndRefreshEvents` (exact events, copy not link, never fails, step order, `-count=1`, hosted cache steps unchanged); `TestAFPV0428SelfHostedSeedRefreshSwapsAndRestoreCopies` (linux: missing seed is cold, restore is an independent copy, another runner reads nothing, unsafe root and path-like runner name refused); box cold/warm timing in build-log entry `2026-10-24-self-hosted-shard-runner`; a runner run is `NOT_OBSERVED` |
 | AFP-V0-428 | the seed refresh step of `go-product-shard` | `TestAFPV0427SelfHostedSeedRestoreAndRefreshEvents` (merge-queue on `main` with tests success only, explicit cap); `TestAFPV0428SelfHostedSeedRefreshSwapsAndRestoreCopies` (relative link swap, replaced copy and leftovers removed, a failed copy removes abandoned and partial copies and keeps the live seed, test results expired, over-cap removes the seed, unsafe root refused) |
