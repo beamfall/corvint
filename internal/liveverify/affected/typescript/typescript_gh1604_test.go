@@ -116,7 +116,7 @@ func TestFrontierSitesNameFileLineAndToken_GH1604(t *testing.T) {
 		FrontierPathAlias + ":lib/unit/math.test.ts `vitest`",
 		FrontierPathAlias + ":nested/tsconfig.json:2 `extends`",
 		FrontierE2ERuntimeDependency + ":tests/other.spec.ts:1 `@playwright/test`",
-		FrontierConfig + ":playwright.config.ts:3 `testDir`",
+		FrontierConfig + ":playwright.config.ts:3 `testMatch`",
 		FrontierScanUnresolved + ":lib/helpers/slash.ts:3 `/'/.test(s);`",
 		FrontierUnresolvedImport + ":lib/helpers/slash.ts:1 `./x`",
 	} {
