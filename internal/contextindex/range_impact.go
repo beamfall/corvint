@@ -317,6 +317,9 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 	if len(rawResults) > included {
 		uncertainty = append(uncertainty, fmt.Sprintf("%d ranked impact results are omitted by the result limit", len(rawResults)-included))
 	}
+	if line := evidenceTruncatedDisclosure(mapsFromAny(result["results"])); line != "" {
+		uncertainty = append(uncertainty, line)
+	}
 	coverage["uncertainty"] = uncertainty
 	if len(criticalMissing) != 0 {
 		result["state"] = "BUDGETED"
@@ -813,6 +816,7 @@ func qualifyRangePathEvidence(results []map[string]any, index *Index, spans map[
 				"authoritative", "git-range-member"))
 		}
 		result["evidence"] = hunkEvidence
+		noteEvidenceTruncated(result, len(spans[changedPath])-maxEvidence)
 		result["summary"] = "direct committed Go diff path"
 		if NonGoImpactLanguage(changedPath) != "" {
 			result["summary"] = "direct committed syntax diff path"
@@ -873,8 +877,10 @@ func rangeMarkerResult(index *Index, record Record, markers []Marker, selfAuthor
 	}
 	resultEvidence := []any{evidence(record.Path, record.Line, record.BlobHash,
 		"canonical ledger record selected by exact changed-hunk marker", ledgerConfidence, ledgerAuthority)}
+	truncated := 0
 	for _, marker := range markers {
 		if len(resultEvidence) >= maxEvidence {
+			truncated = len(markers) - (len(resultEvidence) - 1)
 			break
 		}
 		confidence, authority := "medium", "source-marker"
@@ -884,13 +890,15 @@ func rangeMarkerResult(index *Index, record Record, markers []Marker, selfAuthor
 		resultEvidence = append(resultEvidence, evidence(marker.Path, marker.Line, marker.BlobHash,
 			"exact changed-hunk "+record.Kind+":"+record.ID+" marker", confidence, authority))
 	}
-	return map[string]any{
+	result := map[string]any{
 		"kind": record.Kind, "id": record.ID, "score": 850,
 		"area":    valueOr(record.Fields["area"], ""),
 		"summary": truncateRunes(pythonString(valueOr(record.Fields["summary"], "")), 500),
 		"status":  valueOr(record.Fields["status"], ""), "adr": []any{},
 		"applies": recordSequenceValue(record.Fields["applies"]), "evidence": resultEvidence,
 	}
+	noteEvidenceTruncated(result, truncated)
+	return result
 }
 
 type rangeCitation struct {

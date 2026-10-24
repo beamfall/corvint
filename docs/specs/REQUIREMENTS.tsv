@@ -156,7 +156,7 @@ AFP-V0-427	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-428	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; owner request	standing	2026-10-11
 AFP-V0-429	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; owner request	standing	2026-10-11
 AFP-V0-430	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; owner request	standing	2026-10-11
-AFP-V0-432	docs/specs/affected-plan-v0.md	(proposed; V1-2580) `.github/workflows/cem-release-gate.yml`, on `ci.yml`'s	unrecorded	-
+AFP-V0-432	docs/specs/affected-plan-v0.md	(proposed; V1-2580; amended 2026-10-24, owner: per-host records judged by one	unrecorded	-
 AFP-V0-433	docs/specs/affected-plan-v0.md	(proposed; V1-1687, cce-live part of PR #1702) `ci.yml` MUST run a `cce-live`	unrecorded	-
 AFP-V0-434	docs/specs/affected-plan-v0.md	(proposed; V1-1687) The `cce-live` job MUST run its live steps only when the	unrecorded	-
 AFP-V0-435	docs/specs/affected-plan-v0.md	(proposed; V1-1687) Before the live tests, the `cce-live` job MUST require the	unrecorded	-
@@ -644,6 +644,7 @@ BBF-V0-032	docs/specs/browser-behavior-falsification-v0.md	(accepted under the o
 BBF-V0-033	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027) A live t	standing	2026-10-11; V1-2027
 BBF-V0-214	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2029) The go-t	standing	2026-10-11; V1-2029
 BBF-V0-215	docs/specs/browser-behavior-falsification-v0.md	(proposed; V1-2524) A plan's `contract_file`, `test_file`, `config_file` and Go	unrecorded	-
+BBF-V0-216	docs/specs/browser-behavior-falsification-v0.md	(proposed; V1-2030, decision 0552) Every `ServerIdentity` an isolation observati	unrecorded	-
 CAP-V0-001	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008)	standing	2026-10-11; V1-2008
 CAP-V0-002	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008) The	standing	2026-10-11; V1-2008
 CAP-V0-003	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008)	standing	2026-10-11; V1-2008
@@ -819,6 +820,7 @@ CRT-V0-012	docs/specs/cem-reviewer-trial-v0.md	Seeded-arm decomposition (propose
 CRT-V0-013	docs/specs/cem-reviewer-trial-v0.md	(V1-1261, decision 0523 P4; accepted under the owner's standing auto-accept (202	standing	V1-1261; decision 0523; 2026-10-11
 CRT-V0-014	docs/specs/cem-reviewer-trial-v0.md	(V1-1261, decision 0523 P4, extends CRT-V0-010; accepted under the owner's stand	standing	V1-1261; decision 0523; 2026-10-11
 CRT-V0-015	docs/specs/cem-reviewer-trial-v0.md	(V1-1261, decision 0523 P4; accepted under the owner's standing auto-accept (202	standing	V1-1261; decision 0523; 2026-10-11
+CRT-V0-016	docs/specs/cem-reviewer-trial-v0.md	(V1-0836, V1-2619; 2026-10-24, owner decision; extends CRT-V0-010 and CRT-V0-014	owner	V1-0836; V1-2619; 2026-10-24
 CEM-V1-001	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Preserve canonical Git base/target/hunk	owner	decision 0546; 2026-10-20
 CEM-V1-002	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Bind criterion references to canonical n	owner	decision 0546; 2026-10-20
 CEM-V1-003	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Reference bounded runner receipts by dig	owner	decision 0546; 2026-10-20
@@ -1186,6 +1188,7 @@ CCE-V0-112	docs/specs/change-compiled-e2e-v0.md	Every compiled action MUST be a 
 CCE-V0-113	docs/specs/change-compiled-e2e-v0.md	Each vocabulary addition MUST have a golden compile output under	unrecorded	-
 CCE-V0-114	docs/specs/change-compiled-e2e-v0.md	`api_contracts` at base (each a `contract:` ID, one or more relative path globs	unrecorded	-
 CCE-V0-115	docs/specs/change-compiled-e2e-v0.md	A reach source MUST NOT turn `UNKNOWN` into `NONE`: with runtime coverage naming	unrecorded	-
+CCE-V0-116	docs/specs/change-compiled-e2e-v0.md	The prove report MUST keep, for each run that ends without a qualified receipt,	unrecorded	-
 CF-V1-001	docs/specs/change-frontier-profile-1.md	the profile identifier is exactly `frontier/1`; its error profile is exactly	unrecorded	-
 CF-V1-002	docs/specs/change-frontier-profile-1.md	`frontier/0` is untouched in every respect — clause text, item kinds, item IDs,	unrecorded	-
 CF-V1-003	docs/specs/change-frontier-profile-1.md	identity domain separation is deliberate and asymmetric:	unrecorded	-
@@ -2011,6 +2014,9 @@ LGL-V0-005	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203)
 LGL-V0-006	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) A session MUST count the file and directory sync calls it ma	unrecorded	-
 LGL-V0-007	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) The only state a crash after a heartbeat or renew can leave	unrecorded	-
 LGL-V0-008	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) A heartbeat or renew MUST keep the file sync and the destina	unrecorded	-
+LGL-V0-009	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-1702) On a segmented store whose bound writer checkpoint's `FullSe	unrecorded	-
+LGL-V0-010	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-1702; decision 0549 R11/F3) Only `POOL_ACQUIRE` and `POOL_RELEASE`	unrecorded	-
+LGL-V0-011	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-1702) The pool release target is a wall time of at most 2 s per	unrecorded	-
 TOL-V0-001	docs/specs/corvint-tasks-obligation-ledger-v0.md	A NATIVE ticket record MAY carry the optional member `obligations`, a closed	unrecorded	-
 TOL-V0-002	docs/specs/corvint-tasks-obligation-ledger-v0.md	Each `OBLIGATIONS_*` write MUST derive exactly one immutable canonical ledger	unrecorded	-
 TOL-V0-003	docs/specs/corvint-tasks-obligation-ledger-v0.md	A folded obligation entry MUST be the closed object `{id, title, core, state,	unrecorded	-
@@ -2239,6 +2245,7 @@ PSR-V0-222	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the ow
 PSR-V0-223	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2482) On Linux	standing	2026-10-11; V1-2482
 PSR-V0-226	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2554) Amends	standing	2026-10-11; V1-2554
 PSR-V0-247	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(proposed; V1-2537) Amends PSR-V0-052's base receipt and base file stamp check.	unrecorded	-
+PSR-V0-227	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1091) Amends	standing	2026-10-11; V1-1091
 SCC-V0-001	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) `store.S	standing	2026-10-11; V1-1920
 SCC-V0-002	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) An ABSEN	standing	2026-10-11; V1-1920
 SCC-V0-003	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) The patc	standing	2026-10-11; V1-1920
@@ -3983,6 +3990,9 @@ MCPV0-102	docs/specs/mcp-server-2026-07-28-v0.md	(owner request, 2026-10-23; ext
 MCPV0-103	docs/specs/mcp-server-2026-07-28-v0.md	(owner request, 2026-10-23; extends `MCPV0-100`; amends `MTV-V0-001`)	unrecorded	-
 MCPV0-104	docs/specs/mcp-server-2026-07-28-v0.md	(owner request, 2026-10-23) The three servers of `MCPV0-101..103` MUST answer	unrecorded	-
 MCPV0-105	docs/specs/mcp-server-2026-07-28-v0.md	(owner request, 2026-10-23) The receipt `text` that `MCPV0-104` returns MUST be,	unrecorded	-
+MCPV0-110	docs/specs/mcp-server-2026-07-28-v0.md	(proposed; owner decision 2 of 2026-10-24, V1-1003; extends `MCPV0-032`)	owner	2026-10-24; V1-1003
+MCPV0-111	docs/specs/mcp-server-2026-07-28-v0.md	(proposed; owner decision 2 of 2026-10-24, V1-1003; extends `MCPV0-024` with	owner	2026-10-24; V1-1003
+MCPV0-112	docs/specs/mcp-server-2026-07-28-v0.md	(proposed; owner decision 2 of 2026-10-24, V1-1003; amends `MCPV0-031`) An impac	owner	2026-10-24; V1-1003
 MCPV0-095	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2219) A `MIXED	standing	2026-10-11; V1-2219
 MTV-V0-001	docs/specs/mcp-test-validity-profile-v0.md	The profile MUST be served by the separate executable `corvint-test-validity-mcp	unrecorded	-
 MTV-V0-002	docs/specs/mcp-test-validity-profile-v0.md	The tool's input schema MUST be a closed JSON Schema 2020-12 object with two	unrecorded	-
@@ -4087,6 +4097,9 @@ NGI-V0-012	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing a
 NGI-V0-013	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1456) An entry	standing	2026-10-11; V1-1456
 NGI-V0-014	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1456) The	standing	2026-10-11; V1-1456
 NGI-V0-015	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1457) A call	standing	2026-10-11; V1-1457
+NGI-V0-065	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1478) A call	standing	2026-10-11; V1-1478
+NGI-V0-066	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1478) A write	standing	2026-10-11; V1-1478
+NGI-V0-067	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1478) An eager	standing	2026-10-11; V1-1478
 NGI-V0-016	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1674) A	standing	2026-10-11; V1-1674
 NGI-V0-017	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1674) Roots	standing	2026-10-11; V1-1674
 NGI-V0-018	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1674) For a	standing	2026-10-11; V1-1674
@@ -5205,6 +5218,7 @@ TCB-V0-022	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's 
 TCB-V0-023	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1356) Under	standing	2026-10-11; V1-1356
 TCB-V0-045	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1761) When the	standing	2026-10-11; V1-1761
 TCB-V0-046	docs/specs/tasks-criterion-binding-v0.md	(proposed; V1-1761) `script/install-cem-verifiers.sh [--bin-dir DIR] [--keep N]`	unrecorded	-
+TCB-V0-047	docs/specs/tasks-criterion-binding-v0.md	(accepted, decision 0548, reaffirmed 2026-10-24	owner	decision 0548; 2026-10-24
 TCB-V0-030	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The	standing	2026-10-11; V1-1358
 TCB-V0-031	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On any	standing	2026-10-11; V1-1358
 TCB-V0-035	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1359) A ticket	standing	2026-10-11; V1-1359
@@ -5406,6 +5420,7 @@ TSA-V0-004	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-005	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) The JSON output (schema	standing	2026-10-11; V1-1587
 TSA-V0-006	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1698 / GitHub #1082) A shared constant is	standing	2026-10-11; V1-1698; #1082
 TSA-V0-007	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1698 / GitHub #1082) A reached read of a	standing	2026-10-11; V1-1698; #1082
+TSA-V0-646	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; decision 0552; V1-1478) A spec's literal key	standing	2026-10-11; decision 0552; V1-1478
 TSA-V0-012	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1589) `corvint tests lint --base REV [--re	standing	2026-10-11; V1-1589
 TSA-V0-013	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1589) The rule set MUST be closed, with st	standing	2026-10-11; V1-1589
 TSA-V0-014	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1589) Every rule MUST have a positive fixt	standing	2026-10-11; V1-1589

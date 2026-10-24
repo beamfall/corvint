@@ -62,19 +62,24 @@ func (x *escapes) known(group int) bool {
 // anchor reports whether group is still led by the identity recorded for it.
 // A leader PID now held by another live process proves the recorded group
 // ended, since a PID is not reused while its process group exists; a missing
-// leader with a live group is uncertainty.
+// leader with a live group is uncertainty, and so is a leader whose start
+// tick matches but whose Linux btime is more than a second off (PSR-V0-227).
 func (x *escapes) anchor(group int, id string) (anchored, gone bool) {
 	now, e := x.identity(group)
 	if e != nil {
 		x.uncertain = true
 		return false, false
 	}
-	if id != "" && now == id {
+	switch CompareIdentity(now, id) {
+	case IdentitySame:
 		pg, e := x.groupOf(group)
 		again, e2 := x.identity(group)
-		if e == nil && e2 == nil && pg == group && again == id {
+		if e == nil && e2 == nil && pg == group && SameProcess(again, id) {
 			return true, false
 		}
+		x.uncertain = true
+		return false, false
+	case IdentityUnknown:
 		x.uncertain = true
 		return false, false
 	}
@@ -218,7 +223,7 @@ func RecoverHost(dir string, boot Boot) bool {
 	if !host.Detached {
 		return Recover(boot)
 	}
-	if id, e := ProcessIdentity(boot.PID); e == nil && id == boot.Started {
+	if id, e := ProcessIdentity(boot.PID); e == nil && SameProcess(id, boot.Started) {
 		x := newEscapes(boot)
 		x.scan()
 		afterRecoveryScan()

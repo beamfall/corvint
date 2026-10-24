@@ -97,13 +97,15 @@ func programTransition(ctx context.Context, repo *intent.Repository, actor mutat
 			if keepControl && old.ID == next.ID {
 				change.Next.Control = old.Control
 			}
-			if old.ID == next.ID && (old.OwnerPID != next.OwnerPID || old.OwnerStarted != next.OwnerStarted) {
-				identity, e := supervisor.ProcessIdentity(old.OwnerPID)
+			// The same owner, its btime read one second apart, is not a
+			// change of owner (PSR-V0-227).
+			if old.ID == next.ID && (old.OwnerPID != next.OwnerPID || recordedMatch(next.OwnerStarted, old.OwnerStarted) != supervisor.IdentitySame) {
+				identity, e := recordedProcessIdentity(old.OwnerPID)
 				if e != nil {
 					return nil, e
 				}
-				if identity == old.OwnerStarted && !old.OwnerReleased {
-					return nil, wire.Errorf(wire.CodeAttemptLive, "program", "program still has a live owner")
+				if e := ownerNotLive(identity, old); e != nil {
+					return nil, e
 				}
 				// A dead owner's removal child may outlive it (CAL-V0-368).
 				if e := removerStopped(old); e != nil {
@@ -186,12 +188,12 @@ func SupervisorTransition(ctx context.Context, repo *intent.Repository, actor mu
 		if !ok || a.Lane == nil || a.Supervision == nil {
 			return nil, wire.Errorf(wire.CodeFenced, "supervisor transition", "heartbeat lane absent")
 		}
-		owner, e := supervisor.ProcessIdentity(change.OwnerPID)
-		if e != nil || owner != change.OwnerStarted {
+		owner, e := recordedProcessIdentity(change.OwnerPID)
+		if e != nil || recordedMatch(owner, change.OwnerStarted) != supervisor.IdentitySame {
 			return nil, wire.Errorf(wire.CodeSupervisorLost, "supervisor transition", "heartbeat owner not live")
 		}
-		leader, e := supervisor.ProcessIdentity(int(a.Lane.LeaderPid.Uint64()))
-		if e != nil || leader != a.Supervision.LeaderStarted {
+		leader, e := recordedProcessIdentity(int(a.Lane.LeaderPid.Uint64()))
+		if e != nil || recordedMatch(leader, a.Supervision.LeaderStarted) != supervisor.IdentitySame {
 			return nil, wire.Errorf(wire.CodeSupervisorLost, "supervisor transition", "heartbeat leader not live")
 		}
 	}

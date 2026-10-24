@@ -21,6 +21,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/cem/workflow"
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/contextsummary"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/lspevidence"
@@ -412,7 +413,8 @@ func (registry *Registry) allTools() []ToolDescriptor {
 					"type": "string", "minLength": 1, "maxLength": maxPathRunes,
 					"pattern": `^(?!/)(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*//)(?!.*\\).+$`,
 				},
-				"limit": map[string]any{"type": "integer", "minimum": 1, "maximum": maxContextLimit, "default": defaultContextLimit},
+				"limit":        map[string]any{"type": "integer", "minimum": 1, "maximum": maxContextLimit, "default": defaultContextLimit},
+				"summaryBytes": map[string]any{"type": "integer", "minimum": contextsummary.MinBytes, "maximum": contextsummary.MaxBytes},
 			}, []any{"task"}),
 		},
 		helpDescriptor(),
@@ -429,7 +431,8 @@ func (registry *Registry) allTools() []ToolDescriptor {
 						"pattern": `^(?!/)(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*//)(?!.*\\).+[.](?:go|rb|js|jsx|mjs|cjs|ts|tsx)$`,
 					},
 				},
-				"limit": map[string]any{"type": "integer", "minimum": 1, "maximum": maxImpactLimit, "default": 10},
+				"limit":       map[string]any{"type": "integer", "minimum": 1, "maximum": maxImpactLimit, "default": 10},
+				"budgetBytes": map[string]any{"type": "integer", "minimum": contextindex.MinPacketBytes, "maximum": contextindex.MaxPacketBytes},
 			}, []any{"paths"}),
 		},
 		{
@@ -583,6 +586,10 @@ type impactInput struct {
 	Snapshot jsonv1.RawMessage `json:"snapshot"`
 	Paths    []string          `json:"paths"`
 	Limit    int               `json:"limit"`
+	// BudgetBytes is CLI path impact's --budget-bytes (MCPV0-110): set, the
+	// receipt is budget-compiled exactly as the CLI compiles it; omitted, the
+	// unbudgeted wire is unchanged.
+	BudgetBytes jsonv1.RawMessage `json:"budgetBytes,omitempty"`
 }
 
 func (registry *Registry) callImpact(ctx context.Context, arguments []byte) (Result, *Error) {
@@ -602,7 +609,13 @@ func (registry *Registry) callImpact(ctx context.Context, arguments []byte) (Res
 		}
 		return Result{}, bridgeErr
 	}
-	receipt, err := contextindex.ImpactSyntax(snapshot.index, input.Paths, input.Limit)
+	var receipt map[string]any
+	var err error
+	if budget, _ := optionalBytes(input.BudgetBytes, contextindex.MinPacketBytes, contextindex.MaxPacketBytes); budget != nil {
+		receipt, err = contextindex.EvalImpactSyntax(snapshot.index, input.Paths, input.Limit, budget)
+	} else {
+		receipt, err = contextindex.ImpactSyntax(snapshot.index, input.Paths, input.Limit)
+	}
 	if err != nil {
 		if isUnsupported(err, "unsupported-impact-") {
 			return abstained(ToolImpact, abstentionReason(err), &snapshot.binding), nil
@@ -620,6 +633,9 @@ type contextInput struct {
 	Task    string            `json:"task"`
 	Subject string            `json:"subject"`
 	Limit   int               `json:"limit"`
+	// SummaryBytes is `corvint context --summary-bytes` (MCPV0-111): set, the
+	// result is the evidence summary of the canonical receipt, not the receipt.
+	SummaryBytes jsonv1.RawMessage `json:"summaryBytes,omitempty"`
 }
 
 func (registry *Registry) callContext(ctx context.Context, arguments []byte) (Result, *Error) {
@@ -675,7 +691,39 @@ func (registry *Registry) callContext(ctx context.Context, arguments []byte) (Re
 	if detachErr != nil {
 		return Result{}, failure("internal-error")
 	}
+	if budget, _ := optionalBytes(input.SummaryBytes, contextsummary.MinBytes, contextsummary.MaxBytes); budget != nil {
+		summary, err := summarizedContext(receipt, *budget)
+		if err != nil {
+			if code := errorCode(err); code == "summary-budget" || code == "summary-shape" {
+				return abstained(ToolContext, abstentionReason(err), &binding), nil
+			}
+			return Result{}, failure("internal-error")
+		}
+		receipt = summary
+	}
 	return boundedObserved(ToolContext, binding, receipt)
+}
+
+// summarizedContext projects a detached context receipt through the CLI's
+// summary (MCPV0-111). The input is the canonical receipt plus LF, the bytes
+// `corvint context` writes, so packet_sha256 and packet_bytes name the same
+// bytes a caller reads back from corvint.context without summaryBytes.
+func summarizedContext(receipt map[string]any, budget int) (map[string]any, error) {
+	encoded, err := gokernel.CanonicalJSON(receipt)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := contextsummary.Summarize(append(encoded, '\n'), budget, contextsummary.MCPContinuation)
+	if err != nil {
+		return nil, err
+	}
+	decoder := jsonv1.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	var summary map[string]any
+	if err := decoder.Decode(&summary); err != nil {
+		return nil, err
+	}
+	return summary, nil
 }
 
 // detachedContext copies a context packet and its binding onto the heap so
@@ -925,6 +973,9 @@ func validImpact(input impactInput) bool {
 	if input.Limit < 1 || input.Limit > maxImpactLimit {
 		return false
 	}
+	if _, ok := optionalBytes(input.BudgetBytes, contextindex.MinPacketBytes, contextindex.MaxPacketBytes); !ok {
+		return false
+	}
 	seen := make(map[string]struct{}, len(input.Paths))
 	for _, value := range input.Paths {
 		if value == "" || utf8.RuneCountInString(value) > maxPathRunes || filepath.IsAbs(value) ||
@@ -944,11 +995,28 @@ func validImpact(input impactInput) bool {
 	return true
 }
 
+// optionalBytes reads an optional byte-budget argument: omitted is nil and
+// admitted, and a present member must be one integer in [low, high]; explicit
+// null, a fraction or any other JSON value is refused.
+func optionalBytes(raw jsonv1.RawMessage, low, high int) (*int, bool) {
+	if raw == nil {
+		return nil, true
+	}
+	var value int
+	if string(raw) == "null" || json.Unmarshal(raw, &value) != nil || value < low || value > high {
+		return nil, false
+	}
+	return &value, true
+}
+
 func validContext(input contextInput) bool {
 	if strings.TrimSpace(input.Task) == "" || len(input.Task) > maxContextTaskBytes {
 		return false
 	}
 	if input.Limit < 1 || input.Limit > maxContextLimit {
+		return false
+	}
+	if _, ok := optionalBytes(input.SummaryBytes, contextsummary.MinBytes, contextsummary.MaxBytes); !ok {
 		return false
 	}
 	return input.Subject == "" || validRelativePath(input.Subject, maxPathRunes)

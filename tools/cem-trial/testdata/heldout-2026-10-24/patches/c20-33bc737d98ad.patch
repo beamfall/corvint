@@ -1,0 +1,85 @@
+diff --git a/cmd/covratchet/main.go b/cmd/covratchet/main.go
+index 517b7e2cb..b0593a176 100644
+--- a/cmd/covratchet/main.go
++++ b/cmd/covratchet/main.go
+@@ -71,8 +71,17 @@ func main() {
+ 	os.Exit(check(measured, floors))
+ }
+ 
++type coverageRunner func(profile string) ([]byte, error)
++
+ // measureCoverage runs `go test -coverprofile` and returns per-package coverage.
+ func measureCoverage() (map[string]float64, error) {
++	return measureCoverageWith(func(profile string) ([]byte, error) {
++		cmd := exec.Command("go", "test", "-coverprofile="+profile, "./...")
++		return cmd.CombinedOutput()
++	})
++}
++
++func measureCoverageWith(run coverageRunner) (map[string]float64, error) {
+ 	tmp, err := os.CreateTemp("", "covratchet-*.out")
+ 	if err != nil {
+ 		return nil, fmt.Errorf("create temp file: %w", err)
+@@ -80,14 +89,23 @@ func measureCoverage() (map[string]float64, error) {
+ 	tmp.Close()
+ 	defer os.Remove(tmp.Name())
+ 
+-	cmd := exec.Command("go", "test", "-coverprofile="+tmp.Name(), "./...")
+-	out, err := cmd.CombinedOutput()
+-	// go test exits non-zero on test failure; we still want coverage numbers.
+-	// Only hard-fail if we got no output at all.
+-	if err != nil && len(out) == 0 {
+-		return nil, fmt.Errorf("go test: %w", err)
++	out, err := run(tmp.Name())
++	results, parseErr := parseCoverage(out)
++	if err != nil {
++		return results, fmt.Errorf("go test -coverprofile ./... failed: %w\n%s", err, tailLines(string(out), 40))
+ 	}
++	return results, parseErr
++}
+ 
++func tailLines(s string, n int) string {
++	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
++	if len(lines) > n {
++		lines = lines[len(lines)-n:]
++	}
++	return strings.Join(lines, "\n")
++}
++
++func parseCoverage(out []byte) (map[string]float64, error) {
+ 	results := map[string]float64{}
+ 	scanner := bufio.NewScanner(strings.NewReader(string(out)))
+ 	for scanner.Scan() {
+@@ -100,6 +118,9 @@ func measureCoverage() (map[string]float64, error) {
+ 		pct, _ := strconv.ParseFloat(m[2], 64)
+ 		results[pkg] = pct
+ 	}
++	if err := scanner.Err(); err != nil {
++		return nil, fmt.Errorf("parse go test output: %w", err)
++	}
+ 	return results, nil
+ }
+ 
+@@ -143,8 +164,9 @@ func check(measured map[string]float64, floors *floorFile) int {
+ 		r := result{pkg: pkg, floor: floor}
+ 		if !ok {
+ 			r.missing = true
+-			// Not a failure — the package may have no tests yet or be excluded.
+-			fmt.Printf("SKIP  %-70s (not measured)\n", shortPkg(pkg))
++			r.fail = true
++			failures++
++			results = append(results, r)
+ 			continue
+ 		}
+ 		r.actual = actual
+@@ -156,7 +178,9 @@ func check(measured map[string]float64, floors *floorFile) int {
+ 	}
+ 
+ 	for _, r := range results {
+-		if r.fail {
++		if r.missing {
++			fmt.Printf("FAIL  %-70s floor=%.1f%% (not measured)\n", shortPkg(r.pkg), r.floor)
++		} else if r.fail {
+ 			fmt.Printf("FAIL  %-70s measured=%.1f%% floor=%.1f%% (Δ=%.1f%%)\n",
+ 				shortPkg(r.pkg), r.actual, r.floor, r.actual-r.floor)
+ 		} else {

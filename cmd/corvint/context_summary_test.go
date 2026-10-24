@@ -421,7 +421,7 @@ func TestSourceViewNativeSourceDigestsAreFrozen(t *testing.T) {
 		t.Fatal(err)
 	}
 	files := manifest.CurrentState.NativeSourceDigests.Files
-	if len(files) != 3 {
+	if len(files) != 4 {
 		t.Fatalf("native source digests = %+v", files)
 	}
 	for _, file := range files {

@@ -44,11 +44,15 @@
       "files": [
         {
           "path": "cmd/corvint/context_summary.go",
-          "sha256": "898bee62338b759a4c083d170882729909b293d1bfbc71895a5768b265789b68"
+          "sha256": "6e2a37bbc0b1ca74a6a8b80b667a176cdabfd7abfed1d16c2af75d8bb9078064"
+        },
+        {
+          "path": "internal/contextsummary/summary.go",
+          "sha256": "3cbb99b7e77fcbcd7afdcdcbc43c70357a3ed8b576450313a7624761d0e9a391"
         },
         {
           "path": "cmd/corvint/source_handoff.go",
-          "sha256": "6d52665a7b5e9b16d82c560ac7b54ca1a652ce55256604949304546a71d9fd01"
+          "sha256": "47d357dae22f07f7733fb9f3a5cbc6319a4aa1b8677e8c268bcd1e840e91f57d"
         },
         {
           "path": "cmd/corvint/source_screen.go",

@@ -645,10 +645,12 @@ func (autoload *rubyAutoload) impact(index *Index, changedPath string) ([]ranked
 	}
 	ranked := []rankedResult{}
 	reached := map[string]bool{changedPath: true}
-	first, firstLines := autoload.referrers(constant, reached)
+	first, firstLines, firstDropped := autoload.referrers(constant, reached)
 	for _, name := range first {
 		reached[name] = true
-		ranked = append(ranked, autoload.result(index, name, firstLines[name], constant, changedPath, ""))
+		item := autoload.result(index, name, firstLines[name], constant, changedPath, "")
+		noteEvidenceTruncated(item.result, firstDropped[name])
+		ranked = append(ranked, item)
 	}
 	// The second hop follows each first-hop referrer the mapper maps to its
 	// own constant, once: a path a first hop or an earlier referrer already
@@ -661,10 +663,12 @@ func (autoload *rubyAutoload) impact(index *Index, changedPath string) ([]ranked
 			continue
 		}
 		traversed[viaConstant] = true
-		second, secondLines := autoload.referrers(viaConstant, reached)
+		second, secondLines, secondDropped := autoload.referrers(viaConstant, reached)
 		for _, name := range second {
 			reached[name] = true
-			ranked = append(ranked, autoload.result(index, name, secondLines[name], viaConstant, via, constant))
+			item := autoload.result(index, name, secondLines[name], viaConstant, via, constant)
+			noteEvidenceTruncated(item.result, secondDropped[name])
+			ranked = append(ranked, item)
 		}
 	}
 	if lookups != 0 {
@@ -733,11 +737,13 @@ func (autoload *rubyAutoload) cutNames(cut rubyCut, constant string) bool {
 }
 
 // referrers returns the paths, outside skip, with a reference naming
-// constant, in path order, and each one's first maxEvidence reference lines.
-func (autoload *rubyAutoload) referrers(constant string, skip map[string]bool) ([]string, map[string][]int) {
+// constant, in path order, and each one's first maxEvidence reference lines,
+// with the count of lines past that ceiling (MCPV0-112).
+func (autoload *rubyAutoload) referrers(constant string, skip map[string]bool) ([]string, map[string][]int, map[string]int) {
 	autoload.lookups++
 	paths := []string{}
 	lines := map[string][]int{}
+	dropped := map[string]int{}
 	for _, site := range autoload.sites[constant] {
 		if skip[site.path] {
 			continue
@@ -747,9 +753,11 @@ func (autoload *rubyAutoload) referrers(constant string, skip map[string]bool) (
 		}
 		if len(lines[site.path]) < maxEvidence {
 			lines[site.path] = append(lines[site.path], site.line)
+		} else {
+			dropped[site.path]++
 		}
 	}
-	return paths, lines
+	return paths, lines, dropped
 }
 
 // result is one advisory named-constant reverse reference (NGI-V0-035). An

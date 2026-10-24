@@ -1,0 +1,148 @@
+diff --git a/internal/mediahttp/mediahttp.go b/internal/mediahttp/mediahttp.go
+index 2a1544259..190441a7d 100644
+--- a/internal/mediahttp/mediahttp.go
++++ b/internal/mediahttp/mediahttp.go
+@@ -564,7 +564,10 @@ func (h *Handler) applySubtitleOffset(ctx context.Context, profileID store.Profi
+ 	if fingerprint == "" || profileID == "" {
+ 		return body
+ 	}
+-	offsetMS, err := h.store.SubtitleOffset(ctx, profileID, fingerprint)
++	// Serving the nudge is also what marks it USED, which is the signal the prune
++	// sweep reaps on (store.PruneSubtitleOffsets): a track the viewer keeps
++	// watching keeps its correction.
++	offsetMS, err := h.store.SubtitleOffset(ctx, profileID, fingerprint, time.Now().UTC())
+ 	if err != nil || offsetMS == 0 {
+ 		return body
+ 	}
+@@ -638,6 +641,24 @@ func readGuardedSidecar(path, format string) ([]byte, error) {
+ 	return raw, nil
+ }
+ 
++// readFingerprintedSidecar reads a sidecar through the ingest-hardening boundary
++// and returns its raw bytes alongside their track fingerprint (ADR-0194 §4 /
++// SUBSYS-12). It is the SINGLE derivation of that key: the serve path
++// (readSidecarAsWebVTT) and the nudge write path (SetSubtitleOffset) both go
++// through it, so a stored offset can never be keyed on a hash the serve path
++// would not compute for the same track.
++func readFingerprintedSidecar(path, format string) (raw []byte, fingerprint string, err error) {
++	raw, err = readGuardedSidecar(path, format)
++	if err != nil {
++		return nil, "", err
++	}
++	fingerprint, err = store.SubtitleTrackFingerprint(bytes.NewReader(raw))
++	if err != nil {
++		return nil, "", err
++	}
++	return raw, fingerprint, nil
++}
++
+ // serveRawSidecarFile streams a sidecar's bytes straight off the open file. It
+ // never buffers the payload, so a large file costs no server memory and range
+ // requests are served from disk.
+@@ -683,11 +704,7 @@ func writeSidecarReadError(w http.ResponseWriter, err error) {
+ // nudge. Hashing the source bytes (not the projection) is what makes the key
+ // survive a rename or remux and change only under a real content/timing edit.
+ func readSidecarAsWebVTT(path, format string) (body string, fingerprint string, err error) {
+-	raw, err := readGuardedSidecar(path, format)
+-	if err != nil {
+-		return "", "", err
+-	}
+-	fingerprint, err = store.SubtitleTrackFingerprint(bytes.NewReader(raw))
++	raw, fingerprint, err := readFingerprintedSidecar(path, format)
+ 	if err != nil {
+ 		return "", "", err
+ 	}
+diff --git a/internal/store/subtitle_offset.go b/internal/store/subtitle_offset.go
+index 7675cffc5..8292bf55d 100644
+--- a/internal/store/subtitle_offset.go
++++ b/internal/store/subtitle_offset.go
+@@ -13,10 +13,12 @@ import (
+ // never a path. That keying survives renames and remuxes and invalidates
+ // structurally when a permanent timing fix rewrites the bytes.
+ 
+-// maxSubtitleOffsetMillis bounds a stored nudge. A legitimate sync correction is
++// MaxSubtitleOffsetMillis bounds a stored nudge. A legitimate sync correction is
+ // seconds, not minutes; the cap keeps a malformed client from persisting an
+-// absurd shift that would push every cue off the timeline.
+-const maxSubtitleOffsetMillis = 10 * 60 * 1000 // ±10 minutes
++// absurd shift that would push every cue off the timeline. It is exported so the
++// HTTP boundary refuses an out-of-range value against the SAME bound the store
++// enforces, rather than duplicating the number and drifting from it.
++const MaxSubtitleOffsetMillis = 10 * 60 * 1000 // ±10 minutes
+ 
+ // PutSubtitleOffset upserts the Profile's nudge for one subtitle track. A zero
+ // offset DELETES the row: "no shift" is the absence of a nudge, so a viewer who
+@@ -28,7 +30,7 @@ func (s *Store) PutSubtitleOffset(ctx context.Context, profileID ProfileID, fing
+ 	if fingerprint == "" {
+ 		return ValidationError("subtitle track fingerprint is required")
+ 	}
+-	if offsetMS > maxSubtitleOffsetMillis || offsetMS < -maxSubtitleOffsetMillis {
++	if offsetMS > MaxSubtitleOffsetMillis || offsetMS < -MaxSubtitleOffsetMillis {
+ 		return ValidationError("subtitle offset is out of range")
+ 	}
+ 	s.mu.RLock()
+@@ -60,7 +62,19 @@ func (s *Store) PutSubtitleOffset(ctx context.Context, profileID ProfileID, fing
+ // SubtitleOffset returns the Profile's stored nudge for a subtitle-track
+ // fingerprint. A track with no nudge returns 0 — the caller applies no shift,
+ // which is the same outcome as an explicitly centred track.
+-func (s *Store) SubtitleOffset(ctx context.Context, profileID ProfileID, fingerprint string) (int, error) {
++//
++// A hit also REFRESHES updated_at_ms to now: the column is the row's
++// last-touched time (written OR used), not its authored time, which is what
++// makes the age prune below a disuse prune rather than a lifetime cap. Nothing
++// reads updated_at_ms as an authored time — it is returned by no query and
++// consumed only by PruneSubtitleOffsets and its index — so the refresh costs the
++// row nothing it was carrying.
++//
++// The refresh is BEST-EFFORT and its error is deliberately dropped: a failed
++// touch can only cost the row an early reap, whereas failing the lookup would
++// cost the viewer a correctly-stored correction on a track that is playing right
++// now. The offset already read is returned either way.
++func (s *Store) SubtitleOffset(ctx context.Context, profileID ProfileID, fingerprint string, now time.Time) (int, error) {
+ 	if profileID == "" || fingerprint == "" {
+ 		return 0, nil
+ 	}
+@@ -79,14 +93,38 @@ func (s *Store) SubtitleOffset(ctx context.Context, profileID ProfileID, fingerp
+ 	case err != nil:
+ 		return 0, err
+ 	}
++	_, _ = s.catalogW.ExecContext(ctx,
++		"UPDATE subtitle_offset_nudge SET updated_at_ms = ? WHERE profile_id = ? AND track_fingerprint = ?",
++		now.UTC().UnixMilli(), profileID, fingerprint)
+ 	return offsetMS, nil
+ }
+ 
+-// PruneSubtitleOffsets deletes nudge rows untouched since the cutoff and reports
+-// how many were removed — the cheap GC for orphaned rows (ADR-0194 §4). A nudge
+-// keyed on bytes that no longer exist can never match a lookup again, so it is
+-// unreachable rather than wrong; age is therefore a sufficient and index-backed
+-// reap signal, and no reference tracking or media join is needed.
++// SubtitleOffsetRetention is how long an UNUSED nudge survives before the prune
++// sweep reaps it. It is deliberately generous: the row is a few dozen bytes, and
++// the cost of reaping one the viewer still wants (a silently lost sync
++// correction they must rediscover) far exceeds the cost of keeping one nobody
++// will ask for again.
++const SubtitleOffsetRetention = 365 * 24 * time.Hour
++
++// PruneSubtitleOffsets deletes nudge rows UNUSED since the cutoff and reports how
++// many were removed — the GC for orphaned rows (ADR-0194 §4).
++//
++// The cutoff is compared against updated_at_ms, which SubtitleOffset refreshes on
++// every hit, so this reaps by DISUSE, not by age since authoring. That
++// distinction is the whole point: a viewer who nudged a long-running container
++// and keeps watching it touches the row on every item and never loses the
++// correction, while a row whose track bytes no longer exist is never looked up
++// again and ages out on schedule.
++//
++// A reachability JOIN — "delete only rows no live track fingerprint resolves to"
++// — is not available and would not be cheaper. The nudge key is the content hash
++// of the TRACK BYTES, computed at serve time in mediahttp.readGuardedSidecar;
++// nothing persists it. media_file_sidecar_caption records a sidecar's rel_path,
++// format, and language keyed on the MEDIA FILE's content fingerprint
++// (internal/store/sqlite.go, media_file_sidecar_caption INSERT), which is a
++// different hash over different bytes, so there is no column to join against.
++// Building one would mean hashing every sidecar on disk on every sweep. Last-use
++// is the same signal measured where it is already free.
+ func (s *Store) PruneSubtitleOffsets(ctx context.Context, before time.Time) (int64, error) {
+ 	s.mu.RLock()
+ 	defer s.mu.RUnlock()

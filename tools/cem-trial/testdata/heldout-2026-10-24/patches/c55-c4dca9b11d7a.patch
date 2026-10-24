@@ -1,0 +1,308 @@
+diff --git a/testing/atlas-documentation/test_v4_candidate.py b/testing/atlas-documentation/test_v4_candidate.py
+index 16a9ee3b7..36db46117 100644
+--- a/testing/atlas-documentation/test_v4_candidate.py
++++ b/testing/atlas-documentation/test_v4_candidate.py
+@@ -21,7 +21,8 @@ TOOLS = ROOT / "tools/atlas-documentation"
+ RUNTIME_TOOLS = ROOT / "tools/atlas-documentation-runtime"
+ sys.path.insert(0, str(TOOLS))
+ 
+-from core import canonical_json, sha256_bytes  # noqa: E402
++from core import Diagnostics, canonical_json, sha256_bytes  # noqa: E402
++from catalog import validate_dogfood_semantics  # noqa: E402
+ from package import PackageValidator  # noqa: E402
+ from receipt_io import generate_candidate  # noqa: E402
+ 
+@@ -266,11 +267,30 @@ class AtlasV4CandidateTest(unittest.TestCase):
+         self.assertTrue(fallback["fallback_used"])
+ 
+     def test_live_runtime_producer_matches_limit_fixtures(self) -> None:
++        fixture_rows = load(PACKAGE / "fixtures.json")["fixtures"]
+         rows = {
+             row["fixture_id"]: row["instance"]
+-            for row in load(PACKAGE / "fixtures.json")["fixtures"]
++            for row in fixture_rows
+             if row["valid"] is True
+         }
++
++        def assert_live_envelope_semantics(produced: dict) -> None:
++            probe_rows = copy.deepcopy(fixture_rows)
++            rank_envelope = next(
++                row for row in probe_rows
++                if row.get("fixture_id") == "valid.dogfood.rank_envelope"
++            )
++            rank_envelope["instance"] = produced
++            diagnostics = Diagnostics()
++            validate_dogfood_semantics(probe_rows, diagnostics)
++            self.assertEqual(
++                [
++                    item for item in diagnostics.sorted()
++                    if item.code == "ATLAS_DOGFOOD_ENVELOPE_EVIDENCE"
++                ],
++                [],
++            )
++
+         source_artifact = rows["valid.dogfood.artifact"]
+         with tempfile.TemporaryDirectory() as raw:
+             root = Path(raw)
+@@ -295,6 +315,62 @@ class AtlasV4CandidateTest(unittest.TestCase):
+                 ))
+                 self.assertEqual(produced, rows[fixture_id])
+ 
++            artifact_path = root / "artifact-repeated.json"
++            artifact_path.write_bytes(atlas_runtime.canonical_bytes(source_artifact))
++            repeated_locate = atlas_runtime.cmd_locate(SimpleNamespace(
++                artifact=str(artifact_path), repository="beamfall",
++                paths=["internal/router.py", "internal/router.py"],
++                symbols=[json.dumps({"name": "route"}), json.dumps({"name": "route"})],
++            ))
++            self.assertEqual(len(repeated_locate["citations"]), 2)
++            self.assertEqual(len(repeated_locate["evidence_map"]), 4)
++            assert_live_envelope_semantics(repeated_locate)
++
++        logical_snapshot = rows["valid.dogfood.logical_snapshot"]
++        repeated_snapshot = snapshot_runtime.locate_loaded(
++            logical_snapshot,
++            SimpleNamespace(
++                repositories=["beamfall"],
++                paths=["internal/router.py", "internal/router.py"],
++                symbols=[json.dumps({"name": "route"}), json.dumps({"name": "route"})],
++            ),
++        )
++        self.assertEqual(len(repeated_snapshot["citations"]), 2)
++        self.assertEqual(len(repeated_snapshot["evidence_map"]), 4)
++        assert_live_envelope_semantics(repeated_snapshot)
++
++        shared = {
++            "id": "relationship:import:docs/guide.md:internal/router.py",
++            "line": 1, "path": "docs/guide.md",
++            "reason": "explicit_relationship", "value": "internal/router.py",
++        }
++        repeated_results = [{
++            "citations": [shared], "classification": "linked",
++            "evidence_truncated": False,
++            "match": {"kind": "relationship", "score": 100, "support_count": 1},
++            "outcome": "answered", "path": f"internal/result_{index}.py",
++            "reason": "ranked_match",
++        } for index in range(71)]
++        rank_payload, rank_citations, rank_evidence, rank_limited = \
++            atlas_runtime.bounded_rank_evidence({
++                "coverage": {"returned": len(repeated_results)},
++                "limits": {
++                    "byte_limit": 1048576, "result_limit": 256,
++                    "truncated": False, "used_bytes": 1,
++                },
++                "outcome": "answered", "reason": "ranked_matches",
++                "results": repeated_results,
++            }, "beamfall")
++        repeated_rank = atlas_runtime.envelope(
++            "rank", outcome=rank_payload["outcome"], reason=rank_payload["reason"],
++            payload=rank_payload, citations=rank_citations, evidence_map=rank_evidence,
++            coverage=rank_payload["coverage"],
++        )
++        self.assertFalse(rank_limited)
++        self.assertEqual(len(repeated_rank["citations"]), 1)
++        self.assertEqual(len(repeated_rank["evidence_map"]), 71)
++        assert_live_envelope_semantics(repeated_rank)
++
+         symbol_rows = [{
+             "kind": "function", "line": index + 1, "name": "route",
+             "path": f"src/route_{index}.py", "qualified_name": "route",
+diff --git a/tools/atlas-documentation-runtime/atlas_runtime.py b/tools/atlas-documentation-runtime/atlas_runtime.py
+index a59f391e6..ba2631bd3 100644
+--- a/tools/atlas-documentation-runtime/atlas_runtime.py
++++ b/tools/atlas-documentation-runtime/atlas_runtime.py
+@@ -767,6 +767,35 @@ def parse_symbol(value: str) -> dict[str, str]:
+     return item
+ 
+ 
++def append_unique_envelope_evidence(
++    citations: list[dict[str, Any]],
++    evidence: list[dict[str, Any]],
++    citation_ids: set[str],
++    evidence_keys: set[tuple[str, str, int]],
++    citation: dict[str, Any],
++    link: dict[str, Any],
++) -> bool:
++    """Append one ordered citation/link pair if both envelope budgets admit it."""
++    citation_id = citation["id"]
++    target = "member" if "member" in link else "result"
++    evidence_key = (citation_id, target, link[target])
++    needs_citation = citation_id not in citation_ids
++    needs_evidence = evidence_key not in evidence_keys
++    if (
++        needs_citation and len(citations) >= MAX_RETURNED_MATCHES
++    ) or (
++        needs_evidence and len(evidence) >= MAX_RETURNED_MATCHES
++    ):
++        return False
++    if needs_citation:
++        citations.append(citation)
++        citation_ids.add(citation_id)
++    if needs_evidence:
++        evidence.append(link)
++        evidence_keys.add(evidence_key)
++    return True
++
++
+ def cmd_locate(args: argparse.Namespace) -> dict[str, Any]:
+     with phase("artifact_load"):
+         artifact, _ = load_artifact(Path(args.artifact))
+@@ -786,6 +815,8 @@ def cmd_locate(args: argparse.Namespace) -> dict[str, Any]:
+     members: list[dict[str, Any]] = []
+     citations: list[dict[str, Any]] = []
+     evidence: list[dict[str, Any]] = []
++    citation_ids: set[str] = set()
++    evidence_keys: set[tuple[str, str, int]] = set()
+     returned_evidence = 0
+     symbol_index_incomplete = artifact["sections"]["extraction_coverage"]["truncated"]
+     for raw_path in args.paths:
+@@ -808,8 +839,11 @@ def cmd_locate(args: argparse.Namespace) -> dict[str, Any]:
+             "outcome": outcome, "path": path, "reason": reason,
+             "route": "inventory.path", "subject": {"path": path},
+         })
+-        citations.append({"blob_sha1": row["blob_sha1"], "id": citation_id, "path": path})
+-        evidence.append({"citation_id": citation_id, "member": len(members) - 1})
++        append_unique_envelope_evidence(
++            citations, evidence, citation_ids, evidence_keys,
++            {"blob_sha1": row["blob_sha1"], "id": citation_id, "path": path},
++            {"citation_id": citation_id, "member": len(members) - 1},
++        )
+         returned_evidence += 1
+     for raw_symbol in args.symbols:
+         subject = parse_symbol(raw_symbol)
+@@ -842,8 +876,11 @@ def cmd_locate(args: argparse.Namespace) -> dict[str, Any]:
+         })
+         for match in selected:
+             citation_id = f"symbol:{match['path']}:{match['line']}:{match['name']}"
+-            citations.append({"id": citation_id, **match})
+-            evidence.append({"citation_id": citation_id, "member": len(members) - 1})
++            append_unique_envelope_evidence(
++                citations, evidence, citation_ids, evidence_keys,
++                {"id": citation_id, **match},
++                {"citation_id": citation_id, "member": len(members) - 1},
++            )
+     outcomes = {member["outcome"] for member in members}
+     overall = "not_covered" if "not_covered" in outcomes else (
+         "answered" if "answered" in outcomes else "no_result"
+@@ -901,35 +938,43 @@ def bounded_rank_evidence(
+     retained_results: list[dict[str, Any]] = []
+     citations: list[dict[str, Any]] = []
+     evidence: list[dict[str, Any]] = []
++    citation_ids: set[str] = set()
++    evidence_keys: set[tuple[str, str, int]] = set()
+     limited = False
+     source_results = result["results"]
+-    for source_index, item in enumerate(source_results):
+-        available = MAX_RETURNED_MATCHES - len(citations)
+-        if available <= 0:
++    for item in source_results:
++        selected: list[dict[str, Any]] = []
++        selected_ids: set[str] = set()
++        clipped = False
++        result_index = len(retained_results)
++        for citation in item["citations"]:
++            citation_id = f"rank:{repository}:{citation['id']}"
++            if citation_id in selected_ids:
++                continue
++            if not append_unique_envelope_evidence(
++                citations, evidence, citation_ids, evidence_keys,
++                {**citation, "id": citation_id, "repository": repository},
++                {"citation_id": citation_id, "result": result_index},
++            ):
++                clipped = True
++                break
++            selected.append(citation)
++            selected_ids.add(citation_id)
++        if clipped and not selected:
+             limited = True
+             break
+-        selected = item["citations"][:available]
+-        clipped = len(selected) < len(item["citations"])
+         retained = {
+             **item,
+             "citations": selected,
+             "evidence_truncated": bool(item["evidence_truncated"] or clipped),
+             "outcome": "not_covered" if clipped else item["outcome"],
+         }
+-        result_index = len(retained_results)
+         retained_results.append(retained)
+-        for citation in selected:
+-            citation_id = f"rank:{repository}:{citation['id']}"
+-            citations.append({**citation, "id": citation_id, "repository": repository})
+-            evidence.append({"citation_id": citation_id, "result": result_index})
+         if clipped:
+             limited = True
+             break
+-        if source_index + 1 < len(source_results) and len(citations) == MAX_RETURNED_MATCHES:
+-            limited = True
+-            break
+     if not limited:
+-        return result, citations, evidence, False
++        return {**result, "results": retained_results}, citations, evidence, False
+     coverage = {**result["coverage"], "returned": len(retained_results)}
+     limits = {
+         **result["limits"],
+diff --git a/tools/atlas-documentation-runtime/snapshot.py b/tools/atlas-documentation-runtime/snapshot.py
+index 691b9f212..d97688a88 100644
+--- a/tools/atlas-documentation-runtime/snapshot.py
++++ b/tools/atlas-documentation-runtime/snapshot.py
+@@ -526,6 +526,8 @@ def locate_loaded(snapshot: dict[str, Any], args: argparse.Namespace) -> dict[st
+     members: list[dict[str, Any]] = []
+     citations: list[dict[str, Any]] = []
+     evidence_map: list[dict[str, Any]] = []
++    citation_ids: set[str] = set()
++    evidence_keys: set[tuple[str, str, int]] = set()
+     returned_evidence = 0
+     for artifact in artifacts:
+         repository = artifact["source"]["repository"]
+@@ -536,7 +538,10 @@ def locate_loaded(snapshot: dict[str, Any], args: argparse.Namespace) -> dict[st
+         for path in args.paths:
+             member = {"repository": repository, **locate_path(inventory, path)}
+             row = inventory.get(member.get("path", ""))
+-            if row is not None and returned_evidence >= atlas_runtime.MAX_RETURNED_MATCHES:
++            if row is not None and (
++                returned_evidence >= atlas_runtime.MAX_RETURNED_MATCHES
++                or len(members) >= atlas_runtime.MAX_RETURNED_MATCHES
++            ):
+                 member = {
+                     "outcome": "not_covered", "reason": "evidence_limit",
+                     "repository": repository, "subject": member["subject"],
+@@ -544,14 +549,19 @@ def locate_loaded(snapshot: dict[str, Any], args: argparse.Namespace) -> dict[st
+             members.append(member)
+             if row is not None and member["reason"] != "evidence_limit":
+                 citation_id = f"{repository}:path:{row['path']}"
+-                citations.append({
+-                    "blob_sha1": row["blob_sha1"], "id": citation_id,
+-                    "path": row["path"], "repository": repository,
+-                })
+-                evidence_map.append({"citation_id": citation_id, "member": len(members) - 1})
++                atlas_runtime.append_unique_envelope_evidence(
++                    citations, evidence_map, citation_ids, evidence_keys,
++                    {
++                        "blob_sha1": row["blob_sha1"], "id": citation_id,
++                        "path": row["path"], "repository": repository,
++                    },
++                    {"citation_id": citation_id, "member": len(members) - 1},
++                )
+                 returned_evidence += 1
+         for symbol in args.symbols:
+             remaining = max(0, atlas_runtime.MAX_RETURNED_MATCHES - returned_evidence)
++            if len(members) >= atlas_runtime.MAX_RETURNED_MATCHES:
++                remaining = 0
+             member = {
+                 "repository": repository,
+                 **locate_symbol(
+@@ -567,8 +577,11 @@ def locate_loaded(snapshot: dict[str, Any], args: argparse.Namespace) -> dict[st
+                 citation_id = (
+                     f"{repository}:symbol:{match['path']}:{match['line']}:{match['name']}"
+                 )
+-                citations.append({"id": citation_id, "repository": repository, **match})
+-                evidence_map.append({"citation_id": citation_id, "member": len(members) - 1})
++                atlas_runtime.append_unique_envelope_evidence(
++                    citations, evidence_map, citation_ids, evidence_keys,
++                    {"id": citation_id, "repository": repository, **match},
++                    {"citation_id": citation_id, "member": len(members) - 1},
++                )
+     outcomes = {member["outcome"] for member in members}
+     outcome = "not_covered" if "not_covered" in outcomes else (
+         "answered" if "answered" in outcomes else "no_result"

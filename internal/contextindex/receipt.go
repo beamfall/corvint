@@ -562,6 +562,9 @@ func setCoverage(receipt map[string]any, requested int, critical []any, budget *
 		}
 		uncertainty = append(uncertainty, fmt.Sprintf("%d ranked results omitted by %s", omitted, cause))
 	}
+	if line := evidenceTruncatedDisclosure(results); line != "" {
+		uncertainty = append(uncertainty, line)
+	}
 	// A disclosure the caller computed before compiling is a coverage line like
 	// any other, so it is appended here rather than onto a finished receipt:
 	// compileReceipt fits results to the budget by re-running this over trial

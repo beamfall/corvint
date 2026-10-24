@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +13,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/contextsummary"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
@@ -21,131 +21,21 @@ import (
 // TCP-V0-024, decision 0364): two opt-in consumers of the unchanged context
 // wire. Neither alters the packet the default invocation prints.
 const (
-	contextSummaryView         = "experimental-evidence-summary/0"
 	contextExpandView          = "experimental-evidence-expand/0"
-	contextSummaryDefaultBytes = 8192
-	contextSummaryMinBytes     = 1024
-	contextSummaryMaxBytes     = 65536
+	contextSummaryDefaultBytes = contextsummary.DefaultBytes
+	contextSummaryMinBytes     = contextsummary.MinBytes
 	contextExpandDefaultBytes  = 65536
 	contextHandleLimit         = 4352
-	contextHandlePrefix        = "cv1:"
+	contextHandlePrefix        = contextsummary.HandlePrefix
 )
 
 var contextHandleRange = regexp.MustCompile(`^([1-9][0-9]{0,8})-([1-9][0-9]{0,8})$`)
 
 // summarizeContextPacket projects the exact default stdout bytes of one
 // context invocation into a summary of at most budget bytes including its LF
-// (ESV-V0-008). Every top-level member except results is kept verbatim, so
-// coverage, subject, uncertainty and critical omissions survive; result rows
-// keep identity, authority, freshness and a handle, in packet order, until the
-// budget. A budget that cannot hold the fixed members and every critical row
-// refuses rather than dropping one.
+// (ESV-V0-008); the projection is contextsummary's, shared with MCP.
 func summarizeContextPacket(raw []byte, budget int) ([]byte, error) {
-	if budget < contextSummaryMinBytes || budget > contextSummaryMaxBytes {
-		return nil, &gokernel.Error{Code: "summary-budget", Message: fmt.Sprintf("--summary-bytes must be an integer from %d to %d", contextSummaryMinBytes, contextSummaryMaxBytes)}
-	}
-	decoder := json.NewDecoder(bytes.NewReader(raw))
-	decoder.UseNumber()
-	var packet map[string]any
-	if err := decoder.Decode(&packet); err != nil {
-		return nil, &gokernel.Error{Code: "summary-shape", Message: "the context packet does not decode as one JSON object"}
-	}
-	rows, critical, err := contextSummaryRows(packet)
-	if err != nil {
-		return nil, err
-	}
-	sum := sha256.Sum256(raw)
-	summary := map[string]any{
-		"view":               contextSummaryView,
-		"packet_sha256":      hex.EncodeToString(sum[:]),
-		"packet_bytes":       len(raw),
-		"results_total":      len(rows),
-		"budget_bytes":       budget,
-		"evidence_complete":  "UNKNOWN",
-		"row_fields_omitted": []string{"action", "evidence", "score", "summary"},
-		"continuation":       "rerun this invocation without --summary and --summary-bytes: its stdout has packet_sha256, and results[results_shown:] are the omitted rows",
-		"expand":             "corvint [--root PATH] context --expand HANDLE [--max-bytes N]",
-	}
-	packet["summary"] = summary
-	fitted, shown := []byte(nil), -1
-	for count := 0; count <= len(rows); count++ {
-		encoded, err := contextSummaryEncode(packet, summary, rows, count)
-		if err != nil {
-			return nil, err
-		}
-		if len(encoded)+1 > budget {
-			break
-		}
-		fitted, shown = encoded, count
-	}
-	if shown >= critical {
-		return fitted, nil
-	}
-	needed, err := contextSummaryEncode(packet, summary, rows, critical)
-	if err != nil {
-		return nil, err
-	}
-	return nil, &gokernel.Error{Code: "summary-budget", Message: fmt.Sprintf("%d bytes cannot hold the fixed members and the %d leading rows through the last critical row, which need %d; raise --summary-bytes or read the full packet", budget, critical, len(needed)+1)}
-}
-
-// contextSummaryEncode encodes the summary showing the first count rows.
-func contextSummaryEncode(packet, summary map[string]any, rows []any, count int) ([]byte, error) {
-	summary["results_shown"], summary["results_omitted"] = count, len(rows)-count
-	packet["results"] = rows[:count]
-	return gokernel.CanonicalJSON(packet)
-}
-
-// contextSummaryRows returns the compact rows and the number of leading rows
-// that must be shown to include every coverage.critical row (0 when none).
-func contextSummaryRows(packet map[string]any) ([]any, int, error) {
-	if _, taken := packet["summary"]; taken || packet["tool"] != "context" {
-		return nil, 0, &gokernel.Error{Code: "summary-shape", Message: "the input is not a context packet this summary can extend"}
-	}
-	results, _ := packet["results"].([]any)
-	revision, _ := packet["revision"].(string)
-	critical := contextCriticalSet(packet)
-	rows := make([]any, 0, len(results))
-	required := 0
-	for index, value := range results {
-		item, _ := value.(map[string]any)
-		evidence, _ := item["evidence"].([]any)
-		if len(evidence) != 1 {
-			return nil, 0, &gokernel.Error{Code: "summary-shape", Message: fmt.Sprintf("results[%d] does not carry exactly one evidence row", index)}
-		}
-		row := contextSummaryRow(index, item, evidence[0], revision)
-		if critical[fmt.Sprint(item["kind"])+"\x00"+fmt.Sprint(item["id"])] {
-			row["critical"], required = true, index+1
-		}
-		rows = append(rows, row)
-	}
-	return rows, required, nil
-}
-
-func contextCriticalSet(packet map[string]any) map[string]bool {
-	coverage, _ := packet["coverage"].(map[string]any)
-	entries, _ := coverage["critical"].([]any)
-	critical := map[string]bool{}
-	for _, value := range entries {
-		entry, _ := value.(map[string]any)
-		critical[fmt.Sprint(entry["relation"])+"\x00"+fmt.Sprint(entry["path"])] = true
-	}
-	return critical
-}
-
-func contextSummaryRow(index int, item map[string]any, value any, revision string) map[string]any {
-	evidence, _ := value.(map[string]any)
-	row := map[string]any{"index": index, "kind": item["kind"], "id": item["id"], "handle": nil}
-	for _, field := range []string{"authority", "trust", "confidence", "reason", "line", "blob_hash", "evidence_gap"} {
-		if member, ok := evidence[field]; ok {
-			row[field] = member
-		}
-	}
-	path, _ := evidence["path"].(string)
-	blob, _ := evidence["blob_hash"].(string)
-	if revision != "" && blob != "" && sourceSafePath(path) {
-		row["handle"] = contextHandlePrefix + revision + ":" + blob + ":all:" + path
-	}
-	return row
+	return contextsummary.Summarize(raw, budget, contextsummary.CLIContinuation)
 }
 
 // contextHandle is one parsed `cv1:TREE:BLOB:RANGE:PATH` evidence handle.

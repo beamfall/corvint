@@ -1062,6 +1062,10 @@ func (h Host) pulseState(root string, ident wire.Digest) (string, *Pulse) {
 	return h.pulseStateAt(root, pulseFile, ident)
 }
 
+// pulseProcessIdentity reads a pulse PID's start identity; tests replace it
+// to model a Linux btime read one second off (PSR-V0-227).
+var pulseProcessIdentity = supervisor.ProcessIdentity
+
 // pulseStateAt is pulseState for the pulse file name (the main's or a
 // helper wrapper's).
 func (h Host) pulseStateAt(root, name string, ident wire.Digest) (string, *Pulse) {
@@ -1080,7 +1084,9 @@ func (h Host) pulseStateAt(root, name string, ident wire.Digest) (string, *Pulse
 	if (ident != "" && p.ManifestSha256 != ident) || age < 0 || age > pulseStale {
 		return "STALE", &p
 	}
-	if live, err := supervisor.ProcessIdentity(p.PID); err != nil || live == "" || live != p.Identity {
+	// The pulse identity was written by the running service, so a Linux
+	// btime one second off this read is the same process (PSR-V0-227).
+	if live, err := pulseProcessIdentity(p.PID); err != nil || !supervisor.SameProcess(live, p.Identity) {
 		return "STALE", &p
 	}
 	return p.State, &p

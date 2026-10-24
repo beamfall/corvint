@@ -517,5 +517,8 @@ func recountReport(r *Report, plan Plan) {
 			r.Supported++
 		}
 	}
+	if hookReportedIsolation(plan, r.Results) {
+		r.CoverageGaps = append(r.CoverageGaps, IsolationHookReportedGap)
+	}
 	r.MutationScore = mutationScore(r.Counts)
 }

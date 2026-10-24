@@ -314,7 +314,7 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 	}
 	for _, w := range l.Workers {
 		msg := fmt.Sprintf("adopted %s worker %s (pid %d) on %s; its exit code will not be observed", w.Role, w.ID, w.PID, d.keyText(w.Key))
-		if id, err := supervisor.ProcessIdentity(w.PID); err == nil && id != w.LeaderIdentity {
+		if id, err := supervisor.ProcessIdentity(w.PID); err == nil && !supervisor.SameProcess(id, w.LeaderIdentity) {
 			msg = fmt.Sprintf("adopted %s worker %s on %s; its leader (pid %d) has ended, so any remaining processes are stopped and the run is accounted", w.Role, w.ID, d.keyText(w.Key), w.PID)
 		}
 		d.emit(Event{Kind: "adopted", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: msg})
@@ -2475,12 +2475,15 @@ func OwnerProcess(dir string) (string, int) {
 	if err != nil {
 		return "UNKNOWN", 0
 	}
-	live, err := supervisor.ProcessIdentity(n)
-	switch {
-	case err != nil:
+	live, err := detachedProcessIdentity(n)
+	if err != nil {
 		return "UNKNOWN", 0
-	case live != "" && live == id:
+	}
+	switch supervisor.CompareIdentity(live, id) { // PSR-V0-227
+	case supervisor.IdentitySame:
 		return "RUNNING", n
+	case supervisor.IdentityUnknown:
+		return "UNKNOWN", 0
 	}
 	return "NOT_RUNNING", 0
 }
