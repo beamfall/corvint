@@ -1429,12 +1429,15 @@ func removerStopped(p snapshot.Program) error {
 	if p.RemoverPID <= 0 || p.RemoverStarted == "" {
 		return wire.Errorf(wire.CodeQuiescenceUnproved, "program", "%s: the interrupted worktree removal recorded no remover identity", RemoverUnrecorded)
 	}
-	identity, e := supervisor.ProcessIdentity(p.RemoverPID)
+	identity, e := recordedProcessIdentity(p.RemoverPID)
 	if e != nil {
 		return e
 	}
-	if identity == p.RemoverStarted {
+	switch recordedMatch(identity, p.RemoverStarted) {
+	case supervisor.IdentitySame:
 		return wire.Errorf(wire.CodeAttemptLive, "program", "%s: worktree remover %d is still running", RemoverLive, p.RemoverPID)
+	case supervisor.IdentityUnknown:
+		return wire.Errorf(wire.CodeQuiescenceUnproved, "program", "%s: worktree remover %d identity is uncertain: its start tick matches but its boot time differs", RemoverLive, p.RemoverPID)
 	}
 	return nil
 }
@@ -1523,12 +1526,12 @@ func (w *Workflow) settleRemoval() (*WorktreeCleanup, string, error) {
 	// removing (CAL-V0-367, CAL-V0-368); the transition rechecks both under
 	// the writer lock.
 	if w.program.OwnerPID != os.Getpid() {
-		identity, e := supervisor.ProcessIdentity(w.program.OwnerPID)
+		identity, e := recordedProcessIdentity(w.program.OwnerPID)
 		if e != nil {
 			return nil, "", e
 		}
-		if identity == w.program.OwnerStarted && !w.program.OwnerReleased {
-			return nil, "", wire.Errorf(wire.CodeAttemptLive, "program", "program still has a live owner")
+		if e := ownerNotLive(identity, w.program); e != nil {
+			return nil, "", e
 		}
 	}
 	if e = removerStopped(w.program); e != nil {

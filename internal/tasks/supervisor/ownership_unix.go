@@ -55,7 +55,9 @@ func (g *ownedGroup) anchor() (int, string, error) {
 		if e != nil {
 			return 0, "", e
 		}
-		if id != "" && now == id {
+		// The recorded identity may be another process's read, so a
+		// Linux btime one second off is the same member (PSR-V0-227).
+		if SameProcess(now, id) {
 			group, e := g.groupOf(pid)
 			if e == syscall.ESRCH {
 				continue
@@ -67,7 +69,7 @@ func (g *ownedGroup) anchor() (int, string, error) {
 			if e != nil {
 				return 0, "", e
 			}
-			if group == g.group && again == id {
+			if group == g.group && SameProcess(again, id) {
 				return pid, id, nil
 			}
 		}
@@ -98,7 +100,7 @@ func (g *ownedGroup) observe() error {
 		return e
 	}
 	group, groupErr := g.groupOf(pid)
-	if again != id || groupErr != nil || group != g.group {
+	if !SameProcess(again, id) || groupErr != nil || group != g.group {
 		return fmt.Errorf("ownership anchor changed during observation")
 	}
 	for p, start := range current {

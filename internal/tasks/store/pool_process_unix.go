@@ -63,15 +63,16 @@ func poolNativePrefix() string {
 // reverse, and a live runner never looks gone (PSR-V0-201). A Linux read
 // that names the recorded process returns recorded itself; one whose start
 // tick matches but whose btime is further off is an error, never a gone
-// runner (PSR-V0-204).
+// runner (PSR-V0-204). The comparison is the supervisor's shared one
+// (PSR-V0-227).
 func poolRecordedIdentity(pid int, recorded string) (string, error) {
 	if prefix := poolNativePrefix(); prefix != "" && strings.HasPrefix(recorded, prefix) {
 		identity, e := poolNativeIdentity(pid)
 		if e == nil && prefix == "linux:" {
-			switch compareLinuxIdentity(identity, recorded) {
-			case linuxSame:
+			switch supervisor.CompareIdentity(identity, recorded) {
+			case supervisor.IdentitySame:
 				return recorded, nil
-			case linuxUnknown:
+			case supervisor.IdentityUnknown:
 				return "", wire.Errorf(wire.CodeQuiescenceUnproved, "pool", "runner identity uncertain: start tick matches but boot time differs")
 			}
 		}
@@ -80,53 +81,6 @@ func poolRecordedIdentity(pid int, recorded string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	return poolListedIdentity(ctx, pid)
-}
-
-type linuxIdentityMatch int
-
-const (
-	linuxDifferent linuxIdentityMatch = iota
-	linuxSame
-	linuxUnknown
-)
-
-// compareLinuxIdentity compares two `linux:<btime>:<starttime>` identities.
-// The kernel recomputes btime on every read, so one recorded by another
-// process can differ by one second (V1-1091): equal start ticks with btimes
-// within one second name one process. Another start tick is another process
-// (a reused PID in the same boot has another tick). Equal start ticks with
-// btimes further apart are unknown, never different: a realtime clock step
-// (settimeofday) shifts btime by any amount while the runner lives, and the
-// record carries no stable boot identity to tell that from a reboot.
-func compareLinuxIdentity(a, b string) linuxIdentityMatch {
-	ab, as, ok1 := splitLinuxIdentity(a)
-	bb, bs, ok2 := splitLinuxIdentity(b)
-	if !ok1 || !ok2 || as != bs {
-		return linuxDifferent
-	}
-	if ab == bb || ab == bb+1 || bb == ab+1 {
-		return linuxSame
-	}
-	return linuxUnknown
-}
-
-func splitLinuxIdentity(s string) (boot uint64, start string, ok bool) {
-	rest, found := strings.CutPrefix(s, "linux:")
-	if !found {
-		return 0, "", false
-	}
-	b, start, found := strings.Cut(rest, ":")
-	if !found || start == "" {
-		return 0, "", false
-	}
-	boot, e := strconv.ParseUint(b, 10, 64)
-	if e != nil || boot == 0 || boot == ^uint64(0) {
-		return 0, "", false
-	}
-	if _, e := strconv.ParseUint(start, 10, 64); e != nil {
-		return 0, "", false
-	}
-	return boot, start, true
 }
 
 func poolListedIdentity(ctx context.Context, pid int) (string, error) {
