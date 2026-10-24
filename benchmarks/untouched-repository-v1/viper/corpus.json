@@ -1,0 +1,398 @@
+{
+  "cases": [
+    {
+      "branchTip": null,
+      "changedFiles": 2,
+      "commit": "528f7416c4b56a4948673984b190bf8713f0c3c4",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          ".github/octoslash/policies/triager.cedar",
+          ".github/workflows/octoslash.yaml"
+        ],
+        "eligible": true
+      },
+      "parent": "bdc880d2f5195885636621f8d5e966246258b8a4",
+      "task": "allow octoslash on PRs"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "bdc880d2f5195885636621f8d5e966246258b8a4",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          ".github/workflows/stale.yaml"
+        ],
+        "eligible": true
+      },
+      "parent": "937ae2d3e65f20c0bc87a7443d45aca4671b6f74",
+      "task": "turn up the number of stale issue ops from 30 to 500"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "937ae2d3e65f20c0bc87a7443d45aca4671b6f74",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          ".golangci.yaml"
+        ],
+        "eligible": true
+      },
+      "parent": "2959599d7d2bf11c97e46eded5546ba0c48ebbf7",
+      "task": "enable revive rules"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 11,
+      "commit": "2959599d7d2bf11c97e46eded5546ba0c48ebbf7",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/viper",
+          "github.com/spf13/viper/internal/encoding/dotenv",
+          "github.com/spf13/viper/internal/encoding/json",
+          "github.com/spf13/viper/internal/encoding/toml",
+          "github.com/spf13/viper/internal/encoding/yaml",
+          "github.com/spf13/viper/internal/features"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "encoding.go",
+          "internal/encoding/dotenv/codec.go",
+          "internal/encoding/json/codec.go",
+          "internal/encoding/toml/codec.go",
+          "internal/encoding/yaml/codec.go",
+          "internal/features/bind_struct.go",
+          "internal/features/bind_struct_default.go",
+          "internal/features/finder.go",
+          "internal/features/finder_default.go",
+          "remote.go",
+          "viper.go"
+        ],
+        "eligible": true
+      },
+      "parent": "15fb4054547eeceb2c7e98175a4ec2b9ff5ad23d",
+      "task": "add documentation to all exported methods"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "15fb4054547eeceb2c7e98175a4ec2b9ff5ad23d",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          ".github/octoslash/policies/triager.cedar"
+        ],
+        "eligible": true
+      },
+      "parent": "c0965a201e10c3c543a619b8a56c3817692cc0a0",
+      "task": "update octoslash permissions"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "c0965a201e10c3c543a619b8a56c3817692cc0a0",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          "README.md"
+        ],
+        "eligible": true
+      },
+      "parent": "cd5c582cffabbe2c234ae04dcf949b1a49bdf68c",
+      "task": "clenups, remove HCL support"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "cd5c582cffabbe2c234ae04dcf949b1a49bdf68c",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          "README.md"
+        ],
+        "eligible": true
+      },
+      "parent": "c2b66799cc5572f20a16ee34973cbee469819064",
+      "task": "readme refresh"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "c2b66799cc5572f20a16ee34973cbee469819064",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/viper"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "errors.go"
+        ],
+        "eligible": true
+      },
+      "parent": "6f44d6965ba144ffc95996b1d21ba11e786def4b",
+      "task": "update comment on deprecated error"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 2,
+      "commit": "6f44d6965ba144ffc95996b1d21ba11e786def4b",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/viper"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "README.md",
+          "errors.go"
+        ],
+        "eligible": true
+      },
+      "parent": "196113234fe04cbaae663b8bb992988a71353e42",
+      "task": "clean-ups"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 3,
+      "commit": "196113234fe04cbaae663b8bb992988a71353e42",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/viper"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "errors.go",
+          "viper.go",
+          "viper_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "b3621ce3ddbf551338b0f73f41a5b2c45b22aa7e",
+      "task": "apply review comments"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "b3621ce3ddbf551338b0f73f41a5b2c45b22aa7e",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/viper"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "viper_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "da507cf456ee929c4314cae7d2c742f766720509",
+      "task": "better naming"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "da507cf456ee929c4314cae7d2c742f766720509",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          "README.md"
+        ],
+        "eligible": true
+      },
+      "parent": "3504ce391d2047e88bc20a09497d8d8b71ff448d",
+      "task": "clean-up"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "3504ce391d2047e88bc20a09497d8d8b71ff448d",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/viper"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "viper.go"
+        ],
+        "eligible": true
+      },
+      "parent": "3c673554b50d5ef9b683e2fa273e36345937bd65",
+      "task": "wrap file not found error"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 2,
+      "commit": "3c673554b50d5ef9b683e2fa273e36345937bd65",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/viper"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "README.md",
+          "errors.go"
+        ],
+        "eligible": true
+      },
+      "parent": "315c2137bb691c55ded2476af153406a47adf2cd",
+      "task": "variable naming, readme conforming"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 3,
+      "commit": "315c2137bb691c55ded2476af153406a47adf2cd",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/viper"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "errors.go",
+          "viper.go",
+          "viper_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "7312e0f00987923db41749e2b8f205a12d2210c7",
+      "task": "redundant fields for file search error, interface, syscall opt"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "7312e0f00987923db41749e2b8f205a12d2210c7",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/viper"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "errors.go"
+        ],
+        "eligible": true
+      },
+      "parent": "00a9d5df73dd9f92a0fe23c6baa841b00c50ebba",
+      "task": "apply suggestions from code review"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 2,
+      "commit": "00a9d5df73dd9f92a0fe23c6baa841b00c50ebba",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/viper"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "README.md",
+          "errors.go"
+        ],
+        "eligible": true
+      },
+      "parent": "29eb8d3fc737de352501ee8905b2962389a029ae",
+      "task": "better file not found example, remove file not found interface"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "29eb8d3fc737de352501ee8905b2962389a029ae",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/viper"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "viper_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "e8ab22ef25baf5a57a6a455e5a82d8068cfb991e",
+      "task": "better test name"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "e8ab22ef25baf5a57a6a455e5a82d8068cfb991e",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/viper"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "viper.go"
+        ],
+        "eligible": true
+      },
+      "parent": "5ae04a8bbfa916ff4842058be8eb5c636f0ba501",
+      "task": "clean-up"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "5ae04a8bbfa916ff4842058be8eb5c636f0ba501",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/viper"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "viper.go"
+        ],
+        "eligible": true
+      },
+      "parent": "b9dfcc5b9e7c590d952ae657cfe6adf4bb303c54",
+      "task": "add explanation on read in config errors"
+    }
+  ],
+  "excluded": [],
+  "head": "528f7416c4b56a4948673984b190bf8713f0c3c4",
+  "module": "github.com/spf13/viper",
+  "profile": "corvint-untouched-repository-corpus/0",
+  "window": 20
+}
