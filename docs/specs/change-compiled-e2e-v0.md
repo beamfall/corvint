@@ -960,6 +960,10 @@ and the report schemas are unchanged.
 
 ## Owner questions
 
+Answered 2026-10-24 (owner delegation): questions 1 to 8 are answered in
+[`2026-10-24-owner-queue-decisions.md`](../build-log/2026-10-24-owner-queue-decisions.md) § V1-1666;
+question 5 is deferred until the Playwright V0 route is delivered. The questions stay below for the record.
+
 1. Is `.corvint/e2e-blocks.json` the right home for `input` and `fixture` declarations, or should
    they extend AFU-V1 flow intents?
 2. Should `PRESERVES` (passes at base and head) count toward shadow parity for refactors, or only
