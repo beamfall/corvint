@@ -1,0 +1,148 @@
+diff --git a/internal/ffmpeg/skipdetect.go b/internal/ffmpeg/skipdetect.go
+index d3910f428..616946e4f 100644
+--- a/internal/ffmpeg/skipdetect.go
++++ b/internal/ffmpeg/skipdetect.go
+@@ -120,6 +120,37 @@ const FingerprintWindowSeconds = 1.0
+ // length so a long file does not produce an unbounded signature; the detector
+ // passes the number of leading (and, for credits, trailing) windows it needs.
+ func (r *Runner) AudioFingerprint(ctx context.Context, src string, windowCount int) ([]float64, error) {
++	return r.audioFingerprint(ctx, src, windowCount, nil)
++}
++
++// AudioFingerprintTail returns the same bounded signature as AudioFingerprint,
++// but reads the final windowCount windows of src. FFmpeg's input-side -sseof
++// keeps differently-sized siblings aligned to EOF for credits comparison. Old
++// FFmpeg builds without -sseof retry with an absolute seek derived from the
++// catalog duration.
++func (r *Runner) AudioFingerprintTail(ctx context.Context, src string, windowCount, durationSeconds int) ([]float64, error) {
++	tailSeconds := FingerprintWindowSeconds * float64(windowCount)
++	signature, err := r.audioFingerprint(ctx, src, windowCount, []string{
++		"-sseof", "-" + strconv.FormatFloat(tailSeconds, 'f', 3, 64),
++	})
++	if err == nil || !sseofUnavailable(err.Error()) {
++		return signature, err
++	}
++	start := math.Max(0, float64(durationSeconds)-tailSeconds)
++	return r.audioFingerprint(ctx, src, windowCount, []string{
++		"-ss", strconv.FormatFloat(start, 'f', 3, 64),
++	})
++}
++
++func sseofUnavailable(detail string) bool {
++	detail = strings.ToLower(detail)
++	return strings.Contains(detail, "unrecognized option 'sseof'") ||
++		strings.Contains(detail, "unrecognized option \"sseof\"") ||
++		strings.Contains(detail, "option sseof not found") ||
++		strings.Contains(detail, "option not found: sseof")
++}
++
++func (r *Runner) audioFingerprint(ctx context.Context, src string, windowCount int, inputSeek []string) ([]float64, error) {
+ 	if err := checkPath(src); err != nil {
+ 		return nil, err
+ 	}
+@@ -139,8 +170,11 @@ func (r *Runner) AudioFingerprint(ctx context.Context, src string, windowCount i
+ 		// across ffmpeg versions.
+ 		"aformat=channel_layouts=mono:sample_rates=%d,asetnsamples=n=%d:p=0,astats=metadata=1:reset=1,ametadata=print:file=-",
+ 		fingerprintSampleRate, windowSamples)
+-	cmd := r.generationCommand(ctx, readConfinement(src), ffmpegPath,
++	args := []string{
+ 		"-v", "error",
++	}
++	args = append(args, inputSeek...)
++	args = append(args,
+ 		"-t", strconv.FormatFloat(FingerprintWindowSeconds*float64(windowCount), 'f', 3, 64),
+ 		"-i", src,
+ 		"-map", "0:a:0",
+@@ -148,6 +182,7 @@ func (r *Runner) AudioFingerprint(ctx context.Context, src string, windowCount i
+ 		"-f", "null",
+ 		"--", os.DevNull,
+ 	)
++	cmd := r.generationCommand(ctx, readConfinement(src), ffmpegPath, args...)
+ 	applySysProcAttr(cmd)
+ 	output, err := cmd.CombinedOutput()
+ 	if err != nil {
+diff --git a/internal/skipdetect/skipdetect.go b/internal/skipdetect/skipdetect.go
+index 5738b4782..a2cd013d7 100644
+--- a/internal/skipdetect/skipdetect.go
++++ b/internal/skipdetect/skipdetect.go
+@@ -83,6 +83,8 @@ type Detector interface {
+ 	// AudioFingerprint returns a coarse per-window loudness signature over the
+ 	// first windowCount windows of src's primary audio stream.
+ 	AudioFingerprint(ctx context.Context, src string, windowCount int) ([]float64, error)
++	// AudioFingerprintTail returns the final windowCount windows, aligned to EOF.
++	AudioFingerprintTail(ctx context.Context, src string, windowCount, durationSeconds int) ([]float64, error)
+ }
+ 
+ // Service runs skip-segment detection for one Media at a time. It owns no
+@@ -190,6 +192,13 @@ func (s *Service) importChapters(ctx context.Context, id store.MediaID, path str
+ // the auto-apply threshold is dropped. A Media with no siblings (a standalone
+ // film) yields nothing here — that is correct, not an error.
+ func (s *Service) fingerprintSiblings(ctx context.Context, media store.Media, path string) error {
++	// Remediation for pre-COREREV-12 output: old MethodFingerprint credits were
++	// computed from file heads. Invalidate all detector-owned fingerprint rows
++	// at the next sweep, then rebuild valid intro/credits below. Manual rows and
++	// suppression locks are preserved by the store reconciliation seams.
++	if err := s.store.ReplaceDetectedMarkers(ctx, media.ID, MethodFingerprint, nil, serverFilter, s.now()); err != nil {
++		return err
++	}
+ 	siblings, err := s.store.OrderedSiblingMedia(ctx, media.ID)
+ 	if err != nil {
+ 		return err
+@@ -201,7 +210,7 @@ func (s *Service) fingerprintSiblings(ctx context.Context, media store.Media, pa
+ 	if err != nil {
+ 		return err
+ 	}
+-	tailSelf, err := s.detector.AudioFingerprint(ctx, path, fingerprintTailWindows)
++	tailSelf, err := s.detector.AudioFingerprintTail(ctx, path, fingerprintTailWindows, media.DurationSeconds)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -222,11 +231,15 @@ func (s *Service) fingerprintSiblings(ctx context.Context, media store.Media, pa
+ 		if run := sharedLeadingRun(headSelf, headSib); run.windows > bestIntro.windows {
+ 			bestIntro = run
+ 		}
+-		tailSib, err := s.detector.AudioFingerprint(ctx, siblingFile.Path, fingerprintTailWindows)
++		sibling, err := s.store.Media(ctx, siblingID, serverFilter)
++		if err != nil || sibling.DurationSeconds <= 0 {
++			continue
++		}
++		tailSib, err := s.detector.AudioFingerprintTail(ctx, siblingFile.Path, fingerprintTailWindows, sibling.DurationSeconds)
+ 		if err != nil {
+ 			continue
+ 		}
+-		if run := sharedLeadingRun(tailSelf, tailSib); run.windows > bestCredits.windows {
++		if run := sharedTrailingRun(tailSelf, tailSib); run.windows > bestCredits.windows {
+ 			bestCredits = run
+ 		}
+ 	}
+@@ -350,6 +363,30 @@ func sharedLeadingRun(self, sibling []float64) sharedRun {
+ 	return sharedRun{startWindow: 0, windows: matched, avgDiff: sumDiff / float64(matched)}
+ }
+ 
++// sharedTrailingRun finds the longest run ending at EOF in both signatures.
++// Tail fingerprints are chronological, so credits occupy the suffix rather
++// than window zero of the analysed region.
++func sharedTrailingRun(self, sibling []float64) sharedRun {
++	n := len(self)
++	if len(sibling) < n {
++		n = len(sibling)
++	}
++	var matched int
++	var sumDiff float64
++	for matched < n {
++		diff := math.Abs(self[len(self)-1-matched] - sibling[len(sibling)-1-matched])
++		if diff > windowMatchTolerance {
++			break
++		}
++		sumDiff += diff
++		matched++
++	}
++	if matched == 0 {
++		return sharedRun{}
++	}
++	return sharedRun{startWindow: len(self) - matched, windows: matched, avgDiff: sumDiff / float64(matched)}
++}
++
+ // kindFromChapterTitle maps a chapter title to a skip-segment kind by a
+ // case-insensitive substring heuristic, or "" when the title names no skip
+ // segment. The vocabulary is the closed three-kind set (ADR-0048 Decision 1);

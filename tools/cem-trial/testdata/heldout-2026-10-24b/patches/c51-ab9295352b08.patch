@@ -1,0 +1,93 @@
+diff --git a/internal/mediahttp/mediahttp.go b/internal/mediahttp/mediahttp.go
+index 95d7507b4..d503201af 100644
+--- a/internal/mediahttp/mediahttp.go
++++ b/internal/mediahttp/mediahttp.go
+@@ -81,8 +81,13 @@ type EncryptedByteReadSeeker interface {
+ const (
+ 	encryptedClassMediaBytes     = "media-bytes"
+ 	encryptedClassGeneratedAsset = "generated-asset"
++	streamTokenCacheControl      = "private, no-store"
+ )
+ 
++func markStreamTokenResponseNonStorable(w http.ResponseWriter) {
++	w.Header().Set("Cache-Control", streamTokenCacheControl)
++}
++
+ // SetEncryptedBytes wires the encrypted-Library byte decryptor. Nil means
+ // encrypted originals fail closed.
+ func (h *Handler) SetEncryptedBytes(decryptor EncryptedByteDecryptor) {
+@@ -266,6 +271,7 @@ func (h *Handler) SetHotSegmentCache(maxBytes int64) {
+ // (a restricted item's token requires the session to currently hold reveal),
+ // and the visible-file lookup re-verifies on every request like HLS.
+ func (h *Handler) Assets(w http.ResponseWriter, r *http.Request) {
++	markStreamTokenResponseNonStorable(w)
+ 	rest := strings.TrimPrefix(r.URL.Path, "/api/media/assets/")
+ 	token, name, ok := strings.Cut(rest, "/")
+ 	if !ok || token == "" || name == "" {
+@@ -328,6 +334,7 @@ func (h *Handler) Assets(w http.ResponseWriter, r *http.Request) {
+ // is cached on disk keyed by content fingerprint + stream index, so repeat
+ // fetches (and seeks) skip the ffmpeg conversion.
+ func (h *Handler) Subtitles(w http.ResponseWriter, r *http.Request) {
++	markStreamTokenResponseNonStorable(w)
+ 	rest := strings.TrimPrefix(r.URL.Path, "/api/media/subtitle/")
+ 	token, name, ok := strings.Cut(rest, "/")
+ 	if !ok || token == "" || name == "" {
+@@ -547,6 +554,7 @@ func parseSidecarName(name string) (index int, ext string, ok bool) {
+ // root, and the stored rel_path can never traverse out (it is a sibling base
+ // name recorded by scan, and the join is guarded here regardless).
+ func (h *Handler) Sidecars(w http.ResponseWriter, r *http.Request) {
++	markStreamTokenResponseNonStorable(w)
+ 	rest := strings.TrimPrefix(r.URL.Path, "/api/media/sidecar/")
+ 	token, name, ok := strings.Cut(rest, "/")
+ 	if !ok || token == "" || name == "" {
+@@ -859,6 +867,7 @@ func srtToWebVTT(srt string) string {
+ // the same token path and re-verifies the live session scope (revocation or
+ // relock stops the stream mid-segment, ADR-0010).
+ func (h *Handler) HLS(w http.ResponseWriter, r *http.Request) {
++	markStreamTokenResponseNonStorable(w)
+ 	rest := strings.TrimPrefix(r.URL.Path, "/api/media/hls/")
+ 	token, name, ok := strings.Cut(rest, "/")
+ 	if !ok || token == "" || name == "" {
+@@ -952,7 +961,7 @@ func (h *Handler) HLS(w http.ResponseWriter, r *http.Request) {
+ 		// init.mp4 and the fMP4 .m4s media segments are both MP4 bytes.
+ 		w.Header().Set("Content-Type", "video/mp4")
+ 	}
+-	w.Header().Set("Cache-Control", "no-store")
++	markStreamTokenResponseNonStorable(w)
+ 	// The session engine hands back a member of its own work directory. Serving it
+ 	// through the root-scoped opener binds the bytes to that directory entry, so a
+ 	// segment replaced by a link between the engine's publish and this read is
+@@ -999,7 +1008,7 @@ func (h *Handler) servePrecomputedHLS(w http.ResponseWriter, r *http.Request, gr
+ 		h.servePrecomputedHotSegment(w, r, member, rendition.ID, name, info.ModTime())
+ 		return
+ 	}
+-	w.Header().Set("Cache-Control", "no-store")
++	markStreamTokenResponseNonStorable(w)
+ 	if err := serveRooted(w, r, filepath.Base(member.rel), member, info.ModTime()); err != nil {
+ 		http.Error(w, "stream unavailable", rootScopeStatus(err))
+ 		return
+@@ -1010,7 +1019,7 @@ func (h *Handler) servePrecomputedHotSegment(w http.ResponseWriter, r *http.Requ
+ 	key := string(renditionID) + "/" + name
+ 	data, cachedModTime, hit, fanout, lease := h.hotSegments.begin(key)
+ 	defer lease.done()
+-	w.Header().Set("Cache-Control", "no-store")
++	markStreamTokenResponseNonStorable(w)
+ 	served := filepath.Base(member.rel)
+ 	if hit {
+ 		http.ServeContent(w, r, served, cachedModTime, bytes.NewReader(data))
+@@ -1180,6 +1189,7 @@ func (h *Handler) EntityArtwork(w http.ResponseWriter, r *http.Request) {
+ // source URL is never redirected or echoed; it is fetched server-side through
+ // the wired hardened fetcher and cached under the candidate ID.
+ func (h *Handler) ArtworkCandidate(w http.ResponseWriter, r *http.Request) {
++	markStreamTokenResponseNonStorable(w)
+ 	rest := strings.TrimPrefix(r.URL.Path, "/api/media/artwork-candidate/")
+ 	token, candidateID, ok := strings.Cut(rest, "/")
+ 	bucket := r.URL.Query().Get("bucket")
+@@ -1329,6 +1339,7 @@ func regularFileExists(path string) bool {
+ 
+ // Direct serves direct Media bytes for a signed token URL.
+ func (h *Handler) Direct(w http.ResponseWriter, r *http.Request) {
++	markStreamTokenResponseNonStorable(w)
+ 	token := strings.TrimPrefix(r.URL.Path, "/api/media/direct/")
+ 	if token == "" || token == r.URL.Path {
+ 		http.Error(w, "missing stream token", http.StatusUnauthorized)

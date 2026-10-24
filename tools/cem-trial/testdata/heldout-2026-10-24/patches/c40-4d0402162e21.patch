@@ -1,0 +1,214 @@
+diff --git a/internal/conductor/party.go b/internal/conductor/party.go
+index 0dad50a43..b9a8f687c 100644
+--- a/internal/conductor/party.go
++++ b/internal/conductor/party.go
+@@ -123,6 +123,8 @@ func (g *Group) Invitees() []store.ProfileID {
+ // Profile (see partyLookup) — so the host invites OTHER Profiles via Invite and
+ // they join on Accept after a per-session Reveal check at the surface.
+ func (r *Registry) FormParty(host store.ProfileID, hostSession store.SessionID, content store.MediaID, relaxed bool) *Group {
++	now := r.now()
++	r.reapAbandoned(now)
+ 	g := &Group{
+ 		ID:        newGroupID(),
+ 		ProfileID: host,
+@@ -135,6 +137,7 @@ func (r *Registry) FormParty(host store.ProfileID, hostSession store.SessionID,
+ 	}
+ 	r.mu.Lock()
+ 	r.groups[g.ID] = g
++	r.formedAt[g.ID] = now
+ 	r.mu.Unlock()
+ 	return g
+ }
+@@ -194,19 +197,33 @@ func (r *Registry) Invite(id string, host store.SessionID, invitee store.Profile
+ // (ErrNoInvite). The invite is consumed so an accept is single-use; the member
+ // is keyed by its own session (a session can only join itself).
+ func (r *Registry) Accept(id string, profile store.ProfileID, m Member) error {
+-	g, err := r.partyLookup(id)
+-	if err != nil {
+-		return err
++	r.mu.Lock()
++	if r.acceptMapLocked != nil {
++		r.acceptMapLocked()
++	}
++	g := r.groups[id]
++	if g == nil {
++		r.mu.Unlock()
++		return ErrNoGroup
+ 	}
+ 	g.mu.Lock()
+-	defer g.mu.Unlock()
++	if g.posture != PostureWatchParty {
++		g.mu.Unlock()
++		r.mu.Unlock()
++		return ErrNotParty
++	}
+ 	if _, ok := g.invites[profile]; !ok {
++		g.mu.Unlock()
++		r.mu.Unlock()
+ 		return ErrNoInvite
+ 	}
+ 	delete(g.invites, profile)
+ 	member := m
+ 	member.ProfileID = profile // ADR-0111: record profile so graph can surface display name
+ 	g.members[m.SessionID] = &member
++	delete(r.formedAt, id)
++	g.mu.Unlock()
++	r.mu.Unlock()
+ 	return nil
+ }
+ 
+@@ -305,6 +322,7 @@ func (r *Registry) LeaveParty(id string, session store.SessionID) error {
+ 	if empty {
+ 		r.mu.Lock()
+ 		delete(r.groups, id)
++		delete(r.formedAt, id)
+ 		r.mu.Unlock()
+ 	}
+ 	return nil
+diff --git a/internal/conductor/registry.go b/internal/conductor/registry.go
+index 5d3f13ffd..a9522e06d 100644
+--- a/internal/conductor/registry.go
++++ b/internal/conductor/registry.go
+@@ -16,15 +16,18 @@ import (
+ // (ADR-0035 §3). There is no schema, no migration, and no durable key.
+ //
+ // The Registry is safe for concurrent use: its own mutex guards the group map,
+-// and each Group guards its own membership/anchor. The two locks are never held
+-// at once in a nesting that could deadlock — Registry methods take the map lock,
+-// resolve the *Group, release the map lock, then take the group lock.
++// and each Group guards its own membership/anchor. Registry.mu may nest
++// Group.mu; Group.mu must never acquire Registry.mu.
+ type Registry struct {
+ 	now func() time.Time
+ 
+ 	mu       sync.RWMutex
+ 	groups   map[string]*Group
+ 	formedAt map[string]time.Time
++
++	// Test-only synchronization hooks keep the lock-order regression deterministic.
++	acceptMapLocked       func()
++	reapMapLockAttempting func()
+ }
+ 
+ // groupFormTTL bounds how long a formed group may sit with no member before
+@@ -77,56 +80,55 @@ func (r *Registry) Form(profile store.ProfileID) *Group {
+ // connection before ever calling Join, and otherwise only Leave (on the last
+ // member) ever deletes a group, so an abandoned formation would pin memory
+ // forever. Called opportunistically from Form so no background reaper or
+-// session-teardown hook is needed. Follows the map-lock-then-group-lock
+-// order documented on Registry: it never holds both locks at once.
++// session-teardown hook is needed. Each candidate is revalidated and deleted
++// under Registry.mu then Group.mu, so Join cannot land between the emptiness
++// check and deletion.
+ func (r *Registry) reapAbandoned(now time.Time) {
+ 	// The formation timestamp doubles as a compare-and-delete token: Join removes
+ 	// it the moment a member arrives, so it must survive until the final locked
+ 	// pass. Dropping it here instead would let a Join that lands while the
+ 	// emptiness check runs off-lock have its group deleted out from under it.
+ 	type candidate struct {
++		id       string
+ 		group    *Group
+ 		formedAt time.Time
+ 	}
+-	r.mu.Lock()
++	if r.reapMapLockAttempting != nil {
++		r.reapMapLockAttempting()
++	}
++	r.mu.RLock()
+ 	var stale []candidate
+ 	for id, formedAt := range r.formedAt {
+ 		if now.Sub(formedAt) < groupFormTTL {
+ 			continue
+ 		}
+-		if g, ok := r.groups[id]; ok {
+-			stale = append(stale, candidate{group: g, formedAt: formedAt})
+-			continue
+-		}
+-		delete(r.formedAt, id) // group already gone; drop the dangling timestamp
++		stale = append(stale, candidate{id: id, group: r.groups[id], formedAt: formedAt})
+ 	}
+-	r.mu.Unlock()
++	r.mu.RUnlock()
+ 	if len(stale) == 0 {
+ 		return
+ 	}
+ 
+-	empty := make([]candidate, 0, len(stale))
+ 	for _, c := range stale {
+-		c.group.mu.Lock()
+-		isEmpty := len(c.group.members) == 0
+-		c.group.mu.Unlock()
+-		if isEmpty {
+-			empty = append(empty, c)
++		r.mu.Lock()
++		formedAt, ok := r.formedAt[c.id]
++		if !ok || !formedAt.Equal(c.formedAt) || r.groups[c.id] != c.group {
++			r.mu.Unlock()
++			continue
+ 		}
+-	}
+-	if len(empty) == 0 {
+-		return
+-	}
+-	r.mu.Lock()
+-	for _, c := range empty {
+-		// An unchanged timestamp proves no Join landed while we were off-lock.
+-		if formedAt, ok := r.formedAt[c.group.ID]; !ok || !formedAt.Equal(c.formedAt) {
++		if c.group == nil {
++			delete(r.formedAt, c.id)
++			r.mu.Unlock()
+ 			continue
+ 		}
+-		delete(r.groups, c.group.ID)
+-		delete(r.formedAt, c.group.ID)
++		c.group.mu.Lock()
++		if len(c.group.members) == 0 {
++			delete(r.groups, c.id)
++			delete(r.formedAt, c.id)
++		}
++		c.group.mu.Unlock()
++		r.mu.Unlock()
+ 	}
+-	r.mu.Unlock()
+ }
+ 
+ // lookup resolves a group by id and asserts the caller's Profile owns it. A
+@@ -160,18 +162,23 @@ func (r *Registry) Group(id string, profile store.ProfileID) (*Group, error) {
+ // re-calibrates mid-session refines its numbers without leaving the group).
+ // profile must own the group; a cross-Profile join is rejected fail-closed.
+ func (r *Registry) Join(id string, profile store.ProfileID, m Member) error {
+-	g, err := r.lookup(id, profile)
+-	if err != nil {
+-		return err
++	r.mu.Lock()
++	g := r.groups[id]
++	if g == nil {
++		r.mu.Unlock()
++		return ErrNoGroup
++	}
++	if g.ProfileID != profile {
++		r.mu.Unlock()
++		return ErrWrongProfile
+ 	}
+ 	g.mu.Lock()
+ 	member := m
+ 	g.members[m.SessionID] = &member
+-	g.mu.Unlock()
+ 	// The group now has a member, so it is no longer a Form-then-never-join
+ 	// candidate for reapAbandoned; drop its formation timestamp.
+-	r.mu.Lock()
+ 	delete(r.formedAt, id)
++	g.mu.Unlock()
+ 	r.mu.Unlock()
+ 	return nil
+ }
+@@ -308,8 +315,7 @@ func (r *Registry) GroupCount() int {
+ // a party member is kept streaming at reduced quality rather than fractured out
+ // of the party. Membership lives only here, so a client cannot spoof it to
+ // escape the cap. It snapshots the group set under the map lock, releases it,
+-// then reads each group through its own accessors (the established
+-// map-lock-then-group-lock order, never nested).
++// then reads each group through its own accessors after releasing Registry.mu.
+ func (r *Registry) SessionInWatchPartyForMedia(session store.SessionID, mediaID store.MediaID) bool {
+ 	r.mu.RLock()
+ 	groups := make([]*Group, 0, len(r.groups))

@@ -1,0 +1,163 @@
+diff --git a/internal/graph/graph.go b/internal/graph/graph.go
+index ec3a1f740..a6b4e56dc 100644
+--- a/internal/graph/graph.go
++++ b/internal/graph/graph.go
+@@ -4980,6 +4980,11 @@ func (h *Handler) reportPlayback(ctx context.Context, scope auth.Scope, req requ
+ 	durationSeconds := intVar(req, "durationSeconds")
+ 	finished := boolVar(req, "finished")
+ 	ambient := boolVar(req, "ambient")
++	// eventTimeMS (ABPARITY-1, ADR-0011 §3) is the client's monotonic instant the
++	// reported position was observed — never server-arrival time. A pre-upgrade
++	// client omits it (int64Var reads missing/zero the same, 0), which the store
++	// guard treats as "no event-time" (legacy unconditional-overwrite behavior).
++	eventTimeMS := int64Var(req, "eventTimeMS")
+ 	media, err := h.store.Media(ctx, store.MediaID(mediaID), scope.PlaybackFilter())
+ 	if err != nil {
+ 		return PlaybackReport{}, clientError("unknown media")
+@@ -5015,6 +5020,7 @@ func (h *Handler) reportPlayback(ctx context.Context, scope auth.Scope, req requ
+ 		MediaID:         media.ID,
+ 		PositionSeconds: positionSeconds,
+ 		DurationSeconds: durationSeconds,
++		EventTimeMS:     eventTimeMS,
+ 	}, finished, h.resumePolicy(ctx, media)); err != nil {
+ 		return PlaybackReport{}, err
+ 	}
+diff --git a/internal/store/engagement.go b/internal/store/engagement.go
+index ab4eb5a2a..7984ee314 100644
+--- a/internal/store/engagement.go
++++ b/internal/store/engagement.go
+@@ -22,6 +22,14 @@ type PlaybackProgress struct {
+ 	Watched         bool
+ 	PlayCount       int
+ 	UpdatedAt       time.Time
++	// EventTimeMS is the client-reported monotonic instant (ADR-0011 §3) the
++	// position was observed — never server-arrival time. Zero (unset) means the
++	// caller sent no event-time; the UPSERT then falls back to the pre-ABPARITY-1
++	// unconditional-overwrite behavior. A non-zero value guards position_seconds/
++	// updated_at_ms: an incoming write whose EventTimeMS is older than the row's
++	// last-applied event-time is a no-op, so a stale offline-flush from one device
++	// cannot rewind a newer position already recorded by another.
++	EventTimeMS int64
+ 	// Provenance is the ADR-0009 §7 (FREEZE-3) import discriminator: "" native,
+ 	// a shape-named source value for imported engagement. Write-only on input
+ 	// is via UpsertPlaybackProgressWithProvenance; this field is the read-back.
+@@ -186,16 +194,34 @@ func (s *Store) UpsertPlaybackProgressWithProvenance(ctx context.Context, progre
+ 	// only runs on a real advance — the columns are set unconditionally here.
+ 	// Native callers pass a zero prov, so they stay NULL (nullString maps "" →
+ 	// NULL), byte-for-byte the pre-MIGREV-7 native write.
++	//
++	// eventTimeMS is the ABPARITY-1 monotonic playback event-time guard input
++	// (NULL when the caller sent none — pre-upgrade clients). positionAdvanced
++	// (below) is the ON CONFLICT predicate deciding whether THIS write is allowed
++	// to move position_seconds/updated_at_ms/event_time_ms: true when the row has
++	// no event-time yet (legacy row or first write), the incoming write carries no
++	// event-time (legacy client — preserves prior unconditional-overwrite
++	// behavior), or the incoming event-time is >= the row's stored one (latest
++	// event-time wins, ADR-0011 §3 — a late replay of a stale position is then a
++	// no-op; a genuine newer position, including a deliberate rewind, still
++	// advances). play_count/last_played_at_ms/provenance/import columns are NEVER
++	// gated by this predicate — they advance on their own existing rules
++	// regardless of the position guard.
++	var eventTimeMS any
++	if progress.EventTimeMS > 0 {
++		eventTimeMS = progress.EventTimeMS
++	}
+ 	_, err := s.eventsW.ExecContext(ctx, `
+-		INSERT INTO playback_progress(profile_id, media_id, position_seconds, duration_seconds, watched, updated_at_ms, play_count, last_played_at_ms, provenance, occurred_at_ms, import_run_id, import_importer_id, import_match_method)
+-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
++		INSERT INTO playback_progress(profile_id, media_id, position_seconds, duration_seconds, watched, updated_at_ms, play_count, last_played_at_ms, provenance, occurred_at_ms, import_run_id, import_importer_id, import_match_method, event_time_ms)
++		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ 		ON CONFLICT(profile_id, media_id) DO UPDATE SET
+-		  position_seconds = excluded.position_seconds,
++		  position_seconds = CASE WHEN (`+positionAdvancedPredicate+`) THEN excluded.position_seconds ELSE playback_progress.position_seconds END,
+ 		  duration_seconds = excluded.duration_seconds,
+ 		  play_count = play_count + (CASE WHEN excluded.watched = 1 AND playback_progress.watched = 0 THEN 1 ELSE 0 END),
+ 		  last_played_at_ms = CASE WHEN excluded.watched = 1 AND playback_progress.watched = 0 THEN excluded.updated_at_ms ELSE last_played_at_ms END,
+-		  watched = excluded.watched,
+-		  updated_at_ms = excluded.updated_at_ms,
++		  watched = CASE WHEN (`+positionAdvancedPredicate+`) THEN excluded.watched ELSE playback_progress.watched END,
++		  updated_at_ms = CASE WHEN (`+positionAdvancedPredicate+`) THEN excluded.updated_at_ms ELSE playback_progress.updated_at_ms END,
++		  event_time_ms = CASE WHEN (`+positionAdvancedPredicate+`) THEN excluded.event_time_ms ELSE playback_progress.event_time_ms END,
+ 		  provenance = excluded.provenance,
+ 		  occurred_at_ms = excluded.occurred_at_ms,
+ 		  import_run_id = excluded.import_run_id,
+@@ -203,10 +229,21 @@ func (s *Store) UpsertPlaybackProgressWithProvenance(ctx context.Context, progre
+ 		  import_match_method = excluded.import_match_method
+ 	`, progress.ProfileID, progress.MediaID, position, progress.DurationSeconds,
+ 		boolToInt(watched), now, playIncrement, millisWhen(watched, now), prov.Source, occurredAt,
+-		nullString(prov.RunID), nullString(prov.ImporterID), nullString(prov.MatchMethod))
++		nullString(prov.RunID), nullString(prov.ImporterID), nullString(prov.MatchMethod), eventTimeMS)
+ 	return err
+ }
+ 
++// positionAdvancedPredicate is the ON CONFLICT test (ABPARITY-1, ADR-0011 §3)
++// for whether an incoming playback-progress write may move position_seconds/
++// watched/updated_at_ms/event_time_ms: the row has no event-time yet, the
++// incoming write carries none (legacy client), or the incoming event-time is
++// >= the row's stored event-time (latest-event-time-wins, not max(position) —
++// a deliberate rewind is a newer event-time and still advances).
++const positionAdvancedPredicate = `
++	playback_progress.event_time_ms IS NULL
++	OR excluded.event_time_ms IS NULL
++	OR excluded.event_time_ms >= playback_progress.event_time_ms`
++
+ func millisWhen(set bool, millis int64) any {
+ 	if set {
+ 		return millis
+@@ -317,14 +354,15 @@ func (s *Store) PlaybackProgressFor(ctx context.Context, profileID ProfileID, me
+ 	var watched int
+ 	var updated int64
+ 	var occurred sql.NullInt64
++	var eventTime sql.NullInt64
+ 	var runID, importerID, matchMethod sql.NullString
+ 	err := s.eventsR.QueryRowContext(ctx, `
+-		SELECT profile_id, media_id, position_seconds, duration_seconds, watched, updated_at_ms, play_count, provenance, occurred_at_ms, import_run_id, import_importer_id, import_match_method
++		SELECT profile_id, media_id, position_seconds, duration_seconds, watched, updated_at_ms, play_count, provenance, occurred_at_ms, import_run_id, import_importer_id, import_match_method, event_time_ms
+ 		FROM playback_progress
+ 		WHERE profile_id = ? AND media_id = ?
+ 	`, profileID, mediaID).Scan(&progress.ProfileID, &progress.MediaID,
+ 		&progress.PositionSeconds, &progress.DurationSeconds, &watched, &updated, &progress.PlayCount,
+-		&progress.Provenance, &occurred, &runID, &importerID, &matchMethod)
++		&progress.Provenance, &occurred, &runID, &importerID, &matchMethod, &eventTime)
+ 	if errors.Is(err, sql.ErrNoRows) {
+ 		return PlaybackProgress{}, false, nil
+ 	}
+@@ -338,6 +376,11 @@ func (s *Store) PlaybackProgressFor(ctx context.Context, profileID ProfileID, me
+ 	if occurred.Valid {
+ 		progress.OccurredAt = millisToTime(occurred.Int64)
+ 	}
++	// event_time_ms is NULL until a client sends a playback event-time
++	// (ABPARITY-1); EventTimeMS then stays the zero value.
++	if eventTime.Valid {
++		progress.EventTimeMS = eventTime.Int64
++	}
+ 	// Run-scoped import provenance (MIGREV-7): NULL on native rows, so the read
+ 	// leaves the fields empty; set only on imported rows.
+ 	progress.ImportRunID = runID.String
+diff --git a/internal/store/schema_freeze.go b/internal/store/schema_freeze.go
+index 2e8611433..fe1e02102 100644
+--- a/internal/store/schema_freeze.go
++++ b/internal/store/schema_freeze.go
+@@ -336,8 +336,21 @@ package store
+ //     No rebuild of any existing table; it is an operator review surface off the
+ //     entity-query hot path, so it does not perturb the benchmarked shape.
+ //     Catalog count 91 → 92.
++//   - ABPARITY-1 (ADR-0011 §3 "derived truth, materialized reads"): events 0018
++//     adds one nullable column, event_time_ms, to playback_progress — the
++//     client's monotonic playback event-time, used to guard position_seconds/
++//     updated_at_ms in the UPSERT so a stale offline-flush from one device can no
++//     longer stomp a newer position already recorded by another (previously an
++//     unconditional overwrite keyed on server-arrival order). NULL on every
++//     pre-migration row and on any write from a client that hasn't upgraded yet
++//     (plain ALTER ADD COLUMN, no table recreation); the guard predicate treats a
++//     NULL row or NULL incoming value as "no event-time" and falls back to the
++//     prior overwrite behavior, so this is additive and backward compatible. The
++//     column is read only by the guard predicate on write, never a query
++//     predicate on read — off the entity-query hot path. Events count 17 → 18
++//     (`make bench` re-confirmed the P95 budgets).
+ const (
+ 	schemaFreezeCatalogMigrations          = 92
+-	schemaFreezeEventsMigrations           = 17
++	schemaFreezeEventsMigrations           = 18
+ 	schemaFreezeEncryptedLibraryMigrations = 2
+ )

@@ -1,0 +1,84 @@
+diff --git a/internal/graph/graph.go b/internal/graph/graph.go
+index 561089b12..74e732c57 100644
+--- a/internal/graph/graph.go
++++ b/internal/graph/graph.go
+@@ -253,6 +253,20 @@ func (h *Handler) execute(ctx context.Context, scope auth.Scope, req request) re
+ 		}
+ 		data["updateProfile"] = profile
+ 	}
++	if strings.Contains(query, "setclientpref") {
++		pref, err := h.setClientPref(ctx, scope, req)
++		if err != nil {
++			return response{Errors: []graphError{{Message: err.Error()}}}
++		}
++		data["setClientPref"] = pref
++	}
++	if strings.Contains(query, "clientprefs") {
++		prefs, err := h.clientPrefs(ctx, scope)
++		if err != nil {
++			return response{Errors: []graphError{{Message: "client preferences unavailable"}}}
++		}
++		data["clientPrefs"] = prefs
++	}
+ 	if strings.Contains(query, "createlibrary") {
+ 		if scope.DeviceRole != store.DeviceRoleManager {
+ 			return response{Errors: []graphError{{Message: "manager role required"}}}
+@@ -972,6 +986,49 @@ func entityInfo(entity store.Entity) EntityInfo {
+ 	return info
+ }
+ 
++// ClientPrefInfo is the wire shape for one per-Profile client preference
++// (competitor-gap A23): namespaced key, opaque value the server never
++// interprets, and the server-stamped update time.
++type ClientPrefInfo struct {
++	Key       string `json:"key"`
++	Value     string `json:"value"`
++	UpdatedAt string `json:"updatedAt"`
++}
++
++// setClientPref stores (or, with an empty value, clears) one display
++// preference for the session's Profile. Viewer-allowed by design: these are
++// the Profile's own client display prefs, not catalog mutations.
++func (h *Handler) setClientPref(ctx context.Context, scope auth.Scope, req request) (ClientPrefInfo, error) {
++	key, _ := req.Variables["key"].(string)
++	value, _ := req.Variables["value"].(string)
++	now := time.Now().UTC()
++	if err := h.store.SetClientPref(ctx, scope.ProfileID, key, value, now); err != nil {
++		return ClientPrefInfo{}, err
++	}
++	return ClientPrefInfo{
++		Key:       strings.TrimSpace(key),
++		Value:     value,
++		UpdatedAt: now.Format(time.RFC3339),
++	}, nil
++}
++
++// clientPrefs lists every stored preference for the session's Profile.
++func (h *Handler) clientPrefs(ctx context.Context, scope auth.Scope) ([]ClientPrefInfo, error) {
++	prefs, err := h.store.ClientPrefs(ctx, scope.ProfileID)
++	if err != nil {
++		return nil, err
++	}
++	infos := make([]ClientPrefInfo, len(prefs))
++	for i, pref := range prefs {
++		infos[i] = ClientPrefInfo{
++			Key:       pref.Key,
++			Value:     pref.Value,
++			UpdatedAt: pref.UpdatedAt.Format(time.RFC3339),
++		}
++	}
++	return infos, nil
++}
++
+ // resumePolicy resolves the declarative resume eligibility for one Media item
+ // (ADR-0029 §7): the class default, overridden by the owning Library's plugin
+ // engagement posture when one is declared.
+@@ -1095,6 +1152,8 @@ func requiresScope(query string) bool {
+ 		strings.Contains(query, "createlibrary") ||
+ 		strings.Contains(query, "createprofile") ||
+ 		strings.Contains(query, "updateprofile") ||
++		strings.Contains(query, "setclientpref") ||
++		strings.Contains(query, "clientprefs") ||
+ 		strings.Contains(query, "identifysearch") ||
+ 		strings.Contains(query, "identifyapply") ||
+ 		containsJobQuery(query)

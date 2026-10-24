@@ -1,0 +1,157 @@
+diff --git a/internal/mediahttp/mediahttp.go b/internal/mediahttp/mediahttp.go
+index c8ce955b8..527eed214 100644
+--- a/internal/mediahttp/mediahttp.go
++++ b/internal/mediahttp/mediahttp.go
+@@ -438,11 +438,13 @@ func (h *Handler) Sidecars(w http.ResponseWriter, r *http.Request) {
+ 		http.Error(w, "unknown subtitle", http.StatusNotFound)
+ 		return
+ 	}
+-	// An interactive sidecar (ADR-0005 §4) is served as RAW bytes — it is not a
+-	// caption and must never be run through the WebVTT transform, which would
+-	// corrupt its body. A caption sidecar is read as WebVTT (vtt verbatim, srt
+-	// converted in-process).
+-	if caption.Kind == store.SidecarKindInteractive {
++	// An interactive sidecar (ADR-0005 §4) OR a bitmap subtitle sidecar
++	// (ADR-0194 §5 Tier 2: PGS .sup, VobSub .idx/.sub) is served as RAW bytes —
++	// neither is text, and running either through the WebVTT transform would
++	// corrupt its body. A bitmap sidecar reaches the native libmpv / burn-in
++	// ladder, not the WebVTT rung. A text caption sidecar is read as WebVTT (vtt
++	// verbatim, srt/ass converted in-process).
++	if caption.Kind == store.SidecarKindInteractive || isBitmapSubtitleFormat(caption.Format) {
+ 		raw, err := os.ReadFile(path)
+ 		if err != nil {
+ 			if errors.Is(err, os.ErrNotExist) {
+@@ -519,10 +521,45 @@ func readSidecarAsWebVTT(path, format string) (string, error) {
+ 	if err := subtitleingest.Guard(format, raw); err != nil {
+ 		return "", err
+ 	}
+-	if format == "vtt" {
+-		return subtitleingest.SanitizeWebVTT(string(raw)), nil
++	// Legacy sidecars are routinely CP1252/Latin-1; normalise to UTF-8 before
++	// the WebVTT transform so accented text does not render as mojibake
++	// (ADR-0194 §5).
++	text := subtitleingest.DecodeText(raw)
++	vtt, err := sidecarTextToWebVTT(text, format)
++	if err != nil {
++		return "", err
++	}
++	return subtitleingest.SanitizeWebVTT(vtt), nil
++}
++
++// sidecarTextToWebVTT projects a decoded text sidecar into WebVTT by format
++// (ADR-0194 §5): a .vtt is already WebVTT, an .srt takes the lossless comma→dot
++// transform, and an .ass/.ssa is flattened (styling dropped for non-libass
++// clients; libass engines take the raw-passthrough route instead). A bitmap
++// format never reaches here — the byte route serves it raw.
++func sidecarTextToWebVTT(text, format string) (string, error) {
++	switch format {
++	case "vtt":
++		return text, nil
++	case "ass", "ssa":
++		return subtitleingest.FlattenASS(text), nil
++	case "srt", "":
++		return srtToWebVTT(text), nil
++	default:
++		return "", fmt.Errorf("mediahttp: no WebVTT projection for sidecar format %q", format)
++	}
++}
++
++// isBitmapSubtitleFormat reports whether a sidecar caption format is a bitmap
++// subtitle (ADR-0194 §5 Tier 2) delivered as raw bytes to the native/burn-in
++// ladder rather than flattened to WebVTT.
++func isBitmapSubtitleFormat(format string) bool {
++	switch format {
++	case "sup", "idx", "sub":
++		return true
++	default:
++		return false
+ 	}
+-	return subtitleingest.SanitizeWebVTT(srtToWebVTT(string(raw))), nil
+ }
+ 
+ // srtToWebVTT converts SubRip cue text to WebVTT. WebVTT timestamps use a dot
+diff --git a/internal/scan/scan.go b/internal/scan/scan.go
+index fd609d774..c588df1d0 100644
+--- a/internal/scan/scan.go
++++ b/internal/scan/scan.go
+@@ -1838,13 +1838,32 @@ func markersFromProbeChapters(chapters []ffmpeg.ProbeChapter) []store.Marker {
+ }
+ 
+ // sidecarCaptionExts is the closed sidecar caption format vocabulary (FEAT-4 /
+-// ADR-0005 §4): the lowercase extension maps to the stored format string. Only
+-// these external subtitle formats are discovered as sidecar tracks.
++// ADR-0005 §4, widened by ADR-0194 §5): the lowercase extension maps to the
++// stored format string. Only these external subtitle formats are discovered as
++// sidecar tracks.
++//
++// Tiers (ADR-0194 §5): Tier 1 adds .ass/.ssa (served flattened to WebVTT for
++// non-libass clients, raw-passthrough to libass engines). Tier 2 adds bitmap
++// sidecars — .sup (PGS) here, and the .idx/.sub VobSub pair handled separately
++// in discover (a lone .sub is invalid, never silently converted). Tier 3
++// (.smi/.ttml) stays deferred and is intentionally absent. MicroDVD/.txt is
++// rejected by omission — framerate-relative timing has no format signature.
+ var sidecarCaptionExts = map[string]string{
+ 	"srt": "srt",
+ 	"vtt": "vtt",
++	"ass": "ass",
++	"ssa": "ssa",
++	"sup": "sup",
+ }
+ 
++// vobsubIndexExt / vobsubPayloadExt are the VobSub pair (ADR-0194 §5 Tier 2):
++// the .idx index is servable only when its .sub payload sibling exists; an
++// orphaned .sub is invalid and never recorded.
++const (
++	vobsubIndexExt   = "idx"
++	vobsubPayloadExt = "sub"
++)
++
+ type sidecarDiscovery struct {
+ 	interactive map[string]bool
+ 	dirs        map[string][]os.DirEntry
+@@ -1883,7 +1902,19 @@ func (d *sidecarDiscovery) discover(mediaPath string) []store.MediaFileSidecarCa
+ 		}
+ 		name := entry.Name()
+ 		ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(name)), ".")
++		// A .sub is only ever the payload half of a VobSub pair (ADR-0194 §5):
++		// it is discovered through its .idx index, never on its own. A lone .sub
++		// is invalid (it could be MicroDVD, which is rejected) and is skipped so
++		// it is never silently converted.
++		if ext == vobsubPayloadExt {
++			continue
++		}
+ 		captionFormat, isCaption := sidecarCaptionExts[ext]
++		// A .idx is a caption only when its .sub payload sibling is present; the
++		// pair validates at scan time, orphaned index dropped.
++		if ext == vobsubIndexExt && hasVobSubPayload(entries, name) {
++			captionFormat, isCaption = vobsubIndexExt, true
++		}
+ 		if !isCaption && !d.interactive[ext] {
+ 			continue
+ 		}
+@@ -1919,6 +1950,25 @@ func (d *sidecarDiscovery) discover(mediaPath string) []store.MediaFileSidecarCa
+ 	return out
+ }
+ 
++// hasVobSubPayload reports whether the directory entries contain the .sub
++// payload sibling of a .idx index file (ADR-0194 §5 Tier 2). The pair shares a
++// base name — "movie.en.idx" pairs with "movie.en.sub" — so the index's base
++// (extension stripped) plus ".sub" names the payload. Matching is
++// case-insensitive to tolerate a mixed-case sibling on a case-sensitive
++// filesystem.
++func hasVobSubPayload(entries []os.DirEntry, idxName string) bool {
++	payload := strings.TrimSuffix(idxName, filepath.Ext(idxName)) + "." + vobsubPayloadExt
++	for _, entry := range entries {
++		if entry.IsDir() {
++			continue
++		}
++		if strings.EqualFold(entry.Name(), payload) {
++			return true
++		}
++	}
++	return false
++}
++
+ // parseSidecarHints parses the dot-separated hint segments of a sidecar stem
+ // (the part after the media stem, e.g. "en.forced" or "en.sdh") into the
+ // generic player track hints (invariant #1): an ISO-639 language tag, a forced

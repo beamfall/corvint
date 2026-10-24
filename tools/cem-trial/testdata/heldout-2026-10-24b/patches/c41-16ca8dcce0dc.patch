@@ -1,0 +1,70 @@
+diff --git a/script/roadmap_member_evidence.py b/script/roadmap_member_evidence.py
+index a112171e5..0a2195c3e 100644
+--- a/script/roadmap_member_evidence.py
++++ b/script/roadmap_member_evidence.py
+@@ -73,6 +73,8 @@ PLAIN_GATE_PHASES = (
+     ('gate scope selftest',),
+     ('tracked-vs-gitignore gate selftest',),
+     ('tracked-vs-gitignore gate',),
++    ('go-test -count=1 audit gate selftest',),
++    ('go-test -count=1 audit gate',),
+     ('scale fixture throughput gate selftest',),
+     ('backup AGPL firewall gate selftest',),
+     ('backup AGPL firewall gate',),
+diff --git a/tools/gate/gate_latest.py b/tools/gate/gate_latest.py
+index 3486cb35d..645b16c90 100644
+--- a/tools/gate/gate_latest.py
++++ b/tools/gate/gate_latest.py
+@@ -51,6 +51,14 @@ def write_generation(path: Path, generation: int) -> None:
+             pass
+ 
+ 
++def default_gocache_dir() -> Path:
++    # GATE-GOCACHE-PERSIST-1: repo-root .gocache is the reserved, gitignored
++    # convention (see .gitignore: "Local Go build cache (GOCACHE=.gocache;
++    # never commit)"). GATE_LATEST_GOCACHE_DIR overrides it, mirroring
++    # GATE_LATEST_STATE_DIR's override for hermetic tests.
++    return Path(os.environ.get("GATE_LATEST_GOCACHE_DIR", str(ROOT / ".gocache")))
++
++
+ def allocate_generation(control_lock: Path, generation_path: Path) -> int:
+     with control_lock.open("a+b") as stream:
+         fcntl.flock(stream, fcntl.LOCK_EX)
+@@ -165,14 +173,24 @@ def supervise(command: list[str]) -> int:
+             environment = os.environ.copy()
+             environment.pop("GATE_WORKER_REAPS_DESCENDANTS", None)
+             environment["GATE_RUN_ID"] = str(generation)
+-            owned_cache = None
+             process = None
+             try:
+                 if "GOCACHE" not in os.environ:
+                     # Environment presence is the coordinator boundary: even an
+-                    # explicit empty value is forwarded byte-for-byte.
+-                    owned_cache = tempfile.TemporaryDirectory(prefix="beamfall-go-build-")
+-                    environment["GOCACHE"] = str(Path(owned_cache.name).resolve())
++                    # explicit empty value is forwarded byte-for-byte. Default
++                    # to a persistent, gitignored cache dir (reused, never
++                    # deleted here) instead of a fresh-then-discarded tempdir,
++                    # so warm `go build`/`go test` reuse survives across gate
++                    # runs. Safe to share across concurrent runs: the Go
++                    # build/test cache is designed for concurrent access
++                    # (internally lock-file guarded). This makes every gate
++                    # `go test` call's own result cache load-bearing, which is
++                    # why every such call under tools/ and script/ must carry
++                    # -count=1 (audited by tools/gate/go-test-count1-check.sh)
++                    # so a warm cache can never silently replay a stale PASS.
++                    default_cache = default_gocache_dir()
++                    default_cache.mkdir(parents=True, exist_ok=True)
++                    environment["GOCACHE"] = str(default_cache.resolve())
+                 process = subprocess.Popen(
+                     command,
+                     cwd=ROOT,
+@@ -213,8 +231,6 @@ def supervise(command: list[str]) -> int:
+             finally:
+                 if process is not None:
+                     finish_worker(process, grace, worker_reaps_descendants)
+-                if owned_cache is not None:
+-                    owned_cache.cleanup()
+     finally:
+         for signum, previous in previous_handlers.items():
+             signal.signal(signum, previous)

@@ -1517,8 +1517,9 @@ func assign(guard *sync.Mutex, write func()) {
 // reply is reused only for a byte-identical prompt, and only for a lane that
 // actually finished, so --resume reruns exactly what never completed.
 type reuseSource struct {
-	identity string
-	lanes    map[string]*lane
+	identity   string
+	lanes      map[string]*lane
+	identities map[string]string
 }
 
 func loadReuse(configuration options, run *report) (*reuseSource, error) {
@@ -1535,13 +1536,21 @@ func loadReuse(configuration options, run *report) (*reuseSource, error) {
 	if err := registeredPrior(run, document, configuration.reuse); err != nil {
 		return nil, err
 	}
+	if err := reRegister(run, document, configuration.reuse); err != nil {
+		return nil, err
+	}
 	return newReuseSource(document), nil
 }
 
 func newReuseSource(document *report) *reuseSource {
-	source := &reuseSource{identity: document.ManifestSHA256, lanes: map[string]*lane{}}
+	source := &reuseSource{identity: document.ManifestSHA256, lanes: map[string]*lane{}, identities: map[string]string{}}
 	for _, item := range document.Lanes {
 		source.lanes[laneKey(item)] = item
+		// A lane a checkpoint already reused keeps the report it first ran in.
+		source.identities[laneKey(item)] = document.ManifestSHA256
+		if item.ReusedFrom != "" {
+			source.identities[laneKey(item)] = item.ReusedFrom
+		}
 	}
 	return source
 }
@@ -1554,6 +1563,7 @@ func (source *reuseSource) merge(document *report) *reuseSource {
 	for key, item := range other.lanes {
 		if _, present := source.lanes[key]; !present {
 			source.lanes[key] = item
+			source.identities[key] = other.identities[key]
 		}
 	}
 	return source
@@ -1574,7 +1584,7 @@ func (source *reuseSource) apply(record *lane) bool {
 	record.WallMs, record.ExitCode, record.Tokens, record.ToolCalls = prior.WallMs, prior.ExitCode, prior.Tokens, prior.ToolCalls
 	record.Reply, record.ReplyTruncated, record.CEM = prior.Reply, prior.ReplyTruncated, prior.CEM
 	record.StdoutTruncated, record.StartedAt = prior.StdoutTruncated, prior.StartedAt
-	record.ReusedFrom = source.identity
+	record.ReusedFrom = source.identities[laneKey(record)]
 	return true
 }
 

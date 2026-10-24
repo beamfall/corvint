@@ -819,6 +819,7 @@ CRT-V0-012	docs/specs/cem-reviewer-trial-v0.md	Seeded-arm decomposition (propose
 CRT-V0-013	docs/specs/cem-reviewer-trial-v0.md	(V1-1261, decision 0523 P4; accepted under the owner's standing auto-accept (202	standing	V1-1261; decision 0523; 2026-10-11
 CRT-V0-014	docs/specs/cem-reviewer-trial-v0.md	(V1-1261, decision 0523 P4, extends CRT-V0-010; accepted under the owner's stand	standing	V1-1261; decision 0523; 2026-10-11
 CRT-V0-015	docs/specs/cem-reviewer-trial-v0.md	(V1-1261, decision 0523 P4; accepted under the owner's standing auto-accept (202	standing	V1-1261; decision 0523; 2026-10-11
+CRT-V0-016	docs/specs/cem-reviewer-trial-v0.md	(V1-0836, V1-2619; 2026-10-24, owner decision; extends CRT-V0-010 and CRT-V0-014	owner	V1-0836; V1-2619; 2026-10-24
 CEM-V1-001	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Preserve canonical Git base/target/hunk	owner	decision 0546; 2026-10-20
 CEM-V1-002	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Bind criterion references to canonical n	owner	decision 0546; 2026-10-20
 CEM-V1-003	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Reference bounded runner receipts by dig	owner	decision 0546; 2026-10-20
