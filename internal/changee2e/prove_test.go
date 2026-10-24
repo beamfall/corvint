@@ -253,7 +253,7 @@ func TestCCEV0009ControlPerturbation(t *testing.T) {
 		if tc.kind == behaviorfalsify.WrongExpectedValue {
 			repl = wrongValue
 		}
-		out, err := perturbLine(sc.Text, sc.AssertionLine, tc.kind, sc.Locator, sc.Matcher, sc.Value, repl)
+		out, err := perturbLine(sc.Text, sc.AssertionLine, tc.kind, sc.LocatorForm, sc.Locator, sc.Matcher, sc.Value, repl)
 		if err != nil {
 			t.Fatalf("%s: %v", tc.kind, err)
 		}
@@ -268,7 +268,7 @@ func TestCCEV0009ControlPerturbation(t *testing.T) {
 			t.Fatalf("%s line = %q", tc.kind, got[sc.AssertionLine-1])
 		}
 	}
-	if _, err := perturbLine(sc.Text, sc.AssertionLine-1, behaviorfalsify.WrongLocator, sc.Locator, sc.Matcher, sc.Value, wrongLocator); err == nil {
+	if _, err := perturbLine(sc.Text, sc.AssertionLine-1, behaviorfalsify.WrongLocator, sc.LocatorForm, sc.Locator, sc.Matcher, sc.Value, wrongLocator); err == nil {
 		t.Fatal("a line without the assertion must refuse the perturbation")
 	}
 }

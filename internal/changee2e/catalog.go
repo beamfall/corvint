@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"path"
 	"regexp"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/appmap"
@@ -20,6 +22,7 @@ const (
 	KindOutcome    = "outcome"
 	KindInput      = "input"
 	KindFixture    = "fixture"
+	KindSession    = "session"
 )
 
 // Span binds a block to committed bytes at the catalog revision.
@@ -58,6 +61,39 @@ type Block struct {
 	Satisfies []string    `json:"satisfies,omitempty"`
 	Setup     *MethodCall `json:"setup,omitempty"`
 	Cleanup   *MethodCall `json:"cleanup,omitempty"`
+	// Outputs are the fields the fixture's setup returns, which later blocks may read (CCE-V0-105).
+	Outputs []string `json:"outputs,omitempty"`
+	// session (CCE-V0-107): the environment variable naming a Playwright storage-state file
+	StorageStateEnv string `json:"storage_state_env,omitempty"`
+	// Typed is a declared role or label locator for an outcome or input (CCE-V0-109).
+	Typed *TypedLocator `json:"typed_locator,omitempty"`
+	// Params bind a parameterised entry's URL parameters (CCE-V0-111).
+	Params []RouteParam `json:"params,omitempty"`
+}
+
+// TypedLocator is a declared role or label locator (CCE-V0-109): `getByRole(role, { name })` or
+// `getByLabel(name)`, both exact.
+type TypedLocator struct {
+	By   string `json:"by"` // role | label
+	Role string `json:"role,omitempty"`
+	Name string `json:"name"`
+}
+
+// RouteParam binds one URL parameter of a parameterised entry (CCE-V0-111) to a constant value or
+// to a declared output of a fixture.
+type RouteParam struct {
+	Name    string `json:"name"`
+	Value   string `json:"value,omitempty"`
+	Fixture string `json:"fixture,omitempty"`
+	Output  string `json:"output,omitempty"`
+}
+
+// APIContract is one declared API contract join (CCE-V0-114): a change to a path matching a glob
+// reaches each screen whose placed file names the endpoint literal.
+type APIContract struct {
+	ContractID string   `json:"contract_id"`
+	Paths      []string `json:"paths"`
+	Endpoint   string   `json:"endpoint"`
 }
 
 // Unadmitted is a candidate block withheld from compilation, with its reason (CCE-V0-002).
@@ -90,6 +126,15 @@ type Catalog struct {
 	m       *appmap.Map
 	expects map[string][]string // step ID -> outcome IDs the flow intent's step expects
 	encoded []byte
+	// paramEntries are entries blocked only by their required URL parameters, which a declared
+	// route may bind (CCE-V0-111), by screen ID.
+	paramEntries map[string]paramEntry
+}
+
+type paramEntry struct {
+	screen *appmap.Screen
+	url    string
+	params []string
 }
 
 // Encoded returns the sealed bytes of the catalog.
@@ -131,9 +176,24 @@ type declarations struct {
 		Satisfies []string   `json:"satisfies"`
 		Setup     MethodCall `json:"setup"`
 		Cleanup   MethodCall `json:"cleanup"`
+		Outputs   []string   `json:"outputs"`
 	} `json:"fixtures"`
-	Environment *Environment     `json:"environment"`
-	ReachExempt []ReachExemption `json:"reach_exempt"`
+	Sessions []struct {
+		SessionID       string   `json:"session_id"`
+		Satisfies       []string `json:"satisfies"`
+		StorageStateEnv string   `json:"storage_state_env"`
+	} `json:"sessions"`
+	Locators []struct {
+		Block string `json:"block"`
+		TypedLocator
+	} `json:"locators"`
+	Routes []struct {
+		ScreenID string       `json:"screen_id"`
+		Params   []RouteParam `json:"params"`
+	} `json:"routes"`
+	APIContracts []APIContract    `json:"api_contracts"`
+	Environment  *Environment     `json:"environment"`
+	ReachExempt  []ReachExemption `json:"reach_exempt"`
 }
 
 // ReachExemption is one reviewed `reach_exempt` entry (CCE-V0-020): a path.Match glob over the
@@ -177,7 +237,7 @@ func BuildCatalog(ctx context.Context, o CatalogOptions) (*Catalog, error) {
 		return nil, refuse("e2e-map-unavailable", "%v", err)
 	}
 	c := &Catalog{Schema: CatalogSchema, Revision: rev, MapDigest: m.Digest, Blocks: []Block{}, Unadmitted: []Unadmitted{},
-		Unknowns: []CatalogUnknown{}, m: m, expects: map[string][]string{}}
+		Unknowns: []CatalogUnknown{}, m: m, expects: map[string][]string{}, paramEntries: map[string]paramEntry{}}
 	pageObjects := map[string]*appmap.TestFile{}
 	for i := range m.Files {
 		f := &m.Files[i]
@@ -239,15 +299,23 @@ func BuildCatalog(ctx context.Context, o CatalogOptions) (*Catalog, error) {
 	return c, err
 }
 
-// admittedMatchers are the web-first text and value matchers a compiled assertion may use.
-var admittedMatchers = map[string]bool{"toHaveText": true, "toContainText": true, "toHaveValue": true}
+// admittedMatchers are the web-first matchers a compiled assertion may use: text and value, and
+// (CCE-V0-110) the accessible name and a positive element count.
+var admittedMatchers = map[string]bool{"toHaveText": true, "toContainText": true, "toHaveValue": true,
+	"toHaveAccessibleName": true, MatcherCount: true}
+
+// MatcherCount compares a positive integer count; its value renders unquoted (CCE-V0-110).
+const MatcherCount = "toHaveCount"
+
+var countValue = regexp.MustCompile(`^[1-9][0-9]{0,5}$`)
 
 func span(a appmap.Anchor) Span {
 	return Span{Path: a.Path, Start: a.Start, End: a.End, SHA256: a.SpanSHA256}
 }
 
 // addEntries admits each deep-linkable, parameter-free entry as a path block; every other entry
-// row is unadmitted with its classification and reasons.
+// row is unadmitted with its classification and reasons. An entry blocked only by its required
+// URL parameters is also kept for a declared route to bind (CCE-V0-111).
 func (c *Catalog) addEntries(ctx context.Context, root, rev string) error {
 	raw, err := appmap.ProjectEntries(ctx, c.m, nil, appmap.Options{Root: root, Revision: rev, Full: true})
 	if err != nil {
@@ -281,12 +349,43 @@ func (c *Catalog) addEntries(ctx context.Context, root, rev string) error {
 				reason += ": " + strings.Join(e.Reasons, ",")
 			}
 			c.Unadmitted = append(c.Unadmitted, Unadmitted{Kind: KindPath, ID: id, Reason: reason})
+			if params, ok := bindableURL(e.Classification, e.Reasons, e.URL, e.RequiredParams); ok {
+				c.paramEntries[s.ID] = paramEntry{screen: s, url: e.URL, params: params}
+			}
 		default:
 			c.Blocks = append(c.Blocks, Block{Kind: KindPath, ID: id, Blob: s.Anchor.Blob, Span: span(s.Anchor),
 				Relation: "deep-link-entry", Screen: s.ID, URL: e.URL})
 		}
 	}
 	return nil
+}
+
+// urlParam is one `{name}` placeholder of an entry URL template.
+var urlParam = regexp.MustCompile(`\{([A-Za-z_][A-Za-z0-9_]*)\}`)
+
+// bindableURL reports whether an entry is blocked only by its required parameters: deep-linkable
+// or requiring parent parameters, with no reason, and a URL whose only placeholders are exactly
+// the required names, each once.
+func bindableURL(class string, reasons []string, url string, required []string) ([]string, bool) {
+	if (class != "deep-linkable" && class != "requires-parent-params") || len(reasons) != 0 || len(required) == 0 || url == "" {
+		return nil, false
+	}
+	rest := urlParam.ReplaceAllString(url, "")
+	if strings.ContainsAny(rest, ":{}?*") {
+		return nil, false
+	}
+	var names []string
+	for _, m := range urlParam.FindAllStringSubmatch(url, -1) {
+		names = append(names, m[1])
+	}
+	sorted := append([]string(nil), names...)
+	sort.Strings(sorted)
+	want := append([]string(nil), required...)
+	sort.Strings(want)
+	if strings.Join(sorted, "\x00") != strings.Join(want, "\x00") {
+		return nil, false
+	}
+	return want, true
 }
 
 // readExpects reads the flow intent's navigation step expectations at rev; the map's step type
@@ -374,6 +473,13 @@ func (c *Catalog) addDeclarations(ctx context.Context, root, rev string, pageObj
 				return refuse("e2e-blocks-invalid", "fixture %q satisfies", fx.FixtureID)
 			}
 		}
+		outs := map[string]bool{}
+		for _, o := range fx.Outputs {
+			if !outputName.MatchString(o) || outs[o] || len(fx.Outputs) > maxOutputs {
+				return refuse("e2e-blocks-invalid", "fixture %q output %q", fx.FixtureID, o)
+			}
+			outs[o] = true
+		}
 		setup, cleanup := fx.Setup, fx.Cleanup
 		if reason := c.methodReason(pageObjects, setup); reason != "" {
 			c.Unadmitted = append(c.Unadmitted, Unadmitted{Kind: KindFixture, ID: fx.FixtureID, Reason: "setup-" + reason})
@@ -384,9 +490,127 @@ func (c *Catalog) addDeclarations(ctx context.Context, root, rev string, pageObj
 			continue
 		}
 		c.Blocks = append(c.Blocks, Block{Kind: KindFixture, ID: fx.FixtureID, Blob: blob, Span: whole, Relation: "declared-fixture",
-			Satisfies: append([]string(nil), fx.Satisfies...), Setup: &setup, Cleanup: &cleanup})
+			Satisfies: append([]string(nil), fx.Satisfies...), Setup: &setup, Cleanup: &cleanup, Outputs: append([]string(nil), fx.Outputs...)})
+	}
+	for _, se := range d.Sessions {
+		n := se.StorageStateEnv
+		if !declaredID.MatchString(se.SessionID) || !strings.HasPrefix(se.SessionID, "session:") || seen[se.SessionID] || len(se.Satisfies) == 0 ||
+			!envName.MatchString(n) || reservedEnvNames[n] || strings.HasPrefix(n, "CORVINT_") {
+			return refuse("e2e-blocks-invalid", "session %q", se.SessionID)
+		}
+		seen[se.SessionID] = true
+		for _, s := range se.Satisfies {
+			if !nonEmptyText(s) {
+				return refuse("e2e-blocks-invalid", "session %q satisfies", se.SessionID)
+			}
+		}
+		c.Blocks = append(c.Blocks, Block{Kind: KindSession, ID: se.SessionID, Blob: blob, Span: whole, Relation: "declared-session",
+			Satisfies: append([]string(nil), se.Satisfies...), StorageStateEnv: n})
+	}
+	typed := map[string]bool{}
+	for _, l := range d.Locators {
+		t := l.TypedLocator
+		if typed[l.Block] || !nonEmptyText(t.Name) || (t.By == "role") != ariaRole.MatchString(t.Role) || (t.By != "role" && t.By != "label") {
+			return refuse("e2e-blocks-invalid", "locator %q", l.Block)
+		}
+		typed[l.Block] = true
+		if secretShaped.MatchString(t.Name) || secretscreen.MatchString(t.Name) {
+			return refuse("e2e-input-secret", "locator %q", l.Block)
+		}
+		b := c.Block(l.Block)
+		if b == nil || (b.Kind != KindOutcome && b.Kind != KindInput) {
+			c.Unadmitted = append(c.Unadmitted, Unadmitted{Kind: "locator", ID: l.Block, Reason: "locator-block-unadmitted"})
+			continue
+		}
+		b.Typed = &t
+	}
+	return c.addRoutes(d, blob, whole)
+}
+
+var (
+	outputName = regexp.MustCompile(`^[a-z][A-Za-z0-9]{0,63}$`)
+	ariaRole   = regexp.MustCompile(`^[a-z]{2,32}$`)
+)
+
+// maxOutputs bounds a fixture's declared outputs.
+const maxOutputs = 8
+
+// addRoutes admits each declared route that binds every required parameter of a parameterised
+// entry (CCE-V0-111) as that entry's path block, replacing its unadmitted row. A fixture-bound
+// parameter must name a declared fixture output; a constant is secret-screened. A route on a
+// screen with no parameterised entry, or with other parameter names, is unadmitted.
+func (c *Catalog) addRoutes(d declarations, blob string, whole Span) error {
+	routed := map[string]bool{}
+	for _, rt := range d.Routes {
+		id := "path:entry:" + rt.ScreenID
+		if !nonEmptyText(rt.ScreenID) || routed[rt.ScreenID] || len(rt.Params) == 0 {
+			return refuse("e2e-blocks-invalid", "route %q", rt.ScreenID)
+		}
+		routed[rt.ScreenID] = true
+		var names []string
+		for _, p := range rt.Params {
+			constant := p.Value != "" && p.Fixture == "" && p.Output == ""
+			bound := p.Value == "" && declaredID.MatchString(p.Fixture) && outputName.MatchString(p.Output)
+			if !urlParamName.MatchString(p.Name) || constant == bound || len(p.Value) > 512 {
+				return refuse("e2e-blocks-invalid", "route %q param %q", rt.ScreenID, p.Name)
+			}
+			if secretShaped.MatchString(p.Value) || secretscreen.MatchString(p.Value) {
+				return refuse("e2e-input-secret", "route %q param %q", rt.ScreenID, p.Name)
+			}
+			names = append(names, p.Name)
+		}
+		sort.Strings(names)
+		pe, ok := c.paramEntries[rt.ScreenID]
+		if !ok {
+			// An entry that is guarded or otherwise unadmitted keeps its own, more specific reason.
+			if c.unadmittedReason(KindPath, id, "") == "" {
+				c.Unadmitted = append(c.Unadmitted, Unadmitted{Kind: KindPath, ID: id, Reason: "route-not-parameterised"})
+			}
+			continue
+		}
+		reason := c.routeFixtureReason(rt.Params)
+		if strings.Join(names, ",") != strings.Join(pe.params, ",") {
+			reason = "route-params-mismatch"
+		}
+		// The route's verdict replaces the entry's requires-parent-params reason.
+		kept := c.Unadmitted[:0]
+		for _, u := range c.Unadmitted {
+			if u.Kind != KindPath || u.ID != id {
+				kept = append(kept, u)
+			}
+		}
+		c.Unadmitted = kept
+		if reason != "" {
+			c.Unadmitted = append(c.Unadmitted, Unadmitted{Kind: KindPath, ID: id, Reason: reason})
+			continue
+		}
+		params := append([]RouteParam(nil), rt.Params...)
+		sort.Slice(params, func(i, j int) bool { return params[i].Name < params[j].Name })
+		c.Blocks = append(c.Blocks, Block{Kind: KindPath, ID: id, Blob: pe.screen.Anchor.Blob, Span: span(pe.screen.Anchor),
+			Relation: "declared-route", Screen: pe.screen.ID, URL: pe.url, Params: params,
+			Provenance: "route:" + blob + ":" + strconv.Itoa(whole.Start) + "-" + strconv.Itoa(whole.End)})
 	}
 	return nil
+}
+
+var urlParamName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+// routeFixtureReason is empty when every fixture-bound parameter names an admitted fixture that
+// declares the output.
+func (c *Catalog) routeFixtureReason(params []RouteParam) string {
+	for _, p := range params {
+		if p.Fixture == "" {
+			continue
+		}
+		fx := c.Block(p.Fixture)
+		if fx == nil || fx.Kind != KindFixture {
+			return "route-fixture-unadmitted"
+		}
+		if !slices.Contains(fx.Outputs, p.Output) {
+			return "route-output-undeclared"
+		}
+	}
+	return ""
 }
 
 // decodeDeclarations decodes the closed blocks schema and validates its environment member.
@@ -403,6 +627,18 @@ func decodeDeclarations(data []byte) (declarations, error) {
 	if d.Environment != nil {
 		if err := d.Environment.validate(); err != nil {
 			return d, err
+		}
+	}
+	for _, a := range d.APIContracts {
+		ok := declaredID.MatchString(a.ContractID) && len(a.Paths) != 0 && strings.HasPrefix(a.Endpoint, "/") && len(a.Endpoint) > 1 &&
+			len(a.Endpoint) <= 256 && !strings.ContainsAny(a.Endpoint, " \t\n\r'\"`")
+		for _, g := range a.Paths {
+			if _, err := path.Match(g, ""); err != nil || !nonEmptyText(g) || strings.HasPrefix(g, "/") {
+				ok = false
+			}
+		}
+		if !ok {
+			return d, refuse("e2e-blocks-invalid", "%s: api_contracts %q", DeclarationsPath, a.ContractID)
 		}
 	}
 	for _, e := range d.ReachExempt {
@@ -444,8 +680,11 @@ func outcomeAdmissionReason(matcher, locator, value string) string {
 	switch {
 	case !admittedMatchers[matcher] || locator == "":
 		return "outcome-not-compilable"
-	case value == "":
+	case value == "" || matcher == MatcherCount && value == "0":
+		// A zero count holds when the locator matches nothing, so it is vacuous (CCE-V0-110).
 		return "outcome-vacuous"
+	case matcher == MatcherCount && !countValue.MatchString(value):
+		return "outcome-not-compilable"
 	}
 	return ""
 }
