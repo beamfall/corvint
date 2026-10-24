@@ -98,11 +98,30 @@ func TestPlaywrightDiscoveryGrepOmission_TJAA_V0_021(t *testing.T) {
 		{Project: "main", Test: "e2e/plain.spec.ts"}, {Project: "main", Test: "e2e/tagged.spec.ts"},
 	}
 	plainUnverified := []PlaywrightDiscoveryUnit{{Project: "alt-a", Test: "e2e/plain.spec.ts"}, {Project: "alt-b", Test: "e2e/plain.spec.ts"}}
-	// A grep that matches no listed title is a negative decision a hidden describe or config tag
-	// (one Playwright reports only in part, or not at all) could reverse, so the GitHub #790 pairs
-	// are kept but unverified (Codex review round 2).
-	t.Run("GitHub #790 three-project repro is accepted with unverified grep omissions", func(t *testing.T) {
+	// AFP-V0-409/410 (GitHub #1647): with no tag in the config or test sources, no hidden describe
+	// or config tag can reverse grep's negative decision, so the GitHub #790 pairs are verified.
+	t.Run("GitHub #790 three-project repro is verified when the sources hold no hidden tag", func(t *testing.T) {
 		root := grepFixture(t, grepRepro)
+		raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, grepPlaywrightListing(t, root, "e2e", grepReproCases()))
+		if err != nil {
+			t.Fatalf("grep-filtered listing refused: %v", err)
+		}
+		receipt := decodeGrepReceipt(t, raw)
+		if !slices.Equal(receipt.Units, allUnits) || len(receipt.UnverifiedUnits) != 0 {
+			t.Fatalf("receipt: %s", raw)
+		}
+		plan, err := SelectPlaywright(root, "playwright.config.ts", discoveryFixtureRevision, nil, raw)
+		if err != nil || plan.Discovery.State != "MATCHED" || slices.ContainsFunc(plan.Unknown, func(unknown PlaywrightUnknown) bool { return unknown.Reason == PlaywrightUnknownDiscoveryOmission }) {
+			t.Fatalf("plan: %+v %v", plan, err)
+		}
+	})
+	// A grep that matches no listed title is a negative decision a hidden describe or config tag
+	// (one Playwright reports only in part, or not at all) could reverse, so with a computed tag
+	// in the sources the GitHub #790 pairs are kept but unverified, and the plan names them
+	// (Codex review round 2; AFP-V0-410, AFP-V0-411).
+	t.Run("GitHub #790 repro with a computed describe tag keeps unverified grep omissions", func(t *testing.T) {
+		root := grepFixture(t, grepRepro)
+		write(t, root, "e2e/plain.spec.ts", "const extra = ' slow';\ntest.describe('d', { tag: '@a' + extra }, () => {\n  test('plain', async () => {});\n});\n")
 		raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, grepPlaywrightListing(t, root, "e2e", grepReproCases()))
 		if err != nil {
 			t.Fatalf("grep-filtered listing refused: %v", err)
@@ -113,7 +132,8 @@ func TestPlaywrightDiscoveryGrepOmission_TJAA_V0_021(t *testing.T) {
 		}
 		plan, err := SelectPlaywright(root, "playwright.config.ts", discoveryFixtureRevision, nil, raw)
 		if err != nil || plan.Discovery.State != "MATCHED" || !slices.ContainsFunc(plan.Unknown, func(unknown PlaywrightUnknown) bool {
-			return unknown.Axis == PlaywrightAxisExecution && unknown.Reason == PlaywrightUnknownDiscoveryOmission && strings.Contains(unknown.Detail, `2 discovery unit(s)`)
+			return unknown.Axis == PlaywrightAxisExecution && unknown.Reason == PlaywrightUnknownDiscoveryOmission && strings.Contains(unknown.Detail, `2 discovery unit(s)`) &&
+				strings.Contains(unknown.Detail, `project "alt-a" test e2e/plain.spec.ts, project "alt-b" test e2e/plain.spec.ts`)
 		}) {
 			t.Fatalf("plan: %+v %v", plan, err)
 		}
@@ -147,7 +167,7 @@ func TestPlaywrightDiscoveryGrepOmission_TJAA_V0_021(t *testing.T) {
 		if err != nil {
 			t.Fatalf("array grep listing refused: %v", err)
 		}
-		if receipt := decodeGrepReceipt(t, raw); !slices.Equal(receipt.Units, allUnits) || !slices.Equal(receipt.UnverifiedUnits, plainUnverified[1:]) {
+		if receipt := decodeGrepReceipt(t, raw); !slices.Equal(receipt.Units, allUnits) || len(receipt.UnverifiedUnits) != 0 {
 			t.Fatalf("receipt: %s", raw)
 		}
 	})

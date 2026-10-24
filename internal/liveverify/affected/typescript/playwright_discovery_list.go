@@ -306,12 +306,13 @@ func checkPlaywrightListMembership(root, configPath string, configBytes []byte, 
 	for _, project := range projects {
 		byName[project.Name] = project
 	}
+	tagSources := newPlaywrightTagSources(root)
 	for unit := range selected {
 		if listed[unit] {
 			continue
 		}
 		if project := byName[unit.Project]; cases != nil && (project.hasGrep || project.hasGrepInvert) {
-			switch classifyPlaywrightGrepOmission(project, cases[unit.Test]) {
+			switch classifyPlaywrightGrepOmission(project, cases[unit.Test], tagSources.exact(configPath, unit.Test)) {
 			case playwrightOmissionExplained:
 				omissions.explained = append(omissions.explained, unit)
 				continue

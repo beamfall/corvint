@@ -52,8 +52,11 @@ type playwrightListCase struct {
 // when a declared pattern is not evaluable here, a title part is outside the matcher model, or a
 // case's exclusion is unverified; otherwise, including a file with no listed case, it is
 // unexplained. A case filtered out of every project is not listed; under the caller-declared
-// listing it is excluded for this project too.
-func classifyPlaywrightGrepOmission(project PlaywrightProject, cases []playwrightListCase) playwrightOmission {
+// listing it is excluded for this project too. A non-nil sourceTags means the sources prove no tag
+// text is hidden and hold exactly those literal tags (playwrightTagSources); a case whose explicit
+// tags are all among them has tokens equal to its grep title's parts, so a case they exclude is
+// excluded for certain (AFP-V0-409, AFP-V0-410).
+func classifyPlaywrightGrepOmission(project PlaywrightProject, cases []playwrightListCase, sourceTags map[string]bool) playwrightOmission {
 	grep, grepOK := playwrightTitleMatchers(project.hasGrep, project.Grep)
 	invert, invertOK := playwrightTitleMatchers(project.hasGrepInvert, project.GrepInvert)
 	if !grepOK || !invertOK || len(cases) == 0 {
@@ -84,7 +87,9 @@ func classifyPlaywrightGrepOmission(project PlaywrightProject, cases []playwrigh
 		if !(project.hasGrepInvert && playwrightTitleMatch(invert, tokens) || project.hasGrep && !playwrightTitleMatch(grep, tokens)) {
 			return playwrightOmissionUnexplained
 		}
-		verdict = playwrightOmissionUnverified
+		if sourceTags == nil || slices.ContainsFunc(explicit, func(tag string) bool { return !sourceTags[tag] }) {
+			verdict = playwrightOmissionUnverified
+		}
 	}
 	return verdict
 }
