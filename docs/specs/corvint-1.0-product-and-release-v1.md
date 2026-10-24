@@ -16,7 +16,7 @@ scope, `PUB-V0-001..026` and the 2026-09-16 Core release scope amendment),
 - Claim: 1.0 requires Core change evidence, Flows, navigation, docs, MCP, automatic docs, PRS-V1-018 SDD improvements and the Tasks Beamfall takeover.
 - Status: accepted (decisions 0373 and 0426, V1-0001 and V1-0461; PRS-V1-018 accepted (owner instruction 2026-10-13, V1-1344..V1-1348 at milestone v1-0)) / partial; expanded 1.0 qualification pending
 - Exists: this spec, decision 0373 with the eleven owner answers, and the prospective amendment section in `public-release-v0.md`; the candidate reader and installer admit a Core-only profile (V1-0125), and `corvint-release-candidate` assembles one when `-companion-dir` is omitted (V1-0229).
-- Blocked on: V1-0019 external validation and V1-0020 qualification of the next candidate. `1.0.0-rc.1` (build 163, `b967f6bb`) is published as a prerelease with V1-0019 run-001 as a known issue (decision 0425): orientation FAIL on go-chi/chi (3 of 20) and beamfall/core (1 of 20), consequence and completion PASS on both, and the Corvint run aborted (V1-0431..V1-0433). The next run uses urfave/cli (decision 0432): the previously selected cobra pin was already scored in development, so its untouched-repository admission is superseded; the native linux/amd64 host is a GitHub-hosted `ubuntu-24.04` runner (decision 0420).
+- Blocked on: V1-0019 external validation and V1-0020 qualification of the next candidate. `1.0.0-rc.1` (build 163, `b967f6bb`) is published as a prerelease with V1-0019 run-001 as a known issue (decision 0425): orientation FAIL on go-chi/chi (3 of 20) and beamfall/core (1 of 20), consequence and completion PASS on both, and the Corvint run aborted (V1-0431..V1-0433). The next run uses spf13/viper (decision 0555): urfave/cli (decision 0432), which replaced the cobra pin already scored in development, stopped counting as held out once the V1-0859 and V1-0431 fixes were derived from its rc.2 misses (decision 0539); the native linux/amd64 host is a GitHub-hosted `ubuntu-24.04` runner (decision 0420).
 - Read next: Expanded 1.0 product scope; Classification of shipped surfaces; Externally dependent gates.
 
 ## Human intent
@@ -257,6 +257,14 @@ accepted by decision 0373 and the amendment it requires are stated.
     derives 20 first-parent cases with no new exclusions; 20 are orientation-eligible and 18 are
     consequence-eligible. Independent preregistration review and public integration must precede
     execution. No Corvint output or qualification result exists from this preparation.
+  - spf13/viper (owner-delegated selection, decision 0555), the held-out repository for the next
+    run: pinned at `528f7416c4b56a4948673984b190bf8713f0c3c4` in
+    `benchmarks/untouched-repository-v1/viper/`, preregistration digest
+    `e2d6a26a77a0d3a1488dccc4d9f897e11fdef738c4409957b605092769e2be5e`, corpus digest
+    `3d39b9338c5a8b00f64062892a12d6786a116936ad2ce4b1ff440c80444b8f65`, target `1.0.0-rc.3`.
+    The unchanged harness derives 20 first-parent cases with no new exclusions: 20 are
+    orientation-eligible and 13 are consequence-eligible. The selection was recorded before any
+    corpus derivation. An independent review preceded the seal. No Corvint output exists.
   - Corvint, a development repository: pinned at the first `1.0.0-rc.1` candidate commit
     `94ca556f52c0349c0a48e0c3a3274f8a0b5e6db3` in `benchmarks/untouched-repository-v1/corvint/`,
     with loop target `a5a7412c91857773ccc3e61bf197bc22725ac57c`. Preregistration digest
