@@ -67,3 +67,17 @@ artifact, and `docs corpus eval` from the CLI.
 - #1665: a served `score` or rank group (row 3), and symbol subjects derived from indexed inputs
   (row 5).
 - #1667: rebuilding from the embedded manifest.
+
+## Dogfood binding: NOT_PRODUCED
+
+Both of the lane's two `dogfood-finish` attempts failed at bind, so no CEM binds this change.
+- Attempt 1, with the owning spec `docs/specs/documentation-corpus-v1.md` as the intent scope,
+  was refused `too-many-obligations`. The spec holds 315 requirements, above the fixed bound of
+  256 for one map (`OCM-V0-023` step 3), so binding it needs an owner-reviewed restructuring of
+  the spec.
+- Attempt 2, with no intent file, was refused `missing-intent-scope`. The remaining route,
+  `#no-intent-declared`, would misstate a change that a requirements spec governs, so it was not
+  used.
+
+The prepare step passed with 53 hunks. The spec-named tests carry the evidence for
+`DCP-V1-470..477`.
