@@ -2697,6 +2697,48 @@ records. Which records carry forward:
   no output. Acceptance: `TestDCPV1399DocsCorpusExtractCLI`, `TestDocsCorpusOperationFlagMatrix`,
   `TestDocsCorpusHelpListsOperations`.
 
+### Experimental compact per-file anchor table (GitHub #1664)
+
+A `corvint-corpus-adoption-provider/1` anchor repeats its file's repository, revision, path, blob
+and whole-file hash, and its authority, evidence kind and reason: about 530 bytes on #1664's
+corpus, where about 28,500 exact one-line anchors added about 15 MB of provider shards. An optional
+compact record encoding states each file once. Status for `DCP-V1-487..489`: proposed,
+experimental; GitHub #1664. `DCP-V1-472` already charges provider shards apart; neither 128 MiB
+bound changes.
+
+- `DCP-V1-487`: Amending `DCP-V1-033`, an adoption provider record or shard may instead use
+  `corvint-corpus-adoption-provider/2`: the `/1` members plus `files`, a table of
+  `{repository?, revision?, path, blob, sha256}` (at most 100,000 entries), and optional
+  `anchor_defaults` `{authority?, evidence_kind?, reason?}`. Every anchor of a `/2` record
+  (evidence `anchors` and observation `step_evidence`) is compact: a required zero-based `file`
+  index, `start_line`, `end_line`, `span_sha256`, and optional `symbol`, `region`, `authority`,
+  `evidence_kind` and `reason`. Decoding expands each compact anchor to the `/1` anchor it stands
+  for: an absent file repository or revision is the record's `source` one, an absent
+  authority, kind or reason is the default's, and a present member, even empty, is kept. The record is then admitted exactly as the `/1`
+  record with those anchors, under the same manifest `/2` requirement, anchor checks, per-shard
+  bound and charges on the compact pinned bytes, and builds the same artifact records; `/1`
+  records and shards are read unchanged. Acceptance: `TestDCPV1487CompactAnchorTableEquivalent`.
+- `DCP-V1-488`: A compact record is closed. A missing or out-of-range `file` index, a `/1` file
+  member inside a compact anchor, an unknown table or default member, a file table over 100,000
+  entries, or a `files` or
+  `anchor_defaults` member in any other provider schema is refused as a located closed-JSON
+  refusal (`DCP-V1-470`) naming the input and JSON pointer, whatever the member order; an expanded anchor that fails a `/1`
+  anchor check is refused as that check refuses it. Acceptance: `TestDCPV1488CompactAnchorRefusals`.
+- `DCP-V1-489`: The compact encoding is measured on a synthetic adoption record of #1664's shape,
+  28,500 anchored inventory subjects over 17,400 files (and over 2,000 files), against the same
+  record in `/1`. Its anchor bytes are at most 50% (35% over 2,000 files) of the `/1` anchor
+  bytes, it expands to exactly the `/1` record, and both aggregate bounds stay 128 MiB.
+  Acceptance: `TestDCPV1489CompactAnchorSizeMeasured`; measured in
+  docs/build-log/2026-10-24-corpus-compact-anchor-table.md.
+
+Failure modes: a compact record a producer writes against the wrong source revision expands to
+anchors that fail the `/1` revision check, never to anchors at another revision; a `/2` record
+under a `/1` manifest is refused as an adoption record is. Non-goals: the builder writes no `/2`
+record and offers no conversion command; the artifact, its anchors and receipts keep their
+format, so no derivation version changes (`DCP-V1-471`); the span hash stays per anchor. A `/2`
+record decodes in about twice the time of its `/1` form. Rollback removes the `/2` decode path;
+`/1` records are unaffected, and corpora pinning `/2` records are refused until rewritten as `/1`.
+
 ### Corpus diagnostics, builder upgrades, eval cost and ranking residuals (GitHub #1662, #1664 to #1667)
 
 A caller-labelled adoption on main-730c6e0 reported five residuals. A malformed provider shard
@@ -3487,6 +3529,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-478 | not implemented (proposed; GitHub #1662) | none until accepted |
 | DCP-V1-468 | `internal/doccorpus/artifact_decode.go`, `query_index_fast.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1419FastIndexMatchesReference` |
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
+| DCP-V1-487..489 | `internal/doccorpus/compact_anchor.go`, `shards.go`, `encoding.go` | `TestDCPV1487CompactAnchorTableEquivalent`, `TestDCPV1488CompactAnchorRefusals`, `TestDCPV1489CompactAnchorSizeMeasured`; measured in docs/build-log/2026-10-24-corpus-compact-anchor-table.md |
 | DCP-V1-420..425 | `internal/doccorpus/delta.go`, `delta_open.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1420DeltaAdditionalRepositoryAnchors`, `TestDCPV1420DeltaSharedReadBound`, `TestDCPV1424DeltaHistoricalPins`, `TestDCPV1425OpenDeltaCurrentUnavailableCheckout`, `TestDCPV1425DeltaUnavailableCheckoutCLI`, `TestDCPV1421DeltaViewsCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-440..445 | `internal/doccorpus/delta.go`, `adoption.go`, `cmd/corvint/docs_corpus_help.go`, `internal/capcatalog/catalog.json` | `TestDCPV1440DeltaAdoptionRecords`, `TestDCPV1442DeltaExactTestJoinNeedsItsFile`, `TestDCPV1444SelfDeltaSharedSpanChargedOnce`, `TestCAPV0019CommittedCatalogMatchesTheBinary`, `TestMCPV0100HelpToolMatchesTheCLI`, `TestDocsCorpusHelpListsOperations` |
 | DCP-V1-460..462 | `internal/doccorpus/delta_open.go`, `delta.go`, `read.go`, `artifact_decode.go`, `compile.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus_help.go` | `TestDCPV1460DeltaVerifiedReadMatchesRederived`, `TestDCPV1460DeltaVerifiedReadRefusesClosed`, `TestDCPV1460DeltaVerifiedReadUnavailableCheckout`, `TestDCPV1460DeltaCLIVerifiedRead`, `TestDCPV1461PreviousOverDefaultBound`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |

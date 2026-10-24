@@ -63,6 +63,14 @@ every shard has the same provider ID, version and source repository, and its own
 input. Commit shards after their original evidence, then name their exact commit, blob and SHA-256.
 All shards are validated together; missing shards, duplicate IDs and dangling joins refuse the build.
 
+A record or shard with many anchors may use the experimental compact
+`corvint-corpus-adoption-provider/2` encoding instead: a `files` table states each file's
+`path`, `blob` and `sha256` once (`repository` and `revision` default to the record's
+`source`), each anchor names its entry by zero-based `file` index with only its span, span hash
+and optional `symbol` or `region`, and optional `anchor_defaults` supply a shared `authority`,
+`evidence_kind` and `reason`. The build expands it to the `/1` record and admits that unchanged;
+on #1664's shape the anchors cost about half the bytes (`DCP-V1-487..489`).
+
 The profile preserves typed claims, eight-section flows, stable paragraphs and retirement redirects,
 test-link roles/confidence, explicit coverage membership, ticket history and intent comparisons.
 It also gives supplied records a typed home: `gaps` (producer gap claims, returned by `docs_gaps`
