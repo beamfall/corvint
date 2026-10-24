@@ -5,34 +5,30 @@ package authority
 import (
 	"errors"
 	"os"
-	"strconv"
-	"strings"
+	"path/filepath"
 	"syscall"
 )
 
-// notifyWatch registers every directory with inotify, and regular files up to
-// a ceiling. The kernel counts watches per user (fs.inotify.max_user_watches),
-// across every process the user runs, and a watch per receipt and request of
-// a large store, in each of a few concurrent writers, spends the whole
-// allowance (CAL-V0-364). Directories register as they are visited and regular
-// files last (finish), the first inotifyFileCeiling of them with inotify. Any
-// other regular file, and one whose watch the kernel refuses with ENOSPC, is
-// tracked by the stat identity taken when it was visited and re-read by
-// sweep, as Darwin tracks a file beyond its descriptor budget (CAL-V0-026,
-// CAL-V0-219). A directory the kernel refuses still fails the registration:
-// its events are what report entries created, removed or renamed at any time.
+// notifyWatch registers directories with inotify and no regular file
+// (PSR-V0-222). The kernel counts watches per user
+// (fs.inotify.max_user_watches), across every process the user runs, and a
+// watch per receipt of a large store, in each of a few concurrent guards,
+// spent the whole allowance (CAL-V0-364, V1-2482). A directory watched with
+// the content mask reports IN_MODIFY, IN_ATTRIB and IN_CLOSE_WRITE for every
+// entry in it as well as the entries created, removed or renamed, so a
+// regular file whose only link is in a watched directory needs no watch of
+// its own: the guard's watch count is the store's directories and their
+// ancestors, whatever its receipt count. A file with another link, through
+// which an actor could write without the directory seeing it, and a file
+// whose parent is not watched for contents, is tracked by the stat identity
+// taken when it was visited and re-read by sweep, as Darwin tracks a file
+// beyond its descriptor budget (CAL-V0-026, CAL-V0-219). A directory the
+// kernel refuses still fails the registration.
 type notifyWatch struct {
-	fd      int
-	dirty   bool
-	pending []pendingFile
-	stats   []statWatch
-}
-
-// pendingFile is a regular file visited and not yet registered.
-type pendingFile struct {
-	path   string
-	before os.FileInfo
-	mask   uint32
+	fd    int
+	dirty bool
+	dirs  map[string]bool // directories watched with the content mask
+	stats []statWatch
 }
 
 type statWatch struct {
@@ -47,36 +43,19 @@ type statIdentity struct {
 	mtime, ctime int64
 }
 
-// inotifyAddWatch, inotifyFileCeiling and sweepLstat are the seams of the tests
-// that exhaust the watch allowance and count the stat reads of a sweep.
+// inotifyAddWatch and sweepLstat are the seams of the tests that exhaust the
+// watch allowance, count the watches of a guard and the stat reads of a sweep.
 var (
-	inotifyAddWatch     = syscall.InotifyAddWatch
-	inotifyFileCeiling  = defaultInotifyFileCeiling
-	sweepLstat          = os.Lstat
-	inotifyWatchesLimit = "/proc/sys/fs/inotify/max_user_watches"
+	inotifyAddWatch = syscall.InotifyAddWatch
+	sweepLstat      = os.Lstat
 )
-
-// defaultInotifyFileCeiling is the number of regular files one guard watches
-// with inotify: a 32nd of the user's watch allowance, at most 4,096. It leaves
-// the rest of the allowance to the directories of this guard and to the other
-// processes that hold one, whatever the store's receipt count. An allowance
-// that cannot be read counts as the 8,192 of older kernels.
-func defaultInotifyFileCeiling() int {
-	allowance := 8192
-	if raw, err := os.ReadFile(inotifyWatchesLimit); err == nil {
-		if n, err := strconv.Atoi(strings.TrimSpace(string(raw))); err == nil && n > 0 {
-			allowance = n
-		}
-	}
-	return min(4096, allowance/32)
-}
 
 func newChangeWatch() (changeWatch, error) {
 	fd, err := syscall.InotifyInit1(syscall.IN_NONBLOCK | syscall.IN_CLOEXEC)
 	if err != nil {
 		return nil, err
 	}
-	return &notifyWatch{fd: fd}, nil
+	return &notifyWatch{fd: fd, dirs: map[string]bool{}}, nil
 }
 
 func (w *notifyWatch) add(path string, contents bool) (os.FileInfo, error) {
@@ -84,13 +63,18 @@ func (w *notifyWatch) add(path string, contents bool) (os.FileInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	if before.Mode().IsRegular() {
+		// The parent was watched before it was listed, so a change to this
+		// entry after the listing is already reported; one before it shows
+		// in the identity read here.
+		if st, ok := before.Sys().(*syscall.Stat_t); ok && st.Nlink == 1 && w.dirs[filepath.Dir(path)] {
+			return before, nil
+		}
+		return w.addStat(path, before)
+	}
 	mask := uint32(syscall.IN_DELETE_SELF | syscall.IN_MOVE_SELF | syscall.IN_ATTRIB | syscall.IN_DONT_FOLLOW)
 	if contents {
 		mask |= syscall.IN_MODIFY | syscall.IN_CLOSE_WRITE | syscall.IN_CREATE | syscall.IN_DELETE | syscall.IN_MOVED_FROM | syscall.IN_MOVED_TO
-	}
-	if before.Mode().IsRegular() {
-		w.pending = append(w.pending, pendingFile{path: path, before: before, mask: mask})
-		return before, nil
 	}
 	if _, err = inotifyAddWatch(w.fd, path, mask); err != nil {
 		if errors.Is(err, syscall.ENOSPC) {
@@ -102,39 +86,10 @@ func (w *notifyWatch) add(path string, contents bool) (os.FileInfo, error) {
 	if err != nil || !os.SameFile(before, after) {
 		return nil, watchMoved(path)
 	}
-	return after, nil
-}
-
-// finish registers the regular files visited since the last call, after every
-// directory. A file replaced since it was visited fails the registration as
-// any other watch identity change does; a replacement in a watched directory
-// is also reported by that directory's events.
-func (w *notifyWatch) finish() error {
-	pending := w.pending
-	w.pending = nil
-	ceiling := inotifyFileCeiling()
-	for i, p := range pending {
-		if i >= ceiling {
-			if _, err := w.addStat(p.path, p.before); err != nil {
-				return err
-			}
-			continue
-		}
-		if _, err := inotifyAddWatch(w.fd, p.path, p.mask); err != nil {
-			if !errors.Is(err, syscall.ENOSPC) {
-				return err
-			}
-			if _, err := w.addStat(p.path, p.before); err != nil {
-				return err
-			}
-			continue
-		}
-		after, err := os.Lstat(p.path)
-		if err != nil || !os.SameFile(p.before, after) {
-			return watchMoved(p.path)
-		}
+	if contents {
+		w.dirs[path] = true
 	}
-	return nil
+	return after, nil
 }
 
 func (w *notifyWatch) addStat(path string, before os.FileInfo) (os.FileInfo, error) {
@@ -188,9 +143,10 @@ func (w *notifyWatch) poll() (bool, error) {
 	return w.dirty, nil
 }
 
-// sweep re-reads the stat identity of every file the kernel refused to watch.
+// sweep re-reads the stat identity of every file no directory event covers.
 // A difference or a failed read marks the watch dirty for good, so a later
-// poll reports it. With every file watched it has nothing to read.
+// poll reports it. With every file singly linked in a watched directory it
+// has nothing to read.
 func (w *notifyWatch) sweep() bool {
 	for i := 0; !w.dirty && i < len(w.stats); i++ {
 		info, err := sweepLstat(w.stats[i].path)
@@ -205,6 +161,6 @@ func (w *notifyWatch) sweep() bool {
 }
 
 func (w *notifyWatch) close() error {
-	w.pending, w.stats = nil, nil
+	w.dirs, w.stats = nil, nil
 	return syscall.Close(w.fd)
 }

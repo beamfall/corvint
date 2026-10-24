@@ -1,0 +1,79 @@
+//go:build linux
+
+package authority
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+// inotifyWatchesHeld counts the inotify watches this process holds, from the
+// "inotify wd:" lines of /proc/self/fdinfo, which is the count the kernel
+// charges against fs.inotify.max_user_watches.
+func inotifyWatchesHeld(t *testing.T) int {
+	t.Helper()
+	entries, err := os.ReadDir("/proc/self/fdinfo")
+	if err != nil {
+		t.Skipf("fdinfo is not readable: %v", err)
+	}
+	n := 0
+	for _, e := range entries {
+		raw, err := os.ReadFile(filepath.Join("/proc/self/fdinfo", e.Name()))
+		if err == nil {
+			n += strings.Count(string(raw), "inotify wd:")
+		}
+	}
+	return n
+}
+
+// PSR-V0-222 (V1-2482): the watches one guard holds do not grow with the
+// number of files in the store. A store of 10 files and the same store with
+// 5,000 more receipt-like files in the same directories take the same count,
+// the directories and their ancestors.
+func TestPSRV0222_ChangeGuardWatchCountIsBoundedByDirectories(t *testing.T) {
+	repo, file := guardRepo(t)
+	receipts := filepath.Join(repo.StateDir, "receipts")
+	if err := os.MkdirAll(receipts, 0700); err != nil {
+		t.Fatal(err)
+	}
+	held := func() int {
+		t.Helper()
+		before := inotifyWatchesHeld(t)
+		g, err := WatchChanges(repo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer g.Close()
+		return inotifyWatchesHeld(t) - before
+	}
+	grow := func(n int) {
+		t.Helper()
+		for i := 0; i < n; i++ {
+			for _, dir := range []string{receipts, filepath.Dir(file)} {
+				path := filepath.Join(dir, fmt.Sprintf("r%06d.json", i))
+				if _, err := os.Lstat(path); err == nil {
+					continue
+				}
+				if err := os.WriteFile(path, []byte("x"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+	}
+	grow(5)
+	small := held()
+	grow(2500)
+	large := held()
+	if small != large {
+		t.Fatalf("a guard holds %d watches over 10 files and %d over 5,010: the count grows with the files", small, large)
+	}
+	// ancestors of the two roots, the state directory, receipts, the intent
+	// directory and tickets: far below one watch per file.
+	if large > 64 {
+		t.Fatalf("a guard holds %d watches over a store of 4 directories", large)
+	}
+	t.Logf("watches per guard: %d over 10 files, %d over 5,010 files", small, large)
+}
