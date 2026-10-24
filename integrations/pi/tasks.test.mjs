@@ -163,7 +163,7 @@ test('PWV-V0-018/019 writer grace and REDO_PENDING reconciliation',async t=>{
   return receipt(args,[{receipt:'native',replayed:false}])}};
  const service=createTasksService({runner,identity});
  assert.equal((await service.command(request,ctx)).ok,true);
- const write=calls.find(c=>c.args[1]==='prioritize');assert.equal(write.graceMs,30000,'writer dispatch gets the CAL-V0-319 record bound');
+ const write=calls.find(c=>c.args[1]==='prioritize');assert.equal(write.graceMs,40000,'writer dispatch covers the 5 s gate wait delay, the CAL-V0-319 30 s record bound and a 5 s observation margin');
  assert.ok(calls.filter(c=>c!==write).every(c=>c.graceMs===undefined),'reads keep the default TERM grace');
  redo=true;calls.length=0;
  const pending=await service.command({...request,requestId:'after-crash',input:{...request.input,expectedRevision:'2'}},ctx);

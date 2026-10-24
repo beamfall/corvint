@@ -2,7 +2,8 @@
 import { canonical, digest, createWorktreeIdentity, createOperationLedger, READ_ONLY_TOOL } from './operations.js';
 const reads={help:['help'],audit:['receipt','audit'],queue:['queue','status'],roadmap:['roadmap'],ticket:['ticket','show'],blockers:['ticket','blockers'],gates:['gate','list'],gate:['gate','show'],releases:['release','list'],release:['release','show'],readiness:['release','readiness'],attempt:['attempt','show'],plan:['plan','preview'],search:['ticket','search'],list:['ticket','list']};
 const writes=['ticket prioritize','claim','renew','release','submit','gate run','complete'];
-const WRITER_GRACE_MS=30000;
+// PWV-V0-018: native gate cleanup (gateWaitDelay, 5 s), then the CAL-V0-319 30 s record bound, plus 5 s for post-run observations.
+const WRITER_GRACE_MS=40000;
 const ident=v=>typeof v==='string'&&/^[A-Za-z0-9][A-Za-z0-9:._/-]{0,511}$/.test(v)&&!v.includes('..');
 const count=v=>typeof v==='string'&&/^(0|[1-9][0-9]{0,17})$/.test(v);
 const oid=v=>typeof v==='string'&&/^[0-9a-f]{40}([0-9a-f]{24})?$/.test(v);
@@ -153,7 +154,7 @@ export function createTasksService({runner,identity,identityOwner,ledger=createO
    const fresh=await identify(ctx,binding,true);
    if(scope(before)!==scope(fresh)||fresh.head!==before.head)throw Error('stale-context');
    check(binding,ctx,true);dispatched=true;
-   // PWV-V0-018: an interrupted writer gets its CAL-V0-319 record bound before KILL.
+   // PWV-V0-018: an interrupted writer gets its cleanup and CAL-V0-319 record bound before KILL.
    result=await native(call.args,ctx,call.input,binding,WRITER_GRACE_MS);check(binding,ctx);
    const final=await identify(ctx,binding);
    if(scope(before)!==scope(final))throw Error('stale-context');

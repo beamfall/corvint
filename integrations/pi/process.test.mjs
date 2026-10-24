@@ -55,5 +55,20 @@ test('PWV-V0-018 writer TERM grace lets the leader finish; the default and the b
  const graced=await started({graceMs:5000});assert.equal(graced.fault,'aborted');assert.equal(graced.stdout,'recorded');assert.equal(graced.exitCode,0);
  const killed=await started({});assert.equal(killed.fault,'aborted');assert.equal(killed.stdout,'','the default 100 ms TERM grace still kills');
  const bounded=await started({graceMs:150});assert.equal(bounded.fault,'aborted');assert.equal(bounded.stdout,'','the grace bounds the wait for exit');
- for(const graceMs of [99,30001,1.5,'5000'])assert.equal((await r.run({cwd,args:[],graceMs})).fault,'invalid-request');
+ for(const graceMs of [99,60001,1.5,'5000'])assert.equal((await r.run({cwd,args:[],graceMs})).fault,'invalid-request');
+});
+
+// PWV-V0-018 (Codex review): a leader exit reported after the graced run settled schedules no
+// further signal to a process group the runner no longer owns.
+test('PWV-V0-018 a late leader exit after a graced sweep sends no further signal',async t=>{
+ const {EventEmitter}=await import('node:events');
+ const child=new EventEmitter();child.pid=2147483000;
+ for(const key of ['stdin','stdout','stderr']){child[key]=new EventEmitter();child[key].destroy=()=>{};child[key].end=()=>{}}
+ const signals=[],realKill=process.kill;process.kill=(pid,signal)=>{if(pid===-child.pid){signals.push(signal);return true}return realKill(pid,signal)};
+ t.after(()=>{process.kill=realKill});
+ const r=createCommandRunner({binary:'fixture',spawnImpl:()=>child});t.after(()=>r.close());
+ const controller=new AbortController();const pending=r.run({cwd,args:[],graceMs:150,signal:controller.signal});
+ controller.abort();const result=await pending;assert.equal(result.fault,'aborted');assert.deepEqual(signals,['SIGTERM','SIGKILL']);
+ child.emit('exit',null);await new Promise(x=>setTimeout(x,200));
+ assert.deepEqual(signals,['SIGTERM','SIGKILL'],'no signal after the run settled');
 });

@@ -10,8 +10,10 @@ so a KILL 100 ms after TERM could land after the receipt commit and before the h
 `reconciliation-unavailable`. That is the V1-2506 item 3 residue: 5 of 12 Pi runs under load.
 
 - PWV-V0-018 (proposed): `createCommandRunner.run` takes a per-call `graceMs`, an integer from 100 to
-  30,000 (default 100). The Tasks writer dispatch passes 30,000, the CAL-V0-319 bound. Leader exit ends
-  the grace, and the process group is swept 100 ms later. Reads keep 100 ms.
+  60,000 (default 100). The Tasks writer dispatch passes 40,000. That covers the native gate's 5 s
+  `gateWaitDelay`, the CAL-V0-319 30 s record bound, and a 5 s margin for the post-run observations,
+  which are not bounded. Leader exit ends the grace, and the process group is swept 100 ms later.
+  Reads keep 100 ms.
 - PWV-V0-019 (proposed): when every failing reconciliation read refuses with native code
   `REDO_PENDING`, the service returns `pending-operation` (mutation `not-attempted`, receipts retained,
   no dispatch). The next native writer redoes the receipt. Other refusals stay `reconciliation-unavailable`.
@@ -25,6 +27,12 @@ needs an owner decision on invariant 4.
 
 - Failing first: `process.test.mjs` PWV-V0-018 (expected `recorded`, got empty stdout) and
   `tasks.test.mjs` PWV-V0-018/019 (expected `graceMs` 30000). Both then pass.
+- Codex review (one round) found two P2 issues, and both are fixed with failing-first tests:
+  - A leader exit that arrived after a graced sweep scheduled a second SIGKILL to the released group.
+    `process.test.mjs` now checks for "late leader exit".
+  - A 30 s grace did not cover the native cleanup that runs before the 30 s record bound starts. The
+    grace is now 40,000 ms, and `tasks.test.mjs` expects 40000.
+  - The five-run result below used the 30,000 ms build. The 40,000 ms change only lengthens the grace.
 - Failing first with the real native binary: `tasks-host.test.mjs` "PWV-V0-019 native gate run killed
   after its receipt commit". The test runs a real gate run, then restores the head it replaced, which
   leaves the state a SIGKILL leaves just before the head rename. Native `receipt audit` refuses

@@ -10,7 +10,7 @@ export function createCommandRunner({binary,env=process.env,timeoutMs=15000,maxB
   const empty=fault=>Promise.resolve({exitCode:null,stdout:'',stderr:'',fault});
   if(closed)return empty('closed');
   if(!['darwin','linux'].includes(process.platform))return empty('unsupported-platform');
-  if(typeof cwd!=='string'||!cwd||cwd.includes('\0')||!Array.isArray(args)||args.length>128||args.some(a=>typeof a!=='string'||a.includes('\0'))||Buffer.byteLength(JSON.stringify(args))>65536||typeof input!=='string'||Buffer.byteLength(input)>maxBytes||!Number.isInteger(graceMs)||graceMs<100||graceMs>30000)return empty('invalid-request');
+  if(typeof cwd!=='string'||!cwd||cwd.includes('\0')||!Array.isArray(args)||args.length>128||args.some(a=>typeof a!=='string'||a.includes('\0'))||Buffer.byteLength(JSON.stringify(args))>65536||typeof input!=='string'||Buffer.byteLength(input)>maxBytes||!Number.isInteger(graceMs)||graceMs<100||graceMs>60000)return empty('invalid-request');
   if(signal?.aborted)return empty('aborted');
   let stop;const done=new Promise(resolve=>{
    let child,deadline,killTimer,finishTimer,fault,exitCode=null,used=0,settled=false,stopping=false,exited=false,graced=false;
@@ -18,7 +18,7 @@ export function createCommandRunner({binary,env=process.env,timeoutMs=15000,maxB
    const kill=kind=>{if(child?.pid)try{process.kill(-child.pid,kind)}catch(error){if(error.code!=='ESRCH')fault??='cleanup-failed'}};
    const decode=name=>{try{return new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(chunks[name]))}catch{fault??='invalid-encoding';return ''}};
    const finish=()=>{if(settled)return;settled=true;clearTimeout(deadline);clearTimeout(killTimer);clearTimeout(finishTimer);signal?.removeEventListener('abort',abort);const stdout=decode('stdout'),stderr=decode('stderr');resolve({exitCode,stdout,stderr,...(fault?{fault}:{})});};
-   const sweep=()=>{kill('SIGKILL');child?.stdin?.destroy();child?.stdout?.destroy();child?.stderr?.destroy();finishTimer=setTimeout(finish,25)};
+   const sweep=()=>{graced=false;kill('SIGKILL');child?.stdin?.destroy();child?.stdout?.destroy();child?.stderr?.destroy();finishTimer=setTimeout(finish,25)};
    stop=reason=>{
     fault??=reason;if(stopping)return;stopping=true;clearTimeout(deadline);kill('SIGTERM');
     // A leader's close event is not evidence that its descendants have exited.
@@ -30,7 +30,7 @@ export function createCommandRunner({binary,env=process.env,timeoutMs=15000,maxB
    const collect=name=>chunk=>{const bytes=Buffer.from(chunk);const remaining=Math.max(0,maxBytes-used);if(remaining)chunks[name].push(bytes.subarray(0,remaining));used+=bytes.length;if(used>maxBytes)stop('output-too-large')};
    child.stdout.on('data',collect('stdout'));child.stderr.on('data',collect('stderr'));
    child.on('error',()=>stop('spawn-failed'));
-   child.on('exit',code=>{exitCode=code;exited=true;if(graced){graced=false;clearTimeout(killTimer);killTimer=setTimeout(sweep,100)}stop(undefined)});
+   child.on('exit',code=>{exitCode=code;exited=true;if(graced&&!settled){graced=false;clearTimeout(killTimer);killTimer=setTimeout(sweep,100)}stop(undefined)});
    child.on('close',code=>{exitCode??=code;if(!stopping)stop(undefined)});
    child.stdin.on('error',()=>stop('stdin-failed'));
    signal?.addEventListener('abort',abort,{once:true});
