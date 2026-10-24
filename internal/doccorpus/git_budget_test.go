@@ -49,15 +49,16 @@ func writeBulkFixture(t *testing.T, root string, files map[string]string) string
 	return git(t, root, "rev-parse", "HEAD")
 }
 
-// nonIndexedFile is an html, erb or json input the source index does not
-// load as text, so it is pinned through Git (DCP-V1-156).
+// nonIndexedFile is an xml, csv or json input the source index does not
+// load as text, so it is pinned through Git (DCP-V1-156). HTML and ERB are
+// indexed text since IDX-SNAP-V0-109.
 func nonIndexedFile(i int) (string, string) {
 	dir := fmt.Sprintf("docs/web%d/", i/100)
 	switch i % 3 {
 	case 0:
-		return dir + fmt.Sprintf("p%d.html", i), fmt.Sprintf("<p>page %d</p>\n", i)
+		return dir + fmt.Sprintf("p%d.xml", i), fmt.Sprintf("<p>page %d</p>\n", i)
 	case 1:
-		return dir + fmt.Sprintf("p%d.erb", i), fmt.Sprintf("<%%= item %d %%>\n", i)
+		return dir + fmt.Sprintf("p%d.csv", i), fmt.Sprintf("item,%d\n", i)
 	default:
 		return dir + fmt.Sprintf("p%d.json", i), fmt.Sprintf("{\"page\": %d}\n", i)
 	}
@@ -139,7 +140,7 @@ func TestDCPV1155ReadFreshnessGitOpsIndependentOfInputCount(t *testing.T) {
 
 func TestDCPV1156ManifestAndBuildBatchNonIndexedInputs(t *testing.T) {
 	t.Parallel()
-	t.Run("DCP-V1-156 2,000 html/erb/json inputs inventory and build within a constant Git budget", func(t *testing.T) {
+	t.Run("DCP-V1-156 2,000 xml/csv/json inputs inventory and build within a constant Git budget", func(t *testing.T) {
 		root := t.TempDir()
 		files := map[string]string{}
 		for i := range 2000 {
@@ -189,7 +190,7 @@ func TestDCPV1157CapacityRefusalsAreTypedAndEarly(t *testing.T) {
 		p, data := nonIndexedFile(0)
 		rev := writeBulkFixture(t, root, map[string]string{p: data, "docs/readme.md": "# Readme\n"})
 		m := pinAll(t, root, rev, "docs")
-		ctx := boundCorpusGitOps(context.Background(), 0) // the Git-pinned html input needs at least one operation
+		ctx := boundCorpusGitOps(context.Background(), 0) // the Git-pinned xml input needs at least one operation
 		_, err := Build(ctx, root, m)
 		var refused *Error
 		if !errors.As(err, &refused) || refused.Code != CapacityCode || !strings.Contains(refused.Message, "Git operation budget") || !strings.Contains(refused.Message, fmt.Sprintf("pinning %d inputs", len(m.Inputs))) {
@@ -214,8 +215,8 @@ func TestDCPV1159BatchedPinningKeepsArtifactBytes(t *testing.T) {
 			"go.mod":                  "module example.invalid/corpus\n\ngo 1.27.1\n",
 			"src/readme.md":           "# Count\n\nCounts a value.\n",
 			"src/value.go":            "package value\n\n// Count returns one.\nfunc Count() int { return 1 }\n",
-			"src/view/page.html":      "<h1>Count</h1>\n<p>Shows the count.</p>\n",
-			"src/view/item.erb":       "<%= count %>\n",
+			"src/view/page.xml":       "<h1>Count</h1>\n<p>Shows the count.</p>\n",
+			"src/view/item.csv":       "count,1\n",
 			"src/view/deep/data.json": "{\"count\": 1}\n",
 			"src/view/deep/notes.md":  "# Notes\n\nThe count is one.\n",
 		}
@@ -235,8 +236,9 @@ func TestDCPV1159BatchedPinningKeepsArtifactBytes(t *testing.T) {
 			t.Fatal(err)
 		}
 		sum := sha256.Sum256(raw)
-		// Captured from the per-input loader at 99dac523459bdf131c0ca688acc16edbcbacda2c.
-		const want = "ee42ecc3e972a67d43ae68fded33495caafd843076ffabf97ccd24fd74d3f1e5"
+		// Captured from the per-input loader at 99dac523459bdf131c0ca688acc16edbcbacda2c. The
+		// Git-pinned inputs are xml and csv since HTML and ERB became indexed text (IDX-SNAP-V0-109).
+		const want = "8e12d906e6e62435e8af188d3fba4132858b736dd762247f7c620940ec183327"
 		if got := hex.EncodeToString(sum[:]); got != want {
 			t.Fatalf("artifact bytes changed: sha256 %s, want %s", got, want)
 		}

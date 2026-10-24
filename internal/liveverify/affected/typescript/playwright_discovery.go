@@ -87,10 +87,14 @@ func SelectPlaywrightWithEnvironment(root, configPath, revision string, dirty []
 	if plan.Discovery.State == "MATCHED" && len(unverified) != 0 {
 		// The units are the config's file membership either way; what is missing is the listing's
 		// cross-check, so a run of such a unit may find no case. It stays visible and names the
-		// units (TJAA-V0-021, AFP-V0-411).
+		// units (TJAA-V0-021, AFP-V0-411). The receipt is bound to the current sources, so the first
+		// unit's tag closure is walked again to name where it stops (AFP-V0-419).
+		detail := fmt.Sprintf("%d discovery unit(s) omitted by the listing under a project grep/grepInvert exclusion the listing cannot verify: %s", len(unverified), playwrightUnitList(unverified))
+		if _, stop := newPlaywrightTagSources(root, configPath).exactOrStop(configPath, unverified[0].Test); stop != "" {
+			detail += "; the tag closure of " + unverified[0].Test + " stops because " + stop
+		}
 		plan.Unknown = canonicalPlaywrightUnknowns(append(plan.Unknown, PlaywrightUnknown{
-			Axis: PlaywrightAxisExecution, Reason: PlaywrightUnknownDiscoveryOmission,
-			Detail: fmt.Sprintf("%d discovery unit(s) omitted by the listing under a project grep/grepInvert exclusion the listing cannot verify: %s", len(unverified), playwrightUnitList(unverified)),
+			Axis: PlaywrightAxisExecution, Reason: PlaywrightUnknownDiscoveryOmission, Detail: detail,
 		}))
 	}
 	if plan.Discovery.State != "MATCHED" {

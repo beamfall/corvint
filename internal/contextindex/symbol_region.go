@@ -17,11 +17,12 @@ type NormalizedLine struct {
 }
 
 // SymbolRegionLanguage names the normalizer family for a path: "ruby" for a
-// Ruby source, "web" for a TypeScript or JavaScript source, and "" for every
-// other language, which has no region normalizer.
+// Ruby source (`.rb`, or a `.rake` task file, IDX-SNAP-V0-109), "web" for a
+// TypeScript or JavaScript source, and "" for every other language, which has
+// no region normalizer.
 func SymbolRegionLanguage(name string) string {
 	switch path.Ext(name) {
-	case ".rb":
+	case ".rb", ".rake":
 		return "ruby"
 	case ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs":
 		return "web"

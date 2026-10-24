@@ -251,9 +251,10 @@ func selectPlaywrightStaticDraft(root, configPath string, dirty []string, enviro
 }
 
 // ObservePlaywrightSources returns a bounded content identity for every input
-// the TypeScript observer may use plus the explicitly selected config.
+// the TypeScript observer may use, every jsconfig.json, which Playwright reads for aliases
+// (AFP-V0-418), plus the explicitly selected config.
 func ObservePlaywrightSources(root, configPath string) (string, error) {
-	files, err := affected.SourceFiles(root, observedName)
+	files, err := affected.SourceFiles(root, playwrightObservedName)
 	if err != nil {
 		return "", err
 	}
@@ -280,6 +281,11 @@ func ObservePlaywrightSources(root, configPath string) (string, error) {
 	}
 	sum := sha256.Sum256(body)
 	return "playwright-sources:sha256:" + hex.EncodeToString(sum[:]), nil
+}
+
+// playwrightObservedName is observedName plus jsconfig.json, an alias config Playwright reads.
+func playwrightObservedName(name string) bool {
+	return observedName(name) || name == "jsconfig.json"
 }
 
 func hasPlaywrightUnknownReason(unknown []PlaywrightUnknown, reason string) bool {
