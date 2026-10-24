@@ -108,6 +108,32 @@ type ResumeBase struct {
 	requests int
 	through  uint64
 	segments []string
+	pre      *resumePre
+}
+
+// resumePre is what PrecheckResume established before the preparation gate
+// (PSR-V0-225): the settled bound segments it re-hashed against the base's
+// digests, and the names of each request shard whose stamps had settled
+// when it began. The gated checks use an entry only after re-validating
+// the stamps it was taken under; it is an optimization, never a decision.
+type resumePre struct {
+	hashed map[string]bool
+	shards map[string]resumeShard
+}
+
+type resumeShard struct {
+	info  os.FileInfo
+	names []string
+}
+
+func (p *resumePre) rehashed(path string) bool { return p != nil && p.hashed[path] }
+
+func (p *resumePre) shard(dir string) (resumeShard, bool) {
+	if p == nil {
+		return resumeShard{}, false
+	}
+	sh, ok := p.shards[dir]
+	return sh, ok
 }
 
 type resumeFile struct {
@@ -272,6 +298,117 @@ func (r Reader) AuditForResume(base *ResumeBase, requestID string) (*Result, Phy
 	return result, observation, err
 }
 
+// PrecheckResume does, before the caller takes the preparation gate, the
+// work of the base check that does not depend on the snapshot the gated
+// write observes (PSR-V0-225): it re-hashes every settled bound segment and
+// lists the names of every request shard whose modification and change
+// times lie at least resumeQuiescence before it began. AuditForResume and
+// RecheckResume then skip a segment's re-hash only while its stamps,
+// change time included, are still the base's, and reuse a shard's names
+// only while the shard is still that directory with the same stamps; every
+// file is still stat'ed under the gate. Any fault here records nothing, so
+// the gated check does all its work and decides. As in the base check, a
+// failed close of its read lifetime is cleanup (PSR-V0-057).
+func (r Reader) PrecheckResume(base *ResumeBase) (cleanup error) {
+	if base == nil {
+		return nil
+	}
+	base.pre = nil
+	n, ok := r.Source.(Native)
+	if !ok {
+		return nil
+	}
+	s := newNativeRead(n)
+	pre := base.precheck(s, profileLimits)
+	if cleanup = s.close(); cleanup != nil {
+		return wire.Errorf(wire.CodeUnsupportedFilesystem, "read lifetime", "resume precheck close: %v", cleanup)
+	}
+	base.pre = pre
+	return nil
+}
+
+// precheck is PrecheckResume's body. A shard is trusted only when its
+// stamps had settled before the precheck began and its handle reports the
+// stamps its parent's listing did: an entry made, removed or renamed in it
+// at or after that time moves its modification time off the recorded one.
+func (b *ResumeBase) precheck(s *nativeRead, lim limits) *resumePre {
+	pre := &resumePre{hashed: map[string]bool{}, shards: map[string]resumeShard{}}
+	for _, p := range b.segments {
+		if b.files[p].quiet && b.segmentSame(s, p, true) == nil {
+			pre.hashed[p] = true
+		}
+	}
+	bound := time.Now().Add(-resumeQuiescence)
+	shards, err := s.List("requests", lim.scan)
+	if err != nil {
+		return pre
+	}
+	for _, shard := range shards.Entries {
+		if shard.Info == nil || !shard.Info.IsDir() || !settledBefore(shard.Info, bound) {
+			continue
+		}
+		dir := "requests/" + shard.Name
+		info, names, err := s.Names(dir, lim.scan)
+		if err != nil || len(names) > lim.scan || !sameStamps(shard.Info, info) {
+			continue
+		}
+		pre.shards[dir] = resumeShard{info: shard.Info, names: names}
+	}
+	return pre
+}
+
+// settledBefore says info's modification and change times lie at or before
+// bound.
+func settledBefore(info os.FileInfo, bound time.Time) bool {
+	change, ok := changeTime(info)
+	return ok && !info.ModTime().After(bound) && !time.Unix(0, change).After(bound)
+}
+
+// shardEntries is s.List(dir), or, for a shard PrecheckResume trusted that
+// is still the same directory with the same stamps by both its parent's
+// listing (info) and its own handle, the precheck's names with each entry
+// stat'ed now (PSR-V0-225). Each entry is recorded as listed, as List does.
+// reused says the names were the precheck's: such a shard was reached
+// through the pinned requests/ handle without the pathname binding a
+// listing makes, so the caller binds requests/ after its last shard.
+func (b *ResumeBase) shardEntries(s *nativeRead, dir string, info os.FileInfo, lim limits) (entries []Entry, reused bool, err error) {
+	pre, ok := b.pre.shard(dir)
+	if ok && sameStamps(pre.info, info) {
+		root, err := s.parent(dir)
+		if err != nil {
+			return nil, false, err
+		}
+		if now, err := root.Stat("."); err == nil && sameStamps(pre.info, now) {
+			out := make([]Entry, 0, len(pre.names))
+			for _, name := range pre.names {
+				e, err := root.Lstat(name)
+				if os.IsNotExist(err) {
+					return nil, false, moved(dir + "/" + name)
+				}
+				if err != nil {
+					return nil, false, err
+				}
+				out = append(out, Entry{name, e})
+				s.listed[dir+"/"+name] = e
+			}
+			return out, true, nil
+		}
+	}
+	listing, err := s.List(dir, lim.scan)
+	return listing.Entries, false, err
+}
+
+// rebind says the requests/ handle shardEntries reused shards through is
+// still the directory its pathname names, so a requests/ directory, or any
+// ancestor, renamed or replaced since the listing is moved (PSR-V0-225).
+func rebind(s *nativeRead) error {
+	root, err := s.parent("requests")
+	if err != nil {
+		return err
+	}
+	return s.binding("requests", root)
+}
+
 // RecheckResume repeats AuditForResume's base check (PSR-V0-052) against the
 // files as they are now. A caller that resumed holds the writer lock and runs
 // it after modelling, immediately before it commits, so no base file can
@@ -315,7 +452,8 @@ func (b *ResumeBase) held(s *nativeRead, result *Result, lim limits, rehash bool
 		return errCheckpoint(snapshot.SegmentsDir, "the sealed prefix changed since the base audit")
 	}
 	for _, p := range b.segments {
-		if err := b.segmentSame(s, p, rehash); err != nil {
+		// A segment PrecheckResume re-hashed is stat'ed only (PSR-V0-225).
+		if err := b.segmentSame(s, p, rehash && !b.pre.rehashed(p)); err != nil {
 			return err
 		}
 	}
@@ -342,17 +480,18 @@ func (b *ResumeBase) held(s *nativeRead, result *Result, lim limits, rehash bool
 	if err != nil && !(os.IsNotExist(err) && b.requests == 0) {
 		return errCheckpoint("requests", err.Error())
 	}
-	seen := 0
+	seen, reused := 0, false
 	for _, shard := range shards.Entries {
 		dir := "requests/" + shard.Name
 		if shard.Info == nil || !shard.Info.IsDir() {
 			return errCheckpoint(dir, "request shard is not a directory")
 		}
-		listing, err := s.List(dir, lim.scan)
+		entries, pre, err := b.shardEntries(s, dir, shard.Info, lim)
 		if err != nil {
 			return errCheckpoint(dir, err.Error())
 		}
-		for _, e := range listing.Entries {
+		reused = reused || pre
+		for _, e := range entries {
 			p := dir + "/" + e.Name
 			if _, ok := b.files[p]; ok {
 				if err := b.same(s, p, e.Info); err != nil {
@@ -370,6 +509,11 @@ func (b *ResumeBase) held(s *nativeRead, result *Result, lim limits, rehash bool
 	}
 	if seen != b.requests {
 		return errCheckpoint("requests", "base request files differ")
+	}
+	if reused {
+		if err := rebind(s); err != nil {
+			return errCheckpoint("requests", err.Error())
+		}
 	}
 	for _, p := range sortedPaths(b.files) {
 		if !strings.HasPrefix(p, "evidence/") && !strings.HasPrefix(p, "pinned/") {
@@ -484,15 +628,21 @@ func (b *ResumeBase) segmentSame(s *nativeRead, p string, rehash bool) error {
 // stamped says info is the file f recorded, with the same mode, size,
 // modification time and change time.
 func (f resumeFile) stamped(p string, info os.FileInfo) error {
-	if info == nil || !sameStat(f.info, info) {
-		return errCheckpoint(p, "base file changed since the base audit")
-	}
-	was, ok := changeTime(f.info)
-	is, ok2 := changeTime(info)
-	if !ok || !ok2 || was != is {
+	if !sameStamps(f.info, info) {
 		return errCheckpoint(p, "base file changed since the base audit")
 	}
 	return nil
+}
+
+// sameStamps says b is file a with the same mode, size, modification time
+// and change time.
+func sameStamps(a, b os.FileInfo) bool {
+	if !sameStat(a, b) {
+		return false
+	}
+	was, ok := changeTime(a)
+	is, ok2 := changeTime(b)
+	return ok && ok2 && was == is
 }
 
 // same says base file p is still the file the base audit read; see
