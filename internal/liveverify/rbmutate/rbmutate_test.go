@@ -329,35 +329,47 @@ func TestFPKV0069ClassifyRunReadsTheRSpecReport(t *testing.T) {
 		}
 		return []byte(body + "]}")
 	}
+	// exit is the subprocess exit status a case needs (0: none). Each exit
+	// error is built inside its own subtest, so on a host without a POSIX
+	// shell only those subtests skip and the shell-independent rows still run.
 	cases := []struct {
 		name       string
+		exit       int
 		err        error
 		timedOut   bool
 		content    []byte
 		haveReport bool
 		want       runOutcome
 	}{
-		{"passed", nil, false, report(3, 0, 0), true, runPassed},
-		{"failed", exitError(t, 1), false, report(3, 1, 0, "./b[1:2]", "./a[1:1]"), true, runFailed},
-		{"no examples", nil, false, report(0, 0, 0), true, runUnloadable},
-		{"load error", exitError(t, 1), false, report(0, 0, 1), true, runUnloadable},
-		{"no report", exitError(t, 1), false, nil, false, runUnloadable},
-		{"non-zero all passed", exitError(t, 2), false, report(3, 0, 0), true, runUnloadable},
-		{"script error in an example", exitError(t, 1), false, []byte(`{"summary":{"example_count":2,"failure_count":1,"pending_count":0,"errors_outside_of_examples_count":0},"examples":[{"id":"./a[1:1]","status":"failed","exception":{"class":"SyntaxError"}}]}`), true, runUnloadable},
-		{"behavioural failure", exitError(t, 1), false, []byte(`{"summary":{"example_count":2,"failure_count":1,"pending_count":0,"errors_outside_of_examples_count":0},"examples":[{"id":"./a[1:1]","status":"failed","exception":{"class":"RSpec::Expectations::ExpectationNotMetError"}}]}`), true, runFailed},
-		{"timed out", errors.New("killed"), true, nil, false, runTimedOut},
-		{"no exit status", errors.New("sandbox did not start"), false, nil, false, runBroken},
+		{"passed", 0, nil, false, report(3, 0, 0), true, runPassed},
+		{"failed", 1, nil, false, report(3, 1, 0, "./b[1:2]", "./a[1:1]"), true, runFailed},
+		{"no examples", 0, nil, false, report(0, 0, 0), true, runUnloadable},
+		{"load error", 1, nil, false, report(0, 0, 1), true, runUnloadable},
+		{"no report", 1, nil, false, nil, false, runUnloadable},
+		{"non-zero all passed", 2, nil, false, report(3, 0, 0), true, runUnloadable},
+		{"script error in an example", 1, nil, false, []byte(`{"summary":{"example_count":2,"failure_count":1,"pending_count":0,"errors_outside_of_examples_count":0},"examples":[{"id":"./a[1:1]","status":"failed","exception":{"class":"SyntaxError"}}]}`), true, runUnloadable},
+		{"behavioural failure", 1, nil, false, []byte(`{"summary":{"example_count":2,"failure_count":1,"pending_count":0,"errors_outside_of_examples_count":0},"examples":[{"id":"./a[1:1]","status":"failed","exception":{"class":"RSpec::Expectations::ExpectationNotMetError"}}]}`), true, runFailed},
+		{"timed out", 0, errors.New("killed"), true, nil, false, runTimedOut},
+		{"no exit status", 0, errors.New("sandbox did not start"), false, nil, false, runBroken},
 	}
 	for _, item := range cases {
-		run := classifyRun(item.err, item.timedOut, "", item.content, item.haveReport, "d")
-		if run.outcome != item.want {
-			t.Errorf("%s: got %v, want %v", item.name, run.outcome, item.want)
+		t.Run(item.name, func(t *testing.T) {
+			err := item.err
+			if item.exit != 0 {
+				err = exitError(t, item.exit)
+			}
+			run := classifyRun(err, item.timedOut, "", item.content, item.haveReport, "d")
+			if run.outcome != item.want {
+				t.Errorf("got %v, want %v", run.outcome, item.want)
+			}
+		})
+	}
+	t.Run("failed examples sorted", func(t *testing.T) {
+		failed := classifyRun(exitError(t, 1), false, "", report(3, 2, 0, "./b[1:2]", "./a[1:1]"), true, "d")
+		if strings.Join(failed.receipt.FailedExamples, ",") != "./a[1:1],./b[1:2]" {
+			t.Fatalf("failed examples are not sorted: %v", failed.receipt.FailedExamples)
 		}
-	}
-	failed := classifyRun(exitError(t, 1), false, "", report(3, 2, 0, "./b[1:2]", "./a[1:1]"), true, "d")
-	if strings.Join(failed.receipt.FailedExamples, ",") != "./a[1:1],./b[1:2]" {
-		t.Fatalf("failed examples are not sorted: %v", failed.receipt.FailedExamples)
-	}
+	})
 }
 
 // TestFPKV0069BaselineMustPass pins the baseline gate: a red spec file is
