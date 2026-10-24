@@ -337,6 +337,104 @@ func TestDCPV1484DerivationNeverRefusesABuildableManifest(t *testing.T) {
 	}
 }
 
+// DCP-V1-484: a refusal of the first derived declaration (an oversized
+// declaration line) is retried like any later one, and the retry restores the
+// incremental shard cache, so an eligible adoption shard is compiled once cold
+// and reused warm, with exactly one cached shard either way.
+func TestDCPV1484RefusedFirstDeclarationRestoresShardCache(t *testing.T) {
+	t.Parallel()
+	files := map[string]string{"src/long.py": "# header\n\ndef long_line(x=\"" + strings.Repeat("a", maxSpanBytes) + "\"):\n    return x\n", "src/readme.md": "# Long\n\nOne long declaration.\n"}
+	root, m := ownedSourceCorpus(t, files, []string{"src/long.py"}, false)
+	raw, err := os.ReadFile(filepath.Join(root, "evidence/provider.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var record ProviderRecord
+	if err := decodeBounded(raw, &record, MaxProviderBytes); err != nil {
+		t.Fatal(err)
+	}
+	record.Schema = AdoptionProviderSchema
+	if raw, err = Encode(record); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "evidence/provider.json"), raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	git(t, root, "add", "evidence/provider.json")
+	git(t, root, "commit", "-qm", "adoption provider")
+	rev := git(t, root, "rev-parse", "HEAD")
+	m.Schema = ManifestSchemaV2
+	for i := range m.Providers {
+		if m.Providers[i].ID == "adapter" {
+			m.Providers[i].Revision = rev
+		}
+	}
+	for i := range m.Scopes {
+		if m.Scopes[i].Path == "evidence/provider.json" {
+			m.Scopes[i].Revision = rev
+		}
+	}
+	for i := range m.Inputs {
+		if m.Inputs[i].Path == "evidence/provider.json" {
+			m.Inputs[i].Revision, m.Inputs[i].Blob, m.Inputs[i].SHA256 = rev, git(t, root, "rev-parse", rev+":evidence/provider.json"), Digest(raw)
+		}
+	}
+	cold := buildOwned(t, root, m)
+	if derived := subjectsWithPrefix(cold, "native:symbol:src/long.py:"); len(derived) != 0 {
+		t.Fatalf("the retry must derive nothing: %d derived subjects", len(derived))
+	}
+	if !slices.ContainsFunc(cold.Gaps, func(g Gap) bool {
+		return g.Subject == "native:file:src/long.py" && strings.Contains(g.Reason, "derived declaration bound")
+	}) {
+		t.Fatalf("the refused first declaration should leave the bound gap: %+v", cold.Gaps)
+	}
+	ids := []ShardIdentity{{Provider: "adapter", Path: "evidence/provider.json"}}
+	first, cache, stats, err := BuildIncremental(context.Background(), root, m, ids, nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.SHA256 != cold.SHA256 || !slices.Equal(stats.Compiled, ids) || len(stats.Reused)+len(stats.Fallback) != 0 || len(cache.Shards) != 1 || cache.Shards[0].Identity != ids[0] {
+		t.Fatalf("cold incremental build after the retry: sha %v, stats %+v, %d cached shards", first.SHA256 == cold.SHA256, stats, len(cache.Shards))
+	}
+	prior, err := EncodeIncrementalCache(*cache)
+	if err != nil {
+		t.Fatal(err)
+	}
+	warm, cache, stats, err := BuildIncremental(context.Background(), root, m, ids, prior, Digest(prior))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if warm.SHA256 != cold.SHA256 || !slices.Equal(stats.Reused, ids) || len(stats.Compiled)+len(stats.Fallback) != 0 || len(cache.Shards) != 1 {
+		t.Fatalf("warm incremental build after the retry: sha %v, stats %+v, %d cached shards", warm.SHA256 == cold.SHA256, stats, len(cache.Shards))
+	}
+}
+
+// DCP-V1-484: only a corpus refusal of a compile that attempted derivation is
+// retried; Git, capacity and input-availability failures are returned as they are.
+func TestDCPV1484RetryAnswersOnlyCorpusRefusals(t *testing.T) {
+	t.Parallel()
+	refused := fail("output bound exceeded")
+	cases := []struct {
+		name    string
+		derived int
+		err     error
+		want    bool
+	}{
+		{"success", 1, nil, false},
+		{"no derivation attempted", 0, refused, false},
+		{"corpus refusal", 1, refused, true},
+		{"wrapped corpus refusal", 1, fmt.Errorf("compile: %w", refused), true},
+		{"capacity", 1, &Error{Code: CapacityCode, Message: "git budget"}, false},
+		{"input unavailable", 1, &Error{Code: "corpus-input-unavailable", Message: "additional repository checkout unavailable: other"}, false},
+		{"other error", 1, context.Canceled, false},
+	}
+	for _, c := range cases {
+		if got := retryWithoutDerived(c.derived, c.err); got != c.want {
+			t.Errorf("%s: retry %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
 // DCP-V1-485: derived declarations change the records the same inputs build,
 // so the builder engine names derivation 2. The verified read refuses an
 // artifact recorded by derivation 1, which lacks them, and names the rebuild;

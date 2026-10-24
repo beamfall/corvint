@@ -22,7 +22,7 @@ import (
 
 type compiler struct {
 	// withoutDerived skips declaration derivation on the retry of a refused compile and
-	// derived counts the declarations one compile derived (DCP-V1-484).
+	// derived counts the declarations one compile attempted to derive (DCP-V1-484).
 	withoutDerived    bool
 	derived           int
 	providerRecords   map[string]ProviderRecord
@@ -271,8 +271,7 @@ func build(ctx context.Context, root string, m Manifest, reuse *incrementalBuild
 		shards = len(reuse.cache.Shards)
 	}
 	a, derived, err := compileOnce(ctx, root, m, reuse, false)
-	var refused *Error
-	if err == nil || derived == 0 || !errors.As(err, &refused) {
+	if !retryWithoutDerived(derived, err) {
 		return a, err
 	}
 	if reuse != nil {
@@ -281,6 +280,14 @@ func build(ctx context.Context, root string, m Manifest, reuse *incrementalBuild
 	}
 	a, _, err = compileOnce(ctx, root, m, reuse, true)
 	return a, err
+}
+
+// retryWithoutDerived reports whether a compile that attempted derived declarations failed
+// with a corpus refusal (a bound or check), the only failure the declaration-free retry
+// answers; a Git, capacity or input-availability error is returned as it is (DCP-V1-484).
+func retryWithoutDerived(derived int, err error) bool {
+	var refused *Error
+	return err != nil && derived > 0 && errors.As(err, &refused) && refused.Code == "corpus-refused"
 }
 
 func compileOnce(ctx context.Context, root string, m Manifest, reuse *incrementalBuild, withoutDerived bool) (*Artifact, int, error) {
@@ -898,6 +905,8 @@ func (c *compiler) derivedDeclarations() error {
 			return nil
 		}
 		for _, s := range symbols[in.Path] {
+			// Counted before anchoring, so a refused first declaration is retried too.
+			c.derived++
 			a, err := c.anchor(in.Revision, in.Path, s.Line, s.Line, "syntax", "source", "native indexed declaration")
 			if err != nil {
 				return err
@@ -911,7 +920,6 @@ func (c *compiler) derivedDeclarations() error {
 			id := fmt.Sprintf("%s:symbol:%s:%d:%s", provider.ID, in.Path, s.Line, s.Name)
 			c.artifact.Subjects = append(c.artifact.Subjects, Subject{id, kind, s.Name, provider.ID, ev, nil})
 			c.artifact.Claims = append(c.artifact.Claims, Claim{id + ":declaration", id, lineText(text, s.Line), provider.ID, ev})
-			c.derived++
 		}
 	}
 	return nil

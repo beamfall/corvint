@@ -28,7 +28,11 @@ experimental. Part of GitHub #1665; #1669 delivered rows 1, 2 and 4.
 - **Derivation never refuses a previously buildable manifest.** If a compile that derived
   declarations is refused by a corpus bound or check, it is compiled again without them, with
   the incremental reuse state restored. The artifact then records one `not-collected` gap. This
-  replaced an in-place record-count cut, which could not foresee the output byte bound.
+  replaced an in-place record-count cut, which could not foresee the output byte bound. Only a
+  `corpus-refused` error is retried, and an attempted declaration counts before it is anchored.
+  Codex review found both gaps (a Git or input-availability failure retried into a silent
+  declaration-free artifact, and an oversized first declaration line refusing outright), and
+  that the shard-cache restoration was untested. Each is now pinned by a test that failed first.
 - **Derivation version 2.** The same inputs now build different records, so
   `DerivationVersion` is `2`. The verified read refuses a derivation-1 artifact and asks for a
   rebuild. Old artifacts are refused explicitly; nothing is silently reinterpreted.

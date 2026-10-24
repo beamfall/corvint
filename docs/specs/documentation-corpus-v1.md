@@ -1804,8 +1804,12 @@ file) had no subject, so `docs_search --query sync_with_pos` and `--kind symbol`
   refused compile recorded, and the artifact carries one `not-collected` gap
   (`derived declaration bound: ...`) on the first derivable input's native file ID. A refusal of
   the retry is the refusal the manifest had before derivation. Failure modes: an error that is
-  not a corpus refusal (Git, cancellation) is returned without a retry. Acceptance:
-  `TestDCPV1484DerivationNeverRefusesABuildableManifest`.
+  not a corpus refusal (Git, capacity, input availability, cancellation) is returned without a
+  retry; a refusal of the first attempted declaration (an oversized declaration line) is retried
+  like a later one; the retry leaves one cached shard per compiled shard. Acceptance:
+  `TestDCPV1484DerivationNeverRefusesABuildableManifest`,
+  `TestDCPV1484RefusedFirstDeclarationRestoresShardCache`,
+  `TestDCPV1484RetryAnswersOnlyCorpusRefusals`.
 - `DCP-V1-485`: Derived declarations change the records the same inputs build, so
   `DerivationVersion` is `2` (`DCP-V1-471`): the verified read refuses an artifact recorded by
   derivation 1 with `derivation version differs (artifact 1, running builder 2); rebuild the
@@ -3555,7 +3559,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-475..477 | `internal/doccorpus/search_rank.go`, `search_phrase.go`, `typed_query.go` | `TestDCPV1475PhraseAndIdentifierMatchesRankFirst`, `TestDCPV1476ClaimTextMatchesInflections`, `TestDCPV1477MeaningfulTieBreaks`, `TestDCPV1404SearchRankingEvalFixture` |
 | DCP-V1-478 | not implemented (proposed; GitHub #1662) | none until accepted |
 | DCP-V1-479..481 | `internal/doccorpus/types.go`, `search_rank.go`, `typed_query.go`, `receipt_annotations.go` | `TestDCPV1479SearchServesRankGroups`, `TestDCPV1480ClaimsServeRankGroups`, `TestDCPV1486GH1665RankingEvalFixture` |
-| DCP-V1-482..484 | `internal/doccorpus/compile.go` | `TestDCPV1482DeclarationsOfRecordsOwnedSource`, `TestDCPV1483DerivationScope`, `TestDCPV1484DerivationNeverRefusesABuildableManifest` |
+| DCP-V1-482..484 | `internal/doccorpus/compile.go` | `TestDCPV1482DeclarationsOfRecordsOwnedSource`, `TestDCPV1483DerivationScope`, `TestDCPV1484DerivationNeverRefusesABuildableManifest`, `TestDCPV1484RefusedFirstDeclarationRestoresShardCache`, `TestDCPV1484RetryAnswersOnlyCorpusRefusals` |
 | DCP-V1-485 | `internal/doccorpus/encoding.go` | `TestDCPV1485DerivationTwoRefusesDerivationOneArtifacts`, `TestDCPV1471DerivationVersionGuard` |
 | DCP-V1-486 | `internal/mcp/corpusbridge/testdata/search-ranking-gh1665/` | `TestDCPV1486GH1665RankingEvalFixture` |
 | DCP-V1-468 | `internal/doccorpus/artifact_decode.go`, `query_index_fast.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1419FastIndexMatchesReference` |
