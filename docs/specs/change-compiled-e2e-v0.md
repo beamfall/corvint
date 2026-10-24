@@ -785,7 +785,11 @@ refuses as CCE-V0-100 defines.
   `TestCCEV0107Session`.
 - `CCE-V0-108`: Every fixture MUST compile to a Playwright `base.extend` fixture: setup before
   `use`, the declared cleanup method (callable, so with no parameters, reading its state from the
-  page object) after it, so teardown runs whatever the test body does. A failure located at the
+  page object) after it, so teardown runs whatever the test body does; for a setup with outputs the
+  output check and `use` sit in a `try` whose `finally` runs cleanup, so a missing output still
+  tears down. One test-scoped `po` fixture builds each page-object class once, and every fixture
+  and the test body read their instances from it, so setup, actions and cleanup share one instance
+  per class. A failure located at the
   cleanup call reads `cleanup-failed`, not an assertion. Only a setup without outputs is an
   omitted-event control: removing a setup whose outputs later blocks read fails by construction,
   which would not show the setup's effect is load-bearing, so that control is not generated and
@@ -797,8 +801,11 @@ refuses as CCE-V0-100 defines.
   The wrong-locator control perturbs the accessible name in the declared form, and an unknown form
   refuses the perturbation. A locator for a block the catalog does not admit is withheld with
   `locator-block-unadmitted`; a malformed locator refuses `e2e-blocks-invalid` and a secret-shaped
-  name `e2e-input-secret`. Failure mode: a role locator silently falls back to a test ID, or its
-  control perturbs nothing. Acceptance: `TestCCEV0109TypedLocators`.
+  name `e2e-input-secret`. The typed locator is part of the oracle: `oracle_origin` (CCE-V0-016)
+  compares the base declarations' locator for the outcome too, so adding, changing or removing one
+  in the diff reads `CHANGED_IN_DIFF`. Failure modes: a role locator silently falls back to a test
+  ID, or its control perturbs nothing; a diff rewrites an assertion's locator and keeps
+  `ADMITTED_AT_BASE`. Acceptance: `TestCCEV0109TypedLocators`.
 - `CCE-V0-110`: `toHaveAccessibleName` and `toHaveCount` MUST be admitted outcome matchers. A count
   is a positive integer below one million rendered unquoted; its wrong-expected-value control is
   the next integer. A zero count reads `outcome-vacuous` and a non-integer or negative count
@@ -967,8 +974,8 @@ row's status says what is delivered.
 | CCE-V0-105 | fixture outputs checked and handed on; malformed outputs refuse | V1-1684 | PASS offline (darwin/arm64 and linux/WSL2): `TestCCEV0105FixtureOutputs` |
 | CCE-V0-106 | entry URL reads a fixture output; unbound, unadmitted and undeclared bindings named | V1-1684 | PASS offline: `TestCCEV0106OutputDataFlow` |
 | CCE-V0-107 | session storage state and skip; conflict; env declared only when set; malformed sessions refuse | V1-1684 | PASS offline: `TestCCEV0107Session`; live storage-state run NOT_RUN |
-| CCE-V0-108 | `base.extend` teardown after `use`; cleanup failure attributed; output setup not a control | V1-1684 | PASS offline: `TestCCEV0108Teardown`, `TestCCEV0018OmittedEventControls`; live teardown NOT_RUN |
-| CCE-V0-109 | role and label locators and their wrong-locator controls; unadmitted and malformed locators | V1-1684 | PASS offline: `TestCCEV0109TypedLocators` |
+| CCE-V0-108 | `base.extend` teardown after `use`, in `finally` past an output check; shared `po` page objects; cleanup failure attributed; output setup not a control | V1-1684 | PASS offline: `TestCCEV0108Teardown`, `TestCCEV0018OmittedEventControls`; live teardown NOT_RUN |
+| CCE-V0-109 | role and label locators and their wrong-locator controls; locator change reads `CHANGED_IN_DIFF`; unadmitted and malformed locators | V1-1684 | PASS offline: `TestCCEV0109TypedLocators` |
 | CCE-V0-110 | accessible-name and count matchers; count control; vacuous and non-integer counts | V1-1684 | PASS offline: `TestCCEV0110TypedAssertions` |
 | CCE-V0-111 | declared routes bind parameterised entries; no synthesis without a proven edge; each mismatch named | V1-1684 | PASS offline: `TestCCEV0111ParameterisedRoutes` |
 | CCE-V0-112 | named `test.step` per action, trace on failure, `steps` in the entry | V1-1684 | PASS offline: `TestCCEV0112StepsAndTrace` |

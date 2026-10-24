@@ -439,25 +439,36 @@ func render(cat *Catalog, obs *Obligations, ob Obligation, p scenarioPlan) (*Sce
 	if len(p.fixtures) == 0 {
 		line("const test = base;")
 	} else {
-		types := make([]string, len(p.fixtures))
+		// One test-scoped `po` fixture builds each page object once, so setup, actions and
+		// cleanup share an instance per class as they did before fixtures were extended.
+		types := []string{"po: Record<string, any>"}
+		objs := make([]string, len(classes))
+		for i, k := range classes {
+			objs[i] = varName(k) + ": new " + k + "(page)"
+		}
 		for i, f := range p.fixtures {
 			fxVar[f.ID] = "fx" + strconv.Itoa(i+1)
 			fxNames = append(fxNames, fxVar[f.ID])
-			types[i] = fxVar[f.ID] + ": Record<string, any>"
+			types = append(types, fxVar[f.ID]+": Record<string, any>")
 		}
 		line("const test = base.extend<{ %s }>({", strings.Join(types, "; "))
+		line("  po: async ({ page }, use) => {")
+		line("    await use({ %s });", strings.Join(objs, ", "))
+		line("  },")
 		for i, f := range p.fixtures {
-			deps := "page"
+			deps := "po"
 			if i > 0 {
 				deps += ", " + fxNames[i-1]
 			}
 			line("  %s: async ({ %s }, use) => {", fxNames[i], deps)
 			setupClass, cleanupClass := cat.classOf(fileOf(f.Setup)), cat.classOf(fileOf(f.Cleanup))
+			var used []string
 			for _, k := range uniqueStrings(sortedCopy([]string{setupClass, cleanupClass})) {
 				if k != "" {
-					line("    const %s = new %s(page);", varName(k), k)
+					used = append(used, varName(k))
 				}
 			}
+			line("    const { %s } = po;", strings.Join(used, ", "))
 			if len(f.Outputs) == 0 {
 				sc.SetupLines = append(sc.SetupLines, next())
 				line("    await %s.%s();", varName(setupClass), f.Setup.Method)
@@ -469,13 +480,17 @@ func render(cat *Catalog, obs *Obligations, ob Obligation, p scenarioPlan) (*Sce
 				for j, o := range f.Outputs {
 					outs[j] = jsString(o)
 				}
+				// Once setup succeeds, cleanup runs even when a declared output is missing.
 				line("    const out = await %s.%s();", varName(setupClass), f.Setup.Method)
-				line("    for (const k of [%s]) if (out?.[k] === undefined) throw new Error(%s + k);", strings.Join(outs, ", "), jsString("corvint-e2e fixture-output-missing "))
-				line("    await use(out);")
+				line("    try {")
+				line("      for (const k of [%s]) if (out?.[k] === undefined) throw new Error(%s + k);", strings.Join(outs, ", "), jsString("corvint-e2e fixture-output-missing "))
+				line("      await use(out);")
+				line("    } finally {")
 				sc.CleanupLines = append(sc.CleanupLines, next())
 				// A declared method is callable only with no parameters, so cleanup reads any
 				// setup state from its own page-object instance, not from the outputs.
-				line("    await %s.%s();", varName(cleanupClass), f.Cleanup.Method)
+				line("      await %s.%s();", varName(cleanupClass), f.Cleanup.Method)
+				line("    }")
 			}
 			line("  },")
 		}
@@ -489,9 +504,20 @@ func render(cat *Catalog, obs *Obligations, ob Obligation, p scenarioPlan) (*Sce
 		line("test.skip(!%s, %s);", env, jsString("corvint-e2e session-unset "+p.session.StorageStateEnv))
 	}
 	line("")
-	line("test(%s, async ({ %s }) => {", jsString(ob.ID), strings.Join(append([]string{"page"}, fxNames...), ", "))
-	for _, k := range bodyClasses {
-		line("  const %s = new %s(page);", varName(k), k)
+	if len(p.fixtures) == 0 {
+		line("test(%s, async ({ page }) => {", jsString(ob.ID))
+		for _, k := range bodyClasses {
+			line("  const %s = new %s(page);", varName(k), k)
+		}
+	} else {
+		line("test(%s, async ({ %s }) => {", jsString(ob.ID), strings.Join(append([]string{"page", "po"}, fxNames...), ", "))
+		if len(bodyClasses) != 0 {
+			vars := make([]string, len(bodyClasses))
+			for i, k := range bodyClasses {
+				vars[i] = varName(k)
+			}
+			line("  const { %s } = po;", strings.Join(vars, ", "))
+		}
 	}
 	var steps []StepLine
 	step := func(block, action string) {

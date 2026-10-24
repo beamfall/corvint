@@ -10,20 +10,25 @@ import { ClubPage } from '../pages/club.page';
 import { HomePage } from '../pages/home.page';
 import { TeeSheetPage } from '../pages/teesheet.page';
 
-const test = base.extend<{ fx1: Record<string, any> }>({
-  fx1: async ({ page }, use) => {
-    const clubPage = new ClubPage(page);
+const test = base.extend<{ po: Record<string, any>; fx1: Record<string, any> }>({
+  po: async ({ page }, use) => {
+    await use({ clubPage: new ClubPage(page), homePage: new HomePage(page), teeSheetPage: new TeeSheetPage(page) });
+  },
+  fx1: async ({ po }, use) => {
+    const { clubPage } = po;
     const out = await clubPage.seedOpenSlots();
-    for (const k of ['clubId']) if (out?.[k] === undefined) throw new Error('corvint-e2e fixture-output-missing ' + k);
-    await use(out);
-    await clubPage.cleanup();
+    try {
+      for (const k of ['clubId']) if (out?.[k] === undefined) throw new Error('corvint-e2e fixture-output-missing ' + k);
+      await use(out);
+    } finally {
+      await clubPage.cleanup();
+    }
   },
 });
 test.use({ trace: 'retain-on-failure' });
 
-test('obligation:book-tee-time/booked', async ({ page, fx1 }) => {
-  const homePage = new HomePage(page);
-  const teeSheetPage = new TeeSheetPage(page);
+test('obligation:book-tee-time/booked', async ({ page, po, fx1 }) => {
+  const { homePage, teeSheetPage } = po;
   await test.step('path:entry:screen:admin:app.home', () => page.goto('/#!/home'));
   await test.step('method:e2e/pages/home.page.ts#goToTeeSheets', () => homePage.goToTeeSheets());
   await test.step('method:e2e/pages/teesheet.page.ts#selectSlot', () => teeSheetPage.selectSlot());

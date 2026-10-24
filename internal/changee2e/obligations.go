@@ -104,6 +104,8 @@ type Obligations struct {
 type baseOutcome struct {
 	admitted                bool
 	matcher, locator, value string
+	// typed is the outcome's declared role or label locator at base (CCE-V0-109), if any.
+	typed *TypedLocator
 }
 
 // Encoded returns the sealed bytes of the report.
@@ -182,13 +184,23 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 	if err := json.Unmarshal(raw, &impact); err != nil {
 		return nil, refuse("e2e-impact-unavailable", "%v", err)
 	}
-	exemptions, contracts, err := readBaseReach(ctx, o.Root, base)
+	baseDecl, err := readBaseDeclarations(ctx, o.Root, base)
 	if err != nil {
 		return nil, err
 	}
+	exemptions, contracts := baseDecl.ReachExempt, baseDecl.APIContracts
 	removed, baseOutcomes, err := removedAtHead(ctx, o.Root, base, o.Manifest, cat.m)
 	if err != nil {
 		return nil, err
+	}
+	for _, l := range baseDecl.Locators {
+		// The effective base locator includes a declared typed override, so adding, changing
+		// or removing one changes the oracle (CCE-V0-016, CCE-V0-109).
+		if bo, ok := baseOutcomes[l.Block]; ok {
+			t := l.TypedLocator
+			bo.typed = &t
+			baseOutcomes[l.Block] = bo
+		}
 	}
 	inDiff, err := acceptancesInDiff(ctx, o.Root, base, cat)
 	if err != nil {
@@ -464,25 +476,29 @@ func (o *Obligations) oracleOrigin(b *Block) string {
 	switch {
 	case !ok:
 		return OriginNewInDiff
-	case bo.admitted && bo.matcher == b.Matcher && bo.locator == b.Locator && bo.value == b.Value:
+	case bo.admitted && bo.matcher == b.Matcher && bo.locator == b.Locator && bo.value == b.Value && sameTyped(bo.typed, b.Typed):
 		return OriginAdmittedAtBase
 	}
 	return OriginChangedInDiff
 }
 
-// readBaseReach reads the `reach_exempt` and `api_contracts` members of the declarations file at
-// base, so a diff can neither exempt itself (CCE-V0-020) nor declare its own join (CCE-V0-114). A
-// missing file exempts and joins nothing.
-func readBaseReach(ctx context.Context, root, base string) ([]ReachExemption, []APIContract, error) {
+// sameTyped reports whether two typed locators are both absent or equal in form, role and name.
+func sameTyped(a, b *TypedLocator) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
+}
+
+// readBaseDeclarations reads the declarations file at base, whose `reach_exempt`, `api_contracts`
+// and `locators` members a diff cannot rewrite for itself (CCE-V0-020, CCE-V0-114, CCE-V0-109). A
+// missing file exempts, joins and overrides nothing.
+func readBaseDeclarations(ctx context.Context, root, base string) (declarations, error) {
 	data, _, ok, err := blobAt(ctx, root, base, DeclarationsPath)
 	if err != nil || !ok {
-		return nil, nil, err
+		return declarations{}, err
 	}
-	d, err := decodeDeclarations(data)
-	if err != nil {
-		return nil, nil, err
-	}
-	return d.ReachExempt, d.APIContracts, nil
+	return decodeDeclarations(data)
 }
 
 func exemptGlob(list []ReachExemption, p string) (ReachExemption, bool) {

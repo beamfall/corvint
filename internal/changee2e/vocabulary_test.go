@@ -191,11 +191,18 @@ func TestCCEV0105FixtureOutputs(t *testing.T) {
 		"const out = await clubPage.seedOpenSlots();",
 		"for (const k of ['clubId']) if (out?.[k] === undefined) throw new Error('corvint-e2e fixture-output-missing ' + k);",
 		"await use(out);",
-		"async ({ page, fx1 }) =>",
+		"async ({ page, po, fx1 }) =>",
+		// One page-object instance per class is shared by setup, actions and cleanup.
+		"await use({ clubPage: new ClubPage(page), teeSheetPage: new TeeSheetPage(page) });",
+		"const { clubPage } = po;",
+		"const { teeSheetPage } = po;",
 	} {
 		if !strings.Contains(src, w) {
 			t.Fatalf("missing %q in:\n%s", w, src)
 		}
+	}
+	if strings.Contains(src, "= new ") {
+		t.Fatalf("a page object is constructed outside the shared po fixture:\n%s", src)
 	}
 	nine := []any{}
 	for i := range 9 {
@@ -301,11 +308,15 @@ func TestCCEV0107Session(t *testing.T) {
 func TestCCEV0108Teardown(t *testing.T) {
 	sc := compiledFor(t, vocabularyCompile(t, nil), obCount)
 	lines := strings.Split(string(sc.Text), "\n")
+	// Once setup succeeds, the output check and use sit in a try whose finally runs cleanup, so a
+	// missing output still tears the fixture down.
 	if len(sc.CleanupLines) != 1 || strings.TrimSpace(lines[sc.CleanupLines[0]-1]) != "await clubPage.cleanup();" ||
-		strings.TrimSpace(lines[sc.CleanupLines[0]-2]) != "await use(out);" || len(sc.SetupLines) != 0 {
+		strings.TrimSpace(lines[sc.CleanupLines[0]-2]) != "} finally {" || strings.TrimSpace(lines[sc.CleanupLines[0]-3]) != "await use(out);" ||
+		!strings.HasPrefix(strings.TrimSpace(lines[sc.CleanupLines[0]-4]), "for (const k of ['clubId'])") ||
+		strings.TrimSpace(lines[sc.CleanupLines[0]-5]) != "try {" || len(sc.SetupLines) != 0 {
 		t.Fatalf("setup %v cleanup %v:\n%s", sc.SetupLines, sc.CleanupLines, sc.Text)
 	}
-	if !strings.Contains(string(sc.Text), "const test = base.extend<{ fx1: Record<string, any> }>({") || strings.Contains(string(sc.Text), "finally") {
+	if !strings.Contains(string(sc.Text), "const test = base.extend<{ po: Record<string, any>; fx1: Record<string, any> }>({") {
 		t.Fatalf("teardown is not a test.extend fixture:\n%s", sc.Text)
 	}
 	if got := assertionFailure("failed", "Error: x", sc.Placement, sc.CleanupLines[0], sc); got != FailureCleanupFailed {
@@ -352,6 +363,33 @@ func TestCCEV0109TypedLocators(t *testing.T) {
 	}
 	if _, err := perturbLine(lsc.Text, lsc.AssertionLine, behaviorfalsify.WrongLocator, "css", lsc.Locator, lsc.Matcher, lsc.Value, wrongLocator); err == nil {
 		t.Fatal("an unknown locator form must refuse")
+	}
+	// The typed locator is part of the oracle: unchanged it stays ADMITTED_AT_BASE; adding,
+	// changing or removing it in the diff reads CHANGED_IN_DIFF (CCE-V0-016).
+	if sc.OracleOrigin != OriginAdmittedAtBase {
+		t.Fatalf("unchanged typed locator origin %q", sc.OracleOrigin)
+	}
+	noTyped := declWith(t, func(d map[string]any) { delete(d, "locators") })
+	for name, tc := range map[string]struct{ base, head *string }{
+		"changed form": {nil, label},
+		"removed":      {nil, noTyped},
+		"added":        {noTyped, text(vocabularyDeclarations)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			edit := map[string]*string{}
+			if tc.base != nil {
+				edit[DeclarationsPath] = tc.base
+			}
+			root, base, _ := vocabularyRepo(t, edit)
+			head := commitFiles(t, root, map[string]*string{DeclarationsPath: tc.head}, "locator change")
+			r, err := Compile(bg, diffOpts(root, base, head))
+			if err != nil {
+				t.Fatalf("compile: %v", err)
+			}
+			if got := compiledFor(t, r, obRebook).OracleOrigin; got != OriginChangedInDiff {
+				t.Fatalf("origin %q, want %q", got, OriginChangedInDiff)
+			}
+		})
 	}
 	unadmitted := declWith(t, func(d map[string]any) { declMember(d, "locators", 0)["block"] = "outcome:absent/none" })
 	if got := catalogUnadmitted(t, unadmitted, "locator", "outcome:absent/none"); got != "locator-block-unadmitted" {

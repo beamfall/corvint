@@ -47,6 +47,13 @@ the owner's standing auto-accept (2026-10-11); `116..129` stay free in this lane
   `unplaced-path` as `screen-without-outcome`. The span stayed unknown and the state `UNKNOWN`, which
   is the property; the test checks spans, and CCE-V0-114 separately checks the joined path keeps
   `unplaced-path`.
+- **Independent review fixes (one Codex round).** Three findings were accepted, each with a test.
+  A typed locator now joins the oracle-origin comparison, so a diff that rewrites it reads
+  `CHANGED_IN_DIFF` rather than keeping the base admission (P1). A missing fixture output no longer
+  skips cleanup: the check and `use` sit in `try`/`finally` (P2). Page objects come from one shared
+  `po` fixture, so state a setup stores on its instance reaches the actions (P2): the first draft
+  built separate instances in each fixture and in the body, which regressed the pre-extend single
+  instance per class.
 
 ## Evidence
 
