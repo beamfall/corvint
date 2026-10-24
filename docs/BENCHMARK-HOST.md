@@ -37,12 +37,13 @@ The idle check's own bar is much lower than that.
 
 ## Setup
 
-1. **Go 1.27.2.** Download `go1.27.2.linux-amd64.tar.gz` from `https://go.dev/dl/`. Check it
-   against the sha256 listed at `https://go.dev/dl/?mode=json&include=all`
-   (`ecbadb99091a3f46e31f5f934b068b1864eafa7995211b39eaddf76996045fe5`) with `sha256sum -c`, then
-   extract it to `~/sdk/go1.27.2`. The pre-existing `/usr/local/go` is byte-identical to that verified
-   tree (`diff -r` is empty), so either one may be used. Runs set
-   `PATH=$HOME/sdk/go1.27.2/bin:$PATH GOTOOLCHAIN=local`.
+1. **Go 1.27.3** (decision 0557; the 2026-10-23 inventory above records the go1.27.2 install that
+   preceded it). Download `go1.27.3.linux-amd64.tar.gz` from `https://go.dev/dl/`. Check it against
+   the sha256 listed at `https://go.dev/dl/?mode=json&include=all`
+   (`65efbc80fdc1fa2cd2631cad5b481777a68e8725f34e89f50fc6ac714e379b40`) with `sha256sum -c`, then
+   extract it to `~/sdk/go1.27.3`. Runs set `PATH=$HOME/sdk/go1.27.3/bin:$PATH GOTOOLCHAIN=local`.
+   A `go` earlier on `PATH` that reports go1.27.2 (for example `/usr/local/go`) refuses to build the
+   `go 1.27.3` module directive.
 2. **Checkout.** `~/corvint` is the owner's clone of `beamfall/corvint`, with the Windows git
    credential manager configured. Each measurement uses a detached worktree at a named `origin/main`
    sha, for example `git -C ~/corvint worktree add --detach ~/bench/corvint <sha>`. Comparison
