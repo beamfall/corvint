@@ -18,8 +18,12 @@ import (
 // entry in it as well as the entries created, removed or renamed, so a
 // regular file whose only link is in a watched directory needs no watch of
 // its own: the guard's watch count is the store's directories and their
-// ancestors, whatever its receipt count. A file with another link, through
-// which an actor could write without the directory seeing it, and a file
+// ancestors, whatever its receipt count. Events reach the directory only
+// through its own entry: a write through a descriptor an actor outside Tasks
+// opened through another link before registration, or through a link made
+// outside the observation after it, is not reported (PSR-V0-222). A file with
+// another link, through which an actor could write without the directory
+// seeing it, and a file
 // whose parent is not watched for contents, is tracked by the stat identity
 // taken when it was visited and re-read by sweep, as Darwin tracks a file
 // beyond its descriptor budget (CAL-V0-026, CAL-V0-219). A directory the
@@ -71,6 +75,11 @@ func (w *notifyWatch) add(path string, contents bool) (os.FileInfo, error) {
 			return before, nil
 		}
 		return w.addStat(path, before)
+	}
+	if w.dirs[path] {
+		// Already watched with the content mask; a second add without it
+		// would replace the mask and silence the events of its entries.
+		return before, nil
 	}
 	mask := uint32(syscall.IN_DELETE_SELF | syscall.IN_MOVE_SELF | syscall.IN_ATTRIB | syscall.IN_DONT_FOLLOW)
 	if contents {

@@ -46,9 +46,19 @@ Rejected:
 Gained: an in-place write or mode change to any singly linked file is reported at any time.
 Under PSR-V0-221, a file beyond the ceiling was reported only up to the sweep.
 
-Lost: a non-Tasks actor can create a hard link to a store file outside the observed tree after
-registration, then write through that link. Neither step is reported. No Tasks writer does this.
-The 45,000-receipt fixture had no file with more than one link.
+Lost: the kernel reports an entry's events to its directory only when they go through that
+entry. So a non-Tasks actor's write or mode change goes unreported in two cases:
+- through a hard link the actor creates outside the observed tree after registration;
+- through a descriptor the actor opened before registration, via another link since removed or as
+  an `O_TMPFILE`.
+
+The independent review confirmed both on Linux 6.18 with a probe: a per-file watch saw them and
+the parent watch did not. No Tasks writer does either. The 45,000-receipt fixture had no file with
+more than one link. Writes through `mmap` are reported by neither kind of watch.
+
+The review also found a latent mask downgrade. Re-adding a content-watched directory as an
+ancestor would have replaced its mask, and its entries' events would have stopped. A directory
+already watched with the content mask is now not registered again.
 
 ## Load run
 

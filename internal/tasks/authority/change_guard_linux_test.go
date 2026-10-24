@@ -11,6 +11,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -47,10 +48,14 @@ func drain(w *notifyWatch) {
 // file singly linked in a watched directory is reported by the directory's
 // events, whatever the number of files; quiescence is not reported.
 func TestPSRV0222_ChangeGuardSeesFileMutationsThroughItsDirectory(t *testing.T) {
-	for _, name := range []string{"none", "write-same-size", "write-resize", "in-place-restored-time", "open-before-guard", "chmod", "rename-replace", "remove", "sibling"} {
+	for _, name := range []string{"none", "write-same-size", "write-resize", "in-place-restored-time", "open-before-guard", "truncate", "utimes", "chmod", "rename-replace", "remove", "sibling"} {
 		t.Run(name, func(t *testing.T) {
 			repo, file := guardRepo(t)
 			dir := filepath.Dir(file)
+			staging := filepath.Join(filepath.Dir(repo.StateDir), "staging-outside")
+			if err := os.Mkdir(staging, 0700); err != nil {
+				t.Fatal(err)
+			}
 			for i := 0; i < 4; i++ {
 				if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("%03d", i)), []byte("x"), 0600); err != nil {
 					t.Fatal(err)
@@ -93,15 +98,23 @@ func TestPSRV0222_ChangeGuardSeesFileMutationsThroughItsDirectory(t *testing.T) 
 					err = os.Chtimes(file, st.ModTime(), st.ModTime())
 				}
 			case "open-before-guard":
-				// A descriptor opened before the guard still writes through
-				// the watched directory's entry.
+				// A descriptor opened through this entry before the guard
+				// writes through it; one opened through another link would
+				// not be reported (PSR-V0-222).
 				_, err = early.WriteAt([]byte("dddd"), 0)
+			case "truncate":
+				err = os.Truncate(file, 1)
+			case "utimes":
+				err = os.Chtimes(file, time.Unix(1, 0), time.Unix(1, 0))
 			case "chmod":
 				err = os.Chmod(file, 0640)
 			case "rename-replace":
-				err = os.WriteFile(file+".tmp", []byte("aaaa"), 0600)
+				// Staged outside the observation, so only the rename over
+				// the entry can report it.
+				staged := filepath.Join(staging, "x.json")
+				err = os.WriteFile(staged, []byte("aaaa"), 0600)
 				if err == nil {
-					err = os.Rename(file+".tmp", file)
+					err = os.Rename(staged, file)
 				}
 			case "remove":
 				err = os.Remove(file)
@@ -169,6 +182,33 @@ func TestPSRV0222_ChangeGuardTracksAMultiplyLinkedFileByStat(t *testing.T) {
 				t.Fatalf("check = %q, want %q", got, want)
 			}
 		})
+	}
+}
+
+// PSR-V0-222: a directory already watched with the content mask keeps it when
+// it is added again as an ancestor, so a write to an entry is still reported.
+func TestPSRV0222_AncestorAddKeepsTheContentMask(t *testing.T) {
+	_, file := guardRepo(t)
+	dir := filepath.Dir(file)
+	cw, err := newChangeWatch()
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := cw.(*notifyWatch)
+	defer w.close()
+	for _, contents := range []bool{true, false} {
+		if _, err := w.add(dir, contents); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := w.add(file, true); err != nil || len(w.stats) != 0 {
+		t.Fatalf("file add: %v, %d stat-tracked", err, len(w.stats))
+	}
+	if err := os.WriteFile(file, []byte("bbbb"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if changed, err := w.poll(); err != nil || !changed {
+		t.Fatalf("write after an ancestor re-add: changed %v, %v", changed, err)
 	}
 }
 

@@ -1163,9 +1163,12 @@ measured on a 4 vCPU Linux VM with an allowance of 130,016, one guard still held
 
 Change in guarantees: a singly linked file gains coverage of an in-place write or mode change at
 any time, which PSR-V0-221 lost for a file beyond the ceiling after the sweep read it. A singly
-linked file loses one case a per-file watch covered: an actor outside Tasks that creates a hard
-link to it outside the observed tree after registration (the link-count change is reported to the
-file's own watch only), and then writes or changes its mode through that link, goes unreported.
+linked file loses the cases a per-file watch covered and its directory does not, because the
+kernel reports an entry's events to its directory only through that entry: an actor outside Tasks
+that writes or changes the mode through a hard link it creates outside the observed tree after
+registration (the link-count change is reported to the file's own watch only), or through a
+descriptor it opened through another link (since removed) or as an `O_TMPFILE` before
+registration, goes unreported. Writes through `mmap` were never reported by either watch.
 No Tasks writer edits a store file in place or links one outside the store, and no store file had
 more than one link in the 45,000-receipt fixture.
 
@@ -1189,7 +1192,9 @@ error code, so the peak over all nine processes stayed below 4,000 watches (UNQU
 9.35 on 4 CPUs). The 45,000-receipt, 8-acquirer, 600 s run on the WSL2 quiet host is NEEDS-HOST.
 
 Rollback: revert `change_guard_linux.go`, `change_guard.go` and their tests to PSR-V0-221; the
-guard then holds up to its file ceiling of file watches again.
+guard then holds up to its file ceiling of file watches again. A directory already watched
+with the content mask is not re-registered, so a later add of it as an ancestor cannot replace
+its mask (`TestPSRV0222_AncestorAddKeepsTheContentMask`).
 
 ## Acceptance evidence
 
@@ -1361,4 +1366,4 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | --- | --- |
 | PSR-V0-220 | `TestCALV0350_ClaimNextDerivesScopeForThePreviewedWaiterCLI`, `TestPSRV0132_ClaimNextPoolClaimsTheWaiterCLI` (`internal/tasks/cli`); implementation `internal/tasks/cli/lease.go` (`Derive: env.ScopeDeriver`), `internal/tasks/transaction/claim_next.go` |
 | PSR-V0-221 | `TestCALV0364_ChangeGuardRefusesADirectoryBeyondTheInotifyLimit`, opt-in `TestCALV0364_ChangeGuardUnderTheRealInotifyLimit` (`CORVINT_TASKS_INOTIFY_LIMIT=1`, root; lowers the real sysctl to this user's measured headroom plus exactly the guard's directory watches and requires registration and a reported write) (`internal/tasks/authority`); its file ceiling is superseded by PSR-V0-222 |
-| PSR-V0-222 | `TestPSRV0222_ChangeGuardWatchCountIsBoundedByDirectories` (`/proc/self/fdinfo` count), `TestPSRV0222_ChangeGuardSeesFileMutationsThroughItsDirectory` (every mutation class with no file watch, via `CheckEvents`), `TestPSRV0222_ChangeGuardTracksAMultiplyLinkedFileByStat` (`internal/tasks/authority`, Linux only); `docs/build-log/2026-10-23-linux-change-guard-directory-watches.md` |
+| PSR-V0-222 | `TestPSRV0222_ChangeGuardWatchCountIsBoundedByDirectories` (`/proc/self/fdinfo` count), `TestPSRV0222_ChangeGuardSeesFileMutationsThroughItsDirectory` (every mutation class with no file watch, via `CheckEvents`), `TestPSRV0222_ChangeGuardTracksAMultiplyLinkedFileByStat`, `TestPSRV0222_AncestorAddKeepsTheContentMask` (`internal/tasks/authority`, Linux only); `docs/build-log/2026-10-23-linux-change-guard-directory-watches.md` |
