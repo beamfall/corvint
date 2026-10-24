@@ -343,6 +343,9 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   every project is absent from the listing, so it cannot be checked; under the caller-declared
   listing it is excluded for that project too. A case the reported parts keep is refused under (c)
   even though hidden tag text could exclude it, because refusal is the conservative outcome. The per-test listing producer and a top-level `grep` are unchanged.
+  Amended by `AFP-V0-409` to `AFP-V0-411` (GitHub #1647): when the config, test file and import
+  closure hold only literal `@\S+` tags and the case's explicit tags are among them, a case (b)
+  excludes is excluded for certain, and the unverified unknown's detail lists up to ten units.
 - `TJAA-V0-030`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2042; GitHub #1294) When the `playwright-affected/0` plan's final fallback is
   `FULL_RELEVANT_SUITE`, the plan MUST carry a `narrowed` member. It is advisory evidence beside the
   fallback and has these members: `basis` `STATIC_IMPORT_GRAPH`, `state` `NARROWED` or

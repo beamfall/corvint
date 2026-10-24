@@ -126,6 +126,9 @@ type PlaywrightPlan struct {
 	// Environment holds the variables the caller named with --playwright-env, present only when
 	// it named one (AFP-V0-383).
 	Environment []PlaywrightEnvironmentInput `json:"environment,omitzero"`
+	// EnvironmentFiles are the env files the config's modelled dotenv loads read, in load order,
+	// present only when the plan records an environment and the config makes one (AFP-V0-406).
+	EnvironmentFiles []PlaywrightEnvironmentFile `json:"environmentFiles,omitzero"`
 }
 
 type playwrightMatcher struct {
@@ -167,7 +170,7 @@ func selectPlaywrightStaticDraft(root, configPath string, dirty []string, enviro
 	}
 	configSum := sha256.Sum256(configBytes)
 	projects, globalTestDir, configUnknown := parsePlaywrightConfig(configPath, string(configBytes))
-	resolvePlaywrightExecutables(projects, environment, configPath, string(configBytes))
+	environment, environmentFiles := resolvePlaywrightExecutables(root, projects, environment, configPath, string(configBytes))
 	result, sites, err := New().units(root, true)
 	if err != nil {
 		return PlaywrightPlan{}, none, err
@@ -226,6 +229,7 @@ func selectPlaywrightStaticDraft(root, configPath string, dirty []string, enviro
 	}
 	if len(environment) != 0 {
 		plan.Environment = canonicalPlaywrightEnvironment(environment)
+		plan.EnvironmentFiles = environmentFiles
 	}
 	if len(selectionUnknown) != 0 {
 		plan.Scope = affected.ScopeUnknown

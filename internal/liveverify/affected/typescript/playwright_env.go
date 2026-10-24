@@ -28,6 +28,9 @@ type PlaywrightEnvironmentInput struct {
 	Source string `json:"source"`
 	State  string `json:"state"`
 	Value  string `json:"value"`
+	// Resolved is the value the config reads after its modelled dotenv loads, present only when
+	// the config makes one (AFP-V0-407).
+	Resolved *PlaywrightEnvironmentResolution `json:"resolved,omitzero"`
 }
 
 // NewPlaywrightEnvironmentInput returns the recorded form of one observed variable.
@@ -90,31 +93,36 @@ func playwrightEnvExecutable(expression string) (name, operator, fallback string
 // load a dotenv file. A module loader or code evaluator reached under any name (require,
 // module.require, createRequire, eval, Function, globalThis) and process.loadEnvFile can do the
 // same, so the name alone keeps the unknown, however it is aliased. A globalSetup runs before the
-// workers that evaluate the config again (AFP-V0-386).
-func playwrightEnvironmentWriter(configPath, source string) string {
+// workers that evaluate the config again (AFP-V0-386). A "dotenv" load is returned as modelled
+// loads instead when playwrightDotenvLoads models every use of it (AFP-V0-405, AFP-V0-408).
+func playwrightEnvironmentWriter(configPath, source string) (string, []playwrightDotenvLoad) {
 	scan := scanImportSites(configPath, source)
 	if scan.err != nil || scan.dynamic >= 0 || scan.unresolved >= 0 {
-		return "the config's module loads are not all static"
+		return "the config's module loads are not all static", nil
 	}
 	for _, ref := range scan.refs {
-		if ref == "@playwright/test" || playwrightEnvNeutralBuiltins[strings.TrimPrefix(ref, "node:")] {
+		if ref == "@playwright/test" || ref == "dotenv" || playwrightEnvNeutralBuiltins[strings.TrimPrefix(ref, "node:")] {
 			continue
 		}
-		return "the config loads " + strconv.Quote(ref) + ", which can set the variable before the config reads it"
+		return "the config loads " + strconv.Quote(ref) + ", which can set the variable before the config reads it", nil
 	}
 	clean, err := stripComments(source, false)
 	if err != nil {
-		return "the config's module loads are not all static"
+		return "the config's module loads are not all static", nil
+	}
+	loads, residual, frontier := playwrightDotenvLoads(configPath, clean)
+	if frontier != "" {
+		return frontier, nil
 	}
 	for _, name := range playwrightEnvLoaderNames {
-		if len(playwrightTokenOffsets(clean, name)) != 0 {
-			return "the config references " + name + ", which can load a module or file that sets the variable before the config reads it"
+		if len(playwrightTokenOffsets(residual, name)) != 0 {
+			return "the config references " + name + ", which can load a module or file that sets the variable before the config reads it", nil
 		}
 	}
 	if strings.Contains(clean, "globalSetup") {
-		return "the config declares globalSetup, which can set the variable before workers evaluate the config"
+		return "the config declares globalSetup, which can set the variable before workers evaluate the config", nil
 	}
-	return ""
+	return "", loads
 }
 
 // playwrightEnvNeutralBuiltins are Node built-ins, with or without the node: prefix, whose import
@@ -128,15 +136,28 @@ var playwrightEnvLoaderNames = []string{"require", "createRequire", "module", "l
 // resolvePlaywrightExecutables replaces a project's computed-executablePath unknown with the
 // recorded resolution when the expression is a modelled process.env read of a variable the caller
 // named and no other writer can set it. Every other case keeps the EXECUTION unknown, and its
-// detail names the variable and what is missing (AFP-V0-384 to AFP-V0-387).
-func resolvePlaywrightExecutables(projects []PlaywrightProject, inputs []PlaywrightEnvironmentInput, configPath, source string) {
+// detail names the variable and what is missing (AFP-V0-384 to AFP-V0-387). Modelled dotenv
+// loads read their files under root; the returned inputs carry the resolved values and the
+// returned files record each read (AFP-V0-405 to AFP-V0-408).
+func resolvePlaywrightExecutables(root string, projects []PlaywrightProject, inputs []PlaywrightEnvironmentInput, configPath, source string) ([]PlaywrightEnvironmentInput, []PlaywrightEnvironmentFile) {
+	writer, channelled := "", len(playwrightTokenOffsets(source, "channel")) != 0
+	var files []PlaywrightEnvironmentFile
+	if len(inputs) != 0 {
+		var loads []playwrightDotenvLoad
+		writer, loads = playwrightEnvironmentWriter(configPath, source)
+		if writer == "" && len(loads) != 0 {
+			var values []map[string]string
+			if files, values, writer = observePlaywrightDotenv(root, loads); writer == "" {
+				inputs = resolvePlaywrightDotenv(inputs, files, values)
+			}
+		}
+	}
 	byName := make(map[string]PlaywrightEnvironmentInput, len(inputs))
 	for _, input := range inputs {
+		if input.Resolved != nil {
+			input.State, input.Value = input.Resolved.State, input.Resolved.Value
+		}
 		byName[input.Name] = input
-	}
-	writer, channelled := "", len(playwrightTokenOffsets(source, "channel")) != 0
-	if len(inputs) != 0 {
-		writer = playwrightEnvironmentWriter(configPath, source)
 	}
 	for index := range projects {
 		project := &projects[index]
@@ -177,6 +198,7 @@ func resolvePlaywrightExecutables(projects []PlaywrightProject, inputs []Playwri
 		project.execution = nil
 		project.Executable = &PlaywrightExecutable{Bundled: !defined, Path: value, Variable: name}
 	}
+	return inputs, files
 }
 
 // canonicalPlaywrightEnvironment returns the inputs sorted by name.
