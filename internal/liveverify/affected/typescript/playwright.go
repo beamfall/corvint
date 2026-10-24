@@ -199,7 +199,7 @@ func selectPlaywrightStaticDraft(root, configPath string, dirty []string, enviro
 	normalizedDirty := affected.NormalizePaths(dirty)
 	base := affected.Select(graph, normalizedDirty)
 	if graphFrontierUnresolved(base) {
-		selectionUnknown = append(selectionUnknown, PlaywrightUnknown{Axis: PlaywrightAxisSelection, Reason: PlaywrightUnknownDynamicSource, Detail: "the shared TypeScript graph has an unresolved selection frontier"})
+		selectionUnknown = append(selectionUnknown, PlaywrightUnknown{Axis: PlaywrightAxisSelection, Reason: PlaywrightUnknownDynamicSource, Detail: graphFrontierDetail(base, sites)})
 	}
 	selected := selectPlaywrightUnits(configPath, base, projects, units, normalizedDirty)
 	draft, err := draftPlaywrightNarrowing(root, configPath, observed, graph, base, configUnknown, projects, units, normalizedDirty)
@@ -303,6 +303,7 @@ func classifyPlaywrightFrontier(frontier []string, sites frontierSet) (selection
 		switch reason {
 		case FrontierE2ERuntimeDependency:
 			unknown.Axis = PlaywrightAxisExecution
+			unknown.Detail = playwrightRuntimeDetail(sites[reason])
 			execution = append(execution, unknown)
 		case FrontierConfig:
 			// The selected Playwright config is parsed by the closed profile below.
@@ -313,6 +314,32 @@ func classifyPlaywrightFrontier(frontier []string, sites frontierSet) (selection
 	return selection, execution
 }
 
+// playwrightRuntimeDetail is frontierDetail for the e2e-runtime-dependency sites with every site
+// whose token is the Playwright runner itself (an `@playwright/test` import, or the runner identity
+// of a file that reaches it through another module) folded into one count: in Playwright mode the
+// runner is the framework the plan runs, so naming it at each test file adds no evidence. Any
+// other runtime dependency, such as puppeteer, stays named (AFP-V0-426).
+func playwrightRuntimeDetail(sites map[string]string) string {
+	rest := map[string]string{}
+	runner := 0
+	for site, token := range sites {
+		bare := strings.TrimPrefix(token, pinnedSite)
+		if bare == runnerPlaywright || bare == "@playwright/test" || strings.HasPrefix(bare, "@playwright/test/") {
+			runner++
+			continue
+		}
+		rest[site] = token
+	}
+	if runner == 0 {
+		return frontierDetail(sites)
+	}
+	summary := strconv.Itoa(runner) + " test file(s) depend on the Playwright runner @playwright/test"
+	if len(rest) == 0 {
+		return "shared TypeScript graph frontier: " + summary
+	}
+	return frontierDetail(rest) + "; " + summary
+}
+
 // playwrightFrontierSiteBound caps the sites one frontier detail names; the rest are counted.
 const playwrightFrontierSiteBound = 8
 
@@ -320,17 +347,53 @@ const playwrightFrontierSiteBound = 8
 // `path:line` or `path`, each followed by its backquoted token when one is known, at most
 // playwrightFrontierSiteBound of them (TJAA-V0-040, TJAA-V0-052).
 func frontierDetail(sites map[string]string) string {
+	if named := namedFrontierSites(sites); named != "" {
+		return "shared TypeScript graph frontier at " + named
+	}
+	return "shared TypeScript graph frontier"
+}
+
+// namedFrontierSites lists at most playwrightFrontierSiteBound of sites, pinned first and then
+// sorted, each with its backquoted token, and counts the rest; it is empty for no site.
+func namedFrontierSites(sites map[string]string) string {
 	ordered := orderedSites(sites)
 	if len(ordered) == 0 {
-		return "shared TypeScript graph frontier"
+		return ""
 	}
 	count := boundedSites(sites, ordered, playwrightFrontierSiteBound)
 	named := make([]string, 0, count)
 	for _, site := range ordered[:count] {
 		named = append(named, siteWithToken(site, sites[site]))
 	}
-	detail := "shared TypeScript graph frontier at " + strings.Join(named, ", ")
+	detail := strings.Join(named, ", ")
 	if extra := len(ordered) - count; extra > 0 {
+		detail += " and " + strconv.Itoa(extra) + " more"
+	}
+	return detail
+}
+
+// graphFrontierDetail names what left the shared TypeScript graph's selection unresolved: each
+// widening unknown of base other than NO_SELECTABLE_TEST, as its reason and path, or for a
+// LANGUAGE_FRONTIER reason the sites that raised it, at most playwrightFrontierSiteBound entries
+// with the rest counted (AFP-V0-424).
+func graphFrontierDetail(base affected.Plan, sites frontierSet) string {
+	entries := []string{}
+	for _, unknown := range base.Unknown {
+		switch {
+		case unknown.Reason == affected.UnknownNoSelectableTest:
+		case unknown.Reason == affected.UnknownLanguageFrontier && namedFrontierSites(sites[unknown.Detail]) != "":
+			entries = append(entries, unknown.Detail+" at "+namedFrontierSites(sites[unknown.Detail]))
+		default:
+			entries = append(entries, unknown.Reason+" "+unknown.Detail)
+		}
+	}
+	detail := "the shared TypeScript graph has an unresolved selection frontier"
+	if len(entries) == 0 {
+		return detail
+	}
+	count := min(len(entries), playwrightFrontierSiteBound)
+	detail += ": " + strings.Join(entries[:count], "; ")
+	if extra := len(entries) - count; extra > 0 {
 		detail += " and " + strconv.Itoa(extra) + " more"
 	}
 	return detail
