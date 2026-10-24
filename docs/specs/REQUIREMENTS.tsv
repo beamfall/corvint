@@ -623,6 +623,7 @@ BBF-V0-031	docs/specs/browser-behavior-falsification-v0.md	(accepted under the o
 BBF-V0-032	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027)	standing	2026-10-11; V1-2027
 BBF-V0-033	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027) A live t	standing	2026-10-11; V1-2027
 BBF-V0-214	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2029) The go-t	standing	2026-10-11; V1-2029
+BBF-V0-215	docs/specs/browser-behavior-falsification-v0.md	(proposed; V1-2524) A plan's `contract_file`, `test_file`, `config_file` and Go	unrecorded	-
 CAP-V0-001	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008)	standing	2026-10-11; V1-2008
 CAP-V0-002	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008) The	standing	2026-10-11; V1-2008
 CAP-V0-003	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008)	standing	2026-10-11; V1-2008

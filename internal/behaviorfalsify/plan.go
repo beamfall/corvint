@@ -11,6 +11,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -431,8 +432,12 @@ func repositoryRootList(roots RepositoryRoots) []string {
 	return result
 }
 
-func repositoryRelative(path string) bool {
-	return path != "" && !filepath.IsAbs(path) && filepath.Clean(path) == path && path != ".." && !strings.HasPrefix(path, ".."+string(filepath.Separator)) && !strings.Contains(path, ":")
+// repositoryRelative admits a canonical slash path inside the repository (BBF-V0-215). Plan paths
+// are Git paths on every host, so the check uses slash syntax only: native filepath.Clean would
+// rewrite tests/x.ts to tests\x.ts on Windows and refuse it. A backslash or colon is refused on
+// every host, so a Windows-spelled path cannot alias a slash one.
+func repositoryRelative(name string) bool {
+	return name != "" && !path.IsAbs(name) && path.Clean(name) == name && name != ".." && !strings.HasPrefix(name, "../") && !strings.ContainsAny(name, `\:`)
 }
 
 func gitBlob(root, revision, path string) ([]byte, error) {
