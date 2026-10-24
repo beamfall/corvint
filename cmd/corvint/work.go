@@ -224,28 +224,37 @@ func proposeWork(ctx context.Context, root string, capture *workCapture, envelop
 }
 
 func observeWork(parent context.Context, root string, stderr io.Writer) (*workCapture, string) {
+	capture, code, _ := observeWorkCause(parent, root, stderr)
+	return capture, code
+}
+
+// observeWorkCause is observeWork with the failing step's cause. The command
+// surface reports only the code (and the stderr reasons the code already
+// writes); the cause is for callers that diagnose a failed capture, such as
+// test setup, which otherwise sees a bare ADAPTER_FAILED (V1-2476).
+func observeWorkCause(parent context.Context, root string, stderr io.Writer) (*workCapture, string, error) {
 	if _, err := worksource.PlatformPath(); err != nil {
-		return nil, "UNSUPPORTED_PLATFORM"
+		return nil, "UNSUPPORTED_PLATFORM", err
 	}
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	opening, err := acquireWorkSource(ctx, root)
 	if err != nil {
-		return nil, workSourceCommandError(ctx, err, stderr)
+		return nil, workSourceCommandError(ctx, err, stderr), err
 	}
 	policy, err := workqueue.ParsePolicy(opening.policyRaw)
 	if err != nil {
 		opening.qualified.Close()
-		return nil, workCommandError(err)
+		return nil, workCommandError(err), err
 	}
 	if opening.adapterMode != "100755" {
 		opening.qualified.Close()
-		return nil, workUnqualified(stderr, workReasonAdapterSource)
+		return nil, workUnqualified(stderr, workReasonAdapterSource), errors.New("adapter mode " + opening.adapterMode)
 	}
 	materialization, err := newWorkMaterialization(ctx, opening.qualified)
 	if err != nil {
 		opening.qualified.Close()
-		return nil, workUnqualified(stderr, "the committed tree could not be materialized in private scratch storage")
+		return nil, workUnqualified(stderr, "the committed tree could not be materialized in private scratch storage"), err
 	}
 	capture := &workCapture{opening: opening, materialization: materialization}
 	completed := false
@@ -257,46 +266,46 @@ func observeWork(parent context.Context, root string, stderr io.Writer) (*workCa
 	adapterPath := filepath.Join(materialization.target, filepath.FromSlash(policy.AdapterPath))
 	runner, err := newWorkAdapterRunner(ctx, materialization.target, adapterPath, opening, policy)
 	if err != nil {
-		return nil, workUnqualified(stderr, workReasonAdapterBinding)
+		return nil, workUnqualified(stderr, workReasonAdapterBinding), err
 	}
 	runner.env = append([]string(nil), materialization.environment...)
 	runner.verifyTarget = materialization.Verify
 	capture.runner = runner
 	if err := runner.qualifyBoundExecutable(); err != nil {
-		return nil, workUnqualified(stderr, workReasonBoundExecutable)
+		return nil, workUnqualified(stderr, workReasonBoundExecutable), err
 	}
 	capture.monitoredRoots = []string{opening.qualified.Root, opening.qualified.GitDir, opening.qualified.CommonDir, materialization.target}
 	opening.manifest = workMutationManifest(ctx, capture.monitoredRoots)
 	capture.opening = opening
 	snapshotRaw, snapshotReceipt, err := runner.run("snapshot", policy.Operations.Snapshot, 16<<20)
 	if err != nil {
-		return nil, runner.commandError(err, stderr)
+		return nil, runner.commandError(err, stderr), err
 	}
 	snapshot, err := workqueue.ParseSnapshot(snapshotRaw)
 	if err != nil {
-		return nil, workCommandError(err)
+		return nil, workCommandError(err), err
 	}
 	detailsRaw, detailsReceipt, err := runner.run("details", policy.Operations.Details, 32<<20)
 	if err != nil {
-		return nil, runner.commandError(err, stderr)
+		return nil, runner.commandError(err, stderr), err
 	}
 	details, err := workqueue.ParseDetails(detailsRaw)
 	if err != nil {
-		return nil, workCommandError(err)
+		return nil, workCommandError(err), err
 	}
 	closure := deriveWorkCollisions(ctx, materialization.target, snapshot, opening.qualified.GitPath, opening.qualified.GitEnvironment)
 	checkpointRaw, verifyReceipt, err := runner.run("verify", policy.Operations.Verify, 64<<10)
 	if err != nil {
-		return nil, runner.commandError(err, stderr)
+		return nil, runner.commandError(err, stderr), err
 	}
 	checkpoint, err := workqueue.ParseCheckpoint(checkpointRaw)
 	if err != nil {
-		return nil, workCommandError(err)
+		return nil, workCommandError(err), err
 	}
 	closing := closeWorkSource(ctx, root, opening, capture.monitoredRoots)
 	capture.closingError = closing.qualificationError
 	if code := workClosingCommandError(closing); code != "" {
-		return nil, code
+		return nil, code, closing.qualificationError
 	}
 	capture.storeScope = workMappingReproduced(opening.qualified, policy, snapshot.Canonical(), details.Canonical(), checkpoint.Canonical())
 	opening.manifest.complete = capture.storeScope && opening.manifest.monitoredComplete
@@ -305,7 +314,7 @@ func observeWork(parent context.Context, root string, stderr io.Writer) (*workCa
 	capture.snapshot, capture.details, capture.checkpoint = snapshot, details, checkpoint
 	capture.observation, capture.closure = observation, closure
 	completed = true
-	return capture, ""
+	return capture, "", nil
 }
 
 // Close releases the capture and reports a run scratch it had to keep.

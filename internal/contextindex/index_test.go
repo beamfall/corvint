@@ -3,6 +3,7 @@ package contextindex
 import (
 	"context"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -107,7 +108,7 @@ exec %s "$@"
 `, strconv.Quote(counter), strconv.Quote(counter), strconv.Quote(counter),
 		strconv.Quote(commit), strconv.Quote(alternate), strconv.Quote(format),
 		strconv.Quote(tree), strconv.Quote(realGit))
-	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))

@@ -10,7 +10,6 @@ conformance/cli-parity-v0/README.md	conformance/cli-parity-v0/runner.go:99-136
 conformance/cli-parity-v0/README.md	docs/specs/lexical-relevance-floor-v0.md:314-320
 docs/DOGFOOD.md	conformance/release-artifact-v0/archive_run.go:422-424
 docs/DOGFOOD.md	internal/cem/wire/canonical.go:68-79
-docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	cmd/corvint/work_materialization.go:235
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	conformance/release-artifact-v0/archive_run.go:103
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	conformance/release-artifact-v0/archive_run.go:422
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	conformance/release-artifact-v0/archive_run.go:456
