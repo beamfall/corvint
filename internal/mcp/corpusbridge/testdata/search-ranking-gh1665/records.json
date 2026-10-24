@@ -1,0 +1,19 @@
+{
+  "owned": ["src/app/services/pos_sync.rb", "src/app/models/cart.rb"],
+  "subjects": [
+    {"id": "fixture:service:pos-sync", "kind": "module", "path": "src/app/services/pos_sync.rb", "name": "Point of sale synchronisation service"},
+    {"id": "fixture:model:cart", "kind": "module", "path": "src/app/models/cart.rb", "name": "Shopping cart model"},
+    {"id": "fixture:setting:lsid", "kind": "business_term", "path": "src/config/sessions.rb", "name": "Session setting lsid_error_redirect_url"},
+    {"id": "fixture:setting:logout", "kind": "business_term", "path": "src/config/sessions.rb", "name": "Session setting logout_redirect_url"},
+    {"id": "fixture:setting:redirect", "kind": "business_term", "path": "src/config/sessions.rb", "name": "Redirect url error handling for logout and lsid sessions"},
+    {"id": "fixture:entity:deck", "kind": "data_entity", "path": "src/docs/deck.md", "name": "Deck data entity"},
+    {"id": "fixture:manual:deck", "kind": "document", "path": "src/docs/deck.md", "name": "On the deck manual case"}
+  ],
+  "claims": [
+    {"id": "fixture:claim:10001", "subject": "fixture:setting:redirect", "path": "src/docs/admins.md", "text": "Admin pages list every admin"},
+    {"id": "fixture:claim:10021", "subject": "fixture:setting:redirect", "path": "src/docs/admins.md", "text": "An admin can see the staff list"},
+    {"id": "fixture:claim:209", "subject": "fixture:setting:redirect", "path": "src/docs/admins.md", "text": "Setting an admin creates a manager employment for the user"},
+    {"id": "fixture:claim:211", "subject": "fixture:setting:redirect", "path": "src/docs/admins.md", "text": "Revoking an admin user ends the manager employment"},
+    {"id": "fixture:claim:2004", "subject": "fixture:setting:redirect", "path": "src/docs/admins.md", "text": "Admin users sign in with a password"}
+  ]
+}

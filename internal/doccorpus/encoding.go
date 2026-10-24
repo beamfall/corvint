@@ -223,7 +223,7 @@ func currentBuilder() Builder {
 // inputs increments it; one that changes only how a read ranks, renders or bounds them does not.
 // The verified read admits an artifact from another attested builder revision only while the
 // version, the builder schema and the engine are equal (DCP-V1-471).
-const DerivationVersion = "1"
+const DerivationVersion = "2"
 
 // derivationOf reads the derivation version a builder's engine label records, or "" for an
 // engine from before the version was recorded.

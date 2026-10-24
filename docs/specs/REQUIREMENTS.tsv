@@ -2680,6 +2680,14 @@ DCP-V1-401	docs/specs/documentation-corpus-v1.md	(accepted under the owner's sta
 DCP-V1-402	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-	standing	2026-10-11; #1597; V1-2470
 DCP-V1-403	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-	standing	2026-10-11; #1597; V1-2470
 DCP-V1-404	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-	standing	2026-10-11; #1597; V1-2470
+DCP-V1-479	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-402` and `DCP-V1-477` only by adding a served member, a	unrecorded	-
+DCP-V1-480	docs/specs/documentation-corpus-v1.md	A `docs_claims` receipt with `query` carries `result_ranks` with the same member	unrecorded	-
+DCP-V1-481	docs/specs/documentation-corpus-v1.md	`result_ranks` is an additive optional receipt member under `DCP-V1-039`: the	unrecorded	-
+DCP-V1-482	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-003`, the first native provider derives a declaration subject	unrecorded	-
+DCP-V1-483	docs/specs/documentation-corpus-v1.md	Derivation runs after every provider, once per path, and skips an input a native	unrecorded	-
+DCP-V1-484	docs/specs/documentation-corpus-v1.md	Derivation never refuses a manifest the compiler built before it. When a compile	unrecorded	-
+DCP-V1-485	docs/specs/documentation-corpus-v1.md	Derived declarations change the records the same inputs build, so	unrecorded	-
+DCP-V1-486	docs/specs/documentation-corpus-v1.md	A committed synthetic fixture, `internal/mcp/corpusbridge/testdata/search-rankin	unrecorded	-
 DCP-V1-250	docs/specs/documentation-corpus-v1.md	The case file is a closed `corvint-corpus-eval-cases/1` document with a file	unrecorded	-
 DCP-V1-251	docs/specs/documentation-corpus-v1.md	Each case runs through `corpusbridge.Registry.CallTimed`, the code path that ser	unrecorded	-
 DCP-V1-252	docs/specs/documentation-corpus-v1.md	Each case reports `hit`, the 1-based `rank` of the first relevant row, `k` (the	unrecorded	-

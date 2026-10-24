@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -32,16 +33,19 @@ type fixtureRecords struct {
 		Path    string `json:"path"`
 		Text    string `json:"text"`
 	} `json:"claims"`
+	// Owned lists source inputs the fixture provider claims in place of the native one.
+	Owned []string `json:"owned,omitempty"`
 }
 
 // searchRankingCorpus builds the fixture corpus in a fresh repository: the
 // source tree is committed and inventoried natively, then the supplied
 // records are expanded into a provider record whose anchors are pinned to
-// the source revision's blobs and span digests.
-func searchRankingCorpus(t *testing.T) string {
+// the source revision's blobs and span digests. Inputs the records list as owned
+// are handed to the fixture provider.
+func searchRankingCorpus(t *testing.T, fixture string) string {
 	t.Helper()
 	root := t.TempDir()
-	tree := filepath.Join(searchRankingFixture, "repo")
+	tree := filepath.Join(fixture, "repo")
 	if err := filepath.WalkDir(tree, func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
@@ -76,7 +80,7 @@ func searchRankingCorpus(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	raw, err := os.ReadFile(filepath.Join(searchRankingFixture, "records.json"))
+	raw, err := os.ReadFile(filepath.Join(fixture, "records.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,6 +120,11 @@ func searchRankingCorpus(t *testing.T) string {
 	m.Providers = append(m.Providers, doccorpus.Provider{ID: "fixture", Kind: "records", Version: "1", Revision: revision, Record: "evidence/provider.json"})
 	m.Scopes = append(m.Scopes, doccorpus.Scope{Path: "evidence/provider.json", Revision: revision})
 	m.Inputs = append(m.Inputs, doccorpus.Input{Path: "evidence/provider.json", Revision: revision, Blob: git("rev-parse", revision+":evidence/provider.json"), SHA256: doccorpus.Digest(data), Provider: "fixture", Purpose: "provider"})
+	for i, in := range m.Inputs {
+		if in.Purpose == "source" && slices.Contains(records.Owned, in.Path) {
+			m.Inputs[i].Provider = "fixture"
+		}
+	}
 	a, err := doccorpus.Build(context.Background(), root, m)
 	if err != nil {
 		t.Fatal(err)
@@ -135,7 +144,7 @@ func searchRankingCorpus(t *testing.T) string {
 // include:["claims"], every case answered through the docs_search MCP tool
 // path, deterministically across runs.
 func TestDCPV1404SearchRankingEvalFixture(t *testing.T) {
-	root := searchRankingCorpus(t)
+	root := searchRankingCorpus(t, searchRankingFixture)
 	cases, err := os.ReadFile(filepath.Join(searchRankingFixture, "cases.json"))
 	if err != nil {
 		t.Fatal(err)

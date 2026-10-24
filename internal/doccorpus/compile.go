@@ -21,6 +21,10 @@ import (
 )
 
 type compiler struct {
+	// withoutDerived skips declaration derivation on the retry of a refused compile and
+	// derived counts the declarations one compile derived (DCP-V1-484).
+	withoutDerived    bool
+	derived           int
 	providerRecords   map[string]ProviderRecord
 	restrictedIDs     map[string]bool
 	restrictedBytes   int
@@ -255,82 +259,109 @@ func Build(ctx context.Context, root string, m Manifest) (*Artifact, error) {
 	return build(ctx, root, m, nil)
 }
 
+// build compiles m once and, when the compile derived declarations (DCP-V1-482) and was then
+// refused by a corpus bound or check, compiles it once more without them, so derivation never
+// refuses a manifest the compiler built before it (DCP-V1-484). The retry restores the
+// incremental reuse state the refused compile recorded.
 func build(ctx context.Context, root string, m Manifest, reuse *incrementalBuild) (*Artifact, error) {
+	var stats IncrementalStats
+	shards := 0
+	if reuse != nil {
+		stats = IncrementalStats{slices.Clone(reuse.stats.Compiled), slices.Clone(reuse.stats.Reused), slices.Clone(reuse.stats.Fallback), reuse.stats.FallbackReason}
+		shards = len(reuse.cache.Shards)
+	}
+	a, derived, err := compileOnce(ctx, root, m, reuse, false)
+	var refused *Error
+	if err == nil || derived == 0 || !errors.As(err, &refused) {
+		return a, err
+	}
+	if reuse != nil {
+		*reuse.stats = stats
+		reuse.cache.Shards = reuse.cache.Shards[:shards]
+	}
+	a, _, err = compileOnce(ctx, root, m, reuse, true)
+	return a, err
+}
+
+func compileOnce(ctx context.Context, root string, m Manifest, reuse *incrementalBuild, withoutDerived bool) (*Artifact, int, error) {
 	builds.Add(1)
 	ctx = gitstatus.WithIsolation(ctx)
 	if _, err := Encode(m); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if err := validateManifest(m); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	c := &compiler{root: root, manifest: m, indexes: map[string]*contextindex.Index{}, sources: map[string]contextindex.Source{}}
+	c := &compiler{root: root, manifest: m, withoutDerived: withoutDerived, indexes: map[string]*contextindex.Index{}, sources: map[string]contextindex.Source{}}
 	if err := c.pin(ctx); err != nil {
-		return nil, err
+		return nil, c.derived, err
 	}
 	manifestSHA256, err := hashValue(m)
 	if err != nil {
-		return nil, err
+		return nil, c.derived, err
 	}
 	profileSHA256, err := hashValue(m.Profile)
 	if err != nil {
-		return nil, err
+		return nil, c.derived, err
 	}
 	c.artifact = &Artifact{Schema: Schema, Builder: currentBuilder(), Manifest: m, ManifestSHA256: manifestSHA256, ProfileSHA256: profileSHA256, Tree: c.indexes[m.Repository.Revision].Revision, Subjects: []Subject{}, Claims: []Claim{}, Relations: []Relation{}, Journeys: []Journey{}, Observations: []Observation{}, Capabilities: []Capability{}, Gaps: []Gap{}}
 	if m.Schema == ManifestSchemaV2 {
 		c.artifact.Schema = SchemaV2
 	}
 	if err := c.preloadProviders(); err != nil {
-		return nil, err
+		return nil, c.derived, err
 	}
 	for _, p := range m.Providers {
 		if p.Kind == "native" {
 			if err := c.native(p); err != nil {
-				return nil, err
+				return nil, c.derived, err
 			}
 			if err := c.nativeImports(p); err != nil {
-				return nil, err
+				return nil, c.derived, err
 			}
 			if err := c.nativeParagraphs(p); err != nil {
-				return nil, err
+				return nil, c.derived, err
 			}
 			continue
 		}
 		if err := c.importRecordsIncremental(p, reuse); err != nil {
-			return nil, err
+			return nil, c.derived, err
 		}
 	}
+	if err := c.derivedDeclarations(); err != nil {
+		return nil, c.derived, err
+	}
 	if err := c.validateRecords(); err != nil {
-		return nil, err
+		return nil, c.derived, err
 	}
 	c.compileBehaviors()
 	c.capabilities()
 	c.aggregateImportParity()
 	if err := c.validateAdoptionJoins(); err != nil {
-		return nil, err
+		return nil, c.derived, err
 	}
 	if err := c.joinTestKnowledge(c.testKnowledge); err != nil {
-		return nil, err
+		return nil, c.derived, err
 	}
 	if err := c.joinFlowRelations(c.flowRelations); err != nil {
-		return nil, err
+		return nil, c.derived, err
 	}
 	if err := c.joinClaimAudits(c.claimAudits); err != nil {
-		return nil, err
+		return nil, c.derived, err
 	}
 	if err := c.checkClaimMentions(); err != nil {
-		return nil, err
+		return nil, c.derived, err
 	}
 	if err := validateAlternateIDsAfterJoins(c.artifact); err != nil {
-		return nil, err
+		return nil, c.derived, err
 	}
 	if m.Schema == ManifestSchemaV2 {
 		if err := validateReadableRecords(c.artifact); err != nil {
-			return nil, err
+			return nil, c.derived, err
 		}
 	}
 	if err := c.guardRestrictedOutput(); err != nil {
-		return nil, err
+		return nil, c.derived, err
 	}
 	a := c.artifact
 	sort.Slice(a.Subjects, func(i, j int) bool { return a.Subjects[i].ID < a.Subjects[j].ID })
@@ -345,18 +376,18 @@ func build(ctx context.Context, root string, m Manifest, reuse *incrementalBuild
 	})
 	digest, err := hashValue(a)
 	if err != nil {
-		return nil, err
+		return nil, c.derived, err
 	}
 	a.SHA256 = digest
 	if _, err := Encode(a); err != nil {
-		return nil, err
+		return nil, c.derived, err
 	}
 	// Re-read immutable input identities after compilation; mutable object stores
 	// must not let a changing input be reported as a successful pinned build.
 	if err := c.pin(ctx); err != nil {
-		return nil, err
+		return nil, c.derived, err
 	}
-	return a, nil
+	return a, c.derived, nil
 }
 
 func validateManifest(m Manifest) error {
@@ -807,6 +838,80 @@ func (c *compiler) native(provider Provider) error {
 			sid := fmt.Sprintf("%s:symbol:%s:%d:%s", provider.ID, in.Path, s.Line, s.Name)
 			c.artifact.Subjects = append(c.artifact.Subjects, Subject{sid, sk, s.Name, provider.ID, se, nil})
 			c.artifact.Claims = append(c.artifact.Claims, Claim{sid + ":declaration", sid, lineText(text, s.Line), provider.ID, se})
+		}
+	}
+	return nil
+}
+
+// derivedDeclarations gives the first native provider a declaration subject, and its
+// declaration claim, for each symbol the native index holds in a primary-revision source input
+// that only non-native providers claim, so an identifier declared there is searchable whoever
+// produced the input's records (DCP-V1-482, DCP-V1-483). IDs and evidence follow the native
+// provider's own declarations; no file subject or excerpt is added. It runs after every
+// provider. On the retry of a compile that a bound or check refused, it derives nothing and
+// records one gap instead (DCP-V1-484).
+func (c *compiler) derivedDeclarations() error {
+	var provider Provider
+	native := map[string]bool{}
+	for _, p := range c.manifest.Providers {
+		if p.Kind == "native" {
+			if len(native) == 0 {
+				provider = p
+			}
+			native[p.ID] = true
+		}
+	}
+	if len(native) == 0 {
+		return nil
+	}
+	revision := c.manifest.Repository.Revision
+	owned := map[string]bool{}
+	for _, in := range c.manifest.Inputs {
+		if native[in.Provider] {
+			owned[in.Path] = true
+		}
+	}
+	index := c.indexes[revision]
+	if index == nil {
+		return nil
+	}
+	symbols := map[string][]contextindex.Symbol{}
+	for _, s := range index.Symbols {
+		symbols[s.Path] = append(symbols[s.Path], s)
+	}
+	unparsed := index.UnparsedPaths()
+	for _, in := range c.manifest.Inputs {
+		if in.Purpose != "source" || in.Revision != revision || owned[in.Path] || len(symbols[in.Path]) == 0 {
+			continue
+		}
+		owned[in.Path] = true
+		if _, bad := unparsed[in.Path]; bad || c.nativeExclusion(in) != "" {
+			continue
+		}
+		text, valid, loaded := c.sources[inputKey(in.Revision, in.Path)].Text()
+		if !valid || !loaded {
+			continue
+		}
+		if c.withoutDerived {
+			reason := "derived declaration bound: the compile with derived declarations was refused by a corpus bound or check, so declarations of source inputs other providers claim are not derived"
+			c.artifact.Gaps = append(c.artifact.Gaps, Gap{provider.ID + ":file:" + in.Path, "not-collected", reason})
+			return nil
+		}
+		for _, s := range symbols[in.Path] {
+			a, err := c.anchor(in.Revision, in.Path, s.Line, s.Line, "syntax", "source", "native indexed declaration")
+			if err != nil {
+				return err
+			}
+			a.Symbol = s.Name
+			ev := Evidence{Derivation: "source-derived", Trust: "generated", State: "supported", Freshness: "fresh", Anchors: []Anchor{a}, Limitations: []string{"declaration only; build applicability and behavioral coverage unknown"}}
+			kind := "symbol"
+			if isTestPath(in.Path) {
+				kind = "test"
+			}
+			id := fmt.Sprintf("%s:symbol:%s:%d:%s", provider.ID, in.Path, s.Line, s.Name)
+			c.artifact.Subjects = append(c.artifact.Subjects, Subject{id, kind, s.Name, provider.ID, ev, nil})
+			c.artifact.Claims = append(c.artifact.Claims, Claim{id + ":declaration", id, lineText(text, s.Line), provider.ID, ev})
+			c.derived++
 		}
 	}
 	return nil
