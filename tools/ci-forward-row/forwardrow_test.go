@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // The fixtures come from real runs (docs/build-log/2026-10-13-ci-forward-rows.md): merge-queue
@@ -48,6 +50,9 @@ func script(t *testing.T, name string) string {
 // reach a fixture run.
 func run(t *testing.T, env []string, name string, args ...string) string {
 	t.Helper()
+	if name == "sh" {
+		testplatform.SkipPOSIXShell(t, "the forward-row scripts are POSIX shell scripts run by sh")
+	}
 	for _, tool := range []string{"sh", "jq"} {
 		if _, err := exec.LookPath(tool); err != nil {
 			t.Fatalf("the forward-row scripts need %s on PATH: %v", tool, err)
@@ -656,6 +661,7 @@ func TestAFPV0047SelectionDocument(t *testing.T) {
 // API-shaped JSON, the other paths map to canned (already filtered) outputs, and
 // `run download` copies the matching artifact directories of DIR/runs/<id>.
 func fakeGH(t *testing.T, dir string) string {
+	testplatform.SkipPOSIXShell(t, "the gh spy is a #!/bin/sh script and the scripts under test run under sh")
 	bin := filepath.Join(dir, "bin")
 	writeFile(t, filepath.Join(bin, "gh"), []byte(`#!/bin/sh
 set -eu

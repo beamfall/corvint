@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // ignoredSourceFixtureMain answers the loose gate's native smoke contract and
@@ -66,7 +68,7 @@ func TestIgnoredLiveSourcePassesLooseGateButArchiveBindingRefuses(t *testing.T) 
 			Environment: map[string]string{"CGO_ENABLED": "0", "GOENV": "off", "GOFLAGS": "-mod=readonly", "GOPROXY": "off", "GOSUMDB": "off", "GOTOOLCHAIN": "local"}},
 		Smoke: Smoke{VersionArgument: "--version", ExpectedVersion: "Fixture 1", QueryTask: "task", QueryLimit: "1", ExpectedIntent: "fixture", FixtureInstruction: "# Agents\n"},
 	}
-	target := Target{GOOS: runtime.GOOS, GOARCH: runtime.GOARCH}
+	target := Target{GOOS: runtime.GOOS, GOARCH: runtime.GOARCH, Suffix: testplatform.ExeSuffix()}
 	options := Options{Root: root, Output: filepath.Join(t.TempDir(), "loose")}
 	loose := Report{}
 	if err := checkOutputLocation(options, &loose); err != nil {
@@ -107,7 +109,7 @@ func TestIgnoredLiveSourcePassesLooseGateButArchiveBindingRefuses(t *testing.T) 
 	if err == nil || err.Error() != "loose-gate-report-mismatch" {
 		t.Fatalf("archive accepted or misclassified ignored-source divergence: %v", err)
 	}
-	if marks := runFixtureMarks(t, filepath.Join(scratch, "build-a", target.GOOS+"-"+target.GOARCH, "fixture")); marks != "marks=" {
+	if marks := runFixtureMarks(t, filepath.Join(scratch, "build-a", target.GOOS+"-"+target.GOARCH, "fixture"+target.Suffix)); marks != "marks=" {
 		t.Fatalf("raw commit build linked ignored live source: %q", marks)
 	}
 	if archiveTarget.RetainedBinary.SHA256 != "" {

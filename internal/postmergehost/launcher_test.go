@@ -13,6 +13,7 @@ import (
 	"github.com/Beamfall/corvint/internal/intake"
 	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/stepverify"
+	"github.com/Beamfall/corvint/internal/testplatform"
 	"io"
 	"net"
 	"net/http"
@@ -254,7 +255,7 @@ func TestPairedAuthorSourceConformance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	author := filepath.Join(temp, "author")
+	author := filepath.Join(temp, testplatform.Executable("author"))
 	pass(repo, "go", "build", "-o", author, "./internal/postmergehost/testdata/paired-author/author")
 	verifyActualAuthor := hostTestNativeControlBinding(t, ctx, product, base, head, pass(product, "git", "rev-parse", "HEAD^{tree}"))
 	pass(product, author, input, product)

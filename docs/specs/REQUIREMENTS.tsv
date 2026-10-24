@@ -121,6 +121,18 @@ AFP-V0-387	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-388	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
 AFP-V0-389	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1604))	standing	2026-10-11; #1604
 AFP-V0-404	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1604))	standing	2026-10-11; #1604
+AFP-V0-405	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647);	standing	2026-10-11; #1646; #1647
+AFP-V0-406	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647))	standing	2026-10-11; #1646; #1647
+AFP-V0-407	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647))	standing	2026-10-11; #1646; #1647
+AFP-V0-408	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647))	standing	2026-10-11; #1646; #1647
+AFP-V0-409	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647);	standing	2026-10-11; #1646; #1647
+AFP-V0-410	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647);	standing	2026-10-11; #1646; #1647
+AFP-V0-411	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647);	standing	2026-10-11; #1646; #1647
+AFP-V0-412	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647))	standing	2026-10-11; #1646; #1647
+AFP-V0-413	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647))	standing	2026-10-11; #1646; #1647
+AFP-V0-414	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647))	standing	2026-10-11; #1646; #1647
+AFP-V0-415	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2488))	standing	2026-10-11; V1-2488
+AFP-V0-416	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2488))	standing	2026-10-11; V1-2488
 AFP-V0-390	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
 AFP-V0-391	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
 AFP-V0-392	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
@@ -169,6 +181,12 @@ AHI-056	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's s
 AHI-171	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2192; GitHub #	standing	2026-10-11; V1-2192; #1406
 AHI-172	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2201; GitHub #	standing	2026-10-11; V1-2201; #1406
 AHI-173	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2145) One comm	standing	2026-10-11; V1-2145
+AHI-174	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2346) Amendmen	standing	2026-10-11; V1-2346
+AHI-175	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2346) Full Ope	standing	2026-10-11; V1-2346
+AHI-176	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2346) At plugi	standing	2026-10-11; V1-2346
+AHI-177	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0453) Every ve	standing	2026-10-11; V1-0453
+AHI-178	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0453)	standing	2026-10-11; V1-0453
+AHI-179	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2346) The Open	standing	2026-10-11; V1-2346
 AHI-070	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2062) The gene	standing	2026-10-11; V1-2062
 AHI-033	docs/specs/agent-harness-integration-v0.md	The owner-approved first OpenCode UI slice (2026-09-28, “looks good. build it”	unrecorded	-
 AHI-034	docs/specs/agent-harness-integration-v0.md	The owner-approved change cockpit (2026-09-28, “do it” after the change	unrecorded	-
@@ -189,9 +207,23 @@ AHI-048	docs/specs/agent-harness-integration-v0.md	(proposed; V1-0734) When an a
 AHI-049	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0477, amended by decision 0479; V1-1040, V1-1055) Every Se	owner	decision 0477; decision 0479; V1-1040; V1-1055
 AHI-050	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0474; V1-0371) The OpenCode and Gemini adapters MUST send	owner	decision 0474; V1-0371
 AHI-051	docs/specs/agent-harness-integration-v0.md	(proposed; V1-1070, V1-1071) The Claude Code plugin MUST present itself with	unrecorded	-
+AHI-190	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0403) `corvint	standing	2026-10-11; V1-0403
+AHI-191	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0403) The Clau	standing	2026-10-11; V1-0403
+AHI-192	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0403) Opted in	standing	2026-10-11; V1-0403
+AHI-193	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0403) The mess	standing	2026-10-11; V1-0403
+AHI-194	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0403) Mutation	standing	2026-10-11; V1-0403
+AHI-195	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0403) The expl	standing	2026-10-11; V1-0403
+AHI-196	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0403) With `--	standing	2026-10-11; V1-0403
+AHI-197	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0403) With `--	standing	2026-10-11; V1-0403
+AHI-198	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2466, GitHub #	standing	2026-10-11; V1-2466; #1588
+AHI-199	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2440) Heavy re	standing	2026-10-11; V1-2440
 AHI-052	docs/specs/agent-harness-integration-v0.md	(accepted, decision 0497; V1-1116; amends `AHI-050` for OpenCode only) When	owner	decision 0497; V1-1116
 AHI-058	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1122; amends `	standing	2026-10-11; V1-1122
 AHI-054	docs/specs/agent-harness-integration-v0.md	(accepted, decision 0519 (V1-1157); GitHub #785) The	owner	decision 0519; V1-1157; #785
+AHI-206	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2326) The Code	standing	2026-10-11; V1-2326
+AHI-207	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2326) The Code	standing	2026-10-11; V1-2326
+AHI-208	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2326) Codex 0.	standing	2026-10-11; V1-2326
+AHI-209	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); CODEX-NATIVE-APPR	standing	2026-10-11
 IID-V0-001	docs/specs/agent-instruction-doctor-v0.md	The optional diagnostic MUST require explicit host, version, cwd, default	unrecorded	-
 IID-V0-002	docs/specs/agent-instruction-doctor-v0.md	Only exact compiled, source-bound host/version profiles MAY predict loading.	unrecorded	-
 IID-V0-003	docs/specs/agent-instruction-doctor-v0.md	The Codex 0.153.2 default profile MUST walk assumed root to cwd, selecting the	unrecorded	-
@@ -4030,6 +4062,12 @@ PRB-V0-034	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted unde
 PRB-V0-035	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) An enfor	standing	2026-10-11; V1-2474
 PRB-V0-036	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) Measured	standing	2026-10-11; V1-2474
 PRB-V0-037	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) Every pr	standing	2026-10-11; V1-2474
+PRB-V0-038	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) Eve	standing	2026-10-11; #1602
+PRB-V0-039	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) The	standing	2026-10-11; #1602
+PRB-V0-040	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) A s	standing	2026-10-11; #1602
+PRB-V0-041	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) The	standing	2026-10-11; #1602
+PRB-V0-042	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) `ma	standing	2026-10-11; #1602
+PRB-V0-043	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) `--	standing	2026-10-11; #1602
 PRB-V0-050	docs/specs/performance-profiling-and-read-budget-v0.md	The harness MUST measure a seventh scenario after the six of `PRB-V0-024`:	unrecorded	-
 PRB-V0-051	docs/specs/performance-profiling-and-read-budget-v0.md	`unchanged-delta` MUST carry the two enforced `PRB-V0-032` ceilings, except that	unrecorded	-
 PRB-V0-052	docs/specs/performance-profiling-and-read-budget-v0.md	The baseline MUST carry the `unchanged-delta` measurement the ceilings derive fr	unrecorded	-
@@ -4771,6 +4809,7 @@ SRG-V0-041	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the
 SRG-V0-042	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2160) Every	standing	2026-10-11; V1-2160
 SRG-V0-043	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2146) In every	standing	2026-10-11; V1-2146
 SRG-V0-044	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2309) The	standing	2026-10-11; V1-2309
+SRG-V0-045	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0515) Every	standing	2026-10-11; V1-0515
 STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
 STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-
 STA-V0-003	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-delta` reads one OpenSpec delta file.	unrecorded	-

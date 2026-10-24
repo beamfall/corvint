@@ -36,6 +36,23 @@ got=$(HEAVY_SLOTS=2 HEAVY_P=3 GOFLAGS= "$script/heavy.sh" sh -c 'printf %s "$GOF
 [[ $got == -p=3 ]] || fail "heavy.sh GOFLAGS=$got, want -p=3"
 got=$(HEAVY_SLOTS=2 HEAVY_P=3 GOFLAGS='-p=1 -mod=mod' "$script/heavy.sh" sh -c 'printf %s "$GOFLAGS"' 2> /dev/null)
 [[ $got == '-p=1 -mod=mod' ]] || fail "heavy.sh overrode an explicit GOFLAGS -p: $got"
+# AHI-199 (V1-2440): the command runs at niceness 10 by default, HEAVY_NICE=0 keeps the caller's
+# priority, an invalid level is refused, and the Makefile heavy recipes carry the same prefix.
+want=$(ps -o nice= -p $$ | tr -d ' ')
+got=$(env -u HEAVY_NICE HEAVY_SLOTS=1 "$script/heavy.sh" sh -c 'ps -o nice= -p $$' 2> /dev/null | tr -d ' ')
+[[ $got == $((want > 10 ? want : 10)) ]] || fail "heavy.sh default niceness $got, want 10 or the caller's higher $want"
+got=$(HEAVY_NICE=0 HEAVY_SLOTS=1 "$script/heavy.sh" sh -c 'ps -o nice= -p $$' 2> /dev/null | tr -d ' ')
+[[ $got == "$want" ]] || fail "heavy.sh HEAVY_NICE=0 niceness $got, want the caller's $want"
+HEAVY_NICE=20 "$script/heavy.sh" true 2> "$tmp/err"
+[[ $? == 2 ]] && grep -q 'REFUSE invalid-nice' "$tmp/err" || fail "heavy.sh accepted HEAVY_NICE=20"
+makefile="$script/../Makefile"
+grep -qx 'HEAVY_NICE ?= 10' "$makefile" || fail "Makefile HEAVY_NICE default is not 10"
+grep -q '^HEAVY_NICE_PREFIX = $(if $(filter-out 0,$(HEAVY_NICE)),' "$makefile" || fail "Makefile HEAVY_NICE=0 does not opt out"
+for recipe in 'GO_TEST_COMMAND = $(HEAVY_NICE_PREFIX) ' '	@$(HEAVY_NICE_PREFIX) env $(GATE_LEDGER) run $* ' \
+  '$(HEAVY_NICE_PREFIX) script/dogfood-change.sh ' '$(HEAVY_NICE_PREFIX) script/dogfood-check.sh '; do
+  grep -qF -- "$recipe" "$makefile" || fail "Makefile heavy recipe lacks the nice prefix: $recipe"
+done
+ok
 # ASD-V0-014 (V1-2384): the repository root go.mod's pinned release (a nested module's go line
 # does not override it) goes first on PATH when installed; without it the go on PATH runs and one
 # warning names it.

@@ -82,13 +82,15 @@ func SelectPlaywrightWithEnvironment(root, configPath, revision string, dirty []
 		return PlaywrightPlan{}, err
 	}
 	var unverified, listed []PlaywrightDiscoveryUnit
-	plan.Discovery, unverified, listed = reconcilePlaywrightDiscovery(plan, revision, receipt)
+	var mismatch string
+	plan.Discovery, unverified, listed, mismatch = reconcilePlaywrightDiscovery(plan, revision, receipt)
 	if plan.Discovery.State == "MATCHED" && len(unverified) != 0 {
 		// The units are the config's file membership either way; what is missing is the listing's
-		// cross-check, so a run of such a unit may find no case. It stays visible (TJAA-V0-021).
+		// cross-check, so a run of such a unit may find no case. It stays visible and names the
+		// units (TJAA-V0-021, AFP-V0-411).
 		plan.Unknown = canonicalPlaywrightUnknowns(append(plan.Unknown, PlaywrightUnknown{
 			Axis: PlaywrightAxisExecution, Reason: PlaywrightUnknownDiscoveryOmission,
-			Detail: fmt.Sprintf("%d discovery unit(s) omitted by the listing under a project grep/grepInvert exclusion the listing cannot verify, first project %q test %s", len(unverified), unverified[0].Project, unverified[0].Test),
+			Detail: fmt.Sprintf("%d discovery unit(s) omitted by the listing under a project grep/grepInvert exclusion the listing cannot verify: %s", len(unverified), playwrightUnitList(unverified)),
 		}))
 	}
 	if plan.Discovery.State != "MATCHED" {
@@ -101,6 +103,9 @@ func SelectPlaywrightWithEnvironment(root, configPath, revision string, dirty []
 		if detail == "MISSING" {
 			// AFP-V0-388: name the absent input, because it alone empties the selection.
 			detail = "MISSING: no --playwright-discovery receipt was given, so no file selection is proven; write one with `corvint affected discovery --playwright-config PATH --playwright-list FILE`"
+		}
+		if mismatch != "" {
+			detail = mismatch
 		}
 		plan.Unknown = canonicalPlaywrightUnknowns(append(plan.Unknown, selectionUnknown("playwright:discovery-unproven", detail)))
 	}
@@ -115,10 +120,10 @@ func SelectPlaywrightWithEnvironment(root, configPath, revision string, dirty []
 // reconcilePlaywrightDiscovery returns the discovery summary and, for a decoded receipt, its
 // unverified units; for a receipt bound to this revision, config and sources it also returns the
 // listed units, which advisory narrowing compares per project (TJAA-V0-032).
-func reconcilePlaywrightDiscovery(plan PlaywrightPlan, revision string, raw []byte) (PlaywrightDiscoverySummary, []PlaywrightDiscoveryUnit, []PlaywrightDiscoveryUnit) {
+func reconcilePlaywrightDiscovery(plan PlaywrightPlan, revision string, raw []byte) (PlaywrightDiscoverySummary, []PlaywrightDiscoveryUnit, []PlaywrightDiscoveryUnit, string) {
 	summary := PlaywrightDiscoverySummary{State: "MISSING", OnlyInReceipt: []PlaywrightDiscoveryUnit{}, OnlyInStatic: []PlaywrightDiscoveryUnit{}}
 	if len(raw) == 0 {
-		return summary, nil, nil
+		return summary, nil, nil, ""
 	}
 	sum := sha256.Sum256(raw)
 	summary.InputSHA256 = hex.EncodeToString(sum[:])
@@ -126,11 +131,11 @@ func reconcilePlaywrightDiscovery(plan PlaywrightPlan, revision string, raw []by
 	receipt, malformed := decodePlaywrightDiscovery(raw)
 	if malformed != nil {
 		summary.Reason, summary.Detail = malformed.reason, malformed.detail
-		return summary, nil, nil
+		return summary, nil, nil, ""
 	}
 	summary.State = "BINDING_MISMATCH"
-	if receipt.Revision != revision || receipt.Config != plan.Config || receipt.SourceDigest != plan.SourceDigest {
-		return summary, nil, nil
+	if mismatch := playwrightBindingMismatch(receipt, plan, revision); mismatch != "" {
+		return summary, nil, nil, mismatch
 	}
 	static := map[PlaywrightDiscoveryUnit]bool{}
 	for _, unit := range plan.Selected {
@@ -152,15 +157,15 @@ func reconcilePlaywrightDiscovery(plan PlaywrightPlan, revision string, raw []by
 	summary.State = "STATIC_UNRESOLVED"
 	for _, unknown := range plan.Unknown {
 		if strings.HasPrefix(unknown.Reason, "playwright:") && unknown.Reason != PlaywrightUnknownDynamicSource && unknown.Axis == PlaywrightAxisSelection {
-			return summary, receipt.UnverifiedUnits, receipt.Units
+			return summary, receipt.UnverifiedUnits, receipt.Units, ""
 		}
 	}
 	summary.State = "UNIVERSE_MISMATCH"
 	if len(summary.OnlyInStatic) != 0 || len(summary.OnlyInReceipt) != 0 {
-		return summary, receipt.UnverifiedUnits, receipt.Units
+		return summary, receipt.UnverifiedUnits, receipt.Units, ""
 	}
 	summary.State = "MATCHED"
-	return summary, receipt.UnverifiedUnits, receipt.Units
+	return summary, receipt.UnverifiedUnits, receipt.Units, ""
 }
 
 // VerifyPlaywrightDiscovery decodes a canonical receipt and binds it to revision, the config bytes
@@ -301,4 +306,51 @@ func playwrightHex(value string, size int) bool {
 	}
 	_, err := hex.DecodeString(value)
 	return err == nil
+}
+
+// playwrightBindingMismatch names each binding of receipt that differs from this plan (the
+// revision, the config path, the config digest and the source digest) and says how to
+// regenerate the receipt, or returns "" when every binding holds (AFP-V0-412).
+func playwrightBindingMismatch(receipt PlaywrightDiscovery, plan PlaywrightPlan, revision string) string {
+	differs := []string{}
+	if receipt.Revision != revision {
+		differs = append(differs, fmt.Sprintf("revision (receipt %s, plan %s)", playwrightShortDigest(receipt.Revision), playwrightShortDigest(revision)))
+	}
+	if receipt.Config.Path != plan.Config.Path {
+		differs = append(differs, fmt.Sprintf("config path (receipt %q, plan %q)", receipt.Config.Path, plan.Config.Path))
+	}
+	if receipt.Config.SHA256 != plan.Config.SHA256 {
+		differs = append(differs, fmt.Sprintf("config digest (receipt %s, plan %s)", playwrightShortDigest(receipt.Config.SHA256), playwrightShortDigest(plan.Config.SHA256)))
+	}
+	if receipt.SourceDigest != plan.SourceDigest {
+		differs = append(differs, fmt.Sprintf("source digest (receipt %s, plan %s)", playwrightShortDigest(strings.TrimPrefix(receipt.SourceDigest, "playwright-sources:sha256:")), playwrightShortDigest(strings.TrimPrefix(plan.SourceDigest, "playwright-sources:sha256:"))))
+	}
+	if len(differs) == 0 {
+		return ""
+	}
+	return "BINDING_MISMATCH: the discovery receipt does not match this plan in its " + strings.Join(differs, ", ") + ", so it no longer proves the file universe; regenerate it at this revision with `corvint affected discovery --playwright-config " + plan.Config.Path + " --playwright-list FILE` from a fresh `playwright test --list --reporter=json`"
+}
+
+// playwrightShortDigest returns the first 12 characters of an object id or digest.
+func playwrightShortDigest(value string) string {
+	if len(value) > 12 {
+		return value[:12]
+	}
+	return value
+}
+
+// playwrightUnitListMax bounds how many units a detail names before counting the rest.
+const playwrightUnitListMax = 10
+
+// playwrightUnitList names the first playwrightUnitListMax units as project "P" test PATH and
+// counts the rest (AFP-V0-411).
+func playwrightUnitList(units []PlaywrightDiscoveryUnit) string {
+	named := make([]string, 0, min(len(units), playwrightUnitListMax))
+	for _, unit := range units[:min(len(units), playwrightUnitListMax)] {
+		named = append(named, fmt.Sprintf("project %q test %s", unit.Project, unit.Test))
+	}
+	if rest := len(units) - len(named); rest > 0 {
+		named = append(named, fmt.Sprintf("and %d more", rest))
+	}
+	return strings.Join(named, ", ")
 }

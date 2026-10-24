@@ -6,9 +6,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 func float(v float64) *float64 { return &v }
@@ -282,6 +285,96 @@ func TestPRBV0034EvaluateVerdicts(t *testing.T) {
 	}
 }
 
+// PRB-V0-038, PRB-V0-039, PRB-V0-040: a run is PASS or FAIL only on a host whose contention
+// record shows it was not contended; a contended host or an unobserved load is NOT_JUDGED, with
+// every enforced limit of a measured scenario not-judged (observed value kept) and pending targets
+// still reported, while a failed or unmeasured scenario fails the run regardless.
+func TestPRBV0039ContentionWithholdsJudgement(t *testing.T) {
+	b := &Budgets{Schema: BudgetSchema, Scale: "smoke"}
+	for _, id := range ScenarioIDs {
+		b.Scenarios = append(b.Scenarios, ScenarioBudget{ID: id, Samples: 1,
+			Targets:  []Limit{{Metric: MetricP95Wall, Limit: 100, Status: StatusPending, PendingOn: "GH #1598", Reason: "r"}},
+			Ceilings: []Limit{{Metric: MetricP95Wall, Limit: 1000, Status: StatusEnforced, Reason: "r"}, {Metric: MetricPeakRSS, Limit: 1 << 30, Status: StatusEnforced, Reason: "r"}}})
+	}
+	rss := int64(1 << 20)
+	measured := func(wall float64) []ScenarioMeasured {
+		out := []ScenarioMeasured{}
+		for _, id := range ScenarioIDs {
+			out = append(out, ScenarioMeasured{ID: id, P50WallMS: float(wall), P95WallMS: float(wall), PeakRSSBytes: &rss})
+		}
+		return out
+	}
+	host := func(before, after []float64, unknown string) Host {
+		h := Host{Cores: 4}
+		h.LoadBefore = before
+		h.LoadUnknown = unknown
+		h.finish(context.Background(), func(context.Context) ([]float64, string) { return after, unknown })
+		return h
+	}
+	quiet := host([]float64{3.99, 1, 1}, []float64{1, 1, 1}, "")
+	afterFailed := Host{Cores: 4, LoadBefore: []float64{1, 1, 1}}
+	afterFailed.finish(context.Background(), func(context.Context) ([]float64, string) { return nil, "x" })
+	for name, tc := range map[string]struct {
+		host    Host
+		wall    float64
+		verdict string
+		reason  string
+	}{
+		"quiet pass":            {quiet, 50, RunPass, ""},
+		"quiet exceeded":        {quiet, 5000, RunFail, ""},
+		"contended before":      {host([]float64{4, 1, 1}, []float64{1, 1, 1}, ""), 5000, RunNotJudged, "host contended"},
+		"contended after":       {host([]float64{1, 1, 1}, []float64{9, 1, 1}, ""), 50, RunNotJudged, "host contended"},
+		"load not observed":     {host(nil, nil, "load average NOT_OBSERVED: x"), 50, RunNotJudged, "no host-contention record (load average NOT_OBSERVED: x)"},
+		"load after unobserved": {host([]float64{1, 1, 1}, nil, ""), 50, RunNotJudged, "no host-contention record"},
+		"after reading failed":  {afterFailed, 50, RunNotJudged, "no host-contention record (x)"},
+		"empty load reading":    {host([]float64{}, []float64{}, ""), 50, RunNotJudged, "no host-contention record"},
+	} {
+		checks, verdict, reason := Judge(b, tc.host, measured(tc.wall))
+		if verdict != tc.verdict || !strings.HasPrefix(reason, tc.reason) || (tc.reason == "") != (reason == "") {
+			t.Errorf("%s: verdict %s reason %q, want %s %q", name, verdict, reason, tc.verdict, tc.reason)
+		}
+		for _, c := range checks {
+			switch {
+			case verdict == RunNotJudged && c.Limit.Status == StatusEnforced && (c.Verdict != VerdictNotJudged || c.Reason != reason || c.Observed == nil):
+				t.Errorf("%s: enforced check %+v not withheld with its observation", name, c)
+			case verdict == RunNotJudged && c.Limit.Status == StatusPending && !strings.HasPrefix(c.Verdict, "pending-"):
+				t.Errorf("%s: pending target %+v not reported", name, c)
+			case verdict != RunNotJudged && c.Verdict == VerdictNotJudged:
+				t.Errorf("%s: judged run withheld %+v", name, c)
+			}
+		}
+	}
+	contended := host([]float64{8, 1, 1}, []float64{8, 1, 1}, "")
+	failed := measured(50)
+	failed[4] = ScenarioMeasured{ID: "full-delta", Error: "corpus-refused"}
+	checks, verdict, reason := Judge(b, contended, failed)
+	if verdict != RunFail || !strings.HasPrefix(reason, "host contended") {
+		t.Fatalf("a failed scenario on a contended host was %s (%q), want FAIL with the reason kept", verdict, reason)
+	}
+	for _, c := range checks {
+		if c.Scenario == "full-delta" && c.Limit.Status == StatusEnforced && c.Verdict != VerdictUnknown {
+			t.Fatalf("failed scenario check %+v", c)
+		}
+		if c.Scenario != "full-delta" && c.Limit.Status == StatusEnforced && c.Verdict != VerdictNotJudged {
+			t.Fatalf("measured scenario check %+v judged on a contended host", c)
+		}
+	}
+	unobserved := measured(50)
+	unobserved[2].PeakRSSBytes, unobserved[2].RSSUnknown = nil, "NOT_OBSERVED"
+	checks, verdict, _ = Judge(b, contended, unobserved)
+	if verdict != RunFail {
+		t.Fatalf("an unobserved enforced metric on a contended host was %s, want FAIL", verdict)
+	}
+	for _, c := range checks {
+		if c.Scenario == "mcp-first-call" && c.Limit.Metric == MetricPeakRSS && (c.Verdict != VerdictUnknown || !strings.Contains(c.Reason, "NOT_OBSERVED")) {
+			t.Fatalf("unobserved metric check %+v", c)
+		}
+	}
+	if _, verdict, _ := Judge(b, contended, measured(50)[1:]); verdict != RunFail {
+		t.Fatalf("an unmeasured scenario on a contended host was %s, want FAIL", verdict)
+	}
+}
+
 // PRB-V0-024, PRB-V0-025, PRB-V0-027, PRB-V0-028, PRB-V0-029: an end-to-end smoke run builds
 // both binaries, generates the fixture through `corvint docs corpus build`, measures every
 // scenarios with wall time and peak resident set, records the host, and passes on current main
@@ -294,7 +387,7 @@ func TestPRBV0024HarnessSmokeRun(t *testing.T) {
 	dir := t.TempDir()
 	bin := map[string]string{}
 	for _, pkg := range []string{"corvint", "corvint-corpus-mcp"} {
-		bin[pkg] = filepath.Join(dir, pkg)
+		bin[pkg] = filepath.Join(dir, testplatform.Executable(pkg))
 		build := exec.Command("go", "build", "-o", bin[pkg], "../../cmd/"+pkg)
 		if out, err := build.CombinedOutput(); err != nil {
 			t.Fatalf("go build %s: %v %s", pkg, err, out)
@@ -312,7 +405,9 @@ func TestPRBV0024HarnessSmokeRun(t *testing.T) {
 	if err := os.Mkdir(fixtureDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	r, err := Run(context.Background(), Options{Budgets: b, Corvint: bin["corvint"], CorpusMCP: bin["corvint-corpus-mcp"], FixtureDir: fixtureDir, Scale: Smoke, Revision: "test"})
+	// A fixed quiet load keeps the verdict independent of what else this host runs.
+	quiet := func(context.Context) ([]float64, string) { return []float64{0.5, 0.5, 0.5}, "" }
+	r, err := Run(context.Background(), Options{Budgets: b, Corvint: bin["corvint"], CorpusMCP: bin["corvint-corpus-mcp"], FixtureDir: fixtureDir, Scale: Smoke, Revision: "test", LoadAverage: quiet})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -331,13 +426,25 @@ func TestPRBV0024HarnessSmokeRun(t *testing.T) {
 	if !slices.Equal(ids, ScenarioIDs) {
 		t.Fatalf("scenarios %v", ids)
 	}
-	if !r.OK || len(r.Pending) != 5 || r.Host.Cores < 1 {
-		t.Fatalf("ok=%t pending=%d host=%+v checks=%+v", r.OK, len(r.Pending), r.Host, r.Checks)
+	if !r.OK || r.Verdict != RunPass || r.NotJudgedReason != "" || len(r.Pending) != 5 || r.Host.Cores < 1 {
+		t.Fatalf("ok=%t verdict=%s pending=%d host=%+v checks=%+v", r.OK, r.Verdict, len(r.Pending), r.Host, r.Checks)
 	}
 	for _, c := range r.Pending {
 		if !strings.HasPrefix(c.Verdict, "pending-") {
 			t.Fatalf("pending target judged %q", c.Verdict)
 		}
+	}
+	// PRB-V0-039: the same fixture measured on a contended host is NOT_JUDGED end to end, with
+	// its measurements kept.
+	busy := func(context.Context) ([]float64, string) {
+		return []float64{float64(runtime.NumCPU()), 1, 1}, ""
+	}
+	contended, err := Run(context.Background(), Options{Budgets: b, Corvint: bin["corvint"], CorpusMCP: bin["corvint-corpus-mcp"], FixtureDir: fixtureDir, Scale: Smoke, Revision: "test", LoadAverage: busy})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if contended.OK || contended.Verdict != RunNotJudged || !strings.HasPrefix(contended.NotJudgedReason, "host contended") || len(contended.Scenarios) != len(ScenarioIDs) || contended.Scenarios[0].P95WallMS == nil {
+		t.Fatalf("contended run: ok=%t verdict=%s reason=%q", contended.OK, contended.Verdict, contended.NotJudgedReason)
 	}
 	// Reuse with a different builder identity rebuilds both artifacts with that builder.
 	f, err := LoadOrGenerate(context.Background(), fixtureDir, Smoke, LibraryBuilder, "library")

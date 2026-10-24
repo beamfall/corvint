@@ -4,7 +4,7 @@
   "generatedAt": "2026-09-27",
   "entries": [
     {
-      "adapterVersion": "0.3.5",
+      "adapterVersion": "0.3.6",
       "documentedAgainstHostVersion": "2.1.238",
       "fullSupport": "external-dependent",
       "host": "claude-code",
@@ -24,7 +24,7 @@
       "validation": "installed-lifecycle-plus-adapter-fixtures"
     },
     {
-      "adapterVersion": "0.2.9",
+      "adapterVersion": "0.2.11",
       "documentedAgainstHostVersion": "0.149.0",
       "fullSupport": "external-dependent",
       "host": "codex",
@@ -62,13 +62,13 @@
       "validation": "native-static-plus-adapter-fixtures"
     },
     {
-      "adapterVersion": "0.7.17",
-      "documentedAgainstHostVersion": "2.0.18",
+      "adapterVersion": "0.7.18",
+      "documentedAgainstHostVersion": "2.1.3",
       "fullSupport": "external-dependent",
       "host": "opencode",
-      "hostVersion": "2.0.19",
+      "hostVersion": "2.1.3",
       "hostVersionEvidence": "opencode-native-integration/1 exact local qualification; task evidence retained",
-      "hostVersionEvidenceAdapterVersion": "0.7.3",
+      "hostVersionEvidenceAdapterVersion": "0.7.18",
       "hostForcedRuntime": {
         "name": "node",
         "versionRange": ">=20"

@@ -10,6 +10,9 @@
 #                   sets -p; default max(1, CPUs/HEAVY_SLOTS). An explicit -p argument still wins.
 #   HEAVY_LOCK_DIR  directory holding the slot lock files; default /tmp/corvint-heavy-<uid>.
 #                   Every lane on the host must use the same directory and the same HEAVY_SLOTS.
+#   HEAVY_NICE      scheduling niceness the command runs at (0..19); default 10, so hook adapters
+#                   keep their CPU share under lane test load (AHI-199). 0 keeps the caller's
+#                   priority; a caller already nicer than HEAVY_NICE is never raised.
 #
 # Pinned Go: the repository root's go.mod (else the nearest one) names the pinned release in its
 # toolchain line, else its go line. When the go on PATH reports another release and the pinned one
@@ -26,7 +29,7 @@
 set -uo pipefail
 
 if [[ $# -eq 0 || $1 == -h || $1 == --help ]]; then
-  sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'
   [[ $# -eq 0 ]] && exit 2
   exit 0
 fi
@@ -41,6 +44,11 @@ fi
 par=${HEAVY_P:-$((cpus / slots > 0 ? cpus / slots : 1))}
 if ! [[ $par =~ ^[1-9][0-9]*$ ]] || ((par > cpus)); then
   printf 'heavy.sh: REFUSE invalid-parallelism HEAVY_P=%s (want 1..%s)\n' "$par" "$cpus" >&2
+  exit 2
+fi
+nice_level=${HEAVY_NICE:-10}
+if ! [[ $nice_level =~ ^(0|[1-9][0-9]?)$ ]] || ((nice_level > 19)); then
+  printf 'heavy.sh: REFUSE invalid-nice HEAVY_NICE=%s (want 0..19)\n' "$nice_level" >&2
   exit 2
 fi
 lock_dir=${HEAVY_LOCK_DIR:-/tmp/corvint-heavy-$(id -u)}
@@ -80,7 +88,7 @@ use strict;
 use warnings;
 use Fcntl qw(:flock F_SETFD);
 use POSIX qw(setpgid);
-my ($dir, $n, @cmd) = @ARGV;
+my ($dir, $n, $nice, @cmd) = @ARGV;
 my $t0 = time;
 my ($lock, $slot);
 until ($lock) {
@@ -101,6 +109,7 @@ my $pid = fork;
 die "heavy.sh: fork failed: $!\n" unless defined $pid;
 if ($pid == 0) {
     setpgid(0, 0);
+    setpriority(0, 0, $nice) if $nice > getpriority(0, 0);
     no warnings "exec";
     exec { $cmd[0] } @cmd or print STDERR "heavy.sh: cannot run $cmd[0]: $!\n";
     POSIX::_exit(127);
@@ -112,4 +121,4 @@ my $got;
 do { $got = waitpid($pid, 0) } until $got == $pid || ($got == -1 && !$!{EINTR});
 my $status = $?;
 exit($status & 127 ? 128 + ($status & 127) : $status >> 8);
-' "$lock_dir" "$slots" "$@"
+' "$lock_dir" "$slots" "$nice_level" "$@"

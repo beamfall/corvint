@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 type fixture struct {
@@ -308,7 +310,7 @@ func TestCitationSentinelCollision(t *testing.T) {
 // DCI-V0-006, DCI-V0-008: exercise the real process interface and exit statuses,
 // with the binary outside the tested tree, not only in-process planner helpers.
 func TestNativeCLI(t *testing.T) {
-	binary := filepath.Join(t.TempDir(), "docs-ci-plan")
+	binary := filepath.Join(t.TempDir(), testplatform.Executable("docs-ci-plan"))
 	build := exec.Command("go", "build", "-o", binary, ".")
 	if b, e := build.CombinedOutput(); e != nil {
 		t.Fatalf("build: %v %s", e, b)

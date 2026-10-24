@@ -3,6 +3,7 @@ package flowdocs
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -24,14 +25,25 @@ func TestAFPV0361_OpenDirectoryNeverReadsFilesystemRoot(t *testing.T) {
 		opened = append(opened, name)
 		return os.OpenRoot(name)
 	}
-	data, err := ReadFile(filepath.Join(dir, "a.md"))
-	if err != nil || string(data) != "ok\n" {
-		t.Fatalf("ReadFile = %q, %v", data, err)
+	// openDirectory is asserted directly: ReadFile's no-follow regular-file
+	// reader refuses on platforms without O_NOFOLLOW (Windows), which is a
+	// separate deliberate refusal.
+	root, err := openDirectory(dir)
+	if err != nil {
+		t.Fatalf("openDirectory(%q) = %v", dir, err)
 	}
+	if _, err := root.Stat("a.md"); err != nil {
+		t.Fatalf("confined root misses a.md: %v", err)
+	}
+	root.Close()
+	volumeRoot := filepath.VolumeName(dir) + string(filepath.Separator)
 	for _, name := range opened {
-		if name == string(filepath.Separator) {
+		if name == volumeRoot {
 			t.Fatalf("nested directory opened the filesystem root: %q", opened)
 		}
+	}
+	if want := volumeRoot + strings.SplitN(dir[len(volumeRoot):], string(filepath.Separator), 2)[0]; len(opened) == 1 && opened[0] != want {
+		t.Fatalf("first absolute open = %q, want %q", opened[0], want)
 	}
 	if len(opened) != 1 {
 		t.Fatalf("absolute opens = %q, want only the first component", opened)
@@ -39,10 +51,10 @@ func TestAFPV0361_OpenDirectoryNeverReadsFilesystemRoot(t *testing.T) {
 	// Opening / itself may be refused where the test is Landlock-confined (CI);
 	// only the attempted open is asserted, not its success.
 	opened = nil
-	if root, err := openDirectory(string(filepath.Separator)); err == nil {
+	if root, err := openDirectory(volumeRoot); err == nil {
 		root.Close()
 	}
-	if len(opened) != 1 || opened[0] != string(filepath.Separator) {
+	if len(opened) != 1 || opened[0] != volumeRoot {
 		t.Fatalf("opening / itself = %q", opened)
 	}
 }

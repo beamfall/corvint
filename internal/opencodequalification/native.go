@@ -190,6 +190,7 @@ func Native(ctx context.Context, c Config) (Object, error) {
 			return x["kind"] == "setup" && x["executableSHA256"] == baseline.HostSHA256 && x["architecture"] == baseline.Tuple["architecture"] && x["os"] == baseline.Tuple["os"]
 		}),
 		"awaited-current-prompt": deliveredPrompt,
+		"native-bundled-skill":   bundledSkillAdvertised(requests),
 		"native-query":           anyRow(events, func(x Object) bool { return x["name"] == "corvint_context" && x["status"] == "completed" }),
 		"native-exact-expansion": anyRow(packets, func(x Object) bool {
 			return x["handle"] == handle && object(x["selection"])["text"] == strings.Join(strings.Split(source, "\n")[:3], "\n")+"\n"
@@ -444,6 +445,33 @@ func hiddenPromptDelivery(prompt string, events []Object, messages []any, receip
 		}
 	}
 	return 0, false
+}
+
+// bundledSkillAdvertised reports whether an actual outgoing provider request listed the
+// plugin-registered corvint skill in OpenCode's available-skills guidance (AHI-176).
+func bundledSkillAdvertised(requests []Object) bool {
+	advertised := func(text string) bool {
+		start := strings.Index(text, "<available_skills>")
+		end := strings.Index(text, "</available_skills>")
+		return start >= 0 && end > start && strings.Contains(text[start:end], "<id>corvint</id>")
+	}
+	for _, request := range requests {
+		for _, value := range array(request["messages"]) {
+			message := object(value)
+			if message["role"] != "system" && message["role"] != "developer" {
+				continue
+			}
+			if text, ok := message["content"].(string); ok && advertised(text) {
+				return true
+			}
+			for _, part := range array(message["content"]) {
+				if advertised(str(object(part)["text"])) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 // The delivery observation belongs to the exact prompt that produced the first provider request.

@@ -29,6 +29,12 @@ func git(ctx context.Context, root string, args ...string) ([]byte, error) {
 	return o.Stdout, nil
 }
 
+// sameTopLevel compares `rev-parse --show-toplevel` output with the canonical
+// checkout path. Git for Windows prints C:/x with forward slashes.
+func sameTopLevel(top, canonical string) bool {
+	return filepath.Clean(filepath.FromSlash(strings.TrimSpace(top))) == canonical
+}
+
 func bind(ctx context.Context, r Repository, root string) error {
 	canonical, err := filepath.EvalSymlinks(root)
 	if err != nil {
@@ -39,7 +45,7 @@ func bind(ctx context.Context, r Repository, root string) error {
 		return errors.New("checkout unavailable")
 	}
 	top, err := git(ctx, canonical, "rev-parse", "--show-toplevel")
-	if err != nil || strings.TrimSpace(string(top)) != canonical {
+	if err != nil || !sameTopLevel(string(top), canonical) {
 		return errors.New("checkout must name its Git top level")
 	}
 	typ, err := git(ctx, canonical, "cat-file", "-t", r.Commit)

@@ -2,11 +2,13 @@
 // (PRB-V0-020..036) over a generated realistic-size fixture: `make perf-budget`.
 //
 //	perf-budget [--budgets FILE] [--scale full|smoke] [--fixture DIR] [--corvint BIN]
-//	            [--corpus-mcp BIN] [--out FILE] [--record-baseline]
+//	            [--corpus-mcp BIN] [--out FILE] [--record-baseline] [--require-judgement]
 //
 // It prints the report JSON to stdout and exits 0 when every enforced limit holds (pending
-// targets are reported, never failing), 1 when an enforced limit is exceeded or unobserved, and 2
-// when the harness itself cannot run.
+// targets are reported, never failing), 1 when an enforced limit is exceeded or unobserved or a
+// scenario failed, and 2 when the harness itself cannot run. When the host-contention record cannot
+// support a latency or memory verdict the run is NOT_JUDGED (PRB-V0-039): status 0 with a
+// stderr line, or 3 under --require-judgement.
 package main
 
 import (
@@ -42,6 +44,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	corpusMCP := flags.String("corpus-mcp", "", "corvint-corpus-mcp binary (default: built from ./cmd/corvint-corpus-mcp)")
 	out := flags.String("out", "", "also write the report to FILE")
 	record := flags.Bool("record-baseline", false, "write this run's measurements and host record as the budgets file's baseline")
+	requireJudgement := flags.Bool("require-judgement", false, "exit 3 instead of 0 when the run is NOT_JUDGED")
 	if flags.Parse(args) != nil || flags.NArg() != 0 {
 		return 2
 	}
@@ -128,17 +131,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		}
 	}
 	if *record {
-		for _, m := range report.Scenarios {
-			if m.Error != "" || len(m.Samples) == 0 {
-				return fail(fmt.Errorf("baseline not recorded: scenario %s measured nothing (%s)", m.ID, m.Error))
-			}
-		}
-		budgets.Baseline = &perfbudget.Baseline{RecordedAt: report.StartedAt, Revision: report.Revision, Host: report.Host, Fixture: report.Fixture, Scenarios: report.Scenarios}
-		encoded, err := json.MarshalIndent(budgets, "", "  ")
-		if err != nil {
-			return fail(err)
-		}
-		if err := os.WriteFile(*budgetsPath, append(encoded, '\n'), 0o644); err != nil {
+		if err := recordBaseline(*budgetsPath, budgets, report); err != nil {
 			return fail(err)
 		}
 		progress("baseline recorded in " + *budgetsPath)
@@ -146,10 +139,48 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	for _, c := range report.Checks {
 		progress(fmt.Sprintf("%s %s %s: %s", c.Scenario, c.Kind, c.Limit.Metric, c.Verdict))
 	}
-	if !report.OK {
-		return 1
+	if report.Verdict == perfbudget.RunNotJudged {
+		progress("NOT_JUDGED: " + report.NotJudgedReason)
 	}
-	return 0
+	return verdictStatus(report.Verdict, *requireJudgement)
+}
+
+// verdictStatus is the exit status of a run verdict (PRB-V0-041): 0 PASS, 1 FAIL, and for
+// NOT_JUDGED 0, or 3 under --require-judgement. NOT_JUDGED is never reported as PASS: the
+// report's verdict and stderr say which it was.
+func verdictStatus(verdict string, requireJudgement bool) int {
+	switch verdict {
+	case perfbudget.RunPass:
+		return 0
+	case perfbudget.RunNotJudged:
+		if requireJudgement {
+			return 3
+		}
+		return 0
+	}
+	return 1
+}
+
+// recordBaseline writes report as the budgets file's baseline. It refuses, leaving the file
+// untouched, when a scenario measured nothing (PRB-V0-029) or the run could not be judged
+// (PRB-V0-043), including a FAIL that kept a contention reason: a contended or unobserved host
+// would become every later run's ceiling.
+func recordBaseline(path string, budgets *perfbudget.Budgets, report *perfbudget.Report) error {
+	for _, m := range report.Scenarios {
+		if m.Error != "" || len(m.Samples) == 0 {
+			return fmt.Errorf("baseline not recorded: scenario %s measured nothing (%s)", m.ID, m.Error)
+		}
+	}
+	if report.Verdict == perfbudget.RunNotJudged || report.NotJudgedReason != "" {
+		return fmt.Errorf("baseline not recorded: run %s on an unjudged host: %s", report.Verdict, report.NotJudgedReason)
+	}
+	recorded := *budgets
+	recorded.Baseline = &perfbudget.Baseline{RecordedAt: report.StartedAt, Revision: report.Revision, Host: report.Host, Fixture: report.Fixture, Scenarios: report.Scenarios}
+	encoded, err := json.MarshalIndent(&recorded, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, append(encoded, '\n'), 0o644)
 }
 
 // ownedOutput is exec's Output for name and args under perfbudget.RunOwned.

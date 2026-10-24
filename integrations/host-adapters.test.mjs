@@ -952,13 +952,13 @@ test('AHI-051 Claude Code plugin presents complete metadata, plain status messag
   assert.ok(typeof hook.statusMessage==='string'&&hook.statusMessage.length>0,`${event}: statusMessage`)
   assert.doesNotMatch(hook.statusMessage,/frontier|observation|receipt/i,`${event}: statusMessage is plain words`)
  }
- const verbs={context:null,impact:['impact'],affected:['affected'],review:['review'],status:['--version','observations','dogfood status'],index:['index']}
+ const verbs={context:null,impact:['impact'],affected:['affected'],review:['review'],status:['--version','observations','dogfood status'],index:['index'],done:['adapter done-list']}
  assert.deepEqual(readdirSync(join(here,root,'skills')).sort(),Object.keys(verbs).sort())
  for(const [name,allowed] of Object.entries(verbs)) {
   const text=readFileSync(join(here,root,'skills',name,'SKILL.md'),'utf8'),front=text.split('---')[1]
   assert.match(front,new RegExp(`^name: ${name}$`,'m'),`${name}: name`)
   assert.match(front,/^description: \S/m,`${name}: description`)
-  assert.equal(/^disable-model-invocation: true$/m.test(front),name==='status'||name==='index',`${name}: user-only iff status or index`)
+  assert.equal(/^disable-model-invocation: true$/m.test(front),['status','index','done'].includes(name),`${name}: user-only iff status, index or done`)
   if(!allowed)continue
   const tools=front.match(/^allowed-tools: (.*)$/m)[1].split(/,\s*/)
   for(const tool of tools) {
@@ -968,6 +968,17 @@ test('AHI-051 Claude Code plugin presents complete metadata, plain status messag
    assert.ok(ok,`${name}: ${tool} pre-approves only its verb and read-only git or ls`)
   }
  }
+})
+test('AHI-198 Claude Code plugin declares the read-only corvint-mcp server at the project root',()=>{
+ const read=rel=>JSON.parse(readFileSync(join(here,rel),'utf8'))
+ const root='claude-code/plugins/corvint',servers=read(`${root}/.mcp.json`).mcpServers
+ assert.deepEqual(Object.keys(servers),['corvint'])
+ assert.deepEqual(servers.corvint,{command:'corvint-mcp',args:['--root','${CLAUDE_PROJECT_DIR}','--protocol-version','2025-11-25']})
+ const compat=read(`${root}/compatibility.json`)
+ assert.equal(compat.surfaces.mcp,'FALLBACK')
+ assert.equal(compat.mcpServer.command,servers.corvint.command)
+ assert.equal(compat.mcpServer.protocolVersion,servers.corvint.args[3])
+ assert.equal(read(`${root}/.claude-plugin/plugin.json`).mcpServers,undefined,'one declaration: .mcp.json only')
 })
 test('AHI-023 host-version disclosure matches what each plugin adapter sends',()=>{
  const degradations=rel=>JSON.parse(readFileSync(join(here,rel),'utf8')).degradations

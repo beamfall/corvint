@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // narrowingRecord is one shard's corvint-pr-narrowing/0 record (narrow.jq) of run RUN.
@@ -537,6 +539,7 @@ func TestAFPV0098SupersetGuard(t *testing.T) {
 // retained NARROWED record whose `executed` list equals its sidecar narrows the shard; every
 // other gate outcome, including a skipped or refused gate (empty NARROW_MODE), runs it whole.
 func TestAFPV0098SupersetGuardFilter(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ci.yml narrowing filter runs under bash")
 	const a, c, d = "example.org/m/a", "example.org/m/c", "example.org/m/d"
 	b, err := os.ReadFile("../../.github/workflows/ci.yml")
 	if err != nil {
@@ -634,6 +637,7 @@ func TestAFPV0098SupersetGuardFilter(t *testing.T) {
 // the `executed` sidecar equal to its record, and a sidecar that cannot be written drops the
 // record and reports FULL, so the tests step runs the whole shard.
 func TestAFPV0098SupersetGuardSidecar(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the git, gh, go and driver spies are #!/bin/sh scripts run by narrow.sh under sh")
 	const (
 		base   = "142f0e3e7bfb153f803fb6c4bad7989f87ee324a"
 		head   = "460fc31ae6d0134fa27f7a66336b99db88fc91c6"

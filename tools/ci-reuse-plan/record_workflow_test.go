@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // AFP-V0-170 (V1-2271): the ci-tested-tree-record job runs no repository code. Its only action
@@ -55,6 +57,7 @@ func TestAFPV0170RecordJobRunsNoRepositoryCode(t *testing.T) {
 // or whose record names another tree, stays FULL; only the record job's log of this exact tree
 // decides REUSE. Before AFP-V0-170 the forged artifacts alone decided REUSE.
 func TestAFPV0170ReuseStepRefusesForgedArtifacts(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the reuse step runs under bash with a #!/bin/sh gh spy")
 	for _, tool := range []string{"bash", "jq", "git", "go", "tar"} {
 		if _, err := exec.LookPath(tool); err != nil {
 			t.Fatalf("the reuse step needs %s on PATH: %v", tool, err)

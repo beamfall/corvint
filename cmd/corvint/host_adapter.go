@@ -44,8 +44,8 @@ func runHostAdapter(ctx context.Context, arguments []string, stdin io.Reader, st
 	if arguments[0] == "pi" {
 		return runPiAdapter(ctx, arguments[1:], stdin, stdout)
 	}
-	if arguments[0] == "source-view" {
-		return runSourceViewAdapter(ctx, arguments[1:], stdout)
+	if run, ok := adapterStdoutVerbs[arguments[0]]; ok {
+		return run(ctx, arguments[1:], stdout)
 	}
 	deadline, bounded := ctx.Deadline()
 	if !bounded {
@@ -330,7 +330,7 @@ func adapterGetenv(ctx context.Context, name string) string {
 func runClaudeAdapter(ctx context.Context, event string, payload map[string]any) (hookOutput map[string]any) {
 	known := map[string]bool{"session-start": true, "user-prompt": true, "file-change": true, "post-tool": true, "stop": true, "session-end": true, "pre-compact": true, "post-compact": true}
 	if !known[event] {
-		return degradedAdapterOutput("unsupported-hook-event")
+		return runClaudeUnlistedEvent(ctx, event, payload)
 	}
 	root, err := claudeAdapterRoot(ctx)
 	if err != nil {

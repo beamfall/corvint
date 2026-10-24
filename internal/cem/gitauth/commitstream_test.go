@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 func streamRecord(kind string, body []byte, width int) (string, []byte) {
@@ -166,6 +167,7 @@ func TestCanonicalDiffPreservesSymbolicRevisions(t *testing.T) {
 }
 
 func TestVerifiedCommitTreesRejectsUnpinnedCommit(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the git spy on PATH is a #!/bin/sh script that execs /bin/cat")
 	for _, format := range []string{"sha1", "sha256"} {
 		t.Run(format, func(t *testing.T) {
 			root, target := pathsRepo(t, format)
