@@ -81,12 +81,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	fmt.Fprintln(stdout, report)
 	r := &runner{bins: [2]binary{{name: "corvint", argv: []string{mustAbs(*corvint), "cem", "verify-stable"}}, {name: "cem01-go", argv: []string{mustAbs(*cem01), "verify-stable-canonical"}}}}
-	tmp, err := os.MkdirTemp("", "cem-release-suites-")
+	tmp, err := privateDir()
+	if tmp != "" {
+		defer os.RemoveAll(tmp)
+	}
 	if err != nil {
 		fmt.Fprintln(stderr, "cem-release-suites:", err)
 		return 2
 	}
-	defer os.RemoveAll(tmp)
 	r.tmp = tmp
 	src := filepath.Join(tmp, "src")
 	if err := materialize(absRoot, revision, src); err != nil {
@@ -113,6 +115,22 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	fmt.Fprintf(stdout, "cem-release-suites: repository-envelope: PASS at source level on the committed tree of %s; NOT_RUN against binaries (prose recipes)\n", revision)
 	return 0
+}
+
+// privateDir makes the run's private directory with every symbolic link in
+// its path resolved. The stable verifiers refuse a repository whose path runs
+// through a symbolic link (macOS TMPDIR lives under the /var link), so the case
+// repositories must sit on a resolved path.
+func privateDir() (string, error) {
+	tmp, err := os.MkdirTemp("", "cem-release-suites-")
+	if err != nil {
+		return "", err
+	}
+	resolved, err := filepath.EvalSymlinks(tmp)
+	if err != nil {
+		return tmp, err
+	}
+	return resolved, nil
 }
 
 // provenanceReport names the revision both binaries report and pins each

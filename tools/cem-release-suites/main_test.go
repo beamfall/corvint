@@ -139,7 +139,7 @@ func TestCEMV1572ProvenanceIsReportedNotProven(t *testing.T) {
 
 func gitT(t *testing.T, dir string, args ...string) {
 	t.Helper()
-	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	cmd := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", dir}, args...)...)
 	cmd.Env = append(withoutGitSelection(os.Environ()), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1", "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v: %s", args, err, out)
@@ -243,5 +243,25 @@ func TestCEMV1572EnvelopeSuitesRunInTheCommittedTree(t *testing.T) {
 	}
 	if cmds[0].Dir != src || cmds[1].Dir != filepath.Join(src, "interop", "cem01-go") {
 		t.Fatalf("sourceSuites dirs = %s, %s", cmds[0].Dir, cmds[1].Dir)
+	}
+}
+
+// TestCEMV1572PrivateDirIsResolved pins the case-repository location: a TMPDIR
+// reached through a symbolic link, as on macOS, must not reach the verifiers.
+func TestCEMV1572PrivateDirIsResolved(t *testing.T) {
+	real := t.TempDir()
+	link := filepath.Join(t.TempDir(), "tmp-link")
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("TMPDIR", link)
+	dir, err := privateDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	resolved, err := filepath.EvalSymlinks(dir)
+	if err != nil || resolved != dir {
+		t.Fatalf("privateDir = %s, resolves to %s (%v); want a path without symbolic links", dir, resolved, err)
 	}
 }
