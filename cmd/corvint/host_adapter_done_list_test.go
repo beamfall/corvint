@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 	"unicode"
 
 	"github.com/Beamfall/corvint/internal/repoenvelope"
@@ -224,19 +225,107 @@ func TestAHI197DoneListVerdictNeedsExecutedMutants(t *testing.T) {
 	}
 }
 
-// AHI-196: a receipt is kept only while HEAD still names the commit read before any verb ran.
+// AHI-196: a receipt is kept only while HEAD still names the commit read before any verb ran, and
+// it names that commit as head.
 func TestAHI196DoneListRefusesWhenHeadMoves(t *testing.T) {
 	t.Parallel()
 	root := cliRepository(t)
 	ctx := context.Background()
-	start := doneListHead(ctx, root)
+	start, err := doneListHead(ctx, root)
+	if err != nil {
+		t.Fatal(err)
+	}
 	receipt := map[string]any{"profile": doneListProfile, "ok": true, "base": ""}
-	if kept := doneListBindHead(ctx, root, start, receipt); kept["ok"] != true {
-		t.Fatalf("an unmoved HEAD refused the receipt: %v", kept)
+	if kept := doneListBindHead(ctx, root, start, receipt); kept["ok"] != true || kept["head"] != start {
+		t.Fatalf("an unmoved HEAD refused the receipt or did not name it: %v", kept)
 	}
 	affectedGit(t, root, "commit", "--allow-empty", "-q", "-m", "moved")
-	refused := doneListBindHead(ctx, root, start, receipt)
-	if refused["ok"] != false || refused["error"].(map[string]any)["code"] != "head-moved" || refused["affected"] != nil {
+	refused := doneListBindHead(ctx, root, start, map[string]any{"profile": doneListProfile, "ok": true, "base": ""})
+	if refused["ok"] != false || refused["error"].(map[string]any)["code"] != "head-moved" || refused["affected"] != nil || refused["head"] != nil {
 		t.Fatalf("a moved HEAD kept the receipt: %v", refused)
+	}
+}
+
+// AHI-196: the command and the hook receipts name the validated commit they describe as head.
+func TestAHI196DoneListReceiptNamesHead(t *testing.T) {
+	t.Parallel()
+	root := cliRepository(t)
+	head := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	receipt, code := runDoneListCLI(t, "--root", root)
+	if code != 0 || receipt["ok"] != true || receipt["head"] != head {
+		t.Fatalf("done-list receipt does not name HEAD %s (exit %d): %v", head, code, receipt)
+	}
+	if hooked := doneList(context.Background(), root, "", false); hooked["head"] != head {
+		t.Fatalf("hook receipt does not name HEAD %s: %v", head, hooked)
+	}
+}
+
+// AHI-196: a failed HEAD probe refuses with head-unavailable; two failed probes never agree.
+func TestAHI196DoneListRefusesWithoutHead(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	affectedGit(t, root, "init", "-q")
+	ctx := context.Background()
+	if head, err := doneListHead(ctx, root); err == nil || head != "" {
+		t.Fatalf("an unborn HEAD probe succeeded: %q", head)
+	}
+	for name, refused := range map[string]map[string]any{
+		"bind":    doneListBindHead(ctx, root, "", map[string]any{"profile": doneListProfile, "ok": true, "base": ""}),
+		"receipt": doneList(ctx, root, "", false),
+	} {
+		if refused["ok"] != false || refused["error"].(map[string]any)["code"] != "head-unavailable" || refused["head"] != nil {
+			t.Fatalf("%s: a missing HEAD kept a receipt: %v", name, refused)
+		}
+	}
+	receipt, code := runDoneListCLI(t, "--root", root)
+	if code != 1 || receipt["error"].(map[string]any)["code"] != "head-unavailable" {
+		t.Fatalf("command on an unborn HEAD: exit %d %v", code, receipt)
+	}
+	output := runClaudeAdapter(adapterEnvContext(ctx, map[string]string{"CLAUDE_PROJECT_DIR": root, doneListOptIn: "1"}), "stop-done-list",
+		map[string]any{"session_id": "done-list-session", "hook_event_name": "Stop", "stop_hook_active": false})
+	if output["systemMessage"] != "Corvint done-list: not reported: HEAD names no commit (head-unavailable)" || len(output) != 1 {
+		t.Fatalf("hook on an unborn HEAD: %v", output)
+	}
+}
+
+// AHI-196: the status scan is the isolated gitstatus read. A configured clean filter on a
+// stat-dirty tracked file runs under a raw git status, and must not run under the hook or command.
+func TestAHI196DoneListRunsNoRepositoryFilter(t *testing.T) {
+	t.Parallel()
+	root := cliRepository(t)
+	if err := os.WriteFile(filepath.Join(root, ".gitattributes"), []byte("*.txt filter=probe\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	data := filepath.Join(root, "data.txt")
+	if err := os.WriteFile(data, []byte("tracked\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-q", "-m", "filtered")
+	marker := filepath.Join(t.TempDir(), "filter-ran")
+	affectedGit(t, root, "config", "filter.probe.clean", "touch '"+marker+"'; cat")
+	stale := func() {
+		later := time.Now().Add(time.Hour)
+		if err := os.Chtimes(data, later, later); err != nil {
+			t.Fatal(err)
+		}
+	}
+	stale()
+	ctx := adapterEnvContext(context.Background(), map[string]string{"CLAUDE_PROJECT_DIR": root, doneListOptIn: "1"})
+	output := runClaudeAdapter(ctx, "stop-done-list", map[string]any{"session_id": "done-list-session", "hook_event_name": "Stop", "stop_hook_active": false})
+	if _, ok := output["systemMessage"].(string); !ok {
+		t.Fatalf("hook under a refused status must still report: %v", output)
+	}
+	receipt, _ := runDoneListCLI(t, "--root", root)
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("done-list ran the repository clean filter: %v", err)
+	}
+	if receipt["ok"] == true && receipt["mutation"].(map[string]any)["reason"] != "new-tests-unavailable" {
+		t.Fatalf("a filtered status was not refused: %v", receipt)
+	}
+	stale()
+	affectedGit(t, root, "--no-optional-locks", "status", "--porcelain")
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("the fixture is not adversarial: a raw git status did not run the filter: %v", err)
 	}
 }

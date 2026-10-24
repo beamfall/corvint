@@ -115,3 +115,16 @@ medium findings. All three are fixed in this change:
   (`AHI-196`, `TestAHI196DoneListRefusesWhenHeadMoves`).
 - The AHI-199 shell test inherited `HEAVY_NICE` and assumed a caller at priority 0. It now clears
   the variable and expects the caller's priority when that is higher than 10.
+
+A second Codex review of PR #1659 at `d9cbe2029` reported three findings, fixed in a follow-up
+commit without a dogfood rebind, which is left to the owner (`AHI-196`):
+
+- P1: the no-base status scan ran a raw `git status`, so a configured clean or process filter could
+  run during the read-only Stop hook. It now uses `gitstatus.Status`, as `affected` does
+  (`TestAHI196DoneListRunsNoRepositoryFilter`; reverting to the raw status makes that test fail on
+  the filter's marker file).
+- P2: two failed HEAD probes compared equal as "". A probe must now name a full commit identifier
+  both times; otherwise the receipt is refused with `head-unavailable`
+  (`TestAHI196DoneListRefusesWithoutHead`).
+- P2: the receipt recorded `base` but not the commit it describes. It now carries the validated
+  commit as `head` (`TestAHI196DoneListReceiptNamesHead`).

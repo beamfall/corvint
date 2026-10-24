@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"path"
 	"regexp"
@@ -13,6 +14,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/repoenvelope"
 )
 
@@ -28,6 +30,9 @@ const (
 	doneListGitLimit   = 1 << 20
 	doneListMessageCap = 2000
 )
+
+// doneListHeadReasons are the Stop hook's plain words for a receipt refused by its HEAD binding.
+var doneListHeadReasons = map[string]string{"head-moved": "HEAD moved while it ran", "head-unavailable": "HEAD names no commit"}
 
 var doneListFullSHA = regexp.MustCompile(`^[0-9a-f]{40}([0-9a-f]{24})?$`)
 
@@ -75,7 +80,8 @@ func runClaudeStopDoneList(ctx context.Context, root string, payload map[string]
 		return map[string]any{}
 	}
 	if receipt["ok"] != true {
-		return map[string]any{"systemMessage": "Corvint done-list: not reported: HEAD moved while it ran (head-moved)"}
+		code, _ := receipt["error"].(map[string]any)["code"].(string)
+		return map[string]any{"systemMessage": "Corvint done-list: not reported: " + doneListHeadReasons[code] + " (" + code + ")"}
 	}
 	// AHI-193: systemMessage only. On Stop, additionalContext or a block decision would continue
 	// the turn, and the completion policy, not this list, owns that decision.
@@ -143,41 +149,58 @@ func emitDoneList(stdout io.Writer, receipt map[string]any, code int) int {
 
 // doneList builds the receipt. With base empty it describes the working tree against HEAD; with a
 // base it describes the committed range base..HEAD plus any dirty paths affected sees (AHI-196).
+// The receipt names the commit it describes as head: the one HEAD named before any verb ran and
+// still names after the last.
 func doneList(ctx context.Context, root, base string, mutate bool) map[string]any {
-	receipt := map[string]any{"profile": doneListProfile, "ok": true, "mutates": false, "root": root, "base": base}
 	// The next base is the commit the working tree sits on: after committing, base..HEAD is
 	// exactly this change.
-	next := "BASE_SHA"
-	start := doneListHead(ctx, root)
-	if doneListFullSHA.MatchString(start) {
-		next = start
+	start, err := doneListHead(ctx, root)
+	if err != nil {
+		return doneListHeadRefusal("head-unavailable", root, base)
 	}
+	receipt := map[string]any{"profile": doneListProfile, "ok": true, "mutates": false, "root": root, "base": base}
 	affected, dirty := doneListAffected(ctx, root, base)
 	receipt["affected"] = affected
 	newTests, newErr := doneListNewTests(ctx, root, base)
 	receipt["clean"] = base == "" && dirty == 0 && newErr == nil && len(newTests) == 0
-	receipt["witness"] = doneListWitness(ctx, root, base, next)
-	receipt["mutation"] = doneListMutation(ctx, root, base, next, mutate, newTests, newErr)
+	receipt["witness"] = doneListWitness(ctx, root, base, start)
+	receipt["mutation"] = doneListMutation(ctx, root, base, start, mutate, newTests, newErr)
 	return doneListBindHead(ctx, root, start, receipt)
 }
 
-// doneListHead is the commit HEAD names, or "" when it names none.
-func doneListHead(ctx context.Context, root string) string {
+var errDoneListHead = errors.New("HEAD names no full commit identifier")
+
+// doneListHead is the full commit identifier HEAD names; an unborn, unreadable or malformed HEAD
+// is an error, never an empty identifier two probes could agree on.
+func doneListHead(ctx context.Context, root string) (string, error) {
 	head, err := sourceGitText(ctx, root, 128, "rev-parse", "--verify", "HEAD")
 	if err != nil {
-		return ""
+		return "", err
 	}
-	return head
+	if !doneListFullSHA.MatchString(head) {
+		return "", errDoneListHead
+	}
+	return head, nil
 }
 
 // doneListBindHead keeps the receipt only when HEAD still names the commit it named before any
 // verb ran: each verb resolves HEAD itself, so a commit in between would mix two ranges (AHI-196).
+// Both probes must name a commit; a failed probe refuses instead of matching another failure.
 func doneListBindHead(ctx context.Context, root, start string, receipt map[string]any) map[string]any {
-	if doneListHead(ctx, root) == start {
-		return receipt
+	head, err := doneListHead(ctx, root)
+	switch {
+	case err != nil || !doneListFullSHA.MatchString(start):
+		return doneListHeadRefusal("head-unavailable", root, receipt["base"])
+	case head != start:
+		return doneListHeadRefusal("head-moved", root, receipt["base"])
 	}
-	refusal := doneListRefusal("head-moved")
-	refusal["root"], refusal["base"] = root, receipt["base"]
+	receipt["head"] = start
+	return receipt
+}
+
+func doneListHeadRefusal(code, root string, base any) map[string]any {
+	refusal := doneListRefusal(code)
+	refusal["root"], refusal["base"] = root, base
 	return refusal
 }
 
@@ -292,7 +315,9 @@ func doneListNewTests(ctx context.Context, root, base string) ([]string, error) 
 		}
 		return tests, nil
 	}
-	raw, err := sourceGit(ctx, root, doneListGitLimit, "status", "--porcelain=v1", "-z", "--no-renames", "--untracked-files=all")
+	// The worktree status runs through gitstatus.Status on private metadata, as affected's does,
+	// so no repository-defined clean or process filter executes; a refusal there is an error.
+	raw, err := gitstatus.Status(ctx, root, doneListGitLimit, sourceGit, "status", "--porcelain=v1", "-z", "--no-renames", "--untracked-files=all")
 	if err != nil {
 		return nil, err
 	}
