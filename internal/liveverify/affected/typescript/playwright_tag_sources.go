@@ -145,16 +145,18 @@ func (sources *playwrightTagSources) resolveAlias(owner, ref string) (string, bo
 // playwrightTagNeutralModules are bare modules whose import gives a case no tag.
 var playwrightTagNeutralModules = map[string]bool{"@playwright/test": true, "dotenv": true, "dotenv/config": true, "path": true, "os": true, "url": true, "fs": true}
 
-// playwrightTagIndirection are names through which a module can build, rename, enumerate or mutate
-// a property at run time, so a tag could exist or change without the text `tag` in source: the
-// reflective globals, the routes that reach them without naming them (`constructor`,
-// `prototype`, `__proto__`, the global object aliases), the enumerating and defining helpers, and
-// the in-place array mutators. Any such name in code keeps the file inexact (AFP-V0-409).
+// playwrightTagIndirection are names through which a module can build, rename or enumerate a
+// property at run time, so a tag could exist without the text `tag` in source: the reflective
+// globals, the routes that reach them without naming them (`constructor`, `prototype`,
+// `__proto__`, the global object aliases), and the enumerating and defining helpers. Any such name
+// in code keeps the file inexact (AFP-V0-409). The in-place array mutators (`push`, `fill` and the
+// like) are not among them: every literal tag array is the value of a literal `tag` key, so the
+// only routes to it name `tag` outside a key, index it by a computed member, or pass one of these
+// names, and each of those is already inexact (AFP-V0-425).
 var playwrightTagIndirection = []string{
 	"Object", "Reflect", "JSON", "Proxy", "eval", "Function", "globalThis", "global", "window", "self", "structuredClone",
 	"constructor", "prototype", "__proto__", "__defineGetter__", "__defineSetter__",
 	"values", "entries", "assign", "defineProperty", "defineProperties", "fromEntries", "getOwnPropertyNames", "getOwnPropertyDescriptor", "getOwnPropertyDescriptors", "setPrototypeOf",
-	"push", "unshift", "splice", "fill", "copyWithin",
 }
 
 // playwrightTagFileExact checks one file. Its static loads must all resolve: a relative import to
@@ -193,9 +195,13 @@ func playwrightTagFileExact(root, relative string, alias func(owner, ref string)
 	if err != nil {
 		return playwrightTagFile{stop: relative + " does not tokenize"}
 	}
-	if result.tags, result.exact = playwrightTagTextLiteral(clean); !result.exact {
-		return playwrightTagFile{stop: relative + " holds a tag or construct that is not one literal @\\S+ string"}
+	tags, at, why := playwrightTagTextLiteral(clean)
+	if why != "" {
+		// The stop names the first construct and its line, so an owner can see which one keeps the
+		// closure inexact (AFP-V0-425).
+		return playwrightTagFile{stop: relative + " holds a tag or construct that is not one literal @\\S+ string (line " + strconv.Itoa(lineAt(clean, at)) + ": " + why + ")"}
 	}
+	result.tags = tags
 	return result
 }
 
@@ -231,22 +237,27 @@ func playwrightResolveRelative(root, owner, ref string) (string, bool) {
 }
 
 // playwrightTagTextLiteral applies the per-file text rules of playwrightTagFileExact to a
-// comment-stripped module and returns its literal tags.
-func playwrightTagTextLiteral(clean string) ([]string, bool) {
+// comment-stripped module and returns its literal tags. When the module is not literal, why names
+// the first rule it breaks and at is that construct's offset (AFP-V0-425).
+func playwrightTagTextLiteral(clean string) (tags []string, at int, why string) {
 	lexed, ok := playwrightLex(clean)
 	if !ok {
-		return nil, false
+		return nil, 0, "the module does not lex"
 	}
-	for _, name := range playwrightTagIndirection {
-		for _, at := range playwrightTokenOffsets(clean, name) {
-			if lexed.code[at] {
-				return nil, false
+	first, name := -1, ""
+	for _, candidate := range playwrightTagIndirection {
+		for _, offset := range playwrightTokenOffsets(clean, candidate) {
+			if lexed.code[offset] && (first < 0 || offset < first) {
+				first, name = offset, candidate
 			}
 		}
 	}
+	if first >= 0 {
+		return nil, first, "`" + name + "` can build or enumerate a property at run time"
+	}
 	for _, quoted := range []string{"'tag'", `"tag"`, "`tag`"} {
-		if strings.Contains(clean, quoted) {
-			return nil, false
+		if offset := strings.Index(clean, quoted); offset >= 0 {
+			return nil, offset, "the string " + quoted + " can name a tag key"
 		}
 	}
 	for index := 0; index < len(clean); index++ {
@@ -254,10 +265,10 @@ func playwrightTagTextLiteral(clean string) ([]string, bool) {
 			if quote := clean[index]; (quote == '\'' || quote == '"') && (index == 0 || lexed.code[index-1]) {
 				end, ok := playwrightQuotedEnd(clean, index)
 				if !ok {
-					return nil, false
+					return nil, index, "a string does not close"
 				}
 				if next := playwrightNextCode(clean, end); strings.ContainsRune(clean[index:end], '\\') && next < len(clean) && clean[next] == ':' {
-					return nil, false // escaped string property key, which can spell tag
+					return nil, index, "an escaped string property key can spell tag"
 				}
 				index = end - 1
 			}
@@ -265,39 +276,39 @@ func playwrightTagTextLiteral(clean string) ([]string, bool) {
 		}
 		switch clean[index] {
 		case '\\':
-			return nil, false // identifier escape outside a string or regex, which can spell tag
+			return nil, index, "an identifier escape can spell tag"
 		case '[':
 			previous := playwrightPreviousCode(clean, index)
 			closeAt, closed := lexed.closes[index]
 			if !closed {
-				return nil, false
+				return nil, index, "a bracket does not close"
 			}
 			next := playwrightNextCode(clean, closeAt+1)
 			if previous >= 0 && (clean[previous] == '{' || clean[previous] == ',') && next < len(clean) && (clean[next] == ':' || clean[next] == '(') {
-				return nil, false // computed object key or method
+				return nil, index, "a computed object key or method can name a tag key"
 			}
 			if playwrightMemberAccessAt(clean, previous) && !playwrightLiteralIndex(clean[index+1:closeAt]) {
-				return nil, false // computed member access, which can reach a tag array without naming it
+				return nil, index, "a computed member access can reach a tag array without naming it"
 			}
 		case ']':
 			// `T[] =` is a type annotation; any other `] =` writes a computed member.
 			if previous := playwrightPreviousCode(clean, index); (previous < 0 || clean[previous] != '[') && playwrightAssignmentAt(clean, playwrightNextCode(clean, index+1)) {
-				return nil, false // computed member write
+				return nil, index, "a computed member write can set a tag"
 			}
 		}
 	}
-	tags := []string{}
-	for _, at := range playwrightTokenOffsets(clean, "tag") {
-		if !lexed.code[at] {
+	tags = []string{}
+	for _, offset := range playwrightTokenOffsets(clean, "tag") {
+		if !lexed.code[offset] {
 			continue
 		}
-		literal, ok := playwrightLiteralTagProperty(clean, lexed, at)
+		literal, ok := playwrightLiteralTagProperty(clean, lexed, offset)
 		if !ok {
-			return nil, false
+			return nil, offset, "`tag` is not an object-literal key whose value is literal @\\S+ strings"
 		}
 		tags = append(tags, literal...)
 	}
-	return tags, true
+	return tags, 0, ""
 }
 
 // playwrightMemberAccessAt reports whether a `[` whose previous code byte is at previous opens a

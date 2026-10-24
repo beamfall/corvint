@@ -1831,6 +1831,72 @@ drop `result_ranks` (readers that ignore it are unaffected), remove the derivati
 and return `DerivationVersion` to `1`; artifacts built in between are then refused as another
 derivation and rebuilt. No stored state needs migration.
 
+### Query words, identifier tokens and named subjects (GitHub #1665 re-test leftovers)
+
+The re-test of #1665 after #1683 left three shapes open. An exact identifier or file name
+(`waitlist_notifier`, `on_deck_controller.rb`) returned a shorter feature name or the file's own
+declarations, all phrase matches, ahead of the file. A question ("What breaks in Reservation
+Cancellation, and under what conditions?") was one tie group with `terms: 0` on every result, and a
+plural question word yielding two evidence terms (`breaks`, `break`) outweighed the two words of the
+flow's name, so a short name holding that word ranked first. Status for `DCP-V1-540..546`:
+proposed, experimental; GitHub #1665.
+
+- `DCP-V1-540`: Amending `DCP-V1-400` and `DCP-V1-402`, `docs_search` groups the query's evidence
+  terms by the query word (`DCP-V1-475` words) that yields them, merging groups that share a term
+  so word order never changes the grouping; a term no word yields is a group of its own. A subject or merged claim scores, per group, the best weighted idf among the
+  group's terms it holds, and the family maximum adds the group's largest idf once, so a word and
+  its singular count once. Groups and their terms are summed in sorted order. Failure modes: a
+  plural word never counts twice; "condition conditions" and "conditions condition" rank alike;
+  the score stays in [0, 1]. Acceptance:
+  `TestDCPV1540QueryWordCountsOnce`.
+- `DCP-V1-541`: A query that is one identifier of at least two words ranks, in tier `identifier`
+  after `exact`, a subject one of whose name tokens, or of a module or file subject's anchor-path
+  tokens, spells it: the token's words, or its words without its last `.` suffix, equal the
+  query's. A token is a run of letters, digits, `_`, `-` and `.`, trimmed of `.`; the ID is not
+  read. So `pos_sync`, `PosSync` and `pos_sync.rb` name `src/app/services/pos_sync.rb`, and the
+  name "POS sync dashboard" names none of them. A spaced query is never an identifier. Acceptance:
+  `TestDCPV1541IdentifierTokenTier`.
+- `DCP-V1-542`: Amending `DCP-V1-475`, a phrase match orders by where the phrase is held: tier
+  `path-phrase` (a module or file subject's name or anchor path) before `phrase` (another
+  subject's non-prose name, or a prose name for a one-identifier query) before `id-phrase` (only
+  the subject's ID). The query "on deck" ranks `on_deck_controller.rb` before the
+  `OnDeckController` declaration, and both before the `index` declaration whose ID embeds the path
+  (V1-2549). Acceptance: `TestDCPV1542PathPhraseBeforeDeclarations`.
+- `DCP-V1-543`: A question-shaped query (it ends with `?`, or its first whitespace field is a
+  question word, ignoring case) ranks in tier `named`, after the phrase tiers and before `terms`,
+  a subject whose non-prose name of at least two words, at least one an evidence term, appears as
+  a contiguous run of the query's words. An allocation-free prefilter skips names whose letter
+  pieces the lower-cased query does not hold. Failure modes: a statement never gets `named`; the
+  identifier `is_admin` is not a question; a single-word name is never `named`. Acceptance:
+  `TestDCPV1543QuestionNamesASubject`.
+- `DCP-V1-544`: Amending `DCP-V1-479`, `tier` is one of `exact`, `identifier`, `path-phrase`,
+  `phrase`, `id-phrase`, `named` and `terms`, in rank order; a group is the results of one tier
+  with one served score; and `docs_search` serves `terms`, the number of query words a result
+  holds (omitted when zero). `docs_claims` ranking (`DCP-V1-480`) is unchanged. Acceptance:
+  `TestDCPV1544ServedTiersAndTerms`, `TestDCPV1479SearchServesRankGroups`.
+- `DCP-V1-545`: The tiers and groups are computed per read from the artifact and the query, with
+  the same order from the query index and the subject scan; no index key, artifact member,
+  encoding or the frozen evidence tokenizer changes, and no stored state is written. Acceptance:
+  every test above compares the indexed and scanned orders; `TestDCPV1404SearchRankingEvalFixture`.
+- `DCP-V1-546`: A committed synthetic fixture,
+  `internal/mcp/corpusbridge/testdata/search-ranking-gh1665-leftovers/` (three question cases and
+  five identifier cases reproducing the re-test shapes, including an unowned `.yml` file the
+  native analyzer does not parse and a records-owned Ruby service), is scored through the MCP tool
+  path: every case passes, twice with equal ranks. Frozen outcomes, measured on linux/WSL2: on the
+  base `0949876e` the fixture passes 5 of 8 (question 2 of 3, identifier 3 of 5); after this change
+  8 of 8. The #1665 fixture's row 4 now names the controller file as its one strict subject (it
+  previously accepted any result anchored to the path, which the `index` declaration satisfied):
+  0 of 1 on the base, 1 of 1 after; its other 7 cases and all 12 #1597 cases pass before and after.
+  `TestDCPV1479SearchServesRankGroups` expected `terms` absent on `docs_search`; it now expects
+  `1`. Acceptance: `TestDCPV1546GH1665LeftoversRankingEvalFixture`,
+  `TestDCPV1486GH1665RankingEvalFixture`.
+
+Non-goals: no document-length normalization (short names already break score ties,
+`DCP-V1-477`), no stop-word or tokenizer change, no `docs_claims` change, no learned or tunable
+weights, and no `named` tier for single-word subject names. Rollback: restore the per-term sum and
+the exact, phrase and terms tiers of `DCP-V1-475` and `DCP-V1-479`, and the fixtures' previous
+expectations. No stored state needs migration.
+
 ### Caller-owned retrieval evaluation (`docs corpus eval`)
 
 `corvint docs corpus eval --artifact PATH --cases PATH [--baseline PATH] [--format json|table]`
@@ -2807,7 +2873,7 @@ bound changes.
 Failure modes: a compact record a producer writes against the wrong source revision expands to
 anchors that fail the `/1` revision check, never to anchors at another revision; a `/2` record
 under a `/1` manifest is refused as an adoption record is. Non-goals: the builder writes no `/2`
-record and offers no conversion command; the artifact, its anchors and receipts keep their
+record (only the explicit `compact-provider` producer of `DCP-V1-531` does); the artifact, its anchors and receipts keep their
 format, so no derivation version changes (`DCP-V1-471`); the span hash stays per anchor. A `/2`
 record decodes in about twice the time of its `/1` form. Rollback removes the `/2` decode path;
 `/1` records are unaffected, and corpora pinning `/2` records are refused until rewritten as `/1`.
@@ -2851,6 +2917,62 @@ delivered.
   rebuilt into a new file renamed over the served one, the running server refuses with its
   restart message (`DCP-V1-143`) and a restarted server answers. Acceptance:
   `TestDCPV1498MCPServesArtifactsAcrossBuilderUpgrades`.
+
+### Compact provider producer and rebuild reuse (GitHub #1664, #1667)
+
+The compact `/2` encoding of `DCP-V1-487` had only a reference encoder inside a test, and
+`build --artifact` rederived every record even when the running builder's derivation was the
+artifact's own: about 11 s and 1.6 GB on #1667's corpus. Status for `DCP-V1-530..534`: proposed,
+experimental; GitHub #1664, #1667.
+
+- `DCP-V1-530`: `doccorpus.EncodeCompactProvider` writes a `/1` adoption provider record as the
+  `/2` record that expands to it: its anchors index a file table in first-appearance order, a file
+  omits its repository or revision when it is the record's `source` one, and with defaults an
+  anchor omits each authority, kind or reason equal to the default's; a member that differs, even
+  an empty one, is written, so it expands to itself and not to the default. Its bytes equal the
+  `DCP-V1-487` reference encoder's for the same record and defaults. A record of any other schema
+  is refused, as is a table over the 100,000-entry bound. Acceptance:
+  `TestDCPV1530CompactEncoderMatchesReference`.
+- `DCP-V1-531`: `corvint docs corpus compact-provider --input PROVIDER.json` reads one `/1`
+  adoption provider record or shard within its per-shard bound (128 MiB) and prints its `/2`
+  encoding, with the most frequent anchor authority, kind and reason as `anchor_defaults` (each
+  tie going to the byte-smallest value; none when the record has no anchor). It refuses with no
+  output: unreadable or malformed input, a `/2` or non-adoption schema, an output over the
+  per-shard bound, and a result that does not decode back to exactly the input record. The output
+  is deterministic, and the build admits the same records from it as from its input. It writes no
+  file, and the caller repins the manifest to the new bytes. Acceptance:
+  `TestDCPV1531CompactProviderProducer`, `TestDCPV1531CompactProviderCommand`,
+  `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags`.
+- `DCP-V1-532`: Amending `DCP-V1-495`, `build --artifact` reuses the artifact's records instead
+  of rederiving them when all of these hold: the running builder is attested; the artifact
+  decodes closed and canonical; the verified read admits its recorded builder (`DCP-V1-471`: same
+  builder schema, derivation version and engine, Go toolchain included); its embedded manifest,
+  manifest digest, profile digest and schema pairing match the manifest being built; and, after
+  `DCP-V1-496`'s full pin rereads every pinned input from Git, the primary revision resolves to
+  its recorded tree. Only the builder and the content digest are then rewritten, and the query
+  index is admitted as `build` admits it (`DCP-V1-196`). The printed bytes equal a full build of
+  the same manifest. Because `--artifact` always builds the embedded manifest, every shard digest
+  matches, so reuse is of the whole artifact. Acceptance:
+  `TestDCPV1532RebuildReusesSameDerivation`, `TestDCPV1532BuildArtifactReusesRecords`.
+- `DCP-V1-533`: Any other artifact is rebuilt in full, to the same bytes. This covers another or an
+  unrecorded derivation, another engine, digests or a tree a full build would not reproduce, and
+  any artifact under an unattested running builder. The verified read still refuses an
+  unrecorded-derivation artifact (`DCP-V1-471`). A pin refusal is the full build's own refusal.
+  Acceptance: `TestDCPV1533RebuildRederivesOtherwise`, `TestDCPV1532BuildArtifactReusesRecords`.
+- `DCP-V1-534`: The rebuild is measured on a synthetic inventory of 9,500 files (38,010
+  subjects, 28,511 claims, 28,500 provider anchors, 62 MB artifact). Each mode runs in its own process,
+  and both print the bytes of a full build. Acceptance: `TestDCPV1534RebuildReuseMeasured` (env-gated);
+  measured in docs/build-log/2026-10-24-corpus-compact-producer-and-rebuild-reuse.md.
+
+Failure modes: a hand-edited artifact whose records were re-signed, and whose recorded builder
+the verified read admits, is reused as is. The verified read already serves such an artifact
+without rederiving it, so the rebuild extends it no further trust. A full rebuild is the
+remedy, by changing the derivation or rebuilding with `--manifest`. A Go toolchain change still
+forces a full rebuild, because the engine is part of the admitted derivation. Non-goals: no
+per-shard record cache, no persisted state, and no change to the artifact, manifest, provider or
+receipt encodings. Rollback removes `compact-provider`, `EncodeCompactProvider` and the reuse
+path. `build --artifact` then rederives every artifact as `DCP-V1-495` did, and `/2` records
+already written stay readable.
 
 ### Corpus diagnostics, builder upgrades, eval cost and ranking residuals (GitHub #1662, #1664 to #1667)
 
@@ -3002,8 +3124,49 @@ Caller-owned profiles stay refused on platforms without the no-follow reader, so
 is not met. Not delivered here: a `score` or rank group on served rows and symbol subjects
 derived from indexed inputs (#1665 rows 3 and 5). The compact per-file anchor table of #1664
 (`DCP-V1-487..489`) and the rebuild from an embedded manifest of #1667 (`DCP-V1-495..498`) are
-specified in their own sections; no producer writes the compact `/2` record yet (V1-2547), and
+specified in their own sections, as are the compact `/2` producer and rebuild reuse (`DCP-V1-530..534`), and
 release notes naming the merges that change the derivation version remain owner work (V1-2545).
+
+### Extraction enumeration of large revisions (GitHub #1662 residual)
+
+`docs corpus extract` walked the revision one Git operation per tree, so a revision with more
+than about 1,000 directories exhausted the 1,024-operation budget (`git-budget-exceeded`) before
+any file was read. Status for `DCP-V1-520..522`: proposed, experimental; GitHub #1662; owner
+acceptance open.
+
+- `DCP-V1-520`: (proposed, experimental; GitHub #1662; owner acceptance open) A glob in an
+  extractor's `files` resolves against one verified walk of the revision that costs one Git
+  operation to pin the commit and its self-hashed root tree plus one `cat-file --batch` per
+  directory level, whose records must self-hash and carry the OID their verified parent names.
+  The walk lists every non-tree entry (symlinks and gitlinks stay listed and become gaps when
+  read, `DCP-V1-395`), exactly as `ls-tree -r` would, independent of how many directories the
+  revision holds. A name Git's tree grammar admits, such as one containing a backslash, is
+  listed rather than refused, as the per-tree walk did. Acceptance:
+  `TestDCPV1520RevisionPathsMatchesLsTreeWithinOneOpPerLevel`,
+  `TestDCPV1520RevisionPathsOpsIndependentOfDirectoryCount`,
+  `TestDCPV1520RevisionPathsListsGitSafeNamesUnfiltered`,
+  `TestDCPV1520ExtractionEnumeratesMoreThan1024Directories`.
+- `DCP-V1-521`: (proposed, experimental; GitHub #1662; owner acceptance open) The walk descends
+  only into a directory below which some glob can match: until a glob's first `**` segment each
+  glob segment must match exactly one directory segment, and the glob's last segment names a file
+  below the directory. Directories named `node_modules` stay pruned. Pruning never removes a path
+  a glob matches. Acceptance: `TestDCPV1521ExtractorGlobPruningIsSound`,
+  `TestDCPV1521RevisionPathsPrunesRejectedSubtrees`,
+  `TestDCPV1520ExtractionEnumeratesMoreThan1024Directories`.
+- `DCP-V1-522`: (proposed, experimental; GitHub #1662; owner acceptance open) The walk keeps
+  explicit bounds and refuses before it reads the next level: 400,000 listed tree entries
+  (`affected.MaxWalkEntries`), `MaxPathSetTreeBytes` of tree output (`git-output-exceeded`) and
+  `MaxTreeDepth` levels, and an unpinned revision is refused before any Git operation. Extraction
+  reports every refusal as `corpus-refused` with `extraction cannot enumerate the revision`.
+  Acceptance: `TestDCPV1522RevisionPathsRefusesPastItsBounds`.
+
+These rows change no inventory, profile, provider record or artifact format and add no cache,
+option or persisted state; a revision that extracted before yields the same inventory bytes.
+Failure modes: a tree object that does not self-hash or is not the one its parent names refuses
+the extraction; a revision past a bound is refused rather than listed in part. The per-extractor
+4,096-file record bound (`MaxRecords`) still applies to the matched files. Rollback restores the
+per-tree `RevisionFS` walk in `extractorTree`. Timing on linux/WSL2 is retained in
+`docs/build-log/2026-10-24-corpus-extract-enumeration.md`.
 
 ## Input and authority boundary
 
@@ -3555,8 +3718,8 @@ read back at `ReadCorpusFile` plus `OpenRead` and drops the decode-time claim te
 current side is `DCP-V1-460`'s and rolls back with it. No stored state needs migration.
 Rebuild from the embedded manifest (`DCP-V1-495..498`) adds one input option to `build`, and
 no cache, daemon, persisted state or artifact, manifest or receipt format change. It does not
-make a read rebuild, admit an artifact from a changed derivation, or trust an artifact's records:
-only its embedded manifest, checked against both recorded digests, and Git. Rollback removes
+make a read rebuild, admit an artifact from a changed derivation, or trust an artifact's records
+beyond `DCP-V1-532`'s reuse: only its embedded manifest, checked against both recorded digests, and Git. Rollback removes
 `--artifact` from `build`, restores `--manifest` as required, and drops the rebuild hint from
 the `builder differs:` refusals; no stored state needs migration.
 Diagnostics, builder upgrades, eval sessions and ranking (`DCP-V1-470..477`) add no cache,
@@ -3697,6 +3860,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-430..434 | `internal/doccorpus/artifact_decode.go`, `read.go`, `encoding.go`, `query_index_fast.go`, `types.go`, `internal/testvaliditydoc/read.go`, `cmd/corvint/docs_corpus.go`, `corpus_integration.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1431StreamedReadReusesBlocks`, `TestDCPV1431OpenReadFile`, `TestDCPV1431StreamedTruncationAtWindowEnd`, `TestDCPV1431CorpusRefusalJoinsFreshness`, `TestDCPV1432JoinedCorpusReusesVerifiedArtifact`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1434ConcurrentQueriesShareClaimTerms`, `TestDCPV1416CorpusMCPFirstAndWarmCalls`; measured in docs/build-log/2026-10-23-corpus-read-residual.md |
 | DCP-V1-465..467 | `internal/doccorpus/primary_observation.go`, `query.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1465PrimaryObservationMatchesFreshRead`, `TestDCPV1466PrimaryObservationUsedOnce`, `TestDCPV1467CancelledPrimaryObservationJoins`, `TestDCPV1467ShorterDeadlineStopsWaitingForPrimary`, `TestDCPV1467CorpusPreHeaderRefusalJoinsPrimary`, `TestDCPV1431CorpusRefusalJoinsFreshness`, `TestDCPV1413CorpusReadsWithoutRederivation`; measured in docs/build-log/2026-10-23-corpus-read-start-freshness.md |
 | DCP-V1-495..498 | `internal/doccorpus/rebuild.go`, `encoding.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `internal/capcatalog/catalog.json` | `TestDCPV1495RebuildFromEmbeddedManifest`, `TestDCPV1495BuildRebuildsFromEmbeddedManifest`, `TestDCPV1496RebuildRefusesUnverifiedManifest`, `TestDCPV1497ReadNeverRebuilds`, `TestDCPV1498MCPServesArtifactsAcrossBuilderUpgrades`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
+| DCP-V1-530..534 | `internal/doccorpus/compact_anchor.go`, `rebuild.go`, `encoding.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `docs.go`, `internal/capcatalog/catalog.json` | `TestDCPV1530CompactEncoderMatchesReference`, `TestDCPV1531CompactProviderProducer`, `TestDCPV1531CompactProviderCommand`, `TestDCPV1532RebuildReusesSameDerivation`, `TestDCPV1532BuildArtifactReusesRecords`, `TestDCPV1533RebuildRederivesOtherwise`, `TestDCPV1534RebuildReuseMeasured`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-470 | `internal/doccorpus/encoding.go`, `shards.go`, `extractor.go` | `TestDCPV1470LocatedDecodeRefusal` |
 | DCP-V1-471 | `internal/doccorpus/encoding.go`, `read.go` | `TestDCPV1471VerifiedReadAcrossBuilderRevisions`, `TestDCPV1471DerivationVersionGuard`, `TestDCPV1410VerifiedReadRefusals` |
 | DCP-V1-472 | `internal/doccorpus/capacity.go`, `compile.go` | `TestDCPV1472ProviderRecordBytesChargedApart`, `TestDCPV1157CapacityRefusalsAreTypedAndEarly` |
@@ -3708,6 +3872,8 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-482..484 | `internal/doccorpus/compile.go` | `TestDCPV1482DeclarationsOfRecordsOwnedSource`, `TestDCPV1483DerivationScope`, `TestDCPV1484DerivationNeverRefusesABuildableManifest`, `TestDCPV1484RefusedFirstDeclarationRestoresShardCache`, `TestDCPV1484RetryAnswersOnlyCorpusRefusals` |
 | DCP-V1-485 | `internal/doccorpus/encoding.go` | `TestDCPV1485DerivationTwoRefusesDerivationOneArtifacts`, `TestDCPV1471DerivationVersionGuard` |
 | DCP-V1-486 | `internal/mcp/corpusbridge/testdata/search-ranking-gh1665/` | `TestDCPV1486GH1665RankingEvalFixture` |
+| DCP-V1-520..522 | `internal/cem/gitauth/revision_paths.go`, `internal/doccorpus/extractor.go` | `TestDCPV1520RevisionPathsMatchesLsTreeWithinOneOpPerLevel`, `TestDCPV1520RevisionPathsOpsIndependentOfDirectoryCount`, `TestDCPV1520RevisionPathsListsGitSafeNamesUnfiltered`, `TestDCPV1520ExtractionEnumeratesMoreThan1024Directories`, `TestDCPV1521ExtractorGlobPruningIsSound`, `TestDCPV1521RevisionPathsPrunesRejectedSubtrees`, `TestDCPV1522RevisionPathsRefusesPastItsBounds`; measured in docs/build-log/2026-10-24-corpus-extract-enumeration.md |
+| DCP-V1-540..546 | `internal/doccorpus/search_rank.go`, `search_tier.go`, `search_phrase.go`, `types.go`, `internal/mcp/corpusbridge/testdata/search-ranking-gh1665-leftovers/` | `TestDCPV1540QueryWordCountsOnce`, `TestDCPV1541IdentifierTokenTier`, `TestDCPV1542PathPhraseBeforeDeclarations`, `TestDCPV1543QuestionNamesASubject`, `TestDCPV1544ServedTiersAndTerms`, `TestDCPV1404SearchRankingEvalFixture`, `TestDCPV1546GH1665LeftoversRankingEvalFixture`, `TestDCPV1486GH1665RankingEvalFixture`; measured in docs/build-log/2026-10-24-gh1665-rank-leftovers.md |
 | DCP-V1-468 | `internal/doccorpus/artifact_decode.go`, `query_index_fast.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1419FastIndexMatchesReference` |
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-487..489 | `internal/doccorpus/compact_anchor.go`, `shards.go`, `encoding.go` | `TestDCPV1487CompactAnchorTableEquivalent`, `TestDCPV1488CompactAnchorRefusals`, `TestDCPV1489CompactAnchorSizeMeasured`; measured in docs/build-log/2026-10-24-corpus-compact-anchor-table.md |

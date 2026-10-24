@@ -47,11 +47,11 @@ behaviour inside a live model session.
   | Case | Plain CLI predicate | Plugin host predicate | Owning requirement |
   |---|---|---|---|
   | install | the binary is copied onto a private `PATH` and `--version` prints `Corvint …` | the host's marketplace-add and install commands succeed; the plugin's own row in the host listing shows the manifest version; the installed package is byte-equal to the source package | `AHI-002` |
-  | discovery | root help's Core section lists the twelve `CCF-V1-001` verbs | the plugin's row in the host listing reports it enabled; every registered hook event runs exactly one command, `corvint adapter <host>`; the registered event set is exact; the package has a skill | `AHI-002` |
+  | discovery | root help's Core section lists the twelve `CCF-V1-001` verbs | the plugin's row in the host listing reports it enabled; every registered hook command is `corvint adapter <host>` with at most one subcommand; the registered events and each event's adapter subcommands are exactly the host profile's (`HLQ-V1-011`); the package has a skill | `AHI-002` |
   | context | `context --task` returns `tool=context`, `schema_version=1` | SessionStart returns a repository-data envelope whose receipt is `ok`, `mutates=false`, profile `corvint-dogfood-event/0`, pinned to the fixture HEAD with a clean worktree | `AHI-003` |
   | expansion | `query --task "Explain add.go"` cites `add.go` at its HEAD blob | UserPromptSubmit naming `add.go` returns task evidence for `add.go` at its HEAD blob | `AHI-004` |
   | change | `impact add.go` on the edited file returns `tool=impact`, `mode=impact` | after an edit, Claude Code's PostToolUse returns a harness receipt, and the next prompt receipt on either host reports one dirty path and a non-clean worktree | `AHI-007` |
-  | frontier | a committed change with an `unknown` hunk in the default `cem/1.0` map and an OCM over one requirement, run with `--artifacts`, yields the `frontier-stable-view/0` view with state `NOT_PRODUCED` and exit 1, and a wrong base and a tampered map are refused with exit 2 (V1-1304) | an unenrolled Stop releases; after `dogfood begin` bound to the hook session, an incomplete Stop blocks once and names the unavailable Frontier authority; the recursive Stop releases. On Codex the enrollment and every Stop receive `CODEX_THREAD_ID`, which differs from the payload `session_id`, so the Stop binds only through the environment | `AHI-006` |
+  | frontier | a committed change with an `unknown` hunk in the default `cem/1.0` map and an OCM over one requirement, run with `--artifacts`, yields the `frontier-stable-view/0` view with state `NOT_PRODUCED` and exit 1, and a wrong base and a tampered map are refused with exit 2 (V1-1304) | an unenrolled Stop releases and each companion Stop command (`HLQ-V1-011`) emits `{}`; after `dogfood begin` bound to the hook session, an incomplete Stop blocks once and names the unavailable Frontier authority; the recursive Stop releases. On Codex the enrollment and every Stop receive `CODEX_THREAD_ID`, which differs from the payload `session_id`, so the Stop binds only through the environment | `AHI-006` |
   | degradation | outside a Git repository `context` exits 2 with `ok=false`, `code=invalid-arguments` and writes nothing | malformed hook JSON exits 0 with a visible `malformed-hook-json` degradation and "coding continues" | `AHI-009` |
   | upgrade | after the N-1 binary indexes the fixture and is replaced, the current binary does not reuse its snapshot: `index --if-stale` rebuilds instead of reporting `state=fresh` (a snapshot is keyed by the binary that wrote it), and `context` succeeds | the registered hooks serve valid context under the N-1 binary and after its replacement by the current binary; the host's reinstall keeps the package byte-equal | `AHI-002` |
   | uninstall | the binary is removed and no longer resolves; the fixture worktree is unchanged | the host's disable (Claude Code: then enable), uninstall and marketplace-remove commands succeed; the host no longer lists the plugin; the installed root is gone or carries the host's own `.orphaned_at` retirement marker; no other file under the private `HOME`, whatever its size, names corvint; the fixture worktree is unchanged | `AHI-002` |
@@ -124,6 +124,22 @@ behaviour inside a live model session.
   from outside the private workspace (`HLQ-V1-003`). A `DIR` that cannot be created, or in which a
   file cannot be created, is a setup error (exit 2) before any case runs. A failed `--report`
   write does not prevent the retained copy, and either failure exits 2.
+- **HLQ-V1-011:** (proposed; V1-2566, GitHub #1551) Each plugin host profile MUST declare its exact
+  hook registration: every event and the adapter subcommands its commands run, in an order whose
+  first entry is the event's case command. Discovery MUST read every command of every group of an
+  event, refuse a command that is not `corvint adapter <host>` with at most one subcommand, a
+  subcommand registered twice, and any event or subcommand set that differs from the profile, and
+  MUST choose the case command by its subcommand, never by registration order. The other commands
+  are companions the host runs alongside: in the plugin frontier case each companion Stop command
+  run on the unenrolled Stop MUST emit exactly `{}` (Claude Code `stop-done-list` is off without
+  `CORVINT_STOP_DONE_LIST=1`, `AHI-191`). A hook case run after a failed discovery MUST fail as
+  `discovery did not complete`, not as an unregistered event. Failure mode: the Claude Code Stop
+  event gained `stop-done-list` (`AHI-190`..`AHI-197`), the one-command reader refused it, and every
+  later case reported `no SessionStart hook registered` (release-gates run 40088201429). Acceptance:
+  `TestShippedHooksPassDiscovery` reads both shipped `hooks.json` files with their profiles;
+  `TestDiscoverHooksIsExact`; `TestHookBeforeDiscoveryNamesDiscovery`; the next scheduled
+  release-gates Claude Code tuple. Rollback: revert this requirement, the profile `hooks` maps and
+  `discoverHooks`; the runner writes nothing outside its workspace.
 
 ## Runner
 
@@ -317,6 +333,7 @@ session expired). The `PreCompact`/`PostCompact` hooks therefore remain statical
 | HLQ-V1-006 | the context, change, frontier and uninstall cases |
 | HLQ-V1-009 | `TestHookTimeBoundDegradation`, `TestDegradationCode`; `TestClaudeAdapterStopDeadlineFailsOpenVisibly` and the enrolled-Stop deadline subtest of `TestClaudeNativeDogfoodLifecycle` in `cmd/corvint` pin the fail-open Stop shape the retry keys on |
 | HLQ-V1-010 | `TestFailedReportRetention` (`retainReport`, `keepReport` in `conformance/host-lifecycle-v1`) |
+| HLQ-V1-011 | `TestShippedHooksPassDiscovery`, `TestDiscoverHooksIsExact`, `TestHookBeforeDiscoveryNamesDiscovery`, `TestReadHooks` (`readHooks`, `discoverHooks` in `conformance/host-lifecycle-v1`) |
 
 ## Rollback
 

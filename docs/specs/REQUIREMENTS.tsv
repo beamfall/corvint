@@ -134,6 +134,10 @@ AFP-V0-414	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-417	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1660);	standing	2026-10-11; #1660
 AFP-V0-418	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1660);	standing	2026-10-11; #1660
 AFP-V0-419	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1660);	standing	2026-10-11; #1660
+AFP-V0-423	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1688);	standing	2026-10-11; #1688
+AFP-V0-424	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1688))	standing	2026-10-11; #1688
+AFP-V0-425	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1688);	standing	2026-10-11; #1688
+AFP-V0-426	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1688))	standing	2026-10-11; #1688
 AFP-V0-415	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2488))	standing	2026-10-11; V1-2488
 AFP-V0-416	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2488))	standing	2026-10-11; V1-2488
 AFP-V0-390	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
@@ -2182,6 +2186,7 @@ PSR-V0-220	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the ow
 PSR-V0-221	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0911, V1-1569)	standing	2026-10-11; V1-0911; V1-1569
 PSR-V0-222	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2482) On Linux	standing	2026-10-11; V1-2482
 PSR-V0-223	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2482) On Linux	standing	2026-10-11; V1-2482
+PSR-V0-226	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2554) Amends	standing	2026-10-11; V1-2554
 SCC-V0-001	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) `store.S	standing	2026-10-11; V1-1920
 SCC-V0-002	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) An ABSEN	standing	2026-10-11; V1-1920
 SCC-V0-003	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) The patc	standing	2026-10-11; V1-1920
@@ -2739,6 +2744,13 @@ DCP-V1-483	docs/specs/documentation-corpus-v1.md	Derivation runs after every pro
 DCP-V1-484	docs/specs/documentation-corpus-v1.md	Derivation never refuses a manifest the compiler built before it. When a compile	unrecorded	-
 DCP-V1-485	docs/specs/documentation-corpus-v1.md	Derived declarations change the records the same inputs build, so	unrecorded	-
 DCP-V1-486	docs/specs/documentation-corpus-v1.md	A committed synthetic fixture, `internal/mcp/corpusbridge/testdata/search-rankin	unrecorded	-
+DCP-V1-540	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-400` and `DCP-V1-402`, `docs_search` groups the query's evidenc	unrecorded	-
+DCP-V1-541	docs/specs/documentation-corpus-v1.md	A query that is one identifier of at least two words ranks, in tier `identifier`	unrecorded	-
+DCP-V1-542	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-475`, a phrase match orders by where the phrase is held: tier	unrecorded	-
+DCP-V1-543	docs/specs/documentation-corpus-v1.md	A question-shaped query (it ends with `?`, or its first whitespace field is a	unrecorded	-
+DCP-V1-544	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-479`, `tier` is one of `exact`, `identifier`, `path-phrase`,	unrecorded	-
+DCP-V1-545	docs/specs/documentation-corpus-v1.md	The tiers and groups are computed per read from the artifact and the query, with	unrecorded	-
+DCP-V1-546	docs/specs/documentation-corpus-v1.md	A committed synthetic fixture,	unrecorded	-
 DCP-V1-250	docs/specs/documentation-corpus-v1.md	The case file is a closed `corvint-corpus-eval-cases/1` document with a file	unrecorded	-
 DCP-V1-251	docs/specs/documentation-corpus-v1.md	Each case runs through `corpusbridge.Registry.CallTimed`, the code path that ser	unrecorded	-
 DCP-V1-252	docs/specs/documentation-corpus-v1.md	Each case reports `hit`, the 1-based `rank` of the first relevant row, `k` (the	unrecorded	-
@@ -2836,6 +2848,11 @@ DCP-V1-495	docs/specs/documentation-corpus-v1.md	`corvint docs corpus build` tak
 DCP-V1-496	docs/specs/documentation-corpus-v1.md	Before any Git read or build, the rebuild refuses (`corpus-refused`, no output)	unrecorded	-
 DCP-V1-497	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-471`, every `builder differs:` refusal of the verified read end	unrecorded	-
 DCP-V1-498	docs/specs/documentation-corpus-v1.md	A corpus MCP server answers its first call from an artifact recorded by another	unrecorded	-
+DCP-V1-530	docs/specs/documentation-corpus-v1.md	`doccorpus.EncodeCompactProvider` writes a `/1` adoption provider record as the	unrecorded	-
+DCP-V1-531	docs/specs/documentation-corpus-v1.md	`corvint docs corpus compact-provider --input PROVIDER.json` reads one `/1`	unrecorded	-
+DCP-V1-532	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-495`, `build --artifact` reuses the artifact's records instead	unrecorded	-
+DCP-V1-533	docs/specs/documentation-corpus-v1.md	Any other artifact is rebuilt in full, to the same bytes. This covers another or	unrecorded	-
+DCP-V1-534	docs/specs/documentation-corpus-v1.md	The rebuild is measured on a synthetic inventory of 9,500 files (38,010	unrecorded	-
 DCP-V1-470	docs/specs/documentation-corpus-v1.md	A closed JSON refusal of a named local input (a manifest, a provider record or	unrecorded	-
 DCP-V1-471	docs/specs/documentation-corpus-v1.md	The builder engine names a derivation version (`native-contextindex/<schema>/	unrecorded	-
 DCP-V1-472	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-033` and `DCP-V1-157`, the pinned bytes of a corpus's distinct	unrecorded	-
@@ -2849,6 +2866,9 @@ DCP-V1-503	docs/specs/documentation-corpus-v1.md	(proposed, experimental; GitHub
 DCP-V1-504	docs/specs/documentation-corpus-v1.md	(proposed, experimental; GitHub #1662; owner acceptance open) The provider recor	unrecorded	-
 DCP-V1-505	docs/specs/documentation-corpus-v1.md	(proposed, experimental; GitHub #1662; owner acceptance open) A caller-profile	unrecorded	-
 DCP-V1-506	docs/specs/documentation-corpus-v1.md	(proposed, experimental; GitHub #1662; owner acceptance open) `extract` takes	unrecorded	-
+DCP-V1-520	docs/specs/documentation-corpus-v1.md	(proposed, experimental; GitHub #1662; owner acceptance open) A glob in an	unrecorded	-
+DCP-V1-521	docs/specs/documentation-corpus-v1.md	(proposed, experimental; GitHub #1662; owner acceptance open) The walk descends	unrecorded	-
+DCP-V1-522	docs/specs/documentation-corpus-v1.md	(proposed, experimental; GitHub #1662; owner acceptance open) The walk keeps	unrecorded	-
 DCP-V1-054	docs/specs/documentation-corpus-v1.md	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-
@@ -3339,6 +3359,7 @@ HLQ-V1-007	docs/specs/host-lifecycle-qualification-v1.md	The runner MUST print o
 HLQ-V1-008	docs/specs/host-lifecycle-qualification-v1.md	A result MUST be recorded here with the digests of both binaries and the source	unrecorded	-
 HLQ-V1-009	docs/specs/host-lifecycle-qualification-v1.md	A hook output whose degradation frame names a time bound is not evidence for any	unrecorded	-
 HLQ-V1-010	docs/specs/host-lifecycle-qualification-v1.md	(accepted, decision 0498; V1-1121) With `--failed-reports DIR`, a run in which a	owner	decision 0498; V1-1121
+HLQ-V1-011	docs/specs/host-lifecycle-qualification-v1.md	(proposed; V1-2566, GitHub #1551) Each plugin host profile MUST declare its exac	unrecorded	-
 HDCV0-CAP-001	docs/specs/human-documentation-compiler-v0.md	`corvint-human-documentation-request/0` remains the request profile. Its	unrecorded	-
 HDCV0-CAP-002	docs/specs/human-documentation-compiler-v0.md	The request additionally binds the existing repository/config/intent/output/limi	unrecorded	-
 HDCV0-CAP-003	docs/specs/human-documentation-compiler-v0.md	Admission requires a native Linux host, kernel 5.12 or newer, systemd exactly 26	unrecorded	-

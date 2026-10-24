@@ -268,26 +268,42 @@ func corpusInputPathError(o corpusOptions) error {
 	return nil
 }
 
-// corpusBuildManifest reads the manifest docs corpus build runs: --manifest itself, or the
-// manifest a --artifact embeds, which rebuilds that artifact (DCP-V1-495). Only build writes.
-func corpusBuildManifest(o corpusOptions) (doccorpus.Manifest, error) {
+// corpusBuild builds what docs corpus build prints: --manifest itself, or the manifest a
+// --artifact embeds, which rebuilds that artifact and reuses its records when its derivation
+// is this builder's (DCP-V1-495, DCP-V1-532). Only build writes.
+func corpusBuild(ctx context.Context, o corpusOptions) (*doccorpus.Artifact, error) {
 	// Presence, not value, decides: an empty --manifest= beside --artifact is still both.
 	artifact := o.given["--artifact"]
 	if artifact == o.given["--manifest"] || artifact && o.artifact == "" || !artifact && o.manifest == "" {
-		return doccorpus.Manifest{}, argumentError("docs corpus build requires exactly one of --manifest or --artifact")
+		return nil, argumentError("docs corpus build requires exactly one of --manifest or --artifact")
 	}
 	if artifact {
 		raw, err := doccorpus.ReadCorpusFile(o.root, o.artifact)
 		if err != nil {
-			return doccorpus.Manifest{}, err
+			return nil, err
 		}
-		return doccorpus.ManifestOfArtifact(raw)
+		m, err := doccorpus.ManifestOfArtifact(raw)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := corpusBuildThresholds(o); err != nil {
+			return nil, err
+		}
+		a, _, err := doccorpus.RebuildArtifact(ctx, o.root, m, raw)
+		return a, err
 	}
 	raw, err := doccorpus.ReadCorpusFile(o.root, o.manifest)
 	if err != nil {
-		return doccorpus.Manifest{}, err
+		return nil, err
 	}
-	return doccorpus.ParseManifest(raw)
+	m, err := doccorpus.ParseManifest(raw)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := corpusBuildThresholds(o); err != nil {
+		return nil, err
+	}
+	return doccorpus.BuildAdmitted(ctx, o.root, m)
 }
 
 func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
@@ -306,15 +322,11 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 		return doccorpus.Encode(m)
 	}
 	if o.op == "build" {
-		m, err := corpusBuildManifest(o)
+		a, err := corpusBuild(ctx, o)
 		if err != nil {
 			return nil, err
 		}
 		thresholds, err := corpusBuildThresholds(o)
-		if err != nil {
-			return nil, err
-		}
-		a, err := doccorpus.BuildAdmitted(ctx, o.root, m)
 		if err != nil {
 			return nil, err
 		}
@@ -348,6 +360,13 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 			return nil, err
 		}
 		return doccorpus.Encode(provider)
+	}
+	if o.op == "compact-provider" {
+		raw, err := doccorpus.ReadProviderFile(o.root, o.input)
+		if err != nil {
+			return nil, err
+		}
+		return doccorpus.CompactProvider(o.input, raw)
 	}
 	if o.op == "behavior-adapter" {
 		request, err := doccorpus.ReadFile(o.root, o.input)

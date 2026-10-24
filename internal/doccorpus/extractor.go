@@ -3,7 +3,6 @@ package doccorpus
 import (
 	"bytes"
 	"context"
-	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -520,23 +519,31 @@ func extractorMatchParts(pattern, name []string) bool {
 }
 
 // extractorPaths resolves each extractor's files in path order: literal paths are kept as named
-// (a missing one becomes a gap when read) and patterns walk the revision tree once, skipping
-// node_modules.
+// (a missing one becomes a gap when read) and patterns share one bounded walk of the revision tree
+// that descends only into directories some pattern can match below, skipping node_modules.
 func extractorPaths(ctx context.Context, auth *gitauth.Repository, revision string, extractors []compiledExtractor) ([][]string, error) {
 	paths := make([][]string, len(extractors))
+	var globs [][]string
+	for _, ex := range extractors {
+		for _, pattern := range ex.Files {
+			if extractorGlob(pattern) {
+				globs = append(globs, strings.Split(pattern, "/"))
+			}
+		}
+	}
 	var tree []string
+	if len(globs) > 0 {
+		var err error
+		if tree, err = extractorTree(ctx, auth, revision, globs); err != nil {
+			return nil, err
+		}
+	}
 	for i, ex := range extractors {
 		set := map[string]bool{}
 		for _, pattern := range ex.Files {
 			if !extractorGlob(pattern) {
 				set[pattern] = true
 				continue
-			}
-			if tree == nil {
-				var err error
-				if tree, err = extractorTree(ctx, auth, revision); err != nil {
-					return nil, err
-				}
 			}
 			for _, name := range tree {
 				if extractorMatch(pattern, name) {
@@ -555,32 +562,44 @@ func extractorPaths(ctx context.Context, auth *gitauth.Repository, revision stri
 	return paths, nil
 }
 
-func extractorTree(ctx context.Context, auth *gitauth.Repository, revision string) ([]string, error) {
-	tree, err := auth.RevisionFS(ctx, revision, MaxBytes)
-	if err != nil {
-		return nil, err
-	}
-	names, entries := []string{}, 0
-	err = fs.WalkDir(tree, ".", func(current string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
+// extractorTree lists the revision's non-tree paths in one verified walk whose Git operations
+// grow with directory depth, not directory count (DCP-V1-520), pruning every directory below
+// which no glob can match (DCP-V1-521) within the entry and tree-byte bounds (DCP-V1-522).
+func extractorTree(ctx context.Context, auth *gitauth.Repository, revision string, globs [][]string) ([]string, error) {
+	names, err := auth.RevisionPaths(ctx, revision, affected.MaxWalkEntries, func(dir string) bool {
+		if path.Base(dir) == "node_modules" {
+			return false
 		}
-		if entries++; entries > affected.MaxWalkEntries {
-			return affected.ErrWalkLimit
-		}
-		if entry.IsDir() {
-			if entry.Name() == "node_modules" {
-				return fs.SkipDir
+		parts := strings.Split(dir, "/")
+		for _, glob := range globs {
+			if extractorGlobBelow(glob, parts) {
+				return true
 			}
-			return nil
 		}
-		names = append(names, current)
-		return nil
+		return false
 	})
 	if err != nil {
 		return nil, fail("extraction cannot enumerate the revision: " + err.Error())
 	}
 	return names, nil
+}
+
+// extractorGlobBelow reports whether a path below dir can match glob. Until the glob's first `**`
+// each segment matches exactly one path segment, so dir must match those segments and leave the
+// file segment below it; after a `**` any directory can hold a match.
+func extractorGlobBelow(glob, dir []string) bool {
+	for i, part := range dir {
+		if glob[i] == "**" {
+			return true
+		}
+		if i == len(glob)-1 {
+			return false
+		}
+		if ok, _ := path.Match(glob[i], part); !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // extractorRead reads one file as a regular UTF-8 Git blob within the input bound, or names the

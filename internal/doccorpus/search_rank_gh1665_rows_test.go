@@ -60,8 +60,10 @@ func TestDCPV1479SearchServesRankGroups(t *testing.T) {
 	}
 	for id, rank := range want {
 		got := r.ResultRanks[id]
-		if got.Rank != rank || got.Group != 1 || got.Tier != "terms" || got.Score <= 0 || got.Score > 1 || got.Terms != 0 {
-			t.Fatalf("%s: %+v, want rank %d in tie group 1 with a terms score in (0,1]", id, got, rank)
+		// DCP-V1-544 amends DCP-V1-479: docs_search now serves terms, the
+		// one query word each result holds.
+		if got.Rank != rank || got.Group != 1 || got.Tier != "terms" || got.Score <= 0 || got.Score > 1 || got.Terms != 1 {
+			t.Fatalf("%s: %+v, want rank %d in tie group 1 with a terms score in (0,1] and one held word", id, got, rank)
 		}
 	}
 	if r.ResultRanks["adapter:s9"].Score != r.ResultRanks["adapter:s10"].Score {
