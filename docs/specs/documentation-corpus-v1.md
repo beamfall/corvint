@@ -1831,6 +1831,71 @@ drop `result_ranks` (readers that ignore it are unaffected), remove the derivati
 and return `DerivationVersion` to `1`; artifacts built in between are then refused as another
 derivation and rebuilt. No stored state needs migration.
 
+### Query words, identifier tokens and named subjects (GitHub #1665 re-test leftovers)
+
+The re-test of #1665 after #1683 left three shapes open. An exact identifier or file name
+(`waitlist_notifier`, `on_deck_controller.rb`) returned a shorter feature name or the file's own
+declarations, all phrase matches, ahead of the file. A question ("What breaks in Reservation
+Cancellation, and under what conditions?") was one tie group with `terms: 0` on every result, and a
+plural question word yielding two evidence terms (`breaks`, `break`) outweighed the two words of the
+flow's name, so a short name holding that word ranked first. Status for `DCP-V1-540..546`:
+proposed, experimental; GitHub #1665.
+
+- `DCP-V1-540`: Amending `DCP-V1-400` and `DCP-V1-402`, `docs_search` groups the query's evidence
+  terms by the query word (`DCP-V1-475` words) that yields them; a term no single word yields is a
+  group of its own. A subject or merged claim scores, per group, the best weighted idf among the
+  group's terms it holds, and the family maximum adds the group's largest idf once, so a word and
+  its singular count once. Groups and their terms are summed in sorted order. Failure modes: a
+  plural word never counts twice; the score stays in [0, 1]. Acceptance:
+  `TestDCPV1540QueryWordCountsOnce`.
+- `DCP-V1-541`: A query that is one identifier of at least two words ranks, in tier `identifier`
+  after `exact`, a subject one of whose name tokens, or of a module or file subject's anchor-path
+  tokens, spells it: the token's words, or its words without its last `.` suffix, equal the
+  query's. A token is a run of letters, digits, `_`, `-` and `.`, trimmed of `.`; the ID is not
+  read. So `pos_sync`, `PosSync` and `pos_sync.rb` name `src/app/services/pos_sync.rb`, and the
+  name "POS sync dashboard" names none of them. A spaced query is never an identifier. Acceptance:
+  `TestDCPV1541IdentifierTokenTier`.
+- `DCP-V1-542`: Amending `DCP-V1-475`, a phrase match orders by where the phrase is held: tier
+  `path-phrase` (a module or file subject's name or anchor path) before `phrase` (another
+  subject's non-prose name, or a prose name for a one-identifier query) before `id-phrase` (only
+  the subject's ID). The query "on deck" ranks `on_deck_controller.rb` before the
+  `OnDeckController` declaration, and both before the `index` declaration whose ID embeds the path
+  (V1-2549). Acceptance: `TestDCPV1542PathPhraseBeforeDeclarations`.
+- `DCP-V1-543`: A question-shaped query (it ends with `?`, or its first whitespace field is a
+  question word, ignoring case) ranks in tier `named`, after the phrase tiers and before `terms`,
+  a subject whose non-prose name of at least two words, at least one an evidence term, appears as
+  a contiguous run of the query's words. An allocation-free prefilter skips names whose letter
+  pieces the lower-cased query does not hold. Failure modes: a statement never gets `named`; the
+  identifier `is_admin` is not a question; a single-word name is never `named`. Acceptance:
+  `TestDCPV1543QuestionNamesASubject`.
+- `DCP-V1-544`: Amending `DCP-V1-479`, `tier` is one of `exact`, `identifier`, `path-phrase`,
+  `phrase`, `id-phrase`, `named` and `terms`, in rank order; a group is the results of one tier
+  with one served score; and `docs_search` serves `terms`, the number of query words a result
+  holds (omitted when zero). `docs_claims` ranking (`DCP-V1-480`) is unchanged. Acceptance:
+  `TestDCPV1544ServedTiersAndTerms`, `TestDCPV1479SearchServesRankGroups`.
+- `DCP-V1-545`: The tiers and groups are computed per read from the artifact and the query, with
+  the same order from the query index and the subject scan; no index key, artifact member,
+  encoding or the frozen evidence tokenizer changes, and no stored state is written. Acceptance:
+  every test above compares the indexed and scanned orders; `TestDCPV1404SearchRankingEvalFixture`.
+- `DCP-V1-546`: A committed synthetic fixture,
+  `internal/mcp/corpusbridge/testdata/search-ranking-gh1665-leftovers/` (three question cases and
+  five identifier cases reproducing the re-test shapes, including an unowned `.yml` file the
+  native analyzer does not parse and a records-owned Ruby service), is scored through the MCP tool
+  path: every case passes, twice with equal ranks. Frozen outcomes, measured on linux/WSL2: on the
+  base `0949876e` the fixture passes 5 of 8 (question 2 of 3, identifier 3 of 5); after this change
+  8 of 8. The #1665 fixture's row 4 now names the controller file as its one strict subject (it
+  previously accepted any result anchored to the path, which the `index` declaration satisfied):
+  0 of 1 on the base, 1 of 1 after; its other 7 cases and all 12 #1597 cases pass before and after.
+  `TestDCPV1479SearchServesRankGroups` expected `terms` absent on `docs_search`; it now expects
+  `1`. Acceptance: `TestDCPV1546GH1665LeftoversRankingEvalFixture`,
+  `TestDCPV1486GH1665RankingEvalFixture`.
+
+Non-goals: no document-length normalization (short names already break score ties,
+`DCP-V1-477`), no stop-word or tokenizer change, no `docs_claims` change, no learned or tunable
+weights, and no `named` tier for single-word subject names. Rollback: restore the per-term sum and
+the exact, phrase and terms tiers of `DCP-V1-475` and `DCP-V1-479`, and the fixtures' previous
+expectations. No stored state needs migration.
+
 ### Caller-owned retrieval evaluation (`docs corpus eval`)
 
 `corvint docs corpus eval --artifact PATH --cases PATH [--baseline PATH] [--format json|table]`
@@ -3708,6 +3773,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-482..484 | `internal/doccorpus/compile.go` | `TestDCPV1482DeclarationsOfRecordsOwnedSource`, `TestDCPV1483DerivationScope`, `TestDCPV1484DerivationNeverRefusesABuildableManifest`, `TestDCPV1484RefusedFirstDeclarationRestoresShardCache`, `TestDCPV1484RetryAnswersOnlyCorpusRefusals` |
 | DCP-V1-485 | `internal/doccorpus/encoding.go` | `TestDCPV1485DerivationTwoRefusesDerivationOneArtifacts`, `TestDCPV1471DerivationVersionGuard` |
 | DCP-V1-486 | `internal/mcp/corpusbridge/testdata/search-ranking-gh1665/` | `TestDCPV1486GH1665RankingEvalFixture` |
+| DCP-V1-540..546 | `internal/doccorpus/search_rank.go`, `search_tier.go`, `search_phrase.go`, `types.go`, `internal/mcp/corpusbridge/testdata/search-ranking-gh1665-leftovers/` | `TestDCPV1540QueryWordCountsOnce`, `TestDCPV1541IdentifierTokenTier`, `TestDCPV1542PathPhraseBeforeDeclarations`, `TestDCPV1543QuestionNamesASubject`, `TestDCPV1544ServedTiersAndTerms`, `TestDCPV1404SearchRankingEvalFixture`, `TestDCPV1546GH1665LeftoversRankingEvalFixture`, `TestDCPV1486GH1665RankingEvalFixture`; measured in docs/build-log/2026-10-24-gh1665-rank-leftovers.md |
 | DCP-V1-468 | `internal/doccorpus/artifact_decode.go`, `query_index_fast.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1419FastIndexMatchesReference` |
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-487..489 | `internal/doccorpus/compact_anchor.go`, `shards.go`, `encoding.go` | `TestDCPV1487CompactAnchorTableEquivalent`, `TestDCPV1488CompactAnchorRefusals`, `TestDCPV1489CompactAnchorSizeMeasured`; measured in docs/build-log/2026-10-24-corpus-compact-anchor-table.md |
