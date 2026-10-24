@@ -2925,9 +2925,12 @@ caller who edits the profile without updating the digest is refused, never silen
 profile placed inside the working tree is refused rather than treated as committed. Rollback
 removes the option and the optional members: caller-profile inventories already emitted stay
 readable to every lenient reader, and their provider records stay admissible.
-Not delivered here: the compact per-file anchor table of #1664 (an anchor encoding change), a
-`score` or rank group on served rows and symbol subjects derived from indexed inputs (#1665
-rows 3 and 5), and rebuilding an artifact from its embedded manifest (#1667).
+Caller-owned profiles stay refused on platforms without the no-follow reader, so Windows support
+is not met. Not delivered here: a `score` or rank group on served rows and symbol subjects
+derived from indexed inputs (#1665 rows 3 and 5). The compact per-file anchor table of #1664
+(`DCP-V1-487..489`) and the rebuild from an embedded manifest of #1667 (`DCP-V1-495..498`) are
+specified in their own sections; no producer writes the compact `/2` record yet (V1-2547), and
+release notes naming the merges that change the derivation version remain owner work (V1-2545).
 
 ## Input and authority boundary
 
