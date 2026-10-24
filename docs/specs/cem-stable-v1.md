@@ -309,6 +309,32 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   It is opt-in and is not a `make gate` step; wiring it into a release workflow is an owner
   `.github/` change.
 
+- `CEM-V1-606`: (proposed; V1-2577) The sealed verdict gate (`corvint cem gate-verdict`, TCB-V0-011)
+  MUST satisfy a governed `cited` hunk on the `runner-input` basis only when all of these hold:
+  the candidate commit has a regular-file post-image at the hunk path; a `criterionLinks` row lists
+  the hunk and names at least one runner receipt; its criterion is the plain form and that
+  criterion's `evidenceId` is in the hunk's basis; every receipt the link names is a
+  `runnerReceipts` row with profile `corvint-test-runner-receipt/0` whose `runner-plan` and
+  `runner-receipt` artifacts are read from the candidate commit's objects with exactly the digests
+  the row binds, decode as closed runner documents, bind the receipt to that plan by plan identity,
+  and record a complete run with no problem, no error and at least one test, every one `PASSED`;
+  and one of those plans lists the hunk path in `inputFiles` with the SHA-256 of the candidate
+  blob. The hunk's recomputed tier is reported unchanged; `anchor` names the basis.
+- `CEM-V1-607`: (proposed; V1-2577) The gate MUST satisfy a governed `cited` hunk on the
+  `runner-artifact` basis only when its path is a map `artifacts` row of kind `runner-plan` or
+  `runner-receipt`, a `runnerReceipts` row binds that row's digest (`sha256` for a receipt,
+  `planSha256` for a plan), the candidate blob at the path has that SHA-256, and the bound run
+  satisfies the run conditions of CEM-V1-606.
+- `CEM-V1-608`: (proposed; V1-2577) An unsatisfied governed hunk MUST name one closed `reason`:
+  `uncited` (tier below `cited`), `no-post-image` (no regular file at the path in the candidate),
+  `no-runner-binding`, `runner-not-passed`, `runner-artifact-mismatch` or `runner-input-mismatch`,
+  the most specific observed; the gate still refuses `CEM_VERDICT_PREDICATE_FAILED` /
+  `tier-below-anchored`. A path row is satisfied only when every governed hunk at that path is. The
+  `anchor` and `reason` members are omitted when empty, so a hunk satisfied by its tier encodes
+  as before. Runner evidence is read only when a governed hunk is below `anchored`; a failed Git
+  read refuses `CEM_VERDICT_UNVERIFIABLE` / `git-read-failed` with no governed rows. The citation
+  block, the verdict digest and the portable cross-check are unchanged.
+
 - `CEM-V1-573`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2322) A
   `cem-stable-plain-assembly/1` request MAY name `runners`, an array of 1 to 64
   `{runnerPlan, runnerReceipt}` pairs of pinned inputs, in place of the top-level `runnerPlan` and
@@ -4672,3 +4698,46 @@ sealed case depends on them.
 | CEM-V1-603 | `TestCEMV1603JudgeReadiness`, `TestCEMV1603ReadinessPathIsRepositoryRelative` | Committed declaration exits 3 with `release-runner-incomplete` |
 | CEM-V1-604 | `TestCEMV1604MigrationA02Integrated` (`internal/companionrelease`); `make cem-stable-regen-check` | Node check recomputes the manifest pin |
 | CEM-V1-605 | `make cem-release-gate` run recorded in `docs/build-log/2026-10-24-cem-1-0-real-lifecycle.md`; `node --test tools/cem-release-suites/readiness.test.mjs` | Exit 3 refused; not a gate step |
+
+## Runner-bound verdict anchors (V1-2577, 2026-10-24)
+
+Status: proposed (V1-2577); experimental until owner acceptance. The first real cem/1.0
+lifecycle (`docs/build-log/2026-10-24-cem-1-0-real-lifecycle.md`) refused the sealed verdict
+gate over its full touched scope with `tier-below-anchored`: 13 of 20 paths were new files or
+committed runner artifacts that no BASE span can name (CEM-V1-081), so they stayed `cited`. The
+map did carry evidence for them: passed runner receipts whose plans pin those files' bytes, and
+artifact digests the receipts bind. This section makes the gate read that evidence. It is a
+gate rule, not a citation rule: `verify.Citation` is the portable cross-consumer block
+(TCB-V0-017), so no tier changes and `interop/cem01-go` is unaffected. TCB-V0-011 is amended by
+cross-reference to admit these bases.
+
+The requirements are `CEM-V1-606` to `CEM-V1-608` in `## Requirements`.
+
+Non-goals: no tier is raised; no exemption by path, kind or file age; opaque (`opaque/0`)
+receipts bind nothing; no working-tree read; no change to the citation, verdict or portable
+cross-check. The acceptance criterion's wording "a spec span in the same change" is not used:
+the gate has no parsed patch to read added spec bytes from, and the runner binding is the
+mechanical evidence the map already pins.
+
+Failure modes: a stale plan digest, a failed or incomplete run, a receipt not bound to its plan,
+missing or edited artifact bytes, an unlinked hunk, a deletion and an uncited hunk each refuse
+with the named reason; a Git read failure is unverifiable, never satisfied.
+
+Acceptance evidence: the tests below, and the rerun of the gate over #1703's full touched scope
+(20 paths), base `0949876e`, candidate `adda562c`, which now GRANTs with verdict
+`5058b4ccfe2d6d7b1371e708ba8ed853b69e1c0f4b3dab20356a31ab8da9f605` (18 hunks `runner-input`,
+6 `runner-artifact`, 12 `anchored`), recorded in
+`docs/build-log/2026-10-24-cem-verdict-runner-anchors.md`.
+
+Rollback: revert the change; `cem_verdict_runner.go` and the `anchor`/`reason` members go away
+and the gate refuses those paths again. Pinned GRANT documents whose hunks were all satisfied by
+tier are byte-identical under both versions; a pinned runner-bound GRANT stops reverifying
+(TCB-V0-013) after a rollback, which is the intended refusal.
+
+### Runner-bound verdict anchors traceability
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-606 | `TestCEMV1606RunnerInputAnchorsNewAndEditedFiles` (`internal/taskman`): new and edited files GRANT on `runner-input`, tiers equal the citation, pinned bytes reverify | #1703 rerun: 18 `runner-input` hunks |
+| CEM-V1-607 | `TestCEMV1607RunnerArtifactAnchorsCommittedRunnerArtifacts`: plan and receipt GRANT on `runner-artifact`; a failed run anchors neither | #1703 rerun: 6 `runner-artifact` hunks |
+| CEM-V1-608 | `TestCEMV1608UnanchorablePathsRefuseWithANamedReason` (deletion, input absent from the plan, stale input digest, failed run, opaque receipt, unlinked hunk; `all-anchored` refuses), `TestCEMV1608RunnerAnchorReasonsAndReadFailure`, `TestCEMV1608AnchoredGrantEncodesWithoutRunnerMembers` | Earlier tier-only GRANT bytes unchanged |

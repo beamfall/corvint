@@ -126,11 +126,18 @@ type cemPortablePin struct {
 	CitationSha256 *string `json:"citationSha256"`
 }
 
+// cemVerdictHunk is one governed hunk. Tier is always the recomputed citation
+// tier; Anchor names the runner-bound basis that satisfies a hunk below
+// anchored (CEM-V1-606, CEM-V1-607) and Reason the closed reason an
+// unsatisfied hunk names (CEM-V1-608). Both are omitted when empty, so a hunk
+// satisfied by its tier encodes exactly as before.
 type cemVerdictHunk struct {
 	HunkID    string `json:"hunkId"`
 	Path      string `json:"path"`
 	Tier      string `json:"tier"`
 	Satisfied bool   `json:"satisfied"`
+	Anchor    string `json:"anchor,omitempty"`
+	Reason    string `json:"reason,omitempty"`
 }
 
 // cemVerdictPath is one governed path's minimum recomputed tier (TCB-V0-018).
@@ -303,7 +310,7 @@ func (g *verdictGate) evaluate(ctx context.Context, in CEMVerdictInput) {
 		return
 	}
 	g.doc.Citation = r.Citation
-	g.predicate(in.Predicate, touch, document.Change.Hunks, r.Citation)
+	g.predicate(in.Predicate, touch, document.Change.Hunks, r.Citation, newRunnerBinding(git, in.CandidateCommit, document).anchor)
 }
 
 // crossCheck runs the independent portable consumer over the same map bytes
@@ -533,25 +540,45 @@ func tierRank(tier string) int {
 
 // predicate reads tiers only from the recomputed citation block; hunk paths
 // come from the map the consumer just admitted against the recomputed patch.
-// Each governed path also reports its minimum tier (TCB-V0-018).
-func (g *verdictGate) predicate(name string, touch []string, hunks []wire.Hunk, citation *verify.Citation) {
-	paths := map[string]string{}
+// A hunk below anchored is satisfied only on a runner-bound basis anchor
+// returns (CEM-V1-606 to CEM-V1-608); its tier is never raised. Each governed
+// path reports its minimum tier and is satisfied only when every one of its
+// governed hunks is (TCB-V0-018).
+func (g *verdictGate) predicate(name string, touch []string, hunks []wire.Hunk, citation *verify.Citation, anchor runnerAnchor) {
+	byID := map[string]wire.Hunk{}
 	for _, hunk := range hunks {
-		paths[hunk.ID] = hunk.Path
+		byID[hunk.ID] = hunk
 	}
 	satisfied := true
 	minimum := map[string]cemVerdictPath{}
 	for _, row := range citation.Hunks {
-		path := paths[row.HunkID]
+		hunk := byID[row.HunkID]
+		path := hunk.Path
 		if name == PredicateTouchedAnchored && !underTouchPath(path, touch) {
 			continue
 		}
-		ok := row.Tier == verify.TierAnchored || row.Tier == verify.TierMechanicalProved || row.Tier == verify.TierHeld
-		g.doc.Governed = append(g.doc.Governed, cemVerdictHunk{HunkID: row.HunkID, Path: path, Tier: row.Tier, Satisfied: ok})
-		satisfied = satisfied && ok
-		if seen, found := minimum[path]; !found || tierRank(row.Tier) < tierRank(seen.Tier) {
-			minimum[path] = cemVerdictPath{Path: path, Tier: row.Tier, Satisfied: ok}
+		governed := cemVerdictHunk{HunkID: row.HunkID, Path: path, Tier: row.Tier}
+		governed.Satisfied = row.Tier == verify.TierAnchored || row.Tier == verify.TierMechanicalProved || row.Tier == verify.TierHeld
+		if !governed.Satisfied {
+			governed.Reason = runnerReasonNoBinding
+			if anchor != nil {
+				bound, reason, err := anchor(hunk, row.Tier)
+				if err != nil {
+					g.doc.Governed, g.doc.Paths = []cemVerdictHunk{}, []cemVerdictPath{}
+					g.refuse(CEMVerdictUnverifiable, "git-read-failed")
+					return
+				}
+				governed.Anchor, governed.Reason, governed.Satisfied = bound, reason, bound != ""
+			}
 		}
+		g.doc.Governed = append(g.doc.Governed, governed)
+		satisfied = satisfied && governed.Satisfied
+		seen, found := minimum[path]
+		if !found || tierRank(row.Tier) < tierRank(seen.Tier) {
+			seen.Path, seen.Tier = path, row.Tier
+		}
+		seen.Satisfied = governed.Satisfied && (!found || seen.Satisfied)
+		minimum[path] = seen
 	}
 	for _, row := range minimum {
 		g.doc.Paths = append(g.doc.Paths, row)
