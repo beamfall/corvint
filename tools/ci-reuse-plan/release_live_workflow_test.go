@@ -54,12 +54,15 @@ func readText(t *testing.T, path string) string {
 }
 
 // AFP-V0-432 (V1-2580): cem-release-gate runs `make cem-release-gate` on linux/amd64 and
-// darwin/arm64 with the pinned Go toolchain, fails on any nonzero exit (the readiness refusal
-// included), and retains the output of each platform even when the gate fails. It lives in its
-// own workflow on ci.yml's triggers: the always-red gate inside ci.yml would fail every CI run,
-// and the AFP-V0-080 static reuse and the tested-tree reuse accept only successful ci.yml runs.
+// darwin/arm64 with the pinned Go toolchain and writes each host's run record and outcome. A host
+// job fails on a suite failure (a nonzero exit without both files) and passes when only its own
+// readiness view refused; it retains its output, record and outcome even when it fails. The
+// cem-release-readiness job aggregates both hosts' records and fails on any nonzero exit, the
+// readiness refusal included. Both live in their own workflow on ci.yml's triggers: the
+// always-red readiness job inside ci.yml would fail every CI run, and the AFP-V0-080 static reuse
+// and the tested-tree reuse accept only successful ci.yml runs.
 func TestAFPV0432CEMReleaseGateRunsOnBothPlatformsAndRetainsOutput(t *testing.T) {
-	testplatform.SkipPOSIXShell(t, "the cem-release-gate step runs under bash with a #!/bin/sh make spy")
+	testplatform.SkipPOSIXShell(t, "the cem-release-gate steps run under bash with #!/bin/sh make and go spies")
 	if strings.Contains(readWorkflow(t, "ci.yml"), "make cem-release-gate") {
 		t.Error("ci.yml must not run the release gate: its refusal would fail every CI run and end CI reuse")
 	}
@@ -72,6 +75,9 @@ func TestAFPV0432CEMReleaseGateRunsOnBothPlatformsAndRetainsOutput(t *testing.T)
 	} {
 		wantLine(t, "cem-release-gate.yml", w, line)
 	}
+	if strings.Contains(w, "continue-on-error") {
+		t.Error("the CEM release gate must not mask a failed job with continue-on-error")
+	}
 	b := jobBlock(t, w, "cem-release-gate")
 	for _, line := range []string{
 		batchedJobCondition,
@@ -80,44 +86,95 @@ func TestAFPV0432CEMReleaseGateRunsOnBothPlatformsAndRetainsOutput(t *testing.T)
 		"      fail-fast: false",
 		`          go-version: "1.27.3"`,
 		`          node-version: "24.11.1"`,
-		`          make cem-release-gate > "$out/output.txt" 2>&1 || code=$?`,
-		`          exit "$code"`,
+		`          make cem-release-gate CEM_RELEASE_RECORD="$out/record.json" CEM_RELEASE_OUTCOME="$out/outcome.json" > "$out/output.txt" 2>&1 || code=$?`,
 		"        if: always()",
 		"          name: cem-release-gate-${{ matrix.os }}",
-		"          path: ${{ runner.temp }}/cem-release-gate/output.txt",
+		"          path: ${{ runner.temp }}/cem-release-gate/",
 	} {
 		wantLine(t, "cem-release-gate", b, line)
 	}
-	if strings.Contains(b, "continue-on-error") {
-		t.Error("cem-release-gate must not mask a failed gate with continue-on-error")
-	}
 	script := runScript(t, b)
+	passed := `{"profile":"cem-release-run/1","runner":{"cem01-go:repository-envelope":"PASSED","corvint:tamper-matrix":"PASSED"},"platforms":{"linux/amd64":"PASSED"}}`
+	unrun := `{"profile":"cem-release-run/1","runner":{"cem01-go:repository-envelope":"NOT_RUN","corvint:tamper-matrix":"PASSED"},"platforms":{"linux/amd64":"PASSED"}}`
 	for _, tc := range []struct {
-		name string
-		exit string
+		name, exit, record string
+		outcome            bool
+		want               int
 	}{
-		{"pass", "0"},
-		{"readiness refusal", "2"},
+		{"ready", "0", passed, true, 0},
+		{"host readiness refusal after the suites", "2", passed, true, 0},
+		{"suite failure", "2", "", false, 2},
+		{"record without outcome", "2", passed, false, 2},
+		{"envelope suite recorded NOT_RUN", "2", unrun, true, 2},
+		{"record without runner rows", "2", `{"runner":{}}`, true, 2},
 	} {
 		dir := t.TempDir()
-		writeExecutable(t, filepath.Join(dir, "bin", "make"),
-			"echo \"cem-release-suites: readiness: REFUSED (spy $*)\"\nexit "+tc.exit+"\n")
+		spy := "echo \"cem-release-suites: readiness: REFUSED (spy $1)\"\n"
+		if tc.record != "" {
+			spy += "for a; do case $a in CEM_RELEASE_RECORD=*) echo '" + tc.record + "' > \"${a#*=}\";; esac; done\n"
+		}
+		if tc.outcome {
+			spy += "for a; do case $a in CEM_RELEASE_OUTCOME=*) echo '{}' > \"${a#*=}\";; esac; done\n"
+		}
+		writeExecutable(t, filepath.Join(dir, "bin", "make"), spy+"exit "+tc.exit+"\n")
 		summary := filepath.Join(dir, "summary.md")
 		code, out := runBash(t, dir, script,
 			"PATH="+filepath.Join(dir, "bin")+string(os.PathListSeparator)+os.Getenv("PATH"),
 			"RUNNER_TEMP="+dir, "GITHUB_STEP_SUMMARY="+summary)
-		if want, _ := strconv.Atoi(tc.exit); code != want {
-			t.Errorf("%s: step exited %d, want %d\n%s", tc.name, code, want, out)
+		if code != tc.want {
+			t.Errorf("%s: step exited %d, want %d\n%s", tc.name, code, tc.want, out)
 		}
 		retained := readText(t, filepath.Join(dir, "cem-release-gate", "output.txt"))
 		if !strings.Contains(retained, "readiness: REFUSED (spy cem-release-gate)") {
 			t.Errorf("%s: retained output %q lacks the gate output", tc.name, retained)
 		}
-		if s := readText(t, summary); !strings.Contains(s, "make cem-release-gate exited "+tc.exit+".") {
+		if s := readText(t, summary); !strings.Contains(s, "make cem-release-gate exited "+tc.exit+";") {
 			t.Errorf("%s: summary %q does not name the exit", tc.name, s)
 		}
-		if failed := strings.Contains(out, "::error::"); failed != (tc.exit != "0") {
+		if failed := strings.Contains(out, "::error::"); failed != (tc.want != 0) {
 			t.Errorf("%s: error annotation present = %v\n%s", tc.name, failed, out)
+		}
+	}
+
+	r := jobBlock(t, w, "cem-release-readiness")
+	for _, line := range []string{
+		batchedJobCondition,
+		"    needs: cem-release-gate",
+		"    runs-on: ubuntu-24.04",
+		`          go-version: "1.27.3"`,
+		"          pattern: cem-release-gate-*",
+		`          go build -o "$RUNNER_TEMP/cem-release-suites" ./tools/cem-release-suites`,
+		`          "$RUNNER_TEMP/cem-release-suites" --aggregate --readiness tools/cem-release-suites/READINESS.json --outcome "$out/outcome.json" "$records/cem-release-gate-ubuntu-24.04/record.json" "$records/cem-release-gate-macos-15/record.json" > "$out/output.txt" 2>&1 || code=$?`,
+		`          exit "$code"`,
+		"        if: always()",
+		"          name: cem-release-readiness",
+		"          path: ${{ runner.temp }}/cem-release-readiness/",
+	} {
+		wantLine(t, "cem-release-readiness", r, line)
+	}
+	script = runScript(t, r)
+	for _, exit := range []string{"0", "3"} {
+		dir := t.TempDir()
+		// The go spy builds a tool spy that reports its arguments and exits with the tool's code.
+		tool := "#!/bin/sh\necho \"cem-release-suites: readiness: REFUSED (spy $1 $(basename $(dirname $6)) $(basename $(dirname $7)))\"\nexit " + exit + "\n"
+		writeExecutable(t, filepath.Join(dir, "bin", "go"),
+			"test \"$1 $2 $4\" = \"build -o ./tools/cem-release-suites\" || exit 9\nprintf '%s' '"+tool+"' > \"$3\" && chmod +x \"$3\"\n")
+		summary := filepath.Join(dir, "summary.md")
+		code, out := runBash(t, dir, script,
+			"PATH="+filepath.Join(dir, "bin")+string(os.PathListSeparator)+os.Getenv("PATH"),
+			"RUNNER_TEMP="+dir, "GITHUB_STEP_SUMMARY="+summary)
+		if want, _ := strconv.Atoi(exit); code != want {
+			t.Errorf("aggregate exit %s: step exited %d\n%s", exit, code, out)
+		}
+		retained := readText(t, filepath.Join(dir, "cem-release-readiness", "output.txt"))
+		if !strings.Contains(retained, "REFUSED (spy --aggregate cem-release-gate-ubuntu-24.04 cem-release-gate-macos-15)") {
+			t.Errorf("aggregate exit %s: retained output %q does not judge both hosts' records", exit, retained)
+		}
+		if s := readText(t, summary); !strings.Contains(s, "--aggregate exited "+exit+".") {
+			t.Errorf("aggregate exit %s: summary %q does not name the exit", exit, s)
+		}
+		if failed := strings.Contains(out, "::error::"); failed != (exit != "0") {
+			t.Errorf("aggregate exit %s: error annotation present = %v\n%s", exit, failed, out)
 		}
 	}
 }
