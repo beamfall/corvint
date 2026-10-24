@@ -1099,11 +1099,18 @@ type registryCaller struct {
 	precise  bool
 	evidence []any
 	seen     map[string]bool
+	// truncated counts distinct rows the maxEvidence ceiling dropped (MCPV0-112).
+	truncated int
 }
 
 func (caller *registryCaller) add(item map[string]any) {
 	identity := fmt.Sprintf("%s:%v:%s", item["path"], item["line"], item["reason"])
-	if caller.seen[identity] || len(caller.evidence) == maxEvidence {
+	if caller.seen[identity] {
+		return
+	}
+	if len(caller.evidence) == maxEvidence {
+		caller.seen[identity] = true
+		caller.truncated++
 		return
 	}
 	caller.seen[identity] = true
@@ -1270,9 +1277,9 @@ func (dialect *registryDialect) impact(index *Index, changedPath string, importe
 		if row.precise {
 			score, summary = 640, "passes a registry key bound to "+changedPath
 		}
-		ranked = append(ranked, rankedResult{score: score, order: 1, key: name, result: map[string]any{
-			"kind": kind, "id": name, "score": score, "summary": summary, "evidence": row.evidence,
-		}})
+		result := map[string]any{"kind": kind, "id": name, "score": score, "summary": summary, "evidence": row.evidence}
+		noteEvidenceTruncated(result, row.truncated)
+		ranked = append(ranked, rankedResult{score: score, order: 1, key: name, result: result})
 	}
 	return ranked, unknowns
 }
