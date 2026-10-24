@@ -13,11 +13,13 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 func buildCandidateCLI(t *testing.T) string {
 	t.Helper()
-	binary := filepath.Join(t.TempDir(), "corvint-analyzer-kotlin-android")
+	binary := filepath.Join(t.TempDir(), testplatform.Executable("corvint-analyzer-kotlin-android"))
 	goBinary := filepath.Join(runtime.GOROOT(), "bin", "go")
 	command := exec.Command(goBinary, "build", "-o", binary, "../../cmd/corvint-analyzer-kotlin-android")
 	command.Env = append(os.Environ(), "GOTOOLCHAIN=local")
@@ -202,6 +204,7 @@ func TestJSONDepthTokenAndStringBoundsUnderAtAndOver(t *testing.T) {
 }
 
 func TestProcessNetworkAndAmbientSpiesWithPositiveControls(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the process-spy positive control is a #!/bin/sh trap script")
 	binary := buildCandidateCLI(t)
 	raw := canonical(t, pinned(t))
 	root := t.TempDir()

@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 func TestRunExactLFAndRejectsFileArguments(t *testing.T) {
@@ -150,6 +152,7 @@ func TestBuiltCLILiteralGoldensAndFreshProcessPermutations(t *testing.T) {
 }
 
 func TestBuiltCLIAmbientEffectSpiesWithPositiveControls(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the process positive control runs a #!/bin/sh sh spy placed on PATH")
 	root := t.TempDir()
 	binary := buildCLI(t, root)
 	pathDir := filepath.Join(root, "path")
