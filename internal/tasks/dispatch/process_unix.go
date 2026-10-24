@@ -208,8 +208,10 @@ func launch(argv, env []string, dir, logDir string) (int, string, <-chan int, er
 // session. Session expansion is disabled once the session ID names a
 // different process, so PID reuse cannot pull in an unrelated session. An
 // unreadable identity leaves the recorded tree unchanged and returns the
-// error: an unobservable member is never taken for a gone one. Processes of
-// the verified detached run supervisors in exempt are left out (CAL-V0-145).
+// error: an unobservable member is never taken for a gone one, and neither is
+// a member or leader whose identity compares unknown (PSR-V0-227). Processes
+// of the verified detached run supervisors in exempt are left out
+// (CAL-V0-145).
 func refreshTree(w *Worker, procs map[int]proc, exempt map[int]string) error {
 	ex, err := newExemption(procs, exempt, w.PID)
 	if err != nil {
@@ -226,9 +228,14 @@ func refreshTree(w *Worker, procs map[int]proc, exempt map[int]string) error {
 				return err
 			}
 			// The recorded identity is kept, so a Linux btime one second
-			// off this read never drifts the record (PSR-V0-227).
-			if supervisor.SameProcess(id, m.Identity) {
+			// off this read never drifts the record; a wider gap with the
+			// same start tick may be the member after a clock step, so it
+			// is uncertainty, never a gone member (PSR-V0-227).
+			switch supervisor.CompareIdentity(id, m.Identity) {
+			case supervisor.IdentitySame:
 				members[m.PID] = m.Identity
+			case supervisor.IdentityUnknown:
+				return fmt.Errorf("process %d identity is uncertain: %s is not %s within one second", m.PID, id, m.Identity)
 			}
 		}
 	}
@@ -240,7 +247,11 @@ func refreshTree(w *Worker, procs map[int]proc, exempt map[int]string) error {
 		if err != nil {
 			return err
 		}
-		session = id == "" || supervisor.SameProcess(id, w.LeaderIdentity)
+		match := supervisor.CompareIdentity(id, w.LeaderIdentity)
+		if match == supervisor.IdentityUnknown {
+			return fmt.Errorf("leader %d identity is uncertain: %s is not %s within one second", w.PID, id, w.LeaderIdentity)
+		}
+		session = id == "" || match == supervisor.IdentitySame
 	}
 	pids := make([]int, 0, len(procs))
 	for pid := range procs {

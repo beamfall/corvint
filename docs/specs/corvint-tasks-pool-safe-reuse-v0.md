@@ -1336,7 +1336,10 @@ check; the guard code is unchanged.
   `btime` further apart MUST be unknown. A site where a live process blocks an action MUST treat
   unknown as possibly live (`QUIESCENCE_UNPROVED`, uncertain, or may run); a site where liveness
   permits an action (signal, membership, heartbeat ownership, pulse `RUNNING`) MUST treat unknown as
-  not the recorded process; a status reader with an `UNKNOWN` state MUST report it. A comparison of
+  not the recorded process; a status reader with an `UNKNOWN` state MUST report it. The dispatch
+  worker tree refresh MUST keep the recorded tree and return an uncertainty error for an unknown
+  member or leader, as for an unreadable identity, so a worker is never ended or its kill reported
+  done on that evidence. A comparison of
   two identities the same process recorded, or of an executable identity, MUST stay exact. The
   identity format MUST NOT change.
 

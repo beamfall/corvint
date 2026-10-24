@@ -18,7 +18,7 @@ Site policy:
 
 | Site class | Sites | Unknown means |
 | --- | --- | --- |
-| A live process blocks the action | pool runner, program owner, workflow remover and cleanup owner, dispatch reader leader, supervisor escape anchor, dispatch tree-may-run, CLI detached run | possibly live: `QUIESCENCE_UNPROVED`, uncertain, or may run |
+| A live process blocks the action | dispatch worker tree refresh (keeps the recorded tree with an error), pool runner, program owner, workflow remover and cleanup owner, dispatch reader leader, supervisor escape anchor, dispatch tree-may-run, CLI detached run | possibly live: `QUIESCENCE_UNPROVED`, uncertain, or may run |
 | Liveness permits the action | dispatch signal, session, leader, exemption and detached supervisor; program heartbeat owner and leader; supervisor boot, owned-group anchor and observe, member signal; service pulse `RUNNING`; dispatch adoption message | not the recorded process |
 | Status reader with an `UNKNOWN` state | dispatch `RunState`, `OwnerProcess` | `UNKNOWN` |
 | Lease detach child | CLI lease child | falls through to the existing startup-window check |
@@ -38,3 +38,12 @@ commit, which restores exact equality at every site.
 five runs (`-count=5 -v`) gave n=15,000 reads with one distinct `btime` value (1792768119) and a
 spread of 0 s. This host showed no jitter in that sample; the tolerance covers hosts and moments
 where the kernel's rounding does move it, and the per-site tests inject the one-second case.
+
+## Review
+
+The one Codex review round found that an unknown member or leader identity in the dispatch tree
+refresh still dropped the member, so `supervise` could end and `killTree` report done for a live
+worker; the refresh now returns an uncertainty error and keeps the recorded tree, and
+`TestPSRV0227_WorkerTreeToleratesJitter` asserts it. It also found that the TCB-V0-046 route named
+`submit --tree <merge>^{tree}`, which `submit` refuses as not a full OID; the route now resolves
+each OID with `git rev-parse`.

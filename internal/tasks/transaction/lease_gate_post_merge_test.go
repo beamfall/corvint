@@ -24,7 +24,7 @@ func postMergeContext(f LeaseFacts) leaseContext {
 func wantPostMergeSequence(t *testing.T, name, detail string) {
 	t.Helper()
 	at := 0
-	for _, step := range []string{"merge commit", "submit --tree <merge>^{tree}", "gate run", "complete --commit <merge>"} {
+	for _, step := range []string{"merge commit", "submit --tree $(git rev-parse <merge>^{tree})", "gate run", "complete --commit $(git rev-parse <merge>)"} {
 		i := strings.Index(detail[at:], step)
 		if i < 0 {
 			t.Fatalf("%s: detail %q lacks %q after offset %d", name, detail, step, at)

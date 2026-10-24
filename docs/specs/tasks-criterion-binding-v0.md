@@ -149,10 +149,11 @@ for TCB-V0-007..023, decision 0525 §1 step 8, `docs/specs/cem-stable-v1.md` and
   tree equality unchanged: a merge commit whose tree was never submitted and gated is never accepted.
   Both `STALE_TREE` refusals of the completion check MUST name the post-merge sequence, for a change
   that landed as a new merge commit (a merge queue): submit that merge commit's tree
-  (`submit --tree <merge>^{tree}`), run each required gate on it (`gate run`), then
-  `complete --commit <merge>`. This holds for the tree mismatch and for a commit that neither the
-  intent branch nor its upstream contains, with or without a configured upstream. The fetch or
-  integrate route the unreachable refusal already names stays first, since a merge-commit
+  (`submit --tree $(git rev-parse <merge>^{tree})`, since `submit` takes a full tree OID), run each
+  required gate on it (`gate run`), then `complete --commit $(git rev-parse <merge>)`. This holds
+  for the tree mismatch and for a commit that neither the intent branch nor its upstream contains,
+  with or without a configured upstream. The fetch or integrate route the unreachable refusal
+  already names stays first, since a merge-commit
   integration contains the seal commit (TCB-V0-021). V1-1895's first acceptance criterion is
   amended from "the single post-merge command" to "one named sequence".
 
@@ -202,7 +203,7 @@ Capture includes canonical claim-era ticket bytes whose digest equals the attemp
 | TCB-V0-020, TCB-V0-022 | `internal/taskman/cem_verdict_merge_forward_unix_test.go` `TestTCBV0020GateGrantsOnlyAtTheSealCommitOfAMergedForwardLane` | Over a moved `main`, the merge commit and a post-seal merge of `main` into the lane each refuse `sealed-tree-mismatch` naming the lane's sealed map, with no consumer run; the seal commit, the merge's second-parent ancestor, grants, and so does a tree-identical empty commit after it |
 | TCB-V0-021 | `internal/tasks/store/lease_gate_merge_forward_test.go` `TestTCBV0021_CompletePinsTheSealCommitOfAMergedForwardLane`; live V1-1348 completion (`docs/build-log/2026-10-14-v1-1283-native-completion-through-cem-verdict.md`) | The merge and post-seal commits refuse `STALE_TREE` alone and write nothing; the seal commit refuses `COMMIT_NOT_INTEGRATED` until `main` contains it, then completes with no Tasks code change |
 | TCB-V0-023 | `TestTCBV0023ExactKeyNamingADirectoryRefuses`, `TestTCBV0023DirectoryListingFramingFailsClosed`; amended `TestTCBV0011PredicateIsClosedAndNeverRaisesATier` | Directory keys at the base only, the candidate only or both refuse pinned before the map; file and absent keys grant; an unlistable candidate or a misframed listing refuses `git-read-failed`; `all-anchored` ignores keys |
-| TCB-V0-046 | `internal/tasks/transaction/lease_gate_post_merge_test.go` `TestTCBV0046_TreeMismatchNamesThePostMergeSequence`, `TestTCBV0046_NotIntegratedNamesThePostMergeSequence` | Each refusal branch keeps its codes and names submit of the merge tree, the gate run and `complete --commit <merge>`; the extra-repository refusal is unchanged |
+| TCB-V0-046 | `internal/tasks/transaction/lease_gate_post_merge_test.go` `TestTCBV0046_TreeMismatchNamesThePostMergeSequence`, `TestTCBV0046_NotIntegratedNamesThePostMergeSequence` | Each refusal branch keeps its codes and names submit of the merge tree, the gate run and `complete --commit $(git rev-parse <merge>)`, each resolved to a full OID; the extra-repository refusal is unchanged |
 
 Independent repair review `/private/tmp/cem10-build/tasks-rereview.json` passed the original
 claim-digest and future-sequence counterexamples plus positive native lifecycle tests. The compiled

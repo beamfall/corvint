@@ -470,8 +470,9 @@ func (c leaseContext) notIntegrated() string {
 // postMergeSequence is the one route both STALE_TREE refusals name for a
 // change integrated by a new merge commit, as a merge queue makes: complete
 // keeps tree equality (CAL-V0-017), so the merge commit's own tree is
-// submitted and gated before it completes (TCB-V0-046, V1-1895).
-const postMergeSequence = "if the change landed as a new merge commit (a merge queue), submit that commit's tree (submit --tree <merge>^{tree}), run each required gate on it (gate run), then complete --commit <merge>"
+// submitted and gated before it completes (TCB-V0-046, V1-1895). submit and
+// complete take full OIDs, so the route resolves each with git rev-parse.
+const postMergeSequence = "if the change landed as a new merge commit (a merge queue), submit that commit's full tree OID (submit --tree $(git rev-parse <merge>^{tree})), run each required gate on it (gate run), then complete --commit $(git rev-parse <merge>)"
 
 // approvalBlocker requires an unrevoked COMPLETE grant at the current
 // acceptanceRevision for an APPROVAL_REQUIRED ticket (§7.3 row 12).

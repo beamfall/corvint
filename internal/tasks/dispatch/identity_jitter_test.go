@@ -38,8 +38,8 @@ func fakeProcessIdentity(t *testing.T, fresh string) {
 // TestPSRV0227_WorkerTreeToleratesJitter: tree membership, leader liveness,
 // detached-supervisor exemption and the may-run check accept a recorded
 // identity re-read with btime one second off, keeping the recorded value;
-// another start tick is another process; a btime further off is not a
-// member, but the tree may still run.
+// another start tick is another process; a btime further off keeps the
+// recorded tree with an uncertainty error, and the tree may still run.
 func TestPSRV0227_WorkerTreeToleratesJitter(t *testing.T) {
 	const leader, sup = 4000001, 4000002
 	for _, c := range jitterCases {
@@ -48,13 +48,17 @@ func TestPSRV0227_WorkerTreeToleratesJitter(t *testing.T) {
 			same := c.want == supervisor.IdentitySame
 			procs := map[int]proc{leader: {pid: leader, ppid: 1, pgid: leader}, sup: {pid: sup, ppid: 1, pgid: sup}}
 			w := &Worker{PID: leader, LeaderIdentity: jitterRecorded, Members: []Proc{{PID: leader, Identity: jitterRecorded}}}
-			if err := refreshTree(w, procs, nil); err != nil {
-				t.Fatal(err)
+			err := refreshTree(w, procs, nil)
+			if unknown := c.want == supervisor.IdentityUnknown; (err != nil) != unknown {
+				t.Fatalf("refreshTree error = %v, want uncertainty %v", err, unknown)
 			}
-			if got := len(w.Members) == 1 && w.Members[0] == (Proc{PID: leader, Identity: jitterRecorded}); got != same {
-				t.Fatalf("members %+v", w.Members)
+			kept := len(w.Members) == 1 && w.Members[0] == (Proc{PID: leader, Identity: jitterRecorded})
+			if want := c.want != supervisor.IdentityDifferent; kept != want {
+				t.Fatalf("members %+v, want the recorded member kept %v", w.Members, want)
 			}
-			if got := leaderAlive(w); got != same {
+			// leaderAlive reads the refreshed record: kept with the
+			// uncertainty error, the leader stays recorded as alive.
+			if got := leaderAlive(w); got != kept {
 				t.Fatalf("leaderAlive = %v", got)
 			}
 			ex, err := newExemption(procs, map[int]string{sup: jitterRecorded}, leader)
