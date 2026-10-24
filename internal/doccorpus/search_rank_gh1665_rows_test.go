@@ -438,22 +438,22 @@ func TestDCPV1484RetryAnswersOnlyCorpusRefusals(t *testing.T) {
 }
 
 // DCP-V1-485: derived declarations change the records the same inputs build,
-// so the builder engine names derivation 2. The verified read refuses an
+// so the builder engine names derivation 2 or later (3 since DCP-V1-549). The verified read refuses an
 // artifact recorded by derivation 1, which lacks them, and names the rebuild;
 // the rebuilt corpus serves them.
 func TestDCPV1485DerivationTwoRefusesDerivationOneArtifacts(t *testing.T) {
 	t.Parallel()
-	if DerivationVersion != "2" || derivationOf(currentBuilder()) != "2" {
-		t.Fatalf("derivation %s, engine %q: derived declarations need derivation 2", DerivationVersion, currentBuilder().Engine)
+	if DerivationVersion < "2" || derivationOf(currentBuilder()) != DerivationVersion {
+		t.Fatalf("derivation %s, engine %q: derived declarations need derivation 2 or later", DerivationVersion, currentBuilder().Engine)
 	}
 	root, m := ownedSourceCorpus(t, ownedSources, []string{"src/pos.rb"}, false)
 	a := buildOwned(t, root, m)
 	old := rehashed(t, a, func(c *Artifact) {
 		c.Builder.Revision = strings.Repeat("a", 40)
-		c.Builder.Engine = strings.Replace(c.Builder.Engine, "/derivation-2/", "/derivation-1/", 1)
+		c.Builder.Engine = strings.Replace(c.Builder.Engine, "/derivation-"+DerivationVersion+"/", "/derivation-1/", 1)
 	})
 	_, err := OpenRead(context.Background(), root, old, ReadOptions{})
-	if err == nil || !strings.Contains(err.Error(), "derivation version differs (artifact 1, running builder 2); rebuild the corpus") {
+	if err == nil || !strings.Contains(err.Error(), "derivation version differs (artifact 1, running builder "+DerivationVersion+"); rebuild the corpus") {
 		t.Fatalf("a derivation 1 artifact should be refused naming the rebuild: %v", err)
 	}
 	if got := subjectsWithPrefix(a, "native:symbol:src/pos.rb:"); len(got) == 0 {

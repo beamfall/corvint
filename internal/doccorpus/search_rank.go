@@ -76,7 +76,8 @@ func normalized(score, maximum float64) float64 {
 // (DCP-V1-476). A query word counts once, by the best of the terms it yields
 // (DCP-V1-540), and the tiers of DCP-V1-541 to DCP-V1-543 order identifier
 // tokens, path phrases, ID-only phrases and names a question holds. Groups
-// are summed in sorted order so the floating-point score is deterministic;
+// are summed in sorted order so the floating-point score is deterministic.
+// Inside tier terms a hit holding more query words orders first (DCP-V1-547);
 // equal scores order subjects before claims, then
 // the shorter name or text, then by natural record ID order (DCP-V1-477). A kind filter keeps only subjects of the named kinds and claims about
 // them.
@@ -134,9 +135,10 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 	phrase, identifier := queryPhrase(request.Query)
 	question := questionShaped(request.Query)
 	var queryWords []string
+	var capitalized map[string]bool
 	folded := ""
 	if question {
-		queryWords, folded = identifierWords(request.Query), strings.ToLower(request.Query)
+		queryWords, folded, capitalized = identifierWords(request.Query), strings.ToLower(request.Query), capitalizedWords(request.Query)
 	}
 	for i, s := range a.Subjects {
 		if err := ctx.Err(); err != nil {
@@ -159,7 +161,7 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 				tier = phraseTier(s, phrase, identifier)
 			}
 		}
-		if tier == tierTerms && question && namedInQuery(s, queryWords, folded) {
+		if tier == tierTerms && question && namedInQuery(s, queryWords, folded, capitalized) {
 			tier = tierNamed
 		}
 		if tier == tierTerms {
@@ -192,6 +194,11 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 		if hits[i].tier != hits[j].tier {
 			return hits[i].tier < hits[j].tier
 		}
+		if hits[i].tier == tierTerms && hits[i].terms != hits[j].terms {
+			// Inside tier terms a hit holding more query words orders first,
+			// whatever the per-word scores (DCP-V1-547).
+			return hits[i].terms > hits[j].terms
+		}
 		if hits[i].score != hits[j].score {
 			return hits[i].score > hits[j].score
 		}
@@ -206,7 +213,7 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 	r.ranks = make(map[string]ResultRank, len(hits))
 	group := 0
 	for n, h := range hits {
-		if n == 0 || h.tier != hits[n-1].tier || h.score != hits[n-1].score {
+		if n == 0 || h.tier != hits[n-1].tier || h.score != hits[n-1].score || h.tier == tierTerms && h.terms != hits[n-1].terms {
 			group++
 		}
 		r.ranks[h.id] = ResultRank{Rank: n + 1, Group: group, Tier: tierNames[h.tier], Score: servedScore(h.score), Terms: h.terms}

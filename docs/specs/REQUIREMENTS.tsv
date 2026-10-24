@@ -2744,6 +2744,10 @@ DCP-V1-543	docs/specs/documentation-corpus-v1.md	A question-shaped query (it end
 DCP-V1-544	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-479`, `tier` is one of `exact`, `identifier`, `path-phrase`,	unrecorded	-
 DCP-V1-545	docs/specs/documentation-corpus-v1.md	The tiers and groups are computed per read from the artifact and the query, with	unrecorded	-
 DCP-V1-546	docs/specs/documentation-corpus-v1.md	A committed synthetic fixture,	unrecorded	-
+DCP-V1-547	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-544`, inside tier `terms` a result holding more query words	unrecorded	-
+DCP-V1-548	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-543`, a question-shaped query also names, in tier `named`, a	unrecorded	-
+DCP-V1-549	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-482` and `DCP-V1-483`, derived declarations also cover `source`	unrecorded	-
+DCP-V1-550	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-485`, `DCP-V1-549` changes the records the same multi-repositor	unrecorded	-
 DCP-V1-250	docs/specs/documentation-corpus-v1.md	The case file is a closed `corvint-corpus-eval-cases/1` document with a file	unrecorded	-
 DCP-V1-251	docs/specs/documentation-corpus-v1.md	Each case runs through `corpusbridge.Registry.CallTimed`, the code path that ser	unrecorded	-
 DCP-V1-252	docs/specs/documentation-corpus-v1.md	Each case reports `hit`, the 1-based `rank` of the first relevant row, `k` (the	unrecorded	-
@@ -2834,6 +2838,11 @@ DCP-V1-396	docs/specs/documentation-corpus-v1.md	(accepted under the owner's sta
 DCP-V1-397	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) Whe	standing	2026-10-11; #1583
 DCP-V1-398	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583)	standing	2026-10-11; #1583
 DCP-V1-399	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583)	standing	2026-10-11; #1583
+DCP-V1-560	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-393` and `DCP-V1-399`, `docs corpus extract --schema 2` (and	unrecorded	-
+DCP-V1-561	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-395`, an extraction over its record bound is refused with	unrecorded	-
+DCP-V1-562	docs/specs/documentation-corpus-v1.md	A provider record within the record bound but over its schema's input byte bound	unrecorded	-
+DCP-V1-563	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-360` for `delta` and `carry-forward`, the current side is chose	unrecorded	-
+DCP-V1-564	docs/specs/documentation-corpus-v1.md	`docs/RELEASE-NOTES.md` has a `Corpus derivation versions` section naming, for e	unrecorded	-
 DCP-V1-487	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-033`, an adoption provider record or shard may instead use	unrecorded	-
 DCP-V1-488	docs/specs/documentation-corpus-v1.md	A compact record is closed. A missing or out-of-range `file` index, a `/1` file	unrecorded	-
 DCP-V1-489	docs/specs/documentation-corpus-v1.md	The compact encoding is measured on a synthetic adoption record of #1664's shape	unrecorded	-

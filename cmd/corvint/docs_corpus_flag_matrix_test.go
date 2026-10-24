@@ -30,7 +30,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"witness-playwright":  {required: []string{"--input", "--receipt-input", "--report"}},
 	"discover-legacy":     {required: []string{"--runner", "--revision", "--path"}, optional: []string{"--input"}},
 	"discover-tests":      {required: []string{"--runner", "--revision", "--path"}},
-	"extract":             {required: []string{"--profile", "--revision"}, optional: []string{"--profile-sha256"}}, // DCP-V1-399, DCP-V1-478
+	"extract":             {required: []string{"--profile", "--revision"}, optional: []string{"--profile-sha256", "--schema"}}, // DCP-V1-399, DCP-V1-478, DCP-V1-560
 	"import-cases":        {required: []string{"--format", "--input"}, optional: []string{"--content"}},
 	"search-cases":        {required: []string{"--format", "--input"}, optional: []string{"--query", "--id", "--match", "--limit"}},
 	"eval":                {required: []string{"--artifact", "--cases"}, optional: []string{"--baseline", "--format"}},

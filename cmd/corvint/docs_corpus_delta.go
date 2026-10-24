@@ -14,7 +14,10 @@ import (
 // --artifact through the verified read and rederives it only with --verify-rederive; carry-forward
 // rederives it (DCP-V1-460). Both read Git objects only.
 func compileCorpusDelta(ctx context.Context, o corpusOptions) ([]byte, error) {
-	if (o.artifact == "") == (o.manifest == "") {
+	// Presence, not value, decides, as for build (DCP-V1-563): an empty --manifest= beside
+	// --artifact is still both, and an empty value alone is none.
+	artifact := o.given["--artifact"]
+	if artifact == o.given["--manifest"] || artifact && o.artifact == "" || !artifact && o.manifest == "" {
 		return nil, argumentError("docs corpus " + o.op + " requires exactly one of --artifact or --manifest")
 	}
 	if err := corpusDeltaViewError(o); err != nil {
