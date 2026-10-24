@@ -1415,3 +1415,95 @@ jobs:
           test "$(git rev-parse --verify -q "$GITHUB_SHA^2")" = "$PR_HEAD"
           tree=$(git rev-parse --verify -q "$GITHUB_SHA^{tree}")
           printf 'corvint-ci-integrity-tree/0 tree=%s target=%s head=%s\n' "$tree" "$GITHUB_SHA" "$PR_HEAD"
+
+  cce-live:
+    # AFP-V0-433 (V1-1687): the live CCE prove tests (`make cce-live`, CCE-V0-102) on the macOS arm64
+    # tuple they were qualified on. The job always starts, so its check is never left pending, and
+    # runs the tests only when the tested commit changes internal/changee2e or this workflow against
+    # its first parent (AFP-V0-434); otherwise it passes with a summary line. It fails, rather than
+    # passes, when the installed toolchain is not the qualified tuple (AFP-V0-435). Not a required
+    # check; a ci:batched constituent never starts it (AFP-V0-081).
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'ci:batched') }}
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # Depth 2 keeps the tested commit's first parent for the change check.
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Does the tested commit change internal/changee2e? (AFP-V0-434)
+        id: changed
+        run: |
+          # Any doubt (no first parent in this checkout) runs the tests.
+          if base=$(git rev-parse -q --verify 'HEAD^1') &&
+            git diff --quiet "$base" HEAD -- internal/changee2e .github/workflows/ci.yml; then
+            echo 'cce-live: internal/changee2e and this workflow are unchanged against the first parent; the live tests did not run.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo 'run=1' >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: steps.changed.outputs.run == '1'
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: steps.changed.outputs.run == '1'
+        with:
+          node-version: "24.11.1"
+      - name: Install Playwright 1.64.0 and its headless shell
+        if: steps.changed.outputs.run == '1'
+        env:
+          # A registry fetch is this step's purpose; the Go steps keep GOPROXY off.
+          npm_config_audit: "false"
+          npm_config_fund: "false"
+        run: |
+          mkdir -p "$RUNNER_TEMP/pw"
+          cd "$RUNNER_TEMP/pw"
+          npm init -y > /dev/null
+          npm install --no-save @playwright/test@1.64.0
+          npx playwright install chromium-headless-shell
+      - name: Require the qualified Playwright tuple (AFP-V0-435)
+        id: tuple
+        if: steps.changed.outputs.run == '1'
+        env:
+          PW_DIR: ${{ runner.temp }}/pw
+        run: |
+          # The 1.64.0 tuple of qualifiedBundledBrowsers (internal/jstestprovider/external.go).
+          want_build=1248
+          want_version='Google Chrome for Testing 156.0.8078.4'
+          want_node=v24.11.1
+          rev=$(jq -r '[.browsers[]? | select(.name == "chromium-headless-shell") | .revision] | if length == 1 then .[0] else "missing" end' \
+            "$PW_DIR/node_modules/playwright-core/browsers.json" 2> /dev/null) || rev=unreadable
+          exe="$HOME/Library/Caches/ms-playwright/chromium_headless_shell-$want_build/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+          got=$("$exe" --version 2> /dev/null) || got="no runnable headless shell at $exe"
+          node=$(node --version 2> /dev/null) || node=missing
+          if [ "$rev" != "$want_build" ] || [ "$got" != "$want_version" ] || [ "$node" != "$want_node" ]; then
+            msg="cce-live: Playwright pins headless shell build $rev, which reports '$got', under node $node; the qualified tuple is build $want_build reporting '$want_version' under node $want_node, so qualify would refuse these receipts. The job fails instead of passing."
+            echo "::error::$msg"
+            echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "cce-live: headless shell build $rev ($got), node $node." >> "$GITHUB_STEP_SUMMARY"
+      - name: Live CCE prove tests
+        if: steps.changed.outputs.run == '1'
+        env:
+          CORVINT_PLAYWRIGHT_MODULES: ${{ runner.temp }}/pw/node_modules
+          CORVINT_E2E_NODE_BIN: node
+        run: |
+          mkdir -p "$RUNNER_TEMP/cce-live"
+          set -o pipefail
+          make cce-live 2>&1 | tee "$RUNNER_TEMP/cce-live/output.txt"
+      - name: Retain the live test output
+        if: always() && steps.changed.outputs.run == '1'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cce-live
+          path: ${{ runner.temp }}/cce-live/output.txt
+          if-no-files-found: ignore

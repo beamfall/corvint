@@ -3234,6 +3234,51 @@ without a code change. Security rationale and host setup: build-log entry
   that runs before the runner-name or root checks; or a hosted step that sets `TMPDIR`. Rollback:
   remove the block; temporary files return to `/tmp`.
 
+### Release and live-browser CI jobs (V1-2580, V1-1687)
+
+These four requirements add two CI jobs under the owner's delegation of
+`.github/workflows/` edits for this work (2026-10-24, recorded in
+`docs/build-log/2026-10-24-owner-queue-decisions.md` on PR #1718). Neither job is a required check;
+existing jobs and check names are unchanged. Both honor the AFP-V0-081 batched skip.
+
+- **AFP-V0-432:** (proposed; V1-2580) `.github/workflows/cem-release-gate.yml`, on `ci.yml`'s
+  triggers, MUST run a `cem-release-gate` job on `ubuntu-24.04` (linux/amd64) and `macos-15` (darwin/arm64), with `fail-fast: false`, which builds `corvint` and
+  `interop/cem01-go` from the one checkout through `make cem-release-gate`, retains the command's
+  whole output as the `cem-release-gate-<os>` artifact even when it fails, writes the readiness and
+  suite verdict lines to the step summary, and fails with the target's own nonzero exit and an
+  error annotation. It MUST NOT carry `continue-on-error`, and `ci.yml` MUST NOT run the gate:
+  the AFP-V0-080 static reuse and the tested-tree reuse accept only successful `ci.yml` runs, which
+  an always-red job there would end. Failure mode: while any required
+  readiness row is `NOT_RUN` or `NOT_OBSERVED`, the target refuses (exit 3, `make` exit 2) and the
+  job is red on every run by design; that refusal is the signal, not a CI fault. Falsifier: a job
+  that passes on a nonzero exit, runs on only one platform, or loses the output on failure.
+  Rollback: delete the `cem-release-gate` job.
+- **AFP-V0-433:** (proposed; V1-1687, cce-live part of PR #1702) `ci.yml` MUST run a `cce-live`
+  job on `macos-15` that installs Node 24.11.1, installs `@playwright/test@1.64.0` into
+  `$RUNNER_TEMP/pw` with `npx playwright install chromium-headless-shell`, then runs
+  `make cce-live` (which sets `CORVINT_CCE_LIVE=required`, CCE-V0-102) with
+  `CORVINT_PLAYWRIGHT_MODULES` naming that `node_modules` and `CORVINT_E2E_NODE_BIN` naming the
+  installed `node`, and retains the output as the `cce-live` artifact. Failure mode: a missing
+  toolchain fails the live tests instead of skipping them. Rollback: delete the `cce-live` job.
+- **AFP-V0-434:** (proposed; V1-1687) The `cce-live` job MUST run its live steps only when the
+  tested commit changes `internal/changee2e/` or `.github/workflows/ci.yml` against its first
+  parent (fetch depth 2, the AFP-V0-042 pattern), and otherwise MUST conclude successfully with a
+  step-summary line saying the live tests did not run. The job itself always runs, so its check
+  name always reports and never waits as a skipped path-filtered check. Any doubt, such as a
+  checkout with no first parent, runs the tests. Failure mode: a change outside these paths that
+  breaks the live flow is not caught by this job; `go-product` still runs the hermetic tests.
+  Falsifier: a sibling prefix (`internal/changee2e-other/`) that triggers the run, or a changee2e
+  change that does not. Rollback: drop the change-check step and its `if:` guards.
+- **AFP-V0-435:** (proposed; V1-1687) Before the live tests, the `cce-live` job MUST require the
+  qualified Playwright tuple of `internal/jstestprovider/external.go` for 1.64.0: the installed
+  `playwright-core/browsers.json` pins `chromium-headless-shell` revision 1248, the cached
+  executable reports `Google Chrome for Testing 156.0.8078.4`, and `node --version` is `v24.11.1`.
+  Any mismatch, unreadable manifest or missing executable MUST fail the job with one error that
+  names the observed and the qualified values, instead of producing receipts qualify would refuse.
+  Falsifier: a job whose pinned values drift from the provider's qualified row, or that passes on
+  build 1243, another executable version, a missing executable or another Node major. Rollback:
+  drop the tuple step.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -3513,6 +3558,10 @@ fails the verification step before anything is removed.
 | AFP-V0-396 | `affectedHelp` in `cmd/corvint/help.go`; the `corvint affected` row of `docs/CAPABILITIES.md` | `TestAFPV0396HelpDocumentsTheBatchFormAndTheCache`; `make capabilities-check` |
 | AFP-V0-397 | `BuildCached` hit path | `TestAFPV0397RepeatedPathCallOnALargeRubyTreeReusesTheGraph` (1,200 Ruby files: the warm call hits and writes the cold and uncached bytes); measured cold and warm numbers in build log `2026-10-23-affected-graph-reuse-gh1601` |
 | AFP-V0-431 | the test-selection goal of `internal/capcatalog/AGENT-GUIDE.md` | `TestAFPV0431ShippedGuideAdvisesBatchingAndTheAffectedCache`; `make capability-catalog-check` |
+| AFP-V0-432 | `.github/workflows/cem-release-gate.yml` `cem-release-gate` job | `TestAFPV0432CEMReleaseGateRunsOnBothPlatformsAndRetainsOutput` |
+| AFP-V0-433 | `.github/workflows/ci.yml` `cce-live` job | `TestAFPV0433CCELiveRunsTheLiveTargetOnTheQualifiedHost` |
+| AFP-V0-434 | `.github/workflows/ci.yml` `cce-live` change check | `TestAFPV0434CCELiveRunsOnlyWhenChangee2eChanges` |
+| AFP-V0-435 | `.github/workflows/ci.yml` `cce-live` tuple step | `TestAFPV0435CCELiveRefusesAnUnqualifiedHeadlessShell` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`
