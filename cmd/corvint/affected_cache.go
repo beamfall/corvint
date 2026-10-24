@@ -364,7 +364,7 @@ func inspectAffectedDefaultCache(root string) affectedCacheStatus {
 		return status
 	}
 	status.Location = location
-	resolved, _, err := resolveAffectedCache(root, location)
+	resolved, gitDirectories, err := resolveAffectedCache(root, location)
 	if err != nil {
 		status.Reason = strings.Replace(err.Error(), "--cache", "the default cache", 1)
 		return status
@@ -382,6 +382,10 @@ func inspectAffectedDefaultCache(root string) affectedCacheStatus {
 	defer directory.Close()
 	if info, err := directory.Stat(); err != nil || !info.IsDir() {
 		status.Reason = "the cache location is not a directory"
+		return status
+	}
+	if reason := affected.InspectCacheDirectory(resolved, root, gitDirectories); reason != "" {
+		status.Reason = reason + "; calls run uncached"
 		return status
 	}
 	status.State = "PRESENT"

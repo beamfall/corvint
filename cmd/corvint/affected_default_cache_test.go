@@ -256,6 +256,16 @@ func TestAFPV0435CacheStatusReportsLocationAndSize(t *testing.T) {
 	if stdout, _, code := runAffectedCacheStatusCLI(t, root, "--format=json"); code != 0 || !bytes.Contains(stdout, []byte(`"state":"PRESENT"`)) {
 		t.Fatalf("--format=json: exit %d: %s", code, stdout)
 	}
+	// A directory the planner refuses as not private is reported, not PRESENT.
+	if err := os.Chmod(location, 0o770); err != nil {
+		t.Fatal(err)
+	}
+	if report := status("UNAVAILABLE"); report.Location != location || !strings.Contains(report.Reason, "not private") {
+		t.Fatalf("a group-writable cache: %+v", report)
+	}
+	if err := os.Chmod(location, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	useAffectedUserCacheDir(t, root, nil)
 	if report := status("UNAVAILABLE"); !strings.Contains(report.Reason, "outside the repository") {
 		t.Fatalf("a default inside the repository: %+v", report)

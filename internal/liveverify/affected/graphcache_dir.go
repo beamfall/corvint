@@ -107,6 +107,18 @@ func openCacheDirectory(dir, root string, excluded []string, create bool) (*os.R
 	return handle, ""
 }
 
+// InspectCacheDirectory reports why an existing graph cache directory dir
+// could not serve root, by the same placement, handle and privacy checks the
+// planner applies, without creating or writing anything (AFP-V0-435). The
+// reason is empty when the planner would use dir.
+func InspectCacheDirectory(dir, root string, excluded []string) string {
+	handle, reason := openCacheDirectory(dir, root, excluded, false)
+	if handle != nil {
+		_ = handle.Close()
+	}
+	return reason
+}
+
 // admitCacheHandle refuses a handle whose directory is at or under a
 // forbidden directory, by the kernel's path for the open directory and by the
 // file identity of that path and each of its ancestors.

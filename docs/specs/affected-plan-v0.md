@@ -3134,7 +3134,8 @@ they do not change any plan, wire member or exit code of a plan call.
   sizes in the directory), `entries` (files named `affected-graph-*.json`), `location` (resolved,
   or empty when there is none), `mutates` (false), `ok` (true), `profile`, `reason` and `state`:
   `PRESENT`, `ABSENT` (not yet created), `UNAVAILABLE` (no user cache directory, a placement the
-  AFP-V0-390 rules refuse, or not a readable directory, so plan calls run uncached) or
+  AFP-V0-390 rules refuse, or a directory the planner's handle and privacy checks refuse, such
+  as one writable by another user, so plan calls run uncached) or
   `INCOMPLETE` (the listing stopped at its 4096-entry bound or failed). The directory is opened
   nonblocking and held to a directory by its descriptor, so a FIFO cannot hang the call, and is
   read in fixed batches without descending. `--format doctor-plugin` prints the TQD-V0-010 plugin
@@ -3404,7 +3405,7 @@ receipt and no stderr (AFP-V0-434); `affected cache` reports it as `UNAVAILABLE`
 | AFP-V0-432 | `affectedUserCacheDir`, `affectedDefaultCacheLocation` and the default branch of `resolveAffectedBatchAndCache` in `cmd/corvint/affected_cache.go`; the TestMain lookup replacement in `cmd/corvint/work_materialization_test.go`; the planner environment of `script/gate-affected_test.sh` | `TestAFPV0432DefaultCacheLivesUnderTheUserCacheDirectory` (bare, `--full`, `--path`, `--base`: the cold call stores and the warm call hits under the injected `corvint/affected`, both byte-identical with `--no-cache`; one entry; 0700 components; repository status unchanged; `--snapshot`, `--playwright-config`, `--no-cache` and status invocations resolve no cache) |
 | AFP-V0-433 | `--no-cache` and the `--cache`/`--no-cache` check in `parseAffectedOptions`; `affectedHelp` | `TestAFPV0433NoCacheAndCacheOverrideTheDefault` (`--no-cache` observes no cache; `--cache DIR` stores then hits in DIR and the default is never created; the combination, a repetition and a value refuse), `TestAFPV0433HelpDocumentsTheDefaultCache` |
 | AFP-V0-434 | the swallowed refusal in `resolveAffectedBatchAndCache`; `BuildCachedExcluding`'s fall-back | `TestAFPV0434DefaultCacheDegradesToUncached` (a failing lookup, an empty or relative base, a base inside the root or `.git`, an unwritable base and a file in place of `corvint/`: exit 0, no stderr, the `--no-cache` bytes, no entry read or stored, repository status unchanged); `TestAFPV0432DefaultCacheLivesUnderTheUserCacheDirectory` (cold and warm parity) |
-| AFP-V0-435 | `parseAffectedCacheStatusOptions`, `inspectAffectedDefaultCache` and `runAffectedCacheStatus` in `cmd/corvint/affected_cache.go` | `TestAFPV0435CacheStatusReportsLocationAndSize` (ABSENT creates nothing; PRESENT counts the one entry and its bytes; the doctor-plugin item; UNAVAILABLE inside the root and with no user cache directory; argument refusals) |
+| AFP-V0-435 | `parseAffectedCacheStatusOptions`, `inspectAffectedDefaultCache` and `runAffectedCacheStatus` in `cmd/corvint/affected_cache.go`; `InspectCacheDirectory` in `internal/liveverify/affected/graphcache_dir.go` | `TestAFPV0435CacheStatusReportsLocationAndSize` (ABSENT creates nothing; PRESENT counts the one entry and its bytes; the doctor-plugin item; UNAVAILABLE inside the root, for a group-writable directory and with no user cache directory; argument refusals) |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`
