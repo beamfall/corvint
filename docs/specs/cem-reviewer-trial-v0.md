@@ -306,6 +306,21 @@ name is exactly what the change's author also wrote and the harness removed.
   `treatment` and `seeded` arms as the shipped profile's artifact for this trial. `run` no longer
   refuses a registered run naming either arm, and such a report is no longer invalid on rescore. The
   pre-baseline clause above (kill criterion K1 of decision 0523) is not changed by this amendment.
+- `CRT-V0-016`: (V1-0836, V1-2619; 2026-10-24, owner decision; extends CRT-V0-010 and CRT-V0-014) Reuse across a re-registration.
+  A registered run may `--reuse` lanes from a report written under an earlier registration only when
+  the two registration documents are identical except for `scorer_sha256`, and that digest differs.
+  `run` refuses any other earlier registration, an earlier registration committed after that
+  report's first lane, and an earlier report with a completed lane that recorded no start. Lane
+  reuse is otherwise unchanged (CRT-V0-010): a byte-identical prompt, no error, an observed wall time.
+  The report carries the earlier registration and that report's manifest digest as `re_registered`.
+  A lane reused from it is checked against the earlier registration's commit time, and every other
+  lane is checked against this run's (CRT-V0-014). Lanes resumed from a checkpoint of the same
+  manifest count as this run's own. On rescore the report is invalid when the carried registration
+  differs beyond the scorer digest, when it is newer than a lane reused from it, or when a lane was
+  reused from any other report. The run's build-log entry must name the scorer change, the reused
+  lane count, and that the reused pairs were already observed in the earlier run. Limit: the scorer
+  change itself is not checked to leave the reused lanes' prompts and scoring unchanged. Prompt
+  identity covers the prompts. Scoring is recomputed from raw fields on every `finalize`.
 
 ## Non-goals and simpler baseline
 
@@ -366,6 +381,7 @@ executables named on the command line; it downloads nothing. Manifest 16 MiB; pa
 | CRT-V0-013 | `scoreCitedNotGold`, `citedNotGold`, `mergeIntervals`, `overlap`, `citedNotGoldArms`, `changeMeta.GoldSpans`, `goldSpansOf` (`tools/cem-trial/score.go`, `main.go`) | `TestCiteEverySuggestionAgentLosesOnCitedNotGold` (the cite-every-suggestion agent wins on miss, Δ 0.5, and loses on both rates); `TestCitedNotGoldCountsDistinctPathsAndLines`; `TestRunChecksItsRegistration` (a run carries `gold_spans` and scores the rate) |
 | CRT-V0-014, CRT-V0-010 (2026-10-11 amendment) | `registration`, `parseRegistration`, `loadRegistration`, `registrationRecord`, `registrationProblems`, `registrationMismatches`, `registrationInvalid`, `firstLaneStart`, `unstampedLanes`, `registeredPrior`, `registrationRecord.UnmarshalJSON`, `checkRegistration`, `scorerDigest`, `scorerFiles`, `lane.StartedAt`, `finalize` (`tools/cem-trial/register.go`, `score.go`, `main.go`) | `TestScorerDigestCoversEveryScorerSource`; `TestRegistrationRefusesAnIncompletePlan`; `TestRegistrationMustBeCommitted`; `TestReportRefusesARegistrationNewerThanItsFirstLane`; `TestRunChecksItsRegistration`; no registered run yet: the run is post-rc.3 and owner-commissioned (`NOT_RUN`) |
 | CRT-V0-015 | `registrationMismatches` (no arm refusal since the 2026-10-24 owner decision), `armsNeedCorvint` | `TestReportRefusesARegistrationNewerThanItsFirstLane` (`CRT-V0-015` subtest: a registered cem/1.0 map arm is valid); the held-out run is recorded in `docs/build-log/2026-10-24-cem-trial-heldout-run.md` |
+| CRT-V0-016 | `reRegistration`, `reRegister`, `reRegistrationProblems`, `reRegistrationInvalid`, `firstFreshLaneStart`, `reuseSource.identities`, `report.ReRegistered` (`tools/cem-trial/register.go`, `main.go`, `score.go`) | `TestReuseAcrossAReRegistration`; the held-out run is recorded in `docs/build-log/2026-10-24-cem-trial-heldout-run.md` |
 | CRT-V0-005 (seeded arm), CRT-V0-012 | `seededPrologue`, `suggestEvidence`, `suggestedPaths`, `buildArtefacts`, `buildPrompt`, `prologueIdentity`, `armsNeedCorvint`, `lane.Suggested`, `lane.SeedHits`, `seedCoverage`, `contrast`, `mcnemarLanes`, `armSummary`, `citableArm`, `verifierRatesArm` (`tools/cem-trial/main.go`, `score.go`) | `TestSeededArmSharesThePromptApartFromItsPrologue`; `TestRunRefusesSeededArmWithoutCorvint`; `TestThreeArmSummaryKeepsPilotKeysAndDecomposesTheSeededArm`; `TestTwoArmSummaryIsUnchanged`; `TestLaneLevelMcNemarKeepsDiscordance`; 2026-10-24 three-arm development run (`benchmarks/results/cem-reviewer-trial-development-2026-10-24.json`, 60 lanes); the held-out run is owner-commissioned (decision 0427) and `NOT_RUN` |
 
 ## Rollout, rollback, compatibility

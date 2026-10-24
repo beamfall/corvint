@@ -232,7 +232,16 @@ func registrationInvalid(document *report) []string {
 	if err != nil {
 		return append(problems, "the registration commit time is unreadable")
 	}
+	problems = append(problems, reRegistrationInvalid(document)...)
 	first, observed := firstLaneStart(document)
+	if document.ReRegistered != nil {
+		// Lanes reused across the re-registration answer to the earlier one;
+		// with none run fresh there is no lane for this one to precede.
+		started := observed
+		if first, observed = firstFreshLaneStart(document); !observed && started {
+			first, observed = committed, true
+		}
+	}
 	switch {
 	case unstampedLanes(document) != 0:
 		problems = append(problems, fmt.Sprintf("%d completed lane(s) recorded no start, so the registration order is unobserved",
@@ -306,4 +315,99 @@ func checkRegistration(ctx context.Context, configuration options, document *rep
 	}
 	document.Registration = record
 	return nil
+}
+
+// reRegistration is the earlier registration a re-declared run reuses lanes
+// under, and the manifest those lanes ran from (CRT-V0-016).
+type reRegistration struct {
+	ManifestSHA256 string             `json:"manifest_sha256"`
+	Registration   registrationRecord `json:"registration"`
+}
+
+// reRegister admits, for a registered run, a --reuse report written under an
+// earlier registration that differs from this run's in the scorer digest
+// alone, and records it so each reused lane is checked against the
+// registration it ran under (CRT-V0-016). A report under the same
+// registration, or a run with none, is unchanged.
+func reRegister(run, prior *report, path string) error {
+	if run.Registration == nil || prior.Registration == nil || prior.Registration.Commit == run.Registration.Commit {
+		return nil
+	}
+	if problems := reRegistrationProblems(run.Registration, prior.Registration); len(problems) != 0 {
+		return fmt.Errorf("%s: %s", path, strings.Join(problems, "; "))
+	}
+	first, observed := firstLaneStart(prior)
+	committed, err := time.Parse(time.RFC3339, prior.Registration.CommittedAt)
+	switch {
+	case err != nil:
+		return fmt.Errorf("%s: the earlier registration commit time is unreadable", path)
+	case !observed || unstampedLanes(prior) != 0:
+		return fmt.Errorf("%s: the earlier run's registration order is unobserved", path)
+	case committed.After(first):
+		return fmt.Errorf("%s: the earlier registration is newer than that run's first lane", path)
+	}
+	run.ReRegistered = &reRegistration{ManifestSHA256: prior.ManifestSHA256, Registration: *prior.Registration}
+	return nil
+}
+
+// reRegistrationProblems allows the two registrations to differ only in the
+// scorer digest, and requires that they differ there.
+func reRegistrationProblems(current, earlier *registrationRecord) []string {
+	problems := registrationProblems(earlier.Document)
+	same := earlier.Document
+	same.ScorerSHA256 = current.Document.ScorerSHA256
+	left, _ := json.Marshal(same)
+	right, _ := json.Marshal(current.Document)
+	if !bytes.Equal(left, right) {
+		problems = append(problems, "the earlier registration differs from this run's beyond the scorer digest")
+	}
+	if earlier.Document.ScorerSHA256 == current.Document.ScorerSHA256 {
+		problems = append(problems, "the earlier registration has the same scorer digest, so it is not a re-registration")
+	}
+	return problems
+}
+
+// reRegistrationInvalid is the rescore reading of CRT-V0-016: the carried
+// earlier registration still differs only in the scorer digest, predates
+// every lane reused from it, and only lanes from its manifest were reused.
+func reRegistrationInvalid(document *report) []string {
+	carried := document.ReRegistered
+	if carried == nil {
+		return nil
+	}
+	if document.Registration == nil {
+		return []string{"a re-registered run carries no registration (CRT-V0-016)"}
+	}
+	problems := reRegistrationProblems(document.Registration, &carried.Registration)
+	committed, err := time.Parse(time.RFC3339, carried.Registration.CommittedAt)
+	if err != nil {
+		return append(problems, "the earlier registration commit time is unreadable")
+	}
+	for _, item := range document.Lanes {
+		if item.ReusedFrom == "" || item.ReusedFrom == document.ManifestSHA256 {
+			continue
+		}
+		if item.ReusedFrom != carried.ManifestSHA256 {
+			problems = append(problems, "lane "+laneKey(item)+" was reused from a report other than the re-registered one")
+			continue
+		}
+		when, err := time.Parse(time.RFC3339Nano, item.StartedAt)
+		if err == nil && committed.After(when) {
+			problems = append(problems, "the earlier registration is newer than reused lane "+item.ID+"/"+item.Arm)
+		}
+	}
+	return problems
+}
+
+// firstFreshLaneStart is the earliest start among lanes run under this
+// registration, including a resumed checkpoint of the same manifest; lanes
+// reused across the re-registration answer to the earlier one (CRT-V0-016).
+func firstFreshLaneStart(document *report) (time.Time, bool) {
+	fresh := &report{}
+	for _, item := range document.Lanes {
+		if item.ReusedFrom == "" || item.ReusedFrom == document.ManifestSHA256 {
+			fresh.Lanes = append(fresh.Lanes, item)
+		}
+	}
+	return firstLaneStart(fresh)
 }
