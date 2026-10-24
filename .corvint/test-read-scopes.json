@@ -323,6 +323,7 @@
       "internal/cem/"
     ],
     "internal/perfbudget/cmd/perf-budget": [
+      "Makefile",
       "internal/perfbudget/budgets.json"
     ],
     "internal/plansnapshot": [],
