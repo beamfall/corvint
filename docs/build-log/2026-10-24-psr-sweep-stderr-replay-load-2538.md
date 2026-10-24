@@ -30,8 +30,10 @@ no product deadline, budget or allowance was changed.
   the replay, is unchanged.
 - No assertion changed. The "not freed" failure now prints `psrEntryStates`, so a remaining
   host-load failure is classified (V1-1153).
-- Remaining quiet-host assumption: unchanged from V1-1324. The group-cleanup proof (2 s
-  liveness loop, 1 s pipe drain, 1 s `WaitDelay`) is never lifted.
+- Remaining quiet-host assumption: unchanged from V1-1324. The group-cleanup proof (its 5 s
+  post-wait cleanup allowance and the command's 1 s `WaitDelay`) never reads the lifted bound.
+  The Git source and runner-identity probe bounds do scale with the sweep budget (PSR-V0-023);
+  under the 300 s budget they sit at the 5x cap.
 
 ## Evidence
 
