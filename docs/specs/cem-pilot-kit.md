@@ -169,8 +169,9 @@ within 15 minutes.
   (decision 0098).
 - `CEM-PILOT-033`: (proposed 2026-10-24, V1-2522, not accepted) On a platform without advisory
   file locks (every GOOS but darwin and linux, so windows/amd64, which the 1.0 release spec lists
-  `UNSUPPORTED`), the CEM update lock that `prepare`, `cite` and `mark` take MUST refuse
-  `publish-failed` before it creates any directory or lock file, and the refusal message MUST end
+  `UNSUPPORTED`), the CEM update lock that `begin`, `prepare`, `cite`, `mark`, `cover` and
+  `discriminate` take MUST refuse `publish-failed` before it creates any directory or lock file (a
+  command whose map read fails first keeps that read's refusal), and the refusal message MUST end
   with `: serialized CEM map updates are unsupported on this platform`, the exact platform refusal
   that `internal/testplatform` matches. Before V1-2522 the lock created `.corvint/`, then dropped
   that cause and reported only `update lock for ".corvint/change.cem.json" cannot be opened`.
