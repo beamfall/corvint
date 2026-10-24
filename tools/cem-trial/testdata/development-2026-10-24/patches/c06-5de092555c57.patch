@@ -1,0 +1,99 @@
+diff --git a/internal/app/app.go b/internal/app/app.go
+index 5379d7367..70c4e1846 100644
+--- a/internal/app/app.go
++++ b/internal/app/app.go
+@@ -677,6 +677,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger, bundles []
+ 	mediaHTTP.SetSealed(sealedPredicate)
+ 	mediaHTTP.SetEncryptedBytes(appLibEncryptDBCipher{manager: libEncryptManager})
+ 	assetService.SetSealed(sealedPredicate)
++	artworkService.SetSealed(sealedPredicate)
+ 	// Auto-unseal at boot (ADR-0045 §2.4): each auto-mode encrypted Library is
+ 	// unsealed via its KEK; passphrase-mode Libraries stay Sealed until the
+ 	// operator unseals them (absent from search/Sources, like Reveal-filtering).
+diff --git a/internal/artwork/artwork.go b/internal/artwork/artwork.go
+index 6a473e59a..7c883038f 100644
+--- a/internal/artwork/artwork.go
++++ b/internal/artwork/artwork.go
+@@ -101,9 +101,16 @@ type Service struct {
+ 	grabber  FrameGrabber
+ 	scaler   ImageScaler
+ 	dir      string
++	sealed   SealedPredicate
+ 	deriveMu sync.Mutex
+ }
+ 
++// SealedPredicate reports whether a Library is currently Sealed (ADR-0098 area
++// 2). A Sealed Library gets no plaintext artwork: poster generation and Media
++// artwork import fail-closed (skip) for it. Composition wires it off
++// libencrypt.Manager.Sealed; nil (the default) treats no Library as sealed.
++type SealedPredicate func(libraryID store.LibraryID) bool
++
+ // NewService creates an artwork service rooted at dataDir/artwork.
+ func NewService(st *store.Store, grabber FrameGrabber, dataDir string) *Service {
+ 	s := &Service{store: st, grabber: grabber, dir: filepath.Join(dataDir, "artwork")}
+@@ -113,6 +120,25 @@ func NewService(st *store.Store, grabber FrameGrabber, dataDir string) *Service
+ 	return s
+ }
+ 
++// SetSealed wires the Sealed Library predicate (ADR-0098 area 2). Nil disables it.
++func (s *Service) SetSealed(sealed SealedPredicate) {
++	s.sealed = sealed
++}
++
++// isSealed reports whether the Media's Library is currently Sealed. A lookup
++// failure fails closed (treated as sealed): artwork must never write plaintext
++// for a Library it cannot prove is unsealed.
++func (s *Service) isSealed(ctx context.Context, id store.MediaID) bool {
++	if s.sealed == nil {
++		return false
++	}
++	libraryID, err := s.store.MediaLibraryID(ctx, id)
++	if err != nil {
++		return true
++	}
++	return s.sealed(libraryID)
++}
++
+ // PosterPath returns where a Media item's poster lives (whether or not it
+ // exists yet). Media IDs are server-issued (media-sha256-… or seed literals),
+ // but the path stays inside the artwork dir by construction.
+@@ -438,6 +464,11 @@ func (s *Service) GeneratePoster(ctx context.Context, id store.MediaID) error {
+ 	if err != nil {
+ 		return fmt.Errorf("loading media %s: %w", id, err)
+ 	}
++	// Sealed Libraries get no plaintext poster (ADR-0098 area 2): skip generation
++	// entirely — no frame is grabbed and no file is written.
++	if s.sealed != nil && s.sealed(media.LibraryID) {
++		return nil
++	}
+ 	file, err := s.store.PrimaryMediaFile(ctx, id, serverFilter)
+ 	if err != nil {
+ 		return fmt.Errorf("loading primary file for %s: %w", id, err)
+@@ -601,6 +632,11 @@ func (s *Service) ImportArtwork(ctx context.Context, id store.MediaID, slot stri
+ 	if !ValidSlot(slot) {
+ 		return fmt.Errorf("unknown artwork slot %q", slot)
+ 	}
++	// Sealed Libraries get no plaintext poster on disk (ADR-0098 area 2): skip the
++	// import fail-closed so no plaintext artwork file is written.
++	if s.isSealed(ctx, id) {
++		return nil
++	}
+ 	return s.importArtwork(ctx, s.ArtworkPath(id, slot), string(id), slot, data)
+ }
+ 
+diff --git a/internal/genassets/imageenrich.go b/internal/genassets/imageenrich.go
+index 04007073c..639d5e79c 100644
+--- a/internal/genassets/imageenrich.go
++++ b/internal/genassets/imageenrich.go
+@@ -139,6 +139,11 @@ func (s *Service) imageSource(ctx context.Context, id store.MediaID) (store.Medi
+ 	if media.Class != store.MediaClassImage {
+ 		return store.Media{}, store.MediaFile{}, false, nil
+ 	}
++	// Sealed Libraries are skipped entirely (like selectSource): a Sealed Library
++	// gets no plaintext enrichment derivative or existence marker.
++	if s.sealed != nil && s.sealed(media.LibraryID) {
++		return store.Media{}, store.MediaFile{}, false, nil
++	}
+ 	file, err := s.store.PrimaryMediaFile(ctx, id, serverFilter)
+ 	if err != nil || file.ContentFingerprint == "" {
+ 		return store.Media{}, store.MediaFile{}, false, nil

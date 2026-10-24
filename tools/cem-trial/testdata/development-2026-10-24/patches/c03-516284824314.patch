@@ -1,0 +1,171 @@
+diff --git a/internal/app/app.go b/internal/app/app.go
+index c28f73a0b..17ec60f31 100644
+--- a/internal/app/app.go
++++ b/internal/app/app.go
+@@ -23,6 +23,7 @@ import (
+ 	"github.com/beamfall/core/internal/config"
+ 	"github.com/beamfall/core/internal/discovery"
+ 	"github.com/beamfall/core/internal/ffmpeg"
++	"github.com/beamfall/core/internal/filmtvimport"
+ 	"github.com/beamfall/core/internal/filmtvparse"
+ 	"github.com/beamfall/core/internal/genassets"
+ 	"github.com/beamfall/core/internal/governor"
+@@ -326,11 +327,11 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger, bundles []
+ 	jobRegistry.Register(qbittorrent.PollJobKind, qbittorrent.Handler(qbitIngestor))
+ 	// Migration Wizard import (ADR-0037 / MIG-1): the generic import job handler.
+ 	// It resolves the run's source parser, runs the path-based match chain, and
+-	// applies behavioral state append-only. The source parsers themselves ship
+-	// with the importing plugins (MIG-2); migrationSourceResolver carries none
+-	// yet, so an enqueued run with no plugin-provided parser fails with a clear
+-	// "no parser" error rather than silently importing nothing. The handler and
+-	// its job kind exist now so the wizard's enqueue path has a live executor.
++	// applies behavioral state append-only. migrationSourceResolver dispatches
++	// the Film & TV plugin's compiled importers (Plex/Emby/Jellyfin/NFO, MIG-2)
++	// over the operator-supplied source path the run carries; an enqueued run
++	// for an unknown (plugin, importer) pair fails with a clear "no parser" error
++	// rather than silently importing nothing.
+ 	jobRegistry.Register(migrate.JobKind, migrate.Handler(st, migrationSourceResolver{}))
+ 	identifyService := identify.NewService(scrapeEngine, plugins, st)
+ 	identifyService.SetArtwork(scrapeEngine, artworkService)
+@@ -999,17 +1000,35 @@ func (a *scanIdentifier) AutoIdentify(ctx context.Context, mediaID store.MediaID
+ 	return err
+ }
+ 
+-// migrationSourceResolver maps a Migration Wizard run's (pluginID, importerID)
+-// to the source parser that yields its foreign items (ADR-0037 §2.1, the
+-// Importer Extension Point in code). It carries no parsers yet: the first-party
+-// importers (Plex/Emby/Jellyfin/NFO/OPML) ship with their plugins as MIG-2, and
+-// will register here. Until then every run resolves to ok=false, so the handler
+-// fails the job with a clear "no parser" error instead of importing nothing
+-// silently — the honest "nothing wired yet" state.
++// migrationSourceResolver maps a Migration Wizard run's (pluginID, importerID,
++// sourcePath) to the source parser that yields its foreign items (ADR-0037
++// §2.1, the Importer Extension Point in code). It dispatches the Film & TV
++// plugin's compiled importers (MIG-2, internal/filmtvimport) by importer ID,
++// constructing each over the operator-supplied source path the run carries
++// (Payload.SourcePath): plex/emby/jellyfin read a foreign watch-state DB at the
++// path, nfo walks a sidecar tree rooted at it. An unknown (plugin, importer)
++// pair returns ok=false, so the handler fails the job with a clear "no parser"
++// error rather than importing nothing silently. Source-system names stay in the
++// filmtvimport package and the plugin's ImporterSpec, never in core
++// vocabulary (invariant #1).
+ type migrationSourceResolver struct{}
+ 
+-func (migrationSourceResolver) Resolve(pluginID, importerID string, categories []string) (migrate.Source, bool) {
+-	return nil, false
++func (migrationSourceResolver) Resolve(pluginID, importerID string, categories []string, sourcePath string) (migrate.Source, bool) {
++	if pluginID != filmtvimport.PluginID {
++		return nil, false
++	}
++	switch importerID {
++	case "plex":
++		return filmtvimport.NewPlexSource(sourcePath), true
++	case "emby":
++		return filmtvimport.NewEmbySource(sourcePath), true
++	case "jellyfin":
++		return filmtvimport.NewJellyfinSource(sourcePath), true
++	case "nfo":
++		return filmtvimport.NewNFOSource(sourcePath), true
++	default:
++		return nil, false
++	}
+ }
+ 
+ type scanObserverAdapter struct {
+diff --git a/internal/graph/graph_wizard.go b/internal/graph/graph_wizard.go
+index a1336f4d6..e36414815 100644
+--- a/internal/graph/graph_wizard.go
++++ b/internal/graph/graph_wizard.go
+@@ -140,6 +140,14 @@ type migrationJobPayload struct {
+ 	// §2.2). The handler refuses a run with no Profile rather than guessing whose
+ 	// history the import is.
+ 	ProfileID string `json:"profile_id"`
++	// SourcePath is the operator-supplied location the chosen source reads from
++	// (ADR-0037 §2.1: "collects credentials or export files"): an export-file
++	// path or connection string. It carries the location only — never a secret
++	// (invariant #5). The plugin's source parser interprets it; Core passes it
++	// through to migrate.SourceResolver.Resolve so a path-needing parser can be
++	// built. Required for an "export-file" importer (it has nothing to read
++	// without one); optional otherwise.
++	SourcePath string `json:"source_path"`
+ }
+ 
+ // runImport enqueues an additive, re-runnable import job for one declared
+@@ -159,6 +167,14 @@ func (h *Handler) runImport(ctx context.Context, scope auth.Scope, req request)
+ 	if !ok {
+ 		return JobInfo{}, clientError("unknown importer")
+ 	}
++	// SourcePath is the operator-supplied export-file path / connection string
++	// the source reads from (ADR-0037 §2.1). An "export-file" importer has
++	// nothing to read without one, so it is required for that input form;
++	// "credentials" importers carry their location differently and may omit it.
++	sourcePath := trimmedVariable(req, "sourcePath")
++	if spec.Input == "export-file" && sourcePath == "" {
++		return JobInfo{}, clientError("sourcePath is required for this importer")
++	}
+ 	v := newVars(req)
+ 	categories, hasCategories := v.StringList("categories", "categories")
+ 	if err := v.Err(); err != nil {
+@@ -182,6 +198,7 @@ func (h *Handler) runImport(ctx context.Context, scope auth.Scope, req request)
+ 		ImporterID: importerID,
+ 		Categories: categories,
+ 		ProfileID:  string(scope.ProfileID),
++		SourcePath: sourcePath,
+ 	})
+ 	if err != nil {
+ 		return JobInfo{}, err
+diff --git a/internal/migrate/handler.go b/internal/migrate/handler.go
+index 8b1c42abe..b70735411 100644
+--- a/internal/migrate/handler.go
++++ b/internal/migrate/handler.go
+@@ -55,6 +55,14 @@ type Payload struct {
+ 	// it to the operator's Profile; an empty value fails the run rather than
+ 	// guessing whose history this is.
+ 	ProfileID string `json:"profile_id"`
++	// SourcePath is the operator-supplied location the source reads from — an
++	// export-file path (Plex DB, NFO root) or connection string the resolver
++	// needs to construct a path-needing Source (ADR-0037 §2.1: the wizard
++	// "collects credentials or export files for the selected source"). It is a
++	// plain location string, never a secret (invariant #5); the resolver, not
++	// this package, interprets it. Passed verbatim to SourceResolver.Resolve so
++	// a path-needing parser can be built; empty when a source needs none.
++	SourcePath string `json:"source_path"`
+ }
+ 
+ // Result is the import run's outcome, surfaced on the job progress row as the
+@@ -83,7 +91,7 @@ func Handler(st Store, resolver SourceResolver) jobs.Handler {
+ 		if payload.ProfileID == "" {
+ 			return jobs.Result{}, errors.New("migrate: payload is missing the target profile")
+ 		}
+-		source, ok := resolver.Resolve(payload.PluginID, payload.ImporterID, payload.Categories)
++		source, ok := resolver.Resolve(payload.PluginID, payload.ImporterID, payload.Categories, payload.SourcePath)
+ 		if !ok {
+ 			return jobs.Result{}, fmt.Errorf("migrate: no parser for %s/%s", payload.PluginID, payload.ImporterID)
+ 		}
+diff --git a/internal/migrate/migrate.go b/internal/migrate/migrate.go
+index 59186ee22..c7e48356e 100644
+--- a/internal/migrate/migrate.go
++++ b/internal/migrate/migrate.go
+@@ -95,12 +95,15 @@ type Source interface {
+ 	Items(ctx context.Context) ([]ForeignItem, error)
+ }
+ 
+-// SourceResolver maps an enqueued run's (pluginID, importerID) to the Source
+-// that parses it. The app wires a concrete resolver over the activated plugin
+-// registry (the plugins declare ImporterSpecs and provide the matching
+-// compiled parsers); this package never hardcodes a source name. A resolver
+-// that cannot service the pair returns ok=false, and the run fails with a clear
+-// "no parser" error rather than silently importing nothing.
++// SourceResolver maps an enqueued run's (pluginID, importerID, sourcePath) to
++// the Source that parses it. The app wires a concrete resolver over the
++// activated plugin registry (the plugins declare ImporterSpecs and provide the
++// matching compiled parsers); this package never hardcodes a source name.
++// sourcePath is the operator-supplied location the run carries (Payload.SourcePath
++// — an export-file path or connection string): the resolver hands it to the
++// path-needing constructor so the Source knows what to read. A resolver that
++// cannot service the pair returns ok=false, and the run fails with a clear "no
++// parser" error rather than silently importing nothing.
+ type SourceResolver interface {
+-	Resolve(pluginID, importerID string, categories []string) (Source, bool)
++	Resolve(pluginID, importerID string, categories []string, sourcePath string) (Source, bool)
+ }

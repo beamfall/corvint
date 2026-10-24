@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -249,21 +248,139 @@ func TestBothArmsShareTheSamePromptDigestApartFromThePrologue(t *testing.T) {
 	}
 }
 
-// CRT-V0-005, CEM-V1-215: the map-carrying arms presented a cem/0.1 map,
-// retired with cem/0.x, so buildArtefacts refuses before writing any map or
-// report into the prep clone. Without a Corvint binary it stays empty.
-func TestMapArmsRefuseTheRetiredWire(t *testing.T) {
-	root := t.TempDir()
-	artefacts, err := buildArtefacts(context.Background(), options{corvintGo: filepath.Join(root, "corvint"), arms: []string{"treatment", "seeded"}}, root, "patch", []string{"a.go"})
-	if !errors.Is(err, errRetiredMapArms) || artefacts != nil {
-		t.Fatalf("map arms: %v %v", artefacts, err)
+// CRT-V0-005, CRT-V0-015: the map-carrying arms carry a cem/1.0 map that
+// `cem prepare` derived over a synthetic target holding the presented patch.
+// The map binds the base, lists the presented hunks in order, all unknown;
+// two builds give byte-identical artefacts with no absolute path; the prep
+// clone stays clean and cannot resolve the target; and a lane's citation
+// replays into a fresh copy of the map that `cem verify` accepts.
+func TestMapArmsCarryAPreparedCEM10Map(t *testing.T) {
+	ctx := context.Background()
+	repo := fixtureRepo(t)
+	directory := t.TempDir()
+	item := selectPilot(t, repo, directory).Tasks[0]
+	patch, err := readPatch(directory, item)
+	if err != nil {
+		t.Fatal(err)
 	}
-	entries, err := os.ReadDir(root)
-	if err != nil || len(entries) != 0 {
-		t.Fatalf("the refusal wrote into the prep clone: %v %v", entries, err)
+	configuration := options{corvintGo: buildCorvint(t), arms: []string{"control", "treatment"}}
+	// macOS TMPDIR is a symlink, and the stable verifier refuses a root reached
+	// through one (V1-2519): the target clone must still verify under it.
+	link := filepath.Join(t.TempDir(), "tmp-link")
+	if err := os.Symlink(t.TempDir(), link); err == nil {
+		t.Setenv("TMPDIR", link)
 	}
-	if artefacts, err := buildArtefacts(context.Background(), options{}, root, "patch", nil); err != nil || len(artefacts) != 0 {
-		t.Fatalf("control arm: %v %v", artefacts, err)
+	prep, err := cloneAtBase(ctx, repo, item.BaseCommit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(prep) })
+	build := func() (map[string]string, *mapTarget) {
+		t.Helper()
+		artefacts, target, err := buildArtefacts(ctx, configuration, prep, patch, item.SourceFiles)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.RemoveAll(target.root) })
+		return artefacts, target
+	}
+	first, target := build()
+	if resolved, err := filepath.EvalSymlinks(target.root); err != nil || resolved != target.root {
+		t.Fatalf("target root %s is reached through a symlink (%s, %v)", target.root, resolved, err)
+	}
+	second, again := build()
+	for _, name := range []string{"map", "status", "report"} {
+		if first[name] == "" || first[name] != second[name] {
+			t.Fatalf("artefact %s is empty or differs between builds", name)
+		}
+		if strings.Contains(first[name], target.root) || strings.Contains(first[name], os.TempDir()) {
+			t.Fatalf("artefact %s carries an absolute path", name)
+		}
+	}
+	if target.target != again.target || target.base != item.BaseCommit {
+		t.Fatalf("target %s/%s, again %s, base %s", target.base, target.target, again.target, item.BaseCommit)
+	}
+	var document struct {
+		Spec         string `json:"spec"`
+		BaseRevision string `json:"baseRevision"`
+		Hunks        []struct {
+			Disposition string `json:"disposition"`
+		} `json:"hunks"`
+	}
+	if err := json.Unmarshal([]byte(first["map"]), &document); err != nil {
+		t.Fatal(err)
+	}
+	presented := patchHunks(patch)
+	if document.Spec != "cem/1.0" || document.BaseRevision != item.BaseCommit || len(document.Hunks) != len(presented) || len(presented) < 2 {
+		t.Fatalf("map spec %q base %q with %d hunks, %d presented", document.Spec, document.BaseRevision, len(document.Hunks), len(presented))
+	}
+	for _, hunk := range document.Hunks {
+		if hunk.Disposition != "unknown" {
+			t.Fatalf("a prepared hunk is %q, want unknown", hunk.Disposition)
+		}
+	}
+	var status struct {
+		State string `json:"state"`
+	}
+	if err := json.Unmarshal([]byte(first["status"]), &status); err != nil || status.State != "accepted" {
+		t.Fatalf("status state %q: %v", status.State, err)
+	}
+	if resolvable(ctx, prep, target.target) {
+		t.Fatal("the prep clone resolves the synthetic target")
+	}
+	if dirty, err := git(ctx, prep, "status", "--porcelain", "--ignored"); err != nil || dirty != "" {
+		t.Fatalf("the build wrote into the prep clone: %q %v", dirty, err)
+	}
+	lane, err := laneClone(ctx, prep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(lane) })
+	good := citation{Hunk: "1", Path: "docs/specs/play-v0.md", Lines: "1:3", Relation: "specification"}
+	state, err := applyCitations(ctx, configuration, lane, target, item, []citation{good})
+	counts, _ := state["counts"].(map[string]any)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state["accepted"] != 1 || counts["supported"] != 1 || counts["total"] != len(presented) || state["verify_ok"] != true || state["replay_ok"] != true {
+		t.Fatalf("cited state %v", state)
+	}
+	if tiers, _ := state["tiers"].(map[string]any); tiers["cited"] != float64(1) {
+		t.Fatalf("tiers %v, want one cited hunk", state["tiers"])
+	}
+	missing := citation{Hunk: "1", Path: "docs/absent.md", Lines: "1:1", Relation: "specification"}
+	state, err = applyCitations(ctx, configuration, lane, target, item, []citation{missing})
+	counts, _ = state["counts"].(map[string]any)
+	if err != nil || state["accepted"] != 0 || counts["supported"] != 0 || state["replay_ok"] != false {
+		t.Fatalf("a missing citation, or the previous lane's, reached the map: %v %v", state, err)
+	}
+	// A measurement that never ran is an error, not a verifier failure.
+	cancelled, cancel := context.WithCancel(ctx)
+	cancel()
+	if state, err := applyCitations(cancelled, configuration, lane, target, item, []citation{good}); err == nil {
+		t.Fatalf("a cancelled measurement was recorded as %v", state)
+	}
+	if artefacts, target, err := buildArtefacts(ctx, options{}, prep, patch, nil); err != nil || len(artefacts) != 0 || target != nil {
+		t.Fatalf("control arm: %v %v %v", artefacts, target, err)
+	}
+}
+
+// CRT-V0-005: a map whose hunks are not the presented hunks in order is
+// refused, so a reply's hunk number never cites another hunk.
+func TestMisalignedMapIsRefused(t *testing.T) {
+	patch := "diff --git a/a.go b/a.go\n--- a/a.go\n+++ b/a.go\n@@ -1,2 +1,2 @@\n-x\n+y\n@@ -9 +9 @@\n-p\n+q\n"
+	aligned := `{"hunks":[{"path":"a.go","oldRange":{"start":1},"newRange":{"start":1}},{"path":"a.go","oldRange":{"start":9},"newRange":{"start":9}}]}`
+	if err := alignedHunks([]byte(aligned), patch); err != nil {
+		t.Fatalf("an aligned map was refused: %v", err)
+	}
+	for _, document := range []string{
+		`{"hunks":[{"path":"a.go","oldRange":{"start":1},"newRange":{"start":1}}]}`,
+		`{"hunks":[{"path":"a.go","oldRange":{"start":9},"newRange":{"start":9}},{"path":"a.go","oldRange":{"start":1},"newRange":{"start":1}}]}`,
+		`{"hunks":[{"path":"b.go","oldRange":{"start":1},"newRange":{"start":1}},{"path":"a.go","oldRange":{"start":9},"newRange":{"start":9}}]}`,
+	} {
+		if err := alignedHunks([]byte(document), patch); err == nil {
+			t.Fatalf("a misaligned map was accepted: %s", document)
+		}
 	}
 }
 

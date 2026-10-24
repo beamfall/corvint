@@ -177,7 +177,7 @@ func registeredReport(started, committed string) *report {
 
 // CRT-V0-010, CRT-V0-014, CRT-V0-015: the report is invalid when the
 // registration was committed after the first lane, does not describe the run,
-// or registers an arm that carries the all-unknown cem/0.1 worklist; a heldout
+// or registers an arm that carries an all-unknown worklist; a heldout
 // report with no registration is invalid too.
 func TestReportRefusesARegistrationNewerThanItsFirstLane(t *testing.T) {
 	t.Run("CRT-V0-014/registered before the first lane", func(t *testing.T) {
