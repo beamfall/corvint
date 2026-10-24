@@ -149,15 +149,25 @@ func TestArchitecture(t *testing.T) {
 }
 
 func TestSupportedHostVersion(t *testing.T) {
-	t.Run("AHI-009 AHI-032 bounded OpenCode 2.0 compatibility", func(t *testing.T) {
-		for _, in := range []string{"opencode v2.0.18\n", "2.0.19", "2.0.999"} {
+	t.Run("AHI-009 AHI-032 AHI-174 bounded OpenCode 2.0 and 2.1 compatibility", func(t *testing.T) {
+		for _, in := range []string{"opencode v2.0.18\n", "2.0.19", "2.0.999", "2.1.0", "opencode v2.1.3\n", "2.1.999"} {
 			if _, e := ParseSupportedHostVersion(in); e != nil {
 				t.Fatalf("%q: %v", in, e)
 			}
 		}
-		for _, in := range []string{"2.0.17", "2.1.0", "1.18.31", "2.0.19-beta", "2.0.019", "02.00.19", "2.0.9999999999999999999", "unknown"} {
+		for _, in := range []string{"2.0.17", "2.0.9", "2.2.0", "3.0.0", "1.18.31", "2.0.19-beta", "2.1.3-beta", "2.0.019", "2.1.03", "02.00.19", "2.0.9999999999999999999", "unknown"} {
 			if _, e := ParseSupportedHostVersion(in); e == nil {
 				t.Fatalf("accepted unsupported version %q", in)
+			}
+		}
+	})
+}
+
+func TestAdmittedGoVersion(t *testing.T) {
+	t.Run("AHI-175 full qualification admits exactly the decision 0547 toolchains", func(t *testing.T) {
+		for version, want := range map[string]bool{"go1.27.2": true, "go1.27.3": true, "go1.27.1": false, "go1.27.4": false, "go1.28.0": false, "": false, "devel go1.28-abc": false} {
+			if admittedGoVersion(version) != want {
+				t.Fatalf("%q: want %v", version, want)
 			}
 		}
 	})
@@ -274,7 +284,7 @@ func TestProducerConsumer(t *testing.T) {
 		if got["supportedHostRange"] != SupportedHostRange || got["hostVersion"] != "2.0.19" {
 			t.Fatal(got)
 		}
-		for _, version := range []string{"2.1.0", "2.0.019", "02.00.19", "2.0.9999999999999999999", "2.0.19-beta"} {
+		for _, version := range []string{"2.2.0", "2.0.17", "2.0.019", "02.00.19", "2.0.9999999999999999999", "2.0.19-beta"} {
 			unsupported := status(version)
 			if unsupported["integrationSupport"] != "UNQUALIFIED" || unsupported["reason"] != "unsupported-host-version" || !strings.Contains(str(unsupported["qualificationAction"]), "go run ./tools/qualify-opencode") {
 				t.Fatalf("%s: %v", version, unsupported)

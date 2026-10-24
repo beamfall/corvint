@@ -62,13 +62,13 @@
       "validation": "native-static-plus-adapter-fixtures"
     },
     {
-      "adapterVersion": "0.7.17",
-      "documentedAgainstHostVersion": "2.0.18",
+      "adapterVersion": "0.7.18",
+      "documentedAgainstHostVersion": "2.1.3",
       "fullSupport": "external-dependent",
       "host": "opencode",
-      "hostVersion": "2.0.19",
+      "hostVersion": "2.1.3",
       "hostVersionEvidence": "opencode-native-integration/1 exact local qualification; task evidence retained",
-      "hostVersionEvidenceAdapterVersion": "0.7.3",
+      "hostVersionEvidenceAdapterVersion": "0.7.18",
       "hostForcedRuntime": {
         "name": "node",
         "versionRange": ">=20"
