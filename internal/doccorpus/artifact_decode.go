@@ -83,6 +83,12 @@ type blockStats struct{ blocks, allocated int }
 // decodeArtifactBlocks is decodeArtifactReader with blocks of window bytes after headroom bytes
 // of room for a carry; tests use small blocks to cross every window boundary.
 func decodeArtifactBlocks(r io.Reader, window, headroom int, header func(*Artifact), claims func(lo int, chunk []Claim), stats *blockStats) (*Artifact, artifactTail, error) {
+	return decodeArtifactBlocksScan(r, window, headroom, boundaryScan{}, header, claims, stats)
+}
+
+// decodeArtifactBlocksScan is decodeArtifactBlocks with the boundary scan's segmentation; tests
+// use tiny segments so a split falls at every kind of byte, and one segment for the sequential scan.
+func decodeArtifactBlocksScan(r io.Reader, window, headroom int, scan boundaryScan, header func(*Artifact), claims func(lo int, chunk []Claim), stats *blockStats) (*Artifact, artifactTail, error) {
 	if stats == nil {
 		stats = &blockStats{}
 	}
@@ -95,7 +101,7 @@ func decodeArtifactBlocks(r io.Reader, window, headroom int, header func(*Artifa
 		close(done)
 		reader.Wait()
 	}()
-	s := &artifactStream{blocks: blocks, headroom: headroom}
+	s := &artifactStream{blocks: blocks, headroom: headroom, boundary: scan}
 	a, tail, err := decodeArtifactStream(s, header, true, claims)
 	if err != nil && !s.eof {
 		// A refusal of the bytes read so far does not hide a later read error: the rest of the
@@ -341,15 +347,20 @@ func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, 
 			d.openSplit(s)
 			for more := d.peek() != ']'; more; more = d.consume(',') {
 				d.peek()
+				if spans := d.parallelElements(); len(spans) > 0 {
+					// The elements the parallel scan found are exactly the ones the scan below
+					// would find from here, so it resumes after the last (DCP-V1-551).
+					for _, e := range spans {
+						d.element(s, e.begin, e.end)
+					}
+					d.pos = spans[len(spans)-1].end
+					continue
+				}
 				begin, end, ok := d.scan()
 				if !ok {
 					return nil, artifactTail{}, invalid
 				}
-				s.elements = append(s.elements, byteSpan{d.base + int64(begin), d.base + int64(end)})
-				d.batch = append(d.batch, d.buf[begin:end])
-				if len(d.batch) == splitChunk {
-					d.flush()
-				}
+				d.element(s, begin, end)
 			}
 			if d.peek() != ']' {
 				return nil, artifactTail{}, invalid
@@ -478,6 +489,7 @@ type artifactStream struct {
 	overBound bool
 	readErr   error
 	onRead    func(run []byte, ref *blockRef) // releases ref once run is hashed
+	boundary  boundaryScan
 }
 
 // offset is the artifact offset of the scan position.
@@ -565,6 +577,16 @@ type artifactDecoder struct {
 	split    *splitArray
 	batch    [][]byte
 	dispatch func(*splitArray, [][]byte)
+	scanned  int64 // artifact offset up to which a parallel scan has looked
+}
+
+// element records the split element at buf[begin:end] and dispatches a full batch.
+func (d *artifactDecoder) element(s *splitArray, begin, end int) {
+	s.elements = append(s.elements, byteSpan{d.base + int64(begin), d.base + int64(end)})
+	d.batch = append(d.batch, d.buf[begin:end])
+	if len(d.batch) == splitChunk {
+		d.flush()
+	}
 }
 
 // more refills the window keeping buf[keep:]; it reports whether any byte was read.
@@ -683,27 +705,7 @@ func scanValue(data []byte, at int) (int, int) {
 	case '"':
 		return scanString(data, at)
 	case '{', '[':
-		depth := 0
-		for i := at; i < len(data); {
-			switch data[i] {
-			case '"':
-				end, state := scanString(data, i)
-				if state != scanOK {
-					return 0, state
-				}
-				i = end
-				continue
-			case '{', '[':
-				depth++
-			case '}', ']':
-				depth--
-				if depth == 0 {
-					return i + 1, scanOK
-				}
-			}
-			i++
-		}
-		return 0, scanShort
+		return scanNested(data, at, 0)
 	}
 	for i := at; i < len(data); i++ {
 		switch data[i] {
@@ -715,6 +717,31 @@ func scanValue(data []byte, at int) (int, int) {
 		}
 	}
 	return len(data), scanShort
+}
+
+// scanNested passes over bracketed bytes from data[at], at bracket depth depth there, to the
+// bracket that closes depth 0, skipping strings; it returns the end after that bracket.
+func scanNested(data []byte, at, depth int) (int, int) {
+	for i := at; i < len(data); {
+		switch data[i] {
+		case '"':
+			end, state := scanString(data, i)
+			if state != scanOK {
+				return 0, state
+			}
+			i = end
+			continue
+		case '{', '[':
+			depth++
+		case '}', ']':
+			depth--
+			if depth == 0 {
+				return i + 1, scanOK
+			}
+		}
+		i++
+	}
+	return 0, scanShort
 }
 
 // scanString finds the end of the string whose opening quote is at data[open].

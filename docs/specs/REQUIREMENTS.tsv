@@ -2789,6 +2789,9 @@ DCP-V1-431	docs/specs/documentation-corpus-v1.md	The CLI's verified read, and a 
 DCP-V1-432	docs/specs/documentation-corpus-v1.md	Every remaining reader of a retained artifact either takes the verified read of	unrecorded	-
 DCP-V1-433	docs/specs/documentation-corpus-v1.md	A read persists and consumes no read index, posting set, identity map, sidecar o	unrecorded	-
 DCP-V1-434	docs/specs/documentation-corpus-v1.md	An indexed CLI read (`IndexedOperation`) derives the claim terms of its query	unrecorded	-
+DCP-V1-551	docs/specs/documentation-corpus-v1.md	Before scanning a split member's next element sequentially, the decode may cut t	unrecorded	-
+DCP-V1-552	docs/specs/documentation-corpus-v1.md	With the parallel scan, a decode returns the same records, digest tail and refus	unrecorded	-
+DCP-V1-553	docs/specs/documentation-corpus-v1.md	The parallel scan adds no on-disk state, cache, index or format change, and keep	unrecorded	-
 DCP-V1-450	docs/specs/documentation-corpus-v1.md	Scope membership allocates nothing, and each scope check finds the scopes holdin	unrecorded	-
 DCP-V1-451	docs/specs/documentation-corpus-v1.md	The read fixture of `DCP-V1-418` has a many-scopes shape, one single-file scope	unrecorded	-
 DCP-V1-452	docs/specs/documentation-corpus-v1.md	A corpus revision pin (`BuildRevisionContext`) reads the checkout's Git index	unrecorded	-

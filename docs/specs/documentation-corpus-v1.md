@@ -2222,6 +2222,53 @@ proposed, experimental; GitHub #1598.
   `TestDCPV1419FastIndexMatchesReference`,
   `TestDCPV1419FastIndexDeclinesEveryRefusal`, `TestDCPV1413CorpusReadsWithoutRederivation`.
 
+### Parallel boundary scan of split members (V1-2571)
+
+A warm CLI read decodes the artifact on parallel workers (`DCP-V1-414`), but one goroutine still
+scans every split element's bounds byte by byte before it can hand the element to a worker, and on
+the `DCP-V1-418` fixture that scan was the longest serial step of the decode. These requirements
+split the scan itself across segments without changing what any decode returns. Status for
+`DCP-V1-551..553`: proposed, experimental; V1-2571, part of GitHub #1598.
+
+- `DCP-V1-551`: Before scanning a split member's next element sequentially, the decode may cut the
+  next window region of at most 4 MiB into up to `GOMAXPROCS` segments of at least 32 KiB and
+  scan them in parallel. The separator is a comma followed by the first element's bytes up to the
+  colon after its first member name; it cannot occur inside a canonical JSON string, where every
+  quote is escaped. The first segment starts at the scan position; each other segment guesses
+  that its first element starts just after its first separator, and every segment scans whole
+  elements with the sequential scan's own `scanValue`, taking an element only when one comma
+  follows it directly. Runs are joined in order only while each run starts where its
+  predecessor's next element does, so every element handed over is exactly one the sequential
+  scan finds from the same position, in the same order; a wrong guess, an anomaly, a truncation
+  or the end of the window only ends the join early, and the sequential scan then resumes after
+  the last element handed over. A region is never scanned in parallel twice. Failure modes: a
+  separator inside a string, an escape or backslash run cut by a segment bound, a nested array of
+  objects that start with the same member name, an element that spans several segments, an
+  element without a member name, corrupt, inserted or cut bytes, and a region shorter than two
+  segments each fall back to (or stay a prefix of) the sequential scan. Acceptance:
+  `TestDCPV1551ParallelElementsMatchScan`, `TestDCPV1551ParallelElementsCorrupt`.
+- `DCP-V1-552`: With the parallel scan, a decode returns the same records, digest tail and refusal,
+  with the same message, as with the sequential scan, in memory and streamed at every window size,
+  so the refusal order of `DCP-V1-414` and `DCP-V1-419` (undecodable, then noncanonical, then the
+  output bound) is unchanged. Acceptance: `TestDCPV1552ParallelScanMatchesSequential`, over the
+  committed fixture, claims holding every adversarial text (escaped quotes, backslash runs of 31
+  to 131 bytes, the separator, brackets, a claim longer than many segments, non-ASCII bytes),
+  every refusal shape of the streamed-read tests, and the claims member truncated or carrying a
+  quote, backslash, bracket, brace or comma at up to 1500 offsets; the existing
+  `DCP-V1-410..419` and `DCP-V1-430..434` tests pass unchanged.
+- `DCP-V1-553`: The parallel scan adds no on-disk state, cache, index or format change, and keeps
+  the warm CLI read within the `DCP-V1-430` peak-RSS bound of 234 MB. Its latency is measured as
+  interleaved warm `docs flow` and `docs gaps` reads of the `DCP-V1-418` fixture against the base
+  binary, n=20 each, p50 and p99, with the host load average recorded, on linux/amd64 and darwin.
+  Acceptance: the measurement in
+  `docs/build-log/2026-10-24-corpus-parallel-boundary-scan.md`.
+
+Non-goals: no change to the decode workers' JSON decoding or the canonical re-encoding check, no
+SIMD or assembly, no persisted boundary index or other derived state (NEEDS-OWNER, V1-2572), and no
+change to `DerivationVersion`. Rollback: make `boundaryScan` default to one segment, or remove
+`parallelElements` and its call; the sequential scan is unchanged beneath it. No stored state needs
+migration.
+
 ### Read hot spots: scope matching and stat-routed revision pins (GitHub #1610)
 
 A CPU profile of one read of a 9,170-input corpus with one single-file scope per input put about
@@ -3858,6 +3905,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 | DCP-V1-410..419 | `internal/doccorpus/read.go`, `artifact_decode.go`, `encoding.go`, `compile.go`, `query.go`, `query_index.go`, `query_index_fast.go`, `search_rank.go`, `symbol_anchor.go`, `internal/contextindex/observe_tree.go`, `internal/testvaliditydoc/read.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `stamp.go`, `eval.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1410VerifiedReadSkipsRederivation`, `TestDCPV1410VerifiedReadRefusals`, `TestDCPV1410UnattestedBuilderRederives`, `TestDCPV1411ObserveTreeMatchesBuildContext`, `TestDCPV1411ObserveTreeRetriesWhenHeadMoves`, `TestDCPV1412SymbolIndexBuiltOnlyWhenNeeded`, `TestDCPV1413CorpusReadsWithoutRederivation`, `TestDCPV1414ParallelDecodeMatchesClosedDecode`, `TestDCPV1416CorpusMCPFirstAndWarmCalls`, `TestDCPV1417WarmCallsSkipUnchangedArtifactRead`, `TestDCPV1417WarmStampRefusesParentSymlink`, `TestDCPV1418LargeFixtureVerifiedReadIsFast`, `BenchmarkDCPV1418VerifiedRead`, `TestDCPV1419FastIndexMatchesReference`, `TestDCPV1419FastIndexDeclinesEveryRefusal`, `TestDCPV1419BoundaryScanFindsStringContent`; measured in docs/build-log/2026-10-23-corpus-verified-fast-reads.md |
 | DCP-V1-430..434 | `internal/doccorpus/artifact_decode.go`, `read.go`, `encoding.go`, `query_index_fast.go`, `types.go`, `internal/testvaliditydoc/read.go`, `cmd/corvint/docs_corpus.go`, `corpus_integration.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1431StreamedReadReusesBlocks`, `TestDCPV1431OpenReadFile`, `TestDCPV1431StreamedTruncationAtWindowEnd`, `TestDCPV1431CorpusRefusalJoinsFreshness`, `TestDCPV1432JoinedCorpusReusesVerifiedArtifact`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1434ConcurrentQueriesShareClaimTerms`, `TestDCPV1416CorpusMCPFirstAndWarmCalls`; measured in docs/build-log/2026-10-23-corpus-read-residual.md |
+| DCP-V1-551..553 | `internal/doccorpus/artifact_scan.go`, `artifact_decode.go` | `TestDCPV1551ParallelElementsMatchScan`, `TestDCPV1551ParallelElementsCorrupt`, `TestDCPV1552ParallelScanMatchesSequential`; measured in `docs/build-log/2026-10-24-corpus-parallel-boundary-scan.md` |
 | DCP-V1-465..467 | `internal/doccorpus/primary_observation.go`, `query.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1465PrimaryObservationMatchesFreshRead`, `TestDCPV1466PrimaryObservationUsedOnce`, `TestDCPV1467CancelledPrimaryObservationJoins`, `TestDCPV1467ShorterDeadlineStopsWaitingForPrimary`, `TestDCPV1467CorpusPreHeaderRefusalJoinsPrimary`, `TestDCPV1431CorpusRefusalJoinsFreshness`, `TestDCPV1413CorpusReadsWithoutRederivation`; measured in docs/build-log/2026-10-23-corpus-read-start-freshness.md |
 | DCP-V1-495..498 | `internal/doccorpus/rebuild.go`, `encoding.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `internal/capcatalog/catalog.json` | `TestDCPV1495RebuildFromEmbeddedManifest`, `TestDCPV1495BuildRebuildsFromEmbeddedManifest`, `TestDCPV1496RebuildRefusesUnverifiedManifest`, `TestDCPV1497ReadNeverRebuilds`, `TestDCPV1498MCPServesArtifactsAcrossBuilderUpgrades`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-530..534 | `internal/doccorpus/compact_anchor.go`, `rebuild.go`, `encoding.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `docs.go`, `internal/capcatalog/catalog.json` | `TestDCPV1530CompactEncoderMatchesReference`, `TestDCPV1531CompactProviderProducer`, `TestDCPV1531CompactProviderCommand`, `TestDCPV1532RebuildReusesSameDerivation`, `TestDCPV1532BuildArtifactReusesRecords`, `TestDCPV1533RebuildRederivesOtherwise`, `TestDCPV1534RebuildReuseMeasured`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
