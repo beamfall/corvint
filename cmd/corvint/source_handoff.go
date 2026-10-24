@@ -17,6 +17,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/contextsummary"
 	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/repoenvelope"
 )
@@ -662,23 +663,7 @@ func sourcePositiveInt(value any) int {
 	}
 	return 0
 }
-func sourceSafePath(value any) bool {
-	path, ok := value.(string)
-	if !ok || path == "" || len([]byte(path)) > 4096 || strings.HasPrefix(path, "-") || strings.Contains(path, "\\") || filepath.IsAbs(path) {
-		return false
-	}
-	for _, part := range strings.Split(path, "/") {
-		if part == "" || part == "." || part == ".." {
-			return false
-		}
-	}
-	for _, char := range path {
-		if char < 32 || char == 127 {
-			return false
-		}
-	}
-	return true
-}
+func sourceSafePath(value any) bool { return contextsummary.SafePath(value) }
 
 // sourceObjectWidths maps each supported Git object format to its hex OID width.
 var sourceObjectWidths = map[string]int{"sha1": 40, "sha256": 64}

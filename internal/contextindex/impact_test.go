@@ -168,10 +168,11 @@ func TestMergeEvidenceMatchesRestoredSetControl(t *testing.T) {
 		name      string
 		existing  []any
 		candidate []any
+		truncated any
 	}{
-		{"overlap", evidenceBenchmarkItems(0, 5), evidenceBenchmarkItems(3, 10)},
-		{"candidate duplicates", evidenceBenchmarkItems(0, 2), append(evidenceBenchmarkItems(2, 4), evidenceBenchmarkItems(2, 4)...)},
-		{"capacity", evidenceBenchmarkItems(0, maxEvidence), evidenceBenchmarkItems(maxEvidence, maxEvidence+3)},
+		{"overlap", evidenceBenchmarkItems(0, 5), evidenceBenchmarkItems(3, 10), nil},
+		{"candidate duplicates", evidenceBenchmarkItems(0, 2), append(evidenceBenchmarkItems(2, 4), evidenceBenchmarkItems(2, 4)...), nil},
+		{"capacity", evidenceBenchmarkItems(0, maxEvidence), evidenceBenchmarkItems(maxEvidence, maxEvidence+3), 3},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
@@ -180,6 +181,12 @@ func TestMergeEvidenceMatchesRestoredSetControl(t *testing.T) {
 			candidate := map[string]any{"evidence": test.candidate}
 			mergeEvidence(got, candidate)
 			mergeEvidenceWithSet(want, candidate)
+			// The rows match the pre-change control; the ceiling's cut is now
+			// also counted (MCPV0-112).
+			if got[evidenceTruncatedKey] != test.truncated {
+				t.Fatalf("evidence_truncated=%v want %v", got[evidenceTruncatedKey], test.truncated)
+			}
+			delete(got, evidenceTruncatedKey)
 			if !reflect.DeepEqual(got, want) {
 				t.Fatalf("merge evidence=%#v, restored control=%#v", got, want)
 			}

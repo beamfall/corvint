@@ -124,7 +124,9 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 				if document.Path != changedPath {
 					relation = "explicitly references changed path " + changedPath
 				}
-				ranked = append(ranked, rankedResult{score: 825, order: 1, key: document.Path, result: documentResult(index, document, 825, relation)})
+				result := documentResult(index, document, 825, relation)
+				noteEvidenceTruncated(result, 1+len(references)-maxEvidence)
+				ranked = append(ranked, rankedResult{score: 825, order: 1, key: document.Path, result: result})
 			}
 		}
 		for key, markers := range index.Markers {
@@ -190,22 +192,23 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 				testSource := index.Sources[testPath]
 				testEvidence := []any{evidence(testPath, 1, testSource.BlobHash,
 					"same-package test for "+changedPath, confidence, "test-convention")}
+				truncated := 0
 				if reference, ok := testReferences[testPath]; ok {
 					if !exact {
 						score += min(reference.count, 274)
 					}
-					for _, item := range packageReferenceEvidence(index, changedPath, reference) {
-						if len(testEvidence) == maxEvidence {
-							break
-						}
-						testEvidence = append(testEvidence, item)
-					}
+					referenceRows := packageReferenceEvidence(index, changedPath, reference)
+					kept := min(len(referenceRows), maxEvidence-len(testEvidence))
+					testEvidence = append(testEvidence, referenceRows[:kept]...)
+					truncated = reference.count - kept
 				}
-				ranked = append(ranked, rankedResult{score: score, order: 1, key: testPath, testConvention: true, result: map[string]any{
+				result := map[string]any{
 					"kind": "test", "id": testPath, "score": score,
 					"summary":  "same-package test affected by " + changedPath,
 					"evidence": testEvidence,
-				}})
+				}
+				noteEvidenceTruncated(result, truncated)
+				ranked = append(ranked, rankedResult{score: score, order: 1, key: testPath, testConvention: true, result: result})
 			}
 			changedKeys := make(map[string]struct{}, len(related))
 			for key := range related {
@@ -230,6 +233,7 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 			sort.Slice(items, func(left, right int) bool {
 				return markerRelationLess(index, items[left], items[right])
 			})
+			truncated := len(items) - maxEvidence
 			if len(items) > maxEvidence {
 				items = items[:maxEvidence]
 			}
@@ -239,11 +243,13 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 				testEvidence = append(testEvidence, evidence(item.marker.Path, item.marker.Line, item.marker.BlobHash,
 					"same-package test carries "+kind+":"+id, "high", "test-marker"))
 			}
-			ranked = append(ranked, rankedResult{score: 850, order: 1, key: testPath, result: map[string]any{
+			result := map[string]any{
 				"kind": "test", "id": testPath, "score": 850,
 				"summary":  "same-package marked test affected by " + changedPath,
 				"evidence": testEvidence,
-			}})
+			}
+			noteEvidenceTruncated(result, truncated)
+			ranked = append(ranked, rankedResult{score: 850, order: 1, key: testPath, result: result})
 		}
 		if !index.isTest(changedPath) {
 			exported := exportedGoNames(index, changedPath)
@@ -300,11 +306,13 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 			if index.isTest(reference.path) {
 				continue
 			}
-			ranked = append(ranked, rankedResult{score: 775, order: 1, key: reference.path, result: map[string]any{
+			result := map[string]any{
 				"kind": "reference", "id": reference.path, "score": 775,
 				"summary":  "same-package code references declarations from " + changedPath,
 				"evidence": packageReferenceEvidence(index, changedPath, reference),
-			}})
+			}
+			noteEvidenceTruncated(result, reference.count-len(reference.matches))
+			ranked = append(ranked, rankedResult{score: 775, order: 1, key: reference.path, result: result})
 		}
 	}
 	// A changed path that calls another changed path is already a direct row.
@@ -323,7 +331,8 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 			if importerCarrier, ok := importerCarriers[key]; ok && !contains(carried, key) {
 				carrier = importerCarrier
 			}
-			result := recordResultWithSortedPaths(index, record, 800, carrier+" carries "+kind+":"+identifier, sortedPaths)
+			result, truncated := recordResultWithSortedPaths(index, record, 800, carrier+" carries "+kind+":"+identifier, sortedPaths)
+			noteEvidenceTruncated(result, truncated)
 			withholdUnverifiedADRAuthority(result)
 			ranked = append(ranked, rankedResult{score: 800, order: 1, key: key, result: result})
 		}
@@ -721,10 +730,15 @@ func withholdUnverifiedADRAuthority(result map[string]any) {
 // maxImpactPaths changed paths) builds that slice once instead of once per ADR
 // ID per record (V1-0054).
 func recordResult(index *Index, record Record, score int, reason string) map[string]any {
-	return recordResultWithSortedPaths(index, record, score, reason, nil)
+	result, _ := recordResultWithSortedPaths(index, record, score, reason, nil)
+	return result
 }
 
-func recordResultWithSortedPaths(index *Index, record Record, score int, reason string, sortedPaths []string) map[string]any {
+// recordResultWithSortedPaths also returns how many evidence rows the
+// maxEvidence ceiling dropped: a governing ADR, a marker past the reserved
+// limit, a composing scenario, or the final slice (MCPV0-112).
+func recordResultWithSortedPaths(index *Index, record Record, score int, reason string, sortedPaths []string) (map[string]any, int) {
+	truncated := 0
 	resultEvidence := []any{evidence(record.Path, record.Line, record.BlobHash, reason, "authoritative", "canonical-ledger")}
 	adrOutput, adrIDs := recordSequence(record.Fields["adr"], true)
 	for _, adrValue := range adrIDs {
@@ -735,6 +749,9 @@ func recordResultWithSortedPaths(index *Index, record Record, score int, reason 
 		}
 		matches := adrDocumentMatches(index, sortedPaths, prefix)
 		sort.Strings(matches)
+		if len(matches) != 0 && len(resultEvidence) >= maxEvidence {
+			truncated++
+		}
 		if len(matches) != 0 && len(resultEvidence) < maxEvidence {
 			source := index.Sources[matches[0]]
 			status := ""
@@ -758,6 +775,7 @@ func recordResultWithSortedPaths(index *Index, record Record, score int, reason 
 	if len(markers) < markerLimit {
 		markerLimit = len(markers)
 	}
+	truncated += len(markers) - markerLimit
 	for _, marker := range markers[:markerLimit] {
 		confidence, authority := "medium", "source-marker"
 		if index.isTest(marker.Path) {
@@ -767,20 +785,24 @@ func recordResultWithSortedPaths(index *Index, record Record, score int, reason 
 			"exact "+record.Kind+":"+record.ID+" marker", confidence, authority))
 	}
 	if record.Kind == "feature" {
+		full := false
 		for _, scenario := range sortedRecords(index.Scenarios) {
 			if pythonContains(scenario.Fields["features"], record.ID) {
+				if full {
+					truncated++
+					continue
+				}
 				resultEvidence = append(resultEvidence, evidence(scenario.Path, scenario.Line, scenario.BlobHash,
 					"scenario:"+scenario.ID+" composes feature:"+record.ID, "high", "canonical-ledger"))
-				if len(resultEvidence) >= maxEvidence {
-					break
-				}
+				full = len(resultEvidence) >= maxEvidence
 			}
 		}
 	}
+	truncated += max(len(resultEvidence)-maxEvidence, 0)
 	return map[string]any{"kind": record.Kind, "id": record.ID, "score": score,
 		"area": valueOr(record.Fields["area"], ""), "summary": truncateRunes(pythonString(valueOr(record.Fields["summary"], "")), 500),
 		"status": valueOr(record.Fields["status"], ""), "adr": adrOutput,
-		"applies": recordSequenceValue(record.Fields["applies"]), "evidence": resultEvidence[:min(len(resultEvidence), maxEvidence)]}
+		"applies": recordSequenceValue(record.Fields["applies"]), "evidence": resultEvidence[:min(len(resultEvidence), maxEvidence)]}, truncated
 }
 
 // adrDocumentMatches returns the tracked `.md` paths naming the ADR prefix, in
@@ -1172,14 +1194,57 @@ func splitRelation(value string) (string, string) {
 
 func mergeEvidence(existing, candidate map[string]any) {
 	existingEvidence := anySlice(existing["evidence"])
+	truncated := 0
+	if count, ok := candidate[evidenceTruncatedKey].(int); ok {
+		truncated = count
+	}
 	for _, raw := range anySlice(candidate["evidence"]) {
 		item := raw.(map[string]any)
 		key := evidenceIdentity(item)
-		if !containsEvidence(existingEvidence, key) && len(existingEvidence) < maxEvidence {
+		if containsEvidence(existingEvidence, key) {
+			continue
+		}
+		if len(existingEvidence) < maxEvidence {
 			existingEvidence = append(existingEvidence, item)
+		} else {
+			truncated++
 		}
 	}
 	existing["evidence"] = existingEvidence
+	noteEvidenceTruncated(existing, truncated)
+}
+
+// evidenceTruncatedKey names the count of rows a result's builder dropped at
+// the per-result maxEvidence ceiling, before the MCPV0-031 display cap counts
+// its own cut as evidence_omitted. The key appears only when a row was
+// dropped (MCPV0-112, V1-1003).
+const evidenceTruncatedKey = "evidence_truncated"
+
+func noteEvidenceTruncated(result map[string]any, dropped int) {
+	if dropped <= 0 {
+		return
+	}
+	previous, _ := result[evidenceTruncatedKey].(int)
+	result[evidenceTruncatedKey] = previous + dropped
+}
+
+// evidenceTruncatedDisclosure is the coverage line naming the maxEvidence
+// ceiling's cut across the emitted results, so it is never read as the packet
+// budget's or the result limit's (MCPV0-112). setCoverage derives it from the
+// results each budget trial keeps, so a result the budget drops takes its
+// count with it.
+func evidenceTruncatedDisclosure(results []map[string]any) string {
+	rows, carriers := 0, 0
+	for _, result := range results {
+		if count, ok := result[evidenceTruncatedKey].(int); ok && count > 0 {
+			rows += count
+			carriers++
+		}
+	}
+	if rows == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%d evidence rows in %d results omitted by the per-result evidence ceiling of %d", rows, carriers, maxEvidence)
 }
 
 type evidenceKey struct {

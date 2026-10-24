@@ -64,7 +64,7 @@ func execute(ctx context.Context, plan Plan, approvedDigest string, capture func
 	if isolation := plan.Request.Isolation; isolation != nil {
 		clone := *isolation
 		report.Isolation = &clone
-		report.Limitations[2] = "persistent external state is a caller-declared shared server whose identity is checked by the caller's reset hook, not independently sandboxed"
+		report.Limitations[2] = "persistent external state is a caller-declared shared server whose identity is reported by the caller's reset hook, not independently observed or sandboxed"
 	}
 	if plan.Request.Provider != nil {
 		report.Provider = plan.Request.Provider.Name
@@ -107,6 +107,9 @@ func execute(ctx context.Context, plan Plan, approvedDigest string, capture func
 		if err := ensureDocumentBound(report); err != nil {
 			return Report{}, fmt.Errorf("report: %w", err)
 		}
+	}
+	if hookReportedIsolation(plan, report.Results) {
+		report.CoverageGaps = append(report.CoverageGaps, IsolationHookReportedGap)
 	}
 	report.CompleteVocabulary = completeVocabulary(plan.Controls)
 	report.MutationScore = mutationScore(report.Counts)

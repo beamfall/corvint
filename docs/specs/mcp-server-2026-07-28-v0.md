@@ -224,7 +224,7 @@ profile (`AFU-V1-034`, `AFU-V1-049`) adds the five `corvint.flows.*` tools inste
 | Tool | Closed arguments | Result and authority |
 |---|---|---|
 | `corvint.query` | required ASCII `task` string | Corvint authority-start query receipt at its fixed native limit of one; unsupported intent is an explicit abstention, never a fabricated general query |
-| `corvint.impact` | required non-empty `paths` array of repository-relative Go paths; optional bounded integer `limit` | Corvint impact receipt with proven, candidate, excluded, and unknown states preserved |
+| `corvint.impact` | required non-empty `paths` array of repository-relative Go paths; optional bounded integer `limit`; optional integer `budgetBytes` (`MCPV0-110`) | Corvint impact receipt with proven, candidate, excluded, and unknown states preserved |
 | `corvint.status` | no operation fields | Local server/repository/revision/worktree/capability status; no source body and no claim that the index is fresh unless observed |
 | `corvint.help` | optional `topic`: exactly `catalog` (default) or `guide` | `corvint-mcp-help/0` receipt whose `text` is byte-for-byte `corvint help --json` or `corvint help guide` from the running binary (`MCPV0-100`); no repository read and a null `repository` |
 
@@ -486,7 +486,7 @@ With the selector, the two tools below are added under the unchanged `MCPV0-007`
 
 | Tool | Closed arguments | Result and authority |
 |---|---|---|
-| `corvint.context` | required non-blank `task` string; optional repository-relative `subject`; optional bounded integer `limit` | the `corvint context` task-context packet at the bound revision: files to read, each with its admitting relation, gaps and abstention preserved |
+| `corvint.context` | required non-blank `task` string; optional repository-relative `subject`; optional bounded integer `limit`; optional integer `summaryBytes` (`MCPV0-111`) | the `corvint context` task-context packet at the bound revision: files to read, each with its admitting relation, gaps and abstention preserved |
 | `corvint.cem.report` | required repository-relative `map` path; required full `expectedBase` and `target` object IDs; optional non-negative `maxUnknown` and `maxMechanical` ceilings | the `corvint cem report` reviewer report and verification counts, rendered as a preview that publishes nothing |
 
 - `MCPV0-024`: `corvint.context` MUST compile the same packet as `corvint context` in process, with no
@@ -605,14 +605,14 @@ Each row cites the first emitting site and states only the condition checked the
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `invalid-registry` | `internal/mcp/bridge/bridge.go:457@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
-| `unsupported-tool` | `internal/mcp/bridge/bridge.go:466@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolHelp`, `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the `ToolFlows*` tools under `flows` (`MCPV0-026`) |
-| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:770@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
-| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:770@f5156052` | an invalid-arguments refusal that is not a `cem/1.0` stable refusal; since `CEM-V1-210` no retired 0.x map reaches it (a 0.x map is `cem-map-invalid`), so the report preview has no observed route to it |
-| `cem-map-stable-refused` | `internal/mcp/bridge/bridge.go:792@5462a4a2` | a `cem/1.0` map was refused before its stable verifier ran (`MCPV0-037`) |
-| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:771@b2fd0644` | the map fails CEM strict decoding or field validation |
-| `repository-probe-timeout` | `internal/mcp/bridge/bridge.go:1145@8c7cfeb6` | the failure carries gokernel's `repository-probe-timeout` code: the repository probe, a CEM Git read or the context index's Git read outlasted its own bound while the request context was live (`MCPV0-038`, decision 0533) |
-| `corpus-capacity-exceeded` | `internal/mcp/bridge/bridge.go:778@c8f9bb58` | a CEM Git read exhausted its operation budget or output bound (`MCPV0-025`, V1-1992) |
+| `invalid-registry` | `internal/mcp/bridge/bridge.go:460@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
+| `unsupported-tool` | `internal/mcp/bridge/bridge.go:469@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolHelp`, `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the `ToolFlows*` tools under `flows` (`MCPV0-026`) |
+| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:818@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
+| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:818@f5156052` | an invalid-arguments refusal that is not a `cem/1.0` stable refusal; since `CEM-V1-210` no retired 0.x map reaches it (a 0.x map is `cem-map-invalid`), so the report preview has no observed route to it |
+| `cem-map-stable-refused` | `internal/mcp/bridge/bridge.go:840@5462a4a2` | a `cem/1.0` map was refused before its stable verifier ran (`MCPV0-037`) |
+| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:819@b2fd0644` | the map fails CEM strict decoding or field validation |
+| `repository-probe-timeout` | `internal/mcp/bridge/bridge.go:1213@8c7cfeb6` | the failure carries gokernel's `repository-probe-timeout` code: the repository probe, a CEM Git read or the context index's Git read outlasted its own bound while the request context was live (`MCPV0-038`, decision 0533) |
+| `corpus-capacity-exceeded` | `internal/mcp/bridge/bridge.go:826@c8f9bb58` | a CEM Git read exhausted its operation budget or output bound (`MCPV0-025`, V1-1992) |
 | `flows-refused` | `internal/mcp/bridge/flows.go:267@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
 
 ### Explicit Go LSP descendant (V1-0476)
@@ -641,7 +641,8 @@ Each row cites the first emitting site and states only the condition checked the
   a result under both caps carries neither key. The cap applies inside the impact receipt itself,
   so CLI impact, MCP `corvint.impact`, and every consumer that embeds the impact packet (for
   example `FPK-V0-010`) see the same rows. Builder-level `MAX_EVIDENCE` truncation before this
-  cap is unchanged and is not counted.
+  cap is unchanged. Amendment (2026-10-24, `MCPV0-112`, V1-1003): it is now counted separately as
+  `evidence_truncated`; `evidence_omitted` still counts only this cap's cut.
 - `MCPV0-032`: (V1-0944; no GitHub issue) Path impact accepts `--budget-bytes N`
   (inline or as the next argument, once, within the `query` packet bounds) and compiles the
   receipt under that byte budget with the same `BUDGETED` / `CRITICAL_EVIDENCE_OVERFLOW` states
@@ -809,6 +810,48 @@ Each row cites the first emitting site and states only the condition checked the
   byte for byte, the stdout of `corvint help --json` (topic `catalog` or none) or
   `corvint help guide` (topic `guide`) from the same build. Falsifier: one differing byte.
   `MCPV0-106` to `MCPV0-109` are reserved for this slice and unassigned.
+- `MCPV0-110`: (proposed; owner decision 2 of 2026-10-24, V1-1003; extends `MCPV0-032`)
+  `corvint.impact` MUST accept an optional integer `budgetBytes` with the CLI path-impact
+  `--budget-bytes` semantics: given, the receipt is the one `contextindex.EvalImpactSyntax`
+  compiles for the same index, paths, limit and budget, with the same `request.budget_bytes`,
+  `BUDGETED` / `CRITICAL_EVIDENCE_OVERFLOW` states and omission disclosures. Its range is the
+  `query` packet bounds (`MinPacketBytes` 1216 to `MaxPacketBytes` 1000000, the CLI's
+  "budget_bytes must be between" refusal); a value outside it, explicit `null`, a fraction or a
+  non-integer is `invalid-arguments` before any repository read. Omitted, the unbudgeted receipt
+  is unchanged byte for byte. The CLI-only refusals of `MCPV0-032` (`--base`,
+  `--working-tree-untracked`, `--provider`) have no MCP argument to refuse. Failure modes: a budget
+  that cannot hold the critical rows is the receipt's own `CRITICAL_EVIDENCE_OVERFLOW`, and a
+  result above the bridge budget is still `OUTPUT_BUDGET_EXCEEDED`. Falsifier: a budgeted MCP
+  receipt that differs from `EvalImpactSyntax`'s, or an omitted budget that changes the wire.
+- `MCPV0-111`: (proposed; owner decision 2 of 2026-10-24, V1-1003; extends `MCPV0-024` with
+  `ESV-V0-008`) `corvint.context` MUST accept an optional integer `summaryBytes` from 1024 to 65536
+  with the `--summary-bytes` semantics: given, the result receipt is the
+  `experimental-evidence-summary/0` projection (`internal/contextsummary.Summarize`, shared with
+  `corvint context --summary`) of the canonical receipt plus LF, so `packet_sha256` and
+  `packet_bytes` name the bytes the same call without `summaryBytes` returns. Every top-level
+  member except `results` is kept, so the `MCPV0-024` binding (`tool`, `revision`) still holds.
+  Only `continuation` differs from the CLI: it names the MCP call instead of the CLI rerun; `expand`
+  stays the CLI command, because MCP has no expand tool. There is no separate context packet budget
+  (the decision amends V1-1003 AC1 to this projection). Out-of-range, `null`, fractional or
+  non-integer values are `invalid-arguments`. A packet whose critical rows do not fit, or that the
+  summary cannot read, abstains as `SUMMARY_BUDGET` or `SUMMARY_SHAPE` with the binding. Falsifier:
+  a summary that differs from `Summarize` over the unsummarized receipt plus LF, or a summary that
+  drops a critical row.
+- `MCPV0-112`: (proposed; owner decision 2 of 2026-10-24, V1-1003; amends `MCPV0-031`) An impact
+  result whose builder dropped rows at the per-result `maxEvidence` ceiling (10) MUST carry
+  `evidence_truncated` with the count dropped: same-package reference lines, reference lines of a
+  test-convention row, marker tests, document references, ledger records' ADR, marker and scenario
+  rows, registry-dialect callers, Ruby autoload referrer lines, range path spans and range marker
+  rows, and rows refused when two changed paths merge into one full result. `evidence_omitted`
+  keeps counting only the `MCPV0-031` display cut, so the two never mix. When any emitted result
+  carries the key, `coverage.uncertainty` MUST name the total in its own line, "N evidence rows in M
+  results omitted by the per-result evidence ceiling of 10", which is not the packet budget's or the
+  result limit's text, counted over the results the packet budget keeps. A result under the ceiling carries no key, so the wire of an untruncated
+  receipt is unchanged. Failure mode: a count can only be an exact sum of dropped rows; a builder
+  that cannot count reports none rather than a guess. Falsifier: a ceiling cut with no
+  `evidence_truncated`, a count folded into `evidence_omitted`, or the disclosure missing.
+  The `$ref` deduplication of `tools/list` schemas proposed in V1-1003 AC3 is rejected by the same
+  decision; the four `tools/list` goldens grow by the two new properties only.
 - `MCPV0-095`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2219) A `MIXED`
   bridge `repository` binding MUST stay exactly the seven members of the closed
   `corvint-mcp-bridge-result/0` object above: it names no dirty path, only `dirtyPathCount` and
@@ -931,6 +974,9 @@ cleanup remain outside that receipt.
 | `MCPV0-103` | `cmd/corvint-test-validity-mcp` (`Handle`, `call`, `helpResult`) | `cmd/corvint-test-validity-mcp/help_test.go`'s `TestMCPV0103HelpToolAnswersOnTheWire` and `TestMCPV0103HelpToolReadsNoRepositoryState` (a valid `corvint.test_validity` succeeds before the root is removed and refuses with `repository-unavailable` after); `conformance/mcp-test-validity-v0` (`cases.json` tools, `TestToolCatalogueIsExactlyOneReadOnlyTool`); `internal/companionrelease` workflow smoke tool list |
 | `MCPV0-104` | `internal/mcp/bridge` (`HelpDescriptor`, `HelpToolResult`) | `internal/mcp/bridge/help_test.go`'s `TestMCPV0104HelpToolResultIsTheRegistryAnswer` (equal to `Registry.Call`'s object and framed text, same descriptor, oversized, non-UTF-8 and closed-argument refusals, cancellation); the three wire tests above |
 | `MCPV0-105` | `internal/mcp/bridge` (`HelpToolResult`), `internal/capcatalog` | `cmd/corvint/help_catalog_test.go`'s `TestMCPV0105CompanionHelpMatchesTheCLI` (receipt text equals `corvint help --json` and `corvint help guide` stdout) |
+| `MCPV0-110` | `internal/mcp/bridge` (`impactInput.BudgetBytes`, `optionalBytes`, `callImpact`) | `internal/mcp/bridge/budget_args_test.go`'s `TestMCPV0110ImpactBudgetBytesIsCLIPathImpactBudget` (budgeted receipt equals `EvalImpactSyntax`'s bytes, omitted budget equals `ImpactSyntax`'s, six invalid values refused); repinned `cmd/corvint-mcp/testdata/tools-list-*.golden.jsonl` |
+| `MCPV0-111` | `internal/contextsummary` (`Summarize`, `SafePath`), `internal/mcp/bridge` (`contextInput.SummaryBytes`, `summarizedContext`), `cmd/corvint` (`summarizeContextPacket`) | `TestMCPV0111ContextSummaryBytesIsCLISummary` (summary equals `Summarize` over the canonical receipt plus LF, digest and MCP continuation, binding kept, five invalid values refused, `SUMMARY_SHAPE` reason); CLI bytes unchanged under the existing `cmd/corvint` context-summary tests |
+| `MCPV0-112` | `contextindex` (`noteEvidenceTruncated`, `evidenceTruncatedDisclosure`, `mergeEvidence`, `recordResultWithSortedPaths`, `registryCaller`, `rubyAutoload.referrers`, range impact) | `internal/contextindex/impact_caps_test.go`'s `TestMCPV0112ImpactCountsEvidenceCeilingSeparately` (15 reference lines: 10 kept, `evidence_truncated` 5, `evidence_omitted` 6, disclosure line, untruncated result without the key, merge count) |
 | `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |
 
 ## Unresolved decisions and promotion/kill criteria
