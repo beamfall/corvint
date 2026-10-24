@@ -30,7 +30,8 @@ the affected tasks end; source/cache equality alone does not verify active hook 
 
 The package provides the Corvint skill, bounded `SessionStart`, `UserPromptSubmit`, `Stop`, and
 `SessionEnd` hooks, and the read-only stdio `corvint-mcp` server (`.mcp.json`, AHI-207). The server
-binds the Git worktree of the directory Codex launches it in (the session working directory) and
+binds the Git worktree of the directory Codex launches it in (the session working directory) once,
+at startup; after switching to another worktree, start a new Codex session there to rebind. It
 speaks MCP `2025-11-25`, because Codex 0.162 still gates the `2026-07-28` protocol behind an
 unreleased feature. It needs `corvint-mcp` on `PATH` (`go build -o DIR/corvint-mcp ./cmd/corvint-mcp`).
 Outside a Git worktree it exits 2 before starting and Codex continues without Corvint tools.
@@ -57,7 +58,8 @@ visible fallback reasons.
 Codex 0.162 hook events are `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`,
 `PermissionRequest`, `PreCompact`, `PostCompact`, `SubagentStart`, `SubagentStop`, `Stop` and
 `SessionEnd` (AHI-208). The plugin registers only the first-listed four it maps; the others stay
-unregistered, and the adapter answers any of them with `unsupported-hook-event` instead of guessing.
+unregistered. If Codex delivers one anyway, the adapter abstains silently with the non-blocking
+`{}` and records `unsupported-hook-event` in the local ledger `.corvint/self-observations.jsonl`.
 
 Codex also exposes [`PostToolUse`](https://developers.openai.com/codex/hooks#posttooluse), but its
 native event supplies raw tool arguments and tool output, not Corvint's normalized changed paths,
@@ -101,11 +103,22 @@ adds no capture of native prompt bodies or transcripts. Secret-shaped copies are
 ## Read-only review profile
 
 `profiles/corvint-review.config.toml` (AHI-206) is a Codex profile for review runs. Copy it to
-`$CODEX_HOME/corvint-review.config.toml` and run `codex exec -p corvint-review ...`. It sets a
-read-only sandbox, `approval_policy = "never"` and `CORVINT_TASKS_READ_ONLY=1` in the shell
-environment, so neither an escalated command nor a `corvint-tasks` mutation can write the Tasks store
-(ATR-V0-212). It does not stop a write that bypasses the `corvint-tasks` CLI. Live receipt: Codex
-0.162.0, `docs/build-log/2026-10-23-codex-integration-matrix.md`.
+`$CODEX_HOME/corvint-review.config.toml`. It sets a read-only sandbox, `approval_policy = "never"`
+and `CORVINT_TASKS_READ_ONLY=1` in the shell environment, so neither an escalated command nor a
+`corvint-tasks` mutation can write the Tasks store (ATR-V0-212). It does not stop a write that
+bypasses the `corvint-tasks` CLI.
+
+On Codex 0.162 a trusted project's `.codex/config.toml` layers above the selected profile, so a
+project can switch the sandbox to `danger-full-access` and the variable to `0`. Only `-c` overrides
+outrank it, so run every review with the same three keys on the command line:
+
+```sh
+codex exec -p corvint-review -c 'sandbox_mode="read-only"' -c 'approval_policy="never"' \
+  -c 'shell_environment_policy.set.CORVINT_TASKS_READ_ONLY="1"' PROMPT
+```
+
+Live receipt (Codex 0.162.0, a trusted project that sets the opposite values):
+`docs/build-log/2026-10-23-codex-integration-matrix.md`.
 
 ## Approvals across Codex agents
 

@@ -1385,11 +1385,14 @@ isolated `CODEX_HOME`, branch-built binaries).
 - `AHI-206`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) The Codex
   package MUST ship `integrations/codex/profiles/corvint-review.config.toml`, a Codex profile with
   exactly `sandbox_mode = "read-only"`, `approval_policy = "never"` and
-  `shell_environment_policy.set.CORVINT_TASKS_READ_ONLY = "1"`, so a review run under
-  `codex exec -p corvint-review` can neither escalate out of the sandbox nor mutate the Tasks store
-  through `corvint-tasks` (`ATR-V0-212`).
-  Failure modes: a write that bypasses the `corvint-tasks` CLI is not stopped; a user config that
-  forces another approval policy after profile layering is not detected.
+  `shell_environment_policy.set.CORVINT_TASKS_READ_ONLY = "1"`, and the Codex README MUST document
+  the review invocation `codex exec -p corvint-review` with the same three keys as `-c` overrides.
+  Codex 0.162 layers a trusted project `.codex/config.toml` above the profile and only `-c`
+  overrides above that, so the documented run can neither escalate out of the sandbox nor mutate
+  the Tasks store through `corvint-tasks` (`ATR-V0-212`) whatever the project config says.
+  Failure modes: a write that bypasses the `corvint-tasks` CLI is not stopped; a run that selects
+  the profile without the overrides inherits a trusted project's sandbox and variable (observed
+  live: `danger-full-access` and `0`).
   Rollback: delete the profile; reviews fall back to the documented flag recipe.
 - `AHI-207`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) The Codex
   plugin MUST declare exactly one MCP server, `corvint`, through `"mcpServers": "./.mcp.json"`. It
@@ -1398,15 +1401,20 @@ isolated `CODEX_HOME`, branch-built binaries).
   starting `corvint-mcp`, when that directory is not inside a Git worktree. The server stays
   read-only (`MCPV0`), and the compatibility surface is `FALLBACK`.
   Failure modes: a missing `corvint-mcp` or a non-worktree launch leaves the session without Corvint
-  tools (Codex continues); a session whose working directory is another worktree than the task's
-  binds that worktree, which `MMR-V0-009` notices label.
+  tools (Codex continues); the root is bound once, when Codex starts the server in the session
+  working directory, and no later notice detects a switch, so after moving to another worktree
+  the client must start a new Codex session there to rebind (each receipt names its bound root
+  and revision).
   Rollback: remove `.mcp.json` and the manifest key and bump the package.
 - `AHI-208`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) Codex 0.162
   exposes `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PermissionRequest`,
   `PreCompact`, `PostCompact`, `SubagentStart`, `SubagentStop`, `Stop` and `SessionEnd`. The plugin
   MUST register only `SessionStart`, `UserPromptSubmit`, `Stop` and `SessionEnd`, each as the
-  bounded `corvint adapter codex` command hook (timeout at most 2 s); every other event stays
-  unregistered and the adapter answers it with `unsupported-hook-event`.
+  bounded `corvint adapter codex` command hook (timeout at most 2 s), with at least one handler
+  per event and the `SessionStart` matcher `startup|resume|clear|compact|fork`; every other event
+  stays unregistered. If one is delivered anyway, the adapter abstains silently: it returns the
+  non-blocking `{}` (`AHI-044`) and records `unsupported-hook-event` in the local self-observation
+  ledger (`SOL-V0-010`), with no host-visible response.
   Failure modes: compaction pins, subagent context and permission guards stay unavailable on Codex
   until they are mapped under their own requirements.
   Rollback: none needed; the registration is unchanged from adapter 0.2.9.
@@ -1667,9 +1675,9 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-171` (accepted under the owner's standing auto-accept (2026-10-11); V1-2192) | `internal/opencodequalification/contention.go`, `native.go` (window readings, `latencyOutcome`, `RETRY_LATER`), `tools/qualify-opencode` exit 75 | `TestAHI171LatencyHostContention` (a latency-only miss at load 11.5 on 12 CPUs is `LATENCY_HOST_CONTENDED` and retry-later with a hint; the same miss on a quiet host, with unobserved contention, with another failed check or with a short sample is not; absent readings are `NOT_OBSERVED`; a live host reading) |
 | `AHI-172` (accepted under the owner's standing auto-accept (2026-10-11); V1-2201) | `internal/opencodequalification/baseline.go` (`sampleBaseline`, `baselineComparison`, `baselineEvidence`), `contention.go` (`latencyOutcome`, `retryHint`, `procLoadavgPath`), `native.go` window sampling | `TestAHI172SameWindowBaseline` (both slow under contention is host-contended with the comparison recorded; a candidate beyond its slowdown-scaled limits is a regression under load; a slow probe on a quiet host excuses nothing; an unobserved baseline keeps the AHI-171 rule with `NOT_OBSERVED` fields; a live sampler), `TestAHI172ProcLoadavgFixture` (the Linux reader from a fixture, malformed lines unobserved) |
 | `AHI-173` (accepted under the owner's standing auto-accept (2026-10-11); V1-2145) | `script/host-package-version.sh`, `Makefile` (`host-package-version-bump`, `host-package-version-verify`) | `script/host-package-version_test.sh` (every package bumped against copies of the real manifests, one line per location, evidence versions untouched, explicit version, disagreement named and bump refused, unknown package exit 2); the failure-message case in `script/check-host-package-versions_test.sh` |
-| `AHI-206` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/profiles/corvint-review.config.toml` | `TestAHI206CodexReviewProfileClosesBothWriteDoors` (exactly the three keys); live receipt in the 2026-10-23 Codex matrix entry |
+| `AHI-206` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/profiles/corvint-review.config.toml` | `TestAHI206CodexReviewProfileClosesBothWriteDoors` (exactly the three keys, repeated as the README's `-c` overrides); live receipt with a conflicting trusted project config in the 2026-10-23 Codex matrix entry |
 | `AHI-207` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/plugins/corvint/.mcp.json`, `.codex-plugin/plugin.json` | `TestAHI207CodexPluginMCPServerBindsLaunchWorktree` (nested launch binds the top level with the legacy protocol; a non-worktree launch exits 2 before exec); live receipt in the 2026-10-23 Codex matrix entry |
-| `AHI-208` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/plugins/corvint/hooks/hooks.json` | `TestAHI208CodexHooksRegisterOnlyMappedEvents`; live hook-invocation log in the 2026-10-23 Codex matrix entry |
+| `AHI-208` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/plugins/corvint/hooks/hooks.json` | `TestAHI208CodexHooksRegisterOnlyMappedEvents` (with empty-group, extra-event and matcher negatives), `TestAdapterSilentAbstentionsAreLedgered` (unregistered events); live hook-invocation log in the 2026-10-23 Codex matrix entry |
 | `AHI-209` (accepted under the owner's standing auto-accept (2026-10-11); CODEX-NATIVE-APPROVAL-RELAY-VISIBILITY-1) | `integrations/codex/plugins/corvint/skills/corvint/SKILL.md`, `integrations/codex/README.md` | `TestAHI209CodexApprovalGuidanceNamesRootGrantAndRecord`; live guardian verdicts in the 2026-10-23 Codex matrix entry |
 | `AHI-055` (accepted under the owner's standing auto-accept (2026-10-11); V1-1280) | `cmd/corvint/host_adapter.go` (`deadlineRemediation`, `withDeadlineRemediation`), `cmd/corvint/host_adapter_compaction.go` | `TestClaudeAdapterStopDeadlineFailsOpenVisibly`, `TestClaudeCompactionDeadlineNamesRemediation`, `TestDeadlineRemediationKeepsFrameWithinLimit`, `TestClaudeAdapterDogfoodEventDeadlineCarriesNoNotice`, `TestCodexAdapterDeadlineNamesRemediation`, `TestClaudeAdapterStaleSnapshotNamesRemediation`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
 | `AHI-054` (accepted, decision 0519; V1-1157) | `internal/gokernel/harness.go` `HandleEvent` stop frontier, `FrontierCauseNoClosingAuthority`; `conformance/cli-parity-v0` `validFrontierCauseDivergence`, `outOfPacketKnownDivergence`; `integrations/testfixture/main.go` | `TestAHI054StopFrontierCarriesFixedCause`, `TestAHI054FrontierCauseDivergenceIsPinnedAndOutOfPacket`, `TestGPKV0002ManifestReplay` (`DR-0043`), Gemini CLI and OpenCode stop cases and the `AHI-054` with-and-without-cause case under `TestHostAdapterJavaScriptHosts` |

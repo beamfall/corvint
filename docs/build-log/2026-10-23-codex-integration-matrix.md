@@ -60,13 +60,23 @@ repository; their sha256 prefixes are listed so a retained copy can be matched.
   CORVINT_TASKS_READ_ONLY` printed `1`; `corvint-tasks queue status --summary` exit 0; `corvint-tasks
   ticket create` exit 1 `UNSUPPORTED`. Store digest (every file under `.git/taskman` and `.taskman`)
   `18dbe810…` before and after; the positive control without the variable changed it to `1c16cb38…`.
+  Precedence (PR #1652 review): a trusted project whose `.codex/config.toml` sets
+  `sandbox_mode = "danger-full-access"` and `CORVINT_TASKS_READ_ONLY = "0"` beats `-p` alone, thread
+  `01a16b87-da86-7531-87a5-bad6d1c266c4` (rollout `95ce2cd9c3f3ae4c`): sandbox policy
+  `danger-full-access`, `printenv` printed `0`, `touch` succeeded. With the README's three `-c`
+  overrides, thread `01a16b88-307b-7352-be05-9e1a5ea7946a` (rollout `94c3f1d6188a3ef1`): sandbox
+  policy `read-only`, approval `never`, `printenv` printed `1`, `touch` failed `Operation not
+  permitted`. The documented invocation is therefore the qualified one; `-p` alone is not.
 - **AHI-207 MCP server: QUALIFIED.** Thread `01a16b6b-5ad2-77d1-9049-4e5a7016be8f`
   (`29c4990c287355d7`): Codex listed `mcp__corvint__corvint_help`, `_impact`, `_query`, `_status`;
   one `corvint.status` call completed, `isError: false`, state `READY`, bound to
   `9f52b5347c3c405dee0034aa7fa28cf8d3972fc7`; usage 68,080 input (62,336 cached) / 443 output tokens.
   Non-worktree launch, thread `01a16b6b-c565-7980-b008-dfb952d8b065` (`5471ace952ad2615`): no Corvint
-  tools, the session completed. query, impact and help calls: NOT_RUN (listed only).
-- **AHI-208 hooks: QUALIFIED for the four registered events.** Thread
+  tools, the session completed. query, impact and help calls: NOT_RUN (listed only). The root is
+  bound at server start; a later worktree switch needs a new session (no mismatch notice exists).
+- **AHI-208 hooks: QUALIFIED for the four registered events only.** The silent abstention for an
+  unregistered event (`{}` plus a ledger entry) is DELIVERED by `TestAdapterSilentAbstentionsAreLedgered`
+  and was not exercised live, since Codex delivers no unregistered event. Thread
   `01a16b6b-fcf8-7801-b010-de6a0ea3d4ba` (`de91812de3d60303`): SessionStart additional context with
   event `session-start` and degradations `frontier-authority-unavailable`, `host-version-unknown`. A
   logging shim (`49976f436fa6cb06`) recorded SessionStart (592 bytes out), UserPromptSubmit, Stop and

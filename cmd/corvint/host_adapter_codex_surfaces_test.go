@@ -2,9 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"slices"
 	"strings"
@@ -22,6 +25,8 @@ func readCodexPackageFile(t *testing.T, parts ...string) string {
 
 // AHI-206: the Codex review profile closes both doors the CLI controls: no escalation out of the
 // read-only sandbox, and CORVINT_TASKS_READ_ONLY in every shell so corvint-tasks refuses mutations.
+// A trusted project config layers above a profile, so the README's invocation repeats exactly the
+// same keys as -c overrides, which outrank it.
 func TestAHI206CodexReviewProfileClosesBothWriteDoors(t *testing.T) {
 	section, values := "", map[string]string{}
 	for _, line := range strings.Split(readCodexPackageFile(t, "profiles", "corvint-review.config.toml"), "\n") {
@@ -50,6 +55,19 @@ func TestAHI206CodexReviewProfileClosesBothWriteDoors(t *testing.T) {
 		if values[key] != value {
 			t.Fatalf("profile %s = %q, want %s", key, values[key], value)
 		}
+	}
+	readme := readCodexPackageFile(t, "README.md")
+	start := strings.Index(readme, "codex exec -p corvint-review -c ")
+	if start < 0 {
+		t.Fatal("Codex README lacks the overriding review invocation")
+	}
+	invocation, _, _ := strings.Cut(readme[start:], "```")
+	overrides := map[string]string{}
+	for _, match := range regexp.MustCompile(`-c '([^=']+)=([^']+)'`).FindAllStringSubmatch(invocation, -1) {
+		overrides[match[1]] = match[2]
+	}
+	if !maps.Equal(overrides, want) {
+		t.Fatalf("README review overrides %v, want exactly the profile keys %v", overrides, want)
 	}
 }
 
@@ -106,38 +124,99 @@ func TestAHI207CodexPluginMCPServerBindsLaunchWorktree(t *testing.T) {
 	if exitErr, isExit := err.(*exec.ExitError); !isExit || exitErr.ExitCode() != 2 || argv != "" || !strings.Contains(output, "not inside a Git worktree") {
 		t.Fatalf("outside-worktree launch argv=%q output=%q err=%v, want exit 2 before exec", argv, output, err)
 	}
+	// The root is bound once at startup, so both documents must tell the reader to rebind by
+	// starting a new session after a worktree switch.
+	for name, phrase := range map[string]string{
+		"README.md": "after switching to another worktree, start a new Codex session there to rebind",
+		"SKILL.md":  "after moving to another worktree start a new Codex session there",
+	} {
+		parts := []string{"README.md"}
+		if name == "SKILL.md" {
+			parts = []string{"plugins", "corvint", "skills", "corvint", "SKILL.md"}
+		}
+		if !strings.Contains(strings.Join(strings.Fields(readCodexPackageFile(t, parts...)), " "), phrase) {
+			t.Fatalf("Codex %s lacks the startup-binding guidance %q", name, phrase)
+		}
+	}
 }
 
-// AHI-208: on Codex 0.162 the plugin registers exactly the four mapped events, each through the
-// bounded `corvint adapter codex` hook; the other native events stay unregistered.
+// AHI-208: on Codex 0.162 the plugin registers exactly the four mapped events, each with at least
+// one bounded `corvint adapter codex` handler and its applicable matcher; the other native events
+// stay unregistered.
 func TestAHI208CodexHooksRegisterOnlyMappedEvents(t *testing.T) {
+	raw := []byte(readCodexPackageFile(t, "plugins", "corvint", "hooks", "hooks.json"))
+	if problem := codexHookRegistrationProblem(raw); problem != "" {
+		t.Fatalf("shipped hooks.json: %s", problem)
+	}
+	handler := map[string]any{"type": "command", "command": "corvint adapter codex", "timeout": 2}
+	for name, mutate := range map[string]func(map[string]any){
+		"empty Stop":             func(hooks map[string]any) { hooks["Stop"] = []any{} },
+		"handlerless Stop":       func(hooks map[string]any) { hooks["Stop"] = []any{map[string]any{"hooks": []any{}}} },
+		"missing SessionEnd":     func(hooks map[string]any) { delete(hooks, "SessionEnd") },
+		"extra PreToolUse":       func(hooks map[string]any) { hooks["PreToolUse"] = []any{map[string]any{"hooks": []any{handler}}} },
+		"narrowed start matcher": func(hooks map[string]any) { hooks["SessionStart"].([]any)[0].(map[string]any)["matcher"] = "startup" },
+		"matcher on prompt hook": func(hooks map[string]any) { hooks["UserPromptSubmit"].([]any)[0].(map[string]any)["matcher"] = "x" },
+		"unbounded Stop handler": func(hooks map[string]any) {
+			hooks["Stop"] = []any{map[string]any{"hooks": []any{map[string]any{"type": "command", "command": "corvint adapter codex", "timeout": 30}}}}
+		},
+		"foreign Stop command": func(hooks map[string]any) {
+			hooks["Stop"] = []any{map[string]any{"hooks": []any{map[string]any{"type": "command", "command": "sh -c true", "timeout": 2}}}}
+		},
+	} {
+		var document map[string]any
+		if err := json.Unmarshal(raw, &document); err != nil {
+			t.Fatal(err)
+		}
+		mutate(document["hooks"].(map[string]any))
+		mutated, err := json.Marshal(document)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if codexHookRegistrationProblem(mutated) == "" {
+			t.Fatalf("%s: mutated hooks.json was accepted", name)
+		}
+	}
+}
+
+// codexHookRegistrationProblem returns why raw is not the AHI-208 registration, or "".
+func codexHookRegistrationProblem(raw []byte) string {
+	matchers := map[string]string{"SessionStart": "startup|resume|clear|compact|fork", "UserPromptSubmit": "", "Stop": "", "SessionEnd": "other"}
 	var parsed struct {
 		Hooks map[string][]struct {
-			Hooks []struct {
+			Matcher string `json:"matcher"`
+			Hooks   []struct {
 				Type    string `json:"type"`
 				Command string `json:"command"`
 				Timeout int    `json:"timeout"`
 			} `json:"hooks"`
 		} `json:"hooks"`
 	}
-	if err := json.Unmarshal([]byte(readCodexPackageFile(t, "plugins", "corvint", "hooks", "hooks.json")), &parsed); err != nil {
-		t.Fatal(err)
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return err.Error()
 	}
-	events := make([]string, 0, len(parsed.Hooks))
-	for event, groups := range parsed.Hooks {
-		events = append(events, event)
+	if len(parsed.Hooks) != len(matchers) {
+		return fmt.Sprintf("registered events %v, want exactly %v", slices.Sorted(maps.Keys(parsed.Hooks)), slices.Sorted(maps.Keys(matchers)))
+	}
+	for event, matcher := range matchers {
+		groups, ok := parsed.Hooks[event]
+		if !ok || len(groups) == 0 {
+			return event + " has no handler group"
+		}
 		for _, group := range groups {
+			if group.Matcher != matcher {
+				return fmt.Sprintf("%s matcher %q, want %q", event, group.Matcher, matcher)
+			}
+			if len(group.Hooks) == 0 {
+				return event + " group has no handler"
+			}
 			for _, hook := range group.Hooks {
 				if hook.Type != "command" || hook.Command != "corvint adapter codex" || hook.Timeout < 1 || hook.Timeout > 2 {
-					t.Fatalf("%s hook %+v is not the bounded Codex adapter", event, hook)
+					return fmt.Sprintf("%s hook %+v is not the bounded Codex adapter", event, hook)
 				}
 			}
 		}
 	}
-	slices.Sort(events)
-	if !slices.Equal(events, []string{"SessionEnd", "SessionStart", "Stop", "UserPromptSubmit"}) {
-		t.Fatalf("registered Codex hook events %v", events)
-	}
+	return ""
 }
 
 // AHI-209: the Codex package tells agents and operators that only a root-thread user message
@@ -154,9 +233,14 @@ func TestAHI209CodexApprovalGuidanceNamesRootGrantAndRecord(t *testing.T) {
 		}
 	}
 	readme := strings.Join(strings.Fields(readCodexPackageFile(t, "README.md")), " ")
-	for _, phrase := range []string{"`guardian_review` session under `$CODEX_HOME/sessions/`", "`codex exec --json` does not emit these decisions", "A changed target is denied."} {
-		if !strings.Contains(readme, phrase) {
-			t.Fatalf("Codex README lacks %q", phrase)
+	if !strings.Contains(readme, "A changed target is denied.") {
+		t.Fatal("Codex README lacks the retarget denial")
+	}
+	for name, document := range map[string]string{"skill": skill, "README": readme} {
+		for _, phrase := range []string{"`guardian_review` session under `$CODEX_HOME/sessions/`", "`codex exec --json` does not emit these decisions"} {
+			if !strings.Contains(document, phrase) {
+				t.Fatalf("Codex %s lacks %q", name, phrase)
+			}
 		}
 	}
 }
