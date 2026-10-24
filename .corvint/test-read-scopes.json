@@ -197,6 +197,7 @@
       "interop/cem01-go/testdata/inherited-vectors/"
     ],
     "internal/cem/verify": [
+      "interop/cem01-go/testdata/multi-runner/",
       "protocol/cem-1.0/artifacts/",
       "protocol/cem-1.0/manifest.json",
       "protocol/cem-1.0/maps/",
@@ -227,6 +228,7 @@
       "protocol/cem-1.0/stable/repository-envelope-packet/"
     ],
     "internal/cemcandidate": [
+      "interop/cem01-go/testdata/multi-runner/",
       "protocol/cem-1.0/"
     ],
     "internal/changee2e": [

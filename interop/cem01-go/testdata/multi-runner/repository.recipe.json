@@ -1,0 +1,36 @@
+{
+  "profile": "cem-stable-neutral-repository/1",
+  "objectFormat": "sha1",
+  "note": "Flat-tree recipe, built exactly like protocol/cem-1.0/stable/neutral-criterion/repository.recipe.json. The Go sources are covered by a go-test receipt and the JavaScript sources by a node-test receipt. No .taskman/ or other Corvint file exists in either tree.",
+  "identity": {
+    "name": "Fixture",
+    "email": "fixture@invalid",
+    "date": "2026-10-01T00:00:00Z"
+  },
+  "commits": [
+    {
+      "name": "base",
+      "message": "greet: initial service",
+      "files": {
+        "SPEC.md": "# Greeting service\n\nRequirements:\n\n- The Go Greet MUST return \"Hello, stranger!\" for an empty NAME.\n- The JavaScript greet MUST return \"Hello, stranger!\" for an empty NAME.\n",
+        "go.mod": "module example.com/greet\n\ngo 1.27\n",
+        "greet.go": "package greet\n\n// Greet returns a greeting for name.\nfunc Greet(name string) string {\n\treturn \"Hello, \" + name + \"!\"\n}\n",
+        "greet_test.go": "package greet\n\nimport \"testing\"\n\nfunc TestGreetName(t *testing.T) {\n\tif got := Greet(\"Ada\"); got != \"Hello, Ada!\" {\n\t\tt.Fatalf(\"Greet(Ada) = %q\", got)\n\t}\n}\n",
+        "greet.mjs": "// greet returns a greeting for name.\nexport function greet(name) {\n  return `Hello, ${name}!`;\n}\n",
+        "greet.test.mjs": "import test from \"node:test\";\nimport assert from \"node:assert/strict\";\nimport { greet } from \"./greet.mjs\";\n\ntest(\"greet names the caller\", () => {\n  assert.equal(greet(\"Ada\"), \"Hello, Ada!\");\n});\n"
+      }
+    },
+    {
+      "name": "target",
+      "message": "greet: handle empty names in Go and JavaScript",
+      "files": {
+        "SPEC.md": "# Greeting service\n\nRequirements:\n\n- The Go Greet MUST return \"Hello, stranger!\" for an empty NAME.\n- The JavaScript greet MUST return \"Hello, stranger!\" for an empty NAME.\n",
+        "go.mod": "module example.com/greet\n\ngo 1.27\n",
+        "greet.go": "package greet\n\n// Greet returns a greeting for name, or for a stranger when name is empty.\nfunc Greet(name string) string {\n\tif name == \"\" {\n\t\tname = \"stranger\"\n\t}\n\treturn \"Hello, \" + name + \"!\"\n}\n",
+        "greet_test.go": "package greet\n\nimport \"testing\"\n\nfunc TestGreetName(t *testing.T) {\n\tif got := Greet(\"Ada\"); got != \"Hello, Ada!\" {\n\t\tt.Fatalf(\"Greet(Ada) = %q\", got)\n\t}\n}\n\nfunc TestGreetEmpty(t *testing.T) {\n\tif got := Greet(\"\"); got != \"Hello, stranger!\" {\n\t\tt.Fatalf(\"Greet(\\\"\\\") = %q\", got)\n\t}\n}\n",
+        "greet.mjs": "// greet returns a greeting for name, or for a stranger when name is empty.\nexport function greet(name) {\n  return `Hello, ${name === \"\" ? \"stranger\" : name}!`;\n}\n",
+        "greet.test.mjs": "import test from \"node:test\";\nimport assert from \"node:assert/strict\";\nimport { greet } from \"./greet.mjs\";\n\ntest(\"greet names the caller\", () => {\n  assert.equal(greet(\"Ada\"), \"Hello, Ada!\");\n});\n\ntest(\"greet greets a stranger for an empty name\", () => {\n  assert.equal(greet(\"\"), \"Hello, stranger!\");\n});\n"
+      }
+    }
+  ]
+}

@@ -210,6 +210,47 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   snapshot of the cancel-before-content cell is not a regenerated value and keeps the old label;
   no consumer reads it. Rollback is a Git revert of the re-emission and the three emission sites.
 
+- `CEM-V1-573`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2322) A
+  `cem-stable-plain-assembly/1` request MAY name `runners`, an array of 1 to 64
+  `{runnerPlan, runnerReceipt}` pairs of pinned inputs, in place of the top-level `runnerPlan` and
+  `runnerReceipt`. In that form every criterion MUST also name `runnerReceiptSha256s`, the 1 to 32
+  (the reader's link array bound) receipt digests of the pairs that cover it, and the request MUST carry the `runnerAdmission` of
+  `CEM-V1-280`, which the producer applies to each pair in order. The map carries one runner
+  receipt record per pair, in pair order, labelled `corvint-test-runner-receipt/0`; pair `i`
+  (0-based) writes `artifacts/runner-plan-<i>.json` and `artifacts/runner-receipt-<i>.json`; and
+  each criterion link names exactly that criterion's `runnerReceiptSha256s`, in request order.
+  Every other rule of `CEM-V1-240` and `CEM-V1-280..285` applies to each pair unchanged.
+- `CEM-V1-574`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2322) A request
+  in the single form MUST yield the same map, artifacts and result bytes as before `CEM-V1-573`,
+  admitted or not.
+- `CEM-V1-575`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2322) Before
+  any input is read, the producer MUST refuse, writing no bundle:
+  `runner-set-form` for a request that names members of both forms, a single-form criterion
+  naming `runnerReceiptSha256s`, or a `runners` criterion without it, where a member present in
+  the request JSON counts as named even when it is `null` or an empty pin; `runner-admission-required` for
+  `runners` without `runnerAdmission`; `runner-set-bound` for an empty `runners` or one over 64
+  pairs, and for a criterion list that is empty or over 32; `runner-set-duplicate` for a plan or
+  receipt digest or path named twice across the pairs, or a digest repeated in one criterion list;
+  `runner-set-unresolved` for a criterion digest that is not a pair's receipt; and
+  `runner-set-unused` for a pair receipt that covers no criterion.
+- `CEM-V1-576`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2322) After
+  every pair is admitted and before the bundle is created, the producer MUST refuse with
+  `runner-profile-conflict` a criterion covered by two receipts of the same runner profile.
+  Receipts of different profiles MAY cover one criterion.
+- `CEM-V1-577`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2322) The
+  native (`internal/cem/verify`) and portable (`interop/cem01-go`) readers MUST ACCEPT the
+  two-profile case `interop/cem01-go/testdata/multi-runner/` (a `go-test` and a `node-test`
+  receipt), which the producer MUST reproduce byte for byte from its recipe repository. Both MUST
+  REJECT its six tampered variants with the same stage and code: a dropped receipt artifact or an
+  unpinned plan (`references` / `artifact-role-closure`), swapped receipt artifacts (`artifacts` /
+  `artifact-digest-mismatch`), a dropped receipt (`references` / `unresolved-reference`), a
+  duplicated receipt (`references` / `duplicate-reference`), and an unlinked receipt
+  (`references` / `reference-coherence`).
+- `CEM-V1-578`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2322) The
+  Tasks-bound `cem-stable-assembly/1` request is unchanged. It writes no stable map (its source
+  check refuses every source), so it has no runner set to widen, and its closed decoder MUST keep
+  refusing a `runners` member as an unknown field.
+
 ## Non-goals and failure modes
 
 No daemon, network account, broad language rewrite or new specification language is required. Tests remain trusted local executable code; the optional executor does not provide an operating-system sandbox. A declared executable directory does not attest every dependency in that directory. Missing browsers, simulator/device/app identities, unavailable frameworks, unsupported custom harnesses, stale claims and absent independent consumers are retained failure modes, not passes.
@@ -233,7 +274,7 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-371 | `internal/cem/verify/stable.go`, `interop/cem01-go/cem.go`, `interop/cem01-go/stable_repository.go`; the `runtime` re-emission in the packet's `CHANGES.md`; `TestReplaceRuntimeKeepsFrozenTuple` (`tools/cem-stable-regen`); S0E and envelope-cell tests on the re-emitted packet | The frozen `cancelledContextExpectedResult` snapshot keeps the old label (no reader) |
 | CEM-V1-080..082 | `internal/cem/verify/support.go`, `interop/cem01-go/citation.go` and `testdata/citation/`; `TestCEMV1080*`, `TestCEMV1081*`, `TestCEMV1082*` in `internal/cem/verify`, `internal/cem/workflow` and `interop/cem01-go`, including `TestCEMV1082MeasureVectorsNative` and `TestCEMV1082MeasureVectorsPortable` over `protocol/cem-1.0/stable/citation-vectors/measures.json` (V1-1331, V1-1335, V1-1332 under decision 0530; mutations in `docs/build-log/2026-10-15-v1-1331-1335-1332-citation-measures.md`) | Recorded limits: `held` never produced, no `symbol` anchors, no threshold or cut-off, stable-result emission is CEM-V1-092; historical 591-map report in the build log, computed before the decision 0530 amendments |
 | CEM-V1-083 | Plain criterion form in `internal/cem/wire/stable.go` and `interop/cem01-go/cem.go`; public case `protocol/cem-1.0/stable/neutral-criterion/`; `TestCEMV1083*` in `internal/cem/wire`, `internal/cem/verify` and `interop/cem01-go` | The plain form is produced by the experimental `cem-stable-plain-assembly/1` request of `corvint-cem-candidate assemble-stable` (`CEM-V1-240`, V1-1290); no default `corvint cem` verb emits it; stranger time NOT_OBSERVED |
-| CEM-V1-240 | `AssemblePlain` in `internal/cemcandidate/plain.go` and the profile dispatch in `cmd/corvint-cem-candidate/stable.go`; `TestCEMV1240*` in `internal/cemcandidate` and `cmd/corvint-cem-candidate`; timed run in `docs/build-log/2026-10-15-cem-plain-criterion-producer.md` | Experimental companion, not promoted; the runner plan and receipt are opaque inputs checked only by SHA-256, so receipt authority and execution at the target stay `NOT_OBSERVED`; one runner receipt per map; stranger time NOT_OBSERVED |
+| CEM-V1-240 | `AssemblePlain` in `internal/cemcandidate/plain.go` and the profile dispatch in `cmd/corvint-cem-candidate/stable.go`; `TestCEMV1240*` in `internal/cemcandidate` and `cmd/corvint-cem-candidate`; timed run in `docs/build-log/2026-10-15-cem-plain-criterion-producer.md` | Experimental companion, not promoted; the runner plan and receipt are opaque inputs checked only by SHA-256, so receipt authority and execution at the target stay `NOT_OBSERVED`; one runner receipt per map in the single form, up to 64 admitted receipts in the `runners` form (`CEM-V1-573..578`); stranger time NOT_OBSERVED |
 | CEM-V1-084 | `internal/cem/wire/stable_auth.go`, `internal/cem/verify/stable_auth.go`, `interop/cem01-go/stable_auth.go`; `--trusted-keys` in `internal/cem/cli/stable.go` and both portable commands; public case `protocol/cem-1.0/stable/receipt-authentication/`; `TestCEMV1084*` in `internal/cem/wire`, `internal/cem/verify`, `interop/cem01-go`, `internal/console` and `cmd/corvint` | No producer signs receipts (operator step, FPK-V0-036); `RESULT.schema.json` and the sealed S0E packet still name only `NOT_OBSERVED` for `authentication` and lack the four attestation issue codes (V1-1265); keys are TEST-ONLY; stranger time NOT_OBSERVED |
 | CEM-V1-091 | `tools/cem-stable-regen` and the `CEM_STABLE_REGEN_CAPTURE` hook in `internal/cem/verify/stable_repository_test.go`; `TestCheckPassesOnRepositoryPacket`, `TestCheckCoversEveryStableManifestEntry`, `TestRegenerateRealPacketCopy`, `TestRegenerateRefusals`, `TestRegenerateSyntheticPacket`, `TestReplaceRealPacketCopy`, `TestReplaceRefusals`; proof runs in `docs/build-log/2026-10-11-cem-stable-regen-tooling.md` and `docs/build-log/2026-10-15-v1-1331-1335-1332-citation-measures.md` | V1-1265 added `citation` (CEM-V1-092) and `verdictSha256` (CEM-V1-066) through the tool; since V1-1287 `--check` verifies every stable manifest entry (see "Stable manifest entry repair"); V1-1331 re-emitted `citation` and `verdictSha256` of 3 cases and 11 envelope cells with `--replace` under decision 0530 |
 | CEM-V1-092 | `citation` member of `StableResult` (`internal/cem/verify/stable.go`) and `stableResult` (`interop/cem01-go/cem.go`, `stable_repository.go`), regenerated into the sealed packet and the public `neutral-criterion` and `receipt-authentication` expectations; `TestCEMV1092CitationOnlyOnAccept`, `TestCEMV1092SealedCasesCarryCitationOnlyOnAccept`, `TestCEMV1092RefuseAndRejectClearCitation` (native); `TestCEMV1092PortableCitationOnlyOnAccept`, `TestCEMV1082StableResultCarriesTheBlock`, `TestStableCanonicalFullResults` (portable) | The go1.24.13 cases 21 and 22 were not run on this host: their values come from the override file (case 21 derived natively on go1.27.2 with every other non-runtime key matching); ten envelope cells take `--cell-values` overrides |
@@ -673,7 +714,8 @@ Non-goals:
 - no runner execution: the plan and receipt are opaque caller inputs, checked only by SHA-256 as
   the verifier checks them, unless the request opts into the receipt admission of `CEM-V1-280`
 - no receipt signing (`FPK-V0-036`)
-- no more than one runner receipt per map
+- no more than one runner receipt per map in the single `runnerPlan`/`runnerReceipt` form (amended
+  by `CEM-V1-573`: the admitted `runners` form carries up to 64 receipts, one per pair)
 
 The result `cem-stable-plain-assembly-result/1` reports `receiptAuthority` and `executionAtCommit`
 as `NOT_OBSERVED`. An ACCEPT says nothing more than `CEM-V1-083` and the stable verifier already
@@ -2645,6 +2687,53 @@ refused without a code; an unknown `runnerAdmission` value is refused before any
 Rollback: remove `internal/cemcandidate/plain_runner.go`, the `runnerAdmission` member and its
 call in `internal/cemcandidate/plain.go`, `internal/cemchain/`, and their tests. Requests without
 the member are unaffected; no committed map depends on admission.
+
+## Multi-profile runner receipts in the plain producer (V1-2322, 2026-10-24)
+
+Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11) and the
+CEM-V1 auto-accept (2026-10-20); V1-2322 part 1. The plain producer (`CEM-V1-240`) took exactly one
+runner plan and receipt, so a change tested by two runners (for example `go-test` and
+`node-test`) needed two maps, although the reader already allows 64 `runnerReceipts`. This section
+adds one backward-compatible request form. It changes no wire member, reader rule, sealed packet,
+public case or `corvint cem` verb.
+
+The requirements are `CEM-V1-573..578` in `## Requirements`.
+
+Non-goals:
+- no reader-side admission and no wire change: a reader checks each runner file by SHA-256 and
+  artifact kind only, so it cannot tell a plan swapped between two pairs; the producer's
+  admission refuses that swap as `runner-receipt-tampered`
+- no opaque multi-receipt form: `runners` always requires admission
+- no change to the single form, its fixed artifact paths or its labels
+- no receipt merging or aggregation across runners, and no receipt signing (`FPK-V0-036`)
+- no new public case under `protocol/cem-1.0/` and no sealed packet or manifest repin
+- no Tasks lifecycle for multi-runner maps (`cem-verdict` closeout and the drift follow-up are
+  later V1-2322 work)
+
+Failure modes: each request-shape refusal of `CEM-V1-575` happens before any read and writes no
+bundle. An admission refusal of any pair (`CEM-V1-281..285`) or `runner-profile-conflict` happens
+before the bundle is created. Any verifier REFUSE or REJECT is refused as in `CEM-V1-240`, leaving
+at most the runner artifacts in D. A reader that predates this section reads the same `cem/1.0`
+members and needs no change.
+
+### Multi-profile runner receipts traceability
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-573 | `TestCEMV1573RunnersFormReproducesTwoProfileCase` (`internal/cemcandidate`) | The produced map and four artifacts equal `interop/cem01-go/testdata/multi-runner/` byte for byte; each pinned input changed after the ACCEPT is refused with no `stable.json`; `docs/build-log/2026-10-24-cem-multi-runner-producer.md` |
+| CEM-V1-574 | `TestCEMV1574SingleFormOutputIsUnchanged`, `TestCEMV1240PlainAssemblyReproducesNeutralCriterionCase` (`internal/cemcandidate`) | The admitted single-form map digest recorded on base `025120e1a` and the opaque `neutral-criterion` bytes are unchanged |
+| CEM-V1-575 | `TestCEMV1575RunnerSetRefusals`, `TestCEMV1575NamedMembersOfTheOtherFormAreRefused` (`internal/cemcandidate`) | Each code refused with no bundle, including `null` and empty-pin members decoded from request JSON and 33 receipts on one criterion; a plan swapped between pairs is refused as `runner-receipt-tampered` |
+| CEM-V1-576 | `TestCEMV1575RunnerSetRefusals` (`internal/cemcandidate`) | Two `go-test` receipts on one criterion refused; `go-test` plus `node-test` on one criterion ACCEPTed |
+| CEM-V1-577 | `TestCEMV1577NativeReaderChecksTwoProfileMap` (`internal/cem/verify`); `TestCEMV1577PortableReaderChecksTwoProfileMap` (`interop/cem01-go`) | `EXPECTED.json` of the case: ACCEPT and six REJECTs, equal on both readers |
+| CEM-V1-578 | `TestCEMV1578TasksBoundRequestHasNoRunnersForm` (`internal/cemcandidate`) | `runners` refused as an unknown field |
+
+Rollback: remove the `runners` and `runnerReceiptSha256s` members, the two `UnmarshalJSON`
+methods, `validateRunnerSet`, `checkRunnerProfiles` and `artifactPaths` from
+`internal/cemcandidate/plain.go`, the `omitzero` optional-field rule in
+`internal/cemcandidate/schema.go`, restore the
+single-pair `admitRunnerReceipt` signature, and delete the tests and
+`interop/cem01-go/testdata/multi-runner/`. Single-form requests are unaffected. A multi-receipt map
+already produced stays a valid `cem/1.0` map for both readers.
 
 ## Opaque runner receipt label (V1-2096, #1328, 2026-10-20)
 

@@ -1,0 +1,74 @@
+{
+  "profile": "cem-stable-multi-runner-case/1",
+  "baseRevision": "d39fdcfe8330ebe1b7158e0fcc23020626d41947",
+  "targetRevision": "f8cd50b5509eb7176a79ef4e0787904feb66af71",
+  "accept": {
+    "map": "stable.json",
+    "outcome": "ACCEPT",
+    "stage": "complete"
+  },
+  "receipts": [
+    {
+      "criterionIndex": 0,
+      "runner": "go-test",
+      "plan": "artifacts/runner-plan-0.json",
+      "receipt": "artifacts/runner-receipt-0.json"
+    },
+    {
+      "criterionIndex": 1,
+      "runner": "node-test",
+      "plan": "artifacts/runner-plan-1.json",
+      "receipt": "artifacts/runner-receipt-1.json"
+    }
+  ],
+  "refusals": [
+    {
+      "name": "receipt-artifact-dropped",
+      "map": "cases/receipt-artifact-dropped.json",
+      "tamper": "the node-test receipt artifact entry is removed",
+      "outcome": "REJECT",
+      "stage": "references",
+      "code": "artifact-role-closure"
+    },
+    {
+      "name": "receipt-artifacts-swapped",
+      "map": "cases/receipt-artifacts-swapped.json",
+      "tamper": "the two runner receipt artifact paths are swapped, so each digest names the other file",
+      "outcome": "REJECT",
+      "stage": "artifacts",
+      "code": "artifact-digest-mismatch"
+    },
+    {
+      "name": "receipt-dropped",
+      "map": "cases/receipt-dropped.json",
+      "tamper": "the node-test receipt record is removed while criterion 1 still names it",
+      "outcome": "REJECT",
+      "stage": "references",
+      "code": "unresolved-reference"
+    },
+    {
+      "name": "receipt-duplicated",
+      "map": "cases/receipt-duplicated.json",
+      "tamper": "the node-test receipt record appears twice",
+      "outcome": "REJECT",
+      "stage": "references",
+      "code": "duplicate-reference"
+    },
+    {
+      "name": "receipt-plan-unpinned",
+      "map": "cases/receipt-plan-unpinned.json",
+      "tamper": "the node-test receipt names a plan digest with no runner-plan artifact",
+      "outcome": "REJECT",
+      "stage": "references",
+      "code": "artifact-role-closure"
+    },
+    {
+      "name": "receipt-unlinked",
+      "map": "cases/receipt-unlinked.json",
+      "tamper": "criterion 1 names the go-test receipt, so the node-test receipt covers no criterion",
+      "outcome": "REJECT",
+      "stage": "references",
+      "code": "reference-coherence"
+    }
+  ]
+}
