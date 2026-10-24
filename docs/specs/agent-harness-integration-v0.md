@@ -1410,7 +1410,8 @@ separate exact extension tuple remains governed by AHI-024.
   command MUST exit 2 with `invalid-arguments` for an unknown flag, a flag without its value, a base
   that is not a full 40- or 64-hex object name, and `--mutate` without `--base`; with
   `project-root-unavailable` when the root cannot be resolved; and with `not-a-git-repository`
-  outside a repository. Each refusal is a `corvint-done-list/0` receipt with `ok: false`.
+  outside a repository. Each refusal is a `corvint-done-list/0` receipt with `ok: false`. A receipt
+  that cannot be encoded is replaced by the refusal `encoding-failed` (exit 1).
 - `AHI-196`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0403) With `--base B`
   the receipt describes `B..HEAD` plus the dirty paths `affected` sees: `affected --base B`,
   `witness --base B --json`, and the new tests are the files the range adds (`git diff
@@ -1430,7 +1431,8 @@ separate exact extension tuple remains governed by AHI-024.
   `KILLS_NO_MUTANT` when mutants executed (killed or survived) and it killed none (a test that
   asserts nothing), and `NOT_RUN` with `no-mutants`, `no-mutant-executed` (every mutant was
   uncompilable or skipped), `mutation-unsupported-language` (non-Go tests), `no-affected-test-row`
-  or the prove status otherwise. The tree MUST be byte-identical afterwards.
+  or the prove status otherwise. A change that adds no test file reports mutation as
+  `NOT_APPLICABLE` `no-new-tests`. The tree MUST be byte-identical afterwards.
   Non-goals (`AHI-190` to `AHI-197`): no mutation in any hook; no `additionalContext` or blocking
   Stop; no new mutation engine or language; no witness of an uncommitted tree; no change to
   `corvint-dogfood-event/0` or to the existing Stop completion hook.
