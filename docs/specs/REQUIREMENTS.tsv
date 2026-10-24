@@ -4332,6 +4332,7 @@ PMR-V2-007	docs/specs/postmerge-runtime-v2.md	Compare complete fresh executions.
 PMR-V2-008	docs/specs/postmerge-runtime-v2.md	Recording and idempotence. Each execution uses its own ledger and calls Record t	unrecorded	-
 PMR-V2-009	docs/specs/postmerge-runtime-v2.md	Failure, rejection and comparison. Missing/unsupported/unverifiable evidence, un	unrecorded	-
 PMR-V2-010	docs/specs/postmerge-runtime-v2.md	Original outcome and bounded qualification. Acceptance evidence includes a histo	unrecorded	-
+PMR-V2-011	docs/specs/postmerge-runtime-v2.md	Vanished PID in the final sweep (proposed 2026-10-24 under the owner's standing	unrecorded	-
 PGO-V0-001	docs/specs/process-group-owner-v0.md	Own a process group through its unreaped leader; send at most one real group sig	unrecorded	-
 PGO-V0-002	docs/specs/process-group-owner-v0.md	Preserve Darwin signal-0 quiet-first retirement. The Linux platform default is a	unrecorded	-
 PGO-V0-003	docs/specs/process-group-owner-v0.md	Check the original retirement allowance before new primitives and before accepti	unrecorded	-
@@ -5139,6 +5140,7 @@ TCQ-V0-056	docs/specs/test-claim-qualification-v0.md	the witness is one optional
 TCQ-V0-057	docs/specs/test-claim-qualification-v0.md	candidates are, in map order, the hunks whose path is Go source (not a	unrecorded	-
 TCQ-V0-058	docs/specs/test-claim-qualification-v0.md	the reviewer report appends the witness to each `## Test claims` line: a	unrecorded	-
 TCQ-V0-059	docs/specs/test-claim-qualification-v0.md	(accepted 2026-10-08, decision 0463; ticket V1-0651) a runner failure whose whol	owner	2026-10-08; decision 0463; V1-0651
+TCQ-V0-064	docs/specs/test-claim-qualification-v0.md	(proposed 2026-10-24 under the owner's standing lane auto-accept of 2026-10-11;	standing	2026-10-24; 2026-10-11
 TCQ-V0-060	docs/specs/test-claim-qualification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) The	standing	2026-10-11; V1-1266
 TCQ-V0-061	docs/specs/test-claim-qualification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) The	standing	2026-10-11; V1-1266
 TCQ-V0-062	docs/specs/test-claim-qualification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) The	standing	2026-10-11; V1-1266

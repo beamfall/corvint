@@ -130,7 +130,7 @@ func TestFPKV0142NestingPreflightReportsOneSupportedLimit(t *testing.T) {
 	runs := 0
 	observeRun = func(string) { runs++ }
 	defer func() { observeRun = nil }()
-	want := "cited tests cannot be sandboxed: " + nestingRefusal
+	want := "cited tests cannot be sandboxed: " + NestingRefusal
 	report, err := Run(context.Background(), baseRequest(root, git, revision))
 	if err != nil || report.Verdict != Unsupported || report.Detail != want {
 		t.Fatalf("Run = %s %q %v, want %s %q", report.Verdict, report.Detail, err, Unsupported, want)
@@ -154,5 +154,25 @@ func TestFPKV0142NestingPreflightReportsOneSupportedLimit(t *testing.T) {
 	}
 	if errors.Is(err, ErrSandboxUnavailable) {
 		t.Fatal("the preflight refusal surfaced as a per-run error")
+	}
+}
+
+// TCQ-V0-064, FPK-V0-142(3): the preflight finds a bwrap setup refusal, as
+// recorded under test-confine's Landlock on the linux/WSL2 box, once, so
+// every claim is UNSUPPORTED with the fixed nesting reason and no go test runs.
+func TestTCQV0064PreflightFindsABubblewrapRefusal(t *testing.T) {
+	git := gitExecutable(t)
+	root, revision := standardFixture(t, git, fixtureCalcTest)
+	fakeLauncher(t, `echo 'bwrap: Failed to make / slave: Operation not permitted' >&2; exit 1`)
+	runs := 0
+	observeRun = func(string) { runs++ }
+	defer func() { observeRun = nil }()
+	want := "cited tests cannot be sandboxed: " + NestingRefusal
+	report, err := Run(context.Background(), baseRequest(root, git, revision))
+	if err != nil || report.Verdict != Unsupported || report.Detail != want {
+		t.Fatalf("Run = %s %q %v, want %s %q", report.Verdict, report.Detail, err, Unsupported, want)
+	}
+	if runs != 0 {
+		t.Fatalf("go test ran %d times behind a refusing launcher", runs)
 	}
 }

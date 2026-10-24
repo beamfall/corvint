@@ -132,7 +132,7 @@ func TestDiscriminateRecordsWitnessAndReportDowngrades(t *testing.T) {
 	if second == nil || second.State != wire.DiscriminationNotRun || second.Mutants != 0 || second.Detail != "hunk limit 1 reached" {
 		t.Fatalf("second witness %+v", second)
 	}
-	if first.State == wire.DiscriminationNotRun && strings.HasSuffix(first.Detail, ": "+mutate.ErrSandboxUnavailable.Error()) {
+	if first.State == wire.DiscriminationNotRun && hostRefusedNestedSandbox(first.Detail) {
 		t.Skipf("host refused the nested sandbox: %s", first.Detail)
 	}
 	if result["discriminates"] != 1 || result["notRun"] != 1 || result["survived"] != 0 {
@@ -180,6 +180,17 @@ func TestDiscriminateRecordsWitnessAndReportDowngrades(t *testing.T) {
 	if !strings.Contains(text, "discrimination `survived`") {
 		t.Fatalf("report with survivors:\n%s", text)
 	}
+}
+
+// hostRefusedNestedSandbox reports a not-run detail that names the runner's
+// own unavailable-sandbox reason: the export preflight's fixed nesting refusal
+// (FPK-V0-142) or a per-run launcher refusal (TCQ-V0-059, TCQ-V0-064), as a
+// macOS host inside an enclosing sandbox-exec or a linux host whose bwrap is
+// refused under test-confine's Landlock reports.
+func hostRefusedNestedSandbox(detail string) bool {
+	return strings.HasSuffix(detail, ": "+mutate.NestingRefusal) ||
+		strings.HasSuffix(detail, ": "+mutate.ErrSandboxUnavailable.Error()) ||
+		strings.HasSuffix(detail, ": "+mutate.ErrBubblewrapUnavailable.Error())
 }
 
 // TestDiscriminateRefusesInvalidBoundsAndTarget pins the TCQ-V0-055 refusals:

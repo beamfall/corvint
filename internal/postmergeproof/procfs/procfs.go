@@ -38,8 +38,9 @@ type SweptProcess struct {
 }
 
 // Sweep is a raw /proc PID inventory. PIDDirectory lists every numeric /proc
-// entry as `PID\n` in directory order; rows whose stat read failed are listed
-// in ReadFailures and omitted from Processes.
+// entry as `PID\n` in directory order, except a PID confirmed to have exited
+// between enumeration and its stat read (PMR-V2-011); rows whose stat read
+// failed otherwise are listed in ReadFailures and omitted from Processes.
 type Sweep struct {
 	BootID        []byte
 	NamespaceLink []byte
