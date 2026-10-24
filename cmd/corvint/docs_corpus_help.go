@@ -43,7 +43,7 @@ func buildCorpusOperations() []corpusOperation {
 		{name: "witness-playwright", purpose: "import qualified Playwright witnesses from a committed receipt and report", required: []string{"--input", "--receipt-input", "--report"}},
 		{name: "discover-legacy", purpose: "inventory Jasmine or Mocha/Cypress legacy cases statically from Git blobs", required: []string{"--runner", "--revision", "--path"}, optional: []string{"--input"}},
 		{name: "discover-tests", purpose: "read Playwright or RSpec examples, expectations, navigations, reaches and hooks statically from Git blobs", required: []string{"--runner", "--revision", "--path"}},
-		{name: "extract", purpose: "extract generic subjects and relations with a repository-declared, or digest-pinned caller-owned, extractor profile from Git blobs", required: []string{"--profile", "--revision"}, optional: []string{"--profile-sha256"}},
+		{name: "extract", purpose: "extract generic subjects and relations with a repository-declared, or digest-pinned caller-owned, extractor profile from Git blobs", required: []string{"--profile", "--revision"}, optional: []string{"--profile-sha256", "--schema"}},
 		{name: "import-cases", purpose: "import manual legacy cases from a caller-exported TestRail JSON or CSV file", required: []string{"--format", "--input"}, optional: []string{"--content"}},
 		{name: "search-cases", purpose: "search a caller-exported TestRail JSON or CSV file for legacy cases", required: []string{"--format", "--input"}, optional: []string{"--query", "--id", "--match", "--limit"}},
 		read("info", "artifact identity, capabilities and freshness", nil),
@@ -106,7 +106,7 @@ var corpusLocalInputFlags = []string{"--manifest", "--artifact", "--input", "--p
 var corpusFlagHelp = map[string][2]string{
 	"--revision":                    {"FULL_COMMIT", "source revision the manifest pins"},
 	"--scope":                       {"PATH", "repository path the manifest inventories; repeat for more disjoint scopes"},
-	"--schema":                      {"1|2", "manifest schema: 1 (default, " + strconv.Itoa(doccorpus.MaxRecords) + " files) or 2 (" + strconv.Itoa(doccorpus.MaxCorpusRecords) + " files)"},
+	"--schema":                      {"1|2", "manifest schema: 1 (default, " + strconv.Itoa(doccorpus.MaxRecords) + " files) or 2 (" + strconv.Itoa(doccorpus.MaxCorpusRecords) + " files); for extract, 2 emits an adoption provider record for a manifest /2 (" + strconv.Itoa(doccorpus.MaxCorpusRecords) + " sites)"},
 	"--timestamp":                   {"RFC3339", "manifest timestamp"},
 	"--manifest":                    {"INPUT.json", "manifest from docs corpus manifest"},
 	"--artifact":                    {"CORPUS.json", "corpus artifact from docs corpus build"},

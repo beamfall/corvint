@@ -888,11 +888,7 @@ func (m *SKModel) dedupe() {
 	}
 	recs := map[string]*rec{}
 	add := func(source string, steps []SKStep, complete bool, test string) string {
-		keys := make([]string, len(steps))
-		for i, s := range steps {
-			keys[i] = stepKey(s)
-		}
-		id := "step-record:" + skDigest(append([]string{source}, keys...)...)
+		id := skRecordID(source, steps)
 		if recs[id] == nil {
 			recs[id] = &rec{r: SKRecord{ID: id, Source: source, Steps: len(steps), Complete: complete}, tests: map[string]bool{}}
 		}

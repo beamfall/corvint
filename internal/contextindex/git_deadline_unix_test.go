@@ -5,7 +5,7 @@ package contextindex
 import (
 	"context"
 	"errors"
-	"os"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -35,7 +35,7 @@ func TestDCWV0075SlowGitOverrunsTheDeadline(t *testing.T) {
 	}
 	wrapper := filepath.Join(t.TempDir(), "git")
 	body := "#!/bin/sh\n/bin/sleep 2\nexec " + strconv.Quote(realGit) + " \"$@\"\n"
-	if err := os.WriteFile(wrapper, []byte(body), 0o700); err != nil {
+	if err := execfile.WriteFile(wrapper, []byte(body), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	// A caller deadline shorter than gitDeadline ends the same per-phase

@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/workqueue"
 	"github.com/Beamfall/corvint/internal/worksource"
 )
@@ -618,7 +619,7 @@ func TestWorkScriptRejectsCallerScratch(t *testing.T) {
 			fake := t.TempDir()
 			witness := filepath.Join(fake, "build-storage")
 			body := fmt.Sprintf("#!/bin/bash\nprintf '%%s\\n' \"$TMPDIR\" > %q\nexit 7\n", witness)
-			if err := os.WriteFile(filepath.Join(fake, "go"), []byte(body), 0755); err != nil {
+			if err := execfile.WriteFile(filepath.Join(fake, "go"), []byte(body), 0755); err != nil {
 				t.Fatal(err)
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute) // hang detector, not a budget (decision 0082)
@@ -700,7 +701,7 @@ func TestWorkScriptRejectsScratchAliases(t *testing.T) {
 			fake := t.TempDir()
 			marker := filepath.Join(fake, "compiled")
 			body := fmt.Sprintf("#!/bin/bash\nprintf started > %q\nexit 7\n", marker)
-			if err := os.WriteFile(filepath.Join(fake, "go"), []byte(body), 0755); err != nil {
+			if err := execfile.WriteFile(filepath.Join(fake, "go"), []byte(body), 0755); err != nil {
 				t.Fatal(err)
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute) // hang detector, not a budget (decision 0082)
@@ -740,7 +741,7 @@ func TestWorkScriptPinsGitPreflight(t *testing.T) {
 		"git": fmt.Sprintf("#!/bin/bash\nprintf started > %q\nexit 99\n", gitMarker),
 		"go":  fmt.Sprintf("#!/bin/bash\nprintf '%%s\\n' \"$TMPDIR\" > %q\nexit 7\n", goMarker),
 	} {
-		if err := os.WriteFile(filepath.Join(fake, name), []byte(body), 0755); err != nil {
+		if err := execfile.WriteFile(filepath.Join(fake, name), []byte(body), 0755); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"os"
 	"path/filepath"
 	"slices"
@@ -71,7 +72,7 @@ func TestStandaloneStatusKeepsAnIndependentFailureCancelledDuringCleanup(t *test
 	root := authorityRepository(t)
 	executable := filepath.Join(t.TempDir(), "git")
 	script := "#!/bin/sh\nfor arg do\nif [ \"$arg\" = status ]; then\nprintf 'status failed first\\n' >&2; exit 23\nfi\ndone\nexit 99\n"
-	if err := os.WriteFile(executable, []byte(script), 0o700); err != nil {
+	if err := execfile.WriteFile(executable, []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -103,7 +104,7 @@ func TestStandaloneStatusPreservesOrdinaryGitErrors(t *testing.T) {
 			if test.script != "" {
 				// The bounded emitter replaces the shell, so it cannot leave a child.
 				script := "#!/bin/sh\nfor arg do\nif [ \"$arg\" = status ]; then\n" + test.script + "\nfi\ndone\nexit 99\n"
-				if err := os.WriteFile(executable, []byte(script), 0o700); err != nil {
+				if err := execfile.WriteFile(executable, []byte(script), 0o700); err != nil {
 					t.Fatal(err)
 				}
 			}

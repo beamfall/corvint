@@ -345,7 +345,7 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 		return compileTestDiscovery(ctx, o)
 	}
 	if o.op == "extract" {
-		return doccorpus.BuildExtractorInventory(ctx, doccorpus.ExtractorInput{Root: o.root, Revision: o.revision, Profile: o.profile, ProfileSHA256: o.profileSHA256})
+		return doccorpus.BuildExtractorInventory(ctx, doccorpus.ExtractorInput{Root: o.root, Revision: o.revision, Profile: o.profile, ProfileSHA256: o.profileSHA256, Schema: o.schema})
 	}
 	if o.op == "import-cases" || o.op == "search-cases" {
 		return compileLegacyCasesCorpus(o)

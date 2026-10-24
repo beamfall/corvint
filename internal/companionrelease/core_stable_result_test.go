@@ -182,10 +182,10 @@ func TestCEMV1569StableReleaseReadiness(t *testing.T) {
 	}
 }
 
-// TestCEMV1569MigrationA02StaysOpen pins the migration status rule: A02 says
-// release readiness is recognized only after integration, and every unfinished
-// obligation stays OPEN, so the library reader alone must not close it.
-func TestCEMV1569MigrationA02StaysOpen(t *testing.T) {
+// TestCEMV1604MigrationA02Integrated pins the migration status rule: A02
+// leaves OPEN only once the release gate integrates the stable-result reader,
+// and its status stays experimental and unpromoted (CEM-V1-604).
+func TestCEMV1604MigrationA02Integrated(t *testing.T) {
 	raw, err := os.ReadFile("../../protocol/cem-1.0/stable/MIGRATION.json")
 	if err != nil {
 		t.Fatal(err)
@@ -201,8 +201,8 @@ func TestCEMV1569MigrationA02StaysOpen(t *testing.T) {
 	}
 	for _, entry := range migration.LaterAdditions {
 		if entry.ID == "A02" {
-			if entry.Status != "OPEN" {
-				t.Fatalf("A02 status = %q; it stays OPEN until a release workflow integrates the stable result", entry.Status)
+			if !strings.HasPrefix(entry.Status, "IMPLEMENTED_EXPERIMENTAL: ") || !strings.Contains(entry.Status, "make cem-release-gate") || !strings.HasSuffix(entry.Status, "not promoted.") {
+				t.Fatalf("A02 status = %q; it names the integrating gate and stays experimental and unpromoted", entry.Status)
 			}
 			return
 		}

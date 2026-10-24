@@ -159,18 +159,48 @@ func questionShaped(query string) bool {
 // least one of them an evidence term, appears as a contiguous run of the
 // question's words (DCP-V1-543): the flow "Reservation Cancellation" is named
 // in "What breaks in Reservation Cancellation, and under what conditions?". A
-// prose name never is. folded is the lower-cased query, which an
-// allocation-free test reads before the words are compared.
-func namedInQuery(s Subject, queryWords []string, folded string) bool {
+// one-word name is named only by a capitalized query word (DCP-V1-548):
+// "Waitlist" in "How does Waitlist work?". A prose name never is. folded is
+// the lower-cased query, which an allocation-free test reads before the words
+// are compared.
+func namedInQuery(s Subject, queryWords []string, folded string, capitalized map[string]bool) bool {
 	if !mayBeNamedIn(s.Name, folded) {
 		return false
 	}
 	name := identifierWords(s.Name)
-	if len(name) < 2 || !containsPhrase(queryWords, name) {
+	switch {
+	case len(name) == 1:
+		if !capitalized[name[0]] {
+			return false
+		}
+	case len(name) < 2 || !containsPhrase(queryWords, name):
 		return false
 	}
 	terms := contextindex.EvidenceTerms(s.Name)
 	return len(terms) > 0 && (pathSubject(s) || len(terms) <= proseNameTerms)
+}
+
+// capitalizedWords are the words of a question that may name a one-word
+// subject (DCP-V1-548): a field of letters and digits, other than the first,
+// whose first letter is upper case, that is one identifier word, an evidence
+// term and not a question word. "How does Waitlist work?" yields waitlist;
+// the sentence-initial "What", the compound "WaitlistNotifier" and the lower
+// case "waitlist" yield nothing.
+func capitalizedWords(query string) map[string]bool {
+	fields := strings.FieldsFunc(query, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
+	words := map[string]bool{}
+	for n, field := range fields {
+		first, _ := utf8.DecodeRuneInString(field)
+		if n == 0 || !unicode.IsUpper(first) {
+			continue
+		}
+		parts := identifierWords(field)
+		if len(parts) != 1 || questionWords[parts[0]] || len(contextindex.EvidenceTerms(parts[0])) == 0 {
+			continue
+		}
+		words[parts[0]] = true
+	}
+	return words
 }
 
 // mayBeNamedIn is namedInQuery's prefilter: every ASCII letter-and-digit

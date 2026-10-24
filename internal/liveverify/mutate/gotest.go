@@ -362,40 +362,76 @@ func reportsTestFailure(output string) bool {
 // forbids nesting does. It is never a verdict, and its text is fixed.
 var ErrSandboxUnavailable = errors.New("mutate: sandbox unavailable: the host refused to apply the sandbox-exec profile")
 
-// launcherRefusal is the line /usr/bin/sandbox-exec writes, before it starts
-// the command, when the kernel refuses its profile; the errno text follows.
-const launcherRefusal = "sandbox-exec: sandbox_apply: "
+// ErrBubblewrapUnavailable is ErrSandboxUnavailable for bwrap: the launcher
+// refused to set up its namespaces or mounts before go test started, as it
+// does under a Landlock domain or an enclosing sandbox that forbids new user
+// namespaces (TCQ-V0-064). errors.Is reports it as ErrSandboxUnavailable, and
+// its text is fixed.
+var ErrBubblewrapUnavailable error = bubblewrapUnavailable{}
+
+type bubblewrapUnavailable struct{}
+
+func (bubblewrapUnavailable) Error() string {
+	return "mutate: sandbox unavailable: the host refused to set up the bwrap sandbox"
+}
+
+func (bubblewrapUnavailable) Is(target error) bool { return target == ErrSandboxUnavailable }
+
+// launcherRefusals are the line prefixes a sandbox launcher writes, before it
+// starts the command, when the host refuses its setup; the errno or reason
+// text follows. sandbox-exec writes the first when the kernel refuses its
+// profile (TCQ-V0-059); bwrap writes the others, as recorded on a linux/WSL2
+// host under test-confine's Landlock and inside an enclosing bwrap that
+// disables user namespaces (TCQ-V0-064). A bwrap failure after setup, such as
+// a failed execvp of the command, is not among them.
+var launcherRefusals = []struct {
+	prefix string
+	err    error
+}{
+	{"sandbox-exec: sandbox_apply: ", ErrSandboxUnavailable},
+	{"bwrap: Failed to make / slave: ", ErrBubblewrapUnavailable},
+	{"bwrap: Creating new namespace failed: ", ErrBubblewrapUnavailable},
+}
 
 // launcherRefusalLimit bounds the whole output a launcher refusal may be.
 const launcherRefusalLimit = 160
 
 // inconclusive turns a broken run into the infrastructure error it is without
 // exposing repository-controlled test output. Only an output that is nothing
-// but the launcher's own refusal line is read as an unavailable sandbox; any
+// but a launcher's own refusal line is read as an unavailable sandbox; any
 // other output, which go test or a test may have written, is the generic
 // error, and no byte of either is echoed.
 func inconclusive(output string) error {
-	if launcherRefused(output) {
-		return ErrSandboxUnavailable
+	if refused := launcherRefused(output); refused != nil {
+		return refused
 	}
 	return fmt.Errorf("mutate: run ended without a verdict")
 }
 
-func launcherRefused(output string) bool {
+// launcherRefused returns the fixed unavailable-sandbox error when output is
+// exactly one launcher refusal line with non-empty printable ASCII reason
+// text, and nil otherwise.
+func launcherRefused(output string) error {
 	line, found := strings.CutSuffix(output, "\n")
 	if !found || len(output) > launcherRefusalLimit {
-		return false
+		return nil
 	}
-	reason, refused := strings.CutPrefix(line, launcherRefusal)
-	if !refused || reason == "" {
-		return false
-	}
-	for _, character := range reason {
-		if character < ' ' || character > '~' {
-			return false
+	for _, refusal := range launcherRefusals {
+		reason, refused := strings.CutPrefix(line, refusal.prefix)
+		if !refused {
+			continue
 		}
+		if reason == "" {
+			return nil
+		}
+		for _, character := range reason {
+			if character < ' ' || character > '~' {
+				return nil
+			}
+		}
+		return refusal.err
 	}
-	return true
+	return nil
 }
 
 // goEnvironment pins the toolchain, forbids module downloads, and keeps the

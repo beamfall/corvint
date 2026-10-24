@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
 // SKLimits is printed in every site-knowledge report (SKH-V0-002, SKH-V0-005).
@@ -19,64 +20,12 @@ const maxSKSources = 16
 
 // readSiteKnowledge reads the declared source directories from --root at the map revision.
 func readSiteKnowledge(ctx context.Context, m *Map, sources []string, o Options) (*SKModel, int, int, error) {
-	query := func(msg string) error { return &gokernel.Error{Code: "appmap-invalid-query", Message: msg} }
-	if len(sources) == 0 || len(sources) > maxSKSources {
-		return nil, 0, 0, query(fmt.Sprintf("site knowledge requires 1 to %d --source directories", maxSKSources))
-	}
-	seen := map[string]bool{}
-	for _, s := range sources {
-		if !safeRelative(s) || seen[s] {
-			return nil, 0, 0, query(fmt.Sprintf("--source %q is not a unique repository-relative directory", s))
-		}
-		seen[s] = true
-	}
-	r := repo{ctx: ctx, root: o.Root}
-	rev, err := r.resolve(m.Revision)
-	if err != nil || rev != m.Revision {
-		return nil, 0, 0, &gokernel.Error{Code: "appmap-invalid-revision", Message: "the map revision is not a commit in --root"}
-	}
-	if missing, err := r.missingDirs(rev, sources); err != nil {
-		return nil, 0, 0, err
-	} else if len(missing) > 0 {
-		return nil, 0, 0, query(fmt.Sprintf("--source %q is not a directory at the map revision", missing[0]))
-	}
-	entries, err := r.tree(rev, sources, maxTestFiles)
+	in, entries, skipped, err := readSKSources(ctx, m, sources, o, func(p string) bool {
+		ext := strings.ToLower(path.Ext(p))
+		return (webSuffix[ext] || ext == ".rb" || skUnsupported[ext] != "") && !strings.HasSuffix(p, ".d.ts")
+	})
 	if err != nil {
 		return nil, 0, 0, err
-	}
-	picked, skipped, total := []blobEntry{}, 0, 0
-	for _, e := range entries {
-		ext := strings.ToLower(path.Ext(e.path))
-		if !webSuffix[ext] && ext != ".rb" && skUnsupported[ext] == "" {
-			continue
-		}
-		if strings.HasSuffix(e.path, ".d.ts") {
-			continue
-		}
-		if e.size > maxTestFileBytes {
-			skipped++
-			continue
-		}
-		picked = append(picked, e)
-		total += e.size
-	}
-	if len(picked) > maxSKFiles {
-		return nil, 0, 0, bound(fmt.Sprintf("declared sources hold more than %d candidate files", maxSKFiles))
-	}
-	if total > maxTestBytes {
-		return nil, 0, 0, bound(fmt.Sprintf("declared source files exceed %d bytes", maxTestBytes))
-	}
-	data, err := r.blobs(picked, maxTestFileBytes, maxTestBytes)
-	if err != nil {
-		return nil, 0, 0, err
-	}
-	in := []skSource{}
-	for _, e := range picked {
-		if b := data[e.oid]; bytes.IndexByte(b, 0) < 0 {
-			in = append(in, skSource{entry: e, data: b})
-		} else {
-			skipped++
-		}
 	}
 	joins := map[string]TestFile{}
 	for _, f := range m.Files {
@@ -90,6 +39,68 @@ func readSiteKnowledge(ctx context.Context, m *Map, sources []string, o Options)
 		k.blobs[e.path] = e.oid
 	}
 	return k, len(in), skipped, nil
+}
+
+// readSKSources reads the committed files under the declared sources that keep selects, within
+// the site-knowledge file and byte bounds. It returns the text files read, every tree entry under
+// the sources, and the count skipped as oversized or binary.
+func readSKSources(ctx context.Context, m *Map, sources []string, o Options, keep func(string) bool) ([]skSource, []blobEntry, int, error) {
+	query := func(msg string) error { return &gokernel.Error{Code: "appmap-invalid-query", Message: msg} }
+	if len(sources) == 0 || len(sources) > maxSKSources {
+		return nil, nil, 0, query(fmt.Sprintf("site knowledge requires 1 to %d --source directories", maxSKSources))
+	}
+	seen := map[string]bool{}
+	for _, s := range sources {
+		if !safeRelative(s) || seen[s] {
+			return nil, nil, 0, query(fmt.Sprintf("--source %q is not a unique repository-relative directory", s))
+		}
+		seen[s] = true
+	}
+	r := repo{ctx: ctx, root: o.Root}
+	rev, err := r.resolve(m.Revision)
+	if err != nil || rev != m.Revision {
+		return nil, nil, 0, &gokernel.Error{Code: "appmap-invalid-revision", Message: "the map revision is not a commit in --root"}
+	}
+	if missing, err := r.missingDirs(rev, sources); err != nil {
+		return nil, nil, 0, err
+	} else if len(missing) > 0 {
+		return nil, nil, 0, query(fmt.Sprintf("--source %q is not a directory at the map revision", missing[0]))
+	}
+	entries, err := r.tree(rev, sources, maxTestFiles)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+	picked, skipped, total := []blobEntry{}, 0, 0
+	for _, e := range entries {
+		if !keep(e.path) {
+			continue
+		}
+		if e.size > maxTestFileBytes {
+			skipped++
+			continue
+		}
+		picked = append(picked, e)
+		total += e.size
+	}
+	if len(picked) > maxSKFiles {
+		return nil, nil, 0, bound(fmt.Sprintf("declared sources hold more than %d candidate files", maxSKFiles))
+	}
+	if total > maxTestBytes {
+		return nil, nil, 0, bound(fmt.Sprintf("declared source files exceed %d bytes", maxTestBytes))
+	}
+	data, err := r.blobs(picked, maxTestFileBytes, maxTestBytes)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+	in := []skSource{}
+	for _, e := range picked {
+		if b := data[e.oid]; bytes.IndexByte(b, 0) < 0 {
+			in = append(in, skSource{entry: e, data: b})
+		} else {
+			skipped++
+		}
+	}
+	return in, entries, skipped, nil
 }
 
 func skHead(schema string, m *Map, sources []string, budget int, o Options, read, skipped int) []field {
@@ -139,17 +150,46 @@ func PageObjects(ctx context.Context, m *Map, sources []string, o Options) ([]by
 }
 
 // Setup reports the stage-3 setup records of the declared sources and links each test to the
-// records that arrange it (SKH-V0-030, SKH-V0-031, SKH-V0-033, SKH-V0-034).
+// records that arrange it (SKH-V0-030..034, SKH-V0-100..105).
 func Setup(ctx context.Context, m *Map, sources []string, o Options) ([]byte, error) {
+	return SetupQuery(ctx, m, sources, nil, o)
+}
+
+// Setup query bounds (SKH-V0-103).
+const (
+	MaxSetupConditions = 16
+	maxConditionBytes  = 256
+)
+
+// SetupQuery is Setup that also answers "what can produce condition C" for each condition, and
+// links every flow precondition of the map to the records that can produce it (SKH-V0-031).
+func SetupQuery(ctx context.Context, m *Map, sources, conditions []string, o Options) ([]byte, error) {
 	budget, err := o.budget(DefaultFlowBudget)
 	if err != nil {
 		return nil, err
+	}
+	if len(conditions) > MaxSetupConditions {
+		return nil, &gokernel.Error{Code: "appmap-invalid-query", Message: fmt.Sprintf("setup accepts at most %d --condition values", MaxSetupConditions)}
+	}
+	for _, c := range conditions {
+		if strings.TrimSpace(c) == "" || len(c) > maxConditionBytes || strings.ContainsAny(c, "\x00\n") {
+			return nil, &gokernel.Error{Code: "appmap-invalid-query", Message: fmt.Sprintf("--condition must be 1 to %d bytes of one line", maxConditionBytes)}
+		}
+		if secretscreen.MatchString(c) {
+			return nil, &gokernel.Error{Code: "appmap-invalid-query", Message: "--condition holds secret-shaped text"}
+		}
 	}
 	k, read, skipped, err := readSiteKnowledge(ctx, m, sources, o)
 	if err != nil {
 		return nil, err
 	}
 	records, uses := k.extractSetup(k.blobs)
+	rails, notRead, err := readRailsSetup(repo{ctx: ctx, root: o.Root}, m)
+	if err != nil {
+		return nil, err
+	}
+	records = append(records, rails...)
+	uses = append(uses, k.linkRuby(records)...)
 	kinds, unknown, mocked := map[string]int{}, 0, 0
 	items := make([]any, len(records))
 	for i, s := range records {
@@ -173,11 +213,27 @@ func Setup(ctx context.Context, m *Map, sources []string, o Options) ([]byte, er
 		}
 		tests[i] = u
 	}
+	pre, preLinked := []any{}, 0
+	for _, f := range m.Flows {
+		for _, text := range f.Preconditions {
+			c := conditionQuery(text, records)
+			c.Flow = f.FlowID
+			if c.Status == ConditionCandidates {
+				preLinked++
+			}
+			pre = append(pre, c)
+		}
+	}
+	asked := make([]any, len(conditions))
+	for i, c := range conditions {
+		asked[i] = conditionQuery(c, records)
+	}
 	head := append(skHead(SetupSchema, m, sources, budget, o, read, skipped),
 		field{"records", len(records)}, field{"record_kinds", kinds}, field{"records_unknown", unknown},
 		field{"records_mocked", mocked}, field{"tests_total", len(uses)}, field{"tests_linked", linked},
-		field{"tests_unresolved_fixtures", unresolved}, field{"not_read", SetupNotRead})
-	return render(head, []section{{"setup", items}, {"tests", tests}}, budget)
+		field{"tests_unresolved_fixtures", unresolved}, field{"preconditions_total", len(pre)},
+		field{"preconditions_linked", preLinked}, field{"not_read", notRead})
+	return render(head, []section{{"conditions", asked}, {"preconditions", pre}, {"setup", items}, {"tests", tests}}, budget)
 }
 
 // Steps reports the test bodies of the declared sources in the closed step IR, with

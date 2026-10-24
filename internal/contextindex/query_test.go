@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -396,7 +397,7 @@ exec %s "$@"
 		strconv.Quote(index.CommitRevision), strconv.Quote(initialTree), strconv.Quote(index.CommitRevision),
 		strconv.Quote(initialTree), strconv.Quote(log), strconv.Quote(postTree),
 		strconv.Quote(status), strconv.Quote(status), strconv.Quote(status), strconv.Quote(statusOutput), strconv.Quote(statusOutput), strconv.Quote(realGit))
-	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -473,7 +474,7 @@ func TestValidateQueryCommandRunsBeforeRepositoryAccess(t *testing.T) {
 	bin := t.TempDir()
 	canary := filepath.Join(t.TempDir(), "git-called")
 	wrapper := fmt.Sprintf("#!/bin/sh\n: > %s\nexit 99\n", strconv.Quote(canary))
-	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -868,7 +869,7 @@ done
 exec %s "$@"
 `, strconv.Quote(filepath.Join(log, "calls")), strconv.Quote(filepath.Join(log, "serial")), strconv.Quote(filepath.Join(log, "serial")),
 		strconv.Quote(filepath.Join(log, "serial")), strconv.Quote(log), strconv.Quote(realGit), strconv.Quote(realGit))
-	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))

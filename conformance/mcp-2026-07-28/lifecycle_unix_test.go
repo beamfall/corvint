@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"io"
 	"os"
 	"os/exec"
@@ -167,7 +168,7 @@ func gitPlantedOnPathAfterStartNeverRuns(t *testing.T) {
 	defer client.close(t)
 	successResult(t, client.call(t, 94, "server/discover", map[string]any{"_meta": requestMeta()}))
 	script := "#!/bin/sh\n: > " + shellQuote(marker) + "\nexit 1\n"
-	if err := os.WriteFile(filepath.Join(planted, "git"), []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(planted, "git"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	status := successResult(t, client.call(t, 95, "tools/call", map[string]any{
@@ -197,7 +198,7 @@ func TestTaskReviewCEMReportNeverRunsPlantedGit(t *testing.T) {
 	defer client.close(t)
 	successResult(t, client.call(t, 94, "server/discover", map[string]any{"_meta": requestMeta()}))
 	script := "#!/bin/sh\n: > " + shellQuote(marker) + "\nexit 1\n"
-	if err := os.WriteFile(filepath.Join(planted, "git"), []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(planted, "git"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	head := gitOutput(t, root, "rev-parse", "HEAD")
@@ -244,12 +245,17 @@ func installBlockingFakeGit(t *testing.T) (directory, pidFile string) {
 	directory = t.TempDir()
 	pidFile = filepath.Join(t.TempDir(), "pids")
 	script := "#!/bin/sh\n/bin/sleep 60 </dev/null >/dev/null 2>/dev/null &\nchild=$!\nprintf '%s %s\\n' \"$$\" \"$child\" > " + shellQuote(pidFile) + "\nwait \"$child\"\n"
-	if err := os.WriteFile(filepath.Join(directory, "git"), []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(directory, "git"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return directory, pidFile
 }
 
+// waitForSignalExit drains stdout to EOF before Wait, like waitForExit:
+// Cmd.Wait closes the StdoutPipe reader once it observes the exit, so a read
+// still in flight races that close and fails "read |0: file already closed"
+// instead of returning the (empty) remainder (V1-2469). EOF also proves the
+// descendant group no longer holds the server's stdout.
 func waitForSignalExit(t *testing.T, client *stdioClient, timeout time.Duration) {
 	t.Helper()
 	type drainResult struct {
@@ -261,26 +267,23 @@ func waitForSignalExit(t *testing.T, client *stdioClient, timeout time.Duration)
 		body, err := io.ReadAll(client.stdout)
 		drained <- drainResult{body: body, err: err}
 	}()
-	done := make(chan error, 1)
-	go func() { done <- client.command.Wait() }()
 	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatalf("server signal exit: %v; stderr=%q", err, client.stderr.String())
-		}
-		remainder := <-drained
+	case remainder := <-drained:
 		if remainder.err != nil || len(remainder.body) != 0 {
 			t.Fatalf("signal-exit stdout: bytes=%q err=%v", remainder.body, remainder.err)
+		}
+		if err := client.command.Wait(); err != nil {
+			t.Fatalf("server signal exit: %v; stderr=%q", err, client.stderr.String())
 		}
 	case <-time.After(timeout):
 		_ = client.command.Process.Signal(syscall.SIGQUIT)
 		select {
-		case <-done:
+		case <-drained:
 		case <-time.After(time.Second):
 			_ = client.command.Process.Kill()
-			<-done
+			<-drained
 		}
-		<-drained
+		_ = client.command.Wait()
 		t.Fatalf("server did not exit before deadline; SIGQUIT stack=%q", client.stderr.String())
 	}
 }

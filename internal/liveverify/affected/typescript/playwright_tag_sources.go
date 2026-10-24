@@ -152,7 +152,8 @@ var playwrightTagNeutralModules = map[string]bool{"@playwright/test": true, "dot
 // in code keeps the file inexact (AFP-V0-409). The in-place array mutators (`push`, `fill` and the
 // like) are not among them: every literal tag array is the value of a literal `tag` key, so the
 // only routes to it name `tag` outside a key, index it by a computed member, or pass one of these
-// names, and each of those is already inexact (AFP-V0-425).
+// names, and each of those is already inexact (AFP-V0-425). The one exempt use is a plain
+// `JSON.stringify` call (playwrightPlainStringify, TJAA-V0-090).
 var playwrightTagIndirection = []string{
 	"Object", "Reflect", "JSON", "Proxy", "eval", "Function", "globalThis", "global", "window", "self", "structuredClone",
 	"constructor", "prototype", "__proto__", "__defineGetter__", "__defineSetter__",
@@ -247,7 +248,7 @@ func playwrightTagTextLiteral(clean string) (tags []string, at int, why string) 
 	first, name := -1, ""
 	for _, candidate := range playwrightTagIndirection {
 		for _, offset := range playwrightTokenOffsets(clean, candidate) {
-			if lexed.code[offset] && (first < 0 || offset < first) {
+			if lexed.code[offset] && (first < 0 || offset < first) && (candidate != "JSON" || !playwrightPlainStringify(clean, lexed, offset)) {
 				first, name = offset, candidate
 			}
 		}
@@ -309,6 +310,53 @@ func playwrightTagTextLiteral(clean string) (tags []string, at int, why string) 
 		tags = append(tags, literal...)
 	}
 	return tags, 0, ""
+}
+
+// playwrightPlainStringify reports whether the `JSON` token at offset begins a direct call
+// `JSON.stringify(value)`, `JSON.stringify(value, null)` or `JSON.stringify(value, null, space)`.
+// Its value is a string, and a string reaches a test only as a title, which the listing shows
+// exactly, or as a tag value, which the tag rule already refuses; building a `tag` key from it
+// needs JSON.parse, eval, a computed key or another name this rule keeps. With no replacer
+// function the call runs only the toJSON methods and getters of its argument, user code under the
+// same rules, which cannot reach a tag array without naming `tag`, a computed member or a
+// reflective name. A replacer, a spread argument, `JSON?.`, a member `x.JSON`, `JSON.stringify`
+// read without a direct call, and any other JSON member stay inexact (TJAA-V0-090).
+func playwrightPlainStringify(clean string, lexed playwrightLexed, at int) bool {
+	if previous := playwrightPreviousCode(clean, at); previous >= 0 && clean[previous] == '.' {
+		return false
+	}
+	dot := playwrightNextCode(clean, at+len("JSON"))
+	if dot >= len(clean) || clean[dot] != '.' {
+		return false
+	}
+	member := playwrightNextCode(clean, dot+1)
+	if !strings.HasPrefix(clean[member:], "stringify") || member+len("stringify") < len(clean) && playwrightIdentifierByte(clean[member+len("stringify")]) {
+		return false
+	}
+	open := playwrightNextCode(clean, member+len("stringify"))
+	if open >= len(clean) || clean[open] != '(' || !lexed.code[open] {
+		return false
+	}
+	closeAt, closed := lexed.closes[open]
+	if !closed {
+		return false
+	}
+	arguments, start := []string{}, open+1
+	for index := open + 1; index <= closeAt; index++ {
+		if index == closeAt || lexed.code[index] && lexed.parent[index] == open && clean[index] == ',' {
+			arguments = append(arguments, strings.TrimSpace(clean[start:index]))
+			start = index + 1
+		}
+	}
+	if len(arguments) == 0 || len(arguments) > 3 || len(arguments) >= 2 && arguments[1] != "null" {
+		return false
+	}
+	for _, argument := range arguments {
+		if argument == "" || strings.HasPrefix(argument, "...") {
+			return false
+		}
+	}
+	return true
 }
 
 // playwrightMemberAccessAt reports whether a `[` whose previous code byte is at previous opens a

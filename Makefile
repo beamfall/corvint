@@ -18,7 +18,7 @@ GO_TEST_TIMEOUT ?= 30m
 GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)
 GO_TEST_COMMAND = $(HEAVY_NICE_PREFIX) env GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) -count=1
 
-.PHONY: build gate capability-catalog capability-catalog-check instruction-conflicts gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet windows-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-resolve spec-requirements-check spec-requirements-test spec-acceptance-audit requirement-definitions-check requirement-definitions-test traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test analyzer-schema-check analyzer-schema-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check capabilities-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-finish dogfood-batch-check dogfood-bind-range dogfood-bind-range-test lane-scripts-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test host-package-versions-check host-package-versions-test host-package-version-bump host-package-version-verify diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test goos-filenames-check goos-filenames-test go-cache-trim go-cache-trim-test scratch-sweep scratch-sweep-test pre-push-windows-vet-test cem-stable-regen cem-stable-regen-capture cem-stable-regen-replace cem-stable-regen-check cem-release-suites spec-toolchain-conformance spec-toolchain-latest-test
+.PHONY: build gate capability-catalog capability-catalog-check instruction-conflicts gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet windows-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-resolve spec-requirements-check spec-requirements-test spec-acceptance-audit requirement-definitions-check requirement-definitions-test traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test analyzer-schema-check analyzer-schema-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check capabilities-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-finish dogfood-batch-check dogfood-bind-range dogfood-bind-range-test lane-scripts-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test host-package-versions-check host-package-versions-test host-package-version-bump host-package-version-verify diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test goos-filenames-check goos-filenames-test go-cache-trim go-cache-trim-test scratch-sweep scratch-sweep-test pre-push-windows-vet-test cem-stable-regen cem-stable-regen-capture cem-stable-regen-replace cem-stable-regen-check cem-release-suites cem-release-gate spec-toolchain-conformance spec-toolchain-latest-test
 
 build: go-version
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_BIN) ./cmd/corvint
@@ -175,6 +175,20 @@ cem-stable-regen-check:
 cem-release-suites:
 	@test -n "$(CORVINT_RELEASE_BIN)" && test -n "$(CEM01_RELEASE_BIN)" || { echo "set CORVINT_RELEASE_BIN and CEM01_RELEASE_BIN" >&2; exit 2; }
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/cem-release-suites --corvint "$(CORVINT_RELEASE_BIN)" --cem01 "$(CEM01_RELEASE_BIN)"
+
+# cem-release-gate builds corvint and cem01-go from the clean committed HEAD into a private
+# directory, runs the Node check of the committed readiness declaration, then the sealed suites
+# with release readiness over both binaries (CEM-V1-600..605, V1-2323). Exit 3 is the readiness
+# refusal: the committed declaration names rows one host cannot observe (binary-level repository
+# envelope, the other release platform, external interoperability), so a pass on this host is
+# never release support. It is opt-in, not a `make gate` step; CI wiring is owner .github work.
+cem-release-gate: go-version
+	@test -z "$$(git status --porcelain)" || { echo "cem-release-gate: the checkout has changes or untracked files; release binaries are built from a clean HEAD" >&2; exit 2; }
+	node --test tools/cem-release-suites/readiness.test.mjs
+	@bin=$$(mktemp -d) && trap '/bin/rm -rf "$$bin"' EXIT INT TERM && \
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -o "$$bin/corvint" ./cmd/corvint && \
+	(cd interop/cem01-go && GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -o "$$bin/cem01-go" .) && \
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/cem-release-suites --corvint "$$bin/corvint" --cem01 "$$bin/cem01-go" --readiness tools/cem-release-suites/READINESS.json
 
 # spec-requirements regenerates docs/specs/REQUIREMENTS.tsv and projects the spec headers onto
 # docs/specs/INDEX.json and the docs/specs/README.md table (SRG-V0-012). The generator reads the
@@ -631,3 +645,10 @@ perf-budget: go-version
 # HEAVY_NICE=0 opts out; a host without nice(1) runs them unchanged.
 HEAVY_NICE ?= 10
 HEAVY_NICE_PREFIX = $(if $(filter-out 0,$(HEAVY_NICE)),$(if $(shell command -v nice 2> /dev/null),nice -n $(HEAVY_NICE)))
+
+# cce-live runs the live CCE prove tests and fails, rather than skips, when the Playwright
+# toolchain (CORVINT_PLAYWRIGHT_MODULES, node) is missing (CCE-V0-102). A CI lane calls it on a
+# macOS arm64 runner with a qualified Playwright tuple; the ordinary lane does not.
+.PHONY: cce-live
+cce-live:
+	CORVINT_CCE_LIVE=required GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test -count=1 -timeout $(GO_TEST_TIMEOUT) ./internal/changee2e -run '^TestCCEV[0-9]+Live'

@@ -76,7 +76,30 @@ var stableIntegrityAxes = map[string][]string{
 // platform and external row is observed PASSED. A refusal is a
 // *StableReleaseRefusal.
 func ValidateStableReleaseEvidence(e StableReleaseEvidence) error {
-	view, err := readStableResult(e.Result)
+	if err := validateStableResult(e.Result); err != nil {
+		return err
+	}
+	return completeReleaseOutcomes(e.Runner, e.Platform, e.External)
+}
+
+// completeReleaseOutcomes refuses the first runner, platform or external
+// class with a required row that is not observed PASSED.
+func completeReleaseOutcomes(runner, platform, external StableReleaseOutcomes) error {
+	for _, class := range []struct {
+		code string
+		o    StableReleaseOutcomes
+	}{{StableRefusalRunner, runner}, {StableRefusalPlatform, platform}, {StableRefusalExternal, external}} {
+		if err := completeStableOutcomes(class.code, class.o); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateStableResult refuses raw unless it is an exact admitted stable
+// ACCEPT within its authority, runtime and envelope limits.
+func validateStableResult(raw []byte) error {
+	view, err := readStableResult(raw)
 	if err != nil {
 		return err
 	}
@@ -128,14 +151,6 @@ func ValidateStableReleaseEvidence(e StableReleaseEvidence) error {
 	proof := view.Axes["structuralProof"]
 	if proof != "NOT_REQUIRED" && proof != "PROVEN_DECLARED_FILE_PREDICATES" || view.Runtime.StructuralQualification == "QUALIFIED_EXACT_TUPLE" && proof != "PROVEN_DECLARED_FILE_PREDICATES" {
 		return stableRefuse(StableRefusalNotAccept, "an ACCEPT reports structural proof %s under %s", proof, view.Runtime.StructuralQualification)
-	}
-	for _, class := range []struct {
-		code string
-		o    StableReleaseOutcomes
-	}{{StableRefusalRunner, e.Runner}, {StableRefusalPlatform, e.Platform}, {StableRefusalExternal, e.External}} {
-		if err := completeStableOutcomes(class.code, class.o); err != nil {
-			return err
-		}
 	}
 	return nil
 }

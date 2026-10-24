@@ -103,9 +103,9 @@ func bubblewrap(executable string) func([]string) ([]string, error) {
 	}
 }
 
-// nestingRefusal is the fixed supported-limit reason an export reports when
+// NestingRefusal is the fixed supported-limit reason an export reports when
 // its sandbox launcher refuses to apply the profile at all (FPK-V0-142).
-const nestingRefusal = "the host refused to apply the sandbox profile (an enclosing sandbox forbids nesting)"
+const NestingRefusal = "the host refused to apply the sandbox profile (an enclosing sandbox forbids nesting)"
 
 // preflightDeadline bounds the one nesting preflight of an export.
 const preflightDeadline = 30 * time.Second
@@ -127,5 +127,5 @@ func nestingRefused(ctx context.Context, space workspace) bool {
 	command.Stdout, command.Stderr = output, output
 	configureProcess(command)
 	_ = groupreap.Run(command)
-	return launcherRefused(output.String())
+	return launcherRefused(output.String()) != nil
 }

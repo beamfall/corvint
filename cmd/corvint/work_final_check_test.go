@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/workqueue"
 )
 
@@ -40,7 +41,7 @@ fi
 work_fixture_body "$@" > "$HOME/first-checkpoint" || exit $?
 cat "$HOME/first-checkpoint"
 `
-	if err := os.WriteFile(path, []byte(script), 0755); err != nil {
+	if err := execfile.WriteFile(path, []byte(script), 0755); err != nil {
 		t.Fatal(err)
 	}
 	materializationGit(t, root, "add", ".")
@@ -116,9 +117,9 @@ func workFinalCapture(t *testing.T, script string) (string, *workCapture) {
 	// A parent deadline here would retire the setup capture before the
 	// behaviour under test ever runs, and reports the overrun as INPUT_LIMIT.
 	// Every other observeWork caller passes Background (work_observe_test.go).
-	capture, code := observeWork(context.Background(), root, io.Discard)
+	capture, code, cause := observeWorkCause(context.Background(), root, io.Discard)
 	if code != "" {
-		t.Fatalf("initial capture: %s", code)
+		t.Fatalf("initial capture: %s: %v", code, cause)
 	}
 	t.Cleanup(func() { _ = capture.Close() })
 	if capture.observation.State != workqueue.StateUnknown || capture.observation.MutationState != "UNKNOWN" {

@@ -95,3 +95,27 @@ func TestDCPV1506DocsCorpusExtractCallerProfileCLI(t *testing.T) {
 		t.Fatalf("empty --profile-sha256: exit=%d out=%q stderr=%q", code, out, stderr)
 	}
 }
+
+// DCP-V1-560: `docs corpus extract --schema 2` prints exactly the producer's adoption-provider
+// inventory; --schema 1 prints the default bytes and another value is refused with no output.
+func TestDCPV1560DocsCorpusExtractSchemaCLI(t *testing.T) {
+	root, revision := extractCLIRepository(t)
+	base := []string{"docs", "corpus", "extract", "--profile", "corvint/extract.json", "--revision", revision}
+	_, plain, _ := corpusCLI(t, root, base...)
+	code, out, stderr := corpusCLI(t, root, append(base, "--schema", "1")...)
+	if code != 0 || out != plain {
+		t.Fatalf("--schema 1 differs from the default: %d %s", code, stderr)
+	}
+	code, out, stderr = corpusCLI(t, root, append(base, "--schema", "2")...)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	want, err := doccorpus.BuildExtractorInventory(context.Background(), doccorpus.ExtractorInput{Root: root, Revision: revision, Profile: "corvint/extract.json", Schema: "2"})
+	var inventory doccorpus.ExtractorInventory
+	if err != nil || out != string(want) || json.Unmarshal([]byte(out), &inventory) != nil || inventory.Provider.Schema != doccorpus.AdoptionProviderSchema {
+		t.Fatalf("--schema 2 output: %v %+v", err, inventory.Provider.Schema)
+	}
+	if code, out, _ := corpusCLI(t, root, append(base, "--schema", "3")...); code != 2 || out != "" {
+		t.Fatalf("--schema 3 accepted: %d %q", code, out)
+	}
+}

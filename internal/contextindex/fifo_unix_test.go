@@ -5,6 +5,7 @@ package contextindex
 import (
 	"context"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,7 +39,7 @@ func TestBuildCancellationKillsGitDescendants(t *testing.T) {
 	bin := t.TempDir()
 	pidFile := filepath.Join(t.TempDir(), "child-pid")
 	wrapper := fmt.Sprintf("#!/bin/sh\nsleep 60 &\nchild=$!\nprintf '%%s\\n' \"$child\" > %s\nwait \"$child\"\n", strconv.Quote(pidFile))
-	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := exec.LookPath("git"); err != nil {
