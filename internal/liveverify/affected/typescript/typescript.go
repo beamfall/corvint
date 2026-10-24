@@ -100,6 +100,10 @@ type config struct {
 	membership bool
 	tsconfigAt int
 	body       string
+	// literalProjects holds a Playwright config's parsed projects, and literalTestDir its global
+	// testDir, when every testMatch in it is a literal root-free string glob, or nil (TJAA-V0-092).
+	literalProjects []PlaywrightProject
+	literalTestDir  string
 }
 
 type packageScope struct {
@@ -410,6 +414,9 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 		if runner, known := configRunner(relative, text); known {
 			marker := dynamicConfigMarker(text)
 			configs = append(configs, config{path: relative, directory: path.Dir(relative), runner: runner, membership: marker >= 0, tsconfigAt: tsconfigToken(text), body: text})
+			if marker >= 0 && runner == runnerPlaywright {
+				configs[len(configs)-1].literalProjects, configs[len(configs)-1].literalTestDir = playwrightLiteralProjects(relative, text)
+			}
 			switch {
 			case marker >= 0 && runner == runnerPlaywright:
 				// AFP-V0-404: decided once the tests are classified, below.
@@ -746,7 +753,8 @@ func classify(relative, body string, refs []string, configs []config, scopes []p
 	// membership markers the general adapter does not model (which already sets FrontierConfig),
 	// a conventional test path stays a test so a custom-matched test is not silently demoted;
 	// the Playwright config mode re-splits membership from the parsed matchers either way.
-	if observation.runner == runnerPlaywright && !observation.puppeteer && !playwrightDefaultTest(relative) && !(customMembership(observation.configs, configs) && isTestCandidate(relative)) {
+	// TJAA-V0-092: a path a literal project testMatch of its config owns is a test wherever it lives.
+	if observation.runner == runnerPlaywright && !observation.puppeteer && !playwrightDefaultTest(relative) && !(customMembership(observation.configs, configs) && isTestCandidate(relative)) && !playwrightLiteralOwned(relative, observation.configs, configs) {
 		observation.test, observation.runner, observation.configs = false, "", nil
 		return observation
 	}
