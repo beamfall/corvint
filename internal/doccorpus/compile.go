@@ -669,7 +669,7 @@ func (c *compiler) pin(ctx context.Context) (err error) {
 		loaders[dir] = loader
 	}
 	loaderFor := func(revision string) *inputLoader { return loaders[c.manifest.RevisionRoot(c.root, revision)] }
-	inputBytes := 0
+	var charge inputCharge
 	charged := map[string]bool{}
 	for _, in := range c.manifest.Inputs {
 		size, _, err := loaderFor(in.Revision).admit(in.Revision, in.Path)
@@ -677,12 +677,12 @@ func (c *compiler) pin(ctx context.Context) (err error) {
 			return err
 		}
 		if !charged[inputKey(in.Revision, in.Path)] {
-			inputBytes += size
 			charged[inputKey(in.Revision, in.Path)] = true
-			if inputBytes > maxPinnedInputBytes {
-				return capacityExceeded("aggregate pinned input bytes", inputBytes, maxPinnedInputBytes)
-			}
+			charge.add(in, size)
 		}
+	}
+	if err := charge.check(); err != nil {
+		return err
 	}
 	for _, dir := range dirs {
 		if loader := loaders[dir]; loader != nil {

@@ -191,7 +191,7 @@ func BuildExtractorInventory(ctx context.Context, input ExtractorInput) ([]byte,
 		return nil, fail("extractor profile exceeds the input bound")
 	}
 	var profile ExtractorProfile
-	if err := decode(raw, &profile); err != nil {
+	if err := decodeNamed(input.Profile, raw, &profile, MaxBytes); err != nil {
 		return nil, err
 	}
 	extractors, err := compileExtractorProfile(profile)

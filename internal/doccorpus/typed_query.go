@@ -2,6 +2,8 @@ package doccorpus
 
 import (
 	"context"
+	"maps"
+	"slices"
 	"sort"
 	"strings"
 
@@ -336,18 +338,26 @@ func typedQuery(ctx context.Context, a *Artifact, q Request, r *Receipt) error {
 }
 
 // claimSearch ranks claims by the distinct query terms their ID and text
-// hold, with an exact case-insensitive text match first; ties order by claim
-// ID (DCP-V1-313). Each claim appears once.
+// hold, a term also matching its regular inflections (DCP-V1-476), with an
+// exact case-insensitive text match first (DCP-V1-313). Claims holding as
+// many terms order by the summed inverse document frequency of the terms
+// they hold, then the shorter text, then natural claim ID order
+// (DCP-V1-477). Terms are summed in sorted order so the weight is
+// deterministic. Each claim appears once.
 func claimSearch(ctx context.Context, a *Artifact, q Request, r *Receipt) error {
 	x := a.RuntimeIndex
 	terms := contextindex.EvidenceTerms(q.Query)
 	scores := map[int]int{}
-	for term := range terms {
+	weights := map[int]float64{}
+	for _, term := range slices.Sorted(maps.Keys(terms)) {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		for _, i := range x.ClaimTerms[term] {
+		held := claimPostings(x, term)
+		idf := searchIDF(len(a.Claims), len(held))
+		for _, i := range held {
 			scores[i]++
+			weights[i] += idf
 		}
 	}
 	for i := range scores {
@@ -360,10 +370,17 @@ func claimSearch(ctx context.Context, a *Artifact, q Request, r *Receipt) error 
 		ids = append(ids, i)
 	}
 	sort.Slice(ids, func(i, j int) bool {
-		if scores[ids[i]] != scores[ids[j]] {
-			return scores[ids[i]] > scores[ids[j]]
+		ci, cj := ids[i], ids[j]
+		if scores[ci] != scores[cj] {
+			return scores[ci] > scores[cj]
 		}
-		return a.Claims[ids[i]].ID < a.Claims[ids[j]].ID
+		if weights[ci] != weights[cj] {
+			return weights[ci] > weights[cj]
+		}
+		if li, lj := specificity(a.Claims[ci].Text), specificity(a.Claims[cj].Text); li != lj {
+			return li < lj
+		}
+		return naturalLess(a.Claims[ci].ID, a.Claims[cj].ID)
 	})
 	for _, i := range ids {
 		addRecord(r, a.Claims[i])

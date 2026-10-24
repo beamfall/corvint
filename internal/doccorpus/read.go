@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
+	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
 // Artifact validation states an info receipt reports (DCP-V1-413).
@@ -204,8 +205,10 @@ func openVerified(ctx context.Context, root string, opts ReadOptions, start time
 // without version-control metadata share `unrecorded`, so equal labels of
 // either kind say nothing about equal extraction behavior. No executable
 // content identity is recorded in the artifact to tell such builds apart.
+// Only a full lowercase Git object ID is a recorded revision, so an empty or
+// malformed label is no attestation either (DCP-V1-471).
 func attestedBuilder(b Builder) bool {
-	return b.Revision != "unrecorded" && !strings.HasSuffix(b.Revision, "+dirty")
+	return wire.IsGitOid(b.Revision)
 }
 
 // unattestedBuilderTrusted admits the verified read for an unattested
@@ -240,8 +243,8 @@ func errNotRederivable(reason string) error {
 
 // verifyRecorded checks what a verified read trusts instead of rederiving.
 func verifyRecorded(ctx context.Context, root string, a *Artifact) error {
-	if a.Builder != currentBuilder() {
-		return errNotRederivable("builder differs")
+	if err := sameDerivation(a.Builder, currentBuilder()); err != nil {
+		return err
 	}
 	if (a.Schema == SchemaV2) != (a.Manifest.Schema == ManifestSchemaV2) {
 		return errNotRederivable("artifact and manifest schemas differ")

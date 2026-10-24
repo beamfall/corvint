@@ -2798,6 +2798,15 @@ DCP-V1-396	docs/specs/documentation-corpus-v1.md	(accepted under the owner's sta
 DCP-V1-397	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) Whe	standing	2026-10-11; #1583
 DCP-V1-398	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583)	standing	2026-10-11; #1583
 DCP-V1-399	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583)	standing	2026-10-11; #1583
+DCP-V1-470	docs/specs/documentation-corpus-v1.md	A closed JSON refusal of a named local input (a manifest, a provider record or	unrecorded	-
+DCP-V1-471	docs/specs/documentation-corpus-v1.md	The builder engine names a derivation version (`native-contextindex/<schema>/	unrecorded	-
+DCP-V1-472	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-033` and `DCP-V1-157`, the pinned bytes of a corpus's distinct	unrecorded	-
+DCP-V1-473	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-252`, a failing eval case also carries `returned_rows`: its	unrecorded	-
+DCP-V1-474	docs/specs/documentation-corpus-v1.md	An eval suite opens the verified artifact and observes the checkout's freshness	unrecorded	-
+DCP-V1-475	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-402`, a `docs_search` subject whose name field (`DCP-V1-400`,	unrecorded	-
+DCP-V1-476	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-313` and `DCP-V1-328`, a claim's ID and text also match the	unrecorded	-
+DCP-V1-477	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-313` and `DCP-V1-402`, ties no longer order by ID string.	unrecorded	-
+DCP-V1-478	docs/specs/documentation-corpus-v1.md	(proposed, not implemented; awaiting owner intent; GitHub #1662) `docs corpus	unrecorded	-
 DCP-V1-054	docs/specs/documentation-corpus-v1.md	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-
