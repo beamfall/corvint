@@ -18,6 +18,7 @@ import {
 } from "./runtime.js"
 import { ENVELOPE_COLLISION, frameRepositoryData } from "./envelope.js"
 import { promptQuery, trimSpace } from "./prompt-bound.js"
+import { loadBundledSkill, registerBundledSkill } from "./skill.js"
 
 const MAX_TRACKED_PATHS = 256
 // AHI-022 (V1-0773): one file-change batch never exceeds Core's impact bound (maxImpactPaths in
@@ -790,6 +791,12 @@ async function setup(ctx) {
 
   await ctx.session.hook("prompt", onPrompt)
   await ctx.session.hook("context", onContext)
+  // AHI-176: a registration fault leaves the tools and hooks intact and is reported, never thrown.
+  try {
+    if (await registerBundledSkill(ctx.skill, loadBundledSkill()) === "unreadable") report("bundled-skill-unreadable", "session-start")
+  } catch {
+    report("bundled-skill-registration-failed", "session-start")
+  }
 
   return async () => {
     events.abort()

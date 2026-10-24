@@ -18,7 +18,7 @@ func Run(ctx context.Context, args []string) error {
 	var native, inspector bool
 	var probe, terminalConfig string
 	f.StringVar(&c.Source, "source", "", "clean Corvint checkout (default: current Git root)")
-	f.StringVar(&c.Host, "host", "", "actual OpenCode 2.0.x executable")
+	f.StringVar(&c.Host, "host", "", "actual OpenCode 2.0.18+ or 2.1.x executable")
 	f.StringVar(&c.Corvint, "corvint", "", "Corvint executable")
 	f.StringVar(&c.Output, "output", "", "evidence directory outside the checkout")
 	f.StringVar(&c.Theme, "theme", "dark", "inspector theme: dark or light")
@@ -212,8 +212,8 @@ func qualify(ctx context.Context, c Config) (failure error) {
 	if e != nil {
 		return e
 	}
-	if strings.TrimSpace(str(version["stdout"])) != "go1.27.2" {
-		return errors.New("Go 1.27.2 is required")
+	if !admittedGoVersion(strings.TrimSpace(str(version["stdout"]))) {
+		return errors.New("Go 1.27.2 or 1.27.3 is required")
 	}
 	focused, e := runCommand(ctx, c.Source, env, []string{"go", "test", "-json", "-count=1", "-timeout", "30m", "./cmd/corvint", "-run", "^TestHostAdapterJavaScript(Hosts|HarnessInterruption)$"}, run+"/focused", 30*time.Minute)
 	if e != nil {
@@ -243,3 +243,8 @@ func qualify(ctx context.Context, c Config) (failure error) {
 	fmt.Println(string(b))
 	return nil
 }
+
+// admittedGoVersions are the exact toolchain revisions decision 0547 admits (AHI-175).
+var admittedGoVersions = map[string]bool{"go1.27.2": true, "go1.27.3": true}
+
+func admittedGoVersion(version string) bool { return admittedGoVersions[version] }

@@ -7,12 +7,12 @@ import { ADAPTER_VERSION } from "./runtime.js"
 const packageRoot = fileURLToPath(new URL("../", import.meta.url))
 const reportPath = fileURLToPath(new URL("../../opencode-qualification.json", import.meta.url))
 const CASES = ["install", "snapshot", "context", "expansion", "observations", "frontier", "degradation", "privacy", "normalization", "recursion", "compaction", "latency", "recall", "cleanup"]
-const SUPPORTED_HOST_RANGE = ">=2.0.18 <2.1.0"
+export const SUPPORTED_HOST_RANGE = ">=2.0.18 <2.2.0"
 const sha = bytes => createHash("sha256").update(bytes).digest("hex")
 
-function compatibleHostVersion(version) {
-  const match = /^2\.0\.(0|[1-9]\d{0,17})$/.exec(version ?? "")
-  return match !== null && BigInt(match[1]) >= 18n
+export function compatibleHostVersion(version) {
+  const match = /^2\.([01])\.(0|[1-9]\d{0,17})$/.exec(version ?? "")
+  return match !== null && (match[1] === "1" || BigInt(match[2]) >= 18n)
 }
 
 function resolveBinary(binary, environment, root) {

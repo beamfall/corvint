@@ -129,3 +129,28 @@ func TestAHI056LatencyResample(t *testing.T) {
 		}
 	})
 }
+
+func TestBundledSkillAdvertised(t *testing.T) {
+	t.Run("AHI-176 provider request advertises the plugin-registered corvint skill", func(t *testing.T) {
+		// AHI-176: only OpenCode's available-skills guidance in a system/developer message counts.
+		guidance := "<available_skills><skill><id>corvint</id><name>corvint</name></skill></available_skills>"
+		for _, tc := range []struct {
+			name     string
+			messages []any
+			want     bool
+		}{
+			{"string system", []any{Object{"role": "system", "content": "intro\n" + guidance}}, true},
+			{"text part developer", []any{Object{"role": "developer", "content": []any{Object{"type": "text", "text": guidance}}}}, true},
+			{"user message only", []any{Object{"role": "user", "content": guidance}}, false},
+			{"other skill", []any{Object{"role": "system", "content": strings.ReplaceAll(guidance, "<id>corvint</id>", "<id>other</id>")}}, false},
+			{"id outside guidance", []any{Object{"role": "system", "content": "<id>corvint</id><available_skills></available_skills>"}}, false},
+			{"missing", []any{Object{"role": "system", "content": "instructions"}}, false},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				if got := bundledSkillAdvertised([]Object{{"messages": tc.messages}}); got != tc.want {
+					t.Fatalf("bundledSkillAdvertised = %v, want %v", got, tc.want)
+				}
+			})
+		}
+	})
+}
