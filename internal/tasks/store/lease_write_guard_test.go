@@ -52,26 +52,27 @@ func TestCALV0372_TornGuardReadSpendsOneRound(t *testing.T) {
 }
 
 // TestCALV0019_RacingLeaseVerbsLeaveOneConsistentHeadThroughTornGuardReads
-// is the V1-2449 race with its first nine unlocked pre-round guard reads torn,
-// as a writer committing head.json between their stat and open tears them on
-// a slow host. Each torn read spends a round (CAL-V0-372), so every verb still
+// is the V1-2449 race with its first unlocked pre-round guard read torn, as a
+// writer committing head.json between that read's stat and open tears it on a
+// slow host. The torn read spends one round (CAL-V0-372), so every verb still
 // commits or refuses and the store audits CONSISTENT. Without the retry a
 // racer fails with "SNAPSHOT_MOVED: head.json: file replaced between stat and
-// open". It is not parallel: the fault seam is package-wide.
+// open". One tear only: more can pile onto one racer and, on a loaded host,
+// spend its sixteen rounds. It is not parallel: the fault seam is
+// package-wide.
 func TestCALV0019_RacingLeaseVerbsLeaveOneConsistentHeadThroughTornGuardReads(t *testing.T) {
 	s := newGateStore(t)
-	const tears = 9
 	var reads atomic.Int32
 	raceLeaseVerbs(t, s, func() {
 		restore := store.SetLeaseGuardFaultForTest(func(stateDir string) error {
-			if stateDir != s.repo.StateDir || reads.Add(1) > tears {
+			if stateDir != s.repo.StateDir || reads.Add(1) > 1 {
 				return nil
 			}
 			return wire.Errorf(wire.CodeSnapshotMoved, "head.json", "file replaced between stat and open")
 		})
 		t.Cleanup(restore)
 	})
-	if n := reads.Load(); n < tears {
-		t.Fatalf("guard reads %d, want at least %d (the first %d torn)", n, tears, tears)
+	if reads.Load() < 2 {
+		t.Fatalf("guard reads %d: the torn read was not followed by another", reads.Load())
 	}
 }

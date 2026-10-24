@@ -7520,8 +7520,8 @@ end with that code; with the retry removed the same test fails with the CI messa
 failure itself was not reproduced locally: twenty runs of the racing test on the base passed, so the
 cause is the code reading above, with the retry as the mechanism that removes it.
 `TestCALV0019_RacingLeaseVerbsLeaveOneConsistentHeadThroughTornGuardReads` (same file, V1-2449)
-runs the CAL-V0-019 nine-verb race with the store's first nine guard reads torn through the same
-seam; every verb commits or refuses and the store audits CONSISTENT, and with the retry removed a
+runs the CAL-V0-019 nine-verb race with the store's first guard read torn through the same seam;
+every verb commits or refuses and the store audits CONSISTENT, and with the retry removed a
 racer fails `SNAPSHOT_MOVED: head.json: file replaced between stat and open`, the V1-2449
 release-gates signature.
 
