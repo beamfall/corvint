@@ -605,6 +605,14 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 		if resume != nil {
 			from := resume
 			resume = nil
+			// The base check's snapshot-independent reads run here, before
+			// the gate; the gated check re-validates every one of them by
+			// its stamps (PSR-V0-225).
+			pre := time.Now()
+			if cleanup := journalReader(repo, head).PrecheckResume(from.base); cleanup != nil {
+				return guardFailureAudit(report, request.RequestID, cleanup)
+			}
+			writerStage(ctx, "resume.precheck", pre)
 			if done, rep, fast, err := writerRoute(from); done {
 				return rep, fast, err
 			}
